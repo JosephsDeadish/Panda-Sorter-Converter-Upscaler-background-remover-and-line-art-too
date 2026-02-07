@@ -435,8 +435,8 @@ class PS2TextureSorter(ctk.CTk):
         self.tabview = ctk.CTkTabview(main_frame)
         self.tabview.pack(fill="both", expand=True)
         
-        # Create tabs
-        self.tab_sort = self.tabview.add("🗂️ Sort Textures")
+        # Create tabs with panda emojis on key tabs
+        self.tab_sort = self.tabview.add("🐼 Sort Textures")
         self.tab_convert = self.tabview.add("🔄 Convert Files")
         self.tab_browser = self.tabview.add("📁 File Browser")
         self.tab_achievements = self.tabview.add("🏆 Achievements")
@@ -653,13 +653,13 @@ class PS2TextureSorter(ctk.CTk):
         button_frame = ctk.CTkFrame(self.tab_sort)
         button_frame.pack(fill="x", padx=10, pady=10)
         
-        self.start_button = ctk.CTkButton(button_frame, text="▶️ Start Sorting", 
+        self.start_button = ctk.CTkButton(button_frame, text="🐼 Start Sorting", 
                                            command=self.start_sorting, 
                                            width=150, height=40,
                                            font=("Arial Bold", 14))
         self.start_button.pack(side="left", padx=10)
         
-        self.organize_button = ctk.CTkButton(button_frame, text="📂 Organize Now",
+        self.organize_button = ctk.CTkButton(button_frame, text="🐼 Organize Now",
                                               command=self.start_sorting,
                                               width=150, height=40,
                                               font=("Arial Bold", 14),
@@ -797,11 +797,18 @@ class PS2TextureSorter(ctk.CTk):
         button_frame = ctk.CTkFrame(content_frame)
         button_frame.pack(fill="x", padx=10, pady=10)
         
-        self.convert_start_button = ctk.CTkButton(button_frame, text="🔄 Start Conversion", 
-                                                  command=self.start_conversion,
-                                                  width=150, height=40,
-                                                  font=("Arial Bold", 14))
-        self.convert_start_button.pack(side="left", padx=10)
+        # BIGGER, MORE VISIBLE Start Conversion button with panda emoji
+        self.convert_start_button = ctk.CTkButton(
+            button_frame, 
+            text="🐼 START CONVERSION 🐼", 
+            command=self.start_conversion,
+            width=250, 
+            height=60,
+            font=("Arial Bold", 18),
+            fg_color="#2B7A0B",  # Prominent green color
+            hover_color="#368B14"
+        )
+        self.convert_start_button.pack(side="left", padx=20, pady=10)
     
     def start_conversion(self):
         """Start batch conversion"""
@@ -1447,11 +1454,11 @@ Features:
                      font=("Arial", 10), text_color="gray").pack(pady=5)
     
     def create_status_bar(self):
-        """Create bottom status bar"""
+        """Create bottom status bar with panda indicator"""
         status_frame = ctk.CTkFrame(self, height=30, corner_radius=0)
         status_frame.pack(fill="x", side="bottom")
         
-        self.status_label = ctk.CTkLabel(status_frame, text="Ready", font=("Arial", 10))
+        self.status_label = ctk.CTkLabel(status_frame, text="🐼 Ready", font=("Arial", 10))
         self.status_label.pack(side="left", padx=10, pady=5)
     
     def browse_input(self):
