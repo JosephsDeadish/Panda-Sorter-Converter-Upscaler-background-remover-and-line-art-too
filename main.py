@@ -1158,11 +1158,21 @@ class PS2TextureSorter(ctk.CTk):
             
             # Save to JSON
             notes_file = config_dir / "notes.json"
+            
+            # Get existing created timestamp if file exists
+            created_timestamp = datetime.now().isoformat()
+            if notes_file.exists():
+                try:
+                    with open(notes_file, 'r', encoding='utf-8') as f:
+                        existing_data = json.load(f)
+                        created_timestamp = existing_data.get('created', created_timestamp)
+                except Exception:
+                    pass  # Use new timestamp if can't read existing
+            
             notes_data = {
                 'content': content,
                 'last_modified': datetime.now().isoformat(),
-                'created': datetime.now().isoformat() if not notes_file.exists() else 
-                          json.load(open(notes_file, 'r', encoding='utf-8')).get('created', datetime.now().isoformat())
+                'created': created_timestamp
             }
             
             with open(notes_file, 'w', encoding='utf-8') as f:

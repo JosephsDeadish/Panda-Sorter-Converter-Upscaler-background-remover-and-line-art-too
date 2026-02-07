@@ -334,8 +334,13 @@ class TutorialManager:
     
     def _complete_tutorial(self):
         """Complete and close the tutorial"""
-        # Mark tutorial as completed
-        self.config.set('tutorial', 'completed', True)
+        # Check if user wants to skip tutorial in future
+        if hasattr(self, 'dont_show_var') and self.dont_show_var.get():
+            self.config.set('tutorial', 'completed', True)
+        else:
+            # User may want to see tutorial again, just mark as seen
+            self.config.set('tutorial', 'seen', True)
+        
         self.config.save()
         
         # Close tutorial windows
