@@ -246,22 +246,24 @@ class PS2TextureSorter(ctk.CTk):
         self._load_initial_theme()
         
         # Configure window
-        self.title(f"{APP_NAME} v{APP_VERSION}")
+        self.title(f"🐼 {APP_NAME} v{APP_VERSION}")
         self.geometry("1200x800")
-        self.minsize(800, 600)  # Ensure critical UI elements remain accessible
+        self.minsize(900, 650)  # Minimum window size per requirements
         
-        # Set window icon
+        # Set window icon (both .ico for Windows and .png for fallback)
         try:
-            icon_path = Path(__file__).parent / "assets" / "icon.png"
-            if icon_path.exists():
-                from PIL import Image, ImageTk
-                icon_image = Image.open(str(icon_path))
-                self._icon_photo = ImageTk.PhotoImage(icon_image)
-                self.iconphoto(True, self._icon_photo)
+            # Try .ico first (better for Windows taskbar)
+            ico_path = Path(__file__).parent / "assets" / "icon.ico"
+            if ico_path.exists() and sys.platform == 'win32':
+                self.iconbitmap(str(ico_path))
             else:
-                ico_path = Path(__file__).parent / "assets" / "icon.ico"
-                if ico_path.exists():
-                    self.iconbitmap(str(ico_path))
+                # Fallback to .png
+                icon_path = Path(__file__).parent / "assets" / "icon.png"
+                if icon_path.exists():
+                    from PIL import Image, ImageTk
+                    icon_image = Image.open(str(icon_path))
+                    self._icon_photo = ImageTk.PhotoImage(icon_image)
+                    self.iconphoto(True, self._icon_photo)
         except Exception as e:
             logger.debug(f"Could not set window icon: {e}")
         
