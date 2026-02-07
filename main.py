@@ -382,19 +382,19 @@ class PS2TextureSorter(ctk.CTk):
                      font=("Arial", 14)).pack(expand=True)
     
     def create_settings_tab(self):
-        """Create settings tab"""
-        ctk.CTkLabel(self.tab_settings, text="Application Settings",
-                     font=("Arial Bold", 16)).pack(pady=20)
+        """Create enhanced settings tab with all configuration options"""
+        ctk.CTkLabel(self.tab_settings, text="🐼 Application Settings 🐼",
+                     font=("Arial Bold", 18)).pack(pady=15)
         
         # Settings scroll frame
         settings_scroll = ctk.CTkScrollableFrame(self.tab_settings, width=1000, height=600)
         settings_scroll.pack(padx=20, pady=10, fill="both", expand=True)
         
-        # Performance settings
+        # === PERFORMANCE SETTINGS ===
         perf_frame = ctk.CTkFrame(settings_scroll)
         perf_frame.pack(fill="x", padx=10, pady=10)
         
-        ctk.CTkLabel(perf_frame, text="Performance Settings", 
+        ctk.CTkLabel(perf_frame, text="⚡ Performance Settings", 
                      font=("Arial Bold", 14)).pack(anchor="w", padx=10, pady=5)
         
         # Thread count
@@ -402,14 +402,194 @@ class PS2TextureSorter(ctk.CTk):
         thread_frame.pack(fill="x", padx=10, pady=5)
         
         ctk.CTkLabel(thread_frame, text="Thread Count:").pack(side="left", padx=10)
-        thread_slider = ctk.CTkSlider(thread_frame, from_=1, to=16, number_of_steps=15)
-        thread_slider.set(config.get('performance', 'max_threads', default=4))
-        thread_slider.pack(side="left", fill="x", expand=True, padx=10)
+        self.thread_slider = ctk.CTkSlider(thread_frame, from_=1, to=16, number_of_steps=15,
+                                           command=self.update_thread_label)
+        self.thread_slider.set(config.get('performance', 'max_threads', default=4))
+        self.thread_slider.pack(side="left", fill="x", expand=True, padx=10)
+        self.thread_label = ctk.CTkLabel(thread_frame, text=f"{int(self.thread_slider.get())}")
+        self.thread_label.pack(side="left", padx=5)
         
-        # Placeholder for more settings
-        ctk.CTkLabel(settings_scroll, 
-                     text="Additional settings panels coming soon...",
-                     font=("Arial", 11), text_color="gray").pack(pady=20)
+        # Memory limit
+        mem_frame = ctk.CTkFrame(perf_frame)
+        mem_frame.pack(fill="x", padx=10, pady=5)
+        
+        ctk.CTkLabel(mem_frame, text="Memory Limit (MB):").pack(side="left", padx=10)
+        self.memory_var = ctk.StringVar(value=str(config.get('performance', 'memory_limit_mb', default=2048)))
+        mem_entry = ctk.CTkEntry(mem_frame, textvariable=self.memory_var, width=100)
+        mem_entry.pack(side="left", padx=10)
+        
+        # Cache size
+        cache_frame = ctk.CTkFrame(perf_frame)
+        cache_frame.pack(fill="x", padx=10, pady=5)
+        
+        ctk.CTkLabel(cache_frame, text="Thumbnail Cache Size:").pack(side="left", padx=10)
+        self.cache_var = ctk.StringVar(value=str(config.get('performance', 'thumbnail_cache_size', default=500)))
+        cache_entry = ctk.CTkEntry(cache_frame, textvariable=self.cache_var, width=100)
+        cache_entry.pack(side="left", padx=10)
+        
+        # === UI SETTINGS ===
+        ui_frame = ctk.CTkFrame(settings_scroll)
+        ui_frame.pack(fill="x", padx=10, pady=10)
+        
+        ctk.CTkLabel(ui_frame, text="🎨 UI Settings", 
+                     font=("Arial Bold", 14)).pack(anchor="w", padx=10, pady=5)
+        
+        # Theme
+        theme_frame = ctk.CTkFrame(ui_frame)
+        theme_frame.pack(fill="x", padx=10, pady=5)
+        
+        ctk.CTkLabel(theme_frame, text="Theme:").pack(side="left", padx=10)
+        self.theme_var = ctk.StringVar(value=config.get('ui', 'theme', default='dark'))
+        theme_menu = ctk.CTkOptionMenu(theme_frame, variable=self.theme_var,
+                                       values=["dark", "light", "cyberpunk", "neon", "classic"],
+                                       command=self.apply_theme)
+        theme_menu.pack(side="left", padx=10)
+        
+        # Tooltip verbosity
+        tooltip_frame = ctk.CTkFrame(ui_frame)
+        tooltip_frame.pack(fill="x", padx=10, pady=5)
+        
+        ctk.CTkLabel(tooltip_frame, text="Tooltip Mode:").pack(side="left", padx=10)
+        self.tooltip_var = ctk.StringVar(value=config.get('ui', 'tooltip_verbosity', default='normal'))
+        tooltip_menu = ctk.CTkOptionMenu(tooltip_frame, variable=self.tooltip_var,
+                                         values=["expert", "normal", "beginner", "panda_explains"])
+        tooltip_menu.pack(side="left", padx=10)
+        
+        # Cursor style
+        cursor_frame = ctk.CTkFrame(ui_frame)
+        cursor_frame.pack(fill="x", padx=10, pady=5)
+        
+        ctk.CTkLabel(cursor_frame, text="Cursor Style:").pack(side="left", padx=10)
+        self.cursor_var = ctk.StringVar(value=config.get('ui', 'cursor_style', default='default'))
+        cursor_menu = ctk.CTkOptionMenu(cursor_frame, variable=self.cursor_var,
+                                        values=["default", "skull", "panda", "sword"])
+        cursor_menu.pack(side="left", padx=10)
+        
+        # === FILE HANDLING SETTINGS ===
+        file_frame = ctk.CTkFrame(settings_scroll)
+        file_frame.pack(fill="x", padx=10, pady=10)
+        
+        ctk.CTkLabel(file_frame, text="📁 File Handling", 
+                     font=("Arial Bold", 14)).pack(anchor="w", padx=10, pady=5)
+        
+        self.backup_var = ctk.BooleanVar(value=config.get('file_handling', 'create_backup', default=True))
+        ctk.CTkCheckBox(file_frame, text="Create backup before operations", 
+                       variable=self.backup_var).pack(anchor="w", padx=20, pady=3)
+        
+        self.overwrite_var = ctk.BooleanVar(value=config.get('file_handling', 'overwrite_existing', default=False))
+        ctk.CTkCheckBox(file_frame, text="Overwrite existing files", 
+                       variable=self.overwrite_var).pack(anchor="w", padx=20, pady=3)
+        
+        self.autosave_var = ctk.BooleanVar(value=config.get('file_handling', 'auto_save', default=True))
+        ctk.CTkCheckBox(file_frame, text="Auto-save progress", 
+                       variable=self.autosave_var).pack(anchor="w", padx=20, pady=3)
+        
+        # Undo depth
+        undo_frame = ctk.CTkFrame(file_frame)
+        undo_frame.pack(fill="x", padx=10, pady=5)
+        
+        ctk.CTkLabel(undo_frame, text="Undo History Depth:").pack(side="left", padx=10)
+        self.undo_var = ctk.StringVar(value=str(config.get('file_handling', 'undo_depth', default=10)))
+        undo_entry = ctk.CTkEntry(undo_frame, textvariable=self.undo_var, width=100)
+        undo_entry.pack(side="left", padx=10)
+        
+        # === LOGGING SETTINGS ===
+        log_frame = ctk.CTkFrame(settings_scroll)
+        log_frame.pack(fill="x", padx=10, pady=10)
+        
+        ctk.CTkLabel(log_frame, text="📋 Logging", 
+                     font=("Arial Bold", 14)).pack(anchor="w", padx=10, pady=5)
+        
+        # Log level
+        loglevel_frame = ctk.CTkFrame(log_frame)
+        loglevel_frame.pack(fill="x", padx=10, pady=5)
+        
+        ctk.CTkLabel(loglevel_frame, text="Log Level:").pack(side="left", padx=10)
+        self.loglevel_var = ctk.StringVar(value=config.get('logging', 'log_level', default='INFO'))
+        loglevel_menu = ctk.CTkOptionMenu(loglevel_frame, variable=self.loglevel_var,
+                                          values=["DEBUG", "INFO", "WARNING", "ERROR"])
+        loglevel_menu.pack(side="left", padx=10)
+        
+        self.crash_report_var = ctk.BooleanVar(value=config.get('logging', 'crash_reports', default=True))
+        ctk.CTkCheckBox(log_frame, text="Enable crash reports", 
+                       variable=self.crash_report_var).pack(anchor="w", padx=20, pady=3)
+        
+        # === NOTIFICATIONS SETTINGS ===
+        notif_frame = ctk.CTkFrame(settings_scroll)
+        notif_frame.pack(fill="x", padx=10, pady=10)
+        
+        ctk.CTkLabel(notif_frame, text="🔔 Notifications", 
+                     font=("Arial Bold", 14)).pack(anchor="w", padx=10, pady=5)
+        
+        self.sound_var = ctk.BooleanVar(value=config.get('notifications', 'play_sounds', default=True))
+        ctk.CTkCheckBox(notif_frame, text="Play sound effects", 
+                       variable=self.sound_var).pack(anchor="w", padx=20, pady=3)
+        
+        self.completion_var = ctk.BooleanVar(value=config.get('notifications', 'completion_alert', default=True))
+        ctk.CTkCheckBox(notif_frame, text="Alert on operation completion", 
+                       variable=self.completion_var).pack(anchor="w", padx=20, pady=3)
+        
+        # === SAVE BUTTON ===
+        button_frame = ctk.CTkFrame(settings_scroll)
+        button_frame.pack(fill="x", padx=10, pady=20)
+        
+        ctk.CTkButton(button_frame, text="💾 Save Settings", 
+                     command=self.save_settings,
+                     width=200, height=40,
+                     font=("Arial Bold", 14)).pack(pady=10)
+    
+    def update_thread_label(self, value):
+        """Update thread count label"""
+        self.thread_label.configure(text=f"{int(float(value))}")
+    
+    def apply_theme(self, theme_name):
+        """Apply selected theme"""
+        if theme_name in ['dark', 'light']:
+            ctk.set_appearance_mode(theme_name)
+            self.log(f"Theme changed to: {theme_name}")
+        else:
+            self.log(f"Custom theme '{theme_name}' - feature coming soon!")
+    
+    def save_settings(self):
+        """Save all settings to config"""
+        try:
+            # Performance
+            config.set('performance', 'max_threads', value=int(self.thread_slider.get()))
+            config.set('performance', 'memory_limit_mb', value=int(self.memory_var.get()))
+            config.set('performance', 'thumbnail_cache_size', value=int(self.cache_var.get()))
+            
+            # UI
+            config.set('ui', 'theme', value=self.theme_var.get())
+            config.set('ui', 'tooltip_verbosity', value=self.tooltip_var.get())
+            config.set('ui', 'cursor_style', value=self.cursor_var.get())
+            
+            # File Handling
+            config.set('file_handling', 'create_backup', value=self.backup_var.get())
+            config.set('file_handling', 'overwrite_existing', value=self.overwrite_var.get())
+            config.set('file_handling', 'auto_save', value=self.autosave_var.get())
+            config.set('file_handling', 'undo_depth', value=int(self.undo_var.get()))
+            
+            # Logging
+            config.set('logging', 'log_level', value=self.loglevel_var.get())
+            config.set('logging', 'crash_reports', value=self.crash_report_var.get())
+            
+            # Notifications
+            config.set('notifications', 'play_sounds', value=self.sound_var.get())
+            config.set('notifications', 'completion_alert', value=self.completion_var.get())
+            
+            # Save to file
+            config.save()
+            
+            self.log("✅ Settings saved successfully!")
+            
+            # Show confirmation
+            if GUI_AVAILABLE:
+                messagebox.showinfo("Settings Saved", "All settings have been saved successfully!")
+                
+        except Exception as e:
+            self.log(f"❌ Error saving settings: {e}")
+            if GUI_AVAILABLE:
+                messagebox.showerror("Error", f"Failed to save settings: {e}")
     
     def create_notepad_tab(self):
         """Create notepad tab"""
