@@ -7,7 +7,7 @@ Author: Dead On The Inside / JosephsDeadish
 import logging
 import threading
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple, Any
 import numpy as np
 
 try:
