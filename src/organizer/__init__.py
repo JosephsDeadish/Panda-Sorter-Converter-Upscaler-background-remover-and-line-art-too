@@ -6,7 +6,7 @@ This package contains the organization/hierarchy system for sorting textures
 into various folder structures based on different organization styles.
 """
 
-from .organization_engine import OrganizationEngine
+from .organization_engine import OrganizationEngine, TextureInfo
 from .organization_styles import (
     SimsStyle,
     NeopetsStyle,
@@ -22,6 +22,7 @@ from .organization_styles import (
 
 __all__ = [
     'OrganizationEngine',
+    'TextureInfo',
     'SimsStyle',
     'NeopetsStyle',
     'FlatStyle',
