@@ -560,7 +560,55 @@ class TooltipVerbosityManager:
         }
 
 
-class ContextHelp:
+class WidgetTooltip:
+    """Simple hover tooltip for widgets"""
+    
+    def __init__(self, widget, text, delay=500):
+        self.widget = widget
+        self.text = text
+        self.delay = delay
+        self.tip_window = None
+        self._after_id = None
+        widget.bind("<Enter>", self._on_enter)
+        widget.bind("<Leave>", self._on_leave)
+    
+    def _on_enter(self, event=None):
+        self._after_id = self.widget.after(self.delay, self._show_tip)
+    
+    def _on_leave(self, event=None):
+        if self._after_id:
+            self.widget.after_cancel(self._after_id)
+            self._after_id = None
+        self._hide_tip()
+    
+    def _show_tip(self):
+        if not self.text:
+            return
+        try:
+            x = self.widget.winfo_rootx() + 20
+            y = self.widget.winfo_rooty() + self.widget.winfo_height() + 5
+            self.tip_window = tw = ctk.CTkToplevel(self.widget)
+            tw.wm_overrideredirect(True)
+            tw.wm_geometry(f"+{x}+{y}")
+            tw.attributes('-topmost', True)
+            label = ctk.CTkLabel(tw, text=self.text, wraplength=300,
+                                 font=("Arial", 11), corner_radius=6,
+                                 fg_color=("gray85", "gray25"),
+                                 padx=8, pady=4)
+            label.pack()
+        except Exception:
+            pass
+    
+    def _hide_tip(self):
+        if self.tip_window:
+            try:
+                self.tip_window.destroy()
+            except Exception:
+                pass
+            self.tip_window = None
+    
+    def update_text(self, text):
+        self.text = text
     """Provides context-sensitive help with F1 key"""
     
     def __init__(self, master_window, config):
@@ -803,5 +851,4 @@ def setup_tutorial_system(master_window, config):
     manager = TutorialManager(master_window, config)
     tooltip_manager = TooltipVerbosityManager(config)
     context_help = ContextHelp(master_window, config)
-    
     return manager, tooltip_manager, context_help
