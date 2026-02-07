@@ -38,6 +38,14 @@ from src.file_handler import FileHandler
 from src.database import TextureDatabase
 from src.organizer import OrganizationEngine, ORGANIZATION_STYLES, TextureInfo
 
+# Import UI customization
+try:
+    from src.ui.customization_panel import open_customization_dialog
+    CUSTOMIZATION_AVAILABLE = True
+except ImportError:
+    CUSTOMIZATION_AVAILABLE = False
+    print("Warning: UI customization panel not available.")
+
 
 class SplashScreen:
     """Splash screen with panda logo and loading animation"""
@@ -172,13 +180,12 @@ class PS2TextureSorter(ctk.CTk):
     def __init__(self):
         super().__init__()
         
+        # Load theme from config before creating UI
+        self._load_initial_theme()
+        
         # Configure window
         self.title(f"{APP_NAME} v{APP_VERSION}")
         self.geometry("1200x800")
-        
-        # Set theme
-        ctk.set_appearance_mode(config.get('ui', 'theme', default='dark'))
-        ctk.set_default_color_theme("blue")
         
         # Initialize core components
         self.classifier = TextureClassifier(config)
@@ -192,7 +199,26 @@ class PS2TextureSorter(ctk.CTk):
         
         # Status
         self.current_operation = None
-        
+    
+    def _load_initial_theme(self):
+        """Load theme settings from config on startup"""
+        try:
+            # Get theme from config
+            theme = config.get('ui', 'theme', default='dark')
+            appearance_mode = config.get('ui', 'appearance_mode', default='dark')
+            
+            # Apply appearance mode
+            if appearance_mode in ['dark', 'light']:
+                ctk.set_appearance_mode(appearance_mode)
+            else:
+                ctk.set_appearance_mode('dark')
+            
+            ctk.set_default_color_theme("blue")
+        except Exception as e:
+            print(f"Warning: Failed to load theme: {e}")
+            ctk.set_appearance_mode("dark")
+            ctk.set_default_color_theme("blue")
+    
     def create_menu(self):
         """Create top menu bar (simulated with frame)"""
         menu_frame = ctk.CTkFrame(self, height=40, corner_radius=0)
@@ -732,6 +758,17 @@ class PS2TextureSorter(ctk.CTk):
         ctk.CTkCheckBox(notif_frame, text="Alert on operation completion", 
                        variable=self.completion_var).pack(anchor="w", padx=20, pady=3)
         
+        # === CUSTOMIZATION SECTION ===
+        custom_frame = ctk.CTkFrame(settings_scroll)
+        custom_frame.pack(fill="x", padx=10, pady=10)
+        
+        ctk.CTkLabel(custom_frame, text="🎨 UI Customization", 
+                     font=("Arial Bold", 14)).pack(anchor="w", padx=10, pady=5)
+        
+        ctk.CTkButton(custom_frame, text="Open Customization Panel",
+                     command=self.open_customization,
+                     width=250, height=35).pack(padx=20, pady=10)
+        
         # === SAVE BUTTON ===
         button_frame = ctk.CTkFrame(settings_scroll)
         button_frame.pack(fill="x", padx=10, pady=20)
@@ -752,6 +789,23 @@ class PS2TextureSorter(ctk.CTk):
             self.log(f"Theme changed to: {theme_name}")
         else:
             self.log(f"Custom theme '{theme_name}' - feature coming soon!")
+    
+    def open_customization(self):
+        """Open UI customization dialog"""
+        if CUSTOMIZATION_AVAILABLE:
+            try:
+                open_customization_dialog(parent=self)
+                self.log("✅ Opened UI Customization panel")
+            except Exception as e:
+                self.log(f"❌ Error opening customization: {e}")
+                if GUI_AVAILABLE:
+                    messagebox.showerror("Error", f"Failed to open customization panel: {e}")
+        else:
+            self.log("⚠️ UI Customization not available")
+            if GUI_AVAILABLE:
+                messagebox.showwarning("Not Available", 
+                                     "UI customization panel is not available.\n"
+                                     "Please check your installation.")
     
     def save_settings(self):
         """Save all settings to config"""
