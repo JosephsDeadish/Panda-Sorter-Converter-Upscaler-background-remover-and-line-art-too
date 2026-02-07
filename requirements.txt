@@ -14,9 +14,6 @@ scikit-image>=0.21.0
 # DDS Support
 Pillow>=10.0.0  # Has basic DDS support
 
-# Database
-sqlite3  # Built-in to Python
-
 # Machine Learning (lightweight)
 scikit-learn>=1.3.0
 
