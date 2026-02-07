@@ -1413,43 +1413,177 @@ class PS2TextureSorter(ctk.CTk):
             self.notepad_text.delete("1.0", "end")
     
     def create_about_tab(self):
-        """Create about tab"""
-        about_frame = ctk.CTkFrame(self.tab_about)
-        about_frame.pack(pady=50, padx=50, fill="both", expand=True)
+        """Create comprehensive about tab with hotkeys, features, and panda info"""
+        # Create scrollable frame for all content
+        scrollable_frame = ctk.CTkScrollableFrame(self.tab_about)
+        scrollable_frame.pack(fill="both", expand=True, padx=10, pady=10)
         
-        # Title
-        ctk.CTkLabel(about_frame, text=f"🐼 {APP_NAME} 🐼",
-                     font=("Arial Bold", 24)).pack(pady=20)
+        # ============= TITLE & VERSION =============
+        ctk.CTkLabel(scrollable_frame, text=f"🐼 {APP_NAME} 🐼",
+                     font=("Arial Bold", 28)).pack(pady=15)
         
-        # Version
-        ctk.CTkLabel(about_frame, text=f"Version {APP_VERSION}",
-                     font=("Arial", 14)).pack(pady=5)
+        ctk.CTkLabel(scrollable_frame, text=f"Version {APP_VERSION}",
+                     font=("Arial", 16)).pack(pady=5)
         
-        # Author
-        ctk.CTkLabel(about_frame, text=f"Author: {APP_AUTHOR}",
-                     font=("Arial", 12)).pack(pady=5)
+        ctk.CTkLabel(scrollable_frame, text=f"by {APP_AUTHOR}",
+                     font=("Arial", 14), text_color="gray").pack(pady=5)
         
-        # Description
-        desc_text = """
-A professional, single-executable Windows application for automatically 
+        # ============= DESCRIPTION =============
+        desc_frame = ctk.CTkFrame(scrollable_frame)
+        desc_frame.pack(fill="x", padx=20, pady=15)
+        
+        desc_text = """A professional, single-executable Windows application for automatically 
 sorting PS2 texture dumps with advanced AI classification and massive-scale 
-support (200,000+ textures).
-
-Features:
-• 50+ texture categories with AI classification
-• LOD detection and grouping
-• DDS ↔ PNG conversion
-• Database indexing for massive libraries
-• Multiple organization styles
-• Panda-themed modern UI
-• 100% offline operation
-        """
+support (200,000+ textures). 100% offline operation."""
         
-        ctk.CTkLabel(about_frame, text=desc_text,
-                     font=("Arial", 11), justify="left").pack(pady=20)
+        ctk.CTkLabel(desc_frame, text=desc_text,
+                     font=("Arial", 12), justify="left", wraplength=900).pack(pady=15, padx=15)
+        
+        # ============= KEYBOARD SHORTCUTS =============
+        hotkeys_frame = ctk.CTkFrame(scrollable_frame)
+        hotkeys_frame.pack(fill="x", padx=20, pady=15)
+        
+        ctk.CTkLabel(hotkeys_frame, text="⌨️ KEYBOARD SHORTCUTS",
+                     font=("Arial Bold", 18)).pack(pady=10)
+        
+        # Define hotkeys by category
+        hotkey_categories = {
+            "📁 File Operations": [
+                ("Ctrl+O", "Open files"),
+                ("Ctrl+S", "Save results"),
+                ("Ctrl+E", "Export data"),
+                ("Alt+F4", "Close application")
+            ],
+            "⚙️ Processing": [
+                ("Ctrl+P", "Start processing"),
+                ("Ctrl+Shift+P", "Pause processing"),
+                ("Ctrl+Shift+S", "Stop processing"),
+                ("Ctrl+R", "Resume processing")
+            ],
+            "👁️ View": [
+                ("Ctrl+T", "Toggle preview panel"),
+                ("F5", "Refresh view"),
+                ("F11", "Toggle fullscreen"),
+                ("Ctrl+B", "Toggle sidebar")
+            ],
+            "🧭 Navigation": [
+                ("Right Arrow", "Next texture"),
+                ("Left Arrow", "Previous texture"),
+                ("Home", "First texture"),
+                ("End", "Last texture")
+            ],
+            "✅ Selection": [
+                ("Ctrl+A", "Select all"),
+                ("Ctrl+D", "Deselect all"),
+                ("Ctrl+I", "Invert selection")
+            ],
+            "🔧 Tools": [
+                ("Ctrl+F", "Search"),
+                ("Ctrl+Shift+F", "Filter"),
+                ("Ctrl+,", "Settings"),
+                ("Ctrl+Shift+T", "Statistics")
+            ],
+            "🐼 Special Features": [
+                ("Ctrl+Shift+A", "View achievements"),
+                ("Ctrl+M", "Toggle sound"),
+                ("F1", "Help / Tutorial")
+            ],
+            "🌍 Global (works when app not focused)": [
+                ("Ctrl+Alt+P", "Global start processing"),
+                ("Ctrl+Alt+Space", "Global pause")
+            ]
+        }
+        
+        # Display hotkeys by category
+        for category, hotkeys in hotkey_categories.items():
+            cat_frame = ctk.CTkFrame(hotkeys_frame)
+            cat_frame.pack(fill="x", padx=15, pady=8)
+            
+            ctk.CTkLabel(cat_frame, text=category,
+                        font=("Arial Bold", 14)).pack(anchor="w", padx=10, pady=5)
+            
+            for key, description in hotkeys:
+                hotkey_row = ctk.CTkFrame(cat_frame)
+                hotkey_row.pack(fill="x", padx=20, pady=2)
+                
+                ctk.CTkLabel(hotkey_row, text=key,
+                            font=("Courier Bold", 11), width=180, 
+                            anchor="w").pack(side="left", padx=5)
+                ctk.CTkLabel(hotkey_row, text=description,
+                            font=("Arial", 11), anchor="w").pack(side="left", padx=5)
+        
+        # ============= FEATURES =============
+        features_frame = ctk.CTkFrame(scrollable_frame)
+        features_frame.pack(fill="x", padx=20, pady=15)
+        
+        ctk.CTkLabel(features_frame, text="✨ FEATURES",
+                     font=("Arial Bold", 18)).pack(pady=10)
+        
+        features_list = [
+            "🎯 50+ texture categories with AI classification",
+            "🔍 LOD detection and grouping",
+            "🔄 DDS ↔ PNG conversion",
+            "💾 Database indexing for massive libraries (200,000+ textures)",
+            "📂 Multiple organization styles (Sims, Neopets, Flat, Game Area, etc.)",
+            "🎨 Modern panda-themed UI with multiple themes",
+            "🏆 Achievement system with unlockables",
+            "📊 Statistics and analytics tracking",
+            "🔎 Advanced search and filtering",
+            "📝 Built-in notepad for project notes",
+            "🖼️ File browser with thumbnail preview",
+            "🎮 Panda Mode with fun animations and quotes",
+            "🔊 Sound effects and audio feedback",
+            "📚 Interactive tutorial system",
+            "⚡ Batch processing and automation",
+            "🛡️ 100% offline operation - no network calls"
+        ]
+        
+        for feature in features_list:
+            ctk.CTkLabel(features_frame, text=feature,
+                        font=("Arial", 11), anchor="w").pack(anchor="w", padx=20, pady=3)
+        
+        # ============= PANDA MODE =============
+        panda_frame = ctk.CTkFrame(scrollable_frame)
+        panda_frame.pack(fill="x", padx=20, pady=15)
+        
+        ctk.CTkLabel(panda_frame, text="🐼 PANDA MODE",
+                     font=("Arial Bold", 18)).pack(pady=10)
+        
+        panda_text = """Panda Mode adds personality and fun to the texture sorting experience!
+
+• Random panda facts and jokes during processing
+• Encouraging messages and progress celebrations
+• Easter eggs and surprises hidden throughout the app
+• Vulgar Mode toggle for uncensored panda commentary (off by default)
+• Animated panda helper that reacts to your actions
+• Click the panda for random responses and interactions
+
+Panda Mode can be customized in Settings → Appearance & Customization."""
+        
+        ctk.CTkLabel(panda_frame, text=panda_text,
+                     font=("Arial", 11), justify="left", wraplength=900).pack(pady=10, padx=20)
+        
+        # ============= CREDITS =============
+        credits_frame = ctk.CTkFrame(scrollable_frame)
+        credits_frame.pack(fill="x", padx=20, pady=15)
+        
+        ctk.CTkLabel(credits_frame, text="👥 CREDITS",
+                     font=("Arial Bold", 18)).pack(pady=10)
+        
+        credits_text = """Developed with 🐼 by Dead On The Inside / JosephsDeadish
+
+Built with:
+• Python 3.8+
+• CustomTkinter for modern UI
+• PIL/Pillow for image processing
+• NumPy for texture analysis
+• And lots of bamboo 🎋"""
+        
+        ctk.CTkLabel(credits_frame, text=credits_text,
+                     font=("Arial", 11), justify="left").pack(pady=10, padx=20)
         
         # Repository link
-        ctk.CTkLabel(about_frame, 
+        ctk.CTkLabel(credits_frame, 
                      text="Repository: JosephsDeadish/PS2-texture-sorter",
                      font=("Arial", 10), text_color="gray").pack(pady=5)
     
