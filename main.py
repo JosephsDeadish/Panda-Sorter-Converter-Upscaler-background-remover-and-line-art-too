@@ -844,7 +844,7 @@ class PS2TextureSorter(ctk.CTk):
             
             # Scan for files
             self.after(0, self.convert_progress_bar.set, 0.1)
-            self.after(0, self.convert_progress_label.configure, {"text": "Scanning files..."})
+            self.after(0, lambda: self.convert_progress_label.configure(text="Scanning files..."))
             
             if recursive:
                 files = list(input_path.rglob(f"*{from_format}"))
@@ -888,7 +888,7 @@ class PS2TextureSorter(ctk.CTk):
                     # Progress
                     progress = 0.1 + (0.9 * (i + 1) / total)
                     self.after(0, self.convert_progress_bar.set, progress)
-                    self.after(0, self.convert_progress_label.configure, {"text": f"Converting {i+1}/{total}..."})
+                    self.after(0, lambda i=i, total=total: self.convert_progress_label.configure(text=f"Converting {i+1}/{total}..."))
                     
                     # Log every 10th file
                     if (i+1) % 10 == 0 or i == total - 1:
@@ -901,7 +901,7 @@ class PS2TextureSorter(ctk.CTk):
             
             # Complete
             self.after(0, self.convert_progress_bar.set, 1.0)
-            self.after(0, self.convert_progress_label.configure, {"text": "Conversion complete!"})
+            self.after(0, lambda: self.convert_progress_label.configure(text="Conversion complete!"))
             self.convert_log("=" * 60)
             self.convert_log("✓ BATCH CONVERSION COMPLETED!")
             self.convert_log(f"Successfully converted: {converted}")
@@ -914,7 +914,7 @@ class PS2TextureSorter(ctk.CTk):
         
         finally:
             # Re-enable button
-            self.after(0, self.convert_start_button.configure, {"state": "normal"})
+            self.after(0, lambda: self.convert_start_button.configure(state="normal"))
     
     def convert_log(self, message):
         """Add message to conversion log - thread-safe"""
@@ -1633,10 +1633,10 @@ Features:
         
         finally:
             # Re-enable buttons
-            self.after(0, self.start_button.configure, {"state": "normal"})
-            self.after(0, self.organize_button.configure, {"state": "normal"})
-            self.after(0, self.pause_button.configure, {"state": "disabled"})
-            self.after(0, self.stop_button.configure, {"state": "disabled"})
+            self.after(0, lambda: self.start_button.configure(state="normal"))
+            self.after(0, lambda: self.organize_button.configure(state="normal"))
+            self.after(0, lambda: self.pause_button.configure(state="disabled"))
+            self.after(0, lambda: self.stop_button.configure(state="disabled"))
     
     def pause_sorting(self):
         """Pause sorting operation"""
