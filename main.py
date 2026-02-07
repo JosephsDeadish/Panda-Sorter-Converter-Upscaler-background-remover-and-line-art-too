@@ -66,14 +66,14 @@ except ImportError:
     print("Warning: Sound manager not available.")
 
 try:
-    from src.features.achievements import AchievementManager
+    from src.features.achievements import AchievementSystem
     ACHIEVEMENTS_AVAILABLE = True
 except ImportError:
     ACHIEVEMENTS_AVAILABLE = False
     print("Warning: Achievements system not available.")
 
 try:
-    from src.features.unlockables_system import UnlockablesManager
+    from src.features.unlockables_system import UnlockablesSystem
     UNLOCKABLES_AVAILABLE = True
 except ImportError:
     UNLOCKABLES_AVAILABLE = False
@@ -293,9 +293,10 @@ class PS2TextureSorter(ctk.CTk):
                 if SOUND_AVAILABLE:
                     self.sound_manager = SoundManager()
                 if ACHIEVEMENTS_AVAILABLE:
-                    self.achievement_manager = AchievementManager(config)
+                    achievements_save = str(Path.home() / ".ps2_texture_sorter" / "achievements.json")
+                    self.achievement_manager = AchievementSystem(save_file=achievements_save)
                 if UNLOCKABLES_AVAILABLE:
-                    self.unlockables_manager = UnlockablesManager(config)
+                    self.unlockables_manager = UnlockablesSystem()
                 if STATISTICS_AVAILABLE:
                     self.stats_tracker = StatisticsTracker(config)
                 if SEARCH_FILTER_AVAILABLE:
@@ -348,11 +349,10 @@ class PS2TextureSorter(ctk.CTk):
         try:
             # Get theme from config
             theme = config.get('ui', 'theme', default='dark')
-            appearance_mode = config.get('ui', 'appearance_mode', default='dark')
             
             # Apply appearance mode
-            if appearance_mode in ['dark', 'light']:
-                ctk.set_appearance_mode(appearance_mode)
+            if theme in ['dark', 'light']:
+                ctk.set_appearance_mode(theme)
             else:
                 ctk.set_appearance_mode('dark')
             
@@ -402,6 +402,27 @@ class PS2TextureSorter(ctk.CTk):
             command=self.open_settings_window
         )
         settings_button.pack(side="right", padx=10, pady=5)
+        
+        # Tutorial button - always visible so user can restart tutorial
+        if TUTORIAL_AVAILABLE:
+            tutorial_button = ctk.CTkButton(
+                menu_frame,
+                text="📖 Tutorial",
+                width=100,
+                command=self._run_tutorial
+            )
+            tutorial_button.pack(side="right", padx=10, pady=5)
+    
+    def _run_tutorial(self):
+        """Start or restart the tutorial"""
+        if self.tutorial_manager:
+            # Reset tutorial completion flags so it can be shown again
+            self.tutorial_manager.config.set('tutorial', 'completed', value=False)
+            self.tutorial_manager.config.set('tutorial', 'seen', value=False)
+            self.tutorial_manager.start_tutorial()
+        else:
+            if GUI_AVAILABLE:
+                messagebox.showinfo("Tutorial", "Tutorial system is not available.")
     
     def create_main_ui(self):
         """Create main tabbed interface"""
@@ -1187,42 +1208,38 @@ class PS2TextureSorter(ctk.CTk):
                 achieve_frame.pack(fill="x", padx=10, pady=5)
                 
                 # Lock/unlock status
-                status = "🔓" if achievement.get('unlocked', False) else "🔒"
+                status = "🔓" if achievement.unlocked else "🔒"
                 
                 # Title and description
-                title_text = f"{status} {achievement.get('name', 'Unknown')}"
+                title_text = f"{status} {achievement.icon} {achievement.name}"
                 ctk.CTkLabel(achieve_frame, text=title_text,
                             font=("Arial Bold", 14)).pack(anchor="w", padx=10, pady=5)
                 
-                desc_text = achievement.get('description', 'No description')
+                desc_text = achievement.description
                 ctk.CTkLabel(achieve_frame, text=desc_text,
                             font=("Arial", 11), text_color="gray").pack(anchor="w", padx=20, pady=2)
                 
-                # Progress bar (if applicable)
-                if 'progress' in achievement and 'required' in achievement:
-                    progress = achievement['progress']
-                    required = achievement['required']
-                    
-                    progress_frame = ctk.CTkFrame(achieve_frame)
-                    progress_frame.pack(fill="x", padx=20, pady=5)
-                    
-                    progress_bar = ctk.CTkProgressBar(progress_frame, width=400)
-                    progress_bar.pack(side="left", padx=5)
-                    
-                    # Calculate progress: handle both numeric and boolean achievements
-                    if required > 0:
-                        progress_value = min(progress / required, 1.0)
-                    elif progress > 0:
-                        progress_value = 1.0  # Non-numeric achievement (simply unlocked)
-                    else:
-                        progress_value = 0.0  # Not started
-                    
-                    progress_bar.set(progress_value)
-                    
-                    progress_label = ctk.CTkLabel(progress_frame, 
-                                                  text=f"{progress}/{required}",
-                                                  font=("Arial", 10))
-                    progress_label.pack(side="left", padx=5)
+                # Progress bar
+                progress = achievement.progress
+                required = achievement.progress_max
+                
+                progress_frame = ctk.CTkFrame(achieve_frame)
+                progress_frame.pack(fill="x", padx=20, pady=5)
+                
+                progress_bar = ctk.CTkProgressBar(progress_frame, width=400)
+                progress_bar.pack(side="left", padx=5)
+                
+                if required > 0:
+                    progress_value = min(progress / required, 1.0)
+                else:
+                    progress_value = 1.0 if achievement.unlocked else 0.0
+                
+                progress_bar.set(progress_value)
+                
+                progress_label = ctk.CTkLabel(progress_frame, 
+                                              text=f"{int(progress)}/{int(required)}",
+                                              font=("Arial", 10))
+                progress_label.pack(side="left", padx=5)
                 
         except Exception as e:
             ctk.CTkLabel(achieve_scroll,
@@ -1247,29 +1264,24 @@ class PS2TextureSorter(ctk.CTk):
         rewards_scroll = ctk.CTkScrollableFrame(self.tab_rewards, width=1000, height=600)
         rewards_scroll.pack(padx=20, pady=10, fill="both", expand=True)
         
-        # Get unlockables by category
+        # Display unlockables by category using actual UnlockablesSystem attributes
         try:
-            categories = ['cursors', 'panda_outfits', 'themes', 'animations']
-            category_labels = {
-                'cursors': '🖱️ Custom Cursors',
-                'panda_outfits': '🐼 Panda Outfits',
-                'themes': '🎨 Themes',
-                'animations': '✨ Animations'
-            }
+            categories = [
+                ('🖱️ Custom Cursors', self.unlockables_manager.cursors),
+                ('🐼 Panda Outfits', self.unlockables_manager.outfits),
+                ('🎨 Themes', self.unlockables_manager.themes),
+                ('✨ Animations', self.unlockables_manager.animations),
+            ]
             
-            for category in categories:
+            for cat_label, items_dict in categories:
                 # Category header
                 cat_frame = ctk.CTkFrame(rewards_scroll)
                 cat_frame.pack(fill="x", padx=10, pady=10)
                 
-                ctk.CTkLabel(cat_frame, 
-                            text=category_labels.get(category, category.title()),
+                ctk.CTkLabel(cat_frame, text=cat_label,
                             font=("Arial Bold", 16)).pack(anchor="w", padx=10, pady=10)
                 
-                # Get items in category
-                items = self.unlockables_manager.get_unlockables_by_category(category)
-                
-                if not items:
+                if not items_dict:
                     ctk.CTkLabel(cat_frame, 
                                 text="No items in this category",
                                 font=("Arial", 11), 
@@ -1277,25 +1289,22 @@ class PS2TextureSorter(ctk.CTk):
                     continue
                 
                 # Display each item
-                for item in items:
+                for item in items_dict.values():
                     item_frame = ctk.CTkFrame(cat_frame)
                     item_frame.pack(fill="x", padx=10, pady=3)
                     
                     # Lock/unlock status
-                    is_unlocked = item.get('unlocked', False)
-                    status = "✓" if is_unlocked else "🔒"
+                    status = "✓" if item.unlocked else "🔒"
                     
                     # Item name
-                    item_text = f"{status} {item.get('name', 'Unknown')}"
+                    item_text = f"{status} {item.name}"
                     ctk.CTkLabel(item_frame, text=item_text,
                                 font=("Arial", 12)).pack(side="left", padx=10, pady=5)
                     
-                    # Unlock condition (if locked)
-                    if not is_unlocked and 'unlock_condition' in item:
-                        condition_text = f"({item['unlock_condition']})"
-                        ctk.CTkLabel(item_frame, text=condition_text,
-                                    font=("Arial", 10),
-                                    text_color="gray").pack(side="left", padx=5)
+                    # Description
+                    ctk.CTkLabel(item_frame, text=item.description,
+                                font=("Arial", 10),
+                                text_color="gray").pack(side="left", padx=5)
                 
         except Exception as e:
             ctk.CTkLabel(rewards_scroll,

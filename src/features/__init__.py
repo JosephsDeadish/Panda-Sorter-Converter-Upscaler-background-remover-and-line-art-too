@@ -5,46 +5,73 @@ hotkeys, sound system, achievements, and panda mode
 Author: Dead On The Inside / JosephsDeadish
 """
 
-from .statistics import StatisticsTracker
-from .texture_analysis import TextureAnalyzer
-from .search_filter import SearchFilter, FilterCriteria, SearchPreset
-from .profile_manager import ProfileManager, OrganizationProfile, GameTemplate
-from .batch_operations import BatchQueue, Operation, OperationStatus, OperationPriority, BatchOperationHelper
-from .lod_replacement import LODReplacer, LODTexture, LODGroup
-from .backup_system import BackupManager, BackupMetadata, RestorePoint
-from .hotkey_manager import HotkeyManager, Hotkey
-from .sound_manager import SoundManager, SoundEvent, SoundPack
-from .achievements import AchievementSystem, Achievement, AchievementTier
-from .panda_mode import PandaMode, PandaMood
+# Use lazy imports with fallbacks to avoid cascading failures
+# when optional dependencies (e.g., cv2, numpy) are missing
 
-__all__ = [
-    'StatisticsTracker',
-    'TextureAnalyzer',
-    'SearchFilter',
-    'FilterCriteria',
-    'SearchPreset',
-    'ProfileManager',
-    'OrganizationProfile',
-    'GameTemplate',
-    'BatchQueue',
-    'Operation',
-    'OperationStatus',
-    'OperationPriority',
-    'BatchOperationHelper',
-    'LODReplacer',
-    'LODTexture',
-    'LODGroup',
-    'BackupManager',
-    'BackupMetadata',
-    'RestorePoint',
-    'HotkeyManager',
-    'Hotkey',
-    'SoundManager',
-    'SoundEvent',
-    'SoundPack',
-    'AchievementSystem',
-    'Achievement',
-    'AchievementTier',
-    'PandaMode',
-    'PandaMood',
-]
+__all__ = []
+
+try:
+    from .statistics import StatisticsTracker
+    __all__.append('StatisticsTracker')
+except ImportError:
+    pass
+
+try:
+    from .texture_analysis import TextureAnalyzer
+    __all__.append('TextureAnalyzer')
+except ImportError:
+    pass
+
+try:
+    from .search_filter import SearchFilter, FilterCriteria, SearchPreset
+    __all__.extend(['SearchFilter', 'FilterCriteria', 'SearchPreset'])
+except ImportError:
+    pass
+
+try:
+    from .profile_manager import ProfileManager, OrganizationProfile, GameTemplate
+    __all__.extend(['ProfileManager', 'OrganizationProfile', 'GameTemplate'])
+except ImportError:
+    pass
+
+try:
+    from .batch_operations import BatchQueue, Operation, OperationStatus, OperationPriority, BatchOperationHelper
+    __all__.extend(['BatchQueue', 'Operation', 'OperationStatus', 'OperationPriority', 'BatchOperationHelper'])
+except ImportError:
+    pass
+
+try:
+    from .lod_replacement import LODReplacer, LODTexture, LODGroup
+    __all__.extend(['LODReplacer', 'LODTexture', 'LODGroup'])
+except ImportError:
+    pass
+
+try:
+    from .backup_system import BackupManager, BackupMetadata, RestorePoint
+    __all__.extend(['BackupManager', 'BackupMetadata', 'RestorePoint'])
+except ImportError:
+    pass
+
+try:
+    from .hotkey_manager import HotkeyManager, Hotkey
+    __all__.extend(['HotkeyManager', 'Hotkey'])
+except ImportError:
+    pass
+
+try:
+    from .sound_manager import SoundManager, SoundEvent, SoundPack
+    __all__.extend(['SoundManager', 'SoundEvent', 'SoundPack'])
+except ImportError:
+    pass
+
+try:
+    from .achievements import AchievementSystem, Achievement, AchievementTier
+    __all__.extend(['AchievementSystem', 'Achievement', 'AchievementTier'])
+except ImportError:
+    pass
+
+try:
+    from .panda_mode import PandaMode, PandaMood
+    __all__.extend(['PandaMode', 'PandaMood'])
+except ImportError:
+    pass
