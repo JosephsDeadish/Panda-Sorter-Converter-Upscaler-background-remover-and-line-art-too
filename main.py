@@ -354,20 +354,223 @@ class PS2TextureSorter(ctk.CTk):
         self.stop_button.pack(side="left", padx=10)
     
     def create_convert_tab(self):
-        """Create file conversion tab"""
-        ctk.CTkLabel(self.tab_convert, text="File Format Conversion", 
-                     font=("Arial Bold", 16)).pack(pady=20)
+        """Create file format conversion tab"""
+        ctk.CTkLabel(self.tab_convert, text="🔄 File Format Conversion 🔄", 
+                     font=("Arial Bold", 18)).pack(pady=15)
         
-        ctk.CTkLabel(self.tab_convert, text="Convert between DDS and PNG formats",
-                     font=("Arial", 12)).pack(pady=10)
+        ctk.CTkLabel(self.tab_convert, text="Batch convert between DDS, PNG, and other formats",
+                     font=("Arial", 12)).pack(pady=5)
         
-        # Coming soon message
-        info_frame = ctk.CTkFrame(self.tab_convert)
-        info_frame.pack(pady=50, padx=50, fill="both", expand=True)
+        # Main content frame
+        content_frame = ctk.CTkFrame(self.tab_convert)
+        content_frame.pack(padx=30, pady=20, fill="both", expand=True)
         
-        ctk.CTkLabel(info_frame, 
-                     text="🚧 Batch conversion UI coming soon! 🚧\n\nCore conversion engine is ready.",
-                     font=("Arial", 14)).pack(expand=True)
+        # === INPUT SECTION ===
+        input_frame = ctk.CTkFrame(content_frame)
+        input_frame.pack(fill="x", padx=10, pady=10)
+        
+        ctk.CTkLabel(input_frame, text="Input:", font=("Arial Bold", 12)).grid(row=0, column=0, padx=10, pady=5, sticky="w")
+        self.convert_input_var = ctk.StringVar()
+        ctk.CTkEntry(input_frame, textvariable=self.convert_input_var, width=500).grid(row=0, column=1, padx=10, pady=5, sticky="ew")
+        ctk.CTkButton(input_frame, text="Browse", width=100, 
+                     command=lambda: self.browse_directory(self.convert_input_var)).grid(row=0, column=2, padx=10, pady=5)
+        
+        input_frame.columnconfigure(1, weight=1)
+        
+        # === CONVERSION OPTIONS ===
+        options_frame = ctk.CTkFrame(content_frame)
+        options_frame.pack(fill="x", padx=10, pady=10)
+        
+        ctk.CTkLabel(options_frame, text="Conversion Options:", 
+                     font=("Arial Bold", 12)).pack(anchor="w", padx=10, pady=5)
+        
+        opts_grid = ctk.CTkFrame(options_frame)
+        opts_grid.pack(fill="x", padx=10, pady=5)
+        
+        # From format
+        ctk.CTkLabel(opts_grid, text="From:").grid(row=0, column=0, padx=10, pady=5, sticky="w")
+        self.convert_from_var = ctk.StringVar(value="DDS")
+        from_menu = ctk.CTkOptionMenu(opts_grid, variable=self.convert_from_var,
+                                       values=["DDS", "PNG", "JPG", "BMP", "TGA"])
+        from_menu.grid(row=0, column=1, padx=10, pady=5, sticky="w")
+        
+        # To format
+        ctk.CTkLabel(opts_grid, text="To:").grid(row=0, column=2, padx=10, pady=5, sticky="w")
+        self.convert_to_var = ctk.StringVar(value="PNG")
+        to_menu = ctk.CTkOptionMenu(opts_grid, variable=self.convert_to_var,
+                                     values=["DDS", "PNG", "JPG", "BMP", "TGA"])
+        to_menu.grid(row=0, column=3, padx=10, pady=5, sticky="w")
+        
+        # Options checkboxes
+        check_frame = ctk.CTkFrame(options_frame)
+        check_frame.pack(fill="x", padx=10, pady=5)
+        
+        self.convert_recursive_var = ctk.BooleanVar(value=True)
+        ctk.CTkCheckBox(check_frame, text="Include subdirectories", 
+                       variable=self.convert_recursive_var).pack(side="left", padx=10)
+        
+        self.convert_keep_original_var = ctk.BooleanVar(value=True)
+        ctk.CTkCheckBox(check_frame, text="Keep original files", 
+                       variable=self.convert_keep_original_var).pack(side="left", padx=10)
+        
+        # === OUTPUT SECTION ===
+        output_frame = ctk.CTkFrame(content_frame)
+        output_frame.pack(fill="x", padx=10, pady=10)
+        
+        ctk.CTkLabel(output_frame, text="Output:", font=("Arial Bold", 12)).grid(row=0, column=0, padx=10, pady=5, sticky="w")
+        self.convert_output_var = ctk.StringVar()
+        ctk.CTkEntry(output_frame, textvariable=self.convert_output_var, width=500).grid(row=0, column=1, padx=10, pady=5, sticky="ew")
+        ctk.CTkButton(output_frame, text="Browse", width=100,
+                     command=lambda: self.browse_directory(self.convert_output_var)).grid(row=0, column=2, padx=10, pady=5)
+        
+        output_frame.columnconfigure(1, weight=1)
+        
+        # === PROGRESS SECTION ===
+        progress_frame = ctk.CTkFrame(content_frame)
+        progress_frame.pack(fill="both", expand=True, padx=10, pady=10)
+        
+        # Progress bar
+        self.convert_progress_bar = ctk.CTkProgressBar(progress_frame)
+        self.convert_progress_bar.pack(fill="x", padx=10, pady=10)
+        self.convert_progress_bar.set(0)
+        
+        self.convert_progress_label = ctk.CTkLabel(progress_frame, text="Ready to convert")
+        self.convert_progress_label.pack(pady=5)
+        
+        # Log
+        self.convert_log_text = ctk.CTkTextbox(progress_frame, height=150)
+        self.convert_log_text.pack(fill="both", expand=True, padx=10, pady=10)
+        
+        # === CONTROL BUTTONS ===
+        button_frame = ctk.CTkFrame(content_frame)
+        button_frame.pack(fill="x", padx=10, pady=10)
+        
+        self.convert_start_button = ctk.CTkButton(button_frame, text="🔄 Start Conversion", 
+                                                  command=self.start_conversion,
+                                                  width=150, height=40,
+                                                  font=("Arial Bold", 14))
+        self.convert_start_button.pack(side="left", padx=10)
+    
+    def start_conversion(self):
+        """Start batch conversion"""
+        input_path = self.convert_input_var.get()
+        output_path = self.convert_output_var.get()
+        
+        if not input_path:
+            self.convert_log("⚠️ Please select an input directory")
+            return
+        if not output_path:
+            self.convert_log("⚠️ Please select an output directory")
+            return
+        
+        from_format = self.convert_from_var.get().lower()
+        to_format = self.convert_to_var.get().lower()
+        
+        if from_format == to_format:
+            self.convert_log("⚠️ Source and target formats are the same")
+            return
+        
+        self.convert_log("=" * 60)
+        self.convert_log("Starting batch conversion...")
+        self.convert_log(f"Input: {input_path}")
+        self.convert_log(f"Output: {output_path}")
+        self.convert_log(f"Converting: {from_format.upper()} → {to_format.upper()}")
+        self.convert_log("=" * 60)
+        
+        # Disable start button
+        self.convert_start_button.configure(state="disabled")
+        
+        # Start conversion in background thread
+        threading.Thread(target=self.conversion_thread, daemon=True).start()
+    
+    def conversion_thread(self):
+        """Background thread for file conversion"""
+        try:
+            input_path = Path(self.convert_input_var.get())
+            output_path = Path(self.convert_output_var.get())
+            from_format = f".{self.convert_from_var.get().lower()}"
+            to_format = f".{self.convert_to_var.get().lower()}"
+            recursive = self.convert_recursive_var.get()
+            
+            # Scan for files
+            self.convert_progress_bar.set(0.1)
+            self.convert_progress_label.configure(text="Scanning files...")
+            
+            if recursive:
+                files = list(input_path.rglob(f"*{from_format}"))
+            else:
+                files = list(input_path.glob(f"*{from_format}"))
+            
+            total = len(files)
+            self.convert_log(f"Found {total} {from_format.upper()} files")
+            
+            if total == 0:
+                self.convert_log("⚠️ No files found to convert")
+                return
+            
+            # Create output directory
+            output_path.mkdir(parents=True, exist_ok=True)
+            
+            # Convert files
+            converted = 0
+            failed = 0
+            
+            for i, file_path in enumerate(files):
+                try:
+                    # Calculate output path
+                    relative_path = file_path.relative_to(input_path)
+                    target_path = output_path / relative_path.with_suffix(to_format)
+                    target_path.parent.mkdir(parents=True, exist_ok=True)
+                    
+                    # Convert using file handler
+                    if from_format == '.dds' and to_format == '.png':
+                        self.file_handler.convert_dds_to_png(str(file_path), str(target_path))
+                    elif from_format == '.png' and to_format == '.dds':
+                        self.file_handler.convert_png_to_dds(str(file_path), str(target_path))
+                    else:
+                        # Generic conversion via PIL
+                        from PIL import Image
+                        img = Image.open(file_path)
+                        img.save(target_path)
+                    
+                    converted += 1
+                    
+                    # Progress
+                    progress = 0.1 + (0.9 * (i + 1) / total)
+                    self.convert_progress_bar.set(progress)
+                    self.convert_progress_label.configure(text=f"Converting {i+1}/{total}...")
+                    
+                    # Log every 10th file
+                    if (i+1) % 10 == 0 or i == total - 1:
+                        self.convert_log(f"Converted {i+1}/{total} files...")
+                    
+                except Exception as e:
+                    failed += 1
+                    if failed <= 5:  # Only log first 5 errors
+                        self.convert_log(f"❌ Failed: {file_path.name} - {str(e)[:50]}")
+            
+            # Complete
+            self.convert_progress_bar.set(1.0)
+            self.convert_progress_label.configure(text="Conversion complete!")
+            self.convert_log("=" * 60)
+            self.convert_log("✓ BATCH CONVERSION COMPLETED!")
+            self.convert_log(f"Successfully converted: {converted}")
+            if failed > 0:
+                self.convert_log(f"Failed: {failed}")
+            self.convert_log("=" * 60)
+            
+        except Exception as e:
+            self.convert_log(f"❌ Error during conversion: {e}")
+        
+        finally:
+            # Re-enable button
+            self.convert_start_button.configure(state="normal")
+    
+    def convert_log(self, message):
+        """Add message to conversion log"""
+        self.convert_log_text.insert("end", f"{message}\n")
+        self.convert_log_text.see("end")
+        self.update()
     
     def create_browser_tab(self):
         """Create file browser tab"""
