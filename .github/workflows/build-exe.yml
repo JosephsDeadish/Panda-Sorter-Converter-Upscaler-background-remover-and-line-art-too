@@ -1,0 +1,117 @@
+name: Build PS2 Texture Sorter EXE
+
+on:
+  # Trigger on push to main branch
+  push:
+    branches:
+      - main
+    # Trigger on version tags
+    tags:
+      - 'v*.*.*'
+  
+  # Manual trigger option
+  workflow_dispatch:
+  
+  # Trigger on pull requests to main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  build:
+    name: Build Windows EXE
+    runs-on: windows-latest
+    
+    permissions:
+      contents: write  # Required for creating releases
+      actions: read    # Required for workflow actions
+    
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+      
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+      
+      - name: Run Syntax Validation
+        run: |
+          python -m compileall -q .
+          echo "✅ All Python files compiled successfully"
+      
+      - name: Create Resource Directories
+        run: |
+          mkdir -p src/resources/icons
+          mkdir -p src/resources/cursors
+          mkdir -p src/resources/themes
+          mkdir -p src/resources/sounds
+        shell: bash
+      
+      - name: Build EXE with PyInstaller
+        run: |
+          pyinstaller build_spec.spec --clean --noconfirm
+          echo "✅ Build completed successfully"
+      
+      - name: Verify EXE Exists
+        run: |
+          if (Test-Path "dist/PS2TextureSorter.exe") {
+            $size = (Get-Item "dist/PS2TextureSorter.exe").Length / 1MB
+            Write-Host "✅ EXE created successfully (Size: $($size.ToString('F2')) MB)"
+          } else {
+            Write-Error "❌ EXE not found!"
+            exit 1
+          }
+      
+      - name: Upload EXE as Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: PS2TextureSorter-${{ github.sha }}
+          path: dist/PS2TextureSorter.exe
+          retention-days: 90
+      
+      - name: Create Release (on version tags)
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v1
+        with:
+          files: dist/PS2TextureSorter.exe
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+          body: |
+            ## PS2 Texture Sorter Release ${{ github.ref_name }}
+            
+            🐼 **Automatic texture classification and organization for PS2 texture dumps**
+            
+            ### Download
+            Download `PS2TextureSorter.exe` below and run it - no installation required!
+            
+            ### Features
+            - 🤖 Automatic classification with 50+ texture categories
+            - 🔄 DDS ↔ PNG bidirectional conversion
+            - 📊 Support for 200,000+ textures with database indexing
+            - 🎮 LOD detection and grouping
+            - 🗂️ Multiple organization styles (Sims, Neopets, Flat, etc.)
+            - 🔍 Duplicate detection by hash or name+size
+            - 🐼 Fun panda-themed UI with dark/light modes
+            
+            ### System Requirements
+            - Windows 7/8/10/11 (64-bit)
+            - No Python or dependencies needed
+            - ~50-100 MB disk space
+            - Works 100% offline
+            
+            ### Notes
+            - This is a portable single EXE - run from anywhere
+            - First launch may take a few seconds
+            - Windows may show SmartScreen warning (click "More info" → "Run anyway")
+            
+            **Author:** Dead On The Inside / JosephsDeadish
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
