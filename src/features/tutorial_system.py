@@ -221,6 +221,24 @@ class TutorialManager:
         # Dark background
         overlay_frame = ctk.CTkFrame(self.overlay, fg_color="#000000")
         overlay_frame.pack(fill="both", expand=True)
+        
+        # Add click handler to overlay to prevent getting stuck
+        # Clicking the overlay will bring tutorial window to front or close tutorial if window is gone
+        overlay_frame.bind("<Button-1>", self._on_overlay_click)
+    
+    def _on_overlay_click(self, event=None):
+        """Handle clicks on the overlay - bring tutorial to front or close if missing"""
+        if self.tutorial_window and self.tutorial_window.winfo_exists():
+            # Tutorial window exists, bring it to front
+            # Ensure overlay stays below tutorial window
+            if self.overlay:
+                self.overlay.attributes('-topmost', False)
+            self.tutorial_window.attributes('-topmost', True)
+            self.tutorial_window.lift()
+            self.tutorial_window.focus_force()
+        else:
+            # Tutorial window is gone but overlay remains - clean up
+            self._complete_tutorial()
     
     def _show_step(self, step_index: int):
         """Display a tutorial step"""
@@ -231,13 +249,18 @@ class TutorialManager:
         step = self.steps[step_index]
         self.current_step = step_index
         
+        logger.debug(f"Showing tutorial step {step_index + 1}/{len(self.steps)}: {step.title}")
+        
         # Create tutorial dialog
         if self.tutorial_window:
             self.tutorial_window.destroy()
         
         self.tutorial_window = ctk.CTkToplevel(self.master)
         self.tutorial_window.title(step.title)
-        self.tutorial_window.attributes('-topmost', True)
+        
+        # Set protocol handler for window close button (X)
+        # This ensures overlay is properly destroyed when user closes the window
+        self.tutorial_window.protocol("WM_DELETE_WINDOW", self._complete_tutorial)
         
         # Center the window
         window_width = 500
@@ -247,6 +270,18 @@ class TutorialManager:
         x = (screen_width - window_width) // 2
         y = (screen_height - window_height) // 2
         self.tutorial_window.geometry(f"{window_width}x{window_height}+{x}+{y}")
+        
+        # CRITICAL: Ensure tutorial window is above overlay in z-order
+        # Lower overlay topmost temporarily so tutorial window can be on top
+        if self.overlay:
+            self.overlay.attributes('-topmost', False)
+            logger.debug("Lowered overlay topmost to ensure tutorial window is clickable")
+        
+        # Make tutorial window topmost and lift it above everything
+        self.tutorial_window.attributes('-topmost', True)
+        self.tutorial_window.lift()
+        self.tutorial_window.focus_force()
+        logger.debug("Tutorial window raised above overlay and focused")
         
         # Content frame
         content = ctk.CTkFrame(self.tutorial_window)
@@ -332,11 +367,30 @@ class TutorialManager:
     
     def _skip_tutorial(self):
         """Skip the tutorial"""
-        if messagebox.askyesno("Skip Tutorial", "Are you sure you want to skip the tutorial? You can restart it later from Settings."):
+        # Temporarily lower overlay so messagebox is visible
+        if self.overlay:
+            self.overlay.attributes('-topmost', False)
+        
+        # Also ensure tutorial window is above overlay
+        if self.tutorial_window:
+            self.tutorial_window.lift()
+        
+        result = messagebox.askyesno(
+            "Skip Tutorial", 
+            "Are you sure you want to skip the tutorial? You can restart it later from Settings."
+        )
+        if result:
             self._complete_tutorial()
+        else:
+            # User chose not to skip, ensure tutorial window is on top
+            if self.tutorial_window:
+                self.tutorial_window.lift()
+                self.tutorial_window.focus_force()
     
     def _complete_tutorial(self):
         """Complete and close the tutorial"""
+        logger.info("Completing tutorial")
+        
         # Check if user wants to skip tutorial in future
         if hasattr(self, 'dont_show_var') and self.dont_show_var.get():
             self.config.set('tutorial', 'completed', True)
@@ -350,10 +404,12 @@ class TutorialManager:
         if self.tutorial_window:
             self.tutorial_window.destroy()
             self.tutorial_window = None
+            logger.debug("Tutorial window destroyed")
         
         if self.overlay:
             self.overlay.destroy()
             self.overlay = None
+            logger.debug("Overlay destroyed")
         
         self.tutorial_active = False
         
