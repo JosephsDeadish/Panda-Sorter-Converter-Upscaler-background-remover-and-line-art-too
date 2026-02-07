@@ -1586,6 +1586,528 @@ class PandaMode:
         self.stop_current_animation()
 
 
+# Panda Feeding System
+@dataclass
+class FoodItem:
+    """Items you can feed to the panda."""
+    name: str
+    description: str
+    happiness_bonus: int
+    unlock_condition: str
+    icon: str = "🎋"
+
+
+class PandaFeedingSystem:
+    """Manages panda feeding and hunger mechanics."""
+    
+    FOOD_ITEMS = {
+        'bamboo': FoodItem(
+            name="Bamboo",
+            description="Classic panda food",
+            happiness_bonus=5,
+            unlock_condition="always_available",
+            icon="🎋"
+        ),
+        'bamboo_shoots': FoodItem(
+            name="Bamboo Shoots",
+            description="Fresh tender shoots",
+            happiness_bonus=8,
+            unlock_condition="always_available",
+            icon="🌱"
+        ),
+        'bamboo_cake': FoodItem(
+            name="Bamboo Cake",
+            description="Birthday special",
+            happiness_bonus=20,
+            unlock_condition="use_on_birthday",
+            icon="🎂"
+        ),
+        'golden_bamboo': FoodItem(
+            name="Golden Bamboo",
+            description="Legendary food",
+            happiness_bonus=50,
+            unlock_condition="process_100k_files",
+            icon="✨"
+        ),
+        'dumplings': FoodItem(
+            name="Dumplings",
+            description="Delicious Chinese dumplings",
+            happiness_bonus=12,
+            unlock_condition="process_1k_files",
+            icon="🥟"
+        ),
+        'ramen': FoodItem(
+            name="Ramen",
+            description="Hot steaming ramen",
+            happiness_bonus=10,
+            unlock_condition="process_500_files",
+            icon="🍜"
+        ),
+        'sushi': FoodItem(
+            name="Sushi",
+            description="Fresh sushi platter",
+            happiness_bonus=15,
+            unlock_condition="process_5k_files",
+            icon="🍣"
+        ),
+        'ice_cream': FoodItem(
+            name="Ice Cream",
+            description="Cool and refreshing",
+            happiness_bonus=18,
+            unlock_condition="work_2_hours",
+            icon="🍨"
+        ),
+        'pizza': FoodItem(
+            name="Pizza",
+            description="Everyone loves pizza!",
+            happiness_bonus=14,
+            unlock_condition="work_1_hour",
+            icon="🍕"
+        ),
+        'cookies': FoodItem(
+            name="Cookies",
+            description="Chocolate chip cookies",
+            happiness_bonus=10,
+            unlock_condition="always_available",
+            icon="🍪"
+        ),
+        'tea': FoodItem(
+            name="Green Tea",
+            description="Relaxing green tea",
+            happiness_bonus=7,
+            unlock_condition="always_available",
+            icon="🍵"
+        ),
+        'rice_ball': FoodItem(
+            name="Rice Ball",
+            description="Traditional onigiri",
+            happiness_bonus=9,
+            unlock_condition="process_100_files",
+            icon="🍙"
+        ),
+        'fruit_basket': FoodItem(
+            name="Fruit Basket",
+            description="Assorted fresh fruits",
+            happiness_bonus=11,
+            unlock_condition="use_for_7_days",
+            icon="🧺"
+        ),
+        'honey': FoodItem(
+            name="Honey",
+            description="Sweet golden honey",
+            happiness_bonus=13,
+            unlock_condition="pet_panda_50_times",
+            icon="🍯"
+        ),
+    }
+    
+    HUNGER_REACTIONS = [
+        "🐼 Panda's tummy is rumbling...",
+        "🐼 Panda looks at you with hungry eyes...",
+        "🐼 *stomach growls* Feed me maybe?",
+        "🐼 Panda points at the food menu hopefully",
+        "🐼 Is it snack time yet? Asking for a friend...",
+        "🐼 Panda dreams of bamboo...",
+        "🐼 *sniff sniff* Do I smell food?",
+    ]
+    
+    FEEDING_REACTIONS = {
+        'love': [
+            "🐼 ❤️ Nom nom nom! Panda loves this!",
+            "🐼 💕 This is amazing! Thank you!",
+            "🐼 ✨ Best food ever! You're the best!",
+            "🐼 🌟 *happy panda noises*",
+        ],
+        'like': [
+            "🐼 😊 Mmm, tasty!",
+            "🐼 Thanks for the snack!",
+            "🐼 Yum! Just what I needed!",
+            "🐼 Delicious!",
+        ],
+        'neutral': [
+            "🐼 Thanks, I guess...",
+            "🐼 Food is food.",
+            "🐼 Appreciate it!",
+        ],
+        'full': [
+            "🐼 💤 Too full... can't move...",
+            "🐼 I'm stuffed! Maybe later?",
+            "🐼 No more food please! *burp*",
+        ]
+    }
+    
+    def __init__(self):
+        """Initialize feeding system."""
+        self.hunger_level = 50
+        self.last_fed_time = time.time()
+        self.feed_count = 0
+        self.favorite_foods = []
+    
+    def get_hunger_level(self) -> str:
+        """Returns panda's current hunger status."""
+        elapsed = time.time() - self.last_fed_time
+        self.hunger_level = min(100, self.hunger_level + (elapsed / 60))
+        
+        if self.hunger_level < 20:
+            return "🐼 Panda is well-fed and happy!"
+        elif self.hunger_level < 40:
+            return "🐼 Panda is satisfied"
+        elif self.hunger_level < 60:
+            return "🐼 Panda is getting peckish"
+        elif self.hunger_level < 80:
+            return "🐼 Panda is hungry!"
+        else:
+            return "🐼 Panda is VERY hungry! 🍴"
+    
+    def feed_panda(self, food_id: str, stats: dict) -> str:
+        """Feed the panda and get a reaction."""
+        if food_id not in self.FOOD_ITEMS:
+            return "🐼 ❓ Panda doesn't recognize this food..."
+        
+        food = self.FOOD_ITEMS[food_id]
+        
+        # Check if too full
+        if self.hunger_level < 10:
+            return random.choice(self.FEEDING_REACTIONS['full'])
+        
+        # Update hunger
+        self.hunger_level = max(0, self.hunger_level - food.happiness_bonus * 2)
+        self.last_fed_time = time.time()
+        self.feed_count += 1
+        
+        # Choose reaction based on hunger level and food quality
+        if food.happiness_bonus >= 15:
+            reaction = random.choice(self.FEEDING_REACTIONS['love'])
+        elif food.happiness_bonus >= 10:
+            reaction = random.choice(self.FEEDING_REACTIONS['like'])
+        else:
+            reaction = random.choice(self.FEEDING_REACTIONS['neutral'])
+        
+        logger.info(f"Fed panda {food.name} (count: {self.feed_count})")
+        return f"{reaction}\n{food.icon} Fed panda {food.name}!"
+    
+    def get_available_foods(self, stats: dict) -> List[str]:
+        """Get list of available food items based on unlock conditions."""
+        available = []
+        for food_id, food in self.FOOD_ITEMS.items():
+            if self._check_unlock_condition(food.unlock_condition, stats):
+                available.append(food_id)
+        return available
+    
+    def _check_unlock_condition(self, condition: str, stats: dict) -> bool:
+        """Check if food unlock condition is met."""
+        if condition == "always_available":
+            return True
+        elif condition == "process_100_files":
+            return stats.get('files_processed', 0) >= 100
+        elif condition == "process_500_files":
+            return stats.get('files_processed', 0) >= 500
+        elif condition == "process_1k_files":
+            return stats.get('files_processed', 0) >= 1000
+        elif condition == "process_5k_files":
+            return stats.get('files_processed', 0) >= 5000
+        elif condition == "process_100k_files":
+            return stats.get('files_processed', 0) >= 100000
+        elif condition == "work_1_hour":
+            return stats.get('elapsed_time_hours', 0) >= 1
+        elif condition == "work_2_hours":
+            return stats.get('elapsed_time_hours', 0) >= 2
+        elif condition == "use_for_7_days":
+            return stats.get('days_used', 0) >= 7
+        elif condition == "pet_panda_50_times":
+            return stats.get('panda_pet_count', 0) >= 50
+        return False
+
+
+# Panda Travel System
+@dataclass
+class PandaLocation:
+    """Represents a location panda can visit."""
+    id: str
+    name: str
+    description: str
+    postcard_messages: List[str]
+    unlock_condition: str
+    icon: str = "📍"
+
+
+class PandaTravelSystem:
+    """Manages panda travel and location visits."""
+    
+    LOCATIONS = {
+        'home': PandaLocation(
+            id='home',
+            name='Home',
+            description='Panda is chilling at home',
+            postcard_messages=[
+                "🏠 There's no place like home!",
+                "🏠 Just relaxing and eating bamboo",
+                "🏠 Home sweet home 💕",
+            ],
+            unlock_condition='always_available',
+            icon='🏠'
+        ),
+        'bamboo_forest': PandaLocation(
+            id='bamboo_forest',
+            name='Bamboo Forest',
+            description='Panda is munching bamboo in the forest',
+            postcard_messages=[
+                "🎋 Found the best bamboo grove ever!",
+                "🎋 Living the dream in endless bamboo",
+                "🎋 This place is bamboo-tiful!",
+            ],
+            unlock_condition='always_available',
+            icon='🎋'
+        ),
+        'beach': PandaLocation(
+            id='beach',
+            name='Beach',
+            description='Panda is building sandcastles',
+            postcard_messages=[
+                "🏖️ Building the most epic sandcastle!",
+                "🏖️ Sand, sun, and bamboo smoothies!",
+                "🏖️ Beach life is the best life!",
+            ],
+            unlock_condition='process_100_files',
+            icon='🏖️'
+        ),
+        'mountains': PandaLocation(
+            id='mountains',
+            name='Mountains',
+            description='Panda is climbing mountains',
+            postcard_messages=[
+                "⛰️ The view from up here is incredible!",
+                "⛰️ Conquering peaks one paw at a time!",
+                "⛰️ Mountain air and bamboo everywhere!",
+            ],
+            unlock_condition='process_500_files',
+            icon='⛰️'
+        ),
+        'space': PandaLocation(
+            id='space',
+            name='Space',
+            description='Panda is floating in space',
+            postcard_messages=[
+                "🚀 Houston, we have no problems!",
+                "🚀 Space bamboo tastes different...",
+                "🚀 One small step for panda, one giant leap for texture sorting!",
+            ],
+            unlock_condition='process_10k_files',
+            icon='🚀'
+        ),
+        'underwater': PandaLocation(
+            id='underwater',
+            name='Underwater',
+            description='Panda is diving with fish',
+            postcard_messages=[
+                "🐠 Made friends with a school of fish!",
+                "🐠 Underwater bamboo is surprisingly good!",
+                "🐠 Living that mermaid panda life!",
+            ],
+            unlock_condition='process_1k_files',
+            icon='🐠'
+        ),
+        'tokyo': PandaLocation(
+            id='tokyo',
+            name='Tokyo',
+            description='Panda is visiting Tokyo',
+            postcard_messages=[
+                "🗼 Tokyo Tower is amazing!",
+                "🗼 Trying all the Japanese snacks!",
+                "🗼 Kawaii culture everywhere!",
+            ],
+            unlock_condition='process_5k_files',
+            icon='🗼'
+        ),
+        'cafe': PandaLocation(
+            id='cafe',
+            name='Café',
+            description='Panda is having coffee',
+            postcard_messages=[
+                "☕ Best cappuccino ever!",
+                "☕ Coffee and bamboo biscotti!",
+                "☕ Café life is my life!",
+            ],
+            unlock_condition='work_1_hour',
+            icon='☕'
+        ),
+        'gym': PandaLocation(
+            id='gym',
+            name='Gym',
+            description='Panda is lifting weights',
+            postcard_messages=[
+                "💪 Getting swole!",
+                "💪 Bamboo protein shake time!",
+                "💪 Do you even lift, bro?",
+            ],
+            unlock_condition='work_2_hours',
+            icon='💪'
+        ),
+        'library': PandaLocation(
+            id='library',
+            name='Library',
+            description='Panda is reading books',
+            postcard_messages=[
+                "📚 Found a great book on texture sorting!",
+                "📚 Knowledge is power!",
+                "📚 Reading all the classics!",
+            ],
+            unlock_condition='process_100_files',
+            icon='📚'
+        ),
+        'concert': PandaLocation(
+            id='concert',
+            name='Concert',
+            description='Panda is rocking out',
+            postcard_messages=[
+                "🎸 Best concert ever!",
+                "🎸 Front row seats!",
+                "🎸 Rock and roll all night!",
+            ],
+            unlock_condition='use_for_3_days',
+            icon='🎸'
+        ),
+        'arcade': PandaLocation(
+            id='arcade',
+            name='Arcade',
+            description='Panda is gaming',
+            postcard_messages=[
+                "🎮 High score achieved!",
+                "🎮 Retro games are the best!",
+                "🎮 One more game... or ten...",
+            ],
+            unlock_condition='process_200_files',
+            icon='🎮'
+        ),
+        'museum': PandaLocation(
+            id='museum',
+            name='Museum',
+            description='Panda is appreciating art',
+            postcard_messages=[
+                "🎨 This art is incredible!",
+                "🎨 Feeling very cultured!",
+                "🎨 Found a painting of bamboo!",
+            ],
+            unlock_condition='process_300_files',
+            icon='🎨'
+        ),
+        'zoo': PandaLocation(
+            id='zoo',
+            name='Zoo',
+            description='Panda is visiting relatives',
+            postcard_messages=[
+                "🦁 Family reunion!",
+                "🦁 Showing off my texture sorting skills!",
+                "🦁 The other pandas are impressed!",
+            ],
+            unlock_condition='pet_panda_20_times',
+            icon='🦁'
+        ),
+        'park': PandaLocation(
+            id='park',
+            name='Park',
+            description='Panda is picnicking',
+            postcard_messages=[
+                "🌳 Perfect picnic weather!",
+                "🌳 Bamboo sandwiches for lunch!",
+                "🌳 Nature is beautiful!",
+            ],
+            unlock_condition='always_available',
+            icon='🌳'
+        ),
+        'antarctica': PandaLocation(
+            id='antarctica',
+            name='Antarctica',
+            description='Panda is with penguins',
+            postcard_messages=[
+                "🐧 Penguins are my new best friends!",
+                "🐧 It's cold but beautiful!",
+                "🐧 Ice skating with penguins!",
+            ],
+            unlock_condition='work_3_hours',
+            icon='🐧'
+        ),
+    }
+    
+    def __init__(self):
+        """Initialize travel system."""
+        self.current_location = 'home'
+        self.visited_locations = {'home'}
+        self.travel_count = 0
+    
+    def send_panda_to(self, location_id: str, stats: dict) -> str:
+        """Send panda to a location."""
+        if location_id not in self.LOCATIONS:
+            return "🐼 ❓ Panda doesn't know how to get there..."
+        
+        location = self.LOCATIONS[location_id]
+        
+        # Check unlock condition
+        if not self._check_unlock_condition(location.unlock_condition, stats):
+            return f"🔒 {location.name} is locked! Keep sorting textures to unlock it!"
+        
+        # Travel to location
+        self.current_location = location_id
+        self.visited_locations.add(location_id)
+        self.travel_count += 1
+        
+        logger.info(f"Panda traveled to {location.name}")
+        return f"✈️ Panda is traveling to {location.name}!\n{location.icon} {location.description}"
+    
+    def get_panda_location(self) -> str:
+        """Get current panda location."""
+        if self.current_location in self.LOCATIONS:
+            location = self.LOCATIONS[self.current_location]
+            return f"{location.icon} {location.description}"
+        return "🐼 Panda is... somewhere?"
+    
+    def get_panda_postcard(self) -> str:
+        """Get a postcard from panda's travels."""
+        if self.current_location in self.LOCATIONS:
+            location = self.LOCATIONS[self.current_location]
+            message = random.choice(location.postcard_messages)
+            return f"📮 Postcard from {location.name}:\n{message}"
+        return "📮 No postcard available"
+    
+    def get_available_locations(self, stats: dict) -> List[str]:
+        """Get list of available locations based on unlock conditions."""
+        available = []
+        for loc_id, location in self.LOCATIONS.items():
+            if self._check_unlock_condition(location.unlock_condition, stats):
+                available.append(loc_id)
+        return available
+    
+    def _check_unlock_condition(self, condition: str, stats: dict) -> bool:
+        """Check if location unlock condition is met."""
+        if condition == 'always_available':
+            return True
+        elif condition == 'process_100_files':
+            return stats.get('files_processed', 0) >= 100
+        elif condition == 'process_200_files':
+            return stats.get('files_processed', 0) >= 200
+        elif condition == 'process_300_files':
+            return stats.get('files_processed', 0) >= 300
+        elif condition == 'process_500_files':
+            return stats.get('files_processed', 0) >= 500
+        elif condition == 'process_1k_files':
+            return stats.get('files_processed', 0) >= 1000
+        elif condition == 'process_5k_files':
+            return stats.get('files_processed', 0) >= 5000
+        elif condition == 'process_10k_files':
+            return stats.get('files_processed', 0) >= 10000
+        elif condition == 'work_1_hour':
+            return stats.get('elapsed_time_hours', 0) >= 1
+        elif condition == 'work_2_hours':
+            return stats.get('elapsed_time_hours', 0) >= 2
+        elif condition == 'work_3_hours':
+            return stats.get('elapsed_time_hours', 0) >= 3
+        elif condition == 'use_for_3_days':
+            return stats.get('days_used', 0) >= 3
+        elif condition == 'pet_panda_20_times':
+            return stats.get('panda_pet_count', 0) >= 20
+        return False
+
+
 # Convenience functions
 def create_panda_mode(vulgar: bool = False) -> PandaMode:
     """
