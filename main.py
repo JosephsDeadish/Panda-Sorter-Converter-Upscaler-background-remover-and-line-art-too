@@ -50,6 +50,63 @@ except ImportError:
     CUSTOMIZATION_AVAILABLE = False
     print("Warning: UI customization panel not available.")
 
+# Import feature modules
+try:
+    from src.features.panda_mode import PandaMode
+    PANDA_MODE_AVAILABLE = True
+except ImportError:
+    PANDA_MODE_AVAILABLE = False
+    print("Warning: Panda mode not available.")
+
+try:
+    from src.features.sound_manager import SoundManager
+    SOUND_AVAILABLE = True
+except ImportError:
+    SOUND_AVAILABLE = False
+    print("Warning: Sound manager not available.")
+
+try:
+    from src.features.achievements import AchievementManager
+    ACHIEVEMENTS_AVAILABLE = True
+except ImportError:
+    ACHIEVEMENTS_AVAILABLE = False
+    print("Warning: Achievements system not available.")
+
+try:
+    from src.features.unlockables_system import UnlockablesManager
+    UNLOCKABLES_AVAILABLE = True
+except ImportError:
+    UNLOCKABLES_AVAILABLE = False
+    print("Warning: Unlockables system not available.")
+
+try:
+    from src.features.statistics import StatisticsTracker
+    STATISTICS_AVAILABLE = True
+except ImportError:
+    STATISTICS_AVAILABLE = False
+    print("Warning: Statistics tracker not available.")
+
+try:
+    from src.features.search_filter import SearchFilter
+    SEARCH_FILTER_AVAILABLE = True
+except ImportError:
+    SEARCH_FILTER_AVAILABLE = False
+    print("Warning: Search filter not available.")
+
+try:
+    from src.features.tutorial_system import setup_tutorial_system, TooltipMode
+    TUTORIAL_AVAILABLE = True
+except ImportError:
+    TUTORIAL_AVAILABLE = False
+    print("Warning: Tutorial system not available.")
+
+try:
+    from src.features.preview_viewer import PreviewViewer
+    PREVIEW_AVAILABLE = True
+except ImportError:
+    PREVIEW_AVAILABLE = False
+    print("Warning: Preview viewer not available.")
+
 
 class SplashScreen:
     """Splash screen with panda logo and loading animation"""
@@ -197,9 +254,49 @@ class PS2TextureSorter(ctk.CTk):
         self.file_handler = FileHandler(create_backup=config.get('file_handling', 'create_backup', default=True))
         self.database = None  # Will be initialized when needed
         
+        # Initialize feature modules
+        self.panda_mode = None
+        self.sound_manager = None
+        self.achievement_manager = None
+        self.unlockables_manager = None
+        self.stats_tracker = None
+        self.search_filter = None
+        self.tutorial_manager = None
+        self.tooltip_manager = None
+        self.context_help = None
+        self.preview_viewer = None
+        
+        # Initialize features if GUI available
+        if GUI_AVAILABLE:
+            try:
+                if PANDA_MODE_AVAILABLE:
+                    self.panda_mode = PandaMode()
+                if SOUND_AVAILABLE:
+                    self.sound_manager = SoundManager()
+                if ACHIEVEMENTS_AVAILABLE:
+                    self.achievement_manager = AchievementManager(config)
+                if UNLOCKABLES_AVAILABLE:
+                    self.unlockables_manager = UnlockablesManager(config)
+                if STATISTICS_AVAILABLE:
+                    self.stats_tracker = StatisticsTracker(config)
+                if SEARCH_FILTER_AVAILABLE:
+                    self.search_filter = SearchFilter()
+                if PREVIEW_AVAILABLE:
+                    self.preview_viewer = PreviewViewer(self)
+                
+                # Setup tutorial system
+                if TUTORIAL_AVAILABLE:
+                    self.tutorial_manager, self.tooltip_manager, self.context_help = setup_tutorial_system(self, config)
+            except Exception as e:
+                logger.warning(f"Failed to initialize some features: {e}")
+        
         # Create UI
         self.create_menu()
         self.create_main_ui()
+        
+        # Show tutorial on first run
+        if self.tutorial_manager and hasattr(self.tutorial_manager, 'should_show_tutorial') and self.tutorial_manager.should_show_tutorial():
+            self.after(500, lambda: self.tutorial_manager.start_tutorial())
         
         # Status
         self.current_operation = None
@@ -236,6 +333,16 @@ class PS2TextureSorter(ctk.CTk):
         )
         title_label.pack(side="left", padx=20, pady=5)
         
+        # Help button
+        if self.context_help:
+            help_button = ctk.CTkButton(
+                menu_frame,
+                text="❓ Help",
+                width=80,
+                command=lambda: self.context_help.open_help_panel()
+            )
+            help_button.pack(side="right", padx=10, pady=5)
+        
         # Theme toggle
         theme_button = ctk.CTkButton(
             menu_frame,
@@ -244,6 +351,15 @@ class PS2TextureSorter(ctk.CTk):
             command=self.toggle_theme
         )
         theme_button.pack(side="right", padx=10, pady=5)
+        
+        # Settings button
+        settings_button = ctk.CTkButton(
+            menu_frame,
+            text="⚙️ Settings",
+            width=100,
+            command=self.open_settings_window
+        )
+        settings_button.pack(side="right", padx=10, pady=5)
     
     def create_main_ui(self):
         """Create main tabbed interface"""
@@ -259,7 +375,8 @@ class PS2TextureSorter(ctk.CTk):
         self.tab_sort = self.tabview.add("🗂️ Sort Textures")
         self.tab_convert = self.tabview.add("🔄 Convert Files")
         self.tab_browser = self.tabview.add("📁 File Browser")
-        self.tab_settings = self.tabview.add("⚙️ Settings")
+        self.tab_achievements = self.tabview.add("🏆 Achievements")
+        self.tab_rewards = self.tabview.add("🎁 Rewards")
         self.tab_notepad = self.tabview.add("📝 Notepad")
         self.tab_about = self.tabview.add("ℹ️ About")
         
@@ -267,7 +384,8 @@ class PS2TextureSorter(ctk.CTk):
         self.create_sort_tab()
         self.create_convert_tab()
         self.create_browser_tab()
-        self.create_settings_tab()
+        self.create_achievements_tab()
+        self.create_rewards_tab()
         self.create_notepad_tab()
         self.create_about_tab()
         
@@ -614,178 +732,6 @@ class PS2TextureSorter(ctk.CTk):
                      text="🚧 File browser coming soon! 🚧\n\nNavigate and preview sorted textures.",
                      font=("Arial", 14)).pack(expand=True)
     
-    def create_settings_tab(self):
-        """Create enhanced settings tab with all configuration options"""
-        ctk.CTkLabel(self.tab_settings, text="🐼 Application Settings 🐼",
-                     font=("Arial Bold", 18)).pack(pady=15)
-        
-        # Settings scroll frame
-        settings_scroll = ctk.CTkScrollableFrame(self.tab_settings, width=1000, height=600)
-        settings_scroll.pack(padx=20, pady=10, fill="both", expand=True)
-        
-        # === PERFORMANCE SETTINGS ===
-        perf_frame = ctk.CTkFrame(settings_scroll)
-        perf_frame.pack(fill="x", padx=10, pady=10)
-        
-        ctk.CTkLabel(perf_frame, text="⚡ Performance Settings", 
-                     font=("Arial Bold", 14)).pack(anchor="w", padx=10, pady=5)
-        
-        # Thread count
-        thread_frame = ctk.CTkFrame(perf_frame)
-        thread_frame.pack(fill="x", padx=10, pady=5)
-        
-        ctk.CTkLabel(thread_frame, text="Thread Count:").pack(side="left", padx=10)
-        self.thread_slider = ctk.CTkSlider(thread_frame, from_=1, to=16, number_of_steps=15,
-                                           command=self.update_thread_label)
-        self.thread_slider.set(config.get('performance', 'max_threads', default=4))
-        self.thread_slider.pack(side="left", fill="x", expand=True, padx=10)
-        self.thread_label = ctk.CTkLabel(thread_frame, text=f"{int(self.thread_slider.get())}")
-        self.thread_label.pack(side="left", padx=5)
-        
-        # Memory limit
-        mem_frame = ctk.CTkFrame(perf_frame)
-        mem_frame.pack(fill="x", padx=10, pady=5)
-        
-        ctk.CTkLabel(mem_frame, text="Memory Limit (MB):").pack(side="left", padx=10)
-        self.memory_var = ctk.StringVar(value=str(config.get('performance', 'memory_limit_mb', default=2048)))
-        mem_entry = ctk.CTkEntry(mem_frame, textvariable=self.memory_var, width=100)
-        mem_entry.pack(side="left", padx=10)
-        
-        # Cache size
-        cache_frame = ctk.CTkFrame(perf_frame)
-        cache_frame.pack(fill="x", padx=10, pady=5)
-        
-        ctk.CTkLabel(cache_frame, text="Thumbnail Cache Size:").pack(side="left", padx=10)
-        self.cache_var = ctk.StringVar(value=str(config.get('performance', 'thumbnail_cache_size', default=500)))
-        cache_entry = ctk.CTkEntry(cache_frame, textvariable=self.cache_var, width=100)
-        cache_entry.pack(side="left", padx=10)
-        
-        # === UI SETTINGS ===
-        ui_frame = ctk.CTkFrame(settings_scroll)
-        ui_frame.pack(fill="x", padx=10, pady=10)
-        
-        ctk.CTkLabel(ui_frame, text="🎨 UI Settings", 
-                     font=("Arial Bold", 14)).pack(anchor="w", padx=10, pady=5)
-        
-        # Theme
-        theme_frame = ctk.CTkFrame(ui_frame)
-        theme_frame.pack(fill="x", padx=10, pady=5)
-        
-        ctk.CTkLabel(theme_frame, text="Theme:").pack(side="left", padx=10)
-        self.theme_var = ctk.StringVar(value=config.get('ui', 'theme', default='dark'))
-        theme_menu = ctk.CTkOptionMenu(theme_frame, variable=self.theme_var,
-                                       values=["dark", "light", "cyberpunk", "neon", "classic"],
-                                       command=self.apply_theme)
-        theme_menu.pack(side="left", padx=10)
-        
-        # Tooltip verbosity
-        tooltip_frame = ctk.CTkFrame(ui_frame)
-        tooltip_frame.pack(fill="x", padx=10, pady=5)
-        
-        ctk.CTkLabel(tooltip_frame, text="Tooltip Mode:").pack(side="left", padx=10)
-        self.tooltip_var = ctk.StringVar(value=config.get('ui', 'tooltip_verbosity', default='normal'))
-        tooltip_menu = ctk.CTkOptionMenu(tooltip_frame, variable=self.tooltip_var,
-                                         values=["expert", "normal", "beginner", "panda_explains"])
-        tooltip_menu.pack(side="left", padx=10)
-        
-        # Cursor style
-        cursor_frame = ctk.CTkFrame(ui_frame)
-        cursor_frame.pack(fill="x", padx=10, pady=5)
-        
-        ctk.CTkLabel(cursor_frame, text="Cursor Style:").pack(side="left", padx=10)
-        self.cursor_var = ctk.StringVar(value=config.get('ui', 'cursor_style', default='default'))
-        cursor_menu = ctk.CTkOptionMenu(cursor_frame, variable=self.cursor_var,
-                                        values=["default", "skull", "panda", "sword"])
-        cursor_menu.pack(side="left", padx=10)
-        
-        # === FILE HANDLING SETTINGS ===
-        file_frame = ctk.CTkFrame(settings_scroll)
-        file_frame.pack(fill="x", padx=10, pady=10)
-        
-        ctk.CTkLabel(file_frame, text="📁 File Handling", 
-                     font=("Arial Bold", 14)).pack(anchor="w", padx=10, pady=5)
-        
-        self.backup_var = ctk.BooleanVar(value=config.get('file_handling', 'create_backup', default=True))
-        ctk.CTkCheckBox(file_frame, text="Create backup before operations", 
-                       variable=self.backup_var).pack(anchor="w", padx=20, pady=3)
-        
-        self.overwrite_var = ctk.BooleanVar(value=config.get('file_handling', 'overwrite_existing', default=False))
-        ctk.CTkCheckBox(file_frame, text="Overwrite existing files", 
-                       variable=self.overwrite_var).pack(anchor="w", padx=20, pady=3)
-        
-        self.autosave_var = ctk.BooleanVar(value=config.get('file_handling', 'auto_save', default=True))
-        ctk.CTkCheckBox(file_frame, text="Auto-save progress", 
-                       variable=self.autosave_var).pack(anchor="w", padx=20, pady=3)
-        
-        # Undo depth
-        undo_frame = ctk.CTkFrame(file_frame)
-        undo_frame.pack(fill="x", padx=10, pady=5)
-        
-        ctk.CTkLabel(undo_frame, text="Undo History Depth:").pack(side="left", padx=10)
-        self.undo_var = ctk.StringVar(value=str(config.get('file_handling', 'undo_depth', default=10)))
-        undo_entry = ctk.CTkEntry(undo_frame, textvariable=self.undo_var, width=100)
-        undo_entry.pack(side="left", padx=10)
-        
-        # === LOGGING SETTINGS ===
-        log_frame = ctk.CTkFrame(settings_scroll)
-        log_frame.pack(fill="x", padx=10, pady=10)
-        
-        ctk.CTkLabel(log_frame, text="📋 Logging", 
-                     font=("Arial Bold", 14)).pack(anchor="w", padx=10, pady=5)
-        
-        # Log level
-        loglevel_frame = ctk.CTkFrame(log_frame)
-        loglevel_frame.pack(fill="x", padx=10, pady=5)
-        
-        ctk.CTkLabel(loglevel_frame, text="Log Level:").pack(side="left", padx=10)
-        self.loglevel_var = ctk.StringVar(value=config.get('logging', 'log_level', default='INFO'))
-        loglevel_menu = ctk.CTkOptionMenu(loglevel_frame, variable=self.loglevel_var,
-                                          values=["DEBUG", "INFO", "WARNING", "ERROR"])
-        loglevel_menu.pack(side="left", padx=10)
-        
-        self.crash_report_var = ctk.BooleanVar(value=config.get('logging', 'crash_reports', default=True))
-        ctk.CTkCheckBox(log_frame, text="Enable crash reports", 
-                       variable=self.crash_report_var).pack(anchor="w", padx=20, pady=3)
-        
-        # === NOTIFICATIONS SETTINGS ===
-        notif_frame = ctk.CTkFrame(settings_scroll)
-        notif_frame.pack(fill="x", padx=10, pady=10)
-        
-        ctk.CTkLabel(notif_frame, text="🔔 Notifications", 
-                     font=("Arial Bold", 14)).pack(anchor="w", padx=10, pady=5)
-        
-        self.sound_var = ctk.BooleanVar(value=config.get('notifications', 'play_sounds', default=True))
-        ctk.CTkCheckBox(notif_frame, text="Play sound effects", 
-                       variable=self.sound_var).pack(anchor="w", padx=20, pady=3)
-        
-        self.completion_var = ctk.BooleanVar(value=config.get('notifications', 'completion_alert', default=True))
-        ctk.CTkCheckBox(notif_frame, text="Alert on operation completion", 
-                       variable=self.completion_var).pack(anchor="w", padx=20, pady=3)
-        
-        # === CUSTOMIZATION SECTION ===
-        custom_frame = ctk.CTkFrame(settings_scroll)
-        custom_frame.pack(fill="x", padx=10, pady=10)
-        
-        ctk.CTkLabel(custom_frame, text="🎨 UI Customization", 
-                     font=("Arial Bold", 14)).pack(anchor="w", padx=10, pady=5)
-        
-        ctk.CTkButton(custom_frame, text="Open Customization Panel",
-                     command=self.open_customization,
-                     width=250, height=35).pack(padx=20, pady=10)
-        
-        # === SAVE BUTTON ===
-        button_frame = ctk.CTkFrame(settings_scroll)
-        button_frame.pack(fill="x", padx=10, pady=20)
-        
-        ctk.CTkButton(button_frame, text="💾 Save Settings", 
-                     command=self.save_settings,
-                     width=200, height=40,
-                     font=("Arial Bold", 14)).pack(pady=10)
-    
-    def update_thread_label(self, value):
-        """Update thread count label"""
-        self.thread_label.configure(text=f"{int(float(value))}")
-    
     def apply_theme(self, theme_name):
         """Apply selected theme"""
         if theme_name in ['dark', 'light']:
@@ -811,46 +757,359 @@ class PS2TextureSorter(ctk.CTk):
                                      "UI customization panel is not available.\n"
                                      "Please check your installation.")
     
-    def save_settings(self):
-        """Save all settings to config"""
+    def open_settings_window(self):
+        """Open settings in a separate window"""
+        # Create new window
+        settings_window = ctk.CTkToplevel(self)
+        settings_window.title("⚙️ Application Settings")
+        settings_window.geometry("900x700")
+        
+        # Make it modal-ish (focus on this window)
+        settings_window.focus()
+        
+        # Title
+        ctk.CTkLabel(settings_window, text="🐼 Application Settings 🐼",
+                     font=("Arial Bold", 18)).pack(pady=15)
+        
+        # Settings scroll frame
+        settings_scroll = ctk.CTkScrollableFrame(settings_window, width=850, height=550)
+        settings_scroll.pack(padx=20, pady=10, fill="both", expand=True)
+        
+        # === PERFORMANCE SETTINGS ===
+        perf_frame = ctk.CTkFrame(settings_scroll)
+        perf_frame.pack(fill="x", padx=10, pady=10)
+        
+        ctk.CTkLabel(perf_frame, text="⚡ Performance Settings", 
+                     font=("Arial Bold", 14)).pack(anchor="w", padx=10, pady=5)
+        
+        # Thread count
+        thread_frame = ctk.CTkFrame(perf_frame)
+        thread_frame.pack(fill="x", padx=10, pady=5)
+        
+        ctk.CTkLabel(thread_frame, text="Thread Count:").pack(side="left", padx=10)
+        thread_slider = ctk.CTkSlider(thread_frame, from_=1, to=16, number_of_steps=15)
+        thread_slider.set(config.get('performance', 'max_threads', default=4))
+        thread_slider.pack(side="left", fill="x", expand=True, padx=10)
+        thread_label = ctk.CTkLabel(thread_frame, text=f"{int(thread_slider.get())}")
+        thread_label.pack(side="left", padx=5)
+        
+        def update_thread_label(value):
+            thread_label.configure(text=f"{int(float(value))}")
+        thread_slider.configure(command=update_thread_label)
+        
+        # Memory limit
+        mem_frame = ctk.CTkFrame(perf_frame)
+        mem_frame.pack(fill="x", padx=10, pady=5)
+        
+        ctk.CTkLabel(mem_frame, text="Memory Limit (MB):").pack(side="left", padx=10)
+        memory_var = ctk.StringVar(value=str(config.get('performance', 'memory_limit_mb', default=2048)))
+        mem_entry = ctk.CTkEntry(mem_frame, textvariable=memory_var, width=100)
+        mem_entry.pack(side="left", padx=10)
+        
+        # Cache size
+        cache_frame = ctk.CTkFrame(perf_frame)
+        cache_frame.pack(fill="x", padx=10, pady=5)
+        
+        ctk.CTkLabel(cache_frame, text="Thumbnail Cache Size:").pack(side="left", padx=10)
+        cache_var = ctk.StringVar(value=str(config.get('performance', 'thumbnail_cache_size', default=500)))
+        cache_entry = ctk.CTkEntry(cache_frame, textvariable=cache_var, width=100)
+        cache_entry.pack(side="left", padx=10)
+        
+        # === UI SETTINGS ===
+        ui_frame = ctk.CTkFrame(settings_scroll)
+        ui_frame.pack(fill="x", padx=10, pady=10)
+        
+        ctk.CTkLabel(ui_frame, text="🎨 UI Settings", 
+                     font=("Arial Bold", 14)).pack(anchor="w", padx=10, pady=5)
+        
+        # Theme
+        theme_frame = ctk.CTkFrame(ui_frame)
+        theme_frame.pack(fill="x", padx=10, pady=5)
+        
+        ctk.CTkLabel(theme_frame, text="Theme:").pack(side="left", padx=10)
+        theme_var = ctk.StringVar(value=config.get('ui', 'theme', default='dark'))
+        theme_menu = ctk.CTkOptionMenu(theme_frame, variable=theme_var,
+                                       values=["dark", "light", "cyberpunk", "neon", "classic"],
+                                       command=self.apply_theme)
+        theme_menu.pack(side="left", padx=10)
+        
+        # Tooltip verbosity
+        tooltip_frame = ctk.CTkFrame(ui_frame)
+        tooltip_frame.pack(fill="x", padx=10, pady=5)
+        
+        ctk.CTkLabel(tooltip_frame, text="Tooltip Mode:").pack(side="left", padx=10)
+        tooltip_var = ctk.StringVar(value=config.get('ui', 'tooltip_verbosity', default='normal'))
+        tooltip_menu = ctk.CTkOptionMenu(tooltip_frame, variable=tooltip_var,
+                                         values=["expert", "normal", "beginner", "panda_explains"])
+        tooltip_menu.pack(side="left", padx=10)
+        
+        # Cursor style
+        cursor_frame = ctk.CTkFrame(ui_frame)
+        cursor_frame.pack(fill="x", padx=10, pady=5)
+        
+        ctk.CTkLabel(cursor_frame, text="Cursor Style:").pack(side="left", padx=10)
+        cursor_var = ctk.StringVar(value=config.get('ui', 'cursor_style', default='default'))
+        cursor_menu = ctk.CTkOptionMenu(cursor_frame, variable=cursor_var,
+                                        values=["default", "skull", "panda", "sword"])
+        cursor_menu.pack(side="left", padx=10)
+        
+        # === FILE HANDLING SETTINGS ===
+        file_frame = ctk.CTkFrame(settings_scroll)
+        file_frame.pack(fill="x", padx=10, pady=10)
+        
+        ctk.CTkLabel(file_frame, text="📁 File Handling", 
+                     font=("Arial Bold", 14)).pack(anchor="w", padx=10, pady=5)
+        
+        backup_var = ctk.BooleanVar(value=config.get('file_handling', 'create_backup', default=True))
+        ctk.CTkCheckBox(file_frame, text="Create backup before operations", 
+                       variable=backup_var).pack(anchor="w", padx=20, pady=3)
+        
+        overwrite_var = ctk.BooleanVar(value=config.get('file_handling', 'overwrite_existing', default=False))
+        ctk.CTkCheckBox(file_frame, text="Overwrite existing files", 
+                       variable=overwrite_var).pack(anchor="w", padx=20, pady=3)
+        
+        autosave_var = ctk.BooleanVar(value=config.get('file_handling', 'auto_save', default=True))
+        ctk.CTkCheckBox(file_frame, text="Auto-save progress", 
+                       variable=autosave_var).pack(anchor="w", padx=20, pady=3)
+        
+        # Undo depth
+        undo_frame = ctk.CTkFrame(file_frame)
+        undo_frame.pack(fill="x", padx=10, pady=5)
+        
+        ctk.CTkLabel(undo_frame, text="Undo History Depth:").pack(side="left", padx=10)
+        undo_var = ctk.StringVar(value=str(config.get('file_handling', 'undo_depth', default=10)))
+        undo_entry = ctk.CTkEntry(undo_frame, textvariable=undo_var, width=100)
+        undo_entry.pack(side="left", padx=10)
+        
+        # === LOGGING SETTINGS ===
+        log_frame = ctk.CTkFrame(settings_scroll)
+        log_frame.pack(fill="x", padx=10, pady=10)
+        
+        ctk.CTkLabel(log_frame, text="📋 Logging", 
+                     font=("Arial Bold", 14)).pack(anchor="w", padx=10, pady=5)
+        
+        # Log level
+        loglevel_frame = ctk.CTkFrame(log_frame)
+        loglevel_frame.pack(fill="x", padx=10, pady=5)
+        
+        ctk.CTkLabel(loglevel_frame, text="Log Level:").pack(side="left", padx=10)
+        loglevel_var = ctk.StringVar(value=config.get('logging', 'log_level', default='INFO'))
+        loglevel_menu = ctk.CTkOptionMenu(loglevel_frame, variable=loglevel_var,
+                                          values=["DEBUG", "INFO", "WARNING", "ERROR"])
+        loglevel_menu.pack(side="left", padx=10)
+        
+        crash_report_var = ctk.BooleanVar(value=config.get('logging', 'crash_reports', default=True))
+        ctk.CTkCheckBox(log_frame, text="Enable crash reports", 
+                       variable=crash_report_var).pack(anchor="w", padx=20, pady=3)
+        
+        # === NOTIFICATIONS SETTINGS ===
+        notif_frame = ctk.CTkFrame(settings_scroll)
+        notif_frame.pack(fill="x", padx=10, pady=10)
+        
+        ctk.CTkLabel(notif_frame, text="🔔 Notifications", 
+                     font=("Arial Bold", 14)).pack(anchor="w", padx=10, pady=5)
+        
+        sound_var = ctk.BooleanVar(value=config.get('notifications', 'play_sounds', default=True))
+        ctk.CTkCheckBox(notif_frame, text="Play sound effects", 
+                       variable=sound_var).pack(anchor="w", padx=20, pady=3)
+        
+        completion_var = ctk.BooleanVar(value=config.get('notifications', 'completion_alert', default=True))
+        ctk.CTkCheckBox(notif_frame, text="Alert on operation completion", 
+                       variable=completion_var).pack(anchor="w", padx=20, pady=3)
+        
+        # === CUSTOMIZATION SECTION ===
+        custom_frame = ctk.CTkFrame(settings_scroll)
+        custom_frame.pack(fill="x", padx=10, pady=10)
+        
+        ctk.CTkLabel(custom_frame, text="🎨 UI Customization", 
+                     font=("Arial Bold", 14)).pack(anchor="w", padx=10, pady=5)
+        
+        ctk.CTkButton(custom_frame, text="Open Customization Panel",
+                     command=self.open_customization,
+                     width=250, height=35).pack(padx=20, pady=10)
+        
+        # === SAVE BUTTON ===
+        def save_settings_window():
+            try:
+                # Performance
+                config.set('performance', 'max_threads', value=int(thread_slider.get()))
+                config.set('performance', 'memory_limit_mb', value=int(memory_var.get()))
+                config.set('performance', 'thumbnail_cache_size', value=int(cache_var.get()))
+                
+                # UI
+                config.set('ui', 'theme', value=theme_var.get())
+                config.set('ui', 'tooltip_verbosity', value=tooltip_var.get())
+                config.set('ui', 'cursor_style', value=cursor_var.get())
+                
+                # File Handling
+                config.set('file_handling', 'create_backup', value=backup_var.get())
+                config.set('file_handling', 'overwrite_existing', value=overwrite_var.get())
+                config.set('file_handling', 'auto_save', value=autosave_var.get())
+                config.set('file_handling', 'undo_depth', value=int(undo_var.get()))
+                
+                # Logging
+                config.set('logging', 'log_level', value=loglevel_var.get())
+                config.set('logging', 'crash_reports', value=crash_report_var.get())
+                
+                # Notifications
+                config.set('notifications', 'play_sounds', value=sound_var.get())
+                config.set('notifications', 'completion_alert', value=completion_var.get())
+                
+                # Save to file
+                config.save()
+                
+                self.log("✅ Settings saved successfully!")
+                
+                # Show confirmation
+                if GUI_AVAILABLE:
+                    messagebox.showinfo("Settings Saved", "All settings have been saved successfully!")
+                    
+            except Exception as e:
+                self.log(f"❌ Error saving settings: {e}")
+                if GUI_AVAILABLE:
+                    messagebox.showerror("Error", f"Failed to save settings: {e}")
+        
+        button_frame = ctk.CTkFrame(settings_scroll)
+        button_frame.pack(fill="x", padx=10, pady=20)
+        
+        ctk.CTkButton(button_frame, text="💾 Save Settings", 
+                     command=save_settings_window,
+                     width=200, height=40,
+                     font=("Arial Bold", 14)).pack(pady=10)
+    
+    def create_achievements_tab(self):
+        """Create achievements tab"""
+        ctk.CTkLabel(self.tab_achievements, text="🏆 Achievements 🏆",
+                     font=("Arial Bold", 18)).pack(pady=15)
+        
+        if not self.achievement_manager:
+            # No achievement manager
+            info_frame = ctk.CTkFrame(self.tab_achievements)
+            info_frame.pack(pady=50, padx=50, fill="both", expand=True)
+            ctk.CTkLabel(info_frame,
+                         text="Achievement system not available\n\nPlease check your installation.",
+                         font=("Arial", 14)).pack(expand=True)
+            return
+        
+        # Achievement scroll frame
+        achieve_scroll = ctk.CTkScrollableFrame(self.tab_achievements, width=1000, height=600)
+        achieve_scroll.pack(padx=20, pady=10, fill="both", expand=True)
+        
+        # Get all achievements
         try:
-            # Performance
-            config.set('performance', 'max_threads', value=int(self.thread_slider.get()))
-            config.set('performance', 'memory_limit_mb', value=int(self.memory_var.get()))
-            config.set('performance', 'thumbnail_cache_size', value=int(self.cache_var.get()))
+            achievements = self.achievement_manager.get_all_achievements()
             
-            # UI
-            config.set('ui', 'theme', value=self.theme_var.get())
-            config.set('ui', 'tooltip_verbosity', value=self.tooltip_var.get())
-            config.set('ui', 'cursor_style', value=self.cursor_var.get())
-            
-            # File Handling
-            config.set('file_handling', 'create_backup', value=self.backup_var.get())
-            config.set('file_handling', 'overwrite_existing', value=self.overwrite_var.get())
-            config.set('file_handling', 'auto_save', value=self.autosave_var.get())
-            config.set('file_handling', 'undo_depth', value=int(self.undo_var.get()))
-            
-            # Logging
-            config.set('logging', 'log_level', value=self.loglevel_var.get())
-            config.set('logging', 'crash_reports', value=self.crash_report_var.get())
-            
-            # Notifications
-            config.set('notifications', 'play_sounds', value=self.sound_var.get())
-            config.set('notifications', 'completion_alert', value=self.completion_var.get())
-            
-            # Save to file
-            config.save()
-            
-            self.log("✅ Settings saved successfully!")
-            
-            # Show confirmation
-            if GUI_AVAILABLE:
-                messagebox.showinfo("Settings Saved", "All settings have been saved successfully!")
+            for achievement in achievements:
+                # Achievement frame
+                achieve_frame = ctk.CTkFrame(achieve_scroll)
+                achieve_frame.pack(fill="x", padx=10, pady=5)
+                
+                # Lock/unlock status
+                status = "🔓" if achievement.get('unlocked', False) else "🔒"
+                
+                # Title and description
+                title_text = f"{status} {achievement.get('name', 'Unknown')}"
+                ctk.CTkLabel(achieve_frame, text=title_text,
+                            font=("Arial Bold", 14)).pack(anchor="w", padx=10, pady=5)
+                
+                desc_text = achievement.get('description', 'No description')
+                ctk.CTkLabel(achieve_frame, text=desc_text,
+                            font=("Arial", 11), text_color="gray").pack(anchor="w", padx=20, pady=2)
+                
+                # Progress bar (if applicable)
+                if 'progress' in achievement and 'required' in achievement:
+                    progress = achievement['progress']
+                    required = achievement['required']
+                    
+                    progress_frame = ctk.CTkFrame(achieve_frame)
+                    progress_frame.pack(fill="x", padx=20, pady=5)
+                    
+                    progress_bar = ctk.CTkProgressBar(progress_frame, width=400)
+                    progress_bar.pack(side="left", padx=5)
+                    progress_bar.set(min(progress / required, 1.0) if required > 0 else 0)
+                    
+                    progress_label = ctk.CTkLabel(progress_frame, 
+                                                  text=f"{progress}/{required}",
+                                                  font=("Arial", 10))
+                    progress_label.pack(side="left", padx=5)
                 
         except Exception as e:
-            self.log(f"❌ Error saving settings: {e}")
-            if GUI_AVAILABLE:
-                messagebox.showerror("Error", f"Failed to save settings: {e}")
+            ctk.CTkLabel(achieve_scroll,
+                        text=f"Error loading achievements: {e}",
+                        font=("Arial", 12)).pack(pady=20)
+    
+    def create_rewards_tab(self):
+        """Create unlockables/rewards tab"""
+        ctk.CTkLabel(self.tab_rewards, text="🎁 Unlockables & Rewards 🎁",
+                     font=("Arial Bold", 18)).pack(pady=15)
+        
+        if not self.unlockables_manager:
+            # No unlockables manager
+            info_frame = ctk.CTkFrame(self.tab_rewards)
+            info_frame.pack(pady=50, padx=50, fill="both", expand=True)
+            ctk.CTkLabel(info_frame,
+                         text="Unlockables system not available\n\nPlease check your installation.",
+                         font=("Arial", 14)).pack(expand=True)
+            return
+        
+        # Rewards scroll frame
+        rewards_scroll = ctk.CTkScrollableFrame(self.tab_rewards, width=1000, height=600)
+        rewards_scroll.pack(padx=20, pady=10, fill="both", expand=True)
+        
+        # Get unlockables by category
+        try:
+            categories = ['cursors', 'panda_outfits', 'themes', 'animations']
+            category_labels = {
+                'cursors': '🖱️ Custom Cursors',
+                'panda_outfits': '🐼 Panda Outfits',
+                'themes': '🎨 Themes',
+                'animations': '✨ Animations'
+            }
+            
+            for category in categories:
+                # Category header
+                cat_frame = ctk.CTkFrame(rewards_scroll)
+                cat_frame.pack(fill="x", padx=10, pady=10)
+                
+                ctk.CTkLabel(cat_frame, 
+                            text=category_labels.get(category, category.title()),
+                            font=("Arial Bold", 16)).pack(anchor="w", padx=10, pady=10)
+                
+                # Get items in category
+                items = self.unlockables_manager.get_unlockables_by_category(category)
+                
+                if not items:
+                    ctk.CTkLabel(cat_frame, 
+                                text="No items in this category",
+                                font=("Arial", 11), 
+                                text_color="gray").pack(anchor="w", padx=20, pady=5)
+                    continue
+                
+                # Display each item
+                for item in items:
+                    item_frame = ctk.CTkFrame(cat_frame)
+                    item_frame.pack(fill="x", padx=10, pady=3)
+                    
+                    # Lock/unlock status
+                    is_unlocked = item.get('unlocked', False)
+                    status = "✓" if is_unlocked else "🔒"
+                    
+                    # Item name
+                    item_text = f"{status} {item.get('name', 'Unknown')}"
+                    ctk.CTkLabel(item_frame, text=item_text,
+                                font=("Arial", 12)).pack(side="left", padx=10, pady=5)
+                    
+                    # Unlock condition (if locked)
+                    if not is_unlocked and 'unlock_condition' in item:
+                        condition_text = f"({item['unlock_condition']})"
+                        ctk.CTkLabel(item_frame, text=condition_text,
+                                    font=("Arial", 10),
+                                    text_color="gray").pack(side="left", padx=5)
+                
+        except Exception as e:
+            ctk.CTkLabel(rewards_scroll,
+                        text=f"Error loading rewards: {e}",
+                        font=("Arial", 12)).pack(pady=20)
     
     def create_notepad_tab(self):
         """Create notepad tab"""
