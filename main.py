@@ -248,6 +248,7 @@ class PS2TextureSorter(ctk.CTk):
         # Configure window
         self.title(f"{APP_NAME} v{APP_VERSION}")
         self.geometry("1200x800")
+        self.minsize(800, 600)  # Ensure critical UI elements remain accessible
         
         # Set window icon
         try:
@@ -842,8 +843,8 @@ class PS2TextureSorter(ctk.CTk):
             recursive = self.convert_recursive_var.get()
             
             # Scan for files
-            self.convert_progress_bar.set(0.1)
-            self.convert_progress_label.configure(text="Scanning files...")
+            self.after(0, self.convert_progress_bar.set, 0.1)
+            self.after(0, self.convert_progress_label.configure, {"text": "Scanning files..."})
             
             if recursive:
                 files = list(input_path.rglob(f"*{from_format}"))
@@ -886,8 +887,8 @@ class PS2TextureSorter(ctk.CTk):
                     
                     # Progress
                     progress = 0.1 + (0.9 * (i + 1) / total)
-                    self.convert_progress_bar.set(progress)
-                    self.convert_progress_label.configure(text=f"Converting {i+1}/{total}...")
+                    self.after(0, self.convert_progress_bar.set, progress)
+                    self.after(0, self.convert_progress_label.configure, {"text": f"Converting {i+1}/{total}..."})
                     
                     # Log every 10th file
                     if (i+1) % 10 == 0 or i == total - 1:
@@ -899,8 +900,8 @@ class PS2TextureSorter(ctk.CTk):
                         self.convert_log(f"❌ Failed: {file_path.name} - {str(e)[:50]}")
             
             # Complete
-            self.convert_progress_bar.set(1.0)
-            self.convert_progress_label.configure(text="Conversion complete!")
+            self.after(0, self.convert_progress_bar.set, 1.0)
+            self.after(0, self.convert_progress_label.configure, {"text": "Conversion complete!"})
             self.convert_log("=" * 60)
             self.convert_log("✓ BATCH CONVERSION COMPLETED!")
             self.convert_log(f"Successfully converted: {converted}")
@@ -913,13 +914,16 @@ class PS2TextureSorter(ctk.CTk):
         
         finally:
             # Re-enable button
-            self.convert_start_button.configure(state="normal")
+            self.after(0, self.convert_start_button.configure, {"state": "normal"})
     
     def convert_log(self, message):
-        """Add message to conversion log"""
+        """Add message to conversion log - thread-safe"""
+        self.after(0, self._convert_log_impl, message)
+    
+    def _convert_log_impl(self, message):
+        """Internal implementation of conversion log on main thread"""
         self.convert_log_text.insert("end", f"{message}\n")
         self.convert_log_text.see("end")
-        self.update()
     
     def create_browser_tab(self):
         """Create file browser tab"""
@@ -1629,10 +1633,10 @@ Features:
         
         finally:
             # Re-enable buttons
-            self.start_button.configure(state="normal")
-            self.organize_button.configure(state="normal")
-            self.pause_button.configure(state="disabled")
-            self.stop_button.configure(state="disabled")
+            self.after(0, self.start_button.configure, {"state": "normal"})
+            self.after(0, self.organize_button.configure, {"state": "normal"})
+            self.after(0, self.pause_button.configure, {"state": "disabled"})
+            self.after(0, self.stop_button.configure, {"state": "disabled"})
     
     def pause_sorting(self):
         """Pause sorting operation"""
@@ -1643,16 +1647,23 @@ Features:
         self.log("⏹️ Sorting stopped")
     
     def update_progress(self, value, text):
-        """Update progress bar and label"""
+        """Update progress bar and label - thread-safe"""
+        self.after(0, self._update_progress_impl, value, text)
+    
+    def _update_progress_impl(self, value, text):
+        """Internal implementation of progress update on main thread"""
         self.progress_bar.set(value)
         self.progress_label.configure(text=text)
         self.status_label.configure(text=text)
     
     def log(self, message):
-        """Add message to log"""
+        """Add message to log - thread-safe"""
+        self.after(0, self._log_impl, message)
+    
+    def _log_impl(self, message):
+        """Internal implementation of log on main thread"""
         self.log_text.insert("end", f"{message}\n")
         self.log_text.see("end")
-        self.update()
     
     def toggle_theme(self):
         """Toggle between dark and light theme"""
