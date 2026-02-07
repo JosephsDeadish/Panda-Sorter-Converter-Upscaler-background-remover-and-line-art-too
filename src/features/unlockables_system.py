@@ -8,7 +8,7 @@ import logging
 import json
 import random
 from pathlib import Path
-from typing import Dict, List, Optional, Callable, Set, Tuple
+from typing import Dict, List, Optional, Callable, Set, Tuple, Any
 from dataclasses import dataclass, field, asdict
 from datetime import datetime, time as dt_time
 from enum import Enum
@@ -40,7 +40,7 @@ class UnlockConditionType(Enum):
 class UnlockCondition:
     """Represents an unlock condition."""
     condition_type: UnlockConditionType
-    value: any
+    value: Any
     description: str
     
     def check(self, stats: Dict) -> bool:
