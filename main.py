@@ -803,8 +803,12 @@ class PS2TextureSorter(ctk.CTk):
     
     def start_conversion(self):
         """Start batch conversion"""
+        # Read ALL tkinter variable values BEFORE starting thread (thread-safety fix)
         input_path = self.convert_input_var.get()
         output_path = self.convert_output_var.get()
+        from_format = self.convert_from_var.get().lower()
+        to_format = self.convert_to_var.get().lower()
+        recursive = self.convert_recursive_var.get()
         
         if not input_path:
             self.convert_log("⚠️ Please select an input directory")
@@ -812,9 +816,6 @@ class PS2TextureSorter(ctk.CTk):
         if not output_path:
             self.convert_log("⚠️ Please select an output directory")
             return
-        
-        from_format = self.convert_from_var.get().lower()
-        to_format = self.convert_to_var.get().lower()
         
         if from_format == to_format:
             self.convert_log("⚠️ Source and target formats are the same")
@@ -830,17 +831,20 @@ class PS2TextureSorter(ctk.CTk):
         # Disable start button
         self.convert_start_button.configure(state="disabled")
         
-        # Start conversion in background thread
-        threading.Thread(target=self.conversion_thread, daemon=True).start()
+        # Start conversion in background thread with all parameters
+        threading.Thread(
+            target=self.conversion_thread,
+            args=(input_path, output_path, from_format, to_format, recursive),
+            daemon=True
+        ).start()
     
-    def conversion_thread(self):
+    def conversion_thread(self, input_path_str, output_path_str, from_format, to_format, recursive):
         """Background thread for file conversion"""
         try:
-            input_path = Path(self.convert_input_var.get())
-            output_path = Path(self.convert_output_var.get())
-            from_format = f".{self.convert_from_var.get().lower()}"
-            to_format = f".{self.convert_to_var.get().lower()}"
-            recursive = self.convert_recursive_var.get()
+            input_path = Path(input_path_str)
+            output_path = Path(output_path_str)
+            from_format = f".{from_format}"
+            to_format = f".{to_format}"
             
             # Scan for files
             self.after(0, lambda: self.convert_progress_bar.set(0.1))
@@ -1470,8 +1474,14 @@ Features:
     
     def start_sorting(self):
         """Start texture sorting operation"""
+        # Read ALL tkinter variable values BEFORE starting thread (thread-safety fix)
         input_path = self.input_path_var.get()
         output_path = self.output_path_var.get()
+        mode = self.mode_var.get()
+        style = self.style_var.get()
+        detect_lods = self.detect_lods_var.get()
+        group_lods = self.group_lods_var.get()
+        detect_duplicates = self.detect_duplicates_var.get()
         
         if not input_path or not output_path:
             messagebox.showerror("Error", "Please select both input and output directories")
@@ -1485,8 +1495,8 @@ Features:
         self.log("Starting texture sorting operation...")
         self.log(f"Input: {input_path}")
         self.log(f"Output: {output_path}")
-        self.log(f"Mode: {self.mode_var.get()}")
-        self.log(f"Style: {self.style_var.get()}")
+        self.log(f"Mode: {mode}")
+        self.log(f"Style: {style}")
         self.log("=" * 60)
         
         # Disable start buttons
@@ -1495,20 +1505,18 @@ Features:
         self.pause_button.configure(state="normal")
         self.stop_button.configure(state="normal")
         
-        # Start sorting in background thread
-        threading.Thread(target=self.sort_textures_thread, daemon=True).start()
+        # Start sorting in background thread with all parameters
+        threading.Thread(
+            target=self.sort_textures_thread,
+            args=(input_path, output_path, mode, style, detect_lods, group_lods, detect_duplicates),
+            daemon=True
+        ).start()
     
-    def sort_textures_thread(self):
+    def sort_textures_thread(self, input_path_str, output_path_str, mode, style_name, detect_lods, group_lods, detect_duplicates):
         """Background thread for texture sorting with full organization system"""
         try:
-            input_path = Path(self.input_path_var.get())
-            output_path = Path(self.output_path_var.get())
-            
-            # Get options
-            detect_lods = self.detect_lods_var.get()
-            group_lods = self.group_lods_var.get()
-            detect_duplicates = self.detect_duplicates_var.get()
-            style_name = self.style_var.get()
+            input_path = Path(input_path_str)
+            output_path = Path(output_path_str)
             
             # Scan for texture files
             self.update_progress(0.05, "Scanning directory...")
