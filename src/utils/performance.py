@@ -24,8 +24,7 @@ class PerformanceMetrics:
     cpu_percent: float = 0.0
     thread_count: int = 0
     cache_hit_rate: float = 0.0
-    
-    
+
 class PerformanceMonitor:
     """
     Monitor and track application performance
@@ -170,7 +169,7 @@ class PerformanceMonitor:
                 'max_time': max(times),
             }
     
-    def get_summary(self) -> Dict[str, any]:
+    def get_summary(self) -> Dict[str, Any]:
         """
         Get complete performance summary
         

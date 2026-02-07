@@ -231,7 +231,7 @@ class OfflineModel:
             results.append(predictions)
         return results
     
-    def get_model_info(self) -> Dict[str, any]:
+    def get_model_info(self) -> Dict[str, Any]:
         """
         Get model metadata and information.
         
