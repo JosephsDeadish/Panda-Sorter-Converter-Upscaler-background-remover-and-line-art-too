@@ -295,7 +295,7 @@ class PS2TextureSorter(ctk.CTk):
         self.create_main_ui()
         
         # Show tutorial on first run
-        if self.tutorial_manager and hasattr(self.tutorial_manager, 'should_show_tutorial') and self.tutorial_manager.should_show_tutorial():
+        if self.tutorial_manager and self.tutorial_manager.should_show_tutorial():
             self.after(500, lambda: self.tutorial_manager.start_tutorial())
         
         # Status
@@ -1026,7 +1026,16 @@ class PS2TextureSorter(ctk.CTk):
                     
                     progress_bar = ctk.CTkProgressBar(progress_frame, width=400)
                     progress_bar.pack(side="left", padx=5)
-                    progress_bar.set(min(progress / required, 1.0) if required > 0 else 0)
+                    
+                    # Calculate progress: if required is 0 and progress > 0, consider it complete
+                    if required > 0:
+                        progress_value = min(progress / required, 1.0)
+                    elif progress > 0:
+                        progress_value = 1.0  # Completed achievement with invalid data
+                    else:
+                        progress_value = 0.0  # Not started
+                    
+                    progress_bar.set(progress_value)
                     
                     progress_label = ctk.CTkLabel(progress_frame, 
                                                   text=f"{progress}/{required}",

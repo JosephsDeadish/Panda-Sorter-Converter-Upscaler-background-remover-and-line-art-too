@@ -157,4 +157,3 @@ print("\n" + "=" * 60)
 print("✅ All structure tests passed!")
 print("\nNote: Actual runtime requires dependencies (numpy, customtkinter, etc.)")
 print("but the code structure is correct and ready for integration.")
-
