@@ -124,10 +124,10 @@ print("=" * 60)
 print()
 
 print("1. WM_DELETE_WINDOW protocol handler:")
-for i, line in enumerate(source_code.split('\n')):
+lines = source_code.split('\n')
+for i, line in enumerate(lines):
     if 'protocol("WM_DELETE_WINDOW"' in line:
         # Print surrounding lines for context
-        lines = source_code.split('\n')
         start = max(0, i - 2)
         end = min(len(lines), i + 2)
         for j in range(start, end):
@@ -139,7 +139,11 @@ print("2. Overlay click handler method:")
 on_overlay_start = source_code.find("def _on_overlay_click(")
 if on_overlay_start != -1:
     next_method = source_code.find("\n    def ", on_overlay_start + 1)
-    method_code = source_code[on_overlay_start:next_method].strip()
+    if next_method != -1:
+        method_code = source_code[on_overlay_start:next_method].strip()
+    else:
+        # _on_overlay_click is the last method, take rest of file
+        method_code = source_code[on_overlay_start:].strip()
     for line in method_code.split('\n')[:10]:  # First 10 lines
         print(f"   {line}")
 print()
