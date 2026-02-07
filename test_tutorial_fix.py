@@ -82,9 +82,9 @@ try:
     
     checks = {
         "overlay topmost lowering": "attributes('-topmost', False)" in skip_tutorial_code,
-        "try-finally block": "try:" in skip_tutorial_code and "finally:" in skip_tutorial_code,
         "tutorial window lift": "tutorial_window.lift()" in skip_tutorial_code,
-        "focus management on cancel": "focus_force()" in skip_tutorial_code
+        "focus management on cancel": "focus_force()" in skip_tutorial_code,
+        "messagebox.askyesno call": "messagebox.askyesno" in skip_tutorial_code
     }
     
     all_passed = True

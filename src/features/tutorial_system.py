@@ -375,22 +375,17 @@ class TutorialManager:
         if self.tutorial_window:
             self.tutorial_window.lift()
         
-        try:
-            result = messagebox.askyesno(
-                "Skip Tutorial", 
-                "Are you sure you want to skip the tutorial? You can restart it later from Settings."
-            )
-            if result:
-                self._complete_tutorial()
-            else:
-                # User chose not to skip, ensure tutorial window is on top
-                if self.tutorial_window:
-                    self.tutorial_window.lift()
-                    self.tutorial_window.focus_force()
-        finally:
-            # Don't restore overlay topmost - keep it below tutorial window
-            # The overlay should always be below the tutorial window
-            pass
+        result = messagebox.askyesno(
+            "Skip Tutorial", 
+            "Are you sure you want to skip the tutorial? You can restart it later from Settings."
+        )
+        if result:
+            self._complete_tutorial()
+        else:
+            # User chose not to skip, ensure tutorial window is on top
+            if self.tutorial_window:
+                self.tutorial_window.lift()
+                self.tutorial_window.focus_force()
     
     def _complete_tutorial(self):
         """Complete and close the tutorial"""
