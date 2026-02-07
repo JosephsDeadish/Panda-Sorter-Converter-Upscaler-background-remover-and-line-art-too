@@ -187,9 +187,6 @@ class PS2TextureSorter(ctk.CTk):
         self.title(f"{APP_NAME} v{APP_VERSION}")
         self.geometry("1200x800")
         
-        # Load theme from config before creating UI
-        self._load_initial_theme()
-        
         # Initialize core components
         self.classifier = TextureClassifier(config)
         self.lod_detector = LODDetector()

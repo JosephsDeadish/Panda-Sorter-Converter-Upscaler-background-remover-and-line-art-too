@@ -361,7 +361,7 @@ class CursorCustomizer(ctk.CTkFrame):
         
         ctk.CTkLabel(preview_frame, text="Preview:", font=("Arial Bold", 11)).pack(anchor="w", padx=5)
         
-        self.preview_area = ctk.CTkLabel(preview_frame, text="Move mouse here\\nto preview cursor",
+        self.preview_area = ctk.CTkLabel(preview_frame, text="Move mouse here\nto preview cursor",
                                         width=200, height=100, fg_color="#2b2b2b")
         self.preview_area.pack(padx=5, pady=5)
         
@@ -402,7 +402,7 @@ class CursorCustomizer(ctk.CTkFrame):
         size_str = f"{self.cursor_sizes[self.current_size][0]}x{self.cursor_sizes[self.current_size][1]}"
         trail_str = "ON" if self.trail_enabled else "OFF"
         
-        preview_text = f"Type: {self.current_cursor}\\nSize: {size_str}\\nTint: {self.current_tint}\\nTrail: {trail_str}"
+        preview_text = f"Type: {self.current_cursor}\nSize: {size_str}\nTint: {self.current_tint}\nTrail: {trail_str}"
         self.preview_area.configure(text=preview_text)
     
     def _apply_cursor(self):
@@ -534,7 +534,7 @@ class ThemeManager(ctk.CTkFrame):
         for widget in self.preview_container.winfo_children():
             widget.destroy()
         
-        preview_text = f"Theme: {theme['name']}\\nAppearance: {theme['appearance_mode'].title()}"
+        preview_text = f"Theme: {theme['name']}\nAppearance: {theme['appearance_mode'].title()}"
         
         title = ctk.CTkLabel(self.preview_container, text=preview_text,
                             font=("Arial Bold", 12))
@@ -568,8 +568,8 @@ class ThemeManager(ctk.CTkFrame):
         ctk.set_appearance_mode(theme["appearance_mode"])
         
         messagebox.showinfo("Live Preview", 
-                          f"Previewing: {theme['name']}\\n\\n"
-                          "This is a temporary preview.\\n"
+                          f"Previewing: {theme['name']}\n\n"
+                          "This is a temporary preview.\n"
                           "Click 'Apply Theme' to make it permanent.")
     
     def _apply_theme(self):
@@ -620,7 +620,7 @@ class ThemeManager(ctk.CTkFrame):
         
         if not custom_themes:
             messagebox.showinfo("No Custom Themes", 
-                              "No custom themes found.\\n\\n"
+                              "No custom themes found.\n\n"
                               "Create one by customizing a preset and saving it!")
             return
         
@@ -692,7 +692,7 @@ class ThemeManager(ctk.CTkFrame):
             with open(file_path, 'w') as f:
                 json.dump(theme, f, indent=4)
             
-            messagebox.showinfo("Success", f"Theme exported to:\\n{file_path}")
+            messagebox.showinfo("Success", f"Theme exported to:\n{file_path}")
         except Exception as e:
             messagebox.showerror("Error", f"Failed to export theme: {e}")
     
