@@ -7,6 +7,7 @@ Author: Dead On The Inside / JosephsDeadish
 import logging
 from pathlib import Path
 from typing import Optional, List, Callable
+from collections import deque
 from PIL import Image, ImageTk
 import os
 
@@ -48,8 +49,9 @@ class PreviewViewer:
         self.image_on_canvas = None
         
         # Store PhotoImage references to prevent garbage collection
+        # Using deque with maxlen for automatic size management
         self._current_photo = None
-        self._photo_references = []  # Additional list to prevent GC
+        self._photo_references = deque(maxlen=self.MAX_PHOTO_REFERENCES)
         
         # Panning state
         self.is_panning = False
@@ -393,11 +395,8 @@ class PreviewViewer:
             photo_master = self.preview_window if self.preview_window and self.preview_window.winfo_exists() else self.master
             self._current_photo = ImageTk.PhotoImage(self.display_image, master=photo_master)
             
-            # Keep in reference list to prevent premature GC
+            # Keep in reference deque to prevent premature GC (auto-manages size with maxlen)
             self._photo_references.append(self._current_photo)
-            # Limit list size to prevent memory bloat
-            if len(self._photo_references) > self.MAX_PHOTO_REFERENCES:
-                self._photo_references.pop(0)
             
             # Update canvas
             self.canvas.delete("all")
