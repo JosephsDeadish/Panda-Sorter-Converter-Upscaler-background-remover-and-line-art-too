@@ -774,13 +774,18 @@ class CustomizationPanel(ctk.CTkFrame):
         }
 
 
-def open_customization_dialog(parent=None):
-    """Open customization dialog window"""
+def open_customization_dialog(parent=None, on_settings_change=None):
+    """Open customization dialog window
+    
+    Args:
+        parent: Parent window
+        on_settings_change: Optional callback function(setting_type, value) to handle setting changes
+    """
     dialog = ctk.CTkToplevel(parent)
     dialog.title("🎨 UI Customization")
     dialog.geometry("600x700")
     
-    panel = CustomizationPanel(dialog)
+    panel = CustomizationPanel(dialog, on_settings_change=on_settings_change)
     panel.pack(fill="both", expand=True, padx=10, pady=10)
     
     ctk.CTkButton(dialog, text="Close", command=dialog.destroy,

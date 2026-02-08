@@ -252,18 +252,19 @@ class PS2TextureSorter(ctk.CTk):
         
         # Set window icon (both .ico for Windows and .png for fallback)
         try:
-            # Try .ico first (better for Windows taskbar)
+            icon_path = Path(__file__).parent / "assets" / "icon.png"
             ico_path = Path(__file__).parent / "assets" / "icon.ico"
+            
+            # Set iconphoto first (works on all platforms)
+            if icon_path.exists():
+                from PIL import Image, ImageTk
+                icon_image = Image.open(str(icon_path))
+                self._icon_photo = ImageTk.PhotoImage(icon_image)
+                self.iconphoto(True, self._icon_photo)
+            
+            # Set iconbitmap for Windows (better taskbar integration)
             if ico_path.exists() and sys.platform == 'win32':
                 self.iconbitmap(str(ico_path))
-            else:
-                # Fallback to .png
-                icon_path = Path(__file__).parent / "assets" / "icon.png"
-                if icon_path.exists():
-                    from PIL import Image, ImageTk
-                    icon_image = Image.open(str(icon_path))
-                    self._icon_photo = ImageTk.PhotoImage(icon_image)
-                    self.iconphoto(True, self._icon_photo)
         except Exception as e:
             logger.debug(f"Could not set window icon: {e}")
         
@@ -310,7 +311,14 @@ class PS2TextureSorter(ctk.CTk):
                 
                 # Setup tutorial system
                 if TUTORIAL_AVAILABLE:
-                    self.tutorial_manager, self.tooltip_manager, self.context_help = setup_tutorial_system(self, config)
+                    try:
+                        self.tutorial_manager, self.tooltip_manager, self.context_help = setup_tutorial_system(self, config)
+                        logger.info("Tutorial system initialized successfully")
+                    except Exception as tutorial_error:
+                        logger.error(f"Failed to initialize tutorial system: {tutorial_error}", exc_info=True)
+                        self.tutorial_manager = None
+                        self.tooltip_manager = None
+                        self.context_help = None
             except Exception as e:
                 logger.warning(f"Failed to initialize some features: {e}")
         
@@ -492,7 +500,7 @@ class PS2TextureSorter(ctk.CTk):
             )
             btn.place(relx=1.0, rely=0.0, anchor="ne", x=-5, y=5)
             if WidgetTooltip:
-                WidgetTooltip(btn, f"Open {tab_name} in a separate window")
+                self._tooltips.append(WidgetTooltip(btn, f"Open {tab_name} in a separate window"))
     
     def _popout_tab(self, tab_name):
         """Pop out a tab into its own window"""
@@ -1165,7 +1173,7 @@ class PS2TextureSorter(ctk.CTk):
         """Open UI customization dialog"""
         if CUSTOMIZATION_AVAILABLE:
             try:
-                open_customization_dialog(parent=self)
+                open_customization_dialog(parent=self, on_settings_change=self._on_customization_change)
                 self.log("✅ Opened UI Customization panel")
             except Exception as e:
                 self.log(f"❌ Error opening customization: {e}")
@@ -1177,6 +1185,23 @@ class PS2TextureSorter(ctk.CTk):
                 messagebox.showwarning("Not Available", 
                                      "UI customization panel is not available.\n"
                                      "Please check your installation.")
+    
+    def _on_customization_change(self, setting_type, value):
+        """Handle customization setting changes from the customization panel"""
+        try:
+            if setting_type == 'theme':
+                # Theme changes are already applied by the ThemeManager via ctk.set_appearance_mode
+                # Just log the change
+                self.log(f"✅ Theme applied: {value.get('name', 'Unknown')}")
+            elif setting_type == 'color':
+                # Color changes are for accent color - log for now
+                self.log(f"✅ Accent color changed: {value}")
+            elif setting_type == 'cursor':
+                # Cursor changes are saved to config - log for now
+                self.log(f"✅ Cursor settings applied: {value.get('type', 'Unknown')}")
+        except Exception as e:
+            self.log(f"❌ Error applying customization: {e}")
+            logger.error(f"Customization change error: {e}", exc_info=True)
     
     def open_settings_window(self):
         """Open settings in a separate window"""
@@ -2073,7 +2098,6 @@ Built with:
                 self.update_progress(0.4, "Detecting LODs...")
                 self.log("Detecting LOD groups...")
                 # Convert string paths to Path objects for LOD detector
-                from pathlib import Path
                 file_paths = [Path(t.file_path) for t in texture_infos]
                 lod_groups = self.lod_detector.detect_lods(file_paths)
                 
@@ -2238,6 +2262,14 @@ def main():
         print("  pip install customtkinter")
         input("\nPress Enter to exit...")
         sys.exit(1)
+    
+    # Set Windows taskbar AppUserModelID for proper icon display
+    if sys.platform == 'win32':
+        try:
+            import ctypes
+            ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID('JosephsDeadish.PS2TextureSorter.App.1.0.0')
+        except Exception as e:
+            logger.debug(f"Could not set AppUserModelID: {e}")
     
     try:
         # Create root window (hidden)
