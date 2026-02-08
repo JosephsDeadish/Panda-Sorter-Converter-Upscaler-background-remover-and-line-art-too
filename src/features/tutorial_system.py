@@ -5,6 +5,7 @@ Author: Dead On The Inside / JosephsDeadish
 """
 
 import logging
+import tkinter as tk
 from typing import Optional, Callable, List, Dict, Any
 from dataclasses import dataclass
 from enum import Enum
@@ -585,8 +586,18 @@ class WidgetTooltip:
         self.delay = delay
         self.tip_window = None
         self._after_id = None
+        
+        # Bind to both the widget and its internal canvas if it exists
         widget.bind("<Enter>", self._on_enter)
         widget.bind("<Leave>", self._on_leave)
+        
+        # Try to bind to internal canvas for CustomTkinter widgets
+        try:
+            if hasattr(widget, '_canvas'):
+                widget._canvas.bind("<Enter>", self._on_enter)
+                widget._canvas.bind("<Leave>", self._on_leave)
+        except Exception:
+            pass
     
     def _on_enter(self, event=None):
         self._after_id = self.widget.after(self.delay, self._show_tip)
@@ -600,20 +611,36 @@ class WidgetTooltip:
     def _show_tip(self):
         if not self.text:
             return
+        
+        # Check if widget is still visible and mapped
+        try:
+            if not self.widget.winfo_ismapped():
+                return
+        except Exception:
+            return
+            
         try:
             x = self.widget.winfo_rootx() + 20
             y = self.widget.winfo_rooty() + self.widget.winfo_height() + 5
-            self.tip_window = tw = ctk.CTkToplevel(self.widget)
+            
+            # Use regular tkinter Toplevel for lighter-weight tooltip
+            self.tip_window = tw = tk.Toplevel(self.widget)
             tw.wm_overrideredirect(True)
             tw.wm_geometry(f"+{x}+{y}")
             tw.attributes('-topmost', True)
-            label = ctk.CTkLabel(tw, text=self.text, wraplength=300,
-                                 font=("Arial", 11), corner_radius=6,
-                                 fg_color=("gray85", "gray25"),
-                                 padx=8, pady=4)
+            
+            # Create label with styling
+            label = tk.Label(tw, text=self.text, wraplength=300,
+                           font=("Arial", 11),
+                           bg="#f0f0f0",
+                           fg="#000000",
+                           relief="solid",
+                           borderwidth=1,
+                           padx=8, pady=4)
             label.pack()
-        except Exception:
-            pass
+        except Exception as e:
+            # Log but don't crash
+            logger.debug(f"Tooltip error: {e}")
     
     def _hide_tip(self):
         if self.tip_window:

@@ -785,10 +785,23 @@ def open_customization_dialog(parent=None, on_settings_change=None):
     dialog.title("🎨 UI Customization")
     dialog.geometry("600x700")
     
+    # Make dialog modal and stay on top
+    if parent:
+        dialog.transient(parent)
+        dialog.grab_set()
+    
+    # Handle window close button (X)
+    def on_close():
+        if parent:
+            dialog.grab_release()
+        dialog.destroy()
+    
+    dialog.protocol("WM_DELETE_WINDOW", on_close)
+    
     panel = CustomizationPanel(dialog, on_settings_change=on_settings_change)
     panel.pack(fill="both", expand=True, padx=10, pady=10)
     
-    ctk.CTkButton(dialog, text="Close", command=dialog.destroy,
+    ctk.CTkButton(dialog, text="Close", command=on_close,
                  width=100, height=35).pack(pady=10)
     
     return dialog

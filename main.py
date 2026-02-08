@@ -7,6 +7,14 @@ sorting PS2 texture dumps with advanced AI classification and massive-scale
 support (200,000+ textures).
 """
 
+# Set Windows taskbar icon BEFORE any GUI imports
+import ctypes
+try:
+    # Follow Microsoft's AppUserModelID naming convention
+    ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID('Josephs.PS2TextureSorter.Main.1.0.0')
+except (AttributeError, OSError):
+    pass  # Not Windows or no windll
+
 import sys
 import os
 import time
@@ -255,16 +263,16 @@ class PS2TextureSorter(ctk.CTk):
             icon_path = Path(__file__).parent / "assets" / "icon.png"
             ico_path = Path(__file__).parent / "assets" / "icon.ico"
             
-            # Set iconphoto first (works on all platforms)
+            # Set iconbitmap first for Windows (best taskbar integration)
+            if ico_path.exists() and sys.platform == 'win32':
+                self.iconbitmap(str(ico_path))
+            
+            # Set iconphoto for better cross-platform support and taskbar
             if icon_path.exists():
                 from PIL import Image, ImageTk
                 icon_image = Image.open(str(icon_path))
                 self._icon_photo = ImageTk.PhotoImage(icon_image)
                 self.iconphoto(True, self._icon_photo)
-            
-            # Set iconbitmap for Windows (better taskbar integration)
-            if ico_path.exists() and sys.platform == 'win32':
-                self.iconbitmap(str(ico_path))
         except Exception as e:
             logger.debug(f"Could not set window icon: {e}")
         
@@ -439,11 +447,36 @@ class PS2TextureSorter(ctk.CTk):
     def _run_tutorial(self):
         """Start or restart the tutorial"""
         if self.tutorial_manager:
-            self.tutorial_manager.reset_tutorial()
-            self.tutorial_manager.start_tutorial()
+            try:
+                self.tutorial_manager.reset_tutorial()
+                self.tutorial_manager.start_tutorial()
+                self.log("✅ Tutorial started successfully")
+            except Exception as e:
+                logger.error(f"Failed to start tutorial: {e}", exc_info=True)
+                self.log(f"❌ Error starting tutorial: {e}")
+                if GUI_AVAILABLE:
+                    messagebox.showerror("Tutorial Error", 
+                        f"Failed to start tutorial:\n\n{str(e)}\n\nCheck the log for details.")
         else:
-            if GUI_AVAILABLE:
-                messagebox.showinfo("Tutorial", "Tutorial system is not available.")
+            logger.warning("Tutorial button clicked but tutorial_manager is None")
+            self._show_tutorial_unavailable_message()
+    
+    def _show_tutorial_unavailable_message(self):
+        """Show appropriate message when tutorial is unavailable"""
+        if not GUI_AVAILABLE:
+            return
+            
+        if not TUTORIAL_AVAILABLE:
+            messagebox.showwarning("Tutorial Unavailable", 
+                "Tutorial system failed to import.\n\n"
+                "This may be due to missing dependencies or import errors.\n"
+                "Check the application log for details.")
+        else:
+            messagebox.showwarning("Tutorial Unavailable", 
+                "Tutorial system is available but failed to initialize.\n\n"
+                "This may occur if the UI is not fully loaded yet.\n"
+                "Try restarting the application.")
+
     
     def create_main_ui(self):
         """Create main tabbed interface"""
