@@ -30,8 +30,9 @@ if not ICON_PATH.exists():
     ICON_PATH = RESOURCES_DIR / 'icons' / 'panda_icon.ico'
     if not ICON_PATH.exists():
         ICON_PATH = None  # Will use default PyInstaller icon
-else:
-    # Convert to absolute path
+
+# Convert to absolute path string for PyInstaller
+if ICON_PATH:
     ICON_PATH = str(ICON_PATH.absolute())
 
 # Collect all Python files
@@ -40,6 +41,9 @@ a = Analysis(
     pathex=[str(SCRIPT_DIR)],
     binaries=[],
     datas=[
+        # Include assets (icon files)
+        (str(ASSETS_DIR / 'icon.ico'), 'assets'),
+        (str(ASSETS_DIR / 'icon.png'), 'assets'),
         # Include resources
         (str(RESOURCES_DIR / 'icons'), 'resources/icons'),
         (str(RESOURCES_DIR / 'cursors'), 'resources/cursors'),
