@@ -322,21 +322,22 @@ class PreviewViewer:
         """Load an image file"""
         try:
             # Clean up old image references to prevent memory leaks
-            if self._current_photo is not None:
-                self._current_photo = None
+            # Clear photo references list (which includes _current_photo)
             if self._photo_references:
                 self._photo_references.clear()
+            self._current_photo = None
+            
             if self.original_image is not None:
                 try:
                     self.original_image.close()
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.debug(f"Error closing original_image: {e}")
                 self.original_image = None
             if self.display_image is not None:
                 try:
                     self.display_image.close()
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.debug(f"Error closing display_image: {e}")
                 self.display_image = None
             
             # Handle DDS files with special support
