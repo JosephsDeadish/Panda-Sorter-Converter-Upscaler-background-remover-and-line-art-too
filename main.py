@@ -285,6 +285,7 @@ class PS2TextureSorter(ctk.CTk):
         self.search_filter = None
         self.tutorial_manager = None
         self.tooltip_manager = None
+        self._tooltips = []  # Store tooltip references to prevent garbage collection
         self.context_help = None
         self.preview_viewer = None
         
@@ -695,10 +696,11 @@ class PS2TextureSorter(ctk.CTk):
         if not WidgetTooltip:
             return
         tooltip_text = self._get_tooltip_text
-        WidgetTooltip(self.start_button, tooltip_text('sort_button'))
-        WidgetTooltip(self.organize_button, "Organize your textures into folders based on selected options")
-        WidgetTooltip(browse_in_btn, tooltip_text('input_browse'))
-        WidgetTooltip(browse_out_btn, tooltip_text('output_browse'))
+        # Store tooltip references to prevent garbage collection
+        self._tooltips.append(WidgetTooltip(self.start_button, tooltip_text('sort_button')))
+        self._tooltips.append(WidgetTooltip(self.organize_button, "Organize your textures into folders based on selected options"))
+        self._tooltips.append(WidgetTooltip(browse_in_btn, tooltip_text('input_browse')))
+        self._tooltips.append(WidgetTooltip(browse_out_btn, tooltip_text('output_browse')))
     
     def _get_tooltip_text(self, widget_id):
         """Get tooltip text from the tooltip manager"""
@@ -996,8 +998,18 @@ class PS2TextureSorter(ctk.CTk):
         right_pane = ctk.CTkFrame(content_frame)
         right_pane.pack(side="left", fill="both", expand=True)
         
-        ctk.CTkLabel(right_pane, text="📄 Files", 
-                    font=("Arial Bold", 12)).pack(pady=5)
+        # File list header with filter options
+        file_header = ctk.CTkFrame(right_pane)
+        file_header.pack(fill="x", padx=5, pady=5)
+        
+        ctk.CTkLabel(file_header, text="📄 Files", 
+                    font=("Arial Bold", 12)).pack(side="left", pady=5)
+        
+        # Add show all files checkbox
+        self.browser_show_all = ctk.BooleanVar(value=False)
+        ctk.CTkCheckBox(file_header, text="Show all files", 
+                       variable=self.browser_show_all,
+                       command=self.browser_refresh).pack(side="left", padx=10)
         
         # File list (scrollable)
         self.browser_file_list = ctk.CTkScrollableFrame(right_pane, height=450)
@@ -1040,31 +1052,69 @@ class PS2TextureSorter(ctk.CTk):
             for widget in self.browser_file_list.winfo_children():
                 widget.destroy()
             
-            # Get all texture files
-            texture_extensions = {'.dds', '.png', '.jpg', '.jpeg', '.bmp', '.tga'}
-            files = [f for f in self.browser_current_dir.iterdir() 
-                    if f.is_file() and f.suffix.lower() in texture_extensions]
+            # Check if show all files is enabled
+            show_all = self.browser_show_all.get() if hasattr(self, 'browser_show_all') else False
             
-            # Display files
+            # Get files based on filter
+            if show_all:
+                files = [f for f in self.browser_current_dir.iterdir() if f.is_file()]
+            else:
+                texture_extensions = {'.dds', '.png', '.jpg', '.jpeg', '.bmp', '.tga'}
+                files = [f for f in self.browser_current_dir.iterdir() 
+                        if f.is_file() and f.suffix.lower() in texture_extensions]
+            
+            # Display files (removed 100 limit)
             if not files:
+                file_type = "files" if show_all else "texture files"
                 ctk.CTkLabel(self.browser_file_list, 
-                           text="No texture files found in this directory",
+                           text=f"No {file_type} found in this directory",
                            font=("Arial", 11)).pack(pady=20)
             else:
-                for file in sorted(files)[:100]:  # Limit to first 100 for performance
+                for file in sorted(files):  # Show all files, no limit
                     self._create_file_entry(file)
             
-            # Update folder list
+            # Update folder list with navigation
             self.browser_folder_list.delete("1.0", "end")
+            
+            # Add parent directory navigation if not at root
+            if self.browser_current_dir.parent != self.browser_current_dir:
+                self.browser_folder_list.insert("end", "⬆️ .. (Parent Directory)\n")
+            
             folders = [f for f in self.browser_current_dir.iterdir() if f.is_dir()]
             for folder in sorted(folders):
                 self.browser_folder_list.insert("end", f"📁 {folder.name}\n")
             
+            # Make folder list clickable
+            self.browser_folder_list.bind("<Double-Button-1>", self._on_folder_click)
+            
             # Update status
-            self.browser_status.configure(text=f"Found {len(files)} texture file(s)")
+            self.browser_status.configure(text=f"Found {len(files)} file(s) and {len(folders)} folder(s)")
             
         except Exception as e:
             self.browser_status.configure(text=f"Error: {e}")
+    
+    def _on_folder_click(self, event):
+        """Handle double-click on folder in browser"""
+        try:
+            # Get the clicked line
+            index = self.browser_folder_list.index("@%d,%d" % (event.x, event.y))
+            line = self.browser_folder_list.get(f"{index} linestart", f"{index} lineend").strip()
+            
+            # Handle parent directory
+            if line.startswith("⬆️"):
+                self.browser_current_dir = self.browser_current_dir.parent
+                self.browser_path_var.set(str(self.browser_current_dir))
+                self.browser_refresh()
+            # Handle subdirectory
+            elif line.startswith("📁"):
+                folder_name = line.replace("📁 ", "").strip()
+                new_dir = self.browser_current_dir / folder_name
+                if new_dir.exists() and new_dir.is_dir():
+                    self.browser_current_dir = new_dir
+                    self.browser_path_var.set(str(self.browser_current_dir))
+                    self.browser_refresh()
+        except Exception as e:
+            self.log(f"Error navigating folders: {e}")
     
     def _create_file_entry(self, file_path):
         """Create a file entry widget"""
@@ -1135,7 +1185,9 @@ class PS2TextureSorter(ctk.CTk):
         settings_window.title("⚙️ Application Settings")
         settings_window.geometry("900x700")
         
-        # Make it modal-ish (focus on this window)
+        # Make it modal-ish - stay on top of main window
+        settings_window.transient(self)  # Set as child of main window
+        settings_window.grab_set()  # Make it modal
         settings_window.focus()
         
         # Title
@@ -1236,7 +1288,7 @@ class PS2TextureSorter(ctk.CTk):
         cursor_frame.pack(fill="x", padx=10, pady=5)
         
         ctk.CTkLabel(cursor_frame, text="Cursor Style:").pack(side="left", padx=10)
-        cursor_var = ctk.StringVar(value=config.get('ui', 'cursor_style', default='default'))
+        cursor_var = ctk.StringVar(value=config.get('ui', 'cursor', default='default'))
         cursor_menu = ctk.CTkOptionMenu(cursor_frame, variable=cursor_var,
                                         values=["default", "skull", "panda", "sword"])
         cursor_menu.pack(side="left", padx=10)
@@ -1333,7 +1385,7 @@ class PS2TextureSorter(ctk.CTk):
                 config.set('ui', 'theme', value=theme_var.get())
                 config.set('ui', 'scale', value=scale_var.get())
                 config.set('ui', 'tooltip_mode', value=tooltip_var.get())
-                config.set('ui', 'cursor_style', value=cursor_var.get())
+                config.set('ui', 'cursor', value=cursor_var.get())  # Fixed: was cursor_style
                 config.set('ui', 'panda_mode_enabled', value=panda_var.get())
                 config.set('ui', 'vulgar_mode', value=vulgar_var.get())
                 
@@ -1354,11 +1406,18 @@ class PS2TextureSorter(ctk.CTk):
                 # Save to file
                 config.save()
                 
+                # Apply settings immediately
+                self.apply_theme(theme_var.get())
+                self.apply_ui_scaling(scale_var.get())
+                # Update tooltip mode if tooltip manager exists
+                if hasattr(self, 'tooltip_manager') and self.tooltip_manager:
+                    self.tooltip_manager.set_mode(tooltip_var.get())
+                
                 self.log("✅ Settings saved successfully!")
                 
                 # Show confirmation
                 if GUI_AVAILABLE:
-                    messagebox.showinfo("Settings Saved", "All settings have been saved successfully!")
+                    messagebox.showinfo("Settings Saved", "All settings have been saved and applied successfully!")
                     
             except Exception as e:
                 self.log(f"❌ Error saving settings: {e}")
@@ -2013,15 +2072,20 @@ Built with:
             if detect_lods:
                 self.update_progress(0.4, "Detecting LODs...")
                 self.log("Detecting LOD groups...")
-                lod_groups = self.lod_detector.detect_lods([t.file_path for t in texture_infos])
+                # Convert string paths to Path objects for LOD detector
+                from pathlib import Path
+                file_paths = [Path(t.file_path) for t in texture_infos]
+                lod_groups = self.lod_detector.detect_lods(file_paths)
                 
                 # Apply LOD information to textures
                 for texture_info in texture_infos:
                     for group_name, lod_files in lod_groups.items():
                         for lod_file in lod_files:
-                            if lod_file['path'] == texture_info.file_path:
+                            # Compare Path objects or convert to string for comparison
+                            lod_path = str(lod_file['path']) if isinstance(lod_file['path'], Path) else lod_file['path']
+                            if lod_path == texture_info.file_path:
                                 texture_info.lod_group = group_name
-                                texture_info.lod_level = lod_file['level']
+                                texture_info.lod_level = lod_file.get('lod_level', lod_file.get('level'))
                                 break
                 
                 self.log(f"Found {len(lod_groups)} LOD groups")
@@ -2082,10 +2146,19 @@ Built with:
             
             self.log("=" * 60)
             
+            # Play completion sound if enabled
+            self._play_completion_sound()
+            
         except Exception as e:
-            self.log(f"❌ Error during sorting: {e}")
+            error_msg = f"Error during sorting: {e}"
+            self.log(f"❌ {error_msg}")
             import traceback
             self.log(traceback.format_exc())
+            # Show user-friendly error dialog
+            if GUI_AVAILABLE:
+                from tkinter import messagebox
+                messagebox.showerror("Sorting Error", 
+                    f"An error occurred during sorting:\n\n{str(e)}\n\nCheck the log for details.")
         
         finally:
             # Re-enable buttons
@@ -2093,6 +2166,32 @@ Built with:
             self.after(0, lambda: self.organize_button.configure(state="normal"))
             self.after(0, lambda: self.pause_button.configure(state="disabled"))
             self.after(0, lambda: self.stop_button.configure(state="disabled"))
+    
+    def _play_completion_sound(self):
+        """Play a completion sound if enabled"""
+        try:
+            # Check if sounds are enabled
+            sound_enabled = config.get('notifications', 'play_sounds', default=False)
+            completion_alert = config.get('notifications', 'completion_alert', default=True)
+            
+            if not (sound_enabled and completion_alert):
+                return
+            
+            # Try to play system beep (cross-platform)
+            import sys
+            if sys.platform == 'win32':
+                try:
+                    import winsound
+                    # Play system asterisk sound (MB_ICONASTERISK)
+                    winsound.MessageBeep(winsound.MB_ICONASTERISK)
+                except Exception:
+                    pass
+            else:
+                # Unix/Mac - print bell character
+                print('\a')
+        except Exception as e:
+            # Fail silently - sound is not critical
+            pass
     
     def pause_sorting(self):
         """Pause sorting operation"""

@@ -73,17 +73,27 @@ class TutorialManager:
         if not GUI_AVAILABLE:
             logger.warning("GUI not available, skipping tutorial")
             return
+        
+        try:
+            self.on_complete_callback = on_complete
+            self.tutorial_active = True
+            self.current_step = 0
+            self.steps = self._create_tutorial_steps()
             
-        self.on_complete_callback = on_complete
-        self.tutorial_active = True
-        self.current_step = 0
-        self.steps = self._create_tutorial_steps()
-        
-        # Create semi-transparent overlay
-        self._create_overlay()
-        
-        # Show first step
-        self._show_step(0)
+            # Create semi-transparent overlay
+            self._create_overlay()
+            
+            # Show first step
+            self._show_step(0)
+        except Exception as e:
+            logger.error(f"Failed to start tutorial: {e}", exc_info=True)
+            self.tutorial_active = False
+            if self.overlay:
+                try:
+                    self.overlay.destroy()
+                except:
+                    pass
+                self.overlay = None
     
     def _create_tutorial_steps(self) -> List[TutorialStep]:
         """Create the 7-step tutorial sequence"""
@@ -199,32 +209,36 @@ class TutorialManager:
         """Create semi-transparent dark overlay"""
         if not GUI_AVAILABLE:
             return
+        
+        try:
+            # Create toplevel window for overlay
+            self.overlay = ctk.CTkToplevel(self.master)
+            self.overlay.title("")
             
-        # Create toplevel window for overlay
-        self.overlay = ctk.CTkToplevel(self.master)
-        self.overlay.title("")
-        
-        # Make it cover the entire main window
-        self.overlay.attributes('-alpha', 0.7)  # Semi-transparent
-        self.overlay.attributes('-topmost', True)
-        
-        # Get main window position and size
-        self.master.update_idletasks()
-        x = self.master.winfo_x()
-        y = self.master.winfo_y()
-        width = self.master.winfo_width()
-        height = self.master.winfo_height()
-        
-        self.overlay.geometry(f"{width}x{height}+{x}+{y}")
-        self.overlay.overrideredirect(True)
-        
-        # Dark background
-        overlay_frame = ctk.CTkFrame(self.overlay, fg_color="#000000")
-        overlay_frame.pack(fill="both", expand=True)
-        
-        # Add click handler to overlay to prevent getting stuck
-        # Clicking the overlay will bring tutorial window to front or close tutorial if window is gone
-        overlay_frame.bind("<Button-1>", self._on_overlay_click)
+            # Make it cover the entire main window
+            self.overlay.attributes('-alpha', 0.7)  # Semi-transparent
+            self.overlay.attributes('-topmost', True)
+            
+            # Get main window position and size
+            self.master.update_idletasks()
+            x = self.master.winfo_x()
+            y = self.master.winfo_y()
+            width = self.master.winfo_width()
+            height = self.master.winfo_height()
+            
+            self.overlay.geometry(f"{width}x{height}+{x}+{y}")
+            self.overlay.overrideredirect(True)
+            
+            # Dark background
+            overlay_frame = ctk.CTkFrame(self.overlay, fg_color="#000000")
+            overlay_frame.pack(fill="both", expand=True)
+            
+            # Add click handler to overlay to prevent getting stuck
+            # Clicking the overlay will bring tutorial window to front or close tutorial if window is gone
+            overlay_frame.bind("<Button-1>", self._on_overlay_click)
+        except Exception as e:
+            logger.error(f"Failed to create tutorial overlay: {e}", exc_info=True)
+            self.overlay = None
     
     def _on_overlay_click(self, event=None):
         """Handle clicks on the overlay - bring tutorial to front or close if missing"""
@@ -421,6 +435,8 @@ class TutorialManager:
         """Reset tutorial completion flags so it can be shown again"""
         self.config.set('tutorial', 'completed', value=False)
         self.config.set('tutorial', 'seen', value=False)
+        self.config.save()  # Make sure changes are persisted
+        logger.info("Tutorial reset - will show on next start or manual trigger")
 
 
 class TooltipVerbosityManager:

@@ -118,3 +118,4 @@ cache/
 # Backup files
 *.backup
 *.bak
+test_lod_fix.py

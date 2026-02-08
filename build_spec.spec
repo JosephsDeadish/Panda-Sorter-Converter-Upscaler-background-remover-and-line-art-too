@@ -22,11 +22,17 @@ EXE_NAME = "PS2TextureSorter"
 SCRIPT_DIR = Path(SPECPATH)
 SRC_DIR = SCRIPT_DIR / 'src'
 RESOURCES_DIR = SRC_DIR / 'resources'
+ASSETS_DIR = SCRIPT_DIR / 'assets'
 
-# Check if custom icon exists
-ICON_PATH = RESOURCES_DIR / 'icons' / 'panda_icon.ico'
+# Check for icon in assets directory first, then resources
+ICON_PATH = ASSETS_DIR / 'icon.ico'
 if not ICON_PATH.exists():
-    ICON_PATH = None  # Will use default PyInstaller icon
+    ICON_PATH = RESOURCES_DIR / 'icons' / 'panda_icon.ico'
+    if not ICON_PATH.exists():
+        ICON_PATH = None  # Will use default PyInstaller icon
+else:
+    # Convert to absolute path
+    ICON_PATH = str(ICON_PATH.absolute())
 
 # Collect all Python files
 a = Analysis(
