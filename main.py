@@ -334,23 +334,40 @@ class PS2TextureSorter(ctk.CTk):
                 if TUTORIAL_AVAILABLE:
                     try:
                         self.tutorial_manager, self.tooltip_manager, self.context_help = setup_tutorial_system(self, config)
-                        logger.info("Tutorial system initialized successfully")
+                        
+                        # Log which components initialized successfully
+                        components_status = {
+                            'TutorialManager': self.tutorial_manager is not None,
+                            'TooltipVerbosityManager': self.tooltip_manager is not None,
+                            'ContextHelp': self.context_help is not None
+                        }
+                        
+                        success_count = sum(components_status.values())
+                        if success_count == 3:
+                            logger.info("Tutorial system initialized successfully (all components)")
+                        elif success_count > 0:
+                            logger.info(f"Tutorial system partially initialized: {components_status}")
+                        else:
+                            logger.warning("Tutorial system failed to initialize (all components)")
+                        
+                        # Only show warning for truly critical failures where NO components initialized
+                        # and it's not a first-run or expected scenario
+                        if success_count == 0:
+                            # Don't show warning on first run - it's expected
+                            is_first_run = not config.get('tutorial', 'completed', default=False)
+                            if not is_first_run:
+                                # Show warning only for unexpected complete failures
+                                self.after(1000, lambda: messagebox.showwarning(
+                                    "Tutorial System Warning",
+                                    "The tutorial system failed to initialize.\n\n"
+                                    "Tooltips and help may not work correctly.\n"
+                                    "This won't affect core functionality."))
                     except Exception as tutorial_error:
-                        logger.error(f"Failed to initialize tutorial system: {tutorial_error}", exc_info=True)
+                        logger.error(f"Unexpected error in tutorial system initialization: {tutorial_error}", exc_info=True)
                         # Set fallback None values
                         self.tutorial_manager = None
                         self.tooltip_manager = None
                         self.context_help = None
-                        # Show user-friendly message only if it's a critical error
-                        if "UI not properly loaded" in str(tutorial_error):
-                            logger.warning("Tutorial will retry after UI is fully loaded")
-                        else:
-                            # Critical error - warn user
-                            self.after(1000, lambda: messagebox.showwarning(
-                                "Tutorial System Warning",
-                                "The tutorial system failed to initialize.\n\n"
-                                "Tooltips and help may not work correctly.\n"
-                                "This won't affect core functionality."))
                 else:
                     self.tutorial_manager = None
                     self.tooltip_manager = None

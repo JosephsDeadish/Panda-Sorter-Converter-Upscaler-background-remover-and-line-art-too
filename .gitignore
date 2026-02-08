@@ -119,3 +119,5 @@ cache/
 *.backup
 *.bak
 test_lod_fix.py
+test_component_independence.py
+test_source_verification.py

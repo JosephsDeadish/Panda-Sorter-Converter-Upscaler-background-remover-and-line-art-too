@@ -673,6 +673,9 @@ class WidgetTooltip:
     
     def update_text(self, text):
         self.text = text
+
+
+class ContextHelp:
     """Provides context-sensitive help with F1 key"""
     
     def __init__(self, master_window, config):
@@ -911,8 +914,38 @@ Still need help? Check the documentation or contact support!
 
 # Convenience function for easy integration
 def setup_tutorial_system(master_window, config):
-    """Setup and initialize the tutorial system"""
-    manager = TutorialManager(master_window, config)
-    tooltip_manager = TooltipVerbosityManager(config)
-    context_help = ContextHelp(master_window, config)
+    """
+    Setup and initialize the tutorial system with resilient error handling.
+    Each component is initialized independently, so if one fails, others can still work.
+    
+    Returns:
+        tuple[Optional[TutorialManager], Optional[TooltipVerbosityManager], Optional[ContextHelp]]:
+            A tuple of (manager, tooltip_manager, context_help) where None indicates failure.
+    """
+    manager = None
+    tooltip_manager = None
+    context_help = None
+    
+    # Try to initialize TutorialManager
+    try:
+        manager = TutorialManager(master_window, config)
+        logger.info("TutorialManager initialized successfully")
+    except Exception as e:
+        logger.warning(f"Failed to initialize TutorialManager: {e}", exc_info=True)
+    
+    # Try to initialize TooltipVerbosityManager independently
+    try:
+        tooltip_manager = TooltipVerbosityManager(config)
+        logger.info("TooltipVerbosityManager initialized successfully")
+    except Exception as e:
+        logger.warning(f"Failed to initialize TooltipVerbosityManager: {e}", exc_info=True)
+    
+    # Try to initialize ContextHelp independently
+    try:
+        context_help = ContextHelp(master_window, config)
+        logger.info("ContextHelp initialized successfully")
+    except Exception as e:
+        logger.warning(f"Failed to initialize ContextHelp: {e}", exc_info=True)
+    
+    # Return what we successfully initialized (None for failed components)
     return manager, tooltip_manager, context_help

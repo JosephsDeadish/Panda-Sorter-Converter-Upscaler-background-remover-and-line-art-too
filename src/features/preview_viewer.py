@@ -7,6 +7,7 @@ Author: Dead On The Inside / JosephsDeadish
 import logging
 from pathlib import Path
 from typing import Optional, List, Callable
+from collections import deque
 from PIL import Image, ImageTk
 import os
 
@@ -26,6 +27,9 @@ class PreviewViewer:
     Moveable preview window with zoom, pan, and navigation controls
     """
     
+    # Maximum number of photo references to keep to prevent memory bloat
+    MAX_PHOTO_REFERENCES = 5
+    
     def __init__(self, master_window):
         self.master = master_window
         self.preview_window = None
@@ -44,8 +48,10 @@ class PreviewViewer:
         self.canvas = None
         self.image_on_canvas = None
         
-        # Store PhotoImage reference to prevent garbage collection
+        # Store PhotoImage references to prevent garbage collection
+        # Using deque with maxlen for automatic size management
         self._current_photo = None
+        self._photo_references = deque(maxlen=self.MAX_PHOTO_REFERENCES)
         
         # Panning state
         self.is_panning = False
@@ -317,6 +323,25 @@ class PreviewViewer:
     def _load_image(self, file_path: Path):
         """Load an image file"""
         try:
+            # Clean up old image references to prevent memory leaks
+            # Clear photo references list (which includes _current_photo)
+            if self._photo_references:
+                self._photo_references.clear()
+            self._current_photo = None
+            
+            if self.original_image is not None:
+                try:
+                    self.original_image.close()
+                except Exception as e:
+                    logger.debug(f"Error closing original_image: {e}")
+                self.original_image = None
+            if self.display_image is not None:
+                try:
+                    self.display_image.close()
+                except Exception as e:
+                    logger.debug(f"Error closing display_image: {e}")
+                self.display_image = None
+            
             # Handle DDS files with special support
             if file_path.suffix.lower() == '.dds':
                 try:
@@ -352,38 +377,49 @@ class PreviewViewer:
         if not self.original_image:
             return
         
-        # Calculate display size
-        width = int(self.original_image.width * self.zoom_level)
-        height = int(self.original_image.height * self.zoom_level)
-        
-        # Resize image
-        if self.zoom_level == 1.0:
-            self.display_image = self.original_image
-        else:
-            # Use LANCZOS for both scaling directions for best quality
-            # Game textures benefit from LANCZOS which preserves sharp edges
-            self.display_image = self.original_image.resize((width, height), Image.Resampling.LANCZOS)
-        
-        # Convert to PhotoImage and store as instance variable to prevent GC
-        self._current_photo = ImageTk.PhotoImage(self.display_image)
-        
-        # Update canvas
-        self.canvas.delete("all")
-        
-        # Calculate position (center image + pan offset)
-        canvas_width = self.canvas.winfo_width()
-        canvas_height = self.canvas.winfo_height()
-        
-        x = (canvas_width - width) // 2 + self.pan_x
-        y = (canvas_height - height) // 2 + self.pan_y
-        
-        self.image_on_canvas = self.canvas.create_image(x, y, anchor="nw", image=self._current_photo)
-        
-        # Also keep reference on canvas for extra safety
-        self.canvas.image = self._current_photo
-        
-        # Update zoom label
-        self.zoom_label.configure(text=f"{int(self.zoom_level * 100)}%")
+        try:
+            # Calculate display size
+            width = int(self.original_image.width * self.zoom_level)
+            height = int(self.original_image.height * self.zoom_level)
+            
+            # Resize image
+            if self.zoom_level == 1.0:
+                self.display_image = self.original_image
+            else:
+                # Use LANCZOS for both scaling directions for best quality
+                # Game textures benefit from LANCZOS which preserves sharp edges
+                self.display_image = self.original_image.resize((width, height), Image.Resampling.LANCZOS)
+            
+            # Convert to PhotoImage with correct master window to prevent GC issues
+            # Use preview_window as master if it exists, otherwise fall back to master
+            photo_master = self.preview_window if self.preview_window and self.preview_window.winfo_exists() else self.master
+            self._current_photo = ImageTk.PhotoImage(self.display_image, master=photo_master)
+            
+            # Keep in reference deque to prevent premature GC (auto-manages size with maxlen)
+            self._photo_references.append(self._current_photo)
+            
+            # Update canvas
+            self.canvas.delete("all")
+            
+            # Calculate position (center image + pan offset)
+            canvas_width = self.canvas.winfo_width()
+            canvas_height = self.canvas.winfo_height()
+            
+            x = (canvas_width - width) // 2 + self.pan_x
+            y = (canvas_height - height) // 2 + self.pan_y
+            
+            self.image_on_canvas = self.canvas.create_image(x, y, anchor="nw", image=self._current_photo)
+            
+            # Also keep reference on canvas for extra safety
+            self.canvas.image = self._current_photo
+            
+            # Update zoom label
+            self.zoom_label.configure(text=f"{int(self.zoom_level * 100)}%")
+            
+        except Exception as e:
+            # Handle edge cases where image was already garbage collected or window closed
+            logger.error(f"Error updating display: {e}")
+            self._update_status(f"Error displaying image: {e}")
     
     def _zoom_in(self):
         """Zoom in"""
