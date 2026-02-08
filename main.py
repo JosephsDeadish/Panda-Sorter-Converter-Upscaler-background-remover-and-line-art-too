@@ -10,7 +10,8 @@ support (200,000+ textures).
 # Set Windows taskbar icon BEFORE any GUI imports
 import ctypes
 try:
-    ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID('JosephsDeadish.PS2TextureSorter.1.0.0')
+    # Follow Microsoft's AppUserModelID naming convention
+    ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID('Josephs.PS2TextureSorter.Main.1.0.0')
 except (AttributeError, OSError):
     pass  # Not Windows or no windll
 
@@ -458,18 +459,23 @@ class PS2TextureSorter(ctk.CTk):
                         f"Failed to start tutorial:\n\n{str(e)}\n\nCheck the log for details.")
         else:
             logger.warning("Tutorial button clicked but tutorial_manager is None")
-            if GUI_AVAILABLE:
-                # More informative message
-                if not TUTORIAL_AVAILABLE:
-                    messagebox.showwarning("Tutorial Unavailable", 
-                        "Tutorial system failed to import.\n\n"
-                        "This may be due to missing dependencies or import errors.\n"
-                        "Check the application log for details.")
-                else:
-                    messagebox.showwarning("Tutorial Unavailable", 
-                        "Tutorial system is available but failed to initialize.\n\n"
-                        "This may occur if the UI is not fully loaded yet.\n"
-                        "Try restarting the application.")
+            self._show_tutorial_unavailable_message()
+    
+    def _show_tutorial_unavailable_message(self):
+        """Show appropriate message when tutorial is unavailable"""
+        if not GUI_AVAILABLE:
+            return
+            
+        if not TUTORIAL_AVAILABLE:
+            messagebox.showwarning("Tutorial Unavailable", 
+                "Tutorial system failed to import.\n\n"
+                "This may be due to missing dependencies or import errors.\n"
+                "Check the application log for details.")
+        else:
+            messagebox.showwarning("Tutorial Unavailable", 
+                "Tutorial system is available but failed to initialize.\n\n"
+                "This may occur if the UI is not fully loaded yet.\n"
+                "Try restarting the application.")
 
     
     def create_main_ui(self):

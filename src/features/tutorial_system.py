@@ -5,6 +5,7 @@ Author: Dead On The Inside / JosephsDeadish
 """
 
 import logging
+import tkinter as tk
 from typing import Optional, Callable, List, Dict, Any
 from dataclasses import dataclass
 from enum import Enum
@@ -623,7 +624,6 @@ class WidgetTooltip:
             y = self.widget.winfo_rooty() + self.widget.winfo_height() + 5
             
             # Use regular tkinter Toplevel for lighter-weight tooltip
-            import tkinter as tk
             self.tip_window = tw = tk.Toplevel(self.widget)
             tw.wm_overrideredirect(True)
             tw.wm_geometry(f"+{x}+{y}")
@@ -640,8 +640,6 @@ class WidgetTooltip:
             label.pack()
         except Exception as e:
             # Log but don't crash
-            import logging
-            logger = logging.getLogger(__name__)
             logger.debug(f"Tooltip error: {e}")
     
     def _hide_tip(self):
