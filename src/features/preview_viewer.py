@@ -157,6 +157,28 @@ class PreviewViewer:
             command=self._reset_view
         ).pack(side="left", padx=2)
         
+        ctk.CTkButton(
+            zoom_frame,
+            text="Fit",
+            width=60,
+            command=self._fit_to_window
+        ).pack(side="left", padx=2)
+        
+        ctk.CTkButton(
+            zoom_frame,
+            text="1:1",
+            width=50,
+            command=self._actual_size
+        ).pack(side="left", padx=2)
+        
+        # Export button
+        ctk.CTkButton(
+            toolbar,
+            text="💾 Export",
+            width=100,
+            command=self._export_image
+        ).pack(side="right", padx=5)
+        
         # Properties toggle
         ctk.CTkButton(
             toolbar,
@@ -365,6 +387,69 @@ class PreviewViewer:
         self.pan_x = 0
         self.pan_y = 0
         self._update_display()
+    
+    def _fit_to_window(self):
+        """Fit image to window size"""
+        if not self.original_image:
+            return
+        
+        # Get canvas size
+        canvas_width = self.canvas.winfo_width()
+        canvas_height = self.canvas.winfo_height()
+        
+        # Calculate zoom level to fit
+        zoom_w = canvas_width / self.original_image.width
+        zoom_h = canvas_height / self.original_image.height
+        
+        # Use the smaller zoom to fit entirely
+        self.zoom_level = min(zoom_w, zoom_h) * 0.95  # 95% to leave some padding
+        self.pan_x = 0
+        self.pan_y = 0
+        self._update_display()
+    
+    def _actual_size(self):
+        """Show image at actual size (1:1)"""
+        self.zoom_level = 1.0
+        self.pan_x = 0
+        self.pan_y = 0
+        self._update_display()
+    
+    def _export_image(self):
+        """Export current texture to a different format"""
+        if not self.current_file or not self.original_image:
+            return
+        
+        try:
+            from tkinter import filedialog
+            
+            # Suggest filename
+            default_name = self.current_file.stem + "_exported"
+            
+            # Ask for save location
+            file_types = [
+                ("PNG files", "*.png"),
+                ("JPEG files", "*.jpg"),
+                ("BMP files", "*.bmp"),
+                ("TIFF files", "*.tif"),
+                ("All files", "*.*")
+            ]
+            
+            save_path = filedialog.asksaveasfilename(
+                title="Export Texture",
+                defaultextension=".png",
+                initialfile=default_name,
+                filetypes=file_types
+            )
+            
+            if save_path:
+                # Save the original image (not the displayed/zoomed one)
+                self.original_image.save(save_path)
+                self._update_status(f"Exported to: {Path(save_path).name}")
+                logger.info(f"Exported texture to {save_path}")
+                
+        except Exception as e:
+            logger.error(f"Failed to export image: {e}")
+            self._update_status(f"Export failed: {e}")
     
     def _mouse_wheel_zoom(self, event):
         """Zoom with mouse wheel"""
