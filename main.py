@@ -446,11 +446,31 @@ class PS2TextureSorter(ctk.CTk):
     def _run_tutorial(self):
         """Start or restart the tutorial"""
         if self.tutorial_manager:
-            self.tutorial_manager.reset_tutorial()
-            self.tutorial_manager.start_tutorial()
+            try:
+                self.tutorial_manager.reset_tutorial()
+                self.tutorial_manager.start_tutorial()
+                self.log("✅ Tutorial started successfully")
+            except Exception as e:
+                logger.error(f"Failed to start tutorial: {e}", exc_info=True)
+                self.log(f"❌ Error starting tutorial: {e}")
+                if GUI_AVAILABLE:
+                    messagebox.showerror("Tutorial Error", 
+                        f"Failed to start tutorial:\n\n{str(e)}\n\nCheck the log for details.")
         else:
+            logger.warning("Tutorial button clicked but tutorial_manager is None")
             if GUI_AVAILABLE:
-                messagebox.showinfo("Tutorial", "Tutorial system is not available.")
+                # More informative message
+                if not TUTORIAL_AVAILABLE:
+                    messagebox.showwarning("Tutorial Unavailable", 
+                        "Tutorial system failed to import.\n\n"
+                        "This may be due to missing dependencies or import errors.\n"
+                        "Check the application log for details.")
+                else:
+                    messagebox.showwarning("Tutorial Unavailable", 
+                        "Tutorial system is available but failed to initialize.\n\n"
+                        "This may occur if the UI is not fully loaded yet.\n"
+                        "Try restarting the application.")
+
     
     def create_main_ui(self):
         """Create main tabbed interface"""
