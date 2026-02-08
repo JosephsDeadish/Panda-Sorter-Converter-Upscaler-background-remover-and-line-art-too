@@ -583,55 +583,115 @@ class PS2TextureSorter(ctk.CTk):
                 win.focus_force()
                 return
         
-        # Get the tab frame and its children
-        tab_frame = self.tabview.tab(tab_name)
-        children_info = []
-        for child in tab_frame.winfo_children():
-            children_info.append(child)
-        
         # Create pop-out window
         popout = ctk.CTkToplevel(self)
         popout.title(tab_name)
         popout.geometry("800x600")
         self._popout_windows[tab_name] = popout
         
-        # Reparent all children to the pop-out window
-        container = ctk.CTkFrame(popout)
-        container.pack(fill="both", expand=True, padx=5, pady=5)
-        
-        for child in children_info:
-            child.pack_forget()
-            child.place_forget()
-            child.grid_forget()
-            try:
-                child.pack(in_=container, fill="both", expand=True, padx=5, pady=5)
-            except Exception:
-                pass
+        # Special handling for notepad tab (avoid reparenting complex widget)
+        if tab_name == "📝 Notepad":
+            self._create_popout_notepad(popout, tab_name)
+        else:
+            # Get the tab frame and its children
+            tab_frame = self.tabview.tab(tab_name)
+            children_info = []
+            for child in tab_frame.winfo_children():
+                children_info.append(child)
+            
+            # Reparent all children to the pop-out window
+            container = ctk.CTkFrame(popout)
+            container.pack(fill="both", expand=True, padx=5, pady=5)
+            
+            for child in children_info:
+                child.pack_forget()
+                child.place_forget()
+                child.grid_forget()
+                try:
+                    child.pack(in_=container, fill="both", expand=True, padx=5, pady=5)
+                except Exception:
+                    pass
         
         # Add dock-back button
         dock_btn = ctk.CTkButton(
             popout, text="⬙ Dock Back", width=100, height=28,
-            command=lambda: self._dock_tab(tab_name, children_info, popout)
+            command=lambda: self._dock_tab(tab_name, None, popout)
         )
         dock_btn.pack(side="bottom", pady=5)
         
         # Handle window close = dock back
         popout.protocol("WM_DELETE_WINDOW",
-                        lambda: self._dock_tab(tab_name, children_info, popout))
+                        lambda: self._dock_tab(tab_name, None, popout))
+    
+    def _create_popout_notepad(self, popout_window, tab_name):
+        """Create notepad functionality in popout window"""
+        container = ctk.CTkFrame(popout_window)
+        container.pack(fill="both", expand=True, padx=10, pady=10)
+        
+        # Header with title
+        header_frame = ctk.CTkFrame(container)
+        header_frame.pack(fill="x", pady=10)
+        
+        ctk.CTkLabel(header_frame, text="📝 Personal Notes (Undocked)",
+                     font=("Arial Bold", 16)).pack(side="left", padx=10)
+        
+        # Info message
+        info_label = ctk.CTkLabel(
+            container,
+            text="Note: This is a read-only view of your notes. To edit, please dock the notepad back.",
+            font=("Arial", 10),
+            text_color="orange"
+        )
+        info_label.pack(pady=5)
+        
+        # Display notes content in a single textbox (read-only)
+        notes_display = ctk.CTkTextbox(container, width=750, height=500)
+        notes_display.pack(padx=10, pady=10, fill="both", expand=True)
+        
+        # Collect all notes and display them
+        if hasattr(self, 'note_textboxes'):
+            all_notes_text = ""
+            for note_name, textbox in self.note_textboxes.items():
+                content = textbox.get("1.0", "end-1c")
+                all_notes_text += f"{'='*60}\n"
+                all_notes_text += f"{note_name}\n"
+                all_notes_text += f"{'='*60}\n"
+                all_notes_text += f"{content}\n\n"
+            
+            notes_display.insert("1.0", all_notes_text)
+            notes_display.configure(state="disabled")  # Make read-only
     
     def _dock_tab(self, tab_name, children, popout_window):
         """Dock a popped-out tab back into the main tabview"""
+        # Special handling for notepad (just close the window)
+        if tab_name == "📝 Notepad":
+            if popout_window.winfo_exists():
+                popout_window.destroy()
+            self._popout_windows.pop(tab_name, None)
+            # Re-add pop-out button
+            tab_frame = self.tabview.tab(tab_name)
+            btn = ctk.CTkButton(
+                tab_frame, text="⬗ Pop Out", width=90, height=26,
+                font=("Arial", 11),
+                fg_color="gray40",
+                command=lambda: self._popout_tab(tab_name)
+            )
+            btn.place(relx=1.0, rely=0.0, anchor="ne", x=-5, y=5)
+            return
+        
+        # For other tabs, reparent children back
         tab_frame = self.tabview.tab(tab_name)
         
-        # Reparent children back
-        for child in children:
-            child.pack_forget()
-            child.place_forget()
-            child.grid_forget()
-            try:
-                child.pack(in_=tab_frame, fill="both", expand=True, padx=5, pady=5)
-            except Exception:
-                pass
+        if children:
+            # Reparent children back
+            for child in children:
+                child.pack_forget()
+                child.place_forget()
+                child.grid_forget()
+                try:
+                    child.pack(in_=tab_frame, fill="both", expand=True, padx=5, pady=5)
+                except Exception:
+                    pass
         
         # Destroy pop-out window
         if popout_window.winfo_exists():
