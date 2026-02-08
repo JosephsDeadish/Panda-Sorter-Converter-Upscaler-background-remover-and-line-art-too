@@ -23,7 +23,25 @@ try:
     assert "GOODBYE_MESSAGES" in content, "GOODBYE_MESSAGES not found"
     assert "class GoodbyeSplash" in content, "GoodbyeSplash class not found"
     assert "def show_goodbye_splash" in content, "show_goodbye_splash function not found"
-    assert "See you later! 🐼" in content, "Panda farewell messages not found"
+    
+    # Verify all panda farewell messages are present
+    expected_messages = [
+        "See you later! 🐼",
+        "Bamboo break time! 🎋",
+        "Until next time, texture friend! 🐼",
+        "Thanks for sorting with us! 🐼✨",
+        "Goodbye, texture master! 🐼",
+        "May your textures always be organized! 🎨",
+        "Time for a panda nap! 😴🐼",
+        "Stay sorted, friend! 🐼📁",
+        "Catch you on the flip side! 🐼",
+        "Happy texture hunting! 🐼🔍",
+        "Until we sort again! 🐼💚",
+        "Keep those textures tidy! 🐼✨",
+    ]
+    for msg in expected_messages:
+        assert msg in content, f"Farewell message '{msg}' not found"
+    
     print("✅ Goodbye splash module is correctly implemented")
 except AssertionError as e:
     print(f"❌ Test 1 failed: {e}")
@@ -51,7 +69,7 @@ try:
     content = main_path.read_text()
     
     assert "ctk.CTkScrollableFrame(self.tab_sort)" in content, "CTkScrollableFrame not used for Sort Textures tab"
-    assert "scrollable_frame.pack(fill=\"both\", expand=True" in content, "Scrollable frame not properly packed"
+    assert "scrollable_frame.pack(fill=\"both\", expand=True, padx=5, pady=5)" in content, "Scrollable frame not properly packed"
     print("✅ Sort Textures tab uses scrollable frame")
 except AssertionError as e:
     print(f"❌ Test 3 failed: {e}")

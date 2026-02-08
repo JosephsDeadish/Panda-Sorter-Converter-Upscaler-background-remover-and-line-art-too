@@ -254,6 +254,9 @@ class SplashScreen:
 class PS2TextureSorter(ctk.CTk):
     """Main application window"""
     
+    # Configuration constants
+    GOODBYE_SPLASH_DISPLAY_MS = 800  # Time to display goodbye splash before exit
+    
     def __init__(self):
         super().__init__()
         
@@ -354,8 +357,9 @@ class PS2TextureSorter(ctk.CTk):
         try:
             # Show goodbye splash if available
             if GOODBYE_SPLASH_AVAILABLE:
+                from src.ui.goodbye_splash import INITIAL_PROGRESS
                 splash = show_goodbye_splash(self)
-                splash.update_status("Saving configuration...", 0.3)
+                splash.update_status("Saving configuration...", INITIAL_PROGRESS)
             
             # Close tutorial if active
             if self.tutorial_manager and self.tutorial_manager.tutorial_active:
@@ -379,7 +383,7 @@ class PS2TextureSorter(ctk.CTk):
             if splash:
                 splash.update_status("Goodbye! 🐼", 1.0)
                 # Brief pause to show the goodbye message
-                self.after(800, self._force_exit)
+                self.after(self.GOODBYE_SPLASH_DISPLAY_MS, self._force_exit)
             else:
                 self._force_exit()
                 

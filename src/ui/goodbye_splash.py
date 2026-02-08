@@ -9,6 +9,10 @@ from pathlib import Path
 from typing import Optional
 
 
+# Configuration constants
+INITIAL_PROGRESS = 0.3  # Initial progress value when splash appears
+
+
 # Randomized panda farewell messages
 GOODBYE_MESSAGES = [
     "See you later! 🐼",
@@ -98,7 +102,7 @@ class GoodbyeSplash:
         # Progress bar
         self.progress = ctk.CTkProgressBar(main_frame, width=300)
         self.progress.pack(pady=20)
-        self.progress.set(0.3)
+        self.progress.set(INITIAL_PROGRESS)
     
     def update_status(self, status: str, progress: float = None):
         """Update status message and progress
