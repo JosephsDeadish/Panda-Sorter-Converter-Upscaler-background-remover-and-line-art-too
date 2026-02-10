@@ -582,6 +582,11 @@ class TooltipVerbosityManager:
                 "texture at different quality levels. Enable this to automatically find and "
                 "group these different versions together."
             ),
+            'lod_detection': (
+                "LOD means 'Level of Detail'. Many games use multiple versions of the same "
+                "texture at different quality levels. Enable this to automatically find and "
+                "group these different versions together."
+            ),
             'group_lods': (
                 "When enabled, this keeps all the different quality versions of the same "
                 "texture in one folder, making it easier to find related files."
@@ -592,7 +597,8 @@ class TooltipVerbosityManager:
             ),
             'style_dropdown': (
                 "This dropdown menu lets you choose different ways to organize your files. "
-                "'By Category' sorts them by type, 'By Size' sorts by dimensions, and so on."
+                "'Simple Flat' puts files in category folders. 'By Game Area' sorts by "
+                "level, 'By Module' sorts by character/vehicle/UI, and more."
             ),
             'settings_button': (
                 "Click here to open the settings window where you can customize how the "
@@ -602,10 +608,30 @@ class TooltipVerbosityManager:
                 "Switch between a dark theme (easier on the eyes) and a light theme (better "
                 "for bright environments). Just click to toggle!"
             ),
+            'theme_selector': (
+                "Switch between a dark theme (easier on the eyes) and a light theme (better "
+                "for bright environments). Or try a fun custom theme!"
+            ),
             'help_button': (
                 "Need help? Click this button to open the help panel with guides, FAQs, "
                 "and troubleshooting tips."
-            )
+            ),
+            'tutorial_button': (
+                "Click here to start or restart the interactive tutorial. It will walk "
+                "you through all the features step by step!"
+            ),
+            'file_selection': (
+                "Click here to open a file picker and navigate to the folder "
+                "that contains your texture files."
+            ),
+            'search_button': (
+                "Type in here to search for specific texture files by their name. "
+                "It will filter the file list as you type!"
+            ),
+            'batch_operations': (
+                "This lets you work with multiple files at the same time instead "
+                "of one at a time, saving you lots of effort!"
+            ),
         }
     
     def _get_vulgar_panda_tooltips(self) -> Dict[str, Any]:
