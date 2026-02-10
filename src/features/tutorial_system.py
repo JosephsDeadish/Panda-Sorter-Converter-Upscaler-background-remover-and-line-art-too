@@ -646,22 +646,37 @@ class WidgetTooltip:
         self.tip_window = None
         self._after_id = None
         
-        # Bind to both the widget and its internal canvas if it exists
-        widget.bind("<Enter>", self._on_enter)
-        widget.bind("<Leave>", self._on_leave)
+        # Bind to the widget using add="+" to avoid overriding existing bindings
+        widget.bind("<Enter>", self._on_enter, add="+")
+        widget.bind("<Leave>", self._on_leave, add="+")
         
-        # Try to bind to internal canvas for CustomTkinter widgets
-        try:
-            if hasattr(widget, '_canvas'):
-                widget._canvas.bind("<Enter>", self._on_enter)
-                widget._canvas.bind("<Leave>", self._on_leave)
-        except Exception:
-            pass
+        # Bind to internal components for CustomTkinter widgets
+        # CTK widgets use internal canvas and label that receive mouse events
+        for attr in ('_canvas', '_text_label', '_image_label'):
+            try:
+                child = getattr(widget, attr, None)
+                if child is not None:
+                    child.bind("<Enter>", self._on_enter, add="+")
+                    child.bind("<Leave>", self._on_leave, add="+")
+            except Exception:
+                pass
     
     def _on_enter(self, event=None):
+        if self._after_id:
+            self.widget.after_cancel(self._after_id)
         self._after_id = self.widget.after(self.delay, self._show_tip)
     
     def _on_leave(self, event=None):
+        # Check if cursor is still within the widget bounds
+        try:
+            x = self.widget.winfo_pointerx() - self.widget.winfo_rootx()
+            y = self.widget.winfo_pointery() - self.widget.winfo_rooty()
+            w = self.widget.winfo_width()
+            h = self.widget.winfo_height()
+            if 0 <= x <= w and 0 <= y <= h:
+                return  # Still inside the widget, ignore leave event
+        except Exception:
+            pass
         if self._after_id:
             self.widget.after_cancel(self._after_id)
             self._after_id = None

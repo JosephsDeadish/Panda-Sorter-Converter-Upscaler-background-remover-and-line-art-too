@@ -2575,7 +2575,6 @@ Built with:
             
             # Disable start buttons
             self.start_button.configure(state="disabled")
-            self.organize_button.configure(state="disabled")
             self.pause_button.configure(state="normal")
             self.stop_button.configure(state="normal")
             logger.debug("UI buttons state updated - sorting controls enabled")
@@ -2595,7 +2594,6 @@ Built with:
                 self.log(f"❌ ERROR: Failed to start sorting thread: {e}")
                 # Re-enable buttons on failure
                 self.start_button.configure(state="normal")
-                self.organize_button.configure(state="normal")
                 self.pause_button.configure(state="disabled")
                 self.stop_button.configure(state="disabled")
                 messagebox.showerror("Thread Error", f"Failed to start sorting operation:\n{e}")
@@ -2804,7 +2802,6 @@ Built with:
             logger.info("Sorting thread cleanup - re-enabling UI buttons")
             # Re-enable buttons
             self.after(0, lambda: self.start_button.configure(state="normal"))
-            self.after(0, lambda: self.organize_button.configure(state="normal"))
             self.after(0, lambda: self.pause_button.configure(state="disabled"))
             self.after(0, lambda: self.stop_button.configure(state="disabled"))
     
