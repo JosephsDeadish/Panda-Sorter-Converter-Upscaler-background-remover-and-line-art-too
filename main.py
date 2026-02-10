@@ -21,6 +21,7 @@ import time
 import threading
 import logging
 from pathlib import Path
+from types import SimpleNamespace
 
 # Setup logging
 logger = logging.getLogger(__name__)
@@ -1838,7 +1839,6 @@ class PS2TextureSorter(ctk.CTk):
                     logger.info(f"Created logs directory: {logs_dir}")
                 
                 if sys.platform == 'win32':
-                    import os
                     os.startfile(str(logs_dir))
                 elif sys.platform == 'darwin':  # macOS
                     subprocess.run(['open', str(logs_dir)])
@@ -1860,7 +1860,6 @@ class PS2TextureSorter(ctk.CTk):
                     logger.info(f"Created config directory: {config_dir}")
                 
                 if sys.platform == 'win32':
-                    import os
                     os.startfile(str(config_dir))
                 elif sys.platform == 'darwin':  # macOS
                     subprocess.run(['open', str(config_dir)])
@@ -1882,7 +1881,6 @@ class PS2TextureSorter(ctk.CTk):
                     logger.info(f"Created cache directory: {cache_dir}")
                 
                 if sys.platform == 'win32':
-                    import os
                     os.startfile(str(cache_dir))
                 elif sys.platform == 'darwin':  # macOS
                     subprocess.run(['open', str(cache_dir)])
@@ -2651,7 +2649,6 @@ Built with:
                     except Exception as e:
                         logger.warning(f"Failed to get file stats for {file_path}: {e}")
                         # Use default values if stat fails - create a simple object with st_size
-                        from types import SimpleNamespace
                         stat = SimpleNamespace(st_size=0)
                     
                     # Create TextureInfo
