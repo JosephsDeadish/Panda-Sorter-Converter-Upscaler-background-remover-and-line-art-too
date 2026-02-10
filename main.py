@@ -1612,6 +1612,9 @@ class PS2TextureSorter(ctk.CTk):
     
     def open_settings_window(self):
         """Open settings in a separate window"""
+        # Import subprocess for directory opening functionality
+        import subprocess
+        
         # Create new window
         settings_window = ctk.CTkToplevel(self)
         settings_window.title("⚙️ Application Settings")
@@ -1834,8 +1837,6 @@ class PS2TextureSorter(ctk.CTk):
                     logs_dir.mkdir(parents=True, exist_ok=True)
                     logger.info(f"Created logs directory: {logs_dir}")
                 
-                import subprocess
-                import sys
                 if sys.platform == 'win32':
                     import os
                     os.startfile(str(logs_dir))
@@ -1858,8 +1859,6 @@ class PS2TextureSorter(ctk.CTk):
                     config_dir.mkdir(parents=True, exist_ok=True)
                     logger.info(f"Created config directory: {config_dir}")
                 
-                import subprocess
-                import sys
                 if sys.platform == 'win32':
                     import os
                     os.startfile(str(config_dir))
@@ -1882,8 +1881,6 @@ class PS2TextureSorter(ctk.CTk):
                     cache_dir.mkdir(parents=True, exist_ok=True)
                     logger.info(f"Created cache directory: {cache_dir}")
                 
-                import subprocess
-                import sys
                 if sys.platform == 'win32':
                     import os
                     os.startfile(str(cache_dir))
@@ -2653,8 +2650,9 @@ Built with:
                         stat = file_path.stat()
                     except Exception as e:
                         logger.warning(f"Failed to get file stats for {file_path}: {e}")
-                        # Use default values if stat fails
-                        stat = type('obj', (object,), {'st_size': 0})()
+                        # Use default values if stat fails - create a simple object with st_size
+                        from types import SimpleNamespace
+                        stat = SimpleNamespace(st_size=0)
                     
                     # Create TextureInfo
                     texture_info = TextureInfo(
