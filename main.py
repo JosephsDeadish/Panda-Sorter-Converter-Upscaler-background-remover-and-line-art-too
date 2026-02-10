@@ -31,7 +31,7 @@ if str(src_dir) not in sys.path:
     sys.path.insert(0, str(src_dir))
 
 # Import configuration first
-from src.config import config, APP_NAME, APP_VERSION, APP_AUTHOR
+from src.config import config, APP_NAME, APP_VERSION, APP_AUTHOR, CONFIG_DIR, LOGS_DIR, CACHE_DIR
 
 # Flag to check if GUI libraries are available
 GUI_AVAILABLE = False
@@ -1815,6 +1815,118 @@ class PS2TextureSorter(ctk.CTk):
         ctk.CTkCheckBox(notif_frame, text="Alert on operation completion", 
                        variable=completion_var).pack(anchor="w", padx=20, pady=3)
         
+        # === SYSTEM & DEBUG SETTINGS ===
+        system_frame = ctk.CTkFrame(settings_scroll)
+        system_frame.pack(fill="x", padx=10, pady=10)
+        
+        ctk.CTkLabel(system_frame, text="🛠️ System & Debug", 
+                     font=("Arial Bold", 14)).pack(anchor="w", padx=10, pady=5)
+        
+        # Directory access buttons
+        dirs_frame = ctk.CTkFrame(system_frame)
+        dirs_frame.pack(fill="x", padx=10, pady=5)
+        
+        def open_logs_directory():
+            """Open logs directory in file explorer"""
+            try:
+                logs_dir = LOGS_DIR
+                if not logs_dir.exists():
+                    logs_dir.mkdir(parents=True, exist_ok=True)
+                    logger.info(f"Created logs directory: {logs_dir}")
+                
+                import subprocess
+                import sys
+                if sys.platform == 'win32':
+                    import os
+                    os.startfile(str(logs_dir))
+                elif sys.platform == 'darwin':  # macOS
+                    subprocess.run(['open', str(logs_dir)])
+                else:  # linux
+                    subprocess.run(['xdg-open', str(logs_dir)])
+                
+                logger.info(f"Opened logs directory: {logs_dir}")
+                self.log(f"✅ Opened logs directory: {logs_dir}")
+            except Exception as e:
+                logger.error(f"Failed to open logs directory: {e}", exc_info=True)
+                messagebox.showerror("Error", f"Failed to open logs directory:\n{e}")
+        
+        def open_config_directory():
+            """Open config directory in file explorer"""
+            try:
+                config_dir = CONFIG_DIR
+                if not config_dir.exists():
+                    config_dir.mkdir(parents=True, exist_ok=True)
+                    logger.info(f"Created config directory: {config_dir}")
+                
+                import subprocess
+                import sys
+                if sys.platform == 'win32':
+                    import os
+                    os.startfile(str(config_dir))
+                elif sys.platform == 'darwin':  # macOS
+                    subprocess.run(['open', str(config_dir)])
+                else:  # linux
+                    subprocess.run(['xdg-open', str(config_dir)])
+                
+                logger.info(f"Opened config directory: {config_dir}")
+                self.log(f"✅ Opened config directory: {config_dir}")
+            except Exception as e:
+                logger.error(f"Failed to open config directory: {e}", exc_info=True)
+                messagebox.showerror("Error", f"Failed to open config directory:\n{e}")
+        
+        def open_cache_directory():
+            """Open cache directory in file explorer"""
+            try:
+                cache_dir = CACHE_DIR
+                if not cache_dir.exists():
+                    cache_dir.mkdir(parents=True, exist_ok=True)
+                    logger.info(f"Created cache directory: {cache_dir}")
+                
+                import subprocess
+                import sys
+                if sys.platform == 'win32':
+                    import os
+                    os.startfile(str(cache_dir))
+                elif sys.platform == 'darwin':  # macOS
+                    subprocess.run(['open', str(cache_dir)])
+                else:  # linux
+                    subprocess.run(['xdg-open', str(cache_dir)])
+                
+                logger.info(f"Opened cache directory: {cache_dir}")
+                self.log(f"✅ Opened cache directory: {cache_dir}")
+            except Exception as e:
+                logger.error(f"Failed to open cache directory: {e}", exc_info=True)
+                messagebox.showerror("Error", f"Failed to open cache directory:\n{e}")
+        
+        # Buttons for opening directories
+        ctk.CTkButton(dirs_frame, text="📁 Open Logs Directory", 
+                     command=open_logs_directory,
+                     width=200, height=32).pack(side="left", padx=5, pady=5)
+        
+        ctk.CTkButton(dirs_frame, text="📁 Open Config Directory", 
+                     command=open_config_directory,
+                     width=200, height=32).pack(side="left", padx=5, pady=5)
+        
+        ctk.CTkButton(dirs_frame, text="📁 Open Cache Directory", 
+                     command=open_cache_directory,
+                     width=200, height=32).pack(side="left", padx=5, pady=5)
+        
+        # Directory paths display
+        paths_frame = ctk.CTkFrame(system_frame)
+        paths_frame.pack(fill="x", padx=10, pady=5)
+        
+        ctk.CTkLabel(paths_frame, text="Application Data Locations:", 
+                    font=("Arial Bold", 11)).pack(anchor="w", padx=10, pady=(5, 0))
+        
+        ctk.CTkLabel(paths_frame, text=f"• Logs: {LOGS_DIR}", 
+                    font=("Arial", 9), text_color="gray").pack(anchor="w", padx=20)
+        
+        ctk.CTkLabel(paths_frame, text=f"• Config: {CONFIG_DIR}", 
+                    font=("Arial", 9), text_color="gray").pack(anchor="w", padx=20)
+        
+        ctk.CTkLabel(paths_frame, text=f"• Cache: {CACHE_DIR}", 
+                    font=("Arial", 9), text_color="gray").pack(anchor="w", padx=20, pady=(0, 5))
+        
         # === SAVE BUTTON ===
         def save_settings_window():
             try:
@@ -2433,84 +2545,135 @@ Built with:
     
     def start_sorting(self):
         """Start texture sorting operation"""
-        # Read ALL tkinter variable values BEFORE starting thread (thread-safety fix)
-        input_path = self.input_path_var.get()
-        output_path = self.output_path_var.get()
-        mode = self.mode_var.get()
-        style = self.style_var.get()
-        detect_lods = self.detect_lods_var.get()
-        group_lods = self.group_lods_var.get()
-        detect_duplicates = self.detect_duplicates_var.get()
-        
-        if not input_path or not output_path:
-            messagebox.showerror("Error", "Please select both input and output directories")
-            return
-        
-        if not Path(input_path).exists():
-            messagebox.showerror("Error", "Input directory does not exist")
-            return
-        
-        self.log("=" * 60)
-        self.log("Starting texture sorting operation...")
-        self.log(f"Input: {input_path}")
-        self.log(f"Output: {output_path}")
-        self.log(f"Mode: {mode}")
-        self.log(f"Style: {style}")
-        self.log("=" * 60)
-        
-        # Disable start buttons
-        self.start_button.configure(state="disabled")
-        self.organize_button.configure(state="disabled")
-        self.pause_button.configure(state="normal")
-        self.stop_button.configure(state="normal")
-        
-        # Start sorting in background thread with all parameters
-        threading.Thread(
-            target=self.sort_textures_thread,
-            args=(input_path, output_path, mode, style, detect_lods, group_lods, detect_duplicates),
-            daemon=True
-        ).start()
+        try:
+            logger.info("start_sorting() called - initiating texture sorting")
+            
+            # Read ALL tkinter variable values BEFORE starting thread (thread-safety fix)
+            input_path = self.input_path_var.get()
+            output_path = self.output_path_var.get()
+            mode = self.mode_var.get()
+            style = self.style_var.get()
+            detect_lods = self.detect_lods_var.get()
+            group_lods = self.group_lods_var.get()
+            detect_duplicates = self.detect_duplicates_var.get()
+            
+            logger.debug(f"Sorting parameters - Input: {input_path}, Output: {output_path}, Mode: {mode}, Style: {style}")
+            logger.debug(f"Options - LODs: {detect_lods}, Group LODs: {group_lods}, Duplicates: {detect_duplicates}")
+            
+            if not input_path or not output_path:
+                logger.warning("Sorting aborted - missing input or output path")
+                messagebox.showerror("Error", "Please select both input and output directories")
+                return
+            
+            if not Path(input_path).exists():
+                logger.error(f"Sorting aborted - input directory does not exist: {input_path}")
+                messagebox.showerror("Error", "Input directory does not exist")
+                return
+            
+            self.log("=" * 60)
+            self.log("Starting texture sorting operation...")
+            self.log(f"Input: {input_path}")
+            self.log(f"Output: {output_path}")
+            self.log(f"Mode: {mode}")
+            self.log(f"Style: {style}")
+            self.log("=" * 60)
+            
+            # Disable start buttons
+            self.start_button.configure(state="disabled")
+            self.organize_button.configure(state="disabled")
+            self.pause_button.configure(state="normal")
+            self.stop_button.configure(state="normal")
+            logger.debug("UI buttons state updated - sorting controls enabled")
+            
+            # Start sorting in background thread with all parameters
+            try:
+                thread = threading.Thread(
+                    target=self.sort_textures_thread,
+                    args=(input_path, output_path, mode, style, detect_lods, group_lods, detect_duplicates),
+                    daemon=True,
+                    name="SortingThread"
+                )
+                thread.start()
+                logger.info(f"Sorting thread started successfully (Thread ID: {thread.ident})")
+            except Exception as e:
+                logger.error(f"Failed to start sorting thread: {e}", exc_info=True)
+                self.log(f"❌ ERROR: Failed to start sorting thread: {e}")
+                # Re-enable buttons on failure
+                self.start_button.configure(state="normal")
+                self.organize_button.configure(state="normal")
+                self.pause_button.configure(state="disabled")
+                self.stop_button.configure(state="disabled")
+                messagebox.showerror("Thread Error", f"Failed to start sorting operation:\n{e}")
+                
+        except Exception as e:
+            logger.error(f"Unexpected error in start_sorting(): {e}", exc_info=True)
+            self.log(f"❌ CRITICAL ERROR in start_sorting: {e}")
+            messagebox.showerror("Error", f"An unexpected error occurred:\n{e}")
     
     def sort_textures_thread(self, input_path_str, output_path_str, mode, style_name, detect_lods, group_lods, detect_duplicates):
         """Background thread for texture sorting with full organization system"""
         try:
+            logger.info(f"sort_textures_thread started - Processing: {input_path_str} -> {output_path_str}")
             input_path = Path(input_path_str)
             output_path = Path(output_path_str)
             
             # Scan for texture files
+            logger.debug("Starting directory scan for texture files")
             self.update_progress(0.05, "Scanning directory...")
-            texture_files = list(input_path.rglob("*.*"))
-            texture_files = [f for f in texture_files if f.suffix.lower() in {'.dds', '.png', '.jpg', '.jpeg', '.bmp', '.tga'}]
+            try:
+                texture_files = list(input_path.rglob("*.*"))
+                texture_files = [f for f in texture_files if f.suffix.lower() in {'.dds', '.png', '.jpg', '.jpeg', '.bmp', '.tga'}]
+                logger.info(f"Directory scan complete - found {len(texture_files)} potential texture files")
+            except Exception as e:
+                logger.error(f"Error scanning directory: {e}", exc_info=True)
+                self.log(f"❌ ERROR: Failed to scan directory: {e}")
+                return
             
             total = len(texture_files)
             self.log(f"Found {total} texture files")
             
             if total == 0:
+                logger.warning("No texture files found in input directory")
                 self.log("⚠️ No texture files found in input directory")
                 return
             
             # Classify and prepare textures
+            logger.info(f"Starting classification of {total} textures")
             self.update_progress(0.1, "Classifying textures...")
             texture_infos = []
+            classification_errors = 0
             
             for i, file_path in enumerate(texture_files):
-                # Classify
-                category, confidence = self.classifier.classify_texture(file_path)
-                
-                # Get file info
-                stat = file_path.stat()
-                
-                # Create TextureInfo
-                texture_info = TextureInfo(
-                    file_path=str(file_path),
-                    filename=file_path.name,
-                    category=category,
-                    confidence=confidence,
-                    file_size=stat.st_size,
-                    format=file_path.suffix.lower()[1:]  # Remove dot
-                )
-                
-                texture_infos.append(texture_info)
+                try:
+                    # Classify
+                    category, confidence = self.classifier.classify_texture(file_path)
+                    
+                    # Get file info
+                    try:
+                        stat = file_path.stat()
+                    except Exception as e:
+                        logger.warning(f"Failed to get file stats for {file_path}: {e}")
+                        # Use default values if stat fails
+                        stat = type('obj', (object,), {'st_size': 0})()
+                    
+                    # Create TextureInfo
+                    texture_info = TextureInfo(
+                        file_path=str(file_path),
+                        filename=file_path.name,
+                        category=category,
+                        confidence=confidence,
+                        file_size=stat.st_size,
+                        format=file_path.suffix.lower()[1:]  # Remove dot
+                    )
+                    
+                    texture_infos.append(texture_info)
+                    
+                except Exception as e:
+                    classification_errors += 1
+                    logger.error(f"Failed to classify {file_path}: {e}", exc_info=True)
+                    if classification_errors <= 5:  # Only log first 5 errors to UI
+                        self.log(f"⚠️ Classification error for {file_path.name}: {e}")
+                    continue
                 
                 # Progress
                 progress = 0.1 + (0.3 * (i+1) / total)
@@ -2520,91 +2683,123 @@ Built with:
                 if (i+1) % 10 == 0 or i == total - 1:
                     self.log(f"Classified {i+1}/{total} files...")
             
+            if classification_errors > 0:
+                logger.warning(f"Total classification errors: {classification_errors}/{total}")
+                self.log(f"⚠️ {classification_errors} files failed classification and were skipped")
+            
             # LOD Detection if enabled
             if detect_lods:
+                logger.info("Starting LOD detection")
                 self.update_progress(0.4, "Detecting LODs...")
                 self.log("Detecting LOD groups...")
-                # Convert string paths to Path objects for LOD detector
-                file_paths = [Path(t.file_path) for t in texture_infos]
-                lod_groups = self.lod_detector.detect_lods(file_paths)
-                
-                # Apply LOD information to textures
-                for texture_info in texture_infos:
-                    for group_name, lod_files in lod_groups.items():
-                        for lod_file in lod_files:
-                            # Compare Path objects or convert to string for comparison
-                            lod_path = str(lod_file['path']) if isinstance(lod_file['path'], Path) else lod_file['path']
-                            if lod_path == texture_info.file_path:
-                                texture_info.lod_group = group_name
-                                texture_info.lod_level = lod_file.get('lod_level', lod_file.get('level'))
-                                break
-                
-                self.log(f"Found {len(lod_groups)} LOD groups")
+                try:
+                    # Convert string paths to Path objects for LOD detector
+                    file_paths = [Path(t.file_path) for t in texture_infos]
+                    lod_groups = self.lod_detector.detect_lods(file_paths)
+                    
+                    # Apply LOD information to textures
+                    for texture_info in texture_infos:
+                        for group_name, lod_files in lod_groups.items():
+                            for lod_file in lod_files:
+                                # Compare Path objects or convert to string for comparison
+                                lod_path = str(lod_file['path']) if isinstance(lod_file['path'], Path) else lod_file['path']
+                                if lod_path == texture_info.file_path:
+                                    texture_info.lod_group = group_name
+                                    texture_info.lod_level = lod_file.get('lod_level', lod_file.get('level'))
+                                    break
+                    
+                    logger.info(f"LOD detection complete - found {len(lod_groups)} groups")
+                    self.log(f"Found {len(lod_groups)} LOD groups")
+                except Exception as e:
+                    logger.error(f"LOD detection failed: {e}", exc_info=True)
+                    self.log(f"⚠️ LOD detection failed: {e}")
+                    # Continue without LOD information
             
             # Duplicate Detection if enabled
             if detect_duplicates:
+                logger.info("Starting duplicate detection")
                 self.update_progress(0.5, "Detecting duplicates...")
                 self.log("Detecting duplicate files...")
                 # Note: Duplicate handling would go here
                 # For now, we'll just log and continue
+                logger.debug("Duplicate detection is not yet fully implemented")
                 self.log("Duplicate detection complete")
             
             # Initialize organization engine
+            logger.info(f"Initializing organization engine with style: {style_name}")
             self.update_progress(0.6, "Organizing textures...")
             self.log(f"Using organization style: {style_name}")
             
-            # Get organization style class
-            style_class = ORGANIZATION_STYLES.get(style_name, ORGANIZATION_STYLES['flat'])
+            try:
+                # Get organization style class
+                style_class = ORGANIZATION_STYLES.get(style_name, ORGANIZATION_STYLES['flat'])
+                
+                # Create engine
+                engine = OrganizationEngine(
+                    style_class=style_class,
+                    output_dir=str(output_path),
+                    dry_run=False
             
-            # Create engine
-            engine = OrganizationEngine(
-                style_class=style_class,
-                output_dir=str(output_path),
-                dry_run=False
-            )
-            
-            self.log(f"Style: {engine.get_style_name()}")
-            self.log(f"Description: {engine.get_style_description()}")
-            self.log(f"Output directory: {output_path}")
-            self.log("-" * 60)
-            
-            # Progress callback
-            def progress_callback(current, total, message):
-                progress = 0.6 + (0.35 * current / total)
-                self.update_progress(progress, f"Organizing {current}/{total}...")
-                if current % 10 == 0 or current == total:
-                    self.log(message)
-            
-            # Organize textures
-            self.log("Starting file organization...")
-            results = engine.organize_textures(texture_infos, progress_callback)
-            
-            # Report results
-            self.update_progress(1.0, "Complete!")
-            self.log("=" * 60)
-            self.log("✓ TEXTURE SORTING COMPLETED!")
-            self.log("-" * 60)
-            self.log(f"Total files: {total}")
-            self.log(f"Successfully organized: {results['processed']}")
-            self.log(f"Failed: {results['failed']}")
-            
-            if results['errors']:
-                self.log(f"\n⚠️ Errors encountered:")
-                for error in results['errors'][:10]:  # Show first 10 errors
-                    self.log(f"  - {error['file']}: {error['error']}")
-                if len(results['errors']) > 10:
-                    self.log(f"  ... and {len(results['errors']) - 10} more errors")
-            
-            self.log("=" * 60)
-            
-            # Play completion sound if enabled
-            self._play_completion_sound()
+                # Create engine
+                engine = OrganizationEngine(
+                    style_class=style_class,
+                    output_dir=str(output_path),
+                    dry_run=False
+                )
+                
+                self.log(f"Style: {engine.get_style_name()}")
+                self.log(f"Description: {engine.get_style_description()}")
+                self.log(f"Output directory: {output_path}")
+                self.log("-" * 60)
+                
+                # Progress callback
+                def progress_callback(current, total, message):
+                    progress = 0.6 + (0.35 * current / total)
+                    self.update_progress(progress, f"Organizing {current}/{total}...")
+                    if current % 10 == 0 or current == total:
+                        self.log(message)
+                
+                # Organize textures
+                logger.info(f"Starting file organization of {len(texture_infos)} textures")
+                self.log("Starting file organization...")
+                results = engine.organize_textures(texture_infos, progress_callback)
+                logger.info(f"Organization complete - Processed: {results['processed']}, Failed: {results['failed']}")
+                
+                # Report results
+                self.update_progress(1.0, "Complete!")
+                self.log("=" * 60)
+                self.log("✓ TEXTURE SORTING COMPLETED!")
+                self.log("-" * 60)
+                self.log(f"Total files: {total}")
+                self.log(f"Successfully organized: {results['processed']}")
+                self.log(f"Failed: {results['failed']}")
+                
+                if results['errors']:
+                    logger.warning(f"{len(results['errors'])} errors occurred during organization")
+                    self.log(f"\n⚠️ Errors encountered:")
+                    for error in results['errors'][:10]:  # Show first 10 errors
+                        self.log(f"  - {error['file']}: {error['error']}")
+                    if len(results['errors']) > 10:
+                        self.log(f"  ... and {len(results['errors']) - 10} more errors")
+                
+                self.log("=" * 60)
+                
+                # Play completion sound if enabled
+                self._play_completion_sound()
+                
+            except Exception as e:
+                logger.error(f"Organization engine failed: {e}", exc_info=True)
+                self.log(f"❌ Organization failed: {e}")
+                raise  # Re-raise to be caught by outer handler
             
         except Exception as e:
             error_msg = f"Error during sorting: {e}"
+            logger.error(error_msg, exc_info=True)
             self.log(f"❌ {error_msg}")
             import traceback
-            self.log(traceback.format_exc())
+            tb = traceback.format_exc()
+            logger.error(f"Full traceback:\n{tb}")
+            self.log(tb)
             # Show user-friendly error dialog
             if GUI_AVAILABLE:
                 from tkinter import messagebox
@@ -2612,6 +2807,7 @@ Built with:
                     f"An error occurred during sorting:\n\n{str(e)}\n\nCheck the log for details.")
         
         finally:
+            logger.info("Sorting thread cleanup - re-enabling UI buttons")
             # Re-enable buttons
             self.after(0, lambda: self.start_button.configure(state="normal"))
             self.after(0, lambda: self.organize_button.configure(state="normal"))

@@ -412,33 +412,71 @@ class TutorialManager:
     
     def _complete_tutorial(self):
         """Complete and close the tutorial"""
-        logger.info("Completing tutorial")
-        
-        # Check if user wants to skip tutorial in future
-        if hasattr(self, 'dont_show_var') and self.dont_show_var.get():
-            self.config.set('tutorial', 'completed', True)
-        else:
-            # User may want to see tutorial again, just mark as seen
-            self.config.set('tutorial', 'seen', True)
-        
-        self.config.save()
-        
-        # Close tutorial windows
-        if self.tutorial_window:
-            self.tutorial_window.destroy()
+        try:
+            logger.info("Completing tutorial - starting cleanup process")
+            
+            # Check if user wants to skip tutorial in future
+            try:
+                if hasattr(self, 'dont_show_var') and self.dont_show_var.get():
+                    logger.debug("User opted to skip tutorial in future")
+                    self.config.set('tutorial', 'completed', True)
+                else:
+                    # User may want to see tutorial again, just mark as seen
+                    logger.debug("Tutorial marked as seen but not completed")
+                    self.config.set('tutorial', 'seen', True)
+                
+                # Save config changes
+                self.config.save()
+                logger.debug("Tutorial preferences saved to config")
+            except Exception as e:
+                logger.error(f"Failed to save tutorial preferences: {e}", exc_info=True)
+                # Continue cleanup even if config save fails
+            
+            # Close tutorial windows
+            try:
+                if self.tutorial_window and self.tutorial_window.winfo_exists():
+                    logger.debug("Destroying tutorial window")
+                    self.tutorial_window.destroy()
+                    self.tutorial_window = None
+                    logger.info("Tutorial window destroyed successfully")
+                elif self.tutorial_window:
+                    logger.warning("Tutorial window exists but winfo_exists() returned False")
+                    self.tutorial_window = None
+            except Exception as e:
+                logger.error(f"Error destroying tutorial window: {e}", exc_info=True)
+                self.tutorial_window = None
+            
+            try:
+                if self.overlay and self.overlay.winfo_exists():
+                    logger.debug("Destroying overlay")
+                    self.overlay.destroy()
+                    self.overlay = None
+                    logger.info("Overlay destroyed successfully")
+                elif self.overlay:
+                    logger.warning("Overlay exists but winfo_exists() returned False")
+                    self.overlay = None
+            except Exception as e:
+                logger.error(f"Error destroying overlay: {e}", exc_info=True)
+                self.overlay = None
+            
+            self.tutorial_active = False
+            logger.info("Tutorial marked as inactive")
+            
+            # Call completion callback
+            try:
+                if self.on_complete_callback:
+                    logger.debug("Calling completion callback")
+                    self.on_complete_callback()
+                    logger.debug("Completion callback executed successfully")
+            except Exception as e:
+                logger.error(f"Error in completion callback: {e}", exc_info=True)
+                
+        except Exception as e:
+            logger.error(f"Unexpected error in _complete_tutorial: {e}", exc_info=True)
+            # Ensure cleanup happens even on error
+            self.tutorial_active = False
             self.tutorial_window = None
-            logger.debug("Tutorial window destroyed")
-        
-        if self.overlay:
-            self.overlay.destroy()
             self.overlay = None
-            logger.debug("Overlay destroyed")
-        
-        self.tutorial_active = False
-        
-        # Call completion callback
-        if self.on_complete_callback:
-            self.on_complete_callback()
     
     def reset_tutorial(self):
         """Reset tutorial completion flags so it can be shown again"""
