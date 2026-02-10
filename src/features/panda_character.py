@@ -1662,6 +1662,49 @@ class PandaCharacter:
         'midnight_madness': '🌙 WHY ARE YOU AWAKE AT 3 AM? GO TO SLEEP!',
     }
     
+    # Error codes with panda-themed responses
+    ERROR_RESPONSES = {
+        'E001_FILE_NOT_FOUND': "🐼❌ [E001] File vanished! It pulled a ninja move on us!",
+        'E002_PERMISSION_DENIED': "🐼🔒 [E002] Permission denied! Even pandas have access levels!",
+        'E003_DISK_FULL': "🐼💾 [E003] Disk full! Too much bamboo data!",
+        'E004_CORRUPT_FILE': "🐼💔 [E004] Corrupt file detected! This texture has seen better days...",
+        'E005_TIMEOUT': "🐼⏰ [E005] Timed out! Even I don't nap this long!",
+        'E006_NETWORK_ERROR': "🐼🌐 [E006] Network error! The bamboo WiFi is down again!",
+        'E007_INVALID_FORMAT': "🐼📄 [E007] Invalid format! That's not a texture, that's abstract art!",
+        'E008_MEMORY_LOW': "🐼🧠 [E008] Low memory! My brain is full of bamboo recipes!",
+        'E009_DUPLICATE_FILE': "🐼👯 [E009] Duplicate detected! Déjà vu, or just lazy sorting?",
+        'E010_UNKNOWN': "🐼❓ [E010] Unknown error! Even I don't know what happened!",
+        'E011_READ_ERROR': "🐼📖 [E011] Read error! This file is playing hard to get!",
+        'E012_WRITE_ERROR': "🐼✍️ [E012] Write error! My paws are too clumsy for this!",
+        'E013_CONFIG_ERROR': "🐼⚙️ [E013] Config error! Someone messed with the settings!",
+        'E014_SORT_FAILED': "🐼📂 [E014] Sort failed! These textures are unsortable rebels!",
+        'E015_AI_ERROR': "🐼🤖 [E015] AI error! Even artificial intelligence needs bamboo breaks!",
+    }
+    
+    # Processing status messages  
+    PROCESSING_MESSAGES = [
+        "🐼 Sorting textures like a pro!",
+        "🐼 Crunching those pixels...",
+        "🐼 Analyzing texture patterns...",
+        "🐼 Organizing the digital bamboo forest...",
+        "🐼 Almost done! ...Maybe.",
+        "🐼 Working hard or hardly working?",
+        "🐼 *sorts furiously*",
+        "🐼 This texture goes here... no, THERE!",
+        "🐼 Making order from chaos!",
+        "🐼 Your files are in good paws!",
+    ]
+    
+    # Success messages
+    SUCCESS_MESSAGES = [
+        "🐼✅ Sorted successfully! Bamboo break time!",
+        "🐼🎉 All done! That was satisfying!",
+        "🐼👏 Great work, team! High-five!",
+        "🐼⭐ Perfect sort! Gold star for us!",
+        "🐼🏆 Achievement unlocked: Texture Master!",
+        "🐼💯 100% sorted! Let's celebrate!",
+    ]
+    
     # Mood-specific messages
     MOOD_MESSAGES = {
         PandaMood.SARCASTIC: [
@@ -1834,9 +1877,22 @@ class PandaCharacter:
         return mood_emojis.get(self.current_mood, "🐼")
     
     def get_animation_frame(self, animation_name: str = 'idle') -> str:
-        """Get animation frame for current state."""
+        """Get animation frame for current state (random)."""
         frames = self.ANIMATIONS.get(animation_name, self.ANIMATIONS['idle'])
         return random.choice(frames)
+    
+    def get_animation_frame_sequential(self, animation_name: str = 'idle', frame_index: int = 0) -> str:
+        """Get animation frame sequentially for smoother playback.
+        
+        Args:
+            animation_name: Name of the animation set
+            frame_index: Current frame counter (will be wrapped)
+            
+        Returns:
+            The animation frame string at the given index
+        """
+        frames = self.ANIMATIONS.get(animation_name, self.ANIMATIONS['idle'])
+        return frames[frame_index % len(frames)]
     
     def on_click(self) -> str:
         """Handle panda being clicked."""
@@ -1952,3 +2008,61 @@ class PandaCharacter:
             'easter_eggs': list(self.easter_eggs_triggered),
             'uptime_seconds': time.time() - self.start_time,
         }
+    
+    def get_error_response(self, error_code: str = None) -> str:
+        """Get a panda-themed error response.
+        
+        Args:
+            error_code: Specific error code (e.g., 'E001_FILE_NOT_FOUND'),
+                       or None for random error response
+                       
+        Returns:
+            Panda-themed error message string
+        """
+        if error_code and error_code in self.ERROR_RESPONSES:
+            return self.ERROR_RESPONSES[error_code]
+        return random.choice(list(self.ERROR_RESPONSES.values()))
+    
+    def get_processing_message(self) -> str:
+        """Get a panda-themed processing status message."""
+        return random.choice(self.PROCESSING_MESSAGES)
+    
+    def get_success_message(self) -> str:
+        """Get a panda-themed success message."""
+        return random.choice(self.SUCCESS_MESSAGES)
+    
+    def get_mood_message(self) -> str:
+        """Get a message appropriate for the current mood.
+        
+        Returns:
+            A mood-specific message, or a generic happy message
+        """
+        with self._lock:
+            messages = self.MOOD_MESSAGES.get(self.current_mood, self.MOOD_MESSAGES[PandaMood.HAPPY])
+            return random.choice(messages)
+    
+    def update_mood_from_context(self, files_processed: int = 0, errors: int = 0, 
+                                  idle_time_seconds: float = 0):
+        """Automatically update mood based on current context.
+        
+        Args:
+            files_processed: Number of files just processed
+            errors: Number of recent errors
+            idle_time_seconds: How long the user has been idle
+        """
+        with self._lock:
+            if errors >= 5:
+                self.set_mood(PandaMood.RAGE)
+            elif errors >= 2:
+                self.set_mood(PandaMood.SARCASTIC)
+            elif idle_time_seconds > 600:  # 10 minutes idle
+                self.set_mood(PandaMood.SLEEPING)
+            elif idle_time_seconds > 300:  # 5 minutes idle
+                self.set_mood(PandaMood.SLEEPY)
+            elif files_processed > 100:
+                self.set_mood(PandaMood.TIRED)
+            elif files_processed > 50:
+                self.set_mood(PandaMood.WORKING)
+            elif files_processed > 0:
+                self.set_mood(PandaMood.HAPPY)
+            # If nothing triggers, keep current mood

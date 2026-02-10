@@ -278,20 +278,39 @@ class ClosetPanel(ctk.CTkFrame if ctk else tk.Frame):
         self._show_items()
     
     def _show_items(self):
-        """Display items for current category (only unlocked/purchased items)."""
+        """Display items for current category (only purchased/unlocked items).
+        
+        Items must be purchased from the Shop or unlocked via achievements.
+        The closet only shows owned items for equipping/unequipping.
+        """
         # Clear content frame
         for widget in self.content_frame.winfo_children():
             widget.destroy()
         
-        # Get only unlocked items for category (closet shows owned items only)
+        # Only show unlocked/purchased items — buy from Shop, not here
         items = self.closet.get_items_by_category(self.current_category, unlocked_only=True)
         
-        # Display each item
+        if not items:
+            no_items_label = ctk.CTkLabel(
+                self.content_frame,
+                text="No items owned in this category.\nVisit the 🛒 Shop to buy new items!",
+                font=("Arial", 12),
+                text_color="gray"
+            ) if ctk else tk.Label(
+                self.content_frame,
+                text="No items owned in this category.\nVisit the Shop to buy new items!",
+                font=("Arial", 12),
+                fg="gray"
+            )
+            no_items_label.pack(pady=20)
+            return
+        
+        # Display each owned item
         for item in items:
             self._create_item_card(item)
     
     def _create_item_card(self, item: CustomizationItem):
-        """Create a card for a customization item."""
+        """Create a card for an owned customization item (equip/unequip only)."""
         # Card frame
         card = ctk.CTkFrame(self.content_frame) if ctk else tk.Frame(
             self.content_frame,
@@ -360,78 +379,39 @@ class ClosetPanel(ctk.CTkFrame if ctk else tk.Frame):
         )
         rarity_label.pack(side="left", padx=5)
         
-        # Buttons frame
+        # Buttons frame — only equip/unequip for owned items
         btn_frame = ctk.CTkFrame(card) if ctk else tk.Frame(card)
         btn_frame.pack(side="right", padx=5)
         
-        if item.unlocked:
-            if item.equipped:
-                # Unequip button
-                unequip_btn = ctk.CTkButton(
-                    btn_frame,
-                    text="✓ Equipped",
-                    width=100,
-                    fg_color="green" if ctk else None,
-                    command=lambda: self._unequip_item(item.id)
-                ) if ctk else tk.Button(
-                    btn_frame,
-                    text="✓ Equipped",
-                    bg="green",
-                    fg="white",
-                    command=lambda: self._unequip_item(item.id)
-                )
-                unequip_btn.pack(side="left", padx=2)
-            else:
-                # Equip button
-                equip_btn = ctk.CTkButton(
-                    btn_frame,
-                    text="Equip",
-                    width=80,
-                    command=lambda: self._equip_item(item.id)
-                ) if ctk else tk.Button(
-                    btn_frame,
-                    text="Equip",
-                    command=lambda: self._equip_item(item.id)
-                )
-                equip_btn.pack(side="left", padx=2)
-        else:
-            # Cost and purchase button
-            cost_label = ctk.CTkLabel(
+        if item.equipped:
+            # Unequip button
+            unequip_btn = ctk.CTkButton(
                 btn_frame,
-                text=f"💰 {item.cost}",
-                font=("Arial", 10)
-            ) if ctk else tk.Label(
+                text="✓ Equipped",
+                width=100,
+                fg_color="green" if ctk else None,
+                command=lambda: self._unequip_item(item.id)
+            ) if ctk else tk.Button(
                 btn_frame,
-                text=f"💰 {item.cost}",
-                font=("Arial", 10)
+                text="✓ Equipped",
+                bg="green",
+                fg="white",
+                command=lambda: self._unequip_item(item.id)
             )
-            cost_label.pack(side="left", padx=5)
-            
-            if item.cost > 0:
-                purchase_btn = ctk.CTkButton(
-                    btn_frame,
-                    text="Purchase",
-                    width=80,
-                    command=lambda: self._purchase_item(item.id)
-                ) if ctk else tk.Button(
-                    btn_frame,
-                    text="Purchase",
-                    command=lambda: self._purchase_item(item.id)
-                )
-                purchase_btn.pack(side="left", padx=2)
-            else:
-                # Free unlock
-                unlock_btn = ctk.CTkButton(
-                    btn_frame,
-                    text="Unlock",
-                    width=80,
-                    command=lambda: self._unlock_item(item.id)
-                ) if ctk else tk.Button(
-                    btn_frame,
-                    text="Unlock",
-                    command=lambda: self._unlock_item(item.id)
-                )
-                unlock_btn.pack(side="left", padx=2)
+            unequip_btn.pack(side="left", padx=2)
+        else:
+            # Equip button
+            equip_btn = ctk.CTkButton(
+                btn_frame,
+                text="Equip",
+                width=80,
+                command=lambda: self._equip_item(item.id)
+            ) if ctk else tk.Button(
+                btn_frame,
+                text="Equip",
+                command=lambda: self._equip_item(item.id)
+            )
+            equip_btn.pack(side="left", padx=2)
     
     def _equip_item(self, item_id: str):
         """Equip an item."""
@@ -450,23 +430,6 @@ class ClosetPanel(ctk.CTkFrame if ctk else tk.Frame):
             self._show_items()  # Refresh display
         else:
             logger.warning(f"Failed to unequip item: {item_id}")
-    
-    def _purchase_item(self, item_id: str):
-        """Purchase an item."""
-        if self.closet.purchase_item(item_id):
-            logger.info(f"Purchased item: {item_id}")
-            self._show_items()  # Refresh display
-        else:
-            logger.warning(f"Failed to purchase item: {item_id}")
-            # Could show error message
-    
-    def _unlock_item(self, item_id: str):
-        """Unlock a free item."""
-        if self.closet.unlock_item(item_id):
-            logger.info(f"Unlocked item: {item_id}")
-            self._show_items()  # Refresh display
-        else:
-            logger.warning(f"Failed to unlock item: {item_id}")
     
     def _get_appearance_text(self) -> str:
         """Get current appearance as text."""
