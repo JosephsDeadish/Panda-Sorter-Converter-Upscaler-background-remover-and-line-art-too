@@ -1,6 +1,6 @@
 """
 Panda Widget - Animated panda character for the UI
-Displays an interactive panda that users can click, hover, and pet
+Displays an interactive panda that users can click, hover, pet, and drag around
 Author: Dead On The Inside / JosephsDeadish
 """
 
@@ -17,11 +17,11 @@ logger = logging.getLogger(__name__)
 
 
 class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
-    """Interactive animated panda widget - always present."""
+    """Interactive animated panda widget - always present and draggable."""
     
     def __init__(self, parent, panda_character=None, panda_level_system=None, **kwargs):
         """
-        Initialize panda widget.
+        Initialize panda widget with drag functionality.
         
         Args:
             parent: Parent widget
@@ -36,6 +36,11 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
         self.current_animation = 'idle'
         self.animation_frame = 0
         self.animation_timer = None
+        
+        # Dragging state
+        self.drag_start_x = 0
+        self.drag_start_y = 0
+        self.is_dragging = False
         
         # Configure frame
         if ctk:
@@ -70,14 +75,95 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
         )
         self.info_label.pack(pady=5)
         
-        # Bind events
-        self.panda_label.bind("<Button-1>", self._on_click)
+        # Bind events for interaction
         self.panda_label.bind("<Button-3>", self._on_right_click)
         self.panda_label.bind("<Enter>", self._on_hover)
         self.panda_label.bind("<Leave>", self._on_leave)
         
+        # Bind events for dragging
+        self.panda_label.bind("<Button-1>", self._on_drag_start)
+        self.panda_label.bind("<B1-Motion>", self._on_drag_motion)
+        self.panda_label.bind("<ButtonRelease-1>", self._on_drag_end)
+        
+        # Also bind to the frame itself for dragging
+        self.bind("<Button-1>", self._on_drag_start)
+        self.bind("<B1-Motion>", self._on_drag_motion)
+        self.bind("<ButtonRelease-1>", self._on_drag_end)
+        
         # Start idle animation
         self.start_animation('idle')
+    
+    def _on_drag_start(self, event):
+        """Handle start of drag operation."""
+        self.drag_start_x = event.x
+        self.drag_start_y = event.y
+        self.is_dragging = True
+        if self.panda:
+            self.info_label.configure(text="🐼 Wheee!")
+    
+    def _on_drag_motion(self, event):
+        """Handle drag motion - move the panda container."""
+        if not self.is_dragging:
+            return
+        
+        # Get the parent container (panda_container)
+        parent = self.master
+        if parent and hasattr(parent, 'place'):
+            # Calculate new position
+            x = parent.winfo_x() + (event.x - self.drag_start_x)
+            y = parent.winfo_y() + (event.y - self.drag_start_y)
+            
+            # Constrain to window bounds
+            root = self.winfo_toplevel()
+            max_x = root.winfo_width() - parent.winfo_width()
+            max_y = root.winfo_height() - parent.winfo_height()
+            
+            x = max(0, min(x, max_x))
+            y = max(0, min(y, max_y))
+            
+            # Update position
+            parent.place(x=x, y=y)
+    
+    def _on_drag_end(self, event):
+        """Handle end of drag operation."""
+        if not self.is_dragging:
+            return
+        
+        self.is_dragging = False
+        
+        # Check if it was just a click (minimal movement)
+        distance = ((event.x - self.drag_start_x) ** 2 + (event.y - self.drag_start_y) ** 2) ** 0.5
+        if distance < 5:  # Less than 5 pixels = click, not drag
+            self._on_click(event)
+        else:
+            # Save new position in config
+            parent = self.master
+            if parent:
+                root = self.winfo_toplevel()
+                # Calculate relative position (0.0 to 1.0)
+                rel_x = parent.winfo_x() / max(1, root.winfo_width())
+                rel_y = parent.winfo_y() / max(1, root.winfo_height())
+                
+                # Save to config (if config is available)
+                try:
+                    from src.config import config
+                    config.set('panda', 'position_x', value=rel_x)
+                    config.set('panda', 'position_y', value=rel_y)
+                    config.save()
+                    logger.info(f"Saved panda position: ({rel_x:.2f}, {rel_y:.2f})")
+                except Exception as e:
+                    logger.warning(f"Failed to save panda position: {e}")
+            
+            if self.panda:
+                self.info_label.configure(text="🐼 Home sweet home!")
+                # Award XP for moving the panda
+                if self.panda_level_system:
+                    # Use half the click reward for moving, or default to 5 XP
+                    try:
+                        xp = self.panda_level_system.get_xp_reward('click') // 2
+                    except (KeyError, AttributeError, TypeError):
+                        xp = 5  # Default XP for moving panda
+                    self.panda_level_system.add_xp(xp, 'Moved panda')
     
     def _on_click(self, event=None):
         """Handle left click on panda."""
@@ -105,20 +191,43 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
                     label=label,
                     command=lambda k=key: self._handle_menu_action(k)
                 )
+            # Add separator and "Reset Position" option
+            menu.add_separator()
+            menu.add_command(label="🏠 Reset to Corner", command=self._reset_position)
+            
             try:
                 menu.tk_popup(event.x_root, event.y_root)
             finally:
                 menu.grab_release()
     
+    def _reset_position(self):
+        """Reset panda to default corner position."""
+        parent = self.master
+        if parent and hasattr(parent, 'place'):
+            parent.place(relx=0.98, rely=0.98, anchor="se")
+            
+            # Save to config
+            try:
+                from src.config import config
+                config.set('panda', 'position_x', value=0.98)
+                config.set('panda', 'position_y', value=0.98)
+                config.save()
+            except Exception as e:
+                logger.warning(f"Failed to save panda position: {e}")
+        
+        if self.panda:
+            self.info_label.configure(text="🐼 Back to my corner!")
+    
     def _on_hover(self, event=None):
         """Handle hover over panda."""
-        if self.panda:
+        if not self.is_dragging and self.panda:
             thought = self.panda.on_hover()
             self.info_label.configure(text=thought)
     
     def _on_leave(self, event=None):
         """Handle mouse leaving panda."""
-        self.info_label.configure(text="🐼")
+        if not self.is_dragging:
+            self.info_label.configure(text="🐼")
     
     def _handle_menu_action(self, action: str):
         """Handle menu item selection."""
@@ -206,3 +315,4 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
         if self.animation_timer:
             self.after_cancel(self.animation_timer)
         super().destroy()
+

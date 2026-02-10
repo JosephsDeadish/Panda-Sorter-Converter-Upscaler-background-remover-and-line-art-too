@@ -1945,6 +1945,80 @@ class PS2TextureSorter(ctk.CTk):
                      command=self.open_customization,
                      width=350, height=35).pack(padx=20, pady=10)
         
+        # === KEYBOARD CONTROLS SETTINGS ===
+        kb_frame = ctk.CTkFrame(settings_scroll)
+        kb_frame.pack(fill="x", padx=10, pady=10)
+        
+        ctk.CTkLabel(kb_frame, text="⌨️ Keyboard Controls", 
+                     font=("Arial Bold", 14)).pack(anchor="w", padx=10, pady=5)
+        
+        ctk.CTkLabel(kb_frame, text="Quick reference for keyboard shortcuts:", 
+                    font=("Arial", 10), text_color="gray").pack(anchor="w", padx=20, pady=(0, 5))
+        
+        # Create tabview for organized shortcuts by category
+        kb_tabview = ctk.CTkTabview(kb_frame, width=850, height=250)
+        kb_tabview.pack(padx=10, pady=5, fill="both")
+        
+        # Add tabs for different categories
+        tab_file = kb_tabview.add("📁 File")
+        tab_processing = kb_tabview.add("⚙️ Processing")
+        tab_view = kb_tabview.add("👁️ View")
+        tab_nav = kb_tabview.add("🧭 Navigation")
+        tab_tools = kb_tabview.add("🔧 Tools")
+        tab_special = kb_tabview.add("🐼 Special")
+        
+        # Helper function to add shortcut rows
+        def add_shortcut_row(parent, key, description):
+            row = ctk.CTkFrame(parent)
+            row.pack(fill="x", padx=10, pady=2)
+            ctk.CTkLabel(row, text=key, font=("Courier Bold", 10), width=150, 
+                        anchor="w").pack(side="left", padx=5)
+            ctk.CTkLabel(row, text=description, font=("Arial", 10), 
+                        anchor="w").pack(side="left", padx=5)
+        
+        # File operations
+        add_shortcut_row(tab_file, "Ctrl+O", "Open files")
+        add_shortcut_row(tab_file, "Ctrl+S", "Save results")
+        add_shortcut_row(tab_file, "Ctrl+E", "Export data")
+        add_shortcut_row(tab_file, "Alt+F4", "Close application")
+        
+        # Processing operations
+        add_shortcut_row(tab_processing, "Ctrl+P", "Start processing")
+        add_shortcut_row(tab_processing, "Ctrl+Shift+P", "Pause processing")
+        add_shortcut_row(tab_processing, "Ctrl+Shift+S", "Stop processing")
+        add_shortcut_row(tab_processing, "Ctrl+R", "Resume processing")
+        
+        # View operations
+        add_shortcut_row(tab_view, "Ctrl+T", "Toggle preview panel")
+        add_shortcut_row(tab_view, "F5", "Refresh view")
+        add_shortcut_row(tab_view, "F11", "Toggle fullscreen")
+        add_shortcut_row(tab_view, "Ctrl+B", "Toggle sidebar")
+        
+        # Navigation
+        add_shortcut_row(tab_nav, "Right Arrow", "Next texture")
+        add_shortcut_row(tab_nav, "Left Arrow", "Previous texture")
+        add_shortcut_row(tab_nav, "Home", "First texture")
+        add_shortcut_row(tab_nav, "End", "Last texture")
+        add_shortcut_row(tab_nav, "Ctrl+A", "Select all")
+        add_shortcut_row(tab_nav, "Ctrl+D", "Deselect all")
+        add_shortcut_row(tab_nav, "Ctrl+I", "Invert selection")
+        
+        # Tools
+        add_shortcut_row(tab_tools, "Ctrl+F", "Search")
+        add_shortcut_row(tab_tools, "Ctrl+Shift+F", "Filter")
+        add_shortcut_row(tab_tools, "Ctrl+,", "Open Settings")
+        add_shortcut_row(tab_tools, "Ctrl+Shift+T", "View Statistics")
+        add_shortcut_row(tab_tools, "F1", "Help / Tutorial")
+        
+        # Special Features
+        add_shortcut_row(tab_special, "Ctrl+Shift+A", "View Achievements")
+        add_shortcut_row(tab_special, "Ctrl+M", "Toggle Sound")
+        add_shortcut_row(tab_special, "Ctrl+Alt+P", "Global Start (works outside app)")
+        add_shortcut_row(tab_special, "Ctrl+Alt+Space", "Global Pause (works outside app)")
+        
+        ctk.CTkLabel(kb_frame, text="💡 Note: Keyboard shortcuts are currently not customizable but will be in a future update.", 
+                    font=("Arial", 9), text_color="gray", wraplength=800).pack(anchor="w", padx=20, pady=5)
+        
         # === FILE HANDLING SETTINGS ===
         file_frame = ctk.CTkFrame(settings_scroll)
         file_frame.pack(fill="x", padx=10, pady=10)
@@ -2861,21 +2935,25 @@ support (200,000+ textures). 100% offline operation."""
         
         features_list = [
             "🎯 50+ texture categories with AI classification",
-            "🔍 LOD detection and grouping",
-            "🔄 DDS ↔ PNG conversion",
-            "💾 Database indexing for massive libraries (200,000+ textures)",
-            "📂 Multiple organization styles (Sims, Neopets, Flat, Game Area, etc.)",
-            "🎨 Modern panda-themed UI with multiple themes",
-            "🏆 Achievement system with unlockables",
-            "📊 Statistics and analytics tracking",
-            "🔎 Advanced search and filtering",
-            "📝 Built-in notepad for project notes",
-            "🖼️ File browser with thumbnail preview",
-            "🎮 Panda Mode with fun animations and quotes",
-            "🔊 Sound effects and audio feedback",
-            "📚 Interactive tutorial system",
-            "⚡ Batch processing and automation",
-            "🛡️ 100% offline operation - no network calls"
+            "🔍 LOD detection and automatic grouping",
+            "🔄 Bidirectional DDS ↔ PNG conversion with quality preservation",
+            "💾 SQLite database indexing for massive libraries (200,000+ textures)",
+            "📂 9 organization styles (Sims, Neopets, Flat, Game Area, Asset Pipeline, Modular, etc.)",
+            "🎨 Modern panda-themed UI with 5+ preset themes and custom color palettes",
+            "🏆 Achievement system with 50+ achievements and unlockable rewards",
+            "💰 Currency system - Earn Bamboo Bucks through usage and spend in the shop",
+            "📊 Comprehensive statistics and analytics tracking",
+            "🔎 Advanced search and filtering with multiple criteria",
+            "📝 Multi-tab notepad with pop-out window support",
+            "🖼️ File browser with thumbnail preview and quick actions",
+            "🐼 Interactive panda character with 13 moods and leveling system",
+            "💡 250+ contextual tooltips in 4 verbosity modes (expert to panda)",
+            "🔊 Sound effects and audio feedback with volume control",
+            "📚 Interactive tutorial system with first-run guide and F1 context help",
+            "⚡ Multi-threaded batch processing with pause/resume",
+            "🔐 Safe operations with automatic backups and undo/redo",
+            "⌨️ Full keyboard shortcut support with customizable hotkeys",
+            "🛡️ 100% offline operation - no network calls, complete privacy"
         ]
         
         for feature in features_list:
@@ -2889,16 +2967,20 @@ support (200,000+ textures). 100% offline operation."""
         ctk.CTkLabel(panda_frame, text="🐼 PANDA MODE",
                      font=("Arial Bold", 18)).pack(pady=10)
         
-        panda_text = """Panda Mode adds personality and fun to the texture sorting experience!
+        panda_text = """The interactive panda character is your companion throughout texture sorting!
 
-• Random panda facts and jokes during processing
-• Encouraging messages and progress celebrations
-• Easter eggs and surprises hidden throughout the app
-• Vulgar Mode toggle for uncensored panda commentary (off by default)
-• Animated panda helper that reacts to your actions
-• Click the panda for random responses and interactions
+• 13 dynamic moods (happy, working, celebrating, rage, sarcastic, drunk, existential, etc.)
+• Level system - Both you and the panda gain XP and level up through usage
+• 250+ tooltip variations ranging from helpful to hilariously sarcastic
+• Random panda facts, jokes, and motivational quotes during processing
+• Easter eggs and hidden surprises (try clicking the panda 10 times!)
+• Vulgar Mode toggle for uncensored panda commentary (opt-in, off by default)
+• Right-click the panda for special interactions: pet, feed bamboo, check mood, reset position
+• Draggable - Click and drag the panda anywhere on screen! Position is saved automatically
+• Earn Bamboo Bucks currency through interactions and achievements
+• Customizable appearance and behavior in Settings → Panda
 
-Panda Mode can be customized in Settings → Appearance & Customization."""
+Drag the panda to your favorite spot or right-click to reset to corner! 🎋"""
         
         ctk.CTkLabel(panda_frame, text=panda_text,
                      font=("Arial", 11), justify="left", wraplength=900).pack(pady=10, padx=20)
@@ -2950,7 +3032,16 @@ Built with:
         # Panda is always present - not a "mode"
         if PANDA_WIDGET_AVAILABLE and self.panda:
             panda_container = ctk.CTkFrame(self, corner_radius=10)
-            panda_container.place(relx=0.98, rely=0.98, anchor="se")
+            
+            # Restore saved position or use default
+            # Position coordinates are relative (0.0 to 1.0) not absolute pixels
+            # saved_x: 0.0 = left edge, 1.0 = right edge
+            # saved_y: 0.0 = top edge, 1.0 = bottom edge
+            saved_x = config.get('panda', 'position_x', default=0.98)
+            saved_y = config.get('panda', 'position_y', default=0.98)
+            
+            # Position using saved relative coordinates
+            panda_container.place(relx=saved_x, rely=saved_y, anchor="se")
             
             self.panda_widget = PandaWidget(
                 panda_container, 

@@ -971,27 +971,42 @@ Tips:
 Frequently Asked Questions
 
 Q: What texture formats are supported?
-A: DDS, PNG, JPG/JPEG, BMP, and TGA
+A: DDS, PNG, JPG/JPEG, BMP, and TGA formats are fully supported.
 
 Q: Will my original files be modified?
-A: No! Files are copied to the output directory. Originals remain unchanged.
+A: No! Files are copied to the output directory. Originals remain unchanged. You can enable automatic backups in Settings for extra safety.
 
 Q: What is LOD Detection?
-A: LOD (Level of Detail) detection finds different quality versions of the same texture (LOD0, LOD1, LOD2, etc.)
+A: LOD (Level of Detail) detection finds different quality versions of the same texture (LOD0, LOD1, LOD2, etc.) and can group them together.
 
-Q: Can I undo sorting?
-A: The app creates backups. Check Settings → File Handling for backup options.
+Q: Can I undo sorting operations?
+A: Yes! The app supports undo/redo with configurable history depth (default 10 operations). Check Settings → File Handling.
 
-Q: What is Panda Mode?
-A: A fun optional mode with an animated panda companion, achievements, and humorous tooltips!
+Q: What is the Panda Character?
+A: An interactive companion that reacts to your actions! The panda has 13 moods, levels up, provides helpful tips, and makes sorting fun. Click, hover, or right-click the panda to interact!
 
-Q: How do I customize the theme?
-A: Go to Settings → UI Customization to change colors, fonts, and more.
+Q: How do keyboard shortcuts work?
+A: Press F1 for help, Ctrl+P to start processing, Ctrl+S to save, and more. Check the About tab for a complete list of shortcuts.
+
+Q: How do I customize the UI theme?
+A: Click Settings button → UI & Appearance to change colors, cursors (default/skull/panda/sword), themes, and tooltip verbosity.
 
 Q: The app is slow with many files. What can I do?
-A: Go to Settings → Performance and increase thread count. Also increase memory limit if you have RAM available.
+A: Settings → Performance: Increase thread count (use number of CPU cores), increase memory limit, and enable database indexing.
 
-Still need help? Check the documentation or contact support!
+Q: What are Bamboo Bucks?
+A: In-app currency earned through usage, achievements, and interactions. Spend it in the Shop tab on themes, customizations, and unlockables!
+
+Q: How do I earn achievements?
+A: Process files, explore features, interact with the panda, and discover Easter eggs! Check the Achievements tab to see all available achievements.
+
+Q: Does this require internet?
+A: No! PS2 Texture Sorter is 100% offline. No network calls, complete privacy.
+
+Q: Where are my settings and data stored?
+A: In your user profile folder: ~/.ps2_texture_sorter/ (or %USERPROFILE%\.ps2_texture_sorter\ on Windows)
+
+Still need help? Check the PANDA_MODE_GUIDE.md and other documentation files in the repository!
             """
         }
         
