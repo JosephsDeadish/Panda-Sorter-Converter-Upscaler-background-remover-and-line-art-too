@@ -3972,7 +3972,7 @@ Built with:
                      font=("Arial Bold", 16)).pack(anchor="w", padx=10, pady=10)
 
         mood_indicator = self.panda.get_mood_indicator()
-        mood_name = self.panda.mood.value.title()
+        mood_name = self.panda.current_mood.value.title()
         self.panda_mood_label = ctk.CTkLabel(
             mood_frame, text=f"{mood_indicator} {mood_name}",
             font=("Arial Bold", 18))
@@ -4054,7 +4054,7 @@ Built with:
         """Refresh panda stats display"""
         if hasattr(self, 'panda_mood_label') and self.panda:
             mood_indicator = self.panda.get_mood_indicator()
-            mood_name = self.panda.mood.value.title()
+            mood_name = self.panda.current_mood.value.title()
             self.panda_mood_label.configure(text=f"{mood_indicator} {mood_name}")
         if hasattr(self, 'panda_preview_label') and self.panda:
             current_anim = self.panda.get_animation_frame('idle')
