@@ -940,8 +940,8 @@ class PS2TextureSorter(ctk.CTk):
         tt = self._get_tooltip_text
         # Store tooltip references to prevent garbage collection
         self._tooltips.append(WidgetTooltip(self.start_button, tt('sort_button')))
-        self._tooltips.append(WidgetTooltip(self.pause_button, tt('batch_operations') or "Pause the current sorting operation"))
-        self._tooltips.append(WidgetTooltip(self.stop_button, tt('export_button') or "Stop the sorting operation completely"))
+        self._tooltips.append(WidgetTooltip(self.pause_button, "Pause the current sorting operation"))
+        self._tooltips.append(WidgetTooltip(self.stop_button, "Stop the sorting operation completely"))
         self._tooltips.append(WidgetTooltip(browse_in_btn, tt('input_browse')))
         self._tooltips.append(WidgetTooltip(browse_out_btn, tt('output_browse')))
         self._tooltips.append(WidgetTooltip(mode_menu, 
@@ -2805,9 +2805,8 @@ Built with:
                 self.log("⚠️ No texture files found in input directory")
                 return
             
-            # Classify textures in batches to prevent memory issues with large sets
-            CLASSIFY_BATCH_SIZE = 500
-            logger.info(f"Starting classification of {total} textures (batch size: {CLASSIFY_BATCH_SIZE})")
+            # Classify textures
+            logger.info(f"Starting classification of {total} textures")
             self.update_progress(0.1, "Classifying textures...")
             texture_infos = []
             classification_errors = 0
