@@ -27,6 +27,7 @@ class ShopCategory(Enum):
     UPGRADES = "upgrades"
     SPECIAL = "special"
     FOOD = "food"
+    TOYS = "toys"
 
 
 @dataclass
@@ -761,6 +762,155 @@ class ShopSystem:
             level_required=3,
             one_time_purchase=False,
             unlockable_id='food_ramen'
+        ),
+
+        # Toys
+        'toy_ball': ShopItem(
+            id='toy_ball',
+            name='Bamboo Ball',
+            description='A bouncy ball for the panda to play with',
+            category=ShopCategory.TOYS,
+            price=15,
+            icon='🎾',
+            level_required=1,
+            one_time_purchase=True,
+            unlockable_id='ball'
+        ),
+        'toy_plushie': ShopItem(
+            id='toy_plushie',
+            name='Mini Panda Plushie',
+            description='A cuddly mini panda plushie toy',
+            category=ShopCategory.TOYS,
+            price=50,
+            icon='🧸',
+            level_required=3,
+            one_time_purchase=True,
+            unlockable_id='plushie'
+        ),
+        'toy_frisbee': ShopItem(
+            id='toy_frisbee',
+            name='Bamboo Frisbee',
+            description='A lightweight frisbee for outdoor fun',
+            category=ShopCategory.TOYS,
+            price=40,
+            icon='🥏',
+            level_required=3,
+            one_time_purchase=True,
+            unlockable_id='frisbee'
+        ),
+        'toy_yoyo': ShopItem(
+            id='toy_yoyo',
+            name='Panda Yo-Yo',
+            description='A tricky yo-yo with panda design',
+            category=ShopCategory.TOYS,
+            price=100,
+            icon='🪀',
+            level_required=5,
+            one_time_purchase=True,
+            unlockable_id='yo-yo'
+        ),
+        'toy_puzzle': ShopItem(
+            id='toy_puzzle',
+            name='Bamboo Puzzle',
+            description='A challenging bamboo puzzle for smart pandas',
+            category=ShopCategory.TOYS,
+            price=120,
+            icon='🧩',
+            level_required=5,
+            one_time_purchase=True,
+            unlockable_id='puzzle'
+        ),
+        'toy_kite': ShopItem(
+            id='toy_kite',
+            name='Panda Kite',
+            description='A beautiful kite with panda art',
+            category=ShopCategory.TOYS,
+            price=250,
+            icon='🪁',
+            level_required=10,
+            one_time_purchase=True,
+            unlockable_id='kite'
+        ),
+        'toy_robot': ShopItem(
+            id='toy_robot',
+            name='Robot Panda Friend',
+            description='A legendary robotic panda companion',
+            category=ShopCategory.TOYS,
+            price=1000,
+            icon='🤖',
+            level_required=20,
+            one_time_purchase=True,
+            unlockable_id='robot'
+        ),
+        'toy_stick': ShopItem(
+            id='toy_stick',
+            name='Bamboo Stick',
+            description='A simple bamboo stick to play fetch',
+            category=ShopCategory.TOYS,
+            price=10,
+            icon='🎍',
+            level_required=1,
+            one_time_purchase=True,
+            unlockable_id='stick'
+        ),
+
+        # More special items
+        'special_party_hat': ShopItem(
+            id='special_party_hat',
+            name='Party Hat',
+            description='A festive party hat for celebrations',
+            category=ShopCategory.SPECIAL,
+            price=200,
+            icon='🥳',
+            level_required=5,
+            one_time_purchase=True,
+            unlockable_id='party_hat'
+        ),
+        'special_fireworks': ShopItem(
+            id='special_fireworks',
+            name='Fireworks Pack',
+            description='Celebrate with a dazzling fireworks display',
+            category=ShopCategory.SPECIAL,
+            price=300,
+            icon='🎆',
+            level_required=10,
+            one_time_purchase=True,
+            unlockable_id='fireworks'
+        ),
+        'special_confetti': ShopItem(
+            id='special_confetti',
+            name='Confetti Cannon',
+            description='Blast confetti everywhere!',
+            category=ShopCategory.SPECIAL,
+            price=150,
+            icon='🎊',
+            level_required=5,
+            one_time_purchase=True,
+            unlockable_id='confetti'
+        ),
+
+        # More upgrades
+        'upgrade_lucky_charm': ShopItem(
+            id='upgrade_lucky_charm',
+            name='Lucky Charm',
+            description='Increases rare item drop rates for 1 hour',
+            category=ShopCategory.UPGRADES,
+            price=200,
+            icon='🍀',
+            level_required=10,
+            one_time_purchase=False,
+            unlockable_id=None
+        ),
+        'upgrade_speed_boost': ShopItem(
+            id='upgrade_speed_boost',
+            name='Speed Boost',
+            description='Sort textures 2x faster for 1 hour',
+            category=ShopCategory.UPGRADES,
+            price=150,
+            icon='⚡',
+            level_required=5,
+            one_time_purchase=False,
+            unlockable_id=None
         ),
     }
     

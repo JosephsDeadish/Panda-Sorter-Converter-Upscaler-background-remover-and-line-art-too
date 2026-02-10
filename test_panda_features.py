@@ -216,6 +216,123 @@ class TestTranslationSystem(unittest.TestCase):
         self.assertIsNotNone(text)
 
 
+class TestPandaCharacterAnimations(unittest.TestCase):
+    """Test panda character animation variants and new interaction methods."""
+
+    def setUp(self):
+        """Set up test fixtures."""
+        from src.features.panda_character import PandaCharacter
+        self.panda = PandaCharacter()
+
+    def test_click_animation_variants(self):
+        """Test that clicked animation has multiple frames."""
+        frames = self.panda.ANIMATIONS.get('clicked', [])
+        self.assertGreater(len(frames), 1, "clicked animation should have multiple frames")
+
+    def test_fed_animation_variants(self):
+        """Test that fed animation has multiple frames."""
+        frames = self.panda.ANIMATIONS.get('fed', [])
+        self.assertGreater(len(frames), 1, "fed animation should have multiple frames")
+
+    def test_tossed_animation_variants(self):
+        """Test that tossed animation has multiple frames."""
+        frames = self.panda.ANIMATIONS.get('tossed', [])
+        self.assertGreater(len(frames), 1, "tossed animation should have multiple frames")
+
+    def test_wall_hit_animation_variants(self):
+        """Test that wall_hit animation has multiple frames."""
+        frames = self.panda.ANIMATIONS.get('wall_hit', [])
+        self.assertGreater(len(frames), 1, "wall_hit animation should have multiple frames")
+
+    def test_dragging_animation_variants(self):
+        """Test that dragging animation has multiple frames."""
+        frames = self.panda.ANIMATIONS.get('dragging', [])
+        self.assertGreater(len(frames), 1, "dragging animation should have multiple frames")
+
+    def test_on_feed_returns_varied_responses(self):
+        """Test that on_feed returns varied responses."""
+        responses = set()
+        for _ in range(20):
+            responses.add(self.panda.on_feed())
+        self.assertGreater(len(responses), 1, "on_feed should return varied responses")
+
+    def test_on_drag_method(self):
+        """Test that on_drag method exists and returns a string."""
+        response = self.panda.on_drag()
+        self.assertIsInstance(response, str)
+        self.assertGreater(len(response), 0)
+
+    def test_on_toss_method(self):
+        """Test that on_toss method exists and returns a string."""
+        response = self.panda.on_toss()
+        self.assertIsInstance(response, str)
+        self.assertGreater(len(response), 0)
+
+    def test_on_wall_hit_method(self):
+        """Test that on_wall_hit method exists and returns a string."""
+        response = self.panda.on_wall_hit()
+        self.assertIsInstance(response, str)
+        self.assertGreater(len(response), 0)
+
+    def test_click_responses_expanded(self):
+        """Test that click responses have been expanded."""
+        self.assertGreater(len(self.panda.CLICK_RESPONSES), 10)
+
+
+class TestShopToys(unittest.TestCase):
+    """Test shop toys category."""
+
+    def setUp(self):
+        """Set up test fixtures."""
+        from src.features.shop_system import ShopSystem, ShopCategory
+        self.shop = ShopSystem()
+        self.ShopCategory = ShopCategory
+
+    def test_toys_category_exists(self):
+        """Test that TOYS category exists."""
+        self.assertIn('TOYS', [c.name for c in self.ShopCategory])
+
+    def test_toys_items_available(self):
+        """Test that toy items are available in the shop."""
+        toys = self.shop.get_items_by_category(self.ShopCategory.TOYS)
+        self.assertGreater(len(toys), 0)
+
+    def test_toy_items_have_unlockable_ids(self):
+        """Test that toy items have unlockable_ids for widget collection."""
+        toys = self.shop.get_items_by_category(self.ShopCategory.TOYS)
+        for toy in toys:
+            self.assertIsNotNone(toy.unlockable_id, f"Toy {toy.name} should have unlockable_id")
+
+    def test_total_shop_items_increased(self):
+        """Test that total shop catalog has grown."""
+        self.assertGreaterEqual(len(self.shop.CATALOG), 78)
+
+
+class TestPandaStats(unittest.TestCase):
+    """Test panda statistics."""
+
+    def setUp(self):
+        """Set up test fixtures."""
+        from src.features.panda_character import PandaCharacter
+        self.panda = PandaCharacter()
+
+    def test_statistics_includes_all_fields(self):
+        """Test that get_statistics returns all expected fields."""
+        stats = self.panda.get_statistics()
+        expected_keys = ['current_mood', 'click_count', 'pet_count', 'feed_count',
+                         'hover_count', 'files_processed', 'failed_operations',
+                         'easter_eggs_found', 'easter_eggs', 'uptime_seconds']
+        for key in expected_keys:
+            self.assertIn(key, stats, f"Statistics missing key: {key}")
+
+    def test_feed_increments_count(self):
+        """Test that feeding increments feed_count."""
+        self.panda.on_feed()
+        self.panda.on_feed()
+        stats = self.panda.get_statistics()
+        self.assertEqual(stats['feed_count'], 2)
+
+
 def run_tests():
     """Run all tests."""
     # Create test suite
@@ -227,6 +344,9 @@ def run_tests():
     suite.addTests(loader.loadTestsFromTestCase(TestPandaWidgets))
     suite.addTests(loader.loadTestsFromTestCase(TestPandaCloset))
     suite.addTests(loader.loadTestsFromTestCase(TestTranslationSystem))
+    suite.addTests(loader.loadTestsFromTestCase(TestPandaCharacterAnimations))
+    suite.addTests(loader.loadTestsFromTestCase(TestShopToys))
+    suite.addTests(loader.loadTestsFromTestCase(TestPandaStats))
     
     # Run tests
     runner = unittest.TextTestRunner(verbosity=2)

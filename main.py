@@ -163,6 +163,13 @@ except ImportError:
     print("Warning: Panda closet not available.")
 
 try:
+    from src.features.panda_widgets import WidgetCollection, WidgetType
+    PANDA_WIDGETS_AVAILABLE = True
+except ImportError:
+    PANDA_WIDGETS_AVAILABLE = False
+    print("Warning: Panda widgets not available.")
+
+try:
     from src.ui.goodbye_splash import show_goodbye_splash
     GOODBYE_SPLASH_AVAILABLE = True
 except ImportError:
@@ -361,6 +368,7 @@ class PS2TextureSorter(ctk.CTk):
         self.shop_system = None
         self.panda_closet = None
         self.panda_widget = None
+        self.widget_collection = None
         
         # Thumbnail cache for file browser (LRU - prevent PhotoImage GC)
         self._thumbnail_cache = {}
@@ -408,6 +416,8 @@ class PS2TextureSorter(ctk.CTk):
                     self.shop_system = ShopSystem()
                 if PANDA_CLOSET_AVAILABLE:
                     self.panda_closet = PandaCloset()
+                if PANDA_WIDGETS_AVAILABLE:
+                    self.widget_collection = WidgetCollection()
                 
                 # Setup tutorial system
                 if TUTORIAL_AVAILABLE:
@@ -632,21 +642,35 @@ class PS2TextureSorter(ctk.CTk):
         main_frame = ctk.CTkFrame(self)
         main_frame.pack(fill="both", expand=True, padx=10, pady=10)
         
-        # Tab view
-        self.tabview = ctk.CTkTabview(main_frame)
+        # Top-level category tab view
+        self.category_tabview = ctk.CTkTabview(main_frame)
+        self.category_tabview.pack(fill="both", expand=True)
+        
+        # Create two category tabs
+        self.tools_category = self.category_tabview.add("🔧 Tools")
+        self.features_category = self.category_tabview.add("🐼 Panda & Features")
+        
+        # Tools tabview (nested)
+        self.tabview = ctk.CTkTabview(self.tools_category)
         self.tabview.pack(fill="both", expand=True)
         
-        # Create tabs with panda emojis on key tabs
         self.tab_sort = self.tabview.add("🐼 Sort Textures")
         self.tab_convert = self.tabview.add("🔄 Convert Files")
         self.tab_browser = self.tabview.add("📁 File Browser")
-        self.tab_achievements = self.tabview.add("🏆 Achievements")
-        self.tab_shop = self.tabview.add("🛒 Shop")
-        self.tab_rewards = self.tabview.add("🎁 Rewards")
-        if PANDA_CLOSET_AVAILABLE and self.panda_closet:
-            self.tab_closet = self.tabview.add("👔 Panda Closet")
         self.tab_notepad = self.tabview.add("📝 Notepad")
         self.tab_about = self.tabview.add("ℹ️ About")
+        
+        # Features tabview (nested)
+        self.features_tabview = ctk.CTkTabview(self.features_category)
+        self.features_tabview.pack(fill="both", expand=True)
+        
+        self.tab_shop = self.features_tabview.add("🛒 Shop")
+        self.tab_rewards = self.features_tabview.add("🎁 Rewards")
+        self.tab_achievements = self.features_tabview.add("🏆 Achievements")
+        if PANDA_CLOSET_AVAILABLE and self.panda_closet:
+            self.tab_closet = self.features_tabview.add("👔 Panda Closet")
+        self.tab_inventory = self.features_tabview.add("📦 Inventory")
+        self.tab_panda_stats = self.features_tabview.add("📊 Panda Stats & Mood")
         
         # Track popped-out tabs
         self._popout_windows = {}
@@ -655,13 +679,15 @@ class PS2TextureSorter(ctk.CTk):
         self.create_sort_tab()
         self.create_convert_tab()
         self.create_browser_tab()
-        self.create_achievements_tab()
-        self.create_shop_tab()
-        self.create_rewards_tab()
-        if PANDA_CLOSET_AVAILABLE and self.panda_closet:
-            self.create_closet_tab()
         self.create_notepad_tab()
         self.create_about_tab()
+        self.create_shop_tab()
+        self.create_rewards_tab()
+        self.create_achievements_tab()
+        if PANDA_CLOSET_AVAILABLE and self.panda_closet:
+            self.create_closet_tab()
+        self.create_inventory_tab()
+        self.create_panda_stats_tab()
         
         # Add pop-out buttons to dockable tabs
         self._add_popout_buttons()
@@ -671,15 +697,24 @@ class PS2TextureSorter(ctk.CTk):
     
     def _add_popout_buttons(self):
         """Add pop-out/undock buttons to secondary tabs"""
-        dockable_tabs = {
-            "📝 Notepad": self.tab_notepad,
-            "🏆 Achievements": self.tab_achievements,
-            "🛒 Shop": self.tab_shop,
-            "🎁 Rewards": self.tab_rewards,
-            "📁 File Browser": self.tab_browser,
-            "ℹ️ About": self.tab_about,
+        # Tools tabs that can be popped out
+        tools_dockable = {
+            "📝 Notepad": (self.tab_notepad, self.tabview),
+            "📁 File Browser": (self.tab_browser, self.tabview),
+            "ℹ️ About": (self.tab_about, self.tabview),
         }
-        for tab_name, tab_frame in dockable_tabs.items():
+        # Features tabs that can be popped out
+        features_dockable = {
+            "🏆 Achievements": (self.tab_achievements, self.features_tabview),
+            "🛒 Shop": (self.tab_shop, self.features_tabview),
+            "🎁 Rewards": (self.tab_rewards, self.features_tabview),
+            "📦 Inventory": (self.tab_inventory, self.features_tabview),
+            "📊 Panda Stats & Mood": (self.tab_panda_stats, self.features_tabview),
+        }
+        all_dockable = {**tools_dockable, **features_dockable}
+        # Store tabview mapping for pop-out/dock operations
+        self._tab_to_tabview = {name: tv for name, (_, tv) in all_dockable.items()}
+        for tab_name, (tab_frame, _) in all_dockable.items():
             btn = ctk.CTkButton(
                 tab_frame, text="⬗", width=30, height=26,
                 font=("Arial", 11),
@@ -711,7 +746,8 @@ class PS2TextureSorter(ctk.CTk):
             self._create_popout_notepad(popout, tab_name)
         else:
             # Get the tab frame and its children
-            tab_frame = self.tabview.tab(tab_name)
+            parent_tv = self._tab_to_tabview.get(tab_name, self.tabview)
+            tab_frame = parent_tv.tab(tab_name)
             children_info = []
             for child in tab_frame.winfo_children():
                 children_info.append(child)
@@ -841,7 +877,8 @@ class PS2TextureSorter(ctk.CTk):
                 popout_window.destroy()
             self._popout_windows.pop(tab_name, None)
             # Re-add pop-out button
-            tab_frame = self.tabview.tab(tab_name)
+            parent_tv = self._tab_to_tabview.get(tab_name, self.tabview)
+            tab_frame = parent_tv.tab(tab_name)
             btn = ctk.CTkButton(
                 tab_frame, text="⬗ Pop Out", width=90, height=26,
                 font=("Arial", 11),
@@ -852,7 +889,8 @@ class PS2TextureSorter(ctk.CTk):
             return
         
         # For other tabs, reparent children back
-        tab_frame = self.tabview.tab(tab_name)
+        parent_tv = self._tab_to_tabview.get(tab_name, self.tabview)
+        tab_frame = parent_tv.tab(tab_name)
         
         if children:
             # Reparent children back
@@ -883,7 +921,8 @@ class PS2TextureSorter(ctk.CTk):
         btn.place(relx=1.0, rely=0.0, anchor="ne", x=-5, y=5)
         
         # Switch to the docked tab
-        self.tabview.set(tab_name)
+        parent_tv = self._tab_to_tabview.get(tab_name, self.tabview)
+        parent_tv.set(tab_name)
     
     def create_sort_tab(self):
         """Create texture sorting tab"""
@@ -2871,7 +2910,7 @@ class PS2TextureSorter(ctk.CTk):
                     response = self.panda.on_feed()
                     if hasattr(self, 'panda_widget') and self.panda_widget:
                         self.panda_widget.info_label.configure(text=response)
-                        self.panda_widget.play_animation_once('working')
+                        self.panda_widget.play_animation_once('fed')
                     self.log(f"🎋 Fed panda with {item.name}! {response}")
                     # Award XP for feeding
                     if self.panda_level_system:
@@ -2882,6 +2921,14 @@ class PS2TextureSorter(ctk.CTk):
                             pass
                 except Exception as e:
                     logger.debug(f"Could not feed panda: {e}")
+
+            # Handle toy purchases — unlock widget in collection
+            if item.category.value == 'toys' and item.unlockable_id and self.widget_collection:
+                try:
+                    self.widget_collection.unlock_widget(item.unlockable_id)
+                    logger.info(f"Unlocked toy widget: {item.unlockable_id}")
+                except Exception as e:
+                    logger.debug(f"Could not unlock toy widget: {e}")
             
             messagebox.showinfo("Purchase Successful", message)
             
@@ -3370,6 +3417,197 @@ Built with:
                      text="Repository: JosephsDeadish/PS2-texture-sorter",
                      font=("Arial", 10), text_color="gray").pack(pady=5)
     
+    def create_inventory_tab(self):
+        """Create inventory tab for managing collected items"""
+        scrollable_frame = ctk.CTkScrollableFrame(self.tab_inventory)
+        scrollable_frame.pack(fill="both", expand=True, padx=10, pady=10)
+
+        ctk.CTkLabel(scrollable_frame, text="📦 Inventory",
+                     font=("Arial Bold", 22)).pack(pady=15)
+
+        # Show purchased shop items
+        if self.shop_system:
+            shop_frame = ctk.CTkFrame(scrollable_frame)
+            shop_frame.pack(fill="x", padx=10, pady=10)
+            ctk.CTkLabel(shop_frame, text="🛒 Purchased Items",
+                         font=("Arial Bold", 16)).pack(anchor="w", padx=10, pady=10)
+
+            if self.shop_system.purchased_items:
+                for item_id in self.shop_system.purchased_items:
+                    item = self.shop_system.CATALOG.get(item_id)
+                    if item:
+                        item_frame = ctk.CTkFrame(shop_frame)
+                        item_frame.pack(fill="x", padx=10, pady=3)
+                        ctk.CTkLabel(item_frame, text=f"{item.icon} {item.name}",
+                                     font=("Arial", 12)).pack(side="left", padx=10, pady=5)
+                        ctk.CTkLabel(item_frame, text=item.description,
+                                     font=("Arial", 10), text_color="gray").pack(side="left", padx=5)
+            else:
+                ctk.CTkLabel(shop_frame, text="No purchases yet. Visit the Shop to buy items!",
+                             font=("Arial", 11), text_color="gray").pack(anchor="w", padx=20, pady=5)
+
+        # Show widget collection (toys, food, accessories)
+        if self.widget_collection:
+            for type_label, widget_type in [("🎾 Toys", WidgetType.TOY),
+                                            ("🍱 Food Items", WidgetType.FOOD),
+                                            ("🎀 Accessories", WidgetType.ACCESSORY)]:
+                type_frame = ctk.CTkFrame(scrollable_frame)
+                type_frame.pack(fill="x", padx=10, pady=10)
+                ctk.CTkLabel(type_frame, text=type_label,
+                             font=("Arial Bold", 16)).pack(anchor="w", padx=10, pady=10)
+
+                widgets = self.widget_collection.get_all_widgets(widget_type)
+                for widget in widgets:
+                    w_frame = ctk.CTkFrame(type_frame)
+                    w_frame.pack(fill="x", padx=10, pady=3)
+                    status = "✅" if widget.unlocked else "🔒"
+                    ctk.CTkLabel(w_frame, text=f"{status} {widget.emoji} {widget.name}",
+                                 font=("Arial", 12)).pack(side="left", padx=10, pady=5)
+                    rarity_colors = {"common": "gray", "uncommon": "#00cc00",
+                                     "rare": "#3399ff", "epic": "#cc66ff",
+                                     "legendary": "#ffaa00"}
+                    ctk.CTkLabel(w_frame, text=widget.rarity.value.title(),
+                                 font=("Arial", 10),
+                                 text_color=rarity_colors.get(widget.rarity.value, "gray")
+                                 ).pack(side="left", padx=5)
+                    if widget.stats.times_used > 0:
+                        ctk.CTkLabel(w_frame, text=f"Used {widget.stats.times_used}x",
+                                     font=("Arial", 10), text_color="gray").pack(side="right", padx=10)
+
+        # Show unlockables summary
+        if self.unlockables_manager:
+            unlockables_frame = ctk.CTkFrame(scrollable_frame)
+            unlockables_frame.pack(fill="x", padx=10, pady=10)
+            ctk.CTkLabel(unlockables_frame, text="🎁 Unlocked Rewards",
+                         font=("Arial Bold", 16)).pack(anchor="w", padx=10, pady=10)
+
+            try:
+                categories = [
+                    ('🖱️ Cursors', self.unlockables_manager.cursors),
+                    ('🐼 Outfits', self.unlockables_manager.outfits),
+                    ('🎨 Themes', self.unlockables_manager.themes),
+                    ('✨ Animations', self.unlockables_manager.animations),
+                ]
+                for cat_label, items_dict in categories:
+                    unlocked = [i for i in items_dict.values() if i.unlocked]
+                    if unlocked:
+                        ctk.CTkLabel(unlockables_frame,
+                                     text=f"  {cat_label}: {len(unlocked)}/{len(items_dict)}",
+                                     font=("Arial", 11)).pack(anchor="w", padx=20, pady=2)
+            except Exception as e:
+                ctk.CTkLabel(unlockables_frame,
+                             text=f"Could not load unlockables: {e}",
+                             font=("Arial", 11), text_color="gray").pack(anchor="w", padx=20, pady=5)
+    
+    def create_panda_stats_tab(self):
+        """Create panda stats and mood tab"""
+        scrollable_frame = ctk.CTkScrollableFrame(self.tab_panda_stats)
+        scrollable_frame.pack(fill="both", expand=True, padx=10, pady=10)
+
+        ctk.CTkLabel(scrollable_frame, text="📊 Panda Stats & Mood",
+                     font=("Arial Bold", 22)).pack(pady=15)
+
+        if not self.panda:
+            ctk.CTkLabel(scrollable_frame,
+                         text="Panda character not available.",
+                         font=("Arial", 14)).pack(pady=50)
+            return
+
+        # Current mood display
+        mood_frame = ctk.CTkFrame(scrollable_frame)
+        mood_frame.pack(fill="x", padx=10, pady=10)
+        ctk.CTkLabel(mood_frame, text="🎭 Current Mood",
+                     font=("Arial Bold", 16)).pack(anchor="w", padx=10, pady=10)
+
+        mood_indicator = self.panda.get_mood_indicator()
+        mood_name = self.panda.mood.value.title()
+        self.panda_mood_label = ctk.CTkLabel(
+            mood_frame, text=f"{mood_indicator} {mood_name}",
+            font=("Arial Bold", 18))
+        self.panda_mood_label.pack(anchor="w", padx=20, pady=5)
+
+        # Panda animation preview
+        anim_frame = ctk.CTkFrame(scrollable_frame)
+        anim_frame.pack(fill="x", padx=10, pady=10)
+        ctk.CTkLabel(anim_frame, text="🐼 Panda Preview",
+                     font=("Arial Bold", 16)).pack(anchor="w", padx=10, pady=10)
+
+        current_anim = self.panda.get_animation_frame('idle')
+        self.panda_preview_label = ctk.CTkLabel(
+            anim_frame, text=current_anim,
+            font=("Courier", 10), justify="left")
+        self.panda_preview_label.pack(anchor="w", padx=20, pady=5)
+
+        # Statistics
+        stats = self.panda.get_statistics()
+        stats_frame = ctk.CTkFrame(scrollable_frame)
+        stats_frame.pack(fill="x", padx=10, pady=10)
+        ctk.CTkLabel(stats_frame, text="📈 Interaction Statistics",
+                     font=("Arial Bold", 16)).pack(anchor="w", padx=10, pady=10)
+
+        stat_items = [
+            ("🖱️ Clicks", stats.get('click_count', 0)),
+            ("🐾 Pets", stats.get('pet_count', 0)),
+            ("🎋 Feeds", stats.get('feed_count', 0)),
+            ("💭 Hovers", stats.get('hover_count', 0)),
+            ("📁 Files Processed", stats.get('files_processed', 0)),
+            ("❌ Failed Operations", stats.get('failed_operations', 0)),
+            ("🥚 Easter Eggs Found", stats.get('easter_eggs_found', 0)),
+        ]
+        for label, value in stat_items:
+            row = ctk.CTkFrame(stats_frame)
+            row.pack(fill="x", padx=20, pady=2)
+            ctk.CTkLabel(row, text=label, font=("Arial", 12)).pack(side="left", padx=5)
+            ctk.CTkLabel(row, text=str(value), font=("Arial Bold", 12),
+                         text_color="#00cc00").pack(side="right", padx=10)
+
+        # Level info
+        if self.panda_level_system:
+            level_frame = ctk.CTkFrame(scrollable_frame)
+            level_frame.pack(fill="x", padx=10, pady=10)
+            ctk.CTkLabel(level_frame, text="⭐ Panda Level",
+                         font=("Arial Bold", 16)).pack(anchor="w", padx=10, pady=10)
+            try:
+                level = self.panda_level_system.level
+                xp = self.panda_level_system.xp
+                xp_needed = self.panda_level_system.xp_to_next_level()
+                ctk.CTkLabel(level_frame,
+                             text=f"Level {level}  •  XP: {xp}/{xp_needed}",
+                             font=("Arial Bold", 14), text_color="#ffaa00"
+                             ).pack(anchor="w", padx=20, pady=5)
+                # XP progress bar
+                progress = min(1.0, xp / max(1, xp_needed))
+                xp_bar = ctk.CTkProgressBar(level_frame, width=400)
+                xp_bar.pack(anchor="w", padx=20, pady=5)
+                xp_bar.set(progress)
+            except Exception as e:
+                ctk.CTkLabel(level_frame, text=f"Level info unavailable: {e}",
+                             font=("Arial", 11), text_color="gray").pack(anchor="w", padx=20, pady=5)
+
+        # Easter eggs found
+        if stats.get('easter_eggs'):
+            egg_frame = ctk.CTkFrame(scrollable_frame)
+            egg_frame.pack(fill="x", padx=10, pady=10)
+            ctk.CTkLabel(egg_frame, text="🥚 Easter Eggs Discovered",
+                         font=("Arial Bold", 16)).pack(anchor="w", padx=10, pady=10)
+            for egg in stats['easter_eggs']:
+                ctk.CTkLabel(egg_frame, text=f"  🥚 {egg}",
+                             font=("Arial", 11)).pack(anchor="w", padx=20, pady=2)
+
+        # Refresh button
+        ctk.CTkButton(scrollable_frame, text="🔄 Refresh Stats",
+                      command=self._refresh_panda_stats).pack(pady=15)
+
+    def _refresh_panda_stats(self):
+        """Refresh panda stats display"""
+        if hasattr(self, 'panda_mood_label') and self.panda:
+            mood_indicator = self.panda.get_mood_indicator()
+            mood_name = self.panda.mood.value.title()
+            self.panda_mood_label.configure(text=f"{mood_indicator} {mood_name}")
+        if hasattr(self, 'panda_preview_label') and self.panda:
+            current_anim = self.panda.get_animation_frame('idle')
+            self.panda_preview_label.configure(text=current_anim)
+    
     def create_status_bar(self):
         """Create bottom status bar with panda indicator"""
         status_frame = ctk.CTkFrame(self, height=30, corner_radius=0)
@@ -3407,7 +3645,8 @@ Built with:
             self.panda_widget = PandaWidget(
                 panda_container, 
                 panda_character=self.panda,
-                panda_level_system=self.panda_level_system
+                panda_level_system=self.panda_level_system,
+                widget_collection=self.widget_collection
             )
             self.panda_widget.pack(padx=5, pady=5)
             

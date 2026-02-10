@@ -23,7 +23,8 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
     # Minimum drag distance (pixels) to distinguish drag from click
     CLICK_THRESHOLD = 5
     
-    def __init__(self, parent, panda_character=None, panda_level_system=None, **kwargs):
+    def __init__(self, parent, panda_character=None, panda_level_system=None,
+                 widget_collection=None, **kwargs):
         """
         Initialize panda widget with drag functionality.
         
@@ -31,12 +32,14 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
             parent: Parent widget
             panda_character: PandaCharacter instance for handling interactions
             panda_level_system: PandaLevelSystem instance for XP tracking
+            widget_collection: WidgetCollection instance for toys/food
             **kwargs: Additional frame arguments
         """
         super().__init__(parent, **kwargs)
         
         self.panda = panda_character
         self.panda_level_system = panda_level_system
+        self.widget_collection = widget_collection
         self.current_animation = 'idle'
         self.animation_frame = 0
         self.animation_timer = None
@@ -128,7 +131,8 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
             self._drag_moved = True
             self._set_animation_no_cancel('dragging')
             if self.panda:
-                self.info_label.configure(text="🐼 Wheee!")
+                response = self.panda.on_drag() if hasattr(self.panda, 'on_drag') else "🐼 Wheee!"
+                self.info_label.configure(text=response)
         
         # Get the parent container (panda_container)
         parent = self.master
@@ -169,7 +173,8 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
             if hit_wall:
                 self._set_animation_no_cancel('wall_hit')
                 if self.panda:
-                    self.info_label.configure(text="🐼 Ouch!")
+                    response = self.panda.on_wall_hit() if hasattr(self.panda, 'on_wall_hit') else "🐼 Ouch!"
+                    self.info_label.configure(text=response)
     
     def _on_drag_end(self, event):
         """Handle end of drag operation."""
@@ -207,7 +212,8 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
                     logger.warning(f"Failed to save panda position: {e}")
             
             if self.panda:
-                self.info_label.configure(text="🐼 Home sweet home!")
+                response = self.panda.on_toss() if hasattr(self.panda, 'on_toss') else "🐼 Home sweet home!"
+                self.info_label.configure(text=response)
                 # Award XP for moving the panda
                 if self.panda_level_system:
                     try:
@@ -225,8 +231,8 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
             if self.panda:
                 response = self.panda.on_click()
                 self.info_label.configure(text=response)
-                # Play celebration animation briefly
-                self.play_animation_once('celebrating')
+                # Play clicked animation if available, else celebrating
+                self.play_animation_once('clicked')
                 
                 # Award XP for clicking
                 if self.panda_level_system:
@@ -250,6 +256,32 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
                         label=label,
                         command=lambda k=key: self._handle_menu_action(k)
                     )
+
+                # Add toy/food sub-menus if widget collection available
+                if self.widget_collection:
+                    # Toys sub-menu
+                    toys = self.widget_collection.get_toys(unlocked_only=True)
+                    if toys:
+                        menu.add_separator()
+                        toy_menu = tk.Menu(menu, tearoff=0)
+                        for toy in toys:
+                            toy_menu.add_command(
+                                label=f"{toy.emoji} {toy.name}",
+                                command=lambda t=toy: self._give_widget_to_panda(t)
+                            )
+                        menu.add_cascade(label="🎾 Give Toy", menu=toy_menu)
+
+                    # Food sub-menu
+                    food = self.widget_collection.get_food(unlocked_only=True)
+                    if food:
+                        food_menu = tk.Menu(menu, tearoff=0)
+                        for f in food:
+                            food_menu.add_command(
+                                label=f"{f.emoji} {f.name}",
+                                command=lambda fd=f: self._give_widget_to_panda(fd)
+                            )
+                        menu.add_cascade(label="🍱 Give Food", menu=food_menu)
+
                 # Add separator and "Reset Position" option
                 menu.add_separator()
                 menu.add_command(label="🏠 Reset to Corner", command=self._reset_position)
@@ -278,6 +310,26 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
         
         if self.panda:
             self.info_label.configure(text="🐼 Back to my corner!")
+
+    def _give_widget_to_panda(self, widget):
+        """Give a toy or food widget to the panda."""
+        try:
+            result = widget.use()
+            message = result.get('message', f"Panda enjoys the {widget.name}!")
+            animation = result.get('animation', 'playing')
+            self.info_label.configure(text=message)
+            self.play_animation_once(animation)
+
+            # Award XP for interaction
+            if self.panda_level_system:
+                try:
+                    xp = self.panda_level_system.get_xp_reward('click')
+                    self.panda_level_system.add_xp(xp, f'Used {widget.name}')
+                except Exception:
+                    pass
+        except Exception as e:
+            logger.error(f"Error giving widget to panda: {e}")
+            self.info_label.configure(text="🐼 *confused*")
     
     def _on_hover(self, event=None):
         """Handle hover over panda."""
@@ -308,7 +360,7 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
             elif action == 'feed_bamboo' and self.panda:
                 response = self.panda.on_feed()
                 self.info_label.configure(text=response)
-                self.play_animation_once('working')
+                self.play_animation_once('fed')
                 
                 # Award XP for feeding
                 if self.panda_level_system:
