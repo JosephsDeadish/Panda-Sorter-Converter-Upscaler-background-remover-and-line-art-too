@@ -278,13 +278,28 @@ class ClosetPanel(ctk.CTkFrame if ctk else tk.Frame):
         self._show_items()
     
     def _show_items(self):
-        """Display items for current category (only unlocked/purchased items)."""
+        """Display items for current category (show all items, purchased and locked)."""
         # Clear content frame
         for widget in self.content_frame.winfo_children():
             widget.destroy()
         
-        # Get only unlocked items for category (closet shows owned items only)
-        items = self.closet.get_items_by_category(self.current_category, unlocked_only=True)
+        # Show ALL items for category - both unlocked and locked
+        items = self.closet.get_items_by_category(self.current_category, unlocked_only=False)
+        
+        if not items:
+            no_items_label = ctk.CTkLabel(
+                self.content_frame,
+                text="No items available in this category",
+                font=("Arial", 12),
+                text_color="gray"
+            ) if ctk else tk.Label(
+                self.content_frame,
+                text="No items available in this category",
+                font=("Arial", 12),
+                fg="gray"
+            )
+            no_items_label.pack(pady=20)
+            return
         
         # Display each item
         for item in items:

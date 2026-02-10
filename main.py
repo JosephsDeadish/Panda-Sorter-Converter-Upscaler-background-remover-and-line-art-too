@@ -805,16 +805,20 @@ class PS2TextureSorter(ctk.CTk):
                 except Exception as e:
                     logger.error(f"Failed to reparent {child} to popout: {e}")
         
+        # Ensure _popout_children exists
+        if not hasattr(self, '_popout_children'):
+            self._popout_children = {}
+        
         # Add dock-back button
         dock_btn = ctk.CTkButton(
             popout, text="📌 Dock Back", width=100, height=28,
-            command=lambda n=tab_name: self._dock_tab(n, self._popout_children.get(n), popout)
+            command=lambda n=tab_name, w=popout: self._dock_tab(n, self._popout_children.get(n), w)
         )
         dock_btn.pack(side="bottom", pady=5)
         
-        # Handle window close = dock back
+        # Handle window close = dock back (same as clicking Dock Back)
         popout.protocol("WM_DELETE_WINDOW",
-                        lambda n=tab_name: self._dock_tab(n, self._popout_children.get(n), popout))
+                        lambda n=tab_name, w=popout: self._dock_tab(n, self._popout_children.get(n), w))
     
     def _create_popout_notepad(self, popout_window, tab_name):
         """Create notepad functionality in popout window (fully editable)"""
@@ -904,17 +908,64 @@ class PS2TextureSorter(ctk.CTk):
     
     def _dock_tab(self, tab_name, children, popout_window):
         """Dock a popped-out tab back into the main tabview"""
-        # Special handling for notepad - sync edits back before closing
-        if tab_name == "📝 Notepad":
-            if hasattr(self, '_popout_note_textboxes'):
-                self._popout_save_notes()
-            if popout_window and popout_window.winfo_exists():
-                popout_window.destroy()
-            self._popout_windows.pop(tab_name, None)
-            # Re-add pop-out button only if it doesn't exist
+        try:
+            # Special handling for notepad - sync edits back before closing
+            if tab_name == "📝 Notepad":
+                if hasattr(self, '_popout_note_textboxes'):
+                    try:
+                        self._popout_save_notes()
+                    except Exception as e:
+                        logger.error(f"Error saving popout notes during dock: {e}")
+                if popout_window and popout_window.winfo_exists():
+                    popout_window.destroy()
+                self._popout_windows.pop(tab_name, None)
+                # Re-add pop-out button only if it doesn't exist
+                try:
+                    parent_tv = self._tab_to_tabview.get(tab_name, self.tabview)
+                    tab_frame = parent_tv.tab(tab_name)
+                    
+                    if not self._has_popout_button(tab_frame):
+                        btn = ctk.CTkButton(
+                            tab_frame, text="↗ Pop Out", width=90, height=26,
+                            font=("Arial", 11),
+                            fg_color="gray40",
+                            command=lambda: self._popout_tab(tab_name)
+                        )
+                        btn.place(relx=1.0, rely=0.0, anchor="ne", x=-5, y=5)
+                except Exception as e:
+                    logger.error(f"Error restoring popout button for notepad: {e}")
+                return
+            
+            # For other tabs, reparent children back
             parent_tv = self._tab_to_tabview.get(tab_name, self.tabview)
             tab_frame = parent_tv.tab(tab_name)
             
+            if children:
+                # Reparent children back with proper error handling
+                for child in children:
+                    try:
+                        child.pack_forget()
+                        child.place_forget()
+                        child.grid_forget()
+                        
+                        if not child.winfo_exists():
+                            logger.debug(f"Widget {child} no longer exists during docking")
+                            continue
+                        
+                        child.pack(in_=tab_frame, fill="both", expand=True, padx=5, pady=5)
+                        logger.debug(f"Successfully reparented {child} back to tab")
+                    except Exception as e:
+                        logger.error(f"Failed to reparent {child} back to tab: {e}")
+            
+            # Destroy pop-out window
+            if popout_window and popout_window.winfo_exists():
+                popout_window.destroy()
+            
+            self._popout_windows.pop(tab_name, None)
+            if hasattr(self, '_popout_children'):
+                self._popout_children.pop(tab_name, None)
+            
+            # Re-add pop-out button only if it doesn't exist
             if not self._has_popout_button(tab_frame):
                 btn = ctk.CTkButton(
                     tab_frame, text="↗ Pop Out", width=90, height=26,
@@ -923,50 +974,19 @@ class PS2TextureSorter(ctk.CTk):
                     command=lambda: self._popout_tab(tab_name)
                 )
                 btn.place(relx=1.0, rely=0.0, anchor="ne", x=-5, y=5)
-            return
-        
-        # For other tabs, reparent children back
-        parent_tv = self._tab_to_tabview.get(tab_name, self.tabview)
-        tab_frame = parent_tv.tab(tab_name)
-        
-        if children:
-            # Reparent children back with proper error handling
-            for child in children:
-                try:
-                    child.pack_forget()
-                    child.place_forget()
-                    child.grid_forget()
-                    
-                    if not child.winfo_exists():
-                        logger.debug(f"Widget {child} no longer exists during docking")
-                        continue
-                    
-                    child.pack(in_=tab_frame, fill="both", expand=True, padx=5, pady=5)
-                    logger.debug(f"Successfully reparented {child} back to tab")
-                except Exception as e:
-                    logger.error(f"Failed to reparent {child} back to tab: {e}")
-        
-        # Destroy pop-out window
-        if popout_window and popout_window.winfo_exists():
-            popout_window.destroy()
-        
-        self._popout_windows.pop(tab_name, None)
-        if hasattr(self, '_popout_children'):
-            self._popout_children.pop(tab_name, None)
-        
-        # Re-add pop-out button only if it doesn't exist
-        if not self._has_popout_button(tab_frame):
-            btn = ctk.CTkButton(
-                tab_frame, text="↗ Pop Out", width=90, height=26,
-                font=("Arial", 11),
-                fg_color="gray40",
-                command=lambda: self._popout_tab(tab_name)
-            )
-            btn.place(relx=1.0, rely=0.0, anchor="ne", x=-5, y=5)
-        
-        # Switch to the docked tab
-        parent_tv = self._tab_to_tabview.get(tab_name, self.tabview)
-        parent_tv.set(tab_name)
+            
+            # Switch to the docked tab
+            parent_tv = self._tab_to_tabview.get(tab_name, self.tabview)
+            parent_tv.set(tab_name)
+        except Exception as e:
+            logger.error(f"Error docking tab '{tab_name}': {e}")
+            # Ensure window is destroyed even if docking fails
+            try:
+                if popout_window and popout_window.winfo_exists():
+                    popout_window.destroy()
+            except Exception:
+                pass
+            self._popout_windows.pop(tab_name, None)
     
     def create_sort_tab(self):
         """Create texture sorting tab"""
@@ -2121,27 +2141,27 @@ class PS2TextureSorter(ctk.CTk):
         # Use after_idle to ensure window has been drawn and has proper dimensions
         def create_canvas():
             try:
+                # Use a valid background color from the start
+                try:
+                    bg_color = self.cget('bg')
+                except Exception:
+                    bg_color = '#1a1a1a'
+                
                 self._trail_canvas = tk.Canvas(
                     self, highlightthickness=0,
-                    bg='', cursor='arrow'
+                    bg=bg_color, cursor='arrow'
                 )
                 self._trail_canvas.place(x=0, y=0, relwidth=1, relheight=1)
                 
-                # Try to match background for transparency effect
-                try:
-                    self._trail_canvas.config(bg=self.cget('bg'), highlightthickness=0, relief='flat')
-                except Exception:
-                    try:
-                        self._trail_canvas.config(bg='#1a1a1a', highlightthickness=0, relief='flat')
-                    except Exception:
-                        pass
-                
-                # Lower the canvas below all other widgets
+                # Lower the canvas below all other widgets so it doesn't block interaction
                 self._trail_canvas.lower()
                 
-                # Disable all mouse events on canvas so they pass through to widgets below
-                # Using empty tuple removes all event bindings, making canvas non-interactive
-                self._trail_canvas.bindtags(())
+                # Make canvas non-interactive for click events but still allow parent motion tracking
+                # Preserve the canvas widget tag for event propagation while removing
+                # only the default click bindings
+                self._trail_canvas.bind('<Button-1>', lambda e: 'break')
+                self._trail_canvas.bind('<Button-2>', lambda e: 'break')
+                self._trail_canvas.bind('<Button-3>', lambda e: 'break')
                 
                 # Handle window resize to update canvas size
                 def on_configure(event):
@@ -3337,15 +3357,43 @@ class PS2TextureSorter(ctk.CTk):
             # Also unlock in panda closet for clothes/accessories
             if item.unlockable_id and self.panda_closet:
                 try:
+                    # Try direct match first
                     closet_item = self.panda_closet.get_item(item.unlockable_id)
+                    
+                    # If not found, try stripped prefixes (clothes_tshirt -> tshirt, acc_sunglasses -> sunglasses)
+                    if not closet_item:
+                        stripped_id = item.unlockable_id
+                        for prefix in ['clothes_', 'acc_', 'panda_outfit_', 'food_']:
+                            if stripped_id.startswith(prefix):
+                                stripped_id = stripped_id[len(prefix):]
+                                break
+                        closet_item = self.panda_closet.get_item(stripped_id)
+                    
                     if closet_item and not closet_item.unlocked:
                         closet_item.unlocked = True
                         self.panda_closet.save_to_file(
                             str(CONFIG_DIR / 'closet.json')
                         )
-                        logger.info(f"Unlocked closet item: {item.unlockable_id}")
+                        logger.info(f"Unlocked closet item: {closet_item.id} ({closet_item.name})")
+                    elif not closet_item:
+                        logger.debug(f"No matching closet item for shop unlockable_id: {item.unlockable_id}")
                 except Exception as e:
                     logger.debug(f"Item not in closet (expected for non-closet items): {e}")
+            
+            # Handle cursor purchases — add to cursor selector
+            if item.category.value == 'cursors' and item.unlockable_id:
+                try:
+                    cursor_name = item.name
+                    config.set('ui', f'cursor_{item.unlockable_id}_unlocked', value=True)
+                    # Update cursor customizer if it exists
+                    if hasattr(self, 'customization_panel') and self.customization_panel:
+                        try:
+                            self.customization_panel.cursor_customizer.update_available_cursors([cursor_name])
+                        except Exception:
+                            pass
+                    logger.info(f"Unlocked cursor: {cursor_name}")
+                except Exception as e:
+                    logger.debug(f"Could not save cursor unlock: {e}")
             
             # Handle cursor trail purchases — save as available trail
             if item.category.value == 'cursor_trails' and item.unlockable_id:
@@ -4051,14 +4099,22 @@ Built with:
                       command=self._refresh_panda_stats).pack(pady=15)
 
     def _refresh_panda_stats(self):
-        """Refresh panda stats display"""
-        if hasattr(self, 'panda_mood_label') and self.panda:
-            mood_indicator = self.panda.get_mood_indicator()
-            mood_name = self.panda.current_mood.value.title()
-            self.panda_mood_label.configure(text=f"{mood_indicator} {mood_name}")
-        if hasattr(self, 'panda_preview_label') and self.panda:
-            current_anim = self.panda.get_animation_frame('idle')
-            self.panda_preview_label.configure(text=current_anim)
+        """Refresh panda stats display by rebuilding the tab content"""
+        # Destroy and recreate the tab content for a full refresh
+        try:
+            for widget in self.tab_panda_stats.winfo_children():
+                widget.destroy()
+            self.create_panda_stats_tab()
+            logger.info("Panda stats refreshed successfully")
+        except Exception as e:
+            logger.error(f"Error refreshing panda stats: {e}")
+            if hasattr(self, 'panda_mood_label') and self.panda:
+                mood_indicator = self.panda.get_mood_indicator()
+                mood_name = self.panda.current_mood.value.title()
+                self.panda_mood_label.configure(text=f"{mood_indicator} {mood_name}")
+            if hasattr(self, 'panda_preview_label') and self.panda:
+                current_anim = self.panda.get_animation_frame('idle')
+                self.panda_preview_label.configure(text=current_anim)
     
     def create_status_bar(self):
         """Create bottom status bar with panda indicator"""
@@ -4623,7 +4679,35 @@ Built with:
         except Exception as e:
             error_msg = f"Error during sorting: {e}"
             logger.error(error_msg, exc_info=True)
+            # Use panda error codes for more context
+            panda_error = ""
+            if self.panda:
+                error_str = str(e).lower()
+                if 'permission' in error_str:
+                    panda_error = self.panda.get_error_response('E002_PERMISSION_DENIED')
+                elif 'not found' in error_str or 'no such file' in error_str:
+                    panda_error = self.panda.get_error_response('E001_FILE_NOT_FOUND')
+                elif 'disk' in error_str or 'space' in error_str:
+                    panda_error = self.panda.get_error_response('E003_DISK_FULL')
+                elif 'timeout' in error_str:
+                    panda_error = self.panda.get_error_response('E005_TIMEOUT')
+                elif 'memory' in error_str:
+                    panda_error = self.panda.get_error_response('E008_MEMORY_LOW')
+                elif 'format' in error_str or 'invalid' in error_str:
+                    panda_error = self.panda.get_error_response('E007_INVALID_FORMAT')
+                elif 'corrupt' in error_str:
+                    panda_error = self.panda.get_error_response('E004_CORRUPT_FILE')
+                elif 'read' in error_str:
+                    panda_error = self.panda.get_error_response('E011_READ_ERROR')
+                elif 'write' in error_str:
+                    panda_error = self.panda.get_error_response('E012_WRITE_ERROR')
+                else:
+                    panda_error = self.panda.get_error_response('E010_UNKNOWN')
+                self.panda.track_operation_failure()
+            
             self.log(f"❌ {error_msg}")
+            if panda_error:
+                self.log(panda_error)
             import traceback
             tb = traceback.format_exc()
             logger.error(f"Full traceback:\n{tb}")
@@ -4631,8 +4715,11 @@ Built with:
             # Show user-friendly error dialog
             if GUI_AVAILABLE:
                 from tkinter import messagebox
-                messagebox.showerror("Sorting Error", 
-                    f"An error occurred during sorting:\n\n{str(e)}\n\nCheck the log for details.")
+                error_display = f"An error occurred during sorting:\n\n{str(e)}"
+                if panda_error:
+                    error_display += f"\n\n{panda_error}"
+                error_display += "\n\nCheck the log for details."
+                messagebox.showerror("Sorting Error", error_display)
         
         finally:
             logger.info("Sorting thread cleanup - re-enabling UI buttons")

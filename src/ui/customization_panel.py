@@ -307,6 +307,40 @@ class ColorWheelWidget(ctk.CTkFrame):
 class CursorCustomizer(ctk.CTkFrame):
     """Cursor customization with preview"""
     
+    # Icons for each cursor type
+    CURSOR_ICONS = {
+        "default": "🖱️",
+        "Arrow Pointer": "➤",
+        "Pointing Hand": "👆",
+        "Crosshair": "🎯",
+        "Text Select": "📝",
+        "Hourglass": "⏳",
+        "Pirate Skull": "☠️",
+        "Heart": "❤️",
+        "Target Cross": "✚",
+        "Star": "⭐",
+        "Circle": "⭕",
+        "Plus Sign": "➕",
+        "Pencil": "✏️",
+        "Dot": "•",
+        "X Cursor": "✖️",
+        "Diamond": "💎",
+        "Fleur": "⚜️",
+        "Spraycan": "🎨",
+        "Left Arrow": "⬅️",
+        "Right Arrow": "➡️",
+    }
+    
+    # Icons for each trail style
+    TRAIL_ICONS = {
+        "rainbow": "🌈",
+        "fire": "🔥",
+        "ice": "❄️",
+        "nature": "🌿",
+        "galaxy": "🌌",
+        "gold": "✨",
+    }
+    
     def __init__(self, master, on_cursor_change=None):
         super().__init__(master)
         self.on_cursor_change = on_cursor_change
@@ -330,23 +364,38 @@ class CursorCustomizer(ctk.CTkFrame):
         self.trail_enabled = config.get('ui', 'cursor_trail', default=False)
         self.trail_style = config.get('ui', 'cursor_trail_color', default='rainbow')
         
+        # Trail preview state
+        self._trail_preview_dots = []
+        self._trail_preview_canvas = None
+        self._trail_preview_bind_id = None
+        
         self._create_widgets()
     
     def _create_widgets(self):
-        title = ctk.CTkLabel(self, text="🖱️ Cursor Customization", font=("Arial Bold", 14))
+        # Use scrollable frame so cursor selector has scrollbar
+        scroll_frame = ctk.CTkScrollableFrame(self)
+        scroll_frame.pack(fill="both", expand=True, padx=5, pady=5)
+        
+        title = ctk.CTkLabel(scroll_frame, text="🖱️ Cursor Customization", font=("Arial Bold", 14))
         title.pack(pady=10)
         
-        type_frame = ctk.CTkFrame(self)
+        # --- Cursor Type with icons ---
+        type_frame = ctk.CTkFrame(scroll_frame)
         type_frame.pack(fill="x", padx=10, pady=5)
         
         ctk.CTkLabel(type_frame, text="Cursor Type:").pack(side="left", padx=5)
-        self.cursor_var = ctk.StringVar(value=self.current_cursor)
+        # Build display values with icons
+        self._cursor_display_values = [
+            f"{self.CURSOR_ICONS.get(c, '🖱️')} {c}" for c in self.cursor_types
+        ]
+        current_display = f"{self.CURSOR_ICONS.get(self.current_cursor, '🖱️')} {self.current_cursor}"
+        self.cursor_var = ctk.StringVar(value=current_display)
         self.cursor_menu = ctk.CTkOptionMenu(type_frame, variable=self.cursor_var,
-                                        values=self.cursor_types,
+                                        values=self._cursor_display_values,
                                         command=self._on_cursor_change)
         self.cursor_menu.pack(side="left", padx=5, fill="x", expand=True)
         
-        size_frame = ctk.CTkFrame(self)
+        size_frame = ctk.CTkFrame(scroll_frame)
         size_frame.pack(fill="x", padx=10, pady=5)
         
         ctk.CTkLabel(size_frame, text="Size:").pack(side="left", padx=5)
@@ -356,7 +405,7 @@ class CursorCustomizer(ctk.CTkFrame):
                                       command=self._on_size_change)
         size_menu.pack(side="left", padx=5, fill="x", expand=True)
         
-        tint_frame = ctk.CTkFrame(self)
+        tint_frame = ctk.CTkFrame(scroll_frame)
         tint_frame.pack(fill="x", padx=10, pady=5)
         
         ctk.CTkLabel(tint_frame, text="Tint Color:").pack(side="left", padx=5)
@@ -371,41 +420,64 @@ class CursorCustomizer(ctk.CTkFrame):
         ctk.CTkButton(tint_frame, text="Pick", width=60,
                      command=self._pick_tint_color).pack(side="left", padx=5)
         
-        # Trail enable/disable
-        trail_frame = ctk.CTkFrame(self)
+        # --- Trail enable/disable with icon ---
+        trail_frame = ctk.CTkFrame(scroll_frame)
         trail_frame.pack(fill="x", padx=10, pady=5)
         
         self.trail_var = ctk.BooleanVar(value=self.trail_enabled)
-        ctk.CTkCheckBox(trail_frame, text="Enable Trail Effect", 
+        ctk.CTkCheckBox(trail_frame, text="✨ Enable Trail Effect", 
                        variable=self.trail_var,
                        command=self._on_trail_change).pack(side="left", padx=5)
         
-        # Trail color selection
-        trail_color_frame = ctk.CTkFrame(self)
+        # --- Trail color selection with icons ---
+        trail_color_frame = ctk.CTkFrame(scroll_frame)
         trail_color_frame.pack(fill="x", padx=10, pady=5)
         
         ctk.CTkLabel(trail_color_frame, text="Trail Style:").pack(side="left", padx=5)
-        self.trail_style_var = ctk.StringVar(value=self.trail_style)
+        self._trail_display_values = [
+            f"{self.TRAIL_ICONS.get(s, '✨')} {s}" for s in self.trail_styles
+        ]
+        current_trail_display = f"{self.TRAIL_ICONS.get(self.trail_style, '✨')} {self.trail_style}"
+        self.trail_style_var = ctk.StringVar(value=current_trail_display)
         self.trail_style_menu = ctk.CTkOptionMenu(
             trail_color_frame, variable=self.trail_style_var,
-            values=self.trail_styles,
+            values=self._trail_display_values,
             command=self._on_trail_style_change)
         self.trail_style_menu.pack(side="left", padx=5, fill="x", expand=True)
         
-        preview_frame = ctk.CTkFrame(self)
+        # --- Preview area with interactive trail preview ---
+        preview_frame = ctk.CTkFrame(scroll_frame)
         preview_frame.pack(fill="both", expand=True, padx=10, pady=10)
         
         ctk.CTkLabel(preview_frame, text="Preview:", font=("Arial Bold", 11)).pack(anchor="w", padx=5)
         
-        self.preview_area = ctk.CTkLabel(preview_frame, text="Move mouse here\nto preview cursor",
-                                        width=200, height=100, fg_color="#2b2b2b")
-        self.preview_area.pack(padx=5, pady=5)
+        self.preview_area = ctk.CTkLabel(preview_frame, text="Move mouse here\nto preview cursor & trail",
+                                        width=300, height=120, fg_color="#2b2b2b")
+        self.preview_area.pack(padx=5, pady=5, fill="x")
         
-        ctk.CTkButton(self, text="Apply Cursor", command=self._apply_cursor,
+        # Trail preview canvas overlaid on preview area
+        import tkinter as tk
+        self._trail_preview_canvas = tk.Canvas(
+            preview_frame, highlightthickness=0, bg='#2b2b2b',
+            width=300, height=80
+        )
+        self._trail_preview_canvas.pack(padx=5, pady=(0, 5), fill="x")
+        self._trail_preview_canvas.bindtags(())  # Pass-through for mouse events
+        
+        # Bind motion on the preview area for trail demo
+        self.preview_area.bind('<Motion>', self._on_preview_motion)
+        
+        ctk.CTkButton(scroll_frame, text="Apply Cursor", command=self._apply_cursor,
                      width=150, height=35).pack(pady=10)
     
+    def _strip_icon(self, display_value):
+        """Strip leading emoji icon from display value to get raw name."""
+        # Icons are separated by space after emoji; take everything after first space
+        parts = display_value.split(' ', 1)
+        return parts[1] if len(parts) > 1 else display_value
+    
     def _on_cursor_change(self, cursor_type):
-        self.current_cursor = cursor_type
+        self.current_cursor = self._strip_icon(cursor_type)
         self._update_preview()
     
     def _on_size_change(self, size):
@@ -417,8 +489,60 @@ class CursorCustomizer(ctk.CTkFrame):
         self._update_preview()
     
     def _on_trail_style_change(self, trail_style):
-        self.trail_style = trail_style
+        self.trail_style = self._strip_icon(trail_style)
         self._update_preview()
+    
+    def _on_preview_motion(self, event):
+        """Show trail preview dots when hovering over the preview area."""
+        if not self.trail_enabled or not self._trail_preview_canvas:
+            return
+        try:
+            canvas = self._trail_preview_canvas
+            if not canvas.winfo_exists():
+                return
+            
+            trail_color_palettes = {
+                'rainbow': ['#ff6b6b', '#feca57', '#48dbfb', '#ff9ff3', '#54a0ff',
+                            '#5f27cd', '#01a3a4', '#f368e0', '#ff6348', '#7bed9f'],
+                'fire': ['#ff0000', '#ff4500', '#ff6600', '#ff8c00', '#ffa500',
+                         '#ffcc00', '#ffff00', '#ffff66', '#ff3300', '#cc0000'],
+                'ice': ['#00ffff', '#00e5ff', '#00ccff', '#00b3ff', '#0099ff',
+                        '#0080ff', '#0066ff', '#e0f7ff', '#b3e5fc', '#81d4fa'],
+                'nature': ['#00cc00', '#33cc33', '#66cc66', '#00ff00', '#33ff33',
+                           '#228b22', '#32cd32', '#7cfc00', '#adff2f', '#98fb98'],
+                'galaxy': ['#9b59b6', '#8e44ad', '#6c3483', '#5b2c6f', '#4a235a',
+                           '#bb8fce', '#d7bde2', '#e8daef', '#c39bd3', '#af7ac5'],
+                'gold': ['#ffd700', '#ffcc00', '#daa520', '#b8860b', '#cd853f',
+                         '#f0e68c', '#eee8aa', '#fafad2', '#ffe4b5', '#ffdead'],
+            }
+            colors = trail_color_palettes.get(self.trail_style, trail_color_palettes['rainbow'])
+            
+            x = event.x
+            y = min(max(event.y, 5), 75)
+            color_idx = len(self._trail_preview_dots) % len(colors)
+            dot = canvas.create_oval(
+                x - 4, y - 4, x + 4, y + 4,
+                fill=colors[color_idx], outline=''
+            )
+            self._trail_preview_dots.append(dot)
+            
+            if len(self._trail_preview_dots) > 20:
+                old_dot = self._trail_preview_dots.pop(0)
+                canvas.delete(old_dot)
+            
+            canvas.after(400, lambda d=dot: self._fade_preview_dot(d))
+        except Exception as e:
+            logger.debug(f"Trail preview error: {e}")
+    
+    def _fade_preview_dot(self, dot_id):
+        """Remove a trail preview dot."""
+        try:
+            if self._trail_preview_canvas and self._trail_preview_canvas.winfo_exists():
+                self._trail_preview_canvas.delete(dot_id)
+                if dot_id in self._trail_preview_dots:
+                    self._trail_preview_dots.remove(dot_id)
+        except Exception:
+            pass
     
     def _pick_tint_color(self):
         picker_window = ctk.CTkToplevel(self)
@@ -440,10 +564,44 @@ class CursorCustomizer(ctk.CTkFrame):
     
     def _update_preview(self):
         size_str = f"{self.cursor_sizes[self.current_size][0]}x{self.cursor_sizes[self.current_size][1]}"
-        trail_str = f"ON ({self.trail_style})" if self.trail_enabled else "OFF"
+        trail_icon = self.TRAIL_ICONS.get(self.trail_style, '✨')
+        trail_str = f"ON {trail_icon} ({self.trail_style})" if self.trail_enabled else "OFF"
+        cursor_icon = self.CURSOR_ICONS.get(self.current_cursor, '🖱️')
         
-        preview_text = f"Type: {self.current_cursor}\nSize: {size_str}\nTint: {self.current_tint}\nTrail: {trail_str}"
+        preview_text = (
+            f"{cursor_icon} Type: {self.current_cursor}\n"
+            f"Size: {size_str}\n"
+            f"Tint: {self.current_tint}\n"
+            f"Trail: {trail_str}"
+        )
         self.preview_area.configure(text=preview_text)
+        
+        # Apply cursor to preview area for live preview
+        cursor_map = {
+            'default': 'arrow', 'Arrow Pointer': 'arrow',
+            'Pointing Hand': 'hand2', 'Crosshair': 'crosshair',
+            'Text Select': 'xterm', 'Hourglass': 'watch',
+            'Pirate Skull': 'pirate', 'Heart': 'heart',
+            'Target Cross': 'tcross', 'Star': 'star',
+            'Circle': 'circle', 'Plus Sign': 'plus',
+            'Pencil': 'pencil', 'Dot': 'dot',
+            'X Cursor': 'X_cursor', 'Diamond': 'diamond_cross',
+            'Fleur': 'fleur', 'Spraycan': 'spraycan',
+            'Left Arrow': 'left_ptr', 'Right Arrow': 'right_ptr',
+        }
+        try:
+            tk_cursor = cursor_map.get(self.current_cursor, 'arrow')
+            self.preview_area.configure(cursor=tk_cursor)
+        except Exception:
+            pass
+        
+        # Clear trail preview when trail is disabled
+        if not self.trail_enabled and self._trail_preview_canvas:
+            try:
+                self._trail_preview_canvas.delete("all")
+                self._trail_preview_dots.clear()
+            except Exception:
+                pass
     
     def _apply_cursor(self):
         config.set('ui', 'cursor', value=self.current_cursor)
@@ -485,9 +643,14 @@ class CursorCustomizer(ctk.CTkFrame):
                 all_cursors.append(name)
         self.cursor_types = all_cursors
         
+        # Build display values with icons
+        self._cursor_display_values = [
+            f"{self.CURSOR_ICONS.get(c, '🖱️')} {c}" for c in self.cursor_types
+        ]
+        
         # Update the option menu widget with new values
         try:
-            self.cursor_menu.configure(values=self.cursor_types)
+            self.cursor_menu.configure(values=self._cursor_display_values)
         except Exception as e:
             logger.debug(f"Failed to update cursor menu options: {e}")
 

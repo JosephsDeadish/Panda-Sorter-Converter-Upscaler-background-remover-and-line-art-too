@@ -506,13 +506,16 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
             return
         try:
             if self.panda:
-                frame = self.panda.get_animation_frame(self.current_animation)
+                frame = self.panda.get_animation_frame_sequential(
+                    self.current_animation, self.animation_frame
+                )
+                self.animation_frame += 1
                 # Enhance with equipped items
                 frame = self._get_enhanced_frame(frame)
                 self.panda_label.configure(text=frame)
             
-            # Continue animation
-            self.animation_timer = self.after(400, self._animate_loop)  # Slightly faster for smoother animations
+            # Continue animation - faster interval for smoother appearance
+            self.animation_timer = self.after(250, self._animate_loop)
         except Exception as e:
             logger.error(f"Error in animation loop: {e}")
             # Ensure animation loop continues even after errors
@@ -528,7 +531,10 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
             return
         try:
             if self.panda:
-                frame = self.panda.get_animation_frame(self.current_animation)
+                frame = self.panda.get_animation_frame_sequential(
+                    self.current_animation, self.animation_frame
+                )
+                self.animation_frame += 1
                 # Enhance with equipped items
                 frame = self._get_enhanced_frame(frame)
                 self.panda_label.configure(text=frame)
@@ -552,14 +558,21 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
             # Don't interrupt drag animations
             if self.is_dragging:
                 return
-            # Change animation based on mood
+            # Change animation based on mood — cover all mood types
             mood_animations = {
                 'happy': 'idle',
+                'excited': 'celebrating',
                 'working': 'working',
+                'tired': 'idle',
                 'celebrating': 'celebrating',
-                'rage': 'rage',
+                'sleeping': 'idle',
                 'sarcastic': 'sarcastic',
+                'rage': 'rage',
                 'drunk': 'drunk',
+                'existential': 'idle',
+                'motivating': 'celebrating',
+                'tech_support': 'working',
+                'sleepy': 'idle',
             }
             anim = mood_animations.get(mood.value if hasattr(mood, 'value') else mood, 'idle')
             self.start_animation(anim)
