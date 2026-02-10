@@ -632,21 +632,35 @@ class PS2TextureSorter(ctk.CTk):
         main_frame = ctk.CTkFrame(self)
         main_frame.pack(fill="both", expand=True, padx=10, pady=10)
         
-        # Tab view
-        self.tabview = ctk.CTkTabview(main_frame)
+        # Top-level category tab view
+        self.category_tabview = ctk.CTkTabview(main_frame)
+        self.category_tabview.pack(fill="both", expand=True)
+        
+        # Create two category tabs
+        self.tools_category = self.category_tabview.add("🔧 Tools")
+        self.features_category = self.category_tabview.add("🐼 Panda & Features")
+        
+        # Tools tabview (nested)
+        self.tabview = ctk.CTkTabview(self.tools_category)
         self.tabview.pack(fill="both", expand=True)
         
-        # Create tabs with panda emojis on key tabs
         self.tab_sort = self.tabview.add("🐼 Sort Textures")
         self.tab_convert = self.tabview.add("🔄 Convert Files")
         self.tab_browser = self.tabview.add("📁 File Browser")
-        self.tab_achievements = self.tabview.add("🏆 Achievements")
-        self.tab_shop = self.tabview.add("🛒 Shop")
-        self.tab_rewards = self.tabview.add("🎁 Rewards")
-        if PANDA_CLOSET_AVAILABLE and self.panda_closet:
-            self.tab_closet = self.tabview.add("👔 Panda Closet")
         self.tab_notepad = self.tabview.add("📝 Notepad")
         self.tab_about = self.tabview.add("ℹ️ About")
+        
+        # Features tabview (nested)
+        self.features_tabview = ctk.CTkTabview(self.features_category)
+        self.features_tabview.pack(fill="both", expand=True)
+        
+        self.tab_shop = self.features_tabview.add("🛒 Shop")
+        self.tab_rewards = self.features_tabview.add("🎁 Rewards")
+        self.tab_achievements = self.features_tabview.add("🏆 Achievements")
+        if PANDA_CLOSET_AVAILABLE and self.panda_closet:
+            self.tab_closet = self.features_tabview.add("👔 Panda Closet")
+        self.tab_inventory = self.features_tabview.add("📦 Inventory")
+        self.tab_panda_stats = self.features_tabview.add("📊 Panda Stats & Mood")
         
         # Track popped-out tabs
         self._popout_windows = {}
@@ -655,13 +669,15 @@ class PS2TextureSorter(ctk.CTk):
         self.create_sort_tab()
         self.create_convert_tab()
         self.create_browser_tab()
-        self.create_achievements_tab()
-        self.create_shop_tab()
-        self.create_rewards_tab()
-        if PANDA_CLOSET_AVAILABLE and self.panda_closet:
-            self.create_closet_tab()
         self.create_notepad_tab()
         self.create_about_tab()
+        self.create_shop_tab()
+        self.create_rewards_tab()
+        self.create_achievements_tab()
+        if PANDA_CLOSET_AVAILABLE and self.panda_closet:
+            self.create_closet_tab()
+        self.create_inventory_tab()
+        self.create_panda_stats_tab()
         
         # Add pop-out buttons to dockable tabs
         self._add_popout_buttons()
@@ -671,15 +687,24 @@ class PS2TextureSorter(ctk.CTk):
     
     def _add_popout_buttons(self):
         """Add pop-out/undock buttons to secondary tabs"""
-        dockable_tabs = {
-            "📝 Notepad": self.tab_notepad,
-            "🏆 Achievements": self.tab_achievements,
-            "🛒 Shop": self.tab_shop,
-            "🎁 Rewards": self.tab_rewards,
-            "📁 File Browser": self.tab_browser,
-            "ℹ️ About": self.tab_about,
+        # Tools tabs that can be popped out
+        tools_dockable = {
+            "📝 Notepad": (self.tab_notepad, self.tabview),
+            "📁 File Browser": (self.tab_browser, self.tabview),
+            "ℹ️ About": (self.tab_about, self.tabview),
         }
-        for tab_name, tab_frame in dockable_tabs.items():
+        # Features tabs that can be popped out
+        features_dockable = {
+            "🏆 Achievements": (self.tab_achievements, self.features_tabview),
+            "🛒 Shop": (self.tab_shop, self.features_tabview),
+            "🎁 Rewards": (self.tab_rewards, self.features_tabview),
+            "📦 Inventory": (self.tab_inventory, self.features_tabview),
+            "📊 Panda Stats & Mood": (self.tab_panda_stats, self.features_tabview),
+        }
+        all_dockable = {**tools_dockable, **features_dockable}
+        # Store tabview mapping for pop-out/dock operations
+        self._tab_to_tabview = {name: tv for name, (_, tv) in all_dockable.items()}
+        for tab_name, (tab_frame, _) in all_dockable.items():
             btn = ctk.CTkButton(
                 tab_frame, text="⬗", width=30, height=26,
                 font=("Arial", 11),
@@ -711,7 +736,8 @@ class PS2TextureSorter(ctk.CTk):
             self._create_popout_notepad(popout, tab_name)
         else:
             # Get the tab frame and its children
-            tab_frame = self.tabview.tab(tab_name)
+            parent_tv = self._tab_to_tabview.get(tab_name, self.tabview)
+            tab_frame = parent_tv.tab(tab_name)
             children_info = []
             for child in tab_frame.winfo_children():
                 children_info.append(child)
@@ -841,7 +867,8 @@ class PS2TextureSorter(ctk.CTk):
                 popout_window.destroy()
             self._popout_windows.pop(tab_name, None)
             # Re-add pop-out button
-            tab_frame = self.tabview.tab(tab_name)
+            parent_tv = self._tab_to_tabview.get(tab_name, self.tabview)
+            tab_frame = parent_tv.tab(tab_name)
             btn = ctk.CTkButton(
                 tab_frame, text="⬗ Pop Out", width=90, height=26,
                 font=("Arial", 11),
@@ -852,7 +879,8 @@ class PS2TextureSorter(ctk.CTk):
             return
         
         # For other tabs, reparent children back
-        tab_frame = self.tabview.tab(tab_name)
+        parent_tv = self._tab_to_tabview.get(tab_name, self.tabview)
+        tab_frame = parent_tv.tab(tab_name)
         
         if children:
             # Reparent children back
@@ -883,7 +911,8 @@ class PS2TextureSorter(ctk.CTk):
         btn.place(relx=1.0, rely=0.0, anchor="ne", x=-5, y=5)
         
         # Switch to the docked tab
-        self.tabview.set(tab_name)
+        parent_tv = self._tab_to_tabview.get(tab_name, self.tabview)
+        parent_tv.set(tab_name)
     
     def create_sort_tab(self):
         """Create texture sorting tab"""
@@ -3369,6 +3398,26 @@ Built with:
         ctk.CTkLabel(credits_frame, 
                      text="Repository: JosephsDeadish/PS2-texture-sorter",
                      font=("Arial", 10), text_color="gray").pack(pady=5)
+    
+    def create_inventory_tab(self):
+        """Create inventory tab for managing collected items"""
+        scrollable_frame = ctk.CTkScrollableFrame(self.tab_inventory)
+        scrollable_frame.pack(fill="both", expand=True, padx=10, pady=10)
+        
+        ctk.CTkLabel(scrollable_frame, text="📦 Inventory",
+                     font=("Arial Bold", 22)).pack(pady=15)
+        ctk.CTkLabel(scrollable_frame, text="Your collected items will appear here.",
+                     font=("Arial", 13), text_color="gray").pack(pady=10)
+    
+    def create_panda_stats_tab(self):
+        """Create panda stats and mood tab"""
+        scrollable_frame = ctk.CTkScrollableFrame(self.tab_panda_stats)
+        scrollable_frame.pack(fill="both", expand=True, padx=10, pady=10)
+        
+        ctk.CTkLabel(scrollable_frame, text="📊 Panda Stats & Mood",
+                     font=("Arial Bold", 22)).pack(pady=15)
+        ctk.CTkLabel(scrollable_frame, text="Panda statistics and mood tracking will appear here.",
+                     font=("Arial", 13), text_color="gray").pack(pady=10)
     
     def create_status_bar(self):
         """Create bottom status bar with panda indicator"""
