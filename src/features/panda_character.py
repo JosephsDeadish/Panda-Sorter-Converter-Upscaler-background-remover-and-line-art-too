@@ -1778,31 +1778,34 @@ class PandaCharacter:
             logger.info(f"Panda gender set to: {gender.value}")
     
     def get_pronoun_subject(self) -> str:
-        """Get subject pronoun (he/she/they)."""
-        if self.gender == PandaGender.MALE:
-            return "he"
-        elif self.gender == PandaGender.FEMALE:
-            return "she"
-        else:
-            return "they"
+        """Get subject pronoun (he/she/they) based on gender."""
+        with self._lock:
+            if self.gender == PandaGender.MALE:
+                return "he"
+            elif self.gender == PandaGender.FEMALE:
+                return "she"
+            else:
+                return "they"
     
     def get_pronoun_object(self) -> str:
-        """Get object pronoun (him/her/them)."""
-        if self.gender == PandaGender.MALE:
-            return "him"
-        elif self.gender == PandaGender.FEMALE:
-            return "her"
-        else:
-            return "them"
+        """Get object pronoun (him/her/them) based on gender."""
+        with self._lock:
+            if self.gender == PandaGender.MALE:
+                return "him"
+            elif self.gender == PandaGender.FEMALE:
+                return "her"
+            else:
+                return "them"
     
     def get_pronoun_possessive(self) -> str:
-        """Get possessive pronoun (his/her/their)."""
-        if self.gender == PandaGender.MALE:
-            return "his"
-        elif self.gender == PandaGender.FEMALE:
-            return "her"
-        else:
-            return "their"
+        """Get possessive pronoun (his/her/their) based on gender."""
+        with self._lock:
+            if self.gender == PandaGender.MALE:
+                return "his"
+            elif self.gender == PandaGender.FEMALE:
+                return "her"
+            else:
+                return "their"
     
     
     def set_mood(self, mood: PandaMood):

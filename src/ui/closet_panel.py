@@ -99,11 +99,11 @@ class ClosetPanel(ctk.CTkFrame if ctk else tk.Frame):
             # Gender selection
             gender_label = ctk.CTkLabel(
                 identity_frame,
-                text="⚧ Gender:",
+                text="Gender:",
                 font=("Arial", 12, "bold")
             ) if ctk else tk.Label(
                 identity_frame,
-                text="⚧ Gender:",
+                text="Gender:",
                 font=("Arial", 12, "bold")
             )
             gender_label.grid(row=1, column=0, padx=10, pady=5, sticky="w")

@@ -58,7 +58,13 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
         if ctk:
             self.configure(fg_color="transparent", corner_radius=0, bg_color="transparent")
         else:
-            self.configure(bg="", highlightthickness=0)
+            # For tk fallback: attempt transparent-like appearance by using parent background
+            # Note: True transparency requires customtkinter; tk uses parent's background color
+            try:
+                parent_bg = parent.cget('bg')
+                self.configure(bg=parent_bg, highlightthickness=0)
+            except:
+                self.configure(highlightthickness=0)
         
         # Create panda display area - LARGER font
         self.panda_label = ctk.CTkLabel(
@@ -74,7 +80,6 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
             text="",
             font=("Courier New", 14),  # Increased from 12
             justify="left",
-            bg="",
             highlightthickness=0
         )
         self.panda_label.pack(pady=12, padx=12)  # Increased padding
@@ -92,7 +97,6 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
             text="Click me! 🐼",
             font=("Arial", 11),  # Increased from 10
             fg="gray",
-            bg="",
             highlightthickness=0
         )
         self.info_label.pack(pady=6)  # Increased padding
