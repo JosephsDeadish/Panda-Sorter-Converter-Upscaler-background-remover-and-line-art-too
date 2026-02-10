@@ -508,7 +508,7 @@ class UnlockablesSystem:
                 "text": "#1b5e20",
             },
             "description": "Peaceful bamboo forest theme",
-            "unlock_condition": UnlockCondition(UnlockConditionType.FEED_COUNT, 20, "Feed the panda 20 times"),
+            "unlock_condition": UnlockCondition(UnlockConditionType.ALWAYS_AVAILABLE, None, "Default"),
         },
         "sunset": {
             "name": "Sunset",
@@ -519,7 +519,7 @@ class UnlockablesSystem:
                 "text": "#bf360c",
             },
             "description": "Beautiful sunset colors",
-            "unlock_condition": UnlockCondition(UnlockConditionType.FILES_PROCESSED, 150, "Process 150 files"),
+            "unlock_condition": UnlockCondition(UnlockConditionType.ALWAYS_AVAILABLE, None, "Default"),
         },
         "ocean": {
             "name": "Ocean Blue",
@@ -530,7 +530,7 @@ class UnlockablesSystem:
                 "text": "#006064",
             },
             "description": "Deep ocean theme",
-            "unlock_condition": UnlockCondition(UnlockConditionType.SESSION_TIME, 30, "Use app for 30 minutes"),
+            "unlock_condition": UnlockCondition(UnlockConditionType.ALWAYS_AVAILABLE, None, "Default"),
         },
         "cherry_blossom": {
             "name": "Cherry Blossom",

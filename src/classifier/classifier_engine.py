@@ -70,22 +70,59 @@ class TextureClassifier:
         best_match = "unclassified"
         best_score = 0.0
         
+        # Common video game texture naming conventions to strip before matching
+        # These prefixes/suffixes are used in game engines (Unreal, Unity, Source, etc.)
+        # Strip common prefixes like tex_, t_, mat_, m_ 
+        cleaned = re.sub(r'^(tex_|t_|mat_|m_|uv_|tx_)', '', filename)
+        # Strip common suffixes like _diffuse, _diff, _d, _col, _color, _albedo, _base
+        cleaned = re.sub(r'(_diffuse|_diff|_d|_col|_color|_albedo|_base|_basecolor|_bc|_tex)$', '', cleaned)
+        # Strip resolution suffixes like _512, _1024, _2k, _4k
+        cleaned = re.sub(r'(_\d+x\d+|_\d{3,4}|_[124]k)$', '', cleaned)
+        # Strip LOD suffixes like _lod0, _lod1
+        cleaned = re.sub(r'_lod\d+$', '', cleaned)
+        
+        # Names to check: both original and cleaned versions
+        names_to_check = {filename}
+        if cleaned != filename:
+            names_to_check.add(cleaned)
+        
+        # Also try splitting on underscores and numbers to match individual parts
+        # This helps with names like "char_head_skin_01" -> matches "head", "skin"
+        parts = re.split(r'[_\-\s]+', cleaned)
+        
         # Check each category's keywords
         for category_id, category_info in self.categories.items():
             keywords = category_info.get("keywords", [])
             for keyword in keywords:
-                if keyword.lower() in filename:
-                    # Score based on keyword match length and position
-                    score = len(keyword) / len(filename)
-                    # Bonus for exact matches or start of filename
-                    if filename.startswith(keyword.lower()):
-                        score += 0.2
-                    if filename == keyword.lower():
-                        score = 1.0
-                    
-                    if score > best_score:
-                        best_score = score
-                        best_match = category_id
+                kw_lower = keyword.lower()
+                
+                for name in names_to_check:
+                    if kw_lower in name:
+                        # Score based on keyword match length and position
+                        score = len(keyword) / max(len(name), 1)
+                        # Bonus for exact matches or start of filename
+                        if name.startswith(kw_lower):
+                            score += 0.2
+                        if name == kw_lower:
+                            score = 1.0
+                        
+                        if score > best_score:
+                            best_score = score
+                            best_match = category_id
+                
+                # Also check individual parts for matches
+                for part in parts:
+                    if part and kw_lower == part:
+                        # Exact part match is a strong signal
+                        score = 0.8
+                        if score > best_score:
+                            best_score = score
+                            best_match = category_id
+                    elif part and kw_lower in part and len(kw_lower) >= 3:
+                        score = len(keyword) / max(len(part), 1) * 0.7
+                        if score > best_score:
+                            best_score = score
+                            best_match = category_id
         
         # Normalize score to 0-1 range
         confidence = min(1.0, best_score + 0.3)  # Add base confidence
@@ -115,6 +152,7 @@ class TextureClassifier:
             # Analyze dominant colors
             img_array = np.array(img)
             avg_color = np.mean(img_array, axis=(0, 1))
+            color_std = np.std(img_array, axis=(0, 1))
             
             # Simple heuristic-based classification
             category = "unclassified"
@@ -125,10 +163,22 @@ class TextureClassifier:
                 category = "ui_elements"
                 confidence = 0.6
             
+            # Check for UV unwrapped textures / flattened character textures
+            # These often have varied colors, skin tones, and irregular shapes
+            # with transparent/black background regions
+            elif self._is_uv_unwrap(img, img_array, width, height):
+                category = "person"
+                confidence = 0.65
+            
             # Check for sky (blue dominant)
             elif avg_color[2] > avg_color[0] * 1.3 and avg_color[2] > avg_color[1] * 1.3:
                 category = "sky"
                 confidence = 0.65
+            
+            # Check for skin tones (flesh-colored textures)
+            elif self._has_skin_tones(avg_color, color_std):
+                category = "skin1"
+                confidence = 0.6
             
             # Check for grass/plants (green dominant)
             elif avg_color[1] > avg_color[0] * 1.2 and avg_color[1] > avg_color[2] * 1.2:
@@ -144,6 +194,11 @@ class TextureClassifier:
             elif self._has_technical_pattern(img_array):
                 category = "normal_maps"
                 confidence = 0.7
+            
+            # Check for metal/armor textures (gray tones with some variance)
+            elif self._is_metallic(avg_color, color_std):
+                category = "armor"
+                confidence = 0.55
             
             return category, confidence
             
@@ -170,6 +225,59 @@ class TextureClassifier:
         # Check for bluish-purple dominant color
         if avg_color[2] > 100 and avg_color[0] > 80 and avg_color[1] < 100:
             return True
+        return False
+    
+    def _has_skin_tones(self, avg_color: np.ndarray, color_std: np.ndarray) -> bool:
+        """Check if image has skin/flesh tones typical of character textures"""
+        r, g, b = avg_color
+        # Skin tones: R > G > B, warm colors, moderate values
+        if r > g > b and r > 100 and g > 60 and b > 40:
+            # Check if the difference is moderate (not pure red)
+            if (r - b) < 100 and (r - g) < 60:
+                return True
+        return False
+    
+    def _is_uv_unwrap(self, img, img_array: np.ndarray, width: int, height: int) -> bool:
+        """
+        Detect UV unwrapped textures (flattened character/object maps).
+        These look like 'origami' - disjointed body parts laid out flat with
+        blank/transparent/black regions between them.
+        """
+        try:
+            # UV unwraps are usually square power-of-2 textures
+            if width != height:
+                return False
+            if width not in (64, 128, 256, 512, 1024, 2048, 4096):
+                return False
+            
+            # Check for significant dark/transparent regions (background of UV layout)
+            # Downsample for performance
+            small = img.resize((64, 64))
+            small_arr = np.array(small)
+            
+            # Count near-black pixels (UV layout background)
+            if small_arr.shape[2] >= 3:
+                brightness = np.mean(small_arr[:, :, :3], axis=2)
+                dark_ratio = np.sum(brightness < 20) / brightness.size
+                # UV unwraps typically have 15-70% dark background
+                if 0.15 < dark_ratio < 0.70:
+                    # Also check that non-dark regions have varied colors
+                    bright_pixels = small_arr[brightness >= 20]
+                    if len(bright_pixels) > 10:
+                        color_variance = np.var(bright_pixels[:, :3])
+                        if color_variance > 300:
+                            return True
+        except Exception:
+            pass
+        return False
+    
+    def _is_metallic(self, avg_color: np.ndarray, color_std: np.ndarray) -> bool:
+        """Check if image has metallic/gray tones typical of armor/metal textures"""
+        r, g, b = avg_color
+        # Metallic: all channels similar (grayish), moderate values
+        if abs(r - g) < 20 and abs(g - b) < 20 and abs(r - b) < 20:
+            if 80 < r < 200:  # Not too dark, not too bright
+                return True
         return False
     
     def batch_classify(self, file_paths: List[Path], use_image_analysis=True, 

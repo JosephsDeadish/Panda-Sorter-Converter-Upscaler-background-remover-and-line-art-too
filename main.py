@@ -82,7 +82,7 @@ except ImportError:
     print("Warning: Achievements system not available.")
 
 try:
-    from src.features.unlockables_system import UnlockablesSystem
+    from src.features.unlockables_system import UnlockablesSystem, UnlockConditionType
     UNLOCKABLES_AVAILABLE = True
 except ImportError:
     UNLOCKABLES_AVAILABLE = False
@@ -1332,9 +1332,10 @@ class PS2TextureSorter(ctk.CTk):
             # Get search query
             search_query = self.browser_search_var.get().lower() if hasattr(self, 'browser_search_var') else ""
             
-            # Collect files incrementally to avoid freezing on huge directories
+            # Collect files incrementally with a hard cap to avoid freezing
             texture_extensions = {'.dds', '.png', '.jpg', '.jpeg', '.bmp', '.tga'}
             files = []
+            MAX_SCAN = 10000  # Stop scanning after this many matching files
             try:
                 for f in self.browser_current_dir.iterdir():
                     if not f.is_file():
@@ -1344,6 +1345,8 @@ class PS2TextureSorter(ctk.CTk):
                     if search_query and search_query not in f.name.lower():
                         continue
                     files.append(f)
+                    if len(files) >= MAX_SCAN:
+                        break
             except PermissionError:
                 pass
             
@@ -1361,12 +1364,18 @@ class PS2TextureSorter(ctk.CTk):
                            text=f"No {file_type}{search_msg} found in this directory",
                            font=("Arial", 11)).pack(pady=20)
             else:
-                for file in display_files:
-                    self._create_file_entry(file)
+                # Create file entries in batches to keep UI responsive
+                self._browser_pending_files = display_files
+                self._browser_batch_index = 0
+                self._browser_load_batch()
                 
                 if total_files > MAX_DISPLAY:
+                    overflow_text = f"... and {total_files - MAX_DISPLAY} more files"
+                    if total_files >= MAX_SCAN:
+                        overflow_text += f" (showing first {MAX_DISPLAY} of {MAX_SCAN}+)"
+                    overflow_text += " (use search to filter)"
                     ctk.CTkLabel(self.browser_file_list, 
-                               text=f"... and {total_files - MAX_DISPLAY} more files (use search to filter)",
+                               text=overflow_text,
                                font=("Arial", 10), text_color="gray").pack(pady=10)
             
             # Update folder list with navigation
@@ -1393,6 +1402,21 @@ class PS2TextureSorter(ctk.CTk):
             
         except Exception as e:
             self.browser_status.configure(text=f"Error: {e}")
+    
+    def _browser_load_batch(self):
+        """Load a batch of file entries to keep UI responsive"""
+        BATCH_SIZE = 20
+        files = self._browser_pending_files
+        start = self._browser_batch_index
+        end = min(start + BATCH_SIZE, len(files))
+        
+        for i in range(start, end):
+            self._create_file_entry(files[i])
+        
+        self._browser_batch_index = end
+        if end < len(files):
+            # Schedule next batch after a short delay to allow UI to update
+            self.after(10, self._browser_load_batch)
     
     def _on_folder_click(self, event):
         """Handle double-click on folder in browser"""
@@ -1475,11 +1499,11 @@ class PS2TextureSorter(ctk.CTk):
                 if img.mode not in ('RGB', 'RGBA'):
                     img = img.convert('RGBA')
             
-            # Create thumbnail (32x32)
-            img.thumbnail((32, 32), Image.Resampling.LANCZOS)
+            # Create thumbnail (64x64 for better visibility)
+            img.thumbnail((64, 64), Image.Resampling.LANCZOS)
             
             # Use CTkImage for proper display in customtkinter
-            photo = ctk.CTkImage(light_image=img, dark_image=img, size=(32, 32))
+            photo = ctk.CTkImage(light_image=img, dark_image=img, size=(64, 64))
             self._thumbnail_cache[cache_key] = photo
             
             # Create label with thumbnail
@@ -1509,9 +1533,35 @@ class PS2TextureSorter(ctk.CTk):
         """Apply selected theme"""
         if theme_name in ['dark', 'light']:
             ctk.set_appearance_mode(theme_name)
+            config.set('ui', 'theme', value=theme_name)
             self.log(f"Theme changed to: {theme_name}")
         else:
-            self.log(f"Custom theme '{theme_name}' - feature coming soon!")
+            # Handle custom themes from THEME_PRESETS
+            try:
+                from src.ui.customization_panel import THEME_PRESETS
+                if theme_name in THEME_PRESETS:
+                    theme = THEME_PRESETS[theme_name]
+                    appearance = theme.get("appearance_mode", "dark")
+                    ctk.set_appearance_mode(appearance)
+                    config.set('ui', 'theme', value=theme_name)
+                    # Apply colors to existing widgets
+                    colors = theme.get("colors", {})
+                    if colors:
+                        try:
+                            for widget in self.winfo_children():
+                                self._apply_theme_to_widget(widget, colors)
+                        except Exception:
+                            pass
+                    self.log(f"Theme changed to: {theme['name']}")
+                else:
+                    # Fall back to dark/light based on name hint
+                    mode = 'light' if 'light' in theme_name.lower() else 'dark'
+                    ctk.set_appearance_mode(mode)
+                    config.set('ui', 'theme', value=theme_name)
+                    self.log(f"Theme changed to: {theme_name}")
+            except ImportError:
+                ctk.set_appearance_mode('dark')
+                self.log(f"Theme changed to dark (fallback)")
     
     def apply_ui_scaling(self, scale_value):
         """Apply UI scaling"""
@@ -1588,12 +1638,10 @@ class PS2TextureSorter(ctk.CTk):
             elif setting_type == 'cursor':
                 # Apply cursor changes to window and child widgets
                 cursor_type = value.get('type', 'arrow')
+                # Map to valid tk cursor via _apply_cursor_to_widget
                 try:
-                    # Set cursor on main window
-                    self.configure(cursor=cursor_type)
-                    # Propagate to child widgets
-                    for widget in self.winfo_children():
-                        self._apply_cursor_to_widget(widget, cursor_type)
+                    # Propagate to main window and all child widgets
+                    self._apply_cursor_to_widget(self, cursor_type)
                 except Exception as cursor_err:
                     logger.debug(f"Could not update all cursors: {cursor_err}")
                     
@@ -1641,8 +1689,22 @@ class PS2TextureSorter(ctk.CTk):
     
     def _apply_cursor_to_widget(self, widget, cursor_type):
         """Recursively apply cursor to a widget and its children"""
+        # Map custom cursor names to valid tkinter cursor types
+        cursor_map = {
+            'default': 'arrow',
+            'arrow': 'arrow',
+            'hand': 'hand2',
+            'crosshair': 'crosshair',
+            'text': 'xterm',
+            'wait': 'watch',
+            'skull': 'pirate',
+            'panda': 'hand1',
+            'sword': 'cross',
+            'custom': 'arrow',
+        }
+        tk_cursor = cursor_map.get(cursor_type, 'arrow')
         try:
-            widget.configure(cursor=cursor_type)
+            widget.configure(cursor=tk_cursor)
             # Recursively apply to children
             for child in widget.winfo_children():
                 self._apply_cursor_to_widget(child, cursor_type)
@@ -1661,7 +1723,6 @@ class PS2TextureSorter(ctk.CTk):
         
         # Make it modal-ish - stay on top of main window
         settings_window.transient(self)  # Set as child of main window
-        settings_window.grab_set()  # Make it modal
         settings_window.focus()
         
         # Title
@@ -1747,50 +1808,13 @@ class PS2TextureSorter(ctk.CTk):
         ctk.CTkLabel(scale_frame, text="(applies immediately)", 
                     font=("Arial", 9), text_color="gray").pack(side="left", padx=5)
         
-        # Tooltip verbosity (updated to match new modes)
-        tooltip_frame = ctk.CTkFrame(ui_frame)
-        tooltip_frame.pack(fill="x", padx=10, pady=5)
-        
-        ctk.CTkLabel(tooltip_frame, text="Tooltip Mode:").pack(side="left", padx=10)
-        tooltip_var = ctk.StringVar(value=config.get('ui', 'tooltip_mode', default='normal'))
-        tooltip_menu = ctk.CTkOptionMenu(tooltip_frame, variable=tooltip_var,
-                                         values=["normal", "dumbed-down", "vulgar_panda"])
-        tooltip_menu.pack(side="left", padx=10)
-        
-        # Cursor style
-        cursor_frame = ctk.CTkFrame(ui_frame)
-        cursor_frame.pack(fill="x", padx=10, pady=5)
-        
-        ctk.CTkLabel(cursor_frame, text="Cursor Style:").pack(side="left", padx=10)
-        cursor_var = ctk.StringVar(value=config.get('ui', 'cursor', default='default'))
-        cursor_menu = ctk.CTkOptionMenu(cursor_frame, variable=cursor_var,
-                                        values=["default", "skull", "panda", "sword"])
-        cursor_menu.pack(side="left", padx=10)
-        
-        # Panda Mode selector (consolidated from two toggles)
-        panda_frame = ctk.CTkFrame(ui_frame)
-        panda_frame.pack(fill="x", padx=10, pady=5)
-        
-        ctk.CTkLabel(panda_frame, text="Panda Mode:").pack(side="left", padx=10)
-        # Determine current panda mode setting
-        panda_enabled = config.get('ui', 'panda_mode_enabled', default=True)
-        vulgar_enabled = config.get('ui', 'vulgar_mode', default=False)
-        if not panda_enabled:
-            panda_mode_value = "off"
-        elif vulgar_enabled:
-            panda_mode_value = "vulgar_panda"
-        else:
-            panda_mode_value = "normal_panda"
-        
-        panda_var = ctk.StringVar(value=panda_mode_value)
-        panda_menu = ctk.CTkOptionMenu(panda_frame, variable=panda_var,
-                                       values=["off", "normal_panda", "vulgar_panda"])
-        panda_menu.pack(side="left", padx=10)
+        # Note: Tooltip mode, cursor style, and panda mode settings are
+        # available in the Advanced Customization panel to avoid duplication.
         
         # Advanced Customization button
-        ctk.CTkButton(ui_frame, text="🎨 Advanced Color & Font Customization",
+        ctk.CTkButton(ui_frame, text="🎨 Advanced Customization (Tooltips, Cursors, Colors)",
                      command=self.open_customization,
-                     width=280, height=35).pack(padx=20, pady=10)
+                     width=350, height=35).pack(padx=20, pady=10)
         
         # === FILE HANDLING SETTINGS ===
         file_frame = ctk.CTkFrame(settings_scroll)
@@ -1970,20 +1994,7 @@ class PS2TextureSorter(ctk.CTk):
                 # UI / Appearance & Customization
                 config.set('ui', 'theme', value=theme_var.get())
                 config.set('ui', 'scale', value=scale_var.get())
-                config.set('ui', 'tooltip_mode', value=tooltip_var.get())
-                config.set('ui', 'cursor', value=cursor_var.get())  # Fixed: was cursor_style
-                
-                # Handle panda mode selector (consolidated from two toggles)
-                panda_mode = panda_var.get()
-                if panda_mode == "off":
-                    config.set('ui', 'panda_mode_enabled', value=False)
-                    config.set('ui', 'vulgar_mode', value=False)
-                elif panda_mode == "vulgar_panda":
-                    config.set('ui', 'panda_mode_enabled', value=True)
-                    config.set('ui', 'vulgar_mode', value=True)
-                else:  # normal_panda or any other value defaults to normal_panda
-                    config.set('ui', 'panda_mode_enabled', value=True)
-                    config.set('ui', 'vulgar_mode', value=False)
+                # Tooltip mode, cursor, and panda mode are managed via Advanced Customization panel
                 
                 # File Handling
                 config.set('file_handling', 'create_backup', value=backup_var.get())
@@ -2005,13 +2016,6 @@ class PS2TextureSorter(ctk.CTk):
                 # Apply settings immediately
                 self.apply_theme(theme_var.get())
                 self.apply_ui_scaling(scale_var.get())
-                # Update tooltip mode if tooltip manager exists
-                if hasattr(self, 'tooltip_manager') and self.tooltip_manager:
-                    try:
-                        from src.features.tutorial_system import TooltipMode
-                        self.tooltip_manager.set_mode(TooltipMode(tooltip_var.get()))
-                    except (ValueError, ImportError):
-                        pass
                 
                 self.log("✅ Settings saved successfully!")
                 
@@ -2071,6 +2075,12 @@ class PS2TextureSorter(ctk.CTk):
                 ctk.CTkLabel(achieve_frame, text=desc_text,
                             font=("Arial", 11), text_color="gray").pack(anchor="w", padx=20, pady=2)
                 
+                # Show reward information - what this achievement unlocks
+                reward_text = self._get_achievement_rewards(achievement)
+                if reward_text:
+                    ctk.CTkLabel(achieve_frame, text=f"🎁 Reward: {reward_text}",
+                                font=("Arial", 10), text_color="#2fa572").pack(anchor="w", padx=20, pady=2)
+                
                 # Progress bar
                 progress = achievement.progress
                 required = achievement.progress_max
@@ -2097,6 +2107,47 @@ class PS2TextureSorter(ctk.CTk):
             ctk.CTkLabel(achieve_scroll,
                         text=f"Error loading achievements: {e}",
                         font=("Arial", 12)).pack(pady=20)
+    
+    def _get_achievement_rewards(self, achievement):
+        """Get text describing what rewards an achievement unlocks"""
+        if not self.unlockables_manager or not UNLOCKABLES_AVAILABLE:
+            return f"{achievement.points} pts" if achievement.points > 0 else ""
+        
+        # Map achievement progress thresholds to unlockable conditions
+        rewards = []
+        try:
+            # Check cursors
+            for cursor in self.unlockables_manager.cursors.values():
+                cond = cursor.unlock_condition
+                if cond.condition_type == UnlockConditionType.FILES_PROCESSED:
+                    if achievement.category == 'progress' and achievement.progress_max == cond.value:
+                        rewards.append(f"🖱️ {cursor.name} cursor")
+                elif cond.condition_type == UnlockConditionType.EASTER_EGG:
+                    if achievement.id == cond.value or achievement.category == 'easter_egg':
+                        if achievement.id == cond.value:
+                            rewards.append(f"🖱️ {cursor.name} cursor")
+            
+            # Check themes
+            for theme in self.unlockables_manager.themes.values():
+                cond = theme.unlock_condition
+                if cond.condition_type == UnlockConditionType.FILES_PROCESSED:
+                    if achievement.category == 'progress' and achievement.progress_max == cond.value:
+                        rewards.append(f"🎨 {theme.name} theme")
+            
+            # Check outfits
+            for outfit in self.unlockables_manager.outfits.values():
+                cond = outfit.unlock_condition
+                if cond.condition_type == UnlockConditionType.FILES_PROCESSED:
+                    if achievement.category == 'progress' and achievement.progress_max == cond.value:
+                        rewards.append(f"🐼 {outfit.name} outfit")
+        except Exception:
+            pass
+        
+        # Add points info
+        if achievement.points > 0:
+            rewards.append(f"{achievement.points} pts")
+        
+        return ", ".join(rewards) if rewards else f"{achievement.points} pts"
     
     def create_rewards_tab(self):
         """Create unlockables/rewards tab"""
@@ -2145,18 +2196,27 @@ class PS2TextureSorter(ctk.CTk):
                     item_frame = ctk.CTkFrame(cat_frame)
                     item_frame.pack(fill="x", padx=10, pady=3)
                     
-                    # Lock/unlock status
-                    status = "✓" if item.unlocked else "🔒"
-                    
-                    # Item name
-                    item_text = f"{status} {item.name}"
-                    ctk.CTkLabel(item_frame, text=item_text,
-                                font=("Arial", 12)).pack(side="left", padx=10, pady=5)
-                    
-                    # Description
-                    ctk.CTkLabel(item_frame, text=item.description,
-                                font=("Arial", 10),
-                                text_color="gray").pack(side="left", padx=5)
+                    if item.unlocked:
+                        # Unlocked item - show normally
+                        item_text = f"✓ {item.name}"
+                        ctk.CTkLabel(item_frame, text=item_text,
+                                    font=("Arial", 12)).pack(side="left", padx=10, pady=5)
+                        
+                        ctk.CTkLabel(item_frame, text=item.description,
+                                    font=("Arial", 10),
+                                    text_color="gray").pack(side="left", padx=5)
+                    else:
+                        # Locked item - show with locked overlay and unlock condition
+                        item_text = f"🔒 {item.name}"
+                        ctk.CTkLabel(item_frame, text=item_text,
+                                    font=("Arial", 12),
+                                    text_color="#888888").pack(side="left", padx=10, pady=5)
+                        
+                        # Show unlock condition clearly
+                        unlock_desc = getattr(item.unlock_condition, 'description', 'Complete achievement')
+                        ctk.CTkLabel(item_frame, text=f"🔑 Unlock: {unlock_desc}",
+                                    font=("Arial", 10),
+                                    text_color="#cc8800").pack(side="left", padx=5)
                 
         except Exception as e:
             ctk.CTkLabel(rewards_scroll,

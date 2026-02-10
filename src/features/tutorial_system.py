@@ -645,10 +645,13 @@ class WidgetTooltip:
         self.delay = delay
         self.tip_window = None
         self._after_id = None
+        self._auto_hide_id = None
         
         # Bind to the widget using add="+" to avoid overriding existing bindings
         widget.bind("<Enter>", self._on_enter, add="+")
         widget.bind("<Leave>", self._on_leave, add="+")
+        # Also hide on mouse motion outside widget as a safety measure
+        widget.bind("<Motion>", self._on_motion, add="+")
         
         # Bind to internal components for CustomTkinter widgets
         # CTK widgets use internal canvas and label that receive mouse events
@@ -666,20 +669,23 @@ class WidgetTooltip:
             self.widget.after_cancel(self._after_id)
         self._after_id = self.widget.after(self.delay, self._show_tip)
     
+    def _on_motion(self, event=None):
+        """Reset auto-hide timer on motion within the widget"""
+        if self.tip_window and self._auto_hide_id:
+            try:
+                self.widget.after_cancel(self._auto_hide_id)
+            except Exception:
+                pass
+            self._auto_hide_id = self.widget.after(5000, self._hide_tip)
+    
     def _on_leave(self, event=None):
-        # Check if cursor is still within the widget bounds
-        try:
-            x = self.widget.winfo_pointerx() - self.widget.winfo_rootx()
-            y = self.widget.winfo_pointery() - self.widget.winfo_rooty()
-            w = self.widget.winfo_width()
-            h = self.widget.winfo_height()
-            if 0 <= x <= w and 0 <= y <= h:
-                return  # Still inside the widget, ignore leave event
-        except (AttributeError, tk.TclError):
-            pass
+        # Always cancel pending tooltip display
         if self._after_id:
             self.widget.after_cancel(self._after_id)
             self._after_id = None
+        # Always hide the tooltip on leave - don't try to second-guess
+        # whether the cursor is still inside. The _on_enter on child widgets
+        # will re-trigger display if needed.
         self._hide_tip()
     
     def _show_tip(self):
@@ -703,20 +709,29 @@ class WidgetTooltip:
             tw.wm_geometry(f"+{x}+{y}")
             tw.attributes('-topmost', True)
             
-            # Create label with styling
-            label = tk.Label(tw, text=self.text, wraplength=300,
-                           font=("Arial", 11),
-                           bg="#f0f0f0",
-                           fg="#000000",
+            # Create label with larger styling for better visibility
+            label = tk.Label(tw, text=self.text, wraplength=400,
+                           font=("Arial", 13),
+                           bg="#2b2b2b",
+                           fg="#ffffff",
                            relief="solid",
                            borderwidth=1,
-                           padx=8, pady=4)
+                           padx=12, pady=8)
             label.pack()
+            
+            # Auto-hide tooltip after 5 seconds as a safety measure
+            self._auto_hide_id = self.widget.after(5000, self._hide_tip)
         except Exception as e:
             # Log but don't crash
             logger.debug(f"Tooltip error: {e}")
     
     def _hide_tip(self):
+        if self._auto_hide_id:
+            try:
+                self.widget.after_cancel(self._auto_hide_id)
+            except Exception:
+                pass
+            self._auto_hide_id = None
         if self.tip_window:
             try:
                 self.tip_window.destroy()
