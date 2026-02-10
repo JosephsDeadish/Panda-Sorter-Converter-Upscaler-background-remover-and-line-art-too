@@ -175,7 +175,7 @@ class PandaCloset:
         ),
         'party_hat': CustomizationItem(
             'party_hat', 'Party Hat', CustomizationCategory.HAT,
-            '🎉', 'Its party time!', ItemRarity.RARE, 150, False, False
+            '🎉', 'It\'s party time!', ItemRarity.RARE, 150, False, False
         ),
         'crown': CustomizationItem(
             'crown', 'Royal Crown', CustomizationCategory.HAT,
