@@ -29,10 +29,20 @@ from .categories import ALL_CATEGORIES, get_category_info
 class TextureClassifier:
     """Main texture classification engine"""
     
-    def __init__(self, config=None):
+    def __init__(self, config=None, model_manager=None):
         self.config = config
         self.categories = ALL_CATEGORIES
         self.classification_cache = {}
+        self.model_manager = model_manager
+        
+        # Get AI preferences from config
+        if config:
+            self.prefer_image_content = config.get('ai', 'prefer_image_content', default=True)
+            self.use_ai = config.get('ai', 'offline', 'enabled', default=True) or \
+                         config.get('ai', 'online', 'enabled', default=False)
+        else:
+            self.prefer_image_content = True
+            self.use_ai = True
     
     def classify_texture(self, file_path: Path, use_image_analysis=True) -> Tuple[str, float]:
         """
@@ -50,10 +60,41 @@ class TextureClassifier:
         if cache_key in self.classification_cache:
             return self.classification_cache[cache_key]
         
-        # Try filename-based classification first (fast)
-        category, confidence = self._classify_by_filename(file_path)
+        category = "unclassified"
+        confidence = 0.0
         
-        # If confidence is low and image analysis is enabled, try image analysis
+        # Try AI model first if available and prefer_image_content is True
+        if self.prefer_image_content and self.model_manager and use_image_analysis:
+            try:
+                from PIL import Image
+                img = Image.open(file_path)
+                if img.mode != 'RGB':
+                    img = img.convert('RGB')
+                img_array = np.array(img)
+                
+                # Get predictions from AI model
+                predictions = self.model_manager.predict(img_array, list(self.categories.keys()))
+                if predictions and len(predictions) > 0:
+                    category = predictions[0]['category']
+                    confidence = predictions[0]['confidence']
+            except Exception as e:
+                import logging
+                logging.debug(f"AI model prediction failed for {file_path}: {e}")
+        
+        # Try filename-based classification (fast)
+        if confidence < 0.7:  # Use filename if AI confidence is low
+            filename_category, filename_confidence = self._classify_by_filename(file_path)
+            
+            # If prefer_image_content is False, prioritize filename matching
+            if not self.prefer_image_content:
+                category = filename_category
+                confidence = filename_confidence
+            # Otherwise, use filename result only if better than AI
+            elif filename_confidence > confidence:
+                category = filename_category
+                confidence = filename_confidence
+        
+        # If confidence is still low and image analysis is enabled, try image analysis
         if confidence < 0.7 and use_image_analysis and HAS_PIL:
             img_category, img_confidence = self._classify_by_image(file_path)
             if img_confidence > confidence:

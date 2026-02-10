@@ -1099,9 +1099,10 @@ class PS2TextureSorter(ctk.CTk):
         self._tooltips.append(WidgetTooltip(browse_out_btn, tt('output_browse')))
         self._tooltips.append(WidgetTooltip(mode_menu, 
             "Sorting mode:\n"
-            "• automatic – AI classifies textures automatically\n"
-            "• manual – You choose the category for each texture\n"
-            "• suggested – AI suggests, you confirm each one"))
+            "• automatic – AI classifies textures automatically based on image content and filenames\n"
+            "• manual – You choose the category for each texture (AI shows suggestions)\n"
+            "• suggested – AI suggests, you confirm or change each classification"))
+
         self._tooltips.append(WidgetTooltip(style_menu, 
             "Select how textures are organized:\n"
             "• Simple Flat – All files in category folders\n"
@@ -2454,7 +2455,7 @@ class PS2TextureSorter(ctk.CTk):
         add_shortcut_row(tab_special, "Ctrl+Alt+P", "Global Start (works outside app)")
         add_shortcut_row(tab_special, "Ctrl+Alt+Space", "Global Pause (works outside app)")
         
-        ctk.CTkLabel(kb_frame, text="💡 Note: Keyboard shortcuts are currently not customizable but will be in a future update.", 
+        ctk.CTkLabel(kb_frame, text="💡 Tip: You can customize keyboard shortcuts in the Hotkey Configuration section below.", 
                     font=("Arial", 9), text_color="gray", wraplength=800).pack(anchor="w", padx=20, pady=5)
         
         # === FILE HANDLING SETTINGS ===
@@ -2522,6 +2523,219 @@ class PS2TextureSorter(ctk.CTk):
         completion_var = ctk.BooleanVar(value=config.get('notifications', 'completion_alert', default=True))
         ctk.CTkCheckBox(notif_frame, text="Alert on operation completion", 
                        variable=completion_var).pack(anchor="w", padx=20, pady=3)
+        
+        # === AI MODEL SETTINGS ===
+        ai_frame = ctk.CTkFrame(settings_scroll)
+        ai_frame.pack(fill="x", padx=10, pady=10)
+        
+        ctk.CTkLabel(ai_frame, text="🤖 AI Model Settings", 
+                     font=("Arial Bold", 14)).pack(anchor="w", padx=10, pady=5)
+        
+        # Classification preference
+        prefer_image_var = ctk.BooleanVar(value=config.get('ai', 'prefer_image_content', default=True))
+        ctk.CTkCheckBox(ai_frame, text="Prioritize image content over filename patterns (recommended)", 
+                       variable=prefer_image_var).pack(anchor="w", padx=20, pady=3)
+        
+        ctk.CTkLabel(ai_frame, text="This makes the AI analyze actual image content instead of just filenames",
+                    font=("Arial", 9), text_color="gray").pack(anchor="w", padx=40, pady=(0, 5))
+        
+        # Offline AI Model
+        offline_frame = ctk.CTkFrame(ai_frame)
+        offline_frame.pack(fill="x", padx=10, pady=5)
+        
+        ctk.CTkLabel(offline_frame, text="Offline AI Model (ONNX):", 
+                    font=("Arial Bold", 12)).pack(anchor="w", padx=10, pady=3)
+        
+        offline_enabled_var = ctk.BooleanVar(value=config.get('ai', 'offline', 'enabled', default=True))
+        ctk.CTkCheckBox(offline_frame, text="Enable offline AI model", 
+                       variable=offline_enabled_var).pack(anchor="w", padx=20, pady=3)
+        
+        offline_image_var = ctk.BooleanVar(value=config.get('ai', 'offline', 'use_image_analysis', default=True))
+        ctk.CTkCheckBox(offline_frame, text="Use for image content analysis", 
+                       variable=offline_image_var).pack(anchor="w", padx=20, pady=3)
+        
+        # Offline threads
+        offline_thread_frame = ctk.CTkFrame(offline_frame)
+        offline_thread_frame.pack(fill="x", padx=20, pady=5)
+        
+        ctk.CTkLabel(offline_thread_frame, text="CPU Threads:").pack(side="left", padx=10)
+        offline_threads_var = ctk.StringVar(value=str(config.get('ai', 'offline', 'num_threads', default=4)))
+        offline_threads_entry = ctk.CTkEntry(offline_thread_frame, textvariable=offline_threads_var, width=60)
+        offline_threads_entry.pack(side="left", padx=10)
+        ctk.CTkLabel(offline_thread_frame, text="(default: 4)",
+                    font=("Arial", 9), text_color="gray").pack(side="left", padx=5)
+        
+        # Offline confidence weight
+        offline_conf_frame = ctk.CTkFrame(offline_frame)
+        offline_conf_frame.pack(fill="x", padx=20, pady=5)
+        
+        ctk.CTkLabel(offline_conf_frame, text="Confidence Weight:").pack(side="left", padx=10)
+        offline_conf_slider = ctk.CTkSlider(offline_conf_frame, from_=0.0, to=1.0, number_of_steps=10)
+        offline_conf_slider.set(config.get('ai', 'offline', 'confidence_weight', default=0.7))
+        offline_conf_slider.pack(side="left", fill="x", expand=True, padx=10)
+        offline_conf_label = ctk.CTkLabel(offline_conf_frame, text=f"{offline_conf_slider.get():.1f}")
+        offline_conf_label.pack(side="left", padx=5)
+        
+        def update_offline_conf_label(value):
+            offline_conf_label.configure(text=f"{float(value):.1f}")
+        offline_conf_slider.configure(command=update_offline_conf_label)
+        
+        # Online AI Model
+        online_frame = ctk.CTkFrame(ai_frame)
+        online_frame.pack(fill="x", padx=10, pady=5)
+        
+        ctk.CTkLabel(online_frame, text="Online AI Model (API):", 
+                    font=("Arial Bold", 12)).pack(anchor="w", padx=10, pady=3)
+        
+        online_enabled_var = ctk.BooleanVar(value=config.get('ai', 'online', 'enabled', default=False))
+        ctk.CTkCheckBox(online_frame, text="Enable online AI model (requires API key)", 
+                       variable=online_enabled_var).pack(anchor="w", padx=20, pady=3)
+        
+        # API Key
+        api_key_frame = ctk.CTkFrame(online_frame)
+        api_key_frame.pack(fill="x", padx=20, pady=5)
+        
+        ctk.CTkLabel(api_key_frame, text="API Key:").pack(side="left", padx=10)
+        api_key_var = ctk.StringVar(value=config.get('ai', 'online', 'api_key', default=''))
+        api_key_entry = ctk.CTkEntry(api_key_frame, textvariable=api_key_var, width=300, show="*")
+        api_key_entry.pack(side="left", padx=10)
+        
+        # API URL
+        api_url_frame = ctk.CTkFrame(online_frame)
+        api_url_frame.pack(fill="x", padx=20, pady=5)
+        
+        ctk.CTkLabel(api_url_frame, text="API URL:").pack(side="left", padx=10)
+        api_url_var = ctk.StringVar(value=config.get('ai', 'online', 'api_url', default='https://api.openai.com/v1'))
+        api_url_entry = ctk.CTkEntry(api_url_frame, textvariable=api_url_var, width=400)
+        api_url_entry.pack(side="left", padx=10)
+        
+        # Model name
+        model_frame = ctk.CTkFrame(online_frame)
+        model_frame.pack(fill="x", padx=20, pady=5)
+        
+        ctk.CTkLabel(model_frame, text="Model:").pack(side="left", padx=10)
+        model_var = ctk.StringVar(value=config.get('ai', 'online', 'model', default='clip-vit-base-patch32'))
+        model_entry = ctk.CTkEntry(model_frame, textvariable=model_var, width=300)
+        model_entry.pack(side="left", padx=10)
+        
+        # Online timeout
+        timeout_frame = ctk.CTkFrame(online_frame)
+        timeout_frame.pack(fill="x", padx=20, pady=5)
+        
+        ctk.CTkLabel(timeout_frame, text="Timeout (seconds):").pack(side="left", padx=10)
+        timeout_var = ctk.StringVar(value=str(config.get('ai', 'online', 'timeout', default=30)))
+        timeout_entry = ctk.CTkEntry(timeout_frame, textvariable=timeout_var, width=60)
+        timeout_entry.pack(side="left", padx=10)
+        
+        # Rate limits
+        rate_frame = ctk.CTkFrame(online_frame)
+        rate_frame.pack(fill="x", padx=20, pady=5)
+        
+        ctk.CTkLabel(rate_frame, text="Rate Limits:").pack(side="left", padx=10)
+        ctk.CTkLabel(rate_frame, text="Per Minute:").pack(side="left", padx=5)
+        rate_min_var = ctk.StringVar(value=str(config.get('ai', 'online', 'max_requests_per_minute', default=60)))
+        rate_min_entry = ctk.CTkEntry(rate_frame, textvariable=rate_min_var, width=60)
+        rate_min_entry.pack(side="left", padx=5)
+        ctk.CTkLabel(rate_frame, text="Per Hour:").pack(side="left", padx=5)
+        rate_hour_var = ctk.StringVar(value=str(config.get('ai', 'online', 'max_requests_per_hour', default=1000)))
+        rate_hour_entry = ctk.CTkEntry(rate_frame, textvariable=rate_hour_var, width=60)
+        rate_hour_entry.pack(side="left", padx=5)
+        
+        # Online confidence weight
+        online_conf_frame = ctk.CTkFrame(online_frame)
+        online_conf_frame.pack(fill="x", padx=20, pady=5)
+        
+        ctk.CTkLabel(online_conf_frame, text="Confidence Weight:").pack(side="left", padx=10)
+        online_conf_slider = ctk.CTkSlider(online_conf_frame, from_=0.0, to=1.0, number_of_steps=10)
+        online_conf_slider.set(config.get('ai', 'online', 'confidence_weight', default=0.8))
+        online_conf_slider.pack(side="left", fill="x", expand=True, padx=10)
+        online_conf_label = ctk.CTkLabel(online_conf_frame, text=f"{online_conf_slider.get():.1f}")
+        online_conf_label.pack(side="left", padx=5)
+        
+        def update_online_conf_label(value):
+            online_conf_label.configure(text=f"{float(value):.1f}")
+        online_conf_slider.configure(command=update_online_conf_label)
+        
+        # Use online for difficult images
+        online_difficult_var = ctk.BooleanVar(value=config.get('ai', 'online', 'use_for_difficult_images', default=True))
+        ctk.CTkCheckBox(online_frame, text="Use online AI when offline has low confidence", 
+                       variable=online_difficult_var).pack(anchor="w", padx=20, pady=3)
+        
+        # Low confidence threshold
+        low_conf_frame = ctk.CTkFrame(online_frame)
+        low_conf_frame.pack(fill="x", padx=20, pady=5)
+        
+        ctk.CTkLabel(low_conf_frame, text="Low Confidence Threshold:").pack(side="left", padx=10)
+        low_conf_slider = ctk.CTkSlider(low_conf_frame, from_=0.0, to=1.0, number_of_steps=10)
+        low_conf_slider.set(config.get('ai', 'online', 'low_confidence_threshold', default=0.5))
+        low_conf_slider.pack(side="left", fill="x", expand=True, padx=10)
+        low_conf_label = ctk.CTkLabel(low_conf_frame, text=f"{low_conf_slider.get():.1f}")
+        low_conf_label.pack(side="left", padx=5)
+        
+        def update_low_conf_label(value):
+            low_conf_label.configure(text=f"{float(value):.1f}")
+        low_conf_slider.configure(command=update_low_conf_label)
+        
+        # AI Blending Mode
+        blend_frame = ctk.CTkFrame(ai_frame)
+        blend_frame.pack(fill="x", padx=10, pady=5)
+        
+        ctk.CTkLabel(blend_frame, text="AI Blend Mode:").pack(side="left", padx=10)
+        blend_var = ctk.StringVar(value=config.get('ai', 'blend_mode', default='confidence_weighted'))
+        blend_menu = ctk.CTkOptionMenu(blend_frame, variable=blend_var,
+                                       values=["confidence_weighted", "max", "average", "offline_only", "online_only"])
+        blend_menu.pack(side="left", padx=10)
+        ctk.CTkLabel(blend_frame, text="(how to combine offline and online predictions)",
+                    font=("Arial", 9), text_color="gray").pack(side="left", padx=5)
+        
+        # Minimum confidence
+        min_conf_frame = ctk.CTkFrame(ai_frame)
+        min_conf_frame.pack(fill="x", padx=10, pady=5)
+        
+        ctk.CTkLabel(min_conf_frame, text="Minimum Confidence:").pack(side="left", padx=10)
+        min_conf_slider = ctk.CTkSlider(min_conf_frame, from_=0.0, to=1.0, number_of_steps=10)
+        min_conf_slider.set(config.get('ai', 'min_confidence', default=0.3))
+        min_conf_slider.pack(side="left", fill="x", expand=True, padx=10)
+        min_conf_label = ctk.CTkLabel(min_conf_frame, text=f"{min_conf_slider.get():.1f}")
+        min_conf_label.pack(side="left", padx=5)
+        
+        def update_min_conf_label(value):
+            min_conf_label.configure(text=f"{float(value):.1f}")
+        min_conf_slider.configure(command=update_min_conf_label)
+        
+        # === HOTKEY SETTINGS ===
+        hotkey_frame = ctk.CTkFrame(settings_scroll)
+        hotkey_frame.pack(fill="x", padx=10, pady=10)
+        
+        ctk.CTkLabel(hotkey_frame, text="⌨️ Hotkey Configuration", 
+                     font=("Arial Bold", 14)).pack(anchor="w", padx=10, pady=5)
+        
+        hotkey_enabled_var = ctk.BooleanVar(value=config.get('hotkeys', 'enabled', default=True))
+        ctk.CTkCheckBox(hotkey_frame, text="Enable keyboard shortcuts", 
+                       variable=hotkey_enabled_var).pack(anchor="w", padx=20, pady=3)
+        
+        global_hotkey_var = ctk.BooleanVar(value=config.get('hotkeys', 'global_hotkeys_enabled', default=False))
+        ctk.CTkCheckBox(hotkey_frame, text="Enable global hotkeys (work when app is not focused)", 
+                       variable=global_hotkey_var).pack(anchor="w", padx=20, pady=3)
+        
+        # Button to open hotkey customization panel
+        def open_hotkey_customization():
+            """Open hotkey customization panel"""
+            try:
+                from src.ui.hotkey_settings_panel import HotkeySettingsPanel
+                if not hasattr(self, 'hotkey_manager') or self.hotkey_manager is None:
+                    from src.features.hotkey_manager import HotkeyManager
+                    self.hotkey_manager = HotkeyManager()
+                
+                panel = HotkeySettingsPanel(settings_window, self.hotkey_manager)
+                panel.show()
+            except Exception as e:
+                logger.error(f"Failed to open hotkey customization: {e}", exc_info=True)
+                messagebox.showerror("Error", f"Failed to open hotkey customization:\n{e}")
+        
+        ctk.CTkButton(hotkey_frame, text="⌨️ Customize Hotkeys",
+                     command=open_hotkey_customization,
+                     width=200, height=35).pack(padx=20, pady=10)
         
         # === SYSTEM & DEBUG SETTINGS ===
         system_frame = ctk.CTkFrame(settings_scroll)
@@ -2659,12 +2873,57 @@ class PS2TextureSorter(ctk.CTk):
                 config.set('notifications', 'play_sounds', value=sound_var.get())
                 config.set('notifications', 'completion_alert', value=completion_var.get())
                 
+                # AI Settings
+                config.set('ai', 'prefer_image_content', value=prefer_image_var.get())
+                
+                # Offline AI
+                config.set('ai', 'offline', 'enabled', value=offline_enabled_var.get())
+                config.set('ai', 'offline', 'use_image_analysis', value=offline_image_var.get())
+                config.set('ai', 'offline', 'num_threads', value=int(offline_threads_var.get()))
+                config.set('ai', 'offline', 'confidence_weight', value=float(offline_conf_slider.get()))
+                
+                # Online AI
+                config.set('ai', 'online', 'enabled', value=online_enabled_var.get())
+                config.set('ai', 'online', 'api_key', value=api_key_var.get())
+                config.set('ai', 'online', 'api_url', value=api_url_var.get())
+                config.set('ai', 'online', 'model', value=model_var.get())
+                config.set('ai', 'online', 'timeout', value=int(timeout_var.get()))
+                config.set('ai', 'online', 'max_requests_per_minute', value=int(rate_min_var.get()))
+                config.set('ai', 'online', 'max_requests_per_hour', value=int(rate_hour_var.get()))
+                config.set('ai', 'online', 'confidence_weight', value=float(online_conf_slider.get()))
+                config.set('ai', 'online', 'use_for_difficult_images', value=online_difficult_var.get())
+                config.set('ai', 'online', 'low_confidence_threshold', value=float(low_conf_slider.get()))
+                
+                # AI Blending
+                config.set('ai', 'blend_mode', value=blend_var.get())
+                config.set('ai', 'min_confidence', value=float(min_conf_slider.get()))
+                
+                # Hotkeys
+                config.set('hotkeys', 'enabled', value=hotkey_enabled_var.get())
+                config.set('hotkeys', 'global_hotkeys_enabled', value=global_hotkey_var.get())
+                
                 # Save to file
                 config.save()
                 
                 # Apply settings immediately
                 self.apply_theme(theme_var.get())
                 self.apply_ui_scaling(scale_var.get())
+                
+                # Reinitialize classifier with new config
+                if hasattr(self, 'classifier'):
+                    try:
+                        # Create model manager if AI is enabled
+                        model_manager = None
+                        if config.get('ai', 'offline', 'enabled') or config.get('ai', 'online', 'enabled'):
+                            from src.ai.model_manager import ModelManager
+                            model_manager = ModelManager.create_default(config.settings.get('ai', {}))
+                        
+                        # Recreate classifier with new config and model manager
+                        self.classifier = TextureClassifier(config=config, model_manager=model_manager)
+                        self.log("✅ AI settings applied - classifier reinitialized")
+                    except Exception as e:
+                        logger.error(f"Failed to reinitialize classifier: {e}", exc_info=True)
+                        self.log(f"⚠️ Warning: Failed to apply AI settings: {e}")
                 
                 self.log("✅ Settings saved successfully!")
                 
@@ -2674,6 +2933,7 @@ class PS2TextureSorter(ctk.CTk):
                     
             except Exception as e:
                 self.log(f"❌ Error saving settings: {e}")
+                logger.error(f"Error saving settings: {e}", exc_info=True)
                 if GUI_AVAILABLE:
                     messagebox.showerror("Error", f"Failed to save settings: {e}")
         
@@ -3915,8 +4175,184 @@ Built with:
             
             for i, file_path in enumerate(texture_files):
                 try:
-                    # Classify
-                    category, confidence = self.classifier.classify_texture(file_path)
+                    # Classify based on mode
+                    if mode == "automatic":
+                        # Automatic: AI decides without user input
+                        category, confidence = self.classifier.classify_texture(file_path)
+                    
+                    elif mode == "manual":
+                        # Manual: User selects category for each file
+                        # Get AI suggestion first (for display only)
+                        ai_category, ai_confidence = self.classifier.classify_texture(file_path)
+                        
+                        # Show dialog in main thread and wait for result
+                        selected_category = [None]  # Use list to allow modification in nested function
+                        
+                        def show_manual_dialog():
+                            """Show manual classification dialog"""
+                            from tkinter import simpledialog
+                            # Get sorted category list
+                            category_list = sorted(list(ALL_CATEGORIES.keys()))
+                            
+                            # Create a simple selection dialog
+                            msg = f"Classify: {file_path.name}\n\nAI suggests: {ai_category} (confidence: {ai_confidence:.2f})\n\nSelect category:"
+                            
+                            # Use a custom dialog with category dropdown
+                            dialog_window = ctk.CTkToplevel(self)
+                            dialog_window.title("Manual Classification")
+                            dialog_window.geometry("500x400")
+                            
+                            # Make modal
+                            dialog_window.transient(self)
+                            dialog_window.grab_set()
+                            
+                            # Center on screen
+                            dialog_window.update_idletasks()
+                            x = (dialog_window.winfo_screenwidth() // 2) - (500 // 2)
+                            y = (dialog_window.winfo_screenheight() // 2) - (400 // 2)
+                            dialog_window.geometry(f"500x400+{x}+{y}")
+                            
+                            # Message
+                            ctk.CTkLabel(dialog_window, text=f"File: {file_path.name}", 
+                                       font=("Arial Bold", 12), wraplength=450).pack(pady=10)
+                            ctk.CTkLabel(dialog_window, 
+                                       text=f"AI Suggestion: {ai_category} ({ai_confidence:.0%} confidence)",
+                                       font=("Arial", 11)).pack(pady=5)
+                            
+                            # Category selection
+                            ctk.CTkLabel(dialog_window, text="Select Category:", 
+                                       font=("Arial Bold", 11)).pack(pady=10)
+                            
+                            category_var = ctk.StringVar(value=ai_category)
+                            category_dropdown = ctk.CTkOptionMenu(dialog_window, variable=category_var,
+                                                                 values=category_list, width=400)
+                            category_dropdown.pack(pady=10)
+                            
+                            # Buttons
+                            button_frame = ctk.CTkFrame(dialog_window)
+                            button_frame.pack(pady=20)
+                            
+                            def on_ok():
+                                selected_category[0] = category_var.get()
+                                dialog_window.destroy()
+                            
+                            def on_skip():
+                                selected_category[0] = "unclassified"
+                                dialog_window.destroy()
+                            
+                            ctk.CTkButton(button_frame, text="OK", command=on_ok, width=100).pack(side="left", padx=5)
+                            ctk.CTkButton(button_frame, text="Skip", command=on_skip, width=100).pack(side="left", padx=5)
+                            
+                            # Wait for dialog to close
+                            dialog_window.wait_window()
+                        
+                        # Execute dialog in main thread
+                        self.after(0, show_manual_dialog)
+                        
+                        # Wait for selection (with timeout to prevent hanging)
+                        timeout = 300  # 5 minutes
+                        waited = 0
+                        while selected_category[0] is None and waited < timeout:
+                            import time
+                            time.sleep(0.1)
+                            waited += 0.1
+                        
+                        if selected_category[0] is None:
+                            # Timeout - use AI suggestion
+                            category = ai_category
+                            confidence = ai_confidence
+                        else:
+                            category = selected_category[0]
+                            confidence = 1.0  # User selection is 100% confident
+                    
+                    elif mode == "suggested":
+                        # Suggested: AI suggests, user confirms or changes
+                        ai_category, ai_confidence = self.classifier.classify_texture(file_path)
+                        
+                        # Show confirmation dialog in main thread
+                        confirmed_category = [None]
+                        
+                        def show_suggested_dialog():
+                            """Show suggested classification dialog"""
+                            # Get sorted category list
+                            category_list = sorted(list(ALL_CATEGORIES.keys()))
+                            
+                            dialog_window = ctk.CTkToplevel(self)
+                            dialog_window.title("Confirm Classification")
+                            dialog_window.geometry("500x350")
+                            
+                            # Make modal
+                            dialog_window.transient(self)
+                            dialog_window.grab_set()
+                            
+                            # Center on screen
+                            dialog_window.update_idletasks()
+                            x = (dialog_window.winfo_screenwidth() // 2) - (500 // 2)
+                            y = (dialog_window.winfo_screenheight() // 2) - (350 // 2)
+                            dialog_window.geometry(f"500x350+{x}+{y}")
+                            
+                            # Message
+                            ctk.CTkLabel(dialog_window, text=f"File: {file_path.name}", 
+                                       font=("Arial Bold", 12), wraplength=450).pack(pady=10)
+                            ctk.CTkLabel(dialog_window, 
+                                       text=f"AI Classification: {ai_category} ({ai_confidence:.0%} confidence)",
+                                       font=("Arial Bold", 13), text_color="green").pack(pady=10)
+                            
+                            ctk.CTkLabel(dialog_window, text="Change category if incorrect:", 
+                                       font=("Arial", 11)).pack(pady=5)
+                            
+                            category_var = ctk.StringVar(value=ai_category)
+                            category_dropdown = ctk.CTkOptionMenu(dialog_window, variable=category_var,
+                                                                 values=category_list, width=400)
+                            category_dropdown.pack(pady=10)
+                            
+                            # Buttons
+                            button_frame = ctk.CTkFrame(dialog_window)
+                            button_frame.pack(pady=20)
+                            
+                            def on_accept():
+                                confirmed_category[0] = ai_category
+                                dialog_window.destroy()
+                            
+                            def on_change():
+                                confirmed_category[0] = category_var.get()
+                                dialog_window.destroy()
+                            
+                            def on_skip():
+                                confirmed_category[0] = "unclassified"
+                                dialog_window.destroy()
+                            
+                            ctk.CTkButton(button_frame, text="✓ Accept", command=on_accept, 
+                                        width=100, fg_color="green").pack(side="left", padx=5)
+                            ctk.CTkButton(button_frame, text="Change", command=on_change, 
+                                        width=100).pack(side="left", padx=5)
+                            ctk.CTkButton(button_frame, text="Skip", command=on_skip, 
+                                        width=100).pack(side="left", padx=5)
+                            
+                            dialog_window.wait_window()
+                        
+                        # Execute dialog in main thread
+                        self.after(0, show_suggested_dialog)
+                        
+                        # Wait for confirmation
+                        timeout = 300
+                        waited = 0
+                        while confirmed_category[0] is None and waited < timeout:
+                            import time
+                            time.sleep(0.1)
+                            waited += 0.1
+                        
+                        if confirmed_category[0] is None:
+                            # Timeout - use AI suggestion
+                            category = ai_category
+                            confidence = ai_confidence
+                        else:
+                            category = confirmed_category[0]
+                            confidence = 1.0  # User confirmation is 100% confident
+                    
+                    else:
+                        # Fallback to automatic
+                        category, confidence = self.classifier.classify_texture(file_path)
                     
                     # Get file info
                     try:
@@ -3954,6 +4390,7 @@ Built with:
                 log_interval = 50 if total > 1000 else 10
                 if (i+1) % log_interval == 0 or i == total - 1:
                     self.log(f"Classified {i+1}/{total} files...")
+
             
             if classification_errors > 0:
                 logger.warning(f"Total classification errors: {classification_errors}/{total}")

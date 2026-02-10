@@ -142,6 +142,44 @@ class Config:
                 "use_image_analysis": True,
                 "use_metadata": True,
                 "custom_rules": []
+            },
+            
+            # AI Model Settings
+            "ai": {
+                # Offline AI Model (ONNX-based)
+                "offline": {
+                    "enabled": True,
+                    "model_path": "",  # Empty = use default
+                    "num_threads": 4,
+                    "confidence_weight": 0.7,  # How much to trust offline model (0-1)
+                    "use_image_analysis": True,  # Use AI for image content analysis
+                    "batch_size": 32,  # Number of images to process at once
+                    "cache_predictions": True
+                },
+                # Online AI Model (API-based)
+                "online": {
+                    "enabled": False,
+                    "api_key": "",
+                    "api_url": "https://api.openai.com/v1",
+                    "model": "clip-vit-base-patch32",
+                    "timeout": 30,
+                    "max_requests_per_minute": 60,
+                    "max_requests_per_hour": 1000,
+                    "confidence_weight": 0.8,  # How much to trust online model (0-1)
+                    "use_for_difficult_images": True,  # Use online AI when offline has low confidence
+                    "low_confidence_threshold": 0.5  # Threshold to trigger online fallback
+                },
+                # AI Blending Settings
+                "blend_mode": "confidence_weighted",  # confidence_weighted, max, average, offline_only, online_only
+                "min_confidence": 0.3,  # Minimum confidence to accept a prediction
+                "prefer_image_content": True  # Prioritize image content analysis over filename patterns
+            },
+            
+            # Hotkey Settings
+            "hotkeys": {
+                "enabled": True,
+                "config_file": "",  # Path to custom hotkey config, empty = use defaults
+                "global_hotkeys_enabled": False  # Enable hotkeys when app is not focused
             }
         }
     
