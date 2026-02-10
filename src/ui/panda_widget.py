@@ -167,38 +167,45 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
     
     def _on_click(self, event=None):
         """Handle left click on panda."""
-        if self.panda:
-            response = self.panda.on_click()
-            self.info_label.configure(text=response)
-            # Play celebration animation briefly
-            self.play_animation_once('celebrating')
-            
-            # Award XP for clicking
-            if self.panda_level_system:
-                xp = self.panda_level_system.get_xp_reward('click')
-                leveled_up, new_level = self.panda_level_system.add_xp(xp, 'Click interaction')
-                if leveled_up:
-                    self.info_label.configure(text=f"🎉 Panda Level {new_level}!")
+        try:
+            if self.panda:
+                response = self.panda.on_click()
+                self.info_label.configure(text=response)
+                # Play celebration animation briefly
+                self.play_animation_once('celebrating')
+                
+                # Award XP for clicking
+                if self.panda_level_system:
+                    xp = self.panda_level_system.get_xp_reward('click')
+                    leveled_up, new_level = self.panda_level_system.add_xp(xp, 'Click interaction')
+                    if leveled_up:
+                        self.info_label.configure(text=f"🎉 Panda Level {new_level}!")
+        except Exception as e:
+            logger.error(f"Error handling panda click: {e}")
+            self.info_label.configure(text="🐼 *confused panda noises*")
     
     def _on_right_click(self, event=None):
         """Handle right click on panda."""
-        if self.panda:
-            menu_items = self.panda.get_context_menu()
-            # Create context menu
-            menu = tk.Menu(self, tearoff=0)
-            for key, label in menu_items.items():
-                menu.add_command(
-                    label=label,
-                    command=lambda k=key: self._handle_menu_action(k)
-                )
-            # Add separator and "Reset Position" option
-            menu.add_separator()
-            menu.add_command(label="🏠 Reset to Corner", command=self._reset_position)
-            
-            try:
-                menu.tk_popup(event.x_root, event.y_root)
-            finally:
-                menu.grab_release()
+        try:
+            if self.panda:
+                menu_items = self.panda.get_context_menu()
+                # Create context menu
+                menu = tk.Menu(self, tearoff=0)
+                for key, label in menu_items.items():
+                    menu.add_command(
+                        label=label,
+                        command=lambda k=key: self._handle_menu_action(k)
+                    )
+                # Add separator and "Reset Position" option
+                menu.add_separator()
+                menu.add_command(label="🏠 Reset to Corner", command=self._reset_position)
+                
+                try:
+                    menu.tk_popup(event.x_root, event.y_root)
+                finally:
+                    menu.grab_release()
+        except Exception as e:
+            logger.error(f"Error handling panda right-click: {e}")
     
     def _reset_position(self):
         """Reset panda to default corner position."""
@@ -231,34 +238,37 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
     
     def _handle_menu_action(self, action: str):
         """Handle menu item selection."""
-        if action == 'pet_panda' and self.panda:
-            reaction = self.panda.on_pet()
-            self.info_label.configure(text=reaction)
-            self.play_animation_once('celebrating')
-            
-            # Award XP for petting
-            if self.panda_level_system:
-                xp = self.panda_level_system.get_xp_reward('pet')
-                leveled_up, new_level = self.panda_level_system.add_xp(xp, 'Pet interaction')
-                if leveled_up:
-                    self.info_label.configure(text=f"🎉 Panda Level {new_level}!")
-                    
-        elif action == 'feed_bamboo' and self.panda:
-            response = self.panda.on_feed()
-            self.info_label.configure(text=response)
-            self.play_animation_once('working')
-            
-            # Award XP for feeding
-            if self.panda_level_system:
-                xp = self.panda_level_system.get_xp_reward('feed')
-                leveled_up, new_level = self.panda_level_system.add_xp(xp, 'Feed interaction')
-                if leveled_up:
-                    self.info_label.configure(text=f"🎉 Panda Level {new_level}!")
-                    
-        elif action == 'check_mood' and self.panda:
-            mood = self.panda.get_mood_indicator()
-            mood_name = self.panda.current_mood.value
-            self.info_label.configure(text=f"{mood} Mood: {mood_name}")
+        try:
+            if action == 'pet_panda' and self.panda:
+                reaction = self.panda.on_pet()
+                self.info_label.configure(text=reaction)
+                self.play_animation_once('celebrating')
+                
+                # Award XP for petting
+                if self.panda_level_system:
+                    xp = self.panda_level_system.get_xp_reward('pet')
+                    leveled_up, new_level = self.panda_level_system.add_xp(xp, 'Pet interaction')
+                    if leveled_up:
+                        self.info_label.configure(text=f"🎉 Panda Level {new_level}!")
+                        
+            elif action == 'feed_bamboo' and self.panda:
+                response = self.panda.on_feed()
+                self.info_label.configure(text=response)
+                self.play_animation_once('working')
+                
+                # Award XP for feeding
+                if self.panda_level_system:
+                    xp = self.panda_level_system.get_xp_reward('feed')
+                    leveled_up, new_level = self.panda_level_system.add_xp(xp, 'Feed interaction')
+                    if leveled_up:
+                        self.info_label.configure(text=f"🎉 Panda Level {new_level}!")
+                        
+            elif action == 'check_mood' and self.panda:
+                mood = self.panda.get_mood_indicator()
+                mood_name = self.panda.current_mood.value
+                self.info_label.configure(text=f"{mood} Mood: {mood_name}")
+        except Exception as e:
+            logger.error(f"Error handling menu action '{action}': {e}")
     
     def start_animation(self, animation_name: str):
         """Start looping animation."""
@@ -274,21 +284,27 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
     
     def _animate_loop(self):
         """Animate loop for continuous animation."""
-        if self.panda:
-            frame = self.panda.get_animation_frame(self.current_animation)
-            self.panda_label.configure(text=frame)
-        
-        # Continue animation
-        self.animation_timer = self.after(500, self._animate_loop)
+        try:
+            if self.panda:
+                frame = self.panda.get_animation_frame(self.current_animation)
+                self.panda_label.configure(text=frame)
+            
+            # Continue animation
+            self.animation_timer = self.after(500, self._animate_loop)
+        except Exception as e:
+            logger.error(f"Error in animation loop: {e}")
     
     def _animate_once(self):
         """Animate once then return to idle."""
-        if self.panda:
-            frame = self.panda.get_animation_frame(self.current_animation)
-            self.panda_label.configure(text=frame)
-        
-        # Return to idle after 1 second
-        self.after(1000, lambda: self.start_animation('idle'))
+        try:
+            if self.panda:
+                frame = self.panda.get_animation_frame(self.current_animation)
+                self.panda_label.configure(text=frame)
+            
+            # Return to idle after 1 second
+            self.after(1000, lambda: self.start_animation('idle'))
+        except Exception as e:
+            logger.error(f"Error in single animation: {e}")
     
     def set_mood(self, mood):
         """Update panda mood and animation."""

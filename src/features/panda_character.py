@@ -254,7 +254,7 @@ class PandaCharacter:
         self.files_processed_count = 0
         self.failed_operations = 0
         
-        self._lock = threading.Lock()
+        self._lock = threading.RLock()
     
     def set_mood(self, mood: PandaMood):
         """Set panda's current mood."""

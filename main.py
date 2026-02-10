@@ -154,6 +154,14 @@ except ImportError:
     print("Warning: Panda widget not available.")
 
 try:
+    from src.features.panda_closet import PandaCloset
+    from src.ui.closet_panel import ClosetPanel
+    PANDA_CLOSET_AVAILABLE = True
+except ImportError:
+    PANDA_CLOSET_AVAILABLE = False
+    print("Warning: Panda closet not available.")
+
+try:
     from src.ui.goodbye_splash import show_goodbye_splash
     GOODBYE_SPLASH_AVAILABLE = True
 except ImportError:
@@ -350,6 +358,7 @@ class PS2TextureSorter(ctk.CTk):
         self.user_level_system = None
         self.panda_level_system = None
         self.shop_system = None
+        self.panda_closet = None
         self.panda_widget = None
         
         # Thumbnail cache for file browser (prevent PhotoImage GC)
@@ -392,6 +401,8 @@ class PS2TextureSorter(ctk.CTk):
                     self.panda_level_system = PandaLevelSystem()
                 if SHOP_AVAILABLE:
                     self.shop_system = ShopSystem()
+                if PANDA_CLOSET_AVAILABLE:
+                    self.panda_closet = PandaCloset()
                 
                 # Setup tutorial system
                 if TUTORIAL_AVAILABLE:
@@ -627,6 +638,8 @@ class PS2TextureSorter(ctk.CTk):
         self.tab_achievements = self.tabview.add("🏆 Achievements")
         self.tab_shop = self.tabview.add("🛒 Shop")
         self.tab_rewards = self.tabview.add("🎁 Rewards")
+        if PANDA_CLOSET_AVAILABLE and self.panda_closet:
+            self.tab_closet = self.tabview.add("👔 Panda Closet")
         self.tab_notepad = self.tabview.add("📝 Notepad")
         self.tab_about = self.tabview.add("ℹ️ About")
         
@@ -640,6 +653,8 @@ class PS2TextureSorter(ctk.CTk):
         self.create_achievements_tab()
         self.create_shop_tab()
         self.create_rewards_tab()
+        if PANDA_CLOSET_AVAILABLE and self.panda_closet:
+            self.create_closet_tab()
         self.create_notepad_tab()
         self.create_about_tab()
         
@@ -1566,9 +1581,9 @@ class PS2TextureSorter(ctk.CTk):
         entry_frame = ctk.CTkFrame(self.browser_file_list)
         entry_frame.pack(fill="x", padx=5, pady=2)
         
-        # Add thumbnail for texture files
-        texture_extensions = {'.dds', '.png', '.jpg', '.jpeg', '.bmp', '.tga'}
-        if file_path.suffix.lower() in texture_extensions:
+        # Add thumbnail for image/texture files
+        image_extensions = {'.dds', '.png', '.jpg', '.jpeg', '.bmp', '.tga', '.tif', '.tiff', '.gif', '.webp'}
+        if file_path.suffix.lower() in image_extensions:
             try:
                 # Generate or retrieve cached thumbnail
                 thumbnail_label = self._create_thumbnail(file_path, entry_frame)
@@ -1579,16 +1594,19 @@ class PS2TextureSorter(ctk.CTk):
         
         # File icon and name
         file_info = f"📄 {file_path.name}"
-        file_size = file_path.stat().st_size
-        size_str = f"{file_size / 1024:.1f} KB" if file_size < 1024*1024 else f"{file_size / (1024*1024):.1f} MB"
+        try:
+            file_size = file_path.stat().st_size
+            size_str = f"{file_size / 1024:.1f} KB" if file_size < 1024*1024 else f"{file_size / (1024*1024):.1f} MB"
+        except OSError:
+            size_str = "N/A"
         
         ctk.CTkLabel(entry_frame, text=file_info, 
                     font=("Arial", 10), anchor="w").pack(side="left", fill="x", expand=True)
         ctk.CTkLabel(entry_frame, text=size_str, 
                     font=("Arial", 9), text_color="gray").pack(side="right", padx=5)
         
-        # Add preview button for texture files
-        if file_path.suffix.lower() in texture_extensions:
+        # Add preview button for image/texture files
+        if file_path.suffix.lower() in image_extensions:
             preview_btn = ctk.CTkButton(
                 entry_frame,
                 text="👁️",
@@ -1758,12 +1776,19 @@ class PS2TextureSorter(ctk.CTk):
             elif setting_type == 'cursor':
                 # Apply cursor changes to window and child widgets
                 cursor_type = value.get('type', 'arrow')
+                trail_enabled = value.get('trail', False)
                 # Map to valid tk cursor via _apply_cursor_to_widget
                 try:
                     # Propagate to main window and all child widgets
                     self._apply_cursor_to_widget(self, cursor_type)
                 except Exception as cursor_err:
                     logger.debug(f"Could not update all cursors: {cursor_err}")
+                
+                # Handle cursor trail
+                try:
+                    self._setup_cursor_trail(trail_enabled)
+                except Exception as trail_err:
+                    logger.debug(f"Could not setup cursor trail: {trail_err}")
                     
                 self.log(f"✅ Cursor settings applied: {cursor_type}")
                 
@@ -1818,8 +1843,8 @@ class PS2TextureSorter(ctk.CTk):
             'text': 'xterm',
             'wait': 'watch',
             'skull': 'pirate',
-            'panda': 'hand1',
-            'sword': 'cross',
+            'panda': 'heart',
+            'sword': 'tcross',
             'custom': 'arrow',
         }
         tk_cursor = cursor_map.get(cursor_type, cursor_type)
@@ -1833,6 +1858,72 @@ class PS2TextureSorter(ctk.CTk):
                 self._apply_tk_cursor_recursive(child, tk_cursor)
         except Exception:
             pass  # Ignore widgets that don't support cursor changes
+    
+    def _setup_cursor_trail(self, enabled):
+        """Setup or teardown cursor trail effect"""
+        # Remove existing trail canvas if any
+        if hasattr(self, '_trail_canvas') and self._trail_canvas:
+            try:
+                self.unbind('<Motion>', self._trail_bind_id)
+            except Exception:
+                pass
+            self._trail_canvas.destroy()
+            self._trail_canvas = None
+            self._trail_bind_id = None
+            self._trail_dots = []
+        
+        if not enabled:
+            return
+        
+        import tkinter as tk
+        # Create transparent overlay canvas for trail
+        self._trail_canvas = tk.Canvas(
+            self, bg='', highlightthickness=0,
+            width=self.winfo_width(), height=self.winfo_height()
+        )
+        self._trail_canvas.place(x=0, y=0, relwidth=1, relheight=1)
+        self._trail_canvas.lift()
+        # Canvas should not intercept events
+        self._trail_canvas.configure(cursor='')
+        
+        self._trail_dots = []
+        self._trail_max = 15
+        # Rainbow-inspired trail color palette
+        trail_colors = ['#ff6b6b', '#feca57', '#48dbfb', '#ff9ff3', '#54a0ff',
+                        '#5f27cd', '#01a3a4', '#f368e0', '#ff6348', '#7bed9f']
+        
+        def on_motion(event):
+            try:
+                canvas = self._trail_canvas
+                if not canvas or not canvas.winfo_exists():
+                    return
+                x, y = event.x_root - self.winfo_rootx(), event.y_root - self.winfo_rooty()
+                color_idx = len(self._trail_dots) % len(trail_colors)
+                dot = canvas.create_oval(
+                    x - 3, y - 3, x + 3, y + 3,
+                    fill=trail_colors[color_idx], outline=''
+                )
+                self._trail_dots.append(dot)
+                # Fade old dots
+                if len(self._trail_dots) > self._trail_max:
+                    old_dot = self._trail_dots.pop(0)
+                    canvas.delete(old_dot)
+                # Auto-fade after delay
+                canvas.after(300, lambda d=dot: self._fade_trail_dot(d))
+            except Exception:
+                pass
+        
+        self._trail_bind_id = self.bind('<Motion>', on_motion, add='+')
+    
+    def _fade_trail_dot(self, dot_id):
+        """Remove a trail dot after it fades"""
+        try:
+            if hasattr(self, '_trail_canvas') and self._trail_canvas and self._trail_canvas.winfo_exists():
+                self._trail_canvas.delete(dot_id)
+                if dot_id in self._trail_dots:
+                    self._trail_dots.remove(dot_id)
+        except Exception:
+            pass
     
     def open_settings_window(self):
         """Open settings in a separate window"""
@@ -2528,6 +2619,7 @@ class PS2TextureSorter(ctk.CTk):
                         if item.unlockable_id in items_dict:
                             items_dict[item.unlockable_id].unlocked = True
                             items_dict[item.unlockable_id].unlock_date = datetime.now().isoformat()
+                            logger.info(f"Unlocked {category} item: {item.unlockable_id}")
                             break
                 except Exception as e:
                     logger.error(f"Error unlocking item: {e}")
@@ -2612,6 +2704,16 @@ class PS2TextureSorter(ctk.CTk):
             ctk.CTkLabel(rewards_scroll,
                         text=f"Error loading rewards: {e}",
                         font=("Arial", 12)).pack(pady=20)
+    
+    def create_closet_tab(self):
+        """Create panda closet tab for customizing panda appearance"""
+        if not PANDA_CLOSET_AVAILABLE or not self.panda_closet:
+            ctk.CTkLabel(self.tab_closet, text="Panda closet not available",
+                         font=("Arial", 14)).pack(pady=50)
+            return
+        
+        closet_panel = ClosetPanel(self.tab_closet, self.panda_closet)
+        closet_panel.pack(fill="both", expand=True, padx=10, pady=10)
     
     def create_notepad_tab(self):
         """Create notepad tab with multiple note tabs support"""

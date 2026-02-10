@@ -330,10 +330,10 @@ class CursorCustomizer(ctk.CTkFrame):
         
         ctk.CTkLabel(type_frame, text="Cursor Type:").pack(side="left", padx=5)
         self.cursor_var = ctk.StringVar(value=self.current_cursor)
-        cursor_menu = ctk.CTkOptionMenu(type_frame, variable=self.cursor_var,
+        self.cursor_menu = ctk.CTkOptionMenu(type_frame, variable=self.cursor_var,
                                         values=self.cursor_types,
                                         command=self._on_cursor_change)
-        cursor_menu.pack(side="left", padx=5, fill="x", expand=True)
+        self.cursor_menu.pack(side="left", padx=5, fill="x", expand=True)
         
         size_frame = ctk.CTkFrame(self)
         size_frame.pack(fill="x", padx=10, pady=5)
@@ -440,6 +440,25 @@ class CursorCustomizer(ctk.CTkFrame):
             'tint': self.current_tint,
             'trail': self.trail_enabled
         }
+    
+    def update_available_cursors(self, cursor_names: List[str]):
+        """Update the available cursor options in the dropdown.
+        
+        Args:
+            cursor_names: List of cursor type names to show as options
+        """
+        # Merge with default cursors, avoiding duplicates
+        all_cursors = list(self.cursor_types)
+        for name in cursor_names:
+            if name not in all_cursors:
+                all_cursors.append(name)
+        self.cursor_types = all_cursors
+        
+        # Update the option menu widget with new values
+        try:
+            self.cursor_menu.configure(values=self.cursor_types)
+        except Exception as e:
+            logger.debug(f"Failed to update cursor menu options: {e}")
 
 
 class ThemeManager(ctk.CTkFrame):

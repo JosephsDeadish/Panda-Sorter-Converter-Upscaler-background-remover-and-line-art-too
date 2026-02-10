@@ -277,7 +277,7 @@ class AchievementSystem:
         """
         self.achievements: Dict[str, Achievement] = {}
         self.save_file = save_file
-        self.lock = threading.Lock()
+        self.lock = threading.RLock()
         
         # Event callbacks
         self.unlock_callbacks: List[Callable[[Achievement], None]] = []
@@ -459,11 +459,9 @@ class AchievementSystem:
         """
         self.total_time_minutes += minutes
         
-        # Update marathon achievement
+        # Update marathon achievement with current session time
         if 'marathon' in self.achievements:
-            # Check if current session is marathon-worthy
-            # This is simplified - real implementation would track current session
-            pass
+            self.update_progress('marathon', minutes, increment=True)
     
     def increment_sessions(self) -> None:
         """Increment total sessions and update related achievements."""

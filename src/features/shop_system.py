@@ -238,6 +238,138 @@ class ShopSystem:
             level_required=50,
             one_time_purchase=True
         ),
+        
+        # Additional Panda Outfits
+        'panda_chef': ShopItem(
+            id='panda_chef',
+            name='Chef Panda',
+            description='Cooking up some sorted textures!',
+            category=ShopCategory.PANDA_OUTFITS,
+            price=200,
+            icon='👨‍🍳',
+            level_required=3,
+            unlockable_id='panda_outfit_chef'
+        ),
+        'panda_detective': ShopItem(
+            id='panda_detective',
+            name='Detective Panda',
+            description='Investigating texture mysteries',
+            category=ShopCategory.PANDA_OUTFITS,
+            price=400,
+            icon='🕵️',
+            level_required=12,
+            unlockable_id='panda_outfit_detective'
+        ),
+        'panda_superhero': ShopItem(
+            id='panda_superhero',
+            name='Superhero Panda',
+            description='Saving textures one sort at a time!',
+            category=ShopCategory.PANDA_OUTFITS,
+            price=600,
+            icon='🦸',
+            level_required=18,
+            unlockable_id='panda_outfit_superhero'
+        ),
+        
+        # Additional Cursors
+        'cursor_star': ShopItem(
+            id='cursor_star',
+            name='Star Cursor',
+            description='Sparkle wherever you click',
+            category=ShopCategory.CURSORS,
+            price=200,
+            icon='⭐',
+            level_required=5,
+            unlockable_id='cursor_star'
+        ),
+        'cursor_diamond': ShopItem(
+            id='cursor_diamond',
+            name='Diamond Cursor',
+            description='Premium diamond-shaped cursor',
+            category=ShopCategory.CURSORS,
+            price=500,
+            icon='💎',
+            level_required=15,
+            unlockable_id='cursor_diamond'
+        ),
+        
+        # Additional Themes
+        'theme_retro': ShopItem(
+            id='theme_retro',
+            name='Retro Theme',
+            description='Classic retro gaming vibes',
+            category=ShopCategory.THEMES,
+            price=250,
+            icon='🕹️',
+            level_required=6,
+            unlockable_id='theme_retro'
+        ),
+        'theme_ocean': ShopItem(
+            id='theme_ocean',
+            name='Ocean Theme',
+            description='Deep blue ocean colors',
+            category=ShopCategory.THEMES,
+            price=350,
+            icon='🌊',
+            level_required=10,
+            unlockable_id='theme_ocean'
+        ),
+        
+        # Additional Animations
+        'anim_spin': ShopItem(
+            id='anim_spin',
+            name='Spin Animation',
+            description='Panda does a dizzy spin!',
+            category=ShopCategory.ANIMATIONS,
+            price=100,
+            icon='🌀',
+            level_required=2,
+            unlockable_id='animation_spin'
+        ),
+        'anim_juggle': ShopItem(
+            id='anim_juggle',
+            name='Juggle Animation',
+            description='Panda juggles texture files',
+            category=ShopCategory.ANIMATIONS,
+            price=350,
+            icon='🤹',
+            level_required=8,
+            unlockable_id='animation_juggle'
+        ),
+        
+        # Additional Upgrades
+        'upgrade_lucky_charm': ShopItem(
+            id='upgrade_lucky_charm',
+            name='Lucky Charm',
+            description='5% chance for bonus rewards on any action',
+            category=ShopCategory.UPGRADES,
+            price=500,
+            icon='🍀',
+            level_required=10,
+            one_time_purchase=True
+        ),
+        
+        # Additional Special Items
+        'special_party_hat': ShopItem(
+            id='special_party_hat',
+            name='Party Hat',
+            description='Celebration mode! Confetti on achievements',
+            category=ShopCategory.SPECIAL,
+            price=1000,
+            icon='🎉',
+            level_required=20,
+            one_time_purchase=True
+        ),
+        'special_rainbow_aura': ShopItem(
+            id='special_rainbow_aura',
+            name='Rainbow Aura',
+            description='Panda glows with rainbow colors',
+            category=ShopCategory.SPECIAL,
+            price=2500,
+            icon='🌈',
+            level_required=30,
+            one_time_purchase=True
+        ),
     }
     
     def __init__(self, save_path: Optional[Path] = None):
