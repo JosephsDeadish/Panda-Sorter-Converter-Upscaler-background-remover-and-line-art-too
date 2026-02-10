@@ -42,6 +42,9 @@ class ShopItem:
 class ShopSystem:
     """Manages shop inventory and purchases."""
     
+    # Configuration constants
+    MAX_PURCHASE_HISTORY = 100  # Number of purchases to keep in history
+    
     # Shop catalog
     CATALOG: Dict[str, ShopItem] = {
         # Panda Outfits
@@ -353,7 +356,7 @@ class ShopSystem:
         try:
             data = {
                 'purchased_items': list(self.purchased_items),
-                'purchase_history': self.purchase_history[-100:],  # Keep last 100
+                'purchase_history': self.purchase_history[-self.MAX_PURCHASE_HISTORY:],
             }
             
             with open(self.save_path, 'w') as f:

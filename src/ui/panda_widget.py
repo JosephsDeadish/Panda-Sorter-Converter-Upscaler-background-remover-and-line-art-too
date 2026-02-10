@@ -89,7 +89,7 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
             
             # Award XP for clicking
             if self.panda_level_system:
-                xp = self.panda_level_system.XP_REWARDS.get('click', 1)
+                xp = self.panda_level_system.get_xp_reward('click')
                 leveled_up, new_level = self.panda_level_system.add_xp(xp, 'Click interaction')
                 if leveled_up:
                     self.info_label.configure(text=f"🎉 Panda Level {new_level}!")
@@ -129,7 +129,7 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
             
             # Award XP for petting
             if self.panda_level_system:
-                xp = self.panda_level_system.XP_REWARDS.get('pet', 5)
+                xp = self.panda_level_system.get_xp_reward('pet')
                 leveled_up, new_level = self.panda_level_system.add_xp(xp, 'Pet interaction')
                 if leveled_up:
                     self.info_label.configure(text=f"🎉 Panda Level {new_level}!")
@@ -141,7 +141,7 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
             
             # Award XP for feeding
             if self.panda_level_system:
-                xp = self.panda_level_system.XP_REWARDS.get('feed', 10)
+                xp = self.panda_level_system.get_xp_reward('feed')
                 leveled_up, new_level = self.panda_level_system.add_xp(xp, 'Feed interaction')
                 if leveled_up:
                     self.info_label.configure(text=f"🎉 Panda Level {new_level}!")

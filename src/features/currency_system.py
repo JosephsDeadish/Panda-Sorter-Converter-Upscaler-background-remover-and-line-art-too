@@ -27,6 +27,9 @@ class MoneyTransaction:
 class CurrencySystem:
     """Manages money earning and spending."""
     
+    # Configuration constants
+    MAX_TRANSACTION_HISTORY = 100  # Number of transactions to keep in history
+    
     # Money rewards for various actions
     REWARDS = {
         # File operations
@@ -222,7 +225,7 @@ class CurrencySystem:
                 'total_spent': self.total_spent,
                 'last_login_date': self.last_login_date,
                 'login_streak': self.login_streak,
-                'transactions': [asdict(t) for t in self.transactions[-100:]],  # Keep last 100
+                'transactions': [asdict(t) for t in self.transactions[-self.MAX_TRANSACTION_HISTORY:]],
             }
             
             with open(self.save_path, 'w') as f:

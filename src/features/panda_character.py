@@ -45,6 +45,9 @@ class PandaAnimation:
 class PandaCharacter:
     """Manages the panda companion character - always present."""
     
+    # Configuration constants
+    RAGE_CLICK_THRESHOLD = 10  # Number of clicks to trigger rage mode
+    
     # ASCII art animations for different states
     ANIMATIONS = {
         'idle': [
@@ -228,8 +231,8 @@ class PandaCharacter:
         with self._lock:
             self.click_count += 1
             
-            # Easter egg: 10 clicks triggers rage
-            if self.click_count == 10:
+            # Easter egg: clicks trigger rage
+            if self.click_count == self.RAGE_CLICK_THRESHOLD:
                 self.easter_eggs_triggered.add('panda_rage')
                 self.set_mood(PandaMood.RAGE)
                 return self.EASTER_EGGS['panda_rage']

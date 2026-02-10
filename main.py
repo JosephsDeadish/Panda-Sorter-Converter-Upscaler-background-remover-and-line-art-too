@@ -293,6 +293,7 @@ class PS2TextureSorter(ctk.CTk):
     
     # Configuration constants
     GOODBYE_SPLASH_DISPLAY_MS = 800  # Time to display goodbye splash before exit
+    BATCH_BONUS_THRESHOLD = 100  # Number of files for batch bonus
     
     def __init__(self):
         super().__init__()
@@ -3236,7 +3237,7 @@ Built with:
                         total_money = money_per_file * files_sorted
                         
                         # Bonus for large batches
-                        if files_sorted >= 100:
+                        if files_sorted >= self.BATCH_BONUS_THRESHOLD:
                             batch_bonus = self.currency_system.get_reward_for_action('batch_complete')
                             total_money += batch_bonus
                             self.log(f"💰 Earned ${total_money} (${money_per_file} per file + ${batch_bonus} batch bonus)")
@@ -3257,12 +3258,12 @@ Built with:
                     
                     # Award XP
                     if self.user_level_system:
-                        xp_per_file = self.user_level_system.XP_REWARDS.get('file_processed', 1)
+                        xp_per_file = self.user_level_system.get_xp_reward('file_processed')
                         total_xp = xp_per_file * files_sorted
                         
                         # Bonus for large batches
-                        if files_sorted >= 100:
-                            batch_xp = self.user_level_system.XP_REWARDS.get('batch_complete', 50)
+                        if files_sorted >= self.BATCH_BONUS_THRESHOLD:
+                            batch_xp = self.user_level_system.get_xp_reward('batch_complete')
                             total_xp += batch_xp
                         
                         leveled_up, new_level = self.user_level_system.add_xp(

@@ -100,15 +100,26 @@ class LevelSystem:
         
         logger.info(f"{self.name} gained {amount} XP for '{reason}'. Total: {self.xp}")
         
-        # Check for level up
+        # Check for level up - optimized to handle large XP gains
         leveled_up = False
         old_level = self.level
         
+        # Calculate how many levels can be gained
         while self.xp >= self.get_xp_to_next_level():
-            self.xp -= self.get_xp_to_next_level()
+            xp_needed = self.get_xp_to_next_level()
+            if xp_needed <= 0:
+                break
+            
+            self.xp -= xp_needed
             self.level += 1
             leveled_up = True
             logger.info(f"{self.name} leveled up! Now level {self.level}")
+            
+            # Safety check to prevent infinite loops
+            if self.level > 1000:
+                logger.error(f"Level cap exceeded, capping at 1000")
+                self.level = 1000
+                break
         
         if leveled_up:
             # Trigger callbacks
@@ -120,6 +131,18 @@ class LevelSystem:
         
         self.save()
         return leveled_up, self.level
+    
+    def get_xp_reward(self, action: str) -> int:
+        """
+        Get XP reward for an action (encapsulated access).
+        
+        Args:
+            action: Action name
+            
+        Returns:
+            XP amount for that action
+        """
+        return self.XP_REWARDS.get(action, 0)
     
     def register_level_up_callback(self, callback: Callable):
         """Register callback for level up events."""
