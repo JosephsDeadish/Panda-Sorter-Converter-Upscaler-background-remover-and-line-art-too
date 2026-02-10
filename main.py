@@ -361,8 +361,10 @@ class PS2TextureSorter(ctk.CTk):
         self.panda_closet = None
         self.panda_widget = None
         
-        # Thumbnail cache for file browser (prevent PhotoImage GC)
+        # Thumbnail cache for file browser (LRU - prevent PhotoImage GC)
         self._thumbnail_cache = {}
+        self._thumbnail_cache_order = []  # Track insertion order for LRU eviction
+        self._thumbnail_cache_max = config.get('performance', 'thumbnail_cache_size', default=500)
         
         # Initialize features if GUI available
         if GUI_AVAILABLE:
@@ -1083,10 +1085,10 @@ class PS2TextureSorter(ctk.CTk):
             return
         tt = self._get_tooltip_text
         # Store tooltip references to prevent garbage collection
-        self._tooltips.append(WidgetTooltip(browse_btn, tt('file_selection') or "Select a directory to browse texture files"))
-        self._tooltips.append(WidgetTooltip(refresh_btn, "Refresh the file list"))
-        self._tooltips.append(WidgetTooltip(search_entry, tt('search_button') or "Search for specific files by name"))
-        self._tooltips.append(WidgetTooltip(show_all_cb, "Show all file types, not just textures"))
+        self._tooltips.append(WidgetTooltip(browse_btn, tt('browser_browse_button') or tt('file_selection') or "Select a directory to browse texture files"))
+        self._tooltips.append(WidgetTooltip(refresh_btn, tt('browser_refresh_button') or "Refresh the file list"))
+        self._tooltips.append(WidgetTooltip(search_entry, tt('browser_search') or tt('search_button') or "Search for specific files by name"))
+        self._tooltips.append(WidgetTooltip(show_all_cb, tt('browser_show_all') or "Show all file types, not just textures"))
     
     def _apply_menu_tooltips(self, tutorial_btn, settings_btn, theme_btn, help_btn):
         """Apply tooltips to menu bar widgets"""
@@ -1346,24 +1348,28 @@ class PS2TextureSorter(ctk.CTk):
     
     def create_browser_tab(self):
         """Create file browser tab with directory browsing and file preview"""
-        # Header
+        # Header - use wrapping layout to prevent button overlap at small sizes
         header_frame = ctk.CTkFrame(self.tab_browser)
         header_frame.pack(fill="x", padx=10, pady=10)
         
         ctk.CTkLabel(header_frame, text="📁 File Browser",
                      font=("Arial Bold", 16)).pack(side="left", padx=10)
         
+        # Button sub-frame to keep buttons together and prevent overlap
+        btn_frame = ctk.CTkFrame(header_frame, fg_color="transparent")
+        btn_frame.pack(side="right", padx=5)
+        
         # Browse button
-        browser_browse_btn = ctk.CTkButton(header_frame, text="📂 Browse Directory", 
+        browser_browse_btn = ctk.CTkButton(btn_frame, text="📂 Browse", 
                      command=self.browser_select_directory,
-                     width=150)
-        browser_browse_btn.pack(side="right", padx=10)
+                     width=100)
+        browser_browse_btn.pack(side="left", padx=5)
         
         # Refresh button
-        browser_refresh_btn = ctk.CTkButton(header_frame, text="🔄 Refresh", 
+        browser_refresh_btn = ctk.CTkButton(btn_frame, text="🔄 Refresh", 
                      command=self.browser_refresh,
-                     width=100)
-        browser_refresh_btn.pack(side="right", padx=5)
+                     width=80)
+        browser_refresh_btn.pack(side="left", padx=5)
         
         # Path display
         path_frame = ctk.CTkFrame(self.tab_browser)
@@ -1454,42 +1460,77 @@ class PS2TextureSorter(ctk.CTk):
             self.browser_refresh()
     
     def browser_refresh(self):
-        """Refresh file browser content"""
+        """Refresh file browser content - scanning runs off UI thread"""
         if not hasattr(self, 'browser_current_dir'):
             return
+        
+        # Debounce rapid refresh calls (e.g. from search typing)
+        if hasattr(self, '_browser_refresh_pending') and self._browser_refresh_pending:
+            return
+        self._browser_refresh_pending = True
         
         try:
             # Clear current file list
             for widget in self.browser_file_list.winfo_children():
                 widget.destroy()
             
-            # Check if show all files is enabled
+            # Show loading indicator
+            self.browser_status.configure(text="Scanning directory...")
+            
+            # Capture filter state before threading
             show_all = self.browser_show_all.get() if hasattr(self, 'browser_show_all') else False
-            
-            # Get search query
             search_query = self.browser_search_var.get().lower() if hasattr(self, 'browser_search_var') else ""
+            current_dir = self.browser_current_dir
             
-            # Collect files incrementally with a hard cap to avoid freezing
-            texture_extensions = {'.dds', '.png', '.jpg', '.jpeg', '.bmp', '.tga'}
-            files = []
-            MAX_MATCHING_FILES = 10000  # Stop collecting after this many matching files
-            try:
-                for f in self.browser_current_dir.iterdir():
-                    if not f.is_file():
-                        continue
-                    if not show_all and f.suffix.lower() not in texture_extensions:
-                        continue
-                    if search_query and search_query not in f.name.lower():
-                        continue
-                    files.append(f)
-                    if len(files) >= MAX_MATCHING_FILES:
-                        break
-            except PermissionError:
-                pass
+            def _scan_files():
+                """Run file scanning and sorting off the UI thread"""
+                texture_extensions = {'.dds', '.png', '.jpg', '.jpeg', '.bmp', '.tga'}
+                files = []
+                MAX_MATCHING_FILES = 10000
+                try:
+                    for f in current_dir.iterdir():
+                        if not f.is_file():
+                            continue
+                        if not show_all and f.suffix.lower() not in texture_extensions:
+                            continue
+                        if search_query and search_query not in f.name.lower():
+                            continue
+                        files.append(f)
+                        if len(files) >= MAX_MATCHING_FILES:
+                            break
+                except PermissionError:
+                    pass
+                
+                files_sorted = sorted(files)
+                
+                # Collect folders
+                folders = []
+                try:
+                    folders = sorted([f for f in current_dir.iterdir() if f.is_dir()])
+                except PermissionError:
+                    pass
+                
+                # Schedule UI update on main thread
+                self.after(0, lambda: self._browser_update_ui(
+                    files_sorted, folders, show_all, search_query, MAX_MATCHING_FILES))
             
-            # Limit displayed files to prevent UI freeze
+            thread = threading.Thread(target=_scan_files, daemon=True)
+            thread.start()
+            
+        except Exception as e:
+            self._browser_refresh_pending = False
+            self.browser_status.configure(text=f"Error: {e}")
+    
+    def _browser_update_ui(self, files_sorted, folders, show_all, search_query, max_matching):
+        """Update browser UI on the main thread after scanning completes"""
+        self._browser_refresh_pending = False
+        
+        try:
+            # Clear current file list (in case it changed during scan)
+            for widget in self.browser_file_list.winfo_children():
+                widget.destroy()
+            
             MAX_DISPLAY = 200
-            files_sorted = sorted(files)
             total_files = len(files_sorted)
             display_files = files_sorted[:MAX_DISPLAY]
             
@@ -1508,8 +1549,8 @@ class PS2TextureSorter(ctk.CTk):
                 
                 if total_files > MAX_DISPLAY:
                     overflow_text = f"... and {total_files - MAX_DISPLAY} more files"
-                    if total_files >= MAX_MATCHING_FILES:
-                        overflow_text += f" (showing first {MAX_DISPLAY} of {MAX_MATCHING_FILES}+)"
+                    if total_files >= max_matching:
+                        overflow_text += f" (showing first {MAX_DISPLAY} of {max_matching}+)"
                     overflow_text += " (use search to filter)"
                     ctk.CTkLabel(self.browser_file_list, 
                                text=overflow_text,
@@ -1518,22 +1559,14 @@ class PS2TextureSorter(ctk.CTk):
             # Update folder list with navigation
             self.browser_folder_list.delete("1.0", "end")
             
-            # Add parent directory navigation if not at root
             if self.browser_current_dir.parent != self.browser_current_dir:
                 self.browser_folder_list.insert("end", "⬆️ .. (Parent Directory)\n")
             
-            folders = []
-            try:
-                folders = [f for f in self.browser_current_dir.iterdir() if f.is_dir()]
-            except PermissionError:
-                pass
-            for folder in sorted(folders):
+            for folder in folders:
                 self.browser_folder_list.insert("end", f"📁 {folder.name}\n")
             
-            # Make folder list clickable
             self.browser_folder_list.bind("<Double-Button-1>", self._on_folder_click)
             
-            # Update status
             status = f"Showing {len(display_files)} of {total_files} file(s) and {len(folders)} folder(s)"
             self.browser_status.configure(text=status)
             
@@ -1583,14 +1616,21 @@ class PS2TextureSorter(ctk.CTk):
         entry_frame = ctk.CTkFrame(self.browser_file_list)
         entry_frame.pack(fill="x", padx=5, pady=2)
         
-        # Add thumbnail for image/texture files
+        # Add thumbnail for image/texture files if enabled in settings
+        show_thumbnails = config.get('ui', 'show_thumbnails', default=True)
         image_extensions = {'.dds', '.png', '.jpg', '.jpeg', '.bmp', '.tga', '.tif', '.tiff', '.gif', '.webp'}
-        if file_path.suffix.lower() in image_extensions:
+        if show_thumbnails and file_path.suffix.lower() in image_extensions:
             try:
-                # Generate or retrieve cached thumbnail
-                thumbnail_label = self._create_thumbnail(file_path, entry_frame)
-                if thumbnail_label:
-                    thumbnail_label.pack(side="left", padx=5)
+                # Skip files over 50MB to prevent preview lag
+                try:
+                    if file_path.stat().st_size > 50 * 1024 * 1024:
+                        logger.debug(f"Skipping thumbnail for large file: {file_path.name}")
+                    else:
+                        thumbnail_label = self._create_thumbnail(file_path, entry_frame)
+                        if thumbnail_label:
+                            thumbnail_label.pack(side="left", padx=5)
+                except OSError:
+                    pass
             except Exception as e:
                 logger.debug(f"Failed to create thumbnail for {file_path.name}: {e}")
         
@@ -1620,14 +1660,20 @@ class PS2TextureSorter(ctk.CTk):
             preview_btn.pack(side="right", padx=2)
     
     def _create_thumbnail(self, file_path, parent_frame):
-        """Create a thumbnail for an image file"""
+        """Create a thumbnail for an image file with LRU cache"""
         try:
             from PIL import Image
             
+            thumb_size = config.get('ui', 'thumbnail_size', default=32)
+            
             # Check cache first
-            cache_key = str(file_path)
+            cache_key = f"{file_path}_{thumb_size}"
             if cache_key in self._thumbnail_cache:
                 cached_photo = self._thumbnail_cache[cache_key]
+                # Move to end of LRU order
+                if cache_key in self._thumbnail_cache_order:
+                    self._thumbnail_cache_order.remove(cache_key)
+                self._thumbnail_cache_order.append(cache_key)
                 label = ctk.CTkLabel(parent_frame, image=cached_photo, text="")
                 return label
             
@@ -1639,12 +1685,19 @@ class PS2TextureSorter(ctk.CTk):
                 if img.mode not in ('RGB', 'RGBA'):
                     img = img.convert('RGBA')
             
-            # Create thumbnail (64x64 for better visibility)
-            img.thumbnail((64, 64), Image.Resampling.LANCZOS)
+            # Create thumbnail at configured size
+            img.thumbnail((thumb_size, thumb_size), Image.Resampling.LANCZOS)
             
             # Use CTkImage for proper display in customtkinter
-            photo = ctk.CTkImage(light_image=img, dark_image=img, size=(64, 64))
+            photo = ctk.CTkImage(light_image=img, dark_image=img, size=(thumb_size, thumb_size))
+            
+            # LRU eviction: remove oldest entries if cache exceeds max
+            while len(self._thumbnail_cache) >= self._thumbnail_cache_max and self._thumbnail_cache_order:
+                oldest_key = self._thumbnail_cache_order.pop(0)
+                self._thumbnail_cache.pop(oldest_key, None)
+            
             self._thumbnail_cache[cache_key] = photo
+            self._thumbnail_cache_order.append(cache_key)
             
             # Create label with thumbnail
             label = ctk.CTkLabel(parent_frame, image=photo, text="")
@@ -2085,6 +2138,34 @@ class PS2TextureSorter(ctk.CTk):
         ctk.CTkLabel(cache_frame, text="(default: 500)",
                     font=("Arial", 9), text_color="gray").pack(side="left", padx=5)
         
+        # Show thumbnails toggle
+        thumb_toggle_frame = ctk.CTkFrame(perf_frame)
+        thumb_toggle_frame.pack(fill="x", padx=10, pady=5)
+        
+        show_thumb_var = ctk.BooleanVar(value=config.get('ui', 'show_thumbnails', default=True))
+        ctk.CTkCheckBox(thumb_toggle_frame, text="Show thumbnails in File Browser",
+                       variable=show_thumb_var).pack(side="left", padx=10)
+        
+        # Thumbnail size selector
+        thumb_size_frame = ctk.CTkFrame(perf_frame)
+        thumb_size_frame.pack(fill="x", padx=10, pady=5)
+        
+        ctk.CTkLabel(thumb_size_frame, text="Thumbnail Size:").pack(side="left", padx=10)
+        thumb_size_var = ctk.StringVar(value=str(config.get('ui', 'thumbnail_size', default=32)))
+        thumb_size_menu = ctk.CTkOptionMenu(thumb_size_frame, variable=thumb_size_var,
+                                            values=["16", "32", "64"])
+        thumb_size_menu.pack(side="left", padx=10)
+        ctk.CTkLabel(thumb_size_frame, text="(default: 32)",
+                    font=("Arial", 9), text_color="gray").pack(side="left", padx=5)
+        
+        # Disable panda animations (for low-end systems)
+        panda_anim_frame = ctk.CTkFrame(perf_frame)
+        panda_anim_frame.pack(fill="x", padx=10, pady=5)
+        
+        disable_panda_anim_var = ctk.BooleanVar(value=config.get('ui', 'disable_panda_animations', default=False))
+        ctk.CTkCheckBox(panda_anim_frame, text="Disable panda animations (for low-end systems)",
+                       variable=disable_panda_anim_var).pack(side="left", padx=10)
+        
         # === APPEARANCE & CUSTOMIZATION (merged UI Settings + UI Customization) ===
         ui_frame = ctk.CTkFrame(settings_scroll)
         ui_frame.pack(fill="x", padx=10, pady=10)
@@ -2379,6 +2460,12 @@ class PS2TextureSorter(ctk.CTk):
                 config.set('performance', 'memory_limit_mb', value=int(memory_var.get()))
                 config.set('performance', 'thumbnail_cache_size', value=int(cache_var.get()))
                 
+                # Thumbnail & animation settings
+                config.set('ui', 'show_thumbnails', value=show_thumb_var.get())
+                config.set('ui', 'thumbnail_size', value=int(thumb_size_var.get()))
+                config.set('ui', 'disable_panda_animations', value=disable_panda_anim_var.get())
+                self._thumbnail_cache_max = int(cache_var.get())
+                
                 # UI / Appearance & Customization
                 config.set('ui', 'theme', value=theme_var.get())
                 config.set('ui', 'scale', value=scale_var.get())
@@ -2615,6 +2702,8 @@ class PS2TextureSorter(ctk.CTk):
             )
             btn.pack(side="left", padx=5, pady=5)
             category_buttons[category] = btn
+            if WidgetTooltip:
+                self._tooltips.append(WidgetTooltip(btn, self._get_tooltip_text('shop_category_button') or "Filter shop items by this category"))
         
         # Shop items scroll frame
         self.shop_scroll = ctk.CTkScrollableFrame(self.tab_shop, width=1000, height=500)
@@ -2702,6 +2791,8 @@ class PS2TextureSorter(ctk.CTk):
                 command=lambda i=item: self._purchase_item(i)
             )
             buy_btn.pack(side="left", padx=5)
+            if WidgetTooltip:
+                self._tooltips.append(WidgetTooltip(buy_btn, self._get_tooltip_text('shop_buy_button') or "Purchase this item"))
     
     def _purchase_item(self, item):
         """Purchase an item from the shop"""

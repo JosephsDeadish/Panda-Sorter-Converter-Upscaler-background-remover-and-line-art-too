@@ -499,6 +499,146 @@ class PandaMode:
                 "LOD family reunion time. Get them all in one folder.",
                 "No LOD left behind. We group them ALL."
             ]
+        },
+        'achievements_tab': {
+            'normal': [
+                "View your achievements and progress milestones",
+                "Track your accomplishments and earned badges",
+                "See which achievements you've unlocked"
+            ],
+            'vulgar': [
+                "Check your trophies, you overachiever.",
+                "Achievement log. Proof you actually did something.",
+                "Your bragging rights live here.",
+                "Look at all the sh*t you've accomplished. Proud?",
+                "Achievements. For people who need validation.",
+                "Gold stars and participation trophies. Knock yourself out."
+            ]
+        },
+        'shop_tab': {
+            'normal': [
+                "Opens the reward store where earned points can be spent",
+                "Browse and purchase items with your earned currency",
+                "Spend your points on cosmetics and upgrades"
+            ],
+            'vulgar': [
+                "This is the loot cave. Spend your shiny points, idiot.",
+                "You did work. Now buy dumb cosmetic crap.",
+                "Click here to exchange grind for dopamine.",
+                "The shop. Where your hard-earned money goes to die.",
+                "Buy stuff. Waste points. Live your best life.",
+                "Shopping spree time. Your wallet (points) won't survive."
+            ]
+        },
+        'shop_buy_button': {
+            'normal': [
+                "Purchase this item with your currency",
+                "Buy this item from the shop",
+                "Complete the purchase"
+            ],
+            'vulgar': [
+                "Yeet your money at this item. Do it.",
+                "Buy it before someone else doesn't.",
+                "Take my money! Except it's points. Whatever.",
+                "Purchase this bad boy. You deserve it. Maybe.",
+                "Click buy. Instant regret or joy. 50/50.",
+                "Add to cart? Nah. Just buy the damn thing."
+            ]
+        },
+        'shop_category_button': {
+            'normal': [
+                "Filter shop items by this category",
+                "View items in this category",
+                "Browse this section of the shop"
+            ],
+            'vulgar': [
+                "Filter the shop. Because scrolling is for peasants.",
+                "Category filter. Find your poison faster.",
+                "Browse this section. There's good sh*t in here.",
+                "Click to see what's in this category of nonsense."
+            ]
+        },
+        'rewards_tab': {
+            'normal': [
+                "View all unlockable rewards and their requirements",
+                "See what rewards you can earn by completing goals",
+                "Track your progress toward unlocking rewards"
+            ],
+            'vulgar': [
+                "Your loot table. See what you can unlock.",
+                "Rewards page. Dangle carrots in front of yourself.",
+                "All the shiny things you haven't earned yet.",
+                "Check what's locked and cry about it.",
+                "Reward tracker. Motivation through materialism.",
+                "See the prizes. Want them. Work for them. Simple."
+            ]
+        },
+        'closet_tab': {
+            'normal': [
+                "Customize your panda's appearance with outfits and accessories",
+                "Dress up your panda companion with unlocked items",
+                "Change your panda's look and style"
+            ],
+            'vulgar': [
+                "Dress up your panda. Fashion show time.",
+                "Panda wardrobe. Because even pandas need style.",
+                "Outfit your furry friend. Don't make it weird.",
+                "Panda closet. It's like The Sims but with bamboo.",
+                "Fashion crimes against pandas start here.",
+                "Makeover time! Make your panda look fabulous or ridiculous."
+            ]
+        },
+        'browser_browse_button': {
+            'normal': [
+                "Select a directory to browse for texture files",
+                "Open folder picker to navigate to your files",
+                "Choose a folder to browse its contents"
+            ],
+            'vulgar': [
+                "Pick a folder. Any folder. Let's see what's inside.",
+                "Browse button. Because typing paths is for masochists.",
+                "Point me to your files. I'll judge them.",
+                "Folder picker. Navigate your digital hoarding."
+            ]
+        },
+        'browser_refresh_button': {
+            'normal': [
+                "Refresh the file list to show current directory contents",
+                "Reload the current directory listing",
+                "Update the file browser display"
+            ],
+            'vulgar': [
+                "Refresh. In case something magically changed.",
+                "Hit refresh like you're checking your ex's profile.",
+                "Reload. Because maybe it's different this time. (It's not.)",
+                "F5 energy in button form."
+            ]
+        },
+        'browser_search': {
+            'normal': [
+                "Search for files by name in the current directory",
+                "Filter displayed files by search term",
+                "Type to find specific files"
+            ],
+            'vulgar': [
+                "Find your damn files. Type something.",
+                "Search bar. For when you can't find sh*t.",
+                "Like Google but for your messy folder.",
+                "Ctrl+F vibes. Find that needle in the haystack."
+            ]
+        },
+        'browser_show_all': {
+            'normal': [
+                "Toggle between showing only textures or all file types",
+                "Show all files, not just supported texture formats",
+                "Include non-texture files in the listing"
+            ],
+            'vulgar': [
+                "Show EVERYTHING. Even the weird files.",
+                "All files mode. Including your shame.",
+                "Toggle this to see non-texture files too.",
+                "Show all. Because you're nosy like that."
+            ]
         }
     }
     
