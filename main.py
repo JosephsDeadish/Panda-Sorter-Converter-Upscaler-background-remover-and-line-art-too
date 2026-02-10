@@ -67,13 +67,6 @@ except ImportError:
     PANDA_CHARACTER_AVAILABLE = False
     print("Warning: Panda character not available.")
 
-try:
-    from src.features.tooltip_system import TooltipSystem
-    TOOLTIP_SYSTEM_AVAILABLE = True
-except ImportError:
-    TOOLTIP_SYSTEM_AVAILABLE = False
-    print("Warning: Tooltip system not available.")
-
 # Keep PandaMode import for backward compatibility during transition
 try:
     from src.features.panda_mode import PandaMode
@@ -341,7 +334,6 @@ class PS2TextureSorter(ctk.CTk):
         
         # Initialize feature modules
         self.panda = None  # Always-present panda character
-        self.tooltip_system = None  # Tooltip system with vulgar option
         self.panda_mode = None  # Deprecated - keeping for backward compatibility
         self.sound_manager = None
         self.achievement_manager = None
@@ -349,7 +341,7 @@ class PS2TextureSorter(ctk.CTk):
         self.stats_tracker = None
         self.search_filter = None
         self.tutorial_manager = None
-        self.tooltip_manager = None
+        self.tooltip_manager = None  # Uses existing TooltipVerbosityManager - has vulgar mode
         self._tooltips = []  # Store tooltip references to prevent garbage collection
         self.context_help = None
         self.preview_viewer = None
@@ -369,13 +361,6 @@ class PS2TextureSorter(ctk.CTk):
                 if PANDA_CHARACTER_AVAILABLE:
                     self.panda = PandaCharacter()
                     logger.info("Panda character initialized (always present)")
-                
-                # Separate tooltip system with vulgar option
-                if TOOLTIP_SYSTEM_AVAILABLE:
-                    # Get vulgar mode setting from config
-                    vulgar_mode = config.get('ui', 'vulgar_tooltips', default=False)
-                    self.tooltip_system = TooltipSystem(vulgar_mode=vulgar_mode)
-                    logger.info(f"Tooltip system initialized (vulgar mode: {vulgar_mode})")
                 
                 # Keep old panda_mode for backward compatibility (will be deprecated)
                 if PANDA_MODE_AVAILABLE and not PANDA_CHARACTER_AVAILABLE:
