@@ -423,6 +423,82 @@ class PandaMode:
                 "Redo button. For the indecisive.",
                 "F*ck it, put it back the way it was."
             ]
+        },
+        'input_browse': {
+            'normal': [
+                "Browse for the folder containing your texture files",
+                "Select the input directory with your textures",
+                "Choose the source folder for texture processing",
+                "Pick the directory to read textures from",
+                "Navigate to your texture input folder"
+            ],
+            'vulgar': [
+                "Find your damn texture folder. It's somewhere on that hard drive.",
+                "Browse for input. Like Tinder but for file directories.",
+                "Point me to your textures, you beautiful disaster.",
+                "Navigate the digital jungle to find your texture stash.",
+                "Show me where the goods are. The texture goods.",
+                "Pick a folder. It's not that deep. Well, maybe it is.",
+                "File browsing: the Windows Explorer safari adventure.",
+                "Where'd you put those textures? Let's go find out."
+            ]
+        },
+        'output_browse': {
+            'normal': [
+                "Choose where to save the organized textures",
+                "Select the destination folder for sorted textures",
+                "Pick an output directory for your results",
+                "Set the target folder for organized files",
+                "Choose the output location for sorted textures"
+            ],
+            'vulgar': [
+                "Where do you want this organized mess dumped?",
+                "Pick a destination. The textures need a new home.",
+                "Choose wisely. This is where the magic ends up.",
+                "Output folder. Where dreams of organization become reality.",
+                "Select where to yeet your sorted textures.",
+                "Destination please! Like an Uber but for files.",
+                "Where should I put this sh*t? Literally your call.",
+                "Pick an output or I'll choose your desktop. Don't test me."
+            ]
+        },
+        'detect_duplicates': {
+            'normal': [
+                "Find and handle duplicate texture files",
+                "Detect identical textures using file hashing",
+                "Identify copies and duplicates in your collection",
+                "Scan for redundant duplicate texture files",
+                "Check for duplicate textures to save disk space"
+            ],
+            'vulgar': [
+                "Find duplicate textures. Trust issues? Same.",
+                "Duplicate detection. Because copying is only flattering sometimes.",
+                "Spot the clones. Like a texture witness protection program.",
+                "Find duplicates before your hard drive files a complaint.",
+                "Duplicate finder. CTRL+C CTRL+V consequences detector.",
+                "Because apparently copy-paste got out of hand.",
+                "Hunt down those sneaky identical textures.",
+                "Duplicate detection: the 'who wore it better' for textures."
+            ]
+        },
+        'group_lods': {
+            'normal': [
+                "Keep LOD variants together in the same folder",
+                "Group Level of Detail textures by their base name",
+                "Organize LOD levels into unified groups",
+                "Bundle related LOD textures together",
+                "Group LOD variants for easy management"
+            ],
+            'vulgar': [
+                "Group LODs together. They're like a dysfunctional family.",
+                "Keep LOD buddies together. Separation anxiety is real.",
+                "LOD grouping. Because nobody puts LOD-baby in a corner.",
+                "Bundle those LODs like a cozy texture family reunion.",
+                "Keep the LOD crew together. Squad goals.",
+                "Group LODs. Like organizing your sock drawer but nerdier.",
+                "LOD family reunion time. Get them all in one folder.",
+                "No LOD left behind. We group them ALL."
+            ]
         }
     }
     

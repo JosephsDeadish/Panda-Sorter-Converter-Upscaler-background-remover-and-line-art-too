@@ -491,16 +491,7 @@ class PS2TextureSorter(ctk.CTk):
             )
             help_button.pack(side="right", padx=10, pady=5)
         
-        # Theme toggle
-        theme_button = ctk.CTkButton(
-            menu_frame,
-            text="🌓 Theme",
-            width=80,
-            command=self.toggle_theme
-        )
-        theme_button.pack(side="right", padx=10, pady=5)
-        
-        # Settings button
+        # Settings button (theme is available inside Settings → Appearance)
         settings_button = ctk.CTkButton(
             menu_frame,
             text="⚙️ Settings",
@@ -521,7 +512,7 @@ class PS2TextureSorter(ctk.CTk):
             tutorial_button.pack(side="right", padx=10, pady=5)
         
         # Apply tooltips to menu bar widgets
-        self._apply_menu_tooltips(tutorial_button, settings_button, theme_button, help_button)
+        self._apply_menu_tooltips(tutorial_button, settings_button, None, help_button)
     
     def _run_tutorial(self):
         """Start or restart the tutorial"""
@@ -605,14 +596,14 @@ class PS2TextureSorter(ctk.CTk):
         }
         for tab_name, tab_frame in dockable_tabs.items():
             btn = ctk.CTkButton(
-                tab_frame, text="⬗ Pop Out", width=90, height=26,
+                tab_frame, text="⬗", width=30, height=26,
                 font=("Arial", 11),
                 fg_color="gray40",
                 command=lambda n=tab_name: self._popout_tab(n)
             )
             btn.place(relx=1.0, rely=0.0, anchor="ne", x=-5, y=5)
             if WidgetTooltip:
-                self._tooltips.append(WidgetTooltip(btn, f"Open {tab_name} in a separate window"))
+                self._tooltips.append(WidgetTooltip(btn, f"Pop out {tab_name} into a separate window"))
     
     def _popout_tab(self, tab_name):
         """Pop out a tab into its own window"""
@@ -640,6 +631,11 @@ class PS2TextureSorter(ctk.CTk):
             for child in tab_frame.winfo_children():
                 children_info.append(child)
             
+            # Store children for re-docking later
+            if not hasattr(self, '_popout_children'):
+                self._popout_children = {}
+            self._popout_children[tab_name] = children_info
+            
             # Reparent all children to the pop-out window
             container = ctk.CTkFrame(popout)
             container.pack(fill="both", expand=True, padx=5, pady=5)
@@ -656,56 +652,106 @@ class PS2TextureSorter(ctk.CTk):
         # Add dock-back button
         dock_btn = ctk.CTkButton(
             popout, text="⬙ Dock Back", width=100, height=28,
-            command=lambda: self._dock_tab(tab_name, None, popout)
+            command=lambda n=tab_name: self._dock_tab(n, self._popout_children.get(n), popout)
         )
         dock_btn.pack(side="bottom", pady=5)
         
         # Handle window close = dock back
         popout.protocol("WM_DELETE_WINDOW",
-                        lambda: self._dock_tab(tab_name, None, popout))
+                        lambda n=tab_name: self._dock_tab(n, self._popout_children.get(n), popout))
     
     def _create_popout_notepad(self, popout_window, tab_name):
-        """Create notepad functionality in popout window"""
+        """Create notepad functionality in popout window (fully editable)"""
         container = ctk.CTkFrame(popout_window)
         container.pack(fill="both", expand=True, padx=10, pady=10)
         
-        # Header with title
+        # Header with title and buttons
         header_frame = ctk.CTkFrame(container)
         header_frame.pack(fill="x", pady=10)
         
         ctk.CTkLabel(header_frame, text="📝 Personal Notes (Undocked)",
                      font=("Arial Bold", 16)).pack(side="left", padx=10)
         
-        # Info message
-        info_label = ctk.CTkLabel(
-            container,
-            text="Note: This is a read-only view of your notes. To edit, please dock the notepad back.",
-            font=("Arial", 10),
-            text_color="orange"
-        )
-        info_label.pack(pady=5)
+        # Add new note button in popout
+        ctk.CTkButton(header_frame, text="➕ New Note", width=100,
+                     command=self._popout_add_note).pack(side="right", padx=5)
         
-        # Display notes content in a single textbox (read-only)
-        notes_display = ctk.CTkTextbox(container, width=750, height=500)
-        notes_display.pack(padx=10, pady=10, fill="both", expand=True)
+        # Save button in popout
+        ctk.CTkButton(header_frame, text="💾 Save All", width=100,
+                     command=self._popout_save_notes).pack(side="right", padx=5)
         
-        # Collect all notes and display them
+        # Delete button in popout
+        ctk.CTkButton(header_frame, text="🗑️ Delete Note", width=110,
+                     command=self._popout_delete_note).pack(side="right", padx=5)
+        
+        # Create tabview for notes in popout
+        self._popout_notes_tabview = ctk.CTkTabview(container)
+        self._popout_notes_tabview.pack(padx=10, pady=10, fill="both", expand=True)
+        
+        self._popout_note_textboxes = {}
+        
+        # Populate with current notes content
         if hasattr(self, 'note_textboxes'):
-            all_notes_text = ""
             for note_name, textbox in self.note_textboxes.items():
                 content = textbox.get("1.0", "end-1c")
-                all_notes_text += f"{'='*60}\n"
-                all_notes_text += f"{note_name}\n"
-                all_notes_text += f"{'='*60}\n"
-                all_notes_text += f"{content}\n\n"
-            
-            notes_display.insert("1.0", all_notes_text)
-            notes_display.configure(state="disabled")  # Make read-only
+                new_tab = self._popout_notes_tabview.add(note_name)
+                tb = ctk.CTkTextbox(new_tab, width=750, height=500)
+                tb.pack(padx=5, pady=5, fill="both", expand=True)
+                tb.insert("1.0", content)
+                self._popout_note_textboxes[note_name] = tb
+    
+    def _popout_add_note(self):
+        """Add a new note in popout notepad"""
+        import tkinter.simpledialog as simpledialog
+        name = simpledialog.askstring("New Note", "Enter note name:",
+                                     initialvalue=f"Note {len(self._popout_note_textboxes) + 1}")
+        if not name or name in self._popout_note_textboxes:
+            return
+        new_tab = self._popout_notes_tabview.add(name)
+        tb = ctk.CTkTextbox(new_tab, width=750, height=500)
+        tb.pack(padx=5, pady=5, fill="both", expand=True)
+        self._popout_note_textboxes[name] = tb
+        self._popout_notes_tabview.set(name)
+    
+    def _popout_delete_note(self):
+        """Delete the current note in popout notepad"""
+        current = self._popout_notes_tabview.get()
+        if len(self._popout_note_textboxes) <= 1:
+            if GUI_AVAILABLE:
+                messagebox.showwarning("Cannot Delete", "You must have at least one note tab.")
+            return
+        if GUI_AVAILABLE:
+            if not messagebox.askyesno("Delete Note", f"Delete '{current}'?"):
+                return
+        del self._popout_note_textboxes[current]
+        self._popout_notes_tabview.delete(current)
+    
+    def _popout_save_notes(self):
+        """Sync popout notes back to the main notepad and save"""
+        # Update main notepad textboxes with popout content
+        for name, tb in self._popout_note_textboxes.items():
+            content = tb.get("1.0", "end-1c")
+            if name in self.note_textboxes:
+                self.note_textboxes[name].delete("1.0", "end")
+                self.note_textboxes[name].insert("1.0", content)
+            else:
+                self.add_new_note_tab(name=name, content=content)
+        # Remove notes deleted in popout
+        for name in list(self.note_textboxes.keys()):
+            if name not in self._popout_note_textboxes:
+                del self.note_textboxes[name]
+                try:
+                    self.notes_tabview.delete(name)
+                except Exception:
+                    pass
+        self.save_all_notes()
     
     def _dock_tab(self, tab_name, children, popout_window):
         """Dock a popped-out tab back into the main tabview"""
-        # Special handling for notepad (just close the window)
+        # Special handling for notepad - sync edits back before closing
         if tab_name == "📝 Notepad":
+            if hasattr(self, '_popout_note_textboxes'):
+                self._popout_save_notes()
             if popout_window.winfo_exists():
                 popout_window.destroy()
             self._popout_windows.pop(tab_name, None)
@@ -739,6 +785,8 @@ class PS2TextureSorter(ctk.CTk):
             popout_window.destroy()
         
         self._popout_windows.pop(tab_name, None)
+        if hasattr(self, '_popout_children'):
+            self._popout_children.pop(tab_name, None)
         
         # Re-add pop-out button
         btn = ctk.CTkButton(
@@ -889,14 +937,18 @@ class PS2TextureSorter(ctk.CTk):
         """Apply tooltips to sort tab widgets"""
         if not WidgetTooltip:
             return
-        tooltip_text = self._get_tooltip_text
+        tt = self._get_tooltip_text
         # Store tooltip references to prevent garbage collection
-        self._tooltips.append(WidgetTooltip(self.start_button, tooltip_text('sort_button')))
-        self._tooltips.append(WidgetTooltip(self.pause_button, "Pause the current sorting operation"))
-        self._tooltips.append(WidgetTooltip(self.stop_button, "Stop the sorting operation completely"))
-        self._tooltips.append(WidgetTooltip(browse_in_btn, tooltip_text('input_browse')))
-        self._tooltips.append(WidgetTooltip(browse_out_btn, tooltip_text('output_browse')))
-        self._tooltips.append(WidgetTooltip(mode_menu, "Choose sorting mode: automatic, manual, or suggested"))
+        self._tooltips.append(WidgetTooltip(self.start_button, tt('sort_button')))
+        self._tooltips.append(WidgetTooltip(self.pause_button, tt('batch_operations') or "Pause the current sorting operation"))
+        self._tooltips.append(WidgetTooltip(self.stop_button, tt('export_button') or "Stop the sorting operation completely"))
+        self._tooltips.append(WidgetTooltip(browse_in_btn, tt('input_browse')))
+        self._tooltips.append(WidgetTooltip(browse_out_btn, tt('output_browse')))
+        self._tooltips.append(WidgetTooltip(mode_menu, 
+            "Sorting mode:\n"
+            "• automatic – AI classifies textures automatically\n"
+            "• manual – You choose the category for each texture\n"
+            "• suggested – AI suggests, you confirm each one"))
         self._tooltips.append(WidgetTooltip(style_menu, 
             "Select how textures are organized:\n"
             "• Simple Flat – All files in category folders\n"
@@ -908,9 +960,9 @@ class PS2TextureSorter(ctk.CTk):
             "• By Module – Characters/Vehicles/UI/etc.\n"
             "• Maximum Detail – Deep nested hierarchy\n"
             "• Custom – User-defined rules"))
-        self._tooltips.append(WidgetTooltip(detect_lods_cb, "Automatically detect Level of Detail (LOD) textures"))
-        self._tooltips.append(WidgetTooltip(group_lods_cb, "Group LOD textures together in folders"))
-        self._tooltips.append(WidgetTooltip(detect_dupes_cb, "Find and mark duplicate texture files"))
+        self._tooltips.append(WidgetTooltip(detect_lods_cb, tt('lod_detection') or "Automatically detect Level of Detail (LOD) textures"))
+        self._tooltips.append(WidgetTooltip(group_lods_cb, tt('group_lods') or "Group LOD textures together in folders"))
+        self._tooltips.append(WidgetTooltip(detect_dupes_cb, tt('detect_duplicates') or "Find and mark duplicate texture files"))
     
     def _get_tooltip_text(self, widget_id):
         """Get tooltip text from the tooltip manager"""
@@ -933,10 +985,11 @@ class PS2TextureSorter(ctk.CTk):
         """Apply tooltips to convert tab widgets"""
         if not WidgetTooltip:
             return
+        tt = self._get_tooltip_text
         # Store tooltip references to prevent garbage collection
-        self._tooltips.append(WidgetTooltip(self.convert_start_button, "Start batch conversion of texture files"))
-        self._tooltips.append(WidgetTooltip(input_btn, "Select directory containing files to convert"))
-        self._tooltips.append(WidgetTooltip(output_btn, "Choose where to save converted files"))
+        self._tooltips.append(WidgetTooltip(self.convert_start_button, tt('convert_button') or "Start batch conversion of texture files"))
+        self._tooltips.append(WidgetTooltip(input_btn, tt('input_browse') or "Select directory containing files to convert"))
+        self._tooltips.append(WidgetTooltip(output_btn, tt('output_browse') or "Choose where to save converted files"))
         self._tooltips.append(WidgetTooltip(from_menu, "Select source file format to convert from"))
         self._tooltips.append(WidgetTooltip(to_menu, "Select target file format to convert to"))
         self._tooltips.append(WidgetTooltip(recursive_cb, "Also convert files in subdirectories"))
@@ -946,25 +999,27 @@ class PS2TextureSorter(ctk.CTk):
         """Apply tooltips to file browser tab widgets"""
         if not WidgetTooltip:
             return
+        tt = self._get_tooltip_text
         # Store tooltip references to prevent garbage collection
-        self._tooltips.append(WidgetTooltip(browse_btn, "Select a directory to browse texture files"))
+        self._tooltips.append(WidgetTooltip(browse_btn, tt('file_selection') or "Select a directory to browse texture files"))
         self._tooltips.append(WidgetTooltip(refresh_btn, "Refresh the file list"))
-        self._tooltips.append(WidgetTooltip(search_entry, "Search for specific files by name"))
+        self._tooltips.append(WidgetTooltip(search_entry, tt('search_button') or "Search for specific files by name"))
         self._tooltips.append(WidgetTooltip(show_all_cb, "Show all file types, not just textures"))
     
     def _apply_menu_tooltips(self, tutorial_btn, settings_btn, theme_btn, help_btn):
         """Apply tooltips to menu bar widgets"""
         if not WidgetTooltip:
             return
+        tt = self._get_tooltip_text
         # Store tooltip references to prevent garbage collection
         if tutorial_btn:
-            self._tooltips.append(WidgetTooltip(tutorial_btn, "Start or restart the interactive tutorial"))
+            self._tooltips.append(WidgetTooltip(tutorial_btn, tt('tutorial_button') or "Start or restart the interactive tutorial"))
         if settings_btn:
-            self._tooltips.append(WidgetTooltip(settings_btn, "Open application settings and preferences"))
+            self._tooltips.append(WidgetTooltip(settings_btn, tt('settings_button') or "Open application settings and preferences"))
         if theme_btn:
-            self._tooltips.append(WidgetTooltip(theme_btn, "Toggle between light and dark theme"))
+            self._tooltips.append(WidgetTooltip(theme_btn, tt('theme_selector') or "Toggle between light and dark theme"))
         if help_btn:
-            self._tooltips.append(WidgetTooltip(help_btn, "Open context-sensitive help (F1)"))
+            self._tooltips.append(WidgetTooltip(help_btn, tt('help_button') or "Open context-sensitive help (F1)"))
     
     def create_convert_tab(self):
         """Create file format conversion tab"""
@@ -1753,6 +1808,8 @@ class PS2TextureSorter(ctk.CTk):
         thread_slider.pack(side="left", fill="x", expand=True, padx=10)
         thread_label = ctk.CTkLabel(thread_frame, text=f"{int(thread_slider.get())}")
         thread_label.pack(side="left", padx=5)
+        ctk.CTkLabel(thread_frame, text="(default: 4)",
+                    font=("Arial", 9), text_color="gray").pack(side="left", padx=5)
         
         def update_thread_label(value):
             thread_label.configure(text=f"{int(float(value))}")
@@ -1766,6 +1823,8 @@ class PS2TextureSorter(ctk.CTk):
         memory_var = ctk.StringVar(value=str(config.get('performance', 'memory_limit_mb', default=2048)))
         mem_entry = ctk.CTkEntry(mem_frame, textvariable=memory_var, width=100)
         mem_entry.pack(side="left", padx=10)
+        ctk.CTkLabel(mem_frame, text="(default: 2048)",
+                    font=("Arial", 9), text_color="gray").pack(side="left", padx=5)
         
         # Cache size
         cache_frame = ctk.CTkFrame(perf_frame)
@@ -1775,6 +1834,8 @@ class PS2TextureSorter(ctk.CTk):
         cache_var = ctk.StringVar(value=str(config.get('performance', 'thumbnail_cache_size', default=500)))
         cache_entry = ctk.CTkEntry(cache_frame, textvariable=cache_var, width=100)
         cache_entry.pack(side="left", padx=10)
+        ctk.CTkLabel(cache_frame, text="(default: 500)",
+                    font=("Arial", 9), text_color="gray").pack(side="left", padx=5)
         
         # === APPEARANCE & CUSTOMIZATION (merged UI Settings + UI Customization) ===
         ui_frame = ctk.CTkFrame(settings_scroll)
@@ -1846,6 +1907,8 @@ class PS2TextureSorter(ctk.CTk):
         undo_var = ctk.StringVar(value=str(config.get('file_handling', 'undo_depth', default=10)))
         undo_entry = ctk.CTkEntry(undo_frame, textvariable=undo_var, width=100)
         undo_entry.pack(side="left", padx=10)
+        ctk.CTkLabel(undo_frame, text="(default: 10)",
+                    font=("Arial", 9), text_color="gray").pack(side="left", padx=5)
         
         # === LOGGING SETTINGS ===
         log_frame = ctk.CTkFrame(settings_scroll)
@@ -2719,12 +2782,15 @@ Built with:
             input_path = Path(input_path_str)
             output_path = Path(output_path_str)
             
-            # Scan for texture files
+            # Scan for texture files lazily to avoid memory issues with large directories
             logger.debug("Starting directory scan for texture files")
             self.update_progress(0.05, "Scanning directory...")
+            texture_extensions = {'.dds', '.png', '.jpg', '.jpeg', '.bmp', '.tga'}
             try:
-                texture_files = list(input_path.rglob("*.*"))
-                texture_files = [f for f in texture_files if f.suffix.lower() in {'.dds', '.png', '.jpg', '.jpeg', '.bmp', '.tga'}]
+                texture_files = []
+                for f in input_path.rglob("*.*"):
+                    if f.suffix.lower() in texture_extensions:
+                        texture_files.append(f)
                 logger.info(f"Directory scan complete - found {len(texture_files)} potential texture files")
             except Exception as e:
                 logger.error(f"Error scanning directory: {e}", exc_info=True)
@@ -2739,8 +2805,9 @@ Built with:
                 self.log("⚠️ No texture files found in input directory")
                 return
             
-            # Classify and prepare textures
-            logger.info(f"Starting classification of {total} textures")
+            # Classify textures in batches to prevent memory issues with large sets
+            CLASSIFY_BATCH_SIZE = 500
+            logger.info(f"Starting classification of {total} textures (batch size: {CLASSIFY_BATCH_SIZE})")
             self.update_progress(0.1, "Classifying textures...")
             texture_infos = []
             classification_errors = 0
@@ -2782,8 +2849,9 @@ Built with:
                 progress = 0.1 + (0.3 * (i+1) / total)
                 self.update_progress(progress, f"Classifying {i+1}/{total}...")
                 
-                # Log every 10th file or last file
-                if (i+1) % 10 == 0 or i == total - 1:
+                # Log every 50th file or last file for large sets, every 10th for small
+                log_interval = 50 if total > 1000 else 10
+                if (i+1) % log_interval == 0 or i == total - 1:
                     self.log(f"Classified {i+1}/{total} files...")
             
             if classification_errors > 0:
