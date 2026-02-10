@@ -12,17 +12,20 @@ CHARACTER_ORGANIC = {
     },
     "hair": {
         "name": "Hair",
-        "keywords": ["hair", "hairdo", "haircut", "hairstyle", "ponytail", "braid"],
+        "keywords": ["hair", "hairdo", "haircut", "hairstyle", "ponytail", "braid",
+                     "hairtex", "fur", "mane", "wig"],
         "group": "Character/Organic"
     },
     "face": {
         "name": "Face",
-        "keywords": ["face", "facial", "cheek", "chin", "forehead", "nose", "mouth", "lip"],
+        "keywords": ["face", "facial", "cheek", "chin", "forehead", "nose", "mouth", "lip",
+                     "head", "headtex", "face_tex", "expression"],
         "group": "Character/Organic"
     },
     "skin1": {
         "name": "Skin1",
-        "keywords": ["skin", "skin1", "flesh", "body"],
+        "keywords": ["skin", "skin1", "flesh", "body", "bodytex", "skintex", "skin_color",
+                     "skin_diffuse", "skin_diff"],
         "group": "Character/Organic"
     },
     "skin2": {
@@ -52,12 +55,16 @@ CHARACTER_ORGANIC = {
     },
     "person": {
         "name": "Person",
-        "keywords": ["person", "human", "character", "body", "fullbody"],
+        "keywords": ["person", "human", "character", "body", "fullbody", "char", "player", "hero",
+                     "npc_body", "protagonist", "avatar", "model", "humanoid", "unwrap", "uv_body",
+                     "bodymesh", "char_body", "playerbody"],
         "group": "Character/Organic"
     },
     "animals": {
         "name": "Animals",
-        "keywords": ["animal", "beast", "creature", "pet", "dog", "cat", "bird"],
+        "keywords": ["animal", "beast", "creature", "pet", "dog", "cat", "bird",
+                     "horse", "wolf", "bear", "snake", "fish", "dragon", "spider",
+                     "insect", "rat", "bat", "deer", "lion", "tiger"],
         "group": "Character/Organic"
     },
     "creatures": {
@@ -111,7 +118,8 @@ CLOTHING_WEARABLES = {
     },
     "armor": {
         "name": "Armor",
-        "keywords": ["armor", "armour", "plate", "chainmail", "protection"],
+        "keywords": ["armor", "armour", "plate", "chainmail", "protection", "shield",
+                     "breastplate", "pauldron", "greave", "vambrace", "cuirass", "chestplate"],
         "group": "Clothing/Wearables"
     },
     "accessories": {
@@ -267,7 +275,10 @@ OBJECTS_PROPS = {
     "containers": {"name": "Containers", "keywords": ["container", "box", "chest"], "group": "Objects/Props"},
     "crates": {"name": "Crates", "keywords": ["crate", "woodbox"], "group": "Objects/Props"},
     "barrels": {"name": "Barrels", "keywords": ["barrel", "drum", "keg"], "group": "Objects/Props"},
-    "weapons": {"name": "Weapons", "keywords": ["weapon", "gun", "sword", "knife", "blade"], "group": "Objects/Props"},
+    "weapons": {"name": "Weapons", "keywords": ["weapon", "gun", "sword", "knife", "blade", "axe",
+                "rifle", "pistol", "shotgun", "bow", "arrow", "staff", "wand", "spear", "mace",
+                "dagger", "shield", "grenade", "rocket_launcher", "sniper", "smg", "assault"],
+                "group": "Objects/Props"},
     "tools": {"name": "Tools", "keywords": ["tool", "hammer", "wrench", "screwdriver"], "group": "Objects/Props"},
     "items": {"name": "Items", "keywords": ["item", "object", "prop"], "group": "Objects/Props"},
     "food": {"name": "Food", "keywords": ["food", "meal", "snack"], "group": "Objects/Props"},
