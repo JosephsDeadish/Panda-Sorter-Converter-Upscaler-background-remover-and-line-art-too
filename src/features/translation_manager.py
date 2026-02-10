@@ -369,7 +369,7 @@ class TranslationManager:
             'msg_ready': 'Prêt à trier les textures',
             'msg_no_files': 'Aucun fichier sélectionné',
             'msg_operation_complete': 'Opération terminée avec succès',
-            'msg_operation_failed': 'Échec de l'opération: {error}',
+            'msg_operation_failed': "Échec de l'opération: {error}",
         }
     
     def set_language(self, language: Language) -> bool:
