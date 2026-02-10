@@ -2607,6 +2607,10 @@ Built with:
     
     def sort_textures_thread(self, input_path_str, output_path_str, mode, style_name, detect_lods, group_lods, detect_duplicates):
         """Background thread for texture sorting with full organization system"""
+        # Constants for error reporting
+        MAX_UI_ERROR_MESSAGES = 5  # Maximum number of classification errors to show in UI
+        MAX_RESULTS_ERROR_DISPLAY = 10  # Maximum number of organization errors to display
+        
         try:
             logger.info(f"sort_textures_thread started - Processing: {input_path_str} -> {output_path_str}")
             input_path = Path(input_path_str)
@@ -2648,8 +2652,8 @@ Built with:
                         stat = file_path.stat()
                     except Exception as e:
                         logger.warning(f"Failed to get file stats for {file_path}: {e}")
-                        # Use default values if stat fails - create a simple object with st_size
-                        stat = SimpleNamespace(st_size=0)
+                        # Use -1 as sentinel value to indicate unknown size (not actually zero bytes)
+                        stat = SimpleNamespace(st_size=-1)
                     
                     # Create TextureInfo
                     texture_info = TextureInfo(
@@ -2666,7 +2670,7 @@ Built with:
                 except Exception as e:
                     classification_errors += 1
                     logger.error(f"Failed to classify {file_path}: {e}", exc_info=True)
-                    if classification_errors <= 5:  # Only log first 5 errors to UI
+                    if classification_errors <= MAX_UI_ERROR_MESSAGES:
                         self.log(f"⚠️ Classification error for {file_path.name}: {e}")
                     continue
                 
@@ -2766,10 +2770,10 @@ Built with:
                 if results['errors']:
                     logger.warning(f"{len(results['errors'])} errors occurred during organization")
                     self.log(f"\n⚠️ Errors encountered:")
-                    for error in results['errors'][:10]:  # Show first 10 errors
+                    for error in results['errors'][:MAX_RESULTS_ERROR_DISPLAY]:
                         self.log(f"  - {error['file']}: {error['error']}")
-                    if len(results['errors']) > 10:
-                        self.log(f"  ... and {len(results['errors']) - 10} more errors")
+                    if len(results['errors']) > MAX_RESULTS_ERROR_DISPLAY:
+                        self.log(f"  ... and {len(results['errors']) - MAX_RESULTS_ERROR_DISPLAY} more errors")
                 
                 self.log("=" * 60)
                 
