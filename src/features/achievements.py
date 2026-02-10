@@ -277,7 +277,7 @@ class AchievementSystem:
         """
         self.achievements: Dict[str, Achievement] = {}
         self.save_file = save_file
-        self.lock = threading.Lock()
+        self.lock = threading.RLock()
         
         # Event callbacks
         self.unlock_callbacks: List[Callable[[Achievement], None]] = []
