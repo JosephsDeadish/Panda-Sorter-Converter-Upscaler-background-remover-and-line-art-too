@@ -6,6 +6,7 @@ Author: Dead On The Inside / JosephsDeadish
 
 import logging
 import random
+import time
 import tkinter as tk
 from typing import Optional, Callable
 try:
@@ -46,6 +47,7 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
         self.drag_start_y = 0
         self.is_dragging = False
         self._drag_moved = False  # Track if actual movement occurred
+        self._last_drag_time = 0  # Throttle drag events (ms)
         
         # Configure frame
         if ctk:
@@ -106,9 +108,15 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
         self._drag_moved = False
     
     def _on_drag_motion(self, event):
-        """Handle drag motion - move the panda container."""
+        """Handle drag motion - move the panda container with throttling."""
         if not self.is_dragging:
             return
+        
+        # Throttle drag events to ~60fps (16ms) to prevent frame spikes
+        now = time.monotonic()
+        if now - self._last_drag_time < 0.016:
+            return
+        self._last_drag_time = now
         
         # Check if we've moved enough to count as a real drag
         distance = ((event.x - self.drag_start_x) ** 2 + (event.y - self.drag_start_y) ** 2) ** 0.5
@@ -320,6 +328,17 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
         """Start looping animation."""
         if self._destroyed:
             return
+        # Check if animations are disabled for low-end systems
+        try:
+            from src.config import config
+            if config.get('ui', 'disable_panda_animations', default=False):
+                # Just show static frame, no animation loop
+                if self.panda:
+                    frame = self.panda.get_animation_frame(animation_name)
+                    self.panda_label.configure(text=frame)
+                return
+        except Exception:
+            pass
         # Cancel any existing animation timer to avoid race conditions
         self._cancel_animation_timer()
         self.current_animation = animation_name

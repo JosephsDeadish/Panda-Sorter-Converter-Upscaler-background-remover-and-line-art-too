@@ -55,7 +55,10 @@ class Config:
                 "font_family": "Segoe UI",
                 "icon_size": "medium",
                 "compact_view": False,
-                "layout": "default"
+                "layout": "default",
+                "show_thumbnails": True,
+                "thumbnail_size": 32,  # 16, 32, or 64
+                "disable_panda_animations": False
             },
             
             # Performance Settings
@@ -66,7 +69,8 @@ class Config:
                 "enable_gpu": False,
                 "background_priority": "normal",
                 "batch_size": 100,
-                "preview_quality": "medium"
+                "preview_quality": "medium",
+                "thumbnail_cache_size": 500
             },
             
             # File Handling Settings

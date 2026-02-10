@@ -492,6 +492,7 @@ class TooltipVerbosityManager:
     def __init__(self, config):
         self.config = config
         self.current_mode = self._load_mode()
+        self._last_tooltip = {}  # Track last tooltip per widget_id to avoid repeats
         
         # Tooltip collections for each mode
         self.tooltips = {
@@ -515,16 +516,28 @@ class TooltipVerbosityManager:
         self.config.save()
     
     def get_tooltip(self, widget_id: str) -> str:
-        """Get tooltip text for a widget based on current mode"""
+        """Get tooltip text for a widget based on current mode.
+        
+        For list-based tooltips (e.g. vulgar mode), picks a random variant
+        with cooldown to avoid repeating the same line back-to-back.
+        """
         tooltips = self.tooltips.get(self.current_mode, {})
         tooltip = tooltips.get(widget_id, "")
         
-        # If tooltip is a list (from PandaMode), pick a random one
-        # Note: We assume lists are non-empty as they come from PandaMode.TOOLTIPS
+        # If tooltip is a list, pick a random one with cooldown
         if isinstance(tooltip, list):
-            if not tooltip:  # Safety check for empty lists
+            if not tooltip:
                 return ""
-            return random.choice(tooltip)
+            if len(tooltip) == 1:
+                return tooltip[0]
+            # Avoid repeating last shown tooltip for this widget
+            last = self._last_tooltip.get(widget_id)
+            choices = [t for t in tooltip if t != last]
+            if not choices:
+                choices = tooltip
+            selected = random.choice(choices)
+            self._last_tooltip[widget_id] = selected
+            return selected
         
         return tooltip
     
@@ -541,7 +554,17 @@ class TooltipVerbosityManager:
             'style_dropdown': "Choose how to organize your textures",
             'settings_button': "Open settings and preferences",
             'theme_button': "Switch between dark and light themes",
-            'help_button': "Get help and documentation"
+            'help_button': "Get help and documentation",
+            'achievements_tab': "View your achievements and progress milestones",
+            'shop_tab': "Opens the reward store where earned points can be spent",
+            'shop_buy_button': "Purchase this item with your currency",
+            'shop_category_button': "Filter shop items by this category",
+            'rewards_tab': "View all unlockable rewards and their requirements",
+            'closet_tab': "Customize your panda's appearance with outfits and accessories",
+            'browser_browse_button': "Select a directory to browse for texture files",
+            'browser_refresh_button': "Refresh the file list to show current directory contents",
+            'browser_search': "Search for files by name in the current directory",
+            'browser_show_all': "Toggle between showing only textures or all file types"
         }
         
         # Pull from PandaMode TOOLTIPS if available
@@ -632,6 +655,46 @@ class TooltipVerbosityManager:
                 "This lets you work with multiple files at the same time instead "
                 "of one at a time, saving you lots of effort!"
             ),
+            'achievements_tab': (
+                "This tab shows all the achievements you can earn by using the app. "
+                "Each achievement tracks your progress and unlocks rewards when completed!"
+            ),
+            'shop_tab': (
+                "This is where you trade points for cool stuff. You earn points by "
+                "sorting textures and completing achievements, then spend them here!"
+            ),
+            'shop_buy_button': (
+                "Click this button to buy the item. Make sure you have enough points "
+                "first! The price is shown next to the item."
+            ),
+            'shop_category_button': (
+                "Click one of these buttons to show only items from that category. "
+                "This helps you find what you're looking for faster."
+            ),
+            'rewards_tab': (
+                "This tab shows all the things you can unlock, like custom cursors, "
+                "themes, and panda outfits. Each item shows what you need to do to get it!"
+            ),
+            'closet_tab': (
+                "This is where you dress up your panda companion! Choose from outfits "
+                "and accessories you've unlocked to make your panda look unique."
+            ),
+            'browser_browse_button': (
+                "Click this button to open a folder picker. Navigate to the folder "
+                "where your texture files are stored to browse them."
+            ),
+            'browser_refresh_button': (
+                "Click this to reload the list of files. Use it if you've added or "
+                "removed files while the browser is open."
+            ),
+            'browser_search': (
+                "Type a file name (or part of one) here to filter the file list. "
+                "Only files matching what you type will be shown."
+            ),
+            'browser_show_all': (
+                "By default, only texture files are shown. Check this box to see "
+                "ALL files in the folder, including non-texture files."
+            ),
         }
     
     def _get_vulgar_panda_tooltips(self) -> Dict[str, Any]:
@@ -647,7 +710,17 @@ class TooltipVerbosityManager:
             'style_dropdown': "How do you want your stuff organized? Pick one, any one.",
             'settings_button': "Tweak sh*t. Make it yours. Go nuts.",
             'theme_button': "Dark mode = hacker vibes. Light mode = boomer energy.",
-            'help_button': "Lost? Confused? Click here, we'll hold your hand."
+            'help_button': "Lost? Confused? Click here, we'll hold your hand.",
+            'achievements_tab': "Check your trophies, you overachiever.",
+            'shop_tab': "This is the loot cave. Spend your shiny points, idiot.",
+            'shop_buy_button': "Yeet your money at this item. Do it.",
+            'shop_category_button': "Filter the shop. Because scrolling is for peasants.",
+            'rewards_tab': "Your loot table. See what you can unlock.",
+            'closet_tab': "Dress up your panda. Fashion show time.",
+            'browser_browse_button': "Pick a folder. Any folder. Let's see what's inside.",
+            'browser_refresh_button': "Refresh. In case something magically changed.",
+            'browser_search': "Find your damn files. Type something.",
+            'browser_show_all': "Show EVERYTHING. Even the weird files."
         }
         
         # Pull from PandaMode TOOLTIPS if available
