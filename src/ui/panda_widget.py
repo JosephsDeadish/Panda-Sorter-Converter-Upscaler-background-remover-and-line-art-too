@@ -1592,6 +1592,23 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
         '📿': '#FFD700', '🕶️': '#1a1a1a', '💎': '#00CED1', '🎗️': '#FFFF00',
         '🧤': '#8B4513', '👞': '#8B4513', '👟': '#FFFFFF', '👠': '#FF0000',
         '🥾': '#556B2F', '👢': '#8B4513', '🩴': '#FFD700',
+        # Additional emojis for new closet items
+        '🎍': '#2E8B57', '🏋️': '#FF6347', '🌺': '#FF69B4', '🏴‍☠️': '#1a1a1a',
+        '⚔️': '#808080', '😇': '#FFD700', '🕵️': '#8B4513', '🥷': '#333333',
+        '🪐': '#C0C0C0', '⛩️': '#B22222', '🌀': '#4682B4', '🎨': '#FF4500',
+        '🌮': '#DAA520', '🚒': '#FF0000', '🎓': '#1a1a1a', '👸': '#FFD700',
+        '🌾': '#D2B48C', '❄️': '#ADD8E6', '🏃': '#FF6347', '🐾': '#8B4513',
+        '⛸️': '#C0C0C0', '🛼': '#FF69B4', '🏔️': '#8B4513', '✨': '#FFD700',
+        '🤠': '#8B4513', '🩰': '#FFB6C1', '🌙': '#4169E1', '📐': '#8B0000',
+        '⛷️': '#4169E1', '🛡️': '#808080', '💡': '#00FF00', '🐰': '#FFB6C1',
+        '🔥': '#FF4500', '🎋': '#2E8B57', '🐼': '#1a1a1a', '🤝': '#FFD700',
+        '🎖️': '#FFD700', '🍀': '#2E8B57', '⭐': '#FFD700', '🔔': '#FFD700',
+        '💍': '#C0C0C0', '🪶': '#FF69B4', '🕰️': '#8B4513', '🪄': '#9370DB',
+        '🦪': '#FAEBD7', '🏴': '#1a1a1a', '🧭': '#DAA520', '📸': '#333333',
+        '🔭': '#8B4513', '🧶': '#FF6347', '👖': '#4169E1', '🏛️': '#FFFFFF',
+        '🚀': '#C0C0C0', '🏅': '#FFD700', '🤵': '#1a1a1a', '🩳': '#87CEEB',
+        '🏀': '#FF8C00', '🦸‍♂️': '#FF0000', '🦸': '#FF0000', '🧐': '#FFD700',
+        '🌸': '#FFB6C1', '🎧': '#333333', '🎒': '#FF6347', '👼': '#FFFFFF',
     }
 
     @staticmethod
@@ -1600,74 +1617,166 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
         return PandaWidget._EMOJI_COLORS.get(emoji, fallback)
 
     def _draw_equipped_items(self, c: tk.Canvas, cx: int, by: float, sx: float, sy: float):
-        """Draw equipped closet items as actual shapes on the panda body."""
+        """Draw equipped closet items as fitted shapes on the panda body.
+
+        Items are drawn with enough detail so they look like the panda is
+        actually wearing them, using layered shapes, highlights and shadows.
+        """
         if not self.panda_closet:
             return
         try:
             appearance = self.panda_closet.get_current_appearance()
 
-            # Draw hat as colored shape on top of head
-            if appearance.hat:
-                hat_item = self.panda_closet.get_item(appearance.hat)
-                if hat_item:
-                    color = self._color_for_emoji(hat_item.emoji, '#1a1a1a')
-                    hat_y = int(18 * sy + by)
-                    # Hat brim
-                    c.create_rectangle(
-                        cx - int(30 * sx), hat_y,
-                        cx + int(30 * sx), hat_y + int(6 * sy),
-                        fill=color, outline='#111111', width=1, tags="equipped_hat")
-                    # Hat crown
-                    c.create_rectangle(
-                        cx - int(18 * sx), hat_y - int(18 * sy),
-                        cx + int(18 * sx), hat_y,
-                        fill=color, outline='#111111', width=1, tags="equipped_hat")
-
-            # Draw clothing as shirt polygon on body
+            # --- Draw clothing (shirt / outfit on torso) ---
             if appearance.clothing:
                 clothing_item = self.panda_closet.get_item(appearance.clothing)
                 if clothing_item:
                     color = self._color_for_emoji(clothing_item.emoji, '#4169E1')
-                    bt = int(85 * sy + by)
-                    bb = int(150 * sy + by)
-                    c.create_polygon(
-                        cx - int(38 * sx), bt,
-                        cx - int(42 * sx), bt + int(15 * sy),
-                        cx - int(35 * sx), bb,
-                        cx + int(35 * sx), bb,
-                        cx + int(42 * sx), bt + int(15 * sy),
-                        cx + int(38 * sx), bt,
-                        fill=color, outline='#333333', width=1, tags="equipped_clothing")
+                    # Darken for shadow, lighten for highlight
+                    shadow = self._shade_color(color, -30)
+                    highlight = self._shade_color(color, 40)
 
-            # Draw accessories as shapes near neck
+                    bt = int(82 * sy + by)   # body top (below neck)
+                    bb = int(152 * sy + by)  # body bottom
+                    mid = (bt + bb) // 2
+
+                    # Main shirt body - follows torso curve
+                    c.create_polygon(
+                        cx - int(38 * sx), bt,                        # left shoulder
+                        cx - int(42 * sx), bt + int(12 * sy),         # left armhole
+                        cx - int(40 * sx), mid,                       # left waist
+                        cx - int(36 * sx), bb,                        # left hem
+                        cx + int(36 * sx), bb,                        # right hem
+                        cx + int(40 * sx), mid,                       # right waist
+                        cx + int(42 * sx), bt + int(12 * sy),         # right armhole
+                        cx + int(38 * sx), bt,                        # right shoulder
+                        fill=color, outline=shadow, width=1,
+                        smooth=True, tags="equipped_clothing")
+
+                    # Collar / neckline
+                    c.create_arc(
+                        cx - int(16 * sx), bt - int(6 * sy),
+                        cx + int(16 * sx), bt + int(10 * sy),
+                        start=200, extent=140, style="arc",
+                        outline=shadow, width=2, tags="equipped_clothing")
+
+                    # Centre highlight stripe
+                    c.create_line(
+                        cx, bt + int(8 * sy), cx, bb - int(4 * sy),
+                        fill=highlight, width=1, tags="equipped_clothing")
+
+                    # Small sleeve caps on shoulders
+                    for side in (-1, 1):
+                        sleeve_cx = cx + side * int(40 * sx)
+                        c.create_oval(
+                            sleeve_cx - int(10 * sx), bt + int(2 * sy),
+                            sleeve_cx + int(10 * sx), bt + int(18 * sy),
+                            fill=color, outline=shadow, width=1,
+                            tags="equipped_clothing")
+
+            # --- Draw hat on top of head ---
+            if appearance.hat:
+                hat_item = self.panda_closet.get_item(appearance.hat)
+                if hat_item:
+                    color = self._color_for_emoji(hat_item.emoji, '#1a1a1a')
+                    shadow = self._shade_color(color, -30)
+                    highlight = self._shade_color(color, 50)
+
+                    hat_y = int(20 * sy + by)
+
+                    # Hat brim - wider, slightly rounded
+                    c.create_oval(
+                        cx - int(34 * sx), hat_y - int(2 * sy),
+                        cx + int(34 * sx), hat_y + int(8 * sy),
+                        fill=color, outline=shadow, width=1, tags="equipped_hat")
+
+                    # Hat crown - rounded top
+                    c.create_oval(
+                        cx - int(22 * sx), hat_y - int(22 * sy),
+                        cx + int(22 * sx), hat_y + int(4 * sy),
+                        fill=color, outline=shadow, width=1, tags="equipped_hat")
+
+                    # Hat band / ribbon detail
+                    c.create_rectangle(
+                        cx - int(22 * sx), hat_y - int(4 * sy),
+                        cx + int(22 * sx), hat_y + int(1 * sy),
+                        fill=shadow, outline='', tags="equipped_hat")
+
+                    # Highlight on crown
+                    c.create_arc(
+                        cx - int(14 * sx), hat_y - int(20 * sy),
+                        cx + int(6 * sx), hat_y - int(8 * sy),
+                        start=20, extent=140, style="arc",
+                        outline=highlight, width=1, tags="equipped_hat")
+
+            # --- Draw accessories near neck / upper body ---
             if appearance.accessories:
                 for i, acc_id in enumerate(appearance.accessories[:2]):
                     acc_item = self.panda_closet.get_item(acc_id)
                     if acc_item:
                         color = self._color_for_emoji(acc_item.emoji, '#FF69B4')
+                        shadow = self._shade_color(color, -25)
                         neck_y = int(78 * sy + by)
-                        # Bow-tie / scarf shape
                         ox = int((-12 + i * 24) * sx)
-                        c.create_polygon(
-                            cx + ox, neck_y - int(5 * sy),
-                            cx + ox - int(8 * sx), neck_y,
-                            cx + ox, neck_y + int(5 * sy),
-                            cx + ox + int(8 * sx), neck_y,
-                            fill=color, outline='#333333', width=1, tags="equipped_acc")
 
-            # Draw shoes as colored ovals at feet
+                        # Diamond-shaped pendant / bow
+                        pts = [
+                            cx + ox, neck_y - int(7 * sy),
+                            cx + ox - int(10 * sx), neck_y,
+                            cx + ox, neck_y + int(7 * sy),
+                            cx + ox + int(10 * sx), neck_y,
+                        ]
+                        c.create_polygon(
+                            *pts, fill=color, outline=shadow, width=1,
+                            tags="equipped_acc")
+
+                        # Inner shine dot
+                        c.create_oval(
+                            cx + ox - int(2 * sx), neck_y - int(2 * sy),
+                            cx + ox + int(2 * sx), neck_y + int(2 * sy),
+                            fill=self._shade_color(color, 60), outline='',
+                            tags="equipped_acc")
+
+            # --- Draw shoes at feet ---
             if appearance.shoes:
                 shoes_item = self.panda_closet.get_item(appearance.shoes)
                 if shoes_item:
                     color = self._color_for_emoji(shoes_item.emoji, '#8B4513')
-                    shoe_y = int(172 * sy + by)
+                    shadow = self._shade_color(color, -30)
+                    highlight = self._shade_color(color, 40)
+                    shoe_y = int(170 * sy + by)
+
                     for shoe_cx in [cx - int(25 * sx), cx + int(25 * sx)]:
+                        # Shoe body
                         c.create_oval(
-                            shoe_cx - int(14 * sx), shoe_y,
-                            shoe_cx + int(14 * sx), shoe_y + int(10 * sy),
-                            fill=color, outline='#333333', width=1, tags="equipped_shoes")
+                            shoe_cx - int(15 * sx), shoe_y,
+                            shoe_cx + int(15 * sx), shoe_y + int(12 * sy),
+                            fill=color, outline=shadow, width=1,
+                            tags="equipped_shoes")
+                        # Sole
+                        c.create_rectangle(
+                            shoe_cx - int(14 * sx), shoe_y + int(8 * sy),
+                            shoe_cx + int(14 * sx), shoe_y + int(12 * sy),
+                            fill=shadow, outline='', tags="equipped_shoes")
+                        # Lace / highlight
+                        c.create_line(
+                            shoe_cx - int(4 * sx), shoe_y + int(3 * sy),
+                            shoe_cx + int(4 * sx), shoe_y + int(3 * sy),
+                            fill=highlight, width=1, tags="equipped_shoes")
         except Exception as e:
             logger.debug(f"Error drawing equipped items: {e}")
+
+    @staticmethod
+    def _shade_color(hex_color: str, amount: int) -> str:
+        """Lighten (positive) or darken (negative) a hex color by *amount*."""
+        try:
+            hex_color = hex_color.lstrip('#')
+            r = max(0, min(255, int(hex_color[0:2], 16) + amount))
+            g = max(0, min(255, int(hex_color[2:4], 16) + amount))
+            b = max(0, min(255, int(hex_color[4:6], 16) + amount))
+            return f'#{r:02x}{g:02x}{b:02x}'
+        except Exception:
+            return hex_color
     
     def _draw_animation_extras(self, c: tk.Canvas, cx: int, by: float,
                                 anim: str, frame_idx: int, sx: float = 1.0, sy: float = 1.0):
