@@ -571,6 +571,86 @@ class ShopSystem:
             level_required=1,
             unlockable_id='clothes_pajamas'
         ),
+        'clothes_raincoat': ShopItem(
+            id='clothes_raincoat',
+            name='Yellow Raincoat',
+            description='Stay dry and stylish in the rain',
+            category=ShopCategory.CLOTHES,
+            price=125,
+            icon='🧥',
+            level_required=3,
+            unlockable_id='clothes_raincoat'
+        ),
+        'clothes_tuxedo': ShopItem(
+            id='clothes_tuxedo',
+            name='Fancy Tuxedo',
+            description='Black tie panda event ready',
+            category=ShopCategory.CLOTHES,
+            price=450,
+            icon='🤵',
+            level_required=12,
+            unlockable_id='clothes_tuxedo'
+        ),
+        'clothes_overalls': ShopItem(
+            id='clothes_overalls',
+            name='Denim Overalls',
+            description='Hardworking farmer panda look',
+            category=ShopCategory.CLOTHES,
+            price=90,
+            icon='👖',
+            level_required=2,
+            unlockable_id='clothes_overalls'
+        ),
+        'clothes_vest': ShopItem(
+            id='clothes_vest',
+            name='Adventure Vest',
+            description='Pockets for all your bamboo snacks',
+            category=ShopCategory.CLOTHES,
+            price=175,
+            icon='🦺',
+            level_required=5,
+            unlockable_id='clothes_vest'
+        ),
+        'clothes_sweater': ShopItem(
+            id='clothes_sweater',
+            name='Cozy Sweater',
+            description='Warm knit sweater for chilly days',
+            category=ShopCategory.CLOTHES,
+            price=110,
+            icon='🧶',
+            level_required=3,
+            unlockable_id='clothes_sweater'
+        ),
+        'clothes_jersey': ShopItem(
+            id='clothes_jersey',
+            name='Sports Jersey',
+            description='Go team panda!',
+            category=ShopCategory.CLOTHES,
+            price=200,
+            icon='🏅',
+            level_required=6,
+            unlockable_id='clothes_jersey'
+        ),
+        'clothes_toga': ShopItem(
+            id='clothes_toga',
+            name='Ancient Toga',
+            description='Philosopher panda contemplates textures',
+            category=ShopCategory.CLOTHES,
+            price=275,
+            icon='🏛️',
+            level_required=8,
+            unlockable_id='clothes_toga'
+        ),
+        'clothes_spacesuit': ShopItem(
+            id='clothes_spacesuit',
+            name='Space Suit',
+            description='One small step for panda, one giant leap for textures',
+            category=ShopCategory.CLOTHES,
+            price=600,
+            icon='🚀',
+            level_required=15,
+            unlockable_id='clothes_spacesuit'
+        ),
         
         # Accessories
         'acc_sunglasses': ShopItem(
@@ -924,46 +1004,6 @@ class ShopSystem:
             level_required=8,
             unlockable_id='clothes_dress'
         ),
-        'clothes_overalls': ShopItem(
-            id='clothes_overalls',
-            name='Denim Overalls',
-            description='Casual and cute overalls',
-            category=ShopCategory.CLOTHES,
-            price=120,
-            icon='👖',
-            level_required=3,
-            unlockable_id='clothes_overalls'
-        ),
-        'clothes_raincoat': ShopItem(
-            id='clothes_raincoat',
-            name='Rainbow Raincoat',
-            description='Stay dry in style!',
-            category=ShopCategory.CLOTHES,
-            price=200,
-            icon='🌂',
-            level_required=5,
-            unlockable_id='clothes_raincoat'
-        ),
-        'clothes_vest': ShopItem(
-            id='clothes_vest',
-            name='Cozy Vest',
-            description='A warm and fluffy vest',
-            category=ShopCategory.CLOTHES,
-            price=90,
-            icon='🧶',
-            level_required=2,
-            unlockable_id='clothes_vest'
-        ),
-        'clothes_tuxedo': ShopItem(
-            id='clothes_tuxedo',
-            name='Elegant Tuxedo',
-            description='Black tie panda elegance',
-            category=ShopCategory.CLOTHES,
-            price=600,
-            icon='🤵',
-            level_required=15,
-            unlockable_id='clothes_tuxedo'
-        ),
         'clothes_sports_jersey': ShopItem(
             id='clothes_sports_jersey',
             name='Sports Jersey',
@@ -973,16 +1013,6 @@ class ShopSystem:
             icon='🏅',
             level_required=4,
             unlockable_id='clothes_sports_jersey'
-        ),
-        'clothes_sweater': ShopItem(
-            id='clothes_sweater',
-            name='Knit Sweater',
-            description='Grandma-made with love',
-            category=ShopCategory.CLOTHES,
-            price=100,
-            icon='🧣',
-            level_required=2,
-            unlockable_id='clothes_sweater'
         ),
 
         # Additional Accessories

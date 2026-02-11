@@ -74,6 +74,13 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
     # Reset frame counter at this value to prevent unbounded growth
     MAX_ANIMATION_FRAME = 10000
     
+    # Drag pattern detection thresholds
+    DRAG_HISTORY_SECONDS = 1.5      # How long to retain drag positions
+    SHAKE_DIRECTION_CHANGES = 6     # X direction changes needed for shaking
+    MIN_SHAKE_MOVEMENT = 2          # Min px movement for a direction change
+    MIN_ROTATION_ANGLE = 0.05       # Min angle diff (radians) for spin detection
+    SPIN_CONSISTENCY_THRESHOLD = 0.7  # Required ratio of consistent rotations
+    
     # Emoji decorations shown next to the panda for each animation type
     ANIMATION_EMOJIS = {
         'working': ['💼', '⚙️', '📊', '💻', '☕'],
@@ -89,6 +96,9 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
         'playing': ['🎾', '🎮', '⚽', '🏀', '🎯'],
         'eating': ['🍱', '🎋', '🍃', '😋', '🍜'],
         'customizing': ['✨', '👔', '🎀', '💅', '🪞'],
+        'spinning': ['🌀', '💫', '😵‍💫', '🌪️', '🔄'],
+        'shaking': ['😵', '🫨', '💫', '😰', '🤪'],
+        'rolling': ['🌀', '💫', '😵', '🔄', '⭐'],
     }
     
     def __init__(self, parent, panda_character=None, panda_level_system=None,
@@ -120,6 +130,8 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
         self.drag_start_y = 0
         self.is_dragging = False
         self._drag_moved = False  # Track if actual movement occurred
+        # Track drag positions for pattern detection
+        self._drag_positions = []  # list of (x, y, time) tuples
         self._last_drag_time = 0  # Throttle drag events (ms)
         
         # Configure frame - TRANSPARENT background
@@ -368,11 +380,10 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
             justify="center", tags="text"
         )
 
-        # Place bubble above panda canvas (pack before canvas)
-        bc.pack_forget()
-        self.panda_canvas.pack_forget()
-        bc.pack(pady=(0, 0))
-        self.panda_canvas.pack(pady=4, padx=4)
+        # Place bubble above panda canvas using place for fixed positioning
+        # to avoid layout re-flow that causes the widget to resize
+        if not bc.winfo_ismapped():
+            bc.pack(pady=(0, 0), before=self.panda_canvas)
 
         # Auto-hide after a delay
         if self._speech_timer:
@@ -452,6 +463,18 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
             leg_swing = 0
             arm_swing = math.sin(phase) * 6
             body_bob = math.sin(phase) * 3
+        elif anim == 'spinning':
+            leg_swing = math.sin(phase * 3) * 12
+            arm_swing = math.sin(phase * 3 + math.pi/2) * 14
+            body_bob = math.sin(phase * 2) * 5
+        elif anim == 'shaking':
+            leg_swing = math.sin(phase * 5) * 6
+            arm_swing = math.sin(phase * 5) * 8
+            body_bob = math.sin(phase * 6) * 3
+        elif anim == 'rolling':
+            leg_swing = math.sin(phase * 2) * 15
+            arm_swing = math.cos(phase * 2) * 15
+            body_bob = math.sin(phase) * 8
         else:
             # Default walking for clicked, fed, etc.
             leg_swing = math.sin(phase) * 8
@@ -479,6 +502,12 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
             eye_style = 'wink' if frame_idx % 4 < 2 else 'surprised'
         elif anim in ('playing', 'eating', 'customizing'):
             eye_style = 'happy'
+        elif anim == 'spinning':
+            eye_style = 'spinning'
+        elif anim == 'shaking':
+            eye_style = 'dizzy'
+        elif anim == 'rolling':
+            eye_style = 'rolling'
         
         # --- Determine mouth style ---
         mouth_style = 'normal'
@@ -702,6 +731,45 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
                           fill="white", outline="", tags="eye")
             c.create_oval(right_ex - ps, ey - ps, right_ex + ps, ey + ps,
                           fill="#222222", outline="", tags="pupil")
+        elif style == 'spinning':
+            # Swirly spiral eyes
+            for ex_pos in [left_ex, right_ex]:
+                # Draw spiral-like circle
+                r = int(5 * sx)
+                c.create_oval(ex_pos - r, ey - r, ex_pos + r, ey + r,
+                              fill="white", outline="", tags="eye")
+                # Inner spiral dots
+                c.create_text(ex_pos, ey, text="@", font=("Arial", int(8 * sx)),
+                              fill="#222222", tags="pupil")
+        elif style == 'rolling':
+            # Eyes rolling around
+            offset = int(4 * sx * math.sin(self.animation_frame * 0.5))
+            v_offset = int(3 * sy * math.cos(self.animation_frame * 0.5))
+            for ex_pos in [left_ex, right_ex]:
+                c.create_oval(ex_pos - es, ey - es, ex_pos + es, ey + es,
+                              fill="white", outline="", tags="eye")
+                c.create_oval(ex_pos + offset - ps, ey + v_offset - ps,
+                              ex_pos + offset + ps, ey + v_offset + ps,
+                              fill="#222222", outline="", tags="pupil")
+        elif style == 'squint':
+            # Squinting eyes
+            for ex_pos in [left_ex, right_ex]:
+                c.create_oval(ex_pos - int(5 * sx), ey - int(2 * sy),
+                              ex_pos + int(5 * sx), ey + int(2 * sy),
+                              fill="white", outline="", tags="eye")
+                c.create_oval(ex_pos - int(2 * sx), ey - int(1 * sy),
+                              ex_pos + int(2 * sx), ey + int(1 * sy),
+                              fill="#222222", outline="", tags="pupil")
+        elif style == 'sparkle':
+            # Sparkly star eyes
+            for ex_pos in [left_ex, right_ex]:
+                c.create_text(ex_pos, ey, text="★", font=("Arial", int(10 * sx)),
+                              fill="white", tags="eye")
+        elif style == 'heart':
+            # Heart eyes
+            for ex_pos in [left_ex, right_ex]:
+                c.create_text(ex_pos, ey, text="♥", font=("Arial", int(10 * sx)),
+                              fill="#FF69B4", tags="eye")
         else:
             # Normal round eyes with pupils and shine
             c.create_oval(left_ex - es, ey - es, left_ex + es, ey + es,
@@ -749,6 +817,19 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
         elif style == 'eating':
             c.create_oval(cx - int(5 * sx), my - int(2 * sy), cx + int(5 * sx), my + int(5 * sy),
                           fill="#333333", outline="#333333", tags="mouth")
+        elif style == 'open_wide':
+            c.create_oval(cx - int(6 * sx), my - int(4 * sy), cx + int(6 * sx), my + int(7 * sy),
+                          fill="#333333", outline="#333333", tags="mouth")
+        elif style == 'tongue':
+            c.create_arc(cx - ms, my - int(6 * sy), cx + ms, my + int(6 * sy),
+                         start=200, extent=140, style="arc",
+                         outline="#333333", width=2, tags="mouth")
+            c.create_oval(cx - int(3 * sx), my + int(2 * sy), cx + int(3 * sx), my + int(7 * sy),
+                          fill="#FF69B4", outline="#FF69B4", tags="tongue")
+        elif style == 'grin':
+            c.create_arc(cx - int(10 * sx), my - int(8 * sy), cx + int(10 * sx), my + int(8 * sy),
+                         start=200, extent=140, style="arc",
+                         outline="#333333", width=2, tags="mouth")
         else:
             c.create_arc(cx - int(5 * sx), my - int(3 * sy), cx + int(5 * sx), my + int(4 * sy),
                          start=210, extent=120, style="arc",
@@ -825,6 +906,14 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
             return
         self._last_drag_time = now
         
+        # Track position for drag pattern detection
+        self._drag_positions.append((event.x_root, event.y_root, now))
+        # Keep only recent positions
+        self._drag_positions = [(x, y, t) for x, y, t in self._drag_positions if now - t < self.DRAG_HISTORY_SECONDS]
+        
+        # Detect drag patterns
+        self._detect_drag_patterns()
+        
         # Check if we've moved enough to count as a real drag
         distance = ((event.x - self.drag_start_x) ** 2 + (event.y - self.drag_start_y) ** 2) ** 0.5
         if distance < self.CLICK_THRESHOLD:
@@ -880,6 +969,62 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
                     response = self.panda.on_wall_hit() if hasattr(self.panda, 'on_wall_hit') else "🐼 Ouch!"
                     self.info_label.configure(text=response)
     
+    def _detect_drag_patterns(self):
+        """Detect circular or shaking drag patterns."""
+        if len(self._drag_positions) < 8:
+            return
+        
+        positions = self._drag_positions
+        
+        # Detect fast side-to-side shaking (rapid X direction changes)
+        x_direction_changes = 0
+        for i in range(2, len(positions)):
+            dx_prev = positions[i-1][0] - positions[i-2][0]
+            dx_curr = positions[i][0] - positions[i-1][0]
+            if dx_prev * dx_curr < 0 and abs(dx_curr) > self.MIN_SHAKE_MOVEMENT:
+                x_direction_changes += 1
+        
+        if x_direction_changes >= self.SHAKE_DIRECTION_CHANGES:
+            self._set_animation_no_cancel('shaking')
+            if self.panda:
+                response = self.panda.on_shake() if hasattr(self.panda, 'on_shake') else "🐼 S-s-stop shaking me!"
+                self.info_label.configure(text=response)
+            self._drag_positions = []
+            return
+        
+        # Detect circular dragging (consistent angle rotation)
+        if len(positions) >= 12:
+            angles = []
+            cx = sum(p[0] for p in positions) / len(positions)
+            cy = sum(p[1] for p in positions) / len(positions)
+            for p in positions:
+                angle = math.atan2(p[1] - cy, p[0] - cx)
+                angles.append(angle)
+            
+            # Check for consistent rotation direction
+            positive_diffs = 0
+            negative_diffs = 0
+            for i in range(1, len(angles)):
+                diff = angles[i] - angles[i-1]
+                # Normalize to [-pi, pi]
+                while diff > math.pi:
+                    diff -= 2 * math.pi
+                while diff < -math.pi:
+                    diff += 2 * math.pi
+                if diff > self.MIN_ROTATION_ANGLE:
+                    positive_diffs += 1
+                elif diff < -self.MIN_ROTATION_ANGLE:
+                    negative_diffs += 1
+            
+            total = positive_diffs + negative_diffs
+            if total > 0 and (positive_diffs / total > self.SPIN_CONSISTENCY_THRESHOLD or negative_diffs / total > self.SPIN_CONSISTENCY_THRESHOLD):
+                self._set_animation_no_cancel('spinning')
+                if self.panda:
+                    response = self.panda.on_spin() if hasattr(self.panda, 'on_spin') else "🐼 I'm getting dizzy! 🌀"
+                    self.info_label.configure(text=response)
+                self._drag_positions = []
+                return
+
     def _on_drag_end(self, event):
         """Handle end of drag operation."""
         if not self.is_dragging:
