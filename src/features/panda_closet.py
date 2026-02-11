@@ -349,6 +349,310 @@ class PandaCloset:
             'vest', 'Stylish Vest', CustomizationCategory.CLOTHING,
             '🦺', 'Layered look', ItemRarity.COMMON, 60, False, False
         ),
+
+        # New Fur Colors - Free
+        'silver': CustomizationItem(
+            'silver', 'Silver Panda', CustomizationCategory.FUR_COLOR,
+            '⬜', 'Shimmering silver fur', ItemRarity.COMMON, 0, True, False
+        ),
+        'cinnamon': CustomizationItem(
+            'cinnamon', 'Cinnamon Panda', CustomizationCategory.FUR_COLOR,
+            '🟫', 'Warm cinnamon brown', ItemRarity.COMMON, 0, True, False
+        ),
+        'midnight': CustomizationItem(
+            'midnight', 'Midnight Panda', CustomizationCategory.FUR_COLOR,
+            '🌑', 'Deep midnight blue-black', ItemRarity.COMMON, 0, True, False
+        ),
+        # New Fur Colors - Achievement Rewards
+        'rose_gold': CustomizationItem(
+            'rose_gold', 'Rose Gold Panda', CustomizationCategory.FUR_COLOR,
+            '🌹', 'Elegant rose gold', ItemRarity.RARE, 0, False, False
+        ),
+        'lavender': CustomizationItem(
+            'lavender', 'Lavender Panda', CustomizationCategory.FUR_COLOR,
+            '💜', 'Soft lavender fur', ItemRarity.UNCOMMON, 0, False, False
+        ),
+        'arctic_white': CustomizationItem(
+            'arctic_white', 'Arctic White Panda', CustomizationCategory.FUR_COLOR,
+            '❄️', 'Pure arctic white', ItemRarity.RARE, 0, False, False
+        ),
+        'copper': CustomizationItem(
+            'copper', 'Copper Panda', CustomizationCategory.FUR_COLOR,
+            '🟠', 'Warm copper tones', ItemRarity.UNCOMMON, 0, False, False
+        ),
+        'emerald': CustomizationItem(
+            'emerald', 'Emerald Panda', CustomizationCategory.FUR_COLOR,
+            '💚', 'Jewel-toned emerald green', ItemRarity.EPIC, 0, False, False
+        ),
+        # New Fur Colors - Shop
+        'cherry_blossom': CustomizationItem(
+            'cherry_blossom', 'Cherry Blossom Panda', CustomizationCategory.FUR_COLOR,
+            '🌸', 'Pink cherry blossom fur', ItemRarity.RARE, 300, False, False
+        ),
+        'ocean_blue': CustomizationItem(
+            'ocean_blue', 'Ocean Blue Panda', CustomizationCategory.FUR_COLOR,
+            '🌊', 'Deep ocean blue', ItemRarity.RARE, 350, False, False
+        ),
+        'sunset_orange': CustomizationItem(
+            'sunset_orange', 'Sunset Orange Panda', CustomizationCategory.FUR_COLOR,
+            '🌅', 'Warm sunset orange', ItemRarity.UNCOMMON, 200, False, False
+        ),
+        'neon_green': CustomizationItem(
+            'neon_green', 'Neon Green Panda', CustomizationCategory.FUR_COLOR,
+            '💚', 'Electric neon green', ItemRarity.RARE, 400, False, False
+        ),
+        'ice_crystal': CustomizationItem(
+            'ice_crystal', 'Ice Crystal Panda', CustomizationCategory.FUR_COLOR,
+            '🧊', 'Translucent ice blue', ItemRarity.EPIC, 600, False, False
+        ),
+        'volcanic': CustomizationItem(
+            'volcanic', 'Volcanic Panda', CustomizationCategory.FUR_COLOR,
+            '🌋', 'Fiery volcanic red-orange', ItemRarity.EPIC, 700, False, False
+        ),
+        'starlight': CustomizationItem(
+            'starlight', 'Starlight Panda', CustomizationCategory.FUR_COLOR,
+            '⭐', 'Twinkling starlight white', ItemRarity.LEGENDARY, 1200, False, False
+        ),
+        'shadow': CustomizationItem(
+            'shadow', 'Shadow Panda', CustomizationCategory.FUR_COLOR,
+            '🖤', 'Deep shadow black', ItemRarity.RARE, 350, False, False
+        ),
+        'cotton_candy': CustomizationItem(
+            'cotton_candy', 'Cotton Candy Panda', CustomizationCategory.FUR_COLOR,
+            '🍬', 'Pastel cotton candy pink and blue', ItemRarity.EPIC, 550, False, False
+        ),
+        'phantom': CustomizationItem(
+            'phantom', 'Phantom Panda', CustomizationCategory.FUR_COLOR,
+            '👻', 'Ghostly translucent white', ItemRarity.LEGENDARY, 1800, False, False
+        ),
+
+        # New Hats - Free
+        'bamboo_hat': CustomizationItem(
+            'bamboo_hat', 'Bamboo Hat', CustomizationCategory.HAT,
+            '🎍', 'Traditional bamboo hat', ItemRarity.COMMON, 0, True, False
+        ),
+        'headband': CustomizationItem(
+            'headband', 'Sports Headband', CustomizationCategory.HAT,
+            '🏋️', 'Athletic headband', ItemRarity.COMMON, 0, True, False
+        ),
+        'flower_crown_hat': CustomizationItem(
+            'flower_crown_hat', 'Flower Crown', CustomizationCategory.HAT,
+            '🌺', 'Beautiful flower crown', ItemRarity.COMMON, 0, True, False
+        ),
+        # New Hats - Achievement Rewards
+        'pirate_hat': CustomizationItem(
+            'pirate_hat', 'Pirate Hat', CustomizationCategory.HAT,
+            '🏴‍☠️', 'Arr! A classic pirate hat', ItemRarity.RARE, 0, False, False
+        ),
+        'viking_helmet': CustomizationItem(
+            'viking_helmet', 'Viking Helmet', CustomizationCategory.HAT,
+            '⚔️', 'Nordic warrior helmet', ItemRarity.RARE, 0, False, False
+        ),
+        'halo': CustomizationItem(
+            'halo', 'Angel Halo', CustomizationCategory.HAT,
+            '😇', 'Glowing golden halo', ItemRarity.EPIC, 0, False, False
+        ),
+        'detective_hat': CustomizationItem(
+            'detective_hat', 'Detective Hat', CustomizationCategory.HAT,
+            '🕵️', 'Sherlock-style deerstalker', ItemRarity.UNCOMMON, 0, False, False
+        ),
+        'ninja_mask': CustomizationItem(
+            'ninja_mask', 'Ninja Mask', CustomizationCategory.HAT,
+            '🥷', 'Stealthy ninja mask', ItemRarity.RARE, 0, False, False
+        ),
+        # New Hats - Shop
+        'space_helmet': CustomizationItem(
+            'space_helmet', 'Space Helmet', CustomizationCategory.HAT,
+            '🪐', 'Astronaut bubble helmet', ItemRarity.EPIC, 500, False, False
+        ),
+        'samurai_helmet': CustomizationItem(
+            'samurai_helmet', 'Samurai Helmet', CustomizationCategory.HAT,
+            '⛩️', 'Ancient samurai kabuto', ItemRarity.EPIC, 600, False, False
+        ),
+        'propeller_hat': CustomizationItem(
+            'propeller_hat', 'Propeller Hat', CustomizationCategory.HAT,
+            '🌀', 'Fun spinning propeller', ItemRarity.UNCOMMON, 150, False, False
+        ),
+        'beret': CustomizationItem(
+            'beret', 'Artist Beret', CustomizationCategory.HAT,
+            '🎨', 'French artist beret', ItemRarity.UNCOMMON, 120, False, False
+        ),
+        'sombrero': CustomizationItem(
+            'sombrero', 'Sombrero', CustomizationCategory.HAT,
+            '🌮', 'Festive wide-brim sombrero', ItemRarity.RARE, 250, False, False
+        ),
+        'firefighter_hat': CustomizationItem(
+            'firefighter_hat', 'Firefighter Helmet', CustomizationCategory.HAT,
+            '🚒', 'Brave firefighter helmet', ItemRarity.RARE, 300, False, False
+        ),
+        'graduation_cap': CustomizationItem(
+            'graduation_cap', 'Graduation Cap', CustomizationCategory.HAT,
+            '🎓', 'Academic mortarboard', ItemRarity.UNCOMMON, 180, False, False
+        ),
+        'tiara': CustomizationItem(
+            'tiara', 'Princess Tiara', CustomizationCategory.HAT,
+            '👸', 'Sparkling princess tiara', ItemRarity.EPIC, 450, False, False
+        ),
+        'straw_hat': CustomizationItem(
+            'straw_hat', 'Straw Hat', CustomizationCategory.HAT,
+            '🌾', 'Simple straw hat', ItemRarity.COMMON, 50, False, False
+        ),
+        'ice_crown': CustomizationItem(
+            'ice_crown', 'Ice Crown', CustomizationCategory.HAT,
+            '❄️', 'Frozen crystal crown', ItemRarity.LEGENDARY, 1500, False, False
+        ),
+
+        # New Shoes - Free
+        'bamboo_sandals': CustomizationItem(
+            'bamboo_sandals', 'Bamboo Sandals', CustomizationCategory.SHOES,
+            '🩴', 'Traditional bamboo sandals', ItemRarity.COMMON, 0, True, False
+        ),
+        'running_shoes': CustomizationItem(
+            'running_shoes', 'Running Shoes', CustomizationCategory.SHOES,
+            '🏃', 'Lightweight running shoes', ItemRarity.COMMON, 0, True, False
+        ),
+        'flip_flops': CustomizationItem(
+            'flip_flops', 'Panda Flip Flops', CustomizationCategory.SHOES,
+            '🐾', 'Comfy panda flip flops', ItemRarity.COMMON, 0, True, False
+        ),
+        # New Shoes - Achievement Rewards
+        'ice_skates': CustomizationItem(
+            'ice_skates', 'Ice Skates', CustomizationCategory.SHOES,
+            '⛸️', 'Graceful ice skates', ItemRarity.RARE, 0, False, False
+        ),
+        'roller_skates': CustomizationItem(
+            'roller_skates', 'Roller Skates', CustomizationCategory.SHOES,
+            '🛼', 'Retro roller skates', ItemRarity.UNCOMMON, 0, False, False
+        ),
+        'ninja_tabi': CustomizationItem(
+            'ninja_tabi', 'Ninja Tabi', CustomizationCategory.SHOES,
+            '🥷', 'Silent ninja footwear', ItemRarity.RARE, 0, False, False
+        ),
+        'hiking_boots_adv': CustomizationItem(
+            'hiking_boots_adv', 'Mountain Boots', CustomizationCategory.SHOES,
+            '🏔️', 'Rugged mountain hiking boots', ItemRarity.UNCOMMON, 0, False, False
+        ),
+        'golden_shoes': CustomizationItem(
+            'golden_shoes', 'Golden Shoes', CustomizationCategory.SHOES,
+            '✨', 'Dazzling golden shoes', ItemRarity.EPIC, 0, False, False
+        ),
+        # New Shoes - Shop
+        'cowboy_boots': CustomizationItem(
+            'cowboy_boots', 'Cowboy Boots', CustomizationCategory.SHOES,
+            '🤠', 'Western cowboy boots', ItemRarity.UNCOMMON, 120, False, False
+        ),
+        'ballet_shoes': CustomizationItem(
+            'ballet_shoes', 'Ballet Slippers', CustomizationCategory.SHOES,
+            '🩰', 'Elegant ballet slippers', ItemRarity.RARE, 250, False, False
+        ),
+        'moon_boots': CustomizationItem(
+            'moon_boots', 'Moon Boots', CustomizationCategory.SHOES,
+            '🌙', 'Anti-gravity moon boots', ItemRarity.EPIC, 500, False, False
+        ),
+        'platform_shoes': CustomizationItem(
+            'platform_shoes', 'Platform Shoes', CustomizationCategory.SHOES,
+            '📐', 'Groovy platform shoes', ItemRarity.UNCOMMON, 150, False, False
+        ),
+        'ski_boots': CustomizationItem(
+            'ski_boots', 'Ski Boots', CustomizationCategory.SHOES,
+            '⛷️', 'Mountain ski boots', ItemRarity.RARE, 280, False, False
+        ),
+        'glass_slippers': CustomizationItem(
+            'glass_slippers', 'Glass Slippers', CustomizationCategory.SHOES,
+            '💎', 'Fairy tale glass slippers', ItemRarity.EPIC, 600, False, False
+        ),
+        'steel_boots': CustomizationItem(
+            'steel_boots', 'Steel Boots', CustomizationCategory.SHOES,
+            '🛡️', 'Heavy armored steel boots', ItemRarity.RARE, 350, False, False
+        ),
+        'neon_kicks': CustomizationItem(
+            'neon_kicks', 'Neon Kicks', CustomizationCategory.SHOES,
+            '💡', 'Light-up neon sneakers', ItemRarity.UNCOMMON, 180, False, False
+        ),
+        'bunny_slippers_new': CustomizationItem(
+            'bunny_slippers_new', 'Bunny Slippers', CustomizationCategory.SHOES,
+            '🐰', 'Adorable bunny slippers', ItemRarity.COMMON, 60, False, False
+        ),
+        'lava_boots': CustomizationItem(
+            'lava_boots', 'Lava Boots', CustomizationCategory.SHOES,
+            '🔥', 'Fireproof lava walking boots', ItemRarity.LEGENDARY, 1200, False, False
+        ),
+
+        # New Accessories - Free
+        'bamboo_bracelet': CustomizationItem(
+            'bamboo_bracelet', 'Bamboo Bracelet', CustomizationCategory.ACCESSORY,
+            '🎋', 'Simple bamboo bracelet', ItemRarity.COMMON, 0, True, False
+        ),
+        'panda_pin': CustomizationItem(
+            'panda_pin', 'Panda Pin', CustomizationCategory.ACCESSORY,
+            '🐼', 'Cute panda lapel pin', ItemRarity.COMMON, 0, True, False
+        ),
+        'friendship_band': CustomizationItem(
+            'friendship_band', 'Friendship Band', CustomizationCategory.ACCESSORY,
+            '🤝', 'Woven friendship bracelet', ItemRarity.COMMON, 0, True, False
+        ),
+        # New Accessories - Achievement Rewards
+        'medal_of_honor': CustomizationItem(
+            'medal_of_honor', 'Medal of Honor', CustomizationCategory.ACCESSORY,
+            '🎖️', 'Distinguished service medal', ItemRarity.EPIC, 0, False, False
+        ),
+        'lucky_charm_acc': CustomizationItem(
+            'lucky_charm_acc', 'Lucky Clover', CustomizationCategory.ACCESSORY,
+            '🍀', 'Four-leaf clover charm', ItemRarity.UNCOMMON, 0, False, False
+        ),
+        'crystal_pendant': CustomizationItem(
+            'crystal_pendant', 'Crystal Pendant', CustomizationCategory.ACCESSORY,
+            '💎', 'Sparkling crystal pendant', ItemRarity.RARE, 0, False, False
+        ),
+        'ninja_star_acc': CustomizationItem(
+            'ninja_star_acc', 'Ninja Star', CustomizationCategory.ACCESSORY,
+            '⭐', 'Decorative shuriken pendant', ItemRarity.RARE, 0, False, False
+        ),
+        'golden_bell': CustomizationItem(
+            'golden_bell', 'Golden Bell', CustomizationCategory.ACCESSORY,
+            '🔔', 'Jingling golden bell', ItemRarity.UNCOMMON, 0, False, False
+        ),
+        # New Accessories - Shop
+        'diamond_ring': CustomizationItem(
+            'diamond_ring', 'Diamond Ring', CustomizationCategory.ACCESSORY,
+            '💍', 'Sparkly diamond ring', ItemRarity.EPIC, 500, False, False
+        ),
+        'feather_boa': CustomizationItem(
+            'feather_boa', 'Feather Boa', CustomizationCategory.ACCESSORY,
+            '🪶', 'Glamorous feather boa', ItemRarity.RARE, 250, False, False
+        ),
+        'pocket_watch_acc': CustomizationItem(
+            'pocket_watch_acc', 'Pocket Watch', CustomizationCategory.ACCESSORY,
+            '🕰️', 'Antique pocket watch', ItemRarity.RARE, 280, False, False
+        ),
+        'magic_wand': CustomizationItem(
+            'magic_wand', 'Magic Wand', CustomizationCategory.ACCESSORY,
+            '🪄', 'Sparkly magic wand', ItemRarity.EPIC, 450, False, False
+        ),
+        'pearl_necklace': CustomizationItem(
+            'pearl_necklace', 'Pearl Necklace', CustomizationCategory.ACCESSORY,
+            '🦪', 'Elegant pearl necklace', ItemRarity.RARE, 300, False, False
+        ),
+        'bandana': CustomizationItem(
+            'bandana', 'Cool Bandana', CustomizationCategory.ACCESSORY,
+            '🏴', 'Stylish bandana', ItemRarity.UNCOMMON, 100, False, False
+        ),
+        'compass': CustomizationItem(
+            'compass', 'Golden Compass', CustomizationCategory.ACCESSORY,
+            '🧭', 'Adventure compass', ItemRarity.UNCOMMON, 130, False, False
+        ),
+        'camera': CustomizationItem(
+            'camera', 'Polaroid Camera', CustomizationCategory.ACCESSORY,
+            '📸', 'Retro instant camera', ItemRarity.RARE, 220, False, False
+        ),
+        'telescope_acc': CustomizationItem(
+            'telescope_acc', 'Mini Telescope', CustomizationCategory.ACCESSORY,
+            '🔭', 'Tiny telescope monocle', ItemRarity.RARE, 350, False, False
+        ),
+        'phoenix_feather': CustomizationItem(
+            'phoenix_feather', 'Phoenix Feather', CustomizationCategory.ACCESSORY,
+            '🔥', 'Legendary phoenix tail feather', ItemRarity.LEGENDARY, 1500, False, False
+        ),
     }
     
     def __init__(self, currency_manager: Optional[object] = None):
