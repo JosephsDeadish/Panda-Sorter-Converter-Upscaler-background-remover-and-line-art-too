@@ -666,7 +666,8 @@ class TutorialManager:
     
     def should_show_tutorial(self) -> bool:
         """Determine if tutorial should be shown"""
-        return self.is_first_run() and GUI_AVAILABLE
+        show_on_startup = self.config.get('tutorial', 'show_on_startup', default=True)
+        return show_on_startup and self.is_first_run() and GUI_AVAILABLE
     
     def start_tutorial(self, on_complete: Optional[Callable] = None):
         """Start the first-run tutorial"""

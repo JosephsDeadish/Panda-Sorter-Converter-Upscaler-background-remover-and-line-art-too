@@ -37,6 +37,8 @@ class ItemPhysics:
     bounce_damping: float = 0.6
     weight: float = 1.0  # Affects throw distance (higher = shorter throw)
     bounciness: float = 1.0  # Multiplier for bounce height
+    wobble: float = 0.0  # How much the item wobbles when moving (0=rigid, 1=very wobbly)
+    elasticity: float = 0.0  # How much the item stretches/bends (0=rigid, 1=bendy)
 
 
 @dataclass
@@ -252,15 +254,17 @@ class WidgetCollection:
     DEFAULT_WIDGETS = {
         # Toys - infinite use, different physics behaviors
         'ball': ToyWidget('Bamboo Ball', '🎾', WidgetRarity.COMMON,
-                          physics=ItemPhysics(bounciness=1.8, weight=0.5, bounce_damping=0.75)),
+                          physics=ItemPhysics(bounciness=1.8, weight=0.5, bounce_damping=0.75,
+                                             wobble=0.3, elasticity=0.2)),
         'stick': ToyWidget('Bamboo Stick', '🎍', WidgetRarity.COMMON,
-                           physics=ItemPhysics(bounciness=0.3, weight=0.8)),
+                           physics=ItemPhysics(bounciness=0.3, weight=0.8, wobble=0.6, elasticity=0.7)),
         'plushie': ToyWidget('Mini Panda Plushie', '🧸', WidgetRarity.UNCOMMON,
-                             physics=ItemPhysics(bounciness=0.5, weight=0.4, friction=0.85)),
+                             physics=ItemPhysics(bounciness=0.5, weight=0.4, friction=0.85,
+                                                wobble=0.8, elasticity=0.5)),
         'frisbee': ToyWidget('Bamboo Frisbee', '🥏', WidgetRarity.UNCOMMON,
-                             physics=ItemPhysics(friction=0.97, gravity=0.5, weight=0.3)),
+                             physics=ItemPhysics(friction=0.97, gravity=0.5, weight=0.3, wobble=0.2)),
         'yo-yo': ToyWidget('Panda Yo-Yo', '🪀', WidgetRarity.RARE,
-                           physics=ItemPhysics(bounciness=1.5, weight=0.6)),
+                           physics=ItemPhysics(bounciness=1.5, weight=0.6, wobble=0.5, elasticity=0.6)),
         'puzzle': ToyWidget('Bamboo Puzzle', '🧩', WidgetRarity.RARE),
         'kite': ToyWidget('Panda Kite', '🪁', WidgetRarity.EPIC,
                           physics=ItemPhysics(gravity=0.3, friction=0.98, weight=0.2)),
@@ -273,11 +277,14 @@ class WidgetCollection:
         'telescope': ToyWidget('Stargazing Telescope', '🔭', WidgetRarity.LEGENDARY,
                                physics=ItemPhysics(weight=1.8, bounciness=0.2)),
         'bouncy_carrot': ToyWidget('Bouncy Carrot', '🥕', WidgetRarity.UNCOMMON,
-                                   physics=ItemPhysics(bounciness=2.5, weight=0.3, bounce_damping=0.85)),
+                                   physics=ItemPhysics(bounciness=2.5, weight=0.3, bounce_damping=0.85,
+                                                      wobble=0.7, elasticity=0.8)),
         'squishy_ball': ToyWidget('Big Red Squishy Ball', '🔴', WidgetRarity.RARE,
-                                  physics=ItemPhysics(bounciness=2.0, weight=0.4, bounce_damping=0.8, friction=0.88)),
+                                  physics=ItemPhysics(bounciness=2.0, weight=0.4, bounce_damping=0.8,
+                                                     friction=0.88, wobble=0.9, elasticity=0.9)),
         'dumbbell': ToyWidget('Super Heavy Dumbbell', '🏋️', WidgetRarity.EPIC,
-                              physics=ItemPhysics(weight=3.0, gravity=3.0, bounciness=0.15, bounce_damping=0.3)),
+                              physics=ItemPhysics(weight=3.0, gravity=3.0, bounciness=0.15,
+                                                 bounce_damping=0.3, wobble=0.05)),
         
         # Food - consumed on use
         'bamboo': FoodWidget('Fresh Bamboo', '🎋', WidgetRarity.COMMON, energy_boost=10),

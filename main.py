@@ -680,6 +680,7 @@ class PS2TextureSorter(ctk.CTk):
     def _toggle_tutorial_on_startup(self):
         """Toggle whether tutorial shows on application startup"""
         config.set('tutorial', 'show_on_startup', value=self.tutorial_on_startup_var.get())
+        config.save()
 
     def _run_tutorial(self):
         """Start or restart the tutorial"""
@@ -5434,6 +5435,7 @@ Built with:
             ("🌀 Spins", 'spin_count', stats.get('spin_count', 0)),
             ("🧸 Toy Interactions", 'toy_interact_count', stats.get('toy_interact_count', 0)),
             ("👔 Clothing Changes", 'clothing_change_count', stats.get('clothing_change_count', 0)),
+            ("🎯 Items Thrown At", 'items_thrown_at_count', stats.get('items_thrown_at_count', 0)),
             ("📁 Files Processed", 'files_processed', stats.get('files_processed', 0)),
             ("❌ Failed Operations", 'failed_operations', stats.get('failed_operations', 0)),
             ("🥚 Easter Eggs Found", 'easter_eggs_found', stats.get('easter_eggs_found', 0)),
@@ -5638,6 +5640,7 @@ Built with:
                     for key in ('click_count', 'pet_count', 'feed_count', 'hover_count',
                                 'drag_count', 'toss_count', 'shake_count', 'spin_count',
                                 'toy_interact_count', 'clothing_change_count',
+                                'items_thrown_at_count',
                                 'files_processed', 'failed_operations', 'easter_eggs_found'):
                         lbl = self._stats_labels.get(key)
                         if lbl:
@@ -5863,6 +5866,27 @@ Built with:
             self.log(f"❌ CRITICAL ERROR in start_sorting: {e}")
             messagebox.showerror("Error", f"An unexpected error occurred:\n{e}")
     
+    @staticmethod
+    def _make_category_filter(search_var, category_var, category_dropdown, category_list):
+        """Create a live-filter callback for a category dropdown.
+        
+        Binds to search_var.trace_add('write', ...) so the dropdown
+        values update as the user types.
+        """
+        def _filter(*_args):
+            query = search_var.get().lower().strip()
+            if query:
+                filtered = [c for c in category_list if query in c.lower()]
+            else:
+                filtered = category_list
+            if filtered:
+                category_dropdown.configure(values=filtered)
+                if category_var.get() not in filtered:
+                    category_var.set(filtered[0])
+            else:
+                category_dropdown.configure(values=category_list)
+        search_var.trace_add('write', _filter)
+    
     def sort_textures_thread(self, input_path_str, output_path_str, mode, style_name, detect_lods, group_lods, detect_duplicates):
         """Background thread for texture sorting with full organization system"""
         # Constants for error reporting
@@ -5986,21 +6010,8 @@ Built with:
                                                                      values=category_list, width=400)
                                 category_dropdown.pack(pady=5)
                                 
-                                def _filter_categories(*_args):
-                                    """Update dropdown values as user types."""
-                                    query = search_var.get().lower().strip()
-                                    if query:
-                                        filtered = [c for c in category_list if query in c.lower()]
-                                    else:
-                                        filtered = category_list
-                                    if filtered:
-                                        category_dropdown.configure(values=filtered)
-                                        if category_var.get() not in filtered:
-                                            category_var.set(filtered[0])
-                                    else:
-                                        category_dropdown.configure(values=category_list)
-                                
-                                search_var.trace_add('write', _filter_categories)
+                                self._make_category_filter(search_var, category_var,
+                                                           category_dropdown, category_list)
                                 
                                 # Buttons
                                 button_frame = ctk.CTkFrame(dialog_window)
@@ -6131,21 +6142,8 @@ Built with:
                                                                      values=category_list, width=400)
                                 category_dropdown.pack(pady=5)
                                 
-                                def _filter_categories(*_args):
-                                    """Update dropdown values as user types."""
-                                    query = search_var.get().lower().strip()
-                                    if query:
-                                        filtered = [c for c in category_list if query in c.lower()]
-                                    else:
-                                        filtered = category_list
-                                    if filtered:
-                                        category_dropdown.configure(values=filtered)
-                                        if category_var.get() not in filtered:
-                                            category_var.set(filtered[0])
-                                    else:
-                                        category_dropdown.configure(values=category_list)
-                                
-                                search_var.trace_add('write', _filter_categories)
+                                self._make_category_filter(search_var, category_var,
+                                                           category_dropdown, category_list)
                                 
                                 # Buttons
                                 button_frame = ctk.CTkFrame(dialog_window)

@@ -150,6 +150,57 @@ def test_speech_bubble_font_constants():
         print("⚠ Skipping speech bubble test (GUI not available)")
 
 
+def test_item_thrown_at_panda():
+    """Test that items can be thrown at panda with body-part-specific reactions."""
+    panda = PandaCharacter()
+
+    # Head hit
+    response = panda.on_item_thrown_at('Ball', 'head')
+    assert panda.items_thrown_at_count == 1, "items_thrown_at_count should be 1"
+    assert 'head' in response.lower() or 'bonk' in response.lower() or 'ow' in response.lower() \
+        or 'stars' in response.lower() or 'hurt' in response.lower(), \
+        f"Head hit should mention head/pain: {response}"
+
+    # Belly hit
+    response = panda.on_item_thrown_at('Squishy Ball', 'belly')
+    assert panda.items_thrown_at_count == 2, "items_thrown_at_count should be 2"
+    assert 'belly' in response.lower() or 'tummy' in response.lower() or 'wobble' in response.lower() \
+        or 'jiggle' in response.lower() or 'bounce' in response.lower(), \
+        f"Belly hit should mention belly/wobble: {response}"
+
+    # Legs hit
+    response = panda.on_item_thrown_at('Stick', 'legs')
+    assert panda.items_thrown_at_count == 3, "items_thrown_at_count should be 3"
+    print("✓ Item thrown at panda works correctly")
+
+
+def test_item_physics_wobble_elasticity():
+    """Test that items have wobble and elasticity physics properties."""
+    from src.features.panda_widgets import WidgetCollection
+    wc = WidgetCollection()
+
+    squishy = wc.get_widget('squishy_ball')
+    assert squishy.physics.wobble > 0, "Squishy ball should have wobble"
+    assert squishy.physics.elasticity > 0, "Squishy ball should have elasticity"
+
+    plushie = wc.get_widget('plushie')
+    assert plushie.physics.wobble > 0, "Plushie should be wobbly"
+
+    stick = wc.get_widget('stick')
+    assert stick.physics.elasticity > 0, "Stick should be bendy"
+    print("✓ Item physics wobble/elasticity properties correct")
+
+
+def test_statistics_include_items_thrown():
+    """Test that statistics include items_thrown_at_count."""
+    panda = PandaCharacter()
+    panda.on_item_thrown_at('Ball', 'head')
+    stats = panda.get_statistics()
+    assert 'items_thrown_at_count' in stats, "Stats should include items_thrown_at_count"
+    assert stats['items_thrown_at_count'] == 1
+    print("✓ Statistics include items_thrown_at_count")
+
+
 if __name__ == "__main__":
     print("Testing Panda Character Improvements...")
     print("-" * 50)
@@ -166,6 +217,9 @@ if __name__ == "__main__":
         test_statistics_include_new_fields()
         test_food_interact_still_tracks_feed_count()
         test_speech_bubble_font_constants()
+        test_item_thrown_at_panda()
+        test_item_physics_wobble_elasticity()
+        test_statistics_include_items_thrown()
 
         print("-" * 50)
         print("✅ All panda improvement tests passed!")

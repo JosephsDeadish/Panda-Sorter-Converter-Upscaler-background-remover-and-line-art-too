@@ -564,6 +564,7 @@ class PandaCharacter:
         self.spin_count = 0
         self.toy_interact_count = 0
         self.clothing_change_count = 0
+        self.items_thrown_at_count = 0
         self.easter_eggs_triggered: Set[str] = set()
         self.start_time = time.time()
         self.files_processed_count = 0
@@ -743,6 +744,42 @@ class PandaCharacter:
         self.clothing_change_count += 1
         return random.choice(self.CLOTHING_RESPONSES)
 
+    def on_item_thrown_at(self, item_name: str, body_part: str) -> str:
+        """Handle an item being thrown at the panda.
+        
+        Args:
+            item_name: Name of the item thrown
+            body_part: Where the item hit ('head', 'body', 'belly', 'legs')
+            
+        Returns:
+            Reaction string
+        """
+        self.items_thrown_at_count += 1
+        if body_part == 'head':
+            responses = [
+                f"🐼 OW! {item_name} hit me on the head! 💥🤕",
+                f"🐼 *BONK* Hey! Who threw {item_name} at my head?! 😠",
+                f"🐼 *rubs head* That {item_name} really hurt! 😣",
+                f"🐼 *ducks too late* Ow ow ow! My head! 🌟",
+                f"🐼 *sees stars* Was that a {item_name}?! 💫",
+            ]
+        elif body_part in ('body', 'belly'):
+            responses = [
+                f"🐼 *belly wobbles* Oof! {item_name} got me right in the tummy! 🫃",
+                f"🐼 *jiggles* My belly! That {item_name} made it wobble! 😂",
+                f"🐼 *catches {item_name} with belly* Look, I'm a goalkeeper! ⚽",
+                f"🐼 *belly bounce* Boing! {item_name} bounced off my tummy! 🤣",
+                f"🐼 *oof* Right in the belly... at least it's padded! 😅",
+            ]
+        else:
+            responses = [
+                f"🐼 *stumbles* {item_name} tripped me up! 😵",
+                f"🐼 Hey! Don't throw {item_name} at my feet! 🦶",
+                f"🐼 *kicks {item_name} back* Take that! ⚡",
+                f"🐼 *dodges... poorly* {item_name} got me! 😆",
+            ]
+        return random.choice(responses)
+
     def on_toy_received(self) -> str:
         """Handle panda receiving a toy."""
         return random.choice(self.TOY_RESPONSES)
@@ -853,6 +890,7 @@ class PandaCharacter:
             'spin_count': self.spin_count,
             'toy_interact_count': self.toy_interact_count,
             'clothing_change_count': self.clothing_change_count,
+            'items_thrown_at_count': self.items_thrown_at_count,
             'files_processed': self.files_processed_count,
             'failed_operations': self.failed_operations,
             'easter_eggs_found': len(self.easter_eggs_triggered),

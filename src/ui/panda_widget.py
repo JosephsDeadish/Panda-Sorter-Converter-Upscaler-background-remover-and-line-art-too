@@ -1653,6 +1653,93 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
         """Return a color corresponding to the given emoji icon."""
         return PandaWidget._EMOJI_COLORS.get(emoji, fallback)
 
+    def _compute_limb_offsets(self, anim: str, frame_idx: int):
+        """Compute limb swing offsets for a given animation state.
+        
+        Returns (leg_swing, arm_swing) tuple used for clothing/accessory
+        positioning and body part rendering.
+        """
+        phase = (frame_idx % 60) / 60.0 * 2 * math.pi
+        
+        if anim in ('idle', 'working', 'sarcastic', 'thinking'):
+            leg_swing = math.sin(phase * 1.2) * 2 + math.sin(phase * 0.4) * 1
+            arm_swing = math.sin(phase) * 5 + math.sin(phase * 2.5) * 2
+        elif anim in ('dragging', 'tossed', 'wall_hit'):
+            leg_swing = math.sin(phase) * 15
+            arm_swing = math.sin(phase + math.pi) * 12
+        elif anim == 'dancing':
+            dc = (frame_idx % 60) / 60.0
+            if dc < 0.25:
+                leg_swing = math.sin(phase) * 14
+                arm_swing = math.sin(phase * 2) * 16
+            elif dc < 0.5:
+                leg_swing = math.sin(phase * 3) * 10
+                arm_swing = -abs(math.sin(phase * 2)) * 18
+            elif dc < 0.75:
+                leg_swing = -math.sin(phase) * 14
+                arm_swing = math.sin(phase * 2 + math.pi) * 16
+            else:
+                leg_swing = math.sin(phase * 2) * 8
+                arm_swing = -abs(math.sin(phase)) * 20
+        elif anim == 'celebrating':
+            cc = (frame_idx % 48) / 48.0
+            if cc < 0.33:
+                leg_swing = math.sin(phase) * 6
+                arm_swing = -abs(math.sin(phase * 2)) * 20
+            elif cc < 0.66:
+                leg_swing = math.sin(phase * 2) * 10
+                arm_swing = math.sin(phase * 3) * 14
+            else:
+                leg_swing = math.sin(phase * 2) * 12
+                arm_swing = math.cos(phase * 2) * 16
+        elif anim == 'playing':
+            pc = (frame_idx % 60) / 60.0
+            if pc < 0.3:
+                leg_swing = math.sin(phase * 2) * 12
+                arm_swing = math.sin(phase * 3) * 16
+            elif pc < 0.6:
+                leg_swing = math.sin(phase) * 8
+                arm_swing = -abs(math.sin(phase * 2)) * 18
+            else:
+                leg_swing = math.sin(phase * 2) * 14
+                arm_swing = math.cos(phase * 2) * 12
+        elif anim in ('jumping', 'backflip', 'cartwheel'):
+            leg_swing = math.sin(phase * 2) * 10
+            arm_swing = math.sin(phase * 2) * 16
+        elif anim == 'spinning':
+            leg_swing = math.sin(phase * 4) * 18
+            arm_swing = math.sin(phase * 4 + math.pi / 2) * 20
+        elif anim == 'shaking':
+            leg_swing = math.sin(phase * 8) * 10
+            arm_swing = math.sin(phase * 8) * 12
+        elif anim == 'rolling':
+            leg_swing = math.sin(phase * 2) * 15
+            arm_swing = math.cos(phase * 2) * 15
+        elif anim == 'rage':
+            leg_swing = math.sin(phase * 3) * 8
+            arm_swing = math.sin(phase * 3) * 10
+        elif anim == 'eating':
+            ec = (frame_idx % 48) / 48.0
+            leg_swing = 0
+            if ec < 0.3:
+                arm_swing = -abs(math.sin(phase * 2)) * 14
+            elif ec < 0.7:
+                arm_swing = -12 + math.sin(phase * 4) * 6
+            else:
+                settle = (ec - 0.7) / 0.3
+                arm_swing = -12 * (1 - settle) + math.sin(phase) * 3
+        elif anim in ('waving', 'stretching'):
+            leg_swing = math.sin(phase * 0.5) * 2
+            arm_swing = math.sin(phase * 3) * 10
+        elif anim == 'carrying':
+            leg_swing = math.sin(phase) * 4
+            arm_swing = -8
+        else:
+            leg_swing = math.sin(phase + math.pi) * 2
+            arm_swing = math.sin(phase + math.pi) * 6
+        
+        return leg_swing, arm_swing
+
     def _draw_equipped_items(self, c: tk.Canvas, cx: int, by: float, sx: float, sy: float):
         """Draw equipped closet items as fitted shapes on the panda body.
 
@@ -1665,86 +1752,8 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
             appearance = self.panda_closet.get_current_appearance()
 
             # Compute limb offsets so equipped items track body movement
-            anim = self.current_animation
-            phase = (self.animation_frame % 60) / 60.0 * 2 * math.pi
-
-            # Replicate leg_swing / arm_swing logic from _draw_panda
-            if anim in ('idle', 'working', 'sarcastic', 'thinking'):
-                _leg_swing = math.sin(phase * 1.2) * 2 + math.sin(phase * 0.4) * 1
-                _arm_swing = math.sin(phase) * 5 + math.sin(phase * 2.5) * 2
-            elif anim in ('dragging', 'tossed', 'wall_hit'):
-                _leg_swing = math.sin(phase) * 15
-                _arm_swing = math.sin(phase + math.pi) * 12
-            elif anim == 'dancing':
-                dc = (self.animation_frame % 60) / 60.0
-                if dc < 0.25:
-                    _leg_swing = math.sin(phase) * 14
-                    _arm_swing = math.sin(phase * 2) * 16
-                elif dc < 0.5:
-                    _leg_swing = math.sin(phase * 3) * 10
-                    _arm_swing = -abs(math.sin(phase * 2)) * 18
-                elif dc < 0.75:
-                    _leg_swing = -math.sin(phase) * 14
-                    _arm_swing = math.sin(phase * 2 + math.pi) * 16
-                else:
-                    _leg_swing = math.sin(phase * 2) * 8
-                    _arm_swing = -abs(math.sin(phase)) * 20
-            elif anim == 'celebrating':
-                cc = (self.animation_frame % 48) / 48.0
-                if cc < 0.33:
-                    _leg_swing = math.sin(phase) * 6
-                    _arm_swing = -abs(math.sin(phase * 2)) * 20
-                elif cc < 0.66:
-                    _leg_swing = math.sin(phase * 2) * 10
-                    _arm_swing = math.sin(phase * 3) * 14
-                else:
-                    _leg_swing = math.sin(phase * 2) * 12
-                    _arm_swing = math.cos(phase * 2) * 16
-            elif anim == 'playing':
-                pc = (self.animation_frame % 60) / 60.0
-                if pc < 0.3:
-                    _leg_swing = math.sin(phase * 2) * 12
-                    _arm_swing = math.sin(phase * 3) * 16
-                elif pc < 0.6:
-                    _leg_swing = math.sin(phase) * 8
-                    _arm_swing = -abs(math.sin(phase * 2)) * 18
-                else:
-                    _leg_swing = math.sin(phase * 2) * 14
-                    _arm_swing = math.cos(phase * 2) * 12
-            elif anim in ('jumping', 'backflip', 'cartwheel'):
-                _leg_swing = math.sin(phase * 2) * 10
-                _arm_swing = math.sin(phase * 2) * 16
-            elif anim == 'spinning':
-                _leg_swing = math.sin(phase * 4) * 18
-                _arm_swing = math.sin(phase * 4 + math.pi / 2) * 20
-            elif anim == 'shaking':
-                _leg_swing = math.sin(phase * 8) * 10
-                _arm_swing = math.sin(phase * 8) * 12
-            elif anim == 'rolling':
-                _leg_swing = math.sin(phase * 2) * 15
-                _arm_swing = math.cos(phase * 2) * 15
-            elif anim == 'rage':
-                _leg_swing = math.sin(phase * 3) * 8
-                _arm_swing = math.sin(phase * 3) * 10
-            elif anim == 'eating':
-                ec = (self.animation_frame % 48) / 48.0
-                _leg_swing = 0
-                if ec < 0.3:
-                    _arm_swing = -abs(math.sin(phase * 2)) * 14
-                elif ec < 0.7:
-                    _arm_swing = -12 + math.sin(phase * 4) * 6
-                else:
-                    settle = (ec - 0.7) / 0.3
-                    _arm_swing = -12 * (1 - settle) + math.sin(phase) * 3
-            elif anim in ('waving', 'stretching'):
-                _leg_swing = math.sin(phase * 0.5) * 2
-                _arm_swing = math.sin(phase * 3) * 10
-            elif anim == 'carrying':
-                _leg_swing = math.sin(phase) * 4
-                _arm_swing = -8
-            else:
-                _leg_swing = math.sin(phase + math.pi) * 2
-                _arm_swing = math.sin(phase + math.pi) * 6
+            _leg_swing, _arm_swing = self._compute_limb_offsets(
+                self.current_animation, self.animation_frame)
 
             # --- Draw clothing (shirt / outfit on torso) ---
             if appearance.clothing:
@@ -2078,6 +2087,124 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
         self._active_item_name = item_name
         self._active_item_emoji = item_emoji
         self._active_item_type = item_type
+    
+    def walk_to_item(self, target_x: int, target_y: int, item_name: str = None,
+                     item_emoji: str = None, item_type: str = 'toy',
+                     on_arrive: callable = None):
+        """Animate the panda walking to an item's location on screen.
+        
+        The panda toplevel smoothly moves towards the target coordinates,
+        then triggers the appropriate interaction animation.
+        
+        Args:
+            target_x: Screen X coordinate of the item
+            target_y: Screen Y coordinate of the item
+            item_name: Name of the item to interact with
+            item_emoji: Emoji for the item
+            item_type: 'food' or 'toy'
+            on_arrive: Optional callback when panda arrives
+        """
+        if self._destroyed:
+            return
+        
+        # Set the active item so it renders during the interaction
+        self.set_active_item(item_name, item_emoji, item_type)
+        
+        # Start walking animation
+        self._set_animation_no_cancel('carrying' if item_type == 'food' else 'playing')
+        
+        # Get current panda position
+        try:
+            px = self._toplevel.winfo_x()
+            py = self._toplevel.winfo_y()
+        except Exception:
+            return
+        
+        # Calculate distance and direction
+        dx = target_x - px - self._toplevel_w // 2
+        dy = target_y - py - self._toplevel_h // 2
+        dist = max(1, (dx ** 2 + dy ** 2) ** 0.5)
+        
+        # Walk speed: ~4px per frame at 50ms intervals
+        speed = 4
+        steps = max(1, int(dist / speed))
+        step_x = dx / steps
+        step_y = dy / steps
+        
+        self._walk_step_count = 0
+        self._walk_total_steps = steps
+        self._walk_step_dx = step_x
+        self._walk_step_dy = step_y
+        self._walk_on_arrive = on_arrive
+        self._walk_item_type = item_type
+        
+        # Show speech
+        if self.panda and item_name:
+            response = self.panda.on_item_interact(item_name, item_type)
+            self.info_label.configure(text=response)
+        
+        self._walk_tick()
+    
+    def _walk_tick(self):
+        """Single step of the walk-to-item animation."""
+        if self._destroyed:
+            return
+        
+        self._walk_step_count += 1
+        if self._walk_step_count > self._walk_total_steps:
+            # Arrived - play interaction animation
+            anim = 'eating' if self._walk_item_type == 'food' else 'playing'
+            self.play_animation_once(anim)
+            if self._walk_on_arrive:
+                try:
+                    self._walk_on_arrive()
+                except Exception:
+                    pass
+            return
+        
+        try:
+            px = self._toplevel.winfo_x()
+            py = self._toplevel.winfo_y()
+            new_x = int(px + self._walk_step_dx)
+            new_y = int(py + self._walk_step_dy)
+            self._toplevel.geometry(f"+{new_x}+{new_y}")
+        except Exception:
+            return
+        
+        self.after(50, self._walk_tick)
+    
+    def react_to_item_hit(self, item_name: str, item_emoji: str, hit_y_ratio: float):
+        """React to an item being thrown at the panda.
+        
+        Triggers a wobble/bump animation depending on where the item hits.
+        
+        Args:
+            item_name: Name of the item that hit
+            item_emoji: Emoji for the item
+            hit_y_ratio: Where on the panda the item hit (0=top of head, 1=feet)
+        """
+        if self._destroyed or not self.panda:
+            return
+        
+        # Determine body part from hit position
+        if hit_y_ratio < 0.25:
+            body_part = 'head'
+        elif hit_y_ratio < 0.65:
+            body_part = 'belly'
+        else:
+            body_part = 'legs'
+        
+        # Get panda reaction
+        response = self.panda.on_item_thrown_at(item_name, body_part)
+        self.info_label.configure(text=response)
+        
+        # Play appropriate reaction animation
+        if body_part == 'head':
+            self.play_animation_once('shaking')
+        elif body_part == 'belly':
+            self.play_animation_once('belly_grab')
+        else:
+            self.play_animation_once('jumping')
     
     def _on_drag_start(self, event):
         """Handle start of drag operation."""
