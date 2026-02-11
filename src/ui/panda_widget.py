@@ -599,8 +599,8 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
         anim = self.current_animation
         
         # --- Determine limb offsets for animations ---
-        # Cycle through 48 frames for much smoother animation (tripled from 16)
-        phase = (frame_idx % 48) / 48.0 * 2 * math.pi
+        # Cycle through 60 frames for smooth animation
+        phase = (frame_idx % 60) / 60.0 * 2 * math.pi
         
         if anim in ('idle', 'working', 'sarcastic', 'thinking'):
             # Gentle body bob for idle with subtle arm sway
@@ -617,13 +617,44 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
             arm_swing = math.sin(phase + math.pi) * 12  # More exaggerated (was 8)
             body_bob = abs(math.sin(phase)) * 5  # More exaggerated (was 3)
         elif anim == 'dancing':
-            leg_swing = math.sin(phase) * 14
-            arm_swing = math.sin(phase * 2) * 12
-            body_bob = math.sin(phase * 2) * 5
+            dance_cycle = (frame_idx % 60) / 60.0
+            if dance_cycle < 0.25:
+                # Side sway left
+                leg_swing = math.sin(phase) * 14
+                arm_swing = math.sin(phase * 2) * 16
+                body_bob = math.sin(phase * 2) * 5
+            elif dance_cycle < 0.5:
+                # Spin move
+                leg_swing = math.sin(phase * 3) * 10
+                arm_swing = -abs(math.sin(phase * 2)) * 18
+                body_bob = abs(math.sin(phase * 3)) * 6
+            elif dance_cycle < 0.75:
+                # Side sway right
+                leg_swing = -math.sin(phase) * 14
+                arm_swing = math.sin(phase * 2 + math.pi) * 16
+                body_bob = math.sin(phase * 2) * 5
+            else:
+                # Jump and arms up
+                leg_swing = math.sin(phase * 2) * 8
+                arm_swing = -abs(math.sin(phase)) * 20
+                body_bob = -abs(math.sin(phase * 2)) * 8
         elif anim == 'celebrating':
-            leg_swing = math.sin(phase) * 6
-            arm_swing = -abs(math.sin(phase)) * 18  # Arms up
-            body_bob = abs(math.sin(phase)) * 4
+            celeb_cycle = (frame_idx % 48) / 48.0
+            if celeb_cycle < 0.33:
+                # Arms pumping up
+                leg_swing = math.sin(phase) * 6
+                arm_swing = -abs(math.sin(phase * 2)) * 20
+                body_bob = abs(math.sin(phase)) * 4
+            elif celeb_cycle < 0.66:
+                # Happy bouncing
+                leg_swing = math.sin(phase * 2) * 10
+                arm_swing = math.sin(phase * 3) * 14
+                body_bob = -abs(math.sin(phase * 2)) * 7
+            else:
+                # Spinning celebration
+                leg_swing = math.sin(phase * 2) * 12
+                arm_swing = math.cos(phase * 2) * 16
+                body_bob = math.sin(phase * 3) * 5
         elif anim in ('sleeping', 'laying_down'):
             # Gradual settling with gentle breathing
             settle_phase = min(1.0, frame_idx / 30.0)  # settle over ~30 frames
@@ -655,15 +686,40 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
             arm_swing = math.sin(phase * 1.5) * 4
             body_bob = math.sin(phase) * 3 + math.sin(phase * 0.5) * 1.5
         elif anim == 'playing':
-            # Active bouncing and arm swinging for playing with toys
-            leg_swing = math.sin(phase) * 10
-            arm_swing = math.sin(phase * 2) * 14
-            body_bob = abs(math.sin(phase * 2)) * 4
+            play_cycle = (frame_idx % 60) / 60.0
+            if play_cycle < 0.3:
+                # Bouncing with excitement
+                leg_swing = math.sin(phase * 2) * 12
+                arm_swing = math.sin(phase * 3) * 16
+                body_bob = -abs(math.sin(phase * 2)) * 6
+            elif play_cycle < 0.6:
+                # Playful swipe at toy
+                leg_swing = math.sin(phase) * 8
+                arm_swing = -abs(math.sin(phase * 2)) * 18
+                body_bob = abs(math.sin(phase)) * 4
+            else:
+                # Happy tumble
+                leg_swing = math.sin(phase * 2) * 14
+                arm_swing = math.cos(phase * 2) * 12
+                body_bob = math.sin(phase * 3) * 5
         elif anim == 'eating':
-            # Gentle bob, arms brought together toward mouth, alternating
-            leg_swing = 0
-            arm_swing = -abs(math.sin(phase * 2)) * 12  # Arms forward, faster
-            body_bob = math.sin(phase) * 3
+            eat_cycle = (frame_idx % 48) / 48.0
+            if eat_cycle < 0.3:
+                # Reaching for food
+                leg_swing = 0
+                arm_swing = -abs(math.sin(phase * 2)) * 14
+                body_bob = math.sin(phase) * 2
+            elif eat_cycle < 0.7:
+                # Munching - faster arm motion
+                leg_swing = 0
+                arm_swing = -12 + math.sin(phase * 4) * 6
+                body_bob = math.sin(phase * 3) * 3 + 1
+            else:
+                # Satisfied lean back
+                settle = (eat_cycle - 0.7) / 0.3
+                leg_swing = 0
+                arm_swing = -12 * (1 - settle) + math.sin(phase) * 3
+                body_bob = 1 + settle * 3 + math.sin(phase * 0.5) * 2
         elif anim == 'customizing':
             # Preening, gentle sway with arms up
             leg_swing = 0
@@ -703,39 +759,135 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
                 arm_swing = math.sin(phase * 1.5) * 6
                 leg_swing = math.sin(phase) * 3
         elif anim == 'stretching':
-            # Arms above head, body elongated
-            leg_swing = 0
-            arm_swing = -abs(math.sin(phase * 0.8)) * 22  # arms way up
-            body_bob = -abs(math.sin(phase * 0.8)) * 6  # body lifts
-        elif anim == 'waving':
-            # One arm waves side to side (asymmetric)
-            leg_swing = 0
-            arm_swing = math.sin(phase * 2) * 16  # drives the right arm
-            body_bob = math.sin(phase) * 2
-        elif anim == 'jumping':
-            # Bouncing up and down
-            leg_swing = math.sin(phase * 2) * 6
-            arm_swing = -abs(math.sin(phase * 2)) * 12
-            body_bob = -abs(math.sin(phase * 2)) * 12  # large vertical bob
-        elif anim == 'yawning':
-            # Slight lean back
-            leg_swing = 0
-            arm_swing = math.sin(phase * 0.5) * 5
-            body_bob = math.sin(phase * 0.5) * 3 + 2
-        elif anim == 'sneezing':
-            # Sharp forward snap then recovery
-            sneeze_phase = (frame_idx % 8) / 8.0
-            if sneeze_phase < 0.3:
-                body_bob = sneeze_phase * 20  # compress forward
+            stretch_cycle = (frame_idx % 60) / 60.0
+            if stretch_cycle < 0.2:
+                # Arms starting to raise
+                leg_swing = 0
+                arm_swing = -stretch_cycle * 5 * 22
+                body_bob = -stretch_cycle * 5 * 4
+            elif stretch_cycle < 0.5:
+                # Full stretch with slight sway
+                leg_swing = math.sin(phase * 0.5) * 2
+                arm_swing = -22 + math.sin(phase) * 4
+                body_bob = -6 + math.sin(phase * 0.8) * 2
+            elif stretch_cycle < 0.7:
+                # Side stretch
+                offset = (stretch_cycle - 0.5) / 0.2
+                leg_swing = math.sin(offset * math.pi) * 8
+                arm_swing = -18 + math.sin(phase) * 6
+                body_bob = -4 + math.sin(phase) * 3
             else:
-                body_bob = max(0, (0.3 - (sneeze_phase - 0.3)) * 20)
-            leg_swing = 0
-            arm_swing = math.sin(phase * 4) * 6
+                # Settling back down
+                settle = (stretch_cycle - 0.7) / 0.3
+                leg_swing = 0
+                arm_swing = -22 * (1 - settle) + math.sin(phase) * 3
+                body_bob = -6 * (1 - settle)
+        elif anim == 'waving':
+            wave_cycle = (frame_idx % 48) / 48.0
+            if wave_cycle < 0.15:
+                # Arm raising
+                ramp = wave_cycle / 0.15
+                leg_swing = 0
+                arm_swing = -ramp * 18
+                body_bob = ramp * 2
+            elif wave_cycle < 0.7:
+                # Waving back and forth
+                leg_swing = math.sin(phase * 0.5) * 2
+                arm_swing = -18 + math.sin(phase * 3) * 10
+                body_bob = 2 + math.sin(phase * 2) * 2
+            else:
+                # Arm lowering
+                settle = (wave_cycle - 0.7) / 0.3
+                leg_swing = 0
+                arm_swing = -18 * (1 - settle) + math.sin(phase * 2) * 5 * (1 - settle)
+                body_bob = 2 * (1 - settle)
+        elif anim == 'jumping':
+            jump_cycle = (frame_idx % 36) / 36.0
+            if jump_cycle < 0.15:
+                # Crouch down
+                crouch = jump_cycle / 0.15
+                leg_swing = crouch * 6
+                arm_swing = crouch * 8
+                body_bob = crouch * 10
+            elif jump_cycle < 0.35:
+                # Launch upward
+                launch = (jump_cycle - 0.15) / 0.2
+                leg_swing = 6 - launch * 12
+                arm_swing = 8 - launch * 24
+                body_bob = 10 - launch * 25
+            elif jump_cycle < 0.55:
+                # Airborne / peak
+                air = (jump_cycle - 0.35) / 0.2
+                leg_swing = -6 + math.sin(air * math.pi) * 4
+                arm_swing = -16 + math.sin(air * math.pi) * 6
+                body_bob = -15 + math.sin(air * math.pi) * 3
+            elif jump_cycle < 0.75:
+                # Falling down
+                fall = (jump_cycle - 0.55) / 0.2
+                leg_swing = -6 + fall * 10
+                arm_swing = -16 + fall * 20
+                body_bob = -15 + fall * 22
+            else:
+                # Landing bounce
+                land = (jump_cycle - 0.75) / 0.25
+                leg_swing = 4 * math.sin(land * math.pi * 2) * (1 - land)
+                arm_swing = 4 * math.sin(land * math.pi * 2) * (1 - land)
+                body_bob = 7 * math.sin(land * math.pi) * (1 - land * 0.7)
+        elif anim == 'yawning':
+            yawn_cycle = (frame_idx % 48) / 48.0
+            if yawn_cycle < 0.15:
+                # Inhale, lean back slightly
+                ramp = yawn_cycle / 0.15
+                leg_swing = 0
+                arm_swing = ramp * 6
+                body_bob = ramp * 4
+            elif yawn_cycle < 0.5:
+                # Full yawn, head tilted back, arms up stretch
+                leg_swing = 0
+                arm_swing = 6 + math.sin(phase * 0.5) * 4
+                body_bob = 4 + math.sin(phase * 0.3) * 2
+            elif yawn_cycle < 0.7:
+                # Closing yawn
+                settle = (yawn_cycle - 0.5) / 0.2
+                leg_swing = 0
+                arm_swing = 6 * (1 - settle)
+                body_bob = 4 * (1 - settle)
+            else:
+                # Post-yawn drowsy sway
+                leg_swing = 0
+                arm_swing = math.sin(phase * 0.8) * 3
+                body_bob = math.sin(phase * 0.5) * 2 + 1
+        elif anim == 'sneezing':
+            sneeze_cycle = (frame_idx % 36) / 36.0
+            if sneeze_cycle < 0.25:
+                # Building up - nose tickle, leaning back
+                build = sneeze_cycle / 0.25
+                body_bob = -build * 8
+                leg_swing = 0
+                arm_swing = build * 5
+            elif sneeze_cycle < 0.35:
+                # SNEEZE! - sharp forward snap
+                snap = (sneeze_cycle - 0.25) / 0.1
+                body_bob = -8 + snap * 28
+                leg_swing = snap * 6
+                arm_swing = 5 - snap * 12
+            elif sneeze_cycle < 0.5:
+                # Recoil
+                recoil = (sneeze_cycle - 0.35) / 0.15
+                body_bob = 20 - recoil * 18
+                leg_swing = 6 * (1 - recoil)
+                arm_swing = -7 + recoil * 10
+            else:
+                # Recovery - gentle sway
+                leg_swing = math.sin(phase * 0.5) * 2
+                arm_swing = math.sin(phase * 0.8) * 3
+                body_bob = 2 + math.sin(phase * 0.5) * 2
         elif anim == 'tail_wag':
-            # Subtle body sway
-            leg_swing = math.sin(phase) * 3
-            arm_swing = math.sin(phase * 1.5) * 4
-            body_bob = math.sin(phase) * 2
+            wag_cycle = (frame_idx % 48) / 48.0
+            wag_intensity = 0.5 + 0.5 * math.sin(wag_cycle * 2 * math.pi)
+            leg_swing = math.sin(phase * 2) * 4 * wag_intensity
+            arm_swing = math.sin(phase * 1.5 + math.pi/4) * 6 * wag_intensity
+            body_bob = math.sin(phase * 2) * 3 * wag_intensity + abs(math.sin(phase * 3)) * 2
         elif anim == 'cartwheel':
             # Dramatic rotating cartwheel motion
             cart_phase = (frame_idx % 24) / 24.0  # One full cartwheel cycle
@@ -798,7 +950,15 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
         elif anim == 'belly_grab':
             eye_style = 'happy'
         elif anim == 'celebrating':
-            eye_style = 'happy'
+            cycle = frame_idx % 24
+            if cycle < 8:
+                eye_style = 'happy'
+            elif cycle < 14:
+                eye_style = 'sparkle'
+            elif cycle < 18:
+                eye_style = 'surprised'
+            else:
+                eye_style = 'happy'
         elif anim == 'rage':
             eye_style = 'angry'
         elif anim == 'sarcastic':
@@ -827,8 +987,42 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
                 eye_style = 'happy'
             else:
                 eye_style = 'happy'
-        elif anim in ('playing', 'eating', 'customizing'):
-            eye_style = 'happy'
+        elif anim == 'dancing':
+            cycle = frame_idx % 20
+            if cycle < 5:
+                eye_style = 'happy'
+            elif cycle < 10:
+                eye_style = 'sparkle'
+            elif cycle < 15:
+                eye_style = 'normal'
+            else:
+                eye_style = 'happy'
+        elif anim == 'eating':
+            cycle = frame_idx % 16
+            if cycle < 6:
+                eye_style = 'happy'
+            elif cycle < 10:
+                eye_style = 'closed'
+            else:
+                eye_style = 'happy'
+        elif anim == 'playing':
+            cycle = frame_idx % 20
+            if cycle < 8:
+                eye_style = 'happy'
+            elif cycle < 12:
+                eye_style = 'sparkle'
+            elif cycle < 16:
+                eye_style = 'surprised'
+            else:
+                eye_style = 'happy'
+        elif anim == 'customizing':
+            cycle = frame_idx % 16
+            if cycle < 6:
+                eye_style = 'happy'
+            elif cycle < 10:
+                eye_style = 'sparkle'
+            else:
+                eye_style = 'normal'
         elif anim == 'spinning':
             eye_style = 'spinning'
         elif anim == 'shaking':
@@ -836,18 +1030,73 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
         elif anim == 'rolling':
             eye_style = 'rolling'
         elif anim == 'stretching':
-            eye_style = 'closed'
+            stretch_cycle = (frame_idx % 60) / 60.0
+            if stretch_cycle < 0.2:
+                eye_style = 'normal'
+            elif stretch_cycle < 0.5:
+                eye_style = 'closed'
+            elif stretch_cycle < 0.7:
+                eye_style = 'half'
+            else:
+                eye_style = 'happy'
         elif anim == 'waving':
-            eye_style = 'happy'
+            cycle = frame_idx % 16
+            if cycle < 4:
+                eye_style = 'happy'
+            elif cycle < 8:
+                eye_style = 'wink'
+            elif cycle < 12:
+                eye_style = 'happy'
+            else:
+                eye_style = 'normal'
         elif anim == 'jumping':
-            eye_style = 'happy'
+            jump_cycle = (frame_idx % 36) / 36.0
+            if jump_cycle < 0.15:
+                eye_style = 'normal'
+            elif jump_cycle < 0.55:
+                eye_style = 'happy'
+            elif jump_cycle < 0.75:
+                eye_style = 'surprised'
+            else:
+                eye_style = 'happy'
         elif anim == 'yawning':
-            eye_style = 'closed'
+            yawn_cycle = (frame_idx % 48) / 48.0
+            if yawn_cycle < 0.15:
+                eye_style = 'normal'
+            elif yawn_cycle < 0.5:
+                eye_style = 'closed'
+            elif yawn_cycle < 0.7:
+                eye_style = 'half'
+            else:
+                eye_style = 'closed'
         elif anim == 'sneezing':
-            cycle = frame_idx % 8
-            eye_style = 'closed' if cycle < 4 else 'surprised'
+            sneeze_cycle = (frame_idx % 36) / 36.0
+            if sneeze_cycle < 0.25:
+                eye_style = 'closed'
+            elif sneeze_cycle < 0.35:
+                eye_style = 'surprised'
+            elif sneeze_cycle < 0.5:
+                eye_style = 'closed'
+            else:
+                eye_style = 'half'
         elif anim == 'tail_wag':
-            eye_style = 'happy'
+            cycle = frame_idx % 16
+            if cycle < 6:
+                eye_style = 'happy'
+            elif cycle < 10:
+                eye_style = 'sparkle'
+            else:
+                eye_style = 'happy'
+        elif anim == 'fed':
+            cycle = frame_idx % 20
+            if cycle < 6:
+                eye_style = 'happy'
+            elif cycle < 10:
+                eye_style = 'sparkle'
+            elif cycle < 14:
+                eye_style = 'heart'
+            else:
+                eye_style = 'happy'
         elif anim == 'cartwheel':
             eye_style = 'spinning'
         elif anim == 'backflip':
@@ -861,31 +1110,90 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
         
         # --- Determine mouth style ---
         mouth_style = 'normal'
-        if anim == 'celebrating' or anim == 'dancing':
-            mouth_style = 'smile'
+        if anim == 'celebrating':
+            cycle = frame_idx % 24
+            if cycle < 12:
+                mouth_style = 'smile'
+            elif cycle < 18:
+                mouth_style = 'grin'
+            else:
+                mouth_style = 'smile'
+        elif anim == 'dancing':
+            cycle = frame_idx % 20
+            if cycle < 8:
+                mouth_style = 'smile'
+            elif cycle < 14:
+                mouth_style = 'grin'
+            else:
+                mouth_style = 'tongue'
         elif anim == 'rage':
             mouth_style = 'angry'
         elif anim == 'sleeping' or anim in ('laying_down', 'laying_back', 'laying_side'):
             mouth_style = 'sleep'
-        elif anim == 'petting' or anim == 'fed':
+        elif anim == 'petting':
             mouth_style = 'smile'
+        elif anim == 'fed':
+            cycle = frame_idx % 20
+            if cycle < 8:
+                mouth_style = 'smile'
+            elif cycle < 14:
+                mouth_style = 'eating'
+            else:
+                mouth_style = 'smile'
         elif anim in ('playing', 'customizing'):
             mouth_style = 'smile'
         elif anim == 'eating':
-            mouth_style = 'eating'
+            cycle = frame_idx % 12
+            if cycle < 4:
+                mouth_style = 'eating'
+            elif cycle < 8:
+                mouth_style = 'smile'
+            else:
+                mouth_style = 'eating'
         elif anim == 'drunk':
             mouth_style = 'wavy'
         elif anim == 'stretching':
-            mouth_style = 'normal'
+            stretch_cycle = (frame_idx % 60) / 60.0
+            if stretch_cycle < 0.5:
+                mouth_style = 'open_wide'
+            elif stretch_cycle < 0.7:
+                mouth_style = 'normal'
+            else:
+                mouth_style = 'smile'
         elif anim == 'waving':
             mouth_style = 'smile'
         elif anim == 'jumping':
-            mouth_style = 'grin'
+            jump_cycle = (frame_idx % 36) / 36.0
+            if jump_cycle < 0.35:
+                mouth_style = 'normal'
+            elif jump_cycle < 0.55:
+                mouth_style = 'grin'
+            elif jump_cycle < 0.75:
+                mouth_style = 'open_wide'
+            else:
+                mouth_style = 'smile'
         elif anim == 'yawning':
-            mouth_style = 'open_wide'
+            yawn_cycle = (frame_idx % 48) / 48.0
+            if yawn_cycle < 0.15:
+                mouth_style = 'normal'
+            elif yawn_cycle < 0.35:
+                mouth_style = 'open_wide'
+            elif yawn_cycle < 0.5:
+                mouth_style = 'open_wide'
+            elif yawn_cycle < 0.7:
+                mouth_style = 'normal'
+            else:
+                mouth_style = 'sleep'
         elif anim == 'sneezing':
-            cycle = frame_idx % 8
-            mouth_style = 'open_wide' if cycle < 4 else 'normal'
+            sneeze_cycle = (frame_idx % 36) / 36.0
+            if sneeze_cycle < 0.25:
+                mouth_style = 'normal'
+            elif sneeze_cycle < 0.35:
+                mouth_style = 'open_wide'
+            elif sneeze_cycle < 0.5:
+                mouth_style = 'grin'
+            else:
+                mouth_style = 'normal'
         elif anim == 'tail_wag':
             mouth_style = 'smile'
         elif anim == 'cartwheel':
@@ -2130,13 +2438,13 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
             self._draw_panda(self.animation_frame)
             self.animation_frame += 1
             
-            # Return to idle after 1 second
-            self.animation_timer = self.after(1000, lambda: self.start_animation('idle'))
+            # Return to idle after 4 seconds
+            self.animation_timer = self.after(4000, lambda: self.start_animation('idle'))
         except Exception as e:
             logger.error(f"Error in single animation: {e}")
             if not self._destroyed:
                 try:
-                    self.animation_timer = self.after(1000, lambda: self.start_animation('idle'))
+                    self.animation_timer = self.after(4000, lambda: self.start_animation('idle'))
                 except Exception:
                     pass
     
