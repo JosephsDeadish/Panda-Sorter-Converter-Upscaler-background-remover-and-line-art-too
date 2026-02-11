@@ -1392,9 +1392,9 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
             max_y = max(0, screen_h - th)
             
             hit_wall = False
-            if new_x <= 0 or new_x >= max_x:
+            if new_x < 0 or new_x > max_x:
                 hit_wall = True
-            if new_y <= 0 or new_y >= max_y:
+            if new_y < 0 or new_y > max_y:
                 hit_wall = True
             
             new_x = max(0, min(new_x, max_x))

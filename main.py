@@ -387,6 +387,7 @@ class PS2TextureSorter(ctk.CTk):
         self.panda_closet = None
         self.panda_widget = None
         self.widget_collection = None
+        self.closet_panel = None
         
         # Thumbnail cache for file browser (LRU using OrderedDict for O(1) operations)
         self._thumbnail_cache = OrderedDict()
@@ -3885,6 +3886,13 @@ class PS2TextureSorter(ctk.CTk):
                             str(CONFIG_DIR / 'closet.json')
                         )
                         logger.info(f"Unlocked closet item: {closet_item.id} ({closet_item.name})")
+                        
+                        # Refresh closet panel to show newly purchased item
+                        if self.closet_panel:
+                            try:
+                                self.closet_panel.refresh()
+                            except Exception as e:
+                                logger.debug(f"Failed to refresh closet panel: {e}")
                     elif not closet_item:
                         logger.debug(f"No matching closet item for shop unlockable_id: {item.unlockable_id}")
                 except Exception as e:
@@ -4073,6 +4081,9 @@ class PS2TextureSorter(ctk.CTk):
             panda_preview_callback=self.panda_widget
         )
         closet_panel.pack(fill="both", expand=True, padx=10, pady=10)
+        
+        # Store reference so we can refresh after shop purchases
+        self.closet_panel = closet_panel
     
     def create_notepad_tab(self):
         """Create notepad tab with multiple note tabs support"""
@@ -4952,12 +4963,6 @@ Built with:
                 panda_closet=self.panda_closet
             )
             self.panda_widget.pack(padx=5, pady=5)
-            
-            # Add panda level display
-            if self.panda_level_system:
-                panda_level_text = f"Panda Lvl {self.panda_level_system.level}"
-                panda_level_label = ctk.CTkLabel(panda_container, text=panda_level_text, font=("Arial", 9))
-                panda_level_label.pack(pady=2)
     
     def browse_input(self):
         """Browse for input directory"""

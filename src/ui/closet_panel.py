@@ -138,6 +138,10 @@ class ClosetPanel(ctk.CTkFrame if ctk else tk.Frame):
         )
         appearance_text.pack(side="left", padx=5)
     
+    def refresh(self):
+        """Refresh the closet display to show newly purchased items."""
+        self._show_items()
+        self.appearance_var.set(self._get_appearance_text())
     
     def _select_category(self, category: CustomizationCategory):
         """Select a customization category."""
