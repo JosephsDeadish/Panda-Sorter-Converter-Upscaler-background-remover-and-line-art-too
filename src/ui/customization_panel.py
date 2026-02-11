@@ -461,7 +461,7 @@ class CursorCustomizer(ctk.CTkFrame):
                                         width=300, height=120, fg_color="#2b2b2b")
         self.preview_area.pack(padx=5, pady=5, fill="x")
         
-        # Trail preview canvas overlaid on preview area
+        # Trail preview canvas - bind motion directly on canvas for correct coordinates
         import tkinter as tk
         self._trail_preview_canvas = tk.Canvas(
             preview_frame, highlightthickness=0, bg='#2b2b2b',
@@ -473,8 +473,9 @@ class CursorCustomizer(ctk.CTkFrame):
         self._trail_preview_canvas.bind('<Button-2>', lambda e: 'break')
         self._trail_preview_canvas.bind('<Button-3>', lambda e: 'break')
         
-        # Bind motion on the preview area for trail demo
+        # Bind motion on both the preview area and the canvas for trail demo
         self.preview_area.bind('<Motion>', self._on_preview_motion)
+        self._trail_preview_canvas.bind('<Motion>', self._on_canvas_motion)
         
         ctk.CTkButton(scroll_frame, text="Apply Cursor", command=self._apply_cursor,
                      width=150, height=35).pack(pady=10)
@@ -501,8 +502,27 @@ class CursorCustomizer(ctk.CTkFrame):
         self.trail_style = self._strip_icon(trail_style)
         self._update_preview()
     
+    def _on_canvas_motion(self, event):
+        """Show trail preview dots when hovering directly over the trail canvas."""
+        self._draw_trail_dot(event.x, event.y)
+    
     def _on_preview_motion(self, event):
-        """Show trail preview dots when hovering over the preview area."""
+        """Show trail preview dots when hovering over the preview area (above the canvas)."""
+        if not self.trail_enabled or not self._trail_preview_canvas:
+            return
+        try:
+            canvas = self._trail_preview_canvas
+            if not canvas.winfo_exists():
+                return
+            # Convert coordinates from preview_area to canvas coordinate space
+            canvas_x = event.x_root - canvas.winfo_rootx()
+            canvas_y = canvas.winfo_height() // 2  # Center Y in canvas
+            self._draw_trail_dot(canvas_x, canvas_y)
+        except Exception as e:
+            logger.debug(f"Trail preview error: {e}")
+    
+    def _draw_trail_dot(self, x, y):
+        """Draw a trail dot at the given canvas coordinates."""
         if not self.trail_enabled or not self._trail_preview_canvas:
             return
         try:
@@ -526,8 +546,14 @@ class CursorCustomizer(ctk.CTkFrame):
             }
             colors = trail_color_palettes.get(self.trail_style, trail_color_palettes['rainbow'])
             
-            x = event.x
-            y = min(max(event.y, self.TRAIL_PREVIEW_MIN_Y), self.TRAIL_PREVIEW_MAX_Y)
+            # Clamp coordinates within canvas bounds
+            canvas_width = canvas.winfo_width()
+            canvas_height = canvas.winfo_height()
+            if canvas_width <= 1 or canvas_height <= 1:
+                return
+            x = max(self.TRAIL_PREVIEW_DOT_RADIUS, min(x, canvas_width - self.TRAIL_PREVIEW_DOT_RADIUS))
+            y = max(self.TRAIL_PREVIEW_MIN_Y, min(y, min(self.TRAIL_PREVIEW_MAX_Y, canvas_height - self.TRAIL_PREVIEW_DOT_RADIUS)))
+            
             color_idx = len(self._trail_preview_dots) % len(colors)
             r = self.TRAIL_PREVIEW_DOT_RADIUS
             dot = canvas.create_oval(

@@ -1878,6 +1878,12 @@ class PS2TextureSorter(ctk.CTk):
                     colors = theme.get("colors", {})
                     if colors:
                         try:
+                            # Apply background color to the main window
+                            if 'background' in colors:
+                                try:
+                                    self.configure(fg_color=colors['background'])
+                                except Exception:
+                                    pass
                             for widget in self.winfo_children():
                                 self._apply_theme_to_widget(widget, colors)
                         except Exception:
@@ -1944,8 +1950,13 @@ class PS2TextureSorter(ctk.CTk):
                 # Update all widgets with new colors if available
                 colors = theme.get('colors', {})
                 if colors:
-                    # Try to update button colors
                     try:
+                        # Apply background color to main window
+                        if 'background' in colors:
+                            try:
+                                self.configure(fg_color=colors['background'])
+                            except Exception:
+                                pass
                         for widget in self.winfo_children():
                             self._apply_theme_to_widget(widget, colors)
                     except Exception as widget_err:
@@ -2042,11 +2053,58 @@ class PS2TextureSorter(ctk.CTk):
                     widget.configure(fg_color=colors['button'])
                 if 'button_hover' in colors:
                     widget.configure(hover_color=colors['button_hover'])
+                if 'text' in colors:
+                    widget.configure(text_color=colors['text'])
             
             # Apply colors to CTkFrame widgets
             elif isinstance(widget, ctk.CTkFrame):
                 if 'secondary' in colors:
                     widget.configure(fg_color=colors['secondary'])
+            
+            # Apply colors to CTkLabel widgets
+            elif isinstance(widget, ctk.CTkLabel):
+                if 'text' in colors:
+                    try:
+                        widget.configure(text_color=colors['text'])
+                    except Exception:
+                        pass
+            
+            # Apply colors to CTkEntry widgets
+            elif isinstance(widget, ctk.CTkEntry):
+                if 'background' in colors:
+                    try:
+                        widget.configure(fg_color=colors['background'])
+                    except Exception:
+                        pass
+                if 'text' in colors:
+                    try:
+                        widget.configure(text_color=colors['text'])
+                    except Exception:
+                        pass
+            
+            # Apply colors to CTkOptionMenu widgets
+            elif isinstance(widget, ctk.CTkOptionMenu):
+                if 'button' in colors:
+                    try:
+                        widget.configure(fg_color=colors['button'])
+                    except Exception:
+                        pass
+            
+            # Apply colors to CTkCheckBox widgets
+            elif isinstance(widget, ctk.CTkCheckBox):
+                if 'accent' in colors:
+                    try:
+                        widget.configure(fg_color=colors['accent'])
+                    except Exception:
+                        pass
+            
+            # Apply colors to CTkProgressBar widgets
+            elif isinstance(widget, ctk.CTkProgressBar):
+                if 'accent' in colors:
+                    try:
+                        widget.configure(progress_color=colors['accent'])
+                    except Exception:
+                        pass
             
             # Recursively apply to children
             for child in widget.winfo_children():
@@ -2166,9 +2224,11 @@ class PS2TextureSorter(ctk.CTk):
                 self._trail_canvas.bind('<Button-2>', lambda e: 'break')
                 self._trail_canvas.bind('<Button-3>', lambda e: 'break')
                 
-                # Handle window resize to update canvas size
+                # Handle window resize to update canvas size - only respond to main window resizes
                 def on_configure(event):
                     try:
+                        if event.widget != self:
+                            return  # Ignore child widget configure events
                         if hasattr(self, '_trail_canvas') and self._trail_canvas:
                             # Update canvas to match window size
                             self._trail_canvas.config(width=event.width, height=event.height)
@@ -2984,9 +3044,15 @@ class PS2TextureSorter(ctk.CTk):
                 # Save to file
                 config.save()
                 
-                # Apply settings immediately
-                self.apply_theme(theme_var.get())
-                self.apply_ui_scaling(scale_var.get())
+                # Apply settings immediately - wrap in try/except to avoid crashing settings window
+                try:
+                    self.apply_theme(theme_var.get())
+                except Exception as theme_err:
+                    logger.debug(f"Theme apply during settings save: {theme_err}")
+                try:
+                    self.apply_ui_scaling(scale_var.get())
+                except Exception as scale_err:
+                    logger.debug(f"Scale apply during settings save: {scale_err}")
                 
                 # Reinitialize classifier with new config
                 if hasattr(self, 'classifier'):
@@ -3043,28 +3109,90 @@ class PS2TextureSorter(ctk.CTk):
                          font=("Arial", 14)).pack(expand=True)
             return
         
+        # Category filter buttons
+        categories_frame = ctk.CTkFrame(self.tab_achievements)
+        categories_frame.pack(fill="x", padx=20, pady=5)
+        
+        ctk.CTkLabel(categories_frame, text="Filter:", font=("Arial", 11)).pack(side="left", padx=5)
+        
+        self._achievement_category_filter = "all"
+        
+        category_labels = {
+            "all": "📋 All",
+            "beginner": "🌱 Beginner",
+            "progress": "📊 Progress",
+            "speed": "⚡ Speed",
+            "session": "🏃 Session",
+            "features": "🔧 Features",
+            "quality": "💯 Quality",
+            "special": "🐼 Special",
+            "meta": "🏆 Meta",
+            "easter_egg": "🥚 Easter Eggs",
+        }
+        
+        for cat_id, cat_label in category_labels.items():
+            btn = ctk.CTkButton(
+                categories_frame, text=cat_label, width=80, height=28,
+                font=("Arial", 10),
+                command=lambda c=cat_id: self._filter_achievements(c)
+            )
+            btn.pack(side="left", padx=2, pady=3)
+        
         # Achievement scroll frame
-        achieve_scroll = ctk.CTkScrollableFrame(self.tab_achievements, width=1000, height=600)
-        achieve_scroll.pack(padx=20, pady=10, fill="both", expand=True)
+        self.achieve_scroll = ctk.CTkScrollableFrame(self.tab_achievements, width=1000, height=600)
+        self.achieve_scroll.pack(padx=20, pady=10, fill="both", expand=True)
+        
+        # Display all achievements initially
+        self._display_achievements("all")
+    
+    def _filter_achievements(self, category):
+        """Filter achievements by category"""
+        self._achievement_category_filter = category
+        self._display_achievements(category)
+    
+    def _display_achievements(self, category="all"):
+        """Display achievements, optionally filtered by category"""
+        # Clear current items
+        for widget in self.achieve_scroll.winfo_children():
+            widget.destroy()
         
         # Get all achievements
         try:
-            achievements = self.achievement_manager.get_all_achievements()
+            achievements = self.achievement_manager.get_all_achievements(include_hidden=True)
+            
+            if category != "all":
+                achievements = [a for a in achievements if a.category == category]
+            
+            if not achievements:
+                ctk.CTkLabel(self.achieve_scroll,
+                            text="No achievements in this category",
+                            font=("Arial", 14)).pack(pady=50)
+                return
             
             for achievement in achievements:
                 # Achievement frame
-                achieve_frame = ctk.CTkFrame(achieve_scroll)
+                is_completed = achievement.unlocked or achievement.is_complete()
+                achieve_frame = ctk.CTkFrame(self.achieve_scroll)
                 achieve_frame.pack(fill="x", padx=10, pady=5)
                 
                 # Lock/unlock status
-                status = "🔓" if achievement.unlocked else "🔒"
+                if is_completed:
+                    status = "✅"
+                else:
+                    status = "🔒"
                 
                 # Title and description
                 title_text = f"{status} {achievement.icon} {achievement.name}"
-                ctk.CTkLabel(achieve_frame, text=title_text,
-                            font=("Arial Bold", 14)).pack(anchor="w", padx=10, pady=5)
+                title_color = "#2fa572" if is_completed else None
+                title_label = ctk.CTkLabel(achieve_frame, text=title_text,
+                            font=("Arial Bold", 14))
+                if title_color:
+                    title_label.configure(text_color=title_color)
+                title_label.pack(anchor="w", padx=10, pady=5)
                 
                 desc_text = achievement.description
+                if is_completed:
+                    desc_text += "  — Completed!"
                 ctk.CTkLabel(achieve_frame, text=desc_text,
                             font=("Arial", 11), text_color="gray").pack(anchor="w", padx=20, pady=2)
                 
@@ -3084,20 +3212,23 @@ class PS2TextureSorter(ctk.CTk):
                 progress_bar = ctk.CTkProgressBar(progress_frame, width=400)
                 progress_bar.pack(side="left", padx=5)
                 
-                if required > 0:
+                if is_completed:
+                    progress_value = 1.0
+                elif required > 0:
                     progress_value = min(progress / required, 1.0)
                 else:
-                    progress_value = 1.0 if achievement.unlocked else 0.0
+                    progress_value = 0.0
                 
                 progress_bar.set(progress_value)
                 
+                progress_text = f"{progress:g}/{required:g}"
                 progress_label = ctk.CTkLabel(progress_frame, 
-                                              text=f"{progress:g}/{required:g}",
+                                              text=progress_text,
                                               font=("Arial", 10))
                 progress_label.pack(side="left", padx=5)
                 
         except Exception as e:
-            ctk.CTkLabel(achieve_scroll,
+            ctk.CTkLabel(self.achieve_scroll,
                         text=f"Error loading achievements: {e}",
                         font=("Arial", 12)).pack(pady=20)
     
@@ -3454,22 +3585,60 @@ class PS2TextureSorter(ctk.CTk):
                          font=("Arial", 14)).pack(expand=True)
             return
         
+        # Category filter buttons
+        reward_categories_frame = ctk.CTkFrame(self.tab_rewards)
+        reward_categories_frame.pack(fill="x", padx=20, pady=5)
+        
+        ctk.CTkLabel(reward_categories_frame, text="Filter:", font=("Arial", 11)).pack(side="left", padx=5)
+        
+        self._reward_categories = [
+            ('all', '📋 All'),
+            ('cursors', '🖱️ Cursors'),
+            ('outfits', '🐼 Outfits'),
+            ('themes', '🎨 Themes'),
+            ('animations', '✨ Animations'),
+        ]
+        
+        for cat_id, cat_label in self._reward_categories:
+            btn = ctk.CTkButton(
+                reward_categories_frame, text=cat_label, width=90, height=28,
+                font=("Arial", 10),
+                command=lambda c=cat_id: self._filter_rewards(c)
+            )
+            btn.pack(side="left", padx=2, pady=3)
+        
         # Rewards scroll frame
-        rewards_scroll = ctk.CTkScrollableFrame(self.tab_rewards, width=1000, height=600)
-        rewards_scroll.pack(padx=20, pady=10, fill="both", expand=True)
+        self.rewards_scroll = ctk.CTkScrollableFrame(self.tab_rewards, width=1000, height=600)
+        self.rewards_scroll.pack(padx=20, pady=10, fill="both", expand=True)
+        
+        # Display all rewards initially
+        self._display_rewards("all")
+    
+    def _filter_rewards(self, category):
+        """Filter rewards by category"""
+        self._display_rewards(category)
+    
+    def _display_rewards(self, category="all"):
+        """Display rewards, optionally filtered by category"""
+        # Clear current items
+        for widget in self.rewards_scroll.winfo_children():
+            widget.destroy()
         
         # Display unlockables by category using actual UnlockablesSystem attributes
         try:
-            categories = [
-                ('🖱️ Custom Cursors', self.unlockables_manager.cursors),
-                ('🐼 Panda Outfits', self.unlockables_manager.outfits),
-                ('🎨 Themes', self.unlockables_manager.themes),
-                ('✨ Animations', self.unlockables_manager.animations),
+            all_categories = [
+                ('cursors', '🖱️ Custom Cursors', self.unlockables_manager.cursors),
+                ('outfits', '🐼 Panda Outfits', self.unlockables_manager.outfits),
+                ('themes', '🎨 Themes', self.unlockables_manager.themes),
+                ('animations', '✨ Animations', self.unlockables_manager.animations),
             ]
             
-            for cat_label, items_dict in categories:
+            if category != "all":
+                all_categories = [(cid, cl, cd) for cid, cl, cd in all_categories if cid == category]
+            
+            for cat_id, cat_label, items_dict in all_categories:
                 # Category header
-                cat_frame = ctk.CTkFrame(rewards_scroll)
+                cat_frame = ctk.CTkFrame(self.rewards_scroll)
                 cat_frame.pack(fill="x", padx=10, pady=10)
                 
                 ctk.CTkLabel(cat_frame, text=cat_label,
@@ -3510,7 +3679,7 @@ class PS2TextureSorter(ctk.CTk):
                                     text_color="#cc8800").pack(side="left", padx=5)
                 
         except Exception as e:
-            ctk.CTkLabel(rewards_scroll,
+            ctk.CTkLabel(self.rewards_scroll,
                         text=f"Error loading rewards: {e}",
                         font=("Arial", 12)).pack(pady=20)
     
@@ -4073,7 +4242,7 @@ Built with:
             try:
                 level = self.panda_level_system.level
                 xp = self.panda_level_system.xp
-                xp_needed = self.panda_level_system.xp_to_next_level()
+                xp_needed = self.panda_level_system.get_xp_to_next_level()
                 ctk.CTkLabel(level_frame,
                              text=f"Level {level}  •  XP: {xp}/{xp_needed}",
                              font=("Arial Bold", 14), text_color="#ffaa00"
