@@ -768,11 +768,39 @@ class PS2TextureSorter(ctk.CTk):
         self.create_inventory_tab()
         self.create_panda_stats_tab()
         
+        # Throttle scroll events on all scrollable frames to reduce lag/tearing
+        self._throttle_scroll_frames()
+        
         # Add pop-out buttons to dockable tabs
         self._add_popout_buttons()
         
         # Status bar
         self.create_status_bar()
+    
+    def _throttle_scroll_frames(self):
+        """Patch CTkScrollableFrame widgets to throttle scroll events and reduce lag."""
+        self._scroll_throttle_time = 0
+        
+        def _find_scrollable_frames(widget):
+            """Recursively find all CTkScrollableFrame instances."""
+            frames = []
+            if isinstance(widget, ctk.CTkScrollableFrame):
+                frames.append(widget)
+            try:
+                for child in widget.winfo_children():
+                    frames.extend(_find_scrollable_frames(child))
+            except Exception:
+                pass
+            return frames
+        
+        for sf in _find_scrollable_frames(self):
+            try:
+                # Access the internal canvas and reduce scroll increment
+                if hasattr(sf, '_parent_canvas'):
+                    canvas = sf._parent_canvas
+                    canvas.configure(yscrollincrement=4)
+            except Exception:
+                pass
     
     def _has_popout_button(self, tab_frame):
         """Check if tab frame already has a pop-out button"""
@@ -2864,9 +2892,16 @@ class PS2TextureSorter(ctk.CTk):
         def on_panda_anim_toggle():
             """Apply panda animation toggle instantly."""
             try:
-                config.set('ui', 'disable_panda_animations', value=disable_panda_anim_var.get())
+                disabled = disable_panda_anim_var.get()
+                config.set('ui', 'disable_panda_animations', value=disabled)
                 config.save()
-                self.log(f"✅ Panda animations {'disabled' if disable_panda_anim_var.get() else 'enabled'}")
+                self.log(f"✅ Panda animations {'disabled' if disabled else 'enabled'}")
+                # Immediately apply to active panda widget
+                if hasattr(self, 'panda_widget') and self.panda_widget:
+                    if disabled:
+                        self.panda_widget.start_animation('idle')  # triggers hide
+                    else:
+                        self.panda_widget.start_animation('idle')  # triggers show
             except Exception as e:
                 logger.error(f"Failed to save panda animation setting: {e}")
         
@@ -5393,6 +5428,12 @@ Built with:
             ("🐾 Pets", 'pet_count', stats.get('pet_count', 0)),
             ("🎋 Feeds", 'feed_count', stats.get('feed_count', 0)),
             ("💭 Hovers", 'hover_count', stats.get('hover_count', 0)),
+            ("🖐️ Drags", 'drag_count', stats.get('drag_count', 0)),
+            ("🤾 Tosses", 'toss_count', stats.get('toss_count', 0)),
+            ("🫨 Shakes", 'shake_count', stats.get('shake_count', 0)),
+            ("🌀 Spins", 'spin_count', stats.get('spin_count', 0)),
+            ("🧸 Toy Interactions", 'toy_interact_count', stats.get('toy_interact_count', 0)),
+            ("👔 Clothing Changes", 'clothing_change_count', stats.get('clothing_change_count', 0)),
             ("📁 Files Processed", 'files_processed', stats.get('files_processed', 0)),
             ("❌ Failed Operations", 'failed_operations', stats.get('failed_operations', 0)),
             ("🥚 Easter Eggs Found", 'easter_eggs_found', stats.get('easter_eggs_found', 0)),
@@ -5595,6 +5636,8 @@ Built with:
                 try:
                     stats = self.panda.get_statistics()
                     for key in ('click_count', 'pet_count', 'feed_count', 'hover_count',
+                                'drag_count', 'toss_count', 'shake_count', 'spin_count',
+                                'toy_interact_count', 'clothing_change_count',
                                 'files_processed', 'failed_operations', 'easter_eggs_found'):
                         lbl = self._stats_labels.get(key)
                         if lbl:
@@ -5927,14 +5970,37 @@ Built with:
                                            text=f"AI Suggestion: {ai_category} ({ai_confidence:.0%} confidence)",
                                            font=("Arial", 11)).pack(pady=5)
                                 
-                                # Category selection
+                                # Category selection with search filter
                                 ctk.CTkLabel(dialog_window, text="Select Category:", 
-                                           font=("Arial Bold", 11)).pack(pady=10)
+                                           font=("Arial Bold", 11)).pack(pady=(10, 2))
+                                
+                                # Search entry for filtering categories
+                                search_var = ctk.StringVar()
+                                search_entry = ctk.CTkEntry(dialog_window, textvariable=search_var,
+                                                           placeholder_text="Type to filter categories...",
+                                                           width=400)
+                                search_entry.pack(pady=(2, 5))
                                 
                                 category_var = ctk.StringVar(value=ai_category)
                                 category_dropdown = ctk.CTkOptionMenu(dialog_window, variable=category_var,
                                                                      values=category_list, width=400)
-                                category_dropdown.pack(pady=10)
+                                category_dropdown.pack(pady=5)
+                                
+                                def _filter_categories(*_args):
+                                    """Update dropdown values as user types."""
+                                    query = search_var.get().lower().strip()
+                                    if query:
+                                        filtered = [c for c in category_list if query in c.lower()]
+                                    else:
+                                        filtered = category_list
+                                    if filtered:
+                                        category_dropdown.configure(values=filtered)
+                                        if category_var.get() not in filtered:
+                                            category_var.set(filtered[0])
+                                    else:
+                                        category_dropdown.configure(values=category_list)
+                                
+                                search_var.trace_add('write', _filter_categories)
                                 
                                 # Buttons
                                 button_frame = ctk.CTkFrame(dialog_window)
@@ -6051,12 +6117,35 @@ Built with:
                                            font=("Arial Bold", 13), text_color="green").pack(pady=10)
                                 
                                 ctk.CTkLabel(dialog_window, text="Change category if incorrect:", 
-                                           font=("Arial", 11)).pack(pady=5)
+                                           font=("Arial", 11)).pack(pady=(5, 2))
+                                
+                                # Search entry for filtering categories
+                                search_var = ctk.StringVar()
+                                search_entry = ctk.CTkEntry(dialog_window, textvariable=search_var,
+                                                           placeholder_text="Type to filter categories...",
+                                                           width=400)
+                                search_entry.pack(pady=(2, 5))
                                 
                                 category_var = ctk.StringVar(value=ai_category)
                                 category_dropdown = ctk.CTkOptionMenu(dialog_window, variable=category_var,
                                                                      values=category_list, width=400)
-                                category_dropdown.pack(pady=10)
+                                category_dropdown.pack(pady=5)
+                                
+                                def _filter_categories(*_args):
+                                    """Update dropdown values as user types."""
+                                    query = search_var.get().lower().strip()
+                                    if query:
+                                        filtered = [c for c in category_list if query in c.lower()]
+                                    else:
+                                        filtered = category_list
+                                    if filtered:
+                                        category_dropdown.configure(values=filtered)
+                                        if category_var.get() not in filtered:
+                                            category_var.set(filtered[0])
+                                    else:
+                                        category_dropdown.configure(values=category_list)
+                                
+                                search_var.trace_add('write', _filter_categories)
                                 
                                 # Buttons
                                 button_frame = ctk.CTkFrame(dialog_window)

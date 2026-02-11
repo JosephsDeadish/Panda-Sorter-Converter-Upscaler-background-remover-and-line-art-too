@@ -558,6 +558,12 @@ class PandaCharacter:
         self.pet_count = 0
         self.feed_count = 0
         self.hover_count = 0
+        self.drag_count = 0
+        self.toss_count = 0
+        self.shake_count = 0
+        self.spin_count = 0
+        self.toy_interact_count = 0
+        self.clothing_change_count = 0
         self.easter_eggs_triggered: Set[str] = set()
         self.start_time = time.time()
         self.files_processed_count = 0
@@ -710,10 +716,12 @@ class PandaCharacter:
 
     def on_drag(self) -> str:
         """Handle panda being dragged."""
+        self.drag_count += 1
         return random.choice(self.DRAG_RESPONSES)
 
     def on_toss(self) -> str:
         """Handle panda being tossed."""
+        self.toss_count += 1
         return random.choice(self.TOSS_RESPONSES)
 
     def on_wall_hit(self) -> str:
@@ -722,14 +730,17 @@ class PandaCharacter:
 
     def on_shake(self) -> str:
         """Handle panda being shaken side to side."""
+        self.shake_count += 1
         return random.choice(self.SHAKE_RESPONSES)
 
     def on_spin(self) -> str:
         """Handle panda being spun in circles."""
+        self.spin_count += 1
         return random.choice(self.SPIN_RESPONSES)
 
     def on_clothing_change(self) -> str:
         """Handle panda changing clothes."""
+        self.clothing_change_count += 1
         return random.choice(self.CLOTHING_RESPONSES)
 
     def on_toy_received(self) -> str:
@@ -768,7 +779,7 @@ class PandaCharacter:
                 f"🐼 *waddles to {item_name}* Let's play! *pounces*",
                 f"🐼 *picks up {item_name}* Watch this trick! *tosses in air*",
             ]
-            self.click_count += 1
+            self.toy_interact_count += 1
             return random.choice(toy_actions)
     
     def get_context_menu(self) -> Dict[str, str]:
@@ -836,6 +847,12 @@ class PandaCharacter:
             'pet_count': self.pet_count,
             'feed_count': self.feed_count,
             'hover_count': self.hover_count,
+            'drag_count': self.drag_count,
+            'toss_count': self.toss_count,
+            'shake_count': self.shake_count,
+            'spin_count': self.spin_count,
+            'toy_interact_count': self.toy_interact_count,
+            'clothing_change_count': self.clothing_change_count,
             'files_processed': self.files_processed_count,
             'failed_operations': self.failed_operations,
             'easter_eggs_found': len(self.easter_eggs_triggered),
