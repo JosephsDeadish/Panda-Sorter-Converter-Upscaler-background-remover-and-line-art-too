@@ -906,6 +906,7 @@ class PandaCharacter:
             Response message string
         """
         with self._lock:
+            self.click_count += 1
             responses = self.BODY_PART_RESPONSES.get(body_part, self.CLICK_RESPONSES)
             return random.choice(responses)
     

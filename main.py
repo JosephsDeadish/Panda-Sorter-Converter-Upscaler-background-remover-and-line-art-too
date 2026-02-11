@@ -765,7 +765,7 @@ class PS2TextureSorter(ctk.CTk):
             return False
         try:
             text = widget.cget('text')
-            return text and ('Pop Out' in text or text == '↗')
+            return text and ('Pop Out' in text or text in ('↗', '⧉'))
         except (Exception, AttributeError):
             return False
     
@@ -790,9 +790,10 @@ class PS2TextureSorter(ctk.CTk):
         self._tab_to_tabview = {name: tv for name, (_, tv) in all_dockable.items()}
         for tab_name, (tab_frame, _) in all_dockable.items():
             btn = ctk.CTkButton(
-                tab_frame, text="↗", width=30, height=26,
-                font=("Arial", 11),
-                fg_color="gray40",
+                tab_frame, text="⧉", width=30, height=26,
+                font=("Arial", 14),
+                fg_color="gray40", hover_color="gray50",
+                corner_radius=6,
                 command=lambda n=tab_name: self._popout_tab(n)
             )
             btn.place(relx=1.0, rely=0.0, anchor="ne", x=-5, y=5)
@@ -824,11 +825,6 @@ class PS2TextureSorter(ctk.CTk):
             self._popout_original_frames = {}
         self._popout_original_frames[tab_name] = tab_frame
         
-        # Store original packing info for each child before moving them
-        if not hasattr(self, '_popout_pack_info'):
-            self._popout_pack_info = {}
-        self._popout_pack_info[tab_name] = []
-        
         # Create container in popout window
         container = ctk.CTkFrame(popout)
         container.pack(fill="both", expand=True, padx=5, pady=5)
@@ -837,7 +833,7 @@ class PS2TextureSorter(ctk.CTk):
         ctk.CTkLabel(container, text=f"{tab_name} (Undocked)",
                     font=("Arial Bold", 16)).pack(pady=(5, 10))
         
-        # Content frame to hold reparented widgets
+        # Content frame to hold rebuilt widgets
         content = ctk.CTkFrame(container)
         content.pack(fill="both", expand=True, padx=5, pady=5)
         
@@ -845,31 +841,8 @@ class PS2TextureSorter(ctk.CTk):
         if tab_name == "📝 Notepad":
             self._create_popout_notepad(popout, content)
         else:
-            # Move original children from tab to popout window
-            children = list(tab_frame.winfo_children())
-            for child in children:
-                if self._is_popout_button(child):
-                    continue
-                try:
-                    # Save pack info
-                    try:
-                        pack_info = child.pack_info()
-                    except Exception:
-                        pack_info = None
-                    self._popout_pack_info[tab_name].append((child, pack_info))
-                    
-                    # Reparent to popout container
-                    child.pack_forget()
-                    child.master = content
-                    # Reparent via internal tk call
-                    child.tk.call(child._w, 'configure', '-master', str(content))
-                    # Repack with original settings or sensible defaults
-                    if pack_info:
-                        child.pack(**{k: v for k, v in pack_info.items() if k != 'in'})
-                    else:
-                        child.pack(fill="both", expand=True)
-                except Exception as e:
-                    logger.debug(f"Could not reparent widget for popout: {e}")
+            # Rebuild tab content in the popout window
+            self._rebuild_popout_content(tab_name, content)
         
         # Add dock-back button
         dock_btn = ctk.CTkButton(
@@ -881,6 +854,42 @@ class PS2TextureSorter(ctk.CTk):
         # Handle window close = dock back
         popout.protocol("WM_DELETE_WINDOW",
                         lambda n=tab_name, w=popout: self._dock_tab(n, w))
+    
+    def _rebuild_popout_content(self, tab_name, container):
+        """Rebuild tab content inside a popout container frame."""
+        # Temporarily reassign tab frame references so create_*_tab builds into container
+        tab_creators = {
+            "📁 File Browser": ('tab_browser', self.create_browser_tab),
+            "ℹ️ About": ('tab_about', self.create_about_tab),
+            "🏆 Achievements": None,
+            "🛒 Shop": ('tab_shop', self.create_shop_tab),
+            "🎁 Rewards": ('tab_rewards', self.create_rewards_tab),
+            "📦 Inventory": ('tab_inventory', self.create_inventory_tab),
+            "📊 Panda Stats & Mood": ('tab_panda_stats', self.create_panda_stats_tab),
+        }
+        creator_info = tab_creators.get(tab_name)
+        if creator_info is None and tab_name == "🏆 Achievements":
+            # Achievements has special rebuild logic
+            scroll = ctk.CTkScrollableFrame(container)
+            scroll.pack(fill="both", expand=True, padx=5, pady=5)
+            self.achieve_scroll = scroll
+            self._display_achievements(getattr(self, '_achievement_category_filter', 'all'))
+            return
+        if creator_info:
+            attr_name, creator_fn = creator_info
+            original = getattr(self, attr_name)
+            setattr(self, attr_name, container)
+            try:
+                creator_fn()
+            except Exception as e:
+                logger.error(f"Error rebuilding popout content for {tab_name}: {e}")
+                ctk.CTkLabel(container, text=f"Error loading {tab_name}",
+                           font=("Arial", 12)).pack(pady=20)
+            finally:
+                # Store the popout container ref; original will be restored on dock
+                if not hasattr(self, '_popout_tab_refs'):
+                    self._popout_tab_refs = {}
+                self._popout_tab_refs[tab_name] = (attr_name, original)
     
     def _create_popout_notepad(self, popout_window, container):
         """Create notepad functionality in popout window (fully editable)"""
@@ -976,28 +985,14 @@ class PS2TextureSorter(ctk.CTk):
                     except Exception as e:
                         logger.error(f"Error saving popout notes during dock: {e}")
             else:
-                # Reparent widgets back to original tab frame
-                reparented = False
-                if hasattr(self, '_popout_pack_info') and tab_name in self._popout_pack_info:
-                    tab_frame = self._popout_original_frames.get(tab_name)
-                    if tab_frame and tab_frame.winfo_exists():
-                        for child, pack_info in self._popout_pack_info[tab_name]:
-                            try:
-                                if child.winfo_exists():
-                                    child.pack_forget()
-                                    child.tk.call(child._w, 'configure', '-master', str(tab_frame))
-                                    if pack_info:
-                                        child.pack(**{k: v for k, v in pack_info.items() if k != 'in'})
-                                    else:
-                                        child.pack(fill="both", expand=True)
-                                    reparented = True
-                            except Exception as e:
-                                logger.debug(f"Could not reparent widget back: {e}")
-                    self._popout_pack_info.pop(tab_name, None)
+                # Restore original tab frame reference and rebuild content
+                if hasattr(self, '_popout_tab_refs') and tab_name in self._popout_tab_refs:
+                    attr_name, original_frame = self._popout_tab_refs[tab_name]
+                    setattr(self, attr_name, original_frame)
+                    del self._popout_tab_refs[tab_name]
                 
-                # If reparenting failed, regenerate tab content
-                if not reparented:
-                    self._regenerate_tab_content(tab_name)
+                # Regenerate tab content in the original tab frame
+                self._regenerate_tab_content(tab_name)
             
             # Destroy pop-out window
             if popout_window and popout_window.winfo_exists():
@@ -1630,7 +1625,7 @@ class PS2TextureSorter(ctk.CTk):
         """Create file browser tab with directory browsing and file preview"""
         # Header - use wrapping layout to prevent button overlap at small sizes
         header_frame = ctk.CTkFrame(self.tab_browser)
-        header_frame.pack(fill="x", padx=10, pady=10)
+        header_frame.pack(fill="x", padx=(10, 45), pady=10)
         
         ctk.CTkLabel(header_frame, text="📁 File Browser",
                      font=("Arial Bold", 16)).pack(side="left", padx=10)
@@ -4248,9 +4243,9 @@ class PS2TextureSorter(ctk.CTk):
     
     def create_notepad_tab(self):
         """Create notepad tab with multiple note tabs support"""
-        # Header with title
+        # Header with title (extra right padding for popout button)
         header_frame = ctk.CTkFrame(self.tab_notepad)
-        header_frame.pack(fill="x", pady=10, padx=10)
+        header_frame.pack(fill="x", pady=10, padx=(10, 45))
         
         ctk.CTkLabel(header_frame, text="📝 Personal Notes",
                      font=("Arial Bold", 16)).pack(side="left", padx=10)
@@ -4913,23 +4908,25 @@ Built with:
         except Exception:
             pass
 
-        # ═══════════════════ Panda Preview (canvas) ═══════════════════
+        # ═══════════════════ Panda Preview (compact) ═══════════════════
         preview_frame = ctk.CTkFrame(scrollable_frame)
         preview_frame.pack(fill="x", padx=10, pady=5)
-        ctk.CTkLabel(preview_frame, text="🐼 Panda Preview",
-                     font=("Arial Bold", 16)).pack(anchor="w", padx=10, pady=(10, 5))
+        preview_header = ctk.CTkFrame(preview_frame, fg_color="transparent")
+        preview_header.pack(fill="x", padx=10, pady=(5, 0))
+        ctk.CTkLabel(preview_header, text="🐼 Panda Preview",
+                     font=("Arial Bold", 16)).pack(side="left")
 
         import tkinter as _tk
-        preview_canvas = _tk.Canvas(preview_frame, width=180, height=220,
+        preview_canvas = _tk.Canvas(preview_frame, width=120, height=140,
                                     bg="#2b2b2b", highlightthickness=0)
-        preview_canvas.pack(pady=10)
-        self._draw_static_panda(preview_canvas, 180, 220)
+        preview_canvas.pack(pady=(5, 5))
+        self._draw_static_panda(preview_canvas, 120, 140)
 
         anim_name = self.panda_widget.current_animation if hasattr(self, 'panda_widget') and self.panda_widget else 'idle'
         self._stats_labels['animation'] = ctk.CTkLabel(
             preview_frame, text=f"Current animation: {anim_name}",
             font=("Arial", 11), text_color="#aaaaaa")
-        self._stats_labels['animation'].pack(pady=(0, 10))
+        self._stats_labels['animation'].pack(pady=(0, 5))
 
         # ═══════════════════ Interaction Statistics ═══════════════════
         stats = self.panda.get_statistics()
@@ -5135,10 +5132,12 @@ Built with:
                 try:
                     mood_indicator = self.panda.get_mood_indicator()
                     mood_name = self.panda.current_mood.value.title()
-                    self.panda_mood_label.configure(text=f"{mood_indicator} {mood_name}")
+                    new_text = f"{mood_indicator} {mood_name}"
+                    if self.panda_mood_label.cget("text") != new_text:
+                        self.panda_mood_label.configure(text=new_text)
                 except Exception:
                     pass
-            # Update all stat labels in-place
+            # Update all stat labels in-place (only if changed)
             if hasattr(self, '_stats_labels') and self._stats_labels and self.panda:
                 try:
                     stats = self.panda.get_statistics()
@@ -5146,11 +5145,15 @@ Built with:
                                 'files_processed', 'failed_operations', 'easter_eggs_found'):
                         lbl = self._stats_labels.get(key)
                         if lbl:
-                            lbl.configure(text=str(stats.get(key, 0)))
+                            new_val = str(stats.get(key, 0))
+                            if lbl.cget("text") != new_val:
+                                lbl.configure(text=new_val)
                     # Update animation label
                     anim_lbl = self._stats_labels.get('animation')
                     if anim_lbl and hasattr(self, 'panda_widget') and self.panda_widget:
-                        anim_lbl.configure(text=f"Current animation: {self.panda_widget.current_animation}")
+                        new_anim = f"Current animation: {self.panda_widget.current_animation}"
+                        if anim_lbl.cget("text") != new_anim:
+                            anim_lbl.configure(text=new_anim)
                     # Update level/XP
                     if self.panda_level_system:
                         lvl_lbl = self._stats_labels.get('level_text')
@@ -5158,14 +5161,16 @@ Built with:
                             level = self.panda_level_system.level
                             xp = self.panda_level_system.xp
                             xp_needed = self.panda_level_system.get_xp_to_next_level()
-                            lvl_lbl.configure(text=f"Level {level}  •  XP: {xp}/{xp_needed}")
+                            new_lvl = f"Level {level}  •  XP: {xp}/{xp_needed}"
+                            if lvl_lbl.cget("text") != new_lvl:
+                                lvl_lbl.configure(text=new_lvl)
                         if hasattr(self, '_stats_xp_bar'):
                             xp = self.panda_level_system.xp
                             xp_needed = self.panda_level_system.get_xp_to_next_level()
                             self._stats_xp_bar.set(min(1.0, xp / max(1, xp_needed)))
                 except Exception:
                     pass
-            self._stats_auto_refresh_id = self.after(3000, self._start_stats_auto_refresh)
+            self._stats_auto_refresh_id = self.after(5000, self._start_stats_auto_refresh)
         except Exception as e:
             logger.debug(f"Stats auto-refresh error: {e}")
 
@@ -5937,18 +5942,20 @@ Built with:
             if not (sound_enabled and completion_alert):
                 return
             
-            # Try to play system beep (cross-platform)
-            import sys
-            if sys.platform == 'win32':
-                try:
-                    import winsound
-                    # Play system asterisk sound (MB_ICONASTERISK)
-                    winsound.MessageBeep(winsound.MB_ICONASTERISK)
-                except Exception:
-                    pass
+            # Use sound manager if available
+            if hasattr(self, 'sound_manager') and self.sound_manager:
+                self.sound_manager.play_complete()
             else:
-                # Unix/Mac - print bell character
-                print('\a')
+                # Fallback to system beep
+                import sys
+                if sys.platform == 'win32':
+                    try:
+                        import winsound
+                        winsound.MessageBeep(winsound.MB_ICONASTERISK)
+                    except Exception:
+                        pass
+                else:
+                    print('\a')
         except Exception as e:
             # Fail silently - sound is not critical
             pass
