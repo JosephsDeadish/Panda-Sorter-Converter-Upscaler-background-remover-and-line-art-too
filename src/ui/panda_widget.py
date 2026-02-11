@@ -193,6 +193,10 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
         # Draw initial panda and start animation
         self._draw_panda(0)
         self.start_animation('idle')
+        
+        # Deferred background refresh – once the widget tree is fully
+        # rendered the parent background colour is reliably available.
+        self.after(100, self._refresh_canvas_bg)
     
     # ------------------------------------------------------------------
     # Canvas-based panda drawing
@@ -201,10 +205,17 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
     def _get_parent_bg(self) -> str:
         """Determine appropriate canvas background to blend with the parent.
         
-        Walks up the widget tree to find the actual rendered background colour
-        so that the canvas blends seamlessly (no visible box).
+        Uses CustomTkinter's built-in colour detection so the canvas
+        blends seamlessly (no visible box) in both light and dark modes.
         """
-        # Try to read the actual background from parent hierarchy
+        # Use CTk's own detection for the most accurate parent color
+        try:
+            if ctk and hasattr(self, '_detect_color_of_master'):
+                color = self._detect_color_of_master()
+                return self._apply_appearance_mode(color)
+        except Exception:
+            pass
+        # Walk the widget tree manually as a fallback
         try:
             widget = self.master
             while widget is not None:
@@ -212,7 +223,7 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
                     if ctk and isinstance(widget, ctk.CTkBaseClass):
                         fg = widget.cget("fg_color")
                         if fg and fg != "transparent":
-                            return fg if isinstance(fg, str) else fg[0]
+                            return self._apply_appearance_mode(fg)
                     bg = widget.cget("bg")
                     if bg and bg != "SystemButtonFace":
                         return bg
@@ -232,6 +243,26 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
 
     # Deprecated: use _get_parent_bg instead
     _get_canvas_bg = _get_parent_bg
+
+    def _refresh_canvas_bg(self):
+        """Re-detect the parent background and update both canvases."""
+        if self._destroyed:
+            return
+        self._canvas_bg = self._get_parent_bg()
+        try:
+            self.panda_canvas.configure(bg=self._canvas_bg)
+        except Exception:
+            pass
+        try:
+            self._bubble_canvas.configure(bg=self._canvas_bg)
+        except Exception:
+            pass
+
+    def _set_appearance_mode(self, mode_string):
+        """Called by CustomTkinter when the appearance mode changes."""
+        super()._set_appearance_mode(mode_string)
+        self._refresh_canvas_bg()
+        self._draw_panda(self.animation_frame)
 
     def _show_speech_bubble(self, text: str):
         """Draw a floating speech bubble next to the panda on _bubble_canvas."""
