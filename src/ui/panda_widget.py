@@ -78,10 +78,10 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
     
     # Drag pattern detection thresholds
     DRAG_HISTORY_SECONDS = 1.5      # How long to retain drag positions
-    SHAKE_DIRECTION_CHANGES = 6     # X direction changes needed for shaking
+    SHAKE_DIRECTION_CHANGES = 10    # X direction changes needed for shaking
     MIN_SHAKE_MOVEMENT = 2          # Min px movement for a direction change
-    MIN_ROTATION_ANGLE = 0.05       # Min angle diff (radians) for spin detection
-    SPIN_CONSISTENCY_THRESHOLD = 0.7  # Required ratio of consistent rotations
+    MIN_ROTATION_ANGLE = 0.15       # Min angle diff (radians) for spin detection
+    SPIN_CONSISTENCY_THRESHOLD = 0.85  # Required ratio of consistent rotations
     
     # Toss physics constants
     TOSS_FRICTION = 0.92            # Velocity decay per frame
@@ -327,7 +327,7 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
         bc.delete("all")
 
         # Measure text to determine bubble size
-        font = ("Arial", 12)
+        font = ("Arial", 14)
         # Wrap long text
         words = text.split()
         lines = []
@@ -466,8 +466,8 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
             body_bob = math.sin(phase * 4) * 4
         elif anim == 'petting':
             leg_swing = 0
-            arm_swing = 0
-            body_bob = math.sin(phase) * 2
+            arm_swing = math.sin(phase * 1.5) * 4
+            body_bob = math.sin(phase) * 3 + math.sin(phase * 0.5) * 1.5
         elif anim == 'playing':
             # Active bouncing and arm swinging for playing with toys
             leg_swing = math.sin(phase) * 10
@@ -495,11 +495,22 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
             leg_swing = math.sin(phase * 2) * 15
             arm_swing = math.cos(phase * 2) * 15
             body_bob = math.sin(phase) * 8
+        elif anim == 'clicked':
+            leg_swing = math.sin(phase * 2) * 5
+            arm_swing = math.sin(phase * 2 + math.pi) * 8
+            body_bob = -abs(math.sin(phase * 3)) * 6  # bounce effect
         else:
-            # Default walking for clicked, fed, etc.
+            # Default walking for fed, etc.
             leg_swing = math.sin(phase) * 8
             arm_swing = math.sin(phase + math.pi) * 6
             body_bob = abs(math.sin(phase)) * 2
+        
+        # --- Subtle breathing (body scale oscillation) ---
+        breath_scale = 1.0
+        if anim in ('idle', 'working', 'sarcastic', 'thinking'):
+            breath_scale = 1.0 + math.sin(phase * 0.5) * 0.015
+        elif anim in ('sleeping', 'laying_down', 'laying_back', 'laying_side'):
+            breath_scale = 1.0 + math.sin(phase * 0.3) * 0.025
         
         by = body_bob  # vertical body offset
         
@@ -516,10 +527,23 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
         elif anim == 'drunk':
             eye_style = 'dizzy'
         elif anim == 'petting':
-            eye_style = 'happy'
+            # Squint progression: normal → happy → squint → happy
+            cycle = frame_idx % 12
+            if cycle < 3:
+                eye_style = 'happy'
+            elif cycle < 6:
+                eye_style = 'squint'
+            else:
+                eye_style = 'happy'
         elif anim == 'clicked':
-            # Alternate between wink and surprised on click
-            eye_style = 'wink' if frame_idx % 4 < 2 else 'surprised'
+            # Surprised then transitions to happy
+            cycle = frame_idx % 8
+            if cycle < 3:
+                eye_style = 'surprised'
+            elif cycle < 5:
+                eye_style = 'wink'
+            else:
+                eye_style = 'happy'
         elif anim in ('playing', 'eating', 'customizing'):
             eye_style = 'happy'
         elif anim == 'spinning':
@@ -558,8 +582,14 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
         
         # --- Ear wiggle for idle/petting ---
         ear_wiggle = 0
-        if anim in ('idle', 'petting', 'celebrating', 'playing'):
+        if anim == 'petting':
+            ear_wiggle = math.sin(phase * 3) * 4 * sx + math.sin(phase * 1.3) * 2 * sx
+        elif anim in ('idle', 'celebrating', 'playing'):
             ear_wiggle = math.sin(phase * 2) * 3 * sx
+        elif anim in ('sleeping', 'laying_down', 'laying_back', 'laying_side'):
+            # Occasional ear twitch while sleeping
+            if frame_idx % 20 < 3:
+                ear_wiggle = math.sin(phase * 6) * 2 * sx
         
         # --- Draw legs (behind body) ---
         leg_top = int(145 * sy + by)
@@ -596,13 +626,15 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
         # --- Draw body (white belly, rounded) ---
         body_top = int(75 * sy + by)
         body_bot = int(160 * sy + by)
+        body_rx = int(42 * sx * breath_scale)
         c.create_oval(
-            cx - int(42 * sx), body_top, cx + int(42 * sx), body_bot,
+            cx - body_rx, body_top, cx + body_rx, body_bot,
             fill=white, outline=black, width=2, tags="body"
         )
         # Inner belly patch (lighter)
+        belly_rx = int(28 * sx * breath_scale)
         c.create_oval(
-            cx - int(28 * sx), body_top + int(15 * sy), cx + int(28 * sx), body_bot - int(10 * sy),
+            cx - belly_rx, body_top + int(15 * sy), cx + belly_rx, body_bot - int(10 * sy),
             fill="#FAFAFA", outline="", tags="belly"
         )
         
@@ -669,6 +701,9 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
                        cx + eye_offset + patch_rx, eye_y + patch_ry,
                        fill=black, outline="", tags="eye_patch")
         
+        # --- Draw equipped items on panda body (before face details) ---
+        self._draw_equipped_items(c, cx, by, sx, sy)
+        
         # --- Draw eyes ---
         self._draw_eyes(c, cx, eye_y, eye_style, sx, sy)
         
@@ -679,9 +714,6 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
         
         # --- Draw mouth ---
         self._draw_mouth(c, cx, nose_y + int(6 * sy), mouth_style, sx, sy)
-        
-        # --- Draw equipped items on panda body ---
-        self._draw_equipped_items(c, cx, by, sx, sy)
         
         # --- Draw animation-specific extras ---
         self._draw_animation_extras(c, cx, by, anim, frame_idx, sx, sy)
@@ -701,10 +733,18 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
         elif style == 'happy':
             c.create_arc(left_ex - es, ey - es, left_ex + es, ey + int(4 * sy),
                          start=0, extent=180, style="arc",
-                         outline="white", width=2, tags="eye")
+                         outline="white", width=3, tags="eye")
             c.create_arc(right_ex - es, ey - es, right_ex + es, ey + int(4 * sy),
                          start=0, extent=180, style="arc",
-                         outline="white", width=2, tags="eye")
+                         outline="white", width=3, tags="eye")
+            # Small shine marks
+            sh = int(2 * sx)
+            c.create_oval(left_ex - es + sh, ey - es + sh,
+                          left_ex - es + sh * 2, ey - es + sh * 2,
+                          fill="white", outline="", tags="shine")
+            c.create_oval(right_ex - es + sh, ey - es + sh,
+                          right_ex - es + sh * 2, ey - es + sh * 2,
+                          fill="white", outline="", tags="shine")
         elif style == 'angry':
             c.create_oval(left_ex - ps, ey - ps, left_ex + ps, ey + ps,
                           fill="red", outline="", tags="eye")
@@ -741,16 +781,24 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
             c.create_line(right_ex - es, ey, right_ex + es, ey,
                           fill="white", width=2, tags="eye")
         elif style == 'surprised':
-            # Wide open eyes
-            big_es = int(8 * sx)
+            # Wide open eyes (larger)
+            big_es = int(9 * sx)
             c.create_oval(left_ex - big_es, ey - big_es, left_ex + big_es, ey + big_es,
                           fill="white", outline="", tags="eye")
             c.create_oval(left_ex - ps, ey - ps, left_ex + ps, ey + ps,
                           fill="#222222", outline="", tags="pupil")
+            # Highlight dot
+            hl = int(2 * sx)
+            c.create_oval(left_ex + ps, ey - big_es + hl,
+                          left_ex + ps + hl * 2, ey - big_es + hl * 3,
+                          fill="white", outline="", tags="shine")
             c.create_oval(right_ex - big_es, ey - big_es, right_ex + big_es, ey + big_es,
                           fill="white", outline="", tags="eye")
             c.create_oval(right_ex - ps, ey - ps, right_ex + ps, ey + ps,
                           fill="#222222", outline="", tags="pupil")
+            c.create_oval(right_ex + ps, ey - big_es + hl,
+                          right_ex + ps + hl * 2, ey - big_es + hl * 3,
+                          fill="white", outline="", tags="shine")
         elif style == 'spinning':
             # Swirly spiral eyes
             for ex_pos in [left_ex, right_ex]:
@@ -781,10 +829,20 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
                               ex_pos + int(2 * sx), ey + int(1 * sy),
                               fill="#222222", outline="", tags="pupil")
         elif style == 'sparkle':
-            # Sparkly star eyes
+            # Sparkly star eyes with extra sparkle rays
             for ex_pos in [left_ex, right_ex]:
                 c.create_text(ex_pos, ey, text="★", font=("Arial", int(10 * sx)),
                               fill="white", tags="eye")
+                # Sparkle rays radiating outward
+                ray_len = int(4 * sx)
+                for angle_deg in range(0, 360, 45):
+                    rad = math.radians(angle_deg)
+                    rx = int(math.cos(rad) * ray_len)
+                    ry = int(math.sin(rad) * ray_len)
+                    c.create_line(ex_pos + rx, ey + ry,
+                                  ex_pos + rx + int(math.cos(rad) * 2 * sx),
+                                  ey + ry + int(math.sin(rad) * 2 * sy),
+                                  fill="white", width=1, tags="sparkle_ray")
         elif style == 'heart':
             # Heart eyes
             for ex_pos in [left_ex, right_ex]:
@@ -809,7 +867,17 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
         """Draw panda mouth based on the current animation style."""
         ms = int(8 * sx)  # mouth size
         if style == 'smile':
-            c.create_arc(cx - ms, my - int(6 * sy), cx + ms, my + int(6 * sy),
+            # Wider smile when mood is very happy
+            mood_bonus = 0
+            try:
+                if self.panda and hasattr(self.panda, 'current_mood') and self.panda.current_mood:
+                    mood_val = self.panda.current_mood.value
+                    if mood_val in ('ecstatic', 'overjoyed', 'very_happy'):
+                        mood_bonus = int(3 * sx)
+            except Exception:
+                pass
+            sm = ms + mood_bonus
+            c.create_arc(cx - sm, my - int(6 * sy), cx + sm, my + int(6 * sy),
                          start=200, extent=140, style="arc",
                          outline="#333333", width=2, tags="mouth")
         elif style == 'angry':
@@ -817,14 +885,24 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
                          start=20, extent=140, style="arc",
                          outline="#333333", width=2, tags="mouth")
         elif style == 'sleep':
-            c.create_text(cx + int(30 * sx), my - int(20 * sy), text="z",
+            # ZZZ that drifts upward based on animation frame
+            zzz_drift = (self.animation_frame % 12) * sy * 0.8
+            c.create_text(cx + int(30 * sx), my - int(20 * sy) - zzz_drift * 0.3, text="z",
                           font=("Arial", int(10 * sx)), fill="gray", tags="zzz")
-            c.create_text(cx + int(38 * sx), my - int(30 * sy), text="Z",
+            c.create_text(cx + int(38 * sx), my - int(30 * sy) - zzz_drift * 0.6, text="Z",
                           font=("Arial", int(12 * sx)), fill="gray", tags="zzz")
-            c.create_text(cx + int(46 * sx), my - int(42 * sy), text="Z",
+            c.create_text(cx + int(46 * sx), my - int(42 * sy) - zzz_drift, text="Z",
                           font=("Arial", int(15 * sx)), fill="gray", tags="zzz")
             c.create_line(cx - int(4 * sx), my + 2, cx + int(4 * sx), my + 2,
                           fill="#333333", width=1, tags="mouth")
+        elif style == 'blep':
+            # Smile with tongue peeking out
+            c.create_arc(cx - ms, my - int(6 * sy), cx + ms, my + int(6 * sy),
+                         start=200, extent=140, style="arc",
+                         outline="#333333", width=2, tags="mouth")
+            c.create_oval(cx - int(3 * sx), my + int(3 * sy),
+                          cx + int(3 * sx), my + int(8 * sy),
+                          fill="#FF69B4", outline="#E0559D", tags="tongue")
         elif style == 'wavy':
             points = []
             for i in range(9):
@@ -855,38 +933,89 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
                          start=210, extent=120, style="arc",
                          outline="#333333", width=1.5, tags="mouth")
 
+    # Emoji-to-color mapping for equipped item shapes
+    _EMOJI_COLORS = {
+        '🎩': '#1a1a1a', '👑': '#FFD700', '🧢': '#4169E1', '🎓': '#1a1a1a',
+        '🪖': '#556B2F', '⛑️': '#FF4500', '👒': '#F5DEB3', '🎀': '#FF69B4',
+        '👗': '#FF69B4', '👕': '#4169E1', '👔': '#8B0000', '🧥': '#8B4513',
+        '🥼': '#FFFFFF', '🦺': '#FF8C00', '👚': '#FFB6C1', '🧣': '#FF0000',
+        '📿': '#FFD700', '🕶️': '#1a1a1a', '💎': '#00CED1', '🎗️': '#FFFF00',
+        '🧤': '#8B4513', '👞': '#8B4513', '👟': '#FFFFFF', '👠': '#FF0000',
+        '🥾': '#556B2F', '👢': '#8B4513', '🩴': '#FFD700',
+    }
+
+    @staticmethod
+    def _color_for_emoji(emoji: str, fallback: str = '#888888') -> str:
+        """Return a color corresponding to the given emoji icon."""
+        return PandaWidget._EMOJI_COLORS.get(emoji, fallback)
+
     def _draw_equipped_items(self, c: tk.Canvas, cx: int, by: float, sx: float, sy: float):
-        """Draw equipped closet items on the panda body for visual consistency."""
+        """Draw equipped closet items as actual shapes on the panda body."""
         if not self.panda_closet:
             return
         try:
             appearance = self.panda_closet.get_current_appearance()
-            # Draw hat on head
+
+            # Draw hat as colored shape on top of head
             if appearance.hat:
                 hat_item = self.panda_closet.get_item(appearance.hat)
                 if hat_item:
-                    c.create_text(cx, int(15 * sy + by), text=hat_item.emoji,
-                                  font=("Arial", int(18 * sx)), tags="equipped_hat")
-            # Draw clothing on body
+                    color = self._color_for_emoji(hat_item.emoji, '#1a1a1a')
+                    hat_y = int(18 * sy + by)
+                    # Hat brim
+                    c.create_rectangle(
+                        cx - int(30 * sx), hat_y,
+                        cx + int(30 * sx), hat_y + int(6 * sy),
+                        fill=color, outline='#111111', width=1, tags="equipped_hat")
+                    # Hat crown
+                    c.create_rectangle(
+                        cx - int(18 * sx), hat_y - int(18 * sy),
+                        cx + int(18 * sx), hat_y,
+                        fill=color, outline='#111111', width=1, tags="equipped_hat")
+
+            # Draw clothing as shirt polygon on body
             if appearance.clothing:
                 clothing_item = self.panda_closet.get_item(appearance.clothing)
                 if clothing_item:
-                    c.create_text(cx, int(115 * sy + by), text=clothing_item.emoji,
-                                  font=("Arial", int(14 * sx)), tags="equipped_clothing")
-            # Draw accessories near neck/chest
+                    color = self._color_for_emoji(clothing_item.emoji, '#4169E1')
+                    bt = int(85 * sy + by)
+                    bb = int(150 * sy + by)
+                    c.create_polygon(
+                        cx - int(38 * sx), bt,
+                        cx - int(42 * sx), bt + int(15 * sy),
+                        cx - int(35 * sx), bb,
+                        cx + int(35 * sx), bb,
+                        cx + int(42 * sx), bt + int(15 * sy),
+                        cx + int(38 * sx), bt,
+                        fill=color, outline='#333333', width=1, tags="equipped_clothing")
+
+            # Draw accessories as shapes near neck
             if appearance.accessories:
                 for i, acc_id in enumerate(appearance.accessories[:2]):
                     acc_item = self.panda_closet.get_item(acc_id)
                     if acc_item:
-                        offset_x = int((-15 + i * 30) * sx)
-                        c.create_text(cx + offset_x, int(85 * sy + by), text=acc_item.emoji,
-                                      font=("Arial", int(12 * sx)), tags="equipped_acc")
-            # Draw shoes near feet
+                        color = self._color_for_emoji(acc_item.emoji, '#FF69B4')
+                        neck_y = int(78 * sy + by)
+                        # Bow-tie / scarf shape
+                        ox = int((-12 + i * 24) * sx)
+                        c.create_polygon(
+                            cx + ox, neck_y - int(5 * sy),
+                            cx + ox - int(8 * sx), neck_y,
+                            cx + ox, neck_y + int(5 * sy),
+                            cx + ox + int(8 * sx), neck_y,
+                            fill=color, outline='#333333', width=1, tags="equipped_acc")
+
+            # Draw shoes as colored ovals at feet
             if appearance.shoes:
                 shoes_item = self.panda_closet.get_item(appearance.shoes)
                 if shoes_item:
-                    c.create_text(cx, int(180 * sy + by), text=shoes_item.emoji,
-                                  font=("Arial", int(12 * sx)), tags="equipped_shoes")
+                    color = self._color_for_emoji(shoes_item.emoji, '#8B4513')
+                    shoe_y = int(172 * sy + by)
+                    for shoe_cx in [cx - int(25 * sx), cx + int(25 * sx)]:
+                        c.create_oval(
+                            shoe_cx - int(14 * sx), shoe_y,
+                            shoe_cx + int(14 * sx), shoe_y + int(10 * sy),
+                            fill=color, outline='#333333', width=1, tags="equipped_shoes")
         except Exception as e:
             logger.debug(f"Error drawing equipped items: {e}")
     
@@ -1308,7 +1437,7 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
             if self.panda:
                 menu_items = self.panda.get_context_menu()
                 # Create context menu with larger font for readability
-                menu = tk.Menu(self, tearoff=0, font=("Arial", 13))
+                menu = tk.Menu(self, tearoff=0, font=("Arial", 15))
                 for key, label in menu_items.items():
                     menu.add_command(
                         label=label,
@@ -1317,7 +1446,7 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
 
                 # Add panda stats submenu (name, gender, mood)
                 menu.add_separator()
-                stats_menu = tk.Menu(menu, tearoff=0, font=("Arial", 13))
+                stats_menu = tk.Menu(menu, tearoff=0, font=("Arial", 15))
                 stats_menu.add_command(
                     label=f"📛 Rename Panda",
                     command=self._show_rename_dialog
@@ -1340,7 +1469,7 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
                     toys = self.widget_collection.get_toys(unlocked_only=True)
                     if toys:
                         menu.add_separator()
-                        toy_menu = tk.Menu(menu, tearoff=0, font=("Arial", 13))
+                        toy_menu = tk.Menu(menu, tearoff=0, font=("Arial", 15))
                         for toy in toys:
                             toy_menu.add_command(
                                 label=f"{toy.emoji} {toy.name}",
@@ -1351,7 +1480,7 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
                     # Food sub-menu
                     food = self.widget_collection.get_food(unlocked_only=True)
                     if food:
-                        food_menu = tk.Menu(menu, tearoff=0, font=("Arial", 13))
+                        food_menu = tk.Menu(menu, tearoff=0, font=("Arial", 15))
                         for f in food:
                             food_menu.add_command(
                                 label=f"{f.emoji} {f.name}",
