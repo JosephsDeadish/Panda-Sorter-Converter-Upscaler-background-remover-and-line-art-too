@@ -1653,9 +1653,6 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
         except Exception as e:
             logger.error(f"Error handling panda click: {e}")
             self.info_label.configure(text="🐼 *confused panda noises*")
-        except Exception as e:
-            logger.error(f"Error handling panda click: {e}")
-            self.info_label.configure(text="🐼 *confused panda noises*")
     
     def _on_mouse_motion(self, event=None):
         """Track mouse motion for pet-by-rubbing detection."""
