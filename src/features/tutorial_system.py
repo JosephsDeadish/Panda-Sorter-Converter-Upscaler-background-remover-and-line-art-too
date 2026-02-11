@@ -2205,8 +2205,6 @@ A: In your user profile folder: ~/.ps2_texture_sorter/ (or %USERPROFILE%\\.ps2_t
 
 Q: Can I dress up the panda?
 A: Yes! Unlock outfits, hats, shoes, and accessories through achievements and the shop, then customize your panda in the Closet tab.
-
-Still need help? Check the documentation files in the repository!
             """
         }
         

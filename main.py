@@ -485,8 +485,9 @@ class PS2TextureSorter(ctk.CTk):
         self.create_menu()
         self.create_main_ui()
         
-        # Show tutorial on first run
-        if self.tutorial_manager and self.tutorial_manager.should_show_tutorial():
+        # Show tutorial on first run (if enabled)
+        show_on_startup = config.get('tutorial', 'show_on_startup', default=True)
+        if show_on_startup and self.tutorial_manager and self.tutorial_manager.should_show_tutorial():
             self.after(500, lambda: self.tutorial_manager.start_tutorial())
         
         # Status
@@ -655,10 +656,27 @@ class PS2TextureSorter(ctk.CTk):
                 command=self._run_tutorial
             )
             tutorial_button.pack(side="right", padx=10, pady=5)
+
+            # Checkbox to enable/disable tutorial on startup
+            self.tutorial_on_startup_var = ctk.BooleanVar(
+                value=config.get('tutorial', 'show_on_startup', default=True)
+            )
+            tutorial_checkbox = ctk.CTkCheckBox(
+                menu_frame,
+                text="Show on startup",
+                variable=self.tutorial_on_startup_var,
+                command=self._toggle_tutorial_on_startup,
+                width=20
+            )
+            tutorial_checkbox.pack(side="right", padx=(0, 5), pady=5)
         
         # Apply tooltips to menu bar widgets
         self._apply_menu_tooltips(tutorial_button, settings_button, None, help_button)
     
+    def _toggle_tutorial_on_startup(self):
+        """Toggle whether tutorial shows on application startup"""
+        config.set('tutorial', 'show_on_startup', value=self.tutorial_on_startup_var.get())
+
     def _run_tutorial(self):
         """Start or restart the tutorial"""
         if self.tutorial_manager:
@@ -4726,11 +4744,6 @@ Built with:
         
         ctk.CTkLabel(credits_frame, text=credits_text,
                      font=("Arial", 11), justify="left").pack(pady=10, padx=20)
-        
-        # Repository link
-        ctk.CTkLabel(credits_frame, 
-                     text="Repository: JosephsDeadish/PS2-texture-sorter",
-                     font=("Arial", 10), text_color="gray").pack(pady=5)
     
     def create_inventory_tab(self):
         """Create inventory tab for managing collected items"""

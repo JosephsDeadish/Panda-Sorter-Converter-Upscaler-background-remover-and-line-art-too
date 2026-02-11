@@ -12,7 +12,6 @@ from typing import Dict, Any
 APP_NAME = "PS2 Texture Sorter"
 APP_VERSION = "1.0.0"
 APP_AUTHOR = "Dead On The Inside / JosephsDeadish"
-APP_REPOSITORY = "JosephsDeadish/PS2-texture-sorter"
 
 # Default directories
 CONFIG_DIR = Path.home() / ".ps2_texture_sorter"
