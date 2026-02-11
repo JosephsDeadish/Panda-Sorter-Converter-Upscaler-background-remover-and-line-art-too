@@ -29,6 +29,10 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
     
     Renders the panda as a body-shaped canvas drawing with distinct
     black-and-white panda features and walking/idle animations.
+    
+    Note: ``panda_label`` is kept as an alias for ``panda_canvas`` so that
+    external code (e.g. body-part click detection) that references
+    ``panda_label`` continues to work without modification.
     """
     
     # Minimum drag distance (pixels) to distinguish drag from click
@@ -40,6 +44,22 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
     
     # Animation timing (ms)
     ANIMATION_INTERVAL = 150
+    # Reset frame counter at this value to prevent unbounded growth
+    MAX_ANIMATION_FRAME = 10000
+    
+    # Emoji decorations shown next to the panda for each animation type
+    ANIMATION_EMOJIS = {
+        'working': ['💼', '⚙️', '📊', '💻', '☕'],
+        'celebrating': ['🎉', '🥳', '🎊', '🎈', '✨', '🎆'],
+        'rage': ['💢', '🔥', '💢💢', '🔥💢', '💥', '🔥🔥'],
+        'dancing': ['🎵', '🎶', '🎵', '♪', '🎶'],
+        'drunk': ['🍺', '🍻', '🥴', '🍺', '🍾', '😵‍💫'],
+        'petting': ['💕', '❤️', '💖', '😊'],
+        'fed': ['🎋', '🍃', '🌿', '😋'],
+        'clicked': ['✨', '⭐', '💫'],
+        'tossed': ['😵', '💫', '🌀'],
+        'wall_hit': ['💥', '😣', '⚡'],
+    }
     
     def __init__(self, parent, panda_character=None, panda_level_system=None,
                  widget_collection=None, panda_closet=None, **kwargs):
@@ -475,19 +495,7 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
     def _draw_animation_extras(self, c: tk.Canvas, cx: int, by: float,
                                 anim: str, frame_idx: int):
         """Draw extra decorations based on animation type."""
-        emojis = {
-            'working': ['💼', '⚙️', '📊', '💻', '☕'],
-            'celebrating': ['🎉', '🥳', '🎊', '🎈', '✨', '🎆'],
-            'rage': ['💢', '🔥', '💢💢', '🔥💢', '💥', '🔥🔥'],
-            'dancing': ['🎵', '🎶', '🎵', '♪', '🎶'],
-            'drunk': ['🍺', '🍻', '🥴', '🍺', '🍾', '😵‍💫'],
-            'petting': ['💕', '❤️', '💖', '😊'],
-            'fed': ['🎋', '🍃', '🌿', '😋'],
-            'clicked': ['✨', '⭐', '💫'],
-            'tossed': ['😵', '💫', '🌀'],
-            'wall_hit': ['💥', '😣', '⚡'],
-        }
-        emoji_list = emojis.get(anim)
+        emoji_list = self.ANIMATION_EMOJIS.get(anim)
         if emoji_list:
             emoji = emoji_list[frame_idx % len(emoji_list)]
             c.create_text(cx + 45, 18 + by, text=emoji,
@@ -931,7 +939,7 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
             self._draw_panda(self.animation_frame)
             self.animation_frame += 1
             # Reset frame counter to prevent unbounded growth
-            if self.animation_frame > 10000:
+            if self.animation_frame > self.MAX_ANIMATION_FRAME:
                 self.animation_frame = 0
             
             # Draw equipped items text on canvas
