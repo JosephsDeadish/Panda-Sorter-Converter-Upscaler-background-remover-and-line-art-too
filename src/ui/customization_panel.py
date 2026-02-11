@@ -953,7 +953,7 @@ class ThemeManager(ctk.CTkFrame):
             while master is not None:
                 root = master
                 master = root.master
-        except Exception:
+        except AttributeError:
             pass
         self._apply_theme_to_existing_widgets(root, colors)
         
