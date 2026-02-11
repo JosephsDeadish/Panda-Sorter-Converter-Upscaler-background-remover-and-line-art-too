@@ -229,6 +229,78 @@ class PandaCloset:
             'wings', 'Angel Wings', CustomizationCategory.ACCESSORY,
             '👼', 'Heavenly accessory', ItemRarity.LEGENDARY, 3000, False, False
         ),
+
+        # Additional Hats
+        'chef_hat': CustomizationItem(
+            'chef_hat', 'Chef Hat', CustomizationCategory.HAT,
+            '👨‍🍳', 'Ready to cook up sorted textures', ItemRarity.UNCOMMON, 120, False, False
+        ),
+        'cowboy_hat': CustomizationItem(
+            'cowboy_hat', 'Cowboy Hat', CustomizationCategory.HAT,
+            '🤠', 'Yeehaw partner!', ItemRarity.RARE, 200, False, False
+        ),
+        'beanie': CustomizationItem(
+            'beanie', 'Cozy Beanie', CustomizationCategory.HAT,
+            '🧢', 'Warm and casual', ItemRarity.COMMON, 40, False, False
+        ),
+
+        # Additional Clothing
+        'raincoat': CustomizationItem(
+            'raincoat', 'Raincoat', CustomizationCategory.CLOTHING,
+            '🧥', 'Stay dry and sorted', ItemRarity.UNCOMMON, 100, False, False
+        ),
+        'overalls': CustomizationItem(
+            'overalls', 'Denim Overalls', CustomizationCategory.CLOTHING,
+            '👖', 'Working panda attire', ItemRarity.COMMON, 50, False, False
+        ),
+        'sweater': CustomizationItem(
+            'sweater', 'Knit Sweater', CustomizationCategory.CLOTHING,
+            '🧶', 'Cozy and warm', ItemRarity.COMMON, 60, False, False
+        ),
+        'toga': CustomizationItem(
+            'toga', 'Ancient Toga', CustomizationCategory.CLOTHING,
+            '🏛️', 'Philosopher panda', ItemRarity.RARE, 250, False, False
+        ),
+        'spacesuit': CustomizationItem(
+            'spacesuit', 'Space Suit', CustomizationCategory.CLOTHING,
+            '🚀', 'Ready for launch', ItemRarity.EPIC, 700, False, False
+        ),
+        'jersey': CustomizationItem(
+            'jersey', 'Sports Jersey', CustomizationCategory.CLOTHING,
+            '🏅', 'Go team panda!', ItemRarity.UNCOMMON, 150, False, False
+        ),
+
+        # Additional Accessories
+        'scarf': CustomizationItem(
+            'scarf', 'Bamboo Scarf', CustomizationCategory.ACCESSORY,
+            '🧣', 'Stay warm and stylish', ItemRarity.COMMON, 45, False, False
+        ),
+        'headphones': CustomizationItem(
+            'headphones', 'DJ Headphones', CustomizationCategory.ACCESSORY,
+            '🎧', 'Sorting to the beat', ItemRarity.UNCOMMON, 100, False, False
+        ),
+        'monocle': CustomizationItem(
+            'monocle', 'Distinguished Monocle', CustomizationCategory.ACCESSORY,
+            '🧐', 'Inspect textures with class', ItemRarity.RARE, 180, False, False
+        ),
+        'flower': CustomizationItem(
+            'flower', 'Bamboo Flower', CustomizationCategory.ACCESSORY,
+            '🌸', 'Nature-loving panda', ItemRarity.COMMON, 30, False, False
+        ),
+
+        # Additional Shoes
+        'sandals': CustomizationItem(
+            'sandals', 'Beach Sandals', CustomizationCategory.SHOES,
+            '🩴', 'Casual beach vibes', ItemRarity.COMMON, 35, False, False
+        ),
+        'high_heels': CustomizationItem(
+            'high_heels', 'Fancy Heels', CustomizationCategory.SHOES,
+            '👠', 'Glamorous panda', ItemRarity.RARE, 200, False, False
+        ),
+        'rain_boots': CustomizationItem(
+            'rain_boots', 'Rain Boots', CustomizationCategory.SHOES,
+            '🥾', 'Splash through puddles', ItemRarity.UNCOMMON, 70, False, False
+        ),
     }
     
     def __init__(self, currency_manager: Optional[object] = None):

@@ -1972,6 +1972,44 @@ class PandaCharacter:
         "🐼 That wall came out of nowhere!",
         "🐼 *groans* Why do walls have to be so hard?",
     ]
+
+    # Shaking responses
+    SHAKE_RESPONSES = [
+        "🐼 S-s-stop shaking me!",
+        "🐼 M-m-my teeth are chattering!",
+        "🐼 I'm a panda, not a maraca!",
+        "🐼 E-e-earthquake! Oh wait, that's just you!",
+        "🐼 *rattles* I'm falling apart!",
+        "🐼 Is this what it feels like in a blender?!",
+        "🐼 Everything is blurry! 😵",
+        "🐼 My bamboo is going everywhere!",
+        "🐼 S-s-seriously?! Again?!",
+        "🐼 I need a seatbelt! 🫨",
+        "🐼 My brain is scrambled!",
+        "🐼 I can hear my thoughts rattling!",
+        "🐼 *teeth chattering* C-c-cold? No, just shaken!",
+        "🐼 Please... make it stop... 🤢",
+        "🐼 I'm NOT a snow globe!",
+    ]
+
+    # Spinning responses
+    SPIN_RESPONSES = [
+        "🐼 I'm getting dizzy! 🌀",
+        "🐼 Round and round we go!",
+        "🐼 *dizzy eyes* Which way is up?!",
+        "🐼 I can see the whole room spinning!",
+        "🐼 Wheeeee! ...I'm gonna be sick!",
+        "🐼 Stop the ride, I want off! 🎡",
+        "🐼 Is this a washing machine?!",
+        "🐼 My fur is getting tangled!",
+        "🐼 *spinning* I believe I can fly-y-y!",
+        "🐼 The world is a carousel! 🌍",
+        "🐼 Am I a fidget spinner now?! 🌪️",
+        "🐼 Everything looks like a blur!",
+        "🐼 Round and round... and round... 😵‍💫",
+        "🐼 I see stars! And not the good kind! ⭐",
+        "🐼 This is worse than the teacup ride!",
+    ]
     
     # Panda hover thoughts
     HOVER_THOUGHTS = [
@@ -2406,6 +2444,14 @@ class PandaCharacter:
     def on_wall_hit(self) -> str:
         """Handle panda hitting a wall."""
         return random.choice(self.WALL_HIT_RESPONSES)
+
+    def on_shake(self) -> str:
+        """Handle panda being shaken side to side."""
+        return random.choice(self.SHAKE_RESPONSES)
+
+    def on_spin(self) -> str:
+        """Handle panda being spun in circles."""
+        return random.choice(self.SPIN_RESPONSES)
 
     def on_clothing_change(self) -> str:
         """Handle panda changing clothes."""
