@@ -165,6 +165,9 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
                 self.configure(highlightthickness=0)
         
         # Determine canvas background color to match parent theme
+        # (tkinter Canvas does not support true transparency, so we
+        # match the parent colour to make the panda appear to float
+        # without a visible box behind it)
         self._canvas_bg = self._get_parent_bg()
         
         # Create canvas for panda body-shaped drawing with transparent bg
@@ -717,6 +720,13 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
         
         # --- Draw animation-specific extras ---
         self._draw_animation_extras(c, cx, by, anim, frame_idx, sx, sy)
+        
+        # --- Draw panda name tag below feet ---
+        if self.panda and self.panda.name:
+            name_y = int(h - 12 * sy)
+            c.create_text(cx, name_y, text=self.panda.name,
+                          font=("Arial Bold", int(10 * sx)),
+                          fill="#666666", tags="name_tag")
     
     def _draw_eyes(self, c: tk.Canvas, cx: int, ey: int, style: str, sx: float = 1.0, sy: float = 1.0):
         """Draw panda eyes based on the current animation style."""

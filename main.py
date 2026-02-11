@@ -2868,11 +2868,11 @@ class PS2TextureSorter(ctk.CTk):
         ctk.CTkCheckBox(log_frame, text="Enable crash reports", 
                        variable=crash_report_var).pack(anchor="w", padx=20, pady=3)
         
-        # === NOTIFICATIONS SETTINGS ===
+        # === NOTIFICATIONS & SOUND SETTINGS ===
         notif_frame = ctk.CTkFrame(settings_scroll)
         notif_frame.pack(fill="x", padx=10, pady=10)
         
-        ctk.CTkLabel(notif_frame, text="🔔 Notifications", 
+        ctk.CTkLabel(notif_frame, text="🔔 Notifications & Sounds", 
                      font=("Arial Bold", 14)).pack(anchor="w", padx=10, pady=5)
         
         sound_var = ctk.BooleanVar(value=config.get('notifications', 'play_sounds', default=True))
@@ -2882,6 +2882,97 @@ class PS2TextureSorter(ctk.CTk):
         completion_var = ctk.BooleanVar(value=config.get('notifications', 'completion_alert', default=True))
         ctk.CTkCheckBox(notif_frame, text="Alert on operation completion", 
                        variable=completion_var).pack(anchor="w", padx=20, pady=3)
+        
+        # Sound pack selector
+        sound_pack_frame = ctk.CTkFrame(notif_frame)
+        sound_pack_frame.pack(fill="x", padx=10, pady=5)
+        
+        ctk.CTkLabel(sound_pack_frame, text="Sound Pack:").pack(side="left", padx=10)
+        sound_pack_var = ctk.StringVar(value=config.get('sound', 'sound_pack', default='default'))
+        
+        def on_sound_pack_change(choice):
+            try:
+                config.set('sound', 'sound_pack', value=choice)
+                config.save()
+                if hasattr(self, 'sound_manager') and self.sound_manager:
+                    try:
+                        from src.features.sound_manager import SoundPack
+                        pack = SoundPack(choice)
+                        self.sound_manager.set_sound_pack(pack)
+                    except Exception:
+                        pass
+                self.log(f"✅ Sound pack changed to: {choice}")
+            except Exception as e:
+                logger.error(f"Failed to change sound pack: {e}")
+        
+        ctk.CTkOptionMenu(sound_pack_frame, variable=sound_pack_var,
+                         values=["default", "minimal", "vulgar"],
+                         command=on_sound_pack_change).pack(side="left", padx=10)
+        
+        # Per-event sound customization
+        ctk.CTkLabel(notif_frame, text="🔊 Per-Event Sound Settings (frequency Hz / duration ms):", 
+                    font=("Arial", 10), text_color="gray").pack(anchor="w", padx=20, pady=(10, 5))
+        
+        sound_events_frame = ctk.CTkScrollableFrame(notif_frame, height=200)
+        sound_events_frame.pack(fill="x", padx=20, pady=5)
+        
+        # Get current sound definitions
+        try:
+            from src.features.sound_manager import SoundEvent, SoundPack, Sound, SoundManager
+            current_pack_name = config.get('sound', 'sound_pack', default='default')
+            try:
+                current_pack = SoundPack(current_pack_name)
+            except Exception:
+                current_pack = SoundPack.DEFAULT
+            current_sounds = SoundManager.SOUND_DEFINITIONS.get(current_pack, {})
+            custom_sounds = config.get('sound', 'custom_sounds', default={})
+            
+            sound_event_vars = {}
+            for event in SoundEvent:
+                row = ctk.CTkFrame(sound_events_frame)
+                row.pack(fill="x", pady=2)
+                
+                sound = current_sounds.get(event)
+                default_freq = sound.frequency if sound else 500
+                default_dur = sound.duration if sound else 200
+                
+                # Use custom value if set, otherwise default
+                custom = custom_sounds.get(event.value, {})
+                freq_val = custom.get('frequency', default_freq)
+                dur_val = custom.get('duration', default_dur)
+                
+                ctk.CTkLabel(row, text=f"{event.value}:", width=120, anchor="w",
+                           font=("Arial", 10)).pack(side="left", padx=5)
+                
+                freq_var = ctk.StringVar(value=str(freq_val))
+                ctk.CTkLabel(row, text="Hz:", font=("Arial", 9)).pack(side="left", padx=2)
+                ctk.CTkEntry(row, textvariable=freq_var, width=60).pack(side="left", padx=2)
+                
+                dur_var = ctk.StringVar(value=str(dur_val))
+                ctk.CTkLabel(row, text="ms:", font=("Arial", 9)).pack(side="left", padx=2)
+                ctk.CTkEntry(row, textvariable=dur_var, width=60).pack(side="left", padx=2)
+                
+                # Test button
+                def test_sound(f=freq_var, d=dur_var):
+                    try:
+                        import sys
+                        if sys.platform == 'win32':
+                            import winsound
+                            winsound.Beep(int(f.get()), int(d.get()))
+                    except Exception as ex:
+                        logger.debug(f"Sound test failed: {ex}")
+                
+                ctk.CTkButton(row, text="▶", width=30, height=24,
+                            command=test_sound).pack(side="left", padx=5)
+                
+                sound_event_vars[event.value] = (freq_var, dur_var)
+            
+            # Store vars for save
+            self._sound_event_vars = sound_event_vars
+        except Exception as e:
+            logger.error(f"Failed to load sound event settings: {e}")
+            ctk.CTkLabel(notif_frame, text=f"⚠️ Sound customization unavailable: {e}",
+                        text_color="orange").pack(padx=20, pady=5)
         
         # === AI MODEL SETTINGS ===
         ai_frame = ctk.CTkFrame(settings_scroll)
@@ -3213,9 +3304,22 @@ class PS2TextureSorter(ctk.CTk):
                 config.set('logging', 'log_level', value=loglevel_var.get())
                 config.set('logging', 'crash_reports', value=crash_report_var.get())
                 
-                # Notifications
+                # Notifications & Sounds
                 config.set('notifications', 'play_sounds', value=sound_var.get())
                 config.set('notifications', 'completion_alert', value=completion_var.get())
+                
+                # Save per-event custom sound settings
+                if hasattr(self, '_sound_event_vars'):
+                    custom_sounds = {}
+                    for event_name, (freq_var, dur_var) in self._sound_event_vars.items():
+                        try:
+                            freq = int(freq_var.get())
+                            dur = int(dur_var.get())
+                            if freq > 0 and dur > 0:
+                                custom_sounds[event_name] = {'frequency': freq, 'duration': dur}
+                        except (ValueError, TypeError):
+                            pass
+                    config.set('sound', 'custom_sounds', value=custom_sounds)
                 
                 # AI Settings
                 config.set('ai', 'prefer_image_content', value=prefer_image_var.get())
