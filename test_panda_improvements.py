@@ -201,6 +201,51 @@ def test_statistics_include_items_thrown():
     print("✓ Statistics include items_thrown_at_count")
 
 
+def test_belly_poke_tracks_stat():
+    """Test that on_belly_poke increments belly_poke_count."""
+    panda = PandaCharacter()
+    assert panda.belly_poke_count == 0, "belly_poke_count should start at 0"
+    response = panda.on_belly_poke()
+    assert panda.belly_poke_count == 1, "on_belly_poke should increment belly_poke_count"
+    assert isinstance(response, str), "on_belly_poke should return a string"
+    assert len(response) > 0, "on_belly_poke should return a non-empty string"
+    panda.on_belly_poke()
+    assert panda.belly_poke_count == 2, "belly_poke_count should be 2 after two pokes"
+    print("✓ Belly poke stat tracking works")
+
+
+def test_belly_poke_responses():
+    """Test that belly poke returns jiggle-themed responses."""
+    panda = PandaCharacter()
+    # Collect several responses
+    responses = set()
+    for _ in range(20):
+        responses.add(panda.on_belly_poke())
+    # Should have at least a few different responses
+    assert len(responses) > 1, "Belly poke should have variety in responses"
+    print("✓ Belly poke responses have variety")
+
+
+def test_statistics_include_belly_poke():
+    """Test that statistics include belly_poke_count."""
+    panda = PandaCharacter()
+    panda.on_belly_poke()
+    stats = panda.get_statistics()
+    assert 'belly_poke_count' in stats, "Stats should include belly_poke_count"
+    assert stats['belly_poke_count'] == 1
+    print("✓ Statistics include belly_poke_count")
+
+
+def test_belly_jiggle_animation_state():
+    """Test that belly_jiggle is a valid animation state."""
+    panda = PandaCharacter()
+    assert 'belly_jiggle' in panda.ANIMATION_STATES, \
+        "belly_jiggle should be in ANIMATION_STATES"
+    state = panda.get_animation_state('belly_jiggle')
+    assert state == 'belly_jiggle', "get_animation_state should return belly_jiggle"
+    print("✓ belly_jiggle animation state is valid")
+
+
 if __name__ == "__main__":
     print("Testing Panda Character Improvements...")
     print("-" * 50)
@@ -220,6 +265,10 @@ if __name__ == "__main__":
         test_item_thrown_at_panda()
         test_item_physics_wobble_elasticity()
         test_statistics_include_items_thrown()
+        test_belly_poke_tracks_stat()
+        test_belly_poke_responses()
+        test_statistics_include_belly_poke()
+        test_belly_jiggle_animation_state()
 
         print("-" * 50)
         print("✅ All panda improvement tests passed!")

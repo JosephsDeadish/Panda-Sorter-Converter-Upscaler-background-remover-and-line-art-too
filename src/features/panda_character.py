@@ -65,6 +65,7 @@ class PandaCharacter:
         'stretching', 'waving', 'jumping', 'yawning', 'sneezing', 'tail_wag',
         'cartwheel', 'backflip', 'spinning', 'shaking', 'rolling',
         'carrying', 'sitting', 'belly_grab', 'lay_on_back', 'lay_on_side',
+        'belly_jiggle',
     ]
     
     # Panda click responses
@@ -260,6 +261,20 @@ class PandaCharacter:
         "🐼 This is worse than the teacup ride!",
     ]
     
+    # Belly poke/jiggle responses
+    BELLY_POKE_RESPONSES = [
+        "🐼 *belly jiggles* Hehe, that tickles! 🫃",
+        "🐼 *wobble wobble* My tummy is so squishy!",
+        "🐼 Boing boing! Like a water balloon! 😂",
+        "🐼 *jiggles* It's all the bamboo, okay?!",
+        "🐼 *belly bounce* Stop poking my tummy! 😊",
+        "🐼 *wiggles* I'm not fat, I'm fluffy!",
+        "🐼 *jiggle jiggle* That's my bamboo belly!",
+        "🐼 *wobbles* Hey! That's my food storage!",
+        "🐼 *squish* It's like a panda pillow! 🤗",
+        "🐼 *bouncy belly* Too many dumplings... worth it!",
+    ]
+
     # Panda hover thoughts
     HOVER_THOUGHTS = [
         "💭 Thinking about bamboo...",
@@ -565,6 +580,7 @@ class PandaCharacter:
         self.toy_interact_count = 0
         self.clothing_change_count = 0
         self.items_thrown_at_count = 0
+        self.belly_poke_count = 0
         self.easter_eggs_triggered: Set[str] = set()
         self.start_time = time.time()
         self.files_processed_count = 0
@@ -739,6 +755,11 @@ class PandaCharacter:
         self.spin_count += 1
         return random.choice(self.SPIN_RESPONSES)
 
+    def on_belly_poke(self) -> str:
+        """Handle panda's belly being poked (triggers jiggle effect)."""
+        self.belly_poke_count += 1
+        return random.choice(self.BELLY_POKE_RESPONSES)
+
     def on_clothing_change(self) -> str:
         """Handle panda changing clothes."""
         self.clothing_change_count += 1
@@ -891,6 +912,7 @@ class PandaCharacter:
             'toy_interact_count': self.toy_interact_count,
             'clothing_change_count': self.clothing_change_count,
             'items_thrown_at_count': self.items_thrown_at_count,
+            'belly_poke_count': self.belly_poke_count,
             'files_processed': self.files_processed_count,
             'failed_operations': self.failed_operations,
             'easter_eggs_found': len(self.easter_eggs_triggered),

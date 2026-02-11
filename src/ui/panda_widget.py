@@ -99,6 +99,24 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
     # Cooldown between drag-pattern animation triggers (seconds)
     DRAG_PATTERN_COOLDOWN = 2.0
     
+    # Belly jiggle physics constants
+    JIGGLE_SPRING = 0.35             # Spring stiffness for belly wobble
+    JIGGLE_DAMPING = 0.82            # Damping factor for belly wobble
+    JIGGLE_VELOCITY_POKE = 8.0       # Jiggle impulse from belly poke/click
+    JIGGLE_VELOCITY_ITEM_HIT = 10.0  # Jiggle impulse from item impact
+    
+    # Limb dangle physics constants (arms/legs inertia during drag)
+    DANGLE_SPRING = 0.18             # Spring stiffness for limb dangle
+    DANGLE_DAMPING = 0.88            # Damping factor for limb dangle
+    DANGLE_ARM_FACTOR = 0.3          # Arm response to vertical drag velocity
+    DANGLE_LEG_FACTOR = 0.4          # Leg response to vertical drag velocity
+    
+    # Ear stretch physics constants (elastic stretch during drag)
+    EAR_STRETCH_SPRING = 0.25        # Spring stiffness for ear stretch
+    EAR_STRETCH_DAMPING = 0.85       # Damping factor for ear stretch
+    EAR_STRETCH_FACTOR = -0.15       # Ear response to vertical drag velocity
+    EAR_STRETCH_MAX = 12.0           # Maximum ear stretch (pixels)
+    
     # Tail wag animation frequency
     TAIL_WAG_FREQUENCY = 0.8
     
@@ -133,6 +151,7 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
         'carrying': ['📦', '💪', '🎁', '📚', '🧳'],
         'sitting': ['🪑', '😌', '💭', '☕', '🧘'],
         'belly_grab': ['🤗', '😊', '💕', '🐼', '🫃'],
+        'belly_jiggle': ['🫃', '😂', '🤣', '😊', '✨'],
     }
     
     def __init__(self, parent, panda_character=None, panda_level_system=None,
@@ -183,6 +202,21 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
         self._prev_drag_x = 0
         self._prev_drag_y = 0
         self._prev_drag_time = 0
+        
+        # Jiggle physics state (belly wobble on poke)
+        self._belly_jiggle = 0.0       # Current jiggle amplitude
+        self._belly_jiggle_vel = 0.0   # Jiggle velocity (spring-damper)
+        
+        # Limb dangle physics (arms/legs swing with inertia during drag)
+        self._dangle_arm = 0.0         # Arm dangle offset (pixels)
+        self._dangle_arm_vel = 0.0     # Arm dangle velocity
+        self._dangle_leg = 0.0         # Leg dangle offset (pixels)
+        self._dangle_leg_vel = 0.0     # Leg dangle velocity
+        self._prev_drag_vy = 0.0       # Previous vertical drag velocity for dangle
+        
+        # Ear stretch physics (elastic stretch during drag)
+        self._ear_stretch = 0.0        # Current ear stretch amount
+        self._ear_stretch_vel = 0.0    # Ear stretch velocity
         
         # Configure the proxy frame – it stays in the widget tree for API
         # compatibility but is intentionally empty / zero-size.
@@ -686,6 +720,13 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
             leg_swing = 0
             arm_swing = -grab_phase * 15  # arms inward toward belly
             body_bob = math.sin(phase * 1.5) * 4 + grab_phase * 3
+        elif anim == 'belly_jiggle':
+            # Belly poke jiggle - bouncy wobble that decays
+            jiggle_phase = min(1.0, frame_idx / 36.0)  # decay over ~36 frames
+            decay = 1.0 - jiggle_phase
+            leg_swing = math.sin(phase * 3) * 4 * decay
+            arm_swing = math.sin(phase * 4) * 8 * decay
+            body_bob = math.sin(phase * 5) * 6 * decay
         elif anim == 'rage':
             leg_swing = math.sin(phase * 3) * 8
             arm_swing = math.sin(phase * 3) * 10
@@ -967,6 +1008,40 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
         elif anim in ('sleeping', 'laying_down', 'laying_back', 'laying_side', 'sitting'):
             breath_scale = 1.0 + math.sin(phase * 0.3) * 0.025
         
+        # --- Jiggle physics (spring-damper for belly wobble) ---
+        self._belly_jiggle_vel = (self._belly_jiggle_vel - self._belly_jiggle * self.JIGGLE_SPRING) * self.JIGGLE_DAMPING
+        self._belly_jiggle += self._belly_jiggle_vel
+        if abs(self._belly_jiggle) < 0.3 and abs(self._belly_jiggle_vel) < 0.3:
+            self._belly_jiggle = 0.0
+            self._belly_jiggle_vel = 0.0
+        
+        # --- Limb dangle physics (inertia during drag) ---
+        if anim == 'dragging' and self.is_dragging:
+            # Drive dangle from vertical drag velocity
+            self._dangle_arm_vel += self._prev_drag_vy * self.DANGLE_ARM_FACTOR
+            self._dangle_leg_vel += self._prev_drag_vy * self.DANGLE_LEG_FACTOR
+        self._dangle_arm_vel = (self._dangle_arm_vel - self._dangle_arm * self.DANGLE_SPRING) * self.DANGLE_DAMPING
+        self._dangle_arm += self._dangle_arm_vel
+        self._dangle_leg_vel = (self._dangle_leg_vel - self._dangle_leg * self.DANGLE_SPRING) * self.DANGLE_DAMPING
+        self._dangle_leg += self._dangle_leg_vel
+        if abs(self._dangle_arm) < 0.2 and abs(self._dangle_arm_vel) < 0.2:
+            self._dangle_arm = 0.0
+            self._dangle_arm_vel = 0.0
+        if abs(self._dangle_leg) < 0.2 and abs(self._dangle_leg_vel) < 0.2:
+            self._dangle_leg = 0.0
+            self._dangle_leg_vel = 0.0
+        
+        # --- Ear stretch physics (elastic spring-back) ---
+        if anim == 'dragging' and self.is_dragging:
+            # Ears stretch downward when dragged upward (opposing motion)
+            self._ear_stretch_vel += self._prev_drag_vy * self.EAR_STRETCH_FACTOR
+        self._ear_stretch_vel = (self._ear_stretch_vel - self._ear_stretch * self.EAR_STRETCH_SPRING) * self.EAR_STRETCH_DAMPING
+        self._ear_stretch += self._ear_stretch_vel
+        self._ear_stretch = max(-self.EAR_STRETCH_MAX, min(self.EAR_STRETCH_MAX, self._ear_stretch))
+        if abs(self._ear_stretch) < 0.2 and abs(self._ear_stretch_vel) < 0.2:
+            self._ear_stretch = 0.0
+            self._ear_stretch_vel = 0.0
+        
         by = body_bob  # vertical body offset
         
         # --- Determine eye style based on animation ---
@@ -1140,6 +1215,8 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
             eye_style = 'half'
         elif anim == 'carrying':
             eye_style = 'normal'
+        elif anim == 'belly_jiggle':
+            eye_style = 'happy'
         
         # --- Determine mouth style ---
         mouth_style = 'normal'
@@ -1239,6 +1316,8 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
             mouth_style = 'sleep'
         elif anim == 'carrying':
             mouth_style = 'normal'
+        elif anim == 'belly_jiggle':
+            mouth_style = 'grin'
         
         # --- Colors ---
         white = "#FFFFFF"
@@ -1270,9 +1349,11 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
         # --- Draw legs (behind body) ---
         leg_top = int(145 * sy + by)
         leg_len = int(30 * sy)
+        # Apply dangle physics to legs during drag
+        leg_dangle = int(self._dangle_leg)
         # Left leg
         left_leg_x = cx - int(25 * sx)
-        left_leg_swing = leg_swing
+        left_leg_swing = leg_swing + leg_dangle
         c.create_oval(
             left_leg_x - int(12 * sx), leg_top + left_leg_swing,
             left_leg_x + int(12 * sx), leg_top + leg_len + left_leg_swing,
@@ -1286,7 +1367,7 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
         )
         # Right leg
         right_leg_x = cx + int(25 * sx)
-        right_leg_swing = -leg_swing
+        right_leg_swing = -leg_swing + leg_dangle
         c.create_oval(
             right_leg_x - int(12 * sx), leg_top + right_leg_swing,
             right_leg_x + int(12 * sx), leg_top + leg_len + right_leg_swing,
@@ -1303,29 +1384,37 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
         body_top = int(75 * sy + by)
         body_bot = int(160 * sy + by)
         body_rx = int(42 * sx * breath_scale)
+        # Apply belly jiggle - wobble the body horizontally
+        belly_jiggle_px = int(self._belly_jiggle)
+        jiggle_scale = 1.0 + abs(self._belly_jiggle) * 0.008  # slight width pulse
+        body_rx_jiggle = int(body_rx * jiggle_scale)
         c.create_oval(
-            cx - body_rx, body_top, cx + body_rx, body_bot,
+            cx - body_rx_jiggle + belly_jiggle_px, body_top,
+            cx + body_rx_jiggle + belly_jiggle_px, body_bot,
             fill=white, outline=black, width=2, tags="body"
         )
         # Inner belly patch (lighter) — sized to fit fully inside body with no visible gap
-        belly_rx = int(26 * sx * breath_scale)
+        belly_rx = int(26 * sx * breath_scale * jiggle_scale)
         c.create_oval(
-            cx - belly_rx, body_top + int(18 * sy), cx + belly_rx, body_bot - int(14 * sy),
+            cx - belly_rx + belly_jiggle_px, body_top + int(18 * sy),
+            cx + belly_rx + belly_jiggle_px, body_bot - int(14 * sy),
             fill="#FAFAFA", outline="", tags="belly"
         )
         
         # --- Draw arms (black, attached to body sides) ---
         arm_top = int(95 * sy + by)
         arm_len = int(35 * sy)
+        # Apply dangle physics to arms during drag
+        arm_dangle = int(self._dangle_arm)
         # Left arm
-        la_swing = arm_swing
+        la_swing = arm_swing + arm_dangle
         c.create_oval(
             cx - int(55 * sx), arm_top + la_swing,
             cx - int(30 * sx), arm_top + arm_len + la_swing,
             fill=black, outline=black, tags="arm"
         )
         # Right arm
-        ra_swing = -arm_swing
+        ra_swing = -arm_swing + arm_dangle
         c.create_oval(
             cx + int(30 * sx), arm_top + ra_swing,
             cx + int(55 * sx), arm_top + arm_len + ra_swing,
@@ -1342,24 +1431,26 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
             fill=white, outline=black, width=2, tags="head"
         )
         
-        # --- Draw ears (black circles on top of head) with wiggle ---
+        # --- Draw ears (black circles on top of head) with wiggle and stretch ---
         ear_y = head_cy - head_ry + int(5 * sy)
         ear_w = int(22 * sx)
         ear_h = int(24 * sy)
+        # Ear stretch: elongate ears vertically (elastic effect)
+        ear_stretch_px = int(self._ear_stretch * sy)
         # Left ear
-        c.create_oval(cx - head_rx - int(2 * sx) + ear_wiggle, ear_y - int(16 * sy),
+        c.create_oval(cx - head_rx - int(2 * sx) + ear_wiggle, ear_y - int(16 * sy) - ear_stretch_px,
                        cx - head_rx + ear_w + ear_wiggle, ear_y + int(8 * sy),
                        fill=black, outline=black, tags="ear")
         # Inner ear pink
-        c.create_oval(cx - head_rx + int(4 * sx) + ear_wiggle, ear_y - int(10 * sy),
+        c.create_oval(cx - head_rx + int(4 * sx) + ear_wiggle, ear_y - int(10 * sy) - ear_stretch_px,
                        cx - head_rx + int(16 * sx) + ear_wiggle, ear_y + int(2 * sy),
                        fill=pink, outline="", tags="ear_inner")
         # Right ear
-        c.create_oval(cx + head_rx - ear_w - ear_wiggle, ear_y - int(16 * sy),
+        c.create_oval(cx + head_rx - ear_w - ear_wiggle, ear_y - int(16 * sy) - ear_stretch_px,
                        cx + head_rx + int(2 * sx) - ear_wiggle, ear_y + int(8 * sy),
                        fill=black, outline=black, tags="ear")
         # Inner ear pink
-        c.create_oval(cx + head_rx - int(16 * sx) - ear_wiggle, ear_y - int(10 * sy),
+        c.create_oval(cx + head_rx - int(16 * sx) - ear_wiggle, ear_y - int(10 * sy) - ear_stretch_px,
                        cx + head_rx - int(4 * sx) - ear_wiggle, ear_y + int(2 * sy),
                        fill=pink, outline="", tags="ear_inner")
         
@@ -2007,7 +2098,7 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
                           font=("Arial", int(20 * sx)), tags="extra")
         
         # Blush cheeks when petting, celebrating, playing, eating, etc.
-        if anim in ('petting', 'celebrating', 'fed', 'playing', 'eating', 'customizing', 'tail_wag', 'belly_grab'):
+        if anim in ('petting', 'celebrating', 'fed', 'playing', 'eating', 'customizing', 'tail_wag', 'belly_grab', 'belly_jiggle'):
             cheek_y = int(56 * sy + by)
             br = int(5 * sx)
             c.create_oval(cx - int(38 * sx), cheek_y - br, cx - int(28 * sx), cheek_y + br,
@@ -2202,7 +2293,9 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
         if body_part == 'head':
             self.play_animation_once('shaking')
         elif body_part == 'belly':
-            self.play_animation_once('belly_grab')
+            # Trigger belly jiggle physics on item impact
+            self._belly_jiggle_vel += random.choice([-1, 1]) * self.JIGGLE_VELOCITY_ITEM_HIT
+            self.play_animation_once('belly_jiggle')
         else:
             self.play_animation_once('jumping')
     
@@ -2246,6 +2339,8 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
         if dt > 0:
             self._toss_velocity_x = (event.x_root - self._prev_drag_x) / max(dt, 0.001) * self.TOSS_FRAME_TIME
             self._toss_velocity_y = (event.y_root - self._prev_drag_y) / max(dt, 0.001) * self.TOSS_FRAME_TIME
+            # Track vertical velocity for limb dangle and ear stretch physics
+            self._prev_drag_vy = self._toss_velocity_y
         self._prev_drag_x = event.x_root
         self._prev_drag_y = event.y_root
         self._prev_drag_time = now
@@ -2517,18 +2612,28 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
                     rel_y = event.y / label_height
                     body_part = self.panda.get_body_part_at_position(rel_y)
                 
-                if body_part and hasattr(self.panda, 'on_body_part_click'):
+                # Belly poke triggers jiggle effect
+                if body_part in ('body', 'butt') and hasattr(self.panda, 'on_belly_poke'):
+                    response = self.panda.on_belly_poke()
+                    self.info_label.configure(text=response)
+                    # Trigger belly jiggle physics
+                    self._belly_jiggle_vel += random.choice([-1, 1]) * self.JIGGLE_VELOCITY_POKE
+                    self.play_animation_once('belly_jiggle')
+                elif body_part and hasattr(self.panda, 'on_body_part_click'):
                     response = self.panda.on_body_part_click(body_part)
+                    self.info_label.configure(text=response)
+                    # Multiple random response animations for variety
+                    click_animations = ['clicked', 'waving', 'jumping', 'celebrating', 
+                                       'stretching', 'tail_wag', 'dancing']
+                    chosen_anim = random.choice(click_animations)
+                    self.play_animation_once(chosen_anim)
                 else:
                     response = self.panda.on_click()
-                
-                self.info_label.configure(text=response)
-                
-                # Multiple random response animations for variety
-                click_animations = ['clicked', 'waving', 'jumping', 'celebrating', 
-                                   'stretching', 'tail_wag', 'dancing']
-                chosen_anim = random.choice(click_animations)
-                self.play_animation_once(chosen_anim)
+                    self.info_label.configure(text=response)
+                    click_animations = ['clicked', 'waving', 'jumping', 'celebrating', 
+                                       'stretching', 'tail_wag', 'dancing']
+                    chosen_anim = random.choice(click_animations)
+                    self.play_animation_once(chosen_anim)
                 
                 # Award XP for clicking
                 if self.panda_level_system:
