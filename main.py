@@ -2917,6 +2917,7 @@ class PS2TextureSorter(ctk.CTk):
         sound_events_frame.pack(fill="x", padx=20, pady=5)
         
         # Get current sound definitions
+        self._sound_event_vars = {}
         try:
             from src.features.sound_manager import SoundEvent, SoundPack, Sound, SoundManager
             current_pack_name = config.get('sound', 'sound_pack', default='default')

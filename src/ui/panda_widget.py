@@ -723,7 +723,7 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
         
         # --- Draw panda name tag below feet ---
         if self.panda and self.panda.name:
-            name_y = int(h - 12 * sy)
+            name_y = int(h - 12 * sy)  # position just above canvas bottom edge
             c.create_text(cx, name_y, text=self.panda.name,
                           font=("Arial Bold", int(10 * sx)),
                           fill="#666666", tags="name_tag")
