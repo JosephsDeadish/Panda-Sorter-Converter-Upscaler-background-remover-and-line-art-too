@@ -139,62 +139,6 @@ class ClosetPanel(ctk.CTkFrame if ctk else tk.Frame):
         appearance_text.pack(side="left", padx=5)
     
     
-    def _update_name(self):
-        """Update panda name from entry field."""
-        if not self.panda_character:
-            return
-        
-        try:
-            new_name = self.name_entry.get().strip()
-            if new_name:
-                self.panda_character.set_name(new_name)
-                logger.info(f"Panda name updated to: {new_name}")
-                
-                # Save to config
-                try:
-                    from src.config import config
-                    config.set('panda', 'name', value=new_name)
-                    config.save()
-                except Exception as e:
-                    logger.warning(f"Failed to save panda name: {e}")
-                
-                # Show confirmation
-                if ctk:
-                    from tkinter import messagebox
-                    messagebox.showinfo("Success", f"Panda name changed to '{new_name}'!")
-        except Exception as e:
-            logger.error(f"Error updating panda name: {e}")
-    
-    def _update_gender(self):
-        """Update panda gender from radio button selection."""
-        if not self.panda_character:
-            return
-        
-        try:
-            from src.features.panda_character import PandaGender
-            
-            gender_value = self.gender_var.get()
-            gender = PandaGender(gender_value)
-            self.panda_character.set_gender(gender)
-            logger.info(f"Panda gender updated to: {gender.value}")
-            
-            # Save to config
-            try:
-                from src.config import config
-                config.set('panda', 'gender', value=gender.value)
-                config.save()
-            except Exception as e:
-                logger.warning(f"Failed to save panda gender: {e}")
-            
-            # Update panda preview if callback exists
-            if self.panda_preview:
-                try:
-                    self.panda_preview()
-                except Exception:
-                    pass
-        except Exception as e:
-            logger.error(f"Error updating panda gender: {e}")
-    
     def _select_category(self, category: CustomizationCategory):
         """Select a customization category."""
         self.current_category = category

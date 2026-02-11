@@ -1004,46 +1004,6 @@ class ShopSystem:
             level_required=8,
             unlockable_id='clothes_dress'
         ),
-        'clothes_overalls': ShopItem(
-            id='clothes_overalls',
-            name='Denim Overalls',
-            description='Casual and cute overalls',
-            category=ShopCategory.CLOTHES,
-            price=120,
-            icon='👖',
-            level_required=3,
-            unlockable_id='clothes_overalls'
-        ),
-        'clothes_raincoat': ShopItem(
-            id='clothes_raincoat',
-            name='Rainbow Raincoat',
-            description='Stay dry in style!',
-            category=ShopCategory.CLOTHES,
-            price=200,
-            icon='🌂',
-            level_required=5,
-            unlockable_id='clothes_raincoat'
-        ),
-        'clothes_vest': ShopItem(
-            id='clothes_vest',
-            name='Cozy Vest',
-            description='A warm and fluffy vest',
-            category=ShopCategory.CLOTHES,
-            price=90,
-            icon='🧶',
-            level_required=2,
-            unlockable_id='clothes_vest'
-        ),
-        'clothes_tuxedo': ShopItem(
-            id='clothes_tuxedo',
-            name='Elegant Tuxedo',
-            description='Black tie panda elegance',
-            category=ShopCategory.CLOTHES,
-            price=600,
-            icon='🤵',
-            level_required=15,
-            unlockable_id='clothes_tuxedo'
-        ),
         'clothes_sports_jersey': ShopItem(
             id='clothes_sports_jersey',
             name='Sports Jersey',
@@ -1053,16 +1013,6 @@ class ShopSystem:
             icon='🏅',
             level_required=4,
             unlockable_id='clothes_sports_jersey'
-        ),
-        'clothes_sweater': ShopItem(
-            id='clothes_sweater',
-            name='Knit Sweater',
-            description='Grandma-made with love',
-            category=ShopCategory.CLOTHES,
-            price=100,
-            icon='🧣',
-            level_required=2,
-            unlockable_id='clothes_sweater'
         ),
 
         # Additional Accessories
