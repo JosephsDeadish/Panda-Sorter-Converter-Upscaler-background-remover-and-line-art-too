@@ -636,9 +636,6 @@ class CursorCustomizer(ctk.CTkFrame):
         # Bind motion on both the preview area and the canvas for trail demo
         self.preview_area.bind('<Motion>', self._on_preview_motion)
         self._trail_preview_canvas.bind('<Motion>', self._on_canvas_motion)
-        
-        ctk.CTkButton(scroll_frame, text="Apply Cursor", command=self._apply_cursor,
-                     width=150, height=35).pack(pady=10)
     
     def _strip_icon(self, display_value):
         """Strip leading emoji icon from display value to get raw name."""
@@ -649,18 +646,22 @@ class CursorCustomizer(ctk.CTkFrame):
     def _on_cursor_change(self, cursor_type):
         self.current_cursor = self._strip_icon(cursor_type)
         self._update_preview()
+        self._apply_cursor_instant()
     
     def _on_size_change(self, size):
         self.current_size = size
         self._update_preview()
+        self._apply_cursor_instant()
     
     def _on_trail_change(self):
         self.trail_enabled = self.trail_var.get()
         self._update_preview()
+        self._apply_cursor_instant()
     
     def _on_trail_style_change(self, trail_style):
         self.trail_style = self._strip_icon(trail_style)
         self._update_preview()
+        self._apply_cursor_instant()
     
     def _on_canvas_motion(self, event):
         """Show trail preview dots when hovering directly over the trail canvas."""
@@ -799,7 +800,8 @@ class CursorCustomizer(ctk.CTkFrame):
             except Exception:
                 pass
     
-    def _apply_cursor(self):
+    def _apply_cursor_instant(self):
+        """Apply cursor settings instantly without showing a dialog."""
         config.set('ui', 'cursor', value=self.current_cursor)
         config.set('ui', 'cursor_size', value=self.current_size)
         config.set('ui', 'cursor_tint', value=self.current_tint)
@@ -814,8 +816,9 @@ class CursorCustomizer(ctk.CTkFrame):
                 'trail': self.trail_enabled,
                 'trail_color': self.trail_style
             })
-        
-        messagebox.showinfo("Success", "Cursor settings applied!")
+    
+    def _apply_cursor(self):
+        self._apply_cursor_instant()
     
     def get_cursor_config(self) -> Dict[str, Any]:
         return {

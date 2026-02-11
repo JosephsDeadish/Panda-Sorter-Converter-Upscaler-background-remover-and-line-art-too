@@ -1,11 +1,13 @@
 """
 Sound Manager - Audio feedback system
-Supports customizable sound packs and volume controls (offline using winsound)
+Supports customizable sound packs and volume controls using WAV files cross-platform.
 Author: Dead On The Inside / JosephsDeadish
 """
 
 import logging
 import sys
+import wave
+import struct
 from typing import Dict, Optional, Callable
 from dataclasses import dataclass
 from pathlib import Path
@@ -14,16 +16,29 @@ from enum import Enum
 
 logger = logging.getLogger(__name__)
 
+# Resolve the sounds directory relative to this file
+_SOUNDS_DIR = Path(__file__).resolve().parent.parent / "resources" / "sounds"
+
 # Platform-specific sound imports
 SOUND_AVAILABLE = False
+_USE_WAV_FILES = False
+
+# Try platform audio playback
 if sys.platform == 'win32':
     try:
         import winsound
         SOUND_AVAILABLE = True
+        _USE_WAV_FILES = True
     except ImportError:
         logger.warning("winsound not available on Windows")
 else:
-    logger.info("Non-Windows platform - sound system disabled")
+    # Unix/macOS - WAV playback via subprocess (aplay/afplay)
+    import shutil
+    if shutil.which('aplay') or shutil.which('afplay') or shutil.which('paplay'):
+        SOUND_AVAILABLE = True
+        _USE_WAV_FILES = True
+    else:
+        logger.info("No audio player found - sound system disabled")
 
 
 class SoundEvent(Enum):
@@ -52,55 +67,71 @@ class SoundPack(Enum):
 class Sound:
     """Represents a sound configuration."""
     event: SoundEvent
-    frequency: int  # Hz (for beep sounds)
-    duration: int  # milliseconds
+    frequency: int  # Hz (for fallback beep sounds)
+    duration: int  # milliseconds (for fallback beep sounds)
     description: str = ""
+    wav_file: str = ""  # WAV filename in resources/sounds/
 
 
 class SoundManager:
     """Manages audio feedback with customizable sound packs."""
     
+    # Sound WAV file mapping (shared across packs; packs vary frequency/duration fallbacks)
+    _WAV_FILES = {
+        SoundEvent.COMPLETE: "complete.wav",
+        SoundEvent.ERROR: "error.wav",
+        SoundEvent.ACHIEVEMENT: "achievement.wav",
+        SoundEvent.MILESTONE: "milestone.wav",
+        SoundEvent.WARNING: "warning.wav",
+        SoundEvent.START: "start.wav",
+        SoundEvent.PAUSE: "pause.wav",
+        SoundEvent.RESUME: "resume.wav",
+        SoundEvent.STOP: "stop.wav",
+        SoundEvent.BUTTON_CLICK: "click.wav",
+        SoundEvent.NOTIFICATION: "notification.wav",
+    }
+
     # Default sound definitions (frequency in Hz, duration in ms)
     SOUND_DEFINITIONS = {
         SoundPack.DEFAULT: {
-            SoundEvent.COMPLETE: Sound(SoundEvent.COMPLETE, 800, 200, "Task complete"),
-            SoundEvent.ERROR: Sound(SoundEvent.ERROR, 300, 400, "Error occurred"),
-            SoundEvent.ACHIEVEMENT: Sound(SoundEvent.ACHIEVEMENT, 1000, 150, "Achievement unlocked"),
-            SoundEvent.MILESTONE: Sound(SoundEvent.MILESTONE, 900, 100, "Milestone reached"),
-            SoundEvent.WARNING: Sound(SoundEvent.WARNING, 500, 200, "Warning"),
-            SoundEvent.START: Sound(SoundEvent.START, 600, 150, "Processing started"),
-            SoundEvent.PAUSE: Sound(SoundEvent.PAUSE, 550, 100, "Processing paused"),
-            SoundEvent.RESUME: Sound(SoundEvent.RESUME, 650, 100, "Processing resumed"),
-            SoundEvent.STOP: Sound(SoundEvent.STOP, 450, 200, "Processing stopped"),
-            SoundEvent.BUTTON_CLICK: Sound(SoundEvent.BUTTON_CLICK, 700, 50, "Button clicked"),
-            SoundEvent.NOTIFICATION: Sound(SoundEvent.NOTIFICATION, 750, 100, "Notification"),
+            SoundEvent.COMPLETE: Sound(SoundEvent.COMPLETE, 800, 200, "Task complete", "complete.wav"),
+            SoundEvent.ERROR: Sound(SoundEvent.ERROR, 300, 400, "Error occurred", "error.wav"),
+            SoundEvent.ACHIEVEMENT: Sound(SoundEvent.ACHIEVEMENT, 1000, 150, "Achievement unlocked", "achievement.wav"),
+            SoundEvent.MILESTONE: Sound(SoundEvent.MILESTONE, 900, 100, "Milestone reached", "milestone.wav"),
+            SoundEvent.WARNING: Sound(SoundEvent.WARNING, 500, 200, "Warning", "warning.wav"),
+            SoundEvent.START: Sound(SoundEvent.START, 600, 150, "Processing started", "start.wav"),
+            SoundEvent.PAUSE: Sound(SoundEvent.PAUSE, 550, 100, "Processing paused", "pause.wav"),
+            SoundEvent.RESUME: Sound(SoundEvent.RESUME, 650, 100, "Processing resumed", "resume.wav"),
+            SoundEvent.STOP: Sound(SoundEvent.STOP, 450, 200, "Processing stopped", "stop.wav"),
+            SoundEvent.BUTTON_CLICK: Sound(SoundEvent.BUTTON_CLICK, 700, 50, "Button clicked", "click.wav"),
+            SoundEvent.NOTIFICATION: Sound(SoundEvent.NOTIFICATION, 750, 100, "Notification", "notification.wav"),
         },
         SoundPack.MINIMAL: {
-            SoundEvent.COMPLETE: Sound(SoundEvent.COMPLETE, 800, 100, "Complete"),
-            SoundEvent.ERROR: Sound(SoundEvent.ERROR, 400, 200, "Error"),
-            SoundEvent.ACHIEVEMENT: Sound(SoundEvent.ACHIEVEMENT, 900, 80, "Achievement"),
-            SoundEvent.MILESTONE: Sound(SoundEvent.MILESTONE, 850, 80, "Milestone"),
-            SoundEvent.WARNING: Sound(SoundEvent.WARNING, 500, 100, "Warning"),
-            SoundEvent.START: Sound(SoundEvent.START, 600, 80, "Start"),
-            SoundEvent.PAUSE: Sound(SoundEvent.PAUSE, 550, 50, "Pause"),
-            SoundEvent.RESUME: Sound(SoundEvent.RESUME, 650, 50, "Resume"),
-            SoundEvent.STOP: Sound(SoundEvent.STOP, 450, 100, "Stop"),
-            SoundEvent.BUTTON_CLICK: Sound(SoundEvent.BUTTON_CLICK, 700, 30, "Click"),
-            SoundEvent.NOTIFICATION: Sound(SoundEvent.NOTIFICATION, 750, 60, "Notification"),
+            SoundEvent.COMPLETE: Sound(SoundEvent.COMPLETE, 800, 100, "Complete", "complete.wav"),
+            SoundEvent.ERROR: Sound(SoundEvent.ERROR, 400, 200, "Error", "error.wav"),
+            SoundEvent.ACHIEVEMENT: Sound(SoundEvent.ACHIEVEMENT, 900, 80, "Achievement", "achievement.wav"),
+            SoundEvent.MILESTONE: Sound(SoundEvent.MILESTONE, 850, 80, "Milestone", "milestone.wav"),
+            SoundEvent.WARNING: Sound(SoundEvent.WARNING, 500, 100, "Warning", "warning.wav"),
+            SoundEvent.START: Sound(SoundEvent.START, 600, 80, "Start", "start.wav"),
+            SoundEvent.PAUSE: Sound(SoundEvent.PAUSE, 550, 50, "Pause", "pause.wav"),
+            SoundEvent.RESUME: Sound(SoundEvent.RESUME, 650, 50, "Resume", "resume.wav"),
+            SoundEvent.STOP: Sound(SoundEvent.STOP, 450, 100, "Stop", "stop.wav"),
+            SoundEvent.BUTTON_CLICK: Sound(SoundEvent.BUTTON_CLICK, 700, 30, "Click", "click.wav"),
+            SoundEvent.NOTIFICATION: Sound(SoundEvent.NOTIFICATION, 750, 60, "Notification", "notification.wav"),
         },
         SoundPack.VULGAR: {
             # Vulgar pack has more aggressive/fun sounds
-            SoundEvent.COMPLETE: Sound(SoundEvent.COMPLETE, 1200, 300, "Hell yeah!"),
-            SoundEvent.ERROR: Sound(SoundEvent.ERROR, 200, 600, "Oh crap!"),
-            SoundEvent.ACHIEVEMENT: Sound(SoundEvent.ACHIEVEMENT, 1500, 200, "You're a legend!"),
-            SoundEvent.MILESTONE: Sound(SoundEvent.MILESTONE, 1100, 150, "Keep going!"),
-            SoundEvent.WARNING: Sound(SoundEvent.WARNING, 400, 300, "Watch it!"),
-            SoundEvent.START: Sound(SoundEvent.START, 800, 200, "Let's go!"),
-            SoundEvent.PAUSE: Sound(SoundEvent.PAUSE, 500, 150, "Hold up!"),
-            SoundEvent.RESUME: Sound(SoundEvent.RESUME, 900, 150, "Back at it!"),
-            SoundEvent.STOP: Sound(SoundEvent.STOP, 300, 300, "Done!"),
-            SoundEvent.BUTTON_CLICK: Sound(SoundEvent.BUTTON_CLICK, 800, 60, "Click!"),
-            SoundEvent.NOTIFICATION: Sound(SoundEvent.NOTIFICATION, 850, 120, "Yo!"),
+            SoundEvent.COMPLETE: Sound(SoundEvent.COMPLETE, 1200, 300, "Hell yeah!", "complete.wav"),
+            SoundEvent.ERROR: Sound(SoundEvent.ERROR, 200, 600, "Oh crap!", "error.wav"),
+            SoundEvent.ACHIEVEMENT: Sound(SoundEvent.ACHIEVEMENT, 1500, 200, "You're a legend!", "achievement.wav"),
+            SoundEvent.MILESTONE: Sound(SoundEvent.MILESTONE, 1100, 150, "Keep going!", "milestone.wav"),
+            SoundEvent.WARNING: Sound(SoundEvent.WARNING, 400, 300, "Watch it!", "warning.wav"),
+            SoundEvent.START: Sound(SoundEvent.START, 800, 200, "Let's go!", "start.wav"),
+            SoundEvent.PAUSE: Sound(SoundEvent.PAUSE, 500, 150, "Hold up!", "pause.wav"),
+            SoundEvent.RESUME: Sound(SoundEvent.RESUME, 900, 150, "Back at it!", "resume.wav"),
+            SoundEvent.STOP: Sound(SoundEvent.STOP, 300, 300, "Done!", "stop.wav"),
+            SoundEvent.BUTTON_CLICK: Sound(SoundEvent.BUTTON_CLICK, 800, 60, "Click!", "click.wav"),
+            SoundEvent.NOTIFICATION: Sound(SoundEvent.NOTIFICATION, 850, 120, "Yo!", "notification.wav"),
         }
     }
     
@@ -192,26 +223,60 @@ class SoundManager:
     
     def _play_beep(self, sound: Sound, volume_multiplier: float) -> None:
         """
-        Play a beep sound.
+        Play a sound, preferring WAV file playback with beep fallback.
         
         Args:
             sound: Sound to play
             volume_multiplier: Volume adjustment (0.0 to 1.0)
         """
-        if not SOUND_AVAILABLE or sys.platform != 'win32':
+        if not SOUND_AVAILABLE:
             return
         
-        try:
-            # Adjust frequency based on volume (limited effect with beeps)
-            # Note: winsound doesn't support true volume control
-            frequency = int(sound.frequency * (0.7 + 0.3 * volume_multiplier))
-            duration = sound.duration
-            
-            with self.lock:
-                winsound.Beep(frequency, duration)
-                
-        except Exception as e:
-            logger.error(f"Error playing beep: {e}")
+        # Try WAV file playback first
+        wav_file = sound.wav_file or self._WAV_FILES.get(sound.event, "")
+        if wav_file and _USE_WAV_FILES:
+            wav_path = _SOUNDS_DIR / wav_file
+            if wav_path.exists():
+                try:
+                    with self.lock:
+                        self._play_wav(str(wav_path))
+                    return
+                except Exception as e:
+                    logger.debug(f"WAV playback failed, falling back to beep: {e}")
+        
+        # Fallback to beep (Windows only)
+        if sys.platform == 'win32':
+            try:
+                frequency = int(sound.frequency * (0.7 + 0.3 * volume_multiplier))
+                duration = sound.duration
+                with self.lock:
+                    winsound.Beep(frequency, duration)
+            except Exception as e:
+                logger.error(f"Error playing beep: {e}")
+    
+    def _play_wav(self, wav_path: str) -> None:
+        """
+        Play a WAV file using platform-appropriate method.
+        
+        Args:
+            wav_path: Path to WAV file
+        """
+        if sys.platform == 'win32':
+            import winsound
+            winsound.PlaySound(wav_path, winsound.SND_FILENAME | winsound.SND_NODEFAULT)
+        else:
+            import subprocess
+            import shutil
+            # Try platform audio players
+            if shutil.which('aplay'):
+                subprocess.Popen(['aplay', '-q', wav_path],
+                                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            elif shutil.which('paplay'):
+                subprocess.Popen(['paplay', wav_path],
+                                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            elif shutil.which('afplay'):
+                subprocess.Popen(['afplay', wav_path],
+                                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     
     def _get_sound(self, event: SoundEvent) -> Optional[Sound]:
         """
