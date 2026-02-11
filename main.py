@@ -2139,6 +2139,19 @@ class PS2TextureSorter(ctk.CTk):
                                      "UI customization panel is not available.\n"
                                      "Please check your installation.")
     
+    def _open_sound_settings(self):
+        """Open customization dialog directly on the Sound tab."""
+        if CUSTOMIZATION_AVAILABLE:
+            try:
+                open_customization_dialog(parent=self,
+                                          on_settings_change=self._on_customization_change,
+                                          initial_tab="🔊 Sound")
+                self.log("✅ Opened Sound Settings")
+            except Exception as e:
+                self.log(f"❌ Error opening sound settings: {e}")
+        else:
+            self.log("⚠️ UI Customization not available")
+    
     def _on_customization_change(self, setting_type, value):
         """Handle customization setting changes from the customization panel"""
         try:
@@ -2965,7 +2978,7 @@ class PS2TextureSorter(ctk.CTk):
                      font=("Arial", 11), text_color="gray").pack(anchor="w", padx=20, pady=3)
         
         ctk.CTkButton(notif_frame, text="🔊 Open Sound Settings",
-                     command=self.open_customization,
+                     command=self._open_sound_settings,
                      width=220, height=30).pack(padx=20, pady=8)
         
         # === AI MODEL SETTINGS ===

@@ -1597,12 +1597,13 @@ class CustomizationPanel(ctk.CTkFrame):
         }
 
 
-def open_customization_dialog(parent=None, on_settings_change=None):
+def open_customization_dialog(parent=None, on_settings_change=None, initial_tab=None):
     """Open customization dialog window
     
     Args:
         parent: Parent window
         on_settings_change: Optional callback function(setting_type, value) to handle setting changes
+        initial_tab: Optional tab name to open initially (e.g. "🔊 Sound")
     """
     dialog = ctk.CTkToplevel(parent)
     dialog.title("🎨 UI Customization")
@@ -1623,6 +1624,13 @@ def open_customization_dialog(parent=None, on_settings_change=None):
     
     panel = CustomizationPanel(dialog, on_settings_change=on_settings_change)
     panel.pack(fill="both", expand=True, padx=10, pady=10)
+    
+    # Navigate to requested tab if specified
+    if initial_tab:
+        try:
+            panel.tabview.set(initial_tab)
+        except Exception:
+            pass
     
     ctk.CTkButton(dialog, text="Close", command=on_close,
                  width=100, height=35).pack(pady=10)
