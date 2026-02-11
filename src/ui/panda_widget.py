@@ -96,6 +96,9 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
     TOSS_FRAME_INTERVAL = 20        # Physics tick interval (ms)
     TOSS_FRAME_TIME = 0.016         # Approximate frame time in seconds (~60fps)
     
+    # Tail wag animation frequency
+    TAIL_WAG_FREQUENCY = 0.8
+    
     # Emoji decorations shown next to the panda for each animation type
     ANIMATION_EMOJIS = {
         'working': ['💼', '⚙️', '📊', '💻', '☕'],
@@ -264,7 +267,8 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
         self.after(100, self._initial_toplevel_position)
         
         # Destroy the Toplevel when the main window is destroyed
-        self.winfo_toplevel().bind("<Destroy>", self._on_main_destroy, add=True)
+        self._main_window = self.winfo_toplevel()
+        self._destroy_bind_id = self._main_window.bind("<Destroy>", self._on_main_destroy, add=True)
         
         # Deferred background refresh – once the widget tree is fully
         # rendered the parent background colour is reliably available.
@@ -436,7 +440,7 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
 
     def _on_main_destroy(self, event=None):
         """Destroy the Toplevel when the main window is destroyed."""
-        if event and event.widget is self.winfo_toplevel():
+        if event and event.widget is self._main_window:
             self.destroy()
 
     def _show_speech_bubble(self, text: str):
@@ -1236,7 +1240,7 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
         
         # Draw a small tail oval for tail_wag animation
         if anim == 'tail_wag':
-            tail_offset = math.sin(frame_idx * 0.8) * int(8 * sx)
+            tail_offset = math.sin(frame_idx * self.TAIL_WAG_FREQUENCY) * int(8 * sx)
             tail_cx = cx + tail_offset
             tail_cy = int(145 * sy + by)
             c.create_oval(
@@ -2057,6 +2061,12 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
             except Exception:
                 pass
             self._follow_main_job = None
+        # Unbind from main window to avoid stale references
+        try:
+            if self._destroy_bind_id and self._main_window:
+                self._main_window.unbind("<Destroy>", self._destroy_bind_id)
+        except Exception:
+            pass
         # Destroy the separate Toplevel window
         try:
             self._toplevel.destroy()
