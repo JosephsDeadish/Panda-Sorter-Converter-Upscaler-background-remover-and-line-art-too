@@ -848,21 +848,103 @@ class ThemeManager(ctk.CTkFrame):
         try:
             # Try to update theme colors if CustomTkinter supports it
             if hasattr(ctk, 'set_default_color_theme'):
-                # Create a temporary theme file
+                # Create a temporary theme file with all widget types
                 import tempfile
+                bg = colors.get("background", "#1a1a1a")
+                fg = colors.get("foreground", "#ffffff")
+                primary = colors.get("primary", "#1f538d")
+                secondary = colors.get("secondary", "#14375e")
+                accent = colors.get("accent", "#2fa572")
+                button = colors.get("button", "#1f538d")
+                button_hover = colors.get("button_hover", "#2d6ba8")
+                text = colors.get("text", "#ffffff")
+                text_secondary = colors.get("text_secondary", "#b0b0b0")
+                border = colors.get("border", "#333333")
                 with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
                     theme_data = {
                         "CTk": {
-                            "fg_color": [colors.get("background", "#1a1a1a"), colors.get("background", "#1a1a1a")]
+                            "fg_color": [bg, bg]
                         },
-                        "CTkButton": {
-                            "fg_color": [colors.get("button", "#1f538d"), colors.get("button", "#1f538d")],
-                            "hover_color": [colors.get("button_hover", "#2d6ba8"), colors.get("button_hover", "#2d6ba8")],
-                            "text_color": [colors.get("text", "#ffffff"), colors.get("text", "#ffffff")]
+                        "CTkToplevel": {
+                            "fg_color": [bg, bg]
                         },
                         "CTkFrame": {
-                            "fg_color": [colors.get("secondary", "#14375e"), colors.get("secondary", "#14375e")],
-                            "border_color": [colors.get("border", "#333333"), colors.get("border", "#333333")]
+                            "fg_color": [secondary, secondary],
+                            "border_color": [border, border]
+                        },
+                        "CTkButton": {
+                            "fg_color": [button, button],
+                            "hover_color": [button_hover, button_hover],
+                            "text_color": [text, text],
+                            "border_color": [border, border]
+                        },
+                        "CTkLabel": {
+                            "text_color": [text, text]
+                        },
+                        "CTkEntry": {
+                            "fg_color": [bg, bg],
+                            "text_color": [text, text],
+                            "border_color": [border, border],
+                            "placeholder_text_color": [text_secondary, text_secondary]
+                        },
+                        "CTkTextbox": {
+                            "fg_color": [bg, bg],
+                            "text_color": [text, text],
+                            "border_color": [border, border]
+                        },
+                        "CTkOptionMenu": {
+                            "fg_color": [button, button],
+                            "button_color": [button, button],
+                            "button_hover_color": [button_hover, button_hover],
+                            "text_color": [text, text]
+                        },
+                        "CTkComboBox": {
+                            "fg_color": [bg, bg],
+                            "button_color": [button, button],
+                            "button_hover_color": [button_hover, button_hover],
+                            "text_color": [text, text],
+                            "border_color": [border, border]
+                        },
+                        "CTkCheckBox": {
+                            "fg_color": [accent, accent],
+                            "hover_color": [button_hover, button_hover],
+                            "text_color": [text, text],
+                            "border_color": [border, border]
+                        },
+                        "CTkSwitch": {
+                            "progress_color": [accent, accent],
+                            "button_color": [button, button],
+                            "button_hover_color": [button_hover, button_hover],
+                            "text_color": [text, text]
+                        },
+                        "CTkProgressBar": {
+                            "fg_color": [secondary, secondary],
+                            "progress_color": [accent, accent]
+                        },
+                        "CTkSlider": {
+                            "fg_color": [secondary, secondary],
+                            "progress_color": [accent, accent],
+                            "button_color": [button, button],
+                            "button_hover_color": [button_hover, button_hover]
+                        },
+                        "CTkScrollableFrame": {
+                            "label_fg_color": [secondary, secondary]
+                        },
+                        "CTkTabview": {
+                            "fg_color": [secondary, secondary],
+                            "segmented_button_selected_color": [accent, accent],
+                            "segmented_button_unselected_color": [secondary, secondary]
+                        },
+                        "CTkSegmentedButton": {
+                            "fg_color": [secondary, secondary],
+                            "selected_color": [accent, accent],
+                            "selected_hover_color": [button_hover, button_hover],
+                            "text_color": [text, text]
+                        },
+                        "CTkScrollbar": {
+                            "fg_color": [secondary, secondary],
+                            "button_color": [text_secondary, text_secondary],
+                            "button_hover_color": [text, text]
                         }
                     }
                     json.dump(theme_data, f)

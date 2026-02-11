@@ -2056,11 +2056,6 @@ class PS2TextureSorter(ctk.CTk):
                 if 'text' in colors:
                     widget.configure(text_color=colors['text'])
             
-            # Apply colors to CTkFrame widgets
-            elif isinstance(widget, ctk.CTkFrame):
-                if 'secondary' in colors:
-                    widget.configure(fg_color=colors['secondary'])
-            
             # Apply colors to CTkLabel widgets
             elif isinstance(widget, ctk.CTkLabel):
                 if 'text' in colors:
@@ -2081,12 +2076,68 @@ class PS2TextureSorter(ctk.CTk):
                         widget.configure(text_color=colors['text'])
                     except Exception:
                         pass
+                if 'border' in colors:
+                    try:
+                        widget.configure(border_color=colors['border'])
+                    except Exception:
+                        pass
+            
+            # Apply colors to CTkTextbox widgets
+            elif isinstance(widget, ctk.CTkTextbox):
+                if 'background' in colors:
+                    try:
+                        widget.configure(fg_color=colors['background'])
+                    except Exception:
+                        pass
+                if 'text' in colors:
+                    try:
+                        widget.configure(text_color=colors['text'])
+                    except Exception:
+                        pass
+                if 'border' in colors:
+                    try:
+                        widget.configure(border_color=colors['border'])
+                    except Exception:
+                        pass
             
             # Apply colors to CTkOptionMenu widgets
             elif isinstance(widget, ctk.CTkOptionMenu):
                 if 'button' in colors:
                     try:
                         widget.configure(fg_color=colors['button'])
+                    except Exception:
+                        pass
+                if 'button_hover' in colors:
+                    try:
+                        widget.configure(button_hover_color=colors['button_hover'])
+                    except Exception:
+                        pass
+                if 'text' in colors:
+                    try:
+                        widget.configure(text_color=colors['text'])
+                    except Exception:
+                        pass
+            
+            # Apply colors to CTkComboBox widgets
+            elif isinstance(widget, ctk.CTkComboBox):
+                if 'button' in colors:
+                    try:
+                        widget.configure(button_color=colors['button'])
+                    except Exception:
+                        pass
+                if 'button_hover' in colors:
+                    try:
+                        widget.configure(button_hover_color=colors['button_hover'])
+                    except Exception:
+                        pass
+                if 'border' in colors:
+                    try:
+                        widget.configure(border_color=colors['border'])
+                    except Exception:
+                        pass
+                if 'text' in colors:
+                    try:
+                        widget.configure(text_color=colors['text'])
                     except Exception:
                         pass
             
@@ -2097,12 +2148,105 @@ class PS2TextureSorter(ctk.CTk):
                         widget.configure(fg_color=colors['accent'])
                     except Exception:
                         pass
+                if 'text' in colors:
+                    try:
+                        widget.configure(text_color=colors['text'])
+                    except Exception:
+                        pass
+            
+            # Apply colors to CTkSwitch widgets
+            elif isinstance(widget, ctk.CTkSwitch):
+                if 'accent' in colors:
+                    try:
+                        widget.configure(progress_color=colors['accent'])
+                    except Exception:
+                        pass
+                if 'button' in colors:
+                    try:
+                        widget.configure(button_color=colors['button'])
+                    except Exception:
+                        pass
+                if 'text' in colors:
+                    try:
+                        widget.configure(text_color=colors['text'])
+                    except Exception:
+                        pass
             
             # Apply colors to CTkProgressBar widgets
             elif isinstance(widget, ctk.CTkProgressBar):
                 if 'accent' in colors:
                     try:
                         widget.configure(progress_color=colors['accent'])
+                    except Exception:
+                        pass
+            
+            # Apply colors to CTkSlider widgets
+            elif isinstance(widget, ctk.CTkSlider):
+                if 'accent' in colors:
+                    try:
+                        widget.configure(progress_color=colors['accent'])
+                    except Exception:
+                        pass
+                if 'button' in colors:
+                    try:
+                        widget.configure(button_color=colors['button'])
+                    except Exception:
+                        pass
+                if 'button_hover' in colors:
+                    try:
+                        widget.configure(button_hover_color=colors['button_hover'])
+                    except Exception:
+                        pass
+            
+            # Apply colors to CTkSegmentedButton widgets
+            elif isinstance(widget, ctk.CTkSegmentedButton):
+                if 'accent' in colors:
+                    try:
+                        widget.configure(selected_color=colors['accent'])
+                    except Exception:
+                        pass
+                if 'text' in colors:
+                    try:
+                        widget.configure(text_color=colors['text'])
+                    except Exception:
+                        pass
+            
+            # Apply colors to CTkScrollableFrame widgets
+            elif isinstance(widget, ctk.CTkScrollableFrame):
+                if 'secondary' in colors:
+                    try:
+                        widget.configure(fg_color=colors['secondary'])
+                    except Exception:
+                        pass
+                if 'border' in colors:
+                    try:
+                        widget.configure(border_color=colors['border'])
+                    except Exception:
+                        pass
+            
+            # Apply colors to CTkTabview widgets
+            elif isinstance(widget, ctk.CTkTabview):
+                if 'secondary' in colors:
+                    try:
+                        widget.configure(fg_color=colors['secondary'])
+                    except Exception:
+                        pass
+                if 'accent' in colors:
+                    try:
+                        widget.configure(segmented_button_selected_color=colors['accent'])
+                    except Exception:
+                        pass
+            
+            # Apply colors to CTkFrame widgets (must be last since some widgets inherit from it)
+            elif isinstance(widget, ctk.CTkFrame):
+                if 'secondary' in colors:
+                    try:
+                        widget.configure(fg_color=colors['secondary'])
+                    except Exception:
+                        pass
+                if 'border' in colors:
+                    try:
+                        widget.configure(border_color=colors['border'])
                     except Exception:
                         pass
             
