@@ -22,6 +22,10 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
     
     # Minimum drag distance (pixels) to distinguish drag from click
     CLICK_THRESHOLD = 5
+    # Minimum mouse positions needed to detect rubbing motion
+    MIN_RUB_POSITIONS = 4
+    # Cooldown in seconds between rub detections
+    RUB_COOLDOWN_SECONDS = 2.0
     
     def __init__(self, parent, panda_character=None, panda_level_system=None,
                  widget_collection=None, panda_closet=None, **kwargs):
@@ -110,6 +114,11 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
         self.panda_label.bind("<Button-1>", self._on_drag_start)
         self.panda_label.bind("<B1-Motion>", self._on_drag_motion)
         self.panda_label.bind("<ButtonRelease-1>", self._on_drag_end)
+        
+        # Bind mouse motion for pet-by-rubbing detection
+        self._rub_positions = []  # Track recent mouse positions for rubbing
+        self._last_rub_time = 0
+        self.panda_label.bind("<Motion>", self._on_mouse_motion)
         
         # Also bind to the frame itself for dragging
         self.bind("<Button-1>", self._on_drag_start)
@@ -242,10 +251,21 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
             self.play_animation_once('tossed')
     
     def _on_click(self, event=None):
-        """Handle left click on panda."""
+        """Handle left click on panda with body part detection."""
         try:
             if self.panda:
-                response = self.panda.on_click()
+                # Detect which body part was clicked
+                body_part = None
+                if event and hasattr(self.panda, 'get_body_part_at_position'):
+                    label_height = max(1, self.panda_label.winfo_height())
+                    rel_y = event.y / label_height
+                    body_part = self.panda.get_body_part_at_position(rel_y)
+                
+                if body_part and hasattr(self.panda, 'on_body_part_click'):
+                    response = self.panda.on_body_part_click(body_part)
+                else:
+                    response = self.panda.on_click()
+                
                 self.info_label.configure(text=response)
                 # Play clicked animation if available, else celebrating
                 self.play_animation_once('clicked')
@@ -259,6 +279,54 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
         except Exception as e:
             logger.error(f"Error handling panda click: {e}")
             self.info_label.configure(text="🐼 *confused panda noises*")
+    
+    def _on_mouse_motion(self, event=None):
+        """Track mouse motion for pet-by-rubbing detection."""
+        if self._destroyed or not self.panda or self.is_dragging:
+            return
+        
+        now = time.monotonic()
+        
+        # Track positions for rubbing detection
+        if event:
+            self._rub_positions.append((event.x, event.y, now))
+        
+        # Keep only recent positions (last 1 second)
+        self._rub_positions = [(x, y, t) for x, y, t in self._rub_positions if now - t < 1.0]
+        
+        # Detect rubbing: rapid back-and-forth motion
+        if len(self._rub_positions) >= self.MIN_RUB_POSITIONS and now - self._last_rub_time > self.RUB_COOLDOWN_SECONDS:
+            # Check for direction changes in x movement
+            direction_changes = 0
+            for i in range(2, len(self._rub_positions)):
+                dx_prev = self._rub_positions[i-1][0] - self._rub_positions[i-2][0]
+                dx_curr = self._rub_positions[i][0] - self._rub_positions[i-1][0]
+                if dx_prev * dx_curr < 0:  # Direction changed
+                    direction_changes += 1
+            
+            if direction_changes >= 2:
+                # Rubbing detected! Trigger petting response
+                self._last_rub_time = now
+                label_height = max(1, self.panda_label.winfo_height())
+                rel_y = event.y / label_height if event else 0.5
+                
+                if hasattr(self.panda, 'on_rub'):
+                    body_part = self.panda.get_body_part_at_position(rel_y)
+                    response = self.panda.on_rub(body_part)
+                else:
+                    response = self.panda.on_pet()
+                
+                self.info_label.configure(text=response)
+                self.play_animation_once('petting')
+                self._rub_positions = []
+                
+                # Award XP for petting
+                if self.panda_level_system:
+                    try:
+                        xp = self.panda_level_system.get_xp_reward('pet')
+                        self.panda_level_system.add_xp(xp, 'Rubbing interaction')
+                    except Exception:
+                        pass
     
     def _on_right_click(self, event=None):
         """Handle right click on panda."""
@@ -568,14 +636,14 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
                 'working': 'working',
                 'tired': 'idle',
                 'celebrating': 'celebrating',
-                'sleeping': 'idle',
+                'sleeping': 'laying_down',
                 'sarcastic': 'sarcastic',
                 'rage': 'rage',
                 'drunk': 'drunk',
                 'existential': 'idle',
-                'motivating': 'celebrating',
+                'motivating': 'dancing',
                 'tech_support': 'working',
-                'sleepy': 'idle',
+                'sleepy': 'laying_side',
             }
             anim = mood_animations.get(mood.value if hasattr(mood, 'value') else mood, 'idle')
             self.start_animation(anim)

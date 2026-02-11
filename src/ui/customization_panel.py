@@ -1031,7 +1031,14 @@ class SettingsPanel(ctk.CTkFrame):
             text_color="gray"
         ).pack(pady=(0, 10))
         
-        self.tooltip_mode_var = ctk.StringVar(value="normal")
+        # Load saved tooltip mode from config
+        saved_mode = "normal"
+        try:
+            from src.config import config as app_config
+            saved_mode = app_config.get('ui', 'tooltip_mode', default='normal')
+        except Exception:
+            pass
+        self.tooltip_mode_var = ctk.StringVar(value=saved_mode)
         
         tooltip_options = [
             ("Normal", "normal", "Standard helpful tooltips"),

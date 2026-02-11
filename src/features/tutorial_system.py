@@ -520,9 +520,15 @@ class TooltipVerbosityManager:
         
         For list-based tooltips (e.g. vulgar mode), picks a random variant
         with cooldown to avoid repeating the same line back-to-back.
+        Falls back to normal mode if widget_id not found in current mode.
         """
         tooltips = self.tooltips.get(self.current_mode, {})
         tooltip = tooltips.get(widget_id, "")
+        
+        # Fall back to normal mode if current mode doesn't have this widget
+        if not tooltip and self.current_mode != TooltipMode.NORMAL:
+            normal_tooltips = self.tooltips.get(TooltipMode.NORMAL, {})
+            tooltip = normal_tooltips.get(widget_id, "")
         
         # If tooltip is a list, pick a random one with cooldown
         if isinstance(tooltip, list):
@@ -564,7 +570,24 @@ class TooltipVerbosityManager:
             'browser_browse_button': "Select a directory to browse for texture files",
             'browser_refresh_button': "Refresh the file list to show current directory contents",
             'browser_search': "Search for files by name in the current directory",
-            'browser_show_all': "Toggle between showing only textures or all file types"
+            'browser_show_all': "Toggle between showing only textures or all file types",
+            # Tab tooltips
+            'sort_tab': "Sort and organize PS2 texture dumps into categories",
+            'convert_tab': "Batch convert texture files between formats (DDS, PNG, JPG, etc.)",
+            'browser_tab': "Browse and preview texture files in a directory",
+            'notepad_tab': "Jot down notes and project information",
+            'about_tab': "View application info, credits, and keyboard shortcuts",
+            # Category tooltips
+            'tools_category': "Access sorting, conversion, and file browsing tools",
+            'features_category': "Interact with your panda, shop, achievements, and more",
+            # Feature tab tooltips
+            'inventory_tab': "View and use your collected toys and food items",
+            'panda_stats_tab': "Check your panda's mood, stats, and interaction history",
+            'minigames_tab': "Play mini-games to earn rewards and have fun",
+            # Settings tooltips
+            'keyboard_controls': "View and customize keyboard shortcuts",
+            'tooltip_mode': "Choose how tooltips are displayed: normal, beginner, or panda mode",
+            'theme_selector': "Choose a visual theme for the application",
         }
         
         # Pull from PandaMode TOOLTIPS if available
@@ -695,6 +718,57 @@ class TooltipVerbosityManager:
                 "By default, only texture files are shown. Check this box to see "
                 "ALL files in the folder, including non-texture files."
             ),
+            # Tab tooltips
+            'sort_tab': (
+                "This is where you sort your texture files! Select an input folder "
+                "with your textures, an output folder, and click Sort to organize them."
+            ),
+            'convert_tab': (
+                "This tab lets you change your texture files from one format to another. "
+                "For example, DDS to PNG or PNG to DDS."
+            ),
+            'browser_tab': (
+                "Use this tab to look through your texture files. You can preview them "
+                "and search for specific files."
+            ),
+            'notepad_tab': (
+                "A handy notepad where you can write down notes about your project, "
+                "keep track of what you've done, or plan your next steps."
+            ),
+            'about_tab': (
+                "Information about the app, who made it, and a handy list of "
+                "all the keyboard shortcuts you can use."
+            ),
+            # Category tooltips
+            'tools_category': (
+                "This section has all the main tools: sorting textures, converting "
+                "file formats, and browsing your texture files."
+            ),
+            'features_category': (
+                "This section has fun extras: your panda companion, the shop where "
+                "you spend points, achievements, and your inventory."
+            ),
+            # Feature tab tooltips
+            'inventory_tab': (
+                "Your collection of toys and food items! Use them to interact with "
+                "your panda and make it happy."
+            ),
+            'panda_stats_tab': (
+                "See how your panda is doing! Check its mood, how many times "
+                "you've petted or fed it, and other fun stats."
+            ),
+            'keyboard_controls': (
+                "View all keyboard shortcuts and change them to whatever keys "
+                "you prefer. Click Edit next to any shortcut to change it."
+            ),
+            'tooltip_mode': (
+                "Choose how tooltips are shown: Normal gives standard info, "
+                "Dumbed Down gives extra detail, Vulgar Panda adds humor."
+            ),
+            'theme_selector': (
+                "Pick a color theme for the application. Try dark mode for "
+                "late-night sessions or light mode for daytime use."
+            ),
         }
     
     def _get_vulgar_panda_tooltips(self) -> Dict[str, Any]:
@@ -720,7 +794,22 @@ class TooltipVerbosityManager:
             'browser_browse_button': "Pick a folder. Any folder. Let's see what's inside.",
             'browser_refresh_button': "Refresh. In case something magically changed.",
             'browser_search': "Find your damn files. Type something.",
-            'browser_show_all': "Show EVERYTHING. Even the weird files."
+            'browser_show_all': "Show EVERYTHING. Even the weird files.",
+            # Tab tooltips
+            'sort_tab': "The main event. Sort your textures or go home.",
+            'convert_tab': "Format conversion. Because one format is never enough.",
+            'browser_tab': "Snoop through your texture files like a pro.",
+            'notepad_tab': "Scribble your thoughts. No one's judging. Maybe.",
+            'about_tab': "Credits and keyboard shortcuts. Riveting stuff.",
+            # Category tooltips
+            'tools_category': "The useful stuff. Sorting, converting, browsing.",
+            'features_category': "The fun stuff. Panda, shop, achievements, bling.",
+            # Feature tab tooltips
+            'inventory_tab': "Your hoard of toys and snacks. Use 'em or lose 'em.",
+            'panda_stats_tab': "Stalk your panda's mood and life choices.",
+            'keyboard_controls': "Keyboard shortcuts. Customize 'em if you dare.",
+            'tooltip_mode': "Control the sass level. You've been warned.",
+            'theme_selector': "Pick a vibe. Dark mode or boomer mode.",
         }
         
         # Pull from PandaMode TOOLTIPS if available

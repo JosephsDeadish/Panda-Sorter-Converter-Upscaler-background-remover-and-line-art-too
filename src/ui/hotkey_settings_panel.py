@@ -46,11 +46,11 @@ class HotkeySettingsPanel(ctk.CTkFrame if ctk else tk.Frame):
         # Header
         header = ctk.CTkLabel(
             self,
-            text="⌨️ Keyboard Shortcuts",
+            text="⌨️ Keyboard Controls",
             font=("Arial", 18, "bold")
         ) if ctk else tk.Label(
             self,
-            text="⌨️ Keyboard Shortcuts",
+            text="⌨️ Keyboard Controls",
             font=("Arial", 18, "bold")
         )
         header.grid(row=0, column=0, padx=20, pady=10, sticky="w")
@@ -307,6 +307,16 @@ class HotkeySettingsPanel(ctk.CTkFrame if ctk else tk.Frame):
 class HotkeyEditDialog(tk.Toplevel):
     """Dialog for editing a hotkey binding."""
     
+    # Map tkinter keysyms to normalized modifier/key names
+    KEYSYM_MAP = {
+        'Control_L': 'Ctrl', 'Control_R': 'Ctrl',
+        'Shift_L': 'Shift', 'Shift_R': 'Shift',
+        'Alt_L': 'Alt', 'Alt_R': 'Alt',
+        'Meta_L': 'Win', 'Meta_R': 'Win',
+        'Super_L': 'Win', 'Super_R': 'Win',
+    }
+    MODIFIER_ORDER = ['Ctrl', 'Alt', 'Shift', 'Win']
+    
     def __init__(self, parent, hotkey_name: str, current_key: str, callback: Callable):
         """
         Initialize hotkey edit dialog.
@@ -371,6 +381,14 @@ class HotkeyEditDialog(tk.Toplevel):
         button_frame = tk.Frame(self)
         button_frame.pack(pady=20)
         
+        # Clear button - allows re-recording
+        clear_btn = tk.Button(
+            button_frame,
+            text="Clear",
+            command=self._clear
+        )
+        clear_btn.pack(side="left", padx=5)
+        
         # Save button
         save_btn = tk.Button(
             button_frame,
@@ -387,26 +405,46 @@ class HotkeyEditDialog(tk.Toplevel):
         )
         cancel_btn.pack(side="left", padx=5)
     
+    def _normalize_key(self, keysym: str) -> str:
+        """Normalize a tkinter keysym to the format used by HotkeyManager."""
+        if keysym in self.KEYSYM_MAP:
+            return self.KEYSYM_MAP[keysym]
+        # Capitalize single letters, keep special keys as-is
+        if len(keysym) == 1:
+            return keysym.upper()
+        return keysym
+
+    def _build_combination(self) -> str:
+        """Build a sorted key combination string from pressed keys."""
+        modifiers = [k for k in self.keys_pressed if k in self.MODIFIER_ORDER]
+        others = [k for k in self.keys_pressed if k not in self.MODIFIER_ORDER]
+        # Sort modifiers in canonical order
+        modifiers.sort(key=lambda m: self.MODIFIER_ORDER.index(m))
+        return '+'.join(modifiers + others)
+
     def _on_key_press(self, event):
         """Handle key press event."""
-        key = event.keysym
+        key = self._normalize_key(event.keysym)
         
-        # Add to pressed keys if not already there
+        # Add to pressed keys if not already there (deduplicate modifiers)
         if key not in self.keys_pressed:
             self.keys_pressed.append(key)
         
-        # Build key combination string
-        self.new_key = '+'.join(self.keys_pressed)
+        # Build key combination string and freeze it
+        self.new_key = self._build_combination()
         self.new_key_var.set(self.new_key)
     
     def _on_key_release(self, event):
-        """Handle key release event."""
-        key = event.keysym
-        
-        # Remove from pressed keys
-        if key in self.keys_pressed:
-            self.keys_pressed.remove(key)
+        """Handle key release event - keep the combination frozen."""
+        # Don't remove keys on release so the full combination is preserved
+        pass
     
+    def _clear(self):
+        """Clear captured keys to allow re-recording."""
+        self.keys_pressed = []
+        self.new_key = None
+        self.new_key_var.set("Press keys...")
+
     def _save(self):
         """Save the new hotkey binding."""
         if self.new_key:
