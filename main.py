@@ -5132,10 +5132,12 @@ Built with:
                 try:
                     mood_indicator = self.panda.get_mood_indicator()
                     mood_name = self.panda.current_mood.value.title()
-                    self.panda_mood_label.configure(text=f"{mood_indicator} {mood_name}")
+                    new_text = f"{mood_indicator} {mood_name}"
+                    if self.panda_mood_label.cget("text") != new_text:
+                        self.panda_mood_label.configure(text=new_text)
                 except Exception:
                     pass
-            # Update all stat labels in-place
+            # Update all stat labels in-place (only if changed)
             if hasattr(self, '_stats_labels') and self._stats_labels and self.panda:
                 try:
                     stats = self.panda.get_statistics()
@@ -5143,11 +5145,15 @@ Built with:
                                 'files_processed', 'failed_operations', 'easter_eggs_found'):
                         lbl = self._stats_labels.get(key)
                         if lbl:
-                            lbl.configure(text=str(stats.get(key, 0)))
+                            new_val = str(stats.get(key, 0))
+                            if lbl.cget("text") != new_val:
+                                lbl.configure(text=new_val)
                     # Update animation label
                     anim_lbl = self._stats_labels.get('animation')
                     if anim_lbl and hasattr(self, 'panda_widget') and self.panda_widget:
-                        anim_lbl.configure(text=f"Current animation: {self.panda_widget.current_animation}")
+                        new_anim = f"Current animation: {self.panda_widget.current_animation}"
+                        if anim_lbl.cget("text") != new_anim:
+                            anim_lbl.configure(text=new_anim)
                     # Update level/XP
                     if self.panda_level_system:
                         lvl_lbl = self._stats_labels.get('level_text')
@@ -5155,14 +5161,16 @@ Built with:
                             level = self.panda_level_system.level
                             xp = self.panda_level_system.xp
                             xp_needed = self.panda_level_system.get_xp_to_next_level()
-                            lvl_lbl.configure(text=f"Level {level}  •  XP: {xp}/{xp_needed}")
+                            new_lvl = f"Level {level}  •  XP: {xp}/{xp_needed}"
+                            if lvl_lbl.cget("text") != new_lvl:
+                                lvl_lbl.configure(text=new_lvl)
                         if hasattr(self, '_stats_xp_bar'):
                             xp = self.panda_level_system.xp
                             xp_needed = self.panda_level_system.get_xp_to_next_level()
                             self._stats_xp_bar.set(min(1.0, xp / max(1, xp_needed)))
                 except Exception:
                     pass
-            self._stats_auto_refresh_id = self.after(3000, self._start_stats_auto_refresh)
+            self._stats_auto_refresh_id = self.after(5000, self._start_stats_auto_refresh)
         except Exception as e:
             logger.debug(f"Stats auto-refresh error: {e}")
 

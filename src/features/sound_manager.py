@@ -267,16 +267,25 @@ class SoundManager:
         else:
             import subprocess
             import shutil
+            # Clean up any previous playback process
+            if hasattr(self, '_audio_process') and self._audio_process is not None:
+                try:
+                    self._audio_process.poll()
+                    if self._audio_process.returncode is None:
+                        self._audio_process.terminate()
+                except Exception:
+                    pass
             # Try platform audio players
+            player = None
             if shutil.which('aplay'):
-                subprocess.Popen(['aplay', '-q', wav_path],
-                                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                player = ['aplay', '-q', wav_path]
             elif shutil.which('paplay'):
-                subprocess.Popen(['paplay', wav_path],
-                                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                player = ['paplay', wav_path]
             elif shutil.which('afplay'):
-                subprocess.Popen(['afplay', wav_path],
-                                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                player = ['afplay', wav_path]
+            if player:
+                self._audio_process = subprocess.Popen(
+                    player, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     
     def _get_sound(self, event: SoundEvent) -> Optional[Sound]:
         """
