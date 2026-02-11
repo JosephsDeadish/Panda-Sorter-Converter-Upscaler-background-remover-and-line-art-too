@@ -1283,6 +1283,272 @@ class ShopSystem:
             unlockable_id='closet_phantom'
         ),
 
+        # New Fur Styles - Shop
+        'closet_spiky': ShopItem(
+            id='closet_spiky',
+            name='Spiky Panda',
+            description='Wild spiky fur style',
+            category=ShopCategory.PANDA_OUTFITS,
+            price=120,
+            icon='⚡',
+            level_required=3,
+            one_time_purchase=True,
+            unlockable_id='closet_spiky'
+        ),
+        'closet_wavy': ShopItem(
+            id='closet_wavy',
+            name='Wavy Panda',
+            description='Flowing wavy fur style',
+            category=ShopCategory.PANDA_OUTFITS,
+            price=130,
+            icon='🌊',
+            level_required=4,
+            one_time_purchase=True,
+            unlockable_id='closet_wavy'
+        ),
+        'closet_shaggy': ShopItem(
+            id='closet_shaggy',
+            name='Shaggy Panda',
+            description='Relaxed shaggy look',
+            category=ShopCategory.PANDA_OUTFITS,
+            price=80,
+            icon='🍃',
+            level_required=2,
+            one_time_purchase=True,
+            unlockable_id='closet_shaggy'
+        ),
+        'closet_velvet': ShopItem(
+            id='closet_velvet',
+            name='Velvet Panda',
+            description='Ultra smooth velvet fur',
+            category=ShopCategory.PANDA_OUTFITS,
+            price=300,
+            icon='💎',
+            level_required=10,
+            one_time_purchase=True,
+            unlockable_id='closet_velvet'
+        ),
+        'closet_mohawk': ShopItem(
+            id='closet_mohawk',
+            name='Mohawk Panda',
+            description='Punk rock mohawk style',
+            category=ShopCategory.PANDA_OUTFITS,
+            price=350,
+            icon='🔥',
+            level_required=12,
+            one_time_purchase=True,
+            unlockable_id='closet_mohawk'
+        ),
+        'closet_braided': ShopItem(
+            id='closet_braided',
+            name='Braided Panda',
+            description='Intricate braided fur',
+            category=ShopCategory.PANDA_OUTFITS,
+            price=280,
+            icon='🎀',
+            level_required=8,
+            one_time_purchase=True,
+            unlockable_id='closet_braided'
+        ),
+        'closet_frosted': ShopItem(
+            id='closet_frosted',
+            name='Frosted Panda',
+            description='Frost-tipped fur style',
+            category=ShopCategory.PANDA_OUTFITS,
+            price=320,
+            icon='❄️',
+            level_required=10,
+            one_time_purchase=True,
+            unlockable_id='closet_frosted'
+        ),
+        'closet_crystalline': ShopItem(
+            id='closet_crystalline',
+            name='Crystalline Panda',
+            description='Crystal-like sparkling fur',
+            category=ShopCategory.PANDA_OUTFITS,
+            price=500,
+            icon='💠',
+            level_required=15,
+            one_time_purchase=True,
+            unlockable_id='closet_crystalline'
+        ),
+        'closet_feathered': ShopItem(
+            id='closet_feathered',
+            name='Feathered Panda',
+            description='Soft feathered texture',
+            category=ShopCategory.PANDA_OUTFITS,
+            price=150,
+            icon='🪶',
+            level_required=5,
+            one_time_purchase=True,
+            unlockable_id='closet_feathered'
+        ),
+        'closet_metallic': ShopItem(
+            id='closet_metallic',
+            name='Metallic Panda',
+            description='Shiny metallic sheen fur',
+            category=ShopCategory.PANDA_OUTFITS,
+            price=400,
+            icon='🔩',
+            level_required=12,
+            one_time_purchase=True,
+            unlockable_id='closet_metallic'
+        ),
+        'closet_woolly': ShopItem(
+            id='closet_woolly',
+            name='Woolly Panda',
+            description='Thick woolly fur style',
+            category=ShopCategory.PANDA_OUTFITS,
+            price=140,
+            icon='🧶',
+            level_required=4,
+            one_time_purchase=True,
+            unlockable_id='closet_woolly'
+        ),
+        'closet_spotted': ShopItem(
+            id='closet_spotted',
+            name='Spotted Panda',
+            description='Exotic spotted pattern',
+            category=ShopCategory.PANDA_OUTFITS,
+            price=380,
+            icon='🐆',
+            level_required=12,
+            one_time_purchase=True,
+            unlockable_id='closet_spotted'
+        ),
+        'closet_striped': ShopItem(
+            id='closet_striped',
+            name='Striped Panda',
+            description='Bold striped pattern',
+            category=ShopCategory.PANDA_OUTFITS,
+            price=360,
+            icon='🦓',
+            level_required=10,
+            one_time_purchase=True,
+            unlockable_id='closet_striped'
+        ),
+        'closet_tufted': ShopItem(
+            id='closet_tufted',
+            name='Tufted Panda',
+            description='Charming fur tufts',
+            category=ShopCategory.PANDA_OUTFITS,
+            price=160,
+            icon='🌿',
+            level_required=5,
+            one_time_purchase=True,
+            unlockable_id='closet_tufted'
+        ),
+        'closet_silky': ShopItem(
+            id='closet_silky',
+            name='Silky Panda',
+            description='Silky smooth perfection',
+            category=ShopCategory.PANDA_OUTFITS,
+            price=290,
+            icon='🎗️',
+            level_required=8,
+            one_time_purchase=True,
+            unlockable_id='closet_silky'
+        ),
+        'closet_pixelated': ShopItem(
+            id='closet_pixelated',
+            name='Pixelated Panda',
+            description='Retro pixel art fur style',
+            category=ShopCategory.PANDA_OUTFITS,
+            price=600,
+            icon='🎮',
+            level_required=18,
+            one_time_purchase=True,
+            unlockable_id='closet_pixelated'
+        ),
+        'closet_cosmic': ShopItem(
+            id='closet_cosmic',
+            name='Cosmic Panda',
+            description='Swirling cosmic energy fur',
+            category=ShopCategory.PANDA_OUTFITS,
+            price=1200,
+            icon='🌌',
+            level_required=22,
+            one_time_purchase=True,
+            unlockable_id='closet_cosmic'
+        ),
+        'closet_ember': ShopItem(
+            id='closet_ember',
+            name='Ember Panda',
+            description='Glowing ember-like fur',
+            category=ShopCategory.PANDA_OUTFITS,
+            price=550,
+            icon='🔥',
+            level_required=15,
+            one_time_purchase=True,
+            unlockable_id='closet_ember'
+        ),
+        'closet_glacial': ShopItem(
+            id='closet_glacial',
+            name='Glacial Panda',
+            description='Frozen glacial fur texture',
+            category=ShopCategory.PANDA_OUTFITS,
+            price=520,
+            icon='🧊',
+            level_required=15,
+            one_time_purchase=True,
+            unlockable_id='closet_glacial'
+        ),
+        'closet_holographic': ShopItem(
+            id='closet_holographic',
+            name='Holographic Panda',
+            description='Color-shifting holographic fur',
+            category=ShopCategory.PANDA_OUTFITS,
+            price=1500,
+            icon='✨',
+            level_required=25,
+            one_time_purchase=True,
+            unlockable_id='closet_holographic'
+        ),
+        'closet_plush': ShopItem(
+            id='closet_plush',
+            name='Plush Panda',
+            description='Stuffed animal soft fur',
+            category=ShopCategory.PANDA_OUTFITS,
+            price=110,
+            icon='🧸',
+            level_required=3,
+            one_time_purchase=True,
+            unlockable_id='closet_plush'
+        ),
+        'closet_windswept': ShopItem(
+            id='closet_windswept',
+            name='Windswept Panda',
+            description='Dramatically windblown look',
+            category=ShopCategory.PANDA_OUTFITS,
+            price=170,
+            icon='💨',
+            level_required=5,
+            one_time_purchase=True,
+            unlockable_id='closet_windswept'
+        ),
+        'closet_mossy': ShopItem(
+            id='closet_mossy',
+            name='Mossy Panda',
+            description='Nature-covered mossy fur',
+            category=ShopCategory.PANDA_OUTFITS,
+            price=270,
+            icon='🌱',
+            level_required=8,
+            one_time_purchase=True,
+            unlockable_id='closet_mossy'
+        ),
+        'closet_electric': ShopItem(
+            id='closet_electric',
+            name='Electric Panda',
+            description='Crackling electric fur',
+            category=ShopCategory.PANDA_OUTFITS,
+            price=700,
+            icon='⚡',
+            level_required=20,
+            one_time_purchase=True,
+            unlockable_id='closet_electric'
+        ),
+
         # New Hats - Shop
         'closet_space_helmet': ShopItem(
             id='closet_space_helmet',

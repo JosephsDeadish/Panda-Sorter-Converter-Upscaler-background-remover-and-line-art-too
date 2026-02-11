@@ -3670,6 +3670,9 @@ class PS2TextureSorter(ctk.CTk):
         """Handle achievement unlock - grant direct rewards separate from shop"""
         try:
             if not hasattr(achievement, 'reward') or not achievement.reward:
+                # Still show notification for achievements without rewards
+                self.log(f"🏆 Achievement '{achievement.name}' unlocked!")
+                self._show_achievement_popup(achievement)
                 return
             
             reward = achievement.reward
@@ -3680,6 +3683,17 @@ class PS2TextureSorter(ctk.CTk):
                 if amount > 0:
                     self.currency_system.add_money(amount, f"Achievement reward: {achievement.name}")
                     self.log(f"🏆 Achievement '{achievement.name}' unlocked! Reward: {reward.get('description', f'${amount}')}")
+            elif reward_type == 'closet_item' and self.panda_closet:
+                item_id = reward.get('item', '')
+                if item_id:
+                    closet_item = self.panda_closet.get_item(item_id)
+                    if closet_item and not closet_item.unlocked:
+                        closet_item.unlocked = True
+                        try:
+                            self.panda_closet.save_to_file(str(CONFIG_DIR / 'closet.json'))
+                        except Exception:
+                            pass
+                self.log(f"🏆 Achievement '{achievement.name}' unlocked! Reward: {reward.get('description', item_id)}")
             elif reward_type == 'exclusive_title':
                 title = reward.get('title', '')
                 self.log(f"🏆 Achievement '{achievement.name}' unlocked! Reward: {reward.get('description', title)}")
@@ -3688,8 +3702,113 @@ class PS2TextureSorter(ctk.CTk):
                 self.log(f"🏆 Achievement '{achievement.name}' unlocked! Reward: {reward.get('description', item_name)}")
             else:
                 self.log(f"🏆 Achievement '{achievement.name}' unlocked!")
+            
+            # Show visual popup notification
+            self._show_achievement_popup(achievement)
         except Exception as e:
             logger.error(f"Error granting achievement reward: {e}")
+
+    def _show_achievement_popup(self, achievement):
+        """Show a nice achievement notification popup that fades out."""
+        try:
+            import tkinter as tk
+
+            root = self.winfo_toplevel()
+            popup = tk.Toplevel(root)
+            popup.overrideredirect(True)
+            popup.wm_attributes('-topmost', True)
+
+            # Tier colors for badge
+            tier_colors = {
+                'bronze': ('#CD7F32', '#8B5A2B'),
+                'silver': ('#C0C0C0', '#808080'),
+                'gold': ('#FFD700', '#DAA520'),
+                'platinum': ('#E5E4E2', '#A9A9A9'),
+                'legendary': ('#FF6347', '#B22222'),
+            }
+            tier_name = achievement.tier.value if hasattr(achievement.tier, 'value') else str(achievement.tier)
+            bg_color, accent_color = tier_colors.get(tier_name, ('#FFD700', '#DAA520'))
+
+            popup_w, popup_h = 340, 110
+            # Position in top-right of application window
+            root.update_idletasks()
+            rx = root.winfo_rootx() + root.winfo_width() - popup_w - 20
+            ry = root.winfo_rooty() + 20
+            popup.geometry(f"{popup_w}x{popup_h}+{rx}+{ry}")
+
+            canvas = tk.Canvas(popup, width=popup_w, height=popup_h,
+                               highlightthickness=0, bd=0, bg='#2b2b2b')
+            canvas.pack(fill='both', expand=True)
+
+            # Rounded rect background
+            r = 12
+            canvas.create_polygon(
+                r, 0, popup_w - r, 0, popup_w, 0, popup_w, r,
+                popup_w, popup_h - r, popup_w, popup_h,
+                popup_w - r, popup_h, r, popup_h, 0, popup_h,
+                0, popup_h - r, 0, r, 0, 0,
+                fill='#1e1e2e', outline=accent_color, width=2, smooth=True
+            )
+
+            # Left accent bar
+            canvas.create_rectangle(0, 8, 5, popup_h - 8, fill=bg_color, outline='')
+
+            # Trophy icon
+            canvas.create_text(30, 35, text=achievement.icon,
+                               font=('Arial', 24), fill='white', anchor='w')
+
+            # Title
+            canvas.create_text(65, 22, text='Achievement Unlocked!',
+                               font=('Arial', 10, 'bold'), fill=bg_color, anchor='w')
+
+            # Achievement name
+            name_text = achievement.name
+            if len(name_text) > 32:
+                name_text = name_text[:30] + '…'
+            canvas.create_text(65, 42, text=name_text,
+                               font=('Arial', 13, 'bold'), fill='white', anchor='w')
+
+            # Description
+            desc_text = achievement.description
+            if len(desc_text) > 42:
+                desc_text = desc_text[:40] + '…'
+            canvas.create_text(65, 62, text=desc_text,
+                               font=('Arial', 9), fill='#aaaaaa', anchor='w')
+
+            # Reward line
+            reward_text = ''
+            if achievement.reward:
+                reward_text = f"🎁 {achievement.reward.get('description', '')}"
+                if len(reward_text) > 45:
+                    reward_text = reward_text[:43] + '…'
+            if reward_text:
+                canvas.create_text(65, 82, text=reward_text,
+                                   font=('Arial', 9, 'italic'), fill=bg_color, anchor='w')
+
+            # Tier badge
+            canvas.create_oval(popup_w - 35, 10, popup_w - 10, 35,
+                               fill=bg_color, outline=accent_color, width=1)
+            canvas.create_text(popup_w - 22, 22, text=tier_name[0].upper(),
+                               font=('Arial', 10, 'bold'), fill='#1e1e2e')
+
+            # Auto-close after 5 seconds with fade
+            def _fade_out(alpha=1.0):
+                try:
+                    if alpha <= 0:
+                        popup.destroy()
+                        return
+                    popup.wm_attributes('-alpha', alpha)
+                    popup.after(50, lambda: _fade_out(alpha - 0.05))
+                except Exception:
+                    try:
+                        popup.destroy()
+                    except Exception:
+                        pass
+
+            popup.after(4000, _fade_out)
+
+        except Exception as e:
+            logger.debug(f"Could not show achievement popup: {e}")
 
     def _claim_achievement_reward(self, achievement):
         """Claim reward for a single completed achievement."""
@@ -3706,7 +3825,7 @@ class PS2TextureSorter(ctk.CTk):
                     self.currency_system.add_money(amount, f"Achievement reward: {achievement.name}")
                     if hasattr(self, 'shop_money_label'):
                         self.shop_money_label.configure(text=f"💰 Money: ${self.currency_system.get_balance()}")
-            elif reward_type == 'exclusive_item' and self.panda_closet:
+            elif reward_type in ('exclusive_item', 'closet_item') and self.panda_closet:
                 item_id = reward.get('item', '')
                 if item_id:
                     closet_item = self.panda_closet.get_item(item_id)
@@ -3744,7 +3863,7 @@ class PS2TextureSorter(ctk.CTk):
                         amount = reward.get('amount', 0)
                         if amount > 0:
                             self.currency_system.add_money(amount, f"Achievement reward: {a.name}")
-                    elif reward_type == 'exclusive_item' and self.panda_closet:
+                    elif reward_type in ('exclusive_item', 'closet_item') and self.panda_closet:
                         item_id = reward.get('item', '')
                         if item_id:
                             closet_item = self.panda_closet.get_item(item_id)

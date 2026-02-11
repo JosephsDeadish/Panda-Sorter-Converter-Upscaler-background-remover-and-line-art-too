@@ -603,10 +603,14 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
         phase = (frame_idx % 60) / 60.0 * 2 * math.pi
         
         if anim in ('idle', 'working', 'sarcastic', 'thinking'):
-            # Gentle body bob for idle with subtle arm sway
-            leg_swing = 0
-            arm_swing = math.sin(phase) * 3  # Subtle arm movement
-            body_bob = math.sin(phase) * 2
+            # More lively idle: gentle bouncing with subtle head bob and arm sway
+            idle_sub = (frame_idx % 120) / 120.0
+            leg_swing = math.sin(phase * 1.2) * 2 + math.sin(phase * 0.4) * 1
+            arm_swing = math.sin(phase) * 5 + math.sin(phase * 2.5) * 2
+            body_bob = math.sin(phase * 0.8) * 3 + abs(math.sin(phase * 1.6)) * 1.5
+            # Occasional micro-bounce
+            if idle_sub < 0.08:
+                body_bob -= idle_sub * 30
         elif anim == 'carrying':
             # Distinct carrying animation - stable, no shake/spin
             leg_swing = math.sin(phase) * 4  # Gentle walk
@@ -682,9 +686,13 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
             arm_swing = math.sin(phase * 3) * 10
             body_bob = math.sin(phase * 4) * 4
         elif anim == 'petting':
-            leg_swing = 0
-            arm_swing = math.sin(phase * 1.5) * 4
-            body_bob = math.sin(phase) * 3 + math.sin(phase * 0.5) * 1.5
+            pet_cycle = (frame_idx % 48) / 48.0
+            leg_swing = math.sin(phase * 1.2) * 3
+            arm_swing = math.sin(phase * 1.5) * 6 + math.sin(phase * 3) * 2
+            body_bob = math.sin(phase) * 4 + abs(math.sin(phase * 2)) * 2.5
+            # Happy wiggle burst
+            if pet_cycle < 0.2:
+                body_bob += math.sin(pet_cycle * 25) * 3
         elif anim == 'playing':
             play_cycle = (frame_idx % 60) / 60.0
             if play_cycle < 0.3:
@@ -740,24 +748,44 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
             arm_swing = math.cos(phase * 2) * 15
             body_bob = math.sin(phase) * 8
         elif anim == 'clicked':
-            # Multi-phase click reaction: bounce up, arms out, settle back
-            click_phase = (frame_idx % 24) / 24.0
-            if click_phase < 0.2:
-                # Jump up with surprise
-                body_bob = -click_phase * 40
-                arm_swing = -click_phase * 30
-                leg_swing = math.sin(phase * 3) * 6
-            elif click_phase < 0.5:
-                # Arms out, body settling
-                settle = (click_phase - 0.2) / 0.3
-                body_bob = -8 + settle * 8
-                arm_swing = -6 + math.sin(phase * 2) * 10
-                leg_swing = math.sin(phase * 2) * 4
+            # Bouncy multi-phase click reaction with squash & stretch feel
+            click_phase = (frame_idx % 30) / 30.0
+            if click_phase < 0.1:
+                # Squash down (anticipation)
+                sq = click_phase / 0.1
+                body_bob = sq * 12
+                arm_swing = sq * 8
+                leg_swing = sq * 4
+            elif click_phase < 0.25:
+                # Launch up with arms wide
+                launch = (click_phase - 0.1) / 0.15
+                body_bob = 12 - launch * 30
+                arm_swing = 8 - launch * 28
+                leg_swing = 4 - launch * 14
+            elif click_phase < 0.4:
+                # Peak of jump, arms out
+                peak = (click_phase - 0.25) / 0.15
+                body_bob = -18 + math.sin(peak * math.pi) * 4
+                arm_swing = -20 + math.sin(peak * math.pi * 2) * 12
+                leg_swing = -10 + math.sin(peak * math.pi) * 6
+            elif click_phase < 0.55:
+                # Fall down
+                fall = (click_phase - 0.4) / 0.15
+                body_bob = -18 + fall * 26
+                arm_swing = -20 + fall * 26
+                leg_swing = -10 + fall * 16
+            elif click_phase < 0.7:
+                # Landing squash bounce
+                land = (click_phase - 0.55) / 0.15
+                body_bob = 8 * math.sin(land * math.pi) + 2
+                arm_swing = 6 * math.sin(land * math.pi * 1.5)
+                leg_swing = 6 * math.sin(land * math.pi)
             else:
-                # Happy bounce
-                body_bob = math.sin(phase * 2) * 4
-                arm_swing = math.sin(phase * 1.5) * 6
-                leg_swing = math.sin(phase) * 3
+                # Happy settle with wiggle
+                settle = (click_phase - 0.7) / 0.3
+                body_bob = math.sin(settle * math.pi * 3) * 4 * (1 - settle)
+                arm_swing = math.sin(phase * 2) * 6 * (1 - settle * 0.5)
+                leg_swing = math.sin(phase * 1.5) * 3 * (1 - settle)
         elif anim == 'stretching':
             stretch_cycle = (frame_idx % 60) / 60.0
             if stretch_cycle < 0.2:
@@ -1609,6 +1637,10 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
         '🚀': '#C0C0C0', '🏅': '#FFD700', '🤵': '#1a1a1a', '🩳': '#87CEEB',
         '🏀': '#FF8C00', '🦸‍♂️': '#FF0000', '🦸': '#FF0000', '🧐': '#FFD700',
         '🌸': '#FFB6C1', '🎧': '#333333', '🎒': '#FF6347', '👼': '#FFFFFF',
+        # New fur style emojis
+        '🌬️': '#B0C4DE', '🐆': '#DEB887', '🦓': '#808080', '💠': '#00CED1',
+        '🔩': '#808080', '🌱': '#228B22', '🧸': '#DEB887', '⛈️': '#4682B4',
+        '🌟': '#FFD700', '🌌': '#191970', '⌚': '#C0C0C0',
     }
 
     @staticmethod
@@ -1709,17 +1741,132 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
                         start=20, extent=140, style="arc",
                         outline=highlight, width=1, tags="equipped_hat")
 
-            # --- Draw accessories near neck / upper body ---
+            # --- Draw accessories with type-specific positioning ---
             if appearance.accessories:
-                for i, acc_id in enumerate(appearance.accessories[:2]):
-                    acc_item = self.panda_closet.get_item(acc_id)
-                    if acc_item:
-                        color = self._color_for_emoji(acc_item.emoji, '#FF69B4')
-                        shadow = self._shade_color(color, -25)
-                        neck_y = int(78 * sy + by)
-                        ox = int((-12 + i * 24) * sx)
+                # Determine arm swing for syncing wrist accessories
+                anim = self.current_animation
+                phase = (self.animation_frame % 60) / 60.0 * 2 * math.pi
+                la_swing = 0
+                ra_swing = 0
+                if anim in ('idle', 'working', 'sarcastic', 'thinking'):
+                    la_swing = math.sin(phase) * 3
+                    ra_swing = -math.sin(phase) * 3
+                elif anim in ('dancing', 'celebrating', 'playing'):
+                    la_swing = math.sin(phase * 2) * 14
+                    ra_swing = -math.sin(phase * 2) * 14
+                elif anim == 'clicked':
+                    click_phase = (self.animation_frame % 24) / 24.0
+                    if click_phase < 0.2:
+                        la_swing = -click_phase * 30
+                    elif click_phase < 0.5:
+                        la_swing = -6 + math.sin(phase * 2) * 10
+                    else:
+                        la_swing = math.sin(phase * 1.5) * 6
+                    ra_swing = -la_swing
+                elif anim in ('waving', 'stretching'):
+                    la_swing = math.sin(phase * 3) * 10
+                    ra_swing = -la_swing
+                elif anim in ('jumping', 'backflip', 'cartwheel'):
+                    la_swing = math.sin(phase * 2) * 16
+                    ra_swing = -la_swing
+                else:
+                    la_swing = math.sin(phase + math.pi) * 6
+                    ra_swing = -la_swing
 
-                        # Diamond-shaped pendant / bow
+                # Classify accessories by type for proper placement
+                _WRIST_IDS = {
+                    'bamboo_bracelet', 'friendship_band', 'watch',
+                    'diamond_ring',
+                }
+                _NECK_IDS = {
+                    'bowtie', 'bow_tie', 'necklace', 'pearl_necklace',
+                    'scarf', 'bandana',
+                }
+
+                for i, acc_id in enumerate(appearance.accessories[:3]):
+                    acc_item = self.panda_closet.get_item(acc_id)
+                    if not acc_item:
+                        continue
+                    color = self._color_for_emoji(acc_item.emoji, '#FF69B4')
+                    shadow = self._shade_color(color, -25)
+                    highlight = self._shade_color(color, 60)
+
+                    if acc_id in _WRIST_IDS:
+                        # --- Draw on wrist (end of arm) ---
+                        arm_top = int(95 * sy + by)
+                        arm_len = int(35 * sy)
+                        wrist_y = arm_top + arm_len
+                        if i % 2 == 0:
+                            wrist_x = cx - int(42 * sx)
+                            wrist_y_adj = wrist_y + int(la_swing)
+                        else:
+                            wrist_x = cx + int(42 * sx)
+                            wrist_y_adj = wrist_y + int(ra_swing)
+                        # Bracelet band
+                        band_h = int(5 * sy)
+                        c.create_oval(
+                            wrist_x - int(10 * sx), wrist_y_adj - band_h,
+                            wrist_x + int(10 * sx), wrist_y_adj + band_h,
+                            fill=color, outline=shadow, width=1,
+                            tags="equipped_acc")
+                        # Gem/detail on bracelet
+                        c.create_oval(
+                            wrist_x - int(3 * sx), wrist_y_adj - int(2 * sy),
+                            wrist_x + int(3 * sx), wrist_y_adj + int(2 * sy),
+                            fill=highlight, outline='',
+                            tags="equipped_acc")
+
+                    elif acc_id in _NECK_IDS:
+                        # --- Draw on neck area ---
+                        neck_y = int(78 * sy + by)
+                        if acc_id in ('bowtie', 'bow_tie'):
+                            # Bow tie shape: two triangles meeting at center
+                            bow_w = int(14 * sx)
+                            bow_h = int(8 * sy)
+                            # Left wing
+                            c.create_polygon(
+                                cx, neck_y,
+                                cx - bow_w, neck_y - bow_h,
+                                cx - bow_w, neck_y + bow_h,
+                                fill=color, outline=shadow, width=1,
+                                tags="equipped_acc")
+                            # Right wing
+                            c.create_polygon(
+                                cx, neck_y,
+                                cx + bow_w, neck_y - bow_h,
+                                cx + bow_w, neck_y + bow_h,
+                                fill=color, outline=shadow, width=1,
+                                tags="equipped_acc")
+                            # Center knot
+                            c.create_oval(
+                                cx - int(3 * sx), neck_y - int(3 * sy),
+                                cx + int(3 * sx), neck_y + int(3 * sy),
+                                fill=shadow, outline='',
+                                tags="equipped_acc")
+                        elif acc_id in ('necklace', 'pearl_necklace'):
+                            # Necklace arc around neck
+                            c.create_arc(
+                                cx - int(24 * sx), neck_y - int(10 * sy),
+                                cx + int(24 * sx), neck_y + int(16 * sy),
+                                start=200, extent=140, style="arc",
+                                outline=color, width=2, tags="equipped_acc")
+                            # Pendant
+                            c.create_oval(
+                                cx - int(4 * sx), neck_y + int(10 * sy),
+                                cx + int(4 * sx), neck_y + int(16 * sy),
+                                fill=color, outline=shadow, width=1,
+                                tags="equipped_acc")
+                        else:
+                            # Scarf / bandana - draped around neck
+                            c.create_arc(
+                                cx - int(28 * sx), neck_y - int(6 * sy),
+                                cx + int(28 * sx), neck_y + int(12 * sy),
+                                start=200, extent=140, style="arc",
+                                outline=color, width=3, tags="equipped_acc")
+                    else:
+                        # --- Default: pendant near chest ---
+                        neck_y = int(90 * sy + by)
+                        ox = int((-12 + i * 24) * sx)
                         pts = [
                             cx + ox, neck_y - int(7 * sy),
                             cx + ox - int(10 * sx), neck_y,
@@ -1729,12 +1876,10 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
                         c.create_polygon(
                             *pts, fill=color, outline=shadow, width=1,
                             tags="equipped_acc")
-
-                        # Inner shine dot
                         c.create_oval(
-                            cx + ox - int(2 * sx), neck_y - int(2 * sy),
-                            cx + ox + int(2 * sx), neck_y + int(2 * sy),
-                            fill=self._shade_color(color, 60), outline='',
+                            cx + ox - int(3 * sx), neck_y - int(3 * sy),
+                            cx + ox + int(3 * sx), neck_y + int(3 * sy),
+                            fill=highlight, outline='',
                             tags="equipped_acc")
 
             # --- Draw shoes at feet ---
@@ -2540,20 +2685,24 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
                     pass
     
     def _animate_once(self):
-        """Animate once then return to idle."""
+        """Animate continuously then return to idle after duration."""
         if self._destroyed:
             return
         try:
             self._draw_panda(self.animation_frame)
             self.animation_frame += 1
-            
-            # Return to idle after 4 seconds
-            self.animation_timer = self.after(4000, lambda: self.start_animation('idle'))
+
+            # Keep animating for ~3 seconds (about 20 frames at 150ms)
+            if self.animation_frame < 20:
+                self.animation_timer = self.after(self.ANIMATION_INTERVAL, self._animate_once)
+            else:
+                # Return to idle
+                self.animation_timer = self.after(200, lambda: self.start_animation('idle'))
         except Exception as e:
             logger.error(f"Error in single animation: {e}")
             if not self._destroyed:
                 try:
-                    self.animation_timer = self.after(4000, lambda: self.start_animation('idle'))
+                    self.animation_timer = self.after(1000, lambda: self.start_animation('idle'))
                 except Exception:
                     pass
     

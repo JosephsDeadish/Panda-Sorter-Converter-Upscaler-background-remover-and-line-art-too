@@ -507,6 +507,85 @@ class AchievementSystem:
             progress_max=20,
             reward={'type': 'closet_item', 'item': 'golden_bell', 'description': 'Golden Bell accessory'}
         ),
+
+        # Fur Style Achievements
+        'phoenix_rising': Achievement(
+            id='phoenix_rising',
+            name='Phoenix Rising',
+            description='Sort 100,000 textures total',
+            tier=AchievementTier.LEGENDARY,
+            points=300,
+            icon='🔥',
+            category='progress',
+            progress_max=100000,
+            reward={'type': 'closet_item', 'item': 'phoenix', 'description': 'Phoenix Panda fur style'}
+        ),
+        'diamond_hands': Achievement(
+            id='diamond_hands',
+            name='Diamond Hands',
+            description='Maintain a 30-day usage streak',
+            tier=AchievementTier.LEGENDARY,
+            points=400,
+            icon='💎',
+            category='session',
+            progress_max=30,
+            reward={'type': 'closet_item', 'item': 'diamond', 'description': 'Diamond Panda fur style'}
+        ),
+        'aurora_borealis': Achievement(
+            id='aurora_borealis',
+            name='Aurora Borealis',
+            description='Sort textures during 5 different months',
+            tier=AchievementTier.GOLD,
+            points=100,
+            icon='🌌',
+            category='seasonal',
+            progress_max=5,
+            reward={'type': 'closet_item', 'item': 'aurora', 'description': 'Aurora Panda fur style'}
+        ),
+        'sakura_season': Achievement(
+            id='sakura_season',
+            name='Sakura Season',
+            description='Equip 10 different hats',
+            tier=AchievementTier.SILVER,
+            points=75,
+            icon='🌸',
+            category='customization',
+            progress_max=10,
+            reward={'type': 'closet_item', 'item': 'sakura', 'description': 'Sakura Panda fur style'}
+        ),
+        'thunderstruck': Achievement(
+            id='thunderstruck',
+            name='Thunderstruck',
+            description='Sort 5000 textures in a single session',
+            tier=AchievementTier.PLATINUM,
+            points=200,
+            icon='⛈️',
+            category='speed',
+            progress_max=5000,
+            reward={'type': 'closet_item', 'item': 'thunder', 'description': 'Thunder Panda fur style'}
+        ),
+        'star_collector': Achievement(
+            id='star_collector',
+            name='Star Collector',
+            description='Earn 10000 total Bamboo Bucks',
+            tier=AchievementTier.PLATINUM,
+            points=250,
+            icon='🌟',
+            category='currency',
+            progress_max=10000,
+            reward={'type': 'closet_item', 'item': 'starweave', 'description': 'Starweave Panda fur style'}
+        ),
+        'bamboo_sage': Achievement(
+            id='bamboo_sage',
+            name='Bamboo Sage',
+            description='Pet the panda 200 times',
+            tier=AchievementTier.GOLD,
+            points=100,
+            icon='🎋',
+            category='interactions',
+            progress_max=200,
+            reward={'type': 'closet_item', 'item': 'bamboo_spirit', 'description': 'Bamboo Spirit Panda fur style'}
+        ),
     }
     
     def __init__(self, save_file: Optional[str] = None):
@@ -685,7 +764,9 @@ class AchievementSystem:
         # Update progress achievements
         progress_achievements = [
             'first_sort', 'rookie_sorter', 'apprentice',
-            'journeyman', 'master', 'legend'
+            'journeyman', 'master', 'legend',
+            'pirate_adventure', 'viking_warrior', 'medal_worthy',
+            'phoenix_rising',
         ]
         
         for ach_id in progress_achievements:

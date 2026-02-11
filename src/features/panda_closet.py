@@ -119,6 +119,144 @@ class PandaCloset:
             'rainbow', 'Rainbow Panda', CustomizationCategory.FUR_STYLE,
             '🌈🐼', 'Magical rainbow fur', ItemRarity.LEGENDARY, 1000, False, False
         ),
+
+        # Fur Styles - Free (closet)
+        'curly': CustomizationItem(
+            'curly', 'Curly Panda', CustomizationCategory.FUR_STYLE,
+            '🐼🌀', 'Playful curly fur', ItemRarity.COMMON, 0, True, False
+        ),
+        'wispy': CustomizationItem(
+            'wispy', 'Wispy Panda', CustomizationCategory.FUR_STYLE,
+            '🐼🌬️', 'Light and airy wispy fur', ItemRarity.COMMON, 0, True, False
+        ),
+
+        # Fur Styles - Shop
+        'spiky': CustomizationItem(
+            'spiky', 'Spiky Panda', CustomizationCategory.FUR_STYLE,
+            '🐼⚡', 'Wild spiky fur', ItemRarity.UNCOMMON, 120, False, False
+        ),
+        'wavy': CustomizationItem(
+            'wavy', 'Wavy Panda', CustomizationCategory.FUR_STYLE,
+            '🐼🌊', 'Flowing wavy fur', ItemRarity.UNCOMMON, 130, False, False
+        ),
+        'shaggy': CustomizationItem(
+            'shaggy', 'Shaggy Panda', CustomizationCategory.FUR_STYLE,
+            '🐼🍃', 'Relaxed shaggy look', ItemRarity.COMMON, 80, False, False
+        ),
+        'velvet': CustomizationItem(
+            'velvet', 'Velvet Panda', CustomizationCategory.FUR_STYLE,
+            '🐼💎', 'Ultra smooth velvet fur', ItemRarity.RARE, 300, False, False
+        ),
+        'mohawk': CustomizationItem(
+            'mohawk', 'Mohawk Panda', CustomizationCategory.FUR_STYLE,
+            '🐼🔥', 'Punk rock mohawk style', ItemRarity.RARE, 350, False, False
+        ),
+        'braided': CustomizationItem(
+            'braided', 'Braided Panda', CustomizationCategory.FUR_STYLE,
+            '🐼🎀', 'Intricate braided fur', ItemRarity.RARE, 280, False, False
+        ),
+        'frosted': CustomizationItem(
+            'frosted', 'Frosted Panda', CustomizationCategory.FUR_STYLE,
+            '🐼❄️', 'Frost-tipped fur', ItemRarity.RARE, 320, False, False
+        ),
+        'crystalline': CustomizationItem(
+            'crystalline', 'Crystalline Panda', CustomizationCategory.FUR_STYLE,
+            '🐼💠', 'Crystal-like sparkling fur', ItemRarity.EPIC, 500, False, False
+        ),
+        'feathered': CustomizationItem(
+            'feathered', 'Feathered Panda', CustomizationCategory.FUR_STYLE,
+            '🐼🪶', 'Soft feathered texture', ItemRarity.UNCOMMON, 150, False, False
+        ),
+        'metallic': CustomizationItem(
+            'metallic', 'Metallic Panda', CustomizationCategory.FUR_STYLE,
+            '🐼🔩', 'Shiny metallic sheen', ItemRarity.RARE, 400, False, False
+        ),
+        'woolly': CustomizationItem(
+            'woolly', 'Woolly Panda', CustomizationCategory.FUR_STYLE,
+            '🐼🧶', 'Thick woolly fur', ItemRarity.UNCOMMON, 140, False, False
+        ),
+        'spotted': CustomizationItem(
+            'spotted', 'Spotted Panda', CustomizationCategory.FUR_STYLE,
+            '🐼🐆', 'Exotic spotted pattern', ItemRarity.RARE, 380, False, False
+        ),
+        'striped': CustomizationItem(
+            'striped', 'Striped Panda', CustomizationCategory.FUR_STYLE,
+            '🐼🦓', 'Bold striped pattern', ItemRarity.RARE, 360, False, False
+        ),
+        'tufted': CustomizationItem(
+            'tufted', 'Tufted Panda', CustomizationCategory.FUR_STYLE,
+            '🐼🌿', 'Charming fur tufts', ItemRarity.UNCOMMON, 160, False, False
+        ),
+        'silky': CustomizationItem(
+            'silky', 'Silky Panda', CustomizationCategory.FUR_STYLE,
+            '🐼🎗️', 'Silky smooth perfection', ItemRarity.RARE, 290, False, False
+        ),
+        'pixelated': CustomizationItem(
+            'pixelated', 'Pixelated Panda', CustomizationCategory.FUR_STYLE,
+            '🐼🎮', 'Retro pixel art style', ItemRarity.EPIC, 600, False, False
+        ),
+        'cosmic': CustomizationItem(
+            'cosmic', 'Cosmic Panda', CustomizationCategory.FUR_STYLE,
+            '🐼🌌', 'Swirling cosmic energy fur', ItemRarity.LEGENDARY, 1200, False, False
+        ),
+        'ember': CustomizationItem(
+            'ember', 'Ember Panda', CustomizationCategory.FUR_STYLE,
+            '🐼🔥', 'Glowing ember-like fur', ItemRarity.EPIC, 550, False, False
+        ),
+        'glacial': CustomizationItem(
+            'glacial', 'Glacial Panda', CustomizationCategory.FUR_STYLE,
+            '🐼🧊', 'Frozen glacial fur texture', ItemRarity.EPIC, 520, False, False
+        ),
+        'holographic': CustomizationItem(
+            'holographic', 'Holographic Panda', CustomizationCategory.FUR_STYLE,
+            '🐼✨', 'Color-shifting holographic', ItemRarity.LEGENDARY, 1500, False, False
+        ),
+        'plush': CustomizationItem(
+            'plush', 'Plush Panda', CustomizationCategory.FUR_STYLE,
+            '🐼🧸', 'Stuffed animal soft fur', ItemRarity.UNCOMMON, 110, False, False
+        ),
+        'windswept': CustomizationItem(
+            'windswept', 'Windswept Panda', CustomizationCategory.FUR_STYLE,
+            '🐼💨', 'Dramatically windblown look', ItemRarity.UNCOMMON, 170, False, False
+        ),
+        'mossy': CustomizationItem(
+            'mossy', 'Mossy Panda', CustomizationCategory.FUR_STYLE,
+            '🐼🌱', 'Nature-covered mossy fur', ItemRarity.RARE, 270, False, False
+        ),
+        'electric': CustomizationItem(
+            'electric', 'Electric Panda', CustomizationCategory.FUR_STYLE,
+            '🐼⚡', 'Crackling electric fur', ItemRarity.EPIC, 700, False, False
+        ),
+
+        # Fur Styles - Achievement Rewards
+        'phoenix': CustomizationItem(
+            'phoenix', 'Phoenix Panda', CustomizationCategory.FUR_STYLE,
+            '🐼🔥', 'Reborn in fire phoenix fur', ItemRarity.LEGENDARY, 0, False, False
+        ),
+        'diamond': CustomizationItem(
+            'diamond', 'Diamond Panda', CustomizationCategory.FUR_STYLE,
+            '🐼💎', 'Rare diamond-encrusted fur', ItemRarity.LEGENDARY, 0, False, False
+        ),
+        'aurora': CustomizationItem(
+            'aurora', 'Aurora Panda', CustomizationCategory.FUR_STYLE,
+            '🐼🌌', 'Northern lights aurora fur', ItemRarity.EPIC, 0, False, False
+        ),
+        'sakura': CustomizationItem(
+            'sakura', 'Sakura Panda', CustomizationCategory.FUR_STYLE,
+            '🐼🌸', 'Cherry blossom petal fur', ItemRarity.RARE, 0, False, False
+        ),
+        'thunder': CustomizationItem(
+            'thunder', 'Thunder Panda', CustomizationCategory.FUR_STYLE,
+            '🐼⛈️', 'Storm-charged thunder fur', ItemRarity.EPIC, 0, False, False
+        ),
+        'starweave': CustomizationItem(
+            'starweave', 'Starweave Panda', CustomizationCategory.FUR_STYLE,
+            '🐼🌟', 'Woven from starlight', ItemRarity.LEGENDARY, 0, False, False
+        ),
+        'bamboo_spirit': CustomizationItem(
+            'bamboo_spirit', 'Bamboo Spirit Panda', CustomizationCategory.FUR_STYLE,
+            '🐼🎋', 'Ancient bamboo spirit fur', ItemRarity.EPIC, 0, False, False
+        ),
         
         # Fur Colors
         'black_white': CustomizationItem(
