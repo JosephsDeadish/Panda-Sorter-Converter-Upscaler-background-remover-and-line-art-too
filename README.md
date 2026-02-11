@@ -26,7 +26,7 @@ A professional, single-executable Windows application for automatically sorting 
 - **🐼 Interactive Panda Character** - Animated companion with 13 mood states, leveling system, and personality
 - **🎨 Full Customization** - Colors, cursors (skull, panda, sword), themes, layouts, custom color palettes
 - **💡 4-Level Tooltips** - From expert mode to "Panda Explains It" mode with 250+ tooltip variations that change dynamically
-- **🌓 Dark/Light Mode** - Built-in theme switching with 5+ preset themes including Vulgar Panda (red)
+- **🌓 Dark/Light Mode** - Built-in theme switching with 6+ preset themes (themes only affect colors)
 - **📊 Real-Time Monitoring** - Live progress for massive operations with detailed statistics
 - **📝 Built-in Notepad** - Multi-tab notepad with pop-out support
 - **🏆 Achievements & Unlockables** - 50+ achievements, unlockable features, and rewards
@@ -143,7 +143,8 @@ Settings are stored in: `%USERPROFILE%\.ps2_texture_sorter\config.json`
 - **Sorting** - Classification mode, organization style, grouping options, LOD detection
 - **Logging** - Log level, crash reports, performance metrics
 - **Notifications** - Sounds, alerts, completion notifications
-- **Panda Settings** - Panda name, gender, position, mood displays, interaction history, vulgar mode (opt-in)
+- **Panda Settings** - Panda name, gender, position, mood displays, interaction history
+- **Tooltip Modes** - Normal, Beginner, Vulgar/Sarcastic Panda (opt-in, controls tooltip text style only)
 - **Achievement Tracking** - Enable/disable achievements, notification preferences
 - **Hotkeys** - Customizable keyboard shortcuts for all major functions
 
@@ -330,8 +331,9 @@ The panda character is more than just a mascot - it's an interactive companion t
 - **Offers Rewards** - Earn Bamboo Bucks currency and unlock achievements through interactions
 - **Gives Context Help** - Click, hover, or right-click the panda for tips and Easter eggs
 - **Customizable** - Dress up the panda with unlockable outfits, hats, shoes, and accessories
-- **Stays Fun** - Optional vulgar mode (red theme) for uncensored panda commentary
-- **Tooltip Modes** - Switch between Normal, Beginner, and Vulgar Panda modes instantly without restart
+- **Stays Fun** - Optional vulgar/sarcastic tooltip mode for uncensored panda commentary (independent of theme selection)
+- **Tooltip Modes** - Switch between Normal, Beginner, and Vulgar Panda tooltip modes instantly without restart
+- **Themes** - 6+ color themes (Dark Panda, Light, Cyberpunk, Neon Dreams, Classic Windows, Red Panda) — themes only affect colors, not behavior
 
 The panda makes texture sorting enjoyable while maintaining professional functionality!
 

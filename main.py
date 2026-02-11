@@ -1936,7 +1936,11 @@ class PS2TextureSorter(ctk.CTk):
                 self.log(f"❌ Error opening preview: {e}")
     
     def apply_theme(self, theme_name):
-        """Apply selected theme"""
+        """Apply selected theme. Themes only affect visual colors, not application behavior."""
+        # Handle backward compatibility: rename old "vulgar_panda" theme to "red_panda"
+        if theme_name == 'vulgar_panda':
+            theme_name = 'red_panda'
+        
         if theme_name in ['dark', 'light']:
             ctk.set_appearance_mode(theme_name)
             config.set('ui', 'theme', value=theme_name)
@@ -2081,6 +2085,8 @@ class PS2TextureSorter(ctk.CTk):
                 
             elif setting_type == 'tooltip_mode':
                 # Apply tooltip mode change immediately
+                # Tooltip mode only affects tooltip text style (normal/dumbed-down/vulgar_panda)
+                # It does NOT change the application mode or theme
                 # Update TooltipVerbosityManager
                 if self.tooltip_manager:
                     try:
@@ -2090,7 +2096,8 @@ class PS2TextureSorter(ctk.CTk):
                     except Exception as tooltip_err:
                         logger.debug(f"Could not change tooltip mode via manager: {tooltip_err}")
                 
-                # Also update PandaMode's vulgar_mode flag to stay in sync
+                # Sync sarcastic/vulgar tooltip text preference with PandaMode
+                # This only controls tooltip TEXT style, not theme or application mode
                 if self.panda_mode and hasattr(self.panda_mode, 'set_vulgar_mode'):
                     self.panda_mode.set_vulgar_mode(value == 'vulgar_panda')
                 
@@ -2642,17 +2649,11 @@ class PS2TextureSorter(ctk.CTk):
         ctk.CTkLabel(ui_frame, text="🎨 Appearance & Customization", 
                      font=("Arial Bold", 14)).pack(anchor="w", padx=10, pady=5)
         
-        # Theme
-        theme_frame = ctk.CTkFrame(ui_frame)
-        theme_frame.pack(fill="x", padx=10, pady=5)
-        
-        ctk.CTkLabel(theme_frame, text="Theme:").pack(side="left", padx=10)
-        theme_var = ctk.StringVar(value=config.get('ui', 'theme', default='dark'))
-        theme_menu = ctk.CTkOptionMenu(theme_frame, variable=theme_var,
-                                       values=["dark", "light", "cyberpunk", "neon_dreams", 
-                                              "classic_windows", "vulgar_panda"],
-                                       command=self.apply_theme)
-        theme_menu.pack(side="left", padx=10)
+        # Theme note - themes are managed in Advanced Customization panel only
+        theme_note_frame = ctk.CTkFrame(ui_frame)
+        theme_note_frame.pack(fill="x", padx=10, pady=5)
+        ctk.CTkLabel(theme_note_frame, text="🎨 Theme: Use Advanced Customization below to select themes",
+                    font=("Arial", 11), text_color="gray").pack(side="left", padx=10)
         
         # UI Scaling
         scale_frame = ctk.CTkFrame(ui_frame)
@@ -3241,10 +3242,7 @@ class PS2TextureSorter(ctk.CTk):
                 config.save()
                 
                 # Apply settings immediately - wrap in try/except to avoid crashing settings window
-                try:
-                    self.apply_theme(theme_var.get())
-                except Exception as theme_err:
-                    logger.debug(f"Theme apply during settings save: {theme_err}")
+                # Theme is now managed through Advanced Customization panel only
                 try:
                     self.apply_ui_scaling(scale_var.get())
                 except Exception as scale_err:

@@ -1104,6 +1104,8 @@ class ContextHelp:
         # Create or update help window
         if self.help_window and self.help_window.winfo_exists():
             self._update_help_content(context)
+            # Ensure existing help window is brought to front
+            self._lift_help_window()
         else:
             self._create_help_window(context)
     
@@ -1136,11 +1138,20 @@ class ContextHelp:
         self.help_window.title("❓ Help & Documentation")
         self.help_window.geometry("700x600")
         
-        # Make it stay on top but not modal
-        self.help_window.attributes('-topmost', False)
+        # Bring window to front without forcing it to stay permanently on top
+        self.help_window.after(100, lambda: self._lift_help_window())
         
         # Create content
         self._update_help_content(context)
+    
+    def _lift_help_window(self):
+        """Ensure help window is visible above the main application"""
+        try:
+            if self.help_window and self.help_window.winfo_exists():
+                self.help_window.lift()
+                self.help_window.focus_force()
+        except Exception:
+            pass
     
     def _update_help_content(self, context: str):
         """Update help content based on context"""

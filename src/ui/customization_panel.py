@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 # Built-in theme presets
 THEME_PRESETS = {
     "dark_panda": {
-        "name": "Dark Panda (Default)",
+        "name": "🐼 Dark Panda (Default)",
         "appearance_mode": "dark",
         "colors": {
             "primary": "#1f538d",
@@ -36,7 +36,7 @@ THEME_PRESETS = {
         }
     },
     "light_mode": {
-        "name": "Light Mode",
+        "name": "☀️ Light Mode",
         "appearance_mode": "light",
         "colors": {
             "primary": "#2874A6",
@@ -52,7 +52,7 @@ THEME_PRESETS = {
         }
     },
     "cyberpunk": {
-        "name": "Cyberpunk",
+        "name": "🤖 Cyberpunk",
         "appearance_mode": "dark",
         "colors": {
             "primary": "#00ff41",
@@ -68,7 +68,7 @@ THEME_PRESETS = {
         }
     },
     "neon_dreams": {
-        "name": "Neon Dreams",
+        "name": "💜 Neon Dreams",
         "appearance_mode": "dark",
         "colors": {
             "primary": "#00d4ff",
@@ -84,7 +84,7 @@ THEME_PRESETS = {
         }
     },
     "classic_windows": {
-        "name": "Classic Windows",
+        "name": "🪟 Classic Windows",
         "appearance_mode": "light",
         "colors": {
             "primary": "#0078d7",
@@ -99,8 +99,8 @@ THEME_PRESETS = {
             "border": "#808080"
         }
     },
-    "vulgar_panda": {
-        "name": "Vulgar Panda",
+    "red_panda": {
+        "name": "🔴 Red Panda",
         "appearance_mode": "dark",
         "colors": {
             "primary": "#cc0000",
@@ -1216,7 +1216,7 @@ class SettingsPanel(ctk.CTkFrame):
         
         ctk.CTkLabel(
             tooltip_frame,
-            text="Choose how detailed and snarky you want tooltips to be",
+            text="Choose how detailed and snarky you want tooltips to be\n(This only changes tooltip text style, not the visual theme)",
             font=("Arial", 10),
             text_color="gray"
         ).pack(pady=(0, 10))
@@ -1231,9 +1231,9 @@ class SettingsPanel(ctk.CTkFrame):
         self.tooltip_mode_var = ctk.StringVar(value=saved_mode)
         
         tooltip_options = [
-            ("Normal", "normal", "Standard helpful tooltips"),
-            ("Dumbed Down", "dumbed-down", "Detailed explanations for beginners"),
-            ("Vulgar Panda", "vulgar_panda", "Fun, sarcastic tooltips (opt-in)")
+            ("😊 Normal", "normal", "Standard helpful tooltips"),
+            ("📖 Dumbed Down", "dumbed-down", "Detailed explanations for beginners"),
+            ("🤬 Vulgar Panda", "vulgar_panda", "Fun, sarcastic tooltip text (opt-in, does not change theme)")
         ]
         
         for label, value, description in tooltip_options:
