@@ -99,6 +99,24 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
     # Cooldown between drag-pattern animation triggers (seconds)
     DRAG_PATTERN_COOLDOWN = 2.0
     
+    # Belly jiggle physics constants
+    JIGGLE_SPRING = 0.35             # Spring stiffness for belly wobble
+    JIGGLE_DAMPING = 0.82            # Damping factor for belly wobble
+    JIGGLE_VELOCITY_POKE = 8.0       # Jiggle impulse from belly poke/click
+    JIGGLE_VELOCITY_ITEM_HIT = 10.0  # Jiggle impulse from item impact
+    
+    # Limb dangle physics constants (arms/legs inertia during drag)
+    DANGLE_SPRING = 0.18             # Spring stiffness for limb dangle
+    DANGLE_DAMPING = 0.88            # Damping factor for limb dangle
+    DANGLE_ARM_FACTOR = 0.3          # Arm response to vertical drag velocity
+    DANGLE_LEG_FACTOR = 0.4          # Leg response to vertical drag velocity
+    
+    # Ear stretch physics constants (elastic stretch during drag)
+    EAR_STRETCH_SPRING = 0.25        # Spring stiffness for ear stretch
+    EAR_STRETCH_DAMPING = 0.85       # Damping factor for ear stretch
+    EAR_STRETCH_FACTOR = -0.15       # Ear response to vertical drag velocity
+    EAR_STRETCH_MAX = 12.0           # Maximum ear stretch (pixels)
+    
     # Tail wag animation frequency
     TAIL_WAG_FREQUENCY = 0.8
     
@@ -991,24 +1009,20 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
             breath_scale = 1.0 + math.sin(phase * 0.3) * 0.025
         
         # --- Jiggle physics (spring-damper for belly wobble) ---
-        jiggle_spring = 0.35
-        jiggle_damping = 0.82
-        self._belly_jiggle_vel = (self._belly_jiggle_vel - self._belly_jiggle * jiggle_spring) * jiggle_damping
+        self._belly_jiggle_vel = (self._belly_jiggle_vel - self._belly_jiggle * self.JIGGLE_SPRING) * self.JIGGLE_DAMPING
         self._belly_jiggle += self._belly_jiggle_vel
         if abs(self._belly_jiggle) < 0.3 and abs(self._belly_jiggle_vel) < 0.3:
             self._belly_jiggle = 0.0
             self._belly_jiggle_vel = 0.0
         
         # --- Limb dangle physics (inertia during drag) ---
-        dangle_spring = 0.18
-        dangle_damping = 0.88
         if anim == 'dragging' and self.is_dragging:
             # Drive dangle from vertical drag velocity
-            self._dangle_arm_vel += self._prev_drag_vy * 0.3
-            self._dangle_leg_vel += self._prev_drag_vy * 0.4
-        self._dangle_arm_vel = (self._dangle_arm_vel - self._dangle_arm * dangle_spring) * dangle_damping
+            self._dangle_arm_vel += self._prev_drag_vy * self.DANGLE_ARM_FACTOR
+            self._dangle_leg_vel += self._prev_drag_vy * self.DANGLE_LEG_FACTOR
+        self._dangle_arm_vel = (self._dangle_arm_vel - self._dangle_arm * self.DANGLE_SPRING) * self.DANGLE_DAMPING
         self._dangle_arm += self._dangle_arm_vel
-        self._dangle_leg_vel = (self._dangle_leg_vel - self._dangle_leg * dangle_spring) * dangle_damping
+        self._dangle_leg_vel = (self._dangle_leg_vel - self._dangle_leg * self.DANGLE_SPRING) * self.DANGLE_DAMPING
         self._dangle_leg += self._dangle_leg_vel
         if abs(self._dangle_arm) < 0.2 and abs(self._dangle_arm_vel) < 0.2:
             self._dangle_arm = 0.0
@@ -1018,14 +1032,12 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
             self._dangle_leg_vel = 0.0
         
         # --- Ear stretch physics (elastic spring-back) ---
-        ear_spring = 0.25
-        ear_damping = 0.85
         if anim == 'dragging' and self.is_dragging:
             # Ears stretch downward when dragged upward (opposing motion)
-            self._ear_stretch_vel += self._prev_drag_vy * -0.15
-        self._ear_stretch_vel = (self._ear_stretch_vel - self._ear_stretch * ear_spring) * ear_damping
+            self._ear_stretch_vel += self._prev_drag_vy * self.EAR_STRETCH_FACTOR
+        self._ear_stretch_vel = (self._ear_stretch_vel - self._ear_stretch * self.EAR_STRETCH_SPRING) * self.EAR_STRETCH_DAMPING
         self._ear_stretch += self._ear_stretch_vel
-        self._ear_stretch = max(-12.0, min(12.0, self._ear_stretch))  # clamp
+        self._ear_stretch = max(-self.EAR_STRETCH_MAX, min(self.EAR_STRETCH_MAX, self._ear_stretch))
         if abs(self._ear_stretch) < 0.2 and abs(self._ear_stretch_vel) < 0.2:
             self._ear_stretch = 0.0
             self._ear_stretch_vel = 0.0
@@ -2282,7 +2294,7 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
             self.play_animation_once('shaking')
         elif body_part == 'belly':
             # Trigger belly jiggle physics on item impact
-            self._belly_jiggle_vel += random.choice([-10.0, 10.0])
+            self._belly_jiggle_vel += random.choice([-1, 1]) * self.JIGGLE_VELOCITY_ITEM_HIT
             self.play_animation_once('belly_jiggle')
         else:
             self.play_animation_once('jumping')
@@ -2605,7 +2617,7 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
                     response = self.panda.on_belly_poke()
                     self.info_label.configure(text=response)
                     # Trigger belly jiggle physics
-                    self._belly_jiggle_vel += random.choice([-8.0, 8.0])
+                    self._belly_jiggle_vel += random.choice([-1, 1]) * self.JIGGLE_VELOCITY_POKE
                     self.play_animation_once('belly_jiggle')
                 elif body_part and hasattr(self.panda, 'on_body_part_click'):
                     response = self.panda.on_body_part_click(body_part)
