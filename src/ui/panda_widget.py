@@ -83,9 +83,9 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
     
     # Drag pattern detection thresholds
     DRAG_HISTORY_SECONDS = 1.5      # How long to retain drag positions
-    SHAKE_DIRECTION_CHANGES = 10    # X direction changes needed for shaking
-    MIN_SHAKE_MOVEMENT = 2          # Min px movement for a direction change
-    MIN_ROTATION_ANGLE = 0.15       # Min angle diff (radians) for spin detection
+    SHAKE_DIRECTION_CHANGES = 15    # X direction changes needed for shaking (increased from 10)
+    MIN_SHAKE_MOVEMENT = 3          # Min px movement for a direction change (increased from 2)
+    MIN_ROTATION_ANGLE = 0.20       # Min angle diff (radians) for spin detection (increased from 0.15)
     SPIN_CONSISTENCY_THRESHOLD = 0.85  # Required ratio of consistent rotations
     
     # Toss physics constants
@@ -123,6 +123,11 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
         'yawning': ['🥱', '😪', '💤', '😴', '🌙'],
         'sneezing': ['🤧', '💨', '😤', '🌬️', '💥'],
         'tail_wag': ['🐾', '💕', '😊', '🐼', '💖'],
+        'cartwheel': ['🤸', '🎪', '⭐', '💫', '🎉', '🤸‍♀️'],
+        'backflip': ['🤸', '🔄', '💫', '🎯', '⭐', '🌟'],
+        'lay_on_back': ['😌', '💤', '☁️', '💭', '🌙', '😴'],
+        'lay_on_side': ['😴', '💤', '☁️', '😌', '🛌', '💭'],
+        'carrying': ['📦', '💪', '🎁', '📚', '🧳'],
     }
     
     def __init__(self, parent, panda_character=None, panda_level_system=None,
@@ -565,19 +570,24 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
         
         anim = self.current_animation
         
-        # --- Determine limb offsets for walking ---
-        # Cycle through 16 frames for smoother animation
-        phase = (frame_idx % 16) / 16.0 * 2 * math.pi
+        # --- Determine limb offsets for animations ---
+        # Cycle through 48 frames for much smoother animation (tripled from 16)
+        phase = (frame_idx % 48) / 48.0 * 2 * math.pi
         
         if anim in ('idle', 'working', 'sarcastic', 'thinking'):
             # Gentle body bob for idle with subtle arm sway
             leg_swing = 0
             arm_swing = math.sin(phase) * 3  # Subtle arm movement
             body_bob = math.sin(phase) * 2
+        elif anim == 'carrying':
+            # Distinct carrying animation - stable, no shake/spin
+            leg_swing = math.sin(phase) * 4  # Gentle walk
+            arm_swing = -8  # Arms held up carrying something
+            body_bob = abs(math.sin(phase)) * 1.5  # Minimal bob
         elif anim in ('dragging', 'tossed', 'wall_hit'):
-            leg_swing = math.sin(phase) * 10
-            arm_swing = math.sin(phase + math.pi) * 8
-            body_bob = abs(math.sin(phase)) * 3
+            leg_swing = math.sin(phase) * 15  # More exaggerated (was 10)
+            arm_swing = math.sin(phase + math.pi) * 12  # More exaggerated (was 8)
+            body_bob = abs(math.sin(phase)) * 5  # More exaggerated (was 3)
         elif anim == 'dancing':
             leg_swing = math.sin(phase) * 14
             arm_swing = math.sin(phase * 2) * 12
@@ -614,13 +624,15 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
             arm_swing = math.sin(phase) * 6
             body_bob = math.sin(phase) * 3
         elif anim == 'spinning':
-            leg_swing = math.sin(phase * 3) * 12
-            arm_swing = math.sin(phase * 3 + math.pi/2) * 14
-            body_bob = math.sin(phase * 2) * 5
+            # Much more exaggerated spinning with wild limb movements
+            leg_swing = math.sin(phase * 4) * 18  # Increased frequency and amplitude (was 3, 12)
+            arm_swing = math.sin(phase * 4 + math.pi/2) * 20  # Increased (was 3, 14)
+            body_bob = math.sin(phase * 3) * 8  # More dramatic (was 2, 5)
         elif anim == 'shaking':
-            leg_swing = math.sin(phase * 5) * 6
-            arm_swing = math.sin(phase * 5) * 8
-            body_bob = math.sin(phase * 6) * 3
+            # More violent shaking motion
+            leg_swing = math.sin(phase * 8) * 10  # Faster, more dramatic (was 5, 6)
+            arm_swing = math.sin(phase * 8) * 12  # Faster, more dramatic (was 5, 8)
+            body_bob = math.sin(phase * 10) * 6  # Much faster vibration (was 6, 3)
         elif anim == 'rolling':
             leg_swing = math.sin(phase * 2) * 15
             arm_swing = math.cos(phase * 2) * 15
@@ -663,6 +675,39 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
             leg_swing = math.sin(phase) * 3
             arm_swing = math.sin(phase * 1.5) * 4
             body_bob = math.sin(phase) * 2
+        elif anim == 'cartwheel':
+            # Dramatic rotating cartwheel motion
+            cart_phase = (frame_idx % 24) / 24.0  # One full cartwheel cycle
+            rotation = cart_phase * 2 * math.pi
+            leg_swing = math.cos(rotation) * 25  # Large circular motion
+            arm_swing = math.sin(rotation) * 25  # Opposite phase
+            body_bob = -abs(math.sin(rotation * 2)) * 15  # Bouncing
+        elif anim == 'backflip':
+            # Dramatic backflip with rotation
+            flip_phase = (frame_idx % 30) / 30.0  # Slower flip
+            if flip_phase < 0.3:  # Crouch
+                leg_swing = 0
+                arm_swing = -5
+                body_bob = flip_phase * 30
+            elif flip_phase < 0.7:  # Flip
+                flip_angle = (flip_phase - 0.3) * math.pi * 2.5
+                leg_swing = math.sin(flip_angle) * 30
+                arm_swing = math.cos(flip_angle) * 30
+                body_bob = -abs(math.sin(flip_angle)) * 20
+            else:  # Land
+                leg_swing = 0
+                arm_swing = math.sin(phase * 4) * 8
+                body_bob = (1 - flip_phase) * 15
+        elif anim == 'lay_on_back':
+            # Lying on back, legs/arms up
+            leg_swing = math.sin(phase * 0.5) * 3  # Gentle wiggle
+            arm_swing = -15  # Arms extended up
+            body_bob = 40  # Positioned lower (lying down)
+        elif anim == 'lay_on_side':
+            # Lying on side, relaxed
+            leg_swing = math.sin(phase * 0.3) * 2  # Very subtle
+            arm_swing = 5  # Arm resting
+            body_bob = 35  # Positioned lower
         else:
             # Default walking for fed, etc.
             leg_swing = math.sin(phase) * 8
@@ -729,6 +774,16 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
             eye_style = 'closed' if cycle < 4 else 'surprised'
         elif anim == 'tail_wag':
             eye_style = 'happy'
+        elif anim == 'cartwheel':
+            eye_style = 'spinning'
+        elif anim == 'backflip':
+            eye_style = 'surprised'
+        elif anim == 'lay_on_back':
+            eye_style = 'closed'
+        elif anim == 'lay_on_side':
+            eye_style = 'half'
+        elif anim == 'carrying':
+            eye_style = 'normal'
         
         # --- Determine mouth style ---
         mouth_style = 'normal'
@@ -759,6 +814,16 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
             mouth_style = 'open_wide' if cycle < 4 else 'normal'
         elif anim == 'tail_wag':
             mouth_style = 'smile'
+        elif anim == 'cartwheel':
+            mouth_style = 'grin'
+        elif anim == 'backflip':
+            mouth_style = 'grin'
+        elif anim == 'lay_on_back':
+            mouth_style = 'smile'
+        elif anim == 'lay_on_side':
+            mouth_style = 'sleep'
+        elif anim == 'carrying':
+            mouth_style = 'normal'
         
         # --- Colors ---
         white = "#FFFFFF"
@@ -776,14 +841,16 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
             ear_wiggle = math.sin(phase * 3) * 4 * sx + math.sin(phase * 1.3) * 2 * sx
         elif anim in ('idle', 'celebrating', 'playing'):
             ear_wiggle = math.sin(phase * 2) * 3 * sx
-        elif anim in ('sleeping', 'laying_down', 'laying_back', 'laying_side'):
-            # Occasional ear twitch while sleeping
+        elif anim in ('sleeping', 'laying_down', 'laying_back', 'laying_side', 'lay_on_back', 'lay_on_side'):
+            # Occasional ear twitch while sleeping/laying
             if frame_idx % 20 < 3:
                 ear_wiggle = math.sin(phase * 6) * 2 * sx
-        elif anim in ('waving', 'tail_wag', 'jumping'):
+        elif anim in ('waving', 'tail_wag', 'jumping', 'cartwheel', 'backflip'):
             ear_wiggle = math.sin(phase * 2) * 3 * sx
         elif anim == 'sneezing':
             ear_wiggle = math.sin(phase * 5) * 4 * sx
+        elif anim == 'carrying':
+            ear_wiggle = math.sin(phase * 1.5) * 2 * sx  # Gentle movement while carrying
         
         # --- Draw legs (behind body) ---
         leg_top = int(145 * sy + by)
@@ -1570,8 +1637,12 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
                     response = self.panda.on_click()
                 
                 self.info_label.configure(text=response)
-                # Play clicked animation if available, else celebrating
-                self.play_animation_once('clicked')
+                
+                # Multiple random response animations for variety
+                click_animations = ['clicked', 'waving', 'jumping', 'celebrating', 
+                                   'stretching', 'tail_wag', 'dancing']
+                chosen_anim = random.choice(click_animations)
+                self.play_animation_once(chosen_anim)
                 
                 # Award XP for clicking
                 if self.panda_level_system:
@@ -1579,6 +1650,9 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
                     leveled_up, new_level = self.panda_level_system.add_xp(xp, 'Click interaction')
                     if leveled_up:
                         self.info_label.configure(text=f"🎉 Panda Level {new_level}!")
+        except Exception as e:
+            logger.error(f"Error handling panda click: {e}")
+            self.info_label.configure(text="🐼 *confused panda noises*")
         except Exception as e:
             logger.error(f"Error handling panda click: {e}")
             self.info_label.configure(text="🐼 *confused panda noises*")
