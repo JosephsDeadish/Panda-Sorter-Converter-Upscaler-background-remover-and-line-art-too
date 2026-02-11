@@ -1170,6 +1170,454 @@ class ShopSystem:
             one_time_purchase=True,
             unlockable_id='telescope'
         ),
+
+        # New Fur Colors - Shop
+        'closet_cherry_blossom': ShopItem(
+            id='closet_cherry_blossom',
+            name='Cherry Blossom Panda',
+            description='Pink cherry blossom fur',
+            category=ShopCategory.PANDA_OUTFITS,
+            price=300,
+            icon='🌸',
+            level_required=8,
+            one_time_purchase=True,
+            unlockable_id='closet_cherry_blossom'
+        ),
+        'closet_ocean_blue': ShopItem(
+            id='closet_ocean_blue',
+            name='Ocean Blue Panda',
+            description='Deep ocean blue',
+            category=ShopCategory.PANDA_OUTFITS,
+            price=350,
+            icon='🌊',
+            level_required=10,
+            one_time_purchase=True,
+            unlockable_id='closet_ocean_blue'
+        ),
+        'closet_sunset_orange': ShopItem(
+            id='closet_sunset_orange',
+            name='Sunset Orange Panda',
+            description='Warm sunset orange',
+            category=ShopCategory.PANDA_OUTFITS,
+            price=200,
+            icon='🌅',
+            level_required=5,
+            one_time_purchase=True,
+            unlockable_id='closet_sunset_orange'
+        ),
+        'closet_neon_green': ShopItem(
+            id='closet_neon_green',
+            name='Neon Green Panda',
+            description='Electric neon green',
+            category=ShopCategory.PANDA_OUTFITS,
+            price=400,
+            icon='💚',
+            level_required=12,
+            one_time_purchase=True,
+            unlockable_id='closet_neon_green'
+        ),
+        'closet_ice_crystal': ShopItem(
+            id='closet_ice_crystal',
+            name='Ice Crystal Panda',
+            description='Translucent ice blue',
+            category=ShopCategory.PANDA_OUTFITS,
+            price=600,
+            icon='🧊',
+            level_required=15,
+            one_time_purchase=True,
+            unlockable_id='closet_ice_crystal'
+        ),
+        'closet_volcanic': ShopItem(
+            id='closet_volcanic',
+            name='Volcanic Panda',
+            description='Fiery volcanic red-orange',
+            category=ShopCategory.PANDA_OUTFITS,
+            price=700,
+            icon='🌋',
+            level_required=18,
+            one_time_purchase=True,
+            unlockable_id='closet_volcanic'
+        ),
+        'closet_starlight': ShopItem(
+            id='closet_starlight',
+            name='Starlight Panda',
+            description='Twinkling starlight white',
+            category=ShopCategory.PANDA_OUTFITS,
+            price=1200,
+            icon='⭐',
+            level_required=20,
+            one_time_purchase=True,
+            unlockable_id='closet_starlight'
+        ),
+        'closet_shadow': ShopItem(
+            id='closet_shadow',
+            name='Shadow Panda',
+            description='Deep shadow black',
+            category=ShopCategory.PANDA_OUTFITS,
+            price=350,
+            icon='🖤',
+            level_required=10,
+            one_time_purchase=True,
+            unlockable_id='closet_shadow'
+        ),
+        'closet_cotton_candy': ShopItem(
+            id='closet_cotton_candy',
+            name='Cotton Candy Panda',
+            description='Pastel cotton candy pink and blue',
+            category=ShopCategory.PANDA_OUTFITS,
+            price=550,
+            icon='🍬',
+            level_required=15,
+            one_time_purchase=True,
+            unlockable_id='closet_cotton_candy'
+        ),
+        'closet_phantom': ShopItem(
+            id='closet_phantom',
+            name='Phantom Panda',
+            description='Ghostly translucent white',
+            category=ShopCategory.PANDA_OUTFITS,
+            price=1800,
+            icon='👻',
+            level_required=25,
+            one_time_purchase=True,
+            unlockable_id='closet_phantom'
+        ),
+
+        # New Hats - Shop
+        'closet_space_helmet': ShopItem(
+            id='closet_space_helmet',
+            name='Space Helmet',
+            description='Astronaut bubble helmet',
+            category=ShopCategory.ACCESSORIES,
+            price=500,
+            icon='🪐',
+            level_required=15,
+            one_time_purchase=True,
+            unlockable_id='closet_space_helmet'
+        ),
+        'closet_samurai_helmet': ShopItem(
+            id='closet_samurai_helmet',
+            name='Samurai Helmet',
+            description='Ancient samurai kabuto',
+            category=ShopCategory.ACCESSORIES,
+            price=600,
+            icon='⛩️',
+            level_required=15,
+            one_time_purchase=True,
+            unlockable_id='closet_samurai_helmet'
+        ),
+        'closet_propeller_hat': ShopItem(
+            id='closet_propeller_hat',
+            name='Propeller Hat',
+            description='Fun spinning propeller',
+            category=ShopCategory.ACCESSORIES,
+            price=150,
+            icon='🌀',
+            level_required=3,
+            one_time_purchase=True,
+            unlockable_id='closet_propeller_hat'
+        ),
+        'closet_beret': ShopItem(
+            id='closet_beret',
+            name='Artist Beret',
+            description='French artist beret',
+            category=ShopCategory.ACCESSORIES,
+            price=120,
+            icon='🎨',
+            level_required=3,
+            one_time_purchase=True,
+            unlockable_id='closet_beret'
+        ),
+        'closet_sombrero': ShopItem(
+            id='closet_sombrero',
+            name='Sombrero',
+            description='Festive wide-brim sombrero',
+            category=ShopCategory.ACCESSORIES,
+            price=250,
+            icon='🌮',
+            level_required=8,
+            one_time_purchase=True,
+            unlockable_id='closet_sombrero'
+        ),
+        'closet_firefighter_hat': ShopItem(
+            id='closet_firefighter_hat',
+            name='Firefighter Helmet',
+            description='Brave firefighter helmet',
+            category=ShopCategory.ACCESSORIES,
+            price=300,
+            icon='🚒',
+            level_required=8,
+            one_time_purchase=True,
+            unlockable_id='closet_firefighter_hat'
+        ),
+        'closet_graduation_cap': ShopItem(
+            id='closet_graduation_cap',
+            name='Graduation Cap',
+            description='Academic mortarboard',
+            category=ShopCategory.ACCESSORIES,
+            price=180,
+            icon='🎓',
+            level_required=5,
+            one_time_purchase=True,
+            unlockable_id='closet_graduation_cap'
+        ),
+        'closet_tiara': ShopItem(
+            id='closet_tiara',
+            name='Princess Tiara',
+            description='Sparkling princess tiara',
+            category=ShopCategory.ACCESSORIES,
+            price=450,
+            icon='👸',
+            level_required=12,
+            one_time_purchase=True,
+            unlockable_id='closet_tiara'
+        ),
+        'closet_straw_hat': ShopItem(
+            id='closet_straw_hat',
+            name='Straw Hat',
+            description='Simple straw hat',
+            category=ShopCategory.ACCESSORIES,
+            price=50,
+            icon='🌾',
+            level_required=1,
+            one_time_purchase=True,
+            unlockable_id='closet_straw_hat'
+        ),
+        'closet_ice_crown': ShopItem(
+            id='closet_ice_crown',
+            name='Ice Crown',
+            description='Frozen crystal crown',
+            category=ShopCategory.ACCESSORIES,
+            price=1500,
+            icon='❄️',
+            level_required=25,
+            one_time_purchase=True,
+            unlockable_id='closet_ice_crown'
+        ),
+
+        # New Shoes - Shop
+        'closet_cowboy_boots': ShopItem(
+            id='closet_cowboy_boots',
+            name='Cowboy Boots',
+            description='Western cowboy boots',
+            category=ShopCategory.ACCESSORIES,
+            price=120,
+            icon='🤠',
+            level_required=3,
+            one_time_purchase=True,
+            unlockable_id='closet_cowboy_boots'
+        ),
+        'closet_ballet_shoes': ShopItem(
+            id='closet_ballet_shoes',
+            name='Ballet Slippers',
+            description='Elegant ballet slippers',
+            category=ShopCategory.ACCESSORIES,
+            price=250,
+            icon='🩰',
+            level_required=8,
+            one_time_purchase=True,
+            unlockable_id='closet_ballet_shoes'
+        ),
+        'closet_moon_boots': ShopItem(
+            id='closet_moon_boots',
+            name='Moon Boots',
+            description='Anti-gravity moon boots',
+            category=ShopCategory.ACCESSORIES,
+            price=500,
+            icon='🌙',
+            level_required=15,
+            one_time_purchase=True,
+            unlockable_id='closet_moon_boots'
+        ),
+        'closet_platform_shoes': ShopItem(
+            id='closet_platform_shoes',
+            name='Platform Shoes',
+            description='Groovy platform shoes',
+            category=ShopCategory.ACCESSORIES,
+            price=150,
+            icon='📐',
+            level_required=3,
+            one_time_purchase=True,
+            unlockable_id='closet_platform_shoes'
+        ),
+        'closet_ski_boots': ShopItem(
+            id='closet_ski_boots',
+            name='Ski Boots',
+            description='Mountain ski boots',
+            category=ShopCategory.ACCESSORIES,
+            price=280,
+            icon='⛷️',
+            level_required=8,
+            one_time_purchase=True,
+            unlockable_id='closet_ski_boots'
+        ),
+        'closet_glass_slippers': ShopItem(
+            id='closet_glass_slippers',
+            name='Glass Slippers',
+            description='Fairy tale glass slippers',
+            category=ShopCategory.ACCESSORIES,
+            price=600,
+            icon='💎',
+            level_required=15,
+            one_time_purchase=True,
+            unlockable_id='closet_glass_slippers'
+        ),
+        'closet_steel_boots': ShopItem(
+            id='closet_steel_boots',
+            name='Steel Boots',
+            description='Heavy armored steel boots',
+            category=ShopCategory.ACCESSORIES,
+            price=350,
+            icon='🛡️',
+            level_required=10,
+            one_time_purchase=True,
+            unlockable_id='closet_steel_boots'
+        ),
+        'closet_neon_kicks': ShopItem(
+            id='closet_neon_kicks',
+            name='Neon Kicks',
+            description='Light-up neon sneakers',
+            category=ShopCategory.ACCESSORIES,
+            price=180,
+            icon='💡',
+            level_required=5,
+            one_time_purchase=True,
+            unlockable_id='closet_neon_kicks'
+        ),
+        'closet_bunny_slippers_new': ShopItem(
+            id='closet_bunny_slippers_new',
+            name='Bunny Slippers',
+            description='Adorable bunny slippers',
+            category=ShopCategory.ACCESSORIES,
+            price=60,
+            icon='🐰',
+            level_required=1,
+            one_time_purchase=True,
+            unlockable_id='closet_bunny_slippers_new'
+        ),
+        'closet_lava_boots': ShopItem(
+            id='closet_lava_boots',
+            name='Lava Boots',
+            description='Fireproof lava walking boots',
+            category=ShopCategory.ACCESSORIES,
+            price=1200,
+            icon='🔥',
+            level_required=20,
+            one_time_purchase=True,
+            unlockable_id='closet_lava_boots'
+        ),
+
+        # New Accessories - Shop
+        'closet_diamond_ring': ShopItem(
+            id='closet_diamond_ring',
+            name='Diamond Ring',
+            description='Sparkly diamond ring',
+            category=ShopCategory.ACCESSORIES,
+            price=500,
+            icon='💍',
+            level_required=15,
+            one_time_purchase=True,
+            unlockable_id='closet_diamond_ring'
+        ),
+        'closet_feather_boa': ShopItem(
+            id='closet_feather_boa',
+            name='Feather Boa',
+            description='Glamorous feather boa',
+            category=ShopCategory.ACCESSORIES,
+            price=250,
+            icon='🪶',
+            level_required=8,
+            one_time_purchase=True,
+            unlockable_id='closet_feather_boa'
+        ),
+        'closet_pocket_watch_acc': ShopItem(
+            id='closet_pocket_watch_acc',
+            name='Pocket Watch',
+            description='Antique pocket watch',
+            category=ShopCategory.ACCESSORIES,
+            price=280,
+            icon='🕰️',
+            level_required=8,
+            one_time_purchase=True,
+            unlockable_id='closet_pocket_watch_acc'
+        ),
+        'closet_magic_wand': ShopItem(
+            id='closet_magic_wand',
+            name='Magic Wand',
+            description='Sparkly magic wand',
+            category=ShopCategory.ACCESSORIES,
+            price=450,
+            icon='🪄',
+            level_required=12,
+            one_time_purchase=True,
+            unlockable_id='closet_magic_wand'
+        ),
+        'closet_pearl_necklace': ShopItem(
+            id='closet_pearl_necklace',
+            name='Pearl Necklace',
+            description='Elegant pearl necklace',
+            category=ShopCategory.ACCESSORIES,
+            price=300,
+            icon='🦪',
+            level_required=8,
+            one_time_purchase=True,
+            unlockable_id='closet_pearl_necklace'
+        ),
+        'closet_bandana': ShopItem(
+            id='closet_bandana',
+            name='Cool Bandana',
+            description='Stylish bandana',
+            category=ShopCategory.ACCESSORIES,
+            price=100,
+            icon='🏴',
+            level_required=3,
+            one_time_purchase=True,
+            unlockable_id='closet_bandana'
+        ),
+        'closet_compass': ShopItem(
+            id='closet_compass',
+            name='Golden Compass',
+            description='Adventure compass',
+            category=ShopCategory.ACCESSORIES,
+            price=130,
+            icon='🧭',
+            level_required=3,
+            one_time_purchase=True,
+            unlockable_id='closet_compass'
+        ),
+        'closet_camera': ShopItem(
+            id='closet_camera',
+            name='Polaroid Camera',
+            description='Retro instant camera',
+            category=ShopCategory.ACCESSORIES,
+            price=220,
+            icon='📸',
+            level_required=5,
+            one_time_purchase=True,
+            unlockable_id='closet_camera'
+        ),
+        'closet_telescope_acc': ShopItem(
+            id='closet_telescope_acc',
+            name='Mini Telescope',
+            description='Tiny telescope monocle',
+            category=ShopCategory.ACCESSORIES,
+            price=350,
+            icon='🔭',
+            level_required=10,
+            one_time_purchase=True,
+            unlockable_id='closet_telescope_acc'
+        ),
+        'closet_phoenix_feather': ShopItem(
+            id='closet_phoenix_feather',
+            name='Phoenix Feather',
+            description='Legendary phoenix tail feather',
+            category=ShopCategory.ACCESSORIES,
+            price=1500,
+            icon='🔥',
+            level_required=25,
+            one_time_purchase=True,
+            unlockable_id='closet_phoenix_feather'
+        ),
     }
     
     def __init__(self, save_path: Optional[Path] = None):

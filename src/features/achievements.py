@@ -278,6 +278,235 @@ class AchievementSystem:
             hidden=True,
             progress_max=1
         ),
+
+        # Fur Color Achievements
+        'fashionista_fur': Achievement(
+            id='fashionista_fur',
+            name='Fashionista',
+            description='Equip 5 different fur colors',
+            tier=AchievementTier.SILVER,
+            points=75,
+            icon='🎨',
+            category='customization',
+            progress_max=5,
+            reward={'type': 'closet_item', 'item': 'rose_gold', 'description': 'Rose Gold fur color'}
+        ),
+        'closet_explorer': Achievement(
+            id='closet_explorer',
+            name='Closet Explorer',
+            description='Try 10 different clothing items',
+            tier=AchievementTier.SILVER,
+            points=75,
+            icon='👗',
+            category='customization',
+            progress_max=10,
+            reward={'type': 'closet_item', 'item': 'lavender', 'description': 'Lavender fur color'}
+        ),
+        'arctic_survivor': Achievement(
+            id='arctic_survivor',
+            name='Arctic Survivor',
+            description='Sort textures during winter months',
+            tier=AchievementTier.GOLD,
+            points=100,
+            icon='❄️',
+            category='seasonal',
+            progress_max=1,
+            reward={'type': 'closet_item', 'item': 'arctic_white', 'description': 'Arctic White fur color'}
+        ),
+        'copper_collector': Achievement(
+            id='copper_collector',
+            name='Copper Collector',
+            description='Earn 5000 total Bamboo Bucks',
+            tier=AchievementTier.GOLD,
+            points=100,
+            icon='🪙',
+            category='currency',
+            progress_max=5000,
+            reward={'type': 'closet_item', 'item': 'copper', 'description': 'Copper fur color'}
+        ),
+        'emerald_master': Achievement(
+            id='emerald_master',
+            name='Emerald Master',
+            description='Complete 25 perfect sorts with 100% accuracy',
+            tier=AchievementTier.PLATINUM,
+            points=200,
+            icon='💎',
+            category='quality',
+            progress_max=25,
+            reward={'type': 'closet_item', 'item': 'emerald', 'description': 'Emerald fur color'}
+        ),
+
+        # Hat Achievements
+        'pirate_adventure': Achievement(
+            id='pirate_adventure',
+            name='Pirate Adventure',
+            description='Sort 500 texture files',
+            tier=AchievementTier.SILVER,
+            points=50,
+            icon='🏴‍☠️',
+            category='progress',
+            progress_max=500,
+            reward={'type': 'closet_item', 'item': 'pirate_hat', 'description': 'Pirate Hat'}
+        ),
+        'viking_warrior': Achievement(
+            id='viking_warrior',
+            name='Viking Warrior',
+            description='Sort 2500 textures',
+            tier=AchievementTier.GOLD,
+            points=100,
+            icon='⚔️',
+            category='progress',
+            progress_max=2500,
+            reward={'type': 'closet_item', 'item': 'viking_helmet', 'description': 'Viking Helmet'}
+        ),
+        'angelic_sorter': Achievement(
+            id='angelic_sorter',
+            name='Angelic Sorter',
+            description='Sort 5000 textures without any errors',
+            tier=AchievementTier.PLATINUM,
+            points=200,
+            icon='😇',
+            category='quality',
+            progress_max=5000,
+            reward={'type': 'closet_item', 'item': 'halo', 'description': 'Angel Halo'}
+        ),
+        'mystery_solver': Achievement(
+            id='mystery_solver',
+            name='Mystery Solver',
+            description='Use search feature 100 times',
+            tier=AchievementTier.SILVER,
+            points=50,
+            icon='🔍',
+            category='features',
+            progress_max=100,
+            reward={'type': 'closet_item', 'item': 'detective_hat', 'description': 'Detective Hat'}
+        ),
+        'stealth_sorter': Achievement(
+            id='stealth_sorter',
+            name='Stealth Sorter',
+            description='Sort 1000 textures in under 10 minutes',
+            tier=AchievementTier.GOLD,
+            points=100,
+            icon='🥷',
+            category='speed',
+            progress_max=1,
+            reward={'type': 'closet_item', 'item': 'ninja_mask', 'description': 'Ninja Mask'}
+        ),
+
+        # Shoe Achievements
+        'ice_dancer': Achievement(
+            id='ice_dancer',
+            name='Ice Dancer',
+            description='Use the app 20 days',
+            tier=AchievementTier.GOLD,
+            points=100,
+            icon='⛸️',
+            category='session',
+            progress_max=20,
+            reward={'type': 'closet_item', 'item': 'ice_skates', 'description': 'Ice Skates'}
+        ),
+        'roller_coaster': Achievement(
+            id='roller_coaster',
+            name='Roller Coaster',
+            description='Toss the panda 50 times',
+            tier=AchievementTier.SILVER,
+            points=50,
+            icon='🛼',
+            category='interactions',
+            progress_max=50,
+            reward={'type': 'closet_item', 'item': 'roller_skates', 'description': 'Roller Skates'}
+        ),
+        'shadow_walker': Achievement(
+            id='shadow_walker',
+            name='Shadow Walker',
+            description='Sort textures between midnight and 5 AM',
+            tier=AchievementTier.GOLD,
+            points=75,
+            icon='🌑',
+            category='easter_egg',
+            hidden=True,
+            progress_max=1,
+            reward={'type': 'closet_item', 'item': 'ninja_tabi', 'description': 'Ninja Tabi shoes'}
+        ),
+        'mountain_climber': Achievement(
+            id='mountain_climber',
+            name='Mountain Climber',
+            description='Create 20 backups',
+            tier=AchievementTier.SILVER,
+            points=50,
+            icon='🏔️',
+            category='features',
+            progress_max=20,
+            reward={'type': 'closet_item', 'item': 'hiking_boots_adv', 'description': 'Mountain Boots'}
+        ),
+        'golden_path': Achievement(
+            id='golden_path',
+            name='Golden Path',
+            description='Unlock 25 achievements',
+            tier=AchievementTier.PLATINUM,
+            points=200,
+            icon='✨',
+            category='meta',
+            progress_max=25,
+            reward={'type': 'closet_item', 'item': 'golden_shoes', 'description': 'Golden Shoes'}
+        ),
+
+        # Accessory Achievements
+        'medal_worthy': Achievement(
+            id='medal_worthy',
+            name='Medal Worthy',
+            description='Sort 10000 textures total',
+            tier=AchievementTier.PLATINUM,
+            points=150,
+            icon='🎖️',
+            category='progress',
+            progress_max=10000,
+            reward={'type': 'closet_item', 'item': 'medal_of_honor', 'description': 'Medal of Honor accessory'}
+        ),
+        'lucky_panda': Achievement(
+            id='lucky_panda',
+            name='Lucky Panda',
+            description='Feed the panda 100 times',
+            tier=AchievementTier.SILVER,
+            points=50,
+            icon='🍀',
+            category='interactions',
+            progress_max=100,
+            reward={'type': 'closet_item', 'item': 'lucky_charm_acc', 'description': 'Lucky Clover accessory'}
+        ),
+        'crystal_clear': Achievement(
+            id='crystal_clear',
+            name='Crystal Clear',
+            description='Sort 50 sessions with 0 errors',
+            tier=AchievementTier.GOLD,
+            points=100,
+            icon='💎',
+            category='quality',
+            progress_max=50,
+            reward={'type': 'closet_item', 'item': 'crystal_pendant', 'description': 'Crystal Pendant accessory'}
+        ),
+        'ninja_master': Achievement(
+            id='ninja_master',
+            name='Ninja Master',
+            description='Discover 3 easter eggs',
+            tier=AchievementTier.GOLD,
+            points=100,
+            icon='⭐',
+            category='easter_egg',
+            progress_max=3,
+            reward={'type': 'closet_item', 'item': 'ninja_star_acc', 'description': 'Ninja Star accessory'}
+        ),
+        'golden_touch': Achievement(
+            id='golden_touch',
+            name='Golden Touch',
+            description='Purchase 20 shop items',
+            tier=AchievementTier.GOLD,
+            points=100,
+            icon='🔔',
+            category='shopping',
+            progress_max=20,
+            reward={'type': 'closet_item', 'item': 'golden_bell', 'description': 'Golden Bell accessory'}
+        ),
     }
     
     def __init__(self, save_file: Optional[str] = None):
