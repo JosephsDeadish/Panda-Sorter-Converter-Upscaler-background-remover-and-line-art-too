@@ -145,19 +145,34 @@ class ColorWheelWidget(ctk.CTkFrame):
     
     def _create_widgets(self):
         """Create color picker widgets"""
-        title = ctk.CTkLabel(self, text="🎨 Color Picker", font=("Arial Bold", 14))
+        # Wrap everything in scrollable frame
+        scroll_frame = ctk.CTkScrollableFrame(self)
+        scroll_frame.pack(fill="both", expand=True, padx=5, pady=5)
+        
+        title = ctk.CTkLabel(scroll_frame, text="🎨 Color Picker", font=("Arial Bold", 14))
         title.pack(pady=10)
         
         # Add explanatory label
         info_label = ctk.CTkLabel(
-            self, 
+            scroll_frame, 
             text="This color sets the accent/highlight color for the UI theme",
             font=("Arial", 11),
             text_color="gray"
         )
         info_label.pack(pady=(0, 10))
         
-        hex_frame = ctk.CTkFrame(self)
+        # Color target selector
+        target_frame = ctk.CTkFrame(scroll_frame)
+        target_frame.pack(fill="x", padx=10, pady=5)
+        
+        ctk.CTkLabel(target_frame, text="Apply color to:", font=("Arial Bold", 11)).pack(anchor="w", padx=5, pady=2)
+        self.color_target_var = ctk.StringVar(value="accent")
+        target_options = ["accent", "primary", "secondary", "background", "button", "button_hover", "text", "text_secondary", "border"]
+        target_menu = ctk.CTkOptionMenu(target_frame, variable=self.color_target_var,
+                                        values=target_options, width=200)
+        target_menu.pack(padx=5, pady=5)
+        
+        hex_frame = ctk.CTkFrame(scroll_frame)
         hex_frame.pack(fill="x", padx=10, pady=5)
         
         ctk.CTkLabel(hex_frame, text="Hex:").pack(side="left", padx=5)
@@ -169,10 +184,14 @@ class ColorWheelWidget(ctk.CTkFrame):
         ctk.CTkButton(hex_frame, text="Apply", width=60, 
                      command=self._on_hex_change).pack(side="left", padx=5)
         
-        self.preview = ctk.CTkLabel(self, text="", width=200, height=50, fg_color=self.current_color)
+        self.preview = ctk.CTkLabel(scroll_frame, text="", width=200, height=50, fg_color=self.current_color)
         self.preview.pack(pady=10, padx=10)
         
-        sliders_frame = ctk.CTkFrame(self)
+        # RGB sliders
+        rgb_label = ctk.CTkLabel(scroll_frame, text="RGB Sliders:", font=("Arial Bold", 11))
+        rgb_label.pack(anchor="w", padx=15, pady=(5, 2))
+        
+        sliders_frame = ctk.CTkFrame(scroll_frame)
         sliders_frame.pack(fill="x", padx=10, pady=5)
         
         r_frame = ctk.CTkFrame(sliders_frame)
@@ -205,7 +224,41 @@ class ColorWheelWidget(ctk.CTkFrame):
         self.b_label = ctk.CTkLabel(b_frame, text=str(int(self.rgb[2])), width=40)
         self.b_label.pack(side="left", padx=5)
         
-        presets_frame = ctk.CTkFrame(self)
+        # HSV sliders
+        hsv_label = ctk.CTkLabel(scroll_frame, text="HSV Sliders:", font=("Arial Bold", 11))
+        hsv_label.pack(anchor="w", padx=15, pady=(10, 2))
+        
+        hsv_frame = ctk.CTkFrame(scroll_frame)
+        hsv_frame.pack(fill="x", padx=10, pady=5)
+        
+        h_frame = ctk.CTkFrame(hsv_frame)
+        h_frame.pack(fill="x", pady=2)
+        ctk.CTkLabel(h_frame, text="H:", width=30).pack(side="left", padx=5)
+        self.h_slider = ctk.CTkSlider(h_frame, from_=0, to=360, number_of_steps=360,
+                                      command=lambda v: self._on_hsv_change())
+        self.h_slider.pack(side="left", fill="x", expand=True, padx=5)
+        self.h_label = ctk.CTkLabel(h_frame, text="0°", width=40)
+        self.h_label.pack(side="left", padx=5)
+        
+        s_frame = ctk.CTkFrame(hsv_frame)
+        s_frame.pack(fill="x", pady=2)
+        ctk.CTkLabel(s_frame, text="S:", width=30).pack(side="left", padx=5)
+        self.s_slider = ctk.CTkSlider(s_frame, from_=0, to=100, number_of_steps=100,
+                                      command=lambda v: self._on_hsv_change())
+        self.s_slider.pack(side="left", fill="x", expand=True, padx=5)
+        self.s_label = ctk.CTkLabel(s_frame, text="0%", width=40)
+        self.s_label.pack(side="left", padx=5)
+        
+        v_frame = ctk.CTkFrame(hsv_frame)
+        v_frame.pack(fill="x", pady=2)
+        ctk.CTkLabel(v_frame, text="V:", width=30).pack(side="left", padx=5)
+        self.v_slider = ctk.CTkSlider(v_frame, from_=0, to=100, number_of_steps=100,
+                                      command=lambda v: self._on_hsv_change())
+        self.v_slider.pack(side="left", fill="x", expand=True, padx=5)
+        self.v_label = ctk.CTkLabel(v_frame, text="0%", width=40)
+        self.v_label.pack(side="left", padx=5)
+        
+        presets_frame = ctk.CTkFrame(scroll_frame)
         presets_frame.pack(fill="x", padx=10, pady=10)
         
         ctk.CTkLabel(presets_frame, text="Presets:", font=("Arial Bold", 11)).pack(anchor="w", padx=5)
@@ -219,7 +272,7 @@ class ColorWheelWidget(ctk.CTkFrame):
                                command=lambda c=color: self.set_color(c))
             btn.grid(row=0, column=i, padx=2, pady=2)
         
-        self.recent_frame = ctk.CTkFrame(self)
+        self.recent_frame = ctk.CTkFrame(scroll_frame)
         self.recent_frame.pack(fill="x", padx=10, pady=5)
         
         ctk.CTkLabel(self.recent_frame, text="Recent:", font=("Arial Bold", 11)).pack(anchor="w", padx=5)
@@ -252,6 +305,34 @@ class ColorWheelWidget(ctk.CTkFrame):
         if self.on_color_change:
             self.on_color_change(self.current_color)
     
+    def _on_hsv_change(self):
+        """Handle HSV slider changes"""
+        h = int(self.h_slider.get()) / 360.0
+        s = int(self.s_slider.get()) / 100.0
+        v = int(self.v_slider.get()) / 100.0
+        
+        r, g, b = colorsys.hsv_to_rgb(h, s, v)
+        r, g, b = int(r * 255), int(g * 255), int(b * 255)
+        
+        self.rgb = (r, g, b)
+        self.current_color = self._rgb_to_hex(r, g, b)
+        
+        self.r_slider.set(r)
+        self.g_slider.set(g)
+        self.b_slider.set(b)
+        self.r_label.configure(text=str(r))
+        self.g_label.configure(text=str(g))
+        self.b_label.configure(text=str(b))
+        self.h_label.configure(text=f"{int(self.h_slider.get())}°")
+        self.s_label.configure(text=f"{int(self.s_slider.get())}%")
+        self.v_label.configure(text=f"{int(self.v_slider.get())}%")
+        self.hex_var.set(self.current_color)
+        self.preview.configure(fg_color=self.current_color)
+        
+        self._add_to_recent(self.current_color)
+        
+        if self.on_color_change:
+            self.on_color_change(self.current_color)
     def _on_hex_change(self):
         hex_value = self.hex_var.get().strip()
         if not hex_value.startswith('#'):
@@ -273,6 +354,14 @@ class ColorWheelWidget(ctk.CTkFrame):
         self.b_label.configure(text=str(b))
         self.hex_var.set(self.current_color)
         self.preview.configure(fg_color=self.current_color)
+        # Sync HSV sliders
+        h, s, v = colorsys.rgb_to_hsv(r / 255.0, g / 255.0, b / 255.0)
+        self.h_slider.set(int(h * 360))
+        self.s_slider.set(int(s * 100))
+        self.v_slider.set(int(v * 100))
+        self.h_label.configure(text=f"{int(h * 360)}°")
+        self.s_label.configure(text=f"{int(s * 100)}%")
+        self.v_label.configure(text=f"{int(v * 100)}%")
     
     def _add_to_recent(self, color: str):
         if color in self.recent_colors:
@@ -1195,7 +1284,7 @@ class ThemeManager(ctk.CTkFrame):
 
 
 class SettingsPanel(ctk.CTkFrame):
-    """Settings panel for tooltip mode and sound controls"""
+    """Settings panel for tooltip mode"""
     
     def __init__(self, master, on_settings_change=None):
         super().__init__(master)
@@ -1255,29 +1344,53 @@ class SettingsPanel(ctk.CTkFrame):
                 font=("Arial", 9),
                 text_color="gray"
             ).pack(side="left", padx=5)
+    
+    def _on_tooltip_mode_change(self):
+        mode = self.tooltip_mode_var.get()
+        if self.on_settings_change:
+            self.on_settings_change('tooltip_mode', mode)
+    
+    def get_settings(self) -> Dict[str, Any]:
+        return {
+            'tooltip_mode': self.tooltip_mode_var.get(),
+        }
+    
+    def set_settings(self, settings: Dict[str, Any]):
+        if 'tooltip_mode' in settings:
+            self.tooltip_mode_var.set(settings['tooltip_mode'])
+
+
+class SoundSettingsPanel(ctk.CTkFrame):
+    """Dedicated sound settings panel with full controls"""
+    
+    def __init__(self, master, on_settings_change=None):
+        super().__init__(master)
+        self.on_settings_change = on_settings_change
         
-        # Sound Settings Section
-        sound_frame = ctk.CTkFrame(self)
-        sound_frame.pack(fill="x", padx=10, pady=10)
+        self._create_widgets()
+    
+    def _create_widgets(self):
+        scroll_frame = ctk.CTkScrollableFrame(self)
+        scroll_frame.pack(fill="both", expand=True, padx=5, pady=5)
         
         ctk.CTkLabel(
-            sound_frame,
+            scroll_frame,
             text="🔊 Sound Settings",
-            font=("Arial Bold", 13)
+            font=("Arial Bold", 14)
         ).pack(pady=(10, 5))
         
         # Sound Enable/Disable
         self.sound_enabled_var = ctk.BooleanVar(value=True)
         sound_toggle = ctk.CTkCheckBox(
-            sound_frame,
+            scroll_frame,
             text="Enable Sound Effects",
             variable=self.sound_enabled_var,
             command=self._on_sound_toggle
         )
         sound_toggle.pack(pady=5, padx=20, anchor="w")
         
-        # Volume Slider
-        volume_container = ctk.CTkFrame(sound_frame)
+        # Master Volume Slider
+        volume_container = ctk.CTkFrame(scroll_frame)
         volume_container.pack(fill="x", padx=20, pady=10)
         
         volume_label_frame = ctk.CTkFrame(volume_container)
@@ -1285,7 +1398,7 @@ class SettingsPanel(ctk.CTkFrame):
         
         ctk.CTkLabel(
             volume_label_frame,
-            text="Volume:",
+            text="Master Volume:",
             font=("Arial", 11)
         ).pack(side="left", padx=5)
         
@@ -1305,11 +1418,92 @@ class SettingsPanel(ctk.CTkFrame):
         )
         self.volume_slider.set(100)
         self.volume_slider.pack(fill="x", pady=5)
-    
-    def _on_tooltip_mode_change(self):
-        mode = self.tooltip_mode_var.get()
-        if self.on_settings_change:
-            self.on_settings_change('tooltip_mode', mode)
+        
+        # Effects Volume
+        effects_container = ctk.CTkFrame(scroll_frame)
+        effects_container.pack(fill="x", padx=20, pady=5)
+        
+        effects_label_frame = ctk.CTkFrame(effects_container)
+        effects_label_frame.pack(fill="x")
+        
+        ctk.CTkLabel(effects_label_frame, text="Effects Volume:", font=("Arial", 11)).pack(side="left", padx=5)
+        self.effects_value_label = ctk.CTkLabel(effects_label_frame, text="100%", font=("Arial", 11))
+        self.effects_value_label.pack(side="right", padx=5)
+        
+        self.effects_slider = ctk.CTkSlider(effects_container, from_=0, to=100, number_of_steps=100,
+                                            command=self._on_effects_volume_change)
+        self.effects_slider.set(100)
+        self.effects_slider.pack(fill="x", pady=5)
+        
+        # Notifications Volume
+        notif_container = ctk.CTkFrame(scroll_frame)
+        notif_container.pack(fill="x", padx=20, pady=5)
+        
+        notif_label_frame = ctk.CTkFrame(notif_container)
+        notif_label_frame.pack(fill="x")
+        
+        ctk.CTkLabel(notif_label_frame, text="Notifications Volume:", font=("Arial", 11)).pack(side="left", padx=5)
+        self.notif_value_label = ctk.CTkLabel(notif_label_frame, text="100%", font=("Arial", 11))
+        self.notif_value_label.pack(side="right", padx=5)
+        
+        self.notif_slider = ctk.CTkSlider(notif_container, from_=0, to=100, number_of_steps=100,
+                                          command=self._on_notif_volume_change)
+        self.notif_slider.set(100)
+        self.notif_slider.pack(fill="x", pady=5)
+        
+        # Sound Pack Selection
+        pack_frame = ctk.CTkFrame(scroll_frame)
+        pack_frame.pack(fill="x", padx=10, pady=10)
+        
+        ctk.CTkLabel(pack_frame, text="🎵 Sound Pack:", font=("Arial Bold", 12)).pack(anchor="w", padx=10, pady=5)
+        
+        self.sound_pack_var = ctk.StringVar(value="default")
+        pack_options = [
+            ("🔔 Default", "default", "Standard sound effects for all events"),
+            ("🔕 Minimal", "minimal", "Quiet, subtle sound effects"),
+            ("🤪 Vulgar", "vulgar", "Fun, aggressive sound effects"),
+        ]
+        
+        for label, value, description in pack_options:
+            radio_frame = ctk.CTkFrame(pack_frame)
+            radio_frame.pack(fill="x", padx=20, pady=2)
+            
+            radio = ctk.CTkRadioButton(
+                radio_frame, text=label, variable=self.sound_pack_var,
+                value=value, command=self._on_sound_pack_change
+            )
+            radio.pack(side="left", padx=5)
+            
+            ctk.CTkLabel(radio_frame, text=f"- {description}", font=("Arial", 9),
+                        text_color="gray").pack(side="left", padx=5)
+        
+        # Individual Sound Muting
+        mute_frame = ctk.CTkFrame(scroll_frame)
+        mute_frame.pack(fill="x", padx=10, pady=10)
+        
+        ctk.CTkLabel(mute_frame, text="🔇 Mute Individual Sounds:", font=("Arial Bold", 12)).pack(anchor="w", padx=10, pady=5)
+        
+        self.mute_vars = {}
+        sound_events = [
+            ("complete", "✅ Completion Sound"),
+            ("error", "❌ Error Sound"),
+            ("achievement", "🏆 Achievement Sound"),
+            ("milestone", "📊 Milestone Sound"),
+            ("warning", "⚠️ Warning Sound"),
+            ("start", "▶️ Start Sound"),
+            ("pause", "⏸ Pause Sound"),
+            ("resume", "⏯ Resume Sound"),
+            ("stop", "⏹ Stop Sound"),
+            ("button_click", "🖱️ Button Click Sound"),
+            ("notification", "🔔 Notification Sound"),
+        ]
+        
+        for event_id, event_label in sound_events:
+            var = ctk.BooleanVar(value=True)  # True = enabled (not muted)
+            self.mute_vars[event_id] = var
+            cb = ctk.CTkCheckBox(mute_frame, text=event_label, variable=var,
+                                command=lambda eid=event_id: self._on_mute_toggle(eid))
+            cb.pack(pady=2, padx=20, anchor="w")
     
     def _on_sound_toggle(self):
         enabled = self.sound_enabled_var.get()
@@ -1322,22 +1516,45 @@ class SettingsPanel(ctk.CTkFrame):
         if self.on_settings_change:
             self.on_settings_change('volume', volume / 100.0)
     
+    def _on_effects_volume_change(self, value):
+        volume = int(value)
+        self.effects_value_label.configure(text=f"{volume}%")
+        if self.on_settings_change:
+            self.on_settings_change('effects_volume', volume / 100.0)
+    
+    def _on_notif_volume_change(self, value):
+        volume = int(value)
+        self.notif_value_label.configure(text=f"{volume}%")
+        if self.on_settings_change:
+            self.on_settings_change('notifications_volume', volume / 100.0)
+    
+    def _on_sound_pack_change(self):
+        pack = self.sound_pack_var.get()
+        if self.on_settings_change:
+            self.on_settings_change('sound_pack', pack)
+    
+    def _on_mute_toggle(self, event_id):
+        enabled = self.mute_vars[event_id].get()
+        if self.on_settings_change:
+            self.on_settings_change('mute_sound', {'event': event_id, 'enabled': enabled})
+    
     def get_settings(self) -> Dict[str, Any]:
         return {
-            'tooltip_mode': self.tooltip_mode_var.get(),
             'sound_enabled': self.sound_enabled_var.get(),
-            'volume': self.volume_slider.get() / 100.0
+            'volume': self.volume_slider.get() / 100.0,
+            'sound_pack': self.sound_pack_var.get(),
+            'muted_sounds': {k: not v.get() for k, v in self.mute_vars.items()}
         }
     
     def set_settings(self, settings: Dict[str, Any]):
-        if 'tooltip_mode' in settings:
-            self.tooltip_mode_var.set(settings['tooltip_mode'])
         if 'sound_enabled' in settings:
             self.sound_enabled_var.set(settings['sound_enabled'])
         if 'volume' in settings:
             volume = int(settings['volume'] * 100)
             self.volume_slider.set(volume)
             self.volume_value_label.configure(text=f"{volume}%")
+        if 'sound_pack' in settings:
+            self.sound_pack_var.set(settings['sound_pack'])
 
 
 class CustomizationPanel(ctk.CTkFrame):
@@ -1359,6 +1576,7 @@ class CustomizationPanel(ctk.CTkFrame):
         tab_theme = self.tabview.add("🎨 Themes")
         tab_colors = self.tabview.add("🎨 Colors")
         tab_cursor = self.tabview.add("🖱️ Cursor")
+        tab_sound = self.tabview.add("🔊 Sound")
         tab_settings = self.tabview.add("⚙️ Settings")
         
         self.theme_manager = ThemeManager(tab_theme, on_theme_apply=self._on_theme_change)
@@ -1369,6 +1587,9 @@ class CustomizationPanel(ctk.CTkFrame):
         
         self.cursor_customizer = CursorCustomizer(tab_cursor, on_cursor_change=self._on_cursor_change)
         self.cursor_customizer.pack(fill="both", expand=True, padx=10, pady=10)
+        
+        self.sound_panel = SoundSettingsPanel(tab_sound, on_settings_change=self._on_setting_change)
+        self.sound_panel.pack(fill="both", expand=True, padx=10, pady=10)
         
         self.settings_panel = SettingsPanel(tab_settings, on_settings_change=self._on_setting_change)
         self.settings_panel.pack(fill="both", expand=True, padx=10, pady=10)

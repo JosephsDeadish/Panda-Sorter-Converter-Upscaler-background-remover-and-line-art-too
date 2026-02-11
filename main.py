@@ -392,6 +392,10 @@ class PS2TextureSorter(ctk.CTk):
         self._thumbnail_cache = OrderedDict()
         self._thumbnail_cache_max = config.get('performance', 'thumbnail_cache_size', default=500)
         
+        # Sorting dialog state flags (thread-safe events)
+        self._sorting_skip_all = threading.Event()
+        self._sorting_cancelled = threading.Event()
+        
         # Initialize features if GUI available
         if GUI_AVAILABLE:
             try:
@@ -407,6 +411,13 @@ class PS2TextureSorter(ctk.CTk):
                 
                 if SOUND_AVAILABLE:
                     self.sound_manager = SoundManager()
+                    # Load saved sound settings from config
+                    try:
+                        sound_config = config.get('sound', default={})
+                        if sound_config:
+                            self.sound_manager.apply_config(sound_config)
+                    except Exception as se:
+                        logger.debug(f"Could not load sound config: {se}")
                 if ACHIEVEMENTS_AVAILABLE:
                     achievements_save = str(Path.home() / ".ps2_texture_sorter" / "achievements.json")
                     self.achievement_manager = AchievementSystem(save_file=achievements_save)
@@ -556,7 +567,16 @@ class PS2TextureSorter(ctk.CTk):
             if theme in ['dark', 'light']:
                 ctk.set_appearance_mode(theme)
             else:
-                ctk.set_appearance_mode('dark')
+                # Check if it's a custom theme preset and apply its appearance mode
+                try:
+                    from src.ui.customization_panel import THEME_PRESETS
+                    if theme in THEME_PRESETS:
+                        preset = THEME_PRESETS[theme]
+                        ctk.set_appearance_mode(preset.get("appearance_mode", "dark"))
+                    else:
+                        ctk.set_appearance_mode('dark')
+                except ImportError:
+                    ctk.set_appearance_mode('dark')
             
             ctk.set_default_color_theme("blue")
             
@@ -569,11 +589,39 @@ class PS2TextureSorter(ctk.CTk):
                 ctk.set_window_scaling(scale_factor)
             except Exception as scale_err:
                 print(f"Warning: Failed to apply UI scaling: {scale_err}")
+            
+            # Restore saved theme colors after widgets are created
+            saved_colors = config.get('ui', 'theme_colors', default=None)
+            if saved_colors and theme not in ['dark', 'light']:
+                self.after(500, lambda: self._apply_saved_theme_colors(saved_colors))
+            
+            # Restore saved cursor settings
+            cursor_type = config.get('ui', 'cursor', default='default')
+            if cursor_type and cursor_type != 'default':
+                self.after(600, lambda: self._apply_cursor_to_widget(self, cursor_type))
+            
+            cursor_trail = config.get('ui', 'cursor_trail', default=False)
+            if cursor_trail:
+                trail_color = config.get('ui', 'cursor_trail_color', default='rainbow')
+                self.after(700, lambda: self._setup_cursor_trail(True, trail_color=trail_color))
                 
         except Exception as e:
             print(f"Warning: Failed to load theme: {e}")
             ctk.set_appearance_mode("dark")
             ctk.set_default_color_theme("blue")
+    
+    def _apply_saved_theme_colors(self, colors):
+        """Apply saved theme colors to all existing widgets"""
+        try:
+            if 'background' in colors:
+                try:
+                    self.configure(fg_color=colors['background'])
+                except Exception:
+                    pass
+            for widget in self.winfo_children():
+                self._apply_theme_to_widget(widget, colors)
+        except Exception as e:
+            logger.debug(f"Could not restore saved theme colors: {e}")
     
     def create_menu(self):
         """Create top menu bar (simulated with frame)"""
@@ -1111,28 +1159,34 @@ class PS2TextureSorter(ctk.CTk):
         
         # Mode selection
         ctk.CTkLabel(opts_grid, text="Mode:").grid(row=0, column=0, padx=10, pady=5, sticky="w")
-        self.mode_var = ctk.StringVar(value="automatic")
+        self.mode_var = ctk.StringVar(value="🤖 automatic")
         mode_menu = ctk.CTkOptionMenu(opts_grid, variable=self.mode_var, 
-                                       values=["automatic", "manual", "suggested"])
+                                       values=["🤖 automatic", "✋ manual", "💡 suggested"])
         mode_menu.grid(row=0, column=1, padx=10, pady=5, sticky="w")
         
         # Organization style (default: flat - simplest for new users)
         ctk.CTkLabel(opts_grid, text="Style:").grid(row=0, column=2, padx=10, pady=5, sticky="w")
         # Map display names to internal style keys
         self._style_display_to_key = {
-            "Simple Flat (Category Only)": "flat",
-            "Minimalist (Category → Files)": "minimalist",
-            "By Character Traits (Gender/Skin/Body)": "sims",
-            "By Type & Variant (Category/Type/File)": "neopets",
-            "By Game Area (Level/Area/Type)": "game_area",
-            "By Asset Pipeline (Type/Resolution/Format)": "asset_pipeline",
-            "By Module (Characters/Vehicles/UI/etc.)": "modular",
-            "Maximum Detail (Deep Hierarchy)": "maximum_detail",
-            "Custom (User-Defined)": "custom",
+            "📁 Simple Flat (Category Only)": "flat",
+            "📋 Minimalist (Category → Files)": "minimalist",
+            "👤 By Character Traits (Gender/Skin/Body)": "sims",
+            "🏷️ By Type & Variant (Category/Type/File)": "neopets",
+            "🗺️ By Game Area (Level/Area/Type)": "game_area",
+            "⚙️ By Asset Pipeline (Type/Resolution/Format)": "asset_pipeline",
+            "🧩 By Module (Characters/Vehicles/UI/etc.)": "modular",
+            "🔬 Maximum Detail (Deep Hierarchy)": "maximum_detail",
+            "🛠️ Custom (User-Defined)": "custom",
         }
         self._style_key_to_display = {v: k for k, v in self._style_display_to_key.items()}
+        # Map for mode dropdown (strip emoji for internal use)
+        self._mode_display_to_key = {
+            "🤖 automatic": "automatic",
+            "✋ manual": "manual",
+            "💡 suggested": "suggested",
+        }
         style_display_names = list(self._style_display_to_key.keys())
-        self.style_var = ctk.StringVar(value="Simple Flat (Category Only)")
+        self.style_var = ctk.StringVar(value="📁 Simple Flat (Category Only)")
         style_menu = ctk.CTkOptionMenu(opts_grid, variable=self.style_var,
                                         values=style_display_names)
         style_menu.grid(row=0, column=3, padx=10, pady=5, sticky="w")
@@ -1189,21 +1243,21 @@ class PS2TextureSorter(ctk.CTk):
         self._tooltips.append(WidgetTooltip(browse_out_btn, tt('output_browse'), widget_id='output_browse', tooltip_manager=tm))
         self._tooltips.append(WidgetTooltip(mode_menu, 
             "Sorting mode:\n"
-            "• automatic – AI classifies textures automatically based on image content and filenames\n"
-            "• manual – You choose the category for each texture (AI shows suggestions)\n"
-            "• suggested – AI suggests, you confirm or change each classification"))
+            "• 🤖 automatic – AI classifies textures automatically based on image content and filenames\n"
+            "• ✋ manual – You choose the category for each texture (AI shows suggestions)\n"
+            "• 💡 suggested – AI suggests, you confirm or change each classification"))
 
         self._tooltips.append(WidgetTooltip(style_menu, 
             "Select how textures are organized:\n"
-            "• Simple Flat – All files in category folders\n"
-            "• Minimalist – Category → Files, minimal nesting\n"
-            "• By Character Traits – Gender/Skin/Body Part\n"
-            "• By Type & Variant – Category/Type/Individual\n"
-            "• By Game Area – Level/Area/Type/Asset\n"
-            "• By Asset Pipeline – Type/Resolution/Format\n"
-            "• By Module – Characters/Vehicles/UI/etc.\n"
-            "• Maximum Detail – Deep nested hierarchy\n"
-            "• Custom – User-defined rules",
+            "• 📁 Simple Flat – All files in category folders\n"
+            "• 📋 Minimalist – Category → Files, minimal nesting\n"
+            "• 👤 By Character Traits – Gender/Skin/Body Part\n"
+            "• 🏷️ By Type & Variant – Category/Type/Individual\n"
+            "• 🗺️ By Game Area – Level/Area/Type/Asset\n"
+            "• ⚙️ By Asset Pipeline – Type/Resolution/Format\n"
+            "• 🧩 By Module – Characters/Vehicles/UI/etc.\n"
+            "• 🔬 Maximum Detail – Deep nested hierarchy\n"
+            "• 🛠️ Custom – User-defined rules",
             widget_id='style_dropdown', tooltip_manager=tm))
         self._tooltips.append(WidgetTooltip(detect_lods_cb, tt('lod_detection') or "Automatically detect Level of Detail (LOD) textures", widget_id='lod_detection', tooltip_manager=tm))
         self._tooltips.append(WidgetTooltip(group_lods_cb, tt('group_lods') or "Group LOD textures together in folders", widget_id='group_lods', tooltip_manager=tm))
@@ -2113,19 +2167,70 @@ class PS2TextureSorter(ctk.CTk):
             elif setting_type == 'sound_enabled':
                 # Apply sound toggle
                 try:
-                    config.set('ui', 'sound_enabled', value=value)
+                    config.set('sound', 'enabled', value=value)
                     config.save()
+                    if self.sound_manager:
+                        if value:
+                            self.sound_manager.unmute()
+                        else:
+                            self.sound_manager.mute()
                     self.log(f"✅ Sound {'enabled' if value else 'disabled'}")
                 except Exception as sound_err:
                     logger.debug(f"Could not save sound setting: {sound_err}")
                 
             elif setting_type == 'volume':
-                # Apply volume change
+                # Apply master volume change
                 try:
-                    config.set('ui', 'volume', value=value)
+                    config.set('sound', 'master_volume', value=value)
                     config.save()
+                    if self.sound_manager:
+                        self.sound_manager.set_master_volume(value)
                 except Exception as vol_err:
                     logger.debug(f"Could not save volume setting: {vol_err}")
+            
+            elif setting_type == 'effects_volume':
+                try:
+                    config.set('sound', 'effects_volume', value=value)
+                    config.save()
+                    if self.sound_manager:
+                        self.sound_manager.set_effects_volume(value)
+                except Exception as vol_err:
+                    logger.debug(f"Could not save effects volume: {vol_err}")
+            
+            elif setting_type == 'notifications_volume':
+                try:
+                    config.set('sound', 'notifications_volume', value=value)
+                    config.save()
+                    if self.sound_manager:
+                        self.sound_manager.set_notifications_volume(value)
+                except Exception as vol_err:
+                    logger.debug(f"Could not save notifications volume: {vol_err}")
+            
+            elif setting_type == 'sound_pack':
+                try:
+                    config.set('sound', 'sound_pack', value=value)
+                    config.save()
+                    if self.sound_manager:
+                        from src.features.sound_manager import SoundPack
+                        try:
+                            pack = SoundPack(value)
+                            self.sound_manager.set_sound_pack(pack)
+                        except ValueError:
+                            pass
+                    self.log(f"✅ Sound pack changed to: {value}")
+                except Exception as pack_err:
+                    logger.debug(f"Could not save sound pack: {pack_err}")
+            
+            elif setting_type == 'mute_sound':
+                try:
+                    event_id = value.get('event', '')
+                    enabled = value.get('enabled', True)
+                    muted_sounds = config.get('sound', 'muted_sounds', default={})
+                    muted_sounds[event_id] = not enabled
+                    config.set('sound', 'muted_sounds', value=muted_sounds)
+                    config.save()
+                except Exception as mute_err:
+                    logger.debug(f"Could not save mute setting: {mute_err}")
                 
         except Exception as e:
             self.log(f"❌ Error applying customization: {e}")
@@ -4835,7 +4940,8 @@ Built with:
             # Read ALL tkinter variable values BEFORE starting thread (thread-safety fix)
             input_path = self.input_path_var.get()
             output_path = self.output_path_var.get()
-            mode = self.mode_var.get()
+            mode_display = self.mode_var.get()
+            mode = self._mode_display_to_key.get(mode_display, mode_display.split(" ", 1)[-1] if " " in mode_display else mode_display)
             style_display = self.style_var.get()
             style = self._style_display_to_key.get(style_display, "flat")
             detect_lods = self.detect_lods_var.get()
@@ -4868,6 +4974,10 @@ Built with:
             self.pause_button.configure(state="normal")
             self.stop_button.configure(state="normal")
             logger.debug("UI buttons state updated - sorting controls enabled")
+            
+            # Reset sorting dialog state flags
+            self._sorting_skip_all.clear()
+            self._sorting_cancelled.clear()
             
             # Start sorting in background thread with all parameters
             try:
@@ -4942,171 +5052,258 @@ Built with:
                     
                     elif mode == "manual":
                         # Manual: User selects category for each file
-                        # Get AI suggestion first (for display only)
-                        ai_category, ai_confidence = self.classifier.classify_texture(file_path)
-                        
-                        # Show dialog and wait for result using event-based approach
-                        result_event = threading.Event()
-                        selected_category = [None]  # Use list to allow modification in nested function
-                        
-                        def show_manual_dialog():
-                            """Show manual classification dialog"""
-                            # Get sorted category list
-                            category_list = sorted(list(ALL_CATEGORIES.keys()))
-                            
-                            # Create a simple selection dialog
-                            dialog_window = ctk.CTkToplevel(self)
-                            dialog_window.title("Manual Classification")
-                            dialog_window.geometry("500x400")
-                            
-                            # Make modal
-                            dialog_window.transient(self)
-                            dialog_window.grab_set()
-                            
-                            # Center on screen
-                            dialog_window.update_idletasks()
-                            x = (dialog_window.winfo_screenwidth() // 2) - (500 // 2)
-                            y = (dialog_window.winfo_screenheight() // 2) - (400 // 2)
-                            dialog_window.geometry(f"500x400+{x}+{y}")
-                            
-                            # Message
-                            ctk.CTkLabel(dialog_window, text=f"File: {file_path.name}", 
-                                       font=("Arial Bold", 12), wraplength=450).pack(pady=10)
-                            ctk.CTkLabel(dialog_window, 
-                                       text=f"AI Suggestion: {ai_category} ({ai_confidence:.0%} confidence)",
-                                       font=("Arial", 11)).pack(pady=5)
-                            
-                            # Category selection
-                            ctk.CTkLabel(dialog_window, text="Select Category:", 
-                                       font=("Arial Bold", 11)).pack(pady=10)
-                            
-                            category_var = ctk.StringVar(value=ai_category)
-                            category_dropdown = ctk.CTkOptionMenu(dialog_window, variable=category_var,
-                                                                 values=category_list, width=400)
-                            category_dropdown.pack(pady=10)
-                            
-                            # Buttons
-                            button_frame = ctk.CTkFrame(dialog_window)
-                            button_frame.pack(pady=20)
-                            
-                            def on_ok():
-                                selected_category[0] = category_var.get()
-                                dialog_window.destroy()
-                                result_event.set()
-                            
-                            def on_skip():
-                                selected_category[0] = "unclassified"
-                                dialog_window.destroy()
-                                result_event.set()
-                            
-                            ctk.CTkButton(button_frame, text="OK", command=on_ok, width=100).pack(side="left", padx=5)
-                            ctk.CTkButton(button_frame, text="Skip", command=on_skip, width=100).pack(side="left", padx=5)
-                            
-                            # Handle dialog close
-                            def on_close():
-                                selected_category[0] = "unclassified"
-                                result_event.set()
-                            dialog_window.protocol("WM_DELETE_WINDOW", on_close)
-                        
-                        # Execute dialog in main thread
-                        self.after(0, show_manual_dialog)
-                        
-                        # Wait for result using event
-                        if result_event.wait(timeout=self.USER_INTERACTION_TIMEOUT):
-                            category = selected_category[0] if selected_category[0] else ai_category
-                            confidence = 1.0  # User selection is 100% confident
+                        # Check skip_all flag
+                        if self._sorting_skip_all.is_set():
+                            category, confidence = self.classifier.classify_texture(file_path)
+                            if i == 0 or (i > 0 and not hasattr(self, '_skip_all_logged')):
+                                self.log("⏩ Skip All active - using automatic classification for remaining files")
+                                self._skip_all_logged = True
+                        elif self._sorting_cancelled.is_set():
+                            self.log("⚠️ Sorting cancelled by user")
+                            return
                         else:
-                            # Timeout - use AI suggestion
-                            category = ai_category
-                            confidence = ai_confidence
-                            logger.warning(f"Manual classification timed out for {file_path.name}")
+                            # Get AI suggestion first (for display only)
+                            ai_category, ai_confidence = self.classifier.classify_texture(file_path)
+                            
+                            # Show dialog and wait for result using event-based approach
+                            result_event = threading.Event()
+                            selected_category = [None]  # Use list to allow modification in nested function
+                            
+                            def show_manual_dialog():
+                                """Show manual classification dialog"""
+                                # Get sorted category list
+                                category_list = sorted(list(ALL_CATEGORIES.keys()))
+                                
+                                # Create a simple selection dialog
+                                dialog_window = ctk.CTkToplevel(self)
+                                dialog_window.title("Manual Classification")
+                                dialog_window.geometry("550x500")
+                                
+                                # Make modal
+                                dialog_window.transient(self)
+                                dialog_window.grab_set()
+                                
+                                # Center on screen
+                                dialog_window.update_idletasks()
+                                x = (dialog_window.winfo_screenwidth() // 2) - (550 // 2)
+                                y = (dialog_window.winfo_screenheight() // 2) - (500 // 2)
+                                dialog_window.geometry(f"550x500+{x}+{y}")
+                                
+                                # File info with counter
+                                ctk.CTkLabel(dialog_window, text=f"File {i+1} of {total}: {file_path.name}", 
+                                           font=("Arial Bold", 12), wraplength=500).pack(pady=10)
+                                
+                                # Texture preview
+                                try:
+                                    from PIL import Image, ImageTk
+                                    img = Image.open(str(file_path))
+                                    img.thumbnail((150, 150))
+                                    preview_photo = ImageTk.PhotoImage(img)
+                                    preview_label = ctk.CTkLabel(dialog_window, text="", image=preview_photo)
+                                    preview_label.image = preview_photo  # Keep reference
+                                    preview_label.pack(pady=5)
+                                except Exception:
+                                    ctk.CTkLabel(dialog_window, text="[Preview unavailable]",
+                                               font=("Arial", 10), text_color="gray").pack(pady=5)
+                                
+                                ctk.CTkLabel(dialog_window, 
+                                           text=f"AI Suggestion: {ai_category} ({ai_confidence:.0%} confidence)",
+                                           font=("Arial", 11)).pack(pady=5)
+                                
+                                # Category selection
+                                ctk.CTkLabel(dialog_window, text="Select Category:", 
+                                           font=("Arial Bold", 11)).pack(pady=10)
+                                
+                                category_var = ctk.StringVar(value=ai_category)
+                                category_dropdown = ctk.CTkOptionMenu(dialog_window, variable=category_var,
+                                                                     values=category_list, width=400)
+                                category_dropdown.pack(pady=10)
+                                
+                                # Buttons
+                                button_frame = ctk.CTkFrame(dialog_window)
+                                button_frame.pack(pady=20)
+                                
+                                def on_ok():
+                                    selected_category[0] = category_var.get()
+                                    dialog_window.destroy()
+                                    result_event.set()
+                                
+                                def on_skip():
+                                    selected_category[0] = "unclassified"
+                                    dialog_window.destroy()
+                                    result_event.set()
+                                
+                                def on_skip_all():
+                                    self._sorting_skip_all.set()
+                                    selected_category[0] = "unclassified"
+                                    dialog_window.destroy()
+                                    result_event.set()
+                                
+                                def on_cancel():
+                                    self._sorting_cancelled.set()
+                                    selected_category[0] = None
+                                    dialog_window.destroy()
+                                    result_event.set()
+                                
+                                ctk.CTkButton(button_frame, text="✓ OK", command=on_ok, width=80).pack(side="left", padx=3)
+                                ctk.CTkButton(button_frame, text="⏭ Skip", command=on_skip, width=80).pack(side="left", padx=3)
+                                ctk.CTkButton(button_frame, text="⏩ Skip All", command=on_skip_all, width=90, 
+                                            fg_color="orange").pack(side="left", padx=3)
+                                ctk.CTkButton(button_frame, text="✖ Cancel", command=on_cancel, width=80,
+                                            fg_color="red").pack(side="left", padx=3)
+                                
+                                # Handle dialog close
+                                def on_close():
+                                    selected_category[0] = "unclassified"
+                                    result_event.set()
+                                dialog_window.protocol("WM_DELETE_WINDOW", on_close)
+                            
+                            # Execute dialog in main thread
+                            self.after(0, show_manual_dialog)
+                            
+                            # Wait for result using event
+                            if result_event.wait(timeout=self.USER_INTERACTION_TIMEOUT):
+                                if self._sorting_cancelled.is_set():
+                                    self.log("⚠️ Sorting cancelled by user")
+                                    return
+                                category = selected_category[0] if selected_category[0] else ai_category
+                                confidence = 1.0  # User selection is 100% confident
+                            else:
+                                # Timeout - use AI suggestion
+                                category = ai_category
+                                confidence = ai_confidence
+                                logger.warning(f"Manual classification timed out for {file_path.name}")
                     
                     elif mode == "suggested":
                         # Suggested: AI suggests, user confirms or changes
                         ai_category, ai_confidence = self.classifier.classify_texture(file_path)
                         
-                        # Show confirmation dialog using event-based approach
-                        result_event = threading.Event()
-                        confirmed_category = [None]
-                        
-                        def show_suggested_dialog():
-                            """Show suggested classification dialog"""
-                            # Get sorted category list
-                            category_list = sorted(list(ALL_CATEGORIES.keys()))
-                            
-                            dialog_window = ctk.CTkToplevel(self)
-                            dialog_window.title("Confirm Classification")
-                            dialog_window.geometry("500x350")
-                            
-                            # Make modal
-                            dialog_window.transient(self)
-                            dialog_window.grab_set()
-                            
-                            # Center on screen
-                            dialog_window.update_idletasks()
-                            x = (dialog_window.winfo_screenwidth() // 2) - (500 // 2)
-                            y = (dialog_window.winfo_screenheight() // 2) - (350 // 2)
-                            dialog_window.geometry(f"500x350+{x}+{y}")
-                            
-                            # Message
-                            ctk.CTkLabel(dialog_window, text=f"File: {file_path.name}", 
-                                       font=("Arial Bold", 12), wraplength=450).pack(pady=10)
-                            ctk.CTkLabel(dialog_window, 
-                                       text=f"AI Classification: {ai_category} ({ai_confidence:.0%} confidence)",
-                                       font=("Arial Bold", 13), text_color="green").pack(pady=10)
-                            
-                            ctk.CTkLabel(dialog_window, text="Change category if incorrect:", 
-                                       font=("Arial", 11)).pack(pady=5)
-                            
-                            category_var = ctk.StringVar(value=ai_category)
-                            category_dropdown = ctk.CTkOptionMenu(dialog_window, variable=category_var,
-                                                                 values=category_list, width=400)
-                            category_dropdown.pack(pady=10)
-                            
-                            # Buttons
-                            button_frame = ctk.CTkFrame(dialog_window)
-                            button_frame.pack(pady=20)
-                            
-                            def on_accept():
-                                confirmed_category[0] = ai_category
-                                dialog_window.destroy()
-                                result_event.set()
-                            
-                            def on_change():
-                                confirmed_category[0] = category_var.get()
-                                dialog_window.destroy()
-                                result_event.set()
-                            
-                            def on_skip():
-                                confirmed_category[0] = "unclassified"
-                                dialog_window.destroy()
-                                result_event.set()
-                            
-                            ctk.CTkButton(button_frame, text="✓ Accept", command=on_accept, 
-                                        width=100, fg_color="green").pack(side="left", padx=5)
-                            ctk.CTkButton(button_frame, text="Change", command=on_change, 
-                                        width=100).pack(side="left", padx=5)
-                            ctk.CTkButton(button_frame, text="Skip", command=on_skip, 
-                                        width=100).pack(side="left", padx=5)
-                            
-                            # Handle dialog close
-                            def on_close():
-                                confirmed_category[0] = "unclassified"
-                                result_event.set()
-                            dialog_window.protocol("WM_DELETE_WINDOW", on_close)
-                        
-                        # Execute dialog in main thread
-                        self.after(0, show_suggested_dialog)
-                        
-                        # Wait for confirmation using event
-                        if result_event.wait(timeout=self.USER_INTERACTION_TIMEOUT):
-                            category = confirmed_category[0] if confirmed_category[0] else ai_category
-                            confidence = 1.0  # User confirmation is 100% confident
-                        else:
-                            # Timeout - use AI suggestion
+                        # Check skip_all flag
+                        if self._sorting_skip_all.is_set():
                             category = ai_category
                             confidence = ai_confidence
-                            logger.warning(f"Suggested classification timed out for {file_path.name}")
+                            if not hasattr(self, '_skip_all_logged'):
+                                self.log("⏩ Skip All active - accepting AI suggestions for remaining files")
+                                self._skip_all_logged = True
+                        elif self._sorting_cancelled.is_set():
+                            self.log("⚠️ Sorting cancelled by user")
+                            return
+                        else:
+                            # Show confirmation dialog using event-based approach
+                            result_event = threading.Event()
+                            confirmed_category = [None]
+                            
+                            def show_suggested_dialog():
+                                """Show suggested classification dialog"""
+                                # Get sorted category list
+                                category_list = sorted(list(ALL_CATEGORIES.keys()))
+                                
+                                dialog_window = ctk.CTkToplevel(self)
+                                dialog_window.title("Confirm Classification")
+                                dialog_window.geometry("550x450")
+                                
+                                # Make modal
+                                dialog_window.transient(self)
+                                dialog_window.grab_set()
+                                
+                                # Center on screen
+                                dialog_window.update_idletasks()
+                                x = (dialog_window.winfo_screenwidth() // 2) - (550 // 2)
+                                y = (dialog_window.winfo_screenheight() // 2) - (450 // 2)
+                                dialog_window.geometry(f"550x450+{x}+{y}")
+                                
+                                # File info with counter
+                                ctk.CTkLabel(dialog_window, text=f"File {i+1} of {total}: {file_path.name}", 
+                                           font=("Arial Bold", 12), wraplength=500).pack(pady=10)
+                                
+                                # Texture preview
+                                try:
+                                    from PIL import Image, ImageTk
+                                    img = Image.open(str(file_path))
+                                    img.thumbnail((150, 150))
+                                    preview_photo = ImageTk.PhotoImage(img)
+                                    preview_label = ctk.CTkLabel(dialog_window, text="", image=preview_photo)
+                                    preview_label.image = preview_photo  # Keep reference
+                                    preview_label.pack(pady=5)
+                                except Exception:
+                                    ctk.CTkLabel(dialog_window, text="[Preview unavailable]",
+                                               font=("Arial", 10), text_color="gray").pack(pady=5)
+                                
+                                ctk.CTkLabel(dialog_window, 
+                                           text=f"AI Classification: {ai_category} ({ai_confidence:.0%} confidence)",
+                                           font=("Arial Bold", 13), text_color="green").pack(pady=10)
+                                
+                                ctk.CTkLabel(dialog_window, text="Change category if incorrect:", 
+                                           font=("Arial", 11)).pack(pady=5)
+                                
+                                category_var = ctk.StringVar(value=ai_category)
+                                category_dropdown = ctk.CTkOptionMenu(dialog_window, variable=category_var,
+                                                                     values=category_list, width=400)
+                                category_dropdown.pack(pady=10)
+                                
+                                # Buttons
+                                button_frame = ctk.CTkFrame(dialog_window)
+                                button_frame.pack(pady=20)
+                                
+                                def on_accept():
+                                    confirmed_category[0] = ai_category
+                                    dialog_window.destroy()
+                                    result_event.set()
+                                
+                                def on_change():
+                                    confirmed_category[0] = category_var.get()
+                                    dialog_window.destroy()
+                                    result_event.set()
+                                
+                                def on_skip():
+                                    confirmed_category[0] = "unclassified"
+                                    dialog_window.destroy()
+                                    result_event.set()
+                                
+                                def on_skip_all():
+                                    self._sorting_skip_all.set()
+                                    confirmed_category[0] = ai_category
+                                    dialog_window.destroy()
+                                    result_event.set()
+                                
+                                def on_cancel():
+                                    self._sorting_cancelled.set()
+                                    confirmed_category[0] = None
+                                    dialog_window.destroy()
+                                    result_event.set()
+                                
+                                ctk.CTkButton(button_frame, text="✓ Accept", command=on_accept, 
+                                            width=80, fg_color="green").pack(side="left", padx=3)
+                                ctk.CTkButton(button_frame, text="✏ Change", command=on_change, 
+                                            width=80).pack(side="left", padx=3)
+                                ctk.CTkButton(button_frame, text="⏭ Skip", command=on_skip, 
+                                            width=80).pack(side="left", padx=3)
+                                ctk.CTkButton(button_frame, text="⏩ Skip All", command=on_skip_all, width=90,
+                                            fg_color="orange").pack(side="left", padx=3)
+                                ctk.CTkButton(button_frame, text="✖ Cancel", command=on_cancel, width=80,
+                                            fg_color="red").pack(side="left", padx=3)
+                                
+                                # Handle dialog close
+                                def on_close():
+                                    confirmed_category[0] = "unclassified"
+                                    result_event.set()
+                                dialog_window.protocol("WM_DELETE_WINDOW", on_close)
+                            
+                            # Execute dialog in main thread
+                            self.after(0, show_suggested_dialog)
+                            
+                            # Wait for confirmation using event
+                            if result_event.wait(timeout=self.USER_INTERACTION_TIMEOUT):
+                                if self._sorting_cancelled.is_set():
+                                    self.log("⚠️ Sorting cancelled by user")
+                                    return
+                                category = confirmed_category[0] if confirmed_category[0] else ai_category
+                                confidence = 1.0  # User confirmation is 100% confident
+                            else:
+                                # Timeout - use AI suggestion
+                                category = ai_category
+                                confidence = ai_confidence
+                                logger.warning(f"Suggested classification timed out for {file_path.name}")
                     
                     else:
                         # Fallback to automatic

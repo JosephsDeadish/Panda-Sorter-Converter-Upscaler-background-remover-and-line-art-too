@@ -1732,6 +1732,54 @@ class PandaCharacter:
    \\ (＿_/
     ⚪ ⚪
             """,
+            """
+    ∩＿＿∩
+    |ノ　　　　ヽ  🎉
+   /　◕　　◕ |
+  |　　　( _●_) ミ
+  彡､　　　|∪| ､｀＼
+ /　＿＿ ヽノ /´>　)
+  |　　 /　　　)
+  |　　/　　/
+   \\ (＿_/
+    ⚪ ⚪
+            """,
+            """
+    ∩＿＿∩
+    |ノ　　　　ヽ  🤩
+   /　★　　★ |
+  |　　　( _●_) ミ
+  彡､　　　|∪| ､｀＼
+ /　＿＿ ヽノ /´>　)
+  |　　 /　　　)
+  |　　/　　/
+   \\ (＿_/
+    ⚪ ⚪
+            """,
+            """
+    ∩＿＿∩
+    |ノ　　　　ヽ  🎊
+   /　◕　　◕ |
+  |　　　( _●_) ミ
+  彡､　　　|∪| ､｀＼
+ /　＿＿ ヽノ /´>　)
+  |　　 /　　　)
+  |　　/　　/
+   \\ (＿_/
+    ⚪ ⚪
+            """,
+            """
+    ∩＿＿∩
+    |ノ　　　　ヽ  🌟
+   /　>　　< |
+  |　　　( _●_) ミ
+  彡､　　　|∪| ､｀＼
+ /　＿＿ ヽノ /´>　)
+  |　　 /　　　)
+  |　　/　　/
+   \\ (＿_/
+    ⚪ ⚪
+            """,
         ],
         'fed': [
             """
@@ -1870,6 +1918,21 @@ class PandaCharacter:
         "🐼 *adjusts imaginary glasses* Professional panda, reporting!",
         "🐼 Living my best panda life! ✨",
         "🐼 Did you know pandas can climb trees? Cool, right?",
+        "🐼 *does a backflip* ...okay I fell. But it was graceful!",
+        "🐼 Ooh, that was a good click! 8/10 technique.",
+        "🐼 *spins around* Wheee! 🎉",
+        "🐼 I just had a great idea... wait, it's gone.",
+        "🐼 *flexes muscles* Check out these gains! 💪",
+        "🐼 You know what goes great with clicks? Bamboo! 🎋",
+        "🐼 *juggling imaginary bamboo* I'm multitalented!",
+        "🐼 Plot twist: I was the texture sorter all along!",
+        "🐼 *pretends to be busy* Very important panda business!",
+        "🐼 Every click makes me stronger! 🏋️",
+        "🐼 I give this click a ⭐⭐⭐⭐⭐ rating!",
+        "🐼 *slow clap* Bravo, great clicking form!",
+        "🐼 Fun fact: I've been clicked more times than I can count!",
+        "🐼 Is it bamboo o'clock yet? 🕐",
+        "🐼 *moonwalks* I've been practicing!",
     ]
 
     # Feed responses
@@ -2413,7 +2476,12 @@ class PandaCharacter:
                 self.set_mood(PandaMood.RAGE)
                 return self.EASTER_EGGS['panda_rage']
             
-            return random.choice(self.CLICK_RESPONSES)
+            response = random.choice(self.CLICK_RESPONSES)
+            # Replace generic panda references with custom name if renamed
+            if self.name != "Panda":
+                import re
+                response = re.sub(r'\bPanda\b', self.name, response)
+            return response
     
     def on_hover(self) -> str:
         """Handle mouse hovering over panda."""
