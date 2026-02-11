@@ -37,11 +37,16 @@ A professional, single-executable Windows application for automatically sorting 
 - **📌 Undockable Tabs** - Pop out any tab into its own window for multi-monitor setups
 
 ### Panda Companion
-- **🐼 Drag & Toss** - Drag the panda and throw it to watch it bounce off walls and floor
+- **🐼 Animated Canvas Rendering** - Smooth, animated panda drawn with 48 frames per animation cycle
+- **🎭 20+ Animations** - Including idle, dancing, celebrating, sleeping, working, spinning, shaking, rolling, cartwheel, backflip, stretching, waving, jumping, yawning, sneezing, tail wagging, and more
+- **🐾 Drag & Toss** - Drag the panda around the screen, throw it to watch it bounce with realistic physics
+- **🎮 Interactive** - Click for random reactions (waving, jumping, celebrating, etc.), pet by rubbing, shake, and spin
+- **🎨 Cursor Trail** - Optional colorful cursor trail effect with multiple color themes (rainbow, fire, ice, nature, galaxy, gold)
+- **📈 Leveling System** - Both you and the panda gain experience and level up through interactions
+- **👔 Full Customization** - Dress your panda with hats, clothing, shoes, and accessories that persist across all animations
+- **💬 Speech Bubbles** - Dynamic speech bubbles with context-aware responses
 - **🎭 13 Mood States** - Happy, excited, working, tired, celebrating, sleeping, sarcastic, rage, drunk, existential, motivating, tech_support, sleepy
-- **🎮 Interactive** - Click, pet, rub, shake, spin, feed, and dress up your panda
-- **📈 Leveling System** - Both you and the panda gain experience and level up
-- **👔 Outfit System** - Dress up your panda with unlocked hats, clothing, shoes, and accessories
+- **🎨 Advanced Animations** - Multiple eye styles (normal, happy, angry, squint, wink, surprised, dizzy, spinning) and mouth expressions (smile, grin, angry, eating, wavy, sleep)
 
 ### Performance
 - **⚡ Multi-threaded** - Utilize all CPU cores for scanning and processing
@@ -284,6 +289,26 @@ Output: `dist/PS2TextureSorter.exe`
 - Disable image analysis for speed
 - Use incremental processing mode
 
+**Theme switching causes invisible elements or unresponsive UI**
+- The application now includes automatic error handling and recovery
+- If issues persist, restart the application
+- Theme changes are saved and will be restored on next launch
+
+**Panda doesn't appear or is in wrong location**
+- The panda uses a separate transparent window and should appear in the bottom-right corner
+- Try dragging it to reposition, position is automatically saved
+- If panda is off-screen, delete the position config and restart
+
+**Cursor trail not working**
+- Enable cursor trail in Settings → UI & Appearance
+- Choose from 6 color themes: rainbow, fire, ice, nature, galaxy, gold
+- Trail now works across the entire window, not just borders
+
+**Panda animations look choppy**
+- Animations use 48 frames for smooth rendering
+- Disable panda animations in Settings → Performance for low-end systems
+- Ensure no other heavy applications are running
+
 ## 📊 Performance
 
 Tested with:
@@ -324,16 +349,23 @@ License TBD by author. All rights reserved to Dead On The Inside / JosephsDeadis
 ## 🐼 About the Panda Theme
 
 The panda character is more than just a mascot - it's an interactive companion that:
+- **Smooth Canvas Animation** - Rendered with 48 frames per cycle for fluid, professional animations
+- **20+ Unique Animations** - Idle, dancing, celebrating, sleeping, working, spinning, shaking, rolling, cartwheel, backflip, stretching, waving, jumping, yawning, sneezing, tail wagging, and more
 - **Reacts to Your Actions** - 13 mood states including happy, working, celebrating, rage, and even drunk mode
-- **Can Be Tossed** - Drag and throw the panda to watch it bounce off walls and floor with physics simulation
+- **Multiple Click Responses** - Random animations when clicked including waving, jumping, celebrating, stretching, and dancing for variety
+- **Can Be Tossed** - Drag and throw the panda to watch it bounce off walls and floor with realistic physics simulation
+- **Exaggerated Physics** - More dramatic movements for spinning (4x faster), shaking (8x faster), and throwing
+- **Reduced Sensitivity** - Less likely to trigger spinning/shaking accidentally during normal dragging
+- **Cursor Trail Effects** - Optional colorful cursor trail with 6 themes (rainbow, fire, ice, nature, galaxy, gold) that works across the entire window
 - **Levels Up** - Both you and the panda gain experience and level up through app usage
 - **Provides Personality** - 250+ tooltip variations ranging from helpful to hilariously sarcastic, with random variants shown each hover
 - **Offers Rewards** - Earn Bamboo Bucks currency and unlock achievements through interactions
 - **Gives Context Help** - Click, hover, or right-click the panda for tips and Easter eggs
-- **Customizable** - Dress up the panda with unlockable outfits, hats, shoes, and accessories
+- **Fully Customizable** - Dress up the panda with unlockable outfits, hats, shoes, and accessories that persist across all animations
+- **Dynamic Speech Bubbles** - Floating speech bubbles with context-aware responses and text wrapping
 - **Stays Fun** - Optional vulgar/sarcastic tooltip mode for uncensored panda commentary (independent of theme selection)
 - **Tooltip Modes** - Switch between Normal, Beginner, and Vulgar Panda tooltip modes instantly without restart
-- **Themes** - 6+ color themes (Dark Panda, Light, Cyberpunk, Neon Dreams, Classic Windows, Red Panda) — themes only affect colors, not behavior
+- **Themes** - 6+ color themes (Dark Panda, Light, Cyberpunk, Neon Dreams, Classic Windows, Red Panda) with improved error handling and recovery
 
 The panda makes texture sorting enjoyable while maintaining professional functionality!
 
