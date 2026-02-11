@@ -200,7 +200,7 @@ def test_panda_item_interaction():
     toy_keywords = {'carrot', 'play', 'kick', 'walks', 'runs', 'spots', 'picks', 'bats', 'pounce', 'mine'}
     assert any(kw in response.lower() for kw in toy_keywords), \
         f"Toy interact should mention toy-related action: {response}"
-    assert panda.click_count == 1, "Toy interaction should increase click count"
+    assert panda.toy_interact_count == 1, "Toy interaction should increase toy_interact_count"
     print("✓ Panda item interaction works correctly")
 
 
