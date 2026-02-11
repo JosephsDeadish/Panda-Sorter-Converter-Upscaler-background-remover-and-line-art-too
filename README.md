@@ -158,7 +158,7 @@ Settings are stored in: `%USERPROFILE%\.ps2_texture_sorter\config.json`
 - **[README.md](README.md)** - This file: overview and quick start
 - **[BUILD.md](BUILD.md)** - Detailed build instructions for developers
 - **[CODE_SIGNING.md](CODE_SIGNING.md)** - Guide to signing the EXE for Windows SmartScreen
-- **[PANDA_MODE_GUIDE.md](PANDA_MODE_GUIDE.md)** - Complete guide to panda features and interactions
+- **[PANDA_GUIDE.md](PANDA_GUIDE.md)** - Complete guide to panda features and interactions
 - **[UNLOCKABLES_GUIDE.md](UNLOCKABLES_GUIDE.md)** - Achievement and unlockables system documentation
 - **[UI_CUSTOMIZATION_GUIDE.md](UI_CUSTOMIZATION_GUIDE.md)** - UI theming and customization guide
 - **[QUICKSTART.md](QUICKSTART.md)** - Quick start guide for new users
@@ -184,9 +184,8 @@ PS2-texture-sorter/
 │   ├── organizer/               # 9+ organization style presets
 │   ├── features/                # Feature modules
 │   │   ├── panda_character.py   # Panda moods, animations, interactions
-│   │   ├── panda_mode.py        # 250+ tooltip variants & facts
 │   │   ├── panda_closet.py      # Panda outfit system
-│   │   ├── tutorial_system.py   # Tutorial, tooltips & help
+│   │   ├── tutorial_system.py   # Tutorial, tooltips (250+ variants) & help
 │   │   ├── achievements.py      # 50+ achievements
 │   │   ├── shop_system.py       # In-app shop
 │   │   ├── currency_system.py   # Bamboo Bucks currency

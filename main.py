@@ -3298,22 +3298,7 @@ class PS2TextureSorter(ctk.CTk):
                 config.set('logging', 'log_level', value=loglevel_var.get())
                 config.set('logging', 'crash_reports', value=crash_report_var.get())
                 
-                # Notifications & Sounds
-                config.set('notifications', 'play_sounds', value=sound_var.get())
-                config.set('notifications', 'completion_alert', value=completion_var.get())
-                
-                # Save per-event custom sound settings
-                if hasattr(self, '_sound_event_vars'):
-                    custom_sounds = {}
-                    for event_name, (freq_var, dur_var) in self._sound_event_vars.items():
-                        try:
-                            freq = int(freq_var.get())
-                            dur = int(dur_var.get())
-                            if freq > 0 and dur > 0:
-                                custom_sounds[event_name] = {'frequency': freq, 'duration': dur}
-                        except (ValueError, TypeError):
-                            pass
-                    config.set('sound', 'custom_sounds', value=custom_sounds)
+                # Notifications & Sounds are now managed in Advanced Customization → Sound tab
                 
                 # AI Settings
                 config.set('ai', 'prefer_image_content', value=prefer_image_var.get())

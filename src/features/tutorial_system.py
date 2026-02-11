@@ -23,13 +23,604 @@ try:
 except ImportError:
     GUI_AVAILABLE = False
 
-# Try to import panda tooltip definitions
-try:
-    from src.features.panda_mode import PandaMode
-    PANDA_TOOLTIPS_AVAILABLE = True
-except ImportError:
-    PANDA_TOOLTIPS_AVAILABLE = False
-    logger.warning("Panda tooltips not available - vulgar tooltips will be limited")
+# Tooltip definitions with normal and vulgar variants per widget
+# (Previously stored in panda_mode.py – inlined here so the file can be removed)
+_PANDA_TOOLTIPS = {
+    'sort_button': {
+        'normal': [
+            "Click to sort your textures into organized folders",
+            "Begin the texture organization process",
+            "Start sorting textures by category and LOD level",
+            "Organize your textures with intelligent sorting",
+            "Sort textures into their proper directories",
+            "Initiate the automated texture sorting workflow"
+        ],
+        'vulgar': [
+            "Click this to sort your damn textures. It's not rocket science, Karen.",
+            "Organize these bad boys into folders. Like Marie Kondo but with more profanity.",
+            "Sort this sh*t out. Literally. That's what the button does.",
+            "Time to unfuck your texture directory structure.",
+            "Click here unless you enjoy chaos and madness.",
+            "Make your textures less of a clusterfuck with one click."
+        ]
+    },
+    'convert_button': {
+        'normal': [
+            "Convert textures to different formats",
+            "Transform your textures into the desired format",
+            "Begin batch texture format conversion",
+            "Convert texture files to supported formats",
+            "Process and convert texture formats efficiently",
+            "Start the texture conversion process"
+        ],
+        'vulgar': [
+            "Turn your textures into whatever the hell format you need.",
+            "Convert this sh*t. PNG, DDS, whatever floats your boat.",
+            "Magic button that transforms textures. No rabbits or hats required.",
+            "Because apparently your textures are in the wrong goddamn format.",
+            "Click to unfuck your texture formats.",
+            "Convert or die. Well, not die. But your project might."
+        ]
+    },
+    'settings_button': {
+        'normal': [
+            "Open settings and preferences",
+            "Configure application options",
+            "Adjust your preferences and settings",
+            "Access configuration options",
+            "Customize your application settings",
+            "Modify application behavior and appearance"
+        ],
+        'vulgar': [
+            "Tweak sh*t. Make it yours. Go nuts.",
+            "Settings, preferences, all that boring but necessary crap.",
+            "Click here if you're picky about how things work. We don't judge.",
+            "Configure this bad boy to your heart's content.",
+            "Mess with settings until something breaks. Then undo.",
+            "For control freaks and perfectionists. You know who you are."
+        ]
+    },
+    'file_selection': {
+        'normal': [
+            "Select files to process",
+            "Choose input or output file locations",
+            "Browse for files and directories",
+            "Pick your source or destination files",
+            "Select the files you want to work with",
+            "Choose your file path"
+        ],
+        'vulgar': [
+            "Point me to your damn files already.",
+            "Show me where you hid your textures, you sneaky bastard.",
+            "Pick a file. Any file. I don't have all day.",
+            "File picker. Because apparently you can't just type the path.",
+            "Navigate this hellscape of directories and find your files.",
+            "Choose wisely. Or don't. I'm not your mother."
+        ]
+    },
+    'category_selection': {
+        'normal': [
+            "Select texture categories to process",
+            "Choose which categories to include",
+            "Filter by texture category",
+            "Pick specific texture types",
+            "Select categories for organization",
+            "Choose texture classification groups"
+        ],
+        'vulgar': [
+            "Pick your texture flavor. Diffuse? Normal? Whatever the f*ck?",
+            "Choose categories or process everything. Your funeral.",
+            "Category picker. For when you're too good for all textures.",
+            "Filter this sh*t by category. Be selective.",
+            "What kind of textures are we destroying today?",
+            "Pick a category. Or don't. Chaos is always an option."
+        ]
+    },
+    'lod_detection': {
+        'normal': [
+            "Toggle automatic LOD level detection",
+            "Enable or disable LOD detection",
+            "Automatically identify texture LOD levels",
+            "Detect Level of Detail in texture names",
+            "Turn LOD detection on or off",
+            "Configure automatic LOD identification"
+        ],
+        'vulgar': [
+            "Let the panda figure out your LOD levels. He's smart like that.",
+            "Auto-detect LODs because manually sorting is for masochists.",
+            "Toggle LOD magic. On or off. Your choice.",
+            "Enable this unless you hate yourself and your free time.",
+            "LOD detection. Like facial recognition but for textures.",
+            "Turn this on and let the algorithm do the heavy lifting."
+        ]
+    },
+    'batch_operations': {
+        'normal': [
+            "Perform operations on multiple files",
+            "Process files in batches",
+            "Execute batch operations",
+            "Run operations on selected files",
+            "Process multiple files simultaneously",
+            "Perform bulk file operations"
+        ],
+        'vulgar': [
+            "Process a sh*tload of files at once. Because efficiency.",
+            "Batch operations for people with actual work to do.",
+            "Do many things to many files. It's beautiful.",
+            "Because processing one file at a time is for chumps.",
+            "Bulk operations. Like Costco but for file processing.",
+            "Handle multiple files like a goddamn professional."
+        ]
+    },
+    'export_button': {
+        'normal': [
+            "Export processed results",
+            "Save your organized textures",
+            "Export to destination folder",
+            "Complete and export the operation",
+            "Save the processed files",
+            "Finalize and export your work"
+        ],
+        'vulgar': [
+            "Export this sh*t before you lose it.",
+            "Save your work unless you enjoy starting over.",
+            "Click to yeet your textures to their new home.",
+            "Export or suffer the consequences of lost work.",
+            "Finalize this motherf*cker and export.",
+            "Save button. Use it. Don't be a hero."
+        ]
+    },
+    'preview_button': {
+        'normal': [
+            "Preview changes before applying",
+            "See what will happen before committing",
+            "Preview the results",
+            "Check before you wreck",
+            "Preview your changes",
+            "Look before you leap"
+        ],
+        'vulgar': [
+            "Preview this sh*t before you commit. Trust nobody.",
+            "Look at what's about to happen. Prevent disasters.",
+            "Preview mode. For the paranoid. And the smart.",
+            "See the future. Well, the preview. Same difference.",
+            "Check your work before the universe does.",
+            "Preview because CTRL+Z only goes so far."
+        ]
+    },
+    'search_button': {
+        'normal': [
+            "Search for specific textures",
+            "Find files by name or pattern",
+            "Search through your textures",
+            "Locate specific files",
+            "Search and filter files",
+            "Find what you're looking for"
+        ],
+        'vulgar': [
+            "Find your sh*t. It's in here somewhere.",
+            "Search function. Because you lost your damn files again.",
+            "Where the f*ck is that texture? Let's find out.",
+            "Search bar. Type stuff. Get results. Revolutionary.",
+            "Find your needle in this texture haystack.",
+            "Lost something? Course you did. That's why this exists."
+        ]
+    },
+    'analysis_button': {
+        'normal': [
+            "Analyze texture properties",
+            "Run detailed file analysis",
+            "Examine texture characteristics",
+            "Perform deep analysis",
+            "Get detailed texture information",
+            "Analyze file structure and metadata"
+        ],
+        'vulgar': [
+            "Analyze the hell out of these textures.",
+            "Deep dive into texture properties. Get nerdy with it.",
+            "Analysis mode. For when you need ALL the information.",
+            "Let's get technical. Really f*cking technical.",
+            "Examine these textures like a CSI investigator.",
+            "Analysis button. Nerd mode activated."
+        ]
+    },
+    'favorites_button': {
+        'normal': [
+            "Access your favorite presets",
+            "Quick access to saved favorites",
+            "View bookmarked items",
+            "Open favorite configurations",
+            "Access frequently used settings",
+            "View saved favorites"
+        ],
+        'vulgar': [
+            "Your favorites. The sh*t you actually use.",
+            "Quick access to your go-to stuff.",
+            "Favorites list. The VIP section.",
+            "The greatest hits of your workflow.",
+            "Your favorite settings because you're a creature of habit.",
+            "Bookmarks for the modern age. Still useful."
+        ]
+    },
+    'recent_files': {
+        'normal': [
+            "View recently accessed files",
+            "See your recent work",
+            "Access recent projects",
+            "Quick access to recent files",
+            "View file history",
+            "Open recently used files"
+        ],
+        'vulgar': [
+            "Recent files. Because your memory is sh*t.",
+            "The stuff you worked on recently. Remember?",
+            "Recent history. NSA would be proud.",
+            "Your greatest hits from this week.",
+            "Recent files list. Memory lane but useful.",
+            "Quick access to what you were just f*cking with."
+        ]
+    },
+    'theme_selector': {
+        'normal': [
+            "Change application theme",
+            "Select color scheme",
+            "Customize appearance",
+            "Choose your preferred theme",
+            "Switch between light and dark modes",
+            "Personalize the interface"
+        ],
+        'vulgar': [
+            "Make it pretty. Or dark. Whatever helps you see.",
+            "Theme selector. Because aesthetics matter, damn it.",
+            "Change colors until your eyes don't hurt.",
+            "Pick a theme. Light mode users are psychopaths, btw.",
+            "Customize this bitch to match your vibe.",
+            "Make it yours. Paint that interface."
+        ]
+    },
+    'cursor_selector': {
+        'normal': [
+            "Choose cursor style",
+            "Select custom cursor",
+            "Change pointer appearance",
+            "Pick your cursor preference",
+            "Customize mouse pointer",
+            "Select cursor theme"
+        ],
+        'vulgar': [
+            "Cursor styles. Because why the hell not?",
+            "Change your pointer. Make it fancy.",
+            "Cursor customization. We went there.",
+            "Pick a cursor. It's the little things.",
+            "Customize your pointy thing.",
+            "Make your cursor less boring than default."
+        ]
+    },
+    'sound_settings': {
+        'normal': [
+            "Configure audio preferences",
+            "Adjust sound settings",
+            "Control notification sounds",
+            "Set audio options",
+            "Manage sound effects",
+            "Configure audio feedback"
+        ],
+        'vulgar': [
+            "Sound settings. Make it loud. Or mute. Your call.",
+            "Audio controls for when you want beeps and boops.",
+            "Turn sounds on or off. We won't judge.",
+            "Sound effects. For that authentic computer experience.",
+            "Audio settings. Beep boop motherf*cker.",
+            "Configure your audio. Or silence everything. Both valid."
+        ]
+    },
+    'tutorial_button': {
+        'normal': [
+            "View tutorial and guides",
+            "Learn how to use the application",
+            "Access help documentation",
+            "Get started with tutorials",
+            "View step-by-step guides",
+            "Learn the basics"
+        ],
+        'vulgar': [
+            "Tutorial. Because reading docs is apparently hard.",
+            "Learn how to use this thing. RTFM made easy.",
+            "Help for the helpless. No shame.",
+            "Tutorial button. For when you're lost AF.",
+            "Learn sh*t here. It's actually helpful.",
+            "Education time. Get learned."
+        ]
+    },
+    'help_button': {
+        'normal': [
+            "Get help and support",
+            "Access help resources",
+            "Find answers to questions",
+            "View help documentation",
+            "Get assistance",
+            "Access support materials"
+        ],
+        'vulgar': [
+            "Help! I've fallen and I can't use software!",
+            "Cry for help button. We're here for you.",
+            "Get help before you break something.",
+            "Help docs. Read them. Please.",
+            "Assistance for the confused.",
+            "Help button. Use it. Don't be a hero."
+        ]
+    },
+    'about_button': {
+        'normal': [
+            "About this application",
+            "View version information",
+            "See application details",
+            "Learn about the software",
+            "View credits and information",
+            "Application information"
+        ],
+        'vulgar': [
+            "About page. Who made this? Why? Find out here.",
+            "Version info and other boring but important sh*t.",
+            "Credits to the poor bastards who coded this.",
+            "About section. Meet your digital overlords.",
+            "Who made this? Why? All answered here.",
+            "Application info. For the curious."
+        ]
+    },
+    'undo_button': {
+        'normal': [
+            "Undo last action",
+            "Reverse previous operation",
+            "Go back one step",
+            "Undo recent changes",
+            "Revert last action",
+            "Step backward"
+        ],
+        'vulgar': [
+            "CTRL+Z. The panic button. The savior.",
+            "Unfuck what you just f*cked up.",
+            "Undo. Because mistakes happen. A lot.",
+            "Reverse that disaster you just created.",
+            "Time travel button. Go back. Fix sh*t.",
+            "Undo. Your second chance at not screwing up."
+        ]
+    },
+    'redo_button': {
+        'normal': [
+            "Redo undone action",
+            "Reapply last undone change",
+            "Step forward",
+            "Redo operation",
+            "Restore undone action",
+            "Move forward"
+        ],
+        'vulgar': [
+            "Redo. Because you undid too much, idiot.",
+            "CTRL+Y. Forward time travel.",
+            "Redo what you just undid. Make up your mind.",
+            "Go forward. Stop going backward.",
+            "Redo button. For the indecisive.",
+            "F*ck it, put it back the way it was."
+        ]
+    },
+    'input_browse': {
+        'normal': [
+            "Browse for the folder containing your texture files",
+            "Select the input directory with your textures",
+            "Choose the source folder for texture processing",
+            "Pick the directory to read textures from",
+            "Navigate to your texture input folder"
+        ],
+        'vulgar': [
+            "Find your damn texture folder. It's somewhere on that hard drive.",
+            "Browse for input. Like Tinder but for file directories.",
+            "Point me to your textures, you beautiful disaster.",
+            "Navigate the digital jungle to find your texture stash.",
+            "Show me where the goods are. The texture goods.",
+            "Pick a folder. It's not that deep. Well, maybe it is.",
+            "File browsing: the Windows Explorer safari adventure.",
+            "Where'd you put those textures? Let's go find out."
+        ]
+    },
+    'output_browse': {
+        'normal': [
+            "Choose where to save the organized textures",
+            "Select the destination folder for sorted textures",
+            "Pick an output directory for your results",
+            "Set the target folder for organized files",
+            "Choose the output location for sorted textures"
+        ],
+        'vulgar': [
+            "Where do you want this organized mess dumped?",
+            "Pick a destination. The textures need a new home.",
+            "Choose wisely. This is where the magic ends up.",
+            "Output folder. Where dreams of organization become reality.",
+            "Select where to yeet your sorted textures.",
+            "Destination please! Like an Uber but for files.",
+            "Where should I put this sh*t? Literally your call.",
+            "Pick an output or I'll choose your desktop. Don't test me."
+        ]
+    },
+    'detect_duplicates': {
+        'normal': [
+            "Find and handle duplicate texture files",
+            "Detect identical textures using file hashing",
+            "Identify copies and duplicates in your collection",
+            "Scan for redundant duplicate texture files",
+            "Check for duplicate textures to save disk space"
+        ],
+        'vulgar': [
+            "Find duplicate textures. Trust issues? Same.",
+            "Duplicate detection. Because copying is only flattering sometimes.",
+            "Spot the clones. Like a texture witness protection program.",
+            "Find duplicates before your hard drive files a complaint.",
+            "Duplicate finder. CTRL+C CTRL+V consequences detector.",
+            "Because apparently copy-paste got out of hand.",
+            "Hunt down those sneaky identical textures.",
+            "Duplicate detection: the 'who wore it better' for textures."
+        ]
+    },
+    'group_lods': {
+        'normal': [
+            "Keep LOD variants together in the same folder",
+            "Group Level of Detail textures by their base name",
+            "Organize LOD levels into unified groups",
+            "Bundle related LOD textures together",
+            "Group LOD variants for easy management"
+        ],
+        'vulgar': [
+            "Group LODs together. They're like a dysfunctional family.",
+            "Keep LOD buddies together. Separation anxiety is real.",
+            "LOD grouping. Because nobody puts LOD-baby in a corner.",
+            "Bundle those LODs like a cozy texture family reunion.",
+            "Keep the LOD crew together. Squad goals.",
+            "Group LODs. Like organizing your sock drawer but nerdier.",
+            "LOD family reunion time. Get them all in one folder.",
+            "No LOD left behind. We group them ALL."
+        ]
+    },
+    'achievements_tab': {
+        'normal': [
+            "View your achievements and progress milestones",
+            "Track your accomplishments and earned badges",
+            "See which achievements you've unlocked"
+        ],
+        'vulgar': [
+            "Check your trophies, you overachiever.",
+            "Achievement log. Proof you actually did something.",
+            "Your bragging rights live here.",
+            "Look at all the sh*t you've accomplished. Proud?",
+            "Achievements. For people who need validation.",
+            "Gold stars and participation trophies. Knock yourself out."
+        ]
+    },
+    'shop_tab': {
+        'normal': [
+            "Opens the reward store where earned points can be spent",
+            "Browse and purchase items with your earned currency",
+            "Spend your points on cosmetics and upgrades"
+        ],
+        'vulgar': [
+            "This is the loot cave. Spend your shiny points, idiot.",
+            "You did work. Now buy dumb cosmetic crap.",
+            "Click here to exchange grind for dopamine.",
+            "The shop. Where your hard-earned money goes to die.",
+            "Buy stuff. Waste points. Live your best life.",
+            "Shopping spree time. Your wallet (points) won't survive."
+        ]
+    },
+    'shop_buy_button': {
+        'normal': [
+            "Purchase this item with your currency",
+            "Buy this item from the shop",
+            "Complete the purchase"
+        ],
+        'vulgar': [
+            "Yeet your money at this item. Do it.",
+            "Buy it before someone else doesn't.",
+            "Take my money! Except it's points. Whatever.",
+            "Purchase this bad boy. You deserve it. Maybe.",
+            "Click buy. Instant regret or joy. 50/50.",
+            "Add to cart? Nah. Just buy the damn thing."
+        ]
+    },
+    'shop_category_button': {
+        'normal': [
+            "Filter shop items by this category",
+            "View items in this category",
+            "Browse this section of the shop"
+        ],
+        'vulgar': [
+            "Filter the shop. Because scrolling is for peasants.",
+            "Category filter. Find your poison faster.",
+            "Browse this section. There's good sh*t in here.",
+            "Click to see what's in this category of nonsense."
+        ]
+    },
+    'rewards_tab': {
+        'normal': [
+            "View all unlockable rewards and their requirements",
+            "See what rewards you can earn by completing goals",
+            "Track your progress toward unlocking rewards"
+        ],
+        'vulgar': [
+            "Your loot table. See what you can unlock.",
+            "Rewards page. Dangle carrots in front of yourself.",
+            "All the shiny things you haven't earned yet.",
+            "Check what's locked and cry about it.",
+            "Reward tracker. Motivation through materialism.",
+            "See the prizes. Want them. Work for them. Simple."
+        ]
+    },
+    'closet_tab': {
+        'normal': [
+            "Customize your panda's appearance with outfits and accessories",
+            "Dress up your panda companion with unlocked items",
+            "Change your panda's look and style"
+        ],
+        'vulgar': [
+            "Dress up your panda. Fashion show time.",
+            "Panda wardrobe. Because even pandas need style.",
+            "Outfit your furry friend. Don't make it weird.",
+            "Panda closet. It's like The Sims but with bamboo.",
+            "Fashion crimes against pandas start here.",
+            "Makeover time! Make your panda look fabulous or ridiculous."
+        ]
+    },
+    'browser_browse_button': {
+        'normal': [
+            "Select a directory to browse for texture files",
+            "Open folder picker to navigate to your files",
+            "Choose a folder to browse its contents"
+        ],
+        'vulgar': [
+            "Pick a folder. Any folder. Let's see what's inside.",
+            "Browse button. Because typing paths is for masochists.",
+            "Point me to your files. I'll judge them.",
+            "Folder picker. Navigate your digital hoarding."
+        ]
+    },
+    'browser_refresh_button': {
+        'normal': [
+            "Refresh the file list to show current directory contents",
+            "Reload the current directory listing",
+            "Update the file browser display"
+        ],
+        'vulgar': [
+            "Refresh. In case something magically changed.",
+            "Hit refresh like you're checking your ex's profile.",
+            "Reload. Because maybe it's different this time. (It's not.)",
+            "F5 energy in button form."
+        ]
+    },
+    'browser_search': {
+        'normal': [
+            "Search for files by name in the current directory",
+            "Filter displayed files by search term",
+            "Type to find specific files"
+        ],
+        'vulgar': [
+            "Find your damn files. Type something.",
+            "Search bar. For when you can't find sh*t.",
+            "Like Google but for your messy folder.",
+            "Ctrl+F vibes. Find that needle in the haystack."
+        ]
+    },
+    'browser_show_all': {
+        'normal': [
+            "Toggle between showing only textures or all file types",
+            "Show all files, not just supported texture formats",
+            "Include non-texture files in the listing"
+        ],
+        'vulgar': [
+            "Show EVERYTHING. Even the weird files.",
+            "All files mode. Including your shame.",
+            "Toggle this to see non-texture files too.",
+            "Show all. Because you're nosy like that."
+        ]
+    },
+}
 
 
 class TooltipMode(Enum):
@@ -609,14 +1200,13 @@ class TooltipVerbosityManager:
             'shop_item_name': "Click for more details about this item",
         }
         
-        # Pull from panda tooltip definitions if available
-        if PANDA_TOOLTIPS_AVAILABLE:
-            try:
-                for widget_id, tooltip_dict in PandaMode.TOOLTIPS.items():
-                    if 'normal' in tooltip_dict:
-                        base_tooltips[widget_id] = tooltip_dict['normal']
-            except Exception as e:
-                logger.warning(f"Error loading normal tooltips: {e}")
+        # Merge tooltip variants from the inlined tooltip definitions
+        try:
+            for widget_id, tooltip_dict in _PANDA_TOOLTIPS.items():
+                if 'normal' in tooltip_dict:
+                    base_tooltips[widget_id] = tooltip_dict['normal']
+        except Exception as e:
+            logger.warning(f"Error loading normal tooltips: {e}")
         
         return base_tooltips
     
@@ -1211,14 +1801,13 @@ class TooltipVerbosityManager:
             ],
         }
         
-        # Pull from panda tooltip definitions if available
-        if PANDA_TOOLTIPS_AVAILABLE:
-            try:
-                for widget_id, tooltip_dict in PandaMode.TOOLTIPS.items():
-                    if 'vulgar' in tooltip_dict:
-                        base_tooltips[widget_id] = tooltip_dict['vulgar']
-            except Exception as e:
-                logger.warning(f"Error loading vulgar tooltips: {e}")
+        # Merge tooltip variants from the inlined tooltip definitions
+        try:
+            for widget_id, tooltip_dict in _PANDA_TOOLTIPS.items():
+                if 'vulgar' in tooltip_dict:
+                    base_tooltips[widget_id] = tooltip_dict['vulgar']
+        except Exception as e:
+            logger.warning(f"Error loading vulgar tooltips: {e}")
         
         return base_tooltips
 

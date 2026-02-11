@@ -71,7 +71,7 @@ except ImportError:
     pass
 
 try:
-    from .panda_mode import PandaMood
+    from .panda_character import PandaMood
     __all__.extend(['PandaMood'])
 except ImportError:
     pass
