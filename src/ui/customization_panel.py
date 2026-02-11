@@ -936,126 +936,7 @@ class ThemeManager(ctk.CTkFrame):
         # Apply appearance mode
         ctk.set_appearance_mode(theme["appearance_mode"])
         
-        # Apply color scheme by setting default colors
         colors = theme["colors"]
-        try:
-            # Try to update theme colors if CustomTkinter supports it
-            if hasattr(ctk, 'set_default_color_theme'):
-                # Create a temporary theme file with all widget types
-                import tempfile
-                bg = colors.get("background", "#1a1a1a")
-                fg = colors.get("foreground", "#ffffff")
-                primary = colors.get("primary", "#1f538d")
-                secondary = colors.get("secondary", "#14375e")
-                accent = colors.get("accent", "#2fa572")
-                button = colors.get("button", "#1f538d")
-                button_hover = colors.get("button_hover", "#2d6ba8")
-                text = colors.get("text", "#ffffff")
-                text_secondary = colors.get("text_secondary", "#b0b0b0")
-                border = colors.get("border", "#333333")
-                with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
-                    theme_data = {
-                        "CTk": {
-                            "fg_color": [bg, bg]
-                        },
-                        "CTkToplevel": {
-                            "fg_color": [bg, bg]
-                        },
-                        "CTkFrame": {
-                            "fg_color": [secondary, secondary],
-                            "border_color": [border, border]
-                        },
-                        "CTkButton": {
-                            "fg_color": [button, button],
-                            "hover_color": [button_hover, button_hover],
-                            "text_color": [text, text],
-                            "border_color": [border, border]
-                        },
-                        "CTkLabel": {
-                            "text_color": [text, text]
-                        },
-                        "CTkEntry": {
-                            "fg_color": [bg, bg],
-                            "text_color": [text, text],
-                            "border_color": [border, border],
-                            "placeholder_text_color": [text_secondary, text_secondary]
-                        },
-                        "CTkTextbox": {
-                            "fg_color": [bg, bg],
-                            "text_color": [text, text],
-                            "border_color": [border, border]
-                        },
-                        "CTkOptionMenu": {
-                            "fg_color": [button, button],
-                            "button_color": [button, button],
-                            "button_hover_color": [button_hover, button_hover],
-                            "text_color": [text, text]
-                        },
-                        "CTkComboBox": {
-                            "fg_color": [bg, bg],
-                            "button_color": [button, button],
-                            "button_hover_color": [button_hover, button_hover],
-                            "text_color": [text, text],
-                            "border_color": [border, border]
-                        },
-                        "CTkCheckBox": {
-                            "fg_color": [accent, accent],
-                            "hover_color": [button_hover, button_hover],
-                            "text_color": [text, text],
-                            "border_color": [border, border]
-                        },
-                        "CTkSwitch": {
-                            "progress_color": [accent, accent],
-                            "button_color": [button, button],
-                            "button_hover_color": [button_hover, button_hover],
-                            "text_color": [text, text]
-                        },
-                        "CTkProgressBar": {
-                            "fg_color": [secondary, secondary],
-                            "progress_color": [accent, accent]
-                        },
-                        "CTkSlider": {
-                            "fg_color": [secondary, secondary],
-                            "progress_color": [accent, accent],
-                            "button_color": [button, button],
-                            "button_hover_color": [button_hover, button_hover]
-                        },
-                        "CTkScrollableFrame": {
-                            "label_fg_color": [secondary, secondary]
-                        },
-                        "CTkTabview": {
-                            "fg_color": [secondary, secondary],
-                            "segmented_button_selected_color": [accent, accent],
-                            "segmented_button_unselected_color": [secondary, secondary]
-                        },
-                        "CTkSegmentedButton": {
-                            "fg_color": [secondary, secondary],
-                            "selected_color": [accent, accent],
-                            "selected_hover_color": [button_hover, button_hover],
-                            "text_color": [text, text]
-                        },
-                        "CTkScrollbar": {
-                            "fg_color": [secondary, secondary],
-                            "button_color": [text_secondary, text_secondary],
-                            "button_hover_color": [text, text]
-                        }
-                    }
-                    json.dump(theme_data, f)
-                    temp_theme_path = f.name
-                
-                try:
-                    ctk.set_default_color_theme(temp_theme_path)
-                    logger.debug(f"Applied color theme from {temp_theme_path}")
-                except Exception as theme_err:
-                    # Expected to fail on some CTk versions - not critical
-                    logger.debug(f"Color theme not fully applied: {theme_err}")
-                finally:
-                    try:
-                        Path(temp_theme_path).unlink()
-                    except OSError:
-                        pass
-        except Exception as e:
-            logger.warning(f"Could not fully apply color theme: {e}")
         
         # Save to config
         config.set('ui', 'theme', value=self.preview_theme)
@@ -1064,8 +945,17 @@ class ThemeManager(ctk.CTkFrame):
         
         self.current_theme = self.preview_theme
         
-        # Recursively apply theme to existing widgets
-        self._apply_theme_to_existing_widgets(self.master, colors)
+        # Apply theme colors to the root application window and all its children
+        root = self.winfo_toplevel()
+        # Walk up to find the actual root CTk window (skip CTkToplevel dialogs)
+        try:
+            master = root.master
+            while master is not None:
+                root = master
+                master = root.master
+        except Exception:
+            pass
+        self._apply_theme_to_existing_widgets(root, colors)
         
         if self.on_theme_apply:
             self.on_theme_apply(theme)
