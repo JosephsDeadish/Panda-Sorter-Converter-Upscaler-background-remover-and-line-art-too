@@ -378,6 +378,7 @@ class PS2TextureSorter(ctk.CTk):
         self.tutorial_manager = None
         self.tooltip_manager = None  # Uses existing TooltipVerbosityManager - has vulgar mode
         self._tooltips = []  # Store tooltip references to prevent garbage collection
+        self._claimed_rewards = set()  # Track claimed achievement reward IDs
         self.context_help = None
         self.preview_viewer = None
         self.currency_system = None
@@ -3540,13 +3541,19 @@ class PS2TextureSorter(ctk.CTk):
                             font=("Arial", 14)).pack(pady=50)
                 return
 
+            # One-time sync: auto-unlock any achievement whose progress
+            # has reached the maximum but was not yet marked as unlocked.
+            for a in achievements:
+                if a.is_complete() and not a.unlocked:
+                    self.achievement_manager.update_progress(a.id, a.progress_max)
+
             # Summary bar
             total = len(achievements)
             completed = sum(1 for a in achievements if a.unlocked or a.is_complete())
             claimable = sum(1 for a in achievements
                            if (a.unlocked or a.is_complete())
                            and a.reward
-                           and not getattr(a, '_reward_claimed', False))
+                           and a.id not in self._claimed_rewards)
             summary_frame = ctk.CTkFrame(self.achieve_scroll)
             summary_frame.pack(fill="x", padx=10, pady=(5, 10))
             ctk.CTkLabel(summary_frame,
@@ -3568,10 +3575,6 @@ class PS2TextureSorter(ctk.CTk):
 
             for achievement in achievements:
                 is_completed = achievement.unlocked or achievement.is_complete()
-                # Auto-mark as completed if progress meets max
-                if achievement.is_complete() and not achievement.unlocked:
-                    self.achievement_manager.update_progress(
-                        achievement.id, achievement.progress_max)
 
                 achieve_frame = ctk.CTkFrame(self.achieve_scroll)
                 achieve_frame.pack(fill="x", padx=10, pady=4)
@@ -3633,7 +3636,7 @@ class PS2TextureSorter(ctk.CTk):
                 progress_label.pack(side="left", padx=5)
 
                 # Claim reward button (only if completed and has reward)
-                if is_completed and achievement.reward and not getattr(achievement, '_reward_claimed', False):
+                if is_completed and achievement.reward and achievement.id not in self._claimed_rewards:
                     ctk.CTkButton(
                         progress_frame, text="🎁 Claim", width=80, height=26,
                         fg_color="#2fa572", hover_color="#248a5c",
@@ -3748,7 +3751,7 @@ class PS2TextureSorter(ctk.CTk):
                             except Exception:
                                 pass
 
-            achievement._reward_claimed = True
+            self._claimed_rewards.add(achievement.id)
             self.log(f"🎁 Claimed reward for '{achievement.name}': {desc}")
             # Refresh display
             self._display_achievements(self._achievement_category_filter)
@@ -3761,7 +3764,7 @@ class PS2TextureSorter(ctk.CTk):
             achievements = self.achievement_manager.get_all_achievements(include_hidden=True)
             claimed = 0
             for a in achievements:
-                if (a.unlocked or a.is_complete()) and a.reward and not getattr(a, '_reward_claimed', False):
+                if (a.unlocked or a.is_complete()) and a.reward and a.id not in self._claimed_rewards:
                     # Inline reward granting to avoid per-claim UI refresh
                     reward = a.reward
                     reward_type = reward.get('type', '')
@@ -3776,7 +3779,7 @@ class PS2TextureSorter(ctk.CTk):
                             closet_item = self.panda_closet.get_item(item_id)
                             if closet_item and not closet_item.unlocked:
                                 closet_item.unlocked = True
-                    a._reward_claimed = True
+                    self._claimed_rewards.add(a.id)
                     self.log(f"🎁 Claimed reward for '{a.name}': {desc}")
                     claimed += 1
             # Single UI refresh after all claims
@@ -5133,7 +5136,12 @@ Built with:
                 self.panda_mood_label.configure(text=f"{mood_indicator} {mood_name}")
 
     def _start_stats_auto_refresh(self):
-        """Auto-refresh panda stats every 3 seconds, updating labels in-place."""
+        """Auto-refresh panda stats every 3 seconds, updating labels in-place.
+
+        This is a self-scheduling timer: it reschedules itself via
+        ``self.after()`` until the stats tab is destroyed or the window closes.
+        Cancel with ``_cancel_stats_auto_refresh()``.
+        """
         try:
             if not hasattr(self, 'tab_panda_stats') or not self.tab_panda_stats.winfo_exists():
                 return
