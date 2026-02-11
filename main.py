@@ -4454,7 +4454,7 @@ Built with:
         # Add panda widget in a separate frame on bottom right
         # Panda is always present - not a "mode"
         if PANDA_WIDGET_AVAILABLE and self.panda:
-            panda_container = ctk.CTkFrame(self, corner_radius=10)
+            panda_container = ctk.CTkFrame(self, corner_radius=0, fg_color="transparent", bg_color="transparent")
             
             # Restore saved position or use default
             # Position coordinates are relative (0.0 to 1.0) not absolute pixels
