@@ -1477,6 +1477,27 @@ class SoundSettingsPanel(ctk.CTkFrame):
                                            width=130,
                                            command=lambda val, eid=event_id: self._on_sound_choice_change(eid, val))
             choice_menu.pack(side="right", padx=5)
+            
+            test_btn = ctk.CTkButton(row, text="🔊 Test", width=70, height=26,
+                                     command=lambda eid=event_id: self._test_event_sound(eid))
+            test_btn.pack(side="right", padx=5)
+    
+    def _test_event_sound(self, event_id):
+        """Play a test sound for the given event."""
+        try:
+            from src.features.sound_manager import SoundManager, SoundEvent
+            if not hasattr(self, '_test_sound_manager'):
+                self._test_sound_manager = SoundManager()
+            sm = self._test_sound_manager
+            sm.enabled = True
+            sm.muted = False
+            try:
+                event = SoundEvent(event_id)
+            except ValueError:
+                return
+            sm.play_sound(event, async_play=True, force=True)
+        except Exception as e:
+            logger.debug(f"Could not play test sound for {event_id}: {e}")
     
     def _on_sound_toggle(self):
         enabled = self.sound_enabled_var.get()
@@ -1555,7 +1576,7 @@ class CustomizationPanel(ctk.CTkFrame):
         tab_colors = self.tabview.add("🎨 Colors")
         tab_cursor = self.tabview.add("🖱️ Cursor")
         tab_sound = self.tabview.add("🔊 Sound")
-        tab_settings = self.tabview.add("⚙️ Settings")
+        tab_settings = self.tabview.add("💬 Tooltips Settings")
         
         self.theme_manager = ThemeManager(tab_theme, on_theme_apply=self._on_theme_change)
         self.theme_manager.pack(fill="both", expand=True, padx=10, pady=10)

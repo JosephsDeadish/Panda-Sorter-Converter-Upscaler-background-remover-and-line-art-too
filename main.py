@@ -1033,6 +1033,8 @@ class PS2TextureSorter(ctk.CTk):
                         pass
             # Regenerate based on tab name
             tab_creators = {
+                "📁 File Browser": lambda: self._rebuild_browser_in_frame(tab_frame),
+                "ℹ️ About": lambda: self._rebuild_about_in_frame(tab_frame),
                 "🏆 Achievements": lambda: self._rebuild_achievements_in_frame(tab_frame),
                 "🛒 Shop": lambda: self._rebuild_shop_in_frame(tab_frame),
                 "🎁 Rewards": lambda: self._rebuild_rewards_in_frame(tab_frame),
@@ -1072,6 +1074,16 @@ class PS2TextureSorter(ctk.CTk):
         """Rebuild panda stats & mood tab content."""
         self.tab_panda_stats = frame
         self.create_panda_stats_tab()
+    
+    def _rebuild_browser_in_frame(self, frame):
+        """Rebuild file browser tab content."""
+        self.tab_browser = frame
+        self.create_browser_tab()
+    
+    def _rebuild_about_in_frame(self, frame):
+        """Rebuild about tab content."""
+        self.tab_about = frame
+        self.create_about_tab()
     
     def _create_popout_browser(self, popout_window, container):
         """Create file browser in popout window"""
