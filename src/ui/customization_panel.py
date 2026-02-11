@@ -451,21 +451,23 @@ class CursorCustomizer(ctk.CTkFrame):
             command=self._on_trail_style_change)
         self.trail_style_menu.pack(side="left", padx=5, fill="x", expand=True)
         
-        # --- Preview area with interactive trail preview ---
+        # --- Preview area with interactive cursor and trail preview ---
         preview_frame = ctk.CTkFrame(scroll_frame)
         preview_frame.pack(fill="both", expand=True, padx=10, pady=10)
         
-        ctk.CTkLabel(preview_frame, text="Preview:", font=("Arial Bold", 11)).pack(anchor="w", padx=5)
+        ctk.CTkLabel(preview_frame, text="🖱️ Cursor Preview:", font=("Arial Bold", 11)).pack(anchor="w", padx=5)
         
-        self.preview_area = ctk.CTkLabel(preview_frame, text="Move mouse here\nto preview cursor & trail",
+        self.preview_area = ctk.CTkLabel(preview_frame, text="Move mouse here\nto preview cursor",
                                         width=300, height=120, fg_color="#2b2b2b")
         self.preview_area.pack(padx=5, pady=5, fill="x")
+        
+        ctk.CTkLabel(preview_frame, text="✨ Cursor Trail Preview:", font=("Arial Bold", 11)).pack(anchor="w", padx=5, pady=(5, 0))
         
         # Trail preview canvas - bind motion directly on canvas for correct coordinates
         import tkinter as tk
         self._trail_preview_canvas = tk.Canvas(
             preview_frame, highlightthickness=0, bg='#2b2b2b',
-            width=300, height=80
+            width=300, height=150
         )
         self._trail_preview_canvas.pack(padx=5, pady=(0, 5), fill="x")
         # Block click events but allow motion events to pass through

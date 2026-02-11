@@ -86,6 +86,9 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
         'clicked': ['✨', '⭐', '💫'],
         'tossed': ['😵', '💫', '🌀'],
         'wall_hit': ['💥', '😣', '⚡'],
+        'playing': ['🎾', '🎮', '⚽', '🏀', '🎯'],
+        'eating': ['🍱', '🎋', '🍃', '😋', '🍜'],
+        'customizing': ['✨', '👔', '🎀', '💅', '🪞'],
     }
     
     def __init__(self, parent, panda_character=None, panda_level_system=None,
@@ -386,6 +389,21 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
             leg_swing = 0
             arm_swing = 0
             body_bob = math.sin(phase) * 2
+        elif anim == 'playing':
+            # Active bouncing and arm swinging for playing with toys
+            leg_swing = math.sin(phase) * 10
+            arm_swing = math.sin(phase * 2) * 14
+            body_bob = abs(math.sin(phase * 2)) * 4
+        elif anim == 'eating':
+            # Gentle bob, arms brought together toward mouth
+            leg_swing = 0
+            arm_swing = -abs(math.sin(phase)) * 8  # Arms forward
+            body_bob = math.sin(phase) * 2
+        elif anim == 'customizing':
+            # Preening, gentle sway with arms up
+            leg_swing = 0
+            arm_swing = math.sin(phase) * 6
+            body_bob = math.sin(phase) * 3
         else:
             # Default walking for clicked, fed, etc.
             leg_swing = math.sin(phase) * 8
@@ -408,6 +426,8 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
             eye_style = 'dizzy'
         elif anim == 'petting':
             eye_style = 'happy'
+        elif anim in ('playing', 'eating', 'customizing'):
+            eye_style = 'happy'
         
         # --- Determine mouth style ---
         mouth_style = 'normal'
@@ -419,6 +439,10 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
             mouth_style = 'sleep'
         elif anim == 'petting' or anim == 'fed':
             mouth_style = 'smile'
+        elif anim in ('playing', 'customizing'):
+            mouth_style = 'smile'
+        elif anim == 'eating':
+            mouth_style = 'eating'
         elif anim == 'drunk':
             mouth_style = 'wavy'
         
@@ -650,6 +674,10 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
             if len(points) >= 4:
                 c.create_line(*points, fill="#333333", width=2,
                               smooth=True, tags="mouth")
+        elif style == 'eating':
+            # Open mouth / chewing animation
+            c.create_oval(cx - 5, my - 2, cx + 5, my + 5,
+                          fill="#333333", outline="#333333", tags="mouth")
         else:
             # Neutral small curve
             c.create_arc(cx - 5, my - 3, cx + 5, my + 4,
@@ -665,8 +693,8 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
             c.create_text(cx + 45, 18 + by, text=emoji,
                           font=("Arial", 16), tags="extra")
         
-        # Blush cheeks when petting or celebrating
-        if anim in ('petting', 'celebrating', 'fed'):
+        # Blush cheeks when petting, celebrating, playing, eating, etc.
+        if anim in ('petting', 'celebrating', 'fed', 'playing', 'eating', 'customizing'):
             cheek_y = 56 + by
             c.create_oval(cx - 38, cheek_y - 4, cx - 28, cheek_y + 4,
                           fill="#FFB6C1", outline="", tags="blush")

@@ -494,6 +494,9 @@ class PS2TextureSorter(ctk.CTk):
     
     def _on_close(self):
         """Handle window close to ensure clean shutdown"""
+        # Cancel any pending auto-refresh timers
+        self._cancel_stats_auto_refresh()
+        
         splash = None
         try:
             # Show goodbye splash if available
@@ -2004,24 +2007,28 @@ class PS2TextureSorter(ctk.CTk):
                 self.log(f"✅ Cursor settings applied: {cursor_type} (size: {cursor_size})")
                 
             elif setting_type == 'tooltip_mode':
-                # Apply tooltip mode change
+                # Apply tooltip mode change immediately
+                # Update TooltipVerbosityManager
                 if self.tooltip_manager:
                     try:
                         from src.features.tutorial_system import TooltipMode
                         mode = TooltipMode(value)
                         self.tooltip_manager.set_mode(mode)
-                        self.log(f"✅ Tooltip mode changed to: {value}")
                     except Exception as tooltip_err:
-                        logger.debug(f"Could not change tooltip mode: {tooltip_err}")
-                        self.log(f"⚠️ Could not change tooltip mode: {tooltip_err}")
-                else:
-                    # Save to config directly if tooltip manager not available
-                    try:
-                        config.set('ui', 'tooltip_mode', value=value)
-                        config.save()
-                        self.log(f"✅ Tooltip mode saved: {value}")
-                    except Exception as cfg_err:
-                        logger.debug(f"Could not save tooltip mode: {cfg_err}")
+                        logger.debug(f"Could not change tooltip mode via manager: {tooltip_err}")
+                
+                # Also update PandaMode's vulgar_mode flag to stay in sync
+                if self.panda_mode and hasattr(self.panda_mode, 'set_vulgar_mode'):
+                    self.panda_mode.set_vulgar_mode(value == 'vulgar_panda')
+                
+                # Always save to config immediately
+                try:
+                    config.set('ui', 'tooltip_mode', value=value)
+                    config.save()
+                except Exception as cfg_err:
+                    logger.debug(f"Could not save tooltip mode: {cfg_err}")
+                
+                self.log(f"✅ Tooltip mode changed to: {value}")
                 
             elif setting_type == 'sound_enabled':
                 # Apply sound toggle
@@ -2319,75 +2326,34 @@ class PS2TextureSorter(ctk.CTk):
             pass  # Ignore widgets that don't support cursor changes
     
     def _setup_cursor_trail(self, enabled, trail_color=None):
-        """Setup or teardown cursor trail effect"""
-        # Remove existing trail canvas if any
-        if hasattr(self, '_trail_canvas') and self._trail_canvas:
+        """Setup or teardown cursor trail effect.
+        
+        Instead of covering the entire window with a canvas overlay (which
+        blocks interaction), we track mouse motion on the root window and
+        draw small, temporary fading labels that don't intercept events.
+        """
+        # Remove existing trail items if any
+        if hasattr(self, '_trail_bind_id') and self._trail_bind_id:
             try:
                 self.unbind('<Motion>', self._trail_bind_id)
             except Exception:
                 pass
-            try:
-                if hasattr(self, '_trail_configure_bind'):
-                    self.unbind('<Configure>', self._trail_configure_bind)
-            except Exception:
-                pass
-            self._trail_canvas.destroy()
-            self._trail_canvas = None
             self._trail_bind_id = None
-            self._trail_configure_bind = None
-            self._trail_dots = []
+        
+        # Clean up any leftover trail dot widgets
+        if hasattr(self, '_trail_dots_widgets'):
+            for w in self._trail_dots_widgets:
+                try:
+                    w.destroy()
+                except Exception:
+                    pass
+        self._trail_dots_widgets = []
         
         if not enabled:
             return
         
         import tkinter as tk
         
-        # Create overlay canvas for trail with proper dimensions
-        # Use after_idle to ensure window has been drawn and has proper dimensions
-        def create_canvas():
-            try:
-                # Use a valid background color from the start
-                try:
-                    bg_color = self.cget('bg')
-                except Exception:
-                    bg_color = '#1a1a1a'
-                
-                self._trail_canvas = tk.Canvas(
-                    self, highlightthickness=0,
-                    bg=bg_color, cursor='arrow'
-                )
-                self._trail_canvas.place(x=0, y=0, relwidth=1, relheight=1)
-                
-                # Lower the canvas below all other widgets so it doesn't block interaction
-                self._trail_canvas.lower()
-                
-                # Make canvas non-interactive for click events but still allow parent motion tracking
-                # Preserve the canvas widget tag for event propagation while removing
-                # only the default click bindings
-                self._trail_canvas.bind('<Button-1>', lambda e: 'break')
-                self._trail_canvas.bind('<Button-2>', lambda e: 'break')
-                self._trail_canvas.bind('<Button-3>', lambda e: 'break')
-                
-                # Handle window resize to update canvas size - only respond to main window resizes
-                def on_configure(event):
-                    try:
-                        if event.widget != self:
-                            return  # Ignore child widget configure events
-                        if hasattr(self, '_trail_canvas') and self._trail_canvas:
-                            # Update canvas to match window size
-                            self._trail_canvas.config(width=event.width, height=event.height)
-                    except Exception as e:
-                        logger.debug(f"Trail canvas resize error: {e}")
-                
-                self._trail_configure_bind = self.bind('<Configure>', on_configure, add='+')
-                
-            except Exception as e:
-                logger.error(f"Failed to create cursor trail canvas: {e}")
-                return
-        
-        self.after_idle(create_canvas)
-        
-        self._trail_dots = []
         self._trail_max = 15
         
         # Determine trail colors based on setting
@@ -2411,46 +2377,48 @@ class PS2TextureSorter(ctk.CTk):
         
         def on_motion(event):
             try:
-                canvas = self._trail_canvas
-                if not canvas or not canvas.winfo_exists():
-                    return
-                x, y = event.x_root - self.winfo_rootx(), event.y_root - self.winfo_rooty()
+                x = event.x_root - self.winfo_rootx()
+                y = event.y_root - self.winfo_rooty()
                 
-                # Clamp coordinates to canvas bounds to avoid drawing errors
-                canvas_width = canvas.winfo_width()
-                canvas_height = canvas.winfo_height()
-                if canvas_width <= 1 or canvas_height <= 1:
-                    return  # Canvas not yet properly sized
-                
-                if x < 0 or y < 0 or x > canvas_width or y > canvas_height:
+                # Only draw within the window bounds
+                if x < 0 or y < 0 or x > self.winfo_width() or y > self.winfo_height():
                     return
                 
-                color_idx = len(self._trail_dots) % len(trail_colors)
-                dot = canvas.create_oval(
-                    x - 3, y - 3, x + 3, y + 3,
-                    fill=trail_colors[color_idx], outline=''
-                )
-                self._trail_dots.append(dot)
+                color_idx = len(self._trail_dots_widgets) % len(trail_colors)
                 
-                # Fade old dots
-                if len(self._trail_dots) > self._trail_max:
-                    old_dot = self._trail_dots.pop(0)
-                    canvas.delete(old_dot)
+                # Create a tiny non-interactive label as a trail dot
+                dot = tk.Frame(self, width=6, height=6, bg=trail_colors[color_idx],
+                               highlightthickness=0, bd=0)
+                dot.place(x=x - 3, y=y - 3)
+                dot.lower()  # Keep below all other widgets
+                # Prevent the dot from intercepting any mouse events
+                dot.bind('<Enter>', lambda e: None)
+                dot.bind('<Button-1>', lambda e: None)
+                
+                self._trail_dots_widgets.append(dot)
+                
+                # Remove oldest dots beyond max
+                if len(self._trail_dots_widgets) > self._trail_max:
+                    old = self._trail_dots_widgets.pop(0)
+                    try:
+                        old.destroy()
+                    except Exception:
+                        pass
                 
                 # Auto-fade after delay
-                canvas.after(300, lambda d=dot: self._fade_trail_dot(d))
+                self.after(300, lambda d=dot: self._fade_trail_dot(d))
             except Exception as e:
                 logger.debug(f"Cursor trail motion error: {e}")
         
         self._trail_bind_id = self.bind('<Motion>', on_motion, add='+')
     
-    def _fade_trail_dot(self, dot_id):
-        """Remove a trail dot after it fades"""
+    def _fade_trail_dot(self, dot_widget):
+        """Remove a trail dot widget after it fades"""
         try:
-            if hasattr(self, '_trail_canvas') and self._trail_canvas and self._trail_canvas.winfo_exists():
-                self._trail_canvas.delete(dot_id)
-                if dot_id in self._trail_dots:
-                    self._trail_dots.remove(dot_id)
+            if dot_widget and dot_widget.winfo_exists():
+                dot_widget.destroy()
+                if hasattr(self, '_trail_dots_widgets') and dot_widget in self._trail_dots_widgets:
+                    self._trail_dots_widgets.remove(dot_widget)
         except Exception:
             pass
     
@@ -2580,8 +2548,19 @@ class PS2TextureSorter(ctk.CTk):
         panda_anim_frame.pack(fill="x", padx=10, pady=5)
         
         disable_panda_anim_var = ctk.BooleanVar(value=config.get('ui', 'disable_panda_animations', default=False))
+        
+        def on_panda_anim_toggle():
+            """Apply panda animation toggle instantly."""
+            try:
+                config.set('ui', 'disable_panda_animations', value=disable_panda_anim_var.get())
+                config.save()
+                self.log(f"✅ Panda animations {'disabled' if disable_panda_anim_var.get() else 'enabled'}")
+            except Exception as e:
+                logger.error(f"Failed to save panda animation setting: {e}")
+        
         ctk.CTkCheckBox(panda_anim_frame, text="Disable panda animations (for low-end systems)",
-                       variable=disable_panda_anim_var).pack(side="left", padx=10)
+                       variable=disable_panda_anim_var,
+                       command=on_panda_anim_toggle).pack(side="left", padx=10)
         
         # === APPEARANCE & CUSTOMIZATION (merged UI Settings + UI Customization) ===
         ui_frame = ctk.CTkFrame(settings_scroll)
@@ -4267,33 +4246,67 @@ Built with:
                 ctk.CTkLabel(shop_frame, text="No purchases yet. Visit the Shop to buy items!",
                              font=("Arial", 11), text_color="gray").pack(anchor="w", padx=20, pady=5)
 
-        # Show widget collection (toys, food, accessories)
+        # Show widget collection (toys, food, accessories) with sub-categories and Use buttons
         if self.widget_collection:
-            for type_label, widget_type in [("🎾 Toys", WidgetType.TOY),
-                                            ("🍱 Food Items", WidgetType.FOOD),
-                                            ("🎀 Accessories", WidgetType.ACCESSORY)]:
+            for type_label, widget_type, interaction_type in [
+                ("🎾 Toys", WidgetType.TOY, "play"),
+                ("🍱 Food Items", WidgetType.FOOD, "feed"),
+                ("🎀 Accessories", WidgetType.ACCESSORY, "accessory")
+            ]:
                 type_frame = ctk.CTkFrame(scrollable_frame)
                 type_frame.pack(fill="x", padx=10, pady=10)
                 ctk.CTkLabel(type_frame, text=type_label,
                              font=("Arial Bold", 16)).pack(anchor="w", padx=10, pady=10)
 
                 widgets = self.widget_collection.get_all_widgets(widget_type)
+                
+                # Sub-categorize by rarity
+                rarity_order = ['common', 'uncommon', 'rare', 'epic', 'legendary']
+                rarity_groups = {}
                 for widget in widgets:
-                    w_frame = ctk.CTkFrame(type_frame)
-                    w_frame.pack(fill="x", padx=10, pady=3)
-                    status = "✅" if widget.unlocked else "🔒"
-                    ctk.CTkLabel(w_frame, text=f"{status} {widget.emoji} {widget.name}",
-                                 font=("Arial", 12)).pack(side="left", padx=10, pady=5)
-                    rarity_colors = {"common": "gray", "uncommon": "#00cc00",
-                                     "rare": "#3399ff", "epic": "#cc66ff",
-                                     "legendary": "#ffaa00"}
-                    ctk.CTkLabel(w_frame, text=widget.rarity.value.title(),
-                                 font=("Arial", 10),
-                                 text_color=rarity_colors.get(widget.rarity.value, "gray")
-                                 ).pack(side="left", padx=5)
-                    if widget.stats.times_used > 0:
-                        ctk.CTkLabel(w_frame, text=f"Used {widget.stats.times_used}x",
-                                     font=("Arial", 10), text_color="gray").pack(side="right", padx=10)
+                    r = widget.rarity.value
+                    if r not in rarity_groups:
+                        rarity_groups[r] = []
+                    rarity_groups[r].append(widget)
+                
+                rarity_colors = {"common": "gray", "uncommon": "#00cc00",
+                                 "rare": "#3399ff", "epic": "#cc66ff",
+                                 "legendary": "#ffaa00"}
+                
+                for rarity in rarity_order:
+                    group = rarity_groups.get(rarity, [])
+                    if not group:
+                        continue
+                    
+                    # Sub-category header
+                    sub_header = ctk.CTkFrame(type_frame)
+                    sub_header.pack(fill="x", padx=15, pady=(5, 2))
+                    ctk.CTkLabel(sub_header,
+                                 text=f"  {rarity.title()} ({len(group)})",
+                                 font=("Arial Bold", 11),
+                                 text_color=rarity_colors.get(rarity, "gray")
+                                 ).pack(anchor="w", padx=5)
+                    
+                    for widget in group:
+                        w_frame = ctk.CTkFrame(type_frame)
+                        w_frame.pack(fill="x", padx=20, pady=2)
+                        status = "✅" if widget.unlocked else "🔒"
+                        ctk.CTkLabel(w_frame, text=f"{status} {widget.emoji} {widget.name}",
+                                     font=("Arial", 12)).pack(side="left", padx=10, pady=5)
+                        ctk.CTkLabel(w_frame, text=widget.rarity.value.title(),
+                                     font=("Arial", 10),
+                                     text_color=rarity_colors.get(widget.rarity.value, "gray")
+                                     ).pack(side="left", padx=5)
+                        if widget.stats.times_used > 0:
+                            ctk.CTkLabel(w_frame, text=f"Used {widget.stats.times_used}x",
+                                         font=("Arial", 10), text_color="gray").pack(side="left", padx=5)
+                        
+                        if widget.unlocked:
+                            # Use/Give to Panda button
+                            ctk.CTkButton(
+                                w_frame, text="🐼 Give to Panda", width=120, height=28,
+                                command=lambda w=widget, it=interaction_type: self._give_inventory_item_to_panda(w, it)
+                            ).pack(side="right", padx=5, pady=3)
 
         # Show unlockables summary
         if self.unlockables_manager:
@@ -4319,6 +4332,48 @@ Built with:
                 ctk.CTkLabel(unlockables_frame,
                              text=f"Could not load unlockables: {e}",
                              font=("Arial", 11), text_color="gray").pack(anchor="w", padx=20, pady=5)
+
+    def _give_inventory_item_to_panda(self, widget, interaction_type):
+        """Give an inventory item to the panda, triggering animation and stats update."""
+        try:
+            result = widget.use()
+            message = result.get('message', f"Panda enjoys the {widget.name}!")
+            animation = result.get('animation', 'playing')
+            
+            # Update panda widget animation and speech
+            if self.panda_widget:
+                self.panda_widget.info_label.configure(text=message)
+                self.panda_widget.play_animation_once(animation)
+            
+            # Count towards interaction type (feed_count and click_count are
+            # core PandaCharacter attributes initialized in __init__)
+            if self.panda:
+                if interaction_type == 'feed':
+                    self.panda.feed_count += 1
+                elif interaction_type == 'play':
+                    self.panda.click_count += 1
+            
+            # Award XP
+            if self.panda_level_system:
+                try:
+                    xp = self.panda_level_system.get_xp_reward('click')
+                    self.panda_level_system.add_xp(xp, f'Used {widget.name}')
+                except Exception:
+                    pass
+            
+            self.log(f"🐼 Gave {widget.name} to panda! {message}")
+            
+            # Refresh inventory to show updated usage stats
+            try:
+                for w in self.tab_inventory.winfo_children():
+                    w.destroy()
+                self.create_inventory_tab()
+            except Exception:
+                pass
+                
+        except Exception as e:
+            logger.error(f"Error giving item to panda: {e}")
+            self.log(f"❌ Error giving item to panda: {e}")
     
     def create_panda_stats_tab(self):
         """Create panda stats and mood tab"""
@@ -4333,6 +4388,62 @@ Built with:
                          text="Panda character not available.",
                          font=("Arial", 14)).pack(pady=50)
             return
+
+        # Panda identity info (name & gender)
+        identity_frame = ctk.CTkFrame(scrollable_frame)
+        identity_frame.pack(fill="x", padx=10, pady=10)
+        ctk.CTkLabel(identity_frame, text="🐼 Identity",
+                     font=("Arial Bold", 16)).pack(anchor="w", padx=10, pady=10)
+
+        name_row = ctk.CTkFrame(identity_frame)
+        name_row.pack(fill="x", padx=20, pady=3)
+        ctk.CTkLabel(name_row, text="Name:", font=("Arial", 12)).pack(side="left", padx=5)
+        self._stats_name_entry = ctk.CTkEntry(name_row, width=200,
+                                              placeholder_text="Enter panda name...")
+        self._stats_name_entry.pack(side="left", padx=5)
+        self._stats_name_entry.insert(0, self.panda.name)
+
+        def set_name_from_stats():
+            new_name = self._stats_name_entry.get().strip()
+            if new_name:
+                self.panda.set_name(new_name)
+                config.set('panda', 'name', value=new_name)
+                config.save()
+                self.log(f"✅ Panda renamed to '{new_name}'")
+
+        ctk.CTkButton(name_row, text="Set Name", width=80,
+                      command=set_name_from_stats).pack(side="left", padx=5)
+
+        gender_row = ctk.CTkFrame(identity_frame)
+        gender_row.pack(fill="x", padx=20, pady=3)
+        ctk.CTkLabel(gender_row, text="Gender:", font=("Arial", 12)).pack(side="left", padx=5)
+
+        try:
+            from src.features.panda_character import PandaGender
+            import tkinter as tk
+            self._stats_gender_var = tk.StringVar(value=self.panda.gender.value)
+
+            def set_gender_from_stats():
+                try:
+                    gender = PandaGender(self._stats_gender_var.get())
+                    self.panda.set_gender(gender)
+                    config.set('panda', 'gender', value=gender.value)
+                    config.save()
+                    self.log(f"✅ Panda gender set to {gender.value}")
+                except Exception as ge:
+                    logger.debug(f"Error setting gender: {ge}")
+
+            for gender, label in [(PandaGender.MALE, "♂ Male"),
+                                  (PandaGender.FEMALE, "♀ Female"),
+                                  (PandaGender.NON_BINARY, "⚧ Non-Binary")]:
+                ctk.CTkRadioButton(gender_row, text=label,
+                                   variable=self._stats_gender_var,
+                                   value=gender.value,
+                                   command=set_gender_from_stats
+                                   ).pack(side="left", padx=8)
+        except Exception as e:
+            ctk.CTkLabel(gender_row, text=f"Gender options unavailable: {e}",
+                         font=("Arial", 10), text_color="gray").pack(side="left", padx=5)
 
         # Current mood display
         mood_frame = ctk.CTkFrame(scrollable_frame)
@@ -4415,12 +4526,28 @@ Built with:
                 ctk.CTkLabel(egg_frame, text=f"  🥚 {egg}",
                              font=("Arial", 11)).pack(anchor="w", padx=20, pady=2)
 
-        # Refresh button
-        ctk.CTkButton(scrollable_frame, text="🔄 Refresh Stats",
-                      command=self._refresh_panda_stats).pack(pady=15)
+        # Buttons frame
+        buttons_frame = ctk.CTkFrame(scrollable_frame)
+        buttons_frame.pack(fill="x", padx=10, pady=15)
+
+        ctk.CTkButton(buttons_frame, text="🔄 Refresh Stats",
+                      command=self._refresh_panda_stats).pack(side="left", padx=10, pady=10)
+
+        ctk.CTkButton(buttons_frame, text="🔁 Reset Panda Progression",
+                      fg_color="#cc3333", hover_color="#aa2222",
+                      command=self._reset_panda_progression).pack(side="left", padx=10, pady=10)
+
+        ctk.CTkButton(buttons_frame, text="🔁 Reset Player Progression",
+                      fg_color="#cc3333", hover_color="#aa2222",
+                      command=self._reset_player_progression).pack(side="left", padx=10, pady=10)
+
+        # Start auto-refresh timer (refresh every 5 seconds if tab is visible)
+        self._start_stats_auto_refresh()
 
     def _refresh_panda_stats(self):
         """Refresh panda stats display by rebuilding the tab content"""
+        # Cancel existing auto-refresh timer before rebuilding
+        self._cancel_stats_auto_refresh()
         # Destroy and recreate the tab content for a full refresh
         try:
             for widget in self.tab_panda_stats.winfo_children():
@@ -4436,6 +4563,106 @@ Built with:
             if hasattr(self, 'panda_preview_label') and self.panda:
                 current_anim = self.panda.get_animation_frame('idle')
                 self.panda_preview_label.configure(text=current_anim)
+
+    def _start_stats_auto_refresh(self):
+        """Auto-refresh panda stats every 5 seconds when the stats tab is visible.
+        
+        The timer ID is stored in _stats_auto_refresh_id so it can be cancelled
+        when the tab is rebuilt (via _refresh_panda_stats) or the window closes.
+        """
+        try:
+            if not hasattr(self, 'tab_panda_stats') or not self.tab_panda_stats.winfo_exists():
+                return
+            # Only refresh labels in-place to avoid full rebuild flicker
+            if hasattr(self, 'panda_mood_label') and self.panda:
+                try:
+                    mood_indicator = self.panda.get_mood_indicator()
+                    mood_name = self.panda.current_mood.value.title()
+                    self.panda_mood_label.configure(text=f"{mood_indicator} {mood_name}")
+                except Exception:
+                    pass
+            if hasattr(self, 'panda_preview_label') and self.panda:
+                try:
+                    current_anim = self.panda.get_animation_frame('idle')
+                    self.panda_preview_label.configure(text=current_anim)
+                except Exception:
+                    pass
+            # Schedule next refresh
+            self._stats_auto_refresh_id = self.after(5000, self._start_stats_auto_refresh)
+        except Exception as e:
+            logger.debug(f"Stats auto-refresh error: {e}")
+
+    def _cancel_stats_auto_refresh(self):
+        """Cancel any pending stats auto-refresh timer."""
+        if hasattr(self, '_stats_auto_refresh_id') and self._stats_auto_refresh_id:
+            try:
+                self.after_cancel(self._stats_auto_refresh_id)
+            except Exception:
+                pass
+            self._stats_auto_refresh_id = None
+
+    def _reset_panda_progression(self):
+        """Reset panda stats and progression."""
+        if not self.panda:
+            return
+        if not messagebox.askyesno("Reset Panda Progression",
+                                    "Are you sure you want to reset all panda stats?\n"
+                                    "This will reset clicks, pets, feeds, mood, and level."):
+            return
+        try:
+            self.panda.click_count = 0
+            self.panda.pet_count = 0
+            self.panda.feed_count = 0
+            self.panda.hover_count = 0
+            self.panda.files_processed_count = 0
+            self.panda.failed_operations = 0
+            self.panda.easter_eggs_triggered.clear()
+            if hasattr(self.panda, 'current_mood'):
+                from src.features.panda_character import PandaMood
+                self.panda.current_mood = PandaMood.HAPPY
+            if self.panda_level_system:
+                self.panda_level_system.level = 1
+                self.panda_level_system.xp = 0
+            config.save()
+            self._refresh_panda_stats()
+            self.log("✅ Panda progression has been reset!")
+            messagebox.showinfo("Reset Complete", "Panda progression has been reset.")
+        except Exception as e:
+            logger.error(f"Error resetting panda progression: {e}")
+            messagebox.showerror("Error", f"Failed to reset panda progression: {e}")
+
+    def _reset_player_progression(self):
+        """Reset player/user progression."""
+        if not messagebox.askyesno("Reset Player Progression",
+                                    "Are you sure you want to reset all player stats?\n"
+                                    "This will reset your user level, XP, currency, and achievements."):
+            return
+        try:
+            if self.user_level_system:
+                self.user_level_system.level = 1
+                self.user_level_system.xp = 0
+            if self.currency_system:
+                try:
+                    self.currency_system.balance = 0
+                except Exception:
+                    pass
+            if self.achievement_manager:
+                try:
+                    self.achievement_manager.reset()
+                except Exception:
+                    pass
+            if self.stats_tracker:
+                try:
+                    self.stats_tracker.reset()
+                except Exception:
+                    pass
+            config.save()
+            self._refresh_panda_stats()
+            self.log("✅ Player progression has been reset!")
+            messagebox.showinfo("Reset Complete", "Player progression has been reset.")
+        except Exception as e:
+            logger.error(f"Error resetting player progression: {e}")
+            messagebox.showerror("Error", f"Failed to reset player progression: {e}")
     
     def create_status_bar(self):
         """Create bottom status bar with panda indicator"""
@@ -5131,7 +5358,7 @@ def main():
             logger.debug(f"Could not set AppUserModelID: {e}")
     
     try:
-        # Create root window (hidden)
+        # Create root window (hidden) for splash screen
         root = ctk.CTk()
         root.withdraw()
         
@@ -5154,8 +5381,13 @@ def main():
         # Close splash
         splash.close()
         
-        # Show main window
-        root.deiconify()
+        # Destroy the temporary root window before creating the real app.
+        # PS2TextureSorter inherits from ctk.CTk, so it creates its own root
+        # window internally. Without this destroy(), the temporary root would
+        # remain visible as a blank window with the default "ctk" title.
+        root.destroy()
+        
+        # Create and show main application (creates its own CTk root window)
         app = PS2TextureSorter()
         
         # Start main loop
