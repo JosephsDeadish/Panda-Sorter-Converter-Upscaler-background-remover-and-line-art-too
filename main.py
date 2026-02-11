@@ -1081,7 +1081,7 @@ class PS2TextureSorter(ctk.CTk):
         input_entry = ctk.CTkEntry(input_path_frame, textvariable=self.input_path_var, width=800)
         input_entry.pack(side="left", fill="x", expand=True, padx=5)
         
-        browse_btn = ctk.CTkButton(input_path_frame, text="Browse...", width=100, command=self.browse_input)
+        browse_btn = ctk.CTkButton(input_path_frame, text="📂 Browse...", width=100, command=self.browse_input)
         browse_btn.pack(side="right", padx=5)
         
         # Output section
@@ -1097,7 +1097,7 @@ class PS2TextureSorter(ctk.CTk):
         output_entry = ctk.CTkEntry(output_path_frame, textvariable=self.output_path_var, width=800)
         output_entry.pack(side="left", fill="x", expand=True, padx=5)
         
-        browse_out_btn = ctk.CTkButton(output_path_frame, text="Browse...", width=100, command=self.browse_output)
+        browse_out_btn = ctk.CTkButton(output_path_frame, text="📂 Browse...", width=100, command=self.browse_output)
         browse_out_btn.pack(side="right", padx=5)
         
         # Options
@@ -1305,7 +1305,7 @@ class PS2TextureSorter(ctk.CTk):
         ctk.CTkLabel(input_frame, text="Input:", font=("Arial Bold", 12)).grid(row=0, column=0, padx=10, pady=5, sticky="w")
         self.convert_input_var = ctk.StringVar()
         ctk.CTkEntry(input_frame, textvariable=self.convert_input_var, width=500).grid(row=0, column=1, padx=10, pady=5, sticky="ew")
-        convert_input_btn = ctk.CTkButton(input_frame, text="Browse", width=100, 
+        convert_input_btn = ctk.CTkButton(input_frame, text="📂 Browse", width=100, 
                      command=lambda: self.browse_directory(self.convert_input_var))
         convert_input_btn.grid(row=0, column=2, padx=10, pady=5)
         
@@ -1356,7 +1356,7 @@ class PS2TextureSorter(ctk.CTk):
         ctk.CTkLabel(output_frame, text="Output:", font=("Arial Bold", 12)).grid(row=0, column=0, padx=10, pady=5, sticky="w")
         self.convert_output_var = ctk.StringVar()
         ctk.CTkEntry(output_frame, textvariable=self.convert_output_var, width=500).grid(row=0, column=1, padx=10, pady=5, sticky="ew")
-        convert_output_btn = ctk.CTkButton(output_frame, text="Browse", width=100,
+        convert_output_btn = ctk.CTkButton(output_frame, text="📂 Browse", width=100,
                      command=lambda: self.browse_directory(self.convert_output_var))
         convert_output_btn.grid(row=0, column=2, padx=10, pady=5)
         
@@ -4505,7 +4505,7 @@ Built with:
                 config.save()
                 self.log(f"✅ Panda renamed to '{new_name}'")
 
-        ctk.CTkButton(name_row, text="Set Name", width=80,
+        ctk.CTkButton(name_row, text="✏️ Set Name", width=80,
                       command=set_name_from_stats).pack(side="left", padx=5)
 
         gender_row = ctk.CTkFrame(identity_frame)
