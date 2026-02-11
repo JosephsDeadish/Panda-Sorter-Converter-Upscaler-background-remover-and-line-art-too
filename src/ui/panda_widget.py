@@ -1653,7 +1653,7 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
         """Return a color corresponding to the given emoji icon."""
         return PandaWidget._EMOJI_COLORS.get(emoji, fallback)
 
-    def _compute_limb_offsets(self, anim: str, frame_idx: int):
+    def _compute_limb_offsets(self, anim: str, frame_idx: int) -> tuple:
         """Compute limb swing offsets for a given animation state.
         
         Returns (leg_swing, arm_swing) tuple used for clothing/accessory
@@ -2090,7 +2090,7 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
     
     def walk_to_item(self, target_x: int, target_y: int, item_name: str = None,
                      item_emoji: str = None, item_type: str = 'toy',
-                     on_arrive: callable = None):
+                     on_arrive=None):
         """Animate the panda walking to an item's location on screen.
         
         The panda toplevel smoothly moves towards the target coordinates,
@@ -2180,7 +2180,7 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
         
         Args:
             item_name: Name of the item that hit
-            item_emoji: Emoji for the item
+            item_emoji: Emoji for the item (reserved for future visual effects)
             hit_y_ratio: Where on the panda the item hit (0=top of head, 1=feet)
         """
         if self._destroyed or not self.panda:
