@@ -912,6 +912,234 @@ class ShopSystem:
             one_time_purchase=False,
             unlockable_id=None
         ),
+
+        # Additional Clothes
+        'clothes_dress': ShopItem(
+            id='clothes_dress',
+            name='Fancy Dress',
+            description='A beautiful dress for special occasions',
+            category=ShopCategory.CLOTHES,
+            price=350,
+            icon='👗',
+            level_required=8,
+            unlockable_id='clothes_dress'
+        ),
+        'clothes_overalls': ShopItem(
+            id='clothes_overalls',
+            name='Denim Overalls',
+            description='Casual and cute overalls',
+            category=ShopCategory.CLOTHES,
+            price=120,
+            icon='👖',
+            level_required=3,
+            unlockable_id='clothes_overalls'
+        ),
+        'clothes_raincoat': ShopItem(
+            id='clothes_raincoat',
+            name='Rainbow Raincoat',
+            description='Stay dry in style!',
+            category=ShopCategory.CLOTHES,
+            price=200,
+            icon='🌂',
+            level_required=5,
+            unlockable_id='clothes_raincoat'
+        ),
+        'clothes_vest': ShopItem(
+            id='clothes_vest',
+            name='Cozy Vest',
+            description='A warm and fluffy vest',
+            category=ShopCategory.CLOTHES,
+            price=90,
+            icon='🧶',
+            level_required=2,
+            unlockable_id='clothes_vest'
+        ),
+        'clothes_tuxedo': ShopItem(
+            id='clothes_tuxedo',
+            name='Elegant Tuxedo',
+            description='Black tie panda elegance',
+            category=ShopCategory.CLOTHES,
+            price=600,
+            icon='🤵',
+            level_required=15,
+            unlockable_id='clothes_tuxedo'
+        ),
+        'clothes_sports_jersey': ShopItem(
+            id='clothes_sports_jersey',
+            name='Sports Jersey',
+            description='Game day panda ready to score!',
+            category=ShopCategory.CLOTHES,
+            price=150,
+            icon='🏅',
+            level_required=4,
+            unlockable_id='clothes_sports_jersey'
+        ),
+        'clothes_sweater': ShopItem(
+            id='clothes_sweater',
+            name='Knit Sweater',
+            description='Grandma-made with love',
+            category=ShopCategory.CLOTHES,
+            price=100,
+            icon='🧣',
+            level_required=2,
+            unlockable_id='clothes_sweater'
+        ),
+
+        # Additional Accessories
+        'acc_scarf': ShopItem(
+            id='acc_scarf',
+            name='Silk Scarf',
+            description='Elegant and breezy',
+            category=ShopCategory.ACCESSORIES,
+            price=90,
+            icon='🧣',
+            level_required=2,
+            unlockable_id='acc_scarf'
+        ),
+        'acc_watch': ShopItem(
+            id='acc_watch',
+            name='Fancy Watch',
+            description='Time flies when sorting textures',
+            category=ShopCategory.ACCESSORIES,
+            price=250,
+            icon='⌚',
+            level_required=7,
+            unlockable_id='acc_watch'
+        ),
+        'acc_flower': ShopItem(
+            id='acc_flower',
+            name='Flower Crown',
+            description='Spring vibes all year round',
+            category=ShopCategory.ACCESSORIES,
+            price=100,
+            icon='🌸',
+            level_required=3,
+            unlockable_id='acc_flower'
+        ),
+        'acc_cape': ShopItem(
+            id='acc_cape',
+            name='Mystic Cape',
+            description='Flowing cape of mystery',
+            category=ShopCategory.ACCESSORIES,
+            price=400,
+            icon='🦹',
+            level_required=10,
+            unlockable_id='acc_cape'
+        ),
+
+        # Additional Food
+        'food_sushi': ShopItem(
+            id='food_sushi',
+            name='Panda Sushi Roll',
+            description='Drag to panda to feed! Cute panda-shaped sushi',
+            category=ShopCategory.FOOD,
+            price=40,
+            icon='🍣',
+            level_required=4,
+            one_time_purchase=False,
+            unlockable_id='food_sushi'
+        ),
+        'food_dumplings': ShopItem(
+            id='food_dumplings',
+            name='Steamed Dumplings',
+            description='Drag to panda to feed! Hot and juicy',
+            category=ShopCategory.FOOD,
+            price=35,
+            icon='🥟',
+            level_required=3,
+            one_time_purchase=False,
+            unlockable_id='food_dumplings'
+        ),
+        'food_honey': ShopItem(
+            id='food_honey',
+            name='Honey Jar',
+            description='Drag to panda to feed! Sweet golden honey',
+            category=ShopCategory.FOOD,
+            price=25,
+            icon='🍯',
+            level_required=2,
+            one_time_purchase=False,
+            unlockable_id='food_honey'
+        ),
+        'food_rice_ball': ShopItem(
+            id='food_rice_ball',
+            name='Rice Ball',
+            description='Drag to panda to feed! Cute onigiri',
+            category=ShopCategory.FOOD,
+            price=15,
+            icon='🍙',
+            level_required=1,
+            one_time_purchase=False,
+            unlockable_id='food_rice_ball'
+        ),
+        'food_boba_tea': ShopItem(
+            id='food_boba_tea',
+            name='Boba Tea',
+            description='Drag to panda to feed! Refreshing bubble tea',
+            category=ShopCategory.FOOD,
+            price=30,
+            icon='🧋',
+            level_required=3,
+            one_time_purchase=False,
+            unlockable_id='food_boba_tea'
+        ),
+        'food_ice_cream': ShopItem(
+            id='food_ice_cream',
+            name='Ice Cream Cone',
+            description='Drag to panda to feed! Cool and sweet',
+            category=ShopCategory.FOOD,
+            price=20,
+            icon='🍦',
+            level_required=2,
+            one_time_purchase=False,
+            unlockable_id='food_ice_cream'
+        ),
+        'food_birthday_cake': ShopItem(
+            id='food_birthday_cake',
+            name='Birthday Cake',
+            description='Drag to panda to feed! Party time treat',
+            category=ShopCategory.FOOD,
+            price=100,
+            icon='🎂',
+            level_required=8,
+            one_time_purchase=False,
+            unlockable_id='food_birthday_cake'
+        ),
+
+        # Additional Toys
+        'toy_skateboard': ShopItem(
+            id='toy_skateboard',
+            name='Panda Skateboard',
+            description='Shred some gnarly tricks!',
+            category=ShopCategory.TOYS,
+            price=150,
+            icon='🛹',
+            level_required=6,
+            one_time_purchase=True,
+            unlockable_id='skateboard'
+        ),
+        'toy_drum': ShopItem(
+            id='toy_drum',
+            name='Mini Drum Set',
+            description='Rock out panda style!',
+            category=ShopCategory.TOYS,
+            price=200,
+            icon='🥁',
+            level_required=8,
+            one_time_purchase=True,
+            unlockable_id='drum'
+        ),
+        'toy_telescope': ShopItem(
+            id='toy_telescope',
+            name='Stargazing Telescope',
+            description='Explore the panda universe!',
+            category=ShopCategory.TOYS,
+            price=300,
+            icon='🔭',
+            level_required=12,
+            one_time_purchase=True,
+            unlockable_id='telescope'
+        ),
     }
     
     def __init__(self, save_path: Optional[Path] = None):
