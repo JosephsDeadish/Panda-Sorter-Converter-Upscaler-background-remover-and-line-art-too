@@ -68,13 +68,6 @@ except ImportError:
     PANDA_CHARACTER_AVAILABLE = False
     print("Warning: Panda character not available.")
 
-# Keep PandaMode import for backward compatibility during transition
-try:
-    from src.features.panda_mode import PandaMode
-    PANDA_MODE_AVAILABLE = True
-except ImportError:
-    PANDA_MODE_AVAILABLE = False
-    print("Warning: Panda mode not available.")
 
 try:
     from src.features.sound_manager import SoundManager
@@ -369,7 +362,6 @@ class PS2TextureSorter(ctk.CTk):
         
         # Initialize feature modules
         self.panda = None  # Always-present panda character
-        self.panda_mode = None  # Deprecated - keeping for backward compatibility
         self.sound_manager = None
         self.achievement_manager = None
         self.unlockables_manager = None
@@ -405,11 +397,6 @@ class PS2TextureSorter(ctk.CTk):
                 if PANDA_CHARACTER_AVAILABLE:
                     self.panda = PandaCharacter()
                     logger.info("Panda character initialized (always present)")
-                
-                # Keep old panda_mode for backward compatibility (will be deprecated)
-                if PANDA_MODE_AVAILABLE and not PANDA_CHARACTER_AVAILABLE:
-                    self.panda_mode = PandaMode()
-                    logger.warning("Using deprecated PandaMode - should migrate to PandaCharacter")
                 
                 if SOUND_AVAILABLE:
                     self.sound_manager = SoundManager()
@@ -2172,10 +2159,9 @@ class PS2TextureSorter(ctk.CTk):
                     except Exception as tooltip_err:
                         logger.debug(f"Could not change tooltip mode via manager: {tooltip_err}")
                 
-                # Sync sarcastic/vulgar tooltip text preference with PandaMode
-                # This only controls tooltip TEXT style, not theme or application mode
-                if self.panda_mode and hasattr(self.panda_mode, 'set_vulgar_mode'):
-                    self.panda_mode.set_vulgar_mode(value == 'vulgar_panda')
+                # Sync vulgar tooltip text preference with PandaCharacter
+                if self.panda and hasattr(self.panda, 'set_vulgar_mode'):
+                    self.panda.set_vulgar_mode(value == 'vulgar_panda')
                 
                 # Always save to config immediately
                 try:
@@ -2803,7 +2789,7 @@ class PS2TextureSorter(ctk.CTk):
         ctk.CTkLabel(scale_frame, text="(applies immediately)", 
                     font=("Arial", 9), text_color="gray").pack(side="left", padx=5)
         
-        # Note: Tooltip mode, cursor style, and panda mode settings are
+        # Note: Tooltip mode, cursor style, and sound settings are
         # available in the Advanced Customization panel to avoid duplication.
         
         # Advanced Customization button
@@ -2902,105 +2888,13 @@ class PS2TextureSorter(ctk.CTk):
         ctk.CTkLabel(notif_frame, text="🔔 Notifications & Sounds", 
                      font=("Arial Bold", 14)).pack(anchor="w", padx=10, pady=5)
         
-        sound_var = ctk.BooleanVar(value=config.get('notifications', 'play_sounds', default=True))
-        ctk.CTkCheckBox(notif_frame, text="Play sound effects", 
-                       variable=sound_var).pack(anchor="w", padx=20, pady=3)
+        ctk.CTkLabel(notif_frame,
+                     text="🔊 All sound settings are in Advanced Customization → Sound tab",
+                     font=("Arial", 11), text_color="gray").pack(anchor="w", padx=20, pady=3)
         
-        completion_var = ctk.BooleanVar(value=config.get('notifications', 'completion_alert', default=True))
-        ctk.CTkCheckBox(notif_frame, text="Alert on operation completion", 
-                       variable=completion_var).pack(anchor="w", padx=20, pady=3)
-        
-        # Sound pack selector
-        sound_pack_frame = ctk.CTkFrame(notif_frame)
-        sound_pack_frame.pack(fill="x", padx=10, pady=5)
-        
-        ctk.CTkLabel(sound_pack_frame, text="Sound Pack:").pack(side="left", padx=10)
-        sound_pack_var = ctk.StringVar(value=config.get('sound', 'sound_pack', default='default'))
-        
-        def on_sound_pack_change(choice):
-            try:
-                config.set('sound', 'sound_pack', value=choice)
-                config.save()
-                if hasattr(self, 'sound_manager') and self.sound_manager:
-                    try:
-                        from src.features.sound_manager import SoundPack
-                        pack = SoundPack(choice)
-                        self.sound_manager.set_sound_pack(pack)
-                    except Exception:
-                        pass
-                self.log(f"✅ Sound pack changed to: {choice}")
-            except Exception as e:
-                logger.error(f"Failed to change sound pack: {e}")
-        
-        ctk.CTkOptionMenu(sound_pack_frame, variable=sound_pack_var,
-                         values=["default", "minimal", "vulgar"],
-                         command=on_sound_pack_change).pack(side="left", padx=10)
-        
-        # Per-event sound customization
-        ctk.CTkLabel(notif_frame, text="🔊 Per-Event Sound Settings (frequency Hz / duration ms):", 
-                    font=("Arial", 10), text_color="gray").pack(anchor="w", padx=20, pady=(10, 5))
-        
-        sound_events_frame = ctk.CTkScrollableFrame(notif_frame, height=200)
-        sound_events_frame.pack(fill="x", padx=20, pady=5)
-        
-        # Get current sound definitions
-        self._sound_event_vars = {}
-        try:
-            from src.features.sound_manager import SoundEvent, SoundPack, Sound, SoundManager
-            current_pack_name = config.get('sound', 'sound_pack', default='default')
-            try:
-                current_pack = SoundPack(current_pack_name)
-            except Exception:
-                current_pack = SoundPack.DEFAULT
-            current_sounds = SoundManager.SOUND_DEFINITIONS.get(current_pack, {})
-            custom_sounds = config.get('sound', 'custom_sounds', default={})
-            
-            sound_event_vars = {}
-            for event in SoundEvent:
-                row = ctk.CTkFrame(sound_events_frame)
-                row.pack(fill="x", pady=2)
-                
-                sound = current_sounds.get(event)
-                default_freq = sound.frequency if sound else 500
-                default_dur = sound.duration if sound else 200
-                
-                # Use custom value if set, otherwise default
-                custom = custom_sounds.get(event.value, {})
-                freq_val = custom.get('frequency', default_freq)
-                dur_val = custom.get('duration', default_dur)
-                
-                ctk.CTkLabel(row, text=f"{event.value}:", width=120, anchor="w",
-                           font=("Arial", 10)).pack(side="left", padx=5)
-                
-                freq_var = ctk.StringVar(value=str(freq_val))
-                ctk.CTkLabel(row, text="Hz:", font=("Arial", 9)).pack(side="left", padx=2)
-                ctk.CTkEntry(row, textvariable=freq_var, width=60).pack(side="left", padx=2)
-                
-                dur_var = ctk.StringVar(value=str(dur_val))
-                ctk.CTkLabel(row, text="ms:", font=("Arial", 9)).pack(side="left", padx=2)
-                ctk.CTkEntry(row, textvariable=dur_var, width=60).pack(side="left", padx=2)
-                
-                # Test button
-                def test_sound(f=freq_var, d=dur_var):
-                    try:
-                        import sys
-                        if sys.platform == 'win32':
-                            import winsound
-                            winsound.Beep(int(f.get()), int(d.get()))
-                    except Exception as ex:
-                        logger.debug(f"Sound test failed: {ex}")
-                
-                ctk.CTkButton(row, text="▶", width=30, height=24,
-                            command=test_sound).pack(side="left", padx=5)
-                
-                sound_event_vars[event.value] = (freq_var, dur_var)
-            
-            # Store vars for save
-            self._sound_event_vars = sound_event_vars
-        except Exception as e:
-            logger.error(f"Failed to load sound event settings: {e}")
-            ctk.CTkLabel(notif_frame, text=f"⚠️ Sound customization unavailable: {e}",
-                        text_color="orange").pack(padx=20, pady=5)
+        ctk.CTkButton(notif_frame, text="🔊 Open Sound Settings",
+                     command=self.open_customization,
+                     width=220, height=30).pack(padx=20, pady=8)
         
         # === AI MODEL SETTINGS ===
         ai_frame = ctk.CTkFrame(settings_scroll)
@@ -4617,30 +4511,6 @@ support (200,000+ textures). 100% offline operation."""
             ctk.CTkLabel(features_frame, text=feature,
                         font=("Arial", 11), anchor="w").pack(anchor="w", padx=20, pady=3)
         
-        # ============= PANDA MODE =============
-        panda_frame = ctk.CTkFrame(scrollable_frame)
-        panda_frame.pack(fill="x", padx=20, pady=15)
-        
-        ctk.CTkLabel(panda_frame, text="🐼 PANDA MODE",
-                     font=("Arial Bold", 18)).pack(pady=10)
-        
-        panda_text = """The interactive panda character is your companion throughout texture sorting!
-
-• 13 dynamic moods (happy, working, celebrating, rage, sarcastic, drunk, existential, etc.)
-• Level system - Both you and the panda gain XP and level up through usage
-• 250+ tooltip variations ranging from helpful to hilariously sarcastic
-• Random panda facts, jokes, and motivational quotes during processing
-• Easter eggs and hidden surprises (try clicking the panda 10 times!)
-• Vulgar Mode toggle for uncensored panda commentary (opt-in, off by default)
-• Right-click the panda for special interactions: pet, feed bamboo, check mood, reset position
-• Draggable - Click and drag the panda anywhere on screen! Position is saved automatically
-• Earn Bamboo Bucks currency through interactions and achievements
-• Customizable appearance and behavior in Settings → Panda
-
-Drag the panda to your favorite spot or right-click to reset to corner! 🎋"""
-        
-        ctk.CTkLabel(panda_frame, text=panda_text,
-                     font=("Arial", 11), justify="left", wraplength=900).pack(pady=10, padx=20)
         
         # ============= CREDITS =============
         credits_frame = ctk.CTkFrame(scrollable_frame)

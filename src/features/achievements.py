@@ -222,7 +222,7 @@ class AchievementSystem:
         'panda_lover': Achievement(
             id='panda_lover',
             name='Panda Lover',
-            description='Enable Panda Mode',
+            description='Interact with your panda companion',
             tier=AchievementTier.BRONZE,
             points=20,
             icon='🐼',

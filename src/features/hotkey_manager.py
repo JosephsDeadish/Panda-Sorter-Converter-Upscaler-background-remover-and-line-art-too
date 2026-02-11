@@ -78,7 +78,6 @@ class HotkeyManager:
         'statistics': ('Ctrl+Shift+T', 'Statistics', 'tools', False),
         
         # Special features
-        'panda_mode': ('Ctrl+Shift+Panda', 'Toggle Panda Mode', 'special', False),
         'achievements': ('Ctrl+Shift+A', 'View achievements', 'special', False),
         'sound_toggle': ('Ctrl+M', 'Toggle sound', 'special', False),
         

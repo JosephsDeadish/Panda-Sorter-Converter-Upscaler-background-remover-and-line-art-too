@@ -23,13 +23,13 @@ try:
 except ImportError:
     GUI_AVAILABLE = False
 
-# Try to import panda mode tooltips
+# Try to import panda tooltip definitions
 try:
     from src.features.panda_mode import PandaMode
-    PANDA_MODE_AVAILABLE = True
+    PANDA_TOOLTIPS_AVAILABLE = True
 except ImportError:
-    PANDA_MODE_AVAILABLE = False
-    logger.warning("PandaMode not available - vulgar tooltips will be limited")
+    PANDA_TOOLTIPS_AVAILABLE = False
+    logger.warning("Panda tooltips not available - vulgar tooltips will be limited")
 
 
 class TooltipMode(Enum):
@@ -164,14 +164,13 @@ class TutorialManager:
             TutorialStep(
                 title="Step 4: Meet Your Panda Companion! 🐼",
                 message=(
-                    "Want some fun while you work?\n\n"
-                    "Enable Panda Mode for:\n"
-                    "• Animated panda companion\n"
+                    "Your panda companion is always here!\n\n"
+                    "Your panda features:\n"
+                    "• Animated panda companion on your screen\n"
                     "• Fun (and sometimes vulgar) tooltips\n"
                     "• Easter eggs and achievements\n"
                     "• Mood-based reactions\n\n"
-                    "You can enable it in Settings → Customization\n"
-                    "(Don't worry, it's optional and off by default!)"
+                    "Customize your panda in Settings → Customization"
                 ),
                 target_widget=None,
                 celebration=False
@@ -548,7 +547,7 @@ class TooltipVerbosityManager:
         return tooltip
     
     def _get_normal_tooltips(self) -> Dict[str, Any]:
-        """Standard helpful tooltips from PandaMode"""
+        """Standard helpful tooltips"""
         base_tooltips = {
             'sort_button': "Click to sort your textures into organized folders",
             'convert_button': "Convert textures to different formats",
@@ -586,7 +585,7 @@ class TooltipVerbosityManager:
             'minigames_tab': "Play mini-games to earn rewards and have fun",
             # Settings tooltips
             'keyboard_controls': "View and customize keyboard shortcuts",
-            'tooltip_mode': "Choose how tooltips are displayed: normal, beginner, or panda mode",
+            'tooltip_mode': "Choose how tooltips are displayed: normal, beginner, or vulgar",
             'theme_selector': "Choose a visual theme for the application",
             # Inventory tooltips
             'inventory_purchased': "Items purchased from the shop",
@@ -610,14 +609,14 @@ class TooltipVerbosityManager:
             'shop_item_name': "Click for more details about this item",
         }
         
-        # Pull from PandaMode TOOLTIPS if available
-        if PANDA_MODE_AVAILABLE:
+        # Pull from panda tooltip definitions if available
+        if PANDA_TOOLTIPS_AVAILABLE:
             try:
                 for widget_id, tooltip_dict in PandaMode.TOOLTIPS.items():
                     if 'normal' in tooltip_dict:
                         base_tooltips[widget_id] = tooltip_dict['normal']
             except Exception as e:
-                logger.warning(f"Error loading normal tooltips from PandaMode: {e}")
+                logger.warning(f"Error loading normal tooltips: {e}")
         
         return base_tooltips
     
@@ -956,8 +955,8 @@ class TooltipVerbosityManager:
             ],
             'tooltip_mode': [
                 "Choose how tooltips are shown: Normal gives standard info, "
-                "Dumbed Down gives extra detail, Vulgar Panda adds humor.",
-                "Control tooltip style: Normal, Beginner-friendly, or Panda mode "
+                "Dumbed Down gives extra detail, Vulgar adds humor.",
+                "Control tooltip style: Normal, Beginner-friendly, or Vulgar "
                 "with sarcastic commentary!",
             ],
             'theme_selector': [
@@ -967,7 +966,7 @@ class TooltipVerbosityManager:
         }
     
     def _get_vulgar_panda_tooltips(self) -> Dict[str, Any]:
-        """Fun/sarcastic tooltips from PandaMode (vulgar mode)"""
+        """Fun/sarcastic tooltips (vulgar mode)"""
         base_tooltips = {
             'sort_button': [
                 "Click this to sort your damn textures. It's not rocket science, Karen.",
@@ -1212,14 +1211,14 @@ class TooltipVerbosityManager:
             ],
         }
         
-        # Pull from PandaMode TOOLTIPS if available
-        if PANDA_MODE_AVAILABLE:
+        # Pull from panda tooltip definitions if available
+        if PANDA_TOOLTIPS_AVAILABLE:
             try:
                 for widget_id, tooltip_dict in PandaMode.TOOLTIPS.items():
                     if 'vulgar' in tooltip_dict:
                         base_tooltips[widget_id] = tooltip_dict['vulgar']
             except Exception as e:
-                logger.warning(f"Error loading vulgar tooltips from PandaMode: {e}")
+                logger.warning(f"Error loading vulgar tooltips: {e}")
         
         return base_tooltips
 
@@ -1586,7 +1585,7 @@ Q: Can I toss the panda?
 A: Yes! Drag the panda and release with some speed. It will bounce off walls and the floor with physics, playing different animations as it goes.
 
 Q: How do I change tooltip modes?
-A: Go to Settings -> UI & Appearance and change the tooltip mode. Changes take effect immediately - no restart needed. Choose Normal, Beginner, or Vulgar Panda mode.
+A: Go to Settings -> UI & Appearance and change the tooltip mode. Changes take effect immediately - no restart needed. Choose Normal, Beginner, or Vulgar.
 
 Q: How do keyboard shortcuts work?
 A: Press F1 for help, Ctrl+P to start processing, Ctrl+S to save, and more. Check the About tab for a complete list of shortcuts.

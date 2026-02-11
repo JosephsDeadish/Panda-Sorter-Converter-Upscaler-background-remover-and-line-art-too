@@ -1,7 +1,7 @@
 """
 Feature modules for PS2 Texture Sorter
 Includes statistics tracking, texture analysis, search/filter, profiles, batch operations, LOD replacement, backups,
-hotkeys, sound system, achievements, and panda mode
+hotkeys, sound system, and achievements
 Author: Dead On The Inside / JosephsDeadish
 """
 
@@ -71,7 +71,7 @@ except ImportError:
     pass
 
 try:
-    from .panda_mode import PandaMode, PandaMood
-    __all__.extend(['PandaMode', 'PandaMood'])
+    from .panda_mode import PandaMood
+    __all__.extend(['PandaMood'])
 except ImportError:
     pass
