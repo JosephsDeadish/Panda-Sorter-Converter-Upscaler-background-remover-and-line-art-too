@@ -8,6 +8,7 @@ Author: Dead On The Inside / JosephsDeadish
 import logging
 import math
 import random
+import sys
 import time
 import tkinter as tk
 from typing import Optional, Callable
@@ -22,6 +23,10 @@ logger = logging.getLogger(__name__)
 # Canvas dimensions for the panda drawing
 PANDA_CANVAS_W = 220
 PANDA_CANVAS_H = 270
+
+# Transparent color key for the Toplevel window (Windows only).
+# Magenta is the classic choice – it does not appear in the panda drawing.
+TRANSPARENT_COLOR = '#FF00FF'
 
 # Speech bubble layout constants
 BUBBLE_MAX_CHARS_PER_LINE = 30
@@ -109,6 +114,12 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
         'spinning': ['🌀', '💫', '😵‍💫', '🌪️', '🔄'],
         'shaking': ['😵', '🫨', '💫', '😰', '🤪'],
         'rolling': ['🌀', '💫', '😵', '🔄', '⭐'],
+        'stretching': ['🙆', '✨', '💪', '🌟', '😌'],
+        'waving': ['👋', '🤗', '😊', '✋', '🖐️'],
+        'jumping': ['🦘', '⬆️', '🎉', '💫', '🏀'],
+        'yawning': ['🥱', '😪', '💤', '😴', '🌙'],
+        'sneezing': ['🤧', '💨', '😤', '🌬️', '💥'],
+        'tail_wag': ['🐾', '💕', '😊', '🐼', '💖'],
     }
     
     def __init__(self, parent, panda_character=None, panda_level_system=None,
@@ -154,7 +165,8 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
         self._prev_drag_y = 0
         self._prev_drag_time = 0
         
-        # Configure frame - TRANSPARENT background
+        # Configure the proxy frame – it stays in the widget tree for API
+        # compatibility but is intentionally empty / zero-size.
         if ctk:
             self.configure(fg_color="transparent", corner_radius=0, bg_color="transparent")
         else:
@@ -164,29 +176,47 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
             except Exception:
                 self.configure(highlightthickness=0)
         
-        # Determine canvas background color to match parent theme
-        # (tkinter Canvas does not support true transparency, so we
-        # match the parent colour to make the panda appear to float
-        # without a visible box behind it)
-        self._canvas_bg = self._get_parent_bg()
+        # ----------------------------------------------------------
+        # Create a separate Toplevel window for the panda rendering.
+        # ----------------------------------------------------------
+        self._toplevel = tk.Toplevel(self)
+        self._toplevel.overrideredirect(True)
+        self._toplevel.wm_attributes('-topmost', True)
         
-        # Create canvas for panda body-shaped drawing with transparent bg
+        # Determine canvas/toplevel background color
+        if sys.platform == 'win32':
+            self._canvas_bg = TRANSPARENT_COLOR
+            self._toplevel.configure(bg=TRANSPARENT_COLOR)
+            try:
+                self._toplevel.wm_attributes('-transparentcolor', TRANSPARENT_COLOR)
+            except Exception:
+                pass
+        else:
+            self._canvas_bg = self._get_parent_bg()
+            self._toplevel.configure(bg=self._canvas_bg)
+        
+        # Size the toplevel to hold the panda canvas + speech bubble
+        self._toplevel_w = PANDA_CANVAS_W + 8
+        self._toplevel_h = PANDA_CANVAS_H + 100  # extra room for bubble
+        self._toplevel.geometry(f"{self._toplevel_w}x{self._toplevel_h}")
+        
+        # Create canvas for panda body-shaped drawing inside the Toplevel
         self.panda_canvas = tk.Canvas(
-            self,
+            self._toplevel,
             width=PANDA_CANVAS_W,
             height=PANDA_CANVAS_H,
             bg=self._canvas_bg,
             highlightthickness=0,
             bd=0,
         )
-        self.panda_canvas.pack(pady=4, padx=4)
+        self.panda_canvas.pack(side="bottom", pady=4, padx=4)
         
         # Speech bubble timer
         self._speech_timer = None
         
-        # Create floating speech bubble canvas (appears next to panda)
+        # Create floating speech bubble canvas inside the Toplevel
         self._bubble_canvas = tk.Canvas(
-            self,
+            self._toplevel,
             width=0,
             height=0,
             bg=self._canvas_bg,
@@ -220,22 +250,32 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
         self._last_rub_time = 0
         self.panda_canvas.bind("<Motion>", self._on_mouse_motion)
         
-        # Also bind to the frame itself for dragging
-        self.bind("<Button-1>", self._on_drag_start)
-        self.bind("<B1-Motion>", self._on_drag_motion)
-        self.bind("<ButtonRelease-1>", self._on_drag_end)
+        # Also bind to the Toplevel itself for dragging
+        self._toplevel.bind("<Button-1>", self._on_drag_start)
+        self._toplevel.bind("<B1-Motion>", self._on_drag_motion)
+        self._toplevel.bind("<ButtonRelease-1>", self._on_drag_end)
         
         # Draw initial panda and start animation
         self._draw_panda(0)
         self.start_animation('idle')
         
+        # Position the Toplevel relative to the main window once mapped
+        self._follow_main_job = None
+        self.after(100, self._initial_toplevel_position)
+        
+        # Destroy the Toplevel when the main window is destroyed
+        self.winfo_toplevel().bind("<Destroy>", self._on_main_destroy, add=True)
+        
         # Deferred background refresh – once the widget tree is fully
         # rendered the parent background colour is reliably available.
-        self.after(100, self._refresh_canvas_bg)
+        if sys.platform != 'win32':
+            self.after(100, self._refresh_canvas_bg)
         
         # Set up periodic background refresh to keep canvas blended
+        # (not needed on Windows – the transparent-color key is fixed)
         self._bg_refresh_job = None
-        self._schedule_bg_refresh()
+        if sys.platform != 'win32':
+            self._schedule_bg_refresh()
     
     # ------------------------------------------------------------------
     # Canvas-based panda drawing
@@ -295,6 +335,9 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
         """Re-detect the parent background and update both canvases."""
         if self._destroyed:
             return
+        # On Windows the transparent-color key is fixed; skip refresh.
+        if sys.platform == 'win32':
+            return
         new_bg = self._get_parent_bg()
         # Only update if color changed to avoid unnecessary redraws
         if new_bg != self._canvas_bg:
@@ -307,14 +350,94 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
                 self._bubble_canvas.configure(bg=self._canvas_bg)
             except Exception:
                 pass
+            try:
+                self._toplevel.configure(bg=self._canvas_bg)
+            except Exception:
+                pass
             # Redraw panda to ensure proper rendering with new background
             self._draw_panda(self.animation_frame)
 
     def _set_appearance_mode(self, mode_string):
         """Called by CustomTkinter when the appearance mode changes."""
         super()._set_appearance_mode(mode_string)
-        self._refresh_canvas_bg()
+        if sys.platform != 'win32':
+            self._refresh_canvas_bg()
         self._draw_panda(self.animation_frame)
+
+    # ------------------------------------------------------------------
+    # Toplevel position helpers
+    # ------------------------------------------------------------------
+
+    def _initial_toplevel_position(self):
+        """Position the Toplevel window relative to the main app window."""
+        if self._destroyed:
+            return
+        try:
+            root = self.winfo_toplevel()
+            # Read saved relative position from config
+            from src.config import config
+            saved_x = config.get('panda', 'position_x', default=0.98)
+            saved_y = config.get('panda', 'position_y', default=0.98)
+            
+            root.update_idletasks()
+            rx = root.winfo_rootx()
+            ry = root.winfo_rooty()
+            rw = max(1, root.winfo_width())
+            rh = max(1, root.winfo_height())
+            
+            # Convert relative coords to screen position (anchor "se")
+            abs_x = int(rx + saved_x * rw - self._toplevel_w)
+            abs_y = int(ry + saved_y * rh - self._toplevel_h)
+            self._toplevel.geometry(f"+{abs_x}+{abs_y}")
+        except Exception as e:
+            logger.debug(f"Initial toplevel position error: {e}")
+        
+        # Start periodic follow
+        self._start_follow_main()
+
+    def _start_follow_main(self):
+        """Periodically keep the Toplevel near the main window when not dragging."""
+        if self._destroyed:
+            return
+        self._follow_main_job = self.after(500, self._follow_main_tick)
+
+    def _follow_main_tick(self):
+        """Re-check main window position and adjust if the window moved."""
+        if self._destroyed:
+            return
+        # Only follow when not being dragged or tossed
+        if not self.is_dragging and not self._is_tossing:
+            try:
+                root = self.winfo_toplevel()
+                root.update_idletasks()
+                rx = root.winfo_rootx()
+                ry = root.winfo_rooty()
+                rw = max(1, root.winfo_width())
+                rh = max(1, root.winfo_height())
+                
+                # Get current toplevel screen position
+                tx = self._toplevel.winfo_x()
+                ty = self._toplevel.winfo_y()
+                
+                # Clamp toplevel so it stays within screen bounds but allow
+                # it to be anywhere — only pull it back if main window moved.
+                # We store _last_root_geom to detect main-window movement.
+                cur_geom = (rx, ry, rw, rh)
+                prev = getattr(self, '_last_root_geom', None)
+                if prev is not None and prev != cur_geom:
+                    # Main window moved; shift the toplevel by the delta.
+                    drx = rx - prev[0]
+                    dry = ry - prev[1]
+                    self._toplevel.geometry(f"+{tx + drx}+{ty + dry}")
+                self._last_root_geom = cur_geom
+            except Exception:
+                pass
+        self._follow_main_job = self.after(500, self._follow_main_tick)
+
+    def _on_main_destroy(self, event=None):
+        """Destroy the Toplevel when the main window is destroyed."""
+        if event and event.widget is self.winfo_toplevel():
+            self.destroy()
 
     def _show_speech_bubble(self, text: str):
         """Draw a floating speech bubble next to the panda on _bubble_canvas."""
@@ -502,6 +625,40 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
             leg_swing = math.sin(phase * 2) * 5
             arm_swing = math.sin(phase * 2 + math.pi) * 8
             body_bob = -abs(math.sin(phase * 3)) * 6  # bounce effect
+        elif anim == 'stretching':
+            # Arms above head, body elongated
+            leg_swing = 0
+            arm_swing = -abs(math.sin(phase * 0.8)) * 22  # arms way up
+            body_bob = -abs(math.sin(phase * 0.8)) * 6  # body lifts
+        elif anim == 'waving':
+            # One arm waves side to side (asymmetric)
+            leg_swing = 0
+            arm_swing = math.sin(phase * 2) * 16  # drives the right arm
+            body_bob = math.sin(phase) * 2
+        elif anim == 'jumping':
+            # Bouncing up and down
+            leg_swing = math.sin(phase * 2) * 6
+            arm_swing = -abs(math.sin(phase * 2)) * 12
+            body_bob = -abs(math.sin(phase * 2)) * 12  # large vertical bob
+        elif anim == 'yawning':
+            # Slight lean back
+            leg_swing = 0
+            arm_swing = math.sin(phase * 0.5) * 5
+            body_bob = math.sin(phase * 0.5) * 3 + 2
+        elif anim == 'sneezing':
+            # Sharp forward snap then recovery
+            sneeze_phase = (frame_idx % 8) / 8.0
+            if sneeze_phase < 0.3:
+                body_bob = sneeze_phase * 20  # compress forward
+            else:
+                body_bob = max(0, (0.3 - (sneeze_phase - 0.3)) * 20)
+            leg_swing = 0
+            arm_swing = math.sin(phase * 4) * 6
+        elif anim == 'tail_wag':
+            # Subtle body sway
+            leg_swing = math.sin(phase) * 3
+            arm_swing = math.sin(phase * 1.5) * 4
+            body_bob = math.sin(phase) * 2
         else:
             # Default walking for fed, etc.
             leg_swing = math.sin(phase) * 8
@@ -555,6 +712,19 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
             eye_style = 'dizzy'
         elif anim == 'rolling':
             eye_style = 'rolling'
+        elif anim == 'stretching':
+            eye_style = 'closed'
+        elif anim == 'waving':
+            eye_style = 'happy'
+        elif anim == 'jumping':
+            eye_style = 'happy'
+        elif anim == 'yawning':
+            eye_style = 'closed'
+        elif anim == 'sneezing':
+            cycle = frame_idx % 8
+            eye_style = 'closed' if cycle < 4 else 'surprised'
+        elif anim == 'tail_wag':
+            eye_style = 'happy'
         
         # --- Determine mouth style ---
         mouth_style = 'normal'
@@ -572,6 +742,19 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
             mouth_style = 'eating'
         elif anim == 'drunk':
             mouth_style = 'wavy'
+        elif anim == 'stretching':
+            mouth_style = 'normal'
+        elif anim == 'waving':
+            mouth_style = 'smile'
+        elif anim == 'jumping':
+            mouth_style = 'grin'
+        elif anim == 'yawning':
+            mouth_style = 'open_wide'
+        elif anim == 'sneezing':
+            cycle = frame_idx % 8
+            mouth_style = 'open_wide' if cycle < 4 else 'normal'
+        elif anim == 'tail_wag':
+            mouth_style = 'smile'
         
         # --- Colors ---
         white = "#FFFFFF"
@@ -593,6 +776,10 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
             # Occasional ear twitch while sleeping
             if frame_idx % 20 < 3:
                 ear_wiggle = math.sin(phase * 6) * 2 * sx
+        elif anim in ('waving', 'tail_wag', 'jumping'):
+            ear_wiggle = math.sin(phase * 2) * 3 * sx
+        elif anim == 'sneezing':
+            ear_wiggle = math.sin(phase * 5) * 4 * sx
         
         # --- Draw legs (behind body) ---
         leg_top = int(145 * sy + by)
@@ -1039,13 +1226,24 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
                           font=("Arial", int(20 * sx)), tags="extra")
         
         # Blush cheeks when petting, celebrating, playing, eating, etc.
-        if anim in ('petting', 'celebrating', 'fed', 'playing', 'eating', 'customizing'):
+        if anim in ('petting', 'celebrating', 'fed', 'playing', 'eating', 'customizing', 'tail_wag'):
             cheek_y = int(56 * sy + by)
             br = int(5 * sx)
             c.create_oval(cx - int(38 * sx), cheek_y - br, cx - int(28 * sx), cheek_y + br,
                           fill="#FFB6C1", outline="", tags="blush")
             c.create_oval(cx + int(28 * sx), cheek_y - br, cx + int(38 * sx), cheek_y + br,
                           fill="#FFB6C1", outline="", tags="blush")
+        
+        # Draw a small tail oval for tail_wag animation
+        if anim == 'tail_wag':
+            tail_offset = math.sin(frame_idx * 0.8) * int(8 * sx)
+            tail_cx = cx + tail_offset
+            tail_cy = int(145 * sy + by)
+            c.create_oval(
+                tail_cx - int(8 * sx), tail_cy - int(5 * sy),
+                tail_cx + int(8 * sx), tail_cy + int(5 * sy),
+                fill="#1a1a1a", outline="#1a1a1a", tags="tail"
+            )
     
     def _on_drag_start(self, event):
         """Handle start of drag operation."""
@@ -1107,41 +1305,31 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
                 response = self.panda.on_drag() if hasattr(self.panda, 'on_drag') else "🐼 Wheee!"
                 self.info_label.configure(text=response)
         
-        # Get the parent container (panda_container)
-        parent = self.master
-        if parent and hasattr(parent, 'place'):
-            root = self.winfo_toplevel()
-            root_w = max(1, root.winfo_width())
-            root_h = max(1, root.winfo_height())
-            parent_w = max(1, parent.winfo_width())
-            parent_h = max(1, parent.winfo_height())
+        # Move the Toplevel window using screen coordinates
+        try:
+            tx = self._toplevel.winfo_x()
+            ty = self._toplevel.winfo_y()
+            new_x = tx + (event.x - self.drag_start_x)
+            new_y = ty + (event.y - self.drag_start_y)
             
-            # Calculate new absolute position
-            x = parent.winfo_x() + (event.x - self.drag_start_x)
-            y = parent.winfo_y() + (event.y - self.drag_start_y)
-            
-            # Constrain to window bounds
-            max_x = max(0, root_w - parent_w)
-            max_y = max(0, root_h - parent_h)
+            # Screen bounds for wall detection
+            screen_w = self._toplevel.winfo_screenwidth()
+            screen_h = self._toplevel.winfo_screenheight()
+            tw = self._toplevel.winfo_width()
+            th = self._toplevel.winfo_height()
+            max_x = max(0, screen_w - tw)
+            max_y = max(0, screen_h - th)
             
             hit_wall = False
-            if x <= 0 or x >= max_x:
+            if new_x <= 0 or new_x >= max_x:
                 hit_wall = True
-            if y <= 0 or y >= max_y:
+            if new_y <= 0 or new_y >= max_y:
                 hit_wall = True
             
-            x = max(0, min(x, max_x))
-            y = max(0, min(y, max_y))
+            new_x = max(0, min(new_x, max_x))
+            new_y = max(0, min(new_y, max_y))
             
-            # Convert back to relative coordinates for consistent positioning
-            rel_x = (x + parent_w) / max(1, root_w)
-            rel_y = (y + parent_h) / max(1, root_h)
-            # Clamp relative coords
-            rel_x = max(0.0, min(1.0, rel_x))
-            rel_y = max(0.0, min(1.0, rel_y))
-            
-            # Always use relx/rely with anchor="se" to stay consistent
-            parent.place(relx=rel_x, rely=rel_y, anchor="se")
+            self._toplevel.geometry(f"+{new_x}+{new_y}")
             
             if hit_wall and now - self._last_wall_hit_time > self.WALL_HIT_COOLDOWN_SECONDS:
                 self._last_wall_hit_time = now
@@ -1149,6 +1337,8 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
                 if self.panda:
                     response = self.panda.on_wall_hit() if hasattr(self.panda, 'on_wall_hit') else "🐼 Ouch!"
                     self.info_label.configure(text=response)
+        except Exception as e:
+            logger.debug(f"Drag motion error: {e}")
     
     def _detect_drag_patterns(self):
         """Detect circular or shaking drag patterns."""
@@ -1249,21 +1439,16 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
         if self._destroyed or not self._is_tossing:
             return
         
-        parent = self.master
-        if not parent or not hasattr(parent, 'place'):
-            self._stop_toss_physics()
-            return
-        
         try:
-            root = self.winfo_toplevel()
-            root_w = max(1, root.winfo_width())
-            root_h = max(1, root.winfo_height())
-            parent_w = max(1, parent.winfo_width())
-            parent_h = max(1, parent.winfo_height())
+            # Screen bounds
+            screen_w = self._toplevel.winfo_screenwidth()
+            screen_h = self._toplevel.winfo_screenheight()
+            tw = max(1, self._toplevel.winfo_width())
+            th = max(1, self._toplevel.winfo_height())
             
-            # Current position
-            x = float(parent.winfo_x())
-            y = float(parent.winfo_y())
+            # Current screen position
+            x = float(self._toplevel.winfo_x())
+            y = float(self._toplevel.winfo_y())
             
             # Apply gravity
             self._toss_velocity_y += self.TOSS_GRAVITY
@@ -1276,9 +1461,9 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
             x += self._toss_velocity_x
             y += self._toss_velocity_y
             
-            # Bounce off walls
-            max_x = max(0, root_w - parent_w)
-            max_y = max(0, root_h - parent_h)
+            # Bounce off screen edges
+            max_x = max(0, screen_w - tw)
+            max_y = max(0, screen_h - th)
             
             bounced = False
             if x <= 0:
@@ -1307,11 +1492,7 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
                 self._set_animation_no_cancel(anim)
             
             # Place at new position
-            rel_x = (x + parent_w) / max(1, root_w)
-            rel_y = (y + parent_h) / max(1, root_h)
-            rel_x = max(0.0, min(1.0, rel_x))
-            rel_y = max(0.0, min(1.0, rel_y))
-            parent.place(relx=rel_x, rely=rel_y, anchor="se")
+            self._toplevel.geometry(f"+{int(x)}+{int(y)}")
             
             # Check if velocity is low enough to stop
             speed = (self._toss_velocity_x ** 2 + self._toss_velocity_y ** 2) ** 0.5
@@ -1340,28 +1521,33 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
         self.start_animation('idle')
     
     def _save_panda_position(self):
-        """Save the current panda position to config."""
-        parent = self.master
-        if parent:
-            try:
-                root = self.winfo_toplevel()
-                root_w = max(1, root.winfo_width())
-                root_h = max(1, root.winfo_height())
-                parent_w = max(1, parent.winfo_width())
-                parent_h = max(1, parent.winfo_height())
-                
-                rel_x = (parent.winfo_x() + parent_w) / root_w
-                rel_y = (parent.winfo_y() + parent_h) / root_h
-                rel_x = max(0.05, min(1.0, rel_x))
-                rel_y = max(0.05, min(1.0, rel_y))
-                
-                from src.config import config
-                config.set('panda', 'position_x', value=rel_x)
-                config.set('panda', 'position_y', value=rel_y)
-                config.save()
-                logger.info(f"Saved panda position: ({rel_x:.2f}, {rel_y:.2f})")
-            except Exception as e:
-                logger.warning(f"Failed to save panda position: {e}")
+        """Save the current panda position to config (relative to main window)."""
+        try:
+            root = self.winfo_toplevel()
+            root.update_idletasks()
+            rx = root.winfo_rootx()
+            ry = root.winfo_rooty()
+            rw = max(1, root.winfo_width())
+            rh = max(1, root.winfo_height())
+            
+            tx = self._toplevel.winfo_x()
+            ty = self._toplevel.winfo_y()
+            tw = max(1, self._toplevel.winfo_width())
+            th = max(1, self._toplevel.winfo_height())
+            
+            # Store as relative coords (anchor "se" convention)
+            rel_x = (tx + tw - rx) / rw
+            rel_y = (ty + th - ry) / rh
+            rel_x = max(0.05, min(1.0, rel_x))
+            rel_y = max(0.05, min(1.0, rel_y))
+            
+            from src.config import config
+            config.set('panda', 'position_x', value=rel_x)
+            config.set('panda', 'position_y', value=rel_y)
+            config.save()
+            logger.info(f"Saved panda position: ({rel_x:.2f}, {rel_y:.2f})")
+        except Exception as e:
+            logger.warning(f"Failed to save panda position: {e}")
     
     def _on_click(self, event=None):
         """Handle left click on panda with body part detection."""
@@ -1511,18 +1697,25 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
     
     def _reset_position(self):
         """Reset panda to default corner position."""
-        parent = self.master
-        if parent and hasattr(parent, 'place'):
-            parent.place(relx=0.98, rely=0.98, anchor="se")
+        try:
+            root = self.winfo_toplevel()
+            root.update_idletasks()
+            rx = root.winfo_rootx()
+            ry = root.winfo_rooty()
+            rw = max(1, root.winfo_width())
+            rh = max(1, root.winfo_height())
+            
+            abs_x = int(rx + 0.98 * rw - self._toplevel_w)
+            abs_y = int(ry + 0.98 * rh - self._toplevel_h)
+            self._toplevel.geometry(f"+{abs_x}+{abs_y}")
             
             # Save to config
-            try:
-                from src.config import config
-                config.set('panda', 'position_x', value=0.98)
-                config.set('panda', 'position_y', value=0.98)
-                config.save()
-            except Exception as e:
-                logger.warning(f"Failed to save panda position: {e}")
+            from src.config import config
+            config.set('panda', 'position_x', value=0.98)
+            config.set('panda', 'position_y', value=0.98)
+            config.save()
+        except Exception as e:
+            logger.warning(f"Failed to save panda position: {e}")
         
         if self.panda:
             self.info_label.configure(text="🐼 Back to my corner!")
@@ -1836,7 +2029,7 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
             self.info_label.configure(text=text)
     
     def destroy(self):
-        """Clean up widget."""
+        """Clean up widget and Toplevel."""
         self._destroyed = True
         self._is_tossing = False
         self._cancel_animation_timer()
@@ -1858,5 +2051,16 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
             except Exception:
                 pass
             self._bg_refresh_job = None
+        if self._follow_main_job:
+            try:
+                self.after_cancel(self._follow_main_job)
+            except Exception:
+                pass
+            self._follow_main_job = None
+        # Destroy the separate Toplevel window
+        try:
+            self._toplevel.destroy()
+        except Exception:
+            pass
         super().destroy()
 
