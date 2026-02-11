@@ -494,6 +494,9 @@ class PS2TextureSorter(ctk.CTk):
     
     def _on_close(self):
         """Handle window close to ensure clean shutdown"""
+        # Cancel any pending auto-refresh timers
+        self._cancel_stats_auto_refresh()
+        
         splash = None
         try:
             # Show goodbye splash if available
@@ -4342,12 +4345,13 @@ Built with:
                 self.panda_widget.info_label.configure(text=message)
                 self.panda_widget.play_animation_once(animation)
             
-            # Count towards interaction type
+            # Count towards interaction type (feed_count and click_count are
+            # core PandaCharacter attributes initialized in __init__)
             if self.panda:
                 if interaction_type == 'feed':
-                    self.panda.feed_count = getattr(self.panda, 'feed_count', 0) + 1
+                    self.panda.feed_count += 1
                 elif interaction_type == 'play':
-                    self.panda.click_count = getattr(self.panda, 'click_count', 0) + 1
+                    self.panda.click_count += 1
             
             # Award XP
             if self.panda_level_system:
@@ -4542,6 +4546,8 @@ Built with:
 
     def _refresh_panda_stats(self):
         """Refresh panda stats display by rebuilding the tab content"""
+        # Cancel existing auto-refresh timer before rebuilding
+        self._cancel_stats_auto_refresh()
         # Destroy and recreate the tab content for a full refresh
         try:
             for widget in self.tab_panda_stats.winfo_children():
@@ -4559,22 +4565,41 @@ Built with:
                 self.panda_preview_label.configure(text=current_anim)
 
     def _start_stats_auto_refresh(self):
-        """Auto-refresh panda stats every 5 seconds when the stats tab is visible."""
+        """Auto-refresh panda stats every 5 seconds when the stats tab is visible.
+        
+        The timer ID is stored in _stats_auto_refresh_id so it can be cancelled
+        when the tab is rebuilt (via _refresh_panda_stats) or the window closes.
+        """
         try:
             if not hasattr(self, 'tab_panda_stats') or not self.tab_panda_stats.winfo_exists():
                 return
             # Only refresh labels in-place to avoid full rebuild flicker
             if hasattr(self, 'panda_mood_label') and self.panda:
-                mood_indicator = self.panda.get_mood_indicator()
-                mood_name = self.panda.current_mood.value.title()
-                self.panda_mood_label.configure(text=f"{mood_indicator} {mood_name}")
+                try:
+                    mood_indicator = self.panda.get_mood_indicator()
+                    mood_name = self.panda.current_mood.value.title()
+                    self.panda_mood_label.configure(text=f"{mood_indicator} {mood_name}")
+                except Exception:
+                    pass
             if hasattr(self, 'panda_preview_label') and self.panda:
-                current_anim = self.panda.get_animation_frame('idle')
-                self.panda_preview_label.configure(text=current_anim)
+                try:
+                    current_anim = self.panda.get_animation_frame('idle')
+                    self.panda_preview_label.configure(text=current_anim)
+                except Exception:
+                    pass
             # Schedule next refresh
             self._stats_auto_refresh_id = self.after(5000, self._start_stats_auto_refresh)
         except Exception as e:
             logger.debug(f"Stats auto-refresh error: {e}")
+
+    def _cancel_stats_auto_refresh(self):
+        """Cancel any pending stats auto-refresh timer."""
+        if hasattr(self, '_stats_auto_refresh_id') and self._stats_auto_refresh_id:
+            try:
+                self.after_cancel(self._stats_auto_refresh_id)
+            except Exception:
+                pass
+            self._stats_auto_refresh_id = None
 
     def _reset_panda_progression(self):
         """Reset panda stats and progression."""
@@ -5356,11 +5381,13 @@ def main():
         # Close splash
         splash.close()
         
-        # Destroy the temporary root window before creating the real app
-        # This prevents an extra "ctk" window from appearing
+        # Destroy the temporary root window before creating the real app.
+        # PS2TextureSorter inherits from ctk.CTk, so it creates its own root
+        # window internally. Without this destroy(), the temporary root would
+        # remain visible as a blank window with the default "ctk" title.
         root.destroy()
         
-        # Create and show main application (it creates its own CTk root)
+        # Create and show main application (creates its own CTk root window)
         app = PS2TextureSorter()
         
         # Start main loop
