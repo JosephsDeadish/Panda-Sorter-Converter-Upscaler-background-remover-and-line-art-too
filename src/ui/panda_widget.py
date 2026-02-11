@@ -1,10 +1,12 @@
 """
 Panda Widget - Animated panda character for the UI
-Displays an interactive panda that users can click, hover, pet, and drag around
+Displays an interactive panda drawn on a canvas with body-shaped rendering
+and walking/idle animations. Users can click, hover, pet, and drag the panda.
 Author: Dead On The Inside / JosephsDeadish
 """
 
 import logging
+import math
 import random
 import time
 import tkinter as tk
@@ -17,8 +19,17 @@ except ImportError:
 logger = logging.getLogger(__name__)
 
 
+# Canvas dimensions for the panda drawing
+PANDA_CANVAS_W = 160
+PANDA_CANVAS_H = 200
+
+
 class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
-    """Interactive animated panda widget - always present and draggable."""
+    """Interactive animated panda widget - always present and draggable.
+    
+    Renders the panda as a body-shaped canvas drawing with distinct
+    black-and-white panda features and walking/idle animations.
+    """
     
     # Minimum drag distance (pixels) to distinguish drag from click
     CLICK_THRESHOLD = 5
@@ -26,6 +37,9 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
     MIN_RUB_POSITIONS = 4
     # Cooldown in seconds between rub detections
     RUB_COOLDOWN_SECONDS = 2.0
+    
+    # Animation timing (ms)
+    ANIMATION_INTERVAL = 150
     
     def __init__(self, parent, panda_character=None, panda_level_system=None,
                  widget_collection=None, panda_closet=None, **kwargs):
@@ -62,71 +76,430 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
         if ctk:
             self.configure(fg_color="transparent", corner_radius=0, bg_color="transparent")
         else:
-            # For tk fallback: attempt transparent-like appearance by using parent background
-            # Note: True transparency requires customtkinter; tk uses parent's background color
             try:
                 parent_bg = parent.cget('bg')
                 self.configure(bg=parent_bg, highlightthickness=0)
-            except:
+            except Exception:
                 self.configure(highlightthickness=0)
         
-        # Create panda display area - LARGER font
-        self.panda_label = ctk.CTkLabel(
-            self,
-            text="",
-            font=("Courier New", 14),  # Increased from 12
-            justify="left",
-            anchor="center",
-            fg_color="transparent",
-            bg_color="transparent"
-        ) if ctk else tk.Label(
-            self,
-            text="",
-            font=("Courier New", 14),  # Increased from 12
-            justify="left",
-            highlightthickness=0
-        )
-        self.panda_label.pack(pady=12, padx=12)  # Increased padding
+        # Determine canvas background color to match parent theme
+        self._canvas_bg = self._get_canvas_bg()
         
-        # Create info display - LARGER
+        # Create canvas for panda body-shaped drawing
+        self.panda_canvas = tk.Canvas(
+            self,
+            width=PANDA_CANVAS_W,
+            height=PANDA_CANVAS_H,
+            bg=self._canvas_bg,
+            highlightthickness=0,
+            bd=0,
+        )
+        self.panda_canvas.pack(pady=4, padx=4)
+        
+        # Create info display
         self.info_label = ctk.CTkLabel(
             self,
             text="Click me! 🐼",
-            font=("Arial", 11),  # Increased from 10
+            font=("Arial", 11),
             text_color="gray",
             fg_color="transparent",
             bg_color="transparent"
         ) if ctk else tk.Label(
             self,
             text="Click me! 🐼",
-            font=("Arial", 11),  # Increased from 10
+            font=("Arial", 11),
             fg="gray",
             highlightthickness=0
         )
-        self.info_label.pack(pady=6)  # Increased padding
+        self.info_label.pack(pady=4)
         
-        # Bind events for interaction
-        self.panda_label.bind("<Button-3>", self._on_right_click)
-        self.panda_label.bind("<Enter>", self._on_hover)
-        self.panda_label.bind("<Leave>", self._on_leave)
+        # Keep panda_label as an alias to panda_canvas for external code compatibility
+        self.panda_label = self.panda_canvas
         
-        # Bind events for dragging
-        self.panda_label.bind("<Button-1>", self._on_drag_start)
-        self.panda_label.bind("<B1-Motion>", self._on_drag_motion)
-        self.panda_label.bind("<ButtonRelease-1>", self._on_drag_end)
+        # Bind events for interaction on canvas
+        self.panda_canvas.bind("<Button-3>", self._on_right_click)
+        self.panda_canvas.bind("<Enter>", self._on_hover)
+        self.panda_canvas.bind("<Leave>", self._on_leave)
+        
+        # Bind events for dragging on canvas
+        self.panda_canvas.bind("<Button-1>", self._on_drag_start)
+        self.panda_canvas.bind("<B1-Motion>", self._on_drag_motion)
+        self.panda_canvas.bind("<ButtonRelease-1>", self._on_drag_end)
         
         # Bind mouse motion for pet-by-rubbing detection
-        self._rub_positions = []  # Track recent mouse positions for rubbing
+        self._rub_positions = []
         self._last_rub_time = 0
-        self.panda_label.bind("<Motion>", self._on_mouse_motion)
+        self.panda_canvas.bind("<Motion>", self._on_mouse_motion)
         
         # Also bind to the frame itself for dragging
         self.bind("<Button-1>", self._on_drag_start)
         self.bind("<B1-Motion>", self._on_drag_motion)
         self.bind("<ButtonRelease-1>", self._on_drag_end)
         
-        # Start idle animation
+        # Draw initial panda and start animation
+        self._draw_panda(0)
         self.start_animation('idle')
+    
+    # ------------------------------------------------------------------
+    # Canvas-based panda drawing
+    # ------------------------------------------------------------------
+    
+    def _get_canvas_bg(self) -> str:
+        """Determine appropriate canvas background to blend with the parent."""
+        try:
+            if ctk:
+                mode = ctk.get_appearance_mode()
+                return "#2b2b2b" if mode == "Dark" else "#f0f0f0"
+        except Exception:
+            pass
+        return "#f0f0f0"
+    
+    def _draw_panda(self, frame_idx: int):
+        """Draw the panda on the canvas for the given animation frame.
+        
+        The panda is drawn with proper body proportions and black/white
+        coloring. The frame_idx drives limb positions for walking.
+        """
+        c = self.panda_canvas
+        c.delete("all")
+        
+        w = PANDA_CANVAS_W
+        h = PANDA_CANVAS_H
+        cx = w // 2  # center x
+        
+        anim = self.current_animation
+        
+        # --- Determine limb offsets for walking ---
+        # Cycle through 8 frames for smooth walking
+        phase = (frame_idx % 8) / 8.0 * 2 * math.pi
+        
+        if anim in ('idle', 'working', 'sarcastic', 'thinking'):
+            # Gentle body bob for idle
+            leg_swing = 0
+            arm_swing = 0
+            body_bob = math.sin(phase) * 2
+        elif anim in ('dragging', 'tossed', 'wall_hit'):
+            leg_swing = math.sin(phase) * 10
+            arm_swing = math.sin(phase + math.pi) * 8
+            body_bob = abs(math.sin(phase)) * 3
+        elif anim == 'dancing':
+            leg_swing = math.sin(phase) * 14
+            arm_swing = math.sin(phase * 2) * 12
+            body_bob = math.sin(phase * 2) * 5
+        elif anim == 'celebrating':
+            leg_swing = math.sin(phase) * 6
+            arm_swing = -abs(math.sin(phase)) * 18  # Arms up
+            body_bob = abs(math.sin(phase)) * 4
+        elif anim in ('sleeping', 'laying_down', 'laying_back', 'laying_side'):
+            leg_swing = 0
+            arm_swing = 0
+            body_bob = math.sin(phase) * 1
+        elif anim == 'rage':
+            leg_swing = math.sin(phase * 3) * 8
+            arm_swing = math.sin(phase * 3) * 10
+            body_bob = math.sin(phase * 4) * 4
+        elif anim == 'petting':
+            leg_swing = 0
+            arm_swing = 0
+            body_bob = math.sin(phase) * 2
+        else:
+            # Default walking for clicked, fed, etc.
+            leg_swing = math.sin(phase) * 8
+            arm_swing = math.sin(phase + math.pi) * 6
+            body_bob = abs(math.sin(phase)) * 2
+        
+        by = body_bob  # vertical body offset
+        
+        # --- Determine eye style based on animation ---
+        eye_style = 'normal'
+        if anim == 'sleeping' or anim in ('laying_down', 'laying_back', 'laying_side'):
+            eye_style = 'closed'
+        elif anim == 'celebrating':
+            eye_style = 'happy'
+        elif anim == 'rage':
+            eye_style = 'angry'
+        elif anim == 'sarcastic':
+            eye_style = 'half'
+        elif anim == 'drunk':
+            eye_style = 'dizzy'
+        elif anim == 'petting':
+            eye_style = 'happy'
+        
+        # --- Determine mouth style ---
+        mouth_style = 'normal'
+        if anim == 'celebrating' or anim == 'dancing':
+            mouth_style = 'smile'
+        elif anim == 'rage':
+            mouth_style = 'angry'
+        elif anim == 'sleeping' or anim in ('laying_down', 'laying_back', 'laying_side'):
+            mouth_style = 'sleep'
+        elif anim == 'petting' or anim == 'fed':
+            mouth_style = 'smile'
+        elif anim == 'drunk':
+            mouth_style = 'wavy'
+        
+        # --- Colors ---
+        white = "#FFFFFF"
+        black = "#1a1a1a"
+        pink = "#FFB6C1"
+        nose_color = "#333333"
+        
+        # --- Draw legs (behind body) ---
+        leg_top = 145 + by
+        leg_len = 30
+        # Left leg
+        left_leg_x = cx - 25
+        left_leg_swing = leg_swing
+        c.create_oval(
+            left_leg_x - 12, leg_top + left_leg_swing,
+            left_leg_x + 12, leg_top + leg_len + left_leg_swing,
+            fill=black, outline=black, tags="leg"
+        )
+        # Left foot (white pad)
+        c.create_oval(
+            left_leg_x - 10, leg_top + leg_len - 8 + left_leg_swing,
+            left_leg_x + 10, leg_top + leg_len + 4 + left_leg_swing,
+            fill=white, outline=black, width=1, tags="foot"
+        )
+        # Right leg
+        right_leg_x = cx + 25
+        right_leg_swing = -leg_swing
+        c.create_oval(
+            right_leg_x - 12, leg_top + right_leg_swing,
+            right_leg_x + 12, leg_top + leg_len + right_leg_swing,
+            fill=black, outline=black, tags="leg"
+        )
+        # Right foot (white pad)
+        c.create_oval(
+            right_leg_x - 10, leg_top + leg_len - 8 + right_leg_swing,
+            right_leg_x + 10, leg_top + leg_len + 4 + right_leg_swing,
+            fill=white, outline=black, width=1, tags="foot"
+        )
+        
+        # --- Draw body (white belly, rounded) ---
+        body_top = 75 + by
+        body_bot = 160 + by
+        c.create_oval(
+            cx - 42, body_top, cx + 42, body_bot,
+            fill=white, outline=black, width=2, tags="body"
+        )
+        # Inner belly patch (lighter)
+        c.create_oval(
+            cx - 28, body_top + 15, cx + 28, body_bot - 10,
+            fill="#FAFAFA", outline="", tags="belly"
+        )
+        
+        # --- Draw arms (black, attached to body sides) ---
+        arm_top = 95 + by
+        arm_len = 35
+        # Left arm
+        la_swing = arm_swing
+        c.create_oval(
+            cx - 55, arm_top + la_swing,
+            cx - 30, arm_top + arm_len + la_swing,
+            fill=black, outline=black, tags="arm"
+        )
+        # Right arm
+        ra_swing = -arm_swing
+        c.create_oval(
+            cx + 30, arm_top + ra_swing,
+            cx + 55, arm_top + arm_len + ra_swing,
+            fill=black, outline=black, tags="arm"
+        )
+        
+        # --- Draw head ---
+        head_cy = 52 + by
+        head_rx = 36
+        head_ry = 32
+        c.create_oval(
+            cx - head_rx, head_cy - head_ry,
+            cx + head_rx, head_cy + head_ry,
+            fill=white, outline=black, width=2, tags="head"
+        )
+        
+        # --- Draw ears (black circles on top of head) ---
+        ear_y = head_cy - head_ry + 5
+        # Left ear
+        c.create_oval(cx - head_rx - 2, ear_y - 16,
+                       cx - head_rx + 22, ear_y + 8,
+                       fill=black, outline=black, tags="ear")
+        # Inner ear pink
+        c.create_oval(cx - head_rx + 4, ear_y - 10,
+                       cx - head_rx + 16, ear_y + 2,
+                       fill=pink, outline="", tags="ear_inner")
+        # Right ear
+        c.create_oval(cx + head_rx - 22, ear_y - 16,
+                       cx + head_rx + 2, ear_y + 8,
+                       fill=black, outline=black, tags="ear")
+        # Inner ear pink
+        c.create_oval(cx + head_rx - 16, ear_y - 10,
+                       cx + head_rx - 4, ear_y + 2,
+                       fill=pink, outline="", tags="ear_inner")
+        
+        # --- Draw eye patches (black ovals around eyes) ---
+        eye_y = head_cy - 4
+        patch_rx = 14
+        patch_ry = 11
+        # Left eye patch
+        c.create_oval(cx - 24 - patch_rx, eye_y - patch_ry,
+                       cx - 24 + patch_rx, eye_y + patch_ry,
+                       fill=black, outline="", tags="eye_patch")
+        # Right eye patch
+        c.create_oval(cx + 24 - patch_rx, eye_y - patch_ry,
+                       cx + 24 + patch_rx, eye_y + patch_ry,
+                       fill=black, outline="", tags="eye_patch")
+        
+        # --- Draw eyes ---
+        self._draw_eyes(c, cx, eye_y, eye_style)
+        
+        # --- Draw nose ---
+        nose_y = head_cy + 8
+        c.create_oval(cx - 5, nose_y - 3, cx + 5, nose_y + 4,
+                       fill=nose_color, outline="", tags="nose")
+        
+        # --- Draw mouth ---
+        self._draw_mouth(c, cx, nose_y + 6, mouth_style)
+        
+        # --- Draw animation-specific extras ---
+        self._draw_animation_extras(c, cx, by, anim, frame_idx)
+    
+    def _draw_eyes(self, c: tk.Canvas, cx: int, ey: int, style: str):
+        """Draw panda eyes based on the current animation style."""
+        left_ex = cx - 24
+        right_ex = cx + 24
+        
+        if style == 'closed':
+            # Sleeping - curved lines
+            c.create_line(left_ex - 6, ey, left_ex + 6, ey,
+                          fill="white", width=2, tags="eye")
+            c.create_line(right_ex - 6, ey, right_ex + 6, ey,
+                          fill="white", width=2, tags="eye")
+        elif style == 'happy':
+            # Happy - upward arcs (^  ^)
+            c.create_arc(left_ex - 6, ey - 6, left_ex + 6, ey + 4,
+                         start=0, extent=180, style="arc",
+                         outline="white", width=2, tags="eye")
+            c.create_arc(right_ex - 6, ey - 6, right_ex + 6, ey + 4,
+                         start=0, extent=180, style="arc",
+                         outline="white", width=2, tags="eye")
+        elif style == 'angry':
+            # Angry - small dots with angled brows
+            c.create_oval(left_ex - 3, ey - 3, left_ex + 3, ey + 3,
+                          fill="red", outline="", tags="eye")
+            c.create_oval(right_ex - 3, ey - 3, right_ex + 3, ey + 3,
+                          fill="red", outline="", tags="eye")
+            # Angry brows
+            c.create_line(left_ex - 7, ey - 10, left_ex + 5, ey - 6,
+                          fill="white", width=2, tags="brow")
+            c.create_line(right_ex + 7, ey - 10, right_ex - 5, ey - 6,
+                          fill="white", width=2, tags="brow")
+        elif style == 'half':
+            # Sarcastic half-lidded
+            c.create_oval(left_ex - 4, ey - 1, left_ex + 4, ey + 4,
+                          fill="white", outline="", tags="eye")
+            c.create_oval(left_ex - 2, ey + 0, left_ex + 2, ey + 3,
+                          fill="#222222", outline="", tags="pupil")
+            c.create_oval(right_ex - 4, ey - 1, right_ex + 4, ey + 4,
+                          fill="white", outline="", tags="eye")
+            c.create_oval(right_ex - 2, ey + 0, right_ex + 2, ey + 3,
+                          fill="#222222", outline="", tags="pupil")
+        elif style == 'dizzy':
+            # Drunk - spiral/x eyes
+            c.create_line(left_ex - 4, ey - 4, left_ex + 4, ey + 4,
+                          fill="white", width=2, tags="eye")
+            c.create_line(left_ex - 4, ey + 4, left_ex + 4, ey - 4,
+                          fill="white", width=2, tags="eye")
+            c.create_line(right_ex - 4, ey - 4, right_ex + 4, ey + 4,
+                          fill="white", width=2, tags="eye")
+            c.create_line(right_ex - 4, ey + 4, right_ex + 4, ey - 4,
+                          fill="white", width=2, tags="eye")
+        else:
+            # Normal round eyes with pupils and shine
+            # Left eye white
+            c.create_oval(left_ex - 6, ey - 6, left_ex + 6, ey + 6,
+                          fill="white", outline="", tags="eye")
+            # Left pupil
+            c.create_oval(left_ex - 3, ey - 3, left_ex + 3, ey + 3,
+                          fill="#222222", outline="", tags="pupil")
+            # Left shine
+            c.create_oval(left_ex - 5, ey - 5, left_ex - 2, ey - 2,
+                          fill="white", outline="", tags="shine")
+            # Right eye white
+            c.create_oval(right_ex - 6, ey - 6, right_ex + 6, ey + 6,
+                          fill="white", outline="", tags="eye")
+            # Right pupil
+            c.create_oval(right_ex - 3, ey - 3, right_ex + 3, ey + 3,
+                          fill="#222222", outline="", tags="pupil")
+            # Right shine
+            c.create_oval(right_ex - 5, ey - 5, right_ex - 2, ey - 2,
+                          fill="white", outline="", tags="shine")
+    
+    def _draw_mouth(self, c: tk.Canvas, cx: int, my: int, style: str):
+        """Draw panda mouth based on the current animation style."""
+        if style == 'smile':
+            c.create_arc(cx - 8, my - 6, cx + 8, my + 6,
+                         start=200, extent=140, style="arc",
+                         outline="#333333", width=2, tags="mouth")
+        elif style == 'angry':
+            # Frown
+            c.create_arc(cx - 8, my, cx + 8, my + 10,
+                         start=20, extent=140, style="arc",
+                         outline="#333333", width=2, tags="mouth")
+        elif style == 'sleep':
+            # Small 'z' drawn as text
+            c.create_text(cx + 30, my - 20, text="z",
+                          font=("Arial", 8), fill="gray", tags="zzz")
+            c.create_text(cx + 38, my - 30, text="Z",
+                          font=("Arial", 10), fill="gray", tags="zzz")
+            c.create_text(cx + 46, my - 42, text="Z",
+                          font=("Arial", 13), fill="gray", tags="zzz")
+            # Small line mouth
+            c.create_line(cx - 4, my + 2, cx + 4, my + 2,
+                          fill="#333333", width=1, tags="mouth")
+        elif style == 'wavy':
+            # Wavy drunk mouth
+            points = []
+            for i in range(9):
+                px = cx - 8 + i * 2
+                py = my + math.sin(i * 1.2) * 3
+                points.extend([px, py])
+            if len(points) >= 4:
+                c.create_line(*points, fill="#333333", width=2,
+                              smooth=True, tags="mouth")
+        else:
+            # Neutral small curve
+            c.create_arc(cx - 5, my - 3, cx + 5, my + 4,
+                         start=210, extent=120, style="arc",
+                         outline="#333333", width=1.5, tags="mouth")
+    
+    def _draw_animation_extras(self, c: tk.Canvas, cx: int, by: float,
+                                anim: str, frame_idx: int):
+        """Draw extra decorations based on animation type."""
+        emojis = {
+            'working': ['💼', '⚙️', '📊', '💻', '☕'],
+            'celebrating': ['🎉', '🥳', '🎊', '🎈', '✨', '🎆'],
+            'rage': ['💢', '🔥', '💢💢', '🔥💢', '💥', '🔥🔥'],
+            'dancing': ['🎵', '🎶', '🎵', '♪', '🎶'],
+            'drunk': ['🍺', '🍻', '🥴', '🍺', '🍾', '😵‍💫'],
+            'petting': ['💕', '❤️', '💖', '😊'],
+            'fed': ['🎋', '🍃', '🌿', '😋'],
+            'clicked': ['✨', '⭐', '💫'],
+            'tossed': ['😵', '💫', '🌀'],
+            'wall_hit': ['💥', '😣', '⚡'],
+        }
+        emoji_list = emojis.get(anim)
+        if emoji_list:
+            emoji = emoji_list[frame_idx % len(emoji_list)]
+            c.create_text(cx + 45, 18 + by, text=emoji,
+                          font=("Arial", 16), tags="extra")
+        
+        # Blush cheeks when petting or celebrating
+        if anim in ('petting', 'celebrating', 'fed'):
+            cheek_y = 56 + by
+            c.create_oval(cx - 38, cheek_y - 4, cx - 28, cheek_y + 4,
+                          fill="#FFB6C1", outline="", tags="blush")
+            c.create_oval(cx + 28, cheek_y - 4, cx + 38, cheek_y + 4,
+                          fill="#FFB6C1", outline="", tags="blush")
     
     def _on_drag_start(self, event):
         """Handle start of drag operation."""
@@ -469,9 +842,8 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
             from src.config import config
             if config.get('ui', 'disable_panda_animations', default=False):
                 # Just show static frame, no animation loop
-                if self.panda:
-                    frame = self.panda.get_animation_frame(animation_name)
-                    self.panda_label.configure(text=frame)
+                self.current_animation = animation_name
+                self._draw_panda(0)
                 return
         except Exception:
             pass
@@ -491,11 +863,7 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
             return
         self.current_animation = animation_name
         try:
-            if self.panda:
-                frame = self.panda.get_animation_frame(animation_name)
-                # Enhance with equipped items
-                frame = self._get_enhanced_frame(frame)
-                self.panda_label.configure(text=frame)
+            self._draw_panda(self.animation_frame)
         except Exception as e:
             logger.debug(f"Error setting animation frame: {e}")
     
@@ -518,24 +886,13 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
                 pass
             self.animation_timer = None
     
-    def _get_enhanced_frame(self, base_frame: str) -> str:
-        """
-        Enhance animation frame with equipped items from closet.
-        
-        Args:
-            base_frame: The base animation frame
-            
-        Returns:
-            Enhanced frame with equipped items shown
-        """
+    def _get_equipped_items_text(self) -> str:
+        """Get equipped items text for display below the panda."""
         if not self.panda_closet:
-            return base_frame
+            return ""
         
         try:
             appearance = self.panda_closet.get_current_appearance()
-            enhanced = base_frame
-            
-            # Add equipped items as emojis at the end
             equipped_items = []
             
             if appearance.hat:
@@ -554,45 +911,45 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
                     equipped_items.append(shoes_item.emoji)
             
             if appearance.accessories:
-                for acc_id in appearance.accessories[:2]:  # Max 2 accessories shown
+                for acc_id in appearance.accessories[:2]:
                     acc_item = self.panda_closet.get_item(acc_id)
                     if acc_item:
                         equipped_items.append(acc_item.emoji)
             
             if equipped_items:
-                # Add equipped items indicator at the bottom
-                enhanced += f"\n    Wearing: {' '.join(equipped_items)}"
-            
-            return enhanced
+                return ' '.join(equipped_items)
+            return ""
         except Exception as e:
-            logger.debug(f"Error enhancing frame with items: {e}")
-            return base_frame
+            logger.debug(f"Error getting equipped items: {e}")
+            return ""
     
     def _animate_loop(self):
-        """Animate loop for continuous animation."""
+        """Animate loop for continuous canvas-based animation."""
         if self._destroyed:
             return
         try:
-            if self.panda:
-                frame = self.panda.get_animation_frame_sequential(
-                    self.current_animation, self.animation_frame
-                )
-                self.animation_frame += 1
-                # Reset frame counter to prevent unbounded growth
-                if self.animation_frame > 10000:
-                    self.animation_frame = 0
-                # Enhance with equipped items
-                frame = self._get_enhanced_frame(frame)
-                self.panda_label.configure(text=frame)
+            self._draw_panda(self.animation_frame)
+            self.animation_frame += 1
+            # Reset frame counter to prevent unbounded growth
+            if self.animation_frame > 10000:
+                self.animation_frame = 0
             
-            # Continue animation - faster interval for smoother appearance
-            self.animation_timer = self.after(250, self._animate_loop)
+            # Draw equipped items text on canvas
+            equipped = self._get_equipped_items_text()
+            if equipped:
+                self.panda_canvas.create_text(
+                    PANDA_CANVAS_W // 2, PANDA_CANVAS_H - 6,
+                    text=equipped, font=("Arial", 9),
+                    fill="gray", tags="equipped"
+                )
+            
+            # Continue animation
+            self.animation_timer = self.after(self.ANIMATION_INTERVAL, self._animate_loop)
         except Exception as e:
             logger.error(f"Error in animation loop: {e}")
-            # Ensure animation loop continues even after errors
             if not self._destroyed:
                 try:
-                    self.animation_timer = self.after(500, self._animate_loop)
+                    self.animation_timer = self.after(self.ANIMATION_INTERVAL * 2, self._animate_loop)
                 except Exception:
                     pass
     
@@ -601,14 +958,8 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
         if self._destroyed:
             return
         try:
-            if self.panda:
-                frame = self.panda.get_animation_frame_sequential(
-                    self.current_animation, self.animation_frame
-                )
-                self.animation_frame += 1
-                # Enhance with equipped items
-                frame = self._get_enhanced_frame(frame)
-                self.panda_label.configure(text=frame)
+            self._draw_panda(self.animation_frame)
+            self.animation_frame += 1
             
             # Return to idle after 1 second
             self.animation_timer = self.after(1000, lambda: self.start_animation('idle'))
