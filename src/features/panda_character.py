@@ -61,7 +61,7 @@ class PandaCharacter:
     BODY_BOUNDARY = 0.55
     BUTT_BOUNDARY = 0.75
     
-    # ASCII art animations for different states
+    # Drawn style animations for different states
     ANIMATIONS = {
         'idle': [
             """
@@ -2666,7 +2666,8 @@ class PandaCharacter:
     def get_body_part_at_position(self, rel_y: float) -> str:
         """Determine which body part is at a relative y position.
         
-        The panda ASCII art is roughly divided into regions:
+        The panda is drawn with body-shaped canvas rendering,
+        roughly divided into regions:
         - head: top 25% (ears, eyes)
         - body: 25-50% (nose, mouth, torso)
         - arms: same as body region but used for side clicks

@@ -204,7 +204,7 @@ class SplashScreen:
         frame = ctk.CTkFrame(self.window, corner_radius=20)
         frame.pack(fill="both", expand=True, padx=2, pady=2)
         
-        # Panda ASCII art
+        # Panda drawn art
         panda_art = """
         ████████████████
       ██░░░░░░░░░░░░░░██
@@ -2784,79 +2784,38 @@ class PS2TextureSorter(ctk.CTk):
                      command=self.open_customization,
                      width=350, height=35).pack(padx=20, pady=10)
         
-        # === KEYBOARD CONTROLS SETTINGS ===
+        # === KEYBOARD CONTROLS & HOTKEY CONFIGURATION (combined) ===
         kb_frame = ctk.CTkFrame(settings_scroll)
         kb_frame.pack(fill="x", padx=10, pady=10)
         
-        ctk.CTkLabel(kb_frame, text="⌨️ Keyboard Controls", 
+        ctk.CTkLabel(kb_frame, text="⌨️ Keyboard Controls & Hotkey Configuration", 
                      font=("Arial Bold", 14)).pack(anchor="w", padx=10, pady=5)
         
-        ctk.CTkLabel(kb_frame, text="Quick reference for keyboard shortcuts:", 
+        ctk.CTkLabel(kb_frame, text="View and customize keyboard shortcuts below. Click Edit to change a hotkey binding.", 
                     font=("Arial", 10), text_color="gray").pack(anchor="w", padx=20, pady=(0, 5))
         
-        # Create tabview for organized shortcuts by category
-        kb_tabview = ctk.CTkTabview(kb_frame, width=850, height=250)
-        kb_tabview.pack(padx=10, pady=5, fill="both")
+        # Enable/disable hotkeys
+        hotkey_enabled_var = ctk.BooleanVar(value=config.get('hotkeys', 'enabled', default=True))
+        ctk.CTkCheckBox(kb_frame, text="Enable keyboard shortcuts", 
+                       variable=hotkey_enabled_var).pack(anchor="w", padx=20, pady=3)
         
-        # Add tabs for different categories
-        tab_file = kb_tabview.add("📁 File")
-        tab_processing = kb_tabview.add("⚙️ Processing")
-        tab_view = kb_tabview.add("👁️ View")
-        tab_nav = kb_tabview.add("🧭 Navigation")
-        tab_tools = kb_tabview.add("🔧 Tools")
-        tab_special = kb_tabview.add("🐼 Special")
+        global_hotkey_var = ctk.BooleanVar(value=config.get('hotkeys', 'global_hotkeys_enabled', default=False))
+        ctk.CTkCheckBox(kb_frame, text="Enable global hotkeys (work when app is not focused)", 
+                       variable=global_hotkey_var).pack(anchor="w", padx=20, pady=3)
         
-        # Helper function to add shortcut rows
-        def add_shortcut_row(parent, key, description):
-            row = ctk.CTkFrame(parent)
-            row.pack(fill="x", padx=10, pady=2)
-            ctk.CTkLabel(row, text=key, font=("Courier Bold", 10), width=150, 
-                        anchor="w").pack(side="left", padx=5)
-            ctk.CTkLabel(row, text=description, font=("Arial", 10), 
-                        anchor="w").pack(side="left", padx=5)
-        
-        # File operations
-        add_shortcut_row(tab_file, "Ctrl+O", "Open files")
-        add_shortcut_row(tab_file, "Ctrl+S", "Save results")
-        add_shortcut_row(tab_file, "Ctrl+E", "Export data")
-        add_shortcut_row(tab_file, "Alt+F4", "Close application")
-        
-        # Processing operations
-        add_shortcut_row(tab_processing, "Ctrl+P", "Start processing")
-        add_shortcut_row(tab_processing, "Ctrl+Shift+P", "Pause processing")
-        add_shortcut_row(tab_processing, "Ctrl+Shift+S", "Stop processing")
-        add_shortcut_row(tab_processing, "Ctrl+R", "Resume processing")
-        
-        # View operations
-        add_shortcut_row(tab_view, "Ctrl+T", "Toggle preview panel")
-        add_shortcut_row(tab_view, "F5", "Refresh view")
-        add_shortcut_row(tab_view, "F11", "Toggle fullscreen")
-        add_shortcut_row(tab_view, "Ctrl+B", "Toggle sidebar")
-        
-        # Navigation
-        add_shortcut_row(tab_nav, "Right Arrow", "Next texture")
-        add_shortcut_row(tab_nav, "Left Arrow", "Previous texture")
-        add_shortcut_row(tab_nav, "Home", "First texture")
-        add_shortcut_row(tab_nav, "End", "Last texture")
-        add_shortcut_row(tab_nav, "Ctrl+A", "Select all")
-        add_shortcut_row(tab_nav, "Ctrl+D", "Deselect all")
-        add_shortcut_row(tab_nav, "Ctrl+I", "Invert selection")
-        
-        # Tools
-        add_shortcut_row(tab_tools, "Ctrl+F", "Search")
-        add_shortcut_row(tab_tools, "Ctrl+Shift+F", "Filter")
-        add_shortcut_row(tab_tools, "Ctrl+,", "Open Settings")
-        add_shortcut_row(tab_tools, "Ctrl+Shift+T", "View Statistics")
-        add_shortcut_row(tab_tools, "F1", "Help / Tutorial")
-        
-        # Special Features
-        add_shortcut_row(tab_special, "Ctrl+Shift+A", "View Achievements")
-        add_shortcut_row(tab_special, "Ctrl+M", "Toggle Sound")
-        add_shortcut_row(tab_special, "Ctrl+Alt+P", "Global Start (works outside app)")
-        add_shortcut_row(tab_special, "Ctrl+Alt+Space", "Global Pause (works outside app)")
-        
-        ctk.CTkLabel(kb_frame, text="💡 Tip: You can customize keyboard shortcuts in the Hotkey Configuration section below.", 
-                    font=("Arial", 9), text_color="gray", wraplength=800).pack(anchor="w", padx=20, pady=5)
+        # Embed the HotkeySettingsPanel directly
+        try:
+            from src.ui.hotkey_settings_panel import HotkeySettingsPanel
+            if not hasattr(self, 'hotkey_manager') or self.hotkey_manager is None:
+                from src.features.hotkey_manager import HotkeyManager
+                self.hotkey_manager = HotkeyManager()
+            
+            hotkey_panel = HotkeySettingsPanel(kb_frame, self.hotkey_manager)
+            hotkey_panel.pack(fill="both", expand=True, padx=10, pady=5)
+        except Exception as e:
+            logger.error(f"Failed to load hotkey panel: {e}", exc_info=True)
+            ctk.CTkLabel(kb_frame, text=f"⚠️ Could not load hotkey panel: {e}", 
+                        text_color="orange").pack(padx=20, pady=5)
         
         # === FILE HANDLING SETTINGS ===
         file_frame = ctk.CTkFrame(settings_scroll)
@@ -2909,11 +2868,11 @@ class PS2TextureSorter(ctk.CTk):
         ctk.CTkCheckBox(log_frame, text="Enable crash reports", 
                        variable=crash_report_var).pack(anchor="w", padx=20, pady=3)
         
-        # === NOTIFICATIONS SETTINGS ===
+        # === NOTIFICATIONS & SOUND SETTINGS ===
         notif_frame = ctk.CTkFrame(settings_scroll)
         notif_frame.pack(fill="x", padx=10, pady=10)
         
-        ctk.CTkLabel(notif_frame, text="🔔 Notifications", 
+        ctk.CTkLabel(notif_frame, text="🔔 Notifications & Sounds", 
                      font=("Arial Bold", 14)).pack(anchor="w", padx=10, pady=5)
         
         sound_var = ctk.BooleanVar(value=config.get('notifications', 'play_sounds', default=True))
@@ -2923,6 +2882,98 @@ class PS2TextureSorter(ctk.CTk):
         completion_var = ctk.BooleanVar(value=config.get('notifications', 'completion_alert', default=True))
         ctk.CTkCheckBox(notif_frame, text="Alert on operation completion", 
                        variable=completion_var).pack(anchor="w", padx=20, pady=3)
+        
+        # Sound pack selector
+        sound_pack_frame = ctk.CTkFrame(notif_frame)
+        sound_pack_frame.pack(fill="x", padx=10, pady=5)
+        
+        ctk.CTkLabel(sound_pack_frame, text="Sound Pack:").pack(side="left", padx=10)
+        sound_pack_var = ctk.StringVar(value=config.get('sound', 'sound_pack', default='default'))
+        
+        def on_sound_pack_change(choice):
+            try:
+                config.set('sound', 'sound_pack', value=choice)
+                config.save()
+                if hasattr(self, 'sound_manager') and self.sound_manager:
+                    try:
+                        from src.features.sound_manager import SoundPack
+                        pack = SoundPack(choice)
+                        self.sound_manager.set_sound_pack(pack)
+                    except Exception:
+                        pass
+                self.log(f"✅ Sound pack changed to: {choice}")
+            except Exception as e:
+                logger.error(f"Failed to change sound pack: {e}")
+        
+        ctk.CTkOptionMenu(sound_pack_frame, variable=sound_pack_var,
+                         values=["default", "minimal", "vulgar"],
+                         command=on_sound_pack_change).pack(side="left", padx=10)
+        
+        # Per-event sound customization
+        ctk.CTkLabel(notif_frame, text="🔊 Per-Event Sound Settings (frequency Hz / duration ms):", 
+                    font=("Arial", 10), text_color="gray").pack(anchor="w", padx=20, pady=(10, 5))
+        
+        sound_events_frame = ctk.CTkScrollableFrame(notif_frame, height=200)
+        sound_events_frame.pack(fill="x", padx=20, pady=5)
+        
+        # Get current sound definitions
+        self._sound_event_vars = {}
+        try:
+            from src.features.sound_manager import SoundEvent, SoundPack, Sound, SoundManager
+            current_pack_name = config.get('sound', 'sound_pack', default='default')
+            try:
+                current_pack = SoundPack(current_pack_name)
+            except Exception:
+                current_pack = SoundPack.DEFAULT
+            current_sounds = SoundManager.SOUND_DEFINITIONS.get(current_pack, {})
+            custom_sounds = config.get('sound', 'custom_sounds', default={})
+            
+            sound_event_vars = {}
+            for event in SoundEvent:
+                row = ctk.CTkFrame(sound_events_frame)
+                row.pack(fill="x", pady=2)
+                
+                sound = current_sounds.get(event)
+                default_freq = sound.frequency if sound else 500
+                default_dur = sound.duration if sound else 200
+                
+                # Use custom value if set, otherwise default
+                custom = custom_sounds.get(event.value, {})
+                freq_val = custom.get('frequency', default_freq)
+                dur_val = custom.get('duration', default_dur)
+                
+                ctk.CTkLabel(row, text=f"{event.value}:", width=120, anchor="w",
+                           font=("Arial", 10)).pack(side="left", padx=5)
+                
+                freq_var = ctk.StringVar(value=str(freq_val))
+                ctk.CTkLabel(row, text="Hz:", font=("Arial", 9)).pack(side="left", padx=2)
+                ctk.CTkEntry(row, textvariable=freq_var, width=60).pack(side="left", padx=2)
+                
+                dur_var = ctk.StringVar(value=str(dur_val))
+                ctk.CTkLabel(row, text="ms:", font=("Arial", 9)).pack(side="left", padx=2)
+                ctk.CTkEntry(row, textvariable=dur_var, width=60).pack(side="left", padx=2)
+                
+                # Test button
+                def test_sound(f=freq_var, d=dur_var):
+                    try:
+                        import sys
+                        if sys.platform == 'win32':
+                            import winsound
+                            winsound.Beep(int(f.get()), int(d.get()))
+                    except Exception as ex:
+                        logger.debug(f"Sound test failed: {ex}")
+                
+                ctk.CTkButton(row, text="▶", width=30, height=24,
+                            command=test_sound).pack(side="left", padx=5)
+                
+                sound_event_vars[event.value] = (freq_var, dur_var)
+            
+            # Store vars for save
+            self._sound_event_vars = sound_event_vars
+        except Exception as e:
+            logger.error(f"Failed to load sound event settings: {e}")
+            ctk.CTkLabel(notif_frame, text=f"⚠️ Sound customization unavailable: {e}",
+                        text_color="orange").pack(padx=20, pady=5)
         
         # === AI MODEL SETTINGS ===
         ai_frame = ctk.CTkFrame(settings_scroll)
@@ -3103,40 +3154,6 @@ class PS2TextureSorter(ctk.CTk):
             min_conf_label.configure(text=f"{float(value):.1f}")
         min_conf_slider.configure(command=update_min_conf_label)
         
-        # === HOTKEY SETTINGS ===
-        hotkey_frame = ctk.CTkFrame(settings_scroll)
-        hotkey_frame.pack(fill="x", padx=10, pady=10)
-        
-        ctk.CTkLabel(hotkey_frame, text="⌨️ Hotkey Configuration", 
-                     font=("Arial Bold", 14)).pack(anchor="w", padx=10, pady=5)
-        
-        hotkey_enabled_var = ctk.BooleanVar(value=config.get('hotkeys', 'enabled', default=True))
-        ctk.CTkCheckBox(hotkey_frame, text="Enable keyboard shortcuts", 
-                       variable=hotkey_enabled_var).pack(anchor="w", padx=20, pady=3)
-        
-        global_hotkey_var = ctk.BooleanVar(value=config.get('hotkeys', 'global_hotkeys_enabled', default=False))
-        ctk.CTkCheckBox(hotkey_frame, text="Enable global hotkeys (work when app is not focused)", 
-                       variable=global_hotkey_var).pack(anchor="w", padx=20, pady=3)
-        
-        # Button to open hotkey customization panel
-        def open_hotkey_customization():
-            """Open hotkey customization panel"""
-            try:
-                from src.ui.hotkey_settings_panel import HotkeySettingsPanel
-                if not hasattr(self, 'hotkey_manager') or self.hotkey_manager is None:
-                    from src.features.hotkey_manager import HotkeyManager
-                    self.hotkey_manager = HotkeyManager()
-                
-                panel = HotkeySettingsPanel(settings_window, self.hotkey_manager)
-                panel.show()
-            except Exception as e:
-                logger.error(f"Failed to open hotkey customization: {e}", exc_info=True)
-                messagebox.showerror("Error", f"Failed to open hotkey customization:\n{e}")
-        
-        ctk.CTkButton(hotkey_frame, text="⌨️ Customize Hotkeys",
-                     command=open_hotkey_customization,
-                     width=200, height=35).pack(padx=20, pady=10)
-        
         # === SYSTEM & DEBUG SETTINGS ===
         system_frame = ctk.CTkFrame(settings_scroll)
         system_frame.pack(fill="x", padx=10, pady=10)
@@ -3269,7 +3286,6 @@ class PS2TextureSorter(ctk.CTk):
                 config.set('ui', 'disable_panda_animations', value=disable_panda_anim_var.get())
                 
                 # UI / Appearance & Customization
-                config.set('ui', 'theme', value=theme_var.get())
                 config.set('ui', 'scale', value=scale_var.get())
                 
                 # Validate and save File Handling settings
@@ -3289,9 +3305,22 @@ class PS2TextureSorter(ctk.CTk):
                 config.set('logging', 'log_level', value=loglevel_var.get())
                 config.set('logging', 'crash_reports', value=crash_report_var.get())
                 
-                # Notifications
+                # Notifications & Sounds
                 config.set('notifications', 'play_sounds', value=sound_var.get())
                 config.set('notifications', 'completion_alert', value=completion_var.get())
+                
+                # Save per-event custom sound settings
+                if hasattr(self, '_sound_event_vars'):
+                    custom_sounds = {}
+                    for event_name, (freq_var, dur_var) in self._sound_event_vars.items():
+                        try:
+                            freq = int(freq_var.get())
+                            dur = int(dur_var.get())
+                            if freq > 0 and dur > 0:
+                                custom_sounds[event_name] = {'frequency': freq, 'duration': dur}
+                        except (ValueError, TypeError):
+                            pass
+                    config.set('sound', 'custom_sounds', value=custom_sounds)
                 
                 # AI Settings
                 config.set('ai', 'prefer_image_content', value=prefer_image_var.get())

@@ -642,7 +642,7 @@ class PandaMode:
         }
     }
     
-    # Panda ASCII art frames
+    # Panda drawn animation frames
     PANDA_FRAMES = {
         'idle': [
             """

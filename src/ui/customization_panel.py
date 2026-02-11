@@ -875,6 +875,8 @@ class ThemeManager(ctk.CTkFrame):
     def _select_theme(self, theme_id: str):
         self.preview_theme = theme_id
         self._update_preview(theme_id)
+        # Apply theme immediately when clicked
+        self._apply_theme(show_message=False)
     
     def _update_preview(self, theme_id: str):
         if theme_id not in THEME_PRESETS:
@@ -924,7 +926,7 @@ class ThemeManager(ctk.CTkFrame):
                           "This is a temporary preview.\n"
                           "Click 'Apply Theme' to make it permanent.")
     
-    def _apply_theme(self):
+    def _apply_theme(self, show_message=True):
         if not self.preview_theme:
             messagebox.showwarning("No Theme Selected", "Please select a theme first!")
             return
@@ -1068,9 +1070,10 @@ class ThemeManager(ctk.CTkFrame):
         if self.on_theme_apply:
             self.on_theme_apply(theme)
         
-        messagebox.showinfo("Success", 
-                          f"Theme '{theme['name']}' applied!\n\n"
-                          "Note: Some color changes may require restarting the application.")
+        if show_message:
+            messagebox.showinfo("Success", 
+                              f"Theme '{theme['name']}' applied!\n\n"
+                              "Note: Some color changes may require restarting the application.")
     
     def _apply_theme_to_existing_widgets(self, widget, colors):
         """Recursively apply theme colors to all existing widgets in the hierarchy."""

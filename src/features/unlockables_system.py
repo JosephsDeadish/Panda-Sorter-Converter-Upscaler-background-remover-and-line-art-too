@@ -95,7 +95,7 @@ class PandaOutfit:
     """Represents an unlockable panda outfit."""
     id: str
     name: str
-    ascii_art: str
+    art: str
     description: str
     unlock_condition: UnlockCondition
     unlocked: bool = False
@@ -322,7 +322,7 @@ class UnlockablesSystem:
     OUTFITS: Dict[str, Dict] = {
         "classic": {
             "name": "Classic Panda",
-            "ascii_art": """
+            "art": """
     ʕ•ᴥ•ʔ
   ⊂(◕‿◕)つ
     """,
@@ -331,7 +331,7 @@ class UnlockablesSystem:
         },
         "business": {
             "name": "Business Panda",
-            "ascii_art": """
+            "art": """
     ʕ•̀ω•́ʔ✧
    ⊂(▀̿Ĺ̯▀̿)つ
     👔
@@ -341,7 +341,7 @@ class UnlockablesSystem:
         },
         "ninja": {
             "name": "Ninja Panda",
-            "ascii_art": """
+            "art": """
     ʕ•̫͡•ʔ
    ⊂(▀¯▀)つ刀
     """,
@@ -350,7 +350,7 @@ class UnlockablesSystem:
         },
         "wizard": {
             "name": "Wizard Panda",
-            "ascii_art": """
+            "art": """
     🎩ʕ•ᴥ•ʔ
    ⊂(◕‿◕)つ🪄
     """,
@@ -359,7 +359,7 @@ class UnlockablesSystem:
         },
         "pirate": {
             "name": "Pirate Panda",
-            "ascii_art": """
+            "art": """
     ʕ•̀ω•́ʔ☠️
    ⊂(◉Д◕)つ🗡️
     """,
@@ -368,7 +368,7 @@ class UnlockablesSystem:
         },
         "astronaut": {
             "name": "Astronaut Panda",
-            "ascii_art": """
+            "art": """
    🚀ʕ•ᴥ•ʔ
    ⊂(◕‿◕)つ🌟
     """,
@@ -377,7 +377,7 @@ class UnlockablesSystem:
         },
         "chef": {
             "name": "Chef Panda",
-            "ascii_art": """
+            "art": """
    👨‍🍳ʕ•ᴥ•ʔ
    ⊂(◕‿◕)つ🍳
     """,
@@ -386,7 +386,7 @@ class UnlockablesSystem:
         },
         "superhero": {
             "name": "Super Panda",
-            "ascii_art": """
+            "art": """
    🦸ʕ•̀ω•́ʔ✧
    ⊂(▀̿Ĺ̯▀̿)つ💪
     """,
@@ -395,7 +395,7 @@ class UnlockablesSystem:
         },
         "detective": {
             "name": "Detective Panda",
-            "ascii_art": """
+            "art": """
    🕵️ʕ•ᴥ•ʔ
    ⊂(◕‿◕)つ🔍
     """,
@@ -404,7 +404,7 @@ class UnlockablesSystem:
         },
         "rockstar": {
             "name": "Rockstar Panda",
-            "ascii_art": """
+            "art": """
    🎸ʕ•̀ω•́ʔ✧
    ⊂(▀̿Ĺ̯▀̿)つ🎤
     """,
@@ -413,7 +413,7 @@ class UnlockablesSystem:
         },
         "samurai": {
             "name": "Samurai Panda",
-            "ascii_art": """
+            "art": """
    ⚔️ʕ•̫͡•ʔ
    ⊂(ಠ_ಠ)つ🗡️
     """,
@@ -422,7 +422,7 @@ class UnlockablesSystem:
         },
         "king": {
             "name": "King Panda",
-            "ascii_art": """
+            "art": """
    👑ʕ•ᴥ•ʔ
    ⊂(◕‿◕)つ👑
     """,
@@ -431,7 +431,7 @@ class UnlockablesSystem:
         },
         "scuba": {
             "name": "Scuba Panda",
-            "ascii_art": """
+            "art": """
    🤿ʕ•ᴥ•ʔ
    ⊂(◕‿◕)つ🐠
     """,
@@ -440,7 +440,7 @@ class UnlockablesSystem:
         },
         "painter": {
             "name": "Artist Panda",
-            "ascii_art": """
+            "art": """
    🎨ʕ•ᴥ•ʔ
    ⊂(◕‿◕)つ🖌️
     """,
@@ -449,7 +449,7 @@ class UnlockablesSystem:
         },
         "santa": {
             "name": "Santa Panda",
-            "ascii_art": """
+            "art": """
    🎅ʕ•ᴥ•ʔ
    ⊂(◕‿◕)つ🎁
     """,
@@ -458,7 +458,7 @@ class UnlockablesSystem:
         },
         "vampire": {
             "name": "Vampire Panda",
-            "ascii_art": """
+            "art": """
    🧛ʕ•̀ω•́ʔ
    ⊂(▀̿Ĺ̯▀̿)つ🦇
     """,
@@ -467,7 +467,7 @@ class UnlockablesSystem:
         },
         "robot": {
             "name": "Robot Panda",
-            "ascii_art": """
+            "art": """
    🤖ʕ•ᴥ•ʔ
    ⊂(▀̿Ĺ̯▀̿)つ⚙️
     """,
@@ -892,7 +892,7 @@ class UnlockablesSystem:
             self.outfits[outfit_id] = PandaOutfit(
                 id=outfit_id,
                 name=data["name"],
-                ascii_art=data["ascii_art"],
+                art=data["art"],
                 description=data["description"],
                 unlock_condition=data["unlock_condition"],
             )

@@ -29,7 +29,7 @@ python main.py
 ```
 
 Expected behavior:
-1. Splash screen appears with panda ASCII art
+1. Splash screen appears with panda drawn art
 2. Loading animation shows progress
 3. Main window opens with tabs
 4. Can switch between tabs
