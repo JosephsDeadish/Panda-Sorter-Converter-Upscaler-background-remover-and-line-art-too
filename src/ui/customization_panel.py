@@ -973,12 +973,92 @@ class ThemeManager(ctk.CTkFrame):
         
         self.current_theme = self.preview_theme
         
+        # Recursively apply theme to existing widgets
+        self._apply_theme_to_existing_widgets(self.master, colors)
+        
         if self.on_theme_apply:
             self.on_theme_apply(theme)
         
         messagebox.showinfo("Success", 
                           f"Theme '{theme['name']}' applied!\n\n"
                           "Note: Some color changes may require restarting the application.")
+    
+    def _apply_theme_to_existing_widgets(self, widget, colors):
+        """Recursively apply theme colors to all existing widgets in the hierarchy."""
+        try:
+            # Extract color values
+            bg = colors.get("background", "#1a1a1a")
+            fg = colors.get("foreground", "#ffffff")
+            primary = colors.get("primary", "#1f538d")
+            secondary = colors.get("secondary", "#14375e")
+            accent = colors.get("accent", "#2fa572")
+            button = colors.get("button", "#1f538d")
+            button_hover = colors.get("button_hover", "#2d6ba8")
+            text = colors.get("text", "#ffffff")
+            text_secondary = colors.get("text_secondary", "#b0b0b0")
+            border = colors.get("border", "#333333")
+            
+            # Apply colors based on widget type
+            widget_class = widget.__class__.__name__
+            
+            try:
+                if widget_class == 'CTk':
+                    widget.configure(fg_color=bg)
+                elif widget_class == 'CTkToplevel':
+                    widget.configure(fg_color=bg)
+                elif widget_class == 'CTkFrame':
+                    # Only update if widget doesn't have explicit transparent setting
+                    current_fg = widget.cget('fg_color')
+                    if current_fg != 'transparent':
+                        widget.configure(fg_color=secondary, border_color=border)
+                elif widget_class == 'CTkButton':
+                    widget.configure(fg_color=button, hover_color=button_hover, 
+                                   text_color=text, border_color=border)
+                elif widget_class == 'CTkLabel':
+                    widget.configure(text_color=text)
+                elif widget_class == 'CTkEntry':
+                    widget.configure(fg_color=bg, text_color=text, border_color=border)
+                elif widget_class == 'CTkTextbox':
+                    widget.configure(fg_color=bg, text_color=text, border_color=border)
+                elif widget_class == 'CTkOptionMenu':
+                    widget.configure(fg_color=button, button_color=button, 
+                                   button_hover_color=button_hover, text_color=text)
+                elif widget_class == 'CTkComboBox':
+                    widget.configure(fg_color=bg, button_color=button, 
+                                   button_hover_color=button_hover, text_color=text, 
+                                   border_color=border)
+                elif widget_class == 'CTkCheckBox':
+                    widget.configure(fg_color=accent, hover_color=button_hover, 
+                                   text_color=text, border_color=border)
+                elif widget_class == 'CTkSwitch':
+                    widget.configure(progress_color=accent, button_color=button, 
+                                   button_hover_color=button_hover, text_color=text)
+                elif widget_class == 'CTkProgressBar':
+                    widget.configure(fg_color=secondary, progress_color=accent)
+                elif widget_class == 'CTkSlider':
+                    widget.configure(fg_color=secondary, progress_color=accent, 
+                                   button_color=button, button_hover_color=button_hover)
+                elif widget_class == 'CTkScrollableFrame':
+                    widget.configure(fg_color=secondary, label_fg_color=secondary)
+                elif widget_class == 'CTkTabview':
+                    widget.configure(fg_color=secondary, 
+                                   segmented_button_selected_color=accent,
+                                   segmented_button_unselected_color=secondary)
+                elif widget_class == 'CTkSegmentedButton':
+                    widget.configure(fg_color=secondary, selected_color=accent, 
+                                   selected_hover_color=button_hover, text_color=text)
+            except Exception as widget_error:
+                # Some widgets may not support all configuration options
+                logger.debug(f"Could not apply theme to {widget_class}: {widget_error}")
+            
+            # Recursively apply to children
+            try:
+                for child in widget.winfo_children():
+                    self._apply_theme_to_existing_widgets(child, colors)
+            except Exception:
+                pass
+        except Exception as e:
+            logger.debug(f"Error applying theme to widget: {e}")
     
     def _save_custom_theme(self):
         if not self.preview_theme:

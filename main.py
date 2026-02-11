@@ -773,64 +773,66 @@ class PS2TextureSorter(ctk.CTk):
         popout.geometry("800x600")
         self._popout_windows[tab_name] = popout
         
-        # Special handling for notepad tab (avoid reparenting complex widget)
-        if tab_name == "📝 Notepad":
-            self._create_popout_notepad(popout, tab_name)
-        else:
-            # Get the tab frame and its children
-            parent_tv = self._tab_to_tabview.get(tab_name, self.tabview)
-            tab_frame = parent_tv.tab(tab_name)
-            children_info = []
-            for child in tab_frame.winfo_children():
-                children_info.append(child)
-            
-            # Store children for re-docking later
-            if not hasattr(self, '_popout_children'):
-                self._popout_children = {}
-            self._popout_children[tab_name] = children_info
-            
-            # Reparent all children to the pop-out window
-            container = ctk.CTkFrame(popout)
-            container.pack(fill="both", expand=True, padx=5, pady=5)
-            
-            for child in children_info:
-                try:
-                    # Clear ALL geometry managers
-                    child.pack_forget()
-                    child.place_forget()
-                    child.grid_forget()
-                    
-                    # Check widget still exists
-                    if not child.winfo_exists():
-                        logger.debug(f"Widget {child} no longer exists during popout, skipping")
-                        continue
-                    
-                    # Reparent with explicit error handling
-                    child.pack(in_=container, fill="both", expand=True, padx=5, pady=5)
-                    logger.debug(f"Successfully reparented {child} to popout")
-                except Exception as e:
-                    logger.error(f"Failed to reparent {child} to popout: {e}")
+        # Get the tab frame and store a reference to it
+        parent_tv = self._tab_to_tabview.get(tab_name, self.tabview)
+        tab_frame = parent_tv.tab(tab_name)
         
-        # Ensure _popout_children exists
-        if not hasattr(self, '_popout_children'):
-            self._popout_children = {}
+        # Store original tab frame reference for re-docking
+        if not hasattr(self, '_popout_original_frames'):
+            self._popout_original_frames = {}
+        self._popout_original_frames[tab_name] = tab_frame
+        
+        # Create container in popout window
+        container = ctk.CTkFrame(popout)
+        container.pack(fill="both", expand=True, padx=5, pady=5)
+        
+        # Hide original tab content (don't destroy or reparent)
+        for child in tab_frame.winfo_children():
+            # Skip the popout button
+            if isinstance(child, ctk.CTkButton):
+                try:
+                    text = child.cget('text')
+                    if text and ('Pop Out' in text or text == '↗'):
+                        continue
+                except Exception:
+                    pass
+            child.pack_forget()
+        
+        # Create tab content based on tab type
+        if tab_name == "📝 Notepad":
+            self._create_popout_notepad(popout, container)
+        elif tab_name == "📁 File Browser":
+            self._create_popout_browser(popout, container)
+        elif tab_name == "ℹ️ About":
+            self._create_popout_about(popout, container)
+        elif tab_name == "🏆 Achievements":
+            self._create_popout_achievements(popout, container)
+        elif tab_name == "🛒 Shop":
+            self._create_popout_shop(popout, container)
+        elif tab_name == "🎁 Rewards":
+            self._create_popout_rewards(popout, container)
+        elif tab_name == "📦 Inventory":
+            self._create_popout_inventory(popout, container)
+        elif tab_name == "📊 Panda Stats & Mood":
+            self._create_popout_panda_stats(popout, container)
+        else:
+            # Generic handler - just show a label
+            ctk.CTkLabel(container, text=f"{tab_name} (Undocked)", 
+                        font=("Arial Bold", 16)).pack(pady=20)
         
         # Add dock-back button
         dock_btn = ctk.CTkButton(
             popout, text="📌 Dock Back", width=100, height=28,
-            command=lambda n=tab_name, w=popout: self._dock_tab(n, self._popout_children.get(n), w)
+            command=lambda n=tab_name, w=popout: self._dock_tab(n, w)
         )
         dock_btn.pack(side="bottom", pady=5)
         
-        # Handle window close = dock back (same as clicking Dock Back)
+        # Handle window close = dock back
         popout.protocol("WM_DELETE_WINDOW",
-                        lambda n=tab_name, w=popout: self._dock_tab(n, self._popout_children.get(n), w))
+                        lambda n=tab_name, w=popout: self._dock_tab(n, w))
     
-    def _create_popout_notepad(self, popout_window, tab_name):
+    def _create_popout_notepad(self, popout_window, container):
         """Create notepad functionality in popout window (fully editable)"""
-        container = ctk.CTkFrame(popout_window)
-        container.pack(fill="both", expand=True, padx=10, pady=10)
-        
         # Header with title and buttons
         header_frame = ctk.CTkFrame(container)
         header_frame.pack(fill="x", pady=10)
@@ -912,7 +914,7 @@ class PS2TextureSorter(ctk.CTk):
                     pass
         self.save_all_notes()
     
-    def _dock_tab(self, tab_name, children, popout_window):
+    def _dock_tab(self, tab_name, popout_window):
         """Dock a popped-out tab back into the main tabview"""
         try:
             # Special handling for notepad - sync edits back before closing
@@ -922,64 +924,33 @@ class PS2TextureSorter(ctk.CTk):
                         self._popout_save_notes()
                     except Exception as e:
                         logger.error(f"Error saving popout notes during dock: {e}")
-                if popout_window and popout_window.winfo_exists():
-                    popout_window.destroy()
-                self._popout_windows.pop(tab_name, None)
-                # Re-add pop-out button only if it doesn't exist
-                try:
-                    parent_tv = self._tab_to_tabview.get(tab_name, self.tabview)
-                    tab_frame = parent_tv.tab(tab_name)
-                    
-                    if not self._has_popout_button(tab_frame):
-                        btn = ctk.CTkButton(
-                            tab_frame, text="↗ Pop Out", width=90, height=26,
-                            font=("Arial", 11),
-                            fg_color="gray40",
-                            command=lambda: self._popout_tab(tab_name)
-                        )
-                        btn.place(relx=1.0, rely=0.0, anchor="ne", x=-5, y=5)
-                except Exception as e:
-                    logger.error(f"Error restoring popout button for notepad: {e}")
-                return
-            
-            # For other tabs, reparent children back
-            parent_tv = self._tab_to_tabview.get(tab_name, self.tabview)
-            tab_frame = parent_tv.tab(tab_name)
-            
-            if children:
-                # Reparent children back with proper error handling
-                for child in children:
-                    try:
-                        child.pack_forget()
-                        child.place_forget()
-                        child.grid_forget()
-                        
-                        if not child.winfo_exists():
-                            logger.debug(f"Widget {child} no longer exists during docking")
-                            continue
-                        
-                        child.pack(in_=tab_frame, fill="both", expand=True, padx=5, pady=5)
-                        logger.debug(f"Successfully reparented {child} back to tab")
-                    except Exception as e:
-                        logger.error(f"Failed to reparent {child} back to tab: {e}")
             
             # Destroy pop-out window
             if popout_window and popout_window.winfo_exists():
                 popout_window.destroy()
             
             self._popout_windows.pop(tab_name, None)
-            if hasattr(self, '_popout_children'):
-                self._popout_children.pop(tab_name, None)
             
-            # Re-add pop-out button only if it doesn't exist
-            if not self._has_popout_button(tab_frame):
-                btn = ctk.CTkButton(
-                    tab_frame, text="↗ Pop Out", width=90, height=26,
-                    font=("Arial", 11),
-                    fg_color="gray40",
-                    command=lambda: self._popout_tab(tab_name)
-                )
-                btn.place(relx=1.0, rely=0.0, anchor="ne", x=-5, y=5)
+            # Restore original tab content by repacking hidden children
+            if hasattr(self, '_popout_original_frames'):
+                tab_frame = self._popout_original_frames.get(tab_name)
+                if tab_frame and tab_frame.winfo_exists():
+                    for child in tab_frame.winfo_children():
+                        # Skip the popout button
+                        if isinstance(child, ctk.CTkButton):
+                            try:
+                                text = child.cget('text')
+                                if text and ('Pop Out' in text or text == '↗'):
+                                    continue
+                            except Exception:
+                                pass
+                        # Repack hidden children
+                        try:
+                            # Check if widget needs repacking (not currently visible)
+                            if not child.winfo_ismapped():
+                                child.pack(fill="both", expand=True, padx=10, pady=10)
+                        except Exception as e:
+                            logger.debug(f"Could not repack widget: {e}")
             
             # Switch to the docked tab
             parent_tv = self._tab_to_tabview.get(tab_name, self.tabview)
@@ -993,6 +964,73 @@ class PS2TextureSorter(ctk.CTk):
             except Exception:
                 pass
             self._popout_windows.pop(tab_name, None)
+    
+    def _create_popout_browser(self, popout_window, container):
+        """Create file browser in popout window"""
+        ctk.CTkLabel(container, text="📁 File Browser (Undocked)",
+                    font=("Arial Bold", 16)).pack(pady=20)
+        ctk.CTkLabel(container, text="File browser content shown here",
+                    font=("Arial", 12)).pack(pady=10)
+    
+    def _create_popout_about(self, popout_window, container):
+        """Create about page in popout window"""
+        scrollable = ctk.CTkScrollableFrame(container)
+        scrollable.pack(fill="both", expand=True, padx=10, pady=10)
+        
+        ctk.CTkLabel(scrollable, text=f"🐼 {APP_NAME}",
+                    font=("Arial Bold", 24)).pack(pady=20)
+        ctk.CTkLabel(scrollable, text=f"Version {APP_VERSION}",
+                    font=("Arial", 14)).pack(pady=5)
+        ctk.CTkLabel(scrollable, text=f"by {APP_AUTHOR}",
+                    font=("Arial", 12)).pack(pady=5)
+    
+    def _create_popout_achievements(self, popout_window, container):
+        """Create achievements view in popout window"""
+        ctk.CTkLabel(container, text="🏆 Achievements (Undocked)",
+                    font=("Arial Bold", 16)).pack(pady=20)
+        if self.achievement_manager:
+            # Show achievements list
+            scrollable = ctk.CTkScrollableFrame(container)
+            scrollable.pack(fill="both", expand=True, padx=10, pady=10)
+            
+            achievements = self.achievement_manager.get_all_achievements()
+            for ach_id, ach_data in achievements.items():
+                ach_frame = ctk.CTkFrame(scrollable)
+                ach_frame.pack(fill="x", padx=5, pady=2)
+                
+                icon = "🏆" if ach_data.get('unlocked', False) else "🔒"
+                text = f"{icon} {ach_data.get('name', ach_id)}"
+                ctk.CTkLabel(ach_frame, text=text).pack(side="left", padx=10)
+    
+    def _create_popout_shop(self, popout_window, container):
+        """Create shop in popout window"""
+        ctk.CTkLabel(container, text="🛒 Shop (Undocked)",
+                    font=("Arial Bold", 16)).pack(pady=20)
+        ctk.CTkLabel(container, text="Shop content shown here",
+                    font=("Arial", 12)).pack(pady=10)
+    
+    def _create_popout_rewards(self, popout_window, container):
+        """Create rewards page in popout window"""
+        ctk.CTkLabel(container, text="🎁 Rewards (Undocked)",
+                    font=("Arial Bold", 16)).pack(pady=20)
+        ctk.CTkLabel(container, text="Rewards content shown here",
+                    font=("Arial", 12)).pack(pady=10)
+    
+    def _create_popout_inventory(self, popout_window, container):
+        """Create inventory in popout window"""
+        ctk.CTkLabel(container, text="📦 Inventory (Undocked)",
+                    font=("Arial Bold", 16)).pack(pady=20)
+        ctk.CTkLabel(container, text="Inventory content shown here",
+                    font=("Arial", 12)).pack(pady=10)
+    
+    def _create_popout_panda_stats(self, popout_window, container):
+        """Create panda stats page in popout window"""
+        ctk.CTkLabel(container, text="📊 Panda Stats & Mood (Undocked)",
+                    font=("Arial Bold", 16)).pack(pady=20)
+        if self.panda:
+            stats_text = f"Mood: {self.panda.mood}\nHunger: {self.panda.hunger}\nEnergy: {self.panda.energy}"
+            ctk.CTkLabel(container, text=stats_text,
+                        font=("Arial", 12)).pack(pady=10)
     
     def create_sort_tab(self):
         """Create texture sorting tab"""

@@ -197,6 +197,10 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
         # Deferred background refresh – once the widget tree is fully
         # rendered the parent background colour is reliably available.
         self.after(100, self._refresh_canvas_bg)
+        
+        # Set up periodic background refresh to keep canvas blended
+        self._bg_refresh_job = None
+        self._schedule_bg_refresh()
     
     # ------------------------------------------------------------------
     # Canvas-based panda drawing
@@ -244,19 +248,32 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
     # Deprecated: use _get_parent_bg instead
     _get_canvas_bg = _get_parent_bg
 
+    def _schedule_bg_refresh(self):
+        """Schedule periodic background refresh to keep canvas blended."""
+        if self._destroyed:
+            return
+        # Refresh every 500ms to keep background in sync with theme changes
+        self._refresh_canvas_bg()
+        self._bg_refresh_job = self.after(500, self._schedule_bg_refresh)
+    
     def _refresh_canvas_bg(self):
         """Re-detect the parent background and update both canvases."""
         if self._destroyed:
             return
-        self._canvas_bg = self._get_parent_bg()
-        try:
-            self.panda_canvas.configure(bg=self._canvas_bg)
-        except Exception:
-            pass
-        try:
-            self._bubble_canvas.configure(bg=self._canvas_bg)
-        except Exception:
-            pass
+        new_bg = self._get_parent_bg()
+        # Only update if color changed to avoid unnecessary redraws
+        if new_bg != self._canvas_bg:
+            self._canvas_bg = new_bg
+            try:
+                self.panda_canvas.configure(bg=self._canvas_bg)
+            except Exception:
+                pass
+            try:
+                self._bubble_canvas.configure(bg=self._canvas_bg)
+            except Exception:
+                pass
+            # Redraw panda to ensure proper rendering with new background
+            self._draw_panda(self.animation_frame)
 
     def _set_appearance_mode(self, mode_string):
         """Called by CustomTkinter when the appearance mode changes."""
@@ -1394,5 +1411,11 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
             except Exception:
                 pass
             self._speech_timer = None
+        if self._bg_refresh_job:
+            try:
+                self.after_cancel(self._bg_refresh_job)
+            except Exception:
+                pass
+            self._bg_refresh_job = None
         super().destroy()
 
