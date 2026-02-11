@@ -55,6 +55,11 @@ class PandaCharacter:
     # Configuration constants
     RAGE_CLICK_THRESHOLD = 10  # Number of clicks to trigger rage mode
     
+    # Body part region boundaries (relative Y position 0.0-1.0)
+    HEAD_BOUNDARY = 0.25
+    BODY_BOUNDARY = 0.50
+    BUTT_BOUNDARY = 0.75
+    
     # ASCII art animations for different states
     ANIMATIONS = {
         'idle': [
@@ -2505,11 +2510,11 @@ class PandaCharacter:
         Returns:
             Body part name string
         """
-        if rel_y < 0.25:
+        if rel_y < self.HEAD_BOUNDARY:
             return 'head'
-        elif rel_y < 0.5:
+        elif rel_y < self.BODY_BOUNDARY:
             return 'body'
-        elif rel_y < 0.75:
+        elif rel_y < self.BUTT_BOUNDARY:
             return 'butt'
         else:
             return 'legs'

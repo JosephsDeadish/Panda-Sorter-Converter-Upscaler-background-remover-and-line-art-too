@@ -307,6 +307,16 @@ class HotkeySettingsPanel(ctk.CTkFrame if ctk else tk.Frame):
 class HotkeyEditDialog(tk.Toplevel):
     """Dialog for editing a hotkey binding."""
     
+    # Map tkinter keysyms to normalized modifier/key names
+    KEYSYM_MAP = {
+        'Control_L': 'Ctrl', 'Control_R': 'Ctrl',
+        'Shift_L': 'Shift', 'Shift_R': 'Shift',
+        'Alt_L': 'Alt', 'Alt_R': 'Alt',
+        'Meta_L': 'Win', 'Meta_R': 'Win',
+        'Super_L': 'Win', 'Super_R': 'Win',
+    }
+    MODIFIER_ORDER = ['Ctrl', 'Alt', 'Shift', 'Win']
+    
     def __init__(self, parent, hotkey_name: str, current_key: str, callback: Callable):
         """
         Initialize hotkey edit dialog.
@@ -395,16 +405,6 @@ class HotkeyEditDialog(tk.Toplevel):
         )
         cancel_btn.pack(side="left", padx=5)
     
-    # Map tkinter keysyms to normalized modifier/key names
-    KEYSYM_MAP = {
-        'Control_L': 'Ctrl', 'Control_R': 'Ctrl',
-        'Shift_L': 'Shift', 'Shift_R': 'Shift',
-        'Alt_L': 'Alt', 'Alt_R': 'Alt',
-        'Meta_L': 'Win', 'Meta_R': 'Win',
-        'Super_L': 'Win', 'Super_R': 'Win',
-    }
-    MODIFIER_ORDER = ['Ctrl', 'Alt', 'Shift', 'Win']
-
     def _normalize_key(self, keysym: str) -> str:
         """Normalize a tkinter keysym to the format used by HotkeyManager."""
         if keysym in self.KEYSYM_MAP:

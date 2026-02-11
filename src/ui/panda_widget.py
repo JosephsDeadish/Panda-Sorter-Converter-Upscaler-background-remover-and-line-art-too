@@ -22,6 +22,10 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
     
     # Minimum drag distance (pixels) to distinguish drag from click
     CLICK_THRESHOLD = 5
+    # Minimum mouse positions needed to detect rubbing motion
+    MIN_RUB_POSITIONS = 4
+    # Cooldown in seconds between rub detections
+    RUB_COOLDOWN_SECONDS = 2.0
     
     def __init__(self, parent, panda_character=None, panda_level_system=None,
                  widget_collection=None, panda_closet=None, **kwargs):
@@ -290,8 +294,8 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
         # Keep only recent positions (last 1 second)
         self._rub_positions = [(x, y, t) for x, y, t in self._rub_positions if now - t < 1.0]
         
-        # Detect rubbing: rapid back-and-forth motion (at least 4 positions with direction changes)
-        if len(self._rub_positions) >= 4 and now - self._last_rub_time > 2.0:
+        # Detect rubbing: rapid back-and-forth motion
+        if len(self._rub_positions) >= self.MIN_RUB_POSITIONS and now - self._last_rub_time > self.RUB_COOLDOWN_SECONDS:
             # Check for direction changes in x movement
             direction_changes = 0
             for i in range(2, len(self._rub_positions)):
