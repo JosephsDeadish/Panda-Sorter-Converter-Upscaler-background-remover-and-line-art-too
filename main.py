@@ -41,6 +41,7 @@ GUI_AVAILABLE = False
 
 try:
     import customtkinter as ctk
+    import tkinter as tk
     from tkinter import messagebox, filedialog
     GUI_AVAILABLE = True
 except ImportError:
@@ -305,7 +306,10 @@ class PS2TextureSorter(ctk.CTk):
     BATCH_BONUS_THRESHOLD = 100  # Number of files for batch bonus
     
     # Prefixes to strip when mapping shop unlockable_ids to closet item IDs
-    CLOSET_ID_PREFIXES = ['clothes_', 'acc_', 'panda_outfit_', 'food_']
+    CLOSET_ID_PREFIXES = ['clothes_', 'acc_', 'panda_outfit_']
+    
+    # Shop categories that belong in the closet (not inventory)
+    CLOSET_SHOP_CATEGORIES = {'panda_outfits', 'clothes', 'accessories'}
     
     # Constants for user interaction
     USER_INTERACTION_TIMEOUT = 300  # 5 minutes timeout for manual/suggested mode dialogs
@@ -4215,28 +4219,44 @@ class PS2TextureSorter(ctk.CTk):
                 except Exception as e:
                     logger.debug(f"Could not save trail unlock: {e}")
             
-            # Handle food purchases — feed the panda directly
-            if item.category.value == 'food' and self.panda:
-                try:
-                    response = self.panda.on_feed()
-                    if hasattr(self, 'panda_widget') and self.panda_widget:
-                        self.panda_widget.info_label.configure(text=response)
-                        self.panda_widget.play_animation_once('fed')
-                    self.log(f"🎋 Fed panda with {item.name}! {response}")
-                    # Award XP for feeding
-                    if self.panda_level_system:
-                        try:
-                            xp = self.panda_level_system.get_xp_reward('feed')
-                            self.panda_level_system.add_xp(xp, f'Fed with {item.name}')
-                        except Exception:
-                            pass
-                except Exception as e:
-                    logger.debug(f"Could not feed panda: {e}")
+            # Handle food purchases — add to inventory and feed panda
+            if item.category.value == 'food':
+                # Add food quantity to widget collection for inventory
+                if self.widget_collection and item.unlockable_id:
+                    try:
+                        widget_id = self.widget_collection.resolve_shop_widget_id(item.unlockable_id)
+                        if widget_id:
+                            self.widget_collection.add_food_quantity(widget_id, 1)
+                            logger.info(f"Added food to inventory: {widget_id}")
+                    except Exception as e:
+                        logger.debug(f"Could not add food to inventory: {e}")
+                
+                # Also feed the panda for immediate feedback
+                if self.panda:
+                    try:
+                        response = self.panda.on_food_received()
+                        if hasattr(self, 'panda_widget') and self.panda_widget:
+                            self.panda_widget.info_label.configure(text=response)
+                            self.panda_widget.play_animation_once('fed')
+                        self.log(f"🎋 Bought {item.name} for panda! {response}")
+                        # Award XP for feeding
+                        if self.panda_level_system:
+                            try:
+                                xp = self.panda_level_system.get_xp_reward('feed')
+                                self.panda_level_system.add_xp(xp, f'Bought {item.name}')
+                            except Exception:
+                                pass
+                    except Exception as e:
+                        logger.debug(f"Could not feed panda: {e}")
 
             # Handle toy purchases — unlock widget in collection
             if item.category.value == 'toys' and item.unlockable_id and self.widget_collection:
                 try:
-                    self.widget_collection.unlock_widget(item.unlockable_id)
+                    widget_id = self.widget_collection.resolve_shop_widget_id(item.unlockable_id)
+                    if widget_id:
+                        self.widget_collection.unlock_widget(widget_id)
+                    else:
+                        self.widget_collection.unlock_widget(item.unlockable_id)
                     logger.info(f"Unlocked toy widget: {item.unlockable_id}")
                 except Exception as e:
                     logger.debug(f"Could not unlock toy widget: {e}")
@@ -4746,7 +4766,12 @@ Built with:
                      font=("Arial", 11), justify="left").pack(pady=10, padx=20)
     
     def create_inventory_tab(self):
-        """Create inventory tab for managing collected items"""
+        """Create inventory tab for managing collected items.
+        
+        Shows only non-closet items that have been purchased or earned.
+        Items are organized by category tabs: All, Toys, Food, Accessories.
+        Closet items (clothes, outfits, accessories) are shown in the Closet tab instead.
+        """
         scrollable_frame = ctk.CTkScrollableFrame(self.tab_inventory)
         scrollable_frame.pack(fill="both", expand=True, padx=10, pady=10)
 
@@ -4754,42 +4779,87 @@ Built with:
                      font=("Arial Bold", 22))
         header.pack(pady=(15, 5))
         if WidgetTooltip:
-            self._tooltips.append(WidgetTooltip(header, self._get_tooltip_text('inventory_tab') or "Your collection of items — toys, food, and accessories"))
+            self._tooltips.append(WidgetTooltip(header, self._get_tooltip_text('inventory_tab') or "Your collection of items — toys, food, and accessories. Drag items to use them!"))
 
-        # Show purchased shop items
-        if self.shop_system:
-            shop_frame = ctk.CTkFrame(scrollable_frame)
-            shop_frame.pack(fill="x", padx=10, pady=10)
-            shop_header = ctk.CTkLabel(shop_frame, text="🛒 Purchased Items",
-                         font=("Arial Bold", 16))
-            shop_header.pack(anchor="w", padx=10, pady=(10, 5))
-            if WidgetTooltip:
-                self._tooltips.append(WidgetTooltip(shop_header, self._get_tooltip_text('inventory_purchased') or "Items you've bought from the shop"))
-
-            if self.shop_system.purchased_items:
-                for item_id in self.shop_system.purchased_items:
-                    item = self.shop_system.CATALOG.get(item_id)
-                    if item:
-                        item_frame = ctk.CTkFrame(shop_frame)
-                        item_frame.pack(fill="x", padx=10, pady=3)
-                        name_lbl = ctk.CTkLabel(item_frame, text=f"{item.icon} {item.name}",
-                                     font=("Arial", 12))
-                        name_lbl.pack(side="left", padx=10, pady=5)
-                        ctk.CTkLabel(item_frame, text=item.description,
-                                     font=("Arial", 10), text_color="gray").pack(side="left", padx=5)
-                        if WidgetTooltip:
-                            self._tooltips.append(WidgetTooltip(name_lbl, f"{item.name}: {item.description}"))
-            else:
-                ctk.CTkLabel(shop_frame, text="No purchases yet. Visit the 🛒 Shop to buy items!",
-                             font=("Arial", 11), text_color="gray").pack(anchor="w", padx=20, pady=5)
-
-        # Show widget collection (toys, food, accessories)
+        # Category filter buttons
         if self.widget_collection:
-            for type_label, widget_type, interaction_type in [
-                ("🎾 Toys", WidgetType.TOY, "play"),
-                ("🍱 Food Items", WidgetType.FOOD, "feed"),
-                ("🎀 Accessories", WidgetType.ACCESSORY, "accessory")
-            ]:
+            cat_frame = ctk.CTkFrame(scrollable_frame)
+            cat_frame.pack(fill="x", padx=10, pady=(5, 10))
+            
+            if not hasattr(self, '_inventory_category'):
+                self._inventory_category = 'all'
+            
+            categories = [
+                ("📦 All", "all"),
+                ("🎾 Toys", "toy"),
+                ("🍱 Food", "food"),
+                ("🎀 Accessories", "accessory"),
+            ]
+            
+            for cat_label, cat_value in categories:
+                is_selected = (self._inventory_category == cat_value)
+                btn = ctk.CTkButton(
+                    cat_frame, text=cat_label, width=100, height=30,
+                    fg_color=("#3B8ED0" if is_selected else "transparent"),
+                    text_color=("white" if is_selected else None),
+                    command=lambda cv=cat_value: self._select_inventory_category(cv)
+                )
+                btn.pack(side="left", padx=5, pady=5)
+
+        # Show purchased non-closet shop items
+        if self.shop_system:
+            non_closet_purchased = []
+            for item_id in self.shop_system.purchased_items:
+                item = self.shop_system.CATALOG.get(item_id)
+                if item and item.category.value not in self.CLOSET_SHOP_CATEGORIES:
+                    non_closet_purchased.append(item)
+            
+            if non_closet_purchased:
+                shop_frame = ctk.CTkFrame(scrollable_frame)
+                shop_frame.pack(fill="x", padx=10, pady=10)
+                shop_header = ctk.CTkLabel(shop_frame, text="🛒 Purchased Items",
+                             font=("Arial Bold", 16))
+                shop_header.pack(anchor="w", padx=10, pady=(10, 5))
+                if WidgetTooltip:
+                    self._tooltips.append(WidgetTooltip(shop_header, self._get_tooltip_text('inventory_purchased') or "Non-closet items you've bought from the shop"))
+
+                for item in non_closet_purchased:
+                    # Apply category filter
+                    if self._inventory_category != 'all':
+                        if self._inventory_category == 'toy' and item.category.value != 'toys':
+                            continue
+                        elif self._inventory_category == 'food' and item.category.value != 'food':
+                            continue
+                        elif self._inventory_category == 'accessory' and item.category.value not in ('cursors', 'cursor_trails', 'themes', 'animations', 'upgrades', 'special'):
+                            continue
+                    
+                    item_frame = ctk.CTkFrame(shop_frame)
+                    item_frame.pack(fill="x", padx=10, pady=3)
+                    name_lbl = ctk.CTkLabel(item_frame, text=f"{item.icon} {item.name}",
+                                 font=("Arial", 12))
+                    name_lbl.pack(side="left", padx=10, pady=5)
+                    ctk.CTkLabel(item_frame, text=item.description,
+                                 font=("Arial", 10), text_color="gray").pack(side="left", padx=5)
+                    if WidgetTooltip:
+                        self._tooltips.append(WidgetTooltip(name_lbl, f"{item.name}: {item.description}"))
+
+        # Show widget collection (toys, food, accessories) — only unlocked/owned items
+        if self.widget_collection:
+            filter_types = []
+            if self._inventory_category == 'all':
+                filter_types = [
+                    ("🎾 Toys", WidgetType.TOY, "play"),
+                    ("🍱 Food Items", WidgetType.FOOD, "feed"),
+                    ("🎀 Accessories", WidgetType.ACCESSORY, "accessory")
+                ]
+            elif self._inventory_category == 'toy':
+                filter_types = [("🎾 Toys", WidgetType.TOY, "play")]
+            elif self._inventory_category == 'food':
+                filter_types = [("🍱 Food Items", WidgetType.FOOD, "feed")]
+            elif self._inventory_category == 'accessory':
+                filter_types = [("🎀 Accessories", WidgetType.ACCESSORY, "accessory")]
+            
+            for type_label, widget_type, interaction_type in filter_types:
                 type_frame = ctk.CTkFrame(scrollable_frame)
                 type_frame.pack(fill="x", padx=10, pady=10)
                 section_header = ctk.CTkLabel(type_frame, text=type_label,
@@ -4797,10 +4867,26 @@ Built with:
                 section_header.pack(anchor="w", padx=10, pady=(10, 5))
                 if WidgetTooltip:
                     tip_key = f"inventory_{widget_type.value}"
+                    tip_text = f"Your {widget_type.value} collection"
+                    if widget_type == WidgetType.TOY:
+                        tip_text += " — toys have infinite uses! Drag them out or give to panda."
+                    elif widget_type == WidgetType.FOOD:
+                        tip_text += " — food is consumed when used. Buy more from the shop!"
                     self._tooltips.append(WidgetTooltip(section_header,
-                        self._get_tooltip_text(tip_key) or f"Your {widget_type.value} collection"))
+                        self._get_tooltip_text(tip_key) or tip_text))
 
-                widgets = self.widget_collection.get_all_widgets(widget_type)
+                # Only show unlocked/owned widgets
+                widgets = self.widget_collection.get_all_widgets(widget_type, unlocked_only=True)
+                
+                # For food, also filter to only items with quantity > 0
+                if widget_type == WidgetType.FOOD:
+                    widgets = [w for w in widgets if not w.consumable or w.quantity > 0]
+
+                if not widgets:
+                    empty_msg = "No items yet. Visit the 🛒 Shop to buy some!"
+                    ctk.CTkLabel(type_frame, text=empty_msg,
+                                 font=("Arial", 11), text_color="gray").pack(anchor="w", padx=20, pady=5)
+                    continue
 
                 rarity_order = ['common', 'uncommon', 'rare', 'epic', 'legendary']
                 rarity_groups = {}
@@ -4832,8 +4918,14 @@ Built with:
                     for widget in group:
                         w_frame = ctk.CTkFrame(type_frame)
                         w_frame.pack(fill="x", padx=20, pady=2)
-                        status = "✅" if widget.unlocked else "🔒"
-                        item_lbl = ctk.CTkLabel(w_frame, text=f"{status} {widget.emoji} {widget.name}",
+                        
+                        # Show quantity for consumable items, checkmark for toys
+                        if widget.consumable:
+                            status = f"x{widget.quantity}"
+                        else:
+                            status = "♾️"  # infinite uses for toys
+                        
+                        item_lbl = ctk.CTkLabel(w_frame, text=f"{widget.emoji} {widget.name} [{status}]",
                                      font=("Arial", 12))
                         item_lbl.pack(side="left", padx=10, pady=5)
                         ctk.CTkLabel(w_frame, text=widget.rarity.value.title(),
@@ -4845,13 +4937,18 @@ Built with:
                                          font=("Arial", 10), text_color="gray").pack(side="left", padx=5)
                         if WidgetTooltip:
                             tip = f"{widget.name} ({widget.rarity.value.title()})"
-                            if widget.unlocked:
-                                tip += " — Click 'Give to Panda' to use!"
+                            if widget.consumable:
+                                tip += f" — {widget.quantity} remaining. Food is consumed when fed to panda."
                             else:
-                                tip += " — Locked. Purchase from the Shop to unlock."
+                                tip += " — Infinite uses! Toys are never consumed."
                             self._tooltips.append(WidgetTooltip(item_lbl, tip))
 
-                        if widget.unlocked:
+                        # Give to panda button
+                        can_use = True
+                        if widget.consumable and widget.quantity <= 0:
+                            can_use = False
+                        
+                        if can_use:
                             give_btn = ctk.CTkButton(
                                 w_frame, text="🐼 Give to Panda", width=120, height=28,
                                 command=lambda w=widget, it=interaction_type: self._give_inventory_item_to_panda(w, it)
@@ -4860,6 +4957,17 @@ Built with:
                             if WidgetTooltip:
                                 self._tooltips.append(WidgetTooltip(give_btn,
                                     self._get_tooltip_text('inventory_give_button') or f"Give {widget.name} to your panda"))
+                            
+                            # Drag out button — creates a floating item window
+                            drag_btn = ctk.CTkButton(
+                                w_frame, text="✋ Drag Out", width=90, height=28,
+                                fg_color="#555555",
+                                command=lambda w=widget, it=interaction_type: self._drag_item_out(w, it)
+                            )
+                            drag_btn.pack(side="right", padx=2, pady=3)
+                            if WidgetTooltip:
+                                self._tooltips.append(WidgetTooltip(drag_btn,
+                                    f"Drag {widget.name} out as a floating item. Panda can walk to it and interact!"))
 
         # Show unlockables summary
         if self.unlockables_manager:
@@ -4889,25 +4997,235 @@ Built with:
                              text=f"Could not load unlockables: {e}",
                              font=("Arial", 11), text_color="gray").pack(anchor="w", padx=20, pady=5)
 
+    def _select_inventory_category(self, category):
+        """Switch inventory category filter and rebuild tab."""
+        self._inventory_category = category
+        try:
+            for w in self.tab_inventory.winfo_children():
+                w.destroy()
+            self.create_inventory_tab()
+        except Exception as e:
+            logger.error(f"Error switching inventory category: {e}")
+
+    def _drag_item_out(self, widget, interaction_type):
+        """Create a floating item window that can be dragged around with physics.
+        
+        Items behave like the panda's transparent floating window — they can be
+        tossed around with physics (bounce, gravity, friction). Different items
+        have different physics: bouncy carrot bounces high, dumbbell falls fast, etc.
+        The panda can walk to the item and interact with it.
+        """
+        try:
+            # Consume one unit for food items
+            if widget.consumable:
+                if widget.quantity <= 0:
+                    if self.panda_widget:
+                        self.panda_widget.info_label.configure(text=f"No {widget.name} left!")
+                    return
+                widget.quantity -= 1
+            
+            # Create floating toplevel window with transparent background
+            root = self.winfo_toplevel()
+            item_win = tk.Toplevel(root)
+            item_win.overrideredirect(True)
+            item_win.attributes('-topmost', True)
+            try:
+                item_win.attributes('-transparentcolor', 'gray15')
+            except Exception:
+                pass
+            
+            # Size based on item type
+            win_size = 80
+            item_win.geometry(f"{win_size}x{win_size}+{root.winfo_x() + 200}+{root.winfo_y() + 200}")
+            item_win.configure(bg='gray15')
+            
+            # Display item emoji
+            item_label = tk.Label(item_win, text=widget.emoji, font=("Arial", 36),
+                                  bg='gray15', fg='white')
+            item_label.pack(expand=True, fill="both")
+            
+            # Physics state
+            physics = widget.physics
+            weight_divisor = max(physics.weight, 0.1)
+            state = {
+                'vx': 0.0, 'vy': 0.0,
+                'dragging': False,
+                'drag_x': 0, 'drag_y': 0,
+                'last_x': 0, 'last_y': 0,
+                'timer': None,
+                'is_tossing': False,
+                'food_consumed': False,
+            }
+            
+            def on_drag_start(event):
+                state['dragging'] = True
+                state['drag_x'] = event.x_root
+                state['drag_y'] = event.y_root
+                state['last_x'] = event.x_root
+                state['last_y'] = event.y_root
+                state['vx'] = 0.0
+                state['vy'] = 0.0
+                state['is_tossing'] = False
+                if state['timer']:
+                    try:
+                        item_win.after_cancel(state['timer'])
+                    except Exception:
+                        pass
+                    state['timer'] = None
+            
+            def on_drag_motion(event):
+                if not state['dragging']:
+                    return
+                dx = event.x_root - state['drag_x']
+                dy = event.y_root - state['drag_y']
+                x = item_win.winfo_x() + dx
+                y = item_win.winfo_y() + dy
+                item_win.geometry(f"+{x}+{y}")
+                state['vx'] = (event.x_root - state['last_x']) / weight_divisor
+                state['vy'] = (event.y_root - state['last_y']) / weight_divisor
+                state['drag_x'] = event.x_root
+                state['drag_y'] = event.y_root
+                state['last_x'] = event.x_root
+                state['last_y'] = event.y_root
+            
+            def on_drag_end(event):
+                state['dragging'] = False
+                speed = (state['vx'] ** 2 + state['vy'] ** 2) ** 0.5
+                if speed > 1.5:
+                    state['is_tossing'] = True
+                    physics_tick()
+                
+                # Notify panda about item on screen
+                if self.panda and self.panda_widget:
+                    item_type = 'food' if widget.widget_type == WidgetType.FOOD else 'toy'
+                    response = self.panda.on_item_interact(widget.name, item_type)
+                    self.panda_widget.info_label.configure(text=response)
+                    anim = 'eating' if item_type == 'food' else 'playing'
+                    self.panda_widget.play_animation_once(anim)
+                    
+                    # For food, close the window after panda "eats" it
+                    if item_type == 'food':
+                        state['food_consumed'] = True
+                        item_win.after(2000, safe_destroy)
+            
+            def physics_tick():
+                if not state['is_tossing']:
+                    return
+                try:
+                    if not item_win.winfo_exists():
+                        return
+                except Exception:
+                    return
+                
+                # Apply gravity and friction
+                state['vy'] += physics.gravity
+                state['vx'] *= physics.friction
+                state['vy'] *= physics.friction
+                
+                x = item_win.winfo_x() + state['vx']
+                y = item_win.winfo_y() + state['vy']
+                
+                # Screen bounds
+                screen_w = root.winfo_screenwidth()
+                screen_h = root.winfo_screenheight()
+                
+                bounced = False
+                if x <= 0:
+                    x = 0
+                    state['vx'] = abs(state['vx']) * physics.bounce_damping * physics.bounciness
+                    bounced = True
+                elif x >= screen_w - win_size:
+                    x = screen_w - win_size
+                    state['vx'] = -abs(state['vx']) * physics.bounce_damping * physics.bounciness
+                    bounced = True
+                
+                if y <= 0:
+                    y = 0
+                    state['vy'] = abs(state['vy']) * physics.bounce_damping * physics.bounciness
+                    bounced = True
+                elif y >= screen_h - win_size:
+                    y = screen_h - win_size
+                    state['vy'] = -abs(state['vy']) * physics.bounce_damping * physics.bounciness
+                    bounced = True
+                
+                item_win.geometry(f"+{int(x)}+{int(y)}")
+                
+                speed = (state['vx'] ** 2 + state['vy'] ** 2) ** 0.5
+                if speed < 1.0:
+                    state['is_tossing'] = False
+                    return
+                
+                state['timer'] = item_win.after(20, physics_tick)
+            
+            def safe_destroy():
+                try:
+                    if item_win.winfo_exists():
+                        item_win.destroy()
+                except Exception:
+                    pass
+            
+            # Double-click to dismiss
+            def on_double_click(event):
+                # Return food quantity only if it wasn't already consumed by panda
+                if widget.consumable and widget.widget_type == WidgetType.FOOD and not state['food_consumed']:
+                    widget.quantity += 1  # Return the item
+                safe_destroy()
+            
+            item_label.bind('<Button-1>', on_drag_start)
+            item_label.bind('<B1-Motion>', on_drag_motion)
+            item_label.bind('<ButtonRelease-1>', on_drag_end)
+            item_label.bind('<Double-Button-1>', on_double_click)
+            
+            # Auto-close after 60 seconds for toys (they don't get consumed)
+            if not widget.consumable:
+                item_win.after(60000, safe_destroy)
+            
+            self.log(f"✋ Dragged out {widget.name}!")
+            
+            # Refresh inventory to show updated quantity
+            try:
+                for w in self.tab_inventory.winfo_children():
+                    w.destroy()
+                self.create_inventory_tab()
+            except Exception:
+                pass
+                
+        except Exception as e:
+            logger.error(f"Error dragging item out: {e}")
+
     def _give_inventory_item_to_panda(self, widget, interaction_type):
         """Give an inventory item to the panda, triggering animation and stats update."""
         try:
             result = widget.use()
             message = result.get('message', f"Panda enjoys the {widget.name}!")
             animation = result.get('animation', 'playing')
+            consumed = result.get('consumed', False)
+            
+            # Check if use failed (e.g., no quantity for food)
+            if result.get('happiness', 0) == 0 and widget.consumable:
+                if self.panda_widget:
+                    self.panda_widget.info_label.configure(text=message)
+                self.log(f"❌ {message}")
+                return
             
             # Update panda widget animation and speech
             if self.panda_widget:
                 self.panda_widget.info_label.configure(text=message)
                 self.panda_widget.play_animation_once(animation)
             
-            # Count towards interaction type (feed_count and click_count are
-            # core PandaCharacter attributes initialized in __init__)
+            # Use panda character's specific response methods
             if self.panda:
                 if interaction_type == 'feed':
+                    panda_msg = self.panda.on_food_received()
                     self.panda.feed_count += 1
                 elif interaction_type == 'play':
+                    panda_msg = self.panda.on_toy_received()
                     self.panda.click_count += 1
+                else:
+                    panda_msg = None
+                
+                if panda_msg and self.panda_widget:
+                    self.panda_widget.info_label.configure(text=panda_msg)
             
             # Award XP
             if self.panda_level_system:
@@ -4917,7 +5235,10 @@ Built with:
                 except Exception:
                     pass
             
-            self.log(f"🐼 Gave {widget.name} to panda! {message}")
+            if consumed:
+                self.log(f"🐼 Fed {widget.name} to panda! {message} (consumed)")
+            else:
+                self.log(f"🐼 Gave {widget.name} to panda! {message}")
             
             # Refresh inventory to show updated usage stats
             try:

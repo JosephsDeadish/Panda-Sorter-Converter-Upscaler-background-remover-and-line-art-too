@@ -1170,6 +1170,39 @@ class ShopSystem:
             one_time_purchase=True,
             unlockable_id='telescope'
         ),
+        'toy_bouncy_carrot': ShopItem(
+            id='toy_bouncy_carrot',
+            name='Bouncy Carrot',
+            description='A super bouncy carrot that bounces everywhere!',
+            category=ShopCategory.TOYS,
+            price=60,
+            icon='🥕',
+            level_required=3,
+            one_time_purchase=True,
+            unlockable_id='bouncy_carrot'
+        ),
+        'toy_squishy_ball': ShopItem(
+            id='toy_squishy_ball',
+            name='Big Red Squishy Ball',
+            description='A big squishy ball that wobbles and bounces!',
+            category=ShopCategory.TOYS,
+            price=80,
+            icon='🔴',
+            level_required=4,
+            one_time_purchase=True,
+            unlockable_id='squishy_ball'
+        ),
+        'toy_dumbbell': ShopItem(
+            id='toy_dumbbell',
+            name='Super Heavy Dumbbell',
+            description='A heavy dumbbell — throw it at panda for a funny reaction!',
+            category=ShopCategory.TOYS,
+            price=200,
+            icon='🏋️',
+            level_required=8,
+            one_time_purchase=True,
+            unlockable_id='dumbbell'
+        ),
 
         # New Fur Colors - Shop
         'closet_cherry_blossom': ShopItem(

@@ -739,6 +739,37 @@ class PandaCharacter:
     def on_food_received(self) -> str:
         """Handle panda receiving food."""
         return random.choice(self.FOOD_CONTEXT_RESPONSES)
+
+    def on_item_interact(self, item_name: str, item_type: str) -> str:
+        """Handle panda walking to and interacting with an item on screen.
+        
+        Args:
+            item_name: Name of the item
+            item_type: 'toy' or 'food'
+            
+        Returns:
+            Interaction response string
+        """
+        if item_type == 'food':
+            food_actions = [
+                f"🐼 *walks over to {item_name}* Ooh, is that food?!",
+                f"🐼 *picks up {item_name}* Don't mind if I do! *nom nom*",
+                f"🐼 *sniffs {item_name}* Smells amazing! *chomp*",
+                f"🐼 *waddles to {item_name}* Snack time! 😋",
+                f"🐼 *grabs {item_name}* This is mine now! *munch munch*",
+            ]
+            self.feed_count += 1
+            return random.choice(food_actions)
+        else:
+            toy_actions = [
+                f"🐼 *walks to {item_name}* Oooh, what's this?! *kicks it*",
+                f"🐼 *runs to {item_name}* PLAYTIME! *bats it around*",
+                f"🐼 *spots {item_name}* Mine! *rolls it across screen*",
+                f"🐼 *waddles to {item_name}* Let's play! *pounces*",
+                f"🐼 *picks up {item_name}* Watch this trick! *tosses in air*",
+            ]
+            self.click_count += 1
+            return random.choice(toy_actions)
     
     def get_context_menu(self) -> Dict[str, str]:
         """Get right-click context menu options."""

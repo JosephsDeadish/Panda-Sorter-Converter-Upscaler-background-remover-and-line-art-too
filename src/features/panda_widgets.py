@@ -30,6 +30,16 @@ class WidgetRarity(Enum):
 
 
 @dataclass
+class ItemPhysics:
+    """Physics properties for draggable items."""
+    friction: float = 0.92
+    gravity: float = 1.5
+    bounce_damping: float = 0.6
+    weight: float = 1.0  # Affects throw distance (higher = shorter throw)
+    bounciness: float = 1.0  # Multiplier for bounce height
+
+
+@dataclass
 class WidgetStats:
     """Statistics for widget usage."""
     times_used: int = 0
@@ -42,7 +52,9 @@ class PandaWidget:
     """Base class for panda interactive widgets."""
     
     def __init__(self, name: str, emoji: str, widget_type: WidgetType,
-                 rarity: WidgetRarity = WidgetRarity.COMMON):
+                 rarity: WidgetRarity = WidgetRarity.COMMON,
+                 consumable: bool = False,
+                 physics: Optional['ItemPhysics'] = None):
         """
         Initialize panda widget.
         
@@ -51,6 +63,8 @@ class PandaWidget:
             emoji: Emoji representation
             widget_type: Type of widget
             rarity: Rarity level
+            consumable: Whether item is consumed on use (food) vs infinite (toys)
+            physics: Custom physics properties for draggable item behavior
         """
         self.name = name
         self.emoji = emoji
@@ -58,6 +72,9 @@ class PandaWidget:
         self.rarity = rarity
         self.stats = WidgetStats()
         self.unlocked = False
+        self.consumable = consumable
+        self.quantity = 0  # For consumable items, tracks how many the user owns
+        self.physics = physics or ItemPhysics()
     
     def use(self) -> Dict:
         """
@@ -66,6 +83,16 @@ class PandaWidget:
         Returns:
             Dictionary with results (happiness, message, animation)
         """
+        # Consumable items require quantity > 0
+        if self.consumable and self.quantity <= 0:
+            return {
+                'happiness': 0,
+                'message': f"No {self.name} left! Buy more from the shop.",
+                'animation': 'idle',
+                'widget': self.name,
+                'consumed': False
+            }
+        
         self.stats.times_used += 1
         self.stats.last_used = time.time()
         
@@ -75,13 +102,19 @@ class PandaWidget:
         
         self.stats.total_happiness_gained += happiness
         
+        consumed = False
+        if self.consumable:
+            self.quantity -= 1
+            consumed = True
+        
         logger.debug(f"Used widget {self.name}: +{happiness} happiness")
         
         return {
             'happiness': happiness,
             'message': message,
             'animation': animation,
-            'widget': self.name
+            'widget': self.name,
+            'consumed': consumed
         }
     
     def _calculate_happiness(self) -> int:
@@ -126,7 +159,7 @@ class PandaWidget:
     
     def get_info(self) -> Dict:
         """Get widget information."""
-        return {
+        info = {
             'name': self.name,
             'emoji': self.emoji,
             'type': self.widget_type.value,
@@ -134,12 +167,16 @@ class PandaWidget:
             'unlocked': self.unlocked,
             'times_used': self.stats.times_used,
             'total_happiness': self.stats.total_happiness_gained,
-            'favorite': self.stats.favorite
+            'favorite': self.stats.favorite,
+            'consumable': self.consumable,
         }
+        if self.consumable:
+            info['quantity'] = self.quantity
+        return info
 
 
 class ToyWidget(PandaWidget):
-    """Toy widget for panda to play with."""
+    """Toy widget for panda to play with. Toys have infinite uses."""
     
     TOY_MESSAGES = [
         "Panda loves playing with the {name}! 🎾",
@@ -149,8 +186,10 @@ class ToyWidget(PandaWidget):
         "Best toy ever! Panda says. 🐼💚"
     ]
     
-    def __init__(self, name: str, emoji: str, rarity: WidgetRarity = WidgetRarity.COMMON):
-        super().__init__(name, emoji, WidgetType.TOY, rarity)
+    def __init__(self, name: str, emoji: str, rarity: WidgetRarity = WidgetRarity.COMMON,
+                 physics: Optional[ItemPhysics] = None):
+        super().__init__(name, emoji, WidgetType.TOY, rarity,
+                         consumable=False, physics=physics)
     
     def _get_interaction_message(self) -> str:
         template = random.choice(self.TOY_MESSAGES)
@@ -161,7 +200,7 @@ class ToyWidget(PandaWidget):
 
 
 class FoodWidget(PandaWidget):
-    """Food widget for panda to eat."""
+    """Food widget for panda to eat. Food is consumed on use."""
     
     FOOD_MESSAGES = [
         "Nom nom nom! Panda devours the {name}! 🍽️",
@@ -173,7 +212,7 @@ class FoodWidget(PandaWidget):
     
     def __init__(self, name: str, emoji: str, rarity: WidgetRarity = WidgetRarity.COMMON,
                  energy_boost: int = 0):
-        super().__init__(name, emoji, WidgetType.FOOD, rarity)
+        super().__init__(name, emoji, WidgetType.FOOD, rarity, consumable=True)
         self.energy_boost = energy_boost
     
     def use(self) -> Dict:
@@ -206,19 +245,41 @@ class AccessoryWidget(PandaWidget):
 class WidgetCollection:
     """Manages the collection of all panda widgets."""
     
+    # Prefixes to strip when mapping shop unlockable_ids to widget keys
+    SHOP_ID_PREFIXES = ['food_', 'toy_']
+    
     # Predefined widgets
     DEFAULT_WIDGETS = {
-        # Toys
-        'ball': ToyWidget('Bamboo Ball', '🎾', WidgetRarity.COMMON),
-        'stick': ToyWidget('Bamboo Stick', '🎍', WidgetRarity.COMMON),
-        'plushie': ToyWidget('Mini Panda Plushie', '🧸', WidgetRarity.UNCOMMON),
-        'frisbee': ToyWidget('Bamboo Frisbee', '🥏', WidgetRarity.UNCOMMON),
-        'yo-yo': ToyWidget('Panda Yo-Yo', '🪀', WidgetRarity.RARE),
+        # Toys - infinite use, different physics behaviors
+        'ball': ToyWidget('Bamboo Ball', '🎾', WidgetRarity.COMMON,
+                          physics=ItemPhysics(bounciness=1.8, weight=0.5, bounce_damping=0.75)),
+        'stick': ToyWidget('Bamboo Stick', '🎍', WidgetRarity.COMMON,
+                           physics=ItemPhysics(bounciness=0.3, weight=0.8)),
+        'plushie': ToyWidget('Mini Panda Plushie', '🧸', WidgetRarity.UNCOMMON,
+                             physics=ItemPhysics(bounciness=0.5, weight=0.4, friction=0.85)),
+        'frisbee': ToyWidget('Bamboo Frisbee', '🥏', WidgetRarity.UNCOMMON,
+                             physics=ItemPhysics(friction=0.97, gravity=0.5, weight=0.3)),
+        'yo-yo': ToyWidget('Panda Yo-Yo', '🪀', WidgetRarity.RARE,
+                           physics=ItemPhysics(bounciness=1.5, weight=0.6)),
         'puzzle': ToyWidget('Bamboo Puzzle', '🧩', WidgetRarity.RARE),
-        'kite': ToyWidget('Panda Kite', '🪁', WidgetRarity.EPIC),
-        'robot': ToyWidget('Robot Panda Friend', '🤖', WidgetRarity.LEGENDARY),
+        'kite': ToyWidget('Panda Kite', '🪁', WidgetRarity.EPIC,
+                          physics=ItemPhysics(gravity=0.3, friction=0.98, weight=0.2)),
+        'robot': ToyWidget('Robot Panda Friend', '🤖', WidgetRarity.LEGENDARY,
+                           physics=ItemPhysics(weight=1.5, bounciness=0.8)),
+        'skateboard': ToyWidget('Panda Skateboard', '🛹', WidgetRarity.RARE,
+                                physics=ItemPhysics(friction=0.96, weight=1.0, bounciness=0.4)),
+        'drum': ToyWidget('Mini Drum Set', '🥁', WidgetRarity.EPIC,
+                          physics=ItemPhysics(weight=2.0, bounciness=0.3, gravity=2.5)),
+        'telescope': ToyWidget('Stargazing Telescope', '🔭', WidgetRarity.LEGENDARY,
+                               physics=ItemPhysics(weight=1.8, bounciness=0.2)),
+        'bouncy_carrot': ToyWidget('Bouncy Carrot', '🥕', WidgetRarity.UNCOMMON,
+                                   physics=ItemPhysics(bounciness=2.5, weight=0.3, bounce_damping=0.85)),
+        'squishy_ball': ToyWidget('Big Red Squishy Ball', '🔴', WidgetRarity.RARE,
+                                  physics=ItemPhysics(bounciness=2.0, weight=0.4, bounce_damping=0.8, friction=0.88)),
+        'dumbbell': ToyWidget('Super Heavy Dumbbell', '🏋️', WidgetRarity.EPIC,
+                              physics=ItemPhysics(weight=3.0, gravity=3.0, bounciness=0.15, bounce_damping=0.3)),
         
-        # Food
+        # Food - consumed on use
         'bamboo': FoodWidget('Fresh Bamboo', '🎋', WidgetRarity.COMMON, energy_boost=10),
         'bamboo_shoots': FoodWidget('Bamboo Shoots', '🌱', WidgetRarity.COMMON, energy_boost=5),
         'apple': FoodWidget('Juicy Apple', '🍎', WidgetRarity.UNCOMMON, energy_boost=15),
@@ -227,6 +288,14 @@ class WidgetCollection:
         'bento': FoodWidget('Panda Bento Box', '🍱', WidgetRarity.EPIC, energy_boost=50),
         'tea': FoodWidget('Bamboo Tea', '🍵', WidgetRarity.UNCOMMON, energy_boost=20),
         'dumplings': FoodWidget('Lucky Dumplings', '🥟', WidgetRarity.LEGENDARY, energy_boost=100),
+        'cookies': FoodWidget('Panda Cookies', '🍪', WidgetRarity.COMMON, energy_boost=8),
+        'ramen': FoodWidget('Ramen Bowl', '🍜', WidgetRarity.UNCOMMON, energy_boost=20),
+        'sushi': FoodWidget('Panda Sushi Roll', '🍣', WidgetRarity.RARE, energy_boost=28),
+        'rice_ball': FoodWidget('Rice Ball', '🍙', WidgetRarity.COMMON, energy_boost=8),
+        'boba_tea': FoodWidget('Boba Tea', '🧋', WidgetRarity.UNCOMMON, energy_boost=18),
+        'ice_cream': FoodWidget('Ice Cream Cone', '🍦', WidgetRarity.UNCOMMON, energy_boost=15),
+        'birthday_cake': FoodWidget('Birthday Cake', '🎂', WidgetRarity.EPIC, energy_boost=60),
+        'golden_bamboo': FoodWidget('Golden Bamboo', '✨', WidgetRarity.LEGENDARY, energy_boost=80),
         
         # Accessories
         'bowtie': AccessoryWidget('Fancy Bow Tie', '🎀', WidgetRarity.COMMON),
@@ -311,6 +380,57 @@ class WidgetCollection:
         
         widget.unlock()
         return True
+    
+    def add_food_quantity(self, widget_id: str, amount: int = 1) -> bool:
+        """
+        Add quantity to a consumable food widget (from shop purchase).
+        
+        Args:
+            widget_id: Widget identifier
+            amount: Number of items to add
+            
+        Returns:
+            True if successful
+        """
+        widget = self.widgets.get(widget_id)
+        if not widget:
+            logger.warning(f"Widget not found: {widget_id}")
+            return False
+        
+        if not widget.consumable:
+            logger.debug(f"Widget {widget_id} is not consumable, skipping quantity add")
+            return False
+        
+        if not widget.unlocked:
+            widget.unlock()
+        
+        widget.quantity += amount
+        logger.info(f"Added {amount}x {widget.name} (now has {widget.quantity})")
+        return True
+    
+    def resolve_shop_widget_id(self, shop_unlockable_id: str) -> Optional[str]:
+        """
+        Resolve a shop item's unlockable_id to a widget collection key.
+        Handles prefix stripping (e.g. 'food_bamboo' -> 'bamboo').
+        
+        Args:
+            shop_unlockable_id: The unlockable_id from the shop item
+            
+        Returns:
+            Widget collection key or None
+        """
+        # Direct match first
+        if shop_unlockable_id in self.widgets:
+            return shop_unlockable_id
+        
+        # Strip common prefixes
+        for prefix in self.SHOP_ID_PREFIXES:
+            if shop_unlockable_id.startswith(prefix):
+                stripped = shop_unlockable_id[len(prefix):]
+                if stripped in self.widgets:
+                    return stripped
+        
+        return None
     
     def use_widget(self, widget_id: str) -> Optional[Dict]:
         """
