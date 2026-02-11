@@ -3222,8 +3222,6 @@ class PS2TextureSorter(ctk.CTk):
                 progress_bar.set(progress_value)
                 
                 progress_text = f"{progress:g}/{required:g}"
-                if is_completed:
-                    progress_text += " ✅"
                 progress_label = ctk.CTkLabel(progress_frame, 
                                               text=progress_text,
                                               font=("Arial", 10))
