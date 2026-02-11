@@ -1140,7 +1140,7 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
                 except Exception as e:
                     logger.warning(f"Failed to save panda gender: {e}")
                 pronoun = self.panda.get_pronoun_subject()
-                self.info_label.configure(text=f"🐼 {pronoun.capitalize()}/{self.panda.get_pronoun_object()} it is!")
+                self.info_label.configure(text=f"🐼 Pronouns set to {pronoun}/{self.panda.get_pronoun_object()}!")
                 logger.info(f"Panda gender set to: {selected.value}")
                 dialog.destroy()
 
