@@ -116,6 +116,16 @@ class Config:
                 "error_popups": True
             },
             
+            # Sound Settings (separate from notifications)
+            "sound": {
+                "enabled": True,
+                "master_volume": 1.0,
+                "effects_volume": 1.0,
+                "notifications_volume": 1.0,
+                "sound_pack": "default",
+                "muted_sounds": {}
+            },
+            
             # Panda Character Settings
             "panda": {
                 "name": "Panda",

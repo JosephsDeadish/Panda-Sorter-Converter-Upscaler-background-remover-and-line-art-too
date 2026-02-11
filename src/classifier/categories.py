@@ -209,8 +209,10 @@ ENVIRONMENT_NATURAL = {
     "sand": {"name": "Sand", "keywords": ["sand", "sandy", "beach", "dune"], "group": "Environment/Natural"},
     "dirt": {"name": "Dirt", "keywords": ["dirt", "soil", "earth", "ground"], "group": "Environment/Natural"},
     "mud": {"name": "Mud", "keywords": ["mud", "muddy", "swamp"], "group": "Environment/Natural"},
-    "rocks": {"name": "Rocks", "keywords": ["rock", "boulder", "stone"], "group": "Environment/Natural"},
+    "rocks": {"name": "Rocks", "keywords": ["rock", "boulder", "stone", "rocky"], "group": "Environment/Natural"},
     "stones": {"name": "Stones", "keywords": ["stone", "pebble", "cobblestone"], "group": "Environment/Natural"},
+    "marble": {"name": "Marble", "keywords": ["marble", "marbled", "marble_tex", "marble_floor", "marble_wall"], "group": "Environment/Natural"},
+    "ground": {"name": "Ground", "keywords": ["ground", "terrain", "floor_ground", "groundtex", "ground_dirt"], "group": "Environment/Natural"},
     "mountains": {"name": "Mountains", "keywords": ["mountain", "cliff", "peak", "hill"], "group": "Environment/Natural"},
     "sky": {"name": "Sky", "keywords": ["sky", "skybox", "horizon"], "group": "Environment/Natural"},
     "clouds": {"name": "Clouds", "keywords": ["cloud", "cloudy"], "group": "Environment/Natural"},
@@ -256,16 +258,18 @@ UI_HUD = {
 
 # Effects Categories
 EFFECTS = {
-    "particles": {"name": "Particles", "keywords": ["particle", "particlefx"], "group": "Effects"},
-    "fire": {"name": "Fire", "keywords": ["fire", "flame", "burning"], "group": "Effects"},
-    "smoke": {"name": "Smoke", "keywords": ["smoke", "vapor", "steam"], "group": "Effects"},
-    "explosions": {"name": "Explosions", "keywords": ["explosion", "blast", "boom"], "group": "Effects"},
-    "lightning": {"name": "Lightning", "keywords": ["lightning", "electric", "spark"], "group": "Effects"},
-    "magic": {"name": "Magic Effects", "keywords": ["magic", "spell", "enchant", "mystical"], "group": "Effects"},
-    "lighting": {"name": "Lighting", "keywords": ["light", "lighting", "illumination"], "group": "Effects"},
-    "shadows": {"name": "Shadows", "keywords": ["shadow", "shade"], "group": "Effects"},
-    "reflections": {"name": "Reflections", "keywords": ["reflection", "mirror", "reflect"], "group": "Effects"},
-    "glow": {"name": "Glow", "keywords": ["glow", "glowing", "luminous"], "group": "Effects"}
+    "particles": {"name": "Particles", "keywords": ["particle", "particlefx", "emitter"], "group": "Effects"},
+    "fire": {"name": "Fire", "keywords": ["fire", "flame", "burning", "blaze", "inferno", "lava", "magma"], "group": "Effects"},
+    "smoke": {"name": "Smoke", "keywords": ["smoke", "vapor", "steam", "haze", "smog"], "group": "Effects"},
+    "explosions": {"name": "Explosions", "keywords": ["explosion", "blast", "boom", "detonate", "burst", "explode", "shockwave"], "group": "Effects"},
+    "lightning": {"name": "Lightning", "keywords": ["lightning", "electric", "spark", "thunder", "volt", "electricity"], "group": "Effects"},
+    "magic": {"name": "Magic Effects", "keywords": ["magic", "spell", "enchant", "mystical", "aura", "rune", "arcane"], "group": "Effects"},
+    "lighting": {"name": "Lighting", "keywords": ["light", "lighting", "illumination", "lamp", "glow_light"], "group": "Effects"},
+    "shadows": {"name": "Shadows", "keywords": ["shadow", "shade", "dark_shadow"], "group": "Effects"},
+    "reflections": {"name": "Reflections", "keywords": ["reflection", "mirror", "reflect", "shiny", "glossy"], "group": "Effects"},
+    "glow": {"name": "Glow", "keywords": ["glow", "glowing", "luminous", "radiant", "gleam"], "group": "Effects"},
+    "energy": {"name": "Energy", "keywords": ["energy", "plasma", "beam", "laser", "power", "force_field"], "group": "Effects"},
+    "debris": {"name": "Debris", "keywords": ["debris", "rubble", "wreckage", "shrapnel", "fragment"], "group": "Effects"}
 }
 
 # Objects/Props Categories
