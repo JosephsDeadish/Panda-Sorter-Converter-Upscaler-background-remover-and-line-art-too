@@ -240,6 +240,19 @@ class WidgetsPanel(ctk.CTkFrame if ctk else tk.Frame):
             )
             use_btn.pack(side="left", padx=2)
             
+            # Return to inventory button
+            return_btn = ctk.CTkButton(
+                btn_frame,
+                text="📥",
+                width=40,
+                command=lambda: self._return_to_inventory(widget.name.lower().replace(' ', '_'))
+            ) if ctk else tk.Button(
+                btn_frame,
+                text="📥",
+                command=lambda: self._return_to_inventory(widget.name.lower().replace(' ', '_'))
+            )
+            return_btn.pack(side="left", padx=2)
+            
             # Favorite button
             fav_text = "❤️" if widget.stats.favorite else "🤍"
             fav_btn = ctk.CTkButton(
@@ -285,6 +298,19 @@ class WidgetsPanel(ctk.CTkFrame if ctk else tk.Frame):
         else:
             self.status_var.set("Failed to use widget!")
     
+    def _return_to_inventory(self, widget_id: str):
+        """Return an active item back to inventory (clear it from panda)."""
+        widget = self.collection.get_widget(widget_id)
+        if widget:
+            # Clear the active item on the panda widget
+            if self.panda_callback and hasattr(self.panda_callback, 'set_active_item'):
+                self.panda_callback.set_active_item(None, None, None)
+            # Return panda to idle animation
+            if self.panda_callback and hasattr(self.panda_callback, 'start_animation'):
+                self.panda_callback.start_animation('idle')
+            self.status_var.set(f"{widget.name} returned to inventory!")
+            self._show_widgets()
+    
     def _toggle_favorite(self, widget_id: str):
         """Toggle widget favorite status."""
         widget = self.collection.get_widget(widget_id)
@@ -307,7 +333,7 @@ class WidgetsPanel(ctk.CTkFrame if ctk else tk.Frame):
         ("🔄", "Backflip", "backflip"),
         ("🦘", "Jumping", "jumping"),
         ("🙆", "Stretching", "stretching"),
-        ("🐾", "Tail Wag", "tail_wag"),
+        ("🐾", "Belly Rub", "belly_rub"),
         ("🌀", "Spinning", "spinning"),
         ("😴", "Sleeping", "sleeping"),
         ("🪑", "Sitting", "sitting"),

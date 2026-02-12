@@ -5023,7 +5023,7 @@ Built with:
                 ("🔄", "Backflip", "backflip"),
                 ("🦘", "Jumping", "jumping"),
                 ("🙆", "Stretching", "stretching"),
-                ("🐾", "Tail Wag", "tail_wag"),
+                ("🐾", "Belly Rub", "belly_rub"),
                 ("🌀", "Spinning", "spinning"),
                 ("😴", "Sleeping", "sleeping"),
                 ("🪑", "Sitting", "sitting"),
