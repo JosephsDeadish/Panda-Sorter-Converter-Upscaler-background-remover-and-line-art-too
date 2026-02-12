@@ -23,6 +23,15 @@ CHARACTER_ORGANIC = {
                      "hair_alpha", "hair_flow", "hair_root", "hair_tip"],
         "group": "Character/Organic"
     },
+    "fur": {
+        "name": "Fur",
+        "keywords": ["fur", "furry", "pelt", "fleece", "wool", "fur_tex", "fur_diff",
+                     "animal_fur", "bear_fur", "wolf_fur", "cat_fur", "dog_fur",
+                     "fox_fur", "rabbit_fur", "fur_pattern", "fur_stripe", "fur_spot",
+                     "fur_short", "fur_long", "fur_thick", "fur_thin", "fuzz", "fuzzy",
+                     "downy", "shaggy", "matted_fur", "wet_fur", "fur_detail"],
+        "group": "Character/Organic"
+    },
     "face": {
         "name": "Face",
         "keywords": ["face", "facial", "cheek", "chin", "forehead", "nose", "mouth", "lip",
@@ -464,6 +473,17 @@ ENVIRONMENT_MANMADE = {
                        "concrete_wall", "stone_wall_ext", "cinderblock",
                        "retaining_wall", "boundary_wall", "perimeter_wall",
                        "wall_ext_tex", "exterior_diff"], "group": "Environment/Man-made"},
+    "bricks": {"name": "Bricks", "keywords": ["brick", "bricks", "brickwork", "brickwall",
+               "red_brick", "clay_brick", "fire_brick", "brick_tex", "brick_diff",
+               "brick_pattern", "brick_stack", "brick_old", "brick_new", "brick_worn",
+               "brick_mossy", "brick_cracked", "mortar", "masonry", "brick_arch",
+               "brick_chimney", "brick_floor", "brick_path", "cobblestone_brick",
+               "brick_facade", "brick_pillar", "brick_wall_tex"], "group": "Environment/Man-made"},
+    "wall": {"name": "Wall", "keywords": ["wall_generic", "wall_surface", "wall_flat",
+             "partition", "divider", "barrier_wall", "wall_section", "wall_panel",
+             "wall_plain", "wall_rough", "wall_smooth", "wall_old", "wall_damaged",
+             "wall_mossy", "wall_cracked", "wall_graffiti", "wall_dirty",
+             "wall_clean", "compound_wall", "garden_wall", "wall_segment"], "group": "Environment/Man-made"},
     "floors": {"name": "Floors", "keywords": ["floor", "flooring", "tile", "carpet",
                "hardwood", "laminate", "vinyl", "linoleum", "concrete_floor",
                "parquet", "terrazzo", "epoxy", "rubber_floor", "mat",
@@ -588,6 +608,12 @@ UI_HUD = {
 
 # Effects Categories
 EFFECTS = {
+    "effects": {"name": "Effects", "keywords": ["effect", "effects", "fx", "vfx", "sfx",
+                "visual_effect", "special_effect", "effect_tex", "effect_diff",
+                "effect_alpha", "fx_tex", "fx_sheet", "fx_atlas",
+                "impact_fx", "trail_fx", "aura_fx", "distortion",
+                "heat_haze", "refraction", "warp", "shimmer",
+                "afterimage", "motion_blur", "speed_line", "action_line"], "group": "Effects"},
     "particles": {"name": "Particles", "keywords": ["particle", "particlefx", "emitter",
                   "particle_sheet", "particle_atlas", "sprite_sheet",
                   "particle_tex", "particle_diff", "particle_alpha",

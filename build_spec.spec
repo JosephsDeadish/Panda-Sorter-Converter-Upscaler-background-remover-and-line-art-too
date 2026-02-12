@@ -64,6 +64,8 @@ a = Analysis(
         'psutil',
         'colorama',
         'yaml',
+        'pycparser.lextab',
+        'pycparser.yacctab',
     ],
     hookspath=[],
     hooksconfig={},

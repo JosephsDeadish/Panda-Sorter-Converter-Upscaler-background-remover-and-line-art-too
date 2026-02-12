@@ -29,12 +29,12 @@ PANDA_CANVAS_H = 270
 TRANSPARENT_COLOR = '#FF00FF'
 
 # Speech bubble layout constants
-BUBBLE_MAX_CHARS_PER_LINE = 28
-BUBBLE_PAD_X = 16
+BUBBLE_MAX_CHARS_PER_LINE = 36
+BUBBLE_PAD_X = 18
 BUBBLE_PAD_Y = 12
-BUBBLE_CHAR_WIDTH = 10   # approximate px per character at font size 16 bold
+BUBBLE_CHAR_WIDTH = 9    # approximate px per character at font size 16 bold
 BUBBLE_LINE_HEIGHT = 24  # px per line of text
-BUBBLE_MAX_WIDTH = 320
+BUBBLE_MAX_WIDTH = 400
 BUBBLE_CORNER_RADIUS = 12
 BUBBLE_TAIL_HEIGHT = 10
 
@@ -773,17 +773,33 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
             arm_swing = 5
             body_bob = 30 + math.sin(phase * 0.3) * 2
         elif anim == 'sitting':
-            # Smooth sit-down transition
+            # Squatting pose: legs bend wide, body drops low, arms rest on knees
             sit_phase = min(1.0, frame_idx / 24.0)  # settle over ~24 frames
-            leg_swing = sit_phase * 8  # legs forward
-            arm_swing = math.sin(phase) * 3
-            body_bob = sit_phase * 18 + math.sin(phase * 0.5) * 2  # lower body gradually
+            leg_swing = sit_phase * 14  # Legs spread/bent forward (wide squat)
+            arm_swing = sit_phase * 10 + math.sin(phase * 0.5) * 2  # Arms resting outward on knees
+            body_bob = sit_phase * 28 + math.sin(phase * 0.4) * 2  # Body drops low for squat
         elif anim == 'belly_grab':
-            # Arms move to belly, gentle rocking
+            # Both hands reach to belly, grab it, and shake causing jiggle
             grab_phase = min(1.0, frame_idx / 12.0)
-            leg_swing = 0
-            arm_swing = -grab_phase * 15  # arms inward toward belly
-            body_bob = math.sin(phase * 1.5) * 4 + grab_phase * 3
+            grab_cycle = (frame_idx % 48) / 48.0
+            if grab_cycle < 0.25:
+                # Arms reaching inward to belly
+                ramp = grab_cycle / 0.25
+                arm_swing = -ramp * 20  # Both arms move strongly inward
+                leg_swing = ramp * 3
+                body_bob = ramp * 4
+            elif grab_cycle < 0.75:
+                # Grabbing and shaking belly — wobble effect
+                shake_t = (grab_cycle - 0.25) / 0.5
+                arm_swing = -20 + math.sin(shake_t * 8 * math.pi) * 4  # Arms vibrate on belly
+                leg_swing = math.sin(shake_t * 6 * math.pi) * 3
+                body_bob = 4 + math.sin(shake_t * 8 * math.pi) * 5  # Jiggle wobble
+            else:
+                # Release, settle back
+                settle = (grab_cycle - 0.75) / 0.25
+                arm_swing = -20 * (1 - settle) + math.sin(phase) * 2 * (1 - settle)
+                leg_swing = 3 * (1 - settle)
+                body_bob = 4 * (1 - settle) + math.sin(phase * 0.5) * 2
         elif anim == 'belly_jiggle':
             # Belly poke jiggle - bouncy wobble that decays
             jiggle_phase = min(1.0, frame_idx / 36.0)  # decay over ~36 frames
@@ -844,12 +860,13 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
             arm_swing = math.sin(phase) * 6
             body_bob = math.sin(phase) * 3
         elif anim == 'spinning':
-            # Dramatic full-body spin with accelerating motion
+            # Full-body spin: limbs follow a rotation cycle, body sways side to side
             spin_cycle = (frame_idx % 48) / 48.0
-            spin_speed = 1.0 + spin_cycle * 2.0  # Accelerates through the spin
-            leg_swing = math.sin(phase * 4 * spin_speed) * 22
-            arm_swing = math.sin(phase * 4 * spin_speed + math.pi/2) * 24
-            body_bob = math.sin(phase * 3 * spin_speed) * 10 + math.cos(phase * 2) * 4
+            spin_angle = spin_cycle * 2 * math.pi  # One full rotation per cycle
+            # Arms and legs follow the rotation so the whole body appears to turn
+            leg_swing = math.sin(spin_angle) * 12
+            arm_swing = math.cos(spin_angle) * 14
+            body_bob = abs(math.sin(spin_angle * 2)) * 4
         elif anim == 'shaking':
             # Intense rapid side-to-side shaking with head wobble
             self._shake_decay = max(0.3, 1.0 - (frame_idx % 60) / 60.0)  # Decays over time
@@ -945,35 +962,35 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
         elif anim == 'jumping':
             jump_cycle = (frame_idx % 36) / 36.0
             if jump_cycle < 0.15:
-                # Crouch down
+                # Crouch down — both legs bend together
                 crouch = jump_cycle / 0.15
-                leg_swing = crouch * 6
-                arm_swing = crouch * 8
-                body_bob = crouch * 10
+                leg_swing = crouch * 10  # Legs bend down (squat)
+                arm_swing = crouch * 6
+                body_bob = crouch * 14  # Body drops in crouch
             elif jump_cycle < 0.35:
-                # Launch upward
+                # Launch upward — both feet spring up, body rises high
                 launch = (jump_cycle - 0.15) / 0.2
-                leg_swing = 6 - launch * 12
-                arm_swing = 8 - launch * 24
-                body_bob = 10 - launch * 25
+                leg_swing = 10 - launch * 20  # Legs snap up together
+                arm_swing = 6 - launch * 28  # Arms swing up
+                body_bob = 14 - launch * 44  # Large upward movement
             elif jump_cycle < 0.55:
-                # Airborne / peak
+                # Airborne / peak — legs tucked, arms up, body high
                 air = (jump_cycle - 0.35) / 0.2
-                leg_swing = -6 + math.sin(air * math.pi) * 4
-                arm_swing = -16 + math.sin(air * math.pi) * 6
-                body_bob = -15 + math.sin(air * math.pi) * 3
+                leg_swing = -10 + math.sin(air * math.pi) * 3  # Both legs tucked up
+                arm_swing = -22 + math.sin(air * math.pi) * 4  # Arms raised
+                body_bob = -30 + math.sin(air * math.pi) * 4  # Peak height
             elif jump_cycle < 0.75:
-                # Falling down
+                # Falling down — legs extend for landing
                 fall = (jump_cycle - 0.55) / 0.2
-                leg_swing = -6 + fall * 10
-                arm_swing = -16 + fall * 20
-                body_bob = -15 + fall * 22
+                leg_swing = -10 + fall * 14  # Legs come back down together
+                arm_swing = -22 + fall * 26
+                body_bob = -30 + fall * 38  # Fall back to ground
             else:
-                # Landing bounce
+                # Landing bounce — slight squash
                 land = (jump_cycle - 0.75) / 0.25
                 leg_swing = 4 * math.sin(land * math.pi * 2) * (1 - land)
                 arm_swing = 4 * math.sin(land * math.pi * 2) * (1 - land)
-                body_bob = 7 * math.sin(land * math.pi) * (1 - land * 0.7)
+                body_bob = 8 * math.sin(land * math.pi) * (1 - land * 0.7)
         elif anim == 'yawning':
             yawn_cycle = (frame_idx % 48) / 48.0
             if yawn_cycle < 0.15:
@@ -1104,15 +1121,15 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
                 arm_swing = math.sin(settle * math.pi * 3) * 8 * (1 - settle)
                 body_bob = 5 * math.sin(settle * math.pi) * (1 - settle * 0.7)
         elif anim == 'lay_on_back':
-            # Lying on back, legs/arms up
-            leg_swing = math.sin(phase * 0.5) * 3  # Gentle wiggle
-            arm_swing = -15  # Arms extended up
-            body_bob = 40  # Positioned lower (lying down)
+            # Lying on back: body low, arms spread wide, legs splayed up
+            leg_swing = -8 + math.sin(phase * 0.4) * 2  # Legs up and slightly wiggling
+            arm_swing = 18 + math.sin(phase * 0.3) * 2  # Arms spread wide outward
+            body_bob = 50  # Very low position (on ground)
         elif anim == 'lay_on_side':
-            # Lying on side, relaxed
-            leg_swing = math.sin(phase * 0.3) * 2  # Very subtle
-            arm_swing = 5  # Arm resting
-            body_bob = 35  # Positioned lower
+            # Lying on side: body tilted, legs together, arm tucked
+            leg_swing = 6 + math.sin(phase * 0.3) * 2  # Legs slightly forward together
+            arm_swing = -8  # Arm resting forward (pillow-style)
+            body_bob = 45  # Low position (on ground)
         else:
             # Default walking for fed, etc.
             leg_swing = math.sin(phase) * 8
@@ -1121,8 +1138,16 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
         
         # --- Subtle breathing (body scale oscillation) ---
         breath_scale = 1.0
-        if anim in ('idle', 'working', 'sarcastic', 'thinking'):
+        if anim == 'spinning':
+            # Horizontal squeeze/stretch to simulate the body turning
+            spin_cycle = (frame_idx % 48) / 48.0
+            spin_angle = spin_cycle * 2 * math.pi
+            breath_scale = 0.55 + 0.45 * abs(math.cos(spin_angle))  # Narrow when sideways, full when facing
+        elif anim in ('idle', 'working', 'sarcastic', 'thinking'):
             breath_scale = 1.0 + math.sin(phase * 0.5) * 0.015
+        elif anim == 'lay_on_side':
+            # Squeeze body horizontally to simulate being viewed from a tilted angle
+            breath_scale = 0.7 + math.sin(phase * 0.3) * 0.02
         elif anim in ('sleeping', 'laying_down', 'laying_back', 'laying_side', 'sitting'):
             breath_scale = 1.0 + math.sin(phase * 0.3) * 0.025
         
@@ -1248,13 +1273,19 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
                 rot_t = (cart_cycle - 0.15) / 0.6
                 body_sway = math.sin(rot_t * 2 * math.pi) * 15
         elif anim == 'spinning':
-            body_sway = math.sin(phase * 3) * 10
+            # Large sway to simulate the body rotating around its center
+            spin_cycle = (frame_idx % 48) / 48.0
+            spin_angle = spin_cycle * 2 * math.pi
+            body_sway = math.sin(spin_angle) * 18
         elif anim == 'belly_rub':
             rub_cycle = (frame_idx % 60) / 60.0
             if 0.15 < rub_cycle < 0.75:
                 body_sway = math.sin((rub_cycle - 0.15) / 0.6 * 4 * math.pi) * 4
         elif anim in ('idle', 'working', 'sarcastic', 'thinking'):
             body_sway = math.sin(phase * 0.3) * 2
+        elif anim == 'lay_on_side':
+            # Large sway to tilt the body to one side (simulating 90-degree rotation)
+            body_sway = 22
         elif anim == 'celebrating':
             body_sway = math.sin(phase * 2) * 5
         elif anim == 'backflip':
@@ -1719,7 +1750,7 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
             name_y = int(h - 12 * sy)  # position just above canvas bottom edge
             c.create_text(cx_draw, name_y, text=self.panda.name,
                           font=("Arial Bold", int(10 * sx)),
-                          fill="#666666", tags="name_tag")
+                          fill="#666666", width=int(w - 10), tags="name_tag")
     
     def _draw_eyes(self, c: tk.Canvas, cx: int, ey: int, style: str, sx: float = 1.0, sy: float = 1.0):
         """Draw panda eyes based on the current animation style."""
@@ -2078,6 +2109,17 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
             _leg_swing, _arm_swing = self._compute_limb_offsets(
                 self.current_animation, self.animation_frame)
 
+            # Add dangle offsets during drag so clothes stay glued to limbs
+            _left_leg_dangle = 0
+            _right_leg_dangle = 0
+            _left_arm_dangle = 0
+            _right_arm_dangle = 0
+            if self.current_animation == 'dragging' and self.is_dragging:
+                _left_leg_dangle = int(self._dangle_left_leg)
+                _right_leg_dangle = int(self._dangle_right_leg)
+                _left_arm_dangle = int(self._dangle_left_arm)
+                _right_arm_dangle = int(self._dangle_right_arm)
+
             # --- Draw clothing based on clothing_type ---
             if appearance.clothing:
                 clothing_item = self.panda_closet.get_item(appearance.clothing)
@@ -2095,8 +2137,8 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
                     if ctype == 'pants':
                         waist_y = mid
                         leg_bottom = int(170 * sy + by)
-                        left_swing = int(_leg_swing)
-                        right_swing = int(-_leg_swing)
+                        left_swing = int(_leg_swing) + _left_leg_dangle
+                        right_swing = int(-_leg_swing) + _right_leg_dangle
                         # Waistband
                         c.create_rectangle(
                             cx - int(34 * sx), waist_y - int(4 * sy),
@@ -2148,12 +2190,12 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
                         c.create_line(
                             cx, bt + int(6 * sy), cx, bb - int(4 * sy),
                             fill=shadow, width=2, tags="equipped_clothing")
-                        # Long sleeves following arm swing
+                        # Long sleeves following arm swing + dangle
                         arm_top = bt + int(4 * sy)
                         arm_len = int(40 * sy)
-                        for side, swing in [(-1, _arm_swing), (1, -_arm_swing)]:
+                        for side, swing, dangle in [(-1, _arm_swing, _left_arm_dangle), (1, -_arm_swing, _right_arm_dangle)]:
                             arm_cx = cx + side * int(44 * sx)
-                            arm_end_y = arm_top + arm_len + int(swing)
+                            arm_end_y = arm_top + arm_len + int(swing) + dangle
                             c.create_polygon(
                                 arm_cx - int(10 * sx), arm_top,
                                 arm_cx + int(10 * sx), arm_top,
@@ -2194,8 +2236,8 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
                     # --- Full body: covers torso + legs + sleeves ---
                     elif ctype == 'full_body':
                         leg_bottom = int(170 * sy + by)
-                        left_swing = int(_leg_swing)
-                        right_swing = int(-_leg_swing)
+                        left_swing = int(_leg_swing) + _left_leg_dangle
+                        right_swing = int(-_leg_swing) + _right_leg_dangle
                         # Torso section
                         c.create_polygon(
                             cx - int(38 * sx), bt,
@@ -2224,12 +2266,12 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
                                 lx - int(12 * sx), leg_bottom + leg_sw,
                                 fill=color, outline=shadow, width=1,
                                 tags="equipped_clothing")
-                        # Sleeves synced with arm swing
+                        # Sleeves synced with arm swing + dangle
                         arm_top = bt + int(4 * sy)
                         arm_len = int(35 * sy)
-                        for side, swing in [(-1, _arm_swing), (1, -_arm_swing)]:
+                        for side, swing, dangle in [(-1, _arm_swing, _left_arm_dangle), (1, -_arm_swing, _right_arm_dangle)]:
                             arm_cx = cx + side * int(42 * sx)
-                            arm_end_y = arm_top + arm_len + int(swing)
+                            arm_end_y = arm_top + arm_len + int(swing) + dangle
                             c.create_oval(
                                 arm_cx - int(10 * sx), arm_top,
                                 arm_cx + int(10 * sx), arm_end_y,
@@ -2264,10 +2306,10 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
                         c.create_line(
                             cx, bt + int(8 * sy), cx, bb - int(4 * sy),
                             fill=highlight, width=1, tags="equipped_clothing")
-                        # Sleeve caps synced with arm swing
-                        for side, swing in [(-1, _arm_swing), (1, -_arm_swing)]:
+                        # Sleeve caps synced with arm swing + dangle
+                        for side, swing, dangle in [(-1, _arm_swing, _left_arm_dangle), (1, -_arm_swing, _right_arm_dangle)]:
                             sleeve_cx = cx + side * int(40 * sx)
-                            sleeve_offset = int(swing * 0.4)
+                            sleeve_offset = int(swing * 0.4) + int(dangle * 0.4)
                             c.create_oval(
                                 sleeve_cx - int(10 * sx), bt + int(2 * sy) + sleeve_offset,
                                 sleeve_cx + int(10 * sx), bt + int(18 * sy) + sleeve_offset,
@@ -2482,7 +2524,8 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
         """Draw extra decorations based on animation type."""
         emoji_list = self.ANIMATION_EMOJIS.get(anim)
         if emoji_list:
-            emoji = emoji_list[frame_idx % len(emoji_list)]
+            # Cycle emojis slowly (~every 20 frames / ~660ms) to avoid frantic flicker
+            emoji = emoji_list[(frame_idx // 20) % len(emoji_list)]
             c.create_text(cx + int(55 * sx), int(18 * sy + by), text=emoji,
                           font=("Arial", int(20 * sx)), tags="extra")
         
@@ -3330,15 +3373,16 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
                     response = self.panda.on_body_part_click(body_part)
                     self.info_label.configure(text=response)
                     # Multiple random response animations for variety
+                    # belly_rub is excluded — it should only play from inventory use
                     click_animations = ['clicked', 'waving', 'jumping', 'celebrating', 
-                                       'stretching', 'belly_rub', 'dancing']
+                                       'stretching', 'dancing']
                     chosen_anim = random.choice(click_animations)
                     self.play_animation_once(chosen_anim)
                 else:
                     response = self.panda.on_click()
                     self.info_label.configure(text=response)
                     click_animations = ['clicked', 'waving', 'jumping', 'celebrating', 
-                                       'stretching', 'belly_rub', 'dancing']
+                                       'stretching', 'dancing']
                     chosen_anim = random.choice(click_animations)
                     self.play_animation_once(chosen_anim)
                 
