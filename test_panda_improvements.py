@@ -19,19 +19,29 @@ from src.features.panda_character import PandaCharacter
 
 
 def test_sensitivity_thresholds():
-    """Test that panda widget sensitivity thresholds are properly increased."""
+    """Test that panda widget sensitivity thresholds are properly tuned.
+    
+    Spin detection should be strict (hard to trigger accidentally).
+    Shake detection should require very fast motion but fewer direction changes.
+    """
     # Import cannot instantiate PandaWidget without GUI, so check class constants
     try:
         from src.ui.panda_widget import PandaWidget
-        assert PandaWidget.SHAKE_DIRECTION_CHANGES >= 40, \
-            f"SHAKE_DIRECTION_CHANGES should be >= 40 (got {PandaWidget.SHAKE_DIRECTION_CHANGES})"
-        assert PandaWidget.MIN_SHAKE_MOVEMENT >= 12, \
-            f"MIN_SHAKE_MOVEMENT should be >= 12 (got {PandaWidget.MIN_SHAKE_MOVEMENT})"
-        assert PandaWidget.MIN_ROTATION_ANGLE >= 0.55, \
-            f"MIN_ROTATION_ANGLE should be >= 0.55 (got {PandaWidget.MIN_ROTATION_ANGLE})"
-        assert PandaWidget.SPIN_CONSISTENCY_THRESHOLD >= 0.92, \
-            f"SPIN_CONSISTENCY_THRESHOLD should be >= 0.92 (got {PandaWidget.SPIN_CONSISTENCY_THRESHOLD})"
-        print("✓ Sensitivity thresholds correctly increased")
+        # Shake: lowered direction changes but high velocity requirement
+        assert PandaWidget.SHAKE_DIRECTION_CHANGES >= 4, \
+            f"SHAKE_DIRECTION_CHANGES should be >= 4 (got {PandaWidget.SHAKE_DIRECTION_CHANGES})"
+        assert PandaWidget.MIN_SHAKE_VELOCITY >= 500, \
+            f"MIN_SHAKE_VELOCITY should be >= 500 for fast shakes (got {PandaWidget.MIN_SHAKE_VELOCITY})"
+        # Spin: stricter thresholds to avoid false triggers
+        assert PandaWidget.MIN_ROTATION_ANGLE >= 0.7, \
+            f"MIN_ROTATION_ANGLE should be >= 0.7 (got {PandaWidget.MIN_ROTATION_ANGLE})"
+        assert PandaWidget.SPIN_CONSISTENCY_THRESHOLD >= 0.95, \
+            f"SPIN_CONSISTENCY_THRESHOLD should be >= 0.95 (got {PandaWidget.SPIN_CONSISTENCY_THRESHOLD})"
+        assert PandaWidget.MIN_SPIN_POSITIONS >= 24, \
+            f"MIN_SPIN_POSITIONS should be >= 24 (got {PandaWidget.MIN_SPIN_POSITIONS})"
+        assert PandaWidget.MIN_SPIN_TOTAL_ANGLE >= 4.71239, \
+            f"MIN_SPIN_TOTAL_ANGLE should be >= 4.71239 (~1.5*pi) (got {PandaWidget.MIN_SPIN_TOTAL_ANGLE})"
+        print("✓ Sensitivity thresholds correctly tuned")
     except ImportError:
         print("⚠ Skipping sensitivity test (GUI not available)")
 
@@ -245,6 +255,42 @@ def test_belly_jiggle_animation_state():
     assert state == 'belly_jiggle', "get_animation_state should return belly_jiggle"
     print("✓ belly_jiggle animation state is valid")
 
+
+def test_belly_rub_animation_state():
+    """Test that belly_rub replaced tail_wag as a valid animation state."""
+    panda = PandaCharacter()
+    assert 'belly_rub' in panda.ANIMATION_STATES, \
+        "belly_rub should be in ANIMATION_STATES"
+    assert 'tail_wag' not in panda.ANIMATION_STATES, \
+        "tail_wag should have been renamed to belly_rub"
+    state = panda.get_animation_state('belly_rub')
+    assert state == 'belly_rub', "get_animation_state should return belly_rub"
+    print("✓ belly_rub animation state is valid (replaced tail_wag)")
+
+
+def test_belly_rub_in_click_animations():
+    """Test that belly_rub is used as a click animation variant."""
+    try:
+        import src.ui.panda_widget as pw
+        # Check ANIMATION_EMOJIS has belly_rub
+        assert 'belly_rub' in pw.PandaWidget.ANIMATION_EMOJIS, \
+            "belly_rub should have animation emojis"
+        print("✓ belly_rub is configured as a click animation variant")
+    except ImportError:
+        print("⚠ Skipping belly_rub click animation test (GUI not available)")
+
+
+def test_animation_interval_smooth():
+    """Test that animation interval is fast enough for smooth animations."""
+    try:
+        from src.ui.panda_widget import PandaWidget
+        assert PandaWidget.ANIMATION_INTERVAL <= 50, \
+            f"ANIMATION_INTERVAL should be <= 50ms for smooth animations (got {PandaWidget.ANIMATION_INTERVAL})"
+        print("✓ Animation interval is smooth ({0}ms)".format(PandaWidget.ANIMATION_INTERVAL))
+    except ImportError:
+        print("⚠ Skipping animation interval test (GUI not available)")
+
+
 def test_body_part_click_vs_rub_responses():
     """Test that click and rub have separate response sets for body parts."""
     panda = PandaCharacter()
@@ -418,6 +464,9 @@ if __name__ == "__main__":
         test_sound_settings_persistence()
         test_auto_walk_state_variables()
         test_accessories_routed_to_closet()
+        test_belly_rub_animation_state()
+        test_belly_rub_in_click_animations()
+        test_animation_interval_smooth()
 
         print("-" * 50)
         print("✅ All panda improvement tests passed!")

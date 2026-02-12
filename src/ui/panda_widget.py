@@ -76,20 +76,20 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
     # Cooldown in seconds between wall hit reactions
     WALL_HIT_COOLDOWN_SECONDS = 1.0
     
-    # Animation timing (ms)
-    ANIMATION_INTERVAL = 150
+    # Animation timing (ms) - lower values = smoother animations
+    ANIMATION_INTERVAL = 33
     # Reset frame counter at this value to prevent unbounded growth
     MAX_ANIMATION_FRAME = 10000
     
     # Drag pattern detection thresholds
     DRAG_HISTORY_SECONDS = 2.0      # How long to retain drag positions
-    SHAKE_DIRECTION_CHANGES = 40    # X direction changes needed for shaking (high to avoid false triggers)
-    MIN_SHAKE_MOVEMENT = 12         # Min px movement for a direction change (higher = less sensitive)
-    MIN_SHAKE_VELOCITY = 300        # Min avg speed (px/s) to consider shake (avoids slow-move false trigger)
-    MIN_ROTATION_ANGLE = 0.55       # Min angle diff (radians) for spin detection (higher = less sensitive)
-    SPIN_CONSISTENCY_THRESHOLD = 0.92  # Required ratio of consistent rotations (higher = stricter)
-    MIN_SPIN_POSITIONS = 16         # Min drag positions to attempt spin detection
-    MIN_SPIN_TOTAL_ANGLE = 3.14159  # Min total angle (radians, ~pi) swept for spin
+    SHAKE_DIRECTION_CHANGES = 6     # X direction changes needed for shaking (lowered for better detection)
+    MIN_SHAKE_MOVEMENT = 8          # Min px movement for a direction change (lowered for fast shakes)
+    MIN_SHAKE_VELOCITY = 500        # Min avg speed (px/s) to consider shake (high = only super fast shakes)
+    MIN_ROTATION_ANGLE = 0.7        # Min angle diff (radians) for spin detection (higher = less sensitive)
+    SPIN_CONSISTENCY_THRESHOLD = 0.95  # Required ratio of consistent rotations (higher = stricter)
+    MIN_SPIN_POSITIONS = 24         # Min drag positions to attempt spin detection (more points needed)
+    MIN_SPIN_TOTAL_ANGLE = 4.71239  # Min total angle (radians, ~1.5*pi) swept for spin
     
     # Toss physics constants
     TOSS_FRICTION = 0.92            # Velocity decay per frame
@@ -125,8 +125,8 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
     EAR_STRETCH_FACTOR = -0.15       # Ear response to vertical drag velocity
     EAR_STRETCH_MAX = 12.0           # Maximum ear stretch (pixels)
     
-    # Tail wag animation frequency
-    TAIL_WAG_FREQUENCY = 0.8
+    # Belly rub animation frequency (rubbing motion speed)
+    BELLY_RUB_FREQUENCY = 0.8
     
     # Emoji decorations shown next to the panda for each animation type
     ANIMATION_EMOJIS = {
@@ -151,7 +151,7 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
         'jumping': ['🦘', '⬆️', '🎉', '💫', '🏀'],
         'yawning': ['🥱', '😪', '💤', '😴', '🌙'],
         'sneezing': ['🤧', '💨', '😤', '🌬️', '💥'],
-        'tail_wag': ['🐾', '💕', '😊', '🐼', '💖'],
+        'belly_rub': ['🐾', '💕', '😊', '🐼', '💖'],
         'cartwheel': ['🤸', '🎪', '⭐', '💫', '🎉', '🤸‍♀️'],
         'backflip': ['🤸', '🔄', '💫', '🎯', '⭐', '🌟'],
         'lay_on_back': ['😌', '💤', '☁️', '💭', '🌙', '😴'],
@@ -231,6 +231,9 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
         # Ear stretch physics (elastic stretch during drag)
         self._ear_stretch = 0.0        # Current ear stretch amount
         self._ear_stretch_vel = 0.0    # Ear stretch velocity
+        
+        # Shake animation decay (shared between limb and body sway calculations)
+        self._shake_decay = 1.0
         
         # Autonomous walking state
         self._auto_walk_timer = None
@@ -668,14 +671,14 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
         phase = (frame_idx % 60) / 60.0 * 2 * math.pi
         
         if anim in ('idle', 'working', 'sarcastic', 'thinking'):
-            # More lively idle: gentle bouncing with subtle head bob and arm sway
-            idle_sub = (frame_idx % 120) / 120.0
-            leg_swing = math.sin(phase * 1.2) * 2 + math.sin(phase * 0.4) * 1
-            arm_swing = math.sin(phase) * 5 + math.sin(phase * 2.5) * 2
-            body_bob = math.sin(phase * 0.8) * 3 + abs(math.sin(phase * 1.6)) * 1.5
+            # Lively idle: body sways, head bobs, arms swing with layered motion
+            idle_sub = (frame_idx % 180) / 180.0
+            leg_swing = math.sin(phase * 1.2) * 3 + math.sin(phase * 0.4) * 2
+            arm_swing = math.sin(phase) * 6 + math.sin(phase * 2.5) * 3 + math.cos(phase * 0.7) * 2
+            body_bob = math.sin(phase * 0.8) * 4 + abs(math.sin(phase * 1.6)) * 2 + math.sin(phase * 0.3) * 2
             # Occasional micro-bounce
-            if idle_sub < 0.08:
-                body_bob -= idle_sub * 30
+            if idle_sub < 0.06:
+                body_bob -= idle_sub * 40
         elif anim == 'carrying':
             # Distinct carrying animation - stable, no shake/spin
             leg_swing = math.sin(phase) * 4  # Gentle walk
@@ -697,27 +700,27 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
             arm_swing = math.sin(phase * 4) * 8
             body_bob = -abs(math.sin(phase * 3)) * 4
         elif anim == 'dancing':
-            dance_cycle = (frame_idx % 60) / 60.0
+            dance_cycle = (frame_idx % 72) / 72.0
             if dance_cycle < 0.25:
-                # Side sway left
-                leg_swing = math.sin(phase) * 14
-                arm_swing = math.sin(phase * 2) * 16
-                body_bob = math.sin(phase * 2) * 5
+                # Side sway left with arm pump
+                leg_swing = math.sin(phase) * 16 + math.cos(phase * 0.5) * 4
+                arm_swing = math.sin(phase * 2) * 18 + math.sin(phase * 0.7) * 4
+                body_bob = math.sin(phase * 2) * 6 + abs(math.sin(phase * 3)) * 3
             elif dance_cycle < 0.5:
-                # Spin move
-                leg_swing = math.sin(phase * 3) * 10
-                arm_swing = -abs(math.sin(phase * 2)) * 18
-                body_bob = abs(math.sin(phase * 3)) * 6
+                # Spin move with body twist
+                leg_swing = math.sin(phase * 3) * 12 + math.cos(phase * 1.5) * 4
+                arm_swing = -abs(math.sin(phase * 2)) * 20
+                body_bob = abs(math.sin(phase * 3)) * 7 + math.sin(phase * 1.5) * 3
             elif dance_cycle < 0.75:
-                # Side sway right
-                leg_swing = -math.sin(phase) * 14
-                arm_swing = math.sin(phase * 2 + math.pi) * 16
-                body_bob = math.sin(phase * 2) * 5
+                # Side sway right with opposite arm
+                leg_swing = -math.sin(phase) * 16 - math.cos(phase * 0.5) * 4
+                arm_swing = math.sin(phase * 2 + math.pi) * 18 + math.cos(phase * 0.7) * 4
+                body_bob = math.sin(phase * 2) * 6 + abs(math.sin(phase * 3)) * 3
             else:
-                # Jump and arms up
-                leg_swing = math.sin(phase * 2) * 8
-                arm_swing = -abs(math.sin(phase)) * 20
-                body_bob = -abs(math.sin(phase * 2)) * 8
+                # Jump and arms up with twist
+                leg_swing = math.sin(phase * 2) * 10
+                arm_swing = -abs(math.sin(phase)) * 22
+                body_bob = -abs(math.sin(phase * 2)) * 10 + math.sin(phase * 4) * 3
         elif anim == 'celebrating':
             celeb_cycle = (frame_idx % 48) / 48.0
             if celeb_cycle < 0.33:
@@ -817,15 +820,18 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
             arm_swing = math.sin(phase) * 6
             body_bob = math.sin(phase) * 3
         elif anim == 'spinning':
-            # Much more exaggerated spinning with wild limb movements
-            leg_swing = math.sin(phase * 4) * 18  # Increased frequency and amplitude (was 3, 12)
-            arm_swing = math.sin(phase * 4 + math.pi/2) * 20  # Increased (was 3, 14)
-            body_bob = math.sin(phase * 3) * 8  # More dramatic (was 2, 5)
+            # Dramatic full-body spin with accelerating motion
+            spin_cycle = (frame_idx % 48) / 48.0
+            spin_speed = 1.0 + spin_cycle * 2.0  # Accelerates through the spin
+            leg_swing = math.sin(phase * 4 * spin_speed) * 22
+            arm_swing = math.sin(phase * 4 * spin_speed + math.pi/2) * 24
+            body_bob = math.sin(phase * 3 * spin_speed) * 10 + math.cos(phase * 2) * 4
         elif anim == 'shaking':
-            # More violent shaking motion
-            leg_swing = math.sin(phase * 8) * 10  # Faster, more dramatic (was 5, 6)
-            arm_swing = math.sin(phase * 8) * 12  # Faster, more dramatic (was 5, 8)
-            body_bob = math.sin(phase * 10) * 6  # Much faster vibration (was 6, 3)
+            # Intense rapid side-to-side shaking with head wobble
+            self._shake_decay = max(0.3, 1.0 - (frame_idx % 60) / 60.0)  # Decays over time
+            leg_swing = math.sin(phase * 10) * 12 * self._shake_decay
+            arm_swing = math.sin(phase * 10 + math.pi/3) * 16 * self._shake_decay
+            body_bob = math.sin(phase * 12) * 8 * self._shake_decay + math.cos(phase * 7) * 4 * self._shake_decay
         elif anim == 'rolling':
             leg_swing = math.sin(phase * 2) * 15
             arm_swing = math.cos(phase * 2) * 15
@@ -993,35 +999,86 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
                 leg_swing = math.sin(phase * 0.5) * 2
                 arm_swing = math.sin(phase * 0.8) * 3
                 body_bob = 2 + math.sin(phase * 0.5) * 2
-        elif anim == 'tail_wag':
-            wag_cycle = (frame_idx % 48) / 48.0
-            wag_intensity = 0.5 + 0.5 * math.sin(wag_cycle * 2 * math.pi)
-            leg_swing = math.sin(phase * 2) * 4 * wag_intensity
-            arm_swing = math.sin(phase * 1.5 + math.pi/4) * 6 * wag_intensity
-            body_bob = math.sin(phase * 2) * 3 * wag_intensity + abs(math.sin(phase * 3)) * 2
+        elif anim == 'belly_rub':
+            # Belly rub: arms move inward to belly and rub in circular motion, body rocks gently
+            rub_cycle = (frame_idx % 60) / 60.0
+            rub_phase = rub_cycle * 2 * math.pi
+            if rub_cycle < 0.15:
+                # Arms reaching toward belly
+                ramp = rub_cycle / 0.15
+                arm_swing = -ramp * 14  # Arms inward
+                leg_swing = ramp * 3
+                body_bob = ramp * 4
+            elif rub_cycle < 0.75:
+                # Rubbing belly - circular arm motion with gentle body sway
+                rub_t = (rub_cycle - 0.15) / 0.6
+                arm_swing = -14 + math.sin(rub_t * 6 * math.pi) * 6  # Circular rubbing
+                leg_swing = math.sin(rub_t * 4 * math.pi) * 3 + math.sin(rub_t * 2 * math.pi) * 2
+                body_bob = 4 + math.sin(rub_t * 3 * math.pi) * 3  # Gentle rocking
+            else:
+                # Settling back, satisfied
+                settle = (rub_cycle - 0.75) / 0.25
+                arm_swing = -14 * (1 - settle) + math.sin(phase) * 3 * (1 - settle)
+                leg_swing = 3 * (1 - settle)
+                body_bob = 4 * (1 - settle) + math.sin(phase * 0.5) * 2
         elif anim == 'cartwheel':
-            # Dramatic rotating cartwheel motion
-            cart_phase = (frame_idx % 24) / 24.0  # One full cartwheel cycle
-            rotation = cart_phase * 2 * math.pi
-            leg_swing = math.cos(rotation) * 25  # Large circular motion
-            arm_swing = math.sin(rotation) * 25  # Opposite phase
-            body_bob = -abs(math.sin(rotation * 2)) * 15  # Bouncing
+            # Full dramatic cartwheel with body rotation and ground contact
+            cart_cycle = (frame_idx % 36) / 36.0  # Slower for more detail
+            rotation = cart_cycle * 2 * math.pi
+            # Multi-phase cartwheel: windup, rotate, land
+            if cart_cycle < 0.15:
+                # Wind-up crouch
+                ramp = cart_cycle / 0.15
+                leg_swing = ramp * 8
+                arm_swing = -ramp * 10
+                body_bob = ramp * 6
+            elif cart_cycle < 0.75:
+                # Full rotation phase with large circular limb motion
+                rot_t = (cart_cycle - 0.15) / 0.6
+                rot_angle = rot_t * 2 * math.pi
+                leg_swing = math.cos(rot_angle) * 30  # Large circular motion
+                arm_swing = math.sin(rot_angle) * 30  # Opposite phase
+                body_bob = -abs(math.sin(rot_angle)) * 18 + math.sin(rot_angle * 2) * 5
+            else:
+                # Landing with bounce
+                land = (cart_cycle - 0.75) / 0.25
+                leg_swing = 30 * (1 - land) * math.cos(land * math.pi)
+                arm_swing = math.sin(land * math.pi * 2) * 10 * (1 - land)
+                body_bob = 8 * math.sin(land * math.pi) * (1 - land * 0.6)
         elif anim == 'backflip':
-            # Dramatic backflip with rotation
-            flip_phase = (frame_idx % 30) / 30.0  # Slower flip
-            if flip_phase < 0.3:  # Crouch
-                leg_swing = 0
-                arm_swing = -5
-                body_bob = flip_phase * 30
-            elif flip_phase < 0.7:  # Flip
-                flip_angle = (flip_phase - 0.3) * math.pi * 2.5
-                leg_swing = math.sin(flip_angle) * 30
-                arm_swing = math.cos(flip_angle) * 30
-                body_bob = -abs(math.sin(flip_angle)) * 20
-            else:  # Land
-                leg_swing = 0
-                arm_swing = math.sin(phase * 4) * 8
-                body_bob = (1 - flip_phase) * 15
+            # Dramatic backflip with full rotation and landing
+            flip_phase = (frame_idx % 36) / 36.0  # Slower for detail
+            if flip_phase < 0.2:
+                # Crouch with arms back
+                ramp = flip_phase / 0.2
+                leg_swing = ramp * 6
+                arm_swing = ramp * 8
+                body_bob = ramp * 12
+            elif flip_phase < 0.35:
+                # Launch upward
+                launch = (flip_phase - 0.2) / 0.15
+                leg_swing = 6 - launch * 16
+                arm_swing = 8 - launch * 30
+                body_bob = 12 - launch * 35
+            elif flip_phase < 0.7:
+                # Full rotation in air
+                flip_t = (flip_phase - 0.35) / 0.35
+                flip_angle = flip_t * 2 * math.pi
+                leg_swing = math.sin(flip_angle) * 35
+                arm_swing = math.cos(flip_angle) * 35
+                body_bob = -23 + math.sin(flip_angle) * 8
+            elif flip_phase < 0.85:
+                # Landing
+                land = (flip_phase - 0.7) / 0.15
+                leg_swing = 35 * (1 - land) * math.sin(land * math.pi * 0.5)
+                arm_swing = 35 * (1 - land) * math.cos(land * math.pi * 0.5)
+                body_bob = -23 + land * 28
+            else:
+                # Bounce settle
+                settle = (flip_phase - 0.85) / 0.15
+                leg_swing = math.sin(settle * math.pi * 2) * 5 * (1 - settle)
+                arm_swing = math.sin(settle * math.pi * 3) * 8 * (1 - settle)
+                body_bob = 5 * math.sin(settle * math.pi) * (1 - settle * 0.7)
         elif anim == 'lay_on_back':
             # Lying on back, legs/arms up
             leg_swing = math.sin(phase * 0.5) * 3  # Gentle wiggle
@@ -1096,6 +1153,30 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
             self._ear_stretch_vel = 0.0
         
         by = body_bob  # vertical body offset
+        
+        # --- Body sway (horizontal offset for turning/direction changes) ---
+        body_sway = 0
+        if anim == 'dancing':
+            body_sway = math.sin(phase * 1.5) * 6
+        elif anim == 'cartwheel':
+            cart_cycle = (frame_idx % 36) / 36.0
+            if 0.15 < cart_cycle < 0.75:
+                rot_t = (cart_cycle - 0.15) / 0.6
+                body_sway = math.sin(rot_t * 2 * math.pi) * 15
+        elif anim == 'spinning':
+            body_sway = math.sin(phase * 3) * 10
+        elif anim == 'belly_rub':
+            rub_cycle = (frame_idx % 60) / 60.0
+            if 0.15 < rub_cycle < 0.75:
+                body_sway = math.sin((rub_cycle - 0.15) / 0.6 * 4 * math.pi) * 4
+        elif anim in ('idle', 'working', 'sarcastic', 'thinking'):
+            body_sway = math.sin(phase * 0.3) * 2
+        elif anim == 'celebrating':
+            body_sway = math.sin(phase * 2) * 5
+        elif anim == 'backflip':
+            body_sway = math.sin(phase * 2) * 4
+        elif anim == 'shaking':
+            body_sway = math.sin(phase * 12) * 8 * self._shake_decay
         
         # --- Determine eye style based on animation ---
         eye_style = 'normal'
@@ -1240,7 +1321,7 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
                 eye_style = 'closed'
             else:
                 eye_style = 'half'
-        elif anim == 'tail_wag':
+        elif anim == 'belly_rub':
             cycle = frame_idx % 16
             if cycle < 6:
                 eye_style = 'happy'
@@ -1357,7 +1438,7 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
                 mouth_style = 'grin'
             else:
                 mouth_style = 'normal'
-        elif anim == 'tail_wag':
+        elif anim == 'belly_rub':
             mouth_style = 'smile'
         elif anim == 'cartwheel':
             mouth_style = 'grin'
@@ -1392,7 +1473,7 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
             # Occasional ear twitch while sleeping/laying
             if frame_idx % 20 < 3:
                 ear_wiggle = math.sin(phase * 6) * 2 * sx
-        elif anim in ('waving', 'tail_wag', 'jumping', 'cartwheel', 'backflip'):
+        elif anim in ('waving', 'belly_rub', 'jumping', 'cartwheel', 'backflip'):
             ear_wiggle = math.sin(phase * 2) * 3 * sx
         elif anim == 'sneezing':
             ear_wiggle = math.sin(phase * 5) * 4 * sx
@@ -1400,13 +1481,15 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
             ear_wiggle = math.sin(phase * 1.5) * 2 * sx  # Gentle movement while carrying
         
         # --- Draw legs (behind body) ---
+        # Apply body sway to center position for turning/direction effect
+        cx_draw = cx + int(body_sway)
         leg_top = int(145 * sy + by)
         leg_len = int(30 * sy)
         # Apply dangle physics to legs during drag (vertical + horizontal)
         leg_dangle = int(self._dangle_leg)
         leg_dangle_h = int(self._dangle_leg_h)
         # Left leg
-        left_leg_x = cx - int(25 * sx) + leg_dangle_h
+        left_leg_x = cx_draw - int(25 * sx) + leg_dangle_h
         left_leg_swing = leg_swing + leg_dangle
         c.create_oval(
             left_leg_x - int(12 * sx), leg_top + left_leg_swing,
@@ -1420,7 +1503,7 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
             fill=white, outline=black, width=1, tags="foot"
         )
         # Right leg
-        right_leg_x = cx + int(25 * sx) + leg_dangle_h
+        right_leg_x = cx_draw + int(25 * sx) + leg_dangle_h
         right_leg_swing = -leg_swing + leg_dangle
         c.create_oval(
             right_leg_x - int(12 * sx), leg_top + right_leg_swing,
@@ -1443,15 +1526,15 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
         jiggle_scale = 1.0 + abs(self._belly_jiggle) * 0.008  # slight width pulse
         body_rx_jiggle = int(body_rx * jiggle_scale)
         c.create_oval(
-            cx - body_rx_jiggle + belly_jiggle_px, body_top,
-            cx + body_rx_jiggle + belly_jiggle_px, body_bot,
+            cx_draw - body_rx_jiggle + belly_jiggle_px, body_top,
+            cx_draw + body_rx_jiggle + belly_jiggle_px, body_bot,
             fill=white, outline=black, width=2, tags="body"
         )
         # Inner belly patch (lighter) — sized to fit fully inside body with no visible gap
         belly_rx = int(26 * sx * breath_scale * jiggle_scale)
         c.create_oval(
-            cx - belly_rx + belly_jiggle_px, body_top + int(18 * sy),
-            cx + belly_rx + belly_jiggle_px, body_bot - int(14 * sy),
+            cx_draw - belly_rx + belly_jiggle_px, body_top + int(18 * sy),
+            cx_draw + belly_rx + belly_jiggle_px, body_bot - int(14 * sy),
             fill="#FAFAFA", outline="", tags="belly"
         )
         
@@ -1464,15 +1547,15 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
         # Left arm
         la_swing = arm_swing + arm_dangle
         c.create_oval(
-            cx - int(55 * sx) + arm_dangle_h, arm_top + la_swing,
-            cx - int(30 * sx) + arm_dangle_h, arm_top + arm_len + la_swing,
+            cx_draw - int(55 * sx) + arm_dangle_h, arm_top + la_swing,
+            cx_draw - int(30 * sx) + arm_dangle_h, arm_top + arm_len + la_swing,
             fill=black, outline=black, tags="arm"
         )
         # Right arm
         ra_swing = -arm_swing + arm_dangle
         c.create_oval(
-            cx + int(30 * sx) + arm_dangle_h, arm_top + ra_swing,
-            cx + int(55 * sx) + arm_dangle_h, arm_top + arm_len + ra_swing,
+            cx_draw + int(30 * sx) + arm_dangle_h, arm_top + ra_swing,
+            cx_draw + int(55 * sx) + arm_dangle_h, arm_top + arm_len + ra_swing,
             fill=black, outline=black, tags="arm"
         )
         
@@ -1481,8 +1564,8 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
         head_rx = int(36 * sx)
         head_ry = int(32 * sy)
         c.create_oval(
-            cx - head_rx, head_cy - head_ry,
-            cx + head_rx, head_cy + head_ry,
+            cx_draw - head_rx, head_cy - head_ry,
+            cx_draw + head_rx, head_cy + head_ry,
             fill=white, outline=black, width=2, tags="head"
         )
         
@@ -1493,20 +1576,20 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
         # Ear stretch: elongate ears vertically (elastic effect)
         ear_stretch_px = int(self._ear_stretch * sy)
         # Left ear
-        c.create_oval(cx - head_rx - int(2 * sx) + ear_wiggle, ear_y - int(16 * sy) - ear_stretch_px,
-                       cx - head_rx + ear_w + ear_wiggle, ear_y + int(8 * sy),
+        c.create_oval(cx_draw - head_rx - int(2 * sx) + ear_wiggle, ear_y - int(16 * sy) - ear_stretch_px,
+                       cx_draw - head_rx + ear_w + ear_wiggle, ear_y + int(8 * sy),
                        fill=black, outline=black, tags="ear")
         # Inner ear pink
-        c.create_oval(cx - head_rx + int(4 * sx) + ear_wiggle, ear_y - int(10 * sy) - ear_stretch_px,
-                       cx - head_rx + int(16 * sx) + ear_wiggle, ear_y + int(2 * sy),
+        c.create_oval(cx_draw - head_rx + int(4 * sx) + ear_wiggle, ear_y - int(10 * sy) - ear_stretch_px,
+                       cx_draw - head_rx + int(16 * sx) + ear_wiggle, ear_y + int(2 * sy),
                        fill=pink, outline="", tags="ear_inner")
         # Right ear
-        c.create_oval(cx + head_rx - ear_w - ear_wiggle, ear_y - int(16 * sy) - ear_stretch_px,
-                       cx + head_rx + int(2 * sx) - ear_wiggle, ear_y + int(8 * sy),
+        c.create_oval(cx_draw + head_rx - ear_w - ear_wiggle, ear_y - int(16 * sy) - ear_stretch_px,
+                       cx_draw + head_rx + int(2 * sx) - ear_wiggle, ear_y + int(8 * sy),
                        fill=black, outline=black, tags="ear")
         # Inner ear pink
-        c.create_oval(cx + head_rx - int(16 * sx) - ear_wiggle, ear_y - int(10 * sy) - ear_stretch_px,
-                       cx + head_rx - int(4 * sx) - ear_wiggle, ear_y + int(2 * sy),
+        c.create_oval(cx_draw + head_rx - int(16 * sx) - ear_wiggle, ear_y - int(10 * sy) - ear_stretch_px,
+                       cx_draw + head_rx - int(4 * sx) - ear_wiggle, ear_y + int(2 * sy),
                        fill=pink, outline="", tags="ear_inner")
         
         # --- Draw eye patches (black ovals around eyes) ---
@@ -1515,35 +1598,35 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
         patch_ry = int(11 * sy)
         eye_offset = int(24 * sx)
         # Left eye patch
-        c.create_oval(cx - eye_offset - patch_rx, eye_y - patch_ry,
-                       cx - eye_offset + patch_rx, eye_y + patch_ry,
+        c.create_oval(cx_draw - eye_offset - patch_rx, eye_y - patch_ry,
+                       cx_draw - eye_offset + patch_rx, eye_y + patch_ry,
                        fill=black, outline="", tags="eye_patch")
         # Right eye patch
-        c.create_oval(cx + eye_offset - patch_rx, eye_y - patch_ry,
-                       cx + eye_offset + patch_rx, eye_y + patch_ry,
+        c.create_oval(cx_draw + eye_offset - patch_rx, eye_y - patch_ry,
+                       cx_draw + eye_offset + patch_rx, eye_y + patch_ry,
                        fill=black, outline="", tags="eye_patch")
         
         # --- Draw equipped items on panda body (before face details) ---
-        self._draw_equipped_items(c, cx, by, sx, sy)
+        self._draw_equipped_items(c, cx_draw, by, sx, sy)
         
         # --- Draw eyes ---
-        self._draw_eyes(c, cx, eye_y, eye_style, sx, sy)
+        self._draw_eyes(c, cx_draw, eye_y, eye_style, sx, sy)
         
         # --- Draw nose ---
         nose_y = head_cy + int(8 * sy)
-        c.create_oval(cx - int(5 * sx), nose_y - int(3 * sy), cx + int(5 * sx), nose_y + int(4 * sy),
+        c.create_oval(cx_draw - int(5 * sx), nose_y - int(3 * sy), cx_draw + int(5 * sx), nose_y + int(4 * sy),
                        fill=nose_color, outline="", tags="nose")
         
         # --- Draw mouth ---
-        self._draw_mouth(c, cx, nose_y + int(6 * sy), mouth_style, sx, sy)
+        self._draw_mouth(c, cx_draw, nose_y + int(6 * sy), mouth_style, sx, sy)
         
         # --- Draw animation-specific extras ---
-        self._draw_animation_extras(c, cx, by, anim, frame_idx, sx, sy)
+        self._draw_animation_extras(c, cx_draw, by, anim, frame_idx, sx, sy)
         
         # --- Draw panda name tag below feet ---
         if self.panda and self.panda.name:
             name_y = int(h - 12 * sy)  # position just above canvas bottom edge
-            c.create_text(cx, name_y, text=self.panda.name,
+            c.create_text(cx_draw, name_y, text=self.panda.name,
                           font=("Arial Bold", int(10 * sx)),
                           fill="#666666", tags="name_tag")
     
@@ -2304,7 +2387,7 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
                           font=("Arial", int(20 * sx)), tags="extra")
         
         # Blush cheeks when petting, celebrating, playing, eating, etc.
-        if anim in ('petting', 'celebrating', 'fed', 'playing', 'eating', 'customizing', 'tail_wag', 'belly_grab', 'belly_jiggle'):
+        if anim in ('petting', 'celebrating', 'fed', 'playing', 'eating', 'customizing', 'belly_rub', 'belly_grab', 'belly_jiggle'):
             cheek_y = int(56 * sy + by)
             br = int(5 * sx)
             c.create_oval(cx - int(38 * sx), cheek_y - br, cx - int(28 * sx), cheek_y + br,
@@ -2362,16 +2445,17 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
                 c.create_text(item_x, item_y, text=self._active_item_emoji,
                               font=("Arial", max(8, item_size)), tags="active_item")
         
-        # Draw a small tail oval for tail_wag animation
-        if anim == 'tail_wag':
-            tail_offset = math.sin(frame_idx * self.TAIL_WAG_FREQUENCY) * int(8 * sx)
-            tail_cx = cx + tail_offset
-            tail_cy = int(145 * sy + by)
-            c.create_oval(
-                tail_cx - int(8 * sx), tail_cy - int(5 * sy),
-                tail_cx + int(8 * sx), tail_cy + int(5 * sy),
-                fill="#1a1a1a", outline="#1a1a1a", tags="tail"
-            )
+        # Draw belly rub hands visual for belly_rub animation
+        if anim == 'belly_rub':
+            rub_cycle = (frame_idx % 60) / 60.0
+            if 0.15 < rub_cycle < 0.75:
+                # Draw small circular motion lines on belly area
+                rub_t = (rub_cycle - 0.15) / 0.6
+                rub_angle = rub_t * 6 * math.pi
+                rub_x = cx + int(math.cos(rub_angle) * 8 * sx)
+                rub_y = int(120 * sy + by) + int(math.sin(rub_angle) * 6 * sy)
+                c.create_text(rub_x, rub_y, text="💕",
+                              font=("Arial", max(8, int(10 * sx))), tags="rub_effect")
     
     def set_active_item(self, item_name: str = None, item_emoji: str = None, item_type: str = None):
         """Set the item currently being used by the panda during eating/playing.
@@ -2548,7 +2632,7 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
             self.info_label.configure(text=comment)
             
             # Use a walking-style animation (varies for visual interest)
-            walk_anims = ['waving', 'dancing', 'stretching', 'tail_wag']
+            walk_anims = ['waving', 'dancing', 'stretching', 'belly_rub']
             self._set_animation_no_cancel(random.choice(walk_anims))
             
             # Start walking
@@ -2601,13 +2685,22 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
         """React to an item being thrown at the panda.
         
         Triggers a wobble/bump animation depending on where the item hits.
+        Sometimes the panda catches the item instead of getting bonked.
         
         Args:
             item_name: Name of the item that hit
-            item_emoji: Emoji for the item (reserved for future visual effects)
+            item_emoji: Emoji for the item
             hit_y_ratio: Where on the panda the item hit (0=top of head, 1=feet)
         """
         if self._destroyed or not self.panda:
+            return
+        
+        # 25% chance panda catches the item (only for body/belly hits)
+        if 0.25 <= hit_y_ratio < 0.65 and random.random() < 0.25:
+            response = f"🐼 *catches {item_name}!* Nice throw! 🎯"
+            self.info_label.configure(text=response)
+            self.set_active_item(item_name, item_emoji, 'toy')
+            self.play_animation_once('celebrating')
             return
         
         # Determine body part from hit position
@@ -2990,14 +3083,14 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
                     self.info_label.configure(text=response)
                     # Multiple random response animations for variety
                     click_animations = ['clicked', 'waving', 'jumping', 'celebrating', 
-                                       'stretching', 'tail_wag', 'dancing']
+                                       'stretching', 'belly_rub', 'dancing']
                     chosen_anim = random.choice(click_animations)
                     self.play_animation_once(chosen_anim)
                 else:
                     response = self.panda.on_click()
                     self.info_label.configure(text=response)
                     click_animations = ['clicked', 'waving', 'jumping', 'celebrating', 
-                                       'stretching', 'tail_wag', 'dancing']
+                                       'stretching', 'belly_rub', 'dancing']
                     chosen_anim = random.choice(click_animations)
                     self.play_animation_once(chosen_anim)
                 
