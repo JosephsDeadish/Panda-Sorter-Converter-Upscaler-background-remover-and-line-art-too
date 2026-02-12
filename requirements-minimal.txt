@@ -17,7 +17,7 @@ pillow>=10.0.0
 darkdetect>=0.8.0
 
 # Image Processing
-opencv-python>=4.8.0
+opencv-python>=4.8.1.78
 numpy>=1.24.0
 scikit-image>=0.21.0
 
@@ -46,7 +46,7 @@ pyyaml>=6.0
 requests>=2.31.0
 
 # Build & Packaging (for building executable)
-pyinstaller>=5.13.0
+pyinstaller>=6.0.0
 
 # ============================================================================
 # OPTIONAL - Uncomment if needed

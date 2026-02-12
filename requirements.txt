@@ -18,11 +18,11 @@
 
 # UI Framework
 customtkinter>=5.2.0  # Modern Tkinter-based UI
-pillow>=10.0.0  # Image loading and processing (includes DDS support)
+pillow>=10.0.0  # Image loading and processing (NOTE: 12.1.1+ recommended for latest security fixes, but may break compatibility)
 darkdetect>=0.8.0  # System dark mode detection
 
 # Image Processing
-opencv-python>=4.8.0  # Computer vision and image analysis
+opencv-python>=4.8.1.78  # Computer vision (>= 4.8.1.78 for libwebp CVE fix)
 numpy>=1.24.0  # Numerical operations and array processing
 scikit-image>=0.21.0  # Image processing algorithms
 
@@ -77,7 +77,7 @@ torch>=1.13.0,<3.0.0  # Deep learning framework
 torchvision>=0.14.0  # Computer vision models and transforms
 
 # Transformer Models
-transformers>=4.30.0  # CLIP, ViT, and other transformer models
+transformers>=4.48.0  # CLIP, ViT models (>= 4.48.0 for security fixes)
 timm>=0.9.0  # Image models (EfficientNet, ResNet, etc.)
 open-clip-torch>=2.20.0  # Open-source CLIP implementation
 
@@ -98,7 +98,7 @@ pytesseract>=0.3.10  # Tesseract OCR wrapper (requires tesseract-ocr system pack
 # ============================================================================
 
 # Build & Packaging
-pyinstaller>=5.13.0  # Create standalone executables
+pyinstaller>=6.0.0  # Create standalone executables (>= 6.0.0 for security fixes)
 
 # Testing (uncomment if needed for development)
 # pytest>=7.4.0  # Testing framework
@@ -142,4 +142,10 @@ pyinstaller>=5.13.0  # Create standalone executables
 # Security:
 #   - Keep dependencies updated: pip install -r requirements.txt --upgrade
 #   - Monitor for vulnerabilities: pip audit (requires pip >= 23.0)
+#   - Key security updates applied:
+#     * opencv-python >= 4.8.1.78 (libwebp CVE fix)
+#     * transformers >= 4.48.0 (deserialization vulnerabilities)
+#     * pyinstaller >= 6.0.0 (privilege escalation fixes)
+#   - NOTE: Pillow 12.1.1+ recommended for latest PSD security fix, but may 
+#     break compatibility with some older code. Test before upgrading.
 #

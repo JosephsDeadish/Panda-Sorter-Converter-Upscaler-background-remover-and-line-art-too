@@ -28,9 +28,9 @@ APP_EMAIL = 'josephsdeadish@example.com'  # Update with actual email if availabl
 # Core dependencies (always required)
 INSTALL_REQUIRES = [
     'customtkinter>=5.2.0',
-    'pillow>=10.0.0',
+    'pillow>=10.0.0',  # NOTE: 12.1.1+ recommended for latest security fixes
     'darkdetect>=0.8.0',
-    'opencv-python>=4.8.0',
+    'opencv-python>=4.8.1.78',  # >= 4.8.1.78 for libwebp CVE fix
     'numpy>=1.24.0',
     'scikit-image>=0.21.0',
     'scikit-learn>=1.3.0',
@@ -64,7 +64,7 @@ EXTRAS_REQUIRE = {
     'ml': [
         'torch>=1.13.0,<3.0.0',
         'torchvision>=0.14.0',
-        'transformers>=4.30.0',
+        'transformers>=4.48.0',  # >= 4.48.0 for security fixes
         'timm>=0.9.0',
         'open-clip-torch>=2.20.0',
     ],
@@ -96,7 +96,7 @@ EXTRAS_REQUIRE = {
     
     # Build and packaging
     'build': [
-        'pyinstaller>=5.13.0',
+        'pyinstaller>=6.0.0',  # >= 6.0.0 for security fixes
     ],
     
     # Development dependencies
