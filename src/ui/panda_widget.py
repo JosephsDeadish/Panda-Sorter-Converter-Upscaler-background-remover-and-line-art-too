@@ -168,7 +168,7 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
     }
     
     def __init__(self, parent, panda_character=None, panda_level_system=None,
-                 widget_collection=None, panda_closet=None, **kwargs):
+                 widget_collection=None, panda_closet=None, weapon_collection=None, **kwargs):
         """
         Initialize panda widget with drag functionality.
         
@@ -178,6 +178,7 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
             panda_level_system: PandaLevelSystem instance for XP tracking
             widget_collection: WidgetCollection instance for toys/food
             panda_closet: PandaCloset instance for customization
+            weapon_collection: WeaponCollection instance for equipped weapons
             **kwargs: Additional frame arguments
         """
         super().__init__(parent, **kwargs)
@@ -186,6 +187,7 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
         self.panda_level_system = panda_level_system
         self.widget_collection = widget_collection
         self.panda_closet = panda_closet
+        self.weapon_collection = weapon_collection
         self.current_animation = 'idle'
         self.animation_frame = 0
         self.animation_timer = None
@@ -2510,6 +2512,126 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
                             shoe_x - int(4 * sx), shoe_y + int(3 * sy),
                             shoe_x + int(4 * sx), shoe_y + int(3 * sy),
                             fill=highlight, width=1, tags="equipped_shoes")
+            
+            # Draw equipped weapon
+            if self.weapon_collection and self.weapon_collection.equipped_weapon:
+                weapon = self.weapon_collection.equipped_weapon
+                
+                # Get animation state to determine weapon position
+                anim = self.current_animation
+                frame = self.animation_frame
+                
+                # Determine if panda is in attack animation
+                is_attacking = anim in ['swing', 'shoot', 'cast_spell']
+                
+                # Base weapon position in right hand/arm
+                arm_offset_x = int(25 * sx)  # Right arm position
+                arm_offset_y = int(10 * sy)  # Slightly below center
+                
+                weapon_x = cx + arm_offset_x
+                weapon_y = by + arm_offset_y
+                
+                # Adjust position for attack animations
+                if is_attacking:
+                    swing_phase = (frame % 30) / 30.0  # 30 frames per attack
+                    if swing_phase < 0.5:
+                        # Wind up
+                        weapon_x -= int(10 * sx * swing_phase * 2)
+                        weapon_y -= int(15 * sy * swing_phase * 2)
+                    else:
+                        # Strike
+                        weapon_x += int(20 * sx * (swing_phase - 0.5) * 2)
+                        weapon_y -= int(5 * sy * (swing_phase - 0.5) * 2)
+                
+                # Draw weapon based on type
+                from src.features.weapon_system import WeaponType
+                
+                weapon_color = self._color_for_emoji(weapon.icon, '#808080')
+                
+                if weapon.weapon_type == WeaponType.MELEE:
+                    # Draw sword/melee weapon
+                    blade_length = int(40 * sx)
+                    handle_length = int(15 * sy)
+                    
+                    # Blade
+                    c.create_polygon(
+                        weapon_x, weapon_y - handle_length,
+                        weapon_x - int(3 * sx), weapon_y - handle_length - int(5 * sy),
+                        weapon_x, weapon_y - handle_length - blade_length,
+                        weapon_x + int(3 * sx), weapon_y - handle_length - int(5 * sy),
+                        fill=weapon_color, outline='#505050', width=2,
+                        tags="equipped_weapon")
+                    
+                    # Handle
+                    c.create_rectangle(
+                        weapon_x - int(3 * sx), weapon_y - handle_length,
+                        weapon_x + int(3 * sx), weapon_y,
+                        fill='#8B4513', outline='#654321', width=1,
+                        tags="equipped_weapon")
+                    
+                    # Guard/crossguard
+                    c.create_rectangle(
+                        weapon_x - int(8 * sx), weapon_y - handle_length - int(2 * sy),
+                        weapon_x + int(8 * sx), weapon_y - handle_length + int(2 * sy),
+                        fill=weapon_color, outline='#505050', width=1,
+                        tags="equipped_weapon")
+                
+                elif weapon.weapon_type == WeaponType.RANGED:
+                    # Draw bow/ranged weapon
+                    bow_height = int(35 * sy)
+                    
+                    # Bow arc
+                    c.create_arc(
+                        weapon_x - int(15 * sx), weapon_y - bow_height,
+                        weapon_x + int(15 * sx), weapon_y + int(5 * sy),
+                        start=270, extent=180, style='arc',
+                        outline=weapon_color, width=3,
+                        tags="equipped_weapon")
+                    
+                    # Bowstring
+                    c.create_line(
+                        weapon_x, weapon_y - bow_height,
+                        weapon_x, weapon_y + int(5 * sy),
+                        fill='#DCDCDC', width=1,
+                        tags="equipped_weapon")
+                    
+                    # Arrow (if attacking)
+                    if is_attacking:
+                        arrow_x = weapon_x + int(10 * sx * swing_phase * 2)
+                        c.create_line(
+                            weapon_x, weapon_y - int(bow_height / 2),
+                            arrow_x, weapon_y - int(bow_height / 2),
+                            fill='#8B4513', width=2, arrow='last',
+                            tags="equipped_weapon")
+                
+                elif weapon.weapon_type == WeaponType.MAGIC:
+                    # Draw wand/magic weapon
+                    wand_length = int(30 * sy)
+                    
+                    # Wand shaft
+                    c.create_line(
+                        weapon_x, weapon_y,
+                        weapon_x, weapon_y - wand_length,
+                        fill=weapon_color, width=3,
+                        tags="equipped_weapon")
+                    
+                    # Star/orb at tip
+                    star_size = int(6 * sx)
+                    c.create_oval(
+                        weapon_x - star_size, weapon_y - wand_length - star_size,
+                        weapon_x + star_size, weapon_y - wand_length + star_size,
+                        fill='#9370DB', outline='#FFD700', width=2,
+                        tags="equipped_weapon")
+                    
+                    # Magic sparkles (if attacking)
+                    if is_attacking:
+                        for _ in range(3):
+                            sparkle_x = weapon_x + random.randint(-10, 10)
+                            sparkle_y = weapon_y - wand_length + random.randint(-10, 10)
+                            c.create_text(
+                                sparkle_x, sparkle_y,
+                                text='✨', font=('Arial', int(8 * sx)),
+                                tags="equipped_weapon")
         except Exception as e:
             logger.debug(f"Error drawing equipped items: {e}")
 

@@ -1461,14 +1461,10 @@ class SoundSettingsPanel(ctk.CTkFrame):
         mute_frame.pack(fill="x", padx=10, pady=10)
         
         ctk.CTkLabel(mute_frame, text="🔇 Per-Event Sound Settings:", font=("Arial Bold", 12)).pack(anchor="w", padx=10, pady=5)
-        ctk.CTkLabel(mute_frame, text="Toggle each sound on/off and choose a sound for each event",
+        ctk.CTkLabel(mute_frame, text="Toggle each sound on/off and test the WAV file for each event",
                      font=("Arial", 9), text_color="gray").pack(anchor="w", padx=20, pady=(0, 5))
         
         self.mute_vars = {}
-        self.sound_choice_vars = {}
-        # Sound style choices - the selected value is saved to config and used
-        # by SoundManager to pick the waveform/sample for each event
-        sound_choices = ["🔔 Default", "🎵 Chime", "🔊 Beep", "🎶 Melody", "🛎️ Bell", "📯 Horn", "🥁 Drum"]
         sound_events = [
             ("complete", "✅ Completion Sound"),
             ("error", "❌ Error Sound"),
@@ -1492,13 +1488,6 @@ class SoundSettingsPanel(ctk.CTkFrame):
             cb = ctk.CTkCheckBox(row, text=event_label, variable=var,
                                 command=lambda eid=event_id: self._on_mute_toggle(eid))
             cb.pack(side="left", padx=5)
-            
-            choice_var = ctk.StringVar(value="🔔 Default")
-            self.sound_choice_vars[event_id] = choice_var
-            choice_menu = ctk.CTkOptionMenu(row, variable=choice_var, values=sound_choices,
-                                           width=130,
-                                           command=lambda val, eid=event_id: self._on_sound_choice_change(eid, val))
-            choice_menu.pack(side="right", padx=5)
             
             test_btn = ctk.CTkButton(row, text="🔊 Test", width=70, height=26,
                                      command=lambda eid=event_id: self._test_event_sound(eid))
@@ -1561,11 +1550,6 @@ class SoundSettingsPanel(ctk.CTkFrame):
         if self.on_settings_change:
             self.on_settings_change('mute_sound', {'event': event_id, 'enabled': enabled})
     
-    def _on_sound_choice_change(self, event_id, value):
-        """Handle per-event sound selection change."""
-        if self.on_settings_change:
-            self.on_settings_change('sound_choice', {'event': event_id, 'sound': value})
-    
     def get_settings(self) -> Dict[str, Any]:
         return {
             'sound_enabled': self.sound_enabled_var.get(),
@@ -1574,7 +1558,6 @@ class SoundSettingsPanel(ctk.CTkFrame):
             'notifications_volume': self.notif_slider.get() / 100.0,
             'sound_pack': self.sound_pack_var.get(),
             'muted_sounds': {k: not v.get() for k, v in self.mute_vars.items()},
-            'sound_choices': {k: v.get() for k, v in self.sound_choice_vars.items()},
         }
     
     def set_settings(self, settings: Dict[str, Any]):
@@ -1598,10 +1581,6 @@ class SoundSettingsPanel(ctk.CTkFrame):
             for event_id, muted in settings['muted_sounds'].items():
                 if event_id in self.mute_vars:
                     self.mute_vars[event_id].set(not muted)
-        if 'sound_choices' in settings:
-            for event_id, choice in settings['sound_choices'].items():
-                if event_id in self.sound_choice_vars:
-                    self.sound_choice_vars[event_id].set(choice)
 
 
 class CustomizationPanel(ctk.CTkFrame):

@@ -6692,6 +6692,28 @@ Built with:
 
         if self.current_enemy and self.current_enemy.is_alive():
             enemy = self.current_enemy
+            
+            # Enemy visual canvas
+            enemy_canvas_frame = ctk.CTkFrame(combat_frame)
+            enemy_canvas_frame.pack(pady=5)
+            
+            # Canvas dimensions for enemy display
+            ENEMY_CANVAS_WIDTH = 200
+            ENEMY_CANVAS_HEIGHT = 200
+            
+            # Create canvas for animated enemy display
+            enemy_canvas = tk.Canvas(enemy_canvas_frame, 
+                                    width=ENEMY_CANVAS_WIDTH, 
+                                    height=ENEMY_CANVAS_HEIGHT, 
+                                    bg='#2b2b2b', highlightthickness=0)
+            enemy_canvas.pack()
+            
+            # Draw animated enemy
+            self._draw_enemy_on_canvas(enemy_canvas, enemy, 
+                                      ENEMY_CANVAS_WIDTH // 2, 
+                                      ENEMY_CANVAS_HEIGHT // 2)
+            
+            # Enemy name and stats
             ctk.CTkLabel(combat_frame, text=f"{enemy.icon} {enemy.name}",
                          font=("Arial Bold", 16)).pack(pady=(10, 2))
             ctk.CTkLabel(combat_frame,
@@ -6777,6 +6799,22 @@ Built with:
         if not self.current_enemy or not self.current_enemy.is_alive() or not self.combat_stats:
             return
         import random
+        
+        # Trigger panda attack animation if widget exists
+        if hasattr(self, 'panda_widget') and self.panda_widget:
+            # Use weapon-specific animation
+            if self.weapon_collection and self.weapon_collection.equipped_weapon:
+                weapon = self.weapon_collection.equipped_weapon
+                from src.features.weapon_system import WeaponType
+                if weapon.weapon_type == WeaponType.MELEE:
+                    self.panda_widget.set_animation('swing', duration_ms=500)
+                elif weapon.weapon_type == WeaponType.RANGED:
+                    self.panda_widget.set_animation('shoot', duration_ms=500)
+                elif weapon.weapon_type == WeaponType.MAGIC:
+                    self.panda_widget.set_animation('cast_spell', duration_ms=500)
+            else:
+                self.panda_widget.set_animation('swing', duration_ms=500)
+        
         # Calculate panda damage
         base_damage = self.combat_stats.attack_power
         if self.weapon_collection and self.weapon_collection.equipped_weapon:
@@ -6790,6 +6828,8 @@ Built with:
 
         if not self.current_enemy.is_alive():
             self._combat_log.append(f"🎉 {self.current_enemy.name} defeated! +{self.current_enemy.xp_reward} XP")
+            if hasattr(self, 'panda_widget') and self.panda_widget:
+                self.panda_widget.set_animation('victory', duration_ms=1000)
             self.current_enemy = None
         else:
             # Enemy counterattack
@@ -6832,12 +6872,19 @@ Built with:
         """Enemy performs an action."""
         if not self.current_enemy or not self.current_enemy.is_alive() or not self.combat_stats:
             return
+        
+        # Show panda getting hit
+        if hasattr(self, 'panda_widget') and self.panda_widget:
+            self.panda_widget.set_animation('hit', duration_ms=400)
+        
         damage, is_crit = self.current_enemy.attack(self.combat_stats.physical_defense)
         actual = self.combat_stats.take_damage(damage)
         crit_text = " 💥CRIT!" if is_crit else ""
         self._combat_log.append(f"{self.current_enemy.icon} {self.current_enemy.name} deals {actual} damage!{crit_text}")
         if not self.combat_stats.is_alive():
             self._combat_log.append("💀 You were defeated! Retreating to recover...")
+            if hasattr(self, 'panda_widget') and self.panda_widget:
+                self.panda_widget.set_animation('defeat', duration_ms=1000)
             self.combat_stats.current_health = self.combat_stats.max_health
             self.current_enemy = None
 
@@ -6846,6 +6893,246 @@ Built with:
         for widget in self.tab_battle_arena.winfo_children():
             widget.destroy()
         self.create_battle_arena_tab()
+    
+    def _draw_enemy_on_canvas(self, canvas: tk.Canvas, enemy, cx: int, cy: int):
+        """Draw an animated enemy on the canvas.
+        
+        Args:
+            canvas: Canvas to draw on
+            enemy: Enemy instance to draw
+            cx, cy: Center coordinates for the enemy
+        """
+        import math
+        import time
+        
+        # Animation phase based on time
+        phase = (time.time() * 2) % (2 * math.pi)
+        
+        # Colors based on enemy type
+        from src.features.enemy_system import EnemyType
+        
+        color_map = {
+            EnemyType.SLIME: '#00FF00',
+            EnemyType.GOBLIN: '#8B4513',
+            EnemyType.SKELETON: '#F0F0F0',
+            EnemyType.WOLF: '#808080',
+            EnemyType.ORC: '#228B22',
+            EnemyType.DRAGON: '#8B0000',
+            EnemyType.BOSS: '#4B0082'
+        }
+        
+        enemy_color = color_map.get(enemy.template.enemy_type, '#666666')
+        
+        # Draw based on enemy type
+        if enemy.template.enemy_type == EnemyType.SLIME:
+            # Bouncing slime blob
+            bounce = int(5 * math.sin(phase))
+            cy_adj = cy + bounce
+            
+            # Body - oval that squishes
+            squish = 1.0 + 0.1 * math.sin(phase * 2)
+            canvas.create_oval(
+                cx - 30, cy_adj - int(25 * squish),
+                cx + 30, cy_adj + int(25 / squish),
+                fill=enemy_color, outline='#006400', width=2,
+                tags="enemy")
+            
+            # Eyes
+            eye_y = cy_adj - 5
+            canvas.create_oval(cx - 12, eye_y - 5, cx - 6, eye_y + 5,
+                             fill='#000000', tags="enemy")
+            canvas.create_oval(cx + 6, eye_y - 5, cx + 12, eye_y + 5,
+                             fill='#000000', tags="enemy")
+        
+        elif enemy.template.enemy_type == EnemyType.WOLF:
+            # Wolf shape
+            sway = int(3 * math.sin(phase))
+            
+            # Body
+            canvas.create_oval(cx - 35, cy - 20, cx + 25, cy + 20,
+                             fill=enemy_color, outline='#404040', width=2,
+                             tags="enemy")
+            
+            # Head
+            head_x = cx + 25 + sway
+            canvas.create_oval(head_x - 15, cy - 25, head_x + 15, cy + 5,
+                             fill=enemy_color, outline='#404040', width=2,
+                             tags="enemy")
+            
+            # Ears
+            canvas.create_polygon(
+                head_x - 8, cy - 25,
+                head_x - 12, cy - 35,
+                head_x - 4, cy - 25,
+                fill=enemy_color, outline='#404040', tags="enemy")
+            canvas.create_polygon(
+                head_x + 4, cy - 25,
+                head_x + 12, cy - 35,
+                head_x + 8, cy - 25,
+                fill=enemy_color, outline='#404040', tags="enemy")
+            
+            # Eyes (glowing)
+            canvas.create_oval(head_x - 8, cy - 15, head_x - 4, cy - 11,
+                             fill='#FF0000', tags="enemy")
+            canvas.create_oval(head_x + 4, cy - 15, head_x + 8, cy - 11,
+                             fill='#FF0000', tags="enemy")
+            
+            # Legs
+            for leg_offset in [-25, -10, 10, 25]:
+                leg_x = cx + leg_offset
+                canvas.create_line(leg_x, cy + 20, leg_x, cy + 35,
+                                 fill=enemy_color, width=4, tags="enemy")
+        
+        elif enemy.template.enemy_type == EnemyType.SKELETON:
+            # Skeleton
+            sway = int(2 * math.sin(phase))
+            
+            # Skull
+            canvas.create_oval(cx - 20, cy - 40, cx + 20, cy - 10,
+                             fill='#F5F5DC', outline='#000000', width=2,
+                             tags="enemy")
+            
+            # Eye sockets
+            canvas.create_oval(cx - 12, cy - 32, cx - 6, cy - 26,
+                             fill='#000000', tags="enemy")
+            canvas.create_oval(cx + 6, cy - 32, cx + 12, cy - 26,
+                             fill='#000000', tags="enemy")
+            
+            # Jaw
+            canvas.create_arc(cx - 10, cy - 20, cx + 10, cy - 5,
+                            start=200, extent=140, style='arc',
+                            outline='#000000', width=2, tags="enemy")
+            
+            # Spine/body
+            spine_x = cx + sway
+            canvas.create_line(spine_x, cy - 10, spine_x, cy + 30,
+                             fill='#F5F5DC', width=6, tags="enemy")
+            
+            # Ribs
+            for rib_y in [cy, cy + 10, cy + 20]:
+                canvas.create_arc(spine_x - 15, rib_y - 5, spine_x + 15, rib_y + 5,
+                                start=0, extent=180, style='arc',
+                                outline='#F5F5DC', width=2, tags="enemy")
+            
+            # Arms
+            arm_angle = math.sin(phase) * 0.3
+            arm_end_x1 = spine_x - int(20 * math.cos(arm_angle))
+            arm_end_y1 = cy + int(20 * math.sin(arm_angle))
+            canvas.create_line(spine_x - 5, cy, arm_end_x1, arm_end_y1,
+                             fill='#F5F5DC', width=4, tags="enemy")
+            
+            arm_end_x2 = spine_x + int(20 * math.cos(arm_angle))
+            arm_end_y2 = cy + int(20 * math.sin(arm_angle))
+            canvas.create_line(spine_x + 5, cy, arm_end_x2, arm_end_y2,
+                             fill='#F5F5DC', width=4, tags="enemy")
+        
+        elif enemy.template.enemy_type in [EnemyType.GOBLIN, EnemyType.ORC]:
+            # Goblin/Orc humanoid
+            sway = int(2 * math.sin(phase))
+            
+            # Body
+            canvas.create_rectangle(cx - 20, cy - 10, cx + 20, cy + 25,
+                                  fill=enemy_color, outline='#000000', width=2,
+                                  tags="enemy")
+            
+            # Head
+            head_y = cy - 30
+            canvas.create_oval(cx - 18, head_y - 15, cx + 18, head_y + 15,
+                             fill=enemy_color, outline='#000000', width=2,
+                             tags="enemy")
+            
+            # Eyes (angry)
+            canvas.create_oval(cx - 10, head_y - 5, cx - 4, head_y + 1,
+                             fill='#FFFF00', outline='#000000', tags="enemy")
+            canvas.create_oval(cx + 4, head_y - 5, cx + 10, head_y + 1,
+                             fill='#FFFF00', outline='#000000', tags="enemy")
+            canvas.create_oval(cx - 8, head_y - 3, cx - 6, head_y - 1,
+                             fill='#000000', tags="enemy")
+            canvas.create_oval(cx + 6, head_y - 3, cx + 8, head_y - 1,
+                             fill='#000000', tags="enemy")
+            
+            # Mouth (grimace)
+            canvas.create_arc(cx - 8, head_y + 3, cx + 8, head_y + 12,
+                            start=180, extent=180, style='arc',
+                            outline='#000000', width=2, tags="enemy")
+            
+            # Arms (one raised aggressively)
+            arm_x = cx + 20 + sway
+            canvas.create_line(cx + 20, cy, arm_x, cy - 20,
+                             fill=enemy_color, width=6, tags="enemy")
+            canvas.create_line(cx - 20, cy, cx - 30, cy + 10,
+                             fill=enemy_color, width=6, tags="enemy")
+            
+            # Weapon in raised hand
+            canvas.create_line(arm_x, cy - 20, arm_x + 5, cy - 35,
+                             fill='#808080', width=3, tags="enemy")
+        
+        elif enemy.template.enemy_type == EnemyType.DRAGON:
+            # Dragon - large and intimidating
+            wing_flap = math.sin(phase * 3)
+            
+            # Body
+            canvas.create_oval(cx - 40, cy - 30, cx + 40, cy + 30,
+                             fill=enemy_color, outline='#000000', width=3,
+                             tags="enemy")
+            
+            # Wings
+            wing_y = cy - 20 + int(wing_flap * 10)
+            # Left wing
+            canvas.create_polygon(
+                cx - 40, cy - 10,
+                cx - 60, wing_y - 20,
+                cx - 50, cy + 10,
+                fill='#8B0000', outline='#000000', width=2,
+                tags="enemy")
+            # Right wing
+            canvas.create_polygon(
+                cx + 40, cy - 10,
+                cx + 60, wing_y - 20,
+                cx + 50, cy + 10,
+                fill='#8B0000', outline='#000000', width=2,
+                tags="enemy")
+            
+            # Head/neck
+            head_x = cx + 35
+            head_y = cy - 40
+            canvas.create_oval(head_x - 20, head_y - 15, head_x + 20, head_y + 15,
+                             fill=enemy_color, outline='#000000', width=2,
+                             tags="enemy")
+            
+            # Horns
+            canvas.create_polygon(
+                head_x - 15, head_y - 15,
+                head_x - 20, head_y - 30,
+                head_x - 10, head_y - 15,
+                fill='#000000', tags="enemy")
+            canvas.create_polygon(
+                head_x + 10, head_y - 15,
+                head_x + 20, head_y - 30,
+                head_x + 15, head_y - 15,
+                fill='#000000', tags="enemy")
+            
+            # Eye (glowing)
+            canvas.create_oval(head_x + 5, head_y - 5, head_x + 12, head_y + 2,
+                             fill='#FFD700', outline='#FF0000', width=2,
+                             tags="enemy")
+            
+            # Fire breath effect (occasional - triggered during specific phase window)
+            breath_phase = (time.time() * 2) % 6.0  # 6 second cycle
+            if 1.0 < breath_phase < 1.5:  # Only show during 0.5s window every 6 seconds
+                for i in range(3):
+                    fire_x = head_x + 20 + i * 10
+                    fire_y = head_y + i * 3
+                    canvas.create_text(fire_x, fire_y, text='🔥',
+                                     font=('Arial', 12), tags="enemy")
+        
+        else:
+            # Default enemy shape
+            canvas.create_oval(cx - 30, cy - 30, cx + 30, cy + 30,
+                             fill=enemy_color, outline='#000000', width=2,
+                             tags="enemy")
+            canvas.create_text(cx, cy, text=enemy.icon,
+                             font=('Arial', 40), tags="enemy")
 
     def create_travel_hub_tab(self):
         """Create travel hub tab for selecting and entering dungeons."""
@@ -7184,7 +7471,8 @@ Built with:
                 panda_character=self.panda,
                 panda_level_system=self.panda_level_system,
                 widget_collection=self.widget_collection,
-                panda_closet=self.panda_closet
+                panda_closet=self.panda_closet,
+                weapon_collection=self.weapon_collection
             )
     
     def browse_input(self):
