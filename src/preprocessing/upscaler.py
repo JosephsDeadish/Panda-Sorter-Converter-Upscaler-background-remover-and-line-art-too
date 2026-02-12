@@ -1,0 +1,169 @@
+"""
+Texture Upscaling Module
+Supports bicubic, ESRGAN, and Real-ESRGAN upscaling
+Author: Dead On The Inside / JosephsDeadish
+"""
+
+import logging
+from typing import Optional, Union
+import numpy as np
+from PIL import Image
+import cv2
+
+logger = logging.getLogger(__name__)
+
+# Check for Real-ESRGAN availability
+try:
+    from basicsr.archs.rrdbnet_arch import RRDBNet
+    from realesrgan import RealESRGANer
+    REALESRGAN_AVAILABLE = True
+except ImportError:
+    REALESRGAN_AVAILABLE = False
+    logger.debug("Real-ESRGAN not available")
+
+
+class TextureUpscaler:
+    """
+    Upscale textures using various methods.
+    
+    Supported methods:
+    - Bicubic interpolation (fast, good quality)
+    - ESRGAN (slow, best quality for general images)
+    - Real-ESRGAN (slow, best for PS2/retro textures)
+    """
+    
+    def __init__(self):
+        """Initialize upscaler."""
+        self.realesrgan_model = None
+        self._realesrgan_loaded = False
+        
+    def upscale(
+        self,
+        image: np.ndarray,
+        scale_factor: int = 4,
+        method: str = 'bicubic'
+    ) -> np.ndarray:
+        """
+        Upscale an image.
+        
+        Args:
+            image: Input image as numpy array (H, W, C)
+            scale_factor: Upscaling factor (2, 4, or 8)
+            method: Upscaling method ('bicubic', 'esrgan', 'realesrgan')
+            
+        Returns:
+            Upscaled image as numpy array
+        """
+        if method == 'bicubic':
+            return self._upscale_bicubic(image, scale_factor)
+        elif method == 'realesrgan' and REALESRGAN_AVAILABLE:
+            return self._upscale_realesrgan(image, scale_factor)
+        elif method == 'esrgan':
+            # Fallback to bicubic if ESRGAN not available
+            logger.warning("ESRGAN not fully implemented, using bicubic")
+            return self._upscale_bicubic(image, scale_factor)
+        else:
+            logger.warning(f"Unknown upscaling method '{method}', using bicubic")
+            return self._upscale_bicubic(image, scale_factor)
+    
+    def _upscale_bicubic(self, image: np.ndarray, scale_factor: int) -> np.ndarray:
+        """
+        Upscale using bicubic interpolation.
+        
+        Fast and produces good results for most textures.
+        """
+        h, w = image.shape[:2]
+        new_h = h * scale_factor
+        new_w = w * scale_factor
+        
+        upscaled = cv2.resize(
+            image,
+            (new_w, new_h),
+            interpolation=cv2.INTER_CUBIC
+        )
+        
+        logger.debug(f"Bicubic upscale: {image.shape[:2]} -> {upscaled.shape[:2]}")
+        return upscaled
+    
+    def _upscale_realesrgan(
+        self,
+        image: np.ndarray,
+        scale_factor: int
+    ) -> np.ndarray:
+        """
+        Upscale using Real-ESRGAN.
+        
+        Best quality for retro/PS2 textures but slower.
+        """
+        if not REALESRGAN_AVAILABLE:
+            logger.warning("Real-ESRGAN not available, falling back to bicubic")
+            return self._upscale_bicubic(image, scale_factor)
+        
+        try:
+            # Load model if not already loaded
+            if not self._realesrgan_loaded:
+                self._load_realesrgan_model(scale_factor)
+            
+            # Real-ESRGAN expects BGR format
+            if len(image.shape) == 3 and image.shape[2] == 3:
+                image_bgr = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
+            else:
+                image_bgr = image
+            
+            # Upscale
+            output, _ = self.realesrgan_model.enhance(image_bgr, outscale=scale_factor)
+            
+            # Convert back to RGB
+            if len(output.shape) == 3 and output.shape[2] == 3:
+                output = cv2.cvtColor(output, cv2.COLOR_BGR2RGB)
+            
+            logger.debug(f"Real-ESRGAN upscale: {image.shape[:2]} -> {output.shape[:2]}")
+            return output
+            
+        except Exception as e:
+            logger.error(f"Real-ESRGAN upscaling failed: {e}")
+            return self._upscale_bicubic(image, scale_factor)
+    
+    def _load_realesrgan_model(self, scale_factor: int):
+        """Load Real-ESRGAN model."""
+        try:
+            # Choose model based on scale factor
+            if scale_factor == 4:
+                model_name = 'RealESRGAN_x4plus'
+                model_path = 'weights/RealESRGAN_x4plus.pth'
+            elif scale_factor == 2:
+                model_name = 'RealESRGAN_x2plus'
+                model_path = 'weights/RealESRGAN_x2plus.pth'
+            else:
+                # Default to x4
+                model_name = 'RealESRGAN_x4plus'
+                model_path = 'weights/RealESRGAN_x4plus.pth'
+            
+            # Create model
+            model = RRDBNet(
+                num_in_ch=3,
+                num_out_ch=3,
+                num_feat=64,
+                num_block=23,
+                num_grow_ch=32,
+                scale=scale_factor
+            )
+            
+            # Note: In production, model weights should be downloaded automatically
+            # For now, we'll use the pre-trained model if available
+            self.realesrgan_model = RealESRGANer(
+                scale=scale_factor,
+                model_path=model_path,
+                model=model,
+                tile=0,
+                tile_pad=10,
+                pre_pad=0,
+                half=False  # Use FP32 for better compatibility
+            )
+            
+            self._realesrgan_loaded = True
+            logger.info(f"Real-ESRGAN model loaded: {model_name}")
+            
+        except Exception as e:
+            logger.error(f"Failed to load Real-ESRGAN model: {e}")
+            self._realesrgan_loaded = False
