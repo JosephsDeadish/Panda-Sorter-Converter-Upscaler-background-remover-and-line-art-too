@@ -42,7 +42,7 @@ class FileHandler:
     SUPPORTED_FORMATS = {
         '.dds', '.png', '.jpg', '.jpeg', '.jpe', '.jfif',  # Common formats
         '.tga', '.bmp', '.tif', '.tiff',  # Standard formats
-        '.webp', '.gif', '.pcx', '.psd',  # Additional formats
+        '.webp', '.gif', '.pcx',  # Additional formats
         '.svg', '.svgz'  # Vector formats (require special handling)
     }
     

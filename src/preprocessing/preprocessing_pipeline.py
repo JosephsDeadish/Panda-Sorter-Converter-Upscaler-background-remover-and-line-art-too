@@ -149,11 +149,11 @@ class PreprocessingPipeline:
             
             # Apply mode-specific preprocessing
             if mode == 'retro':
-                img = self._process_retro_mode(img, min_size_for_upscale, alpha_channel)
+                img = self._process_retro_mode(img, min_size_for_upscale)
             elif mode == 'hd':
                 img, alpha_channel = self._process_hd_mode(img, alpha_channel, for_model_input)
             else:
-                img = self._process_standard_mode(img, min_size_for_upscale, alpha_channel)
+                img = self._process_standard_mode(img, min_size_for_upscale)
             
             # Final model preprocessing if requested
             if for_model_input:
@@ -191,7 +191,7 @@ class PreprocessingPipeline:
             logger.error(f"Preprocessing failed: {e}")
             raise
     
-    def _process_retro_mode(self, img: np.ndarray, min_size: int, alpha_channel: Optional[np.ndarray]) -> np.ndarray:
+    def _process_retro_mode(self, img: np.ndarray, min_size: int) -> np.ndarray:
         """
         Process low-resolution texture (retro mode).
         Applies upscaling + light denoise/sharpen.
@@ -199,7 +199,6 @@ class PreprocessingPipeline:
         Args:
             img: Input image
             min_size: Minimum size for upscaling
-            alpha_channel: Alpha channel if present
             
         Returns:
             Processed image
@@ -231,7 +230,7 @@ class PreprocessingPipeline:
         return img
     
     def _process_hd_mode(self, img: np.ndarray, alpha_channel: Optional[np.ndarray], 
-                         for_model: bool = False) -> Tuple[np.ndarray, Optional[np.ndarray]]:
+                         for_model_input: bool = False) -> Tuple[np.ndarray, Optional[np.ndarray]]:
         """
         Process high-resolution texture (HD mode).
         Applies minimal processing to preserve detail.
@@ -239,7 +238,7 @@ class PreprocessingPipeline:
         Args:
             img: Input image
             alpha_channel: Alpha channel if present
-            for_model: Whether preparing for model input
+            for_model_input: Whether preparing for model input
             
         Returns:
             Tuple of (processed image, alpha channel)
@@ -259,8 +258,7 @@ class PreprocessingPipeline:
         
         return img, alpha_channel
     
-    def _process_standard_mode(self, img: np.ndarray, min_size: int, 
-                               alpha_channel: Optional[np.ndarray]) -> np.ndarray:
+    def _process_standard_mode(self, img: np.ndarray, min_size: int) -> np.ndarray:
         """
         Process standard resolution texture (256-1024px).
         Applies normal processing pipeline.
@@ -268,7 +266,6 @@ class PreprocessingPipeline:
         Args:
             img: Input image
             min_size: Minimum size for upscaling
-            alpha_channel: Alpha channel if present
             
         Returns:
             Processed image

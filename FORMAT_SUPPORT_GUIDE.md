@@ -61,10 +61,6 @@ PS2 Texture Sorter now supports a wide range of image formats beyond the basic D
   - Mipmaps support
   - Block compression
 
-- **PSD** (`.psd`) - Photoshop Document
-  - Layered format (read as flattened)
-  - Professional editing format
-
 ### Vector Formats (NEW!)
 
 - **SVG** (`.svg`, `.svgz`) - Scalable Vector Graphics
@@ -243,7 +239,6 @@ is_vector = '.svg' in handler.VECTOR_FORMATS  # True
 
 **Slower Loading:**
 - SVG (requires conversion to raster)
-- PSD (complex format with layers)
 
 **File Size:**
 - Smallest: WEBP (lossy) < JPEG < WEBP (lossless) < PNG
