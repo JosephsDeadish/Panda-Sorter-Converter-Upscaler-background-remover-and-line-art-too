@@ -2628,8 +2628,8 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
             self.animation_frame += 1
             self._eating_frame += 1
 
-            # Show eating comment at the start of the chew phase
-            if self._eating_phase == 1 and self._eating_frame == 1:
+            # Show eating comment at the start of the chew phase (phase 2)
+            if self._eating_phase == 2 and self._eating_frame == 1:
                 if self.panda and self._active_item_name and hasattr(self.panda, 'on_eating'):
                     item_key = getattr(self, '_active_item_key', '') or ''
                     msg = self.panda.on_eating(self._active_item_name, item_key)

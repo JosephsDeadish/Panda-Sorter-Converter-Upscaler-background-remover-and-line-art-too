@@ -1167,13 +1167,17 @@ class PandaCharacter:
                 self.set_mood(PandaMood.HAPPY)
             # If nothing triggers, keep current mood
     
+    # Arm detection X boundaries (arms occupy the outer portions of the body width)
+    ARM_LEFT_BOUNDARY = 0.25   # Left 25% is left arm zone
+    ARM_RIGHT_BOUNDARY = 0.75  # Right 25% is right arm zone
+
     def get_body_part_at_position(self, rel_y: float, rel_x: float = 0.5) -> str:
         """Determine which body part is at a relative position.
         
         The panda is drawn with body-shaped canvas rendering,
         roughly divided into regions:
         - head: top ~35% (ears, eyes, forehead)
-        - arms: body-height rows at the left/right edges (>70% from center)
+        - arms: body-height rows at the left/right edges (>75% from center)
         - body: 35-55% center (nose, mouth, torso)
         - butt: 55-75% (lower torso)
         - legs: bottom 25% (feet)
@@ -1189,7 +1193,7 @@ class PandaCharacter:
             return 'head'
         elif rel_y < self.BODY_BOUNDARY:
             # Distinguish arms from body using horizontal position
-            if rel_x < 0.25 or rel_x > 0.75:
+            if rel_x < self.ARM_LEFT_BOUNDARY or rel_x > self.ARM_RIGHT_BOUNDARY:
                 return 'arms'
             return 'body'
         elif rel_y < self.BUTT_BOUNDARY:
