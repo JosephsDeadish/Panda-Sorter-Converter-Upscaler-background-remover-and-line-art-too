@@ -128,6 +128,9 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
     # Belly rub animation frequency (rubbing motion speed)
     BELLY_RUB_FREQUENCY = 0.8
     
+    # Upside-down flip threshold (velocity when dragged by legs)
+    UPSIDE_DOWN_VELOCITY_THRESHOLD = 2.0  # Velocity threshold for flip detection
+    
     # Emoji decorations shown next to the panda for each animation type
     ANIMATION_EMOJIS = {
         'working': ['💼', '⚙️', '📊', '💻', '☕'],
@@ -1141,46 +1144,46 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
                 self._dangle_left_arm_vel += -self._prev_drag_vx * self.DANGLE_ARM_H_FACTOR * 0.5
             else:
                 # Grabbed arm doesn't dangle - reset it
-                self._dangle_left_arm = 0
-                self._dangle_left_arm_vel = 0
+                self._dangle_left_arm = 0.0
+                self._dangle_left_arm_vel = 0.0
             
             # Right arm dangles unless it's being grabbed
             if grabbed_part != 'right_arm':
                 self._dangle_right_arm_vel += self._prev_drag_vy * self.DANGLE_ARM_FACTOR
                 self._dangle_right_arm_vel += -self._prev_drag_vx * self.DANGLE_ARM_H_FACTOR * 0.5
             else:
-                self._dangle_right_arm = 0
-                self._dangle_right_arm_vel = 0
+                self._dangle_right_arm = 0.0
+                self._dangle_right_arm_vel = 0.0
             
             # Left leg dangles unless it's being grabbed
             if grabbed_part != 'left_leg':
                 self._dangle_left_leg_vel += self._prev_drag_vy * self.DANGLE_LEG_FACTOR
                 self._dangle_left_leg_vel += -self._prev_drag_vx * self.DANGLE_LEG_H_FACTOR * 0.5
             else:
-                self._dangle_left_leg = 0
-                self._dangle_left_leg_vel = 0
+                self._dangle_left_leg = 0.0
+                self._dangle_left_leg_vel = 0.0
             
             # Right leg dangles unless it's being grabbed
             if grabbed_part != 'right_leg':
                 self._dangle_right_leg_vel += self._prev_drag_vy * self.DANGLE_LEG_FACTOR
                 self._dangle_right_leg_vel += -self._prev_drag_vx * self.DANGLE_LEG_H_FACTOR * 0.5
             else:
-                self._dangle_right_leg = 0
-                self._dangle_right_leg_vel = 0
+                self._dangle_right_leg = 0.0
+                self._dangle_right_leg_vel = 0.0
             
             # Left ear stretches unless it's being grabbed
             if grabbed_part != 'left_ear':
                 self._dangle_left_ear_vel += self._prev_drag_vy * 0.2
             else:
-                self._dangle_left_ear = 0
-                self._dangle_left_ear_vel = 0
+                self._dangle_left_ear = 0.0
+                self._dangle_left_ear_vel = 0.0
             
             # Right ear stretches unless it's being grabbed
             if grabbed_part != 'right_ear':
                 self._dangle_right_ear_vel += self._prev_drag_vy * 0.2
             else:
-                self._dangle_right_ear = 0
-                self._dangle_right_ear_vel = 0
+                self._dangle_right_ear = 0.0
+                self._dangle_right_ear_vel = 0.0
         
         # Apply spring-damper physics to all individual limbs
         self._dangle_left_arm_vel = (self._dangle_left_arm_vel - self._dangle_left_arm * self.DANGLE_SPRING) * self.DANGLE_DAMPING
@@ -3002,9 +3005,9 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
         # Check if dragged by leg and moving upward (upside-down flip)
         if self._drag_grab_part in ('left_leg', 'right_leg'):
             # If dragged upward (negative velocity), flip upside down
-            if self._toss_velocity_y < -2:  # Moving up significantly
+            if self._toss_velocity_y < -self.UPSIDE_DOWN_VELOCITY_THRESHOLD:
                 self._is_upside_down = True
-            elif self._toss_velocity_y > 2:  # Moving down significantly
+            elif self._toss_velocity_y > self.UPSIDE_DOWN_VELOCITY_THRESHOLD:
                 self._is_upside_down = False
         else:
             self._is_upside_down = False
