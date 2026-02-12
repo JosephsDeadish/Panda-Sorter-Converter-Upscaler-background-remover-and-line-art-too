@@ -1,67 +1,151 @@
 # Game Texture Sorter - Dependencies
 # Author: Dead On The Inside / JosephsDeadish
+#
+# Installation:
+#   pip install -r requirements.txt
+#
+# For minimal installation (GUI + basic sorting):
+#   pip install -r requirements-minimal.txt
+#
+# Platform-specific notes:
+#   - Linux: Some dependencies require system libraries (see INSTALL.md)
+#   - Windows: All dependencies work out of the box
+#   - macOS: May require Xcode command line tools
+
+# ============================================================================
+# CORE DEPENDENCIES (Required for basic functionality)
+# ============================================================================
 
 # UI Framework
-customtkinter>=5.2.0
-pillow>=10.0.0
-darkdetect>=0.8.0
+customtkinter>=5.2.0  # Modern Tkinter-based UI
+pillow>=10.0.0  # Image loading and processing (NOTE: 12.1.1+ recommended for latest security fixes, but may break compatibility)
+darkdetect>=0.8.0  # System dark mode detection
 
 # Image Processing
-opencv-python>=4.8.0
-numpy>=1.24.0
-scikit-image>=0.21.0
-cairosvg>=2.7.0  # SVG to raster conversion
+opencv-python>=4.8.1.78  # Computer vision (>= 4.8.1.78 for libwebp CVE fix)
+numpy>=1.24.0  # Numerical operations and array processing
+scikit-image>=0.21.0  # Image processing algorithms
 
-# DDS Support
-Pillow>=10.0.0  # Has basic DDS support
-
-# Machine Learning (lightweight)
-scikit-learn>=1.3.0
-
-# NEW: AI/ML - Offline model support
-onnxruntime>=1.16.0  # Offline AI model inference
-
-# Vision Models and Deep Learning
-torch>=1.13.0,<3.0.0  # PyTorch for deep learning models
-torchvision>=0.14.0  # Computer vision models and transforms
-transformers>=4.30.0  # CLIP, ViT, and other transformers
-timm>=0.9.0  # EfficientNet, ResNet, and other vision models
-open-clip-torch>=2.20.0  # Open source CLIP implementation
-
-# Similarity Search
-faiss-cpu>=1.7.4  # Vector similarity search (use faiss-gpu for CUDA)
-chromadb>=0.4.0  # Vector database alternative
-annoy>=1.17.0  # Approximate nearest neighbors
-
-# Upscaling and Preprocessing
-basicsr>=1.4.2  # Real-ESRGAN and super-resolution models
-realesrgan>=0.3.0  # Real-ESRGAN upscaling
-
-# OCR for UI text detection
-pytesseract>=0.3.10  # Python wrapper for Tesseract OCR
+# Machine Learning (Core)
+scikit-learn>=1.3.0  # Classification and clustering algorithms
 
 # File Operations
-send2trash>=1.8.2
-watchdog>=3.0.0
+send2trash>=1.8.2  # Safe file deletion
+watchdog>=3.0.0  # File system monitoring
 
 # Performance
-psutil>=5.9.5
-tqdm>=4.66.0
-xxhash>=3.4.0  # Fast hashing for performance
+psutil>=5.9.5  # System resource monitoring
+tqdm>=4.66.0  # Progress bars
+xxhash>=3.4.0  # Fast hashing for file integrity
 
-# NEW: Archive Support
-py7zr>=0.20.1  # 7z file support (>= 0.20.1 for security fix)
-rarfile>=4.0  # RAR archive support
+# Archive Support
+py7zr>=0.20.1  # 7z archive extraction (>= 0.20.1 for security fixes)
+rarfile>=4.0  # RAR archive extraction (requires unrar utility on system)
 
-# NEW: Hotkeys
-pynput>=1.7.6  # Global hotkeys
-
-# NEW: Optional online AI
-requests>=2.31.0  # For online API calls
+# Hotkeys
+pynput>=1.7.6  # Global keyboard hotkey support
 
 # Utilities
-colorama>=0.4.6
-pyyaml>=6.0
+colorama>=0.4.6  # Cross-platform colored terminal output
+pyyaml>=6.0  # YAML configuration file support
+requests>=2.31.0  # HTTP requests for online features
+
+# ============================================================================
+# OPTIONAL DEPENDENCIES (Enhanced features - gracefully degrade if missing)
+# ============================================================================
+
+# SVG Support (Optional - requires system cairo library on Linux)
+# Linux: sudo apt-get install libcairo2-dev libffi-dev (Ubuntu/Debian)
+#        sudo dnf install cairo-devel libffi-devel (Fedora/RHEL)
+# macOS: brew install cairo libffi
+# Windows: Works out of the box (bundled libraries)
+cairosvg>=2.7.0  # SVG to raster conversion
+cairocffi>=1.6.0  # Cairo FFI bindings (dependency of cairosvg)
+
+# AI/ML - Offline Model Inference (Optional)
+onnxruntime>=1.16.0  # Lightweight offline AI model inference
+
+# ============================================================================
+# DEEP LEARNING DEPENDENCIES (Optional - for advanced vision models)
+# ============================================================================
+# Note: These are LARGE downloads (torch alone is ~700MB)
+# Only install if using advanced classification features
+# GPU support: See https://pytorch.org/get-started/locally/ for CUDA versions
+
+# PyTorch Framework
+torch>=1.13.0,<3.0.0  # Deep learning framework
+torchvision>=0.14.0  # Computer vision models and transforms
+
+# Transformer Models
+transformers>=4.48.0  # CLIP, ViT models (>= 4.48.0 for security fixes)
+timm>=0.9.0  # Image models (EfficientNet, ResNet, etc.)
+open-clip-torch>=2.20.0  # Open-source CLIP implementation
+
+# Vector Similarity Search
+faiss-cpu>=1.7.4  # Fast similarity search (use faiss-gpu for CUDA)
+chromadb>=0.4.0  # Vector database for embeddings
+annoy>=1.17.0  # Approximate nearest neighbor search
+
+# Image Upscaling and Super-Resolution
+basicsr>=1.4.2  # Super-resolution models framework
+realesrgan>=0.3.0  # Real-ESRGAN upscaling models
+
+# OCR for UI Text Detection
+pytesseract>=0.3.10  # Tesseract OCR wrapper (requires tesseract-ocr system package)
+
+# ============================================================================
+# DEVELOPMENT DEPENDENCIES (Optional - for development only)
+# ============================================================================
 
 # Build & Packaging
-pyinstaller>=5.13.0
+pyinstaller>=6.0.0  # Create standalone executables (>= 6.0.0 for security fixes)
+
+# Testing (uncomment if needed for development)
+# pytest>=7.4.0  # Testing framework
+# pytest-cov>=4.1.0  # Code coverage
+# pytest-mock>=3.11.0  # Mocking utilities
+
+# Linting and Code Quality (uncomment if needed for development)
+# flake8>=6.1.0  # Code style checker
+# pylint>=3.0.0  # Advanced linting
+# black>=23.7.0  # Code formatter
+# mypy>=1.5.0  # Type checking
+
+# ============================================================================
+# NOTES
+# ============================================================================
+#
+# Minimal Installation (GUI + basic sorting only):
+#   - Does NOT include: torch, transformers, upscaling models
+#   - See requirements-minimal.txt for a lightweight option
+#
+# GPU Support:
+#   - Replace 'faiss-cpu' with 'faiss-gpu' for GPU acceleration
+#   - Install CUDA-enabled PyTorch from https://pytorch.org/
+#
+# Platform-Specific System Dependencies:
+#
+#   Ubuntu/Debian:
+#     sudo apt-get install libcairo2-dev libffi-dev unrar tesseract-ocr
+#
+#   Fedora/RHEL/CentOS:
+#     sudo dnf install cairo-devel libffi-devel unrar tesseract
+#
+#   macOS:
+#     brew install cairo libffi tesseract
+#
+#   Windows:
+#     - All Python packages work out of the box
+#     - For RAR support: Install WinRAR or 7-Zip
+#     - For OCR: Install Tesseract from https://github.com/UB-Mannheim/tesseract/wiki
+#
+# Security:
+#   - Keep dependencies updated: pip install -r requirements.txt --upgrade
+#   - Monitor for vulnerabilities: pip audit (requires pip >= 23.0)
+#   - Key security updates applied:
+#     * opencv-python >= 4.8.1.78 (libwebp CVE fix)
+#     * transformers >= 4.48.0 (deserialization vulnerabilities)
+#     * pyinstaller >= 6.0.0 (privilege escalation fixes)
+#   - NOTE: Pillow 12.1.1+ recommended for latest PSD security fix, but may 
+#     break compatibility with some older code. Test before upgrading.
+#

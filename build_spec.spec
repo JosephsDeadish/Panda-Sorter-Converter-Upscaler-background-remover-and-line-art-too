@@ -51,51 +51,98 @@ a = Analysis(
         (str(RESOURCES_DIR / 'sounds'), 'resources/sounds'),
     ],
     hiddenimports=[
+        # Core image processing
         'PIL',
         'PIL.Image',
         'PIL.ImageTk',
+        'PIL.ImageFile',
+        'PIL.ImageDraw',
+        'PIL.ImageFont',
+        # Scientific computing
         'numpy',
+        'numpy.core',
         'cv2',
         'sklearn',
+        'sklearn.metrics',
+        'sklearn.cluster',
+        # Database and file handling
         'sqlite3',
-        'tkinter',
-        'customtkinter',
         'send2trash',
+        'watchdog',
+        # UI framework
+        'tkinter',
+        'tkinter.ttk',
+        'customtkinter',
+        'darkdetect',
+        # Utilities
         'psutil',
         'colorama',
         'yaml',
+        'pyyaml',
+        'tqdm',
+        'xxhash',
+        # Archive support
+        'py7zr',
+        'rarfile',
+        # Hotkeys
+        'pynput',
+        'pynput.keyboard',
+        'pynput.mouse',
+        # Optional: Include if installed
+        # Note: PyInstaller will skip if not available
+        'onnxruntime',
+        'requests',
     ],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
     excludes=[
+        # Heavy scientific libraries (not needed)
         'matplotlib',
         'scipy',
         'pandas',
         'jupyter',
         'notebook',
         'IPython',
-        # Torch: exclude unused/problematic submodules to suppress build warnings
+        
+        # PyTorch: Exclude unused/problematic submodules to suppress build warnings
+        # Note: Main torch module is included if available, but these internals cause issues
         'torch.testing',
         'torch.testing._internal',
         'torch.testing._internal.opinfo',
+        'torch.testing._internal.common_utils',
         'torch.distributed.elastic',
+        'torch.distributed.elastic.multiprocessing',
         'torch.distributed._sharding_spec',
         'torch.distributed._sharded_tensor',
+        'torch.distributed._shard',
         'torch.distributed._shard.checkpoint',
         'torch._inductor',
-        # Cairo: cairosvg/cairocffi require native Cairo DLL not available on Windows CI;
-        # SVG support is optional (app handles missing cairosvg gracefully)
+        'torch._inductor.compile_fx',
+        
+        # Cairo SVG: cairosvg/cairocffi require native Cairo DLL not available on Windows CI
+        # SVG support is optional - the application handles missing cairosvg gracefully
         'cairosvg',
         'cairocffi',
-        # macOS-only modules not needed on Windows
-        'darkdetect._mac_detect',
-        # Misc unused
-        'importlib_resources.trees',
+        
+        # Platform-specific modules
+        'darkdetect._mac_detect',  # macOS-only, not needed on Windows
+        'importlib_resources.trees',  # Internal module that causes issues
+        
+        # Performance libraries that cause bloat (optional features)
         'numba',
         'llvmlite',
+        
+        # Parser tables that regenerate and cause issues
         'pycparser.lextab',
         'pycparser.yacctab',
+        
+        # Additional heavy/unused libraries
+        'pytest',
+        'hypothesis',
+        'sphinx',
+        'setuptools',
+        'distutils',
     ],
     win_no_prefer_redirects=False,
     win_private_assemblies=False,

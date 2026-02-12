@@ -1,0 +1,81 @@
+# Game Texture Sorter - Minimal Dependencies
+# Author: Dead On The Inside / JosephsDeadish
+#
+# This is a lightweight installation without heavy ML/AI dependencies
+# Perfect for users who just want basic texture sorting functionality
+#
+# Installation:
+#   pip install -r requirements-minimal.txt
+
+# ============================================================================
+# CORE DEPENDENCIES (Required)
+# ============================================================================
+
+# UI Framework
+customtkinter>=5.2.0
+pillow>=10.0.0
+darkdetect>=0.8.0
+
+# Image Processing
+opencv-python>=4.8.1.78
+numpy>=1.24.0
+scikit-image>=0.21.0
+
+# Machine Learning (Core - lightweight)
+scikit-learn>=1.3.0
+
+# File Operations
+send2trash>=1.8.2
+watchdog>=3.0.0
+
+# Performance
+psutil>=5.9.5
+tqdm>=4.66.0
+xxhash>=3.4.0
+
+# Archive Support
+py7zr>=0.20.1
+rarfile>=4.0
+
+# Hotkeys
+pynput>=1.7.6
+
+# Utilities
+colorama>=0.4.6
+pyyaml>=6.0
+requests>=2.31.0
+
+# Build & Packaging (for building executable)
+pyinstaller>=6.0.0
+
+# ============================================================================
+# OPTIONAL - Uncomment if needed
+# ============================================================================
+
+# SVG Support (requires system cairo library on Linux)
+# cairosvg>=2.7.0
+# cairocffi>=1.6.0
+
+# Lightweight AI inference
+# onnxruntime>=1.16.0
+
+# OCR Support (requires tesseract-ocr system package)
+# pytesseract>=0.3.10
+
+# ============================================================================
+# NOTES
+# ============================================================================
+#
+# This minimal installation EXCLUDES:
+#   - PyTorch (torch, torchvision) - saves ~1GB
+#   - Transformers, CLIP models - saves ~500MB
+#   - Vector search (FAISS, ChromaDB) - saves ~200MB
+#   - Super-resolution models - saves ~100MB
+#
+# For full feature set including advanced AI classification:
+#   pip install -r requirements.txt
+#
+# System Dependencies (Linux only):
+#   Ubuntu/Debian: sudo apt-get install unrar
+#   Fedora/RHEL: sudo dnf install unrar
+#

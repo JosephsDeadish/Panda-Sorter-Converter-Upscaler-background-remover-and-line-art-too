@@ -1,0 +1,45 @@
+# MANIFEST.in - Package Data Inclusion
+# Specifies which non-Python files to include in the package distribution
+
+# Include documentation files
+include README.md
+include LICENSE
+include INSTALL.md
+include BUILD.md
+include TESTING.md
+include CODE_SIGNING.md
+include *.md
+
+# Include requirements files
+include requirements.txt
+include requirements-minimal.txt
+
+# Include build configuration
+include build_spec.spec
+include file_version_info.txt
+include build.bat
+include build.ps1
+include sign.bat
+
+# Include assets
+recursive-include assets *
+
+# Include example files
+recursive-include examples *
+
+# Include source resources
+recursive-include src/resources *
+
+# Exclude compiled Python files
+global-exclude *.pyc
+global-exclude *.pyo
+global-exclude __pycache__
+
+# Exclude build artifacts
+global-exclude *.so
+global-exclude *.dylib
+global-exclude *.dll
+
+# Exclude version control
+global-exclude .git*
+global-exclude .DS_Store

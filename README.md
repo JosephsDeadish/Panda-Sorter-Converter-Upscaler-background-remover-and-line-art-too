@@ -70,11 +70,27 @@ A professional, single-executable Windows application for automatically sorting 
 2. **Run** the EXE - No installation required!
 3. **Start Sorting** - Select your texture folder and let the magic happen 🐼
 
-### For Developers (Build from Source)
+### For Developers (Python Installation)
 
-#### Automated Build (Recommended)
+#### Quick Install
 
-Build from source using build scripts:
+**Minimal installation** (recommended for most users):
+```bash
+pip install -r requirements-minimal.txt
+python main.py
+```
+
+**Full installation** (with AI features):
+```bash
+pip install -r requirements.txt
+python main.py
+```
+
+See [INSTALL.md](INSTALL.md) for detailed platform-specific installation instructions (Windows, Linux, macOS).
+
+#### Build from Source
+
+Build a standalone executable using build scripts:
 
 **Windows Batch:**
 ```cmd
@@ -92,9 +108,8 @@ The build scripts automatically:
 - Build single EXE with PyInstaller
 - Create `dist/GameTextureSorter.exe`
 
-#### Manual Build
+See [BUILD.md](BUILD.md) for detailed build instructions and troubleshooting.
 
-See [BUILD.md](BUILD.md) for detailed manual build instructions.
 
 ## 🎯 Usage
 
@@ -154,6 +169,7 @@ Settings are stored in: `%USERPROFILE%\.ps2_texture_sorter\config.json`
 ## 📚 Documentation
 
 - **[README.md](README.md)** - This file: overview and quick start
+- **[INSTALL.md](INSTALL.md)** - 🆕 Installation guide for all platforms (Windows/Linux/macOS)
 - **[BUILD.md](BUILD.md)** - Detailed build instructions for developers
 - **[CODE_SIGNING.md](CODE_SIGNING.md)** - Guide to signing the EXE for Windows SmartScreen
 - **[ARCHIVE_SUPPORT.md](ARCHIVE_SUPPORT.md)** - 🆕 Archive extraction and compression guide
