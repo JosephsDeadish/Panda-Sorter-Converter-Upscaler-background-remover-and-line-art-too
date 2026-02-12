@@ -2228,6 +2228,9 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
             if appearance.accessories:
                 # Use computed arm swing for wrist accessory sync
                 # Include dangle physics for proper sync during drag
+                # Note: arm_dangle is added to BOTH arms because it represents whole-body
+                # inertial motion, not individual limb movement. The swing is opposite for
+                # symmetry, but the dangle is the same for both sides.
                 arm_dangle = int(self._dangle_arm)
                 arm_dangle_h = int(self._dangle_arm_h)
                 la_swing = _arm_swing + arm_dangle
@@ -2351,6 +2354,8 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
                     highlight = self._shade_color(color, 40)
                     foot_base = int(170 * sy + by)
                     # Include dangle physics for proper sync during drag
+                    # Note: leg_dangle is added to BOTH legs because it represents whole-body
+                    # inertial motion. The swing is opposite for symmetry, but dangle is same.
                     leg_dangle = int(self._dangle_leg)
                     leg_dangle_h = int(self._dangle_leg_h)
                     left_shoe_swing = int(_leg_swing) + leg_dangle
