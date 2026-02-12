@@ -53,6 +53,11 @@ class PandaCharacter:
     # Body part region boundaries (relative Y position 0.0-1.0)
     # Adjusted to match actual canvas drawing proportions
     HEAD_BOUNDARY = 0.32
+    EAR_BOUNDARY = 0.15       # Top 15% is ear zone
+    EYE_BOUNDARY_TOP = 0.15
+    EYE_BOUNDARY_BOTTOM = 0.25
+    NOSE_BOUNDARY_TOP = 0.25
+    NOSE_BOUNDARY_BOTTOM = 0.32
     BODY_BOUNDARY = 0.55
     BUTT_BOUNDARY = 0.75
     
@@ -199,6 +204,60 @@ class PandaCharacter:
         "🐼 At least you're holding me properly!",
         "🐼 *relaxes* Okay, this isn't so bad~",
         "🐼 Chauffeur service! Where to? 🚗",
+    ]
+    
+    # Responses when dragged by left arm
+    LEFT_ARM_DRAG_RESPONSES = [
+        "🐼 Ow! My left arm! 💪",
+        "🐼 *swings from left arm* This is awkward!",
+        "🐼 Not the left paw! That's my good one! 😰",
+        "🐼 *dangles* Left arm getting tired...",
+        "🐼 I need this arm for eating bamboo!",
+    ]
+    
+    # Responses when dragged by right arm
+    RIGHT_ARM_DRAG_RESPONSES = [
+        "🐼 Ow! My right arm! 💪",
+        "🐼 *swings from right arm* Getting dizzy!",
+        "🐼 Not the right paw! 😰",
+        "🐼 *dangles* Right arm protesting!",
+        "🐼 This is not ergonomic!",
+    ]
+    
+    # Responses when dragged by left leg
+    LEFT_LEG_DRAG_RESPONSES = [
+        "🐼 *upside down* My left leg! Put me down! 🙃",
+        "🐼 Blood rushing to my head! 😵",
+        "🐼 Not the leg! I need that for walking!",
+        "🐼 *dangles by left foot* This is embarrassing!",
+        "🐼 World looks weird upside down! 🌍",
+    ]
+    
+    # Responses when dragged by right leg
+    RIGHT_LEG_DRAG_RESPONSES = [
+        "🐼 *upside down* My right leg! 🙃",
+        "🐼 Everything's backwards from here! 😵",
+        "🐼 I'm a panda, not a bat!",
+        "🐼 *dangles by right foot* So undignified!",
+        "🐼 The floor is... above me?! 🤯",
+    ]
+    
+    # Responses when dragged by left ear
+    LEFT_EAR_DRAG_RESPONSES = [
+        "🐼 OW OW OW! Not the left ear! 👂😫",
+        "🐼 That's attached to my head! Stop! 🛑",
+        "🐼 *ear stretching* This hurts!!! 😭",
+        "🐼 My ear is not a handle! 😤",
+        "🐼 Let go of my ear! Please! 🥺",
+    ]
+    
+    # Responses when dragged by right ear
+    RIGHT_EAR_DRAG_RESPONSES = [
+        "🐼 OUCH! Not the right ear! 👂😫",
+        "🐼 You're gonna rip it off! Stop! 🛑",
+        "🐼 *ear stretching* OWWW!!! 😭",
+        "🐼 Ears are sensitive! 😤",
+        "🐼 This is ear abuse! 🥺",
     ]
 
     # Responses when panda walks up to food
@@ -455,6 +514,42 @@ class PandaCharacter:
             "🐼 That rattled my brain a little! 🤕",
             "🐼 Stop bonking me, I'm fragile!",
         ],
+        'nose': [
+            "🐼 *boop* My nose! 👃",
+            "🐼 That tickles! 😆",
+            "🐼 *sniffs* Did you wash your hands?",
+            "🐼 Boop! Right on the snoot!",
+            "🐼 My nose is very sensitive! 👃✨",
+            "🐼 *wiggles nose* That was a perfect boop!",
+        ],
+        'left_eye': [
+            "🐼 Ow! My left eye! 👁️",
+            "🐼 *winks with other eye* Can't see!",
+            "🐼 Don't poke my eye! 😵",
+            "🐼 *rubs left eye* Watch it!",
+            "🐼 That's not a button! 👁️",
+        ],
+        'right_eye': [
+            "🐼 Ow! My right eye! 👁️",
+            "🐼 *winks with other eye* Ouch!",
+            "🐼 Eyes are fragile! 😵",
+            "🐼 *rubs right eye* Be careful!",
+            "🐼 That's my good eye! 👁️",
+        ],
+        'left_ear': [
+            "🐼 *left ear twitches* That tickles! 👂",
+            "🐼 My left ear is sensitive!",
+            "🐼 *flicks left ear* Hehe!",
+            "🐼 Don't pull on that! 😊",
+            "🐼 Left ear scritches are the best!",
+        ],
+        'right_ear': [
+            "🐼 *right ear twitches* That tickles! 👂",
+            "🐼 My right ear is sensitive!",
+            "🐼 *flicks right ear* Hehe!",
+            "🐼 Careful with my ears! 😊",
+            "🐼 Right ear scritches feel nice!",
+        ],
         'body': [
             "🐼 *poke* Hey, my belly is not a button!",
             "🐼 That's where I keep all my bamboo!",
@@ -471,6 +566,20 @@ class PandaCharacter:
             "🐼 My arms are tired from sorting!",
             "🐼 Paw massage? Yes please!",
         ],
+        'left_arm': [
+            "🐼 That's my left paw! ✋",
+            "🐼 *wiggles left paw* Hi!",
+            "🐼 My dominant paw! Be gentle!",
+            "🐼 Left paw high five! ✋",
+            "🐼 I use that for bamboo!",
+        ],
+        'right_arm': [
+            "🐼 That's my right paw! ✋",
+            "🐼 *wiggles right paw* Hello!",
+            "🐼 My other favorite paw!",
+            "🐼 Right paw high five! ✋",
+            "🐼 Careful with that one!",
+        ],
         'legs': [
             "🐼 *stumbles* Hey, I need those!",
             "🐼 My legs aren't made for kicking!",
@@ -478,6 +587,20 @@ class PandaCharacter:
             "🐼 Those are my sitting supports!",
             "🐼 *wiggles toes* Don't touch!",
             "🐼 I need those for bamboo runs!",
+        ],
+        'left_leg': [
+            "🐼 *lifts left leg* Hey! Watch it!",
+            "🐼 That's my left paw! 🦶",
+            "🐼 *wiggles left foot* Tickles!",
+            "🐼 I need that for standing!",
+            "🐼 Left foot best foot!",
+        ],
+        'right_leg': [
+            "🐼 *lifts right leg* Hey there!",
+            "🐼 That's my right paw! 🦶",
+            "🐼 *wiggles right foot* Hehe!",
+            "🐼 My balancing foot!",
+            "🐼 Right foot is important too!",
         ],
         'butt': [
             "🐼 Hey! Watch it! 😳",
@@ -886,13 +1009,35 @@ class PandaCharacter:
             self.feed_count += 1
             return random.choice(self.FEED_RESPONSES)
 
-    def on_drag(self, grabbed_head: bool = False) -> str:
+    def on_drag(self, grabbed_head: bool = False, grabbed_part: str = None) -> str:
         """Handle panda being dragged.
         
         Args:
-            grabbed_head: True if dragged by the head region
+            grabbed_head: True if dragged by the head region (deprecated, use grabbed_part)
+            grabbed_part: Specific body part being grabbed (e.g., 'left_arm', 'right_leg', 'left_ear')
         """
         self.drag_count += 1
+        
+        # Use grabbed_part if provided for specific responses
+        if grabbed_part:
+            if grabbed_part == 'left_arm':
+                return random.choice(self.LEFT_ARM_DRAG_RESPONSES)
+            elif grabbed_part == 'right_arm':
+                return random.choice(self.RIGHT_ARM_DRAG_RESPONSES)
+            elif grabbed_part == 'left_leg':
+                return random.choice(self.LEFT_LEG_DRAG_RESPONSES)
+            elif grabbed_part == 'right_leg':
+                return random.choice(self.RIGHT_LEG_DRAG_RESPONSES)
+            elif grabbed_part == 'left_ear':
+                return random.choice(self.LEFT_EAR_DRAG_RESPONSES)
+            elif grabbed_part == 'right_ear':
+                return random.choice(self.RIGHT_EAR_DRAG_RESPONSES)
+            elif grabbed_part == 'head':
+                return random.choice(self.HEAD_DRAG_RESPONSES)
+            elif grabbed_part in ('body', 'butt'):
+                return random.choice(self.BODY_DRAG_RESPONSES)
+        
+        # Fallback to old behavior for backward compatibility
         if grabbed_head:
             return random.choice(self.HEAD_DRAG_RESPONSES)
         return random.choice(self.DRAG_RESPONSES)
@@ -1170,36 +1315,81 @@ class PandaCharacter:
     # Arm detection X boundaries (arms occupy the outer portions of the body width)
     ARM_LEFT_BOUNDARY = 0.25   # Left 25% is left arm zone
     ARM_RIGHT_BOUNDARY = 0.75  # Right 25% is right arm zone
+    
+    # Ear detection X boundaries (ears are on sides of head)
+    EAR_LEFT_BOUNDARY = 0.15   # Left 15% is left ear zone
+    EAR_RIGHT_BOUNDARY = 0.85  # Right 15% is right ear zone
+    
+    # Eye detection X boundaries
+    EYE_LEFT_CENTER = 0.35     # Left eye center
+    EYE_RIGHT_CENTER = 0.65    # Right eye center
+    EYE_RADIUS_X = 0.1         # Eye click radius
 
     def get_body_part_at_position(self, rel_y: float, rel_x: float = 0.5) -> str:
         """Determine which body part is at a relative position.
         
         The panda is drawn with body-shaped canvas rendering,
-        roughly divided into regions:
-        - head: top ~35% (ears, eyes, forehead)
-        - arms: body-height rows at the left/right edges (>75% from center)
-        - body: 35-55% center (nose, mouth, torso)
+        now with detailed detection for individual limbs, ears, eyes, and nose:
+        - left_ear/right_ear: top corners (< 15% Y, far left/right)
+        - left_eye/right_eye: upper face (~15-25% Y, near centers)
+        - nose: center of face (~25-32% Y)
+        - head: rest of head region (< 32% Y)
+        - left_arm/right_arm: body-height at left/right edges
+        - body: 32-55% center (torso)
         - butt: 55-75% (lower torso)
-        - legs: bottom 25% (feet)
+        - left_leg/right_leg: bottom 25% left/right
         
         Args:
             rel_y: Relative Y position (0.0 = top, 1.0 = bottom)
             rel_x: Relative X position (0.0 = left, 1.0 = right)
             
         Returns:
-            Body part name string
+            Specific body part name string
         """
+        # Ear detection (top of head, outer edges)
+        if rel_y < self.EAR_BOUNDARY:
+            if rel_x < self.EAR_LEFT_BOUNDARY:
+                return 'left_ear'
+            elif rel_x > self.EAR_RIGHT_BOUNDARY:
+                return 'right_ear'
+            return 'head'  # Top of head between ears
+        
+        # Eye detection (in head region, specific positions)
+        if self.EYE_BOUNDARY_TOP <= rel_y < self.EYE_BOUNDARY_BOTTOM:
+            # Check if click is near left eye
+            if abs(rel_x - self.EYE_LEFT_CENTER) < self.EYE_RADIUS_X:
+                return 'left_eye'
+            # Check if click is near right eye
+            elif abs(rel_x - self.EYE_RIGHT_CENTER) < self.EYE_RADIUS_X:
+                return 'right_eye'
+        
+        # Nose detection (lower part of head, center)
+        if self.NOSE_BOUNDARY_TOP <= rel_y < self.NOSE_BOUNDARY_BOTTOM:
+            if 0.4 <= rel_x <= 0.6:  # Center 20% is nose
+                return 'nose'
+        
+        # Head region (rest of head area)
         if rel_y < self.HEAD_BOUNDARY:
             return 'head'
+        
+        # Body region with individual arm detection
         elif rel_y < self.BODY_BOUNDARY:
-            # Distinguish arms from body using horizontal position
-            if rel_x < self.ARM_LEFT_BOUNDARY or rel_x > self.ARM_RIGHT_BOUNDARY:
-                return 'arms'
+            if rel_x < self.ARM_LEFT_BOUNDARY:
+                return 'left_arm'
+            elif rel_x > self.ARM_RIGHT_BOUNDARY:
+                return 'right_arm'
             return 'body'
+        
+        # Butt region
         elif rel_y < self.BUTT_BOUNDARY:
             return 'butt'
+        
+        # Legs region with individual leg detection
         else:
-            return 'legs'
+            if rel_x < 0.5:
+                return 'left_leg'
+            else:
+                return 'right_leg'
     
     def on_body_part_click(self, body_part: str) -> str:
         """Handle click on a specific body part.

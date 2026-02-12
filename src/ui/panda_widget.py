@@ -221,18 +221,33 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
         self._belly_jiggle_vel = 0.0   # Jiggle velocity (spring-damper)
         
         # Limb dangle physics (arms/legs swing with inertia during drag)
-        self._dangle_arm = 0.0         # Arm dangle offset (pixels, vertical)
+        # Now supports individual limb tracking
+        self._dangle_arm = 0.0         # Arm dangle offset (pixels, vertical) - when both arms dangle
         self._dangle_arm_vel = 0.0     # Arm dangle velocity
-        self._dangle_leg = 0.0         # Leg dangle offset (pixels, vertical)
+        self._dangle_leg = 0.0         # Leg dangle offset (pixels, vertical) - when both legs dangle
         self._dangle_leg_vel = 0.0     # Leg dangle velocity
         self._dangle_arm_h = 0.0       # Arm horizontal dangle offset
         self._dangle_arm_h_vel = 0.0   # Arm horizontal dangle velocity
         self._dangle_leg_h = 0.0       # Leg horizontal dangle offset
         self._dangle_leg_h_vel = 0.0   # Leg horizontal dangle velocity
+        # Individual limb dangle tracking
+        self._dangle_left_arm = 0.0
+        self._dangle_left_arm_vel = 0.0
+        self._dangle_right_arm = 0.0
+        self._dangle_right_arm_vel = 0.0
+        self._dangle_left_leg = 0.0
+        self._dangle_left_leg_vel = 0.0
+        self._dangle_right_leg = 0.0
+        self._dangle_right_leg_vel = 0.0
+        self._dangle_left_ear = 0.0
+        self._dangle_left_ear_vel = 0.0
+        self._dangle_right_ear = 0.0
+        self._dangle_right_ear_vel = 0.0
         self._prev_drag_vy = 0.0       # Previous vertical drag velocity for dangle
         self._prev_drag_vx = 0.0       # Previous horizontal drag velocity for dangle
         self._drag_grab_head = False   # True when drag started in head region
-        self._drag_grab_part = 'body'  # Body part grabbed during drag (head/body/belly/legs)
+        self._drag_grab_part = 'body'  # Body part grabbed during drag (specific limb/ear/etc)
+        self._is_upside_down = False   # True when dragged upside down by legs
         
         # Ear stretch physics (elastic stretch during drag)
         self._ear_stretch = 0.0        # Current ear stretch amount
@@ -1115,37 +1130,97 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
             self._belly_jiggle = 0.0
             self._belly_jiggle_vel = 0.0
         
-        # --- Limb dangle physics (inertia during drag) ---
-        # Full dangly look only when held by head; otherwise minimal dangle
+        # --- Individual limb dangle physics (only non-grabbed limbs dangle) ---
         if anim == 'dragging' and self.is_dragging:
-            dangle_mult = self.DANGLE_HEAD_MULTIPLIER if self._drag_grab_head else self.DANGLE_BODY_MULTIPLIER
-            # Drive vertical dangle from vertical drag velocity
-            self._dangle_arm_vel += self._prev_drag_vy * self.DANGLE_ARM_FACTOR * dangle_mult
-            self._dangle_leg_vel += self._prev_drag_vy * self.DANGLE_LEG_FACTOR * dangle_mult
-            # Drive horizontal dangle from horizontal drag velocity (sway opposite to direction)
-            self._dangle_arm_h_vel += -self._prev_drag_vx * self.DANGLE_ARM_H_FACTOR * dangle_mult
-            self._dangle_leg_h_vel += -self._prev_drag_vx * self.DANGLE_LEG_H_FACTOR * dangle_mult
-        self._dangle_arm_vel = (self._dangle_arm_vel - self._dangle_arm * self.DANGLE_SPRING) * self.DANGLE_DAMPING
-        self._dangle_arm += self._dangle_arm_vel
-        self._dangle_leg_vel = (self._dangle_leg_vel - self._dangle_leg * self.DANGLE_SPRING) * self.DANGLE_DAMPING
-        self._dangle_leg += self._dangle_leg_vel
-        # Horizontal dangle spring-damper
-        self._dangle_arm_h_vel = (self._dangle_arm_h_vel - self._dangle_arm_h * self.DANGLE_SPRING) * self.DANGLE_DAMPING
-        self._dangle_arm_h += self._dangle_arm_h_vel
-        self._dangle_leg_h_vel = (self._dangle_leg_h_vel - self._dangle_leg_h * self.DANGLE_SPRING) * self.DANGLE_DAMPING
-        self._dangle_leg_h += self._dangle_leg_h_vel
-        if abs(self._dangle_arm) < 0.2 and abs(self._dangle_arm_vel) < 0.2:
-            self._dangle_arm = 0.0
-            self._dangle_arm_vel = 0.0
-        if abs(self._dangle_leg) < 0.2 and abs(self._dangle_leg_vel) < 0.2:
-            self._dangle_leg = 0.0
-            self._dangle_leg_vel = 0.0
-        if abs(self._dangle_arm_h) < 0.2 and abs(self._dangle_arm_h_vel) < 0.2:
-            self._dangle_arm_h = 0.0
-            self._dangle_arm_h_vel = 0.0
-        if abs(self._dangle_leg_h) < 0.2 and abs(self._dangle_leg_h_vel) < 0.2:
-            self._dangle_leg_h = 0.0
-            self._dangle_leg_h_vel = 0.0
+            # Determine which limbs should dangle based on what's being grabbed
+            grabbed_part = self._drag_grab_part
+            
+            # Left arm dangles unless it's being grabbed
+            if grabbed_part != 'left_arm':
+                self._dangle_left_arm_vel += self._prev_drag_vy * self.DANGLE_ARM_FACTOR
+                self._dangle_left_arm_vel += -self._prev_drag_vx * self.DANGLE_ARM_H_FACTOR * 0.5
+            else:
+                # Grabbed arm doesn't dangle - reset it
+                self._dangle_left_arm = 0
+                self._dangle_left_arm_vel = 0
+            
+            # Right arm dangles unless it's being grabbed
+            if grabbed_part != 'right_arm':
+                self._dangle_right_arm_vel += self._prev_drag_vy * self.DANGLE_ARM_FACTOR
+                self._dangle_right_arm_vel += -self._prev_drag_vx * self.DANGLE_ARM_H_FACTOR * 0.5
+            else:
+                self._dangle_right_arm = 0
+                self._dangle_right_arm_vel = 0
+            
+            # Left leg dangles unless it's being grabbed
+            if grabbed_part != 'left_leg':
+                self._dangle_left_leg_vel += self._prev_drag_vy * self.DANGLE_LEG_FACTOR
+                self._dangle_left_leg_vel += -self._prev_drag_vx * self.DANGLE_LEG_H_FACTOR * 0.5
+            else:
+                self._dangle_left_leg = 0
+                self._dangle_left_leg_vel = 0
+            
+            # Right leg dangles unless it's being grabbed
+            if grabbed_part != 'right_leg':
+                self._dangle_right_leg_vel += self._prev_drag_vy * self.DANGLE_LEG_FACTOR
+                self._dangle_right_leg_vel += -self._prev_drag_vx * self.DANGLE_LEG_H_FACTOR * 0.5
+            else:
+                self._dangle_right_leg = 0
+                self._dangle_right_leg_vel = 0
+            
+            # Left ear stretches unless it's being grabbed
+            if grabbed_part != 'left_ear':
+                self._dangle_left_ear_vel += self._prev_drag_vy * 0.2
+            else:
+                self._dangle_left_ear = 0
+                self._dangle_left_ear_vel = 0
+            
+            # Right ear stretches unless it's being grabbed
+            if grabbed_part != 'right_ear':
+                self._dangle_right_ear_vel += self._prev_drag_vy * 0.2
+            else:
+                self._dangle_right_ear = 0
+                self._dangle_right_ear_vel = 0
+        
+        # Apply spring-damper physics to all individual limbs
+        self._dangle_left_arm_vel = (self._dangle_left_arm_vel - self._dangle_left_arm * self.DANGLE_SPRING) * self.DANGLE_DAMPING
+        self._dangle_left_arm += self._dangle_left_arm_vel
+        self._dangle_right_arm_vel = (self._dangle_right_arm_vel - self._dangle_right_arm * self.DANGLE_SPRING) * self.DANGLE_DAMPING
+        self._dangle_right_arm += self._dangle_right_arm_vel
+        self._dangle_left_leg_vel = (self._dangle_left_leg_vel - self._dangle_left_leg * self.DANGLE_SPRING) * self.DANGLE_DAMPING
+        self._dangle_left_leg += self._dangle_left_leg_vel
+        self._dangle_right_leg_vel = (self._dangle_right_leg_vel - self._dangle_right_leg * self.DANGLE_SPRING) * self.DANGLE_DAMPING
+        self._dangle_right_leg += self._dangle_right_leg_vel
+        self._dangle_left_ear_vel = (self._dangle_left_ear_vel - self._dangle_left_ear * self.EAR_STRETCH_SPRING) * self.EAR_STRETCH_DAMPING
+        self._dangle_left_ear += self._dangle_left_ear_vel
+        self._dangle_right_ear_vel = (self._dangle_right_ear_vel - self._dangle_right_ear * self.EAR_STRETCH_SPRING) * self.EAR_STRETCH_DAMPING
+        self._dangle_right_ear += self._dangle_right_ear_vel
+        
+        # Clamp small values to zero
+        if abs(self._dangle_left_arm) < 0.2 and abs(self._dangle_left_arm_vel) < 0.2:
+            self._dangle_left_arm = 0.0
+            self._dangle_left_arm_vel = 0.0
+        if abs(self._dangle_right_arm) < 0.2 and abs(self._dangle_right_arm_vel) < 0.2:
+            self._dangle_right_arm = 0.0
+            self._dangle_right_arm_vel = 0.0
+        if abs(self._dangle_left_leg) < 0.2 and abs(self._dangle_left_leg_vel) < 0.2:
+            self._dangle_left_leg = 0.0
+            self._dangle_left_leg_vel = 0.0
+        if abs(self._dangle_right_leg) < 0.2 and abs(self._dangle_right_leg_vel) < 0.2:
+            self._dangle_right_leg = 0.0
+            self._dangle_right_leg_vel = 0.0
+        if abs(self._dangle_left_ear) < 0.2 and abs(self._dangle_left_ear_vel) < 0.2:
+            self._dangle_left_ear = 0.0
+            self._dangle_left_ear_vel = 0.0
+        if abs(self._dangle_right_ear) < 0.2 and abs(self._dangle_right_ear_vel) < 0.2:
+            self._dangle_right_ear = 0.0
+            self._dangle_right_ear_vel = 0.0
+        
+        # Keep old dangle variables for backward compatibility (set to average)
+        self._dangle_arm = (self._dangle_left_arm + self._dangle_right_arm) / 2
+        self._dangle_leg = (self._dangle_left_leg + self._dangle_right_leg) / 2
+        self._dangle_arm_h = 0  # Horizontal incorporated into individual limbs
+        self._dangle_leg_h = 0
         
         # --- Ear stretch physics (elastic spring-back) ---
         if anim == 'dragging' and self.is_dragging:
@@ -1491,12 +1566,12 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
         cx_draw = cx + int(body_sway)
         leg_top = int(145 * sy + by)
         leg_len = int(30 * sy)
-        # Apply dangle physics to legs during drag (vertical + horizontal)
-        leg_dangle = int(self._dangle_leg)
-        leg_dangle_h = int(self._dangle_leg_h)
+        
+        # Apply individual limb dangle physics during drag
         # Left leg
-        left_leg_x = cx_draw - int(25 * sx) + leg_dangle_h
-        left_leg_swing = leg_swing + leg_dangle
+        left_leg_dangle = int(self._dangle_left_leg) if anim == 'dragging' else 0
+        left_leg_x = cx_draw - int(25 * sx)
+        left_leg_swing = leg_swing + left_leg_dangle
         c.create_oval(
             left_leg_x - int(12 * sx), leg_top + left_leg_swing,
             left_leg_x + int(12 * sx), leg_top + leg_len + left_leg_swing,
@@ -1508,9 +1583,11 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
             left_leg_x + int(10 * sx), leg_top + leg_len + int(4 * sy) + left_leg_swing,
             fill=white, outline=black, width=1, tags="foot"
         )
+        
         # Right leg
-        right_leg_x = cx_draw + int(25 * sx) + leg_dangle_h
-        right_leg_swing = -leg_swing + leg_dangle
+        right_leg_dangle = int(self._dangle_right_leg) if anim == 'dragging' else 0
+        right_leg_x = cx_draw + int(25 * sx)
+        right_leg_swing = -leg_swing + right_leg_dangle
         c.create_oval(
             right_leg_x - int(12 * sx), leg_top + right_leg_swing,
             right_leg_x + int(12 * sx), leg_top + leg_len + right_leg_swing,
@@ -1547,21 +1624,23 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
         # --- Draw arms (black, attached to body sides) ---
         arm_top = int(95 * sy + by)
         arm_len = int(35 * sy)
-        # Apply dangle physics to arms during drag (vertical + horizontal)
-        arm_dangle = int(self._dangle_arm)
-        arm_dangle_h = int(self._dangle_arm_h)
+        
+        # Apply individual limb dangle physics during drag
         # Left arm
-        la_swing = arm_swing + arm_dangle
+        left_arm_dangle = int(self._dangle_left_arm) if anim == 'dragging' else 0
+        la_swing = arm_swing + left_arm_dangle
         c.create_oval(
-            cx_draw - int(55 * sx) + arm_dangle_h, arm_top + la_swing,
-            cx_draw - int(30 * sx) + arm_dangle_h, arm_top + arm_len + la_swing,
+            cx_draw - int(55 * sx), arm_top + la_swing,
+            cx_draw - int(30 * sx), arm_top + arm_len + la_swing,
             fill=black, outline=black, tags="arm"
         )
+        
         # Right arm
-        ra_swing = -arm_swing + arm_dangle
+        right_arm_dangle = int(self._dangle_right_arm) if anim == 'dragging' else 0
+        ra_swing = -arm_swing + right_arm_dangle
         c.create_oval(
-            cx_draw + int(30 * sx) + arm_dangle_h, arm_top + ra_swing,
-            cx_draw + int(55 * sx) + arm_dangle_h, arm_top + arm_len + ra_swing,
+            cx_draw + int(30 * sx), arm_top + ra_swing,
+            cx_draw + int(55 * sx), arm_top + arm_len + ra_swing,
             fill=black, outline=black, tags="arm"
         )
         
@@ -1575,26 +1654,29 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
             fill=white, outline=black, width=2, tags="head"
         )
         
-        # --- Draw ears (black circles on top of head) with wiggle and stretch ---
+        # --- Draw ears (black circles on top of head) with wiggle and individual stretch ---
         ear_y = head_cy - head_ry + int(5 * sy)
         ear_w = int(22 * sx)
         ear_h = int(24 * sy)
-        # Ear stretch: elongate ears vertically (elastic effect)
-        ear_stretch_px = int(self._ear_stretch * sy)
+        
+        # Individual ear stretch/dangle during drag
+        left_ear_stretch_px = int(self._dangle_left_ear * sy) if anim == 'dragging' else int(self._ear_stretch * sy)
+        right_ear_stretch_px = int(self._dangle_right_ear * sy) if anim == 'dragging' else int(self._ear_stretch * sy)
+        
         # Left ear
-        c.create_oval(cx_draw - head_rx - int(2 * sx) + ear_wiggle, ear_y - int(16 * sy) - ear_stretch_px,
+        c.create_oval(cx_draw - head_rx - int(2 * sx) + ear_wiggle, ear_y - int(16 * sy) - left_ear_stretch_px,
                        cx_draw - head_rx + ear_w + ear_wiggle, ear_y + int(8 * sy),
                        fill=black, outline=black, tags="ear")
         # Inner ear pink
-        c.create_oval(cx_draw - head_rx + int(4 * sx) + ear_wiggle, ear_y - int(10 * sy) - ear_stretch_px,
+        c.create_oval(cx_draw - head_rx + int(4 * sx) + ear_wiggle, ear_y - int(10 * sy) - left_ear_stretch_px,
                        cx_draw - head_rx + int(16 * sx) + ear_wiggle, ear_y + int(2 * sy),
                        fill=pink, outline="", tags="ear_inner")
         # Right ear
-        c.create_oval(cx_draw + head_rx - ear_w - ear_wiggle, ear_y - int(16 * sy) - ear_stretch_px,
+        c.create_oval(cx_draw + head_rx - ear_w - ear_wiggle, ear_y - int(16 * sy) - right_ear_stretch_px,
                        cx_draw + head_rx + int(2 * sx) - ear_wiggle, ear_y + int(8 * sy),
                        fill=black, outline=black, tags="ear")
         # Inner ear pink
-        c.create_oval(cx_draw + head_rx - int(16 * sx) - ear_wiggle, ear_y - int(10 * sy) - ear_stretch_px,
+        c.create_oval(cx_draw + head_rx - int(16 * sx) - ear_wiggle, ear_y - int(10 * sy) - right_ear_stretch_px,
                        cx_draw + head_rx - int(4 * sx) - ear_wiggle, ear_y + int(2 * sy),
                        fill=pink, outline="", tags="ear_inner")
         
@@ -2869,6 +2951,10 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
         else:
             # Fallback if panda character not available
             self._drag_grab_part = 'head' if self._drag_grab_head else 'body'
+        
+        # Check if grabbed by leg (will cause upside-down if dragged upward)
+        self._is_upside_down = False  # Will be set during drag motion if pulled up
+        
         # Stop any active toss physics
         if self._toss_timer:
             try:
@@ -2913,6 +2999,16 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
         # Detect drag patterns
         self._detect_drag_patterns()
         
+        # Check if dragged by leg and moving upward (upside-down flip)
+        if self._drag_grab_part in ('left_leg', 'right_leg'):
+            # If dragged upward (negative velocity), flip upside down
+            if self._toss_velocity_y < -2:  # Moving up significantly
+                self._is_upside_down = True
+            elif self._toss_velocity_y > 2:  # Moving down significantly
+                self._is_upside_down = False
+        else:
+            self._is_upside_down = False
+        
         # Check if we've moved enough to count as a real drag
         distance = ((event.x - self.drag_start_x) ** 2 + (event.y - self.drag_start_y) ** 2) ** 0.5
         if distance < self.CLICK_THRESHOLD:
@@ -2923,7 +3019,8 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
             self._drag_moved = True
             self._set_animation_no_cancel('dragging')
             if self.panda:
-                response = self.panda.on_drag(grabbed_head=self._drag_grab_head) if hasattr(self.panda, 'on_drag') else "🐼 Wheee!"
+                # Pass grabbed_part for specific responses
+                response = self.panda.on_drag(grabbed_part=self._drag_grab_part) if hasattr(self.panda, 'on_drag') else "🐼 Wheee!"
                 self.info_label.configure(text=response)
         
         # Move the Toplevel window using screen coordinates
@@ -2965,14 +3062,20 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
         These are mutually exclusive; shake requires primarily linear
         back-and-forth motion while spin requires a circular path.
         
-        Spin and shake detection only occurs when grabbed by belly/body,
-        not when grabbed by head or other parts.
+        Spin and shake detection is DISABLED when grabbed by head, arms, legs, or ears.
+        It only occurs when grabbed by belly/body/butt.
         """
         if len(self._drag_positions) < 8:
             return
         
+        # Disable spin/shake when grabbed by head, arms, legs, or ears
+        # Only allow when grabbed by body/butt (belly region)
+        disabled_parts = ('head', 'left_arm', 'right_arm', 'left_leg', 'right_leg', 
+                         'left_ear', 'right_ear', 'nose', 'left_eye', 'right_eye')
+        if self._drag_grab_part in disabled_parts:
+            return
+        
         # Only detect spin/shake when grabbed by belly (body/butt areas)
-        # This prevents false detections when dragging by head or legs
         if self._drag_grab_part not in ('body', 'butt'):
             return
         
