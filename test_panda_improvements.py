@@ -41,6 +41,8 @@ def test_sensitivity_thresholds():
             f"MIN_SPIN_POSITIONS should be >= 24 (got {PandaWidget.MIN_SPIN_POSITIONS})"
         assert PandaWidget.MIN_SPIN_TOTAL_ANGLE >= 4.71239, \
             f"MIN_SPIN_TOTAL_ANGLE should be >= 4.71239 (~1.5*pi) (got {PandaWidget.MIN_SPIN_TOTAL_ANGLE})"
+        assert PandaWidget.MIN_SPIN_VELOCITY >= 600, \
+            f"MIN_SPIN_VELOCITY should be >= 600 for fast-only spin (got {PandaWidget.MIN_SPIN_VELOCITY})"
         print("✓ Sensitivity thresholds correctly tuned")
     except ImportError:
         print("⚠ Skipping sensitivity test (GUI not available)")
@@ -653,6 +655,104 @@ def test_individual_ear_detection():
     print("✓ Individual ear detection works correctly")
 
 
+def test_facing_direction():
+    """Test that panda has facing direction support."""
+    from src.features.panda_character import PandaFacing
+    panda = PandaCharacter()
+    assert panda.facing == PandaFacing.FRONT, "Panda should face front by default"
+    panda.set_facing(PandaFacing.LEFT)
+    assert panda.get_facing() == PandaFacing.LEFT, "Panda should face left after set_facing"
+    panda.set_facing(PandaFacing.RIGHT)
+    assert panda.get_facing() == PandaFacing.RIGHT, "Panda should face right after set_facing"
+    panda.set_facing(PandaFacing.BACK)
+    assert panda.get_facing() == PandaFacing.BACK, "Panda should face back after set_facing"
+    print("✓ Facing direction works correctly")
+
+
+def test_directional_walking_animations():
+    """Test that directional walking animation states exist."""
+    panda = PandaCharacter()
+    for direction in ('walking_left', 'walking_right', 'walking_up', 'walking_down'):
+        assert direction in panda.ANIMATION_STATES, \
+            f"{direction} should be in ANIMATION_STATES"
+        state = panda.get_animation_state(direction)
+        assert state == direction, f"get_animation_state should return {direction}"
+    print("✓ Directional walking animation states exist")
+
+
+def test_fall_on_face_animation():
+    """Test fall_on_face animation state and response."""
+    panda = PandaCharacter()
+    assert 'fall_on_face' in panda.ANIMATION_STATES, \
+        "fall_on_face should be in ANIMATION_STATES"
+    assert panda.fall_count == 0, "fall_count should start at 0"
+    response = panda.on_fall_on_face()
+    assert panda.fall_count == 1, "on_fall_on_face should increment fall_count"
+    assert isinstance(response, str) and len(response) > 0, \
+        "on_fall_on_face should return a non-empty string"
+    print("✓ Fall on face animation and response works")
+
+
+def test_tip_over_animation():
+    """Test tip_over_side animation state and response."""
+    panda = PandaCharacter()
+    assert 'tip_over_side' in panda.ANIMATION_STATES, \
+        "tip_over_side should be in ANIMATION_STATES"
+    assert panda.tip_over_count == 0, "tip_over_count should start at 0"
+    response = panda.on_tip_over()
+    assert panda.tip_over_count == 1, "on_tip_over should increment tip_over_count"
+    assert isinstance(response, str) and len(response) > 0, \
+        "on_tip_over should return a non-empty string"
+    print("✓ Tip over animation and response works")
+
+
+def test_statistics_include_facing_and_falls():
+    """Test that statistics include facing, fall_count, and tip_over_count."""
+    panda = PandaCharacter()
+    panda.on_fall_on_face()
+    panda.on_tip_over()
+    stats = panda.get_statistics()
+    assert 'facing' in stats, "Statistics should include facing"
+    assert stats['facing'] == 'front', "facing should be 'front'"
+    assert 'fall_count' in stats, "Statistics should include fall_count"
+    assert stats['fall_count'] == 1
+    assert 'tip_over_count' in stats, "Statistics should include tip_over_count"
+    assert stats['tip_over_count'] == 1
+    print("✓ Statistics include facing and fall/tip counts")
+
+
+def test_spin_requires_high_velocity():
+    """Test that spin detection requires MIN_SPIN_VELOCITY threshold."""
+    try:
+        from src.ui.panda_widget import PandaWidget
+        assert hasattr(PandaWidget, 'MIN_SPIN_VELOCITY'), \
+            "PandaWidget should have MIN_SPIN_VELOCITY constant"
+        assert PandaWidget.MIN_SPIN_VELOCITY >= 600, \
+            f"MIN_SPIN_VELOCITY should be >= 600 (got {PandaWidget.MIN_SPIN_VELOCITY})"
+        assert PandaWidget.MIN_SPIN_POSITIONS >= 30, \
+            f"MIN_SPIN_POSITIONS should be >= 30 (got {PandaWidget.MIN_SPIN_POSITIONS})"
+        assert PandaWidget.MIN_SPIN_TOTAL_ANGLE >= 6.28, \
+            f"MIN_SPIN_TOTAL_ANGLE should be >= 6.28 (~2*pi) (got {PandaWidget.MIN_SPIN_TOTAL_ANGLE})"
+        print("✓ Spin detection requires high velocity")
+    except ImportError:
+        print("⚠ Skipping spin velocity test (GUI not available)")
+
+
+def test_panda_widget_facing_state():
+    """Test that PandaWidget tracks facing direction."""
+    try:
+        from src.ui.panda_widget import PandaWidget
+        assert hasattr(PandaWidget, 'ANIMATION_EMOJIS'), \
+            "PandaWidget should have ANIMATION_EMOJIS"
+        for anim in ('walking_left', 'walking_right', 'walking_up', 'walking_down',
+                      'fall_on_face', 'tip_over_side'):
+            assert anim in PandaWidget.ANIMATION_EMOJIS, \
+                f"{anim} should have ANIMATION_EMOJIS entry"
+        print("✓ PandaWidget has animation emojis for new states")
+    except ImportError:
+        print("⚠ Skipping PandaWidget facing state test (GUI not available)")
+
+
 if __name__ == "__main__":
     print("Testing Panda Character Improvements...")
     print("-" * 50)
@@ -702,6 +802,14 @@ if __name__ == "__main__":
         test_individual_limb_drag_responses()
         test_nose_and_eye_click_responses()
         test_individual_ear_detection()
+        # New tests for facing direction, perspectives, and fall/tip
+        test_facing_direction()
+        test_directional_walking_animations()
+        test_fall_on_face_animation()
+        test_tip_over_animation()
+        test_statistics_include_facing_and_falls()
+        test_spin_requires_high_velocity()
+        test_panda_widget_facing_state()
 
         print("-" * 50)
         print("✅ All panda improvement tests passed!")

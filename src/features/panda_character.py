@@ -15,6 +15,14 @@ from datetime import datetime
 logger = logging.getLogger(__name__)
 
 
+class PandaFacing(Enum):
+    """Panda facing direction for multi-angle perspectives."""
+    FRONT = "front"
+    BACK = "back"
+    LEFT = "left"
+    RIGHT = "right"
+
+
 class PandaGender(Enum):
     """Panda gender options."""
     MALE = "male"
@@ -71,6 +79,10 @@ class PandaCharacter:
         'cartwheel', 'backflip', 'spinning', 'shaking', 'rolling',
         'carrying', 'sitting', 'belly_grab', 'lay_on_back', 'lay_on_side',
         'belly_jiggle',
+        # Directional walking animations
+        'walking_left', 'walking_right', 'walking_up', 'walking_down',
+        # Fall / tip over animations
+        'fall_on_face', 'tip_over_side',
         # Combat animations
         'swing', 'shoot', 'cast_spell', 'idle_armed', 'hit', 'blocking',
         'victory', 'defeat', 'traveling',
@@ -442,6 +454,24 @@ class PandaCharacter:
         "🐼 *wobbles* Hey! That's my food storage!",
         "🐼 *squish* It's like a panda pillow! 🤗",
         "🐼 *bouncy belly* Too many dumplings... worth it!",
+    ]
+
+    # Fall on face responses
+    FALL_ON_FACE_RESPONSES = [
+        "🐼 *SPLAT* Ow, my nose! 😵",
+        "🐼 *faceplant* I meant to do that...",
+        "🐼 *falls forward* The ground needed a hug!",
+        "🐼 *thud* Gravity wins again! 🤕",
+        "🐼 *face first* Is my nose still there?!",
+    ]
+
+    # Tip over on side responses
+    TIP_OVER_RESPONSES = [
+        "🐼 *timber!* I've fallen and I choose not to get up! 😴",
+        "🐼 *tips sideways* Rolling over... for a nap!",
+        "🐼 *topples* This is my life now. Sideways panda.",
+        "🐼 *falls on side* At least the view is different!",
+        "🐼 *tips over* Five more minutes on the floor... 😌",
     ]
 
     # Panda hover thoughts
@@ -862,6 +892,9 @@ class PandaCharacter:
         self.clothing_change_count = 0
         self.items_thrown_at_count = 0
         self.belly_poke_count = 0
+        self.facing = PandaFacing.FRONT
+        self.fall_count = 0
+        self.tip_over_count = 0
         self.easter_eggs_triggered: Set[str] = set()
         self.start_time = time.time()
         self.files_processed_count = 0
@@ -1069,6 +1102,28 @@ class PandaCharacter:
         self.belly_poke_count += 1
         return random.choice(self.BELLY_POKE_RESPONSES)
 
+    def on_fall_on_face(self) -> str:
+        """Handle panda falling on its face."""
+        self.fall_count += 1
+        return random.choice(self.FALL_ON_FACE_RESPONSES)
+
+    def on_tip_over(self) -> str:
+        """Handle panda tipping over on its side."""
+        self.tip_over_count += 1
+        return random.choice(self.TIP_OVER_RESPONSES)
+
+    def set_facing(self, direction: 'PandaFacing'):
+        """Set the panda's facing direction.
+
+        Args:
+            direction: The PandaFacing direction to face
+        """
+        self.facing = direction
+
+    def get_facing(self) -> 'PandaFacing':
+        """Get the panda's current facing direction."""
+        return self.facing
+
     def on_clothing_change(self) -> str:
         """Handle panda changing clothes."""
         self.clothing_change_count += 1
@@ -1238,6 +1293,7 @@ class PandaCharacter:
             'name': self.name,
             'gender': self.gender.value,
             'current_mood': self.current_mood.value,
+            'facing': self.facing.value,
             'click_count': self.click_count,
             'pet_count': self.pet_count,
             'feed_count': self.feed_count,
@@ -1250,6 +1306,8 @@ class PandaCharacter:
             'clothing_change_count': self.clothing_change_count,
             'items_thrown_at_count': self.items_thrown_at_count,
             'belly_poke_count': self.belly_poke_count,
+            'fall_count': self.fall_count,
+            'tip_over_count': self.tip_over_count,
             'files_processed': self.files_processed_count,
             'failed_operations': self.failed_operations,
             'easter_eggs_found': len(self.easter_eggs_triggered),
