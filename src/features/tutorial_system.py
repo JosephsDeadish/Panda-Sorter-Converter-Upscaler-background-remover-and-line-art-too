@@ -1174,6 +1174,411 @@ _PANDA_TOOLTIPS = {
             "Switch configs. For the indecisive.",
         ]
     },
+    'pause_button': {
+        'normal': [
+            "Pause the sorting operation temporarily",
+            "Temporarily halt the current sorting process",
+            "Freeze the sorting progress to resume later",
+            "Put the sorting operation on hold",
+        ],
+        'vulgar': [
+            "Hit pause, you indecisive bastard.",
+            "Take a damn breather. Sorting can wait.",
+            "Pause this sh*t. Go grab a coffee or something.",
+            "Hold the hell up. We're pausing.",
+            "Freeze! Not you, the sorting process, you idiot.",
+        ]
+    },
+    'stop_button': {
+        'normal': [
+            "Stop the sorting operation completely",
+            "Cancel the current sorting process",
+            "Terminate the sorting operation in progress",
+            "Halt all sorting activity immediately",
+        ],
+        'vulgar': [
+            "ABORT! ABORT! Kill the sorting process!",
+            "Stop this sh*t right now. Full stop.",
+            "Pull the damn emergency brake on sorting.",
+            "Nuke the sorting operation from orbit. It's the only way to be sure.",
+            "Stop everything. Panic button activated, you disaster.",
+        ]
+    },
+    'sort_mode_menu': {
+        'normal': [
+            "Select the sorting mode: automatic, manual, or suggested",
+            "Choose how textures are sorted and categorized",
+            "Pick the sorting approach that suits your workflow",
+            "Switch between different sorting strategies",
+        ],
+        'vulgar': [
+            "Pick a sort mode. Auto if you're lazy, manual if you're a control freak.",
+            "Sorting strategy selector. Choose your damn destiny.",
+            "Auto, manual, or suggested. Like dating preferences but for textures.",
+            "How do you want your sh*t sorted? Pick one already.",
+            "Sort mode menu. Because apparently 'just sort it' wasn't specific enough.",
+        ]
+    },
+    'extract_archives': {
+        'normal': [
+            "Extract textures from archive files (ZIP, 7Z, RAR, TAR.GZ)",
+            "Unpack compressed archives to access textures inside",
+            "Automatically detect and extract archived texture files",
+            "Enable extraction of textures from compressed containers",
+        ],
+        'vulgar': [
+            "Unzip that sh*t. ZIP, 7Z, RAR, whatever you've compressed.",
+            "Extract from archives. Because your textures are trapped in zip jail.",
+            "Free your damn textures from their compressed prison cells.",
+            "Archive extraction. Liberating files since forever, you lazy ass.",
+            "Dig through compressed crap and find the textures. Automatically.",
+        ]
+    },
+    'compress_output': {
+        'normal': [
+            "Compress the sorted output into a ZIP file",
+            "Create a ZIP archive of the organized textures",
+            "Bundle the sorted results into a compressed file",
+            "Package output into a compressed archive for sharing",
+        ],
+        'vulgar': [
+            "Squish everything into a ZIP. Compression magic, baby.",
+            "Zip it up. Not your mouth, the output folder.",
+            "Compress output. Because disk space isn't free, you hoarder.",
+            "Make a ZIP file. Perfect for sharing your sorted sh*t.",
+            "Pack it all up into a tidy little compressed ball of textures.",
+        ]
+    },
+    'convert_from_format': {
+        'normal': [
+            "Select the source format for texture conversion",
+            "Choose which texture format to convert from",
+            "Set the input format for the conversion process",
+            "Pick the original format of your texture files",
+        ],
+        'vulgar': [
+            "What format are your textures in? Pick the source, genius.",
+            "Source format. Tell me what format your crap is currently in.",
+            "Input format selector. What the hell am I converting FROM?",
+            "From-format. Step one of unfucking your texture formats.",
+            "Original format. The 'before' in this before-and-after makeover.",
+        ]
+    },
+    'convert_to_format': {
+        'normal': [
+            "Select the target format for texture conversion",
+            "Choose which format to convert textures to",
+            "Set the desired output format for conversion",
+            "Pick the format you want your textures converted to",
+        ],
+        'vulgar': [
+            "What format do you want? Pick the target, smartass.",
+            "Target format. What should your textures become? Choose wisely.",
+            "Output format selector. What the hell am I converting TO?",
+            "To-format. Step two of unfucking your texture formats.",
+            "Destination format. The 'after' in this glow-up.",
+        ]
+    },
+    'convert_recursive': {
+        'normal': [
+            "Convert files in subdirectories recursively",
+            "Include textures in all subfolders for conversion",
+            "Process nested directory structures during conversion",
+            "Enable recursive conversion through folder hierarchies",
+        ],
+        'vulgar': [
+            "Go deep. Convert files in ALL subfolders, you thorough bastard.",
+            "Recursive mode. Dig through every damn subdirectory.",
+            "Search every nook and cranny. No folder left behind!",
+            "Recursion! Folders within folders within folders. We'll find 'em all.",
+            "Like a mole digging through directories. Every subfolder gets hit.",
+        ]
+    },
+    'convert_keep_original': {
+        'normal': [
+            "Keep original files after conversion",
+            "Preserve source files alongside converted output",
+            "Don't delete originals when converting textures",
+            "Maintain original texture files as backup",
+        ],
+        'vulgar': [
+            "Keep the originals. Because you don't trust anything, do you?",
+            "Don't delete the source files. Safety first, you paranoid genius.",
+            "Backup mode: keep your old crap AND the new crap. Double the crap!",
+            "Preserve originals. Hoarding tendencies enabled. No judgment.",
+            "Keep both versions. Your disk space is crying but whatever.",
+        ]
+    },
+    'profile_new': {
+        'normal': [
+            "Create a new game organization profile",
+            "Set up a fresh profile for a different game",
+            "Start a new configuration profile from scratch",
+            "Add a new profile to your collection",
+        ],
+        'vulgar': [
+            "New profile! Start fresh, you beautiful disaster.",
+            "Create another profile. As if the 50 you have aren't enough.",
+            "Fresh profile. Clean slate. New mistakes to make!",
+            "Brand new profile. Because starting over is always an option.",
+            "Make a new profile. Your collection of configs grows ever larger.",
+        ]
+    },
+    'settings_perf_tab': {
+        'normal': [
+            "Performance settings: threads, cache, and batch size",
+            "Adjust performance-related configuration options",
+            "Fine-tune processing speed and resource usage",
+            "Configure performance parameters for optimal speed",
+        ],
+        'vulgar': [
+            "Performance settings. Make it go brrr or save your CPU from meltdown.",
+            "Speed tweaks. For when 'fast enough' just isn't fast enough.",
+            "Performance tab. Overclock your texture sorting, you nerd.",
+            "CPU settings. Thread counts and cache sizes. Nerd sh*t.",
+            "Perf settings. Because you want everything yesterday.",
+        ]
+    },
+    'settings_appearance_tab': {
+        'normal': [
+            "Appearance settings: themes, fonts, and visual options",
+            "Customize the look and feel of the application",
+            "Adjust visual preferences like themes and font sizes",
+            "Configure UI appearance and display settings",
+        ],
+        'vulgar': [
+            "Make it pretty. Or ugly. Your call, interior decorator.",
+            "Appearance tab. Because functionality alone is too boring for you.",
+            "Visual settings. Theme it, font it, fancy it up.",
+            "Look and feel settings. Lipstick on a pig? Maybe. But a FABULOUS pig.",
+            "UI beautification zone. Make those pixels dance, you vain bastard.",
+        ]
+    },
+    'settings_controls_tab': {
+        'normal': [
+            "Controls settings: keyboard shortcuts and input options",
+            "Configure keyboard bindings and control preferences",
+            "Customize hotkeys and control schemes",
+            "Set up your preferred keyboard shortcuts",
+        ],
+        'vulgar': [
+            "Keyboard shortcuts. For people who think mice are for peasants.",
+            "Controls tab. Rebind keys like the power user you pretend to be.",
+            "Hotkey heaven. Ctrl+everything. Go wild, keyboard warrior.",
+            "Key bindings. Because clicking is SO last century.",
+            "Controls setup. Map every damn key to something. Even Caps Lock.",
+        ]
+    },
+    'settings_files_tab': {
+        'normal': [
+            "File settings: default paths, formats, and file handling",
+            "Configure file-related preferences and defaults",
+            "Set default directories and file processing options",
+            "Adjust how files are handled and organized",
+        ],
+        'vulgar': [
+            "File settings. Tell the app where your crap lives.",
+            "File handling prefs. Paths, formats, all that boring file sh*t.",
+            "Where do files go? Where do they come from? Configure it here.",
+            "File settings tab. For those who care about directory structures.",
+            "Path configurations. Because typing paths manually is for masochists.",
+        ]
+    },
+    'settings_ai_tab': {
+        'normal': [
+            "AI settings: vision models and automatic categorization",
+            "Configure AI-powered texture analysis options",
+            "Set up machine learning features for smart sorting",
+            "Adjust AI model preferences for texture recognition",
+        ],
+        'vulgar': [
+            "AI settings. Teaching a computer to look at textures. Welcome to the future.",
+            "Robot brain configuration. Make the AI smarter. Or dumber. Your call.",
+            "AI tab. Skynet for texture sorting. Totally not concerning.",
+            "Machine learning settings. It's like training a dog, but nerdier.",
+            "AI config. Let the robots handle it while you eat snacks.",
+        ]
+    },
+    'settings_system_tab': {
+        'normal': [
+            "System settings: updates, logging, and diagnostics",
+            "Configure system-level application options",
+            "Adjust system behavior, updates, and debug settings",
+            "Manage system preferences and maintenance options",
+        ],
+        'vulgar': [
+            "System settings. The 'under the hood' stuff for tech nerds.",
+            "System tab. Logs, updates, diagnostics. Boring but important, dammit.",
+            "The engine room. Touch things carefully or everything explodes.",
+            "System config. For people who read error logs for fun.",
+            "Under-the-hood settings. Careful, there be dragons here.",
+        ]
+    },
+    'tooltip_mode_normal': {
+        'normal': [
+            "Standard tooltips with clear, helpful descriptions",
+            "Professional tooltip mode with informative text",
+            "Regular tooltip style for everyday use",
+            "Normal tooltips providing useful guidance",
+        ],
+        'vulgar': [
+            "Boring normal mode. For the straights who can't handle spice.",
+            "Normal tooltips. Vanilla. Plain. Like unseasoned chicken.",
+            "Standard mode. Snooze fest but technically helpful.",
+            "Normal mode. For when you want help without the attitude.",
+            "The boring option. Professional and dull as hell.",
+        ]
+    },
+    'tooltip_mode_dumbed_down': {
+        'normal': [
+            "Simplified tooltips for beginners and new users",
+            "Easy-to-understand explanations for every feature",
+            "Beginner-friendly tooltips with extra detail",
+            "Tooltips written in simple, accessible language",
+        ],
+        'vulgar': [
+            "Baby mode. Explains everything like you're five. No shame.",
+            "Dumbed down mode. We don't judge your intelligence. Much.",
+            "ELI5 tooltips. Big words scary? This mode's for you.",
+            "Beginner mode. Hand-holding included. Training wheels on.",
+            "Simple mode. Because reading is hard sometimes. We get it.",
+        ]
+    },
+    'tooltip_mode_vulgar': {
+        'normal': [
+            "Vulgar Panda mode: sarcastic, funny, and explicit tooltips",
+            "Adult-only tooltip mode with colorful language",
+            "Humorous and irreverent tooltip style with profanity",
+            "The unfiltered, no-holds-barred tooltip experience",
+        ],
+        'vulgar': [
+            "You're already here, you beautiful degenerate. Welcome home.",
+            "Vulgar mode. The ONLY mode. Why would you pick anything else?",
+            "This mode. The best mode. F*ck the other options.",
+            "Welcome to the party, asshole. Best tooltips in the game.",
+            "The correct choice. Everything else is a waste of screen space.",
+        ]
+    },
+    'shop_balance': {
+        'normal': [
+            "Your current Bamboo Bucks balance",
+            "Shows how many Bamboo Bucks you have to spend",
+            "Displays your available currency for shop purchases",
+            "Your wallet balance in Bamboo Bucks",
+        ],
+        'vulgar': [
+            "Your broke-ass balance. Time to grind more, cheapskate.",
+            "Bamboo Bucks. Your virtual wallet. Probably empty.",
+            "How much cash you got? Spoiler: never enough.",
+            "Your balance. Try not to cry at the number.",
+            "Bamboo Bucks count. Jeff Bezos you are not.",
+        ]
+    },
+    'shop_level': {
+        'normal': [
+            "Your current user level",
+            "Shows your level and experience progress",
+            "Displays your current rank and leveling status",
+            "Your user level determines shop item availability",
+        ],
+        'vulgar': [
+            "Your level. Higher = more stuff to buy. Grind harder.",
+            "Level indicator. Flex on the newbies with your big number.",
+            "Your rank. Still a noob? Keep sorting, peasant.",
+            "Level display. Size doesn't matter... except here it does.",
+            "Your XP level. Level up or forever be locked out of cool sh*t.",
+        ]
+    },
+    'inventory_animations': {
+        'normal': [
+            "Play animations on your panda companion",
+            "Use animation items to trigger panda actions",
+            "Activate collected animations for your panda",
+            "Browse and play panda animation items",
+        ],
+        'vulgar': [
+            "Make the panda dance. Or wave. Or whatever these animations do.",
+            "Play animations. Watch your bear do stupid tricks.",
+            "Animation items. Because your panda needs to show off.",
+            "Trigger panda animations. Free entertainment for the easily amused.",
+            "Panda tricks! Teach your virtual bear to do things. Badly.",
+        ]
+    },
+    'popout_button': {
+        'normal': [
+            "Pop this tab out into a separate window",
+            "Detach this tab into its own floating window",
+            "Open this tab in an independent window",
+            "Undock this tab for multi-monitor use",
+        ],
+        'vulgar': [
+            "Pop it out! Like a damn zit but for UI tabs.",
+            "Detach this tab. Freedom for windows! Viva la revolución!",
+            "Separate window. For multi-monitor flex lords.",
+            "Pop out this tab. Because one window is never enough for you.",
+            "Undock it. Let this tab spread its wings and fly, dammit.",
+        ]
+    },
+    'minigames_tab': {
+        'normal': [
+            "Play mini-games to earn rewards and have fun",
+            "Access available mini-games for extra rewards",
+            "Open the mini-games section to play and earn currency",
+            "Choose from a selection of mini-games to enjoy",
+        ],
+        'vulgar': [
+            "Mini-games! Because sorting textures alone is boring as hell.",
+            "Play games. Win prizes. Waste time. The holy trinity.",
+            "Game time, baby! Earn Bamboo Bucks while procrastinating.",
+            "Mini-games tab. The 'I should be working' section.",
+            "Games! Because you'd rather play than sort textures, you slacker.",
+        ]
+    },
+    'closet_appearance': {
+        'normal': [
+            "Your panda's current outfit summary",
+            "See what your panda is currently wearing",
+            "View the full list of equipped items on your panda",
+            "Check your panda's current clothing and accessories",
+        ],
+        'vulgar': [
+            "Your panda's look. Rate it out of 10. I dare you.",
+            "Current outfit. Is it fashion? Is it a disaster? You decide.",
+            "What your bear is wearing. Hopefully not a crime against fashion.",
+            "Panda's current drip. Or lack thereof.",
+            "Outfit check! Looking good? Looking terrible? Who cares, it's a panda.",
+        ]
+    },
+    'closet_header': {
+        'normal': [
+            "Dress up your panda with outfits and accessories",
+            "Customize your panda's look using your wardrobe",
+            "Manage your panda's clothing and equipped items",
+            "Open the closet to style your panda companion",
+        ],
+        'vulgar': [
+            "The closet. Where fashion dreams come true. Or die horribly.",
+            "Wardrobe management. Your panda has more clothes than you.",
+            "Dress-up time! Your panda's about to look fabulous. Maybe.",
+            "Closet header. Welcome to Panda's Next Top Model.",
+            "Fashion central. Make your bear look less naked. Or don't.",
+        ]
+    },
+    'achievement_progress': {
+        'normal': [
+            "Track your progress toward completing this achievement",
+            "See how close you are to finishing this achievement",
+            "View the completion percentage for this goal",
+            "Check how much remains before this achievement unlocks",
+        ],
+        'vulgar': [
+            "Progress bar. Watch it fill up. Riveting entertainment.",
+            "How close you are. Spoiler: probably not close enough.",
+            "Achievement progress. Almost there... or not even close.",
+            "Progress tracker. For the impatient obsessive types.",
+            "Completion percentage. Like a loading screen but for achievements.",
+        ]
+    },
 }
 
 
@@ -2559,6 +2964,167 @@ class TooltipVerbosityManager:
                 "View your lifetime Bamboo Bucks income",
                 "Check your all-time earnings from sorting, games, and achievements",
             ],
+            'pause_button': [
+                "Pause the current sorting operation",
+                "Temporarily halt sorting to review progress",
+                "Freeze the sorting process; resume anytime",
+                "Put sorting on hold without losing progress",
+                "Suspend the current sorting task temporarily",
+            ],
+            'stop_button': [
+                "Stop the sorting operation completely",
+                "Cancel and terminate the current sort process",
+                "End the sorting operation immediately",
+                "Abort the current sorting task entirely",
+                "Halt all sorting and discard remaining work",
+            ],
+            'sort_mode_menu': [
+                "Choose the sorting mode: automatic, manual, or suggested",
+                "Select how textures are categorized during sorting",
+                "Switch between automatic and manual sorting strategies",
+                "Pick a sorting approach that fits your workflow",
+                "Configure the sorting method for texture organization",
+            ],
+            'extract_archives': [
+                "Extract textures from compressed archives (ZIP, 7Z, RAR, TAR.GZ)",
+                "Automatically unpack archive files to access textures",
+                "Enable extraction of textures from compressed containers",
+                "Detect and decompress archived texture files before sorting",
+                "Support for extracting textures from common archive formats",
+            ],
+            'compress_output': [
+                "Compress sorted output into a ZIP archive",
+                "Bundle the organized textures into a compressed file",
+                "Create a ZIP file from the sorted output directory",
+                "Package results into a compressed archive for sharing",
+                "Generate a ZIP archive of all sorted textures",
+            ],
+            'convert_from_format': [
+                "Select the source format for texture conversion",
+                "Choose which file format to convert textures from",
+                "Set the input format for the conversion pipeline",
+                "Pick the original format of your texture files",
+                "Specify the current format of textures to convert",
+            ],
+            'convert_to_format': [
+                "Select the target format for texture conversion",
+                "Choose which file format to convert textures into",
+                "Set the desired output format for converted files",
+                "Pick the format your textures should be converted to",
+                "Specify the destination format for texture conversion",
+            ],
+            'convert_recursive': [
+                "Convert textures in all subdirectories recursively",
+                "Include files from nested folders in conversion",
+                "Process entire folder hierarchies during conversion",
+                "Enable recursive scanning for texture conversion",
+                "Traverse subdirectories to find and convert textures",
+            ],
+            'convert_keep_original': [
+                "Keep original files after conversion completes",
+                "Preserve source textures alongside converted files",
+                "Don't delete originals during the conversion process",
+                "Maintain a backup of original textures automatically",
+                "Retain the original files when converting to a new format",
+            ],
+            'profile_new': [
+                "Create a new game organization profile",
+                "Set up a fresh profile with default settings",
+                "Add a new configuration profile to your collection",
+                "Start a new profile for a different game or project",
+                "Initialize a blank profile for custom configuration",
+            ],
+            'settings_perf_tab': [
+                "Open performance settings for threads, cache, and batch size",
+                "Adjust processing performance and resource allocation",
+                "Fine-tune speed settings for texture operations",
+                "Configure CPU and memory usage for optimal performance",
+                "Access performance tuning options for sorting and conversion",
+            ],
+            'settings_appearance_tab': [
+                "Open appearance settings for themes, fonts, and visuals",
+                "Customize the look and feel of the application",
+                "Adjust theme, font size, and display preferences",
+                "Configure visual options and UI style settings",
+                "Personalize the application's appearance to your liking",
+            ],
+            'settings_controls_tab': [
+                "Open controls settings for keyboard shortcuts",
+                "Configure hotkeys and keyboard bindings",
+                "Customize keyboard shortcuts for quick actions",
+                "Set up control preferences and key mappings",
+                "Manage keyboard input settings and shortcut assignments",
+            ],
+            'settings_files_tab': [
+                "Open file settings for paths, formats, and handling",
+                "Configure default directories and file preferences",
+                "Set default input and output paths for convenience",
+                "Adjust file processing and naming conventions",
+                "Manage file-related configuration options",
+            ],
+            'settings_ai_tab': [
+                "Open AI settings for vision models and categorization",
+                "Configure AI-powered texture recognition options",
+                "Set up machine learning models for smart sorting",
+                "Adjust AI parameters for automatic categorization",
+                "Manage AI model selection and analysis preferences",
+            ],
+            'settings_system_tab': [
+                "Open system settings for updates, logging, and diagnostics",
+                "Configure system-level preferences and maintenance",
+                "Adjust update frequency, logging, and debug options",
+                "Manage system behavior and diagnostic settings",
+                "Access advanced system configuration and troubleshooting",
+            ],
+            'tooltip_mode_normal': [
+                "Switch to normal tooltip mode with standard descriptions",
+                "Use professional, clear tooltips for everyday use",
+                "Select the default tooltip style with helpful text",
+                "Enable standard tooltips with informative descriptions",
+                "Choose the regular tooltip mode for balanced guidance",
+            ],
+            'tooltip_mode_dumbed_down': [
+                "Switch to simplified tooltips for beginners",
+                "Use easy-to-understand explanations for all features",
+                "Select the beginner-friendly tooltip style",
+                "Enable detailed, accessible tooltips for new users",
+                "Choose simplified tooltips with extra guidance",
+            ],
+            'tooltip_mode_vulgar': [
+                "Switch to Vulgar Panda mode for sarcastic tooltips",
+                "Enable humorous, explicit tooltip language",
+                "Select the irreverent adult-only tooltip style",
+                "Activate Vulgar Panda mode for colorful commentary",
+                "Choose the unfiltered, no-holds-barred tooltip experience",
+            ],
+            'shop_balance': [
+                "View your current Bamboo Bucks balance",
+                "Check how many Bamboo Bucks you have available",
+                "See your spendable currency in the shop",
+                "Display your current wallet balance",
+                "Shows the Bamboo Bucks you can spend on items",
+            ],
+            'shop_level': [
+                "View your current user level and rank",
+                "Check your level to see what items you can unlock",
+                "Your level determines which shop items are available",
+                "See your experience level and progression status",
+                "Display your current rank in the leveling system",
+            ],
+            'inventory_animations': [
+                "Browse and play animation items for your panda",
+                "Use collected animations to trigger panda actions",
+                "Activate animation items from your inventory",
+                "View available animation items and play them",
+                "Select animations to entertain your panda companion",
+            ],
+            'popout_button': [
+                "Pop this tab out into a separate window",
+                "Detach the current tab into its own floating window",
+                "Open this tab in an independent resizable window",
+                "Undock this tab for use on another monitor",
+                "Create a standalone window from this tab",
+            ],
         }
         
         # Merge tooltip variants from the inlined tooltip definitions
@@ -3246,6 +3812,115 @@ class TooltipVerbosityManager:
                 "All the Bamboo Bucks you've ever earned.",
                 "Your lifetime earnings in the app's currency.",
             ],
+            'pause_button': [
+                "Click this to pause the sorting. It will stop but remember where it was, so you can continue later.",
+                "This button pauses sorting. Nothing is lost — just click again to keep going.",
+            ],
+            'stop_button': [
+                "Click this to completely stop sorting. You'll need to start over if you want to sort again.",
+                "This button cancels the sorting process entirely. Use it if you want to stop and start fresh.",
+            ],
+            'sort_mode_menu': [
+                "This lets you choose how sorting works. 'Automatic' does it all for you, 'Manual' lets you decide, and 'Suggested' gives recommendations.",
+                "Pick a sorting mode here. If you're not sure, 'Automatic' is the easiest choice.",
+                "This dropdown changes the sorting method. Try 'Automatic' first — it's the simplest.",
+            ],
+            'extract_archives': [
+                "If your textures are inside ZIP or other compressed files, this will unpack them first so they can be sorted.",
+                "This option opens compressed files (like ZIP) to get the textures out before sorting them.",
+            ],
+            'compress_output': [
+                "After sorting, this packs everything into one ZIP file so it's easy to share or move.",
+                "This creates a compressed ZIP file from your sorted textures.",
+            ],
+            'convert_from_format': [
+                "Choose what format your textures are in right now (like PNG or DDS). This is the 'from' part of the conversion.",
+                "Pick the current format of your texture files here.",
+            ],
+            'convert_to_format': [
+                "Choose what format you want your textures to become (like PNG or DDS). This is the 'to' part of the conversion.",
+                "Pick the format you want to convert your textures into.",
+            ],
+            'convert_recursive': [
+                "When this is on, the converter looks inside all subfolders too, not just the main folder.",
+                "Turn this on to convert textures in subfolders as well as the main folder.",
+            ],
+            'convert_keep_original': [
+                "When this is on, your original files are kept safe. The converted files are saved alongside them.",
+                "This keeps your original texture files instead of replacing them with the converted versions.",
+            ],
+            'profile_new': [
+                "Click this to make a brand new profile. A profile saves all your settings so you can switch between different setups.",
+                "This creates a new profile. Think of it like a save slot for your settings.",
+            ],
+            'settings_perf_tab': [
+                "This tab has settings that affect speed — like how many processor threads to use and how much memory to allow.",
+                "Performance settings control how fast things run. If the app feels slow, check here.",
+            ],
+            'settings_appearance_tab': [
+                "This tab lets you change how the app looks — themes, font sizes, and other visual things.",
+                "Change the app's appearance here. Pick a theme or adjust the font size.",
+            ],
+            'settings_controls_tab': [
+                "This tab lets you set up keyboard shortcuts so you can do things faster with key presses.",
+                "Configure your keyboard shortcuts here. Handy if you use the app a lot.",
+            ],
+            'settings_files_tab': [
+                "This tab has settings about files — like default folder locations and file naming options.",
+                "Set up where files go by default and how they're handled.",
+            ],
+            'settings_ai_tab': [
+                "This tab controls the AI features that help automatically identify and sort textures.",
+                "AI settings for smart texture sorting. The app can use AI to figure out what textures are.",
+            ],
+            'settings_system_tab': [
+                "This tab has system-level settings like updates, error logs, and diagnostic options.",
+                "System settings for updates and troubleshooting. You usually won't need to change these.",
+            ],
+            'tooltip_mode_normal': [
+                "This sets tooltips to normal mode — clear and helpful descriptions of what things do.",
+                "Normal tooltips give you straightforward, professional descriptions.",
+            ],
+            'tooltip_mode_dumbed_down': [
+                "This sets tooltips to beginner mode — everything is explained in very simple language (like this!).",
+                "Beginner tooltips explain things in the simplest way possible. Perfect if you're new!",
+            ],
+            'tooltip_mode_vulgar': [
+                "This sets tooltips to vulgar mode — the descriptions are funny and use adult language, but still helpful.",
+                "Vulgar Panda mode makes tooltips funny and sarcastic with some bad words. Still tells you what things do!",
+            ],
+            'shop_balance': [
+                "This shows how many Bamboo Bucks you have. That's the currency you use to buy things in the shop.",
+                "Your Bamboo Bucks balance — the money you earn from sorting and playing games.",
+            ],
+            'shop_level': [
+                "This shows your current level. As you level up, you can buy more items in the shop.",
+                "Your level number. Higher levels unlock more items to purchase.",
+            ],
+            'inventory_animations': [
+                "This section shows animation items you own. Click one to make your panda do a fun action!",
+                "Play animations on your panda! These are special items that trigger cute actions.",
+            ],
+            'popout_button': [
+                "Click this to open the current tab in its own separate window. Useful if you have multiple monitors.",
+                "This pops the tab out into a floating window you can move around independently.",
+            ],
+            'minigames_tab': [
+                "Click here to play fun mini-games! You can earn Bamboo Bucks and other rewards while playing.",
+                "This tab has mini-games you can play for fun and to earn rewards.",
+            ],
+            'closet_appearance': [
+                "This shows what your panda is currently wearing. You can see all equipped clothing and accessories here.",
+                "View your panda's current outfit — all the clothes and accessories they have on right now.",
+            ],
+            'closet_header': [
+                "This is the closet where you dress up your panda! Pick outfits, hats, and accessories from items you own.",
+                "The panda closet — use it to change what your panda wears.",
+            ],
+            'achievement_progress': [
+                "This shows how far along you are in completing an achievement. The bar fills up as you make progress.",
+                "A progress bar showing how close you are to finishing this achievement.",
+            ],
         }
     
     def _get_vulgar_panda_tooltips(self) -> Dict[str, Any]:
@@ -3254,116 +3929,200 @@ class TooltipVerbosityManager:
             'sort_button': [
                 "Click this to sort your damn textures. It's not rocket science, Karen.",
                 "Hit this button and watch your textures get organized. Magic, right?",
+                "Sort your textures or live in chaos forever. Your damn choice.",
+                "Organizing textures. Because your folder is a f*cking war zone.",
+                "Click to sort. Even a monkey could do it. Probably faster than you.",
             ],
             'convert_button': [
                 "Turn your textures into whatever the hell format you need.",
                 "Format conversion. Because one format is never enough for you people.",
+                "Convert those textures. Abracadabra, format-change-a, motherf*cker.",
+                "Format alchemy. Turn PNG lead into DDS gold. Or whatever.",
+                "File format conversion. It's not brain surgery, but it's close enough.",
             ],
             'input_browse': [
                 "Find your texture folder. Come on, you can do this.",
                 "Navigate to your texture folder. I believe in you. Maybe.",
+                "Browse for your damn input folder. It's not gonna find itself.",
+                "Pick the source folder. Where's your texture stash, you hoarder?",
+                "Input directory selection. Point me to the goods, genius.",
             ],
             'output_browse': [
                 "Where do you want this beautiful organized mess?",
                 "Pick where the sorted stuff goes. Any folder. Your call.",
+                "Choose the output destination. Where should this organized sh*t go?",
+                "Output folder picker. Select a place for your sorted masterpiece.",
+                "Destination directory. Where do you want your beautiful sorted textures?",
             ],
             'detect_lods': [
                 "LOD detection. Fancy words for 'find the quality variants'.",
                 "Find the blurry and sharp versions of the same texture. Science!",
+                "LOD finder. Hunting down quality variants like a texture detective.",
+                "Detect level-of-detail versions. Big textures, small textures, we find 'em all.",
+                "LOD detection enabled. Your blurry thumbnails won't escape us.",
             ],
             'group_lods': [
                 "Keep LOD buddies together. They get lonely apart.",
                 "Group quality variants together. Like a texture family reunion.",
+                "Group LODs together. Texture family therapy, basically.",
+                "LOD grouping. Keeping related textures together so they don't get lonely.",
+                "Buddy system for textures. No LOD left behind, dammit.",
             ],
             'detect_duplicates': [
                 "Find duplicate textures. Because apparently you have trust issues.",
                 "Spot the copycats. Your hard drive will thank you.",
+                "Find the clones! Duplicate detection for paranoid perfectionists.",
+                "Duplicate finder. Your hard drive is full of identical crap and you know it.",
+                "Spot the copies. Cleaning up your mess one duplicate at a time.",
             ],
             'style_dropdown': [
                 "How do you want your stuff organized? Pick one, any one.",
                 "Organization style. Because everyone's a control freak about something.",
+                "Sorting style selector. Pick your organizational poison.",
+                "Choose your style. Flat, nested, by type — whatever makes your OCD happy.",
+                "Style picker. How anal-retentive are you about folder structure?",
             ],
             'settings_button': [
                 "Tweak sh*t. Make it yours. Go nuts.",
                 "Settings. Where the magic happens. Or where things break.",
+                "Configuration paradise. Or hell. Depends on how deep you go.",
+                "Preferences! Tweak every little thing until it's perfect. Or broken.",
+                "Settings menu. Enter at your own risk, you compulsive tweaker.",
             ],
             'theme_button': [
                 "Dark mode = hacker vibes. Light mode = boomer energy.",
                 "Toggle the dark side. Or the light side. No judgment.",
+                "Theme toggle. Dark mode for vampires, light mode for psychopaths.",
+                "Switch themes. Make it dark. Make it light. Make it whatever the hell you want.",
+                "Theme button. Your eyes will either thank you or curse you.",
             ],
             'help_button': [
                 "Lost? Confused? Click here, we'll hold your hand.",
                 "Need help? That's what this button is for, genius.",
+                "HELP! I need somebody! HELP! Not just anybody! Click this button.",
+                "Assistance mode. For when you're too proud to Google it.",
+                "Help button. We've all been there. No shame. Okay, a little shame.",
             ],
             'achievements_tab': [
                 "Check your trophies, you overachiever.",
                 "See how many fake awards you've collected. Congrats, I guess.",
+                "Achievement gallery. Your digital trophy case of awesomeness.",
+                "Check your achievements. Feel validated. Then chase the next one, addict.",
+                "Virtual trophies for virtual accomplishments. Living the dream, champ.",
             ],
             'shop_tab': [
                 "This is the loot cave. Spend your shiny points, idiot.",
                 "The shop. Where your hard-earned points go to die.",
+                "Shop time! Open your wallet and cry at the prices.",
+                "The store. Where dreams are purchased and Bamboo Bucks go to die.",
+                "Shopping spree! Everything's affordable if you sort enough textures.",
             ],
             'shop_buy_button': [
                 "Yeet your money at this item. Do it.",
                 "Buy it. You know you want to. Impulse control is overrated.",
+                "BUY IT. Your virtual wallet can handle it. Probably.",
+                "Purchase button. Money go bye-bye, item go hello!",
+                "Spend those Bamboo Bucks. You can't take 'em with you.",
             ],
             'shop_category_button': [
                 "Filter the shop. Because scrolling is for peasants.",
                 "Narrow it down. Too many choices hurting your brain?",
+                "Filter categories. Because the shop has more crap than Walmart.",
+                "Category filter. Focus your shopping addiction on one section at a time.",
+                "Sort the store items. Ironic, using a sorter to sort the sorter's shop.",
             ],
             'rewards_tab': [
                 "Your loot table. See what you can unlock.",
                 "All the shiny things you haven't earned yet. Motivating, right?",
+                "Rewards! The carrot on the stick that keeps you sorting, you sucker.",
+                "Unlockable goodies. Motivation to keep grinding, you beautiful fool.",
+                "Reward list. See what you're missing out on. Feel the FOMO.",
             ],
             'closet_tab': [
                 "Dress up your panda. Fashion show time.",
                 "Panda makeover! Because even virtual bears need style.",
+                "Panda fashion show! Outfits, accessories, the whole shebang.",
+                "The closet! Where your panda gets dressed. Or undressed. We don't judge.",
+                "Wardrobe section. Your panda has more style options than you do.",
             ],
             'browser_browse_button': [
                 "Pick a folder. Any folder. Let's see what's inside.",
                 "Open a folder. I promise we won't judge your file organization. Much.",
+                "Browse folders. Navigate the digital wilderness of your file system.",
+                "Folder picker. Point and click your way to texture discovery.",
+                "Open a directory. Adventure awaits in your file system! ...maybe.",
             ],
             'browser_refresh_button': [
                 "Refresh. In case something magically changed.",
                 "Reload the file list. For the paranoid types.",
+                "Refresh! Did something change? Probably not, but check anyway, paranoid.",
+                "Reload the list. Insanity is doing this repeatedly expecting different results.",
+                "Hit refresh. The digital equivalent of shaking a vending machine.",
             ],
             'browser_search': [
                 "Find your damn files. Type something.",
                 "Search for files. Use your keyboard. That's the thing with letters on it.",
+                "Search box. Type what you want. Pray it exists.",
+                "File search. Like Google but way more disappointing.",
+                "Find files. Lost something? This is your only hope, padawan.",
             ],
             'browser_show_all': [
                 "Show EVERYTHING. Even the weird files.",
                 "Toggle this to see ALL files. Prepare yourself.",
+                "Show all files. Even the ones you forgot existed. Especially those.",
+                "Toggle full visibility. See EVERYTHING. Brace your eyeballs.",
+                "All files mode. Warning: you might find things you wish you hadn't.",
             ],
             # Tab tooltips
             'sort_tab': [
                 "The main event. Sort your textures or go home.",
                 "Sorting tab. Where the real work happens.",
+                "Sorting headquarters. Where the actual work gets done, slacker.",
+                "The sorting tab. Your textures won't organize themselves, dumbass.",
+                "Sort tab. AKA the reason this app exists. Try using it.",
             ],
             'convert_tab': [
                 "Format conversion. Because one format is never enough.",
                 "Convert stuff. DDS, PNG, whatever floats your boat.",
+                "Conversion station. Transform textures like a format wizard.",
+                "Convert tab. Format alchemy for the modern texture artist.",
+                "Format conversion central. Turn your crap into slightly different crap.",
             ],
             'browser_tab': [
                 "Snoop through your texture files like a pro.",
                 "Browse your files. Digital window shopping.",
+                "File browser. Your textures, all laid out for your viewing pleasure.",
+                "Browse your files. It's like window shopping but for texture nerds.",
+                "Browser tab. See what you've got before you wreck what you've got.",
             ],
             'notepad_tab': [
                 "Scribble your thoughts. No one's judging. Maybe.",
                 "Write notes. Or a novel. We don't care.",
+                "Notepad. Write down important sh*t. Or doodle. I'm not your mother.",
+                "Text editor. For the organized people who take notes. Show-offs.",
+                "Notes tab. Jot something down before your goldfish memory forgets it.",
             ],
             'about_tab': [
                 "Credits and keyboard shortcuts. Riveting stuff.",
                 "Who made this thing and how to use it. Thrilling.",
+                "About section. See who built this masterpiece and how to control it.",
+                "Credits and shortcuts. The boring stuff nobody reads. Except you, apparently.",
+                "About tab. Legal stuff, credits, and the secrets of keyboard shortcuts.",
             ],
             # Category tooltips
             'tools_category': [
                 "The useful stuff. Sorting, converting, browsing.",
                 "Work tools. The boring but necessary section.",
+                "Tool belt. Sorting, converting, browsing — all the productive stuff.",
+                "Work tools category. The stuff you SHOULD be using instead of playing games.",
+                "The business section. No fun allowed. Just kidding. But seriously, work.",
             ],
             'features_category': [
                 "The fun stuff. Panda, shop, achievements, bling.",
                 "The cool extras. Panda time!",
+                "Feature land! Where pandas roam and achievements are meaninglessly rewarding.",
+                "The fun zone. Panda, shop, games — everything EXCEPT actual work.",
+                "Extra features. AKA the reason you spend more time here than sorting.",
             ],
             # Feature tab tooltips
             'inventory_tab': [
@@ -3952,6 +4711,195 @@ class TooltipVerbosityManager:
                 "All-time currency. You're basically a panda billionaire.",
                 "Money earned. Virtual money, but money nonetheless.",
                 "Bamboo Buck lifetime total. You've been busy!",
+            ],
+            'pause_button': [
+                "Pause this sh*t. Take a breather, you workaholic.",
+                "Hit pause. Even texture sorting needs a damn intermission.",
+                "PAUSE. Like a VCR. Google it, you young bastard.",
+                "Time out! The sorting can wait while you question your life choices.",
+                "Freeze frame! Everything stops. Dramatic, ain't it?",
+            ],
+            'stop_button': [
+                "STOP. Full stop. Done. Finito. Kaput.",
+                "Kill the process! MURDER IT! ...I mean, stop sorting.",
+                "Emergency stop! Slam the brakes! Everything DIES!",
+                "Abort mission! Pull the plug! Yeet the sorting into the void!",
+                "Stop button. For when you realize you f*cked up and need to bail.",
+            ],
+            'sort_mode_menu': [
+                "Pick your sorting style. Auto for lazy asses, manual for control freaks.",
+                "Sort mode selector. Choose your own damn adventure.",
+                "Auto, manual, or suggested. Like a transmission but for textures, dumbass.",
+                "How do you want your sh*t sorted? Make a decision for once in your life.",
+                "Sorting approach menu. Spoiler: you'll pick auto because you're lazy.",
+            ],
+            'extract_archives': [
+                "Unzip those compressed bastards. ZIP, 7Z, RAR — we crack 'em all open.",
+                "Archive extraction. Free your textures from their zippered prison!",
+                "Bust open those archives like a piñata full of textures!",
+                "Extract from compressed files. Like performing surgery on a ZIP file.",
+                "Archive support. We'll rip those textures out of whatever you stuffed them in.",
+            ],
+            'compress_output': [
+                "Zip it all up. Not your mouth — the output folder, smartass.",
+                "Compress output. Because sending 10,000 loose files is psychotic.",
+                "Make a ZIP. Package your sh*t. Be a civilized human being.",
+                "Compression mode. Squish those textures into a tidy little package.",
+                "ZIP the output. Your disk space and your sanity will thank you.",
+            ],
+            'convert_from_format': [
+                "What format is your crap in? Tell me so I can fix it.",
+                "Source format. The 'before' picture of this texture makeover.",
+                "FROM format. Step one: admit what format your textures are stuck in.",
+                "Input format. What the hell am I working with here?",
+                "Original format selector. What mess are we starting with today?",
+            ],
+            'convert_to_format': [
+                "What format do you want? Choose your destiny, format warrior.",
+                "Target format. The 'after' picture. Hopefully an improvement.",
+                "TO format. Step two: pick where this format journey ends.",
+                "Output format. What should your textures become? Choose wisely, grasshopper.",
+                "Destination format. The promised land for your converted textures.",
+            ],
+            'convert_recursive': [
+                "Go recursive! Dig through EVERY damn subdirectory like a mole on caffeine.",
+                "Check subfolders too. Leave no directory un-converted, you thoroughbred.",
+                "Recursive mode. Because your folder structure is deeper than the Mariana Trench.",
+                "All subfolders included. We're going DEEP. That's what she said.",
+                "Recursion activated. Folders within folders within folders. We'll find every last texture.",
+            ],
+            'convert_keep_original': [
+                "Keep the originals. Because you trust NOTHING and NO ONE. Smart.",
+                "Don't delete source files. Paranoia is a survival skill, honestly.",
+                "Preserve originals. Double the files, double the fun, double the disk space.",
+                "Keep both versions. You hoarding bastard. I respect it though.",
+                "Safety mode ON. Original files stay. Your data anxiety is valid.",
+            ],
+            'profile_new': [
+                "New profile. Because your current one is apparently not good enough.",
+                "Create a fresh profile. Starting over is always an option, you disaster.",
+                "Another profile?! How many configurations does one person NEED?!",
+                "New profile button. For the serial restarter in all of us.",
+                "Fresh start. New profile. New you. Same mess, probably.",
+            ],
+            'settings_perf_tab': [
+                "Performance settings. Make it ZOOM or make it gentle. Your CPU, your rules.",
+                "Speed tweaks for nerds. Threads, cache, batch size. Go nuts.",
+                "Perf tab. Where you overclock your texture sorting like a damn madman.",
+                "Performance tuning. Because 'it works' isn't good enough for you, is it?",
+                "CPU and memory settings. Don't melt your computer, genius.",
+            ],
+            'settings_appearance_tab': [
+                "Pretty settings. Make the app match your aesthetic, you vain creature.",
+                "Appearance tab. Because functionality isn't enough — it has to LOOK good too.",
+                "Theme and font settings. Interior decorating for software, basically.",
+                "Visual config. Dark mode? Light mode? Clown mode? It's all here.",
+                "Beautify the UI. Make those pixels dance to YOUR tune, drama queen.",
+            ],
+            'settings_controls_tab': [
+                "Keyboard shortcuts. For people too elite to use a mouse.",
+                "Controls. Rebind everything. Make Ctrl+Alt+Delete sort textures if you want.",
+                "Hotkey city. Every button gets a keyboard shortcut. Go crazy, keyboard warrior.",
+                "Key bindings tab. Because clicking is for PEASANTS.",
+                "Controls config. Map keys, break things, blame the software.",
+            ],
+            'settings_files_tab': [
+                "File settings. Tell the app where all your crap lives.",
+                "Paths and formats. The boring-but-necessary file configuration sh*t.",
+                "File handling prefs. Where do things go? How do they get there? Configure it.",
+                "Default paths and naming. For organized people. So probably not you.",
+                "File config. Because 'just put it wherever' isn't a valid strategy, Karen.",
+            ],
+            'settings_ai_tab': [
+                "AI settings. Welcome to the future, where robots sort your textures.",
+                "Machine learning config. Teach the computer brain. What could go wrong?",
+                "AI tab. Skynet for texture organization. I for one welcome our robot overlords.",
+                "Robot settings. Make the AI smarter so YOU can be lazier.",
+                "AI configuration. The singularity starts with texture sorting, apparently.",
+            ],
+            'settings_system_tab': [
+                "System settings. The 'don't touch unless you know what you're doing' section.",
+                "Under the hood. Logs, updates, debug mode. Nerd central.",
+                "System config. For tech masochists who enjoy reading log files.",
+                "The engine room. Proceed with caution, you curious bastard.",
+                "System tab. Where IT professionals feel at home and everyone else panics.",
+            ],
+            'tooltip_mode_normal': [
+                "Normal mode. Boring. Professional. Adequate. Like plain oatmeal.",
+                "Standard tooltips. For people who don't appreciate creative profanity.",
+                "Vanilla mode. Zero spice. Zero fun. Maximum helpfulness, I guess.",
+                "Normal tooltips. The safe option. The BORING option.",
+                "Switch to normal. If you hate fun and joy, this is your mode.",
+            ],
+            'tooltip_mode_dumbed_down': [
+                "Baby mode. Everything explained like you've never seen a computer before.",
+                "ELI5 tooltips. No shame in needing extra help. Okay, maybe a little shame.",
+                "Beginner mode. We'll hold your hand so gently. So, so gently.",
+                "Dumbed down. For when regular tooltips have too many big words.",
+                "Simple mode. Training wheels for your eyeballs. Adorable.",
+            ],
+            'tooltip_mode_vulgar': [
+                "THIS MODE. THE BEST MODE. You're goddamn right.",
+                "Vulgar Panda mode. Where the magic and the profanity happen.",
+                "Welcome to the good sh*t. Why would you ever use another mode?",
+                "The superior tooltip mode. Fight me if you disagree, coward.",
+                "You want this one. Trust me. The other modes are for wimps.",
+            ],
+            'shop_balance': [
+                "Your Bamboo Bucks. Probably not enough for anything good, you broke bastard.",
+                "Balance check. Prepare for disappointment, window shopper.",
+                "How much money you got? Not enough. Never enough. Grind harder.",
+                "Your virtual wallet. Almost certainly emptier than your real one.",
+                "Bamboo Bucks balance. You're not rich. Face it.",
+            ],
+            'shop_level': [
+                "Your level. Higher number = bigger e-peen. Congrats.",
+                "Level display. Are you high level yet? No? Sort more textures, scrub.",
+                "Your rank. Flex it. Or don't. Nobody's impressed anyway.",
+                "Level indicator. The number that determines if you're worthy of cool items.",
+                "XP level. Grind your way up or stay a peasant. Your call.",
+            ],
+            'inventory_animations': [
+                "Animation items. Make your panda do tricks like a trained circus bear.",
+                "Play animations! Watch your panda be an idiot. It's hilarious.",
+                "Panda tricks section. Dance, wave, whatever. They'll do anything for attention.",
+                "Animations! Because watching a panda just sit there is boring as sh*t.",
+                "Trigger panda animations. Free entertainment for your easily amused brain.",
+            ],
+            'popout_button': [
+                "Pop this tab out! Like busting out of prison but for UI elements.",
+                "Detach the tab. Let it be free! FREEDOM for windows!",
+                "Separate window time. Multi-monitor flex incoming.",
+                "Undock this bad boy. Spread your workspace across every screen you own.",
+                "Pop it out. Because cramming everything in one window is for savages.",
+            ],
+            'minigames_tab': [
+                "Mini-games! Because sorting textures is boring as HELL sometimes.",
+                "Game time, you procrastinating bastard. Earn bucks while slacking off.",
+                "Play games! Win prizes! Pretend you're being productive!",
+                "Mini-games tab. The 'I'm definitely still working' section.",
+                "Games! Because you'd rather play Snake than organize textures, admit it.",
+            ],
+            'closet_appearance': [
+                "Your panda's current look. Fashion disaster or style icon? You decide.",
+                "Outfit summary. See what crimes against fashion your panda is committing.",
+                "Current drip check. Is your panda stylish or looking like a damn fool?",
+                "What your bear's wearing right now. Probably something ridiculous.",
+                "Panda outfit overview. Rate it 1-10. Spoiler: it's always a 10 to me.",
+            ],
+            'closet_header': [
+                "The closet! Where your panda becomes a fashion ICON. Or a fashion DISASTER.",
+                "Wardrobe central. Your panda has more outfits than you do, probably.",
+                "Dress-up headquarters. Project Runway: Panda Edition starts NOW.",
+                "Closet time! Make your bear look absolutely fabulous or utterly ridiculous.",
+                "Fashion central for your fluffy friend. No judgment. Okay, SOME judgment.",
+            ],
+            'achievement_progress': [
+                "Progress bar. Watch it slowly fill up while you question your hobbies.",
+                "How close you are to that achievement. Spoiler: not close enough, probably.",
+                "Achievement progress. The world's slowest loading bar, basically.",
+                "Progress tracker. For obsessive completionists who need to see the NUMBERS.",
+                "How far along you are. Keep going, you beautiful overachiever. Or don't.",
             ],
         }
         
