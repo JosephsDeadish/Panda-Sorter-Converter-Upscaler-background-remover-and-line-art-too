@@ -132,6 +132,9 @@ class PreprocessingPipeline:
             min_dim = min(h, w)
             max_dim = max(h, w)
             
+            # Use min_dim for retro check (any dimension too small needs upscaling)
+            # Use max_dim for HD check (any dimension very large needs minimal processing)
+            # This handles edge cases like 200x2000 (retro) and 1000x4000 (HD)
             if min_dim < self.retro_threshold:
                 mode = 'retro'
             elif max_dim > self.hd_threshold:

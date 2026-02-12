@@ -55,6 +55,19 @@ class FileHandler:
     # Vector formats that need conversion
     VECTOR_FORMATS = {'.svg', '.svgz'}
     
+    # Format name mapping for PIL
+    FORMAT_MAP = {
+        'jpg': 'JPEG',
+        'jpeg': 'JPEG',
+        'jpe': 'JPEG',
+        'jfif': 'JPEG',
+        'tif': 'TIFF',
+        'tiff': 'TIFF'
+    }
+    
+    # Formats that don't support transparency
+    NO_ALPHA_FORMATS = {'jpeg', 'jpg', 'jpe', 'jfif', 'bmp'}
+    
     def __init__(self, create_backup=True):
         self.create_backup = create_backup
         self.operations_log = []
@@ -256,18 +269,19 @@ class FileHandler:
                         if output_path is None:
                             output_path = file_path.with_suffix(f'.{target_format}')
                         
-                        # Map format names to PIL format identifiers
-                        format_map = {
-                            'jpg': 'JPEG',
-                            'jpeg': 'JPEG',
-                            'jpe': 'JPEG',
-                            'jfif': 'JPEG',
-                            'tif': 'TIFF',
-                            'tiff': 'TIFF'
-                        }
+                        # Get proper format name for PIL
+                        pil_format = self.FORMAT_MAP.get(target_format.lower(), target_format.upper())
                         
-                        # Get proper format name
-                        pil_format = format_map.get(target_format.lower(), target_format.upper())
+                        # Handle transparency for formats that don't support it
+                        if target_format.lower() in self.NO_ALPHA_FORMATS and img.mode in ('RGBA', 'LA'):
+                            logger.info(f"Converting {img.mode} to RGB for {target_format} (no transparency support)")
+                            # Create white background
+                            background = Image.new('RGB', img.size, (255, 255, 255))
+                            if img.mode == 'RGBA':
+                                background.paste(img, mask=img.split()[3])  # Use alpha as mask
+                            else:
+                                background.paste(img, mask=img.split()[1])  # LA mode
+                            img = background
                         
                         # Save in target format
                         img.save(output_path, format=pil_format)
