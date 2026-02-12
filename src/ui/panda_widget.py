@@ -232,6 +232,7 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
         self._prev_drag_vy = 0.0       # Previous vertical drag velocity for dangle
         self._prev_drag_vx = 0.0       # Previous horizontal drag velocity for dangle
         self._drag_grab_head = False   # True when drag started in head region
+        self._drag_grab_part = 'body'  # Body part grabbed during drag (head/body/belly/legs)
         
         # Ear stretch physics (elastic stretch during drag)
         self._ear_stretch = 0.0        # Current ear stretch amount
@@ -2225,9 +2226,12 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
 
             # --- Draw accessories with type-specific positioning ---
             if appearance.accessories:
-                # Use computed arm swing for wrist accessory sync
-                la_swing = _arm_swing
-                ra_swing = -_arm_swing
+                # Include dangle physics for drag sync. Dangle represents whole-body
+                # motion, applied equally to both arms; swing provides left/right symmetry.
+                arm_dangle = int(self._dangle_arm)
+                arm_dangle_h = int(self._dangle_arm_h)
+                la_swing = _arm_swing + arm_dangle
+                ra_swing = -_arm_swing + arm_dangle
 
                 # Classify accessories by type for proper placement
                 _WRIST_IDS = {
@@ -2253,10 +2257,10 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
                         arm_len = int(35 * sy)
                         wrist_y = arm_top + arm_len
                         if i % 2 == 0:
-                            wrist_x = cx - int(42 * sx)
+                            wrist_x = cx - int(42 * sx) + arm_dangle_h
                             wrist_y_adj = wrist_y + int(la_swing)
                         else:
-                            wrist_x = cx + int(42 * sx)
+                            wrist_x = cx + int(42 * sx) + arm_dangle_h
                             wrist_y_adj = wrist_y + int(ra_swing)
                         # Bracelet band
                         band_h = int(5 * sy)
@@ -2346,27 +2350,32 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
                     shadow = self._shade_color(color, -30)
                     highlight = self._shade_color(color, 40)
                     foot_base = int(170 * sy + by)
-                    left_shoe_swing = int(_leg_swing)
-                    right_shoe_swing = int(-_leg_swing)
+                    # Include dangle physics for drag sync. Dangle represents whole-body
+                    # motion applied equally to both legs; swing provides left/right symmetry.
+                    leg_dangle = int(self._dangle_leg)
+                    leg_dangle_h = int(self._dangle_leg_h)
+                    left_shoe_swing = int(_leg_swing) + leg_dangle
+                    right_shoe_swing = int(-_leg_swing) + leg_dangle
 
                     for shoe_cx, shoe_swing in [(cx - int(25 * sx), left_shoe_swing),
                                                  (cx + int(25 * sx), right_shoe_swing)]:
                         shoe_y = foot_base + shoe_swing
+                        shoe_x = shoe_cx + leg_dangle_h
                         # Shoe body
                         c.create_oval(
-                            shoe_cx - int(15 * sx), shoe_y,
-                            shoe_cx + int(15 * sx), shoe_y + int(12 * sy),
+                            shoe_x - int(15 * sx), shoe_y,
+                            shoe_x + int(15 * sx), shoe_y + int(12 * sy),
                             fill=color, outline=shadow, width=1,
                             tags="equipped_shoes")
                         # Sole
                         c.create_rectangle(
-                            shoe_cx - int(14 * sx), shoe_y + int(8 * sy),
-                            shoe_cx + int(14 * sx), shoe_y + int(12 * sy),
+                            shoe_x - int(14 * sx), shoe_y + int(8 * sy),
+                            shoe_x + int(14 * sx), shoe_y + int(12 * sy),
                             fill=shadow, outline='', tags="equipped_shoes")
                         # Lace / highlight
                         c.create_line(
-                            shoe_cx - int(4 * sx), shoe_y + int(3 * sy),
-                            shoe_cx + int(4 * sx), shoe_y + int(3 * sy),
+                            shoe_x - int(4 * sx), shoe_y + int(3 * sy),
+                            shoe_x + int(4 * sx), shoe_y + int(3 * sy),
                             fill=highlight, width=1, tags="equipped_shoes")
         except Exception as e:
             logger.debug(f"Error drawing equipped items: {e}")
@@ -2848,10 +2857,18 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
         self._drag_moved = False
         # Stop any auto-walk in progress
         self._is_auto_walking = False
-        # Detect if grabbed by head for dangle physics
+        # Detect which body part is being grabbed
         label_height = max(1, self.panda_label.winfo_height())
+        label_width = max(1, self.panda_label.winfo_width())
         rel_y = event.y / label_height
+        rel_x = event.x / label_width
         self._drag_grab_head = rel_y < 0.32  # HEAD_BOUNDARY
+        # Determine the specific body part grabbed for spin/shake detection
+        if self.panda and hasattr(self.panda, 'get_body_part_at_position'):
+            self._drag_grab_part = self.panda.get_body_part_at_position(rel_y, rel_x)
+        else:
+            # Fallback if panda character not available
+            self._drag_grab_part = 'head' if self._drag_grab_head else 'body'
         # Stop any active toss physics
         if self._toss_timer:
             try:
@@ -2947,8 +2964,16 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
         - Spinning: consistent circular rotation around a center
         These are mutually exclusive; shake requires primarily linear
         back-and-forth motion while spin requires a circular path.
+        
+        Spin and shake detection only occurs when grabbed by belly/body,
+        not when grabbed by head or other parts.
         """
         if len(self._drag_positions) < 8:
+            return
+        
+        # Only detect spin/shake when grabbed by belly (body/butt areas)
+        # This prevents false detections when dragging by head or legs
+        if self._drag_grab_part not in ('body', 'butt'):
             return
         
         # Enforce cooldown between drag-pattern animation triggers
