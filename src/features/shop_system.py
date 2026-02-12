@@ -30,6 +30,7 @@ class ShopCategory(Enum):
     SPECIAL = "special"
     FOOD = "food"
     TOYS = "toys"
+    WEAPONS = "weapons"  # New category for weapons
 
 
 # Mapping from ShopCategory to CustomizationCategory for persistent
@@ -2158,6 +2159,89 @@ class ShopSystem:
             level_required=25,
             one_time_purchase=True,
             unlockable_id='closet_phoenix_feather'
+        ),
+        
+        # Weapons - Melee
+        'weapon_wooden_sword': ShopItem(
+            id='weapon_wooden_sword',
+            name='Wooden Sword',
+            description='A basic training sword made of wood',
+            category=ShopCategory.WEAPONS,
+            price=100,
+            icon='🗡️',
+            level_required=1,
+            one_time_purchase=True,
+            unlockable_id='wooden_sword'
+        ),
+        'weapon_bamboo_staff': ShopItem(
+            id='weapon_bamboo_staff',
+            name='Bamboo Staff',
+            description='A sturdy staff made from ancient bamboo',
+            category=ShopCategory.WEAPONS,
+            price=150,
+            icon='🎋',
+            level_required=1,
+            one_time_purchase=True,
+            unlockable_id='bamboo_staff'
+        ),
+        'weapon_iron_sword': ShopItem(
+            id='weapon_iron_sword',
+            name='Iron Sword',
+            description='A reliable blade forged from iron',
+            category=ShopCategory.WEAPONS,
+            price=300,
+            icon='⚔️',
+            level_required=5,
+            one_time_purchase=True,
+            unlockable_id='iron_sword'
+        ),
+        'weapon_katana': ShopItem(
+            id='weapon_katana',
+            name='Panda Katana',
+            description='A legendary blade passed down through generations',
+            category=ShopCategory.WEAPONS,
+            price=800,
+            icon='🗡️',
+            level_required=10,
+            one_time_purchase=True,
+            unlockable_id='katana'
+        ),
+        
+        # Weapons - Ranged
+        'weapon_slingshot': ShopItem(
+            id='weapon_slingshot',
+            name='Bamboo Slingshot',
+            description='A simple slingshot for launching bamboo shoots',
+            category=ShopCategory.WEAPONS,
+            price=120,
+            icon='🏹',
+            level_required=1,
+            one_time_purchase=True,
+            unlockable_id='slingshot'
+        ),
+        'weapon_bow': ShopItem(
+            id='weapon_bow',
+            name='Hunting Bow',
+            description='A well-crafted bow for ranged combat',
+            category=ShopCategory.WEAPONS,
+            price=400,
+            icon='🏹',
+            level_required=5,
+            one_time_purchase=True,
+            unlockable_id='bow'
+        ),
+        
+        # Weapons - Magic
+        'weapon_magic_wand': ShopItem(
+            id='weapon_magic_wand',
+            name='Bamboo Wand',
+            description='A wand imbued with natural magic',
+            category=ShopCategory.WEAPONS,
+            price=500,
+            icon='🪄',
+            level_required=5,
+            one_time_purchase=True,
+            unlockable_id='magic_wand'
         ),
     }
     

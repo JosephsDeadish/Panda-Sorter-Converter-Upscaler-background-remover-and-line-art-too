@@ -164,6 +164,13 @@ except ImportError:
     print("Warning: Panda widgets not available.")
 
 try:
+    from src.features.weapon_system import WeaponCollection
+    WEAPON_SYSTEM_AVAILABLE = True
+except ImportError:
+    WEAPON_SYSTEM_AVAILABLE = False
+    print("Warning: Weapon system not available.")
+
+try:
     from src.ui.goodbye_splash import show_goodbye_splash
     GOODBYE_SPLASH_AVAILABLE = True
 except ImportError:
@@ -394,6 +401,7 @@ class PS2TextureSorter(ctk.CTk):
         self.panda_closet = None
         self.panda_widget = None
         self.widget_collection = None
+        self.weapon_collection = None
         self.closet_panel = None
         self.current_game_info = None  # Store detected game info
         
@@ -450,6 +458,9 @@ class PS2TextureSorter(ctk.CTk):
                     self.panda_closet = PandaCloset()
                 if PANDA_WIDGETS_AVAILABLE:
                     self.widget_collection = WidgetCollection()
+                if WEAPON_SYSTEM_AVAILABLE:
+                    weapons_path = CONFIG_DIR / 'weapons.json'
+                    self.weapon_collection = WeaponCollection(save_path=weapons_path)
                 
                 # Setup tutorial system
                 if TUTORIAL_AVAILABLE:
@@ -5219,6 +5230,18 @@ class PS2TextureSorter(ctk.CTk):
                     logger.info(f"Unlocked toy widget: {item.unlockable_id}")
                 except Exception as e:
                     logger.debug(f"Could not unlock toy widget: {e}")
+            
+            # Handle weapon purchases — unlock weapon in collection
+            if item.category.value == 'weapons' and item.unlockable_id and self.weapon_collection:
+                try:
+                    success = self.weapon_collection.unlock_weapon(item.unlockable_id)
+                    if success:
+                        self.log(f"⚔️ Unlocked {item.name}! Check the Armory to equip it.")
+                        logger.info(f"Unlocked weapon: {item.unlockable_id}")
+                    else:
+                        logger.warning(f"Failed to unlock weapon: {item.unlockable_id}")
+                except Exception as e:
+                    logger.debug(f"Could not unlock weapon: {e}")
             
             messagebox.showinfo("Purchase Successful", message)
             
