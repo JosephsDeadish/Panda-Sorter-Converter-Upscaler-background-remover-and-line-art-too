@@ -41,6 +41,11 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
       
+      - name: Verify PyYAML in PyInstaller Environment
+        run: |
+          python -c "import yaml; print(f'PyYAML {yaml.__version__} is available')"
+          echo "✅ PyYAML is installed in the same Python environment as PyInstaller"
+      
       - name: Run Syntax Validation
         run: |
           python -m compileall -q .

@@ -75,6 +75,24 @@ if ($LASTEXITCODE -ne 0) {
 Write-Host "✓ Dependencies installed" -ForegroundColor Green
 Write-Host ""
 
+# Verify PyYAML is installed in this environment
+Write-Host "Verifying PyYAML is installed in the PyInstaller environment..." -ForegroundColor Yellow
+try {
+    $yamlVersion = python -c "import yaml; print(yaml.__version__)" 2>&1
+    if ($LASTEXITCODE -ne 0) { throw "PyYAML not found" }
+    Write-Host "✓ PyYAML $yamlVersion is available" -ForegroundColor Green
+} catch {
+    Write-Host "⚠ PyYAML not found. Installing PyYAML..." -ForegroundColor Yellow
+    pip install PyYAML
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "✗ ERROR: Failed to install PyYAML" -ForegroundColor Red
+        Read-Host "Press Enter to exit"
+        exit 1
+    }
+    Write-Host "✓ PyYAML installed successfully" -ForegroundColor Green
+}
+Write-Host ""
+
 # Clean previous builds
 Write-Host "[6/6] Cleaning previous builds..." -ForegroundColor Yellow
 if (Test-Path "build") {

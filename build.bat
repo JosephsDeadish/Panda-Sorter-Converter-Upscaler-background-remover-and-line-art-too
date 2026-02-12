@@ -73,6 +73,23 @@ if errorlevel 1 (
 echo Dependencies installed successfully.
 echo.
 
+REM Verify PyYAML is installed in this environment
+echo Verifying PyYAML is installed in the PyInstaller environment...
+python -c "import yaml; print('PyYAML ' + yaml.__version__ + ' is available')"
+if errorlevel 1 (
+    echo WARNING: PyYAML not found. Installing PyYAML...
+    pip install PyYAML
+    if errorlevel 1 (
+        echo ERROR: Failed to install PyYAML
+        pause
+        exit /b 1
+    )
+    echo PyYAML installed successfully.
+) else (
+    echo PyYAML verified in the PyInstaller environment.
+)
+echo.
+
 REM Clean previous builds
 echo [6/6] Cleaning previous builds...
 if exist "build" rmdir /s /q build
