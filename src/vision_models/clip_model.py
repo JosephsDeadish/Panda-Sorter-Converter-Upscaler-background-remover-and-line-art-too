@@ -1,0 +1,344 @@
+"""
+CLIP Model Implementation
+Image-text embedding model for texture classification
+Author: Dead On The Inside / JosephsDeadish
+"""
+
+import logging
+from typing import List, Dict, Any, Optional, Union, Tuple
+import numpy as np
+from pathlib import Path
+
+logger = logging.getLogger(__name__)
+
+# Check for dependencies
+try:
+    import torch
+    import torch.nn.functional as F
+    from PIL import Image
+    TORCH_AVAILABLE = True
+except ImportError:
+    TORCH_AVAILABLE = False
+    logger.warning("PyTorch not available. CLIP model disabled.")
+
+try:
+    from transformers import CLIPProcessor, CLIPModel as HFCLIPModel
+    TRANSFORMERS_AVAILABLE = True
+except ImportError:
+    TRANSFORMERS_AVAILABLE = False
+    logger.warning("Transformers not available. CLIP model disabled.")
+
+try:
+    import open_clip
+    OPEN_CLIP_AVAILABLE = True
+except ImportError:
+    OPEN_CLIP_AVAILABLE = False
+    logger.debug("open_clip not available. Using transformers CLIP.")
+
+
+class CLIPModel:
+    """
+    CLIP (Contrastive Language-Image Pre-training) model for texture analysis.
+    
+    Features:
+    - Compare images to text descriptions
+    - Compare images to images (similarity)
+    - Generate image embeddings
+    - Strong performance on stylized and low-res textures
+    """
+    
+    def __init__(
+        self,
+        model_name: str = 'openai/clip-vit-base-patch32',
+        device: Optional[str] = None,
+        use_open_clip: bool = False
+    ):
+        """
+        Initialize CLIP model.
+        
+        Args:
+            model_name: HuggingFace model name or open_clip model name
+            device: Device to use ('cuda', 'cpu', or None for auto)
+            use_open_clip: Use open_clip instead of transformers
+        """
+        if not TORCH_AVAILABLE:
+            raise RuntimeError("PyTorch is required for CLIP model")
+        
+        self.use_open_clip = use_open_clip and OPEN_CLIP_AVAILABLE
+        
+        # Determine device
+        if device is None:
+            self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
+        else:
+            self.device = device
+        
+        logger.info(f"Initializing CLIP model on device: {self.device}")
+        
+        # Load model
+        if self.use_open_clip:
+            self._load_open_clip(model_name)
+        else:
+            self._load_transformers_clip(model_name)
+        
+        logger.info(f"CLIP model loaded: {model_name}")
+    
+    def _load_transformers_clip(self, model_name: str):
+        """Load CLIP model from transformers."""
+        if not TRANSFORMERS_AVAILABLE:
+            raise RuntimeError("Transformers is required for CLIP model")
+        
+        self.model = HFCLIPModel.from_pretrained(model_name).to(self.device)
+        self.processor = CLIPProcessor.from_pretrained(model_name)
+        self.model.eval()
+    
+    def _load_open_clip(self, model_name: str):
+        """Load CLIP model from open_clip."""
+        if not OPEN_CLIP_AVAILABLE:
+            raise RuntimeError("open_clip is required for open_clip models")
+        
+        # Parse model name (format: "model_name,pretrained")
+        if ',' in model_name:
+            model, pretrained = model_name.split(',')
+        else:
+            model = model_name
+            pretrained = 'openai'
+        
+        self.model, _, self.processor = open_clip.create_model_and_transforms(
+            model,
+            pretrained=pretrained,
+            device=self.device
+        )
+        self.tokenizer = open_clip.get_tokenizer(model)
+        self.model.eval()
+    
+    def encode_image(
+        self,
+        image: Union[np.ndarray, Image.Image, Path]
+    ) -> np.ndarray:
+        """
+        Encode image to embedding vector.
+        
+        Args:
+            image: Input image (numpy array, PIL Image, or Path)
+            
+        Returns:
+            Image embedding as numpy array
+        """
+        # Load image if path
+        if isinstance(image, Path):
+            image = Image.open(image).convert('RGB')
+        elif isinstance(image, np.ndarray):
+            image = Image.fromarray(image)
+        
+        with torch.no_grad():
+            if self.use_open_clip:
+                image_input = self.processor(image).unsqueeze(0).to(self.device)
+                embedding = self.model.encode_image(image_input)
+            else:
+                inputs = self.processor(images=image, return_tensors="pt").to(self.device)
+                embedding = self.model.get_image_features(**inputs)
+            
+            # Normalize embedding
+            embedding = F.normalize(embedding, p=2, dim=-1)
+            
+            return embedding.cpu().numpy()[0]
+    
+    def encode_text(
+        self,
+        text: Union[str, List[str]]
+    ) -> np.ndarray:
+        """
+        Encode text to embedding vector(s).
+        
+        Args:
+            text: Input text or list of texts
+            
+        Returns:
+            Text embedding(s) as numpy array
+        """
+        if isinstance(text, str):
+            text = [text]
+        
+        with torch.no_grad():
+            if self.use_open_clip:
+                text_tokens = self.tokenizer(text).to(self.device)
+                embedding = self.model.encode_text(text_tokens)
+            else:
+                inputs = self.processor(text=text, return_tensors="pt", padding=True).to(self.device)
+                embedding = self.model.get_text_features(**inputs)
+            
+            # Normalize embedding
+            embedding = F.normalize(embedding, p=2, dim=-1)
+            
+            return embedding.cpu().numpy()
+    
+    def compare_image_text(
+        self,
+        image: Union[np.ndarray, Image.Image, Path],
+        texts: List[str]
+    ) -> List[Dict[str, Any]]:
+        """
+        Compare image to multiple text descriptions.
+        
+        Args:
+            image: Input image
+            texts: List of text descriptions
+            
+        Returns:
+            List of dictionaries with text and similarity score
+        """
+        # Encode image
+        image_embedding = self.encode_image(image)
+        
+        # Encode texts
+        text_embeddings = self.encode_text(texts)
+        
+        # Calculate similarities
+        similarities = np.dot(text_embeddings, image_embedding)
+        
+        # Convert to probabilities
+        probs = self._softmax(similarities)
+        
+        # Create results
+        results = [
+            {
+                'text': text,
+                'similarity': float(sim),
+                'probability': float(prob)
+            }
+            for text, sim, prob in zip(texts, similarities, probs)
+        ]
+        
+        # Sort by similarity
+        results.sort(key=lambda x: x['similarity'], reverse=True)
+        
+        return results
+    
+    def compare_images(
+        self,
+        image1: Union[np.ndarray, Image.Image, Path],
+        image2: Union[np.ndarray, Image.Image, Path]
+    ) -> float:
+        """
+        Compare two images for similarity.
+        
+        Args:
+            image1: First image
+            image2: Second image
+            
+        Returns:
+            Cosine similarity score (0 to 1)
+        """
+        # Encode both images
+        emb1 = self.encode_image(image1)
+        emb2 = self.encode_image(image2)
+        
+        # Calculate cosine similarity
+        similarity = np.dot(emb1, emb2)
+        
+        return float(similarity)
+    
+    def classify_texture(
+        self,
+        image: Union[np.ndarray, Image.Image, Path],
+        categories: List[str],
+        category_descriptions: Optional[Dict[str, str]] = None
+    ) -> List[Dict[str, Any]]:
+        """
+        Classify texture into categories using text descriptions.
+        
+        Args:
+            image: Input texture image
+            categories: List of category names
+            category_descriptions: Optional dict mapping categories to descriptions
+            
+        Returns:
+            List of predictions with category, similarity, and probability
+        """
+        # Create text prompts
+        if category_descriptions:
+            texts = [
+                category_descriptions.get(cat, f"a {cat} texture")
+                for cat in categories
+            ]
+        else:
+            texts = [f"a {cat} texture" for cat in categories]
+        
+        # Compare image to texts
+        results = self.compare_image_text(image, texts)
+        
+        # Add category names to results
+        for result, category in zip(results, categories):
+            result['category'] = category
+        
+        return results
+    
+    def batch_encode_images(
+        self,
+        images: List[Union[np.ndarray, Image.Image, Path]],
+        batch_size: int = 32
+    ) -> np.ndarray:
+        """
+        Encode multiple images in batches.
+        
+        Args:
+            images: List of images
+            batch_size: Batch size for processing
+            
+        Returns:
+            Array of image embeddings (N, embedding_dim)
+        """
+        embeddings = []
+        
+        for i in range(0, len(images), batch_size):
+            batch = images[i:i + batch_size]
+            
+            # Process batch
+            batch_embeddings = [self.encode_image(img) for img in batch]
+            embeddings.extend(batch_embeddings)
+        
+        return np.array(embeddings)
+    
+    @staticmethod
+    def _softmax(x: np.ndarray, temperature: float = 1.0) -> np.ndarray:
+        """Apply softmax to convert similarities to probabilities."""
+        x = x / temperature
+        exp_x = np.exp(x - np.max(x))
+        return exp_x / exp_x.sum()
+    
+    def fine_tune(
+        self,
+        images: List[Union[np.ndarray, Image.Image, Path]],
+        labels: List[str],
+        learning_rate: float = 1e-5,
+        epochs: int = 10,
+        batch_size: int = 16
+    ):
+        """
+        Fine-tune CLIP model on custom dataset.
+        
+        NOTE: This is a placeholder for future functionality.
+        Fine-tuning CLIP requires significant implementation including:
+        - Dataset loader creation
+        - Optimizer and loss function setup
+        - Training loop with backpropagation
+        - Validation and checkpointing
+        
+        Args:
+            images: List of training images
+            labels: List of text labels for images
+            learning_rate: Learning rate
+            epochs: Number of training epochs
+            batch_size: Batch size
+            
+        Raises:
+            NotImplementedError: This feature is not yet implemented
+        """
+        # TODO: Implement fine-tuning
+        # This would require:
+        # 1. Creating a dataset loader
+        # 2. Setting up optimizer and loss function
+        # 3. Training loop with backpropagation
+        # 4. Validation and checkpointing
+        logger.warning("Fine-tuning not yet implemented")
+        raise NotImplementedError("Fine-tuning will be implemented in a future update")
