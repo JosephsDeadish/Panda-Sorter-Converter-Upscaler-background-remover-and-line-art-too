@@ -85,8 +85,11 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
     DRAG_HISTORY_SECONDS = 2.0      # How long to retain drag positions
     SHAKE_DIRECTION_CHANGES = 40    # X direction changes needed for shaking (high to avoid false triggers)
     MIN_SHAKE_MOVEMENT = 12         # Min px movement for a direction change (higher = less sensitive)
+    MIN_SHAKE_VELOCITY = 300        # Min avg speed (px/s) to consider shake (avoids slow-move false trigger)
     MIN_ROTATION_ANGLE = 0.55       # Min angle diff (radians) for spin detection (higher = less sensitive)
     SPIN_CONSISTENCY_THRESHOLD = 0.92  # Required ratio of consistent rotations (higher = stricter)
+    MIN_SPIN_POSITIONS = 16         # Min drag positions to attempt spin detection
+    MIN_SPIN_TOTAL_ANGLE = 3.14159  # Min total angle (radians, ~pi) swept for spin
     
     # Toss physics constants
     TOSS_FRICTION = 0.92            # Velocity decay per frame
@@ -110,6 +113,11 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
     DANGLE_DAMPING = 0.88            # Damping factor for limb dangle
     DANGLE_ARM_FACTOR = 0.3          # Arm response to vertical drag velocity
     DANGLE_LEG_FACTOR = 0.4          # Leg response to vertical drag velocity
+    DANGLE_ARM_H_FACTOR = 0.25       # Arm response to horizontal drag velocity
+    DANGLE_LEG_H_FACTOR = 0.35       # Leg response to horizontal drag velocity
+    # Full dangle (dangly look) only when grabbed by head region
+    DANGLE_HEAD_MULTIPLIER = 1.0     # Full dangle when held by head
+    DANGLE_BODY_MULTIPLIER = 0.3     # Minimal dangle when held elsewhere
     
     # Ear stretch physics constants (elastic stretch during drag)
     EAR_STRETCH_SPRING = 0.25        # Spring stiffness for ear stretch
@@ -208,11 +216,17 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
         self._belly_jiggle_vel = 0.0   # Jiggle velocity (spring-damper)
         
         # Limb dangle physics (arms/legs swing with inertia during drag)
-        self._dangle_arm = 0.0         # Arm dangle offset (pixels)
+        self._dangle_arm = 0.0         # Arm dangle offset (pixels, vertical)
         self._dangle_arm_vel = 0.0     # Arm dangle velocity
-        self._dangle_leg = 0.0         # Leg dangle offset (pixels)
+        self._dangle_leg = 0.0         # Leg dangle offset (pixels, vertical)
         self._dangle_leg_vel = 0.0     # Leg dangle velocity
+        self._dangle_arm_h = 0.0       # Arm horizontal dangle offset
+        self._dangle_arm_h_vel = 0.0   # Arm horizontal dangle velocity
+        self._dangle_leg_h = 0.0       # Leg horizontal dangle offset
+        self._dangle_leg_h_vel = 0.0   # Leg horizontal dangle velocity
         self._prev_drag_vy = 0.0       # Previous vertical drag velocity for dangle
+        self._prev_drag_vx = 0.0       # Previous horizontal drag velocity for dangle
+        self._drag_grab_head = False   # True when drag started in head region
         
         # Ear stretch physics (elastic stretch during drag)
         self._ear_stretch = 0.0        # Current ear stretch amount
@@ -655,10 +669,21 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
             leg_swing = math.sin(phase) * 4  # Gentle walk
             arm_swing = -8  # Arms held up carrying something
             body_bob = abs(math.sin(phase)) * 1.5  # Minimal bob
-        elif anim in ('dragging', 'tossed', 'wall_hit'):
-            leg_swing = math.sin(phase) * 15  # More exaggerated (was 10)
-            arm_swing = math.sin(phase + math.pi) * 12  # More exaggerated (was 8)
-            body_bob = abs(math.sin(phase)) * 5  # More exaggerated (was 3)
+        elif anim == 'dragging':
+            # Gentler dragging — legs dangle, arms flail less
+            leg_swing = math.sin(phase) * 8
+            arm_swing = math.sin(phase + math.pi) * 6
+            body_bob = abs(math.sin(phase)) * 2
+        elif anim == 'tossed':
+            # Wild toss — exaggerated flailing
+            leg_swing = math.sin(phase * 1.5) * 18
+            arm_swing = math.sin(phase * 2 + math.pi) * 16
+            body_bob = abs(math.sin(phase * 1.5)) * 6
+        elif anim == 'wall_hit':
+            # Impact stun — shudder and recoil
+            leg_swing = math.sin(phase * 3) * 5
+            arm_swing = math.sin(phase * 4) * 8
+            body_bob = -abs(math.sin(phase * 3)) * 4
         elif anim == 'dancing':
             dance_cycle = (frame_idx % 60) / 60.0
             if dance_cycle < 0.25:
@@ -1016,20 +1041,36 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
             self._belly_jiggle_vel = 0.0
         
         # --- Limb dangle physics (inertia during drag) ---
+        # Full dangly look only when held by head; otherwise minimal dangle
         if anim == 'dragging' and self.is_dragging:
-            # Drive dangle from vertical drag velocity
-            self._dangle_arm_vel += self._prev_drag_vy * self.DANGLE_ARM_FACTOR
-            self._dangle_leg_vel += self._prev_drag_vy * self.DANGLE_LEG_FACTOR
+            dangle_mult = self.DANGLE_HEAD_MULTIPLIER if self._drag_grab_head else self.DANGLE_BODY_MULTIPLIER
+            # Drive vertical dangle from vertical drag velocity
+            self._dangle_arm_vel += self._prev_drag_vy * self.DANGLE_ARM_FACTOR * dangle_mult
+            self._dangle_leg_vel += self._prev_drag_vy * self.DANGLE_LEG_FACTOR * dangle_mult
+            # Drive horizontal dangle from horizontal drag velocity (sway opposite to direction)
+            self._dangle_arm_h_vel += -self._prev_drag_vx * self.DANGLE_ARM_H_FACTOR * dangle_mult
+            self._dangle_leg_h_vel += -self._prev_drag_vx * self.DANGLE_LEG_H_FACTOR * dangle_mult
         self._dangle_arm_vel = (self._dangle_arm_vel - self._dangle_arm * self.DANGLE_SPRING) * self.DANGLE_DAMPING
         self._dangle_arm += self._dangle_arm_vel
         self._dangle_leg_vel = (self._dangle_leg_vel - self._dangle_leg * self.DANGLE_SPRING) * self.DANGLE_DAMPING
         self._dangle_leg += self._dangle_leg_vel
+        # Horizontal dangle spring-damper
+        self._dangle_arm_h_vel = (self._dangle_arm_h_vel - self._dangle_arm_h * self.DANGLE_SPRING) * self.DANGLE_DAMPING
+        self._dangle_arm_h += self._dangle_arm_h_vel
+        self._dangle_leg_h_vel = (self._dangle_leg_h_vel - self._dangle_leg_h * self.DANGLE_SPRING) * self.DANGLE_DAMPING
+        self._dangle_leg_h += self._dangle_leg_h_vel
         if abs(self._dangle_arm) < 0.2 and abs(self._dangle_arm_vel) < 0.2:
             self._dangle_arm = 0.0
             self._dangle_arm_vel = 0.0
         if abs(self._dangle_leg) < 0.2 and abs(self._dangle_leg_vel) < 0.2:
             self._dangle_leg = 0.0
             self._dangle_leg_vel = 0.0
+        if abs(self._dangle_arm_h) < 0.2 and abs(self._dangle_arm_h_vel) < 0.2:
+            self._dangle_arm_h = 0.0
+            self._dangle_arm_h_vel = 0.0
+        if abs(self._dangle_leg_h) < 0.2 and abs(self._dangle_leg_h_vel) < 0.2:
+            self._dangle_leg_h = 0.0
+            self._dangle_leg_h_vel = 0.0
         
         # --- Ear stretch physics (elastic spring-back) ---
         if anim == 'dragging' and self.is_dragging:
@@ -1349,10 +1390,11 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
         # --- Draw legs (behind body) ---
         leg_top = int(145 * sy + by)
         leg_len = int(30 * sy)
-        # Apply dangle physics to legs during drag
+        # Apply dangle physics to legs during drag (vertical + horizontal)
         leg_dangle = int(self._dangle_leg)
+        leg_dangle_h = int(self._dangle_leg_h)
         # Left leg
-        left_leg_x = cx - int(25 * sx)
+        left_leg_x = cx - int(25 * sx) + leg_dangle_h
         left_leg_swing = leg_swing + leg_dangle
         c.create_oval(
             left_leg_x - int(12 * sx), leg_top + left_leg_swing,
@@ -1366,7 +1408,7 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
             fill=white, outline=black, width=1, tags="foot"
         )
         # Right leg
-        right_leg_x = cx + int(25 * sx)
+        right_leg_x = cx + int(25 * sx) + leg_dangle_h
         right_leg_swing = -leg_swing + leg_dangle
         c.create_oval(
             right_leg_x - int(12 * sx), leg_top + right_leg_swing,
@@ -1404,20 +1446,21 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
         # --- Draw arms (black, attached to body sides) ---
         arm_top = int(95 * sy + by)
         arm_len = int(35 * sy)
-        # Apply dangle physics to arms during drag
+        # Apply dangle physics to arms during drag (vertical + horizontal)
         arm_dangle = int(self._dangle_arm)
+        arm_dangle_h = int(self._dangle_arm_h)
         # Left arm
         la_swing = arm_swing + arm_dangle
         c.create_oval(
-            cx - int(55 * sx), arm_top + la_swing,
-            cx - int(30 * sx), arm_top + arm_len + la_swing,
+            cx - int(55 * sx) + arm_dangle_h, arm_top + la_swing,
+            cx - int(30 * sx) + arm_dangle_h, arm_top + arm_len + la_swing,
             fill=black, outline=black, tags="arm"
         )
         # Right arm
         ra_swing = -arm_swing + arm_dangle
         c.create_oval(
-            cx + int(30 * sx), arm_top + ra_swing,
-            cx + int(55 * sx), arm_top + arm_len + ra_swing,
+            cx + int(30 * sx) + arm_dangle_h, arm_top + ra_swing,
+            cx + int(55 * sx) + arm_dangle_h, arm_top + arm_len + ra_swing,
             fill=black, outline=black, tags="arm"
         )
         
@@ -2305,6 +2348,10 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
         self.drag_start_y = event.y
         self.is_dragging = True
         self._drag_moved = False
+        # Detect if grabbed by head for dangle physics
+        label_height = max(1, self.panda_label.winfo_height())
+        rel_y = event.y / label_height
+        self._drag_grab_head = rel_y < 0.32  # HEAD_BOUNDARY
         # Stop any active toss physics
         if self._toss_timer:
             try:
@@ -2339,8 +2386,9 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
         if dt > 0:
             self._toss_velocity_x = (event.x_root - self._prev_drag_x) / max(dt, 0.001) * self.TOSS_FRAME_TIME
             self._toss_velocity_y = (event.y_root - self._prev_drag_y) / max(dt, 0.001) * self.TOSS_FRAME_TIME
-            # Track vertical velocity for limb dangle and ear stretch physics
+            # Track velocities for limb dangle and ear stretch physics
             self._prev_drag_vy = self._toss_velocity_y
+            self._prev_drag_vx = self._toss_velocity_x
         self._prev_drag_x = event.x_root
         self._prev_drag_y = event.y_root
         self._prev_drag_time = now
@@ -2392,7 +2440,14 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
             logger.debug(f"Drag motion error: {e}")
     
     def _detect_drag_patterns(self):
-        """Detect circular or shaking drag patterns."""
+        """Detect circular or shaking drag patterns.
+        
+        Uses velocity and motion shape to distinguish between:
+        - Shaking: rapid side-to-side with high velocity
+        - Spinning: consistent circular rotation around a center
+        These are mutually exclusive; shake requires primarily linear
+        back-and-forth motion while spin requires a circular path.
+        """
         if len(self._drag_positions) < 8:
             return
         
@@ -2403,25 +2458,38 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
         
         positions = self._drag_positions
         
-        # Detect fast side-to-side shaking (rapid X direction changes)
-        x_direction_changes = 0
-        for i in range(2, len(positions)):
-            dx_prev = positions[i-1][0] - positions[i-2][0]
-            dx_curr = positions[i][0] - positions[i-1][0]
-            if dx_prev * dx_curr < 0 and abs(dx_curr) > self.MIN_SHAKE_MOVEMENT:
-                x_direction_changes += 1
+        # Calculate average speed to distinguish fast shake from slow movement
+        total_dist = 0.0
+        for i in range(1, len(positions)):
+            dx = positions[i][0] - positions[i-1][0]
+            dy = positions[i][1] - positions[i-1][1]
+            total_dist += (dx * dx + dy * dy) ** 0.5
+        time_span = positions[-1][2] - positions[0][2] if len(positions) > 1 else 1.0
+        avg_speed = total_dist / max(time_span, 0.01)
         
-        if x_direction_changes >= self.SHAKE_DIRECTION_CHANGES:
-            self._last_drag_pattern_time = now
-            self._set_animation_no_cancel('shaking')
-            if self.panda:
-                response = self.panda.on_shake() if hasattr(self.panda, 'on_shake') else "🐼 S-s-stop shaking me!"
-                self.info_label.configure(text=response)
-            self._drag_positions = []
-            return
+        # Detect fast side-to-side shaking (rapid X direction changes at high speed)
+        # Require high average speed to avoid false triggers from slow movement
+        if avg_speed > self.MIN_SHAKE_VELOCITY:
+            x_direction_changes = 0
+            for i in range(2, len(positions)):
+                dx_prev = positions[i-1][0] - positions[i-2][0]
+                dx_curr = positions[i][0] - positions[i-1][0]
+                if dx_prev * dx_curr < 0 and abs(dx_curr) > self.MIN_SHAKE_MOVEMENT:
+                    x_direction_changes += 1
+            
+            if x_direction_changes >= self.SHAKE_DIRECTION_CHANGES:
+                self._last_drag_pattern_time = now
+                self._set_animation_no_cancel('shaking')
+                if self.panda:
+                    response = self.panda.on_shake() if hasattr(self.panda, 'on_shake') else "🐼 S-s-stop shaking me!"
+                    self.info_label.configure(text=response)
+                self._drag_positions = []
+                return
         
         # Detect circular dragging (consistent angle rotation)
-        if len(positions) >= 12:
+        # Requires enough points to form a real arc, and the path must
+        # span a meaningful angle range to distinguish from linear drag
+        if len(positions) >= self.MIN_SPIN_POSITIONS:
             angles = []
             cx = sum(p[0] for p in positions) / len(positions)
             cy = sum(p[1] for p in positions) / len(positions)
@@ -2432,6 +2500,7 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
             # Check for consistent rotation direction
             positive_diffs = 0
             negative_diffs = 0
+            total_angle = 0.0
             for i in range(1, len(angles)):
                 diff = angles[i] - angles[i-1]
                 # Normalize to [-pi, pi]
@@ -2439,13 +2508,15 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
                     diff -= 2 * math.pi
                 while diff < -math.pi:
                     diff += 2 * math.pi
+                total_angle += abs(diff)
                 if diff > self.MIN_ROTATION_ANGLE:
                     positive_diffs += 1
                 elif diff < -self.MIN_ROTATION_ANGLE:
                     negative_diffs += 1
             
             total = positive_diffs + negative_diffs
-            if total > 0 and (positive_diffs / total > self.SPIN_CONSISTENCY_THRESHOLD or negative_diffs / total > self.SPIN_CONSISTENCY_THRESHOLD):
+            # Require sufficient total rotation and high directional consistency
+            if total > 0 and total_angle > self.MIN_SPIN_TOTAL_ANGLE and (positive_diffs / total > self.SPIN_CONSISTENCY_THRESHOLD or negative_diffs / total > self.SPIN_CONSISTENCY_THRESHOLD):
                 self._last_drag_pattern_time = now
                 self._set_animation_no_cancel('spinning')
                 if self.panda:
@@ -2465,25 +2536,28 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
             # It was just a click (minimal movement)
             self._on_click(event)
         else:
-            if self.panda:
-                response = self.panda.on_toss() if hasattr(self.panda, 'on_toss') else "🐼 Home sweet home!"
-                self.info_label.configure(text=response)
-                # Award XP for moving the panda
-                if self.panda_level_system:
-                    try:
-                        xp = self.panda_level_system.get_xp_reward('click') // 2
-                    except (KeyError, AttributeError, TypeError):
-                        xp = 5
-                    self.panda_level_system.add_xp(xp, 'Moved panda')
-            
-            # Start toss physics if there's enough velocity
+            # Start toss physics if there's enough velocity (actually thrown)
             speed = (self._toss_velocity_x ** 2 + self._toss_velocity_y ** 2) ** 0.5
             if speed > self.TOSS_MIN_VELOCITY:
+                if self.panda:
+                    response = self.panda.on_toss() if hasattr(self.panda, 'on_toss') else "🐼 WHEEEEE! 🚀"
+                    self.info_label.configure(text=response)
                 self._start_toss_physics()
             else:
-                # Just save position and return to idle
+                # Gentle release — just put down, not a toss
+                if self.panda:
+                    response = self.panda.on_drag() if hasattr(self.panda, 'on_drag') else "🐼 Home sweet home!"
+                    self.info_label.configure(text=response)
                 self._save_panda_position()
-                self.play_animation_once('tossed')
+                self.start_animation('idle')
+            
+            # Award XP for moving the panda
+            if self.panda and self.panda_level_system:
+                try:
+                    xp = self.panda_level_system.get_xp_reward('click') // 2
+                except (KeyError, AttributeError, TypeError):
+                    xp = 5
+                self.panda_level_system.add_xp(xp, 'Moved panda')
     
     def _start_toss_physics(self):
         """Start toss physics simulation - panda bounces off walls and floor."""

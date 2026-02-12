@@ -1488,15 +1488,22 @@ class SoundSettingsPanel(ctk.CTkFrame):
     def _test_event_sound(self, event_id):
         """Play a test sound for the given event."""
         try:
-            from src.features.sound_manager import SoundManager, SoundEvent
+            from src.features.sound_manager import SoundManager, SoundEvent, SoundPack
             if not hasattr(self, '_test_sound_manager'):
                 self._test_sound_manager = SoundManager()
             sm = self._test_sound_manager
             sm.enabled = True
             sm.muted = False
+            # Apply the currently selected sound pack so the test uses it
+            try:
+                pack = SoundPack(self.sound_pack_var.get())
+                sm.set_sound_pack(pack)
+            except (ValueError, AttributeError):
+                pass
             try:
                 event = SoundEvent(event_id)
             except ValueError:
+                logger.warning(f"Unknown sound event: {event_id}")
                 return
             sm.play_sound(event, async_play=True, force=True)
         except Exception as e:
@@ -1544,8 +1551,11 @@ class SoundSettingsPanel(ctk.CTkFrame):
         return {
             'sound_enabled': self.sound_enabled_var.get(),
             'volume': self.volume_slider.get() / 100.0,
+            'effects_volume': self.effects_slider.get() / 100.0,
+            'notifications_volume': self.notif_slider.get() / 100.0,
             'sound_pack': self.sound_pack_var.get(),
-            'muted_sounds': {k: not v.get() for k, v in self.mute_vars.items()}
+            'muted_sounds': {k: not v.get() for k, v in self.mute_vars.items()},
+            'sound_choices': {k: v.get() for k, v in self.sound_choice_vars.items()},
         }
     
     def set_settings(self, settings: Dict[str, Any]):
@@ -1555,8 +1565,24 @@ class SoundSettingsPanel(ctk.CTkFrame):
             volume = int(settings['volume'] * 100)
             self.volume_slider.set(volume)
             self.volume_value_label.configure(text=f"{volume}%")
+        if 'effects_volume' in settings:
+            ev = int(settings['effects_volume'] * 100)
+            self.effects_slider.set(ev)
+            self.effects_value_label.configure(text=f"{ev}%")
+        if 'notifications_volume' in settings:
+            nv = int(settings['notifications_volume'] * 100)
+            self.notif_slider.set(nv)
+            self.notif_value_label.configure(text=f"{nv}%")
         if 'sound_pack' in settings:
             self.sound_pack_var.set(settings['sound_pack'])
+        if 'muted_sounds' in settings:
+            for event_id, muted in settings['muted_sounds'].items():
+                if event_id in self.mute_vars:
+                    self.mute_vars[event_id].set(not muted)
+        if 'sound_choices' in settings:
+            for event_id, choice in settings['sound_choices'].items():
+                if event_id in self.sound_choice_vars:
+                    self.sound_choice_vars[event_id].set(choice)
 
 
 class CustomizationPanel(ctk.CTkFrame):

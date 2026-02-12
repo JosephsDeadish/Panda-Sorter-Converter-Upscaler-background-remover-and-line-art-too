@@ -86,12 +86,12 @@ class WidgetsPanel(ctk.CTkFrame if ctk else tk.Frame):
         
         accessories_btn = ctk.CTkButton(
             category_frame,
-            text="✨ Accessories",
-            command=lambda: self._select_category(WidgetType.ACCESSORY)
+            text="🎬 Animations",
+            command=lambda: self._show_animations()
         ) if ctk else tk.Button(
             category_frame,
-            text="✨ Accessories",
-            command=lambda: self._select_category(WidgetType.ACCESSORY)
+            text="🎬 Animations",
+            command=lambda: self._show_animations()
         )
         accessories_btn.pack(pady=5, fill="x")
         
@@ -297,3 +297,66 @@ class WidgetsPanel(ctk.CTkFrame if ctk else tk.Frame):
             
             # Refresh display
             self._show_widgets()
+    
+    # Animation entries with emoji, display name, and animation state name
+    ANIMATION_ENTRIES = [
+        ("💃", "Dancing", "dancing"),
+        ("🎉", "Celebrating", "celebrating"),
+        ("👋", "Waving", "waving"),
+        ("🤸", "Cartwheel", "cartwheel"),
+        ("🔄", "Backflip", "backflip"),
+        ("🦘", "Jumping", "jumping"),
+        ("🙆", "Stretching", "stretching"),
+        ("🐾", "Tail Wag", "tail_wag"),
+        ("🌀", "Spinning", "spinning"),
+        ("😴", "Sleeping", "sleeping"),
+        ("🪑", "Sitting", "sitting"),
+        ("😌", "Lay On Back", "lay_on_back"),
+        ("🛌", "Lay On Side", "lay_on_side"),
+        ("🥱", "Yawning", "yawning"),
+        ("🤧", "Sneezing", "sneezing"),
+        ("🤗", "Belly Grab", "belly_grab"),
+    ]
+    
+    def _show_animations(self):
+        """Display available panda animations with play buttons."""
+        # Clear content frame
+        for widget in self.content_frame.winfo_children():
+            widget.destroy()
+        
+        self.current_category = None  # Not a widget category
+        
+        for emoji, name, anim_state in self.ANIMATION_ENTRIES:
+            card = ctk.CTkFrame(self.content_frame) if ctk else tk.Frame(
+                self.content_frame, relief="ridge", borderwidth=2
+            )
+            card.pack(pady=3, padx=10, fill="x")
+            
+            # Emoji + name
+            label = ctk.CTkLabel(
+                card, text=f"{emoji} {name}", font=("Arial", 13, "bold")
+            ) if ctk else tk.Label(
+                card, text=f"{emoji} {name}", font=("Arial", 13, "bold")
+            )
+            label.pack(side="left", padx=10, pady=5)
+            
+            # Play button
+            play_btn = ctk.CTkButton(
+                card, text="▶ Play", width=70, height=28,
+                command=lambda a=anim_state, n=name: self._play_animation(a, n)
+            ) if ctk else tk.Button(
+                card, text="▶ Play",
+                command=lambda a=anim_state, n=name: self._play_animation(a, n)
+            )
+            play_btn.pack(side="right", padx=10, pady=5)
+    
+    def _play_animation(self, anim_state: str, display_name: str):
+        """Play a panda animation via the callback."""
+        if self.panda_callback and hasattr(self.panda_callback, 'play_animation_once'):
+            self.panda_callback.play_animation_once(anim_state)
+            self.status_var.set(f"Playing: {display_name}")
+        elif self.panda_callback and hasattr(self.panda_callback, 'set_animation'):
+            self.panda_callback.set_animation(anim_state)
+            self.status_var.set(f"Playing: {display_name}")
+        else:
+            self.status_var.set("Panda not available for animations")

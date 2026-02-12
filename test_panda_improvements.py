@@ -245,6 +245,118 @@ def test_belly_jiggle_animation_state():
     assert state == 'belly_jiggle', "get_animation_state should return belly_jiggle"
     print("✓ belly_jiggle animation state is valid")
 
+def test_body_part_click_vs_rub_responses():
+    """Test that click and rub have separate response sets for body parts."""
+    panda = PandaCharacter()
+    # Click responses should use BODY_PART_CLICK_RESPONSES
+    assert hasattr(panda, 'BODY_PART_CLICK_RESPONSES'), \
+        "PandaCharacter should have BODY_PART_CLICK_RESPONSES"
+    assert hasattr(panda, 'BODY_PART_RESPONSES'), \
+        "PandaCharacter should have BODY_PART_RESPONSES"
+    # They should be separate dicts
+    assert panda.BODY_PART_CLICK_RESPONSES is not panda.BODY_PART_RESPONSES, \
+        "Click and rub responses should be separate dicts"
+    # Click response for head should differ from rub response
+    click_head = set(panda.BODY_PART_CLICK_RESPONSES.get('head', []))
+    rub_head = set(panda.BODY_PART_RESPONSES.get('head', []))
+    assert click_head != rub_head, \
+        "Head click and rub responses should be different"
+    print("✓ Body part click vs rub responses are separate")
+
+
+def test_body_part_click_returns_click_responses():
+    """Test that on_body_part_click uses click-specific responses."""
+    panda = PandaCharacter()
+    click_responses = panda.BODY_PART_CLICK_RESPONSES.get('head', [])
+    responses = set()
+    for _ in range(40):
+        responses.add(panda.on_body_part_click('head'))
+    # At least one response should be from the click-specific set
+    assert responses & set(click_responses), \
+        "on_body_part_click should use BODY_PART_CLICK_RESPONSES"
+    print("✓ on_body_part_click uses click-specific responses")
+
+
+def test_on_rub_returns_rub_responses():
+    """Test that on_rub uses rub/pet-specific responses."""
+    panda = PandaCharacter()
+    rub_responses = panda.BODY_PART_RESPONSES.get('head', [])
+    responses = set()
+    for _ in range(40):
+        responses.add(panda.on_rub('head'))
+    assert responses & set(rub_responses), \
+        "on_rub should use BODY_PART_RESPONSES"
+    print("✓ on_rub uses rub-specific responses")
+
+
+def test_dangle_physics_constants():
+    """Test that dangle physics constants exist for directional dangle."""
+    try:
+        from src.ui.panda_widget import PandaWidget
+        assert hasattr(PandaWidget, 'DANGLE_ARM_H_FACTOR'), \
+            "PandaWidget should have DANGLE_ARM_H_FACTOR for horizontal dangle"
+        assert hasattr(PandaWidget, 'DANGLE_LEG_H_FACTOR'), \
+            "PandaWidget should have DANGLE_LEG_H_FACTOR for horizontal dangle"
+        assert hasattr(PandaWidget, 'DANGLE_HEAD_MULTIPLIER'), \
+            "PandaWidget should have DANGLE_HEAD_MULTIPLIER"
+        assert hasattr(PandaWidget, 'DANGLE_BODY_MULTIPLIER'), \
+            "PandaWidget should have DANGLE_BODY_MULTIPLIER"
+        assert PandaWidget.DANGLE_HEAD_MULTIPLIER > PandaWidget.DANGLE_BODY_MULTIPLIER, \
+            "Head dangle should be stronger than body dangle"
+        print("✓ Dangle physics constants correctly defined")
+    except ImportError:
+        print("⚠ Skipping dangle physics test (GUI not available)")
+
+
+def test_shop_to_closet_category_mapping():
+    """Test that shop categories map to closet categories."""
+    from src.features.shop_system import ShopCategory, SHOP_TO_CLOSET_CATEGORY
+    assert ShopCategory.CLOTHES in SHOP_TO_CLOSET_CATEGORY, \
+        "CLOTHES should map to a closet category"
+    assert ShopCategory.ACCESSORIES in SHOP_TO_CLOSET_CATEGORY, \
+        "ACCESSORIES should map to a closet category"
+    assert SHOP_TO_CLOSET_CATEGORY[ShopCategory.CLOTHES] == "clothing", \
+        "CLOTHES should map to 'clothing'"
+    assert SHOP_TO_CLOSET_CATEGORY[ShopCategory.ACCESSORIES] == "accessory", \
+        "ACCESSORIES should map to 'accessory'"
+    print("✓ Shop-to-closet category mapping is correct")
+
+
+def test_widgets_panel_has_animations():
+    """Test that WidgetsPanel has animation entries."""
+    try:
+        from src.ui.widgets_panel import WidgetsPanel
+        assert hasattr(WidgetsPanel, 'ANIMATION_ENTRIES'), \
+            "WidgetsPanel should have ANIMATION_ENTRIES"
+        assert len(WidgetsPanel.ANIMATION_ENTRIES) > 0, \
+            "ANIMATION_ENTRIES should not be empty"
+        # Each entry should be (emoji, name, anim_state)
+        for entry in WidgetsPanel.ANIMATION_ENTRIES:
+            assert len(entry) == 3, f"Animation entry should have 3 elements: {entry}"
+            emoji, name, anim_state = entry
+            assert isinstance(emoji, str) and isinstance(name, str) and isinstance(anim_state, str), \
+                f"All animation entry fields should be strings: {entry}"
+        print("✓ WidgetsPanel has valid animation entries")
+    except ImportError:
+        print("⚠ Skipping WidgetsPanel test (GUI not available)")
+
+
+def test_sound_settings_persistence():
+    """Test that sound settings include all volume and choice fields."""
+    # Test the structure of settings without needing GUI
+    from src.features.sound_manager import SoundManager, SoundPack
+    sm = SoundManager()
+    sm.set_effects_volume(0.7)
+    sm.set_notifications_volume(0.5)
+    sm.set_sound_pack(SoundPack.MINIMAL)
+    config = sm.get_config()
+    assert 'effects_volume' in config, "Config should include effects_volume"
+    assert 'notifications_volume' in config, "Config should include notifications_volume"
+    assert config['effects_volume'] == 0.7, "effects_volume should be 0.7"
+    assert config['notifications_volume'] == 0.5, "notifications_volume should be 0.5"
+    assert config['sound_pack'] == 'minimal', "sound_pack should be 'minimal'"
+    print("✓ Sound settings include all volume fields")
+
 
 if __name__ == "__main__":
     print("Testing Panda Character Improvements...")
@@ -269,6 +381,13 @@ if __name__ == "__main__":
         test_belly_poke_responses()
         test_statistics_include_belly_poke()
         test_belly_jiggle_animation_state()
+        test_body_part_click_vs_rub_responses()
+        test_body_part_click_returns_click_responses()
+        test_on_rub_returns_rub_responses()
+        test_dangle_physics_constants()
+        test_shop_to_closet_category_mapping()
+        test_widgets_panel_has_animations()
+        test_sound_settings_persistence()
 
         print("-" * 50)
         print("✅ All panda improvement tests passed!")

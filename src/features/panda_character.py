@@ -338,7 +338,51 @@ class PandaCharacter:
         "🐼 You're a natural at this!",
     ]
     
-    # Body part interaction responses
+    # Body part interaction responses (click-specific)
+    BODY_PART_CLICK_RESPONSES = {
+        'head': [
+            "🐼 *boop on the head* Hey! 😄",
+            "🐼 Ow, my thinking cap!",
+            "🐼 *bonk* My head is not a drum!",
+            "🐼 Watch the ears, they're sensitive!",
+            "🐼 That rattled my brain a little! 🤕",
+            "🐼 Stop bonking me, I'm fragile!",
+        ],
+        'body': [
+            "🐼 *poke* Hey, my belly is not a button!",
+            "🐼 That's where I keep all my bamboo!",
+            "🐼 *belly jiggles* Okay, that was funny 😂",
+            "🐼 My tummy is off-limits! ...well, mostly.",
+            "🐼 *ooof* Right in the bamboo storage!",
+            "🐼 You found the squishy spot! 🫃",
+        ],
+        'arms': [
+            "🐼 Hey, those are my bamboo-grabbing paws!",
+            "🐼 *high five* ✋",
+            "🐼 Careful with the paws!",
+            "🐼 Want a fist bump? 🤜🤛",
+            "🐼 My arms are tired from sorting!",
+            "🐼 Paw massage? Yes please!",
+        ],
+        'legs': [
+            "🐼 *stumbles* Hey, I need those!",
+            "🐼 My legs aren't made for kicking!",
+            "🐼 Stop tripping me! 😤",
+            "🐼 Those are my sitting supports!",
+            "🐼 *wiggles toes* Don't touch!",
+            "🐼 I need those for bamboo runs!",
+        ],
+        'butt': [
+            "🐼 Hey! Watch it! 😳",
+            "🐼 That's my sitting cushion!",
+            "🐼 *scoots away* Personal space!",
+            "🐼 Excuse you! 🙈",
+            "🐼 This seat is taken!",
+            "🐼 That's a no-touch zone! Well... okay fine.",
+        ],
+    }
+    
+    # Body part interaction responses (rub/pet-specific)
     BODY_PART_RESPONSES = {
         'head': [
             "🐼 *enjoys head pats* Ahh, that's the spot!",
@@ -347,6 +391,8 @@ class PandaCharacter:
             "🐼 *closes eyes* Pure bliss...",
             "🐼 Right behind the ears! Perfect!",
             "🐼 You're a head-petting pro!",
+            "🐼 *leans into hand* More please...",
+            "🐼 I could fall asleep like this! 😴",
         ],
         'body': [
             "🐼 *belly wiggles* Hehe, that tickles!",
@@ -355,6 +401,8 @@ class PandaCharacter:
             "🐼 You found the fluffy zone!",
             "🐼 *purrs contentedly*",
             "🐼 This panda approves! 👍",
+            "🐼 *wiggles happily* That feels amazing!",
+            "🐼 Keep rubbing, I'm melting... 😊",
         ],
         'arms': [
             "🐼 Hey, those are my bamboo-grabbing paws!",
@@ -1015,7 +1063,7 @@ class PandaCharacter:
         """
         with self._lock:
             self.click_count += 1
-            responses = self.BODY_PART_RESPONSES.get(body_part, self.CLICK_RESPONSES)
+            responses = self.BODY_PART_CLICK_RESPONSES.get(body_part, self.CLICK_RESPONSES)
             return random.choice(responses)
     
     def on_rub(self, body_part: str = 'body') -> str:

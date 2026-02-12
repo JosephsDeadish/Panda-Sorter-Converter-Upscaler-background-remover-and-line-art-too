@@ -30,6 +30,15 @@ class ShopCategory(Enum):
     TOYS = "toys"
 
 
+# Mapping from ShopCategory to CustomizationCategory for persistent
+# category association across shop and closet panels
+SHOP_TO_CLOSET_CATEGORY = {
+    ShopCategory.PANDA_OUTFITS: "clothing",
+    ShopCategory.CLOTHES: "clothing",
+    ShopCategory.ACCESSORIES: "accessory",
+}
+
+
 @dataclass
 class ShopItem:
     """Represents an item in the shop."""
