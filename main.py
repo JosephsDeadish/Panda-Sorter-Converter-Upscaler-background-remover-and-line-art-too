@@ -185,6 +185,13 @@ except ImportError:
     print("Warning: Travel system not available.")
 
 try:
+    from src.features.enemy_system import EnemyCollection
+    ENEMY_SYSTEM_AVAILABLE = True
+except ImportError:
+    ENEMY_SYSTEM_AVAILABLE = False
+    print("Warning: Enemy system not available.")
+
+try:
     from src.ui.goodbye_splash import show_goodbye_splash
     GOODBYE_SPLASH_AVAILABLE = True
 except ImportError:
@@ -418,6 +425,8 @@ class GameTextureSorter(ctk.CTk):
         self.weapon_collection = None
         self.travel_system = None
         self.combat_stats = None
+        self.enemy_collection = None
+        self.current_enemy = None
         self.closet_panel = None
         self.current_game_info = None  # Store detected game info
         
@@ -481,6 +490,8 @@ class GameTextureSorter(ctk.CTk):
                     self.travel_system = TravelSystem()
                 if COMBAT_SYSTEM_AVAILABLE:
                     self.combat_stats = CombatStats()
+                if ENEMY_SYSTEM_AVAILABLE:
+                    self.enemy_collection = EnemyCollection()
                 
                 # Setup tutorial system
                 if TUTORIAL_AVAILABLE:
@@ -6560,9 +6571,19 @@ Built with:
         equip_frame.pack(fill="x", pady=5, padx=10)
 
         equipped_weapon = self.weapon_collection.equipped_weapon
-        equipped_text = f"Equipped: {equipped_weapon.name} ({equipped_weapon.rarity.value})" if equipped_weapon else "No weapon equipped"
-        ctk.CTkLabel(equip_frame, text=equipped_text,
-                     font=("Arial Bold", 14)).pack(pady=8, padx=10)
+        if equipped_weapon:
+            equipped_text = (f"🗡️ Equipped: {equipped_weapon.icon} {equipped_weapon.name} "
+                             f"({equipped_weapon.rarity.value}) — "
+                             f"DMG: {equipped_weapon.stats.damage}  "
+                             f"CRIT: {int(equipped_weapon.stats.critical_chance * 100)}%")
+            ctk.CTkLabel(equip_frame, text=equipped_text,
+                         font=("Arial Bold", 14)).pack(side="left", pady=8, padx=10)
+            ctk.CTkButton(equip_frame, text="❌ Unequip", width=90,
+                          fg_color="#cc3333", hover_color="#aa2222",
+                          command=self._unequip_weapon).pack(side="right", padx=10, pady=8)
+        else:
+            ctk.CTkLabel(equip_frame, text="No weapon equipped — select one below!",
+                         font=("Arial Bold", 14)).pack(pady=8, padx=10)
 
         # Scrollable list of weapons
         scroll_frame = ctk.CTkScrollableFrame(self.tab_armory, label_text="Weapons Collection")
@@ -6577,10 +6598,19 @@ Built with:
             rarity_color = {"common": "#aaaaaa", "uncommon": "#00cc00",
                            "rare": "#3399ff", "epic": "#9933ff",
                            "legendary": "#ff9900"}.get(weapon.rarity.value, "#aaaaaa")
-            ctk.CTkLabel(wf, text=f"{status} {weapon.name}",
+            ctk.CTkLabel(wf, text=f"{status} {weapon.icon} {weapon.name}",
                          font=("Arial Bold", 13),
                          text_color=rarity_color).pack(side="left", padx=8)
-            ctk.CTkLabel(wf, text=f"DMG: {weapon.stats.damage}  SPD: {weapon.stats.attack_speed}",
+            ctk.CTkLabel(wf, text=f"[{weapon.weapon_type.value}]",
+                         font=("Arial", 10), text_color="gray").pack(side="left", padx=2)
+            stats_parts = [f"DMG:{weapon.stats.damage}", f"SPD:{weapon.stats.attack_speed}"]
+            if weapon.stats.critical_chance > 0.05:
+                stats_parts.append(f"CRIT:{int(weapon.stats.critical_chance * 100)}%")
+            if weapon.stats.magic_cost > 0:
+                stats_parts.append(f"MP:{weapon.stats.magic_cost}")
+            if weapon.stats.range > 1:
+                stats_parts.append(f"RNG:{weapon.stats.range}")
+            ctk.CTkLabel(wf, text="  ".join(stats_parts),
                          font=("Arial", 11)).pack(side="left", padx=10)
 
             if weapon.unlocked:
@@ -6590,12 +6620,23 @@ Built with:
                                     state="disabled" if is_equipped else "normal",
                                     command=lambda wid=weapon.id: self._equip_weapon(wid))
                 btn.pack(side="right", padx=5)
+            else:
+                ctk.CTkLabel(wf, text=f"Lv.{weapon.level_required}",
+                             font=("Arial", 10), text_color="gray").pack(side="right", padx=8)
 
     def _equip_weapon(self, weapon_id: str):
         """Equip a weapon and refresh the armory tab."""
         if self.weapon_collection:
             self.weapon_collection.equip_weapon(weapon_id)
             # Rebuild armory tab
+            for widget in self.tab_armory.winfo_children():
+                widget.destroy()
+            self.create_armory_tab()
+
+    def _unequip_weapon(self):
+        """Unequip current weapon and refresh the armory tab."""
+        if self.weapon_collection:
+            self.weapon_collection.unequip_weapon()
             for widget in self.tab_armory.winfo_children():
                 widget.destroy()
             self.create_armory_tab()
@@ -6618,39 +6659,189 @@ Built with:
                          font=("Arial", 14)).pack(expand=True)
             return
 
-        # Combat stats display
+        # Panda combat stats display
         stats_frame = ctk.CTkFrame(self.tab_battle_arena)
         stats_frame.pack(fill="x", pady=5, padx=10)
 
-        ctk.CTkLabel(stats_frame, text="Combat Stats",
-                     font=("Arial Bold", 14)).pack(pady=5)
+        ctk.CTkLabel(stats_frame, text="🐼 Panda Stats",
+                     font=("Arial Bold", 14)).pack(anchor="w", padx=10, pady=(5, 2))
 
         combat_stats = self.combat_stats if self.combat_stats else CombatStats()
+        # Show weapon bonus if equipped
+        weapon_bonus = ""
+        if self.weapon_collection and self.weapon_collection.equipped_weapon:
+            w = self.weapon_collection.equipped_weapon
+            weapon_bonus = f"  🗡️ +{w.stats.damage} ({w.name})"
         stats_text = (f"❤️ HP: {combat_stats.current_health}/{combat_stats.max_health}  "
-                      f"⚔️ ATK: {combat_stats.attack_power}  "
+                      f"⚔️ ATK: {combat_stats.attack_power}{weapon_bonus}  "
                       f"🛡️ DEF: {combat_stats.physical_defense}  "
                       f"✨ MAG: {combat_stats.magic_power}")
         ctk.CTkLabel(stats_frame, text=stats_text,
-                     font=("Arial", 12)).pack(pady=5)
+                     font=("Arial", 12)).pack(anchor="w", padx=10, pady=2)
 
-        # Arena info
-        arena_frame = ctk.CTkFrame(self.tab_battle_arena)
-        arena_frame.pack(fill="both", expand=True, padx=10, pady=5)
+        # Health bar for panda
+        health_pct = combat_stats.current_health / max(1, combat_stats.max_health)
+        panda_hp_bar = ctk.CTkProgressBar(stats_frame, width=400,
+                                          progress_color="#22cc22" if health_pct > 0.3 else "#cc2222")
+        panda_hp_bar.pack(anchor="w", padx=10, pady=(2, 8))
+        panda_hp_bar.set(health_pct)
 
-        ctk.CTkLabel(arena_frame,
-                     text="🐼 Enter the Arena\n\n"
-                          "Choose a difficulty and fight enemies\n"
-                          "to earn rewards and level up!\n\n"
-                          "💡 Equip weapons in the Armory first\n"
-                          "for better combat stats.",
-                     font=("Arial", 13)).pack(expand=True, pady=20)
+        # Active combat display
+        combat_frame = ctk.CTkFrame(self.tab_battle_arena)
+        combat_frame.pack(fill="both", expand=True, padx=10, pady=5)
 
-        # Difficulty buttons
-        btn_frame = ctk.CTkFrame(arena_frame)
-        btn_frame.pack(pady=10)
-        for diff, emoji in [("Easy", "🟢"), ("Normal", "🟡"), ("Hard", "🔴")]:
-            ctk.CTkButton(btn_frame, text=f"{emoji} {diff}",
-                         width=100).pack(side="left", padx=8, pady=5)
+        if self.current_enemy and self.current_enemy.is_alive():
+            enemy = self.current_enemy
+            ctk.CTkLabel(combat_frame, text=f"{enemy.icon} {enemy.name}",
+                         font=("Arial Bold", 16)).pack(pady=(10, 2))
+            ctk.CTkLabel(combat_frame,
+                         text=f"❤️ HP: {enemy.stats.current_health}/{enemy.stats.max_health}  "
+                              f"⚔️ ATK: {enemy.stats.attack_power}  "
+                              f"🛡️ DEF: {enemy.stats.physical_defense}",
+                         font=("Arial", 12)).pack(pady=2)
+
+            # Enemy health bar
+            enemy_hp_pct = enemy.stats.current_health / max(1, enemy.stats.max_health)
+            enemy_hp_bar = ctk.CTkProgressBar(combat_frame, width=400,
+                                              progress_color="#cc2222")
+            enemy_hp_bar.pack(pady=(2, 5))
+            enemy_hp_bar.set(enemy_hp_pct)
+
+            # Combat log
+            if hasattr(self, '_combat_log') and self._combat_log:
+                log_frame = ctk.CTkFrame(combat_frame)
+                log_frame.pack(fill="x", padx=20, pady=5)
+                for msg in self._combat_log[-5:]:
+                    ctk.CTkLabel(log_frame, text=msg,
+                                 font=("Arial", 11)).pack(anchor="w", padx=5)
+
+            # Action buttons
+            action_frame = ctk.CTkFrame(combat_frame)
+            action_frame.pack(pady=10)
+            ctk.CTkButton(action_frame, text="⚔️ Attack", width=100,
+                          command=self._battle_attack).pack(side="left", padx=8, pady=5)
+            ctk.CTkButton(action_frame, text="🛡️ Defend", width=100,
+                          command=self._battle_defend).pack(side="left", padx=8, pady=5)
+            ctk.CTkButton(action_frame, text="❤️ Heal", width=100,
+                          command=self._battle_heal).pack(side="left", padx=8, pady=5)
+            ctk.CTkButton(action_frame, text="🏃 Flee", width=100,
+                          fg_color="#cc3333", hover_color="#aa2222",
+                          command=self._battle_flee).pack(side="left", padx=8, pady=5)
+        else:
+            # No active combat — show arena selection
+            if hasattr(self, '_combat_log') and self._combat_log:
+                result_frame = ctk.CTkFrame(combat_frame)
+                result_frame.pack(fill="x", padx=20, pady=10)
+                for msg in self._combat_log[-5:]:
+                    ctk.CTkLabel(result_frame, text=msg,
+                                 font=("Arial", 12)).pack(anchor="w", padx=5)
+
+            ctk.CTkLabel(combat_frame,
+                         text="🐼 Enter the Arena\n\n"
+                              "Choose a difficulty and fight enemies\n"
+                              "to earn rewards and level up!\n\n"
+                              "💡 Equip weapons in the Armory first\n"
+                              "for better combat stats.",
+                         font=("Arial", 13)).pack(expand=True, pady=20)
+
+            # Difficulty buttons
+            btn_frame = ctk.CTkFrame(combat_frame)
+            btn_frame.pack(pady=10)
+            for diff, emoji, enemy_type in [("Easy", "🟢", "slime"), ("Normal", "🟡", "goblin"), ("Hard", "🔴", "orc")]:
+                ctk.CTkButton(btn_frame, text=f"{emoji} {diff}",
+                              width=100,
+                              command=lambda et=enemy_type: self._start_battle(et)).pack(side="left", padx=8, pady=5)
+
+    def _start_battle(self, enemy_type: str):
+        """Start a battle with an enemy of the given type."""
+        if not self.enemy_collection:
+            return
+        self._combat_log = []
+        enemy = self.enemy_collection.create_enemy(enemy_type, level=1)
+        if not enemy:
+            return
+        self.current_enemy = enemy
+        # Reset panda health for the encounter
+        if self.combat_stats:
+            self.combat_stats.current_health = self.combat_stats.max_health
+            self.combat_stats.current_magic = self.combat_stats.max_magic
+        self._combat_log.append(f"⚔️ A {enemy.name} appears!")
+        self._refresh_battle_arena()
+
+    def _battle_attack(self):
+        """Perform an attack against the current enemy."""
+        if not self.current_enemy or not self.current_enemy.is_alive() or not self.combat_stats:
+            return
+        import random
+        # Calculate panda damage
+        base_damage = self.combat_stats.attack_power
+        if self.weapon_collection and self.weapon_collection.equipped_weapon:
+            base_damage += self.weapon_collection.equipped_weapon.stats.damage
+        is_crit = random.random() < self.combat_stats.critical_chance
+        if is_crit:
+            base_damage = int(base_damage * self.combat_stats.critical_damage)
+        actual = self.current_enemy.take_damage(base_damage)
+        crit_text = " 💥CRIT!" if is_crit else ""
+        self._combat_log.append(f"🐼 You deal {actual} damage!{crit_text}")
+
+        if not self.current_enemy.is_alive():
+            self._combat_log.append(f"🎉 {self.current_enemy.name} defeated! +{self.current_enemy.xp_reward} XP")
+            self.current_enemy = None
+        else:
+            # Enemy counterattack
+            self._enemy_turn()
+        self._refresh_battle_arena()
+
+    def _battle_defend(self):
+        """Defend — reduce incoming damage this turn."""
+        if not self.current_enemy or not self.current_enemy.is_alive() or not self.combat_stats:
+            return
+        self._combat_log.append("🛡️ You brace for impact! (Defense doubled this turn)")
+        # Enemy attacks with doubled defense
+        original_def = self.combat_stats.physical_defense
+        self.combat_stats.physical_defense *= 2
+        self._enemy_turn()
+        self.combat_stats.physical_defense = original_def
+        self._refresh_battle_arena()
+
+    def _battle_heal(self):
+        """Heal the panda using magic."""
+        if not self.combat_stats:
+            return
+        heal_cost = 10
+        if self.combat_stats.use_magic(heal_cost):
+            healed = self.combat_stats.heal(25)
+            self._combat_log.append(f"❤️ You heal for {healed} HP! (Cost: {heal_cost} MP)")
+        else:
+            self._combat_log.append("❌ Not enough magic to heal!")
+        if self.current_enemy and self.current_enemy.is_alive():
+            self._enemy_turn()
+        self._refresh_battle_arena()
+
+    def _battle_flee(self):
+        """Flee from the current battle."""
+        self._combat_log.append("🏃 You fled from battle!")
+        self.current_enemy = None
+        self._refresh_battle_arena()
+
+    def _enemy_turn(self):
+        """Enemy performs an action."""
+        if not self.current_enemy or not self.current_enemy.is_alive() or not self.combat_stats:
+            return
+        damage, is_crit = self.current_enemy.attack(self.combat_stats.physical_defense)
+        actual = self.combat_stats.take_damage(damage)
+        crit_text = " 💥CRIT!" if is_crit else ""
+        self._combat_log.append(f"{self.current_enemy.icon} {self.current_enemy.name} deals {actual} damage!{crit_text}")
+        if not self.combat_stats.is_alive():
+            self._combat_log.append("💀 You were defeated! Retreating to recover...")
+            self.combat_stats.current_health = self.combat_stats.max_health
+            self.current_enemy = None
+
+    def _refresh_battle_arena(self):
+        """Refresh the battle arena tab."""
+        for widget in self.tab_battle_arena.winfo_children():
+            widget.destroy()
+        self.create_battle_arena_tab()
 
     def create_travel_hub_tab(self):
         """Create travel hub tab for selecting and entering dungeons."""
