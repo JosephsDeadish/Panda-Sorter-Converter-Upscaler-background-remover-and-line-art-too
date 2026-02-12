@@ -34,6 +34,18 @@ class ClothingSubCategory(Enum):
     OTHER = "other"
 
 
+class AccessorySubCategory(Enum):
+    """Subcategories for accessory items."""
+    WATCH = "watch"
+    BRACELET = "bracelet"
+    TIE = "tie"
+    BOW = "bow"
+    NECKLACE = "necklace"
+    SCARF = "scarf"
+    GLASSES = "glasses"
+    OTHER = "other"
+
+
 # Mapping from clothing item IDs to their subcategory
 CLOTHING_SUBCATEGORIES: Dict[str, 'ClothingSubCategory'] = {}
 
@@ -527,6 +539,126 @@ class PandaCloset:
             'vest', 'Stylish Vest', CustomizationCategory.CLOTHING,
             '🦺', 'Layered look', ItemRarity.COMMON, 60, False, False,
             clothing_type='shirt'
+        ),
+
+        # Additional Clothing — Color Shirts
+        'red_shirt': CustomizationItem(
+            'red_shirt', 'Red T-Shirt', CustomizationCategory.CLOTHING,
+            '👕', 'A bright red casual tee', ItemRarity.COMMON, 30, False, False,
+            clothing_type='shirt'
+        ),
+        'blue_shirt': CustomizationItem(
+            'blue_shirt', 'Blue T-Shirt', CustomizationCategory.CLOTHING,
+            '👕', 'A cool blue casual tee', ItemRarity.COMMON, 30, False, False,
+            clothing_type='shirt'
+        ),
+        'green_shirt': CustomizationItem(
+            'green_shirt', 'Green T-Shirt', CustomizationCategory.CLOTHING,
+            '👕', 'A fresh green casual tee', ItemRarity.COMMON, 30, False, False,
+            clothing_type='shirt'
+        ),
+        'yellow_polo': CustomizationItem(
+            'yellow_polo', 'Yellow Polo Shirt', CustomizationCategory.CLOTHING,
+            '👕', 'A sunny yellow collared polo', ItemRarity.UNCOMMON, 55, False, False,
+            clothing_type='shirt'
+        ),
+        'striped_shirt': CustomizationItem(
+            'striped_shirt', 'Striped Shirt', CustomizationCategory.CLOTHING,
+            '👕', 'A classic striped button-up', ItemRarity.UNCOMMON, 65, False, False,
+            clothing_type='shirt'
+        ),
+        'hawaiian_shirt': CustomizationItem(
+            'hawaiian_shirt', 'Hawaiian Shirt', CustomizationCategory.CLOTHING,
+            '🌺', 'A tropical floral shirt', ItemRarity.UNCOMMON, 70, False, False,
+            clothing_type='shirt'
+        ),
+        'tank_top': CustomizationItem(
+            'tank_top', 'White Tank Top', CustomizationCategory.CLOTHING,
+            '👕', 'A sleeveless white tank top', ItemRarity.COMMON, 20, False, False,
+            clothing_type='shirt'
+        ),
+
+        # Additional Clothing — Pants
+        'blue_jeans': CustomizationItem(
+            'blue_jeans', 'Blue Jeans', CustomizationCategory.CLOTHING,
+            '👖', 'Classic blue denim jeans', ItemRarity.COMMON, 40, False, False,
+            clothing_type='pants'
+        ),
+        'black_pants': CustomizationItem(
+            'black_pants', 'Black Pants', CustomizationCategory.CLOTHING,
+            '👖', 'Sleek black trousers', ItemRarity.COMMON, 45, False, False,
+            clothing_type='pants'
+        ),
+        'cargo_pants': CustomizationItem(
+            'cargo_pants', 'Cargo Pants', CustomizationCategory.CLOTHING,
+            '👖', 'Rugged cargo pants with pockets', ItemRarity.UNCOMMON, 55, False, False,
+            clothing_type='pants'
+        ),
+        'shorts': CustomizationItem(
+            'shorts', 'Khaki Shorts', CustomizationCategory.CLOTHING,
+            '🩳', 'Comfortable khaki shorts', ItemRarity.COMMON, 30, False, False,
+            clothing_type='pants'
+        ),
+        'sweatpants': CustomizationItem(
+            'sweatpants', 'Grey Sweatpants', CustomizationCategory.CLOTHING,
+            '👖', 'Cozy grey sweatpants', ItemRarity.COMMON, 35, False, False,
+            clothing_type='pants'
+        ),
+
+        # Additional Clothing — Jackets
+        'denim_jacket': CustomizationItem(
+            'denim_jacket', 'Denim Jacket', CustomizationCategory.CLOTHING,
+            '🧥', 'A classic blue denim jacket', ItemRarity.UNCOMMON, 110, False, False,
+            clothing_type='jacket'
+        ),
+        'bomber_jacket': CustomizationItem(
+            'bomber_jacket', 'Bomber Jacket', CustomizationCategory.CLOTHING,
+            '🧥', 'A sleek green bomber jacket', ItemRarity.RARE, 180, False, False,
+            clothing_type='jacket'
+        ),
+        'puffer_jacket': CustomizationItem(
+            'puffer_jacket', 'Puffer Jacket', CustomizationCategory.CLOTHING,
+            '🧥', 'A warm puffy winter jacket', ItemRarity.UNCOMMON, 130, False, False,
+            clothing_type='jacket'
+        ),
+        'varsity_jacket': CustomizationItem(
+            'varsity_jacket', 'Varsity Jacket', CustomizationCategory.CLOTHING,
+            '🧥', 'A red and white letterman jacket', ItemRarity.RARE, 200, False, False,
+            clothing_type='jacket'
+        ),
+        'windbreaker': CustomizationItem(
+            'windbreaker', 'Windbreaker', CustomizationCategory.CLOTHING,
+            '🧥', 'A light neon windbreaker', ItemRarity.UNCOMMON, 90, False, False,
+            clothing_type='jacket'
+        ),
+
+        # Additional Clothing — Dresses
+        'summer_dress': CustomizationItem(
+            'summer_dress', 'Summer Dress', CustomizationCategory.CLOTHING,
+            '👗', 'A flowy floral summer dress', ItemRarity.UNCOMMON, 85, False, False,
+            clothing_type='dress'
+        ),
+        'evening_gown': CustomizationItem(
+            'evening_gown', 'Evening Gown', CustomizationCategory.CLOTHING,
+            '👗', 'An elegant black evening gown', ItemRarity.EPIC, 400, False, False,
+            clothing_type='dress'
+        ),
+
+        # Additional Clothing — Full Body
+        'tracksuit': CustomizationItem(
+            'tracksuit', 'Tracksuit', CustomizationCategory.CLOTHING,
+            '🏃', 'A sporty matching tracksuit', ItemRarity.UNCOMMON, 100, False, False,
+            clothing_type='full_body'
+        ),
+        'onesie': CustomizationItem(
+            'onesie', 'Panda Onesie', CustomizationCategory.CLOTHING,
+            '🐼', 'A cute panda-print onesie', ItemRarity.RARE, 150, False, False,
+            clothing_type='full_body'
+        ),
+        'jumpsuit': CustomizationItem(
+            'jumpsuit', 'Orange Jumpsuit', CustomizationCategory.CLOTHING,
+            '🟠', 'A bright orange utility jumpsuit', ItemRarity.UNCOMMON, 80, False, False,
+            clothing_type='full_body'
         ),
 
         # New Fur Colors - Free

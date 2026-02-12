@@ -2178,12 +2178,13 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
                         c.create_line(
                             cx, bt + int(8 * sy), cx, bb - int(4 * sy),
                             fill=highlight, width=1, tags="equipped_clothing")
-                        # Small sleeve caps on shoulders
-                        for side in (-1, 1):
+                        # Sleeve caps synced with arm swing
+                        for side, swing in [(-1, _arm_swing), (1, -_arm_swing)]:
                             sleeve_cx = cx + side * int(40 * sx)
+                            sleeve_offset = int(swing * 0.4)
                             c.create_oval(
-                                sleeve_cx - int(10 * sx), bt + int(2 * sy),
-                                sleeve_cx + int(10 * sx), bt + int(18 * sy),
+                                sleeve_cx - int(10 * sx), bt + int(2 * sy) + sleeve_offset,
+                                sleeve_cx + int(10 * sx), bt + int(18 * sy) + sleeve_offset,
                                 fill=color, outline=shadow, width=1,
                                 tags="equipped_clothing")
 

@@ -23,6 +23,8 @@ class ShopCategory(Enum):
     THEMES = "themes"
     ANIMATIONS = "animations"
     CLOTHES = "clothes"
+    HATS = "hats"
+    SHOES = "shoes"
     ACCESSORIES = "accessories"
     UPGRADES = "upgrades"
     SPECIAL = "special"
@@ -35,6 +37,8 @@ class ShopCategory(Enum):
 SHOP_TO_CLOSET_CATEGORY = {
     ShopCategory.PANDA_OUTFITS: "clothing",
     ShopCategory.CLOTHES: "clothing",
+    ShopCategory.HATS: "hat",
+    ShopCategory.SHOES: "shoes",
     ShopCategory.ACCESSORIES: "accessory",
 }
 
@@ -716,7 +720,7 @@ class ShopSystem:
             id='acc_crown',
             name='Royal Crown',
             description='King or Queen of texture sorting',
-            category=ShopCategory.ACCESSORIES,
+            category=ShopCategory.HATS,
             price=750,
             icon='👑',
             level_required=15,
@@ -1024,6 +1028,235 @@ class ShopSystem:
             unlockable_id='clothes_sports_jersey'
         ),
 
+        # Color Shirts
+        'clothes_red_shirt': ShopItem(
+            id='clothes_red_shirt',
+            name='Red T-Shirt',
+            description='A bright red casual tee for your panda',
+            category=ShopCategory.CLOTHES,
+            price=30,
+            icon='👕',
+            level_required=1,
+            unlockable_id='clothes_red_shirt'
+        ),
+        'clothes_blue_shirt': ShopItem(
+            id='clothes_blue_shirt',
+            name='Blue T-Shirt',
+            description='A cool blue casual tee for your panda',
+            category=ShopCategory.CLOTHES,
+            price=30,
+            icon='👕',
+            level_required=1,
+            unlockable_id='clothes_blue_shirt'
+        ),
+        'clothes_green_shirt': ShopItem(
+            id='clothes_green_shirt',
+            name='Green T-Shirt',
+            description='A fresh green casual tee for your panda',
+            category=ShopCategory.CLOTHES,
+            price=30,
+            icon='👕',
+            level_required=1,
+            unlockable_id='clothes_green_shirt'
+        ),
+        'clothes_yellow_polo': ShopItem(
+            id='clothes_yellow_polo',
+            name='Yellow Polo Shirt',
+            description='A sunny yellow collared polo',
+            category=ShopCategory.CLOTHES,
+            price=55,
+            icon='👕',
+            level_required=2,
+            unlockable_id='clothes_yellow_polo'
+        ),
+        'clothes_striped_shirt': ShopItem(
+            id='clothes_striped_shirt',
+            name='Striped Shirt',
+            description='A classic striped button-up shirt',
+            category=ShopCategory.CLOTHES,
+            price=65,
+            icon='👕',
+            level_required=2,
+            unlockable_id='clothes_striped_shirt'
+        ),
+        'clothes_hawaiian_shirt': ShopItem(
+            id='clothes_hawaiian_shirt',
+            name='Hawaiian Shirt',
+            description='A tropical floral shirt for beach vibes',
+            category=ShopCategory.CLOTHES,
+            price=70,
+            icon='🌺',
+            level_required=3,
+            unlockable_id='clothes_hawaiian_shirt'
+        ),
+        'clothes_tank_top': ShopItem(
+            id='clothes_tank_top',
+            name='White Tank Top',
+            description='A sleeveless white tank top',
+            category=ShopCategory.CLOTHES,
+            price=20,
+            icon='👕',
+            level_required=1,
+            unlockable_id='clothes_tank_top'
+        ),
+
+        # Pants
+        'clothes_blue_jeans': ShopItem(
+            id='clothes_blue_jeans',
+            name='Blue Jeans',
+            description='Classic blue denim jeans',
+            category=ShopCategory.CLOTHES,
+            price=40,
+            icon='👖',
+            level_required=1,
+            unlockable_id='clothes_blue_jeans'
+        ),
+        'clothes_black_pants': ShopItem(
+            id='clothes_black_pants',
+            name='Black Pants',
+            description='Sleek black trousers for your panda',
+            category=ShopCategory.CLOTHES,
+            price=45,
+            icon='👖',
+            level_required=2,
+            unlockable_id='clothes_black_pants'
+        ),
+        'clothes_cargo_pants': ShopItem(
+            id='clothes_cargo_pants',
+            name='Cargo Pants',
+            description='Rugged cargo pants with extra pockets',
+            category=ShopCategory.CLOTHES,
+            price=55,
+            icon='👖',
+            level_required=3,
+            unlockable_id='clothes_cargo_pants'
+        ),
+        'clothes_shorts': ShopItem(
+            id='clothes_shorts',
+            name='Khaki Shorts',
+            description='Comfortable khaki shorts for warm days',
+            category=ShopCategory.CLOTHES,
+            price=30,
+            icon='🩳',
+            level_required=1,
+            unlockable_id='clothes_shorts'
+        ),
+        'clothes_sweatpants': ShopItem(
+            id='clothes_sweatpants',
+            name='Grey Sweatpants',
+            description='Cozy grey sweatpants for lounging',
+            category=ShopCategory.CLOTHES,
+            price=35,
+            icon='👖',
+            level_required=1,
+            unlockable_id='clothes_sweatpants'
+        ),
+
+        # Jackets
+        'clothes_denim_jacket': ShopItem(
+            id='clothes_denim_jacket',
+            name='Denim Jacket',
+            description='A classic blue denim jacket',
+            category=ShopCategory.CLOTHES,
+            price=110,
+            icon='🧥',
+            level_required=3,
+            unlockable_id='clothes_denim_jacket'
+        ),
+        'clothes_bomber_jacket': ShopItem(
+            id='clothes_bomber_jacket',
+            name='Bomber Jacket',
+            description='A sleek green bomber jacket',
+            category=ShopCategory.CLOTHES,
+            price=180,
+            icon='🧥',
+            level_required=5,
+            unlockable_id='clothes_bomber_jacket'
+        ),
+        'clothes_puffer_jacket': ShopItem(
+            id='clothes_puffer_jacket',
+            name='Puffer Jacket',
+            description='A warm puffy winter jacket',
+            category=ShopCategory.CLOTHES,
+            price=130,
+            icon='🧥',
+            level_required=4,
+            unlockable_id='clothes_puffer_jacket'
+        ),
+        'clothes_varsity_jacket': ShopItem(
+            id='clothes_varsity_jacket',
+            name='Varsity Jacket',
+            description='A red and white letterman jacket',
+            category=ShopCategory.CLOTHES,
+            price=200,
+            icon='🧥',
+            level_required=6,
+            unlockable_id='clothes_varsity_jacket'
+        ),
+        'clothes_windbreaker': ShopItem(
+            id='clothes_windbreaker',
+            name='Windbreaker',
+            description='A light neon windbreaker for rainy days',
+            category=ShopCategory.CLOTHES,
+            price=90,
+            icon='🧥',
+            level_required=2,
+            unlockable_id='clothes_windbreaker'
+        ),
+
+        # Dresses
+        'clothes_summer_dress': ShopItem(
+            id='clothes_summer_dress',
+            name='Summer Dress',
+            description='A flowy floral summer dress',
+            category=ShopCategory.CLOTHES,
+            price=85,
+            icon='👗',
+            level_required=3,
+            unlockable_id='clothes_summer_dress'
+        ),
+        'clothes_evening_gown': ShopItem(
+            id='clothes_evening_gown',
+            name='Evening Gown',
+            description='An elegant black evening gown',
+            category=ShopCategory.CLOTHES,
+            price=400,
+            icon='👗',
+            level_required=12,
+            unlockable_id='clothes_evening_gown'
+        ),
+
+        # Full Body Outfits
+        'clothes_tracksuit': ShopItem(
+            id='clothes_tracksuit',
+            name='Tracksuit',
+            description='A sporty matching tracksuit',
+            category=ShopCategory.CLOTHES,
+            price=100,
+            icon='🏃',
+            level_required=3,
+            unlockable_id='clothes_tracksuit'
+        ),
+        'clothes_onesie': ShopItem(
+            id='clothes_onesie',
+            name='Panda Onesie',
+            description='A cute panda-print onesie',
+            category=ShopCategory.CLOTHES,
+            price=150,
+            icon='🐼',
+            level_required=5,
+            unlockable_id='clothes_onesie'
+        ),
+        'clothes_jumpsuit': ShopItem(
+            id='clothes_jumpsuit',
+            name='Orange Jumpsuit',
+            description='A bright orange utility jumpsuit',
+            category=ShopCategory.CLOTHES,
+            price=80,
+            icon='🟠',
+            level_required=3,
+            unlockable_id='clothes_jumpsuit'
+        ),
         # Additional Accessories
         'acc_scarf': ShopItem(
             id='acc_scarf',
@@ -1049,7 +1282,7 @@ class ShopSystem:
             id='acc_flower',
             name='Flower Crown',
             description='Spring vibes all year round',
-            category=ShopCategory.ACCESSORIES,
+            category=ShopCategory.HATS,
             price=100,
             icon='🌸',
             level_required=3,
@@ -1596,7 +1829,7 @@ class ShopSystem:
             id='closet_space_helmet',
             name='Space Helmet',
             description='Astronaut bubble helmet',
-            category=ShopCategory.ACCESSORIES,
+            category=ShopCategory.HATS,
             price=500,
             icon='🪐',
             level_required=15,
@@ -1607,7 +1840,7 @@ class ShopSystem:
             id='closet_samurai_helmet',
             name='Samurai Helmet',
             description='Ancient samurai kabuto',
-            category=ShopCategory.ACCESSORIES,
+            category=ShopCategory.HATS,
             price=600,
             icon='⛩️',
             level_required=15,
@@ -1618,7 +1851,7 @@ class ShopSystem:
             id='closet_propeller_hat',
             name='Propeller Hat',
             description='Fun spinning propeller',
-            category=ShopCategory.ACCESSORIES,
+            category=ShopCategory.HATS,
             price=150,
             icon='🌀',
             level_required=3,
@@ -1629,7 +1862,7 @@ class ShopSystem:
             id='closet_beret',
             name='Artist Beret',
             description='French artist beret',
-            category=ShopCategory.ACCESSORIES,
+            category=ShopCategory.HATS,
             price=120,
             icon='🎨',
             level_required=3,
@@ -1640,7 +1873,7 @@ class ShopSystem:
             id='closet_sombrero',
             name='Sombrero',
             description='Festive wide-brim sombrero',
-            category=ShopCategory.ACCESSORIES,
+            category=ShopCategory.HATS,
             price=250,
             icon='🌮',
             level_required=8,
@@ -1651,7 +1884,7 @@ class ShopSystem:
             id='closet_firefighter_hat',
             name='Firefighter Helmet',
             description='Brave firefighter helmet',
-            category=ShopCategory.ACCESSORIES,
+            category=ShopCategory.HATS,
             price=300,
             icon='🚒',
             level_required=8,
@@ -1662,7 +1895,7 @@ class ShopSystem:
             id='closet_graduation_cap',
             name='Graduation Cap',
             description='Academic mortarboard',
-            category=ShopCategory.ACCESSORIES,
+            category=ShopCategory.HATS,
             price=180,
             icon='🎓',
             level_required=5,
@@ -1673,7 +1906,7 @@ class ShopSystem:
             id='closet_tiara',
             name='Princess Tiara',
             description='Sparkling princess tiara',
-            category=ShopCategory.ACCESSORIES,
+            category=ShopCategory.HATS,
             price=450,
             icon='👸',
             level_required=12,
@@ -1684,7 +1917,7 @@ class ShopSystem:
             id='closet_straw_hat',
             name='Straw Hat',
             description='Simple straw hat',
-            category=ShopCategory.ACCESSORIES,
+            category=ShopCategory.HATS,
             price=50,
             icon='🌾',
             level_required=1,
@@ -1695,7 +1928,7 @@ class ShopSystem:
             id='closet_ice_crown',
             name='Ice Crown',
             description='Frozen crystal crown',
-            category=ShopCategory.ACCESSORIES,
+            category=ShopCategory.HATS,
             price=1500,
             icon='❄️',
             level_required=25,
@@ -1708,7 +1941,7 @@ class ShopSystem:
             id='closet_cowboy_boots',
             name='Cowboy Boots',
             description='Western cowboy boots',
-            category=ShopCategory.ACCESSORIES,
+            category=ShopCategory.SHOES,
             price=120,
             icon='🤠',
             level_required=3,
@@ -1719,7 +1952,7 @@ class ShopSystem:
             id='closet_ballet_shoes',
             name='Ballet Slippers',
             description='Elegant ballet slippers',
-            category=ShopCategory.ACCESSORIES,
+            category=ShopCategory.SHOES,
             price=250,
             icon='🩰',
             level_required=8,
@@ -1730,7 +1963,7 @@ class ShopSystem:
             id='closet_moon_boots',
             name='Moon Boots',
             description='Anti-gravity moon boots',
-            category=ShopCategory.ACCESSORIES,
+            category=ShopCategory.SHOES,
             price=500,
             icon='🌙',
             level_required=15,
@@ -1741,7 +1974,7 @@ class ShopSystem:
             id='closet_platform_shoes',
             name='Platform Shoes',
             description='Groovy platform shoes',
-            category=ShopCategory.ACCESSORIES,
+            category=ShopCategory.SHOES,
             price=150,
             icon='📐',
             level_required=3,
@@ -1752,7 +1985,7 @@ class ShopSystem:
             id='closet_ski_boots',
             name='Ski Boots',
             description='Mountain ski boots',
-            category=ShopCategory.ACCESSORIES,
+            category=ShopCategory.SHOES,
             price=280,
             icon='⛷️',
             level_required=8,
@@ -1763,7 +1996,7 @@ class ShopSystem:
             id='closet_glass_slippers',
             name='Glass Slippers',
             description='Fairy tale glass slippers',
-            category=ShopCategory.ACCESSORIES,
+            category=ShopCategory.SHOES,
             price=600,
             icon='💎',
             level_required=15,
@@ -1774,7 +2007,7 @@ class ShopSystem:
             id='closet_steel_boots',
             name='Steel Boots',
             description='Heavy armored steel boots',
-            category=ShopCategory.ACCESSORIES,
+            category=ShopCategory.SHOES,
             price=350,
             icon='🛡️',
             level_required=10,
@@ -1785,7 +2018,7 @@ class ShopSystem:
             id='closet_neon_kicks',
             name='Neon Kicks',
             description='Light-up neon sneakers',
-            category=ShopCategory.ACCESSORIES,
+            category=ShopCategory.SHOES,
             price=180,
             icon='💡',
             level_required=5,
@@ -1796,7 +2029,7 @@ class ShopSystem:
             id='closet_bunny_slippers_new',
             name='Bunny Slippers',
             description='Adorable bunny slippers',
-            category=ShopCategory.ACCESSORIES,
+            category=ShopCategory.SHOES,
             price=60,
             icon='🐰',
             level_required=1,
@@ -1807,7 +2040,7 @@ class ShopSystem:
             id='closet_lava_boots',
             name='Lava Boots',
             description='Fireproof lava walking boots',
-            category=ShopCategory.ACCESSORIES,
+            category=ShopCategory.SHOES,
             price=1200,
             icon='🔥',
             level_required=20,
