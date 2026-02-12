@@ -190,6 +190,11 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
         self._active_item_name = None  # Name of item (e.g. "Fresh Bamboo")
         self._active_item_emoji = None  # Emoji for the item (e.g. "🎋")
         self._active_item_type = None  # 'food' or 'toy'
+        self._active_item_key = None   # Widget key (e.g. 'bamboo') for per-item responses
+        
+        # Eating sequence state
+        self._eating_phase = 0
+        self._eating_frame = 0
         
         # Dragging state
         self.drag_start_x = 0
@@ -2398,25 +2403,44 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
         # Draw active item during eating/playing animations
         if self._active_item_emoji:
             if anim == 'eating':
-                # Draw food item near the panda's mouth with chewing motion
-                eat_cycle = (frame_idx % 48) / 48.0
+                # Multi-phase eating: pickup → inspect → chew → satisfied
+                # Use the eating sequence phase if available, else fall back
+                phase = getattr(self, '_eating_phase', 0)
                 mouth_y = int(68 * sy + by)
-                if eat_cycle < 0.3:
-                    # Reaching for food - food in front
-                    item_x = cx - int(30 * sx)
-                    item_y = int(90 * sy + by)
+
+                if phase == 0:
+                    # Phase 0: Picking up — food on the ground, panda reaching
+                    reach_t = (frame_idx % 25) / 25.0
+                    item_x = cx - int(30 * sx) + int(reach_t * 15 * sx)
+                    item_y = int(140 * sy + by) - int(reach_t * 50 * sy)
+                    item_size = int(18 * sx)
+                elif phase == 1:
+                    # Phase 1: Inspecting — food held up, slight tilt/sniff
+                    sniff_bob = math.sin(frame_idx * 0.8) * int(4 * sy)
+                    item_x = cx - int(10 * sx) + int(math.sin(frame_idx * 0.5) * 3 * sx)
+                    item_y = int(75 * sy + by) + sniff_bob
                     item_size = int(16 * sx)
-                elif eat_cycle < 0.7:
-                    # Munching - food at mouth, bobbing
-                    bob = math.sin(frame_idx * 1.2) * int(3 * sy)
-                    item_x = cx - int(15 * sx)
+                elif phase == 2:
+                    # Phase 2: Chewing — food at mouth, shrinking as eaten
+                    eat_progress = getattr(self, '_eating_frame', 0) / max(1, self.EATING_CHEW_FRAMES)
+                    bob = math.sin(frame_idx * 1.5) * int(3 * sy)
+                    item_x = cx - int(12 * sx)
                     item_y = mouth_y + bob
-                    item_size = int(14 * sx) - int(eat_cycle * 6 * sx)  # shrinking
+                    # Food shrinks as it's eaten
+                    item_size = int(16 * sx * (1.0 - eat_progress * 0.8))
+                    # Add crumb particles during chewing
+                    if frame_idx % 6 < 3:
+                        crumb_x = item_x + random.randint(-int(10 * sx), int(10 * sx))
+                        crumb_y = item_y + random.randint(0, int(8 * sy))
+                        c.create_text(crumb_x, crumb_y, text="·",
+                                      font=("Arial", max(4, int(6 * sx))),
+                                      fill="#8B4513", tags="active_item")
                 else:
-                    # Satisfied - no food visible (consumed)
+                    # Phase 3: Satisfied — food gone, happy belly pat
                     item_x = None
                     item_y = None
                     item_size = 0
+
                 if item_x is not None:
                     c.create_text(item_x, item_y, text=self._active_item_emoji,
                                   font=("Arial", max(8, item_size)), tags="active_item")
@@ -2457,25 +2481,30 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
                 c.create_text(rub_x, rub_y, text="💕",
                               font=("Arial", max(8, int(10 * sx))), tags="rub_effect")
     
-    def set_active_item(self, item_name: str = None, item_emoji: str = None, item_type: str = None):
+    def set_active_item(self, item_name: str = None, item_emoji: str = None,
+                       item_type: str = None, item_key: str = None):
         """Set the item currently being used by the panda during eating/playing.
         
         Args:
             item_name: Display name of the item
             item_emoji: Emoji character for the item
             item_type: 'food' or 'toy'
+            item_key: Widget key (e.g. 'bamboo') for per-item eating responses
         """
         self._active_item_name = item_name
         self._active_item_emoji = item_emoji
         self._active_item_type = item_type
+        self._active_item_key = item_key
     
     def walk_to_item(self, target_x: int, target_y: int, item_name: str = None,
                      item_emoji: str = None, item_type: str = 'toy',
-                     on_arrive=None):
+                     on_arrive=None, item_key: str = None):
         """Animate the panda walking to an item's location on screen.
         
         The panda toplevel smoothly moves towards the target coordinates,
         then triggers the appropriate interaction animation.
+        For food items, the panda walks up, picks up the food, and plays
+        a detailed multi-phase eating animation before the item disappears.
         
         Args:
             target_x: Screen X coordinate of the item
@@ -2483,13 +2512,14 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
             item_name: Name of the item to interact with
             item_emoji: Emoji for the item
             item_type: 'food' or 'toy'
-            on_arrive: Optional callback when panda arrives
+            on_arrive: Optional callback when panda arrives (for food, fires after eating)
+            item_key: Widget key (e.g. 'bamboo') for per-item eating responses
         """
         if self._destroyed:
             return
         
         # Set the active item so it renders during the interaction
-        self.set_active_item(item_name, item_emoji, item_type)
+        self.set_active_item(item_name, item_emoji, item_type, item_key)
         
         # Start walking animation
         self._set_animation_no_cancel('carrying' if item_type == 'food' else 'playing')
@@ -2533,14 +2563,24 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
         
         self._walk_step_count += 1
         if self._walk_step_count > self._walk_total_steps:
-            # Arrived - play interaction animation
-            anim = 'eating' if self._walk_item_type == 'food' else 'playing'
-            self.play_animation_once(anim)
-            if self._walk_on_arrive:
-                try:
-                    self._walk_on_arrive()
-                except Exception:
-                    pass
+            # Arrived at the item
+            if self._walk_item_type == 'food':
+                # Food: multi-phase sequence — pickup comment, then detailed eat
+                if self.panda and self._active_item_name:
+                    pickup_msg = self.panda.on_food_pickup(self._active_item_name) if hasattr(self.panda, 'on_food_pickup') else f"🐼 *picks up {self._active_item_name}*"
+                    self.info_label.configure(text=pickup_msg)
+                # Play the extended eating animation (longer duration for food)
+                self._play_eating_sequence()
+                # Callback fires only after the full eating animation finishes
+                # (handled inside _eating_sequence_tick)
+            else:
+                # Toys: play animation normally
+                self.play_animation_once('playing')
+                if self._walk_on_arrive:
+                    try:
+                        self._walk_on_arrive()
+                    except Exception:
+                        pass
             return
         
         try:
@@ -2553,6 +2593,80 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
             return
         
         self.after(50, self._walk_tick)
+
+    # Duration in frames for each phase of the eating sequence
+    EATING_PICKUP_FRAMES = 25   # ~825ms - picking up the food
+    EATING_INSPECT_FRAMES = 20  # ~660ms - inspecting / sniffing
+    EATING_CHEW_FRAMES = 40     # ~1320ms - chewing / munching
+    EATING_SATISFIED_FRAMES = 20  # ~660ms - happy satisfaction
+
+    def _play_eating_sequence(self):
+        """Start the multi-phase eating sequence: pickup → inspect → chew → satisfied."""
+        if self._destroyed:
+            return
+        self._eating_phase = 0  # 0=pickup, 1=inspect, 2=chew, 3=satisfied
+        self._eating_frame = 0
+        self._cancel_animation_timer()
+        self.current_animation = 'eating'
+        self.animation_frame = 0
+        self._eating_sequence_tick()
+
+    def _eating_sequence_tick(self):
+        """Tick for the multi-phase eating animation."""
+        if self._destroyed:
+            return
+
+        phase_frames = [
+            self.EATING_PICKUP_FRAMES,
+            self.EATING_INSPECT_FRAMES,
+            self.EATING_CHEW_FRAMES,
+            self.EATING_SATISFIED_FRAMES,
+        ]
+
+        try:
+            self._draw_panda(self.animation_frame)
+            self.animation_frame += 1
+            self._eating_frame += 1
+
+            # Show eating comment at the start of the chew phase
+            if self._eating_phase == 1 and self._eating_frame == 1:
+                if self.panda and self._active_item_name and hasattr(self.panda, 'on_eating'):
+                    item_key = getattr(self, '_active_item_key', '') or ''
+                    msg = self.panda.on_eating(self._active_item_name, item_key)
+                    self.info_label.configure(text=msg)
+
+            # Check if current phase is complete
+            if self._eating_frame >= phase_frames[self._eating_phase]:
+                self._eating_phase += 1
+                self._eating_frame = 0
+
+                if self._eating_phase >= len(phase_frames):
+                    # All phases done — clear item and fire callback
+                    self._active_item_name = None
+                    self._active_item_emoji = None
+                    self._active_item_type = None
+                    self._active_item_key = None
+                    if self._walk_on_arrive:
+                        try:
+                            self._walk_on_arrive()
+                        except Exception:
+                            pass
+                    self.animation_timer = self.after(200, lambda: self.start_animation('idle'))
+                    return
+
+            self.animation_timer = self.after(self.ANIMATION_INTERVAL, self._eating_sequence_tick)
+        except Exception as e:
+            logger.error(f"Error in eating sequence: {e}")
+            # Fallback: clear item and go idle
+            self._active_item_name = None
+            self._active_item_emoji = None
+            self._active_item_type = None
+            self._active_item_key = None
+            if not self._destroyed:
+                try:
+                    self.animation_timer = self.after(500, lambda: self.start_animation('idle'))
+                except Exception:
+                    pass
     
     # Auto-walk comments the panda makes while exploring
     AUTO_WALK_COMMENTS = [
@@ -2791,7 +2905,7 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
             self._drag_moved = True
             self._set_animation_no_cancel('dragging')
             if self.panda:
-                response = self.panda.on_drag() if hasattr(self.panda, 'on_drag') else "🐼 Wheee!"
+                response = self.panda.on_drag(grabbed_head=self._drag_grab_head) if hasattr(self.panda, 'on_drag') else "🐼 Wheee!"
                 self.info_label.configure(text=response)
         
         # Move the Toplevel window using screen coordinates
@@ -3068,8 +3182,10 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
                 body_part = None
                 if event and hasattr(self.panda, 'get_body_part_at_position'):
                     label_height = max(1, self.panda_label.winfo_height())
+                    label_width = max(1, self.panda_label.winfo_width())
                     rel_y = event.y / label_height
-                    body_part = self.panda.get_body_part_at_position(rel_y)
+                    rel_x = event.x / label_width
+                    body_part = self.panda.get_body_part_at_position(rel_y, rel_x)
                 
                 # Belly poke triggers jiggle effect
                 if body_part in ('body', 'butt') and hasattr(self.panda, 'on_belly_poke'):
@@ -3132,10 +3248,12 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
                 # Rubbing detected! Trigger petting response
                 self._last_rub_time = now
                 label_height = max(1, self.panda_label.winfo_height())
+                label_width = max(1, self.panda_label.winfo_width())
                 rel_y = event.y / label_height if event else 0.5
+                rel_x = event.x / label_width if event else 0.5
                 
                 if hasattr(self.panda, 'on_rub'):
-                    body_part = self.panda.get_body_part_at_position(rel_y)
+                    body_part = self.panda.get_body_part_at_position(rel_y, rel_x)
                     response = self.panda.on_rub(body_part)
                 else:
                     response = self.panda.on_pet()
@@ -3318,21 +3436,59 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
             logger.error(f"Error changing panda gender: {e}")
 
     def _give_widget_to_panda(self, widget):
-        """Give a toy or food widget to the panda."""
+        """Give a toy or food widget to the panda.
+        
+        For food items, the panda plays the full eating sequence (pickup →
+        inspect → chew → satisfied) and the food is only consumed after the
+        animation completes.  For toys, an immediate play animation is shown.
+        """
         try:
-            result = widget.use()
-            message = result.get('message', f"Panda enjoys the {widget.name}!")
-            animation = result.get('animation', 'playing')
-            self.info_label.configure(text=message)
-            self.play_animation_once(animation)
+            from src.features.panda_widgets import FoodWidget
+            if isinstance(widget, FoodWidget):
+                # Food: consume only after full eating animation completes
+                if widget.consumable and widget.quantity <= 0:
+                    self.info_label.configure(
+                        text=f"🐼 No {widget.name} left! Buy more from the shop.")
+                    return
 
-            # Award XP for interaction
-            if self.panda_level_system:
-                try:
-                    xp = self.panda_level_system.get_xp_reward('click')
-                    self.panda_level_system.add_xp(xp, f'Used {widget.name}')
-                except Exception:
-                    pass
+                # Resolve widget key for per-item eating responses
+                wkey = ''
+                if self.widget_collection:
+                    for k, w in self.widget_collection.widgets.items():
+                        if w is widget:
+                            wkey = k
+                            break
+
+                def _on_eat_complete():
+                    """Called after the full eating animation finishes."""
+                    widget.use()  # Actually consume the food item now
+                    if self.panda_level_system:
+                        try:
+                            xp = self.panda_level_system.get_xp_reward('click')
+                            self.panda_level_system.add_xp(xp, f'Ate {widget.name}')
+                        except Exception:
+                            pass
+
+                # Set active item and play multi-phase eating sequence in-place
+                self.set_active_item(widget.name, widget.emoji, 'food', wkey)
+                if self.panda:
+                    msg = self.panda.on_food_pickup(widget.name) if hasattr(self.panda, 'on_food_pickup') else f"🐼 *picks up {widget.name}*"
+                    self.info_label.configure(text=msg)
+                self._walk_on_arrive = _on_eat_complete
+                self._play_eating_sequence()
+            else:
+                # Toys: use immediately and play animation
+                result = widget.use()
+                message = result.get('message', f"Panda enjoys the {widget.name}!")
+                self.info_label.configure(text=message)
+                self.play_animation_once(result.get('animation', 'playing'))
+
+                if self.panda_level_system:
+                    try:
+                        xp = self.panda_level_system.get_xp_reward('click')
+                        self.panda_level_system.add_xp(xp, f'Used {widget.name}')
+                    except Exception:
+                        pass
         except Exception as e:
             logger.error(f"Error giving widget to panda: {e}")
             self.info_label.configure(text="🐼 *confused*")
@@ -3382,9 +3538,19 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
         except Exception as e:
             logger.error(f"Error handling menu action '{action}': {e}")
     
+    # Animations allowed while the panda is being dragged.
+    # Only dangling/drag-related animations should play; everything else is
+    # blocked so the panda doesn't randomly wave/dance while held by the head.
+    DRAG_ALLOWED_ANIMATIONS = frozenset({
+        'dragging', 'wall_hit', 'shaking', 'spinning',
+    })
+
     def start_animation(self, animation_name: str):
         """Start looping animation."""
         if self._destroyed:
+            return
+        # Block non-drag animations while panda is being dragged
+        if self.is_dragging and animation_name not in self.DRAG_ALLOWED_ANIMATIONS:
             return
         # Check if panda is disabled
         try:
@@ -3429,6 +3595,9 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
     def play_animation_once(self, animation_name: str):
         """Play animation once then return to idle."""
         if self._destroyed:
+            return
+        # Block non-drag animations while panda is being dragged
+        if self.is_dragging and animation_name not in self.DRAG_ALLOWED_ANIMATIONS:
             return
         # Respect disable setting
         try:
@@ -3526,6 +3695,7 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
                 self._active_item_name = None
                 self._active_item_emoji = None
                 self._active_item_type = None
+                self._active_item_key = None
                 # Return to idle
                 self.animation_timer = self.after(200, lambda: self.start_animation('idle'))
         except Exception as e:

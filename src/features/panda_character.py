@@ -175,6 +175,113 @@ class PandaCharacter:
         "🐼 This is my new favorite thing!",
     ]
 
+    # Responses when dragged specifically by the head
+    HEAD_DRAG_RESPONSES = [
+        "🐼 Ow ow ow! Not the ears! 😣",
+        "🐼 *dangling* This is undignified! 😤",
+        "🐼 My neck! Watch the neck! 🦴",
+        "🐼 I'm not a stuffed animal! ...okay maybe a little.",
+        "🐼 *flails legs* Put me down gently!",
+        "🐼 Is this how you treat all pandas?! 😠",
+        "🐼 *dangles sadly* At least hold me properly...",
+        "🐼 Hey! I have feelings, you know! 😢",
+        "🐼 *swinging back and forth* Wheee... I mean, stop it!",
+        "🐼 My head is not a handle! 🤕",
+    ]
+
+    # Responses when dragged by the body
+    BODY_DRAG_RESPONSES = [
+        "🐼 Ooh, a belly carry! Comfy! 😊",
+        "🐼 *snuggles into grip* This is nice~",
+        "🐼 Like a fluffy football! 🏈",
+        "🐼 Careful with the tummy! I just ate!",
+        "🐼 *purrs* This is the VIP transport! ✨",
+        "🐼 At least you're holding me properly!",
+        "🐼 *relaxes* Okay, this isn't so bad~",
+        "🐼 Chauffeur service! Where to? 🚗",
+    ]
+
+    # Responses when panda walks up to food
+    WALK_TO_FOOD_RESPONSES = [
+        "🐼 *sniff sniff* I smell something delicious! 👃",
+        "🐼 Ooh! Is that food?! *waddles faster* 🏃",
+        "🐼 *stomach growls* Coming! Coming! 🍽️",
+        "🐼 My tummy said go that way! ➡️",
+        "🐼 Food detected! Initiating approach! 🎯",
+        "🐼 *excited waddle* SNACK TIME! 🎉",
+    ]
+
+    # Responses when panda picks up food
+    PICKUP_FOOD_RESPONSES = [
+        "🐼 *picks up carefully* Ooh, this looks fancy! 🤩",
+        "🐼 *grabs with both paws* Mine! All mine! 😋",
+        "🐼 *inspects closely* Smells amazing! 👃✨",
+        "🐼 *holds up proudly* Look what I found! 🏆",
+        "🐼 *clutches to chest* Precious! 💎",
+    ]
+
+    # Responses when panda eats food (per-item-type responses)
+    EATING_RESPONSES = {
+        'bamboo': [
+            "🎋 *crunch crunch* Classic bamboo! Never gets old!",
+            "🎋 *satisfied chomping* The good stuff! 💚",
+            "🎋 Ah, nothing like fresh bamboo! *munch munch*",
+        ],
+        'cake': [
+            "🍰 *eyes widen* CAKE?! Best day EVER! 🤩",
+            "🍰 *takes huge bite* So... fluffy... so... good... 🥹",
+            "🍰 *licks frosting* I deserve this! 🎂",
+        ],
+        'apple': [
+            "🍎 *cronch* Juicy! 💦",
+            "🍎 *bites happily* An apple a day keeps the vet away!",
+        ],
+        'honey': [
+            "🍯 *sticky paws* Worth it! So sweet! 🐝",
+            "🍯 *licks fingers* Mmm, liquid gold! ✨",
+        ],
+        'tea': [
+            "🍵 *sips delicately* Ah, refined panda culture! 🎎",
+            "🍵 *pinky up* Quite exquisite! ☕",
+        ],
+        'dumplings': [
+            "🥟 *stuffs whole dumpling in mouth* Mmph! Heaven! 😇",
+            "🥟 *savors each bite* These are legendary for a reason! ✨",
+        ],
+        'sushi': [
+            "🍣 *careful bite* Ooh, fancy! I feel so sophisticated! 🎌",
+            "🍣 *happy hum* Fish and rice, perfection! 🐟",
+        ],
+        'ramen': [
+            "🍜 *slurrrp* HOT! But SO good! 🔥",
+            "🍜 *noodle hanging from mouth* Oops! *slurp* 😋",
+        ],
+        'cookies': [
+            "🍪 *crumbs everywhere* Oops... still delicious! 😅",
+            "🍪 *dunks in imaginary milk* Chef's kiss! 💋",
+        ],
+        'ice_cream': [
+            "🍦 *lick lick* Brain freeze! Worth it! 🧊😵",
+            "🍦 *happy shivers* Cold but SO good! ❄️💕",
+        ],
+        'default': [
+            "😋 *nom nom nom* Delicious! 🤤",
+            "😋 *chews happily* This is amazing! 💕",
+            "😋 *pats belly* Now THAT was a meal! 🐼",
+            "😋 *savors every bite* Compliments to the chef! 👨‍🍳",
+            "😋 *licks lips* Got any more? 🤭",
+        ],
+    }
+
+    # Responses when panda kicks a toy
+    KICK_TOY_RESPONSES = [
+        "🐼 *KICK* Take that! ⚽💥",
+        "🐼 GOAAAAL! 🥅🎉",
+        "🐼 *punts it across the screen* Oops, too hard! 😬",
+        "🐼 *gentle tap* Boop! 🐾",
+        "🐼 *winds up dramatically* ...and... KICK! 🦶💨",
+    ]
+
     # Toss responses
     TOSS_RESPONSES = [
         "🐼 WHEEEEE! 🚀",
@@ -779,9 +886,15 @@ class PandaCharacter:
             self.feed_count += 1
             return random.choice(self.FEED_RESPONSES)
 
-    def on_drag(self) -> str:
-        """Handle panda being dragged."""
+    def on_drag(self, grabbed_head: bool = False) -> str:
+        """Handle panda being dragged.
+        
+        Args:
+            grabbed_head: True if dragged by the head region
+        """
         self.drag_count += 1
+        if grabbed_head:
+            return random.choice(self.HEAD_DRAG_RESPONSES)
         return random.choice(self.DRAG_RESPONSES)
 
     def on_toss(self) -> str:
@@ -868,15 +981,8 @@ class PandaCharacter:
             Interaction response string
         """
         if item_type == 'food':
-            food_actions = [
-                f"🐼 *walks over to {item_name}* Ooh, is that food?!",
-                f"🐼 *picks up {item_name}* Don't mind if I do! *nom nom*",
-                f"🐼 *sniffs {item_name}* Smells amazing! *chomp*",
-                f"🐼 *waddles to {item_name}* Snack time! 😋",
-                f"🐼 *grabs {item_name}* This is mine now! *munch munch*",
-            ]
             self.feed_count += 1
-            return random.choice(food_actions)
+            return random.choice(self.WALK_TO_FOOD_RESPONSES)
         else:
             toy_actions = [
                 f"🐼 *walks to {item_name}* Oooh, what's this?! *kicks it*",
@@ -887,6 +993,41 @@ class PandaCharacter:
             ]
             self.toy_interact_count += 1
             return random.choice(toy_actions)
+
+    def on_food_pickup(self, item_name: str) -> str:
+        """Handle panda picking up a food item.
+        
+        Args:
+            item_name: Name of the food being picked up
+            
+        Returns:
+            Pickup response string
+        """
+        return random.choice(self.PICKUP_FOOD_RESPONSES)
+
+    def on_eating(self, item_name: str, item_key: str = '') -> str:
+        """Handle panda eating a food item with item-specific responses.
+        
+        Args:
+            item_name: Display name of the food
+            item_key: Widget key (e.g. 'bamboo', 'cake') for specific responses
+            
+        Returns:
+            Eating response string
+        """
+        responses = self.EATING_RESPONSES.get(item_key, self.EATING_RESPONSES['default'])
+        return random.choice(responses)
+
+    def on_kick_toy(self, item_name: str) -> str:
+        """Handle panda kicking a toy.
+        
+        Args:
+            item_name: Name of the toy
+            
+        Returns:
+            Kick response string
+        """
+        return random.choice(self.KICK_TOY_RESPONSES)
     
     def get_context_menu(self) -> Dict[str, str]:
         """Get right-click context menu options."""
@@ -1026,19 +1167,20 @@ class PandaCharacter:
                 self.set_mood(PandaMood.HAPPY)
             # If nothing triggers, keep current mood
     
-    def get_body_part_at_position(self, rel_y: float) -> str:
-        """Determine which body part is at a relative y position.
+    def get_body_part_at_position(self, rel_y: float, rel_x: float = 0.5) -> str:
+        """Determine which body part is at a relative position.
         
         The panda is drawn with body-shaped canvas rendering,
         roughly divided into regions:
-        - head: top 25% (ears, eyes)
-        - body: 25-50% (nose, mouth, torso)
-        - arms: same as body region but used for side clicks
-        - butt: 50-75% (lower torso)
+        - head: top ~35% (ears, eyes, forehead)
+        - arms: body-height rows at the left/right edges (>70% from center)
+        - body: 35-55% center (nose, mouth, torso)
+        - butt: 55-75% (lower torso)
         - legs: bottom 25% (feet)
         
         Args:
             rel_y: Relative Y position (0.0 = top, 1.0 = bottom)
+            rel_x: Relative X position (0.0 = left, 1.0 = right)
             
         Returns:
             Body part name string
@@ -1046,6 +1188,9 @@ class PandaCharacter:
         if rel_y < self.HEAD_BOUNDARY:
             return 'head'
         elif rel_y < self.BODY_BOUNDARY:
+            # Distinguish arms from body using horizontal position
+            if rel_x < 0.25 or rel_x > 0.75:
+                return 'arms'
             return 'body'
         elif rel_y < self.BUTT_BOUNDARY:
             return 'butt'

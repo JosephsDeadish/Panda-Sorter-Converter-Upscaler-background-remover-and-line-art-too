@@ -432,6 +432,146 @@ def test_accessories_routed_to_closet():
     print("✓ Accessories properly routed to closet via SHOP_TO_CLOSET_CATEGORY")
 
 
+def test_drag_blocks_non_drag_animations():
+    """Test that drag-allowed animations are defined and block non-drag ones."""
+    try:
+        from src.ui.panda_widget import PandaWidget
+        assert hasattr(PandaWidget, 'DRAG_ALLOWED_ANIMATIONS'), \
+            "PandaWidget should have DRAG_ALLOWED_ANIMATIONS"
+        allowed = PandaWidget.DRAG_ALLOWED_ANIMATIONS
+        assert 'dragging' in allowed, "dragging should be allowed during drag"
+        assert 'wall_hit' in allowed, "wall_hit should be allowed during drag"
+        assert 'shaking' in allowed, "shaking should be allowed during drag"
+        assert 'spinning' in allowed, "spinning should be allowed during drag"
+        # Non-drag animations should NOT be in the set
+        assert 'dancing' not in allowed, "dancing should not be allowed during drag"
+        assert 'celebrating' not in allowed, "celebrating should not be allowed during drag"
+        assert 'idle' not in allowed, "idle should not be allowed during drag"
+        print("✓ Drag-allowed animations correctly defined")
+    except ImportError:
+        print("⚠ Skipping drag animation guard test (GUI not available)")
+
+
+def test_head_drag_responses():
+    """Test that head-drag specific responses exist and are used."""
+    panda = PandaCharacter()
+    assert hasattr(panda, 'HEAD_DRAG_RESPONSES'), \
+        "PandaCharacter should have HEAD_DRAG_RESPONSES"
+    assert len(panda.HEAD_DRAG_RESPONSES) > 0, \
+        "HEAD_DRAG_RESPONSES should not be empty"
+    # Test that on_drag with grabbed_head=True uses head responses
+    responses = set()
+    for _ in range(30):
+        responses.add(panda.on_drag(grabbed_head=True))
+    head_set = set(panda.HEAD_DRAG_RESPONSES)
+    assert responses & head_set, "on_drag(grabbed_head=True) should use HEAD_DRAG_RESPONSES"
+    print("✓ Head drag responses work correctly")
+
+
+def test_body_drag_responses():
+    """Test that body-drag responses are used when not grabbed by head."""
+    panda = PandaCharacter()
+    assert hasattr(panda, 'BODY_DRAG_RESPONSES'), \
+        "PandaCharacter should have BODY_DRAG_RESPONSES"
+    # Default (non-head) drag should use DRAG_RESPONSES
+    responses = set()
+    for _ in range(30):
+        responses.add(panda.on_drag(grabbed_head=False))
+    drag_set = set(panda.DRAG_RESPONSES)
+    assert responses & drag_set, "on_drag(grabbed_head=False) should use DRAG_RESPONSES"
+    print("✓ Body drag responses work correctly")
+
+
+def test_body_part_detection_with_x():
+    """Test that body part detection uses X position for arm detection."""
+    panda = PandaCharacter()
+    # Body region, center → should return 'body'
+    part = panda.get_body_part_at_position(0.4, 0.5)
+    assert part == 'body', f"Center body should be 'body', got {part}"
+    # Body region, far left → should return 'arms'
+    part = panda.get_body_part_at_position(0.4, 0.1)
+    assert part == 'arms', f"Left side body should be 'arms', got {part}"
+    # Body region, far right → should return 'arms'
+    part = panda.get_body_part_at_position(0.4, 0.9)
+    assert part == 'arms', f"Right side body should be 'arms', got {part}"
+    # Head is always head regardless of X
+    part = panda.get_body_part_at_position(0.1, 0.1)
+    assert part == 'head', f"Top left should be 'head', got {part}"
+    # Legs are always legs regardless of X
+    part = panda.get_body_part_at_position(0.9, 0.5)
+    assert part == 'legs', f"Bottom center should be 'legs', got {part}"
+    print("✓ Body part detection with X-axis works correctly")
+
+
+def test_food_pickup_response():
+    """Test that on_food_pickup returns a pickup response."""
+    panda = PandaCharacter()
+    assert hasattr(panda, 'on_food_pickup'), \
+        "PandaCharacter should have on_food_pickup method"
+    response = panda.on_food_pickup('Fresh Bamboo')
+    assert isinstance(response, str) and len(response) > 0, \
+        "on_food_pickup should return a non-empty string"
+    print("✓ Food pickup response works")
+
+
+def test_eating_response_per_item():
+    """Test that on_eating returns item-specific responses."""
+    panda = PandaCharacter()
+    assert hasattr(panda, 'on_eating'), \
+        "PandaCharacter should have on_eating method"
+    # Known item key should give specific response
+    response = panda.on_eating('Fresh Bamboo', 'bamboo')
+    assert isinstance(response, str) and len(response) > 0
+    # Unknown key should give default response
+    response = panda.on_eating('Mystery Food', 'unknown_food')
+    assert isinstance(response, str) and len(response) > 0
+    print("✓ Per-item eating responses work correctly")
+
+
+def test_kick_toy_response():
+    """Test that on_kick_toy returns a kick response."""
+    panda = PandaCharacter()
+    assert hasattr(panda, 'on_kick_toy'), \
+        "PandaCharacter should have on_kick_toy method"
+    response = panda.on_kick_toy('Bamboo Ball')
+    assert isinstance(response, str) and len(response) > 0, \
+        "on_kick_toy should return a non-empty string"
+    print("✓ Kick toy response works")
+
+
+def test_walk_to_food_responses():
+    """Test that on_item_interact for food uses walk-to-food responses."""
+    panda = PandaCharacter()
+    responses = set()
+    for _ in range(30):
+        responses.add(panda.on_item_interact('Fresh Bamboo', 'food'))
+    walk_set = set(panda.WALK_TO_FOOD_RESPONSES)
+    assert responses & walk_set, "Food on_item_interact should use WALK_TO_FOOD_RESPONSES"
+    print("✓ Walk-to-food responses work correctly")
+
+
+def test_eating_sequence_constants():
+    """Test that eating sequence phase constants exist."""
+    try:
+        from src.ui.panda_widget import PandaWidget
+        assert hasattr(PandaWidget, 'EATING_PICKUP_FRAMES'), \
+            "PandaWidget should have EATING_PICKUP_FRAMES"
+        assert hasattr(PandaWidget, 'EATING_INSPECT_FRAMES'), \
+            "PandaWidget should have EATING_INSPECT_FRAMES"
+        assert hasattr(PandaWidget, 'EATING_CHEW_FRAMES'), \
+            "PandaWidget should have EATING_CHEW_FRAMES"
+        assert hasattr(PandaWidget, 'EATING_SATISFIED_FRAMES'), \
+            "PandaWidget should have EATING_SATISFIED_FRAMES"
+        total = (PandaWidget.EATING_PICKUP_FRAMES +
+                 PandaWidget.EATING_INSPECT_FRAMES +
+                 PandaWidget.EATING_CHEW_FRAMES +
+                 PandaWidget.EATING_SATISFIED_FRAMES)
+        assert total >= 60, f"Total eating frames should be >= 60, got {total}"
+        print("✓ Eating sequence constants correctly defined")
+    except ImportError:
+        print("⚠ Skipping eating sequence test (GUI not available)")
+
+
 if __name__ == "__main__":
     print("Testing Panda Character Improvements...")
     print("-" * 50)
@@ -467,6 +607,16 @@ if __name__ == "__main__":
         test_belly_rub_animation_state()
         test_belly_rub_in_click_animations()
         test_animation_interval_smooth()
+        # New tests for drag/touch/eat improvements
+        test_drag_blocks_non_drag_animations()
+        test_head_drag_responses()
+        test_body_drag_responses()
+        test_body_part_detection_with_x()
+        test_food_pickup_response()
+        test_eating_response_per_item()
+        test_kick_toy_response()
+        test_walk_to_food_responses()
+        test_eating_sequence_constants()
 
         print("-" * 50)
         print("✅ All panda improvement tests passed!")

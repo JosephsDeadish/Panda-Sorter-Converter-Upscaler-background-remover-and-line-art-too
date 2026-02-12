@@ -190,7 +190,8 @@ def test_panda_item_interaction():
 
     # Food interaction
     response = panda.on_item_interact('Fresh Bamboo', 'food')
-    food_keywords = {'bamboo', 'food', 'nom', 'sniff', 'chomp', 'munch', 'snack', 'walks', 'picks'}
+    food_keywords = {'bamboo', 'food', 'nom', 'sniff', 'chomp', 'munch', 'snack',
+                     'walks', 'picks', 'smell', 'tummy', 'detected', 'waddle'}
     assert any(kw in response.lower() for kw in food_keywords), \
         f"Food interact should mention food-related action: {response}"
     assert panda.feed_count == 1, "Food interaction should increase feed count"
