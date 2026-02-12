@@ -61,8 +61,8 @@ jobs:
       
       - name: Verify EXE Exists
         run: |
-          if (Test-Path "dist/PS2TextureSorter.exe") {
-            $size = (Get-Item "dist/PS2TextureSorter.exe").Length / 1MB
+          if (Test-Path "dist/GameTextureSorter.exe") {
+            $size = (Get-Item "dist/GameTextureSorter.exe").Length / 1MB
             Write-Host "✅ EXE created successfully (Size: $($size.ToString('F2')) MB)"
           } else {
             Write-Error "❌ EXE not found!"
@@ -72,15 +72,15 @@ jobs:
       - name: Upload EXE as Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: PS2TextureSorter-${{ github.sha }}
-          path: dist/PS2TextureSorter.exe
+          name: GameTextureSorter-${{ github.sha }}
+          path: dist/GameTextureSorter.exe
           retention-days: 90
       
       - name: Create Release (on version tags)
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v1
         with:
-          files: dist/PS2TextureSorter.exe
+          files: dist/GameTextureSorter.exe
           draft: false
           prerelease: false
           generate_release_notes: true
@@ -90,7 +90,7 @@ jobs:
             🐼 **Automatic texture classification and organization for PS2 texture dumps**
             
             ### Download
-            Download `PS2TextureSorter.exe` below and run it - no installation required!
+            Download `GameTextureSorter.exe` below and run it - no installation required!
             
             ### Features
             - 🤖 Automatic classification with 50+ texture categories
