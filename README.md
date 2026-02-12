@@ -15,6 +15,8 @@ A professional, single-executable Windows application for automatically sorting 
 ### Core Functionality
 - **🤖 Automatic Classification** - 50+ texture categories with AI-powered classification
 - **🔄 Format Conversion** - Extended format support: DDS, PNG, JPEG, WEBP, SVG, BMP, TGA, TIFF, GIF, PCX
+- **📦 Archive Support** - Extract from and compress to ZIP, 7Z, RAR, TAR archives (NEW!)
+- **🎮 Game Recognition** - Automatically identifies 70+ PS2 games with texture profiles (EXPANDED!)
 - **🎨 HD/4K Support** - NEW: Conditional preprocessing for both PS2 textures AND HD/4K textures
 - **🔍 Keyword Search** - NEW: Search textures by typing keywords like "gun", "character face", etc.
 - **📊 Massive Scale** - Handle 200,000+ textures efficiently with database indexing
@@ -160,8 +162,10 @@ Settings are stored in: `%USERPROFILE%\.ps2_texture_sorter\config.json`
 - **[README.md](README.md)** - This file: overview and quick start
 - **[BUILD.md](BUILD.md)** - Detailed build instructions for developers
 - **[CODE_SIGNING.md](CODE_SIGNING.md)** - Guide to signing the EXE for Windows SmartScreen
-- **[VISION_MODELS_GUIDE.md](VISION_MODELS_GUIDE.md)** - 🆕 Vision models, HD/4K support, and keyword search
-- **[FORMAT_SUPPORT_GUIDE.md](FORMAT_SUPPORT_GUIDE.md)** - 🆕 Extended format support (SVG, WEBP, etc.)
+- **[ARCHIVE_SUPPORT.md](ARCHIVE_SUPPORT.md)** - 🆕 Archive extraction and compression guide
+- **[GAME_IDENTIFICATION.md](GAME_IDENTIFICATION.md)** - 🆕 Game recognition with 70+ PS2 titles
+- **[VISION_MODELS_GUIDE.md](VISION_MODELS_GUIDE.md)** - Vision models, HD/4K support, and keyword search
+- **[FORMAT_SUPPORT_GUIDE.md](FORMAT_SUPPORT_GUIDE.md)** - Extended format support (SVG, WEBP, etc.)
 - **[PANDA_GUIDE.md](PANDA_GUIDE.md)** - Complete guide to panda features and interactions
 - **[UNLOCKABLES_GUIDE.md](UNLOCKABLES_GUIDE.md)** - Achievement and unlockables system documentation
 - **[UI_CUSTOMIZATION_GUIDE.md](UI_CUSTOMIZATION_GUIDE.md)** - UI theming and customization guide
@@ -169,6 +173,21 @@ Settings are stored in: `%USERPROFILE%\.ps2_texture_sorter\config.json`
 - **Built-in Help** - Press F1 anywhere in the application for context-sensitive help
 
 ## 🆕 What's New
+
+### Archive Support (NEW!)
+Full support for working with compressed archives:
+- **Extract from archives**: ZIP, 7Z, RAR, TAR.GZ support
+- **Compress to archives**: Create ZIP files of sorted/converted textures
+- **Browse archives**: View archive contents in file browser
+- See [ARCHIVE_SUPPORT.md](ARCHIVE_SUPPORT.md) for complete guide
+
+### Expanded Game Recognition (NEW!)
+Comprehensive PS2 game database:
+- **70+ games** recognized automatically (expanded from 14)
+- All major franchises: GTA, Ratchet & Clank, Tekken, Sly Cooper, etc.
+- Popular titles: Okami, Katamari, Psychonauts, Bully, etc.
+- Game series: Devil May Cry, Resident Evil, Silent Hill, Final Fantasy, etc.
+- See [GAME_IDENTIFICATION.md](GAME_IDENTIFICATION.md) for full list
 
 ### HD/4K Texture Support
 The preprocessing pipeline now intelligently handles both low-resolution PS2 textures AND high-resolution HD/4K textures:

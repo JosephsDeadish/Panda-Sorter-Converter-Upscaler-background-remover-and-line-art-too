@@ -1359,10 +1359,12 @@ class PS2TextureSorter(ctk.CTk):
         
         # Apply tooltips to sort tab widgets
         self._apply_sort_tooltips(browse_btn, browse_out_btn, mode_menu, style_menu, 
-                                  detect_lods_cb, group_lods_cb, detect_dupes_cb)
+                                  detect_lods_cb, group_lods_cb, detect_dupes_cb,
+                                  extract_archive_cb, compress_archive_cb)
     
     def _apply_sort_tooltips(self, browse_in_btn, browse_out_btn, mode_menu, style_menu,
-                            detect_lods_cb, group_lods_cb, detect_dupes_cb):
+                            detect_lods_cb, group_lods_cb, detect_dupes_cb,
+                            extract_archive_cb, compress_archive_cb):
         """Apply tooltips to sort tab widgets"""
         if not WidgetTooltip:
             return
@@ -1395,6 +1397,16 @@ class PS2TextureSorter(ctk.CTk):
         self._tooltips.append(WidgetTooltip(detect_lods_cb, tt('lod_detection') or "Automatically detect Level of Detail (LOD) textures", widget_id='lod_detection', tooltip_manager=tm))
         self._tooltips.append(WidgetTooltip(group_lods_cb, tt('group_lods') or "Group LOD textures together in folders", widget_id='group_lods', tooltip_manager=tm))
         self._tooltips.append(WidgetTooltip(detect_dupes_cb, tt('detect_duplicates') or "Find and mark duplicate texture files", widget_id='detect_duplicates', tooltip_manager=tm))
+        
+        # NEW: Archive support tooltips
+        self._tooltips.append(WidgetTooltip(extract_archive_cb, 
+            "Extract textures from archive files before sorting\n"
+            "Supports: ZIP, 7Z, RAR, TAR.GZ formats\n"
+            "Automatically detects and extracts to temp directory"))
+        self._tooltips.append(WidgetTooltip(compress_archive_cb, 
+            "Compress sorted output into a ZIP archive\n"
+            "Creates a .zip file with all organized textures\n"
+            "Useful for sharing or storing sorted collections"))
     
     def _get_tooltip_text(self, widget_id):
         """Get tooltip text from the tooltip manager"""
