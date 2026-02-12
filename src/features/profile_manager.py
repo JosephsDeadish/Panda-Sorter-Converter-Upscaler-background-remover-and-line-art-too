@@ -568,7 +568,9 @@ class ProfileManager:
             # Apply texture profile if available
             texture_profile = game_info.get('texture_profile', {})
             if texture_profile:
-                # Set custom categories based on common categories
+                # Note: custom_categories with empty lists are intentional placeholders
+                # They indicate which categories are relevant for this game,
+                # while the actual keyword matching is handled by game_profile in the classifier
                 common_categories = texture_profile.get('common_categories', [])
                 if common_categories:
                     profile.custom_categories = {

@@ -84,7 +84,7 @@ class GameIdentifier:
                 'common_prefixes': ['kratos', 'olympus', 'weapon']
             }
         },
-        'SLUS-20946': {
+        'SLUS-20778': {
             'title': 'God of War',
             'region': 'NTSC-U',
             'texture_profile': {

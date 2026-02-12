@@ -1886,7 +1886,10 @@ class PS2TextureSorter(ctk.CTk):
             known_games = identifier.get_all_known_games()
             
             if not known_games:
-                messagebox.showinfo("No Games", "No games in database. Game detection is only available when games are configured.")
+                messagebox.showinfo(
+                    "Game Database Unavailable", 
+                    "Unable to load game database. Please check the game identifier configuration."
+                )
                 return
             
             # Create dialog

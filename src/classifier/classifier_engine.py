@@ -60,14 +60,30 @@ class TextureClassifier:
         """
         keywords = {}
         if self.game_profile:
-            # Extract common prefixes from profile
-            common_prefixes = self.game_profile.get('common_prefixes', [])
-            common_categories = self.game_profile.get('common_categories', [])
-            
-            # Map prefixes to categories if available
-            for prefix in common_prefixes:
-                # This is a simple mapping - can be enhanced
-                keywords[prefix.lower()] = common_categories[0] if common_categories else None
+            # Check if profile has explicit prefix-to-category mappings
+            prefix_mappings = self.game_profile.get('prefix_mappings', {})
+            if prefix_mappings:
+                # Use explicit mappings
+                for prefix, category in prefix_mappings.items():
+                    keywords[prefix.lower()] = category
+            else:
+                # Fallback: Use common prefixes with intelligent category matching
+                common_prefixes = self.game_profile.get('common_prefixes', [])
+                common_categories = self.game_profile.get('common_categories', [])
+                
+                # Try to match prefixes to categories by name similarity
+                for prefix in common_prefixes:
+                    prefix_lower = prefix.lower()
+                    matched_category = None
+                    
+                    # Try to find a category that matches the prefix
+                    for category in common_categories:
+                        if category.lower() in prefix_lower or prefix_lower in category.lower():
+                            matched_category = category
+                            break
+                    
+                    # Store mapping (may be None if no match found)
+                    keywords[prefix_lower] = matched_category
         
         return keywords
     

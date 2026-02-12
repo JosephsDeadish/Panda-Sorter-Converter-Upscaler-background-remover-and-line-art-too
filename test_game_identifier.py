@@ -62,7 +62,7 @@ def test_game_lookup():
     identifier = GameIdentifier()
     
     # Test with known games
-    test_serials = ["SLUS-20917", "SLUS-20946", "SLUS-20584"]
+    test_serials = ["SLUS-20917", "SLUS-20778", "SLUS-20584"]
     
     for serial in test_serials:
         game_info = identifier.lookup_by_serial(serial)
@@ -85,7 +85,7 @@ def test_identify_game():
     # Test with paths containing known game serials
     test_paths = [
         Path("/textures/SLUS-20917/dump"),
-        Path("/games/GodOfWar/SLUS-20946"),
+        Path("/games/GodOfWar/SLUS-20778"),
         Path("/unknown/random_folder"),
     ]
     
