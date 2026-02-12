@@ -7184,7 +7184,8 @@ Built with:
                 panda_character=self.panda,
                 panda_level_system=self.panda_level_system,
                 widget_collection=self.widget_collection,
-                panda_closet=self.panda_closet
+                panda_closet=self.panda_closet,
+                weapon_collection=self.weapon_collection
             )
     
     def browse_input(self):
