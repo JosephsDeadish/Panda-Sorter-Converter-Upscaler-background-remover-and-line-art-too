@@ -90,8 +90,9 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
     MIN_SHAKE_VELOCITY = 500        # Min avg speed (px/s) to consider shake (high = only super fast shakes)
     MIN_ROTATION_ANGLE = 0.7        # Min angle diff (radians) for spin detection (higher = less sensitive)
     SPIN_CONSISTENCY_THRESHOLD = 0.95  # Required ratio of consistent rotations (higher = stricter)
-    MIN_SPIN_POSITIONS = 24         # Min drag positions to attempt spin detection (more points needed)
-    MIN_SPIN_TOTAL_ANGLE = 4.71239  # Min total angle (radians, ~1.5*pi) swept for spin
+    MIN_SPIN_POSITIONS = 30         # Min drag positions to attempt spin detection (more points = harder to trigger)
+    MIN_SPIN_TOTAL_ANGLE = 6.28318  # Min total angle (radians, ~2*pi = full circle) swept for spin
+    MIN_SPIN_VELOCITY = 600         # Min avg speed (px/s) to even attempt spin detection
     
     # Toss physics constants
     TOSS_FRICTION = 0.92            # Velocity decay per frame
@@ -172,6 +173,12 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
         'sitting': ['🪑', '😌', '💭', '☕', '🧘'],
         'belly_grab': ['🤗', '😊', '💕', '🐼', '🫃'],
         'belly_jiggle': ['🫃', '😂', '🤣', '😊', '✨'],
+        'walking_left': ['👈', '🚶', '🐾', '←', '🐼'],
+        'walking_right': ['👉', '🚶', '🐾', '→', '🐼'],
+        'walking_up': ['👆', '🚶', '🐾', '↑', '🐼'],
+        'walking_down': ['👇', '🚶', '🐾', '↓', '🐼'],
+        'fall_on_face': ['😵', '💥', '🤕', '⭐', '😣'],
+        'tip_over_side': ['😴', '💤', '🛌', '😌', '💫'],
     }
     
     def __init__(self, parent, panda_character=None, panda_level_system=None,
@@ -282,6 +289,9 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
         self._drag_grab_head = False   # True when drag started in head region
         self._drag_grab_part = 'body'  # Body part grabbed during drag (specific limb/ear/etc)
         self._is_upside_down = False   # True when dragged upside down by legs
+        self._is_on_side = False        # True when tipped over on side
+        self._is_face_down = False      # True when fallen on face
+        self._facing_direction = 'front'  # Current facing: front, back, left, right
         
         # Ear stretch physics (elastic stretch during drag)
         self._ear_stretch = 0.0        # Current ear stretch amount
@@ -1164,6 +1174,26 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
             leg_swing = 6 + math.sin(phase * 0.3) * 2  # Legs slightly forward together
             arm_swing = -8  # Arm resting forward (pillow-style)
             body_bob = 45  # Low position (on ground)
+        elif anim in ('walking_left', 'walking_right'):
+            # Walking sideways: legs stride, arms swing opposite
+            leg_swing = math.sin(phase) * 12
+            arm_swing = math.sin(phase + math.pi) * 10
+            body_bob = abs(math.sin(phase)) * 3
+        elif anim in ('walking_up', 'walking_down'):
+            # Walking forward/backward: moderate stride
+            leg_swing = math.sin(phase) * 10
+            arm_swing = math.sin(phase + math.pi) * 8
+            body_bob = abs(math.sin(phase)) * 4
+        elif anim == 'fall_on_face':
+            # Fallen on face: body low, limbs splayed
+            leg_swing = 15
+            arm_swing = 20
+            body_bob = 55
+        elif anim == 'tip_over_side':
+            # Tipped over on side: legs together, arm out
+            leg_swing = 8
+            arm_swing = -10
+            body_bob = 48
         else:
             # Default walking for fed, etc.
             leg_swing = math.sin(phase) * 8
@@ -1184,6 +1214,18 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
             breath_scale = 0.7 + math.sin(phase * 0.3) * 0.02
         elif anim in ('sleeping', 'laying_down', 'laying_back', 'laying_side', 'sitting'):
             breath_scale = 1.0 + math.sin(phase * 0.3) * 0.025
+        elif anim in ('walking_left', 'walking_right'):
+            # Slight horizontal squeeze when walking sideways (showing side perspective)
+            breath_scale = 0.75 + math.sin(phase * 0.5) * 0.02
+        elif anim in ('walking_up',):
+            # Slightly wider when walking away (back perspective)
+            breath_scale = 1.05 + math.sin(phase * 0.5) * 0.015
+        elif anim == 'fall_on_face':
+            # Squished down flat on face
+            breath_scale = 1.3 + math.sin(phase * 0.2) * 0.02
+        elif anim == 'tip_over_side':
+            # Squeezed horizontally while on side
+            breath_scale = 0.65 + math.sin(phase * 0.3) * 0.02
         
         # --- Jiggle physics (spring-damper for belly wobble) ---
         self._belly_jiggle_vel = (self._belly_jiggle_vel - self._belly_jiggle * self.JIGGLE_SPRING) * self.JIGGLE_DAMPING
@@ -1405,6 +1447,18 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
             body_sway = math.sin(phase * 2) * 4
         elif anim == 'shaking':
             body_sway = math.sin(phase * 12) * 8 * self._shake_decay
+        elif anim == 'fall_on_face':
+            # Face down - body tilts forward heavily
+            body_sway = 0
+        elif anim == 'tip_over_side':
+            # Tipped over on side - large sideways tilt
+            body_sway = 28
+        elif anim in ('walking_left', 'walking_right', 'walking_up', 'walking_down'):
+            # Walking sway based on direction
+            if anim in ('walking_left', 'walking_right'):
+                body_sway = math.sin(phase) * 3
+            else:
+                body_sway = math.sin(phase * 0.5) * 2
         
         # --- Determine eye style based on animation ---
         eye_style = 'normal'
@@ -1579,6 +1633,12 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
             eye_style = 'normal'
         elif anim == 'belly_jiggle':
             eye_style = 'happy'
+        elif anim == 'fall_on_face':
+            eye_style = 'dizzy'
+        elif anim == 'tip_over_side':
+            eye_style = 'half'
+        elif anim in ('walking_left', 'walking_right', 'walking_up', 'walking_down'):
+            eye_style = 'normal'
         
         # --- Determine mouth style ---
         mouth_style = 'normal'
@@ -1680,6 +1740,12 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
             mouth_style = 'normal'
         elif anim == 'belly_jiggle':
             mouth_style = 'grin'
+        elif anim == 'fall_on_face':
+            mouth_style = 'angry'
+        elif anim == 'tip_over_side':
+            mouth_style = 'sleep'
+        elif anim in ('walking_left', 'walking_right', 'walking_up', 'walking_down'):
+            mouth_style = 'smile'
         
         # --- Colors ---
         white = "#FFFFFF"
@@ -3141,13 +3207,28 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
             self._auto_walk_steps_remaining = steps
             self._is_auto_walking = True
             
+            # Set facing direction based on dominant movement axis
+            if abs(dx) > abs(dy):
+                self._facing_direction = 'right' if dx > 0 else 'left'
+                walk_anim = 'walking_right' if dx > 0 else 'walking_left'
+            else:
+                self._facing_direction = 'down' if dy > 0 else 'up'
+                walk_anim = 'walking_down' if dy > 0 else 'walking_up'
+            
+            # Update panda character facing if available
+            if self.panda and hasattr(self.panda, 'set_facing'):
+                from src.features.panda_character import PandaFacing
+                facing_map = {'front': PandaFacing.FRONT, 'back': PandaFacing.BACK,
+                              'left': PandaFacing.LEFT, 'right': PandaFacing.RIGHT,
+                              'up': PandaFacing.BACK, 'down': PandaFacing.FRONT}
+                self.panda.set_facing(facing_map.get(self._facing_direction, PandaFacing.FRONT))
+            
             # Show a comment
             comment = random.choice(self.AUTO_WALK_COMMENTS)
             self.info_label.configure(text=comment)
             
-            # Use a walking-style animation (varies for visual interest)
-            walk_anims = ['waving', 'dancing', 'stretching']
-            self._set_animation_no_cancel(random.choice(walk_anims))
+            # Use directional walking animation
+            self._set_animation_no_cancel(walk_anim)
             
             # Start walking
             self._auto_walk_tick()
@@ -3169,8 +3250,9 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
         
         self._auto_walk_steps_remaining -= 1
         if self._auto_walk_steps_remaining <= 0:
-            # Arrived at destination
+            # Arrived at destination - reset facing to front
             self._is_auto_walking = False
+            self._facing_direction = 'front'
             self._save_panda_position()
             self.start_animation('idle')
             self._schedule_auto_walk()
@@ -3424,8 +3506,9 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
         
         # Detect circular dragging (consistent angle rotation)
         # Requires enough points to form a real arc, and the path must
-        # span a meaningful angle range to distinguish from linear drag
-        if len(positions) >= self.MIN_SPIN_POSITIONS:
+        # span a meaningful angle range to distinguish from linear drag.
+        # Also requires high velocity - only fast circular dragging by belly triggers spin.
+        if len(positions) >= self.MIN_SPIN_POSITIONS and avg_speed > self.MIN_SPIN_VELOCITY:
             angles = []
             cx = sum(p[0] for p in positions) / len(positions)
             cy = sum(p[1] for p in positions) / len(positions)
@@ -3655,6 +3738,37 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
         self._toss_velocity_x = 0.0
         self._toss_velocity_y = 0.0
         self._save_panda_position()
+        
+        # After a rough toss (multiple bounces), panda may fall on face or tip over
+        if self._toss_bounce_count >= 3 and random.random() < 0.4:
+            if random.random() < 0.5:
+                self._is_face_down = True
+                self._is_on_side = False
+                self._set_animation_no_cancel('fall_on_face')
+                if self.panda and hasattr(self.panda, 'on_fall_on_face'):
+                    response = self.panda.on_fall_on_face()
+                    self.info_label.configure(text=response)
+            else:
+                self._is_on_side = True
+                self._is_face_down = False
+                self._set_animation_no_cancel('tip_over_side')
+                if self.panda and hasattr(self.panda, 'on_tip_over'):
+                    response = self.panda.on_tip_over()
+                    self.info_label.configure(text=response)
+            # Auto-recover after a few seconds
+            self.after(3000, self._recover_from_fall)
+        else:
+            self._is_face_down = False
+            self._is_on_side = False
+            self.start_animation('idle')
+    
+    def _recover_from_fall(self):
+        """Recover from fall_on_face or tip_over_side back to idle."""
+        if self._destroyed:
+            return
+        self._is_face_down = False
+        self._is_on_side = False
+        self._facing_direction = 'front'
         self.start_animation('idle')
     
     def _save_panda_position(self):
