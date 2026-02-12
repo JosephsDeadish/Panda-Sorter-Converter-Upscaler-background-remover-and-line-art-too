@@ -24,7 +24,7 @@ except ImportError:
 try:
     import cairosvg
     HAS_SVG = True
-except ImportError:
+except (ImportError, OSError):
     HAS_SVG = False
     logger.debug("cairosvg not available. SVG conversion disabled.")
 

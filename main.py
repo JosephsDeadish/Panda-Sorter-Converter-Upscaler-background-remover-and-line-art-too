@@ -171,6 +171,20 @@ except ImportError:
     print("Warning: Weapon system not available.")
 
 try:
+    from src.features.combat_system import CombatStats, AdventureLevel, SkillTree
+    COMBAT_SYSTEM_AVAILABLE = True
+except ImportError:
+    COMBAT_SYSTEM_AVAILABLE = False
+    print("Warning: Combat system not available.")
+
+try:
+    from src.features.travel_system import TravelSystem
+    TRAVEL_SYSTEM_AVAILABLE = True
+except ImportError:
+    TRAVEL_SYSTEM_AVAILABLE = False
+    print("Warning: Travel system not available.")
+
+try:
     from src.ui.goodbye_splash import show_goodbye_splash
     GOODBYE_SPLASH_AVAILABLE = True
 except ImportError:
@@ -774,6 +788,9 @@ class PS2TextureSorter(ctk.CTk):
             self.tab_closet = self.features_tabview.add("👔 Panda Closet")
         self.tab_inventory = self.features_tabview.add("📦 Inventory")
         self.tab_panda_stats = self.features_tabview.add("📊 Panda Stats & Mood")
+        self.tab_armory = self.features_tabview.add("⚔️ Armory")
+        self.tab_battle_arena = self.features_tabview.add("🏟️ Battle Arena")
+        self.tab_travel_hub = self.features_tabview.add("🗺️ Travel Hub")
         
         # Track popped-out tabs
         self._popout_windows = {}
@@ -792,6 +809,9 @@ class PS2TextureSorter(ctk.CTk):
             self.create_closet_tab()
         self.create_inventory_tab()
         self.create_panda_stats_tab()
+        self.create_armory_tab()
+        self.create_battle_arena_tab()
+        self.create_travel_hub_tab()
         
         # Throttle scroll events on all scrollable frames to reduce lag/tearing
         self._throttle_scroll_frames()
@@ -6516,6 +6536,162 @@ Built with:
 
         # Start auto-refresh timer (refresh every 3 seconds)
         self._start_stats_auto_refresh()
+
+    def create_armory_tab(self):
+        """Create armory tab for viewing and equipping weapons."""
+        header_frame = ctk.CTkFrame(self.tab_armory)
+        header_frame.pack(fill="x", pady=10, padx=10)
+
+        ctk.CTkLabel(header_frame, text="⚔️ Armory ⚔️",
+                     font=("Arial Bold", 18)).pack(side="left", padx=10)
+
+        if not WEAPON_SYSTEM_AVAILABLE or not self.weapon_collection:
+            info_frame = ctk.CTkFrame(self.tab_armory)
+            info_frame.pack(pady=50, padx=50, fill="both", expand=True)
+            ctk.CTkLabel(info_frame,
+                         text="⚔️ Armory coming soon!\n\n"
+                              "Unlock weapons through achievements and the shop,\n"
+                              "then equip them here for battle.",
+                         font=("Arial", 14)).pack(expand=True)
+            return
+
+        # Equipped weapon display
+        equip_frame = ctk.CTkFrame(self.tab_armory)
+        equip_frame.pack(fill="x", pady=5, padx=10)
+
+        equipped = self.weapon_collection.equipped_weapon_id
+        equipped_weapon = self.weapon_collection.get_weapon(equipped) if equipped else None
+        equipped_text = f"Equipped: {equipped_weapon.name} ({equipped_weapon.rarity.value})" if equipped_weapon else "No weapon equipped"
+        ctk.CTkLabel(equip_frame, text=equipped_text,
+                     font=("Arial Bold", 14)).pack(pady=8, padx=10)
+
+        # Scrollable list of weapons
+        scroll_frame = ctk.CTkScrollableFrame(self.tab_armory, label_text="Weapons Collection")
+        scroll_frame.pack(fill="both", expand=True, padx=10, pady=5)
+
+        weapons = self.weapon_collection.get_all_weapons()
+        for weapon in weapons:
+            wf = ctk.CTkFrame(scroll_frame)
+            wf.pack(fill="x", pady=3, padx=5)
+
+            status = "🔓" if weapon.unlocked else "🔒"
+            rarity_color = {"common": "#aaaaaa", "uncommon": "#00cc00",
+                           "rare": "#3399ff", "epic": "#9933ff",
+                           "legendary": "#ff9900"}.get(weapon.rarity.value, "#aaaaaa")
+            ctk.CTkLabel(wf, text=f"{status} {weapon.name}",
+                         font=("Arial Bold", 13),
+                         text_color=rarity_color).pack(side="left", padx=8)
+            ctk.CTkLabel(wf, text=f"ATK: {weapon.stats.attack}  DEF: {weapon.stats.defense}",
+                         font=("Arial", 11)).pack(side="left", padx=10)
+
+            if weapon.unlocked:
+                is_equipped = (equipped == weapon.weapon_id)
+                btn_text = "✅ Equipped" if is_equipped else "Equip"
+                btn = ctk.CTkButton(wf, text=btn_text, width=80,
+                                    state="disabled" if is_equipped else "normal",
+                                    command=lambda wid=weapon.weapon_id: self._equip_weapon(wid))
+                btn.pack(side="right", padx=5)
+
+    def _equip_weapon(self, weapon_id: str):
+        """Equip a weapon and refresh the armory tab."""
+        if self.weapon_collection:
+            self.weapon_collection.equip_weapon(weapon_id)
+            # Rebuild armory tab
+            for widget in self.tab_armory.winfo_children():
+                widget.destroy()
+            self.create_armory_tab()
+
+    def create_battle_arena_tab(self):
+        """Create battle arena tab for combat encounters."""
+        header_frame = ctk.CTkFrame(self.tab_battle_arena)
+        header_frame.pack(fill="x", pady=10, padx=10)
+
+        ctk.CTkLabel(header_frame, text="🏟️ Battle Arena 🏟️",
+                     font=("Arial Bold", 18)).pack(side="left", padx=10)
+
+        if not COMBAT_SYSTEM_AVAILABLE:
+            info_frame = ctk.CTkFrame(self.tab_battle_arena)
+            info_frame.pack(pady=50, padx=50, fill="both", expand=True)
+            ctk.CTkLabel(info_frame,
+                         text="🏟️ Battle Arena coming soon!\n\n"
+                              "Fight enemies, earn XP, and level up your panda\n"
+                              "in turn-based combat encounters.",
+                         font=("Arial", 14)).pack(expand=True)
+            return
+
+        # Combat stats display
+        stats_frame = ctk.CTkFrame(self.tab_battle_arena)
+        stats_frame.pack(fill="x", pady=5, padx=10)
+
+        ctk.CTkLabel(stats_frame, text="Combat Stats",
+                     font=("Arial Bold", 14)).pack(pady=5)
+
+        combat_stats = CombatStats()
+        stats_text = (f"❤️ HP: {combat_stats.hp}/{combat_stats.max_hp}  "
+                      f"⚔️ ATK: {combat_stats.attack}  "
+                      f"🛡️ DEF: {combat_stats.defense}  "
+                      f"🎯 SPD: {combat_stats.speed}")
+        ctk.CTkLabel(stats_frame, text=stats_text,
+                     font=("Arial", 12)).pack(pady=5)
+
+        # Arena info
+        arena_frame = ctk.CTkFrame(self.tab_battle_arena)
+        arena_frame.pack(fill="both", expand=True, padx=10, pady=5)
+
+        ctk.CTkLabel(arena_frame,
+                     text="🐼 Enter the Arena\n\n"
+                          "Choose a difficulty and fight enemies\n"
+                          "to earn rewards and level up!\n\n"
+                          "💡 Equip weapons in the Armory first\n"
+                          "for better combat stats.",
+                     font=("Arial", 13)).pack(expand=True, pady=20)
+
+        # Difficulty buttons
+        btn_frame = ctk.CTkFrame(arena_frame)
+        btn_frame.pack(pady=10)
+        for diff, emoji in [("Easy", "🟢"), ("Normal", "🟡"), ("Hard", "🔴")]:
+            ctk.CTkButton(btn_frame, text=f"{emoji} {diff}",
+                         width=100).pack(side="left", padx=8, pady=5)
+
+    def create_travel_hub_tab(self):
+        """Create travel hub tab for selecting and entering dungeons."""
+        header_frame = ctk.CTkFrame(self.tab_travel_hub)
+        header_frame.pack(fill="x", pady=10, padx=10)
+
+        ctk.CTkLabel(header_frame, text="🗺️ Travel Hub 🗺️",
+                     font=("Arial Bold", 18)).pack(side="left", padx=10)
+
+        if not TRAVEL_SYSTEM_AVAILABLE:
+            info_frame = ctk.CTkFrame(self.tab_travel_hub)
+            info_frame.pack(pady=50, padx=50, fill="both", expand=True)
+            ctk.CTkLabel(info_frame,
+                         text="🗺️ Travel Hub coming soon!\n\n"
+                              "Explore dungeons, discover treasure,\n"
+                              "and battle bosses across different locations.",
+                         font=("Arial", 14)).pack(expand=True)
+            return
+
+        # Location list
+        scroll_frame = ctk.CTkScrollableFrame(self.tab_travel_hub, label_text="Locations")
+        scroll_frame.pack(fill="both", expand=True, padx=10, pady=5)
+
+        travel_sys = TravelSystem()
+        locations = list(travel_sys.locations.values())
+        for loc in locations:
+            lf = ctk.CTkFrame(scroll_frame)
+            lf.pack(fill="x", pady=3, padx=5)
+
+            ctk.CTkLabel(lf, text=f"{loc.icon} {loc.name}",
+                         font=("Arial Bold", 13)).pack(side="left", padx=8)
+            ctk.CTkLabel(lf, text=f"Lvl {loc.level_required}+",
+                         font=("Arial", 11)).pack(side="left", padx=10)
+
+            status = "🔓" if loc.unlocked else "🔒"
+            ctk.CTkLabel(lf, text=status,
+                         font=("Arial", 14)).pack(side="right", padx=8)
+
+            if loc.unlocked:
+                ctk.CTkButton(lf, text="Enter", width=70).pack(side="right", padx=5)
 
     def _draw_static_panda(self, canvas, w, h):
         """Draw a static panda on a preview canvas matching the live panda_widget style."""
