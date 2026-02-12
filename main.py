@@ -306,10 +306,10 @@ class PS2TextureSorter(ctk.CTk):
     BATCH_BONUS_THRESHOLD = 100  # Number of files for batch bonus
     
     # Prefixes to strip when mapping shop unlockable_ids to closet item IDs
-    CLOSET_ID_PREFIXES = ['clothes_', 'acc_', 'panda_outfit_']
+    CLOSET_ID_PREFIXES = ['clothes_', 'acc_', 'closet_', 'panda_outfit_']
     
     # Shop categories that belong in the closet (not inventory)
-    CLOSET_SHOP_CATEGORIES = {'panda_outfits', 'clothes', 'accessories'}
+    CLOSET_SHOP_CATEGORIES = {'panda_outfits', 'clothes', 'hats', 'shoes', 'accessories'}
     
     # Constants for user interaction
     USER_INTERACTION_TIMEOUT = 300  # 5 minutes timeout for manual/suggested mode dialogs
@@ -4002,6 +4002,8 @@ class PS2TextureSorter(ctk.CTk):
             ShopCategory.THEMES: "🎨",
             ShopCategory.ANIMATIONS: "💃",
             ShopCategory.CLOTHES: "👕",
+            ShopCategory.HATS: "🎩",
+            ShopCategory.SHOES: "👟",
             ShopCategory.ACCESSORIES: "💎",
             ShopCategory.UPGRADES: "⚡",
             ShopCategory.SPECIAL: "🌟",
@@ -4017,7 +4019,9 @@ class PS2TextureSorter(ctk.CTk):
             ShopCategory.THEMES: "Color themes to change the look of the entire application",
             ShopCategory.ANIMATIONS: "New animations for your panda to perform",
             ShopCategory.CLOTHES: "Individual clothing items — shirts, pants, dresses for your panda",
-            ShopCategory.ACCESSORIES: "Accessories like glasses, bags, and jewelry for your panda",
+            ShopCategory.HATS: "Hats, helmets, and headwear for your panda",
+            ShopCategory.SHOES: "Shoes, boots, and footwear for your panda",
+            ShopCategory.ACCESSORIES: "Accessories like watches, bracelets, ties, and jewelry",
             ShopCategory.UPGRADES: "App upgrades and performance boosts",
             ShopCategory.SPECIAL: "Limited and exclusive items — get them before they're gone!",
             ShopCategory.FOOD: "Feed your panda — food items boost happiness instantly",
@@ -4188,7 +4192,7 @@ class PS2TextureSorter(ctk.CTk):
                 try:
                     # Try to unlock the item in unlockables
                     for category in ['cursors', 'outfits', 'themes', 'animations',
-                                     'cursor_trails', 'clothes', 'accessories']:
+                                     'cursor_trails', 'clothes', 'hats', 'shoes', 'accessories']:
                         items_dict = getattr(self.unlockables_manager, category, {})
                         if isinstance(items_dict, dict) and item.unlockable_id in items_dict:
                             items_dict[item.unlockable_id].unlocked = True

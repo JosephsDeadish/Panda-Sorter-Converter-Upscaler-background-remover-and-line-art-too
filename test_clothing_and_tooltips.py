@@ -157,7 +157,8 @@ def test_tooltip_shop_subcategory_entries():
     mgr = TooltipVerbosityManager(MockConfig())
 
     shop_ids = [
-        "shop_outfits_cat", "shop_clothes_cat", "shop_accessories_cat",
+        "shop_outfits_cat", "shop_clothes_cat", "shop_hats_cat",
+        "shop_shoes_cat", "shop_accessories_cat",
         "shop_cursors_cat", "shop_cursor_trails_cat", "shop_themes_cat",
         "shop_food_cat", "shop_toys_cat", "shop_upgrades_cat",
         "shop_special_cat",

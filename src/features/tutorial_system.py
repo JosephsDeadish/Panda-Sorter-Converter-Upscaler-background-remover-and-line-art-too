@@ -1786,7 +1786,9 @@ class TooltipVerbosityManager:
             'shop_item_name': "Click for more details about this item",
             'shop_outfits_cat': "Browse panda outfits available for purchase",
             'shop_clothes_cat': "Browse clothing items available for purchase",
-            'shop_accessories_cat': "Browse accessories available for purchase",
+            'shop_hats_cat': "Browse hats, helmets, and headwear for purchase",
+            'shop_shoes_cat': "Browse shoes, boots, and footwear for purchase",
+            'shop_accessories_cat': "Browse accessories like watches, bracelets, and ties",
             'shop_cursors_cat': "Browse custom cursors available for purchase",
             'shop_cursor_trails_cat': "Browse cursor trail effects for purchase",
             'shop_themes_cat': "Browse application themes for purchase",
@@ -2345,8 +2347,16 @@ class TooltipVerbosityManager:
                 "Individual clothing pieces — shirts, pants, jackets, and more!",
                 "Browse and buy clothing items for your panda's closet.",
             ],
+            'shop_hats_cat': [
+                "Hats, helmets, and headwear for your panda!",
+                "Browse and buy headwear items for your panda.",
+            ],
+            'shop_shoes_cat': [
+                "Shoes, boots, and footwear for your panda!",
+                "Browse and buy footwear items for your panda.",
+            ],
             'shop_accessories_cat': [
-                "Accessories, jewelry, and decorative items for sale!",
+                "Watches, bracelets, ties, bows, and jewelry for sale!",
                 "Buy accessories to add flair to your panda.",
             ],
             'shop_cursors_cat': [
@@ -2960,9 +2970,21 @@ class TooltipVerbosityManager:
                 "Buy clothes piece by piece. Build the perfect outfit.",
                 "Clothing aisle. Your panda's dream wardrobe awaits.",
             ],
+            'shop_hats_cat': [
+                "Hats and helmets. Top off your panda's look!",
+                "Headwear shop. From berets to space helmets.",
+                "Hat aisle. Because bald pandas need love too.",
+                "Buy hats. Crown your panda with style.",
+            ],
+            'shop_shoes_cat': [
+                "Shoes and boots. Walk in style, panda!",
+                "Footwear shop. From slippers to rocket boots.",
+                "Shoe aisle. Put your best paw forward.",
+                "Buy kicks. Your panda's feet deserve the best.",
+            ],
             'shop_accessories_cat': [
-                "Accessories. The fancy extras your panda deserves.",
-                "Buy bling for your bear. Sunglasses, scarves, the works.",
+                "Watches, bracelets, ties — the fancy extras.",
+                "Buy bling for your bear. Jewelry and accessories galore.",
                 "Accessory shop. Small items, big impact.",
                 "Decorative bits. Make your panda sparkle.",
             ],
