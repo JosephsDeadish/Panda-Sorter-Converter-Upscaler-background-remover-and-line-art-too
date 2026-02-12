@@ -919,7 +919,7 @@ class GameTextureSorter(ctk.CTk):
             )
             btn.place(relx=1.0, rely=0.0, anchor="ne", x=-5, y=5)
             if WidgetTooltip:
-                self._tooltips.append(WidgetTooltip(btn, f"Pop out {tab_name} into a separate window"))
+                self._tooltips.append(WidgetTooltip(btn, self._get_tooltip_text('popout_button') or f"Pop out {tab_name} into a separate window", widget_id='popout_button', tooltip_manager=self.tooltip_manager))
     
     def _popout_tab(self, tab_name):
         """Pop out a tab into its own window"""
@@ -1432,15 +1432,17 @@ class GameTextureSorter(ctk.CTk):
         tm = self.tooltip_manager
         # Store tooltip references to prevent garbage collection
         self._tooltips.append(WidgetTooltip(self.start_button, tt('sort_button'), widget_id='sort_button', tooltip_manager=tm))
-        self._tooltips.append(WidgetTooltip(self.pause_button, "Pause the current sorting operation"))
-        self._tooltips.append(WidgetTooltip(self.stop_button, "Stop the sorting operation completely"))
+        self._tooltips.append(WidgetTooltip(self.pause_button, tt('pause_button') or "Pause the current sorting operation", widget_id='pause_button', tooltip_manager=tm))
+        self._tooltips.append(WidgetTooltip(self.stop_button, tt('stop_button') or "Stop the sorting operation completely", widget_id='stop_button', tooltip_manager=tm))
         self._tooltips.append(WidgetTooltip(browse_in_btn, tt('input_browse'), widget_id='input_browse', tooltip_manager=tm))
         self._tooltips.append(WidgetTooltip(browse_out_btn, tt('output_browse'), widget_id='output_browse', tooltip_manager=tm))
         self._tooltips.append(WidgetTooltip(mode_menu, 
+            tt('sort_mode_menu') or
             "Sorting mode:\n"
             "• 🤖 automatic – AI classifies textures automatically based on image content and filenames\n"
             "• ✋ manual – You choose the category for each texture (AI shows suggestions)\n"
-            "• 💡 suggested – AI suggests, you confirm or change each classification"))
+            "• 💡 suggested – AI suggests, you confirm or change each classification",
+            widget_id='sort_mode_menu', tooltip_manager=tm))
 
         self._tooltips.append(WidgetTooltip(style_menu, 
             "Select how textures are organized:\n"
@@ -1460,13 +1462,17 @@ class GameTextureSorter(ctk.CTk):
         
         # NEW: Archive support tooltips
         self._tooltips.append(WidgetTooltip(extract_archive_cb, 
+            tt('extract_archives') or
             "Extract textures from archive files before sorting\n"
             "Supports: ZIP, 7Z, RAR, TAR.GZ formats\n"
-            "Automatically detects and extracts to temp directory"))
+            "Automatically detects and extracts to temp directory",
+            widget_id='extract_archives', tooltip_manager=tm))
         self._tooltips.append(WidgetTooltip(compress_archive_cb, 
+            tt('compress_output') or
             "Compress sorted output into a ZIP archive\n"
             "Creates a .zip file with all organized textures\n"
-            "Useful for sharing or storing sorted collections"))
+            "Useful for sharing or storing sorted collections",
+            widget_id='compress_output', tooltip_manager=tm))
     
     def _get_tooltip_text(self, widget_id):
         """Get tooltip text from the tooltip manager"""
@@ -1495,10 +1501,10 @@ class GameTextureSorter(ctk.CTk):
         self._tooltips.append(WidgetTooltip(self.convert_start_button, tt('convert_button') or "Start batch conversion of texture files", widget_id='convert_button', tooltip_manager=tm))
         self._tooltips.append(WidgetTooltip(input_btn, tt('input_browse') or "Select directory containing files to convert", widget_id='input_browse', tooltip_manager=tm))
         self._tooltips.append(WidgetTooltip(output_btn, tt('output_browse') or "Choose where to save converted files", widget_id='output_browse', tooltip_manager=tm))
-        self._tooltips.append(WidgetTooltip(from_menu, "Select source file format to convert from"))
-        self._tooltips.append(WidgetTooltip(to_menu, "Select target file format to convert to"))
-        self._tooltips.append(WidgetTooltip(recursive_cb, "Also convert files in subdirectories"))
-        self._tooltips.append(WidgetTooltip(keep_cb, "Keep original files after conversion"))
+        self._tooltips.append(WidgetTooltip(from_menu, tt('convert_from_format') or "Select source file format to convert from", widget_id='convert_from_format', tooltip_manager=tm))
+        self._tooltips.append(WidgetTooltip(to_menu, tt('convert_to_format') or "Select target file format to convert to", widget_id='convert_to_format', tooltip_manager=tm))
+        self._tooltips.append(WidgetTooltip(recursive_cb, tt('convert_recursive') or "Also convert files in subdirectories", widget_id='convert_recursive', tooltip_manager=tm))
+        self._tooltips.append(WidgetTooltip(keep_cb, tt('convert_keep_original') or "Keep original files after conversion", widget_id='convert_keep_original', tooltip_manager=tm))
     
     def _apply_browser_tooltips(self, browse_btn, refresh_btn, search_entry, show_all_cb):
         """Apply tooltips to file browser tab widgets"""
@@ -2148,19 +2154,19 @@ class GameTextureSorter(ctk.CTk):
                                command=self._create_new_profile)
         new_btn.pack(side="left", padx=5)
         if WidgetTooltip:
-            self._tooltips.append(WidgetTooltip(new_btn, "Create a new game organization profile"))
+            self._tooltips.append(WidgetTooltip(new_btn, self._get_tooltip_text('profile_new') or "Create a new game organization profile", widget_id='profile_new', tooltip_manager=self.tooltip_manager))
         
         import_btn = ctk.CTkButton(toolbar, text="📥 Import", width=100,
                                    command=self._import_profiles)
         import_btn.pack(side="left", padx=5)
         if WidgetTooltip:
-            self._tooltips.append(WidgetTooltip(import_btn, "Import profiles from JSON file"))
+            self._tooltips.append(WidgetTooltip(import_btn, self._get_tooltip_text('profile_import') or "Import profiles from JSON file", widget_id='profile_import', tooltip_manager=self.tooltip_manager))
         
         export_btn = ctk.CTkButton(toolbar, text="📤 Export All", width=100,
                                    command=self._export_all_profiles)
         export_btn.pack(side="left", padx=5)
         if WidgetTooltip:
-            self._tooltips.append(WidgetTooltip(export_btn, "Export all profiles to JSON file"))
+            self._tooltips.append(WidgetTooltip(export_btn, self._get_tooltip_text('profile_export') or "Export all profiles to JSON file", widget_id='profile_export', tooltip_manager=self.tooltip_manager))
         
         # Profiles list
         self.profiles_scroll = ctk.CTkScrollableFrame(self.tab_profiles, width=1000, height=500)
@@ -3926,6 +3932,16 @@ class GameTextureSorter(ctk.CTk):
         
         # Add tooltips to tab buttons
         try:
+            tt = self._get_tooltip_text
+            tm = self.tooltip_manager
+            tab_tooltip_ids = {
+                "⚡ Performance": 'settings_perf_tab',
+                "🎨 Appearance": 'settings_appearance_tab',
+                "⌨️ Controls": 'settings_controls_tab',
+                "📁 Files": 'settings_files_tab',
+                "🤖 AI": 'settings_ai_tab',
+                "🛠️ System": 'settings_system_tab',
+            }
             tab_tooltips = {
                 "⚡ Performance": "Thread count, memory limits, cache sizes, and animation settings",
                 "🎨 Appearance": "UI scaling, themes, tooltip modes, and visual customization",
@@ -3939,7 +3955,8 @@ class GameTextureSorter(ctk.CTk):
                 try:
                     child_text = child.cget("text")
                     if child_text in tab_tooltips and WidgetTooltip:
-                        self._tooltips.append(WidgetTooltip(child, tab_tooltips[child_text]))
+                        wid = tab_tooltip_ids.get(child_text)
+                        self._tooltips.append(WidgetTooltip(child, tt(wid) or tab_tooltips[child_text], widget_id=wid, tooltip_manager=tm))
                 except Exception:
                     pass
         except Exception as e:
@@ -4100,6 +4117,12 @@ class GameTextureSorter(ctk.CTk):
             "vulgar_panda": "Uncensored panda commentary — sarcastic and humorous tooltip text (opt-in)"
         }
         
+        tooltip_mode_widget_ids = {
+            "normal": "tooltip_mode_normal",
+            "dumbed-down": "tooltip_mode_dumbed_down",
+            "vulgar_panda": "tooltip_mode_vulgar",
+        }
+        
         for mode_val, mode_desc in tooltip_descriptions.items():
             mode_frame = ctk.CTkFrame(tooltip_frame)
             mode_frame.pack(fill="x", padx=20, pady=2)
@@ -4113,7 +4136,8 @@ class GameTextureSorter(ctk.CTk):
             desc_lbl.pack(side="left", padx=5)
             
             if WidgetTooltip:
-                self._tooltips.append(WidgetTooltip(rb, mode_desc))
+                wid = tooltip_mode_widget_ids.get(mode_val)
+                self._tooltips.append(WidgetTooltip(rb, self._get_tooltip_text(wid) or mode_desc, widget_id=wid, tooltip_manager=self.tooltip_manager))
         
         # Notifications & Sound reference
         notif_frame = ctk.CTkFrame(appear_scroll)
@@ -4610,7 +4634,7 @@ class GameTextureSorter(ctk.CTk):
                      font=("Arial Bold", 18))
         ach_header.pack(pady=15)
         if WidgetTooltip:
-            self._tooltips.append(WidgetTooltip(ach_header, self._get_tooltip_text('achievements_tab') or "Track your progress and earn rewards by completing challenges"))
+            self._tooltips.append(WidgetTooltip(ach_header, self._get_tooltip_text('achievements_tab') or "Track your progress and earn rewards by completing challenges", widget_id='achievements_tab', tooltip_manager=self.tooltip_manager))
         
         if not self.achievement_manager:
             # No achievement manager
@@ -5089,7 +5113,7 @@ class GameTextureSorter(ctk.CTk):
                      font=("Arial Bold", 18))
         shop_title.pack(side="left", padx=10)
         if WidgetTooltip:
-            self._tooltips.append(WidgetTooltip(shop_title, self._get_tooltip_text('shop_tab') or "Spend your Bamboo Bucks on items, outfits, themes, and more"))
+            self._tooltips.append(WidgetTooltip(shop_title, self._get_tooltip_text('shop_tab') or "Spend your Bamboo Bucks on items, outfits, themes, and more", widget_id='shop_tab', tooltip_manager=self.tooltip_manager))
         
         # Money display
         if self.currency_system:
@@ -5098,7 +5122,7 @@ class GameTextureSorter(ctk.CTk):
                          font=("Arial Bold", 14), text_color="#00cc00")
             self.shop_money_label.pack(side="right", padx=20)
             if WidgetTooltip:
-                self._tooltips.append(WidgetTooltip(self.shop_money_label, "Your current Bamboo Bucks balance — earn more through achievements and interactions"))
+                self._tooltips.append(WidgetTooltip(self.shop_money_label, self._get_tooltip_text('shop_balance') or "Your current Bamboo Bucks balance — earn more through achievements and interactions", widget_id='shop_balance', tooltip_manager=self.tooltip_manager))
         
         # User level display
         if self.user_level_system:
@@ -5107,7 +5131,7 @@ class GameTextureSorter(ctk.CTk):
                         font=("Arial Bold", 14), text_color="#ffaa00")
             level_label.pack(side="right", padx=10)
             if WidgetTooltip:
-                self._tooltips.append(WidgetTooltip(level_label, "Your current level — higher levels unlock more shop items"))
+                self._tooltips.append(WidgetTooltip(level_label, self._get_tooltip_text('shop_level') or "Your current level — higher levels unlock more shop items", widget_id='shop_level', tooltip_manager=self.tooltip_manager))
         
         if not self.shop_system or not self.currency_system:
             info_frame = ctk.CTkFrame(self.tab_shop)
@@ -5962,7 +5986,7 @@ Built with:
                      font=("Arial Bold", 22))
         header.pack(pady=(15, 5))
         if WidgetTooltip:
-            self._tooltips.append(WidgetTooltip(header, self._get_tooltip_text('inventory_tab') or "Your collection of items — toys, food, and animations. Drag items to use them!"))
+            self._tooltips.append(WidgetTooltip(header, self._get_tooltip_text('inventory_tab') or "Your collection of items — toys, food, and animations. Drag items to use them!", widget_id='inventory_tab', tooltip_manager=self.tooltip_manager))
 
         # Category filter buttons
         if self.widget_collection:
@@ -6159,7 +6183,7 @@ Built with:
             anim_header.pack(anchor="w", padx=10, pady=(10, 5))
             if WidgetTooltip:
                 self._tooltips.append(WidgetTooltip(anim_header,
-                    self._get_tooltip_text('inventory_animations') or "Play animations to make panda dance, flip, and more!"))
+                    self._get_tooltip_text('inventory_animations') or "Play animations to make panda dance, flip, and more!", widget_id='inventory_animations', tooltip_manager=self.tooltip_manager))
 
             animation_entries = [
                 ("💃", "Dancing", "dancing"),
