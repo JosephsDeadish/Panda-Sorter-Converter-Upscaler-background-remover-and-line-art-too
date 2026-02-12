@@ -1730,6 +1730,15 @@ class PS2TextureSorter(ctk.CTk):
         )
         self.browser_game_info_label.pack(side="left", fill="x", expand=True, padx=5, pady=5)
         
+        # Add manual game selection button
+        self.browser_game_select_btn = ctk.CTkButton(
+            self.browser_game_info_frame,
+            text="🎮 Select Game",
+            command=self._browser_manual_game_select,
+            width=120
+        )
+        self.browser_game_select_btn.pack(side="right", padx=5, pady=5)
+        
         # Main content area - split into two panes
         content_frame = ctk.CTkFrame(self.tab_browser)
         content_frame.pack(fill="both", expand=True, padx=10, pady=10)
@@ -1866,6 +1875,111 @@ class PS2TextureSorter(ctk.CTk):
         except Exception as e:
             logger.error(f"Error identifying game: {e}", exc_info=True)
             self.current_game_info = None
+    
+    def _browser_manual_game_select(self):
+        """Show dialog to manually select a game."""
+        try:
+            from src.features.game_identifier import GameIdentifier
+            
+            # Create identifier to get list of known games
+            identifier = GameIdentifier()
+            known_games = identifier.get_all_known_games()
+            
+            if not known_games:
+                messagebox.showinfo("No Games", "No games in database. Game detection is only available when games are configured.")
+                return
+            
+            # Create dialog
+            dialog = ctk.CTkToplevel(self)
+            dialog.title("Select Game")
+            dialog.geometry("500x400")
+            dialog.transient(self)
+            dialog.grab_set()
+            
+            # Center dialog
+            dialog.update_idletasks()
+            x = (dialog.winfo_screenwidth() // 2) - 250
+            y = (dialog.winfo_screenheight() // 2) - 200
+            dialog.geometry(f"500x400+{x}+{y}")
+            
+            # Header
+            ctk.CTkLabel(
+                dialog,
+                text="Select PS2 Game",
+                font=("Arial Bold", 16)
+            ).pack(pady=10)
+            
+            ctk.CTkLabel(
+                dialog,
+                text="Choose a game to apply its texture profile:"
+            ).pack(pady=5)
+            
+            # Game list
+            list_frame = ctk.CTkFrame(dialog)
+            list_frame.pack(fill="both", expand=True, padx=20, pady=10)
+            
+            # Create scrollable frame
+            scroll_frame = ctk.CTkScrollableFrame(list_frame)
+            scroll_frame.pack(fill="both", expand=True)
+            
+            selected_game = [None]  # Use list to capture selection
+            
+            def on_game_select(game):
+                """Handle game selection."""
+                selected_game[0] = game
+                
+                # Look up full game info
+                game_info = identifier.lookup_by_serial(game['serial'])
+                if game_info:
+                    # Store as current game
+                    self.current_game_info = {
+                        'serial': game_info.serial,
+                        'crc': game_info.crc,
+                        'title': game_info.title,
+                        'region': game_info.region,
+                        'confidence': 1.0,  # Manual selection = 100% confidence
+                        'source': 'manual',
+                        'texture_profile': game_info.texture_profile
+                    }
+                    
+                    # Update UI
+                    info_text = (
+                        f"🎮 Game: {game_info.title} "
+                        f"| Serial: {game_info.serial} "
+                        f"| Region: {game_info.region} (Manual)"
+                    )
+                    self.browser_game_info_label.configure(text=info_text)
+                    
+                    # Show the game info frame
+                    if hasattr(self, 'browser_game_info_frame'):
+                        self.browser_game_info_frame.pack(fill="x", padx=10, pady=5, after=self.browser_path_label.master)
+                    
+                    self.log(f"Manually selected game: {game_info.title} ({game_info.serial})")
+                
+                dialog.destroy()
+            
+            # Add game buttons
+            for game in known_games:
+                btn = ctk.CTkButton(
+                    scroll_frame,
+                    text=f"{game['title']} ({game['serial']})",
+                    command=lambda g=game: on_game_select(g),
+                    anchor="w",
+                    height=40
+                )
+                btn.pack(fill="x", padx=5, pady=2)
+            
+            # Cancel button
+            ctk.CTkButton(
+                dialog,
+                text="Cancel",
+                command=dialog.destroy,
+                width=100
+            ).pack(pady=10)
+            
+        except Exception as e:
+            logger.error(f"Error in manual game selection: {e}", exc_info=True)
+            messagebox.showerror("Error", f"Failed to show game selection dialog:\n{e}")
     
     def browser_refresh(self):
         """Refresh file browser content - scanning runs off UI thread"""

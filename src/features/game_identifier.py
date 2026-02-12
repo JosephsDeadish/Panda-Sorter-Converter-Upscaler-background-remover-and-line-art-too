@@ -73,6 +73,7 @@ class GameIdentifier:
     
     # Known games database with texture profile hints
     KNOWN_GAMES = {
+        # God of War Series
         'SLUS-20917': {
             'title': 'God of War II',
             'region': 'NTSC-U',
@@ -93,6 +94,7 @@ class GameIdentifier:
                 'common_prefixes': ['kratos', 'blade']
             }
         },
+        # Jak & Daxter Series
         'SLUS-20584': {
             'title': 'Jak 3',
             'region': 'NTSC-U',
@@ -101,6 +103,121 @@ class GameIdentifier:
                 'icon_shapes': 'circular',
                 'atlas_layout': 'varied',
                 'common_prefixes': ['jak', 'daxter', 'precursor']
+            }
+        },
+        'SLUS-20065': {
+            'title': 'Jak and Daxter: The Precursor Legacy',
+            'region': 'NTSC-U',
+            'texture_profile': {
+                'common_categories': ['character', 'environment', 'collectibles'],
+                'icon_shapes': 'circular',
+                'atlas_layout': 'varied',
+                'common_prefixes': ['jak', 'daxter', 'eco']
+            }
+        },
+        'SLUS-20472': {
+            'title': 'Jak II',
+            'region': 'NTSC-U',
+            'texture_profile': {
+                'common_categories': ['character', 'vehicles', 'weapons', 'environment'],
+                'icon_shapes': 'circular',
+                'atlas_layout': 'varied',
+                'common_prefixes': ['jak', 'daxter', 'gun']
+            }
+        },
+        # GTA Series
+        'SLUS-20946': {
+            'title': 'Grand Theft Auto: San Andreas',
+            'region': 'NTSC-U',
+            'texture_profile': {
+                'common_categories': ['vehicles', 'characters', 'environment', 'ui'],
+                'icon_shapes': 'varied',
+                'atlas_layout': 'mixed',
+                'common_prefixes': ['vehicle', 'ped', 'building', 'hud']
+            }
+        },
+        # Kingdom Hearts Series
+        'SLUS-20370': {
+            'title': 'Kingdom Hearts',
+            'region': 'NTSC-U',
+            'texture_profile': {
+                'common_categories': ['character', 'weapons', 'environment', 'ui', 'effects'],
+                'icon_shapes': 'varied',
+                'atlas_layout': 'varied',
+                'common_prefixes': ['sora', 'keyblade', 'heartless', 'disney']
+            }
+        },
+        'SLUS-21005': {
+            'title': 'Kingdom Hearts II',
+            'region': 'NTSC-U',
+            'texture_profile': {
+                'common_categories': ['character', 'weapons', 'environment', 'ui', 'effects'],
+                'icon_shapes': 'varied',
+                'atlas_layout': 'varied',
+                'common_prefixes': ['sora', 'keyblade', 'nobody', 'org13']
+            }
+        },
+        # Metal Gear Solid Series
+        'SLUS-20144': {
+            'title': 'Metal Gear Solid 2: Sons of Liberty',
+            'region': 'NTSC-U',
+            'texture_profile': {
+                'common_categories': ['character', 'weapons', 'environment', 'ui'],
+                'icon_shapes': 'rectangular',
+                'atlas_layout': 'power_of_two',
+                'common_prefixes': ['snake', 'raiden', 'weapon', 'codec']
+            }
+        },
+        'SLUS-20565': {
+            'title': 'Metal Gear Solid 3: Snake Eater',
+            'region': 'NTSC-U',
+            'texture_profile': {
+                'common_categories': ['character', 'weapons', 'environment', 'ui', 'animals'],
+                'icon_shapes': 'rectangular',
+                'atlas_layout': 'power_of_two',
+                'common_prefixes': ['snake', 'weapon', 'camo', 'food']
+            }
+        },
+        # Final Fantasy Series
+        'SLUS-20312': {
+            'title': 'Final Fantasy X',
+            'region': 'NTSC-U',
+            'texture_profile': {
+                'common_categories': ['character', 'weapons', 'magic', 'environment', 'ui'],
+                'icon_shapes': 'varied',
+                'atlas_layout': 'varied',
+                'common_prefixes': ['tidus', 'yuna', 'aeon', 'sphere']
+            }
+        },
+        'SLUS-20672': {
+            'title': 'Final Fantasy X-2',
+            'region': 'NTSC-U',
+            'texture_profile': {
+                'common_categories': ['character', 'weapons', 'magic', 'environment', 'ui'],
+                'icon_shapes': 'varied',
+                'atlas_layout': 'varied',
+                'common_prefixes': ['yuna', 'rikku', 'paine', 'dressphere']
+            }
+        },
+        'SLUS-20963': {
+            'title': 'Final Fantasy XII',
+            'region': 'NTSC-U',
+            'texture_profile': {
+                'common_categories': ['character', 'weapons', 'magic', 'environment', 'ui'],
+                'icon_shapes': 'varied',
+                'atlas_layout': 'varied',
+                'common_prefixes': ['vaan', 'ashe', 'esper', 'ivalice']
+            }
+        },
+        # Ratchet & Clank Series
+        'SLUS-20226': {
+            'title': 'Ratchet & Clank',
+            'region': 'NTSC-U',
+            'texture_profile': {
+                'common_categories': ['character', 'weapons', 'vehicles', 'environment'],
+                'icon_shapes': 'varied',
+                'atlas_layout': 'varied',
+                'common_prefixes': ['ratchet', 'clank', 'weapon', 'gadget']
             }
         },
     }
@@ -422,3 +539,22 @@ class GameIdentifier:
         except Exception as e:
             logger.error(f"Failed to add known game: {e}")
             return False
+    
+    def get_all_known_games(self) -> List[Dict[str, str]]:
+        """
+        Get list of all known games.
+        
+        Returns:
+            List of dictionaries with game info (serial, title, region)
+        """
+        games = []
+        for serial, info in self.KNOWN_GAMES.items():
+            games.append({
+                'serial': serial,
+                'title': info['title'],
+                'region': info['region']
+            })
+        
+        # Sort by title
+        games.sort(key=lambda x: x['title'])
+        return games
