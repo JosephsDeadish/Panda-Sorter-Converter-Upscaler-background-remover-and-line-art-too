@@ -71,6 +71,9 @@ class PandaCharacter:
         'cartwheel', 'backflip', 'spinning', 'shaking', 'rolling',
         'carrying', 'sitting', 'belly_grab', 'lay_on_back', 'lay_on_side',
         'belly_jiggle',
+        # Combat animations
+        'swing', 'shoot', 'cast_spell', 'idle_armed', 'hit', 'blocking',
+        'victory', 'defeat', 'traveling',
     ]
     
     # Panda click responses

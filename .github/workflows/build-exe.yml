@@ -55,6 +55,8 @@ jobs:
         shell: bash
       
       - name: Build EXE with PyInstaller
+        env:
+          PYTHONWARNINGS: "ignore::DeprecationWarning"
         run: |
           pyinstaller build_spec.spec --clean --noconfirm
           echo "✅ Build completed successfully"

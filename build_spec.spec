@@ -75,9 +75,23 @@ a = Analysis(
         'jupyter',
         'notebook',
         'IPython',
+        # Torch: exclude unused/problematic submodules to suppress build warnings
         'torch.testing',
         'torch.testing._internal',
+        'torch.testing._internal.opinfo',
         'torch.distributed.elastic',
+        'torch.distributed._sharding_spec',
+        'torch.distributed._sharded_tensor',
+        'torch.distributed._shard.checkpoint',
+        'torch._inductor',
+        # Cairo: cairosvg/cairocffi require native Cairo DLL not available on Windows CI;
+        # SVG support is optional (app handles missing cairosvg gracefully)
+        'cairosvg',
+        'cairocffi',
+        # macOS-only modules not needed on Windows
+        'darkdetect._mac_detect',
+        # Misc unused
+        'importlib_resources.trees',
         'numba',
         'llvmlite',
         'pycparser.lextab',
