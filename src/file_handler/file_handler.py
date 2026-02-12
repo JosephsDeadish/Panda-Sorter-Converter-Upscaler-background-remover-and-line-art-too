@@ -34,6 +34,14 @@ try:
 except ImportError:
     HAS_BYTESIO = False
 
+# Import archive handler
+try:
+    from ..utils.archive_handler import ArchiveHandler
+    HAS_ARCHIVE_SUPPORT = True
+except ImportError:
+    HAS_ARCHIVE_SUPPORT = False
+    logger.debug("Archive handler not available.")
+
 
 class FileHandler:
     """Handles file operations for texture sorting"""
@@ -71,6 +79,12 @@ class FileHandler:
     def __init__(self, create_backup=True):
         self.create_backup = create_backup
         self.operations_log = []
+        
+        # Initialize archive handler if available
+        self.archive_handler = None
+        if HAS_ARCHIVE_SUPPORT:
+            self.archive_handler = ArchiveHandler()
+            logger.debug("Archive handler initialized")
     
     def convert_dds_to_png(self, dds_path: Path, output_path: Optional[Path] = None) -> Optional[Path]:
         """
@@ -490,3 +504,79 @@ class FileHandler:
     def clear_operations_log(self):
         """Clear the operations log"""
         self.operations_log.clear()
+    
+    # ==================== Archive Support Methods ====================
+    
+    def is_archive(self, file_path: Path) -> bool:
+        """
+        Check if a file is a supported archive format.
+        
+        Args:
+            file_path: Path to file to check
+            
+        Returns:
+            True if file is a supported archive
+        """
+        if not self.archive_handler:
+            return False
+        return self.archive_handler.is_archive(file_path)
+    
+    def extract_archive(self, archive_path: Path, extract_to: Optional[Path] = None) -> Optional[Path]:
+        """
+        Extract archive to a directory.
+        
+        Args:
+            archive_path: Path to archive file
+            extract_to: Target directory (creates temp dir if None)
+            
+        Returns:
+            Path to extraction directory or None on failure
+        """
+        if not self.archive_handler:
+            logger.error("Archive handler not available")
+            return None
+        
+        return self.archive_handler.extract_archive(archive_path, extract_to)
+    
+    def create_archive(self, source_path: Path, archive_path: Path) -> bool:
+        """
+        Create an archive from a directory or files.
+        
+        Args:
+            source_path: Directory or file to archive
+            archive_path: Target archive file path
+            
+        Returns:
+            True if successful, False otherwise
+        """
+        if not self.archive_handler:
+            logger.error("Archive handler not available")
+            return False
+        
+        return self.archive_handler.create_archive(source_path, archive_path)
+    
+    def list_archive_contents(self, archive_path: Path) -> List[str]:
+        """
+        List all files in an archive.
+        
+        Args:
+            archive_path: Path to archive file
+            
+        Returns:
+            List of file paths inside archive
+        """
+        if not self.archive_handler:
+            logger.error("Archive handler not available")
+            return []
+        
+        return self.archive_handler.list_archive_contents(archive_path)
+    
+    def cleanup_temp_archives(self):
+        """Clean up temporary archive extraction directories."""
+        if self.archive_handler:
+            self.archive_handler.cleanup_temp_dirs()
+    
+    def __del__(self):
+        """Cleanup on deletion."""
+        if hasattr(self, 'archive_handler') and self.archive_handler:
+            self.archive_handler.cleanup_temp_dirs()

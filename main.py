@@ -1326,6 +1326,20 @@ class PS2TextureSorter(ctk.CTk):
         detect_dupes_cb = ctk.CTkCheckBox(check_frame, text="Detect Duplicates", variable=self.detect_duplicates_var)
         detect_dupes_cb.pack(side="left", padx=10)
         
+        # Archive support checkboxes (new row)
+        archive_check_frame = ctk.CTkFrame(opts_grid)
+        archive_check_frame.grid(row=2, column=0, columnspan=4, padx=10, pady=5, sticky="w")
+        
+        self.extract_from_archive_var = ctk.BooleanVar(value=False)
+        extract_archive_cb = ctk.CTkCheckBox(archive_check_frame, text="📦 Extract from archive", 
+                                            variable=self.extract_from_archive_var)
+        extract_archive_cb.pack(side="left", padx=10)
+        
+        self.compress_to_archive_var = ctk.BooleanVar(value=False)
+        compress_archive_cb = ctk.CTkCheckBox(archive_check_frame, text="📦 Compress output to archive", 
+                                             variable=self.compress_to_archive_var)
+        compress_archive_cb.pack(side="left", padx=10)
+        
         # Progress section
         progress_frame = ctk.CTkFrame(scrollable_frame)
         progress_frame.pack(fill="both", expand=True, padx=10, pady=10)
@@ -1522,6 +1536,20 @@ class PS2TextureSorter(ctk.CTk):
                        variable=self.convert_keep_original_var)
         convert_keep_cb.pack(side="left", padx=10)
         
+        # Archive support checkboxes
+        archive_check_frame = ctk.CTkFrame(check_frame)
+        archive_check_frame.pack(side="left", padx=20)
+        
+        self.convert_extract_from_archive_var = ctk.BooleanVar(value=False)
+        convert_extract_archive_cb = ctk.CTkCheckBox(archive_check_frame, text="📦 Extract from archive", 
+                       variable=self.convert_extract_from_archive_var)
+        convert_extract_archive_cb.pack(side="left", padx=10)
+        
+        self.convert_compress_to_archive_var = ctk.BooleanVar(value=False)
+        convert_compress_archive_cb = ctk.CTkCheckBox(archive_check_frame, text="📦 Compress output to archive", 
+                       variable=self.convert_compress_to_archive_var)
+        convert_compress_archive_cb.pack(side="left", padx=10)
+        
         # === OUTPUT SECTION ===
         output_frame = ctk.CTkFrame(scrollable_content)
         output_frame.pack(fill="x", padx=10, pady=10)
@@ -1563,6 +1591,8 @@ class PS2TextureSorter(ctk.CTk):
         from_format = self.convert_from_var.get().lower()
         to_format = self.convert_to_var.get().lower()
         recursive = self.convert_recursive_var.get()
+        extract_from_archive = self.convert_extract_from_archive_var.get()
+        compress_to_archive = self.convert_compress_to_archive_var.get()
         
         if not input_path:
             self.convert_log("⚠️ Please select an input directory")
@@ -1588,15 +1618,31 @@ class PS2TextureSorter(ctk.CTk):
         # Start conversion in background thread with all parameters
         threading.Thread(
             target=self.conversion_thread,
-            args=(input_path, output_path, from_format, to_format, recursive),
+            args=(input_path, output_path, from_format, to_format, recursive, extract_from_archive, compress_to_archive),
             daemon=True
         ).start()
     
-    def conversion_thread(self, input_path_str, output_path_str, from_format, to_format, recursive):
+    def conversion_thread(self, input_path_str, output_path_str, from_format, to_format, recursive, 
+                         extract_from_archive=False, compress_to_archive=False):
         """Background thread for file conversion"""
+        temp_extraction_dir = None
         try:
             input_path = Path(input_path_str)
             output_path = Path(output_path_str)
+            
+            # Handle archive extraction if requested
+            if extract_from_archive and self.file_handler.is_archive(input_path):
+                self.convert_log(f"📦 Extracting archive: {input_path.name}")
+                self.after(0, lambda: self.convert_progress_bar.set(0.05))
+                self.after(0, lambda: self.convert_progress_label.configure(text="Extracting archive..."))
+                temp_extraction_dir = self.file_handler.extract_archive(input_path)
+                if temp_extraction_dir:
+                    input_path = temp_extraction_dir
+                    self.convert_log(f"✓ Archive extracted to temporary directory")
+                else:
+                    self.convert_log(f"❌ Failed to extract archive: {input_path.name}")
+                    return
+            
             from_format = f".{from_format}"
             to_format = f".{to_format}"
             
@@ -1667,10 +1713,30 @@ class PS2TextureSorter(ctk.CTk):
                 self.convert_log(f"Failed: {failed}")
             self.convert_log("=" * 60)
             
+            # Handle archive compression if requested
+            if compress_to_archive and converted > 0:
+                self.after(0, lambda: self.convert_progress_bar.set(0.95))
+                self.after(0, lambda: self.convert_progress_label.configure(text="Compressing output..."))
+                self.convert_log(f"📦 Creating archive from output directory...")
+                archive_name = f"{output_path.name}_converted.zip"
+                archive_path = output_path.parent / archive_name
+                success = self.file_handler.create_archive(output_path, archive_path)
+                if success:
+                    self.convert_log(f"✓ Archive created: {archive_path.name}")
+                else:
+                    self.convert_log(f"⚠️ Failed to create output archive")
+            
         except Exception as e:
             self.convert_log(f"❌ Error during conversion: {e}")
         
         finally:
+            # Clean up temporary extraction directory if it was created
+            if temp_extraction_dir and temp_extraction_dir.exists():
+                try:
+                    self.file_handler.cleanup_temp_archives()
+                except Exception as e:
+                    logger.error(f"Failed to cleanup temp dir: {e}")
+            
             # Re-enable button
             self.after(0, lambda: self.convert_start_button.configure(state="normal"))
     
@@ -6071,9 +6137,12 @@ Built with:
             detect_lods = self.detect_lods_var.get()
             group_lods = self.group_lods_var.get()
             detect_duplicates = self.detect_duplicates_var.get()
+            extract_from_archive = self.extract_from_archive_var.get()
+            compress_to_archive = self.compress_to_archive_var.get()
             
             logger.debug(f"Sorting parameters - Input: {input_path}, Output: {output_path}, Mode: {mode}, Style: {style}")
             logger.debug(f"Options - LODs: {detect_lods}, Group LODs: {group_lods}, Duplicates: {detect_duplicates}")
+            logger.debug(f"Archive options - Extract: {extract_from_archive}, Compress: {compress_to_archive}")
             
             if not input_path or not output_path:
                 logger.warning("Sorting aborted - missing input or output path")
@@ -6107,7 +6176,8 @@ Built with:
             try:
                 thread = threading.Thread(
                     target=self.sort_textures_thread,
-                    args=(input_path, output_path, mode, style, detect_lods, group_lods, detect_duplicates),
+                    args=(input_path, output_path, mode, style, detect_lods, group_lods, detect_duplicates, 
+                          extract_from_archive, compress_to_archive),
                     daemon=True,
                     name="SortingThread"
                 )
@@ -6148,16 +6218,34 @@ Built with:
                 category_dropdown.configure(values=category_list)
         search_var.trace_add('write', _filter)
     
-    def sort_textures_thread(self, input_path_str, output_path_str, mode, style_name, detect_lods, group_lods, detect_duplicates):
+    def sort_textures_thread(self, input_path_str, output_path_str, mode, style_name, detect_lods, group_lods, detect_duplicates, 
+                           extract_from_archive=False, compress_to_archive=False):
         """Background thread for texture sorting with full organization system"""
         # Constants for error reporting
         MAX_UI_ERROR_MESSAGES = 5  # Maximum number of classification errors to show in UI
         MAX_RESULTS_ERROR_DISPLAY = 10  # Maximum number of organization errors to display
         
+        # Track temp extraction directory for cleanup
+        temp_extraction_dir = None
+        
         try:
             logger.info(f"sort_textures_thread started - Processing: {input_path_str} -> {output_path_str}")
             input_path = Path(input_path_str)
             output_path = Path(output_path_str)
+            
+            # Handle archive extraction if requested
+            if extract_from_archive and self.file_handler.is_archive(input_path):
+                self.log(f"📦 Extracting archive: {input_path.name}")
+                self.update_progress(0.02, "Extracting archive...")
+                temp_extraction_dir = self.file_handler.extract_archive(input_path)
+                if temp_extraction_dir:
+                    input_path = temp_extraction_dir
+                    self.log(f"✓ Archive extracted to temporary directory")
+                    logger.info(f"Archive extracted to: {temp_extraction_dir}")
+                else:
+                    self.log(f"❌ Failed to extract archive: {input_path.name}")
+                    logger.error(f"Archive extraction failed: {input_path}")
+                    return
             
             # Scan for texture files lazily to avoid memory issues with large directories
             logger.debug("Starting directory scan for texture files")
@@ -6685,6 +6773,20 @@ Built with:
                 # Play completion sound if enabled
                 self._play_completion_sound()
                 
+                # Handle archive compression if requested
+                if compress_to_archive and results.files_organized > 0:
+                    self.update_progress(0.95, "Compressing output to archive...")
+                    self.log(f"📦 Creating archive from output directory...")
+                    archive_name = f"{output_path.name}_sorted.zip"
+                    archive_path = output_path.parent / archive_name
+                    success = self.file_handler.create_archive(output_path, archive_path)
+                    if success:
+                        self.log(f"✓ Archive created: {archive_path.name}")
+                        logger.info(f"Output compressed to archive: {archive_path}")
+                    else:
+                        self.log(f"⚠️ Failed to create output archive")
+                        logger.error(f"Archive creation failed: {archive_path}")
+                
             except Exception as e:
                 logger.error(f"Organization engine failed: {e}", exc_info=True)
                 self.log(f"❌ Organization failed: {e}")
@@ -6737,6 +6839,15 @@ Built with:
         
         finally:
             logger.info("Sorting thread cleanup - re-enabling UI buttons")
+            
+            # Clean up temporary extraction directory if it was created
+            if temp_extraction_dir and temp_extraction_dir.exists():
+                try:
+                    self.file_handler.cleanup_temp_archives()
+                    logger.info(f"Cleaned up temp extraction dir: {temp_extraction_dir}")
+                except Exception as e:
+                    logger.error(f"Failed to cleanup temp dir: {e}")
+            
             # Re-enable buttons
             self.after(0, lambda: self.start_button.configure(state="normal"))
             self.after(0, lambda: self.pause_button.configure(state="disabled"))
