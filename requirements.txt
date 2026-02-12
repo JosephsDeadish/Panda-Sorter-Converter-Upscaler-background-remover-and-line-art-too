@@ -1,4 +1,4 @@
-# PS2 Texture Sorter - Dependencies
+# Game Texture Sorter - Dependencies
 # Author: Dead On The Inside / JosephsDeadish
 
 # UI Framework

@@ -1,6 +1,6 @@
 @echo off
 REM ============================================================================
-REM PS2 Texture Sorter - Code Signing Script
+REM Game Texture Sorter - Code Signing Script
 REM Author: Dead On The Inside / JosephsDeadish
 REM
 REM This script signs the built EXE with a code signing certificate.
@@ -9,7 +9,7 @@ REM ============================================================================
 
 echo.
 echo ========================================================================
-echo   PS2 Texture Sorter - Code Signing
+echo   Game Texture Sorter - Code Signing
 echo   Author: Dead On The Inside / JosephsDeadish
 echo ========================================================================
 echo.
@@ -22,7 +22,7 @@ REM Path to signtool.exe (update based on your Windows SDK version)
 SET SIGNTOOL="C:\Program Files (x86)\Windows Kits\10\bin\10.0.22621.0\x64\signtool.exe"
 
 REM Path to the EXE to sign
-SET EXE_PATH="dist\PS2TextureSorter.exe"
+SET EXE_PATH="dist\GameTextureSorter.exe"
 
 REM Certificate details (choose ONE method below)
 REM Method 1: Use installed certificate (by subject name)

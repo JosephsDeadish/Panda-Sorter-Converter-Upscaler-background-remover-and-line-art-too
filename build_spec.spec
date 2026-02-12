@@ -1,6 +1,6 @@
 # -*- mode: python ; coding: utf-8 -*-
 """
-PyInstaller Spec File for PS2 Texture Sorter
+PyInstaller Spec File for Game Texture Sorter
 Author: Dead On The Inside / JosephsDeadish
 
 This spec file creates a single-EXE application for Windows
@@ -13,10 +13,10 @@ from pathlib import Path
 block_cipher = None
 
 # Application metadata
-APP_NAME = "PS2 Texture Sorter"
+APP_NAME = "Game Texture Sorter"
 APP_VERSION = "1.0.0"
 APP_AUTHOR = "Dead On The Inside / JosephsDeadish"
-EXE_NAME = "PS2TextureSorter"
+EXE_NAME = "GameTextureSorter"
 
 # Determine paths
 SCRIPT_DIR = Path(SPECPATH)

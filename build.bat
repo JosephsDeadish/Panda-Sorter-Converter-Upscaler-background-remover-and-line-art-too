@@ -1,6 +1,6 @@
 @echo off
 REM ============================================================================
-REM PS2 Texture Sorter - Automated Windows Build Script
+REM Game Texture Sorter - Automated Windows Build Script
 REM Author: Dead On The Inside / JosephsDeadish
 REM 
 REM This script automatically builds the single-EXE application for Windows.
@@ -14,7 +14,7 @@ REM ============================================================================
 
 echo.
 echo ========================================================================
-echo   PS2 Texture Sorter - Automated Build Script
+echo   Game Texture Sorter - Automated Build Script
 echo   Author: Dead On The Inside / JosephsDeadish
 echo ========================================================================
 echo.
@@ -113,13 +113,13 @@ echo   BUILD SUCCESSFUL!
 echo ========================================================================
 echo.
 echo The executable has been created in the 'dist' folder:
-echo   dist\PS2TextureSorter.exe
+echo   dist\GameTextureSorter.exe
 echo.
 echo File size:
-dir dist\PS2TextureSorter.exe | find "PS2TextureSorter.exe"
+dir dist\GameTextureSorter.exe | find "GameTextureSorter.exe"
 echo.
 echo You can now:
-echo   1. Run the EXE directly: dist\PS2TextureSorter.exe
+echo   1. Run the EXE directly: dist\GameTextureSorter.exe
 echo   2. Copy it to any location (it's portable)
 echo   3. Sign it with a code certificate (see CODE_SIGNING.md)
 echo   4. Distribute it to users

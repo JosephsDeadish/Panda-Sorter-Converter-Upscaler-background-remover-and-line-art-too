@@ -112,7 +112,7 @@ def demo_key_features():
 if __name__ == "__main__":
     print("\n" + "="*60)
     print("  Individual Limb/Ear Dragging Demo")
-    print("  PS2 Texture Sorter - Panda Companion")
+    print("  Game Texture Sorter - Panda Companion")
     print("="*60)
     
     demo_key_features()

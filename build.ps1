@@ -1,6 +1,6 @@
 #!/usr/bin/env pwsh
 ################################################################################
-# PS2 Texture Sorter - Automated Windows Build Script (PowerShell)
+# Game Texture Sorter - Automated Windows Build Script (PowerShell)
 # Author: Dead On The Inside / JosephsDeadish
 #
 # This PowerShell script automatically builds the single-EXE application.
@@ -11,7 +11,7 @@ $ErrorActionPreference = "Stop"
 
 Write-Host ""
 Write-Host "========================================================================" -ForegroundColor Cyan
-Write-Host "  PS2 Texture Sorter - Automated Build Script (PowerShell)" -ForegroundColor Cyan
+Write-Host "  Game Texture Sorter - Automated Build Script (PowerShell)" -ForegroundColor Cyan
 Write-Host "  Author: Dead On The Inside / JosephsDeadish" -ForegroundColor Cyan
 Write-Host "========================================================================" -ForegroundColor Cyan
 Write-Host ""
@@ -128,7 +128,7 @@ Write-Host "====================================================================
 Write-Host ""
 
 # Check if EXE was created
-$exePath = "dist\PS2TextureSorter.exe"
+$exePath = "dist\GameTextureSorter.exe"
 if (Test-Path $exePath) {
     $exeSize = (Get-Item $exePath).Length
     $exeSizeMB = [math]::Round($exeSize / 1MB, 2)
