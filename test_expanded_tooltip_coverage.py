@@ -118,6 +118,8 @@ def test_vulgar_mode_new_variations():
         "tooltip_mode_normal", "tooltip_mode_dumbed_down", "tooltip_mode_vulgar",
         "shop_balance", "shop_level",
         "inventory_animations", "popout_button",
+        "minigames_tab", "closet_appearance", "closet_header",
+        "achievement_progress",
     ]
 
     for widget_id in new_widget_ids:
@@ -150,6 +152,8 @@ def test_normal_mode_new_variations():
         "tooltip_mode_normal", "tooltip_mode_dumbed_down", "tooltip_mode_vulgar",
         "shop_balance", "shop_level",
         "inventory_animations", "popout_button",
+        "minigames_tab", "closet_appearance", "closet_header",
+        "achievement_progress",
     ]
 
     for widget_id in new_widget_ids:
