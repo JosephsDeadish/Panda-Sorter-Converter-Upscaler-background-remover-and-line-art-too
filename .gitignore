@@ -159,4 +159,7 @@ test_panda_features.py
 test_startup.py
 test_thread_safety.py
 test_tutorial_fix.py
+test_hd_preprocessing.py
+test_format_support.py
+test_keyword_search.py
 validate_integration.py
