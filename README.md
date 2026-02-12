@@ -1,14 +1,10 @@
-# PS2 Texture Sorter 🐼
+# Game Texture Sorter 🐼
 
 **Author:** Dead On The Inside / JosephsDeadish  
 **Version:** 1.0.0  
 **License:** TBD
 
-A professional, single-executable Windows application for automatically sorting PS2 texture dumps with advanced AI classification, massive-scale support (200,000+ textures), and a modern panda-themed UI.
-
-![PS2 Texture Sorter](https://img.shields.io/badge/Status-In%20Development-yellow)
-![Platform](https://img.shields.io/badge/Platform-Windows-blue)
-![Python](https://img.shields.io/badge/Python-3.8%2B-green)
+A professional, single-executable Windows application for automatically sorting game texture dumps with advanced AI classification, massive-scale support (200,000+ textures), and a modern panda-themed UI.
 
 ## 🌟 Features
 
@@ -70,7 +66,7 @@ A professional, single-executable Windows application for automatically sorting 
 
 ### For Users (Pre-built EXE)
 
-1. **Download** the latest `PS2TextureSorter.exe` from [Releases](https://github.com/JosephsDeadish/PS2-texture-sorter/releases)
+1. **Download** the latest `GameTextureSorter.exe` from the releases page
 2. **Run** the EXE - No installation required!
 3. **Start Sorting** - Select your texture folder and let the magic happen 🐼
 
@@ -78,17 +74,15 @@ A professional, single-executable Windows application for automatically sorting 
 
 #### Automated Build (Recommended)
 
+Build from source using build scripts:
+
 **Windows Batch:**
 ```cmd
-git clone https://github.com/JosephsDeadish/PS2-texture-sorter.git
-cd PS2-texture-sorter
 build.bat
 ```
 
 **PowerShell:**
 ```powershell
-git clone https://github.com/JosephsDeadish/PS2-texture-sorter.git
-cd PS2-texture-sorter
 .\build.ps1
 ```
 
@@ -96,7 +90,7 @@ The build scripts automatically:
 - Set up virtual environment
 - Install dependencies
 - Build single EXE with PyInstaller
-- Create `dist/PS2TextureSorter.exe`
+- Create `dist/GameTextureSorter.exe`
 
 #### Manual Build
 
@@ -106,7 +100,7 @@ See [BUILD.md](BUILD.md) for detailed manual build instructions.
 
 ### Basic Workflow
 
-1. **Launch Application** - Run PS2TextureSorter.exe
+1. **Launch Application** - Run GameTextureSorter.exe
 2. **Select Input Folder** - Choose folder containing PS2 textures
 3. **Choose Organization Style** - Select from 9+ presets or create custom
 4. **Configure Settings** - Adjust classification, grouping, LOD detection
@@ -217,7 +211,7 @@ Search for textures using natural language:
 ### Project Structure
 
 ```
-PS2-texture-sorter/
+GameTextureSorter/
 ├── main.py                      # Application entry point
 ├── src/                         # Source code
 │   ├── config.py                # Configuration management
@@ -272,16 +266,6 @@ PS2-texture-sorter/
 - **SQLite** - Database indexing
 - **PyInstaller** - Single EXE creation
 
-### Contributing
-
-Contributions are welcome! Please:
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Test thoroughly
-5. Submit a pull request
-
 ## 🔐 Code Signing
 
 For Windows SmartScreen compatibility and trust:
@@ -312,7 +296,7 @@ build.bat
 .\build.ps1
 ```
 
-Output: `dist/PS2TextureSorter.exe`
+Output: `dist/GameTextureSorter.exe`
 
 ## 🐛 Troubleshooting
 
@@ -385,13 +369,7 @@ License TBD by author. All rights reserved to Dead On The Inside / JosephsDeadis
 
 ## 🙏 Credits
 
-**Author:** Dead On The Inside / JosephsDeadish  
-**Repository:** [JosephsDeadish/PS2-texture-sorter](https://github.com/JosephsDeadish/PS2-texture-sorter)
-
-## 💬 Support
-
-- **Issues:** [GitHub Issues](https://github.com/JosephsDeadish/PS2-texture-sorter/issues)
-- **Discussions:** [GitHub Discussions](https://github.com/JosephsDeadish/PS2-texture-sorter/discussions)
+**Author:** Dead On The Inside / JosephsDeadish
 
 ## 🐼 About the Panda Theme
 

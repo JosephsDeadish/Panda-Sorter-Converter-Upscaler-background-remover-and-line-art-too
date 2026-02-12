@@ -5,7 +5,7 @@
 
 ## Overview
 
-The PS2 Texture Sorter AI Model System provides comprehensive texture classification capabilities with both offline and online model support, user feedback learning, and community model sharing.
+The Game Texture Sorter AI Model System provides comprehensive texture classification capabilities with both offline and online model support, user feedback learning, and community model sharing.
 
 ## Architecture
 
@@ -387,5 +387,4 @@ For model contributions:
 ## Support
 
 For issues or questions:
-- GitHub Issues: https://github.com/JosephsDeadish/PS2-texture-sorter/issues
 - Documentation: See main README.md

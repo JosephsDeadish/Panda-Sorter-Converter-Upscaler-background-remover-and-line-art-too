@@ -2,7 +2,7 @@
 
 ## Overview
 
-PS2 Texture Sorter now includes comprehensive support for working with archive files. You can extract textures from archives, sort them, and compress the output back into archives.
+Game Texture Sorter now includes comprehensive support for working with archive files. You can extract textures from archives, sort them, and compress the output back into archives.
 
 ## Supported Archive Formats
 
@@ -286,7 +286,6 @@ For issues with archive support:
 1. Check this guide first
 2. Review error messages in the log
 3. Try with a different archive format
-4. Report issues on [GitHub](https://github.com/JosephsDeadish/PS2-texture-sorter/issues)
 
 ---
 

@@ -1,6 +1,6 @@
-# Code Signing Guide for PS2 Texture Sorter
+# Code Signing Guide for Game Texture Sorter
 
-This guide explains how to digitally sign your PS2 Texture Sorter EXE to avoid Windows SmartScreen warnings and establish trust with users.
+This guide explains how to digitally sign your Game Texture Sorter EXE to avoid Windows SmartScreen warnings and establish trust with users.
 
 ## Why Code Signing?
 
@@ -85,7 +85,7 @@ Add to PATH or use full path when signing.
 
 #### Option A: Sign with Installed Certificate
 ```cmd
-signtool sign /a /tr http://timestamp.digicert.com /td SHA256 /fd SHA256 "dist\PS2TextureSorter.exe"
+signtool sign /a /tr http://timestamp.digicert.com /td SHA256 /fd SHA256 "dist\GameTextureSorter.exe"
 ```
 
 **Parameters explained**:
@@ -96,7 +96,7 @@ signtool sign /a /tr http://timestamp.digicert.com /td SHA256 /fd SHA256 "dist\P
 
 #### Option B: Sign with PFX File
 ```cmd
-signtool sign /f "certificate.pfx" /p PASSWORD /tr http://timestamp.digicert.com /td SHA256 /fd SHA256 "dist\PS2TextureSorter.exe"
+signtool sign /f "certificate.pfx" /p PASSWORD /tr http://timestamp.digicert.com /td SHA256 /fd SHA256 "dist\GameTextureSorter.exe"
 ```
 
 **Parameters**:
@@ -105,7 +105,7 @@ signtool sign /f "certificate.pfx" /p PASSWORD /tr http://timestamp.digicert.com
 
 #### Option C: Sign with Hardware Token (EV Certificate)
 ```cmd
-signtool sign /n "Your Company Name" /tr http://timestamp.digicert.com /td SHA256 /fd SHA256 "dist\PS2TextureSorter.exe"
+signtool sign /n "Your Company Name" /tr http://timestamp.digicert.com /td SHA256 /fd SHA256 "dist\GameTextureSorter.exe"
 ```
 
 **Parameters**:
@@ -114,16 +114,16 @@ signtool sign /n "Your Company Name" /tr http://timestamp.digicert.com /td SHA25
 ### Step 4: Verify Signature
 
 ```cmd
-signtool verify /pa /v "dist\PS2TextureSorter.exe"
+signtool verify /pa /v "dist\GameTextureSorter.exe"
 ```
 
 **Expected output**:
 ```
-Verifying: dist\PS2TextureSorter.exe
+Verifying: dist\GameTextureSorter.exe
 Hash of file (sha256): XXXXX...
 Signing Certificate Chain:
 ...
-Successfully verified: dist\PS2TextureSorter.exe
+Successfully verified: dist\GameTextureSorter.exe
 ```
 
 ## Timestamp Servers
@@ -146,7 +146,7 @@ REM Automated Code Signing Script
 REM Update paths and certificate details for your environment
 
 SET SIGNTOOL="C:\Program Files (x86)\Windows Kits\10\bin\10.0.22621.0\x64\signtool.exe"
-SET EXE_PATH="dist\PS2TextureSorter.exe"
+SET EXE_PATH="dist\GameTextureSorter.exe"
 SET CERT_NAME="Your Company Name"
 SET TIMESTAMP="http://timestamp.digicert.com"
 
@@ -173,11 +173,11 @@ pause
 Create `sign.ps1`:
 
 ```powershell
-# Code Signing Script for PS2 Texture Sorter
+# Code Signing Script for Game Texture Sorter
 # Author: Dead On The Inside / JosephsDeadish
 
 $SignTool = "C:\Program Files (x86)\Windows Kits\10\bin\10.0.22621.0\x64\signtool.exe"
-$ExePath = "dist\PS2TextureSorter.exe"
+$ExePath = "dist\GameTextureSorter.exe"
 $CertName = "Your Company Name"  # Update this
 $Timestamp = "http://timestamp.digicert.com"
 
@@ -265,7 +265,7 @@ Combined build and sign script:
 
 ```batch
 @echo off
-echo Building and signing PS2 Texture Sorter...
+echo Building and signing Game Texture Sorter...
 echo.
 
 REM Build
@@ -304,7 +304,7 @@ For testing only (NOT for distribution):
 
 ```cmd
 # Create self-signed certificate
-New-SelfSignedCertificate -DnsName "PS2TextureSorter" -Type CodeSigning -CertStoreLocation Cert:\CurrentUser\My
+New-SelfSignedCertificate -DnsName "GameTextureSorter" -Type CodeSigning -CertStoreLocation Cert:\CurrentUser\My
 
 # Export and sign
 # Note: Users will still see warnings unless they install your certificate
@@ -320,5 +320,4 @@ New-SelfSignedCertificate -DnsName "PS2TextureSorter" -Type CodeSigning -CertSto
 
 ---
 
-**Author**: Dead On The Inside / JosephsDeadish  
-**Repository**: [JosephsDeadish/PS2-texture-sorter](https://github.com/JosephsDeadish/PS2-texture-sorter)
+**Author**: Dead On The Inside / JosephsDeadish

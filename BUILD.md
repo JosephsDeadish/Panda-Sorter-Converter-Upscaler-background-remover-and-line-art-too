@@ -1,6 +1,6 @@
-# Building PS2 Texture Sorter
+# Building Game Texture Sorter
 
-This guide explains how to build the PS2 Texture Sorter as a single Windows EXE file.
+This guide explains how to build the Game Texture Sorter as a single Windows EXE file.
 
 ## Quick Start - Automated Build
 
@@ -41,11 +41,9 @@ If you prefer to build manually, follow these steps:
 Download and install Python 3.8+ from https://www.python.org/
 Make sure to check "Add Python to PATH" during installation.
 
-### 2. Clone Repository
-```bash
-git clone https://github.com/JosephsDeadish/PS2-texture-sorter.git
-cd PS2-texture-sorter
-```
+### 2. Set Up Source
+
+Ensure you have the source code, then navigate to the project directory.
 
 ### 3. Create Virtual Environment
 ```cmd
@@ -65,7 +63,7 @@ pyinstaller build_spec.spec --clean --noconfirm
 ```
 
 ### 6. Find Your EXE
-The executable will be in: `dist\PS2TextureSorter.exe`
+The executable will be in: `dist\GameTextureSorter.exe`
 
 ## Build Output
 
@@ -73,7 +71,7 @@ After a successful build, you'll find:
 
 ```
 dist/
-└── PS2TextureSorter.exe    <- The standalone executable (50-100 MB)
+└── GameTextureSorter.exe    <- The standalone executable (50-100 MB)
 
 build/                       <- Temporary build files (can be deleted)
 ```
@@ -81,10 +79,10 @@ build/                       <- Temporary build files (can be deleted)
 ## EXE Properties
 
 The built EXE will have:
-- **File Name**: PS2TextureSorter.exe
+- **File Name**: GameTextureSorter.exe
 - **Version**: 1.0.0
 - **Author**: Dead On The Inside / JosephsDeadish
-- **Description**: PS2 Texture Sorter - Automatic texture classification
+- **Description**: Game Texture Sorter - Automatic texture classification
 - **Size**: ~50-100 MB (depending on included resources)
 - **Icon**: Panda icon (if available)
 - **No external dependencies** - completely standalone
@@ -147,7 +145,7 @@ If the build fails due to missing icon, the script will use the default PyInstal
 
 After building:
 
-1. **Run directly**: Double-click `dist\PS2TextureSorter.exe`
+1. **Run directly**: Double-click `dist\GameTextureSorter.exe`
 2. **Test portability**: Copy the EXE to a USB drive and run from there
 3. **Test on clean Windows**: Copy to a machine without Python installed
 4. **Test with 200,000+ files**: Verify massive-scale performance
@@ -184,8 +182,8 @@ To integrate with CI/CD pipelines (GitHub Actions, etc.):
 - name: Upload Artifact
   uses: actions/upload-artifact@v3
   with:
-    name: PS2TextureSorter
-    path: dist/PS2TextureSorter.exe
+    name: GameTextureSorter
+    path: dist/GameTextureSorter.exe
 ```
 
 ## Next Steps
@@ -201,14 +199,7 @@ After building:
 If you encounter issues:
 1. Check this BUILD.md guide
 2. Review error messages carefully
-3. Check [Issues](https://github.com/JosephsDeadish/PS2-texture-sorter/issues)
-4. Open a new issue with:
-   - Your OS version
-   - Python version
-   - Full error message
-   - Build log output
 
 ---
 
-**Author**: Dead On The Inside / JosephsDeadish  
-**Repository**: [JosephsDeadish/PS2-texture-sorter](https://github.com/JosephsDeadish/PS2-texture-sorter)
+**Author**: Dead On The Inside / JosephsDeadish

@@ -89,7 +89,7 @@ model_input = pipeline.process(any_texture, for_model_input=True)
 
 ## Overview
 
-This implementation adds comprehensive computer vision and preprocessing capabilities to the PS2 Texture Sorter project, enabling advanced texture analysis, classification, and organization.
+This implementation adds comprehensive computer vision and preprocessing capabilities to the Game Texture Sorter project, enabling advanced texture analysis, classification, and organization.
 
 ## What Was Implemented
 
@@ -434,7 +434,7 @@ Implementation follows minimal-change principles:
 
 ## Summary
 
-This implementation successfully adds state-of-the-art computer vision capabilities to the PS2 Texture Sorter, enabling:
+This implementation successfully adds state-of-the-art computer vision capabilities to the Game Texture Sorter, enabling:
 
 1. ✅ **Advanced Classification** - Multiple AI models (CLIP, DINOv2, ViT, EfficientNet)
 2. ✅ **Texture Enhancement** - Complete preprocessing pipeline

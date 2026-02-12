@@ -1,6 +1,6 @@
-# Testing Guide for PS2 Texture Sorter
+# Testing Guide for Game Texture Sorter
 
-This document provides testing procedures for the PS2 Texture Sorter application.
+This document provides testing procedures for the Game Texture Sorter application.
 
 ## Quick Module Test
 
@@ -53,7 +53,7 @@ Expected output:
 - Virtual environment created (if not exists)
 - Dependencies installed
 - PyInstaller runs successfully
-- EXE created in `dist/PS2TextureSorter.exe`
+- EXE created in `dist/GameTextureSorter.exe`
 
 ### Verify EXE
 
@@ -61,7 +61,7 @@ After building:
 
 1. **Check file exists:**
    ```cmd
-   dir dist\PS2TextureSorter.exe
+   dir dist\GameTextureSorter.exe
    ```
 
 2. **Check file size:**
@@ -69,7 +69,7 @@ After building:
 
 3. **Run EXE:**
    ```cmd
-   dist\PS2TextureSorter.exe
+   dist\GameTextureSorter.exe
    ```
 
 4. **Test portability:**
@@ -232,7 +232,7 @@ After building the EXE:
 - [ ] File size is reasonable (50-100 MB)
 - [ ] EXE has proper metadata (right-click → Properties)
   - [ ] File version: 1.0.0.0
-  - [ ] Product name: PS2 Texture Sorter
+  - [ ] Product name: Game Texture Sorter
   - [ ] Author: Dead On The Inside / JosephsDeadish
   - [ ] Description present
 - [ ] Icon displays (if custom icon provided)
@@ -258,7 +258,7 @@ After any code changes, run:
 1. **Module test:** `python test_modules.py`
 2. **Main app:** `python main.py` (if deps installed)
 3. **Build test:** `build.bat` or `build.ps1`
-4. **EXE test:** Run `dist\PS2TextureSorter.exe`
+4. **EXE test:** Run `dist\GameTextureSorter.exe`
 
 ## Reporting Issues
 

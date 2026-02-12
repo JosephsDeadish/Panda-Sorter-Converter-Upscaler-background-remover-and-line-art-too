@@ -2,7 +2,7 @@
 
 ## Overview
 
-PS2 Texture Sorter now supports a wide range of image formats beyond the basic DDS and PNG, including modern formats like WEBP and vector formats like SVG.
+Game Texture Sorter now supports a wide range of image formats beyond the basic DDS and PNG, including modern formats like WEBP and vector formats like SVG.
 
 ## Supported Formats
 

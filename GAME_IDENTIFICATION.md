@@ -321,5 +321,5 @@ Planned improvements for this feature:
 
 ## License
 
-This feature is part of the PS2 Texture Sorter project.
+This feature is part of the Game Texture Sorter project.
 See main README.md for license information.
