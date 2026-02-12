@@ -16,17 +16,32 @@ try:
     from PIL import Image
     # Note: SAM requires segment-anything package
     # pip install git+https://github.com/facebookresearch/segment-anything.git
-    AVAILABLE = False  # Set to True when SAM is properly installed
+    # from segment_anything import sam_model_registry, SamPredictor
+    HAS_TORCH = True
 except ImportError:
-    AVAILABLE = False
-    logger.warning("SAM not available. Object segmentation disabled.")
+    HAS_TORCH = False
+    logger.warning("PyTorch not available. SAM model disabled.")
+
+# SAM is not currently available - requires additional installation
+# This is a stub implementation for future use
+AVAILABLE = False
 
 
 class SAMModel:
     """
     Segment Anything Model for object segmentation.
     
-    Features:
+    NOTE: This is a stub implementation. The full SAM model requires:
+    - Installing segment-anything package from GitHub
+    - Downloading model checkpoints
+    - Additional dependencies
+    
+    To enable SAM:
+    1. pip install git+https://github.com/facebookresearch/segment-anything.git
+    2. Download model checkpoints from Meta AI
+    3. Update AVAILABLE flag after successful import
+    
+    Features (when implemented):
     - Segment objects in textures
     - Useful for separating UI elements
     - Can be combined with CLIP for segment classification

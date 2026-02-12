@@ -227,14 +227,21 @@ class TextureFilters:
         
         return normalized
     
-    def _reduce_banding(self, image: np.ndarray) -> np.ndarray:
+    def _reduce_banding(self, image: np.ndarray, seed: Optional[int] = None) -> np.ndarray:
         """
         Reduce color banding artifacts.
         
         Applies subtle dithering to smooth color transitions.
+        
+        Args:
+            image: Input image
+            seed: Optional random seed for reproducibility
         """
+        # Use random number generator with optional seed
+        rng = np.random.default_rng(seed)
+        
         # Add small amount of noise to break up banding
-        noise = np.random.normal(0, 1, image.shape).astype(np.float32)
+        noise = rng.normal(0, 1, image.shape).astype(np.float32)
         result = image.astype(np.float32) + noise
         result = np.clip(result, 0, 255).astype(np.uint8)
         

@@ -317,12 +317,22 @@ class CLIPModel:
         """
         Fine-tune CLIP model on custom dataset.
         
+        NOTE: This is a placeholder for future functionality.
+        Fine-tuning CLIP requires significant implementation including:
+        - Dataset loader creation
+        - Optimizer and loss function setup
+        - Training loop with backpropagation
+        - Validation and checkpointing
+        
         Args:
             images: List of training images
             labels: List of text labels for images
             learning_rate: Learning rate
             epochs: Number of training epochs
             batch_size: Batch size
+            
+        Raises:
+            NotImplementedError: This feature is not yet implemented
         """
         # TODO: Implement fine-tuning
         # This would require:

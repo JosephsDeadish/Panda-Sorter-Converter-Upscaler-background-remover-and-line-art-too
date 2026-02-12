@@ -10,6 +10,7 @@ from typing import Dict, Any, Union, Tuple
 import numpy as np
 from PIL import Image
 import cv2
+from sklearn.cluster import KMeans
 
 logger = logging.getLogger(__name__)
 
@@ -175,7 +176,6 @@ class TextureStructuralAnalyzer:
         
         # Detect dominant colors
         pixels = img.reshape(-1, 3)
-        from sklearn.cluster import KMeans
         n_colors = min(5, len(np.unique(pixels, axis=0)))
         if n_colors > 1:
             kmeans = KMeans(n_clusters=n_colors, random_state=0, n_init=10)
