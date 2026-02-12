@@ -232,6 +232,15 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
         self._ear_stretch = 0.0        # Current ear stretch amount
         self._ear_stretch_vel = 0.0    # Ear stretch velocity
         
+        # Autonomous walking state
+        self._auto_walk_timer = None
+        self._is_auto_walking = False
+        self._auto_walk_target_x = 0
+        self._auto_walk_target_y = 0
+        self._auto_walk_step_dx = 0.0
+        self._auto_walk_step_dy = 0.0
+        self._auto_walk_steps_remaining = 0
+        
         # Configure the proxy frame – it stays in the widget tree for API
         # compatibility but is intentionally empty / zero-size.
         if ctk:
@@ -344,6 +353,9 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
         self._bg_refresh_job = None
         if sys.platform != 'win32':
             self._schedule_bg_refresh()
+        
+        # Start autonomous walking after a short delay
+        self.after(10000, self._schedule_auto_walk)
     
     # ------------------------------------------------------------------
     # Canvas-based panda drawing
@@ -2307,6 +2319,133 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
         
         self.after(50, self._walk_tick)
     
+    # Auto-walk comments the panda makes while exploring
+    AUTO_WALK_COMMENTS = [
+        "🐼 *waddling around* Just exploring!",
+        "🐼 Hmm, what's over here?",
+        "🐼 *looks around curiously* Nice place!",
+        "🐼 I wonder what this button does... 🤔",
+        "🐼 *walks casually* Don't mind me~",
+        "🐼 Just stretching my legs! 🦵",
+        "🐼 *humming* 🎵 la la la~",
+        "🐼 Ooh, let me check this out!",
+        "🐼 *sniffing around* I smell bamboo... 🎋",
+        "🐼 Taking a little stroll! 🚶",
+        "🐼 This app is pretty cool, honestly.",
+        "🐼 *peeks at the UI* Interesting...",
+        "🐼 I like this corner! Cozy~ 🏠",
+        "🐼 *tiptoes* Shhh, being sneaky 🥷",
+        "🐼 Where should I go next? 🤔",
+        "🐼 *climbs up* Whew, good view from here! 🏔️",
+        "🐼 *slides down* Wheee! 🛝",
+        "🐼 So many textures to sort! 📂",
+        "🐼 *pokes around* What's in this tab?",
+        "🐼 I'm a busy panda! 💼",
+    ]
+
+    def _schedule_auto_walk(self):
+        """Schedule the next autonomous walk after a random delay."""
+        if self._destroyed:
+            return
+        # Random delay between 15-45 seconds before next auto-walk
+        delay_ms = random.randint(15000, 45000)
+        self._auto_walk_timer = self.after(delay_ms, self._start_auto_walk)
+    
+    def _start_auto_walk(self):
+        """Begin an autonomous walk to a random location within the application."""
+        if self._destroyed:
+            return
+        # Don't auto-walk while user is interacting
+        if self.is_dragging or self._is_tossing or self._is_auto_walking:
+            self._schedule_auto_walk()
+            return
+        
+        # Don't interrupt existing walk-to-item animations
+        if hasattr(self, '_walk_step_count') and hasattr(self, '_walk_total_steps'):
+            if self._walk_step_count < self._walk_total_steps:
+                self._schedule_auto_walk()
+                return
+        
+        try:
+            min_x, min_y, max_x, max_y = self._get_main_window_bounds()
+            
+            # Pick a random target within the application window
+            target_x = random.randint(min_x, max(min_x, max_x))
+            target_y = random.randint(min_y, max(min_y, max_y))
+            
+            # Get current position
+            px = self._toplevel.winfo_x()
+            py = self._toplevel.winfo_y()
+            
+            dx = target_x - px
+            dy = target_y - py
+            dist = max(1, (dx ** 2 + dy ** 2) ** 0.5)
+            
+            # Walk speed: ~3px per frame at 50ms intervals
+            speed = 3
+            steps = max(1, int(dist / speed))
+            
+            self._auto_walk_target_x = target_x
+            self._auto_walk_target_y = target_y
+            self._auto_walk_step_dx = dx / steps
+            self._auto_walk_step_dy = dy / steps
+            self._auto_walk_steps_remaining = steps
+            self._is_auto_walking = True
+            
+            # Show a comment
+            comment = random.choice(self.AUTO_WALK_COMMENTS)
+            self.info_label.configure(text=comment)
+            
+            # Use a walking-style animation (varies for visual interest)
+            walk_anims = ['waving', 'dancing', 'stretching', 'tail_wag']
+            self._set_animation_no_cancel(random.choice(walk_anims))
+            
+            # Start walking
+            self._auto_walk_tick()
+        except Exception as e:
+            logger.debug(f"Auto-walk start error: {e}")
+            self._is_auto_walking = False
+            self._schedule_auto_walk()
+    
+    def _auto_walk_tick(self):
+        """Single step of autonomous walking animation."""
+        if self._destroyed:
+            return
+        
+        # Stop if user started dragging
+        if self.is_dragging or self._is_tossing:
+            self._is_auto_walking = False
+            self._schedule_auto_walk()
+            return
+        
+        self._auto_walk_steps_remaining -= 1
+        if self._auto_walk_steps_remaining <= 0:
+            # Arrived at destination
+            self._is_auto_walking = False
+            self._save_panda_position()
+            self.start_animation('idle')
+            self._schedule_auto_walk()
+            return
+        
+        try:
+            px = self._toplevel.winfo_x()
+            py = self._toplevel.winfo_y()
+            new_x = int(px + self._auto_walk_step_dx)
+            new_y = int(py + self._auto_walk_step_dy)
+            
+            # Clamp to application window bounds
+            min_x, min_y, max_x, max_y = self._get_main_window_bounds()
+            new_x = max(min_x, min(new_x, max_x))
+            new_y = max(min_y, min(new_y, max_y))
+            
+            self._toplevel.geometry(f"+{new_x}+{new_y}")
+        except Exception:
+            self._is_auto_walking = False
+            self._schedule_auto_walk()
+            return
+        
+        self.after(50, self._auto_walk_tick)
+
     def react_to_item_hit(self, item_name: str, item_emoji: str, hit_y_ratio: float):
         """React to an item being thrown at the panda.
         
@@ -2348,6 +2487,8 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
         self.drag_start_y = event.y
         self.is_dragging = True
         self._drag_moved = False
+        # Stop any auto-walk in progress
+        self._is_auto_walking = False
         # Detect if grabbed by head for dangle physics
         label_height = max(1, self.panda_label.winfo_height())
         rel_y = event.y / label_height

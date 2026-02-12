@@ -4805,8 +4805,9 @@ Built with:
         """Create inventory tab for managing collected items.
         
         Shows only non-closet items that have been purchased or earned.
-        Items are organized by category tabs: All, Toys, Food, Accessories.
+        Items are organized by category tabs: All, Toys, Food, Animations.
         Closet items (clothes, outfits, accessories) are shown in the Closet tab instead.
+        Accessories are routed to the closet for equipping.
         """
         scrollable_frame = ctk.CTkScrollableFrame(self.tab_inventory)
         scrollable_frame.pack(fill="both", expand=True, padx=10, pady=10)
@@ -4815,7 +4816,7 @@ Built with:
                      font=("Arial Bold", 22))
         header.pack(pady=(15, 5))
         if WidgetTooltip:
-            self._tooltips.append(WidgetTooltip(header, self._get_tooltip_text('inventory_tab') or "Your collection of items — toys, food, and accessories. Drag items to use them!"))
+            self._tooltips.append(WidgetTooltip(header, self._get_tooltip_text('inventory_tab') or "Your collection of items — toys, food, and animations. Drag items to use them!"))
 
         # Category filter buttons
         if self.widget_collection:
@@ -4829,7 +4830,7 @@ Built with:
                 ("📦 All", "all"),
                 ("🎾 Toys", "toy"),
                 ("🍱 Food", "food"),
-                ("🎀 Accessories", "accessory"),
+                ("🎬 Animations", "animation"),
             ]
             
             for cat_label, cat_value in categories:
@@ -4866,7 +4867,7 @@ Built with:
                             continue
                         elif self._inventory_category == 'food' and item.category.value != 'food':
                             continue
-                        elif self._inventory_category == 'accessory' and item.category.value not in ('cursors', 'cursor_trails', 'themes', 'animations', 'upgrades', 'special'):
+                        elif self._inventory_category == 'animation' and item.category.value not in ('cursors', 'cursor_trails', 'themes', 'animations', 'upgrades', 'special'):
                             continue
                     
                     item_frame = ctk.CTkFrame(shop_frame)
@@ -4879,21 +4880,19 @@ Built with:
                     if WidgetTooltip:
                         self._tooltips.append(WidgetTooltip(name_lbl, f"{item.name}: {item.description}"))
 
-        # Show widget collection (toys, food, accessories) — only unlocked/owned items
+        # Show widget collection (toys, food) — only unlocked/owned items
+        # Accessories are shown in the Closet tab instead.
         if self.widget_collection:
             filter_types = []
             if self._inventory_category == 'all':
                 filter_types = [
                     ("🎾 Toys", WidgetType.TOY, "play"),
                     ("🍱 Food Items", WidgetType.FOOD, "feed"),
-                    ("🎀 Accessories", WidgetType.ACCESSORY, "accessory")
                 ]
             elif self._inventory_category == 'toy':
                 filter_types = [("🎾 Toys", WidgetType.TOY, "play")]
             elif self._inventory_category == 'food':
                 filter_types = [("🍱 Food Items", WidgetType.FOOD, "feed")]
-            elif self._inventory_category == 'accessory':
-                filter_types = [("🎀 Accessories", WidgetType.ACCESSORY, "accessory")]
             
             for type_label, widget_type, interaction_type in filter_types:
                 type_frame = ctk.CTkFrame(scrollable_frame)
@@ -5005,6 +5004,49 @@ Built with:
                                 self._tooltips.append(WidgetTooltip(drag_btn,
                                     f"Drag {widget.name} out as a floating item. Panda can walk to it and interact!"))
 
+        # Show animations section with play buttons
+        if self._inventory_category in ('all', 'animation'):
+            anim_frame = ctk.CTkFrame(scrollable_frame)
+            anim_frame.pack(fill="x", padx=10, pady=10)
+            anim_header = ctk.CTkLabel(anim_frame, text="🎬 Animations",
+                         font=("Arial Bold", 16))
+            anim_header.pack(anchor="w", padx=10, pady=(10, 5))
+            if WidgetTooltip:
+                self._tooltips.append(WidgetTooltip(anim_header,
+                    self._get_tooltip_text('inventory_animations') or "Play animations to make panda dance, flip, and more!"))
+
+            animation_entries = [
+                ("💃", "Dancing", "dancing"),
+                ("🎉", "Celebrating", "celebrating"),
+                ("👋", "Waving", "waving"),
+                ("🤸", "Cartwheel", "cartwheel"),
+                ("🔄", "Backflip", "backflip"),
+                ("🦘", "Jumping", "jumping"),
+                ("🙆", "Stretching", "stretching"),
+                ("🐾", "Tail Wag", "tail_wag"),
+                ("🌀", "Spinning", "spinning"),
+                ("😴", "Sleeping", "sleeping"),
+                ("🪑", "Sitting", "sitting"),
+                ("😌", "Lay On Back", "lay_on_back"),
+                ("🛌", "Lay On Side", "lay_on_side"),
+                ("🥱", "Yawning", "yawning"),
+                ("🤧", "Sneezing", "sneezing"),
+                ("🤗", "Belly Grab", "belly_grab"),
+            ]
+
+            for emoji, name, anim_state in animation_entries:
+                a_frame = ctk.CTkFrame(anim_frame)
+                a_frame.pack(fill="x", padx=15, pady=3)
+                ctk.CTkLabel(a_frame, text=f"{emoji} {name}",
+                             font=("Arial", 13, "bold")).pack(side="left", padx=10, pady=5)
+                play_btn = ctk.CTkButton(
+                    a_frame, text="▶ Play", width=80, height=28,
+                    command=lambda a=anim_state, n=name: self._play_inventory_animation(a, n)
+                )
+                play_btn.pack(side="right", padx=10, pady=5)
+                if WidgetTooltip:
+                    self._tooltips.append(WidgetTooltip(play_btn, f"Play the {name} animation"))
+
         # Show unlockables summary
         if self.unlockables_manager:
             unlockables_frame = ctk.CTkFrame(scrollable_frame)
@@ -5043,6 +5085,17 @@ Built with:
         except Exception as e:
             logger.error(f"Error switching inventory category: {e}")
 
+    def _play_inventory_animation(self, anim_state, display_name):
+        """Play a panda animation from the inventory animations section."""
+        if hasattr(self, 'panda_widget') and self.panda_widget:
+            if hasattr(self.panda_widget, 'play_animation_once'):
+                self.panda_widget.play_animation_once(anim_state)
+            elif hasattr(self.panda_widget, 'set_animation'):
+                self.panda_widget.set_animation(anim_state)
+            self.log(f"🎬 Playing animation: {display_name}")
+        else:
+            self.log(f"⚠ Panda widget not available for animations")
+
     def _drag_item_out(self, widget, interaction_type):
         """Create a floating item window that can be dragged around with physics.
         
@@ -5070,14 +5123,24 @@ Built with:
             except Exception:
                 pass
             
-            # Size based on item type
-            win_size = 80
+            # Bigger size for better visibility and interaction
+            win_size = 120
             item_win.geometry(f"{win_size}x{win_size}+{root.winfo_x() + 200}+{root.winfo_y() + 200}")
             item_win.configure(bg='gray15')
             
-            # Display item emoji
-            item_label = tk.Label(item_win, text=widget.emoji, font=("Arial", 36),
-                                  bg='gray15', fg='white')
+            # Colorful background based on item rarity
+            rarity_bg_colors = {
+                'common': '#4a6741',      # Muted green
+                'uncommon': '#2d6a4f',     # Teal green
+                'rare': '#1d4e89',         # Rich blue
+                'epic': '#6a1b9a',         # Deep purple
+                'legendary': '#b8860b',    # Dark goldenrod
+            }
+            item_bg = rarity_bg_colors.get(widget.rarity.value, '#4a6741')
+            
+            # Display item emoji with larger font and colored background
+            item_label = tk.Label(item_win, text=widget.emoji, font=("Arial", 54),
+                                  bg=item_bg, fg='white')
             item_label.pack(expand=True, fill="both")
             
             # Physics state
@@ -5116,6 +5179,14 @@ Built with:
                 dy = event.y_root - state['drag_y']
                 x = item_win.winfo_x() + dx
                 y = item_win.winfo_y() + dy
+                # Clamp to application window bounds
+                root.update_idletasks()
+                min_x = root.winfo_rootx()
+                min_y = root.winfo_rooty()
+                max_x = max(min_x, min_x + root.winfo_width() - win_size)
+                max_y = max(min_y, min_y + root.winfo_height() - win_size)
+                x = max(min_x, min(x, max_x))
+                y = max(min_y, min(y, max_y))
                 item_win.geometry(f"+{x}+{y}")
                 state['vx'] = (event.x_root - state['last_x']) / weight_divisor
                 state['vy'] = (event.y_root - state['last_y']) / weight_divisor
@@ -5161,26 +5232,29 @@ Built with:
                 x = item_win.winfo_x() + state['vx']
                 y = item_win.winfo_y() + state['vy']
                 
-                # Screen bounds
-                screen_w = root.winfo_screenwidth()
-                screen_h = root.winfo_screenheight()
+                # Application window bounds (items stay within app)
+                root.update_idletasks()
+                min_x = root.winfo_rootx()
+                min_y = root.winfo_rooty()
+                max_x = max(min_x, min_x + root.winfo_width() - win_size)
+                max_y = max(min_y, min_y + root.winfo_height() - win_size)
                 
                 bounced = False
-                if x <= 0:
-                    x = 0
+                if x <= min_x:
+                    x = min_x
                     state['vx'] = abs(state['vx']) * physics.bounce_damping * physics.bounciness
                     bounced = True
-                elif x >= screen_w - win_size:
-                    x = screen_w - win_size
+                elif x >= max_x:
+                    x = max_x
                     state['vx'] = -abs(state['vx']) * physics.bounce_damping * physics.bounciness
                     bounced = True
                 
-                if y <= 0:
-                    y = 0
+                if y <= min_y:
+                    y = min_y
                     state['vy'] = abs(state['vy']) * physics.bounce_damping * physics.bounciness
                     bounced = True
-                elif y >= screen_h - win_size:
-                    y = screen_h - win_size
+                elif y >= max_y:
+                    y = max_y
                     state['vy'] = -abs(state['vy']) * physics.bounce_damping * physics.bounciness
                     bounced = True
                 

@@ -358,6 +358,34 @@ def test_sound_settings_persistence():
     print("✓ Sound settings include all volume fields")
 
 
+def test_auto_walk_state_variables():
+    """Test that PandaWidget has auto-walk state variables."""
+    try:
+        from src.ui.panda_widget import PandaWidget
+        # Check class has the auto-walk methods
+        assert hasattr(PandaWidget, '_schedule_auto_walk'), \
+            "PandaWidget should have _schedule_auto_walk method"
+        assert hasattr(PandaWidget, '_start_auto_walk'), \
+            "PandaWidget should have _start_auto_walk method"
+        assert hasattr(PandaWidget, '_auto_walk_tick'), \
+            "PandaWidget should have _auto_walk_tick method"
+        assert hasattr(PandaWidget, 'AUTO_WALK_COMMENTS'), \
+            "PandaWidget should have AUTO_WALK_COMMENTS"
+        print("✓ Auto-walk state variables and methods exist")
+    except ImportError:
+        print("⚠ Skipping auto-walk test (GUI not available)")
+
+
+def test_accessories_routed_to_closet():
+    """Test that shop accessories are in SHOP_TO_CLOSET_CATEGORY mapping."""
+    from src.features.shop_system import ShopCategory, SHOP_TO_CLOSET_CATEGORY
+    assert ShopCategory.ACCESSORIES in SHOP_TO_CLOSET_CATEGORY, \
+        "ACCESSORIES should map to closet"
+    assert SHOP_TO_CLOSET_CATEGORY[ShopCategory.ACCESSORIES] == "accessory", \
+        "ACCESSORIES should map to 'accessory' closet category"
+    print("✓ Accessories properly routed to closet via SHOP_TO_CLOSET_CATEGORY")
+
+
 if __name__ == "__main__":
     print("Testing Panda Character Improvements...")
     print("-" * 50)
@@ -388,6 +416,8 @@ if __name__ == "__main__":
         test_shop_to_closet_category_mapping()
         test_widgets_panel_has_animations()
         test_sound_settings_persistence()
+        test_auto_walk_state_variables()
+        test_accessories_routed_to_closet()
 
         print("-" * 50)
         print("✅ All panda improvement tests passed!")
