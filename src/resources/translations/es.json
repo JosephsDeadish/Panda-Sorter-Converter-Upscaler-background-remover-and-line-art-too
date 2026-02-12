@@ -1,5 +1,5 @@
 {
-  "app_title": "Clasificador de Texturas PS2",
+  "app_title": "Clasificador de Texturas",
   "app_version": "Versión {version}",
   "menu_file": "Archivo",
   "menu_edit": "Editar",
@@ -51,7 +51,7 @@
   "common_success": "Éxito",
   "common_loading": "Cargando...",
   "common_saving": "Guardando...",
-  "msg_welcome": "¡Bienvenido al Clasificador de Texturas PS2! 🐼",
+  "msg_welcome": "¡Bienvenido al Clasificador de Texturas! 🐼",
   "msg_ready": "Listo para clasificar texturas",
   "msg_no_files": "No se seleccionaron archivos",
   "msg_operation_complete": "Operación completada con éxito",

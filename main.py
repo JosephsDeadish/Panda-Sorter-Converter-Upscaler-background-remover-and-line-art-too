@@ -2563,7 +2563,7 @@ class GameTextureSorter(ctk.CTk):
             # Header
             ctk.CTkLabel(
                 dialog,
-                text="Select PS2 Game",
+                text="Select Game",
                 font=("Arial Bold", 16)
             ).pack(pady=10)
             
@@ -5631,7 +5631,7 @@ class GameTextureSorter(ctk.CTk):
         desc_frame.pack(fill="x", padx=20, pady=15)
         
         desc_text = """A professional, single-executable Windows application for automatically 
-sorting PS2 texture dumps with advanced AI classification and massive-scale 
+sorting game texture dumps with advanced AI classification and massive-scale 
 support (200,000+ textures). 100% offline operation."""
         
         ctk.CTkLabel(desc_frame, text=desc_text,

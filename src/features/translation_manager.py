@@ -218,7 +218,7 @@ class TranslationManager:
         """Get Spanish translations."""
         return {
             # Application
-            'app_title': 'Clasificador de Texturas PS2',
+            'app_title': 'Clasificador de Texturas',
             'app_version': 'Versión {version}',
             
             # Main menu
@@ -286,7 +286,7 @@ class TranslationManager:
             'common_saving': 'Guardando...',
             
             # Messages
-            'msg_welcome': '¡Bienvenido al Clasificador de Texturas PS2! 🐼',
+            'msg_welcome': '¡Bienvenido al Clasificador de Texturas! 🐼',
             'msg_ready': 'Listo para clasificar texturas',
             'msg_no_files': 'No se seleccionaron archivos',
             'msg_operation_complete': 'Operación completada con éxito',
@@ -297,7 +297,7 @@ class TranslationManager:
         """Get French translations."""
         return {
             # Application
-            'app_title': 'Trieur de Textures PS2',
+            'app_title': 'Trieur de Textures',
             'app_version': 'Version {version}',
             
             # Main menu
@@ -365,7 +365,7 @@ class TranslationManager:
             'common_saving': 'Enregistrement...',
             
             # Messages
-            'msg_welcome': 'Bienvenue dans le Trieur de Textures PS2! 🐼',
+            'msg_welcome': 'Bienvenue dans le Trieur de Textures! 🐼',
             'msg_ready': 'Prêt à trier les textures',
             'msg_no_files': 'Aucun fichier sélectionné',
             'msg_operation_complete': 'Opération terminée avec succès',

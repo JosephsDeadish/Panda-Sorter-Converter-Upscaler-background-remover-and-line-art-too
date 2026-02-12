@@ -1,5 +1,5 @@
 {
-  "app_title": "Trieur de Textures PS2",
+  "app_title": "Trieur de Textures",
   "app_version": "Version {version}",
   "menu_file": "Fichier",
   "menu_edit": "Éditer",
@@ -51,7 +51,7 @@
   "common_success": "Succès",
   "common_loading": "Chargement...",
   "common_saving": "Enregistrement...",
-  "msg_welcome": "Bienvenue dans le Trieur de Textures PS2! 🐼",
+  "msg_welcome": "Bienvenue dans le Trieur de Textures! 🐼",
   "msg_ready": "Prêt à trier les textures",
   "msg_no_files": "Aucun fichier sélectionné",
   "msg_operation_complete": "Opération terminée avec succès",
