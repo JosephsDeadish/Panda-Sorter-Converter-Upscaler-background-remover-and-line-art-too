@@ -7,10 +7,13 @@ from .preprocessing_pipeline import PreprocessingPipeline
 from .upscaler import TextureUpscaler
 from .filters import TextureFilters
 from .alpha_handler import AlphaChannelHandler
+from .alpha_correction import AlphaCorrector, AlphaCorrectionPresets
 
 __all__ = [
     'PreprocessingPipeline',
     'TextureUpscaler',
     'TextureFilters',
-    'AlphaChannelHandler'
+    'AlphaChannelHandler',
+    'AlphaCorrector',
+    'AlphaCorrectionPresets'
 ]
