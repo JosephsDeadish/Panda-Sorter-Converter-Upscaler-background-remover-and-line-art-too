@@ -15,6 +15,7 @@ A professional, single-executable Windows application for automatically sorting 
 - **🎮 Game Recognition** - Automatically identifies 70+ PS2 games with texture profiles (EXPANDED!)
 - **🎨 HD/4K Support** - NEW: Conditional preprocessing for both PS2 textures AND HD/4K textures
 - **🔍 Keyword Search** - NEW: Search textures by typing keywords like "gun", "character face", etc.
+- **✨ Alpha Correction** - NEW: Automatically detect and fix alpha colors with PS2 presets and batch processing
 - **📊 Massive Scale** - Handle 200,000+ textures efficiently with database indexing
 - **🎮 LOD Detection** - Automatically detect and group Level-of-Detail texture sets
 - **🗂️ Smart Organization** - 9+ hierarchical organization presets (Sims style, Neopets style, etc.)
@@ -176,6 +177,7 @@ Settings are stored in: `%USERPROFILE%\.ps2_texture_sorter\config.json`
 - **[GAME_IDENTIFICATION.md](GAME_IDENTIFICATION.md)** - 🆕 Game recognition with 70+ PS2 titles
 - **[VISION_MODELS_GUIDE.md](VISION_MODELS_GUIDE.md)** - Vision models, HD/4K support, and keyword search
 - **[FORMAT_SUPPORT_GUIDE.md](FORMAT_SUPPORT_GUIDE.md)** - Extended format support (SVG, WEBP, etc.)
+- **[ALPHA_CORRECTION_GUIDE.md](ALPHA_CORRECTION_GUIDE.md)** - 🆕 Alpha color detection and correction with PS2 presets
 - **[PANDA_GUIDE.md](PANDA_GUIDE.md)** - Complete guide to panda features and interactions
 - **[UNLOCKABLES_GUIDE.md](UNLOCKABLES_GUIDE.md)** - Achievement and unlockables system documentation
 - **[UI_CUSTOMIZATION_GUIDE.md](UI_CUSTOMIZATION_GUIDE.md)** - UI theming and customization guide
@@ -183,6 +185,14 @@ Settings are stored in: `%USERPROFILE%\.ps2_texture_sorter\config.json`
 - **Built-in Help** - Press F1 anywhere in the application for context-sensitive help
 
 ## 🆕 What's New
+
+### Alpha Color Correction Tool (NEW!)
+Automatically detect and fix alpha channel colors:
+- **Intelligent detection**: Analyze alpha distribution and patterns
+- **PS2 presets**: Binary, three-level, UI, and smooth gradient presets
+- **Batch processing**: Fix multiple images at once with CLI tool
+- **Custom thresholds**: Define your own alpha correction rules
+- See [ALPHA_CORRECTION_GUIDE.md](ALPHA_CORRECTION_GUIDE.md) for complete guide
 
 ### Archive Support (NEW!)
 Full support for working with compressed archives:

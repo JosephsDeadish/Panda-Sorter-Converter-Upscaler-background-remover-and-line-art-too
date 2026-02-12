@@ -63,6 +63,7 @@ Version: {APP_VERSION}
         parser.add_argument(
             'input',
             type=str,
+            nargs='?',
             help='Input image file or directory'
         )
         
@@ -169,7 +170,12 @@ Version: {APP_VERSION}
                 self._list_presets()
                 return 0
             
-            # Validate input
+            # Validate input (required if not listing presets)
+            if not parsed_args.input:
+                logger.error("Input path is required (unless using --list-presets)")
+                self.parser.print_help()
+                return 1
+            
             input_path = Path(parsed_args.input)
             if not input_path.exists():
                 logger.error(f"Input path does not exist: {input_path}")
