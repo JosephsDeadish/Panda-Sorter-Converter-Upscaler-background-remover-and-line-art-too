@@ -96,8 +96,9 @@ def test_panda_tooltips_settings_entries():
     new_settings_ids = [
         "sound_enabled", "master_volume", "effects_volume",
         "notifications_volume", "sound_pack", "sound_test_button",
-        "cursor_type", "cursor_size", "cursor_trail", "trail_style",
-        "hotkey_edit", "hotkey_toggle",
+        "cursor_type", "cursor_size", "cursor_tint", "cursor_trail", "trail_style",
+        "hotkey_edit", "hotkey_toggle", "hotkey_reset",
+        "sound_choice", "per_event_sound",
     ]
 
     for widget_id in new_settings_ids:

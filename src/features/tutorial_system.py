@@ -800,7 +800,69 @@ _PANDA_TOOLTIPS = {
             "Enable/disable toggle. For when shortcuts start sh*t."
         ]
     },
+    'cursor_tint': {
+        'normal': [
+            "Set a color tint for your cursor",
+            "Add a custom color to your cursor",
+            "Change the cursor color using a hex code",
+            "Tint your cursor a different color"
+        ],
+        'vulgar': [
+            "Color your cursor. Make it match your personality.",
+            "Cursor tint. Paint that pointer whatever color you want.",
+            "Hex color input. #FF0000 if you're feeling dangerous.",
+            "Tint your cursor. Because plain white is so last year.",
+            "Color picker for your cursor. Go full rainbow if you dare."
+        ]
+    },
+    'hotkey_reset': {
+        'normal': [
+            "Reset all keyboard shortcuts to their defaults",
+            "Restore default key bindings for all shortcuts",
+            "Undo all custom hotkey changes",
+            "Return all shortcuts to factory settings"
+        ],
+        'vulgar': [
+            "Reset all hotkeys to defaults. Panic button for keybinds.",
+            "Factory reset your shortcuts. Undo all your 'improvements'.",
+            "Reset everything. Start fresh. Embrace the defaults.",
+            "Nuclear option for hotkeys. Resets EVERYTHING.",
+            "Defaults button. For when your custom bindings are a disaster."
+        ]
+    },
+    'sound_choice': {
+        'normal': [
+            "Choose which sound to play for this event",
+            "Select a sound style for this event",
+            "Pick a different audio tone for this action",
+            "Change the sound effect for this event"
+        ],
+        'vulgar': [
+            "Pick a sound style. Chime, beep, whatever tickles your fancy.",
+            "Sound selector. Mix and match your audio nightmare.",
+            "Choose your weapon. I mean sound. Same energy.",
+            "What noise do you want for this event? Go wild.",
+            "Sound picker. The DJ booth of settings panels."
+        ]
+    },
+    'per_event_sound': {
+        'normal': [
+            "Toggle individual sounds on or off for specific events",
+            "Control which events play sound effects",
+            "Enable or disable sounds for each event type",
+            "Manage individual sound event toggles"
+        ],
+        'vulgar': [
+            "Micromanage your sounds. Mute what annoys you.",
+            "Individual sound toggles for control freaks.",
+            "Pick and choose which sounds you tolerate. Fair enough.",
+            "Per-event audio control. Because one size doesn't fit all.",
+            "Cherry-pick your sounds like the picky bastard you are."
+        ]
+    },
 }
+
+
 class TooltipMode(Enum):
     """Tooltip verbosity modes"""
     NORMAL = "normal"
