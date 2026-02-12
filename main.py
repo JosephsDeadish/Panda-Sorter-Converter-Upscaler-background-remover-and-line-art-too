@@ -198,6 +198,13 @@ except ImportError:
     GOODBYE_SPLASH_AVAILABLE = False
     print("Warning: Goodbye splash not available.")
 
+try:
+    from src.preprocessing.alpha_correction import AlphaCorrector, AlphaCorrectionPresets
+    ALPHA_CORRECTION_AVAILABLE = True
+except ImportError:
+    ALPHA_CORRECTION_AVAILABLE = False
+    print("Warning: Alpha correction not available.")
+
 
 class SplashScreen:
     """Splash screen with panda logo and loading animation"""
@@ -789,6 +796,7 @@ class GameTextureSorter(ctk.CTk):
         
         self.tab_sort = self.tabview.add("🐼 Sort Textures")
         self.tab_convert = self.tabview.add("🔄 Convert Files")
+        self.tab_alpha_fixer = self.tabview.add("🔧 Alpha Fixer")
         self.tab_browser = self.tabview.add("📁 File Browser")
         self.tab_profiles = self.tabview.add("🎮 Game Profiles")
         self.tab_notepad = self.tabview.add("📝 Notepad")
@@ -815,6 +823,7 @@ class GameTextureSorter(ctk.CTk):
         # Populate tabs
         self.create_sort_tab()
         self.create_convert_tab()
+        self.create_alpha_fixer_tab()
         self.create_browser_tab()
         self.create_profiles_tab()
         self.create_notepad_tab()
@@ -1812,6 +1821,166 @@ class GameTextureSorter(ctk.CTk):
         self.convert_log_text.insert("end", f"{message}\n")
         self.convert_log_text.see("end")
     
+    def create_alpha_fixer_tab(self):
+        """Create alpha correction tool tab for fixing texture alpha channels"""
+        # Title
+        ctk.CTkLabel(self.tab_alpha_fixer, text="🔧 Alpha Fixer 🔧",
+                     font=("Arial Bold", 18)).pack(pady=10)
+        ctk.CTkLabel(self.tab_alpha_fixer,
+                     text="Fix alpha channel issues in PS2 textures",
+                     font=("Arial", 12)).pack(pady=5)
+
+        if not ALPHA_CORRECTION_AVAILABLE:
+            ctk.CTkLabel(self.tab_alpha_fixer,
+                         text="⚠️ Alpha correction module not available.\n"
+                              "Please ensure numpy and Pillow are installed.",
+                         font=("Arial", 14)).pack(pady=30)
+            return
+
+        # Process button at top
+        top_btn_frame = ctk.CTkFrame(self.tab_alpha_fixer)
+        top_btn_frame.pack(fill="x", padx=30, pady=(0, 10))
+        self.alpha_fix_start_btn = ctk.CTkButton(
+            top_btn_frame,
+            text="🐼 FIX ALPHA 🐼",
+            command=self._run_alpha_fix,
+            width=250, height=60,
+            font=("Arial Bold", 18),
+            fg_color="#2B7A0B", hover_color="#368B14")
+        self.alpha_fix_start_btn.pack(pady=5)
+
+        # Scrollable content
+        scroll = ctk.CTkScrollableFrame(self.tab_alpha_fixer)
+        scroll.pack(fill="both", expand=True, padx=30, pady=(0, 20))
+
+        # Input section
+        input_frame = ctk.CTkFrame(scroll)
+        input_frame.pack(fill="x", padx=10, pady=10)
+        ctk.CTkLabel(input_frame, text="Input Folder:",
+                     font=("Arial Bold", 12)).grid(row=0, column=0, padx=10, pady=5, sticky="w")
+        self.alpha_fix_input_var = ctk.StringVar()
+        ctk.CTkEntry(input_frame, textvariable=self.alpha_fix_input_var,
+                     width=500).grid(row=0, column=1, padx=10, pady=5, sticky="ew")
+        ctk.CTkButton(input_frame, text="📂 Browse", width=100,
+                     command=lambda: self.browse_directory(self.alpha_fix_input_var)
+                     ).grid(row=0, column=2, padx=10, pady=5)
+        input_frame.columnconfigure(1, weight=1)
+
+        # Preset selection
+        preset_frame = ctk.CTkFrame(scroll)
+        preset_frame.pack(fill="x", padx=10, pady=10)
+        ctk.CTkLabel(preset_frame, text="Correction Options:",
+                     font=("Arial Bold", 12)).pack(anchor="w", padx=10, pady=5)
+        opts = ctk.CTkFrame(preset_frame)
+        opts.pack(fill="x", padx=10, pady=5)
+        ctk.CTkLabel(opts, text="Preset:").grid(row=0, column=0, padx=10, pady=5, sticky="w")
+        self.alpha_fix_preset_var = ctk.StringVar(value="ps2_binary")
+        preset_menu = ctk.CTkOptionMenu(
+            opts, variable=self.alpha_fix_preset_var,
+            values=["ps2_binary", "ps2_three_level", "ps2_ui",
+                    "ps2_smooth", "generic_binary", "clean_edges"])
+        preset_menu.grid(row=0, column=1, padx=10, pady=5, sticky="w")
+
+        # Preset description label
+        self.alpha_fix_desc_label = ctk.CTkLabel(
+            preset_frame, text="", font=("Arial", 11), wraplength=500)
+        self.alpha_fix_desc_label.pack(anchor="w", padx=20, pady=(0, 5))
+        self._update_alpha_preset_desc()
+        self.alpha_fix_preset_var.trace_add("write", lambda *_: self._update_alpha_preset_desc())
+
+        # Options
+        check_frame = ctk.CTkFrame(preset_frame)
+        check_frame.pack(fill="x", padx=10, pady=5)
+        self.alpha_fix_recursive_var = ctk.BooleanVar(value=True)
+        ctk.CTkCheckBox(check_frame, text="Include subdirectories",
+                       variable=self.alpha_fix_recursive_var).pack(side="left", padx=10)
+        self.alpha_fix_backup_var = ctk.BooleanVar(value=True)
+        ctk.CTkCheckBox(check_frame, text="Create backups",
+                       variable=self.alpha_fix_backup_var).pack(side="left", padx=10)
+        self.alpha_fix_overwrite_var = ctk.BooleanVar(value=False)
+        ctk.CTkCheckBox(check_frame, text="Overwrite originals",
+                       variable=self.alpha_fix_overwrite_var).pack(side="left", padx=10)
+
+        # Log output
+        log_frame = ctk.CTkFrame(scroll)
+        log_frame.pack(fill="both", expand=True, padx=10, pady=10)
+        ctk.CTkLabel(log_frame, text="Log:",
+                     font=("Arial Bold", 12)).pack(anchor="w", padx=10, pady=5)
+        self.alpha_fix_log_text = ctk.CTkTextbox(log_frame, height=200)
+        self.alpha_fix_log_text.pack(fill="both", expand=True, padx=10, pady=5)
+
+    def _update_alpha_preset_desc(self):
+        """Update the preset description label based on current selection."""
+        if not ALPHA_CORRECTION_AVAILABLE:
+            return
+        preset = AlphaCorrectionPresets.get_preset(self.alpha_fix_preset_var.get())
+        if preset:
+            self.alpha_fix_desc_label.configure(text=preset.get('description', ''))
+
+    def _alpha_fix_log(self, message):
+        """Thread-safe log helper for alpha fixer."""
+        self.after(0, lambda: self._alpha_fix_log_impl(message))
+
+    def _alpha_fix_log_impl(self, message):
+        self.alpha_fix_log_text.insert("end", f"{message}\n")
+        self.alpha_fix_log_text.see("end")
+
+    def _run_alpha_fix(self):
+        """Run alpha correction on selected folder in a background thread."""
+        input_dir = self.alpha_fix_input_var.get().strip()
+        if not input_dir or not os.path.isdir(input_dir):
+            if GUI_AVAILABLE:
+                messagebox.showwarning("No Input", "Please select a valid input folder.")
+            return
+
+        self.alpha_fix_start_btn.configure(state="disabled")
+        self.alpha_fix_log_text.delete("1.0", "end")
+        preset = self.alpha_fix_preset_var.get()
+        recursive = self.alpha_fix_recursive_var.get()
+        overwrite = self.alpha_fix_overwrite_var.get()
+        backup = self.alpha_fix_backup_var.get()
+
+        def worker():
+            try:
+                corrector = AlphaCorrector()
+                input_path = Path(input_dir)
+                exts = {'.png', '.bmp', '.tga', '.dds', '.jpg', '.jpeg'}
+                if recursive:
+                    files = [p for p in input_path.rglob('*') if p.suffix.lower() in exts]
+                else:
+                    files = [p for p in input_path.iterdir() if p.is_file() and p.suffix.lower() in exts]
+
+                if not files:
+                    self._alpha_fix_log("No image files found in the selected folder.")
+                    return
+
+                self._alpha_fix_log(f"Found {len(files)} image(s). Preset: {preset}")
+                modified = 0
+                errors = 0
+                for i, fpath in enumerate(files, 1):
+                    result = corrector.process_image(
+                        fpath, preset=preset, overwrite=overwrite, backup=backup)
+                    if result.get('success'):
+                        if result.get('modified'):
+                            self._alpha_fix_log(f"  ✅ [{i}/{len(files)}] Fixed: {fpath.name}")
+                            modified += 1
+                        else:
+                            self._alpha_fix_log(f"  ⏭️ [{i}/{len(files)}] No change: {fpath.name}")
+                    else:
+                        reason = result.get('reason', result.get('error', 'unknown'))
+                        self._alpha_fix_log(f"  ❌ [{i}/{len(files)}] Error: {fpath.name} - {reason}")
+                        errors += 1
+
+                self._alpha_fix_log(
+                    f"\nDone! {modified} fixed, {len(files) - modified - errors} unchanged, {errors} errors.")
+            except Exception as e:
+                self._alpha_fix_log(f"Error: {e}")
+                logger.error(f"Alpha fix error: {e}", exc_info=True)
+            finally:
+                self.after(0, lambda: self.alpha_fix_start_btn.configure(state="normal"))
+
+        threading.Thread(target=worker, daemon=True).start()
+
     def create_browser_tab(self):
         """Create file browser tab with directory browsing and file preview"""
         # Header - use wrapping layout to prevent button overlap at small sizes

@@ -2655,11 +2655,15 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
                 is_attacking = anim in ['swing', 'shoot', 'cast_spell']
                 
                 # Base weapon position in right hand/arm
-                arm_offset_x = int(25 * sx)  # Right arm position
-                arm_offset_y = int(10 * sy)  # Slightly below center
+                # Right arm center is at cx + 42*sx, bottom at (95+35)*sy + by
+                arm_offset_x = int(42 * sx)  # Right arm center
+                arm_offset_y = int(130 * sy)  # Right arm bottom (hand)
+                
+                # Track arm swing so weapon follows the hand
+                ra_swing = int(-_arm_swing) + _right_arm_dangle
                 
                 weapon_x = cx + arm_offset_x
-                weapon_y = by + arm_offset_y
+                weapon_y = int(by) + arm_offset_y + ra_swing
                 
                 # Adjust position for attack animations
                 if is_attacking:
@@ -3142,7 +3146,7 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
             self.info_label.configure(text=comment)
             
             # Use a walking-style animation (varies for visual interest)
-            walk_anims = ['waving', 'dancing', 'stretching', 'belly_rub']
+            walk_anims = ['waving', 'dancing', 'stretching']
             self._set_animation_no_cancel(random.choice(walk_anims))
             
             # Start walking
