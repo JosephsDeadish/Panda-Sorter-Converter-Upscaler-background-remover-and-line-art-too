@@ -1,10 +1,9 @@
 """
 Game Texture Sorter
 Author: Dead On The Inside / JosephsDeadish
-Repository: JosephsDeadish/PS2-texture-sorter
 
 A professional, single-executable Windows application for automatically 
-sorting PS2 texture dumps with advanced AI classification and massive-scale 
+sorting game texture dumps with advanced AI classification and massive-scale 
 support (200,000+ textures).
 """
 
