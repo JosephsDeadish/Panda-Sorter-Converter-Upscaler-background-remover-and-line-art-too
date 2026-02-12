@@ -1,25 +1,59 @@
 """
 File Handler Module
 Handles file operations, conversions, and integrity checks
+Extended format support for SVG, JPEG, WEBP, and more
 """
 
 import shutil
 import hashlib
+import logging
 from pathlib import Path
 from typing import List, Optional, Tuple
 import send2trash
+
+logger = logging.getLogger(__name__)
 
 try:
     from PIL import Image
     HAS_PIL = True
 except ImportError:
     HAS_PIL = False
+    logger.warning("PIL/Pillow not available. Image operations disabled.")
+
+# Check for SVG support
+try:
+    import cairosvg
+    HAS_SVG = True
+except ImportError:
+    HAS_SVG = False
+    logger.debug("cairosvg not available. SVG conversion disabled.")
+
+try:
+    from io import BytesIO
+    HAS_BYTESIO = True
+except ImportError:
+    HAS_BYTESIO = False
 
 
 class FileHandler:
     """Handles file operations for texture sorting"""
     
-    SUPPORTED_FORMATS = {'.dds', '.png', '.jpg', '.jpeg', '.tga', '.bmp'}
+    # Extended format support for PS2, HD, and 4K textures
+    SUPPORTED_FORMATS = {
+        '.dds', '.png', '.jpg', '.jpeg', '.jpe', '.jfif',  # Common formats
+        '.tga', '.bmp', '.tif', '.tiff',  # Standard formats
+        '.webp', '.gif', '.pcx', '.psd',  # Additional formats
+        '.svg', '.svgz'  # Vector formats (require special handling)
+    }
+    
+    # Raster formats that can be directly loaded with PIL
+    RASTER_FORMATS = {
+        '.dds', '.png', '.jpg', '.jpeg', '.jpe', '.jfif',
+        '.tga', '.bmp', '.tif', '.tiff', '.webp', '.gif', '.pcx'
+    }
+    
+    # Vector formats that need conversion
+    VECTOR_FORMATS = {'.svg', '.svgz'}
     
     def __init__(self, create_backup=True):
         self.create_backup = create_backup
@@ -92,14 +126,99 @@ class FileHandler:
             print(f"Error converting {png_path} to DDS: {e}")
             return None
     
+    def convert_svg_to_png(self, svg_path: Path, output_path: Optional[Path] = None, 
+                          width: Optional[int] = None, height: Optional[int] = None) -> Optional[Path]:
+        """
+        Convert SVG file to PNG.
+        
+        Args:
+            svg_path: Path to SVG file
+            output_path: Optional output path, defaults to same location with .png extension
+            width: Optional target width (maintains aspect ratio if height not given)
+            height: Optional target height (maintains aspect ratio if width not given)
+        
+        Returns:
+            Path to converted PNG file or None if conversion failed
+        """
+        if not HAS_SVG:
+            logger.warning("cairosvg not available. Cannot convert SVG files.")
+            return None
+        
+        if not HAS_PIL or not HAS_BYTESIO:
+            logger.warning("PIL or BytesIO not available. Cannot convert SVG files.")
+            return None
+        
+        try:
+            # Set output path
+            if output_path is None:
+                output_path = svg_path.with_suffix('.png')
+            
+            # Convert SVG to PNG bytes
+            png_bytes = cairosvg.svg2png(
+                url=str(svg_path),
+                output_width=width,
+                output_height=height
+            )
+            
+            # Load PNG from bytes and save
+            img = Image.open(BytesIO(png_bytes))
+            img.save(output_path, 'PNG')
+            
+            self.operations_log.append(f"Converted {svg_path} to {output_path}")
+            logger.info(f"Successfully converted SVG: {svg_path} -> {output_path}")
+            return output_path
+            
+        except Exception as e:
+            logger.error(f"Error converting {svg_path} to PNG: {e}")
+            return None
+    
+    def load_image(self, image_path: Path) -> Optional[Image.Image]:
+        """
+        Load an image file, handling special formats like SVG.
+        
+        Args:
+            image_path: Path to image file
+            
+        Returns:
+            PIL Image object or None if loading failed
+        """
+        if not HAS_PIL:
+            logger.warning("PIL not available. Cannot load images.")
+            return None
+        
+        try:
+            suffix = image_path.suffix.lower()
+            
+            # Handle SVG files
+            if suffix in self.VECTOR_FORMATS:
+                if not HAS_SVG:
+                    logger.warning(f"Cannot load SVG file {image_path}: cairosvg not available")
+                    return None
+                
+                # Convert SVG to PNG in memory
+                png_bytes = cairosvg.svg2png(url=str(image_path))
+                return Image.open(BytesIO(png_bytes))
+            
+            # Handle raster formats
+            elif suffix in self.RASTER_FORMATS:
+                return Image.open(image_path)
+            
+            else:
+                logger.warning(f"Unsupported image format: {suffix}")
+                return None
+                
+        except Exception as e:
+            logger.error(f"Error loading image {image_path}: {e}")
+            return None
+    
     def batch_convert(self, file_paths: List[Path], target_format: str, 
                      output_dir: Optional[Path] = None, progress_callback=None) -> List[Path]:
         """
-        Batch convert multiple files
+        Batch convert multiple files with extended format support.
         
         Args:
             file_paths: List of files to convert
-            target_format: Target format ('png' or 'dds')
+            target_format: Target format ('png', 'dds', 'jpg', 'webp', etc.)
             output_dir: Optional output directory
             progress_callback: Callback for progress updates
         
@@ -114,12 +233,36 @@ class FileHandler:
             if output_dir:
                 output_path = output_dir / file_path.with_suffix(f'.{target_format}').name
             
-            if target_format.lower() == 'png' and file_path.suffix.lower() == '.dds':
+            suffix = file_path.suffix.lower()
+            result = None
+            
+            # DDS to PNG conversion
+            if target_format.lower() == 'png' and suffix == '.dds':
                 result = self.convert_dds_to_png(file_path, output_path)
-            elif target_format.lower() == 'dds' and file_path.suffix.lower() in {'.png', '.jpg', '.jpeg'}:
+            
+            # PNG/JPG to DDS conversion
+            elif target_format.lower() == 'dds' and suffix in {'.png', '.jpg', '.jpeg'}:
                 result = self.convert_png_to_dds(file_path, output_path)
-            else:
-                result = None
+            
+            # SVG to PNG conversion
+            elif target_format.lower() == 'png' and suffix in self.VECTOR_FORMATS:
+                result = self.convert_svg_to_png(file_path, output_path)
+            
+            # Generic format conversion using PIL
+            elif HAS_PIL and suffix in self.SUPPORTED_FORMATS:
+                try:
+                    img = self.load_image(file_path)
+                    if img:
+                        if output_path is None:
+                            output_path = file_path.with_suffix(f'.{target_format}')
+                        
+                        # Save in target format
+                        img.save(output_path, format=target_format.upper())
+                        result = output_path
+                        self.operations_log.append(f"Converted {file_path} to {output_path}")
+                except Exception as e:
+                    logger.error(f"Error converting {file_path}: {e}")
+                    result = None
             
             if result:
                 converted.append(result)

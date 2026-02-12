@@ -341,6 +341,37 @@ class SimilaritySearch:
         logger.info(f"Created {len(clusters)} clusters")
         return clusters
     
+    def search_by_text(
+        self,
+        text_embedding: np.ndarray,
+        k: int = 10,
+        threshold: Optional[float] = None
+    ) -> List[Dict[str, Any]]:
+        """
+        Search for textures matching a text description using CLIP embeddings.
+        
+        This method enables keyword-based texture search like "gun", "character face",
+        "environmental texture", etc. The text_embedding should come from a CLIP 
+        text encoder.
+        
+        Args:
+            text_embedding: Text embedding from CLIP or similar model
+            k: Number of results to return
+            threshold: Optional similarity threshold
+            
+        Returns:
+            List of matching textures sorted by relevance
+            
+        Example:
+            # Using with CLIP model:
+            from src.vision_models.clip_model import CLIPModel
+            clip = CLIPModel()
+            text_emb = clip.encode_text("gun texture")
+            results = similarity_search.search_by_text(text_emb, k=20)
+        """
+        # Use the standard search method with text embedding
+        return self.search(text_embedding, k=k, threshold=threshold)
+    
     def save(self, path: Path):
         """Save index and metadata to disk."""
         # Save FAISS index
