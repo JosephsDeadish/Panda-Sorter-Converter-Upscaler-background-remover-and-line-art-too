@@ -262,7 +262,7 @@ class GameIdentifier:
             }
         },
         # Resident Evil Series
-        'SLUS-20152': {
+        'SLUS-20184': {
             'title': 'Resident Evil Code: Veronica X',
             'region': 'NTSC-U',
             'texture_profile': {
@@ -408,7 +408,7 @@ class GameIdentifier:
             }
         },
         # Persona Series
-        'SLUS-20552': {
+        'SLUS-21621': {
             'title': 'Shin Megami Tensei: Persona 3',
             'region': 'NTSC-U',
             'texture_profile': {
