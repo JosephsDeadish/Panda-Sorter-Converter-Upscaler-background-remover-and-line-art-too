@@ -306,7 +306,7 @@ class TravelSystem:
         
         self.locations['extreme_dungeon'] = Location(
             id='extreme_dungeon',
-            name='Dragon\'s Lair',
+            name="Dragon's Lair",
             description='The legendary lair of an ancient dragon',
             location_type=LocationType.DUNGEON,
             icon='🐉',

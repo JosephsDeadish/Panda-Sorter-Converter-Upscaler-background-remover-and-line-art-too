@@ -4,7 +4,6 @@ Author: Dead On The Inside / JosephsDeadish
 """
 
 import logging
-import time
 import tkinter as tk
 from typing import Optional
 try:
@@ -305,17 +304,16 @@ class WidgetsPanel(ctk.CTkFrame if ctk else tk.Frame):
                     if hasattr(self.panda_callback, 'play_animation_once'):
                         self.panda_callback.play_animation_once('walking')
                     
-                    # After a delay, show eating animation
+                    # After a delay, show eating animation using tkinter's after() method
                     def delayed_eating():
-                        time.sleep(1.5)  # Wait for walk
                         if hasattr(self.panda_callback, 'panda'):
                             eat_msg = self.panda_callback.panda.on_eating(widget.name, widget_id)
                             self.status_var.set(eat_msg)
                         if hasattr(self.panda_callback, 'play_animation_once'):
                             self.panda_callback.play_animation_once('eating')
                     
-                    import threading
-                    threading.Thread(target=delayed_eating, daemon=True).start()
+                    # Schedule eating animation after 1500ms (1.5 seconds)
+                    self.after(1500, delayed_eating)
                 else:
                     # Fallback without walk animation
                     self.status_var.set(result['message'])
