@@ -364,6 +364,16 @@ class PS2TextureSorter(ctk.CTk):
         self.file_handler = FileHandler(create_backup=config.get('file_handling', 'create_backup', default=True))
         self.database = None  # Will be initialized when needed
         
+        # Initialize profile manager for game identification
+        try:
+            from src.features.profile_manager import ProfileManager
+            profiles_dir = CONFIG_DIR / "profiles"
+            self.profile_manager = ProfileManager(profiles_dir=profiles_dir)
+            logger.info("Profile Manager initialized successfully")
+        except Exception as e:
+            logger.warning(f"Failed to initialize Profile Manager: {e}")
+            self.profile_manager = None
+        
         # Initialize feature modules
         self.panda = None  # Always-present panda character
         self.sound_manager = None
@@ -385,6 +395,7 @@ class PS2TextureSorter(ctk.CTk):
         self.panda_widget = None
         self.widget_collection = None
         self.closet_panel = None
+        self.current_game_info = None  # Store detected game info
         
         # Thumbnail cache for file browser (LRU using OrderedDict for O(1) operations)
         self._thumbnail_cache = OrderedDict()
@@ -1707,6 +1718,27 @@ class PS2TextureSorter(ctk.CTk):
                                                font=("Arial", 10), anchor="w")
         self.browser_path_label.pack(side="left", fill="x", expand=True, padx=5)
         
+        # Game info display (initially hidden)
+        self.browser_game_info_frame = ctk.CTkFrame(self.tab_browser)
+        # Don't pack yet - will be shown when game is detected
+        
+        self.browser_game_info_label = ctk.CTkLabel(
+            self.browser_game_info_frame,
+            text="No game identified",
+            font=("Arial", 10),
+            anchor="w"
+        )
+        self.browser_game_info_label.pack(side="left", fill="x", expand=True, padx=5, pady=5)
+        
+        # Add manual game selection button
+        self.browser_game_select_btn = ctk.CTkButton(
+            self.browser_game_info_frame,
+            text="🎮 Select Game",
+            command=self._browser_manual_game_select,
+            width=120
+        )
+        self.browser_game_select_btn.pack(side="right", padx=5, pady=5)
+        
         # Main content area - split into two panes
         content_frame = ctk.CTkFrame(self.tab_browser)
         content_frame.pack(fill="both", expand=True, padx=10, pady=10)
@@ -1799,7 +1831,158 @@ class PS2TextureSorter(ctk.CTk):
         if directory:
             self.browser_path_var.set(directory)
             self.browser_current_dir = Path(directory)
+            
+            # Attempt to identify game from directory
+            self._identify_and_display_game(Path(directory))
+            
             self.browser_refresh()
+    
+    def _identify_and_display_game(self, directory: Path):
+        """Identify game from directory and display info in browser."""
+        try:
+            # Try to identify game using ProfileManager
+            if hasattr(self, 'profile_manager'):
+                game_info = self.profile_manager.identify_game_from_path(directory)
+                
+                if game_info:
+                    # Store game info
+                    self.current_game_info = game_info
+                    
+                    # Update status display if it exists
+                    if hasattr(self, 'browser_game_info_label'):
+                        info_text = (
+                            f"🎮 Game: {game_info.get('title', 'Unknown')} "
+                            f"| Serial: {game_info.get('serial', 'N/A')} "
+                            f"| Region: {game_info.get('region', 'N/A')}"
+                        )
+                        self.browser_game_info_label.configure(text=info_text)
+                        
+                        # Show the game info frame if it was hidden
+                        if hasattr(self, 'browser_game_info_frame'):
+                            self.browser_game_info_frame.pack(fill="x", padx=10, pady=5, after=self.browser_path_label.master)
+                    
+                    self.log(
+                        f"Identified game: {game_info.get('title')} "
+                        f"(Serial: {game_info.get('serial')}, "
+                        f"Confidence: {game_info.get('confidence', 0):.0%})"
+                    )
+                else:
+                    # No game identified
+                    self.current_game_info = None
+                    if hasattr(self, 'browser_game_info_frame'):
+                        self.browser_game_info_frame.pack_forget()
+                        
+        except Exception as e:
+            logger.error(f"Error identifying game: {e}", exc_info=True)
+            self.current_game_info = None
+    
+    def _browser_manual_game_select(self):
+        """Show dialog to manually select a game."""
+        try:
+            from src.features.game_identifier import GameIdentifier
+            
+            # Create identifier to get list of known games
+            identifier = GameIdentifier()
+            known_games = identifier.get_all_known_games()
+            
+            if not known_games:
+                messagebox.showinfo(
+                    "Game Database Unavailable", 
+                    "Unable to load game database. Please check the game identifier configuration."
+                )
+                return
+            
+            # Create dialog
+            dialog = ctk.CTkToplevel(self)
+            dialog.title("Select Game")
+            dialog.geometry("500x400")
+            dialog.transient(self)
+            dialog.grab_set()
+            
+            # Center dialog
+            dialog.update_idletasks()
+            x = (dialog.winfo_screenwidth() // 2) - 250
+            y = (dialog.winfo_screenheight() // 2) - 200
+            dialog.geometry(f"500x400+{x}+{y}")
+            
+            # Header
+            ctk.CTkLabel(
+                dialog,
+                text="Select PS2 Game",
+                font=("Arial Bold", 16)
+            ).pack(pady=10)
+            
+            ctk.CTkLabel(
+                dialog,
+                text="Choose a game to apply its texture profile:"
+            ).pack(pady=5)
+            
+            # Game list
+            list_frame = ctk.CTkFrame(dialog)
+            list_frame.pack(fill="both", expand=True, padx=20, pady=10)
+            
+            # Create scrollable frame
+            scroll_frame = ctk.CTkScrollableFrame(list_frame)
+            scroll_frame.pack(fill="both", expand=True)
+            
+            selected_game = [None]  # Use list to capture selection
+            
+            def on_game_select(game):
+                """Handle game selection."""
+                selected_game[0] = game
+                
+                # Look up full game info
+                game_info = identifier.lookup_by_serial(game['serial'])
+                if game_info:
+                    # Store as current game
+                    self.current_game_info = {
+                        'serial': game_info.serial,
+                        'crc': game_info.crc,
+                        'title': game_info.title,
+                        'region': game_info.region,
+                        'confidence': 1.0,  # Manual selection = 100% confidence
+                        'source': 'manual',
+                        'texture_profile': game_info.texture_profile
+                    }
+                    
+                    # Update UI
+                    info_text = (
+                        f"🎮 Game: {game_info.title} "
+                        f"| Serial: {game_info.serial} "
+                        f"| Region: {game_info.region} (Manual)"
+                    )
+                    self.browser_game_info_label.configure(text=info_text)
+                    
+                    # Show the game info frame
+                    if hasattr(self, 'browser_game_info_frame'):
+                        self.browser_game_info_frame.pack(fill="x", padx=10, pady=5, after=self.browser_path_label.master)
+                    
+                    self.log(f"Manually selected game: {game_info.title} ({game_info.serial})")
+                
+                dialog.destroy()
+            
+            # Add game buttons
+            for game in known_games:
+                btn = ctk.CTkButton(
+                    scroll_frame,
+                    text=f"{game['title']} ({game['serial']})",
+                    command=lambda g=game: on_game_select(g),
+                    anchor="w",
+                    height=40
+                )
+                btn.pack(fill="x", padx=5, pady=2)
+            
+            # Cancel button
+            ctk.CTkButton(
+                dialog,
+                text="Cancel",
+                command=dialog.destroy,
+                width=100
+            ).pack(pady=10)
+            
+        except Exception as e:
+            logger.error(f"Error in manual game selection: {e}", exc_info=True)
+            messagebox.showerror("Error", f"Failed to show game selection dialog:\n{e}")
     
     def browser_refresh(self):
         """Refresh file browser content - scanning runs off UI thread"""
@@ -5998,6 +6181,15 @@ Built with:
                 logger.warning("No texture files found in input directory")
                 self.log("⚠️ No texture files found in input directory")
                 return
+            
+            # Apply game-specific texture profile if available (NEW)
+            if hasattr(self, 'current_game_info') and self.current_game_info:
+                texture_profile = self.current_game_info.get('texture_profile', {})
+                if texture_profile:
+                    self.classifier.set_game_profile(texture_profile)
+                    game_title = self.current_game_info.get('title', 'Unknown')
+                    self.log(f"🎮 Using texture profile for: {game_title}")
+                    logger.info(f"Applied game profile for {game_title}")
             
             # Classify textures
             logger.info(f"Starting classification of {total} textures")

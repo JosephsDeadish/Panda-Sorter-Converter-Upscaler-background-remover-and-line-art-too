@@ -23,6 +23,11 @@ class OrganizationProfile:
     description: str = ""
     game_name: str = ""
     
+    # Game identification (NEW)
+    game_serial: str = ""  # PS2 serial (SLUS-xxxxx, SCUS-xxxxx, etc.)
+    game_crc: str = ""  # PCSX2 game CRC hash
+    game_region: str = ""  # NTSC-U, PAL, NTSC-J, etc.
+    
     # Organization settings
     style: str = "by_category"  # by_category, by_type, by_size, flat, custom
     folder_structure: Dict[str, Any] = field(default_factory=dict)
@@ -485,6 +490,106 @@ class ProfileManager:
             
         except Exception as e:
             logger.error(f"Error auto-detecting game: {e}", exc_info=True)
+            return None
+    
+    def identify_game_from_path(
+        self,
+        path: Path,
+        gameindex_path: Optional[Path] = None
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Identify game using serial/CRC detection from GameIdentifier.
+        
+        Args:
+            path: Directory path to analyze
+            gameindex_path: Optional path to GameIndex.yaml
+            
+        Returns:
+            Dictionary with game info if identified, None otherwise
+        """
+        try:
+            # Import GameIdentifier (lazy import to avoid circular dependencies)
+            from .game_identifier import GameIdentifier, GameInfo
+            
+            # Create identifier
+            identifier = GameIdentifier(gameindex_path=gameindex_path)
+            
+            # Identify game
+            game_info = identifier.identify_game(path, scan_files=True)
+            
+            if game_info:
+                return {
+                    'serial': game_info.serial,
+                    'crc': game_info.crc,
+                    'title': game_info.title,
+                    'region': game_info.region,
+                    'confidence': game_info.confidence,
+                    'source': game_info.source,
+                    'texture_profile': game_info.texture_profile
+                }
+            
+            return None
+            
+        except Exception as e:
+            logger.error(f"Error identifying game from path: {e}", exc_info=True)
+            return None
+    
+    def create_profile_from_game_info(
+        self,
+        game_info: Dict[str, Any],
+        custom_name: Optional[str] = None
+    ) -> Optional[OrganizationProfile]:
+        """
+        Create a profile from identified game information.
+        
+        Args:
+            game_info: Game information dictionary from identify_game_from_path
+            custom_name: Optional custom name for the profile
+            
+        Returns:
+            Created OrganizationProfile if successful, None otherwise
+        """
+        try:
+            name = custom_name or game_info.get('title', 'Unknown Game')
+            
+            # Create profile with game identification
+            profile = OrganizationProfile(
+                name=name,
+                description=f"Auto-generated profile for {game_info.get('title', 'Unknown')}",
+                game_name=game_info.get('title', ''),
+                game_serial=game_info.get('serial', ''),
+                game_crc=game_info.get('crc', ''),
+                game_region=game_info.get('region', ''),
+                style='by_category',
+                auto_classify=True,
+                tags=[game_info.get('region', '').lower(), 'auto_detected']
+            )
+            
+            # Apply texture profile if available
+            texture_profile = game_info.get('texture_profile', {})
+            if texture_profile:
+                # Note: custom_categories with empty lists are intentional placeholders
+                # They indicate which categories are relevant for this game,
+                # while the actual keyword matching is handled by game_profile in the classifier
+                common_categories = texture_profile.get('common_categories', [])
+                if common_categories:
+                    profile.custom_categories = {
+                        cat: [] for cat in common_categories
+                    }
+            
+            with self._lock:
+                self.profiles[profile.name] = profile
+            
+            self.save_profile(profile.name)
+            
+            logger.info(
+                f"Created profile from game info: {name} "
+                f"(Serial: {profile.game_serial}, Region: {profile.game_region})"
+            )
+            return profile
+            
+        except Exception as e:
+            logger.error(f"Error creating profile from game info: {e}", exc_info=True)
             return None
     
     def create_from_template(self, template_key: str, custom_name: Optional[str] = None) -> Optional[OrganizationProfile]:
