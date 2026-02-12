@@ -7188,11 +7188,28 @@ Built with:
             )
     
     def browse_input(self):
-        """Browse for input directory"""
-        directory = filedialog.askdirectory(title="Select Input Directory")
-        if directory:
-            self.input_path_var.set(directory)
-            self.log(f"Input directory selected: {directory}")
+        """Browse for input directory or archive file when extract checkbox is checked"""
+        if self.extract_from_archive_var.get():
+            # Show archive file picker when extract from archive is checked
+            result = filedialog.askopenfilename(
+                title="Select Archive to Extract",
+                filetypes=[
+                    ("All Supported Archives", "*.zip *.7z *.rar *.tar.gz *.tgz"),
+                    ("ZIP archives", "*.zip"),
+                    ("7Z archives", "*.7z"),
+                    ("RAR archives", "*.rar"),
+                    ("TAR archives", "*.tar.gz *.tgz"),
+                    ("All files", "*.*")
+                ]
+            )
+            if result:
+                self.input_path_var.set(result)
+                self.log(f"📦 Archive selected: {result}")
+        else:
+            directory = filedialog.askdirectory(title="Select Input Directory")
+            if directory:
+                self.input_path_var.set(directory)
+                self.log(f"Input directory selected: {directory}")
     
     def browse_output(self):
         """Browse for output directory"""
@@ -7202,10 +7219,28 @@ Built with:
             self.log(f"Output directory selected: {directory}")
     
     def browse_directory(self, target_var):
-        """Browse for a directory and set the target variable"""
-        directory = filedialog.askdirectory(title="Select Directory")
-        if directory:
-            target_var.set(directory)
+        """Browse for a directory or archive file (when convert extract checkbox is checked)"""
+        if (hasattr(self, 'convert_extract_from_archive_var') and 
+                self.convert_extract_from_archive_var.get() and
+                target_var is self.convert_input_var):
+            # Show archive file picker when extract from archive is checked
+            result = filedialog.askopenfilename(
+                title="Select Archive to Extract",
+                filetypes=[
+                    ("All Supported Archives", "*.zip *.7z *.rar *.tar.gz *.tgz"),
+                    ("ZIP archives", "*.zip"),
+                    ("7Z archives", "*.7z"),
+                    ("RAR archives", "*.rar"),
+                    ("TAR archives", "*.tar.gz *.tgz"),
+                    ("All files", "*.*")
+                ]
+            )
+            if result:
+                target_var.set(result)
+        else:
+            directory = filedialog.askdirectory(title="Select Directory")
+            if directory:
+                target_var.set(directory)
     
     def start_sorting(self):
         """Start texture sorting operation"""

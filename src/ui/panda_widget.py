@@ -301,7 +301,8 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
             self._toplevel.configure(bg=self._canvas_bg)
         
         # Size the toplevel to hold the panda canvas + speech bubble
-        self._toplevel_w = PANDA_CANVAS_W + 8
+        # Use BUBBLE_MAX_WIDTH so speech bubbles are never clipped on the right.
+        self._toplevel_w = max(PANDA_CANVAS_W + 8, BUBBLE_MAX_WIDTH + 8)
         self._toplevel_h = PANDA_CANVAS_H + 100  # extra room for bubble
         self._toplevel.geometry(f"{self._toplevel_w}x{self._toplevel_h}")
         
@@ -605,7 +606,8 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
         line_count = len(lines)
         max_line_len = max(len(l) for l in lines) if lines else 0
 
-        # Bubble dimensions
+        # Bubble dimensions — use both BUBBLE_PAD_X sides so text is never
+        # clipped against the right edge of the bubble rectangle.
         bubble_w = min(max_line_len * BUBBLE_CHAR_WIDTH + BUBBLE_PAD_X * 2, BUBBLE_MAX_WIDTH)
         bubble_h = line_count * BUBBLE_LINE_HEIGHT + BUBBLE_PAD_Y * 2
 
@@ -649,11 +651,12 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
         bc.create_line(tail_cx - 5, y2, tail_cx + 5, y2,
                        fill="white", width=2, tags="tail_cover")
 
-        # Draw text
+        # Draw text — subtract both left and right padding so long lines
+        # don't overflow the right edge of the bubble.
         bc.create_text(
             (x1 + x2) // 2, (y1 + y2) // 2,
             text=display_text, font=font,
-            fill="#222222", width=bubble_w - BUBBLE_PAD_X,
+            fill="#222222", width=bubble_w - BUBBLE_PAD_X * 2,
             justify="center", tags="text"
         )
 

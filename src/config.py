@@ -189,6 +189,13 @@ class Config:
                 "enabled": True,
                 "config_file": "",  # Path to custom hotkey config, empty = use defaults
                 "global_hotkeys_enabled": False  # Enable hotkeys when app is not focused
+            },
+            
+            # Tutorial Settings
+            "tutorial": {
+                "show_on_startup": True,
+                "completed": False,
+                "seen": False
             }
         }
     
