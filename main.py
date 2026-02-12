@@ -364,6 +364,16 @@ class PS2TextureSorter(ctk.CTk):
         self.file_handler = FileHandler(create_backup=config.get('file_handling', 'create_backup', default=True))
         self.database = None  # Will be initialized when needed
         
+        # Initialize profile manager for game identification
+        try:
+            from src.features.profile_manager import ProfileManager
+            profiles_dir = CONFIG_DIR / "profiles"
+            self.profile_manager = ProfileManager(profiles_dir=profiles_dir)
+            logger.info("Profile Manager initialized successfully")
+        except Exception as e:
+            logger.warning(f"Failed to initialize Profile Manager: {e}")
+            self.profile_manager = None
+        
         # Initialize feature modules
         self.panda = None  # Always-present panda character
         self.sound_manager = None
@@ -385,6 +395,7 @@ class PS2TextureSorter(ctk.CTk):
         self.panda_widget = None
         self.widget_collection = None
         self.closet_panel = None
+        self.current_game_info = None  # Store detected game info
         
         # Thumbnail cache for file browser (LRU using OrderedDict for O(1) operations)
         self._thumbnail_cache = OrderedDict()
@@ -1707,6 +1718,18 @@ class PS2TextureSorter(ctk.CTk):
                                                font=("Arial", 10), anchor="w")
         self.browser_path_label.pack(side="left", fill="x", expand=True, padx=5)
         
+        # Game info display (initially hidden)
+        self.browser_game_info_frame = ctk.CTkFrame(self.tab_browser)
+        # Don't pack yet - will be shown when game is detected
+        
+        self.browser_game_info_label = ctk.CTkLabel(
+            self.browser_game_info_frame,
+            text="No game identified",
+            font=("Arial", 10),
+            anchor="w"
+        )
+        self.browser_game_info_label.pack(side="left", fill="x", expand=True, padx=5, pady=5)
+        
         # Main content area - split into two panes
         content_frame = ctk.CTkFrame(self.tab_browser)
         content_frame.pack(fill="both", expand=True, padx=10, pady=10)
@@ -1799,7 +1822,50 @@ class PS2TextureSorter(ctk.CTk):
         if directory:
             self.browser_path_var.set(directory)
             self.browser_current_dir = Path(directory)
+            
+            # Attempt to identify game from directory
+            self._identify_and_display_game(Path(directory))
+            
             self.browser_refresh()
+    
+    def _identify_and_display_game(self, directory: Path):
+        """Identify game from directory and display info in browser."""
+        try:
+            # Try to identify game using ProfileManager
+            if hasattr(self, 'profile_manager'):
+                game_info = self.profile_manager.identify_game_from_path(directory)
+                
+                if game_info:
+                    # Store game info
+                    self.current_game_info = game_info
+                    
+                    # Update status display if it exists
+                    if hasattr(self, 'browser_game_info_label'):
+                        info_text = (
+                            f"🎮 Game: {game_info.get('title', 'Unknown')} "
+                            f"| Serial: {game_info.get('serial', 'N/A')} "
+                            f"| Region: {game_info.get('region', 'N/A')}"
+                        )
+                        self.browser_game_info_label.configure(text=info_text)
+                        
+                        # Show the game info frame if it was hidden
+                        if hasattr(self, 'browser_game_info_frame'):
+                            self.browser_game_info_frame.pack(fill="x", padx=10, pady=5, after=self.browser_path_label.master)
+                    
+                    self.log(
+                        f"Identified game: {game_info.get('title')} "
+                        f"(Serial: {game_info.get('serial')}, "
+                        f"Confidence: {game_info.get('confidence', 0):.0%})"
+                    )
+                else:
+                    # No game identified
+                    self.current_game_info = None
+                    if hasattr(self, 'browser_game_info_frame'):
+                        self.browser_game_info_frame.pack_forget()
+                        
+        except Exception as e:
+            logger.error(f"Error identifying game: {e}", exc_info=True)
+            self.current_game_info = None
     
     def browser_refresh(self):
         """Refresh file browser content - scanning runs off UI thread"""
