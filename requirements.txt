@@ -51,6 +51,7 @@ xxhash>=3.4.0  # Fast hashing for performance
 
 # NEW: Archive Support
 py7zr>=0.20.1  # 7z file support (>= 0.20.1 for security fix)
+rarfile>=4.0  # RAR archive support
 
 # NEW: Hotkeys
 pynput>=1.7.6  # Global hotkeys

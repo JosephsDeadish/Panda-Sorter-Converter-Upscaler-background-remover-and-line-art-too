@@ -220,6 +220,572 @@ class GameIdentifier:
                 'common_prefixes': ['ratchet', 'clank', 'weapon', 'gadget']
             }
         },
+        'SLUS-20638': {
+            'title': 'Ratchet & Clank: Going Commando',
+            'region': 'NTSC-U',
+            'texture_profile': {
+                'common_categories': ['character', 'weapons', 'vehicles', 'environment'],
+                'icon_shapes': 'varied',
+                'atlas_layout': 'varied',
+                'common_prefixes': ['ratchet', 'clank', 'weapon', 'gadget']
+            }
+        },
+        'SLUS-20896': {
+            'title': 'Ratchet & Clank: Up Your Arsenal',
+            'region': 'NTSC-U',
+            'texture_profile': {
+                'common_categories': ['character', 'weapons', 'vehicles', 'environment'],
+                'icon_shapes': 'varied',
+                'atlas_layout': 'varied',
+                'common_prefixes': ['ratchet', 'clank', 'weapon', 'gadget']
+            }
+        },
+        # Grand Theft Auto Series
+        'SLUS-20552': {
+            'title': 'Grand Theft Auto: Vice City',
+            'region': 'NTSC-U',
+            'texture_profile': {
+                'common_categories': ['vehicles', 'characters', 'environment', 'ui'],
+                'icon_shapes': 'varied',
+                'atlas_layout': 'mixed',
+                'common_prefixes': ['vehicle', 'ped', 'building', 'hud']
+            }
+        },
+        'SLUS-20062': {
+            'title': 'Grand Theft Auto III',
+            'region': 'NTSC-U',
+            'texture_profile': {
+                'common_categories': ['vehicles', 'characters', 'environment', 'ui'],
+                'icon_shapes': 'varied',
+                'atlas_layout': 'mixed',
+                'common_prefixes': ['vehicle', 'ped', 'building', 'hud']
+            }
+        },
+        # Resident Evil Series
+        'SLUS-20152': {
+            'title': 'Resident Evil Code: Veronica X',
+            'region': 'NTSC-U',
+            'texture_profile': {
+                'common_categories': ['character', 'weapons', 'enemies', 'environment', 'ui'],
+                'icon_shapes': 'square',
+                'atlas_layout': 'power_of_two',
+                'common_prefixes': ['chris', 'claire', 'zombie', 'weapon']
+            }
+        },
+        'SLUS-20770': {
+            'title': 'Resident Evil 4',
+            'region': 'NTSC-U',
+            'texture_profile': {
+                'common_categories': ['character', 'weapons', 'enemies', 'environment', 'ui'],
+                'icon_shapes': 'square',
+                'atlas_layout': 'power_of_two',
+                'common_prefixes': ['leon', 'ashley', 'ganado', 'weapon']
+            }
+        },
+        # Tekken Series
+        'SLUS-20001': {
+            'title': 'Tekken Tag Tournament',
+            'region': 'NTSC-U',
+            'texture_profile': {
+                'common_categories': ['character', 'stages', 'ui'],
+                'icon_shapes': 'square',
+                'atlas_layout': 'power_of_two',
+                'common_prefixes': ['char', 'stage', 'effect']
+            }
+        },
+        'SLUS-20718': {
+            'title': 'Tekken 4',
+            'region': 'NTSC-U',
+            'texture_profile': {
+                'common_categories': ['character', 'stages', 'ui'],
+                'icon_shapes': 'square',
+                'atlas_layout': 'power_of_two',
+                'common_prefixes': ['char', 'stage', 'effect']
+            }
+        },
+        'SLUS-21059': {
+            'title': 'Tekken 5',
+            'region': 'NTSC-U',
+            'texture_profile': {
+                'common_categories': ['character', 'stages', 'ui'],
+                'icon_shapes': 'square',
+                'atlas_layout': 'power_of_two',
+                'common_prefixes': ['char', 'stage', 'effect']
+            }
+        },
+        # Sly Cooper Series
+        'SLUS-20289': {
+            'title': 'Sly Cooper and the Thievius Raccoonus',
+            'region': 'NTSC-U',
+            'texture_profile': {
+                'common_categories': ['character', 'environment', 'collectibles', 'ui'],
+                'icon_shapes': 'circular',
+                'atlas_layout': 'varied',
+                'common_prefixes': ['sly', 'bentley', 'murray', 'enemy']
+            }
+        },
+        'SLUS-20833': {
+            'title': 'Sly 2: Band of Thieves',
+            'region': 'NTSC-U',
+            'texture_profile': {
+                'common_categories': ['character', 'environment', 'collectibles', 'ui'],
+                'icon_shapes': 'circular',
+                'atlas_layout': 'varied',
+                'common_prefixes': ['sly', 'bentley', 'murray', 'enemy']
+            }
+        },
+        'SLUS-21284': {
+            'title': 'Sly 3: Honor Among Thieves',
+            'region': 'NTSC-U',
+            'texture_profile': {
+                'common_categories': ['character', 'environment', 'collectibles', 'ui'],
+                'icon_shapes': 'circular',
+                'atlas_layout': 'varied',
+                'common_prefixes': ['sly', 'bentley', 'murray', 'enemy']
+            }
+        },
+        # Shadow of the Colossus & ICO
+        'SLUS-21287': {
+            'title': 'Shadow of the Colossus',
+            'region': 'NTSC-U',
+            'texture_profile': {
+                'common_categories': ['character', 'colossus', 'environment', 'effects'],
+                'icon_shapes': 'varied',
+                'atlas_layout': 'varied',
+                'common_prefixes': ['wander', 'agro', 'colossus', 'terrain']
+            }
+        },
+        'SLUS-20067': {
+            'title': 'ICO',
+            'region': 'NTSC-U',
+            'texture_profile': {
+                'common_categories': ['character', 'environment', 'effects'],
+                'icon_shapes': 'varied',
+                'atlas_layout': 'varied',
+                'common_prefixes': ['ico', 'yorda', 'castle', 'shadow']
+            }
+        },
+        # Devil May Cry Series
+        'SLUS-20216': {
+            'title': 'Devil May Cry',
+            'region': 'NTSC-U',
+            'texture_profile': {
+                'common_categories': ['character', 'weapons', 'enemies', 'environment', 'effects'],
+                'icon_shapes': 'varied',
+                'atlas_layout': 'power_of_two',
+                'common_prefixes': ['dante', 'weapon', 'demon', 'effect']
+            }
+        },
+        'SLUS-20484': {
+            'title': 'Devil May Cry 2',
+            'region': 'NTSC-U',
+            'texture_profile': {
+                'common_categories': ['character', 'weapons', 'enemies', 'environment', 'effects'],
+                'icon_shapes': 'varied',
+                'atlas_layout': 'power_of_two',
+                'common_prefixes': ['dante', 'lucia', 'weapon', 'demon']
+            }
+        },
+        'SLUS-20964': {
+            'title': 'Devil May Cry 3: Dante\'s Awakening',
+            'region': 'NTSC-U',
+            'texture_profile': {
+                'common_categories': ['character', 'weapons', 'enemies', 'environment', 'effects'],
+                'icon_shapes': 'varied',
+                'atlas_layout': 'power_of_two',
+                'common_prefixes': ['dante', 'vergil', 'weapon', 'demon']
+            }
+        },
+        # Dragon Quest VIII
+        'SLUS-21207': {
+            'title': 'Dragon Quest VIII: Journey of the Cursed King',
+            'region': 'NTSC-U',
+            'texture_profile': {
+                'common_categories': ['character', 'monsters', 'items', 'environment', 'ui'],
+                'icon_shapes': 'varied',
+                'atlas_layout': 'varied',
+                'common_prefixes': ['hero', 'yangus', 'jessica', 'monster']
+            }
+        },
+        # Persona Series
+        'SLUS-20552': {
+            'title': 'Shin Megami Tensei: Persona 3',
+            'region': 'NTSC-U',
+            'texture_profile': {
+                'common_categories': ['character', 'personas', 'ui', 'environment'],
+                'icon_shapes': 'varied',
+                'atlas_layout': 'varied',
+                'common_prefixes': ['char', 'persona', 'shadow', 'menu']
+            }
+        },
+        'SLUS-21782': {
+            'title': 'Shin Megami Tensei: Persona 4',
+            'region': 'NTSC-U',
+            'texture_profile': {
+                'common_categories': ['character', 'personas', 'ui', 'environment'],
+                'icon_shapes': 'varied',
+                'atlas_layout': 'varied',
+                'common_prefixes': ['char', 'persona', 'shadow', 'menu']
+            }
+        },
+        # Tony Hawk Series
+        'SLUS-20013': {
+            'title': 'Tony Hawk\'s Pro Skater 3',
+            'region': 'NTSC-U',
+            'texture_profile': {
+                'common_categories': ['character', 'environment', 'ui'],
+                'icon_shapes': 'varied',
+                'atlas_layout': 'mixed',
+                'common_prefixes': ['skater', 'board', 'level', 'graffiti']
+            }
+        },
+        'SLUS-20731': {
+            'title': 'Tony Hawk\'s Underground',
+            'region': 'NTSC-U',
+            'texture_profile': {
+                'common_categories': ['character', 'environment', 'ui'],
+                'icon_shapes': 'varied',
+                'atlas_layout': 'mixed',
+                'common_prefixes': ['skater', 'board', 'level', 'graffiti']
+            }
+        },
+        # Need for Speed Series
+        'SLUS-20362': {
+            'title': 'Need for Speed: Hot Pursuit 2',
+            'region': 'NTSC-U',
+            'texture_profile': {
+                'common_categories': ['vehicles', 'environment', 'ui'],
+                'icon_shapes': 'varied',
+                'atlas_layout': 'mixed',
+                'common_prefixes': ['car', 'track', 'effect', 'ui']
+            }
+        },
+        'SLUS-20811': {
+            'title': 'Need for Speed: Underground',
+            'region': 'NTSC-U',
+            'texture_profile': {
+                'common_categories': ['vehicles', 'environment', 'ui'],
+                'icon_shapes': 'varied',
+                'atlas_layout': 'mixed',
+                'common_prefixes': ['car', 'track', 'effect', 'ui']
+            }
+        },
+        'SLUS-21065': {
+            'title': 'Need for Speed: Underground 2',
+            'region': 'NTSC-U',
+            'texture_profile': {
+                'common_categories': ['vehicles', 'environment', 'ui'],
+                'icon_shapes': 'varied',
+                'atlas_layout': 'mixed',
+                'common_prefixes': ['car', 'track', 'effect', 'ui']
+            }
+        },
+        # Burnout Series
+        'SLUS-20497': {
+            'title': 'Burnout 2: Point of Impact',
+            'region': 'NTSC-U',
+            'texture_profile': {
+                'common_categories': ['vehicles', 'environment', 'effects', 'ui'],
+                'icon_shapes': 'varied',
+                'atlas_layout': 'mixed',
+                'common_prefixes': ['car', 'track', 'crash', 'effect']
+            }
+        },
+        'SLUS-20966': {
+            'title': 'Burnout 3: Takedown',
+            'region': 'NTSC-U',
+            'texture_profile': {
+                'common_categories': ['vehicles', 'environment', 'effects', 'ui'],
+                'icon_shapes': 'varied',
+                'atlas_layout': 'mixed',
+                'common_prefixes': ['car', 'track', 'crash', 'effect']
+            }
+        },
+        # SSX Series
+        'SLUS-20011': {
+            'title': 'SSX',
+            'region': 'NTSC-U',
+            'texture_profile': {
+                'common_categories': ['character', 'environment', 'effects', 'ui'],
+                'icon_shapes': 'varied',
+                'atlas_layout': 'mixed',
+                'common_prefixes': ['rider', 'board', 'mountain', 'snow']
+            }
+        },
+        'SLUS-20326': {
+            'title': 'SSX Tricky',
+            'region': 'NTSC-U',
+            'texture_profile': {
+                'common_categories': ['character', 'environment', 'effects', 'ui'],
+                'icon_shapes': 'varied',
+                'atlas_layout': 'mixed',
+                'common_prefixes': ['rider', 'board', 'mountain', 'snow']
+            }
+        },
+        # Okami
+        'SLUS-21410': {
+            'title': 'Okami',
+            'region': 'NTSC-U',
+            'texture_profile': {
+                'common_categories': ['character', 'environment', 'effects', 'ui'],
+                'icon_shapes': 'varied',
+                'atlas_layout': 'varied',
+                'common_prefixes': ['amaterasu', 'issun', 'brush', 'demon']
+            }
+        },
+        # Silent Hill Series
+        'SLUS-20228': {
+            'title': 'Silent Hill 2',
+            'region': 'NTSC-U',
+            'texture_profile': {
+                'common_categories': ['character', 'enemies', 'environment', 'ui'],
+                'icon_shapes': 'varied',
+                'atlas_layout': 'power_of_two',
+                'common_prefixes': ['james', 'maria', 'monster', 'fog']
+            }
+        },
+        'SLUS-20732': {
+            'title': 'Silent Hill 3',
+            'region': 'NTSC-U',
+            'texture_profile': {
+                'common_categories': ['character', 'enemies', 'environment', 'ui'],
+                'icon_shapes': 'varied',
+                'atlas_layout': 'power_of_two',
+                'common_prefixes': ['heather', 'monster', 'otherworld']
+            }
+        },
+        # Katamari Damacy
+        'SLUS-21008': {
+            'title': 'Katamari Damacy',
+            'region': 'NTSC-U',
+            'texture_profile': {
+                'common_categories': ['objects', 'environment', 'ui'],
+                'icon_shapes': 'varied',
+                'atlas_layout': 'varied',
+                'common_prefixes': ['prince', 'king', 'object', 'star']
+            }
+        },
+        'SLUS-21230': {
+            'title': 'We Love Katamari',
+            'region': 'NTSC-U',
+            'texture_profile': {
+                'common_categories': ['objects', 'environment', 'ui'],
+                'icon_shapes': 'varied',
+                'atlas_layout': 'varied',
+                'common_prefixes': ['prince', 'king', 'object', 'star']
+            }
+        },
+        # Ace Combat Series
+        'SLUS-20152': {
+            'title': 'Ace Combat 04: Shattered Skies',
+            'region': 'NTSC-U',
+            'texture_profile': {
+                'common_categories': ['aircraft', 'environment', 'weapons', 'ui'],
+                'icon_shapes': 'varied',
+                'atlas_layout': 'power_of_two',
+                'common_prefixes': ['plane', 'sky', 'missile', 'hud']
+            }
+        },
+        'SLUS-20851': {
+            'title': 'Ace Combat 5: The Unsung War',
+            'region': 'NTSC-U',
+            'texture_profile': {
+                'common_categories': ['aircraft', 'environment', 'weapons', 'ui'],
+                'icon_shapes': 'varied',
+                'atlas_layout': 'power_of_two',
+                'common_prefixes': ['plane', 'sky', 'missile', 'hud']
+            }
+        },
+        # Zone of the Enders
+        'SLUS-20148': {
+            'title': 'Zone of the Enders',
+            'region': 'NTSC-U',
+            'texture_profile': {
+                'common_categories': ['mecha', 'environment', 'weapons', 'ui'],
+                'icon_shapes': 'varied',
+                'atlas_layout': 'power_of_two',
+                'common_prefixes': ['jehuty', 'orbital', 'weapon', 'hud']
+            }
+        },
+        'SLUS-20680': {
+            'title': 'Zone of the Enders: The 2nd Runner',
+            'region': 'NTSC-U',
+            'texture_profile': {
+                'common_categories': ['mecha', 'environment', 'weapons', 'ui'],
+                'icon_shapes': 'varied',
+                'atlas_layout': 'power_of_two',
+                'common_prefixes': ['jehuty', 'orbital', 'weapon', 'hud']
+            }
+        },
+        # Dark Cloud Series
+        'SLUS-20041': {
+            'title': 'Dark Cloud',
+            'region': 'NTSC-U',
+            'texture_profile': {
+                'common_categories': ['character', 'items', 'environment', 'ui'],
+                'icon_shapes': 'varied',
+                'atlas_layout': 'varied',
+                'common_prefixes': ['toan', 'weapon', 'georama', 'monster']
+            }
+        },
+        'SLUS-20357': {
+            'title': 'Dark Chronicle',
+            'region': 'NTSC-U',
+            'texture_profile': {
+                'common_categories': ['character', 'items', 'environment', 'ui'],
+                'icon_shapes': 'varied',
+                'atlas_layout': 'varied',
+                'common_prefixes': ['max', 'monica', 'weapon', 'georama']
+            }
+        },
+        # Onimusha Series
+        'SLUS-20018': {
+            'title': 'Onimusha: Warlords',
+            'region': 'NTSC-U',
+            'texture_profile': {
+                'common_categories': ['character', 'weapons', 'enemies', 'environment'],
+                'icon_shapes': 'varied',
+                'atlas_layout': 'power_of_two',
+                'common_prefixes': ['samanosuke', 'demon', 'sword', 'magic']
+            }
+        },
+        'SLUS-20419': {
+            'title': 'Onimusha 2: Samurai\'s Destiny',
+            'region': 'NTSC-U',
+            'texture_profile': {
+                'common_categories': ['character', 'weapons', 'enemies', 'environment'],
+                'icon_shapes': 'varied',
+                'atlas_layout': 'power_of_two',
+                'common_prefixes': ['jubei', 'demon', 'sword', 'magic']
+            }
+        },
+        'SLUS-20781': {
+            'title': 'Onimusha 3: Demon Siege',
+            'region': 'NTSC-U',
+            'texture_profile': {
+                'common_categories': ['character', 'weapons', 'enemies', 'environment'],
+                'icon_shapes': 'varied',
+                'atlas_layout': 'power_of_two',
+                'common_prefixes': ['samanosuke', 'jacques', 'demon', 'sword']
+            }
+        },
+        # Star Wars Series
+        'SLUS-20044': {
+            'title': 'Star Wars: Bounty Hunter',
+            'region': 'NTSC-U',
+            'texture_profile': {
+                'common_categories': ['character', 'weapons', 'vehicles', 'environment'],
+                'icon_shapes': 'varied',
+                'atlas_layout': 'mixed',
+                'common_prefixes': ['jango', 'bounty', 'weapon', 'ship']
+            }
+        },
+        'SLUS-20389': {
+            'title': 'Star Wars: Battlefront',
+            'region': 'NTSC-U',
+            'texture_profile': {
+                'common_categories': ['character', 'weapons', 'vehicles', 'environment'],
+                'icon_shapes': 'varied',
+                'atlas_layout': 'mixed',
+                'common_prefixes': ['trooper', 'vehicle', 'weapon', 'planet']
+            }
+        },
+        'SLUS-21240': {
+            'title': 'Star Wars: Battlefront II',
+            'region': 'NTSC-U',
+            'texture_profile': {
+                'common_categories': ['character', 'weapons', 'vehicles', 'environment'],
+                'icon_shapes': 'varied',
+                'atlas_layout': 'mixed',
+                'common_prefixes': ['trooper', 'vehicle', 'weapon', 'planet']
+            }
+        },
+        # Crash Bandicoot Series
+        'SLUS-20238': {
+            'title': 'Crash Bandicoot: The Wrath of Cortex',
+            'region': 'NTSC-U',
+            'texture_profile': {
+                'common_categories': ['character', 'environment', 'collectibles'],
+                'icon_shapes': 'varied',
+                'atlas_layout': 'varied',
+                'common_prefixes': ['crash', 'cortex', 'wumpa', 'crate']
+            }
+        },
+        # TimeSplitters Series
+        'SLUS-20090': {
+            'title': 'TimeSplitters',
+            'region': 'NTSC-U',
+            'texture_profile': {
+                'common_categories': ['character', 'weapons', 'environment', 'ui'],
+                'icon_shapes': 'varied',
+                'atlas_layout': 'power_of_two',
+                'common_prefixes': ['char', 'weapon', 'level', 'hud']
+            }
+        },
+        'SLUS-20314': {
+            'title': 'TimeSplitters 2',
+            'region': 'NTSC-U',
+            'texture_profile': {
+                'common_categories': ['character', 'weapons', 'environment', 'ui'],
+                'icon_shapes': 'varied',
+                'atlas_layout': 'power_of_two',
+                'common_prefixes': ['char', 'weapon', 'level', 'hud']
+            }
+        },
+        'SLUS-21148': {
+            'title': 'TimeSplitters: Future Perfect',
+            'region': 'NTSC-U',
+            'texture_profile': {
+                'common_categories': ['character', 'weapons', 'environment', 'ui'],
+                'icon_shapes': 'varied',
+                'atlas_layout': 'power_of_two',
+                'common_prefixes': ['char', 'weapon', 'level', 'hud']
+            }
+        },
+        # The Simpsons Games
+        'SLUS-20604': {
+            'title': 'The Simpsons: Hit & Run',
+            'region': 'NTSC-U',
+            'texture_profile': {
+                'common_categories': ['character', 'vehicles', 'environment', 'ui'],
+                'icon_shapes': 'varied',
+                'atlas_layout': 'mixed',
+                'common_prefixes': ['homer', 'bart', 'car', 'springfield']
+            }
+        },
+        # Bully
+        'SLUS-21269': {
+            'title': 'Bully',
+            'region': 'NTSC-U',
+            'texture_profile': {
+                'common_categories': ['character', 'environment', 'ui'],
+                'icon_shapes': 'varied',
+                'atlas_layout': 'mixed',
+                'common_prefixes': ['jimmy', 'student', 'school', 'town']
+            }
+        },
+        # Psychonauts
+        'SLUS-21120': {
+            'title': 'Psychonauts',
+            'region': 'NTSC-U',
+            'texture_profile': {
+                'common_categories': ['character', 'environment', 'effects', 'ui'],
+                'icon_shapes': 'varied',
+                'atlas_layout': 'varied',
+                'common_prefixes': ['raz', 'brain', 'mental', 'figment']
+            }
+        },
+        # Beyond Good & Evil
+        'SLUS-20852': {
+            'title': 'Beyond Good & Evil',
+            'region': 'NTSC-U',
+            'texture_profile': {
+                'common_categories': ['character', 'vehicles', 'environment', 'ui'],
+                'icon_shapes': 'varied',
+                'atlas_layout': 'varied',
+                'common_prefixes': ['jade', 'peyj', 'vehicle', 'hillys']
+            }
+        },
     }
     
     def __init__(self, gameindex_path: Optional[Path] = None):
