@@ -1791,6 +1791,16 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
         # Apply body sway to center position for turning/direction effect
         cx_draw = cx + int(body_sway)
         
+        # During toss physics, use _facing_direction to pick the correct view
+        if anim in ('tossed', 'wall_hit', 'rolling', 'spinning') and self._is_tossing:
+            facing = getattr(self, '_facing_direction', 'front')
+            if facing == 'left':
+                anim = 'walking_left'
+            elif facing == 'right':
+                anim = 'walking_right'
+            elif facing == 'up':
+                anim = 'walking_up'
+        
         if anim in ('walking_left', 'walking_right'):
             # --- SIDE VIEW: panda viewed from left or right profile ---
             facing_right = (anim == 'walking_right')
@@ -2570,6 +2580,15 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
 
             # Perspective scale: narrow clothing for side views
             anim = self.current_animation
+            # During toss physics, use _facing_direction for clothing perspective
+            if anim in ('tossed', 'wall_hit', 'rolling', 'spinning') and self._is_tossing:
+                facing = getattr(self, '_facing_direction', 'front')
+                if facing == 'left':
+                    anim = 'walking_left'
+                elif facing == 'right':
+                    anim = 'walking_right'
+                elif facing == 'up':
+                    anim = 'walking_up'
             if anim in ('walking_left', 'walking_right'):
                 persp_sx = sx * 0.75  # Side view: compress width
             elif anim == 'walking_up':
@@ -4027,6 +4046,13 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
             
             if bounced:
                 self._toss_bounce_count += 1
+                # Update facing direction after bounce reversal
+                vx = self._toss_velocity_x
+                vy = self._toss_velocity_y
+                if abs(vx) > abs(vy):
+                    self._facing_direction = 'right' if vx > 0 else 'left'
+                else:
+                    self._facing_direction = 'down' if vy > 0 else 'up'
                 # Cycle through bounce animations
                 bounce_anims = ['tossed', 'wall_hit', 'rolling', 'spinning']
                 anim = bounce_anims[self._toss_bounce_count % len(bounce_anims)]

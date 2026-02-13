@@ -445,6 +445,7 @@ class GameTextureSorter(ctk.CTk):
         # Sorting dialog state flags (thread-safe events)
         self._sorting_skip_all = threading.Event()
         self._sorting_cancelled = threading.Event()
+        self._sorting_paused = threading.Event()
         
         # Initialize features if GUI available
         if GUI_AVAILABLE:
@@ -7933,6 +7934,7 @@ Built with:
             # Reset sorting dialog state flags
             self._sorting_skip_all.clear()
             self._sorting_cancelled.clear()
+            self._sorting_paused.clear()
             
             # Start sorting in background thread with all parameters
             try:
@@ -8049,6 +8051,18 @@ Built with:
             
             for i, file_path in enumerate(texture_files):
                 try:
+                    # Check for stop
+                    if self._sorting_cancelled.is_set():
+                        self.log("⚠️ Sorting cancelled by user")
+                        return
+                    
+                    # Check for pause - block until resumed or cancelled
+                    while self._sorting_paused.is_set():
+                        if self._sorting_cancelled.is_set():
+                            self.log("⚠️ Sorting cancelled by user")
+                            return
+                        self._sorting_cancelled.wait(timeout=0.5)
+                    
                     # Classify based on mode
                     if mode == "automatic":
                         # Automatic: AI decides without user input
@@ -8645,10 +8659,19 @@ Built with:
     
     def pause_sorting(self):
         """Pause sorting operation"""
-        self.log("⏸️ Sorting paused")
+        if self._sorting_paused.is_set():
+            self._sorting_paused.clear()
+            self.log("▶️ Sorting resumed")
+            self.pause_button.configure(text="⏸️ Pause")
+        else:
+            self._sorting_paused.set()
+            self.log("⏸️ Sorting paused")
+            self.pause_button.configure(text="▶️ Resume")
     
     def stop_sorting(self):
         """Stop sorting operation"""
+        self._sorting_cancelled.set()
+        self._sorting_paused.clear()
         self.log("⏹️ Sorting stopped")
     
     def update_progress(self, value, text):

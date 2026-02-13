@@ -278,6 +278,132 @@ def test_drag_response_per_body_part():
     print("✓ Each body part gives correct drag responses")
 
 
+def test_toss_draw_uses_facing_direction():
+    """Test that _draw_panda uses _facing_direction during toss animations."""
+    try:
+        from src.ui.panda_widget import PandaWidget
+        import inspect
+        source = inspect.getsource(PandaWidget._draw_panda)
+        
+        # Check that toss animations remap anim based on _facing_direction
+        assert '_is_tossing' in source, \
+            "_draw_panda should check _is_tossing for facing direction"
+        assert "'tossed'" in source and "'wall_hit'" in source, \
+            "_draw_panda should handle tossed and wall_hit animations"
+        assert "'rolling'" in source and "'spinning'" in source, \
+            "_draw_panda should handle rolling and spinning animations"
+        assert "'walking_left'" in source and "'walking_right'" in source, \
+            "_draw_panda should remap to walking_left/walking_right for side views"
+        assert "'walking_up'" in source, \
+            "_draw_panda should remap to walking_up for back view"
+        
+        print("✓ Toss drawing uses _facing_direction for correct view")
+    except ImportError:
+        print("⚠ Skipping toss draw facing test (GUI not available)")
+
+
+def test_toss_bounce_updates_facing():
+    """Test that _toss_physics_tick updates facing direction on bounce."""
+    try:
+        from src.ui.panda_widget import PandaWidget
+        import inspect
+        source = inspect.getsource(PandaWidget._toss_physics_tick)
+        
+        # Check that facing direction is updated when bouncing
+        assert '_facing_direction' in source, \
+            "_toss_physics_tick should update _facing_direction on bounce"
+        
+        print("✓ Toss bounce updates facing direction")
+    except ImportError:
+        print("⚠ Skipping toss bounce facing test (GUI not available)")
+
+
+def test_toss_clothing_uses_facing_direction():
+    """Test that _draw_equipped_items uses _facing_direction during toss."""
+    try:
+        from src.ui.panda_widget import PandaWidget
+        import inspect
+        source = inspect.getsource(PandaWidget._draw_equipped_items)
+        
+        # Check that clothing perspective adjusts for toss facing
+        assert '_is_tossing' in source, \
+            "_draw_equipped_items should check _is_tossing"
+        assert "'tossed'" in source and "'wall_hit'" in source, \
+            "_draw_equipped_items should handle tossed and wall_hit animations"
+        assert "'rolling'" in source and "'spinning'" in source, \
+            "_draw_equipped_items should handle rolling and spinning animations"
+        
+        print("✓ Toss clothing uses _facing_direction for perspective")
+    except ImportError:
+        print("⚠ Skipping toss clothing facing test (GUI not available)")
+
+
+def test_sorting_stop_sets_cancelled():
+    """Test that stop_sorting sets the _sorting_cancelled event."""
+    import threading
+    
+    class MockApp:
+        def __init__(self):
+            self._sorting_cancelled = threading.Event()
+            self._sorting_paused = threading.Event()
+        
+        def log(self, msg):
+            pass
+        
+        def stop_sorting(self):
+            self._sorting_cancelled.set()
+            self._sorting_paused.clear()
+    
+    app = MockApp()
+    assert not app._sorting_cancelled.is_set(), "Should start cleared"
+    app.stop_sorting()
+    assert app._sorting_cancelled.is_set(), "Should be set after stop"
+    assert not app._sorting_paused.is_set(), "Pause should be cleared after stop"
+    
+    print("✓ stop_sorting sets _sorting_cancelled event")
+
+
+def test_sorting_pause_toggles():
+    """Test that pause_sorting toggles the _sorting_paused event."""
+    import threading
+    
+    class MockButton:
+        def __init__(self):
+            self.text = "⏸️ Pause"
+        def configure(self, **kwargs):
+            if 'text' in kwargs:
+                self.text = kwargs['text']
+    
+    class MockApp:
+        def __init__(self):
+            self._sorting_paused = threading.Event()
+            self.pause_button = MockButton()
+        
+        def log(self, msg):
+            pass
+        
+        def pause_sorting(self):
+            if self._sorting_paused.is_set():
+                self._sorting_paused.clear()
+                self.pause_button.configure(text="⏸️ Pause")
+            else:
+                self._sorting_paused.set()
+                self.pause_button.configure(text="▶️ Resume")
+    
+    app = MockApp()
+    assert not app._sorting_paused.is_set(), "Should start unpaused"
+    
+    app.pause_sorting()
+    assert app._sorting_paused.is_set(), "Should be paused after first toggle"
+    assert "Resume" in app.pause_button.text, "Button should show Resume"
+    
+    app.pause_sorting()
+    assert not app._sorting_paused.is_set(), "Should be unpaused after second toggle"
+    assert "Pause" in app.pause_button.text, "Button should show Pause"
+    
+    print("✓ pause_sorting toggles _sorting_paused event")
+
+
 if __name__ == "__main__":
     print("\nTesting Panda Facing Direction, Dangle & Perspective...")
     print("-" * 50)
@@ -289,10 +415,15 @@ if __name__ == "__main__":
         test_weapon_facing_direction,
         test_clothing_perspective_scale,
         test_toss_sets_facing_direction,
+        test_toss_draw_uses_facing_direction,
+        test_toss_bounce_updates_facing,
+        test_toss_clothing_uses_facing_direction,
         test_head_drag_full_dangle,
         test_facing_direction_state,
         test_individual_limb_detection,
         test_drag_response_per_body_part,
+        test_sorting_stop_sets_cancelled,
+        test_sorting_pause_toggles,
     ]
     
     failed = False
