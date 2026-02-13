@@ -46,7 +46,7 @@ class Config:
                 "cursor_trail": False,
                 "cursor_trail_color": "rainbow",  # rainbow, fire, ice, nature, galaxy, gold
                 "tooltip_enabled": True,
-                "tooltip_mode": "normal",  # expert, normal, beginner, panda
+                "tooltip_mode": "vulgar_panda",  # expert, normal, beginner, panda
                 "tooltip_delay": 0.5,
                 "window_opacity": 1.0,
                 "animation_speed": 1.0,

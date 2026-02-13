@@ -821,33 +821,46 @@ class GameTextureSorter(ctk.CTk):
         # Track popped-out tabs
         self._popout_windows = {}
         
-        # Populate tabs
+        # Populate the initially visible tab immediately for responsive startup
         self.create_sort_tab()
-        self.create_convert_tab()
-        self.create_alpha_fixer_tab()
-        self.create_browser_tab()
-        self.create_profiles_tab()
-        self.create_notepad_tab()
-        self.create_about_tab()
-        self.create_shop_tab()
-        self.create_rewards_tab()
-        self.create_achievements_tab()
-        if PANDA_CLOSET_AVAILABLE and self.panda_closet:
-            self.create_closet_tab()
-        self.create_inventory_tab()
-        self.create_panda_stats_tab()
-        self.create_armory_tab()
-        self.create_battle_arena_tab()
-        self.create_travel_hub_tab()
         
-        # Throttle scroll events on all scrollable frames to reduce lag/tearing
-        self._throttle_scroll_frames()
-        
-        # Add pop-out buttons to dockable tabs
-        self._add_popout_buttons()
-        
-        # Status bar
+        # Status bar (create early so it's visible immediately)
         self.create_status_bar()
+        
+        # Defer creation of remaining tabs to avoid slow/laggy startup
+        self._deferred_tabs_created = False
+        self.after(50, self._create_deferred_tabs)
+    
+    def _create_deferred_tabs(self):
+        """Create remaining tabs after the window is already visible, avoiding slow startup."""
+        if self._deferred_tabs_created:
+            return
+        self._deferred_tabs_created = True
+        try:
+            self.create_convert_tab()
+            self.create_alpha_fixer_tab()
+            self.create_browser_tab()
+            self.create_profiles_tab()
+            self.create_notepad_tab()
+            self.create_about_tab()
+            self.create_shop_tab()
+            self.create_rewards_tab()
+            self.create_achievements_tab()
+            if PANDA_CLOSET_AVAILABLE and self.panda_closet:
+                self.create_closet_tab()
+            self.create_inventory_tab()
+            self.create_panda_stats_tab()
+            self.create_armory_tab()
+            self.create_battle_arena_tab()
+            self.create_travel_hub_tab()
+            
+            # Throttle scroll events on all scrollable frames to reduce lag/tearing
+            self._throttle_scroll_frames()
+            
+            # Add pop-out buttons to dockable tabs
+            self._add_popout_buttons()
+        except Exception as e:
+            logger.error(f"Error creating deferred tabs: {e}", exc_info=True)
     
     def _throttle_scroll_frames(self):
         """Patch CTkScrollableFrame widgets to throttle scroll events and reduce lag."""
@@ -1964,7 +1977,10 @@ class GameTextureSorter(ctk.CTk):
         preset_menu = ctk.CTkOptionMenu(
             opts, variable=self.alpha_fix_preset_var,
             values=["🔲 ps2_binary", "🔳 ps2_three_level", "🖥️ ps2_ui",
-                    "🌊 ps2_smooth", "⬛ generic_binary", "✂️ clean_edges"])
+                    "🌊 ps2_smooth", "🎮 ps2_four_level", "📱 psp_binary",
+                    "🎲 gamecube_wii", "🟢 xbox_standard",
+                    "⬛ generic_binary", "✂️ clean_edges",
+                    "🌅 fade_out", "🪶 soft_edges", "🔵 dithered"])
         preset_menu.grid(row=0, column=1, padx=10, pady=5, sticky="w")
 
         # Preset description label
@@ -1981,14 +1997,17 @@ class GameTextureSorter(ctk.CTk):
         alpha_recursive_cb = ctk.CTkCheckBox(check_frame, text="📁 Include subdirectories",
                        variable=self.alpha_fix_recursive_var)
         alpha_recursive_cb.pack(side="left", padx=10)
-        self.alpha_fix_backup_var = ctk.BooleanVar(value=True)
-        alpha_backup_cb = ctk.CTkCheckBox(check_frame, text="💾 Create backups",
-                       variable=self.alpha_fix_backup_var)
-        alpha_backup_cb.pack(side="left", padx=10)
         self.alpha_fix_overwrite_var = ctk.BooleanVar(value=False)
         alpha_overwrite_cb = ctk.CTkCheckBox(check_frame, text="✏️ Overwrite originals",
-                       variable=self.alpha_fix_overwrite_var)
+                       variable=self.alpha_fix_overwrite_var,
+                       command=self._update_alpha_backup_state)
         alpha_overwrite_cb.pack(side="left", padx=10)
+        self.alpha_fix_backup_var = ctk.BooleanVar(value=True)
+        self.alpha_backup_cb = ctk.CTkCheckBox(check_frame, text="💾 Create backups (when overwriting)",
+                       variable=self.alpha_fix_backup_var)
+        self.alpha_backup_cb.pack(side="left", padx=10)
+        # Initialize backup checkbox state based on overwrite default
+        self._update_alpha_backup_state()
 
         # Archive support checkboxes for alpha fixer
         alpha_archive_frame = ctk.CTkFrame(preset_frame)
@@ -2004,7 +2023,7 @@ class GameTextureSorter(ctk.CTk):
 
         # Apply tooltips to alpha fixer tab widgets
         self._apply_alpha_fixer_tooltips(alpha_input_btn, alpha_output_btn, preset_menu,
-                                         alpha_recursive_cb, alpha_backup_cb, alpha_overwrite_cb,
+                                         alpha_recursive_cb, self.alpha_backup_cb, alpha_overwrite_cb,
                                          alpha_extract_cb, alpha_compress_cb)
 
         # Log output
@@ -2025,6 +2044,13 @@ class GameTextureSorter(ctk.CTk):
         preset = AlphaCorrectionPresets.get_preset(preset_key)
         if preset:
             self.alpha_fix_desc_label.configure(text=preset.get('description', ''))
+
+    def _update_alpha_backup_state(self):
+        """Enable/disable the backup checkbox based on overwrite state."""
+        if self.alpha_fix_overwrite_var.get():
+            self.alpha_backup_cb.configure(state="normal")
+        else:
+            self.alpha_backup_cb.configure(state="disabled")
 
     def _alpha_fix_log(self, message):
         """Thread-safe log helper for alpha fixer."""
@@ -4244,7 +4270,7 @@ class GameTextureSorter(ctk.CTk):
         
         ctk.CTkLabel(tooltip_frame, text="💡 Tooltip Mode:", font=("Arial Bold", 12)).pack(anchor="w", padx=10, pady=5)
         
-        tooltip_mode_var = ctk.StringVar(value=config.get('ui', 'tooltip_mode', default='normal'))
+        tooltip_mode_var = ctk.StringVar(value=config.get('ui', 'tooltip_mode', default='vulgar_panda'))
         
         tooltip_descriptions = {
             "normal": "Standard helpful tooltips with clear, professional descriptions",

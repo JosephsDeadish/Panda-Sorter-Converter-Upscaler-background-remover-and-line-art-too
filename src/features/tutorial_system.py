@@ -2193,11 +2193,11 @@ class TooltipVerbosityManager:
     
     def _load_mode(self) -> TooltipMode:
         """Load tooltip mode from config"""
-        mode_str = self.config.get('ui', 'tooltip_mode', default='normal')
+        mode_str = self.config.get('ui', 'tooltip_mode', default='vulgar_panda')
         try:
             return TooltipMode(mode_str)
         except ValueError:
-            return TooltipMode.NORMAL
+            return TooltipMode.VULGAR_PANDA
     
     def set_mode(self, mode: TooltipMode):
         """Change tooltip verbosity mode"""
