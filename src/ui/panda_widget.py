@@ -2843,6 +2843,162 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
                               font=("Arial Bold", int(10 * sx)),
                               fill="#666666", width=int(w * 0.9), tags="name_tag")
         
+        elif anim == 'walking_down':
+            # --- FRONT VIEW: panda walking toward viewer ---
+            # Similar to default front view but with walking animation
+            leg_top = int(145 * sy + by)
+            leg_len = int(30 * sy)
+            
+            # Left leg with walking animation
+            left_leg_x = cx_draw - int(25 * sx)
+            left_leg_swing_val = leg_swing
+            c.create_oval(
+                left_leg_x - int(12 * sx), leg_top + left_leg_swing_val,
+                left_leg_x + int(12 * sx), leg_top + leg_len + left_leg_swing_val,
+                fill=black, outline=black, tags="leg"
+            )
+            c.create_oval(
+                left_leg_x - int(10 * sx), leg_top + leg_len - int(8 * sy) + left_leg_swing_val,
+                left_leg_x + int(10 * sx), leg_top + leg_len + int(4 * sy) + left_leg_swing_val,
+                fill=white, outline=black, width=1, tags="foot"
+            )
+            
+            # Right leg with walking animation (opposite phase)
+            right_leg_x = cx_draw + int(25 * sx)
+            right_leg_swing_val = -leg_swing
+            c.create_oval(
+                right_leg_x - int(12 * sx), leg_top + right_leg_swing_val,
+                right_leg_x + int(12 * sx), leg_top + leg_len + right_leg_swing_val,
+                fill=black, outline=black, tags="leg"
+            )
+            c.create_oval(
+                right_leg_x - int(10 * sx), leg_top + leg_len - int(8 * sy) + right_leg_swing_val,
+                right_leg_x + int(10 * sx), leg_top + leg_len + int(4 * sy) + right_leg_swing_val,
+                fill=white, outline=black, width=1, tags="foot"
+            )
+            
+            # Body
+            body_top = int(75 * sy + by)
+            body_bot = int(160 * sy + by)
+            body_rx = int(42 * sx * breath_scale)
+            c.create_oval(
+                cx_draw - body_rx, body_top,
+                cx_draw + body_rx, body_bot,
+                fill=white, outline=black, width=2, tags="body"
+            )
+            
+            # Belly patch
+            belly_ry = int(42 * sy * breath_scale)
+            belly_rx = int(32 * sx * breath_scale)
+            c.create_oval(
+                cx_draw - belly_rx, body_top + int(24 * sy),
+                cx_draw + belly_rx, body_bot - int(12 * sy),
+                fill="#FAFAFA", outline="", tags="belly"
+            )
+            
+            # Arms with walking swing
+            arm_top = int(95 * sy + by)
+            arm_len = int(35 * sy)
+            # Left arm
+            la_swing = arm_swing
+            c.create_oval(
+                cx_draw - int(62 * sx), arm_top + la_swing,
+                cx_draw - int(36 * sx), arm_top + arm_len + la_swing,
+                fill=black, outline=black, tags="arm"
+            )
+            # Right arm (opposite phase)
+            ra_swing = -arm_swing
+            c.create_oval(
+                cx_draw + int(36 * sx), arm_top + ra_swing,
+                cx_draw + int(62 * sx), arm_top + arm_len + ra_swing,
+                fill=black, outline=black, tags="arm"
+            )
+            
+            # Head
+            head_cy = int(52 * sy + by)
+            head_rx = int(36 * sx)
+            head_ry = int(32 * sy)
+            c.create_oval(
+                cx_draw - head_rx, head_cy - head_ry,
+                cx_draw + head_rx, head_cy + head_ry,
+                fill=white, outline=black, width=2, tags="head"
+            )
+            
+            # Left ear
+            left_ear_x = cx_draw - int(26 * sx)
+            left_ear_y = head_cy - head_ry + int(4 * sy)
+            left_ear_w = int(18 * sx)
+            left_ear_h = int(20 * sy)
+            c.create_oval(
+                left_ear_x - left_ear_w + ear_wiggle, left_ear_y - left_ear_h,
+                left_ear_x + int(2 * sx) + ear_wiggle, left_ear_y + int(4 * sy),
+                fill=black, outline=black, tags="ear"
+            )
+            # Left ear inner
+            c.create_oval(
+                left_ear_x - int(10 * sx) + ear_wiggle, left_ear_y - int(12 * sy),
+                left_ear_x + int(2 * sx) + ear_wiggle, left_ear_y + int(2 * sy),
+                fill="#FFB6C1", outline="", tags="ear_inner"
+            )
+            
+            # Right ear
+            right_ear_x = cx_draw + int(26 * sx)
+            right_ear_y = head_cy - head_ry + int(4 * sy)
+            c.create_oval(
+                right_ear_x - int(2 * sx) - ear_wiggle, right_ear_y - left_ear_h,
+                right_ear_x + left_ear_w - ear_wiggle, right_ear_y + int(4 * sy),
+                fill=black, outline=black, tags="ear"
+            )
+            # Right ear inner
+            c.create_oval(
+                right_ear_x - int(2 * sx) - ear_wiggle, right_ear_y - int(12 * sy),
+                right_ear_x + int(10 * sx) - ear_wiggle, right_ear_y + int(2 * sy),
+                fill="#FFB6C1", outline="", tags="ear_inner"
+            )
+            
+            # Eye patches
+            eye_y = head_cy - int(4 * sy)
+            patch_rx = int(12 * sx)
+            patch_ry = int(10 * sy)
+            c.create_oval(
+                cx_draw - int(20 * sx) - patch_rx, eye_y - patch_ry,
+                cx_draw - int(20 * sx) + patch_rx, eye_y + patch_ry,
+                fill=black, outline="", tags="eye_patch"
+            )
+            c.create_oval(
+                cx_draw + int(20 * sx) - patch_rx, eye_y - patch_ry,
+                cx_draw + int(20 * sx) + patch_rx, eye_y + patch_ry,
+                fill=black, outline="", tags="eye_patch"
+            )
+            
+            # Draw equipped items
+            self._draw_equipped_items(c, cx_draw, by, sx, sy)
+            
+            # Eyes
+            self._draw_eye_on_patch(c, cx_draw - int(20 * sx), eye_y, eye_style, sx, sy, 1.0)
+            self._draw_eye_on_patch(c, cx_draw + int(20 * sx), eye_y, eye_style, sx, sy, 1.0)
+            
+            # Nose
+            nose_y = head_cy + int(8 * sy)
+            c.create_oval(
+                cx_draw - int(6 * sx), nose_y - int(5 * sy),
+                cx_draw + int(6 * sx), nose_y + int(5 * sy),
+                fill=nose_color, outline="", tags="nose"
+            )
+            
+            # Mouth
+            self._draw_mouth(c, cx_draw, nose_y + int(10 * sy), mouth_style, sx, sy, black, white)
+            
+            # Animation extras
+            self._draw_animation_extras(c, cx_draw, by, anim, frame_idx, sx, sy)
+            
+            # Name tag
+            if self.panda and self.panda.name:
+                name_y = int(h - 12 * sy)
+                c.create_text(cx_draw, name_y, text=self.panda.name,
+                              font=("Arial Bold", int(10 * sx)),
+                              fill="#666666", width=int(w * 0.9), tags="name_tag")
+        
         elif anim in ('walking_up_left', 'walking_up_right', 
                       'walking_down_left', 'walking_down_right'):
             # --- DIAGONAL VIEW: 3/4 perspective combining front/back with side ---
