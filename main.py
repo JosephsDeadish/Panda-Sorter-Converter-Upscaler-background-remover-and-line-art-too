@@ -35,7 +35,7 @@ if str(src_dir) not in sys.path:
     sys.path.insert(0, str(src_dir))
 
 # Import configuration first
-from src.config import config, APP_NAME, APP_VERSION, APP_AUTHOR, CONFIG_DIR, LOGS_DIR, CACHE_DIR
+from src.config import config, APP_NAME, APP_VERSION, APP_AUTHOR, CONFIG_DIR, LOGS_DIR, CACHE_DIR, get_app_dir
 
 # Flag to check if GUI libraries are available
 GUI_AVAILABLE = False
@@ -364,8 +364,18 @@ class GameTextureSorter(ctk.CTk):
         
         # Set window icon (both .ico for Windows and .png for fallback)
         try:
-            icon_path = Path(__file__).parent / "assets" / "icon.png"
-            ico_path = Path(__file__).parent / "assets" / "icon.ico"
+            # Check app_data/assets first, then bundled/dev assets
+            _app = get_app_dir()
+            _candidates_png = [
+                _app / "app_data" / "assets" / "icon.png",
+                Path(__file__).parent / "assets" / "icon.png",
+            ]
+            _candidates_ico = [
+                _app / "app_data" / "assets" / "icon.ico",
+                Path(__file__).parent / "assets" / "icon.ico",
+            ]
+            icon_path = next((p for p in _candidates_png if p.exists()), _candidates_png[-1])
+            ico_path = next((p for p in _candidates_ico if p.exists()), _candidates_ico[-1])
             
             # Set iconbitmap first for Windows (best taskbar integration)
             if ico_path.exists() and sys.platform == 'win32':

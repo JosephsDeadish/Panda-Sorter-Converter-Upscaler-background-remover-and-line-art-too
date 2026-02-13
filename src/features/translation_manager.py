@@ -160,8 +160,9 @@ class TranslationManager:
     
     def _load_translations(self) -> None:
         """Load translations from resource files."""
-        # Try to load from resources directory
-        resources_dir = Path(__file__).parent.parent / 'resources' / 'translations'
+        # Try to load from resources directory (uses centralized path helper)
+        from src.config import get_resource_path
+        resources_dir = get_resource_path('translations')
         
         if not resources_dir.exists():
             logger.warning(f"Translations directory not found: {resources_dir}")
