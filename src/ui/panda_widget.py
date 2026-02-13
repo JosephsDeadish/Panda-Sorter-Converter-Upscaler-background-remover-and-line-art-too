@@ -106,19 +106,35 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
     DRAG_PATTERN_COOLDOWN = 2.0
     
     # Automatic blink timing
-    BLINK_DURATION = 8         # Total frames for one blink (close + open)
+    BLINK_DURATION = 24        # Total frames for one blink (close + open)
     BLINK_MIN_INTERVAL = 60   # Minimum frames between blinks (~2s at 33ms)
     BLINK_MAX_INTERVAL = 180  # Maximum frames between blinks (~6s)
-    # Blink frame → eye style mapping (smooth 8-frame sequence)
+    # Blink frame → eye style mapping (smooth 24-frame sequence)
     BLINK_SEQUENCE = [
-        'mostly_open',    # frame 0: start closing
-        'half_closed',    # frame 1
-        'almost_closed',  # frame 2
-        'closed',         # frame 3: fully closed
-        'closed',         # frame 4: hold closed briefly
-        'almost_closed',  # frame 5: start opening
-        'half_closed',    # frame 6
-        'mostly_open',    # frame 7: almost open
+        'mostly_open',    # frame 0:  start closing
+        'mostly_open',    # frame 1
+        'mostly_open',    # frame 2
+        'half_closed',    # frame 3:  lids descending
+        'half_closed',    # frame 4
+        'half_closed',    # frame 5
+        'almost_closed',  # frame 6:  nearly shut
+        'almost_closed',  # frame 7
+        'almost_closed',  # frame 8
+        'closed',         # frame 9:  fully closed
+        'closed',         # frame 10
+        'closed',         # frame 11: hold closed
+        'closed',         # frame 12
+        'closed',         # frame 13
+        'almost_closed',  # frame 14: start reopening
+        'almost_closed',  # frame 15
+        'almost_closed',  # frame 16
+        'half_closed',    # frame 17: halfway open
+        'half_closed',    # frame 18
+        'half_closed',    # frame 19
+        'mostly_open',    # frame 20: almost fully open
+        'mostly_open',    # frame 21
+        'mostly_open',    # frame 22
+        'mostly_open',    # frame 23
     ]
     
     # Belly jiggle physics constants
@@ -1599,20 +1615,34 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
         # --- Determine eye style based on animation ---
         eye_style = 'normal'
         if anim == 'sleeping' or anim in ('laying_down', 'laying_back', 'laying_side'):
-            # Smooth eye closing for sleep — gradual shut over multiple frames
-            settle = min(1.0, frame_idx / 20.0)
-            if settle < 0.2:
+            # Very gradual eye closing for sleep — 60 frames to fully close
+            settle = min(1.0, frame_idx / 60.0)
+            if settle < 0.08:
                 eye_style = 'normal'
-            elif settle < 0.35:
+            elif settle < 0.15:
+                eye_style = 'wide'
+            elif settle < 0.22:
+                eye_style = 'normal'
+            elif settle < 0.30:
+                eye_style = 'soft'
+            elif settle < 0.38:
                 eye_style = 'mostly_open'
-            elif settle < 0.5:
+            elif settle < 0.46:
                 eye_style = 'half_closed'
-            elif settle < 0.65:
+            elif settle < 0.54:
+                eye_style = 'half_closed'
+            elif settle < 0.62:
+                eye_style = 'almost_closed'
+            elif settle < 0.70:
                 eye_style = 'almost_closed'
             else:
-                # Once settled, stay closed with very occasional flutter
-                flutter = frame_idx % 120
+                # Once settled, stay closed with occasional drowsy flutter
+                flutter = frame_idx % 180
                 if flutter < 3:
+                    eye_style = 'almost_closed'
+                elif flutter < 6:
+                    eye_style = 'half_closed'
+                elif flutter < 9:
                     eye_style = 'almost_closed'
                 else:
                     eye_style = 'closed'
@@ -1621,15 +1651,27 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
         elif anim == 'belly_grab':
             eye_style = 'happy'
         elif anim == 'celebrating':
-            cycle = frame_idx % 24
-            if cycle < 8:
+            cycle = frame_idx % 72
+            if cycle < 6:
                 eye_style = 'happy'
-            elif cycle < 14:
+            elif cycle < 12:
+                eye_style = 'wide'
+            elif cycle < 24:
+                eye_style = 'happy'
+            elif cycle < 30:
+                eye_style = 'wide'
+            elif cycle < 42:
                 eye_style = 'sparkle'
-            elif cycle < 18:
+            elif cycle < 48:
+                eye_style = 'wide'
+            elif cycle < 54:
                 eye_style = 'surprised'
-            else:
+            elif cycle < 60:
+                eye_style = 'wide'
+            elif cycle < 66:
                 eye_style = 'happy'
+            else:
+                eye_style = 'sparkle'
         elif anim == 'rage':
             eye_style = 'angry'
         elif anim == 'sarcastic':
@@ -1637,74 +1679,187 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
         elif anim == 'drunk':
             eye_style = 'dizzy'
         elif anim == 'petting':
-            # Smooth squint: happy → soft → squint → happy with transitions
-            cycle = frame_idx % 16
-            if cycle < 4:
+            # Very smooth squint: happy → soft → squint → soft → happy (48 frames)
+            cycle = frame_idx % 48
+            if cycle < 6:
                 eye_style = 'happy'
-            elif cycle < 6:
-                eye_style = 'soft'
             elif cycle < 9:
-                eye_style = 'squint'
-            elif cycle < 11:
+                eye_style = 'wide'
+            elif cycle < 12:
+                eye_style = 'happy'
+            elif cycle < 15:
                 eye_style = 'soft'
+            elif cycle < 18:
+                eye_style = 'mostly_open'
+            elif cycle < 24:
+                eye_style = 'squint'
+            elif cycle < 27:
+                eye_style = 'squint'
+            elif cycle < 30:
+                eye_style = 'mostly_open'
+            elif cycle < 33:
+                eye_style = 'soft'
+            elif cycle < 36:
+                eye_style = 'happy'
+            elif cycle < 39:
+                eye_style = 'wide'
+            elif cycle < 42:
+                eye_style = 'happy'
+            else:
+                eye_style = 'happy'
             else:
                 eye_style = 'happy'
         elif anim == 'clicked':
-            # Multi-phase eye transitions: surprised → wide → wink → happy
-            cycle = frame_idx % 24
-            if cycle < 5:
+            # Tripled: surprised → wide → normal → wink → happy (72 frames)
+            cycle = frame_idx % 72
+            if cycle < 3:
+                eye_style = 'wide'
+            elif cycle < 9:
                 eye_style = 'surprised'
-            elif cycle < 10:
-                eye_style = 'normal'
-            elif cycle < 14:
-                eye_style = 'wink'
+            elif cycle < 15:
+                eye_style = 'surprised'
             elif cycle < 18:
+                eye_style = 'wide'
+            elif cycle < 24:
+                eye_style = 'normal'
+            elif cycle < 27:
+                eye_style = 'soft'
+            elif cycle < 30:
+                eye_style = 'normal'
+            elif cycle < 36:
+                eye_style = 'mostly_open'
+            elif cycle < 42:
+                eye_style = 'wink'
+            elif cycle < 48:
+                eye_style = 'mostly_open'
+            elif cycle < 51:
+                eye_style = 'normal'
+            elif cycle < 54:
+                eye_style = 'soft'
+            elif cycle < 60:
+                eye_style = 'happy'
+            elif cycle < 66:
                 eye_style = 'happy'
             else:
-                eye_style = 'happy'
+                eye_style = 'wide'
         elif anim == 'dancing':
-            cycle = frame_idx % 20
-            if cycle < 5:
+            # Tripled: happy → sparkle → normal → happy (60 frames)
+            cycle = frame_idx % 60
+            if cycle < 6:
                 eye_style = 'happy'
-            elif cycle < 10:
-                eye_style = 'sparkle'
+            elif cycle < 9:
+                eye_style = 'wide'
             elif cycle < 15:
+                eye_style = 'happy'
+            elif cycle < 18:
+                eye_style = 'wide'
+            elif cycle < 21:
+                eye_style = 'sparkle'
+            elif cycle < 30:
+                eye_style = 'sparkle'
+            elif cycle < 33:
+                eye_style = 'wide'
+            elif cycle < 36:
                 eye_style = 'normal'
+            elif cycle < 39:
+                eye_style = 'soft'
+            elif cycle < 45:
+                eye_style = 'normal'
+            elif cycle < 48:
+                eye_style = 'soft'
+            elif cycle < 51:
+                eye_style = 'happy'
+            elif cycle < 54:
+                eye_style = 'wide'
             else:
                 eye_style = 'happy'
         elif anim == 'eating':
-            # Smooth eating eyes: happy → squint while chewing → happy
-            cycle = frame_idx % 20
-            if cycle < 5:
+            # Tripled: happy → soft → squint → soft → happy (60 frames)
+            cycle = frame_idx % 60
+            if cycle < 6:
                 eye_style = 'happy'
-            elif cycle < 7:
-                eye_style = 'mostly_open'
-            elif cycle < 10:
-                eye_style = 'half_closed'
-            elif cycle < 12:
-                eye_style = 'mostly_open'
+            elif cycle < 9:
+                eye_style = 'wide'
             elif cycle < 15:
                 eye_style = 'happy'
+            elif cycle < 18:
+                eye_style = 'soft'
+            elif cycle < 21:
+                eye_style = 'mostly_open'
+            elif cycle < 24:
+                eye_style = 'half_closed'
+            elif cycle < 30:
+                eye_style = 'half_closed'
+            elif cycle < 33:
+                eye_style = 'almost_closed'
+            elif cycle < 36:
+                eye_style = 'half_closed'
+            elif cycle < 39:
+                eye_style = 'mostly_open'
+            elif cycle < 42:
+                eye_style = 'soft'
+            elif cycle < 45:
+                eye_style = 'happy'
+            elif cycle < 48:
+                eye_style = 'wide'
+            elif cycle < 51:
+                eye_style = 'happy'
+            elif cycle < 54:
+                eye_style = 'soft'
             else:
                 eye_style = 'soft'
         elif anim == 'playing':
-            cycle = frame_idx % 20
-            if cycle < 8:
+            # Tripled: happy → sparkle → surprised → happy (60 frames)
+            cycle = frame_idx % 60
+            if cycle < 6:
                 eye_style = 'happy'
-            elif cycle < 12:
+            elif cycle < 9:
+                eye_style = 'wide'
+            elif cycle < 15:
+                eye_style = 'happy'
+            elif cycle < 18:
+                eye_style = 'wide'
+            elif cycle < 24:
+                eye_style = 'happy'
+            elif cycle < 27:
+                eye_style = 'wide'
+            elif cycle < 36:
                 eye_style = 'sparkle'
-            elif cycle < 16:
+            elif cycle < 39:
+                eye_style = 'wide'
+            elif cycle < 42:
+                eye_style = 'normal'
+            elif cycle < 48:
                 eye_style = 'surprised'
+            elif cycle < 51:
+                eye_style = 'wide'
+            elif cycle < 54:
+                eye_style = 'happy'
             else:
                 eye_style = 'happy'
         elif anim == 'customizing':
-            cycle = frame_idx % 16
+            # Tripled: happy → sparkle → normal (48 frames)
+            cycle = frame_idx % 48
             if cycle < 6:
                 eye_style = 'happy'
-            elif cycle < 10:
+            elif cycle < 9:
+                eye_style = 'wide'
+            elif cycle < 18:
+                eye_style = 'happy'
+            elif cycle < 21:
+                eye_style = 'wide'
+            elif cycle < 30:
                 eye_style = 'sparkle'
-            else:
+            elif cycle < 33:
+                eye_style = 'wide'
+            elif cycle < 36:
                 eye_style = 'normal'
+            elif cycle < 39:
+                eye_style = 'soft'
+            elif cycle < 42:
+                eye_style = 'normal'
+            else:
+                eye_style = 'soft'
         elif anim == 'spinning':
             eye_style = 'spinning'
         elif anim == 'shaking':
@@ -1712,177 +1867,469 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
         elif anim == 'rolling':
             eye_style = 'rolling'
         elif anim == 'stretching':
-            stretch_cycle = (frame_idx % 60) / 60.0
-            if stretch_cycle < 0.1:
+            # Tripled: 180-frame stretch cycle with very gradual transitions
+            stretch_cycle = (frame_idx % 180) / 180.0
+            if stretch_cycle < 0.03:
                 eye_style = 'normal'
-            elif stretch_cycle < 0.15:
+            elif stretch_cycle < 0.06:
+                eye_style = 'soft'
+            elif stretch_cycle < 0.08:
                 eye_style = 'mostly_open'
-            elif stretch_cycle < 0.2:
+            elif stretch_cycle < 0.11:
                 eye_style = 'half_closed'
+            elif stretch_cycle < 0.14:
+                eye_style = 'almost_closed'
+            elif stretch_cycle < 0.17:
+                eye_style = 'closed'
             elif stretch_cycle < 0.45:
                 eye_style = 'closed'
-            elif stretch_cycle < 0.5:
+            elif stretch_cycle < 0.47:
                 eye_style = 'almost_closed'
-            elif stretch_cycle < 0.55:
+            elif stretch_cycle < 0.50:
+                eye_style = 'almost_closed'
+            elif stretch_cycle < 0.53:
                 eye_style = 'half_closed'
-            elif stretch_cycle < 0.6:
+            elif stretch_cycle < 0.56:
+                eye_style = 'half_closed'
+            elif stretch_cycle < 0.58:
                 eye_style = 'mostly_open'
-            elif stretch_cycle < 0.7:
+            elif stretch_cycle < 0.61:
+                eye_style = 'mostly_open'
+            elif stretch_cycle < 0.64:
                 eye_style = 'soft'
+            elif stretch_cycle < 0.67:
+                eye_style = 'soft'
+            elif stretch_cycle < 0.70:
+                eye_style = 'normal'
+            elif stretch_cycle < 0.75:
+                eye_style = 'wide'
+            elif stretch_cycle < 0.80:
+                eye_style = 'happy'
+            elif stretch_cycle < 0.85:
+                eye_style = 'wide'
+            elif stretch_cycle < 0.90:
+                eye_style = 'happy'
             else:
                 eye_style = 'happy'
         elif anim == 'waving':
-            cycle = frame_idx % 16
-            if cycle < 4:
+            # Tripled: happy → wink → happy → normal (48 frames)
+            cycle = frame_idx % 48
+            if cycle < 6:
                 eye_style = 'happy'
-            elif cycle < 8:
-                eye_style = 'wink'
+            elif cycle < 9:
+                eye_style = 'wide'
             elif cycle < 12:
                 eye_style = 'happy'
+            elif cycle < 15:
+                eye_style = 'soft'
+            elif cycle < 18:
+                eye_style = 'mostly_open'
+            elif cycle < 24:
+                eye_style = 'wink'
+            elif cycle < 27:
+                eye_style = 'mostly_open'
+            elif cycle < 30:
+                eye_style = 'soft'
+            elif cycle < 33:
+                eye_style = 'happy'
+            elif cycle < 36:
+                eye_style = 'wide'
+            elif cycle < 42:
+                eye_style = 'happy'
+            elif cycle < 45:
+                eye_style = 'soft'
             else:
                 eye_style = 'normal'
         elif anim == 'jumping':
-            jump_cycle = (frame_idx % 36) / 36.0
-            if jump_cycle < 0.15:
+            # Tripled: normal → happy → surprised → happy (108 frames)
+            jump_cycle = (frame_idx % 108) / 108.0
+            if jump_cycle < 0.05:
                 eye_style = 'normal'
-            elif jump_cycle < 0.55:
+            elif jump_cycle < 0.08:
+                eye_style = 'soft'
+            elif jump_cycle < 0.12:
+                eye_style = 'normal'
+            elif jump_cycle < 0.15:
+                eye_style = 'wide'
+            elif jump_cycle < 0.25:
                 eye_style = 'happy'
-            elif jump_cycle < 0.75:
+            elif jump_cycle < 0.30:
+                eye_style = 'wide'
+            elif jump_cycle < 0.40:
+                eye_style = 'happy'
+            elif jump_cycle < 0.45:
+                eye_style = 'wide'
+            elif jump_cycle < 0.50:
+                eye_style = 'happy'
+            elif jump_cycle < 0.55:
+                eye_style = 'wide'
+            elif jump_cycle < 0.60:
                 eye_style = 'surprised'
+            elif jump_cycle < 0.70:
+                eye_style = 'surprised'
+            elif jump_cycle < 0.75:
+                eye_style = 'wide'
+            elif jump_cycle < 0.80:
+                eye_style = 'happy'
+            elif jump_cycle < 0.85:
+                eye_style = 'wide'
+            elif jump_cycle < 0.90:
+                eye_style = 'happy'
             else:
                 eye_style = 'happy'
         elif anim == 'yawning':
-            yawn_cycle = (frame_idx % 48) / 48.0
-            if yawn_cycle < 0.1:
+            # Tripled: 144-frame gradual yawn eye cycle
+            yawn_cycle = (frame_idx % 144) / 144.0
+            if yawn_cycle < 0.03:
                 eye_style = 'normal'
-            elif yawn_cycle < 0.15:
+            elif yawn_cycle < 0.05:
+                eye_style = 'soft'
+            elif yawn_cycle < 0.07:
                 eye_style = 'mostly_open'
-            elif yawn_cycle < 0.2:
+            elif yawn_cycle < 0.10:
+                eye_style = 'mostly_open'
+            elif yawn_cycle < 0.12:
                 eye_style = 'half_closed'
-            elif yawn_cycle < 0.25:
+            elif yawn_cycle < 0.15:
+                eye_style = 'half_closed'
+            elif yawn_cycle < 0.17:
+                eye_style = 'almost_closed'
+            elif yawn_cycle < 0.20:
                 eye_style = 'almost_closed'
             elif yawn_cycle < 0.55:
                 eye_style = 'closed'
-            elif yawn_cycle < 0.6:
+            elif yawn_cycle < 0.57:
                 eye_style = 'almost_closed'
+            elif yawn_cycle < 0.60:
+                eye_style = 'almost_closed'
+            elif yawn_cycle < 0.62:
+                eye_style = 'half_closed'
             elif yawn_cycle < 0.65:
                 eye_style = 'half_closed'
-            elif yawn_cycle < 0.7:
+            elif yawn_cycle < 0.67:
                 eye_style = 'mostly_open'
-            elif yawn_cycle < 0.8:
+            elif yawn_cycle < 0.70:
+                eye_style = 'mostly_open'
+            elif yawn_cycle < 0.73:
                 eye_style = 'soft'
-            elif yawn_cycle < 0.85:
+            elif yawn_cycle < 0.76:
+                eye_style = 'soft'
+            elif yawn_cycle < 0.80:
+                eye_style = 'mostly_open'
+            elif yawn_cycle < 0.83:
                 eye_style = 'half_closed'
+            elif yawn_cycle < 0.87:
+                eye_style = 'almost_closed'
             else:
                 eye_style = 'closed'
         elif anim == 'sneezing':
-            sneeze_cycle = (frame_idx % 36) / 36.0
-            if sneeze_cycle < 0.1:
+            # Tripled: 108-frame sneeze cycle
+            sneeze_cycle = (frame_idx % 108) / 108.0
+            if sneeze_cycle < 0.03:
+                eye_style = 'normal'
+            elif sneeze_cycle < 0.05:
+                eye_style = 'soft'
+            elif sneeze_cycle < 0.07:
                 eye_style = 'mostly_open'
-            elif sneeze_cycle < 0.15:
+            elif sneeze_cycle < 0.10:
                 eye_style = 'half_closed'
+            elif sneeze_cycle < 0.12:
+                eye_style = 'almost_closed'
             elif sneeze_cycle < 0.25:
                 eye_style = 'closed'
-            elif sneeze_cycle < 0.3:
+            elif sneeze_cycle < 0.27:
+                eye_style = 'almost_closed'
+            elif sneeze_cycle < 0.30:
                 eye_style = 'wide'
-            elif sneeze_cycle < 0.4:
+            elif sneeze_cycle < 0.35:
                 eye_style = 'surprised'
+            elif sneeze_cycle < 0.40:
+                eye_style = 'surprised'
+            elif sneeze_cycle < 0.42:
+                eye_style = 'wide'
             elif sneeze_cycle < 0.45:
+                eye_style = 'mostly_open'
+            elif sneeze_cycle < 0.47:
                 eye_style = 'half_closed'
+            elif sneeze_cycle < 0.50:
+                eye_style = 'almost_closed'
             elif sneeze_cycle < 0.55:
                 eye_style = 'closed'
-            elif sneeze_cycle < 0.6:
+            elif sneeze_cycle < 0.57:
                 eye_style = 'almost_closed'
-            elif sneeze_cycle < 0.7:
+            elif sneeze_cycle < 0.60:
                 eye_style = 'half_closed'
+            elif sneeze_cycle < 0.63:
+                eye_style = 'mostly_open'
+            elif sneeze_cycle < 0.67:
+                eye_style = 'soft'
+            elif sneeze_cycle < 0.70:
+                eye_style = 'soft'
             else:
                 eye_style = 'soft'
         elif anim == 'belly_rub':
-            cycle = frame_idx % 16
+            # Tripled: happy → sparkle → happy (48 frames)
+            cycle = frame_idx % 48
             if cycle < 6:
                 eye_style = 'happy'
-            elif cycle < 10:
+            elif cycle < 9:
+                eye_style = 'wide'
+            elif cycle < 15:
+                eye_style = 'happy'
+            elif cycle < 18:
+                eye_style = 'wide'
+            elif cycle < 21:
                 eye_style = 'sparkle'
+            elif cycle < 30:
+                eye_style = 'sparkle'
+            elif cycle < 33:
+                eye_style = 'wide'
+            elif cycle < 36:
+                eye_style = 'happy'
+            elif cycle < 39:
+                eye_style = 'wide'
+            elif cycle < 42:
+                eye_style = 'happy'
             else:
                 eye_style = 'happy'
         elif anim == 'fed':
-            cycle = frame_idx % 20
+            # Tripled: happy → sparkle → heart → happy (60 frames)
+            cycle = frame_idx % 60
             if cycle < 6:
                 eye_style = 'happy'
-            elif cycle < 10:
+            elif cycle < 9:
+                eye_style = 'wide'
+            elif cycle < 18:
+                eye_style = 'happy'
+            elif cycle < 21:
+                eye_style = 'wide'
+            elif cycle < 30:
                 eye_style = 'sparkle'
-            elif cycle < 14:
+            elif cycle < 33:
+                eye_style = 'wide'
+            elif cycle < 42:
                 eye_style = 'heart'
+            elif cycle < 45:
+                eye_style = 'wide'
+            elif cycle < 48:
+                eye_style = 'sparkle'
+            elif cycle < 51:
+                eye_style = 'wide'
+            elif cycle < 54:
+                eye_style = 'happy'
             else:
                 eye_style = 'happy'
         elif anim == 'cartwheel':
-            cart_cycle = (frame_idx % 36) / 36.0
-            if cart_cycle < 0.15:
+            # Tripled: wide → spinning → dizzy (108 frames)
+            cart_cycle = (frame_idx % 108) / 108.0
+            if cart_cycle < 0.03:
+                eye_style = 'normal'
+            elif cart_cycle < 0.05:
+                eye_style = 'wide'
+            elif cart_cycle < 0.08:
+                eye_style = 'wide'
+            elif cart_cycle < 0.10:
+                eye_style = 'surprised'
+            elif cart_cycle < 0.15:
                 eye_style = 'wide'
             elif cart_cycle < 0.75:
                 eye_style = 'spinning'
-            else:
+            elif cart_cycle < 0.78:
+                eye_style = 'rolling'
+            elif cart_cycle < 0.83:
                 eye_style = 'dizzy'
+            elif cart_cycle < 0.88:
+                eye_style = 'rolling'
+            elif cart_cycle < 0.93:
+                eye_style = 'dizzy'
+            else:
+                eye_style = 'half_closed'
         elif anim == 'backflip':
-            flip_phase = (frame_idx % 36) / 36.0
-            if flip_phase < 0.2:
+            # Tripled: wide → surprised → closed → surprised → happy (108 frames)
+            flip_phase = (frame_idx % 108) / 108.0
+            if flip_phase < 0.03:
+                eye_style = 'normal'
+            elif flip_phase < 0.06:
                 eye_style = 'wide'
+            elif flip_phase < 0.10:
+                eye_style = 'wide'
+            elif flip_phase < 0.13:
+                eye_style = 'surprised'
+            elif flip_phase < 0.20:
+                eye_style = 'wide'
+            elif flip_phase < 0.23:
+                eye_style = 'surprised'
+            elif flip_phase < 0.27:
+                eye_style = 'wide'
+            elif flip_phase < 0.30:
+                eye_style = 'mostly_open'
+            elif flip_phase < 0.33:
+                eye_style = 'half_closed'
             elif flip_phase < 0.35:
-                eye_style = 'surprised'
-            elif flip_phase < 0.7:
+                eye_style = 'almost_closed'
+            elif flip_phase < 0.65:
                 eye_style = 'closed'
-            elif flip_phase < 0.85:
+            elif flip_phase < 0.68:
+                eye_style = 'almost_closed'
+            elif flip_phase < 0.70:
+                eye_style = 'half_closed'
+            elif flip_phase < 0.73:
+                eye_style = 'mostly_open'
+            elif flip_phase < 0.76:
+                eye_style = 'wide'
+            elif flip_phase < 0.80:
                 eye_style = 'surprised'
+            elif flip_phase < 0.85:
+                eye_style = 'wide'
+            elif flip_phase < 0.88:
+                eye_style = 'happy'
+            elif flip_phase < 0.93:
+                eye_style = 'wide'
             else:
                 eye_style = 'happy'
         elif anim == 'barrel_roll':
-            roll_cycle = (frame_idx % 30) / 30.0
-            if roll_cycle < 0.1:
+            # Tripled: wide → spinning → dizzy (90 frames)
+            roll_cycle = (frame_idx % 90) / 90.0
+            if roll_cycle < 0.03:
+                eye_style = 'normal'
+            elif roll_cycle < 0.05:
                 eye_style = 'wide'
-            elif roll_cycle < 0.8:
+            elif roll_cycle < 0.08:
+                eye_style = 'wide'
+            elif roll_cycle < 0.10:
+                eye_style = 'surprised'
+            elif roll_cycle < 0.80:
                 eye_style = 'spinning'
-            else:
+            elif roll_cycle < 0.83:
+                eye_style = 'rolling'
+            elif roll_cycle < 0.88:
                 eye_style = 'dizzy'
-        elif anim == 'lay_on_back':
-            # Gradual close when laying on back
-            settle = min(1.0, frame_idx / 20.0)
-            if settle < 0.3:
-                eye_style = 'soft'
-            elif settle < 0.5:
+            elif roll_cycle < 0.93:
+                eye_style = 'rolling'
+            else:
                 eye_style = 'half_closed'
+        elif anim == 'lay_on_back':
+            # Tripled: gradual close over 60 frames
+            settle = min(1.0, frame_idx / 60.0)
+            if settle < 0.10:
+                eye_style = 'normal'
+            elif settle < 0.17:
+                eye_style = 'soft'
+            elif settle < 0.23:
+                eye_style = 'mostly_open'
+            elif settle < 0.30:
+                eye_style = 'mostly_open'
+            elif settle < 0.37:
+                eye_style = 'half_closed'
+            elif settle < 0.43:
+                eye_style = 'half_closed'
+            elif settle < 0.50:
+                eye_style = 'almost_closed'
+            elif settle < 0.57:
+                eye_style = 'almost_closed'
             else:
                 eye_style = 'closed'
         elif anim == 'lay_on_side':
-            settle = min(1.0, frame_idx / 20.0)
-            if settle < 0.3:
+            # Tripled: gradual close over 60 frames
+            settle = min(1.0, frame_idx / 60.0)
+            if settle < 0.10:
+                eye_style = 'normal'
+            elif settle < 0.17:
                 eye_style = 'soft'
-            elif settle < 0.6:
+            elif settle < 0.23:
+                eye_style = 'mostly_open'
+            elif settle < 0.30:
+                eye_style = 'mostly_open'
+            elif settle < 0.40:
                 eye_style = 'half_closed'
+            elif settle < 0.50:
+                eye_style = 'half_closed'
+            elif settle < 0.60:
+                eye_style = 'almost_closed'
             else:
                 eye_style = 'almost_closed'
         elif anim == 'carrying':
-            eye_style = 'wide'
+            # Alert but gradually relaxing wide eyes
+            settle = min(1.0, frame_idx / 30.0)
+            if settle < 0.3:
+                eye_style = 'wide'
+            elif settle < 0.5:
+                eye_style = 'normal'
+            elif settle < 0.7:
+                eye_style = 'soft'
+            else:
+                eye_style = 'normal'
         elif anim == 'belly_jiggle':
-            # Jiggle surprise then happy
-            jiggle_t = min(1.0, frame_idx / 36.0)
-            if jiggle_t < 0.3:
+            # Tripled: surprised → wide → happy (108 frames)
+            jiggle_t = min(1.0, frame_idx / 108.0)
+            if jiggle_t < 0.08:
+                eye_style = 'normal'
+            elif jiggle_t < 0.12:
+                eye_style = 'wide'
+            elif jiggle_t < 0.20:
                 eye_style = 'surprised'
-            elif jiggle_t < 0.5:
+            elif jiggle_t < 0.30:
+                eye_style = 'surprised'
+            elif jiggle_t < 0.35:
+                eye_style = 'wide'
+            elif jiggle_t < 0.42:
+                eye_style = 'normal'
+            elif jiggle_t < 0.50:
+                eye_style = 'wide'
+            elif jiggle_t < 0.60:
+                eye_style = 'happy'
+            elif jiggle_t < 0.70:
+                eye_style = 'wide'
+            elif jiggle_t < 0.80:
+                eye_style = 'happy'
+            elif jiggle_t < 0.90:
                 eye_style = 'wide'
             else:
                 eye_style = 'happy'
         elif anim == 'fall_on_face':
-            settle = min(1.0, frame_idx / 12.0)
-            if settle < 0.3:
+            # Tripled: surprised → wide → dizzy (36 frames)
+            settle = min(1.0, frame_idx / 36.0)
+            if settle < 0.08:
+                eye_style = 'normal'
+            elif settle < 0.15:
+                eye_style = 'wide'
+            elif settle < 0.25:
                 eye_style = 'surprised'
+            elif settle < 0.30:
+                eye_style = 'wide'
+            elif settle < 0.40:
+                eye_style = 'surprised'
+            elif settle < 0.50:
+                eye_style = 'rolling'
+            elif settle < 0.60:
+                eye_style = 'dizzy'
+            elif settle < 0.70:
+                eye_style = 'rolling'
             else:
                 eye_style = 'dizzy'
         elif anim == 'tip_over_side':
-            settle = min(1.0, frame_idx / 15.0)
-            if settle < 0.3:
+            # Tripled: surprised → half_closed → almost_closed (45 frames)
+            settle = min(1.0, frame_idx / 45.0)
+            if settle < 0.08:
+                eye_style = 'normal'
+            elif settle < 0.13:
+                eye_style = 'wide'
+            elif settle < 0.20:
                 eye_style = 'surprised'
-            elif settle < 0.6:
+            elif settle < 0.27:
+                eye_style = 'wide'
+            elif settle < 0.33:
+                eye_style = 'surprised'
+            elif settle < 0.40:
+                eye_style = 'mostly_open'
+            elif settle < 0.50:
                 eye_style = 'half_closed'
+            elif settle < 0.60:
+                eye_style = 'half_closed'
+            elif settle < 0.70:
+                eye_style = 'almost_closed'
+            elif settle < 0.80:
+                eye_style = 'almost_closed'
             else:
                 eye_style = 'almost_closed'
         elif anim in ('walking_left', 'walking_right', 'walking_up', 'walking_down',
