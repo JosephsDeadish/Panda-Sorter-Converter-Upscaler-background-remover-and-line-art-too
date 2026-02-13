@@ -1,6 +1,6 @@
 """
 Texture Upscaling Module
-Supports bicubic, ESRGAN, and Real-ESRGAN upscaling
+Supports bicubic, ESRGAN, Real-ESRGAN, and native Lanczos upscaling
 Author: Dead On The Inside / JosephsDeadish
 """
 
@@ -11,6 +11,16 @@ from PIL import Image
 import cv2
 
 logger = logging.getLogger(__name__)
+
+# Check for native Rust acceleration
+try:
+    from src.native_ops import lanczos_upscale as _native_lanczos, NATIVE_AVAILABLE
+except ImportError:
+    try:
+        from native_ops import lanczos_upscale as _native_lanczos, NATIVE_AVAILABLE
+    except ImportError:
+        NATIVE_AVAILABLE = False
+        _native_lanczos = None
 
 # Check for Real-ESRGAN availability
 try:
@@ -28,6 +38,7 @@ class TextureUpscaler:
     
     Supported methods:
     - Bicubic interpolation (fast, good quality)
+    - Lanczos via native Rust (fast, sharp – uses multi-threaded Rust code)
     - ESRGAN (slow, best quality for general images)
     - Real-ESRGAN (slow, best for PS2/retro textures)
     """
@@ -36,6 +47,8 @@ class TextureUpscaler:
         """Initialize upscaler."""
         self.realesrgan_model = None
         self._realesrgan_loaded = False
+        if NATIVE_AVAILABLE:
+            logger.info("Native Rust Lanczos upscaler available")
         
     def upscale(
         self,
@@ -49,12 +62,14 @@ class TextureUpscaler:
         Args:
             image: Input image as numpy array (H, W, C)
             scale_factor: Upscaling factor (2, 4, or 8)
-            method: Upscaling method ('bicubic', 'esrgan', 'realesrgan')
+            method: Upscaling method ('bicubic', 'lanczos', 'esrgan', 'realesrgan')
             
         Returns:
             Upscaled image as numpy array
         """
-        if method == 'bicubic':
+        if method == 'lanczos' and NATIVE_AVAILABLE:
+            return self._upscale_native_lanczos(image, scale_factor)
+        elif method == 'bicubic':
             return self._upscale_bicubic(image, scale_factor)
         elif method == 'realesrgan' and REALESRGAN_AVAILABLE:
             return self._upscale_realesrgan(image, scale_factor)
@@ -84,6 +99,21 @@ class TextureUpscaler:
         
         logger.debug(f"Bicubic upscale: {image.shape[:2]} -> {upscaled.shape[:2]}")
         return upscaled
+    
+    def _upscale_native_lanczos(self, image: np.ndarray, scale_factor: int) -> np.ndarray:
+        """
+        Upscale using native Rust Lanczos-3 interpolation.
+        
+        Multi-threaded via Rayon – significantly faster than Python-based
+        upscaling for large images.
+        """
+        try:
+            upscaled = _native_lanczos(image, scale_factor)
+            logger.debug(f"Native Lanczos upscale: {image.shape[:2]} -> {upscaled.shape[:2]}")
+            return upscaled
+        except Exception as e:
+            logger.warning(f"Native Lanczos failed ({e}), falling back to bicubic")
+            return self._upscale_bicubic(image, scale_factor)
     
     def _upscale_realesrgan(
         self,
