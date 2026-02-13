@@ -1855,8 +1855,9 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
         # Apply body sway to center position for turning/direction effect
         cx_draw = cx + int(body_sway)
         
-        # During toss physics, use _facing_direction to pick the correct view
-        if anim in ('tossed', 'wall_hit', 'rolling', 'spinning') and self._is_tossing:
+        # During toss physics or dragging, use _facing_direction to pick the correct view
+        if ((anim in ('tossed', 'wall_hit', 'rolling', 'spinning') and self._is_tossing) or
+            (anim == 'dragging' and self.is_dragging)):
             facing = getattr(self, '_facing_direction', 'front')
             if facing == 'left':
                 anim = 'walking_left'
@@ -3144,8 +3145,9 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
 
             # Perspective scale: narrow clothing for side views
             anim = self.current_animation
-            # During toss physics, use _facing_direction for clothing perspective
-            if anim in ('tossed', 'wall_hit', 'rolling', 'spinning') and self._is_tossing:
+            # During toss physics or dragging, use _facing_direction for clothing perspective
+            if ((anim in ('tossed', 'wall_hit', 'rolling', 'spinning') and self._is_tossing) or
+                (anim == 'dragging' and self.is_dragging)):
                 facing = getattr(self, '_facing_direction', 'front')
                 if facing == 'left':
                     anim = 'walking_left'
