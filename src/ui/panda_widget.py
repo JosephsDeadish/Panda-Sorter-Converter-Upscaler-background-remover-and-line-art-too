@@ -145,6 +145,10 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
     # Recovery time after falling on face or tipping over (ms)
     FALL_RECOVERY_TIME_MS = 3000
     
+    # Diagonal movement threshold: use diagonal walking when secondary axis
+    # is at least this fraction of the primary axis (0.4 = 40%)
+    DIAGONAL_MOVEMENT_THRESHOLD = 0.4
+    
     # Emoji decorations shown next to the panda for each animation type
     ANIMATION_EMOJIS = {
         'working': ['💼', '⚙️', '📊', '💻', '☕'],
@@ -3978,7 +3982,7 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
             # Use diagonal walking when both axes have significant movement
             adx = abs(dx)
             ady = abs(dy)
-            if adx > 0 and ady > 0 and min(adx, ady) / max(adx, ady) > 0.4:
+            if adx > 0 and ady > 0 and min(adx, ady) / max(adx, ady) > self.DIAGONAL_MOVEMENT_THRESHOLD:
                 # Diagonal movement: both axes significant
                 if dy < 0 and dx < 0:
                     self._facing_direction = 'back_left'
