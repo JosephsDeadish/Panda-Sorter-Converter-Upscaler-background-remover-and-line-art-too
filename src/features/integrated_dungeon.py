@@ -39,6 +39,11 @@ class IntegratedDungeon:
     Manages the complete dungeon experience with all systems integrated.
     """
     
+    # AI Constants
+    ATTACK_RANGE = 2  # Distance at which enemies attack
+    AGGRO_RANGE = 15  # Distance at which enemies notice player
+    MELEE_RANGE = 1   # Distance for player melee attacks
+    
     def __init__(self, width: int = 80, height: int = 80, num_floors: int = 5, seed: Optional[int] = None):
         """
         Initialize the integrated dungeon.
@@ -234,11 +239,11 @@ class IntegratedDungeon:
                 elif loot.item_type == 'gold':
                     pass  # Gold tracked separately
     
-    def _check_stairs(self):
-        """Check if player is on stairs."""
+    def _check_stairs(self) -> Optional[str]:
+        """Check if player is on stairs and return the stair type."""
         floor = self.dungeon.get_floor(self.player_floor)
         if not floor:
-            return
+            return None
         
         # Check stairs down
         if (self.player_x, self.player_y) in floor.stairs_down:
@@ -316,7 +321,7 @@ class IntegratedDungeon:
             distance = (dx * dx + dy * dy) ** 0.5
             
             # If close enough, attack
-            if distance < 2:
+            if distance < self.ATTACK_RANGE:
                 # Enemy attacks player
                 damage = spawned.enemy.stats.attack
                 self.player_damage_tracker.apply_damage(
@@ -327,7 +332,7 @@ class IntegratedDungeon:
                 self.player_health -= damage
             
             # Move toward player
-            elif distance < 15:  # Aggro range
+            elif distance < self.AGGRO_RANGE:  # Aggro range
                 # Determine move direction
                 move_x = 1 if dx > 0 else -1 if dx < 0 else 0
                 move_y = 1 if dy > 0 else -1 if dy < 0 else 0
@@ -349,7 +354,7 @@ class IntegratedDungeon:
             dy = abs(self.player_y - spawned.y)
             
             # If in melee range
-            if dx <= 1 and dy <= 1:
+            if dx <= self.MELEE_RANGE and dy <= self.MELEE_RANGE:
                 # Apply damage
                 result = spawned.damage_tracker.apply_damage(
                     LimbType.TORSO,

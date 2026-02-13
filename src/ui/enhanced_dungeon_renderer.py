@@ -116,16 +116,14 @@ class EnhancedDungeonRenderer:
         self._render_floor_info(floor)
     
     def _get_tile_texture(self, tile_x: int, tile_y: int, is_wall: bool) -> str:
-        """Get consistent texture color for a tile."""
+        """Get consistent texture color for a tile using hash-based selection."""
         key = (tile_x, tile_y)
         if key not in self.texture_cache:
-            # Use tile position as seed for consistent random
-            random.seed(tile_x * 1000 + tile_y)
-            if is_wall:
-                self.texture_cache[key] = random.choice(self.STONE_COLORS)
-            else:
-                self.texture_cache[key] = random.choice(self.FLOOR_COLORS)
-            random.seed()  # Reset random
+            # Use hash for consistent color selection (no seed manipulation)
+            hash_val = hash(key) % 100
+            colors = self.STONE_COLORS if is_wall else self.FLOOR_COLORS
+            color_index = hash_val % len(colors)
+            self.texture_cache[key] = colors[color_index]
         return self.texture_cache[key]
     
     def _render_enhanced_tile(self, floor: DungeonFloor, tile_x: int, tile_y: int, show_fog: bool):
@@ -212,30 +210,30 @@ class EnhancedDungeonRenderer:
             tags='tile'
         )
         
-        # Add cracks and details using tile position as seed
-        random.seed(tile_x * 1000 + tile_y)
-        if random.random() < 0.15:  # 15% chance of crack
+        # Add cracks and details using hash for consistency
+        hash_val = hash((tile_x, tile_y))
+        
+        if (hash_val % 100) < 15:  # 15% chance of crack
             # Draw a crack
-            cx1 = screen_x + random.randint(5, self.TILE_SIZE - 5)
-            cy1 = screen_y + random.randint(5, self.TILE_SIZE - 5)
-            cx2 = cx1 + random.randint(-8, 8)
-            cy2 = cy1 + random.randint(-8, 8)
+            cx1 = screen_x + ((hash_val % 20) + 5)
+            cy1 = screen_y + (((hash_val // 100) % 20) + 5)
+            cx2 = cx1 + ((hash_val % 17) - 8)
+            cy2 = cy1 + (((hash_val // 1000) % 17) - 8)
             self.canvas.create_line(
                 cx1, cy1, cx2, cy2,
                 fill='#4a3a25', width=1,
                 tags='tile'
             )
         
-        if random.random() < 0.1:  # 10% chance of spot
+        if (hash_val % 100) < 10:  # 10% chance of spot
             # Draw a worn spot
-            sx = screen_x + random.randint(8, self.TILE_SIZE - 8)
-            sy = screen_y + random.randint(8, self.TILE_SIZE - 8)
+            sx = screen_x + ((hash_val % 16) + 8)
+            sy = screen_y + (((hash_val // 100) % 16) + 8)
             self.canvas.create_oval(
                 sx - 2, sy - 2, sx + 2, sy + 2,
                 fill='#5a4530', outline='',
                 tags='tile'
             )
-        random.seed()  # Reset random
     
     def _render_decorations(self, floor: DungeonFloor, show_fog: bool, 
                           start_x: int, start_y: int, end_x: int, end_y: int):

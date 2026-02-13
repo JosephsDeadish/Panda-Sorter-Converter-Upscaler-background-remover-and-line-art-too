@@ -104,6 +104,20 @@ class TestIntegratedDungeon(unittest.TestCase):
         for floor_num in range(len(self.dungeon.dungeon.floors)):
             floor = self.dungeon.dungeon.get_floor(floor_num)
             self.assertIsNotNone(floor.spawn_point, f"Floor {floor_num} should have spawn point")
+    
+    def test_random_generation_without_seed(self):
+        """Test that dungeon generation works without fixed seed."""
+        # Create dungeon without seed
+        dungeon1 = IntegratedDungeon(width=50, height=50, num_floors=3)
+        dungeon2 = IntegratedDungeon(width=50, height=50, num_floors=3)
+        
+        # Both should be valid
+        self.assertEqual(len(dungeon1.dungeon.floors), 3)
+        self.assertEqual(len(dungeon2.dungeon.floors), 3)
+        
+        # Should have enemies and loot
+        self.assertGreater(sum(len(e) for e in dungeon1.enemies_by_floor.values()), 0)
+        self.assertGreater(sum(len(l) for l in dungeon1.loot_by_floor.values()), 0)
 
 
 if __name__ == '__main__':
