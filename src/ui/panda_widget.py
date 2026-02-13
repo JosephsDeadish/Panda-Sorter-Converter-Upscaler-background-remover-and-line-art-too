@@ -105,6 +105,22 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
     # Cooldown between drag-pattern animation triggers (seconds)
     DRAG_PATTERN_COOLDOWN = 2.0
     
+    # Automatic blink timing
+    BLINK_DURATION = 8         # Total frames for one blink (close + open)
+    BLINK_MIN_INTERVAL = 60   # Minimum frames between blinks (~2s at 33ms)
+    BLINK_MAX_INTERVAL = 180  # Maximum frames between blinks (~6s)
+    # Blink frame → eye style mapping (smooth 8-frame sequence)
+    BLINK_SEQUENCE = [
+        'mostly_open',    # frame 0: start closing
+        'half_closed',    # frame 1
+        'almost_closed',  # frame 2
+        'closed',         # frame 3: fully closed
+        'closed',         # frame 4: hold closed briefly
+        'almost_closed',  # frame 5: start opening
+        'half_closed',    # frame 6
+        'mostly_open',    # frame 7: almost open
+    ]
+    
     # Belly jiggle physics constants
     JIGGLE_SPRING = 0.35             # Spring stiffness for belly wobble
     JIGGLE_DAMPING = 0.82            # Damping factor for belly wobble
@@ -228,6 +244,10 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
         self.animation_frame = 0
         self.animation_timer = None
         self._destroyed = False
+        
+        # Automatic blink system — triggers periodic natural blinks
+        self._blink_frame = -1   # -1 = not blinking; 0..BLINK_DURATION = blink in progress
+        self._blink_cooldown = 0  # frames until next blink can trigger
         
         # Active item being used during eating/playing animations
         self._active_item_name = None  # Name of item (e.g. "Fresh Bamboo")
@@ -1579,14 +1599,25 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
         # --- Determine eye style based on animation ---
         eye_style = 'normal'
         if anim == 'sleeping' or anim in ('laying_down', 'laying_back', 'laying_side'):
-            # Gradual eye closing for sleep transitions
-            cycle = frame_idx % 16
-            if cycle < 4:
-                eye_style = 'half'
+            # Smooth eye closing for sleep — gradual shut over multiple frames
+            settle = min(1.0, frame_idx / 20.0)
+            if settle < 0.2:
+                eye_style = 'normal'
+            elif settle < 0.35:
+                eye_style = 'mostly_open'
+            elif settle < 0.5:
+                eye_style = 'half_closed'
+            elif settle < 0.65:
+                eye_style = 'almost_closed'
             else:
-                eye_style = 'closed'
+                # Once settled, stay closed with very occasional flutter
+                flutter = frame_idx % 120
+                if flutter < 3:
+                    eye_style = 'almost_closed'
+                else:
+                    eye_style = 'closed'
         elif anim == 'sitting':
-            eye_style = 'half'
+            eye_style = 'soft'
         elif anim == 'belly_grab':
             eye_style = 'happy'
         elif anim == 'celebrating':
@@ -1602,16 +1633,20 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
         elif anim == 'rage':
             eye_style = 'angry'
         elif anim == 'sarcastic':
-            eye_style = 'half'
+            eye_style = 'half_closed'
         elif anim == 'drunk':
             eye_style = 'dizzy'
         elif anim == 'petting':
-            # Squint progression: normal → happy → squint → happy
-            cycle = frame_idx % 12
-            if cycle < 3:
+            # Smooth squint: happy → soft → squint → happy with transitions
+            cycle = frame_idx % 16
+            if cycle < 4:
                 eye_style = 'happy'
             elif cycle < 6:
+                eye_style = 'soft'
+            elif cycle < 9:
                 eye_style = 'squint'
+            elif cycle < 11:
+                eye_style = 'soft'
             else:
                 eye_style = 'happy'
         elif anim == 'clicked':
@@ -1638,13 +1673,20 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
             else:
                 eye_style = 'happy'
         elif anim == 'eating':
-            cycle = frame_idx % 16
-            if cycle < 6:
+            # Smooth eating eyes: happy → squint while chewing → happy
+            cycle = frame_idx % 20
+            if cycle < 5:
                 eye_style = 'happy'
+            elif cycle < 7:
+                eye_style = 'mostly_open'
             elif cycle < 10:
-                eye_style = 'closed'
-            else:
+                eye_style = 'half_closed'
+            elif cycle < 12:
+                eye_style = 'mostly_open'
+            elif cycle < 15:
                 eye_style = 'happy'
+            else:
+                eye_style = 'soft'
         elif anim == 'playing':
             cycle = frame_idx % 20
             if cycle < 8:
@@ -1671,12 +1713,22 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
             eye_style = 'rolling'
         elif anim == 'stretching':
             stretch_cycle = (frame_idx % 60) / 60.0
-            if stretch_cycle < 0.2:
+            if stretch_cycle < 0.1:
                 eye_style = 'normal'
-            elif stretch_cycle < 0.5:
+            elif stretch_cycle < 0.15:
+                eye_style = 'mostly_open'
+            elif stretch_cycle < 0.2:
+                eye_style = 'half_closed'
+            elif stretch_cycle < 0.45:
                 eye_style = 'closed'
+            elif stretch_cycle < 0.5:
+                eye_style = 'almost_closed'
+            elif stretch_cycle < 0.55:
+                eye_style = 'half_closed'
+            elif stretch_cycle < 0.6:
+                eye_style = 'mostly_open'
             elif stretch_cycle < 0.7:
-                eye_style = 'half'
+                eye_style = 'soft'
             else:
                 eye_style = 'happy'
         elif anim == 'waving':
@@ -1701,24 +1753,50 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
                 eye_style = 'happy'
         elif anim == 'yawning':
             yawn_cycle = (frame_idx % 48) / 48.0
-            if yawn_cycle < 0.15:
+            if yawn_cycle < 0.1:
                 eye_style = 'normal'
-            elif yawn_cycle < 0.5:
+            elif yawn_cycle < 0.15:
+                eye_style = 'mostly_open'
+            elif yawn_cycle < 0.2:
+                eye_style = 'half_closed'
+            elif yawn_cycle < 0.25:
+                eye_style = 'almost_closed'
+            elif yawn_cycle < 0.55:
                 eye_style = 'closed'
+            elif yawn_cycle < 0.6:
+                eye_style = 'almost_closed'
+            elif yawn_cycle < 0.65:
+                eye_style = 'half_closed'
             elif yawn_cycle < 0.7:
-                eye_style = 'half'
+                eye_style = 'mostly_open'
+            elif yawn_cycle < 0.8:
+                eye_style = 'soft'
+            elif yawn_cycle < 0.85:
+                eye_style = 'half_closed'
             else:
                 eye_style = 'closed'
         elif anim == 'sneezing':
             sneeze_cycle = (frame_idx % 36) / 36.0
-            if sneeze_cycle < 0.25:
+            if sneeze_cycle < 0.1:
+                eye_style = 'mostly_open'
+            elif sneeze_cycle < 0.15:
+                eye_style = 'half_closed'
+            elif sneeze_cycle < 0.25:
                 eye_style = 'closed'
-            elif sneeze_cycle < 0.35:
+            elif sneeze_cycle < 0.3:
+                eye_style = 'wide'
+            elif sneeze_cycle < 0.4:
                 eye_style = 'surprised'
-            elif sneeze_cycle < 0.5:
+            elif sneeze_cycle < 0.45:
+                eye_style = 'half_closed'
+            elif sneeze_cycle < 0.55:
                 eye_style = 'closed'
+            elif sneeze_cycle < 0.6:
+                eye_style = 'almost_closed'
+            elif sneeze_cycle < 0.7:
+                eye_style = 'half_closed'
             else:
-                eye_style = 'half'
+                eye_style = 'soft'
         elif anim == 'belly_rub':
             cycle = frame_idx % 16
             if cycle < 6:
@@ -1738,27 +1816,99 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
             else:
                 eye_style = 'happy'
         elif anim == 'cartwheel':
-            eye_style = 'spinning'
+            cart_cycle = (frame_idx % 36) / 36.0
+            if cart_cycle < 0.15:
+                eye_style = 'wide'
+            elif cart_cycle < 0.75:
+                eye_style = 'spinning'
+            else:
+                eye_style = 'dizzy'
         elif anim == 'backflip':
-            eye_style = 'surprised'
+            flip_phase = (frame_idx % 36) / 36.0
+            if flip_phase < 0.2:
+                eye_style = 'wide'
+            elif flip_phase < 0.35:
+                eye_style = 'surprised'
+            elif flip_phase < 0.7:
+                eye_style = 'closed'
+            elif flip_phase < 0.85:
+                eye_style = 'surprised'
+            else:
+                eye_style = 'happy'
         elif anim == 'barrel_roll':
-            eye_style = 'spinning'
+            roll_cycle = (frame_idx % 30) / 30.0
+            if roll_cycle < 0.1:
+                eye_style = 'wide'
+            elif roll_cycle < 0.8:
+                eye_style = 'spinning'
+            else:
+                eye_style = 'dizzy'
         elif anim == 'lay_on_back':
-            eye_style = 'closed'
+            # Gradual close when laying on back
+            settle = min(1.0, frame_idx / 20.0)
+            if settle < 0.3:
+                eye_style = 'soft'
+            elif settle < 0.5:
+                eye_style = 'half_closed'
+            else:
+                eye_style = 'closed'
         elif anim == 'lay_on_side':
-            eye_style = 'half'
+            settle = min(1.0, frame_idx / 20.0)
+            if settle < 0.3:
+                eye_style = 'soft'
+            elif settle < 0.6:
+                eye_style = 'half_closed'
+            else:
+                eye_style = 'almost_closed'
         elif anim == 'carrying':
-            eye_style = 'normal'
+            eye_style = 'wide'
         elif anim == 'belly_jiggle':
-            eye_style = 'happy'
+            # Jiggle surprise then happy
+            jiggle_t = min(1.0, frame_idx / 36.0)
+            if jiggle_t < 0.3:
+                eye_style = 'surprised'
+            elif jiggle_t < 0.5:
+                eye_style = 'wide'
+            else:
+                eye_style = 'happy'
         elif anim == 'fall_on_face':
-            eye_style = 'dizzy'
+            settle = min(1.0, frame_idx / 12.0)
+            if settle < 0.3:
+                eye_style = 'surprised'
+            else:
+                eye_style = 'dizzy'
         elif anim == 'tip_over_side':
-            eye_style = 'half'
+            settle = min(1.0, frame_idx / 15.0)
+            if settle < 0.3:
+                eye_style = 'surprised'
+            elif settle < 0.6:
+                eye_style = 'half_closed'
+            else:
+                eye_style = 'almost_closed'
         elif anim in ('walking_left', 'walking_right', 'walking_up', 'walking_down',
                       'walking_up_left', 'walking_up_right',
                       'walking_down_left', 'walking_down_right'):
             eye_style = 'normal'
+        
+        # --- Automatic blink overlay ---
+        # Periodically blink during animations that use normal/soft/wide eyes
+        _blink_eligible = eye_style in ('normal', 'soft', 'wide', 'mostly_open')
+        if _blink_eligible:
+            if self._blink_frame >= 0:
+                # Blink in progress — use the blink sequence
+                if self._blink_frame < len(self.BLINK_SEQUENCE):
+                    eye_style = self.BLINK_SEQUENCE[self._blink_frame]
+                self._blink_frame += 1
+                if self._blink_frame >= len(self.BLINK_SEQUENCE):
+                    self._blink_frame = -1  # blink done
+                    self._blink_cooldown = random.randint(
+                        self.BLINK_MIN_INTERVAL, self.BLINK_MAX_INTERVAL)
+            else:
+                # Count down cooldown, start new blink when ready
+                self._blink_cooldown -= 1
+                if self._blink_cooldown <= 0:
+                    self._blink_frame = 0
+                    eye_style = self.BLINK_SEQUENCE[0]
         
         # --- Determine mouth style ---
         mouth_style = 'normal'
@@ -2643,6 +2793,51 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
                           fill="white", width=2, tags="eye")
             c.create_line(right_ex - es, ey, right_ex + es, ey,
                           fill="white", width=2, tags="eye")
+        elif style == 'almost_closed':
+            # Barely open slit — 1 pixel tall oval
+            slit_h = max(1, int(1 * sy))
+            for ex_pos in [left_ex, right_ex]:
+                c.create_oval(ex_pos - es, ey - slit_h, ex_pos + es, ey + slit_h,
+                              fill="white", outline="", tags="eye")
+        elif style == 'half_closed':
+            # Half-shut eyes — 3 pixel tall oval with small pupil showing
+            half_h = max(2, int(3 * sy))
+            for ex_pos in [left_ex, right_ex]:
+                c.create_oval(ex_pos - es, ey - int(1 * sy), ex_pos + es, ey + half_h,
+                              fill="white", outline="", tags="eye")
+                c.create_oval(ex_pos - int(2 * sx), ey, ex_pos + int(2 * sx), ey + int(2 * sy),
+                              fill="#222222", outline="", tags="pupil")
+        elif style == 'mostly_open':
+            # Slightly narrowed eyes — almost full size but top is cut off
+            narrow_h = max(3, int(5 * sy))
+            for ex_pos in [left_ex, right_ex]:
+                c.create_oval(ex_pos - es, ey - int(3 * sy), ex_pos + es, ey + narrow_h,
+                              fill="white", outline="", tags="eye")
+                c.create_oval(ex_pos - ps, ey - int(1 * sy), ex_pos + ps, ey + ps,
+                              fill="#222222", outline="", tags="pupil")
+                c.create_oval(ex_pos - int(4 * sx), ey - int(4 * sy),
+                              ex_pos - int(1 * sx), ey - int(1 * sy),
+                              fill="white", outline="", tags="shine")
+        elif style == 'wide':
+            # Slightly wider than normal — alert/interested look
+            wide_es = int(7 * sx)
+            for ex_pos in [left_ex, right_ex]:
+                c.create_oval(ex_pos - wide_es, ey - wide_es, ex_pos + wide_es, ey + wide_es,
+                              fill="white", outline="", tags="eye")
+                c.create_oval(ex_pos - ps, ey - ps, ex_pos + ps, ey + ps,
+                              fill="#222222", outline="", tags="pupil")
+                c.create_oval(ex_pos - int(5 * sx), ey - int(5 * sy),
+                              ex_pos - int(2 * sx), ey - int(2 * sy),
+                              fill="white", outline="", tags="shine")
+        elif style == 'soft':
+            # Gentle, relaxed eyes — slightly smaller and rounder
+            soft_es = int(5 * sx)
+            for ex_pos in [left_ex, right_ex]:
+                c.create_oval(ex_pos - soft_es, ey - int(4 * sy), ex_pos + soft_es, ey + int(4 * sy),
+                              fill="white", outline="", tags="eye")
+                c.create_oval(ex_pos - int(2 * sx), ey - int(2 * sy),
+                              ex_pos + int(2 * sx), ey + int(2 * sy),
+                              fill="#222222", outline="", tags="pupil")
         elif style == 'happy':
             c.create_arc(left_ex - es, ey - es, left_ex + es, ey + int(4 * sy),
                          start=0, extent=180, style="arc",
