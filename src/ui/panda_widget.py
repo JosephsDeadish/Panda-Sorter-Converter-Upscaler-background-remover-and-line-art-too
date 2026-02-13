@@ -302,6 +302,7 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
         self._drag_grab_head = False   # True when drag started in head region
         self._drag_grab_part = 'body'  # Body part grabbed during drag (specific limb/ear/etc)
         self._is_upside_down = False   # True when dragged upside down by legs
+        self._flip_progress = 0.0      # 0.0 = upright, 1.0 = fully flipped (gradual transition)
         self._is_on_side = False        # True when tipped over on side
         self._is_face_down = False      # True when fallen on face
         self._facing_direction = 'front'  # Current facing: front, back, left, right
@@ -820,11 +821,11 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
                 arm_swing = math.cos(phase * 2) * 16
                 body_bob = math.sin(phase * 3) * 5
         elif anim in ('sleeping', 'laying_down'):
-            # Gradual settling with gentle breathing
+            # Gradual settling into a curled-up sleeping pose
             settle_phase = min(1.0, frame_idx / 30.0)  # settle over ~30 frames
-            leg_swing = (1 - settle_phase) * math.sin(phase) * 3
-            arm_swing = settle_phase * 5  # arms rest outward
-            body_bob = settle_phase * 25 + math.sin(phase * 0.3) * 2  # lower body, gentle breathing
+            leg_swing = (1 - settle_phase) * math.sin(phase) * 3 + settle_phase * 8
+            arm_swing = settle_phase * 10  # arms rest outward, tucked in
+            body_bob = settle_phase * 48 + math.sin(phase * 0.3) * 1.5  # much lower, gentle breathing
         elif anim in ('laying_back', 'laying_side'):
             leg_swing = math.sin(phase * 0.3) * 2
             arm_swing = 5
@@ -1206,10 +1207,11 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
             arm_swing = 18 + math.sin(phase * 0.3) * 2  # Arms spread wide outward
             body_bob = 50  # Very low position (on ground)
         elif anim == 'lay_on_side':
-            # Lying on side: body tilted, legs together, arm tucked
-            leg_swing = 6 + math.sin(phase * 0.3) * 2  # Legs slightly forward together
-            arm_swing = -8  # Arm resting forward (pillow-style)
-            body_bob = 45  # Low position (on ground)
+            # Lying on side like a person: extreme sideways tilt with body very low
+            settle = min(1.0, frame_idx / 24.0)  # settle over ~24 frames
+            leg_swing = settle * 14 + math.sin(phase * 0.3) * 1  # Legs together, forward
+            arm_swing = settle * (-15) + math.sin(phase * 0.2) * 1  # Arm tucked under head
+            body_bob = settle * 60 + math.sin(phase * 0.3) * 1  # Very low to ground
         elif anim in ('walking_left', 'walking_right'):
             # Walking sideways: legs stride, arms swing opposite
             leg_swing = math.sin(phase) * 12
@@ -1252,8 +1254,9 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
         elif anim in ('idle', 'working', 'sarcastic', 'thinking'):
             breath_scale = 1.0 + math.sin(phase * 0.5) * 0.015
         elif anim == 'lay_on_side':
-            # Squeeze body horizontally to simulate being viewed from a tilted angle
-            breath_scale = 0.7 + math.sin(phase * 0.3) * 0.02
+            # Heavy horizontal squeeze — body is rotated nearly 90° onto its side
+            settle = min(1.0, frame_idx / 24.0)
+            breath_scale = 1.0 - settle * 0.50 + math.sin(phase * 0.3) * 0.015
         elif anim in ('sleeping', 'laying_down', 'laying_back', 'laying_side', 'sitting'):
             breath_scale = 1.0 + math.sin(phase * 0.3) * 0.025
         elif anim in ('walking_left', 'walking_right'):
@@ -1273,6 +1276,17 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
             roll_cycle = (frame_idx % 30) / 30.0
             roll_angle = roll_cycle * 2 * math.pi
             breath_scale = 0.5 + 0.5 * abs(math.cos(roll_angle))
+        elif anim == 'backflip':
+            # Vertical squeeze/stretch during backward rotation
+            flip_phase = (frame_idx % 36) / 36.0
+            if flip_phase < 0.35:
+                breath_scale = 1.0
+            elif flip_phase < 0.7:
+                flip_t = (flip_phase - 0.35) / 0.35
+                flip_angle = flip_t * 2 * math.pi
+                breath_scale = 0.6 + 0.4 * abs(math.cos(flip_angle))
+            else:
+                breath_scale = 1.0
         
         # --- Jiggle physics (spring-damper for belly wobble) ---
         self._belly_jiggle_vel = (self._belly_jiggle_vel - self._belly_jiggle * self.JIGGLE_SPRING) * self.JIGGLE_DAMPING
@@ -1500,12 +1514,32 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
         elif anim in ('idle', 'working', 'sarcastic', 'thinking'):
             body_sway = math.sin(phase * 0.3) * 2
         elif anim == 'lay_on_side':
-            # Large sway to tilt the body to one side (simulating 90-degree rotation)
-            body_sway = 22
+            # Very large sway to tilt the body far to the side — like toppling over
+            settle = min(1.0, frame_idx / 24.0)
+            body_sway = settle * 45 + math.sin(phase * 0.2) * 0.5
         elif anim == 'celebrating':
             body_sway = math.sin(phase * 2) * 5
         elif anim == 'backflip':
-            body_sway = math.sin(phase * 2) * 4
+            # Backward rotation: body tilts backward through the flip
+            flip_phase = (frame_idx % 36) / 36.0
+            if flip_phase < 0.2:
+                body_sway = 0
+            elif flip_phase < 0.35:
+                # Lean back as panda launches
+                launch = (flip_phase - 0.2) / 0.15
+                body_sway = -launch * 12
+            elif flip_phase < 0.7:
+                # Full backward rotation — sway through a sine curve
+                flip_t = (flip_phase - 0.35) / 0.35
+                flip_angle = flip_t * 2 * math.pi
+                body_sway = math.sin(flip_angle) * 22
+            elif flip_phase < 0.85:
+                # Landing sway correction
+                land = (flip_phase - 0.7) / 0.15
+                body_sway = 22 * (1 - land) * math.sin(land * math.pi * 0.5)
+            else:
+                settle = (flip_phase - 0.85) / 0.15
+                body_sway = math.sin(settle * math.pi) * 4 * (1 - settle)
         elif anim == 'barrel_roll':
             # Rolling sideways sway
             roll_cycle = (frame_idx % 30) / 30.0
@@ -2487,10 +2521,46 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
                               font=("Arial Bold", int(10 * sx)),
                               fill="#666666", width=int(w * 0.9), tags="name_tag")
         
+        # --- Lay-on-side tilt: vertically compress and skew to simulate rotation ---
+        if anim in ('lay_on_side', 'tip_over_side'):
+            if anim == 'lay_on_side':
+                settle = min(1.0, frame_idx / 24.0)
+            else:
+                settle = 1.0  # tip_over is immediate
+            if settle > 0.01:
+                # Pivot at the bottom-center (where the body contacts the ground)
+                ground_y = h - int(10 * sy)
+                pivot_x = w / 2
+                # Compress vertically to simulate body rotated onto its side
+                v_scale = 1.0 - settle * 0.45  # squish to ~55% height
+                # Widen horizontally slightly (body seen from side is wider on ground)
+                h_scale = 1.0 + settle * 0.15
+                c.scale("all", pivot_x, ground_y, h_scale, v_scale)
+
         # --- Upside-down flip when grabbed by foot and dragged upward ---
-        if self._is_upside_down and is_being_dragged:
-            # Flip all canvas items vertically around the canvas center
-            c.scale("all", w / 2, h / 2, 1.0, -1.0)
+        # Gradual rotation around the grab point (foot) for a natural-looking flip
+        if is_being_dragged and self._drag_grab_part in ('left_leg', 'right_leg'):
+            # Smoothly animate flip_progress toward target
+            target = 1.0 if self._is_upside_down else 0.0
+            speed = 0.12  # transition speed per frame
+            if self._flip_progress < target:
+                self._flip_progress = min(target, self._flip_progress + speed)
+            elif self._flip_progress > target:
+                self._flip_progress = max(target, self._flip_progress - speed)
+
+            if self._flip_progress > 0.01:
+                # Pivot around the grabbed foot position (bottom of canvas)
+                foot_y = int(175 * sy + by)  # approximate foot Y on canvas
+                pivot_x = w / 2
+                # Scale Y by (1 - 2*progress) to smoothly go from 1 → -1
+                flip_scale = 1.0 - 2.0 * self._flip_progress
+                # Also add slight horizontal squeeze at midpoint (foreshortening)
+                h_squeeze = 1.0 - 0.15 * math.sin(self._flip_progress * math.pi)
+                c.scale("all", pivot_x, foot_y, h_squeeze, flip_scale)
+        else:
+            # Reset flip progress when not being dragged by legs
+            if self._flip_progress > 0.01:
+                self._flip_progress = max(0.0, self._flip_progress - 0.15)
     
     def _draw_eyes(self, c: tk.Canvas, cx: int, ey: int, style: str, sx: float = 1.0, sy: float = 1.0):
         """Draw panda eyes based on the current animation style."""
@@ -5670,13 +5740,15 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
                         except Exception:
                             pass
 
-                # Set active item and play multi-phase eating sequence in-place
+                # Set active item and show carrying animation before eating
                 self.set_active_item(widget.name, widget.emoji, 'food', wkey)
                 if self.panda:
                     msg = self.panda.on_food_pickup(widget.name) if hasattr(self.panda, 'on_food_pickup') else f"🐼 *picks up {widget.name}*"
                     self.info_label.configure(text=msg)
                 self._walk_on_arrive = _on_eat_complete
-                self._play_eating_sequence()
+                # Show carrying animation first, then start eating after a brief delay
+                self._set_animation_no_cancel('carrying')
+                self.after(800, self._play_eating_sequence)
             else:
                 # Toys: use immediately and play animation
                 result = widget.use()

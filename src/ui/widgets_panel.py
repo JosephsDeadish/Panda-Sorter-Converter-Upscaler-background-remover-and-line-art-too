@@ -159,7 +159,8 @@ class WidgetsPanel(ctk.CTkFrame if ctk else tk.Frame):
         card.pack(pady=5, padx=10, fill="x")
         
         # Widget emoji and name
-        name_frame = ctk.CTkFrame(card) if ctk else tk.Frame(card)
+        name_frame = ctk.CTkFrame(card, fg_color="transparent") if ctk else tk.Frame(
+            card, relief="flat", borderwidth=0, highlightthickness=0)
         name_frame.pack(side="left", padx=10, pady=5)
         
         emoji_label = ctk.CTkLabel(
@@ -223,7 +224,8 @@ class WidgetsPanel(ctk.CTkFrame if ctk else tk.Frame):
         stats_label.pack(side="left", padx=5)
         
         # Buttons frame
-        btn_frame = ctk.CTkFrame(card) if ctk else tk.Frame(card)
+        btn_frame = ctk.CTkFrame(card, fg_color="transparent") if ctk else tk.Frame(
+            card, relief="flat", borderwidth=0, highlightthickness=0)
         btn_frame.pack(side="right", padx=5)
         
         if widget.unlocked:
@@ -290,42 +292,24 @@ class WidgetsPanel(ctk.CTkFrame if ctk else tk.Frame):
             self.status_var.set("Widget not found!")
             return
         
+        # For food items, delegate to panda widget so the eating sequence
+        # plays fully (carrying → pickup → chew → consume) before consuming
+        if widget.widget_type.value == 'food' and self.panda_callback:
+            if hasattr(self.panda_callback, '_give_widget_to_panda'):
+                self.panda_callback._give_widget_to_panda(widget)
+                self.status_var.set(f"🐼 *reaches for {widget.name}*")
+                self._show_widgets()
+                return
+        
         result = self.collection.use_widget(widget_id)
         
         if result:
-            # For food items, show walk-to and eating animation sequence
-            if widget.widget_type.value == 'food' and self.panda_callback:
-                # First, panda walks to item
-                if hasattr(self.panda_callback, 'panda') and self.panda_callback.panda:
-                    walk_msg = self.panda_callback.panda.on_item_interact(widget.name, 'food')
-                    self.status_var.set(walk_msg)
-                    
-                    # Start walking animation
-                    if hasattr(self.panda_callback, 'play_animation_once'):
-                        self.panda_callback.play_animation_once('walking')
-                    
-                    # After a delay, show eating animation using tkinter's after() method
-                    def delayed_eating():
-                        if hasattr(self.panda_callback, 'panda'):
-                            eat_msg = self.panda_callback.panda.on_eating(widget.name, widget_id)
-                            self.status_var.set(eat_msg)
-                        if hasattr(self.panda_callback, 'play_animation_once'):
-                            self.panda_callback.play_animation_once('eating')
-                    
-                    # Schedule eating animation after 1500ms (1.5 seconds)
-                    self.after(1500, delayed_eating)
-                else:
-                    # Fallback without walk animation
-                    self.status_var.set(result['message'])
-                    if hasattr(self.panda_callback, 'set_animation'):
-                        self.panda_callback.set_animation('eating')
-            else:
-                # For toys and other items, use normal behavior
-                self.status_var.set(result['message'])
-                
-                # Update panda animation if callback provided
-                if self.panda_callback and hasattr(self.panda_callback, 'set_animation'):
-                    self.panda_callback.set_animation(result['animation'])
+            # For toys and other items, use normal behavior
+            self.status_var.set(result['message'])
+            
+            # Update panda animation if callback provided
+            if self.panda_callback and hasattr(self.panda_callback, 'set_animation'):
+                self.panda_callback.set_animation(result['animation'])
             
             # Refresh display to show updated stats
             self._show_widgets()
