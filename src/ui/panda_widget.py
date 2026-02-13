@@ -1242,14 +1242,24 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
             # Determine which limbs should dangle based on what's being grabbed
             grabbed_part = self._drag_grab_part
             
+            # Apply dangle multiplier: head/ear grabs get full dangly effect,
+            # body/butt grabs get minimal dangle, limb grabs get moderate dangle
+            if grabbed_part in ('head', 'left_ear', 'right_ear', 'nose', 'left_eye', 'right_eye'):
+                dangle_mult = self.DANGLE_HEAD_MULTIPLIER
+            elif grabbed_part in ('body', 'butt'):
+                dangle_mult = self.DANGLE_BODY_MULTIPLIER
+            else:
+                # Limb grab: moderate dangle for non-grabbed limbs
+                dangle_mult = 0.7
+            
             # Left arm dangles unless it's being grabbed
             if grabbed_part != 'left_arm':
                 # Vertical physics
-                self._dangle_left_arm_vel += self._prev_drag_vy * self.DANGLE_ARM_FACTOR
+                self._dangle_left_arm_vel += self._prev_drag_vy * self.DANGLE_ARM_FACTOR * dangle_mult
                 # Horizontal physics for full 2D movement
-                self._dangle_left_arm_h_vel += self._prev_drag_vx * self.DANGLE_ARM_H_FACTOR
+                self._dangle_left_arm_h_vel += self._prev_drag_vx * self.DANGLE_ARM_H_FACTOR * dangle_mult
                 # Rotational physics for natural swinging
-                self._dangle_left_arm_rot_vel += (self._prev_drag_vx * self.DANGLE_ROT_FACTOR)
+                self._dangle_left_arm_rot_vel += (self._prev_drag_vx * self.DANGLE_ROT_FACTOR * dangle_mult)
             else:
                 # Grabbed arm doesn't dangle - reset it
                 self._dangle_left_arm = 0.0
@@ -1261,9 +1271,9 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
             
             # Right arm dangles unless it's being grabbed
             if grabbed_part != 'right_arm':
-                self._dangle_right_arm_vel += self._prev_drag_vy * self.DANGLE_ARM_FACTOR
-                self._dangle_right_arm_h_vel += self._prev_drag_vx * self.DANGLE_ARM_H_FACTOR
-                self._dangle_right_arm_rot_vel += (self._prev_drag_vx * self.DANGLE_ROT_FACTOR)
+                self._dangle_right_arm_vel += self._prev_drag_vy * self.DANGLE_ARM_FACTOR * dangle_mult
+                self._dangle_right_arm_h_vel += self._prev_drag_vx * self.DANGLE_ARM_H_FACTOR * dangle_mult
+                self._dangle_right_arm_rot_vel += (self._prev_drag_vx * self.DANGLE_ROT_FACTOR * dangle_mult)
             else:
                 self._dangle_right_arm = 0.0
                 self._dangle_right_arm_vel = 0.0
@@ -1274,9 +1284,9 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
             
             # Left leg dangles unless it's being grabbed
             if grabbed_part != 'left_leg':
-                self._dangle_left_leg_vel += self._prev_drag_vy * self.DANGLE_LEG_FACTOR
-                self._dangle_left_leg_h_vel += self._prev_drag_vx * self.DANGLE_LEG_H_FACTOR
-                self._dangle_left_leg_rot_vel += (self._prev_drag_vx * self.DANGLE_ROT_FACTOR)
+                self._dangle_left_leg_vel += self._prev_drag_vy * self.DANGLE_LEG_FACTOR * dangle_mult
+                self._dangle_left_leg_h_vel += self._prev_drag_vx * self.DANGLE_LEG_H_FACTOR * dangle_mult
+                self._dangle_left_leg_rot_vel += (self._prev_drag_vx * self.DANGLE_ROT_FACTOR * dangle_mult)
             else:
                 self._dangle_left_leg = 0.0
                 self._dangle_left_leg_vel = 0.0
@@ -1287,9 +1297,9 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
             
             # Right leg dangles unless it's being grabbed
             if grabbed_part != 'right_leg':
-                self._dangle_right_leg_vel += self._prev_drag_vy * self.DANGLE_LEG_FACTOR
-                self._dangle_right_leg_h_vel += self._prev_drag_vx * self.DANGLE_LEG_H_FACTOR
-                self._dangle_right_leg_rot_vel += (self._prev_drag_vx * self.DANGLE_ROT_FACTOR)
+                self._dangle_right_leg_vel += self._prev_drag_vy * self.DANGLE_LEG_FACTOR * dangle_mult
+                self._dangle_right_leg_h_vel += self._prev_drag_vx * self.DANGLE_LEG_H_FACTOR * dangle_mult
+                self._dangle_right_leg_rot_vel += (self._prev_drag_vx * self.DANGLE_ROT_FACTOR * dangle_mult)
             else:
                 self._dangle_right_leg = 0.0
                 self._dangle_right_leg_vel = 0.0
@@ -1300,14 +1310,14 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
             
             # Left ear stretches unless it's being grabbed
             if grabbed_part != 'left_ear':
-                self._dangle_left_ear_vel += self._prev_drag_vy * 0.2
+                self._dangle_left_ear_vel += self._prev_drag_vy * 0.2 * dangle_mult
             else:
                 self._dangle_left_ear = 0.0
                 self._dangle_left_ear_vel = 0.0
             
             # Right ear stretches unless it's being grabbed
             if grabbed_part != 'right_ear':
-                self._dangle_right_ear_vel += self._prev_drag_vy * 0.2
+                self._dangle_right_ear_vel += self._prev_drag_vy * 0.2 * dangle_mult
             else:
                 self._dangle_right_ear = 0.0
                 self._dangle_right_ear_vel = 0.0
@@ -2043,9 +2053,10 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
             leg_len = int(30 * sy)
             
             # Apply individual limb dangle physics during drag
-            # Left leg
+            # Left leg (vertical + horizontal dangle)
             left_leg_dangle = int(self._dangle_left_leg) if anim == 'dragging' else 0
-            left_leg_x = cx_draw - int(25 * sx)
+            left_leg_dangle_h = int(self._dangle_left_leg_h) if anim == 'dragging' else 0
+            left_leg_x = cx_draw - int(25 * sx) + left_leg_dangle_h
             left_leg_swing = leg_swing + left_leg_dangle
             c.create_oval(
                 left_leg_x - int(12 * sx), leg_top + left_leg_swing,
@@ -2059,9 +2070,10 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
                 fill=white, outline=black, width=1, tags="foot"
             )
             
-            # Right leg
+            # Right leg (vertical + horizontal dangle)
             right_leg_dangle = int(self._dangle_right_leg) if anim == 'dragging' else 0
-            right_leg_x = cx_draw + int(25 * sx)
+            right_leg_dangle_h = int(self._dangle_right_leg_h) if anim == 'dragging' else 0
+            right_leg_x = cx_draw + int(25 * sx) + right_leg_dangle_h
             right_leg_swing = -leg_swing + right_leg_dangle
             c.create_oval(
                 right_leg_x - int(12 * sx), leg_top + right_leg_swing,
@@ -2101,21 +2113,23 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
             arm_len = int(35 * sy)
             
             # Apply individual limb dangle physics during drag
-            # Left arm
+            # Left arm (vertical + horizontal dangle)
             left_arm_dangle = int(self._dangle_left_arm) if anim == 'dragging' else 0
+            left_arm_dangle_h = int(self._dangle_left_arm_h) if anim == 'dragging' else 0
             la_swing = arm_swing + left_arm_dangle
             c.create_oval(
-                cx_draw - int(55 * sx), arm_top + la_swing,
-                cx_draw - int(30 * sx), arm_top + arm_len + la_swing,
+                cx_draw - int(55 * sx) + left_arm_dangle_h, arm_top + la_swing,
+                cx_draw - int(30 * sx) + left_arm_dangle_h, arm_top + arm_len + la_swing,
                 fill=black, outline=black, tags="arm"
             )
             
-            # Right arm
+            # Right arm (vertical + horizontal dangle)
             right_arm_dangle = int(self._dangle_right_arm) if anim == 'dragging' else 0
+            right_arm_dangle_h = int(self._dangle_right_arm_h) if anim == 'dragging' else 0
             ra_swing = -arm_swing + right_arm_dangle
             c.create_oval(
-                cx_draw + int(30 * sx), arm_top + ra_swing,
-                cx_draw + int(55 * sx), arm_top + arm_len + ra_swing,
+                cx_draw + int(30 * sx) + right_arm_dangle_h, arm_top + ra_swing,
+                cx_draw + int(55 * sx) + right_arm_dangle_h, arm_top + arm_len + ra_swing,
                 fill=black, outline=black, tags="arm"
             )
             
@@ -2541,6 +2555,9 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
         Clothing is rendered based on its ``clothing_type`` (shirt, pants,
         jacket, dress, full_body) so different garments attach to the
         correct body parts and follow limb animations.
+        
+        Adjusts perspective for side views (walking_left/right) and back
+        views (walking_up) so clothing appears correctly from all angles.
         """
         if not self.panda_closet:
             return
@@ -2550,6 +2567,15 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
             # Compute limb offsets so equipped items track body movement
             _leg_swing, _arm_swing = self._compute_limb_offsets(
                 self.current_animation, self.animation_frame)
+
+            # Perspective scale: narrow clothing for side views
+            anim = self.current_animation
+            if anim in ('walking_left', 'walking_right'):
+                persp_sx = sx * 0.75  # Side view: compress width
+            elif anim == 'walking_up':
+                persp_sx = sx * 1.05  # Back view: slightly wider
+            else:
+                persp_sx = sx  # Front view: normal
 
             # Add dangle offsets during drag so clothes stay glued to limbs
             _left_leg_dangle = 0
@@ -2593,24 +2619,24 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
                         right_swing_h = _right_leg_dangle_h
                         # Waistband
                         c.create_rectangle(
-                            cx - int(34 * sx), waist_y - int(4 * sy),
-                            cx + int(34 * sx), waist_y + int(4 * sy),
+                            cx - int(34 * persp_sx), waist_y - int(4 * sy),
+                            cx + int(34 * persp_sx), waist_y + int(4 * sy),
                             fill=color, outline=shadow, width=1,
                             tags="equipped_clothing")
                         # Left leg with both vertical and horizontal dangle
                         c.create_polygon(
-                            cx - int(30 * sx), waist_y,
-                            cx - int(8 * sx), waist_y,
-                            cx - int(12 * sx) + left_swing_h, leg_bottom + left_swing,
-                            cx - int(28 * sx) + left_swing_h, leg_bottom + left_swing,
+                            cx - int(30 * persp_sx), waist_y,
+                            cx - int(8 * persp_sx), waist_y,
+                            cx - int(12 * persp_sx) + left_swing_h, leg_bottom + left_swing,
+                            cx - int(28 * persp_sx) + left_swing_h, leg_bottom + left_swing,
                             fill=color, outline=shadow, width=1,
                             tags="equipped_clothing")
                         # Right leg with both vertical and horizontal dangle
                         c.create_polygon(
-                            cx + int(8 * sx), waist_y,
-                            cx + int(30 * sx), waist_y,
-                            cx + int(28 * sx) + right_swing_h, leg_bottom + right_swing,
-                            cx + int(12 * sx) + right_swing_h, leg_bottom + right_swing,
+                            cx + int(8 * persp_sx), waist_y,
+                            cx + int(30 * persp_sx), waist_y,
+                            cx + int(28 * persp_sx) + right_swing_h, leg_bottom + right_swing,
+                            cx + int(12 * persp_sx) + right_swing_h, leg_bottom + right_swing,
                             fill=color, outline=shadow, width=1,
                             tags="equipped_clothing")
                         # Highlight seams
@@ -2622,26 +2648,27 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
                     elif ctype == 'jacket':
                         # Main jacket body (torso)
                         c.create_polygon(
-                            cx - int(40 * sx), bt,
-                            cx - int(44 * sx), bt + int(14 * sy),
-                            cx - int(42 * sx), mid,
-                            cx - int(38 * sx), bb,
-                            cx + int(38 * sx), bb,
-                            cx + int(42 * sx), mid,
-                            cx + int(44 * sx), bt + int(14 * sy),
-                            cx + int(40 * sx), bt,
+                            cx - int(40 * persp_sx), bt,
+                            cx - int(44 * persp_sx), bt + int(14 * sy),
+                            cx - int(42 * persp_sx), mid,
+                            cx - int(38 * persp_sx), bb,
+                            cx + int(38 * persp_sx), bb,
+                            cx + int(42 * persp_sx), mid,
+                            cx + int(44 * persp_sx), bt + int(14 * sy),
+                            cx + int(40 * persp_sx), bt,
                             fill=color, outline=shadow, width=1,
                             smooth=True, tags="equipped_clothing")
                         # Collar
                         c.create_arc(
-                            cx - int(18 * sx), bt - int(6 * sy),
-                            cx + int(18 * sx), bt + int(10 * sy),
+                            cx - int(18 * persp_sx), bt - int(6 * sy),
+                            cx + int(18 * persp_sx), bt + int(10 * sy),
                             start=200, extent=140, style="arc",
                             outline=shadow, width=2, tags="equipped_clothing")
-                        # Centre zipper/buttons
-                        c.create_line(
-                            cx, bt + int(6 * sy), cx, bb - int(4 * sy),
-                            fill=shadow, width=2, tags="equipped_clothing")
+                        # Centre zipper/buttons (only visible from front)
+                        if anim != 'walking_up':
+                            c.create_line(
+                                cx, bt + int(6 * sy), cx, bb - int(4 * sy),
+                                fill=shadow, width=2, tags="equipped_clothing")
                         # Long sleeves following arm swing + dangle (both vertical and horizontal)
                         arm_top = bt + int(4 * sy)
                         arm_len = int(40 * sy)
@@ -2649,44 +2676,45 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
                             (-1, _arm_swing, _left_arm_dangle, _left_arm_dangle_h), 
                             (1, -_arm_swing, _right_arm_dangle, _right_arm_dangle_h)
                         ]:
-                            arm_cx = cx + side * int(44 * sx)
+                            arm_cx = cx + side * int(44 * persp_sx)
                             arm_end_y = arm_top + arm_len + int(swing) + dangle_v
                             arm_end_x = arm_cx + dangle_h
                             c.create_polygon(
-                                arm_cx - int(10 * sx), arm_top,
-                                arm_cx + int(10 * sx), arm_top,
-                                arm_end_x + int(8 * sx), arm_end_y,
-                                arm_end_x - int(8 * sx), arm_end_y,
+                                arm_cx - int(10 * persp_sx), arm_top,
+                                arm_cx + int(10 * persp_sx), arm_top,
+                                arm_end_x + int(8 * persp_sx), arm_end_y,
+                                arm_end_x - int(8 * persp_sx), arm_end_y,
                                 fill=color, outline=shadow, width=1,
                                 tags="equipped_clothing")
                             # Cuff highlight
                             c.create_line(
-                                arm_end_x - int(7 * sx), arm_end_y - int(2 * sy),
-                                arm_end_x + int(7 * sx), arm_end_y - int(2 * sy),
+                                arm_end_x - int(7 * persp_sx), arm_end_y - int(2 * sy),
+                                arm_end_x + int(7 * persp_sx), arm_end_y - int(2 * sy),
                                 fill=highlight, width=1, tags="equipped_clothing")
 
                     # --- Dress: flows from neck to below body ---
                     elif ctype == 'dress':
                         dress_bottom = bb + int(12 * sy)
                         c.create_polygon(
-                            cx - int(28 * sx), bt,
-                            cx - int(38 * sx), mid,
-                            cx - int(44 * sx), dress_bottom,
-                            cx + int(44 * sx), dress_bottom,
-                            cx + int(38 * sx), mid,
-                            cx + int(28 * sx), bt,
+                            cx - int(28 * persp_sx), bt,
+                            cx - int(38 * persp_sx), mid,
+                            cx - int(44 * persp_sx), dress_bottom,
+                            cx + int(44 * persp_sx), dress_bottom,
+                            cx + int(38 * persp_sx), mid,
+                            cx + int(28 * persp_sx), bt,
                             fill=color, outline=shadow, width=1,
                             smooth=True, tags="equipped_clothing")
-                        # Neckline
-                        c.create_arc(
-                            cx - int(14 * sx), bt - int(4 * sy),
-                            cx + int(14 * sx), bt + int(8 * sy),
-                            start=200, extent=140, style="arc",
-                            outline=shadow, width=2, tags="equipped_clothing")
+                        # Neckline (only visible from front)
+                        if anim != 'walking_up':
+                            c.create_arc(
+                                cx - int(14 * persp_sx), bt - int(4 * sy),
+                                cx + int(14 * persp_sx), bt + int(8 * sy),
+                                start=200, extent=140, style="arc",
+                                outline=shadow, width=2, tags="equipped_clothing")
                         # Waist ribbon
                         c.create_rectangle(
-                            cx - int(30 * sx), mid - int(3 * sy),
-                            cx + int(30 * sx), mid + int(3 * sy),
+                            cx - int(30 * persp_sx), mid - int(3 * sy),
+                            cx + int(30 * persp_sx), mid + int(3 * sy),
                             fill=highlight, outline='', tags="equipped_clothing")
 
                     # --- Full body: covers torso + legs + sleeves ---
@@ -2698,30 +2726,30 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
                         right_swing_h = _right_leg_dangle_h
                         # Torso section
                         c.create_polygon(
-                            cx - int(38 * sx), bt,
-                            cx - int(42 * sx), bt + int(12 * sy),
-                            cx - int(40 * sx), mid,
-                            cx - int(36 * sx), bb,
-                            cx + int(36 * sx), bb,
-                            cx + int(40 * sx), mid,
-                            cx + int(42 * sx), bt + int(12 * sy),
-                            cx + int(38 * sx), bt,
+                            cx - int(38 * persp_sx), bt,
+                            cx - int(42 * persp_sx), bt + int(12 * sy),
+                            cx - int(40 * persp_sx), mid,
+                            cx - int(36 * persp_sx), bb,
+                            cx + int(36 * persp_sx), bb,
+                            cx + int(40 * persp_sx), mid,
+                            cx + int(42 * persp_sx), bt + int(12 * sy),
+                            cx + int(38 * persp_sx), bt,
                             fill=color, outline=shadow, width=1,
                             smooth=True, tags="equipped_clothing")
                         # Collar
                         c.create_arc(
-                            cx - int(16 * sx), bt - int(6 * sy),
-                            cx + int(16 * sx), bt + int(10 * sy),
+                            cx - int(16 * persp_sx), bt - int(6 * sy),
+                            cx + int(16 * persp_sx), bt + int(10 * sy),
                             start=200, extent=140, style="arc",
                             outline=shadow, width=2, tags="equipped_clothing")
                         # Pant legs synced with leg swing (both vertical and horizontal)
                         for leg_side, leg_sw, leg_sw_h in [(-1, left_swing, left_swing_h), (1, right_swing, right_swing_h)]:
-                            lx = cx + leg_side * int(19 * sx)
+                            lx = cx + leg_side * int(19 * persp_sx)
                             c.create_polygon(
-                                lx - int(14 * sx), bb,
-                                lx + int(14 * sx), bb,
-                                lx + int(12 * sx) + leg_sw_h, leg_bottom + leg_sw,
-                                lx - int(12 * sx) + leg_sw_h, leg_bottom + leg_sw,
+                                lx - int(14 * persp_sx), bb,
+                                lx + int(14 * persp_sx), bb,
+                                lx + int(12 * persp_sx) + leg_sw_h, leg_bottom + leg_sw,
+                                lx - int(12 * persp_sx) + leg_sw_h, leg_bottom + leg_sw,
                                 fill=color, outline=shadow, width=1,
                                 tags="equipped_clothing")
                         # Sleeves synced with arm swing + dangle (both vertical and horizontal)
@@ -2731,54 +2759,57 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
                             (-1, _arm_swing, _left_arm_dangle, _left_arm_dangle_h), 
                             (1, -_arm_swing, _right_arm_dangle, _right_arm_dangle_h)
                         ]:
-                            arm_cx = cx + side * int(42 * sx)
+                            arm_cx = cx + side * int(42 * persp_sx)
                             arm_end_y = arm_top + arm_len + int(swing) + dangle_v
                             arm_end_x = arm_cx + dangle_h
                             c.create_oval(
-                                arm_cx - int(10 * sx), arm_top,
-                                arm_end_x + int(10 * sx), arm_end_y,
+                                arm_cx - int(10 * persp_sx), arm_top,
+                                arm_end_x + int(10 * persp_sx), arm_end_y,
                                 fill=color, outline=shadow, width=1,
                                 tags="equipped_clothing")
-                        # Centre highlight
-                        c.create_line(
-                            cx, bt + int(8 * sy), cx, bb - int(4 * sy),
-                            fill=highlight, width=1, tags="equipped_clothing")
+                        # Centre highlight (only visible from front)
+                        if anim != 'walking_up':
+                            c.create_line(
+                                cx, bt + int(8 * sy), cx, bb - int(4 * sy),
+                                fill=highlight, width=1, tags="equipped_clothing")
 
                     # --- Default (shirt): torso-only garment ---
                     else:
                         # Main shirt body - follows torso curve
                         c.create_polygon(
-                            cx - int(38 * sx), bt,
-                            cx - int(42 * sx), bt + int(12 * sy),
-                            cx - int(40 * sx), mid,
-                            cx - int(36 * sx), bb,
-                            cx + int(36 * sx), bb,
-                            cx + int(40 * sx), mid,
-                            cx + int(42 * sx), bt + int(12 * sy),
-                            cx + int(38 * sx), bt,
+                            cx - int(38 * persp_sx), bt,
+                            cx - int(42 * persp_sx), bt + int(12 * sy),
+                            cx - int(40 * persp_sx), mid,
+                            cx - int(36 * persp_sx), bb,
+                            cx + int(36 * persp_sx), bb,
+                            cx + int(40 * persp_sx), mid,
+                            cx + int(42 * persp_sx), bt + int(12 * sy),
+                            cx + int(38 * persp_sx), bt,
                             fill=color, outline=shadow, width=1,
                             smooth=True, tags="equipped_clothing")
-                        # Collar / neckline
-                        c.create_arc(
-                            cx - int(16 * sx), bt - int(6 * sy),
-                            cx + int(16 * sx), bt + int(10 * sy),
-                            start=200, extent=140, style="arc",
-                            outline=shadow, width=2, tags="equipped_clothing")
-                        # Centre highlight stripe
-                        c.create_line(
-                            cx, bt + int(8 * sy), cx, bb - int(4 * sy),
-                            fill=highlight, width=1, tags="equipped_clothing")
+                        # Collar / neckline (only visible from front)
+                        if anim != 'walking_up':
+                            c.create_arc(
+                                cx - int(16 * persp_sx), bt - int(6 * sy),
+                                cx + int(16 * persp_sx), bt + int(10 * sy),
+                                start=200, extent=140, style="arc",
+                                outline=shadow, width=2, tags="equipped_clothing")
+                        # Centre highlight stripe (only visible from front)
+                        if anim != 'walking_up':
+                            c.create_line(
+                                cx, bt + int(8 * sy), cx, bb - int(4 * sy),
+                                fill=highlight, width=1, tags="equipped_clothing")
                         # Sleeve caps synced with arm swing + dangle (both vertical and horizontal)
                         for side, swing, dangle_v, dangle_h in [
                             (-1, _arm_swing, _left_arm_dangle, _left_arm_dangle_h), 
                             (1, -_arm_swing, _right_arm_dangle, _right_arm_dangle_h)
                         ]:
-                            sleeve_cx = cx + side * int(40 * sx)
+                            sleeve_cx = cx + side * int(40 * persp_sx)
                             sleeve_offset = int(swing * 0.4) + int(dangle_v * 0.4)
                             sleeve_offset_h = int(dangle_h * 0.4)
                             c.create_oval(
-                                sleeve_cx - int(10 * sx) + sleeve_offset_h, bt + int(2 * sy) + sleeve_offset,
-                                sleeve_cx + int(10 * sx) + sleeve_offset_h, bt + int(18 * sy) + sleeve_offset,
+                                sleeve_cx - int(10 * persp_sx) + sleeve_offset_h, bt + int(2 * sy) + sleeve_offset,
+                                sleeve_cx + int(10 * persp_sx) + sleeve_offset_h, bt + int(18 * sy) + sleeve_offset,
                                 fill=color, outline=shadow, width=1,
                                 tags="equipped_clothing")
 
@@ -2794,26 +2825,26 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
 
                     # Hat brim - wider, slightly rounded
                     c.create_oval(
-                        cx - int(34 * sx), hat_y - int(2 * sy),
-                        cx + int(34 * sx), hat_y + int(8 * sy),
+                        cx - int(34 * persp_sx), hat_y - int(2 * sy),
+                        cx + int(34 * persp_sx), hat_y + int(8 * sy),
                         fill=color, outline=shadow, width=1, tags="equipped_hat")
 
                     # Hat crown - rounded top
                     c.create_oval(
-                        cx - int(22 * sx), hat_y - int(22 * sy),
-                        cx + int(22 * sx), hat_y + int(4 * sy),
+                        cx - int(22 * persp_sx), hat_y - int(22 * sy),
+                        cx + int(22 * persp_sx), hat_y + int(4 * sy),
                         fill=color, outline=shadow, width=1, tags="equipped_hat")
 
                     # Hat band / ribbon detail
                     c.create_rectangle(
-                        cx - int(22 * sx), hat_y - int(4 * sy),
-                        cx + int(22 * sx), hat_y + int(1 * sy),
+                        cx - int(22 * persp_sx), hat_y - int(4 * sy),
+                        cx + int(22 * persp_sx), hat_y + int(1 * sy),
                         fill=shadow, outline='', tags="equipped_hat")
 
                     # Highlight on crown
                     c.create_arc(
-                        cx - int(14 * sx), hat_y - int(20 * sy),
-                        cx + int(6 * sx), hat_y - int(8 * sy),
+                        cx - int(14 * persp_sx), hat_y - int(20 * sy),
+                        cx + int(6 * persp_sx), hat_y - int(8 * sy),
                         start=20, extent=140, style="arc",
                         outline=highlight, width=1, tags="equipped_hat")
 
@@ -2982,13 +3013,24 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
                 # Determine if panda is in attack animation
                 is_attacking = anim in ['swing', 'shoot', 'cast_spell']
                 
-                # Base weapon position in right hand/arm
-                # Right arm center is at cx + 42*sx, bottom at (95+35)*sy + by
-                arm_offset_x = int(42 * sx)  # Right arm center
-                arm_offset_y = int(130 * sy)  # Right arm bottom (hand)
-                
-                # Track arm swing so weapon follows the hand
-                ra_swing = int(-_arm_swing) + _right_arm_dangle
+                # Adjust weapon position based on facing direction
+                facing = self._facing_direction
+                if anim in ('walking_left', 'walking_right'):
+                    # Side view: weapon appears in front of panda (toward viewer side)
+                    side_dir = 1 if anim == 'walking_right' else -1
+                    arm_offset_x = int(20 * sx * side_dir)  # Centered, slightly toward front
+                    arm_offset_y = int(130 * sy)
+                    ra_swing = int(-_arm_swing) + _right_arm_dangle
+                elif anim == 'walking_up':
+                    # Back view: weapon behind panda, barely visible (offset to side)
+                    arm_offset_x = int(50 * sx)  # Peek out from side
+                    arm_offset_y = int(125 * sy)
+                    ra_swing = int(-_arm_swing) + _right_arm_dangle
+                else:
+                    # Front view (default): weapon in right hand
+                    arm_offset_x = int(42 * sx)  # Right arm center
+                    arm_offset_y = int(130 * sy)  # Right arm bottom (hand)
+                    ra_swing = int(-_arm_swing) + _right_arm_dangle
                 
                 weapon_x = cx + arm_offset_x
                 weapon_y = int(by) + arm_offset_y + ra_swing
@@ -3923,6 +3965,20 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
         self._is_tossing = True
         self._set_animation_no_cancel('tossed')
         self._toss_bounce_count = 0
+        
+        # Turn panda toward the direction it's being thrown
+        vx = self._toss_velocity_x
+        vy = self._toss_velocity_y
+        if abs(vx) > abs(vy):
+            self._facing_direction = 'right' if vx > 0 else 'left'
+        else:
+            self._facing_direction = 'down' if vy > 0 else 'up'
+        if self.panda and hasattr(self.panda, 'set_facing'):
+            from src.features.panda_character import PandaFacing
+            facing_map = {'front': PandaFacing.FRONT, 'back': PandaFacing.BACK,
+                          'left': PandaFacing.LEFT, 'right': PandaFacing.RIGHT,
+                          'up': PandaFacing.BACK, 'down': PandaFacing.FRONT}
+            self.panda.set_facing(facing_map.get(self._facing_direction, PandaFacing.FRONT))
         self._toss_physics_tick()
     
     def _toss_physics_tick(self):
