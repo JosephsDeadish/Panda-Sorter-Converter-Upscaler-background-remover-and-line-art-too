@@ -438,7 +438,7 @@ pip install cairosvg cairocffi
 - With Cairo: ~65-120 MB
 - With AI models: Can be 200+ MB
 
-This is normal for single-file executables. The benefit is zero dependencies for end users.
+This is normal for PyInstaller applications. The benefit is zero dependencies for end users.
 
 **To reduce size:**
 1. Remove AI/ML features if not needed (see `requirements-minimal.txt`)
@@ -519,7 +519,7 @@ python main.py
 
 1. Install GTK3 Runtime: https://github.com/tschoonj/GTK-for-Windows-Runtime-Environment-Installer/releases
 2. Run: `python scripts/build_with_svg.py`
-3. Find your exe in `dist/GameTextureSorter.exe`
+3. Find your exe in `dist/GameTextureSorter/GameTextureSorter.exe`
 
 ### For Developers
 

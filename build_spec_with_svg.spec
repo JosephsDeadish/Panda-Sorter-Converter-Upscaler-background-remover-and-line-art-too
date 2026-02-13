@@ -3,8 +3,8 @@
 PyInstaller Spec File for Game Texture Sorter WITH SVG SUPPORT
 Author: Dead On The Inside / JosephsDeadish
 
-This spec file creates a single-EXE application for Windows
-with SVG support by bundling Cairo DLLs and dependencies.
+This spec file creates an application for Windows with SVG support
+by bundling Cairo DLLs and dependencies.
 
 For standard builds without SVG, use: build_spec_onefolder.spec
 """

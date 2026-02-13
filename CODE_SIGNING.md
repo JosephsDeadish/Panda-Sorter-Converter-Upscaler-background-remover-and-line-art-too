@@ -85,7 +85,7 @@ Add to PATH or use full path when signing.
 
 #### Option A: Sign with Installed Certificate
 ```cmd
-signtool sign /a /tr http://timestamp.digicert.com /td SHA256 /fd SHA256 "dist\GameTextureSorter.exe"
+signtool sign /a /tr http://timestamp.digicert.com /td SHA256 /fd SHA256 "dist\GameTextureSorter\GameTextureSorter.exe"
 ```
 
 **Parameters explained**:
@@ -96,7 +96,7 @@ signtool sign /a /tr http://timestamp.digicert.com /td SHA256 /fd SHA256 "dist\G
 
 #### Option B: Sign with PFX File
 ```cmd
-signtool sign /f "certificate.pfx" /p PASSWORD /tr http://timestamp.digicert.com /td SHA256 /fd SHA256 "dist\GameTextureSorter.exe"
+signtool sign /f "certificate.pfx" /p PASSWORD /tr http://timestamp.digicert.com /td SHA256 /fd SHA256 "dist\GameTextureSorter\GameTextureSorter.exe"
 ```
 
 **Parameters**:
@@ -105,7 +105,7 @@ signtool sign /f "certificate.pfx" /p PASSWORD /tr http://timestamp.digicert.com
 
 #### Option C: Sign with Hardware Token (EV Certificate)
 ```cmd
-signtool sign /n "Your Company Name" /tr http://timestamp.digicert.com /td SHA256 /fd SHA256 "dist\GameTextureSorter.exe"
+signtool sign /n "Your Company Name" /tr http://timestamp.digicert.com /td SHA256 /fd SHA256 "dist\GameTextureSorter\GameTextureSorter.exe"
 ```
 
 **Parameters**:
@@ -114,16 +114,16 @@ signtool sign /n "Your Company Name" /tr http://timestamp.digicert.com /td SHA25
 ### Step 4: Verify Signature
 
 ```cmd
-signtool verify /pa /v "dist\GameTextureSorter.exe"
+signtool verify /pa /v "dist\GameTextureSorter\GameTextureSorter.exe"
 ```
 
 **Expected output**:
 ```
-Verifying: dist\GameTextureSorter.exe
+Verifying: dist\GameTextureSorter\GameTextureSorter.exe
 Hash of file (sha256): XXXXX...
 Signing Certificate Chain:
 ...
-Successfully verified: dist\GameTextureSorter.exe
+Successfully verified: dist\GameTextureSorter\GameTextureSorter.exe
 ```
 
 ## Timestamp Servers
@@ -146,7 +146,7 @@ REM Automated Code Signing Script
 REM Update paths and certificate details for your environment
 
 SET SIGNTOOL="C:\Program Files (x86)\Windows Kits\10\bin\10.0.22621.0\x64\signtool.exe"
-SET EXE_PATH="dist\GameTextureSorter.exe"
+SET EXE_PATH="dist\GameTextureSorter\GameTextureSorter.exe"
 SET CERT_NAME="Your Company Name"
 SET TIMESTAMP="http://timestamp.digicert.com"
 
@@ -177,7 +177,7 @@ Create `sign.ps1`:
 # Author: Dead On The Inside / JosephsDeadish
 
 $SignTool = "C:\Program Files (x86)\Windows Kits\10\bin\10.0.22621.0\x64\signtool.exe"
-$ExePath = "dist\GameTextureSorter.exe"
+$ExePath = "dist\GameTextureSorter\GameTextureSorter.exe"
 $CertName = "Your Company Name"  # Update this
 $Timestamp = "http://timestamp.digicert.com"
 

@@ -2,9 +2,9 @@
 Game Texture Sorter - Main Entry Point
 Author: Dead On The Inside / JosephsDeadish
 
-A professional, single-executable Windows application for automatically 
-sorting game texture dumps with advanced AI classification and massive-scale 
-support (200,000+ textures).
+A professional Windows application for automatically sorting game texture 
+dumps with advanced AI classification and massive-scale support 
+(200,000+ textures).
 """
 
 # Set Windows taskbar icon BEFORE any GUI imports
@@ -6652,9 +6652,9 @@ class GameTextureSorter(ctk.CTk):
         desc_frame = ctk.CTkFrame(scrollable_frame)
         desc_frame.pack(fill="x", padx=20, pady=15)
         
-        desc_text = """A professional, single-executable Windows application for automatically 
-sorting game texture dumps with advanced AI classification and massive-scale 
-support (200,000+ textures). 100% offline operation."""
+        desc_text = """A professional Windows application for automatically sorting game texture 
+dumps with advanced AI classification and massive-scale support 
+(200,000+ textures). 100% offline operation."""
         
         ctk.CTkLabel(desc_frame, text=desc_text,
                      font=("Arial", 12), justify="left", wraplength=900).pack(pady=15, padx=15)

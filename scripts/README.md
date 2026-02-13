@@ -72,7 +72,7 @@ python scripts/setup_cairo_dlls.py
 python scripts/build_with_svg.py
 
 # 3. Test the executable
-dist/GameTextureSorter.exe
+dist\GameTextureSorter\GameTextureSorter.exe
 ```
 
 ## Troubleshooting

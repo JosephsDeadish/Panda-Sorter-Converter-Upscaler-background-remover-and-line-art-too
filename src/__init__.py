@@ -2,9 +2,9 @@
 Game Texture Sorter
 Author: Dead On The Inside / JosephsDeadish
 
-A professional, single-executable Windows application for automatically 
-sorting game texture dumps with advanced AI classification and massive-scale 
-support (200,000+ textures).
+A professional Windows application for automatically sorting game texture 
+dumps with advanced AI classification and massive-scale support 
+(200,000+ textures).
 """
 
 __version__ = "1.0.0"
