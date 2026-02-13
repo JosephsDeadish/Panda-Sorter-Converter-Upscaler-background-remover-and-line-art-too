@@ -2565,6 +2565,9 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
         Clothing is rendered based on its ``clothing_type`` (shirt, pants,
         jacket, dress, full_body) so different garments attach to the
         correct body parts and follow limb animations.
+
+        Pants live in ``appearance.pants`` and can be worn alongside a
+        shirt or jacket in ``appearance.clothing``.
         
         Adjusts perspective for side views (walking_left/right) and back
         views (walking_up) so clothing appears correctly from all angles.
@@ -2589,9 +2592,14 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
                     anim = 'walking_right'
                 elif facing == 'up':
                     anim = 'walking_up'
-            if anim in ('walking_left', 'walking_right'):
+
+            is_side = anim in ('walking_left', 'walking_right')
+            is_back = anim == 'walking_up'
+            side_dir = 1 if anim == 'walking_right' else -1
+
+            if is_side:
                 persp_sx = sx * 0.75  # Side view: compress width
-            elif anim == 'walking_up':
+            elif is_back:
                 persp_sx = sx * 1.05  # Back view: slightly wider
             else:
                 persp_sx = sx  # Front view: normal
@@ -2615,84 +2623,199 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
                 _left_arm_dangle_h = int(self._dangle_left_arm_h)
                 _right_arm_dangle_h = int(self._dangle_right_arm_h)
 
-            # --- Draw clothing based on clothing_type ---
-            if appearance.clothing:
-                clothing_item = self.panda_closet.get_item(appearance.clothing)
-                if clothing_item:
-                    color = self._color_for_emoji(clothing_item.emoji, '#4169E1')
-                    shadow = self._shade_color(color, -30)
-                    highlight = self._shade_color(color, 40)
-                    ctype = clothing_item.clothing_type or 'shirt'
+            # --- Helper: draw body-contoured pants on the panda ---
+            def _draw_pants_piece(color, shadow, highlight):
+                bt = int(82 * sy + by)
+                bb = int(152 * sy + by)
+                mid = (bt + bb) // 2
+                waist_y = mid - int(4 * sy)
+                hip_y = mid + int(8 * sy)
+                leg_bottom = int(172 * sy + by)
 
-                    bt = int(82 * sy + by)   # body top (below neck)
-                    bb = int(152 * sy + by)  # body bottom
-                    mid = (bt + bb) // 2
+                if is_side:
+                    # Side view: overlapping front/back leg pants
+                    front_swing = int(_leg_swing)
+                    back_swing = int(-_leg_swing)
+                    leg_cx = cx  # legs are centred in side view
 
-                    # --- Pants: drawn on legs, synced with leg swing ---
-                    if ctype == 'pants':
-                        waist_y = mid
-                        leg_bottom = int(170 * sy + by)
-                        left_swing = int(_leg_swing) + _left_leg_dangle
-                        right_swing = int(-_leg_swing) + _right_leg_dangle
-                        left_swing_h = _left_leg_dangle_h
-                        right_swing_h = _right_leg_dangle_h
-                        # Waistband
+                    # Waistband wrapping around torso
+                    c.create_arc(
+                        cx - int(30 * persp_sx), waist_y - int(6 * sy),
+                        cx + int(30 * persp_sx), waist_y + int(6 * sy),
+                        start=0, extent=360, style="chord",
+                        fill=color, outline=shadow, width=1,
+                        tags="equipped_clothing")
+                    # Back pant leg (behind body)
+                    c.create_polygon(
+                        leg_cx - int(14 * persp_sx), hip_y,
+                        leg_cx + int(10 * persp_sx), hip_y,
+                        leg_cx + int(8 * persp_sx), leg_bottom + back_swing,
+                        leg_cx - int(12 * persp_sx), leg_bottom + back_swing,
+                        fill=shadow, outline=shadow, width=1,
+                        smooth=False, tags="equipped_clothing")
+                    # Front pant leg (in front)
+                    c.create_polygon(
+                        leg_cx - int(12 * persp_sx), hip_y,
+                        leg_cx + int(12 * persp_sx), hip_y,
+                        leg_cx + int(10 * persp_sx), leg_bottom + front_swing,
+                        leg_cx - int(10 * persp_sx), leg_bottom + front_swing,
+                        fill=color, outline=shadow, width=1,
+                        smooth=False, tags="equipped_clothing")
+                    # Seam highlight on front leg
+                    c.create_line(
+                        leg_cx, hip_y, leg_cx, leg_bottom + front_swing,
+                        fill=highlight, width=1, tags="equipped_clothing")
+                elif is_back:
+                    # Back view: same as front but no fly seam
+                    left_swing = int(_leg_swing) + _left_leg_dangle
+                    right_swing = int(-_leg_swing) + _right_leg_dangle
+                    lsh = _left_leg_dangle_h
+                    rsh = _right_leg_dangle_h
+
+                    # Waistband
+                    c.create_rectangle(
+                        cx - int(36 * persp_sx), waist_y - int(4 * sy),
+                        cx + int(36 * persp_sx), waist_y + int(4 * sy),
+                        fill=color, outline=shadow, width=1,
+                        tags="equipped_clothing")
+                    # Seat / hip area connecting the two legs
+                    c.create_polygon(
+                        cx - int(36 * persp_sx), waist_y,
+                        cx + int(36 * persp_sx), waist_y,
+                        cx + int(30 * persp_sx), hip_y,
+                        cx - int(30 * persp_sx), hip_y,
+                        fill=color, outline=shadow, width=1,
+                        tags="equipped_clothing")
+                    # Left pant leg — tapered thigh-to-calf
+                    c.create_polygon(
+                        cx - int(30 * persp_sx) + lsh, hip_y,
+                        cx - int(6 * persp_sx) + lsh, hip_y,
+                        cx - int(10 * persp_sx) + lsh, leg_bottom + left_swing,
+                        cx - int(26 * persp_sx) + lsh, leg_bottom + left_swing,
+                        fill=color, outline=shadow, width=1,
+                        tags="equipped_clothing")
+                    # Right pant leg
+                    c.create_polygon(
+                        cx + int(6 * persp_sx) + rsh, hip_y,
+                        cx + int(30 * persp_sx) + rsh, hip_y,
+                        cx + int(26 * persp_sx) + rsh, leg_bottom + right_swing,
+                        cx + int(10 * persp_sx) + rsh, leg_bottom + right_swing,
+                        fill=color, outline=shadow, width=1,
+                        tags="equipped_clothing")
+                    # Back pocket details
+                    for pside in (-1, 1):
+                        poc_cx = cx + pside * int(18 * persp_sx)
+                        poc_y = hip_y + int(6 * sy)
                         c.create_rectangle(
-                            cx - int(34 * persp_sx), waist_y - int(4 * sy),
-                            cx + int(34 * persp_sx), waist_y + int(4 * sy),
-                            fill=color, outline=shadow, width=1,
+                            poc_cx - int(6 * persp_sx), poc_y,
+                            poc_cx + int(6 * persp_sx), poc_y + int(8 * sy),
+                            fill='', outline=shadow, width=1,
                             tags="equipped_clothing")
-                        # Left leg with both vertical and horizontal dangle
-                        c.create_polygon(
-                            cx - int(30 * persp_sx), waist_y,
-                            cx - int(8 * persp_sx), waist_y,
-                            cx - int(12 * persp_sx) + left_swing_h, leg_bottom + left_swing,
-                            cx - int(28 * persp_sx) + left_swing_h, leg_bottom + left_swing,
-                            fill=color, outline=shadow, width=1,
-                            tags="equipped_clothing")
-                        # Right leg with both vertical and horizontal dangle
-                        c.create_polygon(
-                            cx + int(8 * persp_sx), waist_y,
-                            cx + int(30 * persp_sx), waist_y,
-                            cx + int(28 * persp_sx) + right_swing_h, leg_bottom + right_swing,
-                            cx + int(12 * persp_sx) + right_swing_h, leg_bottom + right_swing,
-                            fill=color, outline=shadow, width=1,
-                            tags="equipped_clothing")
-                        # Highlight seams
+                else:
+                    # Front view: body-contoured pants
+                    left_swing = int(_leg_swing) + _left_leg_dangle
+                    right_swing = int(-_leg_swing) + _right_leg_dangle
+                    lsh = _left_leg_dangle_h
+                    rsh = _right_leg_dangle_h
+
+                    # Waistband — curved to follow torso
+                    c.create_arc(
+                        cx - int(36 * persp_sx), waist_y - int(6 * sy),
+                        cx + int(36 * persp_sx), waist_y + int(6 * sy),
+                        start=0, extent=360, style="chord",
+                        fill=color, outline=shadow, width=1,
+                        tags="equipped_clothing")
+                    # Hip / crotch area connecting the two legs
+                    c.create_polygon(
+                        cx - int(36 * persp_sx), waist_y,
+                        cx - int(32 * persp_sx), hip_y,
+                        cx, hip_y + int(6 * sy),
+                        cx + int(32 * persp_sx), hip_y,
+                        cx + int(36 * persp_sx), waist_y,
+                        fill=color, outline=shadow, width=1,
+                        smooth=True, tags="equipped_clothing")
+                    # Left pant leg — wide thigh tapering to narrower calf
+                    c.create_polygon(
+                        cx - int(32 * persp_sx) + lsh, hip_y,
+                        cx - int(4 * persp_sx) + lsh, hip_y + int(6 * sy),
+                        cx - int(10 * persp_sx) + lsh, leg_bottom + left_swing,
+                        cx - int(28 * persp_sx) + lsh, leg_bottom + left_swing,
+                        fill=color, outline=shadow, width=1,
+                        tags="equipped_clothing")
+                    # Right pant leg
+                    c.create_polygon(
+                        cx + int(4 * persp_sx) + rsh, hip_y + int(6 * sy),
+                        cx + int(32 * persp_sx) + rsh, hip_y,
+                        cx + int(28 * persp_sx) + rsh, leg_bottom + right_swing,
+                        cx + int(10 * persp_sx) + rsh, leg_bottom + right_swing,
+                        fill=color, outline=shadow, width=1,
+                        tags="equipped_clothing")
+                    # Fly / centre seam
+                    c.create_line(
+                        cx, waist_y, cx, hip_y + int(6 * sy),
+                        fill=shadow, width=1, tags="equipped_clothing")
+                    # Highlight crease on each leg
+                    for lside, lsw, lswh in [(-1, left_swing, lsh),
+                                              (1, right_swing, rsh)]:
+                        crease_x = cx + lside * int(18 * persp_sx) + lswh
                         c.create_line(
-                            cx, waist_y, cx + (left_swing_h + right_swing_h) // 2, leg_bottom + (left_swing + right_swing) // 2,
+                            crease_x, hip_y + int(4 * sy),
+                            crease_x, leg_bottom + lsw - int(2 * sy),
                             fill=highlight, width=1, tags="equipped_clothing")
 
+            # --- Helper: draw upper-body clothing ---
+            def _draw_upper_clothing(clothing_item, ctype):
+                color = self._color_for_emoji(clothing_item.emoji, '#4169E1')
+                shadow = self._shade_color(color, -30)
+                highlight = self._shade_color(color, 40)
+
+                bt = int(82 * sy + by)   # body top (below neck)
+                bb = int(152 * sy + by)  # body bottom
+                mid = (bt + bb) // 2
+
+                if ctype == 'jacket':
                     # --- Jacket: torso + extended sleeves synced with arms ---
-                    elif ctype == 'jacket':
-                        # Main jacket body (torso)
-                        c.create_polygon(
-                            cx - int(40 * persp_sx), bt,
-                            cx - int(44 * persp_sx), bt + int(14 * sy),
-                            cx - int(42 * persp_sx), mid,
-                            cx - int(38 * persp_sx), bb,
-                            cx + int(38 * persp_sx), bb,
-                            cx + int(42 * persp_sx), mid,
-                            cx + int(44 * persp_sx), bt + int(14 * sy),
-                            cx + int(40 * persp_sx), bt,
-                            fill=color, outline=shadow, width=1,
-                            smooth=True, tags="equipped_clothing")
-                        # Collar
-                        c.create_arc(
-                            cx - int(18 * persp_sx), bt - int(6 * sy),
-                            cx + int(18 * persp_sx), bt + int(10 * sy),
-                            start=200, extent=140, style="arc",
-                            outline=shadow, width=2, tags="equipped_clothing")
-                        # Centre zipper/buttons (only visible from front)
-                        if anim != 'walking_up':
-                            c.create_line(
-                                cx, bt + int(6 * sy), cx, bb - int(4 * sy),
-                                fill=shadow, width=2, tags="equipped_clothing")
-                        # Long sleeves following arm swing + dangle (both vertical and horizontal)
-                        arm_top = bt + int(4 * sy)
-                        arm_len = int(40 * sy)
+                    # Main jacket body (torso)
+                    c.create_polygon(
+                        cx - int(40 * persp_sx), bt,
+                        cx - int(44 * persp_sx), bt + int(14 * sy),
+                        cx - int(42 * persp_sx), mid,
+                        cx - int(38 * persp_sx), bb,
+                        cx + int(38 * persp_sx), bb,
+                        cx + int(42 * persp_sx), mid,
+                        cx + int(44 * persp_sx), bt + int(14 * sy),
+                        cx + int(40 * persp_sx), bt,
+                        fill=color, outline=shadow, width=1,
+                        smooth=True, tags="equipped_clothing")
+                    # Collar
+                    c.create_arc(
+                        cx - int(18 * persp_sx), bt - int(6 * sy),
+                        cx + int(18 * persp_sx), bt + int(10 * sy),
+                        start=200, extent=140, style="arc",
+                        outline=shadow, width=2, tags="equipped_clothing")
+                    # Centre zipper/buttons (only visible from front)
+                    if not is_back:
+                        c.create_line(
+                            cx, bt + int(6 * sy), cx, bb - int(4 * sy),
+                            fill=shadow, width=2, tags="equipped_clothing")
+                    # Long sleeves following arm swing + dangle
+                    arm_top = bt + int(4 * sy)
+                    arm_len = int(40 * sy)
+                    if is_side:
+                        # Side view: two sleeves offset toward/away from viewer
+                        for offset_dir, swing in [(-side_dir, -_arm_swing), (side_dir, _arm_swing)]:
+                            arm_cx = cx + offset_dir * int(8 * persp_sx)
+                            arm_end_y = arm_top + arm_len + int(swing)
+                            c.create_polygon(
+                                arm_cx - int(10 * persp_sx), arm_top,
+                                arm_cx + int(10 * persp_sx), arm_top,
+                                arm_cx + int(8 * persp_sx), arm_end_y,
+                                arm_cx - int(8 * persp_sx), arm_end_y,
+                                fill=color, outline=shadow, width=1,
+                                tags="equipped_clothing")
+                    else:
                         for side, swing, dangle_v, dangle_h in [
-                            (-1, _arm_swing, _left_arm_dangle, _left_arm_dangle_h), 
+                            (-1, _arm_swing, _left_arm_dangle, _left_arm_dangle_h),
                             (1, -_arm_swing, _right_arm_dangle, _right_arm_dangle_h)
                         ]:
                             arm_cx = cx + side * int(44 * persp_sx)
@@ -2711,71 +2834,92 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
                                 arm_end_x + int(7 * persp_sx), arm_end_y - int(2 * sy),
                                 fill=highlight, width=1, tags="equipped_clothing")
 
+                elif ctype == 'dress':
                     # --- Dress: flows from neck to below body ---
-                    elif ctype == 'dress':
-                        dress_bottom = bb + int(12 * sy)
-                        c.create_polygon(
-                            cx - int(28 * persp_sx), bt,
-                            cx - int(38 * persp_sx), mid,
-                            cx - int(44 * persp_sx), dress_bottom,
-                            cx + int(44 * persp_sx), dress_bottom,
-                            cx + int(38 * persp_sx), mid,
-                            cx + int(28 * persp_sx), bt,
-                            fill=color, outline=shadow, width=1,
-                            smooth=True, tags="equipped_clothing")
-                        # Neckline (only visible from front)
-                        if anim != 'walking_up':
-                            c.create_arc(
-                                cx - int(14 * persp_sx), bt - int(4 * sy),
-                                cx + int(14 * persp_sx), bt + int(8 * sy),
-                                start=200, extent=140, style="arc",
-                                outline=shadow, width=2, tags="equipped_clothing")
-                        # Waist ribbon
-                        c.create_rectangle(
-                            cx - int(30 * persp_sx), mid - int(3 * sy),
-                            cx + int(30 * persp_sx), mid + int(3 * sy),
-                            fill=highlight, outline='', tags="equipped_clothing")
-
-                    # --- Full body: covers torso + legs + sleeves ---
-                    elif ctype == 'full_body':
-                        leg_bottom = int(170 * sy + by)
-                        left_swing = int(_leg_swing) + _left_leg_dangle
-                        right_swing = int(-_leg_swing) + _right_leg_dangle
-                        left_swing_h = _left_leg_dangle_h
-                        right_swing_h = _right_leg_dangle_h
-                        # Torso section
-                        c.create_polygon(
-                            cx - int(38 * persp_sx), bt,
-                            cx - int(42 * persp_sx), bt + int(12 * sy),
-                            cx - int(40 * persp_sx), mid,
-                            cx - int(36 * persp_sx), bb,
-                            cx + int(36 * persp_sx), bb,
-                            cx + int(40 * persp_sx), mid,
-                            cx + int(42 * persp_sx), bt + int(12 * sy),
-                            cx + int(38 * persp_sx), bt,
-                            fill=color, outline=shadow, width=1,
-                            smooth=True, tags="equipped_clothing")
-                        # Collar
+                    dress_bottom = bb + int(12 * sy)
+                    c.create_polygon(
+                        cx - int(28 * persp_sx), bt,
+                        cx - int(38 * persp_sx), mid,
+                        cx - int(44 * persp_sx), dress_bottom,
+                        cx + int(44 * persp_sx), dress_bottom,
+                        cx + int(38 * persp_sx), mid,
+                        cx + int(28 * persp_sx), bt,
+                        fill=color, outline=shadow, width=1,
+                        smooth=True, tags="equipped_clothing")
+                    # Neckline (only visible from front)
+                    if not is_back:
                         c.create_arc(
-                            cx - int(16 * persp_sx), bt - int(6 * sy),
-                            cx + int(16 * persp_sx), bt + int(10 * sy),
+                            cx - int(14 * persp_sx), bt - int(4 * sy),
+                            cx + int(14 * persp_sx), bt + int(8 * sy),
                             start=200, extent=140, style="arc",
                             outline=shadow, width=2, tags="equipped_clothing")
-                        # Pant legs synced with leg swing (both vertical and horizontal)
+                    # Waist ribbon
+                    c.create_rectangle(
+                        cx - int(30 * persp_sx), mid - int(3 * sy),
+                        cx + int(30 * persp_sx), mid + int(3 * sy),
+                        fill=highlight, outline='', tags="equipped_clothing")
+
+                elif ctype == 'full_body':
+                    # --- Full body: covers torso + legs + sleeves ---
+                    leg_bottom = int(172 * sy + by)
+                    left_swing = int(_leg_swing) + _left_leg_dangle
+                    right_swing = int(-_leg_swing) + _right_leg_dangle
+                    left_swing_h = _left_leg_dangle_h
+                    right_swing_h = _right_leg_dangle_h
+                    # Torso section
+                    c.create_polygon(
+                        cx - int(38 * persp_sx), bt,
+                        cx - int(42 * persp_sx), bt + int(12 * sy),
+                        cx - int(40 * persp_sx), mid,
+                        cx - int(36 * persp_sx), bb,
+                        cx + int(36 * persp_sx), bb,
+                        cx + int(40 * persp_sx), mid,
+                        cx + int(42 * persp_sx), bt + int(12 * sy),
+                        cx + int(38 * persp_sx), bt,
+                        fill=color, outline=shadow, width=1,
+                        smooth=True, tags="equipped_clothing")
+                    # Collar
+                    c.create_arc(
+                        cx - int(16 * persp_sx), bt - int(6 * sy),
+                        cx + int(16 * persp_sx), bt + int(10 * sy),
+                        start=200, extent=140, style="arc",
+                        outline=shadow, width=2, tags="equipped_clothing")
+                    if is_side:
+                        # Side view legs: centred front/back
+                        for leg_sw in [left_swing, right_swing]:
+                            c.create_polygon(
+                                cx - int(14 * persp_sx), bb,
+                                cx + int(14 * persp_sx), bb,
+                                cx + int(12 * persp_sx), leg_bottom + leg_sw,
+                                cx - int(12 * persp_sx), leg_bottom + leg_sw,
+                                fill=color, outline=shadow, width=1,
+                                tags="equipped_clothing")
+                    else:
+                        # Front / back view legs
                         for leg_side, leg_sw, leg_sw_h in [(-1, left_swing, left_swing_h), (1, right_swing, right_swing_h)]:
                             lx = cx + leg_side * int(19 * persp_sx)
                             c.create_polygon(
-                                lx - int(14 * persp_sx), bb,
-                                lx + int(14 * persp_sx), bb,
+                                lx - int(14 * persp_sx) + leg_sw_h, bb,
+                                lx + int(14 * persp_sx) + leg_sw_h, bb,
                                 lx + int(12 * persp_sx) + leg_sw_h, leg_bottom + leg_sw,
                                 lx - int(12 * persp_sx) + leg_sw_h, leg_bottom + leg_sw,
                                 fill=color, outline=shadow, width=1,
                                 tags="equipped_clothing")
-                        # Sleeves synced with arm swing + dangle (both vertical and horizontal)
-                        arm_top = bt + int(4 * sy)
-                        arm_len = int(35 * sy)
+                    # Sleeves synced with arm swing + dangle
+                    arm_top = bt + int(4 * sy)
+                    arm_len = int(35 * sy)
+                    if is_side:
+                        for offset_dir, swing in [(-side_dir, -_arm_swing), (side_dir, _arm_swing)]:
+                            arm_cx = cx + offset_dir * int(8 * persp_sx)
+                            arm_end_y = arm_top + arm_len + int(swing)
+                            c.create_oval(
+                                arm_cx - int(10 * persp_sx), arm_top,
+                                arm_cx + int(10 * persp_sx), arm_end_y,
+                                fill=color, outline=shadow, width=1,
+                                tags="equipped_clothing")
+                    else:
                         for side, swing, dangle_v, dangle_h in [
-                            (-1, _arm_swing, _left_arm_dangle, _left_arm_dangle_h), 
+                            (-1, _arm_swing, _left_arm_dangle, _left_arm_dangle_h),
                             (1, -_arm_swing, _right_arm_dangle, _right_arm_dangle_h)
                         ]:
                             arm_cx = cx + side * int(42 * persp_sx)
@@ -2786,41 +2930,51 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
                                 arm_end_x + int(10 * persp_sx), arm_end_y,
                                 fill=color, outline=shadow, width=1,
                                 tags="equipped_clothing")
-                        # Centre highlight (only visible from front)
-                        if anim != 'walking_up':
-                            c.create_line(
-                                cx, bt + int(8 * sy), cx, bb - int(4 * sy),
-                                fill=highlight, width=1, tags="equipped_clothing")
+                    # Centre highlight (only visible from front)
+                    if not is_back:
+                        c.create_line(
+                            cx, bt + int(8 * sy), cx, bb - int(4 * sy),
+                            fill=highlight, width=1, tags="equipped_clothing")
 
+                else:
                     # --- Default (shirt): torso-only garment ---
+                    # Main shirt body — follows torso curve
+                    c.create_polygon(
+                        cx - int(38 * persp_sx), bt,
+                        cx - int(42 * persp_sx), bt + int(12 * sy),
+                        cx - int(40 * persp_sx), mid,
+                        cx - int(36 * persp_sx), bb,
+                        cx + int(36 * persp_sx), bb,
+                        cx + int(40 * persp_sx), mid,
+                        cx + int(42 * persp_sx), bt + int(12 * sy),
+                        cx + int(38 * persp_sx), bt,
+                        fill=color, outline=shadow, width=1,
+                        smooth=True, tags="equipped_clothing")
+                    # Collar / neckline (only visible from front)
+                    if not is_back:
+                        c.create_arc(
+                            cx - int(16 * persp_sx), bt - int(6 * sy),
+                            cx + int(16 * persp_sx), bt + int(10 * sy),
+                            start=200, extent=140, style="arc",
+                            outline=shadow, width=2, tags="equipped_clothing")
+                    # Centre highlight stripe (only visible from front)
+                    if not is_back:
+                        c.create_line(
+                            cx, bt + int(8 * sy), cx, bb - int(4 * sy),
+                            fill=highlight, width=1, tags="equipped_clothing")
+                    # Sleeve caps synced with arm swing + dangle
+                    if is_side:
+                        for offset_dir, swing in [(-side_dir, -_arm_swing), (side_dir, _arm_swing)]:
+                            sleeve_cx = cx + offset_dir * int(8 * persp_sx)
+                            sleeve_offset = int(swing * 0.4)
+                            c.create_oval(
+                                sleeve_cx - int(10 * persp_sx), bt + int(2 * sy) + sleeve_offset,
+                                sleeve_cx + int(10 * persp_sx), bt + int(18 * sy) + sleeve_offset,
+                                fill=color, outline=shadow, width=1,
+                                tags="equipped_clothing")
                     else:
-                        # Main shirt body - follows torso curve
-                        c.create_polygon(
-                            cx - int(38 * persp_sx), bt,
-                            cx - int(42 * persp_sx), bt + int(12 * sy),
-                            cx - int(40 * persp_sx), mid,
-                            cx - int(36 * persp_sx), bb,
-                            cx + int(36 * persp_sx), bb,
-                            cx + int(40 * persp_sx), mid,
-                            cx + int(42 * persp_sx), bt + int(12 * sy),
-                            cx + int(38 * persp_sx), bt,
-                            fill=color, outline=shadow, width=1,
-                            smooth=True, tags="equipped_clothing")
-                        # Collar / neckline (only visible from front)
-                        if anim != 'walking_up':
-                            c.create_arc(
-                                cx - int(16 * persp_sx), bt - int(6 * sy),
-                                cx + int(16 * persp_sx), bt + int(10 * sy),
-                                start=200, extent=140, style="arc",
-                                outline=shadow, width=2, tags="equipped_clothing")
-                        # Centre highlight stripe (only visible from front)
-                        if anim != 'walking_up':
-                            c.create_line(
-                                cx, bt + int(8 * sy), cx, bb - int(4 * sy),
-                                fill=highlight, width=1, tags="equipped_clothing")
-                        # Sleeve caps synced with arm swing + dangle (both vertical and horizontal)
                         for side, swing, dangle_v, dangle_h in [
-                            (-1, _arm_swing, _left_arm_dangle, _left_arm_dangle_h), 
+                            (-1, _arm_swing, _left_arm_dangle, _left_arm_dangle_h),
                             (1, -_arm_swing, _right_arm_dangle, _right_arm_dangle_h)
                         ]:
                             sleeve_cx = cx + side * int(40 * persp_sx)
@@ -2831,6 +2985,30 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
                                 sleeve_cx + int(10 * persp_sx) + sleeve_offset_h, bt + int(18 * sy) + sleeve_offset,
                                 fill=color, outline=shadow, width=1,
                                 tags="equipped_clothing")
+
+            # --- Draw clothing items ---
+            # Draw pants first (from separate pants slot) so upper clothing layers on top
+            pants_id = getattr(appearance, 'pants', None)
+            if pants_id:
+                pants_item = self.panda_closet.get_item(pants_id)
+                if pants_item:
+                    p_color = self._color_for_emoji(pants_item.emoji, '#4169E1')
+                    p_shadow = self._shade_color(p_color, -30)
+                    p_highlight = self._shade_color(p_color, 40)
+                    _draw_pants_piece(p_color, p_shadow, p_highlight)
+
+            if appearance.clothing:
+                clothing_item = self.panda_closet.get_item(appearance.clothing)
+                if clothing_item:
+                    ctype = clothing_item.clothing_type or 'shirt'
+                    if ctype == 'pants':
+                        # Legacy: if pants ended up in clothing slot, draw them
+                        color = self._color_for_emoji(clothing_item.emoji, '#4169E1')
+                        shadow = self._shade_color(color, -30)
+                        highlight = self._shade_color(color, 40)
+                        _draw_pants_piece(color, shadow, highlight)
+                    else:
+                        _draw_upper_clothing(clothing_item, ctype)
 
             # --- Draw hat on top of head ---
             if appearance.hat:
@@ -2992,18 +3170,27 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
                     color = self._color_for_emoji(shoes_item.emoji, '#8B4513')
                     shadow = self._shade_color(color, -30)
                     highlight = self._shade_color(color, 40)
-                    foot_base = int(170 * sy + by)
-                    # Include dangle physics for drag sync. Dangle represents whole-body
-                    # motion applied equally to both legs; swing provides left/right symmetry.
-                    leg_dangle = int(self._dangle_leg)
-                    leg_dangle_h = int(self._dangle_leg_h)
-                    left_shoe_swing = int(_leg_swing) + leg_dangle
-                    right_shoe_swing = int(-_leg_swing) + leg_dangle
+                    foot_base = int(172 * sy + by)
 
-                    for shoe_cx, shoe_swing in [(cx - int(25 * sx), left_shoe_swing),
-                                                 (cx + int(25 * sx), right_shoe_swing)]:
+                    # Use per-leg dangle values for accurate tracking
+                    left_shoe_swing = int(_leg_swing) + _left_leg_dangle
+                    right_shoe_swing = int(-_leg_swing) + _right_leg_dangle
+
+                    if is_side:
+                        # Side view: both shoes near centre, front/back offset
+                        shoe_pairs = [
+                            (cx, int(-_leg_swing), _right_leg_dangle_h),   # back foot
+                            (cx, int(_leg_swing), _left_leg_dangle_h),     # front foot
+                        ]
+                    else:
+                        shoe_pairs = [
+                            (cx - int(25 * sx), left_shoe_swing, _left_leg_dangle_h),
+                            (cx + int(25 * sx), right_shoe_swing, _right_leg_dangle_h),
+                        ]
+
+                    for shoe_cx, shoe_swing, shoe_dh in shoe_pairs:
                         shoe_y = foot_base + shoe_swing
-                        shoe_x = shoe_cx + leg_dangle_h
+                        shoe_x = shoe_cx + shoe_dh
                         # Shoe body
                         c.create_oval(
                             shoe_x - int(15 * sx), shoe_y,
@@ -3026,33 +3213,33 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
                 weapon = self.weapon_collection.equipped_weapon
                 
                 # Get animation state to determine weapon position
-                anim = self.current_animation
+                anim_w = anim  # use the perspective-corrected anim
                 frame = self.animation_frame
                 
                 # Determine if panda is in attack animation
-                is_attacking = anim in ['swing', 'shoot', 'cast_spell']
+                is_attacking = anim_w in ['swing', 'shoot', 'cast_spell']
                 
-                # Adjust weapon position based on facing direction
-                facing = self._facing_direction
-                if anim in ('walking_left', 'walking_right'):
-                    # Side view: weapon appears in front of panda (toward viewer side)
-                    side_dir = 1 if anim == 'walking_right' else -1
-                    arm_offset_x = int(20 * sx * side_dir)  # Centered, slightly toward front
-                    arm_offset_y = int(130 * sy)
-                    ra_swing = int(-_arm_swing) + _right_arm_dangle
-                elif anim == 'walking_up':
-                    # Back view: weapon behind panda, barely visible (offset to side)
-                    arm_offset_x = int(50 * sx)  # Peek out from side
-                    arm_offset_y = int(125 * sy)
-                    ra_swing = int(-_arm_swing) + _right_arm_dangle
+                # Weapon attaches to right arm end-point.
+                # Arm top = 95*sy, arm length = 35*sy → hand at ~130*sy
+                arm_hand_y = int(130 * sy)
+                ra_swing = int(-_arm_swing) + _right_arm_dangle
+                ra_swing_h = _right_arm_dangle_h
+
+                if is_side:
+                    # Side view: right arm is the front arm (toward viewer)
+                    arm_offset_x = int(8 * sx * side_dir)
+                    weapon_x = cx + arm_offset_x + ra_swing_h
+                    weapon_y = int(by) + arm_hand_y + ra_swing
+                elif is_back:
+                    # Back view: right arm at +42*sx (same as front but from behind)
+                    arm_offset_x = int(42 * sx)
+                    weapon_x = cx + arm_offset_x + ra_swing_h
+                    weapon_y = int(by) + arm_hand_y + ra_swing
                 else:
                     # Front view (default): weapon in right hand
-                    arm_offset_x = int(42 * sx)  # Right arm center
-                    arm_offset_y = int(130 * sy)  # Right arm bottom (hand)
-                    ra_swing = int(-_arm_swing) + _right_arm_dangle
-                
-                weapon_x = cx + arm_offset_x
-                weapon_y = int(by) + arm_offset_y + ra_swing
+                    arm_offset_x = int(42 * sx)
+                    weapon_x = cx + arm_offset_x + ra_swing_h
+                    weapon_y = int(by) + arm_hand_y + ra_swing
                 
                 # Adjust position for attack animations
                 if is_attacking:
@@ -3660,7 +3847,7 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
         label_width = max(1, self.panda_label.winfo_width())
         rel_y = event.y / label_height
         rel_x = event.x / label_width
-        self._drag_grab_head = rel_y < 0.32  # HEAD_BOUNDARY
+        self._drag_grab_head = rel_y < 0.34  # HEAD_BOUNDARY
         # Determine the specific body part grabbed for spin/shake detection
         if self.panda and hasattr(self.panda, 'get_body_part_at_position'):
             self._drag_grab_part = self.panda.get_body_part_at_position(rel_y, rel_x)
@@ -4616,6 +4803,12 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
                 clothing_item = self.panda_closet.get_item(appearance.clothing)
                 if clothing_item:
                     equipped_items.append(clothing_item.emoji)
+            
+            pants_id = getattr(appearance, 'pants', None)
+            if pants_id:
+                pants_item = self.panda_closet.get_item(pants_id)
+                if pants_item:
+                    equipped_items.append(pants_item.emoji)
             
             if appearance.shoes:
                 shoes_item = self.panda_closet.get_item(appearance.shoes)

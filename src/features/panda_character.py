@@ -60,12 +60,13 @@ class PandaCharacter:
     
     # Body part region boundaries (relative Y position 0.0-1.0)
     # Adjusted to match actual canvas drawing proportions
-    HEAD_BOUNDARY = 0.32
+    # Head bottom (head_cy + head_ry) ≈ 84 out of 270 ≈ 0.31
+    HEAD_BOUNDARY = 0.34
     EAR_BOUNDARY = 0.15       # Top 15% is ear zone
     EYE_BOUNDARY_TOP = 0.15
     EYE_BOUNDARY_BOTTOM = 0.25
     NOSE_BOUNDARY_TOP = 0.25
-    NOSE_BOUNDARY_BOTTOM = 0.32
+    NOSE_BOUNDARY_BOTTOM = 0.34
     BODY_BOUNDARY = 0.55
     BUTT_BOUNDARY = 0.75
     
@@ -1374,12 +1375,16 @@ class PandaCharacter:
             # If nothing triggers, keep current mood
     
     # Arm detection X boundaries (arms occupy the outer portions of the body width)
-    ARM_LEFT_BOUNDARY = 0.25   # Left 25% is left arm zone
-    ARM_RIGHT_BOUNDARY = 0.75  # Right 25% is right arm zone
+    # Left arm: canvas x from 55 to 80 → rel_x 0.25–0.36
+    # Right arm: canvas x from 140 to 165 → rel_x 0.64–0.75
+    # Widen detection slightly inward so the full arm oval is grabbable.
+    ARM_LEFT_BOUNDARY = 0.30   # Left 30% is left arm zone
+    ARM_RIGHT_BOUNDARY = 0.70  # Right 30% is right arm zone
     
     # Ear detection X boundaries (ears are on sides of head)
-    EAR_LEFT_BOUNDARY = 0.15   # Left 15% is left ear zone
-    EAR_RIGHT_BOUNDARY = 0.85  # Right 15% is right ear zone
+    # Ears extend ~22px past head radius of 36 → from ~72 to ~148 out of 220
+    EAR_LEFT_BOUNDARY = 0.20   # Left 20% is left ear zone
+    EAR_RIGHT_BOUNDARY = 0.80  # Right 20% is right ear zone
     
     # Eye detection X boundaries
     EYE_LEFT_CENTER = 0.35     # Left eye center
