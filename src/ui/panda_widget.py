@@ -175,6 +175,7 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
         'belly_rub': ['🐾', '💕', '😊', '🐼', '💖'],
         'cartwheel': ['🤸', '🎪', '⭐', '💫', '🎉', '🤸‍♀️'],
         'backflip': ['🤸', '🔄', '💫', '🎯', '⭐', '🌟'],
+        'barrel_roll': ['🌀', '🔄', '💫', '🤸', '⭐', '🎉'],
         'lay_on_back': ['😌', '💤', '☁️', '💭', '🌙', '😴'],
         'lay_on_side': ['😴', '💤', '☁️', '😌', '🛌', '💭'],
         'carrying': ['📦', '💪', '🎁', '📚', '🧳'],
@@ -1176,6 +1177,29 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
                 leg_swing = math.sin(settle * math.pi * 2) * 5 * (1 - settle)
                 arm_swing = math.sin(settle * math.pi * 3) * 8 * (1 - settle)
                 body_bob = 5 * math.sin(settle * math.pi) * (1 - settle * 0.7)
+        elif anim == 'barrel_roll':
+            # Barrel roll: full sideways rotation with tucked limbs
+            roll_cycle = (frame_idx % 30) / 30.0  # Fast roll
+            roll_angle = roll_cycle * 2 * math.pi
+            if roll_cycle < 0.1:
+                # Wind-up lean
+                ramp = roll_cycle / 0.1
+                leg_swing = ramp * 4
+                arm_swing = -ramp * 6
+                body_bob = ramp * 3
+            elif roll_cycle < 0.8:
+                # Full barrel roll rotation
+                roll_t = (roll_cycle - 0.1) / 0.7
+                roll_a = roll_t * 2 * math.pi
+                leg_swing = math.sin(roll_a) * 20
+                arm_swing = -math.cos(roll_a) * 25
+                body_bob = -abs(math.sin(roll_a)) * 15 + math.cos(roll_a) * 5
+            else:
+                # Landing settle
+                settle = (roll_cycle - 0.8) / 0.2
+                leg_swing = math.sin(settle * math.pi) * 6 * (1 - settle)
+                arm_swing = math.sin(settle * math.pi * 2) * 8 * (1 - settle)
+                body_bob = 4 * math.sin(settle * math.pi) * (1 - settle * 0.7)
         elif anim == 'lay_on_back':
             # Lying on back: body low, arms spread wide, legs splayed up
             leg_swing = -8 + math.sin(phase * 0.4) * 2  # Legs up and slightly wiggling
@@ -1244,6 +1268,11 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
         elif anim == 'tip_over_side':
             # Squeezed horizontally while on side
             breath_scale = 0.65 + math.sin(phase * 0.3) * 0.02
+        elif anim == 'barrel_roll':
+            # Horizontal squeeze/stretch during barrel roll rotation
+            roll_cycle = (frame_idx % 30) / 30.0
+            roll_angle = roll_cycle * 2 * math.pi
+            breath_scale = 0.5 + 0.5 * abs(math.cos(roll_angle))
         
         # --- Jiggle physics (spring-damper for belly wobble) ---
         self._belly_jiggle_vel = (self._belly_jiggle_vel - self._belly_jiggle * self.JIGGLE_SPRING) * self.JIGGLE_DAMPING
@@ -1477,6 +1506,11 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
             body_sway = math.sin(phase * 2) * 5
         elif anim == 'backflip':
             body_sway = math.sin(phase * 2) * 4
+        elif anim == 'barrel_roll':
+            # Rolling sideways sway
+            roll_cycle = (frame_idx % 30) / 30.0
+            roll_angle = roll_cycle * 2 * math.pi
+            body_sway = math.sin(roll_angle) * 20
         elif anim == 'shaking':
             body_sway = math.sin(phase * 12) * 8 * self._shake_decay
         elif anim == 'fall_on_face':
@@ -1662,6 +1696,8 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
             eye_style = 'spinning'
         elif anim == 'backflip':
             eye_style = 'surprised'
+        elif anim == 'barrel_roll':
+            eye_style = 'spinning'
         elif anim == 'lay_on_back':
             eye_style = 'closed'
         elif anim == 'lay_on_side':
@@ -1769,7 +1805,7 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
             mouth_style = 'smile'
         elif anim == 'cartwheel':
             mouth_style = 'grin'
-        elif anim == 'backflip':
+        elif anim in ('backflip', 'barrel_roll'):
             mouth_style = 'grin'
         elif anim == 'lay_on_back':
             mouth_style = 'smile'
@@ -1808,7 +1844,7 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
             # Occasional ear twitch while sleeping/laying
             if frame_idx % 20 < 3:
                 ear_wiggle = math.sin(phase * 6) * 2 * sx
-        elif anim in ('waving', 'belly_rub', 'jumping', 'cartwheel', 'backflip'):
+        elif anim in ('waving', 'belly_rub', 'jumping', 'cartwheel', 'backflip', 'barrel_roll'):
             ear_wiggle = math.sin(phase * 2) * 3 * sx
         elif anim == 'sneezing':
             ear_wiggle = math.sin(phase * 5) * 4 * sx
@@ -2466,6 +2502,11 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
                 c.create_text(cx_draw, name_y, text=self.panda.name,
                               font=("Arial Bold", int(10 * sx)),
                               fill="#666666", width=int(w * 0.9), tags="name_tag")
+        
+        # --- Upside-down flip when grabbed by foot and dragged upward ---
+        if self._is_upside_down and anim == 'dragging' and self.is_dragging:
+            # Flip all canvas items vertically around the canvas center
+            c.scale("all", w / 2, h / 2, 1.0, -1.0)
     
     def _draw_eyes(self, c: tk.Canvas, cx: int, ey: int, style: str, sx: float = 1.0, sy: float = 1.0):
         """Draw panda eyes based on the current animation style."""
@@ -2800,6 +2841,34 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
         elif anim == 'carrying':
             leg_swing = math.sin(phase) * 4
             arm_swing = -8
+        elif anim in ('walking_left', 'walking_right'):
+            # Match _draw_panda walking sideways offsets
+            leg_swing = math.sin(phase) * 12
+            arm_swing = math.sin(phase + math.pi) * 10
+        elif anim in ('walking_up', 'walking_down'):
+            # Match _draw_panda walking forward/backward offsets
+            leg_swing = math.sin(phase) * 10
+            arm_swing = math.sin(phase + math.pi) * 8
+        elif anim in ('walking_up_left', 'walking_up_right',
+                       'walking_down_left', 'walking_down_right'):
+            # Match _draw_panda diagonal walking offsets
+            leg_swing = math.sin(phase) * 11
+            arm_swing = math.sin(phase + math.pi) * 9
+        elif anim == 'barrel_roll':
+            roll_cycle = (frame_idx % 30) / 30.0
+            if roll_cycle < 0.1:
+                ramp = roll_cycle / 0.1
+                leg_swing = ramp * 4
+                arm_swing = -ramp * 6
+            elif roll_cycle < 0.8:
+                roll_t = (roll_cycle - 0.1) / 0.7
+                roll_a = roll_t * 2 * math.pi
+                leg_swing = math.sin(roll_a) * 20
+                arm_swing = -math.cos(roll_a) * 25
+            else:
+                settle = (roll_cycle - 0.8) / 0.2
+                leg_swing = math.sin(settle * math.pi) * 6 * (1 - settle)
+                arm_swing = math.sin(settle * math.pi * 2) * 8 * (1 - settle)
         else:
             leg_swing = math.sin(phase + math.pi) * 2
             arm_swing = math.sin(phase + math.pi) * 6
@@ -3443,10 +3512,16 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
                             (cx, int(-_leg_swing), _right_leg_dangle_h),   # back foot
                             (cx, int(_leg_swing), _left_leg_dangle_h),     # front foot
                         ]
+                    elif is_diag:
+                        # Diagonal view: slightly compressed shoe spacing
+                        shoe_pairs = [
+                            (cx - int(20 * persp_sx), left_shoe_swing, _left_leg_dangle_h),
+                            (cx + int(20 * persp_sx), right_shoe_swing, _right_leg_dangle_h),
+                        ]
                     else:
                         shoe_pairs = [
-                            (cx - int(25 * sx), left_shoe_swing, _left_leg_dangle_h),
-                            (cx + int(25 * sx), right_shoe_swing, _right_leg_dangle_h),
+                            (cx - int(25 * persp_sx), left_shoe_swing, _left_leg_dangle_h),
+                            (cx + int(25 * persp_sx), right_shoe_swing, _right_leg_dangle_h),
                         ]
 
                     for shoe_cx, shoe_swing, shoe_dh in shoe_pairs:
@@ -3454,19 +3529,19 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
                         shoe_x = shoe_cx + shoe_dh
                         # Shoe body
                         c.create_oval(
-                            shoe_x - int(15 * sx), shoe_y,
-                            shoe_x + int(15 * sx), shoe_y + int(12 * sy),
+                            shoe_x - int(15 * persp_sx), shoe_y,
+                            shoe_x + int(15 * persp_sx), shoe_y + int(12 * sy),
                             fill=color, outline=shadow, width=1,
                             tags="equipped_shoes")
                         # Sole
                         c.create_rectangle(
-                            shoe_x - int(14 * sx), shoe_y + int(8 * sy),
-                            shoe_x + int(14 * sx), shoe_y + int(12 * sy),
+                            shoe_x - int(14 * persp_sx), shoe_y + int(8 * sy),
+                            shoe_x + int(14 * persp_sx), shoe_y + int(12 * sy),
                             fill=shadow, outline='', tags="equipped_shoes")
                         # Lace / highlight
                         c.create_line(
-                            shoe_x - int(4 * sx), shoe_y + int(3 * sy),
-                            shoe_x + int(4 * sx), shoe_y + int(3 * sy),
+                            shoe_x - int(4 * persp_sx), shoe_y + int(3 * sy),
+                            shoe_x + int(4 * persp_sx), shoe_y + int(3 * sy),
                             fill=highlight, width=1, tags="equipped_shoes")
             
             # Draw equipped weapon

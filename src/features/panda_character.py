@@ -81,7 +81,7 @@ class PandaCharacter:
         'laying_back', 'laying_side', 'dancing', 'petting', 'gaming',
         'thinking', 'dragging', 'wall_hit', 'tossed', 'clicked', 'fed',
         'stretching', 'waving', 'jumping', 'yawning', 'sneezing', 'belly_rub',
-        'cartwheel', 'backflip', 'spinning', 'shaking', 'rolling',
+        'cartwheel', 'backflip', 'barrel_roll', 'spinning', 'shaking', 'rolling',
         'carrying', 'sitting', 'belly_grab', 'lay_on_back', 'lay_on_side',
         'belly_jiggle',
         # Directional walking animations
