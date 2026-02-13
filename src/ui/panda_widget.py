@@ -3398,17 +3398,42 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
                     
                     # Additional rotation for dragged on ground mode
                     if self._is_being_dragged_on_ground:
-                        # Rotate the entire canvas to align with drag direction
-                        # This makes the panda appear to be pulled in that direction
+                        # ROTATE the entire panda to align with drag direction!
+                        # Calculate rotation around center point
                         drag_angle_deg = math.degrees(self._drag_ground_angle)
-                        # Apply rotation by using canvas rotation
-                        # Since canvas doesn't have native rotation, we simulate it
-                        # by adjusting the scale and position based on angle
-                        cos_a = math.cos(self._drag_ground_angle)
-                        sin_a = math.sin(self._drag_ground_angle)
-                        # Modify scales to simulate rotation
-                        h_scale *= (1.0 + 0.2 * abs(sin_a))
-                        v_scale *= (1.0 - 0.15 * abs(cos_a))
+                        
+                        # Get all canvas items
+                        all_items = c.find_all()
+                        
+                        # Rotate each item around the pivot point
+                        # We'll use a rotation matrix to transform coordinates
+                        cos_angle = math.cos(self._drag_ground_angle)
+                        sin_angle = math.sin(self._drag_ground_angle)
+                        
+                        for item in all_items:
+                            coords = c.coords(item)
+                            if len(coords) >= 4:  # Rectangles, ovals, polygons
+                                new_coords = []
+                                for i in range(0, len(coords), 2):
+                                    x, y = coords[i], coords[i+1]
+                                    # Translate to origin (relative to pivot)
+                                    x_rel = x - pivot_x
+                                    y_rel = y - pivot_y
+                                    # Rotate
+                                    x_rot = x_rel * cos_angle - y_rel * sin_angle
+                                    y_rot = x_rel * sin_angle + y_rel * cos_angle
+                                    # Translate back
+                                    new_coords.append(x_rot + pivot_x)
+                                    new_coords.append(y_rot + pivot_y)
+                                c.coords(item, *new_coords)
+                        
+                        # Also adjust the scales based on angle for proper perspective
+                        cos_a = abs(cos_angle)
+                        sin_a = abs(sin_angle)
+                        # When horizontal (sin_a = 1), expand horizontally
+                        # When vertical (cos_a = 1), expand vertically
+                        h_scale *= (1.0 + 0.3 * sin_a)
+                        v_scale *= (1.0 + 0.3 * cos_a)
                 else:  # fall_on_face
                     # Forward tilt - compress differently
                     v_scale = 1.0 - (settle * 0.4)
