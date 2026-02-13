@@ -147,6 +147,9 @@ class PandaCharacter:
         "🐼 Fun fact: I've been clicked more times than I can count!",
         "🐼 Is it bamboo o'clock yet? 🕐",
         "🐼 *moonwalks* I've been practicing!",
+        "🐼 I see you looking at the converter!",
+        "🐼 The converter can do many formats!",
+        "🐼 Looking forward to seeing you again!",
     ]
 
     # Feed responses
@@ -877,15 +880,17 @@ class PandaCharacter:
         ],
     }
     
-    def __init__(self, name: str = "Panda", gender: PandaGender = PandaGender.NON_BINARY):
+    def __init__(self, name: str = "Panda", gender: PandaGender = PandaGender.NON_BINARY, username: str = ""):
         """Initialize the panda character.
         
         Args:
             name: The panda's name (default: "Panda")
             gender: The panda's gender (default: NON_BINARY)
+            username: The user's name for personalized interactions (default: "")
         """
         self.name = name
         self.gender = gender
+        self.username = username
         self.current_mood = PandaMood.HAPPY
         self.click_count = 0
         self.pet_count = 0
@@ -914,6 +919,12 @@ class PandaCharacter:
         with self._lock:
             self.name = name
             logger.info(f"Panda renamed to: {name}")
+    
+    def set_username(self, username: str):
+        """Set the user's name for personalized interactions."""
+        with self._lock:
+            self.username = username
+            logger.info(f"Username set to: {username}")
     
     def set_gender(self, gender: PandaGender):
         """Set the panda's gender."""
@@ -960,22 +971,54 @@ class PandaCharacter:
     
     def get_mood_indicator(self) -> str:
         """Get emoji indicator for current mood."""
-        mood_emojis = {
-            PandaMood.HAPPY: "😊",
-            PandaMood.EXCITED: "🤩",
-            PandaMood.WORKING: "💼",
-            PandaMood.TIRED: "😮‍💨",
-            PandaMood.CELEBRATING: "🎉",
-            PandaMood.SLEEPING: "😴",
-            PandaMood.SARCASTIC: "🙄",
-            PandaMood.RAGE: "😡",
-            PandaMood.DRUNK: "🥴",
-            PandaMood.EXISTENTIAL: "🤔",
-            PandaMood.MOTIVATING: "💪",
-            PandaMood.TECH_SUPPORT: "🤓",
-            PandaMood.SLEEPY: "🥱",
-        }
-        return mood_emojis.get(self.current_mood, "🐼")
+        with self._lock:
+            mood_emojis = {
+                PandaMood.HAPPY: "😊",
+                PandaMood.EXCITED: "🤩",
+                PandaMood.WORKING: "💼",
+                PandaMood.TIRED: "😮‍💨",
+                PandaMood.CELEBRATING: "🎉",
+                PandaMood.SLEEPING: "😴",
+                PandaMood.SARCASTIC: "🙄",
+                PandaMood.RAGE: "😡",
+                PandaMood.DRUNK: "🥴",
+                PandaMood.EXISTENTIAL: "🤔",
+                PandaMood.MOTIVATING: "💪",
+                PandaMood.TECH_SUPPORT: "🤓",
+                PandaMood.SLEEPY: "🥱",
+            }
+            return mood_emojis.get(self.current_mood, "🐼")
+    
+    def _personalize_message(self, message: str) -> str:
+        """Add username personalization to a message.
+        
+        Occasionally adds the username to make messages more personal.
+        Works with existing messages by sometimes prepending "Hey [username]" or similar.
+        
+        Args:
+            message: The original message
+            
+        Returns:
+            Personalized message with username (sometimes)
+        """
+        if not self.username:
+            return message
+        
+        # Randomly personalize ~30% of messages to not be too repetitive
+        if random.random() > 0.3:
+            return message
+        
+        # Various personalization patterns
+        greetings = [
+            f"Hey {self.username}! ",
+            f"{self.username}, ",
+            f"Oh {self.username}, ",
+            f"Hey there {self.username}! ",
+            f"*waves at {self.username}* ",
+        ]
+        
+        # Sometimes add a greeting prefix
+        return random.choice(greetings) + message
     
     def get_animation_state(self, animation_name: str = 'idle') -> str:
         """Get a valid animation state name.
@@ -1032,6 +1075,11 @@ class PandaCharacter:
             if self.name != "Panda":
                 import re
                 response = re.sub(r'\bPanda\b', self.name, response)
+            
+            # Add username personalization if set
+            if self.username:
+                response = self._personalize_message(response)
+            
             return response
     
     def on_hover(self) -> str:

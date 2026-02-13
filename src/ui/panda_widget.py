@@ -4812,6 +4812,10 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
                     command=self._show_rename_dialog
                 )
                 stats_menu.add_command(
+                    label=f"👤 Set Username",
+                    command=self._show_username_dialog
+                )
+                stats_menu.add_command(
                     label=f"⚧ Change Gender",
                     command=self._show_gender_dialog
                 )
@@ -4909,6 +4913,106 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
                 logger.info(f"Panda renamed to: {new_name}")
         except Exception as e:
             logger.error(f"Error renaming panda: {e}")
+
+    def _show_username_dialog(self):
+        """Show dialog to set username for personalized interactions."""
+        if not self.panda:
+            return
+        try:
+            from src.config import config
+            
+            # Create a custom dialog window
+            dialog = tk.Toplevel(self)
+            dialog.title("Set Your Name")
+            dialog.geometry("400x180")
+            dialog.transient(self.winfo_toplevel())
+            dialog.grab_set()
+            
+            # Center the dialog
+            dialog.update_idletasks()
+            x = (dialog.winfo_screenwidth() // 2) - (dialog.winfo_width() // 2)
+            y = (dialog.winfo_screenheight() // 2) - (dialog.winfo_height() // 2)
+            dialog.geometry(f"+{x}+{y}")
+            
+            # Title label
+            title_label = tk.Label(
+                dialog,
+                text="What's your name?",
+                font=("Arial", 14, "bold")
+            )
+            title_label.pack(pady=(20, 5))
+            
+            # Info label
+            current_username = self.panda.username or "(not set)"
+            info_label = tk.Label(
+                dialog,
+                text=f"Current: {current_username}\n\nThe panda will use your name for personalized interactions!",
+                font=("Arial", 10)
+            )
+            info_label.pack(pady=(0, 10))
+            
+            # Entry field
+            entry_var = tk.StringVar(value=self.panda.username)
+            entry = tk.Entry(
+                dialog,
+                textvariable=entry_var,
+                font=("Arial", 12),
+                width=30
+            )
+            entry.pack(pady=10)
+            entry.focus_set()
+            
+            # Auto-save with debouncing to reduce I/O
+            save_timer = None
+            
+            def save_username():
+                """Save username to config."""
+                username = entry_var.get().strip()
+                self.panda.set_username(username)
+                config.set('panda', 'username', value=username)
+                logger.info(f"Username auto-saved: {username}")
+            
+            def on_key_release(event=None):
+                """Handle key release with debounced save."""
+                nonlocal save_timer
+                # Cancel pending save
+                if save_timer:
+                    dialog.after_cancel(save_timer)
+                # Schedule new save after 500ms of no typing
+                save_timer = dialog.after(500, save_username)
+            
+            entry.bind('<KeyRelease>', on_key_release)
+            
+            # OK button - just close dialog (auto-save handles saving)
+            def on_ok():
+                # Cancel any pending save and save immediately
+                nonlocal save_timer
+                if save_timer:
+                    dialog.after_cancel(save_timer)
+                save_username()
+                
+                # Get the saved username for display message
+                username = self.panda.username
+                if username:
+                    self.info_label.configure(text=f"🐼 Nice to meet you, {username}!")
+                else:
+                    self.info_label.configure(text="🐼 Username cleared!")
+                dialog.destroy()
+            
+            ok_button = tk.Button(
+                dialog,
+                text="OK",
+                command=on_ok,
+                font=("Arial", 11),
+                width=10
+            )
+            ok_button.pack(pady=10)
+            
+            # Handle enter key
+            entry.bind('<Return>', lambda e: on_ok())
+            
+        except Exception as e:
+            logger.error(f"Error setting username: {e}")
 
     def _show_gender_dialog(self):
         """Show dialog to change panda gender."""

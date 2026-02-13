@@ -129,6 +129,7 @@ class Config:
             "panda": {
                 "name": "Panda",
                 "gender": "non_binary",  # male, female, non_binary
+                "username": "",  # User's name for personalized interactions
                 "position_x": 0.98,  # Relative position (0.0 to 1.0)
                 "position_y": 0.98,  # Relative position (0.0 to 1.0)
                 "enabled": True
