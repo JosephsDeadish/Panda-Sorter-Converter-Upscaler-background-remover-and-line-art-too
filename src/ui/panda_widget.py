@@ -2516,10 +2516,12 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
         
         # During toss physics or dragging, use _facing_direction to pick the correct view
         # Save original dragging state before anim is remapped for view.
-        # Include drag sub-animations (wall_hit, shaking, spinning) that can
-        # be triggered mid-drag so that dangle physics and facing continue to
-        # work instead of freezing when two animations compete.
-        _drag_anims = ('dragging', 'wall_hit', 'shaking', 'spinning')
+        # Only 'dragging' and 'wall_hit' are drag sub-animations here;
+        # 'shaking' and 'spinning' are excluded because they can only be
+        # triggered when grabbed by belly/butt (via _detect_drag_patterns)
+        # and should play their own dedicated animation instead of being
+        # remapped to a walking view.
+        _drag_anims = ('dragging', 'wall_hit')
         is_being_dragged = (anim in _drag_anims and self.is_dragging)
         if ((is_being_dragged) or
             (anim in ('tossed', 'wall_hit', 'rolling', 'spinning') and self._is_tossing)):

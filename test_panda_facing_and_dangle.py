@@ -681,7 +681,7 @@ def test_limb_drag_does_not_change_facing():
 
 
 def test_drag_sub_animations_keep_dangle():
-    """Test that drag sub-animations (wall_hit, shaking, spinning) maintain dangle physics."""
+    """Test that only wall_hit is a drag sub-animation (shaking/spinning are belly-only)."""
     try:
         from src.ui.panda_widget import PandaWidget
         import inspect
@@ -690,16 +690,20 @@ def test_drag_sub_animations_keep_dangle():
         # is_being_dragged should include drag sub-animations
         assert '_drag_anims' in source, \
             "_draw_panda should define _drag_anims tuple"
-        # Find the _drag_anims definition and verify it contains the sub-animations
+        # Find the _drag_anims definition and verify it contains wall_hit
         drag_anims_idx = source.index('_drag_anims')
         # Look at the next line which contains the tuple
         drag_anims_section = source[drag_anims_idx:drag_anims_idx + 200]
         assert "'wall_hit'" in drag_anims_section, \
             "_drag_anims should include 'wall_hit'"
-        assert "'shaking'" in drag_anims_section, \
-            "_drag_anims should include 'shaking'"
+        # shaking and spinning should NOT be in _drag_anims — they are
+        # belly/butt-only animations and should play their own view
+        assert "'shaking'" not in drag_anims_section, \
+            "_drag_anims should NOT include 'shaking' (belly/butt only)"
+        assert "'spinning'" not in drag_anims_section, \
+            "_drag_anims should NOT include 'spinning' (belly/butt only)"
         
-        print("✓ Drag sub-animations maintain dangle physics")
+        print("✓ Drag sub-animations correctly exclude shaking/spinning")
     except ImportError:
         print("⚠ Skipping drag sub-animation test (GUI not available)")
 

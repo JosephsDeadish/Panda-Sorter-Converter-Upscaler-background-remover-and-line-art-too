@@ -872,39 +872,44 @@ class GameTextureSorter(ctk.CTk):
         if self._deferred_tabs_created:
             return
         self._deferred_tabs_created = True
+        # Wrap every tab creation individually so a failure in one tab
+        # never prevents subsequent tabs from being created (avoids blank tabs).
+        _all_tab_creators = [
+            self.create_convert_tab,
+            self.create_alpha_fixer_tab,
+            self.create_browser_tab,
+            self.create_profiles_tab,
+            self.create_notepad_tab,
+            self.create_upscaler_tab,
+            self.create_about_tab,
+            self.create_shop_tab,
+            self.create_rewards_tab,
+            self.create_achievements_tab,
+        ]
+        if PANDA_CLOSET_AVAILABLE and self.panda_closet:
+            _all_tab_creators.append(self.create_closet_tab)
+        _all_tab_creators += [
+            self.create_inventory_tab,
+            self.create_panda_stats_tab,
+            self.create_armory_tab,
+            self.create_dungeon_tab,
+            self.create_battle_arena_tab,
+            self.create_travel_hub_tab,
+        ]
+        for _tab_creator in _all_tab_creators:
+            try:
+                _tab_creator()
+            except Exception as tab_err:
+                logger.error(f"Error creating tab {_tab_creator.__name__}: {tab_err}", exc_info=True)
+        
         try:
-            self.create_convert_tab()
-            self.create_alpha_fixer_tab()
-            self.create_browser_tab()
-            self.create_profiles_tab()
-            self.create_notepad_tab()
-            self.create_upscaler_tab()
-            self.create_about_tab()
-            self.create_shop_tab()
-            self.create_rewards_tab()
-            self.create_achievements_tab()
-            if PANDA_CLOSET_AVAILABLE and self.panda_closet:
-                self.create_closet_tab()
-            self.create_inventory_tab()
-            self.create_panda_stats_tab()
-            # Wrap game tabs individually so a failure in one does not
-            # prevent the others from being created (avoids empty tabs).
-            for _tab_creator in (self.create_armory_tab,
-                                 self.create_dungeon_tab,
-                                 self.create_battle_arena_tab,
-                                 self.create_travel_hub_tab):
-                try:
-                    _tab_creator()
-                except Exception as tab_err:
-                    logger.error(f"Error creating tab {_tab_creator.__name__}: {tab_err}", exc_info=True)
-            
             # Throttle scroll events on all scrollable frames to reduce lag/tearing
             self._throttle_scroll_frames()
             
             # Add pop-out buttons to dockable tabs
             self._add_popout_buttons()
         except Exception as e:
-            logger.error(f"Error creating deferred tabs: {e}", exc_info=True)
+            logger.error(f"Error in post-tab setup: {e}", exc_info=True)
     
     def _throttle_scroll_frames(self):
         """Patch CTkScrollableFrame widgets to throttle scroll events and reduce lag."""
@@ -8286,13 +8291,13 @@ Built with:
                 weapon = self.weapon_collection.equipped_weapon
                 from src.features.weapon_system import WeaponType
                 if weapon.weapon_type == WeaponType.MELEE:
-                    self.panda_widget.set_animation('swing', duration_ms=500)
+                    self.panda_widget.play_animation_once('swing')
                 elif weapon.weapon_type == WeaponType.RANGED:
-                    self.panda_widget.set_animation('shoot', duration_ms=500)
+                    self.panda_widget.play_animation_once('shoot')
                 elif weapon.weapon_type == WeaponType.MAGIC:
-                    self.panda_widget.set_animation('cast_spell', duration_ms=500)
+                    self.panda_widget.play_animation_once('cast_spell')
             else:
-                self.panda_widget.set_animation('swing', duration_ms=500)
+                self.panda_widget.play_animation_once('swing')
         
         # Calculate panda damage
         base_damage = self.combat_stats.attack_power
@@ -8308,7 +8313,7 @@ Built with:
         if not self.current_enemy.is_alive():
             self._combat_log.append(f"🎉 {self.current_enemy.name} defeated! +{self.current_enemy.xp_reward} XP")
             if hasattr(self, 'panda_widget') and self.panda_widget:
-                self.panda_widget.set_animation('victory', duration_ms=1000)
+                self.panda_widget.play_animation_once('victory')
             self.current_enemy = None
         else:
             # Enemy counterattack
@@ -8354,7 +8359,7 @@ Built with:
         
         # Show panda getting hit
         if hasattr(self, 'panda_widget') and self.panda_widget:
-            self.panda_widget.set_animation('hit', duration_ms=400)
+            self.panda_widget.play_animation_once('hit')
         
         damage, is_crit = self.current_enemy.attack(self.combat_stats.physical_defense)
         actual = self.combat_stats.take_damage(damage)
@@ -8363,7 +8368,7 @@ Built with:
         if not self.combat_stats.is_alive():
             self._combat_log.append("💀 You were defeated! Retreating to recover...")
             if hasattr(self, 'panda_widget') and self.panda_widget:
-                self.panda_widget.set_animation('defeat', duration_ms=1000)
+                self.panda_widget.play_animation_once('defeat')
             self.combat_stats.current_health = self.combat_stats.max_health
             self.current_enemy = None
 
