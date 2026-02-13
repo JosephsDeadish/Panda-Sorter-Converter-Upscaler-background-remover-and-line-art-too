@@ -375,6 +375,10 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
         self._ground_cracks = []  # List of (x, y, creation_time, crack_type) tuples
         self._crack_duration_ms = 3000  # How long cracks stay visible (3 seconds)
         
+        # Damage tracking and visual effects
+        self.damage_tracker = None  # Will be initialized lazily when needed
+        self.vfx_renderer = None  # Will be initialized lazily when needed
+        
         # Configure the proxy frame – it stays in the widget tree for API
         # compatibility but is intentionally empty / zero-size.
         if ctk:
@@ -5240,6 +5244,32 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
                 rub_y = int(120 * sy + by) + int(math.sin(rub_angle) * 6 * sy)
                 c.create_text(rub_x, rub_y, text="💕",
                               font=("Arial", max(8, int(10 * sx))), tags="rub_effect")
+        
+        # Draw damage effects (wounds, stuck projectiles, bleeding)
+        if self.damage_tracker is not None and self.vfx_renderer is not None:
+            # Get center position for damage effects
+            damage_center_x = cx
+            damage_center_y = int(100 * sy + by)  # Around torso area
+            
+            # Render wounds
+            wounds = self.damage_tracker.get_all_wounds()
+            if wounds:
+                self.vfx_renderer.render_wounds(c, wounds, damage_center_x, damage_center_y, scale=sx)
+            
+            # Render stuck projectiles (arrows, bolts, etc.)
+            stuck_projectiles = self.damage_tracker.get_stuck_projectiles()
+            if stuck_projectiles:
+                self.vfx_renderer.render_stuck_projectiles(
+                    c, stuck_projectiles, damage_center_x, damage_center_y, scale=sx
+                )
+            
+            # Render bleeding effect
+            if self.damage_tracker.total_bleeding_rate > 0:
+                self.vfx_renderer.render_bleeding_effect(
+                    c, damage_center_x, damage_center_y + int(40 * sy),
+                    self.damage_tracker.total_bleeding_rate,
+                    frame_idx
+                )
     
     def set_active_item(self, item_name: str = None, item_emoji: str = None,
                        item_type: str = None, item_key: str = None, item_physics = None):
@@ -5257,6 +5287,58 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
         self._active_item_type = item_type
         self._active_item_key = item_key
         self._active_item_physics = item_physics
+    
+    def take_damage(self, amount: float, category=None, limb=None, can_sever: bool = False) -> dict:
+        """
+        Apply damage to the panda.
+        
+        Args:
+            amount: Damage amount
+            category: Type of damage (from DamageCategory enum)
+            limb: Which limb to damage (from LimbType enum)
+            can_sever: Whether this hit can sever limbs (critical hits)
+            
+        Returns:
+            Dict with damage result info
+        """
+        # Lazy initialization of damage system
+        if self.damage_tracker is None:
+            try:
+                from src.features.damage_system import DamageTracker, DamageCategory, LimbType
+                from src.ui.visual_effects_renderer import VisualEffectsRenderer
+                self.damage_tracker = DamageTracker()
+                self.vfx_renderer = VisualEffectsRenderer()
+            except ImportError:
+                # If damage system not available, just return empty result
+                return {'stage': 0, 'severed': False}
+        
+        # Default category and limb if not specified
+        if category is None:
+            from src.features.damage_system import DamageCategory
+            category = DamageCategory.SHARP
+        if limb is None:
+            from src.features.damage_system import LimbType
+            limb = LimbType.TORSO
+        
+        # Apply damage
+        result = self.damage_tracker.apply_damage(limb, category, amount, can_sever)
+        
+        # Apply movement penalties from damage
+        movement_penalty = self.damage_tracker.get_movement_penalty()
+        attack_penalty = self.damage_tracker.get_attack_penalty()
+        
+        # TODO: Could integrate penalties into movement speed and attack damage
+        # For now, just track them
+        
+        # Show reaction (if severe damage)
+        if result['stage'] >= 6:
+            # Severe damage reaction
+            self._speak("Ouch! That really hurt!")
+        
+        # Redraw to show wounds
+        self._redraw()
+        
+        return result
     
     def walk_to_item(self, target_x: int, target_y: int, item_name: str = None,
                      item_emoji: str = None, item_type: str = 'toy',
