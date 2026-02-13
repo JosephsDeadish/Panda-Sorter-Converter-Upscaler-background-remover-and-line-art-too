@@ -7961,6 +7961,10 @@ Built with:
             self._sorting_cancelled.clear()
             self._sorting_paused.clear()
             
+            # Track session for achievements
+            if self.achievement_manager:
+                self.achievement_manager.increment_sessions()
+            
             # Start sorting in background thread with all parameters
             try:
                 thread = threading.Thread(
@@ -8095,12 +8099,12 @@ Built with:
                     
                     elif mode == "manual":
                         # Manual: User selects category for each file
-                        # Check skip_all flag
+                        # Check skip_all flag — skip remaining files without sorting
                         if self._sorting_skip_all.is_set():
-                            category, confidence = self.classifier.classify_texture(file_path)
-                            if i == 0 or (i > 0 and not hasattr(self, '_skip_all_logged')):
-                                self.log("⏩ Skip All active - using automatic classification for remaining files")
+                            if not hasattr(self, '_skip_all_logged'):
+                                self.log("⏩ Skip All active - skipping remaining files (unsorted)")
                                 self._skip_all_logged = True
+                            continue
                         elif self._sorting_cancelled.is_set():
                             self.log("⚠️ Sorting cancelled by user")
                             return
@@ -8182,13 +8186,13 @@ Built with:
                                     result_event.set()
                                 
                                 def on_skip():
-                                    selected_category[0] = ai_category
+                                    selected_category[0] = "__SKIP__"
                                     dialog_window.destroy()
                                     result_event.set()
                                 
                                 def on_skip_all():
                                     self._sorting_skip_all.set()
-                                    selected_category[0] = ai_category
+                                    selected_category[0] = "__SKIP__"
                                     dialog_window.destroy()
                                     result_event.set()
                                 
@@ -8215,10 +8219,10 @@ Built with:
                                         "Sort this texture into the category selected in the dropdown above",
                                         widget_id='manual_confirm_btn'))
                                     self._tooltips.append(WidgetTooltip(skip_btn,
-                                        "Skip this texture — use the AI suggestion instead of choosing manually",
+                                        "Skip this texture — leave it unsorted and move to the next one",
                                         widget_id='manual_skip_btn'))
                                     self._tooltips.append(WidgetTooltip(skip_all_btn,
-                                        "Stop reviewing — let the AI automatically classify all remaining textures",
+                                        "Skip all remaining textures — leave them unsorted and finish",
                                         widget_id='manual_skip_all_btn'))
                                     self._tooltips.append(WidgetTooltip(cancel_btn,
                                         "Cancel the entire sorting operation and stop processing files",
@@ -8244,6 +8248,8 @@ Built with:
                                 if self._sorting_cancelled.is_set():
                                     self.log("⚠️ Sorting cancelled by user")
                                     return
+                                if selected_category[0] == "__SKIP__":
+                                    continue  # Skip this file — don't sort it
                                 category = selected_category[0] if selected_category[0] else ai_category
                                 confidence = 1.0  # User selection is 100% confident
                             else:
@@ -8256,13 +8262,12 @@ Built with:
                         # Suggested: AI suggests, user confirms or changes
                         ai_category, ai_confidence = self.classifier.classify_texture(file_path)
                         
-                        # Check skip_all flag
+                        # Check skip_all flag — skip remaining files without sorting
                         if self._sorting_skip_all.is_set():
-                            category = ai_category
-                            confidence = ai_confidence
                             if not hasattr(self, '_skip_all_logged'):
-                                self.log("⏩ Skip All active - accepting AI suggestions for remaining files")
+                                self.log("⏩ Skip All active - skipping remaining files (unsorted)")
                                 self._skip_all_logged = True
+                            continue
                         elif self._sorting_cancelled.is_set():
                             self.log("⚠️ Sorting cancelled by user")
                             return
@@ -8339,13 +8344,13 @@ Built with:
                                     result_event.set()
                                 
                                 def on_skip():
-                                    confirmed_category[0] = ai_category
+                                    confirmed_category[0] = "__SKIP__"
                                     dialog_window.destroy()
                                     result_event.set()
                                 
                                 def on_skip_all():
                                     self._sorting_skip_all.set()
-                                    confirmed_category[0] = ai_category
+                                    confirmed_category[0] = "__SKIP__"
                                     dialog_window.destroy()
                                     result_event.set()
                                 
@@ -8371,13 +8376,13 @@ Built with:
                                 # Tooltips for suggested mode dialog buttons
                                 if WidgetTooltip:
                                     self._tooltips.append(WidgetTooltip(confirm_btn,
-                                        "Accept the category shown in the dropdown — change it first if the AI got it wrong",
+                                        "Sort this texture using the category in the dropdown — change it first if the AI got it wrong",
                                         widget_id='suggested_confirm_btn'))
                                     self._tooltips.append(WidgetTooltip(skip_btn,
-                                        "Accept the AI suggestion as-is and move to the next texture",
+                                        "Skip this texture — leave it unsorted and move to the next one",
                                         widget_id='suggested_skip_btn'))
                                     self._tooltips.append(WidgetTooltip(skip_all_btn,
-                                        "Stop reviewing — accept all remaining AI suggestions automatically",
+                                        "Skip all remaining textures — leave them unsorted and finish",
                                         widget_id='suggested_skip_all_btn'))
                                     self._tooltips.append(WidgetTooltip(cancel_btn,
                                         "Cancel the entire sorting operation and stop processing files",
@@ -8403,6 +8408,8 @@ Built with:
                                 if self._sorting_cancelled.is_set():
                                     self.log("⚠️ Sorting cancelled by user")
                                     return
+                                if confirmed_category[0] == "__SKIP__":
+                                    continue  # Skip this file — don't sort it
                                 category = confirmed_category[0] if confirmed_category[0] else ai_category
                                 confidence = 1.0  # User confirmation is 100% confident
                             else:
@@ -8551,6 +8558,10 @@ Built with:
                 # Award XP and money for sorting
                 files_sorted = results['processed']
                 if files_sorted > 0:
+                    # Update achievement progress
+                    if self.achievement_manager:
+                        self.achievement_manager.increment_textures_sorted(files_sorted)
+                    
                     # Award money
                     if self.currency_system:
                         money_per_file = self.currency_system.get_reward_for_action('file_processed')
