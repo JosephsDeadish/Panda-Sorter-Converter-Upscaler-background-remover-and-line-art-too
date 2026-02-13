@@ -976,7 +976,7 @@ class PandaCharacter:
                 PandaMood.HAPPY: "😊",
                 PandaMood.EXCITED: "🤩",
                 PandaMood.WORKING: "💼",
-                PandaMood.TIRED: "😴",
+                PandaMood.TIRED: "😮‍💨",
                 PandaMood.CELEBRATING: "🎉",
                 PandaMood.SLEEPING: "😴",
                 PandaMood.SARCASTIC: "🙄",
@@ -985,7 +985,7 @@ class PandaCharacter:
                 PandaMood.EXISTENTIAL: "🤔",
                 PandaMood.MOTIVATING: "💪",
                 PandaMood.TECH_SUPPORT: "🤓",
-                PandaMood.SLEEPY: "😪",
+                PandaMood.SLEEPY: "🥱",
             }
             return mood_emojis.get(self.current_mood, "🐼")
     

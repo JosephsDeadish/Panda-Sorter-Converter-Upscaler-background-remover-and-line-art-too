@@ -4962,21 +4962,37 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
             entry.pack(pady=10)
             entry.focus_set()
             
-            # Auto-save on key release
-            def on_key_release(event=None):
+            # Auto-save with debouncing to reduce I/O
+            save_timer = None
+            
+            def save_username():
+                """Save username to config."""
                 username = entry_var.get().strip()
                 self.panda.set_username(username)
                 config.set('panda', 'username', value=username)
                 logger.info(f"Username auto-saved: {username}")
             
+            def on_key_release(event=None):
+                """Handle key release with debounced save."""
+                nonlocal save_timer
+                # Cancel pending save
+                if save_timer:
+                    dialog.after_cancel(save_timer)
+                # Schedule new save after 500ms of no typing
+                save_timer = dialog.after(500, save_username)
+            
             entry.bind('<KeyRelease>', on_key_release)
             
-            # OK button
+            # OK button - just close dialog (auto-save handles saving)
             def on_ok():
+                # Cancel any pending save and save immediately
+                nonlocal save_timer
+                if save_timer:
+                    dialog.after_cancel(save_timer)
+                save_username()
+                
                 username = entry_var.get().strip()
                 if username:
-                    self.panda.set_username(username)
-                    config.set('panda', 'username', value=username)
                     self.info_label.configure(text=f"🐼 Nice to meet you, {username}!")
                 else:
                     self.info_label.configure(text="🐼 Username cleared!")
