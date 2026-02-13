@@ -363,6 +363,9 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
         # Shake animation decay (shared between limb and body sway calculations)
         self._shake_decay = 1.0
         
+        # Widget jump offset for making the whole window jump
+        self._widget_jump_offset = 0  # Y offset in pixels for jumping animation
+        
         # Autonomous walking state
         self._auto_walk_timer = None
         self._is_auto_walking = False
@@ -661,6 +664,10 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
                 tx = self._toplevel.winfo_x()
                 ty = self._toplevel.winfo_y()
                 
+                # Store base position if not already stored
+                if not hasattr(self, '_base_y'):
+                    self._base_y = ty
+                
                 # Clamp toplevel so it stays within screen bounds but allow
                 # it to be anywhere — only pull it back if main window moved.
                 # We store _last_root_geom to detect main-window movement.
@@ -670,11 +677,19 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
                     # Main window moved; shift the toplevel by the delta.
                     drx = rx - prev[0]
                     dry = ry - prev[1]
-                    self._toplevel.geometry(f"+{tx + drx}+{ty + dry}")
+                    self._base_y += dry  # Update base position
+                    # Apply jump offset from base position
+                    new_y = self._base_y + self._widget_jump_offset
+                    self._toplevel.geometry(f"+{tx + drx}+{new_y}")
+                elif self._widget_jump_offset != 0:
+                    # Apply jump offset from base position
+                    new_y = self._base_y + self._widget_jump_offset
+                    if abs(new_y - ty) > 1:  # Only update if significant change
+                        self._toplevel.geometry(f"+{tx}+{new_y}")
                 self._last_root_geom = cur_geom
             except Exception:
                 pass
-        self._follow_main_job = self.after(500, self._follow_main_tick)
+        self._follow_main_job = self.after(50, self._follow_main_tick)  # Update more frequently for jumping
 
     def _on_main_destroy(self, event=None):
         """Destroy the Toplevel when the main window is destroyed."""
@@ -1308,15 +1323,17 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
             arm_swing = math.sin(phase + math.pi) * 9 + math.sin(phase * 2 + math.pi) * 2.5
             body_bob = knee_lift + math.sin(phase * 2) * 1.5
         elif anim == 'fall_on_face':
-            # Fallen on face: body low, limbs splayed
-            leg_swing = 15
-            arm_swing = 20
-            body_bob = 55
+            # Fallen on face: body low, limbs splayed, with gradual tilt forward
+            settle = min(1.0, frame_idx / 24.0)
+            leg_swing = settle * 15
+            arm_swing = settle * 20
+            body_bob = settle * 55 + math.sin(phase * 0.2) * 1
         elif anim == 'tip_over_side':
-            # Tipped over on side: legs together, arm out
-            leg_swing = 8
-            arm_swing = -10
-            body_bob = 48
+            # Tipped over on side: gradual fall with rotation
+            settle = min(1.0, frame_idx / 24.0)
+            leg_swing = settle * 8
+            arm_swing = settle * (-10)
+            body_bob = settle * 48 + math.sin(phase * 0.2) * 1
         else:
             # Default walking for fed, etc.
             leg_swing = math.sin(phase) * 8
@@ -3170,21 +3187,41 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
                               font=("Arial Bold", int(10 * sx)),
                               fill="#666666", width=int(w * 0.9), tags="name_tag")
         
-        # --- Lay-on-side tilt: show side position without too much compression ---
-        if anim in ('lay_on_side', 'tip_over_side'):
+        # --- Lay-on-side and tip-over: Tilt the entire view to show lying on side ---
+        if anim in ('lay_on_side', 'tip_over_side', 'fall_on_face'):
             if anim == 'lay_on_side':
                 settle = min(1.0, frame_idx / 24.0)
-            else:
-                settle = 1.0  # tip_over is immediate
+                tilt_angle = settle * 90  # Tilt 90 degrees to the side
+            elif anim == 'tip_over_side':
+                settle = 1.0
+                tilt_angle = 90  # Immediate 90-degree tilt
+            else:  # fall_on_face
+                settle = min(1.0, frame_idx / 24.0)
+                tilt_angle = settle * 45  # Partial forward tilt
+            
             if settle > 0.01:
-                # Pivot at the bottom-center (where the body contacts the ground)
-                ground_y = h - int(10 * sy)
+                # Create tilted/rotated appearance by manipulating the canvas
                 pivot_x = w / 2
-                # Light compression to simulate body rotated onto its side (not too much!)
-                v_scale = 1.0 - settle * 0.25  # squish to ~75% height (was 55%)
-                # Widen horizontally slightly (body seen from side is wider on ground)
-                h_scale = 1.0 + settle * 0.1  # Less widening
-                c.scale("all", pivot_x, ground_y, h_scale, v_scale)
+                pivot_y = int(120 * sy + by)  # Center of body
+                
+                # Convert tilt angle to scaling factors
+                tilt_rad = math.radians(tilt_angle)
+                
+                # For side-lying (90°): compress vertically, widen horizontally
+                # This simulates the panda viewed from above when on its side
+                if anim in ('lay_on_side', 'tip_over_side'):
+                    # Vertical compression increases as we approach 90°
+                    v_scale = 1.0 - (settle * 0.6)  # Compress to 40% at full tilt
+                    # Horizontal expansion to show body lying lengthwise
+                    h_scale = 1.0 + (settle * 0.4)  # Expand to 140%
+                    # Shift the pivot down as panda falls to side
+                    pivot_y += int(settle * 30 * sy)
+                else:  # fall_on_face
+                    # Forward tilt - compress differently
+                    v_scale = 1.0 - (settle * 0.4)
+                    h_scale = 1.0 + (settle * 0.2)
+                
+                c.scale("all", pivot_x, pivot_y, h_scale, v_scale)
 
         # --- Barrel roll: rotate the entire body sideways through a full 360° ---
         if anim == 'barrel_roll':
@@ -3203,17 +3240,17 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
                     h_scale = self.MIN_VISIBLE_SCALE if h_scale >= 0 else -self.MIN_VISIBLE_SCALE
                 c.scale("all", pivot_x, body_cy, h_scale, v_scale)
 
-        # --- Backflip: rotate the entire body backward through a full 360° ---
+        # --- Backflip: rotate the entire body backward through a full 360° with smooth scaling ---
         if anim == 'backflip':
             flip_phase = (frame_idx % 60) / 60.0
             if 0.35 < flip_phase < 0.7:
-                # During the airborne rotation, tilt the whole body
+                # During the airborne rotation, tilt the whole body smoothly
                 flip_t = (flip_phase - 0.35) / 0.35
                 flip_a = flip_t * 2 * math.pi
                 pivot_x = w / 2
                 body_cy = int(90 * sy + by)
-                # Horizontal squish simulates body rotating front-to-back
-                h_scale = abs(math.cos(flip_a)) * 0.45 + 0.55
+                # Horizontal squish simulates body rotating front-to-back (smoother range)
+                h_scale = abs(math.cos(flip_a)) * 0.50 + 0.50  # Increased from 0.45 to 0.50 for smoother
                 # Vertical flip through the rotation (goes negative = upside down)
                 v_scale = math.cos(flip_a)
                 if abs(v_scale) < self.MIN_VISIBLE_SCALE:
@@ -7043,6 +7080,36 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
             return
         try:
             self._draw_panda(self.animation_frame)
+            
+            # Calculate widget jump offset for jumping animation
+            if self.current_animation == 'jumping':
+                jump_cycle = (self.animation_frame % 60) / 60.0
+                if jump_cycle < 0.15:
+                    # Crouch - slight down movement
+                    crouch = jump_cycle / 0.15
+                    self._widget_jump_offset = int(crouch * 5)
+                elif jump_cycle < 0.35:
+                    # Launch - big upward movement
+                    launch = (jump_cycle - 0.15) / 0.2
+                    self._widget_jump_offset = int(5 - launch * 40)
+                elif jump_cycle < 0.55:
+                    # Peak - stay high
+                    self._widget_jump_offset = -35
+                elif jump_cycle < 0.75:
+                    # Fall - come back down
+                    fall = (jump_cycle - 0.55) / 0.2
+                    self._widget_jump_offset = int(-35 + fall * 35)
+                else:
+                    # Landing - bounce settle
+                    land = (jump_cycle - 0.75) / 0.25
+                    self._widget_jump_offset = int(5 * math.sin(land * math.pi) * (1 - land))
+            else:
+                # Decay jump offset for other animations
+                if abs(self._widget_jump_offset) > 1:
+                    self._widget_jump_offset = int(self._widget_jump_offset * 0.8)
+                else:
+                    self._widget_jump_offset = 0
+            
             self.animation_frame += 1
             # Reset frame counter to prevent unbounded growth
             if self.animation_frame > self.MAX_ANIMATION_FRAME:
