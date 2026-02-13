@@ -21,8 +21,9 @@ logger = logging.getLogger(__name__)
 
 
 # Canvas dimensions for the panda drawing
+# Increased height to accommodate full upside-down rotations without clipping
 PANDA_CANVAS_W = 220
-PANDA_CANVAS_H = 270
+PANDA_CANVAS_H = 340  # Was 270, increased to 340 for rotation space
 
 # Transparent color key for the Toplevel window (Windows only).
 # Magenta is the classic choice – it does not appear in the panda drawing.
@@ -5891,6 +5892,8 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
         # Update facing direction based on drag velocity
         # Only update facing when grabbed by body/butt — dragging by limbs or
         # ears should not cause the panda to change the direction he's facing.
+        # IMPORTANT: Limbs continue to dangle even when facing direction changes
+        # during belly/body grabs - the dangle physics is independent of facing.
         vx = self._toss_velocity_x
         vy = self._toss_velocity_y
         _facing_update_parts = ('body', 'butt')
