@@ -142,6 +142,15 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
     # Upside-down flip threshold (velocity when dragged by legs)
     UPSIDE_DOWN_VELOCITY_THRESHOLD = 2.0  # Velocity threshold for flip detection
     
+    # Minimum visible scale during rotation animations (prevents body from
+    # becoming invisible at exactly 0 during mid-rotation)
+    MIN_VISIBLE_SCALE = 0.15
+    
+    # Offset in pixels for where food/toy items appear relative to the panda
+    # when given from the menu (the panda walks this distance to pick them up)
+    ITEM_WALK_OFFSET_X = 80
+    ITEM_WALK_OFFSET_Y = 30
+    
     # Recovery time after falling on face or tipping over (ms)
     FALL_RECOVERY_TIME_MS = 3000
     
@@ -303,6 +312,8 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
         self._drag_grab_part = 'body'  # Body part grabbed during drag (specific limb/ear/etc)
         self._is_upside_down = False   # True when dragged upside down by legs
         self._flip_progress = 0.0      # 0.0 = upright, 1.0 = fully flipped (gradual transition)
+        self._drag_body_angle = 0.0    # Current body hang angle in radians (0=upright, pi=upside down)
+        self._drag_body_angle_target = 0.0  # Target angle the body should rotate toward
         self._is_on_side = False        # True when tipped over on side
         self._is_face_down = False      # True when fallen on face
         self._facing_direction = 'front'  # Current facing: front, back, left, right
@@ -821,11 +832,11 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
                 arm_swing = math.cos(phase * 2) * 16
                 body_bob = math.sin(phase * 3) * 5
         elif anim in ('sleeping', 'laying_down'):
-            # Gradual settling into a curled-up sleeping pose
+            # Settle into sleeping pose — body drops low with gentle breathing
             settle_phase = min(1.0, frame_idx / 30.0)  # settle over ~30 frames
             leg_swing = (1 - settle_phase) * math.sin(phase) * 3 + settle_phase * 8
-            arm_swing = settle_phase * 10  # arms rest outward, tucked in
-            body_bob = settle_phase * 48 + math.sin(phase * 0.3) * 1.5  # much lower, gentle breathing
+            arm_swing = settle_phase * 10  # arms rest tucked in
+            body_bob = settle_phase * 48 + math.sin(phase * 0.3) * 1.5  # very low, gentle breathing
         elif anim in ('laying_back', 'laying_side'):
             leg_swing = math.sin(phase * 0.3) * 2
             arm_swing = 5
@@ -2550,9 +2561,8 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
                 v_scale = abs(math.cos(roll_a)) * 0.5 + 0.5
                 # Horizontal flip through the roll (goes negative = mirrored)
                 h_scale = math.cos(roll_a)
-                # Clamp h_scale so it doesn't hit exactly 0 (invisible)
-                if abs(h_scale) < 0.15:
-                    h_scale = 0.15 if h_scale >= 0 else -0.15
+                if abs(h_scale) < self.MIN_VISIBLE_SCALE:
+                    h_scale = self.MIN_VISIBLE_SCALE if h_scale >= 0 else -self.MIN_VISIBLE_SCALE
                 c.scale("all", pivot_x, body_cy, h_scale, v_scale)
 
         # --- Backflip: rotate the entire body backward through a full 360° ---
@@ -2568,34 +2578,61 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
                 h_scale = abs(math.cos(flip_a)) * 0.45 + 0.55
                 # Vertical flip through the rotation (goes negative = upside down)
                 v_scale = math.cos(flip_a)
-                if abs(v_scale) < 0.15:
-                    v_scale = 0.15 if v_scale >= 0 else -0.15
+                if abs(v_scale) < self.MIN_VISIBLE_SCALE:
+                    v_scale = self.MIN_VISIBLE_SCALE if v_scale >= 0 else -self.MIN_VISIBLE_SCALE
                 c.scale("all", pivot_x, body_cy, h_scale, v_scale)
 
-        # --- Upside-down flip when grabbed by foot and dragged upward ---
-        # Gradual rotation around the grab point (foot) for a natural-looking flip
-        if is_being_dragged and self._drag_grab_part in ('left_leg', 'right_leg'):
-            # Smoothly animate flip_progress toward target
-            target = 1.0 if self._is_upside_down else 0.0
-            speed = 0.12  # transition speed per frame
-            if self._flip_progress < target:
-                self._flip_progress = min(target, self._flip_progress + speed)
-            elif self._flip_progress > target:
-                self._flip_progress = max(target, self._flip_progress - speed)
+        # --- Body rotation when grabbed and dragged ---
+        # Legs: body hangs and swings fully (can flip upside down).
+        # Arms/ears: body tilts partially in the drag direction.
+        # Smoothly interpolated per frame.
+        _grabbed_rotates = ('left_leg', 'right_leg',
+                            'left_arm', 'right_arm',
+                            'left_ear', 'right_ear')
+        if is_being_dragged and self._drag_grab_part in _grabbed_rotates:
+            # Smoothly animate _drag_body_angle toward target
+            angle_speed = 0.15  # radians per frame
+            diff = self._drag_body_angle_target - self._drag_body_angle
+            # Normalize diff to [-pi, pi]
+            while diff > math.pi:
+                diff -= 2 * math.pi
+            while diff < -math.pi:
+                diff += 2 * math.pi
+            if abs(diff) < angle_speed:
+                self._drag_body_angle = self._drag_body_angle_target
+            else:
+                self._drag_body_angle += angle_speed if diff > 0 else -angle_speed
 
-            if self._flip_progress > 0.01:
-                # Pivot around the grabbed foot position (bottom of canvas)
-                foot_y = int(175 * sy + by)  # approximate foot Y on canvas
+            angle = self._drag_body_angle
+            if abs(angle) > 0.05:
+                is_leg_grab = self._drag_grab_part in ('left_leg', 'right_leg')
+                # Pivot point depends on what's grabbed:
+                # Legs → pivot at foot (bottom), Arms → pivot at arm (mid), Ears → pivot at ear (top)
+                if is_leg_grab:
+                    pivot_y = int(175 * sy + by)
+                elif self._drag_grab_part in ('left_arm', 'right_arm'):
+                    pivot_y = int(100 * sy + by)
+                else:  # ears
+                    pivot_y = int(25 * sy + by)
                 pivot_x = w / 2
-                # Scale Y by (1 - 2*progress) to smoothly go from 1 → -1
-                flip_scale = 1.0 - 2.0 * self._flip_progress
-                # Also add slight horizontal squeeze at midpoint (foreshortening)
-                h_squeeze = 1.0 - 0.15 * math.sin(self._flip_progress * math.pi)
-                c.scale("all", pivot_x, foot_y, h_squeeze, flip_scale)
+                # cos(angle) = vertical scale (1=upright, -1=upside down)
+                # sin(angle) = horizontal tilt
+                v_scale = math.cos(angle)
+                h_tilt = math.sin(angle)
+                foreshorten = 1.0 - 0.25 * abs(h_tilt)
+                c.scale("all", pivot_x, pivot_y, foreshorten, v_scale)
+                # Shift horizontally to simulate sideways hanging
+                shift_px = int(h_tilt * 60 * sx)
+                c.move("all", shift_px, 0)
+
+            self._flip_progress = abs(self._drag_body_angle) / math.pi
         else:
-            # Reset flip progress when not being dragged by legs
-            if self._flip_progress > 0.01:
-                self._flip_progress = max(0.0, self._flip_progress - 0.15)
+            # Smoothly return body angle to upright when released
+            if abs(self._drag_body_angle) > 0.05:
+                self._drag_body_angle *= 0.8  # decay toward 0
+                if abs(self._drag_body_angle) < 0.05:
+                    self._drag_body_angle = 0.0
+            self._flip_progress = max(0.0, self._flip_progress - 0.15)
     
     def _draw_eyes(self, c: tk.Canvas, cx: int, ey: int, style: str, sx: float = 1.0, sy: float = 1.0):
         """Draw panda eyes based on the current animation style."""
@@ -4931,15 +4968,45 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
         # Detect drag patterns
         self._detect_drag_patterns()
         
-        # Check if dragged by leg and moving upward (upside-down flip)
-        if self._drag_grab_part in ('left_leg', 'right_leg'):
+        # Compute body hang angle based on grabbed part and drag velocity.
+        # Legs: full rotation range (can flip upside down).
+        # Arms/ears: partial tilt (body sways from the grabbed limb).
+        grabbed = self._drag_grab_part
+        if grabbed in ('left_leg', 'right_leg'):
             # If dragged upward (negative velocity), flip upside down
             if self._toss_velocity_y < -self.UPSIDE_DOWN_VELOCITY_THRESHOLD:
                 self._is_upside_down = True
             elif self._toss_velocity_y > self.UPSIDE_DOWN_VELOCITY_THRESHOLD:
                 self._is_upside_down = False
+            
+            # Full rotation: body hangs from the foot in the drag direction
+            drag_speed = (vx**2 + vy**2) ** 0.5
+            if drag_speed > 1.5:
+                self._drag_body_angle_target = math.atan2(-vy, -vx) + math.pi / 2
+                # Normalize to [-pi, pi]
+                while self._drag_body_angle_target > math.pi:
+                    self._drag_body_angle_target -= 2 * math.pi
+                while self._drag_body_angle_target < -math.pi:
+                    self._drag_body_angle_target += 2 * math.pi
+            else:
+                self._drag_body_angle_target = 0.0
+        elif grabbed in ('left_arm', 'right_arm', 'left_ear', 'right_ear'):
+            # Partial tilt: body sways in drag direction, max ~45 degrees
+            drag_speed = (vx**2 + vy**2) ** 0.5
+            if drag_speed > 1.5:
+                raw_angle = math.atan2(-vy, -vx) + math.pi / 2
+                while raw_angle > math.pi:
+                    raw_angle -= 2 * math.pi
+                while raw_angle < -math.pi:
+                    raw_angle += 2 * math.pi
+                # Limit to ~45 degrees (pi/4)
+                self._drag_body_angle_target = max(-math.pi / 4, min(math.pi / 4, raw_angle))
+            else:
+                self._drag_body_angle_target = 0.0
+            self._is_upside_down = False
         else:
             self._is_upside_down = False
+            self._drag_body_angle_target = 0.0
         
         # Check if we've moved enough to count as a real drag
         distance = ((event.x - self.drag_start_x) ** 2 + (event.y - self.drag_start_y) ** 2) ** 0.5
@@ -5772,8 +5839,8 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
                 px = self._toplevel.winfo_x()
                 py = self._toplevel.winfo_y()
                 # Place the item ~80px to the right and ~30px below the panda
-                target_x = px + self._toplevel_w // 2 + 80
-                target_y = py + self._toplevel_h // 2 + 30
+                target_x = px + self._toplevel_w // 2 + self.ITEM_WALK_OFFSET_X
+                target_y = py + self._toplevel_h // 2 + self.ITEM_WALK_OFFSET_Y
             except Exception:
                 target_x, target_y = 0, 0
 

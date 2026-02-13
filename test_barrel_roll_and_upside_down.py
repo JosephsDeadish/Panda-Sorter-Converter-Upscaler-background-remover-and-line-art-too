@@ -344,6 +344,72 @@ def test_backflip_has_canvas_transform():
         print("⚠ Skipping backflip canvas transform test (GUI not available)")
 
 
+def test_drag_body_angle_tracking():
+    """Test that drag_body_angle tracks continuous rotation when grabbed by limbs."""
+    try:
+        from src.ui.panda_widget import PandaWidget
+        import inspect
+        # Check __init__ has the angle attributes
+        init_src = inspect.getsource(PandaWidget.__init__)
+        assert '_drag_body_angle' in init_src, \
+            "PandaWidget should have _drag_body_angle attribute"
+        assert '_drag_body_angle_target' in init_src, \
+            "PandaWidget should have _drag_body_angle_target attribute"
+
+        # Check _on_drag_motion computes angle from velocity
+        drag_src = inspect.getsource(PandaWidget._on_drag_motion)
+        assert 'atan2' in drag_src, \
+            "_on_drag_motion should use atan2 to compute body hang angle from velocity"
+        # Arms/ears should also get rotation (partial tilt)
+        assert 'left_arm' in drag_src and 'right_arm' in drag_src, \
+            "_on_drag_motion should compute rotation for arms too"
+        assert 'left_ear' in drag_src and 'right_ear' in drag_src, \
+            "_on_drag_motion should compute rotation for ears too"
+        # Arms should have a limited angle range (pi/4)
+        assert 'pi / 4' in drag_src, \
+            "Arms/ears should have limited rotation range (~pi/4)"
+
+        # Check _draw_panda applies rotation for all limbs
+        draw_src = inspect.getsource(PandaWidget._draw_panda)
+        assert '_drag_body_angle' in draw_src, \
+            "_draw_panda should use _drag_body_angle for body rotation"
+        assert 'c.move' in draw_src, \
+            "_draw_panda should use c.move for horizontal shift during rotation"
+        print("✓ Continuous drag body angle rotation works for legs, arms, and ears")
+    except ImportError:
+        print("⚠ Skipping drag body angle test (GUI not available)")
+
+
+def test_min_visible_scale_constant():
+    """Test that MIN_VISIBLE_SCALE constant exists and is used."""
+    try:
+        from src.ui.panda_widget import PandaWidget
+        assert hasattr(PandaWidget, 'MIN_VISIBLE_SCALE'), \
+            "PandaWidget should have MIN_VISIBLE_SCALE constant"
+        assert PandaWidget.MIN_VISIBLE_SCALE > 0, \
+            "MIN_VISIBLE_SCALE should be positive"
+        assert PandaWidget.MIN_VISIBLE_SCALE < 0.5, \
+            "MIN_VISIBLE_SCALE should be small (< 0.5)"
+        print("✓ MIN_VISIBLE_SCALE constant exists with correct value")
+    except ImportError:
+        print("⚠ Skipping MIN_VISIBLE_SCALE test (GUI not available)")
+
+
+def test_item_walk_offset_constants():
+    """Test that item walk offset constants exist."""
+    try:
+        from src.ui.panda_widget import PandaWidget
+        assert hasattr(PandaWidget, 'ITEM_WALK_OFFSET_X'), \
+            "PandaWidget should have ITEM_WALK_OFFSET_X constant"
+        assert hasattr(PandaWidget, 'ITEM_WALK_OFFSET_Y'), \
+            "PandaWidget should have ITEM_WALK_OFFSET_Y constant"
+        assert PandaWidget.ITEM_WALK_OFFSET_X > 0, \
+            "ITEM_WALK_OFFSET_X should be positive"
+        print("✓ Item walk offset constants exist")
+    except ImportError:
+        print("⚠ Skipping item walk offset test (GUI not available)")
+
+
 if __name__ == "__main__":
     print("\nTesting Barrel Roll, Upside-Down & Shoe Tracking...")
     print("-" * 55)
@@ -367,6 +433,9 @@ if __name__ == "__main__":
         test_eating_walks_to_item,
         test_barrel_roll_has_canvas_transform,
         test_backflip_has_canvas_transform,
+        test_drag_body_angle_tracking,
+        test_min_visible_scale_constant,
+        test_item_walk_offset_constants,
     ]
 
     failed = False
