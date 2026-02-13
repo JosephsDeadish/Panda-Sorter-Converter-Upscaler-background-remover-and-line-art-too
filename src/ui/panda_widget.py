@@ -3380,13 +3380,19 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
         
         # --- Lay-on-side and tip-over: Tilt the entire view to show lying on side ---
         # Also handles "dragged on ground" mode when grabbed by foot
-        if anim in ('lay_on_side', 'tip_over_side', 'fall_on_face') or self._is_being_dragged_on_ground:
+        if anim in ('lay_on_side', 'tip_over_side', 'fall_on_face',
+                   'sleeping', 'laying_down') or self._is_being_dragged_on_ground:
             if anim == 'lay_on_side':
                 settle = min(1.0, frame_idx / 24.0)
                 tilt_angle = settle * 90  # Tilt 90 degrees to the side
             elif anim == 'tip_over_side':
                 settle = 1.0
                 tilt_angle = 90  # Immediate 90-degree tilt
+            elif anim in ('sleeping', 'laying_down'):
+                # Gradually rotate onto side over ~30 frames for a natural
+                # laying-down motion — the panda curls up on its side
+                settle = min(1.0, frame_idx / 30.0)
+                tilt_angle = settle * 80  # Nearly on side, slightly propped up
             elif anim == 'fall_on_face':
                 settle = min(1.0, frame_idx / 24.0)
                 tilt_angle = settle * 45  # Partial forward tilt
@@ -3412,7 +3418,8 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
                 
                 # For side-lying (90°): compress vertically, widen horizontally
                 # This simulates the panda viewed from above when on its side
-                if anim in ('lay_on_side', 'tip_over_side') or self._is_being_dragged_on_ground:
+                if anim in ('lay_on_side', 'tip_over_side',
+                            'sleeping', 'laying_down') or self._is_being_dragged_on_ground:
                     # Vertical compression increases as we approach 90°
                     v_scale = 1.0 - (settle * 0.6)  # Compress to 40% at full tilt
                     # Horizontal expansion to show body lying lengthwise
@@ -3483,18 +3490,40 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
                     h_scale = self.MIN_VISIBLE_SCALE if h_scale >= 0 else -self.MIN_VISIBLE_SCALE
                 c.scale("all", pivot_x, body_cy, h_scale, v_scale)
 
-        # --- Backflip: rotate the entire body backward through a full 360° with smooth scaling ---
+        # --- Cartwheel: rotate the entire body sideways through a full 360° ---
+        # The panda flips over sideways like a real cartwheel — body goes
+        # upright → sideways → upside-down → sideways → upright.
+        if anim == 'cartwheel':
+            cart_cycle = (frame_idx % 60) / 60.0
+            if 0.15 < cart_cycle < 0.75:
+                # During the rotation phase, apply full body rotation
+                rot_t = (cart_cycle - 0.15) / 0.6
+                rot_a = rot_t * 2 * math.pi
+                pivot_x = w / 2
+                body_cy = int(100 * sy + by)
+                # Horizontal squish as body turns sideways (narrower when facing
+                # away / toward viewer, wide when viewed from side)
+                h_scale = abs(math.sin(rot_a)) * 0.4 + 0.6
+                # Vertical flip through the full rotation (goes negative = upside-down)
+                v_scale = math.cos(rot_a)
+                if abs(v_scale) < self.MIN_VISIBLE_SCALE:
+                    v_scale = self.MIN_VISIBLE_SCALE if v_scale >= 0 else -self.MIN_VISIBLE_SCALE
+                c.scale("all", pivot_x, body_cy, h_scale, v_scale)
+
+        # --- Backflip: rotate the entire body backward through a full 360° ---
+        # The panda flips backward — body goes upright → leaning back →
+        # upside-down → rotating forward → upright, like a real backflip.
         if anim == 'backflip':
             flip_phase = (frame_idx % 60) / 60.0
-            if 0.35 < flip_phase < 0.7:
-                # During the airborne rotation, tilt the whole body smoothly
-                flip_t = (flip_phase - 0.35) / 0.35
+            if 0.20 < flip_phase < 0.70:
+                # Full backward rotation covering the crouch-launch-flip-land
+                flip_t = (flip_phase - 0.20) / 0.50
                 flip_a = flip_t * 2 * math.pi
                 pivot_x = w / 2
                 body_cy = int(90 * sy + by)
-                # Horizontal squish simulates body rotating front-to-back (smoother range)
-                h_scale = abs(math.cos(flip_a)) * 0.50 + 0.50  # Increased from 0.45 to 0.50 for smoother
-                # Vertical flip through the rotation (goes negative = upside down)
+                # Horizontal squish simulates body rotating front-to-back
+                h_scale = abs(math.cos(flip_a)) * 0.45 + 0.55
+                # Vertical flip through the rotation (goes negative = upside-down)
                 v_scale = math.cos(flip_a)
                 if abs(v_scale) < self.MIN_VISIBLE_SCALE:
                     v_scale = self.MIN_VISIBLE_SCALE if v_scale >= 0 else -self.MIN_VISIBLE_SCALE
