@@ -1805,9 +1805,7 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
             mouth_style = 'smile'
         elif anim == 'cartwheel':
             mouth_style = 'grin'
-        elif anim == 'backflip':
-            mouth_style = 'grin'
-        elif anim == 'barrel_roll':
+        elif anim in ('backflip', 'barrel_roll'):
             mouth_style = 'grin'
         elif anim == 'lay_on_back':
             mouth_style = 'smile'

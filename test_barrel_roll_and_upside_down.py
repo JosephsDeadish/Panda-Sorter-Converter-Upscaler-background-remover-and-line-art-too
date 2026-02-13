@@ -125,6 +125,9 @@ def test_walking_limb_offsets_match():
         print("⚠ Skipping walking limb offsets test (GUI not available)")
 
 
+_SHOE_SECTION_MARKER = 'Draw shoes at feet'
+
+
 def test_shoe_uses_perspective_scale():
     """Test that shoe drawing uses persp_sx for perspective-correct sizing."""
     try:
@@ -133,7 +136,7 @@ def test_shoe_uses_perspective_scale():
         source = inspect.getsource(PandaWidget._draw_equipped_items)
 
         # Find the shoe drawing section
-        shoe_start = source.find('Draw shoes at feet')
+        shoe_start = source.find(_SHOE_SECTION_MARKER)
         assert shoe_start > 0, "Should have shoe drawing section"
         shoe_section = source[shoe_start:shoe_start + 2000]
 
@@ -152,14 +155,14 @@ def test_shoe_diagonal_view_handling():
         import inspect
         source = inspect.getsource(PandaWidget._draw_equipped_items)
 
-        shoe_start = source.find('Draw shoes at feet')
+        shoe_start = source.find(_SHOE_SECTION_MARKER)
         assert shoe_start > 0, "Should have shoe drawing section"
         shoe_section = source[shoe_start:shoe_start + 1500]
 
         # Check that diagonal view is handled separately
         assert 'is_diag' in shoe_section, \
             "Shoe drawing should handle diagonal view"
-        print("✓ Shoe drawing handles diagonal view")
+        print("✓ Shoe drawing handles diagonal view)")
     except ImportError:
         print("⚠ Skipping shoe diagonal test (GUI not available)")
 
