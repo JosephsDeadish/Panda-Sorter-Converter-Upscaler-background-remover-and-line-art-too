@@ -1721,9 +1721,8 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
                 eye_style = 'soft'
             elif cycle < 24:
                 eye_style = 'mostly_open'
-            elif cycle < 30:
-                eye_style = 'squint'
             elif cycle < 36:
+                # Hold squint for longer (frames 24-36)
                 eye_style = 'squint'
             elif cycle < 42:
                 eye_style = 'mostly_open'
