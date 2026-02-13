@@ -224,9 +224,6 @@ class MiniGamePanel(ctk.CTkFrame if ctk else tk.Frame):
         """Stop the current game immediately."""
         if not self.current_game:
             return
-        # Resume first if paused so stop() records correct time
-        if self.current_game.is_paused:
-            self.current_game.resume()
         self._end_game()
 
     def _show_click_game(self):

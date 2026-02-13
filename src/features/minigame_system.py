@@ -87,7 +87,8 @@ class MiniGame(ABC):
         """Get elapsed game time excluding paused time."""
         if not self.start_time:
             return 0.0
-        total = time.time() - self.start_time
+        end = self.end_time if self.end_time else time.time()
+        total = end - self.start_time
         paused = self._total_paused
         if self.is_paused and self._pause_start:
             paused += time.time() - self._pause_start
@@ -101,9 +102,14 @@ class MiniGame(ABC):
         Returns:
             GameResult with score and rewards
         """
+        # Finalize pause tracking before recording end time
+        if self.is_paused and self._pause_start:
+            self._total_paused += time.time() - self._pause_start
+            self._pause_start = None
+        self.is_paused = False
         self.end_time = time.time()
         self.is_running = False
-        duration = self.end_time - self.start_time if self.start_time else 0
+        duration = self._elapsed_time()
         
         # Calculate rewards based on score and difficulty
         xp = self._calculate_xp()
