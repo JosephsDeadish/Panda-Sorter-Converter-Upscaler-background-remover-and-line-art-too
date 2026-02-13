@@ -124,6 +124,54 @@ def test_zip_roundtrip():
         assert extracted.size == (4, 4)
 
 
+def test_image_open_and_upscale_roundtrip():
+    """Image.open should work for upscaling and saving (validates PIL import availability)."""
+    import tempfile
+    from PIL import Image
+
+    with tempfile.TemporaryDirectory() as tmp:
+        # Create and save a test image
+        img = Image.new("RGBA", (8, 8), (50, 100, 150, 200))
+        img_path = Path(tmp) / "input.png"
+        img.save(str(img_path))
+
+        # Open the image (simulates _preview_upscale_file and _run_upscale)
+        opened = Image.open(str(img_path))
+        assert opened.size == (8, 8)
+
+        # Upscale using resize with Lanczos (simulates _upscale_pil_image)
+        factor = 2
+        new_size = (opened.size[0] * factor, opened.size[1] * factor)
+        resample = Image.LANCZOS
+        rgb = opened.convert("RGB").resize(new_size, resample)
+        alpha = opened.getchannel("A").resize(new_size, resample)
+        result = rgb.copy()
+        result.putalpha(alpha)
+
+        assert result.size == (16, 16)
+        assert result.mode == "RGBA"
+
+        # Save the upscaled image (simulates _run_upscale save)
+        out_path = Path(tmp) / "output.png"
+        result.save(str(out_path))
+        assert out_path.exists()
+
+        # Verify saved image
+        saved = Image.open(str(out_path))
+        assert saved.size == (16, 16)
+        assert saved.mode == "RGBA"
+
+
+def test_pil_resample_filters_accessible():
+    """All PIL resample filters used by _get_pil_resample should be accessible."""
+    from PIL import Image
+
+    # These are the exact attributes used in _get_pil_resample
+    filters = [Image.LANCZOS, Image.BICUBIC, Image.BILINEAR, Image.HAMMING, Image.BOX]
+    for f in filters:
+        assert f is not None, f"Filter {f} should not be None"
+
+
 if __name__ == "__main__":
     test_pil_resample_mapping()
     test_upscale_pil_rgba_preservation()
@@ -131,4 +179,6 @@ if __name__ == "__main__":
     test_scale_factor_parsing()
     test_upscale_uses_lanczos_not_nearest()
     test_zip_roundtrip()
+    test_image_open_and_upscale_roundtrip()
+    test_pil_resample_filters_accessible()
     print("All upscaler tool tests passed!")

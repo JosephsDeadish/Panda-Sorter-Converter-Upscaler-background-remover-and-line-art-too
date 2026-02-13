@@ -2203,6 +2203,7 @@ class GameTextureSorter(ctk.CTk):
 
     def _get_pil_resample(self):
         """Return the PIL resample filter matching the current style selection."""
+        from PIL import Image
         style = self.upscale_style_var.get()
         if "Lanczos" in style:
             return Image.LANCZOS
@@ -2223,6 +2224,7 @@ class GameTextureSorter(ctk.CTk):
 
     def _preview_upscale_file(self):
         """Let user pick a single file and show before/after preview."""
+        from PIL import Image
         filepath = filedialog.askopenfilename(
             title="Select Image to Preview",
             filetypes=[
@@ -2239,6 +2241,7 @@ class GameTextureSorter(ctk.CTk):
 
     def _show_upscale_preview(self, pil_img):
         """Display before/after preview for the given PIL Image."""
+        from PIL import Image
         self._upscale_preview_image = pil_img
         # Before thumbnail
         before = pil_img.copy()
@@ -2334,6 +2337,7 @@ class GameTextureSorter(ctk.CTk):
             import tempfile
             import zipfile
             import shutil
+            from PIL import Image
 
             tmp_extract_dir = None
             try:
