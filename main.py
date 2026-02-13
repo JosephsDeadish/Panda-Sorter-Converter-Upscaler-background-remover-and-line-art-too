@@ -7859,14 +7859,11 @@ Built with:
             dungeon = IntegratedDungeon(width=80, height=80, num_floors=5)
             
             # Spawn player at spawn point
-            floor = dungeon.get_floor(0)
+            floor = dungeon.dungeon.get_floor(0)
             player_x, player_y = floor.spawn_point
             dungeon.player_x = player_x
             dungeon.player_y = player_y
-            dungeon.current_floor = 0
-            
-            # Spawn enemies in rooms
-            dungeon.spawn_enemies_in_rooms()
+            dungeon.player_floor = 0
             
             # Create main container
             main_frame = ctk.CTkFrame(dungeon_window)
@@ -7880,7 +7877,7 @@ Built with:
             canvas.pack(fill="both", expand=True)
             
             # Create renderer
-            renderer = EnhancedDungeonRenderer(canvas, dungeon.generator)
+            renderer = EnhancedDungeonRenderer(canvas, dungeon.dungeon)
             renderer.set_floor(0)
             renderer.center_camera_on_tile(player_x, player_y)
             
@@ -7928,14 +7925,14 @@ Built with:
                 """Update stat labels."""
                 try:
                     player_state = dungeon.get_player_state()
-                    stat_labels['floor'].configure(text=f"{player_state['current_floor'] + 1}/5")
+                    stat_labels['floor'].configure(text=f"{player_state['floor'] + 1}/5")
                     stat_labels['position'].configure(text=f"({player_state['x']}, {player_state['y']})")
                     stat_labels['health'].configure(text=f"{player_state['health']}/{player_state['max_health']}")
                     
-                    enemies_on_floor = len(dungeon.get_enemies_on_floor(player_state['current_floor']))
+                    enemies_on_floor = len(dungeon.enemies_by_floor.get(player_state['floor'], []))
                     stat_labels['enemies'].configure(text=str(enemies_on_floor))
-                    stat_labels['kills'].configure(text=str(player_state['monsters_slain']))
-                    stat_labels['loot'].configure(text=str(player_state['items_collected']))
+                    stat_labels['kills'].configure(text=str(player_state['enemies_killed']))
+                    stat_labels['loot'].configure(text=str(player_state['loot_collected']))
                 except Exception:
                     pass
             
@@ -7955,14 +7952,14 @@ Built with:
                     renderer.render_entity(dungeon.player_x, dungeon.player_y, "🐼", size=24)
                     
                     # Render enemies
-                    enemies = dungeon.get_enemies_on_floor(dungeon.current_floor)
+                    enemies = [e for e in dungeon.enemies_by_floor.get(dungeon.player_floor, []) if e.is_alive]
                     for enemy in enemies:
                         renderer.render_entity(enemy.x, enemy.y, enemy.enemy.icon, size=20)
                     
                     # Render loot
-                    loot_items = dungeon.get_loot_on_floor(dungeon.current_floor)
+                    loot_items = [l for l in dungeon.loot_by_floor.get(dungeon.player_floor, []) if not l.collected]
                     for loot in loot_items:
-                        loot_icon = {"health": "❤️", "weapon": "⚔️", "gold": "💰", "key": "🔑"}.get(loot.loot_type, "🎁")
+                        loot_icon = {"health": "❤️", "weapon": "⚔️", "gold": "💰", "key": "🔑"}.get(loot.item_type, "🎁")
                         renderer.render_entity(loot.x, loot.y, loot_icon, size=16)
                     
                     # Render minimap if enabled
@@ -7986,7 +7983,7 @@ Built with:
                 
                 # Update enemies (move toward player)
                 try:
-                    enemies = dungeon.get_enemies_on_floor(dungeon.current_floor)
+                    enemies = [e for e in dungeon.enemies_by_floor.get(dungeon.player_floor, []) if e.is_alive]
                     for enemy in enemies:
                         dx = dungeon.player_x - enemy.x
                         dy = dungeon.player_y - enemy.y
@@ -7996,11 +7993,11 @@ Built with:
                             # Move toward player
                             if abs(dx) > abs(dy):
                                 new_x = enemy.x + (1 if dx > 0 else -1)
-                                if dungeon.generator.is_walkable(dungeon.current_floor, new_x, enemy.y):
+                                if dungeon.dungeon.is_walkable(dungeon.player_floor, new_x, enemy.y):
                                     enemy.x = new_x
                             else:
                                 new_y = enemy.y + (1 if dy > 0 else -1)
-                                if dungeon.generator.is_walkable(dungeon.current_floor, enemy.x, new_y):
+                                if dungeon.dungeon.is_walkable(dungeon.player_floor, enemy.x, new_y):
                                     enemy.y = new_y
                         
                         # Attack if in range
@@ -8008,7 +8005,7 @@ Built with:
                             player_state = dungeon.get_player_state()
                             if player_state['health'] > 0:
                                 damage = enemy.enemy.stats.attack // 2
-                                dungeon.player.take_damage(damage)
+                                dungeon.player_health -= damage
                                 logger.debug(f"Enemy attacked! Damage: {damage}")
                 except Exception as e:
                     logger.debug(f"Enemy update error: {e}")
@@ -8035,7 +8032,7 @@ Built with:
                         new_x += 1
                     elif key == 'space':
                         # Attack nearby enemies
-                        enemies = dungeon.get_enemies_on_floor(dungeon.current_floor)
+                        enemies = [e for e in dungeon.enemies_by_floor.get(dungeon.player_floor, []) if e.is_alive]
                         for enemy in enemies:
                             dx = abs(enemy.x - dungeon.player_x)
                             dy = abs(enemy.y - dungeon.player_y)
@@ -8050,32 +8047,32 @@ Built with:
                                 
                                 enemy.enemy.take_damage(base_damage)
                                 if not enemy.enemy.is_alive():
-                                    dungeon.enemies_by_floor[dungeon.current_floor].remove(enemy)
-                                    dungeon.player.add_monster_kill()
-                                    dungeon.player.add_experience(50)
-                                    self.panda.stats.add_monster_kill()
-                                    self.panda.stats.add_experience(50)
+                                    enemy.is_alive = False
+                                    dungeon.enemies_killed += 1
+                                    if self.panda:
+                                        self.panda.stats.add_monster_kill()
+                                        self.panda.stats.add_experience(50)
                                     logger.debug(f"Enemy defeated!")
                                 break
                         return
                     elif key == 'e':
                         # Use stairs
                         result = dungeon._check_stairs()
-                        if result == 'up' and dungeon.current_floor > 0:
-                            dungeon.current_floor -= 1
-                            floor = dungeon.get_floor(dungeon.current_floor)
+                        if result == 'stairs_up' and dungeon.player_floor > 0:
+                            dungeon.player_floor -= 1
+                            floor = dungeon.dungeon.get_floor(dungeon.player_floor)
                             for x, y in floor.stairs_down:
                                 dungeon.player_x, dungeon.player_y = x, y
                                 break
-                            renderer.set_floor(dungeon.current_floor)
+                            renderer.set_floor(dungeon.player_floor)
                             renderer.center_camera_on_tile(dungeon.player_x, dungeon.player_y)
-                        elif result == 'down' and dungeon.current_floor < 4:
-                            dungeon.current_floor += 1
-                            floor = dungeon.get_floor(dungeon.current_floor)
+                        elif result == 'stairs_down' and dungeon.player_floor < 4:
+                            dungeon.player_floor += 1
+                            floor = dungeon.dungeon.get_floor(dungeon.player_floor)
                             for x, y in floor.stairs_up:
                                 dungeon.player_x, dungeon.player_y = x, y
                                 break
-                            renderer.set_floor(dungeon.current_floor)
+                            renderer.set_floor(dungeon.player_floor)
                             renderer.center_camera_on_tile(dungeon.player_x, dungeon.player_y)
                         return
                     elif key == 'f':
@@ -8088,21 +8085,21 @@ Built with:
                         return
                     
                     # Check if movement is valid
-                    if dungeon.generator.is_walkable(dungeon.current_floor, new_x, new_y):
+                    if dungeon.dungeon.is_walkable(dungeon.player_floor, new_x, new_y):
                         dungeon.player_x = new_x
                         dungeon.player_y = new_y
                         renderer.center_camera_on_tile(new_x, new_y)
                         renderer.mark_explored(new_x, new_y, radius=5)
                         
                         # Check for loot
-                        loot_items = dungeon.get_loot_on_floor(dungeon.current_floor)
+                        loot_items = [l for l in dungeon.loot_by_floor.get(dungeon.player_floor, []) if not l.collected]
                         for loot in loot_items:
                             if loot.x == new_x and loot.y == new_y:
-                                dungeon.loot_by_floor[dungeon.current_floor].remove(loot)
-                                dungeon.player.increment_items()
+                                loot.collected = True
+                                dungeon.loot_collected += 1
                                 if self.panda:
                                     self.panda.stats.increment_items()
-                                logger.debug(f"Collected {loot.loot_type}!")
+                                logger.debug(f"Collected {loot.item_type}!")
                                 break
                         
                         render_game()
@@ -8649,6 +8646,15 @@ Built with:
                          text=f"📍 Current Location: {current_loc.icon} {current_loc.name}",
                          font=("Arial Bold", 14)).pack(pady=8, padx=10)
 
+            # Show Enter Dungeon button if at a dungeon location
+            if current_loc.location_type.value == "dungeon":
+                enter_frame = ctk.CTkFrame(self.tab_travel_hub)
+                enter_frame.pack(fill="x", pady=5, padx=10)
+                ctk.CTkButton(enter_frame, text="🏰 Enter Dungeon",
+                              font=("Arial Bold", 14), height=40,
+                              fg_color="#2fa572", hover_color="#1f7050",
+                              command=self.open_dungeon_window).pack(pady=8)
+
         # Location list
         scroll_frame = ctk.CTkScrollableFrame(self.tab_travel_hub, label_text="Locations")
         scroll_frame.pack(fill="both", expand=True, padx=10, pady=5)
@@ -8675,14 +8681,93 @@ Built with:
                               command=lambda lid=loc.id: self._travel_to_location(lid)).pack(side="right", padx=5)
 
     def _travel_to_location(self, location_id: str):
-        """Travel to a location and refresh the travel hub tab."""
-        if self.travel_system:
-            success, message = self.travel_system.travel_to(location_id)
-            logger.info(f"Travel: {message}")
-            # Rebuild travel hub tab
+        """Travel to a location with driving animation and refresh the travel hub tab."""
+        if not self.travel_system:
+            return
+
+        # Get travel sequence before traveling
+        travel_scenes = self.travel_system.get_travel_sequence(location_id)
+
+        success, message = self.travel_system.travel_to(location_id)
+        logger.info(f"Travel: {message}")
+
+        if success and travel_scenes:
+            self._play_travel_animation(travel_scenes, location_id)
+        else:
+            # Rebuild travel hub tab immediately if no animation
             for widget in self.tab_travel_hub.winfo_children():
                 widget.destroy()
             self.create_travel_hub_tab()
+
+    def _play_travel_animation(self, scenes, location_id: str):
+        """Play driving animation scenes in the travel hub tab."""
+        import tkinter as tk
+
+        # Clear tab for animation
+        for widget in self.tab_travel_hub.winfo_children():
+            widget.destroy()
+
+        anim_frame = ctk.CTkFrame(self.tab_travel_hub)
+        anim_frame.pack(fill="both", expand=True, padx=10, pady=10)
+
+        # Canvas for the travel scene
+        canvas = tk.Canvas(anim_frame, width=500, height=300, highlightthickness=0)
+        canvas.pack(pady=10)
+
+        # Description label
+        desc_label = ctk.CTkLabel(anim_frame, text="", font=("Arial Bold", 16))
+        desc_label.pack(pady=10)
+
+        scene_state = {'index': 0}
+
+        def show_scene(index):
+            if index >= len(scenes):
+                # Animation done – rebuild the hub
+                for widget in self.tab_travel_hub.winfo_children():
+                    widget.destroy()
+                self.create_travel_hub_tab()
+                return
+
+            scene = scenes[index]
+            canvas.delete("all")
+
+            # Draw sky
+            canvas.configure(bg=scene.sky_color)
+
+            # Draw ground
+            canvas.create_rectangle(0, 200, 500, 300, fill=scene.ground_color, outline="")
+
+            # Draw road
+            canvas.create_rectangle(0, 220, 500, 270, fill=scene.road_color, outline="")
+
+            # Draw road dashes
+            for rx in range(0, 500, 60):
+                canvas.create_rectangle(rx + 10, 243, rx + 40, 247, fill="#FFFFFF", outline="")
+
+            # Draw detail emojis along the road
+            for dx in range(50, 500, 120):
+                canvas.create_text(dx, 195, text=scene.detail_emoji, font=("Arial", 20))
+
+            # Draw car / panda
+            if scene.scene_type.value == "walk_to_car":
+                canvas.create_text(350, 230, text="🚗", font=("Arial", 36))
+                canvas.create_text(200, 230, text="🐼", font=("Arial", 30))
+            elif scene.scene_type.value == "get_in_car":
+                canvas.create_text(350, 230, text="🚗", font=("Arial", 36))
+                canvas.create_text(340, 220, text="🐼", font=("Arial", 20))
+            elif scene.scene_type.value == "arrive":
+                canvas.create_text(250, 230, text="🚗", font=("Arial", 36))
+                canvas.create_text(250, 170, text=scene.detail_emoji, font=("Arial", 40))
+            else:
+                # Driving scene
+                canvas.create_text(250, 230, text="🚗", font=("Arial", 36))
+
+            desc_label.configure(text=scene.description)
+
+            scene_state['index'] = index + 1
+            self.tab_travel_hub.after(scene.duration_ms, lambda: show_scene(scene_state['index']))
+
+        show_scene(0)
 
     def _draw_static_panda(self, canvas, w, h):
         """Draw a static panda on a preview canvas matching the live panda_widget style."""
