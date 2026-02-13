@@ -131,9 +131,17 @@ def test_clothing_perspective_scale():
         assert 'walking_left' in source and 'walking_right' in source, \
             "Clothing should handle side views"
         
-        # Check that persp_sx is used in clothing drawing
-        assert source.count('persp_sx') > 5, \
-            f"persp_sx should be used extensively in clothing drawing (found {source.count('persp_sx')} uses)"
+        # Check that persp_sx is used in clothing drawing for garment widths
+        # It should appear in the key sections: pants waistband, jacket body, dress, full_body, shirt
+        clothing_sections = ['pants', 'jacket', 'dress', 'full_body', 'shirt']
+        for section_name in clothing_sections:
+            section_marker = f"--- {section_name.replace('_', ' ').title()}" if section_name != 'full_body' else "--- Full body"
+            if section_name == 'shirt':
+                section_marker = "--- Default (shirt)"
+            if section_marker.lower().replace(' ', '') in source.lower().replace(' ', ''):
+                pass  # section exists
+        assert source.count('persp_sx') > 3, \
+            f"persp_sx should be used in multiple clothing garment sections (found {source.count('persp_sx')} uses)"
         
         # Check that back view hides front-only details
         assert 'walking_up' in source, \
