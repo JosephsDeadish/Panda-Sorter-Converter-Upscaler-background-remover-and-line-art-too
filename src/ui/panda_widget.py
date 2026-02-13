@@ -3261,7 +3261,8 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
                 continue
             
             # Convert opacity to hex color (gray cracks that fade out)
-            gray_val = max(0, 100 - int(100 * fade_progress))
+            MAX_GRAY_VALUE = 100
+            gray_val = max(0, MAX_GRAY_VALUE - int(MAX_GRAY_VALUE * fade_progress))
             color = f"#{gray_val:02x}{gray_val:02x}{gray_val:02x}"
             
             # Draw crack lines radiating from impact point
@@ -3276,6 +3277,7 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
                 crack_length = 10
             
             for i in range(crack_lines):
+                # Full circle (2*pi radians) divided by number of crack lines
                 angle = (i / crack_lines) * 2 * math.pi
                 end_x = crack_x + int(crack_length * math.cos(angle))
                 end_y = crack_y + int(crack_length * math.sin(angle))
