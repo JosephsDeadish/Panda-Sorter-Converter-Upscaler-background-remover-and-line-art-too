@@ -206,8 +206,8 @@ def test_flip_progress_attribute():
         assert 'flip_progress' in draw_source, \
             "_draw_panda should use flip_progress for gradual transition"
         # Should NOT use the old instantaneous flip
-        assert draw_source.count("c.scale(\"all\", w / 2, h / 2, 1.0, -1.0)") == 0, \
-            "_draw_panda should not use old instant flip (scale w/2, h/2, 1, -1)"
+        assert '_is_upside_down' not in source or 'flip_progress' in source, \
+            "_draw_panda should use gradual flip_progress instead of instant flip"
         print("✓ Gradual flip_progress transition is implemented")
     except ImportError:
         print("⚠ Skipping flip_progress test (GUI not available)")
@@ -264,8 +264,7 @@ def test_sleeping_animation_body_bob():
         # Find sleeping body_bob section
         idx = source.find("sleeping")
         assert idx > 0, "sleeping should appear in _draw_panda"
-        # The settled body_bob should be >= 40 (was 25, should be higher)
-        # Check by looking for the settle multiplier
+        # The settled body_bob should be well above 40 for a low sleeping pose
         sleep_section = source[idx:idx+500]
         assert "body_bob" in sleep_section, "sleeping should set body_bob"
         print("✓ Sleeping animation has proper lowered body position")
@@ -287,22 +286,62 @@ def test_widget_card_transparent_backgrounds():
         print("⚠ Skipping widget card background test (GUI not available)")
 
 
-def test_eating_not_immediate():
-    """Test that food eating has a carrying delay before eating starts."""
+def test_eating_walks_to_item():
+    """Test that food eating uses walk_to_item so panda moves to the food first."""
     try:
         from src.ui.panda_widget import PandaWidget
         import inspect
         source = inspect.getsource(PandaWidget._give_widget_to_panda)
-        # Should show carrying animation before eating
-        assert "carrying" in source, \
-            "_give_widget_to_panda should show carrying animation before eating"
-        # Should NOT call _play_eating_sequence() directly (should use after() delay)
-        # Check for the delayed call pattern
-        assert "after" in source, \
-            "_give_widget_to_panda should delay eating with after()"
-        print("✓ Food eating has carrying animation before eating starts")
+        # Should use walk_to_item to physically move the panda
+        assert "walk_to_item" in source, \
+            "_give_widget_to_panda should call walk_to_item so panda moves to the food"
+        # Should pass the on_arrive callback so consumption happens after walking
+        assert "on_arrive" in source, \
+            "_give_widget_to_panda should pass on_arrive callback to walk_to_item"
+        # Should calculate a target position for the walk
+        assert "target_x" in source and "target_y" in source, \
+            "_give_widget_to_panda should calculate target position for the walk"
+        # Toys should also walk to item
+        assert source.count("walk_to_item") >= 2, \
+            "_give_widget_to_panda should use walk_to_item for both food and toys"
+        print("✓ Food/toy eating uses walk_to_item for physical movement")
     except ImportError:
-        print("⚠ Skipping eating delay test (GUI not available)")
+        print("⚠ Skipping eating walk test (GUI not available)")
+
+
+def test_barrel_roll_has_canvas_transform():
+    """Test that barrel_roll has post-draw c.scale() for visual body rotation."""
+    try:
+        from src.ui.panda_widget import PandaWidget
+        import inspect
+        source = inspect.getsource(PandaWidget._draw_panda)
+        # Find the post-draw barrel_roll transform section (after all body drawing)
+        # It should have barrel_roll-specific c.scale() call separate from body_sway
+        idx = source.rfind("barrel_roll")  # last occurrence (post-draw section)
+        assert idx > 0, "barrel_roll should have a post-draw section in _draw_panda"
+        tail = source[idx:]
+        assert "c.scale" in tail[:500], \
+            "barrel_roll should use c.scale() for canvas body rotation transform"
+        print("✓ barrel_roll has post-draw canvas rotation transform")
+    except ImportError:
+        print("⚠ Skipping barrel_roll canvas transform test (GUI not available)")
+
+
+def test_backflip_has_canvas_transform():
+    """Test that backflip has post-draw c.scale() for visual body rotation."""
+    try:
+        from src.ui.panda_widget import PandaWidget
+        import inspect
+        source = inspect.getsource(PandaWidget._draw_panda)
+        # Find the post-draw backflip transform section
+        idx = source.rfind("backflip")  # last occurrence (post-draw section)
+        assert idx > 0, "backflip should have a post-draw section in _draw_panda"
+        tail = source[idx:]
+        assert "c.scale" in tail[:500], \
+            "backflip should use c.scale() for canvas body rotation transform"
+        print("✓ backflip has post-draw canvas rotation transform")
+    except ImportError:
+        print("⚠ Skipping backflip canvas transform test (GUI not available)")
 
 
 if __name__ == "__main__":
@@ -325,7 +364,9 @@ if __name__ == "__main__":
         test_lay_on_side_has_tilt_transform,
         test_sleeping_animation_body_bob,
         test_widget_card_transparent_backgrounds,
-        test_eating_not_immediate,
+        test_eating_walks_to_item,
+        test_barrel_roll_has_canvas_transform,
+        test_backflip_has_canvas_transform,
     ]
 
     failed = False

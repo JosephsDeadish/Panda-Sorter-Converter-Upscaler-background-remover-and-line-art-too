@@ -2537,6 +2537,41 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
                 h_scale = 1.0 + settle * 0.15
                 c.scale("all", pivot_x, ground_y, h_scale, v_scale)
 
+        # --- Barrel roll: rotate the entire body sideways through a full 360° ---
+        if anim == 'barrel_roll':
+            roll_cycle = (frame_idx % 30) / 30.0
+            if 0.1 < roll_cycle < 0.8:
+                # During the roll, tilt the whole body
+                roll_t = (roll_cycle - 0.1) / 0.7
+                roll_a = roll_t * 2 * math.pi
+                pivot_x = w / 2
+                body_cy = int(110 * sy + by)
+                # Vertical squish simulates body turning sideways then coming back
+                v_scale = abs(math.cos(roll_a)) * 0.5 + 0.5
+                # Horizontal flip through the roll (goes negative = mirrored)
+                h_scale = math.cos(roll_a)
+                # Clamp h_scale so it doesn't hit exactly 0 (invisible)
+                if abs(h_scale) < 0.15:
+                    h_scale = 0.15 if h_scale >= 0 else -0.15
+                c.scale("all", pivot_x, body_cy, h_scale, v_scale)
+
+        # --- Backflip: rotate the entire body backward through a full 360° ---
+        if anim == 'backflip':
+            flip_phase = (frame_idx % 36) / 36.0
+            if 0.35 < flip_phase < 0.7:
+                # During the airborne rotation, tilt the whole body
+                flip_t = (flip_phase - 0.35) / 0.35
+                flip_a = flip_t * 2 * math.pi
+                pivot_x = w / 2
+                body_cy = int(90 * sy + by)
+                # Horizontal squish simulates body rotating front-to-back
+                h_scale = abs(math.cos(flip_a)) * 0.45 + 0.55
+                # Vertical flip through the rotation (goes negative = upside down)
+                v_scale = math.cos(flip_a)
+                if abs(v_scale) < 0.15:
+                    v_scale = 0.15 if v_scale >= 0 else -0.15
+                c.scale("all", pivot_x, body_cy, h_scale, v_scale)
+
         # --- Upside-down flip when grabbed by foot and dragged upward ---
         # Gradual rotation around the grab point (foot) for a natural-looking flip
         if is_being_dragged and self._drag_grab_part in ('left_leg', 'right_leg'):
@@ -5709,27 +5744,40 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
     def _give_widget_to_panda(self, widget):
         """Give a toy or food widget to the panda.
         
-        For food items, the panda plays the full eating sequence (pickup →
-        inspect → chew → satisfied) and the food is only consumed after the
-        animation completes.  For toys, an immediate play animation is shown.
+        The panda walks a short distance toward the item, picks it up,
+        then plays the appropriate animation.  For food items the full
+        eating sequence (pickup → inspect → chew → satisfied) plays and
+        the food is only consumed after the animation completes.
         """
         try:
             from src.features.panda_widgets import FoodWidget
-            if isinstance(widget, FoodWidget):
-                # Food: consume only after full eating animation completes
-                if widget.consumable and widget.quantity <= 0:
-                    self.info_label.configure(
-                        text=f"🐼 No {widget.name} left! Buy more from the shop.")
-                    return
+            is_food = isinstance(widget, FoodWidget)
 
-                # Resolve widget key for per-item eating responses
-                wkey = ''
-                if self.widget_collection:
-                    for k, w in self.widget_collection.widgets.items():
-                        if w is widget:
-                            wkey = k
-                            break
+            if is_food and widget.consumable and widget.quantity <= 0:
+                self.info_label.configure(
+                    text=f"🐼 No {widget.name} left! Buy more from the shop.")
+                return
 
+            # Resolve widget key for per-item responses
+            wkey = ''
+            if self.widget_collection:
+                for k, w in self.widget_collection.widgets.items():
+                    if w is widget:
+                        wkey = k
+                        break
+
+            # Determine a target position slightly in front of the panda
+            # so it visibly walks to pick the item up.
+            try:
+                px = self._toplevel.winfo_x()
+                py = self._toplevel.winfo_y()
+                # Place the item ~80px to the right and ~30px below the panda
+                target_x = px + self._toplevel_w // 2 + 80
+                target_y = py + self._toplevel_h // 2 + 30
+            except Exception:
+                target_x, target_y = 0, 0
+
+            if is_food:
                 def _on_eat_complete():
                     """Called after the full eating animation finishes."""
                     widget.use()  # Actually consume the food item now
@@ -5740,28 +5788,38 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
                         except Exception:
                             pass
 
-                # Set active item and show carrying animation before eating
-                self.set_active_item(widget.name, widget.emoji, 'food', wkey)
-                if self.panda:
-                    msg = self.panda.on_food_pickup(widget.name) if hasattr(self.panda, 'on_food_pickup') else f"🐼 *picks up {widget.name}*"
-                    self.info_label.configure(text=msg)
-                self._walk_on_arrive = _on_eat_complete
-                # Show carrying animation first, then start eating after a brief delay
-                self._set_animation_no_cancel('carrying')
-                self.after(800, self._play_eating_sequence)
+                # Walk to the item, then eat it
+                self.walk_to_item(
+                    target_x, target_y,
+                    item_name=widget.name,
+                    item_emoji=widget.emoji,
+                    item_type='food',
+                    on_arrive=_on_eat_complete,
+                    item_key=wkey,
+                )
             else:
-                # Toys: use immediately and play animation
-                result = widget.use()
-                message = result.get('message', f"Panda enjoys the {widget.name}!")
-                self.info_label.configure(text=message)
-                self.play_animation_once(result.get('animation', 'playing'))
+                def _on_toy_arrive():
+                    """Called after panda reaches the toy."""
+                    result = widget.use()
+                    message = result.get('message', f"Panda enjoys the {widget.name}!")
+                    self.info_label.configure(text=message)
+                    self.play_animation_once(result.get('animation', 'playing'))
+                    if self.panda_level_system:
+                        try:
+                            xp = self.panda_level_system.get_xp_reward('click')
+                            self.panda_level_system.add_xp(xp, f'Used {widget.name}')
+                        except Exception:
+                            pass
 
-                if self.panda_level_system:
-                    try:
-                        xp = self.panda_level_system.get_xp_reward('click')
-                        self.panda_level_system.add_xp(xp, f'Used {widget.name}')
-                    except Exception:
-                        pass
+                # Walk to the toy, then play with it
+                self.walk_to_item(
+                    target_x, target_y,
+                    item_name=widget.name,
+                    item_emoji=widget.emoji,
+                    item_type='toy',
+                    on_arrive=_on_toy_arrive,
+                    item_key=wkey,
+                )
         except Exception as e:
             logger.error(f"Error giving widget to panda: {e}")
             self.info_label.configure(text="🐼 *confused*")
