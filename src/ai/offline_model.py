@@ -253,7 +253,7 @@ class OfflineModel:
                 info['version'] = metadata.version
                 info['producer'] = metadata.producer_name
                 info['description'] = metadata.description
-            except:
+            except Exception:
                 pass
         
         return info

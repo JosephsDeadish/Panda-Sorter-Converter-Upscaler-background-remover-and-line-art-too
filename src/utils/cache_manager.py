@@ -94,7 +94,7 @@ class CacheManager:
         import sys
         try:
             return sys.getsizeof(obj)
-        except:
+        except Exception:
             return 1024  # Default 1KB if can't determine
     
     def clear(self):

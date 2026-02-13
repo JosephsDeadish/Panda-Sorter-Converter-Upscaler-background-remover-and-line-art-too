@@ -265,9 +265,14 @@ class BackupManager:
             # Copy files to restore location
             restore_path.parent.mkdir(parents=True, exist_ok=True)
             
-            if len(list(source_for_restore.iterdir())) == 1:
+            source_contents = list(source_for_restore.iterdir())
+            if not source_contents:
+                logger.error(f"Backup source directory is empty: {source_for_restore}")
+                return False
+            
+            if len(source_contents) == 1:
                 # Single file backup
-                src_file = list(source_for_restore.iterdir())[0]
+                src_file = source_contents[0]
                 shutil.copy2(src_file, restore_path)
             else:
                 # Directory backup

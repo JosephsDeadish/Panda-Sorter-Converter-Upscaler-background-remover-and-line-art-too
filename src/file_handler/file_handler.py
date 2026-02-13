@@ -106,15 +106,19 @@ class FileHandler:
             if output_path is None:
                 output_path = dds_path.with_suffix('.png')
             
+            if not dds_path.exists():
+                logger.error(f"Source file not found: {dds_path}")
+                return None
+            
             # Open and convert
-            img = Image.open(dds_path)
-            img.save(output_path, 'PNG')
+            with Image.open(dds_path) as img:
+                img.save(output_path, 'PNG')
             
             self.operations_log.append(f"Converted {dds_path} to {output_path}")
             return output_path
             
         except Exception as e:
-            print(f"Error converting {dds_path} to PNG: {e}")
+            logger.error(f"Error converting {dds_path} to PNG: {e}")
             return None
     
     def convert_png_to_dds(self, png_path: Path, output_path: Optional[Path] = None, 
@@ -139,18 +143,21 @@ class FileHandler:
             if output_path is None:
                 output_path = png_path.with_suffix('.dds')
             
-            # Open and convert
-            img = Image.open(png_path)
+            if not png_path.exists():
+                logger.error(f"Source file not found: {png_path}")
+                return None
             
-            # Note: Basic PIL/Pillow has limited DDS write support
-            # For full DDS support, would need additional libraries
-            img.save(output_path, 'DDS')
+            # Open and convert
+            with Image.open(png_path) as img:
+                # Note: Basic PIL/Pillow has limited DDS write support
+                # For full DDS support, would need additional libraries
+                img.save(output_path, 'DDS')
             
             self.operations_log.append(f"Converted {png_path} to {output_path}")
             return output_path
             
         except Exception as e:
-            print(f"Error converting {png_path} to DDS: {e}")
+            logger.error(f"Error converting {png_path} to DDS: {e}")
             return None
     
     def convert_svg_to_png(self, svg_path: Path, output_path: Optional[Path] = None, 
@@ -180,6 +187,10 @@ class FileHandler:
             if output_path is None:
                 output_path = svg_path.with_suffix('.png')
             
+            if not svg_path.exists():
+                logger.error(f"Source file not found: {svg_path}")
+                return None
+            
             # Convert SVG to PNG bytes
             png_bytes = cairosvg.svg2png(
                 url=str(svg_path),
@@ -188,8 +199,8 @@ class FileHandler:
             )
             
             # Load PNG from bytes and save
-            img = Image.open(BytesIO(png_bytes))
-            img.save(output_path, 'PNG')
+            with Image.open(BytesIO(png_bytes)) as img:
+                img.save(output_path, 'PNG')
             
             self.operations_log.append(f"Converted {svg_path} to {output_path}")
             logger.info(f"Successfully converted SVG: {svg_path} -> {output_path}")
@@ -215,6 +226,10 @@ class FileHandler:
         
         try:
             suffix = image_path.suffix.lower()
+            
+            if not image_path.exists():
+                logger.error(f"Image file not found: {image_path}")
+                return None
             
             # Handle SVG files
             if suffix in self.VECTOR_FORMATS:

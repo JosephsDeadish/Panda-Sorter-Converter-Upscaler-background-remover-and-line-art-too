@@ -118,7 +118,10 @@ class PreprocessingPipeline:
         try:
             # Load image
             if isinstance(image, Path):
-                img = np.array(Image.open(image))
+                if not image.exists():
+                    return {'image': None, 'error': f'File not found: {image}'}
+                with Image.open(image) as _img:
+                    img = np.array(_img)
             elif isinstance(image, Image.Image):
                 img = np.array(image)
             else:

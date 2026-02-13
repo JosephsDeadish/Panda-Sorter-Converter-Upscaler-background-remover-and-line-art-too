@@ -100,8 +100,10 @@ class LODDetector:
         
         # Try to extract numeric value
         try:
-            return int(re.search(r'\d+', str(lod_level)).group())
-        except:
+            match = re.search(r'\d+', str(lod_level))
+            if match:
+                return int(match.group())
+        except (ValueError, AttributeError):
             pass
         
         # Handle text-based levels
@@ -133,11 +135,17 @@ class LODDetector:
             lod_levels = [f['lod_level'] for f in files if f['lod_level'] is not None]
             if lod_levels:
                 try:
-                    numeric_levels = sorted([int(re.search(r'\d+', str(l)).group()) for l in lod_levels])
-                    expected = list(range(numeric_levels[0], numeric_levels[-1] + 1))
-                    if len(numeric_levels) != len(expected):
-                        incomplete.append(base_name)
-                except:
+                    numeric_levels = []
+                    for l in lod_levels:
+                        match = re.search(r'\d+', str(l))
+                        if match:
+                            numeric_levels.append(int(match.group()))
+                    if numeric_levels:
+                        numeric_levels.sort()
+                        expected = list(range(numeric_levels[0], numeric_levels[-1] + 1))
+                        if len(numeric_levels) != len(expected):
+                            incomplete.append(base_name)
+                except (ValueError, AttributeError):
                     pass
         
         return incomplete
@@ -158,9 +166,14 @@ class LODDetector:
             from PIL import Image
             import numpy as np
             
+            if not file1.exists() or not file2.exists():
+                return False
+            
             # Load and resize both images to same size for comparison
-            img1 = Image.open(file1).convert('RGB').resize((64, 64))
-            img2 = Image.open(file2).convert('RGB').resize((64, 64))
+            with Image.open(file1) as _img1:
+                img1 = _img1.convert('RGB').resize((64, 64))
+            with Image.open(file2) as _img2:
+                img2 = _img2.convert('RGB').resize((64, 64))
             
             # Convert to arrays
             arr1 = np.array(img1, dtype=np.float32)

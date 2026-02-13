@@ -122,16 +122,20 @@ class TextureClassifier:
         if self.prefer_image_content and self.model_manager and use_image_analysis:
             try:
                 from PIL import Image
-                img = Image.open(file_path)
-                if img.mode != 'RGB':
-                    img = img.convert('RGB')
-                img_array = np.array(img)
-                
-                # Get predictions from AI model
-                predictions = self.model_manager.predict(img_array, list(self.categories.keys()))
-                if predictions and len(predictions) > 0:
-                    category = predictions[0]['category']
-                    confidence = predictions[0]['confidence']
+                if not file_path.exists():
+                    import logging
+                    logging.debug(f"File not found for AI classification: {file_path}")
+                else:
+                    with Image.open(file_path) as img:
+                        if img.mode != 'RGB':
+                            img = img.convert('RGB')
+                        img_array = np.array(img)
+                    
+                    # Get predictions from AI model
+                    predictions = self.model_manager.predict(img_array, list(self.categories.keys()))
+                    if predictions and len(predictions) > 0:
+                        category = predictions[0]['category']
+                        confidence = predictions[0]['confidence']
             except Exception as e:
                 import logging
                 logging.debug(f"AI model prediction failed for {file_path}: {e}")
