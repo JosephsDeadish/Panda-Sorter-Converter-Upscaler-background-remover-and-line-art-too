@@ -82,6 +82,7 @@ class PandaAppearance:
         self.fur_style = "classic"
         self.fur_color = "black_white"
         self.clothing = None
+        self.pants = None  # Separate pants slot for layered outfits
         self.hat = None
         self.shoes = None
         self.accessories = []
@@ -92,6 +93,7 @@ class PandaAppearance:
             'fur_style': self.fur_style,
             'fur_color': self.fur_color,
             'clothing': self.clothing,
+            'pants': self.pants,
             'hat': self.hat,
             'shoes': self.shoes,
             'accessories': self.accessories
@@ -102,6 +104,7 @@ class PandaAppearance:
         self.fur_style = data.get('fur_style', 'classic')
         self.fur_color = data.get('fur_color', 'black_white')
         self.clothing = data.get('clothing')
+        self.pants = data.get('pants')
         self.hat = data.get('hat')
         self.shoes = data.get('shoes')
         self.accessories = data.get('accessories', [])
@@ -116,6 +119,8 @@ class PandaAppearance:
             parts.append(f"Hat: {self.hat}")
         if self.clothing:
             parts.append(f"Clothing: {self.clothing}")
+        if self.pants:
+            parts.append(f"Pants: {self.pants}")
         if self.shoes:
             parts.append(f"Shoes: {self.shoes}")
         if self.accessories:
@@ -1180,6 +1185,11 @@ class PandaCloset:
         """
         Equip a customization item.
         
+        Pants are stored in a separate slot so they can be worn
+        alongside shirts, jackets, and other upper-body clothing.
+        Full-body and dress items occupy both the clothing and pants
+        slots (unequipping whichever was there before).
+        
         Args:
             item_id: Item identifier
             
@@ -1195,29 +1205,57 @@ class PandaCloset:
             logger.warning(f"Item not unlocked: {item_id}")
             return False
         
-        # Unequip current item in same category
-        for other_item in self.items.values():
-            if other_item.category == item.category and other_item.equipped:
-                other_item.equipped = False
-        
-        # Equip new item
-        item.equipped = True
-        
-        # Update appearance
-        if item.category == CustomizationCategory.FUR_STYLE:
-            self.appearance.fur_style = item_id
-        elif item.category == CustomizationCategory.FUR_COLOR:
-            self.appearance.fur_color = item_id
-        elif item.category == CustomizationCategory.CLOTHING:
-            self.appearance.clothing = item_id
-        elif item.category == CustomizationCategory.HAT:
-            self.appearance.hat = item_id
-        elif item.category == CustomizationCategory.SHOES:
-            self.appearance.shoes = item_id
-        elif item.category == CustomizationCategory.ACCESSORY:
-            # Accessories can have multiple
-            if item_id not in self.appearance.accessories:
-                self.appearance.accessories.append(item_id)
+        if item.category == CustomizationCategory.CLOTHING:
+            ctype = item.clothing_type or 'shirt'
+            if ctype == 'pants':
+                # Unequip any currently equipped pants
+                for other in self.items.values():
+                    if (other.category == CustomizationCategory.CLOTHING
+                            and other.equipped
+                            and (other.clothing_type == 'pants'
+                                 or other.clothing_type in ('full_body', 'dress'))):
+                        other.equipped = False
+                item.equipped = True
+                self.appearance.pants = item_id
+                # Clear the main clothing slot only if it was full_body/dress
+                cur = self.items.get(self.appearance.clothing or '')
+                if cur and cur.clothing_type in ('full_body', 'dress'):
+                    cur.equipped = False
+                    self.appearance.clothing = None
+            elif ctype in ('full_body', 'dress'):
+                # Full body / dress replaces both upper and pants slots
+                for other in self.items.values():
+                    if other.category == CustomizationCategory.CLOTHING and other.equipped:
+                        other.equipped = False
+                item.equipped = True
+                self.appearance.clothing = item_id
+                self.appearance.pants = None
+            else:
+                # Shirt / jacket — only replaces the upper clothing slot
+                for other in self.items.values():
+                    if (other.category == CustomizationCategory.CLOTHING
+                            and other.equipped
+                            and (other.clothing_type or 'shirt') != 'pants'):
+                        other.equipped = False
+                item.equipped = True
+                self.appearance.clothing = item_id
+        else:
+            # Non-clothing categories: unequip previous in same category
+            for other_item in self.items.values():
+                if other_item.category == item.category and other_item.equipped:
+                    other_item.equipped = False
+            item.equipped = True
+            if item.category == CustomizationCategory.FUR_STYLE:
+                self.appearance.fur_style = item_id
+            elif item.category == CustomizationCategory.FUR_COLOR:
+                self.appearance.fur_color = item_id
+            elif item.category == CustomizationCategory.HAT:
+                self.appearance.hat = item_id
+            elif item.category == CustomizationCategory.SHOES:
+                self.appearance.shoes = item_id
+            elif item.category == CustomizationCategory.ACCESSORY:
+                if item_id not in self.appearance.accessories:
+                    self.appearance.accessories.append(item_id)
         
         logger.info(f"Equipped: {item.name}")
         return True
@@ -1247,7 +1285,14 @@ class PandaCloset:
         elif item.category == CustomizationCategory.FUR_COLOR:
             self.appearance.fur_color = "black_white"
         elif item.category == CustomizationCategory.CLOTHING:
-            self.appearance.clothing = None
+            ctype = item.clothing_type or 'shirt'
+            if ctype == 'pants':
+                self.appearance.pants = None
+            elif ctype in ('full_body', 'dress'):
+                self.appearance.clothing = None
+                self.appearance.pants = None
+            else:
+                self.appearance.clothing = None
         elif item.category == CustomizationCategory.HAT:
             self.appearance.hat = None
         elif item.category == CustomizationCategory.SHOES:
