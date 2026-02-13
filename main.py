@@ -18,6 +18,7 @@ except (AttributeError, OSError):
 import sys
 import os
 import time
+import shutil
 import threading
 import logging
 from collections import OrderedDict
@@ -1490,6 +1491,11 @@ class GameTextureSorter(ctk.CTk):
         }
         return fallbacks.get(widget_id, "")
     
+    @staticmethod
+    def _strip_emoji_prefix(display_value):
+        """Strip emoji prefix from a dropdown display value (e.g. '🎮 DDS' → 'DDS')."""
+        return display_value.split(' ', 1)[-1] if ' ' in display_value else display_value
+    
     def _apply_convert_tooltips(self, input_btn, output_btn, from_menu, to_menu,
                                 recursive_cb, keep_cb):
         """Apply tooltips to convert tab widgets"""
@@ -1724,9 +1730,9 @@ class GameTextureSorter(ctk.CTk):
         output_path = self.convert_output_var.get()
         # Strip emoji prefix from format display names
         from_display = self.convert_from_var.get()
-        from_format = (from_display.split(' ', 1)[-1] if ' ' in from_display else from_display).lower()
+        from_format = self._strip_emoji_prefix(from_display).lower()
         to_display = self.convert_to_var.get()
-        to_format = (to_display.split(' ', 1)[-1] if ' ' in to_display else to_display).lower()
+        to_format = self._strip_emoji_prefix(to_display).lower()
         recursive = self.convert_recursive_var.get()
         extract_from_archive = self.convert_extract_from_archive_var.get()
         compress_to_archive = self.convert_compress_to_archive_var.get()
@@ -2015,7 +2021,7 @@ class GameTextureSorter(ctk.CTk):
             return
         # Strip emoji prefix from display name to get preset key
         preset_display = self.alpha_fix_preset_var.get()
-        preset_key = preset_display.split(' ', 1)[-1] if ' ' in preset_display else preset_display
+        preset_key = self._strip_emoji_prefix(preset_display)
         preset = AlphaCorrectionPresets.get_preset(preset_key)
         if preset:
             self.alpha_fix_desc_label.configure(text=preset.get('description', ''))
@@ -2042,14 +2048,13 @@ class GameTextureSorter(ctk.CTk):
         self.alpha_fix_log_text.delete("1.0", "end")
         # Strip emoji prefix from preset display name
         preset_display = self.alpha_fix_preset_var.get()
-        preset = preset_display.split(' ', 1)[-1] if ' ' in preset_display else preset_display
+        preset = self._strip_emoji_prefix(preset_display)
         recursive = self.alpha_fix_recursive_var.get()
         overwrite = self.alpha_fix_overwrite_var.get()
         backup = self.alpha_fix_backup_var.get()
 
         def worker():
             try:
-                import shutil
                 corrector = AlphaCorrector()
                 input_path = Path(input_dir)
                 output_path = Path(output_dir) if output_dir else None
@@ -3000,11 +3005,10 @@ class GameTextureSorter(ctk.CTk):
                             if not f.is_file():
                                 continue
                             suffix = f.suffix.lower()
-                            is_archive = suffix in archive_extensions
                             if not show_all:
-                                if is_archive and not show_archives:
-                                    continue
-                                if not is_archive and suffix not in texture_extensions:
+                                is_texture = suffix in texture_extensions
+                                is_archive = suffix in archive_extensions
+                                if not (is_texture or (is_archive and show_archives)):
                                     continue
                             if search_query and search_query not in f.name.lower():
                                 continue
