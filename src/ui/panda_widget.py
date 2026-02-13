@@ -868,11 +868,11 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
                 arm_swing = math.cos(phase * 2) * 16
                 body_bob = math.sin(phase * 3) * 5
         elif anim in ('sleeping', 'laying_down'):
-            # Settle into sleeping pose — body drops low with gentle breathing
-            settle_phase = min(1.0, frame_idx / 30.0)  # settle over ~30 frames
+            # Settle into sleeping pose over ~30 frames, then gentle breathing
+            settle_phase = min(1.0, frame_idx / 30.0)
             leg_swing = (1 - settle_phase) * math.sin(phase) * 3 + settle_phase * 8
             arm_swing = settle_phase * 10  # arms rest tucked in
-            body_bob = settle_phase * 48 + math.sin(phase * 0.3) * 1.5  # very low, gentle breathing
+            body_bob = settle_phase * 48 + math.sin(phase * 0.3) * 1.5  # settles to 48px low
         elif anim in ('laying_back', 'laying_side'):
             leg_swing = math.sin(phase * 0.3) * 2
             arm_swing = 5
@@ -1704,8 +1704,6 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
             elif cycle < 39:
                 eye_style = 'wide'
             elif cycle < 42:
-                eye_style = 'happy'
-            else:
                 eye_style = 'happy'
             else:
                 eye_style = 'happy'
@@ -4309,8 +4307,8 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
                     if is_side:
                         # Side view: both shoes near centre, front/back offset
                         shoe_pairs = [
-                            (cx, int(-_leg_swing) + _left_leg_dangle, _right_leg_dangle_h),   # back foot
-                            (cx, int(_leg_swing) + _right_leg_dangle, _left_leg_dangle_h),     # front foot
+                            (cx, int(-_leg_swing) + _left_leg_dangle, _left_leg_dangle_h),    # back foot
+                            (cx, int(_leg_swing) + _right_leg_dangle, _right_leg_dangle_h),   # front foot
                         ]
                     elif is_diag:
                         # Diagonal view: match leg positions from _draw_panda diagonal view
