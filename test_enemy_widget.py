@@ -7,6 +7,7 @@ Validates:
 - Collision detection (attack range)
 - Attack triggering
 - Health/death mechanics
+- Enemy manager functionality
 """
 
 import sys
@@ -31,6 +32,17 @@ def test_enemy_widget_imports():
             print("⚠ CustomTkinter not available, but enemy_widget structure is valid")
             return True
         print(f"✗ Failed to import EnemyWidget: {e}")
+        return False
+
+
+def test_enemy_manager_imports():
+    """Test that enemy manager can be imported."""
+    try:
+        from src.features.enemy_manager import EnemyManager
+        print("✓ EnemyManager imports successfully")
+        return True
+    except ImportError as e:
+        print(f"✗ Failed to import EnemyManager: {e}")
         return False
 
 
@@ -170,6 +182,54 @@ def test_enemy_widget_constants():
         print("⚠ Skipping enemy widget constants test (GUI not available)")
 
 
+def test_enemy_manager_creation():
+    """Test enemy manager basic functionality."""
+    from src.features.enemy_manager import EnemyManager
+    
+    collection = EnemyCollection()
+    
+    # Create a mock parent and panda widget (just need basic objects)
+    class MockWidget:
+        def winfo_toplevel(self):
+            return self
+        def winfo_width(self):
+            return 800
+        def winfo_height(self):
+            return 600
+        def winfo_rootx(self):
+            return 0
+        def winfo_rooty(self):
+            return 0
+    
+    mock_parent = MockWidget()
+    mock_panda = MockWidget()
+    mock_panda._toplevel = mock_panda
+    mock_panda._toplevel_w = 220
+    mock_panda._toplevel_h = 270
+    
+    # Create manager (won't actually spawn widgets in test environment)
+    manager = EnemyManager(mock_parent, mock_panda, collection)
+    
+    assert manager.get_active_count() == 0, "Should start with no enemies"
+    assert manager.max_enemies == 5, "Should have default max enemies"
+    
+    # Test configuration
+    manager.set_max_enemies(10)
+    assert manager.max_enemies == 10, "Should update max enemies"
+    
+    manager.set_spawn_cooldown(3.0)
+    assert manager.spawn_cooldown == 3.0, "Should update spawn cooldown"
+    
+    manager.enable_auto_spawn(True)
+    assert manager.auto_spawn is True, "Should enable auto spawn"
+    
+    stats = manager.get_stats()
+    assert 'active_enemies' in stats, "Stats should include active_enemies"
+    assert 'total_spawned' in stats, "Stats should include total_spawned"
+    
+    print("✓ Enemy manager creation and configuration work")
+
+
 if __name__ == "__main__":
     print("Testing Enemy Widget System...")
     print("-" * 50)
@@ -180,6 +240,10 @@ if __name__ == "__main__":
             print("❌ Import test failed - stopping")
             sys.exit(1)
         
+        if not test_enemy_manager_imports():
+            print("❌ Manager import test failed - stopping")
+            sys.exit(1)
+        
         # Test enemy system
         test_enemy_creation()
         test_enemy_behaviors()
@@ -188,6 +252,7 @@ if __name__ == "__main__":
         test_enemy_loot()
         test_all_enemy_types()
         test_enemy_widget_constants()
+        test_enemy_manager_creation()
         
         print("-" * 50)
         print("✅ All enemy widget tests passed!")
