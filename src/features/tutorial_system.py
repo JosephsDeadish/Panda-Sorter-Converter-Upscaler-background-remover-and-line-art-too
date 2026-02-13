@@ -620,6 +620,146 @@ _PANDA_TOOLTIPS = {
             "Show all. Because you're nosy like that."
         ]
     },
+    'browser_show_archives': {
+        'normal': [
+            "Show archive files (ZIP, 7Z, RAR) in the file listing",
+            "Toggle display of archive files alongside textures",
+            "Include archive files in the browser view",
+            "Show compressed archive files in the directory listing"
+        ],
+        'vulgar': [
+            "Show those zipped-up files too. Unzip them mentally.",
+            "Archives in the list. Because why not complicate things.",
+            "Toggle this to see ZIP/RAR/7Z files. You hoarder.",
+            "Show archives. For when regular files aren't enough chaos."
+        ]
+    },
+    'alpha_fix_button': {
+        'normal': [
+            "Start fixing alpha channels on selected textures",
+            "Begin alpha correction process with chosen preset",
+            "Fix transparency issues in PS2 texture files",
+            "Apply alpha correction to remove halos and artifacts"
+        ],
+        'vulgar': [
+            "Fix that alpha. No more white boxes ruining your day.",
+            "Click to unfuck your transparency. You're welcome.",
+            "Alpha fixer go brrrr. Say goodbye to those ugly halos.",
+            "Fix the alpha or keep living with broken transparency. Your call."
+        ]
+    },
+    'alpha_fix_input': {
+        'normal': [
+            "Select the folder containing textures with alpha issues",
+            "Browse for the input directory with textures to fix",
+            "Choose the source folder for alpha correction",
+            "Pick the folder with your broken-alpha textures"
+        ],
+        'vulgar': [
+            "Point me to the folder with your broken textures.",
+            "Where are the alpha-challenged files? Show me.",
+            "Browse for the disaster zone. The folder with bad alpha.",
+            "Select input. You know, where the broken stuff lives."
+        ]
+    },
+    'alpha_fix_output': {
+        'normal': [
+            "Choose where to save fixed textures (leave empty for in-place)",
+            "Select output folder for corrected textures",
+            "Pick a destination for alpha-corrected files",
+            "Set output directory (blank = modify originals)"
+        ],
+        'vulgar': [
+            "Where do you want the fixed files? Or just leave it empty, lazy.",
+            "Output folder. Or don't set one and live dangerously.",
+            "Pick where the fixed textures go. Or gamble with in-place edits.",
+            "Choose output. Empty = overwrite originals. No pressure."
+        ]
+    },
+    'alpha_fix_preset': {
+        'normal': [
+            "Select alpha correction preset for different texture types",
+            "Choose a correction mode optimized for specific PS2 alpha styles",
+            "Pick preset: binary (UI), three-level, smooth, or clean edges",
+            "Select how alpha channels should be corrected"
+        ],
+        'vulgar': [
+            "Pick a preset. Each one fixes alpha differently. Choose wisely.",
+            "Alpha presets. Like difficulty modes but for transparency.",
+            "Select your flavor of alpha correction. They're all good.",
+            "Choose preset or just pick binary and pray."
+        ]
+    },
+    'alpha_fix_recursive': {
+        'normal': [
+            "Process textures in subdirectories as well",
+            "Include files from nested folders in the correction",
+            "Scan all subdirectories for textures to fix",
+            "Enable recursive processing of directory tree"
+        ],
+        'vulgar': [
+            "Dig through ALL the subfolders. Leave no texture behind.",
+            "Go deep. Process everything in every subfolder too.",
+            "Recursive mode. Because your files are nested like Russian dolls.",
+            "Check subfolders too. Or just the top level if you're lazy."
+        ]
+    },
+    'alpha_fix_backup': {
+        'normal': [
+            "Create backup copies before modifying files",
+            "Save original files as backups before applying changes",
+            "Keep a safety copy of unmodified textures",
+            "Backup originals in case correction needs reverting"
+        ],
+        'vulgar': [
+            "Backups. Because you WILL want to undo this someday.",
+            "Save copies first. Trust me, future you will thank present you.",
+            "Create backups. Unless you like living on the edge.",
+            "Backup your files or regret it later. Classic choice."
+        ]
+    },
+    'alpha_fix_overwrite': {
+        'normal': [
+            "Overwrite original files with corrected versions",
+            "Replace source files with alpha-fixed output",
+            "Save corrected textures over the originals",
+            "Modify files in-place without creating copies"
+        ],
+        'vulgar': [
+            "Overwrite originals. Point of no return. Hope you have backups.",
+            "Replace the originals. Bold move, Cotton.",
+            "Overwrite mode. The 'YOLO' of file operations.",
+            "Write over originals. No take-backs unless you backed up."
+        ]
+    },
+    'alpha_fix_extract_archive': {
+        'normal': [
+            "Extract textures from archive files before fixing alpha",
+            "Unpack ZIP/7Z/RAR archives and process contained textures",
+            "Automatically extract archived textures for correction",
+            "Support archive input for alpha correction"
+        ],
+        'vulgar': [
+            "Extract from archives first. Unzip then fix. Simple.",
+            "Pull files out of archives before fixing. Multitasking!",
+            "Unpack those zipped textures and fix 'em. Two birds, one click.",
+            "Extract from archive. Because fixing zipped files is hard."
+        ]
+    },
+    'alpha_fix_compress_archive': {
+        'normal': [
+            "Compress fixed textures into a ZIP archive",
+            "Create a ZIP file containing all corrected textures",
+            "Package alpha-corrected output into an archive",
+            "Bundle fixed textures into a compressed archive"
+        ],
+        'vulgar': [
+            "Zip it all up when done. Neat and tidy. Unlike your desktop.",
+            "Compress output. Because loose files are so last century.",
+            "Pack everything into a ZIP. Marie Kondo would be proud.",
+            "Archive the output. For the organizationally obsessed."
+        ]
+    },
     'sound_enabled': {
         'normal': [
             "Enable or disable all sound effects",
@@ -3286,6 +3426,47 @@ class TooltipVerbosityManager:
             'browser_show_all': [
                 "By default, only texture files are shown. Check this box to see "
                 "ALL files in the folder, including non-texture files.",
+            ],
+            'browser_show_archives': [
+                "Check this box to also show archive files like ZIP, 7Z, and RAR "
+                "in the file list. You can then click on them to browse inside!",
+            ],
+            'alpha_fix_button': [
+                "Click this button to fix transparency problems in your textures. "
+                "It removes white boxes, dark halos, and other alpha artifacts "
+                "that happen with PS2 textures.",
+            ],
+            'alpha_fix_input': [
+                "Click Browse to pick the folder that has your textures with "
+                "transparency problems. The app will scan this folder for images.",
+            ],
+            'alpha_fix_output': [
+                "Choose where to save the fixed textures. If you leave this empty, "
+                "the app will fix them right where they are (in-place).",
+            ],
+            'alpha_fix_preset': [
+                "Pick a fixing mode! 'ps2_binary' is best for UI icons and fonts. "
+                "'ps2_smooth' keeps gradients. 'clean_edges' removes fringing around edges.",
+            ],
+            'alpha_fix_recursive': [
+                "When checked, the app also looks inside subfolders for textures "
+                "to fix, not just the main folder you selected.",
+            ],
+            'alpha_fix_backup': [
+                "When checked, the app saves a copy of your original files before "
+                "changing them, just in case you want to go back.",
+            ],
+            'alpha_fix_overwrite': [
+                "When checked, the fixed version replaces your original file. "
+                "Make sure you have backups enabled if you use this!",
+            ],
+            'alpha_fix_extract_archive': [
+                "If your textures are inside a ZIP or other archive file, check "
+                "this to automatically unpack them before fixing.",
+            ],
+            'alpha_fix_compress_archive': [
+                "After fixing, this packs all the corrected textures into a "
+                "ZIP file for easy sharing or storage.",
             ],
             # Tab tooltips
             'sort_tab': [

@@ -18,6 +18,7 @@ except (AttributeError, OSError):
 import sys
 import os
 import time
+import shutil
 import threading
 import logging
 from collections import OrderedDict
@@ -1490,6 +1491,11 @@ class GameTextureSorter(ctk.CTk):
         }
         return fallbacks.get(widget_id, "")
     
+    @staticmethod
+    def _strip_emoji_prefix(display_value):
+        """Strip emoji prefix from a dropdown display value (e.g. '🎮 DDS' → 'DDS')."""
+        return display_value.split(' ', 1)[-1] if ' ' in display_value else display_value
+    
     def _apply_convert_tooltips(self, input_btn, output_btn, from_menu, to_menu,
                                 recursive_cb, keep_cb):
         """Apply tooltips to convert tab widgets"""
@@ -1506,7 +1512,8 @@ class GameTextureSorter(ctk.CTk):
         self._tooltips.append(WidgetTooltip(recursive_cb, tt('convert_recursive') or "Also convert files in subdirectories", widget_id='convert_recursive', tooltip_manager=tm))
         self._tooltips.append(WidgetTooltip(keep_cb, tt('convert_keep_original') or "Keep original files after conversion", widget_id='convert_keep_original', tooltip_manager=tm))
     
-    def _apply_browser_tooltips(self, browse_btn, refresh_btn, search_entry, show_all_cb):
+    def _apply_browser_tooltips(self, browse_btn, refresh_btn, search_entry, show_all_cb,
+                                show_archives_cb=None):
         """Apply tooltips to file browser tab widgets"""
         if not WidgetTooltip:
             return
@@ -1517,6 +1524,12 @@ class GameTextureSorter(ctk.CTk):
         self._tooltips.append(WidgetTooltip(refresh_btn, tt('browser_refresh_button') or "Refresh the file list", widget_id='browser_refresh_button', tooltip_manager=tm))
         self._tooltips.append(WidgetTooltip(search_entry, tt('browser_search') or tt('search_button') or "Search for specific files by name", widget_id='browser_search', tooltip_manager=tm))
         self._tooltips.append(WidgetTooltip(show_all_cb, tt('browser_show_all') or "Show all file types, not just textures", widget_id='browser_show_all', tooltip_manager=tm))
+        if show_archives_cb:
+            self._tooltips.append(WidgetTooltip(show_archives_cb,
+                tt('browser_show_archives') or
+                "Show archive files (ZIP, 7Z, RAR, TAR.GZ) in the file listing\n"
+                "Enable to browse and inspect archive contents",
+                widget_id='browser_show_archives', tooltip_manager=tm))
     
     def _apply_menu_tooltips(self, tutorial_btn, settings_btn, theme_btn, help_btn):
         """Apply tooltips to menu bar widgets"""
@@ -1533,6 +1546,55 @@ class GameTextureSorter(ctk.CTk):
             self._tooltips.append(WidgetTooltip(theme_btn, tt('theme_selector') or "Toggle between light and dark theme", widget_id='theme_selector', tooltip_manager=tm))
         if help_btn:
             self._tooltips.append(WidgetTooltip(help_btn, tt('help_button') or "Open context-sensitive help (F1)", widget_id='help_button', tooltip_manager=tm))
+    
+    def _apply_alpha_fixer_tooltips(self, input_btn, output_btn, preset_menu,
+                                     recursive_cb, backup_cb, overwrite_cb,
+                                     extract_cb, compress_cb):
+        """Apply tooltips to alpha fixer tab widgets"""
+        if not WidgetTooltip:
+            return
+        tt = self._get_tooltip_text
+        tm = self.tooltip_manager
+        self._tooltips.append(WidgetTooltip(self.alpha_fix_start_btn,
+            tt('alpha_fix_button') or "Start fixing alpha channels on selected textures",
+            widget_id='alpha_fix_button', tooltip_manager=tm))
+        self._tooltips.append(WidgetTooltip(input_btn,
+            tt('alpha_fix_input') or "Select the folder containing textures with alpha issues",
+            widget_id='alpha_fix_input', tooltip_manager=tm))
+        self._tooltips.append(WidgetTooltip(output_btn,
+            tt('alpha_fix_output') or
+            "Choose where to save fixed textures\n"
+            "Leave empty to fix files in-place",
+            widget_id='alpha_fix_output', tooltip_manager=tm))
+        self._tooltips.append(WidgetTooltip(preset_menu,
+            tt('alpha_fix_preset') or
+            "Select alpha correction preset:\n"
+            "• 🔲 ps2_binary – Hard cutoff (0 or 255 only, for UI/fonts)\n"
+            "• 🔳 ps2_three_level – Three levels (0/128/255)\n"
+            "• 🖥️ ps2_ui – Optimized for PS2 UI elements\n"
+            "• 🌊 ps2_smooth – Smooth gradient preservation\n"
+            "• ⬛ generic_binary – Standard binary alpha\n"
+            "• ✂️ clean_edges – Clean up edge fringing",
+            widget_id='alpha_fix_preset', tooltip_manager=tm))
+        self._tooltips.append(WidgetTooltip(recursive_cb,
+            tt('alpha_fix_recursive') or "Process textures in subdirectories as well",
+            widget_id='alpha_fix_recursive', tooltip_manager=tm))
+        self._tooltips.append(WidgetTooltip(backup_cb,
+            tt('alpha_fix_backup') or "Create backup copies before modifying files",
+            widget_id='alpha_fix_backup', tooltip_manager=tm))
+        self._tooltips.append(WidgetTooltip(overwrite_cb,
+            tt('alpha_fix_overwrite') or "Overwrite original files with corrected versions",
+            widget_id='alpha_fix_overwrite', tooltip_manager=tm))
+        self._tooltips.append(WidgetTooltip(extract_cb,
+            tt('alpha_fix_extract_archive') or
+            "Extract textures from archive files before fixing\n"
+            "Supports: ZIP, 7Z, RAR, TAR.GZ formats",
+            widget_id='alpha_fix_extract_archive', tooltip_manager=tm))
+        self._tooltips.append(WidgetTooltip(compress_cb,
+            tt('alpha_fix_compress_archive') or
+            "Compress fixed output into a ZIP archive\n"
+            "Creates a .zip file with all corrected textures",
+            widget_id='alpha_fix_compress_archive', tooltip_manager=tm))
     
     def create_convert_tab(self):
         """Create file format conversion tab"""
@@ -1588,16 +1650,16 @@ class GameTextureSorter(ctk.CTk):
         
         # From format
         ctk.CTkLabel(opts_grid, text="From:").grid(row=0, column=0, padx=10, pady=5, sticky="w")
-        self.convert_from_var = ctk.StringVar(value="DDS")
+        self.convert_from_var = ctk.StringVar(value="🎮 DDS")
         from_menu = ctk.CTkOptionMenu(opts_grid, variable=self.convert_from_var,
-                                       values=["DDS", "PNG", "JPG", "BMP", "TGA"])
+                                       values=["🎮 DDS", "🖼️ PNG", "📷 JPG", "🗺️ BMP", "🎨 TGA"])
         from_menu.grid(row=0, column=1, padx=10, pady=5, sticky="w")
         
         # To format
         ctk.CTkLabel(opts_grid, text="To:").grid(row=0, column=2, padx=10, pady=5, sticky="w")
-        self.convert_to_var = ctk.StringVar(value="PNG")
+        self.convert_to_var = ctk.StringVar(value="🖼️ PNG")
         to_menu = ctk.CTkOptionMenu(opts_grid, variable=self.convert_to_var,
-                                     values=["DDS", "PNG", "JPG", "BMP", "TGA"])
+                                     values=["🎮 DDS", "🖼️ PNG", "📷 JPG", "🗺️ BMP", "🎨 TGA"])
         to_menu.grid(row=0, column=3, padx=10, pady=5, sticky="w")
         
         # Options checkboxes
@@ -1666,8 +1728,11 @@ class GameTextureSorter(ctk.CTk):
         # Read ALL tkinter variable values BEFORE starting thread (thread-safety fix)
         input_path = self.convert_input_var.get()
         output_path = self.convert_output_var.get()
-        from_format = self.convert_from_var.get().lower()
-        to_format = self.convert_to_var.get().lower()
+        # Strip emoji prefix from format display names
+        from_display = self.convert_from_var.get()
+        from_format = self._strip_emoji_prefix(from_display).lower()
+        to_display = self.convert_to_var.get()
+        to_format = self._strip_emoji_prefix(to_display).lower()
         recursive = self.convert_recursive_var.get()
         extract_from_archive = self.convert_extract_from_archive_var.get()
         compress_to_archive = self.convert_compress_to_archive_var.get()
@@ -1867,10 +1932,25 @@ class GameTextureSorter(ctk.CTk):
         self.alpha_fix_input_var = ctk.StringVar()
         ctk.CTkEntry(input_frame, textvariable=self.alpha_fix_input_var,
                      width=500).grid(row=0, column=1, padx=10, pady=5, sticky="ew")
-        ctk.CTkButton(input_frame, text="📂 Browse", width=100,
-                     command=lambda: self.browse_directory(self.alpha_fix_input_var)
-                     ).grid(row=0, column=2, padx=10, pady=5)
+        alpha_input_btn = ctk.CTkButton(input_frame, text="📂 Browse", width=100,
+                     command=lambda: self.browse_directory(self.alpha_fix_input_var))
+        alpha_input_btn.grid(row=0, column=2, padx=10, pady=5)
         input_frame.columnconfigure(1, weight=1)
+
+        # Output section
+        output_frame = ctk.CTkFrame(scroll)
+        output_frame.pack(fill="x", padx=10, pady=10)
+        ctk.CTkLabel(output_frame, text="Output Folder:",
+                     font=("Arial Bold", 12)).grid(row=0, column=0, padx=10, pady=5, sticky="w")
+        self.alpha_fix_output_var = ctk.StringVar()
+        ctk.CTkEntry(output_frame, textvariable=self.alpha_fix_output_var,
+                     width=500).grid(row=0, column=1, padx=10, pady=5, sticky="ew")
+        alpha_output_btn = ctk.CTkButton(output_frame, text="📂 Browse", width=100,
+                     command=lambda: self.browse_directory(self.alpha_fix_output_var))
+        alpha_output_btn.grid(row=0, column=2, padx=10, pady=5)
+        output_frame.columnconfigure(1, weight=1)
+        ctk.CTkLabel(output_frame, text="(Leave empty to fix in-place)",
+                    font=("Arial", 9), text_color="gray").grid(row=1, column=1, padx=10, sticky="w")
 
         # Preset selection
         preset_frame = ctk.CTkFrame(scroll)
@@ -1880,11 +1960,11 @@ class GameTextureSorter(ctk.CTk):
         opts = ctk.CTkFrame(preset_frame)
         opts.pack(fill="x", padx=10, pady=5)
         ctk.CTkLabel(opts, text="Preset:").grid(row=0, column=0, padx=10, pady=5, sticky="w")
-        self.alpha_fix_preset_var = ctk.StringVar(value="ps2_binary")
+        self.alpha_fix_preset_var = ctk.StringVar(value="🔲 ps2_binary")
         preset_menu = ctk.CTkOptionMenu(
             opts, variable=self.alpha_fix_preset_var,
-            values=["ps2_binary", "ps2_three_level", "ps2_ui",
-                    "ps2_smooth", "generic_binary", "clean_edges"])
+            values=["🔲 ps2_binary", "🔳 ps2_three_level", "🖥️ ps2_ui",
+                    "🌊 ps2_smooth", "⬛ generic_binary", "✂️ clean_edges"])
         preset_menu.grid(row=0, column=1, padx=10, pady=5, sticky="w")
 
         # Preset description label
@@ -1898,14 +1978,34 @@ class GameTextureSorter(ctk.CTk):
         check_frame = ctk.CTkFrame(preset_frame)
         check_frame.pack(fill="x", padx=10, pady=5)
         self.alpha_fix_recursive_var = ctk.BooleanVar(value=True)
-        ctk.CTkCheckBox(check_frame, text="Include subdirectories",
-                       variable=self.alpha_fix_recursive_var).pack(side="left", padx=10)
+        alpha_recursive_cb = ctk.CTkCheckBox(check_frame, text="📁 Include subdirectories",
+                       variable=self.alpha_fix_recursive_var)
+        alpha_recursive_cb.pack(side="left", padx=10)
         self.alpha_fix_backup_var = ctk.BooleanVar(value=True)
-        ctk.CTkCheckBox(check_frame, text="Create backups",
-                       variable=self.alpha_fix_backup_var).pack(side="left", padx=10)
+        alpha_backup_cb = ctk.CTkCheckBox(check_frame, text="💾 Create backups",
+                       variable=self.alpha_fix_backup_var)
+        alpha_backup_cb.pack(side="left", padx=10)
         self.alpha_fix_overwrite_var = ctk.BooleanVar(value=False)
-        ctk.CTkCheckBox(check_frame, text="Overwrite originals",
-                       variable=self.alpha_fix_overwrite_var).pack(side="left", padx=10)
+        alpha_overwrite_cb = ctk.CTkCheckBox(check_frame, text="✏️ Overwrite originals",
+                       variable=self.alpha_fix_overwrite_var)
+        alpha_overwrite_cb.pack(side="left", padx=10)
+
+        # Archive support checkboxes for alpha fixer
+        alpha_archive_frame = ctk.CTkFrame(preset_frame)
+        alpha_archive_frame.pack(fill="x", padx=10, pady=5)
+        self.alpha_fix_extract_archive_var = ctk.BooleanVar(value=False)
+        alpha_extract_cb = ctk.CTkCheckBox(alpha_archive_frame, text="📦 Extract from archive",
+                                          variable=self.alpha_fix_extract_archive_var)
+        alpha_extract_cb.pack(side="left", padx=10)
+        self.alpha_fix_compress_archive_var = ctk.BooleanVar(value=False)
+        alpha_compress_cb = ctk.CTkCheckBox(alpha_archive_frame, text="📦 Compress output to archive",
+                                           variable=self.alpha_fix_compress_archive_var)
+        alpha_compress_cb.pack(side="left", padx=10)
+
+        # Apply tooltips to alpha fixer tab widgets
+        self._apply_alpha_fixer_tooltips(alpha_input_btn, alpha_output_btn, preset_menu,
+                                         alpha_recursive_cb, alpha_backup_cb, alpha_overwrite_cb,
+                                         alpha_extract_cb, alpha_compress_cb)
 
         # Log output
         log_frame = ctk.CTkFrame(scroll)
@@ -1919,7 +2019,10 @@ class GameTextureSorter(ctk.CTk):
         """Update the preset description label based on current selection."""
         if not ALPHA_CORRECTION_AVAILABLE:
             return
-        preset = AlphaCorrectionPresets.get_preset(self.alpha_fix_preset_var.get())
+        # Strip emoji prefix from display name to get preset key
+        preset_display = self.alpha_fix_preset_var.get()
+        preset_key = self._strip_emoji_prefix(preset_display)
+        preset = AlphaCorrectionPresets.get_preset(preset_key)
         if preset:
             self.alpha_fix_desc_label.configure(text=preset.get('description', ''))
 
@@ -1939,9 +2042,13 @@ class GameTextureSorter(ctk.CTk):
                 messagebox.showwarning("No Input", "Please select a valid input folder.")
             return
 
+        output_dir = self.alpha_fix_output_var.get().strip() if hasattr(self, 'alpha_fix_output_var') else ""
+
         self.alpha_fix_start_btn.configure(state="disabled")
         self.alpha_fix_log_text.delete("1.0", "end")
-        preset = self.alpha_fix_preset_var.get()
+        # Strip emoji prefix from preset display name
+        preset_display = self.alpha_fix_preset_var.get()
+        preset = self._strip_emoji_prefix(preset_display)
         recursive = self.alpha_fix_recursive_var.get()
         overwrite = self.alpha_fix_overwrite_var.get()
         backup = self.alpha_fix_backup_var.get()
@@ -1950,6 +2057,7 @@ class GameTextureSorter(ctk.CTk):
             try:
                 corrector = AlphaCorrector()
                 input_path = Path(input_dir)
+                output_path = Path(output_dir) if output_dir else None
                 exts = {'.png', '.bmp', '.tga', '.dds', '.jpg', '.jpeg'}
                 if recursive:
                     files = [p for p in input_path.rglob('*') if p.suffix.lower() in exts]
@@ -1960,12 +2068,25 @@ class GameTextureSorter(ctk.CTk):
                     self._alpha_fix_log("No image files found in the selected folder.")
                     return
 
+                if output_path:
+                    output_path.mkdir(parents=True, exist_ok=True)
+                    self._alpha_fix_log(f"Output directory: {output_path}")
+
                 self._alpha_fix_log(f"Found {len(files)} image(s). Preset: {preset}")
                 modified = 0
                 errors = 0
                 for i, fpath in enumerate(files, 1):
-                    result = corrector.process_image(
-                        fpath, preset=preset, overwrite=overwrite, backup=backup)
+                    # If output dir specified, compute destination path
+                    if output_path:
+                        rel = fpath.relative_to(input_path)
+                        dest = output_path / rel
+                        dest.parent.mkdir(parents=True, exist_ok=True)
+                        shutil.copy2(fpath, dest)
+                        result = corrector.process_image(
+                            dest, preset=preset, overwrite=True, backup=False)
+                    else:
+                        result = corrector.process_image(
+                            fpath, preset=preset, overwrite=overwrite, backup=backup)
                     if result.get('success'):
                         if result.get('modified'):
                             self._alpha_fix_log(f"  ✅ [{i}/{len(files)}] Fixed: {fpath.name}")
@@ -2102,6 +2223,13 @@ class GameTextureSorter(ctk.CTk):
                        command=on_browser_thumb_toggle)
         browser_thumb_cb.pack(side="left", padx=10)
         
+        # Archive support checkbox for file browser
+        self.browser_show_archives = ctk.BooleanVar(value=False)
+        browser_show_archives_cb = ctk.CTkCheckBox(file_header, text="📦 Show archives",
+                       variable=self.browser_show_archives,
+                       command=self.browser_refresh)
+        browser_show_archives_cb.pack(side="left", padx=10)
+        
         # File list (scrollable)
         self.browser_file_list = ctk.CTkScrollableFrame(right_pane, height=450)
         self.browser_file_list.pack(fill="both", expand=True, padx=5, pady=5)
@@ -2127,7 +2255,8 @@ class GameTextureSorter(ctk.CTk):
         
         # Apply tooltips to browser tab widgets
         self._apply_browser_tooltips(browser_browse_btn, browser_refresh_btn, 
-                                     search_entry, browser_show_all_cb)
+                                     search_entry, browser_show_all_cb,
+                                     browser_show_archives_cb)
     
     def create_profiles_tab(self):
         """Create game profiles editor tab"""
@@ -2858,12 +2987,14 @@ class GameTextureSorter(ctk.CTk):
             
             # Capture filter state before threading
             show_all = self.browser_show_all.get() if hasattr(self, 'browser_show_all') else False
+            show_archives = self.browser_show_archives.get() if hasattr(self, 'browser_show_archives') else False
             search_query = self.browser_search_var.get().lower() if hasattr(self, 'browser_search_var') else ""
             current_dir = self.browser_current_dir
             
             def _scan_files():
                 """Run file scanning and sorting off the UI thread"""
                 texture_extensions = {'.dds', '.png', '.jpg', '.jpeg', '.bmp', '.tga'}
+                archive_extensions = {'.zip', '.7z', '.rar', '.tar.gz', '.tgz'}
                 files = []
                 MAX_MATCHING_FILES = 10000
                 try:
@@ -2873,8 +3004,12 @@ class GameTextureSorter(ctk.CTk):
                         try:
                             if not f.is_file():
                                 continue
-                            if not show_all and f.suffix.lower() not in texture_extensions:
-                                continue
+                            suffix = f.suffix.lower()
+                            if not show_all:
+                                is_texture = suffix in texture_extensions
+                                is_archive = suffix in archive_extensions
+                                if not (is_texture or (is_archive and show_archives)):
+                                    continue
                             if search_query and search_query not in f.name.lower():
                                 continue
                             files.append(f)
