@@ -111,6 +111,9 @@ wheels/
 .cache/
 *.cache
 
+# Rust / native extension build artifacts
+native/target/
+
 # User configuration
 config.json
 themes/

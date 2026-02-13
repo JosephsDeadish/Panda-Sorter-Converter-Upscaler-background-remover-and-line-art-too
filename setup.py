@@ -94,6 +94,11 @@ EXTRAS_REQUIRE = {
         'pytesseract>=0.3.10',
     ],
     
+    # Native Rust acceleration (requires Rust toolchain + maturin)
+    'native': [
+        'maturin>=1.0.0',
+    ],
+    
     # Build and packaging
     'build': [
         'pyinstaller>=6.0.0',  # >= 6.0.0 for security fixes

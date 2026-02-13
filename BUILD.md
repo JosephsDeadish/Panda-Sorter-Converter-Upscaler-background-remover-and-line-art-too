@@ -219,6 +219,40 @@ After building:
 3. Create release package with README
 4. Distribute to users
 
+## Native Rust Acceleration (Optional)
+
+The project includes an optional Rust extension module (`native/`) built with
+[PyO3](https://pyo3.rs) that significantly speeds up image processing:
+
+- **Lanczos upscaling** – multi-threaded via Rayon, much faster than Python/PIL
+- **Perceptual hashing** – fast duplicate/similarity detection
+- **Color histogram** – efficient per-channel histogram computation
+- **Edge density** – Sobel-based edge measurement
+- **Batch operations** – process multiple images in parallel
+
+### Prerequisites
+
+- [Rust toolchain](https://rustup.rs/) (1.63+)
+- Python development headers (usually included with Python)
+- [maturin](https://www.maturin.rs/) (`pip install maturin`)
+
+### Building the Native Module
+
+```bash
+cd native
+maturin build --release
+pip install target/wheels/texture_ops-*.whl
+```
+
+Or for development (installs directly into current environment):
+```bash
+cd native
+maturin develop --release
+```
+
+When the native module is installed the application automatically uses it.
+If not installed, pure-Python fallbacks are used – no functionality is lost.
+
 ## Support
 
 If you encounter issues:

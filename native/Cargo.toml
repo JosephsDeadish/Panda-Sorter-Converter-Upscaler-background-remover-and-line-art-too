@@ -1,0 +1,13 @@
+[package]
+name = "texture_ops"
+version = "0.1.0"
+edition = "2021"
+description = "Native Rust acceleration for PS2 texture sorting - upscaling, feature extraction, and batch processing"
+
+[lib]
+name = "texture_ops"
+crate-type = ["cdylib"]
+
+[dependencies]
+pyo3 = { version = "0.23.3", features = ["extension-module"] }
+rayon = "1.10.0"

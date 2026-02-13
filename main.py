@@ -5868,9 +5868,16 @@ class GameTextureSorter(ctk.CTk):
                                 self.closet_panel.refresh()
                             except Exception:
                                 pass
+            elif reward_type == 'exclusive_title':
+                pass  # Title is recorded via _claimed_rewards below
 
             self._claimed_rewards.add(achievement.id)
             self.log(f"🎁 Claimed reward for '{achievement.name}': {desc}")
+            # Give user visible feedback
+            try:
+                messagebox.showinfo("Reward Claimed", f"🎁 {desc}")
+            except Exception:
+                pass
             # Refresh display
             self._display_achievements(self._achievement_category_filter)
         except Exception as e:
@@ -7851,9 +7858,12 @@ Built with:
             dungeon_window.title("🏰 Dungeon Explorer")
             dungeon_window.geometry("1000x700")
             
-            # Make it modal-ish
+            # Make it modal-ish (grab_set may fail on some platforms)
             dungeon_window.focus_set()
-            dungeon_window.grab_set()
+            try:
+                dungeon_window.grab_set()
+            except tk.TclError:
+                logger.debug("grab_set not supported on this platform")
             
             # Create dungeon
             dungeon = IntegratedDungeon(width=80, height=80, num_floors=5)
@@ -8109,12 +8119,18 @@ Built with:
             def on_close():
                 """Handle window close."""
                 game_state['running'] = False
-                dungeon_window.grab_release()
+                try:
+                    dungeon_window.grab_release()
+                except tk.TclError:
+                    pass
                 dungeon_window.destroy()
             
             # Bind events
             dungeon_window.bind('<KeyPress>', on_key)
             dungeon_window.protocol("WM_DELETE_WINDOW", on_close)
+            
+            # Reveal the area around the spawn point so the player can see tiles
+            renderer.mark_explored(player_x, player_y, radius=5)
             
             # Initial render and start game loop
             render_game()
@@ -8923,7 +8939,8 @@ Built with:
                     for key in ('click_count', 'pet_count', 'feed_count', 'hover_count',
                                 'drag_count', 'toss_count', 'shake_count', 'spin_count',
                                 'toy_interact_count', 'clothing_change_count',
-                                'items_thrown_at_count',
+                                'items_thrown_at_count', 'belly_poke_count',
+                                'fall_count', 'tip_over_count',
                                 'files_processed', 'failed_operations', 'easter_eggs_found'):
                         lbl = self._stats_labels.get(key)
                         if lbl:
@@ -8953,6 +8970,23 @@ Built with:
                             new_val = str(combat_stats_data.get(key, 0))
                             if lbl.cget("text") != new_val:
                                 lbl.configure(text=new_val)
+                    # Update system stats
+                    system_stats_data = stats.get('system_stats', {})
+                    for key in ('Playtime', 'Items Collected', 'Dungeons Cleared',
+                                'Floors Explored', 'Distance Traveled', 'Times Died',
+                                'Times Saved'):
+                        lbl = self._stats_labels.get(f'system_{key}')
+                        if lbl:
+                            new_val = str(system_stats_data.get(key, 0))
+                            if lbl.cget("text") != new_val:
+                                lbl.configure(text=new_val)
+                    # Also refresh Files Processed / Failed / Easter Eggs under system
+                    for key in ('files_processed', 'failed_operations', 'easter_eggs_found'):
+                        lbl = self._stats_labels.get(f'system_{key}')
+                        if lbl:
+                            new_val = str(stats.get(key, 0))
+                            if lbl.cget("text") != new_val:
+                                lbl.configure(text=new_val)
                     # Update animation label
                     anim_lbl = self._stats_labels.get('animation')
                     if anim_lbl and hasattr(self, 'panda_widget') and self.panda_widget:
@@ -8973,6 +9007,22 @@ Built with:
                             xp = self.panda_level_system.xp
                             xp_needed = self.panda_level_system.get_xp_to_next_level()
                             self._stats_xp_bar.set(min(1.0, xp / max(1, xp_needed)))
+                except Exception:
+                    pass
+            # --- Live-refresh achievement progress ---
+            if (hasattr(self, 'achievement_manager') and self.achievement_manager
+                    and hasattr(self, 'achieve_scroll')):
+                try:
+                    achievements = self.achievement_manager.get_all_achievements(include_hidden=True)
+                    changed = False
+                    for a in achievements:
+                        # Auto-unlock any achievement whose progress reached the max
+                        if a.is_complete() and not a.unlocked:
+                            self.achievement_manager.update_progress(a.id, a.progress_max)
+                            changed = True
+                    if changed:
+                        cat = getattr(self, '_achievement_category_filter', 'all')
+                        self._display_achievements(cat)
                 except Exception:
                     pass
             self._stats_auto_refresh_id = self.after(5000, self._start_stats_auto_refresh)

@@ -3,6 +3,7 @@ Texture Classification Engine
 Automatically classifies textures into 50+ categories using:
 - Filename pattern matching
 - Image analysis (color histograms, texture patterns)
+- Native Rust feature extraction (when available)
 - Metadata examination
 """
 
@@ -22,6 +23,23 @@ try:
     HAS_CV2 = True
 except ImportError:
     HAS_CV2 = False
+
+# Native Rust acceleration for feature extraction
+try:
+    from src.native_ops import (
+        edge_density as native_edge_density,
+        color_histogram as native_color_histogram,
+        NATIVE_AVAILABLE,
+    )
+except ImportError:
+    try:
+        from native_ops import (
+            edge_density as native_edge_density,
+            color_histogram as native_color_histogram,
+            NATIVE_AVAILABLE,
+        )
+    except ImportError:
+        NATIVE_AVAILABLE = False
 
 from .categories import ALL_CATEGORIES, get_category_info
 
@@ -276,6 +294,14 @@ class TextureClassifier:
             avg_color = np.mean(img_array, axis=(0, 1))
             color_std = np.std(img_array, axis=(0, 1))
             
+            # Use native edge density when available for faster analysis
+            native_edge = None
+            if NATIVE_AVAILABLE:
+                try:
+                    native_edge = native_edge_density(img_array)
+                except Exception:
+                    pass
+            
             # Simple heuristic-based classification
             category = "unclassified"
             confidence = 0.5
@@ -284,10 +310,11 @@ class TextureClassifier:
             if width <= 256 and height <= 256 and self._is_simple_image(img_array):
                 category = "ui_elements"
                 confidence = 0.6
+                # Boost confidence if native edge density confirms sharp edges
+                if native_edge is not None and native_edge > 0.1:
+                    confidence = 0.65
             
             # Check for UV unwrapped textures / flattened character textures
-            # These often have varied colors, skin tones, and irregular shapes
-            # with transparent/black background regions
             elif self._is_uv_unwrap(img, img_array, width, height):
                 category = "person"
                 confidence = 0.65
