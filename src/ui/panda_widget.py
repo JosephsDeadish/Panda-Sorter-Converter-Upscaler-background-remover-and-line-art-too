@@ -1777,163 +1777,422 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
         elif anim == 'carrying':
             ear_wiggle = math.sin(phase * 1.5) * 2 * sx  # Gentle movement while carrying
         
-        # --- Draw legs (behind body) ---
+        # --- Draw body based on facing direction ---
         # Apply body sway to center position for turning/direction effect
         cx_draw = cx + int(body_sway)
-        leg_top = int(145 * sy + by)
-        leg_len = int(30 * sy)
         
-        # Apply individual limb dangle physics during drag
-        # Left leg
-        left_leg_dangle = int(self._dangle_left_leg) if anim == 'dragging' else 0
-        left_leg_x = cx_draw - int(25 * sx)
-        left_leg_swing = leg_swing + left_leg_dangle
-        c.create_oval(
-            left_leg_x - int(12 * sx), leg_top + left_leg_swing,
-            left_leg_x + int(12 * sx), leg_top + leg_len + left_leg_swing,
-            fill=black, outline=black, tags="leg"
-        )
-        # Left foot (white pad)
-        c.create_oval(
-            left_leg_x - int(10 * sx), leg_top + leg_len - int(8 * sy) + left_leg_swing,
-            left_leg_x + int(10 * sx), leg_top + leg_len + int(4 * sy) + left_leg_swing,
-            fill=white, outline=black, width=1, tags="foot"
-        )
+        if anim in ('walking_left', 'walking_right'):
+            # --- SIDE VIEW: panda viewed from left or right profile ---
+            facing_right = (anim == 'walking_right')
+            side_dir = 1 if facing_right else -1
+            
+            leg_top = int(145 * sy + by)
+            leg_len = int(30 * sy)
+            # Back leg (further from viewer)
+            back_leg_swing = -leg_swing
+            c.create_oval(
+                cx_draw - int(8 * sx), leg_top + back_leg_swing,
+                cx_draw + int(16 * sx), leg_top + leg_len + back_leg_swing,
+                fill=black, outline=black, tags="leg"
+            )
+            c.create_oval(
+                cx_draw - int(6 * sx), leg_top + leg_len - int(8 * sy) + back_leg_swing,
+                cx_draw + int(14 * sx), leg_top + leg_len + int(4 * sy) + back_leg_swing,
+                fill=white, outline=black, width=1, tags="foot"
+            )
+            
+            # Body (narrower for side view)
+            body_top = int(75 * sy + by)
+            body_bot = int(160 * sy + by)
+            body_rx_side = int(32 * sx * breath_scale)
+            c.create_oval(
+                cx_draw - body_rx_side, body_top,
+                cx_draw + body_rx_side, body_bot,
+                fill=white, outline=black, width=2, tags="body"
+            )
+            # Side belly patch (shifted toward viewer side)
+            belly_rx_side = int(18 * sx * breath_scale)
+            belly_shift = int(6 * sx * side_dir)
+            c.create_oval(
+                cx_draw - belly_rx_side + belly_shift, body_top + int(18 * sy),
+                cx_draw + belly_rx_side + belly_shift, body_bot - int(14 * sy),
+                fill="#FAFAFA", outline="", tags="belly"
+            )
+            
+            # Front leg (closer to viewer)
+            front_leg_swing = leg_swing
+            c.create_oval(
+                cx_draw - int(16 * sx), leg_top + front_leg_swing,
+                cx_draw + int(8 * sx), leg_top + leg_len + front_leg_swing,
+                fill=black, outline=black, tags="leg"
+            )
+            c.create_oval(
+                cx_draw - int(14 * sx), leg_top + leg_len - int(8 * sy) + front_leg_swing,
+                cx_draw + int(6 * sx), leg_top + leg_len + int(4 * sy) + front_leg_swing,
+                fill=white, outline=black, width=1, tags="foot"
+            )
+            
+            # Back arm (further from viewer, behind body)
+            arm_top = int(95 * sy + by)
+            arm_len = int(35 * sy)
+            ba_swing = -arm_swing
+            c.create_oval(
+                cx_draw - int(10 * sx) - int(8 * sx * side_dir), arm_top + ba_swing,
+                cx_draw + int(10 * sx) - int(8 * sx * side_dir), arm_top + arm_len + ba_swing,
+                fill=black, outline=black, tags="arm"
+            )
+            
+            # Front arm (closer to viewer, in front of body)
+            fa_swing = arm_swing
+            c.create_oval(
+                cx_draw - int(10 * sx) + int(8 * sx * side_dir), arm_top + fa_swing,
+                cx_draw + int(10 * sx) + int(8 * sx * side_dir), arm_top + arm_len + fa_swing,
+                fill=black, outline=black, tags="arm"
+            )
+            
+            # Head
+            head_cy = int(52 * sy + by)
+            head_rx = int(34 * sx)
+            head_ry = int(32 * sy)
+            c.create_oval(
+                cx_draw - head_rx, head_cy - head_ry,
+                cx_draw + head_rx, head_cy + head_ry,
+                fill=white, outline=black, width=2, tags="head"
+            )
+            
+            # Single visible ear (on far side of head)
+            ear_y = head_cy - head_ry + int(5 * sy)
+            ear_w = int(22 * sx)
+            ear_x_off = int(head_rx * 0.6 * (-side_dir))
+            c.create_oval(
+                cx_draw + ear_x_off - int(ear_w * 0.5), ear_y - int(16 * sy),
+                cx_draw + ear_x_off + int(ear_w * 0.5), ear_y + int(8 * sy),
+                fill=black, outline=black, tags="ear"
+            )
+            c.create_oval(
+                cx_draw + ear_x_off - int(ear_w * 0.3), ear_y - int(10 * sy),
+                cx_draw + ear_x_off + int(ear_w * 0.3), ear_y + int(2 * sy),
+                fill=pink, outline="", tags="ear_inner"
+            )
+            
+            # Single eye patch (on visible side)
+            eye_y = head_cy - int(4 * sy)
+            patch_rx = int(12 * sx)
+            patch_ry = int(10 * sy)
+            eye_x = cx_draw + int(10 * sx * side_dir)
+            c.create_oval(eye_x - patch_rx, eye_y - patch_ry,
+                           eye_x + patch_rx, eye_y + patch_ry,
+                           fill=black, outline="", tags="eye_patch")
+            
+            # Draw equipped items on panda body
+            self._draw_equipped_items(c, cx_draw, by, sx, sy)
+            
+            # Single eye (profile view)
+            es = int(5 * sx)
+            ps = int(2 * sx)
+            c.create_oval(eye_x - es, eye_y - es, eye_x + es, eye_y + es,
+                           fill="white", outline="white", tags="eye")
+            # Pupil looks in walking direction
+            pupil_shift = int(2 * sx * side_dir)
+            c.create_oval(eye_x - ps + pupil_shift, eye_y - ps,
+                           eye_x + ps + pupil_shift, eye_y + ps,
+                           fill="black", outline="", tags="eye")
+            
+            # Profile nose (bump on the side)
+            nose_y = head_cy + int(8 * sy)
+            nose_x = cx_draw + int(head_rx * 0.7 * side_dir)
+            c.create_oval(nose_x - int(4 * sx), nose_y - int(3 * sy),
+                           nose_x + int(4 * sx), nose_y + int(3 * sy),
+                           fill=nose_color, outline="", tags="nose")
+            
+            # Small smile (profile)
+            mouth_y = nose_y + int(6 * sy)
+            mouth_x = cx_draw + int(head_rx * 0.4 * side_dir)
+            c.create_arc(mouth_x - int(6 * sx), mouth_y - int(4 * sy),
+                          mouth_x + int(6 * sx), mouth_y + int(4 * sy),
+                          start=200, extent=140, style="arc",
+                          outline=black, width=2, tags="mouth")
+            
+            # Animation extras
+            self._draw_animation_extras(c, cx_draw, by, anim, frame_idx, sx, sy)
+            
+            # Name tag
+            if self.panda and self.panda.name:
+                name_y = int(h - 12 * sy)
+                c.create_text(cx_draw, name_y, text=self.panda.name,
+                              font=("Arial Bold", int(10 * sx)),
+                              fill="#666666", width=int(w * 0.9), tags="name_tag")
         
-        # Right leg
-        right_leg_dangle = int(self._dangle_right_leg) if anim == 'dragging' else 0
-        right_leg_x = cx_draw + int(25 * sx)
-        right_leg_swing = -leg_swing + right_leg_dangle
-        c.create_oval(
-            right_leg_x - int(12 * sx), leg_top + right_leg_swing,
-            right_leg_x + int(12 * sx), leg_top + leg_len + right_leg_swing,
-            fill=black, outline=black, tags="leg"
-        )
-        # Right foot (white pad)
-        c.create_oval(
-            right_leg_x - int(10 * sx), leg_top + leg_len - int(8 * sy) + right_leg_swing,
-            right_leg_x + int(10 * sx), leg_top + leg_len + int(4 * sy) + right_leg_swing,
-            fill=white, outline=black, width=1, tags="foot"
-        )
+        elif anim == 'walking_up':
+            # --- BACK VIEW: panda walking away from viewer ---
+            leg_top = int(145 * sy + by)
+            leg_len = int(30 * sy)
+            
+            # Left leg
+            left_leg_x = cx_draw - int(25 * sx)
+            left_leg_swing_val = leg_swing
+            c.create_oval(
+                left_leg_x - int(12 * sx), leg_top + left_leg_swing_val,
+                left_leg_x + int(12 * sx), leg_top + leg_len + left_leg_swing_val,
+                fill=black, outline=black, tags="leg"
+            )
+            c.create_oval(
+                left_leg_x - int(10 * sx), leg_top + leg_len - int(8 * sy) + left_leg_swing_val,
+                left_leg_x + int(10 * sx), leg_top + leg_len + int(4 * sy) + left_leg_swing_val,
+                fill=white, outline=black, width=1, tags="foot"
+            )
+            # Right leg
+            right_leg_x = cx_draw + int(25 * sx)
+            right_leg_swing_val = -leg_swing
+            c.create_oval(
+                right_leg_x - int(12 * sx), leg_top + right_leg_swing_val,
+                right_leg_x + int(12 * sx), leg_top + leg_len + right_leg_swing_val,
+                fill=black, outline=black, tags="leg"
+            )
+            c.create_oval(
+                right_leg_x - int(10 * sx), leg_top + leg_len - int(8 * sy) + right_leg_swing_val,
+                right_leg_x + int(10 * sx), leg_top + leg_len + int(4 * sy) + right_leg_swing_val,
+                fill=white, outline=black, width=1, tags="foot"
+            )
+            
+            # Small tail nub (visible from behind)
+            tail_x = cx_draw
+            tail_y = int(148 * sy + by)
+            c.create_oval(
+                tail_x - int(6 * sx), tail_y - int(5 * sy),
+                tail_x + int(6 * sx), tail_y + int(5 * sy),
+                fill=white, outline=black, width=1, tags="tail"
+            )
+            
+            # Body (white back, no belly visible)
+            body_top = int(75 * sy + by)
+            body_bot = int(160 * sy + by)
+            body_rx = int(42 * sx * breath_scale)
+            c.create_oval(
+                cx_draw - body_rx, body_top,
+                cx_draw + body_rx, body_bot,
+                fill=white, outline=black, width=2, tags="body"
+            )
+            
+            # Arms
+            arm_top = int(95 * sy + by)
+            arm_len = int(35 * sy)
+            la_swing = arm_swing
+            c.create_oval(
+                cx_draw - int(55 * sx), arm_top + la_swing,
+                cx_draw - int(30 * sx), arm_top + arm_len + la_swing,
+                fill=black, outline=black, tags="arm"
+            )
+            ra_swing = -arm_swing
+            c.create_oval(
+                cx_draw + int(30 * sx), arm_top + ra_swing,
+                cx_draw + int(55 * sx), arm_top + arm_len + ra_swing,
+                fill=black, outline=black, tags="arm"
+            )
+            
+            # Head (back view - no face)
+            head_cy = int(52 * sy + by)
+            head_rx = int(36 * sx)
+            head_ry = int(32 * sy)
+            c.create_oval(
+                cx_draw - head_rx, head_cy - head_ry,
+                cx_draw + head_rx, head_cy + head_ry,
+                fill=white, outline=black, width=2, tags="head"
+            )
+            
+            # Both ears (seen from behind)
+            ear_y = head_cy - head_ry + int(5 * sy)
+            ear_w = int(22 * sx)
+            # Left ear
+            c.create_oval(cx_draw - head_rx - int(2 * sx), ear_y - int(16 * sy),
+                           cx_draw - head_rx + ear_w, ear_y + int(8 * sy),
+                           fill=black, outline=black, tags="ear")
+            # Right ear
+            c.create_oval(cx_draw + head_rx - ear_w, ear_y - int(16 * sy),
+                           cx_draw + head_rx + int(2 * sx), ear_y + int(8 * sy),
+                           fill=black, outline=black, tags="ear")
+            
+            # Back of head markings (no face details — just the back)
+            # Dark patch on back of head to indicate rear view
+            back_patch_rx = int(20 * sx)
+            back_patch_ry = int(14 * sy)
+            c.create_oval(
+                cx_draw - back_patch_rx, head_cy - back_patch_ry + int(4 * sy),
+                cx_draw + back_patch_rx, head_cy + back_patch_ry - int(4 * sy),
+                fill="#F5F5F5", outline="", tags="back_head"
+            )
+            
+            # Draw equipped items on panda body
+            self._draw_equipped_items(c, cx_draw, by, sx, sy)
+            
+            # No eyes, nose, or mouth for back view
+            
+            # Animation extras
+            self._draw_animation_extras(c, cx_draw, by, anim, frame_idx, sx, sy)
+            
+            # Name tag
+            if self.panda and self.panda.name:
+                name_y = int(h - 12 * sy)
+                c.create_text(cx_draw, name_y, text=self.panda.name,
+                              font=("Arial Bold", int(10 * sx)),
+                              fill="#666666", width=int(w * 0.9), tags="name_tag")
         
-        # --- Draw body (white belly, rounded) ---
-        body_top = int(75 * sy + by)
-        body_bot = int(160 * sy + by)
-        body_rx = int(42 * sx * breath_scale)
-        # Apply belly jiggle - wobble the body horizontally
-        belly_jiggle_px = int(self._belly_jiggle)
-        jiggle_scale = 1.0 + abs(self._belly_jiggle) * 0.008  # slight width pulse
-        body_rx_jiggle = int(body_rx * jiggle_scale)
-        c.create_oval(
-            cx_draw - body_rx_jiggle + belly_jiggle_px, body_top,
-            cx_draw + body_rx_jiggle + belly_jiggle_px, body_bot,
-            fill=white, outline=black, width=2, tags="body"
-        )
-        # Inner belly patch (lighter) — sized to fit fully inside body with no visible gap
-        belly_rx = int(26 * sx * breath_scale * jiggle_scale)
-        c.create_oval(
-            cx_draw - belly_rx + belly_jiggle_px, body_top + int(18 * sy),
-            cx_draw + belly_rx + belly_jiggle_px, body_bot - int(14 * sy),
-            fill="#FAFAFA", outline="", tags="belly"
-        )
-        
-        # --- Draw arms (black, attached to body sides) ---
-        arm_top = int(95 * sy + by)
-        arm_len = int(35 * sy)
-        
-        # Apply individual limb dangle physics during drag
-        # Left arm
-        left_arm_dangle = int(self._dangle_left_arm) if anim == 'dragging' else 0
-        la_swing = arm_swing + left_arm_dangle
-        c.create_oval(
-            cx_draw - int(55 * sx), arm_top + la_swing,
-            cx_draw - int(30 * sx), arm_top + arm_len + la_swing,
-            fill=black, outline=black, tags="arm"
-        )
-        
-        # Right arm
-        right_arm_dangle = int(self._dangle_right_arm) if anim == 'dragging' else 0
-        ra_swing = -arm_swing + right_arm_dangle
-        c.create_oval(
-            cx_draw + int(30 * sx), arm_top + ra_swing,
-            cx_draw + int(55 * sx), arm_top + arm_len + ra_swing,
-            fill=black, outline=black, tags="arm"
-        )
-        
-        # --- Draw head ---
-        head_cy = int(52 * sy + by)
-        head_rx = int(36 * sx)
-        head_ry = int(32 * sy)
-        c.create_oval(
-            cx_draw - head_rx, head_cy - head_ry,
-            cx_draw + head_rx, head_cy + head_ry,
-            fill=white, outline=black, width=2, tags="head"
-        )
-        
-        # --- Draw ears (black circles on top of head) with wiggle and individual stretch ---
-        ear_y = head_cy - head_ry + int(5 * sy)
-        ear_w = int(22 * sx)
-        ear_h = int(24 * sy)
-        
-        # Individual ear stretch/dangle during drag
-        left_ear_stretch_px = int(self._dangle_left_ear * sy) if anim == 'dragging' else int(self._ear_stretch * sy)
-        right_ear_stretch_px = int(self._dangle_right_ear * sy) if anim == 'dragging' else int(self._ear_stretch * sy)
-        
-        # Left ear
-        c.create_oval(cx_draw - head_rx - int(2 * sx) + ear_wiggle, ear_y - int(16 * sy) - left_ear_stretch_px,
-                       cx_draw - head_rx + ear_w + ear_wiggle, ear_y + int(8 * sy),
-                       fill=black, outline=black, tags="ear")
-        # Inner ear pink
-        c.create_oval(cx_draw - head_rx + int(4 * sx) + ear_wiggle, ear_y - int(10 * sy) - left_ear_stretch_px,
-                       cx_draw - head_rx + int(16 * sx) + ear_wiggle, ear_y + int(2 * sy),
-                       fill=pink, outline="", tags="ear_inner")
-        # Right ear
-        c.create_oval(cx_draw + head_rx - ear_w - ear_wiggle, ear_y - int(16 * sy) - right_ear_stretch_px,
-                       cx_draw + head_rx + int(2 * sx) - ear_wiggle, ear_y + int(8 * sy),
-                       fill=black, outline=black, tags="ear")
-        # Inner ear pink
-        c.create_oval(cx_draw + head_rx - int(16 * sx) - ear_wiggle, ear_y - int(10 * sy) - right_ear_stretch_px,
-                       cx_draw + head_rx - int(4 * sx) - ear_wiggle, ear_y + int(2 * sy),
-                       fill=pink, outline="", tags="ear_inner")
-        
-        # --- Draw eye patches (black ovals around eyes) ---
-        eye_y = head_cy - int(4 * sy)
-        patch_rx = int(14 * sx)
-        patch_ry = int(11 * sy)
-        eye_offset = int(24 * sx)
-        # Left eye patch
-        c.create_oval(cx_draw - eye_offset - patch_rx, eye_y - patch_ry,
-                       cx_draw - eye_offset + patch_rx, eye_y + patch_ry,
-                       fill=black, outline="", tags="eye_patch")
-        # Right eye patch
-        c.create_oval(cx_draw + eye_offset - patch_rx, eye_y - patch_ry,
-                       cx_draw + eye_offset + patch_rx, eye_y + patch_ry,
-                       fill=black, outline="", tags="eye_patch")
-        
-        # --- Draw equipped items on panda body (before face details) ---
-        self._draw_equipped_items(c, cx_draw, by, sx, sy)
-        
-        # --- Draw eyes ---
-        self._draw_eyes(c, cx_draw, eye_y, eye_style, sx, sy)
-        
-        # --- Draw nose ---
-        nose_y = head_cy + int(8 * sy)
-        c.create_oval(cx_draw - int(5 * sx), nose_y - int(3 * sy), cx_draw + int(5 * sx), nose_y + int(4 * sy),
-                       fill=nose_color, outline="", tags="nose")
-        
-        # --- Draw mouth ---
-        self._draw_mouth(c, cx_draw, nose_y + int(6 * sy), mouth_style, sx, sy)
-        
-        # --- Draw animation-specific extras ---
-        self._draw_animation_extras(c, cx_draw, by, anim, frame_idx, sx, sy)
-        
-        # --- Draw panda name tag below feet ---
-        if self.panda and self.panda.name:
-            name_y = int(h - 12 * sy)  # position just above canvas bottom edge
-            # width constrains text wrapping to fit within the canvas
-            c.create_text(cx_draw, name_y, text=self.panda.name,
-                          font=("Arial Bold", int(10 * sx)),
-                          fill="#666666", width=int(w * 0.9), tags="name_tag")
+        else:
+            # --- FRONT VIEW (default): standard forward-facing panda ---
+            leg_top = int(145 * sy + by)
+            leg_len = int(30 * sy)
+            
+            # Apply individual limb dangle physics during drag
+            # Left leg
+            left_leg_dangle = int(self._dangle_left_leg) if anim == 'dragging' else 0
+            left_leg_x = cx_draw - int(25 * sx)
+            left_leg_swing = leg_swing + left_leg_dangle
+            c.create_oval(
+                left_leg_x - int(12 * sx), leg_top + left_leg_swing,
+                left_leg_x + int(12 * sx), leg_top + leg_len + left_leg_swing,
+                fill=black, outline=black, tags="leg"
+            )
+            # Left foot (white pad)
+            c.create_oval(
+                left_leg_x - int(10 * sx), leg_top + leg_len - int(8 * sy) + left_leg_swing,
+                left_leg_x + int(10 * sx), leg_top + leg_len + int(4 * sy) + left_leg_swing,
+                fill=white, outline=black, width=1, tags="foot"
+            )
+            
+            # Right leg
+            right_leg_dangle = int(self._dangle_right_leg) if anim == 'dragging' else 0
+            right_leg_x = cx_draw + int(25 * sx)
+            right_leg_swing = -leg_swing + right_leg_dangle
+            c.create_oval(
+                right_leg_x - int(12 * sx), leg_top + right_leg_swing,
+                right_leg_x + int(12 * sx), leg_top + leg_len + right_leg_swing,
+                fill=black, outline=black, tags="leg"
+            )
+            # Right foot (white pad)
+            c.create_oval(
+                right_leg_x - int(10 * sx), leg_top + leg_len - int(8 * sy) + right_leg_swing,
+                right_leg_x + int(10 * sx), leg_top + leg_len + int(4 * sy) + right_leg_swing,
+                fill=white, outline=black, width=1, tags="foot"
+            )
+            
+            # --- Draw body (white belly, rounded) ---
+            body_top = int(75 * sy + by)
+            body_bot = int(160 * sy + by)
+            body_rx = int(42 * sx * breath_scale)
+            # Apply belly jiggle - wobble the body horizontally
+            belly_jiggle_px = int(self._belly_jiggle)
+            jiggle_scale = 1.0 + abs(self._belly_jiggle) * 0.008  # slight width pulse
+            body_rx_jiggle = int(body_rx * jiggle_scale)
+            c.create_oval(
+                cx_draw - body_rx_jiggle + belly_jiggle_px, body_top,
+                cx_draw + body_rx_jiggle + belly_jiggle_px, body_bot,
+                fill=white, outline=black, width=2, tags="body"
+            )
+            # Inner belly patch (lighter) — sized to fit fully inside body with no visible gap
+            belly_rx = int(26 * sx * breath_scale * jiggle_scale)
+            c.create_oval(
+                cx_draw - belly_rx + belly_jiggle_px, body_top + int(18 * sy),
+                cx_draw + belly_rx + belly_jiggle_px, body_bot - int(14 * sy),
+                fill="#FAFAFA", outline="", tags="belly"
+            )
+            
+            # --- Draw arms (black, attached to body sides) ---
+            arm_top = int(95 * sy + by)
+            arm_len = int(35 * sy)
+            
+            # Apply individual limb dangle physics during drag
+            # Left arm
+            left_arm_dangle = int(self._dangle_left_arm) if anim == 'dragging' else 0
+            la_swing = arm_swing + left_arm_dangle
+            c.create_oval(
+                cx_draw - int(55 * sx), arm_top + la_swing,
+                cx_draw - int(30 * sx), arm_top + arm_len + la_swing,
+                fill=black, outline=black, tags="arm"
+            )
+            
+            # Right arm
+            right_arm_dangle = int(self._dangle_right_arm) if anim == 'dragging' else 0
+            ra_swing = -arm_swing + right_arm_dangle
+            c.create_oval(
+                cx_draw + int(30 * sx), arm_top + ra_swing,
+                cx_draw + int(55 * sx), arm_top + arm_len + ra_swing,
+                fill=black, outline=black, tags="arm"
+            )
+            
+            # --- Draw head ---
+            head_cy = int(52 * sy + by)
+            head_rx = int(36 * sx)
+            head_ry = int(32 * sy)
+            c.create_oval(
+                cx_draw - head_rx, head_cy - head_ry,
+                cx_draw + head_rx, head_cy + head_ry,
+                fill=white, outline=black, width=2, tags="head"
+            )
+            
+            # --- Draw ears (black circles on top of head) with wiggle and individual stretch ---
+            ear_y = head_cy - head_ry + int(5 * sy)
+            ear_w = int(22 * sx)
+            ear_h = int(24 * sy)
+            
+            # Individual ear stretch/dangle during drag
+            left_ear_stretch_px = int(self._dangle_left_ear * sy) if anim == 'dragging' else int(self._ear_stretch * sy)
+            right_ear_stretch_px = int(self._dangle_right_ear * sy) if anim == 'dragging' else int(self._ear_stretch * sy)
+            
+            # Left ear
+            c.create_oval(cx_draw - head_rx - int(2 * sx) + ear_wiggle, ear_y - int(16 * sy) - left_ear_stretch_px,
+                           cx_draw - head_rx + ear_w + ear_wiggle, ear_y + int(8 * sy),
+                           fill=black, outline=black, tags="ear")
+            # Inner ear pink
+            c.create_oval(cx_draw - head_rx + int(4 * sx) + ear_wiggle, ear_y - int(10 * sy) - left_ear_stretch_px,
+                           cx_draw - head_rx + int(16 * sx) + ear_wiggle, ear_y + int(2 * sy),
+                           fill=pink, outline="", tags="ear_inner")
+            # Right ear
+            c.create_oval(cx_draw + head_rx - ear_w - ear_wiggle, ear_y - int(16 * sy) - right_ear_stretch_px,
+                           cx_draw + head_rx + int(2 * sx) - ear_wiggle, ear_y + int(8 * sy),
+                           fill=black, outline=black, tags="ear")
+            # Inner ear pink
+            c.create_oval(cx_draw + head_rx - int(16 * sx) - ear_wiggle, ear_y - int(10 * sy) - right_ear_stretch_px,
+                           cx_draw + head_rx - int(4 * sx) - ear_wiggle, ear_y + int(2 * sy),
+                           fill=pink, outline="", tags="ear_inner")
+            
+            # --- Draw eye patches (black ovals around eyes) ---
+            eye_y = head_cy - int(4 * sy)
+            patch_rx = int(14 * sx)
+            patch_ry = int(11 * sy)
+            eye_offset = int(24 * sx)
+            # Left eye patch
+            c.create_oval(cx_draw - eye_offset - patch_rx, eye_y - patch_ry,
+                           cx_draw - eye_offset + patch_rx, eye_y + patch_ry,
+                           fill=black, outline="", tags="eye_patch")
+            # Right eye patch
+            c.create_oval(cx_draw + eye_offset - patch_rx, eye_y - patch_ry,
+                           cx_draw + eye_offset + patch_rx, eye_y + patch_ry,
+                           fill=black, outline="", tags="eye_patch")
+            
+            # --- Draw equipped items on panda body (before face details) ---
+            self._draw_equipped_items(c, cx_draw, by, sx, sy)
+            
+            # --- Draw eyes ---
+            self._draw_eyes(c, cx_draw, eye_y, eye_style, sx, sy)
+            
+            # --- Draw nose ---
+            nose_y = head_cy + int(8 * sy)
+            c.create_oval(cx_draw - int(5 * sx), nose_y - int(3 * sy), cx_draw + int(5 * sx), nose_y + int(4 * sy),
+                           fill=nose_color, outline="", tags="nose")
+            
+            # --- Draw mouth ---
+            self._draw_mouth(c, cx_draw, nose_y + int(6 * sy), mouth_style, sx, sy)
+            
+            # --- Draw animation-specific extras ---
+            self._draw_animation_extras(c, cx_draw, by, anim, frame_idx, sx, sy)
+            
+            # --- Draw panda name tag below feet ---
+            if self.panda and self.panda.name:
+                name_y = int(h - 12 * sy)  # position just above canvas bottom edge
+                # width constrains text wrapping to fit within the canvas
+                c.create_text(cx_draw, name_y, text=self.panda.name,
+                              font=("Arial Bold", int(10 * sx)),
+                              fill="#666666", width=int(w * 0.9), tags="name_tag")
     
     def _draw_eyes(self, c: tk.Canvas, cx: int, ey: int, style: str, sx: float = 1.0, sy: float = 1.0):
         """Draw panda eyes based on the current animation style."""

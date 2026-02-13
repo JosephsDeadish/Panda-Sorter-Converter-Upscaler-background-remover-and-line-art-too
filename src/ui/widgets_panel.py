@@ -150,11 +150,11 @@ class WidgetsPanel(ctk.CTkFrame if ctk else tk.Frame):
     
     def _create_widget_card(self, widget: PandaWidget):
         """Create a card for a widget."""
-        # Card frame
-        card = ctk.CTkFrame(self.content_frame) if ctk else tk.Frame(
+        # Card frame (transparent background so items blend with surroundings)
+        card = ctk.CTkFrame(self.content_frame, fg_color="transparent") if ctk else tk.Frame(
             self.content_frame,
-            relief="ridge",
-            borderwidth=2
+            relief="flat",
+            borderwidth=0
         )
         card.pack(pady=5, padx=10, fill="x")
         
@@ -389,8 +389,8 @@ class WidgetsPanel(ctk.CTkFrame if ctk else tk.Frame):
         self.current_category = None  # Not a widget category
         
         for emoji, name, anim_state in self.ANIMATION_ENTRIES:
-            card = ctk.CTkFrame(self.content_frame) if ctk else tk.Frame(
-                self.content_frame, relief="ridge", borderwidth=2
+            card = ctk.CTkFrame(self.content_frame, fg_color="transparent") if ctk else tk.Frame(
+                self.content_frame, relief="flat", borderwidth=0
             )
             card.pack(pady=3, padx=10, fill="x")
             
