@@ -2226,12 +2226,12 @@ class GameTextureSorter(ctk.CTk):
 
     def _show_upscale_preview(self, pil_img):
         """Display before/after preview for the given PIL Image."""
-        import customtkinter as ctk_mod
+        self._upscale_preview_image = pil_img
         # Before thumbnail
         before = pil_img.copy()
         before.thumbnail((200, 200), Image.LANCZOS)
         try:
-            before_ctk = ctk_mod.CTkImage(light_image=before, size=before.size)
+            before_ctk = ctk.CTkImage(light_image=before, size=before.size)
             self.upscale_preview_before_label.configure(image=before_ctk, text="")
             self.upscale_preview_before_label._preview_img = before_ctk
         except Exception:
@@ -2253,7 +2253,7 @@ class GameTextureSorter(ctk.CTk):
             after = upscaled.copy()
             after.thumbnail((200, 200), Image.LANCZOS)
             try:
-                after_ctk = ctk_mod.CTkImage(light_image=after, size=after.size)
+                after_ctk = ctk.CTkImage(light_image=after, size=after.size)
                 self.upscale_preview_after_label.configure(image=after_ctk, text="")
                 self.upscale_preview_after_label._preview_img = after_ctk
             except Exception:
@@ -2262,8 +2262,8 @@ class GameTextureSorter(ctk.CTk):
 
     def _update_upscale_preview(self, *_args):
         """Called when scale/style changes — re-preview if we have an image."""
-        # Only re-preview if we already have a before image showing
-        pass
+        if hasattr(self, '_upscale_preview_image') and self._upscale_preview_image:
+            self._show_upscale_preview(self._upscale_preview_image)
 
     def _upscale_pil_image(self, img, factor, preserve_alpha=True):
         """Upscale a single PIL Image using the current style."""
@@ -2354,6 +2354,7 @@ class GameTextureSorter(ctk.CTk):
                 if is_esrgan:
                     import numpy as np
                     from src.preprocessing.upscaler import TextureUpscaler
+                    tu = TextureUpscaler()
 
                 for i, fpath in enumerate(files, 1):
                     try:
@@ -2362,7 +2363,6 @@ class GameTextureSorter(ctk.CTk):
                         if is_esrgan:
                             # Use the existing TextureUpscaler for ESRGAN
                             arr = np.array(img.convert("RGB"))
-                            tu = TextureUpscaler()
                             result_arr = tu.upscale(arr, scale_factor=factor, method='realesrgan')
                             result = Image.fromarray(result_arr)
                             if preserve_alpha and img.mode == "RGBA":
