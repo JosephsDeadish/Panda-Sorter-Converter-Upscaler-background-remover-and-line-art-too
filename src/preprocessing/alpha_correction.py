@@ -65,6 +65,63 @@ class AlphaCorrectionPresets:
         'mode': 'hybrid'
     }
     
+    # PS2 Four-Level - Common in PS2 cutscene and effect textures
+    PS2_FOUR_LEVEL = {
+        'name': 'PS2 Four-Level',
+        'description': 'PS2 textures with four alpha levels (0, 85, 170, 255)',
+        'thresholds': [(0, 42, 0), (43, 127, 85), (128, 212, 170), (213, 255, 255)],
+        'mode': 'threshold'
+    }
+    
+    # PSP - PlayStation Portable alpha style
+    PSP_BINARY = {
+        'name': 'PSP Binary',
+        'description': 'PSP textures with binary alpha (common in PSP ports)',
+        'thresholds': [(0, 100, 0), (101, 255, 255)],
+        'mode': 'threshold'
+    }
+    
+    # GameCube/Wii - Often uses 5-bit alpha (8 levels)
+    GAMECUBE_WII = {
+        'name': 'GameCube/Wii',
+        'description': 'GameCube and Wii textures with quantized 5-bit alpha (8 levels)',
+        'thresholds': [(0, 16, 0), (17, 52, 36), (53, 88, 73), (89, 124, 109),
+                       (125, 160, 146), (161, 196, 182), (197, 232, 219), (233, 255, 255)],
+        'mode': 'threshold'
+    }
+    
+    # Xbox - Original Xbox alpha style (similar to PC)
+    XBOX_STANDARD = {
+        'name': 'Xbox Standard',
+        'description': 'Xbox textures with standard 3-level alpha (transparent, half, opaque)',
+        'thresholds': [(0, 64, 0), (65, 191, 128), (192, 255, 255)],
+        'mode': 'threshold'
+    }
+    
+    # Fade Out - Normalize gradients for fade-out effects
+    FADE_OUT = {
+        'name': 'Fade Out',
+        'description': 'Normalize fade-out gradients — preserves mid-range, snaps extremes',
+        'thresholds': [(0, 15, 0), (16, 240, None), (241, 255, 255)],
+        'mode': 'hybrid'
+    }
+    
+    # Soft Edges - Preserve soft anti-aliased edges
+    SOFT_EDGES = {
+        'name': 'Soft Edges',
+        'description': 'Preserve soft anti-aliased edges while cleaning up noise',
+        'thresholds': [(0, 8, 0), (9, 247, None), (248, 255, 255)],
+        'mode': 'hybrid'
+    }
+    
+    # Dithered Alpha - Common in older games using dithered transparency
+    DITHERED = {
+        'name': 'Dithered',
+        'description': 'Fix dithered transparency patterns — snaps to binary alpha',
+        'thresholds': [(0, 84, 0), (85, 170, 128), (171, 255, 255)],
+        'mode': 'threshold'
+    }
+    
     @classmethod
     def get_preset(cls, name: str) -> Optional[Dict[str, Any]]:
         """Get preset by name."""
@@ -75,6 +132,13 @@ class AlphaCorrectionPresets:
             'ps2_smooth': cls.PS2_SMOOTH,
             'generic_binary': cls.GENERIC_BINARY,
             'clean_edges': cls.CLEAN_EDGES,
+            'ps2_four_level': cls.PS2_FOUR_LEVEL,
+            'psp_binary': cls.PSP_BINARY,
+            'gamecube_wii': cls.GAMECUBE_WII,
+            'xbox_standard': cls.XBOX_STANDARD,
+            'fade_out': cls.FADE_OUT,
+            'soft_edges': cls.SOFT_EDGES,
+            'dithered': cls.DITHERED,
         }
         return presets.get(name.lower())
     
@@ -87,7 +151,14 @@ class AlphaCorrectionPresets:
             'ps2_ui',
             'ps2_smooth',
             'generic_binary',
-            'clean_edges'
+            'clean_edges',
+            'ps2_four_level',
+            'psp_binary',
+            'gamecube_wii',
+            'xbox_standard',
+            'fade_out',
+            'soft_edges',
+            'dithered',
         ]
 
 
