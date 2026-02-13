@@ -175,6 +175,9 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
     # Upside-down flip threshold (velocity when dragged by legs)
     UPSIDE_DOWN_VELOCITY_THRESHOLD = 2.0  # Velocity threshold for flip detection
     
+    # Body rotation smoothing (exponential lerp factor per frame, 0-1)
+    ROTATION_LERP_FACTOR = 0.30          # ~30% of angular gap closed per frame
+    
     # Minimum visible scale during rotation animations (prevents body from
     # becoming invisible at exactly 0 during mid-rotation)
     MIN_VISIBLE_SCALE = 0.15
@@ -3510,7 +3513,7 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
             diff = self._drag_body_angle_target - self._drag_body_angle
             # Normalize diff to [-pi, pi] using atan2
             diff = math.atan2(math.sin(diff), math.cos(diff))
-            self._drag_body_angle += diff * 0.30
+            self._drag_body_angle += diff * self.ROTATION_LERP_FACTOR
 
             angle = self._drag_body_angle
             if abs(angle) > 0.05:

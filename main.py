@@ -7855,8 +7855,8 @@ Built with:
             dungeon_window.focus_set()
             try:
                 dungeon_window.grab_set()
-            except Exception:
-                pass
+            except tk.TclError:
+                logger.debug("grab_set not supported on this platform")
             
             # Create dungeon
             dungeon = IntegratedDungeon(width=80, height=80, num_floors=5)
@@ -8114,7 +8114,7 @@ Built with:
                 game_state['running'] = False
                 try:
                     dungeon_window.grab_release()
-                except Exception:
+                except tk.TclError:
                     pass
                 dungeon_window.destroy()
             
