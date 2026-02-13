@@ -8061,7 +8061,7 @@ Built with:
                         if self._sorting_cancelled.is_set():
                             self.log("⚠️ Sorting cancelled by user")
                             return
-                        time.sleep(0.2)
+                        self._sorting_cancelled.wait(timeout=0.5)
                     
                     # Classify based on mode
                     if mode == "automatic":

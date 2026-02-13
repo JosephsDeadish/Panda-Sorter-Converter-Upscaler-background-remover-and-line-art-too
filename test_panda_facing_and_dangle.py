@@ -290,6 +290,8 @@ def test_toss_draw_uses_facing_direction():
             "_draw_panda should check _is_tossing for facing direction"
         assert "'tossed'" in source and "'wall_hit'" in source, \
             "_draw_panda should handle tossed and wall_hit animations"
+        assert "'rolling'" in source and "'spinning'" in source, \
+            "_draw_panda should handle rolling and spinning animations"
         assert "'walking_left'" in source and "'walking_right'" in source, \
             "_draw_panda should remap to walking_left/walking_right for side views"
         assert "'walking_up'" in source, \
@@ -326,8 +328,10 @@ def test_toss_clothing_uses_facing_direction():
         # Check that clothing perspective adjusts for toss facing
         assert '_is_tossing' in source, \
             "_draw_equipped_items should check _is_tossing"
-        assert "'tossed'" in source, \
-            "_draw_equipped_items should handle tossed animation"
+        assert "'tossed'" in source and "'wall_hit'" in source, \
+            "_draw_equipped_items should handle tossed and wall_hit animations"
+        assert "'rolling'" in source and "'spinning'" in source, \
+            "_draw_equipped_items should handle rolling and spinning animations"
         
         print("✓ Toss clothing uses _facing_direction for perspective")
     except ImportError:
