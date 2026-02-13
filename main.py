@@ -2794,25 +2794,39 @@ class GameTextureSorter(ctk.CTk):
             messagebox.showerror("Error", f"Failed to import profiles: {e}")
     
     def browser_select_directory(self):
-        """Select directory or archive for file browser"""
-        # Allow selecting both directories and archive files
-        from tkinter import filedialog as tk_filedialog
+        """Select directory or archive for file browser based on 'Show archives' checkbox"""
+        browse_archive = hasattr(self, 'browser_show_archives') and self.browser_show_archives.get()
         
-        # Create custom file dialog that allows selecting directories or archives
-        result = tk_filedialog.askopenfilename(
-            title="Select Directory or Archive",
-            filetypes=[
-                ("All Supported", "*.zip *.7z *.rar *.tar.gz *.tgz"),
-                ("ZIP archives", "*.zip"),
-                ("7Z archives", "*.7z"),
-                ("RAR archives", "*.rar"),
-                ("TAR archives", "*.tar.gz *.tgz"),
-                ("All files", "*.*")
-            ]
-        )
-        
-        # If user didn't select a file, try directory selection
-        if not result:
+        if browse_archive:
+            # Show archive file picker when 'Show archives' checkbox is checked
+            from tkinter import filedialog as tk_filedialog
+            result = tk_filedialog.askopenfilename(
+                title="Select Archive to Browse",
+                filetypes=[
+                    ("All Supported Archives", "*.zip *.7z *.rar *.tar.gz *.tgz"),
+                    ("ZIP archives", "*.zip"),
+                    ("7Z archives", "*.7z"),
+                    ("RAR archives", "*.rar"),
+                    ("TAR archives", "*.tar.gz *.tgz"),
+                    ("All files", "*.*")
+                ]
+            )
+            if result:
+                archive_path = Path(result)
+                if self.file_handler.is_archive(archive_path):
+                    self.browser_path_var.set(f"📦 {archive_path.name}")
+                    self.browser_current_dir = archive_path
+                    self.browser_is_archive = True
+                    self.browser_archive_path = archive_path
+                    
+                    # Try to identify game from archive name
+                    self._identify_and_display_game(archive_path)
+                    
+                    self.browser_refresh_archive()
+                else:
+                    messagebox.showwarning("Invalid Archive", "Selected file is not a valid archive format.")
+        else:
+            # Show folder picker when 'Show archives' checkbox is not checked
             directory = filedialog.askdirectory(title="Select Directory to Browse")
             if directory:
                 self.browser_path_var.set(directory)
@@ -2824,21 +2838,6 @@ class GameTextureSorter(ctk.CTk):
                 self._identify_and_display_game(Path(directory))
                 
                 self.browser_refresh()
-        else:
-            # User selected an archive file
-            archive_path = Path(result)
-            if self.file_handler.is_archive(archive_path):
-                self.browser_path_var.set(f"📦 {archive_path.name}")
-                self.browser_current_dir = archive_path
-                self.browser_is_archive = True
-                self.browser_archive_path = archive_path
-                
-                # Try to identify game from archive name
-                self._identify_and_display_game(archive_path)
-                
-                self.browser_refresh_archive()
-            else:
-                messagebox.showwarning("Invalid Archive", "Selected file is not a valid archive format.")
     
     def _identify_and_display_game(self, directory: Path):
         """Identify game from directory and display info in browser."""
@@ -7855,11 +7854,27 @@ Built with:
                 self.log(f"Input directory selected: {directory}")
     
     def browse_output(self):
-        """Browse for output directory"""
-        directory = filedialog.askdirectory(title="Select Output Directory")
-        if directory:
-            self.output_path_var.set(directory)
-            self.log(f"Output directory selected: {directory}")
+        """Browse for output directory or archive file based on compress checkbox"""
+        if hasattr(self, 'compress_to_archive_var') and self.compress_to_archive_var.get():
+            # Show archive file save dialog when compress to archive is checked
+            result = filedialog.asksaveasfilename(
+                title="Select Output Archive",
+                defaultextension=".zip",
+                filetypes=[
+                    ("ZIP archives", "*.zip"),
+                    ("7Z archives", "*.7z"),
+                    ("TAR.GZ archives", "*.tar.gz"),
+                    ("All files", "*.*")
+                ]
+            )
+            if result:
+                self.output_path_var.set(result)
+                self.log(f"📦 Output archive selected: {result}")
+        else:
+            directory = filedialog.askdirectory(title="Select Output Directory")
+            if directory:
+                self.output_path_var.set(directory)
+                self.log(f"Output directory selected: {directory}")
     
     def browse_directory(self, target_var):
         """Browse for a directory or archive file (when convert extract checkbox is checked)"""
