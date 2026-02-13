@@ -1242,14 +1242,24 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
             # Determine which limbs should dangle based on what's being grabbed
             grabbed_part = self._drag_grab_part
             
+            # Apply dangle multiplier: head/ear grabs get full dangly effect,
+            # body/butt grabs get minimal dangle, limb grabs get moderate dangle
+            if grabbed_part in ('head', 'left_ear', 'right_ear', 'nose', 'left_eye', 'right_eye'):
+                dangle_mult = self.DANGLE_HEAD_MULTIPLIER
+            elif grabbed_part in ('body', 'butt'):
+                dangle_mult = self.DANGLE_BODY_MULTIPLIER
+            else:
+                # Limb grab: moderate dangle for non-grabbed limbs
+                dangle_mult = 0.7
+            
             # Left arm dangles unless it's being grabbed
             if grabbed_part != 'left_arm':
                 # Vertical physics
-                self._dangle_left_arm_vel += self._prev_drag_vy * self.DANGLE_ARM_FACTOR
+                self._dangle_left_arm_vel += self._prev_drag_vy * self.DANGLE_ARM_FACTOR * dangle_mult
                 # Horizontal physics for full 2D movement
-                self._dangle_left_arm_h_vel += self._prev_drag_vx * self.DANGLE_ARM_H_FACTOR
+                self._dangle_left_arm_h_vel += self._prev_drag_vx * self.DANGLE_ARM_H_FACTOR * dangle_mult
                 # Rotational physics for natural swinging
-                self._dangle_left_arm_rot_vel += (self._prev_drag_vx * self.DANGLE_ROT_FACTOR)
+                self._dangle_left_arm_rot_vel += (self._prev_drag_vx * self.DANGLE_ROT_FACTOR * dangle_mult)
             else:
                 # Grabbed arm doesn't dangle - reset it
                 self._dangle_left_arm = 0.0
@@ -1261,9 +1271,9 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
             
             # Right arm dangles unless it's being grabbed
             if grabbed_part != 'right_arm':
-                self._dangle_right_arm_vel += self._prev_drag_vy * self.DANGLE_ARM_FACTOR
-                self._dangle_right_arm_h_vel += self._prev_drag_vx * self.DANGLE_ARM_H_FACTOR
-                self._dangle_right_arm_rot_vel += (self._prev_drag_vx * self.DANGLE_ROT_FACTOR)
+                self._dangle_right_arm_vel += self._prev_drag_vy * self.DANGLE_ARM_FACTOR * dangle_mult
+                self._dangle_right_arm_h_vel += self._prev_drag_vx * self.DANGLE_ARM_H_FACTOR * dangle_mult
+                self._dangle_right_arm_rot_vel += (self._prev_drag_vx * self.DANGLE_ROT_FACTOR * dangle_mult)
             else:
                 self._dangle_right_arm = 0.0
                 self._dangle_right_arm_vel = 0.0
@@ -1274,9 +1284,9 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
             
             # Left leg dangles unless it's being grabbed
             if grabbed_part != 'left_leg':
-                self._dangle_left_leg_vel += self._prev_drag_vy * self.DANGLE_LEG_FACTOR
-                self._dangle_left_leg_h_vel += self._prev_drag_vx * self.DANGLE_LEG_H_FACTOR
-                self._dangle_left_leg_rot_vel += (self._prev_drag_vx * self.DANGLE_ROT_FACTOR)
+                self._dangle_left_leg_vel += self._prev_drag_vy * self.DANGLE_LEG_FACTOR * dangle_mult
+                self._dangle_left_leg_h_vel += self._prev_drag_vx * self.DANGLE_LEG_H_FACTOR * dangle_mult
+                self._dangle_left_leg_rot_vel += (self._prev_drag_vx * self.DANGLE_ROT_FACTOR * dangle_mult)
             else:
                 self._dangle_left_leg = 0.0
                 self._dangle_left_leg_vel = 0.0
@@ -1287,9 +1297,9 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
             
             # Right leg dangles unless it's being grabbed
             if grabbed_part != 'right_leg':
-                self._dangle_right_leg_vel += self._prev_drag_vy * self.DANGLE_LEG_FACTOR
-                self._dangle_right_leg_h_vel += self._prev_drag_vx * self.DANGLE_LEG_H_FACTOR
-                self._dangle_right_leg_rot_vel += (self._prev_drag_vx * self.DANGLE_ROT_FACTOR)
+                self._dangle_right_leg_vel += self._prev_drag_vy * self.DANGLE_LEG_FACTOR * dangle_mult
+                self._dangle_right_leg_h_vel += self._prev_drag_vx * self.DANGLE_LEG_H_FACTOR * dangle_mult
+                self._dangle_right_leg_rot_vel += (self._prev_drag_vx * self.DANGLE_ROT_FACTOR * dangle_mult)
             else:
                 self._dangle_right_leg = 0.0
                 self._dangle_right_leg_vel = 0.0
@@ -1300,14 +1310,14 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
             
             # Left ear stretches unless it's being grabbed
             if grabbed_part != 'left_ear':
-                self._dangle_left_ear_vel += self._prev_drag_vy * 0.2
+                self._dangle_left_ear_vel += self._prev_drag_vy * 0.2 * dangle_mult
             else:
                 self._dangle_left_ear = 0.0
                 self._dangle_left_ear_vel = 0.0
             
             # Right ear stretches unless it's being grabbed
             if grabbed_part != 'right_ear':
-                self._dangle_right_ear_vel += self._prev_drag_vy * 0.2
+                self._dangle_right_ear_vel += self._prev_drag_vy * 0.2 * dangle_mult
             else:
                 self._dangle_right_ear = 0.0
                 self._dangle_right_ear_vel = 0.0
@@ -3923,6 +3933,20 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
         self._is_tossing = True
         self._set_animation_no_cancel('tossed')
         self._toss_bounce_count = 0
+        
+        # Turn panda toward the direction it's being thrown
+        vx = self._toss_velocity_x
+        vy = self._toss_velocity_y
+        if abs(vx) > abs(vy):
+            self._facing_direction = 'right' if vx > 0 else 'left'
+        else:
+            self._facing_direction = 'down' if vy > 0 else 'up'
+        if self.panda and hasattr(self.panda, 'set_facing'):
+            from src.features.panda_character import PandaFacing
+            facing_map = {'front': PandaFacing.FRONT, 'back': PandaFacing.BACK,
+                          'left': PandaFacing.LEFT, 'right': PandaFacing.RIGHT,
+                          'up': PandaFacing.BACK, 'down': PandaFacing.FRONT}
+            self.panda.set_facing(facing_map.get(self._facing_direction, PandaFacing.FRONT))
         self._toss_physics_tick()
     
     def _toss_physics_tick(self):
