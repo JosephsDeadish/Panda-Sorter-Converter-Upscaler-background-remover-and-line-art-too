@@ -3973,7 +3973,6 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
             # Propeller on top (spinning effect)
             prop_angle = (self.animation_frame * 15) % 360
             for angle in [prop_angle, prop_angle + 90]:
-                import math
                 rad = math.radians(angle)
                 dx = int(18 * persp_sx * math.cos(rad))
                 dy = int(6 * sy * math.sin(rad))
@@ -4144,7 +4143,6 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
                 # Flower petals
                 for petal in range(5):
                     angle = petal * 72
-                    import math
                     rad = math.radians(angle)
                     px = flower_x + int(6 * persp_sx * math.cos(rad))
                     py = flower_y + int(4 * sy * math.sin(rad))
