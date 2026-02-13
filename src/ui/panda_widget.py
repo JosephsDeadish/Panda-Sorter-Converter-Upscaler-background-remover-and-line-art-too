@@ -4991,7 +4991,8 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
                     dialog.after_cancel(save_timer)
                 save_username()
                 
-                username = entry_var.get().strip()
+                # Get the saved username for display message
+                username = self.panda.username
                 if username:
                     self.info_label.configure(text=f"🐼 Nice to meet you, {username}!")
                 else:

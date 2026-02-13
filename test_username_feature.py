@@ -105,7 +105,7 @@ def test_config_username_field():
     print("✓ Config username field exists")
 
 def test_new_dialogues():
-    """Test that new converter-related dialogues exist."""
+    """Test that new converter-related dialogues exist and are reachable."""
     print("Testing new converter-related dialogues...")
     
     converter_messages = [
@@ -114,10 +114,26 @@ def test_new_dialogues():
         "🐼 Looking forward to seeing you again!",
     ]
     
+    # Check messages exist in CLICK_RESPONSES
     for msg in converter_messages:
         assert msg in PandaCharacter.CLICK_RESPONSES, f"Missing dialogue: {msg}"
     
-    print("✓ New converter-related dialogues added")
+    # Verify these messages are actually reachable through on_click()
+    random.seed(999)
+    panda = PandaCharacter()
+    responses_seen = set()
+    
+    # Call on_click many times to collect unique responses
+    for _ in range(200):
+        response = panda.on_click()
+        responses_seen.add(response)
+    
+    # Check if at least one of the new messages was returned
+    found_new_messages = [msg for msg in converter_messages if msg in responses_seen]
+    assert len(found_new_messages) > 0, f"New dialogues should be reachable via on_click(). Seen: {len(responses_seen)} unique messages"
+    
+    print(f"✓ New converter-related dialogues added and reachable (found {len(found_new_messages)}/3 in {len(responses_seen)} unique responses)")
+
 
 if __name__ == "__main__":
     print("\n" + "="*60)
