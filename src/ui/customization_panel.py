@@ -1492,6 +1492,94 @@ class SoundSettingsPanel(ctk.CTkFrame):
             test_btn = ctk.CTkButton(row, text="🔊 Test", width=70, height=26,
                                      command=lambda eid=event_id: self._test_event_sound(eid))
             test_btn.pack(side="right", padx=5)
+
+        # === Panda Sounds Section ===
+        panda_sound_frame = ctk.CTkFrame(scroll_frame)
+        panda_sound_frame.pack(fill="x", padx=10, pady=10)
+
+        ctk.CTkLabel(panda_sound_frame, text="🐼 Panda Sounds:", font=("Arial Bold", 12)).pack(anchor="w", padx=10, pady=5)
+        ctk.CTkLabel(panda_sound_frame, text="Select which sound plays for each panda action. Purchase more sounds in the Shop!",
+                     font=("Arial", 9), text_color="gray").pack(anchor="w", padx=20, pady=(0, 5))
+
+        self.panda_sound_vars = {}
+        panda_sound_events = [
+            ("panda_eat", "🍜 Eating"),
+            ("panda_happy", "😊 Happy"),
+            ("panda_sad", "😢 Sad"),
+            ("panda_drag", "✊ Being Dragged"),
+            ("panda_drop", "⬇️ Dropped"),
+            ("panda_sleep", "😴 Sleeping"),
+            ("panda_wake", "⏰ Waking Up"),
+            ("panda_click", "👆 Clicked"),
+            ("panda_pet", "🤗 Being Petted"),
+            ("panda_play", "🎮 Playing"),
+            ("panda_walk", "🚶 Walking"),
+            ("panda_jump", "🦘 Jumping"),
+            ("panda_dance", "💃 Dancing"),
+            ("panda_sneeze", "🤧 Sneezing"),
+            ("panda_yawn", "🥱 Yawning"),
+        ]
+
+        for event_id, event_label in panda_sound_events:
+            row = ctk.CTkFrame(panda_sound_frame)
+            row.pack(fill="x", padx=20, pady=2)
+
+            # Enable/disable checkbox
+            var = ctk.BooleanVar(value=True)
+            self.mute_vars[event_id] = var
+            cb = ctk.CTkCheckBox(row, text=event_label, variable=var, width=160,
+                                command=lambda eid=event_id: self._on_mute_toggle(eid))
+            cb.pack(side="left", padx=5)
+
+            # Sound selection dropdown
+            choices = self._get_panda_sound_choices(event_id)
+            choice_var = ctk.StringVar(value=choices[0] if choices else "Default")
+            self.panda_sound_vars[event_id] = choice_var
+            dropdown = ctk.CTkOptionMenu(row, variable=choice_var, values=choices, width=150,
+                                         command=lambda val, eid=event_id: self._on_panda_sound_select(eid, val))
+            dropdown.pack(side="left", padx=5)
+
+            # Test button
+            test_btn = ctk.CTkButton(row, text="🔊 Test", width=70, height=26,
+                                     command=lambda eid=event_id: self._test_event_sound(eid))
+            test_btn.pack(side="right", padx=5)
+
+        # === Per-Event Sound Selection for System Sounds ===
+        select_frame = ctk.CTkFrame(scroll_frame)
+        select_frame.pack(fill="x", padx=10, pady=10)
+
+        ctk.CTkLabel(select_frame, text="🎵 Sound Selection (System):", font=("Arial Bold", 12)).pack(anchor="w", padx=10, pady=5)
+        ctk.CTkLabel(select_frame, text="Choose which sound file to use for each system event",
+                     font=("Arial", 9), text_color="gray").pack(anchor="w", padx=20, pady=(0, 5))
+
+        self.system_sound_vars = {}
+        system_events_for_selection = [
+            ("complete", "✅ Completion"),
+            ("error", "❌ Error"),
+            ("achievement", "🏆 Achievement"),
+            ("milestone", "📊 Milestone"),
+            ("warning", "⚠️ Warning"),
+            ("start", "▶️ Start"),
+            ("button_click", "🖱️ Button Click"),
+            ("notification", "🔔 Notification"),
+        ]
+
+        for event_id, event_label in system_events_for_selection:
+            row = ctk.CTkFrame(select_frame)
+            row.pack(fill="x", padx=20, pady=2)
+
+            ctk.CTkLabel(row, text=event_label, width=140, anchor="w").pack(side="left", padx=5)
+
+            choices = self._get_system_sound_choices(event_id)
+            choice_var = ctk.StringVar(value=choices[0] if choices else "Default")
+            self.system_sound_vars[event_id] = choice_var
+            dropdown = ctk.CTkOptionMenu(row, variable=choice_var, values=choices, width=180,
+                                         command=lambda val, eid=event_id: self._on_system_sound_select(eid, val))
+            dropdown.pack(side="left", padx=5)
+
+            test_btn = ctk.CTkButton(row, text="🔊 Test", width=70, height=26,
+                                     command=lambda eid=event_id: self._test_event_sound(eid))
+            test_btn.pack(side="right", padx=5)
     
     def _test_event_sound(self, event_id):
         """Play a test sound for the given event."""
@@ -1549,6 +1637,46 @@ class SoundSettingsPanel(ctk.CTkFrame):
         enabled = self.mute_vars[event_id].get()
         if self.on_settings_change:
             self.on_settings_change('mute_sound', {'event': event_id, 'enabled': enabled})
+    
+    def _get_panda_sound_choices(self, event_id):
+        """Get available sound choices for a panda event."""
+        return self._get_sound_choices_for_event(event_id)
+
+    def _get_system_sound_choices(self, event_id):
+        """Get available sound choices for a system event."""
+        return self._get_sound_choices_for_event(event_id)
+
+    def _get_sound_choices_for_event(self, event_id):
+        """Get available sound choice labels for any event."""
+        try:
+            from src.features.sound_manager import SoundManager, SoundEvent
+            event = SoundEvent(event_id)
+            choices = SoundManager.SOUND_CHOICES.get(event, [])
+            return [label for label, _filename in choices] if choices else ["Default"]
+        except Exception:
+            return ["Default"]
+
+    def _on_panda_sound_select(self, event_id, selected_label):
+        """Handle panda sound selection change."""
+        self._on_sound_select(event_id, selected_label)
+
+    def _on_system_sound_select(self, event_id, selected_label):
+        """Handle system sound selection change."""
+        self._on_sound_select(event_id, selected_label)
+
+    def _on_sound_select(self, event_id, selected_label):
+        """Handle sound selection change for any event."""
+        try:
+            from src.features.sound_manager import SoundManager, SoundEvent
+            event = SoundEvent(event_id)
+            choices = SoundManager.SOUND_CHOICES.get(event, [])
+            for label, filename in choices:
+                if label == selected_label:
+                    if self.on_settings_change:
+                        self.on_settings_change('select_sound', {'event': event_id, 'sound': filename})
+                    break
+        except Exception as e:
+            logger.debug(f"Could not select sound: {e}")
     
     def get_settings(self) -> Dict[str, Any]:
         return {

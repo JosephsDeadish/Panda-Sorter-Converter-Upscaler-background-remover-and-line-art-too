@@ -736,12 +736,14 @@ class AchievementSystem:
     
     def _check_meta_achievements(self) -> None:
         """Check and update meta achievements (achievement hunter, completionist)."""
-        unlocked_count = self.get_unlocked_count()
-        total_count = len(self.achievements)
+        # Exclude meta achievements from the total to avoid circular counting
+        non_meta = [a for a in self.achievements.values() if a.category != 'meta']
+        total_count = len(non_meta)
         
         if total_count == 0:
             return
         
+        unlocked_count = sum(1 for a in non_meta if a.unlocked)
         unlock_percent = (unlocked_count / total_count) * 100
         
         # Update achievement hunter progress

@@ -35,7 +35,7 @@ if str(src_dir) not in sys.path:
     sys.path.insert(0, str(src_dir))
 
 # Import configuration first
-from src.config import config, APP_NAME, APP_VERSION, APP_AUTHOR, CONFIG_DIR, LOGS_DIR, CACHE_DIR
+from src.config import config, APP_NAME, APP_VERSION, APP_AUTHOR, CONFIG_DIR, LOGS_DIR, CACHE_DIR, get_app_dir
 
 # Flag to check if GUI libraries are available
 GUI_AVAILABLE = False
@@ -364,8 +364,18 @@ class GameTextureSorter(ctk.CTk):
         
         # Set window icon (both .ico for Windows and .png for fallback)
         try:
-            icon_path = Path(__file__).parent / "assets" / "icon.png"
-            ico_path = Path(__file__).parent / "assets" / "icon.ico"
+            # Check app_data/assets first, then bundled/dev assets
+            _app = get_app_dir()
+            _candidates_png = [
+                _app / "app_data" / "assets" / "icon.png",
+                Path(__file__).parent / "assets" / "icon.png",
+            ]
+            _candidates_ico = [
+                _app / "app_data" / "assets" / "icon.ico",
+                Path(__file__).parent / "assets" / "icon.ico",
+            ]
+            icon_path = next((p for p in _candidates_png if p.exists()), _candidates_png[-1])
+            ico_path = next((p for p in _candidates_ico if p.exists()), _candidates_ico[-1])
             
             # Set iconbitmap first for Windows (best taskbar integration)
             if ico_path.exists() and sys.platform == 'win32':
@@ -399,6 +409,16 @@ class GameTextureSorter(ctk.CTk):
         self.lod_detector = LODDetector()
         self.file_handler = FileHandler(create_backup=config.get('file_handling', 'create_backup', default=True))
         self.database = None  # Will be initialized when needed
+        
+        # Initialize AI incremental learner for feedback-based learning
+        self.learner = None
+        try:
+            from src.ai.training import IncrementalLearner
+            self.learner = IncrementalLearner()
+            logger.info("AI IncrementalLearner initialized successfully")
+        except Exception as e:
+            logger.warning(f"Failed to initialize IncrementalLearner: {e}")
+            self.learner = None
         
         # Initialize profile manager for game identification
         try:
@@ -446,6 +466,9 @@ class GameTextureSorter(ctk.CTk):
         self._sorting_skip_all = threading.Event()
         self._sorting_cancelled = threading.Event()
         self._sorting_paused = threading.Event()
+        
+        # Sentinel value for skip actions in sorting dialogs
+        self.SKIP_SENTINEL = "_SKIP_FILE_"
         
         # Initialize features if GUI available
         if GUI_AVAILABLE:
@@ -812,6 +835,7 @@ class GameTextureSorter(ctk.CTk):
         self.tab_browser = self.tabview.add("📁 File Browser")
         self.tab_profiles = self.tabview.add("🎮 Game Profiles")
         self.tab_notepad = self.tabview.add("📝 Notepad")
+        self.tab_upscaler = self.tabview.add("🔍 Image Upscaler")
         self.tab_about = self.tabview.add("ℹ️ About")
         
         # Features tabview (nested)
@@ -853,6 +877,7 @@ class GameTextureSorter(ctk.CTk):
             self.create_browser_tab()
             self.create_profiles_tab()
             self.create_notepad_tab()
+            self.create_upscaler_tab()
             self.create_about_tab()
             self.create_shop_tab()
             self.create_rewards_tab()
@@ -1916,6 +1941,506 @@ class GameTextureSorter(ctk.CTk):
         self.convert_log_text.insert("end", f"{message}\n")
         self.convert_log_text.see("end")
     
+    def create_upscaler_tab(self):
+        """Create image upscaling tool tab"""
+        # Title
+        ctk.CTkLabel(self.tab_upscaler, text="🔍 Image Upscaler 🔍",
+                     font=("Arial Bold", 18)).pack(pady=10)
+        ctk.CTkLabel(self.tab_upscaler,
+                     text="Batch upscale textures with high-quality filters",
+                     font=("Arial", 12)).pack(pady=5)
+
+        # START button at top
+        top_btn_frame = ctk.CTkFrame(self.tab_upscaler)
+        top_btn_frame.pack(fill="x", padx=30, pady=(0, 10))
+        self.upscale_start_btn = ctk.CTkButton(
+            top_btn_frame, text="🔍 UPSCALE 🔍",
+            command=self._run_upscale,
+            width=250, height=60,
+            font=("Arial Bold", 18),
+            fg_color="#2B7A0B", hover_color="#368B14")
+        self.upscale_start_btn.pack(pady=5)
+
+        # Scrollable content
+        scroll = ctk.CTkScrollableFrame(self.tab_upscaler)
+        scroll.pack(fill="both", expand=True, padx=30, pady=(0, 20))
+
+        # --- Input section ---
+        input_frame = ctk.CTkFrame(scroll)
+        input_frame.pack(fill="x", padx=10, pady=10)
+        ctk.CTkLabel(input_frame, text="Input Folder / ZIP:",
+                     font=("Arial Bold", 12)).grid(row=0, column=0, padx=10, pady=5, sticky="w")
+        self.upscale_input_var = ctk.StringVar()
+        ctk.CTkEntry(input_frame, textvariable=self.upscale_input_var,
+                     width=500).grid(row=0, column=1, padx=10, pady=5, sticky="ew")
+        upscale_input_btn = ctk.CTkButton(input_frame, text="📂 Browse Folder", width=120,
+                     command=lambda: self.browse_directory(self.upscale_input_var))
+        upscale_input_btn.grid(row=0, column=2, padx=5, pady=5)
+        upscale_input_zip_btn = ctk.CTkButton(input_frame, text="📦 Browse ZIP", width=100,
+                     command=self._browse_upscale_zip)
+        upscale_input_zip_btn.grid(row=0, column=3, padx=5, pady=5)
+        input_frame.columnconfigure(1, weight=1)
+
+        # --- Output section ---
+        output_frame = ctk.CTkFrame(scroll)
+        output_frame.pack(fill="x", padx=10, pady=10)
+        ctk.CTkLabel(output_frame, text="Output Folder:",
+                     font=("Arial Bold", 12)).grid(row=0, column=0, padx=10, pady=5, sticky="w")
+        self.upscale_output_var = ctk.StringVar()
+        ctk.CTkEntry(output_frame, textvariable=self.upscale_output_var,
+                     width=500).grid(row=0, column=1, padx=10, pady=5, sticky="ew")
+        upscale_output_btn = ctk.CTkButton(output_frame, text="📂 Browse", width=100,
+                     command=lambda: self.browse_directory(self.upscale_output_var))
+        upscale_output_btn.grid(row=0, column=2, padx=10, pady=5)
+        output_frame.columnconfigure(1, weight=1)
+
+        # --- Options section ---
+        opts_frame = ctk.CTkFrame(scroll)
+        opts_frame.pack(fill="x", padx=10, pady=10)
+        ctk.CTkLabel(opts_frame, text="Upscale Options:",
+                     font=("Arial Bold", 12)).pack(anchor="w", padx=10, pady=5)
+        opts = ctk.CTkFrame(opts_frame)
+        opts.pack(fill="x", padx=10, pady=5)
+
+        # Scale factor
+        ctk.CTkLabel(opts, text="Scale Factor:").grid(row=0, column=0, padx=10, pady=5, sticky="w")
+        self.upscale_factor_var = ctk.StringVar(value="2x")
+        upscale_factor_menu = ctk.CTkOptionMenu(
+            opts, variable=self.upscale_factor_var,
+            values=["2x", "4x", "8x"],
+            command=self._update_upscale_preview)
+        upscale_factor_menu.grid(row=0, column=1, padx=10, pady=5, sticky="w")
+
+        # Upscale style/method
+        ctk.CTkLabel(opts, text="Style:").grid(row=0, column=2, padx=10, pady=5, sticky="w")
+        self.upscale_style_var = ctk.StringVar(value="🔷 Lanczos (Sharpest)")
+        upscale_style_menu = ctk.CTkOptionMenu(
+            opts, variable=self.upscale_style_var,
+            values=[
+                "🔷 Lanczos (Sharpest)",
+                "🟢 Bicubic (Smooth)",
+                "🟡 Bilinear (Fast)",
+                "🔶 Hamming",
+                "🟣 Box (Pixel Art)",
+                "🔴 Real-ESRGAN (AI)"
+            ],
+            command=self._update_upscale_preview)
+        upscale_style_menu.grid(row=0, column=3, padx=10, pady=5, sticky="w")
+
+        # Export format
+        ctk.CTkLabel(opts, text="Export As:").grid(row=1, column=0, padx=10, pady=5, sticky="w")
+        self.upscale_format_var = ctk.StringVar(value="PNG")
+        upscale_format_menu = ctk.CTkOptionMenu(
+            opts, variable=self.upscale_format_var,
+            values=["PNG", "BMP", "TGA", "JPEG", "WEBP"])
+        upscale_format_menu.grid(row=1, column=1, padx=10, pady=5, sticky="w")
+
+        # Checkboxes row
+        check_frame = ctk.CTkFrame(opts_frame)
+        check_frame.pack(fill="x", padx=10, pady=5)
+        self.upscale_alpha_var = ctk.BooleanVar(value=True)
+        upscale_alpha_cb = ctk.CTkCheckBox(check_frame, text="🔲 Preserve Alpha (keep RGBA)",
+                       variable=self.upscale_alpha_var)
+        upscale_alpha_cb.pack(side="left", padx=10)
+        self.upscale_recursive_var = ctk.BooleanVar(value=True)
+        upscale_recursive_cb = ctk.CTkCheckBox(check_frame, text="📁 Include Subdirectories",
+                       variable=self.upscale_recursive_var)
+        upscale_recursive_cb.pack(side="left", padx=10)
+        self.upscale_zip_output_var = ctk.BooleanVar(value=False)
+        upscale_zip_cb = ctk.CTkCheckBox(check_frame, text="📦 Save output as ZIP",
+                       variable=self.upscale_zip_output_var)
+        upscale_zip_cb.pack(side="left", padx=10)
+        self.upscale_send_organizer_var = ctk.BooleanVar(value=False)
+        upscale_send_org_cb = ctk.CTkCheckBox(check_frame, text="🐼 Send to Organizer when done",
+                       variable=self.upscale_send_organizer_var)
+        upscale_send_org_cb.pack(side="left", padx=10)
+
+        # --- Preview section ---
+        preview_frame = ctk.CTkFrame(scroll)
+        preview_frame.pack(fill="x", padx=10, pady=10)
+        ctk.CTkLabel(preview_frame, text="Preview:",
+                     font=("Arial Bold", 12)).pack(anchor="w", padx=10, pady=5)
+        self.upscale_preview_container = ctk.CTkFrame(preview_frame, height=220)
+        self.upscale_preview_container.pack(fill="x", padx=10, pady=5)
+        self.upscale_preview_container.pack_propagate(False)
+        # Before / After side by side
+        self.upscale_preview_before_label = ctk.CTkLabel(
+            self.upscale_preview_container, text="Before\n(select an image)", width=200, height=200)
+        self.upscale_preview_before_label.pack(side="left", padx=10, pady=10, expand=True)
+        self.upscale_preview_after_label = ctk.CTkLabel(
+            self.upscale_preview_container, text="After\n(preview appears here)", width=200, height=200)
+        self.upscale_preview_after_label.pack(side="left", padx=10, pady=10, expand=True)
+
+        # Individual file preview / browse
+        preview_btn_frame = ctk.CTkFrame(preview_frame)
+        preview_btn_frame.pack(fill="x", padx=10, pady=5)
+        upscale_preview_btn = ctk.CTkButton(preview_btn_frame, text="🖼️ Preview Single File",
+                     width=180, command=self._preview_upscale_file)
+        upscale_preview_btn.pack(side="left", padx=10)
+        ctk.CTkLabel(preview_btn_frame, text="Select a single image to see before/after preview",
+                     font=("Arial", 10), text_color="gray").pack(side="left", padx=10)
+
+        # Feedback section
+        feedback_frame = ctk.CTkFrame(scroll)
+        feedback_frame.pack(fill="x", padx=10, pady=10)
+        ctk.CTkLabel(feedback_frame, text="Feedback:",
+                     font=("Arial Bold", 12)).pack(anchor="w", padx=10, pady=5)
+        fb_row = ctk.CTkFrame(feedback_frame)
+        fb_row.pack(fill="x", padx=10, pady=5)
+        ctk.CTkLabel(fb_row, text="Rate last upscale result:").pack(side="left", padx=10)
+        upscale_fb_good_btn = ctk.CTkButton(fb_row, text="👍 Good", width=80,
+                     fg_color="#2B7A0B", command=lambda: self._upscale_feedback("good"))
+        upscale_fb_good_btn.pack(side="left", padx=5)
+        upscale_fb_bad_btn = ctk.CTkButton(fb_row, text="👎 Bad", width=80,
+                     fg_color="#B22222", command=lambda: self._upscale_feedback("bad"))
+        upscale_fb_bad_btn.pack(side="left", padx=5)
+        self.upscale_feedback_label = ctk.CTkLabel(fb_row, text="", font=("Arial", 10))
+        self.upscale_feedback_label.pack(side="left", padx=10)
+
+        # --- Log output ---
+        log_frame = ctk.CTkFrame(scroll)
+        log_frame.pack(fill="both", expand=True, padx=10, pady=10)
+        ctk.CTkLabel(log_frame, text="Log:",
+                     font=("Arial Bold", 12)).pack(anchor="w", padx=10, pady=5)
+        self.upscale_log_text = ctk.CTkTextbox(log_frame, height=200)
+        self.upscale_log_text.pack(fill="both", expand=True, padx=10, pady=5)
+
+        # --- Progress bar ---
+        self.upscale_progress_var = ctk.DoubleVar(value=0.0)
+        self.upscale_progress_bar = ctk.CTkProgressBar(self.tab_upscaler)
+        self.upscale_progress_bar.pack(fill="x", padx=30, pady=(0, 10))
+        self.upscale_progress_bar.set(0)
+
+        # Apply tooltips
+        self._apply_upscaler_tooltips(
+            upscale_input_btn, upscale_input_zip_btn, upscale_output_btn,
+            upscale_factor_menu, upscale_style_menu, upscale_format_menu,
+            upscale_alpha_cb, upscale_recursive_cb, upscale_zip_cb,
+            upscale_send_org_cb, upscale_preview_btn,
+            upscale_fb_good_btn, upscale_fb_bad_btn)
+
+    def _apply_upscaler_tooltips(self, input_btn, zip_btn, output_btn,
+                                  factor_menu, style_menu, format_menu,
+                                  alpha_cb, recursive_cb, zip_cb,
+                                  send_org_cb, preview_btn,
+                                  fb_good_btn, fb_bad_btn):
+        """Apply tooltips to upscaler tab widgets"""
+        if not WidgetTooltip:
+            return
+        tt = self._get_tooltip_text
+        tm = self.tooltip_manager
+        self._tooltips.append(WidgetTooltip(self.upscale_start_btn,
+            tt('upscale_button') or "Start batch upscaling all images in the selected folder",
+            widget_id='upscale_button', tooltip_manager=tm))
+        self._tooltips.append(WidgetTooltip(input_btn,
+            tt('upscale_input') or "Select a folder containing images to upscale",
+            widget_id='upscale_input', tooltip_manager=tm))
+        self._tooltips.append(WidgetTooltip(zip_btn,
+            tt('upscale_zip_input') or "Select a ZIP archive containing images to upscale\nImages will be extracted and processed",
+            widget_id='upscale_zip_input', tooltip_manager=tm))
+        self._tooltips.append(WidgetTooltip(output_btn,
+            tt('upscale_output') or "Choose where to save the upscaled images",
+            widget_id='upscale_output', tooltip_manager=tm))
+        self._tooltips.append(WidgetTooltip(factor_menu,
+            tt('upscale_factor') or "Choose upscale multiplier:\n• 2x – Double the resolution\n• 4x – Quadruple the resolution\n• 8x – 8 times the resolution (slow)",
+            widget_id='upscale_factor', tooltip_manager=tm))
+        self._tooltips.append(WidgetTooltip(style_menu,
+            tt('upscale_style') or "Resample filter for upscaling:\n• 🔷 Lanczos – Sharpest results, best for most textures\n• 🟢 Bicubic – Smooth, good all-rounder\n• 🟡 Bilinear – Fastest, slightly soft\n• 🔶 Hamming – Good balance of speed and quality\n• 🟣 Box – Nearest-neighbor style, good for pixel art\n• 🔴 Real-ESRGAN – AI upscaling, highest quality but slow",
+            widget_id='upscale_style', tooltip_manager=tm))
+        self._tooltips.append(WidgetTooltip(format_menu,
+            tt('upscale_format') or "Output image format:\n• PNG – Lossless, supports alpha\n• BMP – Uncompressed\n• TGA – Common for game textures\n• JPEG – Lossy, no alpha\n• WEBP – Modern, small file size",
+            widget_id='upscale_format', tooltip_manager=tm))
+        self._tooltips.append(WidgetTooltip(alpha_cb,
+            tt('upscale_alpha') or "Keep alpha channel (transparency) intact during upscaling\nAlways maintains RGBA mode",
+            widget_id='upscale_alpha', tooltip_manager=tm))
+        self._tooltips.append(WidgetTooltip(recursive_cb,
+            tt('upscale_recursive') or "Process images in subdirectories as well",
+            widget_id='upscale_recursive', tooltip_manager=tm))
+        self._tooltips.append(WidgetTooltip(zip_cb,
+            tt('upscale_zip_output') or "Save all upscaled images into a ZIP archive",
+            widget_id='upscale_zip_output', tooltip_manager=tm))
+        self._tooltips.append(WidgetTooltip(send_org_cb,
+            tt('upscale_send_organizer') or "After upscaling, send the output folder to the Sort Textures tab for AI-powered organization",
+            widget_id='upscale_send_organizer', tooltip_manager=tm))
+        self._tooltips.append(WidgetTooltip(preview_btn,
+            tt('upscale_preview') or "Select a single image file to see a before/after preview\nwith the current upscale settings applied",
+            widget_id='upscale_preview', tooltip_manager=tm))
+        self._tooltips.append(WidgetTooltip(fb_good_btn,
+            tt('upscale_fb_good') or "Rate this upscale result as good quality",
+            widget_id='upscale_fb_good', tooltip_manager=tm))
+        self._tooltips.append(WidgetTooltip(fb_bad_btn,
+            tt('upscale_fb_bad') or "Rate this upscale result as poor quality\nConsider trying a different style or scale factor",
+            widget_id='upscale_fb_bad', tooltip_manager=tm))
+
+    def _browse_upscale_zip(self):
+        """Browse for a ZIP file as upscaler input."""
+        result = filedialog.askopenfilename(
+            title="Select ZIP Archive",
+            filetypes=[("ZIP archives", "*.zip"), ("All files", "*.*")])
+        if result:
+            self.upscale_input_var.set(result)
+
+    def _upscale_log(self, message):
+        """Thread-safe log helper for upscaler."""
+        self.after(0, lambda m=message: self._upscale_log_impl(m))
+
+    def _upscale_log_impl(self, message):
+        self.upscale_log_text.insert("end", f"{message}\n")
+        self.upscale_log_text.see("end")
+
+    def _get_pil_resample(self):
+        """Return the PIL resample filter matching the current style selection."""
+        style = self.upscale_style_var.get()
+        if "Lanczos" in style:
+            return Image.LANCZOS
+        elif "Bicubic" in style:
+            return Image.BICUBIC
+        elif "Bilinear" in style:
+            return Image.BILINEAR
+        elif "Hamming" in style:
+            return Image.HAMMING
+        elif "Box" in style:
+            return Image.BOX
+        return Image.LANCZOS  # default
+
+    def _get_upscale_factor(self):
+        """Return the numeric scale factor."""
+        text = self.upscale_factor_var.get()
+        return int(text.replace("x", ""))
+
+    def _preview_upscale_file(self):
+        """Let user pick a single file and show before/after preview."""
+        filepath = filedialog.askopenfilename(
+            title="Select Image to Preview",
+            filetypes=[
+                ("Image files", "*.png *.bmp *.tga *.jpg *.jpeg *.webp"),
+                ("All files", "*.*")])
+        if not filepath:
+            return
+        try:
+            img = Image.open(filepath)
+            self._show_upscale_preview(img)
+        except Exception as e:
+            if GUI_AVAILABLE:
+                messagebox.showerror("Preview Error", f"Could not open image:\n{e}")
+
+    def _show_upscale_preview(self, pil_img):
+        """Display before/after preview for the given PIL Image."""
+        self._upscale_preview_image = pil_img
+        # Before thumbnail
+        before = pil_img.copy()
+        before.thumbnail((200, 200), Image.LANCZOS)
+        try:
+            before_ctk = ctk.CTkImage(light_image=before, size=before.size)
+            self.upscale_preview_before_label.configure(image=before_ctk, text="")
+            self.upscale_preview_before_label._preview_img = before_ctk
+        except Exception:
+            self.upscale_preview_before_label.configure(text=f"Before\n{pil_img.size[0]}×{pil_img.size[1]}")
+
+        # After thumbnail
+        factor = self._get_upscale_factor()
+        style = self.upscale_style_var.get()
+        if "ESRGAN" in style:
+            # For AI styles just show label — too slow for live preview
+            new_w = pil_img.size[0] * factor
+            new_h = pil_img.size[1] * factor
+            self.upscale_preview_after_label.configure(
+                image=None,
+                text=f"After (AI preview)\n{new_w}×{new_h}\n(Real-ESRGAN)")
+        else:
+            preserve_alpha = self.upscale_alpha_var.get()
+            upscaled = self._upscale_pil_image(pil_img, factor, preserve_alpha)
+            after = upscaled.copy()
+            after.thumbnail((200, 200), Image.LANCZOS)
+            try:
+                after_ctk = ctk.CTkImage(light_image=after, size=after.size)
+                self.upscale_preview_after_label.configure(image=after_ctk, text="")
+                self.upscale_preview_after_label._preview_img = after_ctk
+            except Exception:
+                self.upscale_preview_after_label.configure(
+                    text=f"After\n{upscaled.size[0]}×{upscaled.size[1]}")
+
+    def _update_upscale_preview(self, *_args):
+        """Called when scale/style changes — re-preview if we have an image."""
+        if hasattr(self, '_upscale_preview_image') and self._upscale_preview_image:
+            self._show_upscale_preview(self._upscale_preview_image)
+
+    def _upscale_pil_image(self, img, factor, preserve_alpha=True):
+        """Upscale a single PIL Image using the current style."""
+        new_size = (img.size[0] * factor, img.size[1] * factor)
+        resample = self._get_pil_resample()
+
+        if preserve_alpha and img.mode == "RGBA":
+            # Upscale RGB and Alpha separately to avoid edge artifacts
+            rgb = img.convert("RGB").resize(new_size, resample)
+            alpha = img.getchannel("A").resize(new_size, resample)
+            result = rgb.copy()
+            result.putalpha(alpha)
+            return result
+        elif preserve_alpha and img.mode != "RGBA":
+            img = img.convert("RGBA")
+            return img.resize(new_size, resample)
+        else:
+            return img.resize(new_size, resample)
+
+    def _upscale_feedback(self, rating):
+        """Record user feedback on upscale quality."""
+        style = self.upscale_style_var.get()
+        factor = self.upscale_factor_var.get()
+        self.upscale_feedback_label.configure(
+            text=f"{'👍' if rating == 'good' else '👎'} Feedback recorded for {style} @ {factor}")
+        self._upscale_log(f"Feedback: {rating} for style={style}, factor={factor}")
+
+    def _run_upscale(self):
+        """Run batch upscaling in a background thread."""
+        input_path = self.upscale_input_var.get().strip()
+        output_path = self.upscale_output_var.get().strip()
+        if not input_path:
+            if GUI_AVAILABLE:
+                messagebox.showwarning("No Input", "Please select an input folder or ZIP.")
+            return
+        if not output_path:
+            if GUI_AVAILABLE:
+                messagebox.showwarning("No Output", "Please select an output folder.")
+            return
+
+        self.upscale_start_btn.configure(state="disabled")
+        self.upscale_log_text.delete("1.0", "end")
+        self.upscale_progress_bar.set(0)
+
+        factor = self._get_upscale_factor()
+        preserve_alpha = self.upscale_alpha_var.get()
+        recursive = self.upscale_recursive_var.get()
+        zip_output = self.upscale_zip_output_var.get()
+        send_to_organizer = self.upscale_send_organizer_var.get()
+        export_fmt = self.upscale_format_var.get().lower()
+        style = self.upscale_style_var.get()
+        is_esrgan = "ESRGAN" in style
+
+        def worker():
+            import tempfile
+            import zipfile
+            import shutil
+
+            tmp_extract_dir = None
+            try:
+                src_path = Path(input_path)
+                dst_path = Path(output_path)
+                dst_path.mkdir(parents=True, exist_ok=True)
+
+                # Handle ZIP input
+                if src_path.suffix.lower() == '.zip':
+                    tmp_extract_dir = tempfile.mkdtemp(prefix="upscaler_")
+                    self._upscale_log(f"Extracting ZIP: {src_path.name}")
+                    with zipfile.ZipFile(str(src_path), 'r') as zf:
+                        # Validate paths to prevent zip-slip
+                        for member in zf.namelist():
+                            member_path = os.path.realpath(os.path.join(tmp_extract_dir, member))
+                            if not member_path.startswith(os.path.realpath(tmp_extract_dir)):
+                                raise ValueError(f"Unsafe path in ZIP: {member}")
+                        zf.extractall(tmp_extract_dir)
+                    src_path = Path(tmp_extract_dir)
+
+                # Collect image files
+                exts = {'.png', '.bmp', '.tga', '.jpg', '.jpeg', '.webp'}
+                if recursive:
+                    files = [p for p in src_path.rglob('*') if p.suffix.lower() in exts]
+                else:
+                    files = [p for p in src_path.iterdir() if p.is_file() and p.suffix.lower() in exts]
+
+                if not files:
+                    self._upscale_log("No image files found.")
+                    return
+
+                self._upscale_log(f"Found {len(files)} image(s). Scale: {factor}x, Style: {style}")
+                processed = 0
+                errors = 0
+
+                if is_esrgan:
+                    import numpy as np
+                    from src.preprocessing.upscaler import TextureUpscaler
+                    tu = TextureUpscaler()
+
+                for i, fpath in enumerate(files, 1):
+                    try:
+                        img = Image.open(str(fpath))
+
+                        if is_esrgan:
+                            # Use the existing TextureUpscaler for ESRGAN
+                            arr = np.array(img.convert("RGB"))
+                            result_arr = tu.upscale(arr, scale_factor=factor, method='realesrgan')
+                            result = Image.fromarray(result_arr)
+                            if preserve_alpha and img.mode == "RGBA":
+                                alpha = img.getchannel("A").resize(result.size, Image.LANCZOS)
+                                result = result.convert("RGBA")
+                                result.putalpha(alpha)
+                        else:
+                            result = self._upscale_pil_image(img, factor, preserve_alpha)
+
+                        # Build output path preserving relative structure
+                        try:
+                            rel = fpath.relative_to(src_path)
+                        except ValueError:
+                            rel = Path(fpath.name)
+                        out_file = dst_path / rel.with_suffix(f".{export_fmt}")
+                        out_file.parent.mkdir(parents=True, exist_ok=True)
+
+                        # Save
+                        save_kwargs = {}
+                        if export_fmt == "jpeg":
+                            save_kwargs["quality"] = 95
+                            if result.mode == "RGBA":
+                                result = result.convert("RGB")
+                        elif export_fmt == "webp":
+                            save_kwargs["quality"] = 95
+                        result.save(str(out_file), **save_kwargs)
+                        processed += 1
+                        self._upscale_log(f"  ✅ [{i}/{len(files)}] {fpath.name}")
+                    except Exception as e:
+                        errors += 1
+                        self._upscale_log(f"  ❌ [{i}/{len(files)}] {fpath.name}: {e}")
+
+                    # Update progress
+                    progress = i / len(files)
+                    self.after(0, lambda p=progress: self.upscale_progress_bar.set(p))
+
+                self._upscale_log(f"\nDone! Processed: {processed}, Errors: {errors}")
+
+                # ZIP output
+                if zip_output:
+                    zip_path = dst_path.parent / f"{dst_path.name}_upscaled.zip"
+                    self._upscale_log(f"Creating ZIP: {zip_path.name}")
+                    with zipfile.ZipFile(str(zip_path), 'w', zipfile.ZIP_DEFLATED) as zf:
+                        for f in dst_path.rglob('*'):
+                            if f.is_file():
+                                zf.write(str(f), str(f.relative_to(dst_path)))
+                    self._upscale_log(f"  ✅ ZIP created: {zip_path}")
+
+                # Send to organizer
+                if send_to_organizer and hasattr(self, 'input_var'):
+                    self.after(0, lambda: self._send_upscaled_to_organizer(str(dst_path)))
+
+            except Exception as e:
+                self._upscale_log(f"❌ Error: {e}")
+            finally:
+                if tmp_extract_dir and os.path.isdir(tmp_extract_dir):
+                    shutil.rmtree(tmp_extract_dir, ignore_errors=True)
+                self.after(0, lambda: self.upscale_start_btn.configure(state="normal"))
+
+        import threading
+        threading.Thread(target=worker, daemon=True).start()
+
+    def _send_upscaled_to_organizer(self, output_dir):
+        """Set the Sort Textures input to the upscaled output folder."""
+        self.input_var.set(output_dir)
+        self._upscale_log(f"📂 Output sent to Sort Textures tab: {output_dir}")
+        # Switch to sort tab
+        try:
+            self.category_tabview.set("🔧 Tools")
+            self.tabview.set("🐼 Sort Textures")
+        except Exception:
+            pass
+
     def create_alpha_fixer_tab(self):
         """Create alpha correction tool tab for fixing texture alpha channels"""
         # Title
@@ -3680,6 +4205,25 @@ class GameTextureSorter(ctk.CTk):
                 except Exception as mute_err:
                     logger.debug(f"Could not save mute setting: {mute_err}")
             
+            elif setting_type == 'select_sound':
+                try:
+                    event_id = value.get('event', '')
+                    sound_file = value.get('sound', '')
+                    if self.sound_manager and event_id and sound_file:
+                        from src.features.sound_manager import SoundEvent
+                        try:
+                            event = SoundEvent(event_id)
+                            self.sound_manager.set_event_sound(event, sound_file)
+                        except ValueError:
+                            pass
+                    # Persist selection
+                    sound_selections = config.get('sound', 'sound_selections', default={})
+                    sound_selections[event_id] = sound_file
+                    config.set('sound', 'sound_selections', value=sound_selections)
+                    config.save()
+                except Exception as sel_err:
+                    logger.debug(f"Could not save sound selection: {sel_err}")
+            
             elif setting_type == 'sound_choice':
                 try:
                     event_id = value.get('event', '')
@@ -4547,6 +5091,89 @@ class GameTextureSorter(ctk.CTk):
         def update_min_conf_label(value):
             min_conf_label.configure(text=f"{float(value):.1f}")
         min_conf_slider.configure(command=update_min_conf_label)
+        
+        # AI Training Data Import/Export
+        training_frame = ctk.CTkFrame(ai_scroll)
+        training_frame.pack(fill="x", padx=10, pady=5)
+        
+        ctk.CTkLabel(training_frame, text="📊 AI Training Data:",
+                    font=("Arial Bold", 12)).pack(anchor="w", padx=10, pady=3)
+        
+        ctk.CTkLabel(training_frame, 
+                    text="The AI learns from your corrections. Export to share with others or import to benefit from shared knowledge.",
+                    font=("Arial", 9), text_color="gray", wraplength=400).pack(anchor="w", padx=20, pady=(0, 5))
+        
+        training_btn_frame = ctk.CTkFrame(training_frame)
+        training_btn_frame.pack(fill="x", padx=20, pady=5)
+        
+        def _export_training_data():
+            try:
+                from tkinter import filedialog as fd
+                default_name = f"ai_training_export_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+                filepath = fd.asksaveasfilename(
+                    title="Export AI Training Data",
+                    defaultextension=".json",
+                    initialfile=default_name,
+                    filetypes=[("JSON files", "*.json"), ("All files", "*.*")]
+                )
+                if filepath and self.learner:
+                    if self.learner.export_training_data(Path(filepath)):
+                        stats = self.learner.get_learning_stats()
+                        messagebox.showinfo("Success", 
+                            f"Exported {stats['total_corrections']} corrections to:\n{filepath}")
+                    else:
+                        messagebox.showerror("Error", "Export failed — check logs for details")
+                elif not self.learner:
+                    messagebox.showwarning("Warning", "AI learner is not initialized")
+            except Exception as e:
+                logger.error(f"Error exporting training data: {e}")
+                messagebox.showerror("Error", f"Failed to export: {e}")
+        
+        def _import_training_data():
+            try:
+                from tkinter import filedialog as fd
+                filepath = fd.askopenfilename(
+                    title="Import AI Training Data",
+                    filetypes=[("JSON files", "*.json"), ("All files", "*.*")]
+                )
+                if filepath and self.learner:
+                    if self.learner.import_training_data(Path(filepath)):
+                        stats = self.learner.get_learning_stats()
+                        messagebox.showinfo("Success",
+                            f"Imported successfully!\nTotal corrections: {stats['total_corrections']}\n"
+                            f"Categories learned: {stats['total_categories']}")
+                    else:
+                        messagebox.showerror("Error", "Import failed — check logs for details")
+                elif not self.learner:
+                    messagebox.showwarning("Warning", "AI learner is not initialized")
+            except Exception as e:
+                logger.error(f"Error importing training data: {e}")
+                messagebox.showerror("Error", f"Failed to import: {e}")
+        
+        export_train_btn = ctk.CTkButton(training_btn_frame, text="📤 Export Training Data",
+                                         command=_export_training_data, width=180)
+        export_train_btn.pack(side="left", padx=5)
+        
+        import_train_btn = ctk.CTkButton(training_btn_frame, text="📥 Import Training Data",
+                                         command=_import_training_data, width=180)
+        import_train_btn.pack(side="left", padx=5)
+        
+        # Show learning stats
+        if self.learner:
+            stats = self.learner.get_learning_stats()
+            stats_text = f"Corrections recorded: {stats['total_corrections']} | Categories learned: {stats['total_categories']}"
+        else:
+            stats_text = "AI learner not available"
+        ctk.CTkLabel(training_frame, text=stats_text,
+                    font=("Arial", 9), text_color="gray").pack(anchor="w", padx=20, pady=(0, 5))
+        
+        if WidgetTooltip:
+            self._tooltips.append(WidgetTooltip(export_train_btn,
+                "Export your AI training corrections to a JSON file so others can import and benefit from your sorting decisions",
+                widget_id='export_training_btn'))
+            self._tooltips.append(WidgetTooltip(import_train_btn,
+                "Import AI training data from another user's exported JSON file to improve your AI's accuracy",
+                widget_id='import_training_btn'))
         
         # === SYSTEM TAB ===
         system_scroll = ctk.CTkScrollableFrame(tab_system)
@@ -7961,6 +8588,10 @@ Built with:
             self._sorting_cancelled.clear()
             self._sorting_paused.clear()
             
+            # Track session for achievements
+            if self.achievement_manager:
+                self.achievement_manager.increment_sessions()
+            
             # Start sorting in background thread with all parameters
             try:
                 thread = threading.Thread(
@@ -8095,12 +8726,12 @@ Built with:
                     
                     elif mode == "manual":
                         # Manual: User selects category for each file
-                        # Check skip_all flag
+                        # Check skip_all flag — skip remaining files without sorting
                         if self._sorting_skip_all.is_set():
-                            category, confidence = self.classifier.classify_texture(file_path)
-                            if i == 0 or (i > 0 and not hasattr(self, '_skip_all_logged')):
-                                self.log("⏩ Skip All active - using automatic classification for remaining files")
+                            if not hasattr(self, '_skip_all_logged'):
+                                self.log("⏩ Skip All active - skipping remaining files (unsorted)")
                                 self._skip_all_logged = True
+                            continue
                         elif self._sorting_cancelled.is_set():
                             self.log("⚠️ Sorting cancelled by user")
                             return
@@ -8113,14 +8744,17 @@ Built with:
                             selected_category = [None]  # Use list to allow modification in nested function
                             
                             def show_manual_dialog():
-                                """Show manual classification dialog"""
+                                """Show manual classification dialog with feedback support"""
                                 # Get sorted category list
                                 category_list = sorted(list(ALL_CATEGORIES.keys()))
+                                
+                                # Track current AI suggestion (may change after feedback)
+                                current_ai = [ai_category, ai_confidence]
                                 
                                 # Create a simple selection dialog
                                 dialog_window = ctk.CTkToplevel(self)
                                 dialog_window.title("Manual Classification")
-                                dialog_window.geometry("550x500")
+                                dialog_window.geometry("550x530")
                                 
                                 # Make modal
                                 dialog_window.transient(self)
@@ -8129,8 +8763,8 @@ Built with:
                                 # Center on screen
                                 dialog_window.update_idletasks()
                                 x = (dialog_window.winfo_screenwidth() // 2) - (550 // 2)
-                                y = (dialog_window.winfo_screenheight() // 2) - (500 // 2)
-                                dialog_window.geometry(f"550x500+{x}+{y}")
+                                y = (dialog_window.winfo_screenheight() // 2) - (530 // 2)
+                                dialog_window.geometry(f"550x530+{x}+{y}")
                                 
                                 # File info with counter
                                 ctk.CTkLabel(dialog_window, text=f"File {i+1} of {total}: {file_path.name}", 
@@ -8149,9 +8783,10 @@ Built with:
                                     ctk.CTkLabel(dialog_window, text="[Preview unavailable]",
                                                font=("Arial", 10), text_color="gray").pack(pady=5)
                                 
-                                ctk.CTkLabel(dialog_window, 
+                                ai_label = ctk.CTkLabel(dialog_window, 
                                            text=f"AI Suggestion: {ai_category} ({ai_confidence:.0%} confidence)",
-                                           font=("Arial", 11)).pack(pady=5)
+                                           font=("Arial", 11))
+                                ai_label.pack(pady=5)
                                 
                                 # Category selection with search filter
                                 ctk.CTkLabel(dialog_window, text="Select Category:", 
@@ -8172,23 +8807,70 @@ Built with:
                                 self._make_category_filter(search_var, category_var,
                                                            category_dropdown, category_list)
                                 
+                                # Feedback frame
+                                feedback_frame = ctk.CTkFrame(dialog_window)
+                                feedback_frame.pack(pady=5)
+                                
+                                feedback_label = ctk.CTkLabel(feedback_frame, text="", 
+                                                             font=("Arial", 10), text_color="gray")
+                                feedback_label.pack(side="left", padx=5)
+                                
+                                def on_bad_suggestion():
+                                    """Record negative feedback and re-classify"""
+                                    old_suggestion = current_ai[0]
+                                    if self.learner:
+                                        self.learner.record_correction(
+                                            texture_path=str(file_path),
+                                            corrected_category="__rejected__",
+                                            original_predictions=[{'category': old_suggestion,
+                                                                   'confidence': current_ai[1]}]
+                                        )
+                                    new_cat, new_conf = self.classifier.classify_texture(file_path)
+                                    if new_cat == old_suggestion and self.learner:
+                                        preds = [{'category': c, 'confidence': 0.5}
+                                                 for c in category_list if c != old_suggestion]
+                                        adjusted = self.learner.adjust_predictions(preds)
+                                        if adjusted:
+                                            new_cat = adjusted[0]['category']
+                                            new_conf = adjusted[0]['confidence']
+                                    current_ai[0] = new_cat
+                                    current_ai[1] = new_conf
+                                    category_var.set(new_cat)
+                                    ai_label.configure(
+                                        text=f"AI Suggestion: {new_cat} ({new_conf:.0%} confidence)")
+                                    feedback_label.configure(
+                                        text=f"🔄 AI re-suggested: {new_cat} (was: {old_suggestion})")
+                                
+                                bad_btn = ctk.CTkButton(feedback_frame, text="👎 Bad Suggestion", 
+                                            command=on_bad_suggestion, width=130, fg_color="#8B0000")
+                                bad_btn.pack(side="left", padx=3)
+                                
                                 # Buttons
                                 button_frame = ctk.CTkFrame(dialog_window)
-                                button_frame.pack(pady=20)
+                                button_frame.pack(pady=15)
                                 
-                                def on_ok():
-                                    selected_category[0] = category_var.get()
+                                def on_confirm():
+                                    chosen = category_var.get()
+                                    # Implicit learning: record if user chose differently than AI
+                                    if self.learner and chosen != current_ai[0]:
+                                        self.learner.record_correction(
+                                            texture_path=str(file_path),
+                                            corrected_category=chosen,
+                                            original_predictions=[{'category': current_ai[0],
+                                                                   'confidence': current_ai[1]}]
+                                        )
+                                    selected_category[0] = chosen
                                     dialog_window.destroy()
                                     result_event.set()
                                 
                                 def on_skip():
-                                    selected_category[0] = "unclassified"
+                                    selected_category[0] = self.SKIP_SENTINEL
                                     dialog_window.destroy()
                                     result_event.set()
                                 
                                 def on_skip_all():
                                     self._sorting_skip_all.set()
-                                    selected_category[0] = "unclassified"
+                                    selected_category[0] = self.SKIP_SENTINEL
                                     dialog_window.destroy()
                                     result_event.set()
                                 
@@ -8198,12 +8880,40 @@ Built with:
                                     dialog_window.destroy()
                                     result_event.set()
                                 
-                                ctk.CTkButton(button_frame, text="✓ OK", command=on_ok, width=80).pack(side="left", padx=3)
-                                ctk.CTkButton(button_frame, text="⏭ Skip", command=on_skip, width=80).pack(side="left", padx=3)
-                                ctk.CTkButton(button_frame, text="⏩ Skip All", command=on_skip_all, width=90, 
-                                            fg_color="orange").pack(side="left", padx=3)
-                                ctk.CTkButton(button_frame, text="✖ Cancel", command=on_cancel, width=80,
-                                            fg_color="red").pack(side="left", padx=3)
+                                confirm_btn = ctk.CTkButton(button_frame, text="✓ Confirm", command=on_confirm, width=90, fg_color="green")
+                                confirm_btn.pack(side="left", padx=3)
+                                skip_btn = ctk.CTkButton(button_frame, text="⏭ Skip", command=on_skip, width=80)
+                                skip_btn.pack(side="left", padx=3)
+                                skip_all_btn = ctk.CTkButton(button_frame, text="⏩ Skip All", command=on_skip_all, width=100, 
+                                            fg_color="orange")
+                                skip_all_btn.pack(side="left", padx=3)
+                                cancel_btn = ctk.CTkButton(button_frame, text="✖ Cancel Sort", command=on_cancel, width=100,
+                                            fg_color="red")
+                                cancel_btn.pack(side="left", padx=3)
+                                
+                                # Tooltips for manual mode dialog buttons
+                                if WidgetTooltip:
+                                    self._tooltips.append(WidgetTooltip(confirm_btn,
+                                        "Sort this texture into the category selected in the dropdown above. The AI learns from your choice.",
+                                        widget_id='manual_confirm_btn'))
+                                    self._tooltips.append(WidgetTooltip(skip_btn,
+                                        "Skip this texture — leave it unsorted and move to the next one",
+                                        widget_id='manual_skip_btn'))
+                                    self._tooltips.append(WidgetTooltip(skip_all_btn,
+                                        "Skip all remaining textures — leave them unsorted and finish",
+                                        widget_id='manual_skip_all_btn'))
+                                    self._tooltips.append(WidgetTooltip(cancel_btn,
+                                        "Cancel the entire sorting operation and stop processing files",
+                                        widget_id='manual_cancel_btn'))
+                                    self._tooltips.append(WidgetTooltip(bad_btn,
+                                        "Tell the AI this suggestion is wrong — it will learn and try a different category",
+                                        widget_id='manual_bad_btn'))
+                                    self._tooltips.append(WidgetTooltip(category_dropdown,
+                                        "Choose which category to sort this texture into",
+                                        widget_id='manual_category_dropdown'))
+                                    self._tooltips.append(WidgetTooltip(search_entry,
+                                        "Type to filter the category list — narrows the dropdown options",
+                                        widget_id='manual_search_entry'))
                                 
                                 # Handle dialog close
                                 def on_close():
@@ -8219,6 +8929,8 @@ Built with:
                                 if self._sorting_cancelled.is_set():
                                     self.log("⚠️ Sorting cancelled by user")
                                     return
+                                if selected_category[0] == self.SKIP_SENTINEL:
+                                    continue  # Skip this file — don't sort it
                                 category = selected_category[0] if selected_category[0] else ai_category
                                 confidence = 1.0  # User selection is 100% confident
                             else:
@@ -8231,13 +8943,12 @@ Built with:
                         # Suggested: AI suggests, user confirms or changes
                         ai_category, ai_confidence = self.classifier.classify_texture(file_path)
                         
-                        # Check skip_all flag
+                        # Check skip_all flag — skip remaining files without sorting
                         if self._sorting_skip_all.is_set():
-                            category = ai_category
-                            confidence = ai_confidence
                             if not hasattr(self, '_skip_all_logged'):
-                                self.log("⏩ Skip All active - accepting AI suggestions for remaining files")
+                                self.log("⏩ Skip All active - skipping remaining files (unsorted)")
                                 self._skip_all_logged = True
+                            continue
                         elif self._sorting_cancelled.is_set():
                             self.log("⚠️ Sorting cancelled by user")
                             return
@@ -8247,13 +8958,16 @@ Built with:
                             confirmed_category = [None]
                             
                             def show_suggested_dialog():
-                                """Show suggested classification dialog"""
+                                """Show suggested classification dialog with feedback support"""
                                 # Get sorted category list
                                 category_list = sorted(list(ALL_CATEGORIES.keys()))
                                 
+                                # Track current AI suggestion (may change after feedback)
+                                current_ai = [ai_category, ai_confidence]
+                                
                                 dialog_window = ctk.CTkToplevel(self)
                                 dialog_window.title("Confirm Classification")
-                                dialog_window.geometry("550x450")
+                                dialog_window.geometry("550x520")
                                 
                                 # Make modal
                                 dialog_window.transient(self)
@@ -8262,8 +8976,8 @@ Built with:
                                 # Center on screen
                                 dialog_window.update_idletasks()
                                 x = (dialog_window.winfo_screenwidth() // 2) - (550 // 2)
-                                y = (dialog_window.winfo_screenheight() // 2) - (450 // 2)
-                                dialog_window.geometry(f"550x450+{x}+{y}")
+                                y = (dialog_window.winfo_screenheight() // 2) - (520 // 2)
+                                dialog_window.geometry(f"550x520+{x}+{y}")
                                 
                                 # File info with counter
                                 ctk.CTkLabel(dialog_window, text=f"File {i+1} of {total}: {file_path.name}", 
@@ -8282,11 +8996,12 @@ Built with:
                                     ctk.CTkLabel(dialog_window, text="[Preview unavailable]",
                                                font=("Arial", 10), text_color="gray").pack(pady=5)
                                 
-                                ctk.CTkLabel(dialog_window, 
+                                ai_label = ctk.CTkLabel(dialog_window, 
                                            text=f"AI Classification: {ai_category} ({ai_confidence:.0%} confidence)",
-                                           font=("Arial Bold", 13), text_color="green").pack(pady=10)
+                                           font=("Arial Bold", 13), text_color="green")
+                                ai_label.pack(pady=10)
                                 
-                                ctk.CTkLabel(dialog_window, text="Change category if incorrect:", 
+                                ctk.CTkLabel(dialog_window, text="Confirm or change the category below:", 
                                            font=("Arial", 11)).pack(pady=(5, 2))
                                 
                                 # Search entry for filtering categories
@@ -8304,28 +9019,74 @@ Built with:
                                 self._make_category_filter(search_var, category_var,
                                                            category_dropdown, category_list)
                                 
-                                # Buttons
+                                # Feedback frame
+                                feedback_frame = ctk.CTkFrame(dialog_window)
+                                feedback_frame.pack(pady=5)
+                                
+                                feedback_label = ctk.CTkLabel(feedback_frame, text="", 
+                                                             font=("Arial", 10), text_color="gray")
+                                feedback_label.pack(side="left", padx=5)
+                                
+                                def on_bad_suggestion():
+                                    """Record negative feedback and re-classify"""
+                                    old_suggestion = current_ai[0]
+                                    # Record the bad suggestion as feedback
+                                    if self.learner:
+                                        self.learner.record_correction(
+                                            texture_path=str(file_path),
+                                            corrected_category="__rejected__",
+                                            original_predictions=[{'category': old_suggestion,
+                                                                   'confidence': current_ai[1]}]
+                                        )
+                                    # Re-classify to get a new suggestion
+                                    new_cat, new_conf = self.classifier.classify_texture(file_path)
+                                    # If same as rejected, try to find next best
+                                    if new_cat == old_suggestion and self.learner:
+                                        # Adjust predictions to penalize the rejected one
+                                        preds = [{'category': c, 'confidence': 0.5}
+                                                 for c in category_list if c != old_suggestion]
+                                        adjusted = self.learner.adjust_predictions(preds)
+                                        if adjusted:
+                                            new_cat = adjusted[0]['category']
+                                            new_conf = adjusted[0]['confidence']
+                                    current_ai[0] = new_cat
+                                    current_ai[1] = new_conf
+                                    category_var.set(new_cat)
+                                    ai_label.configure(
+                                        text=f"AI Classification: {new_cat} ({new_conf:.0%} confidence)")
+                                    feedback_label.configure(
+                                        text=f"🔄 AI re-suggested: {new_cat} (was: {old_suggestion})")
+                                
+                                bad_btn = ctk.CTkButton(feedback_frame, text="👎 Bad Suggestion", 
+                                            command=on_bad_suggestion, width=130, fg_color="#8B0000")
+                                bad_btn.pack(side="left", padx=3)
+                                
+                                # Action buttons
                                 button_frame = ctk.CTkFrame(dialog_window)
-                                button_frame.pack(pady=20)
+                                button_frame.pack(pady=15)
                                 
-                                def on_accept():
-                                    confirmed_category[0] = ai_category
-                                    dialog_window.destroy()
-                                    result_event.set()
-                                
-                                def on_change():
-                                    confirmed_category[0] = category_var.get()
+                                def on_confirm():
+                                    chosen = category_var.get()
+                                    # Implicit learning: if user changed AI suggestion, record it
+                                    if self.learner and chosen != current_ai[0]:
+                                        self.learner.record_correction(
+                                            texture_path=str(file_path),
+                                            corrected_category=chosen,
+                                            original_predictions=[{'category': current_ai[0],
+                                                                   'confidence': current_ai[1]}]
+                                        )
+                                    confirmed_category[0] = chosen
                                     dialog_window.destroy()
                                     result_event.set()
                                 
                                 def on_skip():
-                                    confirmed_category[0] = "unclassified"
+                                    confirmed_category[0] = self.SKIP_SENTINEL
                                     dialog_window.destroy()
                                     result_event.set()
                                 
                                 def on_skip_all():
                                     self._sorting_skip_all.set()
-                                    confirmed_category[0] = ai_category
+                                    confirmed_category[0] = self.SKIP_SENTINEL
                                     dialog_window.destroy()
                                     result_event.set()
                                 
@@ -8335,16 +9096,42 @@ Built with:
                                     dialog_window.destroy()
                                     result_event.set()
                                 
-                                ctk.CTkButton(button_frame, text="✓ Accept", command=on_accept, 
-                                            width=80, fg_color="green").pack(side="left", padx=3)
-                                ctk.CTkButton(button_frame, text="✏ Change", command=on_change, 
-                                            width=80).pack(side="left", padx=3)
-                                ctk.CTkButton(button_frame, text="⏭ Skip", command=on_skip, 
-                                            width=80).pack(side="left", padx=3)
-                                ctk.CTkButton(button_frame, text="⏩ Skip All", command=on_skip_all, width=90,
-                                            fg_color="orange").pack(side="left", padx=3)
-                                ctk.CTkButton(button_frame, text="✖ Cancel", command=on_cancel, width=80,
-                                            fg_color="red").pack(side="left", padx=3)
+                                confirm_btn = ctk.CTkButton(button_frame, text="✓ Confirm", command=on_confirm, 
+                                            width=90, fg_color="green")
+                                confirm_btn.pack(side="left", padx=3)
+                                skip_btn = ctk.CTkButton(button_frame, text="⏭ Skip", command=on_skip, 
+                                            width=80)
+                                skip_btn.pack(side="left", padx=3)
+                                skip_all_btn = ctk.CTkButton(button_frame, text="⏩ Skip All", command=on_skip_all, width=100,
+                                            fg_color="orange")
+                                skip_all_btn.pack(side="left", padx=3)
+                                cancel_btn = ctk.CTkButton(button_frame, text="✖ Cancel Sort", command=on_cancel, width=100,
+                                            fg_color="red")
+                                cancel_btn.pack(side="left", padx=3)
+                                
+                                # Tooltips for suggested mode dialog buttons
+                                if WidgetTooltip:
+                                    self._tooltips.append(WidgetTooltip(confirm_btn,
+                                        "Sort this texture using the category in the dropdown — change it first if the AI got it wrong. The AI learns from your changes.",
+                                        widget_id='suggested_confirm_btn'))
+                                    self._tooltips.append(WidgetTooltip(skip_btn,
+                                        "Skip this texture — leave it unsorted and move to the next one",
+                                        widget_id='suggested_skip_btn'))
+                                    self._tooltips.append(WidgetTooltip(skip_all_btn,
+                                        "Skip all remaining textures — leave them unsorted and finish",
+                                        widget_id='suggested_skip_all_btn'))
+                                    self._tooltips.append(WidgetTooltip(cancel_btn,
+                                        "Cancel the entire sorting operation and stop processing files",
+                                        widget_id='suggested_cancel_btn'))
+                                    self._tooltips.append(WidgetTooltip(bad_btn,
+                                        "Tell the AI this suggestion is wrong — it will learn from the feedback and try a different category",
+                                        widget_id='suggested_bad_btn'))
+                                    self._tooltips.append(WidgetTooltip(category_dropdown,
+                                        "The AI-suggested category — change it here if incorrect, then click Confirm",
+                                        widget_id='suggested_category_dropdown'))
+                                    self._tooltips.append(WidgetTooltip(search_entry,
+                                        "Type to filter the category list — narrows the dropdown options",
+                                        widget_id='suggested_search_entry'))
                                 
                                 # Handle dialog close
                                 def on_close():
@@ -8360,6 +9147,8 @@ Built with:
                                 if self._sorting_cancelled.is_set():
                                     self.log("⚠️ Sorting cancelled by user")
                                     return
+                                if confirmed_category[0] == self.SKIP_SENTINEL:
+                                    continue  # Skip this file — don't sort it
                                 category = confirmed_category[0] if confirmed_category[0] else ai_category
                                 confidence = 1.0  # User confirmation is 100% confident
                             else:
@@ -8508,6 +9297,10 @@ Built with:
                 # Award XP and money for sorting
                 files_sorted = results['processed']
                 if files_sorted > 0:
+                    # Update achievement progress
+                    if self.achievement_manager:
+                        self.achievement_manager.increment_textures_sorted(files_sorted)
+                    
                     # Award money
                     if self.currency_system:
                         money_per_file = self.currency_system.get_reward_for_action('file_processed')

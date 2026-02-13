@@ -493,6 +493,173 @@ def test_dangle_limb_multiplier_constant():
         print("⚠ Skipping DANGLE_LIMB_MULTIPLIER test (GUI not available)")
 
 
+def test_ear_detection_matches_canvas():
+    """Test that ear detection boundaries match actual canvas ear positions."""
+    from src.features.panda_character import PandaCharacter
+    panda = PandaCharacter()
+    
+    # Left ear is drawn at canvas X 72-94 → rel_x ~0.33-0.43
+    # Right ear is drawn at canvas X 124-148 → rel_x ~0.56-0.67
+    # Ear Y zone is top 15% (rel_y < 0.15)
+    
+    # Left ear at its actual position should be detected
+    assert panda.get_body_part_at_position(0.05, 0.35) == 'left_ear', \
+        "Click at actual left ear position (rel_x=0.35) should be left_ear"
+    assert panda.get_body_part_at_position(0.05, 0.42) == 'left_ear', \
+        "Click at actual left ear position (rel_x=0.42) should be left_ear"
+    
+    # Right ear at its actual position should be detected
+    assert panda.get_body_part_at_position(0.05, 0.60) == 'right_ear', \
+        "Click at actual right ear position (rel_x=0.60) should be right_ear"
+    assert panda.get_body_part_at_position(0.05, 0.65) == 'right_ear', \
+        "Click at actual right ear position (rel_x=0.65) should be right_ear"
+    
+    # Between ears should be head
+    assert panda.get_body_part_at_position(0.05, 0.50) == 'head', \
+        "Click between ears (rel_x=0.50) should be head"
+    
+    print("✓ Ear detection boundaries match actual canvas ear positions")
+
+
+def test_eye_detection_accuracy():
+    """Test that eye detection centers match actual canvas eye positions."""
+    from src.features.panda_character import PandaCharacter
+    panda = PandaCharacter()
+    
+    # Left eye at canvas x=86 → rel_x=0.39, right eye at 134 → rel_x=0.61
+    # Eye Y zone: 0.15-0.25
+    
+    # Left eye at its center
+    assert panda.get_body_part_at_position(0.20, 0.39) == 'left_eye', \
+        "Click at left eye center (rel_x=0.39) should be left_eye"
+    
+    # Right eye at its center
+    assert panda.get_body_part_at_position(0.20, 0.61) == 'right_eye', \
+        "Click at right eye center (rel_x=0.61) should be right_eye"
+    
+    # Between eyes (nose area) should be head at eye Y level
+    assert panda.get_body_part_at_position(0.20, 0.50) == 'head', \
+        "Click between eyes (rel_x=0.50) should be head"
+    
+    print("✓ Eye detection centers match actual canvas eye positions")
+
+
+def test_arm_detection_covers_full_arm():
+    """Test that arm detection covers the full arm area on the canvas."""
+    from src.features.panda_character import PandaCharacter
+    panda = PandaCharacter()
+    
+    # Arms are drawn at rel_x 0.25-0.36 (left) and 0.64-0.75 (right)
+    # ARM_LEFT_BOUNDARY=0.38 should catch the full left arm
+    assert panda.get_body_part_at_position(0.4, 0.36) == 'left_arm', \
+        "Inner edge of left arm (rel_x=0.36) should be left_arm"
+    assert panda.get_body_part_at_position(0.4, 0.37) == 'left_arm', \
+        "Just inside left arm boundary (rel_x=0.37) should be left_arm"
+    
+    # ARM_RIGHT_BOUNDARY=0.62 should catch the full right arm
+    assert panda.get_body_part_at_position(0.4, 0.64) == 'right_arm', \
+        "Inner edge of right arm (rel_x=0.64) should be right_arm"
+    assert panda.get_body_part_at_position(0.4, 0.63) == 'right_arm', \
+        "Just inside right arm boundary (rel_x=0.63) should be right_arm"
+    
+    # Center body region is still body
+    assert panda.get_body_part_at_position(0.4, 0.50) == 'body', \
+        "Center of body (rel_x=0.50) should still be body"
+    
+    print("✓ Arm detection covers the full arm area on the canvas")
+
+
+def test_dangle_uses_dragging_state_not_anim():
+    """Test that dangle physics uses the original dragging state, not remapped anim."""
+    try:
+        from src.ui.panda_widget import PandaWidget
+        import inspect
+        source = inspect.getsource(PandaWidget._draw_panda)
+        
+        # Check that is_being_dragged flag is defined
+        assert 'is_being_dragged' in source, \
+            "_draw_panda should define is_being_dragged flag"
+        
+        # Check that dangle offsets use is_being_dragged instead of anim == 'dragging'
+        # Count occurrences of the flag in dangle checks
+        dangle_uses = source.count('is_being_dragged else')
+        assert dangle_uses >= 10, \
+            f"is_being_dragged should be used in at least 10 dangle offset checks (found {dangle_uses})"
+        
+        print("✓ Dangle physics uses is_being_dragged state for correct behavior during drag")
+    except ImportError:
+        print("⚠ Skipping dangle state test (GUI not available)")
+
+
+def test_diagonal_view_single_block():
+    """Test that there is only one diagonal drawing block (no duplicate)."""
+    try:
+        from src.ui.panda_widget import PandaWidget
+        import inspect
+        source = inspect.getsource(PandaWidget._draw_panda)
+        
+        # There should be only one diagonal view section
+        diag_count = source.count('DIAGONAL VIEW')
+        assert diag_count == 1, \
+            f"Should have exactly 1 diagonal view block, found {diag_count}"
+        
+        # The diagonal view should include inner ear details
+        assert 'ear_inner' in source, \
+            "Diagonal view should include pink inner ear details"
+        
+        # The diagonal view should use diag_body_scale (improved version)
+        assert 'diag_body_scale' in source, \
+            "Diagonal view should use diag_body_scale for proper proportions"
+        
+        print("✓ Single improved diagonal drawing block is in use")
+    except ImportError:
+        print("⚠ Skipping diagonal view test (GUI not available)")
+
+
+def test_shoe_diagonal_swing_sync():
+    """Test that shoe drawing accounts for back/front diagonal leg assignment."""
+    try:
+        from src.ui.panda_widget import PandaWidget
+        import inspect
+        source = inspect.getsource(PandaWidget._draw_equipped_items)
+        
+        # The shoe code should handle diagonal differently based on back/front facing
+        assert 'is_back_diag' in source or 'is_back_facing' in source, \
+            "Shoe drawing should distinguish back-diagonal from front-diagonal"
+        
+        # Shoe spacing should match diagonal leg positions
+        assert '22 * persp_sx' in source, \
+            "Diagonal shoe spacing should match leg positions (22 * persp_sx)"
+        
+        print("✓ Shoe diagonal swing sync matches leg positions")
+    except ImportError:
+        print("⚠ Skipping shoe diagonal sync test (GUI not available)")
+
+
+def test_drag_updates_facing_direction():
+    """Test that _on_drag_motion updates facing direction based on velocity."""
+    try:
+        from src.ui.panda_widget import PandaWidget
+        import inspect
+        source = inspect.getsource(PandaWidget._on_drag_motion)
+        
+        # Drag motion should update _facing_direction
+        assert '_facing_direction' in source, \
+            "_on_drag_motion should update _facing_direction during drag"
+        
+        # Should handle diagonal directions
+        assert 'back_left' in source or 'front_left' in source, \
+            "_on_drag_motion should set diagonal facing directions"
+        
+        # Should use DIAGONAL_MOVEMENT_THRESHOLD
+        assert 'DIAGONAL_MOVEMENT_THRESHOLD' in source, \
+            "_on_drag_motion should use DIAGONAL_MOVEMENT_THRESHOLD for diagonal detection"
+        
+        print("✓ Drag motion updates facing direction based on velocity")
+    except ImportError:
+        print("⚠ Skipping drag facing direction test (GUI not available)")
+
+
 if __name__ == "__main__":
     print("\nTesting Panda Facing Direction, Dangle & Perspective...")
     print("-" * 50)
@@ -518,6 +685,13 @@ if __name__ == "__main__":
         test_diagonal_facing_state_roundtrip,
         test_hand_detection_wider_boundaries,
         test_dangle_limb_multiplier_constant,
+        test_ear_detection_matches_canvas,
+        test_eye_detection_accuracy,
+        test_arm_detection_covers_full_arm,
+        test_dangle_uses_dragging_state_not_anim,
+        test_diagonal_view_single_block,
+        test_shoe_diagonal_swing_sync,
+        test_drag_updates_facing_direction,
     ]
     
     failed = False

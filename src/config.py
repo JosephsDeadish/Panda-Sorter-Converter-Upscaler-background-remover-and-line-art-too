@@ -5,16 +5,83 @@ Handles all application settings and preferences
 
 import json
 import os
+import sys
 from pathlib import Path
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 
 # Application metadata
 APP_NAME = "Game Texture Sorter"
 APP_VERSION = "1.0.0"
 APP_AUTHOR = "Dead On The Inside / JosephsDeadish"
 
-# Default directories
-CONFIG_DIR = Path.home() / ".ps2_texture_sorter"
+# ---------------------------------------------------------------------------
+# Path helpers — support running from source, PyInstaller single-file, and
+# PyInstaller one-folder builds with a local ``app_data/`` directory.
+# ---------------------------------------------------------------------------
+
+def _is_frozen() -> bool:
+    """Return True when running inside a PyInstaller bundle."""
+    return getattr(sys, 'frozen', False)
+
+
+def get_app_dir() -> Path:
+    """
+    Return the root directory of the application.
+
+    * PyInstaller one-folder build → the directory that contains the exe.
+    * PyInstaller single-file build → ``sys._MEIPASS`` (temp extraction dir).
+    * Normal Python → the repo/project root (parent of ``src/``).
+    """
+    if _is_frozen():
+        # sys.executable is the .exe itself
+        return Path(sys.executable).resolve().parent
+    # Development: config.py lives at <root>/src/config.py
+    return Path(__file__).resolve().parent.parent
+
+
+def get_data_dir() -> Path:
+    """
+    Return the directory used for user data (config, cache, logs, database).
+
+    Priority:
+    1. ``app_data/`` folder next to the executable / project root — keeps
+       everything portable and avoids slow home-directory lookups.
+    2. ``~/.ps2_texture_sorter/`` (original location) as fallback.
+    """
+    local_data = get_app_dir() / "app_data"
+    if local_data.is_dir():
+        return local_data
+    # Fallback to home directory
+    return Path.home() / ".ps2_texture_sorter"
+
+
+def get_resource_path(*parts: str) -> Path:
+    """
+    Resolve a resource file path (icons, sounds, cursors, themes, etc.).
+
+    Checks locations in order:
+    1. ``app_data/resources/<parts>`` — external folder next to exe
+    2. ``<_MEIPASS>/<parts>``        — PyInstaller bundle
+    3. ``<project>/src/resources/<parts>`` — development tree
+    """
+    local_resources = get_app_dir() / "app_data" / "resources"
+    candidate = local_resources.joinpath(*parts)
+    if candidate.exists():
+        return candidate
+
+    if _is_frozen():
+        bundle_dir = Path(getattr(sys, '_MEIPASS', get_app_dir()))
+        candidate = (bundle_dir / "resources").joinpath(*parts)
+        if candidate.exists():
+            return candidate
+
+    # Dev-mode: resources live under src/resources
+    dev_resources = Path(__file__).resolve().parent / "resources"
+    return dev_resources.joinpath(*parts)
+
+
+# Default directories — prefer portable ``app_data/`` when present
+CONFIG_DIR = get_data_dir()
 CONFIG_FILE = CONFIG_DIR / "config.json"
 CACHE_DIR = CONFIG_DIR / "cache"
 LOGS_DIR = CONFIG_DIR / "logs"

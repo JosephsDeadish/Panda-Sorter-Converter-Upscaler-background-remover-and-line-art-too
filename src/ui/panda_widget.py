@@ -105,6 +105,38 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
     # Cooldown between drag-pattern animation triggers (seconds)
     DRAG_PATTERN_COOLDOWN = 2.0
     
+    # Automatic blink timing
+    BLINK_DURATION = 24        # Total frames for one blink (close + open)
+    BLINK_MIN_INTERVAL = 60   # Minimum frames between blinks (~2s at 33ms)
+    BLINK_MAX_INTERVAL = 180  # Maximum frames between blinks (~6s)
+    # Blink frame → eye style mapping (smooth 24-frame sequence)
+    BLINK_SEQUENCE = [
+        'mostly_open',    # frame 0:  start closing
+        'mostly_open',    # frame 1
+        'mostly_open',    # frame 2
+        'half_closed',    # frame 3:  lids descending
+        'half_closed',    # frame 4
+        'half_closed',    # frame 5
+        'almost_closed',  # frame 6:  nearly shut
+        'almost_closed',  # frame 7
+        'almost_closed',  # frame 8
+        'closed',         # frame 9:  fully closed
+        'closed',         # frame 10
+        'closed',         # frame 11: hold closed
+        'closed',         # frame 12
+        'closed',         # frame 13
+        'almost_closed',  # frame 14: start reopening
+        'almost_closed',  # frame 15
+        'almost_closed',  # frame 16
+        'half_closed',    # frame 17: halfway open
+        'half_closed',    # frame 18
+        'half_closed',    # frame 19
+        'mostly_open',    # frame 20: almost fully open
+        'mostly_open',    # frame 21
+        'mostly_open',    # frame 22
+        'mostly_open',    # frame 23
+    ]
+    
     # Belly jiggle physics constants
     JIGGLE_SPRING = 0.35             # Spring stiffness for belly wobble
     JIGGLE_DAMPING = 0.82            # Damping factor for belly wobble
@@ -141,6 +173,15 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
     
     # Upside-down flip threshold (velocity when dragged by legs)
     UPSIDE_DOWN_VELOCITY_THRESHOLD = 2.0  # Velocity threshold for flip detection
+    
+    # Minimum visible scale during rotation animations (prevents body from
+    # becoming invisible at exactly 0 during mid-rotation)
+    MIN_VISIBLE_SCALE = 0.15
+    
+    # Offset in pixels for where food/toy items appear relative to the panda
+    # when given from the menu (the panda walks this distance to pick them up)
+    ITEM_WALK_OFFSET_X = 80
+    ITEM_WALK_OFFSET_Y = 30
     
     # Recovery time after falling on face or tipping over (ms)
     FALL_RECOVERY_TIME_MS = 3000
@@ -219,6 +260,10 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
         self.animation_frame = 0
         self.animation_timer = None
         self._destroyed = False
+        
+        # Automatic blink system — triggers periodic natural blinks
+        self._blink_frame = -1   # -1 = not blinking; 0..BLINK_DURATION = blink in progress
+        self._blink_cooldown = 0  # frames until next blink can trigger
         
         # Active item being used during eating/playing animations
         self._active_item_name = None  # Name of item (e.g. "Fresh Bamboo")
@@ -302,6 +347,9 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
         self._drag_grab_head = False   # True when drag started in head region
         self._drag_grab_part = 'body'  # Body part grabbed during drag (specific limb/ear/etc)
         self._is_upside_down = False   # True when dragged upside down by legs
+        self._flip_progress = 0.0      # 0.0 = upright, 1.0 = fully flipped (gradual transition)
+        self._drag_body_angle = 0.0    # Current body hang angle in radians (0=upright, pi=upside down)
+        self._drag_body_angle_target = 0.0  # Target angle the body should rotate toward
         self._is_on_side = False        # True when tipped over on side
         self._is_face_down = False      # True when fallen on face
         self._facing_direction = 'front'  # Current facing: front, back, left, right
@@ -820,11 +868,11 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
                 arm_swing = math.cos(phase * 2) * 16
                 body_bob = math.sin(phase * 3) * 5
         elif anim in ('sleeping', 'laying_down'):
-            # Gradual settling with gentle breathing
-            settle_phase = min(1.0, frame_idx / 30.0)  # settle over ~30 frames
-            leg_swing = (1 - settle_phase) * math.sin(phase) * 3
-            arm_swing = settle_phase * 5  # arms rest outward
-            body_bob = settle_phase * 25 + math.sin(phase * 0.3) * 2  # lower body, gentle breathing
+            # Settle into sleeping pose over ~30 frames, then gentle breathing
+            settle_phase = min(1.0, frame_idx / 30.0)
+            leg_swing = (1 - settle_phase) * math.sin(phase) * 3 + settle_phase * 8
+            arm_swing = settle_phase * 10  # arms rest tucked in
+            body_bob = settle_phase * 48 + math.sin(phase * 0.3) * 1.5  # settles to 48px low
         elif anim in ('laying_back', 'laying_side'):
             leg_swing = math.sin(phase * 0.3) * 2
             arm_swing = 5
@@ -1206,10 +1254,11 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
             arm_swing = 18 + math.sin(phase * 0.3) * 2  # Arms spread wide outward
             body_bob = 50  # Very low position (on ground)
         elif anim == 'lay_on_side':
-            # Lying on side: body tilted, legs together, arm tucked
-            leg_swing = 6 + math.sin(phase * 0.3) * 2  # Legs slightly forward together
-            arm_swing = -8  # Arm resting forward (pillow-style)
-            body_bob = 45  # Low position (on ground)
+            # Lying on side like a person: extreme sideways tilt with body very low
+            settle = min(1.0, frame_idx / 24.0)  # settle over ~24 frames
+            leg_swing = settle * 14 + math.sin(phase * 0.3) * 1  # Legs together, forward
+            arm_swing = settle * (-15) + math.sin(phase * 0.2) * 1  # Arm tucked under head
+            body_bob = settle * 60 + math.sin(phase * 0.3) * 1  # Very low to ground
         elif anim in ('walking_left', 'walking_right'):
             # Walking sideways: legs stride, arms swing opposite
             leg_swing = math.sin(phase) * 12
@@ -1252,8 +1301,9 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
         elif anim in ('idle', 'working', 'sarcastic', 'thinking'):
             breath_scale = 1.0 + math.sin(phase * 0.5) * 0.015
         elif anim == 'lay_on_side':
-            # Squeeze body horizontally to simulate being viewed from a tilted angle
-            breath_scale = 0.7 + math.sin(phase * 0.3) * 0.02
+            # Heavy horizontal squeeze — body is rotated nearly 90° onto its side
+            settle = min(1.0, frame_idx / 24.0)
+            breath_scale = 1.0 - settle * 0.50 + math.sin(phase * 0.3) * 0.015
         elif anim in ('sleeping', 'laying_down', 'laying_back', 'laying_side', 'sitting'):
             breath_scale = 1.0 + math.sin(phase * 0.3) * 0.025
         elif anim in ('walking_left', 'walking_right'):
@@ -1273,6 +1323,17 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
             roll_cycle = (frame_idx % 30) / 30.0
             roll_angle = roll_cycle * 2 * math.pi
             breath_scale = 0.5 + 0.5 * abs(math.cos(roll_angle))
+        elif anim == 'backflip':
+            # Vertical squeeze/stretch during backward rotation
+            flip_phase = (frame_idx % 36) / 36.0
+            if flip_phase < 0.35:
+                breath_scale = 1.0
+            elif flip_phase < 0.7:
+                flip_t = (flip_phase - 0.35) / 0.35
+                flip_angle = flip_t * 2 * math.pi
+                breath_scale = 0.6 + 0.4 * abs(math.cos(flip_angle))
+            else:
+                breath_scale = 1.0
         
         # --- Jiggle physics (spring-damper for belly wobble) ---
         self._belly_jiggle_vel = (self._belly_jiggle_vel - self._belly_jiggle * self.JIGGLE_SPRING) * self.JIGGLE_DAMPING
@@ -1500,12 +1561,32 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
         elif anim in ('idle', 'working', 'sarcastic', 'thinking'):
             body_sway = math.sin(phase * 0.3) * 2
         elif anim == 'lay_on_side':
-            # Large sway to tilt the body to one side (simulating 90-degree rotation)
-            body_sway = 22
+            # Very large sway to tilt the body far to the side — like toppling over
+            settle = min(1.0, frame_idx / 24.0)
+            body_sway = settle * 45 + math.sin(phase * 0.2) * 0.5
         elif anim == 'celebrating':
             body_sway = math.sin(phase * 2) * 5
         elif anim == 'backflip':
-            body_sway = math.sin(phase * 2) * 4
+            # Backward rotation: body tilts backward through the flip
+            flip_phase = (frame_idx % 36) / 36.0
+            if flip_phase < 0.2:
+                body_sway = 0
+            elif flip_phase < 0.35:
+                # Lean back as panda launches
+                launch = (flip_phase - 0.2) / 0.15
+                body_sway = -launch * 12
+            elif flip_phase < 0.7:
+                # Full backward rotation — sway through a sine curve
+                flip_t = (flip_phase - 0.35) / 0.35
+                flip_angle = flip_t * 2 * math.pi
+                body_sway = math.sin(flip_angle) * 22
+            elif flip_phase < 0.85:
+                # Landing sway correction
+                land = (flip_phase - 0.7) / 0.15
+                body_sway = 22 * (1 - land) * math.sin(land * math.pi * 0.5)
+            else:
+                settle = (flip_phase - 0.85) / 0.15
+                body_sway = math.sin(settle * math.pi) * 4 * (1 - settle)
         elif anim == 'barrel_roll':
             # Rolling sideways sway
             roll_cycle = (frame_idx % 30) / 30.0
@@ -1534,90 +1615,249 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
         # --- Determine eye style based on animation ---
         eye_style = 'normal'
         if anim == 'sleeping' or anim in ('laying_down', 'laying_back', 'laying_side'):
-            # Gradual eye closing for sleep transitions
-            cycle = frame_idx % 16
-            if cycle < 4:
-                eye_style = 'half'
+            # Very gradual eye closing for sleep — 60 frames to fully close
+            settle = min(1.0, frame_idx / 60.0)
+            if settle < 0.08:
+                eye_style = 'normal'
+            elif settle < 0.15:
+                eye_style = 'wide'
+            elif settle < 0.22:
+                eye_style = 'normal'
+            elif settle < 0.30:
+                eye_style = 'soft'
+            elif settle < 0.38:
+                eye_style = 'mostly_open'
+            elif settle < 0.46:
+                eye_style = 'half_closed'
+            elif settle < 0.54:
+                eye_style = 'half_closed'
+            elif settle < 0.62:
+                eye_style = 'almost_closed'
+            elif settle < 0.70:
+                eye_style = 'almost_closed'
             else:
-                eye_style = 'closed'
+                # Once settled, stay closed with occasional drowsy flutter
+                flutter = frame_idx % 180
+                if flutter < 3:
+                    eye_style = 'almost_closed'
+                elif flutter < 6:
+                    eye_style = 'half_closed'
+                elif flutter < 9:
+                    eye_style = 'almost_closed'
+                else:
+                    eye_style = 'closed'
         elif anim == 'sitting':
-            eye_style = 'half'
+            eye_style = 'soft'
         elif anim == 'belly_grab':
             eye_style = 'happy'
         elif anim == 'celebrating':
-            cycle = frame_idx % 24
-            if cycle < 8:
+            cycle = frame_idx % 72
+            if cycle < 6:
                 eye_style = 'happy'
-            elif cycle < 14:
+            elif cycle < 12:
+                eye_style = 'wide'
+            elif cycle < 24:
+                eye_style = 'happy'
+            elif cycle < 30:
+                eye_style = 'wide'
+            elif cycle < 42:
                 eye_style = 'sparkle'
-            elif cycle < 18:
+            elif cycle < 48:
+                eye_style = 'wide'
+            elif cycle < 54:
                 eye_style = 'surprised'
-            else:
+            elif cycle < 60:
+                eye_style = 'wide'
+            elif cycle < 66:
                 eye_style = 'happy'
+            else:
+                eye_style = 'sparkle'
         elif anim == 'rage':
             eye_style = 'angry'
         elif anim == 'sarcastic':
-            eye_style = 'half'
+            eye_style = 'half_closed'
         elif anim == 'drunk':
             eye_style = 'dizzy'
         elif anim == 'petting':
-            # Squint progression: normal → happy → squint → happy
-            cycle = frame_idx % 12
-            if cycle < 3:
+            # Very smooth squint: happy → soft → squint → soft → happy (48 frames)
+            cycle = frame_idx % 48
+            if cycle < 6:
                 eye_style = 'happy'
-            elif cycle < 6:
+            elif cycle < 9:
+                eye_style = 'wide'
+            elif cycle < 12:
+                eye_style = 'happy'
+            elif cycle < 15:
+                eye_style = 'soft'
+            elif cycle < 18:
+                eye_style = 'mostly_open'
+            elif cycle < 24:
                 eye_style = 'squint'
+            elif cycle < 27:
+                eye_style = 'squint'
+            elif cycle < 30:
+                eye_style = 'mostly_open'
+            elif cycle < 33:
+                eye_style = 'soft'
+            elif cycle < 36:
+                eye_style = 'happy'
+            elif cycle < 39:
+                eye_style = 'wide'
+            elif cycle < 42:
+                eye_style = 'happy'
             else:
                 eye_style = 'happy'
         elif anim == 'clicked':
-            # Multi-phase eye transitions: surprised → wide → wink → happy
-            cycle = frame_idx % 24
-            if cycle < 5:
+            # Tripled: surprised → wide → normal → wink → happy (72 frames)
+            cycle = frame_idx % 72
+            if cycle < 3:
+                eye_style = 'wide'
+            elif cycle < 9:
                 eye_style = 'surprised'
-            elif cycle < 10:
-                eye_style = 'normal'
-            elif cycle < 14:
-                eye_style = 'wink'
+            elif cycle < 15:
+                eye_style = 'surprised'
             elif cycle < 18:
+                eye_style = 'wide'
+            elif cycle < 24:
+                eye_style = 'normal'
+            elif cycle < 27:
+                eye_style = 'soft'
+            elif cycle < 30:
+                eye_style = 'normal'
+            elif cycle < 36:
+                eye_style = 'mostly_open'
+            elif cycle < 42:
+                eye_style = 'wink'
+            elif cycle < 48:
+                eye_style = 'mostly_open'
+            elif cycle < 51:
+                eye_style = 'normal'
+            elif cycle < 54:
+                eye_style = 'soft'
+            elif cycle < 60:
+                eye_style = 'happy'
+            elif cycle < 66:
                 eye_style = 'happy'
             else:
-                eye_style = 'happy'
+                eye_style = 'wide'
         elif anim == 'dancing':
-            cycle = frame_idx % 20
-            if cycle < 5:
+            # Tripled: happy → sparkle → normal → happy (60 frames)
+            cycle = frame_idx % 60
+            if cycle < 6:
                 eye_style = 'happy'
-            elif cycle < 10:
-                eye_style = 'sparkle'
+            elif cycle < 9:
+                eye_style = 'wide'
             elif cycle < 15:
+                eye_style = 'happy'
+            elif cycle < 18:
+                eye_style = 'wide'
+            elif cycle < 21:
+                eye_style = 'sparkle'
+            elif cycle < 30:
+                eye_style = 'sparkle'
+            elif cycle < 33:
+                eye_style = 'wide'
+            elif cycle < 36:
                 eye_style = 'normal'
+            elif cycle < 39:
+                eye_style = 'soft'
+            elif cycle < 45:
+                eye_style = 'normal'
+            elif cycle < 48:
+                eye_style = 'soft'
+            elif cycle < 51:
+                eye_style = 'happy'
+            elif cycle < 54:
+                eye_style = 'wide'
             else:
                 eye_style = 'happy'
         elif anim == 'eating':
-            cycle = frame_idx % 16
+            # Tripled: happy → soft → squint → soft → happy (60 frames)
+            cycle = frame_idx % 60
             if cycle < 6:
                 eye_style = 'happy'
-            elif cycle < 10:
-                eye_style = 'closed'
+            elif cycle < 9:
+                eye_style = 'wide'
+            elif cycle < 15:
+                eye_style = 'happy'
+            elif cycle < 18:
+                eye_style = 'soft'
+            elif cycle < 21:
+                eye_style = 'mostly_open'
+            elif cycle < 24:
+                eye_style = 'half_closed'
+            elif cycle < 30:
+                eye_style = 'half_closed'
+            elif cycle < 33:
+                eye_style = 'almost_closed'
+            elif cycle < 36:
+                eye_style = 'half_closed'
+            elif cycle < 39:
+                eye_style = 'mostly_open'
+            elif cycle < 42:
+                eye_style = 'soft'
+            elif cycle < 45:
+                eye_style = 'happy'
+            elif cycle < 48:
+                eye_style = 'wide'
+            elif cycle < 51:
+                eye_style = 'happy'
+            elif cycle < 54:
+                eye_style = 'soft'
             else:
-                eye_style = 'happy'
+                eye_style = 'soft'
         elif anim == 'playing':
-            cycle = frame_idx % 20
-            if cycle < 8:
+            # Tripled: happy → sparkle → surprised → happy (60 frames)
+            cycle = frame_idx % 60
+            if cycle < 6:
                 eye_style = 'happy'
-            elif cycle < 12:
+            elif cycle < 9:
+                eye_style = 'wide'
+            elif cycle < 15:
+                eye_style = 'happy'
+            elif cycle < 18:
+                eye_style = 'wide'
+            elif cycle < 24:
+                eye_style = 'happy'
+            elif cycle < 27:
+                eye_style = 'wide'
+            elif cycle < 36:
                 eye_style = 'sparkle'
-            elif cycle < 16:
+            elif cycle < 39:
+                eye_style = 'wide'
+            elif cycle < 42:
+                eye_style = 'normal'
+            elif cycle < 48:
                 eye_style = 'surprised'
+            elif cycle < 51:
+                eye_style = 'wide'
+            elif cycle < 54:
+                eye_style = 'happy'
             else:
                 eye_style = 'happy'
         elif anim == 'customizing':
-            cycle = frame_idx % 16
+            # Tripled: happy → sparkle → normal (48 frames)
+            cycle = frame_idx % 48
             if cycle < 6:
                 eye_style = 'happy'
-            elif cycle < 10:
+            elif cycle < 9:
+                eye_style = 'wide'
+            elif cycle < 18:
+                eye_style = 'happy'
+            elif cycle < 21:
+                eye_style = 'wide'
+            elif cycle < 30:
                 eye_style = 'sparkle'
-            else:
+            elif cycle < 33:
+                eye_style = 'wide'
+            elif cycle < 36:
                 eye_style = 'normal'
+            elif cycle < 39:
+                eye_style = 'soft'
+            elif cycle < 42:
+                eye_style = 'normal'
+            else:
+                eye_style = 'soft'
         elif anim == 'spinning':
             eye_style = 'spinning'
         elif anim == 'shaking':
@@ -1625,95 +1865,495 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
         elif anim == 'rolling':
             eye_style = 'rolling'
         elif anim == 'stretching':
-            stretch_cycle = (frame_idx % 60) / 60.0
-            if stretch_cycle < 0.2:
+            # Tripled: 180-frame stretch cycle with very gradual transitions
+            stretch_cycle = (frame_idx % 180) / 180.0
+            if stretch_cycle < 0.03:
                 eye_style = 'normal'
-            elif stretch_cycle < 0.5:
+            elif stretch_cycle < 0.06:
+                eye_style = 'soft'
+            elif stretch_cycle < 0.08:
+                eye_style = 'mostly_open'
+            elif stretch_cycle < 0.11:
+                eye_style = 'half_closed'
+            elif stretch_cycle < 0.14:
+                eye_style = 'almost_closed'
+            elif stretch_cycle < 0.17:
                 eye_style = 'closed'
-            elif stretch_cycle < 0.7:
-                eye_style = 'half'
+            elif stretch_cycle < 0.45:
+                eye_style = 'closed'
+            elif stretch_cycle < 0.47:
+                eye_style = 'almost_closed'
+            elif stretch_cycle < 0.50:
+                eye_style = 'almost_closed'
+            elif stretch_cycle < 0.53:
+                eye_style = 'half_closed'
+            elif stretch_cycle < 0.56:
+                eye_style = 'half_closed'
+            elif stretch_cycle < 0.58:
+                eye_style = 'mostly_open'
+            elif stretch_cycle < 0.61:
+                eye_style = 'mostly_open'
+            elif stretch_cycle < 0.64:
+                eye_style = 'soft'
+            elif stretch_cycle < 0.67:
+                eye_style = 'soft'
+            elif stretch_cycle < 0.70:
+                eye_style = 'normal'
+            elif stretch_cycle < 0.75:
+                eye_style = 'wide'
+            elif stretch_cycle < 0.80:
+                eye_style = 'happy'
+            elif stretch_cycle < 0.85:
+                eye_style = 'wide'
+            elif stretch_cycle < 0.90:
+                eye_style = 'happy'
             else:
                 eye_style = 'happy'
         elif anim == 'waving':
-            cycle = frame_idx % 16
-            if cycle < 4:
+            # Tripled: happy → wink → happy → normal (48 frames)
+            cycle = frame_idx % 48
+            if cycle < 6:
                 eye_style = 'happy'
-            elif cycle < 8:
-                eye_style = 'wink'
+            elif cycle < 9:
+                eye_style = 'wide'
             elif cycle < 12:
                 eye_style = 'happy'
+            elif cycle < 15:
+                eye_style = 'soft'
+            elif cycle < 18:
+                eye_style = 'mostly_open'
+            elif cycle < 24:
+                eye_style = 'wink'
+            elif cycle < 27:
+                eye_style = 'mostly_open'
+            elif cycle < 30:
+                eye_style = 'soft'
+            elif cycle < 33:
+                eye_style = 'happy'
+            elif cycle < 36:
+                eye_style = 'wide'
+            elif cycle < 42:
+                eye_style = 'happy'
+            elif cycle < 45:
+                eye_style = 'soft'
             else:
                 eye_style = 'normal'
         elif anim == 'jumping':
-            jump_cycle = (frame_idx % 36) / 36.0
-            if jump_cycle < 0.15:
+            # Tripled: normal → happy → surprised → happy (108 frames)
+            jump_cycle = (frame_idx % 108) / 108.0
+            if jump_cycle < 0.05:
                 eye_style = 'normal'
-            elif jump_cycle < 0.55:
+            elif jump_cycle < 0.08:
+                eye_style = 'soft'
+            elif jump_cycle < 0.12:
+                eye_style = 'normal'
+            elif jump_cycle < 0.15:
+                eye_style = 'wide'
+            elif jump_cycle < 0.25:
                 eye_style = 'happy'
-            elif jump_cycle < 0.75:
+            elif jump_cycle < 0.30:
+                eye_style = 'wide'
+            elif jump_cycle < 0.40:
+                eye_style = 'happy'
+            elif jump_cycle < 0.45:
+                eye_style = 'wide'
+            elif jump_cycle < 0.50:
+                eye_style = 'happy'
+            elif jump_cycle < 0.55:
+                eye_style = 'wide'
+            elif jump_cycle < 0.60:
                 eye_style = 'surprised'
+            elif jump_cycle < 0.70:
+                eye_style = 'surprised'
+            elif jump_cycle < 0.75:
+                eye_style = 'wide'
+            elif jump_cycle < 0.80:
+                eye_style = 'happy'
+            elif jump_cycle < 0.85:
+                eye_style = 'wide'
+            elif jump_cycle < 0.90:
+                eye_style = 'happy'
             else:
                 eye_style = 'happy'
         elif anim == 'yawning':
-            yawn_cycle = (frame_idx % 48) / 48.0
-            if yawn_cycle < 0.15:
+            # Tripled: 144-frame gradual yawn eye cycle
+            yawn_cycle = (frame_idx % 144) / 144.0
+            if yawn_cycle < 0.03:
                 eye_style = 'normal'
-            elif yawn_cycle < 0.5:
+            elif yawn_cycle < 0.05:
+                eye_style = 'soft'
+            elif yawn_cycle < 0.07:
+                eye_style = 'mostly_open'
+            elif yawn_cycle < 0.10:
+                eye_style = 'mostly_open'
+            elif yawn_cycle < 0.12:
+                eye_style = 'half_closed'
+            elif yawn_cycle < 0.15:
+                eye_style = 'half_closed'
+            elif yawn_cycle < 0.17:
+                eye_style = 'almost_closed'
+            elif yawn_cycle < 0.20:
+                eye_style = 'almost_closed'
+            elif yawn_cycle < 0.55:
                 eye_style = 'closed'
-            elif yawn_cycle < 0.7:
-                eye_style = 'half'
+            elif yawn_cycle < 0.57:
+                eye_style = 'almost_closed'
+            elif yawn_cycle < 0.60:
+                eye_style = 'almost_closed'
+            elif yawn_cycle < 0.62:
+                eye_style = 'half_closed'
+            elif yawn_cycle < 0.65:
+                eye_style = 'half_closed'
+            elif yawn_cycle < 0.67:
+                eye_style = 'mostly_open'
+            elif yawn_cycle < 0.70:
+                eye_style = 'mostly_open'
+            elif yawn_cycle < 0.73:
+                eye_style = 'soft'
+            elif yawn_cycle < 0.76:
+                eye_style = 'soft'
+            elif yawn_cycle < 0.80:
+                eye_style = 'mostly_open'
+            elif yawn_cycle < 0.83:
+                eye_style = 'half_closed'
+            elif yawn_cycle < 0.87:
+                eye_style = 'almost_closed'
             else:
                 eye_style = 'closed'
         elif anim == 'sneezing':
-            sneeze_cycle = (frame_idx % 36) / 36.0
-            if sneeze_cycle < 0.25:
+            # Tripled: 108-frame sneeze cycle
+            sneeze_cycle = (frame_idx % 108) / 108.0
+            if sneeze_cycle < 0.03:
+                eye_style = 'normal'
+            elif sneeze_cycle < 0.05:
+                eye_style = 'soft'
+            elif sneeze_cycle < 0.07:
+                eye_style = 'mostly_open'
+            elif sneeze_cycle < 0.10:
+                eye_style = 'half_closed'
+            elif sneeze_cycle < 0.12:
+                eye_style = 'almost_closed'
+            elif sneeze_cycle < 0.25:
                 eye_style = 'closed'
+            elif sneeze_cycle < 0.27:
+                eye_style = 'almost_closed'
+            elif sneeze_cycle < 0.30:
+                eye_style = 'wide'
             elif sneeze_cycle < 0.35:
                 eye_style = 'surprised'
-            elif sneeze_cycle < 0.5:
+            elif sneeze_cycle < 0.40:
+                eye_style = 'surprised'
+            elif sneeze_cycle < 0.42:
+                eye_style = 'wide'
+            elif sneeze_cycle < 0.45:
+                eye_style = 'mostly_open'
+            elif sneeze_cycle < 0.47:
+                eye_style = 'half_closed'
+            elif sneeze_cycle < 0.50:
+                eye_style = 'almost_closed'
+            elif sneeze_cycle < 0.55:
                 eye_style = 'closed'
+            elif sneeze_cycle < 0.57:
+                eye_style = 'almost_closed'
+            elif sneeze_cycle < 0.60:
+                eye_style = 'half_closed'
+            elif sneeze_cycle < 0.63:
+                eye_style = 'mostly_open'
+            elif sneeze_cycle < 0.67:
+                eye_style = 'soft'
+            elif sneeze_cycle < 0.70:
+                eye_style = 'soft'
             else:
-                eye_style = 'half'
+                eye_style = 'soft'
         elif anim == 'belly_rub':
-            cycle = frame_idx % 16
+            # Tripled: happy → sparkle → happy (48 frames)
+            cycle = frame_idx % 48
             if cycle < 6:
                 eye_style = 'happy'
-            elif cycle < 10:
+            elif cycle < 9:
+                eye_style = 'wide'
+            elif cycle < 15:
+                eye_style = 'happy'
+            elif cycle < 18:
+                eye_style = 'wide'
+            elif cycle < 21:
                 eye_style = 'sparkle'
+            elif cycle < 30:
+                eye_style = 'sparkle'
+            elif cycle < 33:
+                eye_style = 'wide'
+            elif cycle < 36:
+                eye_style = 'happy'
+            elif cycle < 39:
+                eye_style = 'wide'
+            elif cycle < 42:
+                eye_style = 'happy'
             else:
                 eye_style = 'happy'
         elif anim == 'fed':
-            cycle = frame_idx % 20
+            # Tripled: happy → sparkle → heart → happy (60 frames)
+            cycle = frame_idx % 60
             if cycle < 6:
                 eye_style = 'happy'
-            elif cycle < 10:
+            elif cycle < 9:
+                eye_style = 'wide'
+            elif cycle < 18:
+                eye_style = 'happy'
+            elif cycle < 21:
+                eye_style = 'wide'
+            elif cycle < 30:
                 eye_style = 'sparkle'
-            elif cycle < 14:
+            elif cycle < 33:
+                eye_style = 'wide'
+            elif cycle < 42:
                 eye_style = 'heart'
+            elif cycle < 45:
+                eye_style = 'wide'
+            elif cycle < 48:
+                eye_style = 'sparkle'
+            elif cycle < 51:
+                eye_style = 'wide'
+            elif cycle < 54:
+                eye_style = 'happy'
             else:
                 eye_style = 'happy'
         elif anim == 'cartwheel':
-            eye_style = 'spinning'
+            # Tripled: wide → spinning → dizzy (108 frames)
+            cart_cycle = (frame_idx % 108) / 108.0
+            if cart_cycle < 0.03:
+                eye_style = 'normal'
+            elif cart_cycle < 0.05:
+                eye_style = 'wide'
+            elif cart_cycle < 0.08:
+                eye_style = 'wide'
+            elif cart_cycle < 0.10:
+                eye_style = 'surprised'
+            elif cart_cycle < 0.15:
+                eye_style = 'wide'
+            elif cart_cycle < 0.75:
+                eye_style = 'spinning'
+            elif cart_cycle < 0.78:
+                eye_style = 'rolling'
+            elif cart_cycle < 0.83:
+                eye_style = 'dizzy'
+            elif cart_cycle < 0.88:
+                eye_style = 'rolling'
+            elif cart_cycle < 0.93:
+                eye_style = 'dizzy'
+            else:
+                eye_style = 'half_closed'
         elif anim == 'backflip':
-            eye_style = 'surprised'
+            # Tripled: wide → surprised → closed → surprised → happy (108 frames)
+            flip_phase = (frame_idx % 108) / 108.0
+            if flip_phase < 0.03:
+                eye_style = 'normal'
+            elif flip_phase < 0.06:
+                eye_style = 'wide'
+            elif flip_phase < 0.10:
+                eye_style = 'wide'
+            elif flip_phase < 0.13:
+                eye_style = 'surprised'
+            elif flip_phase < 0.20:
+                eye_style = 'wide'
+            elif flip_phase < 0.23:
+                eye_style = 'surprised'
+            elif flip_phase < 0.27:
+                eye_style = 'wide'
+            elif flip_phase < 0.30:
+                eye_style = 'mostly_open'
+            elif flip_phase < 0.33:
+                eye_style = 'half_closed'
+            elif flip_phase < 0.35:
+                eye_style = 'almost_closed'
+            elif flip_phase < 0.65:
+                eye_style = 'closed'
+            elif flip_phase < 0.68:
+                eye_style = 'almost_closed'
+            elif flip_phase < 0.70:
+                eye_style = 'half_closed'
+            elif flip_phase < 0.73:
+                eye_style = 'mostly_open'
+            elif flip_phase < 0.76:
+                eye_style = 'wide'
+            elif flip_phase < 0.80:
+                eye_style = 'surprised'
+            elif flip_phase < 0.85:
+                eye_style = 'wide'
+            elif flip_phase < 0.88:
+                eye_style = 'happy'
+            elif flip_phase < 0.93:
+                eye_style = 'wide'
+            else:
+                eye_style = 'happy'
         elif anim == 'barrel_roll':
-            eye_style = 'spinning'
+            # Tripled: wide → spinning → dizzy (90 frames)
+            roll_cycle = (frame_idx % 90) / 90.0
+            if roll_cycle < 0.03:
+                eye_style = 'normal'
+            elif roll_cycle < 0.05:
+                eye_style = 'wide'
+            elif roll_cycle < 0.08:
+                eye_style = 'wide'
+            elif roll_cycle < 0.10:
+                eye_style = 'surprised'
+            elif roll_cycle < 0.80:
+                eye_style = 'spinning'
+            elif roll_cycle < 0.83:
+                eye_style = 'rolling'
+            elif roll_cycle < 0.88:
+                eye_style = 'dizzy'
+            elif roll_cycle < 0.93:
+                eye_style = 'rolling'
+            else:
+                eye_style = 'half_closed'
         elif anim == 'lay_on_back':
-            eye_style = 'closed'
+            # Tripled: gradual close over 60 frames
+            settle = min(1.0, frame_idx / 60.0)
+            if settle < 0.10:
+                eye_style = 'normal'
+            elif settle < 0.17:
+                eye_style = 'soft'
+            elif settle < 0.23:
+                eye_style = 'mostly_open'
+            elif settle < 0.30:
+                eye_style = 'mostly_open'
+            elif settle < 0.37:
+                eye_style = 'half_closed'
+            elif settle < 0.43:
+                eye_style = 'half_closed'
+            elif settle < 0.50:
+                eye_style = 'almost_closed'
+            elif settle < 0.57:
+                eye_style = 'almost_closed'
+            else:
+                eye_style = 'closed'
         elif anim == 'lay_on_side':
-            eye_style = 'half'
+            # Tripled: gradual close over 60 frames
+            settle = min(1.0, frame_idx / 60.0)
+            if settle < 0.10:
+                eye_style = 'normal'
+            elif settle < 0.17:
+                eye_style = 'soft'
+            elif settle < 0.23:
+                eye_style = 'mostly_open'
+            elif settle < 0.30:
+                eye_style = 'mostly_open'
+            elif settle < 0.40:
+                eye_style = 'half_closed'
+            elif settle < 0.50:
+                eye_style = 'half_closed'
+            elif settle < 0.60:
+                eye_style = 'almost_closed'
+            else:
+                eye_style = 'almost_closed'
         elif anim == 'carrying':
-            eye_style = 'normal'
+            # Alert but gradually relaxing wide eyes
+            settle = min(1.0, frame_idx / 30.0)
+            if settle < 0.3:
+                eye_style = 'wide'
+            elif settle < 0.5:
+                eye_style = 'normal'
+            elif settle < 0.7:
+                eye_style = 'soft'
+            else:
+                eye_style = 'normal'
         elif anim == 'belly_jiggle':
-            eye_style = 'happy'
+            # Tripled: surprised → wide → happy (108 frames)
+            jiggle_t = min(1.0, frame_idx / 108.0)
+            if jiggle_t < 0.08:
+                eye_style = 'normal'
+            elif jiggle_t < 0.12:
+                eye_style = 'wide'
+            elif jiggle_t < 0.20:
+                eye_style = 'surprised'
+            elif jiggle_t < 0.30:
+                eye_style = 'surprised'
+            elif jiggle_t < 0.35:
+                eye_style = 'wide'
+            elif jiggle_t < 0.42:
+                eye_style = 'normal'
+            elif jiggle_t < 0.50:
+                eye_style = 'wide'
+            elif jiggle_t < 0.60:
+                eye_style = 'happy'
+            elif jiggle_t < 0.70:
+                eye_style = 'wide'
+            elif jiggle_t < 0.80:
+                eye_style = 'happy'
+            elif jiggle_t < 0.90:
+                eye_style = 'wide'
+            else:
+                eye_style = 'happy'
         elif anim == 'fall_on_face':
-            eye_style = 'dizzy'
+            # Tripled: surprised → wide → dizzy (36 frames)
+            settle = min(1.0, frame_idx / 36.0)
+            if settle < 0.08:
+                eye_style = 'normal'
+            elif settle < 0.15:
+                eye_style = 'wide'
+            elif settle < 0.25:
+                eye_style = 'surprised'
+            elif settle < 0.30:
+                eye_style = 'wide'
+            elif settle < 0.40:
+                eye_style = 'surprised'
+            elif settle < 0.50:
+                eye_style = 'rolling'
+            elif settle < 0.60:
+                eye_style = 'dizzy'
+            elif settle < 0.70:
+                eye_style = 'rolling'
+            else:
+                eye_style = 'dizzy'
         elif anim == 'tip_over_side':
-            eye_style = 'half'
+            # Tripled: surprised → half_closed → almost_closed (45 frames)
+            settle = min(1.0, frame_idx / 45.0)
+            if settle < 0.08:
+                eye_style = 'normal'
+            elif settle < 0.13:
+                eye_style = 'wide'
+            elif settle < 0.20:
+                eye_style = 'surprised'
+            elif settle < 0.27:
+                eye_style = 'wide'
+            elif settle < 0.33:
+                eye_style = 'surprised'
+            elif settle < 0.40:
+                eye_style = 'mostly_open'
+            elif settle < 0.50:
+                eye_style = 'half_closed'
+            elif settle < 0.60:
+                eye_style = 'half_closed'
+            elif settle < 0.70:
+                eye_style = 'almost_closed'
+            elif settle < 0.80:
+                eye_style = 'almost_closed'
+            else:
+                eye_style = 'almost_closed'
         elif anim in ('walking_left', 'walking_right', 'walking_up', 'walking_down',
                       'walking_up_left', 'walking_up_right',
                       'walking_down_left', 'walking_down_right'):
             eye_style = 'normal'
+        
+        # --- Automatic blink overlay ---
+        # Periodically blink during animations that use normal/soft/wide eyes
+        _blink_eligible = eye_style in ('normal', 'soft', 'wide', 'mostly_open')
+        if _blink_eligible:
+            if self._blink_frame >= 0:
+                # Blink in progress — use the blink sequence
+                if self._blink_frame < len(self.BLINK_SEQUENCE):
+                    eye_style = self.BLINK_SEQUENCE[self._blink_frame]
+                self._blink_frame += 1
+                if self._blink_frame >= len(self.BLINK_SEQUENCE):
+                    self._blink_frame = -1  # blink done
+                    self._blink_cooldown = random.randint(
+                        self.BLINK_MIN_INTERVAL, self.BLINK_MAX_INTERVAL)
+            else:
+                # Count down cooldown, start new blink when ready
+                self._blink_cooldown -= 1
+                if self._blink_cooldown <= 0:
+                    self._blink_frame = 0
+                    eye_style = self.BLINK_SEQUENCE[0]
         
         # --- Determine mouth style ---
         mouth_style = 'normal'
@@ -1856,8 +2496,10 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
         cx_draw = cx + int(body_sway)
         
         # During toss physics or dragging, use _facing_direction to pick the correct view
-        if ((anim in ('tossed', 'wall_hit', 'rolling', 'spinning') and self._is_tossing) or
-            (anim == 'dragging' and self.is_dragging)):
+        # Save original dragging state before anim is remapped for view
+        is_being_dragged = (anim == 'dragging' and self.is_dragging)
+        if ((is_being_dragged) or
+            (anim in ('tossed', 'wall_hit', 'rolling', 'spinning') and self._is_tossing)):
             facing = getattr(self, '_facing_direction', 'front')
             if facing == 'left':
                 anim = 'walking_left'
@@ -2130,219 +2772,6 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
                               font=("Arial Bold", int(10 * sx)),
                               fill="#666666", width=int(w * 0.9), tags="name_tag")
         
-        elif anim in ('walking_up_left', 'walking_up_right',
-                       'walking_down_left', 'walking_down_right'):
-            # --- DIAGONAL VIEW: 3/4 perspective panda ---
-            is_right = anim in ('walking_up_right', 'walking_down_right')
-            is_back = anim in ('walking_up_left', 'walking_up_right')
-            diag_dir = 1 if is_right else -1
-            # Body width compression for 3/4 turn (between full front and side)
-            persp_w = 0.8  # 80% width for 3/4 view
-            body_offset = int(8 * sx * diag_dir)  # Slight body shift
-            
-            leg_top = int(145 * sy + by)
-            leg_len = int(30 * sy)
-            
-            # Near leg (closer to viewer, bigger stride)
-            near_leg_x = cx_draw + body_offset + int(20 * sx * diag_dir)
-            near_leg_swing = leg_swing
-            c.create_oval(
-                near_leg_x - int(12 * sx), leg_top + near_leg_swing,
-                near_leg_x + int(12 * sx), leg_top + leg_len + near_leg_swing,
-                fill=black, outline=black, tags="leg"
-            )
-            c.create_oval(
-                near_leg_x - int(10 * sx), leg_top + leg_len - int(8 * sy) + near_leg_swing,
-                near_leg_x + int(10 * sx), leg_top + leg_len + int(4 * sy) + near_leg_swing,
-                fill=white, outline=black, width=1, tags="foot"
-            )
-            # Far leg (behind, slightly smaller)
-            far_leg_x = cx_draw + body_offset - int(15 * sx * diag_dir)
-            far_leg_swing = -leg_swing
-            c.create_oval(
-                far_leg_x - int(11 * sx), leg_top + far_leg_swing,
-                far_leg_x + int(11 * sx), leg_top + leg_len - int(2 * sy) + far_leg_swing,
-                fill=black, outline=black, tags="leg"
-            )
-            c.create_oval(
-                far_leg_x - int(9 * sx), leg_top + leg_len - int(10 * sy) + far_leg_swing,
-                far_leg_x + int(9 * sx), leg_top + leg_len + int(2 * sy) + far_leg_swing,
-                fill=white, outline=black, width=1, tags="foot"
-            )
-            
-            # Body (slightly narrower for perspective)
-            body_top = int(75 * sy + by)
-            body_bot = int(160 * sy + by)
-            body_rx = int(42 * sx * persp_w * breath_scale)
-            body_cx = cx_draw + body_offset
-            c.create_oval(
-                body_cx - body_rx, body_top,
-                body_cx + body_rx, body_bot,
-                fill=white, outline=black, width=2, tags="body"
-            )
-            
-            # Belly patch (visible from front-diagonal, hidden from back-diagonal)
-            if not is_back:
-                belly_rx = int(24 * sx * persp_w)
-                belly_ry = int(22 * sy)
-                belly_cy = int(128 * sy + by)
-                belly_cx = body_cx + int(4 * sx * diag_dir)
-                c.create_oval(
-                    belly_cx - belly_rx, belly_cy - belly_ry,
-                    belly_cx + belly_rx, belly_cy + belly_ry,
-                    fill="#F5F5F5", outline="", tags="belly"
-                )
-            
-            # Arms
-            arm_top = int(95 * sy + by)
-            arm_len = int(35 * sy)
-            # Near arm (closer side, larger)
-            near_arm_x = body_cx + int(40 * sx * diag_dir * persp_w)
-            na_swing = arm_swing
-            c.create_oval(
-                near_arm_x - int(13 * sx), arm_top + na_swing,
-                near_arm_x + int(13 * sx), arm_top + arm_len + na_swing,
-                fill=black, outline=black, tags="arm"
-            )
-            # Far arm (further side, smaller)
-            far_arm_x = body_cx - int(35 * sx * diag_dir * persp_w)
-            fa_swing = -arm_swing
-            c.create_oval(
-                far_arm_x - int(11 * sx), arm_top + fa_swing,
-                far_arm_x + int(11 * sx), arm_top + arm_len - int(3 * sy) + fa_swing,
-                fill=black, outline=black, tags="arm"
-            )
-            
-            # Head (slightly offset for 3/4 view)
-            head_cy = int(52 * sy + by)
-            head_rx = int(36 * sx * persp_w)
-            head_ry = int(32 * sy)
-            head_cx = body_cx + int(3 * sx * diag_dir)
-            c.create_oval(
-                head_cx - head_rx, head_cy - head_ry,
-                head_cx + head_rx, head_cy + head_ry,
-                fill=white, outline=black, width=2, tags="head"
-            )
-            
-            # Ears
-            ear_y = head_cy - head_ry + int(5 * sy)
-            ear_w = int(22 * sx * persp_w)
-            # Near ear (bigger)
-            near_ear_x = head_cx + int(head_rx * diag_dir)
-            c.create_oval(
-                near_ear_x - int(ear_w * 0.5), ear_y - int(16 * sy),
-                near_ear_x + int(ear_w * 0.5), ear_y + int(8 * sy),
-                fill=black, outline=black, tags="ear"
-            )
-            # Far ear (smaller, partially hidden)
-            far_ear_x = head_cx - int(head_rx * diag_dir)
-            far_ear_w = int(16 * sx * persp_w)
-            c.create_oval(
-                far_ear_x - int(far_ear_w * 0.5), ear_y - int(12 * sy),
-                far_ear_x + int(far_ear_w * 0.5), ear_y + int(6 * sy),
-                fill=black, outline=black, tags="ear"
-            )
-            
-            # Face features (only for front-diagonal views)
-            if not is_back:
-                # Eye patches (shifted for perspective)
-                patch_rx = int(16 * sx * persp_w)
-                patch_ry = int(14 * sy)
-                # Near eye patch
-                near_patch_cx = head_cx + int(14 * sx * diag_dir)
-                c.create_oval(
-                    near_patch_cx - patch_rx, head_cy - patch_ry,
-                    near_patch_cx + patch_rx, head_cy + patch_ry,
-                    fill=black, outline=black, tags="eye_patch"
-                )
-                # Far eye patch (partially hidden)
-                far_patch_cx = head_cx - int(10 * sx * diag_dir)
-                far_patch_rx = int(12 * sx * persp_w)
-                c.create_oval(
-                    far_patch_cx - far_patch_rx, head_cy - patch_ry + int(2 * sy),
-                    far_patch_cx + far_patch_rx, head_cy + patch_ry - int(2 * sy),
-                    fill=black, outline=black, tags="eye_patch"
-                )
-                
-                # Eyes
-                eye_r = int(4 * sx)
-                # Near eye (fully visible)
-                near_eye_cx = near_patch_cx
-                near_eye_cy = head_cy
-                c.create_oval(
-                    near_eye_cx - eye_r, near_eye_cy - eye_r,
-                    near_eye_cx + eye_r, near_eye_cy + eye_r,
-                    fill=white, outline=black, width=1, tags="eye"
-                )
-                pupil_r = int(2 * sx)
-                c.create_oval(
-                    near_eye_cx - pupil_r + int(diag_dir * sx),
-                    near_eye_cy - pupil_r,
-                    near_eye_cx + pupil_r + int(diag_dir * sx),
-                    near_eye_cy + pupil_r,
-                    fill=black, outline="", tags="pupil"
-                )
-                # Far eye (smaller, at edge)
-                far_eye_cx = far_patch_cx
-                far_eye_cy = head_cy + int(1 * sy)
-                far_eye_r = int(3 * sx)
-                c.create_oval(
-                    far_eye_cx - far_eye_r, far_eye_cy - far_eye_r,
-                    far_eye_cx + far_eye_r, far_eye_cy + far_eye_r,
-                    fill=white, outline=black, width=1, tags="eye"
-                )
-                far_pupil_r = int(1.5 * sx)
-                c.create_oval(
-                    int(far_eye_cx - far_pupil_r + diag_dir * sx),
-                    int(far_eye_cy - far_pupil_r),
-                    int(far_eye_cx + far_pupil_r + diag_dir * sx),
-                    int(far_eye_cy + far_pupil_r),
-                    fill=black, outline="", tags="pupil"
-                )
-                
-                # Nose (offset toward facing side)
-                nose_cx = head_cx + int(6 * sx * diag_dir)
-                nose_cy = head_cy + int(10 * sy)
-                nose_r = int(4 * sx)
-                c.create_oval(
-                    nose_cx - nose_r, nose_cy - int(3 * sy),
-                    nose_cx + nose_r, nose_cy + int(3 * sy),
-                    fill=nose_color, outline=black, width=1, tags="nose"
-                )
-                
-                # Mouth (small smile offset)
-                mouth_cx = head_cx + int(5 * sx * diag_dir)
-                mouth_cy = head_cy + int(16 * sy)
-                mouth_w = int(8 * sx)
-                c.create_arc(
-                    mouth_cx - mouth_w, mouth_cy - int(4 * sy),
-                    mouth_cx + mouth_w, mouth_cy + int(4 * sy),
-                    start=200, extent=140, style='arc',
-                    outline=black, width=max(1, int(1.5 * sx)), tags="mouth"
-                )
-            else:
-                # Back-diagonal: show back of head markings
-                back_patch_rx = int(18 * sx * persp_w)
-                back_patch_ry = int(12 * sy)
-                c.create_oval(
-                    head_cx - back_patch_rx, head_cy - back_patch_ry + int(4 * sy),
-                    head_cx + back_patch_rx, head_cy + back_patch_ry - int(4 * sy),
-                    fill="#F5F5F5", outline="", tags="back_head"
-                )
-            
-            # Draw equipped items on panda body
-            self._draw_equipped_items(c, body_cx, by, sx, sy)
-            
-            # Animation extras
-            self._draw_animation_extras(c, body_cx, by, anim, frame_idx, sx, sy)
-            
-            # Name tag
-            if self.panda and self.panda.name:
-                name_y = int(h - 12 * sy)
-                c.create_text(cx_draw, name_y, text=self.panda.name,
-                              font=("Arial Bold", int(10 * sx)),
-                              fill="#666666", width=int(w * 0.9), tags="name_tag")
-        
         elif anim in ('walking_up_left', 'walking_up_right', 
                       'walking_down_left', 'walking_down_right'):
             # --- DIAGONAL VIEW: 3/4 perspective combining front/back with side ---
@@ -2359,14 +2788,14 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
             leg_len = int(30 * sy)
             
             # Apply individual limb dangle physics during drag
-            left_leg_dangle = int(self._dangle_left_leg) if anim == 'dragging' else 0
-            right_leg_dangle = int(self._dangle_right_leg) if anim == 'dragging' else 0
-            left_arm_dangle = int(self._dangle_left_arm) if anim == 'dragging' else 0
-            right_arm_dangle = int(self._dangle_right_arm) if anim == 'dragging' else 0
-            left_leg_dangle_h = int(self._dangle_left_leg_h) if anim == 'dragging' else 0
-            right_leg_dangle_h = int(self._dangle_right_leg_h) if anim == 'dragging' else 0
-            left_arm_dangle_h = int(self._dangle_left_arm_h) if anim == 'dragging' else 0
-            right_arm_dangle_h = int(self._dangle_right_arm_h) if anim == 'dragging' else 0
+            left_leg_dangle = int(self._dangle_left_leg) if is_being_dragged else 0
+            right_leg_dangle = int(self._dangle_right_leg) if is_being_dragged else 0
+            left_arm_dangle = int(self._dangle_left_arm) if is_being_dragged else 0
+            right_arm_dangle = int(self._dangle_right_arm) if is_being_dragged else 0
+            left_leg_dangle_h = int(self._dangle_left_leg_h) if is_being_dragged else 0
+            right_leg_dangle_h = int(self._dangle_right_leg_h) if is_being_dragged else 0
+            left_arm_dangle_h = int(self._dangle_left_arm_h) if is_being_dragged else 0
+            right_arm_dangle_h = int(self._dangle_right_arm_h) if is_being_dragged else 0
             
             # Legs with perspective - one more forward, one more back
             if is_back_facing:
@@ -2544,8 +2973,8 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
             
             # Apply individual limb dangle physics during drag
             # Left leg (vertical + horizontal dangle)
-            left_leg_dangle = int(self._dangle_left_leg) if anim == 'dragging' else 0
-            left_leg_dangle_h = int(self._dangle_left_leg_h) if anim == 'dragging' else 0
+            left_leg_dangle = int(self._dangle_left_leg) if is_being_dragged else 0
+            left_leg_dangle_h = int(self._dangle_left_leg_h) if is_being_dragged else 0
             left_leg_x = cx_draw - int(25 * sx) + left_leg_dangle_h
             left_leg_swing = leg_swing + left_leg_dangle
             c.create_oval(
@@ -2561,8 +2990,8 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
             )
             
             # Right leg (vertical + horizontal dangle)
-            right_leg_dangle = int(self._dangle_right_leg) if anim == 'dragging' else 0
-            right_leg_dangle_h = int(self._dangle_right_leg_h) if anim == 'dragging' else 0
+            right_leg_dangle = int(self._dangle_right_leg) if is_being_dragged else 0
+            right_leg_dangle_h = int(self._dangle_right_leg_h) if is_being_dragged else 0
             right_leg_x = cx_draw + int(25 * sx) + right_leg_dangle_h
             right_leg_swing = -leg_swing + right_leg_dangle
             c.create_oval(
@@ -2604,8 +3033,8 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
             
             # Apply individual limb dangle physics during drag
             # Left arm (vertical + horizontal dangle)
-            left_arm_dangle = int(self._dangle_left_arm) if anim == 'dragging' else 0
-            left_arm_dangle_h = int(self._dangle_left_arm_h) if anim == 'dragging' else 0
+            left_arm_dangle = int(self._dangle_left_arm) if is_being_dragged else 0
+            left_arm_dangle_h = int(self._dangle_left_arm_h) if is_being_dragged else 0
             la_swing = arm_swing + left_arm_dangle
             c.create_oval(
                 cx_draw - int(55 * sx) + left_arm_dangle_h, arm_top + la_swing,
@@ -2614,8 +3043,8 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
             )
             
             # Right arm (vertical + horizontal dangle)
-            right_arm_dangle = int(self._dangle_right_arm) if anim == 'dragging' else 0
-            right_arm_dangle_h = int(self._dangle_right_arm_h) if anim == 'dragging' else 0
+            right_arm_dangle = int(self._dangle_right_arm) if is_being_dragged else 0
+            right_arm_dangle_h = int(self._dangle_right_arm_h) if is_being_dragged else 0
             ra_swing = -arm_swing + right_arm_dangle
             c.create_oval(
                 cx_draw + int(30 * sx) + right_arm_dangle_h, arm_top + ra_swing,
@@ -2639,8 +3068,8 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
             ear_h = int(24 * sy)
             
             # Individual ear stretch/dangle during drag
-            left_ear_stretch_px = int(self._dangle_left_ear * sy) if anim == 'dragging' else int(self._ear_stretch * sy)
-            right_ear_stretch_px = int(self._dangle_right_ear * sy) if anim == 'dragging' else int(self._ear_stretch * sy)
+            left_ear_stretch_px = int(self._dangle_left_ear * sy) if is_being_dragged else int(self._ear_stretch * sy)
+            right_ear_stretch_px = int(self._dangle_right_ear * sy) if is_being_dragged else int(self._ear_stretch * sy)
             
             # Left ear
             c.create_oval(cx_draw - head_rx - int(2 * sx) + ear_wiggle, ear_y - int(16 * sy) - left_ear_stretch_px,
@@ -2698,10 +3127,104 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
                               font=("Arial Bold", int(10 * sx)),
                               fill="#666666", width=int(w * 0.9), tags="name_tag")
         
-        # --- Upside-down flip when grabbed by foot and dragged upward ---
-        if self._is_upside_down and anim == 'dragging' and self.is_dragging:
-            # Flip all canvas items vertically around the canvas center
-            c.scale("all", w / 2, h / 2, 1.0, -1.0)
+        # --- Lay-on-side tilt: vertically compress and skew to simulate rotation ---
+        if anim in ('lay_on_side', 'tip_over_side'):
+            if anim == 'lay_on_side':
+                settle = min(1.0, frame_idx / 24.0)
+            else:
+                settle = 1.0  # tip_over is immediate
+            if settle > 0.01:
+                # Pivot at the bottom-center (where the body contacts the ground)
+                ground_y = h - int(10 * sy)
+                pivot_x = w / 2
+                # Compress vertically to simulate body rotated onto its side
+                v_scale = 1.0 - settle * 0.45  # squish to ~55% height
+                # Widen horizontally slightly (body seen from side is wider on ground)
+                h_scale = 1.0 + settle * 0.15
+                c.scale("all", pivot_x, ground_y, h_scale, v_scale)
+
+        # --- Barrel roll: rotate the entire body sideways through a full 360° ---
+        if anim == 'barrel_roll':
+            roll_cycle = (frame_idx % 30) / 30.0
+            if 0.1 < roll_cycle < 0.8:
+                # During the roll, tilt the whole body
+                roll_t = (roll_cycle - 0.1) / 0.7
+                roll_a = roll_t * 2 * math.pi
+                pivot_x = w / 2
+                body_cy = int(110 * sy + by)
+                # Vertical squish simulates body turning sideways then coming back
+                v_scale = abs(math.cos(roll_a)) * 0.5 + 0.5
+                # Horizontal flip through the roll (goes negative = mirrored)
+                h_scale = math.cos(roll_a)
+                if abs(h_scale) < self.MIN_VISIBLE_SCALE:
+                    h_scale = self.MIN_VISIBLE_SCALE if h_scale >= 0 else -self.MIN_VISIBLE_SCALE
+                c.scale("all", pivot_x, body_cy, h_scale, v_scale)
+
+        # --- Backflip: rotate the entire body backward through a full 360° ---
+        if anim == 'backflip':
+            flip_phase = (frame_idx % 36) / 36.0
+            if 0.35 < flip_phase < 0.7:
+                # During the airborne rotation, tilt the whole body
+                flip_t = (flip_phase - 0.35) / 0.35
+                flip_a = flip_t * 2 * math.pi
+                pivot_x = w / 2
+                body_cy = int(90 * sy + by)
+                # Horizontal squish simulates body rotating front-to-back
+                h_scale = abs(math.cos(flip_a)) * 0.45 + 0.55
+                # Vertical flip through the rotation (goes negative = upside down)
+                v_scale = math.cos(flip_a)
+                if abs(v_scale) < self.MIN_VISIBLE_SCALE:
+                    v_scale = self.MIN_VISIBLE_SCALE if v_scale >= 0 else -self.MIN_VISIBLE_SCALE
+                c.scale("all", pivot_x, body_cy, h_scale, v_scale)
+
+        # --- Body rotation when grabbed and dragged ---
+        # Legs: body hangs and swings fully (can flip upside down).
+        # Arms/ears: body tilts partially in the drag direction.
+        # Smoothly interpolated per frame.
+        _grabbed_rotates = ('left_leg', 'right_leg',
+                            'left_arm', 'right_arm',
+                            'left_ear', 'right_ear')
+        if is_being_dragged and self._drag_grab_part in _grabbed_rotates:
+            # Smoothly animate _drag_body_angle toward target
+            angle_speed = 0.15  # radians per frame
+            diff = self._drag_body_angle_target - self._drag_body_angle
+            # Normalize diff to [-pi, pi] using atan2
+            diff = math.atan2(math.sin(diff), math.cos(diff))
+            if abs(diff) < angle_speed:
+                self._drag_body_angle = self._drag_body_angle_target
+            else:
+                self._drag_body_angle += angle_speed if diff > 0 else -angle_speed
+
+            angle = self._drag_body_angle
+            if abs(angle) > 0.05:
+                is_leg_grab = self._drag_grab_part in ('left_leg', 'right_leg')
+                # Pivot point depends on what's grabbed:
+                # Legs → pivot at foot (bottom), Arms → pivot at arm (mid), Ears → pivot at ear (top)
+                if is_leg_grab:
+                    pivot_y = int(175 * sy + by)
+                elif self._drag_grab_part in ('left_arm', 'right_arm'):
+                    pivot_y = int(100 * sy + by)
+                else:  # ears
+                    pivot_y = int(25 * sy + by)
+                pivot_x = w / 2
+                # cos(angle) = vertical scale (1=upright, -1=upside down)
+                # sin(angle) = horizontal tilt
+                v_scale = math.cos(angle)
+                h_tilt = math.sin(angle)
+                foreshorten = 1.0 - 0.25 * abs(h_tilt)
+                c.scale("all", pivot_x, pivot_y, foreshorten, v_scale)
+                # Shift horizontally to simulate sideways hanging
+                shift_px = int(h_tilt * 60 * sx)
+                c.move("all", shift_px, 0)
+
+            self._flip_progress = abs(self._drag_body_angle) / math.pi
+        else:
+            # Smoothly return body angle to upright when released
+            if abs(self._drag_body_angle) > 0.05:
+                self._drag_body_angle *= 0.8  # decay toward 0
+                if abs(self._drag_body_angle) < 0.05:
+                    self._drag_body_angle = 0.0
+            self._flip_progress = max(0.0, self._flip_progress - 0.15)
     
     def _draw_eyes(self, c: tk.Canvas, cx: int, ey: int, style: str, sx: float = 1.0, sy: float = 1.0):
         """Draw panda eyes based on the current animation style."""
@@ -2715,6 +3238,51 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
                           fill="white", width=2, tags="eye")
             c.create_line(right_ex - es, ey, right_ex + es, ey,
                           fill="white", width=2, tags="eye")
+        elif style == 'almost_closed':
+            # Barely open slit — 1 pixel tall oval
+            slit_h = max(1, int(1 * sy))
+            for ex_pos in [left_ex, right_ex]:
+                c.create_oval(ex_pos - es, ey - slit_h, ex_pos + es, ey + slit_h,
+                              fill="white", outline="", tags="eye")
+        elif style == 'half_closed':
+            # Half-shut eyes — 3 pixel tall oval with small pupil showing
+            half_h = max(2, int(3 * sy))
+            for ex_pos in [left_ex, right_ex]:
+                c.create_oval(ex_pos - es, ey - int(1 * sy), ex_pos + es, ey + half_h,
+                              fill="white", outline="", tags="eye")
+                c.create_oval(ex_pos - int(2 * sx), ey, ex_pos + int(2 * sx), ey + int(2 * sy),
+                              fill="#222222", outline="", tags="pupil")
+        elif style == 'mostly_open':
+            # Slightly narrowed eyes — almost full size but top is cut off
+            narrow_h = max(3, int(5 * sy))
+            for ex_pos in [left_ex, right_ex]:
+                c.create_oval(ex_pos - es, ey - int(3 * sy), ex_pos + es, ey + narrow_h,
+                              fill="white", outline="", tags="eye")
+                c.create_oval(ex_pos - ps, ey - int(1 * sy), ex_pos + ps, ey + ps,
+                              fill="#222222", outline="", tags="pupil")
+                c.create_oval(ex_pos - int(4 * sx), ey - int(4 * sy),
+                              ex_pos - int(1 * sx), ey - int(1 * sy),
+                              fill="white", outline="", tags="shine")
+        elif style == 'wide':
+            # Slightly wider than normal — alert/interested look
+            wide_es = int(7 * sx)
+            for ex_pos in [left_ex, right_ex]:
+                c.create_oval(ex_pos - wide_es, ey - wide_es, ex_pos + wide_es, ey + wide_es,
+                              fill="white", outline="", tags="eye")
+                c.create_oval(ex_pos - ps, ey - ps, ex_pos + ps, ey + ps,
+                              fill="#222222", outline="", tags="pupil")
+                c.create_oval(ex_pos - int(5 * sx), ey - int(5 * sy),
+                              ex_pos - int(2 * sx), ey - int(2 * sy),
+                              fill="white", outline="", tags="shine")
+        elif style == 'soft':
+            # Gentle, relaxed eyes — slightly smaller and rounder
+            soft_es = int(5 * sx)
+            for ex_pos in [left_ex, right_ex]:
+                c.create_oval(ex_pos - soft_es, ey - int(4 * sy), ex_pos + soft_es, ey + int(4 * sy),
+                              fill="white", outline="", tags="eye")
+                c.create_oval(ex_pos - int(2 * sx), ey - int(2 * sy),
+                              ex_pos + int(2 * sx), ey + int(2 * sy),
+                              fill="#222222", outline="", tags="pupil")
         elif style == 'happy':
             c.create_arc(left_ex - es, ey - es, left_ex + es, ey + int(4 * sy),
                          start=0, extent=180, style="arc",
@@ -3208,9 +3776,11 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
                 leg_bottom = int(172 * sy + by)
 
                 if is_side:
-                    # Side view: overlapping front/back leg pants
-                    front_swing = int(_leg_swing)
-                    back_swing = int(-_leg_swing)
+                    # Side view: overlapping front/back leg pants with dangle
+                    front_swing = int(_leg_swing) + _right_leg_dangle
+                    back_swing = int(-_leg_swing) + _left_leg_dangle
+                    front_dh = _right_leg_dangle_h
+                    back_dh = _left_leg_dangle_h
                     leg_cx = cx  # legs are centred in side view
 
                     # Waistband wrapping around torso
@@ -3222,23 +3792,23 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
                         tags="equipped_clothing")
                     # Back pant leg (behind body)
                     c.create_polygon(
-                        leg_cx - int(14 * persp_sx), hip_y,
-                        leg_cx + int(10 * persp_sx), hip_y,
-                        leg_cx + int(8 * persp_sx), leg_bottom + back_swing,
-                        leg_cx - int(12 * persp_sx), leg_bottom + back_swing,
+                        leg_cx - int(14 * persp_sx) + back_dh, hip_y,
+                        leg_cx + int(10 * persp_sx) + back_dh, hip_y,
+                        leg_cx + int(8 * persp_sx) + back_dh, leg_bottom + back_swing,
+                        leg_cx - int(12 * persp_sx) + back_dh, leg_bottom + back_swing,
                         fill=shadow, outline=shadow, width=1,
                         smooth=False, tags="equipped_clothing")
                     # Front pant leg (in front)
                     c.create_polygon(
-                        leg_cx - int(12 * persp_sx), hip_y,
-                        leg_cx + int(12 * persp_sx), hip_y,
-                        leg_cx + int(10 * persp_sx), leg_bottom + front_swing,
-                        leg_cx - int(10 * persp_sx), leg_bottom + front_swing,
+                        leg_cx - int(12 * persp_sx) + front_dh, hip_y,
+                        leg_cx + int(12 * persp_sx) + front_dh, hip_y,
+                        leg_cx + int(10 * persp_sx) + front_dh, leg_bottom + front_swing,
+                        leg_cx - int(10 * persp_sx) + front_dh, leg_bottom + front_swing,
                         fill=color, outline=shadow, width=1,
                         smooth=False, tags="equipped_clothing")
                     # Seam highlight on front leg
                     c.create_line(
-                        leg_cx, hip_y, leg_cx, leg_bottom + front_swing,
+                        leg_cx + front_dh, hip_y, leg_cx + front_dh, leg_bottom + front_swing,
                         fill=highlight, width=1, tags="equipped_clothing")
                 elif is_back:
                     # Back view: same as front but no fly seam
@@ -3377,10 +3947,13 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
                     arm_top = bt + int(4 * sy)
                     arm_len = int(40 * sy)
                     if is_side:
-                        # Side view: two sleeves offset toward/away from viewer
-                        for offset_dir, swing in [(-side_dir, -_arm_swing), (side_dir, _arm_swing)]:
-                            arm_cx = cx + offset_dir * int(8 * persp_sx)
-                            arm_end_y = arm_top + arm_len + int(swing)
+                        # Side view: two sleeves offset toward/away from viewer, with dangle
+                        for offset_dir, swing, dangle_v, dangle_h in [
+                            (-side_dir, -_arm_swing, _left_arm_dangle, _left_arm_dangle_h),
+                            (side_dir, _arm_swing, _right_arm_dangle, _right_arm_dangle_h)
+                        ]:
+                            arm_cx = cx + offset_dir * int(8 * persp_sx) + dangle_h
+                            arm_end_y = arm_top + arm_len + int(swing) + dangle_v
                             c.create_polygon(
                                 arm_cx - int(10 * persp_sx), arm_top,
                                 arm_cx + int(10 * persp_sx), arm_top,
@@ -3460,13 +4033,16 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
                         start=200, extent=140, style="arc",
                         outline=shadow, width=2, tags="equipped_clothing")
                     if is_side:
-                        # Side view legs: centred front/back
-                        for leg_sw in [left_swing, right_swing]:
+                        # Side view legs: centred front/back with dangle
+                        for leg_sw, leg_dh in [
+                            (left_swing + _left_leg_dangle, _left_leg_dangle_h),
+                            (right_swing + _right_leg_dangle, _right_leg_dangle_h)
+                        ]:
                             c.create_polygon(
-                                cx - int(14 * persp_sx), bb,
-                                cx + int(14 * persp_sx), bb,
-                                cx + int(12 * persp_sx), leg_bottom + leg_sw,
-                                cx - int(12 * persp_sx), leg_bottom + leg_sw,
+                                cx - int(14 * persp_sx) + leg_dh, bb,
+                                cx + int(14 * persp_sx) + leg_dh, bb,
+                                cx + int(12 * persp_sx) + leg_dh, leg_bottom + leg_sw,
+                                cx - int(12 * persp_sx) + leg_dh, leg_bottom + leg_sw,
                                 fill=color, outline=shadow, width=1,
                                 tags="equipped_clothing")
                     else:
@@ -3484,9 +4060,12 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
                     arm_top = bt + int(4 * sy)
                     arm_len = int(35 * sy)
                     if is_side:
-                        for offset_dir, swing in [(-side_dir, -_arm_swing), (side_dir, _arm_swing)]:
-                            arm_cx = cx + offset_dir * int(8 * persp_sx)
-                            arm_end_y = arm_top + arm_len + int(swing)
+                        for offset_dir, swing, dangle_v, dangle_h in [
+                            (-side_dir, -_arm_swing, _left_arm_dangle, _left_arm_dangle_h),
+                            (side_dir, _arm_swing, _right_arm_dangle, _right_arm_dangle_h)
+                        ]:
+                            arm_cx = cx + offset_dir * int(8 * persp_sx) + dangle_h
+                            arm_end_y = arm_top + arm_len + int(swing) + dangle_v
                             c.create_oval(
                                 arm_cx - int(10 * persp_sx), arm_top,
                                 arm_cx + int(10 * persp_sx), arm_end_y,
@@ -3539,9 +4118,12 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
                             fill=highlight, width=1, tags="equipped_clothing")
                     # Sleeve caps synced with arm swing + dangle
                     if is_side:
-                        for offset_dir, swing in [(-side_dir, -_arm_swing), (side_dir, _arm_swing)]:
-                            sleeve_cx = cx + offset_dir * int(8 * persp_sx)
-                            sleeve_offset = int(swing * 0.4)
+                        for offset_dir, swing, dangle_v, dangle_h in [
+                            (-side_dir, -_arm_swing, _left_arm_dangle, _left_arm_dangle_h),
+                            (side_dir, _arm_swing, _right_arm_dangle, _right_arm_dangle_h)
+                        ]:
+                            sleeve_cx = cx + offset_dir * int(8 * persp_sx) + int(dangle_h * 0.4)
+                            sleeve_offset = int(swing * 0.4) + int(dangle_v * 0.4)
                             c.create_oval(
                                 sleeve_cx - int(10 * persp_sx), bt + int(2 * sy) + sleeve_offset,
                                 sleeve_cx + int(10 * persp_sx), bt + int(18 * sy) + sleeve_offset,
@@ -3725,14 +4307,21 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
                     if is_side:
                         # Side view: both shoes near centre, front/back offset
                         shoe_pairs = [
-                            (cx, int(-_leg_swing), _right_leg_dangle_h),   # back foot
-                            (cx, int(_leg_swing), _left_leg_dangle_h),     # front foot
+                            (cx, int(-_leg_swing) + _left_leg_dangle, _left_leg_dangle_h),    # back foot
+                            (cx, int(_leg_swing) + _right_leg_dangle, _right_leg_dangle_h),   # front foot
                         ]
                     elif is_diag:
-                        # Diagonal view: slightly compressed shoe spacing
+                        # Diagonal view: match leg positions from _draw_panda diagonal view
+                        is_back_diag = anim in ('walking_up_left', 'walking_up_right')
+                        if is_back_diag:
+                            diag_left_swing = int(_leg_swing) + _left_leg_dangle
+                            diag_right_swing = int(-_leg_swing) + _right_leg_dangle
+                        else:
+                            diag_left_swing = int(-_leg_swing) + _left_leg_dangle
+                            diag_right_swing = int(_leg_swing) + _right_leg_dangle
                         shoe_pairs = [
-                            (cx - int(20 * persp_sx), left_shoe_swing, _left_leg_dangle_h),
-                            (cx + int(20 * persp_sx), right_shoe_swing, _right_leg_dangle_h),
+                            (cx - int(22 * persp_sx), diag_left_swing, _left_leg_dangle_h),
+                            (cx + int(22 * persp_sx), diag_right_swing, _right_leg_dangle_h),
                         ]
                     else:
                         shoe_pairs = [
@@ -5006,18 +5595,61 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
         self._prev_drag_y = event.y_root
         self._prev_drag_time = now
         
+        # Update facing direction based on drag velocity
+        vx = self._toss_velocity_x
+        vy = self._toss_velocity_y
+        avx = abs(vx)
+        avy = abs(vy)
+        if avx > 1 or avy > 1:  # Only update when there's meaningful movement
+            max_av = max(avx, avy)
+            if max_av > 0 and min(avx, avy) / max_av > self.DIAGONAL_MOVEMENT_THRESHOLD:
+                if vy < 0 and vx < 0:
+                    self._facing_direction = 'back_left'
+                elif vy < 0 and vx > 0:
+                    self._facing_direction = 'back_right'
+                elif vy > 0 and vx < 0:
+                    self._facing_direction = 'front_left'
+                else:
+                    self._facing_direction = 'front_right'
+            elif avx > avy:
+                self._facing_direction = 'right' if vx > 0 else 'left'
+            else:
+                self._facing_direction = 'down' if vy > 0 else 'up'
+        
         # Detect drag patterns
         self._detect_drag_patterns()
         
-        # Check if dragged by leg and moving upward (upside-down flip)
-        if self._drag_grab_part in ('left_leg', 'right_leg'):
+        # Compute body hang angle based on grabbed part and drag velocity.
+        # Legs: full rotation range (can flip upside down).
+        # Arms/ears: partial tilt (body sways from the grabbed limb).
+        grabbed = self._drag_grab_part
+        drag_speed = (vx**2 + vy**2) ** 0.5
+        if grabbed in ('left_leg', 'right_leg'):
             # If dragged upward (negative velocity), flip upside down
             if self._toss_velocity_y < -self.UPSIDE_DOWN_VELOCITY_THRESHOLD:
                 self._is_upside_down = True
             elif self._toss_velocity_y > self.UPSIDE_DOWN_VELOCITY_THRESHOLD:
                 self._is_upside_down = False
+            
+            # Full rotation: body hangs from the foot in the drag direction
+            if drag_speed > 1.5:
+                angle = math.atan2(-vy, -vx) + math.pi / 2
+                self._drag_body_angle_target = math.atan2(math.sin(angle), math.cos(angle))
+            else:
+                self._drag_body_angle_target = 0.0
+        elif grabbed in ('left_arm', 'right_arm', 'left_ear', 'right_ear'):
+            # Partial tilt: body sways in drag direction, max ~45 degrees
+            if drag_speed > 1.5:
+                angle = math.atan2(-vy, -vx) + math.pi / 2
+                normalized = math.atan2(math.sin(angle), math.cos(angle))
+                # Limit to ~45 degrees (pi/4)
+                self._drag_body_angle_target = max(-math.pi / 4, min(math.pi / 4, normalized))
+            else:
+                self._drag_body_angle_target = 0.0
+            self._is_upside_down = False
         else:
             self._is_upside_down = False
+            self._drag_body_angle_target = 0.0
         
         # Check if we've moved enough to count as a real drag
         distance = ((event.x - self.drag_start_x) ** 2 + (event.y - self.drag_start_y) ** 2) ** 0.5
@@ -5448,6 +6080,10 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
         """Handle left click on panda with body part detection."""
         try:
             if self.panda:
+                # Stop auto-walk if in progress (click interrupts walk)
+                if self._is_auto_walking:
+                    self._is_auto_walking = False
+                
                 # Detect which body part was clicked
                 body_part = None
                 if event and hasattr(self.panda, 'get_body_part_at_position'):
@@ -5464,6 +6100,11 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
                     # Trigger belly jiggle physics
                     self._belly_jiggle_vel += random.choice([-1, 1]) * self.JIGGLE_VELOCITY_POKE
                     self.play_animation_once('belly_jiggle')
+                elif body_part in ('left_eye', 'right_eye') and hasattr(self.panda, 'on_body_part_click'):
+                    # Eye poke: squint/blink reaction
+                    response = self.panda.on_body_part_click(body_part)
+                    self.info_label.configure(text=response)
+                    self.play_animation_once('shaking')
                 elif body_part and hasattr(self.panda, 'on_body_part_click'):
                     response = self.panda.on_body_part_click(body_part)
                     self.info_label.configure(text=response)
@@ -5813,27 +6454,40 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
     def _give_widget_to_panda(self, widget):
         """Give a toy or food widget to the panda.
         
-        For food items, the panda plays the full eating sequence (pickup →
-        inspect → chew → satisfied) and the food is only consumed after the
-        animation completes.  For toys, an immediate play animation is shown.
+        The panda walks a short distance toward the item, picks it up,
+        then plays the appropriate animation.  For food items the full
+        eating sequence (pickup → inspect → chew → satisfied) plays and
+        the food is only consumed after the animation completes.
         """
         try:
             from src.features.panda_widgets import FoodWidget
-            if isinstance(widget, FoodWidget):
-                # Food: consume only after full eating animation completes
-                if widget.consumable and widget.quantity <= 0:
-                    self.info_label.configure(
-                        text=f"🐼 No {widget.name} left! Buy more from the shop.")
-                    return
+            is_food = isinstance(widget, FoodWidget)
 
-                # Resolve widget key for per-item eating responses
-                wkey = ''
-                if self.widget_collection:
-                    for k, w in self.widget_collection.widgets.items():
-                        if w is widget:
-                            wkey = k
-                            break
+            if is_food and widget.consumable and widget.quantity <= 0:
+                self.info_label.configure(
+                    text=f"🐼 No {widget.name} left! Buy more from the shop.")
+                return
 
+            # Resolve widget key for per-item responses
+            wkey = ''
+            if self.widget_collection:
+                for k, w in self.widget_collection.widgets.items():
+                    if w is widget:
+                        wkey = k
+                        break
+
+            # Determine a target position slightly in front of the panda
+            # so it visibly walks to pick the item up.
+            try:
+                px = self._toplevel.winfo_x()
+                py = self._toplevel.winfo_y()
+                # Place the item ~80px to the right and ~30px below the panda
+                target_x = px + self._toplevel_w // 2 + self.ITEM_WALK_OFFSET_X
+                target_y = py + self._toplevel_h // 2 + self.ITEM_WALK_OFFSET_Y
+            except Exception:
+                target_x, target_y = 0, 0
+
+            if is_food:
                 def _on_eat_complete():
                     """Called after the full eating animation finishes."""
                     widget.use()  # Actually consume the food item now
@@ -5844,26 +6498,38 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
                         except Exception:
                             pass
 
-                # Set active item and play multi-phase eating sequence in-place
-                self.set_active_item(widget.name, widget.emoji, 'food', wkey)
-                if self.panda:
-                    msg = self.panda.on_food_pickup(widget.name) if hasattr(self.panda, 'on_food_pickup') else f"🐼 *picks up {widget.name}*"
-                    self.info_label.configure(text=msg)
-                self._walk_on_arrive = _on_eat_complete
-                self._play_eating_sequence()
+                # Walk to the item, then eat it
+                self.walk_to_item(
+                    target_x, target_y,
+                    item_name=widget.name,
+                    item_emoji=widget.emoji,
+                    item_type='food',
+                    on_arrive=_on_eat_complete,
+                    item_key=wkey,
+                )
             else:
-                # Toys: use immediately and play animation
-                result = widget.use()
-                message = result.get('message', f"Panda enjoys the {widget.name}!")
-                self.info_label.configure(text=message)
-                self.play_animation_once(result.get('animation', 'playing'))
+                def _on_toy_arrive():
+                    """Called after panda reaches the toy."""
+                    result = widget.use()
+                    message = result.get('message', f"Panda enjoys the {widget.name}!")
+                    self.info_label.configure(text=message)
+                    self.play_animation_once(result.get('animation', 'playing'))
+                    if self.panda_level_system:
+                        try:
+                            xp = self.panda_level_system.get_xp_reward('click')
+                            self.panda_level_system.add_xp(xp, f'Used {widget.name}')
+                        except Exception:
+                            pass
 
-                if self.panda_level_system:
-                    try:
-                        xp = self.panda_level_system.get_xp_reward('click')
-                        self.panda_level_system.add_xp(xp, f'Used {widget.name}')
-                    except Exception:
-                        pass
+                # Walk to the toy, then play with it
+                self.walk_to_item(
+                    target_x, target_y,
+                    item_name=widget.name,
+                    item_emoji=widget.emoji,
+                    item_type='toy',
+                    on_arrive=_on_toy_arrive,
+                    item_key=wkey,
+                )
         except Exception as e:
             logger.error(f"Error giving widget to panda: {e}")
             self.info_label.configure(text="🐼 *confused*")
@@ -5871,6 +6537,7 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
     def _on_hover(self, event=None):
         """Handle hover over panda."""
         if not self.is_dragging and self.panda:
+            # Don't interrupt auto-walk animation, just show thought bubble
             thought = self.panda.on_hover()
             self.info_label.configure(text=thought)
     

@@ -72,6 +72,7 @@ class CustomizationItem:
     unlocked: bool = False
     equipped: bool = False
     clothing_type: str = ""  # One of: shirt, pants, jacket, dress, full_body, other
+    armor_value: int = 0  # Defense stat for clothing/hats/shoes (0 = no armor)
 
 
 class PandaAppearance:
@@ -316,114 +317,125 @@ class PandaCloset:
         'tshirt': CustomizationItem(
             'tshirt', 'Bamboo T-Shirt', CustomizationCategory.CLOTHING,
             '👕', 'Casual bamboo tee', ItemRarity.COMMON, 25, False, False,
-            clothing_type='shirt'
+            clothing_type='shirt', armor_value=2
         ),
         # Clothing — Jackets
         'hoodie': CustomizationItem(
             'hoodie', 'Cozy Hoodie', CustomizationCategory.CLOTHING,
             '🧥', 'Warm and comfy', ItemRarity.UNCOMMON, 75, False, False,
-            clothing_type='jacket'
+            clothing_type='jacket', armor_value=10
         ),
         # Clothing — Full Body
         'suit': CustomizationItem(
             'suit', 'Business Suit', CustomizationCategory.CLOTHING,
             '🤵', 'Professional attire', ItemRarity.RARE, 300, False, False,
-            clothing_type='full_body'
+            clothing_type='full_body', armor_value=25
         ),
         'kimono': CustomizationItem(
             'kimono', 'Traditional Kimono', CustomizationCategory.CLOTHING,
             '👘', 'Elegant traditional wear', ItemRarity.EPIC, 600, False, False,
-            clothing_type='dress'
+            clothing_type='dress', armor_value=25
         ),
         'superhero': CustomizationItem(
             'superhero', 'Superhero Costume', CustomizationCategory.CLOTHING,
             '🦸', 'Save the world in style', ItemRarity.LEGENDARY, 2000, False, False,
-            clothing_type='full_body'
+            clothing_type='full_body', armor_value=60
         ),
 
         # Panda Outfits (shop costumes) — Full Body
         'casual': CustomizationItem(
             'casual', 'Casual Panda', CustomizationCategory.CLOTHING,
             '👕', 'Comfy hoodie for your panda pal', ItemRarity.COMMON, 100, False, False,
-            clothing_type='full_body'
+            clothing_type='full_body', armor_value=8
         ),
         'ninja': CustomizationItem(
             'ninja', 'Ninja Panda', CustomizationCategory.CLOTHING,
             '🥷', 'Stealth mode activated!', ItemRarity.UNCOMMON, 250, False, False,
-            clothing_type='full_body'
+            clothing_type='full_body', armor_value=15
         ),
         'wizard': CustomizationItem(
             'wizard', 'Wizard Panda', CustomizationCategory.CLOTHING,
             '🧙', 'Magical texture sorting powers', ItemRarity.RARE, 500, False, False,
-            clothing_type='full_body'
+            clothing_type='full_body', armor_value=25
         ),
         'pirate': CustomizationItem(
             'pirate', 'Pirate Panda', CustomizationCategory.CLOTHING,
             '🏴‍☠️', 'Arr, matey!', ItemRarity.UNCOMMON, 300, False, False,
-            clothing_type='full_body'
+            clothing_type='full_body', armor_value=15
         ),
         'astronaut': CustomizationItem(
             'astronaut', 'Astronaut Panda', CustomizationCategory.CLOTHING,
             '🚀', 'To infinity and beyond!', ItemRarity.EPIC, 1000, False, False,
-            clothing_type='full_body'
+            clothing_type='full_body', armor_value=40
         ),
         'chef': CustomizationItem(
             'chef', 'Chef Panda', CustomizationCategory.CLOTHING,
             '👨‍🍳', 'Cooking up some sorted textures!', ItemRarity.UNCOMMON, 200, False, False,
-            clothing_type='full_body'
+            clothing_type='full_body', armor_value=15
         ),
         'detective': CustomizationItem(
             'detective', 'Detective Panda', CustomizationCategory.CLOTHING,
             '🕵️', 'Investigating texture mysteries', ItemRarity.RARE, 400, False, False,
-            clothing_type='full_body'
+            clothing_type='full_body', armor_value=25
         ),
         
         # Hats
         'baseball_cap': CustomizationItem(
             'baseball_cap', 'Baseball Cap', CustomizationCategory.HAT,
-            '🧢', 'Sporty cap', ItemRarity.COMMON, 30, False, False
+            '🧢', 'Sporty cap', ItemRarity.COMMON, 30, False, False,
+            armor_value=1
         ),
         'top_hat': CustomizationItem(
             'top_hat', 'Top Hat', CustomizationCategory.HAT,
-            '🎩', 'Classy top hat', ItemRarity.UNCOMMON, 100, False, False
+            '🎩', 'Classy top hat', ItemRarity.UNCOMMON, 100, False, False,
+            armor_value=3
         ),
         'party_hat': CustomizationItem(
             'party_hat', 'Party Hat', CustomizationCategory.HAT,
-            '🎉', 'It\'s party time!', ItemRarity.RARE, 150, False, False
+            '🎉', 'It\'s party time!', ItemRarity.RARE, 150, False, False,
+            armor_value=8
         ),
         'crown': CustomizationItem(
             'crown', 'Royal Crown', CustomizationCategory.HAT,
-            '👑', 'Rule the bamboo forest', ItemRarity.EPIC, 800, False, False
+            '👑', 'Rule the bamboo forest', ItemRarity.EPIC, 800, False, False,
+            armor_value=15
         ),
         'wizard_hat': CustomizationItem(
             'wizard_hat', 'Wizard Hat', CustomizationCategory.HAT,
-            '🧙', 'Magical powers included', ItemRarity.LEGENDARY, 1800, False, False
+            '🧙', 'Magical powers included', ItemRarity.LEGENDARY, 1800, False, False,
+            armor_value=25
         ),
         'flower_crown': CustomizationItem(
             'flower_crown', 'Flower Crown', CustomizationCategory.HAT,
-            '🌸', 'Spring vibes all year round', ItemRarity.COMMON, 100, False, False
+            '🌸', 'Spring vibes all year round', ItemRarity.COMMON, 100, False, False,
+            armor_value=1
         ),
         
         # Shoes
         'sneakers': CustomizationItem(
             'sneakers', 'Bamboo Sneakers', CustomizationCategory.SHOES,
-            '👟', 'Comfortable running shoes', ItemRarity.COMMON, 40, False, False
+            '👟', 'Comfortable running shoes', ItemRarity.COMMON, 40, False, False,
+            armor_value=1
         ),
         'boots': CustomizationItem(
             'boots', 'Adventure Boots', CustomizationCategory.SHOES,
-            '👢', 'Ready for any terrain', ItemRarity.UNCOMMON, 90, False, False
+            '👢', 'Ready for any terrain', ItemRarity.UNCOMMON, 90, False, False,
+            armor_value=4
         ),
         'dress_shoes': CustomizationItem(
             'dress_shoes', 'Dress Shoes', CustomizationCategory.SHOES,
-            '👞', 'Formal footwear', ItemRarity.RARE, 250, False, False
+            '👞', 'Formal footwear', ItemRarity.RARE, 250, False, False,
+            armor_value=9
         ),
         'slippers': CustomizationItem(
             'slippers', 'Fuzzy Slippers', CustomizationCategory.SHOES,
-            '🥿', 'Maximum comfort', ItemRarity.UNCOMMON, 60, False, False
+            '🥿', 'Maximum comfort', ItemRarity.UNCOMMON, 60, False, False,
+            armor_value=4
         ),
         'rocket_boots': CustomizationItem(
             'rocket_boots', 'Rocket Boots', CustomizationCategory.SHOES,
-            '🚀', 'Fly through the sky', ItemRarity.LEGENDARY, 2500, False, False
+            '🚀', 'Fly through the sky', ItemRarity.LEGENDARY, 2500, False, False,
+            armor_value=28
         ),
         
         # Accessories
@@ -451,56 +463,60 @@ class PandaCloset:
         # Additional Hats
         'chef_hat': CustomizationItem(
             'chef_hat', 'Chef Hat', CustomizationCategory.HAT,
-            '👨‍🍳', 'Ready to cook up sorted textures', ItemRarity.UNCOMMON, 120, False, False
+            '👨‍🍳', 'Ready to cook up sorted textures', ItemRarity.UNCOMMON, 120, False, False,
+            armor_value=3
         ),
         'cowboy_hat': CustomizationItem(
             'cowboy_hat', 'Cowboy Hat', CustomizationCategory.HAT,
-            '🤠', 'Yeehaw partner!', ItemRarity.RARE, 200, False, False
+            '🤠', 'Yeehaw partner!', ItemRarity.RARE, 200, False, False,
+            armor_value=8
         ),
         'beanie': CustomizationItem(
             'beanie', 'Cozy Beanie', CustomizationCategory.HAT,
-            '🧢', 'Warm and casual', ItemRarity.COMMON, 40, False, False
+            '🧢', 'Warm and casual', ItemRarity.COMMON, 40, False, False,
+            armor_value=1
         ),
         'bandana_hat': CustomizationItem(
             'bandana_hat', 'Cool Bandana', CustomizationCategory.HAT,
-            '🏴', 'Stylish head bandana', ItemRarity.COMMON, 35, False, False
+            '🏴', 'Stylish head bandana', ItemRarity.COMMON, 35, False, False,
+            armor_value=1
         ),
 
         # Additional Clothing — Jackets
         'raincoat': CustomizationItem(
             'raincoat', 'Raincoat', CustomizationCategory.CLOTHING,
             '🧥', 'Stay dry and sorted', ItemRarity.UNCOMMON, 100, False, False,
-            clothing_type='jacket'
+            clothing_type='jacket', armor_value=10
         ),
         # Additional Clothing — Pants
         'overalls': CustomizationItem(
             'overalls', 'Denim Overalls', CustomizationCategory.CLOTHING,
             '👖', 'Working panda attire', ItemRarity.COMMON, 50, False, False,
-            clothing_type='pants'
+            clothing_type='pants', armor_value=3
         ),
         # Additional Clothing — Shirts
         'sweater': CustomizationItem(
             'sweater', 'Knit Sweater', CustomizationCategory.CLOTHING,
             '👕', 'Cozy and warm', ItemRarity.COMMON, 60, False, False,
-            clothing_type='shirt'
+            clothing_type='shirt', armor_value=2
         ),
         # Additional Clothing — Dresses
         'toga': CustomizationItem(
             'toga', 'Greek Toga', CustomizationCategory.CLOTHING,
             '👘', 'Ancient Greek wrap', ItemRarity.RARE, 250, False, False,
-            clothing_type='dress'
+            clothing_type='dress', armor_value=15
         ),
         # Additional Clothing — Full Body
         'spacesuit': CustomizationItem(
             'spacesuit', 'Space Suit', CustomizationCategory.CLOTHING,
             '🚀', 'Ready for launch', ItemRarity.EPIC, 700, False, False,
-            clothing_type='full_body'
+            clothing_type='full_body', armor_value=40
         ),
         # Additional Clothing — Shirts
         'jersey': CustomizationItem(
             'jersey', 'Sports Jersey', CustomizationCategory.CLOTHING,
             '👕', 'Go team panda!', ItemRarity.UNCOMMON, 150, False, False,
-            clothing_type='shirt'
+            clothing_type='shirt', armor_value=5
         ),
 
         # Additional Accessories
@@ -524,15 +540,18 @@ class PandaCloset:
         # Additional Shoes
         'sandals': CustomizationItem(
             'sandals', 'Beach Sandals', CustomizationCategory.SHOES,
-            '🩴', 'Casual beach vibes', ItemRarity.COMMON, 35, False, False
+            '🩴', 'Casual beach vibes', ItemRarity.COMMON, 35, False, False,
+            armor_value=1
         ),
         'high_heels': CustomizationItem(
             'high_heels', 'Fancy Heels', CustomizationCategory.SHOES,
-            '👠', 'Glamorous panda', ItemRarity.RARE, 200, False, False
+            '👠', 'Glamorous panda', ItemRarity.RARE, 200, False, False,
+            armor_value=9
         ),
         'rain_boots': CustomizationItem(
             'rain_boots', 'Rain Boots', CustomizationCategory.SHOES,
-            '🥾', 'Splash through puddles', ItemRarity.UNCOMMON, 70, False, False
+            '🥾', 'Splash through puddles', ItemRarity.UNCOMMON, 70, False, False,
+            armor_value=4
         ),
 
         # Shop-synced Accessories
@@ -553,162 +572,162 @@ class PandaCloset:
         'dress': CustomizationItem(
             'dress', 'Elegant Dress', CustomizationCategory.CLOTHING,
             '👗', 'Dressed to impress', ItemRarity.RARE, 200, False, False,
-            clothing_type='dress'
+            clothing_type='dress', armor_value=15
         ),
         'lab_coat': CustomizationItem(
             'lab_coat', 'Lab Coat', CustomizationCategory.CLOTHING,
             '🥼', 'Science panda reporting', ItemRarity.UNCOMMON, 120, False, False,
-            clothing_type='jacket'
+            clothing_type='jacket', armor_value=10
         ),
         'leather_jacket': CustomizationItem(
             'leather_jacket', 'Leather Jacket', CustomizationCategory.CLOTHING,
             '🧥', 'Cool and rebellious', ItemRarity.RARE, 250, False, False,
-            clothing_type='jacket'
+            clothing_type='jacket', armor_value=18
         ),
         'pajamas': CustomizationItem(
             'pajamas', 'Cozy Pajamas', CustomizationCategory.CLOTHING,
             '👔', 'Sleepy panda vibes', ItemRarity.COMMON, 50, False, False,
-            clothing_type='full_body'
+            clothing_type='full_body', armor_value=8
         ),
         'sports_jersey': CustomizationItem(
             'sports_jersey', 'Basketball Jersey', CustomizationCategory.CLOTHING,
             '🏀', 'Game day ready', ItemRarity.UNCOMMON, 150, False, False,
-            clothing_type='shirt'
+            clothing_type='shirt', armor_value=5
         ),
         'superhero_cape': CustomizationItem(
             'superhero_cape', 'Superhero Cape', CustomizationCategory.CLOTHING,
             '🦸‍♂️', 'Up, up, and away!', ItemRarity.EPIC, 500, False, False,
-            clothing_type='jacket'
+            clothing_type='jacket', armor_value=28
         ),
         'tuxedo': CustomizationItem(
             'tuxedo', 'Tuxedo', CustomizationCategory.CLOTHING,
             '🤵', 'Black tie affair', ItemRarity.RARE, 300, False, False,
-            clothing_type='full_body'
+            clothing_type='full_body', armor_value=25
         ),
         'vest': CustomizationItem(
             'vest', 'Stylish Vest', CustomizationCategory.CLOTHING,
             '🦺', 'Layered look', ItemRarity.COMMON, 60, False, False,
-            clothing_type='shirt'
+            clothing_type='shirt', armor_value=2
         ),
 
         # Additional Clothing — Color Shirts
         'red_shirt': CustomizationItem(
             'red_shirt', 'Red T-Shirt', CustomizationCategory.CLOTHING,
             '👕', 'A bright red casual tee', ItemRarity.COMMON, 30, False, False,
-            clothing_type='shirt'
+            clothing_type='shirt', armor_value=2
         ),
         'blue_shirt': CustomizationItem(
             'blue_shirt', 'Blue T-Shirt', CustomizationCategory.CLOTHING,
             '👕', 'A cool blue casual tee', ItemRarity.COMMON, 30, False, False,
-            clothing_type='shirt'
+            clothing_type='shirt', armor_value=2
         ),
         'green_shirt': CustomizationItem(
             'green_shirt', 'Green T-Shirt', CustomizationCategory.CLOTHING,
             '👕', 'A fresh green casual tee', ItemRarity.COMMON, 30, False, False,
-            clothing_type='shirt'
+            clothing_type='shirt', armor_value=2
         ),
         'yellow_polo': CustomizationItem(
             'yellow_polo', 'Yellow Polo Shirt', CustomizationCategory.CLOTHING,
             '👕', 'A sunny yellow collared polo', ItemRarity.UNCOMMON, 55, False, False,
-            clothing_type='shirt'
+            clothing_type='shirt', armor_value=5
         ),
         'striped_shirt': CustomizationItem(
             'striped_shirt', 'Striped Shirt', CustomizationCategory.CLOTHING,
             '👕', 'A classic striped button-up', ItemRarity.UNCOMMON, 65, False, False,
-            clothing_type='shirt'
+            clothing_type='shirt', armor_value=5
         ),
         'hawaiian_shirt': CustomizationItem(
             'hawaiian_shirt', 'Hawaiian Shirt', CustomizationCategory.CLOTHING,
             '🌺', 'A tropical floral shirt', ItemRarity.UNCOMMON, 70, False, False,
-            clothing_type='shirt'
+            clothing_type='shirt', armor_value=5
         ),
         'tank_top': CustomizationItem(
             'tank_top', 'White Tank Top', CustomizationCategory.CLOTHING,
             '👕', 'A sleeveless white tank top', ItemRarity.COMMON, 20, False, False,
-            clothing_type='shirt'
+            clothing_type='shirt', armor_value=2
         ),
 
         # Additional Clothing — Pants
         'blue_jeans': CustomizationItem(
             'blue_jeans', 'Blue Jeans', CustomizationCategory.CLOTHING,
             '👖', 'Classic blue denim jeans', ItemRarity.COMMON, 40, False, False,
-            clothing_type='pants'
+            clothing_type='pants', armor_value=3
         ),
         'black_pants': CustomizationItem(
             'black_pants', 'Black Pants', CustomizationCategory.CLOTHING,
             '👖', 'Sleek black trousers', ItemRarity.COMMON, 45, False, False,
-            clothing_type='pants'
+            clothing_type='pants', armor_value=3
         ),
         'cargo_pants': CustomizationItem(
             'cargo_pants', 'Cargo Pants', CustomizationCategory.CLOTHING,
             '👖', 'Rugged cargo pants with pockets', ItemRarity.UNCOMMON, 55, False, False,
-            clothing_type='pants'
+            clothing_type='pants', armor_value=6
         ),
         'shorts': CustomizationItem(
             'shorts', 'Khaki Shorts', CustomizationCategory.CLOTHING,
             '🩳', 'Comfortable khaki shorts', ItemRarity.COMMON, 30, False, False,
-            clothing_type='pants'
+            clothing_type='pants', armor_value=3
         ),
         'sweatpants': CustomizationItem(
             'sweatpants', 'Grey Sweatpants', CustomizationCategory.CLOTHING,
             '👖', 'Cozy grey sweatpants', ItemRarity.COMMON, 35, False, False,
-            clothing_type='pants'
+            clothing_type='pants', armor_value=3
         ),
 
         # Additional Clothing — Jackets
         'denim_jacket': CustomizationItem(
             'denim_jacket', 'Denim Jacket', CustomizationCategory.CLOTHING,
             '🧥', 'A classic blue denim jacket', ItemRarity.UNCOMMON, 110, False, False,
-            clothing_type='jacket'
+            clothing_type='jacket', armor_value=10
         ),
         'bomber_jacket': CustomizationItem(
             'bomber_jacket', 'Bomber Jacket', CustomizationCategory.CLOTHING,
             '🧥', 'A sleek green bomber jacket', ItemRarity.RARE, 180, False, False,
-            clothing_type='jacket'
+            clothing_type='jacket', armor_value=18
         ),
         'puffer_jacket': CustomizationItem(
             'puffer_jacket', 'Puffer Jacket', CustomizationCategory.CLOTHING,
             '🧥', 'A warm puffy winter jacket', ItemRarity.UNCOMMON, 130, False, False,
-            clothing_type='jacket'
+            clothing_type='jacket', armor_value=10
         ),
         'varsity_jacket': CustomizationItem(
             'varsity_jacket', 'Varsity Jacket', CustomizationCategory.CLOTHING,
             '🧥', 'A red and white letterman jacket', ItemRarity.RARE, 200, False, False,
-            clothing_type='jacket'
+            clothing_type='jacket', armor_value=18
         ),
         'windbreaker': CustomizationItem(
             'windbreaker', 'Windbreaker', CustomizationCategory.CLOTHING,
             '🧥', 'A light neon windbreaker', ItemRarity.UNCOMMON, 90, False, False,
-            clothing_type='jacket'
+            clothing_type='jacket', armor_value=10
         ),
 
         # Additional Clothing — Dresses
         'summer_dress': CustomizationItem(
             'summer_dress', 'Summer Dress', CustomizationCategory.CLOTHING,
             '👗', 'A flowy floral summer dress', ItemRarity.UNCOMMON, 85, False, False,
-            clothing_type='dress'
+            clothing_type='dress', armor_value=8
         ),
         'evening_gown': CustomizationItem(
             'evening_gown', 'Evening Gown', CustomizationCategory.CLOTHING,
             '👗', 'An elegant black evening gown', ItemRarity.EPIC, 400, False, False,
-            clothing_type='dress'
+            clothing_type='dress', armor_value=25
         ),
 
         # Additional Clothing — Full Body
         'tracksuit': CustomizationItem(
             'tracksuit', 'Tracksuit', CustomizationCategory.CLOTHING,
             '🏃', 'A sporty matching tracksuit', ItemRarity.UNCOMMON, 100, False, False,
-            clothing_type='full_body'
+            clothing_type='full_body', armor_value=15
         ),
         'onesie': CustomizationItem(
             'onesie', 'Panda Onesie', CustomizationCategory.CLOTHING,
             '🐼', 'A cute panda-print onesie', ItemRarity.RARE, 150, False, False,
-            clothing_type='full_body'
+            clothing_type='full_body', armor_value=25
         ),
         'jumpsuit': CustomizationItem(
             'jumpsuit', 'Orange Jumpsuit', CustomizationCategory.CLOTHING,
             '👷', 'A bright orange utility jumpsuit', ItemRarity.UNCOMMON, 80, False, False,
-            clothing_type='full_body'
+            clothing_type='full_body', armor_value=15
         ),
 
         # New Fur Colors - Free
@@ -790,153 +809,189 @@ class PandaCloset:
         # New Hats - Free
         'bamboo_hat': CustomizationItem(
             'bamboo_hat', 'Bamboo Hat', CustomizationCategory.HAT,
-            '🎍', 'Traditional bamboo hat', ItemRarity.COMMON, 0, True, False
+            '🎍', 'Traditional bamboo hat', ItemRarity.COMMON, 0, True, False,
+            armor_value=1
         ),
         'headband': CustomizationItem(
             'headband', 'Sports Headband', CustomizationCategory.HAT,
-            '🏋️', 'Athletic headband', ItemRarity.COMMON, 0, True, False
+            '🏋️', 'Athletic headband', ItemRarity.COMMON, 0, True, False,
+            armor_value=1
         ),
         'flower_crown_hat': CustomizationItem(
             'flower_crown_hat', 'Flower Crown', CustomizationCategory.HAT,
-            '🌺', 'Beautiful flower crown', ItemRarity.COMMON, 0, True, False
+            '🌺', 'Beautiful flower crown', ItemRarity.COMMON, 0, True, False,
+            armor_value=1
         ),
         # New Hats - Achievement Rewards
         'pirate_hat': CustomizationItem(
             'pirate_hat', 'Pirate Hat', CustomizationCategory.HAT,
-            '🏴‍☠️', 'Arr! A classic pirate hat', ItemRarity.RARE, 0, False, False
+            '🏴‍☠️', 'Arr! A classic pirate hat', ItemRarity.RARE, 0, False, False,
+            armor_value=8
         ),
         'viking_helmet': CustomizationItem(
             'viking_helmet', 'Viking Helmet', CustomizationCategory.HAT,
-            '⚔️', 'Nordic warrior helmet', ItemRarity.RARE, 0, False, False
+            '⚔️', 'Nordic warrior helmet', ItemRarity.RARE, 0, False, False,
+            armor_value=8
         ),
         'halo': CustomizationItem(
             'halo', 'Angel Halo', CustomizationCategory.HAT,
-            '😇', 'Glowing golden halo', ItemRarity.EPIC, 0, False, False
+            '😇', 'Glowing golden halo', ItemRarity.EPIC, 0, False, False,
+            armor_value=15
         ),
         'detective_hat': CustomizationItem(
             'detective_hat', 'Detective Hat', CustomizationCategory.HAT,
-            '🕵️', 'Sherlock-style deerstalker', ItemRarity.UNCOMMON, 0, False, False
+            '🕵️', 'Sherlock-style deerstalker', ItemRarity.UNCOMMON, 0, False, False,
+            armor_value=3
         ),
         'ninja_mask': CustomizationItem(
             'ninja_mask', 'Ninja Mask', CustomizationCategory.HAT,
-            '🥷', 'Stealthy ninja mask', ItemRarity.RARE, 0, False, False
+            '🥷', 'Stealthy ninja mask', ItemRarity.RARE, 0, False, False,
+            armor_value=8
         ),
         # New Hats - Shop
         'space_helmet': CustomizationItem(
             'space_helmet', 'Space Helmet', CustomizationCategory.HAT,
-            '🪐', 'Astronaut bubble helmet', ItemRarity.EPIC, 500, False, False
+            '🪐', 'Astronaut bubble helmet', ItemRarity.EPIC, 500, False, False,
+            armor_value=15
         ),
         'samurai_helmet': CustomizationItem(
             'samurai_helmet', 'Samurai Helmet', CustomizationCategory.HAT,
-            '⛩️', 'Ancient samurai kabuto', ItemRarity.EPIC, 600, False, False
+            '⛩️', 'Ancient samurai kabuto', ItemRarity.EPIC, 600, False, False,
+            armor_value=15
         ),
         'propeller_hat': CustomizationItem(
             'propeller_hat', 'Propeller Hat', CustomizationCategory.HAT,
-            '🌀', 'Fun spinning propeller', ItemRarity.UNCOMMON, 150, False, False
+            '🌀', 'Fun spinning propeller', ItemRarity.UNCOMMON, 150, False, False,
+            armor_value=3
         ),
         'beret': CustomizationItem(
             'beret', 'Artist Beret', CustomizationCategory.HAT,
-            '🎨', 'French artist beret', ItemRarity.UNCOMMON, 120, False, False
+            '🎨', 'French artist beret', ItemRarity.UNCOMMON, 120, False, False,
+            armor_value=3
         ),
         'sombrero': CustomizationItem(
             'sombrero', 'Sombrero', CustomizationCategory.HAT,
-            '🌮', 'Festive wide-brim sombrero', ItemRarity.RARE, 250, False, False
+            '🌮', 'Festive wide-brim sombrero', ItemRarity.RARE, 250, False, False,
+            armor_value=8
         ),
         'firefighter_hat': CustomizationItem(
             'firefighter_hat', 'Firefighter Helmet', CustomizationCategory.HAT,
-            '🚒', 'Brave firefighter helmet', ItemRarity.RARE, 300, False, False
+            '🚒', 'Brave firefighter helmet', ItemRarity.RARE, 300, False, False,
+            armor_value=8
         ),
         'graduation_cap': CustomizationItem(
             'graduation_cap', 'Graduation Cap', CustomizationCategory.HAT,
-            '🎓', 'Academic mortarboard', ItemRarity.UNCOMMON, 180, False, False
+            '🎓', 'Academic mortarboard', ItemRarity.UNCOMMON, 180, False, False,
+            armor_value=3
         ),
         'tiara': CustomizationItem(
             'tiara', 'Princess Tiara', CustomizationCategory.HAT,
-            '👸', 'Sparkling princess tiara', ItemRarity.EPIC, 450, False, False
+            '👸', 'Sparkling princess tiara', ItemRarity.EPIC, 450, False, False,
+            armor_value=15
         ),
         'straw_hat': CustomizationItem(
             'straw_hat', 'Straw Hat', CustomizationCategory.HAT,
-            '🌾', 'Simple straw hat', ItemRarity.COMMON, 50, False, False
+            '🌾', 'Simple straw hat', ItemRarity.COMMON, 50, False, False,
+            armor_value=1
         ),
         'ice_crown': CustomizationItem(
             'ice_crown', 'Ice Crown', CustomizationCategory.HAT,
-            '❄️', 'Frozen crystal crown', ItemRarity.LEGENDARY, 1500, False, False
+            '❄️', 'Frozen crystal crown', ItemRarity.LEGENDARY, 1500, False, False,
+            armor_value=25
         ),
 
         # New Shoes - Free
         'bamboo_sandals': CustomizationItem(
             'bamboo_sandals', 'Bamboo Sandals', CustomizationCategory.SHOES,
-            '🩴', 'Traditional bamboo sandals', ItemRarity.COMMON, 0, True, False
+            '🩴', 'Traditional bamboo sandals', ItemRarity.COMMON, 0, True, False,
+            armor_value=1
         ),
         'running_shoes': CustomizationItem(
             'running_shoes', 'Running Shoes', CustomizationCategory.SHOES,
-            '🏃', 'Lightweight running shoes', ItemRarity.COMMON, 0, True, False
+            '🏃', 'Lightweight running shoes', ItemRarity.COMMON, 0, True, False,
+            armor_value=1
         ),
         'flip_flops': CustomizationItem(
             'flip_flops', 'Panda Flip Flops', CustomizationCategory.SHOES,
-            '🐾', 'Comfy panda flip flops', ItemRarity.COMMON, 0, True, False
+            '🐾', 'Comfy panda flip flops', ItemRarity.COMMON, 0, True, False,
+            armor_value=1
         ),
         # New Shoes - Achievement Rewards
         'ice_skates': CustomizationItem(
             'ice_skates', 'Ice Skates', CustomizationCategory.SHOES,
-            '⛸️', 'Graceful ice skates', ItemRarity.RARE, 0, False, False
+            '⛸️', 'Graceful ice skates', ItemRarity.RARE, 0, False, False,
+            armor_value=9
         ),
         'roller_skates': CustomizationItem(
             'roller_skates', 'Roller Skates', CustomizationCategory.SHOES,
-            '🛼', 'Retro roller skates', ItemRarity.UNCOMMON, 0, False, False
+            '🛼', 'Retro roller skates', ItemRarity.UNCOMMON, 0, False, False,
+            armor_value=4
         ),
         'ninja_tabi': CustomizationItem(
             'ninja_tabi', 'Ninja Tabi', CustomizationCategory.SHOES,
-            '🥷', 'Silent ninja footwear', ItemRarity.RARE, 0, False, False
+            '🥷', 'Silent ninja footwear', ItemRarity.RARE, 0, False, False,
+            armor_value=9
         ),
         'hiking_boots_adv': CustomizationItem(
             'hiking_boots_adv', 'Mountain Boots', CustomizationCategory.SHOES,
-            '🏔️', 'Rugged mountain hiking boots', ItemRarity.UNCOMMON, 0, False, False
+            '🏔️', 'Rugged mountain hiking boots', ItemRarity.UNCOMMON, 0, False, False,
+            armor_value=4
         ),
         'golden_shoes': CustomizationItem(
             'golden_shoes', 'Golden Shoes', CustomizationCategory.SHOES,
-            '✨', 'Dazzling golden shoes', ItemRarity.EPIC, 0, False, False
+            '✨', 'Dazzling golden shoes', ItemRarity.EPIC, 0, False, False,
+            armor_value=16
         ),
         # New Shoes - Shop
         'cowboy_boots': CustomizationItem(
             'cowboy_boots', 'Cowboy Boots', CustomizationCategory.SHOES,
-            '🤠', 'Western cowboy boots', ItemRarity.UNCOMMON, 120, False, False
+            '🤠', 'Western cowboy boots', ItemRarity.UNCOMMON, 120, False, False,
+            armor_value=4
         ),
         'ballet_shoes': CustomizationItem(
             'ballet_shoes', 'Ballet Slippers', CustomizationCategory.SHOES,
-            '🩰', 'Elegant ballet slippers', ItemRarity.RARE, 250, False, False
+            '🩰', 'Elegant ballet slippers', ItemRarity.RARE, 250, False, False,
+            armor_value=9
         ),
         'moon_boots': CustomizationItem(
             'moon_boots', 'Moon Boots', CustomizationCategory.SHOES,
-            '🌙', 'Anti-gravity moon boots', ItemRarity.EPIC, 500, False, False
+            '🌙', 'Anti-gravity moon boots', ItemRarity.EPIC, 500, False, False,
+            armor_value=16
         ),
         'platform_shoes': CustomizationItem(
             'platform_shoes', 'Platform Shoes', CustomizationCategory.SHOES,
-            '📐', 'Groovy platform shoes', ItemRarity.UNCOMMON, 150, False, False
+            '📐', 'Groovy platform shoes', ItemRarity.UNCOMMON, 150, False, False,
+            armor_value=4
         ),
         'ski_boots': CustomizationItem(
             'ski_boots', 'Ski Boots', CustomizationCategory.SHOES,
-            '⛷️', 'Mountain ski boots', ItemRarity.RARE, 280, False, False
+            '⛷️', 'Mountain ski boots', ItemRarity.RARE, 280, False, False,
+            armor_value=9
         ),
         'glass_slippers': CustomizationItem(
             'glass_slippers', 'Glass Slippers', CustomizationCategory.SHOES,
-            '💎', 'Fairy tale glass slippers', ItemRarity.EPIC, 600, False, False
+            '💎', 'Fairy tale glass slippers', ItemRarity.EPIC, 600, False, False,
+            armor_value=16
         ),
         'steel_boots': CustomizationItem(
             'steel_boots', 'Steel Boots', CustomizationCategory.SHOES,
-            '🛡️', 'Heavy armored steel boots', ItemRarity.RARE, 350, False, False
+            '🛡️', 'Heavy armored steel boots', ItemRarity.RARE, 350, False, False,
+            armor_value=9
         ),
         'neon_kicks': CustomizationItem(
             'neon_kicks', 'Neon Kicks', CustomizationCategory.SHOES,
-            '💡', 'Light-up neon sneakers', ItemRarity.UNCOMMON, 180, False, False
+            '💡', 'Light-up neon sneakers', ItemRarity.UNCOMMON, 180, False, False,
+            armor_value=4
         ),
         'bunny_slippers_new': CustomizationItem(
             'bunny_slippers_new', 'Bunny Slippers', CustomizationCategory.SHOES,
-            '🐰', 'Adorable bunny slippers', ItemRarity.COMMON, 60, False, False
+            '🐰', 'Adorable bunny slippers', ItemRarity.COMMON, 60, False, False,
+            armor_value=1
         ),
         'lava_boots': CustomizationItem(
             'lava_boots', 'Lava Boots', CustomizationCategory.SHOES,
-            '🔥', 'Fireproof lava walking boots', ItemRarity.LEGENDARY, 1200, False, False
+            '🔥', 'Fireproof lava walking boots', ItemRarity.LEGENDARY, 1200, False, False,
+            armor_value=28
         ),
 
         # New Accessories - Free
@@ -1042,7 +1097,8 @@ class PandaCloset:
                 cost=item.cost,
                 unlocked=item.unlocked,
                 equipped=item.equipped,
-                clothing_type=item.clothing_type
+                clothing_type=item.clothing_type,
+                armor_value=item.armor_value
             )
     
     def get_item(self, item_id: str) -> Optional[CustomizationItem]:

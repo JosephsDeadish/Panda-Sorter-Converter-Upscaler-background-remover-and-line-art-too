@@ -1719,6 +1719,474 @@ _PANDA_TOOLTIPS = {
             "Completion percentage. Like a loading screen but for achievements.",
         ]
     },
+    'upscale_button': {
+        'normal': [
+            "Start batch upscaling all images in the input folder",
+            "Begin the upscaling process for your selected textures",
+            "Click to upscale all queued images at the chosen scale factor",
+            "Launch the batch upscale operation on your texture files",
+        ],
+        'vulgar': [
+            "SMASH this button to make your tiny textures less embarrassingly small.",
+            "Hit it! Time to blow up those pixels like a panda sitting on bubblewrap.",
+            "Upscale button: because your textures called and they want more pixels.",
+            "Click to embiggen. Yes, embiggen. The panda said it, deal with it.",
+        ]
+    },
+    'upscale_input': {
+        'normal': [
+            "Select the folder containing images to upscale",
+            "Browse for the input directory with your source textures",
+            "Choose which folder of textures to upscale",
+            "Pick the directory with images you want to enlarge",
+        ],
+        'vulgar': [
+            "Point me to the sad little textures that need a growth spurt.",
+            "Select the folder of shame — er, I mean 'source images.'",
+            "Where are the tiny textures? Show the panda where they hide.",
+            "Pick a folder. Any folder. As long as it has pictures in it, genius.",
+        ]
+    },
+    'upscale_zip_input': {
+        'normal': [
+            "Select a ZIP archive containing images to upscale",
+            "Browse for a compressed archive of source textures",
+            "Choose a ZIP file with textures to enlarge",
+        ],
+        'vulgar': [
+            "Got a ZIP? Unzip it with your mind. Just kidding, click the button.",
+            "Select a ZIP full of tiny textures. The panda will unpack the rest.",
+            "ZIP input: for when your textures are all bundled up like a panda burrito.",
+        ]
+    },
+    'upscale_output': {
+        'normal': [
+            "Select where upscaled images will be saved",
+            "Choose the output directory for enlarged textures",
+            "Pick the destination folder for your upscaled files",
+            "Browse for the folder to save upscaled results",
+        ],
+        'vulgar': [
+            "Where should the beefy new textures go? Pick a folder, any folder.",
+            "Output folder: the new home for your freshly inflated pixels.",
+            "Choose a destination. Preferably not the recycling bin this time.",
+            "Select output. The panda needs to know where to dump the goods.",
+        ]
+    },
+    'upscale_factor': {
+        'normal': [
+            "Choose the scale multiplier: 2x, 4x, or 8x enlargement",
+            "Set how much to enlarge your textures (2x, 4x, or 8x)",
+            "Select the upscale factor for your images",
+            "Pick the size multiplier for the upscaling operation",
+        ],
+        'vulgar': [
+            "How big? 2x for polite, 4x for serious, 8x for absolute madlad.",
+            "Scale factor: the 'how chonky do you want it' slider.",
+            "Pick your multiplier. The panda recommends 8x because go big or go home.",
+            "2x is fine, 4x is better, 8x is what a true panda connoisseur picks.",
+        ]
+    },
+    'upscale_style': {
+        'normal': [
+            "Choose the resampling filter: Lanczos, Bicubic, Bilinear, or Nearest",
+            "Select which interpolation algorithm to use for upscaling",
+            "Pick a resample filter style for the best quality results",
+        ],
+        'vulgar': [
+            "Lanczos: fancy. Bicubic: also fancy. Nearest: pixel art vibes. Choose wisely.",
+            "Resample filter: the math behind making your textures look less potato.",
+            "Pick a filter. The panda recommends Lanczos because it sounds like a pasta.",
+        ]
+    },
+    'upscale_format': {
+        'normal': [
+            "Choose the export format: PNG, BMP, JPEG, or TIFF",
+            "Select the output file format for upscaled textures",
+            "Pick which image format to save the upscaled results as",
+        ],
+        'vulgar': [
+            "PNG for the pros, BMP for the old school, JPEG for the chaos agents.",
+            "Export format: choose your fighter. PNG is the panda's favorite.",
+            "Pick a format. If you pick JPEG, the panda will judge you silently.",
+        ]
+    },
+    'upscale_alpha': {
+        'normal': [
+            "Preserve transparency (alpha channel) during upscaling",
+            "Keep alpha channel intact when enlarging textures",
+            "Toggle whether transparent areas are maintained after upscaling",
+        ],
+        'vulgar': [
+            "Keep your transparency! Unlike the panda, who has nothing to hide.",
+            "Alpha channel: so your textures stay see-through where they should be.",
+            "Preserve alpha. Because nobody wants surprise opaque pixels.",
+        ]
+    },
+    'upscale_recursive': {
+        'normal': [
+            "Include images in all subdirectories when upscaling",
+            "Recursively scan subfolders for images to upscale",
+            "Process textures in nested folders, not just the top level",
+        ],
+        'vulgar': [
+            "Check this to dig through ALL the subfolders. The panda is thorough.",
+            "Recursive mode: because sometimes your textures hide in subfolders like shy pandas.",
+            "Go deep. Real deep. Into every subfolder. The panda leaves no pixel behind.",
+        ]
+    },
+    'upscale_zip_output': {
+        'normal': [
+            "Save all upscaled images into a ZIP archive",
+            "Compress the output into a single ZIP file",
+            "Bundle upscaled results into a ZIP for easy sharing",
+        ],
+        'vulgar': [
+            "ZIP it up! Literally. The panda loves a tidy package.",
+            "Compress output into a ZIP. Marie Kondo would be proud.",
+            "Save as ZIP: because 500 loose files spark zero joy.",
+        ]
+    },
+    'upscale_send_organizer': {
+        'normal': [
+            "Send upscaled images to the Sort Textures tab when done",
+            "Automatically load results into the texture organizer after upscaling",
+            "Forward upscaled files to the sorting workflow",
+        ],
+        'vulgar': [
+            "Yeet the results straight to the organizer. Efficiency, baby!",
+            "Send to organizer: one-click pipeline. The panda approves this workflow.",
+            "Auto-send to sorting. Because copy-pasting paths is for peasants.",
+        ]
+    },
+    'upscale_preview': {
+        'normal': [
+            "Preview a single file before batch upscaling",
+            "See a before/after comparison of one image",
+            "Test the upscale settings on one file first",
+            "Preview how your settings affect an individual texture",
+        ],
+        'vulgar': [
+            "Peek before you leap. Preview one file so you don't ruin everything.",
+            "Test drive on a single file. Smart move, unlike that 8x JPEG idea.",
+            "Preview: because the panda believes in 'try before you cry.'",
+            "See what happens to ONE texture before you commit to the whole batch.",
+        ]
+    },
+    'upscale_fb_good': {
+        'normal': [
+            "Rate this upscale result as good quality",
+            "Mark this upscaled texture as a successful result",
+            "Give positive feedback on the upscaling output",
+        ],
+        'vulgar': [
+            "Thumbs up! The panda is pleased with your pixel approval.",
+            "Good upscale! Give it a gold star. The panda is beaming.",
+            "Click if the upscale doesn't look like it was done by a drunk panda.",
+        ]
+    },
+    'upscale_fb_bad': {
+        'normal': [
+            "Rate this upscale result as poor quality",
+            "Mark this upscaled texture as a bad result",
+            "Give negative feedback on the upscaling output",
+        ],
+        'vulgar': [
+            "Boo! Thumbs down! The panda shares your disappointment.",
+            "Bad upscale? Let us know so we can cry about it together.",
+            "Click if the result looks worse than a panda's fingerpainting.",
+        ]
+    },
+    'panda_sound_eat': {
+        'normal': [
+            "Choose the sound played when your panda eats bamboo",
+            "Select an audio clip for panda eating moments",
+            "Pick the munching sound for your panda companion",
+        ],
+        'vulgar': [
+            "Pick the nom-nom sound. The panda is a very loud eater.",
+            "Eating sounds: CHOMP CHOMP MUNCH. You're welcome.",
+            "Select your panda's dining soundtrack. Manners not included.",
+        ]
+    },
+    'panda_sound_happy': {
+        'normal': [
+            "Choose the sound played when your panda is happy",
+            "Select the audio for joyful panda moments",
+            "Pick a cheerful sound for your panda's happy mood",
+        ],
+        'vulgar': [
+            "Happy panda noises! Like a tiny bear having the best day ever.",
+            "Joy sounds. The panda is basically vibrating with happiness.",
+            "Pick the happy sound. Warning: may cause involuntary smiling.",
+        ]
+    },
+    'panda_sound_sad': {
+        'normal': [
+            "Choose the sound played when your panda is sad",
+            "Select the audio for panda sadness moments",
+            "Pick a melancholy sound for your panda's sad mood",
+        ],
+        'vulgar': [
+            "Sad panda sounds. You monster, what did you do to it?",
+            "The saddest sound in the world: a disappointed panda.",
+            "Sad noises. If you hear this, give the panda some bamboo ASAP.",
+        ]
+    },
+    'panda_sound_drag': {
+        'normal': [
+            "Choose the sound played when dragging the panda",
+            "Select audio for when the panda is being moved around",
+            "Pick the sound for dragging your panda companion",
+        ],
+        'vulgar': [
+            "Drag sound: the noise of an unwilling panda being relocated.",
+            "WHEEE—wait, no. The panda did NOT consent to being dragged.",
+            "Pick the 'I'm being kidnapped' sound. The panda is not amused.",
+        ]
+    },
+    'panda_sound_drop': {
+        'normal': [
+            "Choose the sound played when the panda is dropped",
+            "Select audio for when you release the panda after dragging",
+            "Pick the landing sound for your panda companion",
+        ],
+        'vulgar': [
+            "THUD. That's the sound of dropping a panda. Feel bad yet?",
+            "Drop sound: the gentle 'plop' of an undignified panda landing.",
+            "Select the 'you let go of me, you animal' sound effect.",
+        ]
+    },
+    'panda_sound_sleep': {
+        'normal': [
+            "Choose the sound played when your panda falls asleep",
+            "Select the snoozing audio for your panda companion",
+            "Pick the sleeping sound for nap time",
+        ],
+        'vulgar': [
+            "Zzzzz... Pick the snoring sound. The panda sleeps like a log.",
+            "Sleep sounds: choose between gentle snore and chainsaw snore.",
+            "Nap time audio. The panda is OUT. Do not disturb.",
+        ]
+    },
+    'panda_sound_wake': {
+        'normal': [
+            "Choose the sound played when your panda wakes up",
+            "Select the wake-up audio for your panda companion",
+            "Pick the morning greeting sound for your panda",
+        ],
+        'vulgar': [
+            "Wake up sound! The panda rises like a grumpy fuzzy phoenix.",
+            "Morning sounds: the panda is NOT a morning bear. Choose wisely.",
+            "Wake-up audio. Consider something gentle. The panda bites.",
+        ]
+    },
+    'panda_sound_click': {
+        'normal': [
+            "Choose the sound played when you click on the panda",
+            "Select the audio response for clicking your panda",
+            "Pick the reaction sound when tapping your panda companion",
+        ],
+        'vulgar': [
+            "Click sound: what happens when you poke a panda. Repeatedly.",
+            "Boop! You clicked the panda. It has opinions about that.",
+            "Click reaction noise. The panda tolerates your poking. Barely.",
+        ]
+    },
+    'panda_sound_pet': {
+        'normal': [
+            "Choose the sound played when petting the panda",
+            "Select the audio for gentle panda petting moments",
+            "Pick the purring sound for when you pet your panda",
+        ],
+        'vulgar': [
+            "Pet sounds: the panda purrs like a furry little motorboat.",
+            "Aww, you're petting it! Pick a sound worthy of this tender moment.",
+            "Petting audio. The panda is melting into a puddle of fluff.",
+        ]
+    },
+    'panda_sound_play': {
+        'normal': [
+            "Choose the sound played when your panda is playing",
+            "Select the audio for panda playtime activities",
+            "Pick the playful sound for your active panda companion",
+        ],
+        'vulgar': [
+            "Play sounds! The panda is rolling around like a fluffy bowling ball.",
+            "Playtime audio: chaos in sound form. The panda has the zoomies.",
+            "Pick the play sound. The panda is HYPER and there's no stopping it.",
+        ]
+    },
+    'panda_sound_walk': {
+        'normal': [
+            "Choose the sound played when the panda walks around",
+            "Select the footstep audio for your wandering panda",
+            "Pick the walking sound for panda movement",
+        ],
+        'vulgar': [
+            "Waddle waddle waddle. Pick the panda's walking soundtrack.",
+            "Footstep sounds: pitter-patter of chunky panda feet.",
+            "Walking audio. The panda struts. It doesn't walk, it STRUTS.",
+        ]
+    },
+    'panda_sound_jump': {
+        'normal': [
+            "Choose the sound played when your panda jumps",
+            "Select the audio for panda jumping moments",
+            "Pick the bounce sound for your leaping panda",
+        ],
+        'vulgar': [
+            "BOING! The panda defies gravity! Pick the launch sound.",
+            "Jump audio: proof that round bears can achieve liftoff.",
+            "Pick the jump sound. Physics weeps. The panda soars.",
+        ]
+    },
+    'panda_sound_dance': {
+        'normal': [
+            "Choose the sound played when your panda dances",
+            "Select the music for panda dance moves",
+            "Pick the groove sound for your dancing panda companion",
+        ],
+        'vulgar': [
+            "Dance music! The panda's got moves you wouldn't believe.",
+            "Boogie time audio. The panda dances like nobody's watching.",
+            "Pick the dance sound. Warning: may cause spontaneous panda twerking.",
+        ]
+    },
+    'panda_sound_sneeze': {
+        'normal': [
+            "Choose the sound played when your panda sneezes",
+            "Select the sneeze audio for your panda companion",
+            "Pick the achoo sound for sneezing moments",
+        ],
+        'vulgar': [
+            "ACHOO! The cutest, most violent sneeze in nature. Pick one.",
+            "Sneeze sound: the panda just blew itself backwards. Classic.",
+            "Pick the sneeze audio. Baby panda sneezes break the internet.",
+        ]
+    },
+    'panda_sound_yawn': {
+        'normal': [
+            "Choose the sound played when your panda yawns",
+            "Select the yawning audio for your sleepy panda",
+            "Pick the yawn sound for tired panda moments",
+        ],
+        'vulgar': [
+            "YAAAWN. The panda is bored of your texture sorting. Just kidding.",
+            "Yawn sound: the panda's way of saying 'I need a nap, human.'",
+            "Pick the yawn audio. It's contagious. You're yawning now, aren't you?",
+        ]
+    },
+    'sound_selection_system': {
+        'normal': [
+            "Configure system-wide sound effects for UI interactions",
+            "Manage audio settings for application events like clicks and alerts",
+            "Customize the sounds used for system notifications and actions",
+        ],
+        'vulgar': [
+            "System sounds: beeps, boops, and dings. Customize the cacophony.",
+            "Pick your system sounds. Make every click a tiny celebration.",
+            "Audio settings for the app itself. Make it sound like a spaceship if you want.",
+        ]
+    },
+    'sound_selection_panda': {
+        'normal': [
+            "Configure sounds for all panda companion actions",
+            "Manage audio settings for your panda's various behaviors",
+            "Customize the sounds your panda makes during interactions",
+        ],
+        'vulgar': [
+            "Panda sound central: where you decide what noises your bear makes.",
+            "All the panda sounds in one place. It's a furry symphony.",
+            "Customize your panda's entire vocal repertoire. Go nuts.",
+        ]
+    },
+    'ai_feedback_bad': {
+        'normal': [
+            "Mark this AI suggestion as incorrect to improve future accuracy",
+            "Give negative feedback on the AI's category classification",
+            "Tell the AI this sorting suggestion was wrong",
+            "Flag this classification as a bad result for AI learning",
+        ],
+        'vulgar': [
+            "Slap the AI with a thumbs down. It can take it. Probably.",
+            "Bad AI! No biscuit! Click to teach it a lesson.",
+            "The AI got it wrong? Shocking. Click to add to its shame file.",
+            "Negative feedback: because even AI needs to know when it's being dumb.",
+        ]
+    },
+    'ai_feedback_retry': {
+        'normal': [
+            "Ask the AI to try classifying this texture again",
+            "Retry the AI classification with a fresh attempt",
+            "Re-run the AI sorting suggestion for this item",
+        ],
+        'vulgar': [
+            "Try again, robot! The panda believes in second chances.",
+            "Retry: because the AI's first attempt was... creative, let's say.",
+            "Give the AI another shot. Maybe it was having an off day.",
+        ]
+    },
+    'ai_export_training': {
+        'normal': [
+            "Export your AI training data to share with others",
+            "Save your accumulated AI feedback corrections to a file",
+            "Download the training data the AI has learned from your usage",
+        ],
+        'vulgar': [
+            "Export your AI's brain to a file. It's less creepy than it sounds.",
+            "Save the AI training data. Share your panda's wisdom with the world.",
+            "Download the AI's learned corrections. It's like a report card, but for robots.",
+        ]
+    },
+    'ai_import_training': {
+        'normal': [
+            "Import AI training data from another user or backup",
+            "Load previously exported AI feedback corrections",
+            "Restore AI learning data from a shared training file",
+        ],
+        'vulgar': [
+            "Import someone else's AI training. Steal their panda's homework!",
+            "Load training data. Give your AI a brain transplant.",
+            "Import AI corrections. It's like downloading experience points for your robot.",
+        ]
+    },
+    'travel_hub': {
+        'normal': [
+            "Access the Travel Hub to explore different game worlds",
+            "Open the hub for traveling between themed environments",
+            "Visit the Travel Hub to discover new locations",
+        ],
+        'vulgar': [
+            "Travel Hub: where the panda goes on vacation. Pack your bamboo.",
+            "Explore new worlds! The panda is ready for adventure. Are you?",
+            "Open the Travel Hub. The panda has wanderlust and zero chill.",
+        ]
+    },
+    'armory_tab': {
+        'normal': [
+            "View and manage your collected equipment and gear",
+            "Open the Armory to browse your inventory items",
+            "Access your collection of unlocked armory items",
+        ],
+        'vulgar': [
+            "The Armory: where the panda suits up for battle. Or nap time.",
+            "Check your gear! The panda has been hoarding equipment like a dragon.",
+            "Open the Armory. The panda needs to accessorize.",
+        ]
+    },
+    'battle_arena': {
+        'normal': [
+            "Enter the Battle Arena for panda combat challenges",
+            "Open the arena to participate in battles and earn rewards",
+            "Access the Battle Arena for competitive panda encounters",
+        ],
+        'vulgar': [
+            "BATTLE ARENA! The panda is ready to throw paws! Let's GO!",
+            "Enter the arena. Two pandas enter, one panda leaves... with more bamboo.",
+            "Battle time! The panda has been training. Mostly by eating, but still.",
+        ]
+    },
 }
 
 
@@ -1884,14 +2352,57 @@ class TutorialManager:
                 arrow_direction="down"
             ),
             TutorialStep(
+                title="Step 6: Image Upscaler Tool 🔍",
+                message=(
+                    "Need bigger textures? The Image Upscaler has you covered!\n\n"
+                    "Features:\n"
+                    "• Batch upscale with 6 quality filters (Lanczos, Bicubic, etc.)\n"
+                    "• Scale 2x, 4x, or 8x — preserves alpha channels\n"
+                    "• Import from and export to ZIP archives\n"
+                    "• Live before/after preview\n"
+                    "• Send results straight to the Sort Textures tab\n\n"
+                    "Find it under 🔧 Tools → 🔍 Image Upscaler"
+                ),
+                target_widget=None,
+                celebration=False
+            ),
+            TutorialStep(
+                title="Step 7: Sound & Audio Settings 🔊",
+                message=(
+                    "Customize every sound in the app!\n\n"
+                    "• Choose different sounds for system events (clicks, alerts)\n"
+                    "• Select unique sounds for each panda action\n"
+                    "• Purchase premium sound packs in the Shop\n"
+                    "• Test sounds before applying them\n\n"
+                    "Access via Settings → Customization → 🔊 Sound tab"
+                ),
+                target_widget=None,
+                celebration=False
+            ),
+            TutorialStep(
+                title="Step 8: AI Learning & Feedback 🧠",
+                message=(
+                    "The AI gets smarter the more you use it!\n\n"
+                    "• Give 👎 feedback on bad suggestions to improve accuracy\n"
+                    "• The AI learns when you change its category picks\n"
+                    "• Export/Import training data to share with others\n"
+                    "• Each correction makes future sorting better\n\n"
+                    "Find AI settings in the Settings → AI tab"
+                ),
+                target_widget=None,
+                celebration=False
+            ),
+            TutorialStep(
                 title="You're All Set! 🎉",
                 message=(
                     "Congratulations! You're ready to start sorting textures!\n\n"
                     "Quick Tips:\n"
                     "• Press F1 anytime for context-sensitive help\n"
                     "• Check the Achievements tab for fun challenges\n"
-                    "• Use the Notepad tab for project notes\n"
-                    "• Explore Settings for customization options\n\n"
+                    "• Use the Image Upscaler to enhance low-res textures\n"
+                    "• Customize sounds in Settings → Sound\n"
+                    "• Give AI feedback to improve sorting accuracy\n"
+                    "• Use the Notepad tab for project notes\n\n"
                     "Need help? Click the ❓ button in the menu bar!\n\n"
                     "Happy sorting! 🐼"
                 ),

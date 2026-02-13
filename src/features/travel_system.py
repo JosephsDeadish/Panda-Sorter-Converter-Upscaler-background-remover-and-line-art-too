@@ -21,6 +21,36 @@ class LocationType(Enum):
     BOSS_ROOM = "boss_room"
 
 
+class TravelSceneType(Enum):
+    """Scene types shown during travel animation."""
+    WALK_TO_CAR = "walk_to_car"
+    GET_IN_CAR = "get_in_car"
+    DRIVING_GRASSLAND = "driving_grassland"
+    DRIVING_DESERT = "driving_desert"
+    DRIVING_FOREST = "driving_forest"
+    DRIVING_MOUNTAINS = "driving_mountains"
+    DRIVING_SNOW = "driving_snow"
+    DRIVING_CITY = "driving_city"
+    DRIVING_COAST = "driving_coast"
+    DRIVING_NIGHT = "driving_night"
+    ARRIVE = "arrive"
+
+
+@dataclass
+class TravelScene:
+    """A single scene in a travel animation sequence."""
+    scene_type: TravelSceneType
+    duration_ms: int  # How long this scene plays (milliseconds)
+    description: str  # Text shown during scene
+    # Drawing hints for the UI renderer
+    sky_color: str = "#87CEEB"      # Sky background color
+    ground_color: str = "#7CFC00"   # Ground/road-side color
+    road_color: str = "#555555"     # Road surface color
+    detail_color: str = "#228B22"   # Trees/cacti/buildings accent color
+    detail_emoji: str = "🌿"       # Decorative items along road
+    weather: str = "clear"          # clear, cloudy, rain, snow, night
+
+
 class DungeonDifficulty(Enum):
     """Dungeon difficulty levels."""
     EASY = "easy"
@@ -381,3 +411,120 @@ class TravelSystem:
             'room_type': current_room.room_type if current_room else 'unknown',
             'is_complete': self.current_dungeon.is_complete()
         }
+    
+    # -- Mapping from destination to the driving scenes shown en route --
+    LOCATION_SCENES: Dict[str, List[TravelSceneType]] = {
+        'home': [TravelSceneType.DRIVING_CITY],
+        'easy_dungeon': [TravelSceneType.DRIVING_GRASSLAND, TravelSceneType.DRIVING_FOREST],
+        'normal_dungeon': [TravelSceneType.DRIVING_FOREST, TravelSceneType.DRIVING_MOUNTAINS],
+        'hard_dungeon': [TravelSceneType.DRIVING_DESERT, TravelSceneType.DRIVING_MOUNTAINS],
+        'extreme_dungeon': [TravelSceneType.DRIVING_MOUNTAINS, TravelSceneType.DRIVING_SNOW,
+                            TravelSceneType.DRIVING_NIGHT],
+    }
+
+    # Visual properties for each driving scene type
+    SCENE_STYLES: Dict[TravelSceneType, Dict] = {
+        TravelSceneType.WALK_TO_CAR: {
+            'sky_color': '#87CEEB', 'ground_color': '#7CFC00', 'road_color': '#888888',
+            'detail_color': '#228B22', 'detail_emoji': '🏠', 'weather': 'clear',
+        },
+        TravelSceneType.GET_IN_CAR: {
+            'sky_color': '#87CEEB', 'ground_color': '#7CFC00', 'road_color': '#888888',
+            'detail_color': '#228B22', 'detail_emoji': '🚗', 'weather': 'clear',
+        },
+        TravelSceneType.DRIVING_GRASSLAND: {
+            'sky_color': '#87CEEB', 'ground_color': '#7CFC00', 'road_color': '#555555',
+            'detail_color': '#32CD32', 'detail_emoji': '🌾', 'weather': 'clear',
+        },
+        TravelSceneType.DRIVING_DESERT: {
+            'sky_color': '#F0E68C', 'ground_color': '#EDC9AF', 'road_color': '#C2B280',
+            'detail_color': '#8B7355', 'detail_emoji': '🌵', 'weather': 'clear',
+        },
+        TravelSceneType.DRIVING_FOREST: {
+            'sky_color': '#87CEEB', 'ground_color': '#228B22', 'road_color': '#6B4226',
+            'detail_color': '#006400', 'detail_emoji': '🌲', 'weather': 'clear',
+        },
+        TravelSceneType.DRIVING_MOUNTAINS: {
+            'sky_color': '#B0C4DE', 'ground_color': '#808080', 'road_color': '#696969',
+            'detail_color': '#A9A9A9', 'detail_emoji': '⛰️', 'weather': 'cloudy',
+        },
+        TravelSceneType.DRIVING_SNOW: {
+            'sky_color': '#D3D3D3', 'ground_color': '#FFFAFA', 'road_color': '#B0C4DE',
+            'detail_color': '#ADD8E6', 'detail_emoji': '❄️', 'weather': 'snow',
+        },
+        TravelSceneType.DRIVING_CITY: {
+            'sky_color': '#87CEEB', 'ground_color': '#A9A9A9', 'road_color': '#404040',
+            'detail_color': '#696969', 'detail_emoji': '🏢', 'weather': 'clear',
+        },
+        TravelSceneType.DRIVING_COAST: {
+            'sky_color': '#87CEEB', 'ground_color': '#F5DEB3', 'road_color': '#C2B280',
+            'detail_color': '#4682B4', 'detail_emoji': '🌊', 'weather': 'clear',
+        },
+        TravelSceneType.DRIVING_NIGHT: {
+            'sky_color': '#191970', 'ground_color': '#2F4F4F', 'road_color': '#333333',
+            'detail_color': '#4B0082', 'detail_emoji': '🌙', 'weather': 'night',
+        },
+        TravelSceneType.ARRIVE: {
+            'sky_color': '#87CEEB', 'ground_color': '#7CFC00', 'road_color': '#555555',
+            'detail_color': '#228B22', 'detail_emoji': '📍', 'weather': 'clear',
+        },
+    }
+
+    def get_travel_sequence(self, destination_id: str) -> List[TravelScene]:
+        """
+        Build the full animation sequence for traveling to a destination.
+        
+        Returns a list of TravelScene objects the UI can step through to
+        animate the panda walking to a car, driving through varied scenery,
+        and arriving at the destination.
+        """
+        destination = self.locations.get(destination_id)
+        if not destination:
+            return []
+
+        scenes: List[TravelScene] = []
+
+        # 1. Walk to car
+        walk_style = self.SCENE_STYLES[TravelSceneType.WALK_TO_CAR]
+        scenes.append(TravelScene(
+            scene_type=TravelSceneType.WALK_TO_CAR,
+            duration_ms=1500,
+            description="Walking to the car...",
+            **walk_style,
+        ))
+
+        # 2. Get in car
+        enter_style = self.SCENE_STYLES[TravelSceneType.GET_IN_CAR]
+        scenes.append(TravelScene(
+            scene_type=TravelSceneType.GET_IN_CAR,
+            duration_ms=1200,
+            description="Hopping in!",
+            **enter_style,
+        ))
+
+        # 3. Driving scenes (location-specific)
+        driving_types = self.LOCATION_SCENES.get(
+            destination_id,
+            [TravelSceneType.DRIVING_GRASSLAND],  # fallback
+        )
+        for scene_type in driving_types:
+            style = self.SCENE_STYLES.get(scene_type,
+                                          self.SCENE_STYLES[TravelSceneType.DRIVING_GRASSLAND])
+            scenes.append(TravelScene(
+                scene_type=scene_type,
+                duration_ms=2000,
+                description=f"Driving through the {scene_type.value.replace('driving_', '')}...",
+                **style,
+            ))
+
+        # 4. Arrive
+        arrive_style = dict(self.SCENE_STYLES[TravelSceneType.ARRIVE])
+        arrive_style = {**arrive_style, 'detail_emoji': destination.icon}
+        scenes.append(TravelScene(
+            scene_type=TravelSceneType.ARRIVE,
+            duration_ms=1500,
+            description=f"Arrived at {destination.name}!",
+            **arrive_style,
+        ))
+
+        return scenes

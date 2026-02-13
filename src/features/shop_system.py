@@ -31,6 +31,7 @@ class ShopCategory(Enum):
     FOOD = "food"
     TOYS = "toys"
     WEAPONS = "weapons"  # New category for weapons
+    SOUNDS = "sounds"
     FUR_STYLES = "fur_styles"
     FUR_COLORS = "fur_colors"
 
@@ -60,6 +61,7 @@ class ShopItem:
     level_required: int = 1
     one_time_purchase: bool = True
     unlockable_id: Optional[str] = None  # Links to unlockables system
+    subcategory: str = ""  # Used for weapon type sub-tabs
 
 
 class ShopSystem:
@@ -2175,7 +2177,8 @@ class ShopSystem:
             icon='🗡️',
             level_required=1,
             one_time_purchase=True,
-            unlockable_id='wooden_sword'
+            unlockable_id='wooden_sword',
+            subcategory='melee'
         ),
         'weapon_bamboo_staff': ShopItem(
             id='weapon_bamboo_staff',
@@ -2186,7 +2189,8 @@ class ShopSystem:
             icon='🎋',
             level_required=1,
             one_time_purchase=True,
-            unlockable_id='bamboo_staff'
+            unlockable_id='bamboo_staff',
+            subcategory='melee'
         ),
         'weapon_iron_sword': ShopItem(
             id='weapon_iron_sword',
@@ -2197,7 +2201,8 @@ class ShopSystem:
             icon='⚔️',
             level_required=5,
             one_time_purchase=True,
-            unlockable_id='iron_sword'
+            unlockable_id='iron_sword',
+            subcategory='melee'
         ),
         'weapon_katana': ShopItem(
             id='weapon_katana',
@@ -2208,7 +2213,8 @@ class ShopSystem:
             icon='🗡️',
             level_required=10,
             one_time_purchase=True,
-            unlockable_id='katana'
+            unlockable_id='katana',
+            subcategory='melee'
         ),
         
         # Weapons - Ranged
@@ -2221,7 +2227,8 @@ class ShopSystem:
             icon='🏹',
             level_required=1,
             one_time_purchase=True,
-            unlockable_id='slingshot'
+            unlockable_id='slingshot',
+            subcategory='ranged'
         ),
         'weapon_bow': ShopItem(
             id='weapon_bow',
@@ -2232,7 +2239,8 @@ class ShopSystem:
             icon='🏹',
             level_required=5,
             one_time_purchase=True,
-            unlockable_id='bow'
+            unlockable_id='bow',
+            subcategory='ranged'
         ),
         
         # Weapons - Magic
@@ -2245,8 +2253,1311 @@ class ShopSystem:
             icon='🪄',
             level_required=5,
             one_time_purchase=True,
-            unlockable_id='magic_wand'
+            unlockable_id='magic_wand',
+            subcategory='magic'
         ),
+        
+        # Melee Weapons - Common
+        'weapon_rusty_dagger': ShopItem(
+            id='weapon_rusty_dagger',
+            name='Rusty Dagger',
+            description='A corroded dagger found in a forgotten dungeon',
+            category=ShopCategory.WEAPONS,
+            price=135,
+            icon='🔪',
+            level_required=1,
+            one_time_purchase=True,
+            unlockable_id='rusty_dagger',
+            subcategory='melee'
+        ),
+        'weapon_stone_club': ShopItem(
+            id='weapon_stone_club',
+            name='Stone Club',
+            description='A heavy club carved from solid stone',
+            category=ShopCategory.WEAPONS,
+            price=160,
+            icon='🪨',
+            level_required=1,
+            one_time_purchase=True,
+            unlockable_id='stone_club',
+            subcategory='melee'
+        ),
+        'weapon_bone_knife': ShopItem(
+            id='weapon_bone_knife',
+            name='Bone Knife',
+            description='A jagged knife fashioned from animal bone',
+            category=ShopCategory.WEAPONS,
+            price=145,
+            icon='🦴',
+            level_required=1,
+            one_time_purchase=True,
+            unlockable_id='bone_knife',
+            subcategory='melee'
+        ),
+        'weapon_flint_hatchet': ShopItem(
+            id='weapon_flint_hatchet',
+            name='Flint Hatchet',
+            description='A primitive hatchet with a sharp flint edge',
+            category=ShopCategory.WEAPONS,
+            price=140,
+            icon='🪓',
+            level_required=1,
+            one_time_purchase=True,
+            unlockable_id='flint_hatchet',
+            subcategory='melee'
+        ),
+        'weapon_bronze_shortsword': ShopItem(
+            id='weapon_bronze_shortsword',
+            name='Bronze Shortsword',
+            description='A small but reliable bronze blade',
+            category=ShopCategory.WEAPONS,
+            price=155,
+            icon='🗡️',
+            level_required=2,
+            one_time_purchase=True,
+            unlockable_id='bronze_shortsword',
+            subcategory='melee'
+        ),
+        'weapon_wooden_mallet': ShopItem(
+            id='weapon_wooden_mallet',
+            name='Wooden Mallet',
+            description='A sturdy mallet used by carpenters and warriors alike',
+            category=ShopCategory.WEAPONS,
+            price=170,
+            icon='🔨',
+            level_required=2,
+            one_time_purchase=True,
+            unlockable_id='wooden_mallet',
+            subcategory='melee'
+        ),
+        'weapon_copper_axe': ShopItem(
+            id='weapon_copper_axe',
+            name='Copper Axe',
+            description='A simple axe with a dull copper head',
+            category=ShopCategory.WEAPONS,
+            price=165,
+            icon='🪓',
+            level_required=2,
+            one_time_purchase=True,
+            unlockable_id='copper_axe',
+            subcategory='melee'
+        ),
+        'weapon_training_spear': ShopItem(
+            id='weapon_training_spear',
+            name='Training Spear',
+            description='A blunted spear for sparring practice',
+            category=ShopCategory.WEAPONS,
+            price=150,
+            icon='🔱',
+            level_required=3,
+            one_time_purchase=True,
+            unlockable_id='training_spear',
+            subcategory='melee'
+        ),
+
+        # Melee Weapons - Uncommon
+        'weapon_oak_quarterstaff': ShopItem(
+            id='weapon_oak_quarterstaff',
+            name='Oak Quarterstaff',
+            description='A reinforced quarterstaff of ancient oak',
+            category=ShopCategory.WEAPONS,
+            price=390,
+            icon='🥢',
+            level_required=3,
+            one_time_purchase=True,
+            unlockable_id='oak_quarterstaff',
+            subcategory='melee'
+        ),
+        'weapon_steel_longsword': ShopItem(
+            id='weapon_steel_longsword',
+            name='Steel Longsword',
+            description='A well-forged longsword of tempered steel',
+            category=ShopCategory.WEAPONS,
+            price=400,
+            icon='⚔️',
+            level_required=4,
+            one_time_purchase=True,
+            unlockable_id='steel_longsword',
+            subcategory='melee'
+        ),
+        'weapon_silver_rapier': ShopItem(
+            id='weapon_silver_rapier',
+            name='Silver Rapier',
+            description='An elegant thrusting sword with a silver blade',
+            category=ShopCategory.WEAPONS,
+            price=385,
+            icon='🗡️',
+            level_required=4,
+            one_time_purchase=True,
+            unlockable_id='silver_rapier',
+            subcategory='melee'
+        ),
+        'weapon_poison_dagger': ShopItem(
+            id='weapon_poison_dagger',
+            name='Poison Dagger',
+            description='A dagger coated with a venomous toxin',
+            category=ShopCategory.WEAPONS,
+            price=380,
+            icon='🔪',
+            level_required=4,
+            one_time_purchase=True,
+            unlockable_id='poison_dagger',
+            subcategory='melee'
+        ),
+        'weapon_iron_battleaxe': ShopItem(
+            id='weapon_iron_battleaxe',
+            name='Iron Battleaxe',
+            description='A heavy two-handed battleaxe that cleaves through armor',
+            category=ShopCategory.WEAPONS,
+            price=425,
+            icon='🪓',
+            level_required=5,
+            one_time_purchase=True,
+            unlockable_id='iron_battleaxe',
+            subcategory='melee'
+        ),
+        'weapon_barbed_flail': ShopItem(
+            id='weapon_barbed_flail',
+            name='Barbed Flail',
+            description='A spiked ball on a chain that tears through defenses',
+            category=ShopCategory.WEAPONS,
+            price=410,
+            icon='⛓️',
+            level_required=5,
+            one_time_purchase=True,
+            unlockable_id='barbed_flail',
+            subcategory='melee'
+        ),
+        'weapon_war_hammer': ShopItem(
+            id='weapon_war_hammer',
+            name='War Hammer',
+            description='A massive hammer that crushes bones on impact',
+            category=ShopCategory.WEAPONS,
+            price=440,
+            icon='🔨',
+            level_required=6,
+            one_time_purchase=True,
+            unlockable_id='war_hammer',
+            subcategory='melee'
+        ),
+        'weapon_spiked_mace': ShopItem(
+            id='weapon_spiked_mace',
+            name='Spiked Mace',
+            description='A heavy mace covered in iron spikes',
+            category=ShopCategory.WEAPONS,
+            price=420,
+            icon='🔨',
+            level_required=6,
+            one_time_purchase=True,
+            unlockable_id='spiked_mace',
+            subcategory='melee'
+        ),
+        'weapon_granite_warhammer': ShopItem(
+            id='weapon_granite_warhammer',
+            name='Granite Warhammer',
+            description='A warhammer hewn from solid granite, devastatingly heavy',
+            category=ShopCategory.WEAPONS,
+            price=430,
+            icon='🔨',
+            level_required=6,
+            one_time_purchase=True,
+            unlockable_id='granite_warhammer',
+            subcategory='melee'
+        ),
+        'weapon_steel_halberd': ShopItem(
+            id='weapon_steel_halberd',
+            name='Steel Halberd',
+            description='A polearm combining an axe blade with a spear tip',
+            category=ShopCategory.WEAPONS,
+            price=415,
+            icon='⚔️',
+            level_required=7,
+            one_time_purchase=True,
+            unlockable_id='steel_halberd',
+            subcategory='melee'
+        ),
+
+        # Melee Weapons - Rare
+        'weapon_shadowsteel_dagger': ShopItem(
+            id='weapon_shadowsteel_dagger',
+            name='Shadowsteel Dagger',
+            description='A dagger forged from ore found only in the deepest shadows',
+            category=ShopCategory.WEAPONS,
+            price=860,
+            icon='🔪',
+            level_required=7,
+            one_time_purchase=True,
+            unlockable_id='shadowsteel_dagger',
+            subcategory='melee'
+        ),
+        'weapon_flamebrand_sword': ShopItem(
+            id='weapon_flamebrand_sword',
+            name='Flamebrand Sword',
+            description='A blade wreathed in eternal flames',
+            category=ShopCategory.WEAPONS,
+            price=890,
+            icon='🔥',
+            level_required=8,
+            one_time_purchase=True,
+            unlockable_id='flamebrand_sword',
+            subcategory='melee'
+        ),
+        'weapon_moonlit_scimitar': ShopItem(
+            id='weapon_moonlit_scimitar',
+            name='Moonlit Scimitar',
+            description='A curved blade that glows under moonlight',
+            category=ShopCategory.WEAPONS,
+            price=875,
+            icon='🌙',
+            level_required=8,
+            one_time_purchase=True,
+            unlockable_id='moonlit_scimitar',
+            subcategory='melee'
+        ),
+        'weapon_frostbite_axe': ShopItem(
+            id='weapon_frostbite_axe',
+            name='Frostbite Axe',
+            description='An axe forged from enchanted ice that never melts',
+            category=ShopCategory.WEAPONS,
+            price=910,
+            icon='❄️',
+            level_required=9,
+            one_time_purchase=True,
+            unlockable_id='frostbite_axe',
+            subcategory='melee'
+        ),
+        'weapon_venomfang_spear': ShopItem(
+            id='weapon_venomfang_spear',
+            name='Venomfang Spear',
+            description='A spear tipped with a deadly serpent fang',
+            category=ShopCategory.WEAPONS,
+            price=880,
+            icon='🐍',
+            level_required=9,
+            one_time_purchase=True,
+            unlockable_id='venomfang_spear',
+            subcategory='melee'
+        ),
+        'weapon_thunder_maul': ShopItem(
+            id='weapon_thunder_maul',
+            name='Thunder Maul',
+            description='A massive maul that crackles with lightning',
+            category=ShopCategory.WEAPONS,
+            price=940,
+            icon='⚡',
+            level_required=10,
+            one_time_purchase=True,
+            unlockable_id='thunder_maul',
+            subcategory='melee'
+        ),
+        'weapon_coral_trident': ShopItem(
+            id='weapon_coral_trident',
+            name='Coral Trident',
+            description='A trident grown from living coral, blessed by the sea',
+            category=ShopCategory.WEAPONS,
+            price=900,
+            icon='🔱',
+            level_required=10,
+            one_time_purchase=True,
+            unlockable_id='coral_trident',
+            subcategory='melee'
+        ),
+        'weapon_windcutter_blade': ShopItem(
+            id='weapon_windcutter_blade',
+            name='Windcutter Blade',
+            description='A razor-thin blade that cuts through the air itself',
+            category=ShopCategory.WEAPONS,
+            price=870,
+            icon='🌬️',
+            level_required=11,
+            one_time_purchase=True,
+            unlockable_id='windcutter_blade',
+            subcategory='melee'
+        ),
+
+        # Melee Weapons - Epic
+        'weapon_emerald_falchion': ShopItem(
+            id='weapon_emerald_falchion',
+            name='Emerald Falchion',
+            description='A curved blade set with emeralds that pulse with nature magic',
+            category=ShopCategory.WEAPONS,
+            price=1790,
+            icon='🌿',
+            level_required=12,
+            one_time_purchase=True,
+            unlockable_id='emerald_falchion',
+            subcategory='melee'
+        ),
+        'weapon_phoenix_glaive': ShopItem(
+            id='weapon_phoenix_glaive',
+            name='Phoenix Glaive',
+            description='A glaive reborn in phoenix fire, blazing with power',
+            category=ShopCategory.WEAPONS,
+            price=1800,
+            icon='🔥',
+            level_required=13,
+            one_time_purchase=True,
+            unlockable_id='phoenix_glaive',
+            subcategory='melee'
+        ),
+        'weapon_dragons_fang': ShopItem(
+            id='weapon_dragons_fang',
+            name='Dragon\'s Fang',
+            description='A legendary blade forged from a dragon tooth',
+            category=ShopCategory.WEAPONS,
+            price=1825,
+            icon='🐉',
+            level_required=14,
+            one_time_purchase=True,
+            unlockable_id='dragons_fang',
+            subcategory='melee'
+        ),
+        'weapon_void_scythe': ShopItem(
+            id='weapon_void_scythe',
+            name='Void Scythe',
+            description='A scythe that rends the fabric of reality',
+            category=ShopCategory.WEAPONS,
+            price=1840,
+            icon='💀',
+            level_required=15,
+            one_time_purchase=True,
+            unlockable_id='void_scythe',
+            subcategory='melee'
+        ),
+        'weapon_obsidian_warblade': ShopItem(
+            id='weapon_obsidian_warblade',
+            name='Obsidian Warblade',
+            description='A jet-black blade of volcanic glass, impossibly sharp',
+            category=ShopCategory.WEAPONS,
+            price=1850,
+            icon='🖤',
+            level_required=15,
+            one_time_purchase=True,
+            unlockable_id='obsidian_warblade',
+            subcategory='melee'
+        ),
+        'weapon_abyssal_cleaver': ShopItem(
+            id='weapon_abyssal_cleaver',
+            name='Abyssal Cleaver',
+            description='A massive blade pulled from the ocean abyss',
+            category=ShopCategory.WEAPONS,
+            price=1875,
+            icon='🌊',
+            level_required=16,
+            one_time_purchase=True,
+            unlockable_id='abyssal_cleaver',
+            subcategory='melee'
+        ),
+        'weapon_stormbreaker_axe': ShopItem(
+            id='weapon_stormbreaker_axe',
+            name='Stormbreaker Axe',
+            description='An axe infused with the fury of a thousand storms',
+            category=ShopCategory.WEAPONS,
+            price=1860,
+            icon='⚡',
+            level_required=16,
+            one_time_purchase=True,
+            unlockable_id='stormbreaker_axe',
+            subcategory='melee'
+        ),
+        'weapon_titans_hammer': ShopItem(
+            id='weapon_titans_hammer',
+            name='Titan\'s Hammer',
+            description='An enormous hammer once wielded by ancient titans',
+            category=ShopCategory.WEAPONS,
+            price=1890,
+            icon='🔨',
+            level_required=17,
+            one_time_purchase=True,
+            unlockable_id='titans_hammer',
+            subcategory='melee'
+        ),
+
+        # Melee Weapons - Legendary
+        'weapon_eternal_katana': ShopItem(
+            id='weapon_eternal_katana',
+            name='Eternal Katana',
+            description='A katana folded ten thousand times, never dulled',
+            category=ShopCategory.WEAPONS,
+            price=3450,
+            icon='⚔️',
+            level_required=19,
+            one_time_purchase=True,
+            unlockable_id='eternal_katana',
+            subcategory='melee'
+        ),
+        'weapon_celestial_halberd': ShopItem(
+            id='weapon_celestial_halberd',
+            name='Celestial Halberd',
+            description='A halberd blessed by the stars themselves',
+            category=ShopCategory.WEAPONS,
+            price=3500,
+            icon='🌟',
+            level_required=20,
+            one_time_purchase=True,
+            unlockable_id='celestial_halberd',
+            subcategory='melee'
+        ),
+        'weapon_soul_reaper': ShopItem(
+            id='weapon_soul_reaper',
+            name='Soul Reaper',
+            description='A scythe that harvests the very essence of fallen foes',
+            category=ShopCategory.WEAPONS,
+            price=3475,
+            icon='💀',
+            level_required=20,
+            one_time_purchase=True,
+            unlockable_id='soul_reaper',
+            subcategory='melee'
+        ),
+        'weapon_excalibur': ShopItem(
+            id='weapon_excalibur',
+            name='Excalibur',
+            description='The legendary sword of kings, pulled from the stone',
+            category=ShopCategory.WEAPONS,
+            price=3550,
+            icon='👑',
+            level_required=22,
+            one_time_purchase=True,
+            unlockable_id='excalibur',
+            subcategory='melee'
+        ),
+        'weapon_suns_fury_mace': ShopItem(
+            id='weapon_suns_fury_mace',
+            name='Sun\'s Fury Mace',
+            description='A radiant mace burning with the power of the sun',
+            category=ShopCategory.WEAPONS,
+            price=3525,
+            icon='☀️',
+            level_required=23,
+            one_time_purchase=True,
+            unlockable_id='suns_fury_mace',
+            subcategory='melee'
+        ),
+        'weapon_worldsplitter_axe': ShopItem(
+            id='weapon_worldsplitter_axe',
+            name='Worldsplitter Axe',
+            description='An axe so powerful it can split the earth in two',
+            category=ShopCategory.WEAPONS,
+            price=3575,
+            icon='🪓',
+            level_required=24,
+            one_time_purchase=True,
+            unlockable_id='worldsplitter_axe',
+            subcategory='melee'
+        ),
+        'weapon_ragnarok_blade': ShopItem(
+            id='weapon_ragnarok_blade',
+            name='Ragnarok Blade',
+            description='A world-ending sword forged at the end of days',
+            category=ShopCategory.WEAPONS,
+            price=3600,
+            icon='⭐',
+            level_required=25,
+            one_time_purchase=True,
+            unlockable_id='ragnarok_blade',
+            subcategory='melee'
+        ),
+
+        # Ranged Weapons - Common
+        'weapon_short_bow': ShopItem(
+            id='weapon_short_bow',
+            name='Short Bow',
+            description='A small bow suited for beginners',
+            category=ShopCategory.WEAPONS,
+            price=140,
+            icon='🏹',
+            level_required=1,
+            one_time_purchase=True,
+            unlockable_id='short_bow',
+            subcategory='ranged'
+        ),
+        'weapon_pebble_sling': ShopItem(
+            id='weapon_pebble_sling',
+            name='Pebble Sling',
+            description='A crude sling that hurls small pebbles',
+            category=ShopCategory.WEAPONS,
+            price=130,
+            icon='🪨',
+            level_required=1,
+            one_time_purchase=True,
+            unlockable_id='pebble_sling',
+            subcategory='ranged'
+        ),
+        'weapon_throwing_rocks': ShopItem(
+            id='weapon_throwing_rocks',
+            name='Throwing Rocks',
+            description='A pouch of smooth rocks, perfect for throwing',
+            category=ShopCategory.WEAPONS,
+            price=135,
+            icon='🪨',
+            level_required=1,
+            one_time_purchase=True,
+            unlockable_id='throwing_rocks',
+            subcategory='ranged'
+        ),
+        'weapon_wooden_crossbow': ShopItem(
+            id='weapon_wooden_crossbow',
+            name='Wooden Crossbow',
+            description='A simple crossbow made from planks and rope',
+            category=ShopCategory.WEAPONS,
+            price=160,
+            icon='🏹',
+            level_required=2,
+            one_time_purchase=True,
+            unlockable_id='wooden_crossbow',
+            subcategory='ranged'
+        ),
+        'weapon_reed_blowgun': ShopItem(
+            id='weapon_reed_blowgun',
+            name='Reed Blowgun',
+            description='A hollow reed used to fire tiny darts',
+            category=ShopCategory.WEAPONS,
+            price=125,
+            icon='🎯',
+            level_required=2,
+            one_time_purchase=True,
+            unlockable_id='reed_blowgun',
+            subcategory='ranged'
+        ),
+        'weapon_bamboo_dart_shooter': ShopItem(
+            id='weapon_bamboo_dart_shooter',
+            name='Bamboo Dart Shooter',
+            description='A bamboo tube that launches feathered darts',
+            category=ShopCategory.WEAPONS,
+            price=145,
+            icon='🎋',
+            level_required=3,
+            one_time_purchase=True,
+            unlockable_id='bamboo_dart_shooter',
+            subcategory='ranged'
+        ),
+
+        # Ranged Weapons - Uncommon
+        'weapon_shuriken_set': ShopItem(
+            id='weapon_shuriken_set',
+            name='Shuriken Set',
+            description='A collection of razor-sharp throwing stars',
+            category=ShopCategory.WEAPONS,
+            price=375,
+            icon='⭐',
+            level_required=3,
+            one_time_purchase=True,
+            unlockable_id='shuriken_set',
+            subcategory='ranged'
+        ),
+        'weapon_hunters_longbow': ShopItem(
+            id='weapon_hunters_longbow',
+            name='Hunter\'s Longbow',
+            description='A powerful longbow favored by wilderness hunters',
+            category=ShopCategory.WEAPONS,
+            price=400,
+            icon='🏹',
+            level_required=4,
+            one_time_purchase=True,
+            unlockable_id='hunters_longbow',
+            subcategory='ranged'
+        ),
+        'weapon_throwing_knives': ShopItem(
+            id='weapon_throwing_knives',
+            name='Throwing Knives',
+            description='A set of balanced knives designed for precise throws',
+            category=ShopCategory.WEAPONS,
+            price=380,
+            icon='🔪',
+            level_required=4,
+            one_time_purchase=True,
+            unlockable_id='throwing_knives',
+            subcategory='ranged'
+        ),
+        'weapon_iron_crossbow': ShopItem(
+            id='weapon_iron_crossbow',
+            name='Iron Crossbow',
+            description='A sturdy crossbow with an iron frame and strong draw',
+            category=ShopCategory.WEAPONS,
+            price=420,
+            icon='🏹',
+            level_required=5,
+            one_time_purchase=True,
+            unlockable_id='iron_crossbow',
+            subcategory='ranged'
+        ),
+        'weapon_steel_javelin': ShopItem(
+            id='weapon_steel_javelin',
+            name='Steel Javelin',
+            description='A javelin with a hardened steel tip for piercing armor',
+            category=ShopCategory.WEAPONS,
+            price=410,
+            icon='🎯',
+            level_required=5,
+            one_time_purchase=True,
+            unlockable_id='steel_javelin',
+            subcategory='ranged'
+        ),
+        'weapon_poison_blowgun': ShopItem(
+            id='weapon_poison_blowgun',
+            name='Poison Blowgun',
+            description='A blowgun loaded with poison-tipped darts',
+            category=ShopCategory.WEAPONS,
+            price=390,
+            icon='🐍',
+            level_required=6,
+            one_time_purchase=True,
+            unlockable_id='poison_blowgun',
+            subcategory='ranged'
+        ),
+
+        # Ranged Weapons - Rare
+        'weapon_boomerang_blade': ShopItem(
+            id='weapon_boomerang_blade',
+            name='Boomerang Blade',
+            description='A bladed boomerang that returns after striking',
+            category=ShopCategory.WEAPONS,
+            price=865,
+            icon='🪃',
+            level_required=7,
+            one_time_purchase=True,
+            unlockable_id='boomerang_blade',
+            subcategory='ranged'
+        ),
+        'weapon_gale_force_bow': ShopItem(
+            id='weapon_gale_force_bow',
+            name='Gale Force Bow',
+            description='A bow that harnesses the wind to accelerate arrows',
+            category=ShopCategory.WEAPONS,
+            price=890,
+            icon='🌬️',
+            level_required=8,
+            one_time_purchase=True,
+            unlockable_id='gale_force_bow',
+            subcategory='ranged'
+        ),
+        'weapon_ice_shard_stars': ShopItem(
+            id='weapon_ice_shard_stars',
+            name='Ice Shard Stars',
+            description='Throwing stars carved from enchanted ice crystals',
+            category=ShopCategory.WEAPONS,
+            price=875,
+            icon='❄️',
+            level_required=8,
+            one_time_purchase=True,
+            unlockable_id='ice_shard_stars',
+            subcategory='ranged'
+        ),
+        'weapon_repeating_crossbow': ShopItem(
+            id='weapon_repeating_crossbow',
+            name='Repeating Crossbow',
+            description='A mechanical crossbow that fires bolts in rapid succession',
+            category=ShopCategory.WEAPONS,
+            price=850,
+            icon='🏹',
+            level_required=9,
+            one_time_purchase=True,
+            unlockable_id='repeating_crossbow',
+            subcategory='ranged'
+        ),
+        'weapon_serpent_fang_bow': ShopItem(
+            id='weapon_serpent_fang_bow',
+            name='Serpent Fang Bow',
+            description='A bow strung with enchanted serpent sinew',
+            category=ShopCategory.WEAPONS,
+            price=885,
+            icon='🐍',
+            level_required=9,
+            one_time_purchase=True,
+            unlockable_id='serpent_fang_bow',
+            subcategory='ranged'
+        ),
+        'weapon_lightning_javelin': ShopItem(
+            id='weapon_lightning_javelin',
+            name='Lightning Javelin',
+            description='A javelin that crackles with electric energy',
+            category=ShopCategory.WEAPONS,
+            price=910,
+            icon='⚡',
+            level_required=10,
+            one_time_purchase=True,
+            unlockable_id='lightning_javelin',
+            subcategory='ranged'
+        ),
+        'weapon_flame_arrow_bow': ShopItem(
+            id='weapon_flame_arrow_bow',
+            name='Flame Arrow Bow',
+            description='A bow that ignites arrows as they are drawn',
+            category=ShopCategory.WEAPONS,
+            price=900,
+            icon='🔥',
+            level_required=11,
+            one_time_purchase=True,
+            unlockable_id='flame_arrow_bow',
+            subcategory='ranged'
+        ),
+
+        # Ranged Weapons - Epic
+        'weapon_tempest_shurikens': ShopItem(
+            id='weapon_tempest_shurikens',
+            name='Tempest Shurikens',
+            description='Storm-infused throwing stars that leave lightning trails',
+            category=ShopCategory.WEAPONS,
+            price=1760,
+            icon='🌪️',
+            level_required=12,
+            one_time_purchase=True,
+            unlockable_id='tempest_shurikens',
+            subcategory='ranged'
+        ),
+        'weapon_phantom_crossbow': ShopItem(
+            id='weapon_phantom_crossbow',
+            name='Phantom Crossbow',
+            description='A ghostly crossbow that fires spectral bolts',
+            category=ShopCategory.WEAPONS,
+            price=1775,
+            icon='👻',
+            level_required=13,
+            one_time_purchase=True,
+            unlockable_id='phantom_crossbow',
+            subcategory='ranged'
+        ),
+        'weapon_dragons_breath_bow': ShopItem(
+            id='weapon_dragons_breath_bow',
+            name='Dragon\'s Breath Bow',
+            description='A bow that shoots arrows wreathed in dragonfire',
+            category=ShopCategory.WEAPONS,
+            price=1810,
+            icon='🐉',
+            level_required=14,
+            one_time_purchase=True,
+            unlockable_id='dragons_breath_bow',
+            subcategory='ranged'
+        ),
+        'weapon_voidstrike_javelin': ShopItem(
+            id='weapon_voidstrike_javelin',
+            name='Voidstrike Javelin',
+            description='A javelin that pierces through dimensions',
+            category=ShopCategory.WEAPONS,
+            price=1850,
+            icon='🌀',
+            level_required=16,
+            one_time_purchase=True,
+            unlockable_id='voidstrike_javelin',
+            subcategory='ranged'
+        ),
+        'weapon_solar_flare_bow': ShopItem(
+            id='weapon_solar_flare_bow',
+            name='Solar Flare Bow',
+            description='A bow that channels the raw energy of solar flares',
+            category=ShopCategory.WEAPONS,
+            price=1830,
+            icon='☀️',
+            level_required=17,
+            one_time_purchase=True,
+            unlockable_id='solar_flare_bow',
+            subcategory='ranged'
+        ),
+
+        # Ranged Weapons - Legendary
+        'weapon_heavens_javelin': ShopItem(
+            id='weapon_heavens_javelin',
+            name='Heaven\'s Javelin',
+            description='A holy javelin forged in celestial light',
+            category=ShopCategory.WEAPONS,
+            price=3475,
+            icon='✨',
+            level_required=20,
+            one_time_purchase=True,
+            unlockable_id='heavens_javelin',
+            subcategory='ranged'
+        ),
+        'weapon_starfall_bow': ShopItem(
+            id='weapon_starfall_bow',
+            name='Starfall Bow',
+            description='A divine bow that rains down stars upon enemies',
+            category=ShopCategory.WEAPONS,
+            price=3500,
+            icon='🌟',
+            level_required=21,
+            one_time_purchase=True,
+            unlockable_id='starfall_bow',
+            subcategory='ranged'
+        ),
+        'weapon_oblivion_crossbow': ShopItem(
+            id='weapon_oblivion_crossbow',
+            name='Oblivion Crossbow',
+            description='A crossbow that fires bolts of pure annihilation',
+            category=ShopCategory.WEAPONS,
+            price=3550,
+            icon='💀',
+            level_required=23,
+            one_time_purchase=True,
+            unlockable_id='oblivion_crossbow',
+            subcategory='ranged'
+        ),
+        'weapon_galaxys_edge_bow': ShopItem(
+            id='weapon_galaxys_edge_bow',
+            name='Galaxy\'s Edge Bow',
+            description='A bow strung with cosmic energy from the edge of the galaxy',
+            category=ShopCategory.WEAPONS,
+            price=3575,
+            icon='🌌',
+            level_required=25,
+            one_time_purchase=True,
+            unlockable_id='galaxys_edge_bow',
+            subcategory='ranged'
+        ),
+
+        # Magic Weapons - Common
+        'weapon_apprentice_wand': ShopItem(
+            id='weapon_apprentice_wand',
+            name='Apprentice Wand',
+            description='A simple wand given to magic students',
+            category=ShopCategory.WEAPONS,
+            price=140,
+            icon='🪄',
+            level_required=1,
+            one_time_purchase=True,
+            unlockable_id='apprentice_wand',
+            subcategory='magic'
+        ),
+        'weapon_spark_stone': ShopItem(
+            id='weapon_spark_stone',
+            name='Spark Stone',
+            description='A small stone that emits faint magical sparks',
+            category=ShopCategory.WEAPONS,
+            price=130,
+            icon='💎',
+            level_required=1,
+            one_time_purchase=True,
+            unlockable_id='spark_stone',
+            subcategory='magic'
+        ),
+        'weapon_herb_charm': ShopItem(
+            id='weapon_herb_charm',
+            name='Herb Charm',
+            description='A bundle of enchanted herbs that channels nature magic',
+            category=ShopCategory.WEAPONS,
+            price=135,
+            icon='🌿',
+            level_required=1,
+            one_time_purchase=True,
+            unlockable_id='herb_charm',
+            subcategory='magic'
+        ),
+        'weapon_glowing_pebble': ShopItem(
+            id='weapon_glowing_pebble',
+            name='Glowing Pebble',
+            description='A luminous pebble pulsing with minor enchantment',
+            category=ShopCategory.WEAPONS,
+            price=125,
+            icon='✨',
+            level_required=1,
+            one_time_purchase=True,
+            unlockable_id='glowing_pebble',
+            subcategory='magic'
+        ),
+        'weapon_wooden_tome': ShopItem(
+            id='weapon_wooden_tome',
+            name='Wooden Tome',
+            description='A beginner spellbook bound in simple wood',
+            category=ShopCategory.WEAPONS,
+            price=150,
+            icon='📖',
+            level_required=2,
+            one_time_purchase=True,
+            unlockable_id='wooden_tome',
+            subcategory='magic'
+        ),
+        'weapon_runic_twig': ShopItem(
+            id='weapon_runic_twig',
+            name='Runic Twig',
+            description='A twig carved with faintly glowing runes',
+            category=ShopCategory.WEAPONS,
+            price=145,
+            icon='🪄',
+            level_required=2,
+            one_time_purchase=True,
+            unlockable_id='runic_twig',
+            subcategory='magic'
+        ),
+
+        # Magic Weapons - Uncommon
+        'weapon_amethyst_crystal': ShopItem(
+            id='weapon_amethyst_crystal',
+            name='Amethyst Crystal',
+            description='A purple crystal that amplifies magical energy',
+            category=ShopCategory.WEAPONS,
+            price=390,
+            icon='💎',
+            level_required=3,
+            one_time_purchase=True,
+            unlockable_id='amethyst_crystal',
+            subcategory='magic'
+        ),
+        'weapon_flame_staff': ShopItem(
+            id='weapon_flame_staff',
+            name='Flame Staff',
+            description='A staff crowned with an ever-burning flame',
+            category=ShopCategory.WEAPONS,
+            price=410,
+            icon='🔥',
+            level_required=4,
+            one_time_purchase=True,
+            unlockable_id='flame_staff',
+            subcategory='magic'
+        ),
+        'weapon_frost_orb': ShopItem(
+            id='weapon_frost_orb',
+            name='Frost Orb',
+            description='A frozen sphere that channels blizzard magic',
+            category=ShopCategory.WEAPONS,
+            price=400,
+            icon='❄️',
+            level_required=4,
+            one_time_purchase=True,
+            unlockable_id='frost_orb',
+            subcategory='magic'
+        ),
+        'weapon_enchanted_tome': ShopItem(
+            id='weapon_enchanted_tome',
+            name='Enchanted Tome',
+            description='A spellbook filled with intermediate incantations',
+            category=ShopCategory.WEAPONS,
+            price=425,
+            icon='📖',
+            level_required=5,
+            one_time_purchase=True,
+            unlockable_id='enchanted_tome',
+            subcategory='magic'
+        ),
+        'weapon_serpent_amulet': ShopItem(
+            id='weapon_serpent_amulet',
+            name='Serpent Amulet',
+            description='An amulet shaped like a coiled serpent that spits venom magic',
+            category=ShopCategory.WEAPONS,
+            price=395,
+            icon='🐍',
+            level_required=5,
+            one_time_purchase=True,
+            unlockable_id='serpent_amulet',
+            subcategory='magic'
+        ),
+        'weapon_moonstone_wand': ShopItem(
+            id='weapon_moonstone_wand',
+            name='Moonstone Wand',
+            description='A wand tipped with a lustrous moonstone',
+            category=ShopCategory.WEAPONS,
+            price=405,
+            icon='🌙',
+            level_required=6,
+            one_time_purchase=True,
+            unlockable_id='moonstone_wand',
+            subcategory='magic'
+        ),
+
+        # Magic Weapons - Rare
+        'weapon_verdant_totem': ShopItem(
+            id='weapon_verdant_totem',
+            name='Verdant Totem',
+            description='A totem carved from a living tree, pulsing with nature magic',
+            category=ShopCategory.WEAPONS,
+            price=875,
+            icon='🌿',
+            level_required=7,
+            one_time_purchase=True,
+            unlockable_id='verdant_totem',
+            subcategory='magic'
+        ),
+        'weapon_crystal_prism': ShopItem(
+            id='weapon_crystal_prism',
+            name='Crystal Prism',
+            description='A prism that refracts magical energy into devastating beams',
+            category=ShopCategory.WEAPONS,
+            price=890,
+            icon='💎',
+            level_required=8,
+            one_time_purchase=True,
+            unlockable_id='crystal_prism',
+            subcategory='magic'
+        ),
+        'weapon_stormcaller_staff': ShopItem(
+            id='weapon_stormcaller_staff',
+            name='Stormcaller Staff',
+            description='A staff that summons bolts of lightning from storm clouds',
+            category=ShopCategory.WEAPONS,
+            price=900,
+            icon='⚡',
+            level_required=9,
+            one_time_purchase=True,
+            unlockable_id='stormcaller_staff',
+            subcategory='magic'
+        ),
+        'weapon_shadow_grimoire': ShopItem(
+            id='weapon_shadow_grimoire',
+            name='Shadow Grimoire',
+            description='A dark tome containing forbidden shadow spells',
+            category=ShopCategory.WEAPONS,
+            price=925,
+            icon='📖',
+            level_required=10,
+            one_time_purchase=True,
+            unlockable_id='shadow_grimoire',
+            subcategory='magic'
+        ),
+        'weapon_tidal_scepter': ShopItem(
+            id='weapon_tidal_scepter',
+            name='Tidal Scepter',
+            description='A scepter that commands the power of ocean tides',
+            category=ShopCategory.WEAPONS,
+            price=910,
+            icon='🌊',
+            level_required=10,
+            one_time_purchase=True,
+            unlockable_id='tidal_scepter',
+            subcategory='magic'
+        ),
+        'weapon_inferno_orb': ShopItem(
+            id='weapon_inferno_orb',
+            name='Inferno Orb',
+            description='A blazing orb of concentrated fire magic',
+            category=ShopCategory.WEAPONS,
+            price=940,
+            icon='🔥',
+            level_required=11,
+            one_time_purchase=True,
+            unlockable_id='inferno_orb',
+            subcategory='magic'
+        ),
+
+        # Magic Weapons - Epic
+        'weapon_phoenix_feather_wand': ShopItem(
+            id='weapon_phoenix_feather_wand',
+            name='Phoenix Feather Wand',
+            description='A wand crafted around a genuine phoenix feather',
+            category=ShopCategory.WEAPONS,
+            price=1790,
+            icon='🪶',
+            level_required=13,
+            one_time_purchase=True,
+            unlockable_id='phoenix_feather_wand',
+            subcategory='magic'
+        ),
+        'weapon_arcane_codex': ShopItem(
+            id='weapon_arcane_codex',
+            name='Arcane Codex',
+            description='An ancient codex containing the secrets of arcane mastery',
+            category=ShopCategory.WEAPONS,
+            price=1825,
+            icon='📖',
+            level_required=14,
+            one_time_purchase=True,
+            unlockable_id='arcane_codex',
+            subcategory='magic'
+        ),
+        'weapon_aurora_staff': ShopItem(
+            id='weapon_aurora_staff',
+            name='Aurora Staff',
+            description='A staff that channels the shimmering energy of the northern lights',
+            category=ShopCategory.WEAPONS,
+            price=1800,
+            icon='🌈',
+            level_required=14,
+            one_time_purchase=True,
+            unlockable_id='aurora_staff',
+            subcategory='magic'
+        ),
+        'weapon_eclipse_amulet': ShopItem(
+            id='weapon_eclipse_amulet',
+            name='Eclipse Amulet',
+            description='An amulet that draws power from solar eclipses',
+            category=ShopCategory.WEAPONS,
+            price=1810,
+            icon='🌑',
+            level_required=15,
+            one_time_purchase=True,
+            unlockable_id='eclipse_amulet',
+            subcategory='magic'
+        ),
+        'weapon_ethereal_lantern': ShopItem(
+            id='weapon_ethereal_lantern',
+            name='Ethereal Lantern',
+            description='A ghostly lantern that channels spirits into destructive magic',
+            category=ShopCategory.WEAPONS,
+            price=1820,
+            icon='🏮',
+            level_required=15,
+            one_time_purchase=True,
+            unlockable_id='ethereal_lantern',
+            subcategory='magic'
+        ),
+        'weapon_void_crystal': ShopItem(
+            id='weapon_void_crystal',
+            name='Void Crystal',
+            description='A crystal of pure void energy that warps reality',
+            category=ShopCategory.WEAPONS,
+            price=1850,
+            icon='🔮',
+            level_required=16,
+            one_time_purchase=True,
+            unlockable_id='void_crystal',
+            subcategory='magic'
+        ),
+        'weapon_necromancers_skull': ShopItem(
+            id='weapon_necromancers_skull',
+            name='Necromancer\'s Skull',
+            description='A skull that channels dark necromantic energy',
+            category=ShopCategory.WEAPONS,
+            price=1875,
+            icon='💀',
+            level_required=17,
+            one_time_purchase=True,
+            unlockable_id='necromancers_skull',
+            subcategory='magic'
+        ),
+
+        # Magic Weapons - Legendary
+        'weapon_chrono_amulet': ShopItem(
+            id='weapon_chrono_amulet',
+            name='Chrono Amulet',
+            description='An amulet that bends time to devastate enemies',
+            category=ShopCategory.WEAPONS,
+            price=3475,
+            icon='⏳',
+            level_required=19,
+            one_time_purchase=True,
+            unlockable_id='chrono_amulet',
+            subcategory='magic'
+        ),
+        'weapon_philosophers_stone': ShopItem(
+            id='weapon_philosophers_stone',
+            name='Philosopher\'s Stone',
+            description='The mythical stone of ultimate transmutation and power',
+            category=ShopCategory.WEAPONS,
+            price=3500,
+            icon='💎',
+            level_required=21,
+            one_time_purchase=True,
+            unlockable_id='philosophers_stone',
+            subcategory='magic'
+        ),
+        'weapon_cosmic_scepter': ShopItem(
+            id='weapon_cosmic_scepter',
+            name='Cosmic Scepter',
+            description='A scepter that commands the forces of the cosmos',
+            category=ShopCategory.WEAPONS,
+            price=3525,
+            icon='🌌',
+            level_required=22,
+            one_time_purchase=True,
+            unlockable_id='cosmic_scepter',
+            subcategory='magic'
+        ),
+        'weapon_divinity_staff': ShopItem(
+            id='weapon_divinity_staff',
+            name='Divinity Staff',
+            description='A staff said to have been wielded by the gods themselves',
+            category=ShopCategory.WEAPONS,
+            price=3550,
+            icon='👑',
+            level_required=23,
+            one_time_purchase=True,
+            unlockable_id='divinity_staff',
+            subcategory='magic'
+        ),
+        'weapon_book_of_eternity': ShopItem(
+            id='weapon_book_of_eternity',
+            name='Book of Eternity',
+            description='A tome containing every spell ever written across all time',
+            category=ShopCategory.WEAPONS,
+            price=3575,
+            icon='📖',
+            level_required=24,
+            one_time_purchase=True,
+            unlockable_id='book_of_eternity',
+            subcategory='magic'
+        ),
+        'weapon_astral_orb': ShopItem(
+            id='weapon_astral_orb',
+            name='Astral Orb',
+            description='An orb containing a miniature galaxy of pure magical energy',
+            category=ShopCategory.WEAPONS,
+            price=3600,
+            icon='🔮',
+            level_required=25,
+            one_time_purchase=True,
+            unlockable_id='astral_orb',
+            subcategory='magic'
+        ),
+        # === Sound Packs (purchasable) ===
+        'sound_retro_pack': ShopItem(
+            id='sound_retro_pack', name='Retro Sound Pack',
+            description='8-bit chiptune sounds for all system events',
+            category=ShopCategory.SOUNDS, price=150, icon='🎮',
+            subcategory='system'),
+        'sound_nature_pack': ShopItem(
+            id='sound_nature_pack', name='Nature Sound Pack',
+            description='Forest and nature ambient sounds',
+            category=ShopCategory.SOUNDS, price=200, icon='🌿',
+            subcategory='system'),
+        'sound_scifi_pack': ShopItem(
+            id='sound_scifi_pack', name='Sci-Fi Sound Pack',
+            description='Futuristic sci-fi UI sounds',
+            category=ShopCategory.SOUNDS, price=200, icon='🚀',
+            subcategory='system'),
+        'sound_musical_pack': ShopItem(
+            id='sound_musical_pack', name='Musical Sound Pack',
+            description='Musical instrument sounds for events',
+            category=ShopCategory.SOUNDS, price=250, icon='🎵',
+            subcategory='system'),
+        'sound_cute_pack': ShopItem(
+            id='sound_cute_pack', name='Cute Sound Pack',
+            description='Adorable kawaii-style sound effects',
+            category=ShopCategory.SOUNDS, price=175, icon='🌸',
+            subcategory='system'),
+        'sound_dramatic_pack': ShopItem(
+            id='sound_dramatic_pack', name='Dramatic Sound Pack',
+            description='Over-the-top dramatic sound effects',
+            category=ShopCategory.SOUNDS, price=300, icon='🎭',
+            subcategory='system'),
+        'sound_ocean_pack': ShopItem(
+            id='sound_ocean_pack', name='Ocean Sound Pack',
+            description='Calming ocean and water themed sounds',
+            category=ShopCategory.SOUNDS, price=175, icon='🌊',
+            subcategory='system'),
+        'sound_comedy_pack': ShopItem(
+            id='sound_comedy_pack', name='Comedy Sound Pack',
+            description='Funny cartoon sound effects',
+            category=ShopCategory.SOUNDS, price=200, icon='🤡',
+            subcategory='system'),
+        # Panda-specific sound packs
+        'panda_sound_baby_pack': ShopItem(
+            id='panda_sound_baby_pack', name='Baby Panda Sounds',
+            description='Cute baby panda vocalizations for your panda pal',
+            category=ShopCategory.SOUNDS, price=250, icon='🐼',
+            subcategory='panda'),
+        'panda_sound_wild_pack': ShopItem(
+            id='panda_sound_wild_pack', name='Wild Panda Sounds',
+            description='Realistic wild panda sounds from nature',
+            category=ShopCategory.SOUNDS, price=300, icon='🎋',
+            subcategory='panda'),
+        'panda_sound_silly_pack': ShopItem(
+            id='panda_sound_silly_pack', name='Silly Panda Sounds',
+            description='Goofy and silly sounds for your panda',
+            category=ShopCategory.SOUNDS, price=200, icon='🤪',
+            subcategory='panda'),
+        'panda_sound_anime_pack': ShopItem(
+            id='panda_sound_anime_pack', name='Anime Panda Sounds',
+            description='Anime-style vocal reactions for your panda',
+            category=ShopCategory.SOUNDS, price=350, icon='✨',
+            subcategory='panda'),
+        'panda_sound_robot_pack': ShopItem(
+            id='panda_sound_robot_pack', name='Robot Panda Sounds',
+            description='Mechanical robot sounds for a cyber panda',
+            category=ShopCategory.SOUNDS, price=275, icon='🤖',
+            subcategory='panda'),
+        'panda_sound_asmr_pack': ShopItem(
+            id='panda_sound_asmr_pack', name='ASMR Panda Sounds',
+            description='Soothing ASMR-style sounds for relaxation',
+            category=ShopCategory.SOUNDS, price=225, icon='🎧',
+            subcategory='panda'),
     }
     
     def __init__(self, save_path: Optional[Path] = None):

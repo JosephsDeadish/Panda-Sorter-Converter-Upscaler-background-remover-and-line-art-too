@@ -16,8 +16,9 @@ from enum import Enum
 
 logger = logging.getLogger(__name__)
 
-# Resolve the sounds directory relative to this file
-_SOUNDS_DIR = Path(__file__).resolve().parent.parent / "resources" / "sounds"
+# Resolve the sounds directory via the centralized path helper
+from src.config import get_resource_path
+_SOUNDS_DIR = get_resource_path("sounds")
 
 # Platform-specific sound imports
 SOUND_AVAILABLE = False
@@ -54,6 +55,22 @@ class SoundEvent(Enum):
     STOP = "stop"
     BUTTON_CLICK = "button_click"
     NOTIFICATION = "notification"
+    # Panda events
+    PANDA_EAT = "panda_eat"
+    PANDA_HAPPY = "panda_happy"
+    PANDA_SAD = "panda_sad"
+    PANDA_DRAG = "panda_drag"
+    PANDA_DROP = "panda_drop"
+    PANDA_SLEEP = "panda_sleep"
+    PANDA_WAKE = "panda_wake"
+    PANDA_CLICK = "panda_click"
+    PANDA_PET = "panda_pet"
+    PANDA_PLAY = "panda_play"
+    PANDA_WALK = "panda_walk"
+    PANDA_JUMP = "panda_jump"
+    PANDA_DANCE = "panda_dance"
+    PANDA_SNEEZE = "panda_sneeze"
+    PANDA_YAWN = "panda_yawn"
 
 
 class SoundPack(Enum):
@@ -89,6 +106,181 @@ class SoundManager:
         SoundEvent.STOP: "stop.wav",
         SoundEvent.BUTTON_CLICK: "click.wav",
         SoundEvent.NOTIFICATION: "notification.wav",
+        SoundEvent.PANDA_EAT: "panda_munch.wav",
+        SoundEvent.PANDA_HAPPY: "panda_chirp.wav",
+        SoundEvent.PANDA_SAD: "panda_whimper.wav",
+        SoundEvent.PANDA_DRAG: "panda_slide.wav",
+        SoundEvent.PANDA_DROP: "panda_thud.wav",
+        SoundEvent.PANDA_SLEEP: "panda_snore.wav",
+        SoundEvent.PANDA_WAKE: "panda_wake_yawn.wav",
+        SoundEvent.PANDA_CLICK: "panda_boop.wav",
+        SoundEvent.PANDA_PET: "panda_pet_purr.wav",
+        SoundEvent.PANDA_PLAY: "panda_playful.wav",
+        SoundEvent.PANDA_WALK: "panda_pitter.wav",
+        SoundEvent.PANDA_JUMP: "panda_boing.wav",
+        SoundEvent.PANDA_DANCE: "panda_dance_beat.wav",
+        SoundEvent.PANDA_SNEEZE: "panda_achoo.wav",
+        SoundEvent.PANDA_YAWN: "panda_big_yawn.wav",
+    }
+
+    # Selectable sound file options per event
+    SOUND_CHOICES = {
+        SoundEvent.COMPLETE: [
+            ("Chime", "complete_chime.wav"),
+            ("Bell", "complete_bell.wav"),
+            ("Fanfare", "complete_fanfare.wav"),
+            ("Ding", "complete_ding.wav"),
+            ("Orchestra Hit", "complete_orchestra.wav"),
+            ("Harp", "complete_harp.wav"),
+            ("Synth Rise", "complete_synth.wav"),
+            ("Default Beep", "complete.wav"),
+        ],
+        SoundEvent.ERROR: [
+            ("Buzz", "error_buzz.wav"),
+            ("Bonk", "error_bonk.wav"),
+            ("Glass Break", "error_glass.wav"),
+            ("Record Scratch", "error_scratch.wav"),
+            ("Sad Trombone", "error_trombone.wav"),
+            ("Alarm", "error_alarm.wav"),
+            ("Default Beep", "error.wav"),
+        ],
+        SoundEvent.ACHIEVEMENT: [
+            ("Trumpet", "achievement_trumpet.wav"),
+            ("Level Up", "achievement_levelup.wav"),
+            ("Sparkle", "achievement_sparkle.wav"),
+            ("Victory", "achievement_victory.wav"),
+            ("Coins", "achievement_coins.wav"),
+            ("Default Beep", "achievement.wav"),
+        ],
+        SoundEvent.MILESTONE: [
+            ("Milestone Chime", "milestone_chime.wav"),
+            ("Star", "milestone_star.wav"),
+            ("Whoosh", "milestone_whoosh.wav"),
+            ("Default Beep", "milestone.wav"),
+        ],
+        SoundEvent.WARNING: [
+            ("Alert", "warning_alert.wav"),
+            ("Siren", "warning_siren.wav"),
+            ("Caution Beep", "warning_caution.wav"),
+            ("Default Beep", "warning.wav"),
+        ],
+        SoundEvent.START: [
+            ("Engine Start", "start_engine.wav"),
+            ("Go!", "start_go.wav"),
+            ("Whoosh", "start_whoosh.wav"),
+            ("Click", "start_click.wav"),
+            ("Default Beep", "start.wav"),
+        ],
+        SoundEvent.PAUSE: [
+            ("Pause Click", "pause_click.wav"),
+            ("Soft Stop", "pause_soft.wav"),
+            ("Default Beep", "pause.wav"),
+        ],
+        SoundEvent.RESUME: [
+            ("Resume Click", "resume_click.wav"),
+            ("Unpause", "resume_unpause.wav"),
+            ("Default Beep", "resume.wav"),
+        ],
+        SoundEvent.STOP: [
+            ("Hard Stop", "stop_hard.wav"),
+            ("Brake", "stop_brake.wav"),
+            ("Default Beep", "stop.wav"),
+        ],
+        SoundEvent.BUTTON_CLICK: [
+            ("Soft Click", "click_soft.wav"),
+            ("Crisp Click", "click_crisp.wav"),
+            ("Pop", "click_pop.wav"),
+            ("Tap", "click_tap.wav"),
+            ("Typewriter", "click_typewriter.wav"),
+            ("Bubble", "click_bubble.wav"),
+            ("Default Beep", "click.wav"),
+        ],
+        SoundEvent.NOTIFICATION: [
+            ("Ping", "notification_ping.wav"),
+            ("Chime", "notification_chime.wav"),
+            ("Bubble", "notification_bubble.wav"),
+            ("Bell", "notification_bell.wav"),
+            ("Ding Dong", "notification_dingdong.wav"),
+            ("Default Beep", "notification.wav"),
+        ],
+        SoundEvent.PANDA_EAT: [
+            ("Munch", "panda_munch.wav"),
+            ("Chomp", "panda_chomp.wav"),
+            ("Nom Nom", "panda_nom.wav"),
+            ("Crunch", "panda_crunch.wav"),
+            ("Slurp", "panda_slurp.wav"),
+        ],
+        SoundEvent.PANDA_HAPPY: [
+            ("Chirp", "panda_chirp.wav"),
+            ("Purr", "panda_purr.wav"),
+            ("Squeal", "panda_squeal.wav"),
+            ("Giggle", "panda_giggle.wav"),
+        ],
+        SoundEvent.PANDA_SAD: [
+            ("Whimper", "panda_whimper.wav"),
+            ("Sigh", "panda_sigh.wav"),
+            ("Cry", "panda_cry.wav"),
+        ],
+        SoundEvent.PANDA_DRAG: [
+            ("Slide", "panda_slide.wav"),
+            ("Whoosh", "panda_drag_whoosh.wav"),
+            ("Shuffle", "panda_shuffle.wav"),
+        ],
+        SoundEvent.PANDA_DROP: [
+            ("Thud", "panda_thud.wav"),
+            ("Bounce", "panda_bounce.wav"),
+            ("Plop", "panda_plop.wav"),
+        ],
+        SoundEvent.PANDA_SLEEP: [
+            ("Snore", "panda_snore.wav"),
+            ("Zzz", "panda_zzz.wav"),
+            ("Soft Breath", "panda_breath.wav"),
+        ],
+        SoundEvent.PANDA_WAKE: [
+            ("Yawn", "panda_wake_yawn.wav"),
+            ("Stretch", "panda_stretch.wav"),
+            ("Alert", "panda_wake_alert.wav"),
+        ],
+        SoundEvent.PANDA_CLICK: [
+            ("Boop", "panda_boop.wav"),
+            ("Poke", "panda_poke.wav"),
+            ("Squeak", "panda_squeak.wav"),
+        ],
+        SoundEvent.PANDA_PET: [
+            ("Purr", "panda_pet_purr.wav"),
+            ("Content", "panda_content.wav"),
+            ("Happy Hum", "panda_hum.wav"),
+        ],
+        SoundEvent.PANDA_PLAY: [
+            ("Playful", "panda_playful.wav"),
+            ("Bounce", "panda_play_bounce.wav"),
+            ("Laugh", "panda_laugh.wav"),
+        ],
+        SoundEvent.PANDA_WALK: [
+            ("Pitter Patter", "panda_pitter.wav"),
+            ("Footstep", "panda_footstep.wav"),
+            ("Waddle", "panda_waddle.wav"),
+        ],
+        SoundEvent.PANDA_JUMP: [
+            ("Boing", "panda_boing.wav"),
+            ("Spring", "panda_spring.wav"),
+            ("Hop", "panda_hop.wav"),
+        ],
+        SoundEvent.PANDA_DANCE: [
+            ("Dance Beat", "panda_dance_beat.wav"),
+            ("Groove", "panda_groove.wav"),
+            ("Rhythm", "panda_rhythm.wav"),
+        ],
+        SoundEvent.PANDA_SNEEZE: [
+            ("Achoo", "panda_achoo.wav"),
+            ("Small Sneeze", "panda_small_sneeze.wav"),
+            ("Big Sneeze", "panda_big_sneeze.wav"),
+        ],
+        SoundEvent.PANDA_YAWN: [
+            ("Big Yawn", "panda_big_yawn.wav"),
+            ("Sleepy Yawn", "panda_sleepy_yawn.wav"),
+            ("Cute Yawn", "panda_cute_yawn.wav"),
+        ],
     }
 
     # Default sound definitions (frequency in Hz, duration in ms)
@@ -105,6 +297,21 @@ class SoundManager:
             SoundEvent.STOP: Sound(SoundEvent.STOP, 450, 200, "Processing stopped", "stop.wav"),
             SoundEvent.BUTTON_CLICK: Sound(SoundEvent.BUTTON_CLICK, 700, 50, "Button clicked", "click.wav"),
             SoundEvent.NOTIFICATION: Sound(SoundEvent.NOTIFICATION, 750, 100, "Notification", "notification.wav"),
+            SoundEvent.PANDA_EAT: Sound(SoundEvent.PANDA_EAT, 600, 150, "Panda eating", "panda_munch.wav"),
+            SoundEvent.PANDA_HAPPY: Sound(SoundEvent.PANDA_HAPPY, 900, 100, "Panda happy", "panda_chirp.wav"),
+            SoundEvent.PANDA_SAD: Sound(SoundEvent.PANDA_SAD, 350, 200, "Panda sad", "panda_whimper.wav"),
+            SoundEvent.PANDA_DRAG: Sound(SoundEvent.PANDA_DRAG, 400, 100, "Panda dragged", "panda_slide.wav"),
+            SoundEvent.PANDA_DROP: Sound(SoundEvent.PANDA_DROP, 250, 150, "Panda dropped", "panda_thud.wav"),
+            SoundEvent.PANDA_SLEEP: Sound(SoundEvent.PANDA_SLEEP, 300, 300, "Panda sleeping", "panda_snore.wav"),
+            SoundEvent.PANDA_WAKE: Sound(SoundEvent.PANDA_WAKE, 500, 200, "Panda waking", "panda_wake_yawn.wav"),
+            SoundEvent.PANDA_CLICK: Sound(SoundEvent.PANDA_CLICK, 800, 50, "Panda clicked", "panda_boop.wav"),
+            SoundEvent.PANDA_PET: Sound(SoundEvent.PANDA_PET, 700, 150, "Panda petted", "panda_pet_purr.wav"),
+            SoundEvent.PANDA_PLAY: Sound(SoundEvent.PANDA_PLAY, 850, 100, "Panda playing", "panda_playful.wav"),
+            SoundEvent.PANDA_WALK: Sound(SoundEvent.PANDA_WALK, 500, 80, "Panda walking", "panda_pitter.wav"),
+            SoundEvent.PANDA_JUMP: Sound(SoundEvent.PANDA_JUMP, 1000, 100, "Panda jumping", "panda_boing.wav"),
+            SoundEvent.PANDA_DANCE: Sound(SoundEvent.PANDA_DANCE, 750, 120, "Panda dancing", "panda_dance_beat.wav"),
+            SoundEvent.PANDA_SNEEZE: Sound(SoundEvent.PANDA_SNEEZE, 600, 150, "Panda sneezing", "panda_achoo.wav"),
+            SoundEvent.PANDA_YAWN: Sound(SoundEvent.PANDA_YAWN, 400, 250, "Panda yawning", "panda_big_yawn.wav"),
         },
         SoundPack.MINIMAL: {
             SoundEvent.COMPLETE: Sound(SoundEvent.COMPLETE, 800, 100, "Complete", "complete.wav"),
@@ -118,6 +325,21 @@ class SoundManager:
             SoundEvent.STOP: Sound(SoundEvent.STOP, 450, 100, "Stop", "stop.wav"),
             SoundEvent.BUTTON_CLICK: Sound(SoundEvent.BUTTON_CLICK, 700, 30, "Click", "click.wav"),
             SoundEvent.NOTIFICATION: Sound(SoundEvent.NOTIFICATION, 750, 60, "Notification", "notification.wav"),
+            SoundEvent.PANDA_EAT: Sound(SoundEvent.PANDA_EAT, 600, 80, "Munch", "panda_munch.wav"),
+            SoundEvent.PANDA_HAPPY: Sound(SoundEvent.PANDA_HAPPY, 900, 60, "Happy", "panda_chirp.wav"),
+            SoundEvent.PANDA_SAD: Sound(SoundEvent.PANDA_SAD, 350, 100, "Sad", "panda_whimper.wav"),
+            SoundEvent.PANDA_DRAG: Sound(SoundEvent.PANDA_DRAG, 400, 60, "Drag", "panda_slide.wav"),
+            SoundEvent.PANDA_DROP: Sound(SoundEvent.PANDA_DROP, 250, 80, "Drop", "panda_thud.wav"),
+            SoundEvent.PANDA_SLEEP: Sound(SoundEvent.PANDA_SLEEP, 300, 150, "Sleep", "panda_snore.wav"),
+            SoundEvent.PANDA_WAKE: Sound(SoundEvent.PANDA_WAKE, 500, 100, "Wake", "panda_wake_yawn.wav"),
+            SoundEvent.PANDA_CLICK: Sound(SoundEvent.PANDA_CLICK, 800, 30, "Click", "panda_boop.wav"),
+            SoundEvent.PANDA_PET: Sound(SoundEvent.PANDA_PET, 700, 80, "Pet", "panda_pet_purr.wav"),
+            SoundEvent.PANDA_PLAY: Sound(SoundEvent.PANDA_PLAY, 850, 60, "Play", "panda_playful.wav"),
+            SoundEvent.PANDA_WALK: Sound(SoundEvent.PANDA_WALK, 500, 40, "Walk", "panda_pitter.wav"),
+            SoundEvent.PANDA_JUMP: Sound(SoundEvent.PANDA_JUMP, 1000, 50, "Jump", "panda_boing.wav"),
+            SoundEvent.PANDA_DANCE: Sound(SoundEvent.PANDA_DANCE, 750, 60, "Dance", "panda_dance_beat.wav"),
+            SoundEvent.PANDA_SNEEZE: Sound(SoundEvent.PANDA_SNEEZE, 600, 80, "Sneeze", "panda_achoo.wav"),
+            SoundEvent.PANDA_YAWN: Sound(SoundEvent.PANDA_YAWN, 400, 120, "Yawn", "panda_big_yawn.wav"),
         },
         SoundPack.VULGAR: {
             # Vulgar pack has more aggressive/fun sounds
@@ -132,6 +354,21 @@ class SoundManager:
             SoundEvent.STOP: Sound(SoundEvent.STOP, 300, 300, "Done!", "stop.wav"),
             SoundEvent.BUTTON_CLICK: Sound(SoundEvent.BUTTON_CLICK, 800, 60, "Click!", "click.wav"),
             SoundEvent.NOTIFICATION: Sound(SoundEvent.NOTIFICATION, 850, 120, "Yo!", "notification.wav"),
+            SoundEvent.PANDA_EAT: Sound(SoundEvent.PANDA_EAT, 600, 200, "NOM NOM!", "panda_munch.wav"),
+            SoundEvent.PANDA_HAPPY: Sound(SoundEvent.PANDA_HAPPY, 900, 150, "WOOHOO!", "panda_chirp.wav"),
+            SoundEvent.PANDA_SAD: Sound(SoundEvent.PANDA_SAD, 350, 300, "Aww man...", "panda_whimper.wav"),
+            SoundEvent.PANDA_DRAG: Sound(SoundEvent.PANDA_DRAG, 400, 150, "YOINK!", "panda_slide.wav"),
+            SoundEvent.PANDA_DROP: Sound(SoundEvent.PANDA_DROP, 250, 200, "SPLAT!", "panda_thud.wav"),
+            SoundEvent.PANDA_SLEEP: Sound(SoundEvent.PANDA_SLEEP, 300, 400, "ZZZZZ!", "panda_snore.wav"),
+            SoundEvent.PANDA_WAKE: Sound(SoundEvent.PANDA_WAKE, 500, 250, "HUH WHAT!", "panda_wake_yawn.wav"),
+            SoundEvent.PANDA_CLICK: Sound(SoundEvent.PANDA_CLICK, 800, 80, "OW!", "panda_boop.wav"),
+            SoundEvent.PANDA_PET: Sound(SoundEvent.PANDA_PET, 700, 200, "Aww yeah!", "panda_pet_purr.wav"),
+            SoundEvent.PANDA_PLAY: Sound(SoundEvent.PANDA_PLAY, 850, 150, "PARTY!", "panda_playful.wav"),
+            SoundEvent.PANDA_WALK: Sound(SoundEvent.PANDA_WALK, 500, 100, "Stomp stomp!", "panda_pitter.wav"),
+            SoundEvent.PANDA_JUMP: Sound(SoundEvent.PANDA_JUMP, 1000, 150, "BOING!", "panda_boing.wav"),
+            SoundEvent.PANDA_DANCE: Sound(SoundEvent.PANDA_DANCE, 750, 180, "GET DOWN!", "panda_dance_beat.wav"),
+            SoundEvent.PANDA_SNEEZE: Sound(SoundEvent.PANDA_SNEEZE, 600, 200, "ACHOO!", "panda_achoo.wav"),
+            SoundEvent.PANDA_YAWN: Sound(SoundEvent.PANDA_YAWN, 400, 300, "YAAAWN!", "panda_big_yawn.wav"),
         }
     }
     
@@ -145,6 +382,9 @@ class SoundManager:
         self.enabled = SOUND_AVAILABLE
         self.muted = False
         self.sound_pack = sound_pack
+        
+        # Instance-level copy so set_event_sound doesn't mutate class dict
+        self._wav_files = dict(self._WAV_FILES)
         
         # Volume controls (0.0 to 1.0)
         self.master_volume = 1.0
@@ -233,7 +473,7 @@ class SoundManager:
             return
         
         # Try WAV file playback first
-        wav_file = sound.wav_file or self._WAV_FILES.get(sound.event, "")
+        wav_file = sound.wav_file or self._wav_files.get(sound.event, "")
         if wav_file and _USE_WAV_FILES:
             wav_path = _SOUNDS_DIR / wav_file
             if wav_path.exists():
@@ -317,6 +557,9 @@ class SoundManager:
         elif event in [SoundEvent.NOTIFICATION, SoundEvent.ACHIEVEMENT,
                        SoundEvent.MILESTONE]:
             category_volume = self.notifications_volume
+        # Panda sounds use effects volume
+        elif event.value.startswith("panda_"):
+            category_volume = self.effects_volume
         else:
             category_volume = self.effects_volume
         
@@ -473,6 +716,38 @@ class SoundManager:
         """Convenience method to play notification sound."""
         self.play_sound(SoundEvent.NOTIFICATION)
     
+    def play_panda_eat(self) -> None:
+        """Play panda eating sound."""
+        self.play_sound(SoundEvent.PANDA_EAT)
+
+    def play_panda_happy(self) -> None:
+        """Play panda happy sound."""
+        self.play_sound(SoundEvent.PANDA_HAPPY)
+
+    def play_panda_click(self) -> None:
+        """Play panda clicked sound."""
+        self.play_sound(SoundEvent.PANDA_CLICK)
+
+    def play_panda_pet(self) -> None:
+        """Play panda petted sound."""
+        self.play_sound(SoundEvent.PANDA_PET)
+
+    def play_panda_drag(self) -> None:
+        """Play panda dragged sound."""
+        self.play_sound(SoundEvent.PANDA_DRAG)
+
+    def play_panda_drop(self) -> None:
+        """Play panda dropped sound."""
+        self.play_sound(SoundEvent.PANDA_DROP)
+
+    def play_panda_sleep(self) -> None:
+        """Play panda sleeping sound."""
+        self.play_sound(SoundEvent.PANDA_SLEEP)
+
+    def play_panda_walk(self) -> None:
+        """Play panda walking sound."""
+        self.play_sound(SoundEvent.PANDA_WALK)
+    
     def play_sequence(
         self,
         events: list[SoundEvent],
@@ -604,6 +879,23 @@ class SoundManager:
             self.set_notifications_volume(config['notifications_volume'])
         
         logger.info("Applied sound configuration")
+    
+    def set_event_sound(self, event: SoundEvent, wav_filename: str) -> None:
+        """Set a custom WAV file for a specific event."""
+        self._wav_files[event] = wav_filename
+        # Also update the Sound objects in current pack
+        pack_sounds = self.SOUND_DEFINITIONS.get(self.sound_pack, {})
+        if event in pack_sounds:
+            pack_sounds[event].wav_file = wav_filename
+        logger.info(f"Set sound for {event.value} to {wav_filename}")
+
+    def get_event_sound(self, event: SoundEvent) -> str:
+        """Get the current WAV filename for an event."""
+        return self._wav_files.get(event, "")
+
+    def get_sound_choices(self, event: SoundEvent) -> list:
+        """Get available sound choices for an event."""
+        return self.SOUND_CHOICES.get(event, [])
 
 
 # Convenience function for quick sound playing

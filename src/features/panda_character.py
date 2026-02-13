@@ -1432,24 +1432,26 @@ class PandaCharacter:
     # Left arm: canvas x from 55 to 80 → rel_x 0.25–0.36
     # Right arm: canvas x from 140 to 165 → rel_x 0.64–0.75
     # Widen detection inward so the full arm oval is grabbable.
-    ARM_LEFT_BOUNDARY = 0.35   # Left 35% is left arm zone
-    ARM_RIGHT_BOUNDARY = 0.65  # Right 35% is right arm zone
+    ARM_LEFT_BOUNDARY = 0.38   # Left 38% is left arm zone (covers full arm + paw)
+    ARM_RIGHT_BOUNDARY = 0.62  # Right 38% is right arm zone (covers full arm + paw)
     
     # Hand detection: hands are at the bottom of the arm region (lower body area)
     # and at the outermost edge of the arm zone
     HAND_BOUNDARY_TOP = 0.42   # Hands start in the lower body region
-    HAND_LEFT_BOUNDARY = 0.22  # Left hand extends further out than arm
-    HAND_RIGHT_BOUNDARY = 0.78 # Right hand extends further out than arm
+    HAND_LEFT_BOUNDARY = 0.25  # Left hand extends further out than arm
+    HAND_RIGHT_BOUNDARY = 0.75 # Right hand extends further out than arm
     
     # Ear detection X boundaries (ears are on sides of head)
-    # Ears extend ~22px past head radius of 36 → from ~72 to ~148 out of 220
-    EAR_LEFT_BOUNDARY = 0.20   # Left 20% is left ear zone
-    EAR_RIGHT_BOUNDARY = 0.80  # Right 20% is right ear zone
+    # Left ear drawn at canvas x 72–94 → rel_x 0.33–0.43
+    # Right ear drawn at canvas x 124–148 → rel_x 0.56–0.67
+    EAR_LEFT_BOUNDARY = 0.45   # Left ear zone (rel_x < 0.45)
+    EAR_RIGHT_BOUNDARY = 0.55  # Right ear zone (rel_x > 0.55)
     
     # Eye detection X boundaries
-    EYE_LEFT_CENTER = 0.35     # Left eye center
-    EYE_RIGHT_CENTER = 0.65    # Right eye center
-    EYE_RADIUS_X = 0.1         # Eye click radius
+    # Left eye at canvas x 86 → rel_x 0.39, right eye at 134 → rel_x 0.61
+    EYE_LEFT_CENTER = 0.39     # Left eye center
+    EYE_RIGHT_CENTER = 0.61    # Right eye center
+    EYE_RADIUS_X = 0.10        # Eye click radius
 
     def get_body_part_at_position(self, rel_y: float, rel_x: float = 0.5) -> str:
         """Determine which body part is at a relative position.

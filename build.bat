@@ -3,7 +3,12 @@ REM ============================================================================
 REM Game Texture Sorter - Automated Windows Build Script
 REM Author: Dead On The Inside / JosephsDeadish
 REM 
-REM This script automatically builds the single-EXE application for Windows.
+REM This script builds the application for Windows.
+REM 
+REM Usage:
+REM   build.bat              - Build single EXE (original, portable)
+REM   build.bat folder       - Build one-folder with external assets (faster startup)
+REM 
 REM It will:
 REM   1. Check for Python installation
 REM   2. Create/activate virtual environment
@@ -17,6 +22,13 @@ echo ========================================================================
 echo   Game Texture Sorter - Automated Build Script
 echo   Author: Dead On The Inside / JosephsDeadish
 echo ========================================================================
+echo.
+
+REM Parse build mode
+set BUILD_MODE=single
+if /I "%1"=="folder" set BUILD_MODE=folder
+
+echo Build mode: %BUILD_MODE%
 echo.
 
 REM Check if Python is installed
@@ -110,12 +122,16 @@ if not exist "src\resources\icons\panda_icon.ico" (
 )
 
 echo ========================================================================
-echo   Building Single EXE with PyInstaller...
+echo   Building with PyInstaller (%BUILD_MODE% mode)...
 echo ========================================================================
 echo.
 
-REM Run PyInstaller with spec file
-pyinstaller build_spec.spec --clean --noconfirm
+REM Run PyInstaller with appropriate spec file
+if "%BUILD_MODE%"=="folder" (
+    pyinstaller build_spec_onefolder.spec --clean --noconfirm
+) else (
+    pyinstaller build_spec.spec --clean --noconfirm
+)
 if errorlevel 1 (
     echo.
     echo ERROR: Build failed!
@@ -124,24 +140,45 @@ if errorlevel 1 (
     exit /b 1
 )
 
+REM For folder builds, create the app_data directory structure
+if "%BUILD_MODE%"=="folder" (
+    echo Creating app_data directory structure...
+    mkdir dist\GameTextureSorter\app_data 2>nul
+    mkdir dist\GameTextureSorter\app_data\cache 2>nul
+    mkdir dist\GameTextureSorter\app_data\logs 2>nul
+    mkdir dist\GameTextureSorter\app_data\themes 2>nul
+    mkdir dist\GameTextureSorter\app_data\models 2>nul
+)
+
 echo.
 echo ========================================================================
 echo   BUILD SUCCESSFUL!
 echo ========================================================================
 echo.
-echo The executable has been created in the 'dist' folder:
-echo   dist\GameTextureSorter.exe
-echo.
-echo File size:
-dir dist\GameTextureSorter.exe | find "GameTextureSorter.exe"
+
+if "%BUILD_MODE%"=="folder" (
+    echo The application has been created in the 'dist\GameTextureSorter' folder.
+    echo.
+    echo   dist\GameTextureSorter\GameTextureSorter.exe
+    echo   dist\GameTextureSorter\app_data\     ^(config, cache, database, themes^)
+    echo   dist\GameTextureSorter\resources\     ^(icons, sounds, cursors^)
+    echo.
+    echo This build starts FASTER because assets are on disk instead of
+    echo being extracted from the EXE on every launch.
+) else (
+    echo The executable has been created in the 'dist' folder:
+    echo   dist\GameTextureSorter.exe
+    echo.
+    echo File size:
+    dir dist\GameTextureSorter.exe | find "GameTextureSorter.exe"
+)
 echo.
 echo You can now:
-echo   1. Run the EXE directly: dist\GameTextureSorter.exe
+echo   1. Run the EXE directly
 echo   2. Copy it to any location (it's portable)
 echo   3. Sign it with a code certificate (see CODE_SIGNING.md)
 echo   4. Distribute it to users
 echo.
-echo The EXE is completely standalone and requires no installation!
 echo ========================================================================
 echo.
 
