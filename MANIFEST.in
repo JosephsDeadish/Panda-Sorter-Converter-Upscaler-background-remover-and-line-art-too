@@ -15,7 +15,7 @@ include requirements.txt
 include requirements-minimal.txt
 
 # Include build configuration
-include build_spec.spec
+include build_spec_onefolder.spec
 include file_version_info.txt
 include build.bat
 include build.ps1

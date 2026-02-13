@@ -28,7 +28,7 @@ SVG (Scalable Vector Graphics) support requires the Cairo graphics library and i
 
 **The solution:**
 We provide two build options:
-1. **Standard build** (`build_spec.spec`) - No SVG support, CI-compatible, smaller size
+1. **Standard build** (`build_spec_onefolder.spec`) - No SVG support, CI-compatible, smaller size
 2. **SVG-enabled build** (`build_spec_with_svg.spec`) - Full SVG support, requires Cairo DLLs
 
 The application handles missing SVG support gracefully - it will simply log a warning if you try to load an SVG file without Cairo DLLs.
@@ -438,7 +438,7 @@ pip install cairosvg cairocffi
 - With Cairo: ~65-120 MB
 - With AI models: Can be 200+ MB
 
-This is normal for single-file executables. The benefit is zero dependencies for end users.
+This is normal for PyInstaller applications. The benefit is zero dependencies for end users.
 
 **To reduce size:**
 1. Remove AI/ML features if not needed (see `requirements-minimal.txt`)
@@ -519,7 +519,7 @@ python main.py
 
 1. Install GTK3 Runtime: https://github.com/tschoonj/GTK-for-Windows-Runtime-Environment-Installer/releases
 2. Run: `python scripts/build_with_svg.py`
-3. Find your exe in `dist/GameTextureSorter.exe`
+3. Find your exe in `dist/GameTextureSorter/GameTextureSorter.exe`
 
 ### For Developers
 
@@ -532,7 +532,7 @@ python main.py
 Use the standard build without SVG:
 ```yaml
 - name: Build (no SVG)
-  run: pyinstaller build_spec.spec --clean --noconfirm
+  run: pyinstaller build_spec_onefolder.spec --clean --noconfirm
 ```
 
 SVG support can be added in a separate release build with Cairo DLLs.

@@ -30,7 +30,6 @@ env/
 # PyInstaller
 *.manifest
 *.spec
-!build_spec.spec
 !build_spec_with_svg.spec
 !build_spec_onefolder.spec
 

@@ -123,7 +123,7 @@ SVG support is optional and requires Cairo DLLs. Two build options are available
 
 **Standard Build (no SVG):**
 ```bash
-pyinstaller build_spec.spec
+pyinstaller build_spec_onefolder.spec
 ```
 
 **Build with SVG Support:**
@@ -310,7 +310,7 @@ GameTextureSorter/
 │   ├── utils/                   # Helper utilities
 │   └── resources/               # Icons, cursors, themes, sounds
 ├── requirements.txt             # Python dependencies
-├── build_spec.spec              # PyInstaller configuration
+├── build_spec_onefolder.spec     # PyInstaller configuration (one-folder build)
 ├── file_version_info.txt        # EXE metadata
 ├── build.bat                    # Automated build (Batch)
 ├── build.ps1                    # Automated build (PowerShell)
@@ -328,7 +328,7 @@ GameTextureSorter/
 - **NumPy** - Numerical operations
 - **scikit-learn** - Machine learning
 - **SQLite** - Database indexing
-- **PyInstaller** - Single EXE creation
+- **PyInstaller** - Application packaging (one-folder build)
 
 ## 🔐 Code Signing
 
@@ -340,15 +340,16 @@ For Windows SmartScreen compatibility and trust:
 
 See [CODE_SIGNING.md](CODE_SIGNING.md) for complete guide.
 
-## 📦 Building Single EXE
+## 📦 Building Application
 
-The application is built as a single, portable EXE file:
+The application is built as a one-folder distribution for fast startup:
 
-- **Size:** ~50-100 MB (all dependencies included)
-- **No Installation Required** - Run from anywhere
+- **No Installation Required** - Run from the folder
 - **USB Compatible** - Fully portable
 - **Offline** - Works 100% offline, no internet required
-- **Zero Dependencies** - Everything is embedded
+- **Zero Dependencies** - Everything is included
+- **Fast Startup** - 1-3 seconds (no extraction needed)
+- **Customizable** - Modify themes, sounds, and other assets
 
 ### Automated Build
 
@@ -360,7 +361,7 @@ build.bat
 .\build.ps1
 ```
 
-Output: `dist/GameTextureSorter.exe`
+Output: `dist/GameTextureSorter/GameTextureSorter.exe`
 
 ## 🐛 Troubleshooting
 

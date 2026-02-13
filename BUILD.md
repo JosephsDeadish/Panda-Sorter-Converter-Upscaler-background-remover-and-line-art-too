@@ -148,10 +148,10 @@ The EXE is large (~50-100 MB) because it includes:
 - UI framework
 - Resources
 
-This is normal for single-EXE applications. The benefit is **zero dependencies** for end users.
+This is normal for PyInstaller applications. The benefit is **zero dependencies** for end users.
 
 ### UPX Compression Errors
-If you get UPX-related errors, edit `build_spec.spec` and change:
+If you get UPX-related errors, edit `build_spec_onefolder.spec` and change:
 ```python
 upx=True,
 ```
@@ -170,9 +170,9 @@ If the build fails due to missing icon, the script will use the default PyInstal
 
 After building:
 
-1. **Run directly**: Double-click `dist\GameTextureSorter.exe`
-2. **Test portability**: Copy the EXE to a USB drive and run from there
-3. **Test on clean Windows**: Copy to a machine without Python installed
+1. **Run directly**: Double-click `dist\GameTextureSorter\GameTextureSorter.exe`
+2. **Test portability**: Copy the entire `GameTextureSorter` folder to a USB drive and run from there
+3. **Test on clean Windows**: Copy the folder to a machine without Python installed
 4. **Test with 200,000+ files**: Verify massive-scale performance
 
 ## Clean Build
@@ -202,13 +202,13 @@ To integrate with CI/CD pipelines (GitHub Actions, etc.):
 - name: Build EXE
   run: |
     python -m pip install -r requirements.txt
-    pyinstaller build_spec.spec --clean --noconfirm
+    pyinstaller build_spec_onefolder.spec --clean --noconfirm
     
 - name: Upload Artifact
   uses: actions/upload-artifact@v3
   with:
     name: GameTextureSorter
-    path: dist/GameTextureSorter.exe
+    path: dist/GameTextureSorter/
 ```
 
 ## Next Steps

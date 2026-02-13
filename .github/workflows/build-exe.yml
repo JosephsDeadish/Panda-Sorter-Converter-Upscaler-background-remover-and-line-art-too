@@ -59,35 +59,49 @@ jobs:
           mkdir -p src/resources/sounds
         shell: bash
       
-      - name: Build EXE with PyInstaller
+      - name: Build with PyInstaller (One-Folder)
         env:
           PYTHONWARNINGS: "ignore::DeprecationWarning"
         run: |
-          pyinstaller build_spec.spec --clean --noconfirm
+          pyinstaller build_spec_onefolder.spec --clean --noconfirm
           echo "✅ Build completed successfully"
       
-      - name: Verify EXE Exists
+      - name: Verify Build Output
         run: |
-          if (Test-Path "dist/GameTextureSorter.exe") {
-            $size = (Get-Item "dist/GameTextureSorter.exe").Length / 1MB
+          if (Test-Path "dist/GameTextureSorter/GameTextureSorter.exe") {
+            $size = (Get-Item "dist/GameTextureSorter/GameTextureSorter.exe").Length / 1MB
             Write-Host "✅ EXE created successfully (Size: $($size.ToString('F2')) MB)"
           } else {
-            Write-Error "❌ EXE not found!"
+            Write-Error "❌ EXE not found in dist/GameTextureSorter/!"
             exit 1
           }
       
-      - name: Upload EXE as Artifact
+      - name: Create app_data directories
+        run: |
+          mkdir -p dist/GameTextureSorter/app_data/cache
+          mkdir -p dist/GameTextureSorter/app_data/logs
+          mkdir -p dist/GameTextureSorter/app_data/themes
+          mkdir -p dist/GameTextureSorter/app_data/models
+        shell: bash
+      
+      - name: Upload Build as Artifact
         uses: actions/upload-artifact@v4
         with:
           name: GameTextureSorter-${{ github.sha }}
-          path: dist/GameTextureSorter.exe
+          path: dist/GameTextureSorter/
           retention-days: 90
+      
+      - name: Zip Release Folder
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          Compress-Archive -Path "dist/GameTextureSorter/*" -DestinationPath "dist/GameTextureSorter-${{ github.ref_name }}.zip"
+          Write-Host "✅ Release zip created"
       
       - name: Create Release (on version tags)
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v1
         with:
-          files: dist/GameTextureSorter.exe
+          files: dist/GameTextureSorter-${{ github.ref_name }}.zip
           draft: false
           prerelease: false
           generate_release_notes: true
@@ -97,7 +111,7 @@ jobs:
             🐼 **Automatic texture classification and organization for PS2 texture dumps**
             
             ### Download
-            Download `GameTextureSorter.exe` below and run it - no installation required!
+            Download the zip file below, extract it, and run `GameTextureSorter.exe` from the extracted folder.
             
             ### Features
             - 🤖 Automatic classification with 50+ texture categories
@@ -111,12 +125,12 @@ jobs:
             ### System Requirements
             - Windows 7/8/10/11 (64-bit)
             - No Python or dependencies needed
-            - ~50-100 MB disk space
             - Works 100% offline
             
             ### Notes
-            - This is a portable single EXE - run from anywhere
-            - First launch may take a few seconds
+            - This is a one-folder build for faster startup performance
+            - Extract the zip and run GameTextureSorter.exe from the folder
+            - You can customize themes, sounds, and other assets in the folder
             - Windows may show SmartScreen warning (click "More info" → "Run anyway")
             
             **Author:** Dead On The Inside / JosephsDeadish

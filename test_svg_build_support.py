@@ -157,7 +157,7 @@ def test_readme_updated():
     
     checks = {
         'SVG build section': 'Building with SVG Support',
-        'Standard build command': 'pyinstaller build_spec.spec',
+        'Standard build command': 'pyinstaller build_spec_onefolder.spec',
         'SVG build command': 'python scripts/build_with_svg.py',
         'Link to guide': 'SVG_BUILD_GUIDE.md',
     }
@@ -197,8 +197,8 @@ def test_install_updated():
 
 
 def test_original_spec_updated():
-    """Test that build_spec.spec was updated with comment."""
-    spec_path = Path('build_spec.spec')
+    """Test that build_spec_onefolder.spec was updated with comment."""
+    spec_path = Path('build_spec_onefolder.spec')
     content = spec_path.read_text()
     
     checks = {

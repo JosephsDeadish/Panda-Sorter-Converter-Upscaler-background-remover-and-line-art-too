@@ -53,7 +53,7 @@ Expected output:
 - Virtual environment created (if not exists)
 - Dependencies installed
 - PyInstaller runs successfully
-- EXE created in `dist/GameTextureSorter.exe`
+- EXE created in `dist/GameTextureSorter/GameTextureSorter.exe`
 
 ### Verify EXE
 
@@ -61,7 +61,7 @@ After building:
 
 1. **Check file exists:**
    ```cmd
-   dir dist\GameTextureSorter.exe
+   dir dist\GameTextureSorter\GameTextureSorter.exe
    ```
 
 2. **Check file size:**
@@ -69,11 +69,11 @@ After building:
 
 3. **Run EXE:**
    ```cmd
-   dist\GameTextureSorter.exe
+   dist\GameTextureSorter\GameTextureSorter.exe
    ```
 
 4. **Test portability:**
-   - Copy EXE to different location
+   - Copy the entire `GameTextureSorter` folder to a different location
    - Run from USB drive
    - Should work without Python installed
 
@@ -258,7 +258,7 @@ After any code changes, run:
 1. **Module test:** `python test_modules.py`
 2. **Main app:** `python main.py` (if deps installed)
 3. **Build test:** `build.bat` or `build.ps1`
-4. **EXE test:** Run `dist\GameTextureSorter.exe`
+4. **EXE test:** Run `dist\GameTextureSorter\GameTextureSorter.exe`
 
 ## Reporting Issues
 

@@ -22,7 +22,7 @@ REM Path to signtool.exe (update based on your Windows SDK version)
 SET SIGNTOOL="C:\Program Files (x86)\Windows Kits\10\bin\10.0.22621.0\x64\signtool.exe"
 
 REM Path to the EXE to sign
-SET EXE_PATH="dist\GameTextureSorter.exe"
+SET EXE_PATH="dist\GameTextureSorter\GameTextureSorter.exe"
 
 REM Certificate details (choose ONE method below)
 REM Method 1: Use installed certificate (by subject name)

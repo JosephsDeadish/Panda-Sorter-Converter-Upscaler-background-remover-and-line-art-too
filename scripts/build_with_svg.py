@@ -196,8 +196,8 @@ def verify_exe_svg_support(exe_path: Path) -> bool:
     """
     print_status('info', "Checking if Cairo DLLs are bundled...")
     
-    # PyInstaller creates a single-file EXE, so we can't directly check
-    # the bundled DLLs without extracting. Just check file size as a heuristic.
+    # We can check the EXE file size as a heuristic for whether
+    # Cairo DLLs are bundled.
     
     size_mb = exe_path.stat().st_size / (1024 * 1024)
     print_status('info', f"EXE size: {size_mb:.1f} MB")

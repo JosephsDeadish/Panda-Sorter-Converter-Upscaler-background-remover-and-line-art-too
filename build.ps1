@@ -117,7 +117,7 @@ if (Test-Path "dist") {
     Remove-Item -Recurse -Force "dist"
     Write-Host "✓ Removed dist directory" -ForegroundColor Gray
 }
-Get-ChildItem -Path . -Filter "*.spec" -Exclude "build_spec.spec" | Remove-Item -Force
+Get-ChildItem -Path . -Filter "*.spec" -Exclude "build_spec_onefolder.spec","build_spec_with_svg.spec" | Remove-Item -Force
 Write-Host "✓ Cleaned previous builds" -ForegroundColor Green
 Write-Host ""
 
