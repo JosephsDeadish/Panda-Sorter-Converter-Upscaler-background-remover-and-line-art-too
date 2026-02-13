@@ -64,7 +64,7 @@ except ImportError:
     print("Warning: UI customization panel not available.")
 
 try:
-    from src.features.panda_character import PandaCharacter
+    from src.features.panda_character import PandaCharacter, PandaGender
     PANDA_CHARACTER_AVAILABLE = True
 except ImportError:
     PANDA_CHARACTER_AVAILABLE = False
@@ -452,7 +452,17 @@ class GameTextureSorter(ctk.CTk):
             try:
                 # Always create panda character - not a "mode"
                 if PANDA_CHARACTER_AVAILABLE:
-                    self.panda = PandaCharacter()
+                    # Load panda name and gender from config
+                    panda_name = config.get('panda', 'name', default="Panda")
+                    panda_gender_str = config.get('panda', 'gender', default='non_binary')
+                    panda_username = config.get('panda', 'username', default="")
+                    panda_gender = PandaGender.NON_BINARY
+                    if panda_gender_str == 'male':
+                        panda_gender = PandaGender.MALE
+                    elif panda_gender_str == 'female':
+                        panda_gender = PandaGender.FEMALE
+                    
+                    self.panda = PandaCharacter(name=panda_name, gender=panda_gender, username=panda_username)
                     logger.info("Panda character initialized (always present)")
                 
                 if SOUND_AVAILABLE:
