@@ -660,6 +660,72 @@ def test_drag_updates_facing_direction():
         print("⚠ Skipping drag facing direction test (GUI not available)")
 
 
+def test_limb_drag_does_not_change_facing():
+    """Test that dragging by limbs or ears does NOT change facing direction."""
+    try:
+        from src.ui.panda_widget import PandaWidget
+        import inspect
+        source = inspect.getsource(PandaWidget._on_drag_motion)
+        
+        # Facing updates should be guarded to only body/butt grabs
+        assert '_facing_update_parts' in source, \
+            "_on_drag_motion should define _facing_update_parts for guarding"
+        assert "'body'" in source and "'butt'" in source, \
+            "_on_drag_motion should only update facing for body/butt grabs"
+        assert '_drag_grab_part' in source, \
+            "_on_drag_motion should check _drag_grab_part before updating facing"
+        
+        print("✓ Limb/ear drag does not change facing direction")
+    except ImportError:
+        print("⚠ Skipping limb drag facing test (GUI not available)")
+
+
+def test_drag_sub_animations_keep_dangle():
+    """Test that drag sub-animations (wall_hit, shaking, spinning) maintain dangle physics."""
+    try:
+        from src.ui.panda_widget import PandaWidget
+        import inspect
+        source = inspect.getsource(PandaWidget._draw_panda)
+        
+        # is_being_dragged should include drag sub-animations
+        assert '_drag_anims' in source, \
+            "_draw_panda should define _drag_anims tuple"
+        # Find the _drag_anims definition and verify it contains the sub-animations
+        drag_anims_idx = source.index('_drag_anims')
+        # Look at the next line which contains the tuple
+        drag_anims_section = source[drag_anims_idx:drag_anims_idx + 200]
+        assert "'wall_hit'" in drag_anims_section, \
+            "_drag_anims should include 'wall_hit'"
+        assert "'shaking'" in drag_anims_section, \
+            "_drag_anims should include 'shaking'"
+        
+        print("✓ Drag sub-animations maintain dangle physics")
+    except ImportError:
+        print("⚠ Skipping drag sub-animation test (GUI not available)")
+
+
+def test_eye_on_patch_method_exists():
+    """Test that _draw_eye_on_patch method exists for diagonal view rendering."""
+    try:
+        from src.ui.panda_widget import PandaWidget
+        
+        assert hasattr(PandaWidget, '_draw_eye_on_patch'), \
+            "PandaWidget should have _draw_eye_on_patch method"
+        
+        import inspect
+        source = inspect.getsource(PandaWidget._draw_eye_on_patch)
+        assert 'iris' in source, \
+            "_draw_eye_on_patch should draw iris ring"
+        assert "'white'" in source, \
+            "_draw_eye_on_patch should draw white sclera"
+        assert 'scale' in source, \
+            "_draw_eye_on_patch should accept scale parameter for perspective"
+        
+        print("✓ _draw_eye_on_patch method exists with iris rendering")
+    except ImportError:
+        print("⚠ Skipping eye on patch test (GUI not available)")
+
+
 if __name__ == "__main__":
     print("\nTesting Panda Facing Direction, Dangle & Perspective...")
     print("-" * 50)
@@ -692,6 +758,9 @@ if __name__ == "__main__":
         test_diagonal_view_single_block,
         test_shoe_diagonal_swing_sync,
         test_drag_updates_facing_direction,
+        test_limb_drag_does_not_change_facing,
+        test_drag_sub_animations_keep_dangle,
+        test_eye_on_patch_method_exists,
     ]
     
     failed = False
