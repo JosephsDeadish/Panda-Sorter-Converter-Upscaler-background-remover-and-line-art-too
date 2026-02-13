@@ -49,13 +49,50 @@ class MiniGame(ABC):
         self.start_time = None
         self.end_time = None
         self.is_running = False
+        self.is_paused = False
+        self._pause_start = None
+        self._total_paused = 0.0
     
     @abstractmethod
     def start(self) -> None:
         """Start the game."""
         self.start_time = time.time()
         self.is_running = True
+        self.is_paused = False
+        self._pause_start = None
+        self._total_paused = 0.0
         self.score = 0
+    
+    def pause(self) -> bool:
+        """Pause the game. Returns True if successfully paused."""
+        if not self.is_running or self.is_paused:
+            return False
+        self.is_paused = True
+        self._pause_start = time.time()
+        logger.info(f"Game paused: {self.get_name()}")
+        return True
+    
+    def resume(self) -> bool:
+        """Resume the game. Returns True if successfully resumed."""
+        if not self.is_running or not self.is_paused:
+            return False
+        self.is_paused = False
+        if self._pause_start:
+            self._total_paused += time.time() - self._pause_start
+            self._pause_start = None
+        logger.info(f"Game resumed: {self.get_name()}")
+        return True
+    
+    def _elapsed_time(self) -> float:
+        """Get elapsed game time excluding paused time."""
+        if not self.start_time:
+            return 0.0
+        end = self.end_time if self.end_time else time.time()
+        total = end - self.start_time
+        paused = self._total_paused
+        if self.is_paused and self._pause_start:
+            paused += time.time() - self._pause_start
+        return total - paused
     
     @abstractmethod
     def stop(self) -> GameResult:
@@ -65,9 +102,14 @@ class MiniGame(ABC):
         Returns:
             GameResult with score and rewards
         """
+        # Finalize pause tracking before recording end time
+        if self.is_paused and self._pause_start:
+            self._total_paused += time.time() - self._pause_start
+            self._pause_start = None
+        self.is_paused = False
         self.end_time = time.time()
         self.is_running = False
-        duration = self.end_time - self.start_time if self.start_time else 0
+        duration = self._elapsed_time()
         
         # Calculate rewards based on score and difficulty
         xp = self._calculate_xp()
@@ -147,11 +189,11 @@ class PandaClickGame(MiniGame):
         Returns:
             True if game is still running
         """
-        if not self.is_running:
+        if not self.is_running or self.is_paused:
             return False
         
         # Check time limit
-        elapsed = time.time() - self.start_time
+        elapsed = self._elapsed_time()
         if elapsed >= self.time_limit:
             return False
         
@@ -164,7 +206,7 @@ class PandaClickGame(MiniGame):
         if not self.is_running or not self.start_time:
             return 0.0
         
-        elapsed = time.time() - self.start_time
+        elapsed = self._elapsed_time()
         return max(0.0, self.time_limit - elapsed)
     
     def stop(self) -> GameResult:
@@ -237,7 +279,7 @@ class PandaMemoryGame(MiniGame):
         Returns:
             Card emoji or None if invalid
         """
-        if not self.is_running:
+        if not self.is_running or self.is_paused:
             return None
         
         if index < 0 or index >= len(self.cards):
@@ -256,7 +298,7 @@ class PandaMemoryGame(MiniGame):
         Returns:
             True if cards match
         """
-        if not self.is_running:
+        if not self.is_running or self.is_paused:
             return False
         
         self.attempts += 1
@@ -269,9 +311,9 @@ class PandaMemoryGame(MiniGame):
             self.score = (self.matched_pairs * 100) - (self.attempts * 5)
             self.score = max(0, self.score)
             
-            # Check if game complete
+            # Check if game complete - mark as done without calling stop()
             if self.matched_pairs >= self.max_pairs:
-                self.stop()
+                self.is_running = False
             
             return True
         
@@ -332,7 +374,7 @@ class PandaReflexGame(MiniGame):
         Returns:
             Reaction time in milliseconds or None if invalid
         """
-        if not self.is_running or not self.target_shown_time:
+        if not self.is_running or self.is_paused or not self.target_shown_time:
             return None
         
         reaction_time = (time.time() - self.target_shown_time) * 1000  # Convert to ms
@@ -346,9 +388,9 @@ class PandaReflexGame(MiniGame):
         round_score = max(100, 1000 - int(reaction_time))
         self.score += round_score
         
-        # Check if game complete
+        # Check if game complete - mark as done without calling stop()
         if self.current_round >= self.rounds:
-            self.stop()
+            self.is_running = False
         
         return reaction_time
     

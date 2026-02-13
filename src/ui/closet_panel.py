@@ -43,7 +43,7 @@ class ClosetPanel(ctk.CTkFrame if ctk else tk.Frame):
         self.closet = panda_closet
         self.panda_character = panda_character
         self.panda_preview = panda_preview_callback
-        self.current_category = CustomizationCategory.FUR_STYLE
+        self.current_category = CustomizationCategory.CLOTHING
         self._clothing_filter: Optional[str] = None  # Subcategory filter for clothing
         self._tooltips: List = []  # Prevent tooltip garbage collection
         
@@ -77,14 +77,14 @@ class ClosetPanel(ctk.CTkFrame if ctk else tk.Frame):
         category_frame = ctk.CTkFrame(self) if ctk else tk.Frame(self)
         category_frame.grid(row=2, column=0, padx=10, pady=10, sticky="ns")
         
-        # Category buttons
+        # Category buttons — "All Clothing" first for easy access
         categories = [
-            (CustomizationCategory.FUR_STYLE, "🐼 Fur Style"),
-            (CustomizationCategory.FUR_COLOR, "🎨 Fur Color"),
             (CustomizationCategory.CLOTHING, "👕 All Clothing"),
             (CustomizationCategory.HAT, "🎩 Hats"),
             (CustomizationCategory.SHOES, "👟 Shoes"),
             (CustomizationCategory.ACCESSORY, "✨ Accessories"),
+            (CustomizationCategory.FUR_STYLE, "🐼 Fur Style"),
+            (CustomizationCategory.FUR_COLOR, "🎨 Fur Color"),
         ]
         
         category_tips = {
@@ -110,7 +110,8 @@ class ClosetPanel(ctk.CTkFrame if ctk else tk.Frame):
             if WidgetTooltip:
                 self._tooltips.append(WidgetTooltip(btn, category_tips.get(category, f"Browse {label} items")))
 
-        # Clothing subcategory buttons
+        # Clothing subcategory buttons — shown only when Clothing is selected
+        self._clothing_sub_frame = ctk.CTkFrame(category_frame) if ctk else tk.Frame(category_frame)
         clothing_subs = [
             ("shirt", "👕 Shirts"),
             ("pants", "👖 Pants"),
@@ -127,13 +128,13 @@ class ClosetPanel(ctk.CTkFrame if ctk else tk.Frame):
         }
         for sub_type, sub_label in clothing_subs:
             sub_btn = ctk.CTkButton(
-                category_frame,
+                self._clothing_sub_frame,
                 text=f"  {sub_label}",
                 height=24,
                 font=("Arial", 11),
                 command=lambda t=sub_type: self._select_clothing_sub(t)
             ) if ctk else tk.Button(
-                category_frame,
+                self._clothing_sub_frame,
                 text=f"  {sub_label}",
                 font=("Arial", 9),
                 command=lambda t=sub_type: self._select_clothing_sub(t)
@@ -141,6 +142,8 @@ class ClosetPanel(ctk.CTkFrame if ctk else tk.Frame):
             sub_btn.pack(pady=1, fill="x", padx=(10, 0))
             if WidgetTooltip:
                 self._tooltips.append(WidgetTooltip(sub_btn, clothing_sub_tips.get(sub_type, f"Browse {sub_label}")))
+        # Show subcategory buttons only when Clothing is selected
+        self._update_clothing_sub_visibility()
         
         # Scrollable content frame
         if ctk:
@@ -203,7 +206,15 @@ class ClosetPanel(ctk.CTkFrame if ctk else tk.Frame):
         """Select a customization category."""
         self.current_category = category
         self._clothing_filter = None  # Clear subcategory filter
+        self._update_clothing_sub_visibility()
         self._show_items()
+
+    def _update_clothing_sub_visibility(self):
+        """Show clothing subcategory buttons only when Clothing category is active."""
+        if self.current_category == CustomizationCategory.CLOTHING:
+            self._clothing_sub_frame.pack(fill="x", pady=(0, 5))
+        else:
+            self._clothing_sub_frame.pack_forget()
 
     def _select_clothing_sub(self, clothing_type: str):
         """Select a clothing subcategory filter (shirt, pants, jacket, etc.)."""

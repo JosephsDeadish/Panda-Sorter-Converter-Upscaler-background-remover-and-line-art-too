@@ -176,6 +176,56 @@ class MiniGamePanel(ctk.CTkFrame if ctk else tk.Frame):
         elif game_id == 'reflex':
             self._show_reflex_game()
     
+    def _create_game_controls(self):
+        """Create Pause/Resume and Stop buttons for the active game."""
+        controls_frame = ctk.CTkFrame(self.content_frame) if ctk else tk.Frame(self.content_frame)
+        controls_frame.pack(pady=5)
+
+        self.pause_var = tk.StringVar(value="⏸ Pause")
+        pause_btn = ctk.CTkButton(
+            controls_frame,
+            textvariable=self.pause_var,
+            width=100,
+            command=self._toggle_pause
+        ) if ctk else tk.Button(
+            controls_frame,
+            textvariable=self.pause_var,
+            command=self._toggle_pause
+        )
+        pause_btn.pack(side="left", padx=5)
+
+        stop_btn = ctk.CTkButton(
+            controls_frame,
+            text="⏹ Stop",
+            width=100,
+            fg_color="red" if ctk else None,
+            command=self._stop_game
+        ) if ctk else tk.Button(
+            controls_frame,
+            text="⏹ Stop",
+            bg="red",
+            fg="white",
+            command=self._stop_game
+        )
+        stop_btn.pack(side="left", padx=5)
+
+    def _toggle_pause(self):
+        """Toggle pause/resume on the current game."""
+        if not self.current_game:
+            return
+        if self.current_game.is_paused:
+            self.current_game.resume()
+            self.pause_var.set("⏸ Pause")
+        else:
+            self.current_game.pause()
+            self.pause_var.set("▶ Resume")
+
+    def _stop_game(self):
+        """Stop the current game immediately."""
+        if not self.current_game:
+            return
+        self._end_game()
+
     def _show_click_game(self):
         """Show click game UI."""
         # Clear content frame
@@ -193,6 +243,9 @@ class MiniGamePanel(ctk.CTkFrame if ctk else tk.Frame):
             font=("Arial", 14)
         )
         info_label.pack(pady=10)
+        
+        # Game control buttons (Pause/Resume + Stop)
+        self._create_game_controls()
         
         # Timer display
         self.timer_var = tk.StringVar(value="Time: 0.0s")
@@ -257,6 +310,11 @@ class MiniGamePanel(ctk.CTkFrame if ctk else tk.Frame):
         if not self.current_game or not self.current_game.is_running:
             return
         
+        # Don't count down while paused, but keep polling
+        if self.current_game.is_paused:
+            self.after(100, self._update_click_game_timer)
+            return
+        
         remaining = self.current_game.get_remaining_time()
         self.timer_var.set(f"Time: {remaining:.1f}s")
         
@@ -282,6 +340,9 @@ class MiniGamePanel(ctk.CTkFrame if ctk else tk.Frame):
             font=("Arial", 14)
         )
         info_label.pack(pady=10)
+        
+        # Game control buttons (Pause/Resume + Stop)
+        self._create_game_controls()
         
         # Score display
         self.score_var = tk.StringVar(value=f"Pairs: 0/{self.current_game.max_pairs}")
@@ -395,6 +456,9 @@ class MiniGamePanel(ctk.CTkFrame if ctk else tk.Frame):
             font=("Arial", 14)
         )
         info_label.pack(pady=10)
+        
+        # Game control buttons (Pause/Resume + Stop)
+        self._create_game_controls()
         
         # Round display
         self.round_var = tk.StringVar(value=f"Round: 0/{self.current_game.rounds}")

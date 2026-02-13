@@ -335,6 +335,43 @@ class PandaCloset:
             '🦸', 'Save the world in style', ItemRarity.LEGENDARY, 2000, False, False,
             clothing_type='full_body'
         ),
+
+        # Panda Outfits (shop costumes) — Full Body
+        'casual': CustomizationItem(
+            'casual', 'Casual Panda', CustomizationCategory.CLOTHING,
+            '👕', 'Comfy hoodie for your panda pal', ItemRarity.COMMON, 100, False, False,
+            clothing_type='full_body'
+        ),
+        'ninja': CustomizationItem(
+            'ninja', 'Ninja Panda', CustomizationCategory.CLOTHING,
+            '🥷', 'Stealth mode activated!', ItemRarity.UNCOMMON, 250, False, False,
+            clothing_type='full_body'
+        ),
+        'wizard': CustomizationItem(
+            'wizard', 'Wizard Panda', CustomizationCategory.CLOTHING,
+            '🧙', 'Magical texture sorting powers', ItemRarity.RARE, 500, False, False,
+            clothing_type='full_body'
+        ),
+        'pirate': CustomizationItem(
+            'pirate', 'Pirate Panda', CustomizationCategory.CLOTHING,
+            '🏴‍☠️', 'Arr, matey!', ItemRarity.UNCOMMON, 300, False, False,
+            clothing_type='full_body'
+        ),
+        'astronaut': CustomizationItem(
+            'astronaut', 'Astronaut Panda', CustomizationCategory.CLOTHING,
+            '🚀', 'To infinity and beyond!', ItemRarity.EPIC, 1000, False, False,
+            clothing_type='full_body'
+        ),
+        'chef': CustomizationItem(
+            'chef', 'Chef Panda', CustomizationCategory.CLOTHING,
+            '👨‍🍳', 'Cooking up some sorted textures!', ItemRarity.UNCOMMON, 200, False, False,
+            clothing_type='full_body'
+        ),
+        'detective': CustomizationItem(
+            'detective', 'Detective Panda', CustomizationCategory.CLOTHING,
+            '🕵️', 'Investigating texture mysteries', ItemRarity.RARE, 400, False, False,
+            clothing_type='full_body'
+        ),
         
         # Hats
         'baseball_cap': CustomizationItem(
@@ -356,6 +393,10 @@ class PandaCloset:
         'wizard_hat': CustomizationItem(
             'wizard_hat', 'Wizard Hat', CustomizationCategory.HAT,
             '🧙', 'Magical powers included', ItemRarity.LEGENDARY, 1800, False, False
+        ),
+        'flower_crown': CustomizationItem(
+            'flower_crown', 'Flower Crown', CustomizationCategory.HAT,
+            '🌸', 'Spring vibes all year round', ItemRarity.COMMON, 100, False, False
         ),
         
         # Shoes
@@ -1038,23 +1079,54 @@ class PandaCloset:
             items = [item for item in items if item.unlocked]
         return sorted(items, key=lambda x: (x.rarity.value, x.name))
     
+    # Prefixes to strip when resolving shop unlockable_ids to closet item keys
+    SHOP_ID_PREFIXES = ['closet_', 'clothes_', 'panda_outfit_', 'acc_']
+
+    def resolve_shop_item_id(self, shop_unlockable_id: str) -> Optional[str]:
+        """
+        Resolve a shop item's unlockable_id to a closet item key.
+
+        Tries direct match first, then strips known prefixes.
+
+        Args:
+            shop_unlockable_id: The unlockable_id from the shop item
+
+        Returns:
+            Matching closet item key or None
+        """
+        # Direct match
+        if shop_unlockable_id in self.items:
+            return shop_unlockable_id
+
+        # Try stripping prefixes
+        for prefix in self.SHOP_ID_PREFIXES:
+            if shop_unlockable_id.startswith(prefix):
+                stripped = shop_unlockable_id[len(prefix):]
+                if stripped in self.items:
+                    return stripped
+
+        return None
+
     def unlock_item(self, item_id: str) -> bool:
         """
         Unlock a customization item.
         
+        Tries direct ID match first, then resolves shop unlockable_id prefixes.
+        
         Args:
-            item_id: Item identifier
+            item_id: Item identifier (closet key or shop unlockable_id)
             
         Returns:
             True if unlocked successfully
         """
-        item = self.items.get(item_id)
-        if not item:
+        resolved = self.resolve_shop_item_id(item_id)
+        if not resolved:
             logger.warning(f"Item not found: {item_id}")
             return False
         
+        item = self.items[resolved]
         if item.unlocked:
-            logger.debug(f"Item already unlocked: {item_id}")
+            logger.debug(f"Item already unlocked: {resolved}")
             return False
         
         item.unlocked = True
