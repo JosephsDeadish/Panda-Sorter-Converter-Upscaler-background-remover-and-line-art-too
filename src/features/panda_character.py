@@ -11,6 +11,7 @@ from enum import Enum
 import threading
 import time
 from datetime import datetime
+from src.features.panda_stats import PandaStats
 
 logger = logging.getLogger(__name__)
 
@@ -892,27 +893,79 @@ class PandaCharacter:
         self.gender = gender
         self.username = username
         self.current_mood = PandaMood.HAPPY
-        self.click_count = 0
-        self.pet_count = 0
-        self.feed_count = 0
-        self.hover_count = 0
-        self.drag_count = 0
-        self.toss_count = 0
-        self.shake_count = 0
-        self.spin_count = 0
-        self.toy_interact_count = 0
-        self.clothing_change_count = 0
-        self.items_thrown_at_count = 0
-        self.belly_poke_count = 0
         self.facing = PandaFacing.FRONT
-        self.fall_count = 0
-        self.tip_over_count = 0
         self.easter_eggs_triggered: Set[str] = set()
         self.start_time = time.time()
-        self.files_processed_count = 0
-        self.failed_operations = 0
+        
+        # Initialize comprehensive stats system
+        self.stats = PandaStats()
         
         self._lock = threading.RLock()
+    
+    # Legacy property accessors for backward compatibility
+    @property
+    def click_count(self) -> int:
+        return self.stats.click_count
+    
+    @property
+    def pet_count(self) -> int:
+        return self.stats.pet_count
+    
+    @property
+    def feed_count(self) -> int:
+        return self.stats.feed_count
+    
+    @property
+    def hover_count(self) -> int:
+        return self.stats.hover_count
+    
+    @property
+    def drag_count(self) -> int:
+        return self.stats.drag_count
+    
+    @property
+    def toss_count(self) -> int:
+        return self.stats.toss_count
+    
+    @property
+    def shake_count(self) -> int:
+        return self.stats.shake_count
+    
+    @property
+    def spin_count(self) -> int:
+        return self.stats.spin_count
+    
+    @property
+    def toy_interact_count(self) -> int:
+        return self.stats.toy_interact_count
+    
+    @property
+    def clothing_change_count(self) -> int:
+        return self.stats.clothing_change_count
+    
+    @property
+    def items_thrown_at_count(self) -> int:
+        return self.stats.items_thrown_at_count
+    
+    @property
+    def belly_poke_count(self) -> int:
+        return self.stats.belly_poke_count
+    
+    @property
+    def fall_count(self) -> int:
+        return self.stats.fall_count
+    
+    @property
+    def tip_over_count(self) -> int:
+        return self.stats.tip_over_count
+    
+    @property
+    def files_processed_count(self) -> int:
+        return self.stats.files_processed
+    
+    @property
+    def failed_operations(self) -> int:
+        return self.stats.failed_operations
     
     def set_name(self, name: str):
         """Set the panda's name."""
@@ -1062,11 +1115,12 @@ class PandaCharacter:
     def on_click(self) -> str:
         """Handle panda being clicked."""
         with self._lock:
-            self.click_count += 1
+            self.stats.increment_clicks()
             
             # Easter egg: clicks trigger rage
-            if self.click_count == self.RAGE_CLICK_THRESHOLD:
+            if self.stats.click_count == self.RAGE_CLICK_THRESHOLD:
                 self.easter_eggs_triggered.add('panda_rage')
+                self.stats.add_easter_egg()
                 self.set_mood(PandaMood.RAGE)
                 return self.EASTER_EGGS['panda_rage']
             
@@ -1085,19 +1139,19 @@ class PandaCharacter:
     def on_hover(self) -> str:
         """Handle mouse hovering over panda."""
         with self._lock:
-            self.hover_count += 1
+            self.stats.increment_hovers()
             return random.choice(self.HOVER_THOUGHTS)
     
     def on_pet(self) -> str:
         """Handle panda being petted."""
         with self._lock:
-            self.pet_count += 1
+            self.stats.increment_pets()
             return random.choice(self.PETTING_RESPONSES)
     
     def on_feed(self) -> str:
         """Handle panda being fed."""
         with self._lock:
-            self.feed_count += 1
+            self.stats.increment_feeds()
             return random.choice(self.FEED_RESPONSES)
 
     def on_drag(self, grabbed_head: bool = False, grabbed_part: str = None) -> str:
@@ -1107,7 +1161,7 @@ class PandaCharacter:
             grabbed_head: True if dragged by the head region (deprecated, use grabbed_part)
             grabbed_part: Specific body part being grabbed (e.g., 'left_arm', 'right_leg', 'left_ear')
         """
-        self.drag_count += 1
+        self.stats.increment_drags()
         
         # Use grabbed_part if provided for specific responses
         if grabbed_part:
@@ -1135,7 +1189,7 @@ class PandaCharacter:
 
     def on_toss(self) -> str:
         """Handle panda being tossed."""
-        self.toss_count += 1
+        self.stats.increment_tosses()
         return random.choice(self.TOSS_RESPONSES)
 
     def on_wall_hit(self) -> str:
@@ -1144,27 +1198,27 @@ class PandaCharacter:
 
     def on_shake(self) -> str:
         """Handle panda being shaken side to side."""
-        self.shake_count += 1
+        self.stats.increment_shakes()
         return random.choice(self.SHAKE_RESPONSES)
 
     def on_spin(self) -> str:
         """Handle panda being spun in circles."""
-        self.spin_count += 1
+        self.stats.increment_spins()
         return random.choice(self.SPIN_RESPONSES)
 
     def on_belly_poke(self) -> str:
         """Handle panda's belly being poked (triggers jiggle effect)."""
-        self.belly_poke_count += 1
+        self.stats.increment_belly_pokes()
         return random.choice(self.BELLY_POKE_RESPONSES)
 
     def on_fall_on_face(self) -> str:
         """Handle panda falling on its face."""
-        self.fall_count += 1
+        self.stats.increment_falls()
         return random.choice(self.FALL_ON_FACE_RESPONSES)
 
     def on_tip_over(self) -> str:
         """Handle panda tipping over on its side."""
-        self.tip_over_count += 1
+        self.stats.increment_tip_overs()
         return random.choice(self.TIP_OVER_RESPONSES)
 
     def set_facing(self, direction: 'PandaFacing'):
@@ -1181,7 +1235,7 @@ class PandaCharacter:
 
     def on_clothing_change(self) -> str:
         """Handle panda changing clothes."""
-        self.clothing_change_count += 1
+        self.stats.increment_clothing_changes()
         return random.choice(self.CLOTHING_RESPONSES)
 
     def on_item_thrown_at(self, item_name: str, body_part: str) -> str:
@@ -1194,7 +1248,7 @@ class PandaCharacter:
         Returns:
             Reaction string
         """
-        self.items_thrown_at_count += 1
+        self.stats.increment_items_thrown()
         if body_part == 'head':
             responses = [
                 f"🐼 OW! {item_name} hit me on the head! 💥🤕",
@@ -1240,7 +1294,7 @@ class PandaCharacter:
             Interaction response string
         """
         if item_type == 'food':
-            self.feed_count += 1
+            self.stats.increment_feeds()
             return random.choice(self.WALK_TO_FOOD_RESPONSES)
         else:
             # Check for special item types with unique physics
@@ -1254,7 +1308,7 @@ class PandaCharacter:
                     f"🐼 *pushes {item_name}* Why is this so heavy?! *rubs hurt paws* 🤕",
                     f"🐼 *kicks {item_name}* OUCH! 😭 Note to self: don't kick heavy things...",
                 ]
-                self.toy_interact_count += 1
+                self.stats.increment_toy_interacts()
                 return random.choice(hurt_responses)
             
             # Springy/slinky items - special spring animations
@@ -1266,7 +1320,7 @@ class PandaCharacter:
                     f"🐼 *bats {item_name}* It's bouncing everywhere! So fun! 🎨",
                     f"🐼 *pushes {item_name}* Watch it crawl and stretch! Amazing! 🎪",
                 ]
-                self.toy_interact_count += 1
+                self.stats.increment_toy_interacts()
                 return random.choice(slinky_responses)
             
             # Default toy interactions
@@ -1278,7 +1332,7 @@ class PandaCharacter:
                     f"🐼 *waddles to {item_name}* Let's play! *pounces*",
                     f"🐼 *picks up {item_name}* Watch this trick! *tosses in air*",
                 ]
-                self.toy_interact_count += 1
+                self.stats.increment_toy_interacts()
                 return random.choice(toy_actions)
 
     def on_food_pickup(self, item_name: str) -> str:
@@ -1327,23 +1381,24 @@ class PandaCharacter:
     def track_file_processed(self):
         """Track that a file was processed."""
         with self._lock:
-            self.files_processed_count += 1
+            self.stats.track_file_processed()
             
             # Easter egg: 1000 files
-            if self.files_processed_count == 1000:
+            if self.stats.files_processed == 1000:
                 self.easter_eggs_triggered.add('thousand_files')
+                self.stats.add_easter_egg()
             
             # Existential crisis after 10k files
-            if self.files_processed_count >= 10000:
+            if self.stats.files_processed >= 10000:
                 self.set_mood(PandaMood.EXISTENTIAL)
     
     def track_operation_failure(self):
         """Track a failed operation."""
         with self._lock:
-            self.failed_operations += 1
+            self.stats.track_operation_failure()
             
             # Enter rage mode after 5 failures
-            if self.failed_operations >= 5:
+            if self.stats.failed_operations >= 5:
                 self.set_mood(PandaMood.RAGE)
     
     def check_time_for_3am(self) -> bool:
@@ -1372,12 +1427,19 @@ class PandaCharacter:
         return False
     
     def get_statistics(self) -> Dict:
-        """Get panda statistics."""
+        """Get panda statistics with all categories."""
+        # Update playtime in stats
+        self.stats.playtime = time.time() - self.start_time
+        
+        # Update easter eggs count in stats  
+        self.stats.easter_eggs_found = len(self.easter_eggs_triggered)
+        
         return {
             'name': self.name,
             'gender': self.gender.value,
             'current_mood': self.current_mood.value,
             'facing': self.facing.value,
+            # Legacy flat structure for backward compatibility
             'click_count': self.click_count,
             'pet_count': self.pet_count,
             'feed_count': self.feed_count,
@@ -1397,6 +1459,11 @@ class PandaCharacter:
             'easter_eggs_found': len(self.easter_eggs_triggered),
             'easter_eggs': list(self.easter_eggs_triggered),
             'uptime_seconds': time.time() - self.start_time,
+            # New categorized stats
+            'base_stats': self.stats.get_base_stats(),
+            'combat_stats': self.stats.get_combat_stats(),
+            'interaction_stats': self.stats.get_interaction_stats(),
+            'system_stats': self.stats.get_system_stats(),
         }
     
     def get_error_response(self, error_code: str = None) -> str:
@@ -1564,7 +1631,7 @@ class PandaCharacter:
             Response message string
         """
         with self._lock:
-            self.click_count += 1
+            self.stats.increment_clicks()
             responses = self.BODY_PART_CLICK_RESPONSES.get(body_part, self.CLICK_RESPONSES)
             return random.choice(responses)
     
@@ -1578,6 +1645,6 @@ class PandaCharacter:
             Response message string
         """
         with self._lock:
-            self.pet_count += 1
+            self.stats.increment_pets()
             responses = self.BODY_PART_RESPONSES.get(body_part, self.PETTING_RESPONSES)
             return random.choice(responses)

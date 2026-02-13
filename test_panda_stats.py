@@ -173,6 +173,58 @@ class TestPandaStats(unittest.TestCase):
         self.stats.take_damage(1000)
         self.assertEqual(self.stats.health, 0)
         self.assertEqual(self.stats.times_died, initial_deaths + 1)
+    
+    def test_interaction_stats(self):
+        """Test interaction stat tracking."""
+        # Test clicks
+        self.stats.increment_clicks()
+        self.assertEqual(self.stats.click_count, 1)
+        
+        # Test pets
+        self.stats.increment_pets()
+        self.stats.increment_pets()
+        self.assertEqual(self.stats.pet_count, 2)
+        
+        # Test feeds
+        self.stats.increment_feeds()
+        self.assertEqual(self.stats.feed_count, 1)
+        
+        # Test other interactions
+        self.stats.increment_drags()
+        self.stats.increment_tosses()
+        self.stats.increment_shakes()
+        self.assertEqual(self.stats.drag_count, 1)
+        self.assertEqual(self.stats.toss_count, 1)
+        self.assertEqual(self.stats.shake_count, 1)
+    
+    def test_interaction_stats_getter(self):
+        """Test getting interaction stats as dictionary."""
+        self.stats.increment_clicks()
+        self.stats.increment_pets()
+        self.stats.increment_belly_pokes()
+        
+        interaction_stats = self.stats.get_interaction_stats()
+        self.assertIn('Clicks', interaction_stats)
+        self.assertIn('Pets', interaction_stats)
+        self.assertIn('Belly Pokes', interaction_stats)
+        self.assertEqual(interaction_stats['Clicks'], 1)
+        self.assertEqual(interaction_stats['Pets'], 1)
+        self.assertEqual(interaction_stats['Belly Pokes'], 1)
+    
+    def test_system_stats_with_files(self):
+        """Test system stats including file processing."""
+        self.stats.track_file_processed()
+        self.stats.track_file_processed()
+        self.stats.track_operation_failure()
+        self.stats.add_easter_egg()
+        
+        system_stats = self.stats.get_system_stats()
+        self.assertIn('Files Processed', system_stats)
+        self.assertIn('Failed Operations', system_stats)
+        self.assertIn('Easter Eggs Found', system_stats)
+        self.assertEqual(system_stats['Files Processed'], 2)
+        self.assertEqual(system_stats['Failed Operations'], 1)
+        self.assertEqual(system_stats['Easter Eggs Found'], 1)
 
 
 if __name__ == '__main__':

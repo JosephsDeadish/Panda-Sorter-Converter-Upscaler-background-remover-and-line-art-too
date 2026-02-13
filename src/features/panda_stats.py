@@ -13,10 +13,11 @@ class PandaStats:
     """
     Comprehensive stats tracking for the panda character.
     
-    Stats are organized into three categories:
+    Stats are organized into four categories:
     1. Base Stats - Character attributes (health, strength, defense, etc.)
     2. Combat Stats - Gameplay tracking (kills, damage, attacks, etc.)
-    3. System Stats - Meta tracking (playtime, items collected, etc.)
+    3. Interaction Stats - User interaction tracking (clicks, pets, feeds, etc.)
+    4. System Stats - Meta tracking (playtime, items collected, files processed, etc.)
     """
     
     # Base Stats - Character Attributes
@@ -42,6 +43,22 @@ class PandaStats:
     spells_cast: int = 0
     healing_done: int = 0
     
+    # Interaction Stats - User Interaction Tracking
+    click_count: int = 0
+    pet_count: int = 0
+    feed_count: int = 0
+    hover_count: int = 0
+    drag_count: int = 0
+    toss_count: int = 0
+    shake_count: int = 0
+    spin_count: int = 0
+    toy_interact_count: int = 0
+    clothing_change_count: int = 0
+    items_thrown_at_count: int = 0
+    belly_poke_count: int = 0
+    fall_count: int = 0
+    tip_over_count: int = 0
+    
     # System Stats - Meta Tracking
     playtime: float = 0.0  # seconds
     items_collected: int = 0
@@ -50,6 +67,9 @@ class PandaStats:
     distance_traveled: float = 0.0
     times_died: int = 0
     times_saved: int = 0
+    files_processed: int = 0
+    failed_operations: int = 0
+    easter_eggs_found: int = 0
     
     def get_experience_for_level(self, level: int) -> int:
         """Calculate experience required to reach a given level (cumulative)."""
@@ -232,6 +252,75 @@ class PandaStats:
         """Increment times saved."""
         self.times_saved += 1
     
+    # Interaction stat increment methods
+    def increment_clicks(self):
+        """Increment click count."""
+        self.click_count += 1
+    
+    def increment_pets(self):
+        """Increment pet count."""
+        self.pet_count += 1
+    
+    def increment_feeds(self):
+        """Increment feed count."""
+        self.feed_count += 1
+    
+    def increment_hovers(self):
+        """Increment hover count."""
+        self.hover_count += 1
+    
+    def increment_drags(self):
+        """Increment drag count."""
+        self.drag_count += 1
+    
+    def increment_tosses(self):
+        """Increment toss count."""
+        self.toss_count += 1
+    
+    def increment_shakes(self):
+        """Increment shake count."""
+        self.shake_count += 1
+    
+    def increment_spins(self):
+        """Increment spin count."""
+        self.spin_count += 1
+    
+    def increment_toy_interacts(self):
+        """Increment toy interact count."""
+        self.toy_interact_count += 1
+    
+    def increment_clothing_changes(self):
+        """Increment clothing change count."""
+        self.clothing_change_count += 1
+    
+    def increment_items_thrown(self):
+        """Increment items thrown at count."""
+        self.items_thrown_at_count += 1
+    
+    def increment_belly_pokes(self):
+        """Increment belly poke count."""
+        self.belly_poke_count += 1
+    
+    def increment_falls(self):
+        """Increment fall count."""
+        self.fall_count += 1
+    
+    def increment_tip_overs(self):
+        """Increment tip-over count."""
+        self.tip_over_count += 1
+    
+    def track_file_processed(self):
+        """Track a file being processed."""
+        self.files_processed += 1
+    
+    def track_operation_failure(self):
+        """Track a failed operation."""
+        self.failed_operations += 1
+    
+    def add_easter_egg(self):
+        """Add to easter egg count."""
+        self.easter_eggs_found += 1
+    
     # Stat category getters
     def get_base_stats(self) -> Dict:
         """Get all base stats as a dictionary."""
@@ -261,6 +350,25 @@ class PandaStats:
             'Healing Done': self.healing_done,
         }
     
+    def get_interaction_stats(self) -> Dict:
+        """Get all interaction stats as a dictionary."""
+        return {
+            'Clicks': self.click_count,
+            'Pets': self.pet_count,
+            'Feeds': self.feed_count,
+            'Hovers': self.hover_count,
+            'Drags': self.drag_count,
+            'Tosses': self.toss_count,
+            'Shakes': self.shake_count,
+            'Spins': self.spin_count,
+            'Toy Interactions': self.toy_interact_count,
+            'Clothing Changes': self.clothing_change_count,
+            'Items Thrown At': self.items_thrown_at_count,
+            'Belly Pokes': self.belly_poke_count,
+            'Falls': self.fall_count,
+            'Tip-overs': self.tip_over_count,
+        }
+    
     def get_system_stats(self) -> Dict:
         """Get all system stats as a dictionary."""
         hours = int(self.playtime / 3600)
@@ -274,6 +382,9 @@ class PandaStats:
             'Distance Traveled': f"{self.distance_traveled:.1f}",
             'Times Died': self.times_died,
             'Times Saved': self.times_saved,
+            'Files Processed': self.files_processed,
+            'Failed Operations': self.failed_operations,
+            'Easter Eggs Found': self.easter_eggs_found,
         }
     
     # Persistence methods
