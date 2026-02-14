@@ -1,0 +1,20 @@
+<svg width="24" height="24" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+  <rect x="10" y="10" width="4" height="4" fill="#8B5CF6" stroke="#6D28D9" stroke-width="1.5">
+    <animate attributeName="width" values="4;12;4" dur="2s" repeatCount="indefinite" calcMode="spline" keySplines="0.4 0 0.2 1; 0.4 0 0.2 1"/>
+    <animate attributeName="height" values="4;12;4" dur="2s" repeatCount="indefinite" calcMode="spline" keySplines="0.4 0 0.2 1; 0.4 0 0.2 1"/>
+    <animate attributeName="x" values="10;6;10" dur="2s" repeatCount="indefinite" calcMode="spline" keySplines="0.4 0 0.2 1; 0.4 0 0.2 1"/>
+    <animate attributeName="y" values="10;6;10" dur="2s" repeatCount="indefinite" calcMode="spline" keySplines="0.4 0 0.2 1; 0.4 0 0.2 1"/>
+  </rect>
+  <rect x="4" y="4" width="4" height="4" fill="#3B82F6" stroke="#2563EB" stroke-width="1.5" opacity="0">
+    <animate attributeName="opacity" values="0;1;1" dur="2s" repeatCount="indefinite"/>
+  </rect>
+  <rect x="16" y="4" width="4" height="4" fill="#10B981" stroke="#059669" stroke-width="1.5" opacity="0">
+    <animate attributeName="opacity" values="0;1;1" dur="2s" repeatCount="indefinite"/>
+  </rect>
+  <rect x="4" y="16" width="4" height="4" fill="#F59E0B" stroke="#D97706" stroke-width="1.5" opacity="0">
+    <animate attributeName="opacity" values="0;1;1" dur="2s" repeatCount="indefinite"/>
+  </rect>
+  <rect x="16" y="16" width="4" height="4" fill="#EF4444" stroke="#DC2626" stroke-width="1.5" opacity="0">
+    <animate attributeName="opacity" values="0;1;1" dur="2s" repeatCount="indefinite"/>
+  </rect>
+</svg>

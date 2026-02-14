@@ -1,0 +1,24 @@
+<svg width="24" height="24" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="mergeGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#3B82F6;stop-opacity:1">
+        <animate attributeName="stop-opacity" values="0.3;1;0.3" dur="2s" repeatCount="indefinite"/>
+      </stop>
+      <stop offset="100%" style="stop-color:#8B5CF6;stop-opacity:1">
+        <animate attributeName="stop-opacity" values="1;0.3;1" dur="2s" repeatCount="indefinite"/>
+      </stop>
+    </linearGradient>
+  </defs>
+  <path d="M4 4 L8 4 L8 8 L4 8 Z" fill="url(#mergeGrad)" stroke="#3B82F6" stroke-width="1.5">
+    <animate attributeName="d" values="M4 4 L8 4 L8 8 L4 8 Z;M6 6 L12 6 L12 12 L6 12 Z;M8 8 L12 8 L12 12 L8 12 Z" dur="2s" repeatCount="indefinite" calcMode="spline" keySplines="0.4 0 0.2 1; 0.4 0 0.2 1"/>
+  </path>
+  <path d="M16 4 L20 4 L20 8 L16 8 Z" fill="url(#mergeGrad)" stroke="#8B5CF6" stroke-width="1.5">
+    <animate attributeName="d" values="M16 4 L20 4 L20 8 L16 8 Z;M12 6 L18 6 L18 12 L12 12 Z;M12 8 L16 8 L16 12 L12 12 Z" dur="2s" repeatCount="indefinite" calcMode="spline" keySplines="0.4 0 0.2 1; 0.4 0 0.2 1"/>
+  </path>
+  <path d="M10 14 L14 14 L14 18 L10 18 Z" fill="#10B981" stroke="#059669" stroke-width="1.5" opacity="0">
+    <animate attributeName="opacity" values="0;0;1" dur="2s" repeatCount="indefinite"/>
+  </path>
+  <path d="M12 10 L12 14" stroke="#64748B" stroke-width="2" stroke-linecap="round" opacity="0">
+    <animate attributeName="opacity" values="0;1;0" dur="2s" repeatCount="indefinite"/>
+  </path>
+</svg>
