@@ -45,6 +45,146 @@ class BackgroundRemovalResult:
     output_size: Tuple[int, int] = (0, 0)
 
 
+@dataclass
+class AlphaPreset:
+    """Alpha matting preset with optimized settings."""
+    name: str
+    description: str
+    why_use: str
+    foreground_threshold: int
+    background_threshold: int
+    erode_size: int
+    edge_refinement: float
+
+
+class AlphaPresets:
+    """
+    Predefined alpha matting presets optimized for different use cases.
+    Each preset has carefully tuned parameters for best results.
+    """
+    
+    PS2_TEXTURES = AlphaPreset(
+        name="PS2 Textures",
+        description="Optimized for PlayStation 2 game textures with sharp, pixelated edges",
+        why_use="PS2 textures often have hard edges and limited alpha channels. This preset uses "
+                "aggressive thresholds (250/5) to preserve pixel-perfect boundaries while removing "
+                "backgrounds. Best for sprite sheets, UI elements, and low-res character textures.",
+        foreground_threshold=250,
+        background_threshold=5,
+        erode_size=5,
+        edge_refinement=0.2
+    )
+    
+    GAMING_SPRITES = AlphaPreset(
+        name="Gaming Assets",
+        description="Sharp edges for sprites, icons, and 2D gaming assets",
+        why_use="2D gaming assets need crisp, clean edges with no blur. High foreground threshold (245) "
+                "ensures solid colors stay solid, while low background threshold (8) aggressively removes "
+                "backgrounds. Small erode size (6) preserves fine details like weapon edges and pixel art.",
+        foreground_threshold=245,
+        background_threshold=8,
+        erode_size=6,
+        edge_refinement=0.3
+    )
+    
+    ART_ILLUSTRATION = AlphaPreset(
+        name="Art/Illustration",
+        description="Smooth gradients for hand-drawn art and digital paintings",
+        why_use="Artwork often has soft edges, gradients, and semi-transparent elements. Moderate thresholds "
+                "(235/15) preserve subtle color transitions. Larger erode size (12) smooths edges without "
+                "destroying artistic details. Higher edge refinement (0.7) creates natural-looking cutouts.",
+        foreground_threshold=235,
+        background_threshold=15,
+        erode_size=12,
+        edge_refinement=0.7
+    )
+    
+    PHOTOGRAPHY = AlphaPreset(
+        name="Photography",
+        description="Natural subject isolation for photos with depth of field",
+        why_use="Photos have natural depth, lighting, and soft focus areas. Balanced thresholds (230/20) "
+                "handle complex lighting. Large erode size (15) creates smooth transitions around subjects. "
+                "Maximum edge refinement (0.8) blends edges naturally, perfect for portraits and products.",
+        foreground_threshold=230,
+        background_threshold=20,
+        erode_size=15,
+        edge_refinement=0.8
+    )
+    
+    UI_ELEMENTS = AlphaPreset(
+        name="UI Elements",
+        description="Crisp boundaries for interface graphics and buttons",
+        why_use="UI elements require pixel-perfect edges for clarity. Highest foreground threshold (255) "
+                "ensures no color bleeding. Minimal background threshold (3) removes all non-solid pixels. "
+                "Tiny erode size (4) maintains sharp corners and straight edges. No edge refinement (0.1) "
+                "preserves intentional hard edges.",
+        foreground_threshold=255,
+        background_threshold=3,
+        erode_size=4,
+        edge_refinement=0.1
+    )
+    
+    CHARACTER_MODELS = AlphaPreset(
+        name="3D Character Models",
+        description="Blend hair, fur, and fine details on 3D renders",
+        why_use="3D renders often have hair, fur, or fine geometric details that need soft edges. "
+                "Lower foreground threshold (220) captures semi-transparent strands. Higher background "
+                "threshold (25) leaves subtle shadows. Large erode size (18) and high refinement (0.9) "
+                "create professional-looking compositing-ready alphas.",
+        foreground_threshold=220,
+        background_threshold=25,
+        erode_size=18,
+        edge_refinement=0.9
+    )
+    
+    TRANSPARENT_OBJECTS = AlphaPreset(
+        name="Transparent Objects",
+        description="Glass, water, smoke, and semi-transparent elements",
+        why_use="Transparent materials need to preserve opacity gradients. Very low foreground threshold "
+                "(200) captures see-through areas. Moderate background (30) keeps subtle reflections. "
+                "Maximum erode size (20) and refinement (1.0) create smooth alpha gradients that preserve "
+                "the illusion of transparency.",
+        foreground_threshold=200,
+        background_threshold=30,
+        erode_size=20,
+        edge_refinement=1.0
+    )
+    
+    PIXEL_ART = AlphaPreset(
+        name="Pixel Art",
+        description="Preserve exact pixel boundaries for retro game graphics",
+        why_use="Pixel art requires absolute precision - any blur ruins the aesthetic. Maximum foreground (255), "
+                "minimum background (0), and tiny erode (2) preserve every single pixel. Zero edge refinement "
+                "(0.0) means what you see is what you get - perfect for NES/SNES/GB era graphics.",
+        foreground_threshold=255,
+        background_threshold=0,
+        erode_size=2,
+        edge_refinement=0.0
+    )
+    
+    @classmethod
+    def get_all_presets(cls) -> List[AlphaPreset]:
+        """Get list of all available presets."""
+        return [
+            cls.PS2_TEXTURES,
+            cls.GAMING_SPRITES,
+            cls.ART_ILLUSTRATION,
+            cls.PHOTOGRAPHY,
+            cls.UI_ELEMENTS,
+            cls.CHARACTER_MODELS,
+            cls.TRANSPARENT_OBJECTS,
+            cls.PIXEL_ART
+        ]
+    
+    @classmethod
+    def get_preset_by_name(cls, name: str) -> Optional[AlphaPreset]:
+        """Get a preset by its name."""
+        for preset in cls.get_all_presets():
+            if preset.name == name:
+                return preset
+        return None
+
+
 class BackgroundRemover:
     """
     AI-powered background remover with batch processing capabilities.
@@ -94,6 +234,18 @@ class BackgroundRemover:
         self.edge_refinement = max(0.0, min(1.0, refinement))
         self.feather_radius = int(1 + self.edge_refinement * 5)  # 1-6 pixel radius
         logger.debug(f"Edge refinement set to {self.edge_refinement:.2f}, feather radius: {self.feather_radius}")
+    
+    def apply_preset(self, preset: AlphaPreset):
+        """
+        Apply an alpha matting preset to the remover settings.
+        
+        Args:
+            preset: AlphaPreset to apply
+        """
+        self.set_edge_refinement(preset.edge_refinement)
+        logger.info(f"Applied preset '{preset.name}': fg={preset.foreground_threshold}, "
+                   f"bg={preset.background_threshold}, erode={preset.erode_size}, "
+                   f"refinement={preset.edge_refinement}")
     
     def remove_background(
         self, 
