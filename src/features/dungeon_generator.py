@@ -15,7 +15,12 @@ class Room:
     y: int  # Top-left y position in tiles
     width: int  # Width in tiles
     height: int  # Height in tiles
-    room_type: str = 'normal'  # 'normal', 'treasure', 'boss', 'spawn'
+    room_type: str = 'normal'  # 'normal', 'treasure', 'boss', 'spawn', 'puzzle', 'trap', 'secret', 'miniboss', 'shrine', 'shop'
+    theme: str = 'default'  # 'default', 'ice', 'fire', 'forest', 'poison', 'dark', 'crystal'
+    has_hazard: bool = False  # Environmental hazards
+    hazard_type: str = ''  # 'spikes', 'lava', 'ice', 'poison_gas', 'darkness'
+    special_event: str = ''  # 'ambush', 'treasure_hoard', 'shrine_healing', 'trader'
+    difficulty_modifier: float = 1.0  # Multiplier for enemy strength
     
     @property
     def center(self) -> Tuple[int, int]:
@@ -58,10 +63,11 @@ class Corridor:
 class DungeonFloor:
     """Represents a single floor of the dungeon."""
     
-    def __init__(self, width: int, height: int, floor_number: int):
+    def __init__(self, width: int, height: int, floor_number: int, theme: str = 'default'):
         self.width = width
         self.height = height
         self.floor_number = floor_number
+        self.theme = theme  # Floor theme affects visuals and enemy types
         self.rooms: List[Room] = []
         self.corridors: List[Corridor] = []
         # Create 2D collision map using nested lists: 1 = wall, 0 = walkable
@@ -69,6 +75,9 @@ class DungeonFloor:
         self.stairs_up: List[Tuple[int, int]] = []
         self.stairs_down: List[Tuple[int, int]] = []
         self.spawn_point: Optional[Tuple[int, int]] = None
+        self.difficulty_level: int = floor_number + 1  # Difficulty increases with floor
+        self.secret_rooms: List[Room] = []  # Hidden rooms
+        self.hazard_zones: List[Tuple[int, int, str]] = []  # (x, y, hazard_type)
     
     def add_room(self, room: Room):
         """Add a room and carve it out of the collision map."""
@@ -227,8 +236,10 @@ class DungeonGenerator:
             self.floors.append(floor)
     
     def _generate_floor(self, floor_num: int) -> DungeonFloor:
-        """Generate a single floor using BSP."""
-        floor = DungeonFloor(self.width, self.height, floor_num)
+        """Generate a single floor using BSP with enhanced features."""
+        # Determine theme for this floor
+        theme = self._get_floor_theme(floor_num)
+        floor = DungeonFloor(self.width, self.height, floor_num, theme)
         
         # Create BSP tree
         root = BSPNode(0, 0, self.width, self.height)
@@ -243,25 +254,64 @@ class DungeonGenerator:
         # Get all rooms
         rooms = root.get_all_rooms()
         
-        # Assign room types
+        # Assign room types with enhanced variety
         if rooms:
             # First room is spawn
             rooms[0].room_type = 'spawn'
+            rooms[0].theme = theme
             floor.spawn_point = rooms[0].center
             
-            # Assign other types
+            # Assign other types with more variety
             for room in rooms[1:]:
                 roll = self.rng.random()
-                if roll < 0.05:  # 5% boss rooms
+                room.theme = theme
+                
+                # Room type distribution
+                if roll < 0.03:  # 3% boss rooms
                     room.room_type = 'boss'
-                elif roll < 0.20:  # 15% treasure rooms
+                    room.difficulty_modifier = 2.0
+                elif roll < 0.08:  # 5% mini-boss rooms
+                    room.room_type = 'miniboss'
+                    room.difficulty_modifier = 1.5
+                elif roll < 0.15:  # 7% treasure rooms
                     room.room_type = 'treasure'
-                else:
+                elif roll < 0.20:  # 5% puzzle rooms
+                    room.room_type = 'puzzle'
+                elif roll < 0.25:  # 5% trap rooms
+                    room.room_type = 'trap'
+                    room.has_hazard = True
+                    room.hazard_type = self._get_random_hazard(theme)
+                elif roll < 0.28:  # 3% secret rooms
+                    room.room_type = 'secret'
+                    floor.secret_rooms.append(room)
+                elif roll < 0.31:  # 3% shrine rooms
+                    room.room_type = 'shrine'
+                    room.special_event = 'shrine_healing'
+                elif roll < 0.33:  # 2% shop rooms
+                    room.room_type = 'shop'
+                    room.special_event = 'trader'
+                else:  # 67% normal rooms
                     room.room_type = 'normal'
+                    # 20% chance of special events in normal rooms
+                    if self.rng.random() < 0.20:
+                        room.special_event = self.rng.choice(['ambush', 'treasure_hoard', ''])
+                    # 15% chance of environmental hazards
+                    if self.rng.random() < 0.15:
+                        room.has_hazard = True
+                        room.hazard_type = self._get_random_hazard(theme)
+                
+                # Difficulty modifier based on floor depth
+                room.difficulty_modifier *= (1.0 + floor_num * 0.15)
         
         # Add rooms to floor
         for room in rooms:
             floor.add_room(room)
+            # Track hazard zones
+            if room.has_hazard:
+                for i in range(3):  # Add 3 hazard points per hazardous room
+                    hx = self.rng.randint(room.x + 1, room.x + room.width - 2)
+                    hy = self.rng.randint(room.y + 1, room.y + room.height - 2)
+                    floor.hazard_zones.append((hx, hy, room.hazard_type))
         
         # Create corridors between rooms
         self._create_corridors(root, floor)
@@ -279,6 +329,52 @@ class DungeonGenerator:
                 floor.add_stairs(*room.center, going_up=False)
         
         return floor
+    
+    def _get_floor_theme(self, floor_num: int) -> str:
+        """Determine theme for a floor based on floor number and randomness."""
+        themes = ['default', 'ice', 'fire', 'forest', 'poison', 'dark', 'crystal']
+        
+        # First floor is always default
+        if floor_num == 0:
+            return 'default'
+        
+        # Boss floors get dark theme
+        if floor_num == self.num_floors - 1:
+            return 'dark'
+        
+        # Every 3rd floor gets a special theme
+        if floor_num % 3 == 0:
+            return self.rng.choice(['ice', 'fire', 'crystal'])
+        
+        # Otherwise, random weighted selection
+        weights = {
+            'default': 0.4,
+            'forest': 0.15,
+            'ice': 0.12,
+            'fire': 0.12,
+            'poison': 0.10,
+            'dark': 0.08,
+            'crystal': 0.03
+        }
+        
+        theme_list = list(weights.keys())
+        weight_list = list(weights.values())
+        return self.rng.choices(theme_list, weights=weight_list)[0]
+    
+    def _get_random_hazard(self, theme: str) -> str:
+        """Get a random hazard type appropriate for the theme."""
+        theme_hazards = {
+            'default': ['spikes', 'pit'],
+            'ice': ['ice', 'freezing_wind'],
+            'fire': ['lava', 'fire_jets'],
+            'forest': ['poison_thorns', 'quicksand'],
+            'poison': ['poison_gas', 'acid_pools'],
+            'dark': ['darkness', 'void_zones'],
+            'crystal': ['crystal_shards', 'energy_beams']
+        }
+        
+        hazards = theme_hazards.get(theme, ['spikes'])
+        return self.rng.choice(hazards)
     
     def _create_corridors(self, node: BSPNode, floor: DungeonFloor):
         """Create corridors connecting rooms in the BSP tree."""
