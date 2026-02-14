@@ -14,6 +14,15 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+# Try to import SVG icon helper
+try:
+    from src.utils.svg_icon_helper import load_icon
+    SVG_ICONS_AVAILABLE = True
+except ImportError:
+    load_icon = None
+    SVG_ICONS_AVAILABLE = False
+    logger.warning("SVG icons not available for Performance Dashboard")
+
 # Try to import tooltip system
 try:
     from src.features.tutorial_system import WidgetTooltip

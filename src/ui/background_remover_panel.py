@@ -19,6 +19,15 @@ from src.ui.live_preview_widget import LivePreviewWidget
 from src.ui.archive_queue_widgets import ArchiveSettingsWidget, ProcessingQueue, OutputMode
 from src.utils.archive_handler import ArchiveHandler
 
+# Try to import SVG icon helper
+try:
+    from src.utils.svg_icon_helper import load_icon
+    SVG_ICONS_AVAILABLE = True
+except ImportError:
+    load_icon = None
+    SVG_ICONS_AVAILABLE = False
+    logger.warning("SVG icons not available for Background Remover Panel")
+
 try:
     from src.features.tutorial_system import WidgetTooltip
     TOOLTIPS_AVAILABLE = True
@@ -153,6 +162,10 @@ class BackgroundRemoverPanel(ctk.CTkFrame):
             command=self._select_files,
             width=120
         )
+        if SVG_ICONS_AVAILABLE:
+            icon = load_icon("file_open_animated", (20, 20))
+            if icon:
+                self.select_files_btn.configure(image=icon, compound="left")
         self.select_files_btn.pack(side="left", padx=5)
         
         self.select_folder_btn = ctk.CTkButton(
@@ -161,6 +174,10 @@ class BackgroundRemoverPanel(ctk.CTkFrame):
             command=self._select_folder,
             width=120
         )
+        if SVG_ICONS_AVAILABLE:
+            icon = load_icon("folder_open_animated", (20, 20))
+            if icon:
+                self.select_folder_btn.configure(image=icon, compound="left")
         self.select_folder_btn.pack(side="left", padx=5)
         
         self.select_archive_btn = ctk.CTkButton(
@@ -169,6 +186,10 @@ class BackgroundRemoverPanel(ctk.CTkFrame):
             command=self._select_archive,
             width=120
         )
+        if SVG_ICONS_AVAILABLE:
+            icon = load_icon("package_animated", (20, 20))
+            if icon:
+                self.select_archive_btn.configure(image=icon, compound="left")
         self.select_archive_btn.pack(side="left", padx=5)
         
         self.clear_btn = ctk.CTkButton(
@@ -178,6 +199,10 @@ class BackgroundRemoverPanel(ctk.CTkFrame):
             width=120,
             fg_color="gray40"
         )
+        if SVG_ICONS_AVAILABLE:
+            icon = load_icon("trash_empty_animated", (18, 18))
+            if icon:
+                self.clear_btn.configure(image=icon, compound="left")
         self.clear_btn.pack(side="left", padx=5)
         
         # File list
@@ -204,6 +229,10 @@ class BackgroundRemoverPanel(ctk.CTkFrame):
             command=self._select_output_directory,
             width=200
         )
+        if SVG_ICONS_AVAILABLE:
+            icon = load_icon("folder_open_animated", (20, 20))
+            if icon:
+                self.select_output_btn.configure(image=icon, compound="left")
         self.select_output_btn.pack(side="left", padx=5)
         
         self.output_label = ctk.CTkLabel(
