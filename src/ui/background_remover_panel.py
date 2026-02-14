@@ -1,6 +1,7 @@
 """
 Background Remover UI Panel
-Provides UI for AI-based background removal with edge refinement controls
+Provides UI for AI-based background removal with edge refinement controls,
+live preview, alpha presets, archive support, and processing queue
 """
 
 import customtkinter as ctk
@@ -9,8 +10,12 @@ from pathlib import Path
 from typing import List, Optional, Callable
 import logging
 from PIL import Image
+import zipfile
+import threading
 
-from src.tools.background_remover import BackgroundRemover, check_dependencies
+from src.tools.background_remover import BackgroundRemover, check_dependencies, AlphaPresets
+from src.ui.live_preview_widget import LivePreviewWidget
+from src.ui.archive_queue_widgets import ArchiveSettingsWidget, ProcessingQueue, OutputMode
 
 logger = logging.getLogger(__name__)
 
@@ -29,9 +34,14 @@ class BackgroundRemoverPanel(ctk.CTkFrame):
         self.selected_files: List[str] = []
         self.output_directory: Optional[str] = None
         self.processing_thread = None
+        self.current_preset = None
         
         self._create_widgets()
         self._check_availability()
+        
+        # Load first file for preview if any
+        if self.selected_files:
+            self.preview.load_image(self.selected_files[0])
     
     def _create_widgets(self):
         """Create the UI widgets."""
@@ -136,6 +146,47 @@ class BackgroundRemoverPanel(ctk.CTkFrame):
         
         ctk.CTkLabel(settings_frame, text="⚙️ Settings:", font=("Arial Bold", 12)).pack(anchor="w", padx=10, pady=(10, 5))
         
+        # Alpha Preset Selection
+        preset_frame = ctk.CTkFrame(settings_frame)
+        preset_frame.pack(fill="x", padx=10, pady=5)
+        
+        ctk.CTkLabel(preset_frame, text="🎯 Alpha Preset:", width=120).pack(side="left", padx=5)
+        
+        preset_names = [p.name for p in AlphaPresets.get_all_presets()]
+        self.preset_var = ctk.StringVar(value="Gaming Assets")
+        self.preset_menu = ctk.CTkOptionMenu(
+            preset_frame,
+            variable=self.preset_var,
+            values=preset_names,
+            command=self._on_preset_change
+        )
+        self.preset_menu.pack(side="left", fill="x", expand=True, padx=5)
+        
+        # Info button for preset
+        self.preset_info_btn = ctk.CTkButton(
+            preset_frame,
+            text="ℹ️",
+            width=30,
+            command=self._show_preset_info,
+            fg_color="transparent",
+            hover_color="gray30"
+        )
+        self.preset_info_btn.pack(side="left", padx=2)
+        
+        # Preset description
+        self.preset_desc_label = ctk.CTkLabel(
+            settings_frame,
+            text="",
+            font=("Arial", 9),
+            text_color="gray",
+            wraplength=600,
+            anchor="w"
+        )
+        self.preset_desc_label.pack(fill="x", padx=10, pady=(0, 5))
+        
+        # Initialize with default preset
+        self._on_preset_change("Gaming Assets")
+        
         # Edge refinement slider
         edge_frame = ctk.CTkFrame(settings_frame)
         edge_frame.pack(fill="x", padx=10, pady=5)
@@ -159,7 +210,7 @@ class BackgroundRemoverPanel(ctk.CTkFrame):
         model_frame = ctk.CTkFrame(settings_frame)
         model_frame.pack(fill="x", padx=10, pady=5)
         
-        ctk.CTkLabel(model_frame, text="AI Model:", width=120).pack(side="left", padx=5)
+        ctk.CTkLabel(model_frame, text="🤖 AI Model:", width=120).pack(side="left", padx=5)
         
         self.model_var = ctk.StringVar(value="u2net")
         self.model_menu = ctk.CTkOptionMenu(
@@ -174,12 +225,27 @@ class BackgroundRemoverPanel(ctk.CTkFrame):
         self.alpha_matting_var = ctk.BooleanVar(value=False)
         self.alpha_matting_check = ctk.CTkCheckBox(
             settings_frame,
-            text="Enable Alpha Matting (Better edges, slower)",
-            variable=self.alpha_matting_var
+            text="✨ Enable Alpha Matting (Better edges, slower)",
+            variable=self.alpha_matting_var,
+            command=self._update_preview
         )
         self.alpha_matting_check.pack(anchor="w", padx=10, pady=5)
         
-        # Progress frame
+        # Archive settings
+        self.archive_settings = ArchiveSettingsWidget(self)
+        self.archive_settings.pack(fill="x", padx=10, pady=5)
+        
+        # Live Preview
+        self.preview = LivePreviewWidget(self)
+        self.preview.pack(fill="both", expand=True, padx=10, pady=5)
+        self.preview.set_processing_function(self._process_preview_image)
+        
+        # Processing Queue
+        self.queue = ProcessingQueue(self)
+        self.queue.pack(fill="both", expand=True, padx=10, pady=5)
+        self.queue.set_process_callback(self._process_single_file)
+        
+        # Progress frame (for non-queue processing)
         progress_frame = ctk.CTkFrame(self)
         progress_frame.pack(fill="x", padx=10, pady=5)
         
@@ -198,9 +264,21 @@ class BackgroundRemoverPanel(ctk.CTkFrame):
         action_frame = ctk.CTkFrame(self)
         action_frame.pack(fill="x", padx=10, pady=10)
         
+        # Add to Queue button
+        self.add_to_queue_btn = ctk.CTkButton(
+            action_frame,
+            text="➕ Add to Queue",
+            command=self._add_to_queue,
+            height=35,
+            font=("Arial Bold", 12),
+            fg_color="#3B82F6",
+            hover_color="#2563EB"
+        )
+        self.add_to_queue_btn.pack(fill="x", padx=10, pady=2)
+        
         self.process_btn = ctk.CTkButton(
             action_frame,
-            text="🚀 Remove Backgrounds",
+            text="🚀 Process Now",
             command=self._process_images,
             height=40,
             font=("Arial Bold", 14),
@@ -217,7 +295,7 @@ class BackgroundRemoverPanel(ctk.CTkFrame):
             fg_color="gray40",
             state="disabled"
         )
-        self.cancel_btn.pack(fill="x", padx=10, pady=5)
+        self.cancel_btn.pack(fill="x", padx=10, pady=2)
     
     def _check_availability(self):
         """Check if background removal is available."""
@@ -253,6 +331,9 @@ class BackgroundRemoverPanel(ctk.CTkFrame):
         if files:
             self.selected_files = list(files)
             self._update_file_list()
+            # Load first file for preview
+            if self.selected_files:
+                self.preview.load_image(self.selected_files[0])
     
     def _select_folder(self):
         """Open folder dialog to select all images in a folder."""
@@ -266,11 +347,15 @@ class BackgroundRemoverPanel(ctk.CTkFrame):
                 if f.suffix.lower() in image_extensions
             ]
             self._update_file_list()
+            # Load first file for preview
+            if self.selected_files:
+                self.preview.load_image(self.selected_files[0])
     
     def _clear_selection(self):
         """Clear selected files."""
         self.selected_files = []
         self._update_file_list()
+        self.preview.clear()
     
     def _update_file_list(self):
         """Update the file list label."""
@@ -289,6 +374,104 @@ class BackgroundRemoverPanel(ctk.CTkFrame):
                 text_color="white"
             )
     
+    def _on_preset_change(self, preset_name):
+        """Handle preset selection change."""
+        preset = AlphaPresets.get_preset_by_name(preset_name)
+        if preset:
+            self.current_preset = preset
+            self.remover.apply_preset(preset)
+            self.preset_desc_label.configure(text=f"📝 {preset.description}")
+            
+            # Update UI controls to match preset
+            self.edge_slider.set(preset.edge_refinement)
+            self.edge_value_label.configure(text=f"{int(preset.edge_refinement * 100)}%")
+            
+            # Update preview
+            self._update_preview()
+    
+    def _show_preset_info(self):
+        """Show detailed info about current preset."""
+        if not self.current_preset:
+            return
+        
+        preset = self.current_preset
+        messagebox.showinfo(
+            f"Preset: {preset.name}",
+            f"{preset.description}\n\n"
+            f"Why Use This:\n{preset.why_use}\n\n"
+            f"Technical Settings:\n"
+            f"• Foreground Threshold: {preset.foreground_threshold}\n"
+            f"• Background Threshold: {preset.background_threshold}\n"
+            f"• Erode Size: {preset.erode_size}\n"
+            f"• Edge Refinement: {preset.edge_refinement * 100:.0f}%"
+        )
+    
+    def _update_preview(self):
+        """Update the live preview."""
+        if hasattr(self, 'preview'):
+            self.preview.apply_processing()
+    
+    def _process_preview_image(self, image: Image.Image) -> Image.Image:
+        """Process image for preview."""
+        if not self.remover.is_available():
+            return image
+        
+        try:
+            # Use current settings
+            kwargs = {
+                'alpha_matting': self.alpha_matting_var.get()
+            }
+            
+            if self.current_preset:
+                kwargs['alpha_matting_foreground_threshold'] = self.current_preset.foreground_threshold
+                kwargs['alpha_matting_background_threshold'] = self.current_preset.background_threshold
+                kwargs['alpha_matting_erode_size'] = self.current_preset.erode_size
+            
+            result = self.remover.remove_background(image, **kwargs)
+            return result if result else image
+        except Exception as e:
+            logger.error(f"Preview processing failed: {e}")
+            return image
+    
+    def _add_to_queue(self):
+        """Add selected files to processing queue."""
+        if not self.selected_files:
+            messagebox.showwarning("No Files", "Please select images to add to queue")
+            return
+        
+        # Determine output paths
+        archive_settings = self.archive_settings.get_settings()
+        output_dir = self.output_directory
+        
+        for input_path in self.selected_files:
+            if output_dir:
+                output_path = str(Path(output_dir) / f"{Path(input_path).stem}_nobg.png")
+            else:
+                output_path = str(Path(input_path).parent / f"{Path(input_path).stem}_nobg.png")
+            
+            self.queue.add_item(input_path, output_path)
+        
+        self.progress_label.configure(
+            text=f"Added {len(self.selected_files)} items to queue",
+            text_color="green"
+        )
+    
+    def _process_single_file(self, input_path: str, output_path: str):
+        """Process a single file (called by queue)."""
+        kwargs = {
+            'alpha_matting': self.alpha_matting_var.get()
+        }
+        
+        if self.current_preset:
+            kwargs['alpha_matting_foreground_threshold'] = self.current_preset.foreground_threshold
+            kwargs['alpha_matting_background_threshold'] = self.current_preset.background_threshold
+            kwargs['alpha_matting_erode_size'] = self.current_preset.erode_size
+        
+        result = self.remover.remove_background_from_file(input_path, output_path, **kwargs)
+        
+        if not result.success:
+            raise Exception(result.error_message)
+    
     def _select_output_directory(self):
         """Select output directory."""
         folder = filedialog.askdirectory(title="Select Output Folder")
@@ -305,12 +488,17 @@ class BackgroundRemoverPanel(ctk.CTkFrame):
         value = float(value)
         self.remover.set_edge_refinement(value)
         self.edge_value_label.configure(text=f"{int(value * 100)}%")
+        # Update preview
+        self._update_preview()
     
     def _on_model_change(self, model_name):
         """Handle model selection change."""
         success = self.remover.change_model(model_name)
         if not success:
             messagebox.showerror("Error", f"Failed to load model: {model_name}")
+        else:
+            # Update preview with new model
+            self._update_preview()
     
     def _process_images(self):
         """Start background removal processing."""
@@ -318,11 +506,30 @@ class BackgroundRemoverPanel(ctk.CTkFrame):
             messagebox.showwarning("No Files", "Please select images to process")
             return
         
+        archive_settings = self.archive_settings.get_settings()
+        
+        # If archive mode, process and create archive
+        if archive_settings['mode'] in [OutputMode.ZIP_ARCHIVE, OutputMode.SEVEN_ZIP_ARCHIVE]:
+            self._process_to_archive(archive_settings)
+        else:
+            self._process_to_files()
+    
+    def _process_to_files(self):
+        """Process images to individual files."""
         # Disable buttons
         self.process_btn.configure(state="disabled")
         self.cancel_btn.configure(state="normal")
         self.select_files_btn.configure(state="disabled")
         self.select_folder_btn.configure(state="disabled")
+        
+        kwargs = {
+            'alpha_matting': self.alpha_matting_var.get()
+        }
+        
+        if self.current_preset:
+            kwargs['alpha_matting_foreground_threshold'] = self.current_preset.foreground_threshold
+            kwargs['alpha_matting_background_threshold'] = self.current_preset.background_threshold
+            kwargs['alpha_matting_erode_size'] = self.current_preset.erode_size
         
         # Start async processing
         self.processing_thread = self.remover.batch_process_async(
@@ -330,8 +537,68 @@ class BackgroundRemoverPanel(ctk.CTkFrame):
             output_dir=self.output_directory,
             progress_callback=self._on_progress,
             completion_callback=self._on_completion,
-            alpha_matting=self.alpha_matting_var.get()
+            **kwargs
         )
+    
+    def _process_to_archive(self, archive_settings):
+        """Process images and save to archive."""
+        import tempfile
+        
+        self.process_btn.configure(state="disabled")
+        self.cancel_btn.configure(state="normal")
+        
+        def process_and_archive():
+            try:
+                # Create temp directory for processed files
+                with tempfile.TemporaryDirectory() as temp_dir:
+                    temp_path = Path(temp_dir)
+                    
+                    # Process files
+                    kwargs = {
+                        'alpha_matting': self.alpha_matting_var.get()
+                    }
+                    
+                    if self.current_preset:
+                        kwargs['alpha_matting_foreground_threshold'] = self.current_preset.foreground_threshold
+                        kwargs['alpha_matting_background_threshold'] = self.current_preset.background_threshold
+                        kwargs['alpha_matting_erode_size'] = self.current_preset.erode_size
+                    
+                    results = self.remover.batch_process(
+                        input_paths=self.selected_files,
+                        output_dir=str(temp_path),
+                        progress_callback=self._on_progress,
+                        **kwargs
+                    )
+                    
+                    # Create archive
+                    archive_name = archive_settings['archive_name']
+                    output_dir = self.output_directory or Path(self.selected_files[0]).parent
+                    
+                    if archive_settings['mode'] == OutputMode.ZIP_ARCHIVE:
+                        archive_path = Path(output_dir) / f"{archive_name}.zip"
+                        with zipfile.ZipFile(archive_path, 'w', zipfile.ZIP_DEFLATED,
+                                           compresslevel=archive_settings['compression_level']) as zf:
+                            for result in results:
+                                if result.success:
+                                    zf.write(result.output_path, Path(result.output_path).name)
+                    
+                    # Call completion callback
+                    self._on_completion(results)
+                    
+                    self.progress_label.configure(
+                        text=f"Archive created: {archive_path.name}",
+                        text_color="green"
+                    )
+            
+            except Exception as e:
+                logger.error(f"Archive processing failed: {e}")
+                messagebox.showerror("Error", f"Archive processing failed: {e}")
+            finally:
+                self.process_btn.configure(state="normal")
+                self.cancel_btn.configure(state="disabled")
+        
+        thread = threading.Thread(target=process_and_archive, daemon=True)
+        thread.start()
     
     def _on_progress(self, current: int, total: int, filename: str):
         """Handle progress updates."""
