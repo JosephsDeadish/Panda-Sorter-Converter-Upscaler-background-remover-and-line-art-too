@@ -868,7 +868,11 @@ class GameTextureSorter(ctk.CTk):
         self.after(50, self._create_deferred_tabs)
     
     def _create_deferred_tabs(self):
-        """Create remaining tabs after the window is already visible, avoiding slow startup."""
+        """Create remaining tabs after the window is already visible, avoiding slow startup.
+        
+        Tabs are created in small batches across multiple frames to keep the UI
+        responsive during startup instead of freezing while all tabs build at once.
+        """
         if self._deferred_tabs_created:
             return
         self._deferred_tabs_created = True
@@ -896,25 +900,39 @@ class GameTextureSorter(ctk.CTk):
             self.create_battle_arena_tab,
             self.create_travel_hub_tab,
         ]
-        for _tab_creator in _all_tab_creators:
+        self._deferred_tab_queue = _all_tab_creators
+        self._deferred_batch_size = 3  # Create 3 tabs per frame
+        self.after(10, self._create_next_tab_batch)
+
+    def _create_next_tab_batch(self):
+        """Create the next batch of deferred tabs, then schedule the rest."""
+        queue = self._deferred_tab_queue
+        batch_size = self._deferred_batch_size
+        batch = queue[:batch_size]
+        self._deferred_tab_queue = queue[batch_size:]
+
+        for _tab_creator in batch:
             try:
                 _tab_creator()
             except Exception as tab_err:
                 logger.error(f"Error creating tab {_tab_creator.__name__}: {tab_err}", exc_info=True)
-        
-        try:
-            # Throttle scroll events on all scrollable frames to reduce lag/tearing
-            self._throttle_scroll_frames()
-            
-            # Add pop-out buttons to dockable tabs
-            self._add_popout_buttons()
-        except Exception as e:
-            logger.error(f"Error in post-tab setup: {e}", exc_info=True)
+
+        if self._deferred_tab_queue:
+            # More tabs to create — yield to the event loop first
+            self.after(10, self._create_next_tab_batch)
+        else:
+            # All tabs created — run post-setup
+            try:
+                self._throttle_scroll_frames()
+                self._add_popout_buttons()
+            except Exception as e:
+                logger.error(f"Error in post-tab setup: {e}", exc_info=True)
     
     def _throttle_scroll_frames(self):
         """Patch CTkScrollableFrame widgets to throttle scroll events and reduce lag."""
         self._scroll_throttle_time = 0
-        
+        self._scroll_pending = {}  # Track pending scroll jobs per canvas
+
         def _find_scrollable_frames(widget):
             """Recursively find all CTkScrollableFrame instances."""
             frames = []
@@ -926,13 +944,40 @@ class GameTextureSorter(ctk.CTk):
             except Exception:
                 pass
             return frames
-        
+
+        def _debounced_scroll(canvas, direction):
+            """Debounce mousewheel events to reduce redraw frequency."""
+            cid = id(canvas)
+            # Cancel any pending scroll for this canvas
+            if cid in self._scroll_pending:
+                try:
+                    self.after_cancel(self._scroll_pending[cid])
+                except Exception:
+                    pass
+            # Schedule the scroll after a short delay (16ms ≈ 60fps cap)
+            self._scroll_pending[cid] = self.after(
+                16, lambda: canvas.yview_scroll(direction, "units"))
+
         for sf in _find_scrollable_frames(self):
             try:
-                # Access the internal canvas and reduce scroll increment
                 if hasattr(sf, '_parent_canvas'):
                     canvas = sf._parent_canvas
-                    canvas.configure(yscrollincrement=4)
+                    # Larger scroll increment for smoother feel
+                    canvas.configure(yscrollincrement=8)
+                    # Bind debounced mousewheel handler
+                    def _on_mousewheel(event, c=canvas):
+                        direction = -1 if event.delta > 0 else 1
+                        _debounced_scroll(c, direction)
+                        return "break"  # Prevent default scroll handler
+                    def _on_mousewheel_linux_up(event, c=canvas):
+                        _debounced_scroll(c, -1)
+                        return "break"
+                    def _on_mousewheel_linux_down(event, c=canvas):
+                        _debounced_scroll(c, 1)
+                        return "break"
+                    canvas.bind("<MouseWheel>", _on_mousewheel, add=False)
+                    canvas.bind("<Button-4>", _on_mousewheel_linux_up, add=False)
+                    canvas.bind("<Button-5>", _on_mousewheel_linux_down, add=False)
             except Exception:
                 pass
     
@@ -1664,7 +1709,7 @@ class GameTextureSorter(ctk.CTk):
         ctk.CTkLabel(self.tab_convert, text="🔄 File Format Conversion 🔄", 
                      font=("Arial Bold", 18)).pack(pady=10)
         
-        ctk.CTkLabel(self.tab_convert, text="Batch convert between DDS, PNG, and other formats",
+        ctk.CTkLabel(self.tab_convert, text="Batch convert between DDS, PNG, SVG, and other formats",
                      font=("Arial", 12)).pack(pady=5)
         
         # === START CONVERSION BUTTON AT TOP (BEFORE SCROLLABLE CONTENT) ===
@@ -1714,14 +1759,14 @@ class GameTextureSorter(ctk.CTk):
         ctk.CTkLabel(opts_grid, text="From:").grid(row=0, column=0, padx=10, pady=5, sticky="w")
         self.convert_from_var = ctk.StringVar(value="🎮 DDS")
         from_menu = ctk.CTkOptionMenu(opts_grid, variable=self.convert_from_var,
-                                       values=["🎮 DDS", "🖼️ PNG", "📷 JPG", "🗺️ BMP", "🎨 TGA"])
+                                       values=["🎮 DDS", "🖼️ PNG", "📷 JPG", "🗺️ BMP", "🎨 TGA", "📐 SVG"])
         from_menu.grid(row=0, column=1, padx=10, pady=5, sticky="w")
         
         # To format
         ctk.CTkLabel(opts_grid, text="To:").grid(row=0, column=2, padx=10, pady=5, sticky="w")
         self.convert_to_var = ctk.StringVar(value="🖼️ PNG")
         to_menu = ctk.CTkOptionMenu(opts_grid, variable=self.convert_to_var,
-                                     values=["🎮 DDS", "🖼️ PNG", "📷 JPG", "🗺️ BMP", "🎨 TGA"])
+                                     values=["🎮 DDS", "🖼️ PNG", "📷 JPG", "🗺️ BMP", "🎨 TGA", "📐 SVG"])
         to_menu.grid(row=0, column=3, padx=10, pady=5, sticky="w")
         
         # Options checkboxes
@@ -1886,6 +1931,32 @@ class GameTextureSorter(ctk.CTk):
                         self.file_handler.convert_dds_to_png(str(file_path), str(target_path))
                     elif from_format == '.png' and to_format == '.dds':
                         self.file_handler.convert_png_to_dds(str(file_path), str(target_path))
+                    elif from_format in ('.svg', '.svgz') and to_format in ('.png', '.jpg', '.jpeg', '.bmp', '.tga'):
+                        # SVG to raster: first convert to PNG, then to target format if needed
+                        if to_format == '.png':
+                            result = self.file_handler.convert_svg_to_png(file_path, target_path)
+                        else:
+                            # Convert SVG → PNG in memory, then save as target format
+                            import tempfile
+                            with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as tmp:
+                                tmp_png = Path(tmp.name)
+                            result = self.file_handler.convert_svg_to_png(file_path, tmp_png)
+                            if result:
+                                from PIL import Image as _Img
+                                _img = _Img.open(tmp_png)
+                                _img.save(target_path)
+                                _img.close()
+                                tmp_png.unlink(missing_ok=True)
+                                result = target_path
+                            else:
+                                tmp_png.unlink(missing_ok=True)
+                        if not result:
+                            raise RuntimeError("SVG conversion failed (cairosvg may not be available)")
+                    elif to_format == '.svg' and from_format not in ('.svg', '.svgz'):
+                        # Raster to SVG conversion
+                        result = self.file_handler.convert_raster_to_svg(file_path, target_path)
+                        if not result:
+                            raise RuntimeError("Raster-to-SVG conversion failed (native extension may not be available)")
                     else:
                         # Generic conversion via PIL
                         from PIL import Image
@@ -2033,11 +2104,11 @@ class GameTextureSorter(ctk.CTk):
                 "🔷 Lanczos (Sharpest)",
                 "🟢 Bicubic (Smooth)",
                 "🟡 Bilinear (Fast)",
-                "🔶 Hamming",
+                "🔶 Hamming (Balanced)",
                 "🟣 Box (Pixel Art)",
                 "⬜ Nearest (Pixel Perfect)",
-                "🔵 Mitchell",
-                "🟤 CatRom",
+                "🔵 Mitchell (Natural)",
+                "🟤 CatRom (Sharp Detail)",
                 "🔴 Real-ESRGAN (AI)"
             ],
             command=self._update_upscale_preview)
@@ -2064,7 +2135,8 @@ class GameTextureSorter(ctk.CTk):
         check_frame.pack(fill="x", padx=10, pady=5)
         self.upscale_alpha_var = ctk.BooleanVar(value=True)
         upscale_alpha_cb = ctk.CTkCheckBox(check_frame, text="🔲 Preserve Alpha (keep RGBA)",
-                       variable=self.upscale_alpha_var)
+                       variable=self.upscale_alpha_var,
+                       command=self._update_upscale_preview)
         upscale_alpha_cb.pack(side="left", padx=10)
         self.upscale_recursive_var = ctk.BooleanVar(value=True)
         upscale_recursive_cb = ctk.CTkCheckBox(check_frame, text="📁 Include Subdirectories",
@@ -2084,11 +2156,13 @@ class GameTextureSorter(ctk.CTk):
         check_frame2.pack(fill="x", padx=10, pady=5)
         self.upscale_sharpen_var = ctk.BooleanVar(value=False)
         upscale_sharpen_cb = ctk.CTkCheckBox(check_frame2, text="🔪 Sharpen output",
-                       variable=self.upscale_sharpen_var)
+                       variable=self.upscale_sharpen_var,
+                       command=self._update_upscale_preview)
         upscale_sharpen_cb.pack(side="left", padx=10)
         self.upscale_denoise_var = ctk.BooleanVar(value=False)
         upscale_denoise_cb = ctk.CTkCheckBox(check_frame2, text="🔇 Reduce noise",
-                       variable=self.upscale_denoise_var)
+                       variable=self.upscale_denoise_var,
+                       command=self._update_upscale_preview)
         upscale_denoise_cb.pack(side="left", padx=10)
         self.upscale_face_enhance_var = ctk.BooleanVar(value=False)
         upscale_face_cb = ctk.CTkCheckBox(check_frame2, text="👤 Face enhancement",
@@ -2112,7 +2186,8 @@ class GameTextureSorter(ctk.CTk):
         upscale_normal_cb.pack(side="left", padx=10)
         self.upscale_auto_level_var = ctk.BooleanVar(value=False)
         upscale_auto_level_cb = ctk.CTkCheckBox(check_frame3, text="⚖️ Auto-level colors",
-                       variable=self.upscale_auto_level_var)
+                       variable=self.upscale_auto_level_var,
+                       command=self._update_upscale_preview)
         upscale_auto_level_cb.pack(side="left", padx=10)
         self.upscale_overwrite_var = ctk.BooleanVar(value=False)
         upscale_overwrite_cb = ctk.CTkCheckBox(check_frame3, text="♻️ Overwrite existing",
@@ -2124,24 +2199,51 @@ class GameTextureSorter(ctk.CTk):
         preview_frame.pack(fill="x", padx=10, pady=10)
         ctk.CTkLabel(preview_frame, text="Preview:",
                      font=("Arial Bold", 12)).pack(anchor="w", padx=10, pady=5)
-        self.upscale_preview_container = ctk.CTkFrame(preview_frame, height=220)
+
+        # Zoom controls
+        zoom_frame = ctk.CTkFrame(preview_frame)
+        zoom_frame.pack(fill="x", padx=10, pady=(0, 5))
+        ctk.CTkLabel(zoom_frame, text="Zoom:", font=("Arial", 11)).pack(side="left", padx=(10, 5))
+        self._upscale_zoom_var = ctk.DoubleVar(value=1.0)
+        upscale_zoom_out_btn = ctk.CTkButton(zoom_frame, text="−", width=30,
+                       command=self._upscale_zoom_out)
+        upscale_zoom_out_btn.pack(side="left", padx=2)
+        self._upscale_zoom_label = ctk.CTkLabel(zoom_frame, text="100%", width=50,
+                                                 font=("Arial", 11))
+        self._upscale_zoom_label.pack(side="left", padx=2)
+        upscale_zoom_in_btn = ctk.CTkButton(zoom_frame, text="+", width=30,
+                       command=self._upscale_zoom_in)
+        upscale_zoom_in_btn.pack(side="left", padx=2)
+        upscale_zoom_fit_btn = ctk.CTkButton(zoom_frame, text="Fit", width=40,
+                       command=self._upscale_zoom_fit)
+        upscale_zoom_fit_btn.pack(side="left", padx=5)
+        self._upscale_zoom_info = ctk.CTkLabel(zoom_frame, text="", font=("Arial", 10),
+                                                text_color="gray")
+        self._upscale_zoom_info.pack(side="left", padx=10)
+
+        self.upscale_preview_container = ctk.CTkFrame(preview_frame, height=300)
         self.upscale_preview_container.pack(fill="x", padx=10, pady=5)
         self.upscale_preview_container.pack_propagate(False)
         # Before / After side by side
         self.upscale_preview_before_label = ctk.CTkLabel(
-            self.upscale_preview_container, text="Before\n(select an image)", width=200, height=200)
+            self.upscale_preview_container, text="Before\n(select an image)", width=200, height=280)
         self.upscale_preview_before_label.pack(side="left", padx=10, pady=10, expand=True)
         self.upscale_preview_after_label = ctk.CTkLabel(
-            self.upscale_preview_container, text="After\n(preview appears here)", width=200, height=200)
+            self.upscale_preview_container, text="After\n(preview appears here)", width=200, height=280)
         self.upscale_preview_after_label.pack(side="left", padx=10, pady=10, expand=True)
 
-        # Individual file preview / browse
+        # Individual file preview / browse + export
         preview_btn_frame = ctk.CTkFrame(preview_frame)
         preview_btn_frame.pack(fill="x", padx=10, pady=5)
         upscale_preview_btn = ctk.CTkButton(preview_btn_frame, text="🖼️ Preview Single File",
                      width=180, command=self._preview_upscale_file)
         upscale_preview_btn.pack(side="left", padx=10)
-        ctk.CTkLabel(preview_btn_frame, text="Select a single image to see before/after preview",
+        self.upscale_export_single_btn = ctk.CTkButton(
+            preview_btn_frame, text="💾 Export This Texture",
+            width=180, command=self._export_single_upscale,
+            fg_color="#2B7A0B", hover_color="#368B14")
+        self.upscale_export_single_btn.pack(side="left", padx=10)
+        ctk.CTkLabel(preview_btn_frame, text="Preview & export a single texture with current settings",
                      font=("Arial", 10), text_color="gray").pack(side="left", padx=10)
 
         # Feedback section
@@ -2181,13 +2283,25 @@ class GameTextureSorter(ctk.CTk):
             upscale_factor_menu, upscale_style_menu, upscale_format_menu,
             upscale_alpha_cb, upscale_recursive_cb, upscale_zip_cb,
             upscale_send_org_cb, upscale_preview_btn,
-            upscale_fb_good_btn, upscale_fb_bad_btn)
+            upscale_fb_good_btn, upscale_fb_bad_btn,
+            upscale_sharpen_cb, upscale_denoise_cb, upscale_face_cb,
+            upscale_gpu_cb, upscale_tile_cb, upscale_normal_cb,
+            upscale_auto_level_cb, upscale_overwrite_cb,
+            upscale_zoom_out_btn, upscale_zoom_in_btn, upscale_zoom_fit_btn,
+            self.upscale_export_single_btn,
+            upscale_custom_entry)
 
     def _apply_upscaler_tooltips(self, input_btn, zip_btn, output_btn,
                                   factor_menu, style_menu, format_menu,
                                   alpha_cb, recursive_cb, zip_cb,
                                   send_org_cb, preview_btn,
-                                  fb_good_btn, fb_bad_btn):
+                                  fb_good_btn, fb_bad_btn,
+                                  sharpen_cb=None, denoise_cb=None, face_cb=None,
+                                  gpu_cb=None, tile_cb=None, normal_cb=None,
+                                  auto_level_cb=None, overwrite_cb=None,
+                                  zoom_out_btn=None, zoom_in_btn=None,
+                                  zoom_fit_btn=None, export_single_btn=None,
+                                  custom_res_entry=None):
         """Apply tooltips to upscaler tab widgets"""
         if not WidgetTooltip:
             return
@@ -2235,6 +2349,61 @@ class GameTextureSorter(ctk.CTk):
         self._tooltips.append(WidgetTooltip(fb_bad_btn,
             tt('upscale_fb_bad') or "Rate this upscale result as poor quality\nConsider trying a different style or scale factor",
             widget_id='upscale_fb_bad', tooltip_manager=tm))
+        # Row 2 checkboxes — post-processing
+        if sharpen_cb:
+            self._tooltips.append(WidgetTooltip(sharpen_cb,
+                tt('upscale_sharpen') or "Apply sharpening filter after upscaling\nEnhances edges and fine detail — updates preview live",
+                widget_id='upscale_sharpen', tooltip_manager=tm))
+        if denoise_cb:
+            self._tooltips.append(WidgetTooltip(denoise_cb,
+                tt('upscale_denoise') or "Reduce noise and compression artifacts\nApplies gentle smoothing — updates preview live",
+                widget_id='upscale_denoise', tooltip_manager=tm))
+        if face_cb:
+            self._tooltips.append(WidgetTooltip(face_cb,
+                tt('upscale_face_enhance') or "Enhance facial features in textures\nBest for character face textures",
+                widget_id='upscale_face_enhance', tooltip_manager=tm))
+        if gpu_cb:
+            self._tooltips.append(WidgetTooltip(gpu_cb,
+                tt('upscale_gpu') or "Use GPU acceleration for faster processing\nRequires compatible CUDA or OpenCL device",
+                widget_id='upscale_gpu', tooltip_manager=tm))
+        # Row 3 checkboxes — texture-specific
+        if tile_cb:
+            self._tooltips.append(WidgetTooltip(tile_cb,
+                tt('upscale_tile_seamless') or "Ensure seamless tiling after upscale\nBest for repeating textures like floors, walls, fabrics",
+                widget_id='upscale_tile_seamless', tooltip_manager=tm))
+        if normal_cb:
+            self._tooltips.append(WidgetTooltip(normal_cb,
+                tt('upscale_normal_map') or "Treat image as a normal map\nPreserves directional data for lighting calculations",
+                widget_id='upscale_normal_map', tooltip_manager=tm))
+        if auto_level_cb:
+            self._tooltips.append(WidgetTooltip(auto_level_cb,
+                tt('upscale_auto_level') or "Auto-level colors: stretch histogram to full 0–255 range\nImproves contrast — updates preview live",
+                widget_id='upscale_auto_level', tooltip_manager=tm))
+        if overwrite_cb:
+            self._tooltips.append(WidgetTooltip(overwrite_cb,
+                tt('upscale_overwrite') or "Overwrite existing output files\nIf unchecked, existing files are skipped",
+                widget_id='upscale_overwrite', tooltip_manager=tm))
+        # Zoom & export buttons
+        if zoom_out_btn:
+            self._tooltips.append(WidgetTooltip(zoom_out_btn,
+                tt('upscale_zoom_out') or "Zoom out preview (shrink thumbnail)",
+                widget_id='upscale_zoom_out', tooltip_manager=tm))
+        if zoom_in_btn:
+            self._tooltips.append(WidgetTooltip(zoom_in_btn,
+                tt('upscale_zoom_in') or "Zoom in preview (enlarge thumbnail)",
+                widget_id='upscale_zoom_in', tooltip_manager=tm))
+        if zoom_fit_btn:
+            self._tooltips.append(WidgetTooltip(zoom_fit_btn,
+                tt('upscale_zoom_fit') or "Reset preview zoom to 100%",
+                widget_id='upscale_zoom_fit', tooltip_manager=tm))
+        if export_single_btn:
+            self._tooltips.append(WidgetTooltip(export_single_btn,
+                tt('upscale_export_single') or "Export the currently previewed texture\nwith all applied scale, style, and post-processing settings",
+                widget_id='upscale_export_single', tooltip_manager=tm))
+        if custom_res_entry:
+            self._tooltips.append(WidgetTooltip(custom_res_entry,
+                tt('upscale_custom_res') or "Enter a custom output resolution (e.g. 1024x1024)\nOverrides the scale factor when set",
+                widget_id='upscale_custom_res', tooltip_manager=tm))
 
     def _browse_upscale_zip(self):
         """Browse for a ZIP file as upscaler input."""
@@ -2303,9 +2472,19 @@ class GameTextureSorter(ctk.CTk):
         """Display before/after preview for the given PIL Image."""
         from PIL import Image
         self._upscale_preview_image = pil_img
+
+        zoom = getattr(self, '_upscale_zoom_var', None)
+        zoom_factor = zoom.get() if zoom else 1.0
+        thumb_size = int(200 * zoom_factor)
+
+        # Update zoom info label
+        if hasattr(self, '_upscale_zoom_info'):
+            self._upscale_zoom_info.configure(
+                text=f"Original: {pil_img.size[0]}×{pil_img.size[1]}")
+
         # Before thumbnail
         before = pil_img.copy()
-        before.thumbnail((200, 200), Image.LANCZOS)
+        before.thumbnail((thumb_size, thumb_size), Image.LANCZOS)
         try:
             before_ctk = ctk.CTkImage(light_image=before, size=before.size)
             self.upscale_preview_before_label.configure(image=before_ctk, text="")
@@ -2323,11 +2502,13 @@ class GameTextureSorter(ctk.CTk):
             self.upscale_preview_after_label.configure(
                 image=None,
                 text=f"After (AI preview)\n{new_w}×{new_h}\n(Real-ESRGAN)")
+            self._upscale_preview_result = None
         else:
             preserve_alpha = self.upscale_alpha_var.get()
             upscaled = self._upscale_pil_image(pil_img, factor, preserve_alpha)
+            self._upscale_preview_result = upscaled  # Store for export
             after = upscaled.copy()
-            after.thumbnail((200, 200), Image.LANCZOS)
+            after.thumbnail((thumb_size, thumb_size), Image.LANCZOS)
             try:
                 after_ctk = ctk.CTkImage(light_image=after, size=after.size)
                 self.upscale_preview_after_label.configure(image=after_ctk, text="")
@@ -2336,10 +2517,109 @@ class GameTextureSorter(ctk.CTk):
                 self.upscale_preview_after_label.configure(
                     text=f"After\n{upscaled.size[0]}×{upscaled.size[1]}")
 
+            # Update size info
+            if hasattr(self, '_upscale_zoom_info'):
+                self._upscale_zoom_info.configure(
+                    text=f"Original: {pil_img.size[0]}×{pil_img.size[1]}  →  "
+                         f"Upscaled: {upscaled.size[0]}×{upscaled.size[1]}")
+
+        # Resize preview container to fit zoomed thumbnails
+        new_h = max(220, thumb_size + 40)
+        try:
+            self.upscale_preview_container.configure(height=new_h)
+        except Exception:
+            pass
+
     def _update_upscale_preview(self, *_args):
-        """Called when scale/style changes — re-preview if we have an image."""
+        """Called when scale/style/checkbox changes — re-preview if we have an image."""
         if hasattr(self, '_upscale_preview_image') and self._upscale_preview_image:
             self._show_upscale_preview(self._upscale_preview_image)
+
+    def _upscale_zoom_in(self):
+        """Increase preview zoom level."""
+        zoom = self._upscale_zoom_var.get()
+        zoom = min(4.0, zoom + 0.25)
+        self._upscale_zoom_var.set(zoom)
+        self._upscale_zoom_label.configure(text=f"{int(zoom * 100)}%")
+        self._update_upscale_preview()
+
+    def _upscale_zoom_out(self):
+        """Decrease preview zoom level."""
+        zoom = self._upscale_zoom_var.get()
+        zoom = max(0.25, zoom - 0.25)
+        self._upscale_zoom_var.set(zoom)
+        self._upscale_zoom_label.configure(text=f"{int(zoom * 100)}%")
+        self._update_upscale_preview()
+
+    def _upscale_zoom_fit(self):
+        """Reset preview zoom to 100%."""
+        self._upscale_zoom_var.set(1.0)
+        self._upscale_zoom_label.configure(text="100%")
+        self._update_upscale_preview()
+
+    def _export_single_upscale(self):
+        """Export the currently previewed texture with all applied settings."""
+        from PIL import Image
+        if not hasattr(self, '_upscale_preview_image') or not self._upscale_preview_image:
+            if GUI_AVAILABLE:
+                messagebox.showinfo("No Preview",
+                                    "Please preview a single file first using '🖼️ Preview Single File'.")
+            return
+
+        # Determine export format
+        export_fmt = self.upscale_format_var.get()
+        if " " in export_fmt:
+            export_fmt = export_fmt.split(" ", 1)[1]
+        export_fmt = export_fmt.lower()
+
+        # Map format to file extension and dialog filter
+        ext_map = {
+            'png': ('.png', 'PNG files', '*.png'),
+            'bmp': ('.bmp', 'BMP files', '*.bmp'),
+            'tga': ('.tga', 'TGA files', '*.tga'),
+            'jpeg': ('.jpg', 'JPEG files', '*.jpg'),
+            'webp': ('.webp', 'WebP files', '*.webp'),
+            'dds': ('.dds', 'DDS files', '*.dds'),
+            'tiff': ('.tiff', 'TIFF files', '*.tiff'),
+        }
+        ext, desc, pattern = ext_map.get(export_fmt, ('.png', 'PNG files', '*.png'))
+
+        filepath = filedialog.asksaveasfilename(
+            title="Export Upscaled Texture",
+            defaultextension=ext,
+            filetypes=[(desc, pattern), ("All files", "*.*")])
+        if not filepath:
+            return
+
+        try:
+            # Use cached result if available, otherwise recompute
+            result = getattr(self, '_upscale_preview_result', None)
+            if result is None:
+                factor = self._get_upscale_factor()
+                preserve_alpha = self.upscale_alpha_var.get()
+                result = self._upscale_pil_image(
+                    self._upscale_preview_image, factor, preserve_alpha)
+
+            # Save with format-specific options
+            save_kwargs = {}
+            if export_fmt == 'jpeg':
+                save_kwargs['quality'] = 95
+                if result.mode == 'RGBA':
+                    result = result.convert('RGB')
+            elif export_fmt == 'webp':
+                save_kwargs['quality'] = 95
+
+            result.save(filepath, **save_kwargs)
+            self._upscale_log(f"💾 Exported: {filepath} ({result.size[0]}×{result.size[1]})")
+            if GUI_AVAILABLE:
+                messagebox.showinfo("Export Complete",
+                                    f"Texture exported successfully!\n\n"
+                                    f"Size: {result.size[0]}×{result.size[1]}\n"
+                                    f"File: {os.path.basename(filepath)}")
+        except Exception as e:
+            self._upscale_log(f"❌ Export failed: {e}")
+            if GUI_AVAILABLE:
+                messagebox.showerror("Export Error", f"Could not export texture:\n{e}")
 
     def _upscale_pil_image(self, img, factor, preserve_alpha=True):
         """Upscale a single PIL Image using the current style and options."""
@@ -8122,7 +8402,7 @@ Built with:
             import tkinter as tk
             
             # Create toplevel window
-            dungeon_window = ctk.CTkToplevel(self.root)
+            dungeon_window = ctk.CTkToplevel(self)
             dungeon_window.title("🏰 Dungeon Explorer")
             dungeon_window.geometry("1000x700")
             

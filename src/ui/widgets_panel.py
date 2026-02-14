@@ -296,28 +296,21 @@ class WidgetsPanel(ctk.CTkFrame if ctk else tk.Frame):
             self.status_var.set("Widget not found!")
             return
         
-        # For food items, delegate to panda widget so the eating sequence
-        # plays fully (carrying → pickup → chew → consume) before consuming
-        if widget.widget_type.value == 'food' and self.panda_callback:
-            if hasattr(self.panda_callback, '_give_widget_to_panda'):
-                self.panda_callback._give_widget_to_panda(widget)
-                self.status_var.set(f"🐼 *reaches for {widget.name}*")
-                self._show_widgets()
-                return
+        # Delegate to panda widget so the panda walks to the item first
+        if self.panda_callback and hasattr(self.panda_callback, '_give_widget_to_panda'):
+            self.panda_callback._give_widget_to_panda(widget)
+            self.status_var.set(f"🐼 *reaches for {widget.name}*")
+            self._show_widgets()
+            return
         
+        # Fallback: if no panda callback, use the item directly
         result = self.collection.use_widget(widget_id)
         
         if result:
-            # For toys and other items, use normal behavior
             self.status_var.set(result['message'])
-            
-            # Update panda animation if callback provided
             if self.panda_callback and hasattr(self.panda_callback, 'set_animation'):
                 self.panda_callback.set_animation(result['animation'])
-            
-            # Refresh display to show updated stats
             self._show_widgets()
-            
             logger.info(f"Used widget: {widget_id}, happiness: {result['happiness']}")
         else:
             self.status_var.set("Failed to use widget!")

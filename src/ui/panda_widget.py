@@ -23,7 +23,11 @@ logger = logging.getLogger(__name__)
 # Canvas dimensions for the panda drawing
 # Increased height to accommodate full upside-down rotations without clipping
 PANDA_CANVAS_W = 220
-PANDA_CANVAS_H = 340  # Was 270, increased to 340 for rotation space
+PANDA_CANVAS_H = 380  # Extra height for head/ear room at top and fall room at bottom
+
+# Vertical offset applied to all drawing so the panda sits lower on the canvas,
+# preventing head/ear clipping when body_bob goes negative (idle, jumping, etc.).
+PANDA_DRAW_Y_OFFSET = 20
 
 # Transparent color key for the Toplevel window (Windows only).
 # Magenta is the classic choice – it does not appear in the panda drawing.
@@ -188,8 +192,9 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
     
     # Offset in pixels for where food/toy items appear relative to the panda
     # when given from the menu (the panda walks this distance to pick them up)
-    ITEM_WALK_OFFSET_X = 80
-    ITEM_WALK_OFFSET_Y = 30
+    ITEM_WALK_DISTANCE = 140
+    # Minimum walk distance per axis to ensure visible movement
+    ITEM_WALK_MIN = 40
     
     # Recovery time after falling on face or tipping over (ms)
     FALL_RECOVERY_TIME_MS = 5000
@@ -279,6 +284,8 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
         self._active_item_type = None  # 'food' or 'toy'
         self._active_item_key = None   # Widget key (e.g. 'bamboo') for per-item responses
         self._active_item_physics = None  # ItemPhysics object for the active item
+        self._walk_target_screen_x = None  # Screen X of walk target (for item rendering)
+        self._walk_target_screen_y = None  # Screen Y of walk target
         
         # Eating sequence state
         self._eating_phase = 0
@@ -1336,11 +1343,13 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
             arm_swing = math.sin(phase + math.pi) * 9 + math.sin(phase * 2 + math.pi) * 2.5
             body_bob = knee_lift + math.sin(phase * 2) * 1.5
         elif anim == 'fall_on_face':
-            # Fallen on face: body low, limbs splayed, with gradual tilt forward
+            # Fallen on side: settle onto side like tip_over_side, then flail arms
             settle = min(1.0, frame_idx / 36.0)
-            leg_swing = settle * 18 + math.sin(phase * 0.3) * 2 * (1 - settle * 0.7)
-            arm_swing = settle * 22 + math.sin(phase * 0.4) * 2 * (1 - settle * 0.5)
-            body_bob = settle * 55 + math.sin(phase * 0.2) * 1
+            leg_swing = settle * 10 + math.sin(phase * 0.3) * 1.5 * (1 - settle * 0.5)
+            # After settling, flail arms using left/right walking-style motion
+            flail = max(0.0, (settle - 0.5) * 2.0)  # starts at 50% settle
+            arm_swing = settle * (-12) + flail * math.sin(phase * 3) * 15
+            body_bob = settle * 50 + math.sin(phase * 0.2) * 1
         elif anim == 'tip_over_side':
             # Tipped over on side: gradual fall with rotation
             settle = min(1.0, frame_idx / 36.0)
@@ -1375,8 +1384,8 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
             # Slightly wider when walking away (back perspective)
             breath_scale = 1.05 + math.sin(phase * 0.5) * 0.015
         elif anim == 'fall_on_face':
-            # Squished down flat on face
-            breath_scale = 1.3 + math.sin(phase * 0.2) * 0.02
+            # Squeezed horizontally while on side (same as tip_over_side)
+            breath_scale = 0.65 + math.sin(phase * 0.3) * 0.02
         elif anim == 'tip_over_side':
             # Squeezed horizontally while on side
             breath_scale = 0.65 + math.sin(phase * 0.3) * 0.02
@@ -1601,7 +1610,7 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
             self._ear_stretch = 0.0
             self._ear_stretch_vel = 0.0
         
-        by = body_bob  # vertical body offset
+        by = body_bob + PANDA_DRAW_Y_OFFSET  # vertical body offset (shifted down to prevent head clipping)
         
         # --- Body sway (horizontal offset for turning/direction changes) ---
         body_sway = 0
@@ -1658,8 +1667,8 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
         elif anim == 'shaking':
             body_sway = math.sin(phase * 12) * 8 * self._shake_decay
         elif anim == 'fall_on_face':
-            # Face down - body tilts forward heavily
-            body_sway = 0
+            # On side - same tilt as tip_over_side
+            body_sway = 28
         elif anim == 'tip_over_side':
             # Tipped over on side - large sideways tilt
             body_sway = 28
@@ -2536,6 +2545,16 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
             ear_wiggle = math.sin(phase * 5) * 4 * sx
         elif anim == 'carrying':
             ear_wiggle = math.sin(phase * 1.5) * 2 * sx  # Gentle movement while carrying
+        elif anim in ('walking_left', 'walking_right', 'walking_up', 'walking_down',
+                      'walking_up_left', 'walking_up_right',
+                      'walking_down_left', 'walking_down_right'):
+            # Ear bounce while walking — synced with stride
+            ear_wiggle = math.sin(phase * 2) * 3 * sx + math.sin(phase * 1.3) * 1.5 * sx
+        elif anim == 'fall_on_face':
+            # Ear wiggle while flailing on side
+            settle = min(1.0, frame_idx / 36.0)
+            flail = max(0.0, (settle - 0.5) * 2.0)
+            ear_wiggle = flail * math.sin(phase * 3) * 4 * sx
         
         # --- Draw body based on facing direction ---
         # Apply body sway to center position for turning/direction effect
@@ -2589,22 +2608,28 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
             facing_right = (anim == 'walking_right')
             side_dir = 1 if facing_right else -1
             
-            # Dangle offsets for side views during drag (body/butt grabs)
-            _side_leg_dangle = int((self._dangle_left_leg + self._dangle_right_leg) / 2) if is_being_dragged else 0
-            _side_arm_dangle = int((self._dangle_left_arm + self._dangle_right_arm) / 2) if is_being_dragged else 0
+            # Per-limb dangle offsets for side views during drag
+            _back_leg_dangle = int(self._dangle_left_leg) if is_being_dragged else 0
+            _front_leg_dangle = int(self._dangle_right_leg) if is_being_dragged else 0
+            _back_arm_dangle = int(self._dangle_left_arm) if is_being_dragged else 0
+            _front_arm_dangle = int(self._dangle_right_arm) if is_being_dragged else 0
+            _back_leg_dangle_h = int(self._dangle_left_leg_h) if is_being_dragged else 0
+            _front_leg_dangle_h = int(self._dangle_right_leg_h) if is_being_dragged else 0
+            _back_arm_dangle_h = int(self._dangle_left_arm_h) if is_being_dragged else 0
+            _front_arm_dangle_h = int(self._dangle_right_arm_h) if is_being_dragged else 0
             
             leg_top = int(145 * sy + by)
             leg_len = int(30 * sy)
             # Back leg (further from viewer)
-            back_leg_swing = -leg_swing + _side_leg_dangle
+            back_leg_swing = -leg_swing + _back_leg_dangle
             c.create_oval(
-                cx_draw - int(8 * sx), leg_top + back_leg_swing,
-                cx_draw + int(16 * sx), leg_top + leg_len + back_leg_swing,
+                cx_draw - int(8 * sx) + _back_leg_dangle_h, leg_top + back_leg_swing,
+                cx_draw + int(16 * sx) + _back_leg_dangle_h, leg_top + leg_len + back_leg_swing,
                 fill=black, outline=black, tags="leg"
             )
             c.create_oval(
-                cx_draw - int(6 * sx), leg_top + leg_len - int(8 * sy) + back_leg_swing,
-                cx_draw + int(14 * sx), leg_top + leg_len + int(4 * sy) + back_leg_swing,
+                cx_draw - int(6 * sx) + _back_leg_dangle_h, leg_top + leg_len - int(8 * sy) + back_leg_swing,
+                cx_draw + int(14 * sx) + _back_leg_dangle_h, leg_top + leg_len + int(4 * sy) + back_leg_swing,
                 fill=white, outline=black, width=1, tags="foot"
             )
             
@@ -2627,33 +2652,33 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
             )
             
             # Front leg (closer to viewer)
-            front_leg_swing = leg_swing + _side_leg_dangle
+            front_leg_swing = leg_swing + _front_leg_dangle
             c.create_oval(
-                cx_draw - int(16 * sx), leg_top + front_leg_swing,
-                cx_draw + int(8 * sx), leg_top + leg_len + front_leg_swing,
+                cx_draw - int(16 * sx) + _front_leg_dangle_h, leg_top + front_leg_swing,
+                cx_draw + int(8 * sx) + _front_leg_dangle_h, leg_top + leg_len + front_leg_swing,
                 fill=black, outline=black, tags="leg"
             )
             c.create_oval(
-                cx_draw - int(14 * sx), leg_top + leg_len - int(8 * sy) + front_leg_swing,
-                cx_draw + int(6 * sx), leg_top + leg_len + int(4 * sy) + front_leg_swing,
+                cx_draw - int(14 * sx) + _front_leg_dangle_h, leg_top + leg_len - int(8 * sy) + front_leg_swing,
+                cx_draw + int(6 * sx) + _front_leg_dangle_h, leg_top + leg_len + int(4 * sy) + front_leg_swing,
                 fill=white, outline=black, width=1, tags="foot"
             )
             
             # Back arm (further from viewer, behind body)
             arm_top = int(95 * sy + by)
             arm_len = int(35 * sy)
-            ba_swing = -arm_swing + _side_arm_dangle
+            ba_swing = -arm_swing + _back_arm_dangle
             c.create_oval(
-                cx_draw - int(10 * sx) - int(8 * sx * side_dir), arm_top + ba_swing,
-                cx_draw + int(10 * sx) - int(8 * sx * side_dir), arm_top + arm_len + ba_swing,
+                cx_draw - int(10 * sx) - int(8 * sx * side_dir) + _back_arm_dangle_h, arm_top + ba_swing,
+                cx_draw + int(10 * sx) - int(8 * sx * side_dir) + _back_arm_dangle_h, arm_top + arm_len + ba_swing,
                 fill=black, outline=black, tags="arm"
             )
             
             # Front arm (closer to viewer, in front of body)
-            fa_swing = arm_swing + _side_arm_dangle
+            fa_swing = arm_swing + _front_arm_dangle
             c.create_oval(
-                cx_draw - int(10 * sx) + int(8 * sx * side_dir), arm_top + fa_swing,
-                cx_draw + int(10 * sx) + int(8 * sx * side_dir), arm_top + arm_len + fa_swing,
+                cx_draw - int(10 * sx) + int(8 * sx * side_dir) + _front_arm_dangle_h, arm_top + fa_swing,
+                cx_draw + int(10 * sx) + int(8 * sx * side_dir) + _front_arm_dangle_h, arm_top + arm_len + fa_swing,
                 fill=black, outline=black, tags="arm"
             )
             
@@ -3382,7 +3407,14 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
         # panda's feet actually move to the side instead of staying underneath.
         if anim in ('lay_on_side', 'tip_over_side', 'fall_on_face',
                    'sleeping', 'laying_down') or self._is_being_dragged_on_ground:
-            if anim == 'lay_on_side':
+            if self._is_being_dragged_on_ground:
+                # Dragged on ground by foot — combine the 90° lay-on-side
+                # tilt with the drag direction angle into a single rotation
+                # to avoid double-rotation artifacts.
+                settle = 1.0
+                combined_angle = math.pi / 2 + self._drag_ground_angle
+                tilt_angle = math.degrees(combined_angle)
+            elif anim == 'lay_on_side':
                 settle = min(1.0, frame_idx / 48.0)
                 tilt_angle = settle * 90  # Tilt 90 degrees to the side
             elif anim == 'tip_over_side':
@@ -3394,12 +3426,9 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
                 settle = min(1.0, frame_idx / 30.0)
                 tilt_angle = settle * 80  # Nearly on side, slightly propped up
             elif anim == 'fall_on_face':
+                # Fall on side (same method as tip_over_side / dragged-by-foot)
                 settle = min(1.0, frame_idx / 36.0)
-                tilt_angle = settle * 50  # Gradual forward tilt
-            elif self._is_being_dragged_on_ground:
-                settle = 1.0
-                drag_angle_deg = math.degrees(self._drag_ground_angle)
-                tilt_angle = 90
+                tilt_angle = settle * 90  # Full 90° tilt onto side
             else:
                 settle = 0
                 tilt_angle = 0
@@ -3414,8 +3443,8 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
                 cos_angle = math.cos(tilt_rad)
                 sin_angle = math.sin(tilt_rad)
                 
-                # Shift pivot down as panda tips over
-                pivot_y += int(settle * 30 * sy)
+                # Shift pivot down as panda tips over (scaled conservatively to stay on canvas)
+                pivot_y += int(settle * 20 * sy)
                 
                 all_items = c.find_all()
                 for item in all_items:
@@ -3431,25 +3460,6 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
                             new_coords.append(x_rot + pivot_x)
                             new_coords.append(y_rot + pivot_y)
                         c.coords(item, *new_coords)
-                
-                # Additional drag-direction rotation for ground-dragged mode
-                if self._is_being_dragged_on_ground:
-                    cos_drag = math.cos(self._drag_ground_angle)
-                    sin_drag = math.sin(self._drag_ground_angle)
-                    all_items = c.find_all()
-                    for item in all_items:
-                        coords = c.coords(item)
-                        if len(coords) >= 4:
-                            new_coords = []
-                            for i in range(0, len(coords), 2):
-                                x, y = coords[i], coords[i+1]
-                                x_rel = x - pivot_x
-                                y_rel = y - pivot_y
-                                x_rot = x_rel * cos_drag - y_rel * sin_drag
-                                y_rot = x_rel * sin_drag + y_rel * cos_drag
-                                new_coords.append(x_rot + pivot_x)
-                                new_coords.append(y_rot + pivot_y)
-                            c.coords(item, *new_coords)
 
         # --- Barrel roll: rotate the entire body sideways through a full 360° ---
         if anim == 'barrel_roll':
@@ -3595,15 +3605,26 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
                                 new_coords.append(y_rot + pivot_y)
                             c.coords(item, *new_coords)
                 else:
-                    # Arms/ears: partial tilt using scale (limited to ±45°,
-                    # so scale never goes below cos(45°) ≈ 0.71 — no clipping)
-                    v_scale = math.cos(angle)
-                    h_tilt = math.sin(angle)
-                    foreshorten = 1.0 - 0.25 * abs(h_tilt)
-                    c.scale("all", pivot_x, pivot_y, foreshorten, v_scale)
-                    # Shift horizontally to simulate sideways hanging
-                    shift_px = int(h_tilt * 60 * sx)
-                    c.move("all", shift_px, 0)
+                    # Arms/ears: use rotation-matrix (same as leg grabs) to
+                    # avoid cumulative scale shrinking. Angle is limited to
+                    # ±45° so the tilt looks natural.
+                    cos_angle = math.cos(angle)
+                    sin_angle = math.sin(angle)
+
+                    all_items = c.find_all()
+                    for item in all_items:
+                        coords = c.coords(item)
+                        if len(coords) >= 4:
+                            new_coords = []
+                            for i in range(0, len(coords), 2):
+                                x, y = coords[i], coords[i+1]
+                                x_rel = x - pivot_x
+                                y_rel = y - pivot_y
+                                x_rot = x_rel * cos_angle - y_rel * sin_angle
+                                y_rot = x_rel * sin_angle + y_rel * cos_angle
+                                new_coords.append(x_rot + pivot_x)
+                                new_coords.append(y_rot + pivot_y)
+                            c.coords(item, *new_coords)
 
             self._flip_progress = abs(self._drag_body_angle) / math.pi
         else:
@@ -3652,20 +3673,32 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
             # Different crack patterns for different impact types
             if crack_type == 'heavy':
                 # Larger cracks for heavy items
-                crack_lines = 5
-                crack_length = 15
+                crack_lines = 8
+                crack_length = 30
             else:
-                # Smaller cracks for panda falls
-                crack_lines = 3
-                crack_length = 10
+                # Panda falls — visible radiating cracks
+                crack_lines = 6
+                crack_length = 22
             
             for i in range(crack_lines):
                 # Full circle (2*pi radians) divided by number of crack lines
                 angle = (i / crack_lines) * 2 * math.pi
-                end_x = crack_x + int(crack_length * math.cos(angle))
-                end_y = crack_y + int(crack_length * math.sin(angle))
+                # Add slight random variation for natural-looking cracks
+                jitter = random.uniform(-0.15, 0.15)
+                end_x = crack_x + int(crack_length * math.cos(angle + jitter))
+                end_y = crack_y + int(crack_length * math.sin(angle + jitter))
                 c.create_line(crack_x, crack_y, end_x, end_y,
                              fill=color, width=2, tags="crack_effect")
+                # Add secondary shorter branching crack for realism
+                if crack_length > 15:
+                    mid_x = crack_x + int(crack_length * 0.6 * math.cos(angle + jitter))
+                    mid_y = crack_y + int(crack_length * 0.6 * math.sin(angle + jitter))
+                    branch_angle = angle + jitter + random.uniform(0.3, 0.8)
+                    branch_len = crack_length // 3
+                    branch_end_x = mid_x + int(branch_len * math.cos(branch_angle))
+                    branch_end_y = mid_y + int(branch_len * math.sin(branch_angle))
+                    c.create_line(mid_x, mid_y, branch_end_x, branch_end_y,
+                                 fill=color, width=1, tags="crack_effect")
     
     def _add_ground_crack(self, x: int, y: int, crack_type: str = 'normal'):
         """Add a new ground crack effect at the specified position.
@@ -4280,7 +4313,7 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
             _right_leg_dangle_h = 0
             _left_arm_dangle_h = 0
             _right_arm_dangle_h = 0
-            if self.current_animation == 'dragging' and self.is_dragging:
+            if (self.current_animation == 'dragging' and self.is_dragging) or self._is_tossing:
                 _left_leg_dangle = int(self._dangle_left_leg)
                 _right_leg_dangle = int(self._dangle_right_leg)
                 _left_arm_dangle = int(self._dangle_left_arm)
@@ -4699,12 +4732,13 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
 
             # --- Draw accessories with type-specific positioning ---
             if appearance.accessories:
-                # Include dangle physics for drag sync. Dangle represents whole-body
-                # motion, applied equally to both arms; swing provides left/right symmetry.
-                arm_dangle = int(self._dangle_arm)
-                arm_dangle_h = int(self._dangle_arm_h)
-                la_swing = _arm_swing + arm_dangle
-                ra_swing = -_arm_swing + arm_dangle
+                # Use per-limb dangle physics for accurate tracking
+                la_dangle = _left_arm_dangle
+                ra_dangle = _right_arm_dangle
+                la_dangle_h = _left_arm_dangle_h
+                ra_dangle_h = _right_arm_dangle_h
+                la_swing = _arm_swing + la_dangle
+                ra_swing = -_arm_swing + ra_dangle
 
                 # Classify accessories by type for proper placement
                 _WRIST_IDS = {
@@ -4730,22 +4764,22 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
                         arm_len = int(35 * sy)
                         wrist_y = arm_top + arm_len
                         if i % 2 == 0:
-                            wrist_x = cx - int(42 * sx) + arm_dangle_h
+                            wrist_x = cx - int(42 * persp_sx) + la_dangle_h
                             wrist_y_adj = wrist_y + int(la_swing)
                         else:
-                            wrist_x = cx + int(42 * sx) + arm_dangle_h
+                            wrist_x = cx + int(42 * persp_sx) + ra_dangle_h
                             wrist_y_adj = wrist_y + int(ra_swing)
                         # Bracelet band
                         band_h = int(5 * sy)
                         c.create_oval(
-                            wrist_x - int(10 * sx), wrist_y_adj - band_h,
-                            wrist_x + int(10 * sx), wrist_y_adj + band_h,
+                            wrist_x - int(10 * persp_sx), wrist_y_adj - band_h,
+                            wrist_x + int(10 * persp_sx), wrist_y_adj + band_h,
                             fill=color, outline=shadow, width=1,
                             tags="equipped_acc")
                         # Gem/detail on bracelet
                         c.create_oval(
-                            wrist_x - int(3 * sx), wrist_y_adj - int(2 * sy),
-                            wrist_x + int(3 * sx), wrist_y_adj + int(2 * sy),
+                            wrist_x - int(3 * persp_sx), wrist_y_adj - int(2 * sy),
+                            wrist_x + int(3 * persp_sx), wrist_y_adj + int(2 * sy),
                             fill=highlight, outline='',
                             tags="equipped_acc")
 
@@ -4754,7 +4788,7 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
                         neck_y = int(78 * sy + by)
                         if acc_id in ('bowtie', 'bow_tie'):
                             # Bow tie shape: two triangles meeting at center
-                            bow_w = int(14 * sx)
+                            bow_w = int(14 * persp_sx)
                             bow_h = int(8 * sy)
                             # Left wing
                             c.create_polygon(
@@ -4772,46 +4806,46 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
                                 tags="equipped_acc")
                             # Center knot
                             c.create_oval(
-                                cx - int(3 * sx), neck_y - int(3 * sy),
-                                cx + int(3 * sx), neck_y + int(3 * sy),
+                                cx - int(3 * persp_sx), neck_y - int(3 * sy),
+                                cx + int(3 * persp_sx), neck_y + int(3 * sy),
                                 fill=shadow, outline='',
                                 tags="equipped_acc")
                         elif acc_id in ('necklace', 'pearl_necklace'):
                             # Necklace arc around neck
                             c.create_arc(
-                                cx - int(24 * sx), neck_y - int(10 * sy),
-                                cx + int(24 * sx), neck_y + int(16 * sy),
+                                cx - int(24 * persp_sx), neck_y - int(10 * sy),
+                                cx + int(24 * persp_sx), neck_y + int(16 * sy),
                                 start=200, extent=140, style="arc",
                                 outline=color, width=2, tags="equipped_acc")
                             # Pendant
                             c.create_oval(
-                                cx - int(4 * sx), neck_y + int(10 * sy),
-                                cx + int(4 * sx), neck_y + int(16 * sy),
+                                cx - int(4 * persp_sx), neck_y + int(10 * sy),
+                                cx + int(4 * persp_sx), neck_y + int(16 * sy),
                                 fill=color, outline=shadow, width=1,
                                 tags="equipped_acc")
                         else:
                             # Scarf / bandana - draped around neck
                             c.create_arc(
-                                cx - int(28 * sx), neck_y - int(6 * sy),
-                                cx + int(28 * sx), neck_y + int(12 * sy),
+                                cx - int(28 * persp_sx), neck_y - int(6 * sy),
+                                cx + int(28 * persp_sx), neck_y + int(12 * sy),
                                 start=200, extent=140, style="arc",
                                 outline=color, width=3, tags="equipped_acc")
                     else:
                         # --- Default: pendant near chest ---
                         neck_y = int(90 * sy + by)
-                        ox = int((-12 + i * 24) * sx)
+                        ox = int((-12 + i * 24) * persp_sx)
                         pts = [
                             cx + ox, neck_y - int(7 * sy),
-                            cx + ox - int(10 * sx), neck_y,
+                            cx + ox - int(10 * persp_sx), neck_y,
                             cx + ox, neck_y + int(7 * sy),
-                            cx + ox + int(10 * sx), neck_y,
+                            cx + ox + int(10 * persp_sx), neck_y,
                         ]
                         c.create_polygon(
                             *pts, fill=color, outline=shadow, width=1,
                             tags="equipped_acc")
                         c.create_oval(
-                            cx + ox - int(3 * sx), neck_y - int(3 * sy),
-                            cx + ox + int(3 * sx), neck_y + int(3 * sy),
+                            cx + ox - int(3 * persp_sx), neck_y - int(3 * sy),
+                            cx + ox + int(3 * persp_sx), neck_y + int(3 * sy),
                             fill=highlight, outline='',
                             tags="equipped_acc")
 
@@ -5556,6 +5590,119 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
                 start=20, extent=140, style="arc",
                 outline=highlight, width=1, tags="equipped_hat")
     
+    # Emoji-to-shape mapping for canvas-drawn items (no background squares)
+    _ITEM_SHAPES = {
+        # Food items
+        '🎋': 'bamboo', '🍎': 'apple', '🍌': 'banana', '🍇': 'grapes',
+        '🍓': 'berry', '🍰': 'cake', '🍪': 'cookie', '🍩': 'donut',
+        '🍕': 'pizza', '🍔': 'burger', '🌮': 'taco', '🥕': 'carrot',
+        '🍫': 'chocolate', '🍬': 'candy', '🧁': 'cupcake', '🥤': 'drink',
+        '☕': 'drink', '🍵': 'drink', '🥛': 'drink',
+        # Toy items
+        '🎾': 'ball', '⚽': 'ball', '🏀': 'ball', '🎈': 'balloon',
+        '🪀': 'yoyo', '🎲': 'dice', '🧸': 'plushie', '🪁': 'kite',
+        '🎮': 'gamepad', '🎸': 'guitar', '📱': 'phone', '📦': 'box',
+    }
+
+    def _draw_item_shape(self, c: tk.Canvas, x: int, y: int, size: int,
+                         emoji: str, sx: float = 1.0, sy: float = 1.0):
+        """Draw an item as a canvas shape instead of raw emoji text.
+
+        Uses simple colored shapes (circles, rectangles, polygons) so items
+        look consistent with the panda's canvas-drawn body — no opaque
+        text-background squares.
+        """
+        color = self._color_for_emoji(emoji, '#FF6B6B')
+        shadow = self._shade_color(color, -30)
+        highlight = self._shade_color(color, 50)
+        r = max(4, size // 2)
+        shape = self._ITEM_SHAPES.get(emoji, 'generic')
+
+        if shape == 'ball':
+            c.create_oval(x - r, y - r, x + r, y + r,
+                          fill=color, outline=shadow, width=1, tags="active_item")
+            # Shine
+            c.create_oval(x - r // 3, y - r // 2, x + r // 4, y - r // 4,
+                          fill=highlight, outline='', tags="active_item")
+        elif shape == 'bamboo':
+            # Vertical stalk
+            hw = max(2, r // 3)
+            c.create_rectangle(x - hw, y - r, x + hw, y + r,
+                               fill='#228B22', outline='#006400', width=1, tags="active_item")
+            # Nodes
+            for ny in range(y - r + r // 2, y + r, r):
+                c.create_line(x - hw - 1, ny, x + hw + 1, ny,
+                              fill='#006400', width=1, tags="active_item")
+            # Leaves
+            c.create_oval(x + hw, y - r, x + hw + r, y - r // 2,
+                          fill='#32CD32', outline='', tags="active_item")
+        elif shape in ('apple', 'berry'):
+            c.create_oval(x - r, y - r + 2, x + r, y + r,
+                          fill=color, outline=shadow, width=1, tags="active_item")
+            # Stem
+            c.create_line(x, y - r + 2, x + 2, y - r - 3,
+                          fill='#654321', width=max(1, r // 5), tags="active_item")
+            # Leaf
+            c.create_oval(x + 1, y - r - 4, x + r // 2 + 3, y - r,
+                          fill='#32CD32', outline='', tags="active_item")
+        elif shape in ('cake', 'cupcake', 'cookie', 'donut'):
+            # Rounded body
+            c.create_oval(x - r, y - r // 2, x + r, y + r,
+                          fill=color, outline=shadow, width=1, tags="active_item")
+            # Frosting/topping
+            c.create_arc(x - r, y - r, x + r, y + r // 3,
+                         start=0, extent=180, style="chord",
+                         fill=highlight, outline='', tags="active_item")
+        elif shape == 'banana':
+            # Curved banana shape
+            c.create_arc(x - r, y - r, x + r, y + r,
+                         start=30, extent=120, style="chord",
+                         fill='#FFE135', outline='#DAA520', width=1, tags="active_item")
+        elif shape in ('candy', 'chocolate'):
+            # Wrapped candy
+            c.create_rectangle(x - r, y - r // 2, x + r, y + r // 2,
+                               fill=color, outline=shadow, width=1, tags="active_item")
+            # Wrapper twist
+            c.create_polygon(x - r, y - 1, x - r - r // 2, y - r // 2, x - r - r // 2, y + r // 2,
+                             fill=highlight, outline='', tags="active_item")
+            c.create_polygon(x + r, y - 1, x + r + r // 2, y - r // 2, x + r + r // 2, y + r // 2,
+                             fill=highlight, outline='', tags="active_item")
+        elif shape == 'balloon':
+            c.create_oval(x - r, y - r - 2, x + r, y + r - 4,
+                          fill=color, outline=shadow, width=1, tags="active_item")
+            # String
+            c.create_line(x, y + r - 4, x, y + r + 6,
+                          fill='#999', width=1, tags="active_item")
+        elif shape == 'plushie':
+            # Body
+            c.create_oval(x - r, y - r + 2, x + r, y + r,
+                          fill=color, outline=shadow, width=1, tags="active_item")
+            # Ears
+            er = max(2, r // 3)
+            c.create_oval(x - r + 1, y - r, x - r + er * 2, y - r + er * 2,
+                          fill=color, outline=shadow, width=1, tags="active_item")
+            c.create_oval(x + r - er * 2, y - r, x + r - 1, y - r + er * 2,
+                          fill=color, outline=shadow, width=1, tags="active_item")
+            # Eyes
+            c.create_oval(x - er, y - er, x - 1, y, fill='black', outline='', tags="active_item")
+            c.create_oval(x + 1, y - er, x + er, y, fill='black', outline='', tags="active_item")
+        elif shape == 'drink':
+            # Cup
+            hw = max(3, r * 2 // 3)
+            c.create_rectangle(x - hw, y - r, x + hw, y + r,
+                               fill=color, outline=shadow, width=1, tags="active_item")
+            # Rim
+            c.create_oval(x - hw - 1, y - r - 2, x + hw + 1, y - r + 3,
+                          fill=highlight, outline=shadow, width=1, tags="active_item")
+        else:
+            # Generic: rounded rectangle with a small colored circle
+            c.create_oval(x - r, y - r, x + r, y + r,
+                          fill=color, outline=shadow, width=1, tags="active_item")
+            # Inner shine
+            sr = max(2, r // 3)
+            c.create_oval(x - sr, y - sr, x + sr, y + sr,
+                          fill=highlight, outline='', tags="active_item")
+
     def _draw_animation_extras(self, c: tk.Canvas, cx: int, by: float,
                                 anim: str, frame_idx: int, sx: float = 1.0, sy: float = 1.0):
         """Draw extra decorations based on animation type."""
@@ -5577,7 +5724,25 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
         
         # Draw active item during eating/playing animations
         if self._active_item_emoji:
-            if anim == 'eating':
+            # During walking: draw item at the target position so panda walks toward it
+            if anim.startswith('walking') and self._walk_target_screen_x is not None:
+                try:
+                    px = self._toplevel.winfo_x()
+                    py = self._toplevel.winfo_y()
+                    # Convert screen target to canvas-local coordinates
+                    rel_x = self._walk_target_screen_x - px
+                    rel_y = self._walk_target_screen_y - py
+                    # Clamp within canvas bounds
+                    rel_x = max(4, min(rel_x, w - 4))
+                    rel_y = max(4, min(rel_y, h - 4))
+                    item_size = int(20 * sx)
+                    # Pulsing effect to draw attention to the item
+                    pulse = 1.0 + 0.15 * math.sin(frame_idx * 0.3)
+                    self._draw_item_shape(c, rel_x, rel_y, max(8, int(item_size * pulse)),
+                                          self._active_item_emoji, sx, sy)
+                except Exception:
+                    pass
+            elif anim == 'eating':
                 # Multi-phase eating: pickup → inspect → chew → satisfied
                 # Use the eating sequence phase if available, else fall back
                 phase = getattr(self, '_eating_phase', 0)
@@ -5617,8 +5782,8 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
                     item_size = 0
 
                 if item_x is not None:
-                    c.create_text(item_x, item_y, text=self._active_item_emoji,
-                                  font=("Arial", max(8, item_size)), tags="active_item")
+                    self._draw_item_shape(c, item_x, item_y, max(8, item_size),
+                                          self._active_item_emoji, sx, sy)
             elif anim == 'playing':
                 # Draw toy item near panda's hands with play motion
                 # Use physics properties for enhanced animation if available
@@ -5682,8 +5847,8 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
                     item_y = int(80 * sy + by) + int(arc)
                     item_size = int(16 * sx)
                 
-                c.create_text(item_x, item_y, text=self._active_item_emoji,
-                              font=("Arial", max(8, item_size)), tags="active_item")
+                self._draw_item_shape(c, item_x, item_y, max(8, item_size),
+                                      self._active_item_emoji, sx, sy)
         
         # Draw belly rub hands visual for belly_rub animation
         if anim == 'belly_rub':
@@ -5815,11 +5980,12 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
         if self._destroyed:
             return
         
+        # Stop any active auto-walk so we don't conflict
+        if self._is_auto_walking:
+            self._is_auto_walking = False
+        
         # Set the active item so it renders during the interaction
         self.set_active_item(item_name, item_emoji, item_type, item_key, item_physics)
-        
-        # Start walking animation
-        self._set_animation_no_cancel('carrying' if item_type == 'food' else 'playing')
         
         # Get current panda position
         try:
@@ -5845,6 +6011,49 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
         self._walk_step_dy = step_y
         self._walk_on_arrive = on_arrive
         self._walk_item_type = item_type
+        self._walk_target_screen_x = target_x
+        self._walk_target_screen_y = target_y
+        
+        # Set facing direction based on movement direction (same logic as _start_auto_walk)
+        adx = abs(dx)
+        ady = abs(dy)
+        if adx > 0 and ady > 0 and min(adx, ady) / max(adx, ady) > self.DIAGONAL_MOVEMENT_THRESHOLD:
+            if dy < 0 and dx < 0:
+                self._facing_direction = 'back_left'
+                walk_anim = 'walking_up_left'
+            elif dy < 0 and dx > 0:
+                self._facing_direction = 'back_right'
+                walk_anim = 'walking_up_right'
+            elif dy > 0 and dx < 0:
+                self._facing_direction = 'front_left'
+                walk_anim = 'walking_down_left'
+            else:
+                self._facing_direction = 'front_right'
+                walk_anim = 'walking_down_right'
+        elif adx > ady:
+            self._facing_direction = 'right' if dx > 0 else 'left'
+            walk_anim = 'walking_right' if dx > 0 else 'walking_left'
+        else:
+            self._facing_direction = 'down' if dy > 0 else 'up'
+            walk_anim = 'walking_down' if dy > 0 else 'walking_up'
+        
+        # Update panda character facing if available
+        if self.panda and hasattr(self.panda, 'set_facing'):
+            try:
+                from src.features.panda_character import PandaFacing
+                facing_map = {'front': PandaFacing.FRONT, 'back': PandaFacing.BACK,
+                              'left': PandaFacing.LEFT, 'right': PandaFacing.RIGHT,
+                              'up': PandaFacing.BACK, 'down': PandaFacing.FRONT,
+                              'front_left': PandaFacing.FRONT_LEFT,
+                              'front_right': PandaFacing.FRONT_RIGHT,
+                              'back_left': PandaFacing.BACK_LEFT,
+                              'back_right': PandaFacing.BACK_RIGHT}
+                self.panda.set_facing(facing_map.get(self._facing_direction, PandaFacing.FRONT))
+            except Exception:
+                pass
+        
+        # Start directional walking animation so the panda visually walks
+        self.start_animation(walk_anim)
         
         # Show speech
         if self.panda and item_name:
@@ -5860,7 +6069,17 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
         
         self._walk_step_count += 1
         if self._walk_step_count > self._walk_total_steps:
-            # Arrived at the item
+            # Arrived at the item — clear walk target and reset facing to front
+            self._walk_target_screen_x = None
+            self._walk_target_screen_y = None
+            self._facing_direction = 'front'
+            if self.panda and hasattr(self.panda, 'set_facing'):
+                try:
+                    from src.features.panda_character import PandaFacing
+                    self.panda.set_facing(PandaFacing.FRONT)
+                except Exception:
+                    pass
+            
             if self._walk_item_type == 'food':
                 # Food: multi-phase sequence — pickup comment, then detailed eat
                 if self.panda and self._active_item_name:
@@ -5871,13 +6090,13 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
                 # Callback fires only after the full eating animation finishes
                 # (handled inside _eating_sequence_tick)
             else:
-                # Toys: play animation normally
-                self.play_animation_once('playing')
+                # Toys: switch to playing animation now that we've arrived
                 if self._walk_on_arrive:
                     try:
                         self._walk_on_arrive()
                     except Exception:
                         pass
+                self.play_animation_once('playing')
             return
         
         try:
@@ -7177,16 +7396,48 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
                         wkey = k
                         break
 
-            # Determine a target position slightly in front of the panda
-            # so it visibly walks to pick the item up.
+            # Walk toward the main application window where the widgets panel
+            # lives, so the panda visibly moves to "pick up" the item.  We
+            # aim for the edge of the app window closest to the panda so the
+            # walk distance feels natural and the panda reaches the UI.
             try:
                 px = self._toplevel.winfo_x()
                 py = self._toplevel.winfo_y()
-                # Place the item ~80px to the right and ~30px below the panda
-                target_x = px + self._toplevel_w // 2 + self.ITEM_WALK_OFFSET_X
-                target_y = py + self._toplevel_h // 2 + self.ITEM_WALK_OFFSET_Y
+                panda_cx = px + self._toplevel_w // 2
+                panda_cy = py + self._toplevel_h // 2
+
+                # Get the main application window bounds
+                min_x, min_y, max_x, max_y = self._get_main_window_bounds()
+                app_cx = (min_x + max_x) // 2
+                app_cy = (min_y + max_y) // 2
+
+                # Walk toward the center of the app window, but stop
+                # ITEM_WALK_MIN px before reaching the edge so the panda
+                # stays visible and doesn't overlap the panel too much.
+                dx = app_cx - panda_cx
+                dy = app_cy - panda_cy
+                dist = max(1, (dx ** 2 + dy ** 2) ** 0.5)
+
+                # Walk at most ITEM_WALK_DISTANCE px toward the app window
+                walk_dist = min(dist, self.ITEM_WALK_DISTANCE)
+                if walk_dist < self.ITEM_WALK_MIN:
+                    walk_dist = self.ITEM_WALK_MIN
+
+                target_x = panda_cx + int(dx / dist * walk_dist)
+                target_y = panda_cy + int(dy / dist * walk_dist)
+
+                # Clamp within bounds
+                target_x = max(min_x, min(target_x, max_x))
+                target_y = max(min_y, min(target_y, max_y))
             except Exception:
-                target_x, target_y = 0, 0
+                # Fallback: walk a short distance to the right
+                try:
+                    px = self._toplevel.winfo_x()
+                    py = self._toplevel.winfo_y()
+                    target_x = px + self._toplevel_w // 2 + self.ITEM_WALK_DISTANCE
+                    target_y = py + self._toplevel_h // 2
+                except Exception:
+                    target_x, target_y = 0, 0
 
             if is_food:
                 def _on_eat_complete():
@@ -7215,7 +7466,6 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
                     result = widget.use()
                     message = result.get('message', f"Panda enjoys the {widget.name}!")
                     self.info_label.configure(text=message)
-                    self.play_animation_once(result.get('animation', 'playing'))
                     if self.panda_level_system:
                         try:
                             xp = self.panda_level_system.get_xp_reward('click')

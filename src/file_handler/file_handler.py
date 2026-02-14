@@ -185,7 +185,7 @@ class FileHandler:
         Returns:
             Path to converted PNG file or None if conversion failed
         """
-        if not HAS_SVG:
+        if not HAS_SVG_CAIRO:
             logger.warning("cairosvg not available. Cannot convert SVG files.")
             return None
         

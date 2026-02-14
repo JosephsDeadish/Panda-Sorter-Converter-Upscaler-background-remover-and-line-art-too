@@ -373,8 +373,8 @@ def test_drag_body_angle_tracking():
         draw_src = inspect.getsource(PandaWidget._draw_panda)
         assert '_drag_body_angle' in draw_src, \
             "_draw_panda should use _drag_body_angle for body rotation"
-        assert 'c.move' in draw_src, \
-            "_draw_panda should use c.move for horizontal shift during rotation"
+        assert 'cos_angle' in draw_src and 'sin_angle' in draw_src, \
+            "_draw_panda should use rotation matrix for body angle transforms"
         print("✓ Continuous drag body angle rotation works for legs, arms, and ears")
     except ImportError:
         print("⚠ Skipping drag body angle test (GUI not available)")
@@ -396,15 +396,17 @@ def test_min_visible_scale_constant():
 
 
 def test_item_walk_offset_constants():
-    """Test that item walk offset constants exist."""
+    """Test that item walk distance constants exist."""
     try:
         from src.ui.panda_widget import PandaWidget
-        assert hasattr(PandaWidget, 'ITEM_WALK_OFFSET_X'), \
-            "PandaWidget should have ITEM_WALK_OFFSET_X constant"
-        assert hasattr(PandaWidget, 'ITEM_WALK_OFFSET_Y'), \
-            "PandaWidget should have ITEM_WALK_OFFSET_Y constant"
-        assert PandaWidget.ITEM_WALK_OFFSET_X > 0, \
-            "ITEM_WALK_OFFSET_X should be positive"
+        assert hasattr(PandaWidget, 'ITEM_WALK_DISTANCE'), \
+            "PandaWidget should have ITEM_WALK_DISTANCE constant"
+        assert PandaWidget.ITEM_WALK_DISTANCE > 0, \
+            "ITEM_WALK_DISTANCE should be positive"
+        assert hasattr(PandaWidget, 'ITEM_WALK_MIN'), \
+            "PandaWidget should have ITEM_WALK_MIN constant"
+        assert PandaWidget.ITEM_WALK_MIN > 0, \
+            "ITEM_WALK_MIN should be positive"
         print("✓ Item walk offset constants exist")
     except ImportError:
         print("⚠ Skipping item walk offset test (GUI not available)")
