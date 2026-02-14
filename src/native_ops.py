@@ -8,10 +8,11 @@ The ``texture_ops`` Rust extension (built with PyO3) accelerates:
 - Perceptual hashing for duplicate/similarity detection
 - Color histogram computation
 - Edge density measurement
+- Bitmap to SVG vector tracing (via vtracer)
 - Batch parallel processing of multiple images
 
 When the native module is unavailable, the pure-Python fallbacks in this
-file are used instead.  They produce identical results but are slower.
+file are used instead.  They produce similar results but are slower.
 """
 
 import logging
@@ -218,6 +219,109 @@ def edge_density(image: np.ndarray) -> float:
         return 0.0
 
 
+def bitmap_to_svg(
+    image: np.ndarray,
+    threshold: int = 25,
+    mode: str = "color",
+) -> Optional[str]:
+    """Convert a bitmap image to SVG using vector tracing.
+
+    This function traces the edges in a raster image and converts it to
+    scalable vector graphics (SVG). When the Rust extension is available,
+    it uses the vtracer library for high-quality tracing. Otherwise, it
+    falls back to a pure-Python edge-detection based approach.
+
+    Parameters
+    ----------
+    image : np.ndarray
+        Input image with shape ``(H, W, 3)`` and dtype ``uint8`` (RGB).
+    threshold : int, default 25
+        Color difference threshold for edge detection (0-255).
+        Lower values = more detail. Only used by native implementation.
+    mode : str, default "color"
+        Tracing mode: "color", "binary", or "spline".
+        - "color": Full color vectorization
+        - "binary": Black and white tracing
+        - "spline": Smooth spline curves
+        Only used by native implementation.
+
+    Returns
+    -------
+    Optional[str]
+        SVG file content as a string, or None on failure.
+    """
+    if len(image.shape) == 3 and image.shape[2] == 4:
+        image = image[:, :, :3]
+
+    h, w = image.shape[:2]
+
+    if NATIVE_AVAILABLE:
+        try:
+            return _native.bitmap_to_svg(image.tobytes(), w, h, threshold, mode)
+        except Exception as e:
+            logger.warning(f"Native bitmap_to_svg failed: {e}, trying fallback")
+
+    # Pure-Python fallback using edge detection
+    try:
+        import cv2
+        from xml.sax.saxutils import escape
+
+        # Convert to grayscale for edge detection
+        gray = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
+
+        # Detect edges
+        edges = cv2.Canny(gray, 50, 150)
+
+        # Find contours
+        contours, _ = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+        # Build SVG
+        svg_parts = [
+            f'<?xml version="1.0" encoding="UTF-8"?>',
+            f'<svg xmlns="http://www.w3.org/2000/svg" width="{w}" height="{h}" viewBox="0 0 {w} {h}">',
+        ]
+
+        # Add background if color mode
+        if mode == "color":
+            # Sample background color from image center
+            bg_color = image[h // 2, w // 2]
+            svg_parts.append(
+                f'  <rect width="{w}" height="{h}" fill="rgb({bg_color[0]},{bg_color[1]},{bg_color[2]})" />'
+            )
+
+        # Add contours as paths
+        for contour in contours:
+            if len(contour) < 3:
+                continue
+
+            # Build path data
+            path_data = f"M {contour[0][0][0]} {contour[0][0][1]}"
+            for point in contour[1:]:
+                path_data += f" L {point[0][0]} {point[0][1]}"
+            path_data += " Z"
+
+            # Sample color near contour
+            if mode == "color" and len(contour) > 0:
+                x, y = contour[0][0]
+                x, y = min(x, w - 1), min(y, h - 1)
+                color = image[y, x]
+                fill = f"rgb({color[0]},{color[1]},{color[2]})"
+            else:
+                fill = "black"
+
+            svg_parts.append(f'  <path d="{path_data}" fill="{fill}" />')
+
+        svg_parts.append("</svg>")
+        return "\n".join(svg_parts)
+
+    except ImportError:
+        logger.warning("OpenCV not available for bitmap_to_svg fallback")
+        return None
+    except Exception as e:
+        logger.error(f"Fallback bitmap_to_svg failed: {e}")
+        return None
+
+
 # ---------------------------------------------------------------------------
 # Batch operations
 # ---------------------------------------------------------------------------
@@ -275,3 +379,39 @@ def batch_color_histogram(
         return _native.batch_color_histogram(tuples, bins)
 
     return [color_histogram(img, bins) for img in images]
+
+
+def batch_bitmap_to_svg(
+    images: List[np.ndarray],
+    threshold: int = 25,
+    mode: str = "color",
+) -> List[Optional[str]]:
+    """Convert a batch of bitmap images to SVG in parallel.
+
+    Parameters
+    ----------
+    images : list[np.ndarray]
+        List of RGB images.
+    threshold : int, default 25
+        Color difference threshold for edge detection (0-255).
+    mode : str, default "color"
+        Tracing mode: "color", "binary", or "spline".
+
+    Returns
+    -------
+    list[Optional[str]]
+        Corresponding SVG strings, or None for failures.
+    """
+    if NATIVE_AVAILABLE:
+        try:
+            tuples = []
+            for img in images:
+                if len(img.shape) == 3 and img.shape[2] == 4:
+                    img = img[:, :, :3]
+                h, w = img.shape[:2]
+                tuples.append((img.tobytes(), w, h))
+            return _native.batch_bitmap_to_svg(tuples, threshold, mode)
+        except Exception as e:
+            logger.warning(f"Native batch_bitmap_to_svg failed: {e}, using sequential fallback")
+
+    return [bitmap_to_svg(img, threshold, mode) for img in images]

@@ -20,13 +20,24 @@ except ImportError:
     HAS_PIL = False
     logger.warning("PIL/Pillow not available. Image operations disabled.")
 
-# Check for SVG support
+# Check for SVG support (dual mode)
 try:
     import cairosvg
-    HAS_SVG = True
+    HAS_SVG_CAIRO = True
 except (ImportError, OSError):
-    HAS_SVG = False
-    logger.debug("cairosvg not available. SVG conversion disabled.")
+    HAS_SVG_CAIRO = False
+    logger.debug("cairosvg not available. Cairo SVG conversion disabled.")
+
+# Check for native Rust vector tracing
+try:
+    from ..native_ops import bitmap_to_svg as native_bitmap_to_svg, NATIVE_AVAILABLE
+    HAS_SVG_NATIVE = NATIVE_AVAILABLE
+except ImportError:
+    HAS_SVG_NATIVE = False
+    logger.debug("Native vector tracing not available.")
+
+# Overall SVG support (either native or cairo)
+HAS_SVG = HAS_SVG_CAIRO or HAS_SVG_NATIVE
 
 try:
     from io import BytesIO
@@ -210,6 +221,133 @@ class FileHandler:
             logger.error(f"Error converting {svg_path} to PNG: {e}")
             return None
     
+    def convert_raster_to_svg_native(
+        self, 
+        image_path: Path, 
+        output_path: Optional[Path] = None,
+        threshold: int = 25,
+        mode: str = "color"
+    ) -> Optional[Path]:
+        """
+        Convert raster image to SVG using native Rust vector tracing (offline mode).
+        
+        This method uses the native Rust vtracer library for bitmap-to-vector
+        conversion. It works completely offline without external dependencies.
+        
+        Args:
+            image_path: Path to raster image file (PNG, JPEG, etc.)
+            output_path: Optional output path, defaults to same location with .svg extension
+            threshold: Color difference threshold (0-255), lower = more detail
+            mode: Tracing mode ("color", "binary", or "spline")
+        
+        Returns:
+            Path to converted SVG file or None if conversion failed
+        """
+        if not HAS_SVG_NATIVE:
+            logger.warning("Native vector tracing not available. Build the Rust extension for offline SVG conversion.")
+            return None
+        
+        if not HAS_PIL:
+            logger.warning("PIL not available. Cannot load images.")
+            return None
+        
+        try:
+            if output_path is None:
+                output_path = image_path.with_suffix('.svg')
+            
+            if not image_path.exists():
+                logger.error(f"Source file not found: {image_path}")
+                return None
+            
+            # Load image as RGB numpy array
+            import numpy as np
+            img = Image.open(image_path).convert('RGB')
+            img_array = np.array(img)
+            
+            # Convert to SVG using native tracing
+            svg_content = native_bitmap_to_svg(img_array, threshold=threshold, mode=mode)
+            
+            if svg_content is None:
+                logger.error(f"Native vector tracing failed for {image_path}")
+                return None
+            
+            # Save SVG to file
+            output_path.write_text(svg_content, encoding='utf-8')
+            
+            self.operations_log.append(f"Converted {image_path} to {output_path} (native)")
+            logger.info(f"Successfully converted to SVG (native): {image_path} -> {output_path}")
+            return output_path
+            
+        except Exception as e:
+            logger.error(f"Error converting {image_path} to SVG (native): {e}")
+            return None
+    
+    def convert_raster_to_svg_cairo(
+        self,
+        image_path: Path,
+        output_path: Optional[Path] = None
+    ) -> Optional[Path]:
+        """
+        Convert raster image to SVG using cairosvg (online mode).
+        
+        This method uses cairosvg for conversion, which provides better quality
+        for complex images but requires external system dependencies.
+        
+        Note: This is a placeholder - cairosvg primarily converts SVG to raster,
+        not raster to SVG. For actual raster-to-vector, use the native method.
+        
+        Args:
+            image_path: Path to raster image file
+            output_path: Optional output path
+        
+        Returns:
+            Path to converted SVG file or None if not supported
+        """
+        logger.warning(
+            "cairosvg converts SVG to raster, not raster to SVG. "
+            "Use convert_raster_to_svg_native() for raster-to-vector conversion."
+        )
+        return None
+    
+    def convert_raster_to_svg(
+        self,
+        image_path: Path,
+        output_path: Optional[Path] = None,
+        threshold: int = 25,
+        mode: str = "color"
+    ) -> Optional[Path]:
+        """
+        Convert raster image to SVG using automatic mode selection.
+        
+        This method automatically tries the best available conversion method:
+        1. Native Rust tracing (offline, fast, good quality)
+        2. Falls back to error if native unavailable
+        
+        Args:
+            image_path: Path to raster image file
+            output_path: Optional output path, defaults to same location with .svg extension
+            threshold: Color difference threshold (0-255), lower = more detail
+            mode: Tracing mode ("color", "binary", or "spline")
+        
+        Returns:
+            Path to converted SVG file or None if conversion failed
+        """
+        # Try native first (offline mode)
+        if HAS_SVG_NATIVE:
+            result = self.convert_raster_to_svg_native(
+                image_path, output_path, threshold, mode
+            )
+            if result:
+                return result
+            logger.warning("Native conversion failed, no other methods available")
+        else:
+            logger.warning(
+                "No raster-to-SVG conversion method available. "
+                "Install the native Rust extension for offline vector tracing."
+            )
+        
+        return None
+    
     def load_image(self, image_path: Path) -> Optional[Image.Image]:
         """
         Load an image file, handling special formats like SVG.
@@ -234,12 +372,20 @@ class FileHandler:
             # Handle SVG files
             if suffix in self.VECTOR_FORMATS:
                 if not HAS_SVG:
-                    logger.warning(f"Cannot load SVG file {image_path}: cairosvg not available")
+                    logger.warning(f"Cannot load SVG file {image_path}: no SVG support available")
                     return None
                 
-                # Convert SVG to PNG in memory
-                png_bytes = cairosvg.svg2png(url=str(image_path))
-                return Image.open(BytesIO(png_bytes))
+                # Try cairosvg first if available (better quality for existing SVG files)
+                if HAS_SVG_CAIRO:
+                    try:
+                        import cairosvg
+                        png_bytes = cairosvg.svg2png(url=str(image_path))
+                        return Image.open(BytesIO(png_bytes))
+                    except Exception as e:
+                        logger.warning(f"Cairo SVG loading failed: {e}")
+                
+                logger.error(f"Cannot load SVG file {image_path}: cairosvg required for SVG-to-raster")
+                return None
             
             # Handle raster formats
             elif suffix in self.RASTER_FORMATS:
