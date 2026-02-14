@@ -15,18 +15,30 @@ from src.tools.batch_renamer import BatchRenamer, RenamePattern
 
 logger = logging.getLogger(__name__)
 
+# Try to import tooltip system
+try:
+    from src.features.tutorial_system import WidgetTooltip
+    TOOLTIPS_AVAILABLE = True
+except ImportError:
+    WidgetTooltip = None
+    TOOLTIPS_AVAILABLE = False
+    logger.warning("Tooltips not available for Batch Rename Panel")
+
 
 class BatchRenamePanel(ctk.CTkFrame):
     """UI panel for batch file renaming"""
     
-    def __init__(self, parent, **kwargs):
+    def __init__(self, parent, unlockables_system=None, **kwargs):
         super().__init__(parent, **kwargs)
         
+        self.unlockables_system = unlockables_system
         self.renamer = BatchRenamer()
         self.selected_files = []
         self.preview_data = []
         
+        self._tooltips = []
         self._build_ui()
+        self._add_tooltips()
     
     def _build_ui(self):
         """Build the user interface"""
@@ -467,6 +479,55 @@ class BatchRenamePanel(ctk.CTkFrame):
             else:
                 messagebox.showwarning("No History", "No rename operations to undo")
                 self.status_label.configure(text="Nothing to undo")
+    
+    def _add_tooltips(self):
+        """Add tooltips to widgets if available."""
+        if not TOOLTIPS_AVAILABLE or not self.unlockables_system:
+            return
+        
+        try:
+            tooltips = self.unlockables_system.get_all_tooltips()
+            tooltips_lower = [t.lower() for t in tooltips]
+            
+            def get_tooltip(keyword):
+                """Find tooltip containing keyword."""
+                for tooltip in tooltips_lower:
+                    if keyword.lower() in tooltip:
+                        return tooltips[tooltips_lower.index(tooltip)]
+                return None
+            
+            # Pattern selection tooltips
+            if hasattr(self, 'date_created_radio'):
+                tooltip = get_tooltip("date") or get_tooltip("rename")
+                if tooltip:
+                    self._tooltips.append(WidgetTooltip(self.date_created_radio, tooltip))
+            
+            # Template input tooltip
+            if hasattr(self, 'template_entry'):
+                tooltip = get_tooltip("template") or get_tooltip("custom") or get_tooltip("pattern")
+                if tooltip:
+                    self._tooltips.append(WidgetTooltip(self.template_entry, tooltip))
+            
+            # Metadata tooltips
+            if hasattr(self, 'copyright_entry'):
+                tooltip = get_tooltip("copyright") or get_tooltip("metadata")
+                if tooltip:
+                    self._tooltips.append(WidgetTooltip(self.copyright_entry, tooltip))
+            
+            # Preview tooltip
+            if hasattr(self, 'preview_textbox'):
+                tooltip = get_tooltip("preview")
+                if tooltip:
+                    self._tooltips.append(WidgetTooltip(self.preview_textbox, tooltip))
+            
+            # Undo tooltip
+            if hasattr(self, 'undo_btn'):
+                tooltip = get_tooltip("undo")
+                if tooltip:
+                    self._tooltips.append(WidgetTooltip(self.undo_btn, tooltip))
+                    
+        except Exception as e:
+            logger.error(f"Error adding tooltips to Batch Rename Panel: {e}")
 
 
 def open_batch_rename_dialog(parent):

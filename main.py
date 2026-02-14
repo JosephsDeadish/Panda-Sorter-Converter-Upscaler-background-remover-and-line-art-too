@@ -7980,7 +7980,7 @@ class GameTextureSorter(ctk.CTk):
         """Create batch rename tab for file renaming with patterns"""
         try:
             if BATCH_RENAME_AVAILABLE:
-                panel = BatchRenamePanel(self.tab_batch_rename)
+                panel = BatchRenamePanel(self.tab_batch_rename, unlockables_system=self.unlockables_system)
                 panel.pack(fill="both", expand=True, padx=10, pady=10)
                 logger.info("Batch Rename tab created successfully")
             else:
@@ -8049,7 +8049,7 @@ class GameTextureSorter(ctk.CTk):
         """Create performance dashboard tab for monitoring"""
         try:
             if PERFORMANCE_DASHBOARD_AVAILABLE:
-                panel = PerformanceDashboard(self.tab_performance)
+                panel = PerformanceDashboard(self.tab_performance, unlockables_system=self.unlockables_system)
                 panel.pack(fill="both", expand=True, padx=10, pady=10)
                 logger.info("Performance Dashboard tab created successfully")
             else:
