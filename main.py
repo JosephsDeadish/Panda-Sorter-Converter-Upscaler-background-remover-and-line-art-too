@@ -2269,8 +2269,8 @@ class GameTextureSorter(ctk.CTk):
         elif "Nearest" in style:
             return Image.NEAREST
         elif "Mitchell" in style or "CatRom" in style:
-            # PIL doesn't have separate Mitchell/CatRom — BICUBIC is the
-            # closest equivalent (both are cubic spline variants).
+            # PIL lacks dedicated Mitchell-Netravali / Catmull-Rom filters;
+            # BICUBIC is the closest general cubic interpolation available.
             return Image.BICUBIC
         return Image.LANCZOS  # default
 
@@ -2439,6 +2439,7 @@ class GameTextureSorter(ctk.CTk):
         export_fmt = self.upscale_format_var.get().lower()
         style = self.upscale_style_var.get()
         is_esrgan = "ESRGAN" in style
+        overwrite = self.upscale_overwrite_var.get() if hasattr(self, 'upscale_overwrite_var') else False
 
         def worker():
             import tempfile
@@ -2508,6 +2509,11 @@ class GameTextureSorter(ctk.CTk):
                             rel = Path(fpath.name)
                         out_file = dst_path / rel.with_suffix(f".{export_fmt}")
                         out_file.parent.mkdir(parents=True, exist_ok=True)
+
+                        # Skip existing files unless overwrite is enabled
+                        if out_file.exists() and not overwrite:
+                            self._upscale_log(f"  ⏭️ [{i}/{len(files)}] {fpath.name} (exists, skipped)")
+                            continue
 
                         # Save
                         save_kwargs = {}
