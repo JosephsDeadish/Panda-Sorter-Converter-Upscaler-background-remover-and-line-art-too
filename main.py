@@ -226,7 +226,7 @@ PAUSE_CHECK_INTERVAL = 0.1  # seconds
 
 
 class SplashScreen:
-    """Splash screen with panda logo and loading animation"""
+    """Splash screen with animated panda logo and loading animation"""
     
     def __init__(self, master=None):
         if not GUI_AVAILABLE or master is None:
@@ -238,7 +238,7 @@ class SplashScreen:
         
         # Configure window
         window_width = 500
-        window_height = 400
+        window_height = 450
         screen_width = self.window.winfo_screenwidth()
         screen_height = self.window.winfo_screenheight()
         x = (screen_width - window_width) // 2
@@ -248,45 +248,58 @@ class SplashScreen:
         # Remove window decorations
         self.window.overrideredirect(True)
         
-        # Main frame
-        frame = ctk.CTkFrame(self.window, corner_radius=20)
+        # Main frame with gradient-like effect
+        frame = ctk.CTkFrame(self.window, corner_radius=20, border_width=3, border_color="#2fa572")
         frame.pack(fill="both", expand=True, padx=2, pady=2)
-        
-        # Panda drawn art
-        panda_art = """
-        ████████████████
-      ██░░░░░░░░░░░░░░██
-    ██░░░░░░░░░░░░░░░░░░██
-    ██░░██████░░██████░░██
-    ██░░██████░░██████░░██
-    ██░░░░░░░░░░░░░░░░░░██
-    ██░░░░░░██░░░░░░░░░░██
-      ██░░░░░░░░░░░░░░██
-        ██████████████
-        """
         
         # Title
         title_label = ctk.CTkLabel(
             frame, 
             text=f"🐼 {APP_NAME} 🐼",
-            font=("Arial Bold", 24)
+            font=("Arial Bold", 26),
+            text_color="#2fa572"
         )
-        title_label.pack(pady=(30, 10))
+        title_label.pack(pady=(20, 5))
         
-        # Panda art
-        panda_label = ctk.CTkLabel(
-            frame,
-            text=panda_art,
-            font=("Courier", 10),
-            justify="center"
-        )
-        panda_label.pack(pady=10)
+        # Try to load animated panda SVG
+        panda_image = None
+        try:
+            from src.utils.svg_support import SVGLoader
+            from PIL import ImageTk
+            
+            svg_path = Path("src/resources/icons/svg/panda_animated.svg")
+            if svg_path.exists():
+                loader = SVGLoader()
+                pil_image = loader.load_svg(svg_path, size=(180, 180))
+                if pil_image:
+                    panda_image = ImageTk.PhotoImage(pil_image)
+        except Exception as e:
+            logger.debug(f"Could not load animated panda SVG: {e}")
+        
+        if panda_image:
+            # Display animated panda SVG
+            panda_label = ctk.CTkLabel(
+                frame,
+                image=panda_image,
+                text=""
+            )
+            panda_label.image = panda_image  # Keep reference
+            panda_label.pack(pady=10)
+        else:
+            # Fallback to simple emoji panda
+            panda_label = ctk.CTkLabel(
+                frame,
+                text="🐼",
+                font=("Arial", 120)
+            )
+            panda_label.pack(pady=10)
         
         # Version info
         version_label = ctk.CTkLabel(
             frame,
             text=f"Version {APP_VERSION}",
-            font=("Arial", 12)
+            font=("Arial", 12),
+            text_color="#b0b0b0"
         )
         version_label.pack(pady=5)
         
@@ -297,18 +310,19 @@ class SplashScreen:
             font=("Arial", 10),
             text_color="gray"
         )
-        author_label.pack(pady=5)
+        author_label.pack(pady=2)
         
         # Loading text
         self.loading_label = ctk.CTkLabel(
             frame,
             text="Initializing...",
-            font=("Arial", 11)
+            font=("Arial", 11),
+            text_color="#2fa572"
         )
-        self.loading_label.pack(pady=20)
+        self.loading_label.pack(pady=15)
         
         # Progress bar
-        self.progress = ctk.CTkProgressBar(frame, width=400)
+        self.progress = ctk.CTkProgressBar(frame, width=400, progress_color="#2fa572")
         self.progress.pack(pady=10)
         self.progress.set(0)
         

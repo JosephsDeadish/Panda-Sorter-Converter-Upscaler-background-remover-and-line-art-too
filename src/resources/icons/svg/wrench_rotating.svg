@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="64" height="64" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+    <!-- Rotating wrench/settings icon -->
+    <defs>
+        <linearGradient id="wrenchGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" style="stop-color:#78909C;stop-opacity:1" />
+            <stop offset="100%" style="stop-color:#455A64;stop-opacity:1" />
+        </linearGradient>
+    </defs>
+    
+    <g transform="translate(50,50)">
+        <!-- Wrench body -->
+        <g>
+            <rect x="-5" y="-30" width="10" height="40" fill="url(#wrenchGrad)" 
+                  rx="2" stroke="#37474F" stroke-width="1.5"/>
+            
+            <!-- Wrench head -->
+            <circle cx="0" cy="-30" r="12" fill="url(#wrenchGrad)" 
+                    stroke="#37474F" stroke-width="1.5"/>
+            <circle cx="0" cy="-30" r="7" fill="none" stroke="#37474F" stroke-width="2"/>
+            
+            <!-- Wrench opening -->
+            <path d="M -10,-35 L -10,-45 L 10,-45 L 10,-35" fill="url(#wrenchGrad)" 
+                  stroke="#37474F" stroke-width="1.5"/>
+            
+            <!-- Handle end -->
+            <circle cx="0" cy="15" r="8" fill="#607D8B"/>
+            
+            <!-- Rotation animation -->
+            <animateTransform attributeName="transform" type="rotate" 
+                              values="0; 360" dur="4s" repeatCount="indefinite"/>
+        </g>
+        
+        <!-- Sparkle effect -->
+        <g opacity="0">
+            <circle cx="20" cy="-20" r="3" fill="#FFD700"/>
+            <animate attributeName="opacity" values="0; 1; 0" dur="2s" repeatCount="indefinite"/>
+        </g>
+    </g>
+</svg>

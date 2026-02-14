@@ -37,17 +37,17 @@ _PANDA_TOOLTIPS = {
         ],
         'vulgar': [
             "Click this to sort your damn textures. It's not rocket science, Karen.",
-            "Organize these bad boys into folders. Like Marie Kondo but with more profanity.",
-            "Sort this sh*t out. Literally. That's what the button does.",
-            "Time to unfuck your texture directory structure.",
-            "Click here unless you enjoy chaos and madness.",
-            "Make your textures less of a clusterfuck with one click.",
-            "SORT BUTTON. Big green button. Does sorting. Why are you still reading?",
-            "Press this and watch the panda do all the work. You're welcome.",
-            "One click and your textures go from dumpster fire to organized perfection.",
-            "Sort textures faster than you can say 'why didn't I do this sooner.'",
-            "The magic 'make my mess disappear' button. You're basically a wizard now.",
-            "Hit sort and go grab a coffee. The panda's got this."
+            "Organize these bad boys into folders. Like Marie Kondo but with way more profanity.",
+            "Sort this shit out. Literally. That's what the fucking button does.",
+            "Time to unfuck your texture directory structure. You're welcome.",
+            "Click here unless you actually enjoy chaos, madness, and disappointing your team.",
+            "Make your textures less of a clusterfuck with one goddamn click.",
+            "SORT BUTTON. Big green button. Does sorting. Why the fuck are you still reading?",
+            "Press this and watch the panda do all the work while you sit on your ass.",
+            "One click and your textures go from dumpster fire to organized perfection. Magic!",
+            "Sort textures faster than you can say 'why the hell didn't I do this sooner.'",
+            "The magic 'make my mess disappear' button. You're basically a wizard now, Harry.",
+            "Hit sort and go grab a coffee. The panda's got this shit handled."
         ]
     },
     'convert_button': {
@@ -60,18 +60,18 @@ _PANDA_TOOLTIPS = {
             "Start the texture conversion process"
         ],
         'vulgar': [
-            "Turn your textures into whatever the hell format you need.",
-            "Convert this sh*t. PNG, DDS, whatever floats your boat.",
-            "Magic button that transforms textures. No rabbits or hats required.",
-            "Because apparently your textures are in the wrong goddamn format.",
-            "Click to unfuck your texture formats.",
-            "Convert or die. Well, not die. But your project might.",
-            "Format conversion: because game engines are picky little b*stards.",
-            "Press convert and let the panda handle the rest. Go touch grass.",
-            "Convert button. Turns format A into format B. It's not philosophy.",
-            "Batch conversion go brrr. All your textures, all at once.",
-            "This button converts formats. Not feelings. We don't do therapy here.",
-            "File conversion: making your textures speak the right language."
+            "Turn your textures into whatever the hell format you fucking need.",
+            "Convert this shit. PNG, DDS, whatever floats your goddamn boat.",
+            "Magic button that transforms textures. No rabbits, hats, or bullshit required.",
+            "Because apparently your textures are in the wrong fucking format. Again.",
+            "Click to unfuck your texture formats. You know you need to.",
+            "Convert or die. Well, not die. But your project might crash and burn.",
+            "Format conversion: because game engines are picky little bastards.",
+            "Press convert and let the panda handle the rest. Go touch grass, seriously.",
+            "Convert button. Turns format A into format B. It's not rocket surgery.",
+            "Batch conversion go brrr. All your textures, all at once, zero fucks given.",
+            "This button converts formats. Not feelings. We don't do therapy here, pal.",
+            "File conversion: making your textures speak the right language for once."
         ]
     },
     'settings_button': {
@@ -84,18 +84,18 @@ _PANDA_TOOLTIPS = {
             "Modify application behavior and appearance"
         ],
         'vulgar': [
-            "Tweak sh*t. Make it yours. Go nuts.",
-            "Settings, preferences, all that boring but necessary crap.",
-            "Click here if you're picky about how things work. We don't judge.",
-            "Configure this bad boy to your heart's content.",
-            "Mess with settings until something breaks. Then undo.",
-            "For control freaks and perfectionists. You know who you are.",
-            "Open settings. Where the magic happens. Or at least the configuring.",
-            "⚙️ Settings panel. Tweak every knob. Flip every switch. Go ham.",
-            "Configure app behavior. The panda's got options for your options.",
-            "Settings: because one size does NOT fit all. Especially yours.",
-            "Open preferences. Customize this app into oblivion if you want.",
-            "Click here to access all the settings you'll change once and forget about."
+            "Tweak shit. Make it yours. Unfuck everything to your liking.",
+            "Settings, preferences, all that boring-ass but necessary crap.",
+            "Click here if you're anal about how things work. No judgment... okay, maybe some.",
+            "Configure this bad boy. Go fucking nuts with options.",
+            "Mess with settings until something breaks. Then blame the developer.",
+            "For control freaks and perfectionists. Yes, you. Don't lie.",
+            "Open settings. Where the magic happens. Or at least the obsessive tweaking.",
+            "⚙️ Settings panel. Tweak every goddamn knob. Go absolutely ham.",
+            "Configure app behavior. The panda's got options for days, you picky bastard.",
+            "Settings: because your unique snowflake ass needs everything customized.",
+            "Open preferences. Customize this motherfucker into oblivion if you want.",
+            "Click here to access settings you'll change once and never touch again, you liar."
         ]
     },
     'file_selection': {
@@ -108,12 +108,16 @@ _PANDA_TOOLTIPS = {
             "Choose your file path"
         ],
         'vulgar': [
-            "Point me to your damn files already.",
-            "Show me where you hid your textures, you sneaky bastard.",
-            "Pick a file. Any file. I don't have all day.",
-            "File picker. Because apparently you can't just type the path.",
-            "Navigate this hellscape of directories and find your files.",
-            "Choose wisely. Or don't. I'm not your mother."
+            "Point me to your damn files already. I haven't got all fucking day.",
+            "Show me where you hid your textures, you sneaky little shit.",
+            "Pick a file. Any goddamn file. Let's get this show on the road.",
+            "File picker. Because apparently typing a path is too hard for your lazy ass.",
+            "Navigate this hellscape of directories and find your shit.",
+            "Choose wisely. Or don't. I'm not your mother and she's disappointed anyway.",
+            "Browse button. Because drag-drop is apparently too fucking complicated.",
+            "Select your files. The ones you definitely organized properly. Right?",
+            "File browser for the directionally challenged. It's okay, we've all been there.",
+            "Pick files. The computer can't read your mind. Yet."
         ]
     },
     'category_selection': {
@@ -126,12 +130,16 @@ _PANDA_TOOLTIPS = {
             "Choose texture classification groups"
         ],
         'vulgar': [
-            "Pick your texture flavor. Diffuse? Normal? Whatever the f*ck?",
-            "Choose categories or process everything. Your funeral.",
-            "Category picker. For when you're too good for all textures.",
-            "Filter this sh*t by category. Be selective.",
-            "What kind of textures are we destroying today?",
-            "Pick a category. Or don't. Chaos is always an option."
+            "Pick your texture flavor. Diffuse? Normal? What-the-fuck-ever?",
+            "Choose categories or process everything. YOLO, am I right?",
+            "Category picker. For when you're too fucking special for all textures.",
+            "Filter this shit by category. Be selective, your majesty.",
+            "What kind of textures are we unfucking today?",
+            "Pick a category. Or don't. Chaos is always a valid life choice.",
+            "Select what texture types to process. Because apparently 'all' is too simple.",
+            "Category filter. For the texture snobs among us.",
+            "Choose your poison: diffuse, normal, specular, or just fuck it and do everything.",
+            "Texture categories. Because your anal-retentive ass needs organization."
         ]
     },
     'lod_detection': {
@@ -144,10 +152,17 @@ _PANDA_TOOLTIPS = {
             "Configure automatic LOD identification"
         ],
         'vulgar': [
-            "Let the panda figure out your LOD levels. He's smart like that.",
-            "Auto-detect LODs because manually sorting is for masochists.",
-            "Toggle LOD magic. On or off. Your choice.",
-            "Enable this unless you hate yourself and your free time.",
+            "Let the panda figure out your LOD levels. He's fucking brilliant like that.",
+            "Auto-detect LODs because manually sorting is for masochists and idiots.",
+            "Toggle LOD magic. On or off. Your fucking choice.",
+            "Enable this unless you hate yourself and enjoy wasting your precious life.",
+            "Auto LOD detection. Because LOD0, LOD1, LOD2 is too hard to figure out manually.",
+            "Turn this on. Seriously. Don't be a hero. Let the code do the work.",
+            "LOD detection: teaching computers to read LOD0, LOD1, etc. Revolutionary shit.",
+            "Enable LOD auto-detect or spend hours doing it yourself. Your call, genius.",
+            "LOD finder. Because apparently '_LOD0' is too cryptic without AI help.",
+            "Auto-detect Level of Detail. Or waste time doing it by hand like a chump."
+        ]
             "LOD detection. Like facial recognition but for textures.",
             "Turn this on and let the algorithm do the heavy lifting."
         ]
@@ -838,14 +853,16 @@ _PANDA_TOOLTIPS = {
             "Load one image and see the fix preview!"
         ],
         'vulgar': [
-            "Preview one file. See what you're getting into before committing.",
-            "Test drive the alpha fix on a single image. Smart move.",
-            "Load a file and see the before/after. It's like a makeover show.",
-            "Preview single file. Because YOLO batch processing is for the brave.",
-            "Check what the preset does to one image. Don't fly blind.",
-            "See the fix on one file first. The panda respects your caution.",
-            "Test alpha correction on one image. Then decide if you trust the process.",
-            "Single file preview. For when you want to be absolutely sure."
+            "Preview one file. See what the fuck you're getting into before committing.",
+            "Test drive the alpha fix on a single image. Smart fucking move, actually.",
+            "Load a file and see the before/after. It's like a makeover show but for textures.",
+            "Preview single file. Because YOLO batch processing is for the brave and/or stupid.",
+            "Check what the preset does to one image. Don't fly blind, dipshit.",
+            "See the fix on one file first. The panda respects your paranoid ass.",
+            "Test alpha correction on one image. Then decide if you trust this shit.",
+            "Single file preview. For when you want to be absolutely goddamn sure.",
+            "Try before you buy. Or in this case, preview before you batch-process your entire library.",
+            "One file test run. Because mistakes are expensive and you're already broke."
         ]
     },
     'alpha_fix_export': {
@@ -866,14 +883,16 @@ _PANDA_TOOLTIPS = {
             "Save this fixed picture somewhere!"
         ],
         'vulgar': [
-            "Export this fixed image. One and done. Efficient.",
-            "Save the preview. Because sometimes you only need ONE fixed texture.",
-            "Export this single texture. No batch required.",
-            "Save what you see. The preview, now permanent.",
-            "Export single file. For when batch processing is overkill.",
-            "Grab that fixed image and save it. Mission accomplished.",
-            "Export preview result. Sometimes less is more.",
-            "Save this bad boy. One perfect texture, ready to go."
+            "Export this fixed image. One and fucking done. Efficient as hell.",
+            "Save the preview. Because sometimes you only need ONE fixed texture, not a thousand.",
+            "Export this single texture. No batch bullshit required.",
+            "Save what you see. The preview, now permanent. Revolutionary, I know.",
+            "Export single file. For when batch processing is complete overkill.",
+            "Grab that fixed image and save it. Mission accomplished, you beautiful bastard.",
+            "Export preview result. Sometimes less is more, you overachiever.",
+            "Save this bad boy. One perfect texture, ready to fucking go.",
+            "Export button. Takes the preview and saves it. Rocket science it ain't.",
+            "Single file export. Because not everything needs to be a batch operation, Karen."
         ]
     },
     'sound_enabled': {
@@ -2613,14 +2632,16 @@ _PANDA_TOOLTIPS = {
             "Preserves info like when and where the photo was taken!",
         ],
         'vulgar': [
-            "Keep that EXIF sh*t. Date, camera model, all that nerdy metadata.",
-            "Preserve metadata? Sure, if you care about timestamps and camera info.",
-            "EXIF preservation: for when you give a damn about photo metadata.",
-            "Copy all that technical crap from the original. JPEG nerds will thank you.",
-            "Metadata mode: because apparently you need to know WHEN a texture was created. Sure.",
-            "Keep the photo's metadata. Date, camera, GPS... wait, why do your textures have GPS?",
-            "EXIF copying go brrr. All your precious metadata stays intact.",
-            "For photographers who upscale. The panda judges your metadata obsession. Gently.",
+            "Keep that EXIF shit. Date, camera model, all that nerdy-ass metadata.",
+            "Preserve metadata? Sure, if you actually give a fuck about timestamps and camera info.",
+            "EXIF preservation: for when you give a damn about photo metadata for some reason.",
+            "Copy all that technical crap from the original. JPEG nerds will love you forever.",
+            "Metadata mode: because apparently you need to know WHEN a texture was created. Whatever floats your boat.",
+            "Keep the photo's metadata. Date, camera, GPS... wait, why the fuck do your textures have GPS?",
+            "EXIF copying go brrr. All your precious metadata stays intact, you perfectionist.",
+            "For photographers who upscale. The panda judges your metadata obsession. But only a little.",
+            "Checkbox for metadata nerds. You know who you are. Don't be ashamed.",
+            "Preserve EXIF or don't. The panda doesn't care about your camera settings, but you might."
         ]
     },
     'panda_sound_eat': {

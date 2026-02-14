@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="64" height="64" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+    <!-- Animated sorting folders -->
+    <defs>
+        <linearGradient id="folder1Grad" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" style="stop-color:#FFA726;stop-opacity:1" />
+            <stop offset="100%" style="stop-color:#F57C00;stop-opacity:1" />
+        </linearGradient>
+        <linearGradient id="folder2Grad" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" style="stop-color:#66BB6A;stop-opacity:1" />
+            <stop offset="100%" style="stop-color:#388E3C;stop-opacity:1" />
+        </linearGradient>
+    </defs>
+    
+    <!-- Front folder (moves up) -->
+    <g opacity="0.9">
+        <path d="M 15,45 L 15,75 L 70,75 L 70,55 L 40,55 L 35,45 Z" 
+              fill="url(#folder1Grad)" stroke="#E65100" stroke-width="1.5">
+            <animateTransform attributeName="transform" type="translate" 
+                              values="0 0; 0 -5; 0 0" dur="2s" repeatCount="indefinite"/>
+            <animate attributeName="opacity" values="0.9; 1; 0.9" dur="2s" repeatCount="indefinite"/>
+        </path>
+    </g>
+    
+    <!-- Back folder (moves down) -->
+    <g opacity="0.8">
+        <path d="M 30,25 L 30,55 L 85,55 L 85,35 L 55,35 L 50,25 Z" 
+              fill="url(#folder2Grad)" stroke="#2E7D32" stroke-width="1.5">
+            <animateTransform attributeName="transform" type="translate" 
+                              values="0 0; 0 5; 0 0" dur="2s" repeatCount="indefinite"/>
+            <animate attributeName="opacity" values="0.8; 0.6; 0.8" dur="2s" repeatCount="indefinite"/>
+        </path>
+    </g>
+    
+    <!-- Sorting arrows -->
+    <g stroke="#ffffff" stroke-width="2" fill="none" stroke-linecap="round">
+        <path d="M 42 35 L 42 45 L 37 40 M 42 45 L 47 40">
+            <animate attributeName="opacity" values="0; 1; 0" dur="2s" repeatCount="indefinite"/>
+        </path>
+    </g>
+</svg>

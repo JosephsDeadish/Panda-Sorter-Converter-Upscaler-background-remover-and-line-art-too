@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="64" height="64" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+    <!-- Warning with pulse animation -->
+    <defs>
+        <linearGradient id="warnGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" style="stop-color:#FFB74D;stop-opacity:1" />
+            <stop offset="100%" style="stop-color:#F57C00;stop-opacity:1" />
+        </linearGradient>
+    </defs>
+    
+    <!-- Pulsing outer ring -->
+    <polygon points="50,10 90,80 10,80" fill="none" stroke="#FF6F00" stroke-width="3" opacity="0.5">
+        <animate attributeName="opacity" values="0.5; 0.2; 0.5" dur="1s" repeatCount="indefinite"/>
+        <animateTransform attributeName="transform" type="scale" 
+                          values="1 1; 1.1 1.1; 1 1" 
+                          additive="sum" dur="1s" repeatCount="indefinite"/>
+    </polygon>
+    
+    <!-- Main triangle -->
+    <polygon points="50,15 85,75 15,75" fill="url(#warnGrad)" stroke="#E65100" stroke-width="2"/>
+    
+    <!-- Exclamation mark - line -->
+    <rect x="47" y="30" width="6" height="25" fill="#fff" rx="3"/>
+    
+    <!-- Exclamation mark - dot -->
+    <circle cx="50" cy="65" r="4" fill="#fff">
+        <animate attributeName="r" values="4; 5; 4" dur="0.5s" repeatCount="indefinite"/>
+    </circle>
+</svg>
