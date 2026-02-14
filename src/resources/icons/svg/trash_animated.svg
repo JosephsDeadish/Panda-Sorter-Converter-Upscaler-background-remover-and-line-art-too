@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <!-- Animated trash can -->
+  <defs>
+    <linearGradient id="trashGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#F44336;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#B71C1C;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Lid -->
+  <rect x="30" y="25" width="40" height="5" rx="2" fill="url(#trashGrad)">
+    <animate attributeName="y" values="25;20;25" dur="2s" repeatCount="indefinite"/>
+    <animate attributeName="transform" values="rotate(0 50 27.5); rotate(-5 50 27.5); rotate(0 50 27.5)" dur="2s" repeatCount="indefinite"/>
+  </rect>
+  
+  <!-- Handle -->
+  <path d="M 40 25 Q 40 20 45 20 L 55 20 Q 60 20 60 25" fill="none" stroke="url(#trashGrad)" stroke-width="2">
+    <animate attributeName="d" values="M 40 25 Q 40 20 45 20 L 55 20 Q 60 20 60 25; M 40 20 Q 40 15 45 15 L 55 15 Q 60 15 60 20; M 40 25 Q 40 20 45 20 L 55 20 Q 60 20 60 25" dur="2s" repeatCount="indefinite"/>
+  </path>
+  
+  <!-- Can body -->
+  <path d="M 32 30 L 35 75 Q 35 80 40 80 L 60 80 Q 65 80 65 75 L 68 30 Z" fill="url(#trashGrad)" opacity="0.8"/>
+  
+  <!-- Lines on can -->
+  <line x1="42" y1="40" x2="43" y2="70" stroke="#FFF" stroke-width="2" opacity="0.5"/>
+  <line x1="50" y1="40" x2="51" y2="70" stroke="#FFF" stroke-width="2" opacity="0.5"/>
+  <line x1="58" y1="40" x2="59" y2="70" stroke="#FFF" stroke-width="2" opacity="0.5"/>
+  
+  <!-- Shake animation -->
+  <animateTransform attributeName="transform" type="rotate" values="0 50 50; 2 50 50; -2 50 50; 0 50 50" dur="0.5s" begin="0s" repeatCount="indefinite"/>
+</svg>

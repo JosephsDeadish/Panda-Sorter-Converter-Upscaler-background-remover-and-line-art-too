@@ -20,6 +20,7 @@
 customtkinter>=5.2.0  # Modern Tkinter-based UI
 pillow>=10.0.0  # Image loading and processing (NOTE: 12.1.1+ recommended for latest security fixes, but may break compatibility)
 darkdetect>=0.8.0  # System dark mode detection
+tkinterdnd2>=0.3.0  # Drag-and-drop support for file inputs (optional, gracefully degrades)
 
 # Image Processing
 opencv-python>=4.8.1.78  # Computer vision (>= 4.8.1.78 for libwebp CVE fix)

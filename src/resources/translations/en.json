@@ -87,5 +87,14 @@
   "msg_ready": "Ready to sort textures",
   "msg_no_files": "No files selected",
   "msg_operation_complete": "Operation completed successfully",
-  "msg_operation_failed": "Operation failed: {error}"
+  "msg_operation_failed": "Operation failed: {error}",
+  "metadata_preserve": "Preserve Image Metadata (EXIF)",
+  "metadata_preserved": "Metadata preserved",
+  "metadata_not_preserved": "Metadata not preserved",
+  "metadata_copy_failed": "Failed to copy metadata: {error}",
+  "metadata_warning_format": "Metadata support for {format} is limited. Some EXIF data may not be visible in all viewers.",
+  "metadata_warning_unsupported": "Format {format} does not support EXIF metadata. Metadata will not be preserved.",
+  "metadata_tooltip": "Preserve original image metadata (EXIF) when upscaling. Best for JPEG files.",
+  "drag_drop_here": "Drag and drop files here",
+  "drag_drop_supported": "Drag files into this field to open them"
 }

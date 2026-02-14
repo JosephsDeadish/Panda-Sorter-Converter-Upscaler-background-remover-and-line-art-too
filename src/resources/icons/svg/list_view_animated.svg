@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <!-- List view -->
+  <defs>
+    <linearGradient id="listGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#00BCD4;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#006064;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <!-- List item 1 -->
+  <circle cx="25" cy="25" r="5" fill="url(#listGrad)">
+    <animate attributeName="r" values="5;6;5" dur="2s" repeatCount="indefinite"/>
+  </circle>
+  <rect x="35" y="22" width="55" height="6" fill="url(#listGrad)" rx="2">
+    <animate attributeName="width" values="55;58;55" dur="2s" repeatCount="indefinite"/>
+  </rect>
+  
+  <!-- List item 2 -->
+  <circle cx="25" cy="42" r="5" fill="url(#listGrad)">
+    <animate attributeName="r" values="5;6;5" dur="2s" begin="0.3s" repeatCount="indefinite"/>
+  </circle>
+  <rect x="35" y="39" width="50" height="6" fill="url(#listGrad)" rx="2">
+    <animate attributeName="width" values="50;53;50" dur="2s" begin="0.3s" repeatCount="indefinite"/>
+  </rect>
+  
+  <!-- List item 3 -->
+  <circle cx="25" cy="59" r="5" fill="url(#listGrad)">
+    <animate attributeName="r" values="5;6;5" dur="2s" begin="0.6s" repeatCount="indefinite"/>
+  </circle>
+  <rect x="35" y="56" width="53" height="6" fill="url(#listGrad)" rx="2">
+    <animate attributeName="width" values="53;56;53" dur="2s" begin="0.6s" repeatCount="indefinite"/>
+  </rect>
+  
+  <!-- List item 4 -->
+  <circle cx="25" cy="76" r="5" fill="url(#listGrad)">
+    <animate attributeName="r" values="5;6;5" dur="2s" begin="0.9s" repeatCount="indefinite"/>
+  </circle>
+  <rect x="35" y="73" width="48" height="6" fill="url(#listGrad)" rx="2">
+    <animate attributeName="width" values="48;51;48" dur="2s" begin="0.9s" repeatCount="indefinite"/>
+  </rect>
+</svg>

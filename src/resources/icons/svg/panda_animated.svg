@@ -1,0 +1,121 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="200" height="200" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+    <!-- Animated Panda - Beautiful modern design -->
+    <defs>
+        <radialGradient id="pandaWhite" cx="50%" cy="50%">
+            <stop offset="0%" style="stop-color:#ffffff;stop-opacity:1" />
+            <stop offset="100%" style="stop-color:#f5f5f5;stop-opacity:1" />
+        </radialGradient>
+        <radialGradient id="pandaBlack" cx="50%" cy="50%">
+            <stop offset="0%" style="stop-color:#2c2c2c;stop-opacity:1" />
+            <stop offset="100%" style="stop-color:#1a1a1a;stop-opacity:1" />
+        </radialGradient>
+    </defs>
+    
+    <!-- Left ear -->
+    <ellipse cx="60" cy="50" rx="25" ry="30" fill="url(#pandaBlack)">
+        <animateTransform attributeName="transform" type="rotate" 
+                          values="0 60 50; -10 60 50; 0 60 50" 
+                          dur="3s" repeatCount="indefinite"/>
+    </ellipse>
+    
+    <!-- Right ear -->
+    <ellipse cx="140" cy="50" rx="25" ry="30" fill="url(#pandaBlack)">
+        <animateTransform attributeName="transform" type="rotate" 
+                          values="0 140 50; 10 140 50; 0 140 50" 
+                          dur="3s" repeatCount="indefinite"/>
+    </ellipse>
+    
+    <!-- Head (white) -->
+    <circle cx="100" cy="100" r="60" fill="url(#pandaWhite)" stroke="#e0e0e0" stroke-width="2"/>
+    
+    <!-- Left eye patch -->
+    <ellipse cx="75" cy="90" rx="20" ry="25" fill="url(#pandaBlack)"/>
+    
+    <!-- Right eye patch -->
+    <ellipse cx="125" cy="90" rx="20" ry="25" fill="url(#pandaBlack)"/>
+    
+    <!-- Left eye (white) -->
+    <ellipse cx="75" cy="92" rx="10" ry="12" fill="white"/>
+    
+    <!-- Right eye (white) -->
+    <ellipse cx="125" cy="92" rx="10" ry="12" fill="white"/>
+    
+    <!-- Left pupil -->
+    <circle cx="75" cy="95" r="6" fill="#1a1a1a">
+        <animate attributeName="cy" values="95; 95; 95; 99; 99; 95" 
+                 dur="4s" repeatCount="indefinite"/>
+        <animate attributeName="r" values="6; 6; 6; 3; 3; 6" 
+                 dur="4s" repeatCount="indefinite"/>
+    </circle>
+    
+    <!-- Right pupil -->
+    <circle cx="125" cy="95" r="6" fill="#1a1a1a">
+        <animate attributeName="cy" values="95; 95; 95; 99; 99; 95" 
+                 dur="4s" repeatCount="indefinite"/>
+        <animate attributeName="r" values="6; 6; 6; 3; 3; 6" 
+                 dur="4s" repeatCount="indefinite"/>
+    </circle>
+    
+    <!-- Eye sparkle left -->
+    <circle cx="72" cy="90" r="2" fill="white" opacity="0.8"/>
+    
+    <!-- Eye sparkle right -->
+    <circle cx="122" cy="90" r="2" fill="white" opacity="0.8"/>
+    
+    <!-- Nose -->
+    <ellipse cx="100" cy="110" rx="8" ry="6" fill="#1a1a1a"/>
+    
+    <!-- Mouth curve (cute smile) -->
+    <path d="M 90 115 Q 100 120 110 115" stroke="#1a1a1a" stroke-width="2" 
+          fill="none" stroke-linecap="round"/>
+    
+    <!-- Left paw (waving) -->
+    <g transform="translate(40, 140)">
+        <ellipse cx="0" cy="0" rx="15" ry="20" fill="url(#pandaBlack)">
+            <animateTransform attributeName="transform" type="rotate" 
+                              values="0 0 0; -20 0 -10; 20 0 -10; -20 0 -10; 0 0 0" 
+                              dur="2s" repeatCount="indefinite"/>
+        </ellipse>
+        <!-- Paw pads -->
+        <circle cx="0" cy="5" r="4" fill="#2c2c2c" opacity="0.5"/>
+    </g>
+    
+    <!-- Right paw -->
+    <ellipse cx="160" cy="140" rx="15" ry="20" fill="url(#pandaBlack)"/>
+    <circle cx="160" cy="145" r="4" fill="#2c2c2c" opacity="0.5"/>
+    
+    <!-- Bamboo stick (held in right paw) -->
+    <g opacity="0.9">
+        <rect x="155" y="120" width="6" height="40" fill="#7CB342" rx="3">
+            <animate attributeName="y" values="120; 118; 120" 
+                     dur="2s" repeatCount="indefinite"/>
+        </rect>
+        <!-- Bamboo segments -->
+        <line x1="155" y1="130" x2="161" y2="130" stroke="#558B2F" stroke-width="1"/>
+        <line x1="155" y1="145" x2="161" y2="145" stroke="#558B2F" stroke-width="1"/>
+        
+        <!-- Leaves -->
+        <path d="M 161 122 Q 170 120 172 125 Q 168 127 161 125 Z" fill="#8BC34A">
+            <animateTransform attributeName="transform" type="rotate" 
+                              values="0 161 123; 10 161 123; 0 161 123" 
+                              dur="1.5s" repeatCount="indefinite"/>
+        </path>
+        <path d="M 161 127 Q 172 125 174 130 Q 170 132 161 130 Z" fill="#8BC34A">
+            <animateTransform attributeName="transform" type="rotate" 
+                              values="0 161 128; -10 161 128; 0 161 128" 
+                              dur="1.5s" repeatCount="indefinite"/>
+        </path>
+    </g>
+    
+    <!-- Hearts floating (cute effect) -->
+    <g opacity="0.6">
+        <path d="M 180 60 Q 180 55 185 55 Q 190 55 190 60 Q 190 65 185 68 L 180 60 Z" 
+              fill="#ff69b4">
+            <animateTransform attributeName="transform" type="translate" 
+                              values="0 0; 0 -30" dur="3s" repeatCount="indefinite"/>
+            <animate attributeName="opacity" values="0.6; 0" 
+                     dur="3s" repeatCount="indefinite"/>
+        </path>
+    </g>
+</svg>

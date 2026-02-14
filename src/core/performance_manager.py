@@ -12,7 +12,16 @@ import platform
 import psutil
 from dataclasses import dataclass
 from enum import Enum
-from typing import Dict, Optional, Any
+from typing import Dict, Optional, Any, List
+
+# Import GPU detector
+try:
+    from src.utils.gpu_detector import GPUDetector, GPUDevice
+    GPU_DETECTOR_AVAILABLE = True
+except ImportError:
+    GPU_DETECTOR_AVAILABLE = False
+    GPUDetector = None
+    GPUDevice = None
 
 
 logger = logging.getLogger(__name__)
@@ -125,12 +134,28 @@ class PerformanceManager:
         )
 
     def _detect_system_info(self) -> None:
-        """Detect system capabilities and resources."""
+        """Detect system capabilities and resources including GPU."""
         try:
             cpu_count = psutil.cpu_count(logical=True) or 4
             memory = psutil.virtual_memory()
             total_memory_mb = memory.total / (1024 * 1024)
             available_memory_mb = memory.available / (1024 * 1024)
+            
+            # Detect GPUs
+            gpu_info = {}
+            gpu_devices = []
+            if GPU_DETECTOR_AVAILABLE:
+                try:
+                    detector = GPUDetector()
+                    gpu_devices = detector.detect_gpus()
+                    gpu_info = detector.get_summary()
+                    logger.info(f"GPU Detection: {gpu_info['count']} device(s) found")
+                except Exception as e:
+                    logger.warning(f"GPU detection failed: {e}")
+                    gpu_info = {"count": 0, "devices": [], "error": str(e)}
+            else:
+                logger.debug("GPU detector not available")
+                gpu_info = {"count": 0, "devices": [], "error": "GPU detector not available"}
             
             self._system_info = {
                 "cpu_count": cpu_count,
@@ -138,7 +163,14 @@ class PerformanceManager:
                 "available_memory_mb": available_memory_mb,
                 "platform": platform.system(),
                 "platform_release": platform.release(),
-                "python_version": platform.python_version()
+                "python_version": platform.python_version(),
+                "gpu_count": gpu_info.get("count", 0),
+                "gpu_info": gpu_info,
+                "gpu_devices": [d.to_dict() for d in gpu_devices] if gpu_devices else [],
+                "has_nvidia_gpu": gpu_info.get("has_nvidia", False),
+                "has_amd_gpu": gpu_info.get("has_amd", False),
+                "has_intel_gpu": gpu_info.get("has_intel", False),
+                "has_apple_gpu": gpu_info.get("has_apple", False)
             }
             
         except Exception as e:
@@ -150,7 +182,14 @@ class PerformanceManager:
                 "available_memory_mb": 4096,
                 "platform": "Unknown",
                 "platform_release": "Unknown",
-                "python_version": platform.python_version()
+                "python_version": platform.python_version(),
+                "gpu_count": 0,
+                "gpu_info": {"count": 0, "devices": [], "error": str(e)},
+                "gpu_devices": [],
+                "has_nvidia_gpu": False,
+                "has_amd_gpu": False,
+                "has_intel_gpu": False,
+                "has_apple_gpu": False
             }
 
     def _init_default_profiles(self) -> None:
@@ -378,6 +417,43 @@ class PerformanceManager:
             Dictionary with system information
         """
         return self._system_info.copy()
+    
+    def get_gpu_info(self) -> Dict[str, Any]:
+        """
+        Get GPU information.
+        
+        Returns:
+            Dictionary with GPU information
+        """
+        return self._system_info.get("gpu_info", {"count": 0, "devices": []})
+    
+    def get_primary_gpu(self) -> Optional[Dict[str, Any]]:
+        """
+        Get primary GPU device information.
+        
+        Returns:
+            Dictionary with primary GPU info or None
+        """
+        gpu_info = self._system_info.get("gpu_info", {})
+        return gpu_info.get("primary")
+    
+    def has_cuda_gpu(self) -> bool:
+        """
+        Check if a CUDA-capable GPU is available.
+        
+        Returns:
+            True if NVIDIA GPU detected
+        """
+        return self._system_info.get("has_nvidia_gpu", False)
+    
+    def has_gpu(self) -> bool:
+        """
+        Check if any GPU is available.
+        
+        Returns:
+            True if at least one GPU detected
+        """
+        return self._system_info.get("gpu_count", 0) > 0
 
     def get_current_settings(self) -> Dict[str, Any]:
         """

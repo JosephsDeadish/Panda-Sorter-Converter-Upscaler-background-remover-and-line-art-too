@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <!-- Image with upscale arrow -->
+  <defs>
+    <linearGradient id="upscaleGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#8BC34A;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#558B2F;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Small image frame -->
+  <rect x="25" y="45" width="30" height="30" fill="none" stroke="url(#upscaleGrad)" stroke-width="3" rx="2">
+    <animate attributeName="width" values="30;35;30" dur="2s" repeatCount="indefinite"/>
+    <animate attributeName="height" values="30;35;30" dur="2s" repeatCount="indefinite"/>
+    <animate attributeName="x" values="25;22.5;25" dur="2s" repeatCount="indefinite"/>
+    <animate attributeName="y" values="45;42.5;45" dur="2s" repeatCount="indefinite"/>
+  </rect>
+  
+  <!-- Large image frame -->
+  <rect x="50" y="25" width="40" height="40" fill="none" stroke="url(#upscaleGrad)" stroke-width="3" rx="2" opacity="0.5"/>
+  
+  <!-- Arrow pointing from small to large -->
+  <path d="M 55 60 L 65 50 L 60 50 L 60 45 L 70 45 L 70 50 L 65 50 Z" fill="url(#upscaleGrad)">
+    <animate attributeName="opacity" values="0.5;1;0.5" dur="1.5s" repeatCount="indefinite"/>
+  </path>
+  
+  <!-- Plus signs indicating increase -->
+  <text x="75" y="35" font-size="14" fill="#8BC34A" font-weight="bold">+</text>
+  <text x="82" y="42" font-size="10" fill="#8BC34A" font-weight="bold">+</text>
+</svg>

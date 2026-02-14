@@ -209,7 +209,13 @@ class Config:
                 "bookmarks": [],
                 "recent_projects": [],
                 "last_input_directory": "",
-                "last_output_directory": ""
+                "last_output_directory": "",
+                "last_upscale_input": "",
+                "last_upscale_output": "",
+                "last_alpha_fix_input": "",
+                "last_alpha_fix_output": "",
+                "last_convert_input": "",
+                "last_convert_output": ""
             },
             
             # Classification Settings

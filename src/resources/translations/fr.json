@@ -55,5 +55,14 @@
   "msg_ready": "Prêt à trier les textures",
   "msg_no_files": "Aucun fichier sélectionné",
   "msg_operation_complete": "Opération terminée avec succès",
-  "msg_operation_failed": "Échec de l'opération: {error}"
+  "msg_operation_failed": "Échec de l'opération: {error}",
+  "metadata_preserve": "Préserver les métadonnées d'image (EXIF)",
+  "metadata_preserved": "Métadonnées préservées",
+  "metadata_not_preserved": "Métadonnées non préservées",
+  "metadata_copy_failed": "Échec de la copie des métadonnées: {error}",
+  "metadata_warning_format": "Le support des métadonnées pour {format} est limité. Certaines données EXIF peuvent ne pas être visibles dans tous les visualiseurs.",
+  "metadata_warning_unsupported": "Le format {format} ne prend pas en charge les métadonnées EXIF. Les métadonnées ne seront pas préservées.",
+  "metadata_tooltip": "Préserver les métadonnées d'image originales (EXIF) lors de l'upscaling. Mieux pour les fichiers JPEG.",
+  "drag_drop_here": "Glissez et déposez les fichiers ici",
+  "drag_drop_supported": "Glissez les fichiers dans ce champ pour les ouvrir"
 }

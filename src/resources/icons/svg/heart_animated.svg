@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <!-- Heart pulse animation -->
+  <defs>
+    <linearGradient id="heartGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#E91E63;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#880E4F;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Heart shape -->
+  <path d="M 50 75 L 30 55 Q 20 45 20 35 Q 20 20 35 20 Q 45 20 50 30 Q 55 20 65 20 Q 80 20 80 35 Q 80 45 70 55 Z" fill="url(#heartGrad)">
+    <animate attributeName="transform" type="scale" values="1 1; 1.1 1.1; 1 1" dur="1s" additive="sum" repeatCount="indefinite"/>
+    <animateTransform attributeName="transform" type="translate" values="0 0; 0 0; 0 0" dur="1s" additive="sum" repeatCount="indefinite"/>
+  </path>
+  
+  <!-- Shine on heart -->
+  <circle cx="40" cy="30" r="5" fill="#FFF" opacity="0.5">
+    <animate attributeName="opacity" values="0.3;0.7;0.3" dur="1s" repeatCount="indefinite"/>
+  </circle>
+  
+  <!-- Pulse waves -->
+  <circle cx="50" cy="50" r="30" fill="none" stroke="#F48FB1" stroke-width="2" opacity="0">
+    <animate attributeName="r" values="30;45;30" dur="1s" repeatCount="indefinite"/>
+    <animate attributeName="opacity" values="0;0.5;0" dur="1s" repeatCount="indefinite"/>
+  </circle>
+</svg>

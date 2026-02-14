@@ -200,15 +200,33 @@ except ImportError:
     print("Warning: Goodbye splash not available.")
 
 try:
+    from src.ui.batch_progress_dialog import BatchProgressDialog
+    BATCH_PROGRESS_DIALOG_AVAILABLE = True
+except ImportError:
+    BATCH_PROGRESS_DIALOG_AVAILABLE = False
+    print("Warning: Batch progress dialog not available.")
+
+try:
     from src.preprocessing.alpha_correction import AlphaCorrector, AlphaCorrectionPresets
     ALPHA_CORRECTION_AVAILABLE = True
 except ImportError:
     ALPHA_CORRECTION_AVAILABLE = False
     print("Warning: Alpha correction not available.")
 
+try:
+    from src.utils.drag_drop_handler import drag_drop_handler, TKDND_AVAILABLE
+    DRAG_DROP_AVAILABLE = TKDND_AVAILABLE
+except ImportError:
+    DRAG_DROP_AVAILABLE = False
+    print("Warning: Drag-drop handler not available.")
+
+# Constants for batch upscaling
+BYTES_PER_MB = 1024 * 1024
+PAUSE_CHECK_INTERVAL = 0.1  # seconds
+
 
 class SplashScreen:
-    """Splash screen with panda logo and loading animation"""
+    """Splash screen with animated panda logo and loading animation"""
     
     def __init__(self, master=None):
         if not GUI_AVAILABLE or master is None:
@@ -220,7 +238,7 @@ class SplashScreen:
         
         # Configure window
         window_width = 500
-        window_height = 400
+        window_height = 450
         screen_width = self.window.winfo_screenwidth()
         screen_height = self.window.winfo_screenheight()
         x = (screen_width - window_width) // 2
@@ -230,45 +248,58 @@ class SplashScreen:
         # Remove window decorations
         self.window.overrideredirect(True)
         
-        # Main frame
-        frame = ctk.CTkFrame(self.window, corner_radius=20)
+        # Main frame with gradient-like effect
+        frame = ctk.CTkFrame(self.window, corner_radius=20, border_width=3, border_color="#2fa572")
         frame.pack(fill="both", expand=True, padx=2, pady=2)
-        
-        # Panda drawn art
-        panda_art = """
-        ████████████████
-      ██░░░░░░░░░░░░░░██
-    ██░░░░░░░░░░░░░░░░░░██
-    ██░░██████░░██████░░██
-    ██░░██████░░██████░░██
-    ██░░░░░░░░░░░░░░░░░░██
-    ██░░░░░░██░░░░░░░░░░██
-      ██░░░░░░░░░░░░░░██
-        ██████████████
-        """
         
         # Title
         title_label = ctk.CTkLabel(
             frame, 
             text=f"🐼 {APP_NAME} 🐼",
-            font=("Arial Bold", 24)
+            font=("Arial Bold", 26),
+            text_color="#2fa572"
         )
-        title_label.pack(pady=(30, 10))
+        title_label.pack(pady=(20, 5))
         
-        # Panda art
-        panda_label = ctk.CTkLabel(
-            frame,
-            text=panda_art,
-            font=("Courier", 10),
-            justify="center"
-        )
-        panda_label.pack(pady=10)
+        # Try to load animated panda SVG
+        panda_image = None
+        try:
+            from src.utils.svg_support import SVGLoader
+            from PIL import ImageTk
+            
+            svg_path = Path("src/resources/icons/svg/panda_animated.svg")
+            if svg_path.exists():
+                loader = SVGLoader()
+                pil_image = loader.load_svg(svg_path, size=(180, 180))
+                if pil_image:
+                    panda_image = ImageTk.PhotoImage(pil_image)
+        except Exception as e:
+            logger.debug(f"Could not load animated panda SVG: {e}")
+        
+        if panda_image:
+            # Display animated panda SVG
+            panda_label = ctk.CTkLabel(
+                frame,
+                image=panda_image,
+                text=""
+            )
+            panda_label.image = panda_image  # Keep reference
+            panda_label.pack(pady=10)
+        else:
+            # Fallback to simple emoji panda
+            panda_label = ctk.CTkLabel(
+                frame,
+                text="🐼",
+                font=("Arial", 120)
+            )
+            panda_label.pack(pady=10)
         
         # Version info
         version_label = ctk.CTkLabel(
             frame,
             text=f"Version {APP_VERSION}",
-            font=("Arial", 12)
+            font=("Arial", 12),
+            text_color="#b0b0b0"
         )
         version_label.pack(pady=5)
         
@@ -279,18 +310,19 @@ class SplashScreen:
             font=("Arial", 10),
             text_color="gray"
         )
-        author_label.pack(pady=5)
+        author_label.pack(pady=2)
         
         # Loading text
         self.loading_label = ctk.CTkLabel(
             frame,
             text="Initializing...",
-            font=("Arial", 11)
+            font=("Arial", 11),
+            text_color="#2fa572"
         )
-        self.loading_label.pack(pady=20)
+        self.loading_label.pack(pady=15)
         
         # Progress bar
-        self.progress = ctk.CTkProgressBar(frame, width=400)
+        self.progress = ctk.CTkProgressBar(frame, width=400, progress_color="#2fa572")
         self.progress.pack(pady=10)
         self.progress.set(0)
         
@@ -1412,7 +1444,9 @@ class GameTextureSorter(ctk.CTk):
         input_path_frame = ctk.CTkFrame(input_frame)
         input_path_frame.pack(fill="x", padx=10, pady=5)
         
-        self.input_path_var = ctk.StringVar(value="")
+        # Load last used input directory from config
+        last_input = config.get('session', 'last_input_directory', default="")
+        self.input_path_var = ctk.StringVar(value=last_input)
         input_entry = ctk.CTkEntry(input_path_frame, textvariable=self.input_path_var, width=800)
         input_entry.pack(side="left", fill="x", expand=True, padx=5)
         
@@ -1428,7 +1462,9 @@ class GameTextureSorter(ctk.CTk):
         output_path_frame = ctk.CTkFrame(output_frame)
         output_path_frame.pack(fill="x", padx=10, pady=5)
         
-        self.output_path_var = ctk.StringVar(value="")
+        # Load last used output directory from config
+        last_output = config.get('session', 'last_output_directory', default="")
+        self.output_path_var = ctk.StringVar(value=last_output)
         output_entry = ctk.CTkEntry(output_path_frame, textvariable=self.output_path_var, width=800)
         output_entry.pack(side="left", fill="x", expand=True, padx=5)
         
@@ -2054,9 +2090,14 @@ class GameTextureSorter(ctk.CTk):
         input_frame.pack(fill="x", padx=10, pady=10)
         ctk.CTkLabel(input_frame, text="Input Folder / ZIP:",
                      font=("Arial Bold", 12)).grid(row=0, column=0, padx=10, pady=5, sticky="w")
-        self.upscale_input_var = ctk.StringVar()
-        ctk.CTkEntry(input_frame, textvariable=self.upscale_input_var,
-                     width=500).grid(row=0, column=1, padx=10, pady=5, sticky="ew")
+        # Load last used upscale input from config
+        last_upscale_input = config.get('session', 'last_upscale_input', default="")
+        self.upscale_input_var = ctk.StringVar(value=last_upscale_input)
+        upscale_input_entry = ctk.CTkEntry(input_frame, textvariable=self.upscale_input_var,
+                     width=500)
+        upscale_input_entry.grid(row=0, column=1, padx=10, pady=5, sticky="ew")
+        # Enable drag-drop on input field
+        self._enable_drag_drop(upscale_input_entry, self.upscale_input_var, accept_folders=True, accept_files=True)
         upscale_input_btn = ctk.CTkButton(input_frame, text="📂 Browse Folder", width=120,
                      command=lambda: self.browse_directory(self.upscale_input_var))
         upscale_input_btn.grid(row=0, column=2, padx=5, pady=5)
@@ -2065,14 +2106,43 @@ class GameTextureSorter(ctk.CTk):
         upscale_input_zip_btn.grid(row=0, column=3, padx=5, pady=5)
         input_frame.columnconfigure(1, weight=1)
 
+        # --- Folder Queue section ---
+        queue_frame = ctk.CTkFrame(scroll)
+        queue_frame.pack(fill="x", padx=10, pady=10)
+        ctk.CTkLabel(queue_frame, text="Folder Queue:",
+                     font=("Arial Bold", 12)).pack(anchor="w", padx=10, pady=5)
+        
+        queue_controls = ctk.CTkFrame(queue_frame)
+        queue_controls.pack(fill="x", padx=10, pady=5)
+        
+        upscale_add_folder_btn = ctk.CTkButton(queue_controls, text="➕ Add Folder to Queue", width=150,
+                     command=self._add_folder_to_queue)
+        upscale_add_folder_btn.pack(side="left", padx=5)
+        
+        upscale_clear_queue_btn = ctk.CTkButton(queue_controls, text="🗑️ Clear Queue", width=120,
+                     command=self._clear_folder_queue)
+        upscale_clear_queue_btn.pack(side="left", padx=5)
+        
+        # Queue listbox
+        self.upscale_queue_frame = ctk.CTkScrollableFrame(queue_frame, height=100)
+        self.upscale_queue_frame.pack(fill="both", expand=True, padx=10, pady=5)
+        
+        # Initialize queue list
+        self.upscale_folder_queue = []
+
         # --- Output section ---
         output_frame = ctk.CTkFrame(scroll)
         output_frame.pack(fill="x", padx=10, pady=10)
         ctk.CTkLabel(output_frame, text="Output Folder:",
                      font=("Arial Bold", 12)).grid(row=0, column=0, padx=10, pady=5, sticky="w")
-        self.upscale_output_var = ctk.StringVar()
-        ctk.CTkEntry(output_frame, textvariable=self.upscale_output_var,
-                     width=500).grid(row=0, column=1, padx=10, pady=5, sticky="ew")
+        # Load last used upscale output from config
+        last_upscale_output = config.get('session', 'last_upscale_output', default="")
+        self.upscale_output_var = ctk.StringVar(value=last_upscale_output)
+        upscale_output_entry = ctk.CTkEntry(output_frame, textvariable=self.upscale_output_var,
+                     width=500)
+        upscale_output_entry.grid(row=0, column=1, padx=10, pady=5, sticky="ew")
+        # Enable drag-drop on output field
+        self._enable_drag_drop(upscale_output_entry, self.upscale_output_var, accept_folders=True, accept_files=False)
         upscale_output_btn = ctk.CTkButton(output_frame, text="📂 Browse", width=100,
                      command=lambda: self.browse_directory(self.upscale_output_var))
         upscale_output_btn.grid(row=0, column=2, padx=10, pady=5)
@@ -2193,6 +2263,10 @@ class GameTextureSorter(ctk.CTk):
         upscale_overwrite_cb = ctk.CTkCheckBox(check_frame3, text="♻️ Overwrite existing",
                        variable=self.upscale_overwrite_var)
         upscale_overwrite_cb.pack(side="left", padx=10)
+        self.upscale_preserve_metadata_var = ctk.BooleanVar(value=False)
+        upscale_preserve_metadata_cb = ctk.CTkCheckBox(check_frame3, text="📋 Preserve Metadata (EXIF)",
+                       variable=self.upscale_preserve_metadata_var)
+        upscale_preserve_metadata_cb.pack(side="left", padx=10)
 
         # --- Preview section ---
         preview_frame = ctk.CTkFrame(scroll)
@@ -2289,7 +2363,7 @@ class GameTextureSorter(ctk.CTk):
             upscale_auto_level_cb, upscale_overwrite_cb,
             upscale_zoom_out_btn, upscale_zoom_in_btn, upscale_zoom_fit_btn,
             self.upscale_export_single_btn,
-            upscale_custom_entry)
+            upscale_custom_entry, upscale_preserve_metadata_cb)
 
     def _apply_upscaler_tooltips(self, input_btn, zip_btn, output_btn,
                                   factor_menu, style_menu, format_menu,
@@ -2301,7 +2375,7 @@ class GameTextureSorter(ctk.CTk):
                                   auto_level_cb=None, overwrite_cb=None,
                                   zoom_out_btn=None, zoom_in_btn=None,
                                   zoom_fit_btn=None, export_single_btn=None,
-                                  custom_res_entry=None):
+                                  custom_res_entry=None, preserve_metadata_cb=None):
         """Apply tooltips to upscaler tab widgets"""
         if not WidgetTooltip:
             return
@@ -2404,6 +2478,10 @@ class GameTextureSorter(ctk.CTk):
             self._tooltips.append(WidgetTooltip(custom_res_entry,
                 tt('upscale_custom_res') or "Enter a custom output resolution (e.g. 1024x1024)\nOverrides the scale factor when set",
                 widget_id='upscale_custom_res', tooltip_manager=tm))
+        if preserve_metadata_cb:
+            self._tooltips.append(WidgetTooltip(preserve_metadata_cb,
+                tt('metadata_tooltip') or "Preserve original image metadata (EXIF) when upscaling. Best for JPEG files.",
+                widget_id='upscale_preserve_metadata', tooltip_manager=tm))
 
     def _browse_upscale_zip(self):
         """Browse for a ZIP file as upscaler input."""
@@ -2412,6 +2490,64 @@ class GameTextureSorter(ctk.CTk):
             filetypes=[("ZIP archives", "*.zip"), ("All files", "*.*")])
         if result:
             self.upscale_input_var.set(result)
+
+    def _add_folder_to_queue(self):
+        """Add a folder to the upscale queue."""
+        folder = filedialog.askdirectory(title="Select Folder to Add to Queue")
+        if folder:
+            folder_path = Path(folder)
+            if folder_path in self.upscale_folder_queue:
+                messagebox.showinfo("Already in Queue", f"This folder is already in the queue.")
+                return
+            
+            self.upscale_folder_queue.append(folder_path)
+            self._update_queue_display()
+    
+    def _clear_folder_queue(self):
+        """Clear the folder queue."""
+        if self.upscale_folder_queue:
+            if messagebox.askyesno("Clear Queue", "Clear all folders from the queue?"):
+                self.upscale_folder_queue.clear()
+                self._update_queue_display()
+    
+    def _update_queue_display(self):
+        """Update the folder queue display."""
+        # Clear existing widgets
+        for widget in self.upscale_queue_frame.winfo_children():
+            widget.destroy()
+        
+        if not self.upscale_folder_queue:
+            ctk.CTkLabel(
+                self.upscale_queue_frame,
+                text="No folders in queue. Add folders or use the input field above for single folder processing.",
+                font=("Arial", 10),
+                text_color="gray"
+            ).pack(pady=10)
+            return
+        
+        for idx, folder in enumerate(self.upscale_folder_queue):
+            item_frame = ctk.CTkFrame(self.upscale_queue_frame)
+            item_frame.pack(fill="x", padx=5, pady=2)
+            
+            ctk.CTkLabel(
+                item_frame,
+                text=f"{idx + 1}. {folder.name}",
+                font=("Arial", 10),
+                anchor="w"
+            ).pack(side="left", fill="x", expand=True, padx=5)
+            
+            ctk.CTkButton(
+                item_frame,
+                text="❌",
+                width=30,
+                command=lambda i=idx: self._remove_from_queue(i)
+            ).pack(side="right", padx=5)
+    
+    def _remove_from_queue(self, index: int):
+        """Remove a folder from the queue."""
+        if 0 <= index < len(self.upscale_folder_queue):
+            self.upscale_folder_queue.pop(index)
+            self._update_queue_display()
 
     def _upscale_log(self, message):
         """Thread-safe log helper for upscaler."""
@@ -2698,17 +2834,37 @@ class GameTextureSorter(ctk.CTk):
         self._upscale_log(f"Feedback: {rating} for style={style}, factor={factor}")
 
     def _run_upscale(self):
-        """Run batch upscaling in a background thread."""
+        """Run batch upscaling in a background thread with enhanced progress dialog."""
         input_path = self.upscale_input_var.get().strip()
         output_path = self.upscale_output_var.get().strip()
-        if not input_path:
-            if GUI_AVAILABLE:
-                messagebox.showwarning("No Input", "Please select an input folder or ZIP.")
-            return
-        if not output_path:
-            if GUI_AVAILABLE:
-                messagebox.showwarning("No Output", "Please select an output folder.")
-            return
+        
+        # Determine folders to process: either from queue or single input
+        folders_to_process = []
+        if self.upscale_folder_queue:
+            # Use folder queue
+            folders_to_process = list(self.upscale_folder_queue)
+            if not output_path:
+                if GUI_AVAILABLE:
+                    messagebox.showwarning("No Output", "Please select an output folder.")
+                return
+        else:
+            # Single folder/ZIP mode
+            if not input_path:
+                if GUI_AVAILABLE:
+                    messagebox.showwarning("No Input", "Please select an input folder/ZIP or add folders to the queue.")
+                return
+            if not output_path:
+                if GUI_AVAILABLE:
+                    messagebox.showwarning("No Output", "Please select an output folder.")
+                return
+            folders_to_process = [Path(input_path)]
+
+        # Save paths to config for next time
+        if input_path:
+            config.set('session', 'last_upscale_input', value=input_path)
+        if output_path:
+            config.set('session', 'last_upscale_output', value=output_path)
+        config.save()
 
         self.upscale_start_btn.configure(state="disabled")
         self.upscale_log_text.delete("1.0", "end")
@@ -2727,58 +2883,175 @@ class GameTextureSorter(ctk.CTk):
         style = self.upscale_style_var.get()
         is_esrgan = "ESRGAN" in style
         overwrite = self.upscale_overwrite_var.get() if hasattr(self, 'upscale_overwrite_var') else False
+        preserve_metadata = self.upscale_preserve_metadata_var.get() if hasattr(self, 'upscale_preserve_metadata_var') else False
+
+        # Create progress dialog if available
+        progress_dialog = None
+        if BATCH_PROGRESS_DIALOG_AVAILABLE and GUI_AVAILABLE:
+            progress_dialog = BatchProgressDialog(self, "Batch Upscaling Progress")
+            progress_dialog.set_folder_queue([str(f) for f in folders_to_process])
 
         def worker():
             import tempfile
             import zipfile
             import shutil
             from PIL import Image
+            
+            # Import metadata handler if metadata preservation is enabled
+            metadata_handler = None
+            if preserve_metadata:
+                try:
+                    from src.utils.metadata_handler import MetadataHandler
+                    metadata_handler = MetadataHandler()
+                    self._upscale_log("📋 Metadata preservation enabled")
+                    
+                    # Check format support and warn user
+                    # Map format names to proper extensions
+                    format_to_ext = {
+                        'jpeg': '.jpg',
+                        'jpg': '.jpg',
+                        'png': '.png',
+                        'tiff': '.tiff',
+                        'tif': '.tiff',
+                        'bmp': '.bmp',
+                        'webp': '.webp',
+                        'tga': '.tga',
+                        'dds': '.dds'
+                    }
+                    file_ext = format_to_ext.get(export_fmt.lower(), f".{export_fmt}")
+                    supports_exif, warning = metadata_handler.check_format_support(file_ext)
+                    if warning:
+                        self._upscale_log(f"⚠️  {warning}")
+                except Exception as e:
+                    self._upscale_log(f"⚠️  Metadata handler not available: {e}")
+                    metadata_handler = None
 
-            tmp_extract_dir = None
+            tmp_extract_dirs = []
+            is_paused = threading.Event()
+            is_cancelled = threading.Event()
+            
+            # Setup callbacks for progress dialog
+            def on_pause():
+                is_paused.set()
+                self._upscale_log("⏸ Paused")
+            
+            def on_resume():
+                is_paused.clear()
+                self._upscale_log("▶ Resumed")
+            
+            def on_cancel():
+                is_cancelled.set()
+                self._upscale_log("❌ Cancelling...")
+            
+            if progress_dialog:
+                progress_dialog.on_pause_callback = on_pause
+                progress_dialog.on_resume_callback = on_resume
+                progress_dialog.on_cancel_callback = on_cancel
+                self.after(0, progress_dialog.show)
+            
             try:
-                src_path = Path(input_path)
-                dst_path = Path(output_path)
-                dst_path.mkdir(parents=True, exist_ok=True)
-
-                # Handle ZIP input
-                if src_path.suffix.lower() == '.zip':
-                    tmp_extract_dir = tempfile.mkdtemp(prefix="upscaler_")
-                    self._upscale_log(f"Extracting ZIP: {src_path.name}")
-                    with zipfile.ZipFile(str(src_path), 'r') as zf:
-                        # Validate paths to prevent zip-slip
-                        for member in zf.namelist():
-                            member_path = os.path.realpath(os.path.join(tmp_extract_dir, member))
-                            if not member_path.startswith(os.path.realpath(tmp_extract_dir)):
-                                raise ValueError(f"Unsafe path in ZIP: {member}")
-                        zf.extractall(tmp_extract_dir)
-                    src_path = Path(tmp_extract_dir)
-
-                # Collect image files
+                # Pre-scan to get total file count and size estimates
+                all_files = []
+                total_size_bytes = 0
                 exts = {'.png', '.bmp', '.tga', '.jpg', '.jpeg', '.webp'}
-                if recursive:
-                    files = [p for p in src_path.rglob('*') if p.suffix.lower() in exts]
-                else:
-                    files = [p for p in src_path.iterdir() if p.is_file() and p.suffix.lower() in exts]
-
-                if not files:
+                
+                self._upscale_log(f"Scanning {len(folders_to_process)} folder(s)...")
+                
+                for folder_idx, src_input in enumerate(folders_to_process):
+                    src_path = Path(src_input)
+                    
+                    # Handle ZIP input
+                    if src_path.suffix.lower() == '.zip':
+                        tmp_extract_dir = tempfile.mkdtemp(prefix="upscaler_")
+                        tmp_extract_dirs.append(tmp_extract_dir)
+                        self._upscale_log(f"Extracting ZIP: {src_path.name}")
+                        with zipfile.ZipFile(str(src_path), 'r') as zf:
+                            # Validate paths to prevent zip-slip
+                            tmp_extract_path = Path(tmp_extract_dir).resolve()
+                            for member in zf.namelist():
+                                member_path = (tmp_extract_path / member).resolve()
+                                try:
+                                    # Use relative_to to ensure path is within tmp_extract_path
+                                    member_path.relative_to(tmp_extract_path)
+                                except ValueError:
+                                    raise ValueError(f"Unsafe path in ZIP: {member}")
+                            zf.extractall(tmp_extract_dir)
+                        src_path = Path(tmp_extract_dir)
+                    
+                    # Collect files
+                    if recursive:
+                        folder_files = [(folder_idx, src_path, p) for p in src_path.rglob('*') if p.suffix.lower() in exts]
+                    else:
+                        folder_files = [(folder_idx, src_path, p) for p in src_path.iterdir() if p.is_file() and p.suffix.lower() in exts]
+                    
+                    all_files.extend(folder_files)
+                    
+                    # Calculate size
+                    for _, _, fpath in folder_files:
+                        try:
+                            total_size_bytes += fpath.stat().st_size
+                        except Exception:
+                            pass
+                
+                if not all_files:
                     self._upscale_log("No image files found.")
+                    if progress_dialog:
+                        self.after(0, progress_dialog.close)
                     return
-
-                self._upscale_log(f"Found {len(files)} image(s). Scale: {factor}x, Style: {style}")
+                
+                total_files = len(all_files)
+                self._upscale_log(f"Found {total_files} image(s) across {len(folders_to_process)} folder(s)")
+                self._upscale_log(f"Total size: {total_size_bytes / BYTES_PER_MB:.1f} MB")
+                self._upscale_log(f"Scale: {factor}x, Style: {style}, Overwrite: {overwrite}")
+                
+                if progress_dialog:
+                    self.after(0, lambda: progress_dialog.set_total_files(total_files))
+                    self.after(0, lambda: progress_dialog.update_storage(0, total_size_bytes))
+                
+                # Process files
                 processed = 0
                 errors = 0
-
+                skipped = 0
+                processed_bytes = 0
+                
+                dst_path = Path(output_path)
+                dst_path.mkdir(parents=True, exist_ok=True)
+                
                 if is_esrgan:
                     import numpy as np
                     from src.preprocessing.upscaler import TextureUpscaler
                     tu = TextureUpscaler()
-
-                for i, fpath in enumerate(files, 1):
+                
+                for file_idx, (folder_idx, src_base, fpath) in enumerate(all_files, 1):
+                    # Check for cancel
+                    if is_cancelled.is_set():
+                        self._upscale_log("Operation cancelled by user")
+                        break
+                    
+                    # Check for pause
+                    while is_paused.is_set() and not is_cancelled.is_set():
+                        time.sleep(PAUSE_CHECK_INTERVAL)
+                    
                     try:
+                        # Update progress dialog
+                        if progress_dialog:
+                            # Determine subfolder
+                            try:
+                                rel_path = fpath.relative_to(src_base)
+                                subfolder = str(rel_path.parent) if rel_path.parent != Path('.') else None
+                            except ValueError:
+                                subfolder = None
+                            
+                            self.after(0, lambda idx=folder_idx, f=str(folders_to_process[folder_idx]): 
+                                      progress_dialog.set_current_folder(f, idx))
+                            self.after(0, lambda sf=subfolder: progress_dialog.set_current_subfolder(sf))
+                            self.after(0, lambda fn=fpath.name: progress_dialog.set_current_file(fn))
+                        
+                        # Load image
                         img = Image.open(str(fpath))
-
+                        
+                        # Upscale
                         if is_esrgan:
-                            # Use the existing TextureUpscaler for ESRGAN
                             arr = np.array(img.convert("RGB"))
                             result_arr = tu.upscale(arr, scale_factor=factor, method='realesrgan')
                             result = Image.fromarray(result_arr)
@@ -2788,43 +3061,87 @@ class GameTextureSorter(ctk.CTk):
                                 result.putalpha(alpha)
                         else:
                             result = self._upscale_pil_image(img, factor, preserve_alpha)
-
+                        
                         # Build output path preserving relative structure
                         try:
-                            rel = fpath.relative_to(src_path)
+                            rel = fpath.relative_to(src_base)
                         except ValueError:
                             rel = Path(fpath.name)
-                        out_file = dst_path / rel.with_suffix(f".{export_fmt}")
+                        
+                        # Include folder name in output if processing multiple folders
+                        if len(folders_to_process) > 1:
+                            folder_name = folders_to_process[folder_idx].stem
+                            out_file = dst_path / folder_name / rel.with_suffix(f".{export_fmt}")
+                        else:
+                            out_file = dst_path / rel.with_suffix(f".{export_fmt}")
+                        
                         out_file.parent.mkdir(parents=True, exist_ok=True)
-
-                        # Skip existing files unless overwrite is enabled
+                        
+                        # Check if exists
                         if out_file.exists() and not overwrite:
-                            self._upscale_log(f"  ⏭️ [{i}/{len(files)}] {fpath.name} (exists, skipped)")
-                            continue
-
-                        # Save
-                        save_kwargs = {}
-                        if export_fmt == "jpeg":
-                            save_kwargs["quality"] = 95
-                            if result.mode == "RGBA":
-                                result = result.convert("RGB")
-                        elif export_fmt == "webp":
-                            save_kwargs["quality"] = 95
-                        result.save(str(out_file), **save_kwargs)
-                        processed += 1
-                        self._upscale_log(f"  ✅ [{i}/{len(files)}] {fpath.name}")
+                            self._upscale_log(f"  ⏭️ [{file_idx}/{total_files}] {fpath.name} (exists, skipped)")
+                            skipped += 1
+                        else:
+                            # Extract metadata if preservation is enabled
+                            source_metadata = None
+                            if preserve_metadata and metadata_handler:
+                                try:
+                                    source_metadata = metadata_handler.extract_metadata(fpath)
+                                except Exception as e:
+                                    logger.warning(f"Failed to extract metadata from {fpath.name}: {e}")
+                            
+                            # Prepare save kwargs
+                            save_kwargs = {}
+                            if export_fmt == "jpeg":
+                                save_kwargs["quality"] = 95
+                                if result.mode == "RGBA":
+                                    result = result.convert("RGB")
+                            elif export_fmt == "webp":
+                                save_kwargs["quality"] = 95
+                            
+                            # Determine if we should preserve metadata
+                            should_preserve_metadata = preserve_metadata and metadata_handler and source_metadata
+                            
+                            # Save with metadata if available
+                            if should_preserve_metadata:
+                                try:
+                                    metadata_preserved = metadata_handler.save_with_metadata(
+                                        result, out_file, source_metadata, **save_kwargs)
+                                    if not metadata_preserved:
+                                        logger.debug(f"Metadata not preserved for {fpath.name} (format may not support it)")
+                                except Exception as e:
+                                    logger.warning(f"Metadata copy failed for {fpath.name}: {e}")
+                                    # Fallback to regular save
+                                    result.save(str(out_file), **save_kwargs)
+                            else:
+                                result.save(str(out_file), **save_kwargs)
+                            
+                            processed += 1
+                            self._upscale_log(f"  ✅ [{file_idx}/{total_files}] {fpath.name}")
+                        
+                        # Update size tracking
+                        try:
+                            processed_bytes += fpath.stat().st_size
+                        except Exception:
+                            pass
+                        
                     except Exception as e:
                         errors += 1
-                        self._upscale_log(f"  ❌ [{i}/{len(files)}] {fpath.name}: {e}")
-
+                        self._upscale_log(f"  ❌ [{file_idx}/{total_files}] {fpath.name}: {e}")
+                    
                     # Update progress
-                    progress = i / len(files)
+                    if progress_dialog:
+                        self.after(0, lambda p=processed, e=errors, s=skipped, pb=processed_bytes: 
+                                  progress_dialog.update_progress(p, e, s))
+                        self.after(0, lambda pb=processed_bytes: progress_dialog.update_storage(pb))
+                    
+                    progress = file_idx / total_files
                     self.after(0, lambda p=progress: self.upscale_progress_bar.set(p))
-
-                self._upscale_log(f"\nDone! Processed: {processed}, Errors: {errors}")
-
+                
+                self._upscale_log(f"\n✅ Done! Processed: {processed}, Skipped: {skipped}, Errors: {errors}")
+                
                 # ZIP output
-                if zip_output:
+                if zip_output and not is_cancelled:
                     zip_path = dst_path.parent / f"{dst_path.name}_upscaled.zip"
                     self._upscale_log(f"Creating ZIP: {zip_path.name}")
                     with zipfile.ZipFile(str(zip_path), 'w', zipfile.ZIP_DEFLATED) as zf:
@@ -2832,16 +3149,25 @@ class GameTextureSorter(ctk.CTk):
                             if f.is_file():
                                 zf.write(str(f), str(f.relative_to(dst_path)))
                     self._upscale_log(f"  ✅ ZIP created: {zip_path}")
-
+                
                 # Send to organizer
-                if send_to_organizer and hasattr(self, 'input_var'):
+                if send_to_organizer and hasattr(self, 'input_var') and not is_cancelled:
                     self.after(0, lambda: self._send_upscaled_to_organizer(str(dst_path)))
-
+                
             except Exception as e:
                 self._upscale_log(f"❌ Error: {e}")
+                logger.error(f"Upscale error: {e}", exc_info=True)
             finally:
-                if tmp_extract_dir and os.path.isdir(tmp_extract_dir):
-                    shutil.rmtree(tmp_extract_dir, ignore_errors=True)
+                # Cleanup temp directories
+                for tmp_dir in tmp_extract_dirs:
+                    if os.path.isdir(tmp_dir):
+                        shutil.rmtree(tmp_dir, ignore_errors=True)
+                
+                # Close progress dialog
+                if progress_dialog:
+                    self.after(0, progress_dialog.close)
+                
+                # Re-enable button
                 self.after(0, lambda: self.upscale_start_btn.configure(state="normal"))
 
         import threading
@@ -2893,11 +3219,16 @@ class GameTextureSorter(ctk.CTk):
         # Input section
         input_frame = ctk.CTkFrame(scroll)
         input_frame.pack(fill="x", padx=10, pady=10)
-        ctk.CTkLabel(input_frame, text="Input Folder:",
+        ctk.CTkLabel(input_frame, text="Input File/Folder:",
                      font=("Arial Bold", 12)).grid(row=0, column=0, padx=10, pady=5, sticky="w")
-        self.alpha_fix_input_var = ctk.StringVar()
-        ctk.CTkEntry(input_frame, textvariable=self.alpha_fix_input_var,
-                     width=500).grid(row=0, column=1, padx=10, pady=5, sticky="ew")
+        # Load last used alpha fix input from config
+        last_alpha_input = config.get('session', 'last_alpha_fix_input', default="")
+        self.alpha_fix_input_var = ctk.StringVar(value=last_alpha_input)
+        alpha_input_entry = ctk.CTkEntry(input_frame, textvariable=self.alpha_fix_input_var,
+                     width=500)
+        alpha_input_entry.grid(row=0, column=1, padx=10, pady=5, sticky="ew")
+        # Enable drag-drop on input field - accept both files and folders
+        self._enable_drag_drop(alpha_input_entry, self.alpha_fix_input_var, accept_folders=True, accept_files=True)
         alpha_input_btn = ctk.CTkButton(input_frame, text="📂 Browse", width=100,
                      command=lambda: self.browse_directory(self.alpha_fix_input_var))
         alpha_input_btn.grid(row=0, column=2, padx=10, pady=5)
@@ -2908,9 +3239,14 @@ class GameTextureSorter(ctk.CTk):
         output_frame.pack(fill="x", padx=10, pady=10)
         ctk.CTkLabel(output_frame, text="Output Folder:",
                      font=("Arial Bold", 12)).grid(row=0, column=0, padx=10, pady=5, sticky="w")
-        self.alpha_fix_output_var = ctk.StringVar()
-        ctk.CTkEntry(output_frame, textvariable=self.alpha_fix_output_var,
-                     width=500).grid(row=0, column=1, padx=10, pady=5, sticky="ew")
+        # Load last used alpha fix output from config
+        last_alpha_output = config.get('session', 'last_alpha_fix_output', default="")
+        self.alpha_fix_output_var = ctk.StringVar(value=last_alpha_output)
+        alpha_output_entry = ctk.CTkEntry(output_frame, textvariable=self.alpha_fix_output_var,
+                     width=500)
+        alpha_output_entry.grid(row=0, column=1, padx=10, pady=5, sticky="ew")
+        # Enable drag-drop on output field
+        self._enable_drag_drop(alpha_output_entry, self.alpha_fix_output_var, accept_folders=True, accept_files=False)
         alpha_output_btn = ctk.CTkButton(output_frame, text="📂 Browse", width=100,
                      command=lambda: self.browse_directory(self.alpha_fix_output_var))
         alpha_output_btn.grid(row=0, column=2, padx=10, pady=5)
@@ -2941,7 +3277,7 @@ class GameTextureSorter(ctk.CTk):
             preset_frame, text="", font=("Arial", 11), wraplength=500)
         self.alpha_fix_desc_label.pack(anchor="w", padx=20, pady=(0, 5))
         self._update_alpha_preset_desc()
-        self.alpha_fix_preset_var.trace_add("write", lambda *_: self._update_alpha_preset_desc())
+        self.alpha_fix_preset_var.trace_add("write", lambda *_: self._update_alpha_fix_preset())
 
         # Options
         check_frame = ctk.CTkFrame(preset_frame)
@@ -2979,6 +3315,37 @@ class GameTextureSorter(ctk.CTk):
                                          alpha_recursive_cb, self.alpha_backup_cb, alpha_overwrite_cb,
                                          alpha_extract_cb, alpha_compress_cb)
 
+        # --- Preview section ---
+        preview_frame = ctk.CTkFrame(scroll)
+        preview_frame.pack(fill="x", padx=10, pady=10)
+        ctk.CTkLabel(preview_frame, text="Preview:",
+                     font=("Arial Bold", 12)).pack(anchor="w", padx=10, pady=5)
+
+        self.alpha_fix_preview_container = ctk.CTkFrame(preview_frame, height=300)
+        self.alpha_fix_preview_container.pack(fill="x", padx=10, pady=5)
+        self.alpha_fix_preview_container.pack_propagate(False)
+        # Before / After side by side
+        self.alpha_fix_preview_before_label = ctk.CTkLabel(
+            self.alpha_fix_preview_container, text="Before\n(select an image)", width=200, height=280)
+        self.alpha_fix_preview_before_label.pack(side="left", padx=10, pady=10, expand=True)
+        self.alpha_fix_preview_after_label = ctk.CTkLabel(
+            self.alpha_fix_preview_container, text="After\n(preview appears here)", width=200, height=280)
+        self.alpha_fix_preview_after_label.pack(side="left", padx=10, pady=10, expand=True)
+
+        # Individual file preview / browse + export
+        preview_btn_frame = ctk.CTkFrame(preview_frame)
+        preview_btn_frame.pack(fill="x", padx=10, pady=5)
+        alpha_preview_btn = ctk.CTkButton(preview_btn_frame, text="🖼️ Preview Single File",
+                     width=180, command=self._preview_alpha_fix_file)
+        alpha_preview_btn.pack(side="left", padx=10)
+        self.alpha_fix_export_single_btn = ctk.CTkButton(
+            preview_btn_frame, text="💾 Export This Fixed Image",
+            width=200, command=self._export_single_alpha_fix,
+            fg_color="#2B7A0B", hover_color="#368B14")
+        self.alpha_fix_export_single_btn.pack(side="left", padx=10)
+        ctk.CTkLabel(preview_btn_frame, text="Preview & export a single image with current preset",
+                     font=("Arial", 10), text_color="gray").pack(side="left", padx=10)
+
         # Log output
         log_frame = ctk.CTkFrame(scroll)
         log_frame.pack(fill="both", expand=True, padx=10, pady=10)
@@ -3005,6 +3372,175 @@ class GameTextureSorter(ctk.CTk):
         else:
             self.alpha_backup_cb.configure(state="disabled")
 
+    def _update_alpha_fix_preset(self):
+        """Update the alpha fix preview description and trigger preview update."""
+        self._update_alpha_preset_desc()
+        # Trigger preview update if we have an image
+        if hasattr(self, '_alpha_fix_preview_image') and self._alpha_fix_preview_image:
+            self._show_alpha_fix_preview(self._alpha_fix_preview_image)
+
+    def _preview_alpha_fix_file(self):
+        """Browse for and preview a single file with alpha correction."""
+        from PIL import Image
+        
+        result = filedialog.askopenfilename(
+            title="Select Image to Preview",
+            filetypes=[
+                ("Image files", "*.png *.bmp *.tga *.dds *.jpg *.jpeg"),
+                ("PNG files", "*.png"),
+                ("BMP files", "*.bmp"),
+                ("TGA files", "*.tga"),
+                ("DDS files", "*.dds"),
+                ("JPEG files", "*.jpg *.jpeg"),
+                ("All files", "*.*")
+            ])
+        
+        if not result:
+            return
+        
+        try:
+            img = Image.open(result)
+            self._alpha_fix_preview_image = img
+            self._alpha_fix_preview_path = result
+            self._show_alpha_fix_preview(img)
+            self._alpha_fix_log(f"📸 Previewing: {os.path.basename(result)}")
+        except Exception as e:
+            self._alpha_fix_log(f"❌ Could not load image: {e}")
+            if GUI_AVAILABLE:
+                messagebox.showerror("Preview Error", f"Could not load image:\n{e}")
+
+    def _show_alpha_fix_preview(self, original_img):
+        """Show before/after preview for alpha correction."""
+        from PIL import ImageTk, Image
+        
+        try:
+            # Get current preset
+            preset_display = self.alpha_fix_preset_var.get()
+            preset_key = self._strip_emoji_prefix(preset_display)
+            
+            # Create before image (original)
+            before_img = original_img.copy()
+            before_size = before_img.size
+            
+            # Apply alpha correction to create after image
+            if ALPHA_CORRECTION_AVAILABLE:
+                corrector = AlphaCorrector()
+                # Create temp file for processing
+                import tempfile
+                with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as tmp:
+                    tmp_path = tmp.name
+                    original_img.save(tmp_path)
+                
+                try:
+                    # Process the image
+                    result = corrector.process_image(Path(tmp_path), preset=preset_key, overwrite=True, backup=False)
+                    if result.get('success'):
+                        after_img = Image.open(tmp_path)
+                    else:
+                        # If processing failed, show original
+                        after_img = original_img.copy()
+                        self._alpha_fix_log(f"⚠️ Preview failed: {result.get('reason', 'unknown')}")
+                finally:
+                    # Clean up temp file
+                    try:
+                        os.unlink(tmp_path)
+                    except:
+                        pass
+            else:
+                after_img = original_img.copy()
+            
+            # Cache the result
+            self._alpha_fix_preview_result = after_img
+            
+            # Resize for display (max 280x280)
+            max_size = 280
+            before_display = self._resize_for_display(before_img, max_size)
+            after_display = self._resize_for_display(after_img, max_size)
+            
+            # Convert to PhotoImage
+            before_photo = ImageTk.PhotoImage(before_display)
+            after_photo = ImageTk.PhotoImage(after_display)
+            
+            # Update labels
+            self.alpha_fix_preview_before_label.configure(image=before_photo, text="")
+            self.alpha_fix_preview_before_label.image = before_photo  # Keep reference
+            
+            self.alpha_fix_preview_after_label.configure(image=after_photo, text="")
+            self.alpha_fix_preview_after_label.image = after_photo  # Keep reference
+            
+            self._alpha_fix_log(f"✅ Preview updated with preset: {preset_key}")
+            
+        except Exception as e:
+            self._alpha_fix_log(f"❌ Preview error: {e}")
+            logger.error(f"Alpha fix preview error: {e}", exc_info=True)
+
+    def _resize_for_display(self, img, max_size):
+        """Resize image to fit within max_size while maintaining aspect ratio."""
+        from PIL import Image
+        
+        # Calculate scaling factor
+        width, height = img.size
+        if width > height:
+            if width > max_size:
+                new_width = max_size
+                new_height = int(height * (max_size / width))
+            else:
+                new_width, new_height = width, height
+        else:
+            if height > max_size:
+                new_height = max_size
+                new_width = int(width * (max_size / height))
+            else:
+                new_width, new_height = width, height
+        
+        return img.resize((new_width, new_height), Image.LANCZOS)
+
+    def _export_single_alpha_fix(self):
+        """Export the currently previewed alpha-fixed image."""
+        from PIL import Image
+        
+        if not hasattr(self, '_alpha_fix_preview_result') or not self._alpha_fix_preview_result:
+            if GUI_AVAILABLE:
+                messagebox.showinfo("No Preview",
+                                    "Please preview a single file first using '🖼️ Preview Single File'.")
+            return
+        
+        filepath = filedialog.asksaveasfilename(
+            title="Export Alpha-Fixed Image",
+            defaultextension=".png",
+            filetypes=[
+                ("PNG files", "*.png"),
+                ("BMP files", "*.bmp"),
+                ("TGA files", "*.tga"),
+                ("JPEG files", "*.jpg"),
+                ("All files", "*.*")
+            ])
+        
+        if not filepath:
+            return
+        
+        try:
+            result = self._alpha_fix_preview_result
+            
+            # Save with format-specific options
+            save_kwargs = {}
+            if filepath.lower().endswith('.jpg') or filepath.lower().endswith('.jpeg'):
+                save_kwargs['quality'] = 95
+                if result.mode == 'RGBA':
+                    result = result.convert('RGB')
+            
+            result.save(filepath, **save_kwargs)
+            self._alpha_fix_log(f"💾 Exported: {filepath} ({result.size[0]}×{result.size[1]})")
+            if GUI_AVAILABLE:
+                messagebox.showinfo("Export Complete",
+                                    f"Image exported successfully!\n\n"
+                                    f"Size: {result.size[0]}×{result.size[1]}\n"
+                                    f"File: {os.path.basename(filepath)}")
+        except Exception as e:
+            self._alpha_fix_log(f"❌ Export failed: {e}")
+            if GUI_AVAILABLE:
+                messagebox.showerror("Export Error", f"Could not export image:\n{e}")
+
     def _alpha_fix_log(self, message):
         """Thread-safe log helper for alpha fixer."""
         self.after(0, lambda: self._alpha_fix_log_impl(message))
@@ -3014,14 +3550,20 @@ class GameTextureSorter(ctk.CTk):
         self.alpha_fix_log_text.see("end")
 
     def _run_alpha_fix(self):
-        """Run alpha correction on selected folder in a background thread."""
-        input_dir = self.alpha_fix_input_var.get().strip()
-        if not input_dir or not os.path.isdir(input_dir):
+        """Run alpha correction on selected file or folder in a background thread."""
+        input_path_str = self.alpha_fix_input_var.get().strip()
+        if not input_path_str or not os.path.exists(input_path_str):
             if GUI_AVAILABLE:
-                messagebox.showwarning("No Input", "Please select a valid input folder.")
+                messagebox.showwarning("No Input", "Please select a valid input file or folder.")
             return
 
         output_dir = self.alpha_fix_output_var.get().strip() if hasattr(self, 'alpha_fix_output_var') else ""
+
+        # Save paths to config for next time
+        config.set('session', 'last_alpha_fix_input', value=input_path_str)
+        if output_dir:
+            config.set('session', 'last_alpha_fix_output', value=output_dir)
+        config.save()
 
         self.alpha_fix_start_btn.configure(state="disabled")
         self.alpha_fix_log_text.delete("1.0", "end")
@@ -3035,19 +3577,35 @@ class GameTextureSorter(ctk.CTk):
         def worker():
             try:
                 corrector = AlphaCorrector()
-                input_path = Path(input_dir)
+                input_path = Path(input_path_str)
                 output_path = Path(output_dir) if output_dir else None
                 exts = {'.png', '.bmp', '.tga', '.dds', '.jpg', '.jpeg'}
-                if recursive:
-                    files = [p for p in input_path.rglob('*') if p.suffix.lower() in exts]
+                
+                # Check if input is a file or directory
+                if input_path.is_file():
+                    # Process single file
+                    if input_path.suffix.lower() not in exts:
+                        self._alpha_fix_log(f"Unsupported file type: {input_path.suffix}")
+                        return
+                    
+                    files = [input_path]
+                    self._alpha_fix_log(f"Processing single file: {input_path.name}")
+                    
+                    # If output directory specified, use it
+                    if output_path:
+                        output_path.mkdir(parents=True, exist_ok=True)
                 else:
-                    files = [p for p in input_path.iterdir() if p.is_file() and p.suffix.lower() in exts]
+                    # Process directory (existing behavior)
+                    if recursive:
+                        files = [p for p in input_path.rglob('*') if p.suffix.lower() in exts]
+                    else:
+                        files = [p for p in input_path.iterdir() if p.is_file() and p.suffix.lower() in exts]
 
                 if not files:
-                    self._alpha_fix_log("No image files found in the selected folder.")
+                    self._alpha_fix_log("No image files found in the selected location.")
                     return
 
-                if output_path:
+                if output_path and input_path.is_dir():
                     output_path.mkdir(parents=True, exist_ok=True)
                     self._alpha_fix_log(f"Output directory: {output_path}")
 
@@ -3057,8 +3615,13 @@ class GameTextureSorter(ctk.CTk):
                 for i, fpath in enumerate(files, 1):
                     # If output dir specified, compute destination path
                     if output_path:
-                        rel = fpath.relative_to(input_path)
-                        dest = output_path / rel
+                        if input_path.is_file():
+                            # Single file: output directly to output folder
+                            dest = output_path / fpath.name
+                        else:
+                            # Directory: preserve relative structure
+                            rel = fpath.relative_to(input_path)
+                            dest = output_path / rel
                         dest.parent.mkdir(parents=True, exist_ok=True)
                         shutil.copy2(fpath, dest)
                         result = corrector.process_image(
@@ -9751,6 +10314,34 @@ Built with:
             if directory:
                 target_var.set(directory)
     
+    def _enable_drag_drop(self, widget, target_var, accept_folders=True, accept_files=True):
+        """
+        Enable drag-and-drop on a widget.
+        
+        Args:
+            widget: Widget to enable drag-drop on
+            target_var: StringVar to set with dropped path
+            accept_folders: Whether to accept folder drops
+            accept_files: Whether to accept file drops
+        """
+        if not DRAG_DROP_AVAILABLE:
+            logger.debug("Drag-drop not available")
+            return
+        
+        def on_drop(paths):
+            """Handle dropped files/folders."""
+            if paths:
+                # Use first path if multiple dropped
+                path = paths[0]
+                target_var.set(path)
+                logger.info(f"Dropped path set: {path}")
+        
+        try:
+            drag_drop_handler.enable_drop(widget, on_drop, accept_folders, accept_files)
+            logger.debug(f"Drag-drop enabled on widget")
+        except Exception as e:
+            logger.warning(f"Failed to enable drag-drop: {e}")
+    
     def start_sorting(self):
         """Start texture sorting operation"""
         try:
@@ -9782,6 +10373,11 @@ Built with:
                 logger.error(f"Sorting aborted - input directory does not exist: {input_path}")
                 messagebox.showerror("Error", "Input directory does not exist")
                 return
+            
+            # Save paths to config for next time
+            config.set('session', 'last_input_directory', value=input_path)
+            config.set('session', 'last_output_directory', value=output_path)
+            config.save()
             
             self.log("=" * 60)
             self.log("Starting texture sorting operation...")

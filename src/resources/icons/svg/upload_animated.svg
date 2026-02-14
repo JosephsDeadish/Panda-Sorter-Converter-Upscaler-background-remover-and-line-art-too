@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <!-- Upload arrow animated -->
+  <defs>
+    <linearGradient id="uploadGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#4CAF50;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#2E7D32;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Base cloud -->
+  <path d="M 70 55 Q 85 55 85 70 Q 85 85 70 85 L 30 85 Q 15 85 15 70 Q 15 55 30 55 Q 30 40 45 35 Q 60 30 70 40 Q 75 45 70 55 Z" 
+        fill="url(#uploadGrad)" opacity="0.3"/>
+  
+  <!-- Arrow shaft -->
+  <rect x="45" y="35" width="10" height="40" fill="url(#uploadGrad)">
+    <animate attributeName="y" values="35;30;35" dur="1.5s" repeatCount="indefinite"/>
+    <animate attributeName="height" values="40;45;40" dur="1.5s" repeatCount="indefinite"/>
+  </rect>
+  
+  <!-- Arrow head -->
+  <polygon points="50,20 35,35 45,35 45,40 55,40 55,35 65,35" fill="url(#uploadGrad)">
+    <animate attributeName="transform" type="translate" values="0,0; 0,-5; 0,0" dur="1.5s" repeatCount="indefinite"/>
+  </polygon>
+  
+  <!-- Sparkles -->
+  <circle cx="30" cy="30" r="2" fill="#FFD700">
+    <animate attributeName="opacity" values="0;1;0" dur="2s" repeatCount="indefinite"/>
+  </circle>
+  <circle cx="70" cy="25" r="2" fill="#FFD700">
+    <animate attributeName="opacity" values="0;1;0" dur="2s" begin="0.5s" repeatCount="indefinite"/>
+  </circle>
+</svg>

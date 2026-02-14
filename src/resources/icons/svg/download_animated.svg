@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <!-- Download arrow animated -->
+  <defs>
+    <linearGradient id="downloadGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#2196F3;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#0D47A1;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Arrow shaft -->
+  <rect x="45" y="25" width="10" height="40" fill="url(#downloadGrad)">
+    <animate attributeName="y" values="25;30;25" dur="1.5s" repeatCount="indefinite"/>
+  </rect>
+  
+  <!-- Arrow head -->
+  <polygon points="50,75 35,60 45,60 45,55 55,55 55,60 65,60" fill="url(#downloadGrad)">
+    <animate attributeName="transform" type="translate" values="0,0; 0,5; 0,0" dur="1.5s" repeatCount="indefinite"/>
+  </polygon>
+  
+  <!-- Base line -->
+  <line x1="20" y1="85" x2="80" y2="85" stroke="url(#downloadGrad)" stroke-width="4" stroke-linecap="round"/>
+  
+  <!-- Progress dots -->
+  <circle cx="30" cy="45" r="2" fill="#64B5F6">
+    <animate attributeName="opacity" values="0;1;0" dur="1s" repeatCount="indefinite"/>
+  </circle>
+  <circle cx="50" cy="45" r="2" fill="#64B5F6">
+    <animate attributeName="opacity" values="0;1;0" dur="1s" begin="0.3s" repeatCount="indefinite"/>
+  </circle>
+  <circle cx="70" cy="45" r="2" fill="#64B5F6">
+    <animate attributeName="opacity" values="0;1;0" dur="1s" begin="0.6s" repeatCount="indefinite"/>
+  </circle>
+</svg>

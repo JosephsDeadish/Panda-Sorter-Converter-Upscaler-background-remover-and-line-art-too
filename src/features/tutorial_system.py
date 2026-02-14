@@ -36,18 +36,18 @@ _PANDA_TOOLTIPS = {
             "Initiate the automated texture sorting workflow"
         ],
         'vulgar': [
-            "Click this to sort your damn textures. It's not rocket science, Karen.",
-            "Organize these bad boys into folders. Like Marie Kondo but with more profanity.",
-            "Sort this sh*t out. Literally. That's what the button does.",
-            "Time to unfuck your texture directory structure.",
-            "Click here unless you enjoy chaos and madness.",
-            "Make your textures less of a clusterfuck with one click.",
-            "SORT BUTTON. Big green button. Does sorting. Why are you still reading?",
-            "Press this and watch the panda do all the work. You're welcome.",
-            "One click and your textures go from dumpster fire to organized perfection.",
-            "Sort textures faster than you can say 'why didn't I do this sooner.'",
-            "The magic 'make my mess disappear' button. You're basically a wizard now.",
-            "Hit sort and go grab a coffee. The panda's got this."
+            "Click this to sort your damn textures. It's not rocket science, Karen. Hell, it's barely regular science.",
+            "Organize these bad boys into folders. Like Marie Kondo but with way more profanity and way less bullshit about sparking joy.",
+            "Sort this shit out. Literally. That's what the fucking button does. I'd explain more but you'd probably fall asleep.",
+            "Time to unfuck your texture directory structure. You're welcome, you disorganized bastard.",
+            "Click here unless you actually enjoy chaos, madness, and disappointing your team. And your mother. She knows what you did.",
+            "Make your textures less of a clusterfuck with one goddamn click. It's like Photoshop's undo but for your entire life choices.",
+            "SORT BUTTON. Big green button. Does sorting. Why the fuck are you still reading this? Go press the damn thing already!",
+            "Press this and watch the panda do all the work while you sit on your ass eating Cheetos. Living the dream, aren't you?",
+            "One click and your textures go from dumpster fire to organized perfection. Magic! Just kidding, it's algorithms. Way cooler than magic.",
+            "Sort textures faster than you can say 'why the hell didn't I do this sooner.' Seriously, time yourself. I dare you.",
+            "The magic 'make my mess disappear' button. You're basically a wizard now, Harry. Except your superpower is file management. Not impressive at parties.",
+            "Hit sort and go grab a coffee. The panda's got this shit handled. Unlike your love life, this one's automated and actually works."
         ]
     },
     'convert_button': {
@@ -60,18 +60,18 @@ _PANDA_TOOLTIPS = {
             "Start the texture conversion process"
         ],
         'vulgar': [
-            "Turn your textures into whatever the hell format you need.",
-            "Convert this sh*t. PNG, DDS, whatever floats your boat.",
-            "Magic button that transforms textures. No rabbits or hats required.",
-            "Because apparently your textures are in the wrong goddamn format.",
-            "Click to unfuck your texture formats.",
-            "Convert or die. Well, not die. But your project might.",
-            "Format conversion: because game engines are picky little b*stards.",
-            "Press convert and let the panda handle the rest. Go touch grass.",
-            "Convert button. Turns format A into format B. It's not philosophy.",
-            "Batch conversion go brrr. All your textures, all at once.",
-            "This button converts formats. Not feelings. We don't do therapy here.",
-            "File conversion: making your textures speak the right language."
+            "Turn your textures into whatever the hell format you fucking need. PNG, DDS, TGA - I don't judge your poor life choices.",
+            "Convert this shit. PNG, DDS, whatever floats your goddamn boat. Or sinks it. I'm not your Coast Guard.",
+            "Magic button that transforms textures. No rabbits, hats, or bullshit required. Unlike your last meeting, this actually does something useful.",
+            "Because apparently your textures are in the wrong fucking format. Again. Did you learn nothing from last time? Rhetorical question.",
+            "Click to unfuck your texture formats. You know you need to. The entire dev team knows you need to. Your mom probably knows too.",
+            "Convert or die. Well, not die. But your project might crash and burn like the Hindenburg. Too soon?",
+            "Format conversion: because game engines are picky little bastards with commitment issues. Just like your ex.",
+            "Press convert and let the panda handle the rest. Go touch grass, seriously. When's the last time you saw actual sunlight?",
+            "Convert button. Turns format A into format B. It's not rocket surgery. It's barely regular surgery. Hell, it's barely a band-aid.",
+            "Batch conversion go brrr. All your textures, all at once, zero fucks given. Like Thanos but for file formats.",
+            "This button converts formats. Not feelings. We don't do therapy here, pal. Try a licensed professional. Or beer.",
+            "File conversion: making your textures speak the right language for once. Rosetta Stone for pixels. You're welcome."
         ]
     },
     'settings_button': {
@@ -84,18 +84,18 @@ _PANDA_TOOLTIPS = {
             "Modify application behavior and appearance"
         ],
         'vulgar': [
-            "Tweak sh*t. Make it yours. Go nuts.",
-            "Settings, preferences, all that boring but necessary crap.",
-            "Click here if you're picky about how things work. We don't judge.",
-            "Configure this bad boy to your heart's content.",
-            "Mess with settings until something breaks. Then undo.",
-            "For control freaks and perfectionists. You know who you are.",
-            "Open settings. Where the magic happens. Or at least the configuring.",
-            "⚙️ Settings panel. Tweak every knob. Flip every switch. Go ham.",
-            "Configure app behavior. The panda's got options for your options.",
-            "Settings: because one size does NOT fit all. Especially yours.",
-            "Open preferences. Customize this app into oblivion if you want.",
-            "Click here to access all the settings you'll change once and forget about."
+            "Tweak shit. Make it yours. Unfuck everything to your liking. It's like Pimp My Ride but for software. RIP Xzibit.",
+            "Settings, preferences, all that boring-ass but necessary crap. Like taxes but with RGB sliders. Slightly more fun.",
+            "Click here if you're anal about how things work. No judgment... okay, maybe some. Definitely some. Who are we kidding, a lot.",
+            "Configure this bad boy. Go fucking nuts with options. Channel your inner control freak. Embrace the OCD.",
+            "Mess with settings until something breaks. Then blame the developer. It's tradition. Like Thanksgiving but with more finger-pointing.",
+            "For control freaks and perfectionists. Yes, you. Don't lie. We see you organizing your desktop icons by color.",
+            "Open settings. Where the magic happens. Or at least the obsessive tweaking. Same difference really.",
+            "⚙️ Settings panel. Tweak every goddamn knob. Go absolutely ham. Make this interface your bitch.",
+            "Configure app behavior. The panda's got options for days, you picky bastard. More settings than a spaceship. Less useful though.",
+            "Settings: because your unique snowflake ass needs everything customized. Just like your coffee order that takes 5 minutes to explain.",
+            "Open preferences. Customize this motherfucker into oblivion if you want. Make it look like a unicorn vomited on your screen. We won't judge.",
+            "Click here to access settings you'll change once and never touch again, you liar. Just like that gym membership. We all know."
         ]
     },
     'file_selection': {
@@ -108,12 +108,16 @@ _PANDA_TOOLTIPS = {
             "Choose your file path"
         ],
         'vulgar': [
-            "Point me to your damn files already.",
-            "Show me where you hid your textures, you sneaky bastard.",
-            "Pick a file. Any file. I don't have all day.",
-            "File picker. Because apparently you can't just type the path.",
-            "Navigate this hellscape of directories and find your files.",
-            "Choose wisely. Or don't. I'm not your mother."
+            "Point me to your damn files already. I haven't got all fucking day. Unlike you, I have shit to process.",
+            "Show me where you hid your textures, you sneaky little shit. Are they in 'New Folder (17)'? They're in there, aren't they?",
+            "Pick a file. Any goddamn file. Let's get this show on the road. This isn't the fucking Oscars, we don't need suspense.",
+            "File picker. Because apparently typing a path is too hard for your lazy ass. It's okay, we invented GUIs for a reason.",
+            "Navigate this hellscape of directories and find your shit. Good luck in that nested folder hell you created. Abandon hope, ye who enter.",
+            "Choose wisely. Or don't. I'm not your mother and she's disappointed anyway. Probably about other things too, but let's focus.",
+            "Browse button. Because drag-drop is apparently too fucking complicated. Baby steps. We'll get there eventually. Maybe.",
+            "Select your files. The ones you definitely organized properly. Right? RIGHT? Who am I kidding, it's chaos in there.",
+            "File browser for the directionally challenged. It's okay, we've all been there. Some of us are still there. Living there. It's home now.",
+            "Pick files. The computer can't read your mind. Yet. Give it another year, AI's getting scary good."
         ]
     },
     'category_selection': {
@@ -126,12 +130,16 @@ _PANDA_TOOLTIPS = {
             "Choose texture classification groups"
         ],
         'vulgar': [
-            "Pick your texture flavor. Diffuse? Normal? Whatever the f*ck?",
-            "Choose categories or process everything. Your funeral.",
-            "Category picker. For when you're too good for all textures.",
-            "Filter this sh*t by category. Be selective.",
-            "What kind of textures are we destroying today?",
-            "Pick a category. Or don't. Chaos is always an option."
+            "Pick your texture flavor. Diffuse? Normal? Specular? What-the-fuck-ever floats your shader boat?",
+            "Choose categories or process everything. YOLO, am I right? Actually no, backup your shit first. Then YOLO.",
+            "Category picker. For when you're too fucking special for 'all textures'. We get it, you're sophisticated. Have a medal. 🏅",
+            "Filter this shit by category. Be selective, your majesty. I'll just be here waiting while you make your royal decree.",
+            "What kind of textures are we unfucking today? Diffuse? Normal maps? The weird ones you found on that sketchy site?",
+            "Pick a category. Or don't. Chaos is always a valid life choice. Some say it builds character. Those people are idiots.",
+            "Select what texture types to process. Because apparently 'all' is too simple. God forbid we make your life easy.",
+            "Category filter. For the texture snobs among us. Oh, you only work with hand-crafted artisanal normal maps? How pretentious.",
+            "Choose your poison: diffuse, normal, specular, or just fuck it and do everything. When in doubt, nuke it from orbit.",
+            "Texture categories. Because your anal-retentive ass needs organization. It's okay, I need therapy too."
         ]
     },
     'lod_detection': {
@@ -144,12 +152,16 @@ _PANDA_TOOLTIPS = {
             "Configure automatic LOD identification"
         ],
         'vulgar': [
-            "Let the panda figure out your LOD levels. He's smart like that.",
-            "Auto-detect LODs because manually sorting is for masochists.",
-            "Toggle LOD magic. On or off. Your choice.",
-            "Enable this unless you hate yourself and your free time.",
-            "LOD detection. Like facial recognition but for textures.",
-            "Turn this on and let the algorithm do the heavy lifting."
+            "Let the panda figure out your LOD levels. He's fucking brilliant like that. Smarter than you at least. No offense. Okay, some offense.",
+            "Auto-detect LODs because manually sorting is for masochists and idiots. Which category are you in? Don't answer, it's rhetorical.",
+            "Toggle LOD magic. On or off. Your fucking choice. But spoiler: one choice is stupid. Guess which one?",
+            "Enable this unless you hate yourself and enjoy wasting your precious life. Like watching paint dry but worse. And boring.",
+            "Auto LOD detection. Because apparently counting from LOD0 to LOD3 is fucking rocket science for some people.",
+            "Turn this on. Seriously. Don't be a hero. Let the code do the work. Save the heroics for when Taco Bell runs out of hot sauce.",
+            "LOD detection: teaching computers to read LOD0, LOD1, etc. Revolutionary shit. Like the printing press but for lazy developers.",
+            "Enable LOD auto-detect or spend hours doing it yourself. Your call, genius. I've got popcorn ready for whatever stupid decision you make.",
+            "LOD finder. Because apparently '_LOD0' is too cryptic without AI help. It's literally in the fucking filename. Right there. See it?",
+            "Auto-detect Level of Detail. Or waste time doing it by hand like a chump. Manual labor in 2024. Bold strategy, Cotton."
         ]
     },
     'batch_operations': {
@@ -162,12 +174,12 @@ _PANDA_TOOLTIPS = {
             "Perform bulk file operations"
         ],
         'vulgar': [
-            "Process a sh*tload of files at once. Because efficiency.",
-            "Batch operations for people with actual work to do.",
-            "Do many things to many files. It's beautiful.",
-            "Because processing one file at a time is for chumps.",
-            "Bulk operations. Like Costco but for file processing.",
-            "Handle multiple files like a goddamn professional."
+            "Process a shitload of files at once. Because efficiency. And because clicking 1000 times is how you get carpal tunnel, dumbass.",
+            "Batch operations for people with actual work to do. You know, productive people. Not you browsing Reddit. Yeah, I see you.",
+            "Do many things to many files. It's beautiful. Like watching dominoes fall but with more practical value and less virginity.",
+            "Because processing one file at a time is for chumps and people with way too much fucking time. Get a hobby. Or a life.",
+            "Bulk operations. Like Costco but for file processing. Same concept: buy in bulk, save time, question your life choices.",
+            "Handle multiple files like a goddamn professional. Not like an amateur. Professionals use batch operations. Be professional, for fuck's sake."
         ]
     },
     'export_button': {
@@ -180,12 +192,12 @@ _PANDA_TOOLTIPS = {
             "Finalize and export your work"
         ],
         'vulgar': [
-            "Export this sh*t before you lose it.",
-            "Save your work unless you enjoy starting over.",
-            "Click to yeet your textures to their new home.",
-            "Export or suffer the consequences of lost work.",
-            "Finalize this motherf*cker and export.",
-            "Save button. Use it. Don't be a hero."
+            "Export this shit before you lose it. Because Murphy's Law is real and it's out to fuck you specifically.",
+            "Save your work unless you enjoy starting over. Some people like pain. BDSM is a thing. But this is just masochism.",
+            "Click to yeet your textures to their new home. YEET! Maximum velocity achieved. Your files are now in orbit. Mission accomplished.",
+            "Export or suffer the consequences of lost work. Consequences include crying, drinking, and questioning your career choices. Save yourself.",
+            "Finalize this motherfucker and export. Ship it. Done. Finished. Finito. Stop tweaking shit, it's good enough. Perfection is the enemy of done.",
+            "Save button. Use it. Don't be a hero. Heroes in movies? Cool. Heroes who don't save their work? Fucking idiots."
         ]
     },
     'preview_button': {
@@ -198,12 +210,12 @@ _PANDA_TOOLTIPS = {
             "Look before you leap"
         ],
         'vulgar': [
-            "Preview this sh*t before you commit. Trust nobody.",
-            "Look at what's about to happen. Prevent disasters.",
-            "Preview mode. For the paranoid. And the smart.",
-            "See the future. Well, the preview. Same difference.",
-            "Check your work before the universe does.",
-            "Preview because CTRL+Z only goes so far."
+            "Preview this shit before you commit. Trust nobody. Not even yourself. Especially not yourself at 3 AM.",
+            "Look at what's about to happen. Prevent disasters. Learn from the Titanic. They should've previewed that iceberg situation.",
+            "Preview mode. For the paranoid. And the smart. Being paranoid doesn't mean they're not out to get you. Or that your code won't break.",
+            "See the future. Well, the preview. Same difference. It's like a crystal ball but actually useful and less likely to get you burned as a witch.",
+            "Check your work before the universe does. The universe is a harsh critic. Zero stars on Yelp. Would not recommend.",
+            "Preview because CTRL+Z only goes so far. And by 'so far' I mean 'not far enough when you really fuck up.' Trust me on this."
         ]
     },
     'search_button': {
@@ -216,12 +228,12 @@ _PANDA_TOOLTIPS = {
             "Find what you're looking for"
         ],
         'vulgar': [
-            "Find your sh*t. It's in here somewhere.",
-            "Search function. Because you lost your damn files again.",
-            "Where the f*ck is that texture? Let's find out.",
-            "Search bar. Type stuff. Get results. Revolutionary.",
-            "Find your needle in this texture haystack.",
-            "Lost something? Course you did. That's why this exists."
+            "Find your shit. It's in here somewhere. Probably in that folder you named 'temp' six months ago.",
+            "Search function. Because you lost your damn files again. This is becoming a pattern. Maybe see a doctor? Or a file management course?",
+            "Where the fuck is that texture? Let's find out. It's like Where's Waldo but more frustrating and with higher stakes.",
+            "Search bar. Type stuff. Get results. Revolutionary. Like Google but local and with lower expectations.",
+            "Find your needle in this texture haystack. Except the haystack is on fire and the needle is probably corrupted. Good luck!",
+            "Lost something? Course you did. That's why this exists. We planned for your incompetence. You're welcome."
         ]
     },
     'analysis_button': {
@@ -234,12 +246,12 @@ _PANDA_TOOLTIPS = {
             "Analyze file structure and metadata"
         ],
         'vulgar': [
-            "Analyze the hell out of these textures.",
-            "Deep dive into texture properties. Get nerdy with it.",
-            "Analysis mode. For when you need ALL the information.",
-            "Let's get technical. Really f*cking technical.",
-            "Examine these textures like a CSI investigator.",
-            "Analysis button. Nerd mode activated."
+            "Analyze the hell out of these textures. Go full Sherlock Holmes on these pixels. Except less cocaine and more metadata.",
+            "Deep dive into texture properties. Get nerdy with it. Channel your inner neckbeard. Embrace the technical details. This is your moment.",
+            "Analysis mode. For when you need ALL the information. Every. Single. Byte. You magnificent data hoarder.",
+            "Let's get technical. Really fucking technical. Break out the pocket protector and thick-rimmed glasses. This is peak nerd shit.",
+            "Examine these textures like a CSI investigator. ENHANCE! ENHANCE! Except this actually works unlike that TV bullshit.",
+            "Analysis button. Nerd mode activated. Power level over 9000. Your mom is still disappointed though."
         ]
     },
     'favorites_button': {
@@ -252,12 +264,12 @@ _PANDA_TOOLTIPS = {
             "View saved favorites"
         ],
         'vulgar': [
-            "Your favorites. The sh*t you actually use.",
-            "Quick access to your go-to stuff.",
-            "Favorites list. The VIP section.",
-            "The greatest hits of your workflow.",
-            "Your favorite settings because you're a creature of habit.",
-            "Bookmarks for the modern age. Still useful."
+            "Your favorites. The shit you actually use. Unlike that gym membership. This one gets action.",
+            "Quick access to your go-to stuff. Your workflow's greatest hits. The Beatles but for file management.",
+            "Favorites list. The VIP section. You're on the list. The bouncer will let you in. Feel special yet?",
+            "The greatest hits of your workflow. More useful than a 'Now That's What I Call Music' compilation. Barely.",
+            "Your favorite settings because you're a creature of habit. Like a cat but with less grace and more poor life choices.",
+            "Bookmarks for the modern age. Still useful. Unlike your college degree. Too harsh? Sorry. Not sorry."
         ]
     },
     'recent_files': {
@@ -270,12 +282,12 @@ _PANDA_TOOLTIPS = {
             "Open recently used files"
         ],
         'vulgar': [
-            "Recent files. Because your memory is sh*t.",
-            "The stuff you worked on recently. Remember?",
-            "Recent history. NSA would be proud.",
-            "Your greatest hits from this week.",
-            "Recent files list. Memory lane but useful.",
-            "Quick access to what you were just f*cking with."
+            "Recent files. Because your memory is shit. Goldfish have better recall. And they're dead in two weeks.",
+            "The stuff you worked on recently. Remember? No? That's why this fucking feature exists. You're welcome.",
+            "Recent history. NSA would be proud. Big Brother is watching. Just kidding, it's just tracking your files. Probably.",
+            "Your greatest hits from this week. Like a highlight reel but less impressive and more 'oh god what was I doing?'",
+            "Recent files list. Memory lane but useful. Unlike actual memory lane which is just regret and embarrassment.",
+            "Quick access to what you were just fucking with. Your digital breadcrumb trail. Hansel and Gretel style but with less witch danger."
         ]
     },
     'theme_selector': {
@@ -288,12 +300,12 @@ _PANDA_TOOLTIPS = {
             "Personalize the interface"
         ],
         'vulgar': [
-            "Make it pretty. Or dark. Whatever helps you see.",
-            "Theme selector. Because aesthetics matter, damn it.",
-            "Change colors until your eyes don't hurt.",
-            "Pick a theme. Light mode users are psychopaths, btw.",
-            "Customize this bitch to match your vibe.",
-            "Make it yours. Paint that interface."
+            "Make it pretty. Or dark. Whatever helps your weak-ass eyes not burn from retina-searing brightness.",
+            "Theme selector. Because aesthetics matter, damn it. This isn't the 90s. We have standards now. Low standards, but standards.",
+            "Change colors until your eyes don't hurt. Or until you realize you're colorblind. That's a fun discovery.",
+            "Pick a theme. Light mode users are psychopaths, btw. Fight me. Actually don't, I'm fragile. But you're still wrong.",
+            "Customize this bitch to match your vibe. Dark mode, light mode, whatever-the-fuck mode. Live your truth.",
+            "Make it yours. Paint that interface. Bob Ross this motherfucker. Happy little UI elements everywhere."
         ]
     },
     'cursor_selector': {
@@ -306,12 +318,12 @@ _PANDA_TOOLTIPS = {
             "Select cursor theme"
         ],
         'vulgar': [
-            "Cursor styles. Because why the hell not?",
-            "Change your pointer. Make it fancy.",
-            "Cursor customization. We went there.",
-            "Pick a cursor. It's the little things.",
-            "Customize your pointy thing.",
-            "Make your cursor less boring than default."
+            "Cursor styles. Because why the hell not? We coded this at 3 AM fueled by Red Bull and poor decisions.",
+            "Change your pointer. Make it fancy. Sparkles optional. But recommended. Everything's better with sparkles.",
+            "Cursor customization. We went there. Is it necessary? No. Is it fucking cool? Also no. But it exists.",
+            "Pick a cursor. It's the little things. That separate us from the animals. Well, that and opposable thumbs.",
+            "Customize your pointy thing. That sounded better in my head. The cursor. I mean the cursor. Moving on.",
+            "Make your cursor less boring than default. Unlike your personality. Zing! Just kidding. You're fine."
         ]
     },
     'sound_settings': {
@@ -324,12 +336,12 @@ _PANDA_TOOLTIPS = {
             "Configure audio feedback"
         ],
         'vulgar': [
-            "Sound settings. Make it loud. Or mute. Your call.",
-            "Audio controls for when you want beeps and boops.",
-            "Turn sounds on or off. We won't judge.",
-            "Sound effects. For that authentic computer experience.",
-            "Audio settings. Beep boop motherf*cker.",
-            "Configure your audio. Or silence everything. Both valid."
+            "Sound settings. Make it loud. Or mute. Your call. Neighbors' sanity not included.",
+            "Audio controls for when you want beeps and boops. Like R2-D2 but less useful and more annoying.",
+            "Turn sounds on or off. We won't judge. Okay we'll judge a little. Muting is basically admitting defeat.",
+            "Sound effects. For that authentic computer experience. Because silence is too peaceful. Add some DING DING motherfucker.",
+            "Audio settings. Beep boop motherfucker. I'm a computer. This is what we sound like. Deal with it.",
+            "Configure your audio. Or silence everything. Both valid. Some people meditate. Others enable notification sounds. Choose your chaos."
         ]
     },
     'tutorial_button': {
@@ -342,12 +354,12 @@ _PANDA_TOOLTIPS = {
             "Learn the basics"
         ],
         'vulgar': [
-            "Tutorial. Because reading docs is apparently hard.",
-            "Learn how to use this thing. RTFM made easy.",
-            "Help for the helpless. No shame.",
-            "Tutorial button. For when you're lost AF.",
-            "Learn sh*t here. It's actually helpful.",
-            "Education time. Get learned."
+            "Tutorial. Because reading docs is apparently hard. I get it. Words are difficult. Pictures help. We have pictures.",
+            "Learn how to use this thing. RTFM made easy. That's 'Read The Fucking Manual' for the innocent among us.",
+            "Help for the helpless. No shame. We've all been there. Some of us live there. It's our permanent address.",
+            "Tutorial button. For when you're lost AF. Like that time you used Apple Maps. We remember. Everyone remembers.",
+            "Learn shit here. It's actually helpful. Unlike your college lectures. This one won't put you to sleep. Probably.",
+            "Education time. Get learned. Knowledge is power. Power is pizza. Therefore, tutorials equal pizza. Math checks out."
         ]
     },
     'help_button': {
@@ -360,12 +372,12 @@ _PANDA_TOOLTIPS = {
             "Access support materials"
         ],
         'vulgar': [
-            "Help! I've fallen and I can't use software!",
-            "Cry for help button. We're here for you.",
-            "Get help before you break something.",
-            "Help docs. Read them. Please.",
-            "Assistance for the confused.",
-            "Help button. Use it. Don't be a hero."
+            "Help! I've fallen and I can't use software! And I can't get up! Someone call Life Alert!",
+            "Cry for help button. We're here for you. Like a digital hug. But less awkward and more informative.",
+            "Get help before you break something. Too late? Well fuck. Try asking anyway, maybe we can unfuck it.",
+            "Help docs. Read them. Please. We spent hours writing this shit. Show some goddamn respect.",
+            "Assistance for the confused. That's you. You're confused. It's okay. Confusion is the first step to enlightenment. Or madness.",
+            "Help button. Use it. Don't be a hero. Heroes die in movies. Smart people read documentation."
         ]
     },
     'about_button': {
@@ -378,12 +390,12 @@ _PANDA_TOOLTIPS = {
             "Application information"
         ],
         'vulgar': [
-            "About page. Who made this? Why? Find out here.",
-            "Version info and other boring but important sh*t.",
-            "Credits to the poor bastards who coded this.",
-            "About section. Meet your digital overlords.",
-            "Who made this? Why? All answered here.",
-            "Application info. For the curious."
+            "About page. Who made this? Why? Find out here. Spoiler: sleep deprivation and caffeine were heavily involved.",
+            "Version info and other boring but important shit. Like terms and conditions. But people actually read this one.",
+            "Credits to the poor bastards who coded this. They deserve medals. Or therapy. Probably therapy.",
+            "About section. Meet your digital overlords. We're just programmers who sold our souls for syntax highlighting.",
+            "Who made this? Why? All answered here. Warning: the 'why' answer is just 'seemed like a good idea at 2 AM.'",
+            "Application info. For the curious. And the people looking for someone to blame. We accept both."
         ]
     },
     'undo_button': {
@@ -396,12 +408,12 @@ _PANDA_TOOLTIPS = {
             "Step backward"
         ],
         'vulgar': [
-            "CTRL+Z. The panic button. The savior.",
-            "Unfuck what you just f*cked up.",
-            "Undo. Because mistakes happen. A lot.",
-            "Reverse that disaster you just created.",
-            "Time travel button. Go back. Fix sh*t.",
-            "Undo. Your second chance at not screwing up."
+            "CTRL+Z. The panic button. The savior. The reason humanity can function. More important than oxygen.",
+            "Unfuck what you just fucked up. Time travel for the terminally clumsy. You're welcome.",
+            "Undo. Because mistakes happen. A lot. Constantly. With you specifically. We've been keeping track.",
+            "Reverse that disaster you just created. Like Ctrl+Z is your personal time machine. Flux capacitor sold separately.",
+            "Time travel button. Go back. Fix shit. Prevent the apocalypse. Or at least prevent that accidental delete.",
+            "Undo. Your second chance at not screwing up. Third chance. Fourth. We've lost count. Just use it."
         ]
     },
     'redo_button': {
@@ -414,12 +426,12 @@ _PANDA_TOOLTIPS = {
             "Move forward"
         ],
         'vulgar': [
-            "Redo. Because you undid too much, idiot.",
-            "CTRL+Y. Forward time travel.",
-            "Redo what you just undid. Make up your mind.",
-            "Go forward. Stop going backward.",
-            "Redo button. For the indecisive.",
-            "F*ck it, put it back the way it was."
+            "Redo. Because you undid too much, you indecisive fuck. Make up your goddamn mind already.",
+            "CTRL+Y. Forward time travel. Like Back to the Future 2 but less hoverboards and more file restoration.",
+            "Redo what you just undid. Make up your mind. This isn't a democracy. Well it is. But stop flip-flopping.",
+            "Go forward. Stop going backward. You're not a car. You don't have a reverse gear. Wait, yes you do. But still.",
+            "Redo button. For the indecisive. Hamlet wishes he had this button. To redo or not to redo, that is the question.",
+            "Fuck it, put it back the way it was. I knew the undo was a mistake. We all knew. But did you listen?"
         ]
     },
     'input_browse': {
@@ -431,18 +443,18 @@ _PANDA_TOOLTIPS = {
             "Navigate to your texture input folder"
         ],
         'vulgar': [
-            "Find your damn INPUT texture folder. It's somewhere on that hard drive.",
-            "Browse for the INPUT folder. Like Tinder but for file directories.",
-            "Point me to your source textures, you beautiful disaster.",
-            "Navigate the digital jungle to find your INPUT texture stash.",
-            "Show me where the source goods are. The texture goods.",
-            "Pick an INPUT folder. It's not that deep. Well, maybe it is.",
-            "Source folder browsing: the Windows Explorer safari adventure.",
-            "Where'd you put those source textures? Let's go find out.",
-            "INPUT folder selector. That's the folder WITH the textures, genius.",
-            "Browse for source textures. The ones you want to sort. Obviously.",
-            "Find your input directory. The panda believes in you. Barely.",
-            "Pick the folder you want processed. Not the output. The INPUT."
+            "Find your damn INPUT texture folder. It's somewhere on that hard drive. Probably buried under 47 folders named 'New Folder'.",
+            "Browse for the INPUT folder. Like Tinder but for file directories. Swipe right on the one with your textures.",
+            "Point me to your source textures, you beautiful disaster. The INPUT. Where the magic begins. Or the chaos. Usually chaos.",
+            "Navigate the digital jungle to find your INPUT texture stash. It's like Indiana Jones but with less Nazis and more clicking.",
+            "Show me where the source goods are. The texture goods. The INPUT folder. Not the output. Jesus, read the label.",
+            "Pick an INPUT folder. It's not that deep. Well, maybe it is. How many subdirectories did you nest? Sweet Christ.",
+            "Source folder browsing: the Windows Explorer safari adventure. Watch out for wild subdirectories and hidden files.",
+            "Where'd you put those source textures? Let's go find out. Time for a treasure hunt. X marks the INPUT folder.",
+            "INPUT folder selector. That's the folder WITH the textures, genius. The source. The origin. The beginning. Follow along.",
+            "Browse for source textures. The ones you want to sort. Obviously. Not rocket science. Barely regular science.",
+            "Find your input directory. The panda believes in you. Barely. Like one percent belief. Prove me wrong.",
+            "Pick the folder you want processed. Not the output. The INPUT. The source. The motherfucking starting point. Got it?"
         ]
     },
     'output_browse': {
@@ -454,18 +466,18 @@ _PANDA_TOOLTIPS = {
             "Choose the output location for sorted textures"
         ],
         'vulgar': [
-            "Where do you want this organized mess dumped? Pick an OUTPUT folder.",
-            "Pick an OUTPUT destination. The textures need a new home.",
-            "Choose wisely. This is where the sorted OUTPUT ends up.",
-            "OUTPUT folder. Where dreams of organization become reality.",
-            "Select where to yeet your sorted textures.",
-            "OUTPUT destination please! Like an Uber but for files.",
-            "Where should I put this sorted sh*t? Literally your call.",
-            "Pick an OUTPUT folder or I'll choose your desktop. Don't test me.",
-            "OUTPUT directory. Where your beautifully sorted textures will live.",
-            "Choose the OUTPUT folder. Not the input. OUTPUT. The result goes here.",
-            "Browse for an output destination. The panda needs an address.",
-            "Pick where the sorted results go. This is the OUTPUT selector."
+            "Where do you want this organized mess dumped? Pick an OUTPUT folder. A destination. A final resting place for sorted textures.",
+            "Pick an OUTPUT destination. The textures need a new home. Like witness relocation but for files.",
+            "Choose wisely. This is where the sorted OUTPUT ends up. Forever. Or until you delete it. Your choice.",
+            "OUTPUT folder. Where dreams of organization become reality. And by dreams I mean 'basic file management.' But still.",
+            "Select where to yeet your sorted textures. Maximum velocity. Into the OUTPUT folder. YEET!",
+            "OUTPUT destination please! Like an Uber but for files. Destination: organized bliss. ETA: whenever you finish clicking.",
+            "Where should I put this sorted shit? Literally your call. Your responsibility. Your burden. Welcome to adulthood.",
+            "Pick an OUTPUT folder or I'll choose your desktop. Don't test me. I will do it. I've done it before. It was chaos.",
+            "OUTPUT directory. Where your beautifully sorted textures will live. Their forever home. Until the next reorganization.",
+            "Choose the OUTPUT folder. Not the input. OUTPUT. The result goes here. The finished product. The final destination.",
+            "Browse for an output destination. The panda needs an address. GPS coordinates optional but appreciated.",
+            "Pick where the sorted results go. This is the OUTPUT selector. O-U-T-P-U-T. The end point. Capisce?"
         ]
     },
     'detect_duplicates': {
@@ -477,14 +489,14 @@ _PANDA_TOOLTIPS = {
             "Check for duplicate textures to save disk space"
         ],
         'vulgar': [
-            "Find duplicate textures. Trust issues? Same.",
-            "Duplicate detection. Because copying is only flattering sometimes.",
-            "Spot the clones. Like a texture witness protection program.",
-            "Find duplicates before your hard drive files a complaint.",
-            "Duplicate finder. CTRL+C CTRL+V consequences detector.",
-            "Because apparently copy-paste got out of hand.",
-            "Hunt down those sneaky identical textures.",
-            "Duplicate detection: the 'who wore it better' for textures."
+            "Find duplicate textures. Trust issues? Same. This tool validates your paranoia. You were right to be suspicious.",
+            "Duplicate detection. Because copying is only flattering sometimes. Other times it's just wasting disk space like an asshole.",
+            "Spot the clones. Like a texture witness protection program. Find the imposters. Sus as fuck.",
+            "Find duplicates before your hard drive files a complaint. Space is precious. Unlike your time apparently.",
+            "Duplicate finder. CTRL+C CTRL+V consequences detector. Your copy-paste addiction has a price. This finds it.",
+            "Because apparently copy-paste got out of hand. Like rabbits. But less cute and more storage-consuming.",
+            "Hunt down those sneaky identical textures. They're hiding. Playing hide and seek. Time to end the game.",
+            "Duplicate detection: the 'who wore it better' for textures. Spoiler alert: they're exactly the same. Both can go."
         ]
     },
     'group_lods': {
@@ -496,14 +508,14 @@ _PANDA_TOOLTIPS = {
             "Group LOD variants for easy management"
         ],
         'vulgar': [
-            "Group LODs together. They're like a dysfunctional family.",
-            "Keep LOD buddies together. Separation anxiety is real.",
-            "LOD grouping. Because nobody puts LOD-baby in a corner.",
-            "Bundle those LODs like a cozy texture family reunion.",
-            "Keep the LOD crew together. Squad goals.",
-            "Group LODs. Like organizing your sock drawer but nerdier.",
-            "LOD family reunion time. Get them all in one folder.",
-            "No LOD left behind. We group them ALL."
+            "Group LODs together. They're like a dysfunctional family. LOD0 is the favorite child. LOD3 is the disappointment.",
+            "Keep LOD buddies together. Separation anxiety is real. They need each other. It's codependent but functional.",
+            "LOD grouping. Because nobody puts LOD-baby in a corner. Dirty Dancing reference. You're welcome. Google it, zoomer.",
+            "Bundle those LODs like a cozy texture family reunion. Awkward small talk optional. Potato salad mandatory.",
+            "Keep the LOD crew together. Squad goals. Friendship is magic. File organization is more magic.",
+            "Group LODs. Like organizing your sock drawer but nerdier. And actually useful. Unlike your sock drawer.",
+            "LOD family reunion time. Get them all in one folder. Group photo! Everyone say 'optimization!'",
+            "No LOD left behind. We group them ALL. LOD0 through LOD-whatever-the-fuck. Everyone gets a home."
         ]
     },
     'achievements_tab': {
@@ -513,12 +525,12 @@ _PANDA_TOOLTIPS = {
             "See which achievements you've unlocked"
         ],
         'vulgar': [
-            "Check your trophies, you overachiever.",
-            "Achievement log. Proof you actually did something.",
-            "Your bragging rights live here.",
-            "Look at all the sh*t you've accomplished. Proud?",
-            "Achievements. For people who need validation.",
-            "Gold stars and participation trophies. Knock yourself out."
+            "Check your trophies, you overachiever. Look at you being all productive and shit. Your mother would be proud. Probably.",
+            "Achievement log. Proof you actually did something. Unlike that time you said you'd go to the gym.",
+            "Your bragging rights live here. Screenshot this. Post on Twitter. Nobody cares. Do it anyway.",
+            "Look at all the shit you've accomplished. Proud? You should be. Or at least mildly satisfied. That's close enough.",
+            "Achievements. For people who need validation. It's okay. We all do. Digital gold stars for everyone!",
+            "Gold stars and participation trophies. Knock yourself out. You earned them. Or the system took pity. Either way, congrats!"
         ]
     },
     'shop_tab': {
@@ -528,12 +540,12 @@ _PANDA_TOOLTIPS = {
             "Spend your points on cosmetics and upgrades"
         ],
         'vulgar': [
-            "This is the loot cave. Spend your shiny points, idiot.",
-            "You did work. Now buy dumb cosmetic crap.",
-            "Click here to exchange grind for dopamine.",
-            "The shop. Where your hard-earned money goes to die.",
-            "Buy stuff. Waste points. Live your best life.",
-            "Shopping spree time. Your wallet (points) won't survive."
+            "This is the loot cave. Spend your shiny points, you filthy casual. Capitalism simulator right here.",
+            "You did work. Now buy dumb cosmetic crap. It's the circle of life. Hakuna Matata, bitch.",
+            "Click here to exchange grind for dopamine. It's like a slot machine but with guaranteed purchases. Still addictive though.",
+            "The shop. Where your hard-earned points go to die. RIP your savings. They served you well. For like five minutes.",
+            "Buy stuff. Waste points. Live your best life. YOLO but make it consumerism. Adam Smith is smiling somewhere.",
+            "Shopping spree time. Your wallet (points) won't survive. Economic responsibility? Never heard of her."
         ]
     },
     'shop_buy_button': {
@@ -543,12 +555,12 @@ _PANDA_TOOLTIPS = {
             "Complete the purchase"
         ],
         'vulgar': [
-            "Yeet your money at this item. Do it.",
-            "Buy it before someone else doesn't.",
-            "Take my money! Except it's points. Whatever.",
-            "Purchase this bad boy. You deserve it. Maybe.",
-            "Click buy. Instant regret or joy. 50/50.",
-            "Add to cart? Nah. Just buy the damn thing."
+            "Yeet your money at this item. Do it. No regrets. Okay, some regrets. But that's tomorrow's problem.",
+            "Buy it before someone else doesn't. Because you're the only user. But urgency sells! Marketing 101.",
+            "Take my money! Except it's points. Whatever. Close enough. The emotion is real even if the currency isn't.",
+            "Purchase this bad boy. You deserve it. Maybe. Probably not. But treat yourself anyway. Self-care!",
+            "Click buy. Instant regret or joy. 50/50. Life is a gamble. This purchase? Also a gamble. Roll the dice.",
+            "Add to cart? Nah. Just buy the damn thing. We don't have a cart system. One-click purchase baby. Amazon would be proud."
         ]
     },
     'shop_category_button': {
@@ -558,10 +570,10 @@ _PANDA_TOOLTIPS = {
             "Browse this section of the shop"
         ],
         'vulgar': [
-            "Filter the shop. Because scrolling is for peasants.",
-            "Category filter. Find your poison faster.",
-            "Browse this section. There's good sh*t in here.",
-            "Click to see what's in this category of nonsense."
+            "Filter the shop. Because scrolling is for peasants. And people with time. You have neither.",
+            "Category filter. Find your poison faster. Life's too short to browse every goddamn item.",
+            "Browse this section. There's good shit in here. Trust me. Or don't. I'm a tooltip, not a financial advisor.",
+            "Click to see what's in this category of nonsense. Organized nonsense. The best kind of nonsense."
         ]
     },
     'rewards_tab': {
@@ -571,12 +583,12 @@ _PANDA_TOOLTIPS = {
             "Track your progress toward unlocking rewards"
         ],
         'vulgar': [
-            "Your loot table. See what you can unlock.",
-            "Rewards page. Dangle carrots in front of yourself.",
-            "All the shiny things you haven't earned yet.",
-            "Check what's locked and cry about it.",
-            "Reward tracker. Motivation through materialism.",
-            "See the prizes. Want them. Work for them. Simple."
+            "Your loot table. See what you can unlock. Like a video game but the reward is slightly better file management.",
+            "Rewards page. Dangle carrots in front of yourself. Self-motivation through materialism. It works though.",
+            "All the shiny things you haven't earned yet. Look at them. Want them. Feel the desire. Now go earn them.",
+            "Check what's locked and cry about it. Or get motivated. Your choice. I recommend motivation but crying is valid too.",
+            "Reward tracker. Motivation through materialism. Late-stage capitalism in tooltip form. You're welcome.",
+            "See the prizes. Want them. Work for them. Simple. Pavlov would be proud. You're the dog. The treats are digital."
         ]
     },
     'closet_tab': {
@@ -586,12 +598,12 @@ _PANDA_TOOLTIPS = {
             "Change your panda's look and style"
         ],
         'vulgar': [
-            "Dress up your panda. Fashion show time.",
-            "Panda wardrobe. Because even pandas need style.",
-            "Outfit your furry friend. Don't make it weird.",
-            "Panda closet. It's like The Sims but with bamboo.",
-            "Fashion crimes against pandas start here.",
-            "Makeover time! Make your panda look fabulous or ridiculous."
+            "Dress up your panda. Fashion show time. Runway walk optional. Fierce attitude mandatory.",
+            "Panda wardrobe. Because even pandas need style. Fashion is pain. Digital fashion is painless. Much better.",
+            "Outfit your furry friend. Don't make it weird. Keep it PG. This is a family-friendly texture sorter. Mostly.",
+            "Panda closet. It's like The Sims but with bamboo. And less house fires. And more file management. Actually nothing like The Sims.",
+            "Fashion crimes against pandas start here. Go wild. Tutus? Sure. Top hat? Why not. Regret? Inevitable.",
+            "Makeover time! Make your panda look fabulous or ridiculous. There's a fine line. We crossed it. No regrets."
         ]
     },
     'browser_browse_button': {
@@ -601,14 +613,14 @@ _PANDA_TOOLTIPS = {
             "Choose a folder to browse its contents"
         ],
         'vulgar': [
-            "Pick a folder to browse. Any folder. Let's see what's inside.",
-            "Browse folder button. Because typing paths is for masochists.",
-            "Point me to your files. I'll judge them.",
-            "Folder picker. Navigate your digital hoarding.",
-            "Open the folder browser. The panda wants to snoop through your textures.",
-            "Browse for a directory. The panda is a professional folder-opener.",
-            "Select a directory to browse. Like window shopping but for files.",
-            "Folder browsing: for when you need to see ALL the textures."
+            "Pick a folder to browse. Any folder. Let's see what's inside. Your organizational skills? Or lack thereof?",
+            "Browse folder button. Because typing paths is for masochists. And people who remember where they put things. Not you.",
+            "Point me to your files. I'll judge them. Silently. Very silently. With so much judgment.",
+            "Folder picker. Navigate your digital hoarding. It's okay. We're all pack rats here. No shame. Okay, some shame.",
+            "Open the folder browser. The panda wants to snoop through your textures. Privacy is dead. Accept it.",
+            "Browse for a directory. The panda is a professional folder-opener. Years of experience. Degrees in browsing. Very qualified.",
+            "Select a directory to browse. Like window shopping but for files. Less expensive. Same disappointment.",
+            "Folder browsing: for when you need to see ALL the textures. Every. Single. One. Including the bad ones."
         ]
     },
     'browser_refresh_button': {
@@ -618,14 +630,14 @@ _PANDA_TOOLTIPS = {
             "Update the file browser display"
         ],
         'vulgar': [
-            "Refresh file list. In case something magically changed.",
-            "Hit refresh like you're checking your ex's profile.",
-            "Reload the file browser. Because maybe it's different this time. (It's not.)",
-            "F5 energy in button form. Refresh the file listing.",
-            "Refresh the browser. New files? Updated files? Only one way to find out.",
-            "Smash refresh. The panda loves watching the file list reload.",
-            "Refresh button. For the impatient and the hopeful.",
-            "Reload file listing. Trust no cache."
+            "Refresh file list. In case something magically changed. Spoiler: it didn't. But hope is free.",
+            "Hit refresh like you're checking your ex's profile. Obsessively. Repeatedly. With false hope.",
+            "Reload the file browser. Because maybe it's different this time. (It's not.) But you'll try anyway.",
+            "F5 energy in button form. Refresh the file listing. Compulsively. Like you do with your email. Expecting different results.",
+            "Refresh the browser. New files? Updated files? Only one way to find out. Spoiler: probably nothing changed.",
+            "Smash refresh. The panda loves watching the file list reload. It's therapeutic. Very zen. ASMR for file systems.",
+            "Refresh button. For the impatient and the hopeful. Mostly the impatient. But hey, dream big.",
+            "Reload file listing. Trust no cache. Cache is a liar. A dirty, filthy liar. Refresh for truth."
         ]
     },
     'browser_search': {
@@ -635,14 +647,14 @@ _PANDA_TOOLTIPS = {
             "Type to find specific files in the file browser"
         ],
         'vulgar': [
-            "Find your damn files. Type something in the search box.",
-            "Search bar. For when you can't find sh*t in the file browser.",
-            "Like Google but for your messy texture folder.",
-            "Ctrl+F vibes. Find that needle in the texture haystack.",
-            "Type to filter files. The panda pre-filters the results for you.",
-            "Search files by name. Or by content if smart search is on.",
-            "File search. Because scrolling through 20,000 files is not a hobby.",
-            "Find files faster. The search box is your friend. Use it."
+            "Find your damn files. Type something in the search box. Anything. A name. A letter. Your hopes and dreams.",
+            "Search bar. For when you can't find shit in the file browser. Because organization is theoretical. Chaos is real.",
+            "Like Google but for your messy texture folder. Except less ads. And no tracking. Probably.",
+            "Ctrl+F vibes. Find that needle in the texture haystack. The haystack is massive. The needle is tiny. Good luck.",
+            "Type to filter files. The panda pre-filters the results for you. Like a good assistant. Unlike Karen from HR.",
+            "Search files by name. Or by content if smart search is on. Technology is magic. Arthur C. Clarke was right.",
+            "File search. Because scrolling through 20,000 files is not a hobby. It's a cry for help. Use the search.",
+            "Find files faster. The search box is your friend. Your only friend. It won't judge you. Much."
         ]
     },
     'browser_show_all': {
@@ -652,14 +664,14 @@ _PANDA_TOOLTIPS = {
             "Include non-texture files in the listing"
         ],
         'vulgar': [
-            "Show EVERYTHING. Even the weird files.",
-            "All files mode. Including your shame.",
-            "Toggle this to see non-texture files too.",
-            "Show all. Because you're nosy like that.",
-            "All file types visible. Textures, configs, your secret diary.",
-            "Show every file. The panda doesn't discriminate by extension.",
-            "Unfiltered file listing. See ALL the things.",
-            "Show all files checkbox. Remove the texture-only filter."
+            "Show EVERYTHING. Even the weird files. The ones you thought you deleted. They're still here. Always watching.",
+            "All files mode. Including your shame. That embarrassing test file. Yeah, we see it. Everyone sees it.",
+            "Toggle this to see non-texture files too. CONFIG files. README files. That file named 'djkfhdsjkfh'. Very descriptive.",
+            "Show all. Because you're nosy like that. Embrace it. Privacy is dead anyway.",
+            "All file types visible. Textures, configs, your secret diary. We don't discriminate. We judge equally.",
+            "Show every file. The panda doesn't discriminate by extension. .txt, .exe, .wtf - all welcome here.",
+            "Unfiltered file listing. See ALL the things. The good, the bad, the 'why does this exist?'",
+            "Show all files checkbox. Remove the texture-only filter. Unleash the chaos. Regret optional."
         ]
     },
     'browser_show_archives': {
@@ -670,14 +682,14 @@ _PANDA_TOOLTIPS = {
             "Show compressed archive files in the directory listing"
         ],
         'vulgar': [
-            "Show those zipped-up files too. Unzip them mentally.",
-            "Archives in the list. Because why not complicate things.",
-            "Toggle this to see ZIP/RAR/7Z files. You hoarder.",
-            "Show archives. For when regular files aren't enough chaos.",
-            "Show archive files in the browser. ZIP, RAR, 7Z, the whole gang.",
-            "Toggle archives on. Because you need to see those compressed files too.",
-            "Show archive checkbox. The panda sees your compressed secrets.",
-            "Display archives alongside textures. The more files, the merrier."
+            "Show those zipped-up files too. Unzip them mentally. Use your imagination. The power of visualization.",
+            "Archives in the list. Because why not complicate things. Life was too simple. Add more file types.",
+            "Toggle this to see ZIP/RAR/7Z files. You hoarder. Digital pack rat. Compress all the things!",
+            "Show archives. For when regular files aren't enough chaos. Need more entropy? Here you go.",
+            "Show archive files in the browser. ZIP, RAR, 7Z, the whole gang. The Avengers of compression formats.",
+            "Toggle archives on. Because you need to see those compressed files too. All files matter. Even compressed ones.",
+            "Show archive checkbox. The panda sees your compressed secrets. Nothing is hidden. Compression is futile.",
+            "Display archives alongside textures. The more files, the merrier. Chaos is a ladder. Climb it."
         ]
     },
     'alpha_fix_button': {
@@ -688,24 +700,38 @@ _PANDA_TOOLTIPS = {
             "Apply alpha correction to remove halos and artifacts"
         ],
         'vulgar': [
-            "Fix that alpha. No more white boxes ruining your day.",
-            "Click to unfuck your transparency. You're welcome.",
-            "Alpha fixer go brrrr. Say goodbye to those ugly halos.",
-            "Fix the alpha or keep living with broken transparency. Your call."
+            "Fix that alpha. No more white boxes ruining your day. Or your textures. Or your life.",
+            "Click to unfuck your transparency. You're welcome. The panda's got your back. Unlike that one friend.",
+            "Alpha fixer go brrrr. Say goodbye to those ugly halos. And that transparency nightmare. Brrrrr indeed.",
+            "Fix the alpha or keep living with broken transparency. Your call. But we both know which is the right choice."
         ]
     },
     'alpha_fix_input': {
         'normal': [
-            "Select the folder containing textures with alpha issues",
-            "Browse for the input directory with textures to fix",
-            "Choose the source folder for alpha correction",
-            "Pick the folder with your broken-alpha textures"
+            "Select a file or folder containing textures with alpha issues",
+            "Browse for a single image or directory with textures to fix",
+            "Choose a source file or folder for alpha correction",
+            "Pick an image file or folder with broken-alpha textures",
+            "Drag and drop a file or folder to process",
+            "Input can be a single texture or an entire directory"
+        ],
+        'dumbed-down': [
+            "Pick ONE file or a WHOLE folder to fix!",
+            "Choose a single image or a bunch of them in a folder!",
+            "You can select just one picture OR a folder full of them!",
+            "Drag a file here, or drag a whole folder!",
+            "Works with one image or many images in a folder!",
+            "Single file or folder — both work!"
         ],
         'vulgar': [
-            "Point me to the folder with your broken textures.",
-            "Where are the alpha-challenged files? Show me.",
-            "Browse for the disaster zone. The folder with bad alpha.",
-            "Select input. You know, where the broken stuff lives."
+            "Point me to ONE file or a folder with your broken textures. The panda doesn't discriminate. All files are equal in their brokenness.",
+            "File or folder. Pick one. Both work. The panda doesn't judge. Okay, judges a little. But processes both.",
+            "Single image? Sure. Whole folder? Also fine. Your call. This isn't a dictatorship. It's a benevolent file-fixing autocracy.",
+            "Drag a file. Drag a folder. Whatever. I'll fix it. I'm not picky. Unlike you with your coffee order.",
+            "One texture or a thousand. Just point me to the disaster zone. Hurricane Texture has made landfall. Time for cleanup.",
+            "File or folder input. Because flexibility is key. Like yoga but for file selection. Way less sweating.",
+            "Select input. File, folder, doesn't matter. I got you. Like a digital security blanket. But useful.",
+            "Browse for one file or an entire folder. Alpha fixer handles both. It's bisexual for file types. Very progressive."
         ]
     },
     'alpha_fix_output': {
@@ -716,10 +742,10 @@ _PANDA_TOOLTIPS = {
             "Set output directory (blank = modify originals)"
         ],
         'vulgar': [
-            "Where do you want the fixed files? Or just leave it empty, lazy.",
-            "Output folder. Or don't set one and live dangerously.",
-            "Pick where the fixed textures go. Or gamble with in-place edits.",
-            "Choose output. Empty = overwrite originals. No pressure."
+            "Where do you want the fixed files? Or just leave it empty, you lazy beautiful bastard. In-place edits are fine.",
+            "Output folder. Or don't set one and live dangerously. Edge optional. Danger mandatory.",
+            "Pick where the fixed textures go. Or gamble with in-place edits. Life's a casino. This is just files.",
+            "Choose output. Empty = overwrite originals. No pressure. Okay, some pressure. Actually a lot. But it's fine."
         ]
     },
     'alpha_fix_preset': {
@@ -730,10 +756,10 @@ _PANDA_TOOLTIPS = {
             "Select how alpha channels should be corrected"
         ],
         'vulgar': [
-            "Pick a preset. Each one fixes alpha differently. Choose wisely.",
-            "Alpha presets. Like difficulty modes but for transparency.",
-            "Select your flavor of alpha correction. They're all good.",
-            "Choose preset or just pick binary and pray."
+            "Pick a preset. Each one fixes alpha differently. Choose wisely, Indy. The wrong grail melts faces. Wrong preset just looks bad.",
+            "Alpha presets. Like difficulty modes but for transparency. Easy, medium, hard, fuck-it-we'll-do-it-live.",
+            "Select your flavor of alpha correction. They're all good. Some are better. But all are good. Trust me. I'm a tooltip.",
+            "Choose preset or just pick binary and pray. Prayer optional. Binary recommended. Your mileage may vary."
         ]
     },
     'alpha_fix_recursive': {
@@ -744,10 +770,10 @@ _PANDA_TOOLTIPS = {
             "Enable recursive processing of directory tree"
         ],
         'vulgar': [
-            "Dig through ALL the subfolders. Leave no texture behind.",
-            "Go deep. Process everything in every subfolder too.",
-            "Recursive mode. Because your files are nested like Russian dolls.",
-            "Check subfolders too. Or just the top level if you're lazy."
+            "Dig through ALL the subfolders. Leave no texture behind. No soldier left behind. But textures. Saving Private Texture.",
+            "Go deep. Process everything in every subfolder too. Deep like philosophy. Or deep like folder nesting. Both work.",
+            "Recursive mode. Because your files are nested like Russian dolls. Matryoshka folder structure. Very cultural.",
+            "Check subfolders too. Or just the top level if you're lazy. No judgment. Okay, some judgment. Fine, a lot."
         ]
     },
     'alpha_fix_backup': {
@@ -758,10 +784,10 @@ _PANDA_TOOLTIPS = {
             "Backup originals in case correction needs reverting"
         ],
         'vulgar': [
-            "Backups. Because you WILL want to undo this someday.",
-            "Save copies first. Trust me, future you will thank present you.",
-            "Create backups. Unless you like living on the edge.",
-            "Backup your files or regret it later. Classic choice."
+            "Backups. Because you WILL want to undo this someday. Murphy's Law is real. Backups are sacred.",
+            "Save copies first. Trust me, future you will thank present you. Hell, future you might buy present you a beer.",
+            "Create backups. Unless you like living on the edge. Tom Cruise in that motorcycle scene. But with files. Less cool.",
+            "Backup your files or regret it later. Classic choice. Like 'turn back' signs in horror movies. Nobody listens."
         ]
     },
     'alpha_fix_overwrite': {
@@ -772,10 +798,10 @@ _PANDA_TOOLTIPS = {
             "Modify files in-place without creating copies"
         ],
         'vulgar': [
-            "Overwrite originals. Point of no return. Hope you have backups.",
-            "Replace the originals. Bold move, Cotton.",
-            "Overwrite mode. The 'YOLO' of file operations.",
-            "Write over originals. No take-backs unless you backed up."
+            "Overwrite originals. Point of no return. Hope you have backups. This is the Rubicon. Caesar is crossing. Good luck.",
+            "Replace the originals. Bold move, Cotton. Let's see if it pays off. Spoiler: probably will. But maybe won't.",
+            "Overwrite mode. The 'YOLO' of file operations. Drake would approve. Your IT department would not.",
+            "Write over originals. No take-backs unless you backed up. This is commitment. Like marriage but for files."
         ]
     },
     'alpha_fix_extract_archive': {
@@ -786,10 +812,10 @@ _PANDA_TOOLTIPS = {
             "Support archive input for alpha correction"
         ],
         'vulgar': [
-            "Extract from archives first. Unzip then fix. Simple.",
-            "Pull files out of archives before fixing. Multitasking!",
-            "Unpack those zipped textures and fix 'em. Two birds, one click.",
-            "Extract from archive. Because fixing zipped files is hard."
+            "Extract from archives first. Unzip then fix. Simple. Like a two-step process. But actually two steps.",
+            "Pull files out of archives before fixing. Multitasking! The panda can chew bamboo AND extract files. Talented.",
+            "Unpack those zipped textures and fix 'em. Two birds, one click. Efficient. PETA might disagree but they're not here.",
+            "Extract from archive. Because fixing zipped files is hard. Actually impossible. Physics won't allow it. Trust me."
         ]
     },
     'alpha_fix_compress_archive': {
@@ -800,10 +826,70 @@ _PANDA_TOOLTIPS = {
             "Bundle fixed textures into a compressed archive"
         ],
         'vulgar': [
-            "Zip it all up when done. Neat and tidy. Unlike your desktop.",
-            "Compress output. Because loose files are so last century.",
-            "Pack everything into a ZIP. Marie Kondo would be proud.",
-            "Archive the output. For the organizationally obsessed."
+            "Zip it all up when done. Neat and tidy. Unlike your desktop. Which is a war zone. We've all seen it.",
+            "Compress output. Because loose files are so last century. This is 2024. We compress. We organize. We function.",
+            "Pack everything into a ZIP. Marie Kondo would be proud. This sparks joy. Compressed, organized, beautiful joy.",
+            "Archive the output. For the organizationally obsessed. You know who you are. We see you. It's okay."
+        ]
+    },
+    'alpha_fix_preview': {
+        'normal': [
+            "Preview a single image with the current alpha correction preset",
+            "Load and preview one file to see before/after alpha correction",
+            "Test alpha correction on a single image before batch processing",
+            "Browse for an image to preview with the selected preset",
+            "See how alpha correction affects one texture before processing all",
+            "Preview individual file with live preset comparison"
+        ],
+        'dumbed-down': [
+            "Click to see how ONE image will look after fixing!",
+            "Preview a single file before fixing a whole bunch!",
+            "Test the alpha fix on just one image first!",
+            "See before and after for one picture!",
+            "Try fixing one file to make sure it looks good!",
+            "Load one image and see the fix preview!"
+        ],
+        'vulgar': [
+            "Preview one file. See what the fuck you're getting into before committing.",
+            "Test drive the alpha fix on a single image. Smart fucking move, actually.",
+            "Load a file and see the before/after. It's like a makeover show but for textures.",
+            "Preview single file. Because YOLO batch processing is for the brave and/or stupid.",
+            "Check what the preset does to one image. Don't fly blind, dipshit.",
+            "See the fix on one file first. The panda respects your paranoid ass.",
+            "Test alpha correction on one image. Then decide if you trust this shit.",
+            "Single file preview. For when you want to be absolutely goddamn sure.",
+            "Try before you buy. Or in this case, preview before you batch-process your entire library.",
+            "One file test run. Because mistakes are expensive and you're already broke."
+        ]
+    },
+    'alpha_fix_export': {
+        'normal': [
+            "Export the currently previewed alpha-corrected image",
+            "Save the fixed image shown in the preview",
+            "Export this single corrected texture to a file",
+            "Save the alpha-fixed preview to your chosen location",
+            "Export the processed image from the preview",
+            "Save this single fixed texture without batch processing"
+        ],
+        'dumbed-down': [
+            "Save the fixed image you're looking at!",
+            "Export this ONE fixed picture to a file!",
+            "Save the preview image after it's been fixed!",
+            "Click to save this corrected image!",
+            "Export the single image you just previewed!",
+            "Save this fixed picture somewhere!"
+        ],
+        'vulgar': [
+            "Export this fixed image. One and fucking done. Efficient as hell.",
+            "Save the preview. Because sometimes you only need ONE fixed texture, not a thousand.",
+            "Export this single texture. No batch bullshit required.",
+            "Save what you see. The preview, now permanent. Revolutionary, I know.",
+            "Export single file. For when batch processing is complete overkill.",
+            "Grab that fixed image and save it. Mission accomplished, you beautiful bastard.",
+            "Export preview result. Sometimes less is more, you overachiever.",
+            "Save this bad boy. One perfect texture, ready to fucking go.",
+            "Export button. Takes the preview and saves it. Rocket science it ain't.",
+            "Single file export. Because not everything needs to be a batch operation, Karen."
         ]
     },
     'sound_enabled': {
@@ -814,11 +900,11 @@ _PANDA_TOOLTIPS = {
             "Turn all audio feedback on or off"
         ],
         'vulgar': [
-            "Mute everything. Enjoy the silence, you hermit.",
-            "Sound toggle. On or off. Binary. Like your social skills.",
-            "Kill all sounds. Peace and quiet at last.",
-            "Enable sounds or pretend you're in a library. Your call.",
-            "Toggle audio. Because not everyone appreciates art."
+            "Mute everything. Enjoy the silence, you hermit. Deafening silence. Beautiful. Like a library. Or a tomb.",
+            "Sound toggle. On or off. Binary. Like your social skills. On: functional. Off: hermit mode activated.",
+            "Kill all sounds. Peace and quiet at last. Serenity now. Inner peace achieved. Neighbors pleased.",
+            "Enable sounds or pretend you're in a library. Your call. Shh. Quiet hours. No fun allowed.",
+            "Toggle audio. Because not everyone appreciates art. Some people are uncultured swine. Present company excluded."
         ]
     },
     'master_volume': {
@@ -829,11 +915,11 @@ _PANDA_TOOLTIPS = {
             "Change how loud the application is overall"
         ],
         'vulgar': [
-            "Master volume. Crank it up or shut it down.",
-            "The big volume knob. Turn it up to 11 if you're brave.",
-            "Overall loudness control. Your neighbors might care.",
-            "Volume slider. Slide to the right for chaos, left for stealth mode.",
-            "How loud do you want this sh*t? Slide and find out."
+            "Master volume. Crank it up or shut it down. This is the power knob. The god slider. The volume supreme.",
+            "The big volume knob. Turn it up to 11 if you're brave. Spinal Tap reference. Classic. Google it if you're uncultured.",
+            "Overall loudness control. Your neighbors might care. Hell, they probably will care. Fuck 'em. Live your truth.",
+            "Volume slider. Slide to the right for chaos, left for stealth mode. Stealth is boring. Chaos is fun. Choose wisely.",
+            "How loud do you want this shit? Slide and find out. Science experiment. Except your ears are the lab rats."
         ]
     },
     'effects_volume': {
@@ -844,11 +930,11 @@ _PANDA_TOOLTIPS = {
             "Fine-tune the effects audio level"
         ],
         'vulgar': [
-            "Effects volume. Make the clicks louder or stfu.",
-            "Sound effects loudness. For those satisfying click sounds.",
-            "Turn up the effects or turn them down. Nobody's watching.",
-            "How loud should the bleep-bloops be? You decide.",
-            "Effects slider. Slide it around like you know what you're doing."
+            "Effects volume. Make the clicks louder or stfu. Click satisfaction is important. ASMR for productivity nerds.",
+            "Sound effects loudness. For those satisfying click sounds. The dopamine hits. The auditory rewards. The good stuff.",
+            "Turn up the effects or turn them down. Nobody's watching. Except me. I'm watching. Judging your volume choices.",
+            "How loud should the bleep-bloops be? You decide. Democracy in action. Freedom rings. At whatever volume you choose.",
+            "Effects slider. Slide it around like you know what you're doing. Fake it till you make it. Confidence is key."
         ]
     },
     'notifications_volume': {
@@ -859,11 +945,11 @@ _PANDA_TOOLTIPS = {
             "Fine-tune the notification audio level"
         ],
         'vulgar': [
-            "Notification volume. Ding ding or nothing. Pick one.",
-            "How loud do you want to be bothered? Slide accordingly.",
-            "Notification sounds. Adjust before your coworkers complain.",
-            "Alert volume. From 'barely a whisper' to 'everyone heard that'.",
-            "Notification loudness. Subtle or obnoxious. Both valid."
+            "Notification volume. Ding ding or nothing. Pick one. The bell tolls. For thee. At whatever volume you set.",
+            "How loud do you want to be bothered? Slide accordingly. Interruptions are customizable. Modern problems, modern solutions.",
+            "Notification sounds. Adjust before your coworkers complain. Or don't. Chaos in the workplace. Anarchy!",
+            "Alert volume. From 'barely a whisper' to 'everyone heard that'. Full spectrum. Choose your embarrassment level.",
+            "Notification loudness. Subtle or obnoxious. Both valid. Both have their place. Usually not in meetings though."
         ]
     },
     'sound_pack': {
@@ -874,11 +960,11 @@ _PANDA_TOOLTIPS = {
             "Change the overall audio style"
         ],
         'vulgar': [
-            "Sound packs. Default is boring, vulgar is... interesting.",
-            "Choose your audio aesthetic. Classy or trashy.",
-            "Pick a sound theme. Each one has its own personality. Like you.",
-            "Sound pack selector. Default, minimal, or WTF mode.",
-            "Audio vibes. Pick the one that matches your energy."
+            "Sound packs. Default is boring, vulgar is... interesting. Spicy. Like hot sauce but for your ears.",
+            "Choose your audio aesthetic. Classy or trashy. Professional or profane. Corporate or chaotic.",
+            "Pick a sound theme. Each one has its own personality. Like you. But hopefully less annoying.",
+            "Sound pack selector. Default, minimal, or WTF mode. WTF mode is our specialty. It's in the name.",
+            "Audio vibes. Pick the one that matches your energy. Calm? Chaotic? Catastrophic? We got you covered."
         ]
     },
     'sound_test_button': {
@@ -889,11 +975,11 @@ _PANDA_TOOLTIPS = {
             "Click to hear a sample of this sound"
         ],
         'vulgar': [
-            "Test the sound. Preview before you commit. Smart.",
-            "Click to hear a preview. Try before you buy... wait, it's free.",
-            "Sound test. Because surprises aren't always fun.",
-            "Preview this noise. Your eardrums will thank you. Or not.",
-            "Hit test to hear what this sounds like. Science!"
+            "Test the sound. Preview before you commit. Smart. Unlike that impulse purchase. Or that tattoo.",
+            "Click to hear a preview. Try before you buy... wait, it's free. Test anyway. Science demands it.",
+            "Sound test. Because surprises aren't always fun. Sometimes they're annoying. Avoid auditory regret.",
+            "Preview this noise. Your eardrums will thank you. Or not. They might hate it. Only one way to find out.",
+            "Hit test to hear what this sounds like. Science! Experimentation! Discovery! Or just curiosity. That works too."
         ]
     },
     'cursor_type': {
@@ -904,11 +990,11 @@ _PANDA_TOOLTIPS = {
             "Pick a cursor design for the application"
         ],
         'vulgar': [
-            "Cursor style. Default is boring. Live a little.",
-            "Change your cursor. Skull cursor? Hell yeah.",
-            "Pointer picker. Because the default arrow is basic AF.",
-            "Cursor options. From professional to 'what is that?'",
-            "Pick a cursor. Crosshair makes you feel like a pro gamer."
+            "Cursor style. Default is boring. Live a little. Take risks. Choose the skull. Be that person.",
+            "Change your cursor. Skull cursor? Hell yeah. Edgy. Mysterious. Possibly problematic. Definitely cool.",
+            "Pointer picker. Because the default arrow is basic AF. Basic bitch arrow. Upgrade that shit.",
+            "Cursor options. From professional to 'what is that?' Full spectrum. Office appropriate to nightmare fuel.",
+            "Pick a cursor. Crosshair makes you feel like a pro gamer. Even if you're just clicking buttons. Fake it."
         ]
     },
     'cursor_size': {
@@ -919,11 +1005,11 @@ _PANDA_TOOLTIPS = {
             "Select a cursor size that works for you"
         ],
         'vulgar': [
-            "Cursor size. Compensating for something? Go huge.",
-            "Make your cursor tiny or massive. No judgment.",
-            "Size matters. At least for cursors. Pick your preference.",
-            "Cursor size slider. From 'where the hell is it' to 'can't miss it'.",
-            "Resize your pointer. Because accessibility is important, damn it."
+            "Cursor size. Compensating for something? Go huge. No shame. Big cursor energy. Own it.",
+            "Make your cursor tiny or massive. No judgment. Okay, some judgment. But mostly support.",
+            "Size matters. At least for cursors. Pick your preference. Small and nimble or THICC and visible.",
+            "Cursor size slider. From 'where the hell is it' to 'can't miss it'. Lost your cursor? Make it bigger, genius.",
+            "Resize your pointer. Because accessibility is important, damn it. Vision problems are real. Big cursor gang rise up."
         ]
     },
     'cursor_trail': {
@@ -934,11 +1020,11 @@ _PANDA_TOOLTIPS = {
             "Turn cursor trail effects on or off"
         ],
         'vulgar': [
-            "Cursor trail. Leave sparkles wherever you go. Majestic.",
-            "Enable trails. Your cursor will look fabulous. Trust me.",
-            "Sparkle trail toggle. For the extra in all of us.",
-            "Cursor trail. Because your mouse movements deserve to be celebrated.",
-            "Turn on trails and watch your productivity drop. Worth it."
+            "Cursor trail. Leave sparkles wherever you go. Majestic. Like a unicorn. Or a glitter bomb. Beautiful chaos.",
+            "Enable trails. Your cursor will look fabulous. Trust me. I'm a professional. Okay not really. But it looks good.",
+            "Sparkle trail toggle. For the extra in all of us. Extra is a lifestyle. Embrace it. Sparkle on, you magnificent bastard.",
+            "Cursor trail. Because your mouse movements deserve to be celebrated. Every click. Every hover. Art in motion.",
+            "Turn on trails and watch your productivity drop. Worth it. Beauty requires sacrifice. In this case, focus."
         ]
     },
     'trail_style': {
@@ -949,11 +1035,11 @@ _PANDA_TOOLTIPS = {
             "Change the look of your cursor trail effect"
         ],
         'vulgar': [
-            "Trail style. Rainbow? Fire? Galaxy? Go nuts.",
-            "Pick a trail flavor. Each one is more extra than the last.",
-            "Trail aesthetic picker. Match your energy level.",
-            "Choose your sparkle style. No wrong answers here.",
-            "Trail options. From 'subtle nature' to 'galactic overkill'."
+            "Trail style. Rainbow? Fire? Galaxy? Go nuts. Cosmic cursor energy. Interstellar pointing device.",
+            "Pick a trail flavor. Each one is more extra than the last. Maximum extraness. Peak aesthetic overload.",
+            "Trail aesthetic picker. Match your energy level. Calm: stars. Chaotic: rainbow vomit. Choose your fighter.",
+            "Choose your sparkle style. No wrong answers here. Except maybe that one. Yeah, that one's wrong. Kidding. Maybe.",
+            "Trail options. From 'subtle nature' to 'galactic overkill'. Subtle is boring. Overkill is living. Choose life."
         ]
     },
     'hotkey_edit': {
@@ -964,11 +1050,11 @@ _PANDA_TOOLTIPS = {
             "Modify the key binding for this action"
         ],
         'vulgar': [
-            "Edit this hotkey. Remap it to something useful. Or chaotic.",
-            "Change the keybinding. Make it whatever the hell you want.",
-            "Remap this shortcut. Ctrl+Alt+Delete? Go for it.",
-            "Edit hotkey. Because the default key was stupid.",
-            "Rebind this action. Your keyboard, your rules."
+            "Edit this hotkey. Remap it to something useful. Or chaotic. Useful is boring. Chaos is memorable.",
+            "Change the keybinding. Make it whatever the hell you want. Your keyboard. Your rules. Your inevitable carpal tunnel.",
+            "Remap this shortcut. Ctrl+Alt+Delete? Go for it. Live dangerously. Break conventions. Piss off other users.",
+            "Edit hotkey. Because the default key was stupid. Some developer at 3 AM made that choice. Fix their mistakes.",
+            "Rebind this action. Your keyboard, your rules. Democracy in action. Or anarchy. Probably anarchy."
         ]
     },
     'hotkey_toggle': {
@@ -979,11 +1065,11 @@ _PANDA_TOOLTIPS = {
             "Turn this keyboard binding on or off"
         ],
         'vulgar': [
-            "Enable or disable this shortcut. Some keys deserve a break.",
-            "Toggle hotkey. On or off. Revolutionary, I know.",
-            "Disable this shortcut if it keeps interrupting your flow.",
-            "Turn this keybinding on or off. It's like a light switch but nerdier.",
-            "Enable/disable toggle. For when shortcuts start sh*t."
+            "Enable or disable this shortcut. Some keys deserve a break. Keyboard rest day. Recovery is important.",
+            "Toggle hotkey. On or off. Revolutionary, I know. Binary choices. The foundation of computing. And this toggle.",
+            "Disable this shortcut if it keeps interrupting your flow. Flow state is sacred. Protect it. Kill the interruptions.",
+            "Turn this keybinding on or off. It's like a light switch but nerdier. And less likely to electrocute you.",
+            "Enable/disable toggle. For when shortcuts start shit. Keyboard drama. Digital beef. Toggle it off. Problem solved."
         ]
     },
     'cursor_tint': {
@@ -994,11 +1080,11 @@ _PANDA_TOOLTIPS = {
             "Tint your cursor a different color"
         ],
         'vulgar': [
-            "Color your cursor. Make it match your personality.",
-            "Cursor tint. Paint that pointer whatever color you want.",
-            "Hex color input. #FF0000 if you're feeling dangerous.",
-            "Tint your cursor. Because plain white is so last year.",
-            "Color picker for your cursor. Go full rainbow if you dare."
+            "Color your cursor. Make it match your personality. Vibrant? Use red. Dead inside? Gray works.",
+            "Cursor tint. Paint that pointer whatever color you want. RGB everything. Gaming culture approved.",
+            "Hex color input. #FF0000 if you're feeling dangerous. Red is passion. Or anger. Or both. Spicy.",
+            "Tint your cursor. Because plain white is so last year. This year? Neon pink. Next year? Who knows. Fashion.",
+            "Color picker for your cursor. Go full rainbow if you dare. Pride cursor. Every click a statement. Fabulous."
         ]
     },
     'hotkey_reset': {
@@ -1009,11 +1095,11 @@ _PANDA_TOOLTIPS = {
             "Return all shortcuts to factory settings"
         ],
         'vulgar': [
-            "Reset all hotkeys to defaults. Panic button for keybinds.",
-            "Factory reset your shortcuts. Undo all your 'improvements'.",
-            "Reset everything. Start fresh. Embrace the defaults.",
-            "Nuclear option for hotkeys. Resets EVERYTHING.",
-            "Defaults button. For when your custom bindings are a disaster."
+            "Reset all hotkeys to defaults. Panic button for keybinds. The nuclear option. Format C: for shortcuts.",
+            "Factory reset your shortcuts. Undo all your 'improvements'. Return to sender. Admit defeat gracefully.",
+            "Reset everything. Start fresh. Embrace the defaults. Sometimes vanilla is the best flavor. Controversial take.",
+            "Nuclear option for hotkeys. Resets EVERYTHING. Scorched earth policy. Burn it all down. Start over.",
+            "Defaults button. For when your custom bindings are a disaster. It happens. No shame. We've all been there. Reset and move on."
         ]
     },
     'sound_choice': {
@@ -1024,11 +1110,11 @@ _PANDA_TOOLTIPS = {
             "Change the sound effect for this event"
         ],
         'vulgar': [
-            "Pick a sound style. Chime, beep, whatever tickles your fancy.",
-            "Sound selector. Mix and match your audio nightmare.",
-            "Choose your weapon. I mean sound. Same energy.",
-            "What noise do you want for this event? Go wild.",
-            "Sound picker. The DJ booth of settings panels."
+            "Pick a sound style. Chime, beep, whatever tickles your fancy. Auditory customization. Sound sommelier. You decide.",
+            "Sound selector. Mix and match your audio nightmare. Or symphony. Depends on your choices. And taste.",
+            "Choose your weapon. I mean sound. Same energy. Every notification is a battle. Arm yourself accordingly.",
+            "What noise do you want for this event? Go wild. The world is your oyster. This is your audio canvas.",
+            "Sound picker. The DJ booth of settings panels. Drop that beat. Mix those sounds. DJ Panda in the house."
         ]
     },
     'per_event_sound': {
@@ -1039,11 +1125,11 @@ _PANDA_TOOLTIPS = {
             "Manage individual sound event toggles"
         ],
         'vulgar': [
-            "Micromanage your sounds. Mute what annoys you.",
-            "Individual sound toggles for control freaks.",
-            "Pick and choose which sounds you tolerate. Fair enough.",
-            "Per-event audio control. Because one size doesn't fit all.",
-            "Cherry-pick your sounds like the picky bastard you are."
+            "Micromanage your sounds. Mute what annoys you. Custom silence. Tactical audio disabling. Surgical precision.",
+            "Individual sound toggles for control freaks. That's you. You're the control freak. Own it. Excel at it.",
+            "Pick and choose which sounds you tolerate. Fair enough. Not all sounds are created equal. Democracy in action.",
+            "Per-event audio control. Because one size doesn't fit all. Customization is king. Or queen. Or non-binary monarch.",
+            "Cherry-pick your sounds like the picky bastard you are. Selective hearing. But intentional. And helpful."
         ]
     },
     # Closet subcategory tooltips
@@ -1054,10 +1140,10 @@ _PANDA_TOOLTIPS = {
             "See shirts, pants, jackets, and more — all in one view",
         ],
         'vulgar': [
-            "Every piece of clothing. Fashion overload incoming.",
-            "All the clothes. Browse 'em all, you fashionista.",
-            "Your panda's entire wardrobe in one scrollable nightmare.",
-            "All clothing. Because subcategories are for quitters.",
+            "Every piece of clothing. Fashion overload incoming. Brace yourself. The fashion show is about to begin.",
+            "All the clothes. Browse 'em all, you fashionista. Every shirt, pant, hat. The whole fucking wardrobe.",
+            "Your panda's entire wardrobe in one scrollable nightmare. Or dream. Depends on your relationship with fashion.",
+            "All clothing. Because subcategories are for quitters. And organized people. But mostly quitters."
         ]
     },
     'closet_shirts': {
@@ -1067,10 +1153,10 @@ _PANDA_TOOLTIPS = {
             "Shirts that fit perfectly on your panda's torso",
         ],
         'vulgar': [
-            "Shirts. The torso region. Chest coverage.",
-            "Tops and tees. Basic but essential bear fashion.",
-            "Shirt shopping for a panda. What a world.",
-            "Browse tops. Your panda's chest needs some love.",
+            "Shirts. The torso region. Chest coverage. Basic fashion. Essential protection. Nipple concealment.",
+            "Tops and tees. Basic but essential bear fashion. Every panda needs a good shirt. It's just facts.",
+            "Shirt shopping for a panda. What a world. This is the timeline we're in. Welcome to the future.",
+            "Browse tops. Your panda's chest needs some love. Fashion love. Fabric love. Dignified coverage love."
         ]
     },
     'closet_pants': {
@@ -1080,10 +1166,10 @@ _PANDA_TOOLTIPS = {
             "Pants that follow your panda's leg movements",
         ],
         'vulgar': [
-            "Pants! Give your panda some dignity.",
-            "Leg coverings. Because naked panda legs are weird.",
-            "Trousers that move with the bear's legs. Science!",
-            "Pants shopping. Your panda's been exposed long enough.",
+            "Pants! Give your panda some dignity. Lower body coverage. Leg fashion. Modest and necessary.",
+            "Leg coverings. Because naked panda legs are weird. Uncomfortable. Unprofessional. Cover that shit.",
+            "Trousers that move with the bear's legs. Science! Physics! Animation magic! Technology is amazing!",
+            "Pants shopping. Your panda's been exposed long enough. Time for some goddamn trousers. Dignity restored."
         ]
     },
     'closet_jackets': {
@@ -1093,10 +1179,10 @@ _PANDA_TOOLTIPS = {
             "Jackets with sleeves that move with arm animations",
         ],
         'vulgar': [
-            "Jackets. Because pandas get cold. Probably.",
-            "Outerwear for your bear. Hoodies, coats, the works.",
-            "Layer up! Sleeves move with the arms. Fancy, right?",
-            "Jacket section. Cool panda vibes incoming.",
+            "Jackets. Because pandas get cold. Probably. Maybe. I don't know panda biology. But they look cool in jackets.",
+            "Outerwear for your bear. Hoodies, coats, the works. Layer up. Fashion layers. Warmth layers. Style layers.",
+            "Layer up! Sleeves move with the arms. Fancy, right? Animation technology. Physics simulation. Expensive shit.",
+            "Jacket section. Cool panda vibes incoming. Leather jacket? Yes. Bomber jacket? Hell yes. Denim? Always."
         ]
     },
     'closet_dresses': {
@@ -1106,10 +1192,10 @@ _PANDA_TOOLTIPS = {
             "Elegant garments that flow from neck to below the body",
         ],
         'vulgar': [
-            "Dresses and robes. Fancy bear time!",
-            "Flowing garments for the classy panda.",
-            "Dress-up time. Your panda is red-carpet ready.",
-            "Gowns and robes. Panda couture at its finest.",
+            "Dresses and robes. Fancy bear time! Elegance. Class. Sophistication. Your panda at the Met Gala.",
+            "Flowing garments for the classy panda. Majestic. Regal. Probably uncomfortable but beautiful.",
+            "Dress-up time. Your panda is red-carpet ready. Paparazzi optional. Glamour mandatory.",
+            "Gowns and robes. Panda couture at its finest. High fashion. Low function. Maximum style."
         ]
     },
     'closet_full_outfits': {
@@ -1119,10 +1205,10 @@ _PANDA_TOOLTIPS = {
             "Full costumes with torso, legs, and sleeve coverage",
         ],
         'vulgar': [
-            "Full body costumes. Total panda transformation.",
-            "Complete outfits. One-stop shopping for bear fashion.",
-            "Full suit mode. Torso, legs, sleeves — the whole deal.",
-            "Costume shop. Your panda becomes someone else entirely.",
+            "Full body costumes. Total panda transformation. Halloween every day. Cosplay central. Identity crisis optional.",
+            "Complete outfits. One-stop shopping for bear fashion. Everything matched. Coordinated. Professional level lazy.",
+            "Full suit mode. Torso, legs, sleeves — the whole deal. Complete package. No mix-and-match. All or nothing.",
+            "Costume shop. Your panda becomes someone else entirely. Identity theft but fashionable. And legal."
         ]
     },
     # UI settings tooltips
@@ -1133,10 +1219,10 @@ _PANDA_TOOLTIPS = {
             "Set your preferred interface language",
         ],
         'vulgar': [
-            "Language picker. Sprechen sie panda?",
-            "Change language. Won't fix your grammar though.",
-            "International mode. Pick a language, any language.",
-            "Language selector. For the worldly panda enthusiast.",
+            "Language picker. Sprechen sie panda? Parlez-vous ours? ¿Hablas oso? Universal panda. Multilingual magic.",
+            "Change language. Won't fix your grammar though. Or spelling. Or life choices. Just the interface language.",
+            "International mode. Pick a language, any language. Global panda. Worldwide texture sorting. No borders.",
+            "Language selector. For the worldly panda enthusiast. Cultured. Sophisticated. Probably studied abroad."
         ]
     },
     'ui_font_size': {
@@ -1146,10 +1232,10 @@ _PANDA_TOOLTIPS = {
             "Change the font size for all UI elements",
         ],
         'vulgar': [
-            "Font size. For people who refuse to wear glasses.",
-            "Make text bigger or smaller. We won't judge your eyes.",
-            "Text size slider. From 'ant writing' to 'billboard'.",
-            "Font size. Squint less, enjoy more.",
+            "Font size. For people who refuse to wear glasses. Stubborn and squinting. Make it bigger. Your eyes will thank you.",
+            "Make text bigger or smaller. We won't judge your eyes. Okay we'll judge a little. But mostly support.",
+            "Text size slider. From 'ant writing' to 'billboard'. Full spectrum. Microscopic to macroscopic.",
+            "Font size. Squint less, enjoy more. Life's too short for eye strain. Make that text thicc."
         ]
     },
     'ui_animations': {
@@ -1159,10 +1245,10 @@ _PANDA_TOOLTIPS = {
             "Control whether the UI uses animated transitions",
         ],
         'vulgar': [
-            "Toggle animations. Smooth or instant. Your call.",
-            "UI animations on or off. Performance vs. pretty.",
-            "Animation switch. For the impatient.",
-            "Smooth transitions toggle. Fancy or fast?",
+            "Toggle animations. Smooth or instant. Your call. Butter smooth or lightning fast. Performance vs. aesthetics.",
+            "UI animations on or off. Performance vs. pretty. Choose your priority. Speed or beauty. Both valid.",
+            "Animation switch. For the impatient. And people with potato computers. No judgment. We understand.",
+            "Smooth transitions toggle. Fancy or fast? Can't have both. Well, you can. But sometimes you can't. It's complicated."
         ]
     },
     'ui_transparency': {
@@ -1172,10 +1258,10 @@ _PANDA_TOOLTIPS = {
             "Control the opacity of the application window",
         ],
         'vulgar': [
-            "Window transparency. See-through panda time.",
-            "Opacity slider. From solid to ghost mode.",
-            "Make the window transparent. Stealth sorting.",
-            "Transparency control. X-ray vision for your desktop.",
+            "Window transparency. See-through panda time. Ghost mode. Spectral sorting. Ethereal file management.",
+            "Opacity slider. From solid to ghost mode. Visible to invisible. Matter to spirit. Physics optional.",
+            "Make the window transparent. Stealth sorting. Ninja mode. Covert operations. Mission Impossible theme plays.",
+            "Transparency control. X-ray vision for your desktop. See through the window. Literally. Not metaphorically."
         ]
     },
     'ui_compact_mode': {
@@ -1185,10 +1271,10 @@ _PANDA_TOOLTIPS = {
             "Enable compact mode for a more efficient layout",
         ],
         'vulgar': [
-            "Compact mode. Squeeze everything smaller.",
-            "Small layout for tiny screens and big dreams.",
-            "Compact view. More room for activities!",
-            "Efficiency mode. Less padding, more action.",
+            "Compact mode. Squeeze everything smaller. Tetris but for UI elements. Efficiency maximized.",
+            "Small layout for tiny screens and big dreams. Your laptop is small. Your ambitions are not. Balance achieved.",
+            "Compact view. More room for activities! Step Brothers reference. Classic. Tight spaces. Maximum utility.",
+            "Efficiency mode. Less padding, more action. Dense information. Compressed UI. Maximum productivity per pixel."
         ]
     },
     'ui_auto_save': {
@@ -1198,10 +1284,10 @@ _PANDA_TOOLTIPS = {
             "Settings are saved without manual intervention",
         ],
         'vulgar': [
-            "Auto-save. Because you'll forget to save. We know.",
-            "Automatic saving. One less thing to worry about.",
-            "Set it and forget it. Settings save themselves.",
-            "Auto-save toggle. Manual saving is for cavemen.",
+            "Auto-save. Because you'll forget to save. We know. We've tracked your behavior. The data doesn't lie.",
+            "Automatic saving. One less thing to worry about. Mental load reduced. Cognitive burden lightened. Brain thanked.",
+            "Set it and forget it. Settings save themselves. Ron Popeil would be proud. Infomercial energy.",
+            "Auto-save toggle. Manual saving is for cavemen. And people who like losing work. Progress is automatic now."
         ]
     },
     'ui_confirm_exit': {
@@ -1211,10 +1297,10 @@ _PANDA_TOOLTIPS = {
             "Prevent accidental exits with a confirmation prompt",
         ],
         'vulgar': [
-            "Exit confirmation. The app clings to you like a needy ex.",
-            "'Are you sure?' dialog. For the indecisive among us.",
-            "Prevent rage-quitting by accident. You're welcome.",
-            "Exit safety net. Because misclicks are embarrassing.",
+            "Exit confirmation. The app clings to you like a needy ex. 'Are you sure you want to leave?' Yes. No. Maybe. Complicated.",
+            "'Are you sure?' dialog. For the indecisive among us. Second-guessing is a lifestyle. Embrace it.",
+            "Prevent rage-quitting by accident. You're welcome. Your 'X' key is dangerous. We're protecting you from yourself.",
+            "Exit safety net. Because misclicks are embarrassing. And permanent. And regrettable. Triple-check everything."
         ]
     },
     'ui_startup_tab': {
@@ -1224,10 +1310,10 @@ _PANDA_TOOLTIPS = {
             "Select the default tab shown on application launch",
         ],
         'vulgar': [
-            "Startup tab. Skip the intro, go straight to work.",
-            "Pick which tab loads first. First impressions matter.",
-            "Default tab selector. Speed-run your workflow.",
-            "Launch tab. Because clicking twice is unacceptable.",
+            "Startup tab. Skip the intro, go straight to work. Efficiency! No time for pleasantries. Business mode activated.",
+            "Pick which tab loads first. First impressions matter. Set the tone. Start strong. End stronger. Middle is whatever.",
+            "Default tab selector. Speed-run your workflow. Any% no tutorial glitch. Gotta go fast. Sonic approved.",
+            "Launch tab. Because clicking twice is unacceptable. Time is money. Money is power. Power is pizza. Save clicks."
         ]
     },
     'panda_name': {
@@ -1237,10 +1323,10 @@ _PANDA_TOOLTIPS = {
             "Type a name for your panda — it appears in messages",
         ],
         'vulgar': [
-            "Name your panda. 'Sir Chomps-a-Lot' is taken.",
-            "Panda naming ceremony. Choose wisely. Or not.",
-            "Type a name. Your bear deserves an identity.",
-            "Name your virtual bear. This is peak entertainment.",
+            "Name your panda. 'Sir Chomps-a-Lot' is taken. So is 'Bamboo Bandit'. And 'Fuzzy McFuzzface'. Be original, damn it.",
+            "Panda naming ceremony. Choose wisely. Or not. Names are permanent. Like tattoos but less painful and more digital.",
+            "Type a name. Your bear deserves an identity. Something better than 'Panda_001'. Show some creativity. Or don't. Whatever.",
+            "Name your virtual bear. This is peak entertainment. This is what we've come to. This is modern life. Accept it."
         ]
     },
     'panda_gender': {
@@ -1250,10 +1336,10 @@ _PANDA_TOOLTIPS = {
             "Select a gender — affects pronouns in speech bubbles",
         ],
         'vulgar': [
-            "Panda gender. They/them is valid for bears too.",
-            "Gender selection. Progressive pandas unite!",
-            "Pick your bear's identity. We don't judge.",
-            "Gender picker. It's 2024, even bears get to choose.",
+            "Panda gender. They/them is valid for bears too. Inclusive pandas. Progressive wildlife. 21st century ursine representation.",
+            "Gender selection. Progressive pandas unite! LGBTQ+ friendly bears. Rainbow pandas. Love is love. Bamboo is bamboo.",
+            "Pick your bear's identity. We don't judge. Okay we judge the outfit choices. But not the gender. That's sacred.",
+            "Gender picker. It's 2024, even bears get to choose. Gender is a construct. Pandas transcend constructs. Be free, bear."
         ]
     },
     'panda_auto_walk': {
@@ -1263,10 +1349,10 @@ _PANDA_TOOLTIPS = {
             "Toggle autonomous panda movement",
         ],
         'vulgar': [
-            "Auto-walk. Your panda is a free spirit.",
-            "Let the bear roam. Free-range panda mode.",
-            "Walking toggle. Restless bear syndrome.",
-            "Your panda walks on its own. Deal with it.",
+            "Auto-walk. Your panda is a free spirit. Can't be caged. Won't be tamed. Wanderlust incarnate. Jack Kerouac but fuzzy.",
+            "Let the bear roam. Free-range panda mode. Organic. Grass-fed. Ethically wandering. Farm-to-table file sorting.",
+            "Walking toggle. Restless bear syndrome. Can't sit still. ADHD panda. Gotta move. Always moving. Motion is life.",
+            "Your panda walks on its own. Deal with it. Independent. Autonomous. Free-thinking. You can't control everything. Learn to let go."
         ]
     },
     'panda_speech_bubbles': {
@@ -1276,10 +1362,10 @@ _PANDA_TOOLTIPS = {
             "Enable speech bubbles for panda messages",
         ],
         'vulgar': [
-            "Speech bubbles. Your panda never shuts up.",
-            "Toggle commentary. The bear has opinions.",
-            "Text bubbles on or off. Silence is golden.",
-            "Show/hide the panda's hot takes.",
+            "Speech bubbles. Your panda never shuts up. Constant commentary. Endless opinions. Like Twitter but furrier.",
+            "Toggle commentary. The bear has opinions. Strong opinions. Wrong opinions. But opinions nonetheless.",
+            "Text bubbles on or off. Silence is golden. Sometimes. Other times it's just awkward. Your call.",
+            "Show/hide the panda's hot takes. Unpopular opinions. Controversial statements. Panda punditry. Bear broadcast."
         ]
     },
     'panda_idle_animations': {
@@ -1289,10 +1375,10 @@ _PANDA_TOOLTIPS = {
             "Your panda stretches and yawns when not interacting",
         ],
         'vulgar': [
-            "Idle animations. Your panda does cute stuff when bored.",
-            "Watch your bear yawn and stretch. Riveting content.",
-            "Idle mode animations. Because pandas need hobbies.",
-            "Toggle idle animations. Less movement, less distraction.",
+            "Idle animations. Your panda does cute stuff when bored. Stretches. Yawns. Exists adorably. Peak performance.",
+            "Watch your bear yawn and stretch. Riveting content. Better than cable. Cheaper than Netflix. Free entertainment.",
+            "Idle mode animations. Because pandas need hobbies. Can't just stand there. Must move. Must exist cutely.",
+            "Toggle idle animations. Less movement, less distraction. More productivity. Less adorable bear stretching. Your loss."
         ]
     },
     'panda_drag_enabled': {
@@ -1302,10 +1388,10 @@ _PANDA_TOOLTIPS = {
             "Toggle the ability to pick up and move your panda",
         ],
         'vulgar': [
-            "Drag mode. Yeet the panda across the screen.",
-            "Pick up and fling your bear. Totally ethical.",
-            "Drag toggle. Grab, move, release. Repeat.",
-            "Enable dragging. Your panda is now a cursor toy.",
+            "Drag mode. Yeet the panda across the screen. Physics optional. Ethics questionable. Fun guaranteed.",
+            "Pick up and fling your bear. Totally ethical. PETA won't find out. Probably. It's digital anyway. No real pandas harmed.",
+            "Drag toggle. Grab, move, release. Repeat. It's therapeutic. Like bubble wrap but with endangered species. Wait no—",
+            "Enable dragging. Your panda is now a cursor toy. Interactive. Moveable. Slightly resentful but cooperative."
         ]
     },
     'perf_thread_count': {
@@ -1315,10 +1401,10 @@ _PANDA_TOOLTIPS = {
             "Adjust thread count for processing performance",
         ],
         'vulgar': [
-            "Thread count. More threads = faster. Maybe hotter CPU.",
-            "How many threads to throw at the problem.",
-            "Processing threads. Don't go nuclear.",
-            "Thread slider. Your CPU's workout intensity.",
+            "Thread count. More threads = faster. Maybe hotter CPU. Trade speed for heat. Your cooling system's final boss.",
+            "How many threads to throw at the problem. Brute force approach. Computational bludgeoning. Science!",
+            "Processing threads. Don't go nuclear. Your CPU has limits. Respect them. Or don't. Fire extinguisher recommended.",
+            "Thread slider. Your CPU's workout intensity. Gym for processors. Gains for performance. Sweat is thermal paste."
         ]
     },
     'perf_cache_size': {
@@ -1328,10 +1414,10 @@ _PANDA_TOOLTIPS = {
             "Control memory allocation for texture caching",
         ],
         'vulgar': [
-            "Cache size. Feed the RAM monster.",
-            "Memory cache slider. More RAM, more speed, more heat.",
-            "Cache allocation. Greedy or conservative. Pick one.",
-            "How much memory to hoard. Digital dragon vibes.",
+            "Cache size. Feed the RAM monster. More memory nom nom. Hungry for bytes. Thirsty for performance.",
+            "Memory cache slider. More RAM, more speed, more heat. The eternal triangle. Pick two. Can't have all three.",
+            "Cache allocation. Greedy or conservative. Pick one. Maximize performance or minimize risk. Gambler or coward?",
+            "How much memory to hoard. Digital dragon vibes. Smaug but for RAM. Sitting on a pile of cached data. Majestic."
         ]
     },
     'profile_save': {
@@ -1341,10 +1427,10 @@ _PANDA_TOOLTIPS = {
             "Store your configuration for later use",
         ],
         'vulgar': [
-            "Save profile. Insurance against future stupidity.",
-            "Create a settings backup. You'll need it.",
-            "Save now. You know you'll mess something up later.",
-            "Profile snapshot. Future you will thank present you.",
+            "Save profile. Insurance against future stupidity. And present stupidity. And past stupidity that might repeat.",
+            "Create a settings backup. You'll need it. Trust me. Future you is clumsy. Present you knows this. Plan accordingly.",
+            "Save now. You know you'll mess something up later. It's inevitable. Like death and taxes. But more annoying.",
+            "Profile snapshot. Future you will thank present you. Possibly with tears of joy. Or relief. Probably relief."
         ]
     },
     'profile_load': {
@@ -1354,10 +1440,10 @@ _PANDA_TOOLTIPS = {
             "Switch to a different saved configuration",
         ],
         'vulgar': [
-            "Load profile. Time travel for settings.",
-            "Restore a saved config. Undo your disasters.",
-            "Load a profile. Instant settings swap!",
-            "Switch configs. For the indecisive.",
+            "Load profile. Time travel for settings. Back to the Future but for configuration. Doc Brown would approve.",
+            "Restore a saved config. Undo your disasters. Reset the timeline. Butterfly effect but less dramatic and more practical.",
+            "Load a profile. Instant settings swap! Configuration shapeshifting. Transformer settings. Settings in disguise.",
+            "Switch configs. For the indecisive. Multiple personality disorder but for preferences. No therapy required."
         ]
     },
     'pause_button': {
@@ -1368,11 +1454,11 @@ _PANDA_TOOLTIPS = {
             "Put the sorting operation on hold",
         ],
         'vulgar': [
-            "Hit pause, you indecisive bastard.",
-            "Take a damn breather. Sorting can wait.",
-            "Pause this sh*t. Go grab a coffee or something.",
-            "Hold the hell up. We're pausing.",
-            "Freeze! Not you, the sorting process, you idiot.",
+            "Hit pause, you indecisive bastard. Second thoughts? Valid. Cold feet? Understandable. Pause button? Right here.",
+            "Take a damn breather. Sorting can wait. Your anxiety can't. Deep breaths. In through the nose. Out through the mouth.",
+            "Pause this shit. Go grab a coffee or something. Bathroom break. Snack break. Existential crisis break. Your choice.",
+            "Hold the hell up. We're pausing. Freeze frame. Record scratch. 'You're probably wondering how I got here.'",
+            "Freeze! Not you, the sorting process, you idiot. The computer. Not your body. Don't actually freeze. That'd be weird."
         ]
     },
     'stop_button': {
@@ -1383,11 +1469,11 @@ _PANDA_TOOLTIPS = {
             "Halt all sorting activity immediately",
         ],
         'vulgar': [
-            "ABORT! ABORT! Kill the sorting process!",
-            "Stop this sh*t right now. Full stop.",
-            "Pull the damn emergency brake on sorting.",
-            "Nuke the sorting operation from orbit. It's the only way to be sure.",
-            "Stop everything. Panic button activated, you disaster.",
+            "ABORT! ABORT! Kill the sorting process! Red alert! All hands on deck! Abandon ship! This is not a drill!",
+            "Stop this shit right now. Full stop. Period. End of sentence. No more sorting. Done. Finished. Kaput.",
+            "Pull the damn emergency brake on sorting. Screeching halt. Rubber burning. Dramatic stop. Michael Bay explosion optional.",
+            "Nuke the sorting operation from orbit. It's the only way to be sure. Aliens reference. Classic. Ripley approved.",
+            "Stop everything. Panic button activated, you disaster. Chaos mode. Emergency protocols. DEFCON 1. Your fault."
         ]
     },
     'sort_mode_menu': {
@@ -1398,11 +1484,11 @@ _PANDA_TOOLTIPS = {
             "Switch between different sorting strategies",
         ],
         'vulgar': [
-            "Pick a sort mode. Auto if you're lazy, manual if you're a control freak.",
-            "Sorting strategy selector. Choose your damn destiny.",
-            "Auto, manual, or suggested. Like dating preferences but for textures.",
-            "How do you want your sh*t sorted? Pick one already.",
-            "Sort mode menu. Because apparently 'just sort it' wasn't specific enough.",
+            "Pick a sort mode. Auto if you're lazy, manual if you're a control freak. No judgment. Okay, some judgment. Mostly about manual.",
+            "Sorting strategy selector. Choose your damn destiny. Your path. Your journey. Your organizational philosophy.",
+            "Auto, manual, or suggested. Like dating preferences but for textures. Swipe right on auto. Left on manual. Super like on suggested.",
+            "How do you want your shit sorted? Pick one already. Decision paralysis is real. But this isn't that important. Just pick.",
+            "Sort mode menu. Because apparently 'just sort it' wasn't specific enough. You need options. Fine. Here's your damn options."
         ]
     },
     'extract_archives': {
@@ -1413,11 +1499,11 @@ _PANDA_TOOLTIPS = {
             "Enable extraction of textures from compressed containers",
         ],
         'vulgar': [
-            "Unzip that sh*t. ZIP, 7Z, RAR, whatever you've compressed.",
-            "Extract from archives. Because your textures are trapped in zip jail.",
-            "Free your damn textures from their compressed prison cells.",
-            "Archive extraction. Liberating files since forever, you lazy ass.",
-            "Dig through compressed crap and find the textures. Automatically.",
+            "Unzip that shit. ZIP, 7Z, RAR, whatever you've compressed. All archives accepted. No discrimination.",
+            "Extract from archives. Because your textures are trapped in zip jail. Free them. Liberation time. Texture freedom.",
+            "Free your damn textures from their compressed prison cells. Break the chains. Smash the ZIP walls. Revolution!",
+            "Archive extraction. Liberating files since forever, you lazy ass. Digital freedom fighter. Texture emancipator.",
+            "Dig through compressed crap and find the textures. Automatically. Like a truffle pig but for files. And automated."
         ]
     },
     'compress_output': {
@@ -1428,11 +1514,11 @@ _PANDA_TOOLTIPS = {
             "Package output into a compressed archive for sharing",
         ],
         'vulgar': [
-            "Squish everything into a ZIP. Compression magic, baby.",
-            "Zip it up. Not your mouth, the output folder.",
-            "Compress output. Because disk space isn't free, you hoarder.",
-            "Make a ZIP file. Perfect for sharing your sorted sh*t.",
-            "Pack it all up into a tidy little compressed ball of textures.",
+            "Squish everything into a ZIP. Compression magic, baby. Make it smaller. Physics? Don't know her. Just works.",
+            "Zip it up. Not your mouth, the output folder. Though zipper your mouth might not be bad advice either.",
+            "Compress output. Because disk space isn't free, you hoarder. Storage costs money. Compression saves money. Math!",
+            "Make a ZIP file. Perfect for sharing your sorted shit. Email-friendly. Upload-ready. Shareable.",
+            "Pack it all up into a tidy little compressed ball of textures. Neat. Organized. Compressed. Beautiful."
         ]
     },
     'convert_from_format': {
@@ -1443,11 +1529,11 @@ _PANDA_TOOLTIPS = {
             "Pick the original format of your texture files",
         ],
         'vulgar': [
-            "What format are your textures in? Pick the source, genius.",
-            "Source format. Tell me what format your crap is currently in.",
-            "Input format selector. What the hell am I converting FROM?",
-            "From-format. Step one of unfucking your texture formats.",
-            "Original format. The 'before' in this before-and-after makeover.",
+            "What format are your textures in? Pick the source, genius. This isn't guessing time. Tell me what you've got.",
+            "Source format. Tell me what format your crap is currently in. PNG? DDS? Ancient hieroglyphics? Specify.",
+            "Input format selector. What the hell am I converting FROM? The before. The origin. The starting point.",
+            "From-format. Step one of unfucking your texture formats. Every journey starts somewhere. This is somewhere.",
+            "Original format. The 'before' in this before-and-after makeover. The ugly duckling stage. Pre-transformation."
         ]
     },
     'convert_to_format': {
@@ -1458,11 +1544,11 @@ _PANDA_TOOLTIPS = {
             "Pick the format you want your textures converted to",
         ],
         'vulgar': [
-            "What format do you want? Pick the target, smartass.",
-            "Target format. What should your textures become? Choose wisely.",
-            "Output format selector. What the hell am I converting TO?",
-            "To-format. Step two of unfucking your texture formats.",
-            "Destination format. The 'after' in this glow-up.",
+            "What format do you want? Pick the target, smartass. The destination. The goal. The promised land of formats.",
+            "Target format. What should your textures become? Choose wisely. This determines their entire future.",
+            "Output format selector. What the hell am I converting TO? The after. The destination. The end result.",
+            "To-format. Step two of unfucking your texture formats. Almost there. One more choice. Make it count.",
+            "Destination format. The 'after' in this glow-up. The swan stage. The final form. Peak texture evolution."
         ]
     },
     'convert_recursive': {
@@ -1473,11 +1559,11 @@ _PANDA_TOOLTIPS = {
             "Enable recursive conversion through folder hierarchies",
         ],
         'vulgar': [
-            "Go deep. Convert files in ALL subfolders, you thorough bastard.",
-            "Recursive mode. Dig through every damn subdirectory.",
-            "Search every nook and cranny. No folder left behind!",
-            "Recursion! Folders within folders within folders. We'll find 'em all.",
-            "Like a mole digging through directories. Every subfolder gets hit.",
+            "Go deep. Convert files in ALL subfolders, you thorough bastard. No stone unturned. No folder unsearched.",
+            "Recursive mode. Dig through every damn subdirectory. Folders within folders. Inception style. Dream deeper.",
+            "Search every nook and cranny. No folder left behind! Every subfolder. Every nested directory. Everything.",
+            "Recursion! Folders within folders within folders. We'll find 'em all. Matryoshka folder searching. Russian doll directories.",
+            "Like a mole digging through directories. Every subfolder gets hit. Tunnel vision. Directory spelunking. Cave exploration but files."
         ]
     },
     'convert_keep_original': {
@@ -1488,11 +1574,11 @@ _PANDA_TOOLTIPS = {
             "Maintain original texture files as backup",
         ],
         'vulgar': [
-            "Keep the originals. Because you don't trust anything, do you?",
-            "Don't delete the source files. Safety first, you paranoid genius.",
-            "Backup mode: keep your old crap AND the new crap. Double the crap!",
-            "Preserve originals. Hoarding tendencies enabled. No judgment.",
-            "Keep both versions. Your disk space is crying but whatever.",
+            "Keep the originals. Because you don't trust anything, do you? Trust issues. Valid. Backups save lives. And files.",
+            "Don't delete the source files. Safety first, you paranoid genius. Paranoia is self-preservation. Smart move.",
+            "Backup mode: keep your old crap AND the new crap. Double the crap! Twice the storage. Zero regrets.",
+            "Preserve originals. Hoarding tendencies enabled. No judgment. Okay, some judgment. But mostly respect. Digital pack rat life.",
+            "Keep both versions. Your disk space is crying but whatever. Hard drives are cheap. Data loss is expensive. Math works out."
         ]
     },
     'profile_new': {
@@ -1503,11 +1589,11 @@ _PANDA_TOOLTIPS = {
             "Add a new profile to your collection",
         ],
         'vulgar': [
-            "New profile! Start fresh, you beautiful disaster.",
-            "Create another profile. As if the 50 you have aren't enough.",
-            "Fresh profile. Clean slate. New mistakes to make!",
-            "Brand new profile. Because starting over is always an option.",
-            "Make a new profile. Your collection of configs grows ever larger.",
+            "New profile! Start fresh, you beautiful disaster. Clean slate. Fresh beginning. New mistakes incoming!",
+            "Create another profile. As if the 50 you have aren't enough. Profile collector. Configuration hoarder. We see you.",
+            "Fresh profile. Clean slate. New mistakes to make! Exciting! The circle of life. The wheel of configuration.",
+            "Brand new profile. Because starting over is always an option. Phoenix rising. From the ashes of your last config.",
+            "Make a new profile. Your collection of configs grows ever larger. Like Pokemon but for settings. Gotta configure 'em all."
         ]
     },
     'settings_perf_tab': {
@@ -1518,11 +1604,11 @@ _PANDA_TOOLTIPS = {
             "Configure performance parameters for optimal speed",
         ],
         'vulgar': [
-            "Performance settings. Make it go brrr or save your CPU from meltdown.",
-            "Speed tweaks. For when 'fast enough' just isn't fast enough.",
-            "Performance tab. Overclock your texture sorting, you nerd.",
-            "CPU settings. Thread counts and cache sizes. Nerd sh*t.",
-            "Perf settings. Because you want everything yesterday.",
+            "Performance settings. Make it go brrr or save your CPU from meltdown. Speed or safety. Pick your priority.",
+            "Speed tweaks. For when 'fast enough' just isn't fast enough. Need for speed. Gotta go fast. Sonic energy.",
+            "Performance tab. Overclock your texture sorting, you nerd. Push the limits. Break the sound barrier. Ludicrous speed!",
+            "CPU settings. Thread counts and cache sizes. Nerd shit. Technical specifications. The good stuff. For nerds. By nerds.",
+            "Perf settings. Because you want everything yesterday. Impatient bastard. Instant gratification culture. We get it."
         ]
     },
     'settings_appearance_tab': {
@@ -1533,11 +1619,11 @@ _PANDA_TOOLTIPS = {
             "Configure UI appearance and display settings",
         ],
         'vulgar': [
-            "Make it pretty. Or ugly. Your call, interior decorator.",
-            "Appearance tab. Because functionality alone is too boring for you.",
-            "Visual settings. Theme it, font it, fancy it up.",
-            "Look and feel settings. Lipstick on a pig? Maybe. But a FABULOUS pig.",
-            "UI beautification zone. Make those pixels dance, you vain bastard.",
+            "Make it pretty. Or ugly. Your call, interior decorator. Feng shui for software. Digital aesthetics. Pixel perfection.",
+            "Appearance tab. Because functionality alone is too boring for you. Form AND function. Why not both? Greedy but fair.",
+            "Visual settings. Theme it, font it, fancy it up. Customize everything. Every pixel. Every color. Your canvas awaits.",
+            "Look and feel settings. Lipstick on a pig? Maybe. But a FABULOUS pig. Confidence is key. Rock that pink.",
+            "UI beautification zone. Make those pixels dance, you vain bastard. Visual flair. Style points. Aesthetic excellence."
         ]
     },
     'settings_controls_tab': {
@@ -1548,11 +1634,11 @@ _PANDA_TOOLTIPS = {
             "Set up your preferred keyboard shortcuts",
         ],
         'vulgar': [
-            "Keyboard shortcuts. For people who think mice are for peasants.",
-            "Controls tab. Rebind keys like the power user you pretend to be.",
-            "Hotkey heaven. Ctrl+everything. Go wild, keyboard warrior.",
-            "Key bindings. Because clicking is SO last century.",
-            "Controls setup. Map every damn key to something. Even Caps Lock.",
+            "Keyboard shortcuts. For people who think mice are for peasants. Elite input methods. Keyboard master race.",
+            "Controls tab. Rebind keys like the power user you pretend to be. Fake it till you make it. Eventually you'll be good.",
+            "Hotkey heaven. Ctrl+everything. Go wild, keyboard warrior. Every key combination. Maximum efficiency. Zero mouse touching.",
+            "Key bindings. Because clicking is SO last century. This is 2024. We use keyboards like civilized people.",
+            "Controls setup. Map every damn key to something. Even Caps Lock. Especially Caps Lock. That key needs a job."
         ]
     },
     'settings_files_tab': {
@@ -1563,11 +1649,11 @@ _PANDA_TOOLTIPS = {
             "Adjust how files are handled and organized",
         ],
         'vulgar': [
-            "File settings. Tell the app where your crap lives.",
-            "File handling prefs. Paths, formats, all that boring file sh*t.",
-            "Where do files go? Where do they come from? Configure it here.",
-            "File settings tab. For those who care about directory structures.",
-            "Path configurations. Because typing paths manually is for masochists.",
+            "File settings. Tell the app where your crap lives. Directory coordinates. File addresses. Digital GPS.",
+            "File handling prefs. Paths, formats, all that boring file shit. Necessary evil. Important but tedious.",
+            "Where do files go? Where do they come from? Configure it here. Cotton-Eye Joe but for files. Ancient meme. Google it.",
+            "File settings tab. For those who care about directory structures. Folder fetishists. Path purists. Organization enthusiasts.",
+            "Path configurations. Because typing paths manually is for masochists. And people with too much time. And perfect memory. Not you."
         ]
     },
     'settings_ai_tab': {
@@ -1578,11 +1664,11 @@ _PANDA_TOOLTIPS = {
             "Adjust AI model preferences for texture recognition",
         ],
         'vulgar': [
-            "AI settings. Teaching a computer to look at textures. Welcome to the future.",
-            "Robot brain configuration. Make the AI smarter. Or dumber. Your call.",
-            "AI tab. Skynet for texture sorting. Totally not concerning.",
-            "Machine learning settings. It's like training a dog, but nerdier.",
-            "AI config. Let the robots handle it while you eat snacks.",
+            "AI settings. Teaching a computer to look at textures. Welcome to the future. Skynet starts here. Just kidding. Mostly.",
+            "Robot brain configuration. Make the AI smarter. Or dumber. Your call. Play god. Tweak the neural networks.",
+            "AI tab. Skynet for texture sorting. Totally not concerning. Nothing could possibly go wrong. Famous last words.",
+            "Machine learning settings. It's like training a dog, but nerdier. And with more math. And less poop. Usually.",
+            "AI config. Let the robots handle it while you eat snacks. Automation nation. Robot workforce. Human laziness. Perfect synergy."
         ]
     },
     'settings_system_tab': {
@@ -1593,11 +1679,11 @@ _PANDA_TOOLTIPS = {
             "Manage system preferences and maintenance options",
         ],
         'vulgar': [
-            "System settings. The 'under the hood' stuff for tech nerds.",
-            "System tab. Logs, updates, diagnostics. Boring but important, dammit.",
-            "The engine room. Touch things carefully or everything explodes.",
-            "System config. For people who read error logs for fun.",
-            "Under-the-hood settings. Careful, there be dragons here.",
+            "System settings. The 'under the hood' stuff for tech nerds. Engine room. Boiler room. The technical bowels.",
+            "System tab. Logs, updates, diagnostics. Boring but important, dammit. Like vegetables. Hate them but need them.",
+            "The engine room. Touch things carefully or everything explodes. Metaphorically. Probably. No guarantees.",
+            "System config. For people who read error logs for fun. Nerds. Masochists. People with too much free time.",
+            "Under-the-hood settings. Careful, there be dragons here. And segmentation faults. And mysterious crashes. Adventure!"
         ]
     },
     'tooltip_mode_normal': {
@@ -1608,11 +1694,11 @@ _PANDA_TOOLTIPS = {
             "Normal tooltips providing useful guidance",
         ],
         'vulgar': [
-            "Boring normal mode. For the straights who can't handle spice.",
-            "Normal tooltips. Vanilla. Plain. Like unseasoned chicken.",
-            "Standard mode. Snooze fest but technically helpful.",
-            "Normal mode. For when you want help without the attitude.",
-            "The boring option. Professional and dull as hell.",
+            "Boring normal mode. For the straights who can't handle spice. Vanilla. Plain. Safe. Corporate-approved.",
+            "Normal tooltips. Vanilla. Plain. Like unseasoned chicken. Edible but forgettable. Functional but bland.",
+            "Standard mode. Snooze fest but technically helpful. Information without personality. Facts without flair.",
+            "Normal mode. For when you want help without the attitude. Professional. Polite. Personality-free zone.",
+            "The boring option. Professional and dull as hell. Like a PowerPoint presentation. But helpful. Technically."
         ]
     },
     'tooltip_mode_dumbed_down': {
@@ -1623,26 +1709,26 @@ _PANDA_TOOLTIPS = {
             "Tooltips written in simple, accessible language",
         ],
         'vulgar': [
-            "Baby mode. Explains everything like you're five. No shame.",
-            "Dumbed down mode. We don't judge your intelligence. Much.",
-            "ELI5 tooltips. Big words scary? This mode's for you.",
-            "Beginner mode. Hand-holding included. Training wheels on.",
-            "Simple mode. Because reading is hard sometimes. We get it.",
+            "Baby mode. Explains everything like you're five. No shame. Everyone starts somewhere. Learning is good. Growth is beautiful.",
+            "Dumbed down mode. We don't judge your intelligence. Much. Okay maybe a little. But we support your journey. Mostly.",
+            "ELI5 tooltips. Big words scary? This mode's for you. Small words. Simple concepts. Easy understanding. Brain happy.",
+            "Beginner mode. Hand-holding included. Training wheels on. Stabilizers activated. You'll get there. Eventually.",
+            "Simple mode. Because reading is hard sometimes. We get it. Comprehension takes energy. Your brain is tired. Rest mode engaged."
         ]
     },
     'tooltip_mode_vulgar': {
         'normal': [
-            "Vulgar Panda mode: sarcastic, funny, and explicit tooltips",
+            "Unhinged Panda mode: sarcastic, funny, and explicit tooltips",
             "Adult-only tooltip mode with colorful language",
             "Humorous and irreverent tooltip style with profanity",
             "The unfiltered, no-holds-barred tooltip experience",
         ],
         'vulgar': [
-            "You're already here, you beautiful degenerate. Welcome home.",
-            "Vulgar mode. The ONLY mode. Why would you pick anything else?",
-            "This mode. The best mode. F*ck the other options.",
-            "Welcome to the party, asshole. Best tooltips in the game.",
-            "The correct choice. Everything else is a waste of screen space.",
+            "You're already here, you beautiful degenerate. Welcome home. This is your natural habitat. Embrace it.",
+            "Unhinged mode. The ONLY mode. Why would you pick anything else? Everything else is a lie. This is truth.",
+            "This mode. The best mode. Fuck the other options. They're weak. This is strong. Choose strength.",
+            "Welcome to the party, asshole. Best tooltips in the game. The others can't compete. We're the champions.",
+            "The correct choice. Everything else is a waste of screen space. And time. And potential. You chose well."
         ]
     },
     'shop_balance': {
@@ -1653,11 +1739,11 @@ _PANDA_TOOLTIPS = {
             "Your wallet balance in Bamboo Bucks",
         ],
         'vulgar': [
-            "Your broke-ass balance. Time to grind more, cheapskate.",
-            "Bamboo Bucks. Your virtual wallet. Probably empty.",
-            "How much cash you got? Spoiler: never enough.",
-            "Your balance. Try not to cry at the number.",
-            "Bamboo Bucks count. Jeff Bezos you are not.",
+            "Your broke-ass balance. Time to grind more, cheapskate. Poverty is temporary. Bamboo Bucks are forever. Well, digital.",
+            "Bamboo Bucks. Your virtual wallet. Probably empty. Like your real wallet. But more depressing because pixels.",
+            "How much cash you got? Spoiler: never enough. The eternal struggle. More money, more problems. No money, more problems.",
+            "Your balance. Try not to cry at the number. It's okay. We've all been there. Financial judgment-free zone.",
+            "Bamboo Bucks count. Jeff Bezos you are not. Space travel not included. Just texture sorting. And crushing debt."
         ]
     },
     'shop_level': {
@@ -1668,11 +1754,11 @@ _PANDA_TOOLTIPS = {
             "Your user level determines shop item availability",
         ],
         'vulgar': [
-            "Your level. Higher = more stuff to buy. Grind harder.",
-            "Level indicator. Flex on the newbies with your big number.",
-            "Your rank. Still a noob? Keep sorting, peasant.",
-            "Level display. Size doesn't matter... except here it does.",
-            "Your XP level. Level up or forever be locked out of cool sh*t.",
+            "Your level. Higher = more stuff to buy. Grind harder. No pain, no gain. Level up or shut up.",
+            "Level indicator. Flex on the newbies with your big number. Size matters. In levels. Definitely in levels.",
+            "Your rank. Still a noob? Keep sorting, peasant. Git gud. Level up. Become legendary. Or stay mediocre. Your call.",
+            "Level display. Size doesn't matter... except here it does. Big level energy. Flex those digits.",
+            "Your XP level. Level up or forever be locked out of cool shit. The game is rigged. Play anyway."
         ]
     },
     'inventory_animations': {
@@ -1683,11 +1769,11 @@ _PANDA_TOOLTIPS = {
             "Browse and play panda animation items",
         ],
         'vulgar': [
-            "Make the panda dance. Or wave. Or whatever these animations do.",
-            "Play animations. Watch your bear do stupid tricks.",
-            "Animation items. Because your panda needs to show off.",
-            "Trigger panda animations. Free entertainment for the easily amused.",
-            "Panda tricks! Teach your virtual bear to do things. Badly.",
+            "Make the panda dance. Or wave. Or whatever these animations do. Entertainment value questionable. Cute factor maximum.",
+            "Play animations. Watch your bear do stupid tricks. Like a circus but smaller. And digital. And free.",
+            "Animation items. Because your panda needs to show off. Talent show time. America's Got Panda Talent.",
+            "Trigger panda animations. Free entertainment for the easily amused. You're easily amused. We know. No judgment.",
+            "Panda tricks! Teach your virtual bear to do things. Badly. With enthusiasm. Participation trophy guaranteed."
         ]
     },
     'popout_button': {
@@ -1698,11 +1784,11 @@ _PANDA_TOOLTIPS = {
             "Undock this tab for multi-monitor use",
         ],
         'vulgar': [
-            "Pop it out! Like a damn zit but for UI tabs.",
-            "Detach this tab. Freedom for windows! Viva la revolución!",
-            "Separate window. For multi-monitor flex lords.",
-            "Pop out this tab. Because one window is never enough for you.",
-            "Undock it. Let this tab spread its wings and fly, dammit.",
+            "Pop it out! Like a damn zit but for UI tabs. Gross analogy. Functional result. Success.",
+            "Detach this tab. Freedom for windows! Viva la revolución! Liberty, equality, fraternity, separate windows!",
+            "Separate window. For multi-monitor flex lords. Look at you with your multiple screens. Living the dream.",
+            "Pop out this tab. Because one window is never enough for you. Window collector. Screen hoarder. Power user.",
+            "Undock it. Let this tab spread its wings and fly, dammit. Free bird. Lynyrd Skynyrd plays in distance."
         ]
     },
     'minigames_tab': {
@@ -1713,11 +1799,11 @@ _PANDA_TOOLTIPS = {
             "Choose from a selection of mini-games to enjoy",
         ],
         'vulgar': [
-            "Mini-games! Because sorting textures alone is boring as hell.",
-            "Play games. Win prizes. Waste time. The holy trinity.",
-            "Game time, baby! Earn Bamboo Bucks while procrastinating.",
-            "Mini-games tab. The 'I should be working' section.",
-            "Games! Because you'd rather play than sort textures, you slacker.",
+            "Mini-games! Because sorting textures alone is boring as hell. Variety is the spice of life. Add some fucking spice.",
+            "Play games. Win prizes. Waste time. The holy trinity. The trifecta of productivity loss. Worth it.",
+            "Game time, baby! Earn Bamboo Bucks while procrastinating. Productive procrastination. The best kind.",
+            "Mini-games tab. The 'I should be working' section. But you're not. You're here. Playing games. No regrets.",
+            "Games! Because you'd rather play than sort textures, you slacker. Priorities. You have them. They're questionable."
         ]
     },
     'closet_appearance': {
@@ -1728,11 +1814,11 @@ _PANDA_TOOLTIPS = {
             "Check your panda's current clothing and accessories",
         ],
         'vulgar': [
-            "Your panda's look. Rate it out of 10. I dare you.",
-            "Current outfit. Is it fashion? Is it a disaster? You decide.",
-            "What your bear is wearing. Hopefully not a crime against fashion.",
-            "Panda's current drip. Or lack thereof.",
-            "Outfit check! Looking good? Looking terrible? Who cares, it's a panda.",
+            "Your panda's look. Rate it out of 10. I dare you. Double dare you. Be honest. The panda can take it.",
+            "Current outfit. Is it fashion? Is it a disaster? You decide. Fashion is subjective. Taste is personal. Yours is questionable.",
+            "What your bear is wearing. Hopefully not a crime against fashion. Fashion police have been notified. Awaiting backup.",
+            "Panda's current drip. Or lack thereof. Drip check failed. Try again. Better luck next outfit.",
+            "Outfit check! Looking good? Looking terrible? Who cares, it's a panda. Pandas are always cute. Even in that."
         ]
     },
     'closet_header': {
@@ -1743,11 +1829,11 @@ _PANDA_TOOLTIPS = {
             "Open the closet to style your panda companion",
         ],
         'vulgar': [
-            "The closet. Where fashion dreams come true. Or die horribly.",
-            "Wardrobe management. Your panda has more clothes than you.",
-            "Dress-up time! Your panda's about to look fabulous. Maybe.",
-            "Closet header. Welcome to Panda's Next Top Model.",
-            "Fashion central. Make your bear look less naked. Or don't.",
+            "The closet. Where fashion dreams come true. Or die horribly. Usually both. In that order. Welcome.",
+            "Wardrobe management. Your panda has more clothes than you. And probably better taste. Sad but true.",
+            "Dress-up time! Your panda's about to look fabulous. Maybe. Possibly. Hopefully. No guarantees.",
+            "Closet header. Welcome to Panda's Next Top Model. Tyra Banks not included. Sass definitely included.",
+            "Fashion central. Make your bear look less naked. Or don't. Nudist panda colony also valid. Live your truth."
         ]
     },
     'achievement_progress': {
@@ -1758,11 +1844,11 @@ _PANDA_TOOLTIPS = {
             "Check how much remains before this achievement unlocks",
         ],
         'vulgar': [
-            "Progress bar. Watch it fill up. Riveting entertainment.",
-            "How close you are. Spoiler: probably not close enough.",
-            "Achievement progress. Almost there... or not even close.",
-            "Progress tracker. For the impatient obsessive types.",
-            "Completion percentage. Like a loading screen but for achievements.",
+            "Progress bar. Watch it fill up. Riveting entertainment. Better than cable. Cheaper than Netflix. More boring than both.",
+            "How close you are. Spoiler: probably not close enough. Keep grinding. The struggle is real. The progress is slow.",
+            "Achievement progress. Almost there... or not even close. Schrodinger's achievement. Both complete and incomplete.",
+            "Progress tracker. For the impatient obsessive types. That's you. You're checking this constantly. We know.",
+            "Completion percentage. Like a loading screen but for achievements. Watching. Waiting. Hoping. Living."
         ]
     },
     'upscale_button': {
@@ -2525,6 +2611,36 @@ _PANDA_TOOLTIPS = {
             "Custom dimensions! Because sometimes you need EXACTLY 1337x420 pixels. No judgment.",
         ]
     },
+    'upscale_preserve_metadata': {
+        'normal': [
+            "Preserve original image metadata (EXIF) when upscaling",
+            "Keep EXIF data from source images in the upscaled output",
+            "Maintain camera info, timestamps, and other metadata during upscaling",
+            "Copy metadata from original images to processed files",
+            "Preserve image properties like creation date and camera settings",
+            "Transfer EXIF data to upscaled images (best for JPEG files)",
+        ],
+        'dumbed-down': [
+            "Keep the extra info from your photos (like when it was taken)!",
+            "This saves photo details like date and camera info when upscaling.",
+            "Check this to keep the 'behind-the-scenes' info from your images!",
+            "Works best with JPEG photos — keeps all the camera details!",
+            "Copies the photo's 'birth certificate' to the bigger version.",
+            "Preserves info like when and where the photo was taken!",
+        ],
+        'vulgar': [
+            "Keep that EXIF shit. Date, camera model, all that nerdy-ass metadata.",
+            "Preserve metadata? Sure, if you actually give a fuck about timestamps and camera info.",
+            "EXIF preservation: for when you give a damn about photo metadata for some reason.",
+            "Copy all that technical crap from the original. JPEG nerds will love you forever.",
+            "Metadata mode: because apparently you need to know WHEN a texture was created. Whatever floats your boat.",
+            "Keep the photo's metadata. Date, camera, GPS... wait, why the fuck do your textures have GPS?",
+            "EXIF copying go brrr. All your precious metadata stays intact, you perfectionist.",
+            "For photographers who upscale. The panda judges your metadata obsession. But only a little.",
+            "Checkbox for metadata nerds. You know who you are. Don't be ashamed.",
+            "Preserve EXIF or don't. The panda doesn't care about your camera settings, but you might."
+        ]
+    },
     'panda_sound_eat': {
         'normal': [
             "Choose the sound played when your panda eats bamboo",
@@ -2832,11 +2948,11 @@ _PANDA_TOOLTIPS = {
             "This is your panda's 'I'm better than I was yesterday' number.",
         ],
         'vulgar': [
-            "Your panda's badass level. Higher = more badass.",
-            "This sh*t shows how much of a beast your panda has become.",
-            "Level up, get stronger, kick more ass. Simple as that.",
-            "The 'how much of a legend is this panda' metric. Currently: working on it.",
-            "Your panda's power level. Make it bigger, goddammit.",
+            "Your panda's badass level. Higher = more badass. The badass-ometer. Maximum badassery achieved at level 100.",
+            "This shit shows how much of a beast your panda has become. Spoiler: pretty beastly. Getting beastlier.",
+            "Level up, get stronger, kick more ass. Simple as that. The circle of life. Except with more violence.",
+            "The 'how much of a legend is this panda' metric. Currently: working on it. Legendary status pending.",
+            "Your panda's power level. Make it bigger, goddammit. Numbers go up. Power increases. Math works."
         ]
     },
     'stat_experience': {
@@ -2855,11 +2971,11 @@ _PANDA_TOOLTIPS = {
             "Fill this bar by playing. It's basically a 'you're doing great sweetie' meter.",
         ],
         'vulgar': [
-            "XP points. Get 'em, level up, become a god. No pressure.",
-            "Fill this f*cking bar already! Do stuff! Kill things! Whatever!",
-            "Experience points. AKA 'proof you're not just sitting there'.",
-            "This bar needs to fill up. Go adventure or some sh*t.",
-            "Earn XP by not being lazy. The panda demands progress!",
+            "XP points. Get 'em, level up, become a god. No pressure. Just become divine. Easy.",
+            "Fill this fucking bar already! Do stuff! Kill things! Whatever! Action required. Immediately.",
+            "Experience points. AKA 'proof you're not just sitting there'. Get off your ass. Move. Do things.",
+            "This bar needs to fill up. Go adventure or some shit. Quest. Fight. Exist productively.",
+            "Earn XP by not being lazy. The panda demands progress! Forward momentum. No stagnation. Growth only."
         ]
     },
     'stat_health': {
@@ -2878,11 +2994,11 @@ _PANDA_TOOLTIPS = {
             "How much ouchie your panda can take before naptime.",
         ],
         'vulgar': [
-            "HP. Don't let this hit zero or your panda's taking a dirt nap.",
-            "Health points. Lose 'em all and it's game f*cking over.",
-            "This is your 'am I dead yet' meter. Keep it high, genius.",
-            "The life bar. When it empties, you're f*cked. Stay alive!",
-            "Your panda's 'still kicking' gauge. Zero = not kicking anymore.",
+            "HP. Don't let this hit zero or your panda's taking a dirt nap. Permanent sleep. The long goodbye.",
+            "Health points. Lose 'em all and it's game fucking over. Death screen. Respawn button. Shame.",
+            "This is your 'am I dead yet' meter. Keep it high, genius. Self-preservation 101. Don't die.",
+            "The life bar. When it empties, you're fucked. Stay alive! Survival mandatory. Death optional. Choose wisely.",
+            "Your panda's 'still kicking' gauge. Zero = not kicking anymore. Corpse status. Avoid this."
         ]
     },
     'stat_defense': {
@@ -2901,11 +3017,11 @@ _PANDA_TOOLTIPS = {
             "How well your panda can take a hit without crying.",
         ],
         'vulgar': [
-            "Defense. Makes you harder to kill. Pretty f*cking important.",
-            "How much of a tank your panda is. More = less ouchie.",
-            "Your damage resistance stat. High = laugh at enemy attacks.",
-            "This sh*t reduces how much you get hurt. Stack it!",
-            "Defense means you can take a beating. Level this up, fool.",
+            "Defense. Makes you harder to kill. Pretty fucking important. Survival stat. Tank mode. Become invincible.",
+            "How much of a tank your panda is. More = less ouchie. Pain reduction. Damage mitigation. Science.",
+            "Your damage resistance stat. High = laugh at enemy attacks. Mocking enabled. Taunts optional.",
+            "This shit reduces how much you get hurt. Stack it! More defense. Less pain. Simple math.",
+            "Defense means you can take a beating. Level this up, fool. Become bulletproof. Metaphorically. Mostly."
         ]
     },
     'stat_strength': {
@@ -2924,11 +3040,11 @@ _PANDA_TOOLTIPS = {
             "This number decides if you tickle enemies or obliterate them.",
         ],
         'vulgar': [
-            "Strength. Hit harder, kill faster. It's that f*cking simple.",
-            "Your panda's ability to absolutely wreck sh*t. Pump this up!",
-            "How much pain your panda can dish out. More = more carnage.",
-            "The 'crush your enemies' stat. Max this bad boy out.",
-            "Strength means you hit like a goddamn truck. Stack it!",
+            "Strength. Hit harder, kill faster. It's that fucking simple. Violence efficiency. Murder mathematics. Basic calculus.",
+            "Your panda's ability to absolutely wreck shit. Pump this up! Destruction capacity. Chaos potential. Maximize it.",
+            "How much pain your panda can dish out. More = more carnage. Pain delivery system. Optimized.",
+            "The 'crush your enemies' stat. Max this bad boy out. Conan the Barbarian energy. Flex those muscles.",
+            "Strength means you hit like a goddamn truck. Stack it! Impact force. Bone-crushing power. Unstoppable."
         ]
     },
     'stat_magic': {
@@ -2947,11 +3063,11 @@ _PANDA_TOOLTIPS = {
             "How much wizard energy your panda has. Make it sparkly!",
         ],
         'vulgar': [
-            "Magic stat. Makes you a f*cking wizard. Abracadabra, bitches!",
-            "Your panda's 'turning enemies into toast' power. Magic!",
-            "This sh*t makes spells hurt. More magic = more pain.",
-            "The sorcery stat. High enough and you're basically Gandalf.",
-            "Magic power. Shoot fireballs and watch sh*t burn!",
+            "Magic stat. Makes you a fucking wizard. Abracadabra, bitches! Spell-slinging champion. Arcane badass.",
+            "Your panda's 'turning enemies into toast' power. Magic! Bread-based violence. Delicious destruction.",
+            "This shit makes spells hurt. More magic = more pain. Magical murder. Enchanted agony. Spell damage.",
+            "The sorcery stat. High enough and you're basically Gandalf. Staff optional. Wisdom mandatory. Fireworks guaranteed.",
+            "Magic power. Shoot fireballs and watch shit burn! Pyromania sanctioned. Arson justified. Flames everywhere."
         ]
     },
     'stat_intelligence': {
@@ -2970,11 +3086,11 @@ _PANDA_TOOLTIPS = {
             "Smart pandas do more magic damage. Be a smart panda!",
         ],
         'vulgar': [
-            "Intelligence. Be smart, cast better spells, f*ck sh*t up.",
-            "Your panda's IQ basically. Higher = better magic damage.",
-            "The 'how big brain is this panda' stat. Make it huge!",
-            "Intelligence means your magic actually works. Don't be dumb!",
-            "Brain power stat. More brain = more magical destruction.",
+            "Intelligence. Be smart, cast better spells, fuck shit up. Big brain energy. Nerd power. Knowledge is destruction.",
+            "Your panda's IQ basically. Higher = better magic damage. Smart equals deadly. Einstein with fireballs.",
+            "The 'how big brain is this panda' stat. Make it huge! Cranial capacity. Mental magnitude. Brain big.",
+            "Intelligence means your magic actually works. Don't be dumb! Study. Learn. Dominate. Graduate.",
+            "Brain power stat. More brain = more magical destruction. Scholarly violence. Academic ass-kicking. PhD in pain."
         ]
     },
     'stat_agility': {
@@ -2993,11 +3109,11 @@ _PANDA_TOOLTIPS = {
             "Fast pandas dodge better and crit more. Be speedy!",
         ],
         'vulgar': [
-            "Agility. Be fast, dodge sh*t, land crits. It's clutch.",
-            "Your panda's 'try to hit me, I dare you' stat. Pump this!",
-            "Speed and dodge chance. High agility = untouchable badass.",
-            "This sh*t lets you dodge like Neo and crit like a boss.",
-            "Agility means you're fast as f*ck and hard to hit. Stack it!",
+            "Agility. Be fast, dodge shit, land crits. It's clutch. Speed is life. Fast pandas don't die.",
+            "Your panda's 'try to hit me, I dare you' stat. Pump this! Dodge master. Untouchable. Neo mode.",
+            "Speed and dodge chance. High agility = untouchable badass. Matrix-style bullet dodging. Effortless.",
+            "This shit lets you dodge like Neo and crit like a boss. Bend spoons. Dodge bullets. Win fights.",
+            "Agility means you're fast as fuck and hard to hit. Stack it! Speed demon. Lightning panda. Zoom."
         ]
     },
     'stat_vitality': {
@@ -3016,11 +3132,11 @@ _PANDA_TOOLTIPS = {
             "Vitality gives you more HP so you don't die as fast. Useful!",
         ],
         'vulgar': [
-            "Vitality. More HP, harder to kill. Don't be a glass cannon.",
-            "This sh*t increases your health pool. More = survive longer.",
-            "Your panda's 'I ain't dying today' stat. Max this b*tch!",
-            "Vitality means you can take more beatings. Very f*cking important.",
-            "Health modifier stat. Stack this if you like being alive.",
+            "Vitality. More HP, harder to kill. Don't be a glass cannon. Be a tank. Survival first.",
+            "This shit increases your health pool. More = survive longer. Health is wealth. Stack it high.",
+            "Your panda's 'I ain't dying today' stat. Max this bitch! Immortality pending. Death delayed.",
+            "Vitality means you can take more beatings. Very fucking important. Pain tolerance. Maximum endurance.",
+            "Health modifier stat. Stack this if you like being alive. Survival instinct. Self-preservation. Smart."
         ]
     },
     'stat_skill_points': {
@@ -3039,11 +3155,11 @@ _PANDA_TOOLTIPS = {
             "You get these when you level up. Use them to get stronger!",
         ],
         'vulgar': [
-            "Skill points. Spend 'em on abilities or hoard like a dragon. Your call.",
-            "These let you unlock sh*t in the skill tree. Don't waste them!",
-            "Skill points = new abilities. More abilities = more ass-kicking.",
-            "Use these to unlock skills and become a f*cking powerhouse.",
-            "Points for buying cool powers. Spend wisely or you'll regret it.",
+            "Skill points. Spend 'em on abilities or hoard like a dragon. Your call. Decisions matter. Choose wisely.",
+            "These let you unlock shit in the skill tree. Don't waste them! Precious resources. Invest carefully.",
+            "Skill points = new abilities. More abilities = more ass-kicking. Power scaling. Growth potential.",
+            "Use these to unlock skills and become a fucking powerhouse. Dominate. Conquer. Win everything.",
+            "Points for buying cool powers. Spend wisely or you'll regret it. No refunds. Plan ahead. Think."
         ]
     },
     'stat_total_attacks': {
@@ -3062,11 +3178,11 @@ _PANDA_TOOLTIPS = {
             "Total attacks ever. This number just keeps going up and up!",
         ],
         'vulgar': [
-            "How many times your panda has thrown hands. The answer: a sh*t ton.",
-            "Attack counter. Basically tracks how violent your panda is.",
-            "Total attacks launched. This number = your dedication to violence.",
-            "Every swing, every spell, every 'f*ck you' attack. All counted here.",
-            "How many times you've tried to murder something. No judgment.",
+            "How many times your panda has thrown hands. The answer: a shit ton. Violence counter. Aggression metrics.",
+            "Attack counter. Basically tracks how violent your panda is. Fury quantified. Rage measured.",
+            "Total attacks launched. This number = your dedication to violence. Commitment issues? Not here.",
+            "Every swing, every spell, every 'fuck you' attack. All counted here. Comprehensive. Detailed. Accurate.",
+            "How many times you've tried to murder something. No judgment. Combat statistics. Death attempts."
         ]
     },
     'stat_monsters_slain': {
@@ -3085,11 +3201,11 @@ _PANDA_TOOLTIPS = {
             "Every monster defeated adds to this number. You did that!",
         ],
         'vulgar': [
-            "Kill count. How many f*ckers you've sent to the shadow realm.",
-            "Body count tracker. Your panda is a certified monster murderer.",
-            "Enemies slain. This number = your combat resume. Impressive!",
-            "How many things you've killed. Badge of honor, really.",
-            "Monster slayer stat. Higher = more badass. Keep killing!",
+            "Kill count. How many fuckers you've sent to the shadow realm. One-way tickets. No returns.",
+            "Body count tracker. Your panda is a certified monster murderer. Professional killer. Licensed.",
+            "Enemies slain. This number = your combat resume. Impressive! Hire-worthy. Deadly.",
+            "How many things you've killed. Badge of honor, really. Achievement unlocked. Massacre master.",
+            "Monster slayer stat. Higher = more badass. Keep killing! Slay button operational. Continue."
         ]
     },
     'stat_damage_dealt': {
@@ -3108,11 +3224,11 @@ _PANDA_TOOLTIPS = {
             "All your damage combined into one big impressive number!",
         ],
         'vulgar': [
-            "Total pain delivered. How much f*cking hurt you've dished out.",
-            "Damage dealt counter. Your legacy of destruction, quantified.",
-            "This is how much sh*t you've wrecked. Make it bigger!",
-            "Total damage output. Higher = you're a force of nature.",
-            "How much hurt you've put on enemies. Rack up those numbers!",
+            "Total pain delivered. How much fucking hurt you've dished out. Agony export. Suffering distribution.",
+            "Damage dealt counter. Your legacy of destruction, quantified. Numbers don't lie. Violence verified.",
+            "This is how much shit you've wrecked. Make it bigger! Destruction goals. Chaos metrics.",
+            "Total damage output. Higher = you're a force of nature. Hurricane energy. Earthquake power.",
+            "How much hurt you've put on enemies. Rack up those numbers! Pain provider. Hurt merchant."
         ]
     },
     'stat_damage_taken': {
@@ -3131,11 +3247,11 @@ _PANDA_TOOLTIPS = {
             "Total damage received. You've been through a lot, brave panda!",
         ],
         'vulgar': [
-            "How much sh*t you've taken. Your survival badge of honor.",
-            "Damage received tracker. You've been through hell and lived!",
-            "This is your 'got my ass kicked but survived' stat. Proud of you.",
-            "Total beatings endured. You're still here so... winning?",
-            "How much hurt you've tanked. Lower is better but hey, you're alive!",
+            "How much shit you've taken. Your survival badge of honor. Pain endured. Warrior scars.",
+            "Damage received tracker. You've been through hell and lived! Survivor status. Tough bastard.",
+            "This is your 'got my ass kicked but survived' stat. Proud of you. Resilience exemplified.",
+            "Total beatings endured. You're still here so... winning? Alive equals victory. Math checks out.",
+            "How much hurt you've tanked. Lower is better but hey, you're alive! Breathing = success."
         ]
     },
     'stat_critical_hits': {
@@ -3154,11 +3270,11 @@ _PANDA_TOOLTIPS = {
             "Special powerful hits that hurt way more. You love to see it!",
         ],
         'vulgar': [
-            "Crit count. Those beautiful b*stard hits that just DELETE enemies.",
-            "Critical strikes. When your attack says 'f*ck you' extra hard.",
-            "How many times you've hit like a goddamn truck. Beautiful.",
-            "Crits = bonus damage. The game saying 'nice f*cking hit, dude!'",
-            "Critical hit tracker. Each one is a moment of pure destruction.",
+            "Crit count. Those beautiful bastard hits that just DELETE enemies. One-shot potential. Instant death.",
+            "Critical strikes. When your attack says 'fuck you' extra hard. Bonus damage. Maximum pain.",
+            "How many times you've hit like a goddamn truck. Beautiful. Devastating. Perfect.",
+            "Crits = bonus damage. The game saying 'nice fucking hit, dude!' Congratulations. Excellence.",
+            "Critical hit tracker. Each one is a moment of pure destruction. Perfection achieved. Repeatedly."
         ]
     },
     'dungeon_enter_button': {
@@ -3177,11 +3293,11 @@ _PANDA_TOOLTIPS = {
             "Click here to go on an adventure! Your panda is ready!",
         ],
         'vulgar': [
-            "Enter the f*cking dungeon! Fight sh*t, get loot, be a legend!",
-            "Dungeon button. Click it if you've got the balls to explore!",
-            "Ready to crawl some dungeons? This button says 'let's go!'",
-            "Enter here to kick ass and take names in randomly generated hell!",
-            "Dungeon time, baby! Click this and prepare for chaos!",
+            "Enter the fucking dungeon! Fight shit, get loot, be a legend! Adventure awaits. Glory calls.",
+            "Dungeon button. Click it if you've got the balls to explore! Courage required. Bravery essential.",
+            "Ready to crawl some dungeons? This button says 'let's go!' Adventure time. Hero hour.",
+            "Enter here to kick ass and take names in randomly generated hell! Chaos guaranteed. Fun promised.",
+            "Dungeon time, baby! Click this and prepare for chaos! Mayhem mode. Violence vacation."
         ]
     },
     'dungeon_wasd_controls': {
@@ -3200,11 +3316,11 @@ _PANDA_TOOLTIPS = {
             "WASD = walking controls. Simple as that!",
         ],
         'vulgar': [
-            "WASD to move your ass around. Not rocket science, people.",
-            "Movement keys. W-A-S-D. You've played games before, right?",
-            "Use WASD to navigate. Pretty f*cking standard controls here.",
-            "Move with WASD. If you can't figure this out, I can't help you.",
-            "Walking controls. WASD. That's it. Don't overcomplicate this.",
+            "WASD to move your ass around. Not rocket science, people. Basic controls. Standard operation.",
+            "Movement keys. W-A-S-D. You've played games before, right? RIGHT? Common knowledge. Universal.",
+            "Use WASD to navigate. Pretty fucking standard controls here. Gaming 101. Elementary shit.",
+            "Move with WASD. If you can't figure this out, I can't help you. Self-explanatory. Intuitive. Easy.",
+            "Walking controls. WASD. That's it. Don't overcomplicate this. Simple. Direct. Functional."
         ]
     },
     'dungeon_attack_control': {
@@ -3223,11 +3339,11 @@ _PANDA_TOOLTIPS = {
             "Press Space to make your panda go HI-YAH! at enemies!",
         ],
         'vulgar': [
-            "Space bar = violence. Press it near enemies to f*ck them up.",
-            "Attack button. Get in range and press Space to wreck sh*t.",
-            "Space = beatdown time. Press it to introduce enemies to pain.",
-            "Combat button. Press Space to remind monsters who's boss.",
-            "Attack key. Space bar. Use it to murder things. Got it?",
+            "Space bar = violence. Press it near enemies to fuck them up. Combat engaged. Damage delivered.",
+            "Attack button. Get in range and press Space to wreck shit. Destruction initiated. Pain incoming.",
+            "Space = beatdown time. Press it to introduce enemies to pain. Meet. Greet. Delete.",
+            "Combat button. Press Space to remind monsters who's boss. Dominance asserted. Hierarchy established.",
+            "Attack key. Space bar. Use it to murder things. Got it? Clear? Understood? Good."
         ]
     },
     'dungeon_stairs_control': {
@@ -3246,7 +3362,7 @@ _PANDA_TOOLTIPS = {
             "The 'use stairs' key! E when on stairs = go to new floor!",
         ],
         'vulgar': [
-            "E = use f*cking stairs. Stand on them, press E, change floors. Easy.",
+            "E = use fucking stairs. Stand on them, press E, change floors. Easy.",
             "Stairs key. Find stairs, press E, go to next floor. Not complicated.",
             "E button uses stairs. Up or down, doesn't matter. Just press it.",
             "Stair navigation. Press E when on stairs. Boom. New floor. Done.",
@@ -3264,7 +3380,7 @@ _PANDA_TOOLTIPS = {
             "Start a brand new note",
         ],
         'vulgar': [
-            "New note. Because your brain can't remember sh*t on its own.",
+            "New note. Because your brain can't remember shit on its own.",
             "Create a note. Revolutionary concept, writing things down.",
             "Click here to pretend you're organized by taking notes.",
             "New note. The digital equivalent of a Post-it on your monitor.",
@@ -3434,7 +3550,7 @@ class TooltipMode(Enum):
     """Tooltip verbosity modes"""
     NORMAL = "normal"
     DUMBED_DOWN = "dumbed-down"
-    VULGAR_PANDA = "vulgar_panda"
+    UNHINGED_PANDA = "vulgar_panda"  # Legacy value for backwards compatibility
 
 
 @dataclass
@@ -3939,7 +4055,7 @@ class TooltipVerbosityManager:
         self.tooltips = {
             TooltipMode.NORMAL: self._get_normal_tooltips(),
             TooltipMode.DUMBED_DOWN: self._get_dumbed_down_tooltips(),
-            TooltipMode.VULGAR_PANDA: self._get_vulgar_panda_tooltips()
+            TooltipMode.UNHINGED_PANDA: self._get_unhinged_panda_tooltips()
         }
     
     def _load_mode(self) -> TooltipMode:
@@ -3948,7 +4064,7 @@ class TooltipVerbosityManager:
         try:
             return TooltipMode(mode_str)
         except ValueError:
-            return TooltipMode.VULGAR_PANDA
+            return TooltipMode.UNHINGED_PANDA
     
     def set_mode(self, mode: TooltipMode):
         """Change tooltip verbosity mode"""
@@ -4982,10 +5098,10 @@ class TooltipVerbosityManager:
                 "Choose simplified tooltips with extra guidance",
             ],
             'tooltip_mode_vulgar': [
-                "Switch to Vulgar Panda mode for sarcastic tooltips",
+                "Switch to Unhinged Panda mode for sarcastic tooltips",
                 "Enable humorous, explicit tooltip language",
                 "Select the irreverent adult-only tooltip style",
-                "Activate Vulgar Panda mode for colorful commentary",
+                "Activate Unhinged Panda mode for colorful commentary",
                 "Choose the unfiltered, no-holds-barred tooltip experience",
             ],
             'shop_balance': [
@@ -5406,8 +5522,8 @@ class TooltipVerbosityManager:
             ],
             'tooltip_mode': [
                 "Choose how tooltips are shown: Normal gives standard info, "
-                "Dumbed Down gives extra detail, Vulgar adds humor.",
-                "Control tooltip style: Normal, Beginner-friendly, or Vulgar "
+                "Dumbed Down gives extra detail, Unhinged adds humor.",
+                "Control tooltip style: Normal, Beginner-friendly, or Unhinged "
                 "with sarcastic commentary!",
                 "This controls the style of the little pop-up hints that appear "
                 "when you hover over buttons. Pick the one you like!",
@@ -5445,7 +5561,7 @@ class TooltipVerbosityManager:
             'sound_pack': [
                 "Choose a sound pack to change what all the sounds in the app "
                 "sound like. Default is standard, Minimal is subtle, and "
-                "Vulgar is... well, fun.",
+                "Unhinged is... well, fun.",
                 "Sound packs change the overall style of every sound effect. "
                 "Try different ones to find your favorite!",
             ],
@@ -5819,7 +5935,7 @@ class TooltipVerbosityManager:
             ],
             'tooltip_mode_vulgar': [
                 "This sets tooltips to vulgar mode — the descriptions are funny and use adult language, but still helpful.",
-                "Vulgar Panda mode makes tooltips funny and sarcastic with some bad words. Still tells you what things do!",
+                "Unhinged Panda mode makes tooltips funny and sarcastic with some bad words. Still tells you what things do!",
             ],
             'shop_balance': [
                 "This shows how many Bamboo Bucks you have. That's the currency you use to buy things in the shop.",
@@ -5855,20 +5971,20 @@ class TooltipVerbosityManager:
             ],
         }
     
-    def _get_vulgar_panda_tooltips(self) -> Dict[str, Any]:
+    def _get_unhinged_panda_tooltips(self) -> Dict[str, Any]:
         """Fun/sarcastic tooltips (vulgar mode)"""
         base_tooltips = {
             'sort_button': [
                 "Click this to sort your damn textures. It's not rocket science, Karen.",
                 "Hit this button and watch your textures get organized. Magic, right?",
                 "Sort your textures or live in chaos forever. Your damn choice.",
-                "Organizing textures. Because your folder is a f*cking war zone.",
+                "Organizing textures. Because your folder is a fucking war zone.",
                 "Click to sort. Even a monkey could do it. Probably faster than you.",
             ],
             'convert_button': [
                 "Turn your textures into whatever the hell format you need.",
                 "Format conversion. Because one format is never enough for you people.",
-                "Convert those textures. Abracadabra, format-change-a, motherf*cker.",
+                "Convert those textures. Abracadabra, format-change-a, motherfucker.",
                 "Format alchemy. Turn PNG lead into DDS gold. Or whatever.",
                 "File format conversion. It's not brain surgery, but it's close enough.",
             ],
@@ -5882,7 +5998,7 @@ class TooltipVerbosityManager:
             'output_browse': [
                 "Where do you want this beautiful organized mess?",
                 "Pick where the sorted stuff goes. Any folder. Your call.",
-                "Choose the output destination. Where should this organized sh*t go?",
+                "Choose the output destination. Where should this organized shit go?",
                 "Output folder picker. Select a place for your sorted masterpiece.",
                 "Destination directory. Where do you want your beautiful sorted textures?",
             ],
@@ -5915,7 +6031,7 @@ class TooltipVerbosityManager:
                 "Style picker. How anal-retentive are you about folder structure?",
             ],
             'settings_button': [
-                "Tweak sh*t. Make it yours. Go nuts.",
+                "Tweak shit. Make it yours. Go nuts.",
                 "Settings. Where the magic happens. Or where things break.",
                 "Configuration paradise. Or hell. Depends on how deep you go.",
                 "Preferences! Tweak every little thing until it's perfect. Or broken.",
@@ -6030,7 +6146,7 @@ class TooltipVerbosityManager:
             'notepad_tab': [
                 "Scribble your thoughts. No one's judging. Maybe.",
                 "Write notes. Or a novel. We don't care.",
-                "Notepad. Write down important sh*t. Or doodle. I'm not your mother.",
+                "Notepad. Write down important shit. Or doodle. I'm not your mother.",
                 "Text editor. For the organized people who take notes. Show-offs.",
                 "Notes tab. Jot something down before your goldfish memory forgets it.",
             ],
@@ -6182,7 +6298,7 @@ class TooltipVerbosityManager:
                 "Control the sass level. You've been warned.",
                 "Switch tooltip modes. You're in vulgar mode. Obviously.",
                 "Tooltip flavor picker. You chose chaos. Good for you.",
-                "Normal is boring. Dumbed down is hand-holding. Vulgar is *chef's kiss*.",
+                "Normal is boring. Dumbed down is hand-holding. Unhinged is *chef's kiss*.",
                 "Change how mouthy the tooltips are. You picked the spicy option.",
             ],
             'theme_selector': [
@@ -6205,7 +6321,7 @@ class TooltipVerbosityManager:
                 "The big volume knob. Turn it up to 11 if you're brave.",
                 "Overall loudness control. Your neighbors might care.",
                 "Volume slider. Slide to the right for chaos, left for stealth mode.",
-                "How loud do you want this sh*t? Slide and find out.",
+                "How loud do you want this shit? Slide and find out.",
             ],
             'effects_volume': [
                 "Effects volume. Make the clicks louder or stfu.",
@@ -6298,7 +6414,7 @@ class TooltipVerbosityManager:
                 "Toggle hotkey. On or off. Revolutionary, I know.",
                 "Disable this shortcut if it keeps interrupting your flow.",
                 "Turn this keybinding on or off. It's like a light switch but nerdier.",
-                "Enable/disable toggle. For when shortcuts start sh*t.",
+                "Enable/disable toggle. For when shortcuts start shit.",
             ],
             'hotkey_reset': [
                 "Reset all hotkeys to defaults. Panic button for keybinds.",
@@ -6645,7 +6761,7 @@ class TooltipVerbosityManager:
                 "Bamboo Buck lifetime total. You've been busy!",
             ],
             'pause_button': [
-                "Pause this sh*t. Take a breather, you workaholic.",
+                "Pause this shit. Take a breather, you workaholic.",
                 "Hit pause. Even texture sorting needs a damn intermission.",
                 "PAUSE. Like a VCR. Google it, you young bastard.",
                 "Time out! The sorting can wait while you question your life choices.",
@@ -6656,13 +6772,13 @@ class TooltipVerbosityManager:
                 "Kill the process! MURDER IT! ...I mean, stop sorting.",
                 "Emergency stop! Slam the brakes! Everything DIES!",
                 "Abort mission! Pull the plug! Yeet the sorting into the void!",
-                "Stop button. For when you realize you f*cked up and need to bail.",
+                "Stop button. For when you realize you fucked up and need to bail.",
             ],
             'sort_mode_menu': [
                 "Pick your sorting style. Auto for lazy asses, manual for control freaks.",
                 "Sort mode selector. Choose your own damn adventure.",
                 "Auto, manual, or suggested. Like a transmission but for textures, dumbass.",
-                "How do you want your sh*t sorted? Make a decision for once in your life.",
+                "How do you want your shit sorted? Make a decision for once in your life.",
                 "Sorting approach menu. Spoiler: you'll pick auto because you're lazy.",
             ],
             'extract_archives': [
@@ -6675,7 +6791,7 @@ class TooltipVerbosityManager:
             'compress_output': [
                 "Zip it all up. Not your mouth — the output folder, smartass.",
                 "Compress output. Because sending 10,000 loose files is psychotic.",
-                "Make a ZIP. Package your sh*t. Be a civilized human being.",
+                "Make a ZIP. Package your shit. Be a civilized human being.",
                 "Compression mode. Squish those textures into a tidy little package.",
                 "ZIP the output. Your disk space and your sanity will thank you.",
             ],
@@ -6737,7 +6853,7 @@ class TooltipVerbosityManager:
             ],
             'settings_files_tab': [
                 "File settings. Tell the app where all your crap lives.",
-                "Paths and formats. The boring-but-necessary file configuration sh*t.",
+                "Paths and formats. The boring-but-necessary file configuration shit.",
                 "File handling prefs. Where do things go? How do they get there? Configure it.",
                 "Default paths and naming. For organized people. So probably not you.",
                 "File config. Because 'just put it wherever' isn't a valid strategy, Karen.",
@@ -6772,8 +6888,8 @@ class TooltipVerbosityManager:
             ],
             'tooltip_mode_vulgar': [
                 "THIS MODE. THE BEST MODE. You're goddamn right.",
-                "Vulgar Panda mode. Where the magic and the profanity happen.",
-                "Welcome to the good sh*t. Why would you ever use another mode?",
+                "Unhinged Panda mode. Where the magic and the profanity happen.",
+                "Welcome to the good shit. Why would you ever use another mode?",
                 "The superior tooltip mode. Fight me if you disagree, coward.",
                 "You want this one. Trust me. The other modes are for wimps.",
             ],
@@ -6795,7 +6911,7 @@ class TooltipVerbosityManager:
                 "Animation items. Make your panda do tricks like a trained circus bear.",
                 "Play animations! Watch your panda be an idiot. It's hilarious.",
                 "Panda tricks section. Dance, wave, whatever. They'll do anything for attention.",
-                "Animations! Because watching a panda just sit there is boring as sh*t.",
+                "Animations! Because watching a panda just sit there is boring as shit.",
                 "Trigger panda animations. Free entertainment for your easily amused brain.",
             ],
             'popout_button': [
@@ -7208,7 +7324,7 @@ Q: Can I toss the panda?
 A: Yes! Drag the panda and release with some speed. It will bounce off walls and the floor with physics, playing different animations as it goes.
 
 Q: How do I change tooltip modes?
-A: Go to Settings -> UI & Appearance and change the tooltip mode. Changes take effect immediately - no restart needed. Choose Normal, Beginner, or Vulgar.
+A: Go to Settings -> UI & Appearance and change the tooltip mode. Changes take effect immediately - no restart needed. Choose Normal, Beginner, or Unhinged.
 
 Q: How do keyboard shortcuts work?
 A: Press F1 for help, Ctrl+P to start processing, Ctrl+S to save, and more. Check the About tab for a complete list of shortcuts.

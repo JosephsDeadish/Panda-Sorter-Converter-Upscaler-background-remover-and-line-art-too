@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <!-- Compress/squeeze icon -->
+  <defs>
+    <linearGradient id="compressGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#795548;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#3E2723;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Vice/clamp left side -->
+  <rect x="15" y="30" width="8" height="40" fill="url(#compressGrad)"/>
+  <rect x="15" y="25" width="15" height="8" fill="url(#compressGrad)"/>
+  <rect x="15" y="67" width="15" height="8" fill="url(#compressGrad)"/>
+  
+  <!-- Vice/clamp right side -->
+  <rect x="77" y="30" width="8" height="40" fill="url(#compressGrad)">
+    <animate attributeName="x" values="77;72;77" dur="2s" repeatCount="indefinite"/>
+  </rect>
+  <rect x="70" y="25" width="15" height="8" fill="url(#compressGrad)">
+    <animate attributeName="x" values="70;65;70" dur="2s" repeatCount="indefinite"/>
+  </rect>
+  <rect x="70" y="67" width="15" height="8" fill="url(#compressGrad)">
+    <animate attributeName="x" values="70;65;70" dur="2s" repeatCount="indefinite"/>
+  </rect>
+  
+  <!-- File being compressed -->
+  <rect x="35" y="35" width="30" height="30" fill="#FF9800" opacity="0.7" rx="2">
+    <animate attributeName="width" values="30;25;30" dur="2s" repeatCount="indefinite"/>
+    <animate attributeName="x" values="35;37.5;35" dur="2s" repeatCount="indefinite"/>
+  </rect>
+  
+  <!-- Compression lines -->
+  <line x1="40" y1="45" x2="60" y2="45" stroke="#FFF" stroke-width="2" opacity="0.5">
+    <animate attributeName="x2" values="60;55;60" dur="2s" repeatCount="indefinite"/>
+  </line>
+  <line x1="40" y1="50" x2="60" y2="50" stroke="#FFF" stroke-width="2" opacity="0.5">
+    <animate attributeName="x2" values="60;55;60" dur="2s" repeatCount="indefinite"/>
+  </line>
+  <line x1="40" y1="55" x2="60" y2="55" stroke="#FFF" stroke-width="2" opacity="0.5">
+    <animate attributeName="x2" values="60;55;60" dur="2s" repeatCount="indefinite"/>
+  </line>
+</svg>
