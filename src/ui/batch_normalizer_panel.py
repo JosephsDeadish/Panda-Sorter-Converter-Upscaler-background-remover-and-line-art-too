@@ -16,6 +16,14 @@ from src.tools.batch_normalizer import (
     PaddingMode, ResizeMode, OutputFormat, NamingPattern
 )
 
+# SVG icon support
+try:
+    from src.utils.svg_icon_helper import load_icon
+    SVG_ICONS_AVAILABLE = True
+except ImportError:
+    SVG_ICONS_AVAILABLE = False
+    logger.warning("SVG icon helper not available, using emoji fallback")
+
 logger = logging.getLogger(__name__)
 
 IMAGE_EXTENSIONS = {'.png', '.jpg', '.jpeg', '.bmp', '.tiff', '.webp'}
@@ -112,19 +120,31 @@ class BatchNormalizerPanel(ctk.CTkFrame):
         btn_frame = ctk.CTkFrame(file_frame)
         btn_frame.pack(fill="x", pady=5)
         
-        ctk.CTkButton(
+        # Select Files button with icon
+        select_files_btn = ctk.CTkButton(
             btn_frame,
             text="Select Files",
             command=self._select_files,
             width=100
-        ).pack(side="left", padx=5)
+        )
+        if SVG_ICONS_AVAILABLE:
+            icon = load_icon("file_open_animated", (20, 20))
+            if icon:
+                select_files_btn.configure(image=icon, compound="left")
+        select_files_btn.pack(side="left", padx=5)
         
-        ctk.CTkButton(
+        # Select Folder button with icon
+        select_folder_btn = ctk.CTkButton(
             btn_frame,
             text="Select Folder",
             command=self._select_folder,
             width=100
-        ).pack(side="left", padx=5)
+        )
+        if SVG_ICONS_AVAILABLE:
+            icon = load_icon("folder_open_animated", (20, 20))
+            if icon:
+                select_folder_btn.configure(image=icon, compound="left")
+        select_folder_btn.pack(side="left", padx=5)
         
         self.file_count_label = ctk.CTkLabel(file_frame, text="No files selected")
         self.file_count_label.pack(pady=5)
@@ -139,12 +159,18 @@ class BatchNormalizerPanel(ctk.CTkFrame):
                                              font=("Arial", 10), anchor="w")
         self.output_dir_label.pack(side="left", fill="x", expand=True, padx=5)
         
-        ctk.CTkButton(
+        # Browse button with icon
+        browse_btn = ctk.CTkButton(
             output_btn_frame,
             text="Browse",
             command=self._select_output_directory,
             width=80
-        ).pack(side="right", padx=5)
+        )
+        if SVG_ICONS_AVAILABLE:
+            icon = load_icon("folder_open_animated", (20, 20))
+            if icon:
+                browse_btn.configure(image=icon, compound="left")
+        browse_btn.pack(side="right", padx=5)
     
     def _create_size_settings(self, parent):
         """Create size and resize settings."""

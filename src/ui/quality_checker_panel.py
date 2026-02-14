@@ -13,6 +13,14 @@ import threading
 
 from src.tools.quality_checker import ImageQualityChecker, format_quality_report, QualityLevel
 
+# SVG icon support
+try:
+    from src.utils.svg_icon_helper import load_icon
+    SVG_ICONS_AVAILABLE = True
+except ImportError:
+    SVG_ICONS_AVAILABLE = False
+    logger.warning("SVG icon helper not available, using emoji fallback")
+
 logger = logging.getLogger(__name__)
 
 IMAGE_EXTENSIONS = {'.png', '.jpg', '.jpeg', '.bmp', '.tiff', '.webp'}
@@ -66,27 +74,45 @@ class QualityCheckerPanel(ctk.CTkFrame):
         btn_frame = ctk.CTkFrame(file_frame)
         btn_frame.pack(fill="x", pady=5)
         
-        ctk.CTkButton(
+        # Select Files button with icon
+        select_files_btn = ctk.CTkButton(
             btn_frame,
             text="Select Files",
             command=self._select_files,
             width=120
-        ).pack(side="left", padx=5)
+        )
+        if SVG_ICONS_AVAILABLE:
+            icon = load_icon("file_open_animated", (20, 20))
+            if icon:
+                select_files_btn.configure(image=icon, compound="left")
+        select_files_btn.pack(side="left", padx=5)
         
-        ctk.CTkButton(
+        # Select Folder button with icon
+        select_folder_btn = ctk.CTkButton(
             btn_frame,
             text="Select Folder",
             command=self._select_folder,
             width=120
-        ).pack(side="left", padx=5)
+        )
+        if SVG_ICONS_AVAILABLE:
+            icon = load_icon("folder_open_animated", (20, 20))
+            if icon:
+                select_folder_btn.configure(image=icon, compound="left")
+        select_folder_btn.pack(side="left", padx=5)
         
-        ctk.CTkButton(
+        # Clear button with icon
+        clear_btn = ctk.CTkButton(
             btn_frame,
             text="Clear",
             command=self._clear_files,
             width=80,
             fg_color="gray"
-        ).pack(side="left", padx=5)
+        )
+        if SVG_ICONS_AVAILABLE:
+            icon = load_icon("trash_empty_animated", (20, 20))
+            if icon:
+                clear_btn.configure(image=icon, compound="left")
+        clear_btn.pack(side="left", padx=5)
         
         self.file_count_label = ctk.CTkLabel(file_frame, text="No files selected")
         self.file_count_label.pack(pady=5)
