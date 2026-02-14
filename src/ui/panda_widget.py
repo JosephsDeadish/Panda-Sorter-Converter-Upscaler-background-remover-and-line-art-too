@@ -372,6 +372,13 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
         self._is_being_dragged_on_ground = False  # True when being dragged on side by foot
         self._drag_ground_angle = 0.0   # Angle of body when dragged on ground (0-2π for full rotation)
         
+        # Squash/stretch for cartoon bounce impact
+        self._squash_factor = 1.0      # 1.0 = normal, <1.0 = squashed, >1.0 = stretched
+        
+        # Smooth facing direction transition
+        self._facing_blend = 0.0       # 0.0 = previous facing, 1.0 = current facing
+        self._prev_facing = 'front'    # Previous facing direction for blending
+        
         # Ear stretch physics (elastic stretch during drag)
         self._ear_stretch = 0.0        # Current ear stretch amount
         self._ear_stretch_vel = 0.0    # Ear stretch velocity
@@ -2607,6 +2614,16 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
             # --- SIDE VIEW: panda viewed from left or right profile ---
             facing_right = (anim == 'walking_right')
             side_dir = 1 if facing_right else -1
+
+            # Drop shadow
+            shadow_y = int(178 * sy + by)
+            shadow_rx = int(30 * sx)
+            shadow_ry = int(5 * sy)
+            c.create_oval(
+                cx_draw - shadow_rx, shadow_y - shadow_ry,
+                cx_draw + shadow_rx, shadow_y + shadow_ry,
+                fill='#D8D8D8', outline='#D0D0D0', tags="shadow"
+            )
             
             # Per-limb dangle offsets for side views during drag
             _back_leg_dangle = int(self._dangle_left_leg) if is_being_dragged else 0
@@ -2767,6 +2784,16 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
         
         elif anim == 'walking_up':
             # --- BACK VIEW: panda walking away from viewer ---
+            # Drop shadow
+            shadow_y = int(178 * sy + by)
+            shadow_rx = int(35 * sx)
+            shadow_ry = int(6 * sy)
+            c.create_oval(
+                cx_draw - shadow_rx, shadow_y - shadow_ry,
+                cx_draw + shadow_rx, shadow_y + shadow_ry,
+                fill='#D8D8D8', outline='#D0D0D0', tags="shadow"
+            )
+
             # Dangle offsets during drag (body/butt grabs)
             _back_left_leg_dangle = int(self._dangle_left_leg) if is_being_dragged else 0
             _back_right_leg_dangle = int(self._dangle_right_leg) if is_being_dragged else 0
@@ -3050,6 +3077,16 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
         elif anim in ('walking_up_left', 'walking_up_right', 
                       'walking_down_left', 'walking_down_right'):
             # --- DIAGONAL VIEW: 3/4 perspective combining front/back with side ---
+            # Drop shadow
+            shadow_y = int(178 * sy + by)
+            shadow_rx = int(32 * sx)
+            shadow_ry = int(5 * sy)
+            c.create_oval(
+                cx_draw - shadow_rx, shadow_y - shadow_ry,
+                cx_draw + shadow_rx, shadow_y + shadow_ry,
+                fill='#D8D8D8', outline='#D0D0D0', tags="shadow"
+            )
+
             # Determine diagonal direction
             is_back_facing = anim in ('walking_up_left', 'walking_up_right')
             facing_left = anim in ('walking_up_left', 'walking_down_left')
@@ -3243,6 +3280,17 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
         
         else:
             # --- FRONT VIEW (default): standard forward-facing panda ---
+
+            # --- Drop shadow (drawn first so it's behind everything) ---
+            shadow_y = int(178 * sy + by)
+            shadow_rx = int(35 * sx)
+            shadow_ry = int(6 * sy)
+            c.create_oval(
+                cx_draw - shadow_rx, shadow_y - shadow_ry,
+                cx_draw + shadow_rx, shadow_y + shadow_ry,
+                fill='#D8D8D8', outline='#D0D0D0', tags="shadow"
+            )
+
             leg_top = int(145 * sy + by)
             leg_len = int(30 * sy)
             
@@ -3402,6 +3450,13 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
                               font=("Arial Bold", int(10 * sx)),
                               fill="#666666", width=int(w * 0.9), tags="name_tag")
         
+        # --- Squash/stretch on impact (cartoon physics) ---
+        squash = self._squash_factor
+        if abs(squash - 1.0) > 0.01:
+            stretch_x = 1.0 + (1.0 - squash) * 0.5  # wider when squashed
+            foot_y = int(175 * sy + by)
+            c.scale("all", w / 2, foot_y, stretch_x, squash)
+        
         # --- Lay-on-side and tip-over: Rotate the entire panda to show lying on side ---
         # Uses the same rotation-matrix technique as dragged-on-ground so the
         # panda's feet actually move to the side instead of staying underneath.
@@ -3557,19 +3612,12 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
             if abs(angle) > 0.05:
                 is_leg_grab = self._drag_grab_part in ('left_leg', 'right_leg')
                 # Pivot point depends on what's grabbed:
-                # Legs → pivot at foot (bottom), Arms → pivot at arm (mid), Ears → pivot at ear (top)
+                # Legs → pivot at body center (keeps rotated body on canvas)
+                # Arms → pivot at arm (mid), Ears → pivot at ear (top)
                 if is_leg_grab:
-                    # Pivot at foot (bottom), but adjust for upside-down rotation
-                    # to prevent body clipping above the foot
-                    base_pivot_y = int(175 * sy + by)
-                    # When hanging upside down (angle ≈ π), offset pivot down
-                    # to account for body extending upward from foot
-                    if abs(angle) > math.pi / 2:
-                        # At 180°, body extends up ~75px from foot, so shift pivot down
-                        upside_down_factor = abs(math.cos(angle))
-                        pivot_y = base_pivot_y + int(75 * sy * upside_down_factor)
-                    else:
-                        pivot_y = base_pivot_y
+                    # Use body center as pivot so the full panda stays on canvas
+                    # at any rotation angle (including full 180° upside-down).
+                    pivot_y = int(120 * sy + by)
                 elif self._drag_grab_part in ('left_arm', 'right_arm'):
                     pivot_y = int(100 * sy + by)
                 else:  # ears
@@ -3604,6 +3652,19 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
                                 new_coords.append(x_rot + pivot_x)
                                 new_coords.append(y_rot + pivot_y)
                             c.coords(item, *new_coords)
+
+                    # Clamp rotated body to stay within canvas bounds
+                    bbox = c.bbox("all")
+                    if bbox:
+                        _, min_y, _, max_y = bbox
+                        shift_y = 0
+                        if max_y > h - 5:
+                            shift_y = (h - 5) - max_y
+                        elif min_y < 5:
+                            shift_y = 5 - min_y
+                        if abs(shift_y) > 1:
+                            for item in c.find_all():
+                                c.move(item, 0, shift_y)
                 else:
                     # Arms/ears: use rotation-matrix (same as leg grabs) to
                     # avoid cumulative scale shrinking. Angle is limited to
@@ -6520,17 +6581,12 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
         grabbed = self._drag_grab_part
         drag_speed = (vx**2 + vy**2) ** 0.5
         if grabbed in ('left_leg', 'right_leg'):
-            # When dragged by foot, the body should hang down from the foot
-            # like being dangled by the leg.  The foot stays under the mouse
-            # pointer and gravity pulls the body downward (away from the
-            # drag point).  Horizontal drag velocity adds a small pendulum
-            # sway so the body swings opposite to the drag direction.
-            if drag_speed > 3.0:
-                self._is_being_dragged_on_ground = True
-                drag_angle = math.atan2(vy, vx)
-                self._drag_ground_angle = drag_angle
-            else:
-                self._is_being_dragged_on_ground = False
+            # Leg grabs use ONLY the _drag_body_angle rotation system.
+            # Do NOT enable _is_being_dragged_on_ground here – that activates
+            # a second independent rotation in the drawing code which conflicts
+            # with the body-angle rotation, producing a "dragged opposite way"
+            # visual glitch and body clipping.
+            self._is_being_dragged_on_ground = False
             
             # If dragged upward (negative velocity), panda hangs by foot normally
             # If dragged downward (positive velocity), flip to standing/upright
@@ -6887,13 +6943,20 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
             
             if bounced:
                 self._toss_bounce_count += 1
+                # Squash on impact (cartoon physics)
+                self._squash_factor = 0.7
                 # Update facing direction after bounce reversal
                 vx = self._toss_velocity_x
                 vy = self._toss_velocity_y
+                new_facing = self._facing_direction
                 if abs(vx) > abs(vy):
-                    self._facing_direction = 'right' if vx > 0 else 'left'
+                    new_facing = 'right' if vx > 0 else 'left'
                 else:
-                    self._facing_direction = 'down' if vy > 0 else 'up'
+                    new_facing = 'down' if vy > 0 else 'up'
+                if new_facing != self._facing_direction:
+                    self._prev_facing = self._facing_direction
+                    self._facing_direction = new_facing
+                    self._facing_blend = 0.0  # restart blend
                 # Cycle through bounce animations
                 bounce_anims = ['tossed', 'wall_hit', 'rolling', 'spinning']
                 anim = bounce_anims[self._toss_bounce_count % len(bounce_anims)]
@@ -7665,6 +7728,16 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
         if self._destroyed:
             return
         try:
+            # Recover squash/stretch toward normal (spring-like)
+            if abs(self._squash_factor - 1.0) > 0.01:
+                self._squash_factor += (1.0 - self._squash_factor) * 0.25
+                if abs(self._squash_factor - 1.0) < 0.01:
+                    self._squash_factor = 1.0
+            
+            # Advance facing blend toward current direction
+            if self._facing_blend < 1.0:
+                self._facing_blend = min(1.0, self._facing_blend + 0.15)
+            
             self._draw_panda(self.animation_frame)
             
             # Calculate widget jump offset for jumping animation
