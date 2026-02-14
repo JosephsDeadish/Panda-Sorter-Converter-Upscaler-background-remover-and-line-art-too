@@ -373,8 +373,8 @@ def test_drag_body_angle_tracking():
         draw_src = inspect.getsource(PandaWidget._draw_panda)
         assert '_drag_body_angle' in draw_src, \
             "_draw_panda should use _drag_body_angle for body rotation"
-        assert 'c.move' in draw_src, \
-            "_draw_panda should use c.move for horizontal shift during rotation"
+        assert 'cos_angle' in draw_src and 'sin_angle' in draw_src, \
+            "_draw_panda should use rotation matrix for body angle transforms"
         print("✓ Continuous drag body angle rotation works for legs, arms, and ears")
     except ImportError:
         print("⚠ Skipping drag body angle test (GUI not available)")

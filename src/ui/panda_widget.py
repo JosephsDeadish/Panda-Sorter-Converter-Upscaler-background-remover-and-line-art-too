@@ -23,7 +23,11 @@ logger = logging.getLogger(__name__)
 # Canvas dimensions for the panda drawing
 # Increased height to accommodate full upside-down rotations without clipping
 PANDA_CANVAS_W = 220
-PANDA_CANVAS_H = 340  # Was 270, increased to 340 for rotation space
+PANDA_CANVAS_H = 380  # Extra height for head/ear room at top and fall room at bottom
+
+# Vertical offset applied to all drawing so the panda sits lower on the canvas,
+# preventing head/ear clipping when body_bob goes negative (idle, jumping, etc.).
+PANDA_DRAW_Y_OFFSET = 20
 
 # Transparent color key for the Toplevel window (Windows only).
 # Magenta is the classic choice – it does not appear in the panda drawing.
@@ -1603,7 +1607,7 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
             self._ear_stretch = 0.0
             self._ear_stretch_vel = 0.0
         
-        by = body_bob  # vertical body offset
+        by = body_bob + PANDA_DRAW_Y_OFFSET  # vertical body offset (shifted down to prevent head clipping)
         
         # --- Body sway (horizontal offset for turning/direction changes) ---
         body_sway = 0
@@ -2601,22 +2605,28 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
             facing_right = (anim == 'walking_right')
             side_dir = 1 if facing_right else -1
             
-            # Dangle offsets for side views during drag (body/butt grabs)
-            _side_leg_dangle = int((self._dangle_left_leg + self._dangle_right_leg) / 2) if is_being_dragged else 0
-            _side_arm_dangle = int((self._dangle_left_arm + self._dangle_right_arm) / 2) if is_being_dragged else 0
+            # Per-limb dangle offsets for side views during drag
+            _back_leg_dangle = int(self._dangle_left_leg) if is_being_dragged else 0
+            _front_leg_dangle = int(self._dangle_right_leg) if is_being_dragged else 0
+            _back_arm_dangle = int(self._dangle_left_arm) if is_being_dragged else 0
+            _front_arm_dangle = int(self._dangle_right_arm) if is_being_dragged else 0
+            _back_leg_dangle_h = int(self._dangle_left_leg_h) if is_being_dragged else 0
+            _front_leg_dangle_h = int(self._dangle_right_leg_h) if is_being_dragged else 0
+            _back_arm_dangle_h = int(self._dangle_left_arm_h) if is_being_dragged else 0
+            _front_arm_dangle_h = int(self._dangle_right_arm_h) if is_being_dragged else 0
             
             leg_top = int(145 * sy + by)
             leg_len = int(30 * sy)
             # Back leg (further from viewer)
-            back_leg_swing = -leg_swing + _side_leg_dangle
+            back_leg_swing = -leg_swing + _back_leg_dangle
             c.create_oval(
-                cx_draw - int(8 * sx), leg_top + back_leg_swing,
-                cx_draw + int(16 * sx), leg_top + leg_len + back_leg_swing,
+                cx_draw - int(8 * sx) + _back_leg_dangle_h, leg_top + back_leg_swing,
+                cx_draw + int(16 * sx) + _back_leg_dangle_h, leg_top + leg_len + back_leg_swing,
                 fill=black, outline=black, tags="leg"
             )
             c.create_oval(
-                cx_draw - int(6 * sx), leg_top + leg_len - int(8 * sy) + back_leg_swing,
-                cx_draw + int(14 * sx), leg_top + leg_len + int(4 * sy) + back_leg_swing,
+                cx_draw - int(6 * sx) + _back_leg_dangle_h, leg_top + leg_len - int(8 * sy) + back_leg_swing,
+                cx_draw + int(14 * sx) + _back_leg_dangle_h, leg_top + leg_len + int(4 * sy) + back_leg_swing,
                 fill=white, outline=black, width=1, tags="foot"
             )
             
@@ -2639,33 +2649,33 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
             )
             
             # Front leg (closer to viewer)
-            front_leg_swing = leg_swing + _side_leg_dangle
+            front_leg_swing = leg_swing + _front_leg_dangle
             c.create_oval(
-                cx_draw - int(16 * sx), leg_top + front_leg_swing,
-                cx_draw + int(8 * sx), leg_top + leg_len + front_leg_swing,
+                cx_draw - int(16 * sx) + _front_leg_dangle_h, leg_top + front_leg_swing,
+                cx_draw + int(8 * sx) + _front_leg_dangle_h, leg_top + leg_len + front_leg_swing,
                 fill=black, outline=black, tags="leg"
             )
             c.create_oval(
-                cx_draw - int(14 * sx), leg_top + leg_len - int(8 * sy) + front_leg_swing,
-                cx_draw + int(6 * sx), leg_top + leg_len + int(4 * sy) + front_leg_swing,
+                cx_draw - int(14 * sx) + _front_leg_dangle_h, leg_top + leg_len - int(8 * sy) + front_leg_swing,
+                cx_draw + int(6 * sx) + _front_leg_dangle_h, leg_top + leg_len + int(4 * sy) + front_leg_swing,
                 fill=white, outline=black, width=1, tags="foot"
             )
             
             # Back arm (further from viewer, behind body)
             arm_top = int(95 * sy + by)
             arm_len = int(35 * sy)
-            ba_swing = -arm_swing + _side_arm_dangle
+            ba_swing = -arm_swing + _back_arm_dangle
             c.create_oval(
-                cx_draw - int(10 * sx) - int(8 * sx * side_dir), arm_top + ba_swing,
-                cx_draw + int(10 * sx) - int(8 * sx * side_dir), arm_top + arm_len + ba_swing,
+                cx_draw - int(10 * sx) - int(8 * sx * side_dir) + _back_arm_dangle_h, arm_top + ba_swing,
+                cx_draw + int(10 * sx) - int(8 * sx * side_dir) + _back_arm_dangle_h, arm_top + arm_len + ba_swing,
                 fill=black, outline=black, tags="arm"
             )
             
             # Front arm (closer to viewer, in front of body)
-            fa_swing = arm_swing + _side_arm_dangle
+            fa_swing = arm_swing + _front_arm_dangle
             c.create_oval(
-                cx_draw - int(10 * sx) + int(8 * sx * side_dir), arm_top + fa_swing,
-                cx_draw + int(10 * sx) + int(8 * sx * side_dir), arm_top + arm_len + fa_swing,
+                cx_draw - int(10 * sx) + int(8 * sx * side_dir) + _front_arm_dangle_h, arm_top + fa_swing,
+                cx_draw + int(10 * sx) + int(8 * sx * side_dir) + _front_arm_dangle_h, arm_top + arm_len + fa_swing,
                 fill=black, outline=black, tags="arm"
             )
             
@@ -3430,8 +3440,8 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
                 cos_angle = math.cos(tilt_rad)
                 sin_angle = math.sin(tilt_rad)
                 
-                # Shift pivot down as panda tips over
-                pivot_y += int(settle * 30 * sy)
+                # Shift pivot down as panda tips over (scaled conservatively to stay on canvas)
+                pivot_y += int(settle * 20 * sy)
                 
                 all_items = c.find_all()
                 for item in all_items:
@@ -3592,15 +3602,26 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
                                 new_coords.append(y_rot + pivot_y)
                             c.coords(item, *new_coords)
                 else:
-                    # Arms/ears: partial tilt using scale (limited to ±45°,
-                    # so scale never goes below cos(45°) ≈ 0.71 — no clipping)
-                    v_scale = math.cos(angle)
-                    h_tilt = math.sin(angle)
-                    foreshorten = 1.0 - 0.25 * abs(h_tilt)
-                    c.scale("all", pivot_x, pivot_y, foreshorten, v_scale)
-                    # Shift horizontally to simulate sideways hanging
-                    shift_px = int(h_tilt * 60 * sx)
-                    c.move("all", shift_px, 0)
+                    # Arms/ears: use rotation-matrix (same as leg grabs) to
+                    # avoid cumulative scale shrinking. Angle is limited to
+                    # ±45° so the tilt looks natural.
+                    cos_angle = math.cos(angle)
+                    sin_angle = math.sin(angle)
+
+                    all_items = c.find_all()
+                    for item in all_items:
+                        coords = c.coords(item)
+                        if len(coords) >= 4:
+                            new_coords = []
+                            for i in range(0, len(coords), 2):
+                                x, y = coords[i], coords[i+1]
+                                x_rel = x - pivot_x
+                                y_rel = y - pivot_y
+                                x_rot = x_rel * cos_angle - y_rel * sin_angle
+                                y_rot = x_rel * sin_angle + y_rel * cos_angle
+                                new_coords.append(x_rot + pivot_x)
+                                new_coords.append(y_rot + pivot_y)
+                            c.coords(item, *new_coords)
 
             self._flip_progress = abs(self._drag_body_angle) / math.pi
         else:
@@ -3649,20 +3670,32 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
             # Different crack patterns for different impact types
             if crack_type == 'heavy':
                 # Larger cracks for heavy items
-                crack_lines = 5
-                crack_length = 15
+                crack_lines = 8
+                crack_length = 30
             else:
-                # Smaller cracks for panda falls
-                crack_lines = 3
-                crack_length = 10
+                # Panda falls — visible radiating cracks
+                crack_lines = 6
+                crack_length = 22
             
             for i in range(crack_lines):
                 # Full circle (2*pi radians) divided by number of crack lines
                 angle = (i / crack_lines) * 2 * math.pi
-                end_x = crack_x + int(crack_length * math.cos(angle))
-                end_y = crack_y + int(crack_length * math.sin(angle))
+                # Add slight random variation for natural-looking cracks
+                jitter = random.uniform(-0.15, 0.15)
+                end_x = crack_x + int(crack_length * math.cos(angle + jitter))
+                end_y = crack_y + int(crack_length * math.sin(angle + jitter))
                 c.create_line(crack_x, crack_y, end_x, end_y,
                              fill=color, width=2, tags="crack_effect")
+                # Add secondary shorter branching crack for realism
+                if crack_length > 15:
+                    mid_x = crack_x + int(crack_length * 0.6 * math.cos(angle + jitter))
+                    mid_y = crack_y + int(crack_length * 0.6 * math.sin(angle + jitter))
+                    branch_angle = angle + jitter + random.uniform(0.3, 0.8)
+                    branch_len = crack_length // 3
+                    branch_end_x = mid_x + int(branch_len * math.cos(branch_angle))
+                    branch_end_y = mid_y + int(branch_len * math.sin(branch_angle))
+                    c.create_line(mid_x, mid_y, branch_end_x, branch_end_y,
+                                 fill=color, width=1, tags="crack_effect")
     
     def _add_ground_crack(self, x: int, y: int, crack_type: str = 'normal'):
         """Add a new ground crack effect at the specified position.
@@ -4277,7 +4310,7 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
             _right_leg_dangle_h = 0
             _left_arm_dangle_h = 0
             _right_arm_dangle_h = 0
-            if self.current_animation == 'dragging' and self.is_dragging:
+            if (self.current_animation == 'dragging' and self.is_dragging) or self._is_tossing:
                 _left_leg_dangle = int(self._dangle_left_leg)
                 _right_leg_dangle = int(self._dangle_right_leg)
                 _left_arm_dangle = int(self._dangle_left_arm)
@@ -4696,12 +4729,13 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
 
             # --- Draw accessories with type-specific positioning ---
             if appearance.accessories:
-                # Include dangle physics for drag sync. Dangle represents whole-body
-                # motion, applied equally to both arms; swing provides left/right symmetry.
-                arm_dangle = int(self._dangle_arm)
-                arm_dangle_h = int(self._dangle_arm_h)
-                la_swing = _arm_swing + arm_dangle
-                ra_swing = -_arm_swing + arm_dangle
+                # Use per-limb dangle physics for accurate tracking
+                la_dangle = _left_arm_dangle
+                ra_dangle = _right_arm_dangle
+                la_dangle_h = _left_arm_dangle_h
+                ra_dangle_h = _right_arm_dangle_h
+                la_swing = _arm_swing + la_dangle
+                ra_swing = -_arm_swing + ra_dangle
 
                 # Classify accessories by type for proper placement
                 _WRIST_IDS = {
@@ -4727,22 +4761,22 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
                         arm_len = int(35 * sy)
                         wrist_y = arm_top + arm_len
                         if i % 2 == 0:
-                            wrist_x = cx - int(42 * sx) + arm_dangle_h
+                            wrist_x = cx - int(42 * persp_sx) + la_dangle_h
                             wrist_y_adj = wrist_y + int(la_swing)
                         else:
-                            wrist_x = cx + int(42 * sx) + arm_dangle_h
+                            wrist_x = cx + int(42 * persp_sx) + ra_dangle_h
                             wrist_y_adj = wrist_y + int(ra_swing)
                         # Bracelet band
                         band_h = int(5 * sy)
                         c.create_oval(
-                            wrist_x - int(10 * sx), wrist_y_adj - band_h,
-                            wrist_x + int(10 * sx), wrist_y_adj + band_h,
+                            wrist_x - int(10 * persp_sx), wrist_y_adj - band_h,
+                            wrist_x + int(10 * persp_sx), wrist_y_adj + band_h,
                             fill=color, outline=shadow, width=1,
                             tags="equipped_acc")
                         # Gem/detail on bracelet
                         c.create_oval(
-                            wrist_x - int(3 * sx), wrist_y_adj - int(2 * sy),
-                            wrist_x + int(3 * sx), wrist_y_adj + int(2 * sy),
+                            wrist_x - int(3 * persp_sx), wrist_y_adj - int(2 * sy),
+                            wrist_x + int(3 * persp_sx), wrist_y_adj + int(2 * sy),
                             fill=highlight, outline='',
                             tags="equipped_acc")
 
@@ -4751,7 +4785,7 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
                         neck_y = int(78 * sy + by)
                         if acc_id in ('bowtie', 'bow_tie'):
                             # Bow tie shape: two triangles meeting at center
-                            bow_w = int(14 * sx)
+                            bow_w = int(14 * persp_sx)
                             bow_h = int(8 * sy)
                             # Left wing
                             c.create_polygon(
@@ -4769,46 +4803,46 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
                                 tags="equipped_acc")
                             # Center knot
                             c.create_oval(
-                                cx - int(3 * sx), neck_y - int(3 * sy),
-                                cx + int(3 * sx), neck_y + int(3 * sy),
+                                cx - int(3 * persp_sx), neck_y - int(3 * sy),
+                                cx + int(3 * persp_sx), neck_y + int(3 * sy),
                                 fill=shadow, outline='',
                                 tags="equipped_acc")
                         elif acc_id in ('necklace', 'pearl_necklace'):
                             # Necklace arc around neck
                             c.create_arc(
-                                cx - int(24 * sx), neck_y - int(10 * sy),
-                                cx + int(24 * sx), neck_y + int(16 * sy),
+                                cx - int(24 * persp_sx), neck_y - int(10 * sy),
+                                cx + int(24 * persp_sx), neck_y + int(16 * sy),
                                 start=200, extent=140, style="arc",
                                 outline=color, width=2, tags="equipped_acc")
                             # Pendant
                             c.create_oval(
-                                cx - int(4 * sx), neck_y + int(10 * sy),
-                                cx + int(4 * sx), neck_y + int(16 * sy),
+                                cx - int(4 * persp_sx), neck_y + int(10 * sy),
+                                cx + int(4 * persp_sx), neck_y + int(16 * sy),
                                 fill=color, outline=shadow, width=1,
                                 tags="equipped_acc")
                         else:
                             # Scarf / bandana - draped around neck
                             c.create_arc(
-                                cx - int(28 * sx), neck_y - int(6 * sy),
-                                cx + int(28 * sx), neck_y + int(12 * sy),
+                                cx - int(28 * persp_sx), neck_y - int(6 * sy),
+                                cx + int(28 * persp_sx), neck_y + int(12 * sy),
                                 start=200, extent=140, style="arc",
                                 outline=color, width=3, tags="equipped_acc")
                     else:
                         # --- Default: pendant near chest ---
                         neck_y = int(90 * sy + by)
-                        ox = int((-12 + i * 24) * sx)
+                        ox = int((-12 + i * 24) * persp_sx)
                         pts = [
                             cx + ox, neck_y - int(7 * sy),
-                            cx + ox - int(10 * sx), neck_y,
+                            cx + ox - int(10 * persp_sx), neck_y,
                             cx + ox, neck_y + int(7 * sy),
-                            cx + ox + int(10 * sx), neck_y,
+                            cx + ox + int(10 * persp_sx), neck_y,
                         ]
                         c.create_polygon(
                             *pts, fill=color, outline=shadow, width=1,
                             tags="equipped_acc")
                         c.create_oval(
-                            cx + ox - int(3 * sx), neck_y - int(3 * sy),
-                            cx + ox + int(3 * sx), neck_y + int(3 * sy),
+                            cx + ox - int(3 * persp_sx), neck_y - int(3 * sy),
+                            cx + ox + int(3 * persp_sx), neck_y + int(3 * sy),
                             fill=highlight, outline='',
                             tags="equipped_acc")
 
