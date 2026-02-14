@@ -2020,7 +2020,7 @@ class GameTextureSorter(ctk.CTk):
         self.upscale_factor_var = ctk.StringVar(value="2x")
         upscale_factor_menu = ctk.CTkOptionMenu(
             opts, variable=self.upscale_factor_var,
-            values=["2x", "4x", "8x"],
+            values=["2x", "3x", "4x", "6x", "8x", "16x"],
             command=self._update_upscale_preview)
         upscale_factor_menu.grid(row=0, column=1, padx=10, pady=5, sticky="w")
 
@@ -2035,6 +2035,9 @@ class GameTextureSorter(ctk.CTk):
                 "🟡 Bilinear (Fast)",
                 "🔶 Hamming",
                 "🟣 Box (Pixel Art)",
+                "⬜ Nearest (Pixel Perfect)",
+                "🔵 Mitchell",
+                "🟤 CatRom",
                 "🔴 Real-ESRGAN (AI)"
             ],
             command=self._update_upscale_preview)
@@ -2045,10 +2048,18 @@ class GameTextureSorter(ctk.CTk):
         self.upscale_format_var = ctk.StringVar(value="PNG")
         upscale_format_menu = ctk.CTkOptionMenu(
             opts, variable=self.upscale_format_var,
-            values=["PNG", "BMP", "TGA", "JPEG", "WEBP"])
+            values=["PNG", "BMP", "TGA", "JPEG", "WEBP", "DDS", "TIFF"])
         upscale_format_menu.grid(row=1, column=1, padx=10, pady=5, sticky="w")
 
-        # Checkboxes row
+        # Custom resolution input
+        ctk.CTkLabel(opts, text="Custom Size:").grid(row=1, column=2, padx=10, pady=5, sticky="w")
+        self.upscale_custom_res_var = ctk.StringVar(value="")
+        upscale_custom_entry = ctk.CTkEntry(
+            opts, textvariable=self.upscale_custom_res_var,
+            width=120, placeholder_text="e.g. 1024x1024")
+        upscale_custom_entry.grid(row=1, column=3, padx=10, pady=5, sticky="w")
+
+        # Checkboxes row 1
         check_frame = ctk.CTkFrame(opts_frame)
         check_frame.pack(fill="x", padx=10, pady=5)
         self.upscale_alpha_var = ctk.BooleanVar(value=True)
@@ -2067,6 +2078,46 @@ class GameTextureSorter(ctk.CTk):
         upscale_send_org_cb = ctk.CTkCheckBox(check_frame, text="🐼 Send to Organizer when done",
                        variable=self.upscale_send_organizer_var)
         upscale_send_org_cb.pack(side="left", padx=10)
+
+        # Checkboxes row 2 — advanced post-processing
+        check_frame2 = ctk.CTkFrame(opts_frame)
+        check_frame2.pack(fill="x", padx=10, pady=5)
+        self.upscale_sharpen_var = ctk.BooleanVar(value=False)
+        upscale_sharpen_cb = ctk.CTkCheckBox(check_frame2, text="🔪 Sharpen output",
+                       variable=self.upscale_sharpen_var)
+        upscale_sharpen_cb.pack(side="left", padx=10)
+        self.upscale_denoise_var = ctk.BooleanVar(value=False)
+        upscale_denoise_cb = ctk.CTkCheckBox(check_frame2, text="🔇 Reduce noise",
+                       variable=self.upscale_denoise_var)
+        upscale_denoise_cb.pack(side="left", padx=10)
+        self.upscale_face_enhance_var = ctk.BooleanVar(value=False)
+        upscale_face_cb = ctk.CTkCheckBox(check_frame2, text="👤 Face enhancement",
+                       variable=self.upscale_face_enhance_var)
+        upscale_face_cb.pack(side="left", padx=10)
+        self.upscale_gpu_var = ctk.BooleanVar(value=False)
+        upscale_gpu_cb = ctk.CTkCheckBox(check_frame2, text="🖥️ GPU acceleration",
+                       variable=self.upscale_gpu_var)
+        upscale_gpu_cb.pack(side="left", padx=10)
+
+        # Checkboxes row 3 — texture-specific options
+        check_frame3 = ctk.CTkFrame(opts_frame)
+        check_frame3.pack(fill="x", padx=10, pady=5)
+        self.upscale_tile_seamless_var = ctk.BooleanVar(value=False)
+        upscale_tile_cb = ctk.CTkCheckBox(check_frame3, text="🔁 Tile-seamless (for tiling textures)",
+                       variable=self.upscale_tile_seamless_var)
+        upscale_tile_cb.pack(side="left", padx=10)
+        self.upscale_normal_map_var = ctk.BooleanVar(value=False)
+        upscale_normal_cb = ctk.CTkCheckBox(check_frame3, text="🗺️ Normal map mode",
+                       variable=self.upscale_normal_map_var)
+        upscale_normal_cb.pack(side="left", padx=10)
+        self.upscale_auto_level_var = ctk.BooleanVar(value=False)
+        upscale_auto_level_cb = ctk.CTkCheckBox(check_frame3, text="⚖️ Auto-level colors",
+                       variable=self.upscale_auto_level_var)
+        upscale_auto_level_cb.pack(side="left", padx=10)
+        self.upscale_overwrite_var = ctk.BooleanVar(value=False)
+        upscale_overwrite_cb = ctk.CTkCheckBox(check_frame3, text="♻️ Overwrite existing",
+                       variable=self.upscale_overwrite_var)
+        upscale_overwrite_cb.pack(side="left", padx=10)
 
         # --- Preview section ---
         preview_frame = ctk.CTkFrame(scroll)
@@ -2215,6 +2266,12 @@ class GameTextureSorter(ctk.CTk):
             return Image.HAMMING
         elif "Box" in style:
             return Image.BOX
+        elif "Nearest" in style:
+            return Image.NEAREST
+        elif "Mitchell" in style or "CatRom" in style:
+            # PIL doesn't have separate Mitchell/CatRom — BICUBIC is the
+            # closest equivalent (both are cubic spline variants).
+            return Image.BICUBIC
         return Image.LANCZOS  # default
 
     def _get_upscale_factor(self):
@@ -2282,8 +2339,22 @@ class GameTextureSorter(ctk.CTk):
             self._show_upscale_preview(self._upscale_preview_image)
 
     def _upscale_pil_image(self, img, factor, preserve_alpha=True):
-        """Upscale a single PIL Image using the current style."""
-        new_size = (img.size[0] * factor, img.size[1] * factor)
+        """Upscale a single PIL Image using the current style and options."""
+        from PIL import ImageFilter
+        
+        # Determine target size — custom resolution overrides factor
+        custom_res = ""
+        if hasattr(self, 'upscale_custom_res_var'):
+            custom_res = self.upscale_custom_res_var.get().strip()
+        if custom_res and "x" in custom_res.lower():
+            try:
+                parts = custom_res.lower().split("x")
+                new_size = (int(parts[0]), int(parts[1]))
+            except (ValueError, IndexError):
+                new_size = (img.size[0] * factor, img.size[1] * factor)
+        else:
+            new_size = (img.size[0] * factor, img.size[1] * factor)
+        
         resample = self._get_pil_resample()
 
         if preserve_alpha and img.mode == "RGBA":
@@ -2292,12 +2363,48 @@ class GameTextureSorter(ctk.CTk):
             alpha = img.getchannel("A").resize(new_size, resample)
             result = rgb.copy()
             result.putalpha(alpha)
-            return result
         elif preserve_alpha and img.mode != "RGBA":
             img = img.convert("RGBA")
-            return img.resize(new_size, resample)
+            result = img.resize(new_size, resample)
         else:
-            return img.resize(new_size, resample)
+            result = img.resize(new_size, resample)
+        
+        # --- Post-processing options ---
+        if hasattr(self, 'upscale_denoise_var') and self.upscale_denoise_var.get():
+            # Noise reduction: slight blur to remove compression artifacts
+            if result.mode == "RGBA":
+                rgb_ch = result.convert("RGB").filter(ImageFilter.SMOOTH)
+                alpha_ch = result.getchannel("A")
+                result = rgb_ch.copy()
+                result.putalpha(alpha_ch)
+            else:
+                result = result.filter(ImageFilter.SMOOTH)
+        
+        if hasattr(self, 'upscale_sharpen_var') and self.upscale_sharpen_var.get():
+            # Sharpening pass
+            if result.mode == "RGBA":
+                rgb_ch = result.convert("RGB").filter(ImageFilter.SHARPEN)
+                alpha_ch = result.getchannel("A")
+                result = rgb_ch.copy()
+                result.putalpha(alpha_ch)
+            else:
+                result = result.filter(ImageFilter.SHARPEN)
+        
+        if hasattr(self, 'upscale_auto_level_var') and self.upscale_auto_level_var.get():
+            # Auto-level: stretch histogram to use full 0-255 range
+            try:
+                from PIL import ImageOps
+                if result.mode == "RGBA":
+                    rgb_ch = ImageOps.autocontrast(result.convert("RGB"), cutoff=1)
+                    alpha_ch = result.getchannel("A")
+                    result = rgb_ch.copy()
+                    result.putalpha(alpha_ch)
+                else:
+                    result = ImageOps.autocontrast(result, cutoff=1)
+            except Exception:
+                pass
+        
+        return result
 
     def _upscale_feedback(self, rating):
         """Record user feedback on upscale quality."""
@@ -2808,6 +2915,13 @@ class GameTextureSorter(ctk.CTk):
                        variable=self.browser_show_archives,
                        command=self.browser_refresh)
         browser_show_archives_cb.pack(side="left", padx=10)
+        
+        # Smart search checkbox: match against texture category keywords
+        self.browser_smart_search = ctk.BooleanVar(value=True)
+        browser_smart_cb = ctk.CTkCheckBox(file_header, text="🧠 Smart search",
+                       variable=self.browser_smart_search,
+                       command=self.browser_refresh)
+        browser_smart_cb.pack(side="left", padx=10)
         
         # File list (scrollable)
         self.browser_file_list = ctk.CTkScrollableFrame(right_pane, height=450)
@@ -3567,6 +3681,7 @@ class GameTextureSorter(ctk.CTk):
             show_all = self.browser_show_all.get() if hasattr(self, 'browser_show_all') else False
             show_archives = self.browser_show_archives.get() if hasattr(self, 'browser_show_archives') else False
             search_query = self.browser_search_var.get().lower() if hasattr(self, 'browser_search_var') else ""
+            smart_search = self.browser_smart_search.get() if hasattr(self, 'browser_smart_search') else False
             current_dir = self.browser_current_dir
             
             def _scan_files():
@@ -3574,7 +3689,44 @@ class GameTextureSorter(ctk.CTk):
                 texture_extensions = {'.dds', '.png', '.jpg', '.jpeg', '.bmp', '.tga'}
                 archive_extensions = {'.zip', '.7z', '.rar', '.tar.gz', '.tgz'}
                 files = []
-                MAX_MATCHING_FILES = 10000
+                MAX_MATCHING_FILES = 50000
+                
+                # Build expanded keyword set for smart search.
+                # When the user types e.g. "gun", find all categories whose
+                # keywords contain "gun" and collect *all* keywords from those
+                # categories so files named "weapon_rifle_01.dds" also match.
+                smart_keywords = set()
+                if search_query and smart_search:
+                    try:
+                        import importlib, re as _re
+                        _spec = importlib.util.spec_from_file_location(
+                            'categories',
+                            str(Path(__file__).parent / 'src' / 'classifier' / 'categories.py'))
+                        _mod = importlib.util.module_from_spec(_spec)
+                        _spec.loader.exec_module(_mod)
+                        for attr_name in dir(_mod):
+                            obj = getattr(_mod, attr_name)
+                            if isinstance(obj, dict) and attr_name.isupper():
+                                for _cat_id, _cat_data in obj.items():
+                                    if not isinstance(_cat_data, dict):
+                                        continue
+                                    kws = _cat_data.get('keywords', [])
+                                    # Check if search_query matches any keyword
+                                    # or the category name itself
+                                    cat_name = _cat_data.get('name', '').lower()
+                                    matched = search_query in cat_name or search_query == _cat_id
+                                    if not matched:
+                                        for kw in kws:
+                                            if search_query in kw.lower():
+                                                matched = True
+                                                break
+                                    if matched:
+                                        # Add all keywords from this category
+                                        for kw in kws:
+                                            smart_keywords.add(kw.lower())
+                    except Exception as e:
+                        logger.debug(f"Smart search category load failed: {e}")
+                
                 try:
                     # Use list() to ensure iterator is properly consumed and closed
                     dir_entries = list(current_dir.iterdir())
@@ -3588,8 +3740,24 @@ class GameTextureSorter(ctk.CTk):
                                 is_archive = suffix in archive_extensions
                                 if not (is_texture or (is_archive and show_archives)):
                                     continue
-                            if search_query and search_query not in f.name.lower():
-                                continue
+                            if search_query:
+                                fname_lower = f.name.lower()
+                                # Direct filename match
+                                if search_query in fname_lower:
+                                    pass  # matches
+                                elif smart_keywords:
+                                    # Smart search: check if filename contains
+                                    # any keyword from matched categories
+                                    found = False
+                                    fname_stem = f.stem.lower()
+                                    for kw in smart_keywords:
+                                        if kw in fname_stem:
+                                            found = True
+                                            break
+                                    if not found:
+                                        continue
+                                else:
+                                    continue
                             files.append(f)
                             if len(files) >= MAX_MATCHING_FILES:
                                 break
@@ -3643,7 +3811,7 @@ class GameTextureSorter(ctk.CTk):
             for widget in self.browser_file_list.winfo_children():
                 widget.destroy()
             
-            MAX_DISPLAY = 200
+            MAX_DISPLAY = 500
             total_files = len(files_sorted)
             display_files = files_sorted[:MAX_DISPLAY]
             
@@ -3733,7 +3901,7 @@ class GameTextureSorter(ctk.CTk):
             filtered_files.sort()
             
             # Display files
-            MAX_DISPLAY = 200
+            MAX_DISPLAY = 500
             total_files = len(filtered_files)
             display_files = filtered_files[:MAX_DISPLAY]
             

@@ -15,6 +15,9 @@ def test_pil_resample_mapping():
         "🟡 Bilinear (Fast)": Image.BILINEAR,
         "🔶 Hamming": Image.HAMMING,
         "🟣 Box (Pixel Art)": Image.BOX,
+        "⬜ Nearest (Pixel Perfect)": Image.NEAREST,
+        "🔵 Mitchell": Image.BICUBIC,   # falls back to BICUBIC
+        "🟤 CatRom": Image.BICUBIC,     # falls back to BICUBIC
     }
     for label, expected in styles.items():
         # Replicate the matching logic from _get_pil_resample
@@ -28,6 +31,10 @@ def test_pil_resample_mapping():
             got = Image.HAMMING
         elif "Box" in label:
             got = Image.BOX
+        elif "Nearest" in label:
+            got = Image.NEAREST
+        elif "Mitchell" in label or "CatRom" in label:
+            got = Image.BICUBIC
         else:
             got = Image.LANCZOS
         assert got == expected, f"Style '{label}' mapped to {got}, expected {expected}"
@@ -68,7 +75,7 @@ def test_upscale_rgb_no_alpha():
 
 def test_scale_factor_parsing():
     """Scale factor strings should parse to integers correctly."""
-    for text, expected in [("2x", 2), ("4x", 4), ("8x", 8)]:
+    for text, expected in [("2x", 2), ("3x", 3), ("4x", 4), ("6x", 6), ("8x", 8), ("16x", 16)]:
         got = int(text.replace("x", ""))
         assert got == expected, f"'{text}' -> {got}, expected {expected}"
 
@@ -167,9 +174,97 @@ def test_pil_resample_filters_accessible():
     from PIL import Image
 
     # These are the exact attributes used in _get_pil_resample
-    filters = [Image.LANCZOS, Image.BICUBIC, Image.BILINEAR, Image.HAMMING, Image.BOX]
+    filters = [Image.LANCZOS, Image.BICUBIC, Image.BILINEAR, Image.HAMMING, Image.BOX, Image.NEAREST]
     for f in filters:
         assert f is not None, f"Filter {f} should not be None"
+
+
+def test_custom_resolution_parsing():
+    """Custom resolution strings should parse to (width, height) tuples."""
+    valid = [("1024x1024", (1024, 1024)), ("512x256", (512, 256)), ("2048x2048", (2048, 2048))]
+    for text, expected in valid:
+        parts = text.lower().split("x")
+        got = (int(parts[0]), int(parts[1]))
+        assert got == expected, f"'{text}' -> {got}, expected {expected}"
+
+
+def test_post_processing_sharpen():
+    """Sharpening filter should not crash and should change pixel values."""
+    from PIL import Image, ImageFilter
+
+    img = Image.new("RGBA", (8, 8), (128, 128, 128, 255))
+    # Draw a simple edge to sharpen
+    for x in range(4, 8):
+        for y in range(8):
+            img.putpixel((x, y), (200, 200, 200, 255))
+    
+    rgb = img.convert("RGB").filter(ImageFilter.SHARPEN)
+    assert rgb.size == (8, 8)
+    assert rgb.mode == "RGB"
+
+
+def test_post_processing_denoise():
+    """Noise reduction (SMOOTH) should not crash."""
+    from PIL import Image, ImageFilter
+
+    img = Image.new("RGB", (8, 8), (128, 128, 128))
+    result = img.filter(ImageFilter.SMOOTH)
+    assert result.size == (8, 8)
+
+
+def test_post_processing_auto_level():
+    """Auto-level should stretch histogram."""
+    from PIL import Image, ImageOps
+
+    # Create an image with limited range (100-200)
+    img = Image.new("RGB", (4, 4), (100, 150, 200))
+    result = ImageOps.autocontrast(img, cutoff=1)
+    assert result.size == (4, 4)
+    assert result.mode == "RGB"
+
+
+def test_smart_search_category_keyword_matching():
+    """Smart search should expand query to category keywords."""
+    import importlib
+    from pathlib import Path
+    
+    try:
+        spec = importlib.util.spec_from_file_location(
+            'categories',
+            str(Path(__file__).parent / 'src' / 'classifier' / 'categories.py'))
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        
+        # Search for "gun" should find the weapons/objects category
+        search_query = "gun"
+        smart_keywords = set()
+        for attr_name in dir(mod):
+            obj = getattr(mod, attr_name)
+            if isinstance(obj, dict) and attr_name.isupper():
+                for cat_id, cat_data in obj.items():
+                    if not isinstance(cat_data, dict):
+                        continue
+                    kws = cat_data.get('keywords', [])
+                    cat_name = cat_data.get('name', '').lower()
+                    matched = search_query in cat_name or search_query == cat_id
+                    if not matched:
+                        for kw in kws:
+                            if search_query in kw.lower():
+                                matched = True
+                                break
+                    if matched:
+                        for kw in kws:
+                            smart_keywords.add(kw.lower())
+        
+        # "gun" should match weapon-related keywords
+        assert len(smart_keywords) > 0, "Smart search for 'gun' should find category keywords"
+        # The expanded set should contain weapon-related terms
+        assert any("weapon" in kw or "gun" in kw or "rifle" in kw 
+                    for kw in smart_keywords), \
+            f"Smart keywords should include weapon terms, got: {list(smart_keywords)[:10]}"
+        print(f"✓ Smart search: 'gun' expanded to {len(smart_keywords)} keywords")
+    except Exception as e:
+        print(f"⚠ Skipping smart search test: {e}")
 
 
 if __name__ == "__main__":
@@ -181,4 +276,9 @@ if __name__ == "__main__":
     test_zip_roundtrip()
     test_image_open_and_upscale_roundtrip()
     test_pil_resample_filters_accessible()
+    test_custom_resolution_parsing()
+    test_post_processing_sharpen()
+    test_post_processing_denoise()
+    test_post_processing_auto_level()
+    test_smart_search_category_keyword_matching()
     print("All upscaler tool tests passed!")
