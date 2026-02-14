@@ -67,7 +67,7 @@ class ObjectRemover:
             logger.error(f"Failed to load image: {e}")
             return False
     
-    def paint_mask(self, x: int, y: int, brush_size: int = 20, erase: bool = False):
+    def paint_mask(self, x: int, y: int, brush_size: int = 20, erase: bool = False, opacity: int = 100):
         """
         Paint on the mask at given coordinates.
         
@@ -76,21 +76,47 @@ class ObjectRemover:
             y: Y coordinate
             brush_size: Size of brush in pixels
             erase: If True, erase mask (paint black), else paint white
+            opacity: Brush opacity 0-100%
         """
         if self.mask is None:
             return
         
-        draw = ImageDraw.Draw(self.mask)
-        color = 0 if erase else 255  # 0 = keep, 255 = remove
+        # Calculate opacity value (0-255)
+        opacity_value = int((opacity / 100.0) * 255)
+        
+        # For erasing, use inverted opacity
+        if erase:
+            color = 255 - opacity_value
+        else:
+            color = opacity_value
+        
+        # Create a temporary image for this paint operation
+        temp_mask = Image.new("L", self.mask.size, 0)
+        draw = ImageDraw.Draw(temp_mask)
         
         # Draw circle at position
         radius = brush_size // 2
         draw.ellipse(
             [x - radius, y - radius, x + radius, y + radius],
-            fill=color
+            fill=255
         )
+        
+        # Blend with existing mask using opacity
+        mask_array = np.array(self.mask, dtype=np.int16)
+        temp_array = np.array(temp_mask, dtype=np.int16)
+        
+        # Where temp is white, blend with color based on opacity
+        blend_mask = temp_array > 0
+        if erase:
+            # Erase: reduce existing values
+            mask_array[blend_mask] = np.maximum(0, mask_array[blend_mask] - opacity_value)
+        else:
+            # Paint: increase existing values
+            mask_array[blend_mask] = np.minimum(255, mask_array[blend_mask] + opacity_value)
+        
+        self.mask = Image.fromarray(np.clip(mask_array, 0, 255).astype(np.uint8), mode="L")
     
-    def paint_mask_stroke(self, points: List[Tuple[int, int]], brush_size: int = 20, erase: bool = False):
+    def paint_mask_stroke(self, points: List[Tuple[int, int]], brush_size: int = 20, erase: bool = False, opacity: int = 100):
         """
         Paint a stroke (line of connected points) on the mask.
         
@@ -98,23 +124,29 @@ class ObjectRemover:
             points: List of (x, y) coordinates
             brush_size: Size of brush in pixels
             erase: If True, erase mask, else paint
+            opacity: Brush opacity 0-100%
         """
         if self.mask is None or len(points) < 2:
             return
         
-        draw = ImageDraw.Draw(self.mask)
-        color = 0 if erase else 255
-        
-        # Draw line with thickness
-        draw.line(points, fill=color, width=brush_size, joint="curve")
-        
-        # Draw circles at each point for smooth coverage
-        radius = brush_size // 2
-        for x, y in points:
-            draw.ellipse(
-                [x - radius, y - radius, x + radius, y + radius],
-                fill=color
-            )
+        # For stroke painting with opacity, paint each segment
+        for i in range(len(points) - 1):
+            x1, y1 = points[i]
+            x2, y2 = points[i + 1]
+            
+            # Interpolate points between start and end
+            distance = max(abs(x2 - x1), abs(y2 - y1))
+            if distance == 0:
+                self.paint_mask(x1, y1, brush_size, erase, opacity)
+                continue
+            
+            steps = max(int(distance), 1)
+            for step in range(steps + 1):
+                t = step / steps
+                x = int(x1 + (x2 - x1) * t)
+                y = int(y1 + (y2 - y1) * t)
+                self.paint_mask(x, y, brush_size, erase, opacity)
+    
     
     def clear_mask(self):
         """Clear the entire mask."""

@@ -61,13 +61,21 @@ class BackgroundRemoverPanel(ctk.CTkFrame):
         self.painting_enabled = False
         self.eraser_mode = False
         self.brush_size = 20
+        self.brush_opacity = 80  # 0-100%
+        self.selection_tool = "brush"  # "brush", "rectangle", "lasso", "wand"
         self.highlight_color = (255, 0, 0)  # Red
         self.canvas_image = None
         self.canvas_photo = None
         self.last_paint_x = None
         self.last_paint_y = None
         self.paint_strokes = []  # For undo functionality
+        self.paint_redo_stack = []  # For redo functionality
         self.current_stroke = []
+        
+        # Selection tool state
+        self.rect_start = None
+        self.lasso_points = []
+        self.wand_tolerance = 30
         
         self._create_widgets()
         self._check_availability()
@@ -230,6 +238,25 @@ class BackgroundRemoverPanel(ctk.CTkFrame):
         self.brush_size_label = ctk.CTkLabel(brush_frame, text="20px", width=50)
         self.brush_size_label.pack(side="left", padx=5)
         
+        # Brush opacity control
+        opacity_frame = ctk.CTkFrame(self.object_controls_frame)
+        opacity_frame.pack(fill="x", padx=10, pady=5)
+        
+        ctk.CTkLabel(opacity_frame, text="Brush Opacity:", width=100).pack(side="left", padx=5)
+        
+        self.opacity_slider = ctk.CTkSlider(
+            opacity_frame,
+            from_=10,
+            to=100,
+            number_of_steps=90,
+            command=self._on_opacity_change
+        )
+        self.opacity_slider.set(80)
+        self.opacity_slider.pack(side="left", fill="x", expand=True, padx=5)
+        
+        self.opacity_label = ctk.CTkLabel(opacity_frame, text="80%", width=50)
+        self.opacity_label.pack(side="left", padx=5)
+        
         # Color picker
         color_frame = ctk.CTkFrame(self.object_controls_frame)
         color_frame.pack(fill="x", padx=10, pady=5)
@@ -247,6 +274,45 @@ class BackgroundRemoverPanel(ctk.CTkFrame):
         
         self.color_yellow_btn = ctk.CTkButton(color_frame, text="🟡 Yellow", command=lambda: self._set_color((255, 255, 0)), width=80)
         self.color_yellow_btn.pack(side="left", padx=2)
+        
+        # Selection tools
+        selection_frame = ctk.CTkFrame(self.object_controls_frame)
+        selection_frame.pack(fill="x", padx=10, pady=5)
+        
+        ctk.CTkLabel(selection_frame, text="Selection Tool:", width=100).pack(side="left", padx=5)
+        
+        self.brush_tool_btn = ctk.CTkButton(
+            selection_frame,
+            text="🖌️ Brush",
+            command=lambda: self._set_selection_tool("brush"),
+            width=100,
+            fg_color="#1f538d"
+        )
+        self.brush_tool_btn.pack(side="left", padx=2)
+        
+        self.rect_tool_btn = ctk.CTkButton(
+            selection_frame,
+            text="⬜ Rectangle",
+            command=lambda: self._set_selection_tool("rectangle"),
+            width=100
+        )
+        self.rect_tool_btn.pack(side="left", padx=2)
+        
+        self.lasso_tool_btn = ctk.CTkButton(
+            selection_frame,
+            text="✂️ Lasso",
+            command=lambda: self._set_selection_tool("lasso"),
+            width=100
+        )
+        self.lasso_tool_btn.pack(side="left", padx=2)
+        
+        self.wand_tool_btn = ctk.CTkButton(
+            selection_frame,
+            text="🪄 Magic Wand",
+            command=lambda: self._set_selection_tool("wand"),
+            width=120
+        )
+        self.wand_tool_btn.pack(side="left", padx=2)
         
         # Tool buttons
         tool_frame = ctk.CTkFrame(self.object_controls_frame)
@@ -280,8 +346,7 @@ class BackgroundRemoverPanel(ctk.CTkFrame):
             tool_frame,
             text="↷ Redo",
             command=self._redo_paint_stroke,
-            width=80,
-            state="disabled"  # Not yet implemented
+            width=80
         )
         self.redo_paint_btn.pack(side="left", padx=5)
         
@@ -1027,6 +1092,33 @@ class BackgroundRemoverPanel(ctk.CTkFrame):
         self.brush_size = int(value)
         self.brush_size_label.configure(text=f"{self.brush_size}px")
     
+    def _on_opacity_change(self, value):
+        """Handle brush opacity slider change."""
+        self.brush_opacity = int(value)
+        self.opacity_label.configure(text=f"{self.brush_opacity}%")
+    
+    def _set_selection_tool(self, tool: str):
+        """Set the current selection tool."""
+        self.selection_tool = tool
+        
+        # Reset button colors
+        default_color = None  # Default CTk color
+        active_color = "#1f538d"
+        
+        self.brush_tool_btn.configure(fg_color=active_color if tool == "brush" else default_color)
+        self.rect_tool_btn.configure(fg_color=active_color if tool == "rectangle" else default_color)
+        self.lasso_tool_btn.configure(fg_color=active_color if tool == "lasso" else default_color)
+        self.wand_tool_btn.configure(fg_color=active_color if tool == "wand" else default_color)
+        
+        # Reset tool-specific state
+        self.rect_start = None
+        self.lasso_points = []
+        
+        self.progress_label.configure(
+            text=f"Selection tool: {tool.capitalize()}",
+            text_color="gray"
+        )
+    
     def _set_color(self, color):
         """Set the highlight color."""
         self.highlight_color = color
@@ -1074,7 +1166,7 @@ class BackgroundRemoverPanel(ctk.CTkFrame):
         self.current_stroke = [(event.x, event.y)]
         
         # Paint at click position
-        self.object_remover.paint_mask(event.x, event.y, self.brush_size, self.eraser_mode)
+        self.object_remover.paint_mask(event.x, event.y, self.brush_size, self.eraser_mode, self.brush_opacity)
         self._update_object_preview()
     
     def _on_paint_drag(self, event):
@@ -1085,7 +1177,7 @@ class BackgroundRemoverPanel(ctk.CTkFrame):
         if self.last_paint_x is not None and self.last_paint_y is not None:
             # Paint stroke from last position to current
             points = [(self.last_paint_x, self.last_paint_y), (event.x, event.y)]
-            self.object_remover.paint_mask_stroke(points, self.brush_size, self.eraser_mode)
+            self.object_remover.paint_mask_stroke(points, self.brush_size, self.eraser_mode, self.brush_opacity)
             self.current_stroke.append((event.x, event.y))
         
         self.last_paint_x = event.x
@@ -1101,6 +1193,8 @@ class BackgroundRemoverPanel(ctk.CTkFrame):
                 'eraser': self.eraser_mode,
                 'mask': self.object_remover.mask.copy() if self.object_remover.mask else None
             })
+            # Clear redo stack when new painting happens
+            self.paint_redo_stack.clear()
         
         self.last_paint_x = None
         self.last_paint_y = None
@@ -1109,8 +1203,10 @@ class BackgroundRemoverPanel(ctk.CTkFrame):
     def _undo_paint_stroke(self):
         """Undo last paint stroke."""
         if self.paint_strokes:
-            # Remove last stroke
+            # Remove last stroke and add to redo stack
             stroke = self.paint_strokes.pop()
+            self.paint_redo_stack.append(stroke)
+            
             # Restore previous mask state if available
             if len(self.paint_strokes) > 0:
                 prev_stroke = self.paint_strokes[-1]
@@ -1128,13 +1224,23 @@ class BackgroundRemoverPanel(ctk.CTkFrame):
             self._update_object_preview()
     
     def _redo_paint_stroke(self):
-        """Redo paint stroke (not yet fully implemented)."""
-        # TODO: Implement proper redo stack for paint strokes
-        # Would require maintaining separate undo and redo stacks
-        self.progress_label.configure(
-            text="Redo for paint strokes not yet implemented",
-            text_color="gray"
-        )
+        """Redo paint stroke."""
+        if self.paint_redo_stack:
+            # Pop from redo stack and push to undo stack
+            stroke = self.paint_redo_stack.pop()
+            self.paint_strokes.append(stroke)
+            
+            # Restore the mask state from the stroke
+            if 'mask' in stroke and stroke['mask'] is not None:
+                self.object_remover.mask = stroke['mask'].copy()
+                self._update_object_preview()
+                self.progress_label.configure(text="Redo applied", text_color="gray")
+        else:
+            self.progress_label.configure(
+                text="Nothing to redo",
+                text_color="gray"
+            )
+    
     
     def _clear_mask(self):
         """Clear all mask painting."""
