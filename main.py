@@ -2090,7 +2090,8 @@ class GameTextureSorter(ctk.CTk):
         check_frame.pack(fill="x", padx=10, pady=5)
         self.upscale_alpha_var = ctk.BooleanVar(value=True)
         upscale_alpha_cb = ctk.CTkCheckBox(check_frame, text="🔲 Preserve Alpha (keep RGBA)",
-                       variable=self.upscale_alpha_var)
+                       variable=self.upscale_alpha_var,
+                       command=self._update_upscale_preview)
         upscale_alpha_cb.pack(side="left", padx=10)
         self.upscale_recursive_var = ctk.BooleanVar(value=True)
         upscale_recursive_cb = ctk.CTkCheckBox(check_frame, text="📁 Include Subdirectories",
@@ -2110,11 +2111,13 @@ class GameTextureSorter(ctk.CTk):
         check_frame2.pack(fill="x", padx=10, pady=5)
         self.upscale_sharpen_var = ctk.BooleanVar(value=False)
         upscale_sharpen_cb = ctk.CTkCheckBox(check_frame2, text="🔪 Sharpen output",
-                       variable=self.upscale_sharpen_var)
+                       variable=self.upscale_sharpen_var,
+                       command=self._update_upscale_preview)
         upscale_sharpen_cb.pack(side="left", padx=10)
         self.upscale_denoise_var = ctk.BooleanVar(value=False)
         upscale_denoise_cb = ctk.CTkCheckBox(check_frame2, text="🔇 Reduce noise",
-                       variable=self.upscale_denoise_var)
+                       variable=self.upscale_denoise_var,
+                       command=self._update_upscale_preview)
         upscale_denoise_cb.pack(side="left", padx=10)
         self.upscale_face_enhance_var = ctk.BooleanVar(value=False)
         upscale_face_cb = ctk.CTkCheckBox(check_frame2, text="👤 Face enhancement",
@@ -2138,7 +2141,8 @@ class GameTextureSorter(ctk.CTk):
         upscale_normal_cb.pack(side="left", padx=10)
         self.upscale_auto_level_var = ctk.BooleanVar(value=False)
         upscale_auto_level_cb = ctk.CTkCheckBox(check_frame3, text="⚖️ Auto-level colors",
-                       variable=self.upscale_auto_level_var)
+                       variable=self.upscale_auto_level_var,
+                       command=self._update_upscale_preview)
         upscale_auto_level_cb.pack(side="left", padx=10)
         self.upscale_overwrite_var = ctk.BooleanVar(value=False)
         upscale_overwrite_cb = ctk.CTkCheckBox(check_frame3, text="♻️ Overwrite existing",
@@ -2150,24 +2154,48 @@ class GameTextureSorter(ctk.CTk):
         preview_frame.pack(fill="x", padx=10, pady=10)
         ctk.CTkLabel(preview_frame, text="Preview:",
                      font=("Arial Bold", 12)).pack(anchor="w", padx=10, pady=5)
-        self.upscale_preview_container = ctk.CTkFrame(preview_frame, height=220)
+
+        # Zoom controls
+        zoom_frame = ctk.CTkFrame(preview_frame)
+        zoom_frame.pack(fill="x", padx=10, pady=(0, 5))
+        ctk.CTkLabel(zoom_frame, text="Zoom:", font=("Arial", 11)).pack(side="left", padx=(10, 5))
+        self._upscale_zoom_var = ctk.DoubleVar(value=1.0)
+        ctk.CTkButton(zoom_frame, text="−", width=30,
+                       command=self._upscale_zoom_out).pack(side="left", padx=2)
+        self._upscale_zoom_label = ctk.CTkLabel(zoom_frame, text="100%", width=50,
+                                                 font=("Arial", 11))
+        self._upscale_zoom_label.pack(side="left", padx=2)
+        ctk.CTkButton(zoom_frame, text="+", width=30,
+                       command=self._upscale_zoom_in).pack(side="left", padx=2)
+        ctk.CTkButton(zoom_frame, text="Fit", width=40,
+                       command=self._upscale_zoom_fit).pack(side="left", padx=5)
+        self._upscale_zoom_info = ctk.CTkLabel(zoom_frame, text="", font=("Arial", 10),
+                                                text_color="gray")
+        self._upscale_zoom_info.pack(side="left", padx=10)
+
+        self.upscale_preview_container = ctk.CTkFrame(preview_frame, height=300)
         self.upscale_preview_container.pack(fill="x", padx=10, pady=5)
         self.upscale_preview_container.pack_propagate(False)
         # Before / After side by side
         self.upscale_preview_before_label = ctk.CTkLabel(
-            self.upscale_preview_container, text="Before\n(select an image)", width=200, height=200)
+            self.upscale_preview_container, text="Before\n(select an image)", width=200, height=280)
         self.upscale_preview_before_label.pack(side="left", padx=10, pady=10, expand=True)
         self.upscale_preview_after_label = ctk.CTkLabel(
-            self.upscale_preview_container, text="After\n(preview appears here)", width=200, height=200)
+            self.upscale_preview_container, text="After\n(preview appears here)", width=200, height=280)
         self.upscale_preview_after_label.pack(side="left", padx=10, pady=10, expand=True)
 
-        # Individual file preview / browse
+        # Individual file preview / browse + export
         preview_btn_frame = ctk.CTkFrame(preview_frame)
         preview_btn_frame.pack(fill="x", padx=10, pady=5)
         upscale_preview_btn = ctk.CTkButton(preview_btn_frame, text="🖼️ Preview Single File",
                      width=180, command=self._preview_upscale_file)
         upscale_preview_btn.pack(side="left", padx=10)
-        ctk.CTkLabel(preview_btn_frame, text="Select a single image to see before/after preview",
+        self.upscale_export_single_btn = ctk.CTkButton(
+            preview_btn_frame, text="💾 Export This Texture",
+            width=180, command=self._export_single_upscale,
+            fg_color="#2B7A0B", hover_color="#368B14")
+        self.upscale_export_single_btn.pack(side="left", padx=10)
+        ctk.CTkLabel(preview_btn_frame, text="Preview & export a single texture with current settings",
                      font=("Arial", 10), text_color="gray").pack(side="left", padx=10)
 
         # Feedback section
@@ -2329,9 +2357,19 @@ class GameTextureSorter(ctk.CTk):
         """Display before/after preview for the given PIL Image."""
         from PIL import Image
         self._upscale_preview_image = pil_img
+
+        zoom = getattr(self, '_upscale_zoom_var', None)
+        zoom_factor = zoom.get() if zoom else 1.0
+        thumb_size = int(200 * zoom_factor)
+
+        # Update zoom info label
+        if hasattr(self, '_upscale_zoom_info'):
+            self._upscale_zoom_info.configure(
+                text=f"Original: {pil_img.size[0]}×{pil_img.size[1]}")
+
         # Before thumbnail
         before = pil_img.copy()
-        before.thumbnail((200, 200), Image.LANCZOS)
+        before.thumbnail((thumb_size, thumb_size), Image.LANCZOS)
         try:
             before_ctk = ctk.CTkImage(light_image=before, size=before.size)
             self.upscale_preview_before_label.configure(image=before_ctk, text="")
@@ -2349,11 +2387,13 @@ class GameTextureSorter(ctk.CTk):
             self.upscale_preview_after_label.configure(
                 image=None,
                 text=f"After (AI preview)\n{new_w}×{new_h}\n(Real-ESRGAN)")
+            self._upscale_preview_result = None
         else:
             preserve_alpha = self.upscale_alpha_var.get()
             upscaled = self._upscale_pil_image(pil_img, factor, preserve_alpha)
+            self._upscale_preview_result = upscaled  # Store for export
             after = upscaled.copy()
-            after.thumbnail((200, 200), Image.LANCZOS)
+            after.thumbnail((thumb_size, thumb_size), Image.LANCZOS)
             try:
                 after_ctk = ctk.CTkImage(light_image=after, size=after.size)
                 self.upscale_preview_after_label.configure(image=after_ctk, text="")
@@ -2362,10 +2402,109 @@ class GameTextureSorter(ctk.CTk):
                 self.upscale_preview_after_label.configure(
                     text=f"After\n{upscaled.size[0]}×{upscaled.size[1]}")
 
+            # Update size info
+            if hasattr(self, '_upscale_zoom_info'):
+                self._upscale_zoom_info.configure(
+                    text=f"Original: {pil_img.size[0]}×{pil_img.size[1]}  →  "
+                         f"Upscaled: {upscaled.size[0]}×{upscaled.size[1]}")
+
+        # Resize preview container to fit zoomed thumbnails
+        new_h = max(220, thumb_size + 40)
+        try:
+            self.upscale_preview_container.configure(height=new_h)
+        except Exception:
+            pass
+
     def _update_upscale_preview(self, *_args):
-        """Called when scale/style changes — re-preview if we have an image."""
+        """Called when scale/style/checkbox changes — re-preview if we have an image."""
         if hasattr(self, '_upscale_preview_image') and self._upscale_preview_image:
             self._show_upscale_preview(self._upscale_preview_image)
+
+    def _upscale_zoom_in(self):
+        """Increase preview zoom level."""
+        zoom = self._upscale_zoom_var.get()
+        zoom = min(4.0, zoom + 0.25)
+        self._upscale_zoom_var.set(zoom)
+        self._upscale_zoom_label.configure(text=f"{int(zoom * 100)}%")
+        self._update_upscale_preview()
+
+    def _upscale_zoom_out(self):
+        """Decrease preview zoom level."""
+        zoom = self._upscale_zoom_var.get()
+        zoom = max(0.25, zoom - 0.25)
+        self._upscale_zoom_var.set(zoom)
+        self._upscale_zoom_label.configure(text=f"{int(zoom * 100)}%")
+        self._update_upscale_preview()
+
+    def _upscale_zoom_fit(self):
+        """Reset preview zoom to 100%."""
+        self._upscale_zoom_var.set(1.0)
+        self._upscale_zoom_label.configure(text="100%")
+        self._update_upscale_preview()
+
+    def _export_single_upscale(self):
+        """Export the currently previewed texture with all applied settings."""
+        from PIL import Image
+        if not hasattr(self, '_upscale_preview_image') or not self._upscale_preview_image:
+            if GUI_AVAILABLE:
+                messagebox.showinfo("No Preview",
+                                    "Please preview a single file first using '🖼️ Preview Single File'.")
+            return
+
+        # Determine export format
+        export_fmt = self.upscale_format_var.get()
+        if " " in export_fmt:
+            export_fmt = export_fmt.split(" ", 1)[1]
+        export_fmt = export_fmt.lower()
+
+        # Map format to file extension and dialog filter
+        ext_map = {
+            'png': ('.png', 'PNG files', '*.png'),
+            'bmp': ('.bmp', 'BMP files', '*.bmp'),
+            'tga': ('.tga', 'TGA files', '*.tga'),
+            'jpeg': ('.jpg', 'JPEG files', '*.jpg'),
+            'webp': ('.webp', 'WebP files', '*.webp'),
+            'dds': ('.dds', 'DDS files', '*.dds'),
+            'tiff': ('.tiff', 'TIFF files', '*.tiff'),
+        }
+        ext, desc, pattern = ext_map.get(export_fmt, ('.png', 'PNG files', '*.png'))
+
+        filepath = filedialog.asksaveasfilename(
+            title="Export Upscaled Texture",
+            defaultextension=ext,
+            filetypes=[(desc, pattern), ("All files", "*.*")])
+        if not filepath:
+            return
+
+        try:
+            # Use cached result if available, otherwise recompute
+            result = getattr(self, '_upscale_preview_result', None)
+            if result is None:
+                factor = self._get_upscale_factor()
+                preserve_alpha = self.upscale_alpha_var.get()
+                result = self._upscale_pil_image(
+                    self._upscale_preview_image, factor, preserve_alpha)
+
+            # Save with format-specific options
+            save_kwargs = {}
+            if export_fmt == 'jpeg':
+                save_kwargs['quality'] = 95
+                if result.mode == 'RGBA':
+                    result = result.convert('RGB')
+            elif export_fmt == 'webp':
+                save_kwargs['quality'] = 95
+
+            result.save(filepath, **save_kwargs)
+            self._upscale_log(f"💾 Exported: {filepath} ({result.size[0]}×{result.size[1]})")
+            if GUI_AVAILABLE:
+                messagebox.showinfo("Export Complete",
+                                    f"Texture exported successfully!\n\n"
+                                    f"Size: {result.size[0]}×{result.size[1]}\n"
+                                    f"File: {os.path.basename(filepath)}")
+        except Exception as e:
+            self._upscale_log(f"❌ Export failed: {e}")
+            if GUI_AVAILABLE:
+                messagebox.showerror("Export Error", f"Could not export texture:\n{e}")
 
     def _upscale_pil_image(self, img, factor, preserve_alpha=True):
         """Upscale a single PIL Image using the current style and options."""

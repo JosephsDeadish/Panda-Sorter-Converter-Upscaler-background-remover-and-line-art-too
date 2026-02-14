@@ -284,6 +284,8 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
         self._active_item_type = None  # 'food' or 'toy'
         self._active_item_key = None   # Widget key (e.g. 'bamboo') for per-item responses
         self._active_item_physics = None  # ItemPhysics object for the active item
+        self._walk_target_screen_x = None  # Screen X of walk target (for item rendering)
+        self._walk_target_screen_y = None  # Screen Y of walk target
         
         # Eating sequence state
         self._eating_phase = 0
@@ -5722,7 +5724,25 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
         
         # Draw active item during eating/playing animations
         if self._active_item_emoji:
-            if anim == 'eating':
+            # During walking: draw item at the target position so panda walks toward it
+            if anim.startswith('walking') and self._walk_target_screen_x is not None:
+                try:
+                    px = self._toplevel.winfo_x()
+                    py = self._toplevel.winfo_y()
+                    # Convert screen target to canvas-local coordinates
+                    rel_x = self._walk_target_screen_x - px
+                    rel_y = self._walk_target_screen_y - py
+                    # Clamp within canvas bounds
+                    rel_x = max(4, min(rel_x, w - 4))
+                    rel_y = max(4, min(rel_y, h - 4))
+                    item_size = int(20 * sx)
+                    # Pulsing effect to draw attention to the item
+                    pulse = 1.0 + 0.15 * math.sin(frame_idx * 0.3)
+                    self._draw_item_shape(c, rel_x, rel_y, max(8, int(item_size * pulse)),
+                                          self._active_item_emoji, sx, sy)
+                except Exception:
+                    pass
+            elif anim == 'eating':
                 # Multi-phase eating: pickup → inspect → chew → satisfied
                 # Use the eating sequence phase if available, else fall back
                 phase = getattr(self, '_eating_phase', 0)
@@ -5991,6 +6011,8 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
         self._walk_step_dy = step_y
         self._walk_on_arrive = on_arrive
         self._walk_item_type = item_type
+        self._walk_target_screen_x = target_x
+        self._walk_target_screen_y = target_y
         
         # Set facing direction based on movement direction (same logic as _start_auto_walk)
         adx = abs(dx)
@@ -6047,7 +6069,9 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
         
         self._walk_step_count += 1
         if self._walk_step_count > self._walk_total_steps:
-            # Arrived at the item — reset facing to front
+            # Arrived at the item — clear walk target and reset facing to front
+            self._walk_target_screen_x = None
+            self._walk_target_screen_y = None
             self._facing_direction = 'front'
             if self.panda and hasattr(self.panda, 'set_facing'):
                 try:
@@ -7372,36 +7396,48 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
                         wkey = k
                         break
 
-            # Determine a target position the panda will walk to.
-            # Randomize direction so the panda walks in varied directions each time.
+            # Walk toward the main application window where the widgets panel
+            # lives, so the panda visibly moves to "pick up" the item.  We
+            # aim for the edge of the app window closest to the panda so the
+            # walk distance feels natural and the panda reaches the UI.
             try:
                 px = self._toplevel.winfo_x()
                 py = self._toplevel.winfo_y()
                 panda_cx = px + self._toplevel_w // 2
                 panda_cy = py + self._toplevel_h // 2
-                
-                # Pick a random direction (angle) and walk the offset distance
-                angle = random.uniform(0, 2 * math.pi)
-                offset_x = int(math.cos(angle) * self.ITEM_WALK_DISTANCE)
-                offset_y = int(math.sin(angle) * self.ITEM_WALK_DISTANCE)
-                # Ensure minimum movement per axis so the walk is visible
-                if abs(offset_x) < self.ITEM_WALK_MIN:
-                    offset_x = self.ITEM_WALK_MIN * (1 if offset_x >= 0 else -1)
-                if abs(offset_y) < self.ITEM_WALK_MIN:
-                    offset_y = self.ITEM_WALK_MIN * (1 if offset_y >= 0 else -1)
-                
-                target_x = panda_cx + offset_x
-                target_y = panda_cy + offset_y
-                
-                # Clamp target within application bounds
-                try:
-                    min_x, min_y, max_x, max_y = self._get_main_window_bounds()
-                    target_x = max(min_x, min(target_x, max_x))
-                    target_y = max(min_y, min(target_y, max_y))
-                except Exception:
-                    pass
+
+                # Get the main application window bounds
+                min_x, min_y, max_x, max_y = self._get_main_window_bounds()
+                app_cx = (min_x + max_x) // 2
+                app_cy = (min_y + max_y) // 2
+
+                # Walk toward the center of the app window, but stop
+                # ITEM_WALK_MIN px before reaching the edge so the panda
+                # stays visible and doesn't overlap the panel too much.
+                dx = app_cx - panda_cx
+                dy = app_cy - panda_cy
+                dist = max(1, (dx ** 2 + dy ** 2) ** 0.5)
+
+                # Walk at most ITEM_WALK_DISTANCE px toward the app window
+                walk_dist = min(dist, self.ITEM_WALK_DISTANCE)
+                if walk_dist < self.ITEM_WALK_MIN:
+                    walk_dist = self.ITEM_WALK_MIN
+
+                target_x = panda_cx + int(dx / dist * walk_dist)
+                target_y = panda_cy + int(dy / dist * walk_dist)
+
+                # Clamp within bounds
+                target_x = max(min_x, min(target_x, max_x))
+                target_y = max(min_y, min(target_y, max_y))
             except Exception:
-                target_x, target_y = 0, 0
+                # Fallback: walk a short distance to the right
+                try:
+                    px = self._toplevel.winfo_x()
+                    py = self._toplevel.winfo_y()
+                    target_x = px + self._toplevel_w // 2 + self.ITEM_WALK_DISTANCE
+                    target_y = py + self._toplevel_h // 2
+                except Exception:
+                    target_x, target_y = 0, 0
 
             if is_food:
                 def _on_eat_complete():
