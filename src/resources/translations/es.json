@@ -55,5 +55,14 @@
   "msg_ready": "Listo para clasificar texturas",
   "msg_no_files": "No se seleccionaron archivos",
   "msg_operation_complete": "Operación completada con éxito",
-  "msg_operation_failed": "Operación fallida: {error}"
+  "msg_operation_failed": "Operación fallida: {error}",
+  "metadata_preserve": "Preservar Metadatos de Imagen (EXIF)",
+  "metadata_preserved": "Metadatos preservados",
+  "metadata_not_preserved": "Metadatos no preservados",
+  "metadata_copy_failed": "Error al copiar metadatos: {error}",
+  "metadata_warning_format": "El soporte de metadatos para {format} es limitado. Algunos datos EXIF pueden no ser visibles en todos los visores.",
+  "metadata_warning_unsupported": "El formato {format} no soporta metadatos EXIF. Los metadatos no se preservarán.",
+  "metadata_tooltip": "Preservar metadatos originales de imagen (EXIF) al ampliar. Mejor para archivos JPEG.",
+  "drag_drop_here": "Arrastra y suelta archivos aquí",
+  "drag_drop_supported": "Arrastra archivos a este campo para abrirlos"
 }

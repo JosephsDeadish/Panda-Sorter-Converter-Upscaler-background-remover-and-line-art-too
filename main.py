@@ -2228,6 +2228,10 @@ class GameTextureSorter(ctk.CTk):
         upscale_overwrite_cb = ctk.CTkCheckBox(check_frame3, text="♻️ Overwrite existing",
                        variable=self.upscale_overwrite_var)
         upscale_overwrite_cb.pack(side="left", padx=10)
+        self.upscale_preserve_metadata_var = ctk.BooleanVar(value=False)
+        upscale_preserve_metadata_cb = ctk.CTkCheckBox(check_frame3, text="📋 Preserve Metadata (EXIF)",
+                       variable=self.upscale_preserve_metadata_var)
+        upscale_preserve_metadata_cb.pack(side="left", padx=10)
 
         # --- Preview section ---
         preview_frame = ctk.CTkFrame(scroll)
@@ -2324,7 +2328,7 @@ class GameTextureSorter(ctk.CTk):
             upscale_auto_level_cb, upscale_overwrite_cb,
             upscale_zoom_out_btn, upscale_zoom_in_btn, upscale_zoom_fit_btn,
             self.upscale_export_single_btn,
-            upscale_custom_entry)
+            upscale_custom_entry, upscale_preserve_metadata_cb)
 
     def _apply_upscaler_tooltips(self, input_btn, zip_btn, output_btn,
                                   factor_menu, style_menu, format_menu,
@@ -2336,7 +2340,7 @@ class GameTextureSorter(ctk.CTk):
                                   auto_level_cb=None, overwrite_cb=None,
                                   zoom_out_btn=None, zoom_in_btn=None,
                                   zoom_fit_btn=None, export_single_btn=None,
-                                  custom_res_entry=None):
+                                  custom_res_entry=None, preserve_metadata_cb=None):
         """Apply tooltips to upscaler tab widgets"""
         if not WidgetTooltip:
             return
@@ -2439,6 +2443,10 @@ class GameTextureSorter(ctk.CTk):
             self._tooltips.append(WidgetTooltip(custom_res_entry,
                 tt('upscale_custom_res') or "Enter a custom output resolution (e.g. 1024x1024)\nOverrides the scale factor when set",
                 widget_id='upscale_custom_res', tooltip_manager=tm))
+        if preserve_metadata_cb:
+            self._tooltips.append(WidgetTooltip(preserve_metadata_cb,
+                tt('metadata_tooltip') or "Preserve original image metadata (EXIF) when upscaling. Best for JPEG files.",
+                widget_id='upscale_preserve_metadata', tooltip_manager=tm))
 
     def _browse_upscale_zip(self):
         """Browse for a ZIP file as upscaler input."""
@@ -2833,6 +2841,7 @@ class GameTextureSorter(ctk.CTk):
         style = self.upscale_style_var.get()
         is_esrgan = "ESRGAN" in style
         overwrite = self.upscale_overwrite_var.get() if hasattr(self, 'upscale_overwrite_var') else False
+        preserve_metadata = self.upscale_preserve_metadata_var.get() if hasattr(self, 'upscale_preserve_metadata_var') else False
 
         # Create progress dialog if available
         progress_dialog = None
@@ -2845,6 +2854,23 @@ class GameTextureSorter(ctk.CTk):
             import zipfile
             import shutil
             from PIL import Image
+            
+            # Import metadata handler if metadata preservation is enabled
+            metadata_handler = None
+            if preserve_metadata:
+                try:
+                    from src.utils.metadata_handler import MetadataHandler
+                    metadata_handler = MetadataHandler()
+                    self._upscale_log("📋 Metadata preservation enabled")
+                    
+                    # Check format support and warn user
+                    file_ext = f".{export_fmt}"
+                    supports_exif, warning = metadata_handler.check_format_support(file_ext)
+                    if warning:
+                        self._upscale_log(f"⚠️  {warning}")
+                except Exception as e:
+                    self._upscale_log(f"⚠️  Metadata handler not available: {e}")
+                    metadata_handler = None
 
             tmp_extract_dirs = []
             is_paused = threading.Event()
@@ -3002,6 +3028,14 @@ class GameTextureSorter(ctk.CTk):
                             self._upscale_log(f"  ⏭️ [{file_idx}/{total_files}] {fpath.name} (exists, skipped)")
                             skipped += 1
                         else:
+                            # Extract metadata if preservation is enabled
+                            source_metadata = None
+                            if preserve_metadata and metadata_handler:
+                                try:
+                                    source_metadata = metadata_handler.extract_metadata(fpath)
+                                except Exception as e:
+                                    logger.warning(f"Failed to extract metadata from {fpath.name}: {e}")
+                            
                             # Save
                             save_kwargs = {}
                             if export_fmt == "jpeg":
@@ -3010,7 +3044,21 @@ class GameTextureSorter(ctk.CTk):
                                     result = result.convert("RGB")
                             elif export_fmt == "webp":
                                 save_kwargs["quality"] = 95
-                            result.save(str(out_file), **save_kwargs)
+                            
+                            # Save with metadata if available
+                            if preserve_metadata and metadata_handler and source_metadata:
+                                try:
+                                    metadata_preserved = metadata_handler.save_with_metadata(
+                                        result, out_file, source_metadata, **save_kwargs)
+                                    if not metadata_preserved:
+                                        self._upscale_log(f"  ⚠️  [{file_idx}/{total_files}] {fpath.name} - metadata not preserved")
+                                except Exception as e:
+                                    self._upscale_log(f"  ⚠️  [{file_idx}/{total_files}] {fpath.name} - metadata copy failed: {e}")
+                                    # Fallback to regular save
+                                    result.save(str(out_file), **save_kwargs)
+                            else:
+                                result.save(str(out_file), **save_kwargs)
+                            
                             processed += 1
                             self._upscale_log(f"  ✅ [{file_idx}/{total_files}] {fpath.name}")
                         
