@@ -271,6 +271,31 @@ class ColorCorrectionPanel(ctk.CTkFrame):
         self.lut_strength_frame = ctk.CTkFrame(frame)
         # Pack later when LUT is loaded
         
+        ctk.CTkLabel(
+            self.lut_strength_frame,
+            text="LUT Strength:",
+            font=("Arial", 10)
+        ).pack(side="left", padx=(10, 5))
+        
+        self.lut_strength_slider = ctk.CTkSlider(
+            self.lut_strength_frame,
+            from_=0,
+            to=1,
+            number_of_steps=100,
+            command=lambda v: self._on_lut_strength_change(v),
+            width=200
+        )
+        self.lut_strength_slider.set(1.0)
+        self.lut_strength_slider.pack(side="left", padx=5)
+        
+        self.lut_strength_value = ctk.CTkLabel(
+            self.lut_strength_frame,
+            text="100%",
+            font=("Arial", 10),
+            width=50
+        )
+        self.lut_strength_value.pack(side="left", padx=5)
+        
         # Reset button
         reset_btn = ctk.CTkButton(
             frame,
@@ -439,7 +464,7 @@ class ColorCorrectionPanel(ctk.CTkFrame):
                 'vibrance': self.vib_slider.get(),
                 'clarity': self.clar_slider.get(),
                 'lut_path': self.current_lut,
-                'lut_strength': 1.0  # TODO: Add LUT strength slider
+                'lut_strength': self.lut_strength_slider.get() if self.current_lut else 1.0
             }
             
             return self.corrector.apply_corrections(image, **settings)
@@ -461,6 +486,8 @@ class ColorCorrectionPanel(ctk.CTkFrame):
                 self.current_lut = file
                 self.lut_label.configure(text=Path(file).name)
                 self.clear_lut_btn.configure(state="normal")
+                # Show LUT strength slider
+                self.lut_strength_frame.pack(fill="x", padx=10, pady=5)
                 self._on_adjustment_change()  # Update preview
             else:
                 messagebox.showerror("Error", "Failed to load LUT file")
@@ -470,6 +497,14 @@ class ColorCorrectionPanel(ctk.CTkFrame):
         self.current_lut = None
         self.lut_label.configure(text="No LUT loaded")
         self.clear_lut_btn.configure(state="disabled")
+        # Hide LUT strength slider
+        self.lut_strength_frame.pack_forget()
+        self._on_adjustment_change()  # Update preview
+    
+    def _on_lut_strength_change(self, value):
+        """Handle LUT strength slider change."""
+        strength = float(value)
+        self.lut_strength_value.configure(text=f"{int(strength * 100)}%")
         self._on_adjustment_change()  # Update preview
     
     def _reset_adjustments(self):
