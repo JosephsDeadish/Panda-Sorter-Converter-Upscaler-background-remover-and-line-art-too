@@ -10,11 +10,20 @@ from typing import List, Optional
 import logging
 from PIL import Image, ImageTk
 import threading
+import time
 
 from src.tools.lineart_converter import (
     LineArtConverter, LineArtSettings,
     ConversionMode, BackgroundMode, MorphologyOperation
 )
+
+# Live preview widget with slider/zoom/pan
+try:
+    from src.ui.live_preview_widget import LivePreviewWidget
+    LIVE_PREVIEW_AVAILABLE = True
+except ImportError:
+    LivePreviewWidget = None
+    LIVE_PREVIEW_AVAILABLE = False
 
 # SVG icon support
 try:
@@ -147,10 +156,27 @@ class LineArtConverterPanel(ctk.CTkFrame):
         self.processing_thread = None
         self.preview_image = None
         self._last_preview_result = None
+        self._debounce_id = None  # for debounced live preview updates
         
         self._tooltips = []
         self._create_widgets()
         self._add_tooltips()
+        self._wire_live_updates()
+    
+    def _wire_live_updates(self):
+        """Connect all setting variables to debounced live preview updates."""
+        for var in [self.threshold_var, self.midtone_threshold_var,
+                    self.morphology_iterations_var, self.denoise_size_var,
+                    self.kernel_size_var]:
+            var.trace_add("write", self._schedule_live_update)
+        for var in [self.contrast_var, self.sharpen_amount_var]:
+            var.trace_add("write", self._schedule_live_update)
+        for var in [self.mode_var, self.background_var, self.morphology_var]:
+            var.trace_add("write", self._schedule_live_update)
+        for var in [self.auto_threshold_var, self.invert_var,
+                    self.remove_midtones_var, self.sharpen_var,
+                    self.denoise_var]:
+            var.trace_add("write", self._schedule_live_update)
     
     def _create_widgets(self):
         """Create the UI widgets."""
@@ -193,15 +219,18 @@ class LineArtConverterPanel(ctk.CTkFrame):
         # Action buttons
         self._create_action_buttons(left_frame)
         
-        # Right side - Preview
+        # Right side - Preview (LivePreviewWidget with slider/zoom/pan)
         right_frame = ctk.CTkFrame(main_container)
         right_frame.pack(side="right", fill="both", expand=True, padx=(5, 0))
         
-        ctk.CTkLabel(right_frame, text="👁️ Preview", font=("Arial Bold", 14)).pack(pady=10)
-        
-        # Preview canvas
-        self.preview_label = ctk.CTkLabel(right_frame, text="No preview")
-        self.preview_label.pack(fill="both", expand=True, padx=10, pady=10)
+        if LIVE_PREVIEW_AVAILABLE:
+            self.live_preview = LivePreviewWidget(right_frame)
+            self.live_preview.pack(fill="both", expand=True, padx=5, pady=5)
+        else:
+            ctk.CTkLabel(right_frame, text="👁️ Preview", font=("Arial Bold", 14)).pack(pady=10)
+            self.live_preview = None
+            self.preview_label = ctk.CTkLabel(right_frame, text="No preview")
+            self.preview_label.pack(fill="both", expand=True, padx=10, pady=10)
         
         # Preview controls
         preview_controls = ctk.CTkFrame(right_frame)
@@ -736,8 +765,17 @@ class LineArtConverterPanel(ctk.CTkFrame):
             auto_threshold=self.auto_threshold_var.get()
         )
     
+    def _schedule_live_update(self, *_args):
+        """Debounced live preview: schedules an update 500ms after the last setting change."""
+        if not self.preview_image:
+            return
+        if self._debounce_id is not None:
+            self.after_cancel(self._debounce_id)
+        self._debounce_id = self.after(500, self._update_preview)
+
     def _update_preview(self):
         """Update preview with current settings."""
+        self._debounce_id = None
         if not self.preview_image and self.selected_files:
             self.preview_image = self.selected_files[0]
         
@@ -747,19 +785,22 @@ class LineArtConverterPanel(ctk.CTkFrame):
         
         try:
             settings = self._get_settings()
+            original = Image.open(self.preview_image)
             processed = self.converter.preview_settings(self.preview_image, settings)
 
             # Store full-resolution result for export
             self._last_preview_result = processed.copy()
 
-            # Resize for display
-            display_size = (400, 400)
-            processed.thumbnail(display_size, Image.Resampling.LANCZOS)
-            
-            # Convert to PhotoImage
-            photo = ImageTk.PhotoImage(processed)
-            self.preview_label.configure(image=photo, text="")
-            self.preview_label.image = photo
+            # Use LivePreviewWidget slider if available
+            if self.live_preview is not None:
+                self.live_preview.load_images(original, processed)
+            else:
+                # Fallback to label-based preview
+                display_size = (400, 400)
+                processed.thumbnail(display_size, Image.Resampling.LANCZOS)
+                photo = ImageTk.PhotoImage(processed)
+                self.preview_label.configure(image=photo, text="")
+                self.preview_label.image = photo
             
         except Exception as e:
             logger.error(f"Error updating preview: {e}")
