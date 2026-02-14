@@ -1,10 +1,12 @@
 """
-Scrollable Tab View Widget
-A custom tabview that supports scrolling when too many tabs are present
+Tabview Widgets
+Provides a staggered two-row tab layout so all tabs are visible at once
+without scrolling.
 """
 
 import customtkinter as ctk
 from typing import Dict, List, Optional, Callable
+import math
 import logging
 
 logger = logging.getLogger(__name__)
@@ -12,195 +14,139 @@ logger = logging.getLogger(__name__)
 
 class ScrollableTabView(ctk.CTkFrame):
     """
-    A tabview that supports horizontal scrolling for many tabs.
-    Uses arrow buttons to scroll through tabs when they don't all fit.
+    A tabview that displays tabs in two staggered rows so every tab is
+    always visible without needing scroll arrows.  Row 1 holds the first
+    half of the tabs and row 2 holds the second half.
+
+    Provides the same public API as CTkTabview (add / set / get / tab)
+    so it can be used as a drop-in replacement.
     """
-    
+
     def __init__(self, master, **kwargs):
         super().__init__(master, **kwargs)
-        
+
         self.tabs: Dict[str, ctk.CTkFrame] = {}
         self.tab_buttons: Dict[str, ctk.CTkButton] = {}
         self.current_tab: Optional[str] = None
-        self.visible_tab_range = [0, 10]  # Show first 10 tabs
-        self.max_visible_tabs = 10
-        
+
         self._create_widgets()
-    
+
+    # ── Widget creation ────────────────────────────────────────────
     def _create_widgets(self):
-        """Create the scrollable tab structure."""
-        # Top bar with scroll buttons and tab buttons
-        self.tab_bar = ctk.CTkFrame(self, height=40)
-        self.tab_bar.pack(side="top", fill="x", padx=2, pady=2)
-        
-        # Left scroll button
-        self.scroll_left_btn = ctk.CTkButton(
-            self.tab_bar,
-            text="◀",
-            width=30,
-            command=self._scroll_left,
-            fg_color="gray30",
-            hover_color="gray20"
-        )
-        self.scroll_left_btn.pack(side="left", padx=2)
-        
-        # Tab button container (scrollable)
-        self.tab_button_frame = ctk.CTkFrame(self.tab_bar)
-        self.tab_button_frame.pack(side="left", fill="x", expand=True, padx=2)
-        
-        # Right scroll button
-        self.scroll_right_btn = ctk.CTkButton(
-            self.tab_bar,
-            text="▶",
-            width=30,
-            command=self._scroll_right,
-            fg_color="gray30",
-            hover_color="gray20"
-        )
-        self.scroll_right_btn.pack(side="right", padx=2)
-        
-        # Content area where tab content is displayed
+        """Create the two-row tab bar and content area."""
+        # Container that holds both tab rows
+        self.tab_bar = ctk.CTkFrame(self)
+        self.tab_bar.pack(side="top", fill="x", padx=2, pady=(2, 0))
+
+        # Row 1 (top row)
+        self.row1 = ctk.CTkFrame(self.tab_bar, fg_color="transparent")
+        self.row1.pack(side="top", fill="x", padx=2, pady=(2, 0))
+
+        # Row 2 (bottom row)
+        self.row2 = ctk.CTkFrame(self.tab_bar, fg_color="transparent")
+        self.row2.pack(side="top", fill="x", padx=2, pady=(0, 2))
+
+        # Content area
         self.content_frame = ctk.CTkFrame(self, fg_color="transparent")
         self.content_frame.pack(side="top", fill="both", expand=True)
-        
-        # Update scroll button states
-        self._update_scroll_buttons()
-    
+
+    # ── Public API ─────────────────────────────────────────────────
     def add(self, name: str) -> ctk.CTkFrame:
-        """
-        Add a new tab.
-        
-        Args:
-            name: Name of the tab
-            
-        Returns:
-            Frame for the tab content
-        """
-        # Create tab content frame
+        """Add a new tab and return its content frame."""
         tab_frame = ctk.CTkFrame(self.content_frame)
         self.tabs[name] = tab_frame
-        
-        # Create tab button
-        tab_button = ctk.CTkButton(
-            self.tab_button_frame,
+
+        # Determine which row this button goes in
+        idx = len(self.tab_buttons)
+        half = max(1, math.ceil(len(self.tabs) / 2))
+        parent_row = self.row1 if idx < half else self.row2
+
+        btn = ctk.CTkButton(
+            parent_row,
             text=name,
-            command=lambda: self.set(name),
-            width=120,
-            height=32,
-            corner_radius=6
+            command=lambda n=name: self.set(n),
+            height=28,
+            corner_radius=6,
+            font=("Arial", 11),
+            fg_color=["gray75", "gray25"],
+            hover_color=["gray70", "gray30"],
         )
-        self.tab_buttons[name] = tab_button
-        
-        # Update button visibility
-        self._update_visible_tabs()
-        
-        # If this is the first tab, select it
+        btn.pack(side="left", padx=2, pady=1)
+        self.tab_buttons[name] = btn
+
+        # Re-balance rows whenever total count changes
+        self._rebalance_rows()
+
+        # Auto-select first tab
         if len(self.tabs) == 1:
             self.set(name)
-        
+
         return tab_frame
-    
+
     def set(self, name: str):
-        """
-        Switch to a specific tab.
-        
-        Args:
-            name: Name of the tab to switch to
-        """
+        """Switch to a specific tab by name."""
         if name not in self.tabs:
             logger.warning(f"Tab '{name}' not found")
             return
-        
-        # Hide current tab
+
+        # Deselect previous
         if self.current_tab and self.current_tab in self.tabs:
             self.tabs[self.current_tab].pack_forget()
-            # Reset button color
             if self.current_tab in self.tab_buttons:
                 self.tab_buttons[self.current_tab].configure(
                     fg_color=["gray75", "gray25"],
-                    hover_color=["gray70", "gray30"]
+                    hover_color=["gray70", "gray30"],
                 )
-        
-        # Show new tab
+
+        # Select new
         self.current_tab = name
         self.tabs[name].pack(fill="both", expand=True)
-        
-        # Highlight button
         if name in self.tab_buttons:
             self.tab_buttons[name].configure(
                 fg_color=["#3B8ED0", "#1F6AA5"],
-                hover_color=["#36719F", "#144870"]
+                hover_color=["#36719F", "#144870"],
             )
-        
-        # Ensure tab is visible
-        self._ensure_tab_visible(name)
-    
-    def get(self, name: str) -> Optional[ctk.CTkFrame]:
-        """Get a tab frame by name."""
+
+    def get(self, name: str = None) -> Optional[ctk.CTkFrame]:
+        """Get a tab frame by name, or return the current tab name if *name* is None."""
+        if name is None:
+            return self.current_tab
         return self.tabs.get(name)
-    
-    def _scroll_left(self):
-        """Scroll tabs to the left (show earlier tabs)."""
-        if self.visible_tab_range[0] > 0:
-            self.visible_tab_range[0] -= 1
-            self.visible_tab_range[1] -= 1
-            self._update_visible_tabs()
-    
-    def _scroll_right(self):
-        """Scroll tabs to the right (show later tabs)."""
-        if self.visible_tab_range[1] < len(self.tabs):
-            self.visible_tab_range[0] += 1
-            self.visible_tab_range[1] += 1
-            self._update_visible_tabs()
-    
-    def _update_visible_tabs(self):
-        """Update which tab buttons are visible based on scroll position."""
-        tab_names = list(self.tabs.keys())
-        
-        # Hide all buttons first
-        for button in self.tab_buttons.values():
-            button.pack_forget()
-        
-        # Show only visible range
-        start, end = self.visible_tab_range
-        for i in range(start, min(end, len(tab_names))):
-            if tab_names[i] in self.tab_buttons:
-                self.tab_buttons[tab_names[i]].pack(side="left", padx=2)
-        
-        self._update_scroll_buttons()
-    
-    def _update_scroll_buttons(self):
-        """Enable/disable scroll buttons based on position."""
-        # Disable left if at start
-        if self.visible_tab_range[0] == 0:
-            self.scroll_left_btn.configure(state="disabled")
-        else:
-            self.scroll_left_btn.configure(state="normal")
-        
-        # Disable right if at end
-        if self.visible_tab_range[1] >= len(self.tabs):
-            self.scroll_right_btn.configure(state="disabled")
-        else:
-            self.scroll_right_btn.configure(state="normal")
-    
-    def _ensure_tab_visible(self, name: str):
-        """Ensure a specific tab button is visible."""
-        tab_names = list(self.tabs.keys())
-        if name not in tab_names:
+
+    def tab(self, name: str) -> Optional[ctk.CTkFrame]:
+        """Return the content frame for *name* (CTkTabview compatibility)."""
+        return self.tabs.get(name)
+
+    def delete(self, name: str):
+        """Remove a tab by name (CTkTabview compatibility)."""
+        if name not in self.tabs:
             return
-        
-        tab_index = tab_names.index(name)
-        
-        # If tab is before visible range, scroll to it
-        if tab_index < self.visible_tab_range[0]:
-            self.visible_tab_range[0] = tab_index
-            self.visible_tab_range[1] = tab_index + self.max_visible_tabs
-            self._update_visible_tabs()
-        # If tab is after visible range, scroll to it
-        elif tab_index >= self.visible_tab_range[1]:
-            self.visible_tab_range[1] = tab_index + 1
-            self.visible_tab_range[0] = max(0, self.visible_tab_range[1] - self.max_visible_tabs)
-            self._update_visible_tabs()
+        # If it's the active tab, switch away first
+        if self.current_tab == name:
+            remaining = [n for n in self.tabs if n != name]
+            if remaining:
+                self.set(remaining[0])
+            else:
+                self.current_tab = None
+        self.tabs[name].destroy()
+        del self.tabs[name]
+        if name in self.tab_buttons:
+            self.tab_buttons[name].destroy()
+            del self.tab_buttons[name]
+        self._rebalance_rows()
+
+    # ── Internal helpers ───────────────────────────────────────────
+    def _rebalance_rows(self):
+        """Redistribute buttons evenly across two rows."""
+        names = list(self.tabs.keys())
+        half = math.ceil(len(names) / 2)
+
+        for btn in self.tab_buttons.values():
+            btn.pack_forget()
+
+        for i, name in enumerate(names):
+            parent = self.row1 if i < half else self.row2
+            self.tab_buttons[name].pack(in_=parent, side="left", padx=2, pady=1)
 
 
 class CompactTabView(ctk.CTkFrame):
