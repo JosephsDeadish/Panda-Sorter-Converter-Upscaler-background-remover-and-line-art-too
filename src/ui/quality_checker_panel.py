@@ -21,6 +21,14 @@ except ImportError:
     SVG_ICONS_AVAILABLE = False
     logger.warning("SVG icon helper not available, using emoji fallback")
 
+# Tooltip support
+try:
+    from src.features.tutorial_system import WidgetTooltip
+    TOOLTIPS_AVAILABLE = True
+except ImportError:
+    WidgetTooltip = None
+    TOOLTIPS_AVAILABLE = False
+
 logger = logging.getLogger(__name__)
 
 IMAGE_EXTENSIONS = {'.png', '.jpg', '.jpeg', '.bmp', '.tiff', '.webp'}
@@ -29,15 +37,18 @@ IMAGE_EXTENSIONS = {'.png', '.jpg', '.jpeg', '.bmp', '.tiff', '.webp'}
 class QualityCheckerPanel(ctk.CTkFrame):
     """UI panel for image quality checking."""
     
-    def __init__(self, master, **kwargs):
+    def __init__(self, master, tooltip_manager=None, **kwargs):
         super().__init__(master, **kwargs)
         
+        self.tooltip_manager = tooltip_manager
         self.checker = ImageQualityChecker()
         self.selected_files: List[str] = []
         self.current_report = None
         self.processing_thread = None
         
+        self._tooltips = []
         self._create_widgets()
+        self._add_tooltips()
     
     def _create_widgets(self):
         """Create the UI widgets."""
@@ -329,3 +340,30 @@ class QualityCheckerPanel(ctk.CTkFrame):
                 messagebox.showinfo("Success", f"Report saved to:\n{output_file}")
             except Exception as e:
                 messagebox.showerror("Error", f"Failed to save report: {e}")
+
+    def _add_tooltips(self):
+        """Add mode-aware tooltips to widgets."""
+        if not TOOLTIPS_AVAILABLE:
+            return
+        try:
+            tm = self.tooltip_manager
+
+            def _tt(widget_id, fallback):
+                if tm:
+                    text = tm.get_tooltip(widget_id)
+                    if text:
+                        return text
+                return fallback
+
+            if hasattr(self, 'check_button'):
+                self._tooltips.append(WidgetTooltip(
+                    self.check_button,
+                    _tt('qc_analyze', "Run quality analysis on selected texture files"),
+                    widget_id='qc_analyze', tooltip_manager=tm))
+            if hasattr(self, 'results_text'):
+                self._tooltips.append(WidgetTooltip(
+                    self.results_text,
+                    _tt('qc_results', "View quality analysis results and recommendations"),
+                    widget_id='qc_results', tooltip_manager=tm))
+        except Exception as e:
+            logger.error(f"Error adding tooltips to Quality Checker Panel: {e}")

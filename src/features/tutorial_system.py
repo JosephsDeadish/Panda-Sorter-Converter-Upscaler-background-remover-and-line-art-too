@@ -3543,6 +3543,421 @@ _PANDA_TOOLTIPS = {
             "Smart search: for when whoever named these textures was drunk.",
         ]
     },
+
+    # ── Batch Rename Panel ─────────────────────────────────────────
+    'rename_date': {
+        'normal': [
+            "Rename files using their creation date as the new filename",
+            "Use file creation dates for automatic chronological naming",
+            "Date-based renaming organizes files by when they were created",
+            "Assign filenames derived from creation timestamps",
+        ],
+        'vulgar': [
+            "Rename by date. Because 'IMG_20231217_final_FINAL_v3' is not a naming convention, it's a cry for help.",
+            "Date-based naming. Finally, your files will know what fucking day they were born.",
+            "Let the dates do the talking. At least SOMETHING in your workflow has a sense of time.",
+            "Chronological naming. Revolutionary concept for someone who names files 'asdfasdf.png'.",
+            "Sort by date because you clearly can't be trusted to name things yourself.",
+            "Date stamps: the only honest thing about your file management system.",
+        ],
+    },
+    'rename_template': {
+        'normal': [
+            "Enter a custom naming pattern using placeholders like {name}, {num}, {date}, {ext}",
+            "Define a template pattern for batch renaming with variable substitution",
+            "Create naming rules with placeholders that get replaced during rename",
+            "Build custom filename patterns using template variables",
+        ],
+        'vulgar': [
+            "Write your naming template. Use {name}, {num}, {date}. It's like Mad Libs but for files and less fun.",
+            "Template time! {name}_{num}.{ext} or whatever unholy naming scheme your brain conjures up.",
+            "Custom patterns. Because you're a unique snowflake who can't use the damn presets like everyone else.",
+            "Build your own filename format. With great power comes great responsibility. Try not to fuck it up.",
+            "Template editor. {name} = original name, {num} = number. Not that complicated. I believe in you. Barely.",
+            "Placeholder madness! Mix and match like a DJ, but instead of sick beats you get... filenames. Living the dream.",
+        ],
+    },
+    'rename_copyright': {
+        'normal': [
+            "Set copyright metadata to embed in renamed files",
+            "Add copyright information to file metadata during rename",
+            "Embed ownership details in the renamed files' metadata",
+            "Include copyright text in file properties",
+        ],
+        'vulgar': [
+            "Slap your copyright on these files like a dog marking territory. It's YOUR art now, dammit.",
+            "Copyright metadata. Because someone will steal your textures and you'll want legal ammunition.",
+            "Mark your damn territory. Add copyright info so everyone knows who made this masterpiece. Or disaster.",
+            "Embed copyright. In case some asshole tries to claim your textures as their own. We've all been there.",
+            "Copyright protection: cheaper than a lawyer, almost as effective, and way less annoying.",
+        ],
+    },
+    'rename_preview': {
+        'normal': [
+            "Preview of how files will be renamed before applying changes",
+            "See the new filenames before committing to the rename operation",
+            "Review rename results without modifying any files yet",
+            "Check the before/after comparison of filenames",
+        ],
+        'vulgar': [
+            "Preview before you commit. Unlike that tattoo you got in Cancun, this is reversible.",
+            "Look before you leap. See what your files WILL look like. No surprises, no regrets, no therapy bills.",
+            "Preview mode. Because 'undo' exists but prevention is better than crying over corrupted filenames.",
+            "Check the preview unless you enjoy living dangerously. And by dangerously I mean stupidly.",
+            "See the future! Your files' future, that is. Less exciting than a crystal ball but more accurate.",
+        ],
+    },
+    'rename_undo': {
+        'normal': [
+            "Undo the last rename operation and restore original filenames",
+            "Revert files back to their original names",
+            "Reverse the most recent batch rename",
+            "Restore previous filenames if the rename didn't work out",
+        ],
+        'vulgar': [
+            "UNDO. The most beautiful word in any language. Unfuck what you just fucked.",
+            "Ctrl+Z's cooler, buffer older brother. Restores your original filenames like nothing happened.",
+            "Made a mistake? Of course you did. Hit undo and pretend it never happened. We won't tell anyone.",
+            "Undo button: because nobody gets it right the first time. NOBODY. Not even you, perfectionist.",
+            "Reverse! Go back! Abort! Whatever you want to call it, this button fixes your oopsie.",
+            "Time travel for filenames. Takes them right back to before you messed everything up. Again.",
+        ],
+    },
+
+    # ── Color Correction Panel ─────────────────────────────────────
+    'cc_white_balance': {
+        'normal': [
+            "Adjust the color temperature — left for cooler (blue), right for warmer (yellow)",
+            "Correct the white balance to make colors look natural",
+            "Shift color temperature between cool and warm tones",
+            "Fine-tune the overall color cast of the image",
+        ],
+        'vulgar': [
+            "White balance. Make your textures less 'filmed in a gas station bathroom' and more 'professional studio'.",
+            "Color temperature slider. Left = ice cold blue, Right = warm golden. Like a mood ring for your images.",
+            "Fix that ugly yellow cast. Or blue cast. Whatever crime against color your camera committed.",
+            "Slide left for 'Arctic tundra vibes', slide right for 'my GPU is literally on fire'. Find the sweet spot.",
+            "White balance: because your monitor lied to you about what these colors actually look like.",
+            "Temperature control. Not for your thermostat — for your textures. Though both need adjusting, clearly.",
+        ],
+    },
+    'cc_exposure': {
+        'normal': [
+            "Adjust the overall brightness/exposure of the image",
+            "Increase exposure to brighten or decrease to darken",
+            "Control the lightness and darkness of the entire image",
+            "Fine-tune image brightness for optimal visibility",
+        ],
+        'vulgar': [
+            "Exposure slider. Too dark? Crank it up. Too bright? Turn it down. Rocket science, I know.",
+            "Make it brighter or darker. Like the emotional spectrum of your last code review.",
+            "Brightness control. Because 'I can't see shit' and 'MY EYES' are both valid complaints.",
+            "Exposure adjustment: the difference between 'moody atmospheric' and 'did you forget the lights?'",
+            "Slide right to blind yourself, slide left to enter the void. Somewhere in the middle is perfection.",
+            "Fix the brightness because apparently your camera and the sun had a disagreement about exposure.",
+        ],
+    },
+    'cc_vibrance': {
+        'normal': [
+            "Boost color intensity without over-saturating vivid colors",
+            "Enhance muted colors while preserving already-vivid tones",
+            "Intelligently increase color saturation across the image",
+            "Add punch to dull colors without destroying bright ones",
+        ],
+        'vulgar': [
+            "Vibrance: makes dull colors pop without turning everything into a damn clown painting.",
+            "Smart saturation. Unlike regular saturation, this one has taste. Unlike you. I'm kidding. Maybe.",
+            "Add color punch without the neon nightmare. Subtle. Refined. Not like your Photoshop crimes.",
+            "Boost those sad, desaturated colors back to life. It's like CPR but for pixels.",
+            "Vibrance slider: the difference between 'stylistic choice' and 'did a toddler do this?'",
+            "Make colors pop. Tastefully. We're going for 'wow' not 'dear god my retinas'.",
+        ],
+    },
+    'cc_clarity': {
+        'normal': [
+            "Enhance midtone contrast to add crispness and detail",
+            "Increase local contrast for sharper-looking textures",
+            "Add definition and punch to image details",
+            "Fine-tune midtone sharpness without affecting highlights or shadows",
+        ],
+        'vulgar': [
+            "Clarity slider. Makes everything look crispy and detailed. Like upgrading from potato cam to actual camera.",
+            "Add crispness. Your textures will look sharper than your wit. And that's saying something.",
+            "Midtone contrast magic. Makes textures look professional AF without actually being professional.",
+            "Clarity: because 'slightly blurry but whatever' is not an acceptable quality standard. Allegedly.",
+            "Sharpen those midtones. Go from 'was this rendered on a calculator?' to 'damn that's clean.'",
+            "Crank up the clarity and watch your textures go from 'meh' to 'MAGNIFICENT.' Or at least 'decent.'",
+        ],
+    },
+    'cc_lut': {
+        'normal': [
+            "Load a LUT (Look-Up Table) file for color grading — supports .cube and .3dl",
+            "Apply cinematic color grading presets via LUT files",
+            "Import a color lookup table for professional color treatment",
+            "Use industry-standard LUT files for consistent color grading",
+        ],
+        'vulgar': [
+            "Load a LUT file. It's like an Instagram filter but for people who actually know what they're doing.",
+            "LUT files: .cube and .3dl. Professional color grading without the professional price tag. Or skill.",
+            "Import a LUT and instantly look like you spent 6 hours color grading. Our little secret.",
+            "Color LUTs: because 'I just cranked the saturation to 11' is not a color grading strategy.",
+            "Load a look-up table. Fancy name for 'make everything look cinematic with zero effort.' You're welcome.",
+            "LUT loading. Turn your game textures into Christopher Nolan's wet dream. Or at least a dry one.",
+        ],
+    },
+
+    # ── Image Repair Panel ─────────────────────────────────────────
+    'repair_diagnose': {
+        'normal': [
+            "Analyze images for corruption, truncation, and header errors",
+            "Scan selected files to detect any damage or formatting issues",
+            "Run diagnostic checks on images to find repairable problems",
+            "Identify corrupted headers, truncated data, and checksum mismatches",
+        ],
+        'vulgar': [
+            "Diagnose what's wrong with your broken-ass images. Like a doctor but for pixels. And cheaper.",
+            "Scan for corruption. Someone's gotta look at the damage after you played 'what if I close without saving.'",
+            "Let the panda play detective. Who murdered these pixels? Headers corrupted, data truncated, dreams shattered.",
+            "Image autopsy time. Let's figure out how these files died and if CPR is even an option.",
+            "Run diagnostics. Find out if your images are slightly sick or completely fucked. Fingers crossed.",
+            "Corruption scan. Like antivirus but for your texture files. Less dramatic, equally necessary.",
+        ],
+    },
+    'repair_fix': {
+        'normal': [
+            "Attempt to repair detected issues in selected images",
+            "Fix corrupted headers, rebuild truncated data, correct checksums",
+            "Apply automatic repairs to damaged image files",
+            "Restore broken images using header reconstruction and data recovery",
+        ],
+        'vulgar': [
+            "REPAIR. Unfuck these images. Fix headers, rebuild data, perform pixel surgery. No anesthesia needed.",
+            "Hit repair and pray. Just kidding, the panda's actually good at this shit. Usually. Probably.",
+            "Fix button. Like duct tape for corrupted images but actually works and doesn't leave residue.",
+            "Attempt repairs. Key word: attempt. We're optimistic but realistic. Like a therapist for files.",
+            "Restore your broken images from the dead. Necromancy for PNG files. Totally legal, I checked.",
+            "Repair time. Headers get fixed, checksums get corrected, and your files stop being digital corpses.",
+        ],
+    },
+    'repair_results': {
+        'normal': [
+            "Diagnostic and repair results with details of issues found",
+            "Review the report showing what was detected and what was fixed",
+            "View detailed results of the analysis and repair operations",
+            "Check the outcome of diagnostic scans and repair attempts",
+        ],
+        'vulgar': [
+            "Results panel. See what's broken, what got fixed, and what's beyond saving. Like a relationship status update.",
+            "The damage report. Read it and weep. Or celebrate. Depends on how badly you fucked up your files.",
+            "Detailed results. Every issue found, every fix attempted. It's like reading your file's medical records.",
+            "Check results. Good news and bad news. The bad news: your files were corrupted. The good news: we probably fixed them.",
+            "Results area. Where dreams are confirmed or crushed. No pressure or anything.",
+        ],
+    },
+
+    # ── Performance Dashboard ──────────────────────────────────────
+    'perf_speed': {
+        'normal': [
+            "Current processing speed measured in files per second",
+            "Shows how fast files are being processed right now",
+            "Real-time throughput indicator for the current operation",
+            "Monitor the processing rate of the active task",
+        ],
+        'vulgar': [
+            "Processing speed. Files per second. Like a speedometer but for boring office work. Vroom vroom.",
+            "Speed indicator. How fast the panda's chewing through your files. Spoiler: faster than you could do it manually.",
+            "Files per second. Higher is better. Lower means your computer is having an existential crisis.",
+            "Throughput meter. Watch the numbers go up and pretend you understand what they mean.",
+            "Speed stat. Like checking your car's mph except you're measuring file-crunching velocity. Less fun, equally nerdy.",
+        ],
+    },
+    'perf_memory': {
+        'normal': [
+            "Current memory (RAM) used by the application",
+            "Shows how much system memory is being consumed",
+            "Monitor RAM usage to avoid out-of-memory issues",
+            "Track application memory footprint in real-time",
+        ],
+        'vulgar': [
+            "RAM usage. How much memory we're hogging. If this gets too high, close some of your 47 Chrome tabs.",
+            "Memory consumption. Like watching your bank account after Steam sales. It only goes in one direction.",
+            "RAM meter. If it turns red, blame Chrome, not us. We're practically anorexic compared to that memory glutton.",
+            "How much memory we're eating. Don't worry, we're on a diet. Unlike your browser with 200 tabs open.",
+            "Memory usage: the silent killer of performance. Keep an eye on it or your PC will remind you the hard way.",
+        ],
+    },
+    'perf_cpu': {
+        'normal': [
+            "Current CPU utilization percentage for the application",
+            "Shows processor load from active operations",
+            "Monitor how much processing power is being used",
+            "Track CPU usage to balance performance and responsiveness",
+        ],
+        'vulgar': [
+            "CPU usage. How hard your processor is sweating right now. If it's at 100%, pour one out for your fan.",
+            "Processor load. Higher means we're working harder. Or your CPU is having a panic attack. Same thing, really.",
+            "CPU meter. Watch your processor earn its keep instead of sitting there mining crypto. Wait, you're not... right?",
+            "How much brain power your CPU is burning. If it hits 100%, congratulations, you found its limit. Or a bug.",
+            "CPU percentage. Fun fact: your processor right now is doing more work than your entire team combined. Probably.",
+        ],
+    },
+    'perf_queue': {
+        'normal': [
+            "Number of files waiting in the processing queue",
+            "Shows how many items are pending in the task queue",
+            "Monitor remaining work in the processing pipeline",
+            "Track the backlog of files awaiting processing",
+        ],
+        'vulgar': [
+            "Queue depth. How many files are standing in line like it's Black Friday at Best Buy.",
+            "Files waiting. Like a DMV queue but these actually move. And nobody's arguing about expired IDs.",
+            "Pending items. The digital equivalent of 'your call is important to us, please hold.' But faster.",
+            "Queue counter. Watch it go down and feel that sweet, sweet dopamine of progress. Better than social media.",
+            "Files in line. They're patient, unlike you refreshing this panel every 2 seconds. Relax. Grab a coffee.",
+        ],
+    },
+    'perf_workers': {
+        'normal': [
+            "Number of parallel worker threads for processing — more workers use more CPU/memory",
+            "Configure how many simultaneous processing threads to use",
+            "Adjust parallelism: higher values process faster but use more resources",
+            "Set the number of concurrent workers for batch operations",
+        ],
+        'vulgar': [
+            "Worker threads. More pandas on the job = faster results. But also more RAM eaten. Balance, young grasshopper.",
+            "Thread count. Crank it up for speed, dial it down if your PC starts sounding like a jet engine.",
+            "Parallel workers. Like hiring more employees except they don't need coffee breaks or health insurance.",
+            "How many threads to throw at the problem. The answer is usually 'as many as your RAM can handle before crying.'",
+            "Worker slider. More threads = faster. Until your CPU melts. Then it's slower. And expensive. And on fire.",
+            "Concurrency control. Sounds fancy. It means 'how many things happen at once.' You're welcome for the explanation.",
+        ],
+    },
+
+    # ── Quality Checker Panel ──────────────────────────────────────
+    'qc_analyze': {
+        'normal': [
+            "Run quality analysis on selected texture files",
+            "Check textures for common issues like incorrect dimensions or compression artifacts",
+            "Scan images for quality problems and potential optimizations",
+            "Analyze texture quality metrics including resolution, format, and compression",
+        ],
+        'vulgar': [
+            "Quality check. Let the panda judge your textures like a drunk art critic at a gallery opening.",
+            "Analyze button. Time to find out if your textures are 'professional quality' or 'made in MS Paint.'",
+            "Run quality scan. Spoiler alert: there's always something wrong. ALWAYS. Don't shoot the messenger.",
+            "Check your textures for problems you didn't know existed. Ignorance was bliss, knowledge is power.",
+            "Quality analysis: because 'it looks fine on MY monitor' is not a valid QA process, Kevin.",
+        ],
+    },
+    'qc_results': {
+        'normal': [
+            "View quality analysis results and recommendations",
+            "Review detected issues with suggested fixes",
+            "Check the quality report for each analyzed texture",
+            "See detailed metrics and improvement suggestions",
+        ],
+        'vulgar': [
+            "Results. The moment of truth. Let's see how many textures passed and how many need to repeat the grade.",
+            "Quality report card. Some A's, some F's, and a lot of 'see me after class.' Just like high school.",
+            "Detailed results. Read them and weep. Or celebrate. Mostly weep, in my experience.",
+            "Analysis results. Everything the panda found wrong with your textures. It's a long list. Get comfortable.",
+            "Report time. Find out which textures are worthy and which ones belong in the recycling bin. Harsh but fair.",
+        ],
+    },
+
+    # ── Batch Normalizer Panel ─────────────────────────────────────
+    'bn_normalize': {
+        'normal': [
+            "Normalize textures to a consistent format, resolution, and color space",
+            "Standardize all selected textures to match your target specifications",
+            "Batch process images to uniform dimensions and format settings",
+            "Apply normalization rules across all selected texture files",
+        ],
+        'vulgar': [
+            "Normalize. Make all your textures match like a uniform. Conformity! Structure! Not anarchy!",
+            "Batch normalize. Because having 47 different formats and resolutions is not 'creative diversity,' it's chaos.",
+            "Standardize everything. Like a dictator but for pixel dimensions. A benevolent one, though. Mostly.",
+            "Hit normalize and watch the panda whip your textures into shape. Boot camp for pixels.",
+            "Make everything consistent. Same format, same size, same quality. OCD paradise. You're welcome.",
+        ],
+    },
+    'bn_format': {
+        'normal': [
+            "Select the target format for normalized output files",
+            "Choose which image format all textures will be converted to",
+            "Set the output format for the normalization process",
+            "Pick the standard format for your normalized textures",
+        ],
+        'vulgar': [
+            "Pick your format. PNG, DDS, TGA — choose your fighter. They all have strengths and weaknesses. Like Pokémon.",
+            "Output format selector. Choose wisely. Or don't. You can always normalize again. We're patient.",
+            "Target format. The 'what do I want these files to be when they grow up' dropdown.",
+            "Format selection. PNG for quality snobs, DDS for game devs, TGA for people stuck in 2005.",
+            "Choose a format. Any format. Just PICK ONE and stop overthinking it. Analysis paralysis is real.",
+        ],
+    },
+    'bn_resolution': {
+        'normal': [
+            "Set the target resolution for normalized textures",
+            "Choose the output dimensions for batch normalization",
+            "Define width and height for the standardized output",
+            "Configure the target texture resolution",
+        ],
+        'vulgar': [
+            "Resolution picker. 512x512? 1024x1024? 4K? How much VRAM do you want to MURDER today?",
+            "Set the size. Bigger isn't always better. That's what she— I mean, that's what the GPU said.",
+            "Target resolution. Where you decide if your game runs at 60fps or 6fps. Choose wisely.",
+            "Dimensions. The eternal struggle between 'it looks beautiful' and 'my GPU is literally on fire.'",
+            "Pick a resolution. Pro tip: if your laptop sounds like a helicopter, maybe go smaller.",
+        ],
+    },
+
+    # ── Line Art Converter Panel ───────────────────────────────────
+    'la_convert': {
+        'normal': [
+            "Convert images to clean line art renditions",
+            "Extract line work from textures and photographs",
+            "Generate line art versions of your images",
+            "Process images through the line art extraction algorithm",
+        ],
+        'vulgar': [
+            "Convert to line art. Turn your textures into something your art teacher would actually approve of.",
+            "Line art extraction. Strip away colors and pretend you meant it to look like a coloring book page.",
+            "Generate line art. Because sometimes less is more. And sometimes your textures need an extreme makeover.",
+            "Extract lines. Make any image look like it was drawn by a talented artist instead of... you. No offense.",
+            "Line art button. Transform photos into sketches faster than you can say 'I totally drew that by hand.'",
+        ],
+    },
+    'la_threshold': {
+        'normal': [
+            "Adjust the line detection sensitivity threshold",
+            "Control how much detail is captured in the line art output",
+            "Fine-tune the boundary between lines and background",
+            "Set the sensitivity for edge detection in line extraction",
+        ],
+        'vulgar': [
+            "Threshold slider. Low = every pixel is a line. High = what lines? Balance is key. Like yoga for algorithms.",
+            "Edge sensitivity. Too low and you get a Jackson Pollock. Too high and you get a blank page. Find the zone.",
+            "Line detection threshold. The sweet spot between 'way too detailed' and 'where'd the image go?'",
+            "Sensitivity control. Like a volume knob for line detail. Don't crank it to 11 unless you're ready for noise.",
+            "Threshold: determines whether you get 'elegant minimalist sketch' or 'my printer ran out of ink.'",
+        ],
+    },
+    'la_style': {
+        'normal': [
+            "Select the line art style preset to use",
+            "Choose between different line art rendering styles",
+            "Pick a visual style for the line art output",
+            "Configure the artistic style of the extracted lines",
+        ],
+        'vulgar': [
+            "Style picker. Manga, sketch, blueprint, whatever floats your artsy little boat.",
+            "Line art style. Are we going 'detailed comic book' or 'minimalist hipster nonsense'? You decide.",
+            "Choose a style. Each one makes your images look like a different kind of pretentious.",
+            "Art style dropdown. Pick one and pretend you made a deeply artistic decision. We won't judge. Much.",
+            "Style presets. Because 'I want it to look cool but I don't know how' is a valid starting point.",
+        ],
+    },
 }
 
 

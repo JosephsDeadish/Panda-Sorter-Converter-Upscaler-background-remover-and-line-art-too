@@ -7913,7 +7913,7 @@ class GameTextureSorter(ctk.CTk):
         """Create quality checker tab for image analysis"""
         try:
             if QUALITY_CHECKER_AVAILABLE:
-                panel = QualityCheckerPanel(self.tab_quality_checker)
+                panel = QualityCheckerPanel(self.tab_quality_checker, tooltip_manager=self.tooltip_manager)
                 panel.pack(fill="both", expand=True, padx=10, pady=10)
                 logger.info("Quality Checker tab created successfully")
             else:
@@ -7936,7 +7936,7 @@ class GameTextureSorter(ctk.CTk):
         """Create batch normalizer tab for format standardization"""
         try:
             if BATCH_NORMALIZER_AVAILABLE:
-                panel = BatchNormalizerPanel(self.tab_batch_normalizer)
+                panel = BatchNormalizerPanel(self.tab_batch_normalizer, tooltip_manager=self.tooltip_manager)
                 panel.pack(fill="both", expand=True, padx=10, pady=10)
                 logger.info("Batch Normalizer tab created successfully")
             else:
@@ -7959,7 +7959,7 @@ class GameTextureSorter(ctk.CTk):
         """Create line art converter tab for stencil generation"""
         try:
             if LINEART_CONVERTER_AVAILABLE:
-                panel = LineArtConverterPanel(self.tab_lineart_converter)
+                panel = LineArtConverterPanel(self.tab_lineart_converter, tooltip_manager=self.tooltip_manager)
                 panel.pack(fill="both", expand=True, padx=10, pady=10)
                 logger.info("Line Art Converter tab created successfully")
             else:
@@ -7982,7 +7982,7 @@ class GameTextureSorter(ctk.CTk):
         """Create batch rename tab for file renaming with patterns"""
         try:
             if BATCH_RENAME_AVAILABLE:
-                panel = BatchRenamePanel(self.tab_batch_rename, unlockables_system=self.unlockables_system)
+                panel = BatchRenamePanel(self.tab_batch_rename, unlockables_system=self.unlockables_system, tooltip_manager=self.tooltip_manager)
                 panel.pack(fill="both", expand=True, padx=10, pady=10)
                 logger.info("Batch Rename tab created successfully")
             else:
@@ -8005,7 +8005,7 @@ class GameTextureSorter(ctk.CTk):
         """Create color correction tab for image enhancement"""
         try:
             if COLOR_CORRECTION_AVAILABLE:
-                panel = ColorCorrectionPanel(self.tab_color_correction, unlockables_system=self.unlockables_system)
+                panel = ColorCorrectionPanel(self.tab_color_correction, unlockables_system=self.unlockables_system, tooltip_manager=self.tooltip_manager)
                 panel.pack(fill="both", expand=True, padx=10, pady=10)
                 logger.info("Color Correction tab created successfully")
             else:
@@ -8028,7 +8028,7 @@ class GameTextureSorter(ctk.CTk):
         """Create image repair tab for fixing corrupted files"""
         try:
             if IMAGE_REPAIR_AVAILABLE:
-                panel = ImageRepairPanel(self.tab_image_repair, unlockables_system=self.unlockables_system)
+                panel = ImageRepairPanel(self.tab_image_repair, unlockables_system=self.unlockables_system, tooltip_manager=self.tooltip_manager)
                 panel.pack(fill="both", expand=True, padx=10, pady=10)
                 logger.info("Image Repair tab created successfully")
             else:
@@ -8053,7 +8053,7 @@ class GameTextureSorter(ctk.CTk):
             return
         try:
             if PERFORMANCE_DASHBOARD_AVAILABLE:
-                panel = PerformanceDashboard(self.tab_performance, unlockables_system=self.unlockables_system)
+                panel = PerformanceDashboard(self.tab_performance, unlockables_system=self.unlockables_system, tooltip_manager=self.tooltip_manager)
                 panel.pack(fill="both", expand=True, padx=10, pady=10)
                 logger.info("Performance Dashboard tab created successfully")
             else:

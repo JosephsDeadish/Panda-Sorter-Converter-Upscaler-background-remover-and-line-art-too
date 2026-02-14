@@ -24,6 +24,14 @@ except ImportError:
     SVG_ICONS_AVAILABLE = False
     logger.warning("SVG icon helper not available, using emoji fallback")
 
+# Tooltip support
+try:
+    from src.features.tutorial_system import WidgetTooltip
+    TOOLTIPS_AVAILABLE = True
+except ImportError:
+    WidgetTooltip = None
+    TOOLTIPS_AVAILABLE = False
+
 logger = logging.getLogger(__name__)
 
 IMAGE_EXTENSIONS = {'.png', '.jpg', '.jpeg', '.bmp', '.tiff', '.webp'}
@@ -32,16 +40,19 @@ IMAGE_EXTENSIONS = {'.png', '.jpg', '.jpeg', '.bmp', '.tiff', '.webp'}
 class LineArtConverterPanel(ctk.CTkFrame):
     """UI panel for line art conversion."""
     
-    def __init__(self, master, **kwargs):
+    def __init__(self, master, tooltip_manager=None, **kwargs):
         super().__init__(master, **kwargs)
         
+        self.tooltip_manager = tooltip_manager
         self.converter = LineArtConverter()
         self.selected_files: List[str] = []
         self.output_directory: Optional[str] = None
         self.processing_thread = None
         self.preview_image = None
         
+        self._tooltips = []
         self._create_widgets()
+        self._add_tooltips()
     
     def _create_widgets(self):
         """Create the UI widgets."""
@@ -583,3 +594,25 @@ class LineArtConverterPanel(ctk.CTkFrame):
         
         finally:
             self.after(0, lambda: self.convert_button.configure(state="normal"))
+
+    def _add_tooltips(self):
+        """Add mode-aware tooltips to widgets."""
+        if not TOOLTIPS_AVAILABLE:
+            return
+        try:
+            tm = self.tooltip_manager
+
+            def _tt(widget_id, fallback):
+                if tm:
+                    text = tm.get_tooltip(widget_id)
+                    if text:
+                        return text
+                return fallback
+
+            if hasattr(self, 'convert_button'):
+                self._tooltips.append(WidgetTooltip(
+                    self.convert_button,
+                    _tt('la_convert', "Convert images to clean line art renditions"),
+                    widget_id='la_convert', tooltip_manager=tm))
+        except Exception as e:
+            logger.error(f"Error adding tooltips to Line Art Converter Panel: {e}")
