@@ -7889,7 +7889,8 @@ class GameTextureSorter(ctk.CTk):
                 # Create the BackgroundRemoverPanel
                 panel = BackgroundRemoverPanel(
                     self.tab_bg_remover, 
-                    unlockables_system=self.unlockables_system if UNLOCKABLES_AVAILABLE else None
+                    unlockables_system=self.unlockables_system if UNLOCKABLES_AVAILABLE else None,
+                    tooltip_manager=self.tooltip_manager
                 )
                 panel.pack(fill="both", expand=True, padx=10, pady=10)
                 logger.info("Background Remover tab created successfully")

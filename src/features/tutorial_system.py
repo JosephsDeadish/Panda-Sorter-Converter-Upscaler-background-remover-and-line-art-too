@@ -3560,6 +3560,10 @@ _PANDA_TOOLTIPS = {
             "Sort by date because you clearly can't be trusted to name things yourself.",
             "Date stamps: the only honest thing about your file management system.",
         ],
+        'dumbed-down': [
+            "This renames your files using the date they were created. So instead of 'texture1.png' you might get '2024-01-15_texture.png'.",
+            "Pick this to name files by when they were made. Great for keeping things in order!",
+        ],
     },
     'rename_template': {
         'normal': [
@@ -3576,6 +3580,10 @@ _PANDA_TOOLTIPS = {
             "Template editor. {name} = original name, {num} = number. Not that complicated. I believe in you. Barely.",
             "Placeholder madness! Mix and match like a DJ, but instead of sick beats you get... filenames. Living the dream.",
         ],
+        'dumbed-down': [
+            "Type a naming pattern here. Use {name} for the original name, {num} for a number, {date} for date, {ext} for file type.",
+            "This is where you write your own naming rule. Placeholders like {name} get replaced with real info.",
+        ],
     },
     'rename_copyright': {
         'normal': [
@@ -3590,6 +3598,10 @@ _PANDA_TOOLTIPS = {
             "Mark your damn territory. Add copyright info so everyone knows who made this masterpiece. Or disaster.",
             "Embed copyright. In case some asshole tries to claim your textures as their own. We've all been there.",
             "Copyright protection: cheaper than a lawyer, almost as effective, and way less annoying.",
+        ],
+        'dumbed-down': [
+            "Type your name or copyright notice here. It gets saved inside the file's hidden info so people know who made it.",
+            "This adds an invisible tag to your files saying who owns them. Like writing your name on your lunchbox.",
         ],
     },
     'rename_preview': {
@@ -3606,6 +3618,10 @@ _PANDA_TOOLTIPS = {
             "Check the preview unless you enjoy living dangerously. And by dangerously I mean stupidly.",
             "See the future! Your files' future, that is. Less exciting than a crystal ball but more accurate.",
         ],
+        'dumbed-down': [
+            "This area shows you what the new filenames will look like BEFORE anything actually changes. Safe to look!",
+            "A preview of the rename. Nothing has changed yet — this just shows you what WILL happen when you click apply.",
+        ],
     },
     'rename_undo': {
         'normal': [
@@ -3621,6 +3637,10 @@ _PANDA_TOOLTIPS = {
             "Undo button: because nobody gets it right the first time. NOBODY. Not even you, perfectionist.",
             "Reverse! Go back! Abort! Whatever you want to call it, this button fixes your oopsie.",
             "Time travel for filenames. Takes them right back to before you messed everything up. Again.",
+        ],
+        'dumbed-down': [
+            "Oops button! Click this to put all the filenames back to what they were before the rename.",
+            "Changed your mind? This undoes the last rename and restores the original filenames.",
         ],
     },
 
@@ -3640,6 +3660,10 @@ _PANDA_TOOLTIPS = {
             "White balance: because your monitor lied to you about what these colors actually look like.",
             "Temperature control. Not for your thermostat — for your textures. Though both need adjusting, clearly.",
         ],
+        'dumbed-down': [
+            "Slide this to fix colors that look too blue (cold) or too yellow (warm). The middle is usually natural-looking.",
+            "If your image looks tinted blue or orange, this slider fixes it. Move it until the colors look right.",
+        ],
     },
     'cc_exposure': {
         'normal': [
@@ -3655,6 +3679,10 @@ _PANDA_TOOLTIPS = {
             "Exposure adjustment: the difference between 'moody atmospheric' and 'did you forget the lights?'",
             "Slide right to blind yourself, slide left to enter the void. Somewhere in the middle is perfection.",
             "Fix the brightness because apparently your camera and the sun had a disagreement about exposure.",
+        ],
+        'dumbed-down': [
+            "Makes the image brighter or darker. Slide right = brighter, slide left = darker.",
+            "If your image is too dark to see or too bright and washed out, this slider fixes it.",
         ],
     },
     'cc_vibrance': {
@@ -3672,6 +3700,10 @@ _PANDA_TOOLTIPS = {
             "Vibrance slider: the difference between 'stylistic choice' and 'did a toddler do this?'",
             "Make colors pop. Tastefully. We're going for 'wow' not 'dear god my retinas'.",
         ],
+        'dumbed-down': [
+            "Makes dull colors more vivid without making already-bright colors go crazy. A gentler version of saturation.",
+            "Slide right to make colors pop more. Unlike saturation, this won't make things look neon.",
+        ],
     },
     'cc_clarity': {
         'normal': [
@@ -3688,6 +3720,10 @@ _PANDA_TOOLTIPS = {
             "Sharpen those midtones. Go from 'was this rendered on a calculator?' to 'damn that's clean.'",
             "Crank up the clarity and watch your textures go from 'meh' to 'MAGNIFICENT.' Or at least 'decent.'",
         ],
+        'dumbed-down': [
+            "Makes details in the image look sharper and crisper. Higher = more detail visible.",
+            "Adds crispness to the image. Think of it like turning up the 'sharpness' specifically for the medium-bright parts.",
+        ],
     },
     'cc_lut': {
         'normal': [
@@ -3703,6 +3739,10 @@ _PANDA_TOOLTIPS = {
             "Color LUTs: because 'I just cranked the saturation to 11' is not a color grading strategy.",
             "Load a look-up table. Fancy name for 'make everything look cinematic with zero effort.' You're welcome.",
             "LUT loading. Turn your game textures into Christopher Nolan's wet dream. Or at least a dry one.",
+        ],
+        'dumbed-down': [
+            "Load a .cube or .3dl file that changes all the colors at once — like a fancy filter for your images.",
+            "A LUT is basically a color recipe file. Load one and it recolors your image in a specific style.",
         ],
     },
 
@@ -3722,6 +3762,10 @@ _PANDA_TOOLTIPS = {
             "Run diagnostics. Find out if your images are slightly sick or completely fucked. Fingers crossed.",
             "Corruption scan. Like antivirus but for your texture files. Less dramatic, equally necessary.",
         ],
+        'dumbed-down': [
+            "Click this to check your images for problems — like missing data, broken headers, or incomplete files.",
+            "This scans your selected files and tells you if anything is wrong with them, like a doctor's checkup.",
+        ],
     },
     'repair_fix': {
         'normal': [
@@ -3738,6 +3782,10 @@ _PANDA_TOOLTIPS = {
             "Restore your broken images from the dead. Necromancy for PNG files. Totally legal, I checked.",
             "Repair time. Headers get fixed, checksums get corrected, and your files stop being digital corpses.",
         ],
+        'dumbed-down': [
+            "Click to try fixing the problems that were found. It'll patch up corrupted data and fix broken file info.",
+            "This tries to fix broken images automatically. Not everything can be saved, but it does its best!",
+        ],
     },
     'repair_results': {
         'normal': [
@@ -3752,6 +3800,10 @@ _PANDA_TOOLTIPS = {
             "Detailed results. Every issue found, every fix attempted. It's like reading your file's medical records.",
             "Check results. Good news and bad news. The bad news: your files were corrupted. The good news: we probably fixed them.",
             "Results area. Where dreams are confirmed or crushed. No pressure or anything.",
+        ],
+        'dumbed-down': [
+            "This area shows what was found and what was fixed. Green = good, red = still broken.",
+            "The report of what the scan found and what the repair did. Read through it to see what happened.",
         ],
     },
 
@@ -3770,6 +3822,10 @@ _PANDA_TOOLTIPS = {
             "Throughput meter. Watch the numbers go up and pretend you understand what they mean.",
             "Speed stat. Like checking your car's mph except you're measuring file-crunching velocity. Less fun, equally nerdy.",
         ],
+        'dumbed-down': [
+            "Shows how many files are being processed every second. Higher number = faster!",
+            "A speedometer for file processing. The bigger the number, the faster things are going.",
+        ],
     },
     'perf_memory': {
         'normal': [
@@ -3784,6 +3840,10 @@ _PANDA_TOOLTIPS = {
             "RAM meter. If it turns red, blame Chrome, not us. We're practically anorexic compared to that memory glutton.",
             "How much memory we're eating. Don't worry, we're on a diet. Unlike your browser with 200 tabs open.",
             "Memory usage: the silent killer of performance. Keep an eye on it or your PC will remind you the hard way.",
+        ],
+        'dumbed-down': [
+            "Shows how much of your computer's memory (RAM) this app is using. If it gets really high, things might slow down.",
+            "This is like checking how full a bucket is — it shows how much memory the app is using right now.",
         ],
     },
     'perf_cpu': {
@@ -3800,6 +3860,10 @@ _PANDA_TOOLTIPS = {
             "How much brain power your CPU is burning. If it hits 100%, congratulations, you found its limit. Or a bug.",
             "CPU percentage. Fun fact: your processor right now is doing more work than your entire team combined. Probably.",
         ],
+        'dumbed-down': [
+            "Shows how hard your computer's brain (CPU) is working. 100% means it's maxed out.",
+            "Think of this as a 'how busy is my computer' meter. Lower is more relaxed.",
+        ],
     },
     'perf_queue': {
         'normal': [
@@ -3814,6 +3878,10 @@ _PANDA_TOOLTIPS = {
             "Pending items. The digital equivalent of 'your call is important to us, please hold.' But faster.",
             "Queue counter. Watch it go down and feel that sweet, sweet dopamine of progress. Better than social media.",
             "Files in line. They're patient, unlike you refreshing this panel every 2 seconds. Relax. Grab a coffee.",
+        ],
+        'dumbed-down': [
+            "How many files are still waiting to be processed. This number goes down as work gets done.",
+            "Think of it like a line at a store — this shows how many files are still waiting their turn.",
         ],
     },
     'perf_workers': {
@@ -3830,6 +3898,10 @@ _PANDA_TOOLTIPS = {
             "How many threads to throw at the problem. The answer is usually 'as many as your RAM can handle before crying.'",
             "Worker slider. More threads = faster. Until your CPU melts. Then it's slower. And expensive. And on fire.",
             "Concurrency control. Sounds fancy. It means 'how many things happen at once.' You're welcome for the explanation.",
+        ],
+        'dumbed-down': [
+            "How many tasks run at the same time. More = faster, but uses more computer power. Start low if unsure.",
+            "Like hiring more helpers — more workers means faster results, but your computer works harder too.",
         ],
     },
 
@@ -3848,6 +3920,10 @@ _PANDA_TOOLTIPS = {
             "Check your textures for problems you didn't know existed. Ignorance was bliss, knowledge is power.",
             "Quality analysis: because 'it looks fine on MY monitor' is not a valid QA process, Kevin.",
         ],
+        'dumbed-down': [
+            "Click this to check if your images have any quality problems like wrong sizes or bad compression.",
+            "Runs a quality check on your selected files and tells you if anything could be improved.",
+        ],
     },
     'qc_results': {
         'normal': [
@@ -3862,6 +3938,10 @@ _PANDA_TOOLTIPS = {
             "Detailed results. Read them and weep. Or celebrate. Mostly weep, in my experience.",
             "Analysis results. Everything the panda found wrong with your textures. It's a long list. Get comfortable.",
             "Report time. Find out which textures are worthy and which ones belong in the recycling bin. Harsh but fair.",
+        ],
+        'dumbed-down': [
+            "Shows what the quality check found. It lists any problems and suggests how to fix them.",
+            "The results of the quality scan. Look here to see what's good and what needs fixing.",
         ],
     },
 
@@ -3880,6 +3960,10 @@ _PANDA_TOOLTIPS = {
             "Hit normalize and watch the panda whip your textures into shape. Boot camp for pixels.",
             "Make everything consistent. Same format, same size, same quality. OCD paradise. You're welcome.",
         ],
+        'dumbed-down': [
+            "Click to make all your images the same size, format, and quality. Great for consistency!",
+            "Standardizes your files so they all match the settings you picked above.",
+        ],
     },
     'bn_format': {
         'normal': [
@@ -3895,6 +3979,10 @@ _PANDA_TOOLTIPS = {
             "Format selection. PNG for quality snobs, DDS for game devs, TGA for people stuck in 2005.",
             "Choose a format. Any format. Just PICK ONE and stop overthinking it. Analysis paralysis is real.",
         ],
+        'dumbed-down': [
+            "Pick what file type you want your images saved as. PNG is great for quality, DDS is common in games.",
+            "Choose the output format — all your files will be converted to this type.",
+        ],
     },
     'bn_resolution': {
         'normal': [
@@ -3909,6 +3997,10 @@ _PANDA_TOOLTIPS = {
             "Target resolution. Where you decide if your game runs at 60fps or 6fps. Choose wisely.",
             "Dimensions. The eternal struggle between 'it looks beautiful' and 'my GPU is literally on fire.'",
             "Pick a resolution. Pro tip: if your laptop sounds like a helicopter, maybe go smaller.",
+        ],
+        'dumbed-down': [
+            "Set the width and height for your output images. Common game sizes are 512, 1024, or 2048 pixels.",
+            "Choose how big or small the final images should be. Bigger = more detail but larger file size.",
         ],
     },
 
@@ -3927,6 +4019,10 @@ _PANDA_TOOLTIPS = {
             "Extract lines. Make any image look like it was drawn by a talented artist instead of... you. No offense.",
             "Line art button. Transform photos into sketches faster than you can say 'I totally drew that by hand.'",
         ],
+        'dumbed-down': [
+            "Click to turn your images into black-and-white line drawings, like a coloring book version.",
+            "Converts your pictures into clean line art — just the outlines, no colors.",
+        ],
     },
     'la_threshold': {
         'normal': [
@@ -3942,6 +4038,10 @@ _PANDA_TOOLTIPS = {
             "Sensitivity control. Like a volume knob for line detail. Don't crank it to 11 unless you're ready for noise.",
             "Threshold: determines whether you get 'elegant minimalist sketch' or 'my printer ran out of ink.'",
         ],
+        'dumbed-down': [
+            "Controls how sensitive the line detection is. Low = lots of detail, High = only strong edges. Try different values!",
+            "Adjusts which edges get drawn as lines. Move it around until the output looks good to you.",
+        ],
     },
     'la_style': {
         'normal': [
@@ -3956,6 +4056,103 @@ _PANDA_TOOLTIPS = {
             "Choose a style. Each one makes your images look like a different kind of pretentious.",
             "Art style dropdown. Pick one and pretend you made a deeply artistic decision. We won't judge. Much.",
             "Style presets. Because 'I want it to look cool but I don't know how' is a valid starting point.",
+        ],
+        'dumbed-down': [
+            "Pick a style for the line art. Each one gives a different look — try them to see which you like!",
+            "Choose what kind of line art you want. Options include sketch, manga, blueprint, and more.",
+        ],
+    },
+
+    # ── Background Remover Panel ───────────────────────────────────
+    'bg_mode': {
+        'normal': [
+            "Switch between background removal and object removal modes",
+            "Toggle the removal mode: remove backgrounds or specific objects",
+            "Select whether to remove the background or isolate objects",
+            "Choose the removal operation type",
+        ],
+        'vulgar': [
+            "Mode toggle. Background removal or object removal. Choose your destruction method.",
+            "Remove the background or remove objects. Either way, something's getting erased from existence.",
+            "Pick your mode. Background begone! Or object obliteration! Decisions, decisions.",
+            "Toggle between 'nuke the background' and 'surgically remove that one thing.'",
+            "Mode switch: full background annihilation or precision object deletion. Both satisfying.",
+        ],
+        'dumbed-down': [
+            "Choose whether to remove the background (leaving your subject) or remove a specific object.",
+            "This switches between two modes: one removes backgrounds, the other removes objects you select.",
+        ],
+    },
+    'bg_preset': {
+        'normal': [
+            "Choose a preset optimized for your image type",
+            "Select a preconfigured profile for optimal removal quality",
+            "Pick a preset tuned for specific content types",
+            "Use preset settings tailored for different image categories",
+        ],
+        'vulgar': [
+            "Presets! Because manually tuning settings is for people with infinite time and patience. You have neither.",
+            "Pick a preset. General, portrait, product — we did the thinking so you don't have to.",
+            "Preset selector. Like fast food: quick, easy, and usually good enough.",
+            "Choose a preset or spend an hour tweaking sliders. We both know which one you'll pick.",
+        ],
+        'dumbed-down': [
+            "Pick a preset that matches your image type. 'General' works for most things, 'Portrait' is for people photos.",
+            "Presets are pre-made settings that work well for different kinds of images. Just pick the closest match!",
+        ],
+    },
+    'bg_edge': {
+        'normal': [
+            "Adjust edge feathering and refinement for smoother cutouts",
+            "Control how smooth or sharp the edges of the cutout are",
+            "Fine-tune the edge quality of the background removal",
+            "Set the feathering amount for natural-looking edges",
+        ],
+        'vulgar': [
+            "Edge slider. Make edges smooth or sharp. Smooth = professional. Sharp = 'I used scissors in MS Paint.'",
+            "Feathering control. The difference between 'clean cutout' and 'my 5-year-old did this with safety scissors.'",
+            "Edge refinement. Because jaggy edges are a war crime in the design world.",
+            "Smooth those edges. Nobody likes a cutout that looks like it was torn out of a magazine. By a cat.",
+        ],
+        'dumbed-down': [
+            "Makes the edges of the cutout smoother or sharper. Higher = softer/more blended edges.",
+            "Controls how smooth the border is after removing the background. Try different values until it looks clean.",
+        ],
+    },
+    'bg_model': {
+        'normal': [
+            "Select the AI model for background removal",
+            "Choose which neural network model performs the removal",
+            "Pick an AI model optimized for your use case",
+            "Select the processing model for best results",
+        ],
+        'vulgar': [
+            "AI model selector. Pick which robot brain processes your images. They're all good. Some are just more good.",
+            "Choose your AI model. u2net for general, isnet for people, silueta for everything else. Easy peasy.",
+            "Model picker. Like choosing a Pokémon starter but the stakes are lower and nobody judges your choice. Probably.",
+            "Select the AI. Different brains for different tasks. None of them will become Skynet. Probably.",
+        ],
+        'dumbed-down': [
+            "Pick which AI model removes the background. The default works for most images, but others may be better for specific types.",
+            "Different models are good at different things. Try 'u2net' for general use or 'isnet' for people.",
+        ],
+    },
+    'bg_alpha_matting': {
+        'normal': [
+            "Enable alpha matting for semi-transparent objects like hair or glass",
+            "Use alpha matting for more precise edge handling on transparent areas",
+            "Turn on advanced edge detection for translucent materials",
+            "Enable fine-grained transparency handling at edges",
+        ],
+        'vulgar': [
+            "Alpha matting. For when your subject has wispy hair and the AI needs to not butcher it.",
+            "Turn this on for glass, hair, smoke, or anything see-through. Off = faster but choppier edges.",
+            "Alpha matting: the 'please don't destroy my hair edges' checkbox. You're welcome.",
+            "Enable this for translucent stuff. The AI tries harder. Emphasis on 'tries.'",
+        ],
+        'dumbed-down': [
+            "Turn this on if your image has see-through parts like glass or wispy hair. It makes the edges better.",
+            "Alpha matting helps with tricky edges on transparent or semi-transparent things. Takes longer but looks better.",
         ],
     },
 }
@@ -6302,6 +6499,16 @@ class TooltipVerbosityManager:
                 "A progress bar showing how close you are to finishing this achievement.",
             ],
         }
+
+        # Merge dumbed-down tooltip variants from the inlined definitions
+        try:
+            for widget_id, tooltip_dict in _PANDA_TOOLTIPS.items():
+                if 'dumbed-down' in tooltip_dict:
+                    base_tooltips[widget_id] = tooltip_dict['dumbed-down']
+        except Exception as e:
+            logger.warning(f"Error loading dumbed-down tooltips: {e}")
+
+        return base_tooltips
     
     def _get_unhinged_panda_tooltips(self) -> Dict[str, Any]:
         """Fun/sarcastic tooltips (vulgar mode)"""
