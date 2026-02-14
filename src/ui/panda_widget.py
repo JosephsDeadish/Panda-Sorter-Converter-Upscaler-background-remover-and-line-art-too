@@ -6196,6 +6196,14 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
                 pass
             self._toss_timer = None
             self._is_tossing = False
+        
+        # Ensure animation loop keeps running during drag — if the panda is
+        # grabbed while an animation is playing, the timer may have been
+        # cancelled by another code path.  Restart it so the panda never
+        # freezes while held.
+        if self.animation_timer is None and not self._destroyed:
+            self._animate_loop()
+        
         # Init velocity tracking
         self._prev_drag_x = event.x_root
         self._prev_drag_y = event.y_root
@@ -7265,6 +7273,7 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
     # blocked so the panda doesn't randomly wave/dance while held by the head.
     DRAG_ALLOWED_ANIMATIONS = frozenset({
         'dragging', 'wall_hit', 'shaking', 'spinning',
+        'tossed', 'fall_on_face', 'tip_over_side',
     })
 
     def start_animation(self, animation_name: str):
