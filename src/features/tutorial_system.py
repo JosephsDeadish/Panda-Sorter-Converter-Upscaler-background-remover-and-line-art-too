@@ -1669,6 +1669,11 @@ _PANDA_TOOLTIPS = {
             "AI tab. Skynet for texture sorting. Totally not concerning. Nothing could possibly go wrong. Famous last words.",
             "Machine learning settings. It's like training a dog, but nerdier. And with more math. And less poop. Usually.",
             "AI config. Let the robots handle it while you eat snacks. Automation nation. Robot workforce. Human laziness. Perfect synergy."
+        ],
+        'dumbed-down': [
+            "This is where you tell the robot brain how to work!",
+            "AI settings = robot helper settings. Change how the computer guesses stuff!",
+            "The computer tries to be smart here. You pick HOW smart!",
         ]
     },
     'settings_system_tab': {
@@ -2857,6 +2862,11 @@ _PANDA_TOOLTIPS = {
             "Bad AI! No biscuit! Click to teach it a lesson.",
             "The AI got it wrong? Shocking. Click to add to its shame file.",
             "Negative feedback: because even AI needs to know when it's being dumb.",
+        ],
+        'dumbed-down': [
+            "Click this if the computer guessed WRONG!",
+            "The robot made a mistake? Tell it by clicking here!",
+            "This tells the computer 'No, that's not right!'",
         ]
     },
     'ai_feedback_retry': {
@@ -2869,6 +2879,11 @@ _PANDA_TOOLTIPS = {
             "Try again, robot! The panda believes in second chances.",
             "Retry: because the AI's first attempt was... creative, let's say.",
             "Give the AI another shot. Maybe it was having an off day.",
+        ],
+        'dumbed-down': [
+            "Make the computer try again! Maybe it'll get it right this time!",
+            "Click to let the robot have another guess!",
+            "Try again button — gives the AI a do-over!",
         ]
     },
     'ai_export_training': {
@@ -2881,6 +2896,11 @@ _PANDA_TOOLTIPS = {
             "Export your AI's brain to a file. It's less creepy than it sounds.",
             "Save the AI training data. Share your panda's wisdom with the world.",
             "Download the AI's learned corrections. It's like a report card, but for robots.",
+        ],
+        'dumbed-down': [
+            "Save what the robot learned to a file you can share!",
+            "Download the AI's homework so your friend's AI can copy it!",
+            "Export = save the robot's brain to a file!",
         ]
     },
     'ai_import_training': {
@@ -2893,6 +2913,218 @@ _PANDA_TOOLTIPS = {
             "Import someone else's AI training. Steal their panda's homework!",
             "Load training data. Give your AI a brain transplant.",
             "Import AI corrections. It's like downloading experience points for your robot.",
+        ],
+        'dumbed-down': [
+            "Load someone else's robot brain file to make YOUR robot smarter!",
+            "Import = give the AI a cheat sheet from another user!",
+            "Plug in training data so the computer already knows stuff!",
+        ]
+    },
+    # ── Per-Tool AI Settings Tooltips ──
+    'ai_cls_model': {
+        'normal': [
+            "Select the vision model used for classifying image content into categories",
+            "CLIP ViT-B/32 is the default general-purpose classifier; DinoV2 excels at self-supervised features",
+            "EfficientNet is lightweight and fast; ViT-Base offers strong accuracy for larger datasets",
+        ],
+        'vulgar': [
+            "Pick which robot eyeball to use for sorting your damn textures. CLIP is the reliable one, DinoV2 is the fancy one.",
+            "Vision model selector: it's like picking which pair of glasses the AI wears. Some see better than others, obviously.",
+            "Choose your AI's brain type. CLIP = generalist nerd, DinoV2 = hipster with self-taught skills, EfficientNet = the speedy little bastard.",
+        ],
+        'dumbed-down': [
+            "Pick which robot eye the computer uses to look at your pictures!",
+            "Different models = different ways the computer 'sees' your images!",
+            "The default one (CLIP) works great — only change if you know what you're doing!",
+        ]
+    },
+    'ai_cls_custom_api': {
+        'normal': [
+            "Enable to use your own hosted classification API instead of the built-in model",
+            "When checked, classification requests are sent to your custom endpoint",
+        ],
+        'vulgar': [
+            "Check this if you're running your own classifier because you're too cool for built-in AI. Look at you, Mr. Self-Hosted.",
+            "Enable custom API: for people who don't trust our AI and rolled their own. Fair enough, honestly.",
+        ],
+        'dumbed-down': [
+            "Turn this ON if you have your own classification server running somewhere!",
+            "Leave this OFF unless you set up your own AI service!",
+        ]
+    },
+    'ai_cls_api_url': {
+        'normal': [
+            "The URL endpoint for your custom classification API (e.g., https://your-server.com/v1/classify)",
+            "Enter the full HTTP/HTTPS address of your hosted classifier",
+        ],
+        'vulgar': [
+            "Paste your custom API URL here. You know, the one you spent 3 hours setting up. We won't judge the domain name.",
+            "API URL field: type in where your fancy self-hosted classifier lives. Don't forget the https, genius.",
+        ],
+        'dumbed-down': [
+            "Type the web address of your custom AI server here!",
+            "This is like a website link, but for your AI!",
+        ]
+    },
+    'ai_cls_api_key': {
+        'normal': [
+            "Authentication key for your custom classification API",
+            "This key is stored locally and sent as a Bearer token with each request",
+        ],
+        'vulgar': [
+            "Your API secret key. Guard it like a dragon guards gold. Or at least don't paste it on Twitter, you absolute walnut.",
+            "API key: the password to your AI's soul. Keep it secret, keep it safe. Gandalf voice.",
+        ],
+        'dumbed-down': [
+            "This is like a password for your custom AI — keep it secret!",
+            "Put your special access code here so the AI lets you in!",
+        ]
+    },
+    'ai_bgr_model': {
+        'normal': [
+            "Select the AI model for background removal: u2net is general-purpose, isnet-anime is optimized for 2D art",
+            "u2netp is a lightweight/fast variant; sam (Segment Anything) works on complex scenes",
+            "u2net_human_seg specializes in isolating people; u2net_cloth_seg isolates clothing",
+        ],
+        'vulgar': [
+            "Pick which AI model nukes your backgrounds. u2net = old reliable, isnet-anime = weeb mode, sam = 'I'll segment ANY damn thing'.",
+            "Background removal model: u2net for normies, anime model for weebs, sam for when you need to segment literally everything in the goddamn image.",
+            "Choose your background assassin. u2netp is fast but sloppy, u2net is balanced, sam is the overachieving tryhard.",
+        ],
+        'dumbed-down': [
+            "Pick which robot removes backgrounds! 'u2net' works for most things!",
+            "For cartoon/anime pictures, pick 'isnet-anime' — it works better on drawings!",
+            "Just leave it on 'u2net' unless something looks weird!",
+        ]
+    },
+    'ai_bgr_custom_api': {
+        'normal': [
+            "Enable to route background removal through your own hosted API",
+            "When checked, removal requests go to your custom endpoint instead of the local model",
+        ],
+        'vulgar': [
+            "Check this to use your own bg removal API. Because apparently the built-in one isn't fancy enough for your royal highness.",
+            "Self-hosted bg removal? Look at this absolute chad running their own infrastructure.",
+        ],
+        'dumbed-down': [
+            "Turn this ON only if you have your own background removal server!",
+            "Leave OFF to use the built-in background remover!",
+        ]
+    },
+    'ai_bgr_api_url': {
+        'normal': [
+            "URL endpoint for your custom background removal API",
+            "Enter the full address where your bg removal service accepts requests",
+        ],
+        'vulgar': [
+            "Paste your self-hosted background removal URL. Make sure it actually works before blaming us, please.",
+            "API URL for your bg remover. Triple-check for typos — the AI can't read your mind. Yet.",
+        ],
+        'dumbed-down': [
+            "Type the web address of your background removal server here!",
+            "This is the link to where your custom bg remover lives on the internet!",
+        ]
+    },
+    'ai_bgr_api_key': {
+        'normal': [
+            "Authentication key for your custom background removal API",
+            "Stored locally and sent with each removal request",
+        ],
+        'vulgar': [
+            "API key for your bg remover. Don't share it or some random will be removing backgrounds on your dime.",
+            "Secret key. Emphasis on SECRET. Don't screenshot this and post it on Reddit.",
+        ],
+        'dumbed-down': [
+            "The password for your custom background removal service!",
+            "Keep this secret — it's like a key to your AI's house!",
+        ]
+    },
+    'ai_ups_model': {
+        'normal': [
+            "Select the AI upscaling model: realesrgan-x4plus is best for general photos and textures",
+            "anime variant is optimized for 2D artwork; remacri and ultrasharp preserve fine details",
+            "ultramix_balanced offers a good middle ground; 'bicubic (no AI)' uses traditional interpolation",
+        ],
+        'vulgar': [
+            "Pick your upscale engine. realesrgan = the OG, anime = for your 'totally not hentai' textures, ultrasharp = for pixel-peeping psychopaths.",
+            "Upscale model: realesrgan-x4plus is the safe bet. anime is for weebs. ultrasharp is for maniacs who zoom to 4000%. bicubic is for quitters.",
+            "Choose wisely: this determines whether your upscaled textures look godly or like they were smeared with Vaseline.",
+        ],
+        'dumbed-down': [
+            "Pick which robot makes your pictures bigger! The first one works for most things!",
+            "For cartoons/anime, pick the 'anime' one! For photos, pick 'ultrasharp'!",
+            "'bicubic' means NO AI — just normal stretching. It's fine but not as good!",
+        ]
+    },
+    'ai_ups_gpu': {
+        'normal': [
+            "Enable GPU acceleration for significantly faster upscaling (requires compatible NVIDIA GPU)",
+            "When disabled, upscaling runs on CPU which is slower but always available",
+        ],
+        'vulgar': [
+            "GPU go BRRRRR. Turn this on if you have an NVIDIA card. If you don't, cry into your CPU-only peasant hands.",
+            "GPU acceleration: makes upscaling fast as hell. Without it, you'll be waiting long enough to question your life choices.",
+        ],
+        'dumbed-down': [
+            "Turn ON to make upscaling FAST if you have a gaming graphics card!",
+            "If this causes errors, turn it OFF — your computer will just be slower!",
+        ]
+    },
+    'ai_ups_tile': {
+        'normal': [
+            "Tile size for processing large images: 0 = automatic, higher values use less GPU memory",
+            "Try 256 or 512 if you get out-of-memory errors; 0 processes the whole image at once",
+        ],
+        'vulgar': [
+            "Tile size: 0 = YOLO mode, let the AI figure it out. Getting crashes? Set to 256, ya cheapskate with your 2GB VRAM.",
+            "How big of a chunk to process at once. 0 = full send. Getting memory errors? Lower this, your GPU is weeping.",
+        ],
+        'dumbed-down': [
+            "Leave this at 0 unless your computer runs out of memory!",
+            "If you get errors, try putting 256 or 512 here!",
+            "Smaller number = less memory needed, but slower!",
+        ]
+    },
+    'ai_ups_custom_api': {
+        'normal': [
+            "Enable to use your own hosted upscaling API instead of the local model",
+            "When checked, images are sent to your custom endpoint for upscaling",
+        ],
+        'vulgar': [
+            "Running your own upscale server? Check this. God knows why you'd want to, but hey, it's your electricity bill.",
+            "Custom API for upscaling: for the special snowflakes who can't use anything out of the box.",
+        ],
+        'dumbed-down': [
+            "Turn ON only if you have your own upscaling server set up!",
+            "Leave this OFF to use the built-in upscaler!",
+        ]
+    },
+    'ai_ups_api_url': {
+        'normal': [
+            "URL endpoint for your custom upscaling API",
+            "Enter the full address where your upscale service accepts image requests",
+        ],
+        'vulgar': [
+            "Paste your upscale API URL here. And pray it doesn't have a typo that sends your textures into the void.",
+            "Custom upscale endpoint URL. Double-check this or your images are going to some random server in Kazakhstan.",
+        ],
+        'dumbed-down': [
+            "Type the web address of your custom upscaling server here!",
+            "It should look like a website URL starting with https://",
+        ]
+    },
+    'ai_ups_api_key': {
+        'normal': [
+            "Authentication key for your custom upscaling API",
+            "Stored locally and included with each upscale request for authentication",
+        ],
+        'vulgar': [
+            "API key for upscaling. This is basically the password to your wallet if you're using a paid service. Don't be stupid with it.",
+            "Your upscaler API key. Treat it like your credit card number. Actually, treat it BETTER than your credit card number.",
+        ],
+        'dumbed-down': [
+            "The secret password for your custom upscaling service!",
+            "Keep this safe — don't share it with anyone!",
         ]
     },
     'travel_hub': {

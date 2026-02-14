@@ -6395,11 +6395,11 @@ class GameTextureSorter(ctk.CTk):
         
         if WidgetTooltip:
             self._tooltips.append(WidgetTooltip(export_train_btn,
-                "Export your AI training corrections to a JSON file so others can import and benefit from your sorting decisions",
-                widget_id='export_training_btn'))
+                self._get_tooltip_text('ai_export_training') or "Export your AI training corrections to a JSON file so others can import and benefit from your sorting decisions",
+                widget_id='ai_export_training', tooltip_manager=self.tooltip_manager))
             self._tooltips.append(WidgetTooltip(import_train_btn,
-                "Import AI training data from another user's exported JSON file to improve your AI's accuracy",
-                widget_id='import_training_btn'))
+                self._get_tooltip_text('ai_import_training') or "Import AI training data from another user's exported JSON file to improve your AI's accuracy",
+                widget_id='ai_import_training', tooltip_manager=self.tooltip_manager))
         
         # ── Per-Tool AI Settings Subtabs ──────────────────────────────
         ctk.CTkLabel(ai_scroll, text="🔧 Per-Tool AI Settings",
@@ -6420,9 +6420,10 @@ class GameTextureSorter(ctk.CTk):
                      font=("Arial Bold", 12)).pack(anchor="w", padx=10, pady=3)
         cls_model_var = ctk.StringVar(
             value=config.get('ai', 'classifier_model', default='CLIP ViT-B/32'))
-        ctk.CTkOptionMenu(cls_scroll, variable=cls_model_var,
+        cls_model_menu = ctk.CTkOptionMenu(cls_scroll, variable=cls_model_var,
                           values=["CLIP ViT-B/32", "DinoV2", "EfficientNet", "ViT-Base"],
-                          width=200).pack(anchor="w", padx=20, pady=3)
+                          width=200)
+        cls_model_menu.pack(anchor="w", padx=20, pady=3)
         ctk.CTkLabel(cls_scroll, text="Model used for image content classification",
                      font=("Arial", 9), text_color="gray").pack(anchor="w", padx=20, pady=(0, 5))
 
@@ -6430,21 +6431,23 @@ class GameTextureSorter(ctk.CTk):
         cls_api_frame.pack(fill="x", padx=10, pady=5)
         cls_use_custom_var = ctk.BooleanVar(
             value=config.get('ai', 'classifier_custom_api', default=False))
-        ctk.CTkCheckBox(cls_api_frame, text="Use custom API endpoint",
-                        variable=cls_use_custom_var).pack(anchor="w", padx=10, pady=3)
+        cls_custom_cb = ctk.CTkCheckBox(cls_api_frame, text="Use custom API endpoint",
+                        variable=cls_use_custom_var)
+        cls_custom_cb.pack(anchor="w", padx=10, pady=3)
         ctk.CTkLabel(cls_api_frame, text="API URL:").pack(side="left", padx=10)
         cls_api_url_var = ctk.StringVar(
             value=config.get('ai', 'classifier_api_url', default=''))
-        ctk.CTkEntry(cls_api_frame, textvariable=cls_api_url_var,
-                     width=260, placeholder_text="https://your-api.example.com/v1"
-                     ).pack(side="left", padx=5)
+        cls_url_entry = ctk.CTkEntry(cls_api_frame, textvariable=cls_api_url_var,
+                     width=260, placeholder_text="https://your-api.example.com/v1")
+        cls_url_entry.pack(side="left", padx=5)
         cls_api_key_frame = ctk.CTkFrame(cls_scroll)
         cls_api_key_frame.pack(fill="x", padx=10, pady=3)
         ctk.CTkLabel(cls_api_key_frame, text="API Key:").pack(side="left", padx=10)
         cls_api_key_var = ctk.StringVar(
             value=config.get('ai', 'classifier_api_key', default=''))
-        ctk.CTkEntry(cls_api_key_frame, textvariable=cls_api_key_var,
-                     width=260, show="*").pack(side="left", padx=5)
+        cls_key_entry = ctk.CTkEntry(cls_api_key_frame, textvariable=cls_api_key_var,
+                     width=260, show="*")
+        cls_key_entry.pack(side="left", padx=5)
 
         # --- 🎭 Background Remover subtab ---
         tab_bgr = tool_ai_tabs.add("🎭 Bg Remover")
@@ -6455,11 +6458,12 @@ class GameTextureSorter(ctk.CTk):
                      font=("Arial Bold", 12)).pack(anchor="w", padx=10, pady=3)
         bgr_model_var = ctk.StringVar(
             value=config.get('ai', 'bg_remover_model', default='u2net'))
-        ctk.CTkOptionMenu(bgr_scroll, variable=bgr_model_var,
+        bgr_model_menu = ctk.CTkOptionMenu(bgr_scroll, variable=bgr_model_var,
                           values=["u2net", "u2netp", "u2net_human_seg",
                                   "u2net_cloth_seg", "isnet-general-use",
                                   "isnet-anime", "sam"],
-                          width=200).pack(anchor="w", padx=20, pady=3)
+                          width=200)
+        bgr_model_menu.pack(anchor="w", padx=20, pady=3)
         ctk.CTkLabel(bgr_scroll,
                      text="u2net = general purpose, isnet-anime = anime/cartoon, sam = segment anything",
                      font=("Arial", 9), text_color="gray").pack(anchor="w", padx=20, pady=(0, 5))
@@ -6468,21 +6472,23 @@ class GameTextureSorter(ctk.CTk):
         bgr_api_frame.pack(fill="x", padx=10, pady=5)
         bgr_use_custom_var = ctk.BooleanVar(
             value=config.get('ai', 'bg_remover_custom_api', default=False))
-        ctk.CTkCheckBox(bgr_api_frame, text="Use custom API endpoint",
-                        variable=bgr_use_custom_var).pack(anchor="w", padx=10, pady=3)
+        bgr_custom_cb = ctk.CTkCheckBox(bgr_api_frame, text="Use custom API endpoint",
+                        variable=bgr_use_custom_var)
+        bgr_custom_cb.pack(anchor="w", padx=10, pady=3)
         ctk.CTkLabel(bgr_api_frame, text="API URL:").pack(side="left", padx=10)
         bgr_api_url_var = ctk.StringVar(
             value=config.get('ai', 'bg_remover_api_url', default=''))
-        ctk.CTkEntry(bgr_api_frame, textvariable=bgr_api_url_var,
-                     width=260, placeholder_text="https://your-api.example.com/v1"
-                     ).pack(side="left", padx=5)
+        bgr_url_entry = ctk.CTkEntry(bgr_api_frame, textvariable=bgr_api_url_var,
+                     width=260, placeholder_text="https://your-api.example.com/v1")
+        bgr_url_entry.pack(side="left", padx=5)
         bgr_api_key_frame = ctk.CTkFrame(bgr_scroll)
         bgr_api_key_frame.pack(fill="x", padx=10, pady=3)
         ctk.CTkLabel(bgr_api_key_frame, text="API Key:").pack(side="left", padx=10)
         bgr_api_key_var = ctk.StringVar(
             value=config.get('ai', 'bg_remover_api_key', default=''))
-        ctk.CTkEntry(bgr_api_key_frame, textvariable=bgr_api_key_var,
-                     width=260, show="*").pack(side="left", padx=5)
+        bgr_key_entry = ctk.CTkEntry(bgr_api_key_frame, textvariable=bgr_api_key_var,
+                     width=260, show="*")
+        bgr_key_entry.pack(side="left", padx=5)
 
         # --- 🔍 Upscaler subtab ---
         tab_ups = tool_ai_tabs.add("🔍 Upscaler")
@@ -6493,26 +6499,29 @@ class GameTextureSorter(ctk.CTk):
                      font=("Arial Bold", 12)).pack(anchor="w", padx=10, pady=3)
         ups_model_var = ctk.StringVar(
             value=config.get('ai', 'upscaler_model', default='realesrgan-x4plus'))
-        ctk.CTkOptionMenu(ups_scroll, variable=ups_model_var,
+        ups_model_menu = ctk.CTkOptionMenu(ups_scroll, variable=ups_model_var,
                           values=["realesrgan-x4plus", "realesrgan-x4plus-anime",
                                   "remacri", "ultramix_balanced",
                                   "ultrasharp", "bicubic (no AI)"],
-                          width=220).pack(anchor="w", padx=20, pady=3)
+                          width=220)
+        ups_model_menu.pack(anchor="w", padx=20, pady=3)
         ctk.CTkLabel(ups_scroll,
                      text="realesrgan-x4plus = general, anime = 2D art, ultrasharp = photos",
                      font=("Arial", 9), text_color="gray").pack(anchor="w", padx=20, pady=(0, 5))
 
         ups_gpu_var = ctk.BooleanVar(
             value=config.get('ai', 'upscaler_use_gpu', default=True))
-        ctk.CTkCheckBox(ups_scroll, text="Use GPU acceleration (if available)",
-                        variable=ups_gpu_var).pack(anchor="w", padx=20, pady=3)
+        ups_gpu_cb = ctk.CTkCheckBox(ups_scroll, text="Use GPU acceleration (if available)",
+                        variable=ups_gpu_var)
+        ups_gpu_cb.pack(anchor="w", padx=20, pady=3)
 
         ups_tile_frame = ctk.CTkFrame(ups_scroll)
         ups_tile_frame.pack(fill="x", padx=10, pady=5)
         ctk.CTkLabel(ups_tile_frame, text="Tile Size:").pack(side="left", padx=10)
         ups_tile_var = ctk.StringVar(
             value=str(config.get('ai', 'upscaler_tile_size', default=0)))
-        ctk.CTkEntry(ups_tile_frame, textvariable=ups_tile_var, width=60).pack(side="left", padx=5)
+        ups_tile_entry = ctk.CTkEntry(ups_tile_frame, textvariable=ups_tile_var, width=60)
+        ups_tile_entry.pack(side="left", padx=5)
         ctk.CTkLabel(ups_tile_frame, text="(0 = auto, higher = less VRAM)",
                      font=("Arial", 9), text_color="gray").pack(side="left", padx=5)
 
@@ -6520,21 +6529,46 @@ class GameTextureSorter(ctk.CTk):
         ups_api_frame.pack(fill="x", padx=10, pady=5)
         ups_use_custom_var = ctk.BooleanVar(
             value=config.get('ai', 'upscaler_custom_api', default=False))
-        ctk.CTkCheckBox(ups_api_frame, text="Use custom API endpoint",
-                        variable=ups_use_custom_var).pack(anchor="w", padx=10, pady=3)
+        ups_custom_cb = ctk.CTkCheckBox(ups_api_frame, text="Use custom API endpoint",
+                        variable=ups_use_custom_var)
+        ups_custom_cb.pack(anchor="w", padx=10, pady=3)
         ctk.CTkLabel(ups_api_frame, text="API URL:").pack(side="left", padx=10)
         ups_api_url_var = ctk.StringVar(
             value=config.get('ai', 'upscaler_api_url', default=''))
-        ctk.CTkEntry(ups_api_frame, textvariable=ups_api_url_var,
-                     width=260, placeholder_text="https://your-api.example.com/v1"
-                     ).pack(side="left", padx=5)
+        ups_url_entry = ctk.CTkEntry(ups_api_frame, textvariable=ups_api_url_var,
+                     width=260, placeholder_text="https://your-api.example.com/v1")
+        ups_url_entry.pack(side="left", padx=5)
         ups_api_key_frame = ctk.CTkFrame(ups_scroll)
         ups_api_key_frame.pack(fill="x", padx=10, pady=3)
         ctk.CTkLabel(ups_api_key_frame, text="API Key:").pack(side="left", padx=10)
         ups_api_key_var = ctk.StringVar(
             value=config.get('ai', 'upscaler_api_key', default=''))
-        ctk.CTkEntry(ups_api_key_frame, textvariable=ups_api_key_var,
-                     width=260, show="*").pack(side="left", padx=5)
+        ups_key_entry = ctk.CTkEntry(ups_api_key_frame, textvariable=ups_api_key_var,
+                     width=260, show="*")
+        ups_key_entry.pack(side="left", padx=5)
+
+        # Attach tooltips to per-tool AI settings widgets
+        if WidgetTooltip:
+            _ai_widgets = [
+                (cls_model_menu, "ai_cls_model", "Choose the vision model for image classification"),
+                (cls_custom_cb, "ai_cls_custom_api", "Use your own API endpoint instead of built-in classifier"),
+                (cls_url_entry, "ai_cls_api_url", "URL for your custom classification API endpoint"),
+                (cls_key_entry, "ai_cls_api_key", "Authentication key for the custom classifier API"),
+                (bgr_model_menu, "ai_bgr_model", "Choose the AI model for background removal"),
+                (bgr_custom_cb, "ai_bgr_custom_api", "Use your own API instead of built-in background removal"),
+                (bgr_url_entry, "ai_bgr_api_url", "URL for your custom background removal API"),
+                (bgr_key_entry, "ai_bgr_api_key", "Authentication key for the custom bg remover API"),
+                (ups_model_menu, "ai_ups_model", "Choose the AI model for image upscaling"),
+                (ups_gpu_cb, "ai_ups_gpu", "Enable GPU acceleration for faster upscaling"),
+                (ups_tile_entry, "ai_ups_tile", "Tile size for processing large images (0 = automatic)"),
+                (ups_custom_cb, "ai_ups_custom_api", "Use your own API instead of built-in upscaler"),
+                (ups_url_entry, "ai_ups_api_url", "URL for your custom upscaling API endpoint"),
+                (ups_key_entry, "ai_ups_api_key", "Authentication key for the custom upscaler API"),
+            ]
+            for widget, wid, fallback in _ai_widgets:
+                self._tooltips.append(WidgetTooltip(
+                    widget, self._get_tooltip_text(wid) or fallback,
+                    widget_id=wid, tooltip_manager=self.tooltip_manager))
         
         # === SYSTEM TAB ===
         system_scroll = ctk.CTkScrollableFrame(tab_system)
