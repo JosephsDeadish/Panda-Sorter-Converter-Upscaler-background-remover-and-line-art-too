@@ -1394,7 +1394,7 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
                 flip_t = (flip_phase - 0.18) / 0.57
                 flip_angle = flip_t * 2 * math.pi
                 # Narrow when viewed from side, full when facing viewer
-                breath_scale = max(self.MIN_VISIBLE_SCALE, 0.55 + 0.45 * abs(math.cos(flip_angle)))
+                breath_scale = 0.55 + 0.45 * abs(math.cos(flip_angle))
             else:
                 breath_scale = 1.0
         
