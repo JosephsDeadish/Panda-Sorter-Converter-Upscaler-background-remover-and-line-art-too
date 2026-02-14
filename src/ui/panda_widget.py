@@ -3240,9 +3240,6 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
                     fill="#F5F5F5", outline="", tags="back_head"
                 )
                 
-                # Draw equipped items
-                self._draw_equipped_items(c, cx_draw, by, sx, sy)
-                
                 # No face features for back-diagonal (walking away from viewer)
             else:
                 # --- FRONT-DIAGONAL (3/4 front view) ---
@@ -3297,9 +3294,6 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
                     fill=black, outline="", tags="eye_patch"
                 )
                 
-                # Draw equipped items
-                self._draw_equipped_items(c, cx_draw, by, sx, sy)
-                
                 # Eyes with diagonal gaze
                 self._draw_eye_on_patch(c, far_eye_x, eye_y, eye_style, sx, sy, 0.8)
                 self._draw_eye_on_patch(c, near_eye_x, eye_y, eye_style, sx, sy, 1.0)
@@ -3315,6 +3309,9 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
                 # Mouth
                 self._draw_mouth(c, cx_draw, nose_y + int(8 * sy), mouth_style, 
                                sx, sy, black, white)
+            
+            # Draw equipped items (shared for both back- and front-diagonal)
+            self._draw_equipped_items(c, cx_draw, by, sx, sy)
             
             # Animation extras
             self._draw_animation_extras(c, cx_draw, by, anim, frame_idx, sx, sy)
@@ -6956,6 +6953,25 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
                     xp = 5
                 self.panda_level_system.add_xp(xp, 'Moved panda')
     
+    def _get_facing_from_velocity(self, vx: float, vy: float) -> str:
+        """Determine facing direction from velocity, including diagonals."""
+        avx = abs(vx)
+        avy = abs(vy)
+        max_av = max(avx, avy)
+        if max_av > 0 and avx > 0 and avy > 0 and min(avx, avy) / max_av > self.DIAGONAL_MOVEMENT_THRESHOLD:
+            if vy < 0 and vx < 0:
+                return 'back_left'
+            elif vy < 0 and vx > 0:
+                return 'back_right'
+            elif vy > 0 and vx < 0:
+                return 'front_left'
+            else:
+                return 'front_right'
+        elif avx > avy:
+            return 'right' if vx > 0 else 'left'
+        else:
+            return 'down' if vy > 0 else 'up'
+
     def _start_toss_physics(self):
         """Start toss physics simulation - panda bounces off walls and floor."""
         self._is_tossing = True
@@ -6965,22 +6981,7 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
         # Turn panda toward the direction it's being thrown (including diagonals)
         vx = self._toss_velocity_x
         vy = self._toss_velocity_y
-        avx = abs(vx)
-        avy = abs(vy)
-        max_av = max(avx, avy)
-        if max_av > 0 and avx > 0 and avy > 0 and min(avx, avy) / max_av > self.DIAGONAL_MOVEMENT_THRESHOLD:
-            if vy < 0 and vx < 0:
-                self._facing_direction = 'back_left'
-            elif vy < 0 and vx > 0:
-                self._facing_direction = 'back_right'
-            elif vy > 0 and vx < 0:
-                self._facing_direction = 'front_left'
-            else:
-                self._facing_direction = 'front_right'
-        elif avx > avy:
-            self._facing_direction = 'right' if vx > 0 else 'left'
-        else:
-            self._facing_direction = 'down' if vy > 0 else 'up'
+        self._facing_direction = self._get_facing_from_velocity(vx, vy)
         if self.panda and hasattr(self.panda, 'set_facing'):
             from src.features.panda_character import PandaFacing
             facing_map = {'front': PandaFacing.FRONT, 'back': PandaFacing.BACK,
@@ -7044,23 +7045,7 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
                 # Update facing direction after bounce reversal (including diagonals)
                 vx = self._toss_velocity_x
                 vy = self._toss_velocity_y
-                avx = abs(vx)
-                avy = abs(vy)
-                max_av = max(avx, avy)
-                new_facing = self._facing_direction
-                if max_av > 0 and avx > 0 and avy > 0 and min(avx, avy) / max_av > self.DIAGONAL_MOVEMENT_THRESHOLD:
-                    if vy < 0 and vx < 0:
-                        new_facing = 'back_left'
-                    elif vy < 0 and vx > 0:
-                        new_facing = 'back_right'
-                    elif vy > 0 and vx < 0:
-                        new_facing = 'front_left'
-                    else:
-                        new_facing = 'front_right'
-                elif avx > avy:
-                    new_facing = 'right' if vx > 0 else 'left'
-                else:
-                    new_facing = 'down' if vy > 0 else 'up'
+                new_facing = self._get_facing_from_velocity(vx, vy)
                 if new_facing != self._facing_direction:
                     self._prev_facing = self._facing_direction
                     self._facing_direction = new_facing
