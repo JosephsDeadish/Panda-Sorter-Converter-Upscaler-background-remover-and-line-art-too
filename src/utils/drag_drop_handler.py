@@ -109,8 +109,18 @@ class DragDropHandler:
                 # Single file or space-separated
                 paths = [p.strip() for p in data.split() if p.strip()]
         else:
-            # Unix-like systems
-            paths = [p.strip() for p in data.split() if p.strip()]
+            # Unix-like systems - handle paths with spaces
+            # Try splitting by newlines first, then spaces as fallback
+            if '\n' in data:
+                paths = [p.strip() for p in data.split('\n') if p.strip()]
+            else:
+                # Use shlex to properly handle quoted paths with spaces
+                import shlex
+                try:
+                    paths = shlex.split(data)
+                except ValueError:
+                    # Fallback to simple split if shlex fails
+                    paths = [p.strip() for p in data.split() if p.strip()]
         
         # Normalize paths
         normalized = []

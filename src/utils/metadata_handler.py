@@ -53,7 +53,7 @@ class MetadataHandler:
                     logger.debug(f"Extracted EXIF data from {image_path.name}: {len(exif)} tags")
                 
                 # Extract info dict (PNG metadata, etc.)
-                if hasattr(img, 'info') and img.info:
+                if img.info:
                     metadata['info'] = img.info.copy()
                     logger.debug(f"Extracted info data from {image_path.name}: {len(img.info)} keys")
                 

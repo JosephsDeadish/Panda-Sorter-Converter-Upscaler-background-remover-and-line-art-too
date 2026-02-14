@@ -3061,7 +3061,7 @@ class GameTextureSorter(ctk.CTk):
                                 except Exception as e:
                                     logger.warning(f"Failed to extract metadata from {fpath.name}: {e}")
                             
-                            # Save
+                            # Prepare save kwargs
                             save_kwargs = {}
                             if export_fmt == "jpeg":
                                 save_kwargs["quality"] = 95
@@ -3070,15 +3070,18 @@ class GameTextureSorter(ctk.CTk):
                             elif export_fmt == "webp":
                                 save_kwargs["quality"] = 95
                             
+                            # Determine if we should preserve metadata
+                            should_preserve_metadata = preserve_metadata and metadata_handler and source_metadata
+                            
                             # Save with metadata if available
-                            if preserve_metadata and metadata_handler and source_metadata:
+                            if should_preserve_metadata:
                                 try:
                                     metadata_preserved = metadata_handler.save_with_metadata(
                                         result, out_file, source_metadata, **save_kwargs)
                                     if not metadata_preserved:
-                                        self._upscale_log(f"  ⚠️  [{file_idx}/{total_files}] {fpath.name} - metadata not preserved")
+                                        logger.debug(f"Metadata not preserved for {fpath.name} (format may not support it)")
                                 except Exception as e:
-                                    self._upscale_log(f"  ⚠️  [{file_idx}/{total_files}] {fpath.name} - metadata copy failed: {e}")
+                                    logger.warning(f"Metadata copy failed for {fpath.name}: {e}")
                                     # Fallback to regular save
                                     result.save(str(out_file), **save_kwargs)
                             else:

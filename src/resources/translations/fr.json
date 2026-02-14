@@ -56,7 +56,7 @@
   "msg_no_files": "Aucun fichier sélectionné",
   "msg_operation_complete": "Opération terminée avec succès",
   "msg_operation_failed": "Échec de l'opération: {error}",
-  "metadata_preserve": "Préserver les Métadonnées d'Image (EXIF)",
+  "metadata_preserve": "Préserver les métadonnées d'image (EXIF)",
   "metadata_preserved": "Métadonnées préservées",
   "metadata_not_preserved": "Métadonnées non préservées",
   "metadata_copy_failed": "Échec de la copie des métadonnées: {error}",
