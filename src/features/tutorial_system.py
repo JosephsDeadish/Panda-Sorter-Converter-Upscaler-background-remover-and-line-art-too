@@ -163,9 +163,6 @@ _PANDA_TOOLTIPS = {
             "LOD finder. Because apparently '_LOD0' is too cryptic without AI help.",
             "Auto-detect Level of Detail. Or waste time doing it by hand like a chump."
         ]
-            "LOD detection. Like facial recognition but for textures.",
-            "Turn this on and let the algorithm do the heavy lifting."
-        ]
     },
     'batch_operations': {
         'normal': [
