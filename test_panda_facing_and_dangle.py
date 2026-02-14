@@ -236,7 +236,7 @@ def test_individual_limb_detection():
         (0.05, 0.95): 'right_ear',
         (0.28, 0.35): 'left_eye',     # eye zone: 0.22-0.34
         (0.28, 0.65): 'right_eye',
-        (0.36, 0.5): 'nose',          # nose zone: 0.34-0.42
+        (0.36, 0.5): 'nose',          # nose zone: 0.30-0.42
         (0.15, 0.5): 'head',          # head zone: EAR_BOUNDARY(0.22)+ center
         (0.55, 0.1): 'left_arm',      # body zone: 0.48-0.72
         (0.55, 0.9): 'right_arm',

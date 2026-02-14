@@ -498,7 +498,7 @@ def test_body_part_detection_with_x():
     assert part == 'right_arm', f"Right side body should be 'right_arm', got {part}"
     # Head is always head regardless of X (except for ears)
     part = panda.get_body_part_at_position(0.30, 0.5)
-    assert part == 'head', f"Top center should be 'head', got {part}"
+    assert part == 'nose', f"Lower face center should be 'nose', got {part}"
     # Legs - left and right
     part = panda.get_body_part_at_position(0.9, 0.3)
     assert part == 'left_leg', f"Bottom left should be 'left_leg', got {part}"

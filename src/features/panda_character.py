@@ -74,11 +74,11 @@ class PandaCharacter:
     # Arms (base 95-130)→ rel 0.53-0.70
     # Body (base 75-160)→ rel 0.43-0.85
     # Legs (base 145-175)→ rel 0.78-0.93
-    HEAD_BOUNDARY = 0.48
+    HEAD_BOUNDARY = 0.43
     EAR_BOUNDARY = 0.22       # Ears extend to rel_y ~0.22
     EYE_BOUNDARY_TOP = 0.22
     EYE_BOUNDARY_BOTTOM = 0.34
-    NOSE_BOUNDARY_TOP = 0.34
+    NOSE_BOUNDARY_TOP = 0.30
     NOSE_BOUNDARY_BOTTOM = 0.42
     BODY_BOUNDARY = 0.72
     BUTT_BOUNDARY = 0.78
@@ -1555,7 +1555,7 @@ class PandaCharacter:
     # Left eye at canvas x 86 → rel_x 0.39, right eye at 134 → rel_x 0.61
     EYE_LEFT_CENTER = 0.39     # Left eye center
     EYE_RIGHT_CENTER = 0.61    # Right eye center
-    EYE_RADIUS_X = 0.10        # Eye click radius
+    EYE_RADIUS_X = 0.08        # Eye click radius
 
     def get_body_part_at_position(self, rel_y: float, rel_x: float = 0.5) -> str:
         """Determine which body part is at a relative position.
