@@ -553,3 +553,238 @@ class AlphaCorrector:
             'images_modified': 0,
             'pixels_modified': 0
         }
+    
+    def defringe_alpha(self,
+                      image: np.ndarray,
+                      radius: int = 2) -> np.ndarray:
+        """
+        Remove dark halos/fringes around edges of transparent areas.
+        
+        This removes color contamination at edges where premultiplied alpha
+        causes dark halos.
+        
+        Args:
+            image: Input RGBA image
+            radius: Radius for defringing (default: 2)
+            
+        Returns:
+            Defringed RGBA image
+        """
+        if len(image.shape) != 3 or image.shape[2] != 4:
+            logger.warning("Image does not have alpha channel")
+            return image
+        
+        try:
+            import cv2
+            has_cv2 = True
+        except ImportError:
+            has_cv2 = False
+            logger.warning("OpenCV not available, using basic defringing")
+        
+        result = image.copy()
+        alpha = result[:, :, 3]
+        
+        # Find edge pixels (pixels with low alpha near high alpha)
+        if has_cv2:
+            # Dilate alpha to find surrounding areas
+            kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (radius*2+1, radius*2+1))
+            dilated_alpha = cv2.dilate(alpha, kernel)
+            
+            # Edge pixels are where dilated alpha is high but original alpha is low
+            edge_mask = (dilated_alpha > 200) & (alpha < 128)
+            
+            # For edge pixels, sample color from nearby fully opaque pixels
+            for c in range(3):  # RGB channels
+                channel = result[:, :, c].astype(float)
+                
+                # Dilate the RGB channel to spread opaque colors
+                dilated_channel = cv2.dilate(channel.astype(np.uint8), kernel)
+                
+                # Replace edge pixels with dilated color
+                result[:, :, c] = np.where(edge_mask, dilated_channel, channel).astype(np.uint8)
+        else:
+            # Simple fallback: brighten edge pixels
+            edge_mask = (alpha > 0) & (alpha < 128)
+            for c in range(3):
+                channel = result[:, :, c].astype(float)
+                channel[edge_mask] = np.clip(channel[edge_mask] * 1.5, 0, 255)
+                result[:, :, c] = channel.astype(np.uint8)
+        
+        return result
+    
+    def remove_matte_color(self,
+                          image: np.ndarray,
+                          matte_color: Tuple[int, int, int] = (255, 255, 255)) -> np.ndarray:
+        """
+        Remove matte color from semi-transparent pixels.
+        
+        When images are composited on a colored background, the background
+        color bleeds into semi-transparent pixels. This removes it.
+        
+        Args:
+            image: Input RGBA image
+            matte_color: RGB color of matte to remove (default: white)
+            
+        Returns:
+            Image with matte color removed
+        """
+        if len(image.shape) != 3 or image.shape[2] != 4:
+            logger.warning("Image does not have alpha channel")
+            return image
+        
+        result = image.copy().astype(float)
+        alpha = result[:, :, 3] / 255.0
+        
+        # For semi-transparent pixels, remove matte color contribution
+        for c in range(3):
+            # Original formula: displayed_color = foreground * alpha + matte * (1 - alpha)
+            # Solve for foreground: foreground = (displayed_color - matte * (1 - alpha)) / alpha
+            
+            # Only process semi-transparent pixels
+            mask = (alpha > 0) & (alpha < 1)
+            
+            if np.any(mask):
+                displayed = result[:, :, c]
+                matte = matte_color[c]
+                
+                # Calculate original foreground color
+                foreground = np.zeros_like(displayed)
+                foreground[mask] = (displayed[mask] - matte * (1 - alpha[mask])) / alpha[mask]
+                
+                # Clamp to valid range
+                foreground = np.clip(foreground, 0, 255)
+                
+                result[:, :, c] = np.where(mask, foreground, displayed)
+        
+        return result.astype(np.uint8)
+    
+    def feather_alpha_edges(self,
+                           image: np.ndarray,
+                           radius: int = 2,
+                           strength: float = 0.5) -> np.ndarray:
+        """
+        Soften/feather alpha channel edges for smoother transitions.
+        
+        Args:
+            image: Input RGBA image
+            radius: Blur radius for feathering
+            strength: Strength of feathering (0.0-1.0)
+            
+        Returns:
+            Image with feathered alpha
+        """
+        if len(image.shape) != 3 or image.shape[2] != 4:
+            logger.warning("Image does not have alpha channel")
+            return image
+        
+        try:
+            import cv2
+            has_cv2 = True
+        except ImportError:
+            has_cv2 = False
+            logger.warning("OpenCV not available, using PIL blur")
+        
+        result = image.copy()
+        alpha = result[:, :, 3]
+        
+        if has_cv2:
+            # Use Gaussian blur for smooth feathering
+            kernel_size = radius * 2 + 1
+            blurred_alpha = cv2.GaussianBlur(alpha, (kernel_size, kernel_size), 0)
+        else:
+            # Fallback to simple averaging
+            from scipy.ndimage import uniform_filter
+            blurred_alpha = uniform_filter(alpha.astype(float), size=radius*2+1)
+            blurred_alpha = np.clip(blurred_alpha, 0, 255).astype(np.uint8)
+        
+        # Blend original and blurred alpha based on strength
+        feathered_alpha = alpha * (1 - strength) + blurred_alpha * strength
+        result[:, :, 3] = np.clip(feathered_alpha, 0, 255).astype(np.uint8)
+        
+        return result
+    
+    def dilate_alpha(self,
+                    image: np.ndarray,
+                    iterations: int = 1,
+                    kernel_size: int = 3) -> np.ndarray:
+        """
+        Expand/dilate alpha channel (make semi-transparent areas more opaque).
+        
+        Args:
+            image: Input RGBA image
+            iterations: Number of dilation iterations
+            kernel_size: Size of dilation kernel (3, 5, 7, etc.)
+            
+        Returns:
+            Image with dilated alpha
+        """
+        if len(image.shape) != 3 or image.shape[2] != 4:
+            logger.warning("Image does not have alpha channel")
+            return image
+        
+        try:
+            import cv2
+            has_cv2 = True
+        except ImportError:
+            has_cv2 = False
+            logger.warning("OpenCV not available, using basic dilation")
+        
+        result = image.copy()
+        alpha = result[:, :, 3]
+        
+        if has_cv2:
+            # Use morphological dilation
+            kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (kernel_size, kernel_size))
+            dilated = cv2.dilate(alpha, kernel, iterations=iterations)
+        else:
+            # Fallback: simple max filter
+            from scipy.ndimage import maximum_filter
+            dilated = alpha
+            for _ in range(iterations):
+                dilated = maximum_filter(dilated, size=kernel_size)
+        
+        result[:, :, 3] = dilated
+        return result
+    
+    def erode_alpha(self,
+                   image: np.ndarray,
+                   iterations: int = 1,
+                   kernel_size: int = 3) -> np.ndarray:
+        """
+        Contract/erode alpha channel (make semi-transparent areas more transparent).
+        
+        Args:
+            image: Input RGBA image
+            iterations: Number of erosion iterations
+            kernel_size: Size of erosion kernel (3, 5, 7, etc.)
+            
+        Returns:
+            Image with eroded alpha
+        """
+        if len(image.shape) != 3 or image.shape[2] != 4:
+            logger.warning("Image does not have alpha channel")
+            return image
+        
+        try:
+            import cv2
+            has_cv2 = True
+        except ImportError:
+            has_cv2 = False
+            logger.warning("OpenCV not available, using basic erosion")
+        
+        result = image.copy()
+        alpha = result[:, :, 3]
+        
+        if has_cv2:
+            # Use morphological erosion
+            kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (kernel_size, kernel_size))
+            eroded = cv2.erode(alpha, kernel, iterations=iterations)
+        else:
+            # Fallback: simple min filter
+            from scipy.ndimage import minimum_filter
+            eroded = alpha
+            for _ in range(iterations):
+                eroded = minimum_filter(eroded, size=kernel_size)
+        
+        result[:, :, 3] = eroded
+        return result
