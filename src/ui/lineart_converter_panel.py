@@ -282,11 +282,12 @@ class LineArtConverterPanel(ctk.CTkFrame):
         
         ctk.CTkLabel(preset_frame, text="Preset:", font=("Arial Bold", 12)).pack(side="left", padx=5)
         
-        self.preset_var = ctk.StringVar(value=PRESET_NAMES[0])
+        _default_preset = PRESET_NAMES[0] if PRESET_NAMES else ""
+        self.preset_var = ctk.StringVar(value=_default_preset)
         self.preset_menu = ctk.CTkOptionMenu(
             preset_frame,
             variable=self.preset_var,
-            values=PRESET_NAMES,
+            values=PRESET_NAMES or ["(none)"],
             command=self._apply_preset,
             width=220
         )
@@ -294,7 +295,7 @@ class LineArtConverterPanel(ctk.CTkFrame):
         
         self.preset_desc_label = ctk.CTkLabel(
             conv_frame,
-            text=LINEART_PRESETS[PRESET_NAMES[0]]["desc"],
+            text=LINEART_PRESETS.get(_default_preset, {}).get("desc", ""),
             font=("Arial", 11), text_color="gray", wraplength=360
         )
         self.preset_desc_label.pack(pady=(0, 8), padx=10, anchor="w")
