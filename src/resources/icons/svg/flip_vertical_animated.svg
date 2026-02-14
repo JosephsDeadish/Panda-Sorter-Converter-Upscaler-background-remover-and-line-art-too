@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24">
+  <g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <!-- Image being flipped -->
+    <rect x="4" y="6" width="16" height="12" rx="1"/>
+    <line x1="4" y1="12" x2="20" y2="12" stroke-dasharray="2 2"/>
+    <!-- Arrow showing flip direction -->
+    <g transform="translate(12 12)">
+      <path d="M0 -4v8M-3 0l3 4 3-4">
+        <animate attributeName="opacity" values="0.3;1;0.3" dur="2s" repeatCount="indefinite" />
+        <animateTransform attributeName="transform" type="scale" values="1 1;1 -1;1 1" dur="2s" repeatCount="indefinite" additive="sum"/>
+      </path>
+    </g>
+  </g>
+</svg>

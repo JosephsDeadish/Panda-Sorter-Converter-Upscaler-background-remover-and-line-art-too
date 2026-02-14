@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24">
+  <g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <!-- Folder base -->
+    <path d="M3 7v10c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V9c0-1.1-.9-2-2-2h-8L9 5H5C3.9 5 3 5.9 3 7z">
+      <animate attributeName="opacity" values="0.6;1;0.6" dur="2s" repeatCount="indefinite" />
+    </path>
+    <!-- Opening flap -->
+    <path d="M3 7h18" transform-origin="12 7">
+      <animateTransform attributeName="transform" type="rotate" values="0 12 7;-15 12 7;0 12 7" dur="2s" repeatCount="indefinite" />
+    </path>
+  </g>
+</svg>

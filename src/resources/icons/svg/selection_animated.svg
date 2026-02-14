@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24">
+  <g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <!-- Rectangle selection box -->
+    <rect x="4" y="4" width="16" height="16" rx="2" stroke-dasharray="4 2">
+      <animate attributeName="stroke-dashoffset" values="0;-6;0" dur="2s" repeatCount="indefinite" />
+      <animate attributeName="opacity" values="0.5;1;0.5" dur="2s" repeatCount="indefinite" />
+    </rect>
+    <!-- Corner handles -->
+    <circle cx="4" cy="4" r="1.5">
+      <animate attributeName="r" values="1.5;2;1.5" dur="1.5s" repeatCount="indefinite" />
+    </circle>
+    <circle cx="20" cy="4" r="1.5">
+      <animate attributeName="r" values="1.5;2;1.5" dur="1.5s" begin="0.375s" repeatCount="indefinite" />
+    </circle>
+    <circle cx="20" cy="20" r="1.5">
+      <animate attributeName="r" values="1.5;2;1.5" dur="1.5s" begin="0.75s" repeatCount="indefinite" />
+    </circle>
+    <circle cx="4" cy="20" r="1.5">
+      <animate attributeName="r" values="1.5;2;1.5" dur="1.5s" begin="1.125s" repeatCount="indefinite" />
+    </circle>
+  </g>
+</svg>

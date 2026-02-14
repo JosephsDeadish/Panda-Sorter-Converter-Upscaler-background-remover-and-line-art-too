@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24">
+  <g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <!-- Paint brush -->
+    <path d="M18 2l4 4-6 6-4-4z" transform-origin="16 8">
+      <animateTransform attributeName="transform" type="rotate" values="0 16 8;-15 16 8;0 16 8" dur="2s" repeatCount="indefinite" />
+    </path>
+    <!-- Handle -->
+    <path d="M12 12l-2 2-6 6v-4l6-6z">
+      <animate attributeName="opacity" values="0.6;1;0.6" dur="2s" repeatCount="indefinite" />
+    </path>
+    <!-- Paint drops -->
+    <circle cx="10" cy="18" r="1">
+      <animate attributeName="opacity" values="0;1;0" dur="2s" repeatCount="indefinite" />
+      <animate attributeName="cy" values="18;20;18" dur="2s" repeatCount="indefinite" />
+    </circle>
+  </g>
+</svg>

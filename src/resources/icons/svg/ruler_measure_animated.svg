@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24">
+  <g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <!-- Ruler -->
+    <rect x="4" y="10" width="16" height="4" rx="1"/>
+    <!-- Tick marks -->
+    <line x1="6" y1="10" x2="6" y2="12"/>
+    <line x1="8" y1="10" x2="8" y2="11"/>
+    <line x1="10" y1="10" x2="10" y2="12"/>
+    <line x1="12" y1="10" x2="12" y2="11"/>
+    <line x1="14" y1="10" x2="14" y2="12"/>
+    <line x1="16" y1="10" x2="16" y2="11"/>
+    <line x1="18" y1="10" x2="18" y2="12"/>
+    <!-- Measuring indicator -->
+    <g>
+      <circle cx="12" cy="12" r="1.5" fill="currentColor">
+        <animate attributeName="cx" values="6;18;6" dur="3s" repeatCount="indefinite" />
+      </circle>
+    </g>
+  </g>
+</svg>
