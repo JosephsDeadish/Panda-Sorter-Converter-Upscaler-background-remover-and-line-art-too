@@ -320,8 +320,8 @@ class CLIPModel:
 
         Args:
             images: List of training images
-            labels: List of text labels for images (same length as *images*)
-            learning_rate: Learning rate for AdamW optimiser
+            labels: List of text labels for images (same length as images)
+            learning_rate: Learning rate for AdamW optimizer
             epochs: Number of training epochs
             batch_size: Batch size per step
 

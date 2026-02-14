@@ -137,7 +137,7 @@ class DuplicateDetector:
 
     @staticmethod
     def _color_histogram(image, bins: int = 32) -> np.ndarray:
-        """Compute a normalised per-channel colour histogram."""
+        """Compute a normalized per-channel colour histogram."""
         arr = np.asarray(image)
         hists = []
         for ch in range(min(arr.shape[2], 3)):
