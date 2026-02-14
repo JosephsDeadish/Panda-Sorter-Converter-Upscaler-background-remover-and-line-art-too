@@ -2398,43 +2398,29 @@ class GameTextureSorter(ctk.CTk):
                        variable=self.upscale_preserve_metadata_var)
         upscale_preserve_metadata_cb.pack(side="left", padx=10)
 
-        # --- Preview section ---
+        # --- Preview section (upscayl-style slider comparison) ---
         preview_frame = ctk.CTkFrame(scroll)
-        preview_frame.pack(fill="x", padx=10, pady=10)
+        preview_frame.pack(fill="both", expand=True, padx=10, pady=10)
         ctk.CTkLabel(preview_frame, text="Preview:",
                      font=("Arial Bold", 12)).pack(anchor="w", padx=10, pady=5)
 
-        # Zoom controls
-        zoom_frame = ctk.CTkFrame(preview_frame)
-        zoom_frame.pack(fill="x", padx=10, pady=(0, 5))
-        ctk.CTkLabel(zoom_frame, text="Zoom:", font=("Arial", 11)).pack(side="left", padx=(10, 5))
-        self._upscale_zoom_var = ctk.DoubleVar(value=1.0)
-        upscale_zoom_out_btn = ctk.CTkButton(zoom_frame, text="−", width=30,
-                       command=self._upscale_zoom_out)
-        upscale_zoom_out_btn.pack(side="left", padx=2)
-        self._upscale_zoom_label = ctk.CTkLabel(zoom_frame, text="100%", width=50,
-                                                 font=("Arial", 11))
-        self._upscale_zoom_label.pack(side="left", padx=2)
-        upscale_zoom_in_btn = ctk.CTkButton(zoom_frame, text="+", width=30,
-                       command=self._upscale_zoom_in)
-        upscale_zoom_in_btn.pack(side="left", padx=2)
-        upscale_zoom_fit_btn = ctk.CTkButton(zoom_frame, text="Fit", width=40,
-                       command=self._upscale_zoom_fit)
-        upscale_zoom_fit_btn.pack(side="left", padx=5)
-        self._upscale_zoom_info = ctk.CTkLabel(zoom_frame, text="", font=("Arial", 10),
+        # Size info label
+        self._upscale_zoom_info = ctk.CTkLabel(preview_frame, text="", font=("Arial", 10),
                                                 text_color="gray")
-        self._upscale_zoom_info.pack(side="left", padx=10)
+        self._upscale_zoom_info.pack(anchor="w", padx=10)
 
-        self.upscale_preview_container = ctk.CTkFrame(preview_frame, height=300)
-        self.upscale_preview_container.pack(fill="x", padx=10, pady=5)
-        self.upscale_preview_container.pack_propagate(False)
-        # Before / After side by side
-        self.upscale_preview_before_label = ctk.CTkLabel(
-            self.upscale_preview_container, text="Before\n(select an image)", width=200, height=280)
-        self.upscale_preview_before_label.pack(side="left", padx=10, pady=10, expand=True)
-        self.upscale_preview_after_label = ctk.CTkLabel(
-            self.upscale_preview_container, text="After\n(preview appears here)", width=200, height=280)
-        self.upscale_preview_after_label.pack(side="left", padx=10, pady=10, expand=True)
+        # LivePreviewWidget replaces old zoom controls + label pair
+        from src.ui.live_preview_widget import LivePreviewWidget
+        self._upscale_live_preview = LivePreviewWidget(preview_frame)
+        self._upscale_live_preview.pack(fill="both", expand=True, padx=5, pady=5)
+
+        # Keep legacy attributes so existing tooltip / zoom methods don't crash
+        self._upscale_zoom_var = ctk.DoubleVar(value=1.0)
+        self._upscale_zoom_label = ctk.CTkLabel(preview_frame, text="100%")
+        # (not packed — zoom is handled by LivePreviewWidget buttons)
+        upscale_zoom_out_btn = ctk.CTkButton(preview_frame, text="−", width=0)
+        upscale_zoom_in_btn = ctk.CTkButton(preview_frame, text="+", width=0)
+        upscale_zoom_fit_btn = ctk.CTkButton(preview_frame, text="Fit", width=0)
 
         # Individual file preview / browse + export
         preview_btn_frame = ctk.CTkFrame(preview_frame)
@@ -2735,66 +2721,36 @@ class GameTextureSorter(ctk.CTk):
                 messagebox.showerror("Preview Error", f"Could not open image:\n{e}")
 
     def _show_upscale_preview(self, pil_img):
-        """Display before/after preview for the given PIL Image."""
+        """Display before/after preview using the LivePreviewWidget slider."""
         from PIL import Image
         self._upscale_preview_image = pil_img
 
-        zoom = getattr(self, '_upscale_zoom_var', None)
-        zoom_factor = zoom.get() if zoom else 1.0
-        thumb_size = int(200 * zoom_factor)
-
-        # Update zoom info label
+        # Update size info label
         if hasattr(self, '_upscale_zoom_info'):
             self._upscale_zoom_info.configure(
-                text=f"Original: {pil_img.size[0]}×{pil_img.size[1]}")
+                text=f"Original: {pil_img.size[0]}\u00d7{pil_img.size[1]}")
 
-        # Before thumbnail
-        before = pil_img.copy()
-        before.thumbnail((thumb_size, thumb_size), Image.LANCZOS)
-        try:
-            before_ctk = ctk.CTkImage(light_image=before, size=before.size)
-            self.upscale_preview_before_label.configure(image=before_ctk, text="")
-            self.upscale_preview_before_label._preview_img = before_ctk
-        except Exception:
-            self.upscale_preview_before_label.configure(text=f"Before\n{pil_img.size[0]}×{pil_img.size[1]}")
-
-        # After thumbnail
         factor = self._get_upscale_factor()
         style = self.upscale_style_var.get()
         if "ESRGAN" in style:
-            # For AI styles just show label — too slow for live preview
+            # AI styles are too slow for live preview — show original on both sides
+            self._upscale_preview_result = None
             new_w = pil_img.size[0] * factor
             new_h = pil_img.size[1] * factor
-            self.upscale_preview_after_label.configure(
-                image=None,
-                text=f"After (AI preview)\n{new_w}×{new_h}\n(Real-ESRGAN)")
-            self._upscale_preview_result = None
+            if hasattr(self, '_upscale_zoom_info'):
+                self._upscale_zoom_info.configure(
+                    text=f"Original: {pil_img.size[0]}\u00d7{pil_img.size[1]}  \u2192  "
+                         f"AI upscale: {new_w}\u00d7{new_h} (Real-ESRGAN, run batch to process)")
+            self._upscale_live_preview.load_images(pil_img, pil_img)
         else:
             preserve_alpha = self.upscale_alpha_var.get()
             upscaled = self._upscale_pil_image(pil_img, factor, preserve_alpha)
-            self._upscale_preview_result = upscaled  # Store for export
-            after = upscaled.copy()
-            after.thumbnail((thumb_size, thumb_size), Image.LANCZOS)
-            try:
-                after_ctk = ctk.CTkImage(light_image=after, size=after.size)
-                self.upscale_preview_after_label.configure(image=after_ctk, text="")
-                self.upscale_preview_after_label._preview_img = after_ctk
-            except Exception:
-                self.upscale_preview_after_label.configure(
-                    text=f"After\n{upscaled.size[0]}×{upscaled.size[1]}")
-
-            # Update size info
+            self._upscale_preview_result = upscaled
+            self._upscale_live_preview.load_images(pil_img, upscaled)
             if hasattr(self, '_upscale_zoom_info'):
                 self._upscale_zoom_info.configure(
-                    text=f"Original: {pil_img.size[0]}×{pil_img.size[1]}  →  "
-                         f"Upscaled: {upscaled.size[0]}×{upscaled.size[1]}")
-
-        # Resize preview container to fit zoomed thumbnails
-        new_h = max(220, thumb_size + 40)
-        try:
-            self.upscale_preview_container.configure(height=new_h)
-        except Exception:
-            pass
+                    text=f"Original: {pil_img.size[0]}\u00d7{pil_img.size[1]}  \u2192  "
+                         f"Upscaled: {upscaled.size[0]}\u00d7{upscaled.size[1]}")
 
     def _update_upscale_preview(self, *_args):
         """Called when scale/style/checkbox changes — re-preview if we have an image."""
@@ -2803,25 +2759,18 @@ class GameTextureSorter(ctk.CTk):
 
     def _upscale_zoom_in(self):
         """Increase preview zoom level."""
-        zoom = self._upscale_zoom_var.get()
-        zoom = min(4.0, zoom + 0.25)
-        self._upscale_zoom_var.set(zoom)
-        self._upscale_zoom_label.configure(text=f"{int(zoom * 100)}%")
-        self._update_upscale_preview()
+        if hasattr(self, '_upscale_live_preview'):
+            self._upscale_live_preview._zoom_in()
 
     def _upscale_zoom_out(self):
         """Decrease preview zoom level."""
-        zoom = self._upscale_zoom_var.get()
-        zoom = max(0.25, zoom - 0.25)
-        self._upscale_zoom_var.set(zoom)
-        self._upscale_zoom_label.configure(text=f"{int(zoom * 100)}%")
-        self._update_upscale_preview()
+        if hasattr(self, '_upscale_live_preview'):
+            self._upscale_live_preview._zoom_out()
 
     def _upscale_zoom_fit(self):
         """Reset preview zoom to 100%."""
-        self._upscale_zoom_var.set(1.0)
-        self._upscale_zoom_label.configure(text="100%")
-        self._update_upscale_preview()
+        if hasattr(self, '_upscale_live_preview'):
+            self._upscale_live_preview._zoom_fit()
 
     def _export_single_upscale(self):
         """Export the currently previewed texture with all applied settings."""
@@ -3468,22 +3417,15 @@ class GameTextureSorter(ctk.CTk):
                                          alpha_recursive_cb, self.alpha_backup_cb, alpha_overwrite_cb,
                                          alpha_extract_cb, alpha_compress_cb)
 
-        # --- Preview section ---
+        # --- Preview section (upscayl-style slider comparison) ---
         preview_frame = ctk.CTkFrame(scroll)
-        preview_frame.pack(fill="x", padx=10, pady=10)
+        preview_frame.pack(fill="both", expand=True, padx=10, pady=10)
         ctk.CTkLabel(preview_frame, text="Preview:",
                      font=("Arial Bold", 12)).pack(anchor="w", padx=10, pady=5)
 
-        self.alpha_fix_preview_container = ctk.CTkFrame(preview_frame, height=300)
-        self.alpha_fix_preview_container.pack(fill="x", padx=10, pady=5)
-        self.alpha_fix_preview_container.pack_propagate(False)
-        # Before / After side by side
-        self.alpha_fix_preview_before_label = ctk.CTkLabel(
-            self.alpha_fix_preview_container, text="Before\n(select an image)", width=200, height=280)
-        self.alpha_fix_preview_before_label.pack(side="left", padx=10, pady=10, expand=True)
-        self.alpha_fix_preview_after_label = ctk.CTkLabel(
-            self.alpha_fix_preview_container, text="After\n(preview appears here)", width=200, height=280)
-        self.alpha_fix_preview_after_label.pack(side="left", padx=10, pady=10, expand=True)
+        from src.ui.live_preview_widget import LivePreviewWidget
+        self._alpha_fix_live_preview = LivePreviewWidget(preview_frame)
+        self._alpha_fix_live_preview.pack(fill="both", expand=True, padx=5, pady=5)
 
         # Individual file preview / browse + export
         preview_btn_frame = ctk.CTkFrame(preview_frame)
@@ -3563,68 +3505,45 @@ class GameTextureSorter(ctk.CTk):
                 messagebox.showerror("Preview Error", f"Could not load image:\n{e}")
 
     def _show_alpha_fix_preview(self, original_img):
-        """Show before/after preview for alpha correction."""
-        from PIL import ImageTk, Image
+        """Show before/after preview for alpha correction using LivePreviewWidget."""
+        from PIL import Image
         
         try:
             # Get current preset
             preset_display = self.alpha_fix_preset_var.get()
             preset_key = self._strip_emoji_prefix(preset_display)
             
-            # Create before image (original)
             before_img = original_img.copy()
-            before_size = before_img.size
             
             # Apply alpha correction to create after image
             if ALPHA_CORRECTION_AVAILABLE:
                 corrector = AlphaCorrector()
-                # Create temp file for processing
                 import tempfile
                 with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as tmp:
                     tmp_path = tmp.name
                     original_img.save(tmp_path)
                 
                 try:
-                    # Process the image
                     result = corrector.process_image(Path(tmp_path), preset=preset_key, overwrite=True, backup=False)
                     if result.get('success'):
                         after_img = Image.open(tmp_path)
                     else:
-                        # If processing failed, show original
                         after_img = original_img.copy()
-                        self._alpha_fix_log(f"⚠️ Preview failed: {result.get('reason', 'unknown')}")
+                        self._alpha_fix_log(f"\u26a0\ufe0f Preview failed: {result.get('reason', 'unknown')}")
                 finally:
-                    # Clean up temp file
                     try:
                         os.unlink(tmp_path)
-                    except:
+                    except Exception:
                         pass
             else:
                 after_img = original_img.copy()
             
-            # Cache the result
             self._alpha_fix_preview_result = after_img
-            
-            # Resize for display (max 280x280)
-            max_size = 280
-            before_display = self._resize_for_display(before_img, max_size)
-            after_display = self._resize_for_display(after_img, max_size)
-            
-            # Convert to PhotoImage
-            before_photo = ImageTk.PhotoImage(before_display)
-            after_photo = ImageTk.PhotoImage(after_display)
-            
-            # Update labels
-            self.alpha_fix_preview_before_label.configure(image=before_photo, text="")
-            self.alpha_fix_preview_before_label.image = before_photo  # Keep reference
-            
-            self.alpha_fix_preview_after_label.configure(image=after_photo, text="")
-            self.alpha_fix_preview_after_label.image = after_photo  # Keep reference
-            
-            self._alpha_fix_log(f"✅ Preview updated with preset: {preset_key}")
+            self._alpha_fix_live_preview.load_images(before_img, after_img)
+            self._alpha_fix_log(f"\u2705 Preview updated with preset: {preset_key}")
             
         except Exception as e:
-            self._alpha_fix_log(f"❌ Preview error: {e}")
+            self._alpha_fix_log(f"\u274c Preview error: {e}")
             logger.error(f"Alpha fix preview error: {e}", exc_info=True)
 
     def _resize_for_display(self, img, max_size):
