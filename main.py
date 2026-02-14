@@ -2017,10 +2017,10 @@ class GameTextureSorter(ctk.CTk):
 
         # Scale factor
         ctk.CTkLabel(opts, text="Scale Factor:").grid(row=0, column=0, padx=10, pady=5, sticky="w")
-        self.upscale_factor_var = ctk.StringVar(value="2x")
+        self.upscale_factor_var = ctk.StringVar(value="🔢 2x")
         upscale_factor_menu = ctk.CTkOptionMenu(
             opts, variable=self.upscale_factor_var,
-            values=["2x", "3x", "4x", "6x", "8x", "16x"],
+            values=["🔢 2x", "🔢 3x", "🔢 4x", "🔢 6x", "🔢 8x", "🔢 16x"],
             command=self._update_upscale_preview)
         upscale_factor_menu.grid(row=0, column=1, padx=10, pady=5, sticky="w")
 
@@ -2045,10 +2045,10 @@ class GameTextureSorter(ctk.CTk):
 
         # Export format
         ctk.CTkLabel(opts, text="Export As:").grid(row=1, column=0, padx=10, pady=5, sticky="w")
-        self.upscale_format_var = ctk.StringVar(value="PNG")
+        self.upscale_format_var = ctk.StringVar(value="🖼️ PNG")
         upscale_format_menu = ctk.CTkOptionMenu(
             opts, variable=self.upscale_format_var,
-            values=["PNG", "BMP", "TGA", "JPEG", "WEBP", "DDS", "TIFF"])
+            values=["🖼️ PNG", "🗺️ BMP", "🎨 TGA", "📷 JPEG", "🌐 WEBP", "🎮 DDS", "📐 TIFF"])
         upscale_format_menu.grid(row=1, column=1, padx=10, pady=5, sticky="w")
 
         # Custom resolution input
@@ -2277,6 +2277,9 @@ class GameTextureSorter(ctk.CTk):
     def _get_upscale_factor(self):
         """Return the numeric scale factor."""
         text = self.upscale_factor_var.get()
+        # Strip emoji prefix (e.g. "🔢 4x" → "4x")
+        if " " in text:
+            text = text.split(" ", 1)[1]
         return int(text.replace("x", ""))
 
     def _preview_upscale_file(self):
@@ -2436,7 +2439,11 @@ class GameTextureSorter(ctk.CTk):
         recursive = self.upscale_recursive_var.get()
         zip_output = self.upscale_zip_output_var.get()
         send_to_organizer = self.upscale_send_organizer_var.get()
-        export_fmt = self.upscale_format_var.get().lower()
+        export_fmt = self.upscale_format_var.get()
+        # Strip emoji prefix (e.g. "🖼️ PNG" → "png")
+        if " " in export_fmt:
+            export_fmt = export_fmt.split(" ", 1)[1]
+        export_fmt = export_fmt.lower()
         style = self.upscale_style_var.get()
         is_esrgan = "ESRGAN" in style
         overwrite = self.upscale_overwrite_var.get() if hasattr(self, 'upscale_overwrite_var') else False
@@ -3129,14 +3136,14 @@ class GameTextureSorter(ctk.CTk):
         ctk.CTkLabel(dialog, text="Region:", font=("Arial Bold", 12)).pack(pady=(10, 5), padx=20, anchor="w")
         region_var = ctk.StringVar(value="NTSC-U")
         region_menu = ctk.CTkOptionMenu(dialog, variable=region_var, width=550,
-                                        values=["NTSC-U", "NTSC-J", "PAL", "NTSC-K"])
+                                        values=["🇺🇸 NTSC-U", "🇯🇵 NTSC-J", "🇪🇺 PAL", "🇰🇷 NTSC-K"])
         region_menu.pack(padx=20, pady=5)
         
         # Organization style
         ctk.CTkLabel(dialog, text="Organization Style:", font=("Arial Bold", 12)).pack(pady=(10, 5), padx=20, anchor="w")
         style_var = ctk.StringVar(value="by_category")
         style_menu = ctk.CTkOptionMenu(dialog, variable=style_var, width=550,
-                                       values=["by_category", "by_type", "by_size", "flat", "custom"])
+                                       values=["📂 by_category", "📄 by_type", "📏 by_size", "📋 flat", "✏️ custom"])
         style_menu.pack(padx=20, pady=5)
         
         # Naming pattern
@@ -3226,14 +3233,14 @@ class GameTextureSorter(ctk.CTk):
             ctk.CTkLabel(dialog, text="Region:", font=("Arial Bold", 12)).pack(pady=(10, 5), padx=20, anchor="w")
             region_var = ctk.StringVar(value=profile.game_region or "NTSC-U")
             region_menu = ctk.CTkOptionMenu(dialog, variable=region_var, width=550,
-                                            values=["NTSC-U", "NTSC-J", "PAL", "NTSC-K"])
+                                            values=["🇺🇸 NTSC-U", "🇯🇵 NTSC-J", "🇪🇺 PAL", "🇰🇷 NTSC-K"])
             region_menu.pack(padx=20, pady=5)
             
             # Organization style
             ctk.CTkLabel(dialog, text="Organization Style:", font=("Arial Bold", 12)).pack(pady=(10, 5), padx=20, anchor="w")
             style_var = ctk.StringVar(value=profile.style or "by_category")
             style_menu = ctk.CTkOptionMenu(dialog, variable=style_var, width=550,
-                                           values=["by_category", "by_type", "by_size", "flat", "custom"])
+                                           values=["📂 by_category", "📄 by_type", "📏 by_size", "📋 flat", "✏️ custom"])
             style_menu.pack(padx=20, pady=5)
             
             # Naming pattern
@@ -4451,16 +4458,51 @@ class GameTextureSorter(ctk.CTk):
             self.log(f"❌ Error applying customization: {e}")
             logger.error(f"Customization change error: {e}", exc_info=True)
     
+    @staticmethod
+    def _ensure_readable_text(bg_color, text_color):
+        """Return text_color adjusted to guarantee readability against bg_color.
+        
+        If the luminance contrast ratio is too low (< 3:1), returns black or
+        white depending on the background luminance.
+        """
+        try:
+            def _lum(hex_c):
+                hex_c = hex_c.lstrip('#')
+                r, g, b = int(hex_c[0:2], 16), int(hex_c[2:4], 16), int(hex_c[4:6], 16)
+                return (0.299 * r + 0.587 * g + 0.114 * b) / 255.0
+            
+            bg_l = _lum(bg_color)
+            tx_l = _lum(text_color)
+            # Simple contrast check (WCAG-like)
+            lighter = max(bg_l, tx_l) + 0.05
+            darker = min(bg_l, tx_l) + 0.05
+            ratio = lighter / darker
+            if ratio < 3.0:
+                # Not enough contrast — pick black or white
+                return "#000000" if bg_l > 0.5 else "#ffffff"
+        except Exception:
+            pass
+        return text_color
+    
     def _apply_theme_to_widget(self, widget, colors):
         """Recursively apply theme colors to a widget and its children"""
+        # Ensure text is readable when both background and text colors are set
+        if 'background' in colors and 'text' in colors:
+            colors = dict(colors)  # shallow copy to avoid mutating caller's dict
+            colors['text'] = self._ensure_readable_text(colors['background'], colors['text'])
+        
         try:
             # Apply colors to CTkButton widgets
             if isinstance(widget, ctk.CTkButton):
                 if 'button' in colors:
                     widget.configure(fg_color=colors['button'])
+                    # Ensure button text readable against button bg
+                    if 'text' in colors:
+                        safe_text = self._ensure_readable_text(colors['button'], colors['text'])
+                        widget.configure(text_color=safe_text)
                 if 'button_hover' in colors:
                     widget.configure(hover_color=colors['button_hover'])
-                if 'text' in colors:
+                if 'text' in colors and 'button' not in colors:
                     widget.configure(text_color=colors['text'])
             
             # Apply colors to CTkLabel widgets
@@ -5316,7 +5358,7 @@ class GameTextureSorter(ctk.CTk):
         ctk.CTkLabel(blend_frame, text="AI Blend Mode:").pack(side="left", padx=10)
         blend_var = ctk.StringVar(value=config.get('ai', 'blend_mode', default='confidence_weighted'))
         blend_menu = ctk.CTkOptionMenu(blend_frame, variable=blend_var,
-                                       values=["confidence_weighted", "max", "average", "offline_only", "online_only"])
+                                       values=["⚖️ confidence_weighted", "🔝 max", "📊 average", "💾 offline_only", "🌐 online_only"])
         blend_menu.pack(side="left", padx=10)
         ctk.CTkLabel(blend_frame, text="(how to combine offline and online predictions)",
                     font=("Arial", 9), text_color="gray").pack(side="left", padx=5)
@@ -5431,7 +5473,7 @@ class GameTextureSorter(ctk.CTk):
         ctk.CTkLabel(loglevel_frame, text="Log Level:").pack(side="left", padx=10)
         loglevel_var = ctk.StringVar(value=config.get('logging', 'log_level', default='INFO'))
         loglevel_menu = ctk.CTkOptionMenu(loglevel_frame, variable=loglevel_var,
-                                          values=["DEBUG", "INFO", "WARNING", "ERROR"])
+                                          values=["🐛 DEBUG", "ℹ️ INFO", "⚠️ WARNING", "❌ ERROR"])
         loglevel_menu.pack(side="left", padx=10)
         
         crash_report_var = ctk.BooleanVar(value=config.get('logging', 'crash_reports', default=True))
