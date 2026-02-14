@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <!-- Texture grid icon -->
+  <defs>
+    <linearGradient id="textureGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#FF5722;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#BF360C;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Grid squares with animation -->
+  <rect x="15" y="15" width="20" height="20" fill="url(#textureGrad)" opacity="0.8">
+    <animate attributeName="opacity" values="0.8;1;0.8" dur="2s" repeatCount="indefinite"/>
+  </rect>
+  <rect x="40" y="15" width="20" height="20" fill="url(#textureGrad)" opacity="0.6">
+    <animate attributeName="opacity" values="0.6;1;0.6" dur="2s" begin="0.3s" repeatCount="indefinite"/>
+  </rect>
+  <rect x="65" y="15" width="20" height="20" fill="url(#textureGrad)" opacity="0.7">
+    <animate attributeName="opacity" values="0.7;1;0.7" dur="2s" begin="0.6s" repeatCount="indefinite"/>
+  </rect>
+  
+  <rect x="15" y="40" width="20" height="20" fill="url(#textureGrad)" opacity="0.7">
+    <animate attributeName="opacity" values="0.7;1;0.7" dur="2s" begin="0.2s" repeatCount="indefinite"/>
+  </rect>
+  <rect x="40" y="40" width="20" height="20" fill="url(#textureGrad)" opacity="0.9">
+    <animate attributeName="opacity" values="0.9;1;0.9" dur="2s" begin="0.5s" repeatCount="indefinite"/>
+  </rect>
+  <rect x="65" y="40" width="20" height="20" fill="url(#textureGrad)" opacity="0.6">
+    <animate attributeName="opacity" values="0.6;1;0.6" dur="2s" begin="0.8s" repeatCount="indefinite"/>
+  </rect>
+  
+  <rect x="15" y="65" width="20" height="20" fill="url(#textureGrad)" opacity="0.8">
+    <animate attributeName="opacity" values="0.8;1;0.8" dur="2s" begin="0.4s" repeatCount="indefinite"/>
+  </rect>
+  <rect x="40" y="65" width="20" height="20" fill="url(#textureGrad)" opacity="0.7">
+    <animate attributeName="opacity" values="0.7;1;0.7" dur="2s" begin="0.7s" repeatCount="indefinite"/>
+  </rect>
+  <rect x="65" y="65" width="20" height="20" fill="url(#textureGrad)" opacity="0.85">
+    <animate attributeName="opacity" values="0.85;1;0.85" dur="2s" begin="1s" repeatCount="indefinite"/>
+  </rect>
+  
+  <!-- Grid lines -->
+  <line x1="15" y1="35" x2="85" y2="35" stroke="#FFF" stroke-width="1" opacity="0.3"/>
+  <line x1="15" y1="60" x2="85" y2="60" stroke="#FFF" stroke-width="1" opacity="0.3"/>
+  <line x1="35" y1="15" x2="35" y2="85" stroke="#FFF" stroke-width="1" opacity="0.3"/>
+  <line x1="60" y1="15" x2="60" y2="85" stroke="#FFF" stroke-width="1" opacity="0.3"/>
+</svg>

@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <!-- Sort ascending A→Z -->
+  <defs>
+    <linearGradient id="sortAscGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#4CAF50;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#1B5E20;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Arrow -->
+  <line x1="50" y1="70" x2="50" y2="20" stroke="url(#sortAscGrad)" stroke-width="5" stroke-linecap="round">
+    <animate attributeName="y1" values="70;75;70" dur="1s" repeatCount="indefinite"/>
+  </line>
+  <polygon points="50,20 40,30 60,30" fill="url(#sortAscGrad)">
+    <animate attributeName="transform" type="translate" values="0,0; 0,-3; 0,0" dur="1s" repeatCount="indefinite"/>
+  </polygon>
+  
+  <!-- A at bottom -->
+  <text x="25" y="80" font-size="20" font-weight="bold" fill="url(#sortAscGrad)">A</text>
+  
+  <!-- Z at top -->
+  <text x="65" y="30" font-size="20" font-weight="bold" fill="url(#sortAscGrad)">Z</text>
+  
+  <!-- Bars showing sorted order -->
+  <rect x="15" y="35" width="25" height="3" fill="#81C784" opacity="0.6"/>
+  <rect x="15" y="45" width="20" height="3" fill="#81C784" opacity="0.6"/>
+  <rect x="15" y="55" width="15" height="3" fill="#81C784" opacity="0.6"/>
+  <rect x="15" y="65" width="10" height="3" fill="#81C784" opacity="0.6"/>
+</svg>

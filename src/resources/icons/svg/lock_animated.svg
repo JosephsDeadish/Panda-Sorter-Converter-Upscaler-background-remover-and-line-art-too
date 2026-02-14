@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <!-- Lock with shake animation -->
+  <defs>
+    <linearGradient id="lockGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#FF5722;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#BF360C;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Shackle -->
+  <path d="M 40 30 L 40 20 Q 40 10 50 10 Q 60 10 60 20 L 60 30" fill="none" stroke="url(#lockGrad)" stroke-width="6" stroke-linecap="round">
+    <animateTransform attributeName="transform" type="rotate" values="0 50 30; -3 50 30; 3 50 30; 0 50 30" dur="0.5s" repeatCount="indefinite"/>
+  </path>
+  
+  <!-- Lock body -->
+  <rect x="35" y="35" width="30" height="35" fill="url(#lockGrad)" rx="3">
+    <animateTransform attributeName="transform" type="rotate" values="0 50 52.5; -2 50 52.5; 2 50 52.5; 0 50 52.5" dur="0.5s" repeatCount="indefinite"/>
+  </rect>
+  
+  <!-- Keyhole -->
+  <circle cx="50" cy="50" r="4" fill="#263238">
+    <animateTransform attributeName="transform" type="rotate" values="0 50 52.5; -2 50 52.5; 2 50 52.5; 0 50 52.5" dur="0.5s" repeatCount="indefinite"/>
+  </circle>
+  <rect x="48" y="52" width="4" height="8" fill="#263238">
+    <animateTransform attributeName="transform" type="rotate" values="0 50 52.5; -2 50 52.5; 2 50 52.5; 0 50 52.5" dur="0.5s" repeatCount="indefinite"/>
+  </rect>
+  
+  <!-- Lock status light -->
+  <circle cx="50" cy="65" r="2" fill="#FF1744">
+    <animate attributeName="opacity" values="0.5;1;0.5" dur="1s" repeatCount="indefinite"/>
+    <animateTransform attributeName="transform" type="rotate" values="0 50 52.5; -2 50 52.5; 2 50 52.5; 0 50 52.5" dur="0.5s" repeatCount="indefinite"/>
+  </circle>
+</svg>

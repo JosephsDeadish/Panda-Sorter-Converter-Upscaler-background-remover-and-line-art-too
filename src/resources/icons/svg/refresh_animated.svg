@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <!-- Circular refresh arrows -->
+  <defs>
+    <linearGradient id="refreshGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#00BCD4;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#0097A7;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Circular arrow path -->
+  <path d="M 50 20 A 30 30 0 1 1 25 40" fill="none" stroke="url(#refreshGrad)" stroke-width="6" stroke-linecap="round">
+    <animateTransform attributeName="transform" type="rotate" from="0 50 50" to="360 50 50" dur="2s" repeatCount="indefinite"/>
+  </path>
+  
+  <!-- Arrow head 1 -->
+  <polygon points="25,40 20,50 30,47" fill="url(#refreshGrad)">
+    <animateTransform attributeName="transform" type="rotate" from="0 50 50" to="360 50 50" dur="2s" repeatCount="indefinite"/>
+  </polygon>
+  
+  <!-- Second arrow path -->
+  <path d="M 50 80 A 30 30 0 1 1 75 60" fill="none" stroke="url(#refreshGrad)" stroke-width="6" stroke-linecap="round" opacity="0.6">
+    <animateTransform attributeName="transform" type="rotate" from="0 50 50" to="360 50 50" dur="2s" repeatCount="indefinite"/>
+  </path>
+  
+  <!-- Arrow head 2 -->
+  <polygon points="75,60 80,50 70,53" fill="url(#refreshGrad)" opacity="0.6">
+    <animateTransform attributeName="transform" type="rotate" from="0 50 50" to="360 50 50" dur="2s" repeatCount="indefinite"/>
+  </polygon>
+</svg>
