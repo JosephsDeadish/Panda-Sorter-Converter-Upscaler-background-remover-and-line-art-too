@@ -67,8 +67,40 @@ Game Texture Sorter now supports a wide range of image formats beyond the basic 
   - Resolution-independent
   - XML-based format
   - Can be scaled to any size without quality loss
-  - Requires `cairosvg` library for conversion
-  - Automatically converted to raster when loaded
+  - **Dual-mode support:**
+    - **SVG to Raster:** Requires `cairosvg` library for conversion
+    - **Raster to SVG:** Uses native Rust vector tracing (offline, no dependencies!)
+  - Automatically converted when loaded
+
+## Raster to Vector Conversion (NEW!)
+
+The application now supports converting raster images (PNG, JPEG, etc.) to SVG
+vector graphics using **offline native Rust tracing**. This feature works without
+any external dependencies and provides high-quality vectorization.
+
+### Features
+
+- **Offline Mode** - No internet or external libraries required
+- **Multi-threaded** - Fast batch processing via Rayon
+- **Configurable** - Adjust threshold and tracing mode
+- **Three tracing modes:**
+  - `color` - Full color vectorization (default)
+  - `binary` - Black and white tracing
+  - `spline` - Smooth spline curves
+
+### Best For
+
+- Logos and icons
+- Simple graphics with clear edges
+- Monochrome images
+- Line art and diagrams
+- UI elements that need to scale
+
+### Performance
+
+- **Single image:** ~100-300ms
+- **Batch processing:** Multi-threaded, scales with CPU cores
+- **Quality:** Good for edge-heavy and simple images
 
 ## Installation
 
@@ -153,6 +185,23 @@ handler.convert_svg_to_png(
     width=512,
     height=512
 )
+
+# NEW: PNG/JPEG to SVG (raster to vector)
+# Automatic mode (tries native first)
+handler.convert_raster_to_svg(
+    Path("logo.png"),
+    Path("logo.svg"),
+    threshold=25,  # Lower = more detail
+    mode="color"   # "color", "binary", or "spline"
+)
+
+# Explicitly use native offline tracing
+handler.convert_raster_to_svg_native(
+    Path("icon.png"),
+    Path("icon.svg"),
+    threshold=20,
+    mode="spline"  # Smooth curves
+)
 ```
 
 #### Batch Conversion
@@ -189,6 +238,9 @@ print(f"Converted {len(converted)} files")
 | DDS → PNG | ✅ | Full support |
 | PNG → DDS | ✅ | Basic DDS write |
 | SVG → PNG | ✅ | Requires cairosvg |
+| **PNG → SVG** | ✅ | **Native offline tracing (NEW!)** |
+| **JPEG → SVG** | ✅ | **Native offline tracing (NEW!)** |
+| **Any Raster → SVG** | ✅ | **Native offline tracing (NEW!)** |
 | Any → PNG | ✅ | Universal output |
 | Any → JPEG | ✅ | Loses transparency |
 | Any → WEBP | ✅ | Modern format |

@@ -2573,6 +2573,8 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
                 anim = 'walking_right'
             elif facing == 'up':
                 anim = 'walking_up'
+            elif facing == 'down' or facing == 'front':
+                anim = 'walking_down'
             elif facing == 'front_left':
                 anim = 'walking_down_left'
             elif facing == 'front_right':
@@ -3547,7 +3549,17 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
                 # Pivot point depends on what's grabbed:
                 # Legs → pivot at foot (bottom), Arms → pivot at arm (mid), Ears → pivot at ear (top)
                 if is_leg_grab:
-                    pivot_y = int(175 * sy + by)
+                    # Pivot at foot (bottom), but adjust for upside-down rotation
+                    # to prevent body clipping above the foot
+                    base_pivot_y = int(175 * sy + by)
+                    # When hanging upside down (angle ≈ π), offset pivot down
+                    # to account for body extending upward from foot
+                    if abs(angle) > math.pi / 2:
+                        # At 180°, body extends up ~75px from foot, so shift pivot down
+                        upside_down_factor = abs(math.cos(angle))
+                        pivot_y = base_pivot_y + int(75 * sy * upside_down_factor)
+                    else:
+                        pivot_y = base_pivot_y
                 elif self._drag_grab_part in ('left_arm', 'right_arm'):
                     pivot_y = int(100 * sy + by)
                 else:  # ears
@@ -6301,11 +6313,14 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
             else:
                 self._is_being_dragged_on_ground = False
             
-            # If dragged upward (negative velocity), flip upside down
+            # If dragged upward (negative velocity), panda hangs by foot normally
+            # If dragged downward (positive velocity), flip to standing/upright
             if self._toss_velocity_y < -self.UPSIDE_DOWN_VELOCITY_THRESHOLD:
-                self._is_upside_down = True
+                # Dragged upward → hang by foot (upside down is correct orientation)
+                self._is_upside_down = False  # Not inverted when hanging
             elif self._toss_velocity_y > self.UPSIDE_DOWN_VELOCITY_THRESHOLD:
-                self._is_upside_down = False
+                # Dragged downward → try to stand upright
+                self._is_upside_down = True  # Inverted trying to right itself
             
             # Body hangs down from foot (pi = 180° = upside-down) with a
             # small horizontal sway from drag velocity so the body swings

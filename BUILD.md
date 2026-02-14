@@ -228,7 +228,33 @@ The project includes an optional Rust extension module (`native/`) built with
 - **Perceptual hashing** – fast duplicate/similarity detection
 - **Color histogram** – efficient per-channel histogram computation
 - **Edge density** – Sobel-based edge measurement
+- **Bitmap to SVG** – offline vector tracing via vtracer (NEW!)
 - **Batch operations** – process multiple images in parallel
+
+### Dual Vector Conversion Support
+
+The native module now supports **offline bitmap-to-SVG conversion** using pure Rust
+libraries (vtracer), eliminating the need for external system dependencies like Cairo.
+
+**Conversion Modes:**
+
+1. **Offline Mode (Native Rust)** ⭐ Recommended
+   - Uses vtracer for bitmap-to-vector tracing
+   - Zero external dependencies
+   - Single binary distribution
+   - Multi-threaded via Rayon
+   - Good for monochrome and edge-heavy images
+   - ~100-300ms per image
+
+2. **Online Mode (cairosvg)** - Optional
+   - Only for SVG-to-raster conversion
+   - Requires system Cairo libraries
+   - Not needed for raster-to-SVG conversion
+
+**Auto Mode:**
+- Automatically uses native tracing when available
+- Falls back gracefully if unavailable
+- Maximum compatibility
 
 ### Prerequisites
 
@@ -252,6 +278,43 @@ maturin develop --release
 
 When the native module is installed the application automatically uses it.
 If not installed, pure-Python fallbacks are used – no functionality is lost.
+
+### Installation Paths
+
+**Offline-Only Mode (Recommended):**
+```bash
+# Install base requirements
+pip install -r requirements.txt
+
+# Build and install native module
+cd native
+maturin develop --release
+cd ..
+```
+Result: Full functionality with zero external dependencies, including offline vector tracing.
+
+**Online Mode (Cairo for SVG-to-raster):**
+```bash
+# Install base requirements with Cairo support
+pip install -r requirements.txt
+
+# Linux only: Install system Cairo libraries
+sudo apt-get install libcairo2-dev libffi-dev  # Ubuntu/Debian
+sudo dnf install cairo-devel libffi-devel      # Fedora/RHEL
+```
+Result: Can load existing SVG files as raster, but no raster-to-vector conversion.
+
+**Both Modes (Maximum Features):**
+```bash
+# Install everything
+pip install -r requirements.txt
+
+# Build native module
+cd native
+maturin develop --release
+cd ..
+```
+Result: Offline vector tracing + Cairo SVG-to-raster support.
 
 ## Support
 

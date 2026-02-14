@@ -54,12 +54,25 @@ requests>=2.31.0  # HTTP requests for online features
 # OPTIONAL DEPENDENCIES (Enhanced features - gracefully degrade if missing)
 # ============================================================================
 
-# SVG Support (Optional - requires system cairo library on Linux)
+# SVG Support (Optional)
+# ----------------------
+# Two modes available:
+#
+# 1. OFFLINE MODE (Recommended) - Raster to SVG vector tracing
+#    Requires: Native Rust module (build with: cd native && maturin develop --release)
+#    Features: Convert PNG/JPEG to SVG, no external dependencies, fast
+#    Dependencies: None (pure Rust via vtracer)
+#
+# 2. ONLINE MODE (Optional) - SVG to Raster conversion only
+#    Requires: cairosvg + system Cairo libraries
+#    Features: Load existing SVG files as raster images
+#    Dependencies: Listed below
+#
 # Linux: sudo apt-get install libcairo2-dev libffi-dev (Ubuntu/Debian)
 #        sudo dnf install cairo-devel libffi-devel (Fedora/RHEL)
 # macOS: brew install cairo libffi
 # Windows: Works out of the box (bundled libraries)
-cairosvg>=2.7.0  # SVG to raster conversion
+cairosvg>=2.7.0  # SVG to raster conversion (optional, only for loading SVG files)
 cairocffi>=1.6.0  # Cairo FFI bindings (dependency of cairosvg)
 
 # AI/ML - Offline Model Inference (Optional)
