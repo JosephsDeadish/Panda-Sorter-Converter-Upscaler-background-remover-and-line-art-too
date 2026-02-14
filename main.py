@@ -64,6 +64,13 @@ except ImportError:
     print("Warning: UI customization panel not available.")
 
 try:
+    from src.ui.background_remover_panel import BackgroundRemoverPanel
+    BACKGROUND_REMOVER_AVAILABLE = True
+except ImportError:
+    BACKGROUND_REMOVER_AVAILABLE = False
+    print("Warning: Background remover panel not available.")
+
+try:
     from src.features.panda_character import PandaCharacter, PandaGender
     PANDA_CHARACTER_AVAILABLE = True
 except ImportError:
@@ -868,6 +875,8 @@ class GameTextureSorter(ctk.CTk):
         self.tab_profiles = self.tabview.add("🎮 Game Profiles")
         self.tab_notepad = self.tabview.add("📝 Notepad")
         self.tab_upscaler = self.tabview.add("🔍 Image Upscaler")
+        if BACKGROUND_REMOVER_AVAILABLE:
+            self.tab_bg_remover = self.tabview.add("🎭 Background Remover")
         self.tab_about = self.tabview.add("ℹ️ About")
         
         # Features tabview (nested)
@@ -917,11 +926,19 @@ class GameTextureSorter(ctk.CTk):
             self.create_profiles_tab,
             self.create_notepad_tab,
             self.create_upscaler_tab,
+        ]
+        
+        # Conditionally add background remover tab if available
+        if BACKGROUND_REMOVER_AVAILABLE:
+            _all_tab_creators.append(self.create_bg_remover_tab)
+        
+        # Add remaining tabs
+        _all_tab_creators.extend([
             self.create_about_tab,
             self.create_shop_tab,
             self.create_rewards_tab,
             self.create_achievements_tab,
-        ]
+        ])
         if PANDA_CLOSET_AVAILABLE and self.panda_closet:
             _all_tab_creators.append(self.create_closet_tab)
         _all_tab_creators += [
@@ -7749,6 +7766,30 @@ class GameTextureSorter(ctk.CTk):
                     self.save_all_notes()
             else:
                 self.note_textboxes[current_tab].delete("1.0", "end")
+    
+    def create_bg_remover_tab(self):
+        """Create background remover tab with comprehensive features"""
+        try:
+            if BACKGROUND_REMOVER_AVAILABLE:
+                # Create the BackgroundRemoverPanel
+                panel = BackgroundRemoverPanel(self.tab_bg_remover)
+                panel.pack(fill="both", expand=True, padx=10, pady=10)
+                logger.info("Background Remover tab created successfully")
+            else:
+                ctk.CTkLabel(
+                    self.tab_bg_remover,
+                    text="Background Remover not available.\nInstall dependencies with: pip install rembg",
+                    font=("Arial", 14),
+                    text_color="red"
+                ).pack(pady=20)
+        except Exception as e:
+            logger.error(f"Error creating background remover tab: {e}")
+            ctk.CTkLabel(
+                self.tab_bg_remover,
+                text=f"Error loading Background Remover:\n{str(e)}",
+                font=("Arial", 12),
+                text_color="red"
+            ).pack(pady=20)
     
     def create_about_tab(self):
         """Create comprehensive about tab with hotkeys, features, and panda info"""

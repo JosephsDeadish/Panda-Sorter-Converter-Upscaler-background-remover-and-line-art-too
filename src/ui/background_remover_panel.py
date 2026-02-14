@@ -5,19 +5,25 @@ live preview, alpha presets, archive support, and processing queue
 """
 
 import customtkinter as ctk
-from tkinter import filedialog, messagebox
+from tkinter import filedialog, messagebox, Canvas
 from pathlib import Path
 from typing import List, Optional, Callable
 import logging
-from PIL import Image
+from PIL import Image, ImageTk
 import zipfile
 import threading
+import tempfile
 
 from src.tools.background_remover import BackgroundRemover, check_dependencies, AlphaPresets
+from src.tools.object_remover import ObjectRemover
 from src.ui.live_preview_widget import LivePreviewWidget
 from src.ui.archive_queue_widgets import ArchiveSettingsWidget, ProcessingQueue, OutputMode
+from src.utils.archive_handler import ArchiveHandler
 
 logger = logging.getLogger(__name__)
+
+# Supported image file extensions
+IMAGE_EXTENSIONS = {'.png', '.jpg', '.jpeg', '.bmp', '.tiff', '.webp'}
 
 
 class BackgroundRemoverPanel(ctk.CTkFrame):
@@ -29,12 +35,29 @@ class BackgroundRemoverPanel(ctk.CTkFrame):
     def __init__(self, master, **kwargs):
         super().__init__(master, **kwargs)
         
-        # Initialize background remover
+        # Initialize background remover and object remover
         self.remover = BackgroundRemover()
+        self.object_remover = ObjectRemover()
+        self.archive_handler = ArchiveHandler()
         self.selected_files: List[str] = []
         self.output_directory: Optional[str] = None
         self.processing_thread = None
         self.current_preset = None
+        
+        # Mode tracking
+        self.current_mode = "background"  # "background" or "object"
+        
+        # Object remover state
+        self.painting_enabled = False
+        self.eraser_mode = False
+        self.brush_size = 20
+        self.highlight_color = (255, 0, 0)  # Red
+        self.canvas_image = None
+        self.canvas_photo = None
+        self.last_paint_x = None
+        self.last_paint_y = None
+        self.paint_strokes = []  # For undo functionality
+        self.current_stroke = []
         
         self._create_widgets()
         self._check_availability()
@@ -48,7 +71,7 @@ class BackgroundRemoverPanel(ctk.CTkFrame):
         # Title
         title_label = ctk.CTkLabel(
             self,
-            text="🎭 AI Background Remover",
+            text="🎭 AI Background & Object Remover",
             font=("Arial Bold", 18)
         )
         title_label.pack(pady=(10, 5))
@@ -60,6 +83,31 @@ class BackgroundRemoverPanel(ctk.CTkFrame):
             text_color="gray"
         )
         subtitle_label.pack(pady=(0, 10))
+        
+        # Mode Toggle Frame
+        mode_frame = ctk.CTkFrame(self)
+        mode_frame.pack(fill="x", padx=10, pady=5)
+        
+        ctk.CTkLabel(mode_frame, text="Mode:", font=("Arial Bold", 12)).pack(side="left", padx=10, pady=5)
+        
+        self.mode_var = ctk.StringVar(value="background")
+        self.bg_remover_radio = ctk.CTkRadioButton(
+            mode_frame,
+            text="🎭 Background Remover",
+            variable=self.mode_var,
+            value="background",
+            command=self._on_mode_change
+        )
+        self.bg_remover_radio.pack(side="left", padx=5)
+        
+        self.obj_remover_radio = ctk.CTkRadioButton(
+            mode_frame,
+            text="🎯 Object Remover",
+            variable=self.mode_var,
+            value="object",
+            command=self._on_mode_change
+        )
+        self.obj_remover_radio.pack(side="left", padx=5)
         
         # Status frame
         status_frame = ctk.CTkFrame(self)
@@ -85,7 +133,7 @@ class BackgroundRemoverPanel(ctk.CTkFrame):
             btn_frame,
             text="Select Images",
             command=self._select_files,
-            width=150
+            width=120
         )
         self.select_files_btn.pack(side="left", padx=5)
         
@@ -93,15 +141,23 @@ class BackgroundRemoverPanel(ctk.CTkFrame):
             btn_frame,
             text="Select Folder",
             command=self._select_folder,
-            width=150
+            width=120
         )
         self.select_folder_btn.pack(side="left", padx=5)
+        
+        self.select_archive_btn = ctk.CTkButton(
+            btn_frame,
+            text="Select Archive",
+            command=self._select_archive,
+            width=120
+        )
+        self.select_archive_btn.pack(side="left", padx=5)
         
         self.clear_btn = ctk.CTkButton(
             btn_frame,
             text="Clear Selection",
             command=self._clear_selection,
-            width=150,
+            width=120,
             fg_color="gray40"
         )
         self.clear_btn.pack(side="left", padx=5)
@@ -140,14 +196,133 @@ class BackgroundRemoverPanel(ctk.CTkFrame):
         )
         self.output_label.pack(side="left", padx=10)
         
-        # Settings frame
-        settings_frame = ctk.CTkFrame(self)
-        settings_frame.pack(fill="x", padx=10, pady=5)
+        # Object Remover Controls (hidden by default)
+        self.object_controls_frame = ctk.CTkFrame(self)
         
-        ctk.CTkLabel(settings_frame, text="⚙️ Settings:", font=("Arial Bold", 12)).pack(anchor="w", padx=10, pady=(10, 5))
+        ctk.CTkLabel(self.object_controls_frame, text="🎨 Object Remover Tools:", font=("Arial Bold", 12)).pack(anchor="w", padx=10, pady=(10, 5))
+        
+        # Brush controls
+        brush_frame = ctk.CTkFrame(self.object_controls_frame)
+        brush_frame.pack(fill="x", padx=10, pady=5)
+        
+        ctk.CTkLabel(brush_frame, text="Brush Size:", width=100).pack(side="left", padx=5)
+        
+        self.brush_slider = ctk.CTkSlider(
+            brush_frame,
+            from_=5,
+            to=50,
+            number_of_steps=45,
+            command=self._on_brush_size_change
+        )
+        self.brush_slider.set(20)
+        self.brush_slider.pack(side="left", fill="x", expand=True, padx=5)
+        
+        self.brush_size_label = ctk.CTkLabel(brush_frame, text="20px", width=50)
+        self.brush_size_label.pack(side="left", padx=5)
+        
+        # Color picker
+        color_frame = ctk.CTkFrame(self.object_controls_frame)
+        color_frame.pack(fill="x", padx=10, pady=5)
+        
+        ctk.CTkLabel(color_frame, text="Highlight Color:", width=100).pack(side="left", padx=5)
+        
+        self.color_red_btn = ctk.CTkButton(color_frame, text="🔴 Red", command=lambda: self._set_color((255, 0, 0)), width=80)
+        self.color_red_btn.pack(side="left", padx=2)
+        
+        self.color_green_btn = ctk.CTkButton(color_frame, text="🟢 Green", command=lambda: self._set_color((0, 255, 0)), width=80)
+        self.color_green_btn.pack(side="left", padx=2)
+        
+        self.color_blue_btn = ctk.CTkButton(color_frame, text="🔵 Blue", command=lambda: self._set_color((0, 0, 255)), width=80)
+        self.color_blue_btn.pack(side="left", padx=2)
+        
+        self.color_yellow_btn = ctk.CTkButton(color_frame, text="🟡 Yellow", command=lambda: self._set_color((255, 255, 0)), width=80)
+        self.color_yellow_btn.pack(side="left", padx=2)
+        
+        # Tool buttons
+        tool_frame = ctk.CTkFrame(self.object_controls_frame)
+        tool_frame.pack(fill="x", padx=10, pady=5)
+        
+        self.paint_toggle_btn = ctk.CTkButton(
+            tool_frame,
+            text="🖌️ Start Painting",
+            command=self._toggle_painting,
+            width=120
+        )
+        self.paint_toggle_btn.pack(side="left", padx=5)
+        
+        self.eraser_btn = ctk.CTkButton(
+            tool_frame,
+            text="🧹 Eraser",
+            command=self._toggle_eraser,
+            width=100
+        )
+        self.eraser_btn.pack(side="left", padx=5)
+        
+        self.undo_paint_btn = ctk.CTkButton(
+            tool_frame,
+            text="↶ Undo",
+            command=self._undo_paint_stroke,
+            width=80
+        )
+        self.undo_paint_btn.pack(side="left", padx=5)
+        
+        self.redo_paint_btn = ctk.CTkButton(
+            tool_frame,
+            text="↷ Redo",
+            command=self._redo_paint_stroke,
+            width=80,
+            state="disabled"  # Not yet implemented
+        )
+        self.redo_paint_btn.pack(side="left", padx=5)
+        
+        self.clear_mask_btn = ctk.CTkButton(
+            tool_frame,
+            text="🗑️ Clear All",
+            command=self._clear_mask,
+            width=100,
+            fg_color="gray40"
+        )
+        self.clear_mask_btn.pack(side="left", padx=5)
+        
+        # Remove object button
+        remove_btn_frame = ctk.CTkFrame(self.object_controls_frame)
+        remove_btn_frame.pack(fill="x", padx=10, pady=5)
+        
+        self.remove_object_btn = ctk.CTkButton(
+            remove_btn_frame,
+            text="🎯 Remove Highlighted Object",
+            command=self._remove_object,
+            height=35,
+            font=("Arial Bold", 12),
+            fg_color="#DC2626",
+            hover_color="#991B1B"
+        )
+        self.remove_object_btn.pack(fill="x", padx=5, pady=5)
+        
+        self.undo_removal_btn = ctk.CTkButton(
+            remove_btn_frame,
+            text="↶ Undo Removal",
+            command=self._undo_removal,
+            width=150
+        )
+        self.undo_removal_btn.pack(side="left", padx=5)
+        
+        self.redo_removal_btn = ctk.CTkButton(
+            remove_btn_frame,
+            text="↷ Redo Removal",
+            command=self._redo_removal,
+            width=150
+        )
+        self.redo_removal_btn.pack(side="left", padx=5)
+        
+        # Settings frame (for background remover mode)
+        self.bg_settings_frame = ctk.CTkFrame(self)
+        self.bg_settings_frame.pack(fill="x", padx=10, pady=5)
+        
+        ctk.CTkLabel(self.bg_settings_frame, text="⚙️ Settings:", font=("Arial Bold", 12)).pack(anchor="w", padx=10, pady=(10, 5))
         
         # Alpha Preset Selection
-        preset_frame = ctk.CTkFrame(settings_frame)
+        preset_frame = ctk.CTkFrame(self.bg_settings_frame)
         preset_frame.pack(fill="x", padx=10, pady=5)
         
         ctk.CTkLabel(preset_frame, text="🎯 Alpha Preset:", width=120).pack(side="left", padx=5)
@@ -175,7 +350,7 @@ class BackgroundRemoverPanel(ctk.CTkFrame):
         
         # Preset description
         self.preset_desc_label = ctk.CTkLabel(
-            settings_frame,
+            self.bg_settings_frame,
             text="",
             font=("Arial", 9),
             text_color="gray",
@@ -188,7 +363,7 @@ class BackgroundRemoverPanel(ctk.CTkFrame):
         self._on_preset_change("Gaming Assets")
         
         # Edge refinement slider
-        edge_frame = ctk.CTkFrame(settings_frame)
+        edge_frame = ctk.CTkFrame(self.bg_settings_frame)
         edge_frame.pack(fill="x", padx=10, pady=5)
         
         ctk.CTkLabel(edge_frame, text="Edge Refinement:", width=120).pack(side="left", padx=5)
@@ -207,7 +382,7 @@ class BackgroundRemoverPanel(ctk.CTkFrame):
         self.edge_value_label.pack(side="left", padx=5)
         
         # Model selection
-        model_frame = ctk.CTkFrame(settings_frame)
+        model_frame = ctk.CTkFrame(self.bg_settings_frame)
         model_frame.pack(fill="x", padx=10, pady=5)
         
         ctk.CTkLabel(model_frame, text="🤖 AI Model:", width=120).pack(side="left", padx=5)
@@ -224,7 +399,7 @@ class BackgroundRemoverPanel(ctk.CTkFrame):
         # Alpha matting checkbox
         self.alpha_matting_var = ctk.BooleanVar(value=False)
         self.alpha_matting_check = ctk.CTkCheckBox(
-            settings_frame,
+            self.bg_settings_frame,
             text="✨ Enable Alpha Matting (Better edges, slower)",
             variable=self.alpha_matting_var,
             command=self._update_preview
@@ -303,7 +478,7 @@ class BackgroundRemoverPanel(ctk.CTkFrame):
         
         if deps['rembg']:
             self.status_label.configure(
-                text="✓ AI Background Removal Available",
+                text="✓ AI Background & Object Removal Available",
                 text_color="green"
             )
         else:
@@ -314,9 +489,96 @@ class BackgroundRemoverPanel(ctk.CTkFrame):
             self.process_btn.configure(state="disabled")
             self.select_files_btn.configure(state="disabled")
             self.select_folder_btn.configure(state="disabled")
+            self.select_archive_btn.configure(state="disabled")
         
         if not deps['opencv']:
             logger.warning("OpenCV not available - advanced edge refinement disabled")
+    
+    def _on_mode_change(self):
+        """Handle mode toggle between background and object remover."""
+        mode = self.mode_var.get()
+        self.current_mode = mode
+        
+        if mode == "background":
+            # Show background remover settings
+            self.bg_settings_frame.pack(fill="x", padx=10, pady=5)
+            self.object_controls_frame.pack_forget()
+            # Update preview function
+            self.preview.set_processing_function(self._process_preview_image)
+        else:
+            # Show object remover controls
+            self.bg_settings_frame.pack_forget()
+            self.object_controls_frame.pack(fill="x", padx=10, pady=5)
+            # Update preview to show mask overlay
+            if self.selected_files:
+                self._load_image_for_object_removal(self.selected_files[0])
+    
+    def _select_archive(self):
+        """Open file dialog to select an archive."""
+        archive = filedialog.askopenfilename(
+            title="Select Archive",
+            filetypes=[
+                ("Archive files", "*.zip *.7z *.rar *.tar.gz *.tar *.tgz"),
+                ("All files", "*.*")
+            ]
+        )
+        
+        if archive:
+            archive_path = Path(archive)
+            
+            # Check if it's a valid archive
+            if not self.archive_handler.is_archive(archive_path):
+                messagebox.showerror("Invalid Archive", "The selected file is not a supported archive format.")
+                return
+            
+            # Extract archive to temp directory
+            self.progress_label.configure(text="Extracting archive...")
+            self.progress_bar.set(0.5)
+            
+            def extract_archive():
+                try:
+                    extract_dir = self.archive_handler.extract_archive(
+                        archive_path,
+                        progress_callback=self._on_archive_progress
+                    )
+                    
+                    if extract_dir:
+                        # Find all images in extracted directory
+                        self.selected_files = [
+                            str(f) for f in extract_dir.rglob('*')
+                            if f.suffix.lower() in IMAGE_EXTENSIONS
+                        ]
+                        
+                        self._update_file_list()
+                        self.progress_label.configure(
+                            text=f"Extracted {len(self.selected_files)} images from archive",
+                            text_color="green"
+                        )
+                        self.progress_bar.set(1.0)
+                        
+                        # Load first file for preview
+                        if self.selected_files:
+                            self.preview.load_image(self.selected_files[0])
+                    else:
+                        self.progress_label.configure(
+                            text="Failed to extract archive",
+                            text_color="red"
+                        )
+                        self.progress_bar.set(0)
+                        
+                except Exception as e:
+                    logger.error(f"Error extracting archive: {e}")
+                    messagebox.showerror("Extraction Error", f"Failed to extract archive: {e}")
+                    self.progress_bar.set(0)
+            
+            thread = threading.Thread(target=extract_archive, daemon=True)
+            thread.start()
+    
+    def _on_archive_progress(self, current: int, total: int, filename: str):
+        """Handle archive extraction progress."""
+        progress = current / total if total > 0 else 0
+        self.progress_bar.set(progress)
+        self.progress_label.configure(text=f"Extracting {current}/{total}: {filename}")
     
     def _select_files(self):
         """Open file dialog to select images."""
@@ -341,10 +603,9 @@ class BackgroundRemoverPanel(ctk.CTkFrame):
         
         if folder:
             folder_path = Path(folder)
-            image_extensions = {'.png', '.jpg', '.jpeg', '.bmp', '.tiff', '.webp'}
             self.selected_files = [
                 str(f) for f in folder_path.iterdir()
-                if f.suffix.lower() in image_extensions
+                if f.suffix.lower() in IMAGE_EXTENSIONS
             ]
             self._update_file_list()
             # Load first file for preview
@@ -638,6 +899,202 @@ class BackgroundRemoverPanel(ctk.CTkFrame):
         self.remover.cancel_processing()
         self.progress_label.configure(text="Cancelling...")
         self.cancel_btn.configure(state="disabled")
+    
+    # ========== Object Remover Methods ==========
+    
+    def _load_image_for_object_removal(self, image_path: str):
+        """Load image for object removal mode."""
+        if self.object_remover.load_image(image_path):
+            # Show preview with mask overlay
+            self._update_object_preview()
+    
+    def _update_object_preview(self):
+        """Update preview with mask overlay for object remover."""
+        if self.current_mode != "object":
+            return
+        
+        overlay = self.object_remover.get_mask_overlay(
+            color=self.highlight_color,
+            alpha=128
+        )
+        
+        if overlay:
+            self.preview.update_processed(overlay)
+    
+    def _on_brush_size_change(self, value):
+        """Handle brush size slider change."""
+        self.brush_size = int(value)
+        self.brush_size_label.configure(text=f"{self.brush_size}px")
+    
+    def _set_color(self, color):
+        """Set the highlight color."""
+        self.highlight_color = color
+        self._update_object_preview()
+    
+    def _is_canvas_available(self) -> bool:
+        """Check if preview canvas is available for painting."""
+        return hasattr(self.preview, 'canvas') and self.preview.canvas is not None
+    
+    def _toggle_painting(self):
+        """Toggle painting mode on/off."""
+        self.painting_enabled = not self.painting_enabled
+        
+        if self.painting_enabled:
+            self.paint_toggle_btn.configure(text="🖌️ Stop Painting", fg_color="#DC2626")
+            # Bind canvas events for painting
+            if self._is_canvas_available():
+                self.preview.canvas.bind("<B1-Motion>", self._on_paint_drag)
+                self.preview.canvas.bind("<Button-1>", self._on_paint_click)
+                self.preview.canvas.bind("<ButtonRelease-1>", self._on_paint_release)
+        else:
+            self.paint_toggle_btn.configure(text="🖌️ Start Painting", fg_color="#3B82F6")
+            # Unbind canvas events
+            if self._is_canvas_available():
+                self.preview.canvas.unbind("<B1-Motion>")
+                self.preview.canvas.unbind("<Button-1>")
+                self.preview.canvas.unbind("<ButtonRelease-1>")
+    
+    def _toggle_eraser(self):
+        """Toggle eraser mode."""
+        self.eraser_mode = not self.eraser_mode
+        
+        if self.eraser_mode:
+            self.eraser_btn.configure(text="🖌️ Paint", fg_color="#DC2626")
+        else:
+            self.eraser_btn.configure(text="🧹 Eraser", fg_color="#3B82F6")
+    
+    def _on_paint_click(self, event):
+        """Handle paint click."""
+        if not self.painting_enabled or self.current_mode != "object":
+            return
+        
+        self.last_paint_x = event.x
+        self.last_paint_y = event.y
+        self.current_stroke = [(event.x, event.y)]
+        
+        # Paint at click position
+        self.object_remover.paint_mask(event.x, event.y, self.brush_size, self.eraser_mode)
+        self._update_object_preview()
+    
+    def _on_paint_drag(self, event):
+        """Handle paint drag."""
+        if not self.painting_enabled or self.current_mode != "object":
+            return
+        
+        if self.last_paint_x is not None and self.last_paint_y is not None:
+            # Paint stroke from last position to current
+            points = [(self.last_paint_x, self.last_paint_y), (event.x, event.y)]
+            self.object_remover.paint_mask_stroke(points, self.brush_size, self.eraser_mode)
+            self.current_stroke.append((event.x, event.y))
+        
+        self.last_paint_x = event.x
+        self.last_paint_y = event.y
+        self._update_object_preview()
+    
+    def _on_paint_release(self, event):
+        """Handle paint release - save stroke for undo."""
+        if hasattr(self, 'current_stroke') and self.current_stroke:
+            self.paint_strokes.append({
+                'points': self.current_stroke.copy(),
+                'brush_size': self.brush_size,
+                'eraser': self.eraser_mode,
+                'mask': self.object_remover.mask.copy() if self.object_remover.mask else None
+            })
+        
+        self.last_paint_x = None
+        self.last_paint_y = None
+        self.current_stroke = []
+    
+    def _undo_paint_stroke(self):
+        """Undo last paint stroke."""
+        if self.paint_strokes:
+            # Remove last stroke
+            stroke = self.paint_strokes.pop()
+            # Restore previous mask state if available
+            if len(self.paint_strokes) > 0:
+                prev_stroke = self.paint_strokes[-1]
+                prev_mask = prev_stroke.get('mask')
+                if prev_mask and hasattr(prev_mask, 'copy'):
+                    try:
+                        self.object_remover.mask = prev_mask.copy()
+                    except (AttributeError, TypeError):
+                        logger.warning("Failed to copy mask, clearing instead")
+                        self.object_remover.clear_mask()
+            else:
+                # Clear mask if no strokes left
+                self.object_remover.clear_mask()
+            
+            self._update_object_preview()
+    
+    def _redo_paint_stroke(self):
+        """Redo paint stroke (not yet fully implemented)."""
+        # TODO: Implement proper redo stack for paint strokes
+        # Would require maintaining separate undo and redo stacks
+        self.progress_label.configure(
+            text="Redo for paint strokes not yet implemented",
+            text_color="gray"
+        )
+    
+    def _clear_mask(self):
+        """Clear all mask painting."""
+        self.object_remover.clear_mask()
+        self.paint_strokes.clear()
+        self._update_object_preview()
+    
+    def _remove_object(self):
+        """Remove the highlighted object."""
+        if self.current_mode != "object":
+            return
+        
+        if not self.selected_files:
+            messagebox.showwarning("No Image", "Please load an image first.")
+            return
+        
+        # Show progress
+        self.progress_label.configure(text="Removing object...")
+        self.progress_bar.set(0.5)
+        
+        def remove_object():
+            try:
+                success = self.object_remover.remove_object()
+                
+                if success:
+                    # Update preview with result
+                    self._update_object_preview()
+                    self.progress_label.configure(
+                        text="Object removed successfully!",
+                        text_color="green"
+                    )
+                    self.progress_bar.set(1.0)
+                else:
+                    self.progress_label.configure(
+                        text="Failed to remove object",
+                        text_color="red"
+                    )
+                    self.progress_bar.set(0)
+            except Exception as e:
+                logger.error(f"Error removing object: {e}")
+                messagebox.showerror("Error", f"Failed to remove object: {e}")
+                self.progress_bar.set(0)
+        
+        thread = threading.Thread(target=remove_object, daemon=True)
+        thread.start()
+    
+    def _undo_removal(self):
+        """Undo last object removal."""
+        if self.object_remover.undo():
+            self._update_object_preview()
+            self.progress_label.configure(text="Undone last removal", text_color="white")
+        else:
+            messagebox.showinfo("Cannot Undo", "No more actions to undo.")
+    
+    def _redo_removal(self):
+        """Redo object removal."""
+        if self.object_remover.redo():
+            self._update_object_preview()
+            self.progress_label.configure(text="Redone removal", text_color="white")
+        else:
+            messagebox.showinfo("Cannot Redo", "No more actions to redo.")
 
 
 def open_background_remover_dialog(parent=None):
