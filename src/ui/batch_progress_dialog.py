@@ -12,6 +12,9 @@ from datetime import datetime, timedelta
 
 logger = logging.getLogger(__name__)
 
+# Constants
+BYTES_PER_MB = 1024 * 1024
+
 try:
     import customtkinter as ctk
     import tkinter as tk
@@ -436,14 +439,14 @@ class BatchProgressDialog:
         if not self.storage_label:
             return
         
-        processed_mb = self.processed_size_bytes / (1024 * 1024)
+        processed_mb = self.processed_size_bytes / BYTES_PER_MB
         
         # Estimate output size based on scale factor (rough estimate)
         # This will be refined when we know the actual scale factor
         if self.processed_files > 0 and self.total_files > 0:
             avg_size_per_file = self.processed_size_bytes / self.processed_files
             estimated_total = avg_size_per_file * self.total_files
-            estimated_mb = estimated_total / (1024 * 1024)
+            estimated_mb = estimated_total / BYTES_PER_MB
             estimated_str = f"{estimated_mb:.1f} MB"
         else:
             estimated_str = "Calculating..."

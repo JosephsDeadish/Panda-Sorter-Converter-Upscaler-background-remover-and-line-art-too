@@ -1,24 +1,18 @@
-"""
-Documentation: Batch Upscaling Improvements
+# Batch Upscaling Workflow Improvements
 
 This document describes the improvements made to the batch upscaling workflow.
-"""
-
-# NEW FEATURES IMPLEMENTED:
 
 ## 1. Multi-Folder Queue Support
-"""
+
 Users can now add multiple folders to a processing queue:
 - Click "➕ Add Folder to Queue" to add folders one by one
 - Each folder in the queue is displayed with its name and a remove button (❌)
 - The queue is processed sequentially during batch upscaling
 - Clear the entire queue with the "🗑️ Clear Queue" button
 
-UI Location: Between the Input and Output sections in the Upscaler tab
-"""
+**UI Location**: Between the Input and Output sections in the Upscaler tab
 
 ## 2. Enhanced Batch Progress Dialog (900x600px)
-"""
 When batch upscaling starts, a new modal dialog appears with:
 
 TOP SECTION - Title:
@@ -54,10 +48,10 @@ Key Features:
 - Cancel with proper cleanup (button disabled during cancellation)
 - Modal dialog that prevents interaction with main window
 - Centered on parent window
-"""
+
 
 ## 3. Recursive Folder Handling with Sub-folder Tracking
-"""
+
 When recursive mode is enabled (📁 Include Subdirectories checkbox):
 - All subdirectories are scanned and processed
 - Progress dialog shows the current subfolder path relative to the main folder
@@ -67,10 +61,10 @@ When recursive mode is enabled (📁 Include Subdirectories checkbox):
   Shows: Folder: /textures/characters
          Subfolder: main/face
          File: eyes.png
-"""
+
 
 ## 4. Time and Storage Estimates
-"""
+
 Before processing begins:
 - All folders are scanned to count total files
 - Input file sizes are calculated
@@ -83,10 +77,10 @@ Before processing begins:
 During processing:
 - Estimates update dynamically as files are processed
 - Accuracy improves as more files are completed
-"""
+
 
 ## 5. Pause/Resume Functionality
-"""
+
 Users can pause the batch operation at any time:
 - Click "⏸ Pause" button
 - Current file completes processing, then operation pauses
@@ -100,10 +94,10 @@ Implementation:
 - Uses a boolean flag (is_paused) checked between each file
 - Worker thread sleeps while paused
 - Cancel still works while paused
-"""
+
 
 ## 6. Corrected Stop Behavior
-"""
+
 New cancel functionality:
 - Click "❌ Cancel" button in progress dialog
 - Sets is_cancelled flag to true
@@ -119,19 +113,19 @@ Improvements over old behavior:
 - Clear feedback that cancellation is in progress
 - No partial operations (ZIP/organizer) after cancel
 - Thread-safe cancellation
-"""
+
 
 ## 7. Overwrite Option
-"""
+
 Already existed in UI, now fully functional:
 - Checkbox: ♻️ Overwrite existing
 - When unchecked: Existing output files are skipped with "⏭️" indicator
 - When checked: Existing output files are overwritten
 - Skipped files are counted separately in statistics
-"""
+
 
 ## 8. Multi-Folder Output Structure
-"""
+
 When processing multiple folders from the queue:
 - Each folder's output is organized under its folder name
 - Example:
@@ -142,12 +136,12 @@ When processing multiple folders from the queue:
 Single folder mode (input field):
 - Output files go directly to output folder
 - Preserves subdirectory structure
-"""
+
 
 ## UI IMPROVEMENTS:
 
 ### Folder Queue Section (NEW)
-"""
+
 Location: Between Input and Output sections
 Components:
 - Header: "Folder Queue:" (Bold, Arial 12)
@@ -159,10 +153,10 @@ Components:
   * Folder name
   * Remove button (❌)
 - Empty state message when queue is empty
-"""
+
 
 ### Progress Dialog Layout (NEW)
-"""
+
 Size: 900x600 pixels (wider than before for better text readability)
 Modal: Yes (grabs focus, prevents main window interaction)
 Position: Centered on parent window
@@ -180,21 +174,21 @@ All text uses appropriate wrapping (wraplength=800) for long paths
 Color coding:
 - Pause button: Orange (#FFA500, hover #FF8C00)
 - Cancel button: Red (#B22222, hover #8B0000)
-"""
+
 
 ## CODE STRUCTURE:
 
 ### New Files:
-"""
+
 src/ui/batch_progress_dialog.py (524 lines)
 - BatchProgressDialog class
 - Methods for updating all UI elements
 - Helper methods for formatting paths, durations, sizes
 - Callback system for pause/resume/cancel
-"""
+
 
 ### Modified Files:
-"""
+
 main.py:
 - Import BatchProgressDialog
 - Add folder queue UI components (lines ~2074-2100)
@@ -205,7 +199,7 @@ main.py:
   * Progress dialog integration
   * Pause/resume/cancel logic
   * Enhanced error handling and cleanup
-"""
+
 
 ## TESTING CHECKLIST:
 

@@ -213,6 +213,10 @@ except ImportError:
     ALPHA_CORRECTION_AVAILABLE = False
     print("Warning: Alpha correction not available.")
 
+# Constants for batch upscaling
+BYTES_PER_MB = 1024 * 1024
+PAUSE_CHECK_INTERVAL = 0.1  # seconds
+
 
 class SplashScreen:
     """Splash screen with panda logo and loading animation"""
@@ -2916,7 +2920,7 @@ class GameTextureSorter(ctk.CTk):
                 
                 total_files = len(all_files)
                 self._upscale_log(f"Found {total_files} image(s) across {len(folders_to_process)} folder(s)")
-                self._upscale_log(f"Total size: {total_size_bytes / (1024*1024):.1f} MB")
+                self._upscale_log(f"Total size: {total_size_bytes / BYTES_PER_MB:.1f} MB")
                 self._upscale_log(f"Scale: {factor}x, Style: {style}, Overwrite: {overwrite}")
                 
                 if progress_dialog:
@@ -2945,7 +2949,7 @@ class GameTextureSorter(ctk.CTk):
                     
                     # Check for pause
                     while is_paused and not is_cancelled:
-                        time.sleep(0.1)
+                        time.sleep(PAUSE_CHECK_INTERVAL)
                     
                     try:
                         # Update progress dialog
