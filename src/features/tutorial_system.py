@@ -41,7 +41,13 @@ _PANDA_TOOLTIPS = {
             "Sort this sh*t out. Literally. That's what the button does.",
             "Time to unfuck your texture directory structure.",
             "Click here unless you enjoy chaos and madness.",
-            "Make your textures less of a clusterfuck with one click."
+            "Make your textures less of a clusterfuck with one click.",
+            "SORT BUTTON. Big green button. Does sorting. Why are you still reading?",
+            "Press this and watch the panda do all the work. You're welcome.",
+            "One click and your textures go from dumpster fire to organized perfection.",
+            "Sort textures faster than you can say 'why didn't I do this sooner.'",
+            "The magic 'make my mess disappear' button. You're basically a wizard now.",
+            "Hit sort and go grab a coffee. The panda's got this."
         ]
     },
     'convert_button': {
@@ -59,7 +65,13 @@ _PANDA_TOOLTIPS = {
             "Magic button that transforms textures. No rabbits or hats required.",
             "Because apparently your textures are in the wrong goddamn format.",
             "Click to unfuck your texture formats.",
-            "Convert or die. Well, not die. But your project might."
+            "Convert or die. Well, not die. But your project might.",
+            "Format conversion: because game engines are picky little b*stards.",
+            "Press convert and let the panda handle the rest. Go touch grass.",
+            "Convert button. Turns format A into format B. It's not philosophy.",
+            "Batch conversion go brrr. All your textures, all at once.",
+            "This button converts formats. Not feelings. We don't do therapy here.",
+            "File conversion: making your textures speak the right language."
         ]
     },
     'settings_button': {
@@ -77,7 +89,13 @@ _PANDA_TOOLTIPS = {
             "Click here if you're picky about how things work. We don't judge.",
             "Configure this bad boy to your heart's content.",
             "Mess with settings until something breaks. Then undo.",
-            "For control freaks and perfectionists. You know who you are."
+            "For control freaks and perfectionists. You know who you are.",
+            "Open settings. Where the magic happens. Or at least the configuring.",
+            "⚙️ Settings panel. Tweak every knob. Flip every switch. Go ham.",
+            "Configure app behavior. The panda's got options for your options.",
+            "Settings: because one size does NOT fit all. Especially yours.",
+            "Open preferences. Customize this app into oblivion if you want.",
+            "Click here to access all the settings you'll change once and forget about."
         ]
     },
     'file_selection': {
@@ -413,14 +431,18 @@ _PANDA_TOOLTIPS = {
             "Navigate to your texture input folder"
         ],
         'vulgar': [
-            "Find your damn texture folder. It's somewhere on that hard drive.",
-            "Browse for input. Like Tinder but for file directories.",
-            "Point me to your textures, you beautiful disaster.",
-            "Navigate the digital jungle to find your texture stash.",
-            "Show me where the goods are. The texture goods.",
-            "Pick a folder. It's not that deep. Well, maybe it is.",
-            "File browsing: the Windows Explorer safari adventure.",
-            "Where'd you put those textures? Let's go find out."
+            "Find your damn INPUT texture folder. It's somewhere on that hard drive.",
+            "Browse for the INPUT folder. Like Tinder but for file directories.",
+            "Point me to your source textures, you beautiful disaster.",
+            "Navigate the digital jungle to find your INPUT texture stash.",
+            "Show me where the source goods are. The texture goods.",
+            "Pick an INPUT folder. It's not that deep. Well, maybe it is.",
+            "Source folder browsing: the Windows Explorer safari adventure.",
+            "Where'd you put those source textures? Let's go find out.",
+            "INPUT folder selector. That's the folder WITH the textures, genius.",
+            "Browse for source textures. The ones you want to sort. Obviously.",
+            "Find your input directory. The panda believes in you. Barely.",
+            "Pick the folder you want processed. Not the output. The INPUT."
         ]
     },
     'output_browse': {
@@ -432,14 +454,18 @@ _PANDA_TOOLTIPS = {
             "Choose the output location for sorted textures"
         ],
         'vulgar': [
-            "Where do you want this organized mess dumped?",
-            "Pick a destination. The textures need a new home.",
-            "Choose wisely. This is where the magic ends up.",
-            "Output folder. Where dreams of organization become reality.",
+            "Where do you want this organized mess dumped? Pick an OUTPUT folder.",
+            "Pick an OUTPUT destination. The textures need a new home.",
+            "Choose wisely. This is where the sorted OUTPUT ends up.",
+            "OUTPUT folder. Where dreams of organization become reality.",
             "Select where to yeet your sorted textures.",
-            "Destination please! Like an Uber but for files.",
-            "Where should I put this sh*t? Literally your call.",
-            "Pick an output or I'll choose your desktop. Don't test me."
+            "OUTPUT destination please! Like an Uber but for files.",
+            "Where should I put this sorted sh*t? Literally your call.",
+            "Pick an OUTPUT folder or I'll choose your desktop. Don't test me.",
+            "OUTPUT directory. Where your beautifully sorted textures will live.",
+            "Choose the OUTPUT folder. Not the input. OUTPUT. The result goes here.",
+            "Browse for an output destination. The panda needs an address.",
+            "Pick where the sorted results go. This is the OUTPUT selector."
         ]
     },
     'detect_duplicates': {
@@ -575,36 +601,48 @@ _PANDA_TOOLTIPS = {
             "Choose a folder to browse its contents"
         ],
         'vulgar': [
-            "Pick a folder. Any folder. Let's see what's inside.",
-            "Browse button. Because typing paths is for masochists.",
+            "Pick a folder to browse. Any folder. Let's see what's inside.",
+            "Browse folder button. Because typing paths is for masochists.",
             "Point me to your files. I'll judge them.",
-            "Folder picker. Navigate your digital hoarding."
+            "Folder picker. Navigate your digital hoarding.",
+            "Open the folder browser. The panda wants to snoop through your textures.",
+            "Browse for a directory. The panda is a professional folder-opener.",
+            "Select a directory to browse. Like window shopping but for files.",
+            "Folder browsing: for when you need to see ALL the textures."
         ]
     },
     'browser_refresh_button': {
         'normal': [
-            "Refresh the file list to show current directory contents",
+            "Refresh the file browser list to show current directory contents",
             "Reload the current directory listing",
             "Update the file browser display"
         ],
         'vulgar': [
-            "Refresh. In case something magically changed.",
+            "Refresh file list. In case something magically changed.",
             "Hit refresh like you're checking your ex's profile.",
-            "Reload. Because maybe it's different this time. (It's not.)",
-            "F5 energy in button form."
+            "Reload the file browser. Because maybe it's different this time. (It's not.)",
+            "F5 energy in button form. Refresh the file listing.",
+            "Refresh the browser. New files? Updated files? Only one way to find out.",
+            "Smash refresh. The panda loves watching the file list reload.",
+            "Refresh button. For the impatient and the hopeful.",
+            "Reload file listing. Trust no cache."
         ]
     },
     'browser_search': {
         'normal': [
             "Search for files by name in the current directory",
             "Filter displayed files by search term",
-            "Type to find specific files"
+            "Type to find specific files in the file browser"
         ],
         'vulgar': [
-            "Find your damn files. Type something.",
-            "Search bar. For when you can't find sh*t.",
-            "Like Google but for your messy folder.",
-            "Ctrl+F vibes. Find that needle in the haystack."
+            "Find your damn files. Type something in the search box.",
+            "Search bar. For when you can't find sh*t in the file browser.",
+            "Like Google but for your messy texture folder.",
+            "Ctrl+F vibes. Find that needle in the texture haystack.",
+            "Type to filter files. The panda pre-filters the results for you.",
+            "Search files by name. Or by content if smart search is on.",
+            "File search. Because scrolling through 20,000 files is not a hobby.",
+            "Find files faster. The search box is your friend. Use it."
         ]
     },
     'browser_show_all': {
@@ -617,7 +655,11 @@ _PANDA_TOOLTIPS = {
             "Show EVERYTHING. Even the weird files.",
             "All files mode. Including your shame.",
             "Toggle this to see non-texture files too.",
-            "Show all. Because you're nosy like that."
+            "Show all. Because you're nosy like that.",
+            "All file types visible. Textures, configs, your secret diary.",
+            "Show every file. The panda doesn't discriminate by extension.",
+            "Unfiltered file listing. See ALL the things.",
+            "Show all files checkbox. Remove the texture-only filter."
         ]
     },
     'browser_show_archives': {
@@ -631,7 +673,11 @@ _PANDA_TOOLTIPS = {
             "Show those zipped-up files too. Unzip them mentally.",
             "Archives in the list. Because why not complicate things.",
             "Toggle this to see ZIP/RAR/7Z files. You hoarder.",
-            "Show archives. For when regular files aren't enough chaos."
+            "Show archives. For when regular files aren't enough chaos.",
+            "Show archive files in the browser. ZIP, RAR, 7Z, the whole gang.",
+            "Toggle archives on. Because you need to see those compressed files too.",
+            "Show archive checkbox. The panda sees your compressed secrets.",
+            "Display archives alongside textures. The more files, the merrier."
         ]
     },
     'alpha_fix_button': {
@@ -1731,20 +1777,32 @@ _PANDA_TOOLTIPS = {
             "Hit it! Time to blow up those pixels like a panda sitting on bubblewrap.",
             "Upscale button: because your textures called and they want more pixels.",
             "Click to embiggen. Yes, embiggen. The panda said it, deal with it.",
+            "Big green UPSCALE button. You know what it does. Just press it.",
+            "Start batch upscaling. Your GPU is about to earn its keep.",
+            "Make textures bigger. That's the whole job description of this button.",
+            "Click to start the pixel multiplication party. Confetti not included.",
+            "Upscale everything! The panda believes in your texture enhancement journey.",
+            "Enlarge those bad boys. The panda supports all forms of pixel growth.",
+            "🔍 UPSCALE 🔍 — It says it right on the button, what more do you need?",
+            "Time to make those textures thicc. Click upscale. Now."
         ]
     },
     'upscale_input': {
         'normal': [
-            "Select the folder containing images to upscale",
-            "Browse for the input directory with your source textures",
-            "Choose which folder of textures to upscale",
-            "Pick the directory with images you want to enlarge",
+            "Select the INPUT folder containing images to upscale",
+            "Browse for the upscaler INPUT directory with your source textures",
+            "Choose which folder of source textures to upscale",
+            "Pick the INPUT directory with images you want to enlarge",
         ],
         'vulgar': [
-            "Point me to the sad little textures that need a growth spurt.",
-            "Select the folder of shame — er, I mean 'source images.'",
-            "Where are the tiny textures? Show the panda where they hide.",
-            "Pick a folder. Any folder. As long as it has pictures in it, genius.",
+            "Point me to the sad little INPUT textures that need a growth spurt.",
+            "Select the INPUT folder of shame — er, I mean 'source images.'",
+            "Where are the tiny textures? Show the panda the INPUT folder where they hide.",
+            "Pick an INPUT folder. Any folder. As long as it has pictures in it, genius.",
+            "INPUT folder for upscaling. The panda needs to see the before pics.",
+            "Browse for the source folder. These textures about to get SWOLE.",
+            "Select your INPUT directory. The pixelated victims— I mean, textures.",
+            "Show me the INPUT folder. The panda promises to make them bigger. And better.",
         ]
     },
     'upscale_zip_input': {
@@ -1754,37 +1812,50 @@ _PANDA_TOOLTIPS = {
             "Choose a ZIP file with textures to enlarge",
         ],
         'vulgar': [
-            "Got a ZIP? Unzip it with your mind. Just kidding, click the button.",
+            "Got a ZIP? Unzip it with your mind. Just kidding, click the damn button.",
             "Select a ZIP full of tiny textures. The panda will unpack the rest.",
             "ZIP input: for when your textures are all bundled up like a panda burrito.",
+            "Pick a ZIP archive. The panda loves unwrapping presents.",
+            "ZIP file of textures to upscale. Compressed sadness, incoming.",
+            "Select a compressed archive. The panda's got a PhD in unzipping.",
+            "Browse for a ZIP. Because apparently someone zipped their texture folder.",
+            "ZIP input selector. The panda unpacks, upscales, and delivers. Full service.",
         ]
     },
     'upscale_output': {
         'normal': [
-            "Select where upscaled images will be saved",
-            "Choose the output directory for enlarged textures",
-            "Pick the destination folder for your upscaled files",
-            "Browse for the folder to save upscaled results",
+            "Select where upscaled images will be saved (OUTPUT folder)",
+            "Choose the OUTPUT directory for enlarged textures",
+            "Pick the destination OUTPUT folder for your upscaled files",
+            "Browse for the OUTPUT folder to save upscaled results",
         ],
         'vulgar': [
-            "Where should the beefy new textures go? Pick a folder, any folder.",
-            "Output folder: the new home for your freshly inflated pixels.",
-            "Choose a destination. Preferably not the recycling bin this time.",
-            "Select output. The panda needs to know where to dump the goods.",
+            "Where should the beefy new OUTPUT textures go? Pick a folder, any folder.",
+            "OUTPUT folder: the new home for your freshly inflated pixels.",
+            "Choose an OUTPUT destination. Preferably not the recycling bin this time.",
+            "Select OUTPUT. The panda needs to know where to dump the goods.",
+            "Pick the OUTPUT folder. Where the big boy textures will live.",
+            "OUTPUT directory for the upscaled results. Not input. OUTPUT.",
+            "Choose where to save the beefy results. This is your OUTPUT selector.",
+            "Browse for an OUTPUT folder. The enlarged textures gotta go somewhere.",
         ]
     },
     'upscale_factor': {
         'normal': [
-            "Choose the scale multiplier: 2x, 4x, or 8x enlargement",
-            "Set how much to enlarge your textures (2x, 4x, or 8x)",
+            "Choose the scale multiplier: 2x, 3x, 4x, 6x, 8x, or 16x enlargement",
+            "Set how much to enlarge your textures",
             "Select the upscale factor for your images",
             "Pick the size multiplier for the upscaling operation",
         ],
         'vulgar': [
-            "How big? 2x for polite, 4x for serious, 8x for absolute madlad.",
-            "Scale factor: the 'how chonky do you want it' slider.",
+            "How big? 2x for polite, 4x for serious, 8x for absolute madlad, 16x for insanity.",
+            "Scale factor: the 'how chonky do you want it' selector.",
             "Pick your multiplier. The panda recommends 8x because go big or go home.",
-            "2x is fine, 4x is better, 8x is what a true panda connoisseur picks.",
+            "2x is fine, 4x is better, 8x is beast, 16x is 'I have a NASA computer.'",
+            "Scale factor picker. The bigger the number, the longer you wait. Worth it though.",
+            "How much zoom do you need? 2x for normal humans, 16x for madlads.",
+            "Upscale multiplier. More = bigger = slower = better. Math.",
+            "Pick your poison: 2x (quick), 4x (solid), 8x (premium), 16x (why not?).",
         ]
     },
     'upscale_style': {
@@ -1797,11 +1868,16 @@ _PANDA_TOOLTIPS = {
             "Lanczos: fancy. Bicubic: also fancy. Nearest: pixel art vibes. Choose wisely.",
             "Resample filter: the math behind making your textures look less potato.",
             "Pick a filter. The panda recommends Lanczos because it sounds like a pasta.",
+            "Upscale style/algorithm. Each one makes your pixels pretty in a different way.",
+            "Filter selection. Lanczos = sharp, Bicubic = smooth, Box = chunky. You're welcome.",
+            "Choose your upscaling algorithm. They all work. Some just work fancier.",
+            "Resample filter picker. Nerds call it interpolation. Pandas call it 'make it bigger.'",
+            "Style selector: Lanczos (chef's kiss), Bilinear (budget), ESRGAN (AI flex).",
         ]
     },
     'upscale_format': {
         'normal': [
-            "Choose the export format: PNG, BMP, JPEG, or TIFF",
+            "Choose the export format: PNG, BMP, JPEG, TIFF, or DDS",
             "Select the output file format for upscaled textures",
             "Pick which image format to save the upscaled results as",
         ],
@@ -1809,6 +1885,11 @@ _PANDA_TOOLTIPS = {
             "PNG for the pros, BMP for the old school, JPEG for the chaos agents.",
             "Export format: choose your fighter. PNG is the panda's favorite.",
             "Pick a format. If you pick JPEG, the panda will judge you silently.",
+            "Output format selector. PNG = quality, JPEG = compression, DDS = gamer.",
+            "Choose your format. Wrong answer: JPEG with alpha. Don't even try.",
+            "File format picker. The panda recommends PNG. The panda is always right.",
+            "Export as what? PNG (safe), JPEG (lossy), DDS (gamer), TIFF (nerd).",
+            "Format dropdown. All options valid except maybe JPEG. The panda has trust issues.",
         ]
     },
     'upscale_alpha': {
@@ -1821,6 +1902,11 @@ _PANDA_TOOLTIPS = {
             "Keep your transparency! Unlike the panda, who has nothing to hide.",
             "Alpha channel: so your textures stay see-through where they should be.",
             "Preserve alpha. Because nobody wants surprise opaque pixels.",
+            "Transparency preservation checkbox. Keeps the invisible parts invisible.",
+            "Alpha on = transparency survives upscaling. Alpha off = solid pixels only.",
+            "Keep alpha intact. The panda respects your transparent boundaries.",
+            "Preserve RGBA alpha channel. Sounds fancy. It is. Check it.",
+            "Toggle alpha preservation. On = see-through stays see-through. Simple.",
         ]
     },
     'upscale_recursive': {
@@ -1845,6 +1931,11 @@ _PANDA_TOOLTIPS = {
             "ZIP it up! Literally. The panda loves a tidy package.",
             "Compress output into a ZIP. Marie Kondo would be proud.",
             "Save as ZIP: because 500 loose files spark zero joy.",
+            "Bundle everything into a ZIP. Neater than your desktop.",
+            "ZIP output checkbox. The panda says 'pack it up, people.'",
+            "Compress results to ZIP. Share-friendly, storage-friendly, panda-approved.",
+            "Make a ZIP of the output. Because folders are so last century.",
+            "ZIP it, zip it good. *doo doo doo doo doo doo doo*",
         ]
     },
     'upscale_send_organizer': {
@@ -1857,6 +1948,11 @@ _PANDA_TOOLTIPS = {
             "Yeet the results straight to the organizer. Efficiency, baby!",
             "Send to organizer: one-click pipeline. The panda approves this workflow.",
             "Auto-send to sorting. Because copy-pasting paths is for peasants.",
+            "Forward to organizer automatically. The lazy person's dream.",
+            "Send straight to the sort tab. No middleman. Pure automation.",
+            "Auto-route to organizer. The panda runs a tight operation.",
+            "Pipeline this straight to sorting. Upscale → organize → profit.",
+            "Send to organizer when done. The textures have places to be.",
         ]
     },
     'upscale_preview': {
@@ -1871,6 +1967,10 @@ _PANDA_TOOLTIPS = {
             "Test drive on a single file. Smart move, unlike that 8x JPEG idea.",
             "Preview: because the panda believes in 'try before you cry.'",
             "See what happens to ONE texture before you commit to the whole batch.",
+            "Preview button. The responsible choice. Rare for you.",
+            "Test your settings first. The panda appreciates caution for once.",
+            "Before/after preview. Proof that bigger is (usually) better.",
+            "Preview one file. Because yolo-ing a batch upscale is a bad idea.",
         ]
     },
     'upscale_fb_good': {
@@ -1883,6 +1983,11 @@ _PANDA_TOOLTIPS = {
             "Thumbs up! The panda is pleased with your pixel approval.",
             "Good upscale! Give it a gold star. The panda is beaming.",
             "Click if the upscale doesn't look like it was done by a drunk panda.",
+            "Results look good? Smash that like button. Wait, wrong platform.",
+            "Positive feedback! The upscaling gods are pleased.",
+            "Good quality rating. The panda takes a bow.",
+            "Click 👍 if the pixels look sexy. The panda's words, not mine.",
+            "Looks good? Let us know! The panda lives for positive reinforcement.",
         ]
     },
     'upscale_fb_bad': {
@@ -1895,6 +2000,11 @@ _PANDA_TOOLTIPS = {
             "Boo! Thumbs down! The panda shares your disappointment.",
             "Bad upscale? Let us know so we can cry about it together.",
             "Click if the result looks worse than a panda's fingerpainting.",
+            "Results look like garbage? Hit the sad button. We'll try harder.",
+            "Negative feedback. The panda hangs head in shame.",
+            "Bad quality? Ouch. Try a different filter, maybe?",
+            "Thumbs down. The panda will consider this a learning experience.",
+            "Looks terrible? Rate it. The panda uses this data to improve. Allegedly.",
         ]
     },
     'panda_sound_eat': {
@@ -2623,6 +2733,180 @@ _PANDA_TOOLTIPS = {
             "E button uses stairs. Up or down, doesn't matter. Just press it.",
             "Stair navigation. Press E when on stairs. Boom. New floor. Done.",
             "E key = level transition. Stand on stairs and press E. That's it.",
+            "Press E on stairs. What are you, new here? It's called a staircase.",
+            "Going up? Going down? Don't care. Just press E on the stairs.",
+            "Stairs + E = new floor. I swear this ain't calculus.",
+        ]
+    },
+    # --- Missing button tooltips ---
+    'notepad_new': {
+        'normal': [
+            "Create a new note in the notepad",
+            "Add a fresh note to your collection",
+            "Start a brand new note",
+        ],
+        'vulgar': [
+            "New note. Because your brain can't remember sh*t on its own.",
+            "Create a note. Revolutionary concept, writing things down.",
+            "Click here to pretend you're organized by taking notes.",
+            "New note. The digital equivalent of a Post-it on your monitor.",
+            "Start a note. Maybe this time you'll actually read it later.",
+            "Brain full? Dump it in a note. The panda won't judge.",
+            "Jot something down before your goldfish memory kicks in.",
+            "Another note. Your notepad is becoming a novel at this point.",
+        ]
+    },
+    'notepad_save': {
+        'normal': [
+            "Save all notes to disk",
+            "Persist your notes so they survive app restarts",
+            "Write all notes to the save file",
+        ],
+        'vulgar': [
+            "Save your notes. Unless you want them to vanish into the void.",
+            "Hit save before the universe conspires to crash your app.",
+            "Save all notes. Because trusting RAM is like trusting a fart.",
+            "Click save or cry later. Your choice, champ.",
+            "Persist those beautiful thoughts. Or whatever gibberish you wrote.",
+            "CTRL+S energy in button form. You know you need it.",
+            "Save notes. The panda's seen too many lost masterpieces.",
+            "Don't be that person who loses everything. Just save it.",
+        ]
+    },
+    'notepad_delete': {
+        'normal': [
+            "Delete the currently selected note",
+            "Remove this note permanently",
+            "Discard the selected note",
+        ],
+        'vulgar': [
+            "Delete this note. It served its purpose. Or didn't. Whatever.",
+            "Yeet this note into oblivion. No take-backsies.",
+            "Kill this note dead. Rest in pixels.",
+            "Delete. Gone. Poof. Like it never existed.",
+            "Nuke this note from orbit. It's the only way to be sure.",
+            "Permanently erase this note. Hope it wasn't important!",
+            "Trash this note. The recycle bin won't save you here.",
+            "Say goodbye to this note. *plays taps on tiny trumpet*",
+        ]
+    },
+    'open_sound_settings': {
+        'normal': [
+            "Open the sound settings panel",
+            "Configure audio and sound effects",
+            "Adjust volume and sound preferences",
+        ],
+        'vulgar': [
+            "Open sound settings. Turn stuff up, turn stuff down, go wild.",
+            "Audio tweaking time. Make the panda louder or shut him up.",
+            "Sound settings. For when the panda's noises are too much. Or not enough.",
+            "Configure your audio. Volume knobs for everything, basically.",
+            "Sound settings. Because not everyone wants to hear the panda fart.",
+            "Tweak the audio. DJ Panda in the house.",
+            "Adjust sounds. The panda's got opinions about volume levels.",
+            "Open sounds panel. Warning: the panda may judge your music taste.",
+        ]
+    },
+    'open_customization': {
+        'normal': [
+            "Open the advanced UI customization panel",
+            "Access themes, colors, cursors, and sound settings",
+            "Customize the look and feel of the application",
+        ],
+        'vulgar': [
+            "Open customization. Make this app look like YOUR garbage, not ours.",
+            "Advanced customization. For the aesthetically obsessed.",
+            "Themes, colors, cursors — the whole cosmetic surgery toolkit.",
+            "Customize everything. The panda supports your artistic vision.",
+            "Make it pretty. Or ugly. We don't kink-shame UI preferences.",
+            "Open the beauty salon for your app. Makeover time.",
+            "Advanced settings for advanced nerds. No offense. Okay, some offense.",
+            "Pimp your UI. The panda's seen worse taste, probably.",
+        ]
+    },
+    'save_settings': {
+        'normal': [
+            "Save all current settings and preferences",
+            "Persist your configuration changes to disk",
+            "Write settings to the configuration file",
+        ],
+        'vulgar': [
+            "Save settings. Unless you enjoy reconfiguring everything. Every. Single. Time.",
+            "Hit save or lose your precious settings. The choice is stupidly obvious.",
+            "Save your settings before something catastrophic happens.",
+            "Persist that config. Your future self will thank your current self.",
+            "Save it. SAVE IT. The panda is begging you.",
+            "Click save or enjoy the default experience next time. Your funeral.",
+            "Save settings to disk. Not to the cloud. We're not that fancy.",
+            "Settings saved = peace of mind. Settings not saved = chaos.",
+        ]
+    },
+    'open_logs_dir': {
+        'normal': [
+            "Open the application logs directory in your file manager",
+            "Browse to the folder containing log files",
+            "Navigate to where log files are stored",
+        ],
+        'vulgar': [
+            "Open logs folder. For when you need to prove the app isn't lying.",
+            "Browse logs directory. CSI: Texture Edition.",
+            "Find the log files. Because debugging is just fancy detective work.",
+            "Open logs. Warning: may contain more info than you wanted.",
+            "Logs directory. Where the app confesses all its sins.",
+            "View log files. The app's diary, essentially.",
+            "Open the logs folder. Spoiler: it's mostly stack traces.",
+            "Dig through logs. The digital equivalent of dumpster diving.",
+        ]
+    },
+    'open_config_dir': {
+        'normal': [
+            "Open the configuration directory in your file manager",
+            "Browse to the folder containing config files",
+            "Navigate to the application configuration location",
+        ],
+        'vulgar': [
+            "Open config folder. Where all your preferences live rent-free.",
+            "Browse to the config directory. Touch nothing unless you know what you're doing.",
+            "Config files directory. Modify at your own risk, cowboy.",
+            "Open the config folder. Here be dragons (and JSON files).",
+            "Find your config. For when the UI settings aren't enough chaos.",
+            "Config directory. One wrong edit and boom, factory reset time.",
+            "Browse config files. The app's DNA, basically. Don't mutate it.",
+            "Open config folder. The panda takes no responsibility for manual edits.",
+        ]
+    },
+    'open_cache_dir': {
+        'normal': [
+            "Open the application cache directory in your file manager",
+            "Browse to the folder containing cached data",
+            "Navigate to where temporary cache files are stored",
+        ],
+        'vulgar': [
+            "Open cache folder. It's like the app's junk drawer.",
+            "Browse the cache. Spoiler: it's mostly thumbnails and regret.",
+            "Cache directory. Where old data goes to die... slowly.",
+            "Open cache. The app's version of shoving things under the bed.",
+            "Find the cache folder. Delete it if you're feeling dangerous.",
+            "Cache files. Temporary in theory, permanent in practice.",
+            "Browse cache. The digital equivalent of your browser history.",
+            "Open cache directory. Warning: it's bigger than you think.",
+        ]
+    },
+    'browser_smart_search': {
+        'normal': [
+            "Enable smart search to find textures by content type, not just filename",
+            "Smart search uses AI categories to match textures by what they depict",
+            "Search by content: type 'gun' to find weapon textures even if filenames differ",
+        ],
+        'vulgar': [
+            "Smart search ON. Now finding textures by what they actually are. Revolutionary.",
+            "Turn on the big brain search. It knows what a gun texture looks like.",
+            "Smart search: because filenames lie but pixels don't.",
+            "Enable AI-powered search. The panda went to college for this.",
+            "Smart search. Like Google, but for your messy texture folder.",
+            "Turn this on and type 'gun' — boom, weapon textures appear. Magic.",
+            "Big brain search mode. Matches by content, not some random filename.",
+            "Smart search: for when whoever named these textures was drunk.",
         ]
     },
 }
