@@ -15,6 +15,15 @@ from src.tools.batch_renamer import BatchRenamer, RenamePattern
 
 logger = logging.getLogger(__name__)
 
+# Try to import SVG icon helper
+try:
+    from src.utils.svg_icon_helper import load_icon
+    SVG_ICONS_AVAILABLE = True
+except ImportError:
+    load_icon = None
+    SVG_ICONS_AVAILABLE = False
+    logger.warning("SVG icons not available for Batch Rename Panel")
+
 # Try to import tooltip system
 try:
     from src.features.tutorial_system import WidgetTooltip
@@ -72,26 +81,41 @@ class BatchRenamePanel(ctk.CTkFrame):
         btn_frame = ctk.CTkFrame(files_frame, fg_color="transparent")
         btn_frame.pack(fill="x", padx=10, pady=5)
         
-        ctk.CTkButton(
+        select_files_btn = ctk.CTkButton(
             btn_frame,
             text="➕ Select Images",
             command=self._select_files,
             width=150
-        ).pack(side="left", padx=5)
+        )
+        if SVG_ICONS_AVAILABLE:
+            icon = load_icon("file_open_animated", (20, 20))
+            if icon:
+                select_files_btn.configure(image=icon, compound="left")
+        select_files_btn.pack(side="left", padx=5)
         
-        ctk.CTkButton(
+        select_folder_btn = ctk.CTkButton(
             btn_frame,
             text="📂 Select Folder",
             command=self._select_folder,
             width=150
-        ).pack(side="left", padx=5)
+        )
+        if SVG_ICONS_AVAILABLE:
+            icon = load_icon("folder_open_animated", (20, 20))
+            if icon:
+                select_folder_btn.configure(image=icon, compound="left")
+        select_folder_btn.pack(side="left", padx=5)
         
-        ctk.CTkButton(
+        clear_btn = ctk.CTkButton(
             btn_frame,
             text="🗑️ Clear",
             command=self._clear_files,
             width=100
-        ).pack(side="left", padx=5)
+        )
+        if SVG_ICONS_AVAILABLE:
+            icon = load_icon("trash_empty_animated", (20, 20))
+            if icon:
+                clear_btn.configure(image=icon, compound="left")
+        clear_btn.pack(side="left", padx=5)
         
         self.file_count_label = ctk.CTkLabel(
             files_frame,
@@ -234,12 +258,17 @@ class BatchRenamePanel(ctk.CTkFrame):
             font=("Arial", 12, "bold")
         ).pack(side="left", padx=10)
         
-        ctk.CTkButton(
+        preview_btn = ctk.CTkButton(
             preview_header,
             text="🔄 Generate Preview",
             command=self._generate_preview,
             width=150
-        ).pack(side="left", padx=5)
+        )
+        if SVG_ICONS_AVAILABLE:
+            icon = load_icon("syncing_animated", (20, 20))
+            if icon:
+                preview_btn.configure(image=icon, compound="left")
+        preview_btn.pack(side="left", padx=5)
         
         # Preview textbox (scrollable)
         self.preview_text = ctk.CTkTextbox(
@@ -253,7 +282,7 @@ class BatchRenamePanel(ctk.CTkFrame):
         action_frame = ctk.CTkFrame(self, fg_color="transparent")
         action_frame.pack(fill="x", padx=10, pady=10)
         
-        ctk.CTkButton(
+        rename_btn = ctk.CTkButton(
             action_frame,
             text="✅ Rename Files",
             command=self._rename_files,
@@ -261,15 +290,25 @@ class BatchRenamePanel(ctk.CTkFrame):
             hover_color="darkgreen",
             width=150,
             height=40
-        ).pack(side="left", padx=5)
+        )
+        if SVG_ICONS_AVAILABLE:
+            icon = load_icon("file_rename_animated", (24, 24))
+            if icon:
+                rename_btn.configure(image=icon, compound="left")
+        rename_btn.pack(side="left", padx=5)
         
-        ctk.CTkButton(
+        undo_btn = ctk.CTkButton(
             action_frame,
             text="↩️ Undo Last Rename",
             command=self._undo_rename,
             width=150,
             height=40
-        ).pack(side="left", padx=5)
+        )
+        if SVG_ICONS_AVAILABLE:
+            icon = load_icon("arrow_left_animated", (20, 20))
+            if icon:
+                undo_btn.configure(image=icon, compound="left")
+        undo_btn.pack(side="left", padx=5)
         
         # Progress bar
         self.progress = ctk.CTkProgressBar(self)

@@ -17,6 +17,15 @@ except ImportError:
 
 logger = logging.getLogger(__name__)
 
+# Try to import SVG icon helper
+try:
+    from src.utils.svg_icon_helper import load_icon
+    SVG_ICONS_AVAILABLE = True
+except ImportError:
+    load_icon = None
+    SVG_ICONS_AVAILABLE = False
+    logger.warning("SVG icons not available for Image Repair Panel")
+
 # Try to import tooltip system
 try:
     from src.features.tutorial_system import WidgetTooltip
@@ -93,6 +102,10 @@ class ImageRepairPanel(ctk.CTkFrame):
             command=self._select_files,
             width=120
         )
+        if SVG_ICONS_AVAILABLE:
+            icon = load_icon("file_open_animated", (20, 20))
+            if icon:
+                self.select_files_btn.configure(image=icon, compound="left")
         self.select_files_btn.pack(side="left", padx=5)
         
         self.select_folder_btn = ctk.CTkButton(
@@ -101,6 +114,10 @@ class ImageRepairPanel(ctk.CTkFrame):
             command=self._select_folder,
             width=120
         )
+        if SVG_ICONS_AVAILABLE:
+            icon = load_icon("folder_open_animated", (20, 20))
+            if icon:
+                self.select_folder_btn.configure(image=icon, compound="left")
         self.select_folder_btn.pack(side="left", padx=5)
         
         self.clear_btn = ctk.CTkButton(
@@ -109,6 +126,10 @@ class ImageRepairPanel(ctk.CTkFrame):
             command=self._clear_files,
             width=80
         )
+        if SVG_ICONS_AVAILABLE:
+            icon = load_icon("trash_empty_animated", (18, 18))
+            if icon:
+                self.clear_btn.configure(image=icon, compound="left")
         self.clear_btn.pack(side="left", padx=5)
         
         self.file_count_label = ctk.CTkLabel(
@@ -137,6 +158,10 @@ class ImageRepairPanel(ctk.CTkFrame):
             command=self._select_output_dir,
             width=150
         )
+        if SVG_ICONS_AVAILABLE:
+            icon = load_icon("folder_open_animated", (20, 20))
+            if icon:
+                self.output_dir_btn.configure(image=icon, compound="left")
         self.output_dir_btn.pack(side="left", padx=5)
         
         self.output_dir_label = ctk.CTkLabel(
