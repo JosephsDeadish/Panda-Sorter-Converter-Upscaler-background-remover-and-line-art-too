@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="64" height="64" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+    <!-- Battery charging with smooth fill -->
+    <defs>
+        <linearGradient id="battGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" style="stop-color:#4CAF50;stop-opacity:1" />
+            <stop offset="100%" style="stop-color:#8BC34A;stop-opacity:1" />
+        </linearGradient>
+    </defs>
+    
+    <!-- Battery outline -->
+    <rect x="15" y="35" width="60" height="30" fill="none" stroke="#607D8B" stroke-width="3" rx="5"/>
+    
+    <!-- Battery tip -->
+    <rect x="75" y="45" width="8" height="10" fill="#607D8B" rx="2"/>
+    
+    <!-- Battery fill (animated) -->
+    <rect x="20" y="40" width="5" height="20" fill="url(#battGrad)" rx="2">
+        <animate attributeName="width" values="5;50;5" dur="3s" repeatCount="indefinite"
+                 calcMode="spline" keySplines="0.42 0 0.58 1; 0.42 0 0.58 1"/>
+    </rect>
+    
+    <!-- Lightning bolt (charging indicator) -->
+    <polygon points="45,42 40,50 45,50 42,58 50,48 45,48 48,42" fill="#FFD700" opacity="0.8">
+        <animate attributeName="opacity" values="0.8;1;0.8" dur="1s" repeatCount="indefinite"/>
+    </polygon>
+    
+    <!-- Energy particles -->
+    <circle cx="25" cy="45" r="2" fill="#FFD700" opacity="0">
+        <animate attributeName="cx" values="25;65;25" dur="2s" repeatCount="indefinite"
+                 calcMode="spline" keySplines="0.42 0 0.58 1; 0.42 0 0.58 1"/>
+        <animate attributeName="opacity" values="0;1;0" dur="2s" repeatCount="indefinite"/>
+    </circle>
+    <circle cx="25" cy="55" r="2" fill="#FFD700" opacity="0">
+        <animate attributeName="cx" values="25;65;25" dur="2s" begin="0.5s" repeatCount="indefinite"
+                 calcMode="spline" keySplines="0.42 0 0.58 1; 0.42 0 0.58 1"/>
+        <animate attributeName="opacity" values="0;1;0" dur="2s" begin="0.5s" repeatCount="indefinite"/>
+    </circle>
+</svg>

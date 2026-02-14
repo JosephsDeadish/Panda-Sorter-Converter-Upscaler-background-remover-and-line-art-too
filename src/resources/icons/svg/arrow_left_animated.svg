@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="64" height="64" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+    <!-- Arrow left with smooth motion -->
+    <defs>
+        <linearGradient id="arrowLGrad" x1="100%" y1="0%" x2="0%" y2="0%">
+            <stop offset="0%" style="stop-color:#2196F3;stop-opacity:0.5" />
+            <stop offset="100%" style="stop-color:#2196F3;stop-opacity:1" />
+        </linearGradient>
+    </defs>
+    
+    <!-- Arrow shaft -->
+    <line x1="80" y1="50" x2="30" y2="50" stroke="url(#arrowLGrad)" stroke-width="5" stroke-linecap="round">
+        <animate attributeName="x1" values="80;75;80" dur="1.5s" repeatCount="indefinite"
+                 calcMode="spline" keySplines="0.42 0 0.58 1; 0.42 0 0.58 1"/>
+        <animate attributeName="x2" values="30;25;30" dur="1.5s" repeatCount="indefinite"
+                 calcMode="spline" keySplines="0.42 0 0.58 1; 0.42 0 0.58 1"/>
+    </line>
+    
+    <!-- Arrow head -->
+    <polygon points="30,40 15,50 30,60" fill="#2196F3">
+        <animate attributeName="transform" values="translate(0,0); translate(-5,0); translate(0,0)" 
+                 dur="1.5s" repeatCount="indefinite"
+                 calcMode="spline" keySplines="0.42 0 0.58 1; 0.42 0 0.58 1"/>
+    </polygon>
+    
+    <!-- Trail effect -->
+    <circle cx="70" cy="50" r="3" fill="#2196F3" opacity="0">
+        <animate attributeName="cx" values="70;20;70" dur="1.5s" repeatCount="indefinite"
+                 calcMode="spline" keySplines="0.42 0 0.58 1; 0.42 0 0.58 1"/>
+        <animate attributeName="opacity" values="0;0.6;0" dur="1.5s" repeatCount="indefinite"/>
+    </circle>
+</svg>

@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="64" height="64" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+    <!-- Processing with smooth flowing circles -->
+    <defs>
+        <linearGradient id="procGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" style="stop-color:#9C27B0;stop-opacity:1" />
+            <stop offset="100%" style="stop-color:#E1BEE7;stop-opacity:1" />
+        </linearGradient>
+    </defs>
+    
+    <!-- Processing bar container -->
+    <rect x="15" y="45" width="70" height="10" fill="none" stroke="#9C27B0" stroke-width="2" rx="5"/>
+    
+    <!-- Moving particles -->
+    <circle cx="20" cy="50" r="4" fill="url(#procGrad)">
+        <animate attributeName="cx" values="20;80;20" dur="2s" repeatCount="indefinite"
+                 calcMode="spline" keySplines="0.42 0 0.58 1; 0.42 0 0.58 1"/>
+        <animate attributeName="opacity" values="0.3;1;0.3" dur="2s" repeatCount="indefinite"
+                 calcMode="spline" keySplines="0.42 0 0.58 1; 0.42 0 0.58 1"/>
+    </circle>
+    <circle cx="20" cy="50" r="4" fill="url(#procGrad)">
+        <animate attributeName="cx" values="20;80;20" dur="2s" begin="0.4s" repeatCount="indefinite"
+                 calcMode="spline" keySplines="0.42 0 0.58 1; 0.42 0 0.58 1"/>
+        <animate attributeName="opacity" values="0.3;1;0.3" dur="2s" begin="0.4s" repeatCount="indefinite"
+                 calcMode="spline" keySplines="0.42 0 0.58 1; 0.42 0 0.58 1"/>
+    </circle>
+    <circle cx="20" cy="50" r="4" fill="url(#procGrad)">
+        <animate attributeName="cx" values="20;80;20" dur="2s" begin="0.8s" repeatCount="indefinite"
+                 calcMode="spline" keySplines="0.42 0 0.58 1; 0.42 0 0.58 1"/>
+        <animate attributeName="opacity" values="0.3;1;0.3" dur="2s" begin="0.8s" repeatCount="indefinite"
+                 calcMode="spline" keySplines="0.42 0 0.58 1; 0.42 0 0.58 1"/>
+    </circle>
+    
+    <!-- Glow effect -->
+    <circle cx="50" cy="50" r="8" fill="#9C27B0" opacity="0">
+        <animate attributeName="opacity" values="0;0.4;0" dur="1s" repeatCount="indefinite"/>
+        <animate attributeName="r" values="8;15;8" dur="1s" repeatCount="indefinite"
+                 calcMode="spline" keySplines="0.42 0 0.58 1; 0.42 0 0.58 1"/>
+    </circle>
+</svg>

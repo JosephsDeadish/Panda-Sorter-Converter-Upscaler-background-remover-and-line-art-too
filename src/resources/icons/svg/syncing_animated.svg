@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="64" height="64" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+    <!-- Syncing with smooth circular arrows -->
+    <defs>
+        <linearGradient id="syncGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" style="stop-color:#4CAF50;stop-opacity:1" />
+            <stop offset="100%" style="stop-color:#1B5E20;stop-opacity:1" />
+        </linearGradient>
+    </defs>
+    
+    <!-- Circular path 1 (clockwise) -->
+    <path d="M 50 15 A 35 35 0 1 1 15 50" fill="none" stroke="url(#syncGrad)" stroke-width="4" stroke-linecap="round">
+        <animateTransform attributeName="transform" type="rotate" 
+                          from="0 50 50" to="360 50 50" dur="2s" repeatCount="indefinite"/>
+        <animate attributeName="stroke-dasharray" values="0 220; 110 110; 0 220" dur="2s" repeatCount="indefinite"
+                 calcMode="spline" keySplines="0.42 0 0.58 1; 0.42 0 0.58 1"/>
+    </path>
+    
+    <!-- Arrow head 1 -->
+    <polygon points="15,50 10,45 10,55" fill="url(#syncGrad)">
+        <animateTransform attributeName="transform" type="rotate" 
+                          from="0 50 50" to="360 50 50" dur="2s" repeatCount="indefinite"/>
+    </polygon>
+    
+    <!-- Circular path 2 (counter-clockwise) -->
+    <path d="M 50 85 A 35 35 0 1 1 85 50" fill="none" stroke="url(#syncGrad)" stroke-width="4" stroke-linecap="round" opacity="0.6">
+        <animateTransform attributeName="transform" type="rotate" 
+                          from="360 50 50" to="0 50 50" dur="2s" repeatCount="indefinite"/>
+        <animate attributeName="stroke-dasharray" values="0 220; 110 110; 0 220" dur="2s" repeatCount="indefinite"
+                 calcMode="spline" keySplines="0.42 0 0.58 1; 0.42 0 0.58 1"/>
+    </path>
+    
+    <!-- Arrow head 2 -->
+    <polygon points="85,50 90,45 90,55" fill="url(#syncGrad)" opacity="0.6">
+        <animateTransform attributeName="transform" type="rotate" 
+                          from="360 50 50" to="0 50 50" dur="2s" repeatCount="indefinite"/>
+    </polygon>
+    
+    <!-- Center pulse -->
+    <circle cx="50" cy="50" r="8" fill="#4CAF50" opacity="0.4">
+        <animate attributeName="r" values="8;12;8" dur="1s" repeatCount="indefinite"
+                 calcMode="spline" keySplines="0.42 0 0.58 1; 0.42 0 0.58 1"/>
+        <animate attributeName="opacity" values="0.4;0.1;0.4" dur="1s" repeatCount="indefinite"
+                 calcMode="spline" keySplines="0.42 0 0.58 1; 0.42 0 0.58 1"/>
+    </circle>
+</svg>

@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="64" height="64" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+    <!-- Converting/transforming with morphing shapes -->
+    <defs>
+        <linearGradient id="convertGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" style="stop-color:#FF5722;stop-opacity:1" />
+            <stop offset="100%" style="stop-color:#D32F2F;stop-opacity:1" />
+        </linearGradient>
+    </defs>
+    
+    <!-- Left shape (square to circle) -->
+    <rect x="15" y="35" width="25" height="25" fill="url(#convertGrad)" opacity="0.8" rx="3">
+        <animate attributeName="rx" values="3;12;3" dur="3s" repeatCount="indefinite"
+                 calcMode="spline" keySplines="0.42 0 0.58 1; 0.42 0 0.58 1"/>
+        <animate attributeName="opacity" values="0.8;0.3;0.8" dur="3s" repeatCount="indefinite"
+                 calcMode="spline" keySplines="0.42 0 0.58 1; 0.42 0 0.58 1"/>
+    </rect>
+    
+    <!-- Right shape (circle to square) -->
+    <rect x="60" y="35" width="25" height="25" fill="url(#convertGrad)" opacity="0.8" rx="12">
+        <animate attributeName="rx" values="12;3;12" dur="3s" repeatCount="indefinite"
+                 calcMode="spline" keySplines="0.42 0 0.58 1; 0.42 0 0.58 1"/>
+        <animate attributeName="opacity" values="0.3;0.8;0.3" dur="3s" repeatCount="indefinite"
+                 calcMode="spline" keySplines="0.42 0 0.58 1; 0.42 0 0.58 1"/>
+    </rect>
+    
+    <!-- Connecting arrows -->
+    <g opacity="0.7">
+        <path d="M 42 44 L 58 44" stroke="#FF5722" stroke-width="3" stroke-linecap="round" marker-end="url(#arrowhead)"/>
+        <path d="M 58 54 L 42 54" stroke="#FF5722" stroke-width="3" stroke-linecap="round" marker-end="url(#arrowhead)"/>
+        
+        <!-- Animated arrow markers -->
+        <polygon points="55,44 59,42 59,46" fill="#FF5722">
+            <animate attributeName="opacity" values="0.5;1;0.5" dur="1s" repeatCount="indefinite"/>
+        </polygon>
+        <polygon points="45,54 41,52 41,56" fill="#FF5722">
+            <animate attributeName="opacity" values="1;0.5;1" dur="1s" repeatCount="indefinite"/>
+        </polygon>
+    </g>
+    
+    <!-- Particles flowing -->
+    <circle cx="42" cy="44" r="2" fill="#FFD180">
+        <animate attributeName="cx" values="42;58;42" dur="1.5s" repeatCount="indefinite"
+                 calcMode="spline" keySplines="0.42 0 0.58 1; 0.42 0 0.58 1"/>
+        <animate attributeName="opacity" values="0;1;0" dur="1.5s" repeatCount="indefinite"/>
+    </circle>
+    <circle cx="58" cy="54" r="2" fill="#FFD180">
+        <animate attributeName="cx" values="58;42;58" dur="1.5s" repeatCount="indefinite"
+                 calcMode="spline" keySplines="0.42 0 0.58 1; 0.42 0 0.58 1"/>
+        <animate attributeName="opacity" values="0;1;0" dur="1.5s" repeatCount="indefinite"/>
+    </circle>
+</svg>

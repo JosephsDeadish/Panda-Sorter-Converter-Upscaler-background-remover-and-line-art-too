@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="64" height="64" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+    <!-- Copy files with smooth duplication effect -->
+    <defs>
+        <linearGradient id="copyGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" style="stop-color:#8BC34A;stop-opacity:1" />
+            <stop offset="100%" style="stop-color:#558B2F;stop-opacity:1" />
+        </linearGradient>
+    </defs>
+    
+    <!-- Original document -->
+    <rect x="20" y="25" width="35" height="45" fill="url(#copyGrad)" stroke="#558B2F" stroke-width="2" rx="3">
+        <animate attributeName="opacity" values="1;0.6;1" dur="2s" repeatCount="indefinite"
+                 calcMode="spline" keySplines="0.42 0 0.58 1; 0.42 0 0.58 1"/>
+    </rect>
+    <path d="M 45 25 L 45 35 L 55 35 Z" fill="#558B2F"/>
+    
+    <!-- Document lines -->
+    <line x1="27" y1="40" x2="48" y2="40" stroke="#fff" stroke-width="2" opacity="0.7"/>
+    <line x1="27" y1="47" x2="48" y2="47" stroke="#fff" stroke-width="2" opacity="0.7"/>
+    <line x1="27" y1="54" x2="42" y2="54" stroke="#fff" stroke-width="2" opacity="0.7"/>
+    
+    <!-- Copied document (animated) -->
+    <rect x="35" y="30" width="35" height="45" fill="url(#copyGrad)" stroke="#558B2F" stroke-width="2" rx="3" opacity="0">
+        <animate attributeName="opacity" values="0;1;1" dur="2s" repeatCount="indefinite"
+                 calcMode="spline" keySplines="0.42 0 0.58 1"/>
+        <animate attributeName="x" values="20;35;35" dur="2s" repeatCount="indefinite"
+                 calcMode="spline" keySplines="0.42 0 0.58 1"/>
+        <animate attributeName="y" values="25;30;30" dur="2s" repeatCount="indefinite"
+                 calcMode="spline" keySplines="0.42 0 0.58 1"/>
+    </rect>
+    <path d="M 60 30 L 60 40 L 70 40 Z" fill="#558B2F" opacity="0">
+        <animate attributeName="opacity" values="0;1;1" dur="2s" repeatCount="indefinite"/>
+    </path>
+    
+    <!-- Copy indicator arrows -->
+    <path d="M 50 50 L 58 50" stroke="#FFD700" stroke-width="2" stroke-linecap="round" opacity="0">
+        <animate attributeName="opacity" values="0;0.8;0" dur="2s" repeatCount="indefinite"/>
+        <polygon points="57,50 60,48 60,52" fill="#FFD700"/>
+    </path>
+</svg>
