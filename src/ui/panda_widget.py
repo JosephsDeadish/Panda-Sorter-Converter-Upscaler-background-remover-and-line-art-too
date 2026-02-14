@@ -5587,6 +5587,119 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
                 start=20, extent=140, style="arc",
                 outline=highlight, width=1, tags="equipped_hat")
     
+    # Emoji-to-shape mapping for canvas-drawn items (no background squares)
+    _ITEM_SHAPES = {
+        # Food items
+        '🎋': 'bamboo', '🍎': 'apple', '🍌': 'banana', '🍇': 'grapes',
+        '🍓': 'berry', '🍰': 'cake', '🍪': 'cookie', '🍩': 'donut',
+        '🍕': 'pizza', '🍔': 'burger', '🌮': 'taco', '🥕': 'carrot',
+        '🍫': 'chocolate', '🍬': 'candy', '🧁': 'cupcake', '🥤': 'drink',
+        '☕': 'drink', '🍵': 'drink', '🥛': 'drink',
+        # Toy items
+        '🎾': 'ball', '⚽': 'ball', '🏀': 'ball', '🎈': 'balloon',
+        '🪀': 'yoyo', '🎲': 'dice', '🧸': 'plushie', '🪁': 'kite',
+        '🎮': 'gamepad', '🎸': 'guitar', '📱': 'phone', '📦': 'box',
+    }
+
+    def _draw_item_shape(self, c: tk.Canvas, x: int, y: int, size: int,
+                         emoji: str, sx: float = 1.0, sy: float = 1.0):
+        """Draw an item as a canvas shape instead of raw emoji text.
+
+        Uses simple colored shapes (circles, rectangles, polygons) so items
+        look consistent with the panda's canvas-drawn body — no opaque
+        text-background squares.
+        """
+        color = self._color_for_emoji(emoji, '#FF6B6B')
+        shadow = self._shade_color(color, -30)
+        highlight = self._shade_color(color, 50)
+        r = max(4, size // 2)
+        shape = self._ITEM_SHAPES.get(emoji, 'generic')
+
+        if shape == 'ball':
+            c.create_oval(x - r, y - r, x + r, y + r,
+                          fill=color, outline=shadow, width=1, tags="active_item")
+            # Shine
+            c.create_oval(x - r // 3, y - r // 2, x + r // 4, y - r // 4,
+                          fill=highlight, outline='', tags="active_item")
+        elif shape == 'bamboo':
+            # Vertical stalk
+            hw = max(2, r // 3)
+            c.create_rectangle(x - hw, y - r, x + hw, y + r,
+                               fill='#228B22', outline='#006400', width=1, tags="active_item")
+            # Nodes
+            for ny in range(y - r + r // 2, y + r, r):
+                c.create_line(x - hw - 1, ny, x + hw + 1, ny,
+                              fill='#006400', width=1, tags="active_item")
+            # Leaves
+            c.create_oval(x + hw, y - r, x + hw + r, y - r // 2,
+                          fill='#32CD32', outline='', tags="active_item")
+        elif shape in ('apple', 'berry'):
+            c.create_oval(x - r, y - r + 2, x + r, y + r,
+                          fill=color, outline=shadow, width=1, tags="active_item")
+            # Stem
+            c.create_line(x, y - r + 2, x + 2, y - r - 3,
+                          fill='#654321', width=max(1, r // 5), tags="active_item")
+            # Leaf
+            c.create_oval(x + 1, y - r - 4, x + r // 2 + 3, y - r,
+                          fill='#32CD32', outline='', tags="active_item")
+        elif shape in ('cake', 'cupcake', 'cookie', 'donut'):
+            # Rounded body
+            c.create_oval(x - r, y - r // 2, x + r, y + r,
+                          fill=color, outline=shadow, width=1, tags="active_item")
+            # Frosting/topping
+            c.create_arc(x - r, y - r, x + r, y + r // 3,
+                         start=0, extent=180, style="chord",
+                         fill=highlight, outline='', tags="active_item")
+        elif shape == 'banana':
+            # Curved banana shape
+            c.create_arc(x - r, y - r, x + r, y + r,
+                         start=30, extent=120, style="chord",
+                         fill='#FFE135', outline='#DAA520', width=1, tags="active_item")
+        elif shape in ('candy', 'chocolate'):
+            # Wrapped candy
+            c.create_rectangle(x - r, y - r // 2, x + r, y + r // 2,
+                               fill=color, outline=shadow, width=1, tags="active_item")
+            # Wrapper twist
+            c.create_polygon(x - r, y - 1, x - r - r // 2, y - r // 2, x - r - r // 2, y + r // 2,
+                             fill=highlight, outline='', tags="active_item")
+            c.create_polygon(x + r, y - 1, x + r + r // 2, y - r // 2, x + r + r // 2, y + r // 2,
+                             fill=highlight, outline='', tags="active_item")
+        elif shape == 'balloon':
+            c.create_oval(x - r, y - r - 2, x + r, y + r - 4,
+                          fill=color, outline=shadow, width=1, tags="active_item")
+            # String
+            c.create_line(x, y + r - 4, x, y + r + 6,
+                          fill='#999', width=1, tags="active_item")
+        elif shape == 'plushie':
+            # Body
+            c.create_oval(x - r, y - r + 2, x + r, y + r,
+                          fill=color, outline=shadow, width=1, tags="active_item")
+            # Ears
+            er = max(2, r // 3)
+            c.create_oval(x - r + 1, y - r, x - r + er * 2, y - r + er * 2,
+                          fill=color, outline=shadow, width=1, tags="active_item")
+            c.create_oval(x + r - er * 2, y - r, x + r - 1, y - r + er * 2,
+                          fill=color, outline=shadow, width=1, tags="active_item")
+            # Eyes
+            c.create_oval(x - er, y - er, x - 1, y, fill='black', outline='', tags="active_item")
+            c.create_oval(x + 1, y - er, x + er, y, fill='black', outline='', tags="active_item")
+        elif shape == 'drink':
+            # Cup
+            hw = max(3, r * 2 // 3)
+            c.create_rectangle(x - hw, y - r, x + hw, y + r,
+                               fill=color, outline=shadow, width=1, tags="active_item")
+            # Rim
+            c.create_oval(x - hw - 1, y - r - 2, x + hw + 1, y - r + 3,
+                          fill=highlight, outline=shadow, width=1, tags="active_item")
+        else:
+            # Generic: rounded rectangle with a small colored circle
+            c.create_oval(x - r, y - r, x + r, y + r,
+                          fill=color, outline=shadow, width=1, tags="active_item")
+            # Inner shine
+            sr = max(2, r // 3)
+            c.create_oval(x - sr, y - sr, x + sr, y + sr,
+                          fill=highlight, outline='', tags="active_item")
+
     def _draw_animation_extras(self, c: tk.Canvas, cx: int, by: float,
                                 anim: str, frame_idx: int, sx: float = 1.0, sy: float = 1.0):
         """Draw extra decorations based on animation type."""
@@ -5648,8 +5761,8 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
                     item_size = 0
 
                 if item_x is not None:
-                    c.create_text(item_x, item_y, text=self._active_item_emoji,
-                                  font=("Arial", max(8, item_size)), tags="active_item")
+                    self._draw_item_shape(c, item_x, item_y, max(8, item_size),
+                                          self._active_item_emoji, sx, sy)
             elif anim == 'playing':
                 # Draw toy item near panda's hands with play motion
                 # Use physics properties for enhanced animation if available
@@ -5713,8 +5826,8 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
                     item_y = int(80 * sy + by) + int(arc)
                     item_size = int(16 * sx)
                 
-                c.create_text(item_x, item_y, text=self._active_item_emoji,
-                              font=("Arial", max(8, item_size)), tags="active_item")
+                self._draw_item_shape(c, item_x, item_y, max(8, item_size),
+                                      self._active_item_emoji, sx, sy)
         
         # Draw belly rub hands visual for belly_rub animation
         if anim == 'belly_rub':
