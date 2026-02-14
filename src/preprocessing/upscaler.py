@@ -105,11 +105,11 @@ class TextureUpscaler:
         blurred = cv2.GaussianBlur(upscaled, (0, 0), sigmaX=1.5)
         upscaled = cv2.addWeighted(upscaled, 1.5, blurred, -0.5, 0)
         
-        # Detail enhancement via bilateral filter (edge-preserving smoothing)
-        # followed by recombining detail layer
+        # Detail enhancement: extract detail layer and amplify it
         smooth = cv2.bilateralFilter(upscaled, d=5, sigmaColor=50, sigmaSpace=50)
         detail = cv2.subtract(upscaled, smooth)
-        upscaled = cv2.add(smooth, detail)
+        # Amplify detail layer by 1.5x and recombine
+        upscaled = cv2.add(smooth, cv2.multiply(detail, 1.5))
         
         logger.debug(f"Bicubic upscale: {image.shape[:2]} -> {upscaled.shape[:2]}")
         return upscaled

@@ -2933,7 +2933,6 @@ class GameTextureSorter(ctk.CTk):
             if pil_img.mode == "RGBA":
                 alpha_ch = pil_img.getchannel("A")
                 rgb_out = fn(pil_img.convert("RGB"))
-                rgb_out = rgb_out.convert("RGB")
                 out = rgb_out.copy()
                 out.putalpha(alpha_ch)
                 return out
