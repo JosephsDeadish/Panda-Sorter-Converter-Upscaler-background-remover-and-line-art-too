@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24">
+  <g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <!-- Recycle symbol spinning -->
+    <g transform-origin="12 12">
+      <path d="M7 6l-2 4h4"/>
+      <path d="M17 6l2 4h-4"/>
+      <path d="M12 18l-2-4h4"/>
+      <animateTransform attributeName="transform" type="rotate" values="0 12 12;120 12 12;240 12 12;360 12 12" dur="3s" repeatCount="indefinite" />
+    </g>
+    <!-- Center circle -->
+    <circle cx="12" cy="12" r="3"/>
+  </g>
+</svg>

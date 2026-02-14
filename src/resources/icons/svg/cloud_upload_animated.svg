@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24">
+  <g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <!-- Cloud uploading -->
+    <path d="M17 21H7a5 5 0 0 1-2-9.6A6 6 0 0 1 17 8a5 5 0 0 1 0 10"/>
+    <!-- Arrow up -->
+    <polyline points="12 17 12 11">
+      <animate attributeName="y1" values="17;15;17" dur="1.5s" repeatCount="indefinite" />
+      <animate attributeName="y2" values="11;9;11" dur="1.5s" repeatCount="indefinite" />
+    </polyline>
+    <polyline points="9 13 12 10 15 13">
+      <animate attributeName="opacity" values="0.5;1;0.5" dur="1.5s" repeatCount="indefinite" />
+    </polyline>
+  </g>
+</svg>

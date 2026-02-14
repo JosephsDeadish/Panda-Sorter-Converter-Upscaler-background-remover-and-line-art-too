@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24">
+  <g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <!-- Document being compared -->
+    <rect x="4" y="4" width="8" height="16" rx="1"/>
+    <rect x="12" y="4" width="8" height="16" rx="1"/>
+    <!-- Highlight differences -->
+    <line x1="6" y1="8" x2="10" y2="8" stroke="red" opacity="0.5">
+      <animate attributeName="opacity" values="0.3;0.8;0.3" dur="2s" repeatCount="indefinite" />
+    </line>
+    <line x1="14" y1="8" x2="18" y2="8" stroke="green" opacity="0.5">
+      <animate attributeName="opacity" values="0.3;0.8;0.3" dur="2s" repeatCount="indefinite" />
+    </line>
+  </g>
+</svg>
