@@ -91,6 +91,9 @@ class DuplicateDetector:
         Detect textures that are color swaps of the original.
         
         Color swaps have similar structure but different colors.
+        Uses color histogram analysis: a true color swap will have a
+        significantly different hue distribution while the structural
+        (grayscale) similarity stays high.
         
         Args:
             texture_path: Path to reference texture
@@ -99,14 +102,61 @@ class DuplicateDetector:
         Returns:
             List of color-swapped textures
         """
-        # Find variants
+        # Find structurally similar variants first
         variants = self.find_variants(texture_path, min_similarity=threshold, max_similarity=0.99)
-        
-        # TODO: Add additional color histogram analysis to filter true color swaps
-        # For now, variants in the specified range are likely color swaps
-        
-        logger.info(f"Found {len(variants)} potential color swaps for {texture_path.name}")
-        return variants
+
+        # Filter to true color swaps via histogram comparison
+        try:
+            from PIL import Image as PILImage
+            ref_img = PILImage.open(texture_path).convert("RGB")
+            ref_hist = self._color_histogram(ref_img)
+        except Exception:
+            logger.debug("Could not load reference image for histogram analysis")
+            return variants
+
+        color_swaps = []
+        for variant in variants:
+            try:
+                v_path = variant.get("texture_path") or variant.get("path")
+                if v_path is None:
+                    color_swaps.append(variant)
+                    continue
+                v_img = PILImage.open(v_path).convert("RGB")
+                v_hist = self._color_histogram(v_img)
+                hist_diff = self._histogram_distance(ref_hist, v_hist)
+                # A large histogram distance means very different colours
+                # but the structural similarity is already high (>threshold)
+                if hist_diff > 0.15:
+                    variant["histogram_distance"] = round(hist_diff, 4)
+                    color_swaps.append(variant)
+            except Exception:
+                color_swaps.append(variant)
+
+        logger.info(f"Found {len(color_swaps)} color swaps (from {len(variants)} variants) for {texture_path.name}")
+        return color_swaps
+
+    @staticmethod
+    def _color_histogram(image, bins: int = 32) -> np.ndarray:
+        """Compute a normalised per-channel colour histogram."""
+        arr = np.asarray(image)
+        hists = []
+        for ch in range(min(arr.shape[2], 3)):
+            h, _ = np.histogram(arr[:, :, ch], bins=bins, range=(0, 256))
+            h = h.astype(np.float64)
+            total = h.sum()
+            if total > 0:
+                h /= total
+            hists.append(h)
+        return np.concatenate(hists)
+
+    @staticmethod
+    def _histogram_distance(h1: np.ndarray, h2: np.ndarray) -> float:
+        """Chi-squared distance between two histograms (0 = identical)."""
+        denom = h1 + h2
+        nonzero = denom > 0
+        if not nonzero.any():
+            return 0.0
+        return float(0.5 * np.sum(((h1[nonzero] - h2[nonzero]) ** 2) / denom[nonzero]))
     
     def group_by_similarity(
         self,

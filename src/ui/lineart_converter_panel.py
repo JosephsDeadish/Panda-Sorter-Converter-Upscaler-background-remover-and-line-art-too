@@ -235,17 +235,19 @@ class LineArtConverterPanel(ctk.CTkFrame):
         preview_controls = ctk.CTkFrame(right_frame)
         preview_controls.pack(fill="x", padx=10, pady=10)
         
-        ctk.CTkButton(
+        self.update_preview_btn = ctk.CTkButton(
             preview_controls,
             text="Update Preview",
             command=self._update_preview
-        ).pack(side="left", padx=5)
+        )
+        self.update_preview_btn.pack(side="left", padx=5)
         
-        ctk.CTkButton(
+        self.select_preview_btn = ctk.CTkButton(
             preview_controls,
             text="Select Preview Image",
             command=self._select_preview_image
-        ).pack(side="left", padx=5)
+        )
+        self.select_preview_btn.pack(side="left", padx=5)
 
         self.export_preview_btn = ctk.CTkButton(
             preview_controls,
@@ -266,7 +268,7 @@ class LineArtConverterPanel(ctk.CTkFrame):
         btn_frame.pack(fill="x", pady=5)
         
         # Select Files button with icon
-        select_files_btn = ctk.CTkButton(
+        self.select_files_btn = ctk.CTkButton(
             btn_frame,
             text="Select Files",
             command=self._select_files,
@@ -275,11 +277,11 @@ class LineArtConverterPanel(ctk.CTkFrame):
         if SVG_ICONS_AVAILABLE:
             icon = load_icon("file_open_animated", (20, 20))
             if icon:
-                select_files_btn.configure(image=icon, compound="left")
-        select_files_btn.pack(side="left", padx=5)
+                self.select_files_btn.configure(image=icon, compound="left")
+        self.select_files_btn.pack(side="left", padx=5)
         
         # Select Folder button with icon
-        select_folder_btn = ctk.CTkButton(
+        self.select_folder_btn = ctk.CTkButton(
             btn_frame,
             text="Select Folder",
             command=self._select_folder,
@@ -288,8 +290,8 @@ class LineArtConverterPanel(ctk.CTkFrame):
         if SVG_ICONS_AVAILABLE:
             icon = load_icon("folder_open_animated", (20, 20))
             if icon:
-                select_folder_btn.configure(image=icon, compound="left")
-        select_folder_btn.pack(side="left", padx=5)
+                self.select_folder_btn.configure(image=icon, compound="left")
+        self.select_folder_btn.pack(side="left", padx=5)
         
         self.file_count_label = ctk.CTkLabel(file_frame, text="No files selected")
         self.file_count_label.pack(pady=5)
@@ -305,7 +307,7 @@ class LineArtConverterPanel(ctk.CTkFrame):
         self.output_dir_label.pack(side="left", fill="x", expand=True, padx=5)
         
         # Browse button with icon
-        browse_btn = ctk.CTkButton(
+        self.browse_output_btn = ctk.CTkButton(
             output_btn_frame,
             text="Browse",
             command=self._select_output_directory,
@@ -314,8 +316,8 @@ class LineArtConverterPanel(ctk.CTkFrame):
         if SVG_ICONS_AVAILABLE:
             icon = load_icon("folder_open_animated", (20, 20))
             if icon:
-                browse_btn.configure(image=icon, compound="left")
-        browse_btn.pack(side="right", padx=5)
+                self.browse_output_btn.configure(image=icon, compound="left")
+        self.browse_output_btn.pack(side="right", padx=5)
     
     def _create_conversion_settings(self, parent):
         """Create conversion settings."""
@@ -391,11 +393,12 @@ class LineArtConverterPanel(ctk.CTkFrame):
         
         # Auto threshold
         self.auto_threshold_var = ctk.BooleanVar(value=False)
-        ctk.CTkCheckBox(
+        self.auto_threshold_checkbox = ctk.CTkCheckBox(
             conv_frame,
             text="Auto Threshold (Otsu's method)",
             variable=self.auto_threshold_var
-        ).pack(pady=5, padx=10, anchor="w")
+        )
+        self.auto_threshold_checkbox.pack(pady=5, padx=10, anchor="w")
         
         # Background mode
         bg_frame = ctk.CTkFrame(conv_frame)
@@ -404,28 +407,31 @@ class LineArtConverterPanel(ctk.CTkFrame):
         ctk.CTkLabel(bg_frame, text="Background:").pack(side="left", padx=5)
         
         self.background_var = ctk.StringVar(value="transparent")
-        ctk.CTkOptionMenu(
+        self.background_menu = ctk.CTkOptionMenu(
             bg_frame,
             variable=self.background_var,
             values=["transparent", "white", "black"],
             width=120
-        ).pack(side="left", padx=5)
+        )
+        self.background_menu.pack(side="left", padx=5)
         
         # Invert
         self.invert_var = ctk.BooleanVar(value=False)
-        ctk.CTkCheckBox(
+        self.invert_checkbox = ctk.CTkCheckBox(
             conv_frame,
             text="Invert Colors",
             variable=self.invert_var
-        ).pack(pady=5, padx=10, anchor="w")
+        )
+        self.invert_checkbox.pack(pady=5, padx=10, anchor="w")
         
         # Remove midtones
         self.remove_midtones_var = ctk.BooleanVar(value=True)
-        ctk.CTkCheckBox(
+        self.remove_midtones_checkbox = ctk.CTkCheckBox(
             conv_frame,
             text="Remove Midtones (pure black/white only)",
             variable=self.remove_midtones_var
-        ).pack(pady=5, padx=10, anchor="w")
+        )
+        self.remove_midtones_checkbox.pack(pady=5, padx=10, anchor="w")
         
         # Midtone threshold
         midtone_frame = ctk.CTkFrame(conv_frame)
@@ -434,18 +440,18 @@ class LineArtConverterPanel(ctk.CTkFrame):
         ctk.CTkLabel(midtone_frame, text="Midtone Threshold:").pack(side="left", padx=5)
         
         self.midtone_threshold_var = ctk.IntVar(value=200)
-        midtone_slider = ctk.CTkSlider(
+        self.midtone_slider = ctk.CTkSlider(
             midtone_frame,
             from_=128,
             to=255,
             variable=self.midtone_threshold_var,
             number_of_steps=127
         )
-        midtone_slider.pack(side="left", fill="x", expand=True, padx=5)
+        self.midtone_slider.pack(side="left", fill="x", expand=True, padx=5)
         
         self.midtone_label = ctk.CTkLabel(midtone_frame, text="200")
         self.midtone_label.pack(side="left", padx=5)
-        midtone_slider.configure(command=lambda v: self.midtone_label.configure(text=f"{int(v)}"))
+        self.midtone_slider.configure(command=lambda v: self.midtone_label.configure(text=f"{int(v)}"))
     
     def _create_line_modification_settings(self, parent):
         """Create line modification settings."""
@@ -476,11 +482,12 @@ class LineArtConverterPanel(ctk.CTkFrame):
         
         # Sharpen
         self.sharpen_var = ctk.BooleanVar(value=False)
-        ctk.CTkCheckBox(
+        self.sharpen_checkbox = ctk.CTkCheckBox(
             line_frame,
             text="Sharpen Before Conversion",
             variable=self.sharpen_var
-        ).pack(pady=5, padx=10, anchor="w")
+        )
+        self.sharpen_checkbox.pack(pady=5, padx=10, anchor="w")
         
         # Sharpen amount
         sharpen_frame = ctk.CTkFrame(line_frame)
@@ -489,18 +496,18 @@ class LineArtConverterPanel(ctk.CTkFrame):
         ctk.CTkLabel(sharpen_frame, text="Sharpen Amount:").pack(side="left", padx=5)
         
         self.sharpen_amount_var = ctk.DoubleVar(value=1.0)
-        sharpen_slider = ctk.CTkSlider(
+        self.sharpen_slider = ctk.CTkSlider(
             sharpen_frame,
             from_=0.5,
             to=3.0,
             variable=self.sharpen_amount_var,
             number_of_steps=25
         )
-        sharpen_slider.pack(side="left", fill="x", expand=True, padx=5)
+        self.sharpen_slider.pack(side="left", fill="x", expand=True, padx=5)
         
         self.sharpen_label = ctk.CTkLabel(sharpen_frame, text="1.0")
         self.sharpen_label.pack(side="left", padx=5)
-        sharpen_slider.configure(command=lambda v: self.sharpen_label.configure(text=f"{v:.1f}"))
+        self.sharpen_slider.configure(command=lambda v: self.sharpen_label.configure(text=f"{v:.1f}"))
         
         # Morphology operation
         morph_frame = ctk.CTkFrame(line_frame)
@@ -524,13 +531,14 @@ class LineArtConverterPanel(ctk.CTkFrame):
         ctk.CTkLabel(iter_frame, text="Iterations:").pack(side="left", padx=5)
         
         self.morphology_iterations_var = ctk.IntVar(value=1)
-        ctk.CTkSlider(
+        self.morph_iter_slider = ctk.CTkSlider(
             iter_frame,
             from_=1,
             to=10,
             variable=self.morphology_iterations_var,
             number_of_steps=9
-        ).pack(side="left", fill="x", expand=True, padx=5)
+        )
+        self.morph_iter_slider.pack(side="left", fill="x", expand=True, padx=5)
         
         self.iter_label = ctk.CTkLabel(iter_frame, text="1")
         self.iter_label.pack(side="left", padx=5)
@@ -542,12 +550,13 @@ class LineArtConverterPanel(ctk.CTkFrame):
         ctk.CTkLabel(kernel_frame, text="Kernel Size:").pack(side="left", padx=5)
         
         self.kernel_size_var = ctk.IntVar(value=3)
-        ctk.CTkOptionMenu(
+        self.kernel_size_menu = ctk.CTkOptionMenu(
             kernel_frame,
             variable=self.kernel_size_var,
             values=["3", "5", "7", "9"],
             width=80
-        ).pack(side="left", padx=5)
+        )
+        self.kernel_size_menu.pack(side="left", padx=5)
     
     def _create_cleanup_settings(self, parent):
         """Create cleanup settings."""
@@ -558,11 +567,12 @@ class LineArtConverterPanel(ctk.CTkFrame):
         
         # Denoise
         self.denoise_var = ctk.BooleanVar(value=True)
-        ctk.CTkCheckBox(
+        self.denoise_checkbox = ctk.CTkCheckBox(
             cleanup_frame,
             text="Remove Noise / Speckles",
             variable=self.denoise_var
-        ).pack(pady=5, padx=10, anchor="w")
+        )
+        self.denoise_checkbox.pack(pady=5, padx=10, anchor="w")
         
         # Denoise size
         denoise_frame = ctk.CTkFrame(cleanup_frame)
@@ -571,13 +581,14 @@ class LineArtConverterPanel(ctk.CTkFrame):
         ctk.CTkLabel(denoise_frame, text="Min Feature Size:").pack(side="left", padx=5)
         
         self.denoise_size_var = ctk.IntVar(value=2)
-        ctk.CTkSlider(
+        self.denoise_slider = ctk.CTkSlider(
             denoise_frame,
             from_=1,
             to=10,
             variable=self.denoise_size_var,
             number_of_steps=9
-        ).pack(side="left", fill="x", expand=True, padx=5)
+        )
+        self.denoise_slider.pack(side="left", fill="x", expand=True, padx=5)
         
         self.denoise_label = ctk.CTkLabel(denoise_frame, text="2")
         self.denoise_label.pack(side="left", padx=5)
@@ -913,5 +924,89 @@ class LineArtConverterPanel(ctk.CTkFrame):
                     self.export_preview_btn,
                     _tt('la_export', "Export the previewed line art result to a file"),
                     widget_id='la_export', tooltip_manager=tm))
+            # ── File / preview buttons ────────────────────────────
+            if hasattr(self, 'select_files_btn'):
+                self._tooltips.append(WidgetTooltip(
+                    self.select_files_btn,
+                    _tt('la_select_files', "Pick individual image files to convert"),
+                    widget_id='la_select_files', tooltip_manager=tm))
+            if hasattr(self, 'select_folder_btn'):
+                self._tooltips.append(WidgetTooltip(
+                    self.select_folder_btn,
+                    _tt('la_select_folder', "Select a folder — all images inside will be queued"),
+                    widget_id='la_select_folder', tooltip_manager=tm))
+            if hasattr(self, 'browse_output_btn'):
+                self._tooltips.append(WidgetTooltip(
+                    self.browse_output_btn,
+                    _tt('la_browse_output', "Choose where converted files are saved"),
+                    widget_id='la_browse_output', tooltip_manager=tm))
+            if hasattr(self, 'update_preview_btn'):
+                self._tooltips.append(WidgetTooltip(
+                    self.update_preview_btn,
+                    _tt('la_update_preview', "Re-render the preview with current settings"),
+                    widget_id='la_update_preview', tooltip_manager=tm))
+            if hasattr(self, 'select_preview_btn'):
+                self._tooltips.append(WidgetTooltip(
+                    self.select_preview_btn,
+                    _tt('la_select_preview', "Choose a single image to preview before batch converting"),
+                    widget_id='la_select_preview', tooltip_manager=tm))
+            # ── Conversion setting controls ───────────────────────
+            if hasattr(self, 'auto_threshold_checkbox'):
+                self._tooltips.append(WidgetTooltip(
+                    self.auto_threshold_checkbox,
+                    _tt('la_auto_threshold', "Let Otsu's method pick the optimal threshold automatically"),
+                    widget_id='la_auto_threshold', tooltip_manager=tm))
+            if hasattr(self, 'background_menu'):
+                self._tooltips.append(WidgetTooltip(
+                    self.background_menu,
+                    _tt('la_background', "Set the background of the output: transparent, white, or black"),
+                    widget_id='la_background', tooltip_manager=tm))
+            if hasattr(self, 'invert_checkbox'):
+                self._tooltips.append(WidgetTooltip(
+                    self.invert_checkbox,
+                    _tt('la_invert', "Swap black and white — lines become white on dark background"),
+                    widget_id='la_invert', tooltip_manager=tm))
+            if hasattr(self, 'remove_midtones_checkbox'):
+                self._tooltips.append(WidgetTooltip(
+                    self.remove_midtones_checkbox,
+                    _tt('la_remove_midtones', "Crush grays to pure black or white for crisp stencil output"),
+                    widget_id='la_remove_midtones', tooltip_manager=tm))
+            if hasattr(self, 'midtone_slider'):
+                self._tooltips.append(WidgetTooltip(
+                    self.midtone_slider,
+                    _tt('la_midtone_threshold', "Gray values above this are pushed to white (128-255)"),
+                    widget_id='la_midtone_threshold', tooltip_manager=tm))
+            # ── Line modification controls ────────────────────────
+            if hasattr(self, 'sharpen_checkbox'):
+                self._tooltips.append(WidgetTooltip(
+                    self.sharpen_checkbox,
+                    _tt('la_sharpen', "Pre-sharpen the image before conversion for crisper edges"),
+                    widget_id='la_sharpen', tooltip_manager=tm))
+            if hasattr(self, 'sharpen_slider'):
+                self._tooltips.append(WidgetTooltip(
+                    self.sharpen_slider,
+                    _tt('la_sharpen_amount', "How aggressively to sharpen (0.5 = subtle, 3.0 = extreme)"),
+                    widget_id='la_sharpen_amount', tooltip_manager=tm))
+            if hasattr(self, 'morph_iter_slider'):
+                self._tooltips.append(WidgetTooltip(
+                    self.morph_iter_slider,
+                    _tt('la_morph_iterations', "Number of times to apply the morphology operation (more = stronger)"),
+                    widget_id='la_morph_iterations', tooltip_manager=tm))
+            if hasattr(self, 'kernel_size_menu'):
+                self._tooltips.append(WidgetTooltip(
+                    self.kernel_size_menu,
+                    _tt('la_kernel_size', "Size of the morphology brush in pixels (3, 5, 7, or 9)"),
+                    widget_id='la_kernel_size', tooltip_manager=tm))
+            # ── Cleanup controls ──────────────────────────────────
+            if hasattr(self, 'denoise_checkbox'):
+                self._tooltips.append(WidgetTooltip(
+                    self.denoise_checkbox,
+                    _tt('la_denoise', "Remove small noise speckles from the result"),
+                    widget_id='la_denoise', tooltip_manager=tm))
+            if hasattr(self, 'denoise_slider'):
+                self._tooltips.append(WidgetTooltip(
+                    self.denoise_slider,
+                    _tt('la_denoise_size', "Minimum feature size to keep (smaller = more aggressive cleanup)"),
+                    widget_id='la_denoise_size', tooltip_manager=tm))
         except Exception as e:
             logger.error(f"Error adding tooltips to Line Art Converter Panel: {e}")

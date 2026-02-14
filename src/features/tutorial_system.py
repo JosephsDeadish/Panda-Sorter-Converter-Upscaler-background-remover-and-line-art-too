@@ -4522,6 +4522,222 @@ _PANDA_TOOLTIPS = {
         ],
     },
 
+    # ── Line Art – file / preview buttons ─────────────────────────
+    'la_select_files': {
+        'normal': [
+            "Pick individual image files to convert to line art",
+            "Browse and select one or more images for conversion",
+        ],
+        'vulgar': [
+            "Open the file picker and choose your damn images already.",
+            "Click this to actually select files. They don't magically appear, smartass.",
+        ],
+        'dumbed-down': [
+            "Opens a window so you can pick images to convert!",
+        ],
+    },
+    'la_select_folder': {
+        'normal': [
+            "Select a folder — all supported images inside will be queued for conversion",
+            "Batch-select an entire directory of images at once",
+        ],
+        'vulgar': [
+            "Point at a folder and every image in there gets dragged into the line art grinder.",
+            "Select a whole folder. Because picking files one-by-one is for masochists.",
+        ],
+        'dumbed-down': [
+            "Pick a folder and every picture inside it gets added automatically!",
+        ],
+    },
+    'la_browse_output': {
+        'normal': [
+            "Choose the directory where converted line art files are saved",
+            "Set the output folder for your converted images",
+        ],
+        'vulgar': [
+            "Pick where you want the converted files dumped. Not my problem if you lose them.",
+            "Set the output folder. Or don't. Enjoy hunting for files on your cluttered desktop.",
+        ],
+        'dumbed-down': [
+            "Pick the folder where your finished line art gets saved!",
+        ],
+    },
+    'la_update_preview': {
+        'normal': [
+            "Re-render the preview with your current settings",
+            "Refresh the before/after comparison with the latest settings",
+        ],
+        'vulgar': [
+            "Hit this to actually SEE what your settings do. Revolutionary concept, right?",
+            "Refresh the preview. Because staring at stale results helps absolutely nobody.",
+        ],
+        'dumbed-down': [
+            "Click to update the preview so you can see how it looks now!",
+        ],
+    },
+    'la_select_preview': {
+        'normal': [
+            "Choose a single image to preview before running the full batch",
+            "Pick one image to test your settings on before converting everything",
+        ],
+        'vulgar': [
+            "Pick ONE image to preview. Don't convert the whole batch just to realise you f***ed it up.",
+            "Select a preview image. It's called 'testing your settings' — try it sometime.",
+        ],
+        'dumbed-down': [
+            "Pick a picture to try your settings on before converting the whole batch!",
+        ],
+    },
+
+    # ── Line Art – conversion controls ────────────────────────────
+    'la_auto_threshold': {
+        'normal': [
+            "Let Otsu's method automatically pick the best threshold for each image",
+            "Enable auto-threshold to skip manual threshold tuning",
+        ],
+        'vulgar': [
+            "Let the computer figure out the threshold. It's literally smarter than you at this.",
+            "Turn on Otsu's method and stop pretending you know the perfect threshold value.",
+        ],
+        'dumbed-down': [
+            "Lets the app pick the best cutoff point automatically — just check the box!",
+        ],
+    },
+    'la_background': {
+        'normal': [
+            "Set the background of the line art output: transparent, white, or black",
+            "Choose what goes behind the lines — transparency, white, or black",
+        ],
+        'vulgar': [
+            "Pick a damn background colour. Transparent if you're layering, white if you're basic, black if you're edgy.",
+            "Background mode. Transparent keeps it classy, white is boring, black is dramatic.",
+        ],
+        'dumbed-down': [
+            "Pick what colour goes behind the lines — clear, white, or black!",
+        ],
+    },
+    'la_invert': {
+        'normal': [
+            "Swap black and white — lines become white on a dark background",
+            "Invert the colour output for a negative effect",
+        ],
+        'vulgar': [
+            "Flip the colours so everything's backwards. White lines on black — very artsy, very pretentious.",
+            "Invert colours. Now your lines are white. Congratulations, you're an artist.",
+        ],
+        'dumbed-down': [
+            "Flips the colours! Lines go white and background goes dark.",
+        ],
+    },
+    'la_remove_midtones': {
+        'normal': [
+            "Crush gray values to pure black or white for crisp stencil-ready output",
+            "Remove all in-between grays for a sharp two-tone result",
+        ],
+        'vulgar': [
+            "Kill the grays. No mercy. Pure black and white or nothing.",
+            "Obliterate every shade of gray. This isn't a gradient party, it's a STENCIL.",
+        ],
+        'dumbed-down': [
+            "Gets rid of gray areas so everything is either black or white — nice and clean!",
+        ],
+    },
+    'la_midtone_threshold': {
+        'normal': [
+            "Gray values above this are pushed to white (range: 128–255)",
+            "Control where the midtone cutoff sits between gray and white",
+        ],
+        'vulgar': [
+            "The midtone guillotine. Everything above this number becomes white. Chop chop.",
+            "Set where gray dies and becomes white. Higher = more survives. Lower = brutal.",
+        ],
+        'dumbed-down': [
+            "Slide to decide how much gray stays — higher means more grays become white!",
+        ],
+    },
+
+    # ── Line Art – line modification ──────────────────────────────
+    'la_sharpen': {
+        'normal': [
+            "Pre-sharpen the source image before conversion for crisper line edges",
+            "Apply sharpening to the original image to improve line clarity",
+        ],
+        'vulgar': [
+            "Sharpen the image first so your lines aren't a blurry mess. You're welcome.",
+            "Enable pre-sharpening. Because blurry input makes blurry output. Shocking, I know.",
+        ],
+        'dumbed-down': [
+            "Makes the picture sharper before converting — gives you cleaner lines!",
+        ],
+    },
+    'la_sharpen_amount': {
+        'normal': [
+            "How aggressively to sharpen — 0.5 is subtle, 3.0 is extreme",
+            "Controls the strength of the sharpening pass",
+        ],
+        'vulgar': [
+            "Crank this up and your edges could cut steel. Or just set it to 1.2 like a normal person.",
+            "Sharpen intensity. Low = gently nudging pixels. High = stabbing them into clarity.",
+        ],
+        'dumbed-down': [
+            "Slide right for stronger sharpening, left for softer. Around 1.2 is usually good!",
+        ],
+    },
+    'la_morph_iterations': {
+        'normal': [
+            "Number of times to apply the morphology operation (more = stronger effect)",
+            "Increase to thicken or thin lines more aggressively",
+        ],
+        'vulgar': [
+            "How many times to run morphology. Once is polite. Ten is 'I have no f***ing chill'.",
+            "Iterations slider. Each pass makes the effect stronger. Don't come crying at 10.",
+        ],
+        'dumbed-down': [
+            "More passes = stronger effect! Start at 1 or 2 and see how it looks.",
+        ],
+    },
+    'la_kernel_size': {
+        'normal': [
+            "Size of the morphology brush in pixels (3, 5, 7, or 9)",
+            "Bigger kernel = broader morphology effect on lines",
+        ],
+        'vulgar': [
+            "Kernel size — basically how fat the morphology brush is. 3 is delicate, 9 is a sledgehammer.",
+            "Pick the kernel size. Smaller = precise. Bigger = everything bleeds together. Choose wisely.",
+        ],
+        'dumbed-down': [
+            "How big the brush is for thickening or thinning lines. 3 is small, 9 is big!",
+        ],
+    },
+
+    # ── Line Art – cleanup ────────────────────────────────────────
+    'la_denoise': {
+        'normal': [
+            "Remove small noise speckles and stray dots from the line art result",
+            "Clean up tiny artifacts that aren't part of the actual line work",
+        ],
+        'vulgar': [
+            "Kill the speckles. Every stray pixel gets obliterated. No survivors.",
+            "Enable denoising to nuke those annoying little dots. Scorched-earth pixel policy.",
+        ],
+        'dumbed-down': [
+            "Gets rid of tiny dots and specks that aren't part of the real lines!",
+        ],
+    },
+    'la_denoise_size': {
+        'normal': [
+            "Minimum feature size to keep — smaller features below this are removed as noise",
+            "Set how small a detail must be to be treated as noise and deleted",
+        ],
+        'vulgar': [
+            "Anything smaller than this gets vaporised. Set it too high and your fine detail dies too. Balance, b*tch.",
+            "Min feature size. Tiny = gentle cleanup. Big = 'everything under 10px can go f*** itself'.",
+        ],
+        'dumbed-down': [
+            "Slide to set how small a speck has to be before it gets cleaned up. Start at 2!",
+        ],
+    },
+
     # ── Background Remover Panel ───────────────────────────────────
     'bg_mode': {
         'normal': [
