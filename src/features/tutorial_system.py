@@ -7173,6 +7173,194 @@ class TooltipVerbosityManager:
                 "This shows how far along you are in completing an achievement. The bar fills up as you make progress.",
                 "A progress bar showing how close you are to finishing this achievement.",
             ],
+            'about_button': [
+                "Click here to see information about this app — the version, who made it, and credits.",
+                "Shows app info like version number and developer credits.",
+            ],
+            'analysis_button': [
+                "Click this to analyze your textures. It looks at each file and tells you about its size, format, and quality.",
+                "Runs an analysis on your texture files to give you useful stats.",
+            ],
+            'armory_tab': [
+                "This is where your panda's weapons and equipment are kept. Equip items for dungeon adventures!",
+                "The armory stores all your panda's gear for battles and adventures.",
+            ],
+            'battle_arena': [
+                "Enter the battle arena to fight enemies and earn rewards! Your panda uses equipped gear in combat.",
+                "Fight stuff, earn rewards. It's a mini combat game for your panda.",
+            ],
+            'browser_smart_search': [
+                "Smart search looks through your files using AI to find textures that match what you describe, even if the filename doesn't match.",
+                "AI-powered search that finds files by what they look like, not just their name.",
+            ],
+            'category_selection': [
+                "Pick which texture categories you want to sort into. You can check or uncheck types like UI, Characters, Environment, etc.",
+                "Choose which categories to include when sorting your textures.",
+            ],
+            'cursor_selector': [
+                "Pick a custom cursor style for the app. There are fun options like panda paws and bamboo!",
+                "Change what your mouse cursor looks like inside the app.",
+            ],
+            'export_button': [
+                "Click this to save/export your sorted textures to the output folder you selected.",
+                "Exports your organized textures to the destination folder.",
+            ],
+            'favorites_button': [
+                "Mark textures as favorites so you can quickly find them later. Like a bookmark for your files!",
+                "Save textures to your favorites list for quick access.",
+            ],
+            'inventory_accessory': [
+                "These are accessories you own for your panda — things like glasses, scarves, or jewelry. Equip them in the closet!",
+                "Your panda's accessory collection. Go to the closet to put them on.",
+            ],
+            'inventory_food': [
+                "Food items you have! Feed them to your panda to make them happy and restore energy.",
+                "Your food stash. Feed your panda to boost their mood.",
+            ],
+            'inventory_toy': [
+                "Toys you own! Give one to your panda and watch them play. It increases happiness!",
+                "Your toy collection. Give toys to your panda for fun playtime.",
+            ],
+            'inventory_unlocked': [
+                "A summary of all the special rewards you've earned so far by completing achievements and playing.",
+                "Shows everything you've unlocked through playing and achievements.",
+            ],
+            'notepad_delete': [
+                "Delete the current note. Be careful — this can't be undone!",
+                "Removes the selected note permanently.",
+            ],
+            'notepad_new': [
+                "Create a brand new empty note to write in.",
+                "Start a fresh note from scratch.",
+            ],
+            'notepad_save': [
+                "Save whatever you've written in the notepad so it's there when you come back.",
+                "Saves your note so you don't lose it.",
+            ],
+            'open_cache_dir': [
+                "Opens the folder where the app stores temporary files (cache). Useful for clearing space.",
+                "Shows the cache folder on your computer.",
+            ],
+            'open_config_dir': [
+                "Opens the folder where your settings and preferences are saved.",
+                "Shows the config folder with your app settings.",
+            ],
+            'open_customization': [
+                "Opens the customization panel where you can change how the app looks and feels.",
+                "Go to customization options to personalize the app.",
+            ],
+            'open_logs_dir': [
+                "Opens the folder where the app saves log files. Helpful for troubleshooting problems.",
+                "Shows the logs folder for debugging.",
+            ],
+            'open_sound_settings': [
+                "Opens sound settings where you can change volumes, pick sound packs, and adjust audio.",
+                "Go to sound settings to change audio options.",
+            ],
+            'panda_sound_click': [
+                "The sound your panda makes when you click on them.",
+                "Click sound effect for the panda.",
+            ],
+            'panda_sound_dance': [
+                "The sound that plays when your panda dances.",
+                "Dancing sound effect.",
+            ],
+            'panda_sound_drag': [
+                "The sound when you start dragging your panda around.",
+                "Drag sound effect.",
+            ],
+            'panda_sound_drop': [
+                "The sound when you let go and drop your panda.",
+                "Drop/release sound effect.",
+            ],
+            'panda_sound_eat': [
+                "The munching sound when your panda eats food.",
+                "Eating sound effect.",
+            ],
+            'panda_sound_happy': [
+                "A cheerful sound when your panda is happy!",
+                "Happy emotion sound effect.",
+            ],
+            'panda_sound_jump': [
+                "The sound when your panda jumps up.",
+                "Jump sound effect.",
+            ],
+            'panda_sound_pet': [
+                "A content purr-like sound when you pet your panda.",
+                "Petting sound effect.",
+            ],
+            'panda_sound_play': [
+                "A fun playful sound when your panda is playing.",
+                "Play sound effect.",
+            ],
+            'panda_sound_sad': [
+                "A sad whimper sound when your panda is unhappy.",
+                "Sad emotion sound effect.",
+            ],
+            'panda_sound_sleep': [
+                "Gentle snoring sounds when your panda sleeps.",
+                "Sleep/snoring sound effect.",
+            ],
+            'panda_sound_sneeze': [
+                "An adorable little sneeze sound!",
+                "Sneeze sound effect.",
+            ],
+            'panda_sound_wake': [
+                "A yawning wake-up sound when your panda wakes from sleep.",
+                "Wake-up sound effect.",
+            ],
+            'panda_sound_walk': [
+                "Soft footstep sounds when your panda walks around.",
+                "Walking footstep sounds.",
+            ],
+            'panda_sound_yawn': [
+                "A big sleepy yawn sound.",
+                "Yawn sound effect.",
+            ],
+            'preview_button': [
+                "Click this to see a preview of what the texture looks like before you process it.",
+                "Shows a preview of the selected texture.",
+            ],
+            'recent_files': [
+                "A list of files and folders you've worked with recently. Click one to open it again quickly.",
+                "Quick access to your recently used files and folders.",
+            ],
+            'redo_button': [
+                "Redo something you just undid. Like pressing Ctrl+Z backwards!",
+                "Redo the last action you undid.",
+            ],
+            'rename_template': [
+                "Type a naming pattern here. Use {name} for the original name, {num} for a number, {date} for today's date.",
+                "Write your own naming rule using placeholders like {name} and {num}.",
+            ],
+            'save_settings': [
+                "Save all your current settings so they stay the same next time you open the app.",
+                "Saves your preferences so they persist between sessions.",
+            ],
+            'shop_item_name': [
+                "Click on an item to see more details about it — what it looks like, how much it costs, etc.",
+                "Select an item to view its description and price.",
+            ],
+            'sound_selection_panda': [
+                "Choose which sounds your panda makes for different actions like clicking, dragging, eating, etc.",
+                "Pick individual sounds for each panda action.",
+            ],
+            'sound_selection_system': [
+                "Choose sounds for app actions like sorting, completing tasks, and notifications.",
+                "Pick sounds for system events and notifications.",
+            ],
+            'sound_settings': [
+                "Adjust all the sound options — volume levels, sound packs, and individual sound effects.",
+                "Main sound settings panel for all audio options.",
+            ],
+            'travel_hub': [
+                "The travel hub lets your panda visit different locations and discover new areas!",
+                "Send your panda on trips to different places.",
+            ],
+            'undo_button': [
+                "Undo the last thing you did. Works like Ctrl+Z in most programs.",
+                "Takes back your last action.",
+            ],
         }
 
         # Merge dumbed-down tooltip variants from the inlined definitions
@@ -8162,6 +8350,31 @@ class TooltipVerbosityManager:
                 "Achievement progress. The world's slowest loading bar, basically.",
                 "Progress tracker. For obsessive completionists who need to see the NUMBERS.",
                 "How far along you are. Keep going, you beautiful overachiever. Or don't.",
+            ],
+            'inventory_accessory': [
+                "Your accessory hoard. Because your panda needs bling more than you need therapy.",
+                "Accessories for your panda. Yes, a virtual bear needs jewelry. We don't judge.",
+                "The accessory pile. Equip these or let them gather digital dust. Your call.",
+            ],
+            'inventory_food': [
+                "Food stash. Feed your panda or watch it give you the saddest damn eyes ever.",
+                "Your panda's snack drawer. Feed the beast or suffer the guilt trip.",
+                "Food items. Because apparently your virtual panda can't find its own damn food.",
+            ],
+            'inventory_toy': [
+                "Toys! Give one to your panda and watch it lose its tiny mind with joy.",
+                "Your toy collection. Making a virtual bear happy is peak adult behavior.",
+                "Toys for your panda. More entertaining than most Netflix shows, honestly.",
+            ],
+            'inventory_unlocked': [
+                "Everything you've unlocked. Look at all this shit you earned by clicking buttons. Proud of you.",
+                "Your unlocked rewards summary. Proof that your obsessive playing paid off.",
+                "Achievement loot. All the stuff you earned by being a completionist psycho.",
+            ],
+            'shop_item_name': [
+                "Click for details. Read the damn description before buying like an informed consumer for once.",
+                "Item details. Read before purchasing, you impulsive little shopper.",
+                "Tap this to see what the hell you're about to waste your Bamboo Bucks on.",
             ],
         }
         
