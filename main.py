@@ -3263,7 +3263,7 @@ class GameTextureSorter(ctk.CTk):
             preset_frame, text="", font=("Arial", 11), wraplength=500)
         self.alpha_fix_desc_label.pack(anchor="w", padx=20, pady=(0, 5))
         self._update_alpha_preset_desc()
-        self.alpha_fix_preset_var.trace_add("write", lambda *_: self._update_alpha_preset_desc())
+        self.alpha_fix_preset_var.trace_add("write", lambda *_: self._update_alpha_fix_preset())
 
         # Options
         check_frame = ctk.CTkFrame(preset_frame)
@@ -3301,6 +3301,37 @@ class GameTextureSorter(ctk.CTk):
                                          alpha_recursive_cb, self.alpha_backup_cb, alpha_overwrite_cb,
                                          alpha_extract_cb, alpha_compress_cb)
 
+        # --- Preview section ---
+        preview_frame = ctk.CTkFrame(scroll)
+        preview_frame.pack(fill="x", padx=10, pady=10)
+        ctk.CTkLabel(preview_frame, text="Preview:",
+                     font=("Arial Bold", 12)).pack(anchor="w", padx=10, pady=5)
+
+        self.alpha_fix_preview_container = ctk.CTkFrame(preview_frame, height=300)
+        self.alpha_fix_preview_container.pack(fill="x", padx=10, pady=5)
+        self.alpha_fix_preview_container.pack_propagate(False)
+        # Before / After side by side
+        self.alpha_fix_preview_before_label = ctk.CTkLabel(
+            self.alpha_fix_preview_container, text="Before\n(select an image)", width=200, height=280)
+        self.alpha_fix_preview_before_label.pack(side="left", padx=10, pady=10, expand=True)
+        self.alpha_fix_preview_after_label = ctk.CTkLabel(
+            self.alpha_fix_preview_container, text="After\n(preview appears here)", width=200, height=280)
+        self.alpha_fix_preview_after_label.pack(side="left", padx=10, pady=10, expand=True)
+
+        # Individual file preview / browse + export
+        preview_btn_frame = ctk.CTkFrame(preview_frame)
+        preview_btn_frame.pack(fill="x", padx=10, pady=5)
+        alpha_preview_btn = ctk.CTkButton(preview_btn_frame, text="🖼️ Preview Single File",
+                     width=180, command=self._preview_alpha_fix_file)
+        alpha_preview_btn.pack(side="left", padx=10)
+        self.alpha_fix_export_single_btn = ctk.CTkButton(
+            preview_btn_frame, text="💾 Export This Fixed Image",
+            width=200, command=self._export_single_alpha_fix,
+            fg_color="#2B7A0B", hover_color="#368B14")
+        self.alpha_fix_export_single_btn.pack(side="left", padx=10)
+        ctk.CTkLabel(preview_btn_frame, text="Preview & export a single image with current preset",
+                     font=("Arial", 10), text_color="gray").pack(side="left", padx=10)
+
         # Log output
         log_frame = ctk.CTkFrame(scroll)
         log_frame.pack(fill="both", expand=True, padx=10, pady=10)
@@ -3326,6 +3357,175 @@ class GameTextureSorter(ctk.CTk):
             self.alpha_backup_cb.configure(state="normal")
         else:
             self.alpha_backup_cb.configure(state="disabled")
+
+    def _update_alpha_fix_preset(self):
+        """Update the alpha fix preview description and trigger preview update."""
+        self._update_alpha_preset_desc()
+        # Trigger preview update if we have an image
+        if hasattr(self, '_alpha_fix_preview_image') and self._alpha_fix_preview_image:
+            self._show_alpha_fix_preview(self._alpha_fix_preview_image)
+
+    def _preview_alpha_fix_file(self):
+        """Browse for and preview a single file with alpha correction."""
+        from PIL import Image
+        
+        result = filedialog.askopenfilename(
+            title="Select Image to Preview",
+            filetypes=[
+                ("Image files", "*.png *.bmp *.tga *.dds *.jpg *.jpeg"),
+                ("PNG files", "*.png"),
+                ("BMP files", "*.bmp"),
+                ("TGA files", "*.tga"),
+                ("DDS files", "*.dds"),
+                ("JPEG files", "*.jpg *.jpeg"),
+                ("All files", "*.*")
+            ])
+        
+        if not result:
+            return
+        
+        try:
+            img = Image.open(result)
+            self._alpha_fix_preview_image = img
+            self._alpha_fix_preview_path = result
+            self._show_alpha_fix_preview(img)
+            self._alpha_fix_log(f"📸 Previewing: {os.path.basename(result)}")
+        except Exception as e:
+            self._alpha_fix_log(f"❌ Could not load image: {e}")
+            if GUI_AVAILABLE:
+                messagebox.showerror("Preview Error", f"Could not load image:\n{e}")
+
+    def _show_alpha_fix_preview(self, original_img):
+        """Show before/after preview for alpha correction."""
+        from PIL import ImageTk, Image
+        
+        try:
+            # Get current preset
+            preset_display = self.alpha_fix_preset_var.get()
+            preset_key = self._strip_emoji_prefix(preset_display)
+            
+            # Create before image (original)
+            before_img = original_img.copy()
+            before_size = before_img.size
+            
+            # Apply alpha correction to create after image
+            if ALPHA_CORRECTION_AVAILABLE:
+                corrector = AlphaCorrector()
+                # Create temp file for processing
+                import tempfile
+                with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as tmp:
+                    tmp_path = tmp.name
+                    original_img.save(tmp_path)
+                
+                try:
+                    # Process the image
+                    result = corrector.process_image(Path(tmp_path), preset=preset_key, overwrite=True, backup=False)
+                    if result.get('success'):
+                        after_img = Image.open(tmp_path)
+                    else:
+                        # If processing failed, show original
+                        after_img = original_img.copy()
+                        self._alpha_fix_log(f"⚠️ Preview failed: {result.get('reason', 'unknown')}")
+                finally:
+                    # Clean up temp file
+                    try:
+                        os.unlink(tmp_path)
+                    except:
+                        pass
+            else:
+                after_img = original_img.copy()
+            
+            # Cache the result
+            self._alpha_fix_preview_result = after_img
+            
+            # Resize for display (max 280x280)
+            max_size = 280
+            before_display = self._resize_for_display(before_img, max_size)
+            after_display = self._resize_for_display(after_img, max_size)
+            
+            # Convert to PhotoImage
+            before_photo = ImageTk.PhotoImage(before_display)
+            after_photo = ImageTk.PhotoImage(after_display)
+            
+            # Update labels
+            self.alpha_fix_preview_before_label.configure(image=before_photo, text="")
+            self.alpha_fix_preview_before_label.image = before_photo  # Keep reference
+            
+            self.alpha_fix_preview_after_label.configure(image=after_photo, text="")
+            self.alpha_fix_preview_after_label.image = after_photo  # Keep reference
+            
+            self._alpha_fix_log(f"✅ Preview updated with preset: {preset_key}")
+            
+        except Exception as e:
+            self._alpha_fix_log(f"❌ Preview error: {e}")
+            logger.error(f"Alpha fix preview error: {e}", exc_info=True)
+
+    def _resize_for_display(self, img, max_size):
+        """Resize image to fit within max_size while maintaining aspect ratio."""
+        from PIL import Image
+        
+        # Calculate scaling factor
+        width, height = img.size
+        if width > height:
+            if width > max_size:
+                new_width = max_size
+                new_height = int(height * (max_size / width))
+            else:
+                new_width, new_height = width, height
+        else:
+            if height > max_size:
+                new_height = max_size
+                new_width = int(width * (max_size / height))
+            else:
+                new_width, new_height = width, height
+        
+        return img.resize((new_width, new_height), Image.LANCZOS)
+
+    def _export_single_alpha_fix(self):
+        """Export the currently previewed alpha-fixed image."""
+        from PIL import Image
+        
+        if not hasattr(self, '_alpha_fix_preview_result') or not self._alpha_fix_preview_result:
+            if GUI_AVAILABLE:
+                messagebox.showinfo("No Preview",
+                                    "Please preview a single file first using '🖼️ Preview Single File'.")
+            return
+        
+        filepath = filedialog.asksaveasfilename(
+            title="Export Alpha-Fixed Image",
+            defaultextension=".png",
+            filetypes=[
+                ("PNG files", "*.png"),
+                ("BMP files", "*.bmp"),
+                ("TGA files", "*.tga"),
+                ("JPEG files", "*.jpg"),
+                ("All files", "*.*")
+            ])
+        
+        if not filepath:
+            return
+        
+        try:
+            result = self._alpha_fix_preview_result
+            
+            # Save with format-specific options
+            save_kwargs = {}
+            if filepath.lower().endswith('.jpg') or filepath.lower().endswith('.jpeg'):
+                save_kwargs['quality'] = 95
+                if result.mode == 'RGBA':
+                    result = result.convert('RGB')
+            
+            result.save(filepath, **save_kwargs)
+            self._alpha_fix_log(f"💾 Exported: {filepath} ({result.size[0]}×{result.size[1]})")
+            if GUI_AVAILABLE:
+                messagebox.showinfo("Export Complete",
+                                    f"Image exported successfully!\n\n"
+                                    f"Size: {result.size[0]}×{result.size[1]}\n"
+                                    f"File: {os.path.basename(filepath)}")
+        except Exception as e:
+            self._alpha_fix_log(f"❌ Export failed: {e}")
+            if GUI_AVAILABLE:
+                messagebox.showerror("Export Error", f"Could not export image:\n{e}")
 
     def _alpha_fix_log(self, message):
         """Thread-safe log helper for alpha fixer."""
