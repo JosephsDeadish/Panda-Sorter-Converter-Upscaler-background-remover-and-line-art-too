@@ -7882,6 +7882,8 @@ class GameTextureSorter(ctk.CTk):
     
     def create_bg_remover_tab(self):
         """Create background remover tab with comprehensive features"""
+        if not hasattr(self, 'tab_bg_remover'):
+            return
         try:
             if BACKGROUND_REMOVER_AVAILABLE:
                 # Create the BackgroundRemoverPanel
@@ -8047,6 +8049,8 @@ class GameTextureSorter(ctk.CTk):
     
     def create_performance_tab(self):
         """Create performance dashboard tab for monitoring"""
+        if not hasattr(self, 'tab_performance'):
+            return
         try:
             if PERFORMANCE_DASHBOARD_AVAILABLE:
                 panel = PerformanceDashboard(self.tab_performance, unlockables_system=self.unlockables_system)

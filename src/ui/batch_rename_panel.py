@@ -521,49 +521,43 @@ class BatchRenamePanel(ctk.CTkFrame):
     
     def _add_tooltips(self):
         """Add tooltips to widgets if available."""
-        if not TOOLTIPS_AVAILABLE or not self.unlockables_system:
+        if not TOOLTIPS_AVAILABLE:
             return
         
         try:
-            tooltips = self.unlockables_system.get_all_tooltips()
-            tooltips_lower = [t.lower() for t in tooltips]
-            
-            def get_tooltip(keyword):
-                """Find tooltip containing keyword."""
-                for tooltip in tooltips_lower:
-                    if keyword.lower() in tooltip:
-                        return tooltips[tooltips_lower.index(tooltip)]
-                return None
-            
             # Pattern selection tooltips
             if hasattr(self, 'date_created_radio'):
-                tooltip = get_tooltip("date") or get_tooltip("rename")
-                if tooltip:
-                    self._tooltips.append(WidgetTooltip(self.date_created_radio, tooltip))
+                self._tooltips.append(WidgetTooltip(
+                    self.date_created_radio,
+                    "Rename files using their creation date as the new filename"))
             
             # Template input tooltip
             if hasattr(self, 'template_entry'):
-                tooltip = get_tooltip("template") or get_tooltip("custom") or get_tooltip("pattern")
-                if tooltip:
-                    self._tooltips.append(WidgetTooltip(self.template_entry, tooltip))
+                self._tooltips.append(WidgetTooltip(
+                    self.template_entry,
+                    "Enter a custom naming pattern using placeholders:\n"
+                    "  {name} = original filename\n"
+                    "  {num} = sequence number\n"
+                    "  {date} = date created\n"
+                    "  {ext} = file extension"))
             
             # Metadata tooltips
             if hasattr(self, 'copyright_entry'):
-                tooltip = get_tooltip("copyright") or get_tooltip("metadata")
-                if tooltip:
-                    self._tooltips.append(WidgetTooltip(self.copyright_entry, tooltip))
+                self._tooltips.append(WidgetTooltip(
+                    self.copyright_entry,
+                    "Set copyright metadata to embed in renamed files"))
             
             # Preview tooltip
             if hasattr(self, 'preview_textbox'):
-                tooltip = get_tooltip("preview")
-                if tooltip:
-                    self._tooltips.append(WidgetTooltip(self.preview_textbox, tooltip))
+                self._tooltips.append(WidgetTooltip(
+                    self.preview_textbox,
+                    "Preview of how files will be renamed before applying changes"))
             
             # Undo tooltip
             if hasattr(self, 'undo_btn'):
-                tooltip = get_tooltip("undo")
-                if tooltip:
-                    self._tooltips.append(WidgetTooltip(self.undo_btn, tooltip))
+                self._tooltips.append(WidgetTooltip(
+                    self.undo_btn,
+                    "Undo the last rename operation and restore original filenames"))
                     
         except Exception as e:
             logger.error(f"Error adding tooltips to Batch Rename Panel: {e}")

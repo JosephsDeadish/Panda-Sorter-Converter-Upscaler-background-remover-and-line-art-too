@@ -218,9 +218,29 @@ class CompactTabView(ctk.CTkFrame):
         self.tabs[name].pack(fill="both", expand=True)
         self.tab_dropdown.set(name)
     
-    def get(self, name: str) -> Optional[ctk.CTkFrame]:
-        """Get a tab frame by name."""
+    def get(self, name: str = None) -> Optional[ctk.CTkFrame]:
+        """Get a tab frame by name, or current tab name if *name* is None."""
+        if name is None:
+            return self.current_tab
         return self.tabs.get(name)
+    
+    def tab(self, name: str) -> Optional[ctk.CTkFrame]:
+        """Return the content frame for *name* (CTkTabview compatibility)."""
+        return self.tabs.get(name)
+    
+    def delete(self, name: str):
+        """Remove a tab by name (CTkTabview compatibility)."""
+        if name not in self.tabs:
+            return
+        if self.current_tab == name:
+            remaining = [n for n in self.tabs if n != name]
+            if remaining:
+                self.set(remaining[0])
+            else:
+                self.current_tab = None
+        self.tabs[name].destroy()
+        del self.tabs[name]
+        self.tab_dropdown.configure(values=list(self.tabs.keys()))
     
     def _on_tab_selected(self, value: str):
         """Handle tab selection from dropdown."""

@@ -418,49 +418,40 @@ class PerformanceDashboard(ctk.CTkFrame):
     
     def _add_tooltips(self):
         """Add tooltips to widgets if available."""
-        if not TOOLTIPS_AVAILABLE or not self.unlockables_system:
+        if not TOOLTIPS_AVAILABLE:
             return
         
         try:
-            tooltips = self.unlockables_system.get_all_tooltips()
-            tooltips_lower = [t.lower() for t in tooltips]
-            
-            def get_tooltip(keyword):
-                """Find tooltip containing keyword."""
-                for tooltip in tooltips_lower:
-                    if keyword.lower() in tooltip:
-                        return tooltips[tooltips_lower.index(tooltip)]
-                return None
-            
             # Processing speed tooltip
             if hasattr(self, 'speed_label'):
-                tooltip = get_tooltip("processing speed") or get_tooltip("speed")
-                if tooltip:
-                    self._tooltips.append(WidgetTooltip(self.speed_label, tooltip))
+                self._tooltips.append(WidgetTooltip(
+                    self.speed_label,
+                    "Current processing speed in files per second"))
             
             # Memory usage tooltip
             if hasattr(self, 'memory_label'):
-                tooltip = get_tooltip("memory") 
-                if tooltip:
-                    self._tooltips.append(WidgetTooltip(self.memory_label, tooltip))
+                self._tooltips.append(WidgetTooltip(
+                    self.memory_label,
+                    "Current memory (RAM) used by the application"))
             
             # CPU usage tooltip
             if hasattr(self, 'cpu_label'):
-                tooltip = get_tooltip("cpu")
-                if tooltip:
-                    self._tooltips.append(WidgetTooltip(self.cpu_label, tooltip))
+                self._tooltips.append(WidgetTooltip(
+                    self.cpu_label,
+                    "Current CPU utilization percentage"))
             
             # Queue status tooltip
             if hasattr(self, 'queue_pending_label'):
-                tooltip = get_tooltip("queue")
-                if tooltip:
-                    self._tooltips.append(WidgetTooltip(self.queue_pending_label, tooltip))
+                self._tooltips.append(WidgetTooltip(
+                    self.queue_pending_label,
+                    "Number of files waiting in the processing queue"))
             
             # Workers slider tooltip
             if hasattr(self, 'workers_slider'):
-                tooltip = get_tooltip("parallel") or get_tooltip("workers") or get_tooltip("thread")
-                if tooltip:
-                    self._tooltips.append(WidgetTooltip(self.workers_slider, tooltip))
+                self._tooltips.append(WidgetTooltip(
+                    self.workers_slider,
+                    "Number of parallel worker threads for processing\n"
+                    "More workers = faster but uses more CPU/memory"))
                     
         except Exception as e:
             logger.error(f"Error adding tooltips to Performance Dashboard: {e}")

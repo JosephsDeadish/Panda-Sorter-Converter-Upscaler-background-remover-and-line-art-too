@@ -633,49 +633,44 @@ class ColorCorrectionPanel(ctk.CTkFrame):
     
     def _add_tooltips(self):
         """Add tooltips to widgets if available."""
-        if not TOOLTIPS_AVAILABLE or not self.unlockables_system:
+        if not TOOLTIPS_AVAILABLE:
             return
         
         try:
-            tooltips = self.unlockables_system.get_all_tooltips()
-            tooltips_lower = [t.lower() for t in tooltips]
-            
-            def get_tooltip(keyword):
-                """Find tooltip containing keyword."""
-                for tooltip in tooltips_lower:
-                    if keyword.lower() in tooltip:
-                        return tooltips[tooltips_lower.index(tooltip)]
-                return None
-            
             # White balance tooltip
             if hasattr(self, 'white_balance_slider'):
-                tooltip = get_tooltip("white balance") or get_tooltip("color temperature")
-                if tooltip:
-                    self._tooltips.append(WidgetTooltip(self.white_balance_slider, tooltip))
+                self._tooltips.append(WidgetTooltip(
+                    self.white_balance_slider,
+                    "Adjust the color temperature of the image\n"
+                    "Move left for cooler (blue) tones, right for warmer (yellow) tones"))
             
             # Exposure tooltip
             if hasattr(self, 'exposure_slider'):
-                tooltip = get_tooltip("exposure") or get_tooltip("brightness")
-                if tooltip:
-                    self._tooltips.append(WidgetTooltip(self.exposure_slider, tooltip))
+                self._tooltips.append(WidgetTooltip(
+                    self.exposure_slider,
+                    "Adjust the overall brightness/exposure of the image\n"
+                    "Increase to brighten, decrease to darken"))
             
             # Vibrance tooltip
             if hasattr(self, 'vibrance_slider'):
-                tooltip = get_tooltip("vibrance") or get_tooltip("saturation")
-                if tooltip:
-                    self._tooltips.append(WidgetTooltip(self.vibrance_slider, tooltip))
+                self._tooltips.append(WidgetTooltip(
+                    self.vibrance_slider,
+                    "Boost color intensity without over-saturating already-vivid colors\n"
+                    "More subtle than raw saturation adjustment"))
             
             # Clarity tooltip
             if hasattr(self, 'clarity_slider'):
-                tooltip = get_tooltip("clarity") or get_tooltip("sharpness")
-                if tooltip:
-                    self._tooltips.append(WidgetTooltip(self.clarity_slider, tooltip))
+                self._tooltips.append(WidgetTooltip(
+                    self.clarity_slider,
+                    "Enhance midtone contrast to add crispness and detail\n"
+                    "Higher values increase local contrast"))
             
             # LUT button tooltip
             if hasattr(self, 'load_lut_btn'):
-                tooltip = get_tooltip("lut") or get_tooltip("color grading")
-                if tooltip:
-                    self._tooltips.append(WidgetTooltip(self.load_lut_btn, tooltip))
+                self._tooltips.append(WidgetTooltip(
+                    self.load_lut_btn,
+                    "Load a LUT (Look-Up Table) file for color grading\n"
+                    "Supports .cube and .3dl formats"))
                     
         except Exception as e:
             logger.error(f"Error adding tooltips to Color Correction Panel: {e}")
