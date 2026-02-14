@@ -4127,11 +4127,12 @@ _PANDA_TOOLTIPS = {
             "Process images through the line art extraction algorithm",
         ],
         'vulgar': [
-            "Convert to line art. Turn your textures into something your art teacher would actually approve of.",
-            "Line art extraction. Strip away colors and pretend you meant it to look like a coloring book page.",
-            "Generate line art. Because sometimes less is more. And sometimes your textures need an extreme makeover.",
-            "Extract lines. Make any image look like it was drawn by a talented artist instead of... you. No offense.",
-            "Line art button. Transform photos into sketches faster than you can say 'I totally drew that by hand.'",
+            "Hit convert and watch your ugly-ass textures turn into actual art. You're welcome.",
+            "Line art extraction. Strip away the colors like ripping off a band-aid — what's left is the good shit.",
+            "Generate line art. Because your raw images look like ass and need a serious damn makeover.",
+            "Convert to lines. Make any image look like it was drawn by someone who isn't a talentless hack.",
+            "Line art button. Turns your garbage into gallery-worthy sketches. Don't thank me, thank the algorithm.",
+            "Click this and your images go from 'what the hell is that' to 'oh damn, that's clean.'",
         ],
         'dumbed-down': [
             "Click to turn your images into black-and-white line drawings, like a coloring book version.",
@@ -4146,11 +4147,11 @@ _PANDA_TOOLTIPS = {
             "Set the sensitivity for edge detection in line extraction",
         ],
         'vulgar': [
-            "Threshold slider. Low = every pixel is a line. High = what lines? Balance is key. Like yoga for algorithms.",
-            "Edge sensitivity. Too low and you get a Jackson Pollock. Too high and you get a blank page. Find the zone.",
-            "Line detection threshold. The sweet spot between 'way too detailed' and 'where'd the image go?'",
-            "Sensitivity control. Like a volume knob for line detail. Don't crank it to 11 unless you're ready for noise.",
-            "Threshold: determines whether you get 'elegant minimalist sketch' or 'my printer ran out of ink.'",
+            "Threshold slider. Too low and every damn pixel thinks it's a line. Too high and your image vanishes. Find the sweet spot, dipshit.",
+            "Edge sensitivity. Crank it wrong and you'll either get a shitty Jackson Pollock or a blank-ass page.",
+            "Line detection threshold. The fine line between 'holy shit that's detailed' and 'where the fuck did my image go?'",
+            "Sensitivity control. It's a volume knob for line detail. Don't crank it to 11 unless you want pixel diarrhea.",
+            "Threshold: decides if you get 'elegant sketch' or 'my printer shit the bed.' Adjust carefully.",
         ],
         'dumbed-down': [
             "Controls how sensitive the line detection is. Low = lots of detail, High = only strong edges. Try different values!",
@@ -4183,11 +4184,11 @@ _PANDA_TOOLTIPS = {
             "Select a preset to auto-fill all conversion settings — tweak afterwards if needed",
         ],
         'vulgar': [
-            "Preset picker. Because manually tweaking 15 sliders is for masochists. One click, boom, done.",
-            "Pre-built recipes for line art. Clean Inks for pros, Pencil Sketch for artsy types, Coloring Book for your inner 5-year-old.",
-            "Too lazy to configure everything? Same. Pick a preset and pretend you're an expert.",
-            "Presets. Like fast food for line art — quick, satisfying, and you don't have to think about it.",
-            "One-click line art magic. Pick a style, all the sliders move by themselves. Technology, baby.",
+            "Preset picker. Because manually tweaking 15 goddamn sliders is for masochists with too much free time.",
+            "Pre-built recipes for line art. Ink for pros, Pencil for artsy dipshits, Coloring Book for your inner toddler.",
+            "Too lazy to configure everything yourself? Same here, asshole. Pick a preset and pretend you know what you're doing.",
+            "Presets: like fast food for line art — quick, satisfying, and you don't have to think. Perfect for your smooth brain.",
+            "One-click magic. Pick a style, all the sliders move by themselves. Even you can't fuck this up.",
         ],
         'dumbed-down': [
             "Choose a pre-made style and all settings fill in automatically! Pick the closest one to what you want.",
@@ -4202,11 +4203,11 @@ _PANDA_TOOLTIPS = {
             "Configure the core algorithm for line extraction",
         ],
         'vulgar': [
-            "Conversion mode. Pure black, threshold, edge detect, adaptive, sketch — pick your weapon of line extraction.",
-            "Algorithm picker. Each mode converts differently. 'Pure black' is aggressive. 'Sketch' is artsy. Both valid.",
-            "Mode dropdown. It's like choosing between a scalpel and a chainsaw for extracting lines. Both work, differently.",
-            "Line art mode. 'Edge detect' for technical stuff. 'Sketch' for pretending you're an artist. No judgment.",
-            "Pick your conversion flavor. Threshold is reliable, adaptive is smart, sketch is fancy. Try them all, you coward.",
+            "Conversion mode. Pure black, threshold, edge detect — pick your damn weapon of line extraction.",
+            "Algorithm picker. Each mode converts differently. 'Pure black' is aggressive as hell. 'Sketch' is artsy bullshit. Both work.",
+            "Mode dropdown. It's choosing between a scalpel and a goddamn chainsaw for extracting lines. Both get the job done.",
+            "Pick your flavor. 'Edge detect' for nerds. 'Sketch' for pretentious fucks. No judgment. Okay, maybe a little.",
+            "Conversion mode. Try them all, you coward. What's the worst that could happen? Bad line art? Already there.",
         ],
         'dumbed-down': [
             "Choose how the image gets converted to lines. 'Pure black' is simple, 'Edge detect' finds outlines, 'Sketch' is artistic.",
@@ -4221,11 +4222,11 @@ _PANDA_TOOLTIPS = {
             "Pre-process contrast adjustment for better edge detection",
         ],
         'vulgar': [
-            "Contrast boost. Crank it up to make lines POP. Leave it at 1.0 if you're boring. 3.0 is for the brave.",
-            "Pre-conversion contrast. Like adding espresso to your lines — makes everything more intense. Too much? Jittery pixels.",
-            "Contrast slider. Higher = bolder lines. Lower = subtler. 1.0 = 'I don't want to commit to anything.'",
-            "Boost that contrast. Make your lines thicc and defined. Or keep it chill. The panda supports both lifestyles.",
-            "Contrast adjuster. The difference between 'elegant line art' and 'bold graphic novel.' Both cool, different vibes.",
+            "Contrast boost. Crank it up to make lines POP like a motherfucker. 1.0 if you're boring. 3.0 if you've got balls.",
+            "Pre-conversion contrast. Like espresso for your pixels — makes everything intense as shit. Too much? Prepare for chaos.",
+            "Contrast slider. Higher = bolder lines. Lower = subtler. 1.0 = 'I'm too chickenshit to commit to anything.'",
+            "Boost that contrast. Make your lines thicc and defined. Or don't, pussy. The panda supports all lifestyles.",
+            "Contrast adjuster. Difference between 'elegant line art' and 'bold-ass graphic novel.' Both cool, different damn vibes.",
         ],
         'dumbed-down': [
             "Makes lines stronger or weaker. 1.0 is normal, higher makes bolder lines, lower makes softer ones.",
@@ -4240,15 +4241,52 @@ _PANDA_TOOLTIPS = {
             "Fine-tune line weight using mathematical morphology",
         ],
         'vulgar': [
-            "Morphology. Dilate = fatten those lines. Erode = slim them down. Like a gym membership for pixels.",
-            "Line thickness control via math magic. Dilate adds bulk. Erode trims fat. Close fills gaps. Open removes specks.",
-            "Morphology ops. Sounds fancy. It's just making lines thicker or thinner. Don't overthink it.",
-            "Post-processing for line weight. 'Dilate' for chunky lines. 'Erode' for delicate ones. 'None' for lazy.",
-            "Morphological operations. Big words for simple concepts: make lines fatter, thinner, or fill in gaps.",
+            "Morphology. Dilate = fatten those lines like Thanksgiving dinner. Erode = slim 'em down. Gym membership for your damn pixels.",
+            "Line thickness via math magic. Dilate adds bulk. Erode trims fat. Close fills gaps. It's plastic surgery for line art, bitch.",
+            "Morphology ops. Sounds fancy as fuck. It's just making lines thicker or thinner. Don't overthink it, Einstein.",
+            "Post-processing for line weight. 'Dilate' for chunky-ass lines. 'Erode' for delicate ones. 'None' for lazy bastards.",
+            "Morphological operations. Big-ass words for simple shit: make lines fatter, thinner, or fill in gaps. Not rocket science.",
         ],
         'dumbed-down': [
             "Changes line thickness after conversion. 'Dilate' makes lines thicker, 'Erode' makes them thinner, 'None' leaves them as-is.",
             "Adjusts the weight of the lines. Try 'dilate' if lines are too thin, or 'erode' if they're too thick.",
+        ],
+    },
+
+    'la_save_preset': {
+        'normal': [
+            "Save your current settings as a custom preset you can reuse later",
+            "Create a named preset from the current slider and menu values",
+            "Store these exact settings so you can apply them again with one click",
+        ],
+        'vulgar': [
+            "Save this shit as a preset so you don't have to fuck around with 16 sliders again.",
+            "Custom preset saver. Because your lazy ass shouldn't have to redo this every damn time.",
+            "Bookmark these settings. You finally got it looking right — don't lose it, dumbass.",
+            "Save preset: for when you accidentally nail the perfect settings and don't wanna lose 'em like an idiot.",
+            "Click to immortalize your settings. The panda's sick of watching you tweak the same goddamn sliders.",
+        ],
+        'dumbed-down': [
+            "Saves your current settings so you can use them again later without re-doing everything!",
+            "Creates a custom preset — give it a name and it'll remember all your settings.",
+        ],
+    },
+    'la_export': {
+        'normal': [
+            "Export the previewed line art result to a file on your computer",
+            "Save the current preview as a PNG, JPEG, or BMP file",
+            "Download the line art preview to your chosen location",
+        ],
+        'vulgar': [
+            "Export this masterpiece before you accidentally close the damn window.",
+            "Save the preview to a file. You know, so your work isn't completely pointless.",
+            "Export button. Because staring at the preview forever doesn't actually save it, genius.",
+            "Click to save the line art to disk. The panda ain't holding onto it for your lazy ass.",
+            "Export the preview. Congrats, you made line art. Now save the damn thing.",
+        ],
+        'dumbed-down': [
+            "Saves the line art preview to a file on your computer so you can use it!",
+            "Click to export — pick where to save it and what format you want.",
         ],
     },
 

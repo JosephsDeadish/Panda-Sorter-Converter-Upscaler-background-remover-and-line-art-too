@@ -2839,7 +2839,7 @@ class GameTextureSorter(ctk.CTk):
         """Upscale a single PIL Image using the current style and options.
         
         Applies a multi-pass enhancement pipeline inspired by upscayl:
-        1. High-quality resize with selected filter
+        1. Progressive multi-pass resize for factors ≥ 4 (2x per pass)
         2. Edge-preserving denoise (optional, via cv2 bilateral filter)
         3. Unsharp mask sharpening (default: auto, optional: stronger)
         4. Auto-level contrast (optional)
@@ -2851,10 +2851,12 @@ class GameTextureSorter(ctk.CTk):
         custom_res = ""
         if hasattr(self, 'upscale_custom_res_var'):
             custom_res = self.upscale_custom_res_var.get().strip()
+        use_custom = False
         if custom_res and "x" in custom_res.lower():
             try:
                 parts = custom_res.lower().split("x")
                 new_size = (int(parts[0]), int(parts[1]))
+                use_custom = True
             except (ValueError, IndexError):
                 new_size = (img.size[0] * factor, img.size[1] * factor)
         else:
@@ -2862,69 +2864,89 @@ class GameTextureSorter(ctk.CTk):
         
         resample = self._get_pil_resample()
 
-        if preserve_alpha and img.mode == "RGBA":
-            # Upscale RGB and Alpha separately to avoid edge artifacts
-            rgb = img.convert("RGB").resize(new_size, resample)
-            alpha = img.getchannel("A").resize(new_size, resample)
-            result = rgb.copy()
-            result.putalpha(alpha)
-        elif preserve_alpha and img.mode != "RGBA":
-            img = img.convert("RGBA")
-            result = img.resize(new_size, resample)
+        def _resize_step(src, target_size):
+            """Resize a single image step, handling RGBA separately."""
+            if preserve_alpha and src.mode == "RGBA":
+                rgb = src.convert("RGB").resize(target_size, resample)
+                alpha = src.getchannel("A").resize(target_size, resample)
+                out = rgb.copy()
+                out.putalpha(alpha)
+                return out
+            return src.resize(target_size, resample)
+
+        # Progressive multi-pass upscaling for large factors (upscayl technique)
+        # Doing 2x → 2x → 2x produces sharper results than a single 8x resize
+        if not use_custom and factor >= 4:
+            current = img
+            if preserve_alpha and current.mode != "RGBA":
+                current = current.convert("RGBA")
+            remaining = factor
+            while remaining > 1:
+                step = 2 if remaining >= 4 else remaining
+                step_size = (current.size[0] * step, current.size[1] * step)
+                current = _resize_step(current, step_size)
+                # Light sharpen between passes to prevent blur accumulation
+                if remaining > step:
+                    current = self._apply_to_rgb(current,
+                        lambda im: im.filter(ImageFilter.UnsharpMask(
+                            radius=1.0, percent=60, threshold=2)))
+                remaining //= step
+            result = current
         else:
-            result = img.resize(new_size, resample)
+            if preserve_alpha and img.mode == "RGBA":
+                result = _resize_step(img, new_size)
+            elif preserve_alpha and img.mode != "RGBA":
+                img = img.convert("RGBA")
+                result = img.resize(new_size, resample)
+            else:
+                result = img.resize(new_size, resample)
         
         # --- Post-processing pipeline ---
-        
-        # Helper: apply filter to RGB channels only, preserving alpha
-        def _apply_to_rgb(pil_img, fn):
-            if pil_img.mode == "RGBA":
-                alpha_ch = pil_img.getchannel("A")
-                rgb_out = fn(pil_img.convert("RGB"))
-                out = rgb_out.copy()
-                out.putalpha(alpha_ch)
-                return out
-            return fn(pil_img)
         
         # 1) Denoise — edge-preserving bilateral filter via cv2 (not blur!)
         if hasattr(self, 'upscale_denoise_var') and self.upscale_denoise_var.get():
             try:
                 def _bilateral_denoise(rgb_img):
                     arr = np.array(rgb_img)
-                    # bilateralFilter preserves edges while smoothing noise
-                    # d=9, sigmaColor=75, sigmaSpace=75 — moderate strength
                     denoised = cv2.bilateralFilter(arr, d=9, sigmaColor=75, sigmaSpace=75)
                     return Image.fromarray(denoised)
-                result = _apply_to_rgb(result, _bilateral_denoise)
+                result = self._apply_to_rgb(result, _bilateral_denoise)
             except Exception:
-                # Fallback to median filter (still better than SMOOTH)
-                result = _apply_to_rgb(result, lambda im: im.filter(ImageFilter.MedianFilter(size=3)))
+                result = self._apply_to_rgb(result, lambda im: im.filter(ImageFilter.MedianFilter(size=3)))
         
         # 2) Sharpening — UnsharpMask is dramatically better than PIL SHARPEN
         if hasattr(self, 'upscale_sharpen_var') and self.upscale_sharpen_var.get():
-            # Strong sharpen when user explicitly enables it
-            result = _apply_to_rgb(result,
+            result = self._apply_to_rgb(result,
                 lambda im: im.filter(ImageFilter.UnsharpMask(radius=2.0, percent=150, threshold=3)))
         else:
             # Default light sharpen to counteract interpolation blur
-            # This is the key fix: plain resize always blurs, so always
-            # apply a gentle unsharp mask to restore crispness
-            result = _apply_to_rgb(result,
+            result = self._apply_to_rgb(result,
                 lambda im: im.filter(ImageFilter.UnsharpMask(radius=1.5, percent=80, threshold=2)))
         
         # 3) Detail enhancement — subtle midtone contrast boost
-        result = _apply_to_rgb(result, lambda im: im.filter(ImageFilter.DETAIL))
+        result = self._apply_to_rgb(result, lambda im: im.filter(ImageFilter.DETAIL))
         
         # 4) Auto-level: stretch histogram to use full 0-255 range
         if hasattr(self, 'upscale_auto_level_var') and self.upscale_auto_level_var.get():
             try:
                 from PIL import ImageOps
-                result = _apply_to_rgb(result,
+                result = self._apply_to_rgb(result,
                     lambda im: ImageOps.autocontrast(im, cutoff=1))
             except Exception:
                 pass
         
         return result
+
+    @staticmethod
+    def _apply_to_rgb(pil_img, fn):
+        """Apply a function to RGB channels only, preserving alpha."""
+        if pil_img.mode == "RGBA":
+            alpha_ch = pil_img.getchannel("A")
+            rgb_out = fn(pil_img.convert("RGB"))
+            out = rgb_out.copy()
+            out.putalpha(alpha_ch)
+            return out
+        return fn(pil_img)
 
     def _upscale_feedback(self, rating):
         """Record user feedback on upscale quality."""

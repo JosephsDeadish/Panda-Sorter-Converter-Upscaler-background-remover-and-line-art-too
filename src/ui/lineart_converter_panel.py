@@ -118,7 +118,18 @@ LINEART_PRESETS = {
         "sharpen_amount": 1.0, "morphology": "close", "morph_iter": 2,
         "kernel": 7, "denoise": True, "denoise_size": 6,
     },
+    "🖋️ Tattoo Stencil": {
+        "desc": "High-contrast smooth outlines optimised for tattoo transfer stencils",
+        "mode": "pure_black", "threshold": 135, "auto_threshold": False,
+        "background": "transparent", "invert": False, "remove_midtones": True,
+        "midtone_threshold": 195, "contrast": 2.2, "sharpen": True,
+        "sharpen_amount": 1.6, "morphology": "close", "morph_iter": 2,
+        "kernel": 3, "denoise": True, "denoise_size": 3,
+    },
 }
+
+# Custom user presets are appended at runtime
+_USER_CUSTOM_PRESETS: dict = {}
 
 PRESET_NAMES = list(LINEART_PRESETS.keys())
 
@@ -206,6 +217,14 @@ class LineArtConverterPanel(ctk.CTkFrame):
             text="Select Preview Image",
             command=self._select_preview_image
         ).pack(side="left", padx=5)
+
+        self.export_preview_btn = ctk.CTkButton(
+            preview_controls,
+            text="📤 Export Preview",
+            command=self._export_preview,
+            fg_color="#2B7A0B", hover_color="#368B14"
+        )
+        self.export_preview_btn.pack(side="left", padx=5)
     
     def _create_file_selection(self, parent):
         """Create file selection section."""
@@ -292,7 +311,13 @@ class LineArtConverterPanel(ctk.CTkFrame):
             width=220
         )
         self.preset_menu.pack(side="left", padx=5)
-        
+
+        self.save_preset_btn = ctk.CTkButton(
+            preset_frame, text="💾 Save as Preset",
+            command=self._save_custom_preset, width=130
+        )
+        self.save_preset_btn.pack(side="left", padx=5)
+
         self.preset_desc_label = ctk.CTkLabel(
             conv_frame,
             text=LINEART_PRESETS.get(_default_preset, {}).get("desc", ""),
@@ -635,6 +660,61 @@ class LineArtConverterPanel(ctk.CTkFrame):
         self.denoise_size_var.set(p["denoise_size"])
         self.denoise_label.configure(text=str(p["denoise_size"]))
 
+    def _save_custom_preset(self):
+        """Save current settings as a named custom preset."""
+        dialog = ctk.CTkInputDialog(
+            text="Enter a name for your custom preset:",
+            title="Save Custom Preset"
+        )
+        name = dialog.get_input()
+        if not name or not name.strip():
+            return
+        name = f"⭐ {name.strip()}"
+        preset = {
+            "desc": f"Custom preset: {name}",
+            "mode": self.mode_var.get(),
+            "threshold": self.threshold_var.get(),
+            "auto_threshold": self.auto_threshold_var.get(),
+            "background": self.background_var.get(),
+            "invert": self.invert_var.get(),
+            "remove_midtones": self.remove_midtones_var.get(),
+            "midtone_threshold": self.midtone_threshold_var.get(),
+            "contrast": self.contrast_var.get(),
+            "sharpen": self.sharpen_var.get(),
+            "sharpen_amount": self.sharpen_amount_var.get(),
+            "morphology": self.morphology_var.get(),
+            "morph_iter": self.morphology_iterations_var.get(),
+            "kernel": int(self.kernel_size_var.get()),
+            "denoise": self.denoise_var.get(),
+            "denoise_size": self.denoise_size_var.get(),
+        }
+        _USER_CUSTOM_PRESETS[name] = preset
+        LINEART_PRESETS[name] = preset
+        PRESET_NAMES.append(name)
+        self.preset_menu.configure(values=PRESET_NAMES)
+        self.preset_var.set(name)
+        self.preset_desc_label.configure(text=preset["desc"])
+        messagebox.showinfo("Saved", f"Preset '{name}' saved!")
+
+    def _export_preview(self):
+        """Export the currently previewed line art result to a file."""
+        if not hasattr(self, '_last_preview_result') or self._last_preview_result is None:
+            messagebox.showwarning("No Preview", "Update the preview first before exporting.")
+            return
+        filepath = filedialog.asksaveasfilename(
+            title="Export Line Art Preview",
+            defaultextension=".png",
+            filetypes=[("PNG files", "*.png"), ("JPEG files", "*.jpg"),
+                       ("BMP files", "*.bmp"), ("All files", "*.*")])
+        if not filepath:
+            return
+        try:
+            self._last_preview_result.save(filepath)
+            messagebox.showinfo("Exported",
+                                f"Line art exported to:\n{filepath}")
+        except Exception as e:
+            messagebox.showerror("Export Error", f"Failed to export: {e}")
+
     def _get_settings(self) -> LineArtSettings:
         """Get current settings from UI."""
         return LineArtSettings(
@@ -667,7 +747,10 @@ class LineArtConverterPanel(ctk.CTkFrame):
         try:
             settings = self._get_settings()
             processed = self.converter.preview_settings(self.preview_image, settings)
-            
+
+            # Store full-resolution result for export
+            self._last_preview_result = processed.copy()
+
             # Resize for display
             display_size = (400, 400)
             processed.thumbnail(display_size, Image.Resampling.LANCZOS)
@@ -779,5 +862,15 @@ class LineArtConverterPanel(ctk.CTkFrame):
                     self.morphology_menu,
                     _tt('la_morphology', "Apply morphology operations to thicken or thin lines"),
                     widget_id='la_morphology', tooltip_manager=tm))
+            if hasattr(self, 'save_preset_btn'):
+                self._tooltips.append(WidgetTooltip(
+                    self.save_preset_btn,
+                    _tt('la_save_preset', "Save current settings as a reusable custom preset"),
+                    widget_id='la_save_preset', tooltip_manager=tm))
+            if hasattr(self, 'export_preview_btn'):
+                self._tooltips.append(WidgetTooltip(
+                    self.export_preview_btn,
+                    _tt('la_export', "Export the previewed line art result to a file"),
+                    widget_id='la_export', tooltip_manager=tm))
         except Exception as e:
             logger.error(f"Error adding tooltips to Line Art Converter Panel: {e}")
