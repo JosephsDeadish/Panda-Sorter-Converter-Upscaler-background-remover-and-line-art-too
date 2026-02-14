@@ -11,3 +11,6 @@ crate-type = ["cdylib"]
 [dependencies]
 pyo3 = { version = "0.23.3", features = ["extension-module"] }
 rayon = "1.10.0"
+vtracer = "0.6.5"
+image = "0.23.14"
+visioncortex = "0.8.10"

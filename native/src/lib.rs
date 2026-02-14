@@ -4,11 +4,14 @@
 //! - Lanczos image upscaling
 //! - Image feature extraction (perceptual hash, color histogram, edge density)
 //! - Batch parallel image processing via Rayon
+//! - Bitmap to SVG vector tracing (via vtracer)
 //!
 //! Built with PyO3 for seamless Python integration.
 
 use pyo3::prelude::*;
 use rayon::prelude::*;
+use vtracer::{convert, Config, ColorMode, Hierarchical, ColorImage};
+use visioncortex::PathSimplifyMode;
 
 /// Clamp a value to [0, 255] and convert to u8.
 #[inline]
@@ -339,6 +342,144 @@ fn edge_density(data: &[u8], width: usize, height: usize) -> PyResult<f64> {
 }
 
 // ---------------------------------------------------------------------------
+// Vector tracing (bitmap to SVG)
+// ---------------------------------------------------------------------------
+
+/// Convert a bitmap image to SVG using vector tracing.
+///
+/// This function traces the edges in a raster image and converts it to
+/// scalable vector graphics (SVG). It uses a configurable threshold for
+/// edge detection and produces an SVG string.
+///
+/// Parameters
+/// ----------
+/// data : bytes
+///     Raw RGB pixel data (3 bytes per pixel, row-major).
+/// width : int
+///     Image width in pixels.
+/// height : int
+///     Image height in pixels.
+/// threshold : int, optional
+///     Color difference threshold for edge detection (0-255).
+///     Lower values = more detail (default: 25).
+/// mode : str, optional
+///     Tracing mode: "color" (default), "binary", or "spline".
+///     - "color": Full color vectorization
+///     - "binary": Black and white tracing
+///     - "spline": Smooth spline curves
+///
+/// Returns
+/// -------
+/// str
+///     SVG file content as a string, or error message on failure.
+#[pyfunction]
+#[pyo3(signature = (data, width, height, threshold=25, mode="color"))]
+fn bitmap_to_svg(
+    data: &[u8],
+    width: usize,
+    height: usize,
+    threshold: u8,
+    mode: &str,
+) -> PyResult<String> {
+    if data.len() != width * height * 3 {
+        return Err(pyo3::exceptions::PyValueError::new_err(
+            "data length must equal width * height * 3 (RGB)",
+        ));
+    }
+    if width == 0 || height == 0 {
+        return Err(pyo3::exceptions::PyValueError::new_err(
+            "width and height must be > 0",
+        ));
+    }
+
+    // Convert RGB to RGBA (vtracer expects RGBA)
+    let mut rgba_data: Vec<u8> = Vec::with_capacity(width * height * 4);
+    for i in 0..width * height {
+        let offset = i * 3;
+        rgba_data.push(data[offset]);     // R
+        rgba_data.push(data[offset + 1]); // G
+        rgba_data.push(data[offset + 2]); // B
+        rgba_data.push(255);              // A (fully opaque)
+    }
+
+    // Create ColorImage
+    let v_image = ColorImage {
+        pixels: rgba_data,
+        width,
+        height,
+    };
+
+    // Configure vtracer
+    let color_mode = match mode {
+        "binary" => ColorMode::Binary,
+        _ => ColorMode::Color,
+    };
+
+    let path_mode = match mode {
+        "spline" => PathSimplifyMode::Spline,
+        "polygon" => PathSimplifyMode::Polygon,
+        "none" => PathSimplifyMode::None,
+        _ => PathSimplifyMode::Spline,
+    };
+
+    let mut config = Config::default();
+    config.color_mode = color_mode;
+    config.hierarchical = Hierarchical::Stacked;
+    config.mode = path_mode;
+    config.filter_speckle = 4; // Remove small noise
+    config.color_precision = threshold as i32;
+    config.layer_difference = threshold as i32;
+    config.corner_threshold = 60;
+    config.length_threshold = 4.0;
+    config.max_iterations = 10;
+    config.splice_threshold = 45;
+    config.path_precision = Some(8);
+
+    // Perform conversion
+    let svg_file = match convert(v_image, config) {
+        Ok(svg) => svg,
+        Err(e) => {
+            return Err(pyo3::exceptions::PyRuntimeError::new_err(format!(
+                "Vector tracing failed: {}",
+                e
+            )))
+        }
+    };
+
+    // Return SVG as string
+    Ok(svg_file.to_string())
+}
+
+/// Batch convert multiple bitmaps to SVG in parallel.
+///
+/// Parameters
+/// ----------
+/// images : list[tuple[bytes, int, int]]
+///     List of ``(data, width, height)`` tuples (RGB only).
+/// threshold : int, optional
+///     Color difference threshold (default: 25).
+/// mode : str, optional
+///     Tracing mode (default: "color").
+///
+/// Returns
+/// -------
+/// list[str]
+///     Corresponding SVG strings.
+#[pyfunction]
+#[pyo3(signature = (images, threshold=25, mode="color"))]
+fn batch_bitmap_to_svg(
+    images: Vec<(Vec<u8>, usize, usize)>,
+    threshold: u8,
+    mode: &str,
+) -> PyResult<Vec<String>> {
+    let results: Vec<Result<String, PyErr>> = images
+        .par_iter()
+        .map(|(data, w, h)| bitmap_to_svg(data.as_slice(), *w, *h, threshold, mode))
+        .collect();
+    results.into_iter().collect()
+}
+
+// ---------------------------------------------------------------------------
 // Batch parallel operations
 // ---------------------------------------------------------------------------
 
@@ -397,7 +538,7 @@ fn batch_color_histogram(
 /// Native Rust acceleration module for PS2 texture processing.
 ///
 /// Provides fast Lanczos upscaling, perceptual hashing, color histograms,
-/// edge density computation, and parallel batch operations.
+/// edge density computation, vector tracing, and parallel batch operations.
 #[pymodule]
 fn texture_ops(m: &Bound<'_, PyModule>) -> PyResult<()> {
     // Upscaling
@@ -408,6 +549,10 @@ fn texture_ops(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(hamming_distance, m)?)?;
     m.add_function(wrap_pyfunction!(color_histogram, m)?)?;
     m.add_function(wrap_pyfunction!(edge_density, m)?)?;
+
+    // Vector tracing
+    m.add_function(wrap_pyfunction!(bitmap_to_svg, m)?)?;
+    m.add_function(wrap_pyfunction!(batch_bitmap_to_svg, m)?)?;
 
     // Batch operations
     m.add_function(wrap_pyfunction!(batch_perceptual_hash, m)?)?;
