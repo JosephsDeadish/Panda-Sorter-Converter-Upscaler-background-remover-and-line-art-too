@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="64" height="64" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+    <!-- Error X with animation -->
+    <circle cx="50" cy="50" r="45" stroke="#B22222" stroke-width="4" fill="none" opacity="0.3"/>
+    <g stroke="#B22222" stroke-width="8" stroke-linecap="round" stroke-dasharray="70" stroke-dashoffset="70">
+        <path d="M25,25 L75,75">
+            <animate attributeName="stroke-dashoffset" from="70" to="0" dur="0.3s" fill="freeze"/>
+        </path>
+        <path d="M75,25 L25,75">
+            <animate attributeName="stroke-dashoffset" from="70" to="0" dur="0.3s" begin="0.3s" fill="freeze"/>
+        </path>
+    </g>
+</svg>

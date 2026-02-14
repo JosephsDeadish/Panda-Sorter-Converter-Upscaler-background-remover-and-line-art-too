@@ -696,16 +696,30 @@ _PANDA_TOOLTIPS = {
     },
     'alpha_fix_input': {
         'normal': [
-            "Select the folder containing textures with alpha issues",
-            "Browse for the input directory with textures to fix",
-            "Choose the source folder for alpha correction",
-            "Pick the folder with your broken-alpha textures"
+            "Select a file or folder containing textures with alpha issues",
+            "Browse for a single image or directory with textures to fix",
+            "Choose a source file or folder for alpha correction",
+            "Pick an image file or folder with broken-alpha textures",
+            "Drag and drop a file or folder to process",
+            "Input can be a single texture or an entire directory"
+        ],
+        'dumbed-down': [
+            "Pick ONE file or a WHOLE folder to fix!",
+            "Choose a single image or a bunch of them in a folder!",
+            "You can select just one picture OR a folder full of them!",
+            "Drag a file here, or drag a whole folder!",
+            "Works with one image or many images in a folder!",
+            "Single file or folder — both work!"
         ],
         'vulgar': [
-            "Point me to the folder with your broken textures.",
-            "Where are the alpha-challenged files? Show me.",
-            "Browse for the disaster zone. The folder with bad alpha.",
-            "Select input. You know, where the broken stuff lives."
+            "Point me to ONE file or a folder with your broken textures.",
+            "File or folder. Pick one. Both work. The panda doesn't judge.",
+            "Single image? Sure. Whole folder? Also fine. Your call.",
+            "Drag a file. Drag a folder. Whatever. I'll fix it.",
+            "One texture or a thousand. Just point me to the disaster zone.",
+            "File or folder input. Because flexibility is key.",
+            "Select input. File, folder, doesn't matter. I got you.",
+            "Browse for one file or an entire folder. Alpha fixer handles both."
         ]
     },
     'alpha_fix_output': {
@@ -804,6 +818,62 @@ _PANDA_TOOLTIPS = {
             "Compress output. Because loose files are so last century.",
             "Pack everything into a ZIP. Marie Kondo would be proud.",
             "Archive the output. For the organizationally obsessed."
+        ]
+    },
+    'alpha_fix_preview': {
+        'normal': [
+            "Preview a single image with the current alpha correction preset",
+            "Load and preview one file to see before/after alpha correction",
+            "Test alpha correction on a single image before batch processing",
+            "Browse for an image to preview with the selected preset",
+            "See how alpha correction affects one texture before processing all",
+            "Preview individual file with live preset comparison"
+        ],
+        'dumbed-down': [
+            "Click to see how ONE image will look after fixing!",
+            "Preview a single file before fixing a whole bunch!",
+            "Test the alpha fix on just one image first!",
+            "See before and after for one picture!",
+            "Try fixing one file to make sure it looks good!",
+            "Load one image and see the fix preview!"
+        ],
+        'vulgar': [
+            "Preview one file. See what you're getting into before committing.",
+            "Test drive the alpha fix on a single image. Smart move.",
+            "Load a file and see the before/after. It's like a makeover show.",
+            "Preview single file. Because YOLO batch processing is for the brave.",
+            "Check what the preset does to one image. Don't fly blind.",
+            "See the fix on one file first. The panda respects your caution.",
+            "Test alpha correction on one image. Then decide if you trust the process.",
+            "Single file preview. For when you want to be absolutely sure."
+        ]
+    },
+    'alpha_fix_export': {
+        'normal': [
+            "Export the currently previewed alpha-corrected image",
+            "Save the fixed image shown in the preview",
+            "Export this single corrected texture to a file",
+            "Save the alpha-fixed preview to your chosen location",
+            "Export the processed image from the preview",
+            "Save this single fixed texture without batch processing"
+        ],
+        'dumbed-down': [
+            "Save the fixed image you're looking at!",
+            "Export this ONE fixed picture to a file!",
+            "Save the preview image after it's been fixed!",
+            "Click to save this corrected image!",
+            "Export the single image you just previewed!",
+            "Save this fixed picture somewhere!"
+        ],
+        'vulgar': [
+            "Export this fixed image. One and done. Efficient.",
+            "Save the preview. Because sometimes you only need ONE fixed texture.",
+            "Export this single texture. No batch required.",
+            "Save what you see. The preview, now permanent.",
+            "Export single file. For when batch processing is overkill.",
+            "Grab that fixed image and save it. Mission accomplished.",
+            "Export preview result. Sometimes less is more.",
+            "Save this bad boy. One perfect texture, ready to go."
         ]
     },
     'sound_enabled': {
