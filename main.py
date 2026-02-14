@@ -4263,17 +4263,38 @@ class GameTextureSorter(ctk.CTk):
                 self.log(f"✅ Theme applied: {theme.get('name', 'Unknown')}")
                 
             elif setting_type == 'color':
-                # Apply accent color changes to buttons and accents
-                accent_color = value
+                # Apply color changes to the selected target element
+                if isinstance(value, dict):
+                    color = value.get('color', value)
+                    target = value.get('target', 'accent')
+                else:
+                    color = value
+                    target = 'accent'
+                
                 try:
-                    # Update button colors throughout the app
-                    for widget in self.winfo_children():
-                        self._apply_color_to_widget(widget, accent_color)
+                    if target == 'accent':
+                        for widget in self.winfo_children():
+                            self._apply_color_to_widget(widget, color)
+                    elif target == 'background':
+                        try:
+                            self.configure(fg_color=color)
+                        except Exception:
+                            pass
+                    elif target in ('text', 'text_secondary'):
+                        for widget in self.winfo_children():
+                            self._apply_text_color_to_widget(widget, color, target == 'text_secondary')
+                    elif target in ('button', 'button_hover'):
+                        for widget in self.winfo_children():
+                            self._apply_button_color_to_widget(widget, color, target == 'button_hover')
+                    else:
+                        # For primary, secondary, border — apply as accent fallback
+                        for widget in self.winfo_children():
+                            self._apply_color_to_widget(widget, color)
                 except Exception as color_err:
                     logger.debug(f"Could not update all widget colors: {color_err}")
                 
                 self.update_idletasks()
-                self.log(f"✅ Accent color changed: {accent_color}")
+                self.log(f"✅ {target.replace('_', ' ').title()} color changed: {color}")
                 
             elif setting_type == 'cursor':
                 # Apply cursor changes to window and child widgets
@@ -4656,6 +4677,37 @@ class GameTextureSorter(ctk.CTk):
                 
         except Exception:
             pass  # Ignore widgets that don't support color changes
+    
+    def _apply_text_color_to_widget(self, widget, color, secondary=False):
+        """Recursively apply text color to labels and text widgets"""
+        try:
+            if isinstance(widget, ctk.CTkLabel):
+                # Secondary text: only small/gray labels; Primary: all labels
+                if secondary:
+                    current = widget.cget("text_color")
+                    if current and current in ("gray", "#888888", "#666666", "#999999"):
+                        widget.configure(text_color=color)
+                else:
+                    widget.configure(text_color=color)
+            elif isinstance(widget, ctk.CTkTextbox):
+                widget.configure(text_color=color)
+            for child in widget.winfo_children():
+                self._apply_text_color_to_widget(child, color, secondary)
+        except Exception:
+            pass
+    
+    def _apply_button_color_to_widget(self, widget, color, hover=False):
+        """Recursively apply button color to buttons"""
+        try:
+            if isinstance(widget, ctk.CTkButton):
+                if hover:
+                    widget.configure(hover_color=color)
+                else:
+                    widget.configure(fg_color=color)
+            for child in widget.winfo_children():
+                self._apply_button_color_to_widget(child, color, hover)
+        except Exception:
+            pass
     
     def _apply_cursor_to_widget(self, widget, cursor_type):
         """Recursively apply cursor to a widget and its children"""

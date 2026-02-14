@@ -165,12 +165,25 @@ class ColorWheelWidget(ctk.CTkFrame):
         target_frame = ctk.CTkFrame(scroll_frame)
         target_frame.pack(fill="x", padx=10, pady=5)
         
-        ctk.CTkLabel(target_frame, text="Apply color to:", font=("Arial Bold", 11)).pack(anchor="w", padx=5, pady=2)
+        ctk.CTkLabel(target_frame, text="🎯 Apply color to:", font=("Arial Bold", 11)).pack(anchor="w", padx=5, pady=2)
         self.color_target_var = ctk.StringVar(value="accent")
-        target_options = ["accent", "primary", "secondary", "background", "button", "button_hover", "text", "text_secondary", "border"]
+        target_options = [
+            "🎨 accent", "🔵 primary", "🟣 secondary", "🖼️ background",
+            "🔘 button", "✨ button_hover", "📝 text", "💬 text_secondary", "📏 border"
+        ]
+        self._target_display_to_key = {v: v.split(" ", 1)[1] for v in target_options}
         target_menu = ctk.CTkOptionMenu(target_frame, variable=self.color_target_var,
-                                        values=target_options, width=200)
+                                        values=target_options, width=200,
+                                        command=self._on_target_change)
         target_menu.pack(padx=5, pady=5)
+        
+        # Label showing which element is being modified
+        self._target_info = ctk.CTkLabel(
+            target_frame,
+            text="Currently editing: accent color (UI highlights & buttons)",
+            font=("Arial", 10), text_color="gray"
+        )
+        self._target_info.pack(anchor="w", padx=5, pady=(0, 5))
         
         hex_frame = ctk.CTkFrame(scroll_frame)
         hex_frame.pack(fill="x", padx=10, pady=5)
@@ -316,7 +329,7 @@ class ColorWheelWidget(ctk.CTkFrame):
         self._add_to_recent(self.current_color)
         
         if self.on_color_change:
-            self.on_color_change(self.current_color)
+            self.on_color_change(self.current_color, self.get_color_target())
     
     def _on_hsv_change(self):
         """Handle HSV slider changes"""
@@ -345,7 +358,7 @@ class ColorWheelWidget(ctk.CTkFrame):
         self._add_to_recent(self.current_color)
         
         if self.on_color_change:
-            self.on_color_change(self.current_color)
+            self.on_color_change(self.current_color, self.get_color_target())
     def _on_hex_change(self):
         hex_value = self.hex_var.get().strip()
         if not hex_value.startswith('#'):
@@ -434,7 +447,7 @@ class ColorWheelWidget(ctk.CTkFrame):
         self._update_all_from_rgb()
         self._add_to_recent(self.current_color)
         if self.on_color_change:
-            self.on_color_change(self.current_color)
+            self.on_color_change(self.current_color, self.get_color_target())
     
     def set_color(self, hex_color: str):
         self.current_color = hex_color
@@ -443,10 +456,34 @@ class ColorWheelWidget(ctk.CTkFrame):
         self._add_to_recent(hex_color)
         
         if self.on_color_change:
-            self.on_color_change(hex_color)
+            self.on_color_change(hex_color, self.get_color_target())
     
     def get_color(self) -> str:
         return self.current_color
+    
+    def get_color_target(self) -> str:
+        """Return the raw target key (accent, primary, etc.)"""
+        display = self.color_target_var.get()
+        return self._target_display_to_key.get(display, display)
+    
+    _TARGET_DESCRIPTIONS = {
+        "accent": "accent color (UI highlights & buttons)",
+        "primary": "primary color (main UI panels)",
+        "secondary": "secondary color (side panels & accents)",
+        "background": "background color (main window)",
+        "button": "button color (clickable controls)",
+        "button_hover": "button hover color (mouse-over effect)",
+        "text": "text color (primary labels & headings)",
+        "text_secondary": "secondary text color (descriptions & hints)",
+        "border": "border color (edges & separators)",
+    }
+    
+    def _on_target_change(self, value):
+        """Update info label when the color target dropdown changes."""
+        target = self.get_color_target()
+        desc = self._TARGET_DESCRIPTIONS.get(target, target)
+        if hasattr(self, '_target_info'):
+            self._target_info.configure(text=f"Currently editing: {desc}")
 
 
 class CursorCustomizer(ctk.CTkFrame):
@@ -1752,9 +1789,9 @@ class CustomizationPanel(ctk.CTkFrame):
         if self.on_settings_change:
             self.on_settings_change('theme', theme_data)
     
-    def _on_color_change(self, color):
+    def _on_color_change(self, color, target="accent"):
         if self.on_settings_change:
-            self.on_settings_change('color', color)
+            self.on_settings_change('color', {'color': color, 'target': target})
     
     def _on_cursor_change(self, cursor_config):
         if self.on_settings_change:
