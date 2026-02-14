@@ -8003,7 +8003,7 @@ class GameTextureSorter(ctk.CTk):
         """Create color correction tab for image enhancement"""
         try:
             if COLOR_CORRECTION_AVAILABLE:
-                panel = ColorCorrectionPanel(self.tab_color_correction)
+                panel = ColorCorrectionPanel(self.tab_color_correction, unlockables_system=self.unlockables_system)
                 panel.pack(fill="both", expand=True, padx=10, pady=10)
                 logger.info("Color Correction tab created successfully")
             else:
@@ -8026,7 +8026,7 @@ class GameTextureSorter(ctk.CTk):
         """Create image repair tab for fixing corrupted files"""
         try:
             if IMAGE_REPAIR_AVAILABLE:
-                panel = ImageRepairPanel(self.tab_image_repair)
+                panel = ImageRepairPanel(self.tab_image_repair, unlockables_system=self.unlockables_system)
                 panel.pack(fill="both", expand=True, padx=10, pady=10)
                 logger.info("Image Repair tab created successfully")
             else:

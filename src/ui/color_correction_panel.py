@@ -22,24 +22,37 @@ except ImportError as e:
     logger.warning(f"Color corrector not available: {e}")
     COLOR_CORRECTOR_AVAILABLE = False
 
+# Try to import tooltip system
+try:
+    from src.features.tutorial_system import WidgetTooltip
+    TOOLTIPS_AVAILABLE = True
+except ImportError:
+    WidgetTooltip = None
+    TOOLTIPS_AVAILABLE = False
+    logger.warning("Tooltips not available for Color Correction Panel")
+
 
 class ColorCorrectionPanel(ctk.CTkFrame):
     """Panel for color correction and enhancement."""
     
-    def __init__(self, parent, **kwargs):
+    def __init__(self, parent, unlockables_system=None, **kwargs):
         super().__init__(parent, **kwargs)
         
         if not COLOR_CORRECTOR_AVAILABLE:
             self._show_unavailable()
             return
         
+        self.unlockables_system = unlockables_system
         self.corrector = ColorCorrector()
         self.input_files = []
         self.output_dir = ""
         self.current_lut = None
         self.processing = False
         
+        self._tooltips = []
+        
         self._create_ui()
+        self._add_tooltips()
     
     def _show_unavailable(self):
         """Show message when color corrector is not available."""
@@ -557,6 +570,55 @@ class ColorCorrectionPanel(ctk.CTkFrame):
             self.progress_bar.pack_forget()
             self.progress_label.pack_forget()
             self.progress_var.set(0)
+    
+    def _add_tooltips(self):
+        """Add tooltips to widgets if available."""
+        if not TOOLTIPS_AVAILABLE or not self.unlockables_system:
+            return
+        
+        try:
+            tooltips = self.unlockables_system.get_all_tooltips()
+            tooltips_lower = [t.lower() for t in tooltips]
+            
+            def get_tooltip(keyword):
+                """Find tooltip containing keyword."""
+                for tooltip in tooltips_lower:
+                    if keyword.lower() in tooltip:
+                        return tooltips[tooltips_lower.index(tooltip)]
+                return None
+            
+            # White balance tooltip
+            if hasattr(self, 'white_balance_slider'):
+                tooltip = get_tooltip("white balance") or get_tooltip("color temperature")
+                if tooltip:
+                    self._tooltips.append(WidgetTooltip(self.white_balance_slider, tooltip))
+            
+            # Exposure tooltip
+            if hasattr(self, 'exposure_slider'):
+                tooltip = get_tooltip("exposure") or get_tooltip("brightness")
+                if tooltip:
+                    self._tooltips.append(WidgetTooltip(self.exposure_slider, tooltip))
+            
+            # Vibrance tooltip
+            if hasattr(self, 'vibrance_slider'):
+                tooltip = get_tooltip("vibrance") or get_tooltip("saturation")
+                if tooltip:
+                    self._tooltips.append(WidgetTooltip(self.vibrance_slider, tooltip))
+            
+            # Clarity tooltip
+            if hasattr(self, 'clarity_slider'):
+                tooltip = get_tooltip("clarity") or get_tooltip("sharpness")
+                if tooltip:
+                    self._tooltips.append(WidgetTooltip(self.clarity_slider, tooltip))
+            
+            # LUT button tooltip
+            if hasattr(self, 'load_lut_btn'):
+                tooltip = get_tooltip("lut") or get_tooltip("color grading")
+                if tooltip:
+                    self._tooltips.append(WidgetTooltip(self.load_lut_btn, tooltip))
+                    
+        except Exception as e:
+            logger.error(f"Error adding tooltips to Color Correction Panel: {e}")
 
 
 def open_color_correction_dialog(parent):
