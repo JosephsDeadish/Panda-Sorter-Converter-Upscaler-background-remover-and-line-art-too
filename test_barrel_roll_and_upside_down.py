@@ -396,15 +396,17 @@ def test_min_visible_scale_constant():
 
 
 def test_item_walk_offset_constants():
-    """Test that item walk offset constants exist."""
+    """Test that item walk distance constants exist."""
     try:
         from src.ui.panda_widget import PandaWidget
-        assert hasattr(PandaWidget, 'ITEM_WALK_OFFSET_X'), \
-            "PandaWidget should have ITEM_WALK_OFFSET_X constant"
-        assert hasattr(PandaWidget, 'ITEM_WALK_OFFSET_Y'), \
-            "PandaWidget should have ITEM_WALK_OFFSET_Y constant"
-        assert PandaWidget.ITEM_WALK_OFFSET_X > 0, \
-            "ITEM_WALK_OFFSET_X should be positive"
+        assert hasattr(PandaWidget, 'ITEM_WALK_DISTANCE'), \
+            "PandaWidget should have ITEM_WALK_DISTANCE constant"
+        assert PandaWidget.ITEM_WALK_DISTANCE > 0, \
+            "ITEM_WALK_DISTANCE should be positive"
+        assert hasattr(PandaWidget, 'ITEM_WALK_MIN'), \
+            "PandaWidget should have ITEM_WALK_MIN constant"
+        assert PandaWidget.ITEM_WALK_MIN > 0, \
+            "ITEM_WALK_MIN should be positive"
         print("✓ Item walk offset constants exist")
     except ImportError:
         print("⚠ Skipping item walk offset test (GUI not available)")

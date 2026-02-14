@@ -192,8 +192,9 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
     
     # Offset in pixels for where food/toy items appear relative to the panda
     # when given from the menu (the panda walks this distance to pick them up)
-    ITEM_WALK_OFFSET_X = 160
-    ITEM_WALK_OFFSET_Y = 60
+    ITEM_WALK_DISTANCE = 140
+    # Minimum walk distance per axis to ensure visible movement
+    ITEM_WALK_MIN = 40
     
     # Recovery time after falling on face or tipping over (ms)
     FALL_RECOVERY_TIME_MS = 5000
@@ -7381,15 +7382,13 @@ class PandaWidget(ctk.CTkFrame if ctk else tk.Frame):
                 
                 # Pick a random direction (angle) and walk the offset distance
                 angle = random.uniform(0, 2 * math.pi)
-                walk_dist_x = self.ITEM_WALK_OFFSET_X
-                walk_dist_y = self.ITEM_WALK_OFFSET_Y
-                offset_x = int(math.cos(angle) * walk_dist_x)
-                offset_y = int(math.sin(angle) * walk_dist_y)
-                # Ensure minimum movement so the walk is visible
-                if abs(offset_x) < 40:
-                    offset_x = 40 * (1 if offset_x >= 0 else -1)
-                if abs(offset_y) < 20:
-                    offset_y = 20 * (1 if offset_y >= 0 else -1)
+                offset_x = int(math.cos(angle) * self.ITEM_WALK_DISTANCE)
+                offset_y = int(math.sin(angle) * self.ITEM_WALK_DISTANCE)
+                # Ensure minimum movement per axis so the walk is visible
+                if abs(offset_x) < self.ITEM_WALK_MIN:
+                    offset_x = self.ITEM_WALK_MIN * (1 if offset_x >= 0 else -1)
+                if abs(offset_y) < self.ITEM_WALK_MIN:
+                    offset_y = self.ITEM_WALK_MIN * (1 if offset_y >= 0 else -1)
                 
                 target_x = panda_cx + offset_x
                 target_y = panda_cy + offset_y
