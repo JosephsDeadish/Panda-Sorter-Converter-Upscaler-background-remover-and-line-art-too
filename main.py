@@ -73,30 +73,42 @@ except ImportError:
 try:
     from src.ui.quality_checker_panel import QualityCheckerPanel
     QUALITY_CHECKER_AVAILABLE = True
-except ImportError:
+except ImportError as e:
     QUALITY_CHECKER_AVAILABLE = False
-    print("Warning: Quality checker panel not available.")
+    print(f"Warning: Quality checker panel not available: {e}")
+except Exception as e:
+    QUALITY_CHECKER_AVAILABLE = False
+    print(f"Warning: Quality checker panel error: {e}")
 
 try:
     from src.ui.batch_normalizer_panel import BatchNormalizerPanel
     BATCH_NORMALIZER_AVAILABLE = True
-except ImportError:
+except ImportError as e:
     BATCH_NORMALIZER_AVAILABLE = False
-    print("Warning: Batch normalizer panel not available.")
+    print(f"Warning: Batch normalizer panel not available: {e}")
+except Exception as e:
+    BATCH_NORMALIZER_AVAILABLE = False
+    print(f"Warning: Batch normalizer panel error: {e}")
 
 try:
     from src.ui.lineart_converter_panel import LineArtConverterPanel
     LINEART_CONVERTER_AVAILABLE = True
-except ImportError:
+except ImportError as e:
     LINEART_CONVERTER_AVAILABLE = False
-    print("Warning: Line art converter panel not available.")
+    print(f"Warning: Line art converter panel not available: {e}")
+except Exception as e:
+    LINEART_CONVERTER_AVAILABLE = False
+    print(f"Warning: Line art converter panel error: {e}")
 
 try:
     from src.ui.batch_rename_panel import BatchRenamePanel
     BATCH_RENAME_AVAILABLE = True
-except ImportError:
+except ImportError as e:
     BATCH_RENAME_AVAILABLE = False
-    print("Warning: Batch rename panel not available.")
+    print(f"Warning: Batch rename panel not available: {e}")
+except Exception as e:
+    BATCH_RENAME_AVAILABLE = False
+    print(f"Warning: Batch rename panel error: {e}")
 
 try:
     from src.ui.color_correction_panel import ColorCorrectionPanel
@@ -8152,18 +8164,21 @@ class GameTextureSorter(ctk.CTk):
             else:
                 ctk.CTkLabel(
                     self.tab_quality_checker,
-                    text="Quality Checker not available",
+                    text="Quality Checker not available.\n\nPlease ensure all dependencies are installed:\npip install -r requirements.txt",
                     font=("Arial", 14),
-                    text_color="red"
-                ).pack(pady=20)
+                    text_color="orange",
+                    justify="center"
+                ).pack(pady=20, padx=20)
         except Exception as e:
-            logger.error(f"Error creating quality checker tab: {e}")
+            logger.error(f"Error creating quality checker tab: {e}", exc_info=True)
             ctk.CTkLabel(
                 self.tab_quality_checker,
-                text=f"Error loading Quality Checker:\n{str(e)}",
+                text=f"Error loading Quality Checker:\n\n{str(e)}\n\nCheck logs for details.",
                 font=("Arial", 12),
-                text_color="red"
-            ).pack(pady=20)
+                text_color="red",
+                justify="center",
+                wraplength=500
+            ).pack(pady=20, padx=20)
     
     def create_batch_normalizer_tab(self):
         """Create batch normalizer tab for format standardization"""
@@ -8175,18 +8190,21 @@ class GameTextureSorter(ctk.CTk):
             else:
                 ctk.CTkLabel(
                     self.tab_batch_normalizer,
-                    text="Batch Normalizer not available",
+                    text="Batch Normalizer not available.\n\nPlease ensure all dependencies are installed:\npip install -r requirements.txt",
                     font=("Arial", 14),
-                    text_color="red"
-                ).pack(pady=20)
+                    text_color="orange",
+                    justify="center"
+                ).pack(pady=20, padx=20)
         except Exception as e:
-            logger.error(f"Error creating batch normalizer tab: {e}")
+            logger.error(f"Error creating batch normalizer tab: {e}", exc_info=True)
             ctk.CTkLabel(
                 self.tab_batch_normalizer,
-                text=f"Error loading Batch Normalizer:\n{str(e)}",
+                text=f"Error loading Batch Normalizer:\n\n{str(e)}\n\nCheck logs for details.",
                 font=("Arial", 12),
-                text_color="red"
-            ).pack(pady=20)
+                text_color="red",
+                justify="center",
+                wraplength=500
+            ).pack(pady=20, padx=20)
     
     def create_lineart_converter_tab(self):
         """Create line art converter tab for stencil generation"""
@@ -8198,18 +8216,21 @@ class GameTextureSorter(ctk.CTk):
             else:
                 ctk.CTkLabel(
                     self.tab_lineart_converter,
-                    text="Line Art Converter not available",
+                    text="Line Art Converter not available.\n\nPlease ensure all dependencies are installed:\npip install -r requirements.txt",
                     font=("Arial", 14),
-                    text_color="red"
-                ).pack(pady=20)
+                    text_color="orange",
+                    justify="center"
+                ).pack(pady=20, padx=20)
         except Exception as e:
-            logger.error(f"Error creating line art converter tab: {e}")
+            logger.error(f"Error creating line art converter tab: {e}", exc_info=True)
             ctk.CTkLabel(
                 self.tab_lineart_converter,
-                text=f"Error loading Line Art Converter:\n{str(e)}",
+                text=f"Error loading Line Art Converter:\n\n{str(e)}\n\nCheck logs for details.",
                 font=("Arial", 12),
-                text_color="red"
-            ).pack(pady=20)
+                text_color="red",
+                justify="center",
+                wraplength=500
+            ).pack(pady=20, padx=20)
     
     def create_batch_rename_tab(self):
         """Create batch rename tab for file renaming with patterns"""
@@ -8221,18 +8242,21 @@ class GameTextureSorter(ctk.CTk):
             else:
                 ctk.CTkLabel(
                     self.tab_batch_rename,
-                    text="Batch Rename not available",
+                    text="Batch Rename not available.\n\nPlease ensure all dependencies are installed:\npip install -r requirements.txt",
                     font=("Arial", 14),
-                    text_color="red"
-                ).pack(pady=20)
+                    text_color="orange",
+                    justify="center"
+                ).pack(pady=20, padx=20)
         except Exception as e:
-            logger.error(f"Error creating batch rename tab: {e}")
+            logger.error(f"Error creating batch rename tab: {e}", exc_info=True)
             ctk.CTkLabel(
                 self.tab_batch_rename,
-                text=f"Error loading Batch Rename:\n{str(e)}",
+                text=f"Error loading Batch Rename:\n\n{str(e)}\n\nCheck logs for details.",
                 font=("Arial", 12),
-                text_color="red"
-            ).pack(pady=20)
+                text_color="red",
+                justify="center",
+                wraplength=500
+            ).pack(pady=20, padx=20)
     
     def create_color_correction_tab(self):
         """Create color correction tab for image enhancement"""
@@ -8244,18 +8268,21 @@ class GameTextureSorter(ctk.CTk):
             else:
                 ctk.CTkLabel(
                     self.tab_color_correction,
-                    text="Color Correction not available",
+                    text="Color Correction not available.\n\nPlease ensure all dependencies are installed:\npip install -r requirements.txt",
                     font=("Arial", 14),
-                    text_color="red"
-                ).pack(pady=20)
+                    text_color="orange",
+                    justify="center"
+                ).pack(pady=20, padx=20)
         except Exception as e:
-            logger.error(f"Error creating color correction tab: {e}")
+            logger.error(f"Error creating color correction tab: {e}", exc_info=True)
             ctk.CTkLabel(
                 self.tab_color_correction,
-                text=f"Error loading Color Correction:\n{str(e)}",
+                text=f"Error loading Color Correction:\n\n{str(e)}\n\nCheck logs for details.",
                 font=("Arial", 12),
-                text_color="red"
-            ).pack(pady=20)
+                text_color="red",
+                justify="center",
+                wraplength=500
+            ).pack(pady=20, padx=20)
     
     def create_image_repair_tab(self):
         """Create image repair tab for fixing corrupted files"""
@@ -8267,18 +8294,21 @@ class GameTextureSorter(ctk.CTk):
             else:
                 ctk.CTkLabel(
                     self.tab_image_repair,
-                    text="Image Repair not available",
+                    text="Image Repair not available.\n\nPlease ensure all dependencies are installed:\npip install -r requirements.txt",
                     font=("Arial", 14),
-                    text_color="red"
-                ).pack(pady=20)
+                    text_color="orange",
+                    justify="center"
+                ).pack(pady=20, padx=20)
         except Exception as e:
-            logger.error(f"Error creating image repair tab: {e}")
+            logger.error(f"Error creating image repair tab: {e}", exc_info=True)
             ctk.CTkLabel(
                 self.tab_image_repair,
-                text=f"Error loading Image Repair:\n{str(e)}",
+                text=f"Error loading Image Repair:\n\n{str(e)}\n\nCheck logs for details.",
                 font=("Arial", 12),
-                text_color="red"
-            ).pack(pady=20)
+                text_color="red",
+                justify="center",
+                wraplength=500
+            ).pack(pady=20, padx=20)
     
     def create_performance_tab(self):
         """Create performance dashboard tab for monitoring"""
