@@ -101,121 +101,96 @@ def get_customization_panel(parent, panda_closet, panda_character=None):
 
 def get_background_remover_panel(parent):
     """
-    Get background remover panel - Qt version if available, Tkinter otherwise.
+    Get Qt background remover panel.
     
     Args:
         parent: Parent widget
         
     Returns:
-        BackgroundRemoverPanel instance (Qt or Tkinter)
+        BackgroundRemoverPanelQt instance
     """
-    if PYQT6_AVAILABLE:
-        try:
-            from src.ui.background_remover_panel_qt import BackgroundRemoverPanelQt
-            logger.info("Using Qt background remover panel")
-            return BackgroundRemoverPanelQt(parent)
-        except Exception as e:
-            logger.warning(f"Failed to load Qt background remover panel: {e}, falling back to Tkinter")
+    if not PYQT6_AVAILABLE:
+        raise ImportError("PyQt6 required for background remover panel. Install with: pip install PyQt6")
     
-    from src.ui.background_remover_panel import BackgroundRemoverPanel
-    logger.info("Using Tkinter background remover panel")
-    return BackgroundRemoverPanel(parent)
+    from src.ui.background_remover_panel_qt import BackgroundRemoverPanelQt
+    logger.info("Using Qt background remover panel")
+    return BackgroundRemoverPanelQt(parent)
 
 
 def get_batch_rename_panel(parent, unlockables_system=None, tooltip_manager=None):
     """
-    Get batch rename panel - Qt version if available, Tkinter otherwise.
+    Get Qt batch rename panel.
     
     Args:
         parent: Parent widget
-        unlockables_system: Unlockables system instance
-        tooltip_manager: Tooltip manager instance
+        unlockables_system: Unlockables system instance (optional)
+        tooltip_manager: Tooltip manager instance (optional)
         
     Returns:
-        BatchRenamePanel instance (Qt or Tkinter)
+        BatchRenamePanelQt instance
     """
-    if PYQT6_AVAILABLE:
-        try:
-            from src.ui.batch_rename_panel_qt import BatchRenamePanelQt
-            logger.info("Using Qt batch rename panel")
-            return BatchRenamePanelQt(parent, tooltip_manager)
-        except Exception as e:
-            logger.warning(f"Failed to load Qt batch rename panel: {e}, falling back to Tkinter")
+    if not PYQT6_AVAILABLE:
+        raise ImportError("PyQt6 required for batch rename panel. Install with: pip install PyQt6")
     
-    from src.ui.batch_rename_panel import BatchRenamePanel
-    logger.info("Using Tkinter batch rename panel")
-    return BatchRenamePanel(parent, unlockables_system, tooltip_manager)
+    from src.ui.batch_rename_panel_qt import BatchRenamePanelQt
+    logger.info("Using Qt batch rename panel")
+    return BatchRenamePanelQt(parent, tooltip_manager)
 
 
 def get_lineart_converter_panel(parent, unlockables_system=None, tooltip_manager=None):
     """
-    Get line art converter panel - Qt version if available, Tkinter otherwise.
+    Get Qt line art converter panel.
     
     Args:
         parent: Parent widget
-        unlockables_system: Unlockables system instance
-        tooltip_manager: Tooltip manager instance
+        unlockables_system: Unlockables system instance (optional)
+        tooltip_manager: Tooltip manager instance (optional)
         
     Returns:
-        LineArtConverterPanel instance (Qt or Tkinter)
+        LineArtConverterPanelQt instance
     """
-    if PYQT6_AVAILABLE:
-        try:
-            from src.ui.lineart_converter_panel_qt import LineArtConverterPanelQt
-            logger.info("Using Qt line art converter panel")
-            return LineArtConverterPanelQt(parent, tooltip_manager)
-        except Exception as e:
-            logger.warning(f"Failed to load Qt line art converter panel: {e}, falling back to Tkinter")
+    if not PYQT6_AVAILABLE:
+        raise ImportError("PyQt6 required for lineart converter panel. Install with: pip install PyQt6")
     
-    from src.ui.lineart_converter_panel import LineArtConverterPanel
-    logger.info("Using Tkinter line art converter panel")
-    return LineArtConverterPanel(parent, unlockables_system, tooltip_manager)
+    from src.ui.lineart_converter_panel_qt import LineArtConverterPanelQt
+    logger.info("Using Qt line art converter panel")
+    return LineArtConverterPanelQt(parent, tooltip_manager)
 
 
 def get_image_repair_panel(parent, unlockables_system=None, tooltip_manager=None):
     """
-    Get image repair panel - Qt version if available, Tkinter otherwise.
+    Get Qt image repair panel.
     
     Args:
         parent: Parent widget
-        unlockables_system: Unlockables system instance
-        tooltip_manager: Tooltip manager instance
+        unlockables_system: Unlockables system instance (optional)
+        tooltip_manager: Tooltip manager instance (optional)
         
     Returns:
-        ImageRepairPanel instance (Qt or Tkinter)
+        ImageRepairPanelQt instance
     """
-    if PYQT6_AVAILABLE:
-        try:
-            from src.ui.image_repair_panel_qt import ImageRepairPanelQt
-            logger.info("Using Qt image repair panel")
-            return ImageRepairPanelQt(parent, tooltip_manager)
-        except Exception as e:
-            logger.warning(f"Failed to load Qt image repair panel: {e}, falling back to Tkinter")
+    if not PYQT6_AVAILABLE:
+        raise ImportError("PyQt6 required for image repair panel. Install with: pip install PyQt6")
     
-    from src.ui.image_repair_panel import ImageRepairPanel
-    logger.info("Using Tkinter image repair panel")
-    return ImageRepairPanel(parent, unlockables_system, tooltip_manager)
+    from src.ui.image_repair_panel_qt import ImageRepairPanelQt
+    logger.info("Using Qt image repair panel")
+    return ImageRepairPanelQt(parent, tooltip_manager)
 
 
 def get_minigame_panel(parent, minigame_manager=None):
     """
-    Get minigame panel - Qt version if available, Tkinter otherwise.
+    Get Qt minigame panel.
     
     Args:
         parent: Parent widget
-        minigame_manager: MiniGameManager instance
+        minigame_manager: Minigame manager instance (optional)
         
     Returns:
-        MiniGamePanel instance (Qt or Tkinter)
+        MiniGamePanelQt instance
     """
-    if PYQT6_AVAILABLE:
-        try:
-            from src.ui.minigame_panel_qt import MiniGamePanelQt
-            logger.info("Using Qt minigame panel")
-            return MiniGamePanelQt(parent, minigame_manager)
-        except Exception as e:
-            logger.warning(f"Failed to load Qt minigame panel: {e}, falling back to Tkinter")
+    if not PYQT6_AVAILABLE:
+        raise ImportError("PyQt6 required for minigame panel. Install with: pip install PyQt6")
     
-    from src.ui.minigame_panel import MiniGamePanel
-    logger.info("Using Tkinter minigame panel")
-    return MiniGamePanel(parent, minigame_manager)
+    from src.ui.minigame_panel_qt import MiniGamePanelQt
+    logger.info("Using Qt minigame panel")
+    return MiniGamePanelQt(parent, minigame_manager)
