@@ -47,8 +47,19 @@ class LivePreviewWidget(ctk.CTkFrame):
         # Slider divider position as fraction 0..1 (starts at center)
         self._slider_pos = 0.5
         self._dragging_slider = False
+        
+        # Cached canvas dimensions to avoid repeated winfo calls
+        self._canvas_width = 800
+        self._canvas_height = 300
+        self._resize_pending = False
+        
+        # Store photo references for cleanup
+        self._photo_refs = []
 
         self._create_widgets()
+        
+        # Bind canvas configure event with throttling
+        self.canvas.bind("<Configure>", self._on_canvas_resize)
 
     def _create_widgets(self):
         """Create the preview widgets."""
@@ -186,17 +197,45 @@ class LivePreviewWidget(ctk.CTkFrame):
         """Clear the preview."""
         self.original_image = None
         self.processed_image = None
+        self._cleanup_photo_refs()
         self.canvas.delete("all")
         self.status_label.configure(
             text="Load an image to see preview", text_color="gray")
+        # Force garbage collection after clearing
+        import gc
+        gc.collect()
 
     # ------------------------------------------------------------------
     # Internal — preview rendering
     # ------------------------------------------------------------------
+    
+    def _on_canvas_resize(self, event):
+        """Handle canvas resize events with throttling to prevent screen tearing."""
+        # Update cached dimensions
+        self._canvas_width = event.width
+        self._canvas_height = event.height
+        
+        # Throttle resize updates to prevent excessive redraws
+        if self._resize_pending:
+            return
+        
+        self._resize_pending = True
+        # Delay the update by 150ms to batch multiple resize events
+        self.after(150, self._do_resize_update)
+    
+    def _do_resize_update(self):
+        """Perform the actual resize update after throttling."""
+        self._resize_pending = False
+        if self.original_image and self.processed_image:
+            self._update_preview()
 
     def _update_preview(self):
         if not self.original_image or not self.processed_image:
             return
+        
+        # Clean up old photo references to prevent memory leaks
+        self._cleanup_photo_refs()
+        
         self.canvas.delete("all")
         if self.comparison_mode == "side_by_side":
             self._show_side_by_side()
@@ -204,13 +243,34 @@ class LivePreviewWidget(ctk.CTkFrame):
             self._show_toggle()
         elif self.comparison_mode == "slider":
             self._show_slider()
+    
+    def _cleanup_photo_refs(self):
+        """Clean up old ImageTk.PhotoImage references to free memory."""
+        # Clear all stored photo references
+        for ref in self._photo_refs:
+            try:
+                del ref
+            except Exception:
+                pass
+        self._photo_refs = []
+        
+        # Also clear individual photo attributes if they exist
+        if hasattr(self, '_slider_photo'):
+            del self._slider_photo
+        if hasattr(self, 'before_photo'):
+            del self.before_photo
+        if hasattr(self, 'after_photo'):
+            del self.after_photo
+        if hasattr(self, 'preview_photo'):
+            del self.preview_photo
 
     # ---------- Slider mode (upscayl-style) ----------
 
     def _show_slider(self):
         """Render upscayl-style before/after with draggable vertical divider."""
-        cw = self.canvas.winfo_width() or 800
-        ch = self.canvas.winfo_height() or 300
+        # Use cached dimensions instead of winfo calls to avoid resize issues
+        cw = self._canvas_width
+        ch = self._canvas_height
 
         # Resize both images to same display size (respecting zoom + pan)
         display_w = max(1, int(cw * self._zoom))
@@ -279,6 +339,7 @@ class LivePreviewWidget(ctk.CTkFrame):
         oy = (ch - h) // 2 + int(self._pan_y)
 
         self._slider_photo = ImageTk.PhotoImage(composite)
+        self._photo_refs.append(self._slider_photo)  # Track for cleanup
         self.canvas.create_image(ox, oy, image=self._slider_photo, anchor="nw")
 
         # Store geometry for hit-testing
@@ -287,8 +348,9 @@ class LivePreviewWidget(ctk.CTkFrame):
     # ---------- Side-by-side mode ----------
 
     def _show_side_by_side(self):
-        cw = self.canvas.winfo_width() or 800
-        ch = self.canvas.winfo_height() or 300
+        # Use cached dimensions
+        cw = self._canvas_width
+        ch = self._canvas_height
 
         pw = (cw - 30) // 2
         ph = ch - 20
@@ -309,6 +371,7 @@ class LivePreviewWidget(ctk.CTkFrame):
 
         self.before_photo = ImageTk.PhotoImage(before_img)
         self.after_photo = ImageTk.PhotoImage(after_img)
+        self._photo_refs.extend([self.before_photo, self.after_photo])  # Track for cleanup
 
         self.canvas.create_image(
             pw // 2 + 10, ph // 2 + 10,
@@ -322,8 +385,9 @@ class LivePreviewWidget(ctk.CTkFrame):
     # ---------- Toggle mode ----------
 
     def _show_toggle(self):
-        cw = self.canvas.winfo_width() or 800
-        ch = self.canvas.winfo_height() or 300
+        # Use cached dimensions
+        cw = self._canvas_width
+        ch = self._canvas_height
 
         img = self.processed_image if self.showing_after else self.original_image
         preview_img = self._resize_image(img, cw - 20, ch - 20)
@@ -335,6 +399,7 @@ class LivePreviewWidget(ctk.CTkFrame):
             preview_img = bg
 
         self.preview_photo = ImageTk.PhotoImage(preview_img)
+        self._photo_refs.append(self.preview_photo)  # Track for cleanup
         self.canvas.create_image(
             cw // 2, ch // 2, image=self.preview_photo, anchor="center")
 

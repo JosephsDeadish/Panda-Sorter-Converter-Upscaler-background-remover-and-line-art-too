@@ -156,6 +156,9 @@ class LineArtConverterPanel(ctk.CTkFrame):
         self.preview_image = None
         self._last_preview_result = None
         self._debounce_id = None  # for debounced live preview updates
+        self._preview_running = False  # Flag to prevent concurrent preview operations
+        self._preview_cancelled = False  # Flag to cancel in-flight previews
+        self._cached_images = {}  # Cache to clean up old ImageTk references
         
         self._tooltips = []
         self._create_widgets()
@@ -776,22 +779,39 @@ class LineArtConverterPanel(ctk.CTkFrame):
         )
     
     def _schedule_live_update(self, *_args):
-        """Debounced live preview: schedules an update 500ms after the last setting change."""
+        """Debounced live preview: schedules an update after the last setting change."""
         if not self.preview_image:
             return
+        
+        # Cancel any pending debounced update
         if self._debounce_id is not None:
             self.after_cancel(self._debounce_id)
-        self._debounce_id = self.after(500, self._update_preview)
+        
+        # Cancel any running preview operation
+        self._preview_cancelled = True
+        
+        # Increased debounce time from 500ms to 800ms for better stability
+        # This reduces the chance of multiple rapid updates overwhelming the system
+        self._debounce_id = self.after(800, self._update_preview)
 
     def _update_preview(self):
         """Update preview with current settings (runs in background thread)."""
         self._debounce_id = None
+        
+        # Prevent concurrent preview operations
+        if self._preview_running:
+            return
+        
         if not self.preview_image and self.selected_files:
             self.preview_image = self.selected_files[0]
         
         if not self.preview_image:
             messagebox.showwarning("No Image", "Please select an image for preview")
             return
+        
+        # Mark preview as running and reset cancellation flag
+        self._preview_running = True
+        self._preview_cancelled = False
         
         # Store original button text and disable button during processing
         original_btn_text = "Update Preview"
@@ -809,13 +829,29 @@ class LineArtConverterPanel(ctk.CTkFrame):
         def generate_preview():
             processed = None
             try:
+                # Check if cancelled before starting
+                if self._preview_cancelled:
+                    return
+                
                 settings = self._get_settings()
                 with Image.open(preview_path) as original:
                     # Make copies so we can close the file
                     original_copy = original.copy()
                 
+                # Check if cancelled before processing
+                if self._preview_cancelled:
+                    return
+                
                 # preview_settings returns a new image, not a file handle
                 processed = self.converter.preview_settings(preview_path, settings)
+                
+                # Check if cancelled before storing result
+                if self._preview_cancelled:
+                    # Clean up processed image if operation was cancelled
+                    if processed:
+                        processed.close()
+                    original_copy.close()
+                    return
 
                 # Store full-resolution result for export
                 self._last_preview_result = processed.copy()
@@ -827,12 +863,22 @@ class LineArtConverterPanel(ctk.CTkFrame):
                 logger.error(f"Error updating preview: {e}", exc_info=True)
                 self.after(0, lambda: messagebox.showerror("Error", f"Failed to update preview: {e}"))
             finally:
-                # Re-enable button on main thread
+                # Reset running flag and re-enable button on main thread
+                self._preview_running = False
                 if hasattr(self, 'update_preview_btn'):
                     self.after(0, lambda: self.update_preview_btn.configure(state="normal", text=original_btn_text))
+                
+                # Explicit garbage collection after preview to free memory
+                self.after(0, self._cleanup_memory)
         
         # Start background thread
         threading.Thread(target=generate_preview, daemon=True).start()
+    
+    def _cleanup_memory(self):
+        """Clean up old image references to free memory."""
+        import gc
+        # Force garbage collection to free up memory from old preview images
+        gc.collect()
     
     def _display_preview(self, original, processed):
         """Display preview images (must be called on main thread)."""
