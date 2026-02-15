@@ -95,27 +95,20 @@ class WidgetsPanel(ctk.CTkFrame if ctk else tk.Frame):
         )
         accessories_btn.pack(pady=5, fill="x")
         
-        # Scrollable content frame
+        # Scrollable content frame - NO CANVAS
         if ctk:
             self.content_frame = ctk.CTkScrollableFrame(self)
-        else:
-            canvas = tk.Canvas(self)
-            scrollbar = tk.Scrollbar(self, orient="vertical", command=canvas.yview)
-            self.content_frame = tk.Frame(canvas)
-            
-            self.content_frame.bind(
-                "<Configure>",
-                lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
-            )
-            
-            canvas.create_window((0, 0), window=self.content_frame, anchor="nw")
-            canvas.configure(yscrollcommand=scrollbar.set)
-            
-            canvas.grid(row=1, column=1, sticky="nsew", padx=10, pady=10)
-            scrollbar.grid(row=1, column=2, sticky="ns")
-        
-        if ctk:
             self.content_frame.grid(row=1, column=1, sticky="nsew", padx=10, pady=10)
+        else:
+            # NO CANVAS - use basic Frame, Qt wrapper handles scrolling
+            scroll_container = tk.Frame(self)
+            scroll_container.grid(row=1, column=1, sticky="nsew", padx=10, pady=10)
+            
+            self.content_frame = tk.Frame(scroll_container)
+            self.content_frame.pack(fill="both", expand=True)
+            
+            # Qt QScrollArea wrapper provides scrolling
+        
         
         # Status/feedback area
         self.status_var = tk.StringVar(value="Select a widget to interact with panda!")
