@@ -77,10 +77,28 @@ a = Analysis(
         'sqlite3',
         'send2trash',
         'watchdog',
-        # UI framework
-        'tkinter',
-        'tkinter.ttk',
-        'customtkinter',
+        # Qt6 UI framework (REQUIRED - replaces tkinter)
+        'PyQt6',
+        'PyQt6.QtCore',
+        'PyQt6.QtGui',
+        'PyQt6.QtWidgets',
+        'PyQt6.QtOpenGL',
+        'PyQt6.QtOpenGLWidgets',
+        'PyQt6.sip',
+        # OpenGL for 3D rendering
+        'OpenGL',
+        'OpenGL.GL',
+        'OpenGL.GLU',
+        'OpenGL.GLUT',
+        'OpenGL.arrays',
+        'OpenGL.arrays.vbo',
+        'OpenGL.GL.shaders',
+        # Legacy UI framework (optional fallback only)
+        # 'tkinter',
+        # 'tkinter.ttk',
+        # 'customtkinter',
+        # Note: tkinter/customtkinter are now optional fallbacks.
+        # The application uses Qt6 as primary UI.
         'darkdetect',
         # Utilities
         'psutil',
@@ -104,7 +122,7 @@ a = Analysis(
     ],
     hookspath=[str(SCRIPT_DIR)],  # Use hooks in project root (hook-*.py files)
     hooksconfig={},
-    runtime_hooks=['pyi_rth_tkinter_fix.py'],
+    runtime_hooks=[],  # Removed tkinter runtime hook - not needed for Qt
     excludes=[
         # Heavy scientific libraries (not needed)
         'matplotlib',
