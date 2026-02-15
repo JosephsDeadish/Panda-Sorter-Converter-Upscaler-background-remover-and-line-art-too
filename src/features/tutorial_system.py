@@ -8241,6 +8241,10 @@ class WidgetTooltip:
     tooltip-mode changes take effect immediately without a restart.
     """
     
+    # Default tooltip display duration in milliseconds
+    # Qt default is -1 (uses system setting), we set 5 seconds for consistency
+    DEFAULT_TOOLTIP_DURATION = 5000
+    
     def __init__(self, widget, text, delay=500, widget_id=None, tooltip_manager=None):
         self.widget = widget
         self.text = text
@@ -8253,9 +8257,9 @@ class WidgetTooltip:
         display_text = self._get_display_text()
         if display_text and hasattr(widget, 'setToolTip'):
             widget.setToolTip(display_text)
-            # Set tooltip duration if supported
+            # Set tooltip duration if supported (5 seconds for visibility)
             if hasattr(widget, 'setToolTipDuration'):
-                widget.setToolTipDuration(5000)  # 5 seconds
+                widget.setToolTipDuration(self.DEFAULT_TOOLTIP_DURATION)
     
     def _get_display_text(self):
         """Get the text to display, resolving dynamically if possible."""
