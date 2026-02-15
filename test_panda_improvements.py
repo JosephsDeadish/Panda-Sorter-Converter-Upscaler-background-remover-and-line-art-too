@@ -487,18 +487,18 @@ def test_body_drag_responses():
 def test_body_part_detection_with_x():
     """Test that body part detection uses X position for arm detection."""
     panda = PandaCharacter()
-    # Body region, center → should return 'body'
-    part = panda.get_body_part_at_position(0.4, 0.5)
+    # Body region (0.48-0.72), center → should return 'body'
+    part = panda.get_body_part_at_position(0.55, 0.5)
     assert part == 'body', f"Center body should be 'body', got {part}"
     # Body region, far left → should return 'left_arm'
-    part = panda.get_body_part_at_position(0.4, 0.1)
+    part = panda.get_body_part_at_position(0.55, 0.1)
     assert part == 'left_arm', f"Left side body should be 'left_arm', got {part}"
     # Body region, far right → should return 'right_arm'
-    part = panda.get_body_part_at_position(0.4, 0.9)
+    part = panda.get_body_part_at_position(0.55, 0.9)
     assert part == 'right_arm', f"Right side body should be 'right_arm', got {part}"
     # Head is always head regardless of X (except for ears)
-    part = panda.get_body_part_at_position(0.2, 0.5)
-    assert part == 'head', f"Top center should be 'head', got {part}"
+    part = panda.get_body_part_at_position(0.30, 0.5)
+    assert part == 'nose', f"Lower face center should be 'nose', got {part}"
     # Legs - left and right
     part = panda.get_body_part_at_position(0.9, 0.3)
     assert part == 'left_leg', f"Bottom left should be 'left_leg', got {part}"

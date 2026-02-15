@@ -443,13 +443,35 @@ class ModelImporter:
             logger.error("Unsupported model format")
             return False
         
-        # Check minimum app version (placeholder - would need actual version check)
+        # Check minimum app version
         min_version = metadata.get('compatibility', {}).get('min_app_version')
         if min_version:
             logger.debug(f"Requires app version: {min_version}")
-            # TODO: Implement version comparison
+            if not self._version_gte(ModelPackage.PACKAGE_VERSION, min_version):
+                logger.error(
+                    f"App version {ModelPackage.PACKAGE_VERSION} is below "
+                    f"required minimum {min_version}"
+                )
+                return False
         
         return True
+    
+    @staticmethod
+    def _version_gte(current: str, required: str) -> bool:
+        """Return True if *current* >= *required* using simple semver comparison."""
+        def _parts(v: str) -> List[int]:
+            return [int(x) for x in v.split(".") if x.isdigit()]
+        try:
+            cur = _parts(current)
+            req = _parts(required)
+            # Pad to equal length with zeros
+            length = max(len(cur), len(req))
+            cur.extend([0] * (length - len(cur)))
+            req.extend([0] * (length - len(req)))
+            return cur >= req
+        except (ValueError, AttributeError):
+            logger.warning(f"Could not compare versions: {current} vs {required}")
+            return True  # Allow on parse failure
     
     def list_installed_models(self) -> List[Dict[str, Any]]:
         """

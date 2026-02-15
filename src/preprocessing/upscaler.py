@@ -83,9 +83,12 @@ class TextureUpscaler:
     
     def _upscale_bicubic(self, image: np.ndarray, scale_factor: int) -> np.ndarray:
         """
-        Upscale using bicubic interpolation.
+        Upscale using bicubic interpolation with detail enhancement.
         
-        Fast and produces good results for most textures.
+        Applies a multi-pass pipeline:
+        1. cv2 bicubic resize
+        2. Unsharp mask to restore detail lost during interpolation
+        3. Subtle detail-enhancement pass
         """
         h, w = image.shape[:2]
         new_h = h * scale_factor
@@ -96,6 +99,17 @@ class TextureUpscaler:
             (new_w, new_h),
             interpolation=cv2.INTER_CUBIC
         )
+        
+        # Unsharp mask: sharpen to counteract interpolation blur
+        # gaussian_blur → subtract → weighted add
+        blurred = cv2.GaussianBlur(upscaled, (0, 0), sigmaX=1.5)
+        upscaled = cv2.addWeighted(upscaled, 1.5, blurred, -0.5, 0)
+        
+        # Detail enhancement: extract detail layer and amplify it
+        smooth = cv2.bilateralFilter(upscaled, d=5, sigmaColor=50, sigmaSpace=50)
+        detail = cv2.subtract(upscaled, smooth)
+        # Amplify detail layer by 1.5x and recombine
+        upscaled = cv2.add(smooth, cv2.multiply(detail, 1.5))
         
         logger.debug(f"Bicubic upscale: {image.shape[:2]} -> {upscaled.shape[:2]}")
         return upscaled

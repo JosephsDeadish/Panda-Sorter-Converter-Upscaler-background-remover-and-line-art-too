@@ -1669,6 +1669,11 @@ _PANDA_TOOLTIPS = {
             "AI tab. Skynet for texture sorting. Totally not concerning. Nothing could possibly go wrong. Famous last words.",
             "Machine learning settings. It's like training a dog, but nerdier. And with more math. And less poop. Usually.",
             "AI config. Let the robots handle it while you eat snacks. Automation nation. Robot workforce. Human laziness. Perfect synergy."
+        ],
+        'dumbed-down': [
+            "This is where you tell the robot brain how to work!",
+            "AI settings = robot helper settings. Change how the computer guesses stuff!",
+            "The computer tries to be smart here. You pick HOW smart!",
         ]
     },
     'settings_system_tab': {
@@ -2857,6 +2862,11 @@ _PANDA_TOOLTIPS = {
             "Bad AI! No biscuit! Click to teach it a lesson.",
             "The AI got it wrong? Shocking. Click to add to its shame file.",
             "Negative feedback: because even AI needs to know when it's being dumb.",
+        ],
+        'dumbed-down': [
+            "Click this if the computer guessed WRONG!",
+            "The robot made a mistake? Tell it by clicking here!",
+            "This tells the computer 'No, that's not right!'",
         ]
     },
     'ai_feedback_retry': {
@@ -2869,6 +2879,11 @@ _PANDA_TOOLTIPS = {
             "Try again, robot! The panda believes in second chances.",
             "Retry: because the AI's first attempt was... creative, let's say.",
             "Give the AI another shot. Maybe it was having an off day.",
+        ],
+        'dumbed-down': [
+            "Make the computer try again! Maybe it'll get it right this time!",
+            "Click to let the robot have another guess!",
+            "Try again button — gives the AI a do-over!",
         ]
     },
     'ai_export_training': {
@@ -2881,6 +2896,11 @@ _PANDA_TOOLTIPS = {
             "Export your AI's brain to a file. It's less creepy than it sounds.",
             "Save the AI training data. Share your panda's wisdom with the world.",
             "Download the AI's learned corrections. It's like a report card, but for robots.",
+        ],
+        'dumbed-down': [
+            "Save what the robot learned to a file you can share!",
+            "Download the AI's homework so your friend's AI can copy it!",
+            "Export = save the robot's brain to a file!",
         ]
     },
     'ai_import_training': {
@@ -2893,6 +2913,218 @@ _PANDA_TOOLTIPS = {
             "Import someone else's AI training. Steal their panda's homework!",
             "Load training data. Give your AI a brain transplant.",
             "Import AI corrections. It's like downloading experience points for your robot.",
+        ],
+        'dumbed-down': [
+            "Load someone else's robot brain file to make YOUR robot smarter!",
+            "Import = give the AI a cheat sheet from another user!",
+            "Plug in training data so the computer already knows stuff!",
+        ]
+    },
+    # ── Per-Tool AI Settings Tooltips ──
+    'ai_cls_model': {
+        'normal': [
+            "Select the vision model used for classifying image content into categories",
+            "CLIP ViT-B/32 is the default general-purpose classifier; DinoV2 excels at self-supervised features",
+            "EfficientNet is lightweight and fast; ViT-Base offers strong accuracy for larger datasets",
+        ],
+        'vulgar': [
+            "Pick which robot eyeball to use for sorting your damn textures. CLIP is the reliable one, DinoV2 is the fancy one.",
+            "Vision model selector: it's like picking which pair of glasses the AI wears. Some see better than others, obviously.",
+            "Choose your AI's brain type. CLIP = generalist nerd, DinoV2 = hipster with self-taught skills, EfficientNet = the speedy little bastard.",
+        ],
+        'dumbed-down': [
+            "Pick which robot eye the computer uses to look at your pictures!",
+            "Different models = different ways the computer 'sees' your images!",
+            "The default one (CLIP) works great — only change if you know what you're doing!",
+        ]
+    },
+    'ai_cls_custom_api': {
+        'normal': [
+            "Enable to use your own hosted classification API instead of the built-in model",
+            "When checked, classification requests are sent to your custom endpoint",
+        ],
+        'vulgar': [
+            "Check this if you're running your own classifier because you're too cool for built-in AI. Look at you, Mr. Self-Hosted.",
+            "Enable custom API: for people who don't trust our AI and rolled their own. Fair enough, honestly.",
+        ],
+        'dumbed-down': [
+            "Turn this ON if you have your own classification server running somewhere!",
+            "Leave this OFF unless you set up your own AI service!",
+        ]
+    },
+    'ai_cls_api_url': {
+        'normal': [
+            "The URL endpoint for your custom classification API (e.g., https://your-server.com/v1/classify)",
+            "Enter the full HTTP/HTTPS address of your hosted classifier",
+        ],
+        'vulgar': [
+            "Paste your custom API URL here. You know, the one you spent 3 hours setting up. We won't judge the domain name.",
+            "API URL field: type in where your fancy self-hosted classifier lives. Don't forget the https, genius.",
+        ],
+        'dumbed-down': [
+            "Type the web address of your custom AI server here!",
+            "This is like a website link, but for your AI!",
+        ]
+    },
+    'ai_cls_api_key': {
+        'normal': [
+            "Authentication key for your custom classification API",
+            "This key is stored locally and sent as a Bearer token with each request",
+        ],
+        'vulgar': [
+            "Your API secret key. Guard it like a dragon guards gold. Or at least don't paste it on Twitter, you absolute walnut.",
+            "API key: the password to your AI's soul. Keep it secret, keep it safe. Gandalf voice.",
+        ],
+        'dumbed-down': [
+            "This is like a password for your custom AI — keep it secret!",
+            "Put your special access code here so the AI lets you in!",
+        ]
+    },
+    'ai_bgr_model': {
+        'normal': [
+            "Select the AI model for background removal: u2net is general-purpose, isnet-anime is optimized for 2D art",
+            "u2netp is a lightweight/fast variant; sam (Segment Anything) works on complex scenes",
+            "u2net_human_seg specializes in isolating people; u2net_cloth_seg isolates clothing",
+        ],
+        'vulgar': [
+            "Pick which AI model nukes your backgrounds. u2net = old reliable, isnet-anime = weeb mode, sam = 'I'll segment ANY damn thing'.",
+            "Background removal model: u2net for normies, anime model for weebs, sam for when you need to segment literally everything in the goddamn image.",
+            "Choose your background assassin. u2netp is fast but sloppy, u2net is balanced, sam is the overachieving tryhard.",
+        ],
+        'dumbed-down': [
+            "Pick which robot removes backgrounds! 'u2net' works for most things!",
+            "For cartoon/anime pictures, pick 'isnet-anime' — it works better on drawings!",
+            "Just leave it on 'u2net' unless something looks weird!",
+        ]
+    },
+    'ai_bgr_custom_api': {
+        'normal': [
+            "Enable to route background removal through your own hosted API",
+            "When checked, removal requests go to your custom endpoint instead of the local model",
+        ],
+        'vulgar': [
+            "Check this to use your own bg removal API. Because apparently the built-in one isn't fancy enough for your royal highness.",
+            "Self-hosted bg removal? Look at this absolute chad running their own infrastructure.",
+        ],
+        'dumbed-down': [
+            "Turn this ON only if you have your own background removal server!",
+            "Leave OFF to use the built-in background remover!",
+        ]
+    },
+    'ai_bgr_api_url': {
+        'normal': [
+            "URL endpoint for your custom background removal API",
+            "Enter the full address where your bg removal service accepts requests",
+        ],
+        'vulgar': [
+            "Paste your self-hosted background removal URL. Make sure it actually works before blaming us, please.",
+            "API URL for your bg remover. Triple-check for typos — the AI can't read your mind. Yet.",
+        ],
+        'dumbed-down': [
+            "Type the web address of your background removal server here!",
+            "This is the link to where your custom bg remover lives on the internet!",
+        ]
+    },
+    'ai_bgr_api_key': {
+        'normal': [
+            "Authentication key for your custom background removal API",
+            "Stored locally and sent with each removal request",
+        ],
+        'vulgar': [
+            "API key for your bg remover. Don't share it or some random will be removing backgrounds on your dime.",
+            "Secret key. Emphasis on SECRET. Don't screenshot this and post it on Reddit.",
+        ],
+        'dumbed-down': [
+            "The password for your custom background removal service!",
+            "Keep this secret — it's like a key to your AI's house!",
+        ]
+    },
+    'ai_ups_model': {
+        'normal': [
+            "Select the AI upscaling model: realesrgan-x4plus is best for general photos and textures",
+            "anime variant is optimized for 2D artwork; remacri and ultrasharp preserve fine details",
+            "ultramix_balanced offers a good middle ground; 'bicubic (no AI)' uses traditional interpolation",
+        ],
+        'vulgar': [
+            "Pick your upscale engine. realesrgan = the OG, anime = for your 'totally not hentai' textures, ultrasharp = for pixel-peeping psychopaths.",
+            "Upscale model: realesrgan-x4plus is the safe bet. anime is for weebs. ultrasharp is for maniacs who zoom to 4000%. bicubic is for quitters.",
+            "Choose wisely: this determines whether your upscaled textures look godly or like they were smeared with Vaseline.",
+        ],
+        'dumbed-down': [
+            "Pick which robot makes your pictures bigger! The first one works for most things!",
+            "For cartoons/anime, pick the 'anime' one! For photos, pick 'ultrasharp'!",
+            "'bicubic' means NO AI — just normal stretching. It's fine but not as good!",
+        ]
+    },
+    'ai_ups_gpu': {
+        'normal': [
+            "Enable GPU acceleration for significantly faster upscaling (requires compatible NVIDIA GPU)",
+            "When disabled, upscaling runs on CPU which is slower but always available",
+        ],
+        'vulgar': [
+            "GPU go BRRRRR. Turn this on if you have an NVIDIA card. If you don't, cry into your CPU-only peasant hands.",
+            "GPU acceleration: makes upscaling fast as hell. Without it, you'll be waiting long enough to question your life choices.",
+        ],
+        'dumbed-down': [
+            "Turn ON to make upscaling FAST if you have a gaming graphics card!",
+            "If this causes errors, turn it OFF — your computer will just be slower!",
+        ]
+    },
+    'ai_ups_tile': {
+        'normal': [
+            "Tile size for processing large images: 0 = automatic, higher values use less GPU memory",
+            "Try 256 or 512 if you get out-of-memory errors; 0 processes the whole image at once",
+        ],
+        'vulgar': [
+            "Tile size: 0 = YOLO mode, let the AI figure it out. Getting crashes? Set to 256, ya cheapskate with your 2GB VRAM.",
+            "How big of a chunk to process at once. 0 = full send. Getting memory errors? Lower this, your GPU is weeping.",
+        ],
+        'dumbed-down': [
+            "Leave this at 0 unless your computer runs out of memory!",
+            "If you get errors, try putting 256 or 512 here!",
+            "Smaller number = less memory needed, but slower!",
+        ]
+    },
+    'ai_ups_custom_api': {
+        'normal': [
+            "Enable to use your own hosted upscaling API instead of the local model",
+            "When checked, images are sent to your custom endpoint for upscaling",
+        ],
+        'vulgar': [
+            "Running your own upscale server? Check this. God knows why you'd want to, but hey, it's your electricity bill.",
+            "Custom API for upscaling: for the special snowflakes who can't use anything out of the box.",
+        ],
+        'dumbed-down': [
+            "Turn ON only if you have your own upscaling server set up!",
+            "Leave this OFF to use the built-in upscaler!",
+        ]
+    },
+    'ai_ups_api_url': {
+        'normal': [
+            "URL endpoint for your custom upscaling API",
+            "Enter the full address where your upscale service accepts image requests",
+        ],
+        'vulgar': [
+            "Paste your upscale API URL here. And pray it doesn't have a typo that sends your textures into the void.",
+            "Custom upscale endpoint URL. Double-check this or your images are going to some random server in Kazakhstan.",
+        ],
+        'dumbed-down': [
+            "Type the web address of your custom upscaling server here!",
+            "It should look like a website URL starting with https://",
+        ]
+    },
+    'ai_ups_api_key': {
+        'normal': [
+            "Authentication key for your custom upscaling API",
+            "Stored locally and included with each upscale request for authentication",
+        ],
+        'vulgar': [
+            "API key for upscaling. This is basically the password to your wallet if you're using a paid service. Don't be stupid with it.",
+            "Your upscaler API key. Treat it like your credit card number. Actually, treat it BETTER than your credit card number.",
+        ],
+        'dumbed-down': [
+            "The secret password for your custom upscaling service!",
+            "Keep this safe — don't share it with anyone!",
         ]
     },
     'travel_hub': {
@@ -3542,6 +3774,1061 @@ _PANDA_TOOLTIPS = {
             "Big brain search mode. Matches by content, not some random filename.",
             "Smart search: for when whoever named these textures was drunk.",
         ]
+    },
+
+    # ── Batch Rename Panel ─────────────────────────────────────────
+    'rename_date': {
+        'normal': [
+            "Rename files using their creation date as the new filename",
+            "Use file creation dates for automatic chronological naming",
+            "Date-based renaming organizes files by when they were created",
+            "Assign filenames derived from creation timestamps",
+        ],
+        'vulgar': [
+            "Rename by date. Because 'IMG_20231217_final_FINAL_v3' is not a naming convention, it's a cry for help.",
+            "Date-based naming. Finally, your files will know what fucking day they were born.",
+            "Let the dates do the talking. At least SOMETHING in your workflow has a sense of time.",
+            "Chronological naming. Revolutionary concept for someone who names files 'asdfasdf.png'.",
+            "Sort by date because you clearly can't be trusted to name things yourself.",
+            "Date stamps: the only honest thing about your file management system.",
+        ],
+        'dumbed-down': [
+            "This renames your files using the date they were created. So instead of 'texture1.png' you might get '2024-01-15_texture.png'.",
+            "Pick this to name files by when they were made. Great for keeping things in order!",
+        ],
+    },
+    'rename_template': {
+        'normal': [
+            "Enter a custom naming pattern using placeholders like {name}, {num}, {date}, {ext}",
+            "Define a template pattern for batch renaming with variable substitution",
+            "Create naming rules with placeholders that get replaced during rename",
+            "Build custom filename patterns using template variables",
+        ],
+        'vulgar': [
+            "Write your naming template. Use {name}, {num}, {date}. It's like Mad Libs but for files and less fun.",
+            "Template time! {name}_{num}.{ext} or whatever unholy naming scheme your brain conjures up.",
+            "Custom patterns. Because you're a unique snowflake who can't use the damn presets like everyone else.",
+            "Build your own filename format. With great power comes great responsibility. Try not to fuck it up.",
+            "Template editor. {name} = original name, {num} = number. Not that complicated. I believe in you. Barely.",
+            "Placeholder madness! Mix and match like a DJ, but instead of sick beats you get... filenames. Living the dream.",
+        ],
+        'dumbed-down': [
+            "Type a naming pattern here. Use {name} for the original name, {num} for a number, {date} for date, {ext} for file type.",
+            "This is where you write your own naming rule. Placeholders like {name} get replaced with real info.",
+        ],
+    },
+    'rename_copyright': {
+        'normal': [
+            "Set copyright metadata to embed in renamed files",
+            "Add copyright information to file metadata during rename",
+            "Embed ownership details in the renamed files' metadata",
+            "Include copyright text in file properties",
+        ],
+        'vulgar': [
+            "Slap your copyright on these files like a dog marking territory. It's YOUR art now, dammit.",
+            "Copyright metadata. Because someone will steal your textures and you'll want legal ammunition.",
+            "Mark your damn territory. Add copyright info so everyone knows who made this masterpiece. Or disaster.",
+            "Embed copyright. In case some asshole tries to claim your textures as their own. We've all been there.",
+            "Copyright protection: cheaper than a lawyer, almost as effective, and way less annoying.",
+        ],
+        'dumbed-down': [
+            "Type your name or copyright notice here. It gets saved inside the file's hidden info so people know who made it.",
+            "This adds an invisible tag to your files saying who owns them. Like writing your name on your lunchbox.",
+        ],
+    },
+    'rename_preview': {
+        'normal': [
+            "Preview of how files will be renamed before applying changes",
+            "See the new filenames before committing to the rename operation",
+            "Review rename results without modifying any files yet",
+            "Check the before/after comparison of filenames",
+        ],
+        'vulgar': [
+            "Preview before you commit. Unlike that tattoo you got in Cancun, this is reversible.",
+            "Look before you leap. See what your files WILL look like. No surprises, no regrets, no therapy bills.",
+            "Preview mode. Because 'undo' exists but prevention is better than crying over corrupted filenames.",
+            "Check the preview unless you enjoy living dangerously. And by dangerously I mean stupidly.",
+            "See the future! Your files' future, that is. Less exciting than a crystal ball but more accurate.",
+        ],
+        'dumbed-down': [
+            "This area shows you what the new filenames will look like BEFORE anything actually changes. Safe to look!",
+            "A preview of the rename. Nothing has changed yet — this just shows you what WILL happen when you click apply.",
+        ],
+    },
+    'rename_undo': {
+        'normal': [
+            "Undo the last rename operation and restore original filenames",
+            "Revert files back to their original names",
+            "Reverse the most recent batch rename",
+            "Restore previous filenames if the rename didn't work out",
+        ],
+        'vulgar': [
+            "UNDO. The most beautiful word in any language. Unfuck what you just fucked.",
+            "Ctrl+Z's cooler, buffer older brother. Restores your original filenames like nothing happened.",
+            "Made a mistake? Of course you did. Hit undo and pretend it never happened. We won't tell anyone.",
+            "Undo button: because nobody gets it right the first time. NOBODY. Not even you, perfectionist.",
+            "Reverse! Go back! Abort! Whatever you want to call it, this button fixes your oopsie.",
+            "Time travel for filenames. Takes them right back to before you messed everything up. Again.",
+        ],
+        'dumbed-down': [
+            "Oops button! Click this to put all the filenames back to what they were before the rename.",
+            "Changed your mind? This undoes the last rename and restores the original filenames.",
+        ],
+    },
+
+    # ── Color Correction Panel ─────────────────────────────────────
+    'cc_white_balance': {
+        'normal': [
+            "Adjust the color temperature — left for cooler (blue), right for warmer (yellow)",
+            "Correct the white balance to make colors look natural",
+            "Shift color temperature between cool and warm tones",
+            "Fine-tune the overall color cast of the image",
+        ],
+        'vulgar': [
+            "White balance. Make your textures less 'filmed in a gas station bathroom' and more 'professional studio'.",
+            "Color temperature slider. Left = ice cold blue, Right = warm golden. Like a mood ring for your images.",
+            "Fix that ugly yellow cast. Or blue cast. Whatever crime against color your camera committed.",
+            "Slide left for 'Arctic tundra vibes', slide right for 'my GPU is literally on fire'. Find the sweet spot.",
+            "White balance: because your monitor lied to you about what these colors actually look like.",
+            "Temperature control. Not for your thermostat — for your textures. Though both need adjusting, clearly.",
+        ],
+        'dumbed-down': [
+            "Slide this to fix colors that look too blue (cold) or too yellow (warm). The middle is usually natural-looking.",
+            "If your image looks tinted blue or orange, this slider fixes it. Move it until the colors look right.",
+        ],
+    },
+    'cc_exposure': {
+        'normal': [
+            "Adjust the overall brightness/exposure of the image",
+            "Increase exposure to brighten or decrease to darken",
+            "Control the lightness and darkness of the entire image",
+            "Fine-tune image brightness for optimal visibility",
+        ],
+        'vulgar': [
+            "Exposure slider. Too dark? Crank it up. Too bright? Turn it down. Rocket science, I know.",
+            "Make it brighter or darker. Like the emotional spectrum of your last code review.",
+            "Brightness control. Because 'I can't see shit' and 'MY EYES' are both valid complaints.",
+            "Exposure adjustment: the difference between 'moody atmospheric' and 'did you forget the lights?'",
+            "Slide right to blind yourself, slide left to enter the void. Somewhere in the middle is perfection.",
+            "Fix the brightness because apparently your camera and the sun had a disagreement about exposure.",
+        ],
+        'dumbed-down': [
+            "Makes the image brighter or darker. Slide right = brighter, slide left = darker.",
+            "If your image is too dark to see or too bright and washed out, this slider fixes it.",
+        ],
+    },
+    'cc_vibrance': {
+        'normal': [
+            "Boost color intensity without over-saturating vivid colors",
+            "Enhance muted colors while preserving already-vivid tones",
+            "Intelligently increase color saturation across the image",
+            "Add punch to dull colors without destroying bright ones",
+        ],
+        'vulgar': [
+            "Vibrance: makes dull colors pop without turning everything into a damn clown painting.",
+            "Smart saturation. Unlike regular saturation, this one has taste. Unlike you. I'm kidding. Maybe.",
+            "Add color punch without the neon nightmare. Subtle. Refined. Not like your Photoshop crimes.",
+            "Boost those sad, desaturated colors back to life. It's like CPR but for pixels.",
+            "Vibrance slider: the difference between 'stylistic choice' and 'did a toddler do this?'",
+            "Make colors pop. Tastefully. We're going for 'wow' not 'dear god my retinas'.",
+        ],
+        'dumbed-down': [
+            "Makes dull colors more vivid without making already-bright colors go crazy. A gentler version of saturation.",
+            "Slide right to make colors pop more. Unlike saturation, this won't make things look neon.",
+        ],
+    },
+    'cc_clarity': {
+        'normal': [
+            "Enhance midtone contrast to add crispness and detail",
+            "Increase local contrast for sharper-looking textures",
+            "Add definition and punch to image details",
+            "Fine-tune midtone sharpness without affecting highlights or shadows",
+        ],
+        'vulgar': [
+            "Clarity slider. Makes everything look crispy and detailed. Like upgrading from potato cam to actual camera.",
+            "Add crispness. Your textures will look sharper than your wit. And that's saying something.",
+            "Midtone contrast magic. Makes textures look professional AF without actually being professional.",
+            "Clarity: because 'slightly blurry but whatever' is not an acceptable quality standard. Allegedly.",
+            "Sharpen those midtones. Go from 'was this rendered on a calculator?' to 'damn that's clean.'",
+            "Crank up the clarity and watch your textures go from 'meh' to 'MAGNIFICENT.' Or at least 'decent.'",
+        ],
+        'dumbed-down': [
+            "Makes details in the image look sharper and crisper. Higher = more detail visible.",
+            "Adds crispness to the image. Think of it like turning up the 'sharpness' specifically for the medium-bright parts.",
+        ],
+    },
+    'cc_lut': {
+        'normal': [
+            "Load a LUT (Look-Up Table) file for color grading — supports .cube and .3dl",
+            "Apply cinematic color grading presets via LUT files",
+            "Import a color lookup table for professional color treatment",
+            "Use industry-standard LUT files for consistent color grading",
+        ],
+        'vulgar': [
+            "Load a LUT file. It's like an Instagram filter but for people who actually know what they're doing.",
+            "LUT files: .cube and .3dl. Professional color grading without the professional price tag. Or skill.",
+            "Import a LUT and instantly look like you spent 6 hours color grading. Our little secret.",
+            "Color LUTs: because 'I just cranked the saturation to 11' is not a color grading strategy.",
+            "Load a look-up table. Fancy name for 'make everything look cinematic with zero effort.' You're welcome.",
+            "LUT loading. Turn your game textures into Christopher Nolan's wet dream. Or at least a dry one.",
+        ],
+        'dumbed-down': [
+            "Load a .cube or .3dl file that changes all the colors at once — like a fancy filter for your images.",
+            "A LUT is basically a color recipe file. Load one and it recolors your image in a specific style.",
+        ],
+    },
+
+    # ── Image Repair Panel ─────────────────────────────────────────
+    'repair_diagnose': {
+        'normal': [
+            "Analyze images for corruption, truncation, and header errors",
+            "Scan selected files to detect any damage or formatting issues",
+            "Run diagnostic checks on images to find repairable problems",
+            "Identify corrupted headers, truncated data, and checksum mismatches",
+        ],
+        'vulgar': [
+            "Diagnose what's wrong with your broken-ass images. Like a doctor but for pixels. And cheaper.",
+            "Scan for corruption. Someone's gotta look at the damage after you played 'what if I close without saving.'",
+            "Let the panda play detective. Who murdered these pixels? Headers corrupted, data truncated, dreams shattered.",
+            "Image autopsy time. Let's figure out how these files died and if CPR is even an option.",
+            "Run diagnostics. Find out if your images are slightly sick or completely fucked. Fingers crossed.",
+            "Corruption scan. Like antivirus but for your texture files. Less dramatic, equally necessary.",
+        ],
+        'dumbed-down': [
+            "Click this to check your images for problems — like missing data, broken headers, or incomplete files.",
+            "This scans your selected files and tells you if anything is wrong with them, like a doctor's checkup.",
+        ],
+    },
+    'repair_fix': {
+        'normal': [
+            "Attempt to repair detected issues in selected images",
+            "Fix corrupted headers, rebuild truncated data, correct checksums",
+            "Apply automatic repairs to damaged image files",
+            "Restore broken images using header reconstruction and data recovery",
+        ],
+        'vulgar': [
+            "REPAIR. Unfuck these images. Fix headers, rebuild data, perform pixel surgery. No anesthesia needed.",
+            "Hit repair and pray. Just kidding, the panda's actually good at this shit. Usually. Probably.",
+            "Fix button. Like duct tape for corrupted images but actually works and doesn't leave residue.",
+            "Attempt repairs. Key word: attempt. We're optimistic but realistic. Like a therapist for files.",
+            "Restore your broken images from the dead. Necromancy for PNG files. Totally legal, I checked.",
+            "Repair time. Headers get fixed, checksums get corrected, and your files stop being digital corpses.",
+        ],
+        'dumbed-down': [
+            "Click to try fixing the problems that were found. It'll patch up corrupted data and fix broken file info.",
+            "This tries to fix broken images automatically. Not everything can be saved, but it does its best!",
+        ],
+    },
+    'repair_results': {
+        'normal': [
+            "Diagnostic and repair results with details of issues found",
+            "Review the report showing what was detected and what was fixed",
+            "View detailed results of the analysis and repair operations",
+            "Check the outcome of diagnostic scans and repair attempts",
+        ],
+        'vulgar': [
+            "Results panel. See what's broken, what got fixed, and what's beyond saving. Like a relationship status update.",
+            "The damage report. Read it and weep. Or celebrate. Depends on how badly you fucked up your files.",
+            "Detailed results. Every issue found, every fix attempted. It's like reading your file's medical records.",
+            "Check results. Good news and bad news. The bad news: your files were corrupted. The good news: we probably fixed them.",
+            "Results area. Where dreams are confirmed or crushed. No pressure or anything.",
+        ],
+        'dumbed-down': [
+            "This area shows what was found and what was fixed. Green = good, red = still broken.",
+            "The report of what the scan found and what the repair did. Read through it to see what happened.",
+        ],
+    },
+
+    # ── Performance Dashboard ──────────────────────────────────────
+    'perf_speed': {
+        'normal': [
+            "Current processing speed measured in files per second",
+            "Shows how fast files are being processed right now",
+            "Real-time throughput indicator for the current operation",
+            "Monitor the processing rate of the active task",
+        ],
+        'vulgar': [
+            "Processing speed. Files per second. Like a speedometer but for boring office work. Vroom vroom.",
+            "Speed indicator. How fast the panda's chewing through your files. Spoiler: faster than you could do it manually.",
+            "Files per second. Higher is better. Lower means your computer is having an existential crisis.",
+            "Throughput meter. Watch the numbers go up and pretend you understand what they mean.",
+            "Speed stat. Like checking your car's mph except you're measuring file-crunching velocity. Less fun, equally nerdy.",
+        ],
+        'dumbed-down': [
+            "Shows how many files are being processed every second. Higher number = faster!",
+            "A speedometer for file processing. The bigger the number, the faster things are going.",
+        ],
+    },
+    'perf_memory': {
+        'normal': [
+            "Current memory (RAM) used by the application",
+            "Shows how much system memory is being consumed",
+            "Monitor RAM usage to avoid out-of-memory issues",
+            "Track application memory footprint in real-time",
+        ],
+        'vulgar': [
+            "RAM usage. How much memory we're hogging. If this gets too high, close some of your 47 Chrome tabs.",
+            "Memory consumption. Like watching your bank account after Steam sales. It only goes in one direction.",
+            "RAM meter. If it turns red, blame Chrome, not us. We're practically anorexic compared to that memory glutton.",
+            "How much memory we're eating. Don't worry, we're on a diet. Unlike your browser with 200 tabs open.",
+            "Memory usage: the silent killer of performance. Keep an eye on it or your PC will remind you the hard way.",
+        ],
+        'dumbed-down': [
+            "Shows how much of your computer's memory (RAM) this app is using. If it gets really high, things might slow down.",
+            "This is like checking how full a bucket is — it shows how much memory the app is using right now.",
+        ],
+    },
+    'perf_cpu': {
+        'normal': [
+            "Current CPU utilization percentage for the application",
+            "Shows processor load from active operations",
+            "Monitor how much processing power is being used",
+            "Track CPU usage to balance performance and responsiveness",
+        ],
+        'vulgar': [
+            "CPU usage. How hard your processor is sweating right now. If it's at 100%, pour one out for your fan.",
+            "Processor load. Higher means we're working harder. Or your CPU is having a panic attack. Same thing, really.",
+            "CPU meter. Watch your processor earn its keep instead of sitting there mining crypto. Wait, you're not... right?",
+            "How much brain power your CPU is burning. If it hits 100%, congratulations, you found its limit. Or a bug.",
+            "CPU percentage. Fun fact: your processor right now is doing more work than your entire team combined. Probably.",
+        ],
+        'dumbed-down': [
+            "Shows how hard your computer's brain (CPU) is working. 100% means it's maxed out.",
+            "Think of this as a 'how busy is my computer' meter. Lower is more relaxed.",
+        ],
+    },
+    'perf_queue': {
+        'normal': [
+            "Number of files waiting in the processing queue",
+            "Shows how many items are pending in the task queue",
+            "Monitor remaining work in the processing pipeline",
+            "Track the backlog of files awaiting processing",
+        ],
+        'vulgar': [
+            "Queue depth. How many files are standing in line like it's Black Friday at Best Buy.",
+            "Files waiting. Like a DMV queue but these actually move. And nobody's arguing about expired IDs.",
+            "Pending items. The digital equivalent of 'your call is important to us, please hold.' But faster.",
+            "Queue counter. Watch it go down and feel that sweet, sweet dopamine of progress. Better than social media.",
+            "Files in line. They're patient, unlike you refreshing this panel every 2 seconds. Relax. Grab a coffee.",
+        ],
+        'dumbed-down': [
+            "How many files are still waiting to be processed. This number goes down as work gets done.",
+            "Think of it like a line at a store — this shows how many files are still waiting their turn.",
+        ],
+    },
+    'perf_workers': {
+        'normal': [
+            "Number of parallel worker threads for processing — more workers use more CPU/memory",
+            "Configure how many simultaneous processing threads to use",
+            "Adjust parallelism: higher values process faster but use more resources",
+            "Set the number of concurrent workers for batch operations",
+        ],
+        'vulgar': [
+            "Worker threads. More pandas on the job = faster results. But also more RAM eaten. Balance, young grasshopper.",
+            "Thread count. Crank it up for speed, dial it down if your PC starts sounding like a jet engine.",
+            "Parallel workers. Like hiring more employees except they don't need coffee breaks or health insurance.",
+            "How many threads to throw at the problem. The answer is usually 'as many as your RAM can handle before crying.'",
+            "Worker slider. More threads = faster. Until your CPU melts. Then it's slower. And expensive. And on fire.",
+            "Concurrency control. Sounds fancy. It means 'how many things happen at once.' You're welcome for the explanation.",
+        ],
+        'dumbed-down': [
+            "How many tasks run at the same time. More = faster, but uses more computer power. Start low if unsure.",
+            "Like hiring more helpers — more workers means faster results, but your computer works harder too.",
+        ],
+    },
+
+    # ── Quality Checker Panel ──────────────────────────────────────
+    'qc_analyze': {
+        'normal': [
+            "Run quality analysis on selected texture files",
+            "Check textures for common issues like incorrect dimensions or compression artifacts",
+            "Scan images for quality problems and potential optimizations",
+            "Analyze texture quality metrics including resolution, format, and compression",
+        ],
+        'vulgar': [
+            "Quality check. Let the panda judge your textures like a drunk art critic at a gallery opening.",
+            "Analyze button. Time to find out if your textures are 'professional quality' or 'made in MS Paint.'",
+            "Run quality scan. Spoiler alert: there's always something wrong. ALWAYS. Don't shoot the messenger.",
+            "Check your textures for problems you didn't know existed. Ignorance was bliss, knowledge is power.",
+            "Quality analysis: because 'it looks fine on MY monitor' is not a valid QA process, Kevin.",
+        ],
+        'dumbed-down': [
+            "Click this to check if your images have any quality problems like wrong sizes or bad compression.",
+            "Runs a quality check on your selected files and tells you if anything could be improved.",
+        ],
+    },
+    'qc_results': {
+        'normal': [
+            "View quality analysis results and recommendations",
+            "Review detected issues with suggested fixes",
+            "Check the quality report for each analyzed texture",
+            "See detailed metrics and improvement suggestions",
+        ],
+        'vulgar': [
+            "Results. The moment of truth. Let's see how many textures passed and how many need to repeat the grade.",
+            "Quality report card. Some A's, some F's, and a lot of 'see me after class.' Just like high school.",
+            "Detailed results. Read them and weep. Or celebrate. Mostly weep, in my experience.",
+            "Analysis results. Everything the panda found wrong with your textures. It's a long list. Get comfortable.",
+            "Report time. Find out which textures are worthy and which ones belong in the recycling bin. Harsh but fair.",
+        ],
+        'dumbed-down': [
+            "Shows what the quality check found. It lists any problems and suggests how to fix them.",
+            "The results of the quality scan. Look here to see what's good and what needs fixing.",
+        ],
+    },
+    'qc_export': {
+        'normal': [
+            "Export the quality analysis report to a text file",
+            "Save the quality check results for review or sharing",
+            "Download quality metrics as a formatted report",
+            "Write the analysis results to a file on disk",
+        ],
+        'vulgar': [
+            "Export report. Because showing proof of your texture crimes is sometimes necessary. Evidence!",
+            "Save the report. Print it out, frame it, hang it on your wall of shame. Or fix the problems. Your call.",
+            "Export results. Share with your team so everyone knows whose textures suck the most. Accountability!",
+            "Save the report. Keep receipts of which textures are garbage. Digital forensics for pixel detectives.",
+            "Export button. Because 'the panda said my textures are bad' isn't convincing without documentation.",
+        ],
+        'dumbed-down': [
+            "Saves the quality report to a text file so you can read it later or share with others.",
+            "Click to export — it creates a file with all the results from the quality check.",
+        ],
+    },
+    'qc_dpi': {
+        'normal': [
+            "Set the target DPI for quality analysis (72=screen, 300=print)",
+            "Choose the DPI standard to check textures against",
+            "Select the resolution threshold for quality evaluation",
+            "Configure the DPI baseline for the quality checker",
+        ],
+        'vulgar': [
+            "DPI setting. 72 for screens, 300 for print, 600 for absolute overkill. Pick your poison.",
+            "Dots per inch. The number that tells you if your textures are HD or potato quality. No middle ground.",
+            "Target DPI. Set it high and watch everything fail. Set it low and feel great about mediocrity. Balance!",
+            "DPI picker. Like choosing between a microscope and binoculars for judging your pixel density.",
+            "Resolution standard. 72 DPI is 'meh' for print but fine for screens. 300 is 'chef's kiss' for everything.",
+        ],
+        'dumbed-down': [
+            "Pick the DPI to check against. 72 is normal for screens, 300 is for printing. Higher = stricter checks.",
+            "DPI is like detail density. 72 is standard for digital, 300 is needed for sharp prints.",
+        ],
+    },
+
+    # ── Batch Normalizer Panel ─────────────────────────────────────
+    'bn_normalize': {
+        'normal': [
+            "Normalize textures to a consistent format, resolution, and color space",
+            "Standardize all selected textures to match your target specifications",
+            "Batch process images to uniform dimensions and format settings",
+            "Apply normalization rules across all selected texture files",
+        ],
+        'vulgar': [
+            "Normalize. Make all your textures match like a uniform. Conformity! Structure! Not anarchy!",
+            "Batch normalize. Because having 47 different formats and resolutions is not 'creative diversity,' it's chaos.",
+            "Standardize everything. Like a dictator but for pixel dimensions. A benevolent one, though. Mostly.",
+            "Hit normalize and watch the panda whip your textures into shape. Boot camp for pixels.",
+            "Make everything consistent. Same format, same size, same quality. OCD paradise. You're welcome.",
+        ],
+        'dumbed-down': [
+            "Click to make all your images the same size, format, and quality. Great for consistency!",
+            "Standardizes your files so they all match the settings you picked above.",
+        ],
+    },
+    'bn_format': {
+        'normal': [
+            "Select the target format for normalized output files",
+            "Choose which image format all textures will be converted to",
+            "Set the output format for the normalization process",
+            "Pick the standard format for your normalized textures",
+        ],
+        'vulgar': [
+            "Pick your format. PNG, DDS, TGA — choose your fighter. They all have strengths and weaknesses. Like Pokémon.",
+            "Output format selector. Choose wisely. Or don't. You can always normalize again. We're patient.",
+            "Target format. The 'what do I want these files to be when they grow up' dropdown.",
+            "Format selection. PNG for quality snobs, DDS for game devs, TGA for people stuck in 2005.",
+            "Choose a format. Any format. Just PICK ONE and stop overthinking it. Analysis paralysis is real.",
+        ],
+        'dumbed-down': [
+            "Pick what file type you want your images saved as. PNG is great for quality, DDS is common in games.",
+            "Choose the output format — all your files will be converted to this type.",
+        ],
+    },
+    'bn_resolution': {
+        'normal': [
+            "Set the target resolution for normalized textures",
+            "Choose the output dimensions for batch normalization",
+            "Define width and height for the standardized output",
+            "Configure the target texture resolution",
+        ],
+        'vulgar': [
+            "Resolution picker. 512x512? 1024x1024? 4K? How much VRAM do you want to MURDER today?",
+            "Set the size. Bigger isn't always better. That's what she— I mean, that's what the GPU said.",
+            "Target resolution. Where you decide if your game runs at 60fps or 6fps. Choose wisely.",
+            "Dimensions. The eternal struggle between 'it looks beautiful' and 'my GPU is literally on fire.'",
+            "Pick a resolution. Pro tip: if your laptop sounds like a helicopter, maybe go smaller.",
+        ],
+        'dumbed-down': [
+            "Set the width and height for your output images. Common game sizes are 512, 1024, or 2048 pixels.",
+            "Choose how big or small the final images should be. Bigger = more detail but larger file size.",
+        ],
+    },
+    'bn_resize_mode': {
+        'normal': [
+            "Choose how images are resized: fit, fill, stretch, or none",
+            "Select the resize method for batch normalization",
+            "Configure resize behavior when target dimensions differ from source",
+            "Set the strategy for scaling images to the target size",
+        ],
+        'vulgar': [
+            "Resize mode. Fit = polite cropping. Fill = aggressive cropping. Stretch = war crimes against aspect ratios.",
+            "How to resize. 'Fit' keeps proportions. 'Stretch' does not. 'None' is for commitment-phobes.",
+            "Scaling strategy. Fit, fill, stretch, or none. Like dating options but for pixels.",
+            "Resize method. Stretch makes everything look drunk. Fit is classy. Fill is somewhere in between.",
+            "Pick how resizing works. 'Fit' preserves sanity. 'Stretch' preserves nothing. Choose wisely.",
+        ],
+        'dumbed-down': [
+            "How images get resized. 'Fit' keeps proportions, 'Fill' crops to fill, 'Stretch' forces the size, 'None' skips resizing.",
+            "Choose the resize method. 'Fit' is usually best — it scales without distortion.",
+        ],
+    },
+    'bn_output_format': {
+        'normal': [
+            "Select the output image format (PNG, JPEG, WEBP, TIFF)",
+            "Choose which file format to save normalized images as",
+            "Set the target format for batch output files",
+            "Pick the output file type for normalized textures",
+        ],
+        'vulgar': [
+            "Output format. PNG for lossless perfection, JPEG for 'good enough,' WEBP for hipsters, TIFF for dinosaurs.",
+            "File format picker. PNG = safe. JPEG = lossy but small. WEBP = cool and modern. TIFF = why though?",
+            "Choose a format. PNG is king. JPEG is acceptable. WEBP is the cool new kid. TIFF is… still here somehow.",
+            "Export format. Like choosing your weapon: PNG (sword), JPEG (dagger), WEBP (laser), TIFF (trebuchet).",
+            "Pick the output format. All roads lead to pixels, but some roads are lossier than others.",
+        ],
+        'dumbed-down': [
+            "Pick the file type to save as. PNG keeps all quality, JPEG is smaller but loses some, WEBP is a good balance.",
+            "Choose your output format. PNG is best for quality, JPEG for smaller files.",
+        ],
+    },
+    'bn_quality': {
+        'normal': [
+            "Set output quality for JPEG/WebP formats (50-100)",
+            "Adjust compression quality for lossy formats",
+            "Control the quality-to-filesize tradeoff",
+            "Configure the compression level for output files",
+        ],
+        'vulgar': [
+            "Quality slider. 100 = pixel perfection. 50 = JPEG artifact hellscape. Find your comfort zone.",
+            "Compression quality. Crank it up for beauty, dial it down for tiny files. The eternal tradeoff.",
+            "Quality setting. Higher = prettier. Lower = smaller. It's like the attractiveness vs. rent analogy.",
+            "JPEG/WebP quality. 95+ is chef's kiss. Below 70 is a cry for help. You've been warned.",
+            "Quality control. This slider determines if your textures look professional or like they were faxed.",
+        ],
+        'dumbed-down': [
+            "Controls how much quality is kept when saving as JPEG or WEBP. Higher is better looking but bigger files.",
+            "Slide right for better quality, left for smaller files. Only affects JPEG and WEBP formats.",
+        ],
+    },
+    'bn_padding': {
+        'normal': [
+            "Choose padding fill method when resizing with 'fit' mode",
+            "Select what fills the empty space when image doesn't fill target dimensions",
+            "Configure the padding type for resized images",
+            "Set the border fill strategy for padded areas",
+        ],
+        'vulgar': [
+            "Padding mode. What fills the gaps when your image doesn't fit. Transparent, black, white, blur, or edge magic.",
+            "Fill the void! When images don't fit the target size, this picks what goes in the empty space. Existential padding.",
+            "Padding type. Transparent = honest. Black = dramatic. White = clean. Blur = artistic. Edge extend = sneaky.",
+            "What goes in the borders? Transparent for layering, black for drama, blur for 'I meant to do that' vibes.",
+            "Padding selector. Because empty space needs filling. Like your schedule. And your fridge. But for pixels.",
+        ],
+        'dumbed-down': [
+            "When an image is resized smaller than the target, this fills the remaining space. Transparent is usually best.",
+            "Picks what color or effect fills empty borders. Try 'transparent' for layering or 'blur' for a smooth look.",
+        ],
+    },
+
+    # ── Line Art Converter Panel ───────────────────────────────────
+    'la_convert': {
+        'normal': [
+            "Convert images to clean line art renditions",
+            "Extract line work from textures and photographs",
+            "Generate line art versions of your images",
+            "Process images through the line art extraction algorithm",
+        ],
+        'vulgar': [
+            "Hit convert and watch your ugly-ass textures turn into actual art. You're welcome.",
+            "Line art extraction. Strip away the colors like ripping off a band-aid — what's left is the good shit.",
+            "Generate line art. Because your raw images look like ass and need a serious damn makeover.",
+            "Convert to lines. Make any image look like it was drawn by someone who isn't a talentless hack.",
+            "Line art button. Turns your garbage into gallery-worthy sketches. Don't thank me, thank the algorithm.",
+            "Click this and your images go from 'what the hell is that' to 'oh damn, that's clean.'",
+        ],
+        'dumbed-down': [
+            "Click to turn your images into black-and-white line drawings, like a coloring book version.",
+            "Converts your pictures into clean line art — just the outlines, no colors.",
+        ],
+    },
+    'la_threshold': {
+        'normal': [
+            "Adjust the line detection sensitivity threshold",
+            "Control how much detail is captured in the line art output",
+            "Fine-tune the boundary between lines and background",
+            "Set the sensitivity for edge detection in line extraction",
+        ],
+        'vulgar': [
+            "Threshold slider. Too low and every damn pixel thinks it's a line. Too high and your image vanishes. Find the sweet spot, dipshit.",
+            "Edge sensitivity. Crank it wrong and you'll either get a shitty Jackson Pollock or a blank-ass page.",
+            "Line detection threshold. The fine line between 'holy shit that's detailed' and 'where the fuck did my image go?'",
+            "Sensitivity control. It's a volume knob for line detail. Don't crank it to 11 unless you want pixel diarrhea.",
+            "Threshold: decides if you get 'elegant sketch' or 'my printer shit the bed.' Adjust carefully.",
+        ],
+        'dumbed-down': [
+            "Controls how sensitive the line detection is. Low = lots of detail, High = only strong edges. Try different values!",
+            "Adjusts which edges get drawn as lines. Move it around until the output looks good to you.",
+        ],
+    },
+    'la_style': {
+        'normal': [
+            "Select the line art style preset to use",
+            "Choose between different line art rendering styles",
+            "Pick a visual style for the line art output",
+            "Configure the artistic style of the extracted lines",
+        ],
+        'vulgar': [
+            "Style picker. Manga, sketch, blueprint, whatever floats your artsy little boat.",
+            "Line art style. Are we going 'detailed comic book' or 'minimalist hipster nonsense'? You decide.",
+            "Choose a style. Each one makes your images look like a different kind of pretentious.",
+            "Art style dropdown. Pick one and pretend you made a deeply artistic decision. We won't judge. Much.",
+            "Style presets. Because 'I want it to look cool but I don't know how' is a valid starting point.",
+        ],
+        'dumbed-down': [
+            "Pick a style for the line art. Each one gives a different look — try them to see which you like!",
+            "Choose what kind of line art you want. Options include sketch, manga, blueprint, and more.",
+        ],
+    },
+    'la_preset': {
+        'normal': [
+            "Pick a ready-made preset to instantly configure all settings for a common line art style",
+            "Quick-start presets: Clean Inks, Pencil Sketch, Bold Outlines, Comic Book, and more",
+            "Select a preset to auto-fill all conversion settings — tweak afterwards if needed",
+        ],
+        'vulgar': [
+            "Preset picker. Because manually tweaking 15 goddamn sliders is for masochists with too much free time.",
+            "Pre-built recipes for line art. Ink for pros, Pencil for artsy dipshits, Coloring Book for your inner toddler.",
+            "Too lazy to configure everything yourself? Same here, asshole. Pick a preset and pretend you know what you're doing.",
+            "Presets: like fast food for line art — quick, satisfying, and you don't have to think. Perfect for your smooth brain.",
+            "One-click magic. Pick a style, all the sliders move by themselves. Even you can't fuck this up.",
+        ],
+        'dumbed-down': [
+            "Choose a pre-made style and all settings fill in automatically! Pick the closest one to what you want.",
+            "Ready-made presets for common line art styles. Just pick one and go!",
+        ],
+    },
+    'la_mode': {
+        'normal': [
+            "Select the line art conversion algorithm",
+            "Choose between different conversion methods: pure black, threshold, edge detect, etc.",
+            "Pick the conversion mode that best suits your input images",
+            "Configure the core algorithm for line extraction",
+        ],
+        'vulgar': [
+            "Conversion mode. Pure black, threshold, edge detect — pick your damn weapon of line extraction.",
+            "Algorithm picker. Each mode converts differently. 'Pure black' is aggressive as hell. 'Sketch' is artsy bullshit. Both work.",
+            "Mode dropdown. It's choosing between a scalpel and a goddamn chainsaw for extracting lines. Both get the job done.",
+            "Pick your flavor. 'Edge detect' for nerds. 'Sketch' for pretentious fucks. No judgment. Okay, maybe a little.",
+            "Conversion mode. Try them all, you coward. What's the worst that could happen? Bad line art? Already there.",
+        ],
+        'dumbed-down': [
+            "Choose how the image gets converted to lines. 'Pure black' is simple, 'Edge detect' finds outlines, 'Sketch' is artistic.",
+            "Pick a conversion mode — each one produces a different kind of line art. Try a few to see what you like!",
+        ],
+    },
+    'la_contrast': {
+        'normal': [
+            "Boost contrast before conversion to strengthen line edges",
+            "Increase image contrast to improve line art quality",
+            "Enhance contrast for cleaner, more defined lines",
+            "Pre-process contrast adjustment for better edge detection",
+        ],
+        'vulgar': [
+            "Contrast boost. Crank it up to make lines POP like a motherfucker. 1.0 if you're boring. 3.0 if you've got balls.",
+            "Pre-conversion contrast. Like espresso for your pixels — makes everything intense as shit. Too much? Prepare for chaos.",
+            "Contrast slider. Higher = bolder lines. Lower = subtler. 1.0 = 'I'm too chickenshit to commit to anything.'",
+            "Boost that contrast. Make your lines thicc and defined. Or don't, pussy. The panda supports all lifestyles.",
+            "Contrast adjuster. Difference between 'elegant line art' and 'bold-ass graphic novel.' Both cool, different damn vibes.",
+        ],
+        'dumbed-down': [
+            "Makes lines stronger or weaker. 1.0 is normal, higher makes bolder lines, lower makes softer ones.",
+            "Adjusts contrast before converting. Slide right for stronger, more visible lines.",
+        ],
+    },
+    'la_morphology': {
+        'normal': [
+            "Apply morphology operations to thicken or thin lines",
+            "Use dilate/erode to adjust line thickness after conversion",
+            "Post-process lines with morphological transformations",
+            "Fine-tune line weight using mathematical morphology",
+        ],
+        'vulgar': [
+            "Morphology. Dilate = fatten those lines like Thanksgiving dinner. Erode = slim 'em down. Gym membership for your damn pixels.",
+            "Line thickness via math magic. Dilate adds bulk. Erode trims fat. Close fills gaps. It's plastic surgery for line art, bitch.",
+            "Morphology ops. Sounds fancy as fuck. It's just making lines thicker or thinner. Don't overthink it, Einstein.",
+            "Post-processing for line weight. 'Dilate' for chunky-ass lines. 'Erode' for delicate ones. 'None' for lazy bastards.",
+            "Morphological operations. Big-ass words for simple shit: make lines fatter, thinner, or fill in gaps. Not rocket science.",
+        ],
+        'dumbed-down': [
+            "Changes line thickness after conversion. 'Dilate' makes lines thicker, 'Erode' makes them thinner, 'None' leaves them as-is.",
+            "Adjusts the weight of the lines. Try 'dilate' if lines are too thin, or 'erode' if they're too thick.",
+        ],
+    },
+
+    'la_save_preset': {
+        'normal': [
+            "Save your current settings as a custom preset you can reuse later",
+            "Create a named preset from the current slider and menu values",
+            "Store these exact settings so you can apply them again with one click",
+        ],
+        'vulgar': [
+            "Save this shit as a preset so you don't have to fuck around with 16 sliders again.",
+            "Custom preset saver. Because your lazy ass shouldn't have to redo this every damn time.",
+            "Bookmark these settings. You finally got it looking right — don't lose it, dumbass.",
+            "Save preset: for when you accidentally nail the perfect settings and don't wanna lose 'em like an idiot.",
+            "Click to immortalize your settings. The panda's sick of watching you tweak the same goddamn sliders.",
+        ],
+        'dumbed-down': [
+            "Saves your current settings so you can use them again later without re-doing everything!",
+            "Creates a custom preset — give it a name and it'll remember all your settings.",
+        ],
+    },
+    'la_export': {
+        'normal': [
+            "Export the previewed line art result to a file on your computer",
+            "Save the current preview as a PNG, JPEG, or BMP file",
+            "Download the line art preview to your chosen location",
+        ],
+        'vulgar': [
+            "Export this masterpiece before you accidentally close the damn window.",
+            "Save the preview to a file. You know, so your work isn't completely pointless.",
+            "Export button. Because staring at the preview forever doesn't actually save it, genius.",
+            "Click to save the line art to disk. The panda ain't holding onto it for your lazy ass.",
+            "Export the preview. Congrats, you made line art. Now save the damn thing.",
+        ],
+        'dumbed-down': [
+            "Saves the line art preview to a file on your computer so you can use it!",
+            "Click to export — pick where to save it and what format you want.",
+        ],
+    },
+
+    # ── Line Art – file / preview buttons ─────────────────────────
+    'la_select_files': {
+        'normal': [
+            "Pick individual image files to convert to line art",
+            "Browse and select one or more images for conversion",
+        ],
+        'vulgar': [
+            "Open the file picker and choose your damn images already.",
+            "Click this to actually select files. They don't magically appear, smartass.",
+        ],
+        'dumbed-down': [
+            "Opens a window so you can pick images to convert!",
+        ],
+    },
+    'la_select_folder': {
+        'normal': [
+            "Select a folder — all supported images inside will be queued for conversion",
+            "Batch-select an entire directory of images at once",
+        ],
+        'vulgar': [
+            "Point at a folder and every image in there gets dragged into the line art grinder.",
+            "Select a whole folder. Because picking files one-by-one is for masochists.",
+        ],
+        'dumbed-down': [
+            "Pick a folder and every picture inside it gets added automatically!",
+        ],
+    },
+    'la_browse_output': {
+        'normal': [
+            "Choose the directory where converted line art files are saved",
+            "Set the output folder for your converted images",
+        ],
+        'vulgar': [
+            "Pick where you want the converted files dumped. Not my problem if you lose them.",
+            "Set the output folder. Or don't. Enjoy hunting for files on your cluttered desktop.",
+        ],
+        'dumbed-down': [
+            "Pick the folder where your finished line art gets saved!",
+        ],
+    },
+    'la_update_preview': {
+        'normal': [
+            "Re-render the preview with your current settings",
+            "Refresh the before/after comparison with the latest settings",
+        ],
+        'vulgar': [
+            "Hit this to actually SEE what your settings do. Revolutionary concept, right?",
+            "Refresh the preview. Because staring at stale results helps absolutely nobody.",
+        ],
+        'dumbed-down': [
+            "Click to update the preview so you can see how it looks now!",
+        ],
+    },
+    'la_select_preview': {
+        'normal': [
+            "Choose a single image to preview before running the full batch",
+            "Pick one image to test your settings on before converting everything",
+        ],
+        'vulgar': [
+            "Pick ONE image to preview. Don't convert the whole batch just to realise you f***ed it up.",
+            "Select a preview image. It's called 'testing your settings' — try it sometime.",
+        ],
+        'dumbed-down': [
+            "Pick a picture to try your settings on before converting the whole batch!",
+        ],
+    },
+
+    # ── Line Art – conversion controls ────────────────────────────
+    'la_auto_threshold': {
+        'normal': [
+            "Let Otsu's method automatically pick the best threshold for each image",
+            "Enable auto-threshold to skip manual threshold tuning",
+        ],
+        'vulgar': [
+            "Let the computer figure out the threshold. It's literally smarter than you at this.",
+            "Turn on Otsu's method and stop pretending you know the perfect threshold value.",
+        ],
+        'dumbed-down': [
+            "Lets the app pick the best cutoff point automatically — just check the box!",
+        ],
+    },
+    'la_background': {
+        'normal': [
+            "Set the background of the line art output: transparent, white, or black",
+            "Choose what goes behind the lines — transparency, white, or black",
+        ],
+        'vulgar': [
+            "Pick a damn background colour. Transparent if you're layering, white if you're basic, black if you're edgy.",
+            "Background mode. Transparent keeps it classy, white is boring, black is dramatic.",
+        ],
+        'dumbed-down': [
+            "Pick what colour goes behind the lines — clear, white, or black!",
+        ],
+    },
+    'la_invert': {
+        'normal': [
+            "Swap black and white — lines become white on a dark background",
+            "Invert the colour output for a negative effect",
+        ],
+        'vulgar': [
+            "Flip the colours so everything's backwards. White lines on black — very artsy, very pretentious.",
+            "Invert colours. Now your lines are white. Congratulations, you're an artist.",
+        ],
+        'dumbed-down': [
+            "Flips the colours! Lines go white and background goes dark.",
+        ],
+    },
+    'la_remove_midtones': {
+        'normal': [
+            "Crush gray values to pure black or white for crisp stencil-ready output",
+            "Remove all in-between grays for a sharp two-tone result",
+        ],
+        'vulgar': [
+            "Kill the grays. No mercy. Pure black and white or nothing.",
+            "Obliterate every shade of gray. This isn't a gradient party, it's a STENCIL.",
+        ],
+        'dumbed-down': [
+            "Gets rid of gray areas so everything is either black or white — nice and clean!",
+        ],
+    },
+    'la_midtone_threshold': {
+        'normal': [
+            "Gray values above this are pushed to white (range: 128–255)",
+            "Control where the midtone cutoff sits between gray and white",
+        ],
+        'vulgar': [
+            "The midtone guillotine. Everything above this number becomes white. Chop chop.",
+            "Set where gray dies and becomes white. Higher = more survives. Lower = brutal.",
+        ],
+        'dumbed-down': [
+            "Slide to decide how much gray stays — higher means more grays become white!",
+        ],
+    },
+
+    # ── Line Art – line modification ──────────────────────────────
+    'la_sharpen': {
+        'normal': [
+            "Pre-sharpen the source image before conversion for crisper line edges",
+            "Apply sharpening to the original image to improve line clarity",
+        ],
+        'vulgar': [
+            "Sharpen the image first so your lines aren't a blurry mess. You're welcome.",
+            "Enable pre-sharpening. Because blurry input makes blurry output. Shocking, I know.",
+        ],
+        'dumbed-down': [
+            "Makes the picture sharper before converting — gives you cleaner lines!",
+        ],
+    },
+    'la_sharpen_amount': {
+        'normal': [
+            "How aggressively to sharpen — 0.5 is subtle, 3.0 is extreme",
+            "Controls the strength of the sharpening pass",
+        ],
+        'vulgar': [
+            "Crank this up and your edges could cut steel. Or just set it to 1.2 like a normal person.",
+            "Sharpen intensity. Low = gently nudging pixels. High = stabbing them into clarity.",
+        ],
+        'dumbed-down': [
+            "Slide right for stronger sharpening, left for softer. Around 1.2 is usually good!",
+        ],
+    },
+    'la_morph_iterations': {
+        'normal': [
+            "Number of times to apply the morphology operation (more = stronger effect)",
+            "Increase to thicken or thin lines more aggressively",
+        ],
+        'vulgar': [
+            "How many times to run morphology. Once is polite. Ten is 'I have no f***ing chill'.",
+            "Iterations slider. Each pass makes the effect stronger. Don't come crying at 10.",
+        ],
+        'dumbed-down': [
+            "More passes = stronger effect! Start at 1 or 2 and see how it looks.",
+        ],
+    },
+    'la_kernel_size': {
+        'normal': [
+            "Size of the morphology brush in pixels (3, 5, 7, or 9)",
+            "Bigger kernel = broader morphology effect on lines",
+        ],
+        'vulgar': [
+            "Kernel size — basically how fat the morphology brush is. 3 is delicate, 9 is a sledgehammer.",
+            "Pick the kernel size. Smaller = precise. Bigger = everything bleeds together. Choose wisely.",
+        ],
+        'dumbed-down': [
+            "How big the brush is for thickening or thinning lines. 3 is small, 9 is big!",
+        ],
+    },
+
+    # ── Line Art – cleanup ────────────────────────────────────────
+    'la_denoise': {
+        'normal': [
+            "Remove small noise speckles and stray dots from the line art result",
+            "Clean up tiny artifacts that aren't part of the actual line work",
+        ],
+        'vulgar': [
+            "Kill the speckles. Every stray pixel gets obliterated. No survivors.",
+            "Enable denoising to nuke those annoying little dots. Scorched-earth pixel policy.",
+        ],
+        'dumbed-down': [
+            "Gets rid of tiny dots and specks that aren't part of the real lines!",
+        ],
+    },
+    'la_denoise_size': {
+        'normal': [
+            "Minimum feature size to keep — smaller features below this are removed as noise",
+            "Set how small a detail must be to be treated as noise and deleted",
+        ],
+        'vulgar': [
+            "Anything smaller than this gets vaporised. Set it too high and your fine detail dies too. Balance, b*tch.",
+            "Min feature size. Tiny = gentle cleanup. Big = 'everything under 10px can go f*** itself'.",
+        ],
+        'dumbed-down': [
+            "Slide to set how small a speck has to be before it gets cleaned up. Start at 2!",
+        ],
+    },
+
+    # ── Background Remover Panel ───────────────────────────────────
+    'bg_mode': {
+        'normal': [
+            "Switch between background removal and object removal modes",
+            "Toggle the removal mode: remove backgrounds or specific objects",
+            "Select whether to remove the background or isolate objects",
+            "Choose the removal operation type",
+        ],
+        'vulgar': [
+            "Mode toggle. Background removal or object removal. Choose your destruction method.",
+            "Remove the background or remove objects. Either way, something's getting erased from existence.",
+            "Pick your mode. Background begone! Or object obliteration! Decisions, decisions.",
+            "Toggle between 'nuke the background' and 'surgically remove that one thing.'",
+            "Mode switch: full background annihilation or precision object deletion. Both satisfying.",
+        ],
+        'dumbed-down': [
+            "Choose whether to remove the background (leaving your subject) or remove a specific object.",
+            "This switches between two modes: one removes backgrounds, the other removes objects you select.",
+        ],
+    },
+    'bg_preset': {
+        'normal': [
+            "Choose a preset optimized for your image type",
+            "Select a preconfigured profile for optimal removal quality",
+            "Pick a preset tuned for specific content types",
+            "Use preset settings tailored for different image categories",
+        ],
+        'vulgar': [
+            "Presets! Because manually tuning settings is for people with infinite time and patience. You have neither.",
+            "Pick a preset. General, portrait, product — we did the thinking so you don't have to.",
+            "Preset selector. Like fast food: quick, easy, and usually good enough.",
+            "Choose a preset or spend an hour tweaking sliders. We both know which one you'll pick.",
+        ],
+        'dumbed-down': [
+            "Pick a preset that matches your image type. 'General' works for most things, 'Portrait' is for people photos.",
+            "Presets are pre-made settings that work well for different kinds of images. Just pick the closest match!",
+        ],
+    },
+    'bg_edge': {
+        'normal': [
+            "Adjust edge feathering and refinement for smoother cutouts",
+            "Control how smooth or sharp the edges of the cutout are",
+            "Fine-tune the edge quality of the background removal",
+            "Set the feathering amount for natural-looking edges",
+        ],
+        'vulgar': [
+            "Edge slider. Make edges smooth or sharp. Smooth = professional. Sharp = 'I used scissors in MS Paint.'",
+            "Feathering control. The difference between 'clean cutout' and 'my 5-year-old did this with safety scissors.'",
+            "Edge refinement. Because jaggy edges are a war crime in the design world.",
+            "Smooth those edges. Nobody likes a cutout that looks like it was torn out of a magazine. By a cat.",
+        ],
+        'dumbed-down': [
+            "Makes the edges of the cutout smoother or sharper. Higher = softer/more blended edges.",
+            "Controls how smooth the border is after removing the background. Try different values until it looks clean.",
+        ],
+    },
+    'bg_model': {
+        'normal': [
+            "Select the AI model for background removal",
+            "Choose which neural network model performs the removal",
+            "Pick an AI model optimized for your use case",
+            "Select the processing model for best results",
+        ],
+        'vulgar': [
+            "AI model selector. Pick which robot brain processes your images. They're all good. Some are just more good.",
+            "Choose your AI model. u2net for general, isnet for people, silueta for everything else. Easy peasy.",
+            "Model picker. Like choosing a Pokémon starter but the stakes are lower and nobody judges your choice. Probably.",
+            "Select the AI. Different brains for different tasks. None of them will become Skynet. Probably.",
+        ],
+        'dumbed-down': [
+            "Pick which AI model removes the background. The default works for most images, but others may be better for specific types.",
+            "Different models are good at different things. Try 'u2net' for general use or 'isnet' for people.",
+        ],
+    },
+    'bg_alpha_matting': {
+        'normal': [
+            "Enable alpha matting for semi-transparent objects like hair or glass",
+            "Use alpha matting for more precise edge handling on transparent areas",
+            "Turn on advanced edge detection for translucent materials",
+            "Enable fine-grained transparency handling at edges",
+        ],
+        'vulgar': [
+            "Alpha matting. For when your subject has wispy hair and the AI needs to not butcher it.",
+            "Turn this on for glass, hair, smoke, or anything see-through. Off = faster but choppier edges.",
+            "Alpha matting: the 'please don't destroy my hair edges' checkbox. You're welcome.",
+            "Enable this for translucent stuff. The AI tries harder. Emphasis on 'tries.'",
+        ],
+        'dumbed-down': [
+            "Turn this on if your image has see-through parts like glass or wispy hair. It makes the edges better.",
+            "Alpha matting helps with tricky edges on transparent or semi-transparent things. Takes longer but looks better.",
+        ],
     },
 }
 
@@ -5063,7 +6350,7 @@ class TooltipVerbosityManager:
     
     def _get_dumbed_down_tooltips(self) -> Dict[str, str]:
         """Detailed explanations for beginners with random variants"""
-        return {
+        base_tooltips = {
             'sort_button': [
                 "This button will look at all your texture files, figure out what type "
                 "each one is (UI, character, environment, etc.), and move them into "
@@ -5886,7 +7173,205 @@ class TooltipVerbosityManager:
                 "This shows how far along you are in completing an achievement. The bar fills up as you make progress.",
                 "A progress bar showing how close you are to finishing this achievement.",
             ],
+            'about_button': [
+                "Click here to see information about this app — the version, who made it, and credits.",
+                "Shows app info like version number and developer credits.",
+            ],
+            'analysis_button': [
+                "Click this to analyze your textures. It looks at each file and tells you about its size, format, and quality.",
+                "Runs an analysis on your texture files to give you useful stats.",
+            ],
+            'armory_tab': [
+                "This is where your panda's weapons and equipment are kept. Equip items for dungeon adventures!",
+                "The armory stores all your panda's gear for battles and adventures.",
+            ],
+            'battle_arena': [
+                "Enter the battle arena to fight enemies and earn rewards! Your panda uses equipped gear in combat.",
+                "Fight stuff, earn rewards. It's a mini combat game for your panda.",
+            ],
+            'browser_smart_search': [
+                "Smart search looks through your files using AI to find textures that match what you describe, even if the filename doesn't match.",
+                "AI-powered search that finds files by what they look like, not just their name.",
+            ],
+            'category_selection': [
+                "Pick which texture categories you want to sort into. You can check or uncheck types like UI, Characters, Environment, etc.",
+                "Choose which categories to include when sorting your textures.",
+            ],
+            'cursor_selector': [
+                "Pick a custom cursor style for the app. There are fun options like panda paws and bamboo!",
+                "Change what your mouse cursor looks like inside the app.",
+            ],
+            'export_button': [
+                "Click this to save/export your sorted textures to the output folder you selected.",
+                "Exports your organized textures to the destination folder.",
+            ],
+            'favorites_button': [
+                "Mark textures as favorites so you can quickly find them later. Like a bookmark for your files!",
+                "Save textures to your favorites list for quick access.",
+            ],
+            'inventory_accessory': [
+                "These are accessories you own for your panda — things like glasses, scarves, or jewelry. Equip them in the closet!",
+                "Your panda's accessory collection. Go to the closet to put them on.",
+            ],
+            'inventory_food': [
+                "Food items you have! Feed them to your panda to make them happy and restore energy.",
+                "Your food stash. Feed your panda to boost their mood.",
+            ],
+            'inventory_toy': [
+                "Toys you own! Give one to your panda and watch them play. It increases happiness!",
+                "Your toy collection. Give toys to your panda for fun playtime.",
+            ],
+            'inventory_unlocked': [
+                "A summary of all the special rewards you've earned so far by completing achievements and playing.",
+                "Shows everything you've unlocked through playing and achievements.",
+            ],
+            'notepad_delete': [
+                "Delete the current note. Be careful — this can't be undone!",
+                "Removes the selected note permanently.",
+            ],
+            'notepad_new': [
+                "Create a brand new empty note to write in.",
+                "Start a fresh note from scratch.",
+            ],
+            'notepad_save': [
+                "Save whatever you've written in the notepad so it's there when you come back.",
+                "Saves your note so you don't lose it.",
+            ],
+            'open_cache_dir': [
+                "Opens the folder where the app stores temporary files (cache). Useful for clearing space.",
+                "Shows the cache folder on your computer.",
+            ],
+            'open_config_dir': [
+                "Opens the folder where your settings and preferences are saved.",
+                "Shows the config folder with your app settings.",
+            ],
+            'open_customization': [
+                "Opens the customization panel where you can change how the app looks and feels.",
+                "Go to customization options to personalize the app.",
+            ],
+            'open_logs_dir': [
+                "Opens the folder where the app saves log files. Helpful for troubleshooting problems.",
+                "Shows the logs folder for debugging.",
+            ],
+            'open_sound_settings': [
+                "Opens sound settings where you can change volumes, pick sound packs, and adjust audio.",
+                "Go to sound settings to change audio options.",
+            ],
+            'panda_sound_click': [
+                "The sound your panda makes when you click on them.",
+                "Click sound effect for the panda.",
+            ],
+            'panda_sound_dance': [
+                "The sound that plays when your panda dances.",
+                "Dancing sound effect.",
+            ],
+            'panda_sound_drag': [
+                "The sound when you start dragging your panda around.",
+                "Drag sound effect.",
+            ],
+            'panda_sound_drop': [
+                "The sound when you let go and drop your panda.",
+                "Drop/release sound effect.",
+            ],
+            'panda_sound_eat': [
+                "The munching sound when your panda eats food.",
+                "Eating sound effect.",
+            ],
+            'panda_sound_happy': [
+                "A cheerful sound when your panda is happy!",
+                "Happy emotion sound effect.",
+            ],
+            'panda_sound_jump': [
+                "The sound when your panda jumps up.",
+                "Jump sound effect.",
+            ],
+            'panda_sound_pet': [
+                "A content purr-like sound when you pet your panda.",
+                "Petting sound effect.",
+            ],
+            'panda_sound_play': [
+                "A fun playful sound when your panda is playing.",
+                "Play sound effect.",
+            ],
+            'panda_sound_sad': [
+                "A sad whimper sound when your panda is unhappy.",
+                "Sad emotion sound effect.",
+            ],
+            'panda_sound_sleep': [
+                "Gentle snoring sounds when your panda sleeps.",
+                "Sleep/snoring sound effect.",
+            ],
+            'panda_sound_sneeze': [
+                "An adorable little sneeze sound!",
+                "Sneeze sound effect.",
+            ],
+            'panda_sound_wake': [
+                "A yawning wake-up sound when your panda wakes from sleep.",
+                "Wake-up sound effect.",
+            ],
+            'panda_sound_walk': [
+                "Soft footstep sounds when your panda walks around.",
+                "Walking footstep sounds.",
+            ],
+            'panda_sound_yawn': [
+                "A big sleepy yawn sound.",
+                "Yawn sound effect.",
+            ],
+            'preview_button': [
+                "Click this to see a preview of what the texture looks like before you process it.",
+                "Shows a preview of the selected texture.",
+            ],
+            'recent_files': [
+                "A list of files and folders you've worked with recently. Click one to open it again quickly.",
+                "Quick access to your recently used files and folders.",
+            ],
+            'redo_button': [
+                "Redo something you just undid. Like pressing Ctrl+Z backwards!",
+                "Redo the last action you undid.",
+            ],
+            'rename_template': [
+                "Type a naming pattern here. Use {name} for the original name, {num} for a number, {date} for today's date.",
+                "Write your own naming rule using placeholders like {name} and {num}.",
+            ],
+            'save_settings': [
+                "Save all your current settings so they stay the same next time you open the app.",
+                "Saves your preferences so they persist between sessions.",
+            ],
+            'shop_item_name': [
+                "Click on an item to see more details about it — what it looks like, how much it costs, etc.",
+                "Select an item to view its description and price.",
+            ],
+            'sound_selection_panda': [
+                "Choose which sounds your panda makes for different actions like clicking, dragging, eating, etc.",
+                "Pick individual sounds for each panda action.",
+            ],
+            'sound_selection_system': [
+                "Choose sounds for app actions like sorting, completing tasks, and notifications.",
+                "Pick sounds for system events and notifications.",
+            ],
+            'sound_settings': [
+                "Adjust all the sound options — volume levels, sound packs, and individual sound effects.",
+                "Main sound settings panel for all audio options.",
+            ],
+            'travel_hub': [
+                "The travel hub lets your panda visit different locations and discover new areas!",
+                "Send your panda on trips to different places.",
+            ],
+            'undo_button': [
+                "Undo the last thing you did. Works like Ctrl+Z in most programs.",
+                "Takes back your last action.",
+            ],
         }
+
+        # Merge dumbed-down tooltip variants from the inlined definitions
+        try:
+            for widget_id, tooltip_dict in _PANDA_TOOLTIPS.items():
+                if 'dumbed-down' in tooltip_dict:
+                    base_tooltips[widget_id] = tooltip_dict['dumbed-down']
+        except Exception as e:
+            logger.warning(f"Error loading dumbed-down tooltips: {e}")
+
+        return base_tooltips
     
     def _get_unhinged_panda_tooltips(self) -> Dict[str, Any]:
         """Fun/sarcastic tooltips (vulgar mode)"""
@@ -6865,6 +8350,31 @@ class TooltipVerbosityManager:
                 "Achievement progress. The world's slowest loading bar, basically.",
                 "Progress tracker. For obsessive completionists who need to see the NUMBERS.",
                 "How far along you are. Keep going, you beautiful overachiever. Or don't.",
+            ],
+            'inventory_accessory': [
+                "Your accessory hoard. Because your panda needs bling more than you need therapy.",
+                "Accessories for your panda. Yes, a virtual bear needs jewelry. We don't judge.",
+                "The accessory pile. Equip these or let them gather digital dust. Your call.",
+            ],
+            'inventory_food': [
+                "Food stash. Feed your panda or watch it give you the saddest damn eyes ever.",
+                "Your panda's snack drawer. Feed the beast or suffer the guilt trip.",
+                "Food items. Because apparently your virtual panda can't find its own damn food.",
+            ],
+            'inventory_toy': [
+                "Toys! Give one to your panda and watch it lose its tiny mind with joy.",
+                "Your toy collection. Making a virtual bear happy is peak adult behavior.",
+                "Toys for your panda. More entertaining than most Netflix shows, honestly.",
+            ],
+            'inventory_unlocked': [
+                "Everything you've unlocked. Look at all this shit you earned by clicking buttons. Proud of you.",
+                "Your unlocked rewards summary. Proof that your obsessive playing paid off.",
+                "Achievement loot. All the stuff you earned by being a completionist psycho.",
+            ],
+            'shop_item_name': [
+                "Click for details. Read the damn description before buying like an informed consumer for once.",
+                "Item details. Read before purchasing, you impulsive little shopper.",
+                "Tap this to see what the hell you're about to waste your Bamboo Bucks on.",
             ],
         }
         

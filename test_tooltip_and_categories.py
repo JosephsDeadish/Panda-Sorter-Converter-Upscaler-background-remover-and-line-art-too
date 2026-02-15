@@ -56,8 +56,8 @@ def test_categories_structure_intact():
             assert "group" in cat_info, f"{cat_id} missing 'group'"
 
     # ALL_CATEGORIES should include every category from every group
-    assert len(ALL_CATEGORIES) == 120, (
-        f"Expected 120 categories, got {len(ALL_CATEGORIES)}"
+    assert len(ALL_CATEGORIES) == 121, (
+        f"Expected 121 categories, got {len(ALL_CATEGORIES)}"
     )
     print("✓ All category groups intact with correct structure")
 
@@ -190,7 +190,7 @@ def test_get_category_helpers():
     )
 
     names = get_category_names()
-    assert len(names) == 120
+    assert len(names) == 121
     assert "eyes" in names
     assert "unclassified" in names
 

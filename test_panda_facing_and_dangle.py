@@ -230,18 +230,19 @@ def test_individual_limb_detection():
     panda = PandaCharacter()
     
     # Test all specific body parts can be detected
+    # Coordinates are calibrated to the 220x380 canvas (sy=1.9, offset=20)
     expected_parts = {
         (0.05, 0.05): 'left_ear',
         (0.05, 0.95): 'right_ear',
-        (0.20, 0.35): 'left_eye',
-        (0.20, 0.65): 'right_eye',
-        (0.28, 0.5): 'nose',
-        (0.10, 0.5): 'head',
-        (0.4, 0.1): 'left_arm',
-        (0.4, 0.9): 'right_arm',
-        (0.4, 0.5): 'body',
-        (0.65, 0.5): 'butt',
-        (0.9, 0.3): 'left_leg',
+        (0.28, 0.35): 'left_eye',     # eye zone: 0.22-0.34
+        (0.28, 0.65): 'right_eye',
+        (0.36, 0.5): 'nose',          # nose zone: 0.30-0.42
+        (0.15, 0.5): 'head',          # head zone: EAR_BOUNDARY(0.22)+ center
+        (0.55, 0.1): 'left_arm',      # body zone: 0.48-0.72
+        (0.55, 0.9): 'right_arm',
+        (0.55, 0.5): 'body',
+        (0.75, 0.5): 'butt',          # butt zone: 0.72-0.78
+        (0.9, 0.3): 'left_leg',       # legs: >= 0.78
         (0.9, 0.7): 'right_leg',
     }
     
@@ -455,24 +456,24 @@ def test_hand_detection_wider_boundaries():
     panda = PandaCharacter()
     
     # Arms should be detectable at wider boundaries than before
-    # ARM_LEFT_BOUNDARY=0.35 means rel_x < 0.35 in body zone is left_arm
-    assert panda.get_body_part_at_position(0.4, 0.30) == 'left_arm', \
+    # Use rel_y=0.55 to be in the body zone (HEAD_BOUNDARY=0.48, BODY_BOUNDARY=0.72)
+    assert panda.get_body_part_at_position(0.55, 0.30) == 'left_arm', \
         "rel_x=0.30 in body zone should detect as left_arm"
-    assert panda.get_body_part_at_position(0.4, 0.34) == 'left_arm', \
+    assert panda.get_body_part_at_position(0.55, 0.34) == 'left_arm', \
         "rel_x=0.34 in body zone should detect as left_arm"
-    assert panda.get_body_part_at_position(0.4, 0.70) == 'right_arm', \
+    assert panda.get_body_part_at_position(0.55, 0.70) == 'right_arm', \
         "rel_x=0.70 in body zone should detect as right_arm"
-    assert panda.get_body_part_at_position(0.4, 0.66) == 'right_arm', \
+    assert panda.get_body_part_at_position(0.55, 0.66) == 'right_arm', \
         "rel_x=0.66 in body zone should detect as right_arm"
     
     # Center should still be body
-    assert panda.get_body_part_at_position(0.4, 0.5) == 'body', \
+    assert panda.get_body_part_at_position(0.55, 0.5) == 'body', \
         "rel_x=0.5 in body zone should detect as body"
     
     # Hand sub-regions: lower body at outermost edges
-    assert panda.get_body_part_at_position(0.45, 0.15) == 'left_arm', \
+    assert panda.get_body_part_at_position(0.60, 0.15) == 'left_arm', \
         "Hand sub-region at far left should detect as left_arm"
-    assert panda.get_body_part_at_position(0.45, 0.85) == 'right_arm', \
+    assert panda.get_body_part_at_position(0.60, 0.85) == 'right_arm', \
         "Hand sub-region at far right should detect as right_arm"
     
     print("✓ Hand/arm detection boundaries are wide enough for easy grabbing")
@@ -498,24 +499,23 @@ def test_ear_detection_matches_canvas():
     from src.features.panda_character import PandaCharacter
     panda = PandaCharacter()
     
-    # Left ear is drawn at canvas X 72-94 → rel_x ~0.33-0.43
-    # Right ear is drawn at canvas X 124-148 → rel_x ~0.56-0.67
-    # Ear Y zone is top 15% (rel_y < 0.15)
+    # Ears extend to rel_y ~0.22 on the 220x380 canvas.
+    # Ear Y zone: rel_y < EAR_BOUNDARY (0.22)
     
     # Left ear at its actual position should be detected
-    assert panda.get_body_part_at_position(0.05, 0.35) == 'left_ear', \
+    assert panda.get_body_part_at_position(0.10, 0.35) == 'left_ear', \
         "Click at actual left ear position (rel_x=0.35) should be left_ear"
-    assert panda.get_body_part_at_position(0.05, 0.42) == 'left_ear', \
+    assert panda.get_body_part_at_position(0.10, 0.42) == 'left_ear', \
         "Click at actual left ear position (rel_x=0.42) should be left_ear"
     
     # Right ear at its actual position should be detected
-    assert panda.get_body_part_at_position(0.05, 0.60) == 'right_ear', \
+    assert panda.get_body_part_at_position(0.10, 0.60) == 'right_ear', \
         "Click at actual right ear position (rel_x=0.60) should be right_ear"
-    assert panda.get_body_part_at_position(0.05, 0.65) == 'right_ear', \
+    assert panda.get_body_part_at_position(0.10, 0.65) == 'right_ear', \
         "Click at actual right ear position (rel_x=0.65) should be right_ear"
     
     # Between ears should be head
-    assert panda.get_body_part_at_position(0.05, 0.50) == 'head', \
+    assert panda.get_body_part_at_position(0.10, 0.50) == 'head', \
         "Click between ears (rel_x=0.50) should be head"
     
     print("✓ Ear detection boundaries match actual canvas ear positions")
@@ -526,19 +526,19 @@ def test_eye_detection_accuracy():
     from src.features.panda_character import PandaCharacter
     panda = PandaCharacter()
     
-    # Left eye at canvas x=86 → rel_x=0.39, right eye at 134 → rel_x=0.61
-    # Eye Y zone: 0.15-0.25
+    # Eyes are at ~rel_y 0.29 on the 220x380 canvas.
+    # Eye Y zone: EYE_BOUNDARY_TOP (0.22) to EYE_BOUNDARY_BOTTOM (0.34)
     
     # Left eye at its center
-    assert panda.get_body_part_at_position(0.20, 0.39) == 'left_eye', \
+    assert panda.get_body_part_at_position(0.28, 0.39) == 'left_eye', \
         "Click at left eye center (rel_x=0.39) should be left_eye"
     
     # Right eye at its center
-    assert panda.get_body_part_at_position(0.20, 0.61) == 'right_eye', \
+    assert panda.get_body_part_at_position(0.28, 0.61) == 'right_eye', \
         "Click at right eye center (rel_x=0.61) should be right_eye"
     
-    # Between eyes (nose area) should be head at eye Y level
-    assert panda.get_body_part_at_position(0.20, 0.50) == 'head', \
+    # Between eyes should be head at eye Y level
+    assert panda.get_body_part_at_position(0.28, 0.50) == 'head', \
         "Click between eyes (rel_x=0.50) should be head"
     
     print("✓ Eye detection centers match actual canvas eye positions")
@@ -549,21 +549,21 @@ def test_arm_detection_covers_full_arm():
     from src.features.panda_character import PandaCharacter
     panda = PandaCharacter()
     
-    # Arms are drawn at rel_x 0.25-0.36 (left) and 0.64-0.75 (right)
-    # ARM_LEFT_BOUNDARY=0.38 should catch the full left arm
-    assert panda.get_body_part_at_position(0.4, 0.36) == 'left_arm', \
+    # Arms are drawn at rel_y ~0.53-0.70 on the 220x380 canvas.
+    # Use rel_y=0.55 which is in the body zone (HEAD_BOUNDARY=0.48 to BODY_BOUNDARY=0.72)
+    assert panda.get_body_part_at_position(0.55, 0.36) == 'left_arm', \
         "Inner edge of left arm (rel_x=0.36) should be left_arm"
-    assert panda.get_body_part_at_position(0.4, 0.37) == 'left_arm', \
+    assert panda.get_body_part_at_position(0.55, 0.37) == 'left_arm', \
         "Just inside left arm boundary (rel_x=0.37) should be left_arm"
     
     # ARM_RIGHT_BOUNDARY=0.62 should catch the full right arm
-    assert panda.get_body_part_at_position(0.4, 0.64) == 'right_arm', \
+    assert panda.get_body_part_at_position(0.55, 0.64) == 'right_arm', \
         "Inner edge of right arm (rel_x=0.64) should be right_arm"
-    assert panda.get_body_part_at_position(0.4, 0.63) == 'right_arm', \
+    assert panda.get_body_part_at_position(0.55, 0.63) == 'right_arm', \
         "Just inside right arm boundary (rel_x=0.63) should be right_arm"
     
     # Center body region is still body
-    assert panda.get_body_part_at_position(0.4, 0.50) == 'body', \
+    assert panda.get_body_part_at_position(0.55, 0.50) == 'body', \
         "Center of body (rel_x=0.50) should still be body"
     
     print("✓ Arm detection covers the full arm area on the canvas")

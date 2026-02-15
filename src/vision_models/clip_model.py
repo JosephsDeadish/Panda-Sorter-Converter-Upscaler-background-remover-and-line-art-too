@@ -313,32 +313,110 @@ class CLIPModel:
         learning_rate: float = 1e-5,
         epochs: int = 10,
         batch_size: int = 16
-    ):
+    ) -> Dict[str, Any]:
         """
-        Fine-tune CLIP model on custom dataset.
-        
-        NOTE: This is a placeholder for future functionality.
-        Fine-tuning CLIP requires significant implementation including:
-        - Dataset loader creation
-        - Optimizer and loss function setup
-        - Training loop with backpropagation
-        - Validation and checkpointing
-        
+        Fine-tune CLIP model on a custom image–text dataset using
+        contrastive loss (symmetric cross-entropy over cosine similarities).
+
         Args:
             images: List of training images
-            labels: List of text labels for images
-            learning_rate: Learning rate
+            labels: List of text labels for images (same length as images)
+            learning_rate: Learning rate for AdamW optimizer
             epochs: Number of training epochs
-            batch_size: Batch size
-            
+            batch_size: Batch size per step
+
+        Returns:
+            Dictionary with training metrics (losses per epoch)
+
         Raises:
-            NotImplementedError: This feature is not yet implemented
+            RuntimeError: If PyTorch is not available
+            ValueError:  If *images* and *labels* have mismatched length
         """
-        # TODO: Implement fine-tuning
-        # This would require:
-        # 1. Creating a dataset loader
-        # 2. Setting up optimizer and loss function
-        # 3. Training loop with backpropagation
-        # 4. Validation and checkpointing
-        logger.warning("Fine-tuning not yet implemented")
-        raise NotImplementedError("Fine-tuning will be implemented in a future update")
+        if not TORCH_AVAILABLE:
+            raise RuntimeError("PyTorch is required for fine-tuning")
+        if len(images) != len(labels):
+            raise ValueError(
+                f"images ({len(images)}) and labels ({len(labels)}) must have the same length"
+            )
+
+        logger.info(
+            f"Starting fine-tune: {len(images)} samples, "
+            f"lr={learning_rate}, epochs={epochs}, bs={batch_size}"
+        )
+
+        # Switch to training mode
+        self.model.train()
+        optimizer = torch.optim.AdamW(self.model.parameters(), lr=learning_rate)
+
+        epoch_losses: List[float] = []
+
+        try:
+            for epoch in range(epochs):
+                running_loss = 0.0
+                steps = 0
+
+                # Shuffle indices each epoch
+                indices = np.random.permutation(len(images))
+
+                for start in range(0, len(indices), batch_size):
+                    batch_idx = indices[start : start + batch_size]
+
+                    # --- Prepare image batch ---
+                    pil_images: List[Image.Image] = []
+                    for i in batch_idx:
+                        img = images[i]
+                        if isinstance(img, Path):
+                            img = Image.open(img).convert("RGB")
+                        elif isinstance(img, np.ndarray):
+                            img = Image.fromarray(img)
+                        pil_images.append(img)
+
+                    batch_labels = [labels[i] for i in batch_idx]
+
+                    # --- Encode ---
+                    if self.use_open_clip:
+                        image_input = torch.stack(
+                            [self.processor(im) for im in pil_images]
+                        ).to(self.device)
+                        text_input = self.tokenizer(batch_labels).to(self.device)
+                        img_features = self.model.encode_image(image_input)
+                        txt_features = self.model.encode_text(text_input)
+                    else:
+                        inputs = self.processor(
+                            text=batch_labels,
+                            images=pil_images,
+                            return_tensors="pt",
+                            padding=True,
+                        ).to(self.device)
+                        outputs = self.model(**inputs)
+                        img_features = outputs.image_embeds
+                        txt_features = outputs.text_embeds
+
+                    # Normalise
+                    img_features = F.normalize(img_features, p=2, dim=-1)
+                    txt_features = F.normalize(txt_features, p=2, dim=-1)
+
+                    # Symmetric contrastive loss
+                    logits = img_features @ txt_features.T
+                    targets = torch.arange(len(batch_idx), device=self.device)
+                    loss_i2t = F.cross_entropy(logits, targets)
+                    loss_t2i = F.cross_entropy(logits.T, targets)
+                    loss = (loss_i2t + loss_t2i) / 2.0
+
+                    optimizer.zero_grad()
+                    loss.backward()
+                    optimizer.step()
+
+                    running_loss += loss.item()
+                    steps += 1
+
+                avg_loss = running_loss / max(steps, 1)
+                epoch_losses.append(avg_loss)
+                logger.info(f"Epoch {epoch + 1}/{epochs}  loss={avg_loss:.4f}")
+
+        finally:
+            # Always return to eval mode
+            self.model.eval()
+
+        logger.info("Fine-tuning complete")
+        return {"epoch_losses": epoch_losses}

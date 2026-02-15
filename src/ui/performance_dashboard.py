@@ -149,10 +149,11 @@ class PerformanceDashboard(ctk.CTkFrame):
     Shows processing speed, memory usage, queue status, and more.
     """
     
-    def __init__(self, master, unlockables_system=None, **kwargs):
+    def __init__(self, master, unlockables_system=None, tooltip_manager=None, **kwargs):
         super().__init__(master, **kwargs)
         
         self.unlockables_system = unlockables_system
+        self.tooltip_manager = tooltip_manager
         self.metrics = PerformanceMetrics()
         self.update_interval = 1000  # 1 second
         self.update_job = None
@@ -418,49 +419,55 @@ class PerformanceDashboard(ctk.CTkFrame):
     
     def _add_tooltips(self):
         """Add tooltips to widgets if available."""
-        if not TOOLTIPS_AVAILABLE or not self.unlockables_system:
+        if not TOOLTIPS_AVAILABLE:
             return
         
         try:
-            tooltips = self.unlockables_system.get_all_tooltips()
-            tooltips_lower = [t.lower() for t in tooltips]
+            tm = self.tooltip_manager
             
-            def get_tooltip(keyword):
-                """Find tooltip containing keyword."""
-                for tooltip in tooltips_lower:
-                    if keyword.lower() in tooltip:
-                        return tooltips[tooltips_lower.index(tooltip)]
-                return None
+            def _tt(widget_id, fallback):
+                if tm:
+                    text = tm.get_tooltip(widget_id)
+                    if text:
+                        return text
+                return fallback
             
             # Processing speed tooltip
             if hasattr(self, 'speed_label'):
-                tooltip = get_tooltip("processing speed") or get_tooltip("speed")
-                if tooltip:
-                    self._tooltips.append(WidgetTooltip(self.speed_label, tooltip))
+                self._tooltips.append(WidgetTooltip(
+                    self.speed_label,
+                    _tt('perf_speed', "Current processing speed in files per second"),
+                    widget_id='perf_speed', tooltip_manager=tm))
             
             # Memory usage tooltip
             if hasattr(self, 'memory_label'):
-                tooltip = get_tooltip("memory") 
-                if tooltip:
-                    self._tooltips.append(WidgetTooltip(self.memory_label, tooltip))
+                self._tooltips.append(WidgetTooltip(
+                    self.memory_label,
+                    _tt('perf_memory', "Current memory (RAM) used by the application"),
+                    widget_id='perf_memory', tooltip_manager=tm))
             
             # CPU usage tooltip
             if hasattr(self, 'cpu_label'):
-                tooltip = get_tooltip("cpu")
-                if tooltip:
-                    self._tooltips.append(WidgetTooltip(self.cpu_label, tooltip))
+                self._tooltips.append(WidgetTooltip(
+                    self.cpu_label,
+                    _tt('perf_cpu', "Current CPU utilization percentage"),
+                    widget_id='perf_cpu', tooltip_manager=tm))
             
             # Queue status tooltip
             if hasattr(self, 'queue_pending_label'):
-                tooltip = get_tooltip("queue")
-                if tooltip:
-                    self._tooltips.append(WidgetTooltip(self.queue_pending_label, tooltip))
+                self._tooltips.append(WidgetTooltip(
+                    self.queue_pending_label,
+                    _tt('perf_queue', "Number of files waiting in the processing queue"),
+                    widget_id='perf_queue', tooltip_manager=tm))
             
             # Workers slider tooltip
             if hasattr(self, 'workers_slider'):
-                tooltip = get_tooltip("parallel") or get_tooltip("workers") or get_tooltip("thread")
-                if tooltip:
-                    self._tooltips.append(WidgetTooltip(self.workers_slider, tooltip))
+                self._tooltips.append(WidgetTooltip(
+                    self.workers_slider,
+                    _tt('perf_workers',
+                        "Number of parallel worker threads for processing\n"
+                        "More workers = faster but uses more CPU/memory"),
+                    widget_id='perf_workers', tooltip_manager=tm))
                     
         except Exception as e:
             logger.error(f"Error adding tooltips to Performance Dashboard: {e}")

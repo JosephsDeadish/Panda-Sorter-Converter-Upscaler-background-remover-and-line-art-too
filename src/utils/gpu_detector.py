@@ -418,9 +418,37 @@ class GPUDetector:
             return []
     
     def _detect_intel_vulkan(self) -> List[GPUDevice]:
-        """Detect Intel GPUs using Vulkan (fallback)."""
-        # TODO: Implement Vulkan detection if needed
-        return []
+        """Detect Intel GPUs using Vulkan (vulkaninfo)."""
+        try:
+            result = subprocess.run(
+                ["vulkaninfo", "--summary"],
+                capture_output=True,
+                text=True,
+                timeout=5
+            )
+            if result.returncode != 0:
+                return []
+
+            devices = []
+            idx = 0
+            for line in result.stdout.split('\n'):
+                # vulkaninfo --summary outputs lines like:
+                # deviceName = Intel(R) UHD Graphics 630
+                if 'deviceName' in line and 'Intel' in line:
+                    name_part = line.split('=', 1)[1].strip() if '=' in line else line
+                    name = self._parse_intel_name(name_part)
+                    devices.append(GPUDevice(
+                        vendor=GPUVendor.INTEL,
+                        name=name,
+                        index=idx
+                    ))
+                    idx += 1
+
+            return devices
+
+        except (FileNotFoundError, subprocess.TimeoutExpired, ValueError) as e:
+            logger.debug(f"Vulkan detection failed: {e}")
+            return []
     
     def _parse_intel_name(self, raw_name: str) -> str:
         """

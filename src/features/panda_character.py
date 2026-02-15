@@ -64,16 +64,24 @@ class PandaCharacter:
     RAGE_CLICK_THRESHOLD = 10  # Number of clicks to trigger rage mode
     
     # Body part region boundaries (relative Y position 0.0-1.0)
-    # Adjusted to match actual canvas drawing proportions
-    # Head bottom (head_cy + head_ry) ≈ 84 out of 270 ≈ 0.31
-    HEAD_BOUNDARY = 0.34
-    EAR_BOUNDARY = 0.15       # Top 15% is ear zone
-    EYE_BOUNDARY_TOP = 0.15
-    EYE_BOUNDARY_BOTTOM = 0.25
-    NOSE_BOUNDARY_TOP = 0.25
-    NOSE_BOUNDARY_BOTTOM = 0.34
-    BODY_BOUNDARY = 0.55
-    BUTT_BOUNDARY = 0.75
+    # Calibrated to the 220×380 canvas (sx=W/160, sy=H/200) with
+    # PANDA_DRAW_Y_OFFSET = 20. Actual pixel Y = base_y * sy + offset,
+    # so rel_y ≈ base_y/200 + 0.053.
+    # Ears (base 9-33)  → rel 0.10-0.22
+    # Head (base 20-84) → rel 0.15-0.47
+    # Eyes (base ~48)   → rel ~0.29
+    # Nose (base ~60)   → rel ~0.35
+    # Arms (base 95-130)→ rel 0.53-0.70
+    # Body (base 75-160)→ rel 0.43-0.85
+    # Legs (base 145-175)→ rel 0.78-0.93
+    HEAD_BOUNDARY = 0.43
+    EAR_BOUNDARY = 0.22       # Ears extend to rel_y ~0.22
+    EYE_BOUNDARY_TOP = 0.22
+    EYE_BOUNDARY_BOTTOM = 0.34
+    NOSE_BOUNDARY_TOP = 0.30
+    NOSE_BOUNDARY_BOTTOM = 0.42
+    BODY_BOUNDARY = 0.72
+    BUTT_BOUNDARY = 0.78
     
     # Valid animation state names used by the canvas-drawn panda
     ANIMATION_STATES = [
@@ -290,7 +298,7 @@ class PandaCharacter:
     WALK_TO_FOOD_RESPONSES = [
         "🐼 *sniff sniff* I smell something delicious! 👃",
         "🐼 Ooh! Is that food?! *waddles faster* 🏃",
-        "🐼 *stomach growls* Coming! Coming! 🍽️",
+        "🐼 *tummy growls* Coming! Coming! 🍽️",
         "🐼 My tummy said go that way! ➡️",
         "🐼 Food detected! Initiating approach! 🎯",
         "🐼 *excited waddle* SNACK TIME! 🎉",
@@ -1533,7 +1541,7 @@ class PandaCharacter:
     
     # Hand detection: hands are at the bottom of the arm region (lower body area)
     # and at the outermost edge of the arm zone
-    HAND_BOUNDARY_TOP = 0.42   # Hands start in the lower body region
+    HAND_BOUNDARY_TOP = 0.58   # Hands start in the lower body region (within BODY zone)
     HAND_LEFT_BOUNDARY = 0.25  # Left hand extends further out than arm
     HAND_RIGHT_BOUNDARY = 0.75 # Right hand extends further out than arm
     
@@ -1547,7 +1555,7 @@ class PandaCharacter:
     # Left eye at canvas x 86 → rel_x 0.39, right eye at 134 → rel_x 0.61
     EYE_LEFT_CENTER = 0.39     # Left eye center
     EYE_RIGHT_CENTER = 0.61    # Right eye center
-    EYE_RADIUS_X = 0.10        # Eye click radius
+    EYE_RADIUS_X = 0.08        # Eye click radius
 
     def get_body_part_at_position(self, rel_y: float, rel_x: float = 0.5) -> str:
         """Determine which body part is at a relative position.

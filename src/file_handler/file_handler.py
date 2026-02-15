@@ -28,16 +28,19 @@ except (ImportError, OSError):
     HAS_SVG_CAIRO = False
     logger.debug("cairosvg not available. Cairo SVG conversion disabled.")
 
-# Check for native Rust vector tracing
+# Check for native Rust vector tracing and/or Python fallback
 try:
     from ..native_ops import bitmap_to_svg as native_bitmap_to_svg, NATIVE_AVAILABLE
     HAS_SVG_NATIVE = NATIVE_AVAILABLE
+    # bitmap_to_svg works even without Rust via OpenCV fallback
+    HAS_BITMAP_TO_SVG = True
 except ImportError:
     HAS_SVG_NATIVE = False
+    HAS_BITMAP_TO_SVG = False
     logger.debug("Native vector tracing not available.")
 
-# Overall SVG support (either native or cairo)
-HAS_SVG = HAS_SVG_CAIRO or HAS_SVG_NATIVE
+# Overall SVG support (either native, bitmap_to_svg fallback, or cairo)
+HAS_SVG = HAS_SVG_CAIRO or HAS_BITMAP_TO_SVG
 
 try:
     from io import BytesIO
@@ -243,8 +246,8 @@ class FileHandler:
         Returns:
             Path to converted SVG file or None if conversion failed
         """
-        if not HAS_SVG_NATIVE:
-            logger.warning("Native vector tracing not available. Build the Rust extension for offline SVG conversion.")
+        if not HAS_BITMAP_TO_SVG:
+            logger.warning("Vector tracing not available. Install OpenCV or build the Rust extension.")
             return None
         
         if not HAS_PIL:
@@ -264,18 +267,19 @@ class FileHandler:
             img = Image.open(image_path).convert('RGB')
             img_array = np.array(img)
             
-            # Convert to SVG using native tracing
+            # Convert to SVG using native tracing (or OpenCV fallback)
             svg_content = native_bitmap_to_svg(img_array, threshold=threshold, mode=mode)
             
             if svg_content is None:
-                logger.error(f"Native vector tracing failed for {image_path}")
+                logger.error(f"Vector tracing failed for {image_path}")
                 return None
             
             # Save SVG to file
             output_path.write_text(svg_content, encoding='utf-8')
             
-            self.operations_log.append(f"Converted {image_path} to {output_path} (native)")
-            logger.info(f"Successfully converted to SVG (native): {image_path} -> {output_path}")
+            method = "native" if HAS_SVG_NATIVE else "opencv-fallback"
+            self.operations_log.append(f"Converted {image_path} to {output_path} ({method})")
+            logger.info(f"Successfully converted to SVG ({method}): {image_path} -> {output_path}")
             return output_path
             
         except Exception as e:
@@ -332,18 +336,18 @@ class FileHandler:
         Returns:
             Path to converted SVG file or None if conversion failed
         """
-        # Try native first (offline mode)
-        if HAS_SVG_NATIVE:
+        # Try bitmap_to_svg (native Rust or OpenCV fallback)
+        if HAS_BITMAP_TO_SVG:
             result = self.convert_raster_to_svg_native(
                 image_path, output_path, threshold, mode
             )
             if result:
                 return result
-            logger.warning("Native conversion failed, no other methods available")
+            logger.warning("Vector tracing failed")
         else:
             logger.warning(
                 "No raster-to-SVG conversion method available. "
-                "Install the native Rust extension for offline vector tracing."
+                "Install OpenCV (pip install opencv-python) or build the Rust extension."
             )
         
         return None

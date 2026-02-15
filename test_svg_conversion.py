@@ -17,6 +17,7 @@ from src.file_handler.file_handler import (
     FileHandler,
     HAS_SVG_NATIVE,
     HAS_SVG_CAIRO,
+    HAS_BITMAP_TO_SVG,
 )
 
 
@@ -97,8 +98,8 @@ def test_batch_bitmap_to_svg():
 
 def test_file_handler_raster_to_svg():
     """Test FileHandler raster to SVG conversion."""
-    if not HAS_SVG_NATIVE:
-        print("  SKIP: Native SVG not available")
+    if not HAS_BITMAP_TO_SVG:
+        print("  SKIP: bitmap_to_svg not available (no OpenCV or Rust)")
         return
     
     try:
@@ -140,8 +141,8 @@ def test_file_handler_raster_to_svg():
 
 def test_file_handler_native_mode():
     """Test FileHandler native SVG mode explicitly."""
-    if not HAS_SVG_NATIVE:
-        print("  SKIP: Native SVG not available")
+    if not HAS_BITMAP_TO_SVG:
+        print("  SKIP: bitmap_to_svg not available (no OpenCV or Rust)")
         return
     
     try:

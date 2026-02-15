@@ -1925,14 +1925,14 @@ class GameTextureSorter(ctk.CTk):
         ctk.CTkLabel(opts_grid, text="From:").grid(row=0, column=0, padx=10, pady=5, sticky="w")
         self.convert_from_var = ctk.StringVar(value="🎮 DDS")
         from_menu = ctk.CTkOptionMenu(opts_grid, variable=self.convert_from_var,
-                                       values=["🎮 DDS", "🖼️ PNG", "📷 JPG", "🗺️ BMP", "🎨 TGA", "📐 SVG"])
+                                       values=["🎮 DDS", "🖼️ PNG", "📷 JPG", "🗺️ BMP", "🎨 TGA", "🌐 WEBP", "🎞️ GIF", "📄 TIFF", "📐 SVG"])
         from_menu.grid(row=0, column=1, padx=10, pady=5, sticky="w")
         
         # To format
         ctk.CTkLabel(opts_grid, text="To:").grid(row=0, column=2, padx=10, pady=5, sticky="w")
         self.convert_to_var = ctk.StringVar(value="🖼️ PNG")
         to_menu = ctk.CTkOptionMenu(opts_grid, variable=self.convert_to_var,
-                                     values=["🎮 DDS", "🖼️ PNG", "📷 JPG", "🗺️ BMP", "🎨 TGA", "📐 SVG"])
+                                     values=["🎮 DDS", "🖼️ PNG", "📷 JPG", "🗺️ BMP", "🎨 TGA", "🌐 WEBP", "🎞️ GIF", "📄 TIFF", "📐 SVG"])
         to_menu.grid(row=0, column=3, padx=10, pady=5, sticky="w")
         
         # Options checkboxes
@@ -2062,14 +2062,34 @@ class GameTextureSorter(ctk.CTk):
             from_format = f".{from_format}"
             to_format = f".{to_format}"
             
+            # Extension aliases: when user picks JPG also find .jpeg, etc.
+            jpeg_exts = ['.jpg', '.jpeg', '.jpe', '.jfif']
+            tiff_exts = ['.tiff', '.tif']
+            ext_groups = [jpeg_exts, tiff_exts]
+            search_exts = [from_format]
+            for group in ext_groups:
+                if from_format in group:
+                    search_exts = group
+                    break
+            
             # Scan for files
             self.after(0, lambda: self.convert_progress_bar.set(0.1))
             self.after(0, lambda: self.convert_progress_label.configure(text="Scanning files..."))
             
-            if recursive:
-                files = list(input_path.rglob(f"*{from_format}"))
-            else:
-                files = list(input_path.glob(f"*{from_format}"))
+            seen = set()
+            files = []
+            glob_fn = input_path.rglob if recursive else input_path.glob
+            for ext in search_exts:
+                for f in glob_fn(f"*{ext}"):
+                    if f not in seen:
+                        seen.add(f)
+                        files.append(f)
+                # Also find case-insensitive matches (e.g., .PNG, .Png)
+                if ext != ext.upper():
+                    for f in glob_fn(f"*{ext.upper()}"):
+                        if f not in seen:
+                            seen.add(f)
+                            files.append(f)
             
             total = len(files)
             self.convert_log(f"Found {total} {from_format.upper()} files")
@@ -2097,7 +2117,7 @@ class GameTextureSorter(ctk.CTk):
                         self.file_handler.convert_dds_to_png(str(file_path), str(target_path))
                     elif from_format == '.png' and to_format == '.dds':
                         self.file_handler.convert_png_to_dds(str(file_path), str(target_path))
-                    elif from_format in ('.svg', '.svgz') and to_format in ('.png', '.jpg', '.jpeg', '.bmp', '.tga'):
+                    elif from_format in ('.svg', '.svgz') and to_format in ('.png', '.jpg', '.jpeg', '.bmp', '.tga', '.webp', '.gif', '.tif', '.tiff'):
                         # SVG to raster: first convert to PNG, then to target format if needed
                         if to_format == '.png':
                             result = self.file_handler.convert_svg_to_png(file_path, target_path)
@@ -2109,9 +2129,15 @@ class GameTextureSorter(ctk.CTk):
                             result = self.file_handler.convert_svg_to_png(file_path, tmp_png)
                             if result:
                                 from PIL import Image as _Img
-                                _img = _Img.open(tmp_png)
-                                _img.save(target_path)
-                                _img.close()
+                                _fmt = to_format.lstrip('.').lower()
+                                _pil_fmt = self.file_handler.FORMAT_MAP.get(_fmt, _fmt.upper())
+                                with _Img.open(tmp_png) as _img:
+                                    if _fmt in self.file_handler.NO_ALPHA_FORMATS and _img.mode in ('RGBA', 'LA'):
+                                        _bg = _Img.new('RGB', _img.size, (255, 255, 255))
+                                        _bg.paste(_img, mask=_img.split()[3 if _img.mode == 'RGBA' else 1])
+                                        _bg.save(target_path, format=_pil_fmt)
+                                    else:
+                                        _img.save(target_path, format=_pil_fmt)
                                 tmp_png.unlink(missing_ok=True)
                                 result = target_path
                             else:
@@ -2122,12 +2148,25 @@ class GameTextureSorter(ctk.CTk):
                         # Raster to SVG conversion
                         result = self.file_handler.convert_raster_to_svg(file_path, target_path)
                         if not result:
-                            raise RuntimeError("Raster-to-SVG conversion failed (native extension may not be available)")
+                            raise RuntimeError("Raster-to-SVG conversion failed (install OpenCV or build Rust extension)")
                     else:
                         # Generic conversion via PIL
                         from PIL import Image
-                        img = Image.open(file_path)
-                        img.save(target_path)
+                        fmt = to_format.lstrip('.').lower()
+                        pil_format = self.file_handler.FORMAT_MAP.get(fmt, fmt.upper())
+                        with Image.open(file_path) as img:
+                            # Handle alpha for formats that don't support it
+                            if fmt in self.file_handler.NO_ALPHA_FORMATS and img.mode in ('RGBA', 'LA'):
+                                background = Image.new('RGB', img.size, (255, 255, 255))
+                                alpha = img.split()[3] if img.mode == 'RGBA' else img.split()[1]
+                                background.paste(img, mask=alpha)
+                                background.save(target_path, format=pil_format)
+                            else:
+                                # Ensure compatible mode for PNG
+                                save_img = img
+                                if pil_format == 'PNG' and img.mode not in ('RGB', 'RGBA', 'L', 'LA', 'P'):
+                                    save_img = img.convert('RGBA')
+                                save_img.save(target_path, format=pil_format)
                     
                     converted += 1
                     
@@ -2398,43 +2437,28 @@ class GameTextureSorter(ctk.CTk):
                        variable=self.upscale_preserve_metadata_var)
         upscale_preserve_metadata_cb.pack(side="left", padx=10)
 
-        # --- Preview section ---
+        # --- Preview section (upscayl-style slider comparison) ---
         preview_frame = ctk.CTkFrame(scroll)
-        preview_frame.pack(fill="x", padx=10, pady=10)
+        preview_frame.pack(fill="both", expand=True, padx=10, pady=10)
         ctk.CTkLabel(preview_frame, text="Preview:",
                      font=("Arial Bold", 12)).pack(anchor="w", padx=10, pady=5)
 
-        # Zoom controls
-        zoom_frame = ctk.CTkFrame(preview_frame)
-        zoom_frame.pack(fill="x", padx=10, pady=(0, 5))
-        ctk.CTkLabel(zoom_frame, text="Zoom:", font=("Arial", 11)).pack(side="left", padx=(10, 5))
-        self._upscale_zoom_var = ctk.DoubleVar(value=1.0)
-        upscale_zoom_out_btn = ctk.CTkButton(zoom_frame, text="−", width=30,
-                       command=self._upscale_zoom_out)
-        upscale_zoom_out_btn.pack(side="left", padx=2)
-        self._upscale_zoom_label = ctk.CTkLabel(zoom_frame, text="100%", width=50,
-                                                 font=("Arial", 11))
-        self._upscale_zoom_label.pack(side="left", padx=2)
-        upscale_zoom_in_btn = ctk.CTkButton(zoom_frame, text="+", width=30,
-                       command=self._upscale_zoom_in)
-        upscale_zoom_in_btn.pack(side="left", padx=2)
-        upscale_zoom_fit_btn = ctk.CTkButton(zoom_frame, text="Fit", width=40,
-                       command=self._upscale_zoom_fit)
-        upscale_zoom_fit_btn.pack(side="left", padx=5)
-        self._upscale_zoom_info = ctk.CTkLabel(zoom_frame, text="", font=("Arial", 10),
+        # Size info label
+        self._upscale_zoom_info = ctk.CTkLabel(preview_frame, text="", font=("Arial", 10),
                                                 text_color="gray")
-        self._upscale_zoom_info.pack(side="left", padx=10)
+        self._upscale_zoom_info.pack(anchor="w", padx=10)
 
-        self.upscale_preview_container = ctk.CTkFrame(preview_frame, height=300)
-        self.upscale_preview_container.pack(fill="x", padx=10, pady=5)
-        self.upscale_preview_container.pack_propagate(False)
-        # Before / After side by side
-        self.upscale_preview_before_label = ctk.CTkLabel(
-            self.upscale_preview_container, text="Before\n(select an image)", width=200, height=280)
-        self.upscale_preview_before_label.pack(side="left", padx=10, pady=10, expand=True)
-        self.upscale_preview_after_label = ctk.CTkLabel(
-            self.upscale_preview_container, text="After\n(preview appears here)", width=200, height=280)
-        self.upscale_preview_after_label.pack(side="left", padx=10, pady=10, expand=True)
+        # LivePreviewWidget replaces old zoom controls + label pair
+        from src.ui.live_preview_widget import LivePreviewWidget
+        self._upscale_live_preview = LivePreviewWidget(preview_frame)
+        self._upscale_live_preview.pack(fill="both", expand=True, padx=5, pady=5)
+
+        # Legacy widget references (not packed) — kept for _apply_upscaler_tooltips() signature
+        self._upscale_zoom_var = ctk.DoubleVar(value=1.0)
+        self._upscale_zoom_label = ctk.CTkLabel(preview_frame, text="100%")
+        upscale_zoom_out_btn = ctk.CTkButton(preview_frame, text="\u2212", width=0)
+        upscale_zoom_in_btn = ctk.CTkButton(preview_frame, text="+", width=0)
+        upscale_zoom_fit_btn = ctk.CTkButton(preview_frame, text="Fit", width=0)
 
         # Individual file preview / browse + export
         preview_btn_frame = ctk.CTkFrame(preview_frame)
@@ -2735,66 +2759,36 @@ class GameTextureSorter(ctk.CTk):
                 messagebox.showerror("Preview Error", f"Could not open image:\n{e}")
 
     def _show_upscale_preview(self, pil_img):
-        """Display before/after preview for the given PIL Image."""
+        """Display before/after preview using the LivePreviewWidget slider."""
         from PIL import Image
         self._upscale_preview_image = pil_img
 
-        zoom = getattr(self, '_upscale_zoom_var', None)
-        zoom_factor = zoom.get() if zoom else 1.0
-        thumb_size = int(200 * zoom_factor)
-
-        # Update zoom info label
+        # Update size info label
         if hasattr(self, '_upscale_zoom_info'):
             self._upscale_zoom_info.configure(
-                text=f"Original: {pil_img.size[0]}×{pil_img.size[1]}")
+                text=f"Original: {pil_img.size[0]}\u00d7{pil_img.size[1]}")
 
-        # Before thumbnail
-        before = pil_img.copy()
-        before.thumbnail((thumb_size, thumb_size), Image.LANCZOS)
-        try:
-            before_ctk = ctk.CTkImage(light_image=before, size=before.size)
-            self.upscale_preview_before_label.configure(image=before_ctk, text="")
-            self.upscale_preview_before_label._preview_img = before_ctk
-        except Exception:
-            self.upscale_preview_before_label.configure(text=f"Before\n{pil_img.size[0]}×{pil_img.size[1]}")
-
-        # After thumbnail
         factor = self._get_upscale_factor()
         style = self.upscale_style_var.get()
         if "ESRGAN" in style:
-            # For AI styles just show label — too slow for live preview
+            # AI styles are too slow for live preview — show original on both sides
+            self._upscale_preview_result = None
             new_w = pil_img.size[0] * factor
             new_h = pil_img.size[1] * factor
-            self.upscale_preview_after_label.configure(
-                image=None,
-                text=f"After (AI preview)\n{new_w}×{new_h}\n(Real-ESRGAN)")
-            self._upscale_preview_result = None
+            if hasattr(self, '_upscale_zoom_info'):
+                self._upscale_zoom_info.configure(
+                    text=f"Original: {pil_img.size[0]}\u00d7{pil_img.size[1]}  \u2192  "
+                         f"AI upscale: {new_w}\u00d7{new_h} (Real-ESRGAN, run batch to process)")
+            self._upscale_live_preview.load_images(pil_img, pil_img)
         else:
             preserve_alpha = self.upscale_alpha_var.get()
             upscaled = self._upscale_pil_image(pil_img, factor, preserve_alpha)
-            self._upscale_preview_result = upscaled  # Store for export
-            after = upscaled.copy()
-            after.thumbnail((thumb_size, thumb_size), Image.LANCZOS)
-            try:
-                after_ctk = ctk.CTkImage(light_image=after, size=after.size)
-                self.upscale_preview_after_label.configure(image=after_ctk, text="")
-                self.upscale_preview_after_label._preview_img = after_ctk
-            except Exception:
-                self.upscale_preview_after_label.configure(
-                    text=f"After\n{upscaled.size[0]}×{upscaled.size[1]}")
-
-            # Update size info
+            self._upscale_preview_result = upscaled
+            self._upscale_live_preview.load_images(pil_img, upscaled)
             if hasattr(self, '_upscale_zoom_info'):
                 self._upscale_zoom_info.configure(
-                    text=f"Original: {pil_img.size[0]}×{pil_img.size[1]}  →  "
-                         f"Upscaled: {upscaled.size[0]}×{upscaled.size[1]}")
-
-        # Resize preview container to fit zoomed thumbnails
-        new_h = max(220, thumb_size + 40)
-        try:
-            self.upscale_preview_container.configure(height=new_h)
-        except Exception:
-            pass
+                    text=f"Original: {pil_img.size[0]}\u00d7{pil_img.size[1]}  \u2192  "
+                         f"Upscaled: {upscaled.size[0]}\u00d7{upscaled.size[1]}")
 
     def _update_upscale_preview(self, *_args):
         """Called when scale/style/checkbox changes — re-preview if we have an image."""
@@ -2803,25 +2797,18 @@ class GameTextureSorter(ctk.CTk):
 
     def _upscale_zoom_in(self):
         """Increase preview zoom level."""
-        zoom = self._upscale_zoom_var.get()
-        zoom = min(4.0, zoom + 0.25)
-        self._upscale_zoom_var.set(zoom)
-        self._upscale_zoom_label.configure(text=f"{int(zoom * 100)}%")
-        self._update_upscale_preview()
+        if hasattr(self, '_upscale_live_preview'):
+            self._upscale_live_preview._zoom_in()
 
     def _upscale_zoom_out(self):
         """Decrease preview zoom level."""
-        zoom = self._upscale_zoom_var.get()
-        zoom = max(0.25, zoom - 0.25)
-        self._upscale_zoom_var.set(zoom)
-        self._upscale_zoom_label.configure(text=f"{int(zoom * 100)}%")
-        self._update_upscale_preview()
+        if hasattr(self, '_upscale_live_preview'):
+            self._upscale_live_preview._zoom_out()
 
     def _upscale_zoom_fit(self):
         """Reset preview zoom to 100%."""
-        self._upscale_zoom_var.set(1.0)
-        self._upscale_zoom_label.configure(text="100%")
-        self._update_upscale_preview()
+        if hasattr(self, '_upscale_live_preview'):
+            self._upscale_live_preview._zoom_fit()
 
     def _export_single_upscale(self):
         """Export the currently previewed texture with all applied settings."""
@@ -2888,17 +2875,27 @@ class GameTextureSorter(ctk.CTk):
                 messagebox.showerror("Export Error", f"Could not export texture:\n{e}")
 
     def _upscale_pil_image(self, img, factor, preserve_alpha=True):
-        """Upscale a single PIL Image using the current style and options."""
-        from PIL import ImageFilter
+        """Upscale a single PIL Image using the current style and options.
+        
+        Applies a multi-pass enhancement pipeline inspired by upscayl:
+        1. Progressive multi-pass resize for factors ≥ 4 (2x per pass)
+        2. Edge-preserving denoise (optional, via cv2 bilateral filter)
+        3. Unsharp mask sharpening (default: auto, optional: stronger)
+        4. Auto-level contrast (optional)
+        """
+        from PIL import ImageFilter, ImageEnhance
+        import numpy as np
         
         # Determine target size — custom resolution overrides factor
         custom_res = ""
         if hasattr(self, 'upscale_custom_res_var'):
             custom_res = self.upscale_custom_res_var.get().strip()
+        use_custom = False
         if custom_res and "x" in custom_res.lower():
             try:
                 parts = custom_res.lower().split("x")
                 new_size = (int(parts[0]), int(parts[1]))
+                use_custom = True
             except (ValueError, IndexError):
                 new_size = (img.size[0] * factor, img.size[1] * factor)
         else:
@@ -2906,54 +2903,94 @@ class GameTextureSorter(ctk.CTk):
         
         resample = self._get_pil_resample()
 
-        if preserve_alpha and img.mode == "RGBA":
-            # Upscale RGB and Alpha separately to avoid edge artifacts
-            rgb = img.convert("RGB").resize(new_size, resample)
-            alpha = img.getchannel("A").resize(new_size, resample)
-            result = rgb.copy()
-            result.putalpha(alpha)
-        elif preserve_alpha and img.mode != "RGBA":
-            img = img.convert("RGBA")
-            result = img.resize(new_size, resample)
+        def _resize_step(src, target_size):
+            """Resize a single image step, handling RGBA separately."""
+            if preserve_alpha and src.mode == "RGBA":
+                rgb = src.convert("RGB").resize(target_size, resample)
+                alpha = src.getchannel("A").resize(target_size, resample)
+                out = rgb.copy()
+                out.putalpha(alpha)
+                return out
+            return src.resize(target_size, resample)
+
+        # Progressive multi-pass upscaling for large factors (upscayl technique)
+        # Doing 2x → 2x → 2x produces sharper results than a single 8x resize
+        if not use_custom and factor >= 4:
+            current = img
+            if preserve_alpha and current.mode != "RGBA":
+                current = current.convert("RGBA")
+            # Track target dimensions directly to avoid integer division errors
+            target_w, target_h = new_size
+            while current.size[0] < target_w or current.size[1] < target_h:
+                # Calculate how much is left to go
+                ratio_w = target_w / current.size[0]
+                step = 2 if ratio_w >= 3.5 else max(2, round(ratio_w))
+                # Don't overshoot the target
+                next_w = min(current.size[0] * step, target_w)
+                next_h = min(current.size[1] * step, target_h)
+                is_last = (next_w >= target_w and next_h >= target_h)
+                current = _resize_step(current, (next_w, next_h))
+                # Light sharpen between passes to prevent blur accumulation
+                if not is_last:
+                    current = self._apply_to_rgb(current,
+                        lambda im: im.filter(ImageFilter.UnsharpMask(
+                            radius=1.0, percent=60, threshold=2)))
+            result = current
         else:
-            result = img.resize(new_size, resample)
+            if preserve_alpha and img.mode == "RGBA":
+                result = _resize_step(img, new_size)
+            elif preserve_alpha and img.mode != "RGBA":
+                img = img.convert("RGBA")
+                result = img.resize(new_size, resample)
+            else:
+                result = img.resize(new_size, resample)
         
-        # --- Post-processing options ---
+        # --- Post-processing pipeline ---
+        
+        # 1) Denoise — edge-preserving bilateral filter via cv2 (not blur!)
         if hasattr(self, 'upscale_denoise_var') and self.upscale_denoise_var.get():
-            # Noise reduction: slight blur to remove compression artifacts
-            if result.mode == "RGBA":
-                rgb_ch = result.convert("RGB").filter(ImageFilter.SMOOTH)
-                alpha_ch = result.getchannel("A")
-                result = rgb_ch.copy()
-                result.putalpha(alpha_ch)
-            else:
-                result = result.filter(ImageFilter.SMOOTH)
+            try:
+                def _bilateral_denoise(rgb_img):
+                    arr = np.array(rgb_img)
+                    denoised = cv2.bilateralFilter(arr, d=9, sigmaColor=75, sigmaSpace=75)
+                    return Image.fromarray(denoised)
+                result = self._apply_to_rgb(result, _bilateral_denoise)
+            except Exception:
+                result = self._apply_to_rgb(result, lambda im: im.filter(ImageFilter.MedianFilter(size=3)))
         
+        # 2) Sharpening — UnsharpMask is dramatically better than PIL SHARPEN
         if hasattr(self, 'upscale_sharpen_var') and self.upscale_sharpen_var.get():
-            # Sharpening pass
-            if result.mode == "RGBA":
-                rgb_ch = result.convert("RGB").filter(ImageFilter.SHARPEN)
-                alpha_ch = result.getchannel("A")
-                result = rgb_ch.copy()
-                result.putalpha(alpha_ch)
-            else:
-                result = result.filter(ImageFilter.SHARPEN)
+            result = self._apply_to_rgb(result,
+                lambda im: im.filter(ImageFilter.UnsharpMask(radius=2.0, percent=150, threshold=3)))
+        else:
+            # Default light sharpen to counteract interpolation blur
+            result = self._apply_to_rgb(result,
+                lambda im: im.filter(ImageFilter.UnsharpMask(radius=1.5, percent=80, threshold=2)))
         
+        # 3) Detail enhancement — subtle midtone contrast boost
+        result = self._apply_to_rgb(result, lambda im: im.filter(ImageFilter.DETAIL))
+        
+        # 4) Auto-level: stretch histogram to use full 0-255 range
         if hasattr(self, 'upscale_auto_level_var') and self.upscale_auto_level_var.get():
-            # Auto-level: stretch histogram to use full 0-255 range
             try:
                 from PIL import ImageOps
-                if result.mode == "RGBA":
-                    rgb_ch = ImageOps.autocontrast(result.convert("RGB"), cutoff=1)
-                    alpha_ch = result.getchannel("A")
-                    result = rgb_ch.copy()
-                    result.putalpha(alpha_ch)
-                else:
-                    result = ImageOps.autocontrast(result, cutoff=1)
+                result = self._apply_to_rgb(result,
+                    lambda im: ImageOps.autocontrast(im, cutoff=1))
             except Exception:
                 pass
         
         return result
+
+    @staticmethod
+    def _apply_to_rgb(pil_img, fn):
+        """Apply a function to RGB channels only, preserving alpha."""
+        if pil_img.mode == "RGBA":
+            alpha_ch = pil_img.getchannel("A")
+            rgb_out = fn(pil_img.convert("RGB"))
+            out = rgb_out.copy()
+            out.putalpha(alpha_ch)
+            return out
+        return fn(pil_img)
 
     def _upscale_feedback(self, rating):
         """Record user feedback on upscale quality."""
@@ -3445,22 +3482,15 @@ class GameTextureSorter(ctk.CTk):
                                          alpha_recursive_cb, self.alpha_backup_cb, alpha_overwrite_cb,
                                          alpha_extract_cb, alpha_compress_cb)
 
-        # --- Preview section ---
+        # --- Preview section (upscayl-style slider comparison) ---
         preview_frame = ctk.CTkFrame(scroll)
-        preview_frame.pack(fill="x", padx=10, pady=10)
+        preview_frame.pack(fill="both", expand=True, padx=10, pady=10)
         ctk.CTkLabel(preview_frame, text="Preview:",
                      font=("Arial Bold", 12)).pack(anchor="w", padx=10, pady=5)
 
-        self.alpha_fix_preview_container = ctk.CTkFrame(preview_frame, height=300)
-        self.alpha_fix_preview_container.pack(fill="x", padx=10, pady=5)
-        self.alpha_fix_preview_container.pack_propagate(False)
-        # Before / After side by side
-        self.alpha_fix_preview_before_label = ctk.CTkLabel(
-            self.alpha_fix_preview_container, text="Before\n(select an image)", width=200, height=280)
-        self.alpha_fix_preview_before_label.pack(side="left", padx=10, pady=10, expand=True)
-        self.alpha_fix_preview_after_label = ctk.CTkLabel(
-            self.alpha_fix_preview_container, text="After\n(preview appears here)", width=200, height=280)
-        self.alpha_fix_preview_after_label.pack(side="left", padx=10, pady=10, expand=True)
+        from src.ui.live_preview_widget import LivePreviewWidget
+        self._alpha_fix_live_preview = LivePreviewWidget(preview_frame)
+        self._alpha_fix_live_preview.pack(fill="both", expand=True, padx=5, pady=5)
 
         # Individual file preview / browse + export
         preview_btn_frame = ctk.CTkFrame(preview_frame)
@@ -3540,68 +3570,45 @@ class GameTextureSorter(ctk.CTk):
                 messagebox.showerror("Preview Error", f"Could not load image:\n{e}")
 
     def _show_alpha_fix_preview(self, original_img):
-        """Show before/after preview for alpha correction."""
-        from PIL import ImageTk, Image
+        """Show before/after preview for alpha correction using LivePreviewWidget."""
+        from PIL import Image
         
         try:
             # Get current preset
             preset_display = self.alpha_fix_preset_var.get()
             preset_key = self._strip_emoji_prefix(preset_display)
             
-            # Create before image (original)
             before_img = original_img.copy()
-            before_size = before_img.size
             
             # Apply alpha correction to create after image
             if ALPHA_CORRECTION_AVAILABLE:
                 corrector = AlphaCorrector()
-                # Create temp file for processing
                 import tempfile
                 with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as tmp:
                     tmp_path = tmp.name
                     original_img.save(tmp_path)
                 
                 try:
-                    # Process the image
                     result = corrector.process_image(Path(tmp_path), preset=preset_key, overwrite=True, backup=False)
                     if result.get('success'):
                         after_img = Image.open(tmp_path)
                     else:
-                        # If processing failed, show original
                         after_img = original_img.copy()
-                        self._alpha_fix_log(f"⚠️ Preview failed: {result.get('reason', 'unknown')}")
+                        self._alpha_fix_log(f"\u26a0\ufe0f Preview failed: {result.get('reason', 'unknown')}")
                 finally:
-                    # Clean up temp file
                     try:
                         os.unlink(tmp_path)
-                    except:
+                    except Exception:
                         pass
             else:
                 after_img = original_img.copy()
             
-            # Cache the result
             self._alpha_fix_preview_result = after_img
-            
-            # Resize for display (max 280x280)
-            max_size = 280
-            before_display = self._resize_for_display(before_img, max_size)
-            after_display = self._resize_for_display(after_img, max_size)
-            
-            # Convert to PhotoImage
-            before_photo = ImageTk.PhotoImage(before_display)
-            after_photo = ImageTk.PhotoImage(after_display)
-            
-            # Update labels
-            self.alpha_fix_preview_before_label.configure(image=before_photo, text="")
-            self.alpha_fix_preview_before_label.image = before_photo  # Keep reference
-            
-            self.alpha_fix_preview_after_label.configure(image=after_photo, text="")
-            self.alpha_fix_preview_after_label.image = after_photo  # Keep reference
-            
-            self._alpha_fix_log(f"✅ Preview updated with preset: {preset_key}")
+            self._alpha_fix_live_preview.load_images(before_img, after_img)
+            self._alpha_fix_log(f"\u2705 Preview updated with preset: {preset_key}")
             
         except Exception as e:
-            self._alpha_fix_log(f"❌ Preview error: {e}")
+            self._alpha_fix_log(f"\u274c Preview error: {e}")
             logger.error(f"Alpha fix preview error: {e}", exc_info=True)
 
     def _resize_for_display(self, img, max_size):
@@ -6427,11 +6434,180 @@ class GameTextureSorter(ctk.CTk):
         
         if WidgetTooltip:
             self._tooltips.append(WidgetTooltip(export_train_btn,
-                "Export your AI training corrections to a JSON file so others can import and benefit from your sorting decisions",
-                widget_id='export_training_btn'))
+                self._get_tooltip_text('ai_export_training') or "Export your AI training corrections to a JSON file so others can import and benefit from your sorting decisions",
+                widget_id='ai_export_training', tooltip_manager=self.tooltip_manager))
             self._tooltips.append(WidgetTooltip(import_train_btn,
-                "Import AI training data from another user's exported JSON file to improve your AI's accuracy",
-                widget_id='import_training_btn'))
+                self._get_tooltip_text('ai_import_training') or "Import AI training data from another user's exported JSON file to improve your AI's accuracy",
+                widget_id='ai_import_training', tooltip_manager=self.tooltip_manager))
+        
+        # ── Per-Tool AI Settings Subtabs ──────────────────────────────
+        ctk.CTkLabel(ai_scroll, text="🔧 Per-Tool AI Settings",
+                     font=("Arial Bold", 14)).pack(anchor="w", padx=10, pady=(15, 5))
+        ctk.CTkLabel(ai_scroll,
+                     text="Configure AI model and custom API settings for each tool individually",
+                     font=("Arial", 9), text_color="gray").pack(anchor="w", padx=20, pady=(0, 5))
+
+        tool_ai_tabs = ctk.CTkTabview(ai_scroll, height=280)
+        tool_ai_tabs.pack(fill="x", padx=10, pady=5)
+
+        # --- 🏷️ Classifier subtab ---
+        tab_cls = tool_ai_tabs.add("🏷️ Classifier")
+        cls_scroll = ctk.CTkScrollableFrame(tab_cls)
+        cls_scroll.pack(fill="both", expand=True, padx=5, pady=5)
+
+        ctk.CTkLabel(cls_scroll, text="Vision Model:",
+                     font=("Arial Bold", 12)).pack(anchor="w", padx=10, pady=3)
+        cls_model_var = ctk.StringVar(
+            value=config.get('ai', 'classifier_model', default='CLIP ViT-B/32'))
+        cls_model_menu = ctk.CTkOptionMenu(cls_scroll, variable=cls_model_var,
+                          values=["CLIP ViT-B/32", "DinoV2", "EfficientNet", "ViT-Base"],
+                          width=200)
+        cls_model_menu.pack(anchor="w", padx=20, pady=3)
+        ctk.CTkLabel(cls_scroll, text="Model used for image content classification",
+                     font=("Arial", 9), text_color="gray").pack(anchor="w", padx=20, pady=(0, 5))
+
+        cls_api_frame = ctk.CTkFrame(cls_scroll)
+        cls_api_frame.pack(fill="x", padx=10, pady=5)
+        cls_use_custom_var = ctk.BooleanVar(
+            value=config.get('ai', 'classifier_custom_api', default=False))
+        cls_custom_cb = ctk.CTkCheckBox(cls_api_frame, text="Use custom API endpoint",
+                        variable=cls_use_custom_var)
+        cls_custom_cb.pack(anchor="w", padx=10, pady=3)
+        ctk.CTkLabel(cls_api_frame, text="API URL:").pack(side="left", padx=10)
+        cls_api_url_var = ctk.StringVar(
+            value=config.get('ai', 'classifier_api_url', default=''))
+        cls_url_entry = ctk.CTkEntry(cls_api_frame, textvariable=cls_api_url_var,
+                     width=260, placeholder_text="https://your-api.example.com/v1")
+        cls_url_entry.pack(side="left", padx=5)
+        cls_api_key_frame = ctk.CTkFrame(cls_scroll)
+        cls_api_key_frame.pack(fill="x", padx=10, pady=3)
+        ctk.CTkLabel(cls_api_key_frame, text="API Key:").pack(side="left", padx=10)
+        cls_api_key_var = ctk.StringVar(
+            value=config.get('ai', 'classifier_api_key', default=''))
+        cls_key_entry = ctk.CTkEntry(cls_api_key_frame, textvariable=cls_api_key_var,
+                     width=260, show="*")
+        cls_key_entry.pack(side="left", padx=5)
+
+        # --- 🎭 Background Remover subtab ---
+        tab_bgr = tool_ai_tabs.add("🎭 Bg Remover")
+        bgr_scroll = ctk.CTkScrollableFrame(tab_bgr)
+        bgr_scroll.pack(fill="both", expand=True, padx=5, pady=5)
+
+        ctk.CTkLabel(bgr_scroll, text="Removal Model:",
+                     font=("Arial Bold", 12)).pack(anchor="w", padx=10, pady=3)
+        bgr_model_var = ctk.StringVar(
+            value=config.get('ai', 'bg_remover_model', default='u2net'))
+        bgr_model_menu = ctk.CTkOptionMenu(bgr_scroll, variable=bgr_model_var,
+                          values=["u2net", "u2netp", "u2net_human_seg",
+                                  "u2net_cloth_seg", "isnet-general-use",
+                                  "isnet-anime", "sam"],
+                          width=200)
+        bgr_model_menu.pack(anchor="w", padx=20, pady=3)
+        ctk.CTkLabel(bgr_scroll,
+                     text="u2net = general purpose, isnet-anime = anime/cartoon, sam = segment anything",
+                     font=("Arial", 9), text_color="gray").pack(anchor="w", padx=20, pady=(0, 5))
+
+        bgr_api_frame = ctk.CTkFrame(bgr_scroll)
+        bgr_api_frame.pack(fill="x", padx=10, pady=5)
+        bgr_use_custom_var = ctk.BooleanVar(
+            value=config.get('ai', 'bg_remover_custom_api', default=False))
+        bgr_custom_cb = ctk.CTkCheckBox(bgr_api_frame, text="Use custom API endpoint",
+                        variable=bgr_use_custom_var)
+        bgr_custom_cb.pack(anchor="w", padx=10, pady=3)
+        ctk.CTkLabel(bgr_api_frame, text="API URL:").pack(side="left", padx=10)
+        bgr_api_url_var = ctk.StringVar(
+            value=config.get('ai', 'bg_remover_api_url', default=''))
+        bgr_url_entry = ctk.CTkEntry(bgr_api_frame, textvariable=bgr_api_url_var,
+                     width=260, placeholder_text="https://your-api.example.com/v1")
+        bgr_url_entry.pack(side="left", padx=5)
+        bgr_api_key_frame = ctk.CTkFrame(bgr_scroll)
+        bgr_api_key_frame.pack(fill="x", padx=10, pady=3)
+        ctk.CTkLabel(bgr_api_key_frame, text="API Key:").pack(side="left", padx=10)
+        bgr_api_key_var = ctk.StringVar(
+            value=config.get('ai', 'bg_remover_api_key', default=''))
+        bgr_key_entry = ctk.CTkEntry(bgr_api_key_frame, textvariable=bgr_api_key_var,
+                     width=260, show="*")
+        bgr_key_entry.pack(side="left", padx=5)
+
+        # --- 🔍 Upscaler subtab ---
+        tab_ups = tool_ai_tabs.add("🔍 Upscaler")
+        ups_scroll = ctk.CTkScrollableFrame(tab_ups)
+        ups_scroll.pack(fill="both", expand=True, padx=5, pady=5)
+
+        ctk.CTkLabel(ups_scroll, text="Upscale Model:",
+                     font=("Arial Bold", 12)).pack(anchor="w", padx=10, pady=3)
+        ups_model_var = ctk.StringVar(
+            value=config.get('ai', 'upscaler_model', default='realesrgan-x4plus'))
+        ups_model_menu = ctk.CTkOptionMenu(ups_scroll, variable=ups_model_var,
+                          values=["realesrgan-x4plus", "realesrgan-x4plus-anime",
+                                  "remacri", "ultramix_balanced",
+                                  "ultrasharp", "bicubic (no AI)"],
+                          width=220)
+        ups_model_menu.pack(anchor="w", padx=20, pady=3)
+        ctk.CTkLabel(ups_scroll,
+                     text="realesrgan-x4plus = general, anime = 2D art, ultrasharp = photos",
+                     font=("Arial", 9), text_color="gray").pack(anchor="w", padx=20, pady=(0, 5))
+
+        ups_gpu_var = ctk.BooleanVar(
+            value=config.get('ai', 'upscaler_use_gpu', default=True))
+        ups_gpu_cb = ctk.CTkCheckBox(ups_scroll, text="Use GPU acceleration (if available)",
+                        variable=ups_gpu_var)
+        ups_gpu_cb.pack(anchor="w", padx=20, pady=3)
+
+        ups_tile_frame = ctk.CTkFrame(ups_scroll)
+        ups_tile_frame.pack(fill="x", padx=10, pady=5)
+        ctk.CTkLabel(ups_tile_frame, text="Tile Size:").pack(side="left", padx=10)
+        ups_tile_var = ctk.StringVar(
+            value=str(config.get('ai', 'upscaler_tile_size', default=0)))
+        ups_tile_entry = ctk.CTkEntry(ups_tile_frame, textvariable=ups_tile_var, width=60)
+        ups_tile_entry.pack(side="left", padx=5)
+        ctk.CTkLabel(ups_tile_frame, text="(0 = auto, higher = less VRAM)",
+                     font=("Arial", 9), text_color="gray").pack(side="left", padx=5)
+
+        ups_api_frame = ctk.CTkFrame(ups_scroll)
+        ups_api_frame.pack(fill="x", padx=10, pady=5)
+        ups_use_custom_var = ctk.BooleanVar(
+            value=config.get('ai', 'upscaler_custom_api', default=False))
+        ups_custom_cb = ctk.CTkCheckBox(ups_api_frame, text="Use custom API endpoint",
+                        variable=ups_use_custom_var)
+        ups_custom_cb.pack(anchor="w", padx=10, pady=3)
+        ctk.CTkLabel(ups_api_frame, text="API URL:").pack(side="left", padx=10)
+        ups_api_url_var = ctk.StringVar(
+            value=config.get('ai', 'upscaler_api_url', default=''))
+        ups_url_entry = ctk.CTkEntry(ups_api_frame, textvariable=ups_api_url_var,
+                     width=260, placeholder_text="https://your-api.example.com/v1")
+        ups_url_entry.pack(side="left", padx=5)
+        ups_api_key_frame = ctk.CTkFrame(ups_scroll)
+        ups_api_key_frame.pack(fill="x", padx=10, pady=3)
+        ctk.CTkLabel(ups_api_key_frame, text="API Key:").pack(side="left", padx=10)
+        ups_api_key_var = ctk.StringVar(
+            value=config.get('ai', 'upscaler_api_key', default=''))
+        ups_key_entry = ctk.CTkEntry(ups_api_key_frame, textvariable=ups_api_key_var,
+                     width=260, show="*")
+        ups_key_entry.pack(side="left", padx=5)
+
+        # Attach tooltips to per-tool AI settings widgets
+        if WidgetTooltip:
+            _ai_widgets = [
+                (cls_model_menu, "ai_cls_model", "Choose the vision model for image classification"),
+                (cls_custom_cb, "ai_cls_custom_api", "Use your own API endpoint instead of built-in classifier"),
+                (cls_url_entry, "ai_cls_api_url", "URL for your custom classification API endpoint"),
+                (cls_key_entry, "ai_cls_api_key", "Authentication key for the custom classifier API"),
+                (bgr_model_menu, "ai_bgr_model", "Choose the AI model for background removal"),
+                (bgr_custom_cb, "ai_bgr_custom_api", "Use your own API instead of built-in background removal"),
+                (bgr_url_entry, "ai_bgr_api_url", "URL for your custom background removal API"),
+                (bgr_key_entry, "ai_bgr_api_key", "Authentication key for the custom bg remover API"),
+                (ups_model_menu, "ai_ups_model", "Choose the AI model for image upscaling"),
+                (ups_gpu_cb, "ai_ups_gpu", "Enable GPU acceleration for faster upscaling"),
+                (ups_tile_entry, "ai_ups_tile", "Tile size for processing large images (0 = automatic)"),
+                (ups_custom_cb, "ai_ups_custom_api", "Use your own API instead of built-in upscaler"),
+                (ups_url_entry, "ai_ups_api_url", "URL for your custom upscaling API endpoint"),
+                (ups_key_entry, "ai_ups_api_key", "Authentication key for the custom upscaler API"),
+            ]
+            for widget, wid, fallback in _ai_widgets:
+                self._tooltips.append(WidgetTooltip(
+                    widget, self._get_tooltip_text(wid) or fallback,
+                    widget_id=wid, tooltip_manager=self.tooltip_manager))
         
         # === SYSTEM TAB ===
         system_scroll = ctk.CTkScrollableFrame(tab_system)
@@ -6632,6 +6808,26 @@ class GameTextureSorter(ctk.CTk):
                 # AI Blending
                 config.set('ai', 'blend_mode', value=self._strip_emoji_prefix(blend_var.get()))
                 config.set('ai', 'min_confidence', value=float(min_conf_slider.get()))
+                
+                # Per-tool AI settings
+                config.set('ai', 'classifier_model', value=cls_model_var.get())
+                config.set('ai', 'classifier_custom_api', value=cls_use_custom_var.get())
+                config.set('ai', 'classifier_api_url', value=cls_api_url_var.get())
+                config.set('ai', 'classifier_api_key', value=cls_api_key_var.get())
+                config.set('ai', 'bg_remover_model', value=bgr_model_var.get())
+                config.set('ai', 'bg_remover_custom_api', value=bgr_use_custom_var.get())
+                config.set('ai', 'bg_remover_api_url', value=bgr_api_url_var.get())
+                config.set('ai', 'bg_remover_api_key', value=bgr_api_key_var.get())
+                config.set('ai', 'upscaler_model', value=ups_model_var.get())
+                config.set('ai', 'upscaler_use_gpu', value=ups_gpu_var.get())
+                try:
+                    _tile = int(ups_tile_var.get() or 0)
+                except (ValueError, TypeError):
+                    _tile = 0
+                config.set('ai', 'upscaler_tile_size', value=_tile)
+                config.set('ai', 'upscaler_custom_api', value=ups_use_custom_var.get())
+                config.set('ai', 'upscaler_api_url', value=ups_api_url_var.get())
+                config.set('ai', 'upscaler_api_key', value=ups_api_key_var.get())
                 
                 # Hotkeys
                 config.set('hotkeys', 'enabled', value=hotkey_enabled_var.get())
@@ -7882,12 +8078,15 @@ class GameTextureSorter(ctk.CTk):
     
     def create_bg_remover_tab(self):
         """Create background remover tab with comprehensive features"""
+        if not hasattr(self, 'tab_bg_remover'):
+            return
         try:
             if BACKGROUND_REMOVER_AVAILABLE:
                 # Create the BackgroundRemoverPanel
                 panel = BackgroundRemoverPanel(
                     self.tab_bg_remover, 
-                    unlockables_system=self.unlockables_system if UNLOCKABLES_AVAILABLE else None
+                    unlockables_system=self.unlockables_system if UNLOCKABLES_AVAILABLE else None,
+                    tooltip_manager=self.tooltip_manager
                 )
                 panel.pack(fill="both", expand=True, padx=10, pady=10)
                 logger.info("Background Remover tab created successfully")
@@ -7911,7 +8110,7 @@ class GameTextureSorter(ctk.CTk):
         """Create quality checker tab for image analysis"""
         try:
             if QUALITY_CHECKER_AVAILABLE:
-                panel = QualityCheckerPanel(self.tab_quality_checker)
+                panel = QualityCheckerPanel(self.tab_quality_checker, tooltip_manager=self.tooltip_manager)
                 panel.pack(fill="both", expand=True, padx=10, pady=10)
                 logger.info("Quality Checker tab created successfully")
             else:
@@ -7934,7 +8133,7 @@ class GameTextureSorter(ctk.CTk):
         """Create batch normalizer tab for format standardization"""
         try:
             if BATCH_NORMALIZER_AVAILABLE:
-                panel = BatchNormalizerPanel(self.tab_batch_normalizer)
+                panel = BatchNormalizerPanel(self.tab_batch_normalizer, tooltip_manager=self.tooltip_manager)
                 panel.pack(fill="both", expand=True, padx=10, pady=10)
                 logger.info("Batch Normalizer tab created successfully")
             else:
@@ -7957,7 +8156,7 @@ class GameTextureSorter(ctk.CTk):
         """Create line art converter tab for stencil generation"""
         try:
             if LINEART_CONVERTER_AVAILABLE:
-                panel = LineArtConverterPanel(self.tab_lineart_converter)
+                panel = LineArtConverterPanel(self.tab_lineart_converter, tooltip_manager=self.tooltip_manager)
                 panel.pack(fill="both", expand=True, padx=10, pady=10)
                 logger.info("Line Art Converter tab created successfully")
             else:
@@ -7980,7 +8179,7 @@ class GameTextureSorter(ctk.CTk):
         """Create batch rename tab for file renaming with patterns"""
         try:
             if BATCH_RENAME_AVAILABLE:
-                panel = BatchRenamePanel(self.tab_batch_rename, unlockables_system=self.unlockables_system)
+                panel = BatchRenamePanel(self.tab_batch_rename, unlockables_system=self.unlockables_system, tooltip_manager=self.tooltip_manager)
                 panel.pack(fill="both", expand=True, padx=10, pady=10)
                 logger.info("Batch Rename tab created successfully")
             else:
@@ -8003,7 +8202,7 @@ class GameTextureSorter(ctk.CTk):
         """Create color correction tab for image enhancement"""
         try:
             if COLOR_CORRECTION_AVAILABLE:
-                panel = ColorCorrectionPanel(self.tab_color_correction, unlockables_system=self.unlockables_system)
+                panel = ColorCorrectionPanel(self.tab_color_correction, unlockables_system=self.unlockables_system, tooltip_manager=self.tooltip_manager)
                 panel.pack(fill="both", expand=True, padx=10, pady=10)
                 logger.info("Color Correction tab created successfully")
             else:
@@ -8026,7 +8225,7 @@ class GameTextureSorter(ctk.CTk):
         """Create image repair tab for fixing corrupted files"""
         try:
             if IMAGE_REPAIR_AVAILABLE:
-                panel = ImageRepairPanel(self.tab_image_repair, unlockables_system=self.unlockables_system)
+                panel = ImageRepairPanel(self.tab_image_repair, unlockables_system=self.unlockables_system, tooltip_manager=self.tooltip_manager)
                 panel.pack(fill="both", expand=True, padx=10, pady=10)
                 logger.info("Image Repair tab created successfully")
             else:
@@ -8047,9 +8246,11 @@ class GameTextureSorter(ctk.CTk):
     
     def create_performance_tab(self):
         """Create performance dashboard tab for monitoring"""
+        if not hasattr(self, 'tab_performance'):
+            return
         try:
             if PERFORMANCE_DASHBOARD_AVAILABLE:
-                panel = PerformanceDashboard(self.tab_performance, unlockables_system=self.unlockables_system)
+                panel = PerformanceDashboard(self.tab_performance, unlockables_system=self.unlockables_system, tooltip_manager=self.tooltip_manager)
                 panel.pack(fill="both", expand=True, padx=10, pady=10)
                 logger.info("Performance Dashboard tab created successfully")
             else:

@@ -39,7 +39,7 @@ except ImportError:
 class ImageRepairPanel(ctk.CTkFrame):
     """Panel for repairing corrupted images."""
     
-    def __init__(self, parent, unlockables_system=None, **kwargs):
+    def __init__(self, parent, unlockables_system=None, tooltip_manager=None, **kwargs):
         super().__init__(parent, **kwargs)
         
         if ImageRepairer is None:
@@ -47,6 +47,7 @@ class ImageRepairPanel(ctk.CTkFrame):
             return
         
         self.unlockables_system = unlockables_system
+        self.tooltip_manager = tooltip_manager
         self.repairer = ImageRepairer()
         self.selected_files: List[str] = []
         self.is_processing = False
@@ -454,37 +455,45 @@ class ImageRepairPanel(ctk.CTkFrame):
     
     def _add_tooltips(self):
         """Add tooltips to widgets if available."""
-        if not TOOLTIPS_AVAILABLE or not self.unlockables_system:
+        if not TOOLTIPS_AVAILABLE:
             return
         
         try:
-            tooltips = self.unlockables_system.get_all_tooltips()
-            tooltips_lower = [t.lower() for t in tooltips]
+            tm = self.tooltip_manager
             
-            def get_tooltip(keyword):
-                """Find tooltip containing keyword."""
-                for tooltip in tooltips_lower:
-                    if keyword.lower() in tooltip:
-                        return tooltips[tooltips_lower.index(tooltip)]
-                return None
+            def _tt(widget_id, fallback):
+                if tm:
+                    text = tm.get_tooltip(widget_id)
+                    if text:
+                        return text
+                return fallback
             
             # Diagnostic button tooltip
             if hasattr(self, 'diagnose_btn'):
-                tooltip = get_tooltip("diagnose") or get_tooltip("analyze") or get_tooltip("check")
-                if tooltip:
-                    self._tooltips.append(WidgetTooltip(self.diagnose_btn, tooltip))
+                self._tooltips.append(WidgetTooltip(
+                    self.diagnose_btn,
+                    _tt('repair_diagnose',
+                        "Analyze selected images for corruption, truncation, and header errors\n"
+                        "Results appear in the report below"),
+                    widget_id='repair_diagnose', tooltip_manager=tm))
             
             # Repair button tooltip
             if hasattr(self, 'repair_btn'):
-                tooltip = get_tooltip("repair") or get_tooltip("fix")
-                if tooltip:
-                    self._tooltips.append(WidgetTooltip(self.repair_btn, tooltip))
+                self._tooltips.append(WidgetTooltip(
+                    self.repair_btn,
+                    _tt('repair_fix',
+                        "Attempt to repair detected issues in selected images\n"
+                        "Fixes headers, rebuilds truncated data, and corrects checksums"),
+                    widget_id='repair_fix', tooltip_manager=tm))
             
             # Results textbox tooltip
             if hasattr(self, 'result_text'):
-                tooltip = get_tooltip("result") or get_tooltip("report")
-                if tooltip:
-                    self._tooltips.append(WidgetTooltip(self.result_text, tooltip))
+                self._tooltips.append(WidgetTooltip(
+                    self.result_text,
+                    _tt('repair_results',
+                        "Diagnostic and repair results appear here\n"
+                        "Shows details of each issue found and whether it was fixed"),
+                    widget_id='repair_results', tooltip_manager=tm))
                     
         except Exception as e:
             logger.error(f"Error adding tooltips to Image Repair Panel: {e}")

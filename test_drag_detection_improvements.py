@@ -66,15 +66,15 @@ def test_body_part_detection_uses_rel_x():
     assert 'rel_x' in params, "get_body_part_at_position should accept rel_x parameter"
     
     # Test that left side of body detects as left_arm
-    part = panda.get_body_part_at_position(0.4, 0.1)  # body height, far left
+    part = panda.get_body_part_at_position(0.55, 0.1)  # body height, far left
     assert part == 'left_arm', f"Far left body area should be 'left_arm', got {part}"
     
     # Test that right side of body detects as right_arm
-    part = panda.get_body_part_at_position(0.4, 0.9)  # body height, far right
+    part = panda.get_body_part_at_position(0.55, 0.9)  # body height, far right
     assert part == 'right_arm', f"Far right body area should be 'right_arm', got {part}"
     
     # Test that center of body detects as body
-    part = panda.get_body_part_at_position(0.4, 0.5)  # body height, center
+    part = panda.get_body_part_at_position(0.55, 0.5)  # body height, center
     assert part == 'body', f"Center body area should be 'body', got {part}"
     
     print("✓ Body part detection uses X position for individual arm detection")
