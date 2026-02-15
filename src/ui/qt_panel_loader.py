@@ -138,3 +138,28 @@ def get_background_remover_panel(parent):
     from src.ui.background_remover_panel import BackgroundRemoverPanel
     logger.info("Using Tkinter background remover panel")
     return BackgroundRemoverPanel(parent)
+
+
+def get_batch_rename_panel(parent, unlockables_system=None, tooltip_manager=None):
+    """
+    Get batch rename panel - Qt version if available, Tkinter otherwise.
+    
+    Args:
+        parent: Parent widget
+        unlockables_system: Unlockables system instance
+        tooltip_manager: Tooltip manager instance
+        
+    Returns:
+        BatchRenamePanel instance (Qt or Tkinter)
+    """
+    if PYQT6_AVAILABLE:
+        try:
+            from src.ui.batch_rename_panel_qt import BatchRenamePanelQt
+            logger.info("Using Qt batch rename panel")
+            return BatchRenamePanelQt(parent, tooltip_manager)
+        except Exception as e:
+            logger.warning(f"Failed to load Qt batch rename panel: {e}, falling back to Tkinter")
+    
+    from src.ui.batch_rename_panel import BatchRenamePanel
+    logger.info("Using Tkinter batch rename panel")
+    return BatchRenamePanel(parent, unlockables_system, tooltip_manager)
