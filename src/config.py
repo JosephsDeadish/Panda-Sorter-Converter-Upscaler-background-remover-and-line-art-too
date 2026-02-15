@@ -6,6 +6,7 @@ Handles all application settings and preferences
 import json
 import os
 import sys
+import threading
 from pathlib import Path
 from typing import Dict, Any, Optional
 
@@ -100,6 +101,11 @@ class Config:
         self.config_file = CONFIG_FILE
         self.settings = self._load_default_settings()
         self.load()
+        
+        # Debouncing for save operations
+        self._save_timer = None
+        self._save_lock = threading.Lock()
+        self._pending_save = False
     
     def _load_default_settings(self) -> Dict[str, Any]:
         """Load default configuration settings"""
@@ -284,13 +290,39 @@ class Config:
             except Exception as e:
                 print(f"Error loading config: {e}. Using defaults.")
     
-    def save(self):
-        """Save current settings to config file"""
-        try:
-            with open(self.config_file, 'w') as f:
-                json.dump(self.settings, f, indent=4)
-        except Exception as e:
-            print(f"Error saving config: {e}")
+    def save(self, immediate=False):
+        """
+        Save current settings to config file.
+        
+        Args:
+            immediate: If True, save immediately. If False, debounce saves to prevent
+                      multiple rapid writes when settings are changed in quick succession.
+        """
+        if immediate:
+            # Save immediately without debouncing
+            self._save_immediately()
+        else:
+            # Debounce: cancel pending save and schedule a new one
+            with self._save_lock:
+                if self._save_timer is not None:
+                    try:
+                        self._save_timer.cancel()
+                    except:
+                        pass
+                # Schedule save after 500ms of inactivity
+                self._save_timer = threading.Timer(0.5, self._save_immediately)
+                self._save_timer.daemon = True
+                self._save_timer.start()
+    
+    def _save_immediately(self):
+        """Actually write settings to disk."""
+        with self._save_lock:
+            self._save_timer = None
+            try:
+                with open(self.config_file, 'w') as f:
+                    json.dump(self.settings, f, indent=4)
+            except Exception as e:
+                print(f"Error saving config: {e}")
     
     def _merge_settings(self, default: dict, loaded: dict):
         """Recursively merge loaded settings with defaults"""

@@ -784,7 +784,7 @@ class LineArtConverterPanel(ctk.CTkFrame):
         self._debounce_id = self.after(500, self._update_preview)
 
     def _update_preview(self):
-        """Update preview with current settings."""
+        """Update preview with current settings (runs in background thread)."""
         self._debounce_id = None
         if not self.preview_image and self.selected_files:
             self.preview_image = self.selected_files[0]
@@ -793,14 +793,37 @@ class LineArtConverterPanel(ctk.CTkFrame):
             messagebox.showwarning("No Image", "Please select an image for preview")
             return
         
+        # Disable update button during processing
+        if hasattr(self, 'update_preview_btn'):
+            self.update_preview_btn.configure(state="disabled", text="Processing...")
+        
+        # Run preview generation in background thread to avoid UI freeze
+        def generate_preview():
+            try:
+                settings = self._get_settings()
+                original = Image.open(self.preview_image)
+                processed = self.converter.preview_settings(self.preview_image, settings)
+
+                # Store full-resolution result for export
+                self._last_preview_result = processed.copy()
+
+                # Update UI on main thread
+                self.after(0, lambda: self._display_preview(original, processed))
+                
+            except Exception as e:
+                logger.error(f"Error updating preview: {e}", exc_info=True)
+                self.after(0, lambda: messagebox.showerror("Error", f"Failed to update preview: {e}"))
+            finally:
+                # Re-enable button on main thread
+                if hasattr(self, 'update_preview_btn'):
+                    self.after(0, lambda: self.update_preview_btn.configure(state="normal", text="🔄 Update Preview"))
+        
+        # Start background thread
+        threading.Thread(target=generate_preview, daemon=True).start()
+    
+    def _display_preview(self, original, processed):
+        """Display preview images (must be called on main thread)."""
         try:
-            settings = self._get_settings()
-            original = Image.open(self.preview_image)
-            processed = self.converter.preview_settings(self.preview_image, settings)
-
-            # Store full-resolution result for export
-            self._last_preview_result = processed.copy()
-
             # Use LivePreviewWidget slider if available
             if self.live_preview is not None:
                 self.live_preview.load_images(original, processed)
@@ -811,10 +834,8 @@ class LineArtConverterPanel(ctk.CTkFrame):
                 photo = ImageTk.PhotoImage(processed)
                 self.preview_label.configure(image=photo, text="")
                 self.preview_label.image = photo
-            
         except Exception as e:
-            logger.error(f"Error updating preview: {e}")
-            messagebox.showerror("Error", f"Failed to update preview: {e}")
+            logger.error(f"Error displaying preview: {e}", exc_info=True)
     
     def _convert_batch(self):
         """Convert batch of images."""
