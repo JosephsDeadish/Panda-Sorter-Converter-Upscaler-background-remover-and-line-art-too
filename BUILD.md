@@ -227,6 +227,50 @@ To integrate with CI/CD pipelines (GitHub Actions, etc.):
     path: dist/GameTextureSorter/
 ```
 
+## Troubleshooting Build Issues
+
+### onnxruntime DLL Load Failed Error
+
+**Error**: `ImportError: DLL load failed while importing onnxruntime_pybind11_state`
+
+**Cause**: onnxruntime's DLL dependencies are not being properly collected by PyInstaller.
+
+**Solution**: The project includes PyInstaller hooks (`hook-onnxruntime.py` and `hook-rembg.py`) that automatically handle this issue. These hooks are automatically used when building with the provided spec files.
+
+If you still encounter this error:
+
+1. **Ensure hooks are being loaded**:
+   - Check that `hookspath=[str(SCRIPT_DIR)]` is in your spec file
+   - Verify `hook-onnxruntime.py` and `hook-rembg.py` exist in project root
+
+2. **Manually collect DLLs** (if hooks don't work):
+   ```python
+   # In your spec file, add to binaries:
+   import onnxruntime
+   onnx_path = os.path.dirname(onnxruntime.__file__)
+   capi_dll = os.path.join(onnx_path, 'capi', 'onnxruntime_pybind11_state.pyd')
+   binaries.append((capi_dll, 'onnxruntime/capi'))
+   ```
+
+3. **Alternative**: Exclude rembg/onnxruntime if not needed:
+   ```python
+   # In spec file, add to excludes:
+   excludes=[
+       'onnxruntime',
+       'rembg',
+   ]
+   ```
+
+**Note**: The hooks are already configured in the provided spec files, so this error should not occur with standard builds.
+
+### Other Build Issues
+
+For other build issues, see the error message and:
+1. Try cleaning build artifacts: `rmdir /s /q build dist`
+2. Ensure all dependencies are installed: `pip install -r requirements.txt`
+3. Check Python version is 3.8 or later
+4. Try running with `--clean --noconfirm` flags
+
 ## Next Steps
 
 After building:

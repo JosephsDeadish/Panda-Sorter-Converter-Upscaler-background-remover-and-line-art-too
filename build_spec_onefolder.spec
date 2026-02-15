@@ -99,9 +99,10 @@ a = Analysis(
         # Optional: Include if installed
         # Note: PyInstaller will skip if not available
         'onnxruntime',
+        'rembg',
         'requests',
     ],
-    hookspath=[],
+    hookspath=[str(SCRIPT_DIR)],  # Use hooks in project root (hook-*.py files)
     hooksconfig={},
     runtime_hooks=['pyi_rth_tkinter_fix.py'],
     excludes=[
