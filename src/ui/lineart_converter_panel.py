@@ -796,6 +796,10 @@ class LineArtConverterPanel(ctk.CTkFrame):
         # Store original button text and disable button during processing
         original_btn_text = "Update Preview"
         if hasattr(self, 'update_preview_btn'):
+            try:
+                original_btn_text = self.update_preview_btn.cget('text')
+            except Exception:
+                pass  # Use default if retrieval fails
             self.update_preview_btn.configure(state="disabled", text="Processing...")
         
         # Store preview path to avoid closure issues
@@ -803,11 +807,14 @@ class LineArtConverterPanel(ctk.CTkFrame):
         
         # Run preview generation in background thread to avoid UI freeze
         def generate_preview():
+            processed = None
             try:
                 settings = self._get_settings()
                 with Image.open(preview_path) as original:
                     # Make copies so we can close the file
                     original_copy = original.copy()
+                
+                # preview_settings returns a new image, not a file handle
                 processed = self.converter.preview_settings(preview_path, settings)
 
                 # Store full-resolution result for export
