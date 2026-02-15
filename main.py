@@ -2761,6 +2761,26 @@ class GameTextureSorter(ctk.CTk):
     def _show_upscale_preview(self, pil_img):
         """Display before/after preview using the LivePreviewWidget slider."""
         from PIL import Image
+        
+        # Clean up old preview images to prevent memory accumulation
+        if hasattr(self, '_upscale_preview_image') and self._upscale_preview_image:
+            try:
+                if self._upscale_preview_image != pil_img:
+                    old_img = self._upscale_preview_image
+                    self._upscale_preview_image = None
+                    if hasattr(old_img, 'close'):
+                        old_img.close()
+            except Exception:
+                pass
+        if hasattr(self, '_upscale_preview_result') and self._upscale_preview_result:
+            try:
+                old_result = self._upscale_preview_result
+                self._upscale_preview_result = None
+                if hasattr(old_result, 'close'):
+                    old_result.close()
+            except Exception:
+                pass
+        
         self._upscale_preview_image = pil_img
 
         # Update size info label
@@ -3215,19 +3235,18 @@ class GameTextureSorter(ctk.CTk):
                             self.after(0, lambda fn=fpath.name: progress_dialog.set_current_file(fn))
                         
                         # Load image
-                        img = Image.open(str(fpath))
-                        
-                        # Upscale
-                        if is_esrgan:
-                            arr = np.array(img.convert("RGB"))
-                            result_arr = tu.upscale(arr, scale_factor=factor, method='realesrgan')
-                            result = Image.fromarray(result_arr)
-                            if preserve_alpha and img.mode == "RGBA":
-                                alpha = img.getchannel("A").resize(result.size, Image.LANCZOS)
-                                result = result.convert("RGBA")
-                                result.putalpha(alpha)
-                        else:
-                            result = self._upscale_pil_image(img, factor, preserve_alpha)
+                        with Image.open(str(fpath)) as img:
+                            # Upscale
+                            if is_esrgan:
+                                arr = np.array(img.convert("RGB"))
+                                result_arr = tu.upscale(arr, scale_factor=factor, method='realesrgan')
+                                result = Image.fromarray(result_arr)
+                                if preserve_alpha and img.mode == "RGBA":
+                                    alpha = img.getchannel("A").resize(result.size, Image.LANCZOS)
+                                    result = result.convert("RGBA")
+                                    result.putalpha(alpha)
+                            else:
+                                result = self._upscale_pil_image(img, factor, preserve_alpha)
                         
                         # Build output path preserving relative structure
                         try:
@@ -3329,6 +3348,10 @@ class GameTextureSorter(ctk.CTk):
                 for tmp_dir in tmp_extract_dirs:
                     if os.path.isdir(tmp_dir):
                         shutil.rmtree(tmp_dir, ignore_errors=True)
+                
+                # Force garbage collection to release memory
+                import gc
+                gc.collect()
                 
                 # Close progress dialog
                 if progress_dialog:
@@ -3559,10 +3582,12 @@ class GameTextureSorter(ctk.CTk):
             return
         
         try:
-            img = Image.open(result)
-            self._alpha_fix_preview_image = img
+            with Image.open(result) as img:
+                # Make a copy so we can safely close the file
+                img_copy = img.copy()
+            self._alpha_fix_preview_image = img_copy
             self._alpha_fix_preview_path = result
-            self._show_alpha_fix_preview(img)
+            self._show_alpha_fix_preview(img_copy)
             self._alpha_fix_log(f"📸 Previewing: {os.path.basename(result)}")
         except Exception as e:
             self._alpha_fix_log(f"❌ Could not load image: {e}")
@@ -3572,6 +3597,16 @@ class GameTextureSorter(ctk.CTk):
     def _show_alpha_fix_preview(self, original_img):
         """Show before/after preview for alpha correction using LivePreviewWidget."""
         from PIL import Image
+        
+        # Clean up old preview images to prevent memory accumulation
+        if hasattr(self, '_alpha_fix_preview_result') and self._alpha_fix_preview_result:
+            try:
+                old_result = self._alpha_fix_preview_result
+                self._alpha_fix_preview_result = None
+                if hasattr(old_result, 'close'):
+                    old_result.close()
+            except Exception:
+                pass
         
         try:
             # Get current preset
@@ -3591,7 +3626,8 @@ class GameTextureSorter(ctk.CTk):
                 try:
                     result = corrector.process_image(Path(tmp_path), preset=preset_key, overwrite=True, backup=False)
                     if result.get('success'):
-                        after_img = Image.open(tmp_path)
+                        with Image.open(tmp_path) as tmp_img:
+                            after_img = tmp_img.copy()
                     else:
                         after_img = original_img.copy()
                         self._alpha_fix_log(f"\u26a0\ufe0f Preview failed: {result.get('reason', 'unknown')}")
@@ -11102,9 +11138,9 @@ Built with:
                                 # Texture preview
                                 try:
                                     from PIL import Image, ImageTk
-                                    img = Image.open(str(file_path))
-                                    img.thumbnail((150, 150))
-                                    preview_photo = ImageTk.PhotoImage(img)
+                                    with Image.open(str(file_path)) as img:
+                                        img.thumbnail((150, 150))
+                                        preview_photo = ImageTk.PhotoImage(img)
                                     preview_label = ctk.CTkLabel(dialog_window, text="", image=preview_photo)
                                     preview_label.image = preview_photo  # Keep reference
                                     preview_label.pack(pady=5)
@@ -11315,9 +11351,9 @@ Built with:
                                 # Texture preview
                                 try:
                                     from PIL import Image, ImageTk
-                                    img = Image.open(str(file_path))
-                                    img.thumbnail((150, 150))
-                                    preview_photo = ImageTk.PhotoImage(img)
+                                    with Image.open(str(file_path)) as img:
+                                        img.thumbnail((150, 150))
+                                        preview_photo = ImageTk.PhotoImage(img)
                                     preview_label = ctk.CTkLabel(dialog_window, text="", image=preview_photo)
                                     preview_label.image = preview_photo  # Keep reference
                                     preview_label.pack(pady=5)
