@@ -145,27 +145,23 @@ class ClosetPanel(ctk.CTkFrame if ctk else tk.Frame):
         # Show subcategory buttons only when Clothing is selected
         self._update_clothing_sub_visibility()
         
-        # Scrollable content frame
+        # Scrollable content frame - NO CANVAS, use ctk scrollable frame
+        # If customtkinter available, use its scrollable frame
+        # Otherwise create basic frame (scrolling handled by parent)
         if ctk:
             self.content_frame = ctk.CTkScrollableFrame(self)
-        else:
-            canvas = tk.Canvas(self)
-            scrollbar = tk.Scrollbar(self, orient="vertical", command=canvas.yview)
-            self.content_frame = tk.Frame(canvas)
-            
-            self.content_frame.bind(
-                "<Configure>",
-                lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
-            )
-            
-            canvas.create_window((0, 0), window=self.content_frame, anchor="nw")
-            canvas.configure(yscrollcommand=scrollbar.set)
-            
-            canvas.grid(row=2, column=1, sticky="nsew", padx=10, pady=10)
-            scrollbar.grid(row=2, column=2, sticky="ns")
-        
-        if ctk:
             self.content_frame.grid(row=2, column=1, sticky="nsew", padx=10, pady=10)
+        else:
+            # Use basic Frame - scrolling should be handled by Qt parent when available
+            # This eliminates tk.Canvas usage entirely
+            scroll_container = tk.Frame(self)
+            scroll_container.grid(row=2, column=1, sticky="nsew", padx=10, pady=10)
+            
+            self.content_frame = tk.Frame(scroll_container)
+            self.content_frame.pack(fill="both", expand=True)
+            
+            # Note: If this panel is wrapped in a Qt widget, Qt will handle scrolling
+            # via QScrollArea, so no canvas needed
         
         # Current appearance display
         appearance_frame = ctk.CTkFrame(self) if ctk else tk.Frame(self)
