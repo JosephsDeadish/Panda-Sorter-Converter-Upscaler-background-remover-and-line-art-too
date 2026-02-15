@@ -7414,60 +7414,11 @@ class GameTextureSorter(ctk.CTk):
             ry = root.winfo_rooty() + 20
             popup.geometry(f"{popup_w}x{popup_h}+{rx}+{ry}")
 
-            canvas = tk.Canvas(popup, width=popup_w, height=popup_h,
-                               highlightthickness=0, bd=0, bg='#2b2b2b')
-            canvas.pack(fill='both', expand=True)
-
-            # Rounded rect background
-            r = 12
-            canvas.create_polygon(
-                r, 0, popup_w - r, 0, popup_w, 0, popup_w, r,
-                popup_w, popup_h - r, popup_w, popup_h,
-                popup_w - r, popup_h, r, popup_h, 0, popup_h,
-                0, popup_h - r, 0, r, 0, 0,
-                fill='#1e1e2e', outline=accent_color, width=2, smooth=True
-            )
-
-            # Left accent bar
-            canvas.create_rectangle(0, 8, 5, popup_h - 8, fill=bg_color, outline='')
-
-            # Trophy icon
-            canvas.create_text(30, 35, text=achievement.icon,
-                               font=('Arial', 24), fill='white', anchor='w')
-
-            # Title
-            canvas.create_text(65, 22, text='Achievement Unlocked!',
-                               font=('Arial', 10, 'bold'), fill=bg_color, anchor='w')
-
-            # Achievement name
-            name_text = achievement.name
-            if len(name_text) > 32:
-                name_text = name_text[:30] + '…'
-            canvas.create_text(65, 42, text=name_text,
-                               font=('Arial', 13, 'bold'), fill='white', anchor='w')
-
-            # Description
-            desc_text = achievement.description
-            if len(desc_text) > 42:
-                desc_text = desc_text[:40] + '…'
-            canvas.create_text(65, 62, text=desc_text,
-                               font=('Arial', 9), fill='#aaaaaa', anchor='w')
-
-            # Reward line
-            reward_text = ''
-            if achievement.reward:
-                reward_text = f"🎁 {achievement.reward.get('description', '')}"
-                if len(reward_text) > 45:
-                    reward_text = reward_text[:43] + '…'
-            if reward_text:
-                canvas.create_text(65, 82, text=reward_text,
-                                   font=('Arial', 9, 'italic'), fill=bg_color, anchor='w')
-
-            # Tier badge
-            canvas.create_oval(popup_w - 35, 10, popup_w - 10, 35,
-                               fill=bg_color, outline=accent_color, width=1)
-            canvas.create_text(popup_w - 22, 22, text=tier_name[0].upper() if tier_name else '?',
-                               font=('Arial', 10, 'bold'), fill='#1e1e2e')
+            # Use improved achievement display (Tkinter-based, no canvas drawing)
+            from src.ui.achievement_display_simple import show_achievement_simple
+            popup.destroy()  # Close the basic popup
+            show_achievement_simple(root, achievement, accent_color, bg_color)
+            return  # Exit early since popup is handled
 
             # Auto-close after 5 seconds with fade
             def _fade_out(alpha=1.0):
