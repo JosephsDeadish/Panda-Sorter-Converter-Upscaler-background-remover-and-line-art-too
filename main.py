@@ -125,24 +125,44 @@ except ImportError:
     print("Warning: Background remover panel not available.")
 
 try:
-    from src.ui.quality_checker_panel import QualityCheckerPanel
+    # Try Qt version first
+    from src.ui.quality_checker_panel_qt import QualityCheckerPanelQt as QualityCheckerPanel
     QUALITY_CHECKER_AVAILABLE = True
-except ImportError as e:
-    QUALITY_CHECKER_AVAILABLE = False
-    print(f"Warning: Quality checker panel not available: {e}")
-except Exception as e:
-    QUALITY_CHECKER_AVAILABLE = False
-    print(f"Warning: Quality checker panel error: {e}")
+    QUALITY_CHECKER_IS_QT = True
+except ImportError:
+    try:
+        # Fallback to Tkinter version
+        from src.ui.quality_checker_panel import QualityCheckerPanel
+        QUALITY_CHECKER_AVAILABLE = True
+        QUALITY_CHECKER_IS_QT = False
+    except ImportError as e:
+        QUALITY_CHECKER_AVAILABLE = False
+        QUALITY_CHECKER_IS_QT = False
+        print(f"Warning: Quality checker panel not available: {e}")
+    except Exception as e:
+        QUALITY_CHECKER_AVAILABLE = False
+        QUALITY_CHECKER_IS_QT = False
+        print(f"Warning: Quality checker panel error: {e}")
 
 try:
-    from src.ui.batch_normalizer_panel import BatchNormalizerPanel
+    # Try Qt version first
+    from src.ui.batch_normalizer_panel_qt import BatchNormalizerPanelQt as BatchNormalizerPanel
     BATCH_NORMALIZER_AVAILABLE = True
-except ImportError as e:
-    BATCH_NORMALIZER_AVAILABLE = False
-    print(f"Warning: Batch normalizer panel not available: {e}")
-except Exception as e:
-    BATCH_NORMALIZER_AVAILABLE = False
-    print(f"Warning: Batch normalizer panel error: {e}")
+    BATCH_NORMALIZER_IS_QT = True
+except ImportError:
+    try:
+        # Fallback to Tkinter version
+        from src.ui.batch_normalizer_panel import BatchNormalizerPanel
+        BATCH_NORMALIZER_AVAILABLE = True
+        BATCH_NORMALIZER_IS_QT = False
+    except ImportError as e:
+        BATCH_NORMALIZER_AVAILABLE = False
+        BATCH_NORMALIZER_IS_QT = False
+        print(f"Warning: Batch normalizer panel not available: {e}")
+    except Exception as e:
+        BATCH_NORMALIZER_AVAILABLE = False
+        BATCH_NORMALIZER_IS_QT = False
+        print(f"Warning: Batch normalizer panel error: {e}")
 
 try:
     from src.ui.lineart_converter_panel import LineArtConverterPanel
@@ -165,11 +185,20 @@ except Exception as e:
     print(f"Warning: Batch rename panel error: {e}")
 
 try:
-    from src.ui.color_correction_panel import ColorCorrectionPanel
+    # Try Qt version first
+    from src.ui.color_correction_panel_qt import ColorCorrectionPanelQt as ColorCorrectionPanel
     COLOR_CORRECTION_AVAILABLE = True
+    COLOR_CORRECTION_IS_QT = True
 except ImportError:
-    COLOR_CORRECTION_AVAILABLE = False
-    print("Warning: Color correction panel not available.")
+    try:
+        # Fallback to Tkinter version
+        from src.ui.color_correction_panel import ColorCorrectionPanel
+        COLOR_CORRECTION_AVAILABLE = True
+        COLOR_CORRECTION_IS_QT = False
+    except ImportError:
+        COLOR_CORRECTION_AVAILABLE = False
+        COLOR_CORRECTION_IS_QT = False
+        print("Warning: Color correction panel not available.")
 
 try:
     from src.ui.image_repair_panel import ImageRepairPanel
