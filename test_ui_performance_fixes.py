@@ -1,7 +1,7 @@
 """
 Test UI Performance Fixes
 Tests for line tool performance, scrollbar optimization, and memory management
-Tests code structure without importing UI modules (which require customtkinter)
+Tests code structure without importing UI modules (which require PyQt6)
 """
 
 import unittest
