@@ -1,110 +1,63 @@
 """
-UI Performance Optimization Utilities
-Provides utilities for optimizing CustomTkinter widgets performance
+Qt-based Performance Optimization Utilities
+Uses Qt native timers (QTimer) instead of tkinter .after()
 """
 
-import customtkinter as ctk
+try:
+    from PyQt6.QtCore import QTimer, QObject, pyqtSignal
+    from PyQt6.QtWidgets import QWidget
+    PYQT_AVAILABLE = True
+except ImportError:
+    PYQT_AVAILABLE = False
+
 from typing import Optional, Callable
 import logging
 
 logger = logging.getLogger(__name__)
 
 
-class OptimizedScrollableFrame(ctk.CTkScrollableFrame):
+class ThrottledUpdateQt(QObject):
     """
-    Optimized version of CTkScrollableFrame that reduces rendering overhead
-    and prevents screen tearing during rapid updates.
+    Qt-based throttle for rapid UI updates.
+    Uses QTimer instead of tkinter .after()
     """
     
-    # Target frame rate for scrolling (60 FPS = 16.67ms per frame)
-    MIN_SCROLL_INTERVAL = 1.0 / 60.0  # ~16ms minimum between scroll updates
-    
-    def __init__(self, master, scroll_speed: int = 20, **kwargs):
+    def __init__(self, delay_ms: int = 150):
         """
-        Initialize optimized scrollable frame.
+        Initialize throttled update handler with Qt timer.
         
         Args:
-            master: Parent widget
-            scroll_speed: Scroll speed multiplier (higher = faster scrolling)
-            **kwargs: Additional arguments passed to CTkScrollableFrame
-        """
-        super().__init__(master, **kwargs)
-        
-        self._scroll_speed = scroll_speed
-        self._update_pending = False
-        self._last_scroll_time = 0
-        
-        # Override mouse wheel binding for smoother scrolling
-        self._setup_smooth_scrolling()
-    
-    def _setup_smooth_scrolling(self):
-        """Setup smooth scrolling with reduced updates."""
-        try:
-            # Unbind default mouse wheel events
-            canvas = self._parent_canvas
-            
-            # Rebind with optimized handler
-            canvas.bind("<MouseWheel>", self._on_mousewheel_optimized, add="+")
-            canvas.bind("<Button-4>", self._on_mousewheel_optimized, add="+")  # Linux scroll up
-            canvas.bind("<Button-5>", self._on_mousewheel_optimized, add="+")  # Linux scroll down
-        except Exception as e:
-            logger.debug(f"Could not setup smooth scrolling: {e}")
-    
-    def _on_mousewheel_optimized(self, event):
-        """Optimized mousewheel handler with throttling."""
-        import time
-        
-        # Throttle scroll updates to reduce rendering overhead (60 FPS max)
-        current_time = time.time()
-        if current_time - self._last_scroll_time < self.MIN_SCROLL_INTERVAL:
-            return "break"
-        
-        self._last_scroll_time = current_time
-        
-        # Let default handler process the event
-        return None
-
-
-class ThrottledUpdate:
-    """
-    Utility class for throttling rapid UI updates to prevent performance issues.
-    """
-    
-    def __init__(self, widget, delay_ms: int = 150):
-        """
-        Initialize throttled update handler.
-        
-        Args:
-            widget: Widget to perform updates on
             delay_ms: Delay in milliseconds between updates
         """
-        self.widget = widget
+        if not PYQT_AVAILABLE:
+            raise ImportError("PyQt6 not available")
+            
+        super().__init__()
         self.delay_ms = delay_ms
-        self._pending_id = None
         self._callback: Optional[Callable] = None
+        
+        # Use Qt native QTimer instead of tkinter .after()
+        self._timer = QTimer(self)
+        self._timer.setSingleShot(True)
+        self._timer.timeout.connect(self._execute)
     
     def schedule(self, callback: Callable):
         """
         Schedule a callback to run after the delay period.
-        Subsequent calls will cancel the previous scheduled callback.
+        Uses QTimer instead of widget.after()
         
         Args:
             callback: Function to call after delay
         """
-        # Cancel any pending update
-        if self._pending_id is not None:
-            try:
-                self.widget.after_cancel(self._pending_id)
-            except Exception:
-                pass
+        # Stop any pending timer (replaces after_cancel)
+        self._timer.stop()
         
-        # Schedule new update
+        # Schedule new update with Qt timer
         self._callback = callback
-        self._pending_id = self.widget.after(self.delay_ms, self._execute)
+        self._timer.start(self.delay_ms)
     
     def _execute(self):
         """Execute the scheduled callback."""
-        self._pending_id = None
         if self._callback is not None:
             try:
                 self._callback()
@@ -115,144 +68,169 @@ class ThrottledUpdate:
     
     def cancel(self):
         """Cancel any pending update."""
-        if self._pending_id is not None:
-            try:
-                self.widget.after_cancel(self._pending_id)
-            except Exception:
-                pass
-            self._pending_id = None
-            self._callback = None
+        self._timer.stop()
+        self._callback = None
 
 
-class DebouncedCallback:
+class DebouncedCallbackQt(QObject):
     """
-    Debounce a callback to reduce the number of calls during rapid changes.
-    Similar to ThrottledUpdate but with a cleaner API.
+    Qt-based debounce for callbacks.
+    Uses QTimer instead of tkinter .after() for cleaner integration with Qt event loop.
     """
     
-    def __init__(self, widget, callback: Callable, delay_ms: int = 500):
+    def __init__(self, callback: Callable, delay_ms: int = 500):
         """
-        Initialize debounced callback.
+        Initialize debounced callback with Qt timer.
         
         Args:
-            widget: Widget to use for after() scheduling
             callback: Function to call after delay
             delay_ms: Delay in milliseconds
         """
-        self.widget = widget
+        if not PYQT_AVAILABLE:
+            raise ImportError("PyQt6 not available")
+            
+        super().__init__()
         self.callback = callback
         self.delay_ms = delay_ms
-        self._after_id = None
+        
+        # Use Qt native QTimer (replaces widget.after())
+        self._timer = QTimer(self)
+        self._timer.setSingleShot(True)
+        self._timer.timeout.connect(self._execute)
+        
+        # Store args/kwargs for callback
+        self._args = ()
+        self._kwargs = {}
     
     def trigger(self, *args, **kwargs):
         """
         Trigger the callback after the delay period.
         Resets the delay timer if called multiple times.
+        Uses QTimer instead of widget.after()
         """
-        # Cancel previous timer
-        if self._after_id is not None:
-            try:
-                self.widget.after_cancel(self._after_id)
-            except Exception:
-                pass
+        # Store arguments
+        self._args = args
+        self._kwargs = kwargs
         
-        # Schedule new callback
-        def execute():
-            self._after_id = None
-            try:
-                self.callback(*args, **kwargs)
-            except Exception as e:
-                logger.error(f"Error in debounced callback: {e}")
-        
-        self._after_id = self.widget.after(self.delay_ms, execute)
+        # Restart timer (automatically cancels previous)
+        self._timer.stop()
+        self._timer.start(self.delay_ms)
+    
+    def _execute(self):
+        """Execute the callback with stored arguments."""
+        try:
+            self.callback(*self._args, **self._kwargs)
+        except Exception as e:
+            logger.error(f"Error in debounced callback: {e}")
+        finally:
+            self._args = ()
+            self._kwargs = {}
     
     def cancel(self):
         """Cancel any pending callback."""
-        if self._after_id is not None:
-            try:
-                self.widget.after_cancel(self._after_id)
-            except Exception:
-                pass
-            self._after_id = None
+        self._timer.stop()
+        self._args = ()
+        self._kwargs = {}
 
 
-def cleanup_widget_memory(widget):
+class PeriodicUpdateQt(QObject):
     """
-    Clean up memory from a widget by removing references and forcing garbage collection.
-    
-    Args:
-        widget: Widget to clean up
+    Qt-based periodic update using QTimer.
+    Cleaner than recursive tkinter .after() calls.
     """
-    import gc
     
-    # Remove image references
-    if hasattr(widget, 'image'):
-        try:
-            del widget.image
-        except Exception:
-            pass
+    updated = pyqtSignal()  # Signal emitted on each update
     
-    if hasattr(widget, '_image'):
-        try:
-            del widget._image
-        except Exception:
-            pass
-    
-    # Remove photo references
-    for attr in dir(widget):
-        if 'photo' in attr.lower():
-            try:
-                delattr(widget, attr)
-            except Exception:
-                pass
-    
-    # Force garbage collection
-    gc.collect()
-
-
-def optimize_canvas_updates(canvas):
-    """
-    Optimize a canvas for better performance during frequent updates.
-    
-    Args:
-        canvas: tkinter Canvas widget to optimize
-    """
-    try:
-        # Disable automatic redraw
-        canvas.configure(xscrollincrement=1, yscrollincrement=1)
+    def __init__(self, interval_ms: int = 1000, callback: Optional[Callable] = None):
+        """
+        Initialize periodic updater with Qt timer.
         
-        # Configure for better performance
-        if hasattr(canvas, 'configure'):
-            canvas.configure(
-                confine=False,  # Don't confine scroll region
-                takefocus=False  # Don't steal focus
-            )
-    except Exception as e:
-        logger.debug(f"Could not optimize canvas: {e}")
+        Args:
+            interval_ms: Interval between updates in milliseconds
+            callback: Optional callback to call on each update
+        """
+        if not PYQT_AVAILABLE:
+            raise ImportError("PyQt6 not available")
+            
+        super().__init__()
+        self.interval_ms = interval_ms
+        self._callback = callback
+        
+        # Use Qt native QTimer for periodic updates
+        self._timer = QTimer(self)
+        self._timer.setInterval(interval_ms)
+        self._timer.timeout.connect(self._on_timeout)
+        
+        # Connect callback if provided
+        if callback:
+            self.updated.connect(callback)
+    
+    def start(self):
+        """Start the periodic updates."""
+        self._timer.start()
+    
+    def stop(self):
+        """Stop the periodic updates."""
+        self._timer.stop()
+    
+    def _on_timeout(self):
+        """Handle timer timeout."""
+        try:
+            self.updated.emit()
+            if self._callback:
+                self._callback()
+        except Exception as e:
+            logger.error(f"Error in periodic update: {e}")
+    
+    def set_interval(self, interval_ms: int):
+        """Change the update interval."""
+        self.interval_ms = interval_ms
+        self._timer.setInterval(interval_ms)
+    
+    def is_active(self) -> bool:
+        """Check if timer is active."""
+        return self._timer.isActive()
 
 
-def batch_widget_updates(widget, updates: Callable):
+def create_single_shot_timer(delay_ms: int, callback: Callable) -> QTimer:
     """
-    Batch widget updates to reduce rendering overhead.
+    Create a single-shot Qt timer (replaces widget.after()).
     
     Args:
-        widget: Widget to update
-        updates: Function that performs all updates
+        delay_ms: Delay in milliseconds
+        callback: Function to call after delay
+    
+    Returns:
+        QTimer instance (can be stopped with .stop())
+    
+    Example:
+        # OLD: widget.after(1000, my_function)
+        # NEW: timer = create_single_shot_timer(1000, my_function)
     """
-    # Suspend automatic redraws
-    try:
-        widget.update_idletasks()
-    except Exception:
-        pass
+    if not PYQT_AVAILABLE:
+        raise ImportError("PyQt6 not available")
+        
+    timer = QTimer()
+    timer.setSingleShot(True)
+    timer.timeout.connect(callback)
+    timer.start(delay_ms)
+    return timer
+
+
+# Convenience function (replaces QTimer.singleShot for consistency)
+def schedule_once(delay_ms: int, callback: Callable):
+    """
+    Schedule a callback to run once after delay.
+    Simpler API, timer cannot be cancelled.
     
-    # Perform updates
-    try:
-        updates()
-    except Exception as e:
-        logger.error(f"Error in batch updates: {e}")
+    Args:
+        delay_ms: Delay in milliseconds
+        callback: Function to call
     
-    # Resume rendering
-    try:
-        widget.update_idletasks()
-    except Exception:
-        pass
+    Example:
+        # OLD: widget.after(1000, my_function)
+        # NEW: schedule_once(1000, my_function)
+    """
+    if not PYQT_AVAILABLE:
+        raise ImportError("PyQt6 not available")
+    QTimer.singleShot(delay_ms, callback)
