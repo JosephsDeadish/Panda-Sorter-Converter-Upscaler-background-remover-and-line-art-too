@@ -64,16 +64,69 @@ logger = logging.getLogger(__name__)
 # Import configuration
 from src.config import config, APP_NAME, APP_VERSION, APP_AUTHOR, CONFIG_DIR, LOGS_DIR, CACHE_DIR, get_app_dir
 
-# Flag to check if GUI libraries are available
+# Flag to check if GUI libraries available
 GUI_AVAILABLE = False
 
+# Use Qt bridge for CustomTkinter API compatibility
 try:
-    import customtkinter as ctk
-    import tkinter as tk
-    from tkinter import messagebox, filedialog
+    from PyQt6.QtWidgets import QApplication
+    from src.ui.qt_customtkinter_bridge import (
+        CTk as ctk_CTk,
+        CTkFrame, CTkLabel, CTkButton, CTkCheckBox, CTkToplevel,
+        CTkImage, CTkEntry, CTkTextbox, CTkProgressBar, CTkSlider,
+        CTkComboBox, CTkOptionMenu, CTkRadioButton, CTkSwitch,
+        CTkScrollableFrame, CTkTabview, CTkSegmentedButton,
+        BooleanVar, StringVar, IntVar, DoubleVar,
+        filedialog, messagebox, simpledialog,
+        set_appearance_mode, set_default_color_theme,
+        set_widget_scaling, set_window_scaling
+    )
+    # Create module-like namespace for ctk
+    class ctk:
+        CTk = ctk_CTk
+        CTkFrame = CTkFrame
+        CTkLabel = CTkLabel
+        CTkButton = CTkButton
+        CTkCheckBox = CTkCheckBox
+        CTkToplevel = CTkToplevel
+        CTkImage = CTkImage
+        CTkEntry = CTkEntry
+        CTkTextbox = CTkTextbox
+        CTkProgressBar = CTkProgressBar
+        CTkSlider = CTkSlider
+        CTkComboBox = CTkComboBox
+        CTkOptionMenu = CTkOptionMenu
+        CTkRadioButton = CTkRadioButton
+        CTkSwitch = CTkSwitch
+        CTkScrollableFrame = CTkScrollableFrame
+        CTkTabview = CTkTabview
+        CTkSegmentedButton = CTkSegmentedButton
+        BooleanVar = BooleanVar
+        StringVar = StringVar
+        IntVar = IntVar
+        DoubleVar = DoubleVar
+        set_appearance_mode = staticmethod(set_appearance_mode)
+        set_default_color_theme = staticmethod(set_default_color_theme)
+        set_widget_scaling = staticmethod(set_widget_scaling)
+        set_window_scaling = staticmethod(set_window_scaling)
+    
+    # Compatibility aliases
+    import tkinter
+    tkinter.simpledialog = simpledialog
+    
     GUI_AVAILABLE = True
-except ImportError:
-    print("Warning: CustomTkinter not available. Running in console mode.")
+    print("✅ Using Qt UI (PyQt6) with CustomTkinter-compatible API")
+except ImportError as e:
+    print(f"Warning: PyQt6 not available: {e}. Trying fallback...")
+    try:
+        # Fallback to original customtkinter if Qt not available
+        import customtkinter as ctk
+        import tkinter as tk
+        from tkinter import messagebox, filedialog
+        GUI_AVAILABLE = True
+        print("⚠️ Falling back to CustomTkinter (deprecated)")
+    except ImportError:
+        print("Warning: No GUI libraries available. Running in console mode.")
 
 # Import core modules
 from src.classifier import TextureClassifier, ALL_CATEGORIES
@@ -11734,9 +11787,11 @@ def main():
     """Main application entry point"""
     
     if not GUI_AVAILABLE:
-        print("\n❌ Error: CustomTkinter not installed!")
+        print("\n❌ Error: GUI libraries not installed!")
         print("Please install dependencies:")
-        print("  pip install customtkinter")
+        print("  pip install PyQt6 PyOpenGL PyOpenGL-accelerate")
+        print("  OR")
+        print("  pip install customtkinter (deprecated)")
         input("\nPress Enter to exit...")
         sys.exit(1)
     
@@ -11749,6 +11804,18 @@ def main():
             logger.debug(f"Could not set AppUserModelID: {e}")
     
     try:
+        # Initialize Qt Application if using Qt
+        qt_app = None
+        try:
+            from PyQt6.QtWidgets import QApplication
+            qt_app = QApplication(sys.argv)
+            qt_app.setApplicationName("Game Texture Sorter")
+            qt_app.setOrganizationName("JosephsDeadish")
+            qt_app.setOrganizationDomain("github.com/JosephsDeadish")
+        except ImportError:
+            # Using CustomTkinter fallback
+            pass
+        
         # Create root window (hidden) for splash screen
         root = ctk.CTk()
         root.withdraw()
@@ -11780,9 +11847,15 @@ def main():
         
         # Create and show main application (creates its own CTk root window)
         app = GameTextureSorter()
+        app.show()
         
         # Start main loop
-        app.mainloop()
+        if qt_app:
+            # Use Qt event loop
+            sys.exit(qt_app.exec())
+        else:
+            # Use CustomTkinter mainloop
+            app.mainloop()
         
     except Exception as e:
         if GUI_AVAILABLE:
