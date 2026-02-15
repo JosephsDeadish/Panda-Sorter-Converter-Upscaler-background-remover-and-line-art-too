@@ -15,6 +15,7 @@ from src.tools.lineart_converter import (
     LineArtConverter, LineArtSettings,
     ConversionMode, BackgroundMode, MorphologyOperation
 )
+from src.ui.performance_utils import OptimizedScrollableFrame, DebouncedCallback
 
 # Live preview widget with slider/zoom/pan
 try:
@@ -202,8 +203,8 @@ class LineArtConverterPanel(ctk.CTkFrame):
         main_container = ctk.CTkFrame(self)
         main_container.pack(fill="both", expand=True, padx=10, pady=10)
         
-        # Left side - Settings (scrollable)
-        left_frame = ctk.CTkScrollableFrame(main_container, width=400)
+        # Left side - Settings (scrollable with optimization)
+        left_frame = OptimizedScrollableFrame(main_container, width=400, scroll_speed=25)
         left_frame.pack(side="left", fill="both", expand=True, padx=(0, 5))
         
         # File selection
