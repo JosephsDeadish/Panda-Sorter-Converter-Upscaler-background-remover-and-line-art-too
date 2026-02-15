@@ -77,8 +77,9 @@ def validate_extraction() -> Tuple[bool, str, List[str]]:
     if missing_items:
         error_msg = (
             f"Incomplete extraction detected. Missing items:\n"
-            f"  - {chr(10).join(f'• {item}' for item in missing_items)}\n\n"
-            f"The application may have been partially extracted or extraction was interrupted."
+            + '\n'.join(f'  • {item}' for item in missing_items)
+            + "\n\n"
+            "The application may have been partially extracted or extraction was interrupted."
         )
         return False, error_msg, missing_items
     
@@ -109,8 +110,9 @@ def validate_dependencies() -> Tuple[bool, str, List[str]]:
     if missing_deps:
         error_msg = (
             f"Missing critical dependencies:\n"
-            f"  - {chr(10).join(f'• {dep}' for dep in missing_deps)}\n\n"
-            f"This usually indicates incomplete extraction or corrupted files."
+            + '\n'.join(f'  • {dep}' for dep in missing_deps)
+            + "\n\n"
+            "This usually indicates incomplete extraction or corrupted files."
         )
         return False, error_msg, missing_deps
     
