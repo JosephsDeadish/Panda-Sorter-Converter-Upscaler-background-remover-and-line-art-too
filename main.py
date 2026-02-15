@@ -9653,7 +9653,8 @@ Built with:
         """Open a new window with the integrated dungeon system."""
         try:
             from src.features.integrated_dungeon import IntegratedDungeon
-            from src.ui.enhanced_dungeon_renderer import EnhancedDungeonRenderer
+            # Use PyQt QGraphicsView instead of Tkinter canvas
+            from src.ui.dungeon_qt_bridge import create_dungeon_renderer
             import tkinter as tk
             
             # Create toplevel window
@@ -9682,15 +9683,12 @@ Built with:
             main_frame = ctk.CTkFrame(dungeon_window)
             main_frame.pack(fill="both", expand=True, padx=5, pady=5)
             
-            # Canvas for dungeon rendering
-            canvas_frame = ctk.CTkFrame(main_frame)
-            canvas_frame.pack(side="left", fill="both", expand=True, padx=5, pady=5)
+            # PyQt QGraphicsView for dungeon rendering (NO CANVAS!)
+            dungeon_frame = ctk.CTkFrame(main_frame)
+            dungeon_frame.pack(side="left", fill="both", expand=True, padx=5, pady=5)
             
-            canvas = tk.Canvas(canvas_frame, width=800, height=600, bg="#1a1a1a", highlightthickness=0)
-            canvas.pack(fill="both", expand=True)
-            
-            # Create renderer
-            renderer = EnhancedDungeonRenderer(canvas, dungeon.dungeon)
+            # Create PyQt-based renderer (no canvas mixing!)
+            renderer = create_dungeon_renderer(dungeon_frame, dungeon.dungeon)
             renderer.set_floor(0)
             renderer.center_camera_on_tile(player_x, player_y)
             
