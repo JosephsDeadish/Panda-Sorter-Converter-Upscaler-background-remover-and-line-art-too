@@ -298,7 +298,7 @@ class PandaCharacter:
     WALK_TO_FOOD_RESPONSES = [
         "🐼 *sniff sniff* I smell something delicious! 👃",
         "🐼 Ooh! Is that food?! *waddles faster* 🏃",
-        "🐼 *stomach growls* Coming! Coming! 🍽️",
+        "🐼 *tummy growls* Coming! Coming! 🍽️",
         "🐼 My tummy said go that way! ➡️",
         "🐼 Food detected! Initiating approach! 🎯",
         "🐼 *excited waddle* SNACK TIME! 🎉",
