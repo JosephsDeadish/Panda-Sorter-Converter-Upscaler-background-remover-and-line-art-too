@@ -3269,13 +3269,33 @@ class GameTextureSorter(ctk.CTk):
                         with Image.open(str(fpath)) as img:
                             # Upscale
                             if is_esrgan:
-                                arr = np.array(img.convert("RGB"))
-                                result_arr = tu.upscale(arr, scale_factor=factor, method='realesrgan')
-                                result = Image.fromarray(result_arr)
+                                # For Real-ESRGAN, handle RGB and alpha separately
                                 if preserve_alpha and img.mode == "RGBA":
-                                    alpha = img.getchannel("A").resize(result.size, Image.LANCZOS)
+                                    # Split RGB and alpha
+                                    rgb_img = img.convert("RGB")
+                                    alpha_img = img.getchannel("A")
+                                    
+                                    # Upscale RGB with Real-ESRGAN
+                                    arr = np.array(rgb_img)
+                                    result_arr = tu.upscale(arr, scale_factor=factor, method='realesrgan')
+                                    result = Image.fromarray(result_arr)
+                                    
+                                    # Upscale alpha with high-quality Lanczos + sharpening
+                                    # to match the quality of ESRGAN-upscaled RGB
+                                    alpha_upscaled = alpha_img.resize(result.size, Image.Resampling.LANCZOS)
+                                    # Apply unsharp mask to alpha to match RGB sharpness
+                                    from PIL import ImageFilter
+                                    alpha_upscaled = alpha_upscaled.filter(
+                                        ImageFilter.UnsharpMask(radius=1.5, percent=80, threshold=2))
+                                    
+                                    # Recombine
                                     result = result.convert("RGBA")
-                                    result.putalpha(alpha)
+                                    result.putalpha(alpha_upscaled)
+                                else:
+                                    # No alpha or not preserving it
+                                    arr = np.array(img.convert("RGB"))
+                                    result_arr = tu.upscale(arr, scale_factor=factor, method='realesrgan')
+                                    result = Image.fromarray(result_arr)
                             else:
                                 result = self._upscale_pil_image(img, factor, preserve_alpha)
                         
