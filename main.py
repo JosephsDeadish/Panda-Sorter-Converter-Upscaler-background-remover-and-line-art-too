@@ -1925,14 +1925,14 @@ class GameTextureSorter(ctk.CTk):
         ctk.CTkLabel(opts_grid, text="From:").grid(row=0, column=0, padx=10, pady=5, sticky="w")
         self.convert_from_var = ctk.StringVar(value="🎮 DDS")
         from_menu = ctk.CTkOptionMenu(opts_grid, variable=self.convert_from_var,
-                                       values=["🎮 DDS", "🖼️ PNG", "📷 JPG", "🗺️ BMP", "🎨 TGA", "📐 SVG"])
+                                       values=["🎮 DDS", "🖼️ PNG", "📷 JPG", "🗺️ BMP", "🎨 TGA", "🌐 WEBP", "🎞️ GIF", "📄 TIFF", "📐 SVG"])
         from_menu.grid(row=0, column=1, padx=10, pady=5, sticky="w")
         
         # To format
         ctk.CTkLabel(opts_grid, text="To:").grid(row=0, column=2, padx=10, pady=5, sticky="w")
         self.convert_to_var = ctk.StringVar(value="🖼️ PNG")
         to_menu = ctk.CTkOptionMenu(opts_grid, variable=self.convert_to_var,
-                                     values=["🎮 DDS", "🖼️ PNG", "📷 JPG", "🗺️ BMP", "🎨 TGA", "📐 SVG"])
+                                     values=["🎮 DDS", "🖼️ PNG", "📷 JPG", "🗺️ BMP", "🎨 TGA", "🌐 WEBP", "🎞️ GIF", "📄 TIFF", "📐 SVG"])
         to_menu.grid(row=0, column=3, padx=10, pady=5, sticky="w")
         
         # Options checkboxes
@@ -2062,23 +2062,34 @@ class GameTextureSorter(ctk.CTk):
             from_format = f".{from_format}"
             to_format = f".{to_format}"
             
+            # Extension aliases: when user picks JPG also find .jpeg, etc.
+            jpeg_exts = ['.jpg', '.jpeg', '.jpe', '.jfif']
+            tiff_exts = ['.tiff', '.tif']
+            ext_groups = [jpeg_exts, tiff_exts]
+            search_exts = [from_format]
+            for group in ext_groups:
+                if from_format in group:
+                    search_exts = group
+                    break
+            
             # Scan for files
             self.after(0, lambda: self.convert_progress_bar.set(0.1))
             self.after(0, lambda: self.convert_progress_label.configure(text="Scanning files..."))
             
-            if recursive:
-                files = list(input_path.rglob(f"*{from_format}"))
+            seen = set()
+            files = []
+            glob_fn = input_path.rglob if recursive else input_path.glob
+            for ext in search_exts:
+                for f in glob_fn(f"*{ext}"):
+                    if f not in seen:
+                        seen.add(f)
+                        files.append(f)
                 # Also find case-insensitive matches (e.g., .PNG, .Png)
-                if from_format != from_format.upper():
-                    seen = set(files)
-                    files += [f for f in input_path.rglob(f"*{from_format.upper()}")
-                              if f not in seen]
-            else:
-                files = list(input_path.glob(f"*{from_format}"))
-                if from_format != from_format.upper():
-                    seen = set(files)
-                    files += [f for f in input_path.glob(f"*{from_format.upper()}")
-                              if f not in seen]
+                if ext != ext.upper():
+                    for f in glob_fn(f"*{ext.upper()}"):
+                        if f not in seen:
+                            seen.add(f)
+                            files.append(f)
             
             total = len(files)
             self.convert_log(f"Found {total} {from_format.upper()} files")
@@ -2106,7 +2117,7 @@ class GameTextureSorter(ctk.CTk):
                         self.file_handler.convert_dds_to_png(str(file_path), str(target_path))
                     elif from_format == '.png' and to_format == '.dds':
                         self.file_handler.convert_png_to_dds(str(file_path), str(target_path))
-                    elif from_format in ('.svg', '.svgz') and to_format in ('.png', '.jpg', '.jpeg', '.bmp', '.tga'):
+                    elif from_format in ('.svg', '.svgz') and to_format in ('.png', '.jpg', '.jpeg', '.bmp', '.tga', '.webp', '.gif', '.tif', '.tiff'):
                         # SVG to raster: first convert to PNG, then to target format if needed
                         if to_format == '.png':
                             result = self.file_handler.convert_svg_to_png(file_path, target_path)
