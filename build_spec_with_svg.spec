@@ -194,8 +194,7 @@ a = Analysis(
         # Utilities
         'psutil',
         'colorama',
-        'yaml',
-        'pyyaml',
+        'yaml',  # pyyaml package imports as 'yaml'
         'tqdm',
         'xxhash',
         # Archive support
