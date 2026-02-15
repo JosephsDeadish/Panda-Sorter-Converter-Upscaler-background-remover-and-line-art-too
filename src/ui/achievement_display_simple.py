@@ -1,7 +1,24 @@
 """
+⚠️ DEPRECATED AND UNUSED ⚠️
+
+This file is NOT IMPORTED anywhere in the codebase and is kept only for
+potential backward compatibility.
+
+Use the Qt version instead: src/ui/qt_achievement_popup.py
+
+This file will be removed in a future version.
+
 Simple achievement display that works with existing Tkinter code.
 This is a minimal bridge to show achievements without breaking existing code.
 """
+
+import warnings
+warnings.warn(
+    "achievement_display_simple.py is deprecated and unused. "
+    "Use qt_achievement_popup.py (Qt-based) instead.",
+    DeprecationWarning,
+    stacklevel=2
+)
 
 import tkinter as tk
 from typing import Any, Optional
