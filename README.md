@@ -8,19 +8,19 @@ A professional Windows application for automatically sorting game texture dumps 
 
 ## 🎉 Recent Improvements
 
-### Code Quality & Performance (Latest)
-- **✨ Widget Refactoring** - Replaced 387 lines of canvas drawing with clean widget-based UI
-- **🎨 Achievement Display** - New widget-based achievement popups (removed 65 lines of canvas code)
-- **👾 Enemy Display** - Simplified enemy rendering with widget approach (removed 255 lines)
-- **🚗 Travel Animation** - Widget-based travel scenes (removed 67 lines of canvas code)
-- **🧹 Code Cleanup** - Removed unused drawing functions for better maintainability
-- **✅ Quality Tests** - Added syntax validation for new components
+### Qt/OpenGL Migration (Latest)
+- **✨ Complete Qt6 Migration** - Migrated entire UI from tkinter/canvas to PyQt6
+- **🎮 OpenGL 3D Rendering** - Hardware-accelerated 3D panda with 60 FPS rendering
+- **⚡ Qt State Machine** - Professional animation state control system
+- **🎨 Qt Widgets** - All UI components use native Qt widgets (tabs, buttons, layouts)
+- **🔧 No Legacy Code** - Complete replacement with no compatibility bridges
 
 ### Benefits
-- Cleaner, more maintainable codebase
-- Reduced complexity in UI rendering
-- Better separation of concerns
-- Easier to extend and modify
+- Hardware-accelerated graphics
+- Smooth 60 FPS animations
+- Professional Qt UI framework
+- Real-time lighting and shadows
+- Better performance and maintainability
 
 ## 🌟 Features
 
@@ -128,7 +128,7 @@ A professional Windows application for automatically sorting game texture dumps 
 - **🎨 130+ Animated SVG Icons** - Professional animated icons throughout the UI with smooth easing
 
 ### Panda Companion
-- **🐼 Animated Canvas Rendering** - Smooth, animated panda drawn with 48 frames per animation cycle
+- **🐼 OpenGL 3D Rendering** - Hardware-accelerated 3D panda with real-time lighting and shadows
 - **🎭 20+ Animations** - Including idle, dancing, celebrating, sleeping, working, spinning, shaking, rolling, cartwheel, backflip, stretching, waving, jumping, yawning, sneezing, tail wagging, and more
 - **🐾 Drag & Toss** - Drag the panda around the screen, throw it to watch it bounce with realistic physics
 - **🎮 Interactive** - Click for random reactions (waving, jumping, celebrating, etc.), pet by rubbing, shake, and spin
@@ -393,7 +393,7 @@ GameTextureSorter/
 │   │   ├── statistics.py        # Operation statistics
 │   │   └── ...                  # Additional feature modules
 │   ├── ui/                      # User interface components
-│   │   ├── panda_widget.py      # Interactive panda canvas widget
+│   │   ├── panda_widget_gl.py    # OpenGL 3D panda widget
 │   │   ├── customization_panel.py # Theme & color customization
 │   │   ├── closet_panel.py      # Panda outfit selector
 │   │   └── ...                  # Additional UI panels
@@ -412,7 +412,8 @@ GameTextureSorter/
 ### Technologies Used
 
 - **Python 3.8+** - Core language
-- **CustomTkinter** - Modern UI framework
+- **PyQt6** - Modern Qt6 UI framework
+- **OpenGL** - Hardware-accelerated 3D rendering
 - **Pillow (PIL)** - Image processing
 - **OpenCV** - Advanced image analysis
 - **NumPy** - Numerical operations
@@ -506,7 +507,9 @@ Tested with:
 
 ## 🎯 Roadmap
 
-- [x] Complete UI implementation with modern CustomTkinter interface
+- [x] Complete UI implementation with modern PyQt6 interface
+- [x] Hardware-accelerated OpenGL rendering for 3D panda companion
+- [x] Qt State Machine for animation state control
 - [x] Implement all 9 organization presets (Sims, Neopets, Flat, Game Area, Asset Pipeline, Modular, Minimalist, Maximum Detail, Custom)
 - [x] Add interactive panda character with moods, animations, and level system
 - [x] Achievement system with unlockables
@@ -529,7 +532,8 @@ License TBD by author. All rights reserved to Dead On The Inside / JosephsDeadis
 ## 🐼 About the Panda Theme
 
 The panda character is more than just a mascot - it's an interactive companion that:
-- **Smooth Canvas Animation** - Rendered with 48 frames per cycle for fluid, professional animations
+- **Hardware-Accelerated 3D Rendering** - OpenGL 3.3 with 60 FPS for smooth, professional animations
+- **Real-Time Lighting & Shadows** - Dynamic lighting system with ambient, diffuse, and specular components
 - **20+ Unique Animations** - Idle, dancing, celebrating, sleeping, working, spinning, shaking, rolling, cartwheel, backflip, stretching, waving, jumping, yawning, sneezing, tail wagging, and more
 - **Reacts to Your Actions** - 13 mood states including happy, working, celebrating, rage, and even drunk mode
 - **Multiple Click Responses** - Random animations when clicked including waving, jumping, celebrating, stretching, and dancing for variety
