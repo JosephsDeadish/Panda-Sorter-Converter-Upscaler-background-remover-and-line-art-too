@@ -2903,10 +2903,12 @@ class GameTextureSorter(ctk.CTk):
                         result = result.convert('RGB')
                     else:
                         # User wants alpha but chose JPEG - warn and change to PNG
-                        filepath = filepath.rsplit('.', 1)[0] + '.png'
+                        from pathlib import Path
+                        filepath = str(Path(filepath).with_suffix('.png'))
                         export_fmt = 'png'
                         save_kwargs = {}
-                        self._upscale_log(f"ℹ️ Changed to PNG format to preserve alpha channel")
+                        filename = os.path.basename(filepath)
+                        self._upscale_log(f"ℹ️ {filename}: Changed to PNG format to preserve alpha channel")
             elif export_fmt == 'webp':
                 save_kwargs['quality'] = 95
                 # WebP supports alpha, only convert if user doesn't want it
