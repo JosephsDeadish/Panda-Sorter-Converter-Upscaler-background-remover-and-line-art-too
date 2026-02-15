@@ -2,6 +2,15 @@
 Live Preview Widget for Image Processing Tools
 Provides real-time preview functionality with before/after comparison.
 Slider mode: upscayl-style draggable vertical divider with zoom/pan.
+
+DEPRECATED: This widget uses tk.Canvas for image display.
+For PyQt6 applications, use: src/ui/live_preview_qt.py
+
+The Canvas-based image rendering is being replaced with PyQt6 QGraphicsView
+for better performance and hardware acceleration.
+
+This file remains for Tkinter/customtkinter fallback compatibility.
+
 Author: Dead On The Inside / JosephsDeadish
 """
 
