@@ -112,17 +112,20 @@ except ImportError:
     print("Warning: UI customization panel not available.")
 
 try:
-    from src.ui.background_remover_panel import BackgroundRemoverPanel
-    # Try to use Qt version if available
-    try:
-        from src.ui.qt_panel_loader import get_background_remover_panel
-        USE_QT_BG_REMOVER = True
-    except ImportError:
-        USE_QT_BG_REMOVER = False
+    # Try Qt version first
+    from src.ui.background_remover_panel_qt import BackgroundRemoverPanelQt as BackgroundRemoverPanel
     BACKGROUND_REMOVER_AVAILABLE = True
+    BACKGROUND_REMOVER_IS_QT = True
 except ImportError:
-    BACKGROUND_REMOVER_AVAILABLE = False
-    print("Warning: Background remover panel not available.")
+    try:
+        # Fallback to Tkinter version
+        from src.ui.background_remover_panel import BackgroundRemoverPanel
+        BACKGROUND_REMOVER_AVAILABLE = True
+        BACKGROUND_REMOVER_IS_QT = False
+    except ImportError:
+        BACKGROUND_REMOVER_AVAILABLE = False
+        BACKGROUND_REMOVER_IS_QT = False
+        print("Warning: Background remover panel not available.")
 
 try:
     # Try Qt version first
@@ -8336,28 +8339,16 @@ class GameTextureSorter(ctk.CTk):
             return
         try:
             if BACKGROUND_REMOVER_AVAILABLE:
-                # Try Qt version first, fall back to Tkinter
-                if USE_QT_BG_REMOVER:
-                    try:
-                        panel = get_background_remover_panel(
-                            self.tab_bg_remover,
-                            unlockables_system=self.unlockables_system if UNLOCKABLES_AVAILABLE else None,
-                            tooltip_manager=self.tooltip_manager
-                        )
-                        logger.info("Using Qt BackgroundRemoverPanel")
-                    except Exception as e:
-                        logger.warning(f"Qt panel failed, using Tkinter: {e}")
-                        panel = BackgroundRemoverPanel(
-                            self.tab_bg_remover, 
-                            unlockables_system=self.unlockables_system if UNLOCKABLES_AVAILABLE else None,
-                            tooltip_manager=self.tooltip_manager
-                        )
+                # Qt or Tkinter version loaded based on availability
+                panel = BackgroundRemoverPanel(
+                    self.tab_bg_remover, 
+                    unlockables_system=self.unlockables_system if UNLOCKABLES_AVAILABLE else None,
+                    tooltip_manager=self.tooltip_manager
+                )
+                if BACKGROUND_REMOVER_IS_QT:
+                    logger.info("Using Qt BackgroundRemoverPanel")
                 else:
-                    panel = BackgroundRemoverPanel(
-                        self.tab_bg_remover, 
-                        unlockables_system=self.unlockables_system if UNLOCKABLES_AVAILABLE else None,
-                        tooltip_manager=self.tooltip_manager
-                    )
+                    logger.info("Using Tkinter BackgroundRemoverPanel")
                 panel.pack(fill="both", expand=True, padx=10, pady=10)
                 logger.info("Background Remover tab created successfully")
             else:
