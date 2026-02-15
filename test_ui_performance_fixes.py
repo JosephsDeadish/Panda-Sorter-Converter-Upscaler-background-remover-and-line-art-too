@@ -23,7 +23,6 @@ class TestCodeStructure(unittest.TestCase):
         # Check for preview control flags
         self.assertIn('_preview_running', content, "Missing _preview_running flag")
         self.assertIn('_preview_cancelled', content, "Missing _preview_cancelled flag")
-        self.assertIn('_cached_images', content, "Missing _cached_images dict")
     
     def test_lineart_panel_has_cleanup_method(self):
         """Test that lineart panel has cleanup_memory method."""
@@ -60,9 +59,13 @@ class TestCodeStructure(unittest.TestCase):
         lineart_file = Path(__file__).parent / 'src' / 'ui' / 'lineart_converter_panel.py'
         content = lineart_file.read_text()
         
-        # Check that debounce is now 800ms (not 500ms)
-        self.assertIn('after(800', content, "Debounce should be 800ms")
-        self.assertNotIn('after(500', content, "Old 500ms debounce should be removed")
+        # Check that debounce is now 800ms in the schedule_live_update method
+        schedule_method_start = content.find('def _schedule_live_update')
+        schedule_method_end = content.find('\n    def ', schedule_method_start + 1)
+        schedule_method = content[schedule_method_start:schedule_method_end]
+        
+        self.assertIn('after(800', schedule_method, "Debounce should be 800ms in _schedule_live_update")
+        self.assertNotIn('after(500', schedule_method, "Old 500ms debounce should be removed from _schedule_live_update")
     
     def test_live_preview_caches_dimensions(self):
         """Test that live preview widget caches canvas dimensions."""

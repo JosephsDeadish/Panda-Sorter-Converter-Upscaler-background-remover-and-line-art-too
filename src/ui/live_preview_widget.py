@@ -246,23 +246,18 @@ class LivePreviewWidget(ctk.CTkFrame):
     
     def _cleanup_photo_refs(self):
         """Clean up old ImageTk.PhotoImage references to free memory."""
-        # Clear all stored photo references
-        for ref in self._photo_refs:
-            try:
-                del ref
-            except Exception:
-                pass
-        self._photo_refs = []
+        # Clear the list of photo references
+        # Note: This only removes our references; Python's GC will handle the actual cleanup
+        self._photo_refs.clear()
         
-        # Also clear individual photo attributes if they exist
-        if hasattr(self, '_slider_photo'):
-            del self._slider_photo
-        if hasattr(self, 'before_photo'):
-            del self.before_photo
-        if hasattr(self, 'after_photo'):
-            del self.after_photo
-        if hasattr(self, 'preview_photo'):
-            del self.preview_photo
+        # Also clear individual photo attributes for backward compatibility
+        # These are redundant if everything is tracked in _photo_refs, but kept for safety
+        for attr_name in ['_slider_photo', 'before_photo', 'after_photo', 'preview_photo']:
+            if hasattr(self, attr_name):
+                try:
+                    delattr(self, attr_name)
+                except Exception:
+                    pass
 
     # ---------- Slider mode (upscayl-style) ----------
 

@@ -159,7 +159,7 @@ class LineArtConverterPanel(ctk.CTkFrame):
         self._debounce_id = None  # for debounced live preview updates
         self._preview_running = False  # Flag to prevent concurrent preview operations
         self._preview_cancelled = False  # Flag to cancel in-flight previews
-        self._cached_images = {}  # Cache to clean up old ImageTk references
+        # Note: _cached_images removed - photo cleanup handled by live_preview widget
         
         self._tooltips = []
         self._create_widgets()

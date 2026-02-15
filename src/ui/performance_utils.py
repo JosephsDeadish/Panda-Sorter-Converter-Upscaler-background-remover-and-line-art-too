@@ -16,6 +16,9 @@ class OptimizedScrollableFrame(ctk.CTkScrollableFrame):
     and prevents screen tearing during rapid updates.
     """
     
+    # Target frame rate for scrolling (60 FPS = 16.67ms per frame)
+    MIN_SCROLL_INTERVAL = 1.0 / 60.0  # ~16ms minimum between scroll updates
+    
     def __init__(self, master, scroll_speed: int = 20, **kwargs):
         """
         Initialize optimized scrollable frame.
@@ -51,9 +54,9 @@ class OptimizedScrollableFrame(ctk.CTkScrollableFrame):
         """Optimized mousewheel handler with throttling."""
         import time
         
-        # Throttle scroll updates to reduce rendering overhead
+        # Throttle scroll updates to reduce rendering overhead (60 FPS max)
         current_time = time.time()
-        if current_time - self._last_scroll_time < 0.016:  # ~60 FPS max
+        if current_time - self._last_scroll_time < self.MIN_SCROLL_INTERVAL:
             return "break"
         
         self._last_scroll_time = current_time
