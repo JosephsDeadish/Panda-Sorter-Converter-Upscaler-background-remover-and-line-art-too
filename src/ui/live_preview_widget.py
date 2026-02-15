@@ -233,9 +233,27 @@ class LivePreviewWidget(ctk.CTkFrame):
         divider_x = max(0, min(w, int(self._slider_pos * w)))
 
         # Composite: left of divider = before, right = after
-        composite = Image.new("RGB", (w, h))
-        composite.paste(before_img.convert("RGB"), (0, 0))
-        right_crop = after_img.convert("RGB").crop((divider_x, 0, w, h))
+        # Handle RGBA images by compositing onto white background first
+        composite = Image.new("RGB", (w, h), (255, 255, 255))
+        
+        # Convert before image to RGB with white background if it has alpha
+        if before_img.mode == 'RGBA':
+            bg = Image.new('RGB', before_img.size, (255, 255, 255))
+            bg.paste(before_img, mask=before_img.split()[3])  # Use alpha as mask
+            before_rgb = bg
+        else:
+            before_rgb = before_img.convert("RGB")
+        
+        # Convert after image to RGB with white background if it has alpha
+        if after_img.mode == 'RGBA':
+            bg = Image.new('RGB', after_img.size, (255, 255, 255))
+            bg.paste(after_img, mask=after_img.split()[3])  # Use alpha as mask
+            after_rgb = bg
+        else:
+            after_rgb = after_img.convert("RGB")
+        
+        composite.paste(before_rgb, (0, 0))
+        right_crop = after_rgb.crop((divider_x, 0, w, h))
         composite.paste(right_crop, (divider_x, 0))
 
         # Draw divider line + handle directly onto the composite
@@ -277,6 +295,17 @@ class LivePreviewWidget(ctk.CTkFrame):
 
         before_img = self._resize_image(self.original_image, pw, ph)
         after_img = self._resize_image(self.processed_image, pw, ph)
+        
+        # Handle RGBA by compositing onto white background
+        if before_img.mode == 'RGBA':
+            bg = Image.new('RGB', before_img.size, (255, 255, 255))
+            bg.paste(before_img, mask=before_img.split()[3])
+            before_img = bg
+        
+        if after_img.mode == 'RGBA':
+            bg = Image.new('RGB', after_img.size, (255, 255, 255))
+            bg.paste(after_img, mask=after_img.split()[3])
+            after_img = bg
 
         self.before_photo = ImageTk.PhotoImage(before_img)
         self.after_photo = ImageTk.PhotoImage(after_img)
@@ -298,6 +327,12 @@ class LivePreviewWidget(ctk.CTkFrame):
 
         img = self.processed_image if self.showing_after else self.original_image
         preview_img = self._resize_image(img, cw - 20, ch - 20)
+        
+        # Handle RGBA by compositing onto white background
+        if preview_img.mode == 'RGBA':
+            bg = Image.new('RGB', preview_img.size, (255, 255, 255))
+            bg.paste(preview_img, mask=preview_img.split()[3])
+            preview_img = bg
 
         self.preview_photo = ImageTk.PhotoImage(preview_img)
         self.canvas.create_image(

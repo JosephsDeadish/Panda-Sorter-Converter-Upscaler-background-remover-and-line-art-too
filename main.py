@@ -21,6 +21,7 @@ import time
 import shutil
 import threading
 import logging
+import gc
 from collections import OrderedDict
 from pathlib import Path
 from types import SimpleNamespace
@@ -73,30 +74,42 @@ except ImportError:
 try:
     from src.ui.quality_checker_panel import QualityCheckerPanel
     QUALITY_CHECKER_AVAILABLE = True
-except ImportError:
+except ImportError as e:
     QUALITY_CHECKER_AVAILABLE = False
-    print("Warning: Quality checker panel not available.")
+    print(f"Warning: Quality checker panel not available: {e}")
+except Exception as e:
+    QUALITY_CHECKER_AVAILABLE = False
+    print(f"Warning: Quality checker panel error: {e}")
 
 try:
     from src.ui.batch_normalizer_panel import BatchNormalizerPanel
     BATCH_NORMALIZER_AVAILABLE = True
-except ImportError:
+except ImportError as e:
     BATCH_NORMALIZER_AVAILABLE = False
-    print("Warning: Batch normalizer panel not available.")
+    print(f"Warning: Batch normalizer panel not available: {e}")
+except Exception as e:
+    BATCH_NORMALIZER_AVAILABLE = False
+    print(f"Warning: Batch normalizer panel error: {e}")
 
 try:
     from src.ui.lineart_converter_panel import LineArtConverterPanel
     LINEART_CONVERTER_AVAILABLE = True
-except ImportError:
+except ImportError as e:
     LINEART_CONVERTER_AVAILABLE = False
-    print("Warning: Line art converter panel not available.")
+    print(f"Warning: Line art converter panel not available: {e}")
+except Exception as e:
+    LINEART_CONVERTER_AVAILABLE = False
+    print(f"Warning: Line art converter panel error: {e}")
 
 try:
     from src.ui.batch_rename_panel import BatchRenamePanel
     BATCH_RENAME_AVAILABLE = True
-except ImportError:
+except ImportError as e:
     BATCH_RENAME_AVAILABLE = False
-    print("Warning: Batch rename panel not available.")
+    print(f"Warning: Batch rename panel not available: {e}")
+except Exception as e:
+    BATCH_RENAME_AVAILABLE = False
+    print(f"Warning: Batch rename panel error: {e}")
 
 try:
     from src.ui.color_correction_panel import ColorCorrectionPanel
@@ -293,6 +306,9 @@ except ImportError:
 # Constants for batch upscaling
 BYTES_PER_MB = 1024 * 1024
 PAUSE_CHECK_INTERVAL = 0.1  # seconds
+
+# Error message constants
+DEPENDENCY_INSTALL_MSG = "\n\nPlease ensure all dependencies are installed:\npip install -r requirements.txt"
 
 
 class SplashScreen:
@@ -2761,6 +2777,28 @@ class GameTextureSorter(ctk.CTk):
     def _show_upscale_preview(self, pil_img):
         """Display before/after preview using the LivePreviewWidget slider."""
         from PIL import Image
+        
+        # Clean up old preview images to prevent memory accumulation
+        if hasattr(self, '_upscale_preview_image') and self._upscale_preview_image:
+            try:
+                # Use 'is not' to check object identity - only close if it's a different image object
+                # This prevents closing the image we're about to display
+                if self._upscale_preview_image is not pil_img:
+                    old_img = self._upscale_preview_image
+                    self._upscale_preview_image = None
+                    if hasattr(old_img, 'close'):
+                        old_img.close()
+            except Exception:
+                pass
+        if hasattr(self, '_upscale_preview_result') and self._upscale_preview_result:
+            try:
+                old_result = self._upscale_preview_result
+                self._upscale_preview_result = None
+                if hasattr(old_result, 'close'):
+                    old_result.close()
+            except Exception:
+                pass
+        
         self._upscale_preview_image = pil_img
 
         # Update size info label
@@ -2855,12 +2893,26 @@ class GameTextureSorter(ctk.CTk):
 
             # Save with format-specific options
             save_kwargs = {}
+            preserve_alpha = self.upscale_alpha_var.get()
+            
             if export_fmt == 'jpeg':
                 save_kwargs['quality'] = 95
+                # Only convert to RGB if user doesn't want alpha preserved
                 if result.mode == 'RGBA':
-                    result = result.convert('RGB')
+                    if not preserve_alpha:
+                        result = result.convert('RGB')
+                    else:
+                        # User wants alpha but chose JPEG - warn and change to PNG
+                        filepath = str(Path(filepath).with_suffix('.png'))
+                        export_fmt = 'png'
+                        save_kwargs = {}
+                        filename = os.path.basename(filepath)
+                        self._upscale_log(f"ℹ️ {filename}: Changed to PNG format to preserve alpha channel")
             elif export_fmt == 'webp':
                 save_kwargs['quality'] = 95
+                # WebP supports alpha, only convert if user doesn't want it
+                if not preserve_alpha and result.mode == 'RGBA':
+                    result = result.convert('RGB')
 
             result.save(filepath, **save_kwargs)
             self._upscale_log(f"💾 Exported: {filepath} ({result.size[0]}×{result.size[1]})")
@@ -3062,7 +3114,7 @@ class GameTextureSorter(ctk.CTk):
             import tempfile
             import zipfile
             import shutil
-            from PIL import Image
+            from PIL import Image, ImageFilter
             
             # Import metadata handler if metadata preservation is enabled
             metadata_handler = None
@@ -3215,19 +3267,37 @@ class GameTextureSorter(ctk.CTk):
                             self.after(0, lambda fn=fpath.name: progress_dialog.set_current_file(fn))
                         
                         # Load image
-                        img = Image.open(str(fpath))
-                        
-                        # Upscale
-                        if is_esrgan:
-                            arr = np.array(img.convert("RGB"))
-                            result_arr = tu.upscale(arr, scale_factor=factor, method='realesrgan')
-                            result = Image.fromarray(result_arr)
-                            if preserve_alpha and img.mode == "RGBA":
-                                alpha = img.getchannel("A").resize(result.size, Image.LANCZOS)
-                                result = result.convert("RGBA")
-                                result.putalpha(alpha)
-                        else:
-                            result = self._upscale_pil_image(img, factor, preserve_alpha)
+                        with Image.open(str(fpath)) as img:
+                            # Upscale
+                            if is_esrgan:
+                                # For Real-ESRGAN, handle RGB and alpha separately
+                                if preserve_alpha and img.mode == "RGBA":
+                                    # Split RGB and alpha
+                                    rgb_img = img.convert("RGB")
+                                    alpha_img = img.getchannel("A")
+                                    
+                                    # Upscale RGB with Real-ESRGAN
+                                    arr = np.array(rgb_img)
+                                    result_arr = tu.upscale(arr, scale_factor=factor, method='realesrgan')
+                                    result = Image.fromarray(result_arr)
+                                    
+                                    # Upscale alpha with high-quality Lanczos + sharpening
+                                    # to match the quality of ESRGAN-upscaled RGB
+                                    alpha_upscaled = alpha_img.resize(result.size, Image.Resampling.LANCZOS)
+                                    # Apply unsharp mask to alpha to match RGB sharpness
+                                    alpha_upscaled = alpha_upscaled.filter(
+                                        ImageFilter.UnsharpMask(radius=1.5, percent=80, threshold=2))
+                                    
+                                    # Recombine
+                                    result = result.convert("RGBA")
+                                    result.putalpha(alpha_upscaled)
+                                else:
+                                    # No alpha or not preserving it
+                                    arr = np.array(img.convert("RGB"))
+                                    result_arr = tu.upscale(arr, scale_factor=factor, method='realesrgan')
+                                    result = Image.fromarray(result_arr)
+                            else:
+                                result = self._upscale_pil_image(img, factor, preserve_alpha)
                         
                         # Build output path preserving relative structure
                         try:
@@ -3259,12 +3329,31 @@ class GameTextureSorter(ctk.CTk):
                             
                             # Prepare save kwargs
                             save_kwargs = {}
+                            
+                            # Handle format-specific requirements
+                            # JPEG doesn't support alpha, so we need to handle this carefully
                             if export_fmt == "jpeg":
                                 save_kwargs["quality"] = 95
+                                # Only convert to RGB if:
+                                # 1. Image has alpha, AND
+                                # 2. User didn't explicitly request to preserve alpha
+                                # If user wants alpha preserved, keep as PNG instead
                                 if result.mode == "RGBA":
-                                    result = result.convert("RGB")
+                                    if not preserve_alpha:
+                                        # User doesn't care about alpha, safe to convert
+                                        result = result.convert("RGB")
+                                    else:
+                                        # User wants alpha but chose JPEG - change to PNG
+                                        export_fmt = "png"
+                                        self._upscale_log(f"  ℹ️ [{file_idx}/{total_files}] {fpath.name}: Changed to PNG to preserve alpha")
+                                        save_kwargs = {}  # PNG doesn't need quality param
+                                        # Update output path
+                                        out_file = out_file.with_suffix(".png")
                             elif export_fmt == "webp":
                                 save_kwargs["quality"] = 95
+                                # WebP supports alpha, so preserve it if requested
+                                if not preserve_alpha and result.mode == "RGBA":
+                                    result = result.convert("RGB")
                             
                             # Determine if we should preserve metadata
                             should_preserve_metadata = preserve_metadata and metadata_handler and source_metadata
@@ -3329,6 +3418,9 @@ class GameTextureSorter(ctk.CTk):
                 for tmp_dir in tmp_extract_dirs:
                     if os.path.isdir(tmp_dir):
                         shutil.rmtree(tmp_dir, ignore_errors=True)
+                
+                # Force garbage collection to release memory
+                gc.collect()
                 
                 # Close progress dialog
                 if progress_dialog:
@@ -3559,10 +3651,12 @@ class GameTextureSorter(ctk.CTk):
             return
         
         try:
-            img = Image.open(result)
-            self._alpha_fix_preview_image = img
+            with Image.open(result) as img:
+                # Make a copy so we can safely close the file
+                img_copy = img.copy()
+            self._alpha_fix_preview_image = img_copy
             self._alpha_fix_preview_path = result
-            self._show_alpha_fix_preview(img)
+            self._show_alpha_fix_preview(img_copy)
             self._alpha_fix_log(f"📸 Previewing: {os.path.basename(result)}")
         except Exception as e:
             self._alpha_fix_log(f"❌ Could not load image: {e}")
@@ -3572,6 +3666,16 @@ class GameTextureSorter(ctk.CTk):
     def _show_alpha_fix_preview(self, original_img):
         """Show before/after preview for alpha correction using LivePreviewWidget."""
         from PIL import Image
+        
+        # Clean up old preview images to prevent memory accumulation
+        if hasattr(self, '_alpha_fix_preview_result') and self._alpha_fix_preview_result:
+            try:
+                old_result = self._alpha_fix_preview_result
+                self._alpha_fix_preview_result = None
+                if hasattr(old_result, 'close'):
+                    old_result.close()
+            except Exception:
+                pass
         
         try:
             # Get current preset
@@ -3591,7 +3695,8 @@ class GameTextureSorter(ctk.CTk):
                 try:
                     result = corrector.process_image(Path(tmp_path), preset=preset_key, overwrite=True, backup=False)
                     if result.get('success'):
-                        after_img = Image.open(tmp_path)
+                        with Image.open(tmp_path) as tmp_img:
+                            after_img = tmp_img.copy()
                     else:
                         after_img = original_img.copy()
                         self._alpha_fix_log(f"\u26a0\ufe0f Preview failed: {result.get('reason', 'unknown')}")
@@ -8116,18 +8221,21 @@ class GameTextureSorter(ctk.CTk):
             else:
                 ctk.CTkLabel(
                     self.tab_quality_checker,
-                    text="Quality Checker not available",
+                    text=f"Quality Checker not available.{DEPENDENCY_INSTALL_MSG}",
                     font=("Arial", 14),
-                    text_color="red"
-                ).pack(pady=20)
+                    text_color="orange",
+                    justify="center"
+                ).pack(pady=20, padx=20)
         except Exception as e:
-            logger.error(f"Error creating quality checker tab: {e}")
+            logger.error(f"Error creating quality checker tab: {e}", exc_info=True)
             ctk.CTkLabel(
                 self.tab_quality_checker,
-                text=f"Error loading Quality Checker:\n{str(e)}",
+                text=f"Error loading Quality Checker:\n\n{str(e)}\n\nCheck logs for details.",
                 font=("Arial", 12),
-                text_color="red"
-            ).pack(pady=20)
+                text_color="red",
+                justify="center",
+                wraplength=500
+            ).pack(pady=20, padx=20)
     
     def create_batch_normalizer_tab(self):
         """Create batch normalizer tab for format standardization"""
@@ -8139,18 +8247,21 @@ class GameTextureSorter(ctk.CTk):
             else:
                 ctk.CTkLabel(
                     self.tab_batch_normalizer,
-                    text="Batch Normalizer not available",
+                    text=f"Batch Normalizer not available.{DEPENDENCY_INSTALL_MSG}",
                     font=("Arial", 14),
-                    text_color="red"
-                ).pack(pady=20)
+                    text_color="orange",
+                    justify="center"
+                ).pack(pady=20, padx=20)
         except Exception as e:
-            logger.error(f"Error creating batch normalizer tab: {e}")
+            logger.error(f"Error creating batch normalizer tab: {e}", exc_info=True)
             ctk.CTkLabel(
                 self.tab_batch_normalizer,
-                text=f"Error loading Batch Normalizer:\n{str(e)}",
+                text=f"Error loading Batch Normalizer:\n\n{str(e)}\n\nCheck logs for details.",
                 font=("Arial", 12),
-                text_color="red"
-            ).pack(pady=20)
+                text_color="red",
+                justify="center",
+                wraplength=500
+            ).pack(pady=20, padx=20)
     
     def create_lineart_converter_tab(self):
         """Create line art converter tab for stencil generation"""
@@ -8162,18 +8273,21 @@ class GameTextureSorter(ctk.CTk):
             else:
                 ctk.CTkLabel(
                     self.tab_lineart_converter,
-                    text="Line Art Converter not available",
+                    text=f"Line Art Converter not available.{DEPENDENCY_INSTALL_MSG}",
                     font=("Arial", 14),
-                    text_color="red"
-                ).pack(pady=20)
+                    text_color="orange",
+                    justify="center"
+                ).pack(pady=20, padx=20)
         except Exception as e:
-            logger.error(f"Error creating line art converter tab: {e}")
+            logger.error(f"Error creating line art converter tab: {e}", exc_info=True)
             ctk.CTkLabel(
                 self.tab_lineart_converter,
-                text=f"Error loading Line Art Converter:\n{str(e)}",
+                text=f"Error loading Line Art Converter:\n\n{str(e)}\n\nCheck logs for details.",
                 font=("Arial", 12),
-                text_color="red"
-            ).pack(pady=20)
+                text_color="red",
+                justify="center",
+                wraplength=500
+            ).pack(pady=20, padx=20)
     
     def create_batch_rename_tab(self):
         """Create batch rename tab for file renaming with patterns"""
@@ -8185,18 +8299,21 @@ class GameTextureSorter(ctk.CTk):
             else:
                 ctk.CTkLabel(
                     self.tab_batch_rename,
-                    text="Batch Rename not available",
+                    text=f"Batch Rename not available.{DEPENDENCY_INSTALL_MSG}",
                     font=("Arial", 14),
-                    text_color="red"
-                ).pack(pady=20)
+                    text_color="orange",
+                    justify="center"
+                ).pack(pady=20, padx=20)
         except Exception as e:
-            logger.error(f"Error creating batch rename tab: {e}")
+            logger.error(f"Error creating batch rename tab: {e}", exc_info=True)
             ctk.CTkLabel(
                 self.tab_batch_rename,
-                text=f"Error loading Batch Rename:\n{str(e)}",
+                text=f"Error loading Batch Rename:\n\n{str(e)}\n\nCheck logs for details.",
                 font=("Arial", 12),
-                text_color="red"
-            ).pack(pady=20)
+                text_color="red",
+                justify="center",
+                wraplength=500
+            ).pack(pady=20, padx=20)
     
     def create_color_correction_tab(self):
         """Create color correction tab for image enhancement"""
@@ -8208,18 +8325,21 @@ class GameTextureSorter(ctk.CTk):
             else:
                 ctk.CTkLabel(
                     self.tab_color_correction,
-                    text="Color Correction not available",
+                    text=f"Color Correction not available.{DEPENDENCY_INSTALL_MSG}",
                     font=("Arial", 14),
-                    text_color="red"
-                ).pack(pady=20)
+                    text_color="orange",
+                    justify="center"
+                ).pack(pady=20, padx=20)
         except Exception as e:
-            logger.error(f"Error creating color correction tab: {e}")
+            logger.error(f"Error creating color correction tab: {e}", exc_info=True)
             ctk.CTkLabel(
                 self.tab_color_correction,
-                text=f"Error loading Color Correction:\n{str(e)}",
+                text=f"Error loading Color Correction:\n\n{str(e)}\n\nCheck logs for details.",
                 font=("Arial", 12),
-                text_color="red"
-            ).pack(pady=20)
+                text_color="red",
+                justify="center",
+                wraplength=500
+            ).pack(pady=20, padx=20)
     
     def create_image_repair_tab(self):
         """Create image repair tab for fixing corrupted files"""
@@ -8231,18 +8351,21 @@ class GameTextureSorter(ctk.CTk):
             else:
                 ctk.CTkLabel(
                     self.tab_image_repair,
-                    text="Image Repair not available",
+                    text=f"Image Repair not available.{DEPENDENCY_INSTALL_MSG}",
                     font=("Arial", 14),
-                    text_color="red"
-                ).pack(pady=20)
+                    text_color="orange",
+                    justify="center"
+                ).pack(pady=20, padx=20)
         except Exception as e:
-            logger.error(f"Error creating image repair tab: {e}")
+            logger.error(f"Error creating image repair tab: {e}", exc_info=True)
             ctk.CTkLabel(
                 self.tab_image_repair,
-                text=f"Error loading Image Repair:\n{str(e)}",
+                text=f"Error loading Image Repair:\n\n{str(e)}\n\nCheck logs for details.",
                 font=("Arial", 12),
-                text_color="red"
-            ).pack(pady=20)
+                text_color="red",
+                justify="center",
+                wraplength=500
+            ).pack(pady=20, padx=20)
     
     def create_performance_tab(self):
         """Create performance dashboard tab for monitoring"""
@@ -11102,9 +11225,11 @@ Built with:
                                 # Texture preview
                                 try:
                                     from PIL import Image, ImageTk
-                                    img = Image.open(str(file_path))
-                                    img.thumbnail((150, 150))
-                                    preview_photo = ImageTk.PhotoImage(img)
+                                    with Image.open(str(file_path)) as img:
+                                        img.thumbnail((150, 150))
+                                        # Create a copy so the image can be safely closed
+                                        img_copy = img.copy()
+                                    preview_photo = ImageTk.PhotoImage(img_copy)
                                     preview_label = ctk.CTkLabel(dialog_window, text="", image=preview_photo)
                                     preview_label.image = preview_photo  # Keep reference
                                     preview_label.pack(pady=5)
@@ -11315,9 +11440,11 @@ Built with:
                                 # Texture preview
                                 try:
                                     from PIL import Image, ImageTk
-                                    img = Image.open(str(file_path))
-                                    img.thumbnail((150, 150))
-                                    preview_photo = ImageTk.PhotoImage(img)
+                                    with Image.open(str(file_path)) as img:
+                                        img.thumbnail((150, 150))
+                                        # Create a copy so the image can be safely closed
+                                        img_copy = img.copy()
+                                    preview_photo = ImageTk.PhotoImage(img_copy)
                                     preview_label = ctk.CTkLabel(dialog_window, text="", image=preview_photo)
                                     preview_label.image = preview_photo  # Keep reference
                                     preview_label.pack(pady=5)

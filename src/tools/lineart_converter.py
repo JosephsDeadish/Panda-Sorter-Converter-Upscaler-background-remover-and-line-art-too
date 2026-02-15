@@ -526,15 +526,14 @@ class LineArtConverter:
             settings: Conversion settings to preview
             
         Returns:
-            Processed PIL Image
+            Processed PIL Image (caller is responsible for managing this image)
         """
-        img = Image.open(sample_image_path)
-        
-        # Convert to grayscale
-        if img.mode != 'L':
-            gray = img.convert('L')
-        else:
-            gray = img
+        with Image.open(sample_image_path) as img:
+            # Convert to grayscale - makes a new image
+            if img.mode != 'L':
+                gray = img.convert('L')
+            else:
+                gray = img.copy()  # Make a copy so we can close the original
         
         # Apply contrast boost
         if settings.contrast_boost != 1.0:
