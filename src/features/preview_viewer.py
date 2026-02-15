@@ -6,17 +6,20 @@ Author: Dead On The Inside / JosephsDeadish
 
 import logging
 from pathlib import Path
-from typing import Optional, List, Callable
+from typing import Optional, List
 from collections import deque
-from PIL import Image, ImageTk
+from PIL import Image
 import os
 
 logger = logging.getLogger(__name__)
 
 # Try to import GUI libraries
 try:
-    import customtkinter as ctk
-    from tkinter import Canvas
+    from PyQt6.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QFrame, 
+                                  QLabel, QPushButton, QGraphicsView, QGraphicsScene,
+                                  QGraphicsPixmapItem, QScrollArea, QWidget, QFileDialog)
+    from PyQt6.QtCore import Qt, QRectF, pyqtSignal
+    from PyQt6.QtGui import QPixmap, QImage, QWheelEvent, QMouseEvent, QKeyEvent
     GUI_AVAILABLE = True
 except ImportError:
     GUI_AVAILABLE = False
@@ -27,9 +30,6 @@ class PreviewViewer:
     Moveable preview window with zoom, pan, and navigation controls
     """
     
-    # Maximum number of photo references to keep to prevent memory bloat
-    MAX_PHOTO_REFERENCES = 5
-    
     def __init__(self, master_window):
         self.master = master_window
         self.preview_window = None
@@ -39,24 +39,19 @@ class PreviewViewer:
         
         # Image display state
         self.original_image = None
-        self.display_image = None
         self.zoom_level = 1.0
-        self.pan_x = 0
-        self.pan_y = 0
         
-        # Canvas for image display
-        self.canvas = None
-        self.image_on_canvas = None
+        # QGraphicsView components
+        self.graphics_view = None
+        self.graphics_scene = None
+        self.pixmap_item = None
         
-        # Store PhotoImage references to prevent garbage collection
-        # Using deque with maxlen for automatic size management
-        self._current_photo = None
-        self._photo_references = deque(maxlen=self.MAX_PHOTO_REFERENCES)
-        
-        # Panning state
-        self.is_panning = False
-        self.pan_start_x = 0
-        self.pan_start_y = 0
+        # UI components
+        self.zoom_label = None
+        self.status_label = None
+        self.properties_panel = None
+        self.properties_scroll = None
+        self.properties_visible = False
         
     def open_preview(self, file_path: str, file_list: Optional[List[str]] = None):
         """
@@ -89,7 +84,7 @@ class PreviewViewer:
                 self.current_index = 0
         
         # Create or update window
-        if self.preview_window is None or not self.preview_window.winfo_exists():
+        if self.preview_window is None or not self.preview_window.isVisible():
             self._create_preview_window()
         
         # Load and display the image
@@ -99,177 +94,168 @@ class PreviewViewer:
         self._update_window_title()
         
         # Bring window to front
-        self.preview_window.lift()
-        self.preview_window.focus_force()
+        self.preview_window.raise_()
+        self.preview_window.activateWindow()
     
     def _create_preview_window(self):
         """Create the preview window UI"""
-        self.preview_window = ctk.CTkToplevel(self.master)
-        self.preview_window.title("Preview Viewer")
-        self.preview_window.geometry("900x700")
+        self.preview_window = QDialog(self.master)
+        self.preview_window.setWindowTitle("Preview Viewer")
+        self.preview_window.resize(900, 700)
         
-        # Make it non-modal and moveable
-        self.preview_window.transient(self.master)
-        # Don't make it modal - allow interaction with main window
-        
-        # Main container
-        main_frame = ctk.CTkFrame(self.preview_window)
-        main_frame.pack(fill="both", expand=True)
+        # Main layout
+        main_layout = QVBoxLayout(self.preview_window)
+        main_layout.setContentsMargins(5, 5, 5, 5)
         
         # === TOOLBAR ===
-        toolbar = ctk.CTkFrame(main_frame, height=50)
-        toolbar.pack(fill="x", padx=5, pady=5)
+        toolbar = QFrame()
+        toolbar_layout = QHBoxLayout(toolbar)
+        toolbar_layout.setContentsMargins(5, 5, 5, 5)
         
         # Navigation buttons
-        nav_frame = ctk.CTkFrame(toolbar, fg_color="transparent")
-        nav_frame.pack(side="left", padx=5)
+        prev_btn = QPushButton("◀ Previous")
+        prev_btn.setFixedWidth(100)
+        prev_btn.clicked.connect(self._show_previous)
+        toolbar_layout.addWidget(prev_btn)
         
-        ctk.CTkButton(
-            nav_frame,
-            text="◀ Previous",
-            width=100,
-            command=self._show_previous
-        ).pack(side="left", padx=2)
+        next_btn = QPushButton("Next ▶")
+        next_btn.setFixedWidth(100)
+        next_btn.clicked.connect(self._show_next)
+        toolbar_layout.addWidget(next_btn)
         
-        ctk.CTkButton(
-            nav_frame,
-            text="Next ▶",
-            width=100,
-            command=self._show_next
-        ).pack(side="left", padx=2)
+        toolbar_layout.addSpacing(20)
         
         # Zoom controls
-        zoom_frame = ctk.CTkFrame(toolbar, fg_color="transparent")
-        zoom_frame.pack(side="left", padx=20)
+        zoom_out_btn = QPushButton("🔍−")
+        zoom_out_btn.setFixedWidth(50)
+        zoom_out_btn.clicked.connect(self._zoom_out)
+        toolbar_layout.addWidget(zoom_out_btn)
         
-        ctk.CTkButton(
-            zoom_frame,
-            text="🔍−",
-            width=50,
-            command=self._zoom_out
-        ).pack(side="left", padx=2)
+        self.zoom_label = QLabel("100%")
+        self.zoom_label.setFixedWidth(60)
+        self.zoom_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        toolbar_layout.addWidget(self.zoom_label)
         
-        self.zoom_label = ctk.CTkLabel(zoom_frame, text="100%", width=60)
-        self.zoom_label.pack(side="left", padx=5)
+        zoom_in_btn = QPushButton("🔍+")
+        zoom_in_btn.setFixedWidth(50)
+        zoom_in_btn.clicked.connect(self._zoom_in)
+        toolbar_layout.addWidget(zoom_in_btn)
         
-        ctk.CTkButton(
-            zoom_frame,
-            text="🔍+",
-            width=50,
-            command=self._zoom_in
-        ).pack(side="left", padx=2)
+        reset_btn = QPushButton("Reset")
+        reset_btn.setFixedWidth(70)
+        reset_btn.clicked.connect(self._reset_view)
+        toolbar_layout.addWidget(reset_btn)
         
-        ctk.CTkButton(
-            zoom_frame,
-            text="Reset",
-            width=70,
-            command=self._reset_view
-        ).pack(side="left", padx=2)
+        fit_btn = QPushButton("Fit")
+        fit_btn.setFixedWidth(60)
+        fit_btn.clicked.connect(self._fit_to_window)
+        toolbar_layout.addWidget(fit_btn)
         
-        ctk.CTkButton(
-            zoom_frame,
-            text="Fit",
-            width=60,
-            command=self._fit_to_window
-        ).pack(side="left", padx=2)
+        actual_size_btn = QPushButton("1:1")
+        actual_size_btn.setFixedWidth(50)
+        actual_size_btn.clicked.connect(self._actual_size)
+        toolbar_layout.addWidget(actual_size_btn)
         
-        ctk.CTkButton(
-            zoom_frame,
-            text="1:1",
-            width=50,
-            command=self._actual_size
-        ).pack(side="left", padx=2)
-        
-        # Export button
-        ctk.CTkButton(
-            toolbar,
-            text="💾 Export",
-            width=100,
-            command=self._export_image
-        ).pack(side="right", padx=5)
+        toolbar_layout.addStretch()
         
         # Properties toggle
-        ctk.CTkButton(
-            toolbar,
-            text="ℹ️ Properties",
-            width=100,
-            command=self._toggle_properties
-        ).pack(side="right", padx=5)
+        props_btn = QPushButton("ℹ️ Properties")
+        props_btn.setFixedWidth(100)
+        props_btn.clicked.connect(self._toggle_properties)
+        toolbar_layout.addWidget(props_btn)
+        
+        # Export button
+        export_btn = QPushButton("💾 Export")
+        export_btn.setFixedWidth(100)
+        export_btn.clicked.connect(self._export_image)
+        toolbar_layout.addWidget(export_btn)
+        
+        main_layout.addWidget(toolbar)
         
         # === MAIN CONTENT AREA ===
-        content_frame = ctk.CTkFrame(main_frame)
-        content_frame.pack(fill="both", expand=True, padx=5, pady=5)
+        content_layout = QHBoxLayout()
         
-        # Canvas for image display (with scrollbars)
-        self.canvas = Canvas(
-            content_frame,
-            bg='#2b2b2b',
-            highlightthickness=0
-        )
-        self.canvas.pack(side="left", fill="both", expand=True)
+        # QGraphicsView for image display
+        self.graphics_scene = QGraphicsScene()
+        self.graphics_view = QGraphicsView(self.graphics_scene)
+        self.graphics_view.setDragMode(QGraphicsView.DragMode.ScrollHandDrag)
+        self.graphics_view.setRenderHint(self.graphics_view.renderHints())
+        self.graphics_view.setBackgroundBrush(Qt.GlobalColor.darkGray)
+        self.graphics_view.setFrameStyle(0)
+        
+        # Enable wheel zoom
+        self.graphics_view.wheelEvent = self._graphics_wheel_event
+        
+        content_layout.addWidget(self.graphics_view, stretch=1)
         
         # Properties panel (initially hidden)
-        self.properties_panel = ctk.CTkFrame(content_frame, width=250)
+        self.properties_panel = QFrame()
+        self.properties_panel.setFixedWidth(250)
+        self.properties_panel.setFrameStyle(QFrame.Shape.StyledPanel)
         self.properties_visible = False
         
         self._setup_properties_panel()
         
+        main_layout.addLayout(content_layout)
+        
         # === STATUS BAR ===
-        self.status_bar = ctk.CTkFrame(main_frame, height=30)
-        self.status_bar.pack(fill="x", padx=5, pady=5)
+        status_bar = QFrame()
+        status_bar.setFrameStyle(QFrame.Shape.StyledPanel)
+        status_layout = QHBoxLayout(status_bar)
+        status_layout.setContentsMargins(10, 5, 10, 5)
         
-        self.status_label = ctk.CTkLabel(
-            self.status_bar,
-            text="Ready",
-            anchor="w"
-        )
-        self.status_label.pack(side="left", padx=10)
+        self.status_label = QLabel("Ready")
+        status_layout.addWidget(self.status_label)
         
-        # Bind mouse events for panning
-        self.canvas.bind("<ButtonPress-1>", self._start_pan)
-        self.canvas.bind("<B1-Motion>", self._do_pan)
-        self.canvas.bind("<ButtonRelease-1>", self._end_pan)
+        main_layout.addWidget(status_bar)
         
-        # Bind mouse wheel for zooming
-        self.canvas.bind("<MouseWheel>", self._mouse_wheel_zoom)
+        # Install event filter for keyboard shortcuts
+        self.preview_window.keyPressEvent = self._key_press_event
         
-        # Bind keyboard shortcuts
-        self.preview_window.bind("<Left>", lambda e: self._show_previous())
-        self.preview_window.bind("<Right>", lambda e: self._show_next())
-        self.preview_window.bind("<Escape>", lambda e: self.preview_window.destroy())
+        self.preview_window.show()
     
     def _setup_properties_panel(self):
         """Setup the properties panel"""
+        panel_layout = QVBoxLayout(self.properties_panel)
+        
         # Title
-        title = ctk.CTkLabel(
-            self.properties_panel,
-            text="Properties",
-            font=("Arial Bold", 14)
-        )
-        title.pack(pady=10)
+        title = QLabel("Properties")
+        title.setStyleSheet("font-weight: bold; font-size: 14px;")
+        panel_layout.addWidget(title)
         
-        # Scrollable frame for properties
-        self.properties_scroll = ctk.CTkScrollableFrame(self.properties_panel)
-        self.properties_scroll.pack(fill="both", expand=True, padx=10, pady=10)
+        # Scrollable area for properties
+        scroll_area = QScrollArea()
+        scroll_area.setWidgetResizable(True)
+        scroll_area.setFrameStyle(0)
         
-        # Properties labels (will be populated when image loads)
-        self.prop_labels = {}
+        self.properties_scroll = QWidget()
+        self.properties_scroll_layout = QVBoxLayout(self.properties_scroll)
+        self.properties_scroll_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
+        
+        scroll_area.setWidget(self.properties_scroll)
+        panel_layout.addWidget(scroll_area)
     
     def _toggle_properties(self):
         """Toggle visibility of properties panel"""
         if self.properties_visible:
-            self.properties_panel.pack_forget()
+            self.properties_panel.setVisible(False)
+            self.preview_window.layout().itemAt(1).removeWidget(self.properties_panel)
             self.properties_visible = False
         else:
-            self.properties_panel.pack(side="right", fill="y", padx=(5, 0))
+            content_layout = self.preview_window.layout().itemAt(1)
+            if hasattr(content_layout, 'addWidget'):
+                content_layout.addWidget(self.properties_panel)
+            self.properties_panel.setVisible(True)
             self.properties_visible = True
             self._update_properties()
     
     def _update_properties(self):
         """Update properties panel with current image info"""
-        # Clear existing labels
-        for widget in self.properties_scroll.winfo_children():
-            widget.destroy()
+        # Clear existing widgets
+        while self.properties_scroll_layout.count():
+            item = self.properties_scroll_layout.takeAt(0)
+            if item.widget():
+                item.widget().deleteLater()
         
         if not self.current_file or not self.current_file.exists():
             return
@@ -302,65 +288,40 @@ class PreviewViewer:
         
         # Display properties
         for key, value in properties.items():
-            prop_frame = ctk.CTkFrame(self.properties_scroll, fg_color="transparent")
-            prop_frame.pack(fill="x", pady=2)
+            key_label = QLabel(f"{key}:")
+            key_label.setStyleSheet("font-weight: bold;")
+            self.properties_scroll_layout.addWidget(key_label)
             
-            ctk.CTkLabel(
-                prop_frame,
-                text=f"{key}:",
-                font=("Arial Bold", 11),
-                anchor="w"
-            ).pack(anchor="w")
-            
-            ctk.CTkLabel(
-                prop_frame,
-                text=str(value),
-                font=("Arial", 10),
-                anchor="w",
-                wraplength=220
-            ).pack(anchor="w", padx=10)
+            value_label = QLabel(str(value))
+            value_label.setWordWrap(True)
+            value_label.setStyleSheet("margin-left: 10px; margin-bottom: 5px;")
+            self.properties_scroll_layout.addWidget(value_label)
     
     def _load_image(self, file_path: Path):
         """Load an image file"""
         try:
-            # Clean up old image references to prevent memory leaks
-            # Clear photo references list (which includes _current_photo)
-            if self._photo_references:
-                self._photo_references.clear()
-            self._current_photo = None
-            
+            # Clean up old image
             if self.original_image is not None:
                 try:
                     self.original_image.close()
                 except Exception as e:
                     logger.debug(f"Error closing original_image: {e}")
                 self.original_image = None
-            if self.display_image is not None:
-                try:
-                    self.display_image.close()
-                except Exception as e:
-                    logger.debug(f"Error closing display_image: {e}")
-                self.display_image = None
             
             # Handle DDS files with special support
             if file_path.suffix.lower() == '.dds':
                 try:
-                    # PIL has DDS support, but may need extra handling
                     self.original_image = Image.open(file_path)
-                    # Convert to RGB if needed for display
                     if self.original_image.mode not in ('RGB', 'RGBA'):
                         self.original_image = self.original_image.convert('RGBA')
                 except Exception as dds_error:
                     logger.warning(f"DDS direct load failed, trying conversion: {dds_error}")
-                    # Fallback: try to convert
                     img = Image.open(file_path)
                     self.original_image = img.convert('RGBA')
             else:
                 self.original_image = Image.open(file_path)
             
             self.zoom_level = 1.0
-            self.pan_x = 0
-            self.pan_y = 0
             
             self._update_display()
             self._update_status(f"Loaded: {file_path.name}")
@@ -373,51 +334,41 @@ class PreviewViewer:
             self._update_status(f"Error loading image: {e}")
     
     def _update_display(self):
-        """Update the canvas with the current image at current zoom/pan"""
+        """Update the graphics view with the current image at current zoom"""
         if not self.original_image:
             return
         
         try:
-            # Calculate display size
-            width = int(self.original_image.width * self.zoom_level)
-            height = int(self.original_image.height * self.zoom_level)
-            
-            # Resize image
-            if self.zoom_level == 1.0:
-                self.display_image = self.original_image
+            # Convert PIL Image to QPixmap
+            img = self.original_image
+            if img.mode == "RGB":
+                data = img.tobytes("raw", "RGB")
+                qimage = QImage(data, img.width, img.height, QImage.Format.Format_RGB888)
+            elif img.mode == "RGBA":
+                data = img.tobytes("raw", "RGBA")
+                qimage = QImage(data, img.width, img.height, QImage.Format.Format_RGBA8888)
             else:
-                # Use LANCZOS for both scaling directions for best quality
-                # Game textures benefit from LANCZOS which preserves sharp edges
-                self.display_image = self.original_image.resize((width, height), Image.Resampling.LANCZOS)
+                img = img.convert("RGBA")
+                data = img.tobytes("raw", "RGBA")
+                qimage = QImage(data, img.width, img.height, QImage.Format.Format_RGBA8888)
             
-            # Convert to PhotoImage with correct master window to prevent GC issues
-            # Use preview_window as master if it exists, otherwise fall back to master
-            photo_master = self.preview_window if self.preview_window and self.preview_window.winfo_exists() else self.master
-            self._current_photo = ImageTk.PhotoImage(self.display_image, master=photo_master)
+            pixmap = QPixmap.fromImage(qimage)
             
-            # Keep in reference deque to prevent premature GC (auto-manages size with maxlen)
-            self._photo_references.append(self._current_photo)
+            # Clear scene and add pixmap
+            self.graphics_scene.clear()
+            self.pixmap_item = self.graphics_scene.addPixmap(pixmap)
             
-            # Update canvas
-            self.canvas.delete("all")
+            # Set scene rect to image size
+            self.graphics_scene.setSceneRect(QRectF(pixmap.rect()))
             
-            # Calculate position (center image + pan offset)
-            canvas_width = self.canvas.winfo_width()
-            canvas_height = self.canvas.winfo_height()
-            
-            x = (canvas_width - width) // 2 + self.pan_x
-            y = (canvas_height - height) // 2 + self.pan_y
-            
-            self.image_on_canvas = self.canvas.create_image(x, y, anchor="nw", image=self._current_photo)
-            
-            # Also keep reference on canvas for extra safety
-            self.canvas.image = self._current_photo
+            # Apply zoom
+            self.graphics_view.resetTransform()
+            self.graphics_view.scale(self.zoom_level, self.zoom_level)
             
             # Update zoom label
-            self.zoom_label.configure(text=f"{int(self.zoom_level * 100)}%")
+            self.zoom_label.setText(f"{int(self.zoom_level * 100)}%")
             
         except Exception as e:
-            # Handle edge cases where image was already garbage collected or window closed
             logger.error(f"Error updating display: {e}")
             self._update_status(f"Error displaying image: {e}")
     
@@ -438,8 +389,6 @@ class PreviewViewer:
     def _reset_view(self):
         """Reset zoom and pan to defaults"""
         self.zoom_level = 1.0
-        self.pan_x = 0
-        self.pan_y = 0
         self._update_display()
     
     def _fit_to_window(self):
@@ -447,25 +396,21 @@ class PreviewViewer:
         if not self.original_image:
             return
         
-        # Get canvas size
-        canvas_width = self.canvas.winfo_width()
-        canvas_height = self.canvas.winfo_height()
+        # Get view size
+        view_width = self.graphics_view.viewport().width()
+        view_height = self.graphics_view.viewport().height()
         
         # Calculate zoom level to fit
-        zoom_w = canvas_width / self.original_image.width
-        zoom_h = canvas_height / self.original_image.height
+        zoom_w = view_width / self.original_image.width
+        zoom_h = view_height / self.original_image.height
         
         # Use the smaller zoom to fit entirely
-        self.zoom_level = min(zoom_w, zoom_h) * 0.95  # 95% to leave some padding
-        self.pan_x = 0
-        self.pan_y = 0
+        self.zoom_level = min(zoom_w, zoom_h) * 0.95
         self._update_display()
     
     def _actual_size(self):
         """Show image at actual size (1:1)"""
         self.zoom_level = 1.0
-        self.pan_x = 0
-        self.pan_y = 0
         self._update_display()
     
     def _export_image(self):
@@ -474,29 +419,17 @@ class PreviewViewer:
             return
         
         try:
-            from tkinter import filedialog
+            default_name = self.current_file.stem + "_exported.png"
+            default_path = str(self.current_file.parent / default_name)
             
-            # Suggest filename
-            default_name = self.current_file.stem + "_exported"
-            
-            # Ask for save location
-            file_types = [
-                ("PNG files", "*.png"),
-                ("JPEG files", "*.jpg"),
-                ("BMP files", "*.bmp"),
-                ("TIFF files", "*.tif"),
-                ("All files", "*.*")
-            ]
-            
-            save_path = filedialog.asksaveasfilename(
-                title="Export Texture",
-                defaultextension=".png",
-                initialfile=default_name,
-                filetypes=file_types
+            save_path, _ = QFileDialog.getSaveFileName(
+                self.preview_window,
+                "Export Texture",
+                default_path,
+                "PNG files (*.png);;JPEG files (*.jpg);;BMP files (*.bmp);;TIFF files (*.tif);;All files (*.*)"
             )
             
             if save_path:
-                # Save the original image (not the displayed/zoomed one)
                 self.original_image.save(save_path)
                 self._update_status(f"Exported to: {Path(save_path).name}")
                 logger.info(f"Exported texture to {save_path}")
@@ -505,38 +438,24 @@ class PreviewViewer:
             logger.error(f"Failed to export image: {e}")
             self._update_status(f"Export failed: {e}")
     
-    def _mouse_wheel_zoom(self, event):
-        """Zoom with mouse wheel"""
-        if event.delta > 0:
+    def _graphics_wheel_event(self, event: QWheelEvent):
+        """Handle mouse wheel zoom in graphics view"""
+        if event.angleDelta().y() > 0:
             self._zoom_in()
         else:
             self._zoom_out()
+        event.accept()
     
-    def _start_pan(self, event):
-        """Start panning"""
-        self.is_panning = True
-        self.pan_start_x = event.x
-        self.pan_start_y = event.y
-        self.canvas.config(cursor="fleur")
-    
-    def _do_pan(self, event):
-        """Pan the image"""
-        if self.is_panning:
-            dx = event.x - self.pan_start_x
-            dy = event.y - self.pan_start_y
-            
-            self.pan_x += dx
-            self.pan_y += dy
-            
-            self.pan_start_x = event.x
-            self.pan_start_y = event.y
-            
-            self._update_display()
-    
-    def _end_pan(self, event):
-        """End panning"""
-        self.is_panning = False
-        self.canvas.config(cursor="")
+    def _key_press_event(self, event: QKeyEvent):
+        """Handle keyboard shortcuts"""
+        if event.key() == Qt.Key.Key_Left:
+            self._show_previous()
+        elif event.key() == Qt.Key.Key_Right:
+            self._show_next()
+        elif event.key() == Qt.Key.Key_Escape:
+            self.preview_window.close()
+        else:
+            QDialog.keyPressEvent(self.preview_window, event)
     
     def _show_previous(self):
         """Show previous image in the list"""
@@ -562,12 +481,12 @@ class PreviewViewer:
         """Update window title with current file info"""
         if self.current_file:
             title = f"Preview: {self.current_file.name} ({self.current_index + 1}/{len(self.file_list)})"
-            self.preview_window.title(title)
+            self.preview_window.setWindowTitle(title)
     
     def _update_status(self, message: str):
         """Update status bar message"""
         if self.status_label:
-            self.status_label.configure(text=message)
+            self.status_label.setText(message)
     
     def _get_sibling_textures(self, file_path: Path) -> List[Path]:
         """Get all texture files in the same directory"""
@@ -601,5 +520,5 @@ class PreviewViewer:
     
     def close(self):
         """Close the preview window"""
-        if self.preview_window and self.preview_window.winfo_exists():
-            self.preview_window.destroy()
+        if self.preview_window and self.preview_window.isVisible():
+            self.preview_window.close()
