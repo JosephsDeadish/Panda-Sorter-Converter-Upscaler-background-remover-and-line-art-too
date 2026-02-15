@@ -1,16 +1,15 @@
 """
-Panda Widget Loader - Automatic selection of best available panda widget
-Tries OpenGL first (hardware-accelerated 3D), falls back to Canvas if needed
+Panda Widget Loader - Qt OpenGL Widget for 3D Panda Rendering
+Uses PyQt6 with OpenGL for hardware-accelerated 3D rendering with real-time lighting and shadows.
+Qt is now required - canvas rendering has been removed.
 """
 
 import logging
-import warnings
 
 logger = logging.getLogger(__name__)
 
-# Try to load OpenGL widget first (preferred)
+# Load Qt OpenGL widget (required)
 OPENGL_AVAILABLE = False
-CANVAS_AVAILABLE = False
 PandaWidget = None
 
 try:
@@ -18,40 +17,25 @@ try:
     if QT_AVAILABLE:
         PandaWidget = PandaWidgetGLBridge
         OPENGL_AVAILABLE = True
-        logger.info("✅ OpenGL panda widget available (hardware-accelerated 3D)")
+        logger.info("✅ OpenGL panda widget loaded (hardware-accelerated 3D)")
     else:
         raise ImportError("Qt/OpenGL not available")
 except ImportError as e:
-    logger.info(f"OpenGL widget not available: {e}")
-    
-    # Fall back to canvas widget
-    try:
-        # Suppress deprecation warning for fallback case
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore", DeprecationWarning)
-            from src.ui.panda_widget import PandaWidget as CanvasPandaWidget
-        
-        PandaWidget = CanvasPandaWidget
-        CANVAS_AVAILABLE = True
-        logger.info("⚠️  Using canvas panda widget (2D fallback)")
-        logger.info("   Install PyQt6 and PyOpenGL for hardware-accelerated 3D:")
-        logger.info("   pip install PyQt6 PyOpenGL PyOpenGL-accelerate")
-    except ImportError as e2:
-        logger.error(f"❌ No panda widget available: {e2}")
-        PandaWidget = None
+    logger.error(f"❌ PyQt6/OpenGL required but not available: {e}")
+    logger.error("   Install with: pip install PyQt6 PyOpenGL PyOpenGL-accelerate")
+    PandaWidget = None
 
 
 def get_panda_widget_info():
     """
-    Get information about which panda widget is being used.
+    Get information about the Qt OpenGL panda widget.
     
     Returns:
         Dictionary with widget information
     """
     return {
-        'widget_type': 'opengl' if OPENGL_AVAILABLE else ('canvas' if CANVAS_AVAILABLE else 'none'),
+        'widget_type': 'opengl' if OPENGL_AVAILABLE else 'none',
         'opengl_available': OPENGL_AVAILABLE,
-        'canvas_available': CANVAS_AVAILABLE,
         'hardware_accelerated': OPENGL_AVAILABLE,
         '3d_rendering': OPENGL_AVAILABLE,
         'realtime_lighting': OPENGL_AVAILABLE,
@@ -59,9 +43,7 @@ def get_panda_widget_info():
         'description': (
             "Hardware-accelerated 3D OpenGL widget with real lighting and shadows"
             if OPENGL_AVAILABLE else
-            "Canvas-based 2D widget (legacy fallback)"
-            if CANVAS_AVAILABLE else
-            "No panda widget available"
+            "PyQt6/OpenGL not available - install required dependencies"
         )
     }
 
@@ -71,17 +53,12 @@ def is_opengl_available():
     return OPENGL_AVAILABLE
 
 
-def is_canvas_available():
-    """Check if canvas widget is available."""
-    return CANVAS_AVAILABLE
-
-
 def get_panda_widget_class():
     """
-    Get the panda widget class to use.
+    Get the Qt OpenGL panda widget class.
     
     Returns:
-        PandaWidget class (OpenGL or Canvas) or None
+        PandaWidget class (OpenGL) or None if Qt/OpenGL not available
     """
     return PandaWidget
 
@@ -90,9 +67,7 @@ def get_panda_widget_class():
 __all__ = [
     'PandaWidget',
     'OPENGL_AVAILABLE',
-    'CANVAS_AVAILABLE',
     'get_panda_widget_info',
     'is_opengl_available',
-    'is_canvas_available',
     'get_panda_widget_class',
 ]
