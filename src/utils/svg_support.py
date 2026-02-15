@@ -232,13 +232,14 @@ def create_file_svg(color: str = "#4A90E2", size: int = 64) -> str:
 
 
 # Utility function for Qt integration
-def load_svg_for_qpixmap(
+def load_svg_for_qt(
     svg_path: Union[str, Path],
     size: Tuple[int, int],
     fallback_png: Optional[Union[str, Path]] = None
 ) -> Optional[object]:
     """
-    Load SVG and prepare it for use with QPixmap.
+    Load SVG and prepare it for use with Qt (returns PIL Image).
+    The PIL Image can be converted to QPixmap using QPixmap.fromImage().
     
     Args:
         svg_path: Path to SVG file
@@ -246,7 +247,7 @@ def load_svg_for_qpixmap(
         fallback_png: Optional PNG fallback
     
     Returns:
-        PIL Image ready for QPixmap or None
+        PIL Image ready for Qt conversion or None
     """
     loader = SVGLoader()
     return loader.load_svg(svg_path, size, fallback_png)

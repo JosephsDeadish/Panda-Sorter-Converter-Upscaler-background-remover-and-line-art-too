@@ -393,7 +393,8 @@ GameTextureSorter/
 │   │   ├── statistics.py        # Operation statistics
 │   │   └── ...                  # Additional feature modules
 │   ├── ui/                      # User interface components
-│   │   ├── panda_widget_gl.py    # OpenGL 3D panda widget
+│   │   ├── panda_widget_gl.py    # OpenGL 3D panda widget (replaces old panda_widget.py)
+│   │   ├── panda_widget_loader.py # Auto-loader for panda widget
 │   │   ├── customization_panel.py # Theme & color customization
 │   │   ├── closet_panel.py      # Panda outfit selector
 │   │   └── ...                  # Additional UI panels
