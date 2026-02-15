@@ -181,6 +181,7 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
     def _setup_state_machine(self):
         """Setup Qt State Machine for animation state control."""
         if not QT_AVAILABLE:
+            self.state_machine = None
             return
         
         # Create state machine
@@ -205,8 +206,10 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
         self.celebrating_state.entered.connect(lambda: self._on_state_entered('celebrating'))
         self.waving_state.entered.connect(lambda: self._on_state_entered('waving'))
         
-        # Define transitions (can be triggered programmatically)
-        # These would be expanded based on specific animation needs
+        # Define transitions between states
+        # Note: Transitions are triggered programmatically via transition_to_state()
+        # This allows external code to control animation state changes
+        # Future enhancement: Add event-based transitions (e.g., timers, collision detection)
         
         # Start the state machine
         self.state_machine.start()
@@ -219,7 +222,20 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
         logger.debug(f"Animation state changed to: {state_name}")
     
     def transition_to_state(self, state_name: str):
-        """Transition to a specific animation state."""
+        """
+        Transition to a specific animation state.
+        
+        Uses a simplified approach where we maintain a mapping of states
+        and update the current state. In a full state machine implementation,
+        you would define explicit transitions with conditions.
+        """
+        if not self.state_machine:
+            # Fallback if state machine not available
+            self.animation_state = state_name
+            if hasattr(self, 'animation_changed'):
+                self.animation_changed.emit(state_name)
+            return
+        
         state_map = {
             'idle': self.idle_state,
             'walking': self.walking_state,
@@ -229,16 +245,11 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
             'waving': self.waving_state
         }
         
-        if state_name in state_map and hasattr(self, 'state_machine'):
+        if state_name in state_map:
             target_state = state_map[state_name]
-            # Manually transition by setting the state
-            if self.state_machine.configuration():
-                current_states = list(self.state_machine.configuration())
-                if current_states and current_states[0] != target_state:
-                    # Force transition by stopping and restarting with new initial state
-                    self.state_machine.stop()
-                    self.state_machine.setInitialState(target_state)
-                    self.state_machine.start()
+            # Manually invoke state entry since we're using programmatic control
+            # rather than event-driven transitions
+            self._on_state_entered(state_name)
     
     def initializeGL(self):
         """Initialize OpenGL settings."""
@@ -877,12 +888,7 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
     def set_animation_state(self, state: str):
         """Set animation state using Qt State Machine."""
         # Use the state machine for state transitions
-        if hasattr(self, 'state_machine'):
-            self.transition_to_state(state)
-        else:
-            # Fallback if state machine not initialized
-            self.animation_state = state
-            self.animation_changed.emit(state)
+        self.transition_to_state(state)
     
     def add_item_3d(self, item_type: str, x: float, y: float, z: float, **kwargs):
         """Add a 3D item to the scene."""
