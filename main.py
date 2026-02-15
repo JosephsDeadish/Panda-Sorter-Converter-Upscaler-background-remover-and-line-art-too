@@ -9997,25 +9997,13 @@ Built with:
         if self.current_enemy and self.current_enemy.is_alive():
             enemy = self.current_enemy
             
-            # Enemy visual canvas
+            # Enemy visual display (using simple widget instead of canvas drawing)
             enemy_canvas_frame = ctk.CTkFrame(combat_frame)
             enemy_canvas_frame.pack(pady=5)
             
-            # Canvas dimensions for enemy display
-            ENEMY_CANVAS_WIDTH = 200
-            ENEMY_CANVAS_HEIGHT = 200
-            
-            # Create canvas for animated enemy display
-            enemy_canvas = tk.Canvas(enemy_canvas_frame, 
-                                    width=ENEMY_CANVAS_WIDTH, 
-                                    height=ENEMY_CANVAS_HEIGHT, 
-                                    bg='#2b2b2b', highlightthickness=0)
-            enemy_canvas.pack()
-            
-            # Draw animated enemy
-            self._draw_enemy_on_canvas(enemy_canvas, enemy, 
-                                      ENEMY_CANVAS_WIDTH // 2, 
-                                      ENEMY_CANVAS_HEIGHT // 2)
+            from src.ui.enemy_display_simple import create_enemy_display
+            enemy_display = create_enemy_display(enemy_canvas_frame, enemy)
+            enemy_display.pack()
             
             # Enemy name and stats
             ctk.CTkLabel(combat_frame, text=f"{enemy.icon} {enemy.name}",
