@@ -6,6 +6,22 @@
 
 A professional Windows application for automatically sorting game texture dumps with advanced AI classification, massive-scale support (200,000+ textures), and a modern panda-themed UI. Distributed as a one-folder package for fast startup and easy customization.
 
+## 🎉 Recent Improvements
+
+### Code Quality & Performance (Latest)
+- **✨ Widget Refactoring** - Replaced 387 lines of canvas drawing with clean widget-based UI
+- **🎨 Achievement Display** - New widget-based achievement popups (removed 65 lines of canvas code)
+- **👾 Enemy Display** - Simplified enemy rendering with widget approach (removed 255 lines)
+- **🚗 Travel Animation** - Widget-based travel scenes (removed 67 lines of canvas code)
+- **🧹 Code Cleanup** - Removed unused drawing functions for better maintainability
+- **✅ Quality Tests** - Added syntax validation for new components
+
+### Benefits
+- Cleaner, more maintainable codebase
+- Reduced complexity in UI rendering
+- Better separation of concerns
+- Easier to extend and modify
+
 ## 🌟 Features
 
 ### Core Functionality
