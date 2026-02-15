@@ -506,6 +506,10 @@ class HotkeyManager:
             True if loaded successfully
         """
         try:
+            # Return silently if no config file specified (empty string means use defaults)
+            if not config_file or not config_file.strip():
+                return False
+            
             path = Path(config_file)
             
             if not path.exists():
