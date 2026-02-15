@@ -1,5 +1,5 @@
 """
-Simple enemy display using Tkinter widgets instead of canvas drawing.
+Simple enemy display using Tkinter widgets - NO CANVAS.
 """
 
 import tkinter as tk
@@ -7,7 +7,7 @@ from typing import Any
 
 def create_enemy_display(parent_frame, enemy: Any) -> tk.Frame:
     """
-    Create a simple enemy display using Tkinter widgets.
+    Create a simple enemy display using Tkinter labels - NO CANVAS.
     
     Args:
         parent_frame: Parent frame to place the display in
@@ -38,24 +38,26 @@ def create_enemy_display(parent_frame, enemy: Any) -> tk.Frame:
         }
         enemy_color = type_colors.get(enemy.template.enemy_type, '#888888')
     
-    # Create circular background
-    canvas = tk.Canvas(display_frame, width=200, height=200, 
-                      bg='#2b2b2b', highlightthickness=0)
-    canvas.pack()
-    
-    # Draw circle
-    canvas.create_oval(50, 30, 150, 130, fill=enemy_color, outline='#404040', width=3)
+    # NO CANVAS - use Labels instead
+    # Create circular-looking background with label
+    circle_frame = tk.Frame(display_frame, bg=enemy_color, width=100, height=100)
+    circle_frame.pack(pady=20)
+    circle_frame.pack_propagate(False)
     
     # Large emoji in center
-    canvas.create_text(100, 80, text=enemy_icon, 
-                      font=('Arial', 48), fill='white')
+    icon_label = tk.Label(circle_frame, text=enemy_icon, 
+                         font=('Arial', 48), fg='white', bg=enemy_color)
+    icon_label.pack(expand=True)
     
     # Name below
-    canvas.create_text(100, 150, text=enemy_name,
-                      font=('Arial', 14, 'bold'), fill='white')
+    name_label = tk.Label(display_frame, text=enemy_name,
+                         font=('Arial', 14, 'bold'), fg='white', bg='#2b2b2b')
+    name_label.pack()
     
     # Level indicator
-    canvas.create_text(100, 170, text=f"Level {enemy_level}",
-                      font=('Arial', 10), fill='#aaaaaa')
+    level_label = tk.Label(display_frame, text=f"Level {enemy_level}",
+                          font=('Arial', 10), fg='#aaaaaa', bg='#2b2b2b')
+    level_label.pack()
     
     return display_frame
+
