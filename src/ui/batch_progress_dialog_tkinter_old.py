@@ -16,14 +16,12 @@ logger = logging.getLogger(__name__)
 BYTES_PER_MB = 1024 * 1024
 
 try:
-    from PyQt6.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QLabel, 
-                                  QProgressBar, QPushButton, QFrame, QWidget)
-    from PyQt6.QtCore import Qt, QTimer
-    from PyQt6.QtGui import QFont
+    import customtkinter as ctk
+    import tkinter as tk
     GUI_AVAILABLE = True
 except ImportError:
     GUI_AVAILABLE = False
-    logger.warning("PyQt6 not available")
+    logger.warning("CustomTkinter not available")
 
 
 class BatchProgressDialog:
@@ -96,167 +94,158 @@ class BatchProgressDialog:
             return
         
         # Create dialog window
-        self.dialog = QDialog(self.parent)
-        self.dialog.setWindowTitle(self.title)
-        self.dialog.resize(900, 600)
+        self.dialog = ctk.CTkToplevel(self.parent)
+        self.dialog.title(self.title)
+        self.dialog.geometry("900x600")
+        self.dialog.resizable(True, True)
         
-        # Make it modal
-        self.dialog.setWindowModality(Qt.WindowModality.ApplicationModal)
+        # Make it modal-like (but allow interaction with cancel/pause)
+        self.dialog.grab_set()
+        self.dialog.focus_set()
         
-        # Main layout
-        main_layout = QVBoxLayout(self.dialog)
+        # Center on parent
+        self.dialog.update_idletasks()
+        x = self.parent.winfo_x() + (self.parent.winfo_width() // 2) - (900 // 2)
+        y = self.parent.winfo_y() + (self.parent.winfo_height() // 2) - (600 // 2)
+        self.dialog.geometry(f"+{x}+{y}")
         
         # Title
-        title_label = QLabel("🔍 Batch Upscaling in Progress 🔍")
-        title_font = QFont("Arial", 20, QFont.Weight.Bold)
-        title_label.setFont(title_font)
-        title_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        main_layout.addWidget(title_label)
-        main_layout.addSpacing(15)
+        title_label = ctk.CTkLabel(
+            self.dialog,
+            text="🔍 Batch Upscaling in Progress 🔍",
+            font=("Arial Bold", 20)
+        )
+        title_label.pack(pady=15)
         
         # Main content frame
-        content_frame = QFrame()
-        content_frame.setFrameStyle(QFrame.Shape.StyledPanel)
-        content_layout = QVBoxLayout(content_frame)
+        content_frame = ctk.CTkFrame(self.dialog)
+        content_frame.pack(fill="both", expand=True, padx=20, pady=(0, 20))
         
         # Queue information
-        queue_frame = QFrame()
-        queue_frame.setFrameStyle(QFrame.Shape.StyledPanel)
-        queue_layout = QVBoxLayout(queue_frame)
-        
-        queue_title = QLabel("📁 Folder Queue:")
-        queue_title_font = QFont("Arial", 13, QFont.Weight.Bold)
-        queue_title.setFont(queue_title_font)
-        queue_layout.addWidget(queue_title)
-        
-        self.queue_label = QLabel("Processing folder 1 of 1")
-        queue_label_font = QFont("Arial", 12)
-        self.queue_label.setFont(queue_label_font)
-        self.queue_label.setContentsMargins(20, 2, 10, 2)
-        queue_layout.addWidget(self.queue_label)
-        
-        content_layout.addWidget(queue_frame)
+        queue_frame = ctk.CTkFrame(content_frame)
+        queue_frame.pack(fill="x", padx=15, pady=10)
+        ctk.CTkLabel(
+            queue_frame,
+            text="📁 Folder Queue:",
+            font=("Arial Bold", 13)
+        ).pack(anchor="w", padx=10, pady=5)
+        self.queue_label = ctk.CTkLabel(
+            queue_frame,
+            text="Processing folder 1 of 1",
+            font=("Arial", 12),
+            anchor="w"
+        )
+        self.queue_label.pack(anchor="w", padx=20, pady=2)
         
         # Current operation section
-        current_frame = QFrame()
-        current_frame.setFrameStyle(QFrame.Shape.StyledPanel)
-        current_layout = QVBoxLayout(current_frame)
-        
-        current_title = QLabel("📂 Current Location:")
-        current_title.setFont(queue_title_font)
-        current_layout.addWidget(current_title)
+        current_frame = ctk.CTkFrame(content_frame)
+        current_frame.pack(fill="x", padx=15, pady=10)
+        ctk.CTkLabel(
+            current_frame,
+            text="📂 Current Location:",
+            font=("Arial Bold", 13)
+        ).pack(anchor="w", padx=10, pady=5)
         
         # Current folder
-        self.current_folder_label = QLabel("Folder: ...")
-        label_font = QFont("Arial", 11)
-        self.current_folder_label.setFont(label_font)
-        self.current_folder_label.setWordWrap(True)
-        self.current_folder_label.setContentsMargins(20, 2, 10, 2)
-        current_layout.addWidget(self.current_folder_label)
+        self.current_folder_label = ctk.CTkLabel(
+            current_frame,
+            text="Folder: ...",
+            font=("Arial", 11),
+            anchor="w",
+            wraplength=800
+        )
+        self.current_folder_label.pack(anchor="w", padx=20, pady=2, fill="x")
         
         # Current subfolder
-        self.current_subfolder_label = QLabel("Subfolder: None")
-        self.current_subfolder_label.setFont(label_font)
-        self.current_subfolder_label.setWordWrap(True)
-        self.current_subfolder_label.setContentsMargins(20, 2, 10, 2)
-        current_layout.addWidget(self.current_subfolder_label)
+        self.current_subfolder_label = ctk.CTkLabel(
+            current_frame,
+            text="Subfolder: None",
+            font=("Arial", 11),
+            anchor="w",
+            wraplength=800
+        )
+        self.current_subfolder_label.pack(anchor="w", padx=20, pady=2, fill="x")
         
         # Current file
-        self.current_file_label = QLabel("File: ...")
-        self.current_file_label.setFont(label_font)
-        self.current_file_label.setWordWrap(True)
-        self.current_file_label.setContentsMargins(20, 2, 10, 2)
-        current_layout.addWidget(self.current_file_label)
-        
-        content_layout.addWidget(current_frame)
+        self.current_file_label = ctk.CTkLabel(
+            current_frame,
+            text="File: ...",
+            font=("Arial", 11),
+            anchor="w",
+            wraplength=800
+        )
+        self.current_file_label.pack(anchor="w", padx=20, pady=2, fill="x")
         
         # Progress bar
-        progress_frame = QFrame()
-        progress_frame.setFrameStyle(QFrame.Shape.StyledPanel)
-        progress_layout = QVBoxLayout(progress_frame)
-        self.progress_bar = QProgressBar()
-        self.progress_bar.setRange(0, 100)
-        self.progress_bar.setValue(0)
-        progress_layout.addWidget(self.progress_bar)
-        content_layout.addWidget(progress_frame)
+        progress_frame = ctk.CTkFrame(content_frame)
+        progress_frame.pack(fill="x", padx=15, pady=10)
+        self.progress_bar = ctk.CTkProgressBar(progress_frame)
+        self.progress_bar.pack(fill="x", padx=10, pady=10)
+        self.progress_bar.set(0)
         
         # Statistics section
-        stats_frame = QFrame()
-        stats_frame.setFrameStyle(QFrame.Shape.StyledPanel)
-        stats_layout = QVBoxLayout(stats_frame)
+        stats_frame = ctk.CTkFrame(content_frame)
+        stats_frame.pack(fill="x", padx=15, pady=10)
+        ctk.CTkLabel(
+            stats_frame,
+            text="📊 Statistics:",
+            font=("Arial Bold", 13)
+        ).pack(anchor="w", padx=10, pady=5)
         
-        stats_title = QLabel("📊 Statistics:")
-        stats_title.setFont(queue_title_font)
-        stats_layout.addWidget(stats_title)
+        self.stats_label = ctk.CTkLabel(
+            stats_frame,
+            text="Processed: 0 / 0 | Failed: 0 | Skipped: 0",
+            font=("Arial", 11),
+            anchor="w"
+        )
+        self.stats_label.pack(anchor="w", padx=20, pady=2)
         
-        self.stats_label = QLabel("Processed: 0 / 0 | Failed: 0 | Skipped: 0")
-        self.stats_label.setFont(label_font)
-        self.stats_label.setContentsMargins(20, 2, 10, 2)
-        stats_layout.addWidget(self.stats_label)
+        self.time_label = ctk.CTkLabel(
+            stats_frame,
+            text="Elapsed: 0s | Estimated remaining: Calculating...",
+            font=("Arial", 11),
+            anchor="w"
+        )
+        self.time_label.pack(anchor="w", padx=20, pady=2)
         
-        self.time_label = QLabel("Elapsed: 0s | Estimated remaining: Calculating...")
-        self.time_label.setFont(label_font)
-        self.time_label.setContentsMargins(20, 2, 10, 2)
-        stats_layout.addWidget(self.time_label)
-        
-        self.storage_label = QLabel("Processed: 0 MB | Estimated output: Calculating...")
-        self.storage_label.setFont(label_font)
-        self.storage_label.setContentsMargins(20, 2, 10, 2)
-        stats_layout.addWidget(self.storage_label)
-        
-        content_layout.addWidget(stats_frame)
-        
-        main_layout.addWidget(content_frame, 1)
+        self.storage_label = ctk.CTkLabel(
+            stats_frame,
+            text="Processed: 0 MB | Estimated output: Calculating...",
+            font=("Arial", 11),
+            anchor="w"
+        )
+        self.storage_label.pack(anchor="w", padx=20, pady=2)
         
         # Control buttons
-        button_frame = QFrame()
-        button_layout = QHBoxLayout(button_frame)
-        button_layout.addStretch()
+        button_frame = ctk.CTkFrame(self.dialog)
+        button_frame.pack(fill="x", padx=20, pady=(0, 20))
         
-        button_font = QFont("Arial", 13, QFont.Weight.Bold)
+        self.pause_button = ctk.CTkButton(
+            button_frame,
+            text="⏸ Pause",
+            command=self._on_pause_clicked,
+            width=150,
+            height=40,
+            font=("Arial Bold", 13),
+            fg_color="#FFA500",
+            hover_color="#FF8C00"
+        )
+        self.pause_button.pack(side="left", padx=10, pady=10)
         
-        self.pause_button = QPushButton("⏸ Pause")
-        self.pause_button.setFont(button_font)
-        self.pause_button.setMinimumSize(150, 40)
-        self.pause_button.setStyleSheet("""
-            QPushButton {
-                background-color: #FFA500;
-                color: white;
-                border: none;
-                border-radius: 4px;
-            }
-            QPushButton:hover {
-                background-color: #FF8C00;
-            }
-        """)
-        self.pause_button.clicked.connect(self._on_pause_clicked)
-        button_layout.addWidget(self.pause_button)
-        
-        self.cancel_button = QPushButton("❌ Cancel")
-        self.cancel_button.setFont(button_font)
-        self.cancel_button.setMinimumSize(150, 40)
-        self.cancel_button.setStyleSheet("""
-            QPushButton {
-                background-color: #B22222;
-                color: white;
-                border: none;
-                border-radius: 4px;
-            }
-            QPushButton:hover {
-                background-color: #8B0000;
-            }
-        """)
-        self.cancel_button.clicked.connect(self._on_cancel_clicked)
-        button_layout.addWidget(self.cancel_button)
-        
-        button_layout.addStretch()
-        main_layout.addWidget(button_frame)
+        self.cancel_button = ctk.CTkButton(
+            button_frame,
+            text="❌ Cancel",
+            command=self._on_cancel_clicked,
+            width=150,
+            height=40,
+            font=("Arial Bold", 13),
+            fg_color="#B22222",
+            hover_color="#8B0000"
+        )
+        self.cancel_button.pack(side="left", padx=10, pady=10)
         
         # Start time
         self.start_time = time.time()
-        
-        # Show dialog
-        self.dialog.show()
     
     def set_folder_queue(self, folders: list):
         """
@@ -292,8 +281,8 @@ class BatchProgressDialog:
             self.current_folder_index = index
         
         if self.current_folder_label:
-            self.current_folder_label.setText(
-                f"Folder: {self._truncate_path(folder, 100)}"
+            self.current_folder_label.configure(
+                text=f"Folder: {self._truncate_path(folder, 100)}"
             )
         
         self._update_queue_display()
@@ -309,11 +298,11 @@ class BatchProgressDialog:
         
         if self.current_subfolder_label:
             if subfolder:
-                self.current_subfolder_label.setText(
-                    f"Subfolder: {self._truncate_path(subfolder, 100)}"
+                self.current_subfolder_label.configure(
+                    text=f"Subfolder: {self._truncate_path(subfolder, 100)}"
                 )
             else:
-                self.current_subfolder_label.setText("Subfolder: None")
+                self.current_subfolder_label.configure(text="Subfolder: None")
     
     def set_current_file(self, filename: str):
         """
@@ -325,8 +314,8 @@ class BatchProgressDialog:
         self.current_file = filename
         
         if self.current_file_label:
-            self.current_file_label.setText(
-                f"File: {self._truncate_path(filename, 100)}"
+            self.current_file_label.configure(
+                text=f"File: {self._truncate_path(filename, 100)}"
             )
     
     def update_progress(self, processed: int, failed: int = 0, skipped: int = 0):
@@ -345,7 +334,7 @@ class BatchProgressDialog:
         # Update progress bar
         if self.total_files > 0 and self.progress_bar:
             progress = (processed + failed + skipped) / self.total_files
-            self.progress_bar.setValue(int(progress * 100))
+            self.progress_bar.set(progress)
         
         self._update_stats_display()
         self._update_time_display()
@@ -367,7 +356,8 @@ class BatchProgressDialog:
     def close(self):
         """Close the dialog."""
         if self.dialog:
-            self.dialog.close()
+            self.dialog.grab_release()
+            self.dialog.destroy()
             self.dialog = None
     
     def _on_pause_clicked(self):
@@ -380,7 +370,7 @@ class BatchProgressDialog:
                 self.pause_time = None
             
             if self.pause_button:
-                self.pause_button.setText("⏸ Pause")
+                self.pause_button.configure(text="⏸ Pause")
             
             if self.on_resume_callback:
                 self.on_resume_callback()
@@ -390,7 +380,7 @@ class BatchProgressDialog:
             self.pause_time = time.time()
             
             if self.pause_button:
-                self.pause_button.setText("▶ Resume")
+                self.pause_button.configure(text="▶ Resume")
             
             if self.on_pause_callback:
                 self.on_pause_callback()
@@ -400,8 +390,7 @@ class BatchProgressDialog:
         self.is_cancelled = True
         
         if self.cancel_button:
-            self.cancel_button.setEnabled(False)
-            self.cancel_button.setText("Cancelling...")
+            self.cancel_button.configure(state="disabled", text="Cancelling...")
         
         if self.on_cancel_callback:
             self.on_cancel_callback()
@@ -411,16 +400,16 @@ class BatchProgressDialog:
         if self.queue_label and self.folder_queue:
             total = len(self.folder_queue)
             current = self.current_folder_index + 1
-            self.queue_label.setText(
-                f"Processing folder {current} of {total}"
+            self.queue_label.configure(
+                text=f"Processing folder {current} of {total}"
             )
     
     def _update_stats_display(self):
         """Update statistics display."""
         if self.stats_label:
-            self.stats_label.setText(
-                f"Processed: {self.processed_files} / {self.total_files} | "
-                f"Failed: {self.failed_files} | Skipped: {self.skipped_files}"
+            self.stats_label.configure(
+                text=f"Processed: {self.processed_files} / {self.total_files} | "
+                     f"Failed: {self.failed_files} | Skipped: {self.skipped_files}"
             )
     
     def _update_time_display(self):
@@ -441,8 +430,8 @@ class BatchProgressDialog:
         else:
             remaining_str = "Calculating..."
         
-        self.time_label.setText(
-            f"Elapsed: {elapsed_str} | Estimated remaining: {remaining_str}"
+        self.time_label.configure(
+            text=f"Elapsed: {elapsed_str} | Estimated remaining: {remaining_str}"
         )
     
     def _update_storage_display(self):
@@ -462,8 +451,8 @@ class BatchProgressDialog:
         else:
             estimated_str = "Calculating..."
         
-        self.storage_label.setText(
-            f"Processed: {processed_mb:.1f} MB | Estimated output: {estimated_str}"
+        self.storage_label.configure(
+            text=f"Processed: {processed_mb:.1f} MB | Estimated output: {estimated_str}"
         )
     
     def _truncate_path(self, path: str, max_length: int) -> str:

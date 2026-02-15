@@ -5,6 +5,7 @@ Author: Dead On The Inside / JosephsDeadish
 """
 
 import logging
+import tkinter as tk
 from typing import Optional, Callable, List, Dict, Any
 from dataclasses import dataclass
 from enum import Enum
@@ -16,9 +17,8 @@ logger = logging.getLogger(__name__)
 
 # Try to import GUI libraries
 try:
-    from PyQt6.QtWidgets import QWidget, QMessageBox, QToolTip
-    from PyQt6.QtCore import QTimer, Qt, QPoint
-    from PyQt6.QtGui import QCursor
+    import customtkinter as ctk
+    from tkinter import messagebox
     GUI_AVAILABLE = True
 except ImportError:
     GUI_AVAILABLE = False
@@ -4900,7 +4900,10 @@ class TutorialManager:
             logger.error(f"Failed to start tutorial: {e}", exc_info=True)
             self.tutorial_active = False
             if self.overlay:
-                # In Qt6, overlay is not implemented yet, so this is safe
+                try:
+                    self.overlay.destroy()
+                except Exception:
+                    pass
                 self.overlay = None
     
     def _create_tutorial_steps(self) -> List[TutorialStep]:
@@ -4973,22 +4976,56 @@ class TutorialManager:
         return steps
     
     def _create_overlay(self):
-        """Create semi-transparent dark overlay (placeholder for Qt6 implementation)"""
+        """Create semi-transparent dark overlay"""
         if not GUI_AVAILABLE:
             return
         
-        # TODO: Implement Qt6 overlay using QWidget with transparency
-        # For now, tutorial system is simplified - no overlay in Qt6 version yet
-        logger.warning("Tutorial overlay not yet implemented for Qt6")
-        self.overlay = None
+        try:
+            # Create toplevel window for overlay
+            self.overlay = ctk.CTkToplevel(self.master)
+            self.overlay.title("")
+            
+            # Make it cover the entire main window
+            self.overlay.attributes('-alpha', 0.7)  # Semi-transparent
+            self.overlay.attributes('-topmost', True)
+            
+            # Get main window position and size
+            self.master.update_idletasks()
+            x = self.master.winfo_x()
+            y = self.master.winfo_y()
+            width = self.master.winfo_width()
+            height = self.master.winfo_height()
+            
+            self.overlay.geometry(f"{width}x{height}+{x}+{y}")
+            self.overlay.overrideredirect(True)
+            
+            # Dark background
+            overlay_frame = ctk.CTkFrame(self.overlay, fg_color="#000000")
+            overlay_frame.pack(fill="both", expand=True)
+            
+            # Add click handler to overlay to prevent getting stuck
+            # Clicking the overlay will bring tutorial window to front or close tutorial if window is gone
+            overlay_frame.bind("<Button-1>", self._on_overlay_click)
+        except Exception as e:
+            logger.error(f"Failed to create tutorial overlay: {e}", exc_info=True)
+            self.overlay = None
     
     def _on_overlay_click(self, event=None):
-        """Handle clicks on the overlay (placeholder for Qt6)"""
-        # TODO: Implement for Qt6
-        pass
+        """Handle clicks on the overlay - bring tutorial to front or close if missing"""
+        if self.tutorial_window and self.tutorial_window.winfo_exists():
+            # Tutorial window exists, bring it to front
+            # Ensure overlay stays below tutorial window
+            if self.overlay:
+                self.overlay.attributes('-topmost', False)
+            self.tutorial_window.attributes('-topmost', True)
+            self.tutorial_window.lift()
+            self.tutorial_window.focus_force()
+        else:
+            # Tutorial window is gone but overlay remains - clean up
+            self._complete_tutorial()
     
     def _show_step(self, step_index: int):
-        """Display a tutorial step (simplified for Qt6 - full UI not yet implemented)"""
+        """Display a tutorial step"""
         if step_index < 0 or step_index >= len(self.steps):
             self._complete_tutorial()
             return
@@ -4998,45 +5035,141 @@ class TutorialManager:
         
         logger.debug(f"Showing tutorial step {step_index + 1}/{len(self.steps)}: {step.title}")
         
-        # For Qt6, show tutorial as simple message boxes for now
-        # TODO: Implement full tutorial UI with QDialog
-        if GUI_AVAILABLE:
-            msg_box = QMessageBox(self.master)
-            msg_box.setWindowTitle(step.title)
-            msg_box.setText(step.message)
-            msg_box.setIcon(QMessageBox.Icon.Information)
-            
-            # Add buttons based on step configuration
-            if step_index < len(self.steps) - 1:
-                msg_box.setStandardButtons(QMessageBox.StandardButton.Ok)
-                msg_box.button(QMessageBox.StandardButton.Ok).setText(step.button_text)
-            else:
-                msg_box.setStandardButtons(QMessageBox.StandardButton.Ok)
-                msg_box.button(QMessageBox.StandardButton.Ok).setText("Finish")
-            
-            msg_box.exec()
-            
-            # Auto-advance to next step
-            if step_index < len(self.steps) - 1:
-                self._show_step(step_index + 1)
-            else:
-                self._complete_tutorial()
+        # Create tutorial dialog
+        if self.tutorial_window:
+            self.tutorial_window.destroy()
+        
+        self.tutorial_window = ctk.CTkToplevel(self.master)
+        self.tutorial_window.title(step.title)
+        
+        # Set protocol handler for window close button (X)
+        # This ensures overlay is properly destroyed when user closes the window
+        self.tutorial_window.protocol("WM_DELETE_WINDOW", self._complete_tutorial)
+        
+        # Center the window
+        window_width = 500
+        window_height = 350 if not step.celebration else 400
+        screen_width = self.tutorial_window.winfo_screenwidth()
+        screen_height = self.tutorial_window.winfo_screenheight()
+        x = (screen_width - window_width) // 2
+        y = (screen_height - window_height) // 2
+        self.tutorial_window.geometry(f"{window_width}x{window_height}+{x}+{y}")
+        
+        # CRITICAL: Ensure tutorial window is above overlay in z-order
+        # Lower overlay topmost temporarily so tutorial window can be on top
+        if self.overlay:
+            self.overlay.attributes('-topmost', False)
+            logger.debug("Lowered overlay topmost to ensure tutorial window is clickable")
+        
+        # Make tutorial window topmost and lift it above everything
+        self.tutorial_window.attributes('-topmost', True)
+        self.tutorial_window.lift()
+        self.tutorial_window.focus_force()
+        logger.debug("Tutorial window raised above overlay and focused")
+        
+        # Content frame
+        content = ctk.CTkFrame(self.tutorial_window)
+        content.pack(fill="both", expand=True, padx=20, pady=20)
+        
+        # Title
+        title_label = ctk.CTkLabel(
+            content,
+            text=step.title,
+            font=("Arial Bold", 18)
+        )
+        title_label.pack(pady=(0, 15))
+        
+        # Message
+        message_label = ctk.CTkLabel(
+            content,
+            text=step.message,
+            font=("Arial", 12),
+            wraplength=450,
+            justify="left"
+        )
+        message_label.pack(pady=10, fill="both", expand=True)
+        
+        # Celebration effect for last step
+        if step.celebration:
+            celebration_label = ctk.CTkLabel(
+                content,
+                text="🎉 🐼 🎊 ✨ 🎈",
+                font=("Arial", 24)
+            )
+            celebration_label.pack(pady=10)
+        
+        # Progress indicator
+        progress_text = f"Step {step_index + 1} of {len(self.steps)}"
+        progress_label = ctk.CTkLabel(
+            content,
+            text=progress_text,
+            font=("Arial", 10),
+            text_color="gray"
+        )
+        progress_label.pack(pady=5)
+        
+        # Buttons frame
+        button_frame = ctk.CTkFrame(content, fg_color="transparent")
+        button_frame.pack(pady=15)
+        
+        if step.show_skip and step_index < len(self.steps) - 1:
+            skip_btn = ctk.CTkButton(
+                button_frame,
+                text="Skip Tutorial",
+                width=120,
+                command=self._skip_tutorial,
+                fg_color="gray"
+            )
+            skip_btn.pack(side="left", padx=5)
+        
+        if step.show_back and step_index > 0:
+            back_btn = ctk.CTkButton(
+                button_frame,
+                text="Back",
+                width=100,
+                command=lambda: self._show_step(step_index - 1)
+            )
+            back_btn.pack(side="left", padx=5)
+        
+        next_btn = ctk.CTkButton(
+            button_frame,
+            text=step.button_text,
+            width=120,
+            command=lambda: self._show_step(step_index + 1)
+        )
+        next_btn.pack(side="left", padx=5)
+        
+        # Don't show again checkbox on last step
+        if step_index == len(self.steps) - 1:
+            self.dont_show_var = ctk.BooleanVar(value=True)
+            dont_show_check = ctk.CTkCheckBox(
+                content,
+                text="Don't show this tutorial again",
+                variable=self.dont_show_var
+            )
+            dont_show_check.pack(pady=5)
     
     def _skip_tutorial(self):
         """Skip the tutorial"""
-        # Note: In PyQt6, the tutorial is not yet implemented with overlays
-        # This method would need full tutorial UI implementation
+        # Temporarily lower overlay so messagebox is visible
+        if self.overlay:
+            self.overlay.attributes('-topmost', False)
         
-        reply = QMessageBox.question(
-            self.master,
-            "Skip Tutorial",
-            "Are you sure you want to skip the tutorial? You can restart it later from Settings.",
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-            QMessageBox.StandardButton.No
+        # Also ensure tutorial window is above overlay
+        if self.tutorial_window:
+            self.tutorial_window.lift()
+        
+        result = messagebox.askyesno(
+            "Skip Tutorial", 
+            "Are you sure you want to skip the tutorial? You can restart it later from Settings."
         )
-        
-        if reply == QMessageBox.StandardButton.Yes:
+        if result:
             self._complete_tutorial()
+        else:
+            # User chose not to skip, ensure tutorial window is on top
+            if self.tutorial_window:
+                self.tutorial_window.lift()
+                self.tutorial_window.focus_force()
     
     def _complete_tutorial(self):
         """Complete and close the tutorial"""
@@ -5045,7 +5178,7 @@ class TutorialManager:
             
             # Check if user wants to skip tutorial in future
             try:
-                if hasattr(self, 'dont_show_var') and self.dont_show_var:
+                if hasattr(self, 'dont_show_var') and self.dont_show_var.get():
                     logger.debug("User opted to skip tutorial in future")
                     self.config.set('tutorial', 'completed', value=True)
                 else:
@@ -5060,9 +5193,32 @@ class TutorialManager:
                 logger.error(f"Failed to save tutorial preferences: {e}", exc_info=True)
                 # Continue cleanup even if config save fails
             
-            # Close tutorial windows (Qt6 version uses message boxes, no persistent window)
-            self.tutorial_window = None
-            self.overlay = None
+            # Close tutorial windows
+            try:
+                if self.tutorial_window and self.tutorial_window.winfo_exists():
+                    logger.debug("Destroying tutorial window")
+                    self.tutorial_window.destroy()
+                    self.tutorial_window = None
+                    logger.info("Tutorial window destroyed successfully")
+                elif self.tutorial_window:
+                    logger.warning("Tutorial window exists but winfo_exists() returned False")
+                    self.tutorial_window = None
+            except Exception as e:
+                logger.error(f"Error destroying tutorial window: {e}", exc_info=True)
+                self.tutorial_window = None
+            
+            try:
+                if self.overlay and self.overlay.winfo_exists():
+                    logger.debug("Destroying overlay")
+                    self.overlay.destroy()
+                    self.overlay = None
+                    logger.info("Overlay destroyed successfully")
+                elif self.overlay:
+                    logger.warning("Overlay exists but winfo_exists() returned False")
+                    self.overlay = None
+            except Exception as e:
+                logger.error(f"Error destroying overlay: {e}", exc_info=True)
+                self.overlay = None
             
             self.tutorial_active = False
             logger.info("Tutorial marked as inactive")
@@ -8234,32 +8390,40 @@ class TooltipVerbosityManager:
 
 
 class WidgetTooltip:
-    """Simple hover tooltip for widgets using Qt's built-in tooltip system.
+    """Simple hover tooltip for widgets.
     
     When ``widget_id`` and ``tooltip_manager`` are provided, the displayed
     text is resolved dynamically each time the tooltip is shown so that
     tooltip-mode changes take effect immediately without a restart.
     """
     
-    # Default tooltip display duration in milliseconds
-    # Qt default is -1 (uses system setting), we set 5 seconds for consistency
-    DEFAULT_TOOLTIP_DURATION = 5000
-    
     def __init__(self, widget, text, delay=500, widget_id=None, tooltip_manager=None):
         self.widget = widget
         self.text = text
         self.delay = delay
+        self.tip_window = None
+        self._after_id = None
+        self._auto_hide_id = None
         # Dynamic tooltip support
         self.widget_id = widget_id
         self.tooltip_manager = tooltip_manager
         
-        # Set the tooltip on the widget using Qt's built-in system
-        display_text = self._get_display_text()
-        if display_text and hasattr(widget, 'setToolTip'):
-            widget.setToolTip(display_text)
-            # Set tooltip duration if supported (5 seconds for visibility)
-            if hasattr(widget, 'setToolTipDuration'):
-                widget.setToolTipDuration(self.DEFAULT_TOOLTIP_DURATION)
+        # Bind to the widget using add="+" to avoid overriding existing bindings
+        widget.bind("<Enter>", self._on_enter, add="+")
+        widget.bind("<Leave>", self._on_leave, add="+")
+        # Also hide on mouse motion outside widget as a safety measure
+        widget.bind("<Motion>", self._on_motion, add="+")
+        
+        # Bind to internal components for CustomTkinter widgets
+        # CTK widgets use internal canvas and label that receive mouse events
+        for attr in ('_canvas', '_text_label', '_image_label'):
+            try:
+                child = getattr(widget, attr, None)
+                if child is not None:
+                    child.bind("<Enter>", self._on_enter, add="+")
+                    child.bind("<Leave>", self._on_leave, add="+")
+            except (AttributeError, tk.TclError):
+                pass
     
     def _get_display_text(self):
         """Get the text to display, resolving dynamically if possible."""
@@ -8272,17 +8436,80 @@ class WidgetTooltip:
                 logger.debug(f"Dynamic tooltip resolution failed for {self.widget_id}: {e}")
         return self.text
     
-    def update_text(self, text):
-        """Update the tooltip text"""
-        self.text = text
-        if hasattr(self.widget, 'setToolTip'):
-            self.widget.setToolTip(text)
+    def _on_enter(self, event=None):
+        if self._after_id:
+            self.widget.after_cancel(self._after_id)
+        self._after_id = self.widget.after(self.delay, self._show_tip)
     
-    def refresh(self):
-        """Refresh the tooltip with current dynamic text"""
+    def _on_motion(self, event=None):
+        """Track that mouse is still over the widget (no action needed,
+        auto-hide timer set in _show_tip handles cleanup)."""
+        pass
+    
+    def _on_leave(self, event=None):
+        # Always cancel pending tooltip display
+        if self._after_id:
+            self.widget.after_cancel(self._after_id)
+            self._after_id = None
+        # Always hide the tooltip on leave - don't try to second-guess
+        # whether the cursor is still inside. The _on_enter on child widgets
+        # will re-trigger display if needed.
+        self._hide_tip()
+    
+    def _show_tip(self):
         display_text = self._get_display_text()
-        if display_text and hasattr(self.widget, 'setToolTip'):
-            self.widget.setToolTip(display_text)
+        if not display_text:
+            return
+        
+        # Check if widget is still visible and mapped
+        try:
+            if not self.widget.winfo_ismapped():
+                return
+        except Exception:
+            return
+            
+        try:
+            x = self.widget.winfo_rootx() + 20
+            y = self.widget.winfo_rooty() + self.widget.winfo_height() + 5
+            
+            # Use regular tkinter Toplevel for lighter-weight tooltip
+            self.tip_window = tw = tk.Toplevel(self.widget)
+            tw.wm_overrideredirect(True)
+            tw.wm_geometry(f"+{x}+{y}")
+            tw.attributes('-topmost', True)
+            
+            # Create label with larger styling for better visibility
+            label = tk.Label(tw, text=display_text, wraplength=400,
+                           font=("Arial", 13),
+                           bg="#2b2b2b",
+                           fg="#ffffff",
+                           relief="solid",
+                           borderwidth=1,
+                           padx=12, pady=8)
+            label.pack()
+            
+            # Auto-hide tooltip after 5 seconds as a safety measure
+            self._auto_hide_id = self.widget.after(5000, self._hide_tip)
+        except Exception as e:
+            # Log but don't crash
+            logger.debug(f"Tooltip error: {e}")
+    
+    def _hide_tip(self):
+        if self._auto_hide_id:
+            try:
+                self.widget.after_cancel(self._auto_hide_id)
+            except Exception:
+                pass
+            self._auto_hide_id = None
+        if self.tip_window:
+            try:
+                self.tip_window.destroy()
+            except Exception:
+                pass
+            self.tip_window = None
+    
+    def update_text(self, text):
+        self.text = text
 
 
 class ContextHelp:
@@ -8293,10 +8520,9 @@ class ContextHelp:
         self.config = config
         self.help_window = None
         
-        # Bind F1 key globally (Qt6 uses different event system)
-        # TODO: Implement Qt6 key binding for F1
-        # In Qt6, this would be done with QShortcut or installEventFilter
-        pass
+        # Bind F1 key globally
+        if GUI_AVAILABLE:
+            self.master.bind('<F1>', self._show_context_help)
     
     def _show_context_help(self, event=None):
         """Show help based on current context"""
@@ -8306,22 +8532,116 @@ class ContextHelp:
         # Get current focused widget or active tab
         context = self._determine_context()
         
-        # Show help as QMessageBox for now
-        # TODO: Create proper QDialog with scrollable help content
-        help_text = self._get_help_text(context)
-        
-        msg_box = QMessageBox(self.master)
-        msg_box.setWindowTitle(f"Help: {context.capitalize()}")
-        msg_box.setText(help_text)
-        msg_box.setIcon(QMessageBox.Icon.Information)
-        msg_box.setStandardButtons(QMessageBox.StandardButton.Ok)
-        msg_box.exec()
+        # Create or update help window
+        if self.help_window and self.help_window.winfo_exists():
+            self._update_help_content(context)
+            # Ensure existing help window is brought to front
+            self._lift_help_window()
+        else:
+            self._create_help_window(context)
     
     def _determine_context(self) -> str:
         """Determine what context the user is currently in"""
-        # Qt6 version - simplified
-        # TODO: Implement proper context detection using Qt's focus system
+        # Try to get the current tab
+        try:
+            focused = self.master.focus_get()
+            if focused:
+                # Analyze the widget hierarchy to determine context
+                widget_name = str(focused)
+                if 'sort' in widget_name.lower():
+                    return 'sort'
+                elif 'convert' in widget_name.lower():
+                    return 'convert'
+                elif 'browser' in widget_name.lower():
+                    return 'browser'
+                elif 'settings' in widget_name.lower():
+                    return 'settings'
+                elif 'notepad' in widget_name.lower():
+                    return 'notepad'
+        except Exception:
+            pass
+        
         return 'general'
+    
+    def _create_help_window(self, context: str):
+        """Create the help window"""
+        self.help_window = ctk.CTkToplevel(self.master)
+        self.help_window.title("❓ Help & Documentation")
+        self.help_window.geometry("700x600")
+        
+        # Bring window to front without forcing it to stay permanently on top
+        self.help_window.after(100, lambda: self._lift_help_window())
+        
+        # Create content
+        self._update_help_content(context)
+    
+    def _lift_help_window(self):
+        """Ensure help window is visible above the main application"""
+        try:
+            if self.help_window and self.help_window.winfo_exists():
+                self.help_window.lift()
+                self.help_window.focus_force()
+        except Exception:
+            pass
+    
+    def _update_help_content(self, context: str):
+        """Update help content based on context"""
+        # Clear existing content
+        for widget in self.help_window.winfo_children():
+            widget.destroy()
+        
+        # Main frame
+        main_frame = ctk.CTkFrame(self.help_window)
+        main_frame.pack(fill="both", expand=True, padx=20, pady=20)
+        
+        # Title
+        title = ctk.CTkLabel(
+            main_frame,
+            text=f"Help: {context.capitalize()}",
+            font=("Arial Bold", 20)
+        )
+        title.pack(pady=(0, 20))
+        
+        # Scrollable content
+        scroll_frame = ctk.CTkScrollableFrame(main_frame)
+        scroll_frame.pack(fill="both", expand=True)
+        
+        # Get help content for context
+        help_text = self._get_help_text(context)
+        
+        help_label = ctk.CTkLabel(
+            scroll_frame,
+            text=help_text,
+            font=("Arial", 12),
+            wraplength=600,
+            justify="left"
+        )
+        help_label.pack(pady=10, padx=10)
+        
+        # Quick links
+        links_frame = ctk.CTkFrame(main_frame)
+        links_frame.pack(fill="x", pady=(10, 0))
+        
+        ctk.CTkButton(
+            links_frame,
+            text="Quick Start",
+            width=120,
+            command=lambda: self._update_help_content('quickstart')
+        ).pack(side="left", padx=5)
+        
+        ctk.CTkButton(
+            links_frame,
+            text="FAQ",
+            width=120,
+            command=lambda: self._update_help_content('faq')
+        ).pack(side="left", padx=5)
+        
+        ctk.CTkButton(
+            links_frame,
+            text="Close",
+            width=120,
+            command=self.help_window.destroy
+        ).pack(side="right", padx=5)
     
     def _get_help_text(self, context: str) -> str:
         """Get help text for a specific context"""

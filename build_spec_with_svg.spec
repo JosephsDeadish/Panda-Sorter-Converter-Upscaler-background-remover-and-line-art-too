@@ -186,16 +186,28 @@ a = Analysis(
         'sqlite3',
         'send2trash',
         'watchdog',
-        # UI framework
-        'tkinter',
-        'tkinter.ttk',
-        'customtkinter',
+        # Qt6 UI framework (REQUIRED - ONLY SUPPORTED UI)
+        # NO TKINTER - Full Qt6 migration complete
+        'PyQt6',
+        'PyQt6.QtCore',
+        'PyQt6.QtGui',
+        'PyQt6.QtWidgets',
+        'PyQt6.QtOpenGL',
+        'PyQt6.QtOpenGLWidgets',
+        'PyQt6.sip',
+        # OpenGL for 3D rendering (panda, skeletal animations)
+        'OpenGL',
+        'OpenGL.GL',
+        'OpenGL.GLU',
+        'OpenGL.GLUT',
+        'OpenGL.arrays',
+        'OpenGL.arrays.vbo',
+        'OpenGL.GL.shaders',
         'darkdetect',
         # Utilities
         'psutil',
         'colorama',
-        'yaml',
-        'pyyaml',
+        'yaml',  # pyyaml package imports as 'yaml'
         'tqdm',
         'xxhash',
         # Archive support
@@ -220,8 +232,17 @@ a = Analysis(
     ],
     hookspath=[str(SCRIPT_DIR)],  # Use hooks in project root (hook-*.py files)
     hooksconfig={},
-    runtime_hooks=['pyi_rth_tkinter_fix.py'],
+    runtime_hooks=[],  # Removed tkinter runtime hook - not needed for Qt6
     excludes=[
+        # Tkinter/CustomTkinter - NO LONGER USED (full Qt6 migration complete)
+        'tkinter',
+        'tkinter.ttk',
+        'tkinter.messagebox',
+        'tkinter.filedialog',
+        'customtkinter',
+        'tkinterdnd2',
+        '_tkinter',
+        
         # Heavy scientific libraries (not needed)
         'matplotlib',
         'scipy',

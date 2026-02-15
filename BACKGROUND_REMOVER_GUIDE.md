@@ -43,13 +43,16 @@ AI-powered background remover for automatic subject isolation from images with t
 
 ### Installation
 ```bash
-# Install required dependencies
-pip install rembg
+# Install required dependencies with CPU backend
+pip install "rembg[cpu]"
+
+# For GPU support (NVIDIA/CUDA):
+pip install "rembg[gpu]"
 
 # Install optional dependencies for advanced features
 pip install opencv-python
 
-# The models are downloaded automatically on first use
+# The AI models are downloaded automatically on first use
 ```
 
 ## Usage
@@ -244,10 +247,14 @@ if __name__ == "__main__":
 
 ## Troubleshooting
 
-### Issue: "rembg not available"
-**Solution**: Install rembg library
+### Issue: "rembg not available" or "No onnxruntime backend found"
+**Solution**: Install rembg library with CPU or GPU backend
 ```bash
-pip install rembg
+# For CPU (recommended)
+pip install "rembg[cpu]"
+
+# For GPU (NVIDIA/CUDA)
+pip install "rembg[gpu]"
 ```
 
 ### Issue: Slow processing

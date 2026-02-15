@@ -167,8 +167,9 @@ pyinstaller>=6.0.0  # Create standalone executables (>= 6.0.0 for security fixes
 #
 
 # AI Background Removal Tool
-rembg>=2.0.50  # AI-powered background removal
-onnxruntime>=1.16.0  # Required by rembg for AI models
+# Note: rembg must be installed with [cpu] or [gpu] extras to include onnxruntime backend
+rembg[cpu]>=2.0.50  # AI-powered background removal with CPU backend
+# onnxruntime is included via rembg[cpu], no need to specify separately
 
 # Image Metadata
 piexif>=1.1.3  # EXIF metadata reading/writing for batch rename

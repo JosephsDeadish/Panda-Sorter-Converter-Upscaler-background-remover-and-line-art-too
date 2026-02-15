@@ -137,9 +137,13 @@ A: Click the Panda icon in the toolbar to show/hide the panda widget. It starts 
 ## Troubleshooting
 
 ### Q: "Background removal not available" error?
-A: Install the required package:
+A: Install the required package with CPU or GPU backend:
 ```bash
-pip install rembg
+# For CPU (recommended)
+pip install "rembg[cpu]"
+
+# For GPU (NVIDIA/CUDA)
+pip install "rembg[gpu]"
 ```
 
 ### Q: The app won't start. What do I do?

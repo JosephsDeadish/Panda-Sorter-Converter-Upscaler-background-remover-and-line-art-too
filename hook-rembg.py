@@ -7,6 +7,10 @@ collected and bundled with the application.
 
 Note: This hook collects metadata without importing rembg to avoid
 DLL initialization issues during PyInstaller analysis phase.
+
+IMPORTANT: rembg must be installed with [cpu] or [gpu] extras:
+    pip install "rembg[cpu]"  # for CPU
+    pip install "rembg[gpu]"  # for GPU
 """
 
 from PyInstaller.utils.hooks import collect_data_files, collect_dynamic_libs
@@ -17,6 +21,16 @@ import sys
 hiddenimports = []
 datas = []
 binaries = []
+
+# Check if onnxruntime is available (required by rembg)
+try:
+    import onnxruntime
+    has_onnxruntime = True
+except ImportError:
+    has_onnxruntime = False
+    print("[rembg hook] WARNING: onnxruntime not found!")
+    print("[rembg hook] rembg requires onnxruntime backend.")
+    print("[rembg hook] Install with: pip install 'rembg[cpu]'")
 
 # Try to collect rembg data, but don't fail if it's not importable
 try:
@@ -36,9 +50,6 @@ try:
         'rembg.sessions.u2net_cloth_seg',
         'rembg.sessions.silueta',
         'rembg.sessions.isnet',
-        'onnxruntime',
-        'onnxruntime.capi',
-        'onnxruntime.capi._pybind_state',
         'PIL',
         'PIL.Image',
         'numpy',
@@ -46,6 +57,14 @@ try:
         'pooch',
         'tqdm',
     ]
+    
+    # Only add onnxruntime if it's available
+    if has_onnxruntime:
+        hiddenimports.extend([
+            'onnxruntime',
+            'onnxruntime.capi',
+            'onnxruntime.capi._pybind_state',
+        ])
     
     # Try to collect data files (model files, config, etc.)
     try:
@@ -60,6 +79,15 @@ try:
     except Exception as e:
         print(f"[rembg hook] Warning: Could not collect binaries: {e}")
         binaries = []
+    
+    # Try to collect onnxruntime DLLs
+    if has_onnxruntime:
+        try:
+            onnx_binaries = collect_dynamic_libs('onnxruntime')
+            if onnx_binaries:
+                binaries.extend(onnx_binaries)
+        except Exception as e:
+            print(f"[rembg hook] Warning: Could not collect onnxruntime binaries: {e}")
     
     print(f"[rembg hook] Collected {len(hiddenimports)} hidden imports")
     print(f"[rembg hook] Collected {len(datas)} data files")
