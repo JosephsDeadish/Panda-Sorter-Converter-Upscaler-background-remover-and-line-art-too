@@ -46,10 +46,11 @@ image = loader.load_svg(
 
 # Use with Qt6
 if image:
-    from PyQt6.QtGui import QPixmap, QIcon
-    from PyQt6.QtCore import Qt
+    from PyQt6.QtGui import QPixmap
+    from PIL.ImageQt import ImageQt
     # Convert PIL Image to QPixmap
-    pixmap = QPixmap.fromImage(image.toqimage())
+    qimage = ImageQt(image)
+    pixmap = QPixmap.fromImage(qimage)
     label.setPixmap(pixmap)
 ```
 
@@ -171,7 +172,9 @@ spinner_img = loader.svg_from_string(svg_str, size=(48, 48))
 
 # Show in UI with Qt6
 if spinner_img:
-    pixmap = QPixmap.fromImage(spinner_img.toqimage())
+    from PIL.ImageQt import ImageQt
+    qimage = ImageQt(spinner_img)
+    pixmap = QPixmap.fromImage(qimage)
     loading_label.setPixmap(pixmap)
 ```
 
