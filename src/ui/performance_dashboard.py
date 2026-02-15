@@ -322,7 +322,7 @@ class PerformanceDashboard(QFrame):
         self.metrics.update()
         summary = self.metrics.get_summary()
         
-        # Update labels with setText (Qt method, not tkinter configure)
+        # Update labels
         self.speed_label.setText(
             f"Speed: {summary['avg_speed_fps']:.2f} files/sec"
         )

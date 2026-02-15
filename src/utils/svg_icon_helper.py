@@ -6,7 +6,7 @@ Uses QIcon and QPixmap instead of customtkinter.
 
 from PyQt6.QtGui import QIcon, QPixmap, QPainter
 from PyQt6.QtSvg import QSvgRenderer
-from PyQt6.QtCore import QSize, QByteArray
+from PyQt6.QtCore import QSize, QByteArray, Qt
 from pathlib import Path
 from typing import Optional, Dict, List, Tuple
 import logging
@@ -82,9 +82,9 @@ class SVGIconHelper:
                 logger.warning(f"Invalid SVG file: {icon_path}")
                 return None
             
-            # Create pixmap at desired size
+            # Create pixmap at desired size with transparent background
             pixmap = QPixmap(size[0], size[1])
-            pixmap.fill(0x00000000)  # Transparent background
+            pixmap.fill(Qt.GlobalColor.transparent)
             
             # Render SVG to pixmap
             painter = QPainter(pixmap)
