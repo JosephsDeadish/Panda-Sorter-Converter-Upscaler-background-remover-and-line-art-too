@@ -58,17 +58,14 @@ class PandaCharacter:
     The panda is rendered in 3D using OpenGL hardware acceleration (panda_widget_gl.py).
     Animation states listed here are used by the 3D rendering system to determine
     body motion, limb positions, rotations, and visual effects.
-    
-    For backwards compatibility, the old canvas-based renderer (panda_widget.py)
-    is still available but deprecated.
     """
     
     # Configuration constants
     RAGE_CLICK_THRESHOLD = 10  # Number of clicks to trigger rage mode
     
     # Body part region boundaries (relative position 0.0-1.0 in 3D space)
-    # These define clickable regions for body part interactions in both 2D and 3D modes.
-    # In 3D OpenGL mode, these are used for ray-casting hit detection.
+    # These define clickable regions for body part interactions.
+    # In OpenGL mode, these are used for ray-casting hit detection.
     HEAD_BOUNDARY = 0.43
     EAR_BOUNDARY = 0.22
     EYE_BOUNDARY_TOP = 0.22
@@ -78,7 +75,7 @@ class PandaCharacter:
     BODY_BOUNDARY = 0.72
     BUTT_BOUNDARY = 0.78
     
-    # Valid animation state names used by the 3D panda renderer
+    # Valid animation state names used by the OpenGL panda renderer
     ANIMATION_STATES = [
         'idle', 'working', 'celebrating', 'rage', 'sarcastic', 'drunk',
         'playing', 'eating', 'customizing', 'sleeping', 'laying_down',
@@ -1079,8 +1076,8 @@ class PandaCharacter:
     def get_animation_state(self, animation_name: str = 'idle') -> str:
         """Get a valid animation state name.
         
-        Animation rendering is handled by the canvas-drawn panda in
-        panda_widget.py. This method validates and returns the state name.
+        Animation rendering is handled by the OpenGL panda widget in
+        panda_widget_gl.py. This method validates and returns the state name.
         
         Args:
             animation_name: Requested animation state
@@ -1095,20 +1092,20 @@ class PandaCharacter:
     def get_animation_frame(self, animation_name: str = 'idle') -> str:
         """Get animation state name for current state.
         
-        The panda is rendered on a tkinter canvas. This returns the
-        animation state name for the canvas drawing system.
+        The panda is rendered using OpenGL. This returns the
+        animation state name for the rendering system.
         """
         return self.get_animation_state(animation_name)
     
     def get_animation_frame_sequential(self, animation_name: str = 'idle', frame_index: int = 0) -> str:
-        """Get animation state name (frame_index used by canvas renderer).
+        """Get animation state name (frame_index used by renderer).
         
-        The panda is rendered on a tkinter canvas which handles frame
+        The panda is rendered using OpenGL which handles frame
         progression internally. This returns the animation state name.
         
         Args:
             animation_name: Name of the animation state
-            frame_index: Frame counter (used by canvas renderer)
+            frame_index: Frame counter (used by renderer)
             
         Returns:
             The animation state name
@@ -1528,8 +1525,8 @@ class PandaCharacter:
             # If nothing triggers, keep current mood
     
     # Arm detection X boundaries (arms occupy the outer portions of the body width)
-    # Left arm: canvas x from 55 to 80 → rel_x 0.25–0.36
-    # Right arm: canvas x from 140 to 165 → rel_x 0.64–0.75
+    # Left arm: OpenGL x from -0.3 to -0.15 → rel_x 0.25–0.36
+    # Right arm: OpenGL x from 0.15 to 0.3 → rel_x 0.64–0.75
     # Widen detection inward so the full arm oval is grabbable.
     ARM_LEFT_BOUNDARY = 0.38   # Left 38% is left arm zone (covers full arm + paw)
     ARM_RIGHT_BOUNDARY = 0.62  # Right 38% is right arm zone (covers full arm + paw)
@@ -1541,13 +1538,13 @@ class PandaCharacter:
     HAND_RIGHT_BOUNDARY = 0.75 # Right hand extends further out than arm
     
     # Ear detection X boundaries (ears are on sides of head)
-    # Left ear drawn at canvas x 72–94 → rel_x 0.33–0.43
-    # Right ear drawn at canvas x 124–148 → rel_x 0.56–0.67
+    # Left ear: OpenGL x around -0.25 → rel_x 0.33–0.43
+    # Right ear: OpenGL x around 0.25 → rel_x 0.56–0.67
     EAR_LEFT_BOUNDARY = 0.45   # Left ear zone (rel_x < 0.45)
     EAR_RIGHT_BOUNDARY = 0.55  # Right ear zone (rel_x > 0.55)
     
     # Eye detection X boundaries
-    # Left eye at canvas x 86 → rel_x 0.39, right eye at 134 → rel_x 0.61
+    # Left eye at OpenGL x -0.15 → rel_x 0.39, right eye at 0.15 → rel_x 0.61
     EYE_LEFT_CENTER = 0.39     # Left eye center
     EYE_RIGHT_CENTER = 0.61    # Right eye center
     EYE_RADIUS_X = 0.08        # Eye click radius
@@ -1555,7 +1552,7 @@ class PandaCharacter:
     def get_body_part_at_position(self, rel_y: float, rel_x: float = 0.5) -> str:
         """Determine which body part is at a relative position.
         
-        The panda is drawn with body-shaped canvas rendering,
+        The panda is rendered in 3D with OpenGL,
         now with detailed detection for individual limbs, ears, eyes, and nose:
         - left_ear/right_ear: top corners (< 15% Y, far left/right)
         - left_eye/right_eye: upper face (~15-25% Y, near centers)

@@ -1,27 +1,22 @@
 """
-Performance Dashboard
-Real-time monitoring of processing speed, memory, and queue status
+Performance Dashboard - Pure Qt Implementation
+Real-time monitoring of processing speed, memory, and queue status.
+Uses PyQt6 with QTimer for updates - NO tkinter, NO customtkinter.
 """
 
-import customtkinter as ctk
+from PyQt6.QtWidgets import (
+    QWidget, QFrame, QLabel, QSlider, QVBoxLayout, QHBoxLayout, QGridLayout
+)
+from PyQt6.QtCore import Qt, QTimer
+from PyQt6.QtGui import QFont
 import psutil
 import time
-import threading
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, Optional
 from collections import deque
-from datetime import datetime, timedelta
+from datetime import timedelta
 import logging
 
 logger = logging.getLogger(__name__)
-
-# Try to import SVG icon helper
-try:
-    from src.utils.svg_icon_helper import load_icon
-    SVG_ICONS_AVAILABLE = True
-except ImportError:
-    load_icon = None
-    SVG_ICONS_AVAILABLE = False
-    logger.warning("SVG icons not available for Performance Dashboard")
 
 # Try to import tooltip system
 try:
@@ -143,21 +138,25 @@ class PerformanceMetrics:
         }
 
 
-class PerformanceDashboard(ctk.CTkFrame):
+class PerformanceDashboard(QFrame):
     """
-    Real-time performance dashboard widget.
+    Real-time performance dashboard widget using pure Qt.
     Shows processing speed, memory usage, queue status, and more.
+    Uses QTimer for updates instead of tkinter .after().
     """
     
-    def __init__(self, master, unlockables_system=None, tooltip_manager=None, **kwargs):
-        super().__init__(master, **kwargs)
+    def __init__(self, parent=None, unlockables_system=None, tooltip_manager=None):
+        super().__init__(parent)
         
         self.unlockables_system = unlockables_system
         self.tooltip_manager = tooltip_manager
         self.metrics = PerformanceMetrics()
-        self.update_interval = 1000  # 1 second
-        self.update_job = None
         self.running = False
+        
+        # Qt timer for updates instead of tkinter .after()
+        self.update_timer = QTimer(self)
+        self.update_timer.setInterval(1000)  # 1 second
+        self.update_timer.timeout.connect(self._update)
         
         # Parallel processing control
         self.max_workers = psutil.cpu_count()
@@ -168,177 +167,154 @@ class PerformanceDashboard(ctk.CTkFrame):
         self._add_tooltips()
     
     def _create_widgets(self):
-        """Create dashboard widgets."""
-        # Title
-        title_label = ctk.CTkLabel(
-            self,
-            text="📊 Performance Dashboard",
-            font=("Arial Bold", 16)
-        )
-        title_label.pack(pady=(10, 5))
+        """Create dashboard widgets using pure Qt."""
+        # Main layout
+        main_layout = QVBoxLayout(self)
+        main_layout.setContentsMargins(10, 10, 10, 10)
+        main_layout.setSpacing(5)
         
-        # Main content in grid layout
-        content_frame = ctk.CTkFrame(self)
-        content_frame.pack(fill="both", expand=True, padx=10, pady=5)
+        # Title
+        title_label = QLabel("📊 Performance Dashboard")
+        title_font = QFont("Arial", 16, QFont.Weight.Bold)
+        title_label.setFont(title_font)
+        title_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        main_layout.addWidget(title_label)
+        
+        # Content frame with grid layout
+        content_frame = QFrame()
+        content_layout = QGridLayout(content_frame)
+        content_layout.setSpacing(5)
         
         # Left column: Processing Stats
-        stats_frame = ctk.CTkFrame(content_frame)
-        stats_frame.grid(row=0, column=0, sticky="nsew", padx=5, pady=5)
+        stats_frame = QFrame()
+        stats_frame.setFrameStyle(QFrame.Shape.StyledPanel | QFrame.Shadow.Raised)
+        stats_layout = QVBoxLayout(stats_frame)
         
-        ctk.CTkLabel(
-            stats_frame,
-            text="⚡ Processing",
-            font=("Arial Bold", 14)
-        ).pack(anchor="w", padx=10, pady=5)
+        stats_title = QLabel("⚡ Processing")
+        stats_title_font = QFont("Arial", 14, QFont.Weight.Bold)
+        stats_title.setFont(stats_title_font)
+        stats_layout.addWidget(stats_title)
         
-        self.speed_label = ctk.CTkLabel(
-            stats_frame,
-            text="Speed: 0.0 files/sec",
-            font=("Arial", 12)
-        )
-        self.speed_label.pack(anchor="w", padx=10, pady=2)
+        normal_font = QFont("Arial", 12)
         
-        self.throughput_label = ctk.CTkLabel(
-            stats_frame,
-            text="Throughput: 0.0 MB/sec",
-            font=("Arial", 12)
-        )
-        self.throughput_label.pack(anchor="w", padx=10, pady=2)
+        self.speed_label = QLabel("Speed: 0.0 files/sec")
+        self.speed_label.setFont(normal_font)
+        stats_layout.addWidget(self.speed_label)
         
-        self.files_processed_label = ctk.CTkLabel(
-            stats_frame,
-            text="Processed: 0 files",
-            font=("Arial", 12)
-        )
-        self.files_processed_label.pack(anchor="w", padx=10, pady=2)
+        self.throughput_label = QLabel("Throughput: 0.0 MB/sec")
+        self.throughput_label.setFont(normal_font)
+        stats_layout.addWidget(self.throughput_label)
+        
+        self.files_processed_label = QLabel("Processed: 0 files")
+        self.files_processed_label.setFont(normal_font)
+        stats_layout.addWidget(self.files_processed_label)
+        
+        stats_layout.addStretch()
+        content_layout.addWidget(stats_frame, 0, 0)
         
         # Middle column: System Resources
-        resources_frame = ctk.CTkFrame(content_frame)
-        resources_frame.grid(row=0, column=1, sticky="nsew", padx=5, pady=5)
+        resources_frame = QFrame()
+        resources_frame.setFrameStyle(QFrame.Shape.StyledPanel | QFrame.Shadow.Raised)
+        resources_layout = QVBoxLayout(resources_frame)
         
-        ctk.CTkLabel(
-            resources_frame,
-            text="💻 System Resources",
-            font=("Arial Bold", 14)
-        ).pack(anchor="w", padx=10, pady=5)
+        resources_title = QLabel("💻 System Resources")
+        resources_title.setFont(stats_title_font)
+        resources_layout.addWidget(resources_title)
         
-        self.memory_label = ctk.CTkLabel(
-            resources_frame,
-            text="Memory: 0 MB (Peak: 0 MB)",
-            font=("Arial", 12)
-        )
-        self.memory_label.pack(anchor="w", padx=10, pady=2)
+        self.memory_label = QLabel("Memory: 0 MB (Peak: 0 MB)")
+        self.memory_label.setFont(normal_font)
+        resources_layout.addWidget(self.memory_label)
         
-        self.cpu_label = ctk.CTkLabel(
-            resources_frame,
-            text="CPU: 0% (Peak: 0%)",
-            font=("Arial", 12)
-        )
-        self.cpu_label.pack(anchor="w", padx=10, pady=2)
+        self.cpu_label = QLabel("CPU: 0% (Peak: 0%)")
+        self.cpu_label.setFont(normal_font)
+        resources_layout.addWidget(self.cpu_label)
         
-        # Available memory
         available_memory = psutil.virtual_memory().available / (1024 * 1024 * 1024)
-        self.available_label = ctk.CTkLabel(
-            resources_frame,
-            text=f"Available: {available_memory:.1f} GB",
-            font=("Arial", 12)
-        )
-        self.available_label.pack(anchor="w", padx=10, pady=2)
+        self.available_label = QLabel(f"Available: {available_memory:.1f} GB")
+        self.available_label.setFont(normal_font)
+        resources_layout.addWidget(self.available_label)
+        
+        resources_layout.addStretch()
+        content_layout.addWidget(resources_frame, 0, 1)
         
         # Right column: Queue Status
-        queue_frame = ctk.CTkFrame(content_frame)
-        queue_frame.grid(row=0, column=2, sticky="nsew", padx=5, pady=5)
+        queue_frame = QFrame()
+        queue_frame.setFrameStyle(QFrame.Shape.StyledPanel | QFrame.Shadow.Raised)
+        queue_layout = QVBoxLayout(queue_frame)
         
-        ctk.CTkLabel(
-            queue_frame,
-            text="📋 Queue Status",
-            font=("Arial Bold", 14)
-        ).pack(anchor="w", padx=10, pady=5)
+        queue_title = QLabel("📋 Queue Status")
+        queue_title.setFont(stats_title_font)
+        queue_layout.addWidget(queue_title)
         
-        self.queue_pending_label = ctk.CTkLabel(
-            queue_frame,
-            text="⏳ Pending: 0",
-            font=("Arial", 12)
-        )
-        self.queue_pending_label.pack(anchor="w", padx=10, pady=2)
+        self.queue_pending_label = QLabel("⏳ Pending: 0")
+        self.queue_pending_label.setFont(normal_font)
+        queue_layout.addWidget(self.queue_pending_label)
         
-        self.queue_processing_label = ctk.CTkLabel(
-            queue_frame,
-            text="🔄 Processing: 0",
-            font=("Arial", 12)
-        )
-        self.queue_processing_label.pack(anchor="w", padx=10, pady=2)
+        self.queue_processing_label = QLabel("🔄 Processing: 0")
+        self.queue_processing_label.setFont(normal_font)
+        queue_layout.addWidget(self.queue_processing_label)
         
-        self.queue_completed_label = ctk.CTkLabel(
-            queue_frame,
-            text="✅ Completed: 0",
-            font=("Arial", 12)
-        )
-        self.queue_completed_label.pack(anchor="w", padx=10, pady=2)
+        self.queue_completed_label = QLabel("✅ Completed: 0")
+        self.queue_completed_label.setFont(normal_font)
+        queue_layout.addWidget(self.queue_completed_label)
         
-        self.queue_failed_label = ctk.CTkLabel(
-            queue_frame,
-            text="❌ Failed: 0",
-            font=("Arial", 12)
-        )
-        self.queue_failed_label.pack(anchor="w", padx=10, pady=2)
+        self.queue_failed_label = QLabel("❌ Failed: 0")
+        self.queue_failed_label.setFont(normal_font)
+        queue_layout.addWidget(self.queue_failed_label)
         
-        # Estimated completion time
-        self.eta_label = ctk.CTkLabel(
-            queue_frame,
-            text="ETA: --:--:--",
-            font=("Arial Bold", 12)
-        )
-        self.eta_label.pack(anchor="w", padx=10, pady=5)
+        eta_font = QFont("Arial", 12, QFont.Weight.Bold)
+        self.eta_label = QLabel("ETA: --:--:--")
+        self.eta_label.setFont(eta_font)
+        queue_layout.addWidget(self.eta_label)
         
-        # Configure grid weights
-        content_frame.grid_columnconfigure(0, weight=1)
-        content_frame.grid_columnconfigure(1, weight=1)
-        content_frame.grid_columnconfigure(2, weight=1)
-        content_frame.grid_rowconfigure(0, weight=1)
+        queue_layout.addStretch()
+        content_layout.addWidget(queue_frame, 0, 2)
+        
+        # Make columns equal width
+        content_layout.setColumnStretch(0, 1)
+        content_layout.setColumnStretch(1, 1)
+        content_layout.setColumnStretch(2, 1)
+        
+        main_layout.addWidget(content_frame)
         
         # Parallel Processing Control
-        parallel_frame = ctk.CTkFrame(self)
-        parallel_frame.pack(fill="x", padx=10, pady=5)
+        parallel_frame = QFrame()
+        parallel_frame.setFrameStyle(QFrame.Shape.StyledPanel | QFrame.Shadow.Raised)
+        parallel_layout = QHBoxLayout(parallel_frame)
         
-        ctk.CTkLabel(
-            parallel_frame,
-            text="⚙️ Parallel Processing:",
-            font=("Arial Bold", 12)
-        ).pack(side="left", padx=10)
+        parallel_title = QLabel("⚙️ Parallel Processing:")
+        parallel_title_font = QFont("Arial", 12, QFont.Weight.Bold)
+        parallel_title.setFont(parallel_title_font)
+        parallel_layout.addWidget(parallel_title)
         
-        self.workers_slider = ctk.CTkSlider(
-            parallel_frame,
-            from_=1,
-            to=self.max_workers,
-            number_of_steps=self.max_workers - 1,
-            command=self._on_workers_changed
-        )
-        self.workers_slider.set(self.current_workers)
-        self.workers_slider.pack(side="left", fill="x", expand=True, padx=10)
+        self.workers_slider = QSlider(Qt.Orientation.Horizontal)
+        self.workers_slider.setMinimum(1)
+        self.workers_slider.setMaximum(self.max_workers)
+        self.workers_slider.setValue(self.current_workers)
+        self.workers_slider.setTickPosition(QSlider.TickPosition.TicksBelow)
+        self.workers_slider.setTickInterval(1)
+        self.workers_slider.valueChanged.connect(self._on_workers_changed)
+        parallel_layout.addWidget(self.workers_slider, 1)
         
-        self.workers_label = ctk.CTkLabel(
-            parallel_frame,
-            text=f"1 / {self.max_workers} workers",
-            font=("Arial", 12)
-        )
-        self.workers_label.pack(side="left", padx=10)
+        self.workers_label = QLabel(f"1 / {self.max_workers} workers")
+        self.workers_label.setFont(normal_font)
+        parallel_layout.addWidget(self.workers_label)
+        
+        main_layout.addWidget(parallel_frame)
     
     def start(self):
-        """Start performance monitoring."""
+        """Start performance monitoring using Qt timer."""
         self.running = True
         self.metrics.start_time = time.time()
-        self._update()
+        self.update_timer.start()
     
     def stop(self):
         """Stop performance monitoring."""
         self.running = False
-        if self.update_job:
-            self.after_cancel(self.update_job)
-            self.update_job = None
+        self.update_timer.stop()
     
     def _update(self):
-        """Update dashboard display."""
+        """Update dashboard display using Qt widgets."""
         if not self.running:
             return
         
@@ -346,60 +322,57 @@ class PerformanceDashboard(ctk.CTkFrame):
         self.metrics.update()
         summary = self.metrics.get_summary()
         
-        # Update labels
-        self.speed_label.configure(
-            text=f"Speed: {summary['avg_speed_fps']:.2f} files/sec"
+        # Update labels with setText (Qt method, not tkinter configure)
+        self.speed_label.setText(
+            f"Speed: {summary['avg_speed_fps']:.2f} files/sec"
         )
         
         throughput_mbps = summary['mb_processed'] / max(summary['elapsed_time'], 1)
-        self.throughput_label.configure(
-            text=f"Throughput: {throughput_mbps:.2f} MB/sec"
+        self.throughput_label.setText(
+            f"Throughput: {throughput_mbps:.2f} MB/sec"
         )
         
-        self.files_processed_label.configure(
-            text=f"Processed: {summary['files_processed']} files"
+        self.files_processed_label.setText(
+            f"Processed: {summary['files_processed']} files"
         )
         
-        self.memory_label.configure(
-            text=f"Memory: {summary['current_memory_mb']:.1f} MB (Peak: {summary['peak_memory_mb']:.1f} MB)"
+        self.memory_label.setText(
+            f"Memory: {summary['current_memory_mb']:.1f} MB (Peak: {summary['peak_memory_mb']:.1f} MB)"
         )
         
-        self.cpu_label.configure(
-            text=f"CPU: {summary['current_cpu_percent']:.1f}% (Peak: {summary['peak_cpu_percent']:.1f}%)"
+        self.cpu_label.setText(
+            f"CPU: {summary['current_cpu_percent']:.1f}% (Peak: {summary['peak_cpu_percent']:.1f}%)"
         )
         
-        self.queue_pending_label.configure(
-            text=f"⏳ Pending: {summary['queue_pending']}"
+        self.queue_pending_label.setText(
+            f"⏳ Pending: {summary['queue_pending']}"
         )
         
-        self.queue_processing_label.configure(
-            text=f"🔄 Processing: {summary['queue_processing']}"
+        self.queue_processing_label.setText(
+            f"🔄 Processing: {summary['queue_processing']}"
         )
         
-        self.queue_completed_label.configure(
-            text=f"✅ Completed: {summary['queue_completed']}"
+        self.queue_completed_label.setText(
+            f"✅ Completed: {summary['queue_completed']}"
         )
         
-        self.queue_failed_label.configure(
-            text=f"❌ Failed: {summary['queue_failed']}"
+        self.queue_failed_label.setText(
+            f"❌ Failed: {summary['queue_failed']}"
         )
         
         # ETA
         eta_seconds = summary['estimated_completion']
         if eta_seconds is not None and eta_seconds > 0:
             eta_time = str(timedelta(seconds=int(eta_seconds)))
-            self.eta_label.configure(text=f"ETA: {eta_time}")
+            self.eta_label.setText(f"ETA: {eta_time}")
         else:
-            self.eta_label.configure(text="ETA: --:--:--")
-        
-        # Schedule next update
-        self.update_job = self.after(self.update_interval, self._update)
+            self.eta_label.setText("ETA: --:--:--")
     
     def _on_workers_changed(self, value):
         """Handle worker count slider change."""
         self.current_workers = int(value)
-        self.workers_label.configure(
-            text=f"{self.current_workers} / {self.max_workers} workers"
+        self.workers_label.setText(
+            f"{self.current_workers} / {self.max_workers} workers"
         )
     
     def update_queue_status(self, pending: int, processing: int, completed: int, failed: int):

@@ -1,9 +1,12 @@
 """
-SVG Icon Integration Helper
-Provides easy integration of SVG icons into CustomTkinter UI panels.
+SVG Icon Integration Helper - Pure Qt Implementation
+Provides easy integration of SVG icons into Qt UI panels.
+Uses QIcon and QPixmap instead of customtkinter.
 """
 
-import customtkinter as ctk
+from PyQt6.QtGui import QIcon, QPixmap, QPainter
+from PyQt6.QtSvg import QSvgRenderer
+from PyQt6.QtCore import QSize, QByteArray
 from pathlib import Path
 from typing import Optional, Dict, List, Tuple
 import logging
@@ -14,20 +17,14 @@ try:
 except ImportError:
     HAS_PIL = False
 
-try:
-    from src.utils.svg_support import SVGLoader
-    HAS_SVG_SUPPORT = True
-except ImportError:
-    HAS_SVG_SUPPORT = False
-    SVGLoader = None
-
 logger = logging.getLogger(__name__)
 
 
 class SVGIconHelper:
     """
-    Helper class for loading and using SVG icons in CustomTkinter UI.
+    Helper class for loading and using SVG icons in Qt UI.
     Provides caching, error handling, and fallback support.
+    Uses Qt's native SVG support instead of customtkinter.
     """
     
     def __init__(self, icon_dir: Optional[Path] = None):
@@ -42,20 +39,20 @@ class SVGIconHelper:
             icon_dir = Path(__file__).parent.parent / "resources" / "icons" / "svg"
         
         self.icon_dir = Path(icon_dir)
-        self.svg_loader = SVGLoader() if HAS_SVG_SUPPORT else None
-        self.icon_cache: Dict[str, ctk.CTkImage] = {}
+        self.icon_cache: Dict[str, QIcon] = {}
+        self.pixmap_cache: Dict[str, QPixmap] = {}
         
         logger.info(f"SVGIconHelper initialized with icon_dir: {self.icon_dir}")
-        logger.info(f"SVG support available: {HAS_SVG_SUPPORT and HAS_PIL}")
+        logger.info(f"Qt SVG support available: True")
     
     def load_icon(
         self, 
         icon_name: str, 
         size: Tuple[int, int] = (24, 24),
         fallback_emoji: Optional[str] = None
-    ) -> Optional[ctk.CTkImage]:
+    ) -> Optional[QIcon]:
         """
-        Load an SVG icon and return as CTkImage.
+        Load an SVG icon and return as QIcon.
         
         Args:
             icon_name: Name of the icon (without .svg extension)
@@ -63,7 +60,7 @@ class SVGIconHelper:
             fallback_emoji: Emoji to use as fallback (optional)
         
         Returns:
-            CTkImage object or None
+            QIcon object or None
         """
         # Check cache
         cache_key = f"{icon_name}_{size[0]}x{size[1]}"
@@ -77,28 +74,62 @@ class SVGIconHelper:
             logger.warning(f"Icon file not found: {icon_path}")
             return None
         
-        if not self.svg_loader:
-            logger.warning("SVG loader not available")
-            return None
-        
         try:
-            # Load SVG as PIL Image
-            pil_image = self.svg_loader.load_svg(icon_path, size)
+            # Load SVG using Qt's native SVG renderer
+            renderer = QSvgRenderer(str(icon_path))
             
-            if pil_image:
-                # Convert to CTkImage
-                ctk_image = ctk.CTkImage(
-                    light_image=pil_image,
-                    dark_image=pil_image,
-                    size=size
-                )
-                
-                # Cache it
-                self.icon_cache[cache_key] = ctk_image
-                return ctk_image
+            if not renderer.isValid():
+                logger.warning(f"Invalid SVG file: {icon_path}")
+                return None
+            
+            # Create pixmap at desired size
+            pixmap = QPixmap(size[0], size[1])
+            pixmap.fill(0x00000000)  # Transparent background
+            
+            # Render SVG to pixmap
+            painter = QPainter(pixmap)
+            renderer.render(painter)
+            painter.end()
+            
+            # Create QIcon from pixmap
+            icon = QIcon(pixmap)
+            
+            # Cache it
+            self.icon_cache[cache_key] = icon
+            self.pixmap_cache[cache_key] = pixmap
+            
+            return icon
             
         except Exception as e:
             logger.error(f"Error loading icon {icon_name}: {e}")
+        
+        return None
+    
+    def load_pixmap(
+        self,
+        icon_name: str,
+        size: Tuple[int, int] = (24, 24)
+    ) -> Optional[QPixmap]:
+        """
+        Load an SVG icon and return as QPixmap.
+        
+        Args:
+            icon_name: Name of the icon (without .svg extension)
+            size: Size tuple (width, height)
+        
+        Returns:
+            QPixmap object or None
+        """
+        # Check cache
+        cache_key = f"{icon_name}_{size[0]}x{size[1]}"
+        if cache_key in self.pixmap_cache:
+            return self.pixmap_cache[cache_key]
+        
+        # Load icon first (which also caches the pixmap)
+        icon = self.load_icon(icon_name, size)
+        
+        if icon and cache_key in self.pixmap_cache:
+            return self.pixmap_cache[cache_key]
         
         return None
     
@@ -106,7 +137,7 @@ class SVGIconHelper:
         self, 
         icon_names: List[str], 
         size: Tuple[int, int] = (24, 24)
-    ) -> Dict[str, Optional[ctk.CTkImage]]:
+    ) -> Dict[str, Optional[QIcon]]:
         """
         Load multiple icons at once.
         
@@ -115,7 +146,7 @@ class SVGIconHelper:
             size: Size tuple (width, height)
         
         Returns:
-            Dictionary mapping icon names to CTkImage objects
+            Dictionary mapping icon names to QIcon objects
         """
         icons = {}
         for name in icon_names:
@@ -247,7 +278,7 @@ def get_icon_helper() -> SVGIconHelper:
 def load_icon(
     icon_name: str, 
     size: Tuple[int, int] = (24, 24)
-) -> Optional[ctk.CTkImage]:
+) -> Optional[QIcon]:
     """
     Convenience function to load an icon using the singleton helper.
     
@@ -256,7 +287,7 @@ def load_icon(
         size: Size tuple (width, height)
     
     Returns:
-        CTkImage object or None
+        QIcon object or None
     """
     helper = get_icon_helper()
     return helper.load_icon(icon_name, size)
@@ -265,7 +296,7 @@ def load_icon(
 def load_icon_set(
     icon_set_name: str,
     size: Tuple[int, int] = (24, 24)
-) -> Dict[str, Optional[ctk.CTkImage]]:
+) -> Dict[str, Optional[QIcon]]:
     """
     Load a predefined set of icons.
     
@@ -274,7 +305,7 @@ def load_icon_set(
         size: Size tuple (width, height)
     
     Returns:
-        Dictionary of icon names to CTkImage objects
+        Dictionary of icon names to QIcon objects
     """
     icon_sets = {
         "file": FILE_OPERATION_ICONS,
@@ -296,12 +327,12 @@ def load_icon_set(
 
 if __name__ == "__main__":
     # Test the icon helper
-    print("SVG Icon Helper Test")
+    print("SVG Icon Helper Test (Qt Version)")
     print("=" * 50)
     
     helper = SVGIconHelper()
     print(f"Icon directory: {helper.icon_dir}")
-    print(f"SVG support: {HAS_SVG_SUPPORT and HAS_PIL}")
+    print(f"Qt SVG support: Available")
     print()
     
     # Try to load a test icon
