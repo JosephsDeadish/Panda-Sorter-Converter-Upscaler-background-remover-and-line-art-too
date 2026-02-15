@@ -185,37 +185,3 @@ class TravelAnimationWidget(QWidget):
         self.current_scene += 1
         self._show_scene()
 
-
-# Tkinter compatibility bridge
-try:
-    import tkinter as tk
-    
-    class TkinterTravelAnimationBridge:
-        """Bridge for Tkinter compatibility"""
-        
-        @staticmethod
-        def create_travel_animation(parent_frame, scenes, on_complete=None):
-            """Create travel animation (tries Qt first, falls back to canvas)"""
-            try:
-                from PyQt6.QtWidgets import QApplication
-                
-                # Check if Qt application exists
-                if QApplication.instance() is None:
-                    raise RuntimeError("Qt not initialized")
-                
-                widget = TravelAnimationWidget(scenes)
-                if on_complete:
-                    widget.animation_complete.connect(on_complete)
-                widget.start_animation()
-                return widget
-                
-            except Exception:
-                # Fallback: Return None, caller should use canvas
-                return None
-                
-except ImportError:
-    # PyQt6 not available
-    class TkinterTravelAnimationBridge:
-        @staticmethod
-        def create_travel_animation(parent_frame, scenes, on_complete=None):
-            return None
