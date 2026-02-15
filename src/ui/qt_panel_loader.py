@@ -188,3 +188,28 @@ def get_lineart_converter_panel(parent, unlockables_system=None, tooltip_manager
     from src.ui.lineart_converter_panel import LineArtConverterPanel
     logger.info("Using Tkinter line art converter panel")
     return LineArtConverterPanel(parent, unlockables_system, tooltip_manager)
+
+
+def get_image_repair_panel(parent, unlockables_system=None, tooltip_manager=None):
+    """
+    Get image repair panel - Qt version if available, Tkinter otherwise.
+    
+    Args:
+        parent: Parent widget
+        unlockables_system: Unlockables system instance
+        tooltip_manager: Tooltip manager instance
+        
+    Returns:
+        ImageRepairPanel instance (Qt or Tkinter)
+    """
+    if PYQT6_AVAILABLE:
+        try:
+            from src.ui.image_repair_panel_qt import ImageRepairPanelQt
+            logger.info("Using Qt image repair panel")
+            return ImageRepairPanelQt(parent, tooltip_manager)
+        except Exception as e:
+            logger.warning(f"Failed to load Qt image repair panel: {e}, falling back to Tkinter")
+    
+    from src.ui.image_repair_panel import ImageRepairPanel
+    logger.info("Using Tkinter image repair panel")
+    return ImageRepairPanel(parent, unlockables_system, tooltip_manager)
