@@ -227,11 +227,17 @@ class CTkLabel(QLabel):
         # Handle font
         font = kwargs.get('font', None)
         if font:
-            font_family, font_size = font[0], font[1]
-            qfont = QFont(font_family, font_size)
-            if 'Bold' in font_family:
-                qfont.setBold(True)
-            self.setFont(qfont)
+            if isinstance(font, (tuple, list)) and len(font) >= 2:
+                font_family = font[0]
+                font_size = font[1]
+                qfont = QFont(font_family, font_size)
+                # Check for bold in third element (CustomTkinter standard)
+                if len(font) >= 3 and font[2].lower() == 'bold':
+                    qfont.setBold(True)
+                self.setFont(qfont)
+            elif isinstance(font, str):
+                # Font family name only
+                self.setFont(QFont(font))
         
         # Handle text color
         text_color = kwargs.get('text_color', None)
