@@ -200,18 +200,21 @@ class ColorWheelWidget(ctk.CTkFrame):
         self.preview = ctk.CTkLabel(scroll_frame, text="", width=200, height=50, fg_color=self.current_color)
         self.preview.pack(pady=10, padx=10)
         
-        # --- Interactive color wheel canvas ---
-        import tkinter as _tk
-        wheel_label = ctk.CTkLabel(scroll_frame, text="🎡 Color Wheel (click to pick):", font=("Arial Bold", 11))
+        # --- Color picker (replaced canvas color wheel) ---
+        wheel_label = ctk.CTkLabel(scroll_frame, text="🎨 Color Preview:", font=("Arial Bold", 11))
         wheel_label.pack(anchor="w", padx=15, pady=(5, 2))
         
-        self._wheel_size = 200
-        self._wheel_canvas = _tk.Canvas(scroll_frame, width=self._wheel_size, height=self._wheel_size,
-                                         bg="#2b2b2b", highlightthickness=0)
-        self._wheel_canvas.pack(pady=5)
-        self._draw_color_wheel()
-        self._wheel_canvas.bind("<Button-1>", self._on_wheel_click)
-        self._wheel_canvas.bind("<B1-Motion>", self._on_wheel_click)
+        # Color preview frame (replaces canvas color wheel)
+        self._color_preview_frame = ctk.CTkFrame(scroll_frame, width=200, height=60, fg_color=self.current_color)
+        self._color_preview_frame.pack(pady=5)
+        self._color_preview_frame.pack_propagate(False)
+        
+        # Click to open system color picker
+        preview_label = ctk.CTkLabel(self._color_preview_frame, text="Click to pick color", 
+                                     text_color="white", font=("Arial", 10))
+        preview_label.place(relx=0.5, rely=0.5, anchor="center")
+        self._color_preview_frame.bind("<Button-1>", self._open_color_picker)
+        preview_label.bind("<Button-1>", self._open_color_picker)
         
         # RGB sliders
         rgb_label = ctk.CTkLabel(scroll_frame, text="RGB Sliders:", font=("Arial Bold", 11))
@@ -380,6 +383,11 @@ class ColorWheelWidget(ctk.CTkFrame):
         self.b_label.configure(text=str(b))
         self.hex_var.set(self.current_color)
         self.preview.configure(fg_color=self.current_color)
+        
+        # Update color preview frame (replaces color wheel)
+        if hasattr(self, '_color_preview_frame'):
+            self._color_preview_frame.configure(fg_color=self.current_color)
+        
         # Sync HSV sliders
         h, s, v = colorsys.rgb_to_hsv(r / 255.0, g / 255.0, b / 255.0)
         self.h_slider.set(int(h * 360))
@@ -406,54 +414,22 @@ class ColorWheelWidget(ctk.CTkFrame):
                                command=lambda c=color: self.set_color(c))
             btn.grid(row=0, column=i, padx=2, pady=2)
     
-    def _draw_color_wheel(self):
-        """Draw an HSV color wheel on the canvas."""
-        size = self._wheel_size
-        cx, cy = size // 2, size // 2
-        radius = size // 2 - 4
-        # Draw the wheel using small rectangles for each angle/radius
-        step = 3  # pixel step for performance
-        for x in range(0, size, step):
-            for y in range(0, size, step):
-                dx = x - cx
-                dy = y - cy
-                dist = (dx * dx + dy * dy) ** 0.5
-                if dist <= radius:
-                    h = (math.atan2(dy, dx) / (2 * math.pi)) % 1.0
-                    s = dist / radius
-                    r, g, b = colorsys.hsv_to_rgb(h, s, 1.0)
-                    color = f"#{int(r*255):02x}{int(g*255):02x}{int(b*255):02x}"
-                    self._wheel_canvas.create_rectangle(
-                        x, y, x + step, y + step,
-                        fill=color, outline="", tags="wheel")
-    
-    def _on_wheel_click(self, event):
-        """Pick a color from the wheel canvas on click/drag."""
-        size = self._wheel_size
-        cx, cy = size // 2, size // 2
-        radius = size // 2 - 4
-        dx = event.x - cx
-        dy = event.y - cy
-        dist = (dx * dx + dy * dy) ** 0.5
-        if dist > radius:
-            return
-        h = (math.atan2(dy, dx) / (2 * math.pi)) % 1.0
-        s = min(dist / radius, 1.0)
-        v = int(self.v_slider.get()) / 100.0 if hasattr(self, 'v_slider') else 1.0
-        r, g, b = colorsys.hsv_to_rgb(h, s, v)
-        r, g, b = int(r * 255), int(g * 255), int(b * 255)
-        self.rgb = (r, g, b)
-        self.current_color = self._rgb_to_hex(r, g, b)
-        self._update_all_from_rgb()
-        self._add_to_recent(self.current_color)
-        if self.on_color_change:
-            self.on_color_change(self.current_color, self.get_color_target())
+    def _open_color_picker(self, event=None):
+        """Open system color picker dialog."""
+        from tkinter import colorchooser
+        color = colorchooser.askcolor(color=self.current_color, title="Choose Color")
+        if color and color[1]:  # color[1] is the hex string
+            self.set_color(color[1])
     
     def set_color(self, hex_color: str):
         self.current_color = hex_color
         self.rgb = self._hex_to_rgb(hex_color)
         self._update_all_from_rgb()
         self._add_to_recent(hex_color)
+        
+        # Update color preview frame
+        if hasattr(self, '_color_preview_frame'):
+            self._color_preview_frame.configure(fg_color=hex_color)
         
         if self.on_color_change:
             self.on_color_change(hex_color, self.get_color_target())
@@ -701,21 +677,16 @@ class CursorCustomizer(ctk.CTkFrame):
         
         ctk.CTkLabel(preview_frame, text="✨ Cursor Trail Preview:", font=("Arial Bold", 11)).pack(anchor="w", padx=5, pady=(5, 0))
         
-        # Trail preview canvas - bind motion directly on canvas for correct coordinates
-        import tkinter as tk
-        self._trail_preview_canvas = tk.Canvas(
-            preview_frame, highlightthickness=0, bg='#2b2b2b',
-            width=300, height=150
+        # Trail preview - simple label showing trail description (no canvas)
+        self._trail_preview_label = ctk.CTkLabel(
+            preview_frame, 
+            text="Trail will follow your cursor with the selected style",
+            width=300, height=150, fg_color="#2b2b2b",
+            font=("Arial", 10), 
+            justify="center"
         )
-        self._trail_preview_canvas.pack(padx=5, pady=(0, 5), fill="x")
-        # Block click events but allow motion events to pass through
-        self._trail_preview_canvas.bind('<Button-1>', lambda e: 'break')
-        self._trail_preview_canvas.bind('<Button-2>', lambda e: 'break')
-        self._trail_preview_canvas.bind('<Button-3>', lambda e: 'break')
-        
-        # Bind motion on both the preview area and the canvas for trail demo
-        self.preview_area.bind('<Motion>', self._on_preview_motion)
-        self._trail_preview_canvas.bind('<Motion>', self._on_canvas_motion)
+        self._trail_preview_label.pack(padx=5, pady=(0, 5), fill="x")
+        self._trail_preview_canvas = None  # No canvas needed
     
     def _strip_icon(self, display_value):
         """Strip leading emoji icon from display value to get raw name."""
@@ -743,83 +714,9 @@ class CursorCustomizer(ctk.CTkFrame):
         self._update_preview()
         self._apply_cursor_instant()
     
-    def _on_canvas_motion(self, event):
-        """Show trail preview dots when hovering directly over the trail canvas."""
-        self._draw_trail_dot(event.x, event.y)
     
-    def _on_preview_motion(self, event):
-        """Show trail preview dots when hovering over the preview area (above the canvas)."""
-        if not self.trail_enabled or not self._trail_preview_canvas:
-            return
-        try:
-            canvas = self._trail_preview_canvas
-            if not canvas.winfo_exists():
-                return
-            # Convert coordinates from preview_area to canvas coordinate space
-            canvas_x = event.x_root - canvas.winfo_rootx()
-            canvas_y = canvas.winfo_height() // 2  # Center Y in canvas
-            self._draw_trail_dot(canvas_x, canvas_y)
-        except Exception as e:
-            logger.debug(f"Trail preview error: {e}")
-    
-    def _draw_trail_dot(self, x, y):
-        """Draw a trail dot at the given canvas coordinates."""
-        if not self.trail_enabled or not self._trail_preview_canvas:
-            return
-        try:
-            canvas = self._trail_preview_canvas
-            if not canvas.winfo_exists():
-                return
-            
-            trail_color_palettes = {
-                'rainbow': ['#ff6b6b', '#feca57', '#48dbfb', '#ff9ff3', '#54a0ff',
-                            '#5f27cd', '#01a3a4', '#f368e0', '#ff6348', '#7bed9f'],
-                'fire': ['#ff0000', '#ff4500', '#ff6600', '#ff8c00', '#ffa500',
-                         '#ffcc00', '#ffff00', '#ffff66', '#ff3300', '#cc0000'],
-                'ice': ['#00ffff', '#00e5ff', '#00ccff', '#00b3ff', '#0099ff',
-                        '#0080ff', '#0066ff', '#e0f7ff', '#b3e5fc', '#81d4fa'],
-                'nature': ['#00cc00', '#33cc33', '#66cc66', '#00ff00', '#33ff33',
-                           '#228b22', '#32cd32', '#7cfc00', '#adff2f', '#98fb98'],
-                'galaxy': ['#9b59b6', '#8e44ad', '#6c3483', '#5b2c6f', '#4a235a',
-                           '#bb8fce', '#d7bde2', '#e8daef', '#c39bd3', '#af7ac5'],
-                'gold': ['#ffd700', '#ffcc00', '#daa520', '#b8860b', '#cd853f',
-                         '#f0e68c', '#eee8aa', '#fafad2', '#ffe4b5', '#ffdead'],
-            }
-            colors = trail_color_palettes.get(self.trail_style, trail_color_palettes['rainbow'])
-            
-            # Clamp coordinates within canvas bounds
-            canvas_width = canvas.winfo_width()
-            canvas_height = canvas.winfo_height()
-            if canvas_width <= 1 or canvas_height <= 1:
-                return
-            x = max(self.TRAIL_PREVIEW_DOT_RADIUS, min(x, canvas_width - self.TRAIL_PREVIEW_DOT_RADIUS))
-            y = max(self.TRAIL_PREVIEW_MIN_Y, min(y, min(self.TRAIL_PREVIEW_MAX_Y, canvas_height - self.TRAIL_PREVIEW_DOT_RADIUS)))
-            
-            color_idx = len(self._trail_preview_dots) % len(colors)
-            r = self.TRAIL_PREVIEW_DOT_RADIUS
-            dot = canvas.create_oval(
-                x - r, y - r, x + r, y + r,
-                fill=colors[color_idx], outline=''
-            )
-            self._trail_preview_dots.append(dot)
-            
-            if len(self._trail_preview_dots) > self.TRAIL_PREVIEW_MAX_DOTS:
-                old_dot = self._trail_preview_dots.pop(0)
-                canvas.delete(old_dot)
-            
-            canvas.after(400, lambda d=dot: self._fade_preview_dot(d))
-        except Exception as e:
-            logger.debug(f"Trail preview error: {e}")
-    
-    def _fade_preview_dot(self, dot_id):
-        """Remove a trail preview dot."""
-        try:
-            if self._trail_preview_canvas and self._trail_preview_canvas.winfo_exists():
-                self._trail_preview_canvas.delete(dot_id)
-                if dot_id in self._trail_preview_dots:
-                    self._trail_preview_dots.remove(dot_id)
-        except Exception:
-            pass
+    # Trail preview methods removed - no longer using canvas
+    # Trail will be shown in actual cursor movement, not in preview
     
     def _pick_tint_color(self):
         picker_window = ctk.CTkToplevel(self)
@@ -872,11 +769,10 @@ class CursorCustomizer(ctk.CTkFrame):
         except Exception:
             pass
         
-        # Clear trail preview when trail is disabled
-        if not self.trail_enabled and self._trail_preview_canvas:
+        # Update trail preview label when trail is disabled
+        if not self.trail_enabled and hasattr(self, '_trail_preview_label'):
             try:
-                self._trail_preview_canvas.delete("all")
-                self._trail_preview_dots.clear()
+                self._trail_preview_label.configure(text="Trail disabled")
             except Exception:
                 pass
     
