@@ -99,10 +99,12 @@ class FileHandler:
             config: Configuration dict with file_handling settings
         """
         # Use config if provided, otherwise use legacy parameter
-        if config:
-            self.create_backup = config.get('file_handling', 'create_backup', default=True) if hasattr(config, 'get') else create_backup
-            self.enable_archive = config.get('file_handling', 'enable_archive_support', default=True) if hasattr(config, 'get') else True
+        if config and hasattr(config, 'get'):
+            # Config object provided
+            self.create_backup = config.get('file_handling', 'create_backup', default=True)
+            self.enable_archive = config.get('file_handling', 'enable_archive_support', default=True)
         else:
+            # Use legacy parameters or defaults
             self.create_backup = create_backup
             self.enable_archive = True
             

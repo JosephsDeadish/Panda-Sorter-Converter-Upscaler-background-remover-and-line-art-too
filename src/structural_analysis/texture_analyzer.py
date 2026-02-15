@@ -26,10 +26,10 @@ class TextureStructuralAnalyzer:
     - Border detection
     """
     
-    # Size thresholds
-    SMALL_TEXTURE_SIZE = 64
-    MEDIUM_TEXTURE_SIZE = 256
-    LARGE_TEXTURE_SIZE = 512
+    # Default size thresholds (class constants)
+    DEFAULT_SMALL_SIZE = 64
+    DEFAULT_MEDIUM_SIZE = 256
+    DEFAULT_LARGE_SIZE = 512
     
     def __init__(self, config=None):
         """
@@ -40,16 +40,16 @@ class TextureStructuralAnalyzer:
         """
         # Load thresholds from config or use defaults
         if config and hasattr(config, 'get'):
-            self.SMALL_TEXTURE_SIZE = config.get('structural_analysis', 'small_texture_size', default=64)
-            self.MEDIUM_TEXTURE_SIZE = config.get('structural_analysis', 'medium_texture_size', default=256)
-            self.LARGE_TEXTURE_SIZE = config.get('structural_analysis', 'large_texture_size', default=512)
+            self.small_texture_size = config.get('structural_analysis', 'small_texture_size', default=self.DEFAULT_SMALL_SIZE)
+            self.medium_texture_size = config.get('structural_analysis', 'medium_texture_size', default=self.DEFAULT_MEDIUM_SIZE)
+            self.large_texture_size = config.get('structural_analysis', 'large_texture_size', default=self.DEFAULT_LARGE_SIZE)
             self.low_entropy_threshold = config.get('structural_analysis', 'low_entropy_threshold', default=4.0)
             self.high_entropy_threshold = config.get('structural_analysis', 'high_entropy_threshold', default=6.0)
         else:
             # Use class-level defaults
-            self.SMALL_TEXTURE_SIZE = 64
-            self.MEDIUM_TEXTURE_SIZE = 256
-            self.LARGE_TEXTURE_SIZE = 512
+            self.small_texture_size = self.DEFAULT_SMALL_SIZE
+            self.medium_texture_size = self.DEFAULT_MEDIUM_SIZE
+            self.large_texture_size = self.DEFAULT_LARGE_SIZE
             self.low_entropy_threshold = 4.0
             self.high_entropy_threshold = 6.0
             
@@ -99,13 +99,13 @@ class TextureStructuralAnalyzer:
         min_dim = min(h, w)
         
         # Classify size
-        if max_dim <= self.SMALL_TEXTURE_SIZE:
+        if max_dim <= self.small_texture_size:
             size_class = 'small'
             ui_probability = 0.7
-        elif max_dim <= self.MEDIUM_TEXTURE_SIZE:
+        elif max_dim <= self.medium_texture_size:
             size_class = 'medium'
             ui_probability = 0.4
-        elif max_dim <= self.LARGE_TEXTURE_SIZE:
+        elif max_dim <= self.large_texture_size:
             size_class = 'large'
             ui_probability = 0.2
         else:
