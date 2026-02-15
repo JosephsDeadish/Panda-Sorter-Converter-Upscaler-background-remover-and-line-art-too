@@ -31,8 +31,28 @@ class TextureStructuralAnalyzer:
     MEDIUM_TEXTURE_SIZE = 256
     LARGE_TEXTURE_SIZE = 512
     
-    def __init__(self):
-        """Initialize structural analyzer."""
+    def __init__(self, config=None):
+        """
+        Initialize structural analyzer.
+        
+        Args:
+            config: Configuration dict with structural_analysis settings
+        """
+        # Load thresholds from config or use defaults
+        if config and hasattr(config, 'get'):
+            self.SMALL_TEXTURE_SIZE = config.get('structural_analysis', 'small_texture_size', default=64)
+            self.MEDIUM_TEXTURE_SIZE = config.get('structural_analysis', 'medium_texture_size', default=256)
+            self.LARGE_TEXTURE_SIZE = config.get('structural_analysis', 'large_texture_size', default=512)
+            self.low_entropy_threshold = config.get('structural_analysis', 'low_entropy_threshold', default=4.0)
+            self.high_entropy_threshold = config.get('structural_analysis', 'high_entropy_threshold', default=6.0)
+        else:
+            # Use class-level defaults
+            self.SMALL_TEXTURE_SIZE = 64
+            self.MEDIUM_TEXTURE_SIZE = 256
+            self.LARGE_TEXTURE_SIZE = 512
+            self.low_entropy_threshold = 4.0
+            self.high_entropy_threshold = 6.0
+            
         logger.info("TextureStructuralAnalyzer initialized")
     
     def analyze(

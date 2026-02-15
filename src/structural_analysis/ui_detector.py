@@ -30,36 +30,53 @@ class UIDetector:
         self,
         use_structural_analysis: bool = True,
         use_alpha_analysis: bool = True,
-        use_ocr: bool = False
+        use_ocr: bool = False,
+        config=None
     ):
         """
         Initialize UI detector.
         
         Args:
-            use_structural_analysis: Use structural analyzer
-            use_alpha_analysis: Use alpha channel analysis
-            use_ocr: Use OCR detection
+            use_structural_analysis: Use structural analyzer (legacy)
+            use_alpha_analysis: Use alpha channel analysis (legacy)
+            use_ocr: Use OCR detection (legacy)
+            config: Configuration dict with ui_detection settings
         """
-        self.use_structural = use_structural_analysis
-        self.use_alpha = use_alpha_analysis
-        self.use_ocr = use_ocr
+        # Load settings from config or use parameters
+        if config and hasattr(config, 'get'):
+            self.use_structural = config.get('ui_detection', 'use_structural_analysis', default=True)
+            self.use_alpha = config.get('ui_detection', 'use_alpha_analysis', default=True)
+            self.use_ocr = config.get('ui_detection', 'use_ocr', default=False)
+            self.structural_weight = config.get('ui_detection', 'structural_weight', default=0.4)
+            self.alpha_weight = config.get('ui_detection', 'alpha_weight', default=0.3)
+            self.ocr_weight = config.get('ui_detection', 'ocr_weight', default=0.3)
+            self.ui_threshold = config.get('ui_detection', 'ui_threshold', default=0.5)
+        else:
+            # Use legacy parameters or defaults
+            self.use_structural = use_structural_analysis
+            self.use_alpha = use_alpha_analysis
+            self.use_ocr = use_ocr
+            self.structural_weight = 0.4
+            self.alpha_weight = 0.3
+            self.ocr_weight = 0.3
+            self.ui_threshold = 0.5
         
         # Initialize components
         self.structural_analyzer = None
-        if use_structural_analysis:
+        if self.use_structural:
             from .texture_analyzer import TextureStructuralAnalyzer
-            self.structural_analyzer = TextureStructuralAnalyzer()
+            self.structural_analyzer = TextureStructuralAnalyzer(config=config)
         
         self.alpha_handler = None
-        if use_alpha_analysis:
+        if self.use_alpha:
             from src.preprocessing import AlphaChannelHandler
             self.alpha_handler = AlphaChannelHandler()
         
         self.ocr_detector = None
-        if use_ocr:
+        if self.use_ocr:
             try:
                 from .ocr_detector import OCRDetector
-                self.ocr_detector = OCRDetector()
+                self.ocr_detector = OCRDetector(config=config)
             except Exception as e:
                 logger.warning(f"Failed to initialize OCR: {e}")
         
@@ -93,20 +110,20 @@ class UIDetector:
         if self.structural_analyzer:
             structural_result = self.structural_analyzer.analyze(img[:, :, :3] if img.shape[2] == 4 else img)
             signals['structural'] = structural_result['is_ui_likely']
-            weights['structural'] = 0.4
+            weights['structural'] = self.structural_weight
         
         # Alpha analysis
         if self.alpha_handler and img.shape[2] == 4:
             alpha = img[:, :, 3]
             alpha_result = self.alpha_handler.detect_ui_transparency(img[:, :, :3], alpha)
             signals['alpha'] = alpha_result['is_ui']
-            weights['alpha'] = 0.3
+            weights['alpha'] = self.alpha_weight
         
         # OCR detection
         if self.ocr_detector:
             ocr_result = self.ocr_detector.detect_text(img)
             signals['ocr'] = ocr_result['has_text']
-            weights['ocr'] = 0.3
+            weights['ocr'] = self.ocr_weight
         
         # Calculate weighted score
         total_weight = sum(weights.values())
@@ -118,7 +135,7 @@ class UIDetector:
         else:
             ui_score = 0.0
         
-        is_ui = ui_score > 0.5
+        is_ui = ui_score > self.ui_threshold
         
         return {
             'is_ui': is_ui,
