@@ -115,6 +115,22 @@ dist/
 
 ## Troubleshooting
 
+### TCL Data Directory Not Found
+
+**Error**: `failed to execute script pyi_rth_tkinter due to unhandled exception: tcl data directory not found`
+
+**This is the #1 user error** - it almost always means incomplete extraction!
+
+**Solution**: See [EXTRACTION_TROUBLESHOOTING.md](EXTRACTION_TROUBLESHOOTING.md) for detailed solutions.
+
+**Quick Fix**:
+1. Delete the partially extracted folder
+2. Re-extract the ENTIRE archive (not just the .exe)
+3. Wait for extraction to complete 100%
+4. Run from the extracted folder
+
+The application includes automatic detection and user-friendly error messages for this issue.
+
 ### Python Not Found
 **Error**: `'python' is not recognized as an internal or external command`
 

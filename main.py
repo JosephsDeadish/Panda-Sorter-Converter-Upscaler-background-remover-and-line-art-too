@@ -7,6 +7,40 @@ dumps with advanced AI classification and massive-scale support
 (200,000+ textures).
 """
 
+# ============================================================================
+# STARTUP VALIDATION - Run before any other imports
+# This validates extraction and provides user-friendly error messages
+# ============================================================================
+import sys
+import os
+from pathlib import Path
+
+# Add src directory to path first
+src_dir = Path(__file__).parent / 'src'
+if str(src_dir) not in sys.path:
+    sys.path.insert(0, str(src_dir))
+
+# Run startup validation for PyInstaller bundles
+try:
+    from startup_validation import run_startup_validation, optimize_memory
+    
+    if not run_startup_validation():
+        # Validation failed, error message already shown to user
+        sys.exit(1)
+    
+    # Optimize memory usage during startup
+    optimize_memory()
+except ImportError:
+    # Startup validation module not available (development mode)
+    pass
+except Exception as e:
+    # Unexpected error during validation
+    print(f"Warning: Startup validation failed: {e}")
+
+# ============================================================================
+# NORMAL IMPORTS - After validation passes
+# ============================================================================
+
 # Set Windows taskbar icon BEFORE any GUI imports
 import ctypes
 try:
@@ -15,27 +49,19 @@ try:
 except (AttributeError, OSError):
     pass  # Not Windows or no windll
 
-import sys
-import os
 import time
 import shutil
 import threading
 import logging
 import gc
 from collections import OrderedDict
-from pathlib import Path
 from types import SimpleNamespace
 from datetime import datetime
 
 # Setup logging
 logger = logging.getLogger(__name__)
 
-# Add src directory to path
-src_dir = Path(__file__).parent
-if str(src_dir) not in sys.path:
-    sys.path.insert(0, str(src_dir))
-
-# Import configuration first
+# Import configuration
 from src.config import config, APP_NAME, APP_VERSION, APP_AUTHOR, CONFIG_DIR, LOGS_DIR, CACHE_DIR, get_app_dir
 
 # Flag to check if GUI libraries are available
