@@ -1,6 +1,6 @@
 """
-PyQt6-based enemy widget using QGraphicsView instead of Canvas.
-No Tkinter canvas mixing - pure PyQt implementation.
+PyQt6-based enemy widget using QGraphicsView.
+Pure PyQt implementation for enemy rendering and animation.
 """
 
 from PyQt6.QtWidgets import QGraphicsView, QGraphicsScene, QGraphicsEllipseItem, QGraphicsPolygonItem

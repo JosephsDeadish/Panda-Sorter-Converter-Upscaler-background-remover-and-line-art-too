@@ -1,6 +1,6 @@
 """
 Qt implementation of the widgets panel.
-Uses PyQt6 instead of customtkinter.
+Pure PyQt6 UI for interactive widgets and tools.
 """
 
 try:

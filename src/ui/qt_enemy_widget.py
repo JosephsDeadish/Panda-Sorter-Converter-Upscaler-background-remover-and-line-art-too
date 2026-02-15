@@ -1,7 +1,7 @@
 """
 Qt Enemy Display Widget
 
-Replacement for tk.Canvas-based enemy rendering.
+Pure PyQt6 implementation for enemy display and combat.
 Uses QLabel with animated QPixmap for 2D enemies, or QOpenGLWidget for 3D.
 """
 

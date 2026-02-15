@@ -1,7 +1,7 @@
 """
 Color Correction Panel UI - PyQt6 Version
 
-Pure PyQt6 implementation with NO tkinter .after() calls.
+Pure PyQt6 implementation with Qt timer integration.
 Uses Qt signals/slots for threading and UI updates.
 """
 

@@ -1,6 +1,6 @@
 """
 Qt Panel Loader - Loads Qt panels for UI
-Qt/PyQt6 is now required - Tkinter fallbacks have been removed.
+Qt/PyQt6 is the only supported UI framework.
 Author: Dead On The Inside / JosephsDeadish
 """
 

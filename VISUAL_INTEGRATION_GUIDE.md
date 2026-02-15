@@ -139,27 +139,28 @@ class EnemyWidget:
         return result
     
     def _draw_enemy(self):
-        """Draw enemy with damage effects."""
-        c = self.enemy_canvas
-        c.delete("all")
+        """Draw enemy with damage effects using QGraphicsScene."""
+        scene = self.enemy_scene
+        scene.clear()
         
         # Draw base enemy
         # ... existing drawing code ...
         
-        # Draw damage effects
-        cx = ENEMY_CANVAS_W // 2
-        cy = ENEMY_CANVAS_H // 2
+        # Draw damage effects using QGraphicsScene methods
+        # Note: Use standard methods (no _gl suffix) for QGraphicsView rendering
+        cx = ENEMY_VIEW_W // 2
+        cy = ENEMY_VIEW_H // 2
         
         wounds = self.damage_tracker.get_all_wounds()
-        self.vfx_renderer.render_wounds(c, wounds, cx, cy, scale=0.5)
+        self.vfx_renderer.render_wounds(scene, wounds, cx, cy, scale=0.5)
         
         projectiles = self.damage_tracker.get_stuck_projectiles()
-        self.vfx_renderer.render_stuck_projectiles(c, projectiles, cx, cy, scale=0.5)
+        self.vfx_renderer.render_stuck_projectiles(scene, projectiles, cx, cy, scale=0.5)
         
         # Draw bleeding effect if bleeding
         if self.damage_tracker.total_bleeding_rate > 0:
             self.vfx_renderer.render_bleeding_effect(
-                c, cx, cy + 30,
+                scene, cx, cy + 30,
                 self.damage_tracker.total_bleeding_rate,
                 self.animation_frame
             )
@@ -200,21 +201,20 @@ class PandaWidget:
         
         return result
     
-    def _draw_panda(self, frame_idx):
-        """Draw panda with damage effects."""
-        # ... existing panda drawing code ...
+    def paintGL(self):
+        """Draw panda with damage effects in OpenGL."""
+        # ... existing panda OpenGL rendering code ...
         
-        # Draw damage effects on top
-        cx = PANDA_CANVAS_W // 2
-        cy = PANDA_CANVAS_H // 2
+        # Draw damage effects as 2D overlay using OpenGL methods
+        # Note: Use _gl suffix methods for OpenGL widget rendering
+        cx = PANDA_WIDTH // 2
+        cy = PANDA_HEIGHT // 2
         
         wounds = self.damage_tracker.get_all_wounds()
-        self.vfx_renderer.render_wounds(self.panda_canvas, wounds, cx, cy)
+        self.vfx_renderer.render_wounds_gl(wounds, cx, cy)
         
         projectiles = self.damage_tracker.get_stuck_projectiles()
-        self.vfx_renderer.render_stuck_projectiles(
-            self.panda_canvas, projectiles, cx, cy
-        )
+        self.vfx_renderer.render_stuck_projectiles_gl(projectiles, cx, cy)
 ```
 
 ## Weapon Integration
@@ -380,12 +380,12 @@ def test_damage_integration():
     wounds = tracker.get_all_wounds()
     assert len(wounds) > 0
     
-    # Mock canvas for rendering test
-    class MockCanvas:
-        def create_line(self, *args, **kwargs): pass
+    # Mock scene for rendering test
+    from PyQt6.QtWidgets import QGraphicsScene
+    scene = QGraphicsScene()
     
     # Should not crash
-    renderer.render_wounds(MockCanvas(), wounds, 100, 100)
+    renderer.render_wounds(scene, wounds, 100, 100)
 ```
 
 ## Demo Application

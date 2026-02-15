@@ -37,7 +37,7 @@ This document describes the comprehensive updates made to the Background Remover
   - 🎭 Background Remover (original functionality)
   - 🎯 Object Remover (new interactive mode)
 
-- **Interactive Canvas Features**:
+- **Interactive QGraphicsView Features**:
   - **Paint/Highlight Tool**: Click "Start Painting" to enable drawing on image
   - **Brush Size Slider**: Adjustable from 5-50 pixels
   - **Color Picker**: Choose highlight color (Red, Green, Blue, Yellow)
@@ -69,7 +69,7 @@ This document describes the comprehensive updates made to the Background Remover
   
 - **No Bugs or Glitches**:
   - Proper state management between modes
-  - Canvas binding only when painting is enabled
+  - QGraphicsView event handling only when painting is enabled
   - Correct coordinate handling for paint strokes
   - Preview updates correctly when settings change
 
@@ -89,10 +89,10 @@ This document describes the comprehensive updates made to the Background Remover
   - Deferred loading (tab content created after startup)
   
 - **Tab Overflow Handling**:
-  - Uses nested CTkTabview structure (already implemented)
+  - Uses nested QTabWidget structure (already implemented)
   - Tools and Features in separate top-level tabs
   - Reduces individual tab count per tabview
-  - CustomTkinter handles scrolling automatically if needed
+  - Qt6 handles scrolling automatically if needed
 
 ### 5. Panda Widget Position ✓
 **File**: `src/ui/panda_widget.py`
@@ -164,7 +164,7 @@ BackgroundRemoverPanel
 ### Required Packages
 - `rembg` - AI background/object removal
 - `PIL` (Pillow) - Image processing
-- `customtkinter` - Modern UI components
+- `PyQt6` - Modern UI framework
 - `zipfile` - ZIP archive support (built-in)
 
 ### Optional Packages (for additional archive formats)

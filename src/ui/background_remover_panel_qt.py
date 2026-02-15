@@ -1,6 +1,6 @@
 """
 Qt implementation of the background remover panel.
-Uses PyQt6 instead of customtkinter.
+Pure PyQt6 UI for AI-powered background removal.
 """
 
 try:

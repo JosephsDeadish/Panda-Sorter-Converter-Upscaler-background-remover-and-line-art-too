@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Test that requirements-minimal.txt contains all necessary dependencies
-for the main application to run.
+for the main application to run with PyQt6 and OpenGL.
 """
 
 import sys
@@ -40,13 +40,13 @@ def test_requirements_parsing():
                 print(f"   - {dep}")
         return False
     
-    # Check that customtkinter is NOT present
+    # Check that obsolete UI frameworks are NOT present
     for line in lines:
-        if 'customtkinter' in line.lower() and not line.strip().startswith('#'):
-            print("❌ Found obsolete customtkinter dependency")
+        if any(dep in line.lower() for dep in ['customtkinter', 'tkinter']) and not line.strip().startswith('#'):
+            print(f"❌ Found obsolete UI framework dependency: {line.strip()}")
             return False
     
-    print("✓ No obsolete dependencies found")
+    print("✓ No obsolete UI framework dependencies found")
     return True
 
 def test_import_chain():

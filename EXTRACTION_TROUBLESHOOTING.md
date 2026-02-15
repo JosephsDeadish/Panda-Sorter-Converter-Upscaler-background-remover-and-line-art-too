@@ -1,12 +1,8 @@
 # Troubleshooting Extraction Issues
 
-## Common Error: "TCL data directory not found"
+## Common Error: "Application directory not found"
 
-If you see an error like:
-```
-failed to execute script pyi_rth_tkinter due to unhandled exception:
-tcl data directory not found
-```
+If you see an error about missing directories or incomplete extraction:
 
 This **usually indicates incomplete extraction** of the application.
 
@@ -53,8 +49,7 @@ After extraction, your folder should contain:
 GameTextureSorter/
 ├── GameTextureSorter.exe       ← Main executable
 ├── _internal/                  ← Python runtime and libraries
-│   ├── tcl/                   ← TCL library (CRITICAL)
-│   ├── tk/                    ← TK library (CRITICAL)
+│   ├── PyQt6/                 ← Qt6 libraries (CRITICAL)
 │   ├── python*.dll            ← Python DLLs
 │   └── ... (many other files)
 ├── resources/                  ← Icons, sounds, cursors
@@ -83,13 +78,10 @@ The new version of the application provides detailed error messages:
 1. **"Application directory is empty"**
    - Solution: Re-extract, ensuring all files are extracted
 
-2. **"TCL directory not found"**
-   - Solution: The `_internal/tcl` folder is missing - re-extract completely
+2. **"Qt libraries not found"**
+   - Solution: The `_internal/PyQt6` folder is missing - re-extract completely
 
-3. **"TK directory not found"**
-   - Solution: The `_internal/tk` folder is missing - re-extract completely
-
-4. **"Cannot access application directory"**
+3. **"Cannot access application directory"**
    - Solution: Check permissions, try running as administrator
 
 ### Still Having Issues?
@@ -119,15 +111,15 @@ The new version of the application provides detailed error messages:
 
 If you're building the application, ensure:
 
-1. The PyInstaller spec file includes the runtime hook:
+1. The PyInstaller spec file includes PyQt6 and OpenGL:
    ```python
-   runtime_hooks=['pyi_rth_tkinter_fix.py']
+   hiddenimports=['PyQt6.QtCore', 'PyQt6.QtGui', 'PyQt6.QtWidgets', 
+                  'PyQt6.QtOpenGLWidgets', 'OpenGL.GL']
    ```
 
-2. TCL/TK data files are not being filtered out:
+2. Qt6 libraries are properly included:
    ```python
-   a.datas = [x for x in a.datas if not x[0].startswith('tk/demos')]
-   a.datas = [x for x in a.datas if not x[0].startswith('tcl/tzdata')]
+   # PyInstaller automatically handles Qt6 plugin collection
    ```
 
 3. The build uses one-folder mode (not one-file) for better compatibility:
@@ -145,7 +137,7 @@ If you're building the application, ensure:
 
 ## Summary
 
-99% of "TCL data directory not found" errors are caused by **incomplete extraction**.
+99% of extraction errors are caused by **incomplete extraction**.
 
 **Quick Fix**: Delete the folder, re-extract everything, wait for completion, and try again.
 

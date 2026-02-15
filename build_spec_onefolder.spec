@@ -47,7 +47,7 @@ if ICON_PATH:
 # Collect all Python files
 a = Analysis(
     ['main.py'],
-    pathex=[str(SCRIPT_DIR)],
+    pathex=[str(SCRIPT_DIR), str(SRC_DIR)],  # Include src directory for module imports
     binaries=[],
     datas=[
         # Include entire assets directory
@@ -59,6 +59,13 @@ a = Analysis(
         (str(RESOURCES_DIR / 'translations'), 'resources/translations'),
     ],
     hiddenimports=[
+        # Core application modules from src/
+        'config',
+        'classifier',
+        'lod_detector',
+        'file_handler',
+        'database',
+        'organizer',
         # Core image processing
         'PIL',
         'PIL.Image',

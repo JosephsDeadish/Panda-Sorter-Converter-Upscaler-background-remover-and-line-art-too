@@ -28,54 +28,48 @@ This document provides complete specifications and implementation templates for 
 Update `src/ui/background_remover_panel.py` to add preset selector:
 
 ```python
-# Add after model selection in _create_widgets()
-preset_frame = ctk.CTkFrame(settings_frame)
-preset_frame.pack(fill="x", padx=10, pady=5)
+from PyQt6.QtWidgets import QFrame, QHBoxLayout, QLabel, QComboBox, QPushButton, QMessageBox
+from PyQt6.QtCore import Qt
 
-ctk.CTkLabel(preset_frame, text="Alpha Preset:", width=120).pack(side="left", padx=5)
+# Add after model selection in _create_widgets()
+preset_frame = QFrame(settings_frame)
+preset_layout = QHBoxLayout(preset_frame)
+
+preset_label = QLabel("Alpha Preset:")
+preset_label.setFixedWidth(120)
+preset_layout.addWidget(preset_label)
 
 preset_names = [p.name for p in AlphaPresets.get_all_presets()]
-self.preset_var = ctk.StringVar(value="Gaming Sprites")
-self.preset_menu = ctk.CTkOptionMenu(
-    preset_frame,
-    variable=self.preset_var,
-    values=preset_names,
-    command=self._on_preset_change
-)
-self.preset_menu.pack(side="left", fill="x", expand=True, padx=5)
+self.preset_combo = QComboBox()
+self.preset_combo.addItems(preset_names)
+self.preset_combo.setCurrentText("Gaming Sprites")
+self.preset_combo.currentTextChanged.connect(self._on_preset_change)
+preset_layout.addWidget(self.preset_combo)
 
 # Info button
-self.preset_info_btn = ctk.CTkButton(
-    preset_frame,
-    text="ℹ️",
-    width=30,
-    command=self._show_preset_info
-)
-self.preset_info_btn.pack(side="left", padx=5)
+self.preset_info_btn = QPushButton("ℹ️")
+self.preset_info_btn.setFixedWidth(30)
+self.preset_info_btn.clicked.connect(self._show_preset_info)
+preset_layout.addWidget(self.preset_info_btn)
 
 # Description label
-self.preset_desc_label = ctk.CTkLabel(
-    settings_frame,
-    text="",
-    font=("Arial", 9),
-    text_color="gray",
-    wraplength=600
-)
-self.preset_desc_label.pack(fill="x", padx=10, pady=(0, 5))
+self.preset_desc_label = QLabel()
+self.preset_desc_label.setStyleSheet("color: gray;")
+self.preset_desc_label.setWordWrap(True)
 
 def _on_preset_change(self, preset_name):
     preset = AlphaPresets.get_preset_by_name(preset_name)
     if preset:
         self.remover.apply_preset(preset)
-        self.preset_desc_label.configure(text=preset.description)
+        self.preset_desc_label.setText(preset.description)
         # Update UI controls to match preset
-        self.edge_slider.set(preset.edge_refinement)
-        self.edge_value_label.configure(text=f"{int(preset.edge_refinement * 100)}%")
+        self.edge_slider.setValue(int(preset.edge_refinement * 100))
 
 def _show_preset_info(self):
-    preset = AlphaPresets.get_preset_by_name(self.preset_var.get())
+    preset = AlphaPresets.get_preset_by_name(self.preset_combo.currentText())
     if preset:
-        messagebox.showinfo(
+        QMessageBox.information(
+            self,
             f"Preset: {preset.name}",
             f"{preset.description}\n\n"
             f"Why Use This:\n{preset.why_use}\n\n"
@@ -94,6 +88,7 @@ def _show_preset_info(self):
 ### Core Module: `src/tools/batch_renamer.py`
 
 ```python
+from PyQt6.QtWidgets import QWidget, QVBoxLayout, QPushButton, QLabel
 """
 Batch File Renamer with Metadata Injection
 Rename files by date, resolution, custom templates with privacy/organization features
@@ -311,8 +306,7 @@ class BatchRenamer:
 Batch Rename UI Panel
 """
 
-import customtkinter as ctk
-from tkinter import filedialog, messagebox
+from PyQt6.QtWidgets import QFrame, QFileDialog, QMessageBox
 from pathlib import Path
 from typing import List
 import logging
@@ -322,11 +316,11 @@ from src.tools.batch_renamer import BatchRenamer, RenamePatterns
 logger = logging.getLogger(__name__)
 
 
-class BatchRenamePanel(ctk.CTkFrame):
+class BatchRenamePanel(QFrame):
     """UI panel for batch file renaming."""
     
-    def __init__(self, master, **kwargs):
-        super().__init__(master, **kwargs)
+    def __init__(self, parent=None, **kwargs):
+        super().__init__(parent)
         
         self.renamer = BatchRenamer()
         self.selected_files: List[str] = []

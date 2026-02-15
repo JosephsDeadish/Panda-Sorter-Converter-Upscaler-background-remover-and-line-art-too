@@ -115,9 +115,9 @@ dist/
 
 ## Troubleshooting
 
-### TCL Data Directory Not Found
+### Incomplete Extraction Errors
 
-**Error**: `failed to execute script pyi_rth_tkinter due to unhandled exception: tcl data directory not found`
+**Error**: Missing libraries or incomplete directory structure
 
 **This is the #1 user error** - it almost always means incomplete extraction!
 

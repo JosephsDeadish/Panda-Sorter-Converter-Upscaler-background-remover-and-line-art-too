@@ -1,8 +1,7 @@
 """
-Qt Achievement Popup Widget
+Qt6 Achievement Popup Widget
 
-Replacement for tk.Canvas-based achievement popup.
-Uses Qt widgets with CSS styling for modern appearance.
+Pure Qt6 implementation using widgets with CSS styling for modern appearance.
 """
 
 try:
@@ -188,51 +187,6 @@ def show_achievement_popup(achievement_data, parent=None, parent_geometry=None):
     popup = AchievementPopup(achievement_data, parent)
     popup.show_popup(parent_geometry)
     return popup
-
-
-# Backwards compatibility for Tkinter code
-class TkinterAchievementPopupBridge:
-    """Bridge class to maintain API compatibility with Tkinter code."""
-    
-    def __init__(self, parent_window=None):
-        self.parent_window = parent_window
-        self.current_popup = None
-        
-    def show_achievement(self, achievement_data):
-        """
-        Show achievement using Qt popup.
-        
-        Args:
-            achievement_data: Dict with 'name', 'emoji', 'description'
-        """
-        if not PYQT_AVAILABLE:
-            # Fallback: just print
-            print(f"🏆 Achievement: {achievement_data.get('name')}")
-            return
-            
-        # Get parent geometry if available
-        parent_geom = None
-        if self.parent_window and hasattr(self.parent_window, 'geometry'):
-            try:
-                # Try to parse Tkinter geometry string
-                geom = self.parent_window.geometry()
-                # Format: widthxheight+x+y
-                parts = geom.replace('x', '+').split('+')
-                if len(parts) >= 4:
-                    from PyQt6.QtCore import QRect
-                    parent_geom = QRect(
-                        int(parts[2]), int(parts[3]),
-                        int(parts[0]), int(parts[1])
-                    )
-            except:
-                pass
-        
-        # Show Qt popup
-        self.current_popup = show_achievement_popup(
-            achievement_data,
-            parent=None,
-            parent_geometry=parent_geom
-        )
 
 
 if __name__ == "__main__":

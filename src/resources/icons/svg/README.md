@@ -44,11 +44,14 @@ image = loader.load_svg(
     fallback_png="src/resources/icons/png/checkmark.png"  # optional
 )
 
-# Use with customtkinter
+# Use with Qt6
 if image:
-    from customtkinter import CTkImage
-    ctk_image = CTkImage(light_image=image, dark_image=image, size=(64, 64))
-    label.configure(image=ctk_image)
+    from PyQt6.QtGui import QPixmap
+    from PIL.ImageQt import ImageQt
+    # Convert PIL Image to QPixmap
+    qimage = ImageQt(image)
+    pixmap = QPixmap.fromImage(qimage)
+    label.setPixmap(pixmap)
 ```
 
 ### Creating SVGs from Templates
@@ -67,10 +70,10 @@ image = loader.svg_from_string(svg_string, size=(64, 64))
 ### Quick Helper Function
 
 ```python
-from src.utils.svg_support import load_svg_for_ctkimage
+from src.utils.svg_support import load_svg_for_qt
 
-# One-liner for CTkImage
-image = load_svg_for_ctkimage(
+# One-liner for Qt6 QPixmap
+pixmap = load_svg_for_qt(
     svg_path="src/resources/icons/svg/loading_spinner.svg",
     size=(32, 32)
 )
@@ -100,8 +103,8 @@ SVG animations use native SVG `<animate>` and `<animateTransform>` elements:
 
 **Note**: When rendered via cairosvg, animations are captured as a single frame. For true animation in UI:
 - Use multiple SVG frames rendered in sequence (frame-by-frame animation)
-- Use CSS animations on the rendered PNG
-- Use customtkinter's native animation capabilities
+- Use Qt6 animations (QPropertyAnimation, QTimer)
+- Use OpenGL rendering for smooth 60 FPS animations
 
 ## Creating New SVG Icons
 
@@ -161,15 +164,18 @@ Output will show:
 
 ```python
 from src.utils.svg_support import create_loading_spinner_svg, SVGLoader
+from PyQt6.QtGui import QPixmap
 
 loader = SVGLoader()
 svg_str = create_loading_spinner_svg(color="#00ff00", size=48)
 spinner_img = loader.svg_from_string(svg_str, size=(48, 48))
 
-# Show in UI
+# Show in UI with Qt6
 if spinner_img:
-    ctk_img = CTkImage(light_image=spinner_img, size=(48, 48))
-    loading_label.configure(image=ctk_img)
+    from PIL.ImageQt import ImageQt
+    qimage = ImageQt(spinner_img)
+    pixmap = QPixmap.fromImage(qimage)
+    loading_label.setPixmap(pixmap)
 ```
 
 ### Status Icons

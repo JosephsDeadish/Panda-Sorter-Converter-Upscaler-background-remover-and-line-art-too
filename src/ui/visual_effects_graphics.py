@@ -1,6 +1,6 @@
 """
 PyQt6-based visual effects renderer using QGraphicsScene.
-Replaces Tkinter canvas with PyQt native graphics.
+Pure PyQt6 graphics rendering for visual effects and animations.
 """
 
 from PyQt6.QtWidgets import QGraphicsScene, QGraphicsEllipseItem, QGraphicsLineItem, QGraphicsPolygonItem
@@ -14,14 +14,14 @@ class VisualEffectsGraphicsRenderer:
     """
     PyQt6-based visual effects renderer.
     
-    Uses QGraphicsScene instead of Tkinter canvas for:
+    Uses QGraphicsScene for rendering visual effects:
     - Wounds
     - Stuck projectiles
     - Flying projectiles
     - Damage indicators
     - Bleeding effects
     
-    No canvas dependencies - pure PyQt implementation.
+    Pure PyQt implementation with hardware acceleration.
     """
     
     def __init__(self):

@@ -1,6 +1,6 @@
 """
 Achievement display using Qt native animations (QPropertyAnimation).
-Replaces tkinter .after() calls with Qt's event loop integrated timing.
+Uses Qt's event loop integrated timing for smooth animations.
 """
 
 try:
@@ -15,7 +15,7 @@ except ImportError:
 class AchievementPopupQt(QWidget):
     """
     Achievement popup using Qt native animations.
-    Uses QPropertyAnimation for fade effects instead of tkinter .after()
+    Uses QPropertyAnimation for fade effects with Qt's animation framework.
     """
     
     def __init__(self, achievement, parent=None, accent_color='#ffd700', bg_color='#ffd700'):
@@ -137,7 +137,7 @@ class AchievementPopupQt(QWidget):
         
     def _start_animations(self):
         """
-        Start Qt native animations - replaces tkinter .after() calls.
+        Start Qt native animations.
         Uses QTimer for delay and QPropertyAnimation for fade.
         """
         # Show with full opacity initially
@@ -154,7 +154,7 @@ class AchievementPopupQt(QWidget):
         # Close window when fade completes
         self.fade_animation.finished.connect(self.close)
         
-        # Use QTimer to start fade after 5 seconds (replaces tkinter .after())
+        # Use QTimer to start fade after 5 seconds
         QTimer.singleShot(5000, self.fade_animation.start)
 
 

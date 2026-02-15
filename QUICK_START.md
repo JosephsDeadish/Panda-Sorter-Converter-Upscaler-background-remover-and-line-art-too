@@ -14,24 +14,26 @@
 ### Option 1: Use UI Panels
 
 ```python
-import customtkinter as ctk
+from PyQt6.QtWidgets import QApplication, QMainWindow, QTabWidget
 from src.ui.quality_checker_panel import QualityCheckerPanel
 from src.ui.batch_normalizer_panel import BatchNormalizerPanel
 from src.ui.lineart_converter_panel import LineArtConverterPanel
 from src.ui.alpha_fixer_panel import AlphaFixerPanel
 
-# Create main window
-root = ctk.CTk()
-tabview = ctk.CTkTabview(root)
-tabview.pack(fill="both", expand=True)
+# Create Qt application
+app = QApplication([])
+window = QMainWindow()
+tabs = QTabWidget()
+window.setCentralWidget(tabs)
 
 # Add panels
-QualityCheckerPanel(tabview.add("Quality")).pack(fill="both", expand=True)
-BatchNormalizerPanel(tabview.add("Normalize")).pack(fill="both", expand=True)
-LineArtConverterPanel(tabview.add("Line Art")).pack(fill="both", expand=True)
-AlphaFixerPanel(tabview.add("Alpha Fix")).pack(fill="both", expand=True)
+tabs.addTab(QualityCheckerPanel(), "Quality")
+tabs.addTab(BatchNormalizerPanel(), "Normalize")
+tabs.addTab(LineArtConverterPanel(), "Line Art")
+tabs.addTab(AlphaFixerPanel(), "Alpha Fix")
 
-root.mainloop()
+window.show()
+app.exec()
 ```
 
 ### Option 2: Use Tools Directly
@@ -92,7 +94,7 @@ Image.fromarray(img).save("fixed.png")
 ### Required (Already in project)
 - PIL/Pillow
 - numpy
-- customtkinter (for UI)
+- PyQt6 (for UI)
 
 ### Optional (Enhanced features)
 - opencv-python (advanced operations)

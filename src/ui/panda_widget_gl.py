@@ -1,7 +1,6 @@
 """
 OpenGL Panda Widget - Hardware-accelerated 3D panda companion
-Replaces canvas-drawn panda with Qt OpenGL rendering for smooth 60fps animation,
-real lighting, shadows, and 3D interactions.
+Qt OpenGL rendering for smooth 60fps animation, real lighting, shadows, and 3D interactions.
 Author: Dead On The Inside / JosephsDeadish
 """
 
@@ -1291,23 +1290,20 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
         self.items_3d.clear()
 
 
-# Compatibility wrapper for gradual migration
+# Compatibility wrapper for Qt applications
 class PandaWidgetGLBridge:
     """
-    Bridge class to allow gradual migration from canvas to OpenGL.
-    Provides full compatibility with existing PandaWidget API while using OpenGL rendering.
-    
-    This wrapper allows the OpenGL widget to work seamlessly in place of the old
-    canvas widget without changing any application code.
+    Bridge widget for embedding OpenGL panda in Qt applications.
+    Provides API compatibility for PandaWidget while using Qt OpenGL rendering.
     """
     
-    def __init__(self, parent_frame, panda_character=None, panda_level_system=None,
+    def __init__(self, parent=None, panda_character=None, panda_level_system=None,
                  widget_collection=None, panda_closet=None, weapon_collection=None):
         """
         Initialize bridge widget with full PandaWidget API compatibility.
         
         Args:
-            parent_frame: Parent Tkinter frame (Tkinter compatibility)
+            parent: Parent Qt widget
             panda_character: PandaCharacter instance
             panda_level_system: Panda level system (for XP and leveling)
             widget_collection: Widget collection (toys, food, etc.)
@@ -1318,7 +1314,7 @@ class PandaWidgetGLBridge:
             raise ImportError("PyQt6 and PyOpenGL required for OpenGL panda widget")
         
         # Store references
-        self.parent_frame = parent_frame
+        self.parent = parent
         self.panda = panda_character
         self.panda_level_system = panda_level_system
         self.widget_collection = widget_collection
@@ -1344,7 +1340,7 @@ class PandaWidgetGLBridge:
         # Animation queue
         self._animation_queue = []
         
-        logger.info("OpenGL panda widget bridge initialized with full API compatibility")
+        logger.info("OpenGL panda widget bridge initialized")
     
     def _create_info_label(self):
         """Create mock info label that displays text in OpenGL widget."""
@@ -1520,27 +1516,6 @@ class PandaWidgetGLBridge:
     def clear_items(self):
         """Clear all items from scene."""
         self.gl_widget.clear_items()
-    
-    # ========================================================================
-    # Tkinter Compatibility Methods
-    # ========================================================================
-    
-    def pack(self, **kwargs):
-        """Pack method (no-op for Qt widget)."""
-        pass
-    
-    def grid(self, **kwargs):
-        """Grid method (no-op for Qt widget)."""
-        pass
-    
-    def place(self, **kwargs):
-        """Place method (no-op for Qt widget)."""
-        pass
-    
-    def destroy(self):
-        """Destroy widget."""
-        if hasattr(self, 'gl_widget'):
-            self.gl_widget.close()
 
 
 # Export for compatibility

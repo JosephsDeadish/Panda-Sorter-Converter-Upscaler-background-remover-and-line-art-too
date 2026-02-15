@@ -474,17 +474,14 @@ See [docs/SVG_BUILD_GUIDE.md](docs/SVG_BUILD_GUIDE.md) for complete instructions
 - Windows: Reinstall Python with "Add to PATH" checked
 - Linux/macOS: Use `python3` and `pip3` instead
 
-#### "No module named 'tkinter'"
-**Solution**: Install tkinter
+#### "No module named 'PyQt6'"
+**Solution**: Install PyQt6
 ```bash
-# Ubuntu/Debian
-sudo apt-get install python3-tk
+# All platforms
+pip install PyQt6
 
-# Fedora/RHEL
-sudo dnf install python3-tkinter
-
-# macOS (usually pre-installed)
-brew install python-tk
+# For OpenGL support
+pip install PyOpenGL PyOpenGL-accelerate
 ```
 
 #### "cairosvg not found" or SVG files won't load
