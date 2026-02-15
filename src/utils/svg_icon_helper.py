@@ -1,7 +1,7 @@
 """
 SVG Icon Integration Helper - Pure Qt Implementation
 Provides easy integration of SVG icons into Qt UI panels.
-Uses QIcon and QPixmap instead of customtkinter.
+Uses QIcon and QPixmap with Qt's native SVG support.
 """
 
 from PyQt6.QtGui import QIcon, QPixmap, QPainter
@@ -24,7 +24,7 @@ class SVGIconHelper:
     """
     Helper class for loading and using SVG icons in Qt UI.
     Provides caching, error handling, and fallback support.
-    Uses Qt's native SVG support instead of customtkinter.
+    Uses Qt's native SVG support for efficient rendering.
     """
     
     def __init__(self, icon_dir: Optional[Path] = None):

@@ -11,10 +11,15 @@
 # CORE DEPENDENCIES (Required)
 # ============================================================================
 
-# UI Framework
-customtkinter>=5.2.0
-pillow>=10.0.0
-darkdetect>=0.8.0
+# UI Framework - Qt/PyQt6 (REQUIRED - ONLY SUPPORTED UI)
+# The application uses Qt6 exclusively. Tkinter/CustomTkinter are NOT supported.
+PyQt6>=6.6.0  # Qt6 framework for UI (tabs, buttons, layouts, events) - REQUIRED
+PyOpenGL>=3.1.7  # OpenGL for 3D rendering (panda, skeletal animations) - REQUIRED
+PyOpenGL-accelerate>=3.1.7  # Performance optimizations for PyOpenGL - REQUIRED
+
+# Image Processing
+pillow>=10.0.0  # Image loading and processing
+darkdetect>=0.8.0  # System dark mode detection
 
 # Image Processing
 opencv-python>=4.8.1.78
@@ -66,7 +71,7 @@ pyinstaller>=6.0.0
 # NOTES
 # ============================================================================
 #
-# This minimal installation EXCLUDES:
+# This minimal installation uses Qt6/OpenGL for the UI and EXCLUDES:
 #   - PyTorch (torch, torchvision) - saves ~1GB
 #   - Transformers, CLIP models - saves ~500MB
 #   - Vector search (FAISS, ChromaDB) - saves ~200MB

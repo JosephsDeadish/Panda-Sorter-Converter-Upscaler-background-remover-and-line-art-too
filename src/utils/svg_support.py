@@ -1,6 +1,6 @@
 """
 SVG Support Module for UI
-Provides offline SVG loading and rendering capabilities for customtkinter UI.
+Provides offline SVG loading and rendering capabilities for Qt UI.
 
 Approaches:
 1. Convert SVG to PNG in memory (if cairosvg available)
@@ -36,7 +36,7 @@ except ImportError:
 
 class SVGLoader:
     """
-    Load and render SVG files for use in customtkinter UI.
+    Load and render SVG files for use in Qt UI.
     Falls back to PNG if SVG rendering not available.
     """
     
@@ -231,14 +231,15 @@ def create_file_svg(color: str = "#4A90E2", size: int = 64) -> str:
 </svg>'''
 
 
-# Utility function for customtkinter integration
-def load_svg_for_ctkimage(
+# Utility function for Qt integration
+def load_svg_for_qt(
     svg_path: Union[str, Path],
     size: Tuple[int, int],
     fallback_png: Optional[Union[str, Path]] = None
 ) -> Optional[object]:
     """
-    Load SVG and prepare it for use with CTkImage.
+    Load SVG and prepare it for use with Qt (returns PIL Image).
+    The PIL Image can be converted to QPixmap using QPixmap.fromImage().
     
     Args:
         svg_path: Path to SVG file
@@ -246,7 +247,7 @@ def load_svg_for_ctkimage(
         fallback_png: Optional PNG fallback
     
     Returns:
-        PIL Image ready for CTkImage or None
+        PIL Image ready for Qt conversion or None
     """
     loader = SVGLoader()
     return loader.load_svg(svg_path, size, fallback_png)
