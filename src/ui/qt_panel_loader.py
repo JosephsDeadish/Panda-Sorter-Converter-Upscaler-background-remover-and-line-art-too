@@ -1,5 +1,6 @@
 """
-Qt Panel Loader - Dynamically loads Qt or Tkinter versions of panels
+Qt Panel Loader - Loads Qt panels for UI
+Qt/PyQt6 is now required - Tkinter fallbacks have been removed.
 Author: Dead On The Inside / JosephsDeadish
 """
 
@@ -7,19 +8,20 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-# Try to import PyQt6
+# Try to import PyQt6 (required)
 try:
     from PyQt6.QtWidgets import QWidget
     PYQT6_AVAILABLE = True
-    logger.info("PyQt6 available - will use Qt panels where implemented")
+    logger.info("✅ PyQt6 available - using Qt panels")
 except ImportError:
     PYQT6_AVAILABLE = False
-    logger.info("PyQt6 not available - using Tkinter panels")
+    logger.error("❌ PyQt6 required but not available")
+    logger.error("   Install with: pip install PyQt6")
 
 
 def get_widgets_panel(parent, widget_collection, panda_callback=None):
     """
-    Get widgets panel - Qt version if available, Tkinter otherwise.
+    Get Qt widgets panel.
     
     Args:
         parent: Parent widget
@@ -27,24 +29,19 @@ def get_widgets_panel(parent, widget_collection, panda_callback=None):
         panda_callback: Callback for panda updates
         
     Returns:
-        WidgetsPanel instance (Qt or Tkinter)
+        WidgetsPanelQt instance
     """
-    if PYQT6_AVAILABLE:
-        try:
-            from src.ui.widgets_panel_qt import WidgetsPanelQt
-            logger.info("Using Qt widgets panel")
-            return WidgetsPanelQt(widget_collection, panda_callback, parent)
-        except Exception as e:
-            logger.warning(f"Failed to load Qt widgets panel: {e}, falling back to Tkinter")
+    if not PYQT6_AVAILABLE:
+        raise ImportError("PyQt6 required for widgets panel. Install with: pip install PyQt6")
     
-    from src.ui.widgets_panel import WidgetsPanel
-    logger.info("Using Tkinter widgets panel")
-    return WidgetsPanel(parent, widget_collection, panda_callback)
+    from src.ui.widgets_panel_qt import WidgetsPanelQt
+    logger.info("Using Qt widgets panel")
+    return WidgetsPanelQt(widget_collection, panda_callback, parent)
 
 
 def get_closet_panel(parent, panda_closet, panda_character=None, panda_preview=None):
     """
-    Get closet panel - Qt version if available, Tkinter otherwise.
+    Get Qt closet panel.
     
     Args:
         parent: Parent widget
@@ -53,48 +50,38 @@ def get_closet_panel(parent, panda_closet, panda_character=None, panda_preview=N
         panda_preview: Preview callback
         
     Returns:
-        ClosetPanel instance (Qt or Tkinter)
+        ClosetDisplayQt instance
     """
-    if PYQT6_AVAILABLE:
-        try:
-            from src.ui.closet_display_qt import ClosetDisplayQt
-            logger.info("Using Qt closet panel")
-            return ClosetDisplayQt(parent)
-        except Exception as e:
-            logger.warning(f"Failed to load Qt closet panel: {e}, falling back to Tkinter")
+    if not PYQT6_AVAILABLE:
+        raise ImportError("PyQt6 required for closet panel. Install with: pip install PyQt6")
     
-    from src.ui.closet_panel import ClosetPanel
-    logger.info("Using Tkinter closet panel")
-    return ClosetPanel(parent, panda_closet, panda_character, panda_preview)
+    from src.ui.closet_display_qt import ClosetDisplayQt
+    logger.info("Using Qt closet panel")
+    return ClosetDisplayQt(parent)
 
 
 def get_hotkey_settings_panel(parent, hotkey_manager):
     """
-    Get hotkey settings panel - Qt version if available, Tkinter otherwise.
+    Get Qt hotkey settings panel.
     
     Args:
         parent: Parent widget
         hotkey_manager: HotkeyManager instance
         
     Returns:
-        HotkeySettingsPanel instance (Qt or Tkinter)
+        HotkeyDisplayQt instance
     """
-    if PYQT6_AVAILABLE:
-        try:
-            from src.ui.hotkey_display_qt import HotkeyDisplayQt
-            logger.info("Using Qt hotkey settings panel")
-            return HotkeyDisplayQt(parent)
-        except Exception as e:
-            logger.warning(f"Failed to load Qt hotkey panel: {e}, falling back to Tkinter")
+    if not PYQT6_AVAILABLE:
+        raise ImportError("PyQt6 required for hotkey panel. Install with: pip install PyQt6")
     
-    from src.ui.hotkey_settings_panel import HotkeySettingsPanel
-    logger.info("Using Tkinter hotkey settings panel")
-    return HotkeySettingsPanel(parent, hotkey_manager)
+    from src.ui.hotkey_display_qt import HotkeyDisplayQt
+    logger.info("Using Qt hotkey settings panel")
+    return HotkeyDisplayQt(parent)
 
 
 def get_customization_panel(parent, panda_closet, panda_character=None):
     """
-    Get customization panel - Qt version if available, Tkinter otherwise.
+    Get Qt customization panel.
     
     Args:
         parent: Parent widget
@@ -102,19 +89,14 @@ def get_customization_panel(parent, panda_closet, panda_character=None):
         panda_character: PandaCharacter instance
         
     Returns:
-        CustomizationPanel instance (Qt or Tkinter)
+        CustomizationPanelQt instance
     """
-    if PYQT6_AVAILABLE:
-        try:
-            from src.ui.customization_panel_qt import CustomizationPanelQt
-            logger.info("Using Qt customization panel")
-            return CustomizationPanelQt(panda_character, panda_closet, parent)
-        except Exception as e:
-            logger.warning(f"Failed to load Qt customization panel: {e}, falling back to Tkinter")
+    if not PYQT6_AVAILABLE:
+        raise ImportError("PyQt6 required for customization panel. Install with: pip install PyQt6")
     
-    from src.ui.customization_panel import CustomizationPanel
-    logger.info("Using Tkinter customization panel")
-    return CustomizationPanel(parent, panda_closet, panda_character)
+    from src.ui.customization_panel_qt import CustomizationPanelQt
+    logger.info("Using Qt customization panel")
+    return CustomizationPanelQt(panda_character, panda_closet, parent)
 
 
 def get_background_remover_panel(parent):
