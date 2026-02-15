@@ -21,6 +21,7 @@ import time
 import shutil
 import threading
 import logging
+import gc
 from collections import OrderedDict
 from pathlib import Path
 from types import SimpleNamespace
@@ -2777,7 +2778,7 @@ class GameTextureSorter(ctk.CTk):
         # Clean up old preview images to prevent memory accumulation
         if hasattr(self, '_upscale_preview_image') and self._upscale_preview_image:
             try:
-                if self._upscale_preview_image != pil_img:
+                if self._upscale_preview_image is not pil_img:
                     old_img = self._upscale_preview_image
                     self._upscale_preview_image = None
                     if hasattr(old_img, 'close'):
@@ -3362,7 +3363,6 @@ class GameTextureSorter(ctk.CTk):
                         shutil.rmtree(tmp_dir, ignore_errors=True)
                 
                 # Force garbage collection to release memory
-                import gc
                 gc.collect()
                 
                 # Close progress dialog
