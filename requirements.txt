@@ -16,20 +16,21 @@
 # CORE DEPENDENCIES (Required for basic functionality)
 # ============================================================================
 
-# UI Framework - Qt/PyQt6 (REQUIRED)
-# The application now uses Qt exclusively for all UI components.
-# Canvas/Tkinter is no longer supported - PyQt6 is mandatory.
+# UI Framework - Qt/PyQt6 (REQUIRED - PRIMARY UI)
+# The application uses Qt exclusively for all UI components.
+# Tkinter/Canvas are NO LONGER SUPPORTED.
 PyQt6>=6.6.0  # Qt6 framework for UI (tabs, buttons, layouts, events) - REQUIRED
 PyOpenGL>=3.1.7  # OpenGL for 3D rendering (panda, skeletal animations) - REQUIRED
 PyOpenGL-accelerate>=3.1.7  # Performance optimizations for PyOpenGL - REQUIRED
 
-# Legacy UI Framework (Deprecated - only for app wrapper)
-# CustomTkinter is only used for the basic application window wrapper.
-# All actual UI components use PyQt6.
-customtkinter>=5.2.0  # Basic app window wrapper (being phased out)
+# DEPRECATED UI Framework (Legacy - DO NOT USE)
+# CustomTkinter is DEPRECATED and will be removed in future versions.
+# It is only kept temporarily for build compatibility.
+# All new code MUST use PyQt6.
+# customtkinter>=5.2.0  # DEPRECATED - Use PyQt6 instead
 pillow>=10.0.0  # Image loading and processing
 darkdetect>=0.8.0  # System dark mode detection
-tkinterdnd2>=0.3.0  # Drag-and-drop support (optional, gracefully degrades)
+# tkinterdnd2>=0.3.0  # DEPRECATED - Drag-drop now uses Qt
 
 # Image Processing
 opencv-python>=4.8.1.78  # Computer vision (>= 4.8.1.78 for libwebp CVE fix)
