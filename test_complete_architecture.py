@@ -41,15 +41,23 @@ def test_imports():
     print("   ✅ OpenGL panda widget (3D rendering)")
     
     print("\n4. Testing Main Application...")
-    # Check main.py content
+    # Check main.py content - ensure no tkinter imports
     with open('main.py', 'r') as f:
         content = f.read()
+        lines = content.split('\n')
+        
+        # Check for Qt imports
         assert 'from PyQt6.QtWidgets import' in content
-        assert 'import tkinter' not in content.lower() or 'tkinter' in content.lower() and '# NO' in content
-        assert 'from tkinter' not in content.lower() or 'from tkinter' in content.lower() and '# NO' in content
         assert 'QMainWindow' in content
         assert 'QTabWidget' in content
         assert 'QTimer' in content
+        
+        # Check that there are no tkinter imports (excluding comments)
+        for line in lines:
+            line_stripped = line.strip()
+            if line_stripped and not line_stripped.startswith('#'):
+                assert 'import tkinter' not in line_stripped.lower()
+                assert 'from tkinter' not in line_stripped.lower()
     print("   ✅ Main application uses Qt6, no Tkinter imports")
     
     return True

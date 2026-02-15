@@ -139,14 +139,15 @@ class EnemyWidget:
         return result
     
     def _draw_enemy(self):
-        """Draw enemy with damage effects."""
+        """Draw enemy with damage effects using QGraphicsScene."""
         scene = self.enemy_scene
         scene.clear()
         
         # Draw base enemy
         # ... existing drawing code ...
         
-        # Draw damage effects
+        # Draw damage effects using QGraphicsScene methods
+        # Note: Use standard methods (no _gl suffix) for QGraphicsView rendering
         cx = ENEMY_VIEW_W // 2
         cy = ENEMY_VIEW_H // 2
         
@@ -204,7 +205,8 @@ class PandaWidget:
         """Draw panda with damage effects in OpenGL."""
         # ... existing panda OpenGL rendering code ...
         
-        # Draw damage effects as 2D overlay
+        # Draw damage effects as 2D overlay using OpenGL methods
+        # Note: Use _gl suffix methods for OpenGL widget rendering
         cx = PANDA_WIDTH // 2
         cy = PANDA_HEIGHT // 2
         

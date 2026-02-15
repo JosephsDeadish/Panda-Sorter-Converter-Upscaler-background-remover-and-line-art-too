@@ -1,5 +1,5 @@
 """
-Qt Achievement Popup Widget
+Qt6 Achievement Popup Widget
 
 Pure Qt6 implementation using widgets with CSS styling for modern appearance.
 """
