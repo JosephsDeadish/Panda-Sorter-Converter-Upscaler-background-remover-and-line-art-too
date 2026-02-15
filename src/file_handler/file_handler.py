@@ -90,13 +90,29 @@ class FileHandler:
     # Formats that don't support transparency
     NO_ALPHA_FORMATS = {'jpeg', 'jpg', 'jpe', 'jfif', 'bmp'}
     
-    def __init__(self, create_backup=True):
-        self.create_backup = create_backup
+    def __init__(self, create_backup=True, config=None):
+        """
+        Initialize FileHandler.
+        
+        Args:
+            create_backup: Create backup before operations (legacy parameter)
+            config: Configuration dict with file_handling settings
+        """
+        # Use config if provided, otherwise use legacy parameter
+        if config and hasattr(config, 'get'):
+            # Config object provided
+            self.create_backup = config.get('file_handling', 'create_backup', default=True)
+            self.enable_archive = config.get('file_handling', 'enable_archive_support', default=True)
+        else:
+            # Use legacy parameters or defaults
+            self.create_backup = create_backup
+            self.enable_archive = True
+            
         self.operations_log = []
         
-        # Initialize archive handler if available
+        # Initialize archive handler if available and enabled
         self.archive_handler = None
-        if HAS_ARCHIVE_SUPPORT:
+        if HAS_ARCHIVE_SUPPORT and self.enable_archive:
             self.archive_handler = ArchiveHandler()
             logger.debug("Archive handler initialized")
     

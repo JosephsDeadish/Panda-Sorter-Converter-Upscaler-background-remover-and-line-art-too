@@ -154,7 +154,13 @@ class Config:
                 "min_file_size_kb": 0,
                 "max_file_size_mb": 0,  # 0 = no limit
                 "file_patterns_include": [],
-                "file_patterns_exclude": []
+                "file_patterns_exclude": [],
+                # Archive support
+                "enable_archive_support": True,
+                # SVG handling
+                "svg_conversion_backend": "auto",  # auto, cairo, native, opencv
+                "svg_output_format": "png",  # png, jpg, webp
+                "svg_output_dpi": 96
             },
             
             # Sorting Preferences
@@ -231,6 +237,58 @@ class Config:
                 "use_image_analysis": True,
                 "use_metadata": True,
                 "custom_rules": []
+            },
+            
+            # Structural Analysis Settings
+            "structural_analysis": {
+                "enabled": True,
+                # Size thresholds (in pixels)
+                "small_texture_size": 64,
+                "medium_texture_size": 256,
+                "large_texture_size": 512,
+                # Entropy thresholds for complexity detection
+                "low_entropy_threshold": 4.0,
+                "high_entropy_threshold": 6.0,
+                # UI detection weights
+                "ui_size_weight": 0.3,
+                "ui_aspect_weight": 0.2,
+                "ui_color_weight": 0.2,
+                "ui_border_weight": 0.3,
+                # Analysis features
+                "analyze_colors": True,
+                "analyze_borders": True,
+                "color_clusters": 5  # Number of dominant colors to extract
+            },
+            
+            # OCR Detection Settings
+            "ocr": {
+                "enabled": False,  # Disabled by default (requires pytesseract)
+                "tesseract_path": "",  # Path to tesseract executable (empty = auto-detect)
+                "confidence_threshold": 0.3,  # Minimum confidence to accept OCR result
+                # Preprocessing
+                "min_upscale_size": 200,  # Minimum size before upscaling for OCR
+                "denoise_strength": 10,  # Denoising parameter (h value)
+                "use_adaptive_threshold": True,
+                "detect_numbers": True,  # Detect health/ammo numbers
+                "detect_ui_text": True  # Detect UI labels
+            },
+            
+            # UI Detection Settings
+            "ui_detection": {
+                "enabled": True,
+                # Feature flags
+                "use_structural_analysis": True,
+                "use_alpha_analysis": True,
+                "use_ocr": False,  # OCR disabled by default
+                # Component weights (should sum to 1.0)
+                "structural_weight": 0.4,
+                "alpha_weight": 0.3,
+                "ocr_weight": 0.3,
+                # Detection threshold
+                "ui_threshold": 0.5,  # Minimum score to classify as UI
+                # Alpha channel settings
+                "alpha_transparency_threshold": 0.8,  # Proportion of transparent pixels
+                "alpha_edge_threshold": 0.6  # Proportion of edge pixels that are transparent
             },
             
             # AI Model Settings

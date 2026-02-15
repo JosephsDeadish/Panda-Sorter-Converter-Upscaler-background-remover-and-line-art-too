@@ -33,19 +33,36 @@ class OCRDetector:
     - Language-agnostic detection
     """
     
-    def __init__(self, tesseract_path: Optional[Path] = None):
+    def __init__(self, tesseract_path: Optional[Path] = None, config=None):
         """
         Initialize OCR detector.
         
         Args:
-            tesseract_path: Optional path to tesseract executable
+            tesseract_path: Optional path to tesseract executable (legacy parameter)
+            config: Configuration dict with ocr settings
         """
         if not PYTESSERACT_AVAILABLE:
             logger.warning("pytesseract not available. OCR features disabled.")
+            self.confidence_threshold = 0.3
+            self.min_upscale_size = 200
+            self.denoise_strength = 10
             return
         
-        if tesseract_path:
-            pytesseract.pytesseract.tesseract_cmd = str(tesseract_path)
+        # Load settings from config or use parameters/defaults
+        if config and hasattr(config, 'get'):
+            tess_path = config.get('ocr', 'tesseract_path', default='')
+            if tess_path:
+                pytesseract.pytesseract.tesseract_cmd = str(tess_path)
+            self.confidence_threshold = config.get('ocr', 'confidence_threshold', default=0.3)
+            self.min_upscale_size = config.get('ocr', 'min_upscale_size', default=200)
+            self.denoise_strength = config.get('ocr', 'denoise_strength', default=10)
+        else:
+            # Use legacy parameter or defaults
+            if tesseract_path:
+                pytesseract.pytesseract.tesseract_cmd = str(tesseract_path)
+            self.confidence_threshold = 0.3
+            self.min_upscale_size = 200
+            self.denoise_strength = 10
         
         logger.info("OCRDetector initialized")
     
@@ -88,7 +105,7 @@ class OCRDetector:
             confidences = [int(c) for c in data['conf'] if c != '-1']
             avg_confidence = np.mean(confidences) / 100.0 if confidences else 0.0
             
-            has_text = len(text) > 0 and avg_confidence > 0.3
+            has_text = len(text) > 0 and avg_confidence > self.confidence_threshold
             
             return {
                 'text': text,
@@ -183,8 +200,8 @@ class OCRDetector:
         
         # Upscale if small
         h, w = gray.shape[:2]
-        if max(h, w) < 200:
-            scale_factor = 200 // max(h, w) + 1
+        if max(h, w) < self.min_upscale_size:
+            scale_factor = self.min_upscale_size // max(h, w) + 1
             gray = cv2.resize(
                 gray,
                 (w * scale_factor, h * scale_factor),
@@ -192,7 +209,7 @@ class OCRDetector:
             )
         
         # Denoise
-        denoised = cv2.fastNlMeansDenoising(gray, h=10)
+        denoised = cv2.fastNlMeansDenoising(gray, h=self.denoise_strength)
         
         # Apply adaptive thresholding
         thresh = cv2.adaptiveThreshold(
