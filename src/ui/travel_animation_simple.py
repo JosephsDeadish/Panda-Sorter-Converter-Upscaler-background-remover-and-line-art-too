@@ -1,6 +1,23 @@
 """
+⚠️ DEPRECATED AND UNUSED ⚠️
+
+This file is NOT IMPORTED anywhere in the codebase and is kept only for
+potential backward compatibility.
+
+Use the Qt version instead: src/ui/qt_travel_animation.py
+
+This file will be removed in a future version.
+
 Simple travel animation using Labels instead of canvas drawing.
 """
+
+import warnings
+warnings.warn(
+    "travel_animation_simple.py is deprecated and unused. "
+    "Use qt_travel_animation.py (Qt-based) instead.",
+    DeprecationWarning,
+    stacklevel=2
+)
 
 import tkinter as tk
 import customtkinter as ctk
