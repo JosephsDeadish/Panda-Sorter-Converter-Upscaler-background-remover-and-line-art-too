@@ -42,6 +42,23 @@ from file_handler import FileHandler
 from database import TextureDatabase
 from organizer import OrganizationEngine, ORGANIZATION_STYLES
 
+# Import UI components
+try:
+    from ui.panda_widget_gl import PandaOpenGLWidget
+    from ui.background_remover_panel_qt import BackgroundRemoverPanelQt
+    from ui.color_correction_panel_qt import ColorCorrectionPanelQt
+    from ui.batch_normalizer_panel_qt import BatchNormalizerPanelQt
+    from ui.quality_checker_panel_qt import QualityCheckerPanelQt
+    from ui.lineart_converter_panel_qt import LineArtConverterPanelQt
+    from ui.alpha_fixer_panel_qt import AlphaFixerPanelQt
+    from ui.batch_rename_panel_qt import BatchRenamePanelQt
+    from ui.image_repair_panel_qt import ImageRepairPanelQt
+    from ui.customization_panel_qt import CustomizationPanelQt
+    UI_PANELS_AVAILABLE = True
+except ImportError as e:
+    logger.warning(f"Some UI panels not available: {e}")
+    UI_PANELS_AVAILABLE = False
+
 
 class WorkerThread(QThread):
     """Background worker thread for long-running operations."""
@@ -115,19 +132,29 @@ class TextureSorterMainWindow(QMainWindow):
         self.setGeometry(100, 100, 1400, 900)
         self.setMinimumSize(900, 650)
         
-        # Central widget
+        # Central widget with splitter for panda
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
         
         # Main layout
-        main_layout = QVBoxLayout(central_widget)
+        main_layout = QHBoxLayout(central_widget)
         main_layout.setContentsMargins(10, 10, 10, 10)
         main_layout.setSpacing(10)
+        
+        # Create splitter: main content | panda widget
+        splitter = QSplitter(Qt.Orientation.Horizontal)
+        main_layout.addWidget(splitter)
+        
+        # Left side: Main content area
+        content_widget = QWidget()
+        content_layout = QVBoxLayout(content_widget)
+        content_layout.setContentsMargins(0, 0, 0, 0)
+        content_layout.setSpacing(10)
         
         # Create tabs
         self.tabs = QTabWidget()
         self.tabs.setDocumentMode(True)
-        main_layout.addWidget(self.tabs)
+        content_layout.addWidget(self.tabs)
         
         # Create main tab
         self.create_sorting_tab()
@@ -138,11 +165,29 @@ class TextureSorterMainWindow(QMainWindow):
         # Create settings tab
         self.create_settings_tab()
         
-        # Progress bar (at bottom)
+        # Progress bar (at bottom of content)
         self.progress_bar = QProgressBar()
         self.progress_bar.setVisible(False)
         self.progress_bar.setTextVisible(True)
-        main_layout.addWidget(self.progress_bar)
+        content_layout.addWidget(self.progress_bar)
+        
+        splitter.addWidget(content_widget)
+        
+        # Right side: Panda 3D widget (OpenGL-accelerated)
+        if UI_PANELS_AVAILABLE:
+            try:
+                self.panda_widget = PandaOpenGLWidget()
+                self.panda_widget.setMinimumWidth(300)
+                self.panda_widget.setMaximumWidth(400)
+                splitter.addWidget(self.panda_widget)
+                splitter.setStretchFactor(0, 3)  # Content gets 75%
+                splitter.setStretchFactor(1, 1)  # Panda gets 25%
+                logger.info("✅ Panda 3D OpenGL widget loaded")
+            except Exception as e:
+                logger.warning(f"Could not load panda widget: {e}")
+                self.panda_widget = None
+        else:
+            self.panda_widget = None
     
     def create_sorting_tab(self):
         """Create the main texture sorting tab."""
@@ -235,28 +280,82 @@ class TextureSorterMainWindow(QMainWindow):
         self.tabs.addTab(tab, "Sorting")
     
     def create_tools_tab(self):
-        """Create tools tab with additional functionality."""
+        """Create tools tab with Qt-based tool panels."""
         tab = QWidget()
         layout = QVBoxLayout(tab)
+        layout.setContentsMargins(5, 5, 5, 5)
+        layout.setSpacing(10)
         
-        label = QLabel("🔧 Additional tools will be added here")
-        label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        label.setFont(QFont("Arial", 12))
-        layout.addWidget(label)
+        # Create tool tabs
+        tool_tabs = QTabWidget()
+        tool_tabs.setDocumentMode(True)
+        layout.addWidget(tool_tabs)
         
-        # Placeholder for Qt panels integration
-        info_label = QLabel(
-            "Tools available:\n"
-            "• Background Remover\n"
-            "• Color Correction\n"
-            "• Batch Normalizer\n"
-            "• Quality Checker\n"
-            "• Line Art Converter"
-        )
-        info_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        layout.addWidget(info_label)
-        
-        layout.addStretch()
+        # Add tool panels if available
+        if UI_PANELS_AVAILABLE:
+            try:
+                # Background Remover
+                bg_panel = BackgroundRemoverPanelQt()
+                tool_tabs.addTab(bg_panel, "🎭 Background Remover")
+                
+                # Alpha Fixer
+                alpha_panel = AlphaFixerPanelQt()
+                tool_tabs.addTab(alpha_panel, "✨ Alpha Fixer")
+                
+                # Color Correction
+                color_panel = ColorCorrectionPanelQt()
+                tool_tabs.addTab(color_panel, "🎨 Color Correction")
+                
+                # Batch Normalizer
+                norm_panel = BatchNormalizerPanelQt()
+                tool_tabs.addTab(norm_panel, "⚙️ Batch Normalizer")
+                
+                # Quality Checker
+                quality_panel = QualityCheckerPanelQt()
+                tool_tabs.addTab(quality_panel, "✓ Quality Checker")
+                
+                # Line Art Converter
+                line_panel = LineArtConverterPanelQt()
+                tool_tabs.addTab(line_panel, "✏️ Line Art Converter")
+                
+                # Batch Rename
+                rename_panel = BatchRenamePanelQt()
+                tool_tabs.addTab(rename_panel, "📝 Batch Rename")
+                
+                # Image Repair
+                repair_panel = ImageRepairPanelQt()
+                tool_tabs.addTab(repair_panel, "🔧 Image Repair")
+                
+                # Customization
+                custom_panel = CustomizationPanelQt()
+                tool_tabs.addTab(custom_panel, "🎨 Customization")
+                
+                self.log("✅ All tool panels loaded successfully")
+                
+            except Exception as e:
+                logger.error(f"Error loading tool panels: {e}", exc_info=True)
+                # Fallback to placeholder
+                label = QLabel(f"⚠️ Error loading tool panels: {e}")
+                label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+                tool_tabs.addTab(label, "Error")
+        else:
+            # Fallback message
+            label = QLabel(
+                "🔧 Tool panels require additional dependencies.\n\n"
+                "Available tools:\n"
+                "• Background Remover\n"
+                "• Alpha Fixer\n"
+                "• Color Correction\n"
+                "• Batch Normalizer\n"
+                "• Quality Checker\n"
+                "• Line Art Converter\n"
+                "• Batch Rename\n"
+                "• Image Repair\n"
+                "• Customization"
+            )
+            label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            label.setFont(QFont("Arial", 11))
+            tool_tabs.addTab(label, "Info")
         
         self.tabs.addTab(tab, "Tools")
     
