@@ -286,10 +286,18 @@ except ImportError as e:
 
 try:
     from src.features.panda_closet import PandaCloset
-    from src.ui.closet_panel import ClosetPanel
+    # Use Qt panel loader for dynamic Qt/Tkinter selection
+    try:
+        from src.ui.qt_panel_loader import get_closet_panel
+        ClosetPanel = None  # Will use loader function instead
+        USE_QT_PANELS = True
+    except ImportError:
+        from src.ui.closet_panel import ClosetPanel
+        USE_QT_PANELS = False
     PANDA_CLOSET_AVAILABLE = True
 except ImportError:
     PANDA_CLOSET_AVAILABLE = False
+    USE_QT_PANELS = False
     print("Warning: Panda closet not available.")
 
 try:
@@ -6368,13 +6376,24 @@ class GameTextureSorter(ctk.CTk):
                        variable=global_hotkey_var).pack(anchor="w", padx=20, pady=3)
         
         try:
-            from src.ui.hotkey_settings_panel import HotkeySettingsPanel
-            if not hasattr(self, 'hotkey_manager') or self.hotkey_manager is None:
-                from src.features.hotkey_manager import HotkeyManager
-                self.hotkey_manager = HotkeyManager()
-            
-            hotkey_panel = HotkeySettingsPanel(controls_scroll, self.hotkey_manager)
-            hotkey_panel.pack(fill="both", expand=True, padx=10, pady=5)
+            # Try Qt panel loader first
+            try:
+                from src.ui.qt_panel_loader import get_hotkey_settings_panel
+                if not hasattr(self, 'hotkey_manager') or self.hotkey_manager is None:
+                    from src.features.hotkey_manager import HotkeyManager
+                    self.hotkey_manager = HotkeyManager()
+                
+                hotkey_panel = get_hotkey_settings_panel(controls_scroll, self.hotkey_manager)
+                hotkey_panel.pack(fill="both", expand=True, padx=10, pady=5)
+            except ImportError:
+                # Fall back to Tkinter version
+                from src.ui.hotkey_settings_panel import HotkeySettingsPanel
+                if not hasattr(self, 'hotkey_manager') or self.hotkey_manager is None:
+                    from src.features.hotkey_manager import HotkeyManager
+                    self.hotkey_manager = HotkeyManager()
+                
+                hotkey_panel = HotkeySettingsPanel(controls_scroll, self.hotkey_manager)
+                hotkey_panel.pack(fill="both", expand=True, padx=10, pady=5)
         except Exception as e:
             logger.error(f"Failed to load hotkey panel: {e}", exc_info=True)
             ctk.CTkLabel(controls_scroll, text=f"⚠️ Could not load hotkey panel: {e}",
@@ -8016,12 +8035,22 @@ class GameTextureSorter(ctk.CTk):
                          font=("Arial", 14)).pack(pady=50)
             return
         
-        closet_panel = ClosetPanel(
-            self.tab_closet,
-            self.panda_closet,
-            panda_character=self.panda,
-            panda_preview_callback=self.panda_widget
-        )
+        # Use Qt panel loader if available
+        if USE_QT_PANELS:
+            from src.ui.qt_panel_loader import get_closet_panel
+            closet_panel = get_closet_panel(
+                self.tab_closet,
+                self.panda_closet,
+                panda_character=self.panda,
+                panda_preview=self.panda_widget
+            )
+        else:
+            closet_panel = ClosetPanel(
+                self.tab_closet,
+                self.panda_closet,
+                panda_character=self.panda,
+                panda_preview_callback=self.panda_widget
+            )
         closet_panel.pack(fill="both", expand=True, padx=10, pady=10)
         
         # Store reference so we can refresh after shop purchases
