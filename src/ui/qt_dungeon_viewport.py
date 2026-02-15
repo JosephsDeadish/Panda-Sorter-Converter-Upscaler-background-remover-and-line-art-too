@@ -1,7 +1,7 @@
 """
 Qt Dungeon Renderer Viewport
 
-Replacement for tk.Canvas-based dungeon rendering.
+Pure PyQt6 implementation for dungeon visualization with OpenGL support.
 Uses QOpenGLWidget for hardware-accelerated 3D dungeon rendering.
 """
 

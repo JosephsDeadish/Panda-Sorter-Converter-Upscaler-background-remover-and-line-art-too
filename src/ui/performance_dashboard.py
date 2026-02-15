@@ -1,7 +1,7 @@
 """
 Performance Dashboard - Pure Qt Implementation
 Real-time monitoring of processing speed, memory, and queue status.
-Uses PyQt6 with QTimer for updates - NO tkinter, NO customtkinter.
+Uses PyQt6 with QTimer for updates. Pure Qt implementation.
 """
 
 from PyQt6.QtWidgets import (
@@ -142,7 +142,7 @@ class PerformanceDashboard(QFrame):
     """
     Real-time performance dashboard widget using pure Qt.
     Shows processing speed, memory usage, queue status, and more.
-    Uses QTimer for updates instead of tkinter .after().
+    Uses QTimer for updates with Qt's event loop integration.
     """
     
     def __init__(self, parent=None, unlockables_system=None, tooltip_manager=None):
@@ -153,7 +153,7 @@ class PerformanceDashboard(QFrame):
         self.metrics = PerformanceMetrics()
         self.running = False
         
-        # Qt timer for updates instead of tkinter .after()
+        # Qt timer for updates with Qt's event loop integration
         self.update_timer = QTimer(self)
         self.update_timer.setInterval(1000)  # 1 second
         self.update_timer.timeout.connect(self._update)

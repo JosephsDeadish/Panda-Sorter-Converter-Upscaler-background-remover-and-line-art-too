@@ -1,6 +1,6 @@
 """
 Qt implementation of the customization panel.
-Uses PyQt6 instead of customtkinter.
+Pure PyQt6 UI for texture customization options.
 """
 
 try:

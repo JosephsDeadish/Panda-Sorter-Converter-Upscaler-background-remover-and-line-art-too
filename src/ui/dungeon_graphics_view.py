@@ -1,6 +1,6 @@
 """
 PyQt6 QGraphicsView-based dungeon renderer.
-Replaces Tkinter canvas with PyQt native graphics.
+Pure PyQt6 graphics rendering for dungeon visualization.
 """
 
 from PyQt6.QtWidgets import QGraphicsView, QGraphicsScene, QGraphicsRectItem, QGraphicsEllipseItem, QGraphicsTextItem

@@ -1,6 +1,6 @@
 """
 Qt-based Performance Optimization Utilities
-Uses Qt native timers (QTimer) instead of tkinter .after()
+Uses Qt native timers (QTimer) for efficient event loop integration.
 """
 
 try:
@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 class ThrottledUpdateQt(QObject):
     """
     Qt-based throttle for rapid UI updates.
-    Uses QTimer instead of tkinter .after()
+    Uses QTimer for Qt's event loop integration.
     """
     
     def __init__(self, delay_ms: int = 150):
@@ -36,7 +36,7 @@ class ThrottledUpdateQt(QObject):
         self.delay_ms = delay_ms
         self._callback: Optional[Callable] = None
         
-        # Use Qt native QTimer instead of tkinter .after()
+        # Use Qt native QTimer for event loop integration
         self._timer = QTimer(self)
         self._timer.setSingleShot(True)
         self._timer.timeout.connect(self._execute)
@@ -75,7 +75,7 @@ class ThrottledUpdateQt(QObject):
 class DebouncedCallbackQt(QObject):
     """
     Qt-based debounce for callbacks.
-    Uses QTimer instead of tkinter .after() for cleaner integration with Qt event loop.
+    Uses QTimer for Qt's event loop integration.
     """
     
     def __init__(self, callback: Callable, delay_ms: int = 500):
@@ -106,7 +106,7 @@ class DebouncedCallbackQt(QObject):
         """
         Trigger the callback after the delay period.
         Resets the delay timer if called multiple times.
-        Uses QTimer instead of widget.after()
+        Uses QTimer for Qt's event loop integration.
         """
         # Store arguments
         self._args = args
@@ -136,7 +136,7 @@ class DebouncedCallbackQt(QObject):
 class PeriodicUpdateQt(QObject):
     """
     Qt-based periodic update using QTimer.
-    Cleaner than recursive tkinter .after() calls.
+    Cleaner than recursive update calls with Qt's event loop integration.
     """
     
     updated = pyqtSignal()  # Signal emitted on each update
