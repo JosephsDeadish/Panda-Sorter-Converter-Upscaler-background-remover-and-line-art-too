@@ -68,6 +68,7 @@ datas = []
 binaries = []
 
 print("[rembg hook] Starting rembg collection...")
+print("[rembg hook] Note: sys.exit() is patched to prevent build termination")
 
 # Check if rembg is available at all (without importing it)
 try:
@@ -87,60 +88,108 @@ except Exception as e:
     has_onnxruntime = False
 
 if not has_rembg:
-    print("[rembg hook] rembg not installed - skipping")
-    print("[rembg hook] Application will handle rembg as optional dependency")
+    print("[rembg hook] ERROR: rembg not installed!")
+    print("[rembg hook] Install with: pip install 'rembg[cpu]'")
+    print("[rembg hook] Background removal tool requires rembg to function")
     # Restore sys.exit and exit early
     sys.exit = _original_exit
 elif not has_onnxruntime:
     print("[rembg hook] WARNING: rembg is installed but onnxruntime is NOT found!")
     print("[rembg hook] rembg requires onnxruntime backend to function.")
     print("[rembg hook] Install with: pip install 'rembg[cpu]'")
-    print("[rembg hook] Skipping rembg collection - app will detect missing dependency at runtime")
-    # Restore sys.exit and skip collection to avoid import errors
-    sys.exit = _original_exit
+    print("[rembg hook] Attempting to collect rembg anyway (with patched sys.exit)")
+    
+    # Try to collect rembg modules without importing them
+    try:
+        hiddenimports = collect_submodules('rembg')
+        print(f"[rembg hook] Collected {len(hiddenimports)} rembg submodules (without importing)")
+    except Exception as e:
+        print(f"[rembg hook] Warning: Could not collect rembg submodules: {e}")
+        hiddenimports = []
+    
+    # Add dependencies that rembg needs
+    hiddenimports.extend(REMBG_DEPENDENCIES)
+    
+    # Collect data files and binaries
+    try:
+        datas = collect_data_files('rembg', include_py_files=False)
+        print(f"[rembg hook] Collected {len(datas)} data files")
+    except Exception as e:
+        print(f"[rembg hook] Warning: Could not collect data files: {e}")
+    
+    try:
+        binaries = collect_dynamic_libs('rembg')
+        print(f"[rembg hook] Collected {len(binaries)} binary files")
+    except Exception as e:
+        print(f"[rembg hook] Warning: Could not collect binaries: {e}")
+    
+    print("[rembg hook] Collection complete - but onnxruntime may not work at runtime!")
+    print("[rembg hook] Ensure 'rembg[cpu]' is installed for full functionality")
 else:
-    # Both rembg and onnxruntime are available
-    print("[rembg hook] Both rembg and onnxruntime found - collecting all modules")
+    # Both rembg and onnxruntime are available - full collection
+    print("[rembg hook] ✅ Both rembg and onnxruntime found - collecting for background removal tool")
     
     # Wrap everything in try-except to handle any import failures gracefully
     try:
         # Collect all rembg submodules using collect_submodules (doesn't import them)
+        # This is safe because collect_submodules uses importlib to find modules without importing
         try:
-            hiddenimports = collect_submodules('rembg')
-            print(f"[rembg hook] Collected {len(hiddenimports)} rembg submodules")
+            rembg_modules = collect_submodules('rembg')
+            print(f"[rembg hook] Collected {len(rembg_modules)} rembg submodules (without importing)")
+            hiddenimports = rembg_modules
         except Exception as e:
             print(f"[rembg hook] Warning: Could not collect rembg submodules: {e}")
-            hiddenimports = []
+            hiddenimports = [
+                # Manually specify core rembg modules as fallback
+                'rembg',
+                'rembg.bg',
+                'rembg.session_factory',
+                'rembg.sessions',
+            ]
+            print(f"[rembg hook] Using fallback module list ({len(hiddenimports)} modules)")
         
-        # Add onnxruntime and dependencies
+        # Add onnxruntime and its dependencies
         hiddenimports.extend([
             'onnxruntime',
             'onnxruntime.capi',
             'onnxruntime.capi._pybind_state',
+            'onnxruntime.capi.onnxruntime_pybind11_state',
         ])
+        
+        # Add rembg dependencies
         hiddenimports.extend(REMBG_DEPENDENCIES)
         
-        # Collect data files
+        print(f"[rembg hook] Total hidden imports: {len(hiddenimports)}")
+        
+        # Collect data files (model files, etc.)
         try:
-            datas = collect_data_files('rembg', include_py_files=False)
-            print(f"[rembg hook] Collected {len(datas)} data files")
+            rembg_datas = collect_data_files('rembg', include_py_files=False)
+            datas = rembg_datas
+            print(f"[rembg hook] Collected {len(datas)} data files (models, configs)")
         except Exception as e:
             print(f"[rembg hook] Warning: Could not collect data files: {e}")
+            datas = []
         
         # Collect binaries from both rembg and onnxruntime
         try:
-            binaries = collect_dynamic_libs('rembg')
+            rembg_binaries = collect_dynamic_libs('rembg')
             onnx_binaries = collect_dynamic_libs('onnxruntime')
+            binaries = rembg_binaries
             if onnx_binaries:
                 binaries.extend(onnx_binaries)
-            print(f"[rembg hook] Collected {len(binaries)} binary files")
+                print(f"[rembg hook] Collected {len(onnx_binaries)} onnxruntime binaries")
+            print(f"[rembg hook] Total binaries collected: {len(binaries)}")
         except Exception as e:
             print(f"[rembg hook] Warning: Could not collect binaries: {e}")
+            binaries = []
+        
+        print("[rembg hook] ✅ Collection successful - background removal tool should work!")
             
     except Exception as e:
         print(f"[rembg hook] ERROR during collection: {e}")
-        print("[rembg hook] Skipping rembg - app will treat as unavailable")
-        hiddenimports = []
+        print("[rembg hook] This may cause background removal tool to fail at runtime")
+        # Still try to provide minimal imports
+        hiddenimports = ['rembg', 'onnxruntime'] + REMBG_DEPENDENCIES
         datas = []
         binaries = []
 

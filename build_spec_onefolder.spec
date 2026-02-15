@@ -108,11 +108,10 @@ a = Analysis(
         'pynput',
         'pynput.keyboard',
         'pynput.mouse',
-        # Optional: onnxruntime and rembg
-        # Note: These are handled by custom hooks that gracefully skip if unavailable
-        # Do NOT import them directly - they may fail on build machines
-        'onnxruntime',  # Will be collected by hook-onnxruntime.py if available
-        # 'rembg',  # COMMENTED OUT - collected by hook-rembg.py to avoid import issues
+        # Background removal and AI tools
+        # Note: rembg is collected by hook-rembg.py with proper dependency handling
+        'onnxruntime',  # Required for rembg background removal
+        'pooch',  # Required for rembg model downloads
         'requests',
     ],
     hookspath=[str(SCRIPT_DIR)],  # Use hooks in project root (hook-*.py files)

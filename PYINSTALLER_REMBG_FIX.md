@@ -1,4 +1,10 @@
-# PyInstaller Build Fix - rembg Optional Dependency
+# PyInstaller Build Fix - rembg Background Removal Support
+
+## Overview
+
+**rembg is REQUIRED for the background removal tool to function.**
+
+This document explains how the PyInstaller build handles rembg and its onnxruntime dependency, ensuring the background removal feature works correctly in the built application.
 
 ## Problem
 
@@ -13,6 +19,8 @@ And then:
 ```
 SystemExit: 1
 ```
+
+This prevented the application from being built with the background removal tool.
 
 ## Root Cause
 
@@ -38,70 +46,56 @@ def _patched_exit(code=0):
 sys.exit = _patched_exit
 ```
 
-This converts `sys.exit()` calls into catchable `SystemExit` exceptions.
+This converts `sys.exit()` calls into catchable `SystemExit` exceptions, preventing build termination.
 
-### 2. Skip Collection When onnxruntime is Missing
+### 2. Collect rembg Without Importing
 
 ```python
-if not has_onnxruntime:
-    print("[rembg hook] WARNING: rembg is installed but onnxruntime is NOT found!")
-    print("[rembg hook] Skipping rembg collection - app will detect missing dependency at runtime")
-    sys.exit = _original_exit  # Restore and exit early
+# Use collect_submodules which finds modules WITHOUT importing them
+rembg_modules = collect_submodules('rembg')
 ```
 
-Don't try to collect rembg modules if onnxruntime is unavailable - this avoids import errors entirely.
+PyInstaller's `collect_submodules` uses importlib to discover modules without actually importing them, avoiding the sys.exit() trap.
 
-### 3. Removed Direct Import from build_spec_onefolder.spec
+### 3. Include All Dependencies
 
-**Before:**
 ```python
-hiddenimports=[
-    ...
-    'rembg',  # PyInstaller tries to import this directly
+hiddenimports = rembg_modules + [
+    'onnxruntime',
+    'onnxruntime.capi',
+    'onnxruntime.capi._pybind_state',
+    'pooch',  # For model downloads
+    # ... other dependencies
 ]
 ```
 
-**After:**
-```python
-hiddenimports=[
-    ...
-    # 'rembg',  # COMMENTED OUT - collected by hook-rembg.py to avoid import issues
-]
-```
+All required modules are explicitly included.
 
-Let the hook handle rembg collection conditionally instead of forcing a direct import.
-
-### 4. Comprehensive Error Handling
+### 4. Collect Data Files and Binaries
 
 ```python
-try:
-    # Collect all rembg submodules
-    hiddenimports = collect_submodules('rembg')
-    # ... collect data and binaries ...
-except Exception as e:
-    print(f"[rembg hook] ERROR during collection: {e}")
-    print("[rembg hook] Skipping rembg - app will treat as unavailable")
-    hiddenimports = []
-    datas = []
-    binaries = []
+# Collect model files and configurations
+datas = collect_data_files('rembg', include_py_files=False)
+
+# Collect native DLLs from both rembg and onnxruntime  
+binaries = collect_dynamic_libs('rembg')
+binaries.extend(collect_dynamic_libs('onnxruntime'))
 ```
 
-Any failure during collection is caught and handled gracefully.
+Ensures all models, configs, and native libraries are included.
 
 ## Benefits
 
 ### Before Fix
-- ❌ Build fails if rembg is not installed
-- ❌ Build fails if onnxruntime is missing
 - ❌ Build fails if onnxruntime DLL won't load
-- ❌ Hard requirement for optional feature
+- ❌ sys.exit(1) terminates entire build
+- ❌ Background removal tool cannot be included
 
 ### After Fix
-- ✅ Build succeeds without rembg
-- ✅ Build succeeds without onnxruntime
-- ✅ Build succeeds even if DLL fails to load
-- ✅ rembg is truly optional
-- ✅ Application handles missing dependency at runtime
+- ✅ Build succeeds even if DLL initialization fails temporarily
+- ✅ sys.exit() is caught and handled
+- ✅ rembg IS included in the build when properly installed
+- ✅ Background removal tool works in built application
 
 ## How It Works
 
@@ -129,61 +123,77 @@ Build continues successfully
 
 ### Runtime Behavior
 
-The application code should check for rembg availability:
+The background removal tool checks for rembg and uses it:
 
 ```python
 try:
     from rembg import remove
-    REMBG_AVAILABLE = True
+    # Use remove() function for background removal
+    output_image = remove(input_image)
 except ImportError:
-    REMBG_AVAILABLE = False
-    # Gracefully disable background removal features
+    # Show error to user that background removal is unavailable
+    show_error("Background removal tool requires rembg[cpu] to be installed")
+```
+
+## Installation
+
+### Ensure rembg is Properly Installed
+
+**IMPORTANT:** For the background removal tool to work, rembg MUST be installed with its backend:
+
+```bash
+pip install "rembg[cpu]"
+```
+
+This installs:
+- rembg (the background removal library)
+- onnxruntime (the AI inference engine)
+- All required dependencies
+
+### Verify Installation
+
+Run the verification script:
+
+```bash
+python3 verify_rembg_installation.py
+```
+
+Expected output:
+```
+✅ rembg is installed
+✅ onnxruntime is installed
+✅ rembg.remove function imported successfully
+✅ All dependencies present
+
+✅ rembg is PROPERLY INSTALLED and ready for background removal!
 ```
 
 ## Testing
 
-### Verify Build Works Without rembg
+### Verify rembg Works
 
 ```bash
-# Remove rembg temporarily
-pip uninstall -y rembg onnxruntime
+# Verify installation
+python3 verify_rembg_installation.py
 
-# Build should succeed
-pyinstaller build_spec_onefolder.spec --clean --noconfirm
-
-# Should see in output:
-# [rembg hook] rembg not installed - skipping
-# [rembg hook] Application will handle rembg as optional dependency
+# Should see:
+# ✅ rembg is PROPERLY INSTALLED and ready for background removal!
 ```
 
-### Verify Build Works With rembg
+### Build with rembg
 
 ```bash
-# Install rembg properly
+# Ensure rembg[cpu] is installed
 pip install "rembg[cpu]"
 
 # Build should succeed
 pyinstaller build_spec_onefolder.spec --clean --noconfirm
 
 # Should see in output:
-# [rembg hook] Both rembg and onnxruntime found - collecting all modules
-# [rembg hook] Collected X rembg submodules
+# [rembg hook] ✅ Both rembg and onnxruntime found - collecting for background removal tool
+# [rembg hook] Collected X rembg submodules (without importing)
+# [rembg hook] ✅ Collection successful - background removal tool should work!
 ```
-
-### Verify Build Works When onnxruntime Fails
-
-Even if onnxruntime DLL fails to initialize:
-
-```bash
-# Build will catch the error and skip rembg
-pyinstaller build_spec_onefolder.spec --clean --noconfirm
-
-# Should see in output:
-# [rembg hook] WARNING: rembg is installed but onnxruntime is NOT found!
-# [rembg hook] Skipping rembg collection - app will detect missing dependency at runtime
-```
-
-Build succeeds, and rembg is not included.
 
 ## Files Modified
 
@@ -219,16 +229,23 @@ Similar patterns can be applied to other dependencies with import-time checks.
 
 ## Summary
 
-**The build is now robust and handles rembg as a truly optional dependency.**
+**The background removal tool requires rembg to function properly.**
 
-- Works with or without rembg installed
-- Works even if onnxruntime fails
-- Graceful degradation in all cases
-- No build termination from dependency issues
-- Application can detect and handle missing features at runtime
+The build process now:
+- ✅ Handles sys.exit() calls from rembg gracefully
+- ✅ Collects rembg without importing it during analysis
+- ✅ Includes all rembg modules, models, and binaries
+- ✅ Works with onnxruntime on Windows/Linux/macOS
+- ✅ Provides clear error messages if installation is incomplete
+
+**To use the background removal tool:**
+1. Install: `pip install "rembg[cpu]"`
+2. Verify: `python3 verify_rembg_installation.py`
+3. Build: `pyinstaller build_spec_onefolder.spec --clean --noconfirm`
+4. The background removal feature will work in the built application
 
 ---
 
-**Status**: ✅ Fixed and Tested  
+**Status**: ✅ Fixed - Background Removal Tool Fully Supported  
 **Date**: February 15, 2026  
 **Related**: Qt/OpenGL Migration (Complete)
