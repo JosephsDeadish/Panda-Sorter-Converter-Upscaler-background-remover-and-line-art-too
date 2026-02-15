@@ -9324,25 +9324,16 @@ Built with:
         except Exception:
             pass
 
-        # ═══════════════════ Panda Preview (compact) ═══════════════════
-        preview_frame = ctk.CTkFrame(scrollable_frame)
-        preview_frame.pack(fill="x", padx=10, pady=5)
-        preview_header = ctk.CTkFrame(preview_frame, fg_color="transparent")
-        preview_header.pack(fill="x", padx=10, pady=(5, 0))
-        ctk.CTkLabel(preview_header, text="🐼 Panda Preview",
-                     font=("Arial Bold", 16)).pack(side="left")
-
-        import tkinter as _tk
-        preview_canvas = _tk.Canvas(preview_frame, width=120, height=140,
-                                    bg="#2b2b2b", highlightthickness=0)
-        preview_canvas.pack(pady=(5, 5))
-        self._draw_static_panda(preview_canvas, 120, 140)
-
+        # ═══════════════════ Current Animation Display ═══════════════════
+        # Canvas preview removed - use OpenGL panda widget for 3D visualization
+        anim_frame = ctk.CTkFrame(scrollable_frame)
+        anim_frame.pack(fill="x", padx=10, pady=10)
+        
         anim_name = self.panda_widget.current_animation if hasattr(self, 'panda_widget') and self.panda_widget else 'idle'
         self._stats_labels['animation'] = ctk.CTkLabel(
-            preview_frame, text=f"Current animation: {anim_name}",
-            font=("Arial", 11), text_color="#aaaaaa")
-        self._stats_labels['animation'].pack(pady=(0, 5))
+            anim_frame, text=f"🐼 Current Animation: {anim_name}",
+            font=("Arial Bold", 14))
+        self._stats_labels['animation'].pack(pady=10)
 
         # ═══════════════════ Statistics Tabview ═══════════════════
         stats = self.panda.get_statistics()
@@ -10646,106 +10637,9 @@ Built with:
 
         show_scene(0)
 
-    def _draw_static_panda(self, canvas, w, h):
-        """Draw a static panda on a preview canvas matching the live panda_widget style."""
-        cx = w // 2
-        sx = w / 220.0
-        sy = h / 270.0
-        black = "#1a1a1a"
-        white = "#F5F5F5"
-        pink = "#FFB6C1"
-
-        # Legs (behind body)
-        leg_top = int(145 * sy)
-        leg_len = int(30 * sy)
-        for lx in [cx - int(25 * sx), cx + int(25 * sx)]:
-            canvas.create_oval(lx - int(12 * sx), leg_top,
-                               lx + int(12 * sx), leg_top + leg_len,
-                               fill=black, outline=black)
-            # Foot pad
-            canvas.create_oval(lx - int(10 * sx), leg_top + leg_len - int(8 * sy),
-                               lx + int(10 * sx), leg_top + leg_len + int(4 * sy),
-                               fill=white, outline=black, width=1)
-
-        # Body (white belly)
-        body_top = int(75 * sy)
-        body_bot = int(160 * sy)
-        body_rx = int(42 * sx)
-        canvas.create_oval(cx - body_rx, body_top, cx + body_rx, body_bot,
-                           fill=white, outline=black, width=2)
-        # Inner belly patch
-        belly_rx = int(28 * sx)
-        canvas.create_oval(cx - belly_rx, body_top + int(15 * sy),
-                           cx + belly_rx, body_bot - int(10 * sy),
-                           fill="#FAFAFA", outline="")
-
-        # Arms
-        arm_top = int(95 * sy)
-        arm_len = int(35 * sy)
-        canvas.create_oval(cx - int(55 * sx), arm_top,
-                           cx - int(30 * sx), arm_top + arm_len,
-                           fill=black, outline=black)
-        canvas.create_oval(cx + int(30 * sx), arm_top,
-                           cx + int(55 * sx), arm_top + arm_len,
-                           fill=black, outline=black)
-
-        # Head
-        head_cy = int(52 * sy)
-        head_rx = int(36 * sx)
-        head_ry = int(32 * sy)
-        canvas.create_oval(cx - head_rx, head_cy - head_ry,
-                           cx + head_rx, head_cy + head_ry,
-                           fill=white, outline=black, width=2)
-
-        # Ears
-        ear_y = head_cy - head_ry + int(5 * sy)
-        ear_w = int(22 * sx)
-        canvas.create_oval(cx - head_rx - int(2 * sx), ear_y - int(16 * sy),
-                           cx - head_rx + ear_w, ear_y + int(8 * sy),
-                           fill=black, outline=black)
-        canvas.create_oval(cx - head_rx + int(4 * sx), ear_y - int(10 * sy),
-                           cx - head_rx + int(16 * sx), ear_y + int(2 * sy),
-                           fill=pink, outline="")
-        canvas.create_oval(cx + head_rx - ear_w, ear_y - int(16 * sy),
-                           cx + head_rx + int(2 * sx), ear_y + int(8 * sy),
-                           fill=black, outline=black)
-        canvas.create_oval(cx + head_rx - int(16 * sx), ear_y - int(10 * sy),
-                           cx + head_rx - int(4 * sx), ear_y + int(2 * sy),
-                           fill=pink, outline="")
-
-        # Eye patches
-        eye_y = head_cy - int(4 * sy)
-        patch_rx = int(14 * sx)
-        patch_ry = int(11 * sy)
-        eye_offset = int(24 * sx)
-        for dx in [-eye_offset, eye_offset]:
-            canvas.create_oval(cx + dx - patch_rx, eye_y - patch_ry,
-                               cx + dx + patch_rx, eye_y + patch_ry,
-                               fill=black, outline="")
-
-        # Eyes (white with pupils)
-        es = int(6 * sx)
-        ps = int(3 * sx)
-        for dx in [-eye_offset, eye_offset]:
-            ex = cx + dx
-            canvas.create_oval(ex - es, eye_y - es, ex + es, eye_y + es,
-                               fill="white", outline="")
-            canvas.create_oval(ex - ps, eye_y - ps, ex + ps, eye_y + ps,
-                               fill="#222222", outline="")
-
-        # Nose
-        nose_y = head_cy + int(8 * sy)
-        canvas.create_oval(cx - int(5 * sx), nose_y - int(3 * sy),
-                           cx + int(5 * sx), nose_y + int(4 * sy),
-                           fill=black, outline="")
-
-        # Mouth (smile arc)
-        my = nose_y + int(6 * sy)
-        canvas.create_arc(cx - int(8 * sx), my - int(4 * sy),
-                          cx + int(8 * sx), my + int(6 * sy),
-                          start=200, extent=140, style="arc",
-                          outline=black, width=max(1, int(1.5 * sx)))
-
+    # _draw_static_panda removed - Canvas preview no longer needed
+    # Use OpenGL panda widget for live 3D visualization instead
+    
     def _refresh_panda_stats(self):
         """Refresh panda stats display by rebuilding the tab content"""
         # Cancel existing auto-refresh timer before rebuilding
