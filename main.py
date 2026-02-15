@@ -239,10 +239,19 @@ except ImportError:
     print("Warning: Tutorial system not available.")
 
 try:
-    from src.features.preview_viewer import PreviewViewer
-    PREVIEW_AVAILABLE = True
+    # Try Qt version first
+    try:
+        from src.features.preview_viewer_qt import PreviewViewerQt as PreviewViewer
+        PREVIEW_AVAILABLE = True
+        PREVIEW_IS_QT = True
+    except ImportError:
+        # Fall back to Tkinter version
+        from src.features.preview_viewer import PreviewViewer
+        PREVIEW_AVAILABLE = True
+        PREVIEW_IS_QT = False
 except ImportError:
     PREVIEW_AVAILABLE = False
+    PREVIEW_IS_QT = False
     print("Warning: Preview viewer not available.")
 
 try:
