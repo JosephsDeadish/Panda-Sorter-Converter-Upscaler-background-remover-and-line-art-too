@@ -77,7 +77,8 @@ a = Analysis(
         'sqlite3',
         'send2trash',
         'watchdog',
-        # Qt6 UI framework (REQUIRED - replaces tkinter)
+        # Qt6 UI framework (REQUIRED - ONLY SUPPORTED UI)
+        # NO TKINTER - Full Qt6 migration complete
         'PyQt6',
         'PyQt6.QtCore',
         'PyQt6.QtGui',
@@ -85,7 +86,7 @@ a = Analysis(
         'PyQt6.QtOpenGL',
         'PyQt6.QtOpenGLWidgets',
         'PyQt6.sip',
-        # OpenGL for 3D rendering
+        # OpenGL for 3D rendering (panda, skeletal animations)
         'OpenGL',
         'OpenGL.GL',
         'OpenGL.GLU',
@@ -93,12 +94,6 @@ a = Analysis(
         'OpenGL.arrays',
         'OpenGL.arrays.vbo',
         'OpenGL.GL.shaders',
-        # Legacy UI framework (optional fallback only)
-        # 'tkinter',
-        # 'tkinter.ttk',
-        # 'customtkinter',
-        # Note: tkinter/customtkinter are now optional fallbacks.
-        # The application uses Qt6 as primary UI.
         'darkdetect',
         # Utilities
         'psutil',
@@ -123,6 +118,15 @@ a = Analysis(
     hooksconfig={},
     runtime_hooks=[],  # Removed tkinter runtime hook - not needed for Qt
     excludes=[
+        # Tkinter/CustomTkinter - NO LONGER USED (full Qt6 migration complete)
+        'tkinter',
+        'tkinter.ttk',
+        'tkinter.messagebox',
+        'tkinter.filedialog',
+        'customtkinter',
+        'tkinterdnd2',
+        '_tkinter',
+        
         # Heavy scientific libraries (not needed)
         'matplotlib',
         'scipy',
@@ -176,24 +180,8 @@ a = Analysis(
     noarchive=False,
 )
 
-# Filter out unnecessary files but keep essential tcl/tk data
-# Note: We filter demos and timezone data to reduce size, but keep core tcl/tk files
-a.datas = [x for x in a.datas if not x[0].startswith('tk/demos')]
-a.datas = [x for x in a.datas if not x[0].startswith('tcl/tzdata')]
-
-# Ensure we keep critical TCL/Tk initialization files
-# These are required for tkinter to work properly
-print("\n" + "="*70)
-print("TCL/TK DATA FILES CHECK")
-print("="*70)
-tcl_files = [x for x in a.datas if x[0].startswith(('tcl/', 'tk/'))]
-print(f"Found {len(tcl_files)} TCL/Tk data files")
-if tcl_files:
-    print("✓ TCL/Tk data files are included")
-else:
-    print("⚠ WARNING: No TCL/Tk data files found!")
-    print("  Tkinter may not work properly in the built executable.")
-print("="*70 + "\n")
+# No tcl/tk filtering needed - Qt6-only application
+# (Removed tcl/tk checks - not needed anymore)
 
 pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
 
