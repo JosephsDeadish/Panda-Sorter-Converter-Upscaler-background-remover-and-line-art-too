@@ -946,6 +946,8 @@ def check_feature_availability():
         'transformers': False,
         'open_clip': False,
         'timm': False,
+        'onnx': False,
+        'onnxruntime': False,
     }
     
     # Check PyTorch
@@ -953,6 +955,20 @@ def check_feature_availability():
         import torch
         features['pytorch'] = True
         features['pytorch_cuda'] = torch.cuda.is_available()
+    except Exception:
+        pass
+    
+    # Check ONNX
+    try:
+        import onnx
+        features['onnx'] = True
+    except Exception:
+        pass
+    
+    # Check ONNX Runtime
+    try:
+        import onnxruntime
+        features['onnxruntime'] = True
     except Exception:
         pass
     
@@ -1044,6 +1060,25 @@ def log_startup_diagnostics(window):
         window.log("   ❌ Vision models not available")
         window.log("   💡 Install: pip install torch transformers")
         window.log("   💡 AI-powered organization will be limited")
+    
+    # ONNX features
+    window.log("")
+    if features['onnxruntime'] or features['onnx']:
+        window.log("✅ ONNX Features:")
+        if features['onnxruntime']:
+            window.log("   ✅ ONNX Runtime available (for model inference)")
+        else:
+            window.log("   ⚠️  ONNX Runtime not available")
+        
+        if features['onnx']:
+            window.log("   ✅ ONNX model format available")
+        else:
+            window.log("   ⚠️  ONNX not available")
+    else:
+        window.log("⚠️  ONNX Features:")
+        window.log("   ❌ ONNX not available (optional)")
+        window.log("   💡 For full features: pip install onnx onnxruntime")
+        window.log("   ℹ️  App will work without ONNX")
     
     # Optional features
     window.log("")

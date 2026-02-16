@@ -33,6 +33,13 @@ hiddenimports = []
 datas = []
 binaries = []
 
+# Exclude problematic modules that cause build-time crashes
+excludedimports = [
+    'onnx.reference',  # Causes DLL initialization failure in isolated subprocess
+    'onnx.reference.ops',
+    'onnxscript',  # Optional scripting extension that may not be available
+]
+
 # Prevent torch from initializing CUDA during build
 # Using try-finally to ensure sys.exit is always restored
 _original_exit = sys.exit
@@ -235,7 +242,16 @@ try:
         
         # Try to collect torch submodules (without importing)
         try:
-            torch_submodules = collect_submodules('torch', filter=lambda name: 'test' not in name)
+            # Filter out test modules and problematic ONNX reference modules
+            def should_include_module(name):
+                if 'test' in name:
+                    return False
+                # Skip onnx.reference which causes isolated subprocess crash
+                if 'onnx.reference' in name or 'onnxscript' in name:
+                    return False
+                return True
+            
+            torch_submodules = collect_submodules('torch', filter=should_include_module)
             # Avoid duplicates
             for module in torch_submodules:
                 if module not in hiddenimports:

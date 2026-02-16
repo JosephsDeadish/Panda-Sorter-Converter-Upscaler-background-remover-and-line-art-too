@@ -318,6 +318,14 @@ a = Analysis(
         'torch._inductor',
         'torch._inductor.compile_fx',
         
+        # ONNX: Exclude problematic modules that cause isolated subprocess crashes
+        # These modules cause DLL initialization failures during PyInstaller analysis
+        'onnx.reference',  # Causes exit code 3221225477 (DLL initialization failure)
+        'onnx.reference.ops',
+        'onnx.reference.ops._op_list',
+        'onnxscript',  # Optional scripting extension
+        'onnxscript.onnx_opset',
+        
         # Platform-specific modules
         'darkdetect._mac_detect',  # macOS-only, not needed on Windows
         'importlib_resources.trees',  # Internal module that causes issues

@@ -87,7 +87,9 @@ cairosvg>=2.7.0  # SVG to raster conversion (optional, only for loading SVG file
 cairocffi>=1.6.0  # Cairo FFI bindings (dependency of cairosvg)
 
 # AI/ML - Offline Model Inference (Optional)
-onnxruntime>=1.16.0  # Lightweight offline AI model inference
+# IMPORTANT: onnxruntime is optional but recommended for rembg background removal
+# The application gracefully degrades if not available
+onnxruntime>=1.16.0  # Lightweight offline AI model inference (optional, recommended)
 
 # ============================================================================
 # DEEP LEARNING DEPENDENCIES (Optional - for advanced vision models)
@@ -100,8 +102,10 @@ onnxruntime>=1.16.0  # Lightweight offline AI model inference
 torch>=1.13.0,<3.0.0  # Deep learning framework
 torchvision>=0.14.0  # Computer vision models and transforms
 
-# ONNX Model Export/Import (Required for torch.onnx.export)
-onnx>=1.14.0  # ONNX model format - needed for PyTorch model export
+# ONNX Model Export/Import (Optional - for PyTorch model export/import)
+# NOTE: onnx.reference module may cause issues with PyInstaller - handled by hooks
+onnx>=1.14.0  # ONNX model format - needed for PyTorch model export (optional)
+# onnxscript>=0.1.0  # Optional ONNX scripting (uncomment if needed)
 
 # Transformer Models
 transformers>=4.48.0  # CLIP, ViT models (>= 4.48.0 for security fixes)

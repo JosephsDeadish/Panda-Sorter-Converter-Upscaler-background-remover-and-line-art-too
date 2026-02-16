@@ -201,6 +201,14 @@ a = Analysis(
         'torch._inductor',
         'torch._inductor.compile_fx',
         
+        # ONNX: Exclude problematic modules that cause isolated subprocess crashes
+        # These modules cause DLL initialization failures during PyInstaller analysis
+        'onnx.reference',  # Causes exit code 3221225477 (DLL initialization failure)
+        'onnx.reference.ops',
+        'onnx.reference.ops._op_list',
+        'onnxscript',  # Optional scripting extension
+        'onnxscript.onnx_opset',
+        
         # Cairo SVG: cairosvg/cairocffi require native Cairo DLL not available on Windows CI
         # SVG support is optional - the application handles missing cairosvg gracefully
         'cairosvg',
