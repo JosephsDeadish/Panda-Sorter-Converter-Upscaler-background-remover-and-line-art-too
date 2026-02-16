@@ -71,6 +71,7 @@ try:
     from ui.image_repair_panel_qt import ImageRepairPanelQt
     from ui.customization_panel_qt import CustomizationPanelQt
     from ui.upscaler_panel_qt import ImageUpscalerPanelQt
+    from ui.organizer_panel_qt import OrganizerPanelQt
     UI_PANELS_AVAILABLE = True
 except ImportError as e:
     logger.warning(f"Some UI panels not available: {e}")
@@ -200,10 +201,21 @@ class TextureSorterMainWindow(QMainWindow):
                 splitter.addWidget(self.panda_widget)
                 splitter.setStretchFactor(0, 3)  # Content gets 75%
                 splitter.setStretchFactor(1, 1)  # Panda gets 25%
-                logger.info("✅ Panda 3D OpenGL widget loaded")
+                logger.info("✅ Panda 3D OpenGL widget loaded successfully")
             except Exception as e:
                 logger.warning(f"Could not load panda widget: {e}")
+                # Create fallback placeholder
+                fallback_widget = QWidget()
+                fallback_layout = QVBoxLayout(fallback_widget)
+                fallback_label = QLabel("🐼 Panda Widget\n\nOpenGL not available\n\nThe 3D panda companion\ncould not be loaded.")
+                fallback_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+                fallback_label.setStyleSheet("color: gray; font-size: 11pt;")
+                fallback_layout.addWidget(fallback_label)
+                splitter.addWidget(fallback_widget)
+                splitter.setStretchFactor(0, 3)
+                splitter.setStretchFactor(1, 1)
                 self.panda_widget = None
+                logger.info("Using fallback placeholder for panda widget")
         else:
             self.panda_widget = None
     
@@ -392,6 +404,10 @@ class TextureSorterMainWindow(QMainWindow):
                 # Image Repair
                 repair_panel = ImageRepairPanelQt()
                 tool_tabs.addTab(repair_panel, "🔧 Image Repair")
+                
+                # Texture Organizer
+                organizer_panel = OrganizerPanelQt()
+                tool_tabs.addTab(organizer_panel, "📁 Texture Organizer")
                 
                 # Customization (only if panda character is available)
                 panda_char = getattr(getattr(self, 'panda_widget', None), 'panda', None)

@@ -23,6 +23,13 @@ from tools.lineart_converter import (
 
 logger = logging.getLogger(__name__)
 
+try:
+    from ui.live_preview_slider_qt import ComparisonSliderWidget
+    SLIDER_AVAILABLE = True
+except ImportError:
+    SLIDER_AVAILABLE = False
+    ComparisonSliderWidget = None
+
 IMAGE_EXTENSIONS = {'.png', '.jpg', '.jpeg', '.bmp', '.tiff', '.webp'}
 
 # Line art presets
@@ -51,6 +58,14 @@ LINEART_PRESETS = {
         "sharpen_amount": 1.6, "morphology": "dilate", "morph_iter": 3,
         "kernel": 5, "denoise": True, "denoise_size": 4,
     },
+    "🔍 Fine Detail Lines": {
+        "desc": "Preserve intricate details in technical or detailed artwork",
+        "mode": "pure_black", "threshold": 125, "auto_threshold": False,
+        "background": "transparent", "invert": False, "remove_midtones": True,
+        "midtone_threshold": 230, "contrast": 1.9, "sharpen": True,
+        "sharpen_amount": 2.2, "morphology": "none", "morph_iter": 1,
+        "kernel": 3, "denoise": False, "denoise_size": 0,
+    },
     "💥 Comic Book Inks": {
         "desc": "High-contrast inks like professional comic book art",
         "mode": "pure_black", "threshold": 115, "auto_threshold": False,
@@ -67,7 +82,112 @@ LINEART_PRESETS = {
         "sharpen_amount": 1.5, "morphology": "close", "morph_iter": 1,
         "kernel": 3, "denoise": True, "denoise_size": 2,
     },
+    "🖍️ Coloring Book": {
+        "desc": "Thick outlines perfect for coloring books and children's art",
+        "mode": "pure_black", "threshold": 140, "auto_threshold": False,
+        "background": "white", "invert": False, "remove_midtones": True,
+        "midtone_threshold": 200, "contrast": 1.5, "sharpen": True,
+        "sharpen_amount": 1.0, "morphology": "dilate", "morph_iter": 4,
+        "kernel": 7, "denoise": True, "denoise_size": 5,
+    },
+    "📐 Blueprint / Technical": {
+        "desc": "Precise technical drawings with clean lines",
+        "mode": "pure_black", "threshold": 128, "auto_threshold": False,
+        "background": "white", "invert": False, "remove_midtones": True,
+        "midtone_threshold": 200, "contrast": 1.2, "sharpen": True,
+        "sharpen_amount": 1.8, "morphology": "none", "morph_iter": 1,
+        "kernel": 3, "denoise": True, "denoise_size": 1,
+    },
+    "✂️ Stencil / Vinyl Cut": {
+        "desc": "Clean shapes optimized for vinyl cutting and stencils",
+        "mode": "stencil", "threshold": 140, "auto_threshold": False,
+        "background": "transparent", "invert": False, "remove_midtones": True,
+        "midtone_threshold": 200, "contrast": 2.3, "sharpen": True,
+        "sharpen_amount": 1.5, "morphology": "close", "morph_iter": 3,
+        "kernel": 5, "denoise": True, "denoise_size": 6,
+    },
+    "🎨 Watercolor Edges": {
+        "desc": "Soft edges with artistic watercolor appearance",
+        "mode": "sketch", "threshold": 135, "auto_threshold": False,
+        "background": "white", "invert": False, "remove_midtones": False,
+        "midtone_threshold": 190, "contrast": 1.3, "sharpen": False,
+        "sharpen_amount": 0.8, "morphology": "none", "morph_iter": 1,
+        "kernel": 3, "denoise": True, "denoise_size": 3,
+    },
+    "🔲 Pixel Art Lines": {
+        "desc": "Preserve pixel-perfect edges for retro/pixel art",
+        "mode": "threshold", "threshold": 128, "auto_threshold": False,
+        "background": "transparent", "invert": False, "remove_midtones": True,
+        "midtone_threshold": 200, "contrast": 1.0, "sharpen": False,
+        "sharpen_amount": 0.0, "morphology": "none", "morph_iter": 1,
+        "kernel": 3, "denoise": False, "denoise_size": 0,
+    },
+    "🌟 High Contrast Edges": {
+        "desc": "Maximum contrast with edge detection emphasis",
+        "mode": "edge", "threshold": 120, "auto_threshold": False,
+        "background": "white", "invert": False, "remove_midtones": True,
+        "midtone_threshold": 180, "contrast": 3.0, "sharpen": True,
+        "sharpen_amount": 2.5, "morphology": "dilate", "morph_iter": 2,
+        "kernel": 3, "denoise": False, "denoise_size": 0,
+    },
+    "🖤 Inverted Lines (White on Black)": {
+        "desc": "White lines on black background for dark themes",
+        "mode": "pure_black", "threshold": 135, "auto_threshold": False,
+        "background": "white", "invert": True, "remove_midtones": True,
+        "midtone_threshold": 210, "contrast": 1.6, "sharpen": True,
+        "sharpen_amount": 1.3, "morphology": "close", "morph_iter": 1,
+        "kernel": 3, "denoise": True, "denoise_size": 2,
+    },
+    "🎭 Dramatic Shadows": {
+        "desc": "Heavy shadows with strong contrast for dramatic effect",
+        "mode": "adaptive", "threshold": 110, "auto_threshold": False,
+        "background": "white", "invert": False, "remove_midtones": False,
+        "midtone_threshold": 170, "contrast": 2.5, "sharpen": True,
+        "sharpen_amount": 1.8, "morphology": "dilate", "morph_iter": 2,
+        "kernel": 5, "denoise": True, "denoise_size": 2,
+    },
+    "📝 Handwriting / Script": {
+        "desc": "Preserve delicate script and handwriting details",
+        "mode": "pure_black", "threshold": 130, "auto_threshold": False,
+        "background": "transparent", "invert": False, "remove_midtones": True,
+        "midtone_threshold": 220, "contrast": 1.4, "sharpen": True,
+        "sharpen_amount": 1.0, "morphology": "close", "morph_iter": 1,
+        "kernel": 3, "denoise": True, "denoise_size": 1,
+    },
+    "⚡ Speed Lines / Action": {
+        "desc": "Dynamic speed lines for action and motion effects",
+        "mode": "edge", "threshold": 140, "auto_threshold": False,
+        "background": "transparent", "invert": False, "remove_midtones": True,
+        "midtone_threshold": 200, "contrast": 2.0, "sharpen": True,
+        "sharpen_amount": 2.0, "morphology": "erode", "morph_iter": 1,
+        "kernel": 3, "denoise": False, "denoise_size": 0,
+    },
+    "🏞️ Landscape Outlines": {
+        "desc": "Natural flowing lines for landscape and environment art",
+        "mode": "adaptive", "threshold": 140, "auto_threshold": False,
+        "background": "white", "invert": False, "remove_midtones": True,
+        "midtone_threshold": 205, "contrast": 1.5, "sharpen": True,
+        "sharpen_amount": 1.2, "morphology": "close", "morph_iter": 1,
+        "kernel": 5, "denoise": True, "denoise_size": 3,
+    },
+    "🎯 Logo / Icon Prep": {
+        "desc": "Clean vectorization-ready lines for logos and icons",
+        "mode": "stencil", "threshold": 135, "auto_threshold": False,
+        "background": "transparent", "invert": False, "remove_midtones": True,
+        "midtone_threshold": 200, "contrast": 2.0, "sharpen": True,
+        "sharpen_amount": 1.5, "morphology": "close", "morph_iter": 2,
+        "kernel": 3, "denoise": True, "denoise_size": 4,
+    },
+    "🔬 Scientific Illustration": {
+        "desc": "Precise lines for scientific diagrams and illustrations",
+        "mode": "pure_black", "threshold": 125, "auto_threshold": False,
+        "background": "white", "invert": False, "remove_midtones": True,
+        "midtone_threshold": 215, "contrast": 1.3, "sharpen": True,
+        "sharpen_amount": 1.6, "morphology": "none", "morph_iter": 1,
+        "kernel": 3, "denoise": True, "denoise_size": 1,
+    },
 }
+
 
 
 class PreviewWorker(QThread):
@@ -282,20 +402,101 @@ class LineArtConverterPanelQt(QWidget):
         contrast_layout.addStretch()
         group_layout.addLayout(contrast_layout)
         
+        # Morphology Operation
+        morph_layout = QHBoxLayout()
+        morph_layout.addWidget(QLabel("Morphology:"))
+        self.morphology_combo = QComboBox()
+        self.morphology_combo.addItems([
+            "None",
+            "Close (fill gaps)",
+            "Open (remove noise)",
+            "Dilate (thicken)",
+            "Erode (thin)"
+        ])
+        self.morphology_combo.setCurrentText("Close (fill gaps)")
+        self.morphology_combo.currentTextChanged.connect(self._schedule_preview_update)
+        morph_layout.addWidget(self.morphology_combo)
+        morph_layout.addStretch()
+        group_layout.addLayout(morph_layout)
+        
+        # Morphology Iterations
+        iter_layout = QHBoxLayout()
+        iter_layout.addWidget(QLabel("Iterations:"))
+        self.morphology_iterations = QSpinBox()
+        self.morphology_iterations.setMinimum(1)
+        self.morphology_iterations.setMaximum(5)
+        self.morphology_iterations.setValue(1)
+        self.morphology_iterations.valueChanged.connect(self._schedule_preview_update)
+        iter_layout.addWidget(self.morphology_iterations)
+        iter_layout.addStretch()
+        group_layout.addLayout(iter_layout)
+        
+        # Kernel Size
+        kernel_layout = QHBoxLayout()
+        kernel_layout.addWidget(QLabel("Kernel Size:"))
+        self.kernel_size_spin = QSpinBox()
+        self.kernel_size_spin.setMinimum(3)
+        self.kernel_size_spin.setMaximum(15)
+        self.kernel_size_spin.setValue(3)
+        self.kernel_size_spin.setSingleStep(2)
+        self.kernel_size_spin.valueChanged.connect(self._schedule_preview_update)
+        kernel_layout.addWidget(self.kernel_size_spin)
+        kernel_layout.addStretch()
+        group_layout.addLayout(kernel_layout)
+        
+        # Sharpen
+        sharpen_layout = QHBoxLayout()
+        self.sharpen_cb = QCheckBox("Sharpen")
+        self.sharpen_cb.setChecked(True)
+        self.sharpen_cb.stateChanged.connect(self._schedule_preview_update)
+        sharpen_layout.addWidget(self.sharpen_cb)
+        self.sharpen_spin = QDoubleSpinBox()
+        self.sharpen_spin.setMinimum(0.5)
+        self.sharpen_spin.setMaximum(3.0)
+        self.sharpen_spin.setValue(1.3)
+        self.sharpen_spin.setSingleStep(0.1)
+        self.sharpen_spin.valueChanged.connect(self._schedule_preview_update)
+        sharpen_layout.addWidget(self.sharpen_spin)
+        sharpen_layout.addStretch()
+        group_layout.addLayout(sharpen_layout)
+        
+        # Denoise
+        denoise_layout = QHBoxLayout()
+        self.denoise_cb = QCheckBox("Denoise")
+        self.denoise_cb.setChecked(True)
+        self.denoise_cb.stateChanged.connect(self._schedule_preview_update)
+        denoise_layout.addWidget(self.denoise_cb)
+        self.denoise_size = QSpinBox()
+        self.denoise_size.setMinimum(0)
+        self.denoise_size.setMaximum(5)
+        self.denoise_size.setValue(2)
+        self.denoise_size.valueChanged.connect(self._schedule_preview_update)
+        denoise_layout.addWidget(self.denoise_size)
+        denoise_layout.addStretch()
+        group_layout.addLayout(denoise_layout)
+        
         # Checkboxes
         self.auto_threshold_cb = QCheckBox("Auto Threshold")
         self.auto_threshold_cb.stateChanged.connect(self._schedule_preview_update)
         group_layout.addWidget(self.auto_threshold_cb)
         
-        self.sharpen_cb = QCheckBox("Sharpen")
-        self.sharpen_cb.setChecked(True)
-        self.sharpen_cb.stateChanged.connect(self._schedule_preview_update)
-        group_layout.addWidget(self.sharpen_cb)
+        # Midtone Threshold
+        midtone_layout = QHBoxLayout()
+        midtone_layout.addWidget(QLabel("Midtone Threshold:"))
+        self.midtone_spin = QSpinBox()
+        self.midtone_spin.setMinimum(50)
+        self.midtone_spin.setMaximum(255)
+        self.midtone_spin.setValue(210)
+        self.midtone_spin.valueChanged.connect(self._schedule_preview_update)
+        midtone_layout.addWidget(self.midtone_spin)
+        midtone_layout.addStretch()
+        group_layout.addLayout(midtone_layout)
         
-        self.denoise_cb = QCheckBox("Denoise")
-        self.denoise_cb.setChecked(True)
-        self.denoise_cb.stateChanged.connect(self._schedule_preview_update)
-        group_layout.addWidget(self.denoise_cb)
+        # Remove Midtones
+        self.remove_midtones_cb = QCheckBox("Remove midtones")
+        self.remove_midtones_cb.setChecked(True)
+        self.remove_midtones_cb.stateChanged.connect(self._schedule_preview_update)
+        group_layout.addWidget(self.remove_midtones_cb)
         
         group.setLayout(group_layout)
         layout.addWidget(group)
@@ -305,12 +506,18 @@ class LineArtConverterPanelQt(QWidget):
         group = QGroupBox("👁️ Preview")
         group_layout = QVBoxLayout()
         
-        # Preview label
-        self.preview_label = QLabel("Select an image to see preview")
-        self.preview_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.preview_label.setMinimumSize(400, 400)
-        self.preview_label.setStyleSheet("border: 2px dashed gray; background-color: #f0f0f0;")
-        group_layout.addWidget(self.preview_label)
+        if SLIDER_AVAILABLE:
+            # Use comparison slider widget
+            self.preview_widget = ComparisonSliderWidget()
+            self.preview_widget.setMinimumHeight(400)
+            group_layout.addWidget(self.preview_widget)
+        else:
+            # Fallback to simple label
+            self.preview_label = QLabel("Select an image to see preview")
+            self.preview_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            self.preview_label.setMinimumSize(400, 400)
+            self.preview_label.setStyleSheet("border: 2px dashed gray; background-color: #f0f0f0;")
+            group_layout.addWidget(self.preview_label)
         
         # Update preview button
         self.update_preview_btn = QPushButton("🔄 Update Preview")
@@ -379,12 +586,33 @@ class LineArtConverterPanelQt(QWidget):
             if not self._widgets_initialized:
                 return
             
-            # Update controls
+            # Update all controls from preset
             self.threshold_slider.setValue(preset["threshold"])
             self.contrast_spin.setValue(preset["contrast"])
             self.auto_threshold_cb.setChecked(preset["auto_threshold"])
             self.sharpen_cb.setChecked(preset["sharpen"])
+            if preset["sharpen"]:
+                self.sharpen_spin.setValue(preset["sharpen_amount"])
             self.denoise_cb.setChecked(preset["denoise"])
+            if preset["denoise"]:
+                self.denoise_size.setValue(preset["denoise_size"])
+            
+            # Morphology settings
+            morph_map = {
+                "none": "None",
+                "close": "Close (fill gaps)",
+                "open": "Open (remove noise)",
+                "dilate": "Dilate (thicken)",
+                "erode": "Erode (thin)"
+            }
+            morph_text = morph_map.get(preset["morphology"], "None")
+            self.morphology_combo.setCurrentText(morph_text)
+            self.morphology_iterations.setValue(preset["morph_iter"])
+            self.kernel_size_spin.setValue(preset["kernel"])
+            
+            # Midtone settings
+            self.midtone_spin.setValue(preset["midtone_threshold"])
+            self.remove_midtones_cb.setChecked(preset["remove_midtones"])
             
             # Trigger preview update
             self._schedule_preview_update()
@@ -399,6 +627,37 @@ class LineArtConverterPanelQt(QWidget):
         self.preview_timer.stop()
         self.preview_timer.start(800)
     
+    def _get_morphology_operation(self):
+        """Get morphology operation from combo box."""
+        morph_map = {
+            "None": MorphologyOperation.NONE,
+            "Close (fill gaps)": MorphologyOperation.CLOSE,
+            "Open (remove noise)": MorphologyOperation.OPEN,
+            "Dilate (thicken)": MorphologyOperation.DILATE,
+            "Erode (thin)": MorphologyOperation.ERODE
+        }
+        return morph_map.get(self.morphology_combo.currentText(), MorphologyOperation.NONE)
+    
+    def _create_settings_from_controls(self):
+        """Create LineArtSettings from current control values."""
+        return LineArtSettings(
+            mode=ConversionMode.PURE_BLACK,
+            threshold=self.threshold_slider.value(),
+            auto_threshold=self.auto_threshold_cb.isChecked(),
+            background_mode=BackgroundMode.TRANSPARENT,
+            invert=False,
+            remove_midtones=self.remove_midtones_cb.isChecked(),
+            midtone_threshold=self.midtone_spin.value(),
+            contrast_boost=self.contrast_spin.value(),
+            sharpen=self.sharpen_cb.isChecked(),
+            sharpen_amount=self.sharpen_spin.value(),
+            morphology_operation=self._get_morphology_operation(),
+            morphology_iterations=self.morphology_iterations.value(),
+            morphology_kernel_size=self.kernel_size_spin.value(),
+            denoise=self.denoise_cb.isChecked(),
+            denoise_size=self.denoise_size.value()
+        )
+    
     def _update_preview(self):
         """Update the preview image."""
         if not self.selected_file:
@@ -406,23 +665,7 @@ class LineArtConverterPanelQt(QWidget):
         
         try:
             # Create settings from current controls
-            settings = LineArtSettings(
-                mode=ConversionMode.PURE_BLACK,
-                threshold=self.threshold_slider.value(),
-                auto_threshold=self.auto_threshold_cb.isChecked(),
-                background_mode=BackgroundMode.TRANSPARENT,
-                invert=False,
-                remove_midtones=True,
-                midtone_threshold=210,
-                contrast_boost=self.contrast_spin.value(),
-                sharpen=self.sharpen_cb.isChecked(),
-                sharpen_amount=1.3,
-                morphology_operation=MorphologyOperation.CLOSE,
-                morphology_iterations=1,
-                morphology_kernel_size=3,
-                denoise=self.denoise_cb.isChecked(),
-                denoise_size=2
-            )
+            settings = self._create_settings_from_controls()
             
             # Start preview worker
             self.preview_worker = PreviewWorker(self.converter, self.selected_file, settings)
@@ -440,23 +683,47 @@ class LineArtConverterPanelQt(QWidget):
     def _display_preview(self, original, processed):
         """Display the preview image."""
         try:
-            # Convert to QPixmap
-            processed_rgb = processed.convert("RGBA")
-            data = processed_rgb.tobytes("raw", "RGBA")
-            qimage = QImage(data, processed_rgb.width, processed_rgb.height, QImage.Format.Format_RGBA8888)
-            
-            # Scale to fit preview
-            pixmap = QPixmap.fromImage(qimage)
-            scaled = pixmap.scaled(400, 400, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
-            
-            self.preview_label.setPixmap(scaled)
+            if SLIDER_AVAILABLE and hasattr(self, 'preview_widget'):
+                # Use comparison slider
+                orig_pixmap = self._pil_to_pixmap(original)
+                proc_pixmap = self._pil_to_pixmap(processed)
+                
+                self.preview_widget.set_before_image(orig_pixmap)
+                self.preview_widget.set_after_image(proc_pixmap)
+            elif hasattr(self, 'preview_label'):
+                # Fallback to simple label
+                processed_rgb = processed.convert("RGBA")
+                data = processed_rgb.tobytes("raw", "RGBA")
+                qimage = QImage(data, processed_rgb.width, processed_rgb.height, QImage.Format.Format_RGBA8888)
+                
+                # Scale to fit preview
+                pixmap = QPixmap.fromImage(qimage)
+                scaled = pixmap.scaled(400, 400, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
+                
+                self.preview_label.setPixmap(scaled)
             
         except Exception as e:
             logger.error(f"Error displaying preview: {e}")
-            self.preview_label.setText(f"Error: {str(e)}")
+            if hasattr(self, 'preview_label'):
+                self.preview_label.setText(f"Error: {str(e)}")
         finally:
             self.update_preview_btn.setEnabled(True)
             self.update_preview_btn.setText("🔄 Update Preview")
+    
+    def _pil_to_pixmap(self, img, max_size=400):
+        """Convert PIL Image to QPixmap"""
+        # Resize for display
+        img.thumbnail((max_size, max_size), Image.Resampling.LANCZOS)
+        
+        # Convert to RGBA
+        if img.mode != 'RGBA':
+            img = img.convert('RGBA')
+        
+        # Convert to QImage
+        data = img.tobytes("raw", "RGBA")
+        qimage = QImage(data, img.width, img.height, QImage.Format.Format_RGBA8888)
+        
+        return QPixmap.fromImage(qimage)
     
     def _preview_error(self, error_msg):
         """Handle preview error."""
@@ -480,24 +747,8 @@ class LineArtConverterPanelQt(QWidget):
             return
         
         try:
-            # Create settings
-            settings = LineArtSettings(
-                mode=ConversionMode.PURE_BLACK,
-                threshold=self.threshold_slider.value(),
-                auto_threshold=self.auto_threshold_cb.isChecked(),
-                background_mode=BackgroundMode.TRANSPARENT,
-                invert=False,
-                remove_midtones=True,
-                midtone_threshold=210,
-                contrast_boost=self.contrast_spin.value(),
-                sharpen=self.sharpen_cb.isChecked(),
-                sharpen_amount=1.3,
-                morphology_operation=MorphologyOperation.CLOSE,
-                morphology_iterations=1,
-                morphology_kernel_size=3,
-                denoise=self.denoise_cb.isChecked(),
-                denoise_size=2
-            )
+            # Create settings from current controls
+            settings = self._create_settings_from_controls()
             
             # Start conversion worker
             self.conversion_worker = ConversionWorker(
