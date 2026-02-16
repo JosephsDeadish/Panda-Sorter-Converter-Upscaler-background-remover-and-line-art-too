@@ -27,6 +27,7 @@ try:
             # Add settings panel
             config = {
                 'organizer': {
+                    'feature_extractor': 'CLIP (image-to-text classification)',
                     'clip_model': 'CLIP_ViT-B/32 (340 MB - Balanced)',
                     'dinov2_model': 'DINOv2_base (340 MB - Balanced)',
                     'organization_mode': 'Suggested (AI suggests, you confirm)',

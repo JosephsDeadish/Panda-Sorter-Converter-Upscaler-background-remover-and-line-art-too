@@ -47,8 +47,24 @@ class OrganizerSettingsPanel(QWidget):
         
         model_layout = QVBoxLayout()
         
+        # Feature Extractor selector
+        extractor_layout = QHBoxLayout()
+        extractor_label = QLabel("Feature Extractor:")
+        extractor_label.setMinimumWidth(100)
+        self.extractor_combo = QComboBox()
+        self.extractor_combo.addItems([
+            "CLIP (image-to-text classification)",
+            "DINOv2 (visual similarity clustering)",
+            "timm (PyTorch Image Models)"
+        ])
+        self.extractor_combo.currentTextChanged.connect(self.on_extractor_changed)
+        extractor_layout.addWidget(extractor_label)
+        extractor_layout.addWidget(self.extractor_combo)
+        extractor_layout.addStretch()
+        model_layout.addLayout(extractor_layout)
+        
         # CLIP selector
-        clip_layout = QHBoxLayout()
+        self.clip_layout = QHBoxLayout()
         clip_label = QLabel("CLIP Model:")
         clip_label.setMinimumWidth(100)
         self.clip_combo = QComboBox()
@@ -57,13 +73,13 @@ class OrganizerSettingsPanel(QWidget):
             "CLIP_ViT-L/14 (427 MB - More Accurate)"
         ])
         self.clip_combo.currentTextChanged.connect(lambda: self.emit_settings())
-        clip_layout.addWidget(clip_label)
-        clip_layout.addWidget(self.clip_combo)
-        clip_layout.addStretch()
-        model_layout.addLayout(clip_layout)
+        self.clip_layout.addWidget(clip_label)
+        self.clip_layout.addWidget(self.clip_combo)
+        self.clip_layout.addStretch()
+        model_layout.addLayout(self.clip_layout)
         
         # DINOv2 selector
-        dinov2_layout = QHBoxLayout()
+        self.dinov2_layout = QHBoxLayout()
         dinov2_label = QLabel("DINOv2 Model:")
         dinov2_label.setMinimumWidth(100)
         self.dinov2_combo = QComboBox()
@@ -74,10 +90,10 @@ class OrganizerSettingsPanel(QWidget):
         ])
         self.dinov2_combo.setCurrentIndex(1)  # Default to base
         self.dinov2_combo.currentTextChanged.connect(lambda: self.emit_settings())
-        dinov2_layout.addWidget(dinov2_label)
-        dinov2_layout.addWidget(self.dinov2_combo)
-        dinov2_layout.addStretch()
-        model_layout.addLayout(dinov2_layout)
+        self.dinov2_layout.addWidget(dinov2_label)
+        self.dinov2_layout.addWidget(self.dinov2_combo)
+        self.dinov2_layout.addStretch()
+        model_layout.addLayout(self.dinov2_layout)
         
         # Organization mode selector
         mode_layout = QHBoxLayout()
@@ -280,6 +296,30 @@ class OrganizerSettingsPanel(QWidget):
         """)
         return group
     
+    def on_extractor_changed(self):
+        """Update model-specific dropdown visibility based on selected feature extractor"""
+        extractor = self.extractor_combo.currentText()
+        
+        # Hide all model-specific dropdowns first
+        self.set_layout_visible(self.clip_layout, False)
+        self.set_layout_visible(self.dinov2_layout, False)
+        
+        # Show the relevant dropdown based on selection
+        if "CLIP" in extractor:
+            self.set_layout_visible(self.clip_layout, True)
+        elif "DINOv2" in extractor:
+            self.set_layout_visible(self.dinov2_layout, True)
+        # For timm, no specific model dropdown is shown
+        
+        self.emit_settings()
+    
+    def set_layout_visible(self, layout, visible):
+        """Set visibility for all widgets in a layout"""
+        for i in range(layout.count()):
+            item = layout.itemAt(i)
+            if item.widget():
+                item.widget().setVisible(visible)
+    
     def on_confidence_changed(self, value: int):
         """Update confidence value display"""
         self.conf_value_label.setText(f"{value}%")
@@ -323,6 +363,13 @@ class OrganizerSettingsPanel(QWidget):
         """Load settings from config"""
         if 'organizer' in self.config:
             org_config = self.config['organizer']
+            
+            # Load Feature Extractor
+            if 'feature_extractor' in org_config:
+                extractor_text = org_config['feature_extractor']
+                idx = self.extractor_combo.findText(extractor_text, Qt.MatchFlag.MatchContains)
+                if idx >= 0:
+                    self.extractor_combo.setCurrentIndex(idx)
             
             # Load CLIP model
             if 'clip_model' in org_config:
@@ -384,6 +431,7 @@ class OrganizerSettingsPanel(QWidget):
     def emit_settings(self):
         """Emit current settings"""
         settings = {
+            'feature_extractor': self.extractor_combo.currentText(),
             'clip_model': self.clip_combo.currentText(),
             'dinov2_model': self.dinov2_combo.currentText(),
             'organization_mode': self.mode_combo.currentText(),
@@ -404,6 +452,7 @@ class OrganizerSettingsPanel(QWidget):
     def get_settings(self) -> dict:
         """Get current settings as dict"""
         return {
+            'feature_extractor': self.extractor_combo.currentText(),
             'clip_model': self.clip_combo.currentText(),
             'dinov2_model': self.dinov2_combo.currentText(),
             'organization_mode': self.mode_combo.currentText(),
