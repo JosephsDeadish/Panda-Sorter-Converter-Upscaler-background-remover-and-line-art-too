@@ -12,7 +12,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '.'))
 def test_imports():
     """Test that OpenGL widget can be imported."""
     try:
-        from src.ui.panda_widget_gl import PandaOpenGLWidget, PandaWidgetGLBridge
+        from src.ui.panda_widget_gl import PandaOpenGLWidget
         print("✅ OpenGL widget imports successfully")
         return True
     except ImportError as e:

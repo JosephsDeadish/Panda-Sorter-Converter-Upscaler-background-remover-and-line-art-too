@@ -1288,235 +1288,293 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
     def clear_items(self):
         """Remove all items from the scene."""
         self.items_3d.clear()
-
-
-# Compatibility wrapper for Qt applications
-class PandaWidgetGLBridge:
-    """
-    Bridge widget for embedding OpenGL panda in Qt applications.
-    Provides API compatibility for PandaWidget while using Qt OpenGL rendering.
-    """
     
-    def __init__(self, parent=None, panda_character=None, panda_level_system=None,
-                 widget_collection=None, panda_closet=None, weapon_collection=None):
+    # ========================================================================
+    # Enhanced Helper Methods (Replacement for deprecated bridge functionality)
+    # ========================================================================
+    
+    def play_animation_sequence(self, states: List[str], durations: List[float]):
         """
-        Initialize bridge widget with full PandaWidget API compatibility.
+        Play a sequence of animations with specified durations.
         
         Args:
-            parent: Parent Qt widget
-            panda_character: PandaCharacter instance
-            panda_level_system: Panda level system (for XP and leveling)
-            widget_collection: Widget collection (toys, food, etc.)
-            panda_closet: Panda closet for clothing
-            weapon_collection: Weapon collection for combat
+            states: List of animation state names
+            durations: List of durations (in seconds) for each state
+            
+        Example:
+            widget.play_animation_sequence(['jumping', 'celebrating', 'idle'], [1.0, 2.0, 0])
         """
         if not QT_AVAILABLE:
-            raise ImportError("PyQt6 and PyOpenGL required for OpenGL panda widget")
+            return
         
-        # Store references
-        self.parent = parent
-        self.panda = panda_character
-        self.panda_level_system = panda_level_system
-        self.widget_collection = widget_collection
-        self.panda_closet = panda_closet
-        self.weapon_collection = weapon_collection
-        
-        # Create Qt application if needed
-        if not QApplication.instance():
-            self.qt_app = QApplication([])
-        else:
-            self.qt_app = QApplication.instance()
-        
-        # Create OpenGL widget
-        self.gl_widget = PandaOpenGLWidget(panda_character)
-        self.gl_widget.setWindowTitle("Panda Companion - 3D OpenGL")
-        self.gl_widget.resize(400, 500)
-        self.gl_widget.show()
-        
-        # Create mock info label for compatibility
-        self._info_text = ""
-        self._create_info_label()
-        
-        # Animation queue
-        self._animation_queue = []
-        
-        logger.info("OpenGL panda widget bridge initialized")
-    
-    def _create_info_label(self):
-        """Create mock info label that displays text in OpenGL widget."""
-        # In future, this could render text in 3D or as overlay
-        class MockLabel:
-            def __init__(self, parent):
-                self.parent = parent
-                self._text = ""
+        def play_next_animation(index):
+            if index >= len(states):
+                return
             
-            def configure(self, **kwargs):
-                if 'text' in kwargs:
-                    self._text = kwargs['text']
-                    self.parent._info_text = self._text
-                    logger.info(f"Panda info: {self._text}")
+            self.set_animation_state(states[index])
             
-            def cget(self, key):
-                if key == 'text':
-                    return self._text
-                return ""
+            if index < len(durations) and durations[index] > 0:
+                QTimer.singleShot(int(durations[index] * 1000), 
+                                lambda: play_next_animation(index + 1))
         
-        self.info_label = MockLabel(self)
+        play_next_animation(0)
     
-    # ========================================================================
-    # Animation Methods - Compatibility with old API
-    # ========================================================================
-    
-    def set_animation(self, state: str):
-        """Set animation state (compatibility method)."""
-        self.gl_widget.set_animation_state(state)
-    
-    def set_animation_state(self, state: str):
-        """Set animation state."""
-        self.gl_widget.set_animation_state(state)
-    
-    def start_animation(self, state: str):
-        """Start animation (compatibility method)."""
-        self.gl_widget.set_animation_state(state)
-    
-    def play_animation_once(self, state: str):
-        """Play animation once (compatibility method)."""
-        self.gl_widget.set_animation_state(state)
-        # Could add timer to reset to idle after animation completes
-    
-    # ========================================================================
-    # Item Interaction Methods
-    # ========================================================================
-    
-    def set_active_item(self, item_name: str = None, item_emoji: str = None,
-                       position: tuple = None):
+    def add_item_from_emoji(self, emoji: str, name: str = None, 
+                           position: tuple = None, physics: dict = None):
         """
-        Set active item (compatibility method).
+        Add an item to the scene based on emoji representation.
+        Converts 2D position to 3D coordinates automatically.
         
         Args:
-            item_name: Name of the item
-            item_emoji: Emoji representation
-            position: Position tuple (x, y) - will be converted to 3D
+            emoji: Emoji representing the item (🎾, 🍕, etc.)
+            name: Optional name for the item
+            position: Optional (x, y) 2D position, converted to 3D
+            physics: Optional physics properties override
+            
+        Example:
+            widget.add_item_from_emoji('🎾', 'Tennis Ball', position=(100, 200))
         """
-        if item_name:
-            # Add item to 3D scene
-            x = 0.5 if position is None else (position[0] - 200) / 200.0
-            y = 0.0
-            z = 0.0
-            
-            # Determine item type and color based on emoji or name
-            if item_emoji:
-                color = self._get_item_color(item_emoji)
-            else:
-                color = [0.5, 0.5, 0.5]
-            
-            self.gl_widget.add_item_3d('toy', x, y, z, color=color, name=item_name)
-    
-    def _get_item_color(self, emoji: str) -> List[float]:
-        """Get RGB color for emoji."""
-        # Simple emoji-to-color mapping
+        # Emoji to color mapping for visual representation
         emoji_colors = {
             '🍕': [1.0, 0.5, 0.0],  # Pizza - orange
             '🎾': [0.8, 1.0, 0.0],  # Tennis ball - yellow-green
             '🏀': [1.0, 0.5, 0.0],  # Basketball - orange
-            '⚽': [0.0, 0.0, 0.0],  # Soccer ball - black/white
+            '⚽': [1.0, 1.0, 1.0],  # Soccer ball - white
             '🍎': [1.0, 0.0, 0.0],  # Apple - red
             '🍌': [1.0, 1.0, 0.0],  # Banana - yellow
             '🍇': [0.5, 0.0, 0.5],  # Grapes - purple
+            '🥕': [1.0, 0.5, 0.0],  # Carrot - orange
+            '🍔': [0.8, 0.5, 0.2],  # Burger - brown
+            '🍰': [1.0, 0.8, 0.9],  # Cake - pink
         }
-        return emoji_colors.get(emoji, [0.5, 0.5, 0.5])
-    
-    def walk_to_item(self, target_x: int, target_y: int, item_name: str = None,
-                    callback: Optional[Callable] = None):
-        """
-        Make panda walk to item (compatibility method).
         
-        Args:
-            target_x: Target X position
-            target_y: Target Y position
-            item_name: Name of item
-            callback: Callback when reached
-        """
-        # Set walking animation
-        self.gl_widget.set_animation_state('walking')
+        # Emoji to item type mapping
+        food_emojis = {'🍕', '🍎', '🍌', '🍇', '🥕', '🍔', '🍰'}
+        toy_emojis = {'🎾', '🏀', '⚽'}
         
-        # In 3D, move panda to target position
-        # Convert 2D screen coords to 3D world coords
-        world_x = (target_x - 200) / 200.0
-        world_y = -(target_y - 300) / 300.0
+        item_type = 'food' if emoji in food_emojis else 'toy'
+        color = emoji_colors.get(emoji, [0.7, 0.7, 0.7])
         
-        # Smooth movement (simplified - could use interpolation)
-        self.gl_widget.panda_x = world_x
-        self.gl_widget.panda_y = world_y
-        
-        # Call callback if provided
-        if callback:
-            callback()
-    
-    def react_to_item_hit(self, item_name: str, item_emoji: str, hit_y_ratio: float):
-        """
-        React to item hit (compatibility method).
-        
-        Args:
-            item_name: Name of item
-            item_emoji: Emoji representation
-            hit_y_ratio: Where item hit (0=feet, 1=head)
-        """
-        # Play appropriate reaction animation
-        if hit_y_ratio > 0.7:
-            self.gl_widget.set_animation_state('clicked')  # Head hit
-        elif hit_y_ratio < 0.3:
-            self.gl_widget.set_animation_state('jumping')  # Feet hit
+        # Convert 2D position to 3D if provided
+        if position:
+            x = (position[0] - 200) / 200.0
+            y = 0.5  # Start slightly above ground
+            z = -(position[1] - 250) / 250.0
         else:
-            self.gl_widget.set_animation_state('fed')  # Body hit
+            x, y, z = 0.0, 0.5, 0.0
+        
+        # Add item with physics
+        item_data = {
+            'color': color,
+            'name': name or emoji,
+            'emoji': emoji
+        }
+        
+        if physics:
+            item_data.update(physics)
+        
+        self.add_item_3d(item_type, x, y, z, **item_data)
     
-    # ========================================================================
-    # Combat Methods (Compatibility)
-    # ========================================================================
-    
-    def take_damage(self, amount: float, category=None, limb=None, 
-                   can_sever: bool = False) -> dict:
+    def walk_to_item(self, item_index: int, callback: Optional[Callable] = None):
         """
-        Take damage (compatibility method).
+        Make panda walk to a specific item in the scene.
+        
+        Args:
+            item_index: Index of item in items_3d list
+            callback: Optional callback function when panda reaches item
+            
+        Example:
+            widget.walk_to_item(0, lambda: print("Reached item!"))
+        """
+        if not QT_AVAILABLE or item_index >= len(self.items_3d):
+            return
+        
+        item = self.items_3d[item_index]
+        target_x = item['x']
+        target_y = item['y']
+        target_z = item['z']
+        
+        # Walk to position
+        self.walk_to_position(target_x, target_y, target_z)
+        
+        # Set up callback when reached
+        if callback:
+            def check_reached():
+                if self.target_position is None:
+                    # Reached target
+                    callback()
+                else:
+                    # Check again in 100ms
+                    QTimer.singleShot(100, check_reached)
+            
+            QTimer.singleShot(100, check_reached)
+    
+    def interact_with_item(self, item_index: int, interaction_type: str = 'auto'):
+        """
+        Make panda interact with an item (pick up, eat, play, etc.).
+        
+        Args:
+            item_index: Index of item in items_3d list
+            interaction_type: Type of interaction ('pick_up', 'eat', 'kick', 'auto')
+                            'auto' determines interaction based on item type
+        """
+        if item_index >= len(self.items_3d):
+            return
+        
+        item = self.items_3d[item_index]
+        item_type = item.get('type', 'toy')
+        
+        # Auto-determine interaction
+        if interaction_type == 'auto':
+            if item_type == 'food':
+                interaction_type = 'eat'
+            else:
+                interaction_type = 'kick'
+        
+        # Play appropriate animation
+        animation_map = {
+            'eat': 'fed',
+            'kick': 'jumping',
+            'pick_up': 'working',
+            'play': 'celebrating'
+        }
+        
+        animation = animation_map.get(interaction_type, 'idle')
+        self.set_animation_state(animation)
+        
+        # Remove item after interaction if it's consumable
+        if item_type == 'food':
+            QTimer.singleShot(1000, lambda: self._remove_item(item_index))
+    
+    def _remove_item(self, item_index: int):
+        """Internal method to remove an item from scene."""
+        if item_index < len(self.items_3d):
+            self.items_3d.pop(item_index)
+            self.update()
+    
+    def react_to_collision(self, collision_point: tuple, intensity: float = 1.0):
+        """
+        Make panda react to collision (being hit by object, hitting wall, etc.).
+        
+        Args:
+            collision_point: (x, y, z) point of collision relative to panda
+            intensity: Intensity of collision (0.0 to 1.0+)
+        """
+        # Determine which part was hit based on collision point
+        _, cy, _ = collision_point
+        
+        # Normalize to body height (0 = feet, 1 = head)
+        body_height = 1.5  # Approximate panda height
+        hit_ratio = cy / body_height
+        
+        # Choose reaction animation based on hit location and intensity
+        if intensity > 0.8:
+            # Strong hit
+            self.set_animation_state('wall_hit')
+        elif hit_ratio > 0.7:
+            # Head hit
+            self.set_animation_state('clicked')
+            self.play_animation_sequence(['clicked', 'idle'], [0.5, 0])
+        elif hit_ratio < 0.3:
+            # Feet hit - jump
+            self.set_animation_state('jumping')
+        else:
+            # Body hit
+            self.play_animation_sequence(['wall_hit', 'idle'], [0.3, 0])
+    
+    def take_damage(self, amount: float, damage_type: str = 'physical',
+                   source_position: tuple = None) -> dict:
+        """
+        Apply damage to panda (for combat/game systems).
         
         Args:
             amount: Damage amount
-            category: Damage category
-            limb: Limb hit
-            can_sever: Whether limb can be severed
+            damage_type: Type of damage ('physical', 'fire', 'ice', etc.)
+            source_position: Position of damage source for knockback
             
         Returns:
             Dictionary with damage results
         """
         # Play damage animation
-        self.gl_widget.set_animation_state('wall_hit')
+        self.set_animation_state('wall_hit')
         
-        # Apply damage to panda character
-        result = {
-            'damage': amount,
-            'limb': limb,
-            'severed': False,
-            'alive': True
+        # Calculate knockback if source position provided
+        if source_position and QT_AVAILABLE:
+            sx, sy, sz = source_position
+            
+            # Direction away from source
+            dx = self.panda_x - sx
+            dz = self.panda_z - sz
+            length = math.sqrt(dx*dx + dz*dz)
+            
+            if length > 0:
+                # Apply knockback
+                knockback_strength = min(amount * 0.1, 0.5)
+                self.panda_x += (dx / length) * knockback_strength
+                self.panda_z += (dz / length) * knockback_strength
+        
+        # Return damage info (actual health tracking should be in game system)
+        return {
+            'damage_taken': amount,
+            'damage_type': damage_type,
+            'animation': 'wall_hit',
+            'position': (self.panda_x, self.panda_y, self.panda_z)
+        }
+    
+    def heal(self, amount: float):
+        """
+        Heal panda (for game systems).
+        
+        Args:
+            amount: Healing amount
+        """
+        # Play celebration animation for healing
+        self.play_animation_sequence(['fed', 'celebrating', 'idle'], [1.0, 1.0, 0])
+        
+        return {
+            'healed': amount,
+            'animation': 'celebrating'
+        }
+    
+    def set_mood(self, mood: str):
+        """
+        Set panda's visual mood/expression.
+        
+        Args:
+            mood: Mood name ('happy', 'sad', 'angry', 'surprised', 'tired')
+        """
+        # Map moods to animations
+        mood_animations = {
+            'happy': 'celebrating',
+            'sad': 'idle',
+            'angry': 'wall_hit',
+            'surprised': 'clicked',
+            'tired': 'working',
+            'playful': 'jumping'
         }
         
-        if self.panda:
-            # Update panda health through character system
-            pass
+        animation = mood_animations.get(mood, 'idle')
+        self.set_animation_state(animation)
+    
+    def get_info(self) -> dict:
+        """
+        Get current panda widget information.
         
-        return result
-    
-    # ========================================================================
-    # Widget Management
-    # ========================================================================
-    
-    def update_panda(self):
-        """Update panda display (compatibility method)."""
-        self.gl_widget.update()
-    
-    def clear_items(self):
-        """Clear all items from scene."""
-        self.gl_widget.clear_items()
+        Returns:
+            Dictionary with widget state information
+        """
+        return {
+            'animation_state': self.animation_state,
+            'position': (self.panda_x, self.panda_y, self.panda_z),
+            'camera_distance': self.camera_distance,
+            'camera_angle': (self.camera_angle_x, self.camera_angle_y),
+            'item_count': len(self.items_3d),
+            'autonomous_mode': self.autonomous_mode,
+            'has_weapon': self.equipped_weapon is not None,
+            'clothing_slots': list(self.clothing.keys())
+        }
 
 
-# Export for compatibility
-PandaWidget = PandaWidgetGLBridge if QT_AVAILABLE else None
+# Export PandaOpenGLWidget as the primary widget interface
+# Direct usage is now preferred over the deprecated bridge wrapper
+PandaWidget = PandaOpenGLWidget if QT_AVAILABLE else None
