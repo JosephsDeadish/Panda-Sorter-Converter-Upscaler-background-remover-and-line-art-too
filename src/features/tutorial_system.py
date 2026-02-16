@@ -4907,7 +4907,7 @@ class TutorialManager:
         """Create tutorial sequence from categorized tutorials"""
         try:
             # Import categorized tutorials
-            from src.features.tutorial_categories import get_tutorial_sequence
+            from features.tutorial_categories import get_tutorial_sequence
             
             # Get categorized steps
             categorized_steps = get_tutorial_sequence()

@@ -14,13 +14,13 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import Qt, QThread, pyqtSignal
 from typing import List, Optional
 
-from src.tools.batch_renamer import BatchRenamer, RenamePattern
+from tools.batch_renamer import BatchRenamer, RenamePattern
 
 logger = logging.getLogger(__name__)
 
 # Try to import SVG icon helper
 try:
-    from src.utils.svg_icon_helper import load_icon
+    from utils.svg_icon_helper import load_icon
     SVG_ICONS_AVAILABLE = True
 except ImportError:
     load_icon = None
@@ -28,7 +28,7 @@ except ImportError:
 
 # Try to import tooltip system
 try:
-    from src.features.tutorial_system import WidgetTooltip
+    from features.tutorial_system import WidgetTooltip
     TOOLTIPS_AVAILABLE = True
 except ImportError:
     WidgetTooltip = None

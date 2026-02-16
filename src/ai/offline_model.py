@@ -279,7 +279,7 @@ def get_default_model_path() -> Optional[Path]:
         Path to model or None if not found
     """
     # Check multiple possible locations (including portable app_data folder)
-    from src.config import get_app_dir
+    from config import get_app_dir
     _app = get_app_dir()
     possible_paths = [
         _app / "app_data" / "models" / "texture_classifier.onnx",

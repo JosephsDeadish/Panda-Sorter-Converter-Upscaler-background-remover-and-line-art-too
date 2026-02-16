@@ -14,13 +14,11 @@ logger = logging.getLogger(__name__)
 
 # Check for native Rust acceleration
 try:
-    from src.native_ops import lanczos_upscale as _native_lanczos, NATIVE_AVAILABLE
-except ImportError:
-    try:
-        from native_ops import lanczos_upscale as _native_lanczos, NATIVE_AVAILABLE
-    except ImportError:
-        NATIVE_AVAILABLE = False
-        _native_lanczos = None
+    from native_ops import lanczos_upscale as _native_lanczos, NATIVE_AVAILABLE
+except ImportError as e:
+    logger.debug(f"Native acceleration not available: {e}")
+    NATIVE_AVAILABLE = False
+    _native_lanczos = None
 
 # Check for Real-ESRGAN availability
 try:

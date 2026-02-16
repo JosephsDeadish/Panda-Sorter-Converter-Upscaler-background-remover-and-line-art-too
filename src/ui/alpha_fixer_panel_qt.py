@@ -17,7 +17,7 @@ import logging
 from PIL import Image
 import numpy as np
 
-from src.preprocessing.alpha_correction import AlphaCorrector, AlphaCorrectionPresets
+from preprocessing.alpha_correction import AlphaCorrector, AlphaCorrectionPresets
 
 logger = logging.getLogger(__name__)
 

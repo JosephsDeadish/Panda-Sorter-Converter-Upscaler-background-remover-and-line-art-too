@@ -15,7 +15,7 @@ from typing import List, Optional
 import logging
 from PIL import Image
 
-from src.tools.batch_normalizer import (
+from tools.batch_normalizer import (
     BatchFormatNormalizer, NormalizationSettings,
     PaddingMode, ResizeMode, OutputFormat, NamingPattern
 )

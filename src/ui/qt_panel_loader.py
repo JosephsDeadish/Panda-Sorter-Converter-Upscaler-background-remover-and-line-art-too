@@ -34,7 +34,7 @@ def get_widgets_panel(parent, widget_collection, panda_callback=None):
     if not PYQT6_AVAILABLE:
         raise ImportError("PyQt6 required for widgets panel. Install with: pip install PyQt6")
     
-    from src.ui.widgets_panel_qt import WidgetsPanelQt
+    from ui.widgets_panel_qt import WidgetsPanelQt
     logger.info("Using Qt widgets panel")
     return WidgetsPanelQt(widget_collection, panda_callback, parent)
 
@@ -55,7 +55,7 @@ def get_closet_panel(parent, panda_closet, panda_character=None, panda_preview=N
     if not PYQT6_AVAILABLE:
         raise ImportError("PyQt6 required for closet panel. Install with: pip install PyQt6")
     
-    from src.ui.closet_display_qt import ClosetDisplayQt
+    from ui.closet_display_qt import ClosetDisplayQt
     logger.info("Using Qt closet panel")
     return ClosetDisplayQt(parent)
 
@@ -74,7 +74,7 @@ def get_hotkey_settings_panel(parent, hotkey_manager):
     if not PYQT6_AVAILABLE:
         raise ImportError("PyQt6 required for hotkey panel. Install with: pip install PyQt6")
     
-    from src.ui.hotkey_display_qt import HotkeyDisplayQt
+    from ui.hotkey_display_qt import HotkeyDisplayQt
     logger.info("Using Qt hotkey settings panel")
     return HotkeyDisplayQt(parent)
 
@@ -94,7 +94,7 @@ def get_customization_panel(parent, panda_closet, panda_character=None):
     if not PYQT6_AVAILABLE:
         raise ImportError("PyQt6 required for customization panel. Install with: pip install PyQt6")
     
-    from src.ui.customization_panel_qt import CustomizationPanelQt
+    from ui.customization_panel_qt import CustomizationPanelQt
     logger.info("Using Qt customization panel")
     return CustomizationPanelQt(panda_character, panda_closet, parent)
 
@@ -112,7 +112,7 @@ def get_background_remover_panel(parent):
     if not PYQT6_AVAILABLE:
         raise ImportError("PyQt6 required for background remover panel. Install with: pip install PyQt6")
     
-    from src.ui.background_remover_panel_qt import BackgroundRemoverPanelQt
+    from ui.background_remover_panel_qt import BackgroundRemoverPanelQt
     logger.info("Using Qt background remover panel")
     return BackgroundRemoverPanelQt(parent)
 
@@ -132,7 +132,7 @@ def get_batch_rename_panel(parent, unlockables_system=None, tooltip_manager=None
     if not PYQT6_AVAILABLE:
         raise ImportError("PyQt6 required for batch rename panel. Install with: pip install PyQt6")
     
-    from src.ui.batch_rename_panel_qt import BatchRenamePanelQt
+    from ui.batch_rename_panel_qt import BatchRenamePanelQt
     logger.info("Using Qt batch rename panel")
     return BatchRenamePanelQt(parent, tooltip_manager)
 
@@ -152,7 +152,7 @@ def get_lineart_converter_panel(parent, unlockables_system=None, tooltip_manager
     if not PYQT6_AVAILABLE:
         raise ImportError("PyQt6 required for lineart converter panel. Install with: pip install PyQt6")
     
-    from src.ui.lineart_converter_panel_qt import LineArtConverterPanelQt
+    from ui.lineart_converter_panel_qt import LineArtConverterPanelQt
     logger.info("Using Qt line art converter panel")
     return LineArtConverterPanelQt(parent, tooltip_manager)
 
@@ -172,7 +172,7 @@ def get_image_repair_panel(parent, unlockables_system=None, tooltip_manager=None
     if not PYQT6_AVAILABLE:
         raise ImportError("PyQt6 required for image repair panel. Install with: pip install PyQt6")
     
-    from src.ui.image_repair_panel_qt import ImageRepairPanelQt
+    from ui.image_repair_panel_qt import ImageRepairPanelQt
     logger.info("Using Qt image repair panel")
     return ImageRepairPanelQt(parent, tooltip_manager)
 
@@ -191,6 +191,6 @@ def get_minigame_panel(parent, minigame_manager=None):
     if not PYQT6_AVAILABLE:
         raise ImportError("PyQt6 required for minigame panel. Install with: pip install PyQt6")
     
-    from src.ui.minigame_panel_qt import MiniGamePanelQt
+    from ui.minigame_panel_qt import MiniGamePanelQt
     logger.info("Using Qt minigame panel")
     return MiniGamePanelQt(parent, minigame_manager)

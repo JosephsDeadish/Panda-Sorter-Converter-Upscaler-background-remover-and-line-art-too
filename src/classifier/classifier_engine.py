@@ -26,20 +26,16 @@ except ImportError:
 
 # Native Rust acceleration for feature extraction
 try:
-    from src.native_ops import (
+    from native_ops import (
         edge_density as native_edge_density,
         color_histogram as native_color_histogram,
         NATIVE_AVAILABLE,
     )
-except ImportError:
-    try:
-        from native_ops import (
-            edge_density as native_edge_density,
-            color_histogram as native_color_histogram,
-            NATIVE_AVAILABLE,
-        )
-    except ImportError:
-        NATIVE_AVAILABLE = False
+except ImportError as e:
+    logger.debug(f"Native acceleration not available: {e}")
+    NATIVE_AVAILABLE = False
+    native_edge_density = None
+    native_color_histogram = None
 
 from .categories import ALL_CATEGORIES, get_category_info
 

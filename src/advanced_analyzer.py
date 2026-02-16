@@ -48,7 +48,7 @@ class AdvancedTextureAnalyzer:
         self.preprocessing = None
         if use_preprocessing:
             try:
-                from src.preprocessing import PreprocessingPipeline
+                from preprocessing import PreprocessingPipeline
                 self.preprocessing = PreprocessingPipeline()
                 logger.info("Preprocessing pipeline initialized")
             except Exception as e:
@@ -58,7 +58,7 @@ class AdvancedTextureAnalyzer:
         self.clip_model = None
         if use_clip:
             try:
-                from src.vision_models import CLIPModel
+                from vision_models import CLIPModel
                 self.clip_model = CLIPModel(device=device)
                 logger.info("CLIP model initialized")
             except Exception as e:
@@ -68,7 +68,7 @@ class AdvancedTextureAnalyzer:
         self.dinov2_model = None
         if use_dinov2:
             try:
-                from src.vision_models import DINOv2Model
+                from vision_models import DINOv2Model
                 self.dinov2_model = DINOv2Model(device=device)
                 logger.info("DINOv2 model initialized")
             except Exception as e:
@@ -78,7 +78,7 @@ class AdvancedTextureAnalyzer:
         self.similarity_search = None
         if use_faiss and self.clip_model:
             try:
-                from src.similarity import SimilaritySearch
+                from similarity import SimilaritySearch
                 # Use CLIP embedding dimension (512 for base model)
                 self.similarity_search = SimilaritySearch(embedding_dim=512)
                 logger.info("Similarity search initialized")
@@ -258,7 +258,7 @@ class AdvancedTextureAnalyzer:
         if not self.similarity_search:
             raise RuntimeError("Similarity search not initialized")
         
-        from src.similarity import DuplicateDetector
+        from similarity import DuplicateDetector
         detector = DuplicateDetector(self.similarity_search)
         
         return detector.find_exact_duplicates(threshold)

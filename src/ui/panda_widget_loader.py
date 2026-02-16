@@ -13,7 +13,7 @@ OPENGL_AVAILABLE = False
 PandaWidget = None
 
 try:
-    from src.ui.panda_widget_gl import PandaOpenGLWidget, QT_AVAILABLE
+    from ui.panda_widget_gl import PandaOpenGLWidget, QT_AVAILABLE
     if QT_AVAILABLE:
         PandaWidget = PandaOpenGLWidget
         OPENGL_AVAILABLE = True

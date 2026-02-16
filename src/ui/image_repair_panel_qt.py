@@ -15,7 +15,7 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import Qt, QThread, pyqtSignal
 
 try:
-    from src.tools.image_repairer import ImageRepairer, CorruptionType, RepairResult
+    from tools.image_repairer import ImageRepairer, CorruptionType, RepairResult
     REPAIRER_AVAILABLE = True
 except ImportError:
     ImageRepairer = None

@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 
 # Try to import tooltip system
 try:
-    from src.features.tutorial_system import WidgetTooltip
+    from features.tutorial_system import WidgetTooltip
     TOOLTIPS_AVAILABLE = True
 except ImportError:
     WidgetTooltip = None

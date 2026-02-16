@@ -11,7 +11,7 @@ from enum import Enum
 import threading
 import time
 from datetime import datetime
-from src.features.panda_stats import PandaStats
+from features.panda_stats import PandaStats
 
 logger = logging.getLogger(__name__)
 

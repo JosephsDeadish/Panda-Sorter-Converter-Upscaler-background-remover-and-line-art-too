@@ -16,7 +16,7 @@ from PyQt6.QtCore import Qt, QThread, pyqtSignal, QTimer
 from PyQt6.QtGui import QPixmap, QImage
 from PIL import Image
 
-from src.tools.lineart_converter import (
+from tools.lineart_converter import (
     LineArtConverter, LineArtSettings,
     ConversionMode, BackgroundMode, MorphologyOperation
 )

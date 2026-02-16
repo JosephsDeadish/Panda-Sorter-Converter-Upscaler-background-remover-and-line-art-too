@@ -364,7 +364,7 @@ class SimilaritySearch:
             
         Example:
             # Using with CLIP model:
-            from src.vision_models.clip_model import CLIPModel
+            from vision_models.clip_model import CLIPModel
             clip = CLIPModel()
             text_emb = clip.encode_text("gun texture")
             results = similarity_search.search_by_text(text_emb, k=20)

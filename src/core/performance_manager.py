@@ -16,7 +16,7 @@ from typing import Dict, Optional, Any, List
 
 # Import GPU detector
 try:
-    from src.utils.gpu_detector import GPUDetector, GPUDevice
+    from utils.gpu_detector import GPUDetector, GPUDevice
     GPU_DETECTOR_AVAILABLE = True
 except ImportError:
     GPU_DETECTOR_AVAILABLE = False

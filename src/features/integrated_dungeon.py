@@ -6,10 +6,10 @@ Manages enemies, combat, loot, and navigation in the dungeon.
 import random
 from typing import List, Tuple, Optional, Dict
 from dataclasses import dataclass
-from src.features.dungeon_generator import DungeonGenerator, DungeonFloor, Room
-from src.features.enemy_system import Enemy, EnemyCollection
-from src.features.damage_system import DamageTracker, DamageCategory, LimbType
-from src.features.projectile_system import ProjectileManager, ProjectileType
+from features.dungeon_generator import DungeonGenerator, DungeonFloor, Room
+from features.enemy_system import Enemy, EnemyCollection
+from features.damage_system import DamageTracker, DamageCategory, LimbType
+from features.projectile_system import ProjectileManager, ProjectileType
 
 
 @dataclass

@@ -74,7 +74,7 @@ class EnemyManager:
         
         try:
             # Import Qt enemy widget (QGraphicsView - no canvas)
-            from src.ui.enemy_graphics_widget import EnemyGraphicsWidget as EnemyWidget
+            from ui.enemy_graphics_widget import EnemyGraphicsWidget as EnemyWidget
             
             # Choose random enemy type if not specified
             if enemy_type is None:

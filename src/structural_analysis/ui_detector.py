@@ -69,7 +69,7 @@ class UIDetector:
         
         self.alpha_handler = None
         if self.use_alpha:
-            from src.preprocessing import AlphaChannelHandler
+            from preprocessing import AlphaChannelHandler
             self.alpha_handler = AlphaChannelHandler()
         
         self.ocr_detector = None

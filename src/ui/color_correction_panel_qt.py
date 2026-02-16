@@ -21,7 +21,7 @@ from PIL import Image
 logger = logging.getLogger(__name__)
 
 try:
-    from src.tools.color_corrector import ColorCorrector
+    from tools.color_corrector import ColorCorrector
     COLOR_CORRECTOR_AVAILABLE = True
 except ImportError as e:
     logger.warning(f"Color corrector not available: {e}")

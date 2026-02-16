@@ -9,7 +9,7 @@ from typing import Dict, List, Optional, Tuple
 from dataclasses import dataclass
 from enum import Enum
 
-from src.features.combat_system import CombatStats, DamageType
+from features.combat_system import CombatStats, DamageType
 
 logger = logging.getLogger(__name__)
 

@@ -12,7 +12,7 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import Qt, QTimer, pyqtSignal
 from PyQt6.QtGui import QFont
 
-from src.features.minigame_system import (
+from features.minigame_system import (
     MiniGameManager, MiniGame, GameDifficulty, GameResult
 )
 

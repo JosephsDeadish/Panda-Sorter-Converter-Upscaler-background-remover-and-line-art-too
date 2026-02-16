@@ -15,7 +15,7 @@ from typing import List, Optional
 import logging
 from PIL import Image
 
-from src.tools.quality_checker import ImageQualityChecker, format_quality_report, QualityLevel
+from tools.quality_checker import ImageQualityChecker, format_quality_report, QualityLevel
 
 logger = logging.getLogger(__name__)
 
