@@ -89,8 +89,8 @@ try:
         # Distributed (if used) - Updated paths
         'torch.distributed',
         'torch.distributed.rpc',
-        'torch.distributed._shard',  # NEW PATH for sharding
-        'torch.distributed._shard.sharding_spec',  # NEW PATH (replaces deprecated _sharding_spec)
+        'torch.distributed._shard',  # Current path for sharding (replaces deprecated _sharding_spec)
+        'torch.distributed._shard.sharding_spec',  # Current path for sharding spec (replaces deprecated _sharding_spec)
     ]
 
     def should_skip_cuda_dll(file_path):

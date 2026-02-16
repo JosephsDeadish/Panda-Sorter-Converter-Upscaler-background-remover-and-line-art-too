@@ -296,7 +296,7 @@ a = Analysis(
         'torch.distributed.elastic.multiprocessing',
         'torch.distributed._sharding_spec',  # Deprecated - now uses torch.distributed._shard.sharding_spec
         'torch.distributed._sharded_tensor',
-        # Note: torch.distributed._shard is included for new sharding spec path
+        # Note: torch.distributed._shard is NOT excluded - it's needed for new sharding spec path
         'torch.distributed._shard.checkpoint',
         'torch._inductor',
         'torch._inductor.compile_fx',
