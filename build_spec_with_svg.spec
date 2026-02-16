@@ -181,10 +181,9 @@ a = Analysis(
         'preprocessing.preprocessing_pipeline',
         'preprocessing.upscaler',
         'preprocessing.filters',
-        # Core image processing
+        # Core image processing (Qt/OpenGL ONLY - NO TKINTER)
         'PIL',
         'PIL.Image',
-        'PIL.ImageTk',
         'PIL.ImageFile',
         'PIL.ImageDraw',
         'PIL.ImageFont',
@@ -200,15 +199,16 @@ a = Analysis(
         'send2trash',
         'watchdog',
         # Qt6 UI framework (REQUIRED - ONLY SUPPORTED UI)
-        # NO TKINTER - Full Qt6 migration complete
+        # NO TKINTER - Full Qt6 migration complete - Pure Qt/OpenGL system
         'PyQt6',
         'PyQt6.QtCore',
         'PyQt6.QtGui',
         'PyQt6.QtWidgets',
         'PyQt6.QtOpenGL',
         'PyQt6.QtOpenGLWidgets',
+        'PyQt6.QtSvg',  # SVG support
         'PyQt6.sip',
-        # OpenGL for 3D rendering (panda, skeletal animations)
+        # OpenGL for 3D rendering (panda, skeletal animations, hardware acceleration)
         'OpenGL',
         'OpenGL.GL',
         'OpenGL.GLU',
@@ -216,6 +216,8 @@ a = Analysis(
         'OpenGL.arrays',
         'OpenGL.arrays.vbo',
         'OpenGL.GL.shaders',
+        'OpenGL.platform',
+        'OpenGL.platform.glx',
         'darkdetect',
         # Utilities
         'psutil',
@@ -250,13 +252,18 @@ a = Analysis(
     ],
     excludes=[
         # Tkinter/CustomTkinter - NO LONGER USED (full Qt6 migration complete)
+        # Explicitly exclude ALL tkinter variants to prevent accidental inclusion
         'tkinter',
         'tkinter.ttk',
         'tkinter.messagebox',
         'tkinter.filedialog',
+        'tkinter.scrolledtext',
+        'tkinter.constants',
+        'tkinter.font',
         'customtkinter',
         'tkinterdnd2',
         '_tkinter',
+        'PIL.ImageTk',  # Tkinter-specific PIL module
         
         # Heavy scientific libraries (not needed)
         'matplotlib',
