@@ -20,18 +20,26 @@ except ImportError as e:
     NATIVE_AVAILABLE = False
     _native_lanczos = None
 
-# Check for Real-ESRGAN availability - with better error handling
+# Check for Real-ESRGAN - with comprehensive error handling
+REALESRGAN_AVAILABLE = False
 try:
+    # Import both required packages
+    import basicsr
+    import realesrgan
+    
+    # Import the specific classes we need
     from basicsr.archs.rrdbnet_arch import RRDBNet
     from realesrgan import RealESRGANer
+    
     REALESRGAN_AVAILABLE = True
-    logger.info("Real-ESRGAN upscaling available")
+    logger.info("✅ Real-ESRGAN upscaling available")
+    
 except ImportError as e:
+    logger.warning(f"⚠️  Real-ESRGAN not available (optional): {e}")
     REALESRGAN_AVAILABLE = False
-    logger.warning(f"Real-ESRGAN not available (optional): {e}")
 except Exception as e:
+    logger.warning(f"⚠️  Error loading Real-ESRGAN: {type(e).__name__}: {e}")
     REALESRGAN_AVAILABLE = False
-    logger.warning(f"Error loading Real-ESRGAN: {e}")
 
 
 class TextureUpscaler:

@@ -949,7 +949,8 @@ def check_feature_availability():
         'timm': False,
         'onnx': False,
         'onnxruntime': False,
-        'realesrgan': False,
+        'upscaler': False,  # Real-ESRGAN upscaler
+        'realesrgan': False,  # DEPRECATED: Use 'upscaler' instead (kept for backward compatibility)
         'native_lanczos': False,
     }
     
@@ -1009,7 +1010,8 @@ def check_feature_availability():
     # Check Real-ESRGAN upscaling
     try:
         from preprocessing.upscaler import REALESRGAN_AVAILABLE
-        features['realesrgan'] = REALESRGAN_AVAILABLE
+        features['upscaler'] = REALESRGAN_AVAILABLE
+        features['realesrgan'] = REALESRGAN_AVAILABLE  # DEPRECATED: Kept for backward compatibility
     except Exception:
         pass
     
@@ -1144,10 +1146,10 @@ def log_startup_diagnostics(window):
         window.log("   ✅ Lanczos upscaling (native Rust acceleration)")
     else:
         window.log("   ⚠️  Lanczos native acceleration not available")
-    if features['realesrgan']:
-        window.log("   ✅ Real-ESRGAN upscaling (AI - best for textures)")
+    if features['upscaler']:
+        window.log("   ✅ Real-ESRGAN upscaler available")
     else:
-        window.log("   ⚠️  Real-ESRGAN not available (optional)")
+        window.log("   ⚠️  Real-ESRGAN upscaler not available (optional)")
         window.log("   💡 Install: pip install basicsr realesrgan")
     
     window.log("=" * 60)
