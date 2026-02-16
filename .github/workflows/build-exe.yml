@@ -59,10 +59,34 @@ jobs:
           mkdir -p src/resources/sounds
         shell: bash
       
+      - name: Verify PyInstaller Hooks Directory
+        run: |
+          echo "Checking for PyInstaller hooks..."
+          if [ -d ".github/hooks" ]; then
+            echo "✅ .github/hooks directory exists"
+            echo "Available hooks:"
+            ls -la .github/hooks/hook-*.py
+          else
+            echo "⚠️  Warning: .github/hooks directory not found"
+            exit 1
+          fi
+          
+          # Check for root-level hooks
+          if ls hook-*.py 1> /dev/null 2>&1; then
+            echo "Root-level hooks found:"
+            ls -la hook-*.py
+          fi
+        shell: bash
+      
       - name: Build with PyInstaller (One-Folder)
         env:
           PYTHONWARNINGS: "ignore::DeprecationWarning"
         run: |
+          echo "Starting PyInstaller build..."
+          echo "Using hooks from:"
+          echo "  - Project root: hook-*.py"
+          echo "  - .github/hooks: hook-*.py"
+          echo ""
           pyinstaller build_spec_onefolder.spec --clean --noconfirm
           echo "✅ Build completed successfully"
       

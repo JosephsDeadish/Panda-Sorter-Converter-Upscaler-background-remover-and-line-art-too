@@ -47,12 +47,26 @@ def check_feature_availability():
         'transformers': False,
         'open_clip': False,
         'timm': False,
+        'onnx': False,
+        'onnxruntime': False,
     }
     
     try:
         import torch
         features['pytorch'] = True
         features['pytorch_cuda'] = torch.cuda.is_available()
+    except Exception:
+        pass
+    
+    try:
+        import onnx
+        features['onnx'] = True
+    except Exception:
+        pass
+    
+    try:
+        import onnxruntime
+        features['onnxruntime'] = True
     except Exception:
         pass
     
@@ -107,6 +121,15 @@ def check_feature_availability():
             print("✅ Vision models can be loaded")
         else:
             print("⚠️  Vision models cannot be loaded")
+        
+        if features['onnxruntime'] or features['onnx']:
+            print("✅ ONNX features available")
+            if features['onnxruntime']:
+                print("   ✅ ONNX Runtime available")
+            if features['onnx']:
+                print("   ✅ ONNX model format available")
+        else:
+            print("⚠️  ONNX not available (optional)")
         
         print("=" * 70)
         print("✅ Test completed successfully")
