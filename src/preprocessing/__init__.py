@@ -12,7 +12,8 @@ from .alpha_correction import AlphaCorrector, AlphaCorrectionPresets
 # Re-export native availability check
 try:
     from native_ops import NATIVE_AVAILABLE
-except ImportError:
+except ImportError as e:
+    logger.debug(f"Native operations not available: {e}")
     NATIVE_AVAILABLE = False
 
 __all__ = [

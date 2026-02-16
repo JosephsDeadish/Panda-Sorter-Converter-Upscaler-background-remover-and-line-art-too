@@ -31,8 +31,11 @@ try:
         color_histogram as native_color_histogram,
         NATIVE_AVAILABLE,
     )
-except ImportError:
+except ImportError as e:
+    logger.debug(f"Native acceleration not available: {e}")
     NATIVE_AVAILABLE = False
+    native_edge_density = None
+    native_color_histogram = None
 
 from .categories import ALL_CATEGORIES, get_category_info
 
