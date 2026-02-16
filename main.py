@@ -72,6 +72,7 @@ try:
     from ui.customization_panel_qt import CustomizationPanelQt
     from ui.upscaler_panel_qt import ImageUpscalerPanelQt
     from ui.organizer_panel_qt import OrganizerPanelQt
+    from ui.settings_panel_qt import SettingsPanelQt
     UI_PANELS_AVAILABLE = True
 except ImportError as e:
     logger.warning(f"Some UI panels not available: {e}")
@@ -132,6 +133,9 @@ class TextureSorterMainWindow(QMainWindow):
         # Paths
         self.input_path = None
         self.output_path = None
+        
+        # Tooltip manager (will be initialized later)
+        self.tooltip_manager = None
         
         # Setup UI
         self.setup_ui()
@@ -450,13 +454,24 @@ class TextureSorterMainWindow(QMainWindow):
         """Create settings tab."""
         tab = QWidget()
         layout = QVBoxLayout(tab)
+        layout.setContentsMargins(0, 0, 0, 0)
         
-        label = QLabel("⚙️ Settings will be added here")
-        label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        label.setFont(QFont("Arial", 12))
-        layout.addWidget(label)
-        
-        layout.addStretch()
+        try:
+            # Create comprehensive settings panel
+            self.settings_panel = SettingsPanelQt(config, self)
+            
+            # Connect settings changed signal
+            self.settings_panel.settingsChanged.connect(self.on_settings_changed)
+            
+            layout.addWidget(self.settings_panel)
+            self.log("✅ Settings panel loaded successfully")
+            
+        except Exception as e:
+            logger.error(f"Error loading settings panel: {e}", exc_info=True)
+            # Fallback to placeholder
+            label = QLabel(f"⚠️ Error loading settings panel: {e}")
+            label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            layout.addWidget(label)
         
         self.tabs.addTab(tab, "Settings")
     
@@ -493,87 +508,196 @@ class TextureSorterMainWindow(QMainWindow):
         self.statusbar.showMessage("Ready")
     
     def apply_theme(self):
-        """Apply dark theme stylesheet."""
-        stylesheet = """
-        QMainWindow {
-            background-color: #1e1e1e;
-        }
-        QWidget {
-            background-color: #1e1e1e;
-            color: #ffffff;
-            font-family: 'Segoe UI', Arial, sans-serif;
-        }
-        QPushButton {
-            background-color: #0d7377;
-            color: white;
-            border: none;
-            padding: 8px 16px;
-            border-radius: 4px;
-            font-weight: bold;
-        }
-        QPushButton:hover {
-            background-color: #14a085;
-        }
-        QPushButton:pressed {
-            background-color: #0a5a5c;
-        }
-        QPushButton:disabled {
-            background-color: #555555;
-            color: #999999;
-        }
-        QLabel {
-            color: #ffffff;
-            background-color: transparent;
-        }
-        QTabWidget::pane {
-            border: 1px solid #333333;
-            background-color: #252525;
-        }
-        QTabBar::tab {
-            background-color: #2d2d2d;
-            color: #ffffff;
-            padding: 8px 20px;
-            border: 1px solid #333333;
-            border-bottom: none;
-        }
-        QTabBar::tab:selected {
-            background-color: #0d7377;
-        }
-        QTabBar::tab:hover {
-            background-color: #3d3d3d;
-        }
-        QMenuBar {
-            background-color: #2d2d2d;
-            color: #ffffff;
-            border-bottom: 1px solid #333333;
-        }
-        QMenuBar::item:selected {
-            background-color: #0d7377;
-        }
-        QMenu {
-            background-color: #2d2d2d;
-            color: #ffffff;
-            border: 1px solid #333333;
-        }
-        QMenu::item:selected {
-            background-color: #0d7377;
-        }
-        QProgressBar {
-            border: 1px solid #333333;
-            border-radius: 3px;
-            text-align: center;
-            background-color: #2d2d2d;
-            color: #ffffff;
-        }
-        QProgressBar::chunk {
-            background-color: #0d7377;
-        }
-        QFrame {
-            background-color: #252525;
-            border: 1px solid #333333;
-            border-radius: 4px;
-        }
-        """
+        """Apply theme stylesheet based on config."""
+        theme = config.get('ui', 'theme', default='dark')
+        accent = config.get('ui', 'accent_color', default='#0d7377')
+        
+        # Calculate hover and pressed colors
+        from PyQt6.QtGui import QColor
+        accent_color = QColor(accent)
+        h, s, v, a = accent_color.getHsv()
+        
+        hover_color = QColor()
+        hover_color.setHsv(h, s, min(255, int(v * 1.2)), a)
+        
+        pressed_color = QColor()
+        pressed_color.setHsv(h, s, int(v * 0.8), a)
+        
+        if theme == 'light':
+            stylesheet = f"""
+            QMainWindow {{
+                background-color: #f5f5f5;
+            }}
+            QWidget {{
+                background-color: #f5f5f5;
+                color: #000000;
+                font-family: 'Segoe UI', Arial, sans-serif;
+            }}
+            QPushButton {{
+                background-color: {accent};
+                color: white;
+                border: none;
+                padding: 8px 16px;
+                border-radius: 4px;
+                font-weight: bold;
+            }}
+            QPushButton:hover {{
+                background-color: {hover_color.name()};
+            }}
+            QPushButton:pressed {{
+                background-color: {pressed_color.name()};
+            }}
+            QPushButton:disabled {{
+                background-color: #cccccc;
+                color: #666666;
+            }}
+            QLabel {{
+                color: #000000;
+                background-color: transparent;
+            }}
+            QTabWidget::pane {{
+                border: 1px solid #cccccc;
+                background-color: #ffffff;
+            }}
+            QTabBar::tab {{
+                background-color: #e0e0e0;
+                color: #000000;
+                padding: 8px 20px;
+                border: 1px solid #cccccc;
+                border-bottom: none;
+            }}
+            QTabBar::tab:selected {{
+                background-color: {accent};
+                color: white;
+            }}
+            QTabBar::tab:hover {{
+                background-color: #d0d0d0;
+            }}
+            QMenuBar {{
+                background-color: #e0e0e0;
+                color: #000000;
+                border-bottom: 1px solid #cccccc;
+            }}
+            QMenuBar::item:selected {{
+                background-color: {accent};
+                color: white;
+            }}
+            QMenu {{
+                background-color: #ffffff;
+                color: #000000;
+                border: 1px solid #cccccc;
+            }}
+            QMenu::item:selected {{
+                background-color: {accent};
+                color: white;
+            }}
+            QProgressBar {{
+                border: 1px solid #cccccc;
+                border-radius: 3px;
+                text-align: center;
+                background-color: #ffffff;
+                color: #000000;
+            }}
+            QProgressBar::chunk {{
+                background-color: {accent};
+            }}
+            QFrame {{
+                background-color: #ffffff;
+                border: 1px solid #cccccc;
+                border-radius: 4px;
+            }}
+            QTextEdit {{
+                background-color: #ffffff;
+                color: #000000;
+                border: 1px solid #cccccc;
+            }}
+            """
+        else:  # Dark theme
+            stylesheet = f"""
+            QMainWindow {{
+                background-color: #1e1e1e;
+            }}
+            QWidget {{
+                background-color: #1e1e1e;
+                color: #ffffff;
+                font-family: 'Segoe UI', Arial, sans-serif;
+            }}
+            QPushButton {{
+                background-color: {accent};
+                color: white;
+                border: none;
+                padding: 8px 16px;
+                border-radius: 4px;
+                font-weight: bold;
+            }}
+            QPushButton:hover {{
+                background-color: {hover_color.name()};
+            }}
+            QPushButton:pressed {{
+                background-color: {pressed_color.name()};
+            }}
+            QPushButton:disabled {{
+                background-color: #555555;
+                color: #999999;
+            }}
+            QLabel {{
+                color: #ffffff;
+                background-color: transparent;
+            }}
+            QTabWidget::pane {{
+                border: 1px solid #333333;
+                background-color: #252525;
+            }}
+            QTabBar::tab {{
+                background-color: #2d2d2d;
+                color: #ffffff;
+                padding: 8px 20px;
+                border: 1px solid #333333;
+                border-bottom: none;
+            }}
+            QTabBar::tab:selected {{
+                background-color: {accent};
+            }}
+            QTabBar::tab:hover {{
+                background-color: #3d3d3d;
+            }}
+            QMenuBar {{
+                background-color: #2d2d2d;
+                color: #ffffff;
+                border-bottom: 1px solid #333333;
+            }}
+            QMenuBar::item:selected {{
+                background-color: {accent};
+            }}
+            QMenu {{
+                background-color: #2d2d2d;
+                color: #ffffff;
+                border: 1px solid #333333;
+            }}
+            QMenu::item:selected {{
+                background-color: {accent};
+            }}
+            QProgressBar {{
+                border: 1px solid #333333;
+                border-radius: 3px;
+                text-align: center;
+                background-color: #2d2d2d;
+                color: #ffffff;
+            }}
+            QProgressBar::chunk {{
+                background-color: {accent};
+            }}
+            QFrame {{
+                background-color: #252525;
+                border: 1px solid #333333;
+                border-radius: 4px;
+            }}
+            QTextEdit {{
+                background-color: #1e1e1e;
+                color: #ffffff;
+                border: 1px solid #333333;
+            }}
+            """
         self.setStyleSheet(stylesheet)
     
     def initialize_components(self):
@@ -586,6 +710,15 @@ class TextureSorterMainWindow(QMainWindow):
             # It will be created on-demand in perform_sorting() once the output directory
             # is selected by the user via browse_output().
             self.log("✅ Core components initialized")
+            
+            # Initialize tooltip manager
+            try:
+                from features.tutorial_system import TooltipManager
+                self.tooltip_manager = TooltipManager(config)
+                logger.info("Tooltip manager initialized")
+            except Exception as e:
+                logger.warning(f"Could not initialize tooltip manager: {e}")
+            
         except Exception as e:
             logger.error(f"Failed to initialize components: {e}", exc_info=True)
             self.log(f"⚠️ Warning: Some components failed to initialize: {e}")
@@ -723,6 +856,42 @@ class TextureSorterMainWindow(QMainWindow):
         """Add message to log."""
         self.log_text.append(message)
         logger.info(message)
+    
+    def on_settings_changed(self, setting_key: str, value):
+        """Handle settings changes in real-time"""
+        try:
+            logger.info(f"Setting changed: {setting_key} = {value}")
+            
+            # Handle theme changes
+            if setting_key == "ui.theme":
+                self.apply_theme()
+            
+            # Handle opacity changes
+            elif setting_key == "ui.window_opacity":
+                self.setWindowOpacity(value)
+            
+            # Handle tooltip mode changes
+            elif setting_key == "ui.tooltip_mode":
+                if self.tooltip_manager:
+                    from features.tutorial_system import TooltipMode
+                    mode_map = {
+                        'normal': TooltipMode.NORMAL,
+                        'dumbed_down': TooltipMode.DUMBED_DOWN,
+                        'vulgar_panda': TooltipMode.UNHINGED_PANDA
+                    }
+                    if value in mode_map:
+                        self.tooltip_manager.set_mode(mode_map[value])
+            
+            # Handle font changes
+            elif setting_key in ["ui.font_family", "ui.font_size"]:
+                font_family = config.get('ui', 'font_family', default='Segoe UI')
+                font_size = config.get('ui', 'font_size', default=12)
+                app = QApplication.instance()
+                if app:
+                    app.setFont(QFont(font_family, font_size))
+            
+        except Exception as e:
+            logger.error(f"Error handling settings change: {e}", exc_info=True)
     
     def show_about(self):
         """Show about dialog."""
