@@ -367,15 +367,21 @@ class LineArtConverterPanelQt(QWidget):
             preset = LINEART_PRESETS[preset_name]
             self.preset_desc.setText(preset["desc"])
             
-            # Update controls
-            self.threshold_slider.setValue(preset["threshold"])
-            self.contrast_spin.setValue(preset["contrast"])
-            self.auto_threshold_cb.setChecked(preset["auto_threshold"])
-            self.sharpen_cb.setChecked(preset["sharpen"])
-            self.denoise_cb.setChecked(preset["denoise"])
+            # Update controls (only if they exist - they may not be created yet during initialization)
+            if hasattr(self, 'threshold_slider'):
+                self.threshold_slider.setValue(preset["threshold"])
+            if hasattr(self, 'contrast_spin'):
+                self.contrast_spin.setValue(preset["contrast"])
+            if hasattr(self, 'auto_threshold_cb'):
+                self.auto_threshold_cb.setChecked(preset["auto_threshold"])
+            if hasattr(self, 'sharpen_cb'):
+                self.sharpen_cb.setChecked(preset["sharpen"])
+            if hasattr(self, 'denoise_cb'):
+                self.denoise_cb.setChecked(preset["denoise"])
             
-            # Trigger preview update
-            self._schedule_preview_update()
+            # Trigger preview update (only if widgets are ready)
+            if hasattr(self, 'threshold_slider'):
+                self._schedule_preview_update()
     
     def _schedule_preview_update(self):
         """Schedule preview update with debouncing."""
