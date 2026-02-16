@@ -21,6 +21,23 @@ from pathlib import Path
 
 block_cipher = None
 
+# ============================================================================
+# WINDOWS LONG PATH SUPPORT
+# ============================================================================
+# PyTorch has very long internal paths that exceed Windows 260 char limit
+# Enable long path support to avoid WinError 206
+if sys.platform == 'win32':
+    try:
+        import winreg
+        reg_path = r'SYSTEM\CurrentControlSet\Control\FileSystem'
+        with winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, reg_path) as key:
+            value, _ = winreg.QueryValueEx(key, 'LongPathsEnabled')
+            if value != 1:
+                print("[spec] Warning: Windows long paths not enabled")
+                print("[spec] To fix: reg add \"HKLM\\SYSTEM\\CurrentControlSet\\Control\\FileSystem\" /v LongPathsEnabled /t REG_DWORD /d 1 /f")
+    except Exception as e:
+        print(f"[spec] Note: Could not check Windows long path setting: {e}")
+
 # Application metadata
 APP_NAME = "Game Texture Sorter"
 APP_VERSION = "1.0.0"
@@ -282,6 +299,11 @@ a = Analysis(
         'sphinx',
         'setuptools',
         'distutils',
+    ],
+    excludedimports=[
+        # Additional problematic imports that need to be excluded via excludedimports
+        'onnxscript',  # Not needed, causes warnings in torch.onnx
+        'torch.onnx._internal.exporter._torchlib.ops',  # Tries to use onnxscript
     ],
     win_no_prefer_redirects=False,
     win_private_assemblies=False,
