@@ -201,7 +201,8 @@ class ModelCardWidget(QFrame):
         if not self.model_info.get('installed', False):
             # Download button
             download_btn = QPushButton(f"⬇️  Download Now")
-            if self.model_info.get('size_mb', 0) > 0:
+            # Only show size if it's defined and not variable
+            if self.model_info.get('size_mb', 0) > 0 and not self.model_info.get('size_varies', False):
                 download_btn.setText(f"⬇️  Download Now ({self.model_info['size_mb']} MB)")
             download_btn.setMinimumHeight(40)
             download_btn.setMinimumWidth(200)
@@ -225,7 +226,11 @@ class ModelCardWidget(QFrame):
             button_layout.addWidget(download_btn)
         else:
             # Delete button
-            delete_btn = QPushButton(f"🗑️  Delete ({self.model_info.get('size_mb', 0)} MB)")
+            delete_text = "🗑️  Delete"
+            # Only show size if it's defined and not variable
+            if self.model_info.get('size_mb', 0) > 0 and not self.model_info.get('size_varies', False):
+                delete_text = f"🗑️  Delete ({self.model_info.get('size_mb', 0)} MB)"
+            delete_btn = QPushButton(delete_text)
             delete_btn.setMinimumHeight(40)
             delete_btn.setMinimumWidth(200)
             delete_btn.setStyleSheet("""

@@ -44,7 +44,7 @@ class AIModelManager:
         },
         'CLIP': {
             'auto_download': True,
-            'size_mb': 340,
+            'size_mb': 340,  # Approximate size for ViT-B/32 variant
             'version': 'ViT-B/32',
             'description': 'CLIP Vision-Language Model - Image-text similarity for organizing',
             'tool': 'organizer',
@@ -54,7 +54,7 @@ class AIModelManager:
         },
         'DINOv2': {
             'auto_download': True,
-            'size_mb': 340,
+            'size_mb': 340,  # Approximate size for base variant
             'version': 'base',
             'description': 'DINOv2 Visual Foundation Model - Visual similarity detection',
             'tool': 'organizer',
@@ -64,7 +64,8 @@ class AIModelManager:
         },
         'transformers': {
             'auto_download': True,
-            'size_mb': 0,  # Varies
+            'size_mb': 0,
+            'size_varies': True,  # Size varies based on which models are downloaded
             'version': 'latest',
             'description': 'Hugging Face Transformers - NLP and vision model library',
             'tool': 'organizer',
@@ -74,7 +75,8 @@ class AIModelManager:
         },
         'timm': {
             'auto_download': True,
-            'size_mb': 0,  # Varies
+            'size_mb': 0,
+            'size_varies': True,  # Size varies based on which models are downloaded
             'version': 'latest',
             'description': 'PyTorch Image Models - Vision model library',
             'tool': 'organizer',

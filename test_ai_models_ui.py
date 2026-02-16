@@ -250,11 +250,16 @@ if __name__ == '__main__':
         test_integration()
         test_model_info_method()
         
+        # Get models info for final message
+        from upscaler.model_manager import AIModelManager
+        manager = AIModelManager()
+        models_info = manager.get_models_info()
+        
         print("\n" + "="*60)
         print("🎉 ALL TESTS PASSED! 🎉")
         print("="*60)
         print("\nAI Models Settings UI successfully implemented with:")
-        print("  ✓ 7 models defined (RealESRGAN x2/x4, CLIP, DINOv2, transformers, timm, Lanczos)")
+        print(f"  ✓ {len(models_info)} models defined (RealESRGAN x2/x4, CLIP, DINOv2, transformers, timm, Lanczos)")
         print("  ✓ Complete model metadata (icon, version, size, description, category)")
         print("  ✓ Beautiful card-based expandable UI")
         print("  ✓ Category-based organization (Upscaler, Vision, NLP, Acceleration)")
