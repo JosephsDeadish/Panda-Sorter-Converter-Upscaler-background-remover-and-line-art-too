@@ -51,19 +51,9 @@ hiddenimports.extend([
 # include_py_files=True ensures plugins and encoders are included
 datas = collect_data_files('PIL', include_py_files=True)
 
-# Add PIL package directory itself to ensure all files are bundled
-try:
-    import PIL
-    import os
-    from pathlib import Path
-    
-    pil_path = Path(PIL.__file__).parent
-    if pil_path.exists():
-        # Add the entire PIL directory to ensure nothing is missed
-        datas.append((str(pil_path), 'PIL'))
-        print(f"[PIL hook] Added PIL directory: {pil_path}")
-except Exception as e:
-    print(f"[PIL hook] WARNING: Could not add PIL directory: {e}")
+# Note: We already collect PIL data above with include_py_files=True
+# This should be sufficient for PyInstaller to bundle all necessary files.
+# If specific files are still missing, they can be added to hiddenimports.
 
 print(f"[PIL hook] Collected {len(hiddenimports)} PIL modules and {len(datas)} data files")
 print("[PIL hook] PIL/Pillow collection completed successfully")

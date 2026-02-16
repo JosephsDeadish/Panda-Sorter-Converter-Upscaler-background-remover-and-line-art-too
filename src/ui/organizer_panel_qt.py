@@ -713,12 +713,12 @@ class OrganizerPanelQt(QWidget):
         # Show warning/info if models not available
         if not VISION_MODELS_AVAILABLE:
             if not PIL_AVAILABLE:
-                warning_label = QLabel("⚠️ Missing PIL: pip install pillow")
-                warning_label.setStyleSheet("color: red; font-size: 8pt;")
-                model_layout.addWidget(warning_label)
-            warning_label = QLabel("⚠️ Install: pip install torch transformers open-clip-torch")
-            warning_label.setStyleSheet("color: orange; font-size: 8pt;")
-            model_layout.addWidget(warning_label)
+                pil_warning_label = QLabel("⚠️ Missing PIL: pip install pillow")
+                pil_warning_label.setStyleSheet("color: red; font-size: 8pt;")
+                model_layout.addWidget(pil_warning_label)
+            deps_warning_label = QLabel("⚠️ Install: pip install torch transformers open-clip-torch")
+            deps_warning_label.setStyleSheet("color: orange; font-size: 8pt;")
+            model_layout.addWidget(deps_warning_label)
         
         model_layout.addStretch()
         

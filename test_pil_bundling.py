@@ -233,9 +233,10 @@ class TestOrganizerPanel(unittest.TestCase):
         with open(self.panel_path, 'r') as f:
             content = f.read()
         
-        # Should mention PIL/pillow in error messages
+        # Should mention PIL in error messages
         self.assertIn("PIL", content, "Error messages should mention PIL")
-        self.assertIn("pillow", content.lower(), "Error messages should mention pillow")
+        # Check for pillow (case-insensitive)
+        self.assertTrue("pillow" in content.lower(), "Error messages should mention pillow")
 
 
 def run_tests():
