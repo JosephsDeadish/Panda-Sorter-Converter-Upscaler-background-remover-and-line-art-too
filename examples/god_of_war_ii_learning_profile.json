@@ -1,0 +1,281 @@
+{
+  "metadata": {
+    "version": "1.0",
+    "game": "God of War II",
+    "game_serial": "SLUS-20917",
+    "author": "JosephsDeadish",
+    "created_at": "2024-02-16T10:30:00Z",
+    "updated_at": "2024-02-16T15:45:23Z",
+    "description": "Custom learning profile for God of War II texture organization. Includes patterns for main characters, environments, weapons, and UI elements.",
+    "encrypted": false
+  },
+  "learned_mappings": [
+    {
+      "filename_pattern": "kratos_*.*",
+      "suggested_folder": "character",
+      "user_choice": "character/kratos",
+      "confidence": 0.95,
+      "accepted": true,
+      "timestamp": "2024-02-16T10:35:12Z",
+      "image_hash": null,
+      "metadata": {}
+    },
+    {
+      "filename_pattern": "kratos_body_*.*",
+      "suggested_folder": "character/kratos",
+      "user_choice": "character/kratos/body",
+      "confidence": 0.92,
+      "accepted": true,
+      "timestamp": "2024-02-16T10:37:45Z",
+      "image_hash": null,
+      "metadata": {}
+    },
+    {
+      "filename_pattern": "kratos_head_*.*",
+      "suggested_folder": "character/kratos",
+      "user_choice": "character/kratos/head",
+      "confidence": 0.94,
+      "accepted": true,
+      "timestamp": "2024-02-16T10:38:22Z",
+      "image_hash": null,
+      "metadata": {}
+    },
+    {
+      "filename_pattern": "zeus_*.*",
+      "suggested_folder": "character",
+      "user_choice": "character/gods/zeus",
+      "confidence": 0.91,
+      "accepted": true,
+      "timestamp": "2024-02-16T11:12:34Z",
+      "image_hash": null,
+      "metadata": {}
+    },
+    {
+      "filename_pattern": "athena_*.*",
+      "suggested_folder": "character",
+      "user_choice": "character/gods/athena",
+      "confidence": 0.88,
+      "accepted": true,
+      "timestamp": "2024-02-16T11:15:01Z",
+      "image_hash": null,
+      "metadata": {}
+    },
+    {
+      "filename_pattern": "poseidon_*.*",
+      "suggested_folder": "character",
+      "user_choice": "character/gods/poseidon",
+      "confidence": 0.89,
+      "accepted": true,
+      "timestamp": "2024-02-16T11:16:43Z",
+      "image_hash": null,
+      "metadata": {}
+    },
+    {
+      "filename_pattern": "olympus_*.*",
+      "suggested_folder": "environment/olympus",
+      "user_choice": "environment/temple/olympus",
+      "confidence": 0.87,
+      "accepted": true,
+      "timestamp": "2024-02-16T12:23:11Z",
+      "image_hash": null,
+      "metadata": {}
+    },
+    {
+      "filename_pattern": "rhodes_*.*",
+      "suggested_folder": "environment",
+      "user_choice": "environment/city/rhodes",
+      "confidence": 0.85,
+      "accepted": true,
+      "timestamp": "2024-02-16T12:45:56Z",
+      "image_hash": null,
+      "metadata": {}
+    },
+    {
+      "filename_pattern": "underworld_*.*",
+      "suggested_folder": "environment",
+      "user_choice": "environment/underworld",
+      "confidence": 0.90,
+      "accepted": true,
+      "timestamp": "2024-02-16T13:02:34Z",
+      "image_hash": null,
+      "metadata": {}
+    },
+    {
+      "filename_pattern": "blade_*.*",
+      "suggested_folder": "weapon",
+      "user_choice": "weapon/blades_chaos",
+      "confidence": 0.93,
+      "accepted": true,
+      "timestamp": "2024-02-16T14:15:22Z",
+      "image_hash": null,
+      "metadata": {}
+    },
+    {
+      "filename_pattern": "sword_*.*",
+      "suggested_folder": "weapon",
+      "user_choice": "weapon/sword",
+      "confidence": 0.86,
+      "accepted": true,
+      "timestamp": "2024-02-16T14:18:45Z",
+      "image_hash": null,
+      "metadata": {}
+    },
+    {
+      "filename_pattern": "bow_*.*",
+      "suggested_folder": "weapon",
+      "user_choice": "weapon/bow",
+      "confidence": 0.84,
+      "accepted": true,
+      "timestamp": "2024-02-16T14:20:11Z",
+      "image_hash": null,
+      "metadata": {}
+    },
+    {
+      "filename_pattern": "hud_*.*",
+      "suggested_folder": "ui",
+      "user_choice": "ui/hud",
+      "confidence": 0.96,
+      "accepted": true,
+      "timestamp": "2024-02-16T15:05:34Z",
+      "image_hash": null,
+      "metadata": {}
+    },
+    {
+      "filename_pattern": "menu_*.*",
+      "suggested_folder": "ui",
+      "user_choice": "ui/menu",
+      "confidence": 0.97,
+      "accepted": true,
+      "timestamp": "2024-02-16T15:08:12Z",
+      "image_hash": null,
+      "metadata": {}
+    },
+    {
+      "filename_pattern": "button_*.*",
+      "suggested_folder": "ui",
+      "user_choice": "ui/menu/buttons",
+      "confidence": 0.95,
+      "accepted": true,
+      "timestamp": "2024-02-16T15:10:45Z",
+      "image_hash": null,
+      "metadata": {}
+    },
+    {
+      "filename_pattern": "icon_*.*",
+      "suggested_folder": "ui",
+      "user_choice": "ui/icons",
+      "confidence": 0.94,
+      "accepted": true,
+      "timestamp": "2024-02-16T15:12:23Z",
+      "image_hash": null,
+      "metadata": {}
+    },
+    {
+      "filename_pattern": "particle_*.*",
+      "suggested_folder": "effect",
+      "user_choice": "effect/particles",
+      "confidence": 0.82,
+      "accepted": true,
+      "timestamp": "2024-02-16T15:30:11Z",
+      "image_hash": null,
+      "metadata": {}
+    },
+    {
+      "filename_pattern": "magic_*.*",
+      "suggested_folder": "effect",
+      "user_choice": "effect/magic",
+      "confidence": 0.88,
+      "accepted": true,
+      "timestamp": "2024-02-16T15:32:45Z",
+      "image_hash": null,
+      "metadata": {}
+    },
+    {
+      "filename_pattern": "blood_*.*",
+      "suggested_folder": "effect",
+      "user_choice": "effect/gore",
+      "confidence": 0.79,
+      "accepted": true,
+      "timestamp": "2024-02-16T15:35:22Z",
+      "image_hash": null,
+      "metadata": {}
+    },
+    {
+      "filename_pattern": "sky_*.*",
+      "suggested_folder": "environment/sky",
+      "user_choice": "environment/sky",
+      "confidence": 0.91,
+      "accepted": true,
+      "timestamp": "2024-02-16T15:40:11Z",
+      "image_hash": null,
+      "metadata": {}
+    }
+  ],
+  "custom_categories": {
+    "character/kratos": [
+      "kratos",
+      "ghost of sparta",
+      "god of war",
+      "warrior",
+      "spartan",
+      "protagonist",
+      "hero"
+    ],
+    "character/gods": [
+      "zeus",
+      "athena",
+      "poseidon",
+      "ares",
+      "hades",
+      "apollo",
+      "deity",
+      "god",
+      "goddess",
+      "olympian"
+    ],
+    "environment/temple": [
+      "temple",
+      "olympus",
+      "shrine",
+      "altar",
+      "sanctuary",
+      "holy",
+      "sacred"
+    ],
+    "environment/underworld": [
+      "hades",
+      "underworld",
+      "tartarus",
+      "hell",
+      "death",
+      "souls",
+      "abyss"
+    ],
+    "weapon/blades_chaos": [
+      "blade",
+      "chaos blades",
+      "chain",
+      "weapon",
+      "kratos weapon",
+      "primary weapon"
+    ],
+    "ui/hud": [
+      "health",
+      "magic",
+      "rage",
+      "meter",
+      "bar",
+      "indicator",
+      "overlay"
+    ],
+    "effect/magic": [
+      "spell",
+      "magic",
+      "divine",
+      "power",
+      "ability",
+      "special",
+      "glow"
+    ]
+  }
+}
