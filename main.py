@@ -70,6 +70,7 @@ try:
     from ui.batch_rename_panel_qt import BatchRenamePanelQt
     from ui.image_repair_panel_qt import ImageRepairPanelQt
     from ui.customization_panel_qt import CustomizationPanelQt
+    from ui.upscaler_panel_qt import ImageUpscalerPanelQt
     UI_PANELS_AVAILABLE = True
 except ImportError as e:
     logger.warning(f"Some UI panels not available: {e}")
@@ -173,10 +174,10 @@ class TextureSorterMainWindow(QMainWindow):
         self.tabs.setDocumentMode(True)
         content_layout.addWidget(self.tabs)
         
-        # Create main tab
-        self.create_sorting_tab()
+        # Create main tab (dashboard/welcome)
+        self.create_main_tab()
         
-        # Create tools tab
+        # Create tools tab (includes sorting + all tools)
         self.create_tools_tab()
         
         # Create settings tab
@@ -206,8 +207,49 @@ class TextureSorterMainWindow(QMainWindow):
         else:
             self.panda_widget = None
     
-    def create_sorting_tab(self):
-        """Create the main texture sorting tab."""
+    def create_main_tab(self):
+        """Create the main tab with welcome/dashboard."""
+        tab = QWidget()
+        layout = QVBoxLayout(tab)
+        layout.setContentsMargins(20, 20, 20, 20)
+        
+        # Welcome message
+        welcome_label = QLabel("🎮 Welcome to PS2 Texture Sorter")
+        welcome_label.setStyleSheet("font-size: 24pt; font-weight: bold;")
+        welcome_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(welcome_label)
+        
+        layout.addSpacing(20)
+        
+        # Description
+        desc_label = QLabel(
+            "A comprehensive toolkit for managing, sorting, and enhancing PS2 game textures.\n\n"
+            "Navigate to the Tools tab to access:\n"
+            "• Texture Sorter - Automatically organize textures by type\n"
+            "• Image Upscaler - Enhance texture resolution\n"
+            "• Background Remover - Remove backgrounds from images\n"
+            "• Alpha Fixer - Fix alpha channel issues\n"
+            "• Color Correction - Adjust colors and enhance images\n"
+            "• Line Art Converter - Convert images to line art\n"
+            "• And many more tools!"
+        )
+        desc_label.setStyleSheet("font-size: 12pt; color: #cccccc;")
+        desc_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        desc_label.setWordWrap(True)
+        layout.addWidget(desc_label)
+        
+        layout.addStretch()
+        
+        # Quick stats or info could go here in the future
+        info_label = QLabel(f"Version: {APP_VERSION}")
+        info_label.setStyleSheet("color: gray; font-size: 10pt;")
+        info_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(info_label)
+        
+        self.tabs.addTab(tab, "Home")
+    
+    def create_sorting_tab_widget(self):
+        """Create the texture sorting widget (for use in tools tab)."""
         tab = QWidget()
         layout = QVBoxLayout(tab)
         layout.setSpacing(15)
@@ -294,7 +336,7 @@ class TextureSorterMainWindow(QMainWindow):
         self.log_text.setStyleSheet("background-color: #1e1e1e; color: #d4d4d4;")
         layout.addWidget(self.log_text, 1)  # Stretch factor 1
         
-        self.tabs.addTab(tab, "Sorting")
+        return tab
     
     def create_tools_tab(self):
         """Create tools tab with Qt-based tool panels."""
@@ -307,6 +349,10 @@ class TextureSorterMainWindow(QMainWindow):
         tool_tabs = QTabWidget()
         tool_tabs.setDocumentMode(True)
         layout.addWidget(tool_tabs)
+        
+        # Add Texture Sorter as first tool
+        sorting_widget = self.create_sorting_tab_widget()
+        tool_tabs.addTab(sorting_widget, "🗂️ Texture Sorter")
         
         # Add tool panels if available
         if UI_PANELS_AVAILABLE:
@@ -330,6 +376,10 @@ class TextureSorterMainWindow(QMainWindow):
                 # Quality Checker
                 quality_panel = QualityCheckerPanelQt()
                 tool_tabs.addTab(quality_panel, "✓ Quality Checker")
+                
+                # Image Upscaler
+                upscaler_panel = ImageUpscalerPanelQt()
+                tool_tabs.addTab(upscaler_panel, "🔍 Image Upscaler")
                 
                 # Line Art Converter
                 line_panel = LineArtConverterPanelQt()
@@ -362,11 +412,13 @@ class TextureSorterMainWindow(QMainWindow):
             label = QLabel(
                 "🔧 Tool panels require additional dependencies.\n\n"
                 "Available tools:\n"
+                "• Texture Sorter\n"
                 "• Background Remover\n"
                 "• Alpha Fixer\n"
                 "• Color Correction\n"
                 "• Batch Normalizer\n"
                 "• Quality Checker\n"
+                "• Image Upscaler\n"
                 "• Line Art Converter\n"
                 "• Batch Rename\n"
                 "• Image Repair\n"
