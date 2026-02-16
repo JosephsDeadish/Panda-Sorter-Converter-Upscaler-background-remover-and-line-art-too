@@ -541,14 +541,24 @@ class ImageUpscalerPanelQt(QWidget):
         # Import to check availability
         try:
             from preprocessing.upscaler import REALESRGAN_AVAILABLE, NATIVE_AVAILABLE
-        except:
+        except ImportError:
+            REALESRGAN_AVAILABLE = False
+            NATIVE_AVAILABLE = False
+        except Exception:
             REALESRGAN_AVAILABLE = False
             NATIVE_AVAILABLE = False
         
+        # Helper function for availability status
+        def get_status(available):
+            return '✅ Available' if available else '⚠️ Native acceleration not available'
+        
+        def get_realesrgan_status(available):
+            return '✅ Available' if available else '❌ Not installed - pip install basicsr realesrgan'
+        
         descriptions = {
             "bicubic": "Bicubic: Fast, good quality for most images (always available)",
-            "lanczos": f"Lanczos: Sharp results, best for textures with fine details {'✅ Available' if NATIVE_AVAILABLE else '⚠️ Native acceleration not available'}",
-            "realesrgan": f"Real-ESRGAN: Best for retro/PS2 textures, slower {'✅ Available' if REALESRGAN_AVAILABLE else '❌ Not installed - pip install basicsr realesrgan'}",
+            "lanczos": f"Lanczos: Sharp results, best for textures with fine details {get_status(NATIVE_AVAILABLE)}",
+            "realesrgan": f"Real-ESRGAN: Best for retro/PS2 textures, slower {get_realesrgan_status(REALESRGAN_AVAILABLE)}",
             "esrgan": "ESRGAN: High quality (currently uses bicubic as fallback)"
         }
         self.method_desc_label.setText(descriptions.get(method, ""))
