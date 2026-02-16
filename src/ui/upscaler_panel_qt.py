@@ -10,7 +10,8 @@ from typing import List, Optional
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
     QScrollArea, QFrame, QFileDialog, QMessageBox, QProgressBar,
-    QComboBox, QSpinBox, QGroupBox, QCheckBox, QDoubleSpinBox
+    QComboBox, QSpinBox, QGroupBox, QCheckBox, QDoubleSpinBox,
+    QProgressDialog
 )
 from PyQt6.QtCore import Qt, QThread, pyqtSignal, QTimer
 from PyQt6.QtGui import QPixmap, QImage
@@ -19,6 +20,20 @@ import numpy as np
 import cv2
 
 logger = logging.getLogger(__name__)
+
+# Try to import model manager
+try:
+    from src.upscaler.model_manager import AIModelManager, ModelStatus
+    MODEL_MANAGER_AVAILABLE = True
+except ImportError:
+    try:
+        from upscaler.model_manager import AIModelManager, ModelStatus
+        MODEL_MANAGER_AVAILABLE = True
+    except ImportError:
+        logger.debug("Model manager not available")
+        MODEL_MANAGER_AVAILABLE = False
+        AIModelManager = None
+        ModelStatus = None
 
 
 def apply_post_processing(img, settings):
@@ -248,6 +263,12 @@ class ImageUpscalerPanelQt(QWidget):
         self.output_directory: Optional[str] = None
         self.worker_thread = None
         self.preview_worker = None
+        
+        # Initialize model manager
+        if MODEL_MANAGER_AVAILABLE:
+            self.model_manager = AIModelManager()
+        else:
+            self.model_manager = None
         
         # Preview debounce timer
         self.preview_timer = QTimer(self)
@@ -726,6 +747,11 @@ class ImageUpscalerPanelQt(QWidget):
         scale_factor = self.scale_spin.value()
         method = self.method_combo.currentText()
         
+        # Check if Real-ESRGAN model is available (if needed)
+        if method == 'realesrgan':
+            if not self._ensure_realesrgan_model(scale_factor):
+                return
+        
         # Gather post-processing settings
         post_process_settings = {
             'sharpen': self.sharpen_cb.isChecked(),
@@ -768,6 +794,111 @@ class ImageUpscalerPanelQt(QWidget):
         self.worker_thread.progress.connect(self._update_progress)
         self.worker_thread.finished.connect(self._upscaling_finished)
         self.worker_thread.start()
+    
+    def _ensure_realesrgan_model(self, scale_factor: int) -> bool:
+        """
+        Ensure Real-ESRGAN model is available, prompt to download if not.
+        
+        Returns:
+            True if model is available or successfully downloaded
+        """
+        if not MODEL_MANAGER_AVAILABLE or not self.model_manager:
+            QMessageBox.warning(
+                self,
+                "Model Manager Not Available",
+                "Model manager is not available. Real-ESRGAN upscaling requires model downloads.\n\n"
+                "Please use bicubic or lanczos methods instead."
+            )
+            return False
+        
+        # Determine which model is needed
+        model_name = 'RealESRGAN_x2plus' if scale_factor == 2 else 'RealESRGAN_x4plus'
+        
+        # Check if model exists
+        if self.model_manager.get_model_status(model_name) == ModelStatus.INSTALLED:
+            return True
+        
+        # Ask user if they want to download
+        model_info = self.model_manager.MODELS.get(model_name, {})
+        size_mb = model_info.get('size_mb', '?')
+        
+        reply = QMessageBox.question(
+            self,
+            "Download Real-ESRGAN Model?",
+            f"Real-ESRGAN {scale_factor}x model ({size_mb}MB) is required for upscaling.\n\n"
+            "Download now? You can also download from Settings → AI Models later.",
+            QMessageBox.StandardButton.Yes | 
+            QMessageBox.StandardButton.No
+        )
+        
+        if reply != QMessageBox.StandardButton.Yes:
+            return False
+        
+        # Download the model
+        return self._download_model(model_name)
+    
+    def _download_model(self, model_name: str) -> bool:
+        """
+        Download model with progress dialog.
+        
+        Returns:
+            True if successfully downloaded
+        """
+        # Create progress dialog
+        progress = QProgressDialog(
+            f"Downloading {model_name}...",
+            "Cancel",
+            0,
+            100,
+            self
+        )
+        progress.setWindowModality(Qt.WindowModality.WindowModal)
+        progress.setAutoClose(True)
+        progress.setAutoReset(True)
+        
+        success = [False]  # Use list to allow modification in callback
+        cancelled = [False]
+        
+        def on_progress(downloaded, total):
+            if cancelled[0]:
+                return
+            if progress.wasCanceled():
+                cancelled[0] = True
+                return
+            if total > 0:
+                progress.setValue(int((downloaded / total) * 100))
+        
+        # Download in background (this will block but show progress)
+        try:
+            success[0] = self.model_manager.download_model(model_name, on_progress)
+        except Exception as e:
+            logger.error(f"Download failed: {e}")
+            success[0] = False
+        
+        progress.close()
+        
+        if cancelled[0]:
+            QMessageBox.information(
+                self,
+                "Download Cancelled",
+                "Model download was cancelled."
+            )
+            return False
+        
+        if success[0]:
+            QMessageBox.information(
+                self,
+                "Success",
+                f"{model_name} downloaded successfully! Ready to upscale."
+            )
+            return True
+        else:
+            QMessageBox.critical(
+                self,
+                "Error",
+                f"Failed to download {model_name}. Please check your internet connection and try again."
+            )
+            return False
     
     def _cancel_processing(self):
         """Cancel the processing."""

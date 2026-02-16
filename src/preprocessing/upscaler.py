@@ -6,11 +6,26 @@ Author: Dead On The Inside / JosephsDeadish
 
 import logging
 from typing import Optional, Union
+from pathlib import Path
 import numpy as np
 from PIL import Image
 import cv2
 
 logger = logging.getLogger(__name__)
+
+# Import model manager for smart model downloads
+try:
+    from src.upscaler.model_manager import AIModelManager, ModelStatus
+    model_manager = AIModelManager()
+except ImportError:
+    # Fallback if running in different context
+    try:
+        from upscaler.model_manager import AIModelManager, ModelStatus
+        model_manager = AIModelManager()
+    except ImportError:
+        logger.warning("Model manager not available - model downloads disabled")
+        model_manager = None
+        ModelStatus = None
 
 # Check for native Rust acceleration
 try:
@@ -57,6 +72,7 @@ class TextureUpscaler:
         """Initialize upscaler."""
         self.realesrgan_model = None
         self._realesrgan_loaded = False
+        self.model_manager = model_manager
         if NATIVE_AVAILABLE:
             logger.info("Native Rust Lanczos upscaler available")
         
@@ -139,6 +155,28 @@ class TextureUpscaler:
             logger.warning(f"Native Lanczos failed ({e}), falling back to bicubic")
             return self._upscale_bicubic(image, scale_factor)
     
+    def ensure_model_available(self, model_name: str = 'RealESRGAN_x4plus') -> bool:
+        """
+        Check if model is available, prompt to download if not
+        
+        Returns:
+            True if model is available or successfully downloaded
+        """
+        if not self.model_manager:
+            logger.warning("Model manager not available")
+            return False
+        
+        status = self.model_manager.get_model_status(model_name)
+        
+        if status == ModelStatus.INSTALLED:
+            return True
+        elif status == ModelStatus.MISSING:
+            logger.warning(f"Model {model_name} not installed")
+            return False
+        else:
+            logger.error(f"Error checking model status")
+            return False
+    
     def _upscale_realesrgan(
         self,
         image: np.ndarray,
@@ -150,7 +188,13 @@ class TextureUpscaler:
         Best quality for retro/PS2 textures but slower.
         """
         if not REALESRGAN_AVAILABLE:
-            logger.warning("Real-ESRGAN not available, falling back to bicubic")
+            logger.warning("Real-ESRGAN libraries not available, falling back to bicubic")
+            return self._upscale_bicubic(image, scale_factor)
+        
+        # Check if model is available
+        model_name = 'RealESRGAN_x2plus' if scale_factor == 2 else 'RealESRGAN_x4plus'
+        if not self.ensure_model_available(model_name):
+            logger.warning(f"Model {model_name} not available, falling back to bicubic")
             return self._upscale_bicubic(image, scale_factor)
         
         try:
@@ -184,14 +228,18 @@ class TextureUpscaler:
             # Choose model based on scale factor
             if scale_factor == 4:
                 model_name = 'RealESRGAN_x4plus'
-                model_path = 'weights/RealESRGAN_x4plus.pth'
             elif scale_factor == 2:
                 model_name = 'RealESRGAN_x2plus'
-                model_path = 'weights/RealESRGAN_x2plus.pth'
             else:
                 # Default to x4
                 model_name = 'RealESRGAN_x4plus'
-                model_path = 'weights/RealESRGAN_x4plus.pth'
+            
+            # Get model path from model manager
+            if self.model_manager:
+                model_path = str(self.model_manager.models_dir / f"{model_name}.pth")
+            else:
+                # Fallback to old location
+                model_path = f'weights/{model_name}.pth'
             
             # Create model
             model = RRDBNet(
@@ -203,8 +251,7 @@ class TextureUpscaler:
                 scale=scale_factor
             )
             
-            # Note: In production, model weights should be downloaded automatically
-            # For now, we'll use the pre-trained model if available
+            # Use model from model manager
             self.realesrgan_model = RealESRGANer(
                 scale=scale_factor,
                 model_path=model_path,

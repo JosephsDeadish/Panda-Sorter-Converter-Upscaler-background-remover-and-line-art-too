@@ -212,18 +212,9 @@ a = Analysis(
         'tokenizers',
         'safetensors',
         'regex',
-        # Upscaling models - Real-ESRGAN
-        'basicsr',
-        'basicsr.archs',
-        'basicsr.archs.rrdbnet_arch',
-        'basicsr.data',
-        'basicsr.losses',
-        'basicsr.metrics',
-        'basicsr.models',
-        'basicsr.utils',
-        'realesrgan',
-        'realesrgan.archs',
-        'realesrgan.archs.srvgg_arch',
+        # Upscaling models - Real-ESRGAN (REMOVED - will download at runtime)
+        # Note: basicsr and realesrgan are now optional runtime dependencies
+        # Models will be downloaded on first use via the AI Model Manager
     ],
     hookspath=HOOKSPATH,  # Use validated hookspath variable
     hooksconfig={},
@@ -259,14 +250,21 @@ a = Analysis(
         'torch.testing._internal',
         'torch.testing._internal.opinfo',
         'torch.testing._internal.common_utils',
+        
+        # Distributed training modules - not needed for inference
+        'torch.distributed',
         'torch.distributed.elastic',
         'torch.distributed.elastic.multiprocessing',
-        'torch.distributed._sharding_spec',  # Deprecated - now uses torch.distributed._shard.sharding_spec
+        'torch.distributed._sharding_spec',
         'torch.distributed._sharded_tensor',
-        # Note: torch.distributed._shard is NOT excluded - it's needed for new sharding spec path
+        'torch.distributed._shard',
         'torch.distributed._shard.checkpoint',
+        
+        # Compilation/JIT modules - not needed for inference
         'torch._inductor',
         'torch._inductor.compile_fx',
+        'torch._dynamo',
+        'torch.compiler',
         
         # ONNX: Exclude problematic modules that cause isolated subprocess crashes
         # These modules cause DLL initialization failures during PyInstaller analysis
@@ -304,6 +302,10 @@ a = Analysis(
         # Additional problematic imports that need to be excluded via excludedimports
         'onnxscript',  # Not needed, causes warnings in torch.onnx
         'torch.onnx._internal.exporter._torchlib.ops',  # Tries to use onnxscript
+        
+        # Upscaler modules - will download at runtime
+        'basicsr',
+        'realesrgan',
     ],
     win_no_prefer_redirects=False,
     win_private_assemblies=False,
