@@ -99,6 +99,30 @@ def test_hook_torch_onnx_imports():
     print("✓ All required ONNX imports present in hook-torch.py")
     return True
 
+
+def test_hook_torch_excludes_onnx_reference():
+    """Test that hook-torch.py excludes problematic onnx.reference module."""
+    hook_file = Path(__file__).parent / 'hook-torch.py'
+    
+    if not hook_file.exists():
+        print("❌ hook-torch.py not found")
+        return False
+    
+    with open(hook_file) as f:
+        content = f.read()
+    
+    # Check for excludedimports
+    if 'excludedimports' not in content:
+        print("❌ hook-torch.py missing excludedimports section")
+        return False
+    
+    if 'onnx.reference' not in content:
+        print("❌ hook-torch.py not excluding onnx.reference")
+        return False
+    
+    print("✓ hook-torch.py excludes onnx.reference module")
+    return True
+
 def test_hook_torch_new_sharding_spec():
     """Test that hook-torch.py uses new sharding spec path."""
     hook_file = Path(__file__).parent / 'hook-torch.py'
@@ -148,7 +172,7 @@ def test_build_spec_no_torch_six():
     return True
 
 def test_build_spec_onnx_import():
-    """Test that build spec files contain torch.onnx import."""
+    """Test that build spec files contain torch.onnx import and exclude onnx.reference."""
     spec_files = [
         'build_spec_onefolder.spec',
         'build_spec_with_svg.spec',
@@ -167,8 +191,13 @@ def test_build_spec_onnx_import():
         if "'torch.onnx'" not in content:
             print(f"❌ torch.onnx import not found in {spec_file}")
             return False
+        
+        # Check for onnx.reference in excludes
+        if "'onnx.reference'" not in content:
+            print(f"❌ onnx.reference not excluded in {spec_file}")
+            return False
     
-    print("✓ torch.onnx imports present in all build spec files")
+    print("✓ torch.onnx imports present and onnx.reference excluded in all build spec files")
     return True
 
 def test_build_spec_sharding_comments():
@@ -233,9 +262,10 @@ def main():
         ("setup.py has onnx", test_setup_py_onnx),
         ("hook-torch.py: no torch._six", test_hook_torch_no_torch_six),
         ("hook-torch.py: ONNX imports", test_hook_torch_onnx_imports),
+        ("hook-torch.py: excludes onnx.reference", test_hook_torch_excludes_onnx_reference),
         ("hook-torch.py: new sharding spec", test_hook_torch_new_sharding_spec),
         ("build specs: no torch._six", test_build_spec_no_torch_six),
-        ("build specs: torch.onnx import", test_build_spec_onnx_import),
+        ("build specs: torch.onnx and excludes", test_build_spec_onnx_import),
         ("build specs: deprecation comments", test_build_spec_sharding_comments),
         ("Python syntax validation", test_python_syntax),
     ]
