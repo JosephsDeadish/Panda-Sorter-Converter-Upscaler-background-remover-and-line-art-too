@@ -257,8 +257,25 @@ a = Analysis(
         'torch.onnx',  # ONNX export support for model export/import
         'torchvision',
         'torchvision.transforms',
+        # Vision models - CLIP, DINOv2
+        'transformers',
+        'transformers.models.clip',
+        'transformers.models.clip.modeling_clip',
+        'transformers.models.clip.configuration_clip',
+        'transformers.models.clip.processing_clip',
+        'open_clip',
+        'timm',
+        'timm.models',
+        # Vision model utilities
+        'huggingface_hub',
+        'tokenizers',
+        'safetensors',
+        'regex',
     ],
-    hookspath=[str(SCRIPT_DIR)],  # Use hooks in project root (hook-torch.py, hook-*.py files)
+    hookspath=[
+        str(SCRIPT_DIR),  # Use hooks in project root (hook-torch.py, hook-*.py files)
+        str(SCRIPT_DIR / '.github' / 'hooks'),  # Use additional hooks in .github/hooks
+    ],
     hooksconfig={},
     runtime_hooks=[
         str(SCRIPT_DIR / 'runtime-hook-onnxruntime.py'),  # Disable CUDA providers for onnxruntime

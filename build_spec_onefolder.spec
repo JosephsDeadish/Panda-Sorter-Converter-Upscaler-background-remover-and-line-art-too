@@ -158,7 +158,7 @@ a = Analysis(
     hookspath=[
         str(SCRIPT_DIR),  # Use hooks in project root (hook-torch.py, hook-*.py files)
         str(SCRIPT_DIR / '.github' / 'hooks'),  # Use additional hooks in .github/hooks
-    ]
+    ],
     hooksconfig={},
     runtime_hooks=[
         str(SCRIPT_DIR / 'runtime-hook-onnxruntime.py'),  # Disable CUDA providers for onnxruntime
