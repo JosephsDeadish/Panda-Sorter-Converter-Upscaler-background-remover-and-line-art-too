@@ -20,4 +20,4 @@ os.environ['CUDA_VISIBLE_DEVICES'] = ''
 # Also disable TensorRT and other GPU providers
 os.environ['ORT_TENSORRT_UNAVAILABLE'] = '1'
 
-print("[Runtime Hook] onnxruntime: CUDA providers disabled (CPU-only mode)")
+# Silent mode - no output to avoid polluting user console

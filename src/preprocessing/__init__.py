@@ -3,6 +3,10 @@ Preprocessing Module for PS2 Textures
 Author: Dead On The Inside / JosephsDeadish
 """
 
+import logging
+
+logger = logging.getLogger(__name__)
+
 from .preprocessing_pipeline import PreprocessingPipeline
 from .upscaler import TextureUpscaler
 from .filters import TextureFilters

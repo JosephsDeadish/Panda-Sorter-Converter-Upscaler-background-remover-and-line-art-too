@@ -66,6 +66,12 @@ a = Analysis(
         'file_handler',
         'database',
         'organizer',
+        'preprocessing',
+        'preprocessing.alpha_correction',
+        'preprocessing.alpha_handler',
+        'preprocessing.preprocessing_pipeline',
+        'preprocessing.upscaler',
+        'preprocessing.filters',
         # Core image processing
         'PIL',
         'PIL.Image',
