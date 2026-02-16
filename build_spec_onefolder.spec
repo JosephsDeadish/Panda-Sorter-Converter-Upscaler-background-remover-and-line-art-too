@@ -44,6 +44,41 @@ if not ICON_PATH.exists():
 if ICON_PATH:
     ICON_PATH = str(ICON_PATH.absolute())
 
+# Explicitly collect PIL and torch package paths for bundling
+# This ensures critical dependencies are included even if hooks fail
+PIL_DATA = None
+TORCH_DATA = None
+
+try:
+    import PIL
+    PIL_DATA = (str(Path(PIL.__file__).parent), 'PIL')
+    print(f"[build_spec] Found PIL at: {Path(PIL.__file__).parent}")
+except ImportError:
+    print("[build_spec] WARNING: PIL not found - vision models will not work in built exe")
+except Exception as e:
+    print(f"[build_spec] WARNING: Error importing PIL: {e}")
+
+try:
+    import torch
+    TORCH_DATA = (str(Path(torch.__file__).parent), 'torch')
+    print(f"[build_spec] Found torch at: {Path(torch.__file__).parent}")
+except ImportError:
+    print("[build_spec] WARNING: torch not found - vision models will not work in built exe")
+except Exception as e:
+    print(f"[build_spec] WARNING: Error importing torch: {e}")
+
+# Validate hookspath exists
+HOOKSPATH = [
+    str(SCRIPT_DIR),  # Use hooks in project root (hook-torch.py, hook-*.py files)
+    str(SCRIPT_DIR / '.github' / 'hooks'),  # Use additional hooks in .github/hooks
+]
+
+for hook_dir in HOOKSPATH:
+    if not Path(hook_dir).exists():
+        print(f"[build_spec] WARNING: Hooks directory not found: {hook_dir}")
+    else:
+        print(f"[build_spec] Using hooks from: {hook_dir}")
+
 # Collect all Python files
 a = Analysis(
     ['main.py'],
@@ -57,7 +92,13 @@ a = Analysis(
         (str(RESOURCES_DIR / 'cursors'), 'resources/cursors'),
         (str(RESOURCES_DIR / 'sounds'), 'resources/sounds'),
         (str(RESOURCES_DIR / 'translations'), 'resources/translations'),
-    ],
+    ] + (
+        # Explicitly add PIL package if available
+        [PIL_DATA] if PIL_DATA else []
+    ) + (
+        # Explicitly add torch package if available  
+        [TORCH_DATA] if TORCH_DATA else []
+    ),
     hiddenimports=[
         # Core application modules from src/
         'config',
@@ -155,10 +196,7 @@ a = Analysis(
         'safetensors',
         'regex',
     ],
-    hookspath=[
-        str(SCRIPT_DIR),  # Use hooks in project root (hook-torch.py, hook-*.py files)
-        str(SCRIPT_DIR / '.github' / 'hooks'),  # Use additional hooks in .github/hooks
-    ],
+    hookspath=HOOKSPATH,  # Use validated hookspath variable
     hooksconfig={},
     runtime_hooks=[
         str(SCRIPT_DIR / 'runtime-hook-onnxruntime.py'),  # Disable CUDA providers for onnxruntime
