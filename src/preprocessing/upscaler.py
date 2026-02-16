@@ -23,20 +23,11 @@ except ImportError as e:
 # Check for Real-ESRGAN - with comprehensive error handling
 REALESRGAN_AVAILABLE = False
 try:
-    # Try to import both packages
-    try:
-        import basicsr
-    except ImportError:
-        logger.debug("basicsr not available")
-        raise
+    # Import both required packages
+    import basicsr
+    import realesrgan
     
-    try:
-        import realesrgan
-    except ImportError:
-        logger.debug("realesrgan not available")
-        raise
-    
-    # Try to import the specific classes
+    # Import the specific classes we need
     from basicsr.archs.rrdbnet_arch import RRDBNet
     from realesrgan import RealESRGANer
     

@@ -950,7 +950,7 @@ def check_feature_availability():
         'onnx': False,
         'onnxruntime': False,
         'upscaler': False,  # Real-ESRGAN upscaler
-        'realesrgan': False,  # Deprecated alias for upscaler
+        'realesrgan': False,  # DEPRECATED: Use 'upscaler' instead (kept for backward compatibility)
         'native_lanczos': False,
     }
     
@@ -1011,7 +1011,7 @@ def check_feature_availability():
     try:
         from preprocessing.upscaler import REALESRGAN_AVAILABLE
         features['upscaler'] = REALESRGAN_AVAILABLE
-        features['realesrgan'] = REALESRGAN_AVAILABLE  # Deprecated alias
+        features['realesrgan'] = REALESRGAN_AVAILABLE  # DEPRECATED: Kept for backward compatibility
     except Exception:
         pass
     
