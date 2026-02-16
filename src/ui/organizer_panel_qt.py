@@ -353,13 +353,18 @@ class OrganizerPanelQt(QWidget):
         title_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(title_label)
         
-        # AI Status indicator
+        # AI Status indicator with detailed information
         if VISION_MODELS_AVAILABLE:
             status_label = QLabel("✓ AI Models Ready")
             status_label.setStyleSheet("color: green; font-size: 10pt; font-weight: bold;")
         else:
-            status_label = QLabel("⚠️ AI Models Not Available - Install: pip install torch transformers")
-            status_label.setStyleSheet("color: orange; font-size: 10pt; font-weight: bold;")
+            status_text = "⚠️ AI Models Not Available\n"
+            status_text += "📦 Missing dependencies: PyTorch and/or Transformers\n"
+            status_text += "💡 Install: pip install torch torchvision transformers\n"
+            status_text += "ℹ️ Organizer will use basic classification without AI"
+            status_label = QLabel(status_text)
+            status_label.setStyleSheet("color: orange; font-size: 9pt; font-weight: bold;")
+            status_label.setWordWrap(True)
         status_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(status_label)
         
@@ -675,24 +680,29 @@ class OrganizerPanelQt(QWidget):
         group = QGroupBox("🔧 Settings")
         group_layout = QVBoxLayout()
         
-        # AI Model Selection (AI is always enabled)
+        # AI Model Selection
         model_layout = QHBoxLayout()
         model_layout.addWidget(QLabel("AI Model:"))
         
         self.ai_model_combo = QComboBox()
-        self.ai_model_combo.addItem("CLIP (Recommended)", "clip")
-        self.ai_model_combo.addItem("DINOv2 (Visual Similarity)", "dinov2")
-        self.ai_model_combo.addItem("Hybrid (Both, Highest Accuracy)", "hybrid")
-        # Removed "None" option - AI models should always be used
-        self.ai_model_combo.setCurrentIndex(0)  # Default to CLIP
-        
-        # Show warning if models not available
-        if not VISION_MODELS_AVAILABLE:
-            warning_label = QLabel("⚠️ Vision models not installed")
-            warning_label.setStyleSheet("color: orange; font-weight: bold;")
-            model_layout.addWidget(warning_label)
+        if VISION_MODELS_AVAILABLE:
+            self.ai_model_combo.addItem("CLIP (Recommended)", "clip")
+            self.ai_model_combo.addItem("DINOv2 (Visual Similarity)", "dinov2")
+            self.ai_model_combo.addItem("Hybrid (Both, Highest Accuracy)", "hybrid")
+            self.ai_model_combo.setCurrentIndex(0)  # Default to CLIP
+        else:
+            # Vision models not available - show disabled option
+            self.ai_model_combo.addItem("Not Available (Install PyTorch)", "none")
+            self.ai_model_combo.setEnabled(False)
         
         model_layout.addWidget(self.ai_model_combo)
+        
+        # Show warning/info if models not available
+        if not VISION_MODELS_AVAILABLE:
+            warning_label = QLabel("⚠️ Install: pip install torch transformers")
+            warning_label.setStyleSheet("color: orange; font-size: 8pt;")
+            model_layout.addWidget(warning_label)
+        
         model_layout.addStretch()
         
         group_layout.addLayout(model_layout)

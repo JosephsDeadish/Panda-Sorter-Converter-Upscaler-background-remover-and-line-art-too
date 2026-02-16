@@ -931,6 +931,132 @@ class TextureSorterMainWindow(QMainWindow):
             event.accept()
 
 
+def check_feature_availability():
+    """
+    Check availability of optional features and return status dict.
+    
+    Returns:
+        dict: Dictionary with feature availability status
+    """
+    features = {
+        'pytorch': False,
+        'pytorch_cuda': False,
+        'clip': False,
+        'dinov2': False,
+        'transformers': False,
+        'open_clip': False,
+        'timm': False,
+    }
+    
+    # Check PyTorch
+    try:
+        import torch
+        features['pytorch'] = True
+        features['pytorch_cuda'] = torch.cuda.is_available()
+    except Exception:
+        pass
+    
+    # Check transformers
+    try:
+        import transformers
+        features['transformers'] = True
+    except Exception:
+        pass
+    
+    # Check open_clip
+    try:
+        import open_clip
+        features['open_clip'] = True
+    except Exception:
+        pass
+    
+    # Check timm
+    try:
+        import timm
+        features['timm'] = True
+    except Exception:
+        pass
+    
+    # CLIP requires PyTorch + (transformers OR open_clip)
+    features['clip'] = features['pytorch'] and (features['transformers'] or features['open_clip'])
+    
+    # DINOv2 requires PyTorch
+    features['dinov2'] = features['pytorch']
+    
+    return features
+
+
+def log_startup_diagnostics(window):
+    """
+    Log startup diagnostics showing which features are available.
+    
+    Args:
+        window: Main window to log messages to
+    """
+    window.log("=" * 60)
+    window.log("🔍 STARTUP DIAGNOSTICS")
+    window.log("=" * 60)
+    
+    # Check features
+    features = check_feature_availability()
+    
+    # Core features (always available)
+    window.log("✅ Core Features:")
+    window.log("   ✅ Image processing (PIL, OpenCV)")
+    window.log("   ✅ Texture classification")
+    window.log("   ✅ LOD detection")
+    window.log("   ✅ File organization")
+    window.log("   ✅ Archive support (ZIP, 7Z, RAR)")
+    
+    # PyTorch features
+    window.log("")
+    if features['pytorch']:
+        window.log("✅ PyTorch Features:")
+        window.log("   ✅ PyTorch available")
+        if features['pytorch_cuda']:
+            window.log("   ✅ CUDA GPU acceleration available")
+        else:
+            window.log("   ⚠️  CUDA not available (CPU-only mode)")
+    else:
+        window.log("⚠️  PyTorch Features:")
+        window.log("   ❌ PyTorch not available")
+        window.log("   💡 Install: pip install torch torchvision")
+    
+    # Vision models
+    window.log("")
+    if features['clip'] or features['dinov2']:
+        window.log("✅ AI Vision Models:")
+        if features['clip']:
+            window.log("   ✅ CLIP model available")
+            if features['transformers']:
+                window.log("      ✅ Using HuggingFace transformers")
+            if features['open_clip']:
+                window.log("      ✅ Using OpenCLIP")
+        else:
+            window.log("   ❌ CLIP model not available")
+        
+        if features['dinov2']:
+            window.log("   ✅ DINOv2 model available")
+        else:
+            window.log("   ❌ DINOv2 model not available")
+    else:
+        window.log("⚠️  AI Vision Models:")
+        window.log("   ❌ Vision models not available")
+        window.log("   💡 Install: pip install torch transformers")
+        window.log("   💡 AI-powered organization will be limited")
+    
+    # Optional features
+    window.log("")
+    window.log("📦 Optional Features:")
+    if features['timm']:
+        window.log("   ✅ timm (PyTorch Image Models)")
+    else:
+        window.log("   ⚠️  timm not available")
+    
+    window.log("=" * 60)
+    logger.info("Startup diagnostics completed")
+
+
 def main():
     """Main entry point."""
     # Create Qt application
@@ -952,6 +1078,9 @@ def main():
     window.log(f"🐼 {APP_NAME} v{APP_VERSION}")
     window.log("✅ Qt6 UI loaded successfully")
     window.log("✅ No tkinter, no canvas - pure Qt!")
+    
+    # Log startup diagnostics
+    log_startup_diagnostics(window)
     
     # Start event loop
     sys.exit(app.exec())
