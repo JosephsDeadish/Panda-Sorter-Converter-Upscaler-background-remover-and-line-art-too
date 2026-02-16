@@ -17,9 +17,20 @@ try:
     import torch.nn.functional as F
     from PIL import Image
     TORCH_AVAILABLE = True
-except ImportError:
+except ImportError as e:
     TORCH_AVAILABLE = False
-    logger.warning("PyTorch not available. CLIP model disabled.")
+    logger.warning(f"PyTorch not available: {e}")
+    logger.warning("CLIP model will be disabled.")
+except OSError as e:
+    # Handle DLL initialization errors (e.g., missing CUDA DLLs)
+    TORCH_AVAILABLE = False
+    logger.warning(f"PyTorch DLL initialization failed: {e}")
+    logger.warning("This may occur if CUDA runtime libraries are missing.")
+    logger.warning("CLIP model will be disabled. The application will use CPU-only features.")
+except Exception as e:
+    TORCH_AVAILABLE = False
+    logger.warning(f"Unexpected error loading PyTorch: {e}")
+    logger.warning("CLIP model will be disabled.")
 
 try:
     from transformers import CLIPProcessor, CLIPModel as HFCLIPModel

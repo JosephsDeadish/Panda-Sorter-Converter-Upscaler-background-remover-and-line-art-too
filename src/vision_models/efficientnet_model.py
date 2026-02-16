@@ -16,9 +16,19 @@ try:
     from PIL import Image
     import timm
     AVAILABLE = True
-except ImportError:
+except ImportError as e:
     AVAILABLE = False
-    logger.warning("timm library not available. EfficientNet model disabled.")
+    logger.warning(f"timm library or PyTorch not available: {e}")
+    logger.warning("EfficientNet model will be disabled.")
+except OSError as e:
+    # Handle DLL initialization errors (e.g., missing CUDA DLLs)
+    AVAILABLE = False
+    logger.warning(f"PyTorch DLL initialization failed: {e}")
+    logger.warning("EfficientNet model will be disabled.")
+except Exception as e:
+    AVAILABLE = False
+    logger.warning(f"Unexpected error loading dependencies: {e}")
+    logger.warning("EfficientNet model will be disabled.")
 
 
 class EfficientNetModel:
@@ -34,7 +44,13 @@ class EfficientNetModel:
         if not AVAILABLE:
             raise RuntimeError("timm and PyTorch required")
         
-        self.device = device or ('cuda' if torch.cuda.is_available() else 'cpu')
+        try:
+            self.device = device or ('cuda' if torch.cuda.is_available() else 'cpu')
+        except (RuntimeError, OSError):
+            # Fallback to CPU if CUDA check fails
+            self.device = 'cpu'
+            logger.info("CUDA check failed, using CPU device")
+        
         self.model = timm.create_model(model_name, pretrained=pretrained, num_classes=0)
         self.model = self.model.to(self.device)
         self.model.eval()

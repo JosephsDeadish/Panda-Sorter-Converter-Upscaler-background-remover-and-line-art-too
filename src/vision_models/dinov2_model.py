@@ -15,9 +15,19 @@ try:
     import torch
     from PIL import Image
     TORCH_AVAILABLE = True
-except ImportError:
+except ImportError as e:
     TORCH_AVAILABLE = False
-    logger.warning("PyTorch not available. DINOv2 model disabled.")
+    logger.warning(f"PyTorch not available: {e}")
+    logger.warning("DINOv2 model will be disabled.")
+except OSError as e:
+    # Handle DLL initialization errors (e.g., missing CUDA DLLs)
+    TORCH_AVAILABLE = False
+    logger.warning(f"PyTorch DLL initialization failed: {e}")
+    logger.warning("DINOv2 model will be disabled.")
+except Exception as e:
+    TORCH_AVAILABLE = False
+    logger.warning(f"Unexpected error loading dependencies: {e}")
+    logger.warning("DINOv2 model will be disabled.")
 
 
 class DINOv2Model:
@@ -41,7 +51,13 @@ class DINOv2Model:
         if not TORCH_AVAILABLE:
             raise RuntimeError("PyTorch is required for DINOv2 model")
         
-        self.device = device or ('cuda' if torch.cuda.is_available() else 'cpu')
+        try:
+            self.device = device or ('cuda' if torch.cuda.is_available() else 'cpu')
+        except (RuntimeError, OSError):
+            # Fallback to CPU if CUDA check fails
+            self.device = 'cpu'
+            logger.info("CUDA check failed, using CPU device")
+        
         logger.info(f"Initializing DINOv2 model on device: {self.device}")
         
         # Load model from torch hub

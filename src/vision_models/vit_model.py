@@ -16,9 +16,19 @@ try:
     from PIL import Image
     from transformers import ViTImageProcessor, ViTForImageClassification
     AVAILABLE = True
-except ImportError:
+except ImportError as e:
     AVAILABLE = False
-    logger.warning("Required packages not available. ViT model disabled.")
+    logger.warning(f"transformers library or PyTorch not available: {e}")
+    logger.warning("ViT model will be disabled.")
+except OSError as e:
+    # Handle DLL initialization errors (e.g., missing CUDA DLLs)
+    AVAILABLE = False
+    logger.warning(f"PyTorch DLL initialization failed: {e}")
+    logger.warning("ViT model will be disabled.")
+except Exception as e:
+    AVAILABLE = False
+    logger.warning(f"Unexpected error loading dependencies: {e}")
+    logger.warning("ViT model will be disabled.")
 
 
 class ViTModel:
@@ -29,7 +39,13 @@ class ViTModel:
         if not AVAILABLE:
             raise RuntimeError("transformers and PyTorch required for ViT model")
         
-        self.device = device or ('cuda' if torch.cuda.is_available() else 'cpu')
+        try:
+            self.device = device or ('cuda' if torch.cuda.is_available() else 'cpu')
+        except (RuntimeError, OSError):
+            # Fallback to CPU if CUDA check fails
+            self.device = 'cpu'
+            logger.info("CUDA check failed, using CPU device")
+        
         self.processor = ViTImageProcessor.from_pretrained(model_name)
         self.model = ViTForImageClassification.from_pretrained(model_name).to(self.device)
         self.model.eval()

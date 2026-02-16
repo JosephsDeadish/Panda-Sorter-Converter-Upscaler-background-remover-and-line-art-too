@@ -137,11 +137,23 @@ class SystemDetector:
         # Try PyTorch
         try:
             import torch
-            if torch.cuda.is_available():
-                gpu_name = torch.cuda.get_device_name(0)
-                return True, gpu_name
         except ImportError:
-            pass
+            logger.debug("PyTorch not available for GPU detection")
+        except OSError as e:
+            # Handle DLL initialization errors gracefully
+            logger.debug(f"PyTorch DLL initialization failed: {e}")
+        except Exception as e:
+            logger.debug(f"Unexpected error importing torch: {e}")
+        else:
+            # torch imported successfully, check for CUDA
+            try:
+                if torch.cuda.is_available():
+                    gpu_name = torch.cuda.get_device_name(0)
+                    return True, gpu_name
+            except (RuntimeError, OSError) as e:
+                logger.debug(f"CUDA check failed: {e}")
+            except Exception as e:
+                logger.debug(f"Unexpected error checking CUDA: {e}")
         
         # Try TensorFlow
         try:

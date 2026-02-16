@@ -18,9 +18,19 @@ try:
     # pip install git+https://github.com/facebookresearch/segment-anything.git
     # from segment_anything import sam_model_registry, SamPredictor
     HAS_TORCH = True
-except ImportError:
+except ImportError as e:
     HAS_TORCH = False
-    logger.warning("PyTorch not available. SAM model disabled.")
+    logger.warning(f"PyTorch not available: {e}")
+    logger.warning("SAM model will be disabled.")
+except OSError as e:
+    # Handle DLL initialization errors (e.g., missing CUDA DLLs)
+    HAS_TORCH = False
+    logger.warning(f"PyTorch DLL initialization failed: {e}")
+    logger.warning("SAM model will be disabled.")
+except Exception as e:
+    HAS_TORCH = False
+    logger.warning(f"Unexpected error loading dependencies: {e}")
+    logger.warning("SAM model will be disabled.")
 
 # SAM is not currently available - requires additional installation
 # This is a stub implementation for future use
@@ -64,7 +74,12 @@ class SAMModel:
         if not AVAILABLE:
             raise RuntimeError("segment-anything package required for SAM model")
         
-        self.device = device or ('cuda' if torch.cuda.is_available() else 'cpu')
+        try:
+            self.device = device or ('cuda' if torch.cuda.is_available() else 'cpu')
+        except (RuntimeError, OSError):
+            # Fallback to CPU if CUDA check fails
+            self.device = 'cpu'
+            logger.info("CUDA check failed, using CPU device")
         
         # Load SAM model
         # from segment_anything import sam_model_registry, SamPredictor
