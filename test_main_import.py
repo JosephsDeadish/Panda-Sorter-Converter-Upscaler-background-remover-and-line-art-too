@@ -61,23 +61,29 @@ def test_core_imports():
     
     # Add src to path
     from pathlib import Path
+    import importlib
+    
     src_dir = Path(__file__).parent / 'src'
     if str(src_dir) not in sys.path:
         sys.path.insert(0, str(src_dir))
     
     modules_to_test = [
-        ('config', 'config, APP_NAME, APP_VERSION'),
-        ('classifier', 'TextureClassifier, ALL_CATEGORIES'),
-        ('lod_detector', 'LODDetector'),
-        ('file_handler', 'FileHandler'),
-        ('database', 'TextureDatabase'),
-        ('organizer', 'OrganizationEngine, ORGANIZATION_STYLES'),
+        ('config', ['config', 'APP_NAME', 'APP_VERSION']),
+        ('classifier', ['TextureClassifier', 'ALL_CATEGORIES']),
+        ('lod_detector', ['LODDetector']),
+        ('file_handler', ['FileHandler']),
+        ('database', ['TextureDatabase']),
+        ('organizer', ['OrganizationEngine', 'ORGANIZATION_STYLES']),
     ]
     
     all_passed = True
-    for module_name, import_items in modules_to_test:
+    for module_name, attributes in modules_to_test:
         try:
-            exec(f"from {module_name} import {import_items}")
+            module = importlib.import_module(module_name)
+            # Verify key attributes exist
+            for attr in attributes:
+                if not hasattr(module, attr):
+                    raise ImportError(f"Module '{module_name}' missing attribute '{attr}'")
             print(f"✅ {module_name} imported")
         except ImportError as e:
             print(f"❌ {module_name} failed: {e}")
@@ -85,8 +91,8 @@ def test_core_imports():
     
     return all_passed
 
-def main_test():
-    """Run all tests."""
+def run_all_tests():
+    """Run all import tests."""
     print("=" * 60)
     print("Testing PS2 Texture Sorter - main.py Import Test")
     print("=" * 60)
@@ -124,4 +130,4 @@ def main_test():
         return 1
 
 if __name__ == "__main__":
-    sys.exit(main_test())
+    sys.exit(run_all_tests())
