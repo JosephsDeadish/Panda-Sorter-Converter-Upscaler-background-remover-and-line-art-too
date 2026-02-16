@@ -939,6 +939,7 @@ def check_feature_availability():
         dict: Dictionary with feature availability status
     """
     features = {
+        'pil': False,
         'pytorch': False,
         'pytorch_cuda': False,
         'clip': False,
@@ -949,6 +950,16 @@ def check_feature_availability():
         'onnx': False,
         'onnxruntime': False,
     }
+    
+    # Check PIL/Pillow - CRITICAL for image loading and vision models
+    try:
+        from PIL import Image
+        import PIL._imaging  # Check binary module
+        features['pil'] = True
+    except ImportError:
+        pass
+    except Exception as e:
+        logger.warning(f"PIL check failed: {e}")
     
     # Check PyTorch
     try:
@@ -993,11 +1004,11 @@ def check_feature_availability():
     except Exception:
         pass
     
-    # CLIP requires PyTorch + (transformers OR open_clip)
-    features['clip'] = features['pytorch'] and (features['transformers'] or features['open_clip'])
+    # CLIP requires PIL + PyTorch + (transformers OR open_clip)
+    features['clip'] = features['pil'] and features['pytorch'] and (features['transformers'] or features['open_clip'])
     
-    # DINOv2 requires PyTorch
-    features['dinov2'] = features['pytorch']
+    # DINOv2 requires PIL + PyTorch
+    features['dinov2'] = features['pil'] and features['pytorch']
     
     return features
 
@@ -1018,7 +1029,13 @@ def log_startup_diagnostics(window):
     
     # Core features (always available)
     window.log("✅ Core Features:")
-    window.log("   ✅ Image processing (PIL, OpenCV)")
+    if features['pil']:
+        window.log("   ✅ PIL/Pillow (Image loading)")
+    else:
+        window.log("   ❌ PIL/Pillow not available - CRITICAL!")
+        window.log("   💡 Install: pip install pillow")
+        window.log("   ⚠️  Vision models will NOT work without PIL")
+    window.log("   ✅ Image processing (OpenCV)")
     window.log("   ✅ Texture classification")
     window.log("   ✅ LOD detection")
     window.log("   ✅ File organization")
@@ -1050,15 +1067,30 @@ def log_startup_diagnostics(window):
                 window.log("      ✅ Using OpenCLIP")
         else:
             window.log("   ❌ CLIP model not available")
+            if not features['pil']:
+                window.log("      ❌ Missing PIL/Pillow")
+            if not features['pytorch']:
+                window.log("      ❌ Missing PyTorch")
+            if not (features['transformers'] or features['open_clip']):
+                window.log("      ❌ Missing transformers/open_clip")
         
         if features['dinov2']:
             window.log("   ✅ DINOv2 model available")
         else:
             window.log("   ❌ DINOv2 model not available")
+            if not features['pil']:
+                window.log("      ❌ Missing PIL/Pillow")
+            if not features['pytorch']:
+                window.log("      ❌ Missing PyTorch")
     else:
         window.log("⚠️  AI Vision Models:")
         window.log("   ❌ Vision models not available")
-        window.log("   💡 Install: pip install torch transformers")
+        if not features['pil']:
+            window.log("   ❌ PIL/Pillow missing (CRITICAL) - pip install pillow")
+        if not features['pytorch']:
+            window.log("   ❌ PyTorch missing - pip install torch")
+        if not (features['transformers'] or features['open_clip']):
+            window.log("   ❌ Transformers/OpenCLIP missing - pip install transformers open-clip-torch")
         window.log("   💡 AI-powered organization will be limited")
     
     # ONNX features

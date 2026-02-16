@@ -42,10 +42,16 @@ try:
     from vision_models.dinov2_model import DINOv2Model
     VISION_MODELS_AVAILABLE = True
 except ImportError as e:
-    logger.error(f"Vision models not available: {e}")
-    logger.error("Please install required dependencies: pip install torch transformers open_clip_torch")
+    logger.warning(f"Vision models not available: {e}")
+    logger.warning("Please install required dependencies: pip install torch transformers open_clip_torch")
     VISION_MODELS_AVAILABLE = False
-    # Vision models should be available - show error to user
+    CLIPModel = None
+    DINOv2Model = None
+except Exception as e:
+    # Handle runtime errors like PIL missing, DLL issues, etc.
+    logger.warning(f"Vision models could not be loaded: {e}")
+    logger.warning("This may be due to missing PIL, torch, or other dependencies")
+    VISION_MODELS_AVAILABLE = False
     CLIPModel = None
     DINOv2Model = None
 
@@ -55,6 +61,10 @@ try:
 except ImportError:
     PIL_AVAILABLE = False
     logger.warning("PIL not available - image preview disabled")
+    logger.warning("To enable: pip install pillow")
+except Exception as e:
+    PIL_AVAILABLE = False
+    logger.warning(f"PIL could not be loaded: {e}")
 
 try:
     from utils.archive_handler import ArchiveHandler
@@ -89,7 +99,10 @@ class OrganizerWorker(QThread):
         if use_ai:
             if not VISION_MODELS_AVAILABLE:
                 self.log.emit("⚠️ WARNING: Vision models not available!")
-                self.log.emit("Please install: pip install torch transformers open_clip_torch")
+                if not PIL_AVAILABLE:
+                    self.log.emit("Missing dependency: PIL/Pillow (pip install pillow)")
+                self.log.emit("Missing dependencies: torch transformers open_clip_torch")
+                self.log.emit("Install with: pip install torch transformers open-clip-torch pillow")
                 self.log.emit("Falling back to pattern-based classification")
             else:
                 try:
@@ -699,9 +712,13 @@ class OrganizerPanelQt(QWidget):
         
         # Show warning/info if models not available
         if not VISION_MODELS_AVAILABLE:
-            warning_label = QLabel("⚠️ Install: pip install torch transformers")
-            warning_label.setStyleSheet("color: orange; font-size: 8pt;")
-            model_layout.addWidget(warning_label)
+            if not PIL_AVAILABLE:
+                pil_warning_label = QLabel("⚠️ Missing PIL: pip install pillow")
+                pil_warning_label.setStyleSheet("color: red; font-size: 8pt;")
+                model_layout.addWidget(pil_warning_label)
+            deps_warning_label = QLabel("⚠️ Install: pip install torch transformers open-clip-torch")
+            deps_warning_label.setStyleSheet("color: orange; font-size: 8pt;")
+            model_layout.addWidget(deps_warning_label)
         
         model_layout.addStretch()
         
