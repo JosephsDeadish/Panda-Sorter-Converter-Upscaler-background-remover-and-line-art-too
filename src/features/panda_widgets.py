@@ -1,11 +1,20 @@
 """
-Panda Widget System - Interactive toys and food for the panda
+Panda Widget System - Interactive toys, food, and accessories for the panda
 
-Items (toys, food, accessories) are now rendered in 3D using OpenGL
-with hardware-accelerated physics, realistic lighting, and shadows.
+Items (toys, food, accessories) are ALL rendered in 3D using OpenGL with hardware-accelerated
+physics, realistic lighting, and real-time shadows. NO canvas drawing is used.
 
-The 3D renderer (panda_widget_gl.py) handles all visual representation.
-This module only defines the properties and behavior of items.
+Rendering Architecture:
+    ✓ All items use QOpenGLWidget for 3D rendering (transparent_panda_overlay.py)
+    ✓ Hardware acceleration via OpenGL at 60fps
+    ✓ Real lighting with dynamic shadows
+    ✓ Physics-based interactions (gravity, friction, bounce)
+    ✓ Items can be thrown, kicked, and interact with panda
+    ✗ NO tkinter canvas - fully deprecated
+    ✗ NO 2D sprite rendering - all 3D models
+
+This module defines the properties, behavior, and physics of items.
+The 3D renderer (transparent_panda_overlay.py) handles all visual representation.
 
 Author: Dead On The Inside / JosephsDeadish
 """
