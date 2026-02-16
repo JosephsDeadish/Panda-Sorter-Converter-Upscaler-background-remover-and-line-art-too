@@ -417,11 +417,11 @@ class LineArtConverterPanelQt(QWidget):
                 contrast_boost=self.contrast_spin.value(),
                 sharpen=self.sharpen_cb.isChecked(),
                 sharpen_amount=1.3,
-                morphology_op=MorphologyOperation.CLOSE,
+                morphology_operation=MorphologyOperation.CLOSE,
                 morphology_iterations=1,
-                kernel_size=3,
+                morphology_kernel_size=3,
                 denoise=self.denoise_cb.isChecked(),
-                denoise_kernel_size=2
+                denoise_size=2
             )
             
             # Start preview worker
@@ -492,11 +492,11 @@ class LineArtConverterPanelQt(QWidget):
                 contrast_boost=self.contrast_spin.value(),
                 sharpen=self.sharpen_cb.isChecked(),
                 sharpen_amount=1.3,
-                morphology_op=MorphologyOperation.CLOSE,
+                morphology_operation=MorphologyOperation.CLOSE,
                 morphology_iterations=1,
-                kernel_size=3,
+                morphology_kernel_size=3,
                 denoise=self.denoise_cb.isChecked(),
-                denoise_kernel_size=2
+                denoise_size=2
             )
             
             # Start conversion worker
