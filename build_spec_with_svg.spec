@@ -239,7 +239,9 @@ a = Analysis(
     ],
     hookspath=[str(SCRIPT_DIR)],  # Use hooks in project root (hook-*.py files)
     hooksconfig={},
-    runtime_hooks=[],  # Removed tkinter runtime hook - not needed for Qt6
+    runtime_hooks=[
+        str(SCRIPT_DIR / 'runtime-hook-onnxruntime.py'),  # Disable CUDA providers
+    ],
     excludes=[
         # Tkinter/CustomTkinter - NO LONGER USED (full Qt6 migration complete)
         'tkinter',
@@ -297,14 +299,15 @@ a = Analysis(
     noarchive=False,
 )
 
-# Filter out legacy OpenGL DLLs that depend on old MSVC runtimes (MSVCR90.dll, MSVCR100.dll)
-# These are optional compatibility DLLs for very old systems and are not needed
-# PyOpenGL works fine with modern Windows OpenGL drivers without these DLLs
-print("Filtering out legacy OpenGL DLLs (gle*.vc9.dll, gle*.vc10.dll, freeglut*.vc9.dll, freeglut*.vc10.dll)...")
+# Filter out problematic DLLs that cause build warnings or errors
+print("Filtering out problematic DLLs...")
+print("  - Legacy OpenGL DLLs (gle*.vc9.dll, gle*.vc10.dll, freeglut*.vc9.dll, freeglut*.vc10.dll)")
+print("  - CUDA DLLs from onnxruntime (nvcuda.dll, cudart*.dll, cublas*.dll, etc.)")
+
 a.binaries = [
     (dest, src, typ) for (dest, src, typ) in a.binaries
     if not (
-        # Exclude legacy GLE DLLs (Visual C++ 9.0 and 10.0 versions)
+        # Exclude legacy GLE DLLs (Visual C++ 9.0 and 10.0 versions with MSVCR90/100.dll deps)
         ('gle32.vc9.dll' in dest.lower()) or
         ('gle64.vc9.dll' in dest.lower()) or
         ('gle32.vc10.dll' in dest.lower()) or
@@ -313,7 +316,21 @@ a.binaries = [
         ('freeglut32.vc9.dll' in dest.lower()) or
         ('freeglut64.vc9.dll' in dest.lower()) or
         ('freeglut32.vc10.dll' in dest.lower()) or
-        ('freeglut64.vc10.dll' in dest.lower())
+        ('freeglut64.vc10.dll' in dest.lower()) or
+        # Exclude CUDA DLLs from onnxruntime (prevents nvcuda.dll error)
+        ('nvcuda' in dest.lower()) or
+        ('cudart' in dest.lower()) or
+        ('cublas' in dest.lower()) or
+        ('cudnn' in dest.lower()) or
+        ('cufft' in dest.lower()) or
+        ('curand' in dest.lower()) or
+        ('cusparse' in dest.lower()) or
+        ('cusolver' in dest.lower()) or
+        ('nvrtc' in dest.lower()) or
+        ('tensorrt' in dest.lower()) or
+        # Exclude CUDA execution provider DLL from onnxruntime
+        ('onnxruntime_providers_cuda' in dest.lower()) or
+        ('onnxruntime_providers_tensorrt' in dest.lower())
     )
 ]
 print(f"Binary count after filtering: {len(a.binaries)}")
