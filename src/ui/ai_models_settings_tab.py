@@ -274,8 +274,13 @@ class AIModelsSettingsTab(QWidget):
         # Clear current layout
         layout = self.layout()
         if layout:
+            # Collect all items first
+            items = []
             while layout.count():
-                item = layout.takeAt(0)
+                items.append(layout.takeAt(0))
+            
+            # Delete widgets
+            for item in items:
                 if item.widget():
                     item.widget().deleteLater()
         

@@ -839,7 +839,77 @@ class ImageUpscalerPanelQt(QWidget):
     
     def _download_model(self, model_name: str) -> bool:
         """
-        Download model with progress dialog.
+        Download model with progress dialog using QThread.
+        
+        Returns:
+            True if successfully downloaded
+        """
+        # Create download thread (reuse from ai_models_settings_tab)
+        try:
+            from .ai_models_settings_tab import ModelDownloadThread
+        except ImportError:
+            # Fallback to simple blocking download
+            return self._download_model_blocking(model_name)
+        
+        # Create progress dialog
+        progress = QProgressDialog(
+            f"Downloading {model_name}...",
+            "Cancel",
+            0,
+            100,
+            self
+        )
+        progress.setWindowModality(Qt.WindowModality.WindowModal)
+        progress.setAutoClose(True)
+        progress.setAutoReset(True)
+        
+        download_success = [False]
+        
+        def on_progress(downloaded, total):
+            if progress.wasCanceled():
+                return
+            if total > 0:
+                progress.setValue(int((downloaded / total) * 100))
+        
+        def on_finished(success):
+            download_success[0] = success
+            progress.close()
+        
+        # Start download thread
+        thread = ModelDownloadThread(self.model_manager, model_name)
+        thread.progress.connect(on_progress)
+        thread.finished.connect(on_finished)
+        thread.start()
+        
+        # Wait for completion
+        thread.wait()
+        
+        if progress.wasCanceled():
+            QMessageBox.information(
+                self,
+                "Download Cancelled",
+                "Model download was cancelled."
+            )
+            return False
+        
+        if download_success[0]:
+            QMessageBox.information(
+                self,
+                "Success",
+                f"{model_name} downloaded successfully! Ready to upscale."
+            )
+            return True
+        else:
+            QMessageBox.critical(
+                self,
+                "Error",
+                f"Failed to download {model_name}. Please check your internet connection and try again."
+            )
+            return False
+    
+    def _download_model_blocking(self, model_name: str) -> bool:
+        """
+        Fallback blocking download (used when QThread not available).
         
         Returns:
             True if successfully downloaded
@@ -856,7 +926,6 @@ class ImageUpscalerPanelQt(QWidget):
         progress.setAutoClose(True)
         progress.setAutoReset(True)
         
-        success = [False]  # Use list to allow modification in callback
         cancelled = [False]
         
         def on_progress(downloaded, total):
@@ -868,12 +937,12 @@ class ImageUpscalerPanelQt(QWidget):
             if total > 0:
                 progress.setValue(int((downloaded / total) * 100))
         
-        # Download in background (this will block but show progress)
+        # Download (blocking)
         try:
-            success[0] = self.model_manager.download_model(model_name, on_progress)
+            success = self.model_manager.download_model(model_name, on_progress)
         except Exception as e:
             logger.error(f"Download failed: {e}")
-            success[0] = False
+            success = False
         
         progress.close()
         
@@ -885,7 +954,7 @@ class ImageUpscalerPanelQt(QWidget):
             )
             return False
         
-        if success[0]:
+        if success:
             QMessageBox.information(
                 self,
                 "Success",
