@@ -214,7 +214,7 @@ class TextureSorterMainWindow(QMainWindow):
         layout.setContentsMargins(20, 20, 20, 20)
         
         # Welcome message
-        welcome_label = QLabel("🎮 Welcome to PS2 Texture Sorter")
+        welcome_label = QLabel("🎮 Welcome to PS2 Texture Toolkit")
         welcome_label.setStyleSheet("font-size: 24pt; font-weight: bold;")
         welcome_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(welcome_label)

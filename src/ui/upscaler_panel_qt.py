@@ -249,9 +249,9 @@ class ImageUpscalerPanelQt(QWidget):
         """Update the method description based on selection."""
         descriptions = {
             "bicubic": "Bicubic: Fast, good quality for most images",
-            "lanczos": "Lanczos: Sharp results, best for textures with fine details (requires native support)",
+            "lanczos": "Lanczos: Sharp results, best for textures with fine details (requires Rust native module)",
             "realesrgan": "Real-ESRGAN: Best for retro/PS2 textures, slower (requires model download)",
-            "esrgan": "ESRGAN: High quality for general images (not fully implemented)"
+            "esrgan": "ESRGAN: High quality (currently uses bicubic as fallback)"
         }
         self.method_desc_label.setText(descriptions.get(method, ""))
     
