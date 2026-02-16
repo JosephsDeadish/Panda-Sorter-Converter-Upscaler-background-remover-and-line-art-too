@@ -1,11 +1,11 @@
-"""AI Models Settings Tab - Manage model downloads"""
+"""AI Models Settings Tab - Manage model downloads with beautiful UI"""
 
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
-    QProgressBar, QCheckBox, QGroupBox, QFrame, QMessageBox
+    QProgressBar, QScrollArea, QFrame, QMessageBox, QSizePolicy
 )
-from PyQt6.QtCore import Qt, pyqtSignal, QThread
-from PyQt6.QtGui import QFont
+from PyQt6.QtCore import Qt, pyqtSignal, QThread, QSize
+from PyQt6.QtGui import QFont, QColor
 import logging
 
 logger = logging.getLogger(__name__)
@@ -23,6 +23,7 @@ except ImportError:
         MODEL_MANAGER_AVAILABLE = False
         AIModelManager = None
         ModelStatus = None
+
 
 
 class ModelDownloadThread(QThread):
@@ -43,13 +44,343 @@ class ModelDownloadThread(QThread):
         self.finished.emit(success)
 
 
+class ModelCardWidget(QFrame):
+    """Beautiful expandable card for a single model"""
+    
+    def __init__(self, model_name: str, model_info: dict, model_manager: AIModelManager):
+        super().__init__()
+        self.model_name = model_name
+        self.model_info = model_info
+        self.model_manager = model_manager
+        self.download_thread = None
+        self.is_expanded = False
+        
+        self.setup_ui()
+    
+    def setup_ui(self):
+        """Create the card UI"""
+        self.setStyleSheet("""
+            QFrame {
+                border: 2px solid #e0e0e0;
+                border-radius: 8px;
+                background-color: #fafafa;
+                padding: 0px;
+            }
+            QFrame:hover {
+                border: 2px solid #2196F3;
+                background-color: #ffffff;
+            }
+        """)
+        
+        layout = QVBoxLayout()
+        layout.setContentsMargins(15, 12, 15, 12)
+        layout.setSpacing(10)
+        
+        # Header (always visible, clickable)
+        header = self.create_header()
+        layout.addLayout(header)
+        
+        # Details (expandable)
+        self.details_widget = QWidget()
+        self.details_layout = QVBoxLayout()
+        self.details_layout.setContentsMargins(0, 0, 0, 0)
+        self.details_layout.setSpacing(8)
+        self.details_widget.setLayout(self.details_layout)
+        self.details_widget.setVisible(False)
+        
+        self.populate_details()
+        layout.addWidget(self.details_widget)
+        
+        self.setLayout(layout)
+    
+    def create_header(self) -> QHBoxLayout:
+        """Create the header with icon, name, status, and expand button"""
+        header = QHBoxLayout()
+        
+        # Icon + Name
+        icon = self.model_info.get('icon', '📦')
+        name = self.model_name
+        
+        left_layout = QVBoxLayout()
+        left_layout.setSpacing(2)
+        
+        title_layout = QHBoxLayout()
+        title_layout.setContentsMargins(0, 0, 0, 0)
+        title_label = QLabel(f"{icon} {name}")
+        font = QFont()
+        font.setPointSize(11)
+        font.setBold(True)
+        title_label.setFont(font)
+        title_layout.addWidget(title_label)
+        left_layout.addLayout(title_layout)
+        
+        status = self.model_info.get('status', 'unknown')
+        if status == 'installed':
+            status_text = "✅ Installed"
+            status_color = "green"
+        else:
+            status_text = "❌ Not Installed"
+            status_color = "red"
+        
+        status_label = QLabel(status_text)
+        status_label.setStyleSheet(f"color: {status_color}; font-weight: bold; font-size: 10px;")
+        left_layout.addWidget(status_label)
+        
+        header.addLayout(left_layout)
+        header.addStretch()
+        
+        # Expand button
+        self.expand_btn = QPushButton("▼")
+        self.expand_btn.setMaximumWidth(35)
+        self.expand_btn.setMaximumHeight(35)
+        self.expand_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #e3f2fd;
+                border: 1px solid #2196F3;
+                border-radius: 4px;
+                color: #2196F3;
+                font-weight: bold;
+            }
+            QPushButton:hover {
+                background-color: #2196F3;
+                color: white;
+            }
+        """)
+        self.expand_btn.clicked.connect(self.toggle_expand)
+        header.addWidget(self.expand_btn)
+        
+        return header
+    
+    def toggle_expand(self):
+        """Toggle details visibility"""
+        self.is_expanded = not self.is_expanded
+        self.details_widget.setVisible(self.is_expanded)
+        self.expand_btn.setText("▲" if self.is_expanded else "▼")
+    
+    def populate_details(self):
+        """Populate the details section"""
+        # Size
+        size = self.model_info.get('size_mb', 0)
+        if size > 0:
+            size_label = QLabel(f"📊 Size: {size} MB")
+            size_label.setStyleSheet("font-size: 10px; color: #666;")
+            self.details_layout.addWidget(size_label)
+        
+        # Version
+        version = self.model_info.get('version', 'N/A')
+        version_label = QLabel(f"📌 Version: {version}")
+        version_label.setStyleSheet("font-size: 10px; color: #666;")
+        self.details_layout.addWidget(version_label)
+        
+        # Description
+        desc = self.model_info.get('description', '')
+        desc_label = QLabel(desc)
+        desc_label.setWordWrap(True)
+        desc_label.setStyleSheet("font-size: 10px; color: #555; margin: 5px 0px;")
+        self.details_layout.addWidget(desc_label)
+        
+        # Progress bar (hidden by default)
+        self.progress = QProgressBar()
+        self.progress.setVisible(False)
+        self.progress.setStyleSheet("""
+            QProgressBar {
+                border: 1px solid #ddd;
+                border-radius: 4px;
+                height: 6px;
+            }
+            QProgressBar::chunk {
+                background-color: #4CAF50;
+            }
+        """)
+        self.details_layout.addWidget(self.progress)
+        
+        # Buttons
+        button_layout = QHBoxLayout()
+        button_layout.setContentsMargins(0, 5, 0, 0)
+        
+        if not self.model_info.get('installed', False):
+            # Download button
+            download_btn = QPushButton(f"⬇️  Download Now")
+            # Only show size if it's defined and not variable
+            if self.model_info.get('size_mb', 0) > 0 and not self.model_info.get('size_varies', False):
+                download_btn.setText(f"⬇️  Download Now ({self.model_info['size_mb']} MB)")
+            download_btn.setMinimumHeight(40)
+            download_btn.setMinimumWidth(200)
+            download_btn.setStyleSheet("""
+                QPushButton {
+                    background-color: #4CAF50;
+                    color: white;
+                    border: none;
+                    border-radius: 4px;
+                    font-weight: bold;
+                    font-size: 12px;
+                }
+                QPushButton:hover {
+                    background-color: #45a049;
+                }
+                QPushButton:pressed {
+                    background-color: #3d8b40;
+                }
+            """)
+            download_btn.clicked.connect(self.download_model)
+            button_layout.addWidget(download_btn)
+        else:
+            # Delete button
+            delete_text = "🗑️  Delete"
+            # Only show size if it's defined and not variable
+            if self.model_info.get('size_mb', 0) > 0 and not self.model_info.get('size_varies', False):
+                delete_text = f"🗑️  Delete ({self.model_info.get('size_mb', 0)} MB)"
+            delete_btn = QPushButton(delete_text)
+            delete_btn.setMinimumHeight(40)
+            delete_btn.setMinimumWidth(200)
+            delete_btn.setStyleSheet("""
+                QPushButton {
+                    background-color: #f44336;
+                    color: white;
+                    border: none;
+                    border-radius: 4px;
+                    font-weight: bold;
+                    font-size: 12px;
+                }
+                QPushButton:hover {
+                    background-color: #da190b;
+                }
+                QPushButton:pressed {
+                    background-color: #c9000a;
+                }
+            """)
+            delete_btn.clicked.connect(self.delete_model)
+            button_layout.addWidget(delete_btn)
+        
+        button_layout.addStretch()
+        self.details_layout.addLayout(button_layout)
+    
+    def download_model(self):
+        """Start downloading the model"""
+        # Check if auto-download model
+        if self.model_info.get('auto_download'):
+            QMessageBox.information(
+                self,
+                "Package Install Required",
+                f"{self.model_name} is installed via package manager.\n\n"
+                f"Run: pip install {' '.join(self.model_info.get('required_packages', []))}"
+            )
+            return
+        
+        # Check if native module
+        if self.model_info.get('native_module'):
+            QMessageBox.information(
+                self,
+                "Native Module",
+                f"{self.model_name} is a native module built into the application."
+            )
+            return
+        
+        self.expand_btn.setEnabled(False)
+        self.progress.setVisible(True)
+        self.progress.setValue(0)
+        
+        self.download_thread = ModelDownloadThread(self.model_manager, self.model_name)
+        self.download_thread.progress.connect(
+            lambda d, t: self.progress.setValue(int((d / t) * 100)) if t > 0 else None
+        )
+        self.download_thread.finished.connect(self.on_download_finished)
+        self.download_thread.start()
+    
+    def on_download_finished(self, success: bool):
+        """Handle download completion"""
+        self.progress.setVisible(False)
+        self.expand_btn.setEnabled(True)
+        
+        if success:
+            logger.info(f"✅ {self.model_name} downloaded successfully")
+            QMessageBox.information(
+                self,
+                "Download Complete",
+                f"{self.model_name} has been downloaded successfully!"
+            )
+            # Update UI to show installed status
+            self.model_info['installed'] = True
+            self.model_info['status'] = 'installed'
+            self.recreate_ui()
+        else:
+            logger.error(f"❌ Failed to download {self.model_name}")
+            QMessageBox.critical(
+                self,
+                "Download Failed",
+                f"Failed to download {self.model_name}. Please check your internet connection and try again."
+            )
+    
+    def delete_model(self):
+        """Delete the model"""
+        # Confirm deletion
+        reply = QMessageBox.question(
+            self,
+            "Confirm Deletion",
+            f"Are you sure you want to delete {self.model_name}?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+        )
+        
+        if reply != QMessageBox.StandardButton.Yes:
+            return
+        
+        if self.model_manager.delete_model(self.model_name):
+            self.model_info['installed'] = False
+            self.model_info['status'] = 'missing'
+            self.recreate_ui()
+            logger.info(f"✅ Deleted {self.model_name}")
+            QMessageBox.information(
+                self,
+                "Model Deleted",
+                f"{self.model_name} has been deleted successfully."
+            )
+        else:
+            QMessageBox.critical(
+                self,
+                "Deletion Failed",
+                f"Failed to delete {self.model_name}."
+            )
+    
+    def recreate_ui(self):
+        """Recreate UI after status change"""
+        # Clear details layout
+        while self.details_layout.count() > 0:
+            item = self.details_layout.takeAt(0)
+            if item.widget():
+                item.widget().deleteLater()
+        
+        # Re-populate details
+        self.populate_details()
+        
+        # Update header status
+        layout = self.layout()
+        if layout and layout.count() > 0:
+            header_item = layout.itemAt(0)
+            if header_item:
+                # Find status label and update it
+                for i in range(header_item.count()):
+                    item = header_item.itemAt(i)
+                    if item and item.layout():
+                        for j in range(item.layout().count()):
+                            widget_item = item.layout().itemAt(j)
+                            if widget_item and isinstance(widget_item.widget(), QLabel):
+                                label = widget_item.widget()
+                                text = label.text()
+                                if "Installed" in text or "Not Installed" in text:
+                                    if self.model_info.get('installed', False):
+                                        label.setText("✅ Installed")
+                                        label.setStyleSheet("color: green; font-weight: bold; font-size: 10px;")
+                                    else:
+                                        label.setText("❌ Not Installed")
+                                        label.setStyleSheet("color: red; font-weight: bold; font-size: 10px;")
+
+
 class AIModelsSettingsTab(QWidget):
-    """Settings tab for managing AI models"""
+    """Settings tab for managing AI models with beautiful UI"""
     
     def __init__(self, config: dict = None):
         super().__init__()
         self.config = config or {}
-        self.download_threads = {}
         
         if MODEL_MANAGER_AVAILABLE:
             self.model_manager = AIModelManager()
@@ -59,24 +390,29 @@ class AIModelsSettingsTab(QWidget):
         self.setup_ui()
     
     def setup_ui(self):
+        """Create the main UI"""
         layout = QVBoxLayout()
+        layout.setContentsMargins(20, 20, 20, 20)
+        layout.setSpacing(15)
         
         # Title
-        title = QLabel("AI Models")
+        title = QLabel("🤖 AI Models Management")
         font = QFont()
-        font.setPointSize(12)
+        font.setPointSize(14)
         font.setBold(True)
         title.setFont(font)
         layout.addWidget(title)
         
-        # Info text
-        info = QLabel(
-            "Manage AI model downloads for upscaling and other features.\n"
-            "Models are stored in the 'models' folder next to the application."
-        )
-        info.setWordWrap(True)
-        info.setStyleSheet("color: gray; margin-bottom: 10px;")
-        layout.addWidget(info)
+        # Subtitle
+        subtitle = QLabel("Download AI models on-demand or manage existing installations")
+        subtitle.setStyleSheet("color: #666; font-size: 11px;")
+        layout.addWidget(subtitle)
+        
+        # Separator
+        sep = QFrame()
+        sep.setFrameShape(QFrame.Shape.HLine)
+        sep.setFrameShadow(QFrame.Shadow.Sunken)
+        layout.addWidget(sep)
         
         if not MODEL_MANAGER_AVAILABLE:
             error_label = QLabel("❌ Model manager not available")
@@ -86,203 +422,56 @@ class AIModelsSettingsTab(QWidget):
             self.setLayout(layout)
             return
         
-        # Models info
+        # Scroll area for models
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setStyleSheet("QScrollArea { border: none; background-color: transparent; }")
+        
+        scroll_widget = QWidget()
+        scroll_layout = QVBoxLayout()
+        scroll_layout.setContentsMargins(0, 0, 0, 0)
+        scroll_layout.setSpacing(12)
+        
+        # Get all models
         models_info = self.model_manager.get_models_info()
         
-        # Group models by tool
-        tools = {}
+        # Group by category
+        categories = {}
         for model_name, info in models_info.items():
-            tool = info.get('tool', 'other')
-            if tool not in tools:
-                tools[tool] = []
-            tools[tool].append((model_name, info))
+            cat = info.get('category', 'other')
+            if cat not in categories:
+                categories[cat] = []
+            categories[cat].append((model_name, info))
         
-        # Create sections for each tool
-        for tool_name, models in sorted(tools.items()):
-            group = QGroupBox(tool_name.capitalize())
-            group_layout = QVBoxLayout()
-            
-            for model_name, info in models:
-                frame = self.create_model_frame(model_name, info)
-                group_layout.addWidget(frame)
-            
-            group.setLayout(group_layout)
-            layout.addWidget(group)
+        # Display by category
+        category_names = {
+            'upscaler': '📈 Upscaler Models',
+            'vision': '👁️ Vision Models',
+            'nlp': '🔤 NLP Models',
+            'acceleration': '⚡ Acceleration',
+        }
         
-        layout.addStretch()
+        for cat_key in ['upscaler', 'vision', 'nlp', 'acceleration']:
+            if cat_key not in categories:
+                continue
+            
+            # Category header
+            cat_label = QLabel(category_names.get(cat_key, cat_key))
+            cat_font = QFont()
+            cat_font.setPointSize(11)
+            cat_font.setBold(True)
+            cat_label.setFont(cat_font)
+            cat_label.setStyleSheet("margin-top: 10px; margin-bottom: 5px; color: #333;")
+            scroll_layout.addWidget(cat_label)
+            
+            # Models in category
+            for model_name, info in categories[cat_key]:
+                card = ModelCardWidget(model_name, info, self.model_manager)
+                scroll_layout.addWidget(card)
+        
+        scroll_layout.addStretch()
+        scroll_widget.setLayout(scroll_layout)
+        scroll.setWidget(scroll_widget)
+        layout.addWidget(scroll)
+        
         self.setLayout(layout)
-    
-    def create_model_frame(self, model_name: str, info: dict) -> QFrame:
-        """Create UI for a single model"""
-        frame = QFrame()
-        frame.setStyleSheet("QFrame { border: 1px solid #ccc; border-radius: 4px; padding: 10px; }")
-        
-        layout = QVBoxLayout()
-        
-        # Model name and status
-        header = QHBoxLayout()
-        name_label = QLabel(f"📦 {info['description']}")
-        font = QFont()
-        font.setBold(True)
-        name_label.setFont(font)
-        header.addWidget(name_label)
-        
-        status_label = QLabel()
-        if info['installed']:
-            status_label.setText("✅ Installed")
-            status_label.setStyleSheet("color: green;")
-        else:
-            status_label.setText("❌ Not Installed")
-            status_label.setStyleSheet("color: red;")
-        
-        header.addWidget(status_label)
-        header.addStretch()
-        layout.addLayout(header)
-        
-        # Size info
-        if 'size_mb' in info:
-            size_label = QLabel(f"Size: {info['size_mb']} MB")
-            size_label.setStyleSheet("color: gray; font-size: 10px;")
-            layout.addWidget(size_label)
-        
-        # Auto-download info
-        if info.get('auto_download'):
-            auto_label = QLabel("Auto-downloads via package manager")
-            auto_label.setStyleSheet("color: gray; font-size: 10px; font-style: italic;")
-            layout.addWidget(auto_label)
-        
-        # Progress bar (hidden by default)
-        progress = QProgressBar()
-        progress.setVisible(False)
-        progress.setObjectName(f"progress_{model_name}")
-        layout.addWidget(progress)
-        
-        # Buttons
-        button_layout = QHBoxLayout()
-        
-        if not info.get('auto_download'):
-            if not info['installed']:
-                download_btn = QPushButton(f"Download Now ({info.get('size_mb', '?')} MB)")
-                download_btn.setObjectName(f"download_{model_name}")
-                download_btn.clicked.connect(
-                    lambda checked, mn=model_name: self.download_model(mn)
-                )
-                button_layout.addWidget(download_btn)
-            else:
-                delete_btn = QPushButton(f"Delete ({info.get('size_mb', '?')} MB)")
-                delete_btn.setStyleSheet("background-color: #ffcccc;")
-                delete_btn.setObjectName(f"delete_{model_name}")
-                delete_btn.clicked.connect(
-                    lambda checked, mn=model_name: self.delete_model(mn)
-                )
-                button_layout.addWidget(delete_btn)
-        
-        button_layout.addStretch()
-        layout.addLayout(button_layout)
-        
-        frame.setLayout(layout)
-        frame.setObjectName(f"frame_{model_name}")
-        return frame
-    
-    def download_model(self, model_name: str):
-        """Download a model"""
-        # Find the button and progress bar
-        download_btn = self.findChild(QPushButton, f"download_{model_name}")
-        progress = self.findChild(QProgressBar, f"progress_{model_name}")
-        
-        if download_btn:
-            download_btn.setEnabled(False)
-        if progress:
-            progress.setVisible(True)
-            progress.setValue(0)
-        
-        thread = ModelDownloadThread(self.model_manager, model_name)
-        thread.progress.connect(
-            lambda d, t: self.update_progress(model_name, d, t)
-        )
-        thread.finished.connect(
-            lambda success: self.on_download_finished(model_name, success)
-        )
-        
-        self.download_threads[model_name] = thread
-        thread.start()
-    
-    def update_progress(self, model_name: str, downloaded: int, total: int):
-        """Update download progress"""
-        progress = self.findChild(QProgressBar, f"progress_{model_name}")
-        if progress and total > 0:
-            progress.setValue(int((downloaded / total) * 100))
-    
-    def on_download_finished(self, model_name: str, success: bool):
-        """Handle download completion"""
-        progress = self.findChild(QProgressBar, f"progress_{model_name}")
-        download_btn = self.findChild(QPushButton, f"download_{model_name}")
-        
-        if progress:
-            progress.setVisible(False)
-        
-        if success:
-            logger.info(f"✅ {model_name} downloaded successfully")
-            QMessageBox.information(
-                self,
-                "Download Complete",
-                f"{model_name} has been downloaded successfully!"
-            )
-            # Refresh the UI
-            self.refresh_ui()
-        else:
-            logger.error(f"❌ Failed to download {model_name}")
-            QMessageBox.critical(
-                self,
-                "Download Failed",
-                f"Failed to download {model_name}. Please check your internet connection and try again."
-            )
-            if download_btn:
-                download_btn.setEnabled(True)
-    
-    def delete_model(self, model_name: str):
-        """Delete a model"""
-        # Confirm deletion
-        reply = QMessageBox.question(
-            self,
-            "Confirm Deletion",
-            f"Are you sure you want to delete {model_name}?",
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
-        )
-        
-        if reply != QMessageBox.StandardButton.Yes:
-            return
-        
-        if self.model_manager.delete_model(model_name):
-            logger.info(f"✅ Deleted {model_name}")
-            QMessageBox.information(
-                self,
-                "Model Deleted",
-                f"{model_name} has been deleted successfully."
-            )
-            # Refresh the UI
-            self.refresh_ui()
-        else:
-            QMessageBox.critical(
-                self,
-                "Deletion Failed",
-                f"Failed to delete {model_name}."
-            )
-    
-    def refresh_ui(self):
-        """Refresh the UI to reflect current model status"""
-        # Clear current layout
-        layout = self.layout()
-        if layout:
-            # Collect all items first
-            items = []
-            while layout.count():
-                items.append(layout.takeAt(0))
-            
-            # Delete widgets
-            for item in items:
-                if item.widget():
-                    item.widget().deleteLater()
-        
-        # Rebuild UI
-        self.setup_ui()
