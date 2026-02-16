@@ -13,9 +13,9 @@ OPENGL_AVAILABLE = False
 PandaWidget = None
 
 try:
-    from src.ui.panda_widget_gl import PandaWidgetGLBridge, QT_AVAILABLE
+    from src.ui.panda_widget_gl import PandaOpenGLWidget, QT_AVAILABLE
     if QT_AVAILABLE:
-        PandaWidget = PandaWidgetGLBridge
+        PandaWidget = PandaOpenGLWidget
         OPENGL_AVAILABLE = True
         logger.info("✅ OpenGL panda widget loaded (hardware-accelerated 3D)")
     else:
