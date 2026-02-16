@@ -19,6 +19,14 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import Qt, QThread, pyqtSignal, QStringListModel, QTimer
 from PyQt6.QtGui import QFont, QPixmap, QImage
 
+# Import organizer settings panel
+try:
+    from ui.organizer_settings_panel import OrganizerSettingsPanel
+    ORGANIZER_SETTINGS_AVAILABLE = True
+except ImportError as e:
+    logger.warning(f"Organizer settings panel not available: {e}")
+    ORGANIZER_SETTINGS_AVAILABLE = False
+
 logger = logging.getLogger(__name__)
 
 # Import dependencies
@@ -689,8 +697,63 @@ class OrganizerPanelQt(QWidget):
         layout.addLayout(button_layout)
     
     def _create_settings_section(self, layout):
-        """Create settings section."""
-        group = QGroupBox("🔧 Settings")
+        """Create settings section with comprehensive organizer settings panel."""
+        # Create collapsible settings group
+        settings_container = QWidget()
+        settings_layout = QVBoxLayout(settings_container)
+        settings_layout.setContentsMargins(0, 0, 0, 0)
+        settings_layout.setSpacing(5)
+        
+        # Toggle button for settings visibility
+        toggle_btn = QPushButton("⚙️ Show Advanced Settings")
+        toggle_btn.setCheckable(True)
+        toggle_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #e0e0e0;
+                border: 1px solid #ccc;
+                border-radius: 4px;
+                padding: 8px;
+                font-weight: bold;
+            }
+            QPushButton:checked {
+                background-color: #4CAF50;
+                color: white;
+            }
+            QPushButton:hover {
+                background-color: #d0d0d0;
+            }
+        """)
+        settings_layout.addWidget(toggle_btn)
+        
+        # Create settings panel
+        if ORGANIZER_SETTINGS_AVAILABLE:
+            self.settings_panel = OrganizerSettingsPanel(config=self.get_config())
+            self.settings_panel.settings_changed.connect(self._on_settings_changed)
+            self.settings_panel.setVisible(False)  # Hidden by default
+            settings_layout.addWidget(self.settings_panel)
+            
+            # Connect toggle
+            toggle_btn.toggled.connect(lambda checked: self._toggle_settings(checked, toggle_btn))
+        else:
+            # Fallback to basic settings if comprehensive panel not available
+            self._create_basic_settings(settings_layout)
+            basic_settings = settings_layout.itemAt(1).widget()
+            basic_settings.setVisible(False)
+            toggle_btn.toggled.connect(lambda checked: basic_settings.setVisible(checked))
+        
+        layout.addWidget(settings_container)
+    
+    def _toggle_settings(self, visible: bool, button: QPushButton):
+        """Toggle settings panel visibility."""
+        self.settings_panel.setVisible(visible)
+        if visible:
+            button.setText("⚙️ Hide Advanced Settings")
+        else:
+            button.setText("⚙️ Show Advanced Settings")
+    
+    def _create_basic_settings(self, layout):
+        """Create basic settings (fallback if comprehensive panel not available)."""
+        group = QGroupBox("🔧 Basic Settings")
         group_layout = QVBoxLayout()
         
         # AI Model Selection
@@ -767,6 +830,33 @@ class OrganizerPanelQt(QWidget):
         
         group.setLayout(group_layout)
         layout.addWidget(group)
+    
+    def _on_settings_changed(self, settings: dict):
+        """Handle settings changes from settings panel."""
+        # Update internal state based on new settings
+        logger.info(f"Settings updated: {settings}")
+        # Settings will be applied when starting organization
+    
+    def get_config(self) -> dict:
+        """Get current configuration for settings panel."""
+        return {
+            'organizer': {
+                'clip_model': 'CLIP_ViT-B/32 (340 MB - Balanced)',
+                'dinov2_model': 'DINOv2_base (340 MB - Balanced)',
+                'organization_mode': 'Automatic (AI instantly classifies)',
+                'confidence_threshold': 75,
+                'auto_accept': False,
+                'sensitivity': 1.0,
+                'learning_enabled': True,
+                'process_subfolders': True,
+                'archive_input': False,
+                'archive_output': False,
+                'backup_files': True,
+                'naming_pattern': '{category}/{filename}',
+                'case_sensitive': False,
+                'conflict_resolution': 'Number (add suffix: _1, _2, etc.)',
+            }
+        }
     
     def _setup_learning_system(self):
         """Initialize learning system with current profile."""

@@ -305,10 +305,25 @@ class ModelCardWidget(QFrame):
             self.recreate_ui()
         else:
             logger.error(f"❌ Failed to download {self.model_name}")
+            # Show detailed error message with troubleshooting tips
+            error_msg = (
+                f"❌ Could not download {self.model_name}\n\n"
+                f"Possible causes:\n"
+                f"• No internet connection\n"
+                f"• Server temporarily unavailable\n"
+                f"• Insufficient disk space\n"
+                f"• Firewall blocking downloads\n\n"
+                f"💡 Troubleshooting:\n"
+                f"• Check your internet connection\n"
+                f"• Try again in a few minutes\n"
+                f"• Free up disk space if needed\n"
+                f"• Check firewall settings\n\n"
+                f"The system tried both primary and mirror URLs."
+            )
             QMessageBox.critical(
                 self,
                 "Download Failed",
-                f"Failed to download {self.model_name}. Please check your internet connection and try again."
+                error_msg
             )
     
     def delete_model(self):
