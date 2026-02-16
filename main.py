@@ -1,8 +1,7 @@
 #!/usr/bin/env python3
 """
 Game Texture Sorter - Qt Main Application
-A proper Qt6-based application with OpenGL rendering.
-NO tkinter, NO canvas, NO compatibility bridges.
+A Qt6-based application with OpenGL rendering.
 Author: Dead On The Inside / JosephsDeadish
 """
 

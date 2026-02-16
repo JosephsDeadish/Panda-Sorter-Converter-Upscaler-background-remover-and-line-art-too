@@ -175,10 +175,15 @@ a = Analysis(
         'file_handler',
         'database',
         'organizer',
+        'preprocessing',
+        'preprocessing.alpha_correction',
+        'preprocessing.alpha_handler',
+        'preprocessing.preprocessing_pipeline',
+        'preprocessing.upscaler',
+        'preprocessing.filters',
         # Core image processing
         'PIL',
         'PIL.Image',
-        'PIL.ImageTk',
         'PIL.ImageFile',
         'PIL.ImageDraw',
         'PIL.ImageFont',
@@ -193,16 +198,17 @@ a = Analysis(
         'sqlite3',
         'send2trash',
         'watchdog',
-        # Qt6 UI framework (REQUIRED - ONLY SUPPORTED UI)
-        # NO TKINTER - Full Qt6 migration complete
+        # Qt6 UI framework
+        
         'PyQt6',
         'PyQt6.QtCore',
         'PyQt6.QtGui',
         'PyQt6.QtWidgets',
         'PyQt6.QtOpenGL',
         'PyQt6.QtOpenGLWidgets',
+        'PyQt6.QtSvg',  # SVG support
         'PyQt6.sip',
-        # OpenGL for 3D rendering (panda, skeletal animations)
+        # OpenGL for 3D rendering
         'OpenGL',
         'OpenGL.GL',
         'OpenGL.GLU',
@@ -210,6 +216,8 @@ a = Analysis(
         'OpenGL.arrays',
         'OpenGL.arrays.vbo',
         'OpenGL.GL.shaders',
+        'OpenGL.platform',
+        'OpenGL.platform.glx',
         'darkdetect',
         # Utilities
         'psutil',
@@ -239,16 +247,23 @@ a = Analysis(
     ],
     hookspath=[str(SCRIPT_DIR)],  # Use hooks in project root (hook-*.py files)
     hooksconfig={},
-    runtime_hooks=[],  # Removed tkinter runtime hook - not needed for Qt6
+    runtime_hooks=[
+        str(SCRIPT_DIR / 'runtime-hook-onnxruntime.py'),  # Disable CUDA providers
+    ],
     excludes=[
-        # Tkinter/CustomTkinter - NO LONGER USED (full Qt6 migration complete)
+        # Exclude tkinter
+        
         'tkinter',
         'tkinter.ttk',
         'tkinter.messagebox',
         'tkinter.filedialog',
+        'tkinter.scrolledtext',
+        'tkinter.constants',
+        'tkinter.font',
         'customtkinter',
         'tkinterdnd2',
         '_tkinter',
+        'PIL.ImageTk',  # Tkinter-specific PIL module
         
         # Heavy scientific libraries (not needed)
         'matplotlib',
@@ -297,14 +312,15 @@ a = Analysis(
     noarchive=False,
 )
 
-# Filter out legacy OpenGL DLLs that depend on old MSVC runtimes (MSVCR90.dll, MSVCR100.dll)
-# These are optional compatibility DLLs for very old systems and are not needed
-# PyOpenGL works fine with modern Windows OpenGL drivers without these DLLs
-print("Filtering out legacy OpenGL DLLs (gle*.vc9.dll, gle*.vc10.dll, freeglut*.vc9.dll, freeglut*.vc10.dll)...")
+# Filter out problematic DLLs that cause build warnings or errors
+print("Filtering out problematic DLLs...")
+print("  - Legacy OpenGL DLLs (gle*.vc9.dll, gle*.vc10.dll, freeglut*.vc9.dll, freeglut*.vc10.dll)")
+print("  - CUDA DLLs from onnxruntime (nvcuda.dll, cudart*.dll, cublas*.dll, etc.)")
+
 a.binaries = [
     (dest, src, typ) for (dest, src, typ) in a.binaries
     if not (
-        # Exclude legacy GLE DLLs (Visual C++ 9.0 and 10.0 versions)
+        # Exclude legacy GLE DLLs (Visual C++ 9.0 and 10.0 versions with MSVCR90/100.dll deps)
         ('gle32.vc9.dll' in dest.lower()) or
         ('gle64.vc9.dll' in dest.lower()) or
         ('gle32.vc10.dll' in dest.lower()) or
@@ -313,7 +329,21 @@ a.binaries = [
         ('freeglut32.vc9.dll' in dest.lower()) or
         ('freeglut64.vc9.dll' in dest.lower()) or
         ('freeglut32.vc10.dll' in dest.lower()) or
-        ('freeglut64.vc10.dll' in dest.lower())
+        ('freeglut64.vc10.dll' in dest.lower()) or
+        # Exclude CUDA DLLs from onnxruntime (prevents nvcuda.dll error)
+        ('nvcuda' in dest.lower()) or
+        ('cudart' in dest.lower()) or
+        ('cublas' in dest.lower()) or
+        ('cudnn' in dest.lower()) or
+        ('cufft' in dest.lower()) or
+        ('curand' in dest.lower()) or
+        ('cusparse' in dest.lower()) or
+        ('cusolver' in dest.lower()) or
+        ('nvrtc' in dest.lower()) or
+        ('tensorrt' in dest.lower()) or
+        # Exclude CUDA execution provider DLL from onnxruntime
+        ('onnxruntime_providers_cuda' in dest.lower()) or
+        ('onnxruntime_providers_tensorrt' in dest.lower())
     )
 ]
 print(f"Binary count after filtering: {len(a.binaries)}")

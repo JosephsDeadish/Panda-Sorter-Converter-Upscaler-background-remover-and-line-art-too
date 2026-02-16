@@ -1,9 +1,10 @@
 """
 PyInstaller hook for onnxruntime
-Handles DLL dependencies that fail to load on Windows
+Handles DLL dependencies and excludes CUDA providers
 
-This hook ensures that onnxruntime's DLL dependencies are properly
-collected and bundled with the application.
+This hook ensures that onnxruntime's CPU DLL dependencies are properly
+collected and bundled with the application, while excluding CUDA/GPU
+providers to prevent nvcuda.dll loading errors.
 
 Note: This hook avoids importing onnxruntime during analysis to prevent
 DLL initialization issues on the build machine.
@@ -28,9 +29,39 @@ hiddenimports = [
     'numpy.core._multiarray_umath',
 ]
 
+# CUDA keywords for filtering (case-insensitive)
+cuda_keywords = [
+    'cuda', 'cudart', 'cublas', 'cudnn', 'cufft', 'curand',
+    'cusparse', 'cusolver', 'nvrtc', 'tensorrt', 'nvcuda',
+    'onnxruntime_providers_cuda', 'onnxruntime_providers_tensorrt'
+]
+
+def should_skip_cuda_dll(file_path):
+    """
+    Check if a DLL should be skipped due to CUDA dependency.
+    
+    Args:
+        file_path: Path to the DLL file
+        
+    Returns:
+        tuple: (should_skip: bool, display_name: str)
+    """
+    file_name = os.path.basename(file_path)
+    file_name_lower = file_name.lower()
+    is_cuda = any(keyword in file_name_lower for keyword in cuda_keywords)
+    return is_cuda, file_name
+
 try:
     # Try to collect binaries without importing onnxruntime
-    binaries = collect_dynamic_libs('onnxruntime')
+    collected_binaries = collect_dynamic_libs('onnxruntime')
+    
+    # Filter out CUDA and GPU-related DLLs to prevent nvcuda.dll errors
+    for binary_path, binary_dest in collected_binaries:
+        is_cuda, file_name = should_skip_cuda_dll(binary_path)
+        if not is_cuda:
+            binaries.append((binary_path, binary_dest))
+        else:
+            print(f"  [onnxruntime hook] Skipping CUDA DLL: {file_name}")
     
     # Also collect data files if any
     datas = collect_data_files('onnxruntime', include_py_files=False)
@@ -57,7 +88,10 @@ try:
                     if os.path.exists(capi_path):
                         for pattern in ['*.dll', '*.pyd']:
                             for file_path in glob.glob(os.path.join(capi_path, pattern)):
-                                file_name = os.path.basename(file_path)
+                                is_cuda, file_name = should_skip_cuda_dll(file_path)
+                                if is_cuda:
+                                    print(f"  [onnxruntime hook] Skipping CUDA DLL: {file_name}")
+                                    continue
                                 # Add to binaries with destination in onnxruntime/capi
                                 binaries.append((file_path, 'onnxruntime/capi'))
                                 print(f"  [onnxruntime hook] Collecting: {file_name}")
@@ -65,7 +99,10 @@ try:
                     # Also collect DLLs from main onnxruntime directory
                     for pattern in ['*.dll']:
                         for file_path in glob.glob(os.path.join(onnx_path, pattern)):
-                            file_name = os.path.basename(file_path)
+                            is_cuda, file_name = should_skip_cuda_dll(file_path)
+                            if is_cuda:
+                                print(f"  [onnxruntime hook] Skipping CUDA DLL: {file_name}")
+                                continue
                             binaries.append((file_path, 'onnxruntime'))
                             print(f"  [onnxruntime hook] Collecting: {file_name}")
                     
