@@ -113,24 +113,28 @@ class Config:
             # UI Settings
             "ui": {
                 "theme": "dark",  # dark, light
+                "accent_color": "#0d7377",  # Accent color for UI elements
                 "custom_colors": {},
                 "cursor": "default",  # default, skull, panda, sword
                 "cursor_size": "medium",  # small, medium, large
                 "cursor_trail": False,
                 "cursor_trail_color": "rainbow",  # rainbow, fire, ice, nature, galaxy, gold
                 "tooltip_enabled": True,
-                "tooltip_mode": "vulgar_panda",  # expert, normal, beginner, panda
+                "tooltip_mode": "vulgar_panda",  # normal, dumbed_down, vulgar_panda
                 "tooltip_delay": 0.5,
                 "window_opacity": 1.0,
                 "animation_speed": 1.0,
                 "font_size": 12,
                 "font_family": "Segoe UI",
+                "font_weight": "normal",  # light, normal, bold
                 "icon_size": "medium",
                 "compact_view": False,
                 "layout": "default",
                 "show_thumbnails": True,
                 "thumbnail_size": 32,  # 16, 32, or 64
-                "disable_panda_animations": False
+                "disable_panda_animations": False,
+                "sound_enabled": True,
+                "sound_volume": 0.7  # 0.0 - 1.0
             },
             
             # Performance Settings
@@ -142,6 +146,7 @@ class Config:
                 "background_priority": "normal",
                 "batch_size": 100,
                 "preview_quality": "medium",
+                "thumbnail_quality": "high",  # low, medium, high
                 "thumbnail_cache_size": 500
             },
             

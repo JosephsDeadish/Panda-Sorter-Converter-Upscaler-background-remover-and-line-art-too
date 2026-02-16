@@ -4830,6 +4830,427 @@ _PANDA_TOOLTIPS = {
             "Alpha matting helps with tricky edges on transparent or semi-transparent things. Takes longer but looks better.",
         ],
     },
+    # Settings Panel Tooltips
+    'theme_selector': {
+        'normal': [
+            "Choose between Dark and Light theme for the application interface",
+            "Switch the UI color scheme to match your preference",
+            "Select the visual theme for the entire application",
+        ],
+        'vulgar': [
+            "Dark mode or light mode. Choose wisely. Light mode users are psychopaths but we don't discriminate.",
+            "Theme picker. Dark = cool. Light = you hate your eyes. Simple.",
+            "Pick your theme. We judge light mode users but you do you.",
+        ],
+        'dumbed-down': [
+            "Change how the app looks. Dark makes it black, Light makes it white.",
+        ],
+    },
+    'accent_color': {
+        'normal': [
+            "Select the accent color for buttons and highlights throughout the UI",
+            "Choose your preferred highlight color for interactive elements",
+            "Pick the color used for buttons and selected items",
+        ],
+        'vulgar': [
+            "Make buttons whatever color your heart desires. Express yourself. Be the rainbow.",
+            "Pick your accent color. Make it yours. Paint the UI with your personality.",
+            "Color picker. Because fuck default colors. Customize everything.",
+        ],
+        'dumbed-down': [
+            "Pick what color buttons and highlights should be.",
+        ],
+    },
+    'opacity_slider': {
+        'normal': [
+            "Adjust window transparency from 50% to 100%",
+            "Control how see-through the application window is",
+            "Set window opacity level for your preference",
+        ],
+        'vulgar': [
+            "Make the window see-through if you want. Why? Who knows. But you can.",
+            "Opacity slider. Solid or transparent. Your window, your rules.",
+            "Transparency control. Because sometimes you want to see your desktop wallpaper through your apps.",
+        ],
+        'dumbed-down': [
+            "Make the window see-through or solid.",
+        ],
+    },
+    'compact_view': {
+        'normal': [
+            "Enable compact view to reduce spacing and fit more on screen",
+            "Toggle between normal and space-efficient layout",
+            "Use compact mode for smaller screens or to see more at once",
+        ],
+        'vulgar': [
+            "Compact view. Cram more shit on screen. For tiny monitors or people who hate whitespace.",
+            "Squeeze everything tighter. Like packing a suitcase but for UI elements.",
+            "Compact mode. Less space, more stuff. Efficiency over comfort.",
+        ],
+        'dumbed-down': [
+            "Make everything smaller to fit more on the screen.",
+        ],
+    },
+    'cursor_selector': {
+        'normal': [
+            "Choose from Default, Skull, Panda, or Sword cursor styles",
+            "Select your preferred mouse pointer appearance",
+            "Pick a custom cursor to match your personality",
+        ],
+        'vulgar': [
+            "Cursor styles. Because default is boring as hell. Pick skull. Or panda. Or sword. Live dangerously.",
+            "Change your pointer. Make clicking more interesting. It's the little things.",
+            "Custom cursors. Default? Boring. Skull? Cool. Panda? Adorable. Sword? Badass.",
+        ],
+        'dumbed-down': [
+            "Change what your mouse pointer looks like.",
+        ],
+    },
+    'cursor_size': {
+        'normal': [
+            "Set cursor size to Small, Medium, or Large",
+            "Adjust mouse pointer size for visibility",
+            "Control how big the cursor appears on screen",
+        ],
+        'vulgar': [
+            "Cursor size. Small, medium, or THICC. Your eyes, your call.",
+            "Make your cursor bigger if you can't see the damn thing.",
+            "Size matters. At least for cursors. Make it visible.",
+        ],
+        'dumbed-down': [
+            "Make the pointer bigger or smaller.",
+        ],
+    },
+    'cursor_trail': {
+        'normal': [
+            "Enable a colorful trail effect that follows your cursor",
+            "Turn on cursor trail for visual feedback while moving the mouse",
+            "Add a trailing effect to make cursor movement more visible",
+        ],
+        'vulgar': [
+            "Cursor trail. Make your pointer fabulous. Leave sparkles in your wake. Be extra.",
+            "Trail effect. Your cursor becomes a comet. Or a sparkler. Or whatever.",
+            "Add a trail behind your cursor. Unnecessary? Yes. Cool? Also yes.",
+        ],
+        'dumbed-down': [
+            "Make a colorful trail follow your mouse pointer.",
+        ],
+    },
+    'cursor_trail_color': {
+        'normal': [
+            "Choose trail color: Rainbow, Fire, Ice, Nature, Galaxy, or Gold",
+            "Select the color scheme for your cursor trail effect",
+            "Pick which colors the cursor trail displays",
+        ],
+        'vulgar': [
+            "Trail colors. Rainbow, fire, ice, nature, galaxy, gold. All cool. All extra. Pick one.",
+            "Choose your trail color scheme. Express yourself through mouse movement. Art.",
+            "Color your trail. Rainbow for pride. Fire for passion. Ice for... being cold? You get it.",
+        ],
+        'dumbed-down': [
+            "Pick what colors the trail should be.",
+        ],
+    },
+    'font_family': {
+        'normal': [
+            "Select the font family used throughout the application",
+            "Choose which typeface the UI displays text in",
+            "Pick your preferred font for all text elements",
+        ],
+        'vulgar': [
+            "Font picker. Segoe UI is boring but readable. Comic Sans makes everyone hate you. Choose accordingly.",
+            "Select your font. Make the UI readable. Or use Comic Sans and become a villain.",
+            "Font family. The typeface. The letters. Pick one that doesn't hurt your eyes.",
+        ],
+        'dumbed-down': [
+            "Change what the letters look like.",
+        ],
+    },
+    'font_size': {
+        'normal': [
+            "Set font size from 8 to 20 points",
+            "Adjust text size for better readability",
+            "Control how large text appears in the UI",
+        ],
+        'vulgar': [
+            "Font size. Make text bigger if you're blind. Smaller if you have hawk eyes. Simple.",
+            "Text size control. Too small? Make it bigger. Too big? Shrink that shit.",
+            "Adjust font size. For the visually impaired or those with 4K monitors.",
+        ],
+        'dumbed-down': [
+            "Make the text bigger or smaller.",
+        ],
+    },
+    'font_weight': {
+        'normal': [
+            "Choose font weight: Light, Normal, or Bold",
+            "Set how thick or thin the text appears",
+            "Adjust font weight for readability preference",
+        ],
+        'vulgar': [
+            "Font thiccness. Light, normal, or BOLD AS HELL. Your text, your choice.",
+            "Make text skinny, normal, or thicc. Weight control for fonts.",
+            "Font weight. Thin for minimalists. Bold for people who WANT TO BE HEARD.",
+        ],
+        'dumbed-down': [
+            "Make the text thin, normal, or thick.",
+        ],
+    },
+    'icon_size': {
+        'normal': [
+            "Set icon size to Small, Medium, or Large",
+            "Adjust the size of icons throughout the UI",
+            "Control how big icons and symbols appear",
+        ],
+        'vulgar': [
+            "Icon size. Small for minimalists. Large for the blind. Medium for normal people.",
+            "Make icons bigger or smaller. Visibility matters. Or doesn't. You decide.",
+            "Icon size control. Bigger = more visible. Smaller = more space. Balance.",
+        ],
+        'dumbed-down': [
+            "Change how big the icons are.",
+        ],
+    },
+    'animation_speed': {
+        'normal': [
+            "Adjust animation speed from 0.5x (slower) to 2.0x (faster)",
+            "Control how fast UI animations and transitions play",
+            "Set the speed multiplier for all interface animations",
+        ],
+        'vulgar': [
+            "Animation speed. Slow for dramatic effect. Fast for ADHD. Default for normies.",
+            "Make animations slower or faster. Because sometimes you need speed. Or you need SLOWMO.",
+            "Speed control. Slow = cinematic. Fast = efficient. You pick.",
+        ],
+        'dumbed-down': [
+            "Make things move slower or faster.",
+        ],
+    },
+    'tooltip_enabled': {
+        'normal': [
+            "Enable or disable all tooltip popups",
+            "Turn tooltips on or off throughout the application",
+            "Control whether helpful text appears when hovering",
+        ],
+        'vulgar': [
+            "Tooltip toggle. On = helpful hints. Off = figure it out yourself, genius.",
+            "Enable tooltips or don't. We spent hours writing them but you do you.",
+            "Turn tooltips on or off. They're helpful. But also optional. Your loss.",
+        ],
+        'dumbed-down': [
+            "Turn helpful hints on or off.",
+        ],
+    },
+    'tooltip_mode': {
+        'normal': [
+            "Choose tooltip style: Normal (professional), Dumbed Down (simple), or Vulgar Panda (humorous)",
+            "Select how tooltips communicate: formal, simplified, or entertaining",
+            "Pick your preferred tooltip personality and verbosity",
+        ],
+        'vulgar': [
+            "YOU'RE ALREADY IN VULGAR PANDA MODE. This is the best mode. The only real mode. Accept no substitutes.",
+            "Tooltip mode. Normal = boring. Dumbed Down = simple. Vulgar Panda = THIS. The superior choice.",
+            "Pick your tooltip flavor. Normal? Safe. Dumbed Down? Helpful. Vulgar Panda? The truth.",
+        ],
+        'dumbed-down': [
+            "Pick how tooltips talk to you. Normal is polite. Dumbed Down is simple. Vulgar Panda is funny but uses bad words.",
+        ],
+    },
+    'tooltip_delay': {
+        'normal': [
+            "Set how long to wait before showing tooltips (0-2 seconds)",
+            "Adjust the delay before tooltip popups appear",
+            "Control tooltip display timing for your preference",
+        ],
+        'vulgar': [
+            "Tooltip delay. How long before helpful text appears. Short = eager. Long = patient.",
+            "Delay control. Fast = tooltips spam you. Slow = tooltips give you space. Balance.",
+            "Time before tooltips show up. Short for impatient people. Long for zen masters.",
+        ],
+        'dumbed-down': [
+            "How long to wait before hints pop up.",
+        ],
+    },
+    'sound_enabled': {
+        'normal': [
+            "Enable or disable all sound effects in the application",
+            "Toggle audio feedback on or off",
+            "Control whether the app makes sounds",
+        ],
+        'vulgar': [
+            "Sound toggle. On = beeps and boops. Off = silence. For people who hate joy.",
+            "Enable sounds or don't. Your ears, your rules. Neighbors' opinions optional.",
+            "Turn sounds on or off. Beeping optional. Your environment, your choice.",
+        ],
+        'dumbed-down': [
+            "Turn sounds on or off.",
+        ],
+    },
+    'sound_volume': {
+        'normal': [
+            "Adjust sound effect volume from 0% (mute) to 100% (full)",
+            "Control how loud the application sounds are",
+            "Set the volume level for audio feedback",
+        ],
+        'vulgar': [
+            "Volume slider. Loud = annoying. Quiet = pointless. Middle ground = perfect. Find yours.",
+            "Make sounds louder or quieter. Neighbors hate you? Turn it down. Live alone? CRANK IT.",
+            "Volume control. Too loud? Lower it. Too quiet? Raise it. Revolutionary.",
+        ],
+        'dumbed-down': [
+            "Make sounds louder or quieter.",
+        ],
+    },
+    'thread_count': {
+        'normal': [
+            "Set number of threads for parallel processing (1-16)",
+            "Control how many CPU threads to use for operations",
+            "Adjust thread count for performance vs system load balance",
+        ],
+        'vulgar': [
+            "Thread count. More = faster. Also = more CPU usage. Balance performance and not burning your PC.",
+            "How many threads? More threads = more speed = more heat. Your CPU, your problem.",
+            "Parallel processing threads. High = fast but hot. Low = slow but cool. Pick your poison.",
+        ],
+        'dumbed-down': [
+            "How many things the app can do at once. More is faster but uses more computer power.",
+        ],
+    },
+    'memory_limit': {
+        'normal': [
+            "Set maximum memory usage in megabytes (512-8192 MB)",
+            "Control how much RAM the application can use",
+            "Adjust memory limit to prevent excessive RAM consumption",
+        ],
+        'vulgar': [
+            "Memory limit. How much RAM before the app says 'that's enough.' Set it high. RAM is cheap.",
+            "RAM ceiling. The app won't use more than this. Unless it crashes. Then all bets are off.",
+            "Memory cap. Limit how much RAM gets consumed. For people who actually close Chrome.",
+        ],
+        'dumbed-down': [
+            "How much computer memory the app can use.",
+        ],
+    },
+    'cache_size': {
+        'normal': [
+            "Set cache size for thumbnails and previews (128-2048 MB)",
+            "Control disk space used for temporary cached data",
+            "Adjust cache size for performance vs storage balance",
+        ],
+        'vulgar': [
+            "Cache size. More = faster loading. Also = more disk space used. Trade-offs everywhere.",
+            "How much storage for cached shit. Big cache = fast. Small cache = more space. Balance.",
+            "Cache size control. Store more thumbnails = faster. Store less = more disk space. Pick one.",
+        ],
+        'dumbed-down': [
+            "How much space to use for storing previews.",
+        ],
+    },
+    'thumbnail_quality': {
+        'normal': [
+            "Choose thumbnail quality: Low, Medium, or High",
+            "Set the image quality for thumbnail generation",
+            "Balance thumbnail quality vs generation speed and file size",
+        ],
+        'vulgar': [
+            "Thumbnail quality. Low = fast and ugly. High = slow and pretty. Medium = compromise.",
+            "Preview quality setting. High = beautiful. Low = pixelated. Your eyes, your call.",
+            "Quality slider for thumbnails. Better quality = slower generation. Trade-off city.",
+        ],
+        'dumbed-down': [
+            "How good the preview pictures look.",
+        ],
+    },
+    'debug_mode': {
+        'normal': [
+            "Enable debug mode for detailed logging and diagnostics",
+            "Turn on debug logging for troubleshooting",
+            "Enable advanced logging for development or debugging",
+        ],
+        'vulgar': [
+            "Debug mode. Turns on ALL the logs. For developers and masochists who enjoy reading errors.",
+            "Enable debug logging. See EVERYTHING. Every error, every warning, every 'what the fuck' moment.",
+            "Debug toggle. On = verbose logs. Off = blissful ignorance. Choose wisely.",
+        ],
+        'dumbed-down': [
+            "Turn on extra information for fixing problems.",
+        ],
+    },
+    'verbose_logging': {
+        'normal': [
+            "Enable verbose logging for even more detailed output",
+            "Turn on maximum logging detail for troubleshooting",
+            "Enable comprehensive logging of all operations",
+        ],
+        'vulgar': [
+            "Verbose logging. Like debug mode but MORE. For people who love information overload.",
+            "Enable maximum logging. Every. Single. Detail. Logs for days. You asked for this.",
+            "Ultra verbose logs. See everything. Know everything. Drown in information. You're welcome.",
+        ],
+        'dumbed-down': [
+            "Turn on lots of extra information about what the app is doing.",
+        ],
+    },
+    'reset_button': {
+        'normal': [
+            "Reset all settings to their default values",
+            "Restore factory defaults for all configuration options",
+            "Revert all customizations to original settings",
+        ],
+        'vulgar': [
+            "Reset everything. Nuclear option. Back to square one. Fuck your changes. Start over.",
+            "Factory reset button. Destroys all your settings. Use wisely. Or don't. Your funeral.",
+            "Reset to defaults. Erase all customization. Fresh start. Clean slate. Tabula rasa.",
+        ],
+        'dumbed-down': [
+            "Put all settings back to how they were at the start.",
+        ],
+    },
+    'export_button': {
+        'normal': [
+            "Export current settings to a JSON file for backup or sharing",
+            "Save your configuration to a file",
+            "Create a backup of all your current settings",
+        ],
+        'vulgar': [
+            "Export settings. Save your config. Back it up. Share it. Whatever. Just don't lose it.",
+            "Save settings to file. Backup your shit. Future you will thank present you.",
+            "Export config. Make a backup. Because one day you'll fuck something up and need this.",
+        ],
+        'dumbed-down': [
+            "Save your settings to a file.",
+        ],
+    },
+    'import_button': {
+        'normal': [
+            "Import settings from a previously exported JSON file",
+            "Load configuration from a file",
+            "Restore settings from a backup or shared configuration",
+        ],
+        'vulgar': [
+            "Import settings. Load someone else's config. Or your own backup. Time travel for settings.",
+            "Load config from file. Restore a backup. Undo your mistakes. Thank past you.",
+            "Import button. Load saved settings. Restore your config. Fix your fuckups.",
+        ],
+        'dumbed-down': [
+            "Load settings from a file.",
+        ],
+    },
+    'open_config': {
+        'normal': [
+            "Open the configuration folder in your file explorer",
+            "View the directory containing config and cache files",
+            "Access the application data folder",
+        ],
+        'vulgar': [
+            "Open config folder. See where all the settings live. Explore. Break things. Have fun.",
+            "Opens the config directory. For curious people who like poking around in file systems.",
+            "Config folder button. See the guts. Peek behind the curtain. Touch nothing. Or touch everything.",
+        ],
+        'dumbed-down': [
+            "Open the folder where settings are saved.",
+        ],
+    },
 }
 
 
