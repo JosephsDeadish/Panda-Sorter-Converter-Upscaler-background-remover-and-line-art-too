@@ -28,6 +28,8 @@ python main.py
 ### Option 2: Full Installation
 Includes all features including advanced AI classification (~1.5 GB total):
 ```bash
+pip install torch torchvision
+pip install timm basicsr realesrgan transformers open-clip-torch
 pip install -r requirements.txt
 python main.py
 ```
@@ -78,6 +80,8 @@ pip install -r requirements-minimal.txt
 
 **Option B - Full Features**
 ```cmd
+pip install torch torchvision
+pip install timm basicsr realesrgan transformers open-clip-torch
 pip install -r requirements.txt
 ```
 
@@ -171,6 +175,8 @@ pip install -r requirements-minimal.txt
 
 **Option B - Full Features**
 ```bash
+pip install torch torchvision
+pip install timm basicsr realesrgan transformers open-clip-torch
 pip install -r requirements.txt
 ```
 
@@ -240,6 +246,8 @@ pip install -r requirements-minimal.txt
 
 **Option B - Full Features**
 ```bash
+pip install torch torchvision
+pip install timm basicsr realesrgan transformers open-clip-torch
 pip install -r requirements.txt
 ```
 
@@ -267,6 +275,8 @@ pip install torch torchvision
 
 ### 1. Standard Installation (using pip)
 ```bash
+pip install torch torchvision
+pip install timm basicsr realesrgan transformers open-clip-torch
 pip install -r requirements.txt
 ```
 

@@ -166,6 +166,8 @@ python main.py
 
 **Full installation** (with AI features):
 ```bash
+pip install torch torchvision
+pip install timm basicsr realesrgan transformers open-clip-torch
 pip install -r requirements.txt
 python main.py
 ```
