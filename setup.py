@@ -62,6 +62,9 @@ INSTALL_REQUIRES = [
     'colorama>=0.4.6',
     'pyyaml>=6.0',
     'requests>=2.31.0',
+    
+    # Image Metadata
+    'piexif>=1.1.3',
 ]
 
 # Optional dependencies organized by feature
@@ -85,6 +88,7 @@ EXTRAS_REQUIRE = {
         'timm>=0.9.0',
         'open-clip-torch>=2.20.0',
         'onnx>=1.14.0',  # ONNX model format - needed for PyTorch model export
+        'scipy>=1.10.0',  # Scientific computing (fallback for alpha correction filters)
     ],
     
     # Vector similarity search
@@ -105,6 +109,11 @@ EXTRAS_REQUIRE = {
     'upscaling': [
         'basicsr>=1.4.2',
         'realesrgan>=0.3.0',
+    ],
+    
+    # AI background removal
+    'background-removal': [
+        'rembg[cpu]>=2.0.50',
     ],
     
     # OCR support (requires tesseract-ocr system package)

@@ -176,6 +176,8 @@ a = Analysis(
         # Archive support
         'py7zr',
         'rarfile',
+        # Image metadata
+        'piexif',
         # Hotkeys
         'pynput',
         'pynput.keyboard',

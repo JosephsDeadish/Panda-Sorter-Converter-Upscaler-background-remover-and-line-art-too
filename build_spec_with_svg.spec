@@ -228,6 +228,8 @@ a = Analysis(
         # Archive support
         'py7zr',
         'rarfile',
+        # Image metadata
+        'piexif',
         # Hotkeys
         'pynput',
         'pynput.keyboard',
@@ -243,6 +245,7 @@ a = Analysis(
         # Optional: Include if installed
         'onnxruntime',
         'rembg',
+        'pooch',  # Required for rembg model downloads
         'requests',
         # PyTorch - Core deep learning
         'torch',
