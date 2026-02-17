@@ -6,6 +6,7 @@ Author: Dead On The Inside / JosephsDeadish
 
 import logging
 import time
+import threading
 from pathlib import Path
 from typing import List, Optional, Dict, Any, Tuple
 from PyQt6.QtWidgets import (
@@ -19,6 +20,8 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import Qt, QThread, pyqtSignal, QStringListModel, QTimer
 from PyQt6.QtGui import QFont, QPixmap, QImage
 
+logger = logging.getLogger(__name__)
+
 # Import organizer settings panel
 try:
     from ui.organizer_settings_panel import OrganizerSettingsPanel
@@ -26,8 +29,6 @@ try:
 except ImportError as e:
     logger.warning(f"Organizer settings panel not available: {e}")
     ORGANIZER_SETTINGS_AVAILABLE = False
-
-logger = logging.getLogger(__name__)
 
 # Import dependencies
 try:
@@ -96,6 +97,8 @@ class OrganizerWorker(QThread):
         self._is_cancelled = False
         self._start_time = 0
         self._files_processed = 0
+        self._advance_event = threading.Event()
+        self._current_file_path = None  # Full path for suggested/manual modes
         
         # Initialize AI models - ALWAYS attempt to load them
         self.clip_model = None
@@ -200,40 +203,59 @@ class OrganizerWorker(QThread):
         
         self.log.emit(f"Ready to process {total_files} files in suggested mode")
         
-        # Emit first file for classification
-        if files:
-            self._process_next_suggested_file(files, 0)
-    
-    def _process_next_suggested_file(self, files: List[Path], index: int):
-        """Process next file in suggested mode."""
-        if index >= len(files) or self._is_cancelled:
-            elapsed = time.time() - self._start_time
-            stats = {'files_processed': self._files_processed, 'elapsed_time': elapsed}
-            self.finished.emit(True, f"Processed {self._files_processed} files", stats)
+        if not files:
+            self.finished.emit(True, "No files to process", {'files_processed': 0, 'elapsed_time': 0})
             return
         
-        file_path = files[index]
+        # Loop through files, waiting for user response after each
+        for index, file_path in enumerate(files):
+            if self._is_cancelled:
+                break
+            
+            self._current_file_path = file_path
+            
+            # Classify with AI
+            suggested_folder, confidence = self._classify_texture(file_path)
+            
+            # Load image for preview
+            image = None
+            if PIL_AVAILABLE:
+                try:
+                    image = Image.open(file_path)
+                except Exception as e:
+                    logger.warning(f"Could not load image {file_path}: {e}")
+            
+            # Emit for UI handling
+            self.classification_ready.emit(str(file_path), suggested_folder, confidence, image)
+            self.progress.emit(index + 1, total_files, file_path.name, confidence)
+            
+            # Wait for user to accept/reject before continuing
+            self._advance_event.wait()
+            self._advance_event.clear()
+            
+            if self._is_cancelled:
+                break
         
-        # Classify with AI
-        suggested_folder, confidence = self._classify_texture(file_path)
-        
-        # Load image for preview
-        image = None
-        if PIL_AVAILABLE:
-            try:
-                image = Image.open(file_path)
-            except Exception as e:
-                logger.warning(f"Could not load image {file_path}: {e}")
-        
-        # Emit for UI handling
-        self.classification_ready.emit(file_path.name, suggested_folder, confidence, image)
-        
-        self.progress.emit(index + 1, len(files), file_path.name, confidence)
+        elapsed = time.time() - self._start_time
+        stats = {'files_processed': self._files_processed, 'elapsed_time': elapsed}
+        self.finished.emit(True, f"Processed {self._files_processed}/{total_files} files", stats)
     
     def _run_manual(self):
-        """Manual mode: User types folder, AI learns (handled by UI)."""
-        # Similar to suggested mode but without AI suggestions initially
+        """Manual mode: User types folder, AI learns (handled by UI).
+        
+        Same flow as suggested mode - the UI differentiates the experience
+        by de-emphasizing the AI suggestion and highlighting the manual input.
+        """
         self._run_suggested()
+    
+    def advance(self):
+        """Signal the worker to advance to the next file (called from UI thread)."""
+        self._files_processed += 1
+        self._advance_event.set()
+    
+    def get_current_file_path(self) -> Optional[Path]:
+        """Get the full path of the file currently being reviewed."""
+        return self._current_file_path
     
     def _collect_files(self, source_dir: Path) -> List[Path]:
         """Collect texture files from source directory."""
@@ -300,6 +322,7 @@ class OrganizerWorker(QThread):
     def cancel(self):
         """Cancel the operation."""
         self._is_cancelled = True
+        self._advance_event.set()  # Unblock if waiting for user input
 
 
 class OrganizerPanelQt(QWidget):
@@ -324,7 +347,7 @@ class OrganizerPanelQt(QWidget):
             return
         
         # Initialize systems
-        self.engine = OrganizationEngine()
+        self.engine = None  # Created when starting organization with style + output dir
         self.learning_system = AILearningSystem()
         
         if GAME_IDENTIFIER_AVAILABLE:
@@ -343,6 +366,7 @@ class OrganizerPanelQt(QWidget):
         
         # Store current classification data to avoid parsing UI text
         self.current_filename = None
+        self.current_file_path_str = None
         self.current_suggested_folder = None
         self.current_confidence = None
         
@@ -947,11 +971,14 @@ class OrganizerPanelQt(QWidget):
         """Update mode description."""
         descriptions = {
             'automatic': "AI analyzes each texture and automatically organizes it into the appropriate folder. "
-                        "Files are moved immediately if confidence is above the threshold.",
-            'suggested': "AI suggests a folder for each texture. You review and confirm or reject each suggestion. "
-                        "Feedback helps AI learn your preferences.",
-            'manual': "You manually type the folder path for each texture. AI observes your choices "
-                     "and learns to make better suggestions over time."
+                        "Files are moved immediately if confidence is above the threshold. "
+                        "Best for: large batches where speed matters more than manual control.",
+            'suggested': "AI suggests a folder for each texture and shows a review window with image preview. "
+                        "You can accept the suggestion, override it with your own folder, or skip. "
+                        "Feedback helps AI learn your preferences. Best for: curated sorting with AI assistance.",
+            'manual': "You type the target folder for each texture while seeing an image preview. "
+                     "AI provides a subtle hint but your input takes priority. "
+                     "The system learns from your choices for future sessions. Best for: training the AI on your preferences."
         }
         self.mode_description.setText(descriptions.get(self.current_mode, ""))
     
@@ -1069,38 +1096,67 @@ class OrganizerPanelQt(QWidget):
         self.folder_input.setText(item.text())
     
     def _on_good_feedback(self):
-        """Handle Good button click."""
-        # Use stored values instead of parsing UI text
+        """Handle Good/Accept button click - move file and advance."""
         if not self.current_suggested_folder or not self.current_filename:
             self._log("⚠ No current classification to accept")
             return
         
+        # Determine which folder to use (manual override takes priority)
+        target_folder = self.folder_input.text().strip() or self.current_suggested_folder
+        
+        # Move the file to target directory
+        if self.target_directory and hasattr(self, 'current_file_path_str'):
+            source_path = Path(self.current_file_path_str)
+            target_path = Path(self.target_directory) / target_folder / source_path.name
+            try:
+                target_path.parent.mkdir(parents=True, exist_ok=True)
+                import shutil
+                shutil.copy2(str(source_path), str(target_path))
+                self._log(f"✓ Copied: {self.current_filename} → {target_folder}/")
+            except Exception as e:
+                self._log(f"⚠ Failed to copy {self.current_filename}: {e}")
+        
         # Add to learning system
-        if self.enable_learning_cb.isChecked():
+        enable_learning = self._get_learning_enabled()
+        if enable_learning:
             self.learning_system.add_learning(
                 filename=self.current_filename,
                 suggested_folder=self.current_suggested_folder,
-                user_choice=self.current_suggested_folder,
+                user_choice=target_folder,
                 confidence=self.current_confidence or 0.0,
                 accepted=True
             )
-            
-            self._log(f"✓ Learned: {self.current_filename} → {self.current_suggested_folder}")
         
-        # Move to next file or complete action
-        self._process_next_file()
+        # Disable buttons while waiting for next file
+        self.good_btn.setEnabled(False)
+        self.bad_btn.setEnabled(False)
+        
+        # Advance worker to next file
+        self._advance_worker()
     
     def _on_bad_feedback(self):
-        """Handle Bad button click."""
-        # Use stored values instead of parsing UI text
+        """Handle Bad/Skip button click."""
         if not self.current_suggested_folder or not self.current_filename:
             self._log("⚠ No current classification to reject")
             return
         
-        if self.enable_learning_cb.isChecked():
-            # Ask for alternative
-            manual_choice = self.folder_input.text()
-            if manual_choice:
+        manual_choice = self.folder_input.text().strip()
+        enable_learning = self._get_learning_enabled()
+        
+        if manual_choice:
+            # User provided an override folder - move file there
+            if self.target_directory and hasattr(self, 'current_file_path_str'):
+                source_path = Path(self.current_file_path_str)
+                target_path = Path(self.target_directory) / manual_choice / source_path.name
+                try:
+                    target_path.parent.mkdir(parents=True, exist_ok=True)
+                    import shutil
+                    shutil.copy2(str(source_path), str(target_path))
+                    self._log(f"✓ Copied: {self.current_filename} → {manual_choice}/ (overridden)")
+                except Exception as e:
+                    self._log(f"⚠ Failed to copy {self.current_filename}: {e}")
+            
+            if enable_learning:
                 self.learning_system.add_learning(
                     filename=self.current_filename,
                     suggested_folder=self.current_suggested_folder,
@@ -1108,22 +1164,35 @@ class OrganizerPanelQt(QWidget):
                     confidence=self.current_confidence or 0.0,
                     accepted=False
                 )
-                
-                self._log(f"✗ Rejected: {self.current_filename}. Suggested: {self.current_suggested_folder}, User chose: {manual_choice}")
-            else:
-                self._log(f"✗ Rejected: {self.current_filename} → {self.current_suggested_folder}")
+            self._log(f"✗ Rejected: {self.current_filename}. AI: {self.current_suggested_folder} → User: {manual_choice}")
+        else:
+            # No override provided - skip the file
+            self._log(f"⏭ Skipped: {self.current_filename} (AI suggested: {self.current_suggested_folder})")
         
-        # Prompt for manual input
-        QMessageBox.information(
-            self,
-            "Provide Alternative",
-            "Please enter the correct folder in the 'Manual Override' field below."
-        )
+        # Disable buttons while waiting for next file
+        self.good_btn.setEnabled(False)
+        self.bad_btn.setEnabled(False)
+        
+        # Advance worker to next file
+        self._advance_worker()
+    
+    def _advance_worker(self):
+        """Tell the worker thread to advance to the next file."""
+        if self.worker_thread and hasattr(self.worker_thread, 'advance'):
+            self.worker_thread.advance()
+    
+    def _get_learning_enabled(self) -> bool:
+        """Get whether learning is enabled, handling both settings panel types."""
+        if ORGANIZER_SETTINGS_AVAILABLE and hasattr(self, 'settings_panel'):
+            settings = self.settings_panel.get_settings()
+            return settings.get('learning_enabled', True)
+        elif hasattr(self, 'enable_learning_cb'):
+            return self.enable_learning_cb.isChecked()
+        return True
     
     def _process_next_file(self):
         """Process next file in suggested/manual mode."""
-        # This would be implemented to iterate through files
-        self._log("Processing next file...")
+        self._advance_worker()
     
     def _start_organization(self):
         """Start the organization process."""
@@ -1153,14 +1222,35 @@ class OrganizerPanelQt(QWidget):
             self.archive_output_cb.setChecked(False)
         
         # Confirm action
+        # Gather settings from whichever panel is available
+        if ORGANIZER_SETTINGS_AVAILABLE and hasattr(self, 'settings_panel'):
+            panel_settings = self.settings_panel.get_settings()
+            ai_model_text = panel_settings.get('feature_extractor', 'CLIP')
+            learning_enabled = panel_settings.get('learning_enabled', True)
+            confidence_threshold = panel_settings.get('confidence_threshold', 75) / 100.0
+            conflict_res = panel_settings.get('conflict_resolution', 'Number')
+            backup = panel_settings.get('backup_files', True)
+            ai_model_data = 'clip'  # Default
+            if 'DINOv2' in ai_model_text and 'CLIP' in ai_model_text:
+                ai_model_data = 'hybrid'
+            elif 'DINOv2' in ai_model_text:
+                ai_model_data = 'dinov2'
+        else:
+            ai_model_text = self.ai_model_combo.currentText() if hasattr(self, 'ai_model_combo') else 'CLIP'
+            learning_enabled = self.enable_learning_cb.isChecked() if hasattr(self, 'enable_learning_cb') else True
+            confidence_threshold = self.confidence_threshold_spin.value() if hasattr(self, 'confidence_threshold_spin') else 0.8
+            conflict_res = self.conflict_combo.currentData() if hasattr(self, 'conflict_combo') else 'number'
+            backup = self.create_backup_cb.isChecked() if hasattr(self, 'create_backup_cb') else True
+            ai_model_data = self.ai_model_combo.currentData() if hasattr(self, 'ai_model_combo') else 'clip'
+        
         reply = QMessageBox.question(
             self,
             "Confirm Organization",
             f"Mode: {self.mode_combo.currentText()}\n"
             f"Source: {self.source_directory}\n"
             f"Target: {self.target_directory}\n\n"
-            f"AI Model: {self.ai_model_combo.currentText()}\n"
-            f"Learning: {'Enabled' if self.enable_learning_cb.isChecked() else 'Disabled'}\n\n"
+            f"AI Model: {ai_model_text}\n"
+            f"Learning: {'Enabled' if learning_enabled else 'Disabled'}\n\n"
             "Start organization?",
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
         )
@@ -1175,11 +1265,11 @@ class OrganizerPanelQt(QWidget):
             'target_dir': self.target_directory,
             'recursive': self.subfolders_cb.isChecked(),
             'use_ai': True,  # Always try to use AI
-            'ai_model': self.ai_model_combo.currentData(),
-            'confidence_threshold': self.confidence_threshold_spin.value(),
-            'enable_learning': self.enable_learning_cb.isChecked(),
-            'conflict_resolution': self.conflict_combo.currentData(),
-            'create_backup': self.create_backup_cb.isChecked()
+            'ai_model': ai_model_data,
+            'confidence_threshold': confidence_threshold,
+            'enable_learning': learning_enabled,
+            'conflict_resolution': conflict_res,
+            'create_backup': backup
         }
         
         # Disable UI
@@ -1230,16 +1320,32 @@ class OrganizerPanelQt(QWidget):
                 self.speed_label.setText(f"{speed:.1f} files/sec")
                 self.eta_label.setText(f"ETA: {eta:.0f}s")
     
-    def _handle_classification(self, filename: str, suggested_folder: str, 
+    def _handle_classification(self, file_path_str: str, suggested_folder: str, 
                               confidence: float, image):
         """Handle classification result in suggested/manual mode."""
-        # Store current classification data
-        self.current_filename = filename
+        # Store current classification data (full file path)
+        self.current_filename = Path(file_path_str).name
+        self.current_file_path_str = file_path_str
         self.current_suggested_folder = suggested_folder
         self.current_confidence = confidence
         
+        is_manual = (self.current_mode == 'manual')
+        
         # Update suggestion display
-        self.suggestion_label.setText(f"AI Suggestion: {suggested_folder}")
+        if is_manual:
+            # Manual mode: de-emphasize AI suggestion, highlight manual input
+            self.suggestion_label.setText(f"AI Hint: {suggested_folder} (type your own below)")
+            self.suggestion_label.setStyleSheet("font-size: 10pt; color: gray; padding: 5px;")
+            self.folder_input.setPlaceholderText("Type the target folder for this texture...")
+            self.folder_input.setFocus()
+            self.folder_input.clear()
+        else:
+            # Suggested mode: show AI suggestion prominently
+            self.suggestion_label.setText(f"AI Suggestion: {suggested_folder}")
+            self.suggestion_label.setStyleSheet("font-size: 12pt; padding: 5px;")
+            self.folder_input.setPlaceholderText("Override: type a different folder or accept above")
+            self.folder_input.clear()
+        
         self.confidence_label.setText(f"Confidence: {confidence:.0%}")
         
         # Update confidence color
@@ -1255,9 +1361,16 @@ class OrganizerPanelQt(QWidget):
         self.good_btn.setEnabled(True)
         self.bad_btn.setEnabled(True)
         
+        if is_manual:
+            self.good_btn.setText("✅ Accept & Move")
+            self.bad_btn.setText("⏭️ Skip")
+        else:
+            self.good_btn.setText("✅ Good")
+            self.bad_btn.setText("❌ Bad")
+        
         # Show image preview
         if image and PIL_AVAILABLE:
-            self._show_image_preview(image, filename)
+            self._show_image_preview(image, self.current_filename)
     
     def _show_image_preview(self, image, filename: str):
         """Show image preview."""
@@ -1304,7 +1417,7 @@ class OrganizerPanelQt(QWidget):
             QMessageBox.information(self, "Success", stats_msg)
             
             # Save learning profile
-            if self.enable_learning_cb.isChecked():
+            if self._get_learning_enabled():
                 try:
                     self.learning_system.save_profile()
                     self._log("Learning profile saved")

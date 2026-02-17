@@ -66,7 +66,7 @@ class AIModelManager:
             'description': 'CLIP Vision-Language Model (ViT-B/32) - Image-text similarity for organizing',
             'tool': 'organizer',
             'category': 'vision',
-            'required_packages': ['transformers', 'clip-by-openai', 'pillow'],
+            'required_packages': ['transformers', 'torch', 'PIL'],
             'icon': '🧠',
         },
         'CLIP_ViT-L/14': {
@@ -77,7 +77,7 @@ class AIModelManager:
             'description': 'CLIP Vision-Language Model (ViT-L/14) - Larger, slower, more accurate',
             'tool': 'organizer',
             'category': 'vision',
-            'required_packages': ['transformers', 'clip-by-openai', 'pillow'],
+            'required_packages': ['transformers', 'torch', 'PIL'],
             'icon': '🧠',
         },
         
@@ -90,7 +90,7 @@ class AIModelManager:
             'description': 'DINOv2 Base Model - Visual similarity detection (balanced)',
             'tool': 'organizer',
             'category': 'vision',
-            'required_packages': ['transformers', 'dinov2'],
+            'required_packages': ['transformers', 'torch'],
             'icon': '👁️',
         },
         'DINOv2_small': {
@@ -101,7 +101,7 @@ class AIModelManager:
             'description': 'DINOv2 Small Model - Fast visual similarity (lightweight)',
             'tool': 'organizer',
             'category': 'vision',
-            'required_packages': ['transformers', 'dinov2'],
+            'required_packages': ['transformers', 'torch'],
             'icon': '👁️',
         },
         'DINOv2_large': {
@@ -112,7 +112,7 @@ class AIModelManager:
             'description': 'DINOv2 Large Model - Best accuracy visual similarity (slower)',
             'tool': 'organizer',
             'category': 'vision',
-            'required_packages': ['transformers', 'dinov2'],
+            'required_packages': ['transformers', 'torch'],
             'icon': '👁️',
         },
         
@@ -144,10 +144,10 @@ class AIModelManager:
             'native_module': True,
             'size_mb': 0,
             'version': 'native',
-            'description': 'Native Rust Lanczos acceleration - Fast high-quality resampling',
+            'description': 'Native Rust Lanczos acceleration - Fast high-quality resampling (falls back to PIL if unavailable)',
             'tool': 'preprocessing',
             'category': 'acceleration',
-            'required_packages': ['native_ops'],
+            'required_packages': ['texture_ops'],
             'icon': '⚡',
         },
     }
@@ -184,6 +184,15 @@ class AIModelManager:
             return ModelStatus.ERROR
         
         model_info = self.MODELS[model_name]
+        
+        # Check native modules (Rust extensions)
+        if model_info.get('native_module'):
+            try:
+                for pkg in model_info.get('required_packages', []):
+                    __import__(pkg)
+                return ModelStatus.INSTALLED
+            except ImportError:
+                return ModelStatus.MISSING
         
         # Check if it's an auto-download model (CLIP, DINOv2)
         if model_info.get('auto_download'):

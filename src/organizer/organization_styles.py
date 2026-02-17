@@ -19,7 +19,10 @@ class SimsStyle(OrganizationStyle):
         return "The Sims Style"
     
     def get_description(self) -> str:
-        return "Organize by Gender → Skin Tone → Body Part → Variant"
+        return ("Character-focused sorting by physical traits. "
+                "Best for: games with character customization (The Sims, Saints Row, WWE). "
+                "Hierarchy: Gender → Skin Tone → Body Part → Variant. "
+                "Example: Male/Skin_Tan/Head/head_variant_01.dds")
     
     def get_target_path(self, texture: TextureInfo) -> str:
         parts = []
@@ -63,7 +66,10 @@ class NeopetsStyle(OrganizationStyle):
         return "Neopets Style"
     
     def get_description(self) -> str:
-        return "Organize by Category → Type → Individual with variants"
+        return ("Collectible-style sorting by species/type then individual. "
+                "Best for: games with many distinct creature or item types (Neopets, Pokemon, Monster Hunter). "
+                "Hierarchy: Category → Base Type → Individual File. "
+                "Example: Pets/Blumaroo/blumaroo_red.dds")
     
     def get_target_path(self, texture: TextureInfo) -> str:
         parts = []
@@ -92,7 +98,10 @@ class FlatStyle(OrganizationStyle):
         return "Flat Style"
     
     def get_description(self) -> str:
-        return "Simple flat structure - Category → Files (all LODs together)"
+        return ("Simple single-level sorting with no nesting. "
+                "Best for: quick browsing, small texture sets, or when deep folders are unwanted. "
+                "All files of the same category land in one folder, LODs included. "
+                "Example: Characters/character_lod0.dds, Characters/character_lod1.dds")
     
     def get_target_path(self, texture: TextureInfo) -> str:
         # Just category and filename - no subdirectories
@@ -109,7 +118,10 @@ class GameAreaStyle(OrganizationStyle):
         return "Game Area Style"
     
     def get_description(self) -> str:
-        return "Organize by Level → Area → Type → Asset"
+        return ("Level/area-based sorting for open-world and stage-based games. "
+                "Best for: GTA, God of War, Kingdom Hearts, or any game organized by locations. "
+                "Hierarchy: Level → Area → Asset Type → File. "
+                "Example: Level_01/Downtown/Buildings/shop_front.dds")
     
     def get_target_path(self, texture: TextureInfo) -> str:
         parts = []
@@ -160,7 +172,10 @@ class AssetPipelineStyle(OrganizationStyle):
         return "Asset Pipeline Style"
     
     def get_description(self) -> str:
-        return "Organize by Type → Resolution → Format (production pipeline)"
+        return ("Production-pipeline sorting by type, resolution, and format. "
+                "Best for: modding workflows, HD texture packs, or export/import pipelines. "
+                "Groups textures by resolution tier and file format for batch processing. "
+                "Example: Textures/2K/DDS/building_wall.dds")
     
     def get_target_path(self, texture: TextureInfo) -> str:
         parts = []
@@ -210,7 +225,10 @@ class ModularStyle(OrganizationStyle):
         return "Modular Style"
     
     def get_description(self) -> str:
-        return "Organize by Module Type → Category → Asset"
+        return ("Module-based sorting by gameplay system (characters, vehicles, UI, items, environment). "
+                "Best for: action games with diverse asset types (GTA, Gran Turismo, Final Fantasy). "
+                "Groups textures by the game system they belong to. "
+                "Example: Characters/Body/head_texture.dds, Vehicles/Cars/sedan_body.dds")
     
     def get_target_path(self, texture: TextureInfo) -> str:
         parts = []
@@ -255,7 +273,10 @@ class MinimalistStyle(OrganizationStyle):
         return "Minimalist Style"
     
     def get_description(self) -> str:
-        return "Ultra-simple: Category → Files (minimal hierarchy)"
+        return ("Ultra-simple one-level sorting with zero nesting. "
+                "Best for: tiny texture sets, quick previews, or when you just want files grouped by type. "
+                "Each category is a single folder with all its files inside. "
+                "Example: Characters/texture.dds, UI/icon.png")
     
     def get_target_path(self, texture: TextureInfo) -> str:
         # Most minimal - just category folder
@@ -272,7 +293,10 @@ class MaximumDetailStyle(OrganizationStyle):
         return "Maximum Detail Style"
     
     def get_description(self) -> str:
-        return "Maximum organization depth with all possible groupings"
+        return ("Deep multi-level sorting with every possible attribute as a folder. "
+                "Best for: large HD texture packs, comprehensive modding archives, or research. "
+                "Sorts by category, gender, age, style, item type, color, format, resolution, and LOD. "
+                "Example: Characters/Male/Adult/Casual/Shirt/Blue/HighRes/LOD0/shirt_blue_lod0.dds")
     
     def get_target_path(self, texture: TextureInfo) -> str:
         parts = []
@@ -356,7 +380,10 @@ class CustomStyle(OrganizationStyle):
         return "Custom Style"
     
     def get_description(self) -> str:
-        return "User-defined hierarchy (configurable)"
+        return ("Fully customizable hierarchy using a user-defined template. "
+                "Best for: advanced users who need a specific folder structure. "
+                "Configure levels from: category, format, resolution, lod, variant, filename. "
+                "Example template ['category', 'format', 'filename'] → Characters/DDS/texture.dds")
     
     def get_target_path(self, texture: TextureInfo) -> str:
         parts = []

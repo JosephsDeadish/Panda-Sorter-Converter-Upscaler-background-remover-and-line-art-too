@@ -120,6 +120,43 @@ def validate_dependencies() -> Tuple[bool, str, List[str]]:
     return True, "", []
 
 
+def validate_optional_dependencies() -> List[Tuple[str, str, str]]:
+    """
+    Check optional ML/AI dependencies and return status for each.
+    
+    Returns:
+        List of (module_name, status, install_hint) tuples.
+        status is 'installed' or 'missing'.
+    """
+    optional_deps = [
+        ('torch', 'PyTorch (deep learning framework)', 'pip install torch torchvision'),
+        ('transformers', 'Transformers (CLIP, ViT models)', 'pip install transformers'),
+        ('open_clip', 'open_clip (Open-source CLIP)', 'pip install open-clip-torch'),
+        ('timm', 'timm (PyTorch Image Models)', 'pip install timm'),
+        ('basicsr', 'BasicSR (super-resolution framework)', 'pip install basicsr'),
+        ('realesrgan', 'Real-ESRGAN (image upscaling)', 'pip install realesrgan'),
+    ]
+    
+    results = []
+    for module_name, description, install_hint in optional_deps:
+        try:
+            __import__(module_name)
+            results.append((description, 'installed', install_hint))
+        except ImportError:
+            results.append((description, 'missing', install_hint))
+    
+    # Check native Lanczos acceleration
+    try:
+        import texture_ops
+        results.append(('Native Lanczos acceleration', 'installed',
+                        'cd native && maturin develop --release'))
+    except ImportError:
+        results.append(('Native Lanczos acceleration', 'missing',
+                        'cd native && maturin develop --release (optional, Python fallback available)'))
+    
+    return results
+
+
 def show_error_message(title: str, message: str):
     """
     Show a user-friendly error message.
