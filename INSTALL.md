@@ -26,7 +26,8 @@ python main.py
 ```
 
 ### Option 2: Full Installation
-Includes all features including advanced AI classification (~1.5 GB total):
+Includes all features including advanced AI classification (~1.5 GB total).
+PyTorch and ML packages are installed first as they are large and may need platform-specific versions (e.g., CUDA). See [SETUP_INSTRUCTIONS.md](SETUP_INSTRUCTIONS.md) for details.
 ```bash
 pip install torch torchvision
 pip install timm basicsr realesrgan transformers open-clip-torch
