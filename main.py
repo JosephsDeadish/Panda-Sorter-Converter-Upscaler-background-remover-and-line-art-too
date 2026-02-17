@@ -23,7 +23,7 @@ try:
         QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
         QLabel, QPushButton, QProgressBar, QTextEdit, QTabWidget,
         QFileDialog, QMessageBox, QStatusBar, QMenuBar, QMenu,
-        QSplitter, QFrame
+        QSplitter, QFrame, QComboBox
     )
     from PyQt6.QtCore import Qt, QTimer, pyqtSignal, QThread, QSize
     from PyQt6.QtGui import QAction, QIcon, QFont, QPalette, QColor
@@ -314,6 +314,35 @@ class TextureSorterMainWindow(QMainWindow):
         output_layout.addLayout(output_row)
         layout.addWidget(output_group)
         
+        # Mode and Style selection
+        options_group = QFrame()
+        options_group.setFrameShape(QFrame.Shape.StyledPanel)
+        options_layout = QVBoxLayout(options_group)
+        
+        options_label = QLabel("⚙️ Sorting Options:")
+        options_label.setFont(QFont("Arial", 11, QFont.Weight.Bold))
+        options_layout.addWidget(options_label)
+        
+        mode_row = QHBoxLayout()
+        mode_row.addWidget(QLabel("Mode:"))
+        self.mode_combo = QComboBox()
+        self.mode_combo.addItem("🚀 Automatic - AI classifies and moves instantly", "automatic")
+        self.mode_combo.addItem("💡 Suggested - AI suggests, you confirm", "suggested")
+        self.mode_combo.addItem("✍️ Manual - You type folder, AI learns", "manual")
+        mode_row.addWidget(self.mode_combo, 1)
+        options_layout.addLayout(mode_row)
+        
+        style_row = QHBoxLayout()
+        style_row.addWidget(QLabel("Style:"))
+        self.style_combo = QComboBox()
+        for key, style_cls in ORGANIZATION_STYLES.items():
+            style_instance = style_cls()
+            self.style_combo.addItem(f"{style_instance.get_name()}", key)
+        style_row.addWidget(self.style_combo, 1)
+        options_layout.addLayout(style_row)
+        
+        layout.addWidget(options_group)
+        
         # Action buttons
         button_layout = QHBoxLayout()
         button_layout.setSpacing(10)
@@ -324,13 +353,6 @@ class TextureSorterMainWindow(QMainWindow):
         self.sort_button.clicked.connect(self.start_sorting)
         self.sort_button.setEnabled(False)
         button_layout.addWidget(self.sort_button)
-        
-        self.classify_button = QPushButton("🔍 Classify Only")
-        self.classify_button.setMinimumHeight(50)
-        self.classify_button.setFont(QFont("Arial", 12))
-        self.classify_button.clicked.connect(self.start_classification)
-        self.classify_button.setEnabled(False)
-        button_layout.addWidget(self.classify_button)
         
         self.cancel_button = QPushButton("⏹️ Cancel")
         self.cancel_button.setMinimumHeight(50)
@@ -755,7 +777,6 @@ class TextureSorterMainWindow(QMainWindow):
         has_output = self.output_path is not None
         
         self.sort_button.setEnabled(has_input and has_output)
-        self.classify_button.setEnabled(has_input)
     
     def start_sorting(self):
         """Start texture sorting operation."""
@@ -768,21 +789,6 @@ class TextureSorterMainWindow(QMainWindow):
         
         # Create worker thread
         self.worker = WorkerThread(self.perform_sorting)
-        self.worker.progress.connect(self.update_progress)
-        self.worker.log.connect(self.log)
-        self.worker.finished.connect(self.operation_finished)
-        self.worker.start()
-    
-    def start_classification(self):
-        """Start classification-only operation."""
-        if not self.input_path:
-            QMessageBox.warning(self, "Missing Path", "Please select input folder.")
-            return
-        
-        self.log("🔍 Starting classification...")
-        self.set_operation_running(True)
-        
-        self.worker = WorkerThread(self.perform_classification)
         self.worker.progress.connect(self.update_progress)
         self.worker.log.connect(self.log)
         self.worker.finished.connect(self.operation_finished)
@@ -807,23 +813,9 @@ class TextureSorterMainWindow(QMainWindow):
         
         log_callback("✅ Sorting completed successfully")
     
-    def perform_classification(self, progress_callback, log_callback, check_cancelled):
-        """Perform classification (runs in worker thread)."""
-        # TODO: Implement actual classification logic
-        import time
-        for i in range(5):
-            if check_cancelled():
-                log_callback("Operation cancelled by user")
-                return
-            progress_callback(i + 1, 5, f"Classifying batch {i + 1}/5")
-            time.sleep(0.5)
-        
-        log_callback("✅ Classification completed successfully")
-    
     def set_operation_running(self, running: bool):
         """Update UI for operation running state."""
         self.sort_button.setEnabled(not running)
-        self.classify_button.setEnabled(not running)
         self.cancel_button.setEnabled(running)
         self.cancel_button.setVisible(running)
         self.progress_bar.setVisible(running)

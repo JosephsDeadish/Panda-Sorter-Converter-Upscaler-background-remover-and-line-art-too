@@ -536,15 +536,30 @@ class SettingsPanelQt(QWidget):
         try:
             from .ai_models_settings_tab import AIModelsSettingsTab
             return AIModelsSettingsTab(self.config)
+        except ImportError:
+            try:
+                from ui.ai_models_settings_tab import AIModelsSettingsTab
+                return AIModelsSettingsTab(self.config)
+            except ImportError:
+                pass
         except Exception as e:
             logger.warning(f"AI Models settings tab not available: {e}")
-            # Return a placeholder widget
-            widget = QWidget()
-            layout = QVBoxLayout(widget)
-            label = QLabel("AI Models settings not available")
-            label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            layout.addWidget(label)
-            return widget
+        
+        # Return a placeholder widget with helpful info
+        widget = QWidget()
+        layout = QVBoxLayout(widget)
+        layout.addStretch()
+        label = QLabel(
+            "🤖 AI Models Management\n\n"
+            "Could not load AI Models settings.\n\n"
+            "💡 Try installing required packages:\n"
+            "   pip install torch transformers"
+        )
+        label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        label.setWordWrap(True)
+        layout.addWidget(label)
+        layout.addStretch()
+        return widget
     
     def create_advanced_tab(self):
         """Create advanced settings tab"""
