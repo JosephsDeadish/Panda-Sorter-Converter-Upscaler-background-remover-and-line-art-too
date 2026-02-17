@@ -534,14 +534,11 @@ class SettingsPanelQt(QWidget):
     def create_ai_models_tab(self):
         """Create AI models management tab"""
         try:
-            from .ai_models_settings_tab import AIModelsSettingsTab
-            return AIModelsSettingsTab(self.config)
-        except ImportError:
             try:
-                from ui.ai_models_settings_tab import AIModelsSettingsTab
-                return AIModelsSettingsTab(self.config)
+                from .ai_models_settings_tab import AIModelsSettingsTab
             except ImportError:
-                pass
+                from ui.ai_models_settings_tab import AIModelsSettingsTab
+            return AIModelsSettingsTab(self.config)
         except Exception as e:
             logger.warning(f"AI Models settings tab not available: {e}")
         
