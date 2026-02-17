@@ -169,10 +169,9 @@ def test_model_manager_required_packages():
     for model_name, info in manager.MODELS.items():
         pkgs = info.get('required_packages', [])
         for pkg in pkgs:
-            # No package should have hyphens (they need to be importable)
-            importable = pkg.replace('-', '_')
-            assert importable == pkg or pkg in ['open-clip-torch'], \
-                f"{model_name}: package '{pkg}' is not directly importable"
+            # All packages should be directly importable (no hyphens)
+            assert '-' not in pkg, \
+                f"{model_name}: package '{pkg}' contains hyphens and is not directly importable"
         print(f"  ✓ {model_name}: packages {pkgs}")
 
     # Specifically check CLIP doesn't reference 'clip-by-openai'

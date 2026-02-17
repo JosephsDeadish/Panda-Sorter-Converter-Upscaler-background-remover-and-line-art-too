@@ -7,6 +7,7 @@ Author: Dead On The Inside / JosephsDeadish
 import logging
 import time
 import threading
+import shutil
 from pathlib import Path
 from typing import List, Optional, Dict, Any, Tuple
 from PyQt6.QtWidgets import (
@@ -1110,7 +1111,6 @@ class OrganizerPanelQt(QWidget):
             target_path = Path(self.target_directory) / target_folder / source_path.name
             try:
                 target_path.parent.mkdir(parents=True, exist_ok=True)
-                import shutil
                 shutil.copy2(str(source_path), str(target_path))
                 self._log(f"✓ Copied: {self.current_filename} → {target_folder}/")
             except Exception as e:
@@ -1150,7 +1150,6 @@ class OrganizerPanelQt(QWidget):
                 target_path = Path(self.target_directory) / manual_choice / source_path.name
                 try:
                     target_path.parent.mkdir(parents=True, exist_ok=True)
-                    import shutil
                     shutil.copy2(str(source_path), str(target_path))
                     self._log(f"✓ Copied: {self.current_filename} → {manual_choice}/ (overridden)")
                 except Exception as e:
