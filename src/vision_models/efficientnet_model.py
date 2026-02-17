@@ -2,6 +2,10 @@
 EfficientNet/ResNet Model Implementation
 Custom classifier support
 Author: Dead On The Inside / JosephsDeadish
+
+IMPORTANT: timm models are loaded at runtime via timm.create_model() and
+must NOT be compiled with TorchScript. Avoid JIT script/trace compilation
+as it causes source access errors in packaged builds.
 """
 
 import logging
@@ -51,9 +55,10 @@ class EfficientNetModel:
             self.device = 'cpu'
             logger.info("CUDA check failed, using CPU device")
         
+        # Load timm model at runtime - do NOT compile with TorchScript (no JIT)
         self.model = timm.create_model(model_name, pretrained=pretrained, num_classes=0)
         self.model = self.model.to(self.device)
-        self.model.eval()
+        self.model.eval()  # Standard eval mode only, no TorchScript compilation
         
         # Get data config for preprocessing
         self.data_config = timm.data.resolve_model_data_config(self.model)
