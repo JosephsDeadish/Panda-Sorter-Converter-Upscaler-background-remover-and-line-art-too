@@ -100,8 +100,8 @@ onnxruntime>=1.16.0  # Lightweight offline AI model inference (optional, recomme
 # GPU support: See https://pytorch.org/get-started/locally/ for CUDA versions
 
 # PyTorch Framework
-torch>=1.13.0,<3.0.0  # Deep learning framework
-torchvision>=0.14.0  # Computer vision models and transforms
+torch>=2.6.0  # Deep learning framework (>= 2.6.0 for torch.load RCE fix)
+torchvision>=0.21.0  # Computer vision models and transforms
 
 # ONNX Model Export/Import (Optional - for PyTorch model export/import)
 # NOTE: onnx.reference module may cause issues with PyInstaller - handled by hooks

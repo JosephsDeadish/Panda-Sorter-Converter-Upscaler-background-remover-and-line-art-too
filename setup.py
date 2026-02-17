@@ -82,8 +82,8 @@ EXTRAS_REQUIRE = {
     
     # Advanced deep learning features
     'ml': [
-        'torch>=1.13.0,<3.0.0',
-        'torchvision>=0.14.0',
+        'torch>=2.6.0',
+        'torchvision>=0.21.0',
         'transformers>=4.48.0',  # >= 4.48.0 for security fixes
         'timm>=0.9.0',
         'open-clip-torch>=2.20.0',
