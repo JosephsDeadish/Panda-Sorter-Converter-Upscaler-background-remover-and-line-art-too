@@ -288,6 +288,7 @@ pip install -e ".[svg,ml,ocr]"
 pip install -r requirements-minimal.txt
 pip install cairosvg cairocffi  # SVG support
 pip install torch torchvision transformers  # AI features
+pip install basicsr realesrgan  # Image upscaling
 pip install pytesseract  # OCR support
 ```
 

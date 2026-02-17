@@ -133,8 +133,8 @@ def validate_optional_dependencies() -> List[Tuple[str, str, str]]:
         ('transformers', 'Transformers (CLIP, ViT models)', 'pip install transformers'),
         ('open_clip', 'open_clip (Open-source CLIP)', 'pip install open-clip-torch'),
         ('timm', 'timm (PyTorch Image Models)', 'pip install timm'),
-        ('basicsr', 'BasicSR (super-resolution framework)', 'pip install basicsr'),
-        ('realesrgan', 'Real-ESRGAN (image upscaling)', 'pip install realesrgan'),
+        ('basicsr', 'BasicSR (super-resolution framework)', 'pip install basicsr realesrgan'),
+        ('realesrgan', 'Real-ESRGAN (image upscaling)', 'pip install basicsr realesrgan'),
     ]
     
     results = []
