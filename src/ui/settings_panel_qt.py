@@ -1088,7 +1088,8 @@ class SettingsPanelQt(QWidget):
             v = int(min(255, v * factor))
             color.setHsv(h, s, v, a)
             return color.name()
-        except:
+        except Exception as e:
+            logger.debug(f"Error adjusting color brightness: {e}")
             return hex_color
     
     def reset_to_defaults(self):

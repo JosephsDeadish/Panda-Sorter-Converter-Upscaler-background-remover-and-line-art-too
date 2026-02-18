@@ -376,17 +376,17 @@ class BackgroundRemoverPanelQt(QWidget):
                     
                     img_path = self.processed_image if self.processed_image else self.current_image
                     img = Image.open(img_path)
-                
-                # Convert to RGBA if saving as PNG
-                if file_path.lower().endswith('.png') and img.mode != 'RGBA':
-                    img = img.convert('RGBA')
-                
-                # Save
-                img.save(file_path, optimize=True)
-                
-                QMessageBox.information(self, "Success", f"Image saved to:\n{file_path}")
-            except Exception as e:
-                QMessageBox.critical(self, "Error", f"Failed to save image:\n{str(e)}")
+                    
+                    # Convert to RGBA if saving as PNG
+                    if file_path.lower().endswith('.png') and img.mode != 'RGBA':
+                        img = img.convert('RGBA')
+                    
+                    # Save
+                    img.save(file_path, optimize=True)
+                    
+                    QMessageBox.information(self, "Success", f"Image saved to:\n{file_path}")
+                except Exception as e:
+                    QMessageBox.critical(self, "Error", f"Failed to save image:\n{str(e)}")
     
     def select_tool(self, tool):
         """Select a paint tool."""
