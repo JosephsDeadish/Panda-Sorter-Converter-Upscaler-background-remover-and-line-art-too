@@ -10,6 +10,7 @@ import shutil
 from pathlib import Path
 from typing import Dict, List, Tuple, Optional, Callable, Any
 from dataclasses import dataclass
+from abc import ABC, abstractmethod
 import re
 
 
@@ -160,17 +161,20 @@ class OrganizationEngine:
         return self.style.get_description()
 
 
-class OrganizationStyle:
+class OrganizationStyle(ABC):
     """Base class for organization styles"""
     
+    @abstractmethod
     def get_name(self) -> str:
         """Return the style name"""
         raise NotImplementedError
     
+    @abstractmethod
     def get_description(self) -> str:
         """Return the style description"""
         raise NotImplementedError
     
+    @abstractmethod
     def get_target_path(self, texture: TextureInfo) -> str:
         """
         Calculate the target path for a texture based on this style.
