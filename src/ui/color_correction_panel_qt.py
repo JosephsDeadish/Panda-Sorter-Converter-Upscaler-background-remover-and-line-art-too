@@ -8,6 +8,8 @@ Uses Qt signals/slots for threading and UI updates.
 import logging
 from pathlib import Path
 from typing import Optional, List
+import tempfile
+import os
 
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
@@ -16,7 +18,7 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtCore import Qt, pyqtSignal, QThread
 from PyQt6.QtGui import QPixmap
-from PIL import Image
+from PIL import Image, ImageEnhance
 
 logger = logging.getLogger(__name__)
 
@@ -482,7 +484,6 @@ class ColorCorrectionPanelQt(QWidget):
         
         try:
             # Load original image
-            from PIL import Image, ImageEnhance
             img = Image.open(str(self.preview_file))
             
             # Get current slider values
@@ -509,15 +510,22 @@ class ColorCorrectionPanelQt(QWidget):
                 img = enhancer.enhance(sharpness)
             
             # Convert PIL image to QPixmap
-            import tempfile
-            with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as tmp:
-                img.save(tmp.name, 'PNG')
-                pixmap = QPixmap(tmp.name)
+            # Use temp file and clean it up properly
+            tmp_fd, tmp_path = tempfile.mkstemp(suffix='.png')
+            try:
+                os.close(tmp_fd)  # Close file descriptor
+                img.save(tmp_path, 'PNG')
+                pixmap = QPixmap(tmp_path)
                 self.preview_widget.set_after_image(pixmap)
+            finally:
+                # Clean up temp file
+                try:
+                    os.unlink(tmp_path)
+                except Exception:
+                    pass  # Ignore cleanup errors
                 
         except Exception as e:
-            import logging
-            logging.error(f"Preview update failed: {e}")
+            logger.error(f"Preview update failed: {e}")
     
     def _on_comparison_mode_changed(self, mode_text):
         """Handle comparison mode change."""

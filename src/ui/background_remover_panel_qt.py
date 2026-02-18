@@ -6,7 +6,7 @@ Pure PyQt6 UI for AI-powered background removal.
 try:
     from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QPushButton,
                                   QLabel, QSlider, QFileDialog, QSpinBox, QCheckBox,
-                                  QGroupBox, QComboBox)
+                                  QGroupBox, QComboBox, QMessageBox)
     from PyQt6.QtCore import Qt, pyqtSignal
     from PyQt6.QtGui import QPixmap
     PYQT_AVAILABLE = True
@@ -14,6 +14,14 @@ except ImportError:
     PYQT_AVAILABLE = False
     class QWidget: pass
     class pyqtSignal: pass
+
+# Import PIL for image handling
+try:
+    from PIL import Image
+    PIL_AVAILABLE = True
+except ImportError:
+    PIL_AVAILABLE = False
+    Image = None
 
 # Try to import comparison slider
 try:
@@ -207,8 +215,7 @@ class BackgroundRemoverPanelQt(QWidget):
     
     def save_image(self):
         """Save the processed image with transparency."""
-        if not self.current_image:
-            from PyQt6.QtWidgets import QMessageBox
+        if not self.current_image and not self.processed_image:
             QMessageBox.warning(self, "No Image", "No image to save. Please load an image first.")
             return
         
@@ -221,13 +228,17 @@ class BackgroundRemoverPanelQt(QWidget):
         
         if file_path:
             try:
-                # Ensure .png extension for transparency support
+                # Ensure proper file extension
                 if not any(file_path.lower().endswith(ext) for ext in ['.png', '.jpg', '.jpeg']):
                     file_path += '.png'
                 
-                # Load and save the image
-                from PIL import Image
-                img = Image.open(self.processed_image if self.processed_image else self.current_image)
+                # Load the image to save (processed if available, else current)
+                if not PIL_AVAILABLE:
+                    QMessageBox.critical(self, "Error", "PIL/Pillow not installed. Cannot save image.")
+                    return
+                
+                img_path = self.processed_image if self.processed_image else self.current_image
+                img = Image.open(img_path)
                 
                 # Convert to RGBA if saving as PNG
                 if file_path.lower().endswith('.png') and img.mode != 'RGBA':
@@ -236,10 +247,8 @@ class BackgroundRemoverPanelQt(QWidget):
                 # Save
                 img.save(file_path, optimize=True)
                 
-                from PyQt6.QtWidgets import QMessageBox
                 QMessageBox.information(self, "Success", f"Image saved to:\n{file_path}")
             except Exception as e:
-                from PyQt6.QtWidgets import QMessageBox
                 QMessageBox.critical(self, "Error", f"Failed to save image:\n{str(e)}")
     
     def select_tool(self, tool):
@@ -289,7 +298,6 @@ class BackgroundRemoverPanelQt(QWidget):
         if not self.current_image:
             return
         
-        from PyQt6.QtWidgets import QMessageBox
         reply = QMessageBox.question(
             self, "Clear All",
             "Clear all edits and reset to original image?",
@@ -313,6 +321,7 @@ class BackgroundRemoverPanelQt(QWidget):
             self.processed_image = self.edit_history[self.history_index]
             
             if SLIDER_AVAILABLE and hasattr(self, 'preview_widget'):
+                # processed_image is a filepath, load it as QPixmap
                 pixmap = QPixmap(self.processed_image)
                 self.preview_widget.set_after_image(pixmap)
     
@@ -323,6 +332,7 @@ class BackgroundRemoverPanelQt(QWidget):
             self.processed_image = self.edit_history[self.history_index]
             
             if SLIDER_AVAILABLE and hasattr(self, 'preview_widget'):
+                # processed_image is a filepath, load it as QPixmap
                 pixmap = QPixmap(self.processed_image)
                 self.preview_widget.set_after_image(pixmap)
     
