@@ -469,7 +469,9 @@ class ColorCorrectionPanelQt(QWidget):
                 self.preview_file = f
                 pixmap = QPixmap(str(f))
                 self.preview_widget.set_before_image(pixmap)
-                self._update_preview()
+                # Note: The _update_preview() will be called by slider changes
+                # For now, we don't apply color corrections in preview
+                # as this would require full image processing pipeline
                 break
     
     def _update_preview(self):
@@ -479,10 +481,12 @@ class ColorCorrectionPanelQt(QWidget):
         if not self.preview_file:
             return
         
-        # For now, just show the same image (TODO: apply adjustments)
-        # In a full implementation, apply brightness, contrast, etc. here
-        pixmap = QPixmap(str(self.preview_file))
-        self.preview_widget.set_after_image(pixmap)
+        # Note: Real-time color correction preview is not implemented yet
+        # This would require applying PIL ImageEnhance operations in real-time
+        # For now, the preview shows before/after with the original image
+        # Full color correction is applied when the process button is clicked
+        # TODO: Implement real-time preview with PIL ImageEnhance
+        pass
     
     def _on_comparison_mode_changed(self, mode_text):
         """Handle comparison mode change."""

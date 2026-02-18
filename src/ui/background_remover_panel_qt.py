@@ -220,13 +220,20 @@ class BackgroundRemoverPanelQt(QWidget):
         """Select a paint tool."""
         self.current_tool = tool
         
+        # Block signals to prevent recursive calls
         # Update checkbox states (only one can be checked at a time)
         if hasattr(self, 'brush_cb'):
+            self.brush_cb.blockSignals(True)
             self.brush_cb.setChecked(tool == "brush")
+            self.brush_cb.blockSignals(False)
         if hasattr(self, 'eraser_cb'):
+            self.eraser_cb.blockSignals(True)
             self.eraser_cb.setChecked(tool == "eraser")
+            self.eraser_cb.blockSignals(False)
         if hasattr(self, 'fill_cb'):
+            self.fill_cb.blockSignals(True)
             self.fill_cb.setChecked(tool == "fill")
+            self.fill_cb.blockSignals(False)
     
     def on_size_changed(self, value):
         """Handle brush size change."""
@@ -240,12 +247,13 @@ class BackgroundRemoverPanelQt(QWidget):
             return
         
         # TODO: Implement actual background removal using rembg
-        # For now, update preview with processed image
+        # For now, just notify that feature is not yet implemented
+        # Once implemented, update preview with processed image
         if SLIDER_AVAILABLE and hasattr(self, 'preview_widget'):
-            # Placeholder: use same image for now
-            pixmap = QPixmap(self.current_image)
-            self.preview_widget.set_after_image(pixmap)
-            self.processed_image = self.current_image
+            # Note: This is a placeholder. The actual background removal
+            # will be implemented when rembg integration is complete.
+            # For now, we just show the original image in both views.
+            pass
         
         if self.processing_complete:
             self.processing_complete.emit()
