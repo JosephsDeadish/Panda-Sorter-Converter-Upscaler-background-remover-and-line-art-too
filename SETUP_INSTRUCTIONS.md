@@ -59,13 +59,21 @@ This includes:
 For all features including AI classification, upscaling, and advanced tools:
 
 ```bash
+pip install torch torchvision
+pip install timm basicsr realesrgan transformers open-clip-torch
 pip install -r requirements.txt
 ```
+
+**Why three steps?**
+- **Step 1** installs PyTorch first, which is large (~700MB) and may require a platform-specific version (e.g., CUDA-enabled). See https://pytorch.org/get-started/locally/ for GPU-specific instructions.
+- **Step 2** installs the ML/vision packages that depend on PyTorch.
+- **Step 3** installs all remaining dependencies from `requirements.txt`.
 
 This includes everything from minimal installation plus:
 - PyTorch and torchvision
 - Transformer models (CLIP, ViT)
-- Super-resolution models
+- Super-resolution models (Real-ESRGAN)
+- Open CLIP implementation
 - Vector search (FAISS, ChromaDB)
 - OCR support
 
