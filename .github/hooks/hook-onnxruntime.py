@@ -15,9 +15,10 @@ import os
 import sys
 import glob
 
-# Initialize collections
+# Initialize required hook attributes - CRITICAL: Must be at module level
 binaries = []
 datas = []
+excludedimports = []
 
 # Hidden imports needed by onnxruntime
 hiddenimports = [

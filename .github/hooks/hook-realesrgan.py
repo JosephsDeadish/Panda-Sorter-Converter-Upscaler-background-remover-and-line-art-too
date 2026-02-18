@@ -2,6 +2,10 @@
 Don't try to introspect - just force include what we know is needed
 """
 
+# Initialize required hook attributes
+binaries = []
+excludedimports = []
+
 # Force include these modules without trying to import them
 hiddenimports = [
     'realesrgan',

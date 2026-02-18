@@ -8,6 +8,11 @@ from PyInstaller.utils.hooks import collect_data_files, collect_submodules
 
 print("[open_clip hook] Starting open_clip collection...")
 
+# Initialize required hook attributes
+datas = []
+binaries = []
+excludedimports = []
+
 # Collect all open_clip submodules
 hiddenimports = collect_submodules('open_clip')
 

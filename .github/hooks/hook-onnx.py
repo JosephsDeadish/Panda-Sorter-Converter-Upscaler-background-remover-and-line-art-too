@@ -20,7 +20,7 @@ Author: Dead On The Inside / JosephsDeadish
 from PyInstaller.utils.hooks import collect_data_files
 import sys
 
-# Initialize collections
+# Initialize required hook attributes - CRITICAL: Must be at module level
 hiddenimports = []
 datas = []
 binaries = []

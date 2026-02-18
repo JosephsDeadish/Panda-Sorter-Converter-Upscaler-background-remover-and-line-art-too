@@ -8,6 +8,11 @@ from PyInstaller.utils.hooks import collect_data_files, collect_submodules
 
 print("[dinov2_model hook] Starting DINOv2 model collection...")
 
+# Initialize required hook attributes
+datas = []
+binaries = []
+excludedimports = []
+
 # Ensure core dependencies are available
 hiddenimports = [
     # Core vision model

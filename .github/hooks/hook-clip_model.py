@@ -8,6 +8,11 @@ from PyInstaller.utils.hooks import collect_data_files, collect_submodules
 
 print("[clip_model hook] Starting CLIP model collection...")
 
+# Initialize required hook attributes
+datas = []
+binaries = []
+excludedimports = []
+
 # Ensure core dependencies are available
 hiddenimports = [
     # Core vision model

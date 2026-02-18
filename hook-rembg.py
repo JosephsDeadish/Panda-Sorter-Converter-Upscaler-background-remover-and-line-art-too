@@ -62,10 +62,11 @@ REMBG_DEPENDENCIES = [
     'jsonschema',
 ]
 
-# Initialize collections
+# Initialize required hook attributes - CRITICAL: Must be at module level
 hiddenimports = []
 datas = []
 binaries = []
+excludedimports = []
 
 print("[rembg hook] Starting rembg collection...")
 print("[rembg hook] Note: sys.exit() is patched to prevent build termination")
