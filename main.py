@@ -609,7 +609,7 @@ class TextureSorterMainWindow(QMainWindow):
         # 4. Closet Tab
         try:
             from ui.closet_display_qt import ClosetDisplayWidget
-            closet_panel = ClosetDisplayWidget()
+            closet_panel = ClosetDisplayWidget(tooltip_manager=self.tooltip_manager)
             panda_tabs.addTab(closet_panel, "👔 Closet")
             logger.info("✅ Closet panel added to panda tab")
         except Exception as e:
@@ -625,7 +625,7 @@ class TextureSorterMainWindow(QMainWindow):
             from features.achievements import AchievementSystem
             
             achievement_system = AchievementSystem()
-            achievement_panel = AchievementDisplayWidget(achievement_system)
+            achievement_panel = AchievementDisplayWidget(achievement_system, tooltip_manager=self.tooltip_manager)
             panda_tabs.addTab(achievement_panel, "🏆 Achievements")
             logger.info("✅ Achievements panel added to panda tab")
         except Exception as e:
