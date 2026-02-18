@@ -30,6 +30,13 @@ except ImportError:
     SLIDER_AVAILABLE = False
     ComparisonSliderWidget = None
 
+try:
+    from utils.archive_handler import ArchiveHandler
+    ARCHIVE_AVAILABLE = True
+except ImportError:
+    ARCHIVE_AVAILABLE = False
+    logger.warning("Archive handler not available")
+
 IMAGE_EXTENSIONS = {'.png', '.jpg', '.jpeg', '.bmp', '.tiff', '.webp'}
 
 # Line art presets
@@ -347,6 +354,29 @@ class LineArtConverterPanelQt(QWidget):
         btn_layout.addWidget(select_multiple_btn)
         
         group_layout.addLayout(btn_layout)
+        
+        # Archive options
+        archive_layout = QHBoxLayout()
+        
+        self.archive_input_cb = QCheckBox("📦 Input is Archive")
+        if not ARCHIVE_AVAILABLE:
+            self.archive_input_cb.setToolTip("⚠️ Archive support not available. Install: pip install py7zr rarfile")
+            self.archive_input_cb.setStyleSheet("color: gray;")
+        else:
+            self._set_tooltip(self.archive_input_cb, 'input_archive_checkbox')
+        archive_layout.addWidget(self.archive_input_cb)
+        
+        self.archive_output_cb = QCheckBox("📦 Export to Archive")
+        if not ARCHIVE_AVAILABLE:
+            self.archive_output_cb.setToolTip("⚠️ Archive support not available. Install: pip install py7zr rarfile")
+            self.archive_output_cb.setStyleSheet("color: gray;")
+        else:
+            self._set_tooltip(self.archive_output_cb, 'output_archive_checkbox')
+        archive_layout.addWidget(self.archive_output_cb)
+        
+        archive_layout.addStretch()
+        group_layout.addLayout(archive_layout)
+        
         group.setLayout(group_layout)
         layout.addWidget(group)
     
