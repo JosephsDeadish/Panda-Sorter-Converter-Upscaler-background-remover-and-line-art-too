@@ -90,7 +90,9 @@ class ColorPickerWidget(QWidget):
                     self.color_preview.setStyleSheet(f"background-color: {text}; border: 2px solid black;")
                     self.rgb_label.setText(f"RGB: {color.red()}, {color.green()}, {color.blue()}")
                     self.color_changed.emit(color)
-            except:
+            except Exception as e:
+                # Silently ignore invalid color formats
+                logger.debug(f"Color parsing error: {e}")
                 pass
 
 

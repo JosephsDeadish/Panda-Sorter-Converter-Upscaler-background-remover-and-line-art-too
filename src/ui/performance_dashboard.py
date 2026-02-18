@@ -78,7 +78,9 @@ class PerformanceMetrics:
             cpu_percent = process.cpu_percent(interval=None)
             self.cpu_usage.append(cpu_percent)
             self.peak_cpu = max(self.peak_cpu, cpu_percent)
-        except:
+        except Exception as e:
+            # If CPU monitoring fails, append 0
+            logger.debug(f"Could not get CPU usage: {e}")
             self.cpu_usage.append(0)
         
         # Processing speed (files per second)
