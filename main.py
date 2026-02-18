@@ -504,19 +504,107 @@ class TextureSorterMainWindow(QMainWindow):
             label.setFont(QFont("Arial", 11))
             tool_tabs.addTab(label, "Install Required")
         
-        # Add Customization panel separately (only needs panda widget, not all panels)
+        # Add Panda features as a comprehensive tab with sub-tabs
         if PANDA_WIDGET_AVAILABLE and self.panda_widget is not None:
             try:
-                from ui.customization_panel_qt import CustomizationPanelQt
-                panda_char = getattr(self.panda_widget, 'panda', None)
-                if panda_char is not None:
-                    custom_panel = CustomizationPanelQt(panda_char, self.panda_widget)
-                    tool_tabs.addTab(custom_panel, "🎨 Panda Customization")
-                    logger.info("✅ Panda customization panel loaded")
+                panda_tab = self.create_panda_features_tab()
+                tool_tabs.addTab(panda_tab, "🐼 Panda Features")
+                logger.info("✅ Panda features tab loaded")
             except Exception as e:
-                logger.error(f"Could not load customization panel: {e}", exc_info=True)
+                logger.error(f"Could not load panda features tab: {e}", exc_info=True)
         
         self.tabs.addTab(tab, "Tools")
+    
+    def create_panda_features_tab(self):
+        """Create panda features tab with shop, inventory, closet, achievements, and customization."""
+        tab = QWidget()
+        layout = QVBoxLayout(tab)
+        layout.setContentsMargins(0, 0, 0, 0)
+        
+        # Create sub-tabs for panda features
+        panda_tabs = QTabWidget()
+        panda_tabs.setDocumentMode(True)
+        
+        # Get panda character
+        panda_char = getattr(self.panda_widget, 'panda', None)
+        
+        # 1. Customization Tab
+        try:
+            from ui.customization_panel_qt import CustomizationPanelQt
+            if panda_char is not None:
+                custom_panel = CustomizationPanelQt(panda_char, self.panda_widget)
+                panda_tabs.addTab(custom_panel, "🎨 Customization")
+                logger.info("✅ Customization panel added to panda tab")
+        except Exception as e:
+            logger.error(f"Could not load customization panel: {e}", exc_info=True)
+        
+        # 2. Shop Tab
+        try:
+            from ui.shop_panel_qt import ShopPanelQt
+            from features.shop_system import ShopSystem
+            from features.currency_system import CurrencySystem
+            
+            # Initialize systems
+            shop_system = ShopSystem()
+            currency_system = CurrencySystem()
+            
+            shop_panel = ShopPanelQt(shop_system, currency_system)
+            panda_tabs.addTab(shop_panel, "🛒 Shop")
+            logger.info("✅ Shop panel added to panda tab")
+        except Exception as e:
+            logger.error(f"Could not load shop panel: {e}", exc_info=True)
+            # Add placeholder
+            label = QLabel("⚠️ Shop not available\n\nInstall required dependencies")
+            label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            panda_tabs.addTab(label, "🛒 Shop")
+        
+        # 3. Inventory Tab
+        try:
+            from ui.inventory_panel_qt import InventoryPanelQt
+            from features.shop_system import ShopSystem
+            
+            shop_system = ShopSystem()  # Reuse or get existing
+            inventory_panel = InventoryPanelQt(shop_system)
+            panda_tabs.addTab(inventory_panel, "📦 Inventory")
+            logger.info("✅ Inventory panel added to panda tab")
+        except Exception as e:
+            logger.error(f"Could not load inventory panel: {e}", exc_info=True)
+            # Add placeholder
+            label = QLabel("⚠️ Inventory not available\n\nInstall required dependencies")
+            label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            panda_tabs.addTab(label, "📦 Inventory")
+        
+        # 4. Closet Tab
+        try:
+            from ui.closet_display_qt import ClosetDisplayWidget
+            closet_panel = ClosetDisplayWidget()
+            panda_tabs.addTab(closet_panel, "👔 Closet")
+            logger.info("✅ Closet panel added to panda tab")
+        except Exception as e:
+            logger.error(f"Could not load closet panel: {e}", exc_info=True)
+            # Add placeholder
+            label = QLabel("⚠️ Closet not available\n\nInstall required dependencies")
+            label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            panda_tabs.addTab(label, "👔 Closet")
+        
+        # 5. Achievements Tab
+        try:
+            from ui.achievement_panel_qt import AchievementDisplayWidget
+            from features.achievements import AchievementSystem
+            
+            achievement_system = AchievementSystem()
+            achievement_panel = AchievementDisplayWidget(achievement_system)
+            panda_tabs.addTab(achievement_panel, "🏆 Achievements")
+            logger.info("✅ Achievements panel added to panda tab")
+        except Exception as e:
+            logger.error(f"Could not load achievements panel: {e}", exc_info=True)
+            # Add placeholder  
+            label = QLabel("⚠️ Achievements not available\n\nInstall required dependencies")
+            label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            panda_tabs.addTab(label, "🏆 Achievements")
+        
+        layout.addWidget(panda_tabs)
+        return tab
     
     def create_file_browser_tab(self):
         """Create file browser tab."""
