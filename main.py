@@ -840,16 +840,111 @@ class TextureSorterMainWindow(QMainWindow):
     
     def perform_sorting(self, progress_callback, log_callback, check_cancelled):
         """Perform actual sorting (runs in worker thread)."""
-        # TODO: Implement actual sorting logic
-        import time
-        for i in range(10):
-            if check_cancelled():
-                log_callback("Operation cancelled by user")
+        try:
+            from pathlib import Path
+            
+            # Try to import AI classifier, fall back gracefully
+            try:
+                from organizer.combined_feature_extractor import CombinedFeatureExtractor
+                feature_extractor = CombinedFeatureExtractor()
+                use_ai = True
+                log_callback("✓ AI classifier loaded")
+            except Exception as e:
+                log_callback(f"⚠️ AI classifier unavailable, using pattern-based: {e}")
+                feature_extractor = None
+                use_ai = False
+            
+            log_callback("🔍 Scanning input directory...")
+            
+            # Collect texture files
+            extensions = {'.dds', '.png', '.jpg', '.jpeg', '.tga', '.bmp', '.tif', '.tiff'}
+            files = []
+            
+            for ext in extensions:
+                files.extend(self.input_path.rglob(f'*{ext}'))
+            
+            total_files = len(files)
+            if total_files == 0:
+                log_callback("⚠️ No texture files found in input directory")
                 return
-            progress_callback(i + 1, 10, f"Processing item {i + 1}/10")
-            time.sleep(0.5)
+            
+            log_callback(f"📊 Found {total_files} texture files")
+            
+            # Process and move files
+            moved_count = 0
+            failed_count = 0
+            
+            for idx, file_path in enumerate(files):
+                if check_cancelled():
+                    log_callback("⏹️ Operation cancelled by user")
+                    break
+                
+                # Classify texture
+                if use_ai and feature_extractor:
+                    try:
+                        category, confidence = feature_extractor.classify_texture(str(file_path))
+                    except Exception:
+                        category, confidence = self._pattern_classify(file_path.name)
+                else:
+                    category, confidence = self._pattern_classify(file_path.name)
+                
+                # Determine target folder
+                target_folder = self.output_path / category
+                target_folder.mkdir(parents=True, exist_ok=True)
+                
+                # Move file
+                try:
+                    target_path = target_folder / file_path.name
+                    
+                    # Handle duplicate filenames
+                    if target_path.exists():
+                        base = target_path.stem
+                        ext = target_path.suffix
+                        counter = 1
+                        while target_path.exists():
+                            target_path = target_folder / f"{base}_{counter}{ext}"
+                            counter += 1
+                    
+                    file_path.rename(target_path)
+                    moved_count += 1
+                    progress_callback(idx + 1, total_files, f"Moved {file_path.name} to {category}")
+                except Exception as e:
+                    failed_count += 1
+                    log_callback(f"⚠️ Failed to move {file_path.name}: {e}")
+                    progress_callback(idx + 1, total_files, f"Failed: {file_path.name}")
+            
+            # Report results
+            log_callback(f"\n✅ Sorting completed!")
+            log_callback(f"   Successfully moved: {moved_count} files")
+            if failed_count > 0:
+                log_callback(f"   Failed: {failed_count} files")
+                
+        except Exception as e:
+            import traceback
+            log_callback(f"❌ Sorting failed: {str(e)}")
+            log_callback(f"Traceback: {traceback.format_exc()}")
+    
+    def _pattern_classify(self, filename: str) -> tuple:
+        """Fallback pattern-based classification."""
+        filename_lower = filename.lower()
         
-        log_callback("✅ Sorting completed successfully")
+        # Simple pattern matching
+        patterns = {
+            'character': ['char', 'body', 'face', 'skin', 'hair', 'npc', 'player'],
+            'environment': ['ground', 'wall', 'floor', 'terrain', 'grass', 'rock', 'stone', 'dirt'],
+            'props': ['item', 'object', 'prop', 'weapon', 'armor', 'tool'],
+            'ui': ['ui', 'hud', 'icon', 'button', 'menu', 'cursor'],
+            'effects': ['particle', 'effect', 'fx', 'glow', 'spark', 'fire', 'smoke'],
+            'vegetation': ['tree', 'plant', 'leaf', 'flower', 'bush', 'foliage'],
+            'architecture': ['building', 'house', 'door', 'window', 'roof'],
+        }
+        
+        for category, keywords in patterns.items():
+            if any(keyword in filename_lower for keyword in keywords):
+                return category, 0.6
+        
+        # Default category
+        return 'miscellaneous', 0.3
     
     def set_operation_running(self, running: bool):
         """Update UI for operation running state."""
