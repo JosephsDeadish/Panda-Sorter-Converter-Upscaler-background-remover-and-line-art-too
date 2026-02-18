@@ -400,7 +400,7 @@ class TextureSorterMainWindow(QMainWindow):
                 tool_tabs.addTab(bg_panel, "🎭 Background Remover")
                 
                 # Alpha Fixer
-                alpha_panel = AlphaFixerPanelQt()
+                alpha_panel = AlphaFixerPanelQt(tooltip_manager=self.tooltip_manager)
                 tool_tabs.addTab(alpha_panel, "✨ Alpha Fixer")
                 
                 # Color Correction

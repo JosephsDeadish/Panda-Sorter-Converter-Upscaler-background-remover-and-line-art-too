@@ -60,9 +60,10 @@ class AlphaFixWorker(QThread):
 class AlphaFixerPanelQt(QWidget):
     """PyQt6 panel for alpha channel fixing."""
     
-    def __init__(self, parent=None):
+    def __init__(self, parent=None, tooltip_manager=None):
         super().__init__(parent)
         
+        self.tooltip_manager = tooltip_manager
         self.corrector = AlphaCorrector()
         self.selected_files: List[str] = []
         self.output_directory: Optional[str] = None
