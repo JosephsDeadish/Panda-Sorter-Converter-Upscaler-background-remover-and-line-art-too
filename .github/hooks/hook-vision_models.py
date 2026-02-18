@@ -69,7 +69,7 @@ for imp in critical_imports:
         hiddenimports.append(imp)
 
 # Collect data files for all vision model dependencies
-datas = []
+# Note: datas already initialized at module level
 
 # Collect transformers data
 try:
