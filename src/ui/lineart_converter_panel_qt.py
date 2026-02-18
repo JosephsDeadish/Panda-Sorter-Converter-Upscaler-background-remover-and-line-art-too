@@ -673,10 +673,6 @@ class LineArtConverterPanelQt(QWidget):
             self.preview_worker.error.connect(self._preview_error)
             self.preview_worker.start()
             
-            # Update preview in background - button reference removed as preview is automatic
-            # The preview timer will trigger _update_live_preview automatically
-            pass
-            
         except Exception as e:
             logger.error(f"Error starting preview: {e}")
             QMessageBox.critical(self, "Error", f"Failed to start preview: {str(e)}")
@@ -707,9 +703,6 @@ class LineArtConverterPanelQt(QWidget):
             logger.error(f"Error displaying preview: {e}")
             if hasattr(self, 'preview_label'):
                 self.preview_label.setText(f"Error: {str(e)}")
-        finally:
-            # Preview generation complete - button reference removed as preview is automatic
-            pass
     
     def _pil_to_pixmap(self, img, max_size=400):
         """Convert PIL Image to QPixmap"""
@@ -728,9 +721,8 @@ class LineArtConverterPanelQt(QWidget):
     
     def _preview_error(self, error_msg):
         """Handle preview error."""
-        self.preview_label.setText(f"Error: {error_msg}")
-        # Preview generation complete - button reference removed as preview is automatic
-        pass
+        if hasattr(self, 'preview_label'):
+            self.preview_label.setText(f"Error: {error_msg}")
     
     def _convert_batch(self):
         """Convert selected files in batch."""
