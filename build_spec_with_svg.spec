@@ -250,7 +250,6 @@ a = Analysis(
         # PyTorch - Core deep learning
         'torch',
         'torch._C',
-        # 'torch._six',  # REMOVED - deprecated module no longer exists in PyTorch 1.9+
         'torch.nn',
         'torch.nn.functional',
         'torch.optim',
