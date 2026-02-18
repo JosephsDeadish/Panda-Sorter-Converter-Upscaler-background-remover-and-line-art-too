@@ -59,8 +59,18 @@ from database import TextureDatabase
 from organizer import OrganizationEngine, ORGANIZATION_STYLES
 
 # Import UI components
+PANDA_WIDGET_AVAILABLE = False
 try:
     from ui.panda_widget_gl import PandaOpenGLWidget
+    PANDA_WIDGET_AVAILABLE = True
+    logger.info("✅ Panda OpenGL widget module loaded")
+except ImportError as e:
+    logger.warning(f"Panda widget not available: {e}")
+    PandaOpenGLWidget = None
+
+UI_PANELS_AVAILABLE = False
+UI_PANELS_AVAILABLE = False
+try:
     from ui.background_remover_panel_qt import BackgroundRemoverPanelQt
     from ui.color_correction_panel_qt import ColorCorrectionPanelQt
     from ui.batch_normalizer_panel_qt import BatchNormalizerPanelQt
@@ -74,6 +84,7 @@ try:
     from ui.organizer_panel_qt import OrganizerPanelQt
     from ui.settings_panel_qt import SettingsPanelQt
     UI_PANELS_AVAILABLE = True
+    logger.info("✅ UI panels loaded successfully")
 except ImportError as e:
     logger.warning(f"Some UI panels not available: {e}")
     UI_PANELS_AVAILABLE = False
@@ -197,7 +208,8 @@ class TextureSorterMainWindow(QMainWindow):
         splitter.addWidget(content_widget)
         
         # Right side: Panda 3D widget (OpenGL-accelerated)
-        if UI_PANELS_AVAILABLE:
+        # Load panda widget INDEPENDENTLY of UI panels
+        if PANDA_WIDGET_AVAILABLE:
             try:
                 self.panda_widget = PandaOpenGLWidget()
                 self.panda_widget.setMinimumWidth(300)
@@ -207,21 +219,40 @@ class TextureSorterMainWindow(QMainWindow):
                 splitter.setStretchFactor(1, 1)  # Panda gets 25%
                 logger.info("✅ Panda 3D OpenGL widget loaded successfully")
             except Exception as e:
-                logger.warning(f"Could not load panda widget: {e}")
+                logger.error(f"Could not load panda widget: {e}", exc_info=True)
                 # Create fallback placeholder
                 fallback_widget = QWidget()
                 fallback_layout = QVBoxLayout(fallback_widget)
-                fallback_label = QLabel("🐼 Panda Widget\n\nOpenGL not available\n\nThe 3D panda companion\ncould not be loaded.")
+                fallback_label = QLabel("🐼 Panda Widget\n\nOpenGL Error\n\n" + str(e))
                 fallback_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-                fallback_label.setStyleSheet("color: gray; font-size: 11pt;")
+                fallback_label.setStyleSheet("color: red; font-size: 11pt;")
+                fallback_label.setWordWrap(True)
                 fallback_layout.addWidget(fallback_label)
                 splitter.addWidget(fallback_widget)
                 splitter.setStretchFactor(0, 3)
                 splitter.setStretchFactor(1, 1)
                 self.panda_widget = None
-                logger.info("Using fallback placeholder for panda widget")
         else:
+            # Show clear message about what's missing
+            fallback_widget = QWidget()
+            fallback_layout = QVBoxLayout(fallback_widget)
+            fallback_label = QLabel(
+                "🐼 Panda Widget\n\n"
+                "Required Dependencies Missing:\n\n"
+                "• PyQt6\n"
+                "• PyOpenGL\n\n"
+                "Install with:\n"
+                "pip install PyQt6 PyOpenGL PyOpenGL-accelerate"
+            )
+            fallback_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            fallback_label.setStyleSheet("color: orange; font-size: 10pt;")
+            fallback_label.setWordWrap(True)
+            fallback_layout.addWidget(fallback_label)
+            splitter.addWidget(fallback_widget)
+            splitter.setStretchFactor(0, 3)
+            splitter.setStretchFactor(1, 1)
             self.panda_widget = None
+            logger.warning("Panda widget dependencies not installed")
     
     def create_main_tab(self):
         """Create the main tab with welcome/dashboard."""
@@ -435,12 +466,6 @@ class TextureSorterMainWindow(QMainWindow):
                 organizer_panel = OrganizerPanelQt()
                 tool_tabs.addTab(organizer_panel, "📁 Texture Organizer")
                 
-                # Customization (only if panda character is available)
-                panda_char = getattr(getattr(self, 'panda_widget', None), 'panda', None)
-                if panda_char is not None:
-                    custom_panel = CustomizationPanelQt(panda_char, self.panda_widget)
-                    tool_tabs.addTab(custom_panel, "🎨 Customization")
-                
                 self.log("✅ All tool panels loaded successfully")
                 
             except Exception as e:
@@ -452,7 +477,9 @@ class TextureSorterMainWindow(QMainWindow):
         else:
             # Fallback message
             label = QLabel(
-                "🔧 Tool panels require additional dependencies.\n\n"
+                "🔧 Tool panels require PyQt6.\n\n"
+                "Install with:\n"
+                "pip install PyQt6\n\n"
                 "Available tools:\n"
                 "• Texture Sorter\n"
                 "• Background Remover\n"
@@ -464,10 +491,23 @@ class TextureSorterMainWindow(QMainWindow):
                 "• Line Art Converter\n"
                 "• Batch Rename\n"
                 "• Image Repair\n"
-                "• Customization"
+                "• Texture Organizer"
             )
             label.setAlignment(Qt.AlignmentFlag.AlignCenter)
             label.setFont(QFont("Arial", 11))
+            tool_tabs.addTab(label, "Install Required")
+        
+        # Add Customization panel separately (only needs panda widget, not all panels)
+        if PANDA_WIDGET_AVAILABLE and self.panda_widget is not None:
+            try:
+                from ui.customization_panel_qt import CustomizationPanelQt
+                panda_char = getattr(self.panda_widget, 'panda', None)
+                if panda_char is not None:
+                    custom_panel = CustomizationPanelQt(panda_char, self.panda_widget)
+                    tool_tabs.addTab(custom_panel, "🎨 Panda Customization")
+                    logger.info("✅ Panda customization panel loaded")
+            except Exception as e:
+                logger.error(f"Could not load customization panel: {e}", exc_info=True)
             tool_tabs.addTab(label, "Info")
         
         self.tabs.addTab(tab, "Tools")
