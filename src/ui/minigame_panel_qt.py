@@ -24,19 +24,21 @@ class MiniGamePanelQt(QWidget):
     
     game_completed = pyqtSignal(str, int)  # game_id, score
     
-    def __init__(self, parent=None, minigame_manager: MiniGameManager = None):
+    def __init__(self, parent=None, minigame_manager: MiniGameManager = None, tooltip_manager=None):
         """
         Initialize mini-game panel.
         
         Args:
             parent: Parent widget
             minigame_manager: MiniGameManager instance
+            tooltip_manager: TooltipVerbosityManager instance
         """
         super().__init__(parent)
         
         self.manager = minigame_manager or MiniGameManager()
         self.current_game = None
         self.game_widgets = {}
+        self.tooltip_manager = tooltip_manager
         
         # Game timers (using QTimer instead of .after())
         self.game_timer = QTimer(self)
@@ -438,3 +440,10 @@ class MiniGamePanelQt(QWidget):
         self.stats_label.setText(
             f"Total Games: {total_games} | Total Score: {total_score}"
         )
+    
+    def _set_tooltip(self, widget, tooltip_key: str):
+        """Set tooltip using tooltip manager if available."""
+        if self.tooltip_manager:
+            tooltip = self.tooltip_manager.get_tooltip(tooltip_key)
+            if tooltip:
+                widget.setToolTip(tooltip)

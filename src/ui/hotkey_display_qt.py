@@ -19,9 +19,10 @@ class HotkeyDisplayWidget(QWidget):
     
     hotkey_changed = pyqtSignal(str, str)
     
-    def __init__(self, parent=None):
+    def __init__(self, parent=None, tooltip_manager=None):
         super().__init__(parent)
         self.hotkeys = {}
+        self.tooltip_manager = tooltip_manager
         self.setup_ui()
         
     def setup_ui(self):
@@ -194,10 +195,17 @@ class HotkeyDisplayWidget(QWidget):
             config[action_id] = current_key
         self.hotkeys = config
         QMessageBox.information(self, "Saved", "Hotkey configuration saved!")
+    
+    def _set_tooltip(self, widget, tooltip_key: str):
+        """Set tooltip using tooltip manager if available."""
+        if self.tooltip_manager:
+            tooltip = self.tooltip_manager.get_tooltip(tooltip_key)
+            if tooltip:
+                widget.setToolTip(tooltip)
 
 
-def create_hotkey_display(parent=None):
+def create_hotkey_display(parent=None, tooltip_manager=None):
     """Factory function"""
     if not PYQT_AVAILABLE:
         return None
-    return HotkeyDisplayWidget(parent)
+    return HotkeyDisplayWidget(parent, tooltip_manager)

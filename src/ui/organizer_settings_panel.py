@@ -13,9 +13,10 @@ class OrganizerSettingsPanel(QWidget):
     
     settings_changed = pyqtSignal(dict)
     
-    def __init__(self, config: dict = None):
+    def __init__(self, config: dict = None, tooltip_manager=None):
         super().__init__()
         self.config = config or {}
+        self.tooltip_manager = tooltip_manager
         self.setup_ui()
         self.load_settings()
     
@@ -519,3 +520,11 @@ class OrganizerSettingsPanel(QWidget):
             'case_sensitive': self.case_sensitive_check.isChecked(),
             'conflict_resolution': self.conflict_combo.currentText(),
         }
+
+    
+    def _set_tooltip(self, widget, tooltip_key: str):
+        """Set tooltip using tooltip manager if available."""
+        if self.tooltip_manager:
+            tooltip = self.tooltip_manager.get_tooltip(tooltip_key)
+            if tooltip:
+                widget.setToolTip(tooltip)

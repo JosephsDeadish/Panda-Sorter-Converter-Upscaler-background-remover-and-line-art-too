@@ -60,9 +60,10 @@ class ClosetDisplayWidget(QWidget):
     
     item_equipped = pyqtSignal(dict)
     
-    def __init__(self, parent=None):
+    def __init__(self, parent=None, tooltip_manager=None):
         super().__init__(parent)
         self.items = []
+        self.tooltip_manager = tooltip_manager
         self.setup_ui()
         
     def setup_ui(self):
@@ -147,10 +148,17 @@ class ClosetDisplayWidget(QWidget):
         filtered = [item for item in self.items
                    if text_lower in item.get('name', '').lower()]
         self.display_items(filtered)
+    
+    def _set_tooltip(self, widget, tooltip_key: str):
+        """Set tooltip using tooltip manager if available."""
+        if self.tooltip_manager:
+            tooltip = self.tooltip_manager.get_tooltip(tooltip_key)
+            if tooltip:
+                widget.setToolTip(tooltip)
 
 
-def create_closet_display(parent=None):
+def create_closet_display(parent=None, tooltip_manager=None):
     """Factory function"""
     if not PYQT_AVAILABLE:
         return None
-    return ClosetDisplayWidget(parent)
+    return ClosetDisplayWidget(parent, tooltip_manager)
