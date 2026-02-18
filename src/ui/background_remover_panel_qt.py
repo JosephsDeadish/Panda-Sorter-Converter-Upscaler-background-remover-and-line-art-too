@@ -8,7 +8,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 try:
-    from PyQt6.QtWidgets (QWidget, QVBoxLayout, QHBoxLayout, QPushButton,
+    from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QPushButton,
                                   QLabel, QSlider, QFileDialog, QSpinBox, QCheckBox,
                                   QGroupBox, QComboBox, QMessageBox)
     from PyQt6.QtCore import Qt, pyqtSignal
