@@ -236,6 +236,14 @@ class ShopPanelQt(QWidget):
         if self.current_category != "All":
             all_items = [item for item in all_items if self.matches_category(item)]
         
+        # Filter by search text
+        search_text = self.search_input.text().strip().lower()
+        if search_text:
+            all_items = [
+                item for item in all_items
+                if search_text in item.name.lower() or search_text in item.description.lower()
+            ]
+        
         # Add items to grid
         row, col = 0, 0
         for item in all_items[:50]:  # Limit to 50 items
@@ -279,8 +287,8 @@ class ShopPanelQt(QWidget):
         
     def filter_items(self, text: str):
         """Filter items by search text"""
-        # TODO: Implement search filtering
-        pass
+        # Re-display items with search filter
+        self.refresh_shop()
         
     def purchase_item(self, item_id: str):
         """Purchase an item"""

@@ -201,6 +201,14 @@ class InventoryPanelQt(QWidget):
                 if self.current_category == "All" or self.matches_category(item):
                     owned_items.append(item)
         
+        # Filter by search text
+        search_text = self.search_input.text().strip().lower()
+        if search_text:
+            owned_items = [
+                item for item in owned_items
+                if search_text in item.name.lower() or search_text in item.description.lower()
+            ]
+        
         if not owned_items:
             self.status_label.setText("📭 No items in inventory. Visit the shop to buy items!")
             return
@@ -247,5 +255,5 @@ class InventoryPanelQt(QWidget):
         
     def filter_items(self, text: str):
         """Filter items by search text"""
-        # TODO: Implement search filtering
-        pass
+        # Re-display inventory with search filter
+        self.refresh_inventory()
