@@ -21,6 +21,13 @@ from preprocessing.alpha_correction import AlphaCorrector, AlphaCorrectionPreset
 
 logger = logging.getLogger(__name__)
 
+try:
+    from utils.archive_handler import ArchiveHandler
+    ARCHIVE_AVAILABLE = True
+except ImportError:
+    ARCHIVE_AVAILABLE = False
+    logger.warning("Archive handler not available")
+
 IMAGE_EXTENSIONS = {'.png', '.jpg', '.jpeg', '.bmp', '.tiff', '.webp'}
 
 
@@ -60,9 +67,10 @@ class AlphaFixWorker(QThread):
 class AlphaFixerPanelQt(QWidget):
     """PyQt6 panel for alpha channel fixing."""
     
-    def __init__(self, parent=None):
+    def __init__(self, parent=None, tooltip_manager=None):
         super().__init__(parent)
         
+        self.tooltip_manager = tooltip_manager
         self.corrector = AlphaCorrector()
         self.selected_files: List[str] = []
         self.output_directory: Optional[str] = None
@@ -157,6 +165,28 @@ class AlphaFixerPanelQt(QWidget):
         output_btn = QPushButton("Set Output Directory")
         output_btn.clicked.connect(self._select_output)
         group_layout.addWidget(output_btn)
+        
+        # Archive options
+        archive_layout = QHBoxLayout()
+        
+        self.archive_input_cb = QCheckBox("📦 Input is Archive")
+        if not ARCHIVE_AVAILABLE:
+            self.archive_input_cb.setToolTip("⚠️ Archive support not available. Install: pip install py7zr rarfile")
+            self.archive_input_cb.setStyleSheet("color: gray;")
+        else:
+            self._set_tooltip(self.archive_input_cb, 'input_archive_checkbox')
+        archive_layout.addWidget(self.archive_input_cb)
+        
+        self.archive_output_cb = QCheckBox("📦 Export to Archive")
+        if not ARCHIVE_AVAILABLE:
+            self.archive_output_cb.setToolTip("⚠️ Archive support not available. Install: pip install py7zr rarfile")
+            self.archive_output_cb.setStyleSheet("color: gray;")
+        else:
+            self._set_tooltip(self.archive_output_cb, 'output_archive_checkbox')
+        archive_layout.addWidget(self.archive_output_cb)
+        
+        archive_layout.addStretch()
+        group_layout.addLayout(archive_layout)
         
         group.setLayout(group_layout)
         layout.addWidget(group)

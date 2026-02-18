@@ -299,14 +299,43 @@ class BasePyQtPanel(QWidget):
         """
         Start a worker thread for background operations.
         
+        NOTE: This base implementation is intentionally minimal. Individual panels
+        implement their own worker thread patterns as needed:
+        - organizer_panel_qt.py uses OrganizerWorker
+        - batch_normalizer_panel_qt.py uses BatchNormalizerWorker
+        - quality_checker_panel_qt.py uses QualityWorker
+        - etc.
+        
+        This method is provided for panels that need a simple worker pattern.
+        
         Args:
             worker_func: Function to run in background
             *args: Arguments for worker function
             **kwargs: Keyword arguments for worker function
         """
-        # TODO: Implement proper worker thread management
-        # This is a placeholder for the threading system
-        pass
+        # Simple implementation: create and start a QThread
+        if hasattr(self, 'worker_thread') and self.worker_thread and self.worker_thread.isRunning():
+            logger.warning("Worker thread already running")
+            return
+        
+        # Create a simple worker thread
+        from PyQt6.QtCore import QThread
+        
+        class SimpleWorker(QThread):
+            def __init__(self, func, args, kwargs):
+                super().__init__()
+                self.func = func
+                self.args = args
+                self.kwargs = kwargs
+            
+            def run(self):
+                try:
+                    self.func(*self.args, **self.kwargs)
+                except Exception as e:
+                    logger.error(f"Worker thread error: {e}", exc_info=True)
+        
+        self.worker_thread = SimpleWorker(worker_func, args, kwargs)
+        self.worker_thread.start()
     
     def stop_worker(self):
         """Stop the worker thread if running."""

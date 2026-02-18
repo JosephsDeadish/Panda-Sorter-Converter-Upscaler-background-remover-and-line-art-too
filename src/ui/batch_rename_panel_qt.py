@@ -18,6 +18,13 @@ from tools.batch_renamer import BatchRenamer, RenamePattern
 
 logger = logging.getLogger(__name__)
 
+try:
+    from utils.archive_handler import ArchiveHandler
+    ARCHIVE_AVAILABLE = True
+except ImportError:
+    ARCHIVE_AVAILABLE = False
+    logger.warning("Archive handler not available")
+
 # Try to import SVG icon helper
 try:
     from utils.svg_icon_helper import load_icon
@@ -146,6 +153,29 @@ class BatchRenamePanelQt(QWidget):
         btn_layout.addWidget(clear_btn)
         
         group_layout.addLayout(btn_layout)
+        
+        # Archive options
+        archive_layout = QHBoxLayout()
+        
+        self.archive_input_cb = QCheckBox("📦 Input is Archive")
+        if not ARCHIVE_AVAILABLE:
+            self.archive_input_cb.setToolTip("⚠️ Archive support not available. Install: pip install py7zr rarfile")
+            self.archive_input_cb.setStyleSheet("color: gray;")
+        else:
+            self._set_tooltip(self.archive_input_cb, 'input_archive_checkbox')
+        archive_layout.addWidget(self.archive_input_cb)
+        
+        self.archive_output_cb = QCheckBox("📦 Export to Archive")
+        if not ARCHIVE_AVAILABLE:
+            self.archive_output_cb.setToolTip("⚠️ Archive support not available. Install: pip install py7zr rarfile")
+            self.archive_output_cb.setStyleSheet("color: gray;")
+        else:
+            self._set_tooltip(self.archive_output_cb, 'output_archive_checkbox')
+        archive_layout.addWidget(self.archive_output_cb)
+        
+        archive_layout.addStretch()
+        group_layout.addLayout(archive_layout)
+        
         group.setLayout(group_layout)
         layout.addWidget(group)
     
@@ -479,3 +509,10 @@ class BatchRenamePanelQt(QWidget):
         except Exception as e:
             logger.error(f"Error during undo: {e}")
             QMessageBox.critical(self, "Error", f"Failed to undo: {str(e)}")
+
+    def _set_tooltip(self, widget, text):
+        """Set tooltip on a widget using tooltip manager if available."""
+        if self.tooltip_manager and hasattr(self.tooltip_manager, 'set_tooltip'):
+            self.tooltip_manager.set_tooltip(widget, text)
+        else:
+            widget.setToolTip(text)

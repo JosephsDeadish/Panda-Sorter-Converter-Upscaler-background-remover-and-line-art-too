@@ -263,7 +263,8 @@ class OrganizerWorker(QThread):
         extensions = {'.dds', '.png', '.jpg', '.jpeg', '.tga', '.bmp'}
         files = []
         
-        recursive = self.settings.get('recursive', True)
+        # Use checkbox if available, otherwise fall back to settings
+        recursive = self.subfolders_cb.isChecked() if hasattr(self, 'subfolders_cb') else self.settings.get('recursive', True)
         
         if recursive:
             for ext in extensions:
@@ -535,7 +536,7 @@ class OrganizerPanelQt(QWidget):
             self.archive_input_cb.setToolTip("⚠️ Archive support not available. Install: pip install py7zr rarfile")
             self.archive_input_cb.setStyleSheet("color: gray;")
         else:
-            self.archive_input_cb.setToolTip("Select ZIP/7Z/RAR archives as input")
+            self._set_tooltip(self.archive_input_cb, 'input_archive_checkbox')
         options_layout.addWidget(self.archive_input_cb)
         
         self.archive_output_cb = QCheckBox("📦 Archive Output")
@@ -543,11 +544,12 @@ class OrganizerPanelQt(QWidget):
             self.archive_output_cb.setToolTip("⚠️ Archive support not available. Install: pip install py7zr rarfile")
             self.archive_output_cb.setStyleSheet("color: gray;")
         else:
-            self.archive_output_cb.setToolTip("Save organized files to archive")
+            self._set_tooltip(self.archive_output_cb, 'output_archive_checkbox')
         options_layout.addWidget(self.archive_output_cb)
         
         self.subfolders_cb = QCheckBox("📂 Include Subfolders")
         self.subfolders_cb.setChecked(True)
+        self._set_tooltip(self.subfolders_cb, 'recursive_search_checkbox')
         options_layout.addWidget(self.subfolders_cb)
         
         options_layout.addStretch()
@@ -598,10 +600,12 @@ class OrganizerPanelQt(QWidget):
         # AI Suggestion display
         self.suggestion_label = QLabel("AI Suggestion: —")
         self.suggestion_label.setStyleSheet("font-size: 12pt; padding: 5px;")
+        self._set_tooltip(self.suggestion_label, 'ai_suggestion_label')
         classification_layout.addWidget(self.suggestion_label)
         
         self.confidence_label = QLabel("Confidence: —")
         self.confidence_label.setStyleSheet("color: gray; padding: 5px;")
+        self._set_tooltip(self.confidence_label, 'ai_confidence_label')
         classification_layout.addWidget(self.confidence_label)
         
         # Feedback buttons
@@ -610,12 +614,14 @@ class OrganizerPanelQt(QWidget):
         self.good_btn.setStyleSheet("background: #4CAF50; color: white; padding: 10px; font-weight: bold;")
         self.good_btn.clicked.connect(self._on_good_feedback)
         self.good_btn.setEnabled(False)
+        self._set_tooltip(self.good_btn, 'feedback_good_button')
         feedback_layout.addWidget(self.good_btn)
         
         self.bad_btn = QPushButton("❌ Bad")
         self.bad_btn.setStyleSheet("background: #f44336; color: white; padding: 10px; font-weight: bold;")
         self.bad_btn.clicked.connect(self._on_bad_feedback)
         self.bad_btn.setEnabled(False)
+        self._set_tooltip(self.bad_btn, 'feedback_bad_button')
         feedback_layout.addWidget(self.bad_btn)
         
         classification_layout.addLayout(feedback_layout)
@@ -626,12 +632,14 @@ class OrganizerPanelQt(QWidget):
         self.folder_input = QLineEdit()
         self.folder_input.setPlaceholderText("Type folder name or path...")
         self.folder_input.textChanged.connect(self._on_folder_text_changed)
+        self._set_tooltip(self.folder_input, 'manual_override_input')
         classification_layout.addWidget(self.folder_input)
         
         # Auto-complete suggestions list
         self.suggestions_list = QListWidget()
         self.suggestions_list.setMaximumHeight(150)
         self.suggestions_list.itemClicked.connect(self._on_suggestion_selected)
+        self._set_tooltip(self.suggestions_list, 'folder_suggestions_list')
         classification_layout.addWidget(self.suggestions_list)
         
         # Path preview
@@ -1553,3 +1561,10 @@ class OrganizerPanelQt(QWidget):
         # Auto-scroll to bottom
         scrollbar = self.log_text.verticalScrollBar()
         scrollbar.setValue(scrollbar.maximum())
+
+    def _set_tooltip(self, widget, text):
+        """Set tooltip on a widget using tooltip manager if available."""
+        if self.tooltip_manager and hasattr(self.tooltip_manager, 'set_tooltip'):
+            self.tooltip_manager.set_tooltip(widget, text)
+        else:
+            widget.setToolTip(text)

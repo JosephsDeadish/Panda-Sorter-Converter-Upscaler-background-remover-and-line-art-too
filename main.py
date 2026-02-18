@@ -59,8 +59,17 @@ from database import TextureDatabase
 from organizer import OrganizationEngine, ORGANIZATION_STYLES
 
 # Import UI components
+PANDA_WIDGET_AVAILABLE = False
 try:
     from ui.panda_widget_gl import PandaOpenGLWidget
+    PANDA_WIDGET_AVAILABLE = True
+    logger.info("✅ Panda OpenGL widget module loaded")
+except ImportError as e:
+    logger.warning(f"Panda widget not available: {e}")
+    PandaOpenGLWidget = None
+
+UI_PANELS_AVAILABLE = False
+try:
     from ui.background_remover_panel_qt import BackgroundRemoverPanelQt
     from ui.color_correction_panel_qt import ColorCorrectionPanelQt
     from ui.batch_normalizer_panel_qt import BatchNormalizerPanelQt
@@ -73,7 +82,10 @@ try:
     from ui.upscaler_panel_qt import ImageUpscalerPanelQt
     from ui.organizer_panel_qt import OrganizerPanelQt
     from ui.settings_panel_qt import SettingsPanelQt
+    from ui.file_browser_panel_qt import FileBrowserPanelQt
+    from ui.notepad_panel_qt import NotepadPanelQt
     UI_PANELS_AVAILABLE = True
+    logger.info("✅ UI panels loaded successfully")
 except ImportError as e:
     logger.warning(f"Some UI panels not available: {e}")
     UI_PANELS_AVAILABLE = False
@@ -185,6 +197,12 @@ class TextureSorterMainWindow(QMainWindow):
         # Create tools tab (includes sorting + all tools)
         self.create_tools_tab()
         
+        # Create file browser tab
+        self.create_file_browser_tab()
+        
+        # Create notepad tab
+        self.create_notepad_tab()
+        
         # Create settings tab
         self.create_settings_tab()
         
@@ -197,7 +215,8 @@ class TextureSorterMainWindow(QMainWindow):
         splitter.addWidget(content_widget)
         
         # Right side: Panda 3D widget (OpenGL-accelerated)
-        if UI_PANELS_AVAILABLE:
+        # Load panda widget INDEPENDENTLY of UI panels
+        if PANDA_WIDGET_AVAILABLE:
             try:
                 self.panda_widget = PandaOpenGLWidget()
                 self.panda_widget.setMinimumWidth(300)
@@ -207,21 +226,40 @@ class TextureSorterMainWindow(QMainWindow):
                 splitter.setStretchFactor(1, 1)  # Panda gets 25%
                 logger.info("✅ Panda 3D OpenGL widget loaded successfully")
             except Exception as e:
-                logger.warning(f"Could not load panda widget: {e}")
+                logger.error(f"Could not load panda widget: {e}", exc_info=True)
                 # Create fallback placeholder
                 fallback_widget = QWidget()
                 fallback_layout = QVBoxLayout(fallback_widget)
-                fallback_label = QLabel("🐼 Panda Widget\n\nOpenGL not available\n\nThe 3D panda companion\ncould not be loaded.")
+                fallback_label = QLabel("🐼 Panda Widget\n\nOpenGL Error\n\n" + str(e))
                 fallback_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-                fallback_label.setStyleSheet("color: gray; font-size: 11pt;")
+                fallback_label.setStyleSheet("color: red; font-size: 11pt;")
+                fallback_label.setWordWrap(True)
                 fallback_layout.addWidget(fallback_label)
                 splitter.addWidget(fallback_widget)
                 splitter.setStretchFactor(0, 3)
                 splitter.setStretchFactor(1, 1)
                 self.panda_widget = None
-                logger.info("Using fallback placeholder for panda widget")
         else:
+            # Show clear message about what's missing
+            fallback_widget = QWidget()
+            fallback_layout = QVBoxLayout(fallback_widget)
+            fallback_label = QLabel(
+                "🐼 Panda Widget\n\n"
+                "Required Dependencies Missing:\n\n"
+                "• PyQt6\n"
+                "• PyOpenGL\n\n"
+                "Install with:\n"
+                "pip install PyQt6 PyOpenGL PyOpenGL-accelerate"
+            )
+            fallback_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            fallback_label.setStyleSheet("color: orange; font-size: 10pt;")
+            fallback_label.setWordWrap(True)
+            fallback_layout.addWidget(fallback_label)
+            splitter.addWidget(fallback_widget)
+            splitter.setStretchFactor(0, 3)
+            splitter.setStretchFactor(1, 1)
             self.panda_widget = None
+            logger.warning("Panda widget dependencies not installed")
     
     def create_main_tab(self):
         """Create the main tab with welcome/dashboard."""
@@ -396,50 +434,44 @@ class TextureSorterMainWindow(QMainWindow):
         if UI_PANELS_AVAILABLE:
             try:
                 # Background Remover
-                bg_panel = BackgroundRemoverPanelQt()
+                bg_panel = BackgroundRemoverPanelQt(tooltip_manager=self.tooltip_manager)
                 tool_tabs.addTab(bg_panel, "🎭 Background Remover")
                 
                 # Alpha Fixer
-                alpha_panel = AlphaFixerPanelQt()
+                alpha_panel = AlphaFixerPanelQt(tooltip_manager=self.tooltip_manager)
                 tool_tabs.addTab(alpha_panel, "✨ Alpha Fixer")
                 
                 # Color Correction
-                color_panel = ColorCorrectionPanelQt()
+                color_panel = ColorCorrectionPanelQt(tooltip_manager=self.tooltip_manager)
                 tool_tabs.addTab(color_panel, "🎨 Color Correction")
                 
                 # Batch Normalizer
-                norm_panel = BatchNormalizerPanelQt()
+                norm_panel = BatchNormalizerPanelQt(tooltip_manager=self.tooltip_manager)
                 tool_tabs.addTab(norm_panel, "⚙️ Batch Normalizer")
                 
                 # Quality Checker
-                quality_panel = QualityCheckerPanelQt()
+                quality_panel = QualityCheckerPanelQt(tooltip_manager=self.tooltip_manager)
                 tool_tabs.addTab(quality_panel, "✓ Quality Checker")
                 
                 # Image Upscaler
-                upscaler_panel = ImageUpscalerPanelQt()
+                upscaler_panel = ImageUpscalerPanelQt(tooltip_manager=self.tooltip_manager)
                 tool_tabs.addTab(upscaler_panel, "🔍 Image Upscaler")
                 
                 # Line Art Converter
-                line_panel = LineArtConverterPanelQt()
+                line_panel = LineArtConverterPanelQt(tooltip_manager=self.tooltip_manager)
                 tool_tabs.addTab(line_panel, "✏️ Line Art Converter")
                 
                 # Batch Rename
-                rename_panel = BatchRenamePanelQt()
+                rename_panel = BatchRenamePanelQt(tooltip_manager=self.tooltip_manager)
                 tool_tabs.addTab(rename_panel, "📝 Batch Rename")
                 
                 # Image Repair
-                repair_panel = ImageRepairPanelQt()
+                repair_panel = ImageRepairPanelQt(tooltip_manager=self.tooltip_manager)
                 tool_tabs.addTab(repair_panel, "🔧 Image Repair")
                 
                 # Texture Organizer
-                organizer_panel = OrganizerPanelQt()
+                organizer_panel = OrganizerPanelQt(tooltip_manager=self.tooltip_manager)
                 tool_tabs.addTab(organizer_panel, "📁 Texture Organizer")
-                
-                # Customization (only if panda character is available)
-                panda_char = getattr(getattr(self, 'panda_widget', None), 'panda', None)
-                if panda_char is not None:
-                    custom_panel = CustomizationPanelQt(panda_char, self.panda_widget)
-                    tool_tabs.addTab(custom_panel, "🎨 Customization")
                 
                 self.log("✅ All tool panels loaded successfully")
                 
@@ -452,7 +484,9 @@ class TextureSorterMainWindow(QMainWindow):
         else:
             # Fallback message
             label = QLabel(
-                "🔧 Tool panels require additional dependencies.\n\n"
+                "🔧 Tool panels require PyQt6.\n\n"
+                "Install with:\n"
+                "pip install PyQt6\n\n"
                 "Available tools:\n"
                 "• Texture Sorter\n"
                 "• Background Remover\n"
@@ -464,13 +498,161 @@ class TextureSorterMainWindow(QMainWindow):
                 "• Line Art Converter\n"
                 "• Batch Rename\n"
                 "• Image Repair\n"
-                "• Customization"
+                "• Texture Organizer"
             )
             label.setAlignment(Qt.AlignmentFlag.AlignCenter)
             label.setFont(QFont("Arial", 11))
-            tool_tabs.addTab(label, "Info")
+            tool_tabs.addTab(label, "Install Required")
+        
+        # Add Panda features as a comprehensive tab with sub-tabs
+        if PANDA_WIDGET_AVAILABLE and self.panda_widget is not None:
+            try:
+                panda_tab = self.create_panda_features_tab()
+                tool_tabs.addTab(panda_tab, "🐼 Panda Features")
+                logger.info("✅ Panda features tab loaded")
+            except Exception as e:
+                logger.error(f"Could not load panda features tab: {e}", exc_info=True)
         
         self.tabs.addTab(tab, "Tools")
+    
+    def create_panda_features_tab(self):
+        """Create panda features tab with shop, inventory, closet, achievements, and customization."""
+        tab = QWidget()
+        layout = QVBoxLayout(tab)
+        layout.setContentsMargins(0, 0, 0, 0)
+        
+        # Create sub-tabs for panda features
+        panda_tabs = QTabWidget()
+        panda_tabs.setDocumentMode(True)
+        
+        # Get panda character
+        panda_char = getattr(self.panda_widget, 'panda', None)
+        
+        # 1. Customization Tab
+        try:
+            from ui.customization_panel_qt import CustomizationPanelQt
+            if panda_char is not None:
+                custom_panel = CustomizationPanelQt(panda_char, self.panda_widget)
+                panda_tabs.addTab(custom_panel, "🎨 Customization")
+                logger.info("✅ Customization panel added to panda tab")
+        except Exception as e:
+            logger.error(f"Could not load customization panel: {e}", exc_info=True)
+        
+        # 2. Shop Tab
+        try:
+            from ui.shop_panel_qt import ShopPanelQt
+            from features.shop_system import ShopSystem
+            from features.currency_system import CurrencySystem
+            
+            # Initialize systems
+            shop_system = ShopSystem()
+            currency_system = CurrencySystem()
+            
+            shop_panel = ShopPanelQt(shop_system, currency_system)
+            panda_tabs.addTab(shop_panel, "🛒 Shop")
+            logger.info("✅ Shop panel added to panda tab")
+        except Exception as e:
+            logger.error(f"Could not load shop panel: {e}", exc_info=True)
+            # Add placeholder
+            label = QLabel("⚠️ Shop not available\n\nInstall required dependencies")
+            label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            panda_tabs.addTab(label, "🛒 Shop")
+        
+        # 3. Inventory Tab
+        try:
+            from ui.inventory_panel_qt import InventoryPanelQt
+            from features.shop_system import ShopSystem
+            
+            shop_system = ShopSystem()  # Reuse or get existing
+            inventory_panel = InventoryPanelQt(shop_system)
+            panda_tabs.addTab(inventory_panel, "📦 Inventory")
+            logger.info("✅ Inventory panel added to panda tab")
+        except Exception as e:
+            logger.error(f"Could not load inventory panel: {e}", exc_info=True)
+            # Add placeholder
+            label = QLabel("⚠️ Inventory not available\n\nInstall required dependencies")
+            label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            panda_tabs.addTab(label, "📦 Inventory")
+        
+        # 4. Closet Tab
+        try:
+            from ui.closet_display_qt import ClosetDisplayWidget
+            closet_panel = ClosetDisplayWidget()
+            panda_tabs.addTab(closet_panel, "👔 Closet")
+            logger.info("✅ Closet panel added to panda tab")
+        except Exception as e:
+            logger.error(f"Could not load closet panel: {e}", exc_info=True)
+            # Add placeholder
+            label = QLabel("⚠️ Closet not available\n\nInstall required dependencies")
+            label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            panda_tabs.addTab(label, "👔 Closet")
+        
+        # 5. Achievements Tab
+        try:
+            from ui.achievement_panel_qt import AchievementDisplayWidget
+            from features.achievements import AchievementSystem
+            
+            achievement_system = AchievementSystem()
+            achievement_panel = AchievementDisplayWidget(achievement_system)
+            panda_tabs.addTab(achievement_panel, "🏆 Achievements")
+            logger.info("✅ Achievements panel added to panda tab")
+        except Exception as e:
+            logger.error(f"Could not load achievements panel: {e}", exc_info=True)
+            # Add placeholder  
+            label = QLabel("⚠️ Achievements not available\n\nInstall required dependencies")
+            label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            panda_tabs.addTab(label, "🏆 Achievements")
+        
+        layout.addWidget(panda_tabs)
+        return tab
+    
+    def create_file_browser_tab(self):
+        """Create file browser tab."""
+        tab = QWidget()
+        layout = QVBoxLayout(tab)
+        layout.setContentsMargins(0, 0, 0, 0)
+        
+        try:
+            if UI_PANELS_AVAILABLE:
+                tooltip_manager = getattr(self, 'tooltip_manager', None)
+                self.file_browser_panel = FileBrowserPanelQt(config, tooltip_manager)
+                layout.addWidget(self.file_browser_panel)
+                self.log("✅ File browser panel loaded successfully")
+            else:
+                label = QLabel("⚠️ File browser requires PyQt6 and PIL\n\nInstall with: pip install PyQt6 Pillow")
+                label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+                layout.addWidget(label)
+        except Exception as e:
+            logger.error(f"Error loading file browser panel: {e}", exc_info=True)
+            label = QLabel(f"⚠️ Error loading file browser:\n{e}")
+            label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            layout.addWidget(label)
+        
+        self.tabs.addTab(tab, "📁 File Browser")
+    
+    def create_notepad_tab(self):
+        """Create notepad tab."""
+        tab = QWidget()
+        layout = QVBoxLayout(tab)
+        layout.setContentsMargins(0, 0, 0, 0)
+        
+        try:
+            if UI_PANELS_AVAILABLE:
+                tooltip_manager = getattr(self, 'tooltip_manager', None)
+                self.notepad_panel = NotepadPanelQt(config, tooltip_manager)
+                layout.addWidget(self.notepad_panel)
+                self.log("✅ Notepad panel loaded successfully")
+            else:
+                label = QLabel("⚠️ Notepad requires PyQt6\n\nInstall with: pip install PyQt6")
+                label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+                layout.addWidget(label)
+        except Exception as e:
+            logger.error(f"Error loading notepad panel: {e}", exc_info=True)
+            label = QLabel(f"⚠️ Error loading notepad:\n{e}")
+            label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            layout.addWidget(label)
+        
+        self.tabs.addTab(tab, "📝 Notepad")
     
     def create_settings_tab(self):
         """Create settings tab."""
@@ -802,16 +984,111 @@ class TextureSorterMainWindow(QMainWindow):
     
     def perform_sorting(self, progress_callback, log_callback, check_cancelled):
         """Perform actual sorting (runs in worker thread)."""
-        # TODO: Implement actual sorting logic
-        import time
-        for i in range(10):
-            if check_cancelled():
-                log_callback("Operation cancelled by user")
+        try:
+            from pathlib import Path
+            
+            # Try to import AI classifier, fall back gracefully
+            try:
+                from organizer.combined_feature_extractor import CombinedFeatureExtractor
+                feature_extractor = CombinedFeatureExtractor()
+                use_ai = True
+                log_callback("✓ AI classifier loaded")
+            except Exception as e:
+                log_callback(f"⚠️ AI classifier unavailable, using pattern-based: {e}")
+                feature_extractor = None
+                use_ai = False
+            
+            log_callback("🔍 Scanning input directory...")
+            
+            # Collect texture files
+            extensions = {'.dds', '.png', '.jpg', '.jpeg', '.tga', '.bmp', '.tif', '.tiff'}
+            files = []
+            
+            for ext in extensions:
+                files.extend(self.input_path.rglob(f'*{ext}'))
+            
+            total_files = len(files)
+            if total_files == 0:
+                log_callback("⚠️ No texture files found in input directory")
                 return
-            progress_callback(i + 1, 10, f"Processing item {i + 1}/10")
-            time.sleep(0.5)
+            
+            log_callback(f"📊 Found {total_files} texture files")
+            
+            # Process and move files
+            moved_count = 0
+            failed_count = 0
+            
+            for idx, file_path in enumerate(files):
+                if check_cancelled():
+                    log_callback("⏹️ Operation cancelled by user")
+                    break
+                
+                # Classify texture
+                if use_ai and feature_extractor:
+                    try:
+                        category, confidence = feature_extractor.classify_texture(str(file_path))
+                    except Exception:
+                        category, confidence = self._pattern_classify(file_path.name)
+                else:
+                    category, confidence = self._pattern_classify(file_path.name)
+                
+                # Determine target folder
+                target_folder = self.output_path / category
+                target_folder.mkdir(parents=True, exist_ok=True)
+                
+                # Move file
+                try:
+                    target_path = target_folder / file_path.name
+                    
+                    # Handle duplicate filenames
+                    if target_path.exists():
+                        base = target_path.stem
+                        ext = target_path.suffix
+                        counter = 1
+                        while target_path.exists():
+                            target_path = target_folder / f"{base}_{counter}{ext}"
+                            counter += 1
+                    
+                    file_path.rename(target_path)
+                    moved_count += 1
+                    progress_callback(idx + 1, total_files, f"Moved {file_path.name} to {category}")
+                except Exception as e:
+                    failed_count += 1
+                    log_callback(f"⚠️ Failed to move {file_path.name}: {e}")
+                    progress_callback(idx + 1, total_files, f"Failed: {file_path.name}")
+            
+            # Report results
+            log_callback(f"\n✅ Sorting completed!")
+            log_callback(f"   Successfully moved: {moved_count} files")
+            if failed_count > 0:
+                log_callback(f"   Failed: {failed_count} files")
+                
+        except Exception as e:
+            import traceback
+            log_callback(f"❌ Sorting failed: {str(e)}")
+            log_callback(f"Traceback: {traceback.format_exc()}")
+    
+    def _pattern_classify(self, filename: str) -> tuple:
+        """Fallback pattern-based classification."""
+        filename_lower = filename.lower()
         
-        log_callback("✅ Sorting completed successfully")
+        # Simple pattern matching
+        patterns = {
+            'character': ['char', 'body', 'face', 'skin', 'hair', 'npc', 'player'],
+            'environment': ['ground', 'wall', 'floor', 'terrain', 'grass', 'rock', 'stone', 'dirt'],
+            'props': ['item', 'object', 'prop', 'weapon', 'armor', 'tool'],
+            'ui': ['ui', 'hud', 'icon', 'button', 'menu', 'cursor'],
+            'effects': ['particle', 'effect', 'fx', 'glow', 'spark', 'fire', 'smoke'],
+            'vegetation': ['tree', 'plant', 'leaf', 'flower', 'bush', 'foliage'],
+            'architecture': ['building', 'house', 'door', 'window', 'roof'],
+        }
+        
+        for category, keywords in patterns.items():
+            if any(keyword in filename_lower for keyword in keywords):
+                return category, 0.6
+        
+        # Default category
+        return 'miscellaneous', 0.3
     
     def set_operation_running(self, running: bool):
         """Update UI for operation running state."""
@@ -961,58 +1238,78 @@ def check_feature_availability():
         import torch
         features['pytorch'] = True
         features['pytorch_cuda'] = torch.cuda.is_available()
-    except Exception:
-        pass
+        logger.info(f"✓ PyTorch available (CUDA: {features['pytorch_cuda']})")
+    except Exception as e:
+        features['pytorch'] = False
+        features['pytorch_cuda'] = False
+        logger.debug(f"PyTorch not available: {e}")
     
     # Check ONNX
     try:
         import onnx
         features['onnx'] = True
-    except Exception:
-        pass
+        logger.info("✓ ONNX available")
+    except Exception as e:
+        features['onnx'] = False
+        logger.debug(f"ONNX not available: {e}")
     
     # Check ONNX Runtime
     try:
         import onnxruntime
         features['onnxruntime'] = True
-    except Exception:
-        pass
+        logger.info("✓ ONNX Runtime available")
+    except Exception as e:
+        features['onnxruntime'] = False
+        logger.debug(f"ONNX Runtime not available: {e}")
     
     # Check transformers
     try:
         import transformers
         features['transformers'] = True
-    except Exception:
-        pass
+        logger.info("✓ Transformers available")
+    except Exception as e:
+        features['transformers'] = False
+        logger.debug(f"Transformers not available: {e}")
     
     # Check open_clip
     try:
         import open_clip
         features['open_clip'] = True
-    except Exception:
-        pass
+        logger.info("✓ Open CLIP available")
+    except Exception as e:
+        features['open_clip'] = False
+        logger.debug(f"Open CLIP not available: {e}")
     
     # Check timm
     try:
         import timm
         features['timm'] = True
-    except Exception:
-        pass
+        logger.info("✓ timm available")
+    except Exception as e:
+        features['timm'] = False
+        logger.debug(f"timm not available: {e}")
     
     # Check Real-ESRGAN upscaling
     try:
         from preprocessing.upscaler import REALESRGAN_AVAILABLE
         features['upscaler'] = REALESRGAN_AVAILABLE
         features['realesrgan'] = REALESRGAN_AVAILABLE  # DEPRECATED: Kept for backward compatibility
-    except Exception:
-        pass
+        if REALESRGAN_AVAILABLE:
+            logger.info("✓ Real-ESRGAN upscaler available")
+    except Exception as e:
+        features['upscaler'] = False
+        features['realesrgan'] = False
+        logger.debug(f"Real-ESRGAN not available: {e}")
     
     # Check native Rust Lanczos upscaling
     try:
         from native_ops import NATIVE_AVAILABLE
         features['native_lanczos'] = NATIVE_AVAILABLE
-    except Exception:
-        pass
+        if NATIVE_AVAILABLE:
+            logger.info("✓ Native Lanczos upscaling available")
+    except Exception as e:
+        features['native_lanczos'] = False
+        logger.debug(f"Native ops not available: {e}")
     
     # CLIP requires PIL + PyTorch + (transformers OR open_clip)
     features['clip'] = features['pil'] and features['pytorch'] and (features['transformers'] or features['open_clip'])

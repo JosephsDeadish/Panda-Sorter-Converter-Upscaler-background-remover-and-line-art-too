@@ -30,6 +30,13 @@ except ImportError:
     SLIDER_AVAILABLE = False
     ComparisonSliderWidget = None
 
+try:
+    from utils.archive_handler import ArchiveHandler
+    ARCHIVE_AVAILABLE = True
+except ImportError:
+    ARCHIVE_AVAILABLE = False
+    logger.warning("Archive handler not available")
+
 IMAGE_EXTENSIONS = {'.png', '.jpg', '.jpeg', '.bmp', '.tiff', '.webp'}
 
 # Line art presets
@@ -347,6 +354,29 @@ class LineArtConverterPanelQt(QWidget):
         btn_layout.addWidget(select_multiple_btn)
         
         group_layout.addLayout(btn_layout)
+        
+        # Archive options
+        archive_layout = QHBoxLayout()
+        
+        self.archive_input_cb = QCheckBox("📦 Input is Archive")
+        if not ARCHIVE_AVAILABLE:
+            self.archive_input_cb.setToolTip("⚠️ Archive support not available. Install: pip install py7zr rarfile")
+            self.archive_input_cb.setStyleSheet("color: gray;")
+        else:
+            self._set_tooltip(self.archive_input_cb, 'input_archive_checkbox')
+        archive_layout.addWidget(self.archive_input_cb)
+        
+        self.archive_output_cb = QCheckBox("📦 Export to Archive")
+        if not ARCHIVE_AVAILABLE:
+            self.archive_output_cb.setToolTip("⚠️ Archive support not available. Install: pip install py7zr rarfile")
+            self.archive_output_cb.setStyleSheet("color: gray;")
+        else:
+            self._set_tooltip(self.archive_output_cb, 'output_archive_checkbox')
+        archive_layout.addWidget(self.archive_output_cb)
+        
+        archive_layout.addStretch()
+        group_layout.addLayout(archive_layout)
+        
         group.setLayout(group_layout)
         layout.addWidget(group)
     
@@ -519,10 +549,10 @@ class LineArtConverterPanelQt(QWidget):
             self.preview_label.setStyleSheet("border: 2px dashed gray; background-color: #f0f0f0;")
             group_layout.addWidget(self.preview_label)
         
-        # Update preview button
-        self.update_preview_btn = QPushButton("🔄 Update Preview")
-        self.update_preview_btn.clicked.connect(self._schedule_preview_update)
-        group_layout.addWidget(self.update_preview_btn)
+        # Preview updates automatically when settings change
+        preview_note = QLabel("💡 Preview updates live as you adjust settings")
+        preview_note.setStyleSheet("color: gray; font-style: italic; font-size: 9pt;")
+        group_layout.addWidget(preview_note)
         
         group.setLayout(group_layout)
         layout.addWidget(group)
@@ -673,9 +703,6 @@ class LineArtConverterPanelQt(QWidget):
             self.preview_worker.error.connect(self._preview_error)
             self.preview_worker.start()
             
-            self.update_preview_btn.setEnabled(False)
-            self.update_preview_btn.setText("Generating...")
-            
         except Exception as e:
             logger.error(f"Error starting preview: {e}")
             QMessageBox.critical(self, "Error", f"Failed to start preview: {str(e)}")
@@ -706,9 +733,6 @@ class LineArtConverterPanelQt(QWidget):
             logger.error(f"Error displaying preview: {e}")
             if hasattr(self, 'preview_label'):
                 self.preview_label.setText(f"Error: {str(e)}")
-        finally:
-            self.update_preview_btn.setEnabled(True)
-            self.update_preview_btn.setText("🔄 Update Preview")
     
     def _pil_to_pixmap(self, img, max_size=400):
         """Convert PIL Image to QPixmap"""
@@ -727,9 +751,8 @@ class LineArtConverterPanelQt(QWidget):
     
     def _preview_error(self, error_msg):
         """Handle preview error."""
-        self.preview_label.setText(f"Error: {error_msg}")
-        self.update_preview_btn.setEnabled(True)
-        self.update_preview_btn.setText("🔄 Update Preview")
+        if hasattr(self, 'preview_label'):
+            self.preview_label.setText(f"Error: {error_msg}")
     
     def _convert_batch(self):
         """Convert selected files in batch."""
@@ -787,3 +810,10 @@ class LineArtConverterPanelQt(QWidget):
         else:
             QMessageBox.critical(self, "Error", message)
             self.progress_label.setText("✗ Conversion failed")
+
+    def _set_tooltip(self, widget, text):
+        """Set tooltip on a widget using tooltip manager if available."""
+        if self.tooltip_manager and hasattr(self.tooltip_manager, 'set_tooltip'):
+            self.tooltip_manager.set_tooltip(widget, text)
+        else:
+            widget.setToolTip(text)

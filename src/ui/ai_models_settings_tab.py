@@ -10,16 +10,20 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-# Try to import model manager
+# Try to import model manager with correct paths
 try:
-    from src.upscaler.model_manager import AIModelManager, ModelStatus
+    # First try relative import from src/ui/
+    from ..upscaler.model_manager import AIModelManager, ModelStatus
     MODEL_MANAGER_AVAILABLE = True
+    logger.info("✅ Model manager loaded successfully (relative import)")
 except ImportError:
     try:
+        # Then try absolute import when src is in sys.path
         from upscaler.model_manager import AIModelManager, ModelStatus
         MODEL_MANAGER_AVAILABLE = True
+        logger.info("✅ Model manager loaded successfully (absolute import)")
     except ImportError:
-        logger.warning("Model manager not available")
+        logger.warning("⚠️ Model manager not available - AI models tab will be limited")
         MODEL_MANAGER_AVAILABLE = False
         AIModelManager = None
         ModelStatus = None
