@@ -129,11 +129,12 @@ class ShopPanelQt(QWidget):
     
     def __init__(self, shop_system: Optional['ShopSystem'] = None, 
                  currency_system: Optional['CurrencySystem'] = None,
-                 parent=None):
+                 parent=None, tooltip_manager=None):
         if not PYQT_AVAILABLE:
             raise ImportError("PyQt6 required for ShopPanelQt")
         
         super().__init__(parent)
+        self.tooltip_manager = tooltip_manager
         
         # Initialize systems if not provided
         if SHOP_AVAILABLE:
@@ -337,3 +338,10 @@ class ShopPanelQt(QWidget):
                     "Purchase Failed",
                     "Could not complete purchase. Item may already be owned."
                 )
+    
+    def _set_tooltip(self, widget, tooltip_key: str):
+        """Set tooltip using tooltip manager if available."""
+        if self.tooltip_manager:
+            tooltip = self.tooltip_manager.get_tooltip(tooltip_key)
+            if tooltip:
+                widget.setToolTip(tooltip)

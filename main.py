@@ -551,7 +551,7 @@ class TextureSorterMainWindow(QMainWindow):
         try:
             from ui.customization_panel_qt import CustomizationPanelQt
             if panda_char is not None:
-                custom_panel = CustomizationPanelQt(panda_char, self.panda_widget)
+                custom_panel = CustomizationPanelQt(panda_char, self.panda_widget, tooltip_manager=self.tooltip_manager)
                 
                 # Connect customization panel signals
                 custom_panel.color_changed.connect(self.on_customization_color_changed)
@@ -572,7 +572,11 @@ class TextureSorterMainWindow(QMainWindow):
             shop_system = ShopSystem()
             currency_system = CurrencySystem()
             
-            shop_panel = ShopPanelQt(shop_system, currency_system)
+            shop_panel = ShopPanelQt(shop_system, currency_system, tooltip_manager=self.tooltip_manager)
+            
+            # Connect shop panel signals
+            shop_panel.item_purchased.connect(self.on_shop_item_purchased)
+            
             panda_tabs.addTab(shop_panel, "🛒 Shop")
             logger.info("✅ Shop panel added to panda tab")
         except Exception as e:
@@ -588,7 +592,11 @@ class TextureSorterMainWindow(QMainWindow):
             from features.shop_system import ShopSystem
             
             shop_system = ShopSystem()  # Reuse or get existing
-            inventory_panel = InventoryPanelQt(shop_system)
+            inventory_panel = InventoryPanelQt(shop_system, tooltip_manager=self.tooltip_manager)
+            
+            # Connect inventory panel signals
+            inventory_panel.item_selected.connect(self.on_inventory_item_selected)
+            
             panda_tabs.addTab(inventory_panel, "📦 Inventory")
             logger.info("✅ Inventory panel added to panda tab")
         except Exception as e:
@@ -1250,6 +1258,33 @@ class TextureSorterMainWindow(QMainWindow):
             
         except Exception as e:
             logger.error(f"Error handling customization trail change: {e}", exc_info=True)
+    
+    def on_shop_item_purchased(self, item_id: str):
+        """Handle item purchase from shop panel."""
+        try:
+            logger.info(f"Item purchased: {item_id}")
+            self.log(f"🛒 Purchased item: {item_id}")
+            
+            # You can add additional logic here:
+            # - Play purchase sound
+            # - Show achievement notification
+            # - Update panda appearance if item is clothing
+            
+        except Exception as e:
+            logger.error(f"Error handling shop purchase: {e}", exc_info=True)
+    
+    def on_inventory_item_selected(self, item_id: str):
+        """Handle item selection from inventory panel."""
+        try:
+            logger.info(f"Inventory item selected: {item_id}")
+            
+            # You can add custom behavior here:
+            # - Show item details
+            # - Allow equipping/unequipping
+            # - Preview item on panda
+            
+        except Exception as e:
+            logger.error(f"Error handling inventory selection: {e}", exc_info=True)
     
     def show_about(self):
         """Show about dialog."""

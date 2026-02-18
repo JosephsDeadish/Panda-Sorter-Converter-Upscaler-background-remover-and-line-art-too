@@ -22,7 +22,7 @@ class CustomizationPanelQt(QWidget):
     color_changed = pyqtSignal(object) if PYQT_AVAILABLE else None
     trail_changed = pyqtSignal(str, object) if PYQT_AVAILABLE else None
     
-    def __init__(self, panda_character, panda_widget, parent=None):
+    def __init__(self, panda_character, panda_widget, parent=None, tooltip_manager=None):
         if not PYQT_AVAILABLE:
             raise ImportError("PyQt6 is required for CustomizationPanelQt")
         
@@ -30,6 +30,7 @@ class CustomizationPanelQt(QWidget):
         self.panda_character = panda_character
         self.panda_widget = panda_widget
         self.current_color = QColor(255, 255, 255)
+        self.tooltip_manager = tooltip_manager
         
         self.setup_ui()
     
@@ -163,3 +164,10 @@ class CustomizationPanelQt(QWidget):
         self.body_color_btn.setStyleSheet("")
         self.eye_color_btn.setStyleSheet("")
         self.trail_color_btn.setStyleSheet("")
+    
+    def _set_tooltip(self, widget, tooltip_key: str):
+        """Set tooltip using tooltip manager if available."""
+        if self.tooltip_manager:
+            tooltip = self.tooltip_manager.get_tooltip(tooltip_key)
+            if tooltip:
+                widget.setToolTip(tooltip)

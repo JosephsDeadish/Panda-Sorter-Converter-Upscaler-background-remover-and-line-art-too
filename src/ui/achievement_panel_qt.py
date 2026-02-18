@@ -157,11 +157,12 @@ class AchievementCardWidget(QFrame):
 class AchievementDisplayWidget(QWidget):
     """Main achievement display panel"""
     
-    def __init__(self, achievement_system=None, parent=None):
+    def __init__(self, achievement_system=None, parent=None, tooltip_manager=None):
         if not PYQT_AVAILABLE:
             raise ImportError("PyQt6 required for AchievementDisplayWidget")
         
         super().__init__(parent)
+        self.tooltip_manager = tooltip_manager
         
         # Initialize achievement system if not provided
         if ACHIEVEMENTS_AVAILABLE:
@@ -289,3 +290,10 @@ class AchievementDisplayWidget(QWidget):
         """Handle filter change"""
         self.current_filter = filter_text
         self.refresh_achievements()
+    
+    def _set_tooltip(self, widget, tooltip_key: str):
+        """Set tooltip using tooltip manager if available."""
+        if self.tooltip_manager:
+            tooltip = self.tooltip_manager.get_tooltip(tooltip_key)
+            if tooltip:
+                widget.setToolTip(tooltip)

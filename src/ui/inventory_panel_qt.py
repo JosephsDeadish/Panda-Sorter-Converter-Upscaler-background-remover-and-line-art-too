@@ -104,11 +104,12 @@ class InventoryPanelQt(QWidget):
     
     item_selected = pyqtSignal(str)  # item_id
     
-    def __init__(self, shop_system=None, parent=None):
+    def __init__(self, shop_system=None, parent=None, tooltip_manager=None):
         if not PYQT_AVAILABLE:
             raise ImportError("PyQt6 required for InventoryPanelQt")
         
         super().__init__(parent)
+        self.tooltip_manager = tooltip_manager
         
         # Initialize shop system if not provided
         if SHOP_AVAILABLE:
@@ -257,3 +258,10 @@ class InventoryPanelQt(QWidget):
         """Filter items by search text"""
         # Re-display inventory with search filter
         self.refresh_inventory()
+    
+    def _set_tooltip(self, widget, tooltip_key: str):
+        """Set tooltip using tooltip manager if available."""
+        if self.tooltip_manager:
+            tooltip = self.tooltip_manager.get_tooltip(tooltip_key)
+            if tooltip:
+                widget.setToolTip(tooltip)
