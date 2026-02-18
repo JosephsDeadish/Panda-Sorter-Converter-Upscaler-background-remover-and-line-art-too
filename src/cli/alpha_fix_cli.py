@@ -9,6 +9,19 @@ import logging
 from pathlib import Path
 from typing import Optional, List
 import json
+import os
+
+# Fix Unicode encoding issues on Windows
+# This prevents UnicodeEncodeError when printing emojis to console
+if sys.platform == 'win32':
+    import codecs
+    # Reconfigure stdout and stderr to use UTF-8 encoding
+    if hasattr(sys.stdout, 'buffer'):
+        sys.stdout = codecs.getwriter('utf-8')(sys.stdout.buffer, 'strict')
+    if hasattr(sys.stderr, 'buffer'):
+        sys.stderr = codecs.getwriter('utf-8')(sys.stderr.buffer, 'strict')
+    # Also set environment variable for child processes
+    os.environ['PYTHONIOENCODING'] = 'utf-8'
 
 from ..preprocessing.alpha_correction import AlphaCorrector, AlphaCorrectionPresets
 from ..config import APP_NAME, APP_VERSION

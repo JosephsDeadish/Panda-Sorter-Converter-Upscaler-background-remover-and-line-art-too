@@ -1,14 +1,28 @@
 #!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 """
 Generate synthetic WAV sound files for the PS2 Texture Sorter
 Creates all missing sound files referenced in sound_manager.py
 """
 
+import sys
 import wave
 import struct
 import math
 import os
 from pathlib import Path
+
+# Fix Unicode encoding issues on Windows
+# This prevents UnicodeEncodeError when printing emojis to console
+if sys.platform == 'win32':
+    import codecs
+    # Reconfigure stdout and stderr to use UTF-8 encoding
+    if hasattr(sys.stdout, 'buffer'):
+        sys.stdout = codecs.getwriter('utf-8')(sys.stdout.buffer, 'strict')
+    if hasattr(sys.stderr, 'buffer'):
+        sys.stderr = codecs.getwriter('utf-8')(sys.stderr.buffer, 'strict')
+    # Also set environment variable for child processes
+    os.environ['PYTHONIOENCODING'] = 'utf-8'
 
 # Constants
 SAMPLE_RATE = 44100
