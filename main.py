@@ -470,176 +470,161 @@ class TextureSorterMainWindow(QMainWindow):
         return tab
     
     def create_tools_tab(self):
-        """Create tools tab with grid layout of tool buttons (2-3 rows)."""
+        """Create tools tab with dockable tool panels."""
+        # Create a central widget for the tools tab
         tab = QWidget()
-        main_layout = QVBoxLayout(tab)
-        main_layout.setContentsMargins(10, 10, 10, 10)
-        main_layout.setSpacing(10)
+        layout = QVBoxLayout(tab)
+        layout.setContentsMargins(0, 0, 0, 0)
         
-        # Title
-        title_label = QLabel("🔧 Tools & Features")
-        title_label.setStyleSheet("font-size: 18pt; font-weight: bold;")
-        title_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        main_layout.addWidget(title_label)
+        # Add info label at top
+        info_label = QLabel("🔧 Tools can be docked/undocked via View menu")
+        info_label.setStyleSheet("background: #2b2b2b; padding: 5px; color: #888;")
+        info_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(info_label)
         
-        subtitle = QLabel("Select a tool to use")
-        subtitle.setStyleSheet("color: gray; font-size: 11pt;")
-        subtitle.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        main_layout.addWidget(subtitle)
+        # Central widget will be empty initially - tools are all docked panels
+        central_info = QLabel(
+            "Tool panels are docked around the edges.\n\n"
+            "Use View → Tool Panels to show/hide tools.\n"
+            "Drag tool title bars to rearrange or float them."
+        )
+        central_info.setStyleSheet("font-size: 14pt; color: #666;")
+        central_info.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(central_info, 1)
         
-        # Create stacked widget to hold tool panels
-        self.tool_stack = QStackedWidget()
-        
-        # Create grid of tool buttons
-        button_container = QWidget()
-        button_grid = QGridLayout(button_container)
-        button_grid.setSpacing(10)
-        
-        # Define all tools with their panels
+        # Initialize tool panels as dock widgets
         self.tool_panels = {}
-        tool_definitions = []
+        self.tool_dock_widgets = {}
         
-        # Add Texture Sorter
+        # Create all tool panels and dock them
+        self._create_tool_dock_panels()
+        
+        return tab
+    
+    def _create_tool_dock_panels(self):
+        """Create all tool panels as dockable widgets."""
+        # Define tools with their configurations
+        tool_configs = [
+            ('sorter', '🗂️ Texture Sorter', Qt.DockWidgetArea.LeftDockWidgetArea),
+            ('bg_remover', '🎭 Background Remover', Qt.DockWidgetArea.LeftDockWidgetArea),
+            ('alpha_fixer', '✨ Alpha Fixer', Qt.DockWidgetArea.LeftDockWidgetArea),
+            ('color', '🎨 Color Correction', Qt.DockWidgetArea.RightDockWidgetArea),
+            ('normalizer', '⚙️ Batch Normalizer', Qt.DockWidgetArea.RightDockWidgetArea),
+            ('quality', '✓ Quality Checker', Qt.DockWidgetArea.RightDockWidgetArea),
+            ('upscaler', '🔍 Image Upscaler', Qt.DockWidgetArea.BottomDockWidgetArea),
+            ('lineart', '✏️ Line Art Converter', Qt.DockWidgetArea.BottomDockWidgetArea),
+            ('rename', '📝 Batch Rename', Qt.DockWidgetArea.BottomDockWidgetArea),
+            ('repair', '🔧 Image Repair', Qt.DockWidgetArea.BottomDockWidgetArea),
+            ('organizer', '📁 Texture Organizer', Qt.DockWidgetArea.BottomDockWidgetArea),
+        ]
+        
+        # Create Texture Sorter panel
         sorting_widget = self.create_sorting_tab_widget()
-        self.tool_panels['sorter'] = sorting_widget
-        self.tool_stack.addWidget(sorting_widget)
-        tool_definitions.append(('sorter', '🗂️ Texture\nSorter', 'Sort and organize textures'))
+        self._add_tool_dock('sorter', '🗂️ Texture Sorter', sorting_widget, Qt.DockWidgetArea.LeftDockWidgetArea)
         
-        # Add tool panels if available
+        # Create other tool panels if available
         if UI_PANELS_AVAILABLE:
             try:
                 # Background Remover
                 bg_panel = BackgroundRemoverPanelQt(tooltip_manager=self.tooltip_manager)
-                self.tool_panels['bg_remover'] = bg_panel
-                self.tool_stack.addWidget(bg_panel)
-                tool_definitions.append(('bg_remover', '🎭 Background\nRemover', 'Remove backgrounds'))
+                self._add_tool_dock('bg_remover', '🎭 Background Remover', bg_panel, Qt.DockWidgetArea.LeftDockWidgetArea)
                 
                 # Alpha Fixer
                 alpha_panel = AlphaFixerPanelQt(tooltip_manager=self.tooltip_manager)
-                self.tool_panels['alpha_fixer'] = alpha_panel
-                self.tool_stack.addWidget(alpha_panel)
-                tool_definitions.append(('alpha_fixer', '✨ Alpha\nFixer', 'Fix alpha channels'))
+                self._add_tool_dock('alpha_fixer', '✨ Alpha Fixer', alpha_panel, Qt.DockWidgetArea.LeftDockWidgetArea)
                 
                 # Color Correction
                 color_panel = ColorCorrectionPanelQt(tooltip_manager=self.tooltip_manager)
-                self.tool_panels['color'] = color_panel
-                self.tool_stack.addWidget(color_panel)
-                tool_definitions.append(('color', '🎨 Color\nCorrection', 'Adjust colors'))
+                self._add_tool_dock('color', '🎨 Color Correction', color_panel, Qt.DockWidgetArea.RightDockWidgetArea)
                 
                 # Batch Normalizer
                 norm_panel = BatchNormalizerPanelQt(tooltip_manager=self.tooltip_manager)
-                self.tool_panels['normalizer'] = norm_panel
-                self.tool_stack.addWidget(norm_panel)
-                tool_definitions.append(('normalizer', '⚙️ Batch\nNormalizer', 'Normalize batches'))
+                self._add_tool_dock('normalizer', '⚙️ Batch Normalizer', norm_panel, Qt.DockWidgetArea.RightDockWidgetArea)
                 
                 # Quality Checker
                 quality_panel = QualityCheckerPanelQt(tooltip_manager=self.tooltip_manager)
-                self.tool_panels['quality'] = quality_panel
-                self.tool_stack.addWidget(quality_panel)
-                tool_definitions.append(('quality', '✓ Quality\nChecker', 'Check image quality'))
+                self._add_tool_dock('quality', '✓ Quality Checker', quality_panel, Qt.DockWidgetArea.RightDockWidgetArea)
                 
                 # Image Upscaler
                 upscaler_panel = ImageUpscalerPanelQt(tooltip_manager=self.tooltip_manager)
-                self.tool_panels['upscaler'] = upscaler_panel
-                self.tool_stack.addWidget(upscaler_panel)
-                tool_definitions.append(('upscaler', '🔍 Image\nUpscaler', 'Upscale images'))
+                self._add_tool_dock('upscaler', '🔍 Image Upscaler', upscaler_panel, Qt.DockWidgetArea.BottomDockWidgetArea)
                 
                 # Line Art Converter
                 line_panel = LineArtConverterPanelQt(tooltip_manager=self.tooltip_manager)
-                self.tool_panels['lineart'] = line_panel
-                self.tool_stack.addWidget(line_panel)
-                tool_definitions.append(('lineart', '✏️ Line Art\nConverter', 'Convert to line art'))
+                self._add_tool_dock('lineart', '✏️ Line Art Converter', line_panel, Qt.DockWidgetArea.BottomDockWidgetArea)
                 
                 # Batch Rename
                 rename_panel = BatchRenamePanelQt(tooltip_manager=self.tooltip_manager)
-                self.tool_panels['rename'] = rename_panel
-                self.tool_stack.addWidget(rename_panel)
-                tool_definitions.append(('rename', '📝 Batch\nRename', 'Rename files'))
+                self._add_tool_dock('rename', '📝 Batch Rename', rename_panel, Qt.DockWidgetArea.BottomDockWidgetArea)
                 
                 # Image Repair
                 repair_panel = ImageRepairPanelQt(tooltip_manager=self.tooltip_manager)
-                self.tool_panels['repair'] = repair_panel
-                self.tool_stack.addWidget(repair_panel)
-                tool_definitions.append(('repair', '🔧 Image\nRepair', 'Repair corrupted images'))
+                self._add_tool_dock('repair', '🔧 Image Repair', repair_panel, Qt.DockWidgetArea.BottomDockWidgetArea)
                 
                 # Texture Organizer
                 organizer_panel = OrganizerPanelQt(tooltip_manager=self.tooltip_manager)
-                self.tool_panels['organizer'] = organizer_panel
-                self.tool_stack.addWidget(organizer_panel)
-                tool_definitions.append(('organizer', '📁 Texture\nOrganizer', 'Organize textures'))
+                self._add_tool_dock('organizer', '📁 Texture Organizer', organizer_panel, Qt.DockWidgetArea.BottomDockWidgetArea)
                 
-                self.log("✅ All tool panels loaded successfully")
+                self.log("✅ All tool panels created as dockable widgets")
                 
             except Exception as e:
-                logger.error(f"Error loading tool panels: {e}", exc_info=True)
+                logger.error(f"Error creating tool dock panels: {e}", exc_info=True)
         
-        # Create grid of tool buttons (6 per row = 2 rows, or 4 per row = 3 rows)
-        # Automatically adjusts based on window size
-        self.tool_buttons = {}
-        cols_per_row = 6  # Default 6 columns (will be 2 rows with 11 tools)
+        # Update View menu with tool panel toggles
+        self._update_tool_panels_menu()
+    
+    def _add_tool_dock(self, tool_id: str, title: str, widget: QWidget, area: Qt.DockWidgetArea):
+        """Add a tool panel as a dockable widget."""
+        # Store panel reference
+        self.tool_panels[tool_id] = widget
         
-        for idx, (tool_id, label, tooltip) in enumerate(tool_definitions):
-            row = idx // cols_per_row
-            col = idx % cols_per_row
-            
-            btn = QPushButton(label)
-            btn.setMinimumSize(120, 80)
-            btn.setMaximumSize(200, 100)
-            btn.setStyleSheet("""
-                QPushButton {
-                    background-color: #2b2b2b;
-                    color: white;
-                    border: 2px solid #444;
-                    border-radius: 8px;
-                    font-size: 11pt;
-                    font-weight: bold;
-                    padding: 10px;
-                }
-                QPushButton:hover {
-                    background-color: #3a3a3a;
-                    border: 2px solid #666;
-                }
-                QPushButton:pressed {
-                    background-color: #1a1a1a;
-                }
-                QPushButton:checked {
-                    background-color: #0d7377;
-                    border: 2px solid #14ffec;
-                }
-            """)
-            btn.setCheckable(True)
-            btn.setToolTip(tooltip)
-            btn.clicked.connect(lambda checked, tid=tool_id: self.switch_tool(tid))
-            
-            button_grid.addWidget(btn, row, col)
-            self.tool_buttons[tool_id] = btn
+        # Create dock widget
+        dock = QDockWidget(title, self)
+        dock.setWidget(widget)
+        dock.setFeatures(
+            QDockWidget.DockWidgetFeature.DockWidgetMovable |
+            QDockWidget.DockWidgetFeature.DockWidgetFloatable |
+            QDockWidget.DockWidgetFeature.DockWidgetClosable
+        )
+        dock.setAllowedAreas(
+            Qt.DockWidgetArea.LeftDockWidgetArea |
+            Qt.DockWidgetArea.RightDockWidgetArea |
+            Qt.DockWidgetArea.TopDockWidgetArea |
+            Qt.DockWidgetArea.BottomDockWidgetArea
+        )
         
-        # Select first tool by default
-        if tool_definitions:
-            first_tool_id = tool_definitions[0][0]
-            self.tool_buttons[first_tool_id].setChecked(True)
-            self.tool_stack.setCurrentWidget(self.tool_panels[first_tool_id])
+        # Store dock reference
+        self.tool_dock_widgets[tool_id] = dock
         
-        # Add button grid and tool stack to main layout
-        main_layout.addWidget(button_container)
-        main_layout.addWidget(self.tool_stack, 1)  # Give tool stack stretch factor
+        # Add to main window
+        self.addDockWidget(area, dock)
         
-        self.tabs.addTab(tab, "Tools")
+        logger.info(f"Added tool dock: {tool_id} - {title}")
+    
+    def _update_tool_panels_menu(self):
+        """Update View menu with tool panel visibility toggles."""
+        # Add submenu for tool panels if it doesn't exist
+        if not hasattr(self, 'tool_panels_menu'):
+            self.tool_panels_menu = self.view_menu.addMenu("Tool Panels")
+        
+        # Clear existing actions
+        self.tool_panels_menu.clear()
+        
+        # Add toggle action for each tool
+        for tool_id, dock in self.tool_dock_widgets.items():
+            action = dock.toggleViewAction()
+            self.tool_panels_menu.addAction(action)
     
     def switch_tool(self, tool_id):
-        """Switch to a different tool panel."""
-        # Uncheck all other buttons
-        for tid, btn in self.tool_buttons.items():
-            if tid != tool_id:
-                btn.setChecked(False)
-        
-        # Check the clicked button
-        self.tool_buttons[tool_id].setChecked(True)
-        
-        # Switch to the corresponding panel
-        if tool_id in self.tool_panels:
-            self.tool_stack.setCurrentWidget(self.tool_panels[tool_id])
-            logger.info(f"Switched to tool: {tool_id}")
+        """Switch to a different tool panel (deprecated - tools are now dockable)."""
+        # This method is kept for backward compatibility but tools are now docked
+        # Instead of switching, we show/activate the tool's dock widget
+        if tool_id in self.tool_dock_widgets:
+            dock = self.tool_dock_widgets[tool_id]
+            dock.show()
+            dock.raise_()
+            dock.activateWindow()
+            logger.info(f"Activated tool dock: {tool_id}")
     
     def create_panda_features_tab(self):
         """Create panda features tab with shop, inventory, closet, achievements, and customization."""
