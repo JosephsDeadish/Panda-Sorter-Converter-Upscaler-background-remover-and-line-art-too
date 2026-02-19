@@ -1061,7 +1061,320 @@ class TextureSorterMainWindow(QMainWindow):
                 border: 1px solid #cccccc;
             }}
             """
-        else:  # Dark theme
+        elif theme == 'nord':
+            stylesheet = f"""
+            QMainWindow {{
+                background-color: #2e3440;
+            }}
+            QWidget {{
+                background-color: #2e3440;
+                color: #d8dee9;
+                font-family: 'Segoe UI', Arial, sans-serif;
+            }}
+            QPushButton {{
+                background-color: {accent};
+                color: #eceff4;
+                border: none;
+                padding: 8px 16px;
+                border-radius: 4px;
+                font-weight: bold;
+            }}
+            QPushButton:hover {{
+                background-color: {hover_color.name()};
+            }}
+            QPushButton:pressed {{
+                background-color: {pressed_color.name()};
+            }}
+            QPushButton:disabled {{
+                background-color: #434c5e;
+                color: #616e88;
+            }}
+            QLabel {{
+                color: #d8dee9;
+                background-color: transparent;
+            }}
+            QTabWidget::pane {{
+                border: 1px solid #3b4252;
+                background-color: #3b4252;
+            }}
+            QTabBar::tab {{
+                background-color: #434c5e;
+                color: #d8dee9;
+                padding: 8px 20px;
+                border: 1px solid #3b4252;
+                border-bottom: none;
+            }}
+            QTabBar::tab:selected {{
+                background-color: {accent};
+                color: #eceff4;
+            }}
+            QTabBar::tab:hover {{
+                background-color: #4c566a;
+            }}
+            QMenuBar {{
+                background-color: #3b4252;
+                color: #d8dee9;
+                border-bottom: 1px solid #434c5e;
+            }}
+            QMenuBar::item:selected {{
+                background-color: {accent};
+                color: #eceff4;
+            }}
+            QMenu {{
+                background-color: #3b4252;
+                color: #d8dee9;
+                border: 1px solid #434c5e;
+            }}
+            QMenu::item:selected {{
+                background-color: {accent};
+                color: #eceff4;
+            }}
+            QProgressBar {{
+                border: 1px solid #434c5e;
+                border-radius: 3px;
+                text-align: center;
+                background-color: #3b4252;
+                color: #d8dee9;
+            }}
+            QProgressBar::chunk {{
+                background-color: {accent};
+            }}
+            QFrame {{
+                background-color: #3b4252;
+                border: 1px solid #434c5e;
+                border-radius: 4px;
+            }}
+            QTextEdit {{
+                background-color: #3b4252;
+                color: #d8dee9;
+                border: 1px solid #434c5e;
+            }}
+            QScrollBar:vertical {{
+                background-color: #3b4252;
+                width: 12px;
+            }}
+            QScrollBar::handle:vertical {{
+                background-color: #4c566a;
+                border-radius: 6px;
+            }}
+            QDockWidget {{
+                color: #d8dee9;
+                titlebar-close-icon: none;
+            }}
+            QDockWidget::title {{
+                background-color: #434c5e;
+                padding: 4px;
+            }}
+            """
+        elif theme == 'dracula':
+            stylesheet = f"""
+            QMainWindow {{
+                background-color: #282a36;
+            }}
+            QWidget {{
+                background-color: #282a36;
+                color: #f8f8f2;
+                font-family: 'Segoe UI', Arial, sans-serif;
+            }}
+            QPushButton {{
+                background-color: {accent};
+                color: #f8f8f2;
+                border: none;
+                padding: 8px 16px;
+                border-radius: 4px;
+                font-weight: bold;
+            }}
+            QPushButton:hover {{
+                background-color: {hover_color.name()};
+            }}
+            QPushButton:pressed {{
+                background-color: {pressed_color.name()};
+            }}
+            QPushButton:disabled {{
+                background-color: #44475a;
+                color: #6272a4;
+            }}
+            QLabel {{
+                color: #f8f8f2;
+                background-color: transparent;
+            }}
+            QTabWidget::pane {{
+                border: 1px solid #44475a;
+                background-color: #44475a;
+            }}
+            QTabBar::tab {{
+                background-color: #383a4a;
+                color: #f8f8f2;
+                padding: 8px 20px;
+                border: 1px solid #44475a;
+                border-bottom: none;
+            }}
+            QTabBar::tab:selected {{
+                background-color: {accent};
+                color: #f8f8f2;
+            }}
+            QTabBar::tab:hover {{
+                background-color: #44475a;
+            }}
+            QMenuBar {{
+                background-color: #383a4a;
+                color: #f8f8f2;
+                border-bottom: 1px solid #44475a;
+            }}
+            QMenuBar::item:selected {{
+                background-color: {accent};
+            }}
+            QMenu {{
+                background-color: #383a4a;
+                color: #f8f8f2;
+                border: 1px solid #44475a;
+            }}
+            QMenu::item:selected {{
+                background-color: {accent};
+            }}
+            QProgressBar {{
+                border: 1px solid #44475a;
+                border-radius: 3px;
+                text-align: center;
+                background-color: #383a4a;
+                color: #f8f8f2;
+            }}
+            QProgressBar::chunk {{
+                background-color: {accent};
+            }}
+            QFrame {{
+                background-color: #383a4a;
+                border: 1px solid #44475a;
+                border-radius: 4px;
+            }}
+            QTextEdit {{
+                background-color: #383a4a;
+                color: #f8f8f2;
+                border: 1px solid #44475a;
+            }}
+            QScrollBar:vertical {{
+                background-color: #383a4a;
+                width: 12px;
+            }}
+            QScrollBar::handle:vertical {{
+                background-color: #44475a;
+                border-radius: 6px;
+            }}
+            QDockWidget {{
+                color: #f8f8f2;
+                titlebar-close-icon: none;
+            }}
+            QDockWidget::title {{
+                background-color: #44475a;
+                padding: 4px;
+            }}
+            """
+        elif theme in ('solarized dark', 'solarized_dark'):
+            stylesheet = f"""
+            QMainWindow {{
+                background-color: #002b36;
+            }}
+            QWidget {{
+                background-color: #002b36;
+                color: #839496;
+                font-family: 'Segoe UI', Arial, sans-serif;
+            }}
+            QPushButton {{
+                background-color: {accent};
+                color: #fdf6e3;
+                border: none;
+                padding: 8px 16px;
+                border-radius: 4px;
+                font-weight: bold;
+            }}
+            QPushButton:hover {{
+                background-color: {hover_color.name()};
+            }}
+            QPushButton:pressed {{
+                background-color: {pressed_color.name()};
+            }}
+            QPushButton:disabled {{
+                background-color: #073642;
+                color: #586e75;
+            }}
+            QLabel {{
+                color: #839496;
+                background-color: transparent;
+            }}
+            QTabWidget::pane {{
+                border: 1px solid #073642;
+                background-color: #073642;
+            }}
+            QTabBar::tab {{
+                background-color: #073642;
+                color: #839496;
+                padding: 8px 20px;
+                border: 1px solid #073642;
+                border-bottom: none;
+            }}
+            QTabBar::tab:selected {{
+                background-color: {accent};
+                color: #fdf6e3;
+            }}
+            QTabBar::tab:hover {{
+                background-color: #0d4251;
+            }}
+            QMenuBar {{
+                background-color: #073642;
+                color: #839496;
+                border-bottom: 1px solid #073642;
+            }}
+            QMenuBar::item:selected {{
+                background-color: {accent};
+                color: #fdf6e3;
+            }}
+            QMenu {{
+                background-color: #073642;
+                color: #839496;
+                border: 1px solid #073642;
+            }}
+            QMenu::item:selected {{
+                background-color: {accent};
+                color: #fdf6e3;
+            }}
+            QProgressBar {{
+                border: 1px solid #073642;
+                border-radius: 3px;
+                text-align: center;
+                background-color: #073642;
+                color: #839496;
+            }}
+            QProgressBar::chunk {{
+                background-color: {accent};
+            }}
+            QFrame {{
+                background-color: #073642;
+                border: 1px solid #073642;
+                border-radius: 4px;
+            }}
+            QTextEdit {{
+                background-color: #073642;
+                color: #839496;
+                border: 1px solid #073642;
+            }}
+            QScrollBar:vertical {{
+                background-color: #073642;
+                width: 12px;
+            }}
+            QScrollBar::handle:vertical {{
+                background-color: #586e75;
+                border-radius: 6px;
+            }}
+            QDockWidget {{
+                color: #839496;
+                titlebar-close-icon: none;
+            }}
+            QDockWidget::title {{
+                background-color: #073642;
+                padding: 4px;
+            }}
+            """
+        else:  # Dark theme (default)
             stylesheet = f"""
             QMainWindow {{
                 background-color: #1e1e1e;

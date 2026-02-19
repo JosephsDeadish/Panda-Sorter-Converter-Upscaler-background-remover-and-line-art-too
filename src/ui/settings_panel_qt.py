@@ -148,7 +148,7 @@ class SettingsPanelQt(QWidget):
         
         theme_label = QLabel("Theme Mode:")
         self.theme_combo = QComboBox()
-        self.theme_combo.addItems(["Dark", "Light"])
+        self.theme_combo.addItems(["Dark", "Light", "Nord", "Dracula", "Solarized Dark"])
         self.theme_combo.currentTextChanged.connect(lambda: self.on_setting_changed('ui', 'theme'))
         self.set_tooltip(self.theme_combo, 'theme_selector')
         
@@ -824,7 +824,8 @@ class SettingsPanelQt(QWidget):
         try:
             # Appearance
             theme = self.config.get('ui', 'theme', default='dark')
-            self.theme_combo.setCurrentText(theme.capitalize())
+            theme_map = {'dark': 'Dark', 'light': 'Light', 'nord': 'Nord', 'dracula': 'Dracula', 'solarized dark': 'Solarized Dark', 'solarized_dark': 'Solarized Dark'}
+            self.theme_combo.setCurrentText(theme_map.get(theme.lower(), theme.capitalize()))
             
             accent = self.config.get('ui', 'accent_color', default='#0d7377')
             self.accent_color_widget.current_color = QColor(accent)
@@ -1308,7 +1309,7 @@ class SettingsPanelQt(QWidget):
             else:
                 # Fallback tooltips
                 fallback_tooltips = {
-                    'theme_selector': "Choose between Dark and Light theme",
+                    'theme_selector': "Choose a theme: Dark, Light, Nord, Dracula, or Solarized Dark",
                     'accent_color': "Select the accent color for buttons and highlights",
                     'opacity_slider': "Adjust window transparency",
                     'compact_view': "Enable a more compact UI layout",
