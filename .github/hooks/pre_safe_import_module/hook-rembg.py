@@ -26,13 +26,5 @@ def _patched_exit(code=0):
     raise SystemExit(code)
 
 # Patch sys.exit BEFORE rembg is imported
+# Note: This patch remains in effect for the subprocess lifetime
 sys.exit = _patched_exit
-
-# This function will be called AFTER the module is imported
-def post_import_hook(mod):
-    """Restore original sys.exit after import"""
-    global _original_exit
-    sys.exit = _original_exit
-
-# Register the post-import hook
-# Note: This is optional, we could leave sys.exit patched

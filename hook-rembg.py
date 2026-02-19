@@ -175,9 +175,6 @@ else:
         # This prevents PyInstaller from trying to import rembg during binary dependency analysis
         # which would trigger sys.exit(1) and kill the build process
         try:
-            # Do NOT collect from rembg - it would trigger import and sys.exit()
-            # rembg_binaries = collect_dynamic_libs('rembg')  # DISABLED - causes sys.exit(1)
-            
             # Only collect onnxruntime binaries (which are handled by hook-onnxruntime.py)
             # We don't need to collect them here, they're already collected by the onnxruntime hook
             binaries = []
