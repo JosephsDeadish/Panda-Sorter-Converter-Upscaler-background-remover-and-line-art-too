@@ -149,6 +149,21 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
         self.equipped_weapon = None  # Current weapon
         self.weapon_rotation = 0.0  # Weapon rotation angle
         
+        # Color customization system
+        self.custom_colors = {
+            'body': [1.0, 1.0, 1.0],     # Default white/natural
+            'eyes': [0.0, 0.0, 0.0],      # Default black
+            'accent': [0.5, 0.5, 0.5],    # Default gray for patches
+            'glow': None                   # Optional glow effect
+        }
+        
+        # Trail/effect system
+        self.trail_enabled = False
+        self.trail_type = 'none'         # 'none', 'sparkle', 'rainbow', 'fire', 'ice'
+        self.trail_data = {}
+        self.trail_particles = []        # List of particle positions/colors
+        self.max_trail_particles = 50
+        
         # Autonomous behavior
         self.autonomous_mode = True
         self.target_position = None  # Where panda is walking to
@@ -371,6 +386,9 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
         
         # Draw ground plane (for shadow reference)
         self._draw_ground()
+        
+        # Draw trail particles (before panda for correct depth)
+        self._draw_trail()
         
         # Apply panda position and rotation
         glPushMatrix()
@@ -791,6 +809,9 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
         
         # Update physics
         self._update_physics()
+        
+        # Update trail particles
+        self._update_trail()
         
         # Update autonomous behavior (walking around)
         self._update_autonomous_behavior(delta_time)
@@ -1555,6 +1576,114 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
         
         animation = mood_animations.get(mood, 'idle')
         self.set_animation_state(animation)
+    
+    def set_color(self, color_type: str, rgb: tuple):
+        """
+        Set custom color for panda parts.
+        
+        Args:
+            color_type: Type of color ('body', 'eyes', 'accent', 'glow')
+            rgb: RGB tuple (0-255 range) or (0.0-1.0 range)
+        """
+        # Normalize RGB to 0.0-1.0 range if needed
+        if all(isinstance(v, int) or v > 1.0 for v in rgb):
+            # Convert from 0-255 to 0.0-1.0
+            normalized_rgb = [c / 255.0 for c in rgb[:3]]
+        else:
+            # Already normalized
+            normalized_rgb = list(rgb[:3])
+        
+        # Apply the color
+        if color_type in self.custom_colors:
+            self.custom_colors[color_type] = normalized_rgb
+            logger.debug(f"Panda color {color_type} set to {normalized_rgb}")
+            self.update()  # Trigger redraw
+        else:
+            logger.warning(f"Unknown color type: {color_type}")
+    
+    def set_trail(self, trail_type: str, trail_data: dict):
+        """
+        Set motion trail/effect for panda.
+        
+        Args:
+            trail_type: Type of trail ('sparkle', 'rainbow', 'fire', 'ice', 'none')
+            trail_data: Configuration dict for trail (color, intensity, duration, etc.)
+        """
+        self.trail_type = trail_type
+        self.trail_data = trail_data
+        self.trail_enabled = trail_type != 'none'
+        
+        # Clear existing trail particles when changing type
+        self.trail_particles = []
+        
+        logger.debug(f"Panda trail set to {trail_type} with data {trail_data}")
+        self.update()
+    
+    def _update_trail(self):
+        """Update trail particle system."""
+        if not self.trail_enabled or self.trail_type == 'none':
+            return
+        
+        # Add new particle at current position if panda is moving
+        if abs(self.velocity_x) > 0.01 or abs(self.velocity_z) > 0.01:
+            particle = {
+                'pos': [self.panda_x, self.panda_y + 0.3, self.panda_z],
+                'life': 1.0,  # Life from 1.0 to 0.0
+                'color': self._get_trail_color()
+            }
+            self.trail_particles.append(particle)
+        
+        # Update existing particles
+        for particle in self.trail_particles[:]:
+            particle['life'] -= 0.02  # Decay rate
+            if particle['life'] <= 0:
+                self.trail_particles.remove(particle)
+        
+        # Limit particle count
+        if len(self.trail_particles) > self.max_trail_particles:
+            self.trail_particles = self.trail_particles[-self.max_trail_particles:]
+    
+    def _get_trail_color(self):
+        """Get color for trail particle based on trail type."""
+        if self.trail_type == 'sparkle':
+            return [1.0, 1.0, 0.0]  # Yellow
+        elif self.trail_type == 'rainbow':
+            # Cycle through rainbow colors
+            hue = (time.time() * 2.0) % 1.0
+            return self._hsv_to_rgb(hue, 1.0, 1.0)
+        elif self.trail_type == 'fire':
+            return [1.0, 0.3, 0.0]  # Orange/red
+        elif self.trail_type == 'ice':
+            return [0.3, 0.6, 1.0]  # Light blue
+        else:
+            return self.trail_data.get('color', [1.0, 1.0, 1.0])
+    
+    @staticmethod
+    def _hsv_to_rgb(h, s, v):
+        """Convert HSV color to RGB."""
+        import colorsys
+        r, g, b = colorsys.hsv_to_rgb(h, s, v)
+        return [r, g, b]
+    
+    def _draw_trail(self):
+        """Draw trail particles."""
+        if not self.trail_enabled or not self.trail_particles:
+            return
+        
+        glDisable(GL_LIGHTING)
+        glEnable(GL_BLEND)
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
+        glPointSize(5.0)
+        
+        glBegin(GL_POINTS)
+        for particle in self.trail_particles:
+            color = particle['color']
+            alpha = particle['life']  # Fade out as life decreases
+            glColor4f(color[0], color[1], color[2], alpha)
+            glVertex3f(particle['pos'][0], particle['pos'][1], particle['pos'][2])
+        glEnd()
+        
+        glEnable(GL_LIGHTING)
     
     def get_info(self) -> dict:
         """

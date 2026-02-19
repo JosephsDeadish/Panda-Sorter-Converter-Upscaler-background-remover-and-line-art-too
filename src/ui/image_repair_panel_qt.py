@@ -55,7 +55,7 @@ class DiagnosticWorker(QThread):
                     break
                 
                 self.progress.emit(f"Diagnosing: {Path(filepath).name}")
-                result = self.repairer.diagnose(filepath)
+                result = self.repairer.diagnose_file(filepath)
                 results.append((filepath, result))
             
             self.finished.emit(results)
