@@ -225,6 +225,15 @@ class TextureSorterMainWindow(QMainWindow):
         # Create tools tab (includes sorting + all tools)
         self.create_tools_tab()
         
+        # Create Panda Features tab (separate from tools!)
+        if PANDA_WIDGET_AVAILABLE and self.panda_widget is not None:
+            try:
+                panda_features_tab = self.create_panda_features_tab()
+                self.tabs.addTab(panda_features_tab, "🐼 Panda")
+                logger.info("✅ Panda Features tab added to main tabs")
+            except Exception as e:
+                logger.error(f"Could not create Panda Features tab: {e}", exc_info=True)
+        
         # Create file browser tab
         self.create_file_browser_tab()
         
