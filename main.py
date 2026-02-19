@@ -179,6 +179,20 @@ class TextureSorterMainWindow(QMainWindow):
         self.setGeometry(100, 100, 1400, 900)
         self.setMinimumSize(900, 650)
         
+        # Set window icon
+        icon_path = Path(__file__).parent / 'assets' / 'icon.ico'
+        if icon_path.exists():
+            self.setWindowIcon(QIcon(str(icon_path)))
+            logger.info(f"Window icon set from: {icon_path}")
+        else:
+            # Try PNG icon as fallback
+            icon_path = Path(__file__).parent / 'assets' / 'icon.png'
+            if icon_path.exists():
+                self.setWindowIcon(QIcon(str(icon_path)))
+                logger.info(f"Window icon set from PNG: {icon_path}")
+            else:
+                logger.warning("Window icon file not found")
+        
         # Central widget with splitter for panda
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
@@ -1305,6 +1319,13 @@ class TextureSorterMainWindow(QMainWindow):
     
     def closeEvent(self, event):
         """Handle window close event."""
+        # Save settings before closing
+        try:
+            config.save()
+            logger.info("Settings saved on exit")
+        except Exception as e:
+            logger.error(f"Error saving settings on exit: {e}", exc_info=True)
+        
         if self.worker and self.worker.isRunning():
             reply = QMessageBox.question(
                 self,
@@ -1576,6 +1597,20 @@ def main():
     app.setApplicationName(APP_NAME)
     app.setOrganizationName("JosephsDeadish")
     app.setOrganizationDomain("github.com/JosephsDeadish")
+    
+    # Set application icon for taskbar
+    icon_path = Path(__file__).parent / 'assets' / 'icon.ico'
+    if icon_path.exists():
+        app.setWindowIcon(QIcon(str(icon_path)))
+        logger.info(f"Application icon set from: {icon_path}")
+    else:
+        # Try PNG icon as fallback
+        icon_path = Path(__file__).parent / 'assets' / 'icon.png'
+        if icon_path.exists():
+            app.setWindowIcon(QIcon(str(icon_path)))
+            logger.info(f"Application icon set from PNG: {icon_path}")
+        else:
+            logger.warning("Application icon file not found")
     
     # Set application-wide font
     font = QFont("Segoe UI", 10)

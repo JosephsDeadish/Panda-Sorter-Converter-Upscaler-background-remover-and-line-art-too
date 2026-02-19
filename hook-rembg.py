@@ -128,7 +128,7 @@ elif not has_onnxruntime:
     print("[rembg hook] Ensure 'rembg[cpu]' is installed for full functionality")
 else:
     # Both rembg and onnxruntime are available - full collection
-    print("[rembg hook] ✅ Both rembg and onnxruntime found - collecting for background removal tool")
+    print("[rembg hook] Both rembg and onnxruntime found - collecting for background removal tool")
     
     # Wrap everything in try-except to handle any import failures gracefully
     try:
@@ -184,7 +184,7 @@ else:
             print(f"[rembg hook] Warning: Could not collect binaries: {e}")
             binaries = []
         
-        print("[rembg hook] ✅ Collection successful - background removal tool should work!")
+        print("[rembg hook] Collection successful - background removal tool should work!")
             
     except Exception as e:
         print(f"[rembg hook] ERROR during collection: {e}")
