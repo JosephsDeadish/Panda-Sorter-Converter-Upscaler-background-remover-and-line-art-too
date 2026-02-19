@@ -586,6 +586,205 @@ class AchievementSystem:
             progress_max=200,
             reward={'type': 'closet_item', 'item': 'bamboo_spirit', 'description': 'Bamboo Spirit Panda fur style'}
         ),
+
+        # Theme achievements
+        'theme_switcher': Achievement(
+            id='theme_switcher',
+            name='Theme Switcher',
+            description='Try all 5 available themes',
+            tier=AchievementTier.SILVER,
+            points=50,
+            icon='🎨',
+            category='customization',
+            progress_max=5,
+            reward={'type': 'currency', 'amount': 150, 'description': '150 Bamboo Bucks'}
+        ),
+        'dark_side': Achievement(
+            id='dark_side',
+            name='The Dark Side',
+            description='Use the Dracula theme for your first sort',
+            tier=AchievementTier.BRONZE,
+            points=20,
+            icon='🧛',
+            category='customization',
+            hidden=True,
+            progress_max=1,
+            reward={'type': 'currency', 'amount': 75, 'description': '75 Bamboo Bucks'}
+        ),
+        'nordic_explorer': Achievement(
+            id='nordic_explorer',
+            name='Nordic Explorer',
+            description='Use the Nord theme for your first sort',
+            tier=AchievementTier.BRONZE,
+            points=20,
+            icon='🌨️',
+            category='customization',
+            hidden=True,
+            progress_max=1,
+            reward={'type': 'currency', 'amount': 75, 'description': '75 Bamboo Bucks'}
+        ),
+
+        # Tool usage achievements
+        'upscaler_rookie': Achievement(
+            id='upscaler_rookie',
+            name='Upscaler Rookie',
+            description='Upscale your first image',
+            tier=AchievementTier.BRONZE,
+            points=15,
+            icon='🔍',
+            category='tools',
+            progress_max=1,
+            reward={'type': 'currency', 'amount': 50, 'description': '50 Bamboo Bucks'}
+        ),
+        'upscaler_pro': Achievement(
+            id='upscaler_pro',
+            name='Upscaler Pro',
+            description='Upscale 100 images',
+            tier=AchievementTier.SILVER,
+            points=75,
+            icon='🔎',
+            category='tools',
+            progress_max=100,
+            reward={'type': 'currency', 'amount': 300, 'description': '300 Bamboo Bucks'}
+        ),
+        'background_buster': Achievement(
+            id='background_buster',
+            name='Background Buster',
+            description='Remove backgrounds from 50 images',
+            tier=AchievementTier.SILVER,
+            points=75,
+            icon='🎭',
+            category='tools',
+            progress_max=50,
+            reward={'type': 'currency', 'amount': 250, 'description': '250 Bamboo Bucks'}
+        ),
+        'quality_inspector': Achievement(
+            id='quality_inspector',
+            name='Quality Inspector',
+            description='Run quality checks on 200 images',
+            tier=AchievementTier.GOLD,
+            points=100,
+            icon='✅',
+            category='tools',
+            progress_max=200,
+            reward={'type': 'currency', 'amount': 400, 'description': '400 Bamboo Bucks'}
+        ),
+        'line_artist': Achievement(
+            id='line_artist',
+            name='Line Artist',
+            description='Convert 25 images to line art',
+            tier=AchievementTier.SILVER,
+            points=60,
+            icon='✏️',
+            category='tools',
+            progress_max=25,
+            reward={'type': 'currency', 'amount': 200, 'description': '200 Bamboo Bucks'}
+        ),
+        'batch_master': Achievement(
+            id='batch_master',
+            name='Batch Master',
+            description='Process a batch of 500 or more files at once',
+            tier=AchievementTier.GOLD,
+            points=120,
+            icon='📦',
+            category='tools',
+            progress_max=1,
+            reward={'type': 'currency', 'amount': 500, 'description': '500 Bamboo Bucks'}
+        ),
+
+        # Minigame achievements
+        'first_game': Achievement(
+            id='first_game',
+            name='Game On!',
+            description='Play your first minigame',
+            tier=AchievementTier.BRONZE,
+            points=15,
+            icon='🎮',
+            category='minigames',
+            progress_max=1,
+            reward={'type': 'currency', 'amount': 50, 'description': '50 Bamboo Bucks'}
+        ),
+        'click_champion': Achievement(
+            id='click_champion',
+            name='Click Champion',
+            description='Score 100+ in the Panda Click Challenge',
+            tier=AchievementTier.SILVER,
+            points=75,
+            icon='👆',
+            category='minigames',
+            progress_max=1,
+            reward={'type': 'currency', 'amount': 250, 'description': '250 Bamboo Bucks'}
+        ),
+        'memory_master': Achievement(
+            id='memory_master',
+            name='Memory Master',
+            description='Complete the Memory Game on Hard difficulty',
+            tier=AchievementTier.GOLD,
+            points=100,
+            icon='🧠',
+            category='minigames',
+            progress_max=1,
+            reward={'type': 'closet_item', 'item': 'galaxy_fur', 'description': 'Galaxy Panda fur style'}
+        ),
+        'minigame_addict': Achievement(
+            id='minigame_addict',
+            name='Minigame Addict',
+            description='Play minigames 50 times',
+            tier=AchievementTier.PLATINUM,
+            points=200,
+            icon='🕹️',
+            category='minigames',
+            progress_max=50,
+            reward={'type': 'exclusive_title', 'title': 'Game Master', 'description': 'Exclusive "Game Master" title'}
+        ),
+
+        # Cursor unlock achievements
+        'cursor_collector': Achievement(
+            id='cursor_collector',
+            name='Cursor Collector',
+            description='Unlock 5 custom cursors',
+            tier=AchievementTier.SILVER,
+            points=60,
+            icon='🖱️',
+            category='customization',
+            progress_max=5,
+            reward={'type': 'cursor', 'item': 'rainbow_cursor', 'description': 'Rainbow cursor unlocked'}
+        ),
+        'cursor_master': Achievement(
+            id='cursor_master',
+            name='Cursor Master',
+            description='Unlock all 12 special cursors',
+            tier=AchievementTier.PLATINUM,
+            points=250,
+            icon='✨',
+            category='customization',
+            progress_max=12,
+            reward={'type': 'cursor', 'item': 'galaxy_cursor', 'description': 'Galaxy cursor unlocked'}
+        ),
+
+        # Performance achievements
+        'speed_processor': Achievement(
+            id='speed_processor',
+            name='Speed Processor',
+            description='Process 1000 textures using multi-threading',
+            tier=AchievementTier.GOLD,
+            points=100,
+            icon='⚡',
+            category='performance',
+            progress_max=1000,
+            reward={'type': 'currency', 'amount': 400, 'description': '400 Bamboo Bucks'}
+        ),
+        'memory_optimizer': Achievement(
+            id='memory_optimizer',
+            name='Memory Optimizer',
+            description='Configure memory limits and cache settings',
+            tier=AchievementTier.BRONZE,
+            points=25,
+            icon='💾',
+            category='performance',
+            progress_max=1,
+            reward={'type': 'currency', 'amount': 100, 'description': '100 Bamboo Bucks'}
+        ),
     }
     
     def __init__(self, save_file: Optional[str] = None):
