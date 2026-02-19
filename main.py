@@ -848,7 +848,7 @@ class TextureSorterMainWindow(QMainWindow):
         
         try:
             # Create comprehensive settings panel
-            self.settings_panel = SettingsPanelQt(config, self)
+            self.settings_panel = SettingsPanelQt(config, self, tooltip_manager=self.tooltip_manager)
             
             # Connect settings changed signal
             self.settings_panel.settingsChanged.connect(self.on_settings_changed)

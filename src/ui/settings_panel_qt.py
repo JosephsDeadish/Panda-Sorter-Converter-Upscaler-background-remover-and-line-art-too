@@ -74,7 +74,7 @@ class SettingsPanelQt(QWidget):
     
     settingsChanged = pyqtSignal(str, object)  # Signal for real-time updates
     
-    def __init__(self, config, main_window=None, parent=None):
+    def __init__(self, config, main_window=None, tooltip_manager=None, parent=None):
         super().__init__(parent)
         
         if not PYQT_AVAILABLE:
@@ -82,6 +82,7 @@ class SettingsPanelQt(QWidget):
         
         self.config = config
         self.main_window = main_window
+        self.tooltip_manager = tooltip_manager
         self._updating = False  # Prevent recursive updates
         
         self.setup_ui()
