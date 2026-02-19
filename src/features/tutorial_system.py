@@ -5258,10 +5258,10 @@ _PANDA_TOOLTIPS = {
 
 
 class TooltipMode(Enum):
-    """Tooltip verbosity modes"""
-    NORMAL = "normal"
-    DUMBED_DOWN = "dumbed-down"
-    UNHINGED_PANDA = "vulgar_panda"  # Legacy value for backwards compatibility
+    """Tooltip verbosity/style modes"""
+    NORMAL = "normal"  # Standard helpful tooltips
+    BEGINNER = "dumbed-down"  # Detailed explanations for beginners
+    PROFANE = "vulgar_panda"  # Hilarious and profane but still helpful (UNHINGED_PANDA legacy name)
 
 
 class TutorialOverlay(QWidget):
@@ -5733,17 +5733,17 @@ class TooltipVerbosityManager:
         # Tooltip collections for each mode
         self.tooltips = {
             TooltipMode.NORMAL: self._get_normal_tooltips(),
-            TooltipMode.DUMBED_DOWN: self._get_dumbed_down_tooltips(),
-            TooltipMode.UNHINGED_PANDA: self._get_unhinged_panda_tooltips()
+            TooltipMode.BEGINNER: self._get_dumbed_down_tooltips(),
+            TooltipMode.PROFANE: self._get_unhinged_panda_tooltips()
         }
     
     def _load_mode(self) -> TooltipMode:
         """Load tooltip mode from config"""
-        mode_str = self.config.get('ui', 'tooltip_mode', default='vulgar_panda')
+        mode_str = self.config.get('ui', 'tooltip_mode', default='normal')
         try:
             return TooltipMode(mode_str)
         except ValueError:
-            return TooltipMode.UNHINGED_PANDA
+            return TooltipMode.NORMAL
     
     def set_mode(self, mode: TooltipMode):
         """Change tooltip verbosity mode"""

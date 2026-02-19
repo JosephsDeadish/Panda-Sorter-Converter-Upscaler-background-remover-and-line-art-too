@@ -205,7 +205,7 @@ class SettingsPanelQt(QWidget):
         return tab
     
     def create_cursor_tab(self):
-        """Create cursor settings tab"""
+        """Create cursor settings tab with basic and unlockable cursors"""
         tab = QWidget()
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
@@ -220,12 +220,55 @@ class SettingsPanelQt(QWidget):
         
         type_label = QLabel("Cursor Type:")
         self.cursor_type_combo = QComboBox()
-        self.cursor_type_combo.addItems(["Default", "Skull", "Panda", "Sword"])
+        
+        # Basic cursors (always available)
+        basic_cursors = [
+            "Default",
+            "Arrow",
+            "Hand",
+            "Cross"
+        ]
+        
+        # Unlockable cursors (check achievements/purchases)
+        unlockable_cursors = [
+            "Skull ⚠️",
+            "Panda 🐼",
+            "Sword ⚔️",
+            "Wand 🪄",
+            "Heart ❤️",
+            "Star ⭐",
+            "Diamond 💎",
+            "Crown 👑",
+            "Fire 🔥",
+            "Ice ❄️",
+            "Rainbow 🌈",
+            "Galaxy 🌌"
+        ]
+        
+        # Add basic cursors
+        self.cursor_type_combo.addItems(basic_cursors)
+        
+        # Add separator
+        self.cursor_type_combo.insertSeparator(len(basic_cursors))
+        
+        # Add unlockable cursors with lock emoji
+        for cursor in unlockable_cursors:
+            # Check if unlocked (would check achievements/shop in real implementation)
+            # For now, add them all with lock indicator
+            self.cursor_type_combo.addItem(f"🔒 {cursor}")
+        
         self.cursor_type_combo.currentTextChanged.connect(lambda: self.on_setting_changed('ui', 'cursor'))
         self.set_tooltip(self.cursor_type_combo, 'cursor_selector')
         
         type_layout.addWidget(type_label)
         type_layout.addWidget(self.cursor_type_combo)
+        
+        # Add unlock hint
+        unlock_hint = QLabel("💡 Unlock more cursors through achievements and the shop!")
+        unlock_hint.setStyleSheet("color: gray; font-style: italic; font-size: 9pt;")
+        unlock_hint.setWordWrap(True)
+        type_layout.addWidget(unlock_hint)
+        
         type_group.setLayout(type_layout)
         layout.addWidget(type_group)
         
@@ -235,7 +278,7 @@ class SettingsPanelQt(QWidget):
         
         size_label = QLabel("Size:")
         self.cursor_size_combo = QComboBox()
-        self.cursor_size_combo.addItems(["Small", "Medium", "Large"])
+        self.cursor_size_combo.addItems(["Small", "Medium", "Large", "Extra Large"])
         self.cursor_size_combo.currentTextChanged.connect(lambda: self.on_setting_changed('ui', 'cursor_size'))
         self.set_tooltip(self.cursor_size_combo, 'cursor_size')
         
@@ -244,23 +287,52 @@ class SettingsPanelQt(QWidget):
         size_group.setLayout(size_layout)
         layout.addWidget(size_group)
         
-        # Cursor trail
-        trail_group = QGroupBox("Cursor Trail")
+        # Mouse cursor trail (separate from panda trail!)
+        trail_group = QGroupBox("Mouse Cursor Trail")
         trail_layout = QVBoxLayout()
         
-        self.cursor_trail_check = QCheckBox("Enable Cursor Trail")
+        trail_info = QLabel("Note: This is the mouse cursor trail, not the panda movement trail.\nPanda trail is in: Panda Features → Customization")
+        trail_info.setStyleSheet("color: #666; font-size: 9pt; font-style: italic;")
+        trail_info.setWordWrap(True)
+        trail_layout.addWidget(trail_info)
+        
+        self.cursor_trail_check = QCheckBox("Enable Mouse Cursor Trail")
         self.cursor_trail_check.stateChanged.connect(lambda: self.on_setting_changed('ui', 'cursor_trail'))
         self.set_tooltip(self.cursor_trail_check, 'cursor_trail')
         trail_layout.addWidget(self.cursor_trail_check)
         
-        trail_color_label = QLabel("Trail Color:")
+        trail_color_label = QLabel("Trail Effect:")
         self.cursor_trail_color_combo = QComboBox()
-        self.cursor_trail_color_combo.addItems(["Rainbow", "Fire", "Ice", "Nature", "Galaxy", "Gold"])
+        self.cursor_trail_color_combo.addItems([
+            "Rainbow",
+            "Fire",
+            "Ice",
+            "Nature",
+            "Galaxy",
+            "Gold",
+            "Silver",
+            "Neon",
+            "Sparkles"
+        ])
         self.cursor_trail_color_combo.currentTextChanged.connect(lambda: self.on_setting_changed('ui', 'cursor_trail_color'))
         self.set_tooltip(self.cursor_trail_color_combo, 'cursor_trail_color')
         
         trail_layout.addWidget(trail_color_label)
         trail_layout.addWidget(self.cursor_trail_color_combo)
+        
+        # Trail intensity
+        intensity_label = QLabel("Trail Intensity:")
+        self.cursor_trail_intensity = QSlider(Qt.Orientation.Horizontal)
+        self.cursor_trail_intensity.setMinimum(1)
+        self.cursor_trail_intensity.setMaximum(10)
+        self.cursor_trail_intensity.setValue(5)
+        self.cursor_trail_intensity.setTickPosition(QSlider.TickPosition.TicksBelow)
+        self.cursor_trail_intensity.setTickInterval(1)
+        self.cursor_trail_intensity.valueChanged.connect(lambda: self.on_setting_changed('ui', 'cursor_trail_intensity'))
+        
+        trail_layout.addWidget(intensity_label)
+        trail_layout.addWidget(self.cursor_trail_intensity)
+        
         trail_group.setLayout(trail_layout)
         layout.addWidget(trail_group)
         
@@ -391,14 +463,29 @@ class SettingsPanelQt(QWidget):
         self.set_tooltip(self.tooltip_enabled_check, 'tooltip_enabled')
         tooltip_layout.addWidget(self.tooltip_enabled_check)
         
-        mode_label = QLabel("Tooltip Mode:")
+        mode_label = QLabel("Tooltip Style Mode:")
         self.tooltip_mode_combo = QComboBox()
-        self.tooltip_mode_combo.addItems(["Normal", "Dumbed Down", "Vulgar Panda"])
-        self.tooltip_mode_combo.currentTextChanged.connect(lambda: self.on_tooltip_mode_changed())
+        self.tooltip_mode_combo.addItems([
+            "Normal - Standard Helpful Tips",
+            "Beginner - Detailed Explanations",
+            "Profane - Hilariously Vulgar (But Still Helpful!)"
+        ])
+        self.tooltip_mode_combo.currentIndexChanged.connect(lambda: self.on_tooltip_mode_changed())
         self.set_tooltip(self.tooltip_mode_combo, 'tooltip_mode')
+        
+        # Add description label
+        mode_desc = QLabel(
+            "💡 Tooltip modes change the style of helpful hints:\n"
+            "• Normal: Standard concise tips\n"
+            "• Beginner: Detailed step-by-step explanations\n"
+            "• Profane: Extremely profane and hilarious, but still helpful!"
+        )
+        mode_desc.setStyleSheet("color: gray; font-size: 9pt; font-style: italic;")
+        mode_desc.setWordWrap(True)
         
         tooltip_layout.addWidget(mode_label)
         tooltip_layout.addWidget(self.tooltip_mode_combo)
+        tooltip_layout.addWidget(mode_desc)
         
         delay_label = QLabel("Tooltip Delay: 0.5s")
         self.tooltip_delay_slider = QSlider(Qt.Orientation.Horizontal)
@@ -899,13 +986,14 @@ class SettingsPanelQt(QWidget):
             return
         
         try:
-            mode_text = self.tooltip_mode_combo.currentText()
+            index = self.tooltip_mode_combo.currentIndex()
             mode_map = {
-                'Normal': 'normal',
-                'Dumbed Down': 'dumbed_down',
-                'Vulgar Panda': 'vulgar_panda'
+                0: ('normal', 'NORMAL'),           # Normal mode
+                1: ('dumbed-down', 'BEGINNER'),    # Beginner mode
+                2: ('vulgar_panda', 'PROFANE')     # Profane mode
             }
-            mode_value = mode_map.get(mode_text, 'normal')
+            
+            mode_value, mode_enum_name = mode_map.get(index, ('normal', 'NORMAL'))
             
             self.config.set('ui', 'tooltip_mode', value=mode_value)
             self.config.save()
@@ -914,13 +1002,9 @@ class SettingsPanelQt(QWidget):
             # Update tooltip system if available
             if self.main_window and hasattr(self.main_window, 'tooltip_manager'):
                 from features.tutorial_system import TooltipMode
-                mode_enum = {
-                    'normal': TooltipMode.NORMAL,
-                    'dumbed_down': TooltipMode.DUMBED_DOWN,
-                    'vulgar_panda': TooltipMode.UNHINGED_PANDA
-                }.get(mode_value, TooltipMode.NORMAL)
+                mode_enum = getattr(TooltipMode, mode_enum_name, TooltipMode.NORMAL)
                 self.main_window.tooltip_manager.set_mode(mode_enum)
-                logger.info(f"Tooltip mode changed to: {mode_value}")
+                logger.info(f"Tooltip mode changed to: {mode_value} ({mode_enum_name})")
             
         except Exception as e:
             logger.error(f"Error changing tooltip mode: {e}", exc_info=True)
