@@ -153,6 +153,11 @@ class TextureSorterMainWindow(QMainWindow):
         self.database = None
         self.organizer = None
         
+        # Performance and resource managers
+        self.performance_manager = None
+        self.threading_manager = None
+        self.cache_manager = None
+        
         # Worker thread
         self.worker = None
         
@@ -171,6 +176,9 @@ class TextureSorterMainWindow(QMainWindow):
         
         # Initialize components
         self.initialize_components()
+        
+        # Apply performance settings from config
+        self.apply_performance_settings()
         
         logger.info("Qt Main Window initialized successfully")
     
@@ -1050,9 +1058,101 @@ class TextureSorterMainWindow(QMainWindow):
             except Exception as e:
                 logger.warning(f"Could not initialize tooltip manager: {e}")
             
+            # Initialize performance manager
+            try:
+                from core.performance_manager import PerformanceManager, PerformanceMode
+                self.performance_manager = PerformanceManager(initial_mode=PerformanceMode.BALANCED)
+                logger.info("Performance manager initialized")
+            except Exception as e:
+                logger.warning(f"Could not initialize performance manager: {e}")
+            
+            # Initialize threading manager
+            try:
+                from core.threading_manager import ThreadingManager
+                thread_count = config.get('performance', 'max_threads', default=4)
+                self.threading_manager = ThreadingManager(thread_count=thread_count)
+                self.threading_manager.start()
+                logger.info(f"Threading manager initialized with {thread_count} threads")
+            except Exception as e:
+                logger.warning(f"Could not initialize threading manager: {e}")
+            
+            # Initialize cache manager
+            try:
+                from utils.cache_manager import CacheManager
+                cache_size = config.get('performance', 'cache_size_mb', default=512)
+                self.cache_manager = CacheManager(max_size_mb=cache_size)
+                logger.info(f"Cache manager initialized with {cache_size}MB cache")
+            except Exception as e:
+                logger.warning(f"Could not initialize cache manager: {e}")
+            
         except Exception as e:
             logger.error(f"Failed to initialize components: {e}", exc_info=True)
             self.log(f"⚠️ Warning: Some components failed to initialize: {e}")
+    
+    def apply_performance_settings(self):
+        """Apply performance settings from config to actual system components."""
+        try:
+            # Get settings from config
+            max_threads = config.get('performance', 'max_threads', default=4)
+            memory_limit_mb = config.get('performance', 'memory_limit_mb', default=2048)
+            cache_size_mb = config.get('performance', 'cache_size_mb', default=512)
+            
+            # Apply thread count to threading manager
+            if self.threading_manager:
+                try:
+                    self.threading_manager.set_thread_count(max_threads)
+                    logger.info(f"✅ Applied thread count: {max_threads}")
+                except Exception as e:
+                    logger.error(f"Failed to apply thread count: {e}")
+            
+            # Update cache manager size
+            if self.cache_manager:
+                try:
+                    self.cache_manager.max_size_bytes = cache_size_mb * 1024 * 1024
+                    logger.info(f"✅ Applied cache size: {cache_size_mb}MB")
+                except Exception as e:
+                    logger.error(f"Failed to apply cache size: {e}")
+            
+            # Performance manager doesn't need updating - it calculates profiles dynamically
+            # But we can log the current profile
+            if self.performance_manager:
+                profile = self.performance_manager.get_current_profile()
+                logger.info(f"Performance profile: {profile.mode.value}, "
+                          f"{profile.thread_count} threads, "
+                          f"{profile.memory_limit_mb}MB limit")
+            
+            logger.info("✅ Performance settings applied successfully")
+            
+        except Exception as e:
+            logger.error(f"Failed to apply performance settings: {e}", exc_info=True)
+    
+    def on_settings_changed(self, setting_key: str, value):
+        """Handle settings changes from settings panel."""
+        try:
+            logger.debug(f"Setting changed: {setting_key} = {value}")
+            
+            # Performance settings
+            if setting_key == 'performance.max_threads':
+                if self.threading_manager:
+                    self.threading_manager.set_thread_count(value)
+                    logger.info(f"Thread count updated to: {value}")
+            
+            elif setting_key == 'performance.cache_size_mb':
+                if self.cache_manager:
+                    self.cache_manager.max_size_bytes = value * 1024 * 1024
+                    logger.info(f"Cache size updated to: {value}MB")
+            
+            elif setting_key == 'performance.memory_limit_mb':
+                logger.info(f"Memory limit updated to: {value}MB (will apply on next operation)")
+            
+            # Theme settings
+            elif setting_key.startswith('ui.theme') or setting_key.startswith('ui.accent'):
+                self.apply_theme()
+            
+            # Other settings can be handled here
+            
+        except Exception as e:
+            logger.error(f"Error handling settings change: {e}", exc_info=True)
     
     def browse_input(self):
         """Browse for input folder."""
