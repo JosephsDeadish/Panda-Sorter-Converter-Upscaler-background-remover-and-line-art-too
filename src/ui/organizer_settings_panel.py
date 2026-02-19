@@ -1,5 +1,6 @@
 """Organizer Tool Settings Panel - All AI and processing options"""
 
+import logging
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QComboBox, QSlider,
     QPushButton, QCheckBox, QSpinBox, QDoubleSpinBox, QGroupBox,
@@ -7,6 +8,9 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtGui import QFont
+
+logger = logging.getLogger(__name__)
+
 
 class OrganizerSettingsPanel(QWidget):
     """Settings for Organizer Tool"""
@@ -538,8 +542,6 @@ class OrganizerSettingsPanel(QWidget):
             
             return True
         except Exception as e:
-            import logging
-            logger = logging.getLogger(__name__)
             logger.error(f"Error saving organizer settings: {e}", exc_info=True)
             return False
 

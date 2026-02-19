@@ -3,9 +3,11 @@ Qt implementation of the customization panel.
 Pure PyQt6 UI for texture customization options.
 """
 
+import logging
+
 try:
     from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QPushButton,
-                                  QLabel, QSlider, QComboBox, QColorDialog, QGroupBox)
+                                  QLabel, QSlider, QComboBox, QColorDialog, QGroupBox, QMessageBox)
     from PyQt6.QtCore import Qt, pyqtSignal
     from PyQt6.QtGui import QColor
     PYQT_AVAILABLE = True
@@ -13,6 +15,9 @@ except ImportError:
     PYQT_AVAILABLE = False
     class QWidget: pass
     class pyqtSignal: pass
+
+logger = logging.getLogger(__name__)
+
 
 
 class CustomizationPanelQt(QWidget):
@@ -166,22 +171,14 @@ class CustomizationPanelQt(QWidget):
                     'trail_length': self.trail_slider.value() if hasattr(self, 'trail_slider') else 10,
                 })
             
-            # Show confirmation
-            from PyQt6.QtWidgets import QMessageBox
-            QMessageBox.information(
-                self,
-                "Customization Applied",
-                "Your customization settings have been applied and saved!"
-            )
+            # Visual feedback - customization applied
+            logger.info("Customization settings applied and saved")
             
             return True
             
         except Exception as e:
-            import logging
-            logger = logging.getLogger(__name__)
             logger.error(f"Error applying customization: {e}", exc_info=True)
             
-            from PyQt6.QtWidgets import QMessageBox
             QMessageBox.warning(
                 self,
                 "Error",

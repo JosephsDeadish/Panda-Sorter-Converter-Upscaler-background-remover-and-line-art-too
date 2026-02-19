@@ -1181,6 +1181,15 @@ class TextureSorterMainWindow(QMainWindow):
             keys = setting_key.split('.')
             if len(keys) == 2:
                 config.set(keys[0], keys[1], value)
+            elif len(keys) == 1:
+                # Single-level key - store in general section
+                config.set('general', keys[0], value)
+                logger.debug(f"Single-level setting key '{setting_key}' stored in 'general' section")
+            else:
+                # Multi-level nested keys - only handle first two levels
+                logger.warning(f"Setting key '{setting_key}' has unexpected format (expected 'section.key')")
+                if len(keys) >= 2:
+                    config.set(keys[0], keys[1], value)
             
             # Handle theme changes
             if setting_key == "ui.theme":

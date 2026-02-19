@@ -441,7 +441,6 @@ class BackgroundRemoverPanelQt(QWidget):
             rembg_available = False
         
         if not rembg_available:
-            from PyQt6.QtWidgets import QMessageBox
             QMessageBox.information(
                 self,
                 "Feature Not Available",
@@ -455,7 +454,6 @@ class BackgroundRemoverPanelQt(QWidget):
         
         # Implement actual background removal
         if not self.current_image:
-            from PyQt6.QtWidgets import QMessageBox
             QMessageBox.warning(
                 self,
                 "No Image",
@@ -464,8 +462,9 @@ class BackgroundRemoverPanelQt(QWidget):
             return
         
         try:
-            from PyQt6.QtWidgets import QMessageBox, QProgressDialog
-            from PyQt6.QtCore import Qt
+            from PyQt6.QtWidgets import QProgressDialog
+            from PyQt6.QtCore import Qt, QBuffer
+            from PyQt6.QtGui import QImage
             from PIL import Image
             import io
             
@@ -476,7 +475,6 @@ class BackgroundRemoverPanelQt(QWidget):
             progress.show()
             
             # Convert QImage to PIL Image
-            from PyQt6.QtCore import QBuffer
             buffer = QBuffer()
             buffer.open(QBuffer.OpenModeFlag.ReadWrite)
             self.current_image.save(buffer, "PNG")
@@ -490,7 +488,6 @@ class BackgroundRemoverPanelQt(QWidget):
             output.save(output_buffer, format='PNG')
             output_buffer.seek(0)
             
-            from PyQt6.QtGui import QImage
             result_image = QImage()
             result_image.loadFromData(output_buffer.read())
             
@@ -517,11 +514,8 @@ class BackgroundRemoverPanelQt(QWidget):
                 self.processing_complete.emit()
                 
         except Exception as e:
-            import logging
-            logger = logging.getLogger(__name__)
             logger.error(f"Error removing background: {e}", exc_info=True)
             
-            from PyQt6.QtWidgets import QMessageBox
             QMessageBox.critical(
                 self,
                 "Error",
