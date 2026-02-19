@@ -7,14 +7,7 @@ Author: Dead On The Inside / JosephsDeadish
 import logging
 from pathlib import Path
 from typing import List, Dict, Any, Optional, Tuple
-try:
-    import numpy as np
-    HAS_NUMPY = True
-except ImportError:
-    np = None
-    HAS_NUMPY = False
-    import logging as _logging
-    _logging.getLogger(__name__).error("numpy not available - install with: pip install numpy")
+import numpy as np
 import pickle
 
 logger = logging.getLogger(__name__)

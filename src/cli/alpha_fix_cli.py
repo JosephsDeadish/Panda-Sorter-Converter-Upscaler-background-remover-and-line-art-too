@@ -432,14 +432,7 @@ Version: {APP_VERSION}
     def _analyze_batch(self, image_paths: List[Path]) -> int:
         """Analyze alpha colors in multiple files."""
         from PIL import Image
-        try:
-            import numpy as np
-            HAS_NUMPY = True
-        except ImportError:
-            np = None
-            HAS_NUMPY = False
-            import logging as _logging
-            _logging.getLogger(__name__).error("numpy not available - install with: pip install numpy")
+        import numpy as np
         
         print(f"\nAnalyzing {len(image_paths)} images...\n")
         

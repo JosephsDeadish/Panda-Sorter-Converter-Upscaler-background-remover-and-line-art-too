@@ -7,14 +7,7 @@ Author: Dead On The Inside / JosephsDeadish
 import logging
 from typing import Optional, Union
 from pathlib import Path
-try:
-    import numpy as np
-    HAS_NUMPY = True
-except ImportError:
-    np = None
-    HAS_NUMPY = False
-    import logging as _logging
-    _logging.getLogger(__name__).error("numpy not available - install with: pip install numpy")
+import numpy as np
 from PIL import Image
 import cv2
 

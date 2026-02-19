@@ -16,14 +16,7 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import Qt, QThread, pyqtSignal, QTimer
 from PyQt6.QtGui import QPixmap, QImage
 from PIL import Image, ImageEnhance, ImageFilter
-try:
-    import numpy as np
-    HAS_NUMPY = True
-except ImportError:
-    np = None
-    HAS_NUMPY = False
-    import logging as _logging
-    _logging.getLogger(__name__).error("numpy not available - install with: pip install numpy")
+import numpy as np
 import cv2
 
 logger = logging.getLogger(__name__)
