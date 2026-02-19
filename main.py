@@ -1177,6 +1177,11 @@ class TextureSorterMainWindow(QMainWindow):
         try:
             logger.info(f"Setting changed: {setting_key} = {value}")
             
+            # Update the config value
+            keys = setting_key.split('.')
+            if len(keys) == 2:
+                config.set(keys[0], keys[1], value)
+            
             # Handle theme changes
             if setting_key == "ui.theme":
                 self.apply_theme()
@@ -1204,6 +1209,13 @@ class TextureSorterMainWindow(QMainWindow):
                 app = QApplication.instance()
                 if app:
                     app.setFont(QFont(font_family, font_size))
+            
+            # Save config after changes
+            try:
+                config.save()
+                logger.debug(f"Config saved after setting change: {setting_key}")
+            except Exception as save_error:
+                logger.error(f"Error saving config after settings change: {save_error}", exc_info=True)
             
         except Exception as e:
             logger.error(f"Error handling settings change: {e}", exc_info=True)

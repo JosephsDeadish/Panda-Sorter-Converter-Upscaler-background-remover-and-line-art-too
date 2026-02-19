@@ -139,6 +139,10 @@ a = Analysis(
         # Scientific computing
         'numpy',
         'numpy.core',
+        'scipy',
+        'scipy.ndimage',
+        'scipy.signal',
+        'scipy.sparse',
         'cv2',
         'sklearn',
         'sklearn.metrics',
