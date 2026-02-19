@@ -36,7 +36,8 @@ try:
         QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
         QLabel, QPushButton, QProgressBar, QTextEdit, QTabWidget,
         QFileDialog, QMessageBox, QStatusBar, QMenuBar, QMenu,
-        QSplitter, QFrame, QComboBox
+        QSplitter, QFrame, QComboBox, QGridLayout, QStackedWidget,
+        QScrollArea
     )
     from PyQt6.QtCore import Qt, QTimer, pyqtSignal, QThread, QSize
     from PyQt6.QtGui import QAction, QIcon, QFont, QPalette, QColor
@@ -448,105 +449,176 @@ class TextureSorterMainWindow(QMainWindow):
         return tab
     
     def create_tools_tab(self):
-        """Create tools tab with Qt-based tool panels."""
+        """Create tools tab with grid layout of tool buttons (2-3 rows)."""
         tab = QWidget()
-        layout = QVBoxLayout(tab)
-        layout.setContentsMargins(5, 5, 5, 5)
-        layout.setSpacing(10)
+        main_layout = QVBoxLayout(tab)
+        main_layout.setContentsMargins(10, 10, 10, 10)
+        main_layout.setSpacing(10)
         
-        # Create tool tabs
-        tool_tabs = QTabWidget()
-        tool_tabs.setDocumentMode(True)
-        layout.addWidget(tool_tabs)
+        # Title
+        title_label = QLabel("🔧 Tools & Features")
+        title_label.setStyleSheet("font-size: 18pt; font-weight: bold;")
+        title_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        main_layout.addWidget(title_label)
         
-        # Add Texture Sorter as first tool
+        subtitle = QLabel("Select a tool to use")
+        subtitle.setStyleSheet("color: gray; font-size: 11pt;")
+        subtitle.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        main_layout.addWidget(subtitle)
+        
+        # Create stacked widget to hold tool panels
+        self.tool_stack = QStackedWidget()
+        
+        # Create grid of tool buttons
+        button_container = QWidget()
+        button_grid = QGridLayout(button_container)
+        button_grid.setSpacing(10)
+        
+        # Define all tools with their panels
+        self.tool_panels = {}
+        tool_definitions = []
+        
+        # Add Texture Sorter
         sorting_widget = self.create_sorting_tab_widget()
-        tool_tabs.addTab(sorting_widget, "🗂️ Texture Sorter")
+        self.tool_panels['sorter'] = sorting_widget
+        self.tool_stack.addWidget(sorting_widget)
+        tool_definitions.append(('sorter', '🗂️ Texture\nSorter', 'Sort and organize textures'))
         
         # Add tool panels if available
         if UI_PANELS_AVAILABLE:
             try:
                 # Background Remover
                 bg_panel = BackgroundRemoverPanelQt(tooltip_manager=self.tooltip_manager)
-                tool_tabs.addTab(bg_panel, "🎭 Background Remover")
+                self.tool_panels['bg_remover'] = bg_panel
+                self.tool_stack.addWidget(bg_panel)
+                tool_definitions.append(('bg_remover', '🎭 Background\nRemover', 'Remove backgrounds'))
                 
                 # Alpha Fixer
                 alpha_panel = AlphaFixerPanelQt(tooltip_manager=self.tooltip_manager)
-                tool_tabs.addTab(alpha_panel, "✨ Alpha Fixer")
+                self.tool_panels['alpha_fixer'] = alpha_panel
+                self.tool_stack.addWidget(alpha_panel)
+                tool_definitions.append(('alpha_fixer', '✨ Alpha\nFixer', 'Fix alpha channels'))
                 
                 # Color Correction
                 color_panel = ColorCorrectionPanelQt(tooltip_manager=self.tooltip_manager)
-                tool_tabs.addTab(color_panel, "🎨 Color Correction")
+                self.tool_panels['color'] = color_panel
+                self.tool_stack.addWidget(color_panel)
+                tool_definitions.append(('color', '🎨 Color\nCorrection', 'Adjust colors'))
                 
                 # Batch Normalizer
                 norm_panel = BatchNormalizerPanelQt(tooltip_manager=self.tooltip_manager)
-                tool_tabs.addTab(norm_panel, "⚙️ Batch Normalizer")
+                self.tool_panels['normalizer'] = norm_panel
+                self.tool_stack.addWidget(norm_panel)
+                tool_definitions.append(('normalizer', '⚙️ Batch\nNormalizer', 'Normalize batches'))
                 
                 # Quality Checker
                 quality_panel = QualityCheckerPanelQt(tooltip_manager=self.tooltip_manager)
-                tool_tabs.addTab(quality_panel, "✓ Quality Checker")
+                self.tool_panels['quality'] = quality_panel
+                self.tool_stack.addWidget(quality_panel)
+                tool_definitions.append(('quality', '✓ Quality\nChecker', 'Check image quality'))
                 
                 # Image Upscaler
                 upscaler_panel = ImageUpscalerPanelQt(tooltip_manager=self.tooltip_manager)
-                tool_tabs.addTab(upscaler_panel, "🔍 Image Upscaler")
+                self.tool_panels['upscaler'] = upscaler_panel
+                self.tool_stack.addWidget(upscaler_panel)
+                tool_definitions.append(('upscaler', '🔍 Image\nUpscaler', 'Upscale images'))
                 
                 # Line Art Converter
                 line_panel = LineArtConverterPanelQt(tooltip_manager=self.tooltip_manager)
-                tool_tabs.addTab(line_panel, "✏️ Line Art Converter")
+                self.tool_panels['lineart'] = line_panel
+                self.tool_stack.addWidget(line_panel)
+                tool_definitions.append(('lineart', '✏️ Line Art\nConverter', 'Convert to line art'))
                 
                 # Batch Rename
                 rename_panel = BatchRenamePanelQt(tooltip_manager=self.tooltip_manager)
-                tool_tabs.addTab(rename_panel, "📝 Batch Rename")
+                self.tool_panels['rename'] = rename_panel
+                self.tool_stack.addWidget(rename_panel)
+                tool_definitions.append(('rename', '📝 Batch\nRename', 'Rename files'))
                 
                 # Image Repair
                 repair_panel = ImageRepairPanelQt(tooltip_manager=self.tooltip_manager)
-                tool_tabs.addTab(repair_panel, "🔧 Image Repair")
+                self.tool_panels['repair'] = repair_panel
+                self.tool_stack.addWidget(repair_panel)
+                tool_definitions.append(('repair', '🔧 Image\nRepair', 'Repair corrupted images'))
                 
                 # Texture Organizer
                 organizer_panel = OrganizerPanelQt(tooltip_manager=self.tooltip_manager)
-                tool_tabs.addTab(organizer_panel, "📁 Texture Organizer")
+                self.tool_panels['organizer'] = organizer_panel
+                self.tool_stack.addWidget(organizer_panel)
+                tool_definitions.append(('organizer', '📁 Texture\nOrganizer', 'Organize textures'))
                 
                 self.log("✅ All tool panels loaded successfully")
                 
             except Exception as e:
                 logger.error(f"Error loading tool panels: {e}", exc_info=True)
-                # Fallback to placeholder
-                label = QLabel(f"⚠️ Error loading tool panels: {e}")
-                label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-                tool_tabs.addTab(label, "Error")
-        else:
-            # Fallback message
-            label = QLabel(
-                "🔧 Tool panels require PyQt6.\n\n"
-                "Install with:\n"
-                "pip install PyQt6\n\n"
-                "Available tools:\n"
-                "• Texture Sorter\n"
-                "• Background Remover\n"
-                "• Alpha Fixer\n"
-                "• Color Correction\n"
-                "• Batch Normalizer\n"
-                "• Quality Checker\n"
-                "• Image Upscaler\n"
-                "• Line Art Converter\n"
-                "• Batch Rename\n"
-                "• Image Repair\n"
-                "• Texture Organizer"
-            )
-            label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            label.setFont(QFont("Arial", 11))
-            tool_tabs.addTab(label, "Install Required")
         
-        # Add Panda features as a comprehensive tab with sub-tabs
-        if PANDA_WIDGET_AVAILABLE and self.panda_widget is not None:
-            try:
-                panda_tab = self.create_panda_features_tab()
-                tool_tabs.addTab(panda_tab, "🐼 Panda Features")
-                logger.info("✅ Panda features tab loaded")
-            except Exception as e:
-                logger.error(f"Could not load panda features tab: {e}", exc_info=True)
+        # Create grid of tool buttons (6 per row = 2 rows, or 4 per row = 3 rows)
+        # Automatically adjusts based on window size
+        self.tool_buttons = {}
+        cols_per_row = 6  # Default 6 columns (will be 2 rows with 11 tools)
+        
+        for idx, (tool_id, label, tooltip) in enumerate(tool_definitions):
+            row = idx // cols_per_row
+            col = idx % cols_per_row
+            
+            btn = QPushButton(label)
+            btn.setMinimumSize(120, 80)
+            btn.setMaximumSize(200, 100)
+            btn.setStyleSheet("""
+                QPushButton {
+                    background-color: #2b2b2b;
+                    color: white;
+                    border: 2px solid #444;
+                    border-radius: 8px;
+                    font-size: 11pt;
+                    font-weight: bold;
+                    padding: 10px;
+                }
+                QPushButton:hover {
+                    background-color: #3a3a3a;
+                    border: 2px solid #666;
+                }
+                QPushButton:pressed {
+                    background-color: #1a1a1a;
+                }
+                QPushButton:checked {
+                    background-color: #0d7377;
+                    border: 2px solid #14ffec;
+                }
+            """)
+            btn.setCheckable(True)
+            btn.setToolTip(tooltip)
+            btn.clicked.connect(lambda checked, tid=tool_id: self.switch_tool(tid))
+            
+            button_grid.addWidget(btn, row, col)
+            self.tool_buttons[tool_id] = btn
+        
+        # Select first tool by default
+        if tool_definitions:
+            first_tool_id = tool_definitions[0][0]
+            self.tool_buttons[first_tool_id].setChecked(True)
+            self.tool_stack.setCurrentWidget(self.tool_panels[first_tool_id])
+        
+        # Add button grid and tool stack to main layout
+        main_layout.addWidget(button_container)
+        main_layout.addWidget(self.tool_stack, 1)  # Give tool stack stretch factor
         
         self.tabs.addTab(tab, "Tools")
+    
+    def switch_tool(self, tool_id):
+        """Switch to a different tool panel."""
+        # Uncheck all other buttons
+        for tid, btn in self.tool_buttons.items():
+            if tid != tool_id:
+                btn.setChecked(False)
+        
+        # Check the clicked button
+        self.tool_buttons[tool_id].setChecked(True)
+        
+        # Switch to the corresponding panel
+        if tool_id in self.tool_panels:
+            self.tool_stack.setCurrentWidget(self.tool_panels[tool_id])
+            logger.info(f"Switched to tool: {tool_id}")
     
     def create_panda_features_tab(self):
         """Create panda features tab with shop, inventory, closet, achievements, and customization."""
