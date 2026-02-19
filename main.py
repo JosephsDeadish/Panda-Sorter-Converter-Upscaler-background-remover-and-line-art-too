@@ -245,6 +245,9 @@ class TextureSorterMainWindow(QMainWindow):
         # Apply performance settings from config
         self.apply_performance_settings()
         
+        # Restore dock layout from previous session
+        QTimer.singleShot(100, self.restore_dock_layout)  # Delay to ensure widgets are created
+        
         logger.info("Qt Main Window initialized successfully")
     
     def setup_ui(self):
@@ -788,6 +791,38 @@ class TextureSorterMainWindow(QMainWindow):
             label = QLabel("⚠️ Achievements not available\n\nInstall required dependencies")
             label.setAlignment(Qt.AlignmentFlag.AlignCenter)
             panda_tabs.addTab(label, "🏆 Achievements")
+        
+        # 6. Minigames Tab
+        try:
+            from ui.minigame_panel_qt import MinigamePanelQt
+            from features.minigame_system import MiniGameManager
+            
+            minigame_manager = MiniGameManager()
+            minigame_panel = MinigamePanelQt(minigame_manager=minigame_manager, tooltip_manager=self.tooltip_manager)
+            panda_tabs.addTab(minigame_panel, "🎮 Minigames")
+            logger.info("✅ Minigames panel added to panda tab")
+        except Exception as e:
+            logger.error(f"Could not load minigames panel: {e}", exc_info=True)
+            # Add placeholder
+            label = QLabel("⚠️ Minigames not available\n\nInstall required dependencies")
+            label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            panda_tabs.addTab(label, "🎮 Minigames")
+        
+        # 7. Widgets Tab (Interactive toys/food/accessories)
+        try:
+            from ui.widgets_panel_qt import WidgetsPanelQt
+            from features.panda_widgets import WidgetCollection
+            
+            widget_collection = WidgetCollection()
+            widgets_panel = WidgetsPanelQt(widget_collection, self.panda_widget, tooltip_manager=self.tooltip_manager)
+            panda_tabs.addTab(widgets_panel, "🧸 Widgets")
+            logger.info("✅ Widgets panel added to panda tab")
+        except Exception as e:
+            logger.error(f"Could not load widgets panel: {e}", exc_info=True)
+            # Add placeholder
+            label = QLabel("⚠️ Widgets not available\n\nInstall required dependencies")
+            label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            panda_tabs.addTab(label, "🧸 Widgets")
         
         layout.addWidget(panda_tabs)
         return tab
@@ -1596,6 +1631,12 @@ class TextureSorterMainWindow(QMainWindow):
     
     def closeEvent(self, event):
         """Handle window close event."""
+        # Save dock layout before closing
+        try:
+            self.save_dock_layout()
+        except Exception as e:
+            logger.error(f"Error saving dock layout on exit: {e}", exc_info=True)
+        
         # Save settings before closing
         try:
             config.save()
@@ -1768,6 +1809,66 @@ class TextureSorterMainWindow(QMainWindow):
             self.restore_docked_tab(name, dock.windowTitle())
         
         self.statusbar.showMessage("Window layout reset", 3000)
+    
+    def save_dock_layout(self):
+        """Save current dock layout to config."""
+        try:
+            # Save main window geometry
+            geometry = self.saveGeometry()
+            state = self.saveState()
+            
+            config.set('window', 'geometry', geometry.toHex().data().decode())
+            config.set('window', 'state', state.toHex().data().decode())
+            
+            # Save docked tabs info
+            docked_tabs = list(self.docked_widgets.keys())
+            config.set('window', 'docked_tabs', ','.join(docked_tabs))
+            
+            # Save tool dock visibility
+            tool_dock_states = {}
+            for tool_id, dock in self.tool_dock_widgets.items():
+                tool_dock_states[tool_id] = {
+                    'visible': dock.isVisible(),
+                    'floating': dock.isFloating(),
+                }
+            config.set('window', 'tool_dock_states', str(tool_dock_states))
+            
+            config.save()
+            logger.info("Dock layout saved")
+        except Exception as e:
+            logger.error(f"Error saving dock layout: {e}", exc_info=True)
+    
+    def restore_dock_layout(self):
+        """Restore dock layout from config."""
+        try:
+            # Restore main window geometry and state
+            geometry_hex = config.get('window', 'geometry', default=None)
+            state_hex = config.get('window', 'state', default=None)
+            
+            if geometry_hex:
+                geometry = QByteArray.fromHex(geometry_hex.encode())
+                self.restoreGeometry(geometry)
+            
+            if state_hex:
+                state = QByteArray.fromHex(state_hex.encode())
+                self.restoreState(state)
+            
+            # Restore tool dock states
+            tool_states_str = config.get('window', 'tool_dock_states', default='{}')
+            try:
+                import ast
+                tool_states = ast.literal_eval(tool_states_str)
+                for tool_id, state in tool_states.items():
+                    if tool_id in self.tool_dock_widgets:
+                        dock = self.tool_dock_widgets[tool_id]
+                        dock.setVisible(state.get('visible', True))
+                        dock.setFloating(state.get('floating', False))
+            except:
+                pass
+            
+            logger.info("Dock layout restored")
+        except Exception as e:
+            logger.error(f"Error restoring dock layout: {e}", exc_info=True)
 
 
 def check_feature_availability():
