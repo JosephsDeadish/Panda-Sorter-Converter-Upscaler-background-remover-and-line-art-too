@@ -9,9 +9,16 @@ import hashlib
 import logging
 from pathlib import Path
 from typing import List, Optional, Tuple
-import send2trash
 
 logger = logging.getLogger(__name__)
+
+try:
+    import send2trash
+    HAS_SEND2TRASH = True
+except ImportError:
+    HAS_SEND2TRASH = False
+    logger.warning("send2trash not available. Using permanent deletion instead of trash.")
+    logger.warning("Install with: pip install send2trash")
 
 try:
     from PIL import Image
@@ -701,8 +708,11 @@ class FileHandler:
             True if successful, False otherwise
         """
         try:
-            if use_trash:
+            if use_trash and HAS_SEND2TRASH:
                 send2trash.send2trash(str(file_path))
+            elif use_trash and not HAS_SEND2TRASH:
+                logger.warning(f"send2trash not available, permanently deleting {file_path}")
+                file_path.unlink()
             else:
                 file_path.unlink()
             
