@@ -4,6 +4,8 @@ Optional OpenAI CLIP API wrapper with fallback support
 Author: Dead On The Inside / JosephsDeadish
 """
 
+from __future__ import annotations
+
 import logging
 import time
 import threading

@@ -7,6 +7,8 @@ Author: Dead On The Inside / JosephsDeadish
 from __future__ import annotations
 
 import logging
+
+logger = logging.getLogger(__name__)
 import threading
 from pathlib import Path
 from typing import Dict, List, Optional, Any
@@ -23,7 +25,6 @@ from .offline_model import OfflineModel, create_default_model
 from .online_model import OnlineModel, create_online_model_from_config
 
 
-logger = logging.getLogger(__name__)
 
 
 class ModelManager:

@@ -96,27 +96,33 @@ for hook_dir in HOOKSPATH:
     else:
         print(f"[build_spec] Using hooks from: {hook_dir}")
 
+# Build the datas list, only including directories that exist and are non-empty
+def _collect_data_dir(src_path, dest_name):
+    """Return (src, dest) tuple only if src_path exists with content."""
+    p = Path(src_path)
+    if p.exists() and (p.is_file() or any(p.iterdir())):
+        return (str(p), dest_name)
+    return None
+
+_datas_candidates = [
+    _collect_data_dir(ASSETS_DIR, 'assets'),
+    _collect_data_dir(RESOURCES_DIR / 'icons', 'resources/icons'),
+    _collect_data_dir(RESOURCES_DIR / 'icons' / 'svg', 'resources/icons/svg'),
+    _collect_data_dir(RESOURCES_DIR / 'cursors', 'resources/cursors'),
+    _collect_data_dir(RESOURCES_DIR / 'sounds', 'resources/sounds'),
+    _collect_data_dir(RESOURCES_DIR / 'translations', 'resources/translations'),
+    PIL_DATA,
+    TORCH_DATA,
+]
+_datas = [d for d in _datas_candidates if d is not None]
+print(f"[build_spec] Including {len(_datas)} data directories")
+
 # Collect all Python files
 a = Analysis(
     ['main.py'],
     pathex=[str(SCRIPT_DIR), str(SRC_DIR)],  # Include src directory for module imports
     binaries=[],
-    datas=[
-        # Include entire assets directory
-        (str(ASSETS_DIR), 'assets'),
-        # Include resources
-        (str(RESOURCES_DIR / 'icons'), 'resources/icons'),
-        (str(RESOURCES_DIR / 'icons' / 'svg'), 'resources/icons/svg'),  # Explicitly include SVG icons
-        (str(RESOURCES_DIR / 'cursors'), 'resources/cursors'),
-        (str(RESOURCES_DIR / 'sounds'), 'resources/sounds'),
-        (str(RESOURCES_DIR / 'translations'), 'resources/translations'),
-    ] + (
-        # Explicitly add PIL package if available
-        [PIL_DATA] if PIL_DATA else []
-    ) + (
-        # Explicitly add torch package if available  
-        [TORCH_DATA] if TORCH_DATA else []
-    ),
+    datas=_datas,
     hiddenimports=[
         # Core application modules from src/
         'config',
@@ -244,7 +250,6 @@ a = Analysis(
         
         # Heavy scientific libraries (not needed)
         'matplotlib',
-        'scipy',
         'pandas',
         'jupyter',
         'notebook',

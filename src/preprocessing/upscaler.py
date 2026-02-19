@@ -4,6 +4,8 @@ Supports bicubic, ESRGAN, Real-ESRGAN, and native Lanczos upscaling
 Author: Dead On The Inside / JosephsDeadish
 """
 
+from __future__ import annotations
+
 import logging
 from typing import Optional, Union
 from pathlib import Path

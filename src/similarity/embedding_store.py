@@ -7,6 +7,8 @@ Author: Dead On The Inside / JosephsDeadish
 from __future__ import annotations
 
 import logging
+
+logger = logging.getLogger(__name__)
 from pathlib import Path
 from typing import Dict, Any, List, Optional
 try:
@@ -19,7 +21,6 @@ except ImportError:
 import sqlite3
 import pickle
 
-logger = logging.getLogger(__name__)
 
 
 class EmbeddingStore:

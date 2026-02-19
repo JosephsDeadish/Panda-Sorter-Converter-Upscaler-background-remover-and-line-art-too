@@ -4,6 +4,8 @@ Visual similarity clustering model
 Author: Dead On The Inside / JosephsDeadish
 """
 
+from __future__ import annotations
+
 import logging
 from typing import List, Union, Optional
 import numpy as np

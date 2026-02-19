@@ -5,6 +5,8 @@ with PS2 presets and batch processing support
 Author: Dead On The Inside / JosephsDeadish
 """
 
+from __future__ import annotations
+
 import logging
 from pathlib import Path
 from typing import Optional, Dict, Any, List, Tuple, Union

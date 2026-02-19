@@ -15,6 +15,9 @@ import cv2
 # Allow loading of truncated images
 ImageFile.LOAD_TRUNCATED_IMAGES = True
 
+# Module-level thumbnail quality (1-100).  Updated at runtime by apply_performance_settings().
+THUMBNAIL_QUALITY: int = 85
+
 logger = logging.getLogger(__name__)
 
 
@@ -97,7 +100,7 @@ def create_thumbnail(
     image_path: Path,
     size: Tuple[int, int] = (256, 256),
     maintain_aspect: bool = True,
-    quality: int = 85
+    quality: Optional[int] = None
 ) -> Optional[Image.Image]:
     """
     Create thumbnail from image with efficient memory usage.
@@ -106,11 +109,13 @@ def create_thumbnail(
         image_path: Path to source image
         size: Target thumbnail size (width, height)
         maintain_aspect: Maintain aspect ratio
-        quality: JPEG quality for compression (1-100)
+        quality: JPEG quality for compression (1-100). Defaults to THUMBNAIL_QUALITY.
         
     Returns:
         PIL Image object or None if error
     """
+    if quality is None:
+        quality = THUMBNAIL_QUALITY
     try:
         with Image.open(image_path) as img:
             # Convert to RGB if necessary (for JPEG compatibility)
@@ -135,7 +140,7 @@ def save_thumbnail(
     output_path: Path,
     size: Tuple[int, int] = (256, 256),
     format: str = 'JPEG',
-    quality: int = 85
+    quality: Optional[int] = None
 ) -> bool:
     """
     Create and save thumbnail to disk.
@@ -145,11 +150,13 @@ def save_thumbnail(
         output_path: Path to save thumbnail
         size: Target thumbnail size
         format: Output format (JPEG, PNG, etc.)
-        quality: Compression quality
+        quality: Compression quality (1-100). Defaults to THUMBNAIL_QUALITY.
         
     Returns:
         True if successful, False otherwise
     """
+    if quality is None:
+        quality = THUMBNAIL_QUALITY
     try:
         thumbnail = create_thumbnail(image_path, size, quality=quality)
         if thumbnail:

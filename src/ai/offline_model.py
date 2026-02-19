@@ -4,6 +4,8 @@ Provides CPU-optimized offline inference for texture classification
 Author: Dead On The Inside / JosephsDeadish
 """
 
+from __future__ import annotations
+
 import logging
 import threading
 from pathlib import Path

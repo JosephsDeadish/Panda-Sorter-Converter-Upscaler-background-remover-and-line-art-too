@@ -8,6 +8,8 @@ must NOT be compiled with TorchScript. Avoid JIT script/trace compilation
 as it causes source access errors in packaged builds.
 """
 
+from __future__ import annotations
+
 import logging
 from typing import List, Union, Optional
 import numpy as np

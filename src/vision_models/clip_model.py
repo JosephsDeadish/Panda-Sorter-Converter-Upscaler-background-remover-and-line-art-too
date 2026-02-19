@@ -4,6 +4,8 @@ Image-text embedding model for texture classification
 Author: Dead On The Inside / JosephsDeadish
 """
 
+from __future__ import annotations
+
 import logging
 from typing import List, Dict, Any, Optional, Union, Tuple
 import numpy as np

@@ -6,6 +6,8 @@ Author: Dead On The Inside / JosephsDeadish
 
 import json
 import logging
+
+logger = logging.getLogger(__name__)
 import sqlite3
 import threading
 from datetime import datetime
@@ -20,7 +22,6 @@ except ImportError:
     logger.error("Install with: pip install numpy")
 
 
-logger = logging.getLogger(__name__)
 
 
 class TrainingDataStore:

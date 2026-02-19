@@ -4,6 +4,8 @@ Detect health numbers, ammo counts, and other text in textures
 Author: Dead On The Inside / JosephsDeadish
 """
 
+from __future__ import annotations
+
 import logging
 from pathlib import Path
 from typing import List, Dict, Any, Union, Optional

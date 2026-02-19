@@ -27,8 +27,12 @@ try:
     from ui.live_preview_slider_qt import ComparisonSliderWidget
     SLIDER_AVAILABLE = True
 except ImportError:
-    SLIDER_AVAILABLE = False
-    ComparisonSliderWidget = None
+    try:
+        from live_preview_slider_qt import ComparisonSliderWidget
+        SLIDER_AVAILABLE = True
+    except ImportError:
+        SLIDER_AVAILABLE = False
+        ComparisonSliderWidget = None
 
 try:
     from utils.archive_handler import ArchiveHandler

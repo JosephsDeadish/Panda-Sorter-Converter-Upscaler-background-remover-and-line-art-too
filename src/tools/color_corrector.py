@@ -12,6 +12,8 @@ Provides various color correction and enhancement features:
 from __future__ import annotations
 
 import logging
+
+logger = logging.getLogger(__name__)
 from PIL import Image
 try:
     import numpy as np
@@ -24,7 +26,6 @@ from pathlib import Path
 from typing import Optional, Tuple, Dict, Any, List
 import re
 
-logger = logging.getLogger(__name__)
 
 
 class ColorCorrector:

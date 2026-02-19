@@ -15,6 +15,8 @@ When the native module is unavailable, the pure-Python fallbacks in this
 file are used instead.  They produce similar results but are slower.
 """
 
+from __future__ import annotations
+
 import logging
 import math
 from typing import List, Optional, Tuple

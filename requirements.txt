@@ -113,10 +113,10 @@ transformers>=4.48.0  # CLIP, ViT models (>= 4.48.0 for security fixes)
 timm>=0.9.0  # Image models (EfficientNet, ResNet, etc.)
 open-clip-torch>=2.20.0  # Open-source CLIP implementation
 
-# Vector Similarity Search
-faiss-cpu>=1.7.4  # Fast similarity search (use faiss-gpu for CUDA)
-chromadb>=0.4.0  # Vector database for embeddings
-annoy>=1.17.0  # Approximate nearest neighbor search
+# Vector Similarity Search (optional - comment out if install fails on your platform)
+# faiss-cpu>=1.7.4  # Fast similarity search (use faiss-gpu for CUDA) - uncomment to enable
+# chromadb>=0.4.0  # Vector database for embeddings - uncomment to enable
+# annoy>=1.17.0  # Approximate nearest neighbor search - uncomment to enable
 
 # Image Upscaling and Super-Resolution
 basicsr>=1.4.2  # Super-resolution models framework

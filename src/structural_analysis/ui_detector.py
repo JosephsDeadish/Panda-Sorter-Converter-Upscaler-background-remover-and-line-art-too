@@ -5,6 +5,8 @@ Author: Dead On The Inside / JosephsDeadish
 """
 
 import logging
+
+logger = logging.getLogger(__name__)
 from pathlib import Path
 from typing import Dict, Any, Union, List
 try:
@@ -16,7 +18,6 @@ except ImportError:
     logger.error("Install with: pip install numpy")
 from PIL import Image
 
-logger = logging.getLogger(__name__)
 
 
 class UIDetector:

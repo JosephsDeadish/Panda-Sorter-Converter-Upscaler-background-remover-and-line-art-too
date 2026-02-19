@@ -1519,6 +1519,11 @@ class TextureSorterMainWindow(QMainWindow):
             max_threads = config.get('performance', 'max_threads', default=4)
             memory_limit_mb = config.get('performance', 'memory_limit_mb', default=2048)
             cache_size_mb = config.get('performance', 'cache_size_mb', default=512)
+            thumbnail_quality_str = config.get('performance', 'thumbnail_quality', default='high')
+            
+            # Convert thumbnail quality string to integer
+            _tq_map = {'low': 60, 'medium': 75, 'high': 90}
+            thumbnail_quality = _tq_map.get(str(thumbnail_quality_str).lower(), 85)
             
             # Apply thread count to threading manager
             if self.threading_manager:
@@ -1535,6 +1540,14 @@ class TextureSorterMainWindow(QMainWindow):
                     logger.info(f"✅ Applied cache size: {cache_size_mb}MB")
                 except Exception as e:
                     logger.error(f"Failed to apply cache size: {e}")
+            
+            # Apply thumbnail quality to image_processing module
+            try:
+                from utils import image_processing as _img_proc
+                _img_proc.THUMBNAIL_QUALITY = thumbnail_quality
+                logger.info(f"✅ Applied thumbnail quality: {thumbnail_quality_str} ({thumbnail_quality})")
+            except Exception as e:
+                logger.error(f"Failed to apply thumbnail quality: {e}")
             
             # Performance manager doesn't need updating - it calculates profiles dynamically
             # But we can log the current profile
@@ -1813,6 +1826,15 @@ class TextureSorterMainWindow(QMainWindow):
             
             elif setting_key == 'performance.memory_limit_mb':
                 logger.info(f"Memory limit updated to: {value}MB (applied on next operation)")
+            
+            elif setting_key == 'performance.thumbnail_quality':
+                try:
+                    from utils import image_processing as _img_proc
+                    _tq_map = {'low': 60, 'medium': 75, 'high': 90}
+                    _img_proc.THUMBNAIL_QUALITY = _tq_map.get(str(value).lower(), 85)
+                    logger.info(f"Thumbnail quality updated to: {value} ({_img_proc.THUMBNAIL_QUALITY})")
+                except Exception as e:
+                    logger.error(f"Failed to update thumbnail quality: {e}")
             
             # Save config after changes
             try:

@@ -4,6 +4,8 @@ Object segmentation for texture analysis
 Author: Dead On The Inside / JosephsDeadish
 """
 
+from __future__ import annotations
+
 import logging
 from typing import List, Dict, Any, Union, Optional
 import numpy as np

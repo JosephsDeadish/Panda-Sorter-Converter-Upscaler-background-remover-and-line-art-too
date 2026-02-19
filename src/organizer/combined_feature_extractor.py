@@ -7,6 +7,8 @@ Handles model initialization, feature extraction, and ensemble predictions.
 Author: GitHub Copilot for PR #168
 """
 
+from __future__ import annotations
+
 import logging
 from typing import List, Optional, Tuple, Dict, Any
 from pathlib import Path
