@@ -36,9 +36,10 @@ try:
         QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
         QLabel, QPushButton, QProgressBar, QTextEdit, QTabWidget,
         QFileDialog, QMessageBox, QStatusBar, QMenuBar, QMenu,
-        QSplitter, QFrame, QComboBox
+        QSplitter, QFrame, QComboBox, QGridLayout, QStackedWidget,
+        QScrollArea, QDockWidget, QToolBar
     )
-    from PyQt6.QtCore import Qt, QTimer, pyqtSignal, QThread, QSize
+    from PyQt6.QtCore import Qt, QTimer, pyqtSignal, QThread, QSize, QByteArray
     from PyQt6.QtGui import QAction, QIcon, QFont, QPalette, QColor
 except ImportError as e:
     print("=" * 70)
@@ -104,6 +105,67 @@ except ImportError as e:
     UI_PANELS_AVAILABLE = False
 
 
+class DraggableTabWidget(QTabWidget):
+    """QTabWidget that supports drag-and-drop tab extraction."""
+    
+    tab_detached = pyqtSignal(int, str, QWidget)  # index, name, widget
+    
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setMovable(True)  # Allow tab reordering
+        self.setTabsClosable(False)  # We handle closing via detachment
+        self._drag_start_pos = None
+        self._dragging = False
+        self._dragging_tab_index = -1
+        
+        # Get tab bar and enable mouse tracking
+        tab_bar = self.tabBar()
+        tab_bar.setMouseTracking(True)
+        
+    def mousePressEvent(self, event):
+        """Start drag operation when clicking on tab."""
+        if event.button() == Qt.MouseButton.LeftButton:
+            # Check if click is on a tab
+            tab_bar = self.tabBar()
+            for i in range(self.count()):
+                if tab_bar.tabRect(i).contains(event.pos()):
+                    self._drag_start_pos = event.pos()
+                    self._dragging_tab_index = i
+                    break
+        super().mousePressEvent(event)
+    
+    def mouseMoveEvent(self, event):
+        """Detect drag motion and create floating window."""
+        if (self._drag_start_pos is not None and 
+            event.buttons() == Qt.MouseButton.LeftButton):
+            
+            # Check if drag distance is significant
+            drag_distance = (event.pos() - self._drag_start_pos).manhattanLength()
+            
+            if drag_distance > 20 and not self._dragging:  # Threshold to start drag
+                self._dragging = True
+                
+                # Get tab info
+                index = self._dragging_tab_index
+                tab_text = self.tabText(index)
+                tab_widget = self.widget(index)
+                
+                # Emit signal to parent to handle detachment
+                self.tab_detached.emit(index, tab_text, tab_widget)
+                
+                # Reset drag state
+                self._drag_start_pos = None
+                self._dragging = False
+                
+        super().mouseMoveEvent(event)
+    
+    def mouseReleaseEvent(self, event):
+        """End drag operation."""
+        self._drag_start_pos = None
+        self._dragging = False
+        super().mouseReleaseEvent(event)
+
+
 class WorkerThread(QThread):
     """Background worker thread for long-running operations."""
     
@@ -152,6 +214,11 @@ class TextureSorterMainWindow(QMainWindow):
         self.database = None
         self.organizer = None
         
+        # Performance and resource managers
+        self.performance_manager = None
+        self.threading_manager = None
+        self.cache_manager = None
+        
         # Worker thread
         self.worker = None
         
@@ -162,6 +229,10 @@ class TextureSorterMainWindow(QMainWindow):
         # Tooltip manager (will be initialized later)
         self.tooltip_manager = None
         
+        # Docking system - track floating panels
+        self.docked_widgets = {}  # {tab_name: QDockWidget}
+        self.tab_widgets = {}  # {tab_name: widget} - original tab widgets
+        
         # Setup UI
         self.setup_ui()
         self.setup_menubar()
@@ -170,6 +241,12 @@ class TextureSorterMainWindow(QMainWindow):
         
         # Initialize components
         self.initialize_components()
+        
+        # Apply performance settings from config
+        self.apply_performance_settings()
+        
+        # Restore dock layout from previous session
+        QTimer.singleShot(100, self.restore_dock_layout)  # Delay to ensure widgets are created
         
         logger.info("Qt Main Window initialized successfully")
     
@@ -213,9 +290,10 @@ class TextureSorterMainWindow(QMainWindow):
         content_layout.setContentsMargins(0, 0, 0, 0)
         content_layout.setSpacing(10)
         
-        # Create tabs
-        self.tabs = QTabWidget()
+        # Create draggable tabs
+        self.tabs = DraggableTabWidget()
         self.tabs.setDocumentMode(True)
+        self.tabs.tab_detached.connect(self.on_tab_detached)
         content_layout.addWidget(self.tabs)
         
         # Create main tab (dashboard/welcome)
@@ -223,6 +301,15 @@ class TextureSorterMainWindow(QMainWindow):
         
         # Create tools tab (includes sorting + all tools)
         self.create_tools_tab()
+        
+        # Create Panda Features tab (separate from tools!)
+        if PANDA_WIDGET_AVAILABLE and self.panda_widget is not None:
+            try:
+                panda_features_tab = self.create_panda_features_tab()
+                self.tabs.addTab(panda_features_tab, "🐼 Panda")
+                logger.info("✅ Panda Features tab added to main tabs")
+            except Exception as e:
+                logger.error(f"Could not create Panda Features tab: {e}", exc_info=True)
         
         # Create file browser tab
         self.create_file_browser_tab()
@@ -448,105 +535,161 @@ class TextureSorterMainWindow(QMainWindow):
         return tab
     
     def create_tools_tab(self):
-        """Create tools tab with Qt-based tool panels."""
+        """Create tools tab with dockable tool panels."""
+        # Create a central widget for the tools tab
         tab = QWidget()
         layout = QVBoxLayout(tab)
-        layout.setContentsMargins(5, 5, 5, 5)
-        layout.setSpacing(10)
+        layout.setContentsMargins(0, 0, 0, 0)
         
-        # Create tool tabs
-        tool_tabs = QTabWidget()
-        tool_tabs.setDocumentMode(True)
-        layout.addWidget(tool_tabs)
+        # Add info label at top
+        info_label = QLabel("🔧 Tools can be docked/undocked via View menu")
+        info_label.setStyleSheet("background: #2b2b2b; padding: 5px; color: #888;")
+        info_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(info_label)
         
-        # Add Texture Sorter as first tool
+        # Central widget will be empty initially - tools are all docked panels
+        central_info = QLabel(
+            "Tool panels are docked around the edges.\n\n"
+            "Use View → Tool Panels to show/hide tools.\n"
+            "Drag tool title bars to rearrange or float them."
+        )
+        central_info.setStyleSheet("font-size: 14pt; color: #666;")
+        central_info.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(central_info, 1)
+        
+        # Initialize tool panels as dock widgets
+        self.tool_panels = {}
+        self.tool_dock_widgets = {}
+        
+        # Create all tool panels and dock them
+        self._create_tool_dock_panels()
+        
+        return tab
+    
+    def _create_tool_dock_panels(self):
+        """Create all tool panels as dockable widgets."""
+        # Define tools with their configurations
+        tool_configs = [
+            ('sorter', '🗂️ Texture Sorter', Qt.DockWidgetArea.LeftDockWidgetArea),
+            ('bg_remover', '🎭 Background Remover', Qt.DockWidgetArea.LeftDockWidgetArea),
+            ('alpha_fixer', '✨ Alpha Fixer', Qt.DockWidgetArea.LeftDockWidgetArea),
+            ('color', '🎨 Color Correction', Qt.DockWidgetArea.RightDockWidgetArea),
+            ('normalizer', '⚙️ Batch Normalizer', Qt.DockWidgetArea.RightDockWidgetArea),
+            ('quality', '✓ Quality Checker', Qt.DockWidgetArea.RightDockWidgetArea),
+            ('upscaler', '🔍 Image Upscaler', Qt.DockWidgetArea.BottomDockWidgetArea),
+            ('lineart', '✏️ Line Art Converter', Qt.DockWidgetArea.BottomDockWidgetArea),
+            ('rename', '📝 Batch Rename', Qt.DockWidgetArea.BottomDockWidgetArea),
+            ('repair', '🔧 Image Repair', Qt.DockWidgetArea.BottomDockWidgetArea),
+            ('organizer', '📁 Texture Organizer', Qt.DockWidgetArea.BottomDockWidgetArea),
+        ]
+        
+        # Create Texture Sorter panel
         sorting_widget = self.create_sorting_tab_widget()
-        tool_tabs.addTab(sorting_widget, "🗂️ Texture Sorter")
+        self._add_tool_dock('sorter', '🗂️ Texture Sorter', sorting_widget, Qt.DockWidgetArea.LeftDockWidgetArea)
         
-        # Add tool panels if available
+        # Create other tool panels if available
         if UI_PANELS_AVAILABLE:
             try:
                 # Background Remover
                 bg_panel = BackgroundRemoverPanelQt(tooltip_manager=self.tooltip_manager)
-                tool_tabs.addTab(bg_panel, "🎭 Background Remover")
+                self._add_tool_dock('bg_remover', '🎭 Background Remover', bg_panel, Qt.DockWidgetArea.LeftDockWidgetArea)
                 
                 # Alpha Fixer
                 alpha_panel = AlphaFixerPanelQt(tooltip_manager=self.tooltip_manager)
-                tool_tabs.addTab(alpha_panel, "✨ Alpha Fixer")
+                self._add_tool_dock('alpha_fixer', '✨ Alpha Fixer', alpha_panel, Qt.DockWidgetArea.LeftDockWidgetArea)
                 
                 # Color Correction
                 color_panel = ColorCorrectionPanelQt(tooltip_manager=self.tooltip_manager)
-                tool_tabs.addTab(color_panel, "🎨 Color Correction")
+                self._add_tool_dock('color', '🎨 Color Correction', color_panel, Qt.DockWidgetArea.RightDockWidgetArea)
                 
                 # Batch Normalizer
                 norm_panel = BatchNormalizerPanelQt(tooltip_manager=self.tooltip_manager)
-                tool_tabs.addTab(norm_panel, "⚙️ Batch Normalizer")
+                self._add_tool_dock('normalizer', '⚙️ Batch Normalizer', norm_panel, Qt.DockWidgetArea.RightDockWidgetArea)
                 
                 # Quality Checker
                 quality_panel = QualityCheckerPanelQt(tooltip_manager=self.tooltip_manager)
-                tool_tabs.addTab(quality_panel, "✓ Quality Checker")
+                self._add_tool_dock('quality', '✓ Quality Checker', quality_panel, Qt.DockWidgetArea.RightDockWidgetArea)
                 
                 # Image Upscaler
                 upscaler_panel = ImageUpscalerPanelQt(tooltip_manager=self.tooltip_manager)
-                tool_tabs.addTab(upscaler_panel, "🔍 Image Upscaler")
+                self._add_tool_dock('upscaler', '🔍 Image Upscaler', upscaler_panel, Qt.DockWidgetArea.BottomDockWidgetArea)
                 
                 # Line Art Converter
                 line_panel = LineArtConverterPanelQt(tooltip_manager=self.tooltip_manager)
-                tool_tabs.addTab(line_panel, "✏️ Line Art Converter")
+                self._add_tool_dock('lineart', '✏️ Line Art Converter', line_panel, Qt.DockWidgetArea.BottomDockWidgetArea)
                 
                 # Batch Rename
                 rename_panel = BatchRenamePanelQt(tooltip_manager=self.tooltip_manager)
-                tool_tabs.addTab(rename_panel, "📝 Batch Rename")
+                self._add_tool_dock('rename', '📝 Batch Rename', rename_panel, Qt.DockWidgetArea.BottomDockWidgetArea)
                 
                 # Image Repair
                 repair_panel = ImageRepairPanelQt(tooltip_manager=self.tooltip_manager)
-                tool_tabs.addTab(repair_panel, "🔧 Image Repair")
+                self._add_tool_dock('repair', '🔧 Image Repair', repair_panel, Qt.DockWidgetArea.BottomDockWidgetArea)
                 
                 # Texture Organizer
                 organizer_panel = OrganizerPanelQt(tooltip_manager=self.tooltip_manager)
-                tool_tabs.addTab(organizer_panel, "📁 Texture Organizer")
+                self._add_tool_dock('organizer', '📁 Texture Organizer', organizer_panel, Qt.DockWidgetArea.BottomDockWidgetArea)
                 
-                self.log("✅ All tool panels loaded successfully")
+                self.log("✅ All tool panels created as dockable widgets")
                 
             except Exception as e:
-                logger.error(f"Error loading tool panels: {e}", exc_info=True)
-                # Fallback to placeholder
-                label = QLabel(f"⚠️ Error loading tool panels: {e}")
-                label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-                tool_tabs.addTab(label, "Error")
-        else:
-            # Fallback message
-            label = QLabel(
-                "🔧 Tool panels require PyQt6.\n\n"
-                "Install with:\n"
-                "pip install PyQt6\n\n"
-                "Available tools:\n"
-                "• Texture Sorter\n"
-                "• Background Remover\n"
-                "• Alpha Fixer\n"
-                "• Color Correction\n"
-                "• Batch Normalizer\n"
-                "• Quality Checker\n"
-                "• Image Upscaler\n"
-                "• Line Art Converter\n"
-                "• Batch Rename\n"
-                "• Image Repair\n"
-                "• Texture Organizer"
-            )
-            label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            label.setFont(QFont("Arial", 11))
-            tool_tabs.addTab(label, "Install Required")
+                logger.error(f"Error creating tool dock panels: {e}", exc_info=True)
         
-        # Add Panda features as a comprehensive tab with sub-tabs
-        if PANDA_WIDGET_AVAILABLE and self.panda_widget is not None:
-            try:
-                panda_tab = self.create_panda_features_tab()
-                tool_tabs.addTab(panda_tab, "🐼 Panda Features")
-                logger.info("✅ Panda features tab loaded")
-            except Exception as e:
-                logger.error(f"Could not load panda features tab: {e}", exc_info=True)
+        # Update View menu with tool panel toggles
+        self._update_tool_panels_menu()
+    
+    def _add_tool_dock(self, tool_id: str, title: str, widget: QWidget, area: Qt.DockWidgetArea):
+        """Add a tool panel as a dockable widget."""
+        # Store panel reference
+        self.tool_panels[tool_id] = widget
         
-        self.tabs.addTab(tab, "Tools")
+        # Create dock widget
+        dock = QDockWidget(title, self)
+        dock.setWidget(widget)
+        dock.setFeatures(
+            QDockWidget.DockWidgetFeature.DockWidgetMovable |
+            QDockWidget.DockWidgetFeature.DockWidgetFloatable |
+            QDockWidget.DockWidgetFeature.DockWidgetClosable
+        )
+        dock.setAllowedAreas(
+            Qt.DockWidgetArea.LeftDockWidgetArea |
+            Qt.DockWidgetArea.RightDockWidgetArea |
+            Qt.DockWidgetArea.TopDockWidgetArea |
+            Qt.DockWidgetArea.BottomDockWidgetArea
+        )
+        
+        # Store dock reference
+        self.tool_dock_widgets[tool_id] = dock
+        
+        # Add to main window
+        self.addDockWidget(area, dock)
+        
+        logger.info(f"Added tool dock: {tool_id} - {title}")
+    
+    def _update_tool_panels_menu(self):
+        """Update View menu with tool panel visibility toggles."""
+        # Add submenu for tool panels if it doesn't exist
+        if not hasattr(self, 'tool_panels_menu'):
+            self.tool_panels_menu = self.view_menu.addMenu("Tool Panels")
+        
+        # Clear existing actions
+        self.tool_panels_menu.clear()
+        
+        # Add toggle action for each tool
+        for tool_id, dock in self.tool_dock_widgets.items():
+            action = dock.toggleViewAction()
+            self.tool_panels_menu.addAction(action)
+    
+    def switch_tool(self, tool_id):
+        """Switch to a different tool panel (deprecated - tools are now dockable)."""
+        # This method is kept for backward compatibility but tools are now docked
+        # Instead of switching, we show/activate the tool's dock widget
+        if tool_id in self.tool_dock_widgets:
+            dock = self.tool_dock_widgets[tool_id]
+            dock.show()
+            dock.raise_()
+            dock.activateWindow()
+            logger.info(f"Activated tool dock: {tool_id}")
     
     def create_panda_features_tab(self):
         """Create panda features tab with shop, inventory, closet, achievements, and customization."""
@@ -649,6 +792,38 @@ class TextureSorterMainWindow(QMainWindow):
             label.setAlignment(Qt.AlignmentFlag.AlignCenter)
             panda_tabs.addTab(label, "🏆 Achievements")
         
+        # 6. Minigames Tab
+        try:
+            from ui.minigame_panel_qt import MinigamePanelQt
+            from features.minigame_system import MiniGameManager
+            
+            minigame_manager = MiniGameManager()
+            minigame_panel = MinigamePanelQt(minigame_manager=minigame_manager, tooltip_manager=self.tooltip_manager)
+            panda_tabs.addTab(minigame_panel, "🎮 Minigames")
+            logger.info("✅ Minigames panel added to panda tab")
+        except Exception as e:
+            logger.error(f"Could not load minigames panel: {e}", exc_info=True)
+            # Add placeholder
+            label = QLabel("⚠️ Minigames not available\n\nInstall required dependencies")
+            label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            panda_tabs.addTab(label, "🎮 Minigames")
+        
+        # 7. Widgets Tab (Interactive toys/food/accessories)
+        try:
+            from ui.widgets_panel_qt import WidgetsPanelQt
+            from features.panda_widgets import WidgetCollection
+            
+            widget_collection = WidgetCollection()
+            widgets_panel = WidgetsPanelQt(widget_collection, self.panda_widget, tooltip_manager=self.tooltip_manager)
+            panda_tabs.addTab(widgets_panel, "🧸 Widgets")
+            logger.info("✅ Widgets panel added to panda tab")
+        except Exception as e:
+            logger.error(f"Could not load widgets panel: {e}", exc_info=True)
+            # Add placeholder
+            label = QLabel("⚠️ Widgets not available\n\nInstall required dependencies")
+            label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            panda_tabs.addTab(label, "🧸 Widgets")
+        
         layout.addWidget(panda_tabs)
         return tab
     
@@ -708,7 +883,7 @@ class TextureSorterMainWindow(QMainWindow):
         
         try:
             # Create comprehensive settings panel
-            self.settings_panel = SettingsPanelQt(config, self)
+            self.settings_panel = SettingsPanelQt(config, self, tooltip_manager=self.tooltip_manager)
             
             # Connect settings changed signal
             self.settings_panel.settingsChanged.connect(self.on_settings_changed)
@@ -743,6 +918,30 @@ class TextureSorterMainWindow(QMainWindow):
         exit_action.setShortcut("Ctrl+Q")
         exit_action.triggered.connect(self.close)
         file_menu.addAction(exit_action)
+        
+        # View menu - for docking controls
+        view_menu = menubar.addMenu("&View")
+        
+        self.view_menu = view_menu  # Store reference for dynamic updates
+        
+        # Add "Pop Out Tab" action
+        popout_action = QAction("Pop Out Current Tab", self)
+        popout_action.setShortcut("Ctrl+Shift+P")
+        popout_action.triggered.connect(self.popout_current_tab)
+        view_menu.addAction(popout_action)
+        
+        view_menu.addSeparator()
+        
+        # Submenu for restoring docked tabs
+        self.restore_menu = view_menu.addMenu("Restore Docked Tab")
+        self.restore_menu.setEnabled(False)  # Disabled until tabs are popped out
+        
+        view_menu.addSeparator()
+        
+        # Reset layout action
+        reset_layout_action = QAction("Reset Window Layout", self)
+        reset_layout_action.triggered.connect(self.reset_window_layout)
+        view_menu.addAction(reset_layout_action)
         
         # Help menu
         help_menu = menubar.addMenu("&Help")
@@ -969,9 +1168,101 @@ class TextureSorterMainWindow(QMainWindow):
             except Exception as e:
                 logger.warning(f"Could not initialize tooltip manager: {e}")
             
+            # Initialize performance manager
+            try:
+                from core.performance_manager import PerformanceManager, PerformanceMode
+                self.performance_manager = PerformanceManager(initial_mode=PerformanceMode.BALANCED)
+                logger.info("Performance manager initialized")
+            except Exception as e:
+                logger.warning(f"Could not initialize performance manager: {e}")
+            
+            # Initialize threading manager
+            try:
+                from core.threading_manager import ThreadingManager
+                thread_count = config.get('performance', 'max_threads', default=4)
+                self.threading_manager = ThreadingManager(thread_count=thread_count)
+                self.threading_manager.start()
+                logger.info(f"Threading manager initialized with {thread_count} threads")
+            except Exception as e:
+                logger.warning(f"Could not initialize threading manager: {e}")
+            
+            # Initialize cache manager
+            try:
+                from utils.cache_manager import CacheManager
+                cache_size = config.get('performance', 'cache_size_mb', default=512)
+                self.cache_manager = CacheManager(max_size_mb=cache_size)
+                logger.info(f"Cache manager initialized with {cache_size}MB cache")
+            except Exception as e:
+                logger.warning(f"Could not initialize cache manager: {e}")
+            
         except Exception as e:
             logger.error(f"Failed to initialize components: {e}", exc_info=True)
             self.log(f"⚠️ Warning: Some components failed to initialize: {e}")
+    
+    def apply_performance_settings(self):
+        """Apply performance settings from config to actual system components."""
+        try:
+            # Get settings from config
+            max_threads = config.get('performance', 'max_threads', default=4)
+            memory_limit_mb = config.get('performance', 'memory_limit_mb', default=2048)
+            cache_size_mb = config.get('performance', 'cache_size_mb', default=512)
+            
+            # Apply thread count to threading manager
+            if self.threading_manager:
+                try:
+                    self.threading_manager.set_thread_count(max_threads)
+                    logger.info(f"✅ Applied thread count: {max_threads}")
+                except Exception as e:
+                    logger.error(f"Failed to apply thread count: {e}")
+            
+            # Update cache manager size
+            if self.cache_manager:
+                try:
+                    self.cache_manager.max_size_bytes = cache_size_mb * 1024 * 1024
+                    logger.info(f"✅ Applied cache size: {cache_size_mb}MB")
+                except Exception as e:
+                    logger.error(f"Failed to apply cache size: {e}")
+            
+            # Performance manager doesn't need updating - it calculates profiles dynamically
+            # But we can log the current profile
+            if self.performance_manager:
+                profile = self.performance_manager.get_current_profile()
+                logger.info(f"Performance profile: {profile.mode.value}, "
+                          f"{profile.thread_count} threads, "
+                          f"{profile.memory_limit_mb}MB limit")
+            
+            logger.info("✅ Performance settings applied successfully")
+            
+        except Exception as e:
+            logger.error(f"Failed to apply performance settings: {e}", exc_info=True)
+    
+    def on_settings_changed(self, setting_key: str, value):
+        """Handle settings changes from settings panel."""
+        try:
+            logger.debug(f"Setting changed: {setting_key} = {value}")
+            
+            # Performance settings
+            if setting_key == 'performance.max_threads':
+                if self.threading_manager:
+                    self.threading_manager.set_thread_count(value)
+                    logger.info(f"Thread count updated to: {value}")
+            
+            elif setting_key == 'performance.cache_size_mb':
+                if self.cache_manager:
+                    self.cache_manager.max_size_bytes = value * 1024 * 1024
+                    logger.info(f"Cache size updated to: {value}MB")
+            
+            elif setting_key == 'performance.memory_limit_mb':
+                logger.info(f"Memory limit updated to: {value}MB (will apply on next operation)")
+            
+            # Theme settings
+            elif setting_key.startswith('ui.theme') or setting_key.startswith('ui.accent'):
+                self.apply_theme()
+            
+            # Other settings can be handled here
+            
+        except Exception as e:
+            logger.error(f"Error handling settings change: {e}", exc_info=True)
     
     def browse_input(self):
         """Browse for input folder."""
@@ -1340,6 +1631,12 @@ class TextureSorterMainWindow(QMainWindow):
     
     def closeEvent(self, event):
         """Handle window close event."""
+        # Save dock layout before closing
+        try:
+            self.save_dock_layout()
+        except Exception as e:
+            logger.error(f"Error saving dock layout on exit: {e}", exc_info=True)
+        
         # Save settings before closing
         try:
             config.save()
@@ -1364,6 +1661,214 @@ class TextureSorterMainWindow(QMainWindow):
                 event.ignore()
         else:
             event.accept()
+    
+    def on_tab_detached(self, index: int, tab_name: str, widget: QWidget):
+        """Handle tab being dragged out - create floating dock widget."""
+        if index < 0 or widget is None:
+            return
+        
+        # Remove emoji and clean up name for tracking
+        clean_name = tab_name.replace("🛠️", "").replace("🐼", "").replace("📁", "").replace("📝", "").strip()
+        
+        # Store reference
+        self.tab_widgets[clean_name] = widget
+        
+        # Remove from tabs
+        self.tabs.removeTab(index)
+        
+        # Create dock widget
+        dock = QDockWidget(tab_name, self)
+        dock.setWidget(widget)
+        dock.setFeatures(
+            QDockWidget.DockWidgetFeature.DockWidgetMovable |
+            QDockWidget.DockWidgetFeature.DockWidgetFloatable |
+            QDockWidget.DockWidgetFeature.DockWidgetClosable
+        )
+        
+        # Connect close event to restore tab
+        dock.visibilityChanged.connect(
+            lambda visible, name=clean_name, original_name=tab_name: 
+                self._on_dock_visibility_changed(visible, name, original_name)
+        )
+        
+        # Store dock reference
+        self.docked_widgets[clean_name] = dock
+        
+        # Add as floating dock (detached)
+        self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, dock)
+        dock.setFloating(True)
+        
+        # Position near mouse cursor
+        cursor_pos = self.mapFromGlobal(self.cursor().pos())
+        dock.move(self.pos().x() + cursor_pos.x(), self.pos().y() + cursor_pos.y())
+        
+        # Update restore menu
+        self._update_restore_menu()
+        
+        self.statusbar.showMessage(f"Tab detached: {clean_name}", 3000)
+        logger.info(f"Tab dragged out and detached: {tab_name}")
+    
+    def popout_current_tab(self):
+        """Pop out the currently selected tab into a floating dock widget."""
+        current_index = self.tabs.currentIndex()
+        if current_index < 0:
+            return
+        
+        tab_name = self.tabs.tabText(current_index)
+        # Remove emoji and clean up name
+        clean_name = tab_name.replace("🛠️", "").replace("🐼", "").replace("📁", "").replace("📝", "").strip()
+        
+        # Get the widget from the current tab
+        widget = self.tabs.widget(current_index)
+        
+        # Store reference
+        self.tab_widgets[clean_name] = widget
+        
+        # Remove from tabs
+        self.tabs.removeTab(current_index)
+        
+        # Create dock widget
+        dock = QDockWidget(tab_name, self)
+        dock.setWidget(widget)
+        dock.setFeatures(
+            QDockWidget.DockWidgetFeature.DockWidgetMovable |
+            QDockWidget.DockWidgetFeature.DockWidgetFloatable |
+            QDockWidget.DockWidgetFeature.DockWidgetClosable
+        )
+        
+        # Connect close event to restore tab
+        dock.visibilityChanged.connect(
+            lambda visible, name=clean_name, original_name=tab_name: 
+                self._on_dock_visibility_changed(visible, name, original_name)
+        )
+        
+        # Store dock reference
+        self.docked_widgets[clean_name] = dock
+        
+        # Add as floating dock
+        self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, dock)
+        dock.setFloating(True)
+        
+        # Update restore menu
+        self._update_restore_menu()
+        
+        self.statusbar.showMessage(f"Popped out: {clean_name}", 3000)
+    
+    def _on_dock_visibility_changed(self, visible: bool, name: str, original_name: str):
+        """Handle dock widget visibility changes (when user closes dock)."""
+        if not visible:
+            # User closed the dock widget - restore to tabs
+            self.restore_docked_tab(name, original_name)
+    
+    def restore_docked_tab(self, name: str, original_name: str = None):
+        """Restore a docked tab back to the main tab widget."""
+        if name not in self.docked_widgets:
+            return
+        
+        dock = self.docked_widgets[name]
+        widget = dock.widget()
+        
+        # Remove from dock
+        dock.setWidget(None)  # Prevent widget deletion
+        self.removeDockWidget(dock)
+        del self.docked_widgets[name]
+        
+        # Restore to tabs
+        if widget and widget in self.tab_widgets.values():
+            tab_name = original_name if original_name else name
+            self.tabs.addTab(widget, tab_name)
+            self.statusbar.showMessage(f"Restored: {name}", 3000)
+        
+        # Update restore menu
+        self._update_restore_menu()
+    
+    def _update_restore_menu(self):
+        """Update the restore menu with currently docked tabs."""
+        self.restore_menu.clear()
+        
+        if not self.docked_widgets:
+            self.restore_menu.setEnabled(False)
+            return
+        
+        self.restore_menu.setEnabled(True)
+        
+        for name, dock in self.docked_widgets.items():
+            action = QAction(f"Restore {name}", self)
+            action.triggered.connect(
+                lambda checked, n=name, orig=dock.windowTitle(): 
+                    self.restore_docked_tab(n, orig)
+            )
+            self.restore_menu.addAction(action)
+    
+    def reset_window_layout(self):
+        """Reset all docked windows back to tabs."""
+        # Restore all docked widgets
+        docked_names = list(self.docked_widgets.keys())
+        for name in docked_names:
+            dock = self.docked_widgets[name]
+            self.restore_docked_tab(name, dock.windowTitle())
+        
+        self.statusbar.showMessage("Window layout reset", 3000)
+    
+    def save_dock_layout(self):
+        """Save current dock layout to config."""
+        try:
+            # Save main window geometry
+            geometry = self.saveGeometry()
+            state = self.saveState()
+            
+            config.set('window', 'geometry', geometry.toHex().data().decode())
+            config.set('window', 'state', state.toHex().data().decode())
+            
+            # Save docked tabs info
+            docked_tabs = list(self.docked_widgets.keys())
+            config.set('window', 'docked_tabs', ','.join(docked_tabs))
+            
+            # Save tool dock visibility
+            tool_dock_states = {}
+            for tool_id, dock in self.tool_dock_widgets.items():
+                tool_dock_states[tool_id] = {
+                    'visible': dock.isVisible(),
+                    'floating': dock.isFloating(),
+                }
+            config.set('window', 'tool_dock_states', str(tool_dock_states))
+            
+            config.save()
+            logger.info("Dock layout saved")
+        except Exception as e:
+            logger.error(f"Error saving dock layout: {e}", exc_info=True)
+    
+    def restore_dock_layout(self):
+        """Restore dock layout from config."""
+        try:
+            # Restore main window geometry and state
+            geometry_hex = config.get('window', 'geometry', default=None)
+            state_hex = config.get('window', 'state', default=None)
+            
+            if geometry_hex:
+                geometry = QByteArray.fromHex(geometry_hex.encode())
+                self.restoreGeometry(geometry)
+            
+            if state_hex:
+                state = QByteArray.fromHex(state_hex.encode())
+                self.restoreState(state)
+            
+            # Restore tool dock states
+            tool_states_str = config.get('window', 'tool_dock_states', default='{}')
+            try:
+                import ast
+                tool_states = ast.literal_eval(tool_states_str)
+                for tool_id, state in tool_states.items():
+                    if tool_id in self.tool_dock_widgets:
+                        dock = self.tool_dock_widgets[tool_id]
+                        dock.setVisible(state.get('visible', True))
+                        dock.setFloating(state.get('floating', False))
+            except:
+                pass
+            
+            logger.info("Dock layout restored")
+        except Exception as e:
+            logger.error(f"Error restoring dock layout: {e}", exc_info=True)
 
 
 def check_feature_availability():

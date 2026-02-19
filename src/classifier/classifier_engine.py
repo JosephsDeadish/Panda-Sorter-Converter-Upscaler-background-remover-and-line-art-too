@@ -10,19 +10,31 @@ Automatically classifies textures into 50+ categories using:
 import re
 from pathlib import Path
 from typing import List, Tuple, Optional
-import numpy as np
+import logging
+
+logger = logging.getLogger(__name__)
+
+try:
+    import numpy as np
+    HAS_NUMPY = True
+except ImportError:
+    HAS_NUMPY = False
+    logger.error("numpy not available - classifier will have limited functionality")
+    logger.error("Install with: pip install numpy")
 
 try:
     from PIL import Image
     HAS_PIL = True
 except ImportError:
     HAS_PIL = False
+    logger.warning("PIL/Pillow not available - image analysis disabled")
 
 try:
     import cv2
     HAS_CV2 = True
 except ImportError:
     HAS_CV2 = False
+    logger.debug("OpenCV not available - some features disabled")
 
 # Native Rust acceleration for feature extraction
 try:

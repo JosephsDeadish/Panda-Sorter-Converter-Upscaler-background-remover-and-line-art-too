@@ -136,13 +136,13 @@ class MiniGamePanelQt(QWidget):
     def _start_game(self, game_id: str):
         """Start a specific game."""
         try:
-            self.current_game = self.manager.start_game(game_id)
+            self.current_game = self.manager.start_game(game_id, GameDifficulty.MEDIUM)
             
-            if game_id == "click_speed":
+            if game_id == "click":
                 self._show_click_game()
-            elif game_id == "memory_match":
+            elif game_id == "memory":
                 self._show_memory_game()
-            elif game_id == "reflex_test":
+            elif game_id == "reflex":
                 self._show_reflex_game()
             else:
                 QMessageBox.information(self, "Game", f"Starting {game_id}")
@@ -199,39 +199,44 @@ class MiniGamePanelQt(QWidget):
         
         # Start game timer (100ms updates using QTimer)
         self.click_count = 0
-        self.click_time_left = 10.0
         self.game_timer.start(100)  # 100ms = 0.1s
     
     def _on_game_timer(self):
         """Handle game timer tick (replaces .after())."""
-        if hasattr(self, 'click_time_left'):
-            self.click_time_left -= 0.1
-            if self.click_time_left <= 0:
+        if self.current_game and hasattr(self.current_game, 'get_remaining_time'):
+            remaining = self.current_game.get_remaining_time()
+            if remaining <= 0:
                 self.game_timer.stop()
                 self._end_click_game()
             else:
-                self.click_timer_label.setText(f"Time: {self.click_time_left:.1f}s")
+                self.click_timer_label.setText(f"Time: {remaining:.1f}s")
     
     def _on_click_game_click(self):
         """Handle click in click game."""
-        self.click_count += 1
-        self.click_score_label.setText(f"Clicks: {self.click_count}")
+        if self.current_game and self.current_game.on_click():
+            self.click_count += 1
+            self.click_score_label.setText(f"Clicks: {self.click_count}")
     
     def _end_click_game(self):
         """End click speed game."""
         self.game_timer.stop()
         
-        score = self.click_count
-        result = self.manager.end_game(self.current_game, score)
+        # Stop the game and get results
+        result = self.manager.stop_current_game()
         
-        QMessageBox.information(
-            self,
-            "Game Over",
-            f"Final Score: {score} clicks!\n\n{result.message}"
-        )
+        if result:
+            QMessageBox.information(
+                self,
+                "Game Over",
+                f"Final Score: {result.score} clicks!\n"
+                f"XP Earned: {result.xp_earned}\n"
+                f"Currency Earned: {result.currency_earned}"
+            )
+            
+            self.game_completed.emit('click', result.score)
         
-        self.game_completed.emit(self.current_game.game_id, score)
         self._show_game_selection()
+        self._update_stats()
     
     def _show_memory_game(self):
         """Show memory match game."""
@@ -310,17 +315,22 @@ class MiniGamePanelQt(QWidget):
     
     def _end_memory_game(self):
         """End memory match game."""
-        score = self.memory_matches * 100
-        result = self.manager.end_game(self.current_game, score)
+        # Stop the game and get results
+        result = self.manager.stop_current_game()
         
-        QMessageBox.information(
-            self,
-            "Game Over",
-            f"Final Score: {score}!\n\n{result.message}"
-        )
+        if result:
+            QMessageBox.information(
+                self,
+                "Game Over",
+                f"Final Score: {result.score}!\n"
+                f"XP Earned: {result.xp_earned}\n"
+                f"Currency Earned: {result.currency_earned}"
+            )
+            
+            self.game_completed.emit('memory', result.score)
         
-        self.game_completed.emit(self.current_game.game_id, score)
         self._show_game_selection()
+        self._update_stats()
     
     def _show_reflex_game(self):
         """Show reflex test game."""
@@ -406,19 +416,24 @@ class MiniGamePanelQt(QWidget):
     
     def _end_reflex_game(self):
         """End reflex test game."""
-        avg_time = sum(self.reflex_times) / len(self.reflex_times)
-        score = int(1000 / avg_time * 100)  # Lower time = higher score
+        # Stop the game and get results
+        result = self.manager.stop_current_game()
         
-        result = self.manager.end_game(self.current_game, score)
+        if result:
+            avg_time = self.current_game.get_average_reaction_time() if self.current_game else 0
+            QMessageBox.information(
+                self,
+                "Game Over",
+                f"Average Reaction Time: {avg_time:.0f}ms\n"
+                f"Score: {result.score}\n"
+                f"XP Earned: {result.xp_earned}\n"
+                f"Currency Earned: {result.currency_earned}"
+            )
+            
+            self.game_completed.emit('reflex', result.score)
         
-        QMessageBox.information(
-            self,
-            "Game Over",
-            f"Average Reaction Time: {avg_time:.0f}ms\nScore: {score}\n\n{result.message}"
-        )
-        
-        self.game_completed.emit(self.current_game.game_id, score)
         self._show_game_selection()
+        self._update_stats()
     
     def _end_game(self):
         """End current game and return to menu."""
@@ -426,19 +441,23 @@ class MiniGamePanelQt(QWidget):
         self.action_timer.stop()
         
         if self.current_game:
-            self.manager.end_game(self.current_game, 0)
+            self.manager.stop_current_game()
             self.current_game = None
         
         self._show_game_selection()
+        self._update_stats()
     
     def _update_stats(self):
         """Update statistics display."""
-        stats = self.manager.get_player_stats()
+        stats = self.manager.get_statistics()
         total_games = stats.get('total_games', 0)
-        total_score = stats.get('total_score', 0)
+        total_xp = stats.get('total_xp_earned', 0)
+        total_currency = stats.get('total_currency_earned', 0)
+        perfect_scores = stats.get('perfect_scores', 0)
         
         self.stats_label.setText(
-            f"Total Games: {total_games} | Total Score: {total_score}"
+            f"Games Played: {total_games} | XP Earned: {total_xp} | "
+            f"Currency Earned: {total_currency} | Perfect Scores: {perfect_scores}"
         )
     
     def _set_tooltip(self, widget, tooltip_key: str):

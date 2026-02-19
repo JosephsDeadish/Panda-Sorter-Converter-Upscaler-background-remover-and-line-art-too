@@ -35,8 +35,13 @@ class SVGIconHelper:
             icon_dir: Directory containing SVG icons (default: src/resources/icons/svg)
         """
         if icon_dir is None:
-            # Default to SVG icon directory
-            icon_dir = Path(__file__).parent.parent / "resources" / "icons" / "svg"
+            # Default to SVG icon directory - use config's path helper for frozen exe compatibility
+            try:
+                from ..config import get_resource_path
+                icon_dir = get_resource_path("icons") / "svg"
+            except ImportError:
+                # Fallback if config is not available (should not happen in normal use)
+                icon_dir = Path(__file__).parent.parent / "resources" / "icons" / "svg"
         
         self.icon_dir = Path(icon_dir)
         self.icon_cache: Dict[str, QIcon] = {}

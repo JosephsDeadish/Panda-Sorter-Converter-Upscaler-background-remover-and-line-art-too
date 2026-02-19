@@ -16,6 +16,7 @@ try:
 except ImportError:
     PYQT_AVAILABLE = False
     QWidget = object
+    QFrame = object
 
 logger = logging.getLogger(__name__)
 

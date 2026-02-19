@@ -295,7 +295,8 @@ class BatchRenamer:
                 # Load existing EXIF or create new
                 try:
                     exif_dict = piexif.load(filepath)
-                except:
+                except Exception as e:
+                    logger.warning(f"Could not load EXIF data from {filepath}: {e}")
                     exif_dict = {"0th": {}, "Exif": {}, "GPS": {}, "1st": {}, "thumbnail": None}
                 
                 if 'copyright' in metadata:

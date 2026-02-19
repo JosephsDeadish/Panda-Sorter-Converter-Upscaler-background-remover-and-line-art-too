@@ -8,7 +8,13 @@ import logging
 import threading
 from pathlib import Path
 from typing import Dict, List, Optional, Any
-import numpy as np
+try:
+    import numpy as np
+    HAS_NUMPY = True
+except ImportError:
+    HAS_NUMPY = False
+    logger.error("numpy not available - limited functionality")
+    logger.error("Install with: pip install numpy")
 from collections import defaultdict
 
 from .offline_model import OfflineModel, create_default_model

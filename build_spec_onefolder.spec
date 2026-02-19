@@ -106,6 +106,7 @@ a = Analysis(
         (str(ASSETS_DIR), 'assets'),
         # Include resources
         (str(RESOURCES_DIR / 'icons'), 'resources/icons'),
+        (str(RESOURCES_DIR / 'icons' / 'svg'), 'resources/icons/svg'),  # Explicitly include SVG icons
         (str(RESOURCES_DIR / 'cursors'), 'resources/cursors'),
         (str(RESOURCES_DIR / 'sounds'), 'resources/sounds'),
         (str(RESOURCES_DIR / 'translations'), 'resources/translations'),
@@ -311,6 +312,15 @@ a = Analysis(
         # Upscaler modules - will download at runtime
         'basicsr',
         'realesrgan',
+        
+        # rembg - prevent PyInstaller from following imports during analysis
+        # rembg calls sys.exit(1) at import time if onnxruntime fails to load
+        # This kills the PyInstaller subprocess during binary dependency analysis
+        # The hook-rembg.py will collect rembg modules safely without importing
+        'rembg',
+        'rembg.bg',
+        'rembg.session',
+        'rembg.sessions',
     ],
     win_no_prefer_redirects=False,
     win_private_assemblies=False,

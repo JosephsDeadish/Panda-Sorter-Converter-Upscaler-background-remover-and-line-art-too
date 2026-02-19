@@ -9,9 +9,16 @@ import hashlib
 import logging
 from pathlib import Path
 from typing import List, Optional, Tuple
-import send2trash
 
 logger = logging.getLogger(__name__)
+
+try:
+    import send2trash
+    HAS_SEND2TRASH = True
+except ImportError:
+    HAS_SEND2TRASH = False
+    logger.warning("send2trash not available. Using permanent deletion instead of trash.")
+    logger.warning("Install with: pip install send2trash")
 
 try:
     from PIL import Image
@@ -193,7 +200,12 @@ class FileHandler:
     def convert_svg_to_png(self, svg_path: Path, output_path: Optional[Path] = None, 
                           width: Optional[int] = None, height: Optional[int] = None) -> Optional[Path]:
         """
-        Convert SVG file to PNG.
+        Convert SVG file to PNG with fallback chain.
+        
+        Tries:
+        1. cairosvg (if available) - Best quality
+        2. PIL direct open (if PIL supports SVG)
+        3. Returns None if all methods fail
         
         Args:
             svg_path: Path to SVG file
@@ -204,10 +216,6 @@ class FileHandler:
         Returns:
             Path to converted PNG file or None if conversion failed
         """
-        if not HAS_SVG_CAIRO:
-            logger.warning("cairosvg not available. Cannot convert SVG files.")
-            return None
-        
         if not HAS_PIL or not HAS_BYTESIO:
             logger.warning("PIL or BytesIO not available. Cannot convert SVG files.")
             return None
@@ -221,20 +229,54 @@ class FileHandler:
                 logger.error(f"Source file not found: {svg_path}")
                 return None
             
-            # Convert SVG to PNG bytes
-            png_bytes = cairosvg.svg2png(
-                url=str(svg_path),
-                output_width=width,
-                output_height=height
-            )
+            # Method 1: Try cairosvg (best quality)
+            if HAS_SVG_CAIRO:
+                try:
+                    # Convert SVG to PNG bytes
+                    png_bytes = cairosvg.svg2png(
+                        url=str(svg_path),
+                        output_width=width,
+                        output_height=height
+                    )
+                    
+                    # Load PNG from bytes and save
+                    with Image.open(BytesIO(png_bytes)) as img:
+                        img.save(output_path, 'PNG')
+                    
+                    self.operations_log.append(f"Converted {svg_path} to {output_path} (cairosvg)")
+                    logger.info(f"Successfully converted SVG with cairosvg: {svg_path} -> {output_path}")
+                    return output_path
+                except Exception as e:
+                    logger.warning(f"cairosvg conversion failed: {e}, trying fallback...")
             
-            # Load PNG from bytes and save
-            with Image.open(BytesIO(png_bytes)) as img:
-                img.save(output_path, 'PNG')
+            # Method 2: Try PIL direct (some PIL builds support SVG)
+            try:
+                with Image.open(svg_path) as img:
+                    # Resize if dimensions specified
+                    if width or height:
+                        original_size = img.size
+                        if width and not height:
+                            height = int(original_size[1] * (width / original_size[0]))
+                        elif height and not width:
+                            width = int(original_size[0] * (height / original_size[1]))
+                        img = img.resize((width, height), Image.Resampling.LANCZOS)
+                    
+                    # Convert to RGB if needed
+                    if img.mode != 'RGB':
+                        img = img.convert('RGB')
+                    
+                    img.save(output_path, 'PNG')
+                
+                self.operations_log.append(f"Converted {svg_path} to {output_path} (PIL)")
+                logger.info(f"Successfully converted SVG with PIL: {svg_path} -> {output_path}")
+                return output_path
+            except Exception as e:
+                logger.warning(f"PIL direct SVG conversion failed: {e}")
             
-            self.operations_log.append(f"Converted {svg_path} to {output_path}")
-            logger.info(f"Successfully converted SVG: {svg_path} -> {output_path}")
-            return output_path
+            # All methods failed
+            logger.error(f"All SVG conversion methods failed for: {svg_path}")
+            logger.info(f"SVG Support Status: Cairo={HAS_SVG_CAIRO}, Native={HAS_SVG_NATIVE}, Bitmap={HAS_BITMAP_TO_SVG}")
+            return None
             
         except Exception as e:
             logger.error(f"Error converting {svg_path} to PNG: {e}")
@@ -666,8 +708,11 @@ class FileHandler:
             True if successful, False otherwise
         """
         try:
-            if use_trash:
+            if use_trash and HAS_SEND2TRASH:
                 send2trash.send2trash(str(file_path))
+            elif use_trash and not HAS_SEND2TRASH:
+                logger.warning(f"send2trash not available, permanently deleting {file_path}")
+                file_path.unlink()
             else:
                 file_path.unlink()
             

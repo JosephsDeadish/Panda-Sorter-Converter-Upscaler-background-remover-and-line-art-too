@@ -175,6 +175,27 @@ class BatchNormalizerPanelQt(QWidget):
         archive_layout.addStretch()
         group_layout.addLayout(archive_layout)
         
+        # Processing options
+        options_layout = QHBoxLayout()
+        
+        self.make_square_cb = QCheckBox("⬛ Make Square")
+        self.make_square_cb.setChecked(True)
+        self.make_square_cb.setToolTip("Force output images to be square (width = height)")
+        options_layout.addWidget(self.make_square_cb)
+        
+        self.preserve_alpha_cb = QCheckBox("🎭 Preserve Alpha")
+        self.preserve_alpha_cb.setChecked(True)
+        self.preserve_alpha_cb.setToolTip("Preserve alpha channel (transparency) in output images")
+        options_layout.addWidget(self.preserve_alpha_cb)
+        
+        self.strip_metadata_cb = QCheckBox("🧹 Strip Metadata")
+        self.strip_metadata_cb.setChecked(False)
+        self.strip_metadata_cb.setToolTip("Remove EXIF and other metadata from output images (reduces file size)")
+        options_layout.addWidget(self.strip_metadata_cb)
+        
+        options_layout.addStretch()
+        group_layout.addLayout(options_layout)
+        
         group.setLayout(group_layout)
         layout.addWidget(group)
     
@@ -367,12 +388,15 @@ class BatchNormalizerPanelQt(QWidget):
         settings = NormalizationSettings(
             target_width=self.width_spin.value(),
             target_height=self.height_spin.value(),
+            make_square=self.make_square_cb.isChecked(),
             resize_mode=self._get_resize_mode(),
             padding_mode=self._get_padding_mode(),
             output_format=self._get_output_format(),
             quality=self.quality_spin.value(),
             naming_pattern=self._get_naming_pattern(),
-            prefix=self.prefix_edit.text() if self.prefix_edit.text() else None
+            prefix=self.prefix_edit.text() if self.prefix_edit.text() else None,
+            preserve_alpha=self.preserve_alpha_cb.isChecked(),
+            strip_metadata=self.strip_metadata_cb.isChecked()
         )
         
         # Disable button

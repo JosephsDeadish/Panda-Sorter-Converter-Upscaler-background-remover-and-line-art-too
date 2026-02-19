@@ -313,10 +313,31 @@ class SpriteAccessory:
         glPopMatrix()
     
     def _apply_billboard_rotation(self, camera_matrix):
-        """Make sprite face camera."""
-        # Extract camera rotation and apply inverse
-        # (Simplified - in production, extract from camera matrix)
-        pass
+        """Make sprite face camera (billboard effect)."""
+        if not OPENGL_AVAILABLE:
+            return
+        
+        # Extract camera's right and up vectors from matrix
+        # This makes the sprite always face the camera
+        # Get the modelview matrix
+        mv_matrix = glGetFloatv(GL_MODELVIEW_MATRIX)
+        
+        # Zero out rotation by setting basis vectors to identity
+        # Keep only translation (position)
+        mv_matrix[0][0] = 1.0  # Right X
+        mv_matrix[0][1] = 0.0
+        mv_matrix[0][2] = 0.0
+        
+        mv_matrix[1][0] = 0.0  # Up Y
+        mv_matrix[1][1] = 1.0
+        mv_matrix[1][2] = 0.0
+        
+        mv_matrix[2][0] = 0.0  # Forward Z
+        mv_matrix[2][1] = 0.0
+        mv_matrix[2][2] = 1.0
+        
+        # Apply the billboard matrix
+        glLoadMatrixf(mv_matrix)
     
     def _render_sprite(self):
         """Render sprite quad."""
@@ -502,10 +523,41 @@ class ClothingSystem:
         self.last_velocity = panda_velocity
     
     def _update_lod(self):
-        """Auto-update LOD based on performance."""
-        # Would check frame rate, distance, etc.
-        # For now, keep HIGH
-        pass
+        """Auto-update LOD based on performance and distance."""
+        # Check if we need to adjust LOD for performance
+        # In a real implementation, would check:
+        # - Frame rate (if FPS < 30, reduce LOD)
+        # - Distance from camera
+        # - Number of visible clothing items
+        
+        # For now, implement a simple distance-based LOD
+        # This would be called with actual distance data
+        
+        # Example thresholds (in arbitrary units):
+        # < 10 units: HIGH detail
+        # 10-30 units: MEDIUM detail  
+        # 30-60 units: LOW detail
+        # > 60 units: MINIMAL detail
+        
+        # Since we don't have camera/distance info here,
+        # we'll keep it at HIGH by default but the structure is ready
+        # for future enhancement
+        
+        if not hasattr(self, 'lod_distance'):
+            self.lod_distance = 0  # Close distance by default
+        
+        if self.lod_distance < 10:
+            target_lod = LODLevel.HIGH
+        elif self.lod_distance < 30:
+            target_lod = LODLevel.MEDIUM
+        elif self.lod_distance < 60:
+            target_lod = LODLevel.LOW
+        else:
+            target_lod = LODLevel.MINIMAL
+        
+        # Only update if changed (avoid unnecessary updates)
+        if target_lod != self.lod_level:
+            self.set_lod_level(target_lod)
     
     def _update_clothing_animations(self, animation_state, animation_phase, velocity):
         """Update clothing squash/stretch/rotation."""

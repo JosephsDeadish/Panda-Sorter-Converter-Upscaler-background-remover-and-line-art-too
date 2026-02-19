@@ -584,15 +584,23 @@ class BatchOperationHelper:
         Returns:
             Dictionary with operation results
         """
-        from send2trash import send2trash
+        try:
+            from send2trash import send2trash
+            HAS_SEND2TRASH = True
+        except ImportError:
+            HAS_SEND2TRASH = False
+            logger.warning("send2trash not available, using permanent deletion")
         
         deleted = []
         failed = []
         
         for i, file_path in enumerate(files):
             try:
-                if use_trash:
+                if use_trash and HAS_SEND2TRASH:
                     send2trash(str(file_path))
+                elif use_trash and not HAS_SEND2TRASH:
+                    logger.warning(f"send2trash unavailable, permanently deleting {file_path}")
+                    file_path.unlink()
                 else:
                     file_path.unlink()
                 

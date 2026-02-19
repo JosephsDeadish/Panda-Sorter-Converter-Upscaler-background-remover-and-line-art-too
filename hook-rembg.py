@@ -171,15 +171,15 @@ else:
             print(f"[rembg hook] Warning: Could not collect data files: {e}")
             datas = []
         
-        # Collect binaries from both rembg and onnxruntime
+        # Collect binaries ONLY from onnxruntime, not from rembg
+        # This prevents PyInstaller from trying to import rembg during binary dependency analysis
+        # which would trigger sys.exit(1) and kill the build process
         try:
-            rembg_binaries = collect_dynamic_libs('rembg')
-            onnx_binaries = collect_dynamic_libs('onnxruntime')
-            binaries = rembg_binaries
-            if onnx_binaries:
-                binaries.extend(onnx_binaries)
-                print(f"[rembg hook] Collected {len(onnx_binaries)} onnxruntime binaries")
-            print(f"[rembg hook] Total binaries collected: {len(binaries)}")
+            # Only collect onnxruntime binaries (which are handled by hook-onnxruntime.py)
+            # We don't need to collect them here, they're already collected by the onnxruntime hook
+            binaries = []
+            print(f"[rembg hook] Skipping binary collection to avoid import-time sys.exit()")
+            print(f"[rembg hook] onnxruntime binaries will be collected by hook-onnxruntime.py")
         except Exception as e:
             print(f"[rembg hook] Warning: Could not collect binaries: {e}")
             binaries = []

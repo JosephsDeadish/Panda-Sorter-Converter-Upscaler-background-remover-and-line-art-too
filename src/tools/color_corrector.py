@@ -11,7 +11,13 @@ Provides various color correction and enhancement features:
 
 import logging
 from PIL import Image
-import numpy as np
+try:
+    import numpy as np
+    HAS_NUMPY = True
+except ImportError:
+    HAS_NUMPY = False
+    logger.error("numpy not available - limited functionality")
+    logger.error("Install with: pip install numpy")
 from pathlib import Path
 from typing import Optional, Tuple, Dict, Any, List
 import re

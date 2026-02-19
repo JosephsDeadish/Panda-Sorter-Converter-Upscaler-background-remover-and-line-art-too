@@ -10,17 +10,18 @@ from pathlib import Path
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
     QTextEdit, QFileDialog, QMessageBox, QProgressBar,
-    QGroupBox, QScrollArea, QFrame
+    QGroupBox, QScrollArea, QFrame, QCheckBox, QComboBox
 )
 from PyQt6.QtCore import Qt, QThread, pyqtSignal
 
 try:
-    from tools.image_repairer import ImageRepairer, CorruptionType, RepairResult
+    from tools.image_repairer import ImageRepairer, CorruptionType, RepairResult, RepairMode
     REPAIRER_AVAILABLE = True
 except ImportError:
     ImageRepairer = None
     CorruptionType = None
     RepairResult = None
+    RepairMode = None
     REPAIRER_AVAILABLE = False
 
 logger = logging.getLogger(__name__)
@@ -54,7 +55,7 @@ class DiagnosticWorker(QThread):
                     break
                 
                 self.progress.emit(f"Diagnosing: {Path(filepath).name}")
-                result = self.repairer.diagnose(filepath)
+                result = self.repairer.diagnose_file(filepath)
                 results.append((filepath, result))
             
             self.finished.emit(results)
@@ -74,11 +75,12 @@ class RepairWorker(QThread):
     finished = pyqtSignal(int, int)  # successes, failures
     error = pyqtSignal(str)
     
-    def __init__(self, repairer, files, output_dir):
+    def __init__(self, repairer, files, output_dir, mode=None):
         super().__init__()
         self.repairer = repairer
         self.files = files
         self.output_dir = output_dir
+        self.mode = mode or RepairMode.BALANCED
         self._should_cancel = False
     
     def run(self):
@@ -95,13 +97,18 @@ class RepairWorker(QThread):
                 self.progress.emit(i + 1, len(self.files), filename)
                 
                 try:
-                    result = self.repairer.repair(filepath, self.output_dir)
-                    if result.success:
+                    # Get output path for this file
+                    output_path = os.path.join(self.output_dir, filename)
+                    
+                    # Call repair with mode
+                    result, message = self.repairer.repair_file(filepath, output_path, self.mode)
+                    
+                    if result in (RepairResult.SUCCESS, RepairResult.PARTIAL):
                         successes += 1
-                        self.result.emit(filepath, True, f"✓ {filename}: {result.message}")
+                        self.result.emit(filepath, True, f"✓ {filename}: {message}")
                     else:
                         failures += 1
-                        self.result.emit(filepath, False, f"✗ {filename}: {result.message}")
+                        self.result.emit(filepath, False, f"✗ {filename}: {message}")
                 except Exception as e:
                     failures += 1
                     self.result.emit(filepath, False, f"✗ {filename}: {str(e)}")
@@ -241,6 +248,22 @@ class ImageRepairPanelQt(QWidget):
         
         archive_layout.addStretch()
         group_layout.addLayout(archive_layout)
+        
+        # Repair mode selection
+        mode_layout = QHBoxLayout()
+        mode_layout.addWidget(QLabel("Repair Mode:"))
+        
+        self.repair_mode_combo = QComboBox()
+        self.repair_mode_combo.addItems(["Safe (PIL only)", "Balanced (Recommended)", "Aggressive (All methods)"])
+        self.repair_mode_combo.setCurrentIndex(1)  # Default to Balanced
+        self.repair_mode_combo.setToolTip(
+            "Safe: Only uses PIL recovery methods (safest, may miss some repairs)\n"
+            "Balanced: Tries PIL first, then manual repairs (recommended)\n"
+            "Aggressive: Attempts all recovery methods including segment extraction (risky but may recover more data)"
+        )
+        mode_layout.addWidget(self.repair_mode_combo)
+        mode_layout.addStretch()
+        group_layout.addLayout(mode_layout)
         
         group.setLayout(group_layout)
         layout.addWidget(group)
@@ -408,11 +431,21 @@ class ImageRepairPanelQt(QWidget):
             QMessageBox.warning(self, "No Files", "Please select files to repair.")
             return
         
+        # Get selected repair mode
+        mode_index = self.repair_mode_combo.currentIndex()
+        if mode_index == 0:
+            mode = RepairMode.SAFE
+        elif mode_index == 1:
+            mode = RepairMode.BALANCED
+        else:  # index == 2
+            mode = RepairMode.AGGRESSIVE
+        
         # Confirm
+        mode_name = ["Safe", "Balanced", "Aggressive"][mode_index]
         reply = QMessageBox.question(
             self,
             "Confirm Repair",
-            f"Repair {len(self.selected_files)} files?\n\nRepaired files will be saved with '_repaired' suffix.",
+            f"Repair {len(self.selected_files)} files using {mode_name} mode?\n\nRepaired files will be saved with '_repaired' suffix.",
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
         )
         
@@ -420,7 +453,7 @@ class ImageRepairPanelQt(QWidget):
             return
         
         self.diagnostic_text.clear()
-        self.diagnostic_text.append("Starting repair...\n")
+        self.diagnostic_text.append(f"Starting repair in {mode_name} mode...\n")
         
         # Disable buttons
         self._set_ui_enabled(False)
@@ -428,8 +461,8 @@ class ImageRepairPanelQt(QWidget):
         self.progress_bar.setRange(0, len(self.selected_files))
         self.progress_bar.setValue(0)
         
-        # Start repair worker
-        self.repair_worker = RepairWorker(self.repairer, self.selected_files, self.output_dir)
+        # Start repair worker with selected mode
+        self.repair_worker = RepairWorker(self.repairer, self.selected_files, self.output_dir, mode)
         self.repair_worker.progress.connect(self._on_repair_progress)
         self.repair_worker.result.connect(self._on_repair_result)
         self.repair_worker.finished.connect(self._on_repair_finished)

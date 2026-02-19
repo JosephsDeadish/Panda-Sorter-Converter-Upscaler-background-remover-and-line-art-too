@@ -7,7 +7,13 @@ Author: Dead On The Inside / JosephsDeadish
 import logging
 from pathlib import Path
 from typing import Dict, Any, Union, List
-import numpy as np
+try:
+    import numpy as np
+    HAS_NUMPY = True
+except ImportError:
+    HAS_NUMPY = False
+    logger.error("numpy not available - limited functionality")
+    logger.error("Install with: pip install numpy")
 from PIL import Image
 
 logger = logging.getLogger(__name__)

@@ -26,6 +26,13 @@ class CorruptionType(Enum):
     UNKNOWN = "unknown"
 
 
+class RepairMode(Enum):
+    """Repair aggressiveness modes."""
+    SAFE = "safe"              # Conservative - only PIL recovery
+    BALANCED = "balanced"      # Try PIL first, then basic manual repairs
+    AGGRESSIVE = "aggressive"  # Attempt all recovery methods including risky ones
+
+
 class RepairResult(Enum):
     """Result of repair attempt."""
     SUCCESS = "success"
@@ -154,8 +161,18 @@ class PNGRepairer:
         
         return report
     
-    def repair(self, filepath: str, output_path: str) -> Tuple[RepairResult, str]:
-        """Attempt to repair PNG file."""
+    def repair(self, filepath: str, output_path: str, mode: RepairMode = RepairMode.BALANCED) -> Tuple[RepairResult, str]:
+        """
+        Attempt to repair PNG file.
+        
+        Args:
+            filepath: Path to corrupted PNG file
+            output_path: Path for repaired output
+            mode: Repair aggressiveness mode
+            
+        Returns:
+            Tuple of (RepairResult, message)
+        """
         report = self.diagnose(filepath)
         
         if not report.is_corrupted:
@@ -168,7 +185,17 @@ class PNGRepairer:
             with open(filepath, 'rb') as f:
                 data = f.read()
             
-            # Try to load with PIL first (it may be able to read partial data)
+            # Mode: SAFE - Only try PIL recovery
+            if mode == RepairMode.SAFE:
+                try:
+                    img = Image.open(filepath)
+                    img.load()
+                    img.save(output_path, 'PNG', optimize=True)
+                    return RepairResult.SUCCESS, "Repaired using PIL recovery (safe mode)"
+                except Exception as e:
+                    return RepairResult.FAILED, f"Safe mode PIL recovery failed: {str(e)}"
+            
+            # Mode: BALANCED or AGGRESSIVE - Try PIL first, then manual repairs
             try:
                 img = Image.open(filepath)
                 img.load()  # Force load the image data
@@ -191,6 +218,21 @@ class PNGRepairer:
                 with open(output_path, 'wb') as f:
                     f.write(fixed_data)
                 return RepairResult.PARTIAL, "Added IEND chunk, verify manually"
+            
+            elif report.corruption_type == CorruptionType.CRC and mode == RepairMode.AGGRESSIVE:
+                # Aggressive mode: Try to reconstruct with CRC errors ignored
+                try:
+                    # Use PIL with error tolerance
+                    from PIL import ImageFile
+                    ImageFile.LOAD_TRUNCATED_IMAGES = True
+                    img = Image.open(filepath)
+                    img.load()
+                    img.save(output_path, 'PNG', optimize=True)
+                    ImageFile.LOAD_TRUNCATED_IMAGES = False
+                    return RepairResult.PARTIAL, "Repaired with CRC errors ignored (aggressive mode)"
+                except Exception as e:
+                    ImageFile.LOAD_TRUNCATED_IMAGES = False
+                    return RepairResult.FAILED, f"Aggressive CRC repair failed: {str(e)}"
             
             else:
                 return RepairResult.FAILED, f"Cannot repair {report.corruption_type.value} corruption"
@@ -276,8 +318,18 @@ class JPEGRepairer:
         
         return report
     
-    def repair(self, filepath: str, output_path: str) -> Tuple[RepairResult, str]:
-        """Attempt to repair JPEG file."""
+    def repair(self, filepath: str, output_path: str, mode: RepairMode = RepairMode.BALANCED) -> Tuple[RepairResult, str]:
+        """
+        Attempt to repair JPEG file.
+        
+        Args:
+            filepath: Path to corrupted JPEG file
+            output_path: Path for repaired output
+            mode: Repair aggressiveness mode
+            
+        Returns:
+            Tuple of (RepairResult, message)
+        """
         report = self.diagnose(filepath)
         
         if not report.is_corrupted:
@@ -290,7 +342,17 @@ class JPEGRepairer:
             with open(filepath, 'rb') as f:
                 data = f.read()
             
-            # Try to load with PIL first
+            # Mode: SAFE - Only try PIL recovery
+            if mode == RepairMode.SAFE:
+                try:
+                    img = Image.open(io.BytesIO(data))
+                    img.load()
+                    img.save(output_path, 'JPEG', quality=95, optimize=True)
+                    return RepairResult.SUCCESS, "Repaired using PIL recovery (safe mode)"
+                except Exception as e:
+                    return RepairResult.FAILED, f"Safe mode PIL recovery failed: {str(e)}"
+            
+            # Mode: BALANCED or AGGRESSIVE - Try PIL first
             try:
                 img = Image.open(io.BytesIO(data))
                 img.load()
@@ -299,7 +361,7 @@ class JPEGRepairer:
             except Exception:
                 pass
             
-            # Manual repair attempts
+            # Manual repair attempts (BALANCED and AGGRESSIVE modes)
             if report.corruption_type == CorruptionType.HEADER:
                 # Add SOI marker
                 fixed_data = self.SOI_MARKER + data
@@ -314,8 +376,51 @@ class JPEGRepairer:
                     f.write(fixed_data)
                 return RepairResult.PARTIAL, "Added EOI marker, verify manually"
             
+            elif mode == RepairMode.AGGRESSIVE:
+                # Aggressive mode: Try to salvage partial data more aggressively
+                # Look for multiple segments and attempt reconstruction
+                segments = []
+                pos = 0
+                while pos < len(data) - 1:
+                    # Find next SOI marker
+                    soi_pos = data.find(self.SOI_MARKER, pos)
+                    if soi_pos == -1:
+                        break
+                    
+                    # Find corresponding EOI marker
+                    eoi_pos = data.find(self.EOI_MARKER, soi_pos + 2)
+                    if eoi_pos > soi_pos:
+                        segments.append(data[soi_pos:eoi_pos+2])
+                        pos = eoi_pos + 2
+                    else:
+                        pos = soi_pos + 2
+                
+                if segments:
+                    # Try to save the largest valid segment
+                    largest = max(segments, key=len)
+                    try:
+                        img = Image.open(io.BytesIO(largest))
+                        img.load()
+                        img.save(output_path, 'JPEG', quality=95, optimize=True)
+                        return RepairResult.PARTIAL, f"Recovered largest segment ({len(largest)} bytes) in aggressive mode"
+                    except Exception as e:
+                        # Save raw segment as fallback
+                        with open(output_path, 'wb') as f:
+                            f.write(largest)
+                        return RepairResult.PARTIAL, f"Extracted largest segment ({len(largest)} bytes), may need manual review"
+                
+                # Try to salvage partial data up to last marker
+                eoi_pos = data.rfind(self.EOI_MARKER)
+                if eoi_pos > 0:
+                    fixed_data = data[:eoi_pos+2]
+                    with open(output_path, 'wb') as f:
+                        f.write(fixed_data)
+                    return RepairResult.PARTIAL, "Extracted data up to last valid EOI (aggressive mode)"
+                
+                return RepairResult.FAILED, "No recoverable data found in aggressive mode"
+            
             else:
-                # Try to salvage partial data
+                # BALANCED mode - standard salvage
                 eoi_pos = data.rfind(self.EOI_MARKER)
                 if eoi_pos > 0:
                     fixed_data = data[:eoi_pos+2]
@@ -365,8 +470,18 @@ class ImageRepairer:
             report.repairable = False
             return report
     
-    def repair_file(self, filepath: str, output_path: str = None) -> Tuple[RepairResult, str]:
-        """Repair any image file."""
+    def repair_file(self, filepath: str, output_path: str = None, mode: RepairMode = RepairMode.BALANCED) -> Tuple[RepairResult, str]:
+        """
+        Repair any image file.
+        
+        Args:
+            filepath: Path to corrupted image file
+            output_path: Optional output path (auto-generated if None)
+            mode: Repair aggressiveness mode
+            
+        Returns:
+            Tuple of (RepairResult, message)
+        """
         if output_path is None:
             base, ext = os.path.splitext(filepath)
             output_path = f"{base}_repaired{ext}"
@@ -374,9 +489,9 @@ class ImageRepairer:
         report = self.diagnose_file(filepath)
         
         if report.file_type == "PNG":
-            return self.png_repairer.repair(filepath, output_path)
+            return self.png_repairer.repair(filepath, output_path, mode)
         elif report.file_type == "JPEG":
-            return self.jpeg_repairer.repair(filepath, output_path)
+            return self.jpeg_repairer.repair(filepath, output_path, mode)
         else:
             return RepairResult.FAILED, "Unsupported file format"
     
@@ -384,7 +499,8 @@ class ImageRepairer:
         self,
         files: List[str],
         output_dir: str,
-        progress_callback: Optional[Callable] = None
+        progress_callback: Optional[Callable] = None,
+        mode: RepairMode = RepairMode.BALANCED
     ) -> Tuple[List[str], List[Tuple[str, str]]]:
         """
         Repair multiple files.
@@ -393,6 +509,7 @@ class ImageRepairer:
             files: List of file paths to repair
             output_dir: Output directory for repaired files
             progress_callback: Optional callback(current, total, filename)
+            mode: Repair aggressiveness mode
         
         Returns:
             Tuple of (successful_files, failed_files_with_reasons)
@@ -410,7 +527,7 @@ class ImageRepairer:
                 filename = os.path.basename(filepath)
                 output_path = os.path.join(output_dir, filename)
                 
-                result, message = self.repair_file(filepath, output_path)
+                result, message = self.repair_file(filepath, output_path, mode)
                 
                 if result in (RepairResult.SUCCESS, RepairResult.PARTIAL):
                     successes.append(output_path)

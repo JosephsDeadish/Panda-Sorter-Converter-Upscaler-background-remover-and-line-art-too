@@ -33,6 +33,17 @@ class QualityLevel(Enum):
 
 
 @dataclass
+class QualityCheckOptions:
+    """Options for configuring quality checks."""
+    check_resolution: bool = True
+    check_compression: bool = True
+    check_dpi: bool = True
+    check_sharpness: bool = True
+    check_noise: bool = True
+    target_dpi: float = 72.0  # Default target DPI for calculations
+
+
+@dataclass
 class QualityReport:
     """Comprehensive quality analysis report for an image."""
     input_path: str
@@ -104,49 +115,78 @@ class ImageQualityChecker:
         """Initialize the quality checker."""
         self.has_cv2 = HAS_CV2
     
-    def check_quality(self, image_path: str, target_dpi: float = 72.0) -> QualityReport:
+    def check_quality(self, image_path: str, options: Optional[QualityCheckOptions] = None) -> QualityReport:
         """
         Perform comprehensive quality check on an image.
         
         Args:
             image_path: Path to the image file
-            target_dpi: Target DPI for calculations (default: 72 for screen)
+            options: Optional configuration for which checks to perform
             
         Returns:
             QualityReport with comprehensive analysis
         """
+        # Use default options if none provided
+        if options is None:
+            options = QualityCheckOptions()
+        
         try:
             img = Image.open(image_path)
             width, height = img.size
             
-            # Basic metrics
+            # Basic metrics (always collected)
             total_pixels = width * height
             format_type = img.format or "Unknown"
             mode = img.mode
             has_alpha = mode in ('RGBA', 'LA', 'PA')
             color_depth = len(mode) * 8
             
-            # Resolution analysis
+            # Calculate these once regardless of conditional checks
             min_dim = min(width, height)
             max_dim = max(width, height)
             aspect_ratio = width / height if height > 0 else 1.0
-            is_low_res = min_dim < self.LOW_RES_THRESHOLD
-            resolution_score = self._calculate_resolution_score(min_dim, max_dim)
             
-            # Compression analysis
-            has_artifacts, jpeg_quality, compression_score, blocking_score = \
-                self._analyze_compression(img, image_path)
+            # Resolution analysis (conditional)
+            if options.check_resolution:
+                is_low_res = min_dim < self.LOW_RES_THRESHOLD
+                resolution_score = self._calculate_resolution_score(min_dim, max_dim)
+            else:
+                # Use defaults when skipped
+                is_low_res = False
+                resolution_score = 100.0
             
-            # DPI analysis
-            dpi, effective_dpi, dpi_warning = self._analyze_dpi(img, width, height, target_dpi)
+            # Compression analysis (conditional)
+            if options.check_compression:
+                has_artifacts, jpeg_quality, compression_score, blocking_score = \
+                    self._analyze_compression(img, image_path)
+            else:
+                has_artifacts = False
+                jpeg_quality = None
+                compression_score = 100.0
+                blocking_score = 0.0
+            
+            # DPI analysis (conditional)
+            if options.check_dpi:
+                dpi, effective_dpi, dpi_warning = self._analyze_dpi(img, width, height, options.target_dpi)
+            else:
+                dpi = (72.0, 72.0)
+                effective_dpi = 72.0
+                dpi_warning = None
             
             # Upscaling analysis
             upscale_limit, can_2x, can_4x, upscale_warning = \
                 self._analyze_upscale_potential(width, height, resolution_score, compression_score)
             
-            # Sharpness and noise
-            sharpness = self._calculate_sharpness(img)
-            noise = self._calculate_noise_level(img)
+            # Sharpness and noise (conditional)
+            if options.check_sharpness:
+                sharpness = self._calculate_sharpness(img)
+            else:
+                sharpness = 50.0
+                
+            if options.check_noise:
+                noise = self._calculate_noise_level(img)
+            else:
+                noise = 0.0
             
             # Overall quality score (weighted average)
             overall_score = self._calculate_overall_score(

@@ -16,9 +16,12 @@ logger = logging.getLogger(__name__)
 
 # Try to import GUI libraries
 try:
-    from PyQt6.QtWidgets import QWidget, QMessageBox, QToolTip
-    from PyQt6.QtCore import QTimer, Qt, QPoint
-    from PyQt6.QtGui import QCursor
+    from PyQt6.QtWidgets import (
+        QWidget, QMessageBox, QToolTip, QDialog, QVBoxLayout, QHBoxLayout,
+        QLabel, QPushButton, QGraphicsOpacityEffect, QApplication
+    )
+    from PyQt6.QtCore import QTimer, Qt, QPoint, QRect, QPropertyAnimation, QEasingCurve
+    from PyQt6.QtGui import QCursor, QPainter, QColor, QPen, QFont
     GUI_AVAILABLE = True
 except ImportError:
     GUI_AVAILABLE = False
@@ -5255,10 +5258,169 @@ _PANDA_TOOLTIPS = {
 
 
 class TooltipMode(Enum):
-    """Tooltip verbosity modes"""
-    NORMAL = "normal"
-    DUMBED_DOWN = "dumbed-down"
-    UNHINGED_PANDA = "vulgar_panda"  # Legacy value for backwards compatibility
+    """Tooltip verbosity/style modes"""
+    NORMAL = "normal"  # Standard helpful tooltips
+    BEGINNER = "dumbed-down"  # Detailed explanations for beginners
+    PROFANE = "vulgar_panda"  # Hilarious and profane but still helpful (UNHINGED_PANDA legacy name)
+
+
+class TutorialOverlay(QWidget):
+    """Semi-transparent overlay widget for tutorial system"""
+    
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowFlags(Qt.WindowType.FramelessWindowHint | Qt.WindowType.WindowStaysOnTopHint)
+        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+        self.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, False)
+        
+        # Set overlay to cover entire parent window
+        if parent:
+            self.setGeometry(parent.rect())
+        
+        self.highlight_rect = None
+        self.highlight_widget = None
+        
+    def set_highlight_widget(self, widget: Optional[QWidget]):
+        """Highlight a specific widget on the overlay"""
+        self.highlight_widget = widget
+        if widget and widget.isVisible():
+            # Get widget's global position relative to overlay
+            widget_pos = widget.mapTo(self.parent(), QPoint(0, 0))
+            self.highlight_rect = QRect(widget_pos, widget.size())
+        else:
+            self.highlight_rect = None
+        self.update()
+    
+    def paintEvent(self, event):
+        """Draw the semi-transparent overlay with highlight cutout"""
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        
+        # Draw semi-transparent dark overlay
+        overlay_color = QColor(0, 0, 0, 180)  # Black with 70% opacity
+        painter.fillRect(self.rect(), overlay_color)
+        
+        # If we have a highlight rect, create a lighter area around it
+        if self.highlight_rect:
+            # Draw a slightly lighter rectangle around the highlighted widget
+            highlight_color = QColor(0, 0, 0, 100)  # Less opaque
+            expanded_rect = self.highlight_rect.adjusted(-10, -10, 10, 10)
+            painter.fillRect(expanded_rect, highlight_color)
+            
+            # Draw a border around the highlighted widget
+            pen = QPen(QColor(100, 200, 255), 3)  # Light blue border
+            pen.setStyle(Qt.PenStyle.SolidLine)
+            painter.setPen(pen)
+            painter.drawRect(self.highlight_rect)
+    
+    def mousePressEvent(self, event):
+        """Handle mouse clicks on the overlay"""
+        # If clicking outside the highlight area, emit a signal or call parent
+        if self.highlight_rect and not self.highlight_rect.contains(event.pos()):
+            # Click on dark area - do nothing or close tutorial
+            pass
+        event.accept()
+
+
+class TutorialDialog(QDialog):
+    """Dialog for displaying tutorial steps with navigation"""
+    
+    def __init__(self, parent, step: 'TutorialStep', step_number: int, total_steps: int):
+        super().__init__(parent)
+        self.step = step
+        self.result_action = None  # 'next', 'back', 'skip', or None
+        
+        self.setWindowTitle(step.title)
+        self.setWindowFlags(Qt.WindowType.Dialog | Qt.WindowType.WindowStaysOnTopHint)
+        self.setModal(False)  # Allow interaction with highlighted widget
+        
+        # Set minimum size
+        self.setMinimumWidth(400)
+        
+        # Create layout
+        layout = QVBoxLayout(self)
+        
+        # Progress indicator
+        progress_label = QLabel(f"Step {step_number + 1} of {total_steps}")
+        progress_label.setStyleSheet("color: #888; font-size: 11px;")
+        layout.addWidget(progress_label)
+        
+        # Title
+        title_label = QLabel(step.title)
+        title_font = QFont()
+        title_font.setPointSize(14)
+        title_font.setBold(True)
+        title_label.setFont(title_font)
+        layout.addWidget(title_label)
+        
+        # Message
+        message_label = QLabel(step.message)
+        message_label.setWordWrap(True)
+        message_label.setStyleSheet("margin: 10px 0px;")
+        layout.addWidget(message_label)
+        
+        # Celebration emoji if this is the last step
+        if step.celebration:
+            celebration_label = QLabel("🎉 🐼 🎊")
+            celebration_label.setStyleSheet("font-size: 24px; text-align: center;")
+            celebration_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            layout.addWidget(celebration_label)
+        
+        # Button layout
+        button_layout = QHBoxLayout()
+        
+        # Skip button
+        if step.show_skip:
+            skip_btn = QPushButton("Skip Tutorial")
+            skip_btn.clicked.connect(self._on_skip)
+            button_layout.addWidget(skip_btn)
+        
+        button_layout.addStretch()
+        
+        # Back button
+        if step.show_back and step_number > 0:
+            back_btn = QPushButton("Back")
+            back_btn.clicked.connect(self._on_back)
+            button_layout.addWidget(back_btn)
+        
+        # Next/Finish button
+        next_btn = QPushButton(step.button_text)
+        next_btn.setDefault(True)
+        next_btn.clicked.connect(self._on_next)
+        next_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #4CAF50;
+                color: white;
+                padding: 8px 16px;
+                border: none;
+                border-radius: 4px;
+                font-weight: bold;
+            }
+            QPushButton:hover {
+                background-color: #45a049;
+            }
+        """)
+        button_layout.addWidget(next_btn)
+        
+        layout.addLayout(button_layout)
+        
+        # Set dialog size
+        self.adjustSize()
+    
+    def _on_next(self):
+        """Handle next button click"""
+        self.result_action = 'next'
+        self.accept()
+    
+    def _on_back(self):
+        """Handle back button click"""
+        self.result_action = 'back'
+        self.accept()
+    
+    def _on_skip(self):
+        """Handle skip button click"""
+        self.result_action = 'skip'
+        self.accept()
 
 
 @dataclass
@@ -5394,22 +5556,28 @@ class TutorialManager:
         return steps
     
     def _create_overlay(self):
-        """Create semi-transparent dark overlay (placeholder for Qt6 implementation)"""
+        """Create semi-transparent dark overlay with Qt6 implementation"""
         if not GUI_AVAILABLE:
             return
         
-        # TODO: Implement Qt6 overlay using QWidget with transparency
-        # For now, tutorial system is simplified - no overlay in Qt6 version yet
-        logger.warning("Tutorial overlay not yet implemented for Qt6")
-        self.overlay = None
+        # Create overlay widget that covers the main window
+        if self.master and hasattr(self.master, 'isVisible') and self.master.isVisible():
+            self.overlay = TutorialOverlay(self.master)
+            self.overlay.resize(self.master.size())
+            self.overlay.show()
+            logger.debug("Tutorial overlay created")
+        else:
+            logger.warning("Cannot create overlay - master window not available")
+            self.overlay = None
     
     def _on_overlay_click(self, event=None):
-        """Handle clicks on the overlay (placeholder for Qt6)"""
-        # TODO: Implement for Qt6
+        """Handle clicks on the overlay"""
+        # The overlay now handles its own mouse events
+        # This method can be used for additional logic if needed
         pass
     
     def _show_step(self, step_index: int):
-        """Display a tutorial step (simplified for Qt6 - full UI not yet implemented)"""
+        """Display a tutorial step with full Qt6 UI implementation"""
         if step_index < 0 or step_index >= len(self.steps):
             self._complete_tutorial()
             return
@@ -5419,35 +5587,69 @@ class TutorialManager:
         
         logger.debug(f"Showing tutorial step {step_index + 1}/{len(self.steps)}: {step.title}")
         
-        # For Qt6, show tutorial as simple message boxes for now
-        # TODO: Implement full tutorial UI with QDialog
-        if GUI_AVAILABLE:
-            msg_box = QMessageBox(self.master)
-            msg_box.setWindowTitle(step.title)
-            msg_box.setText(step.message)
-            msg_box.setIcon(QMessageBox.Icon.Information)
+        if not GUI_AVAILABLE:
+            logger.warning("GUI not available for tutorial")
+            return
+        
+        # Create overlay if not exists
+        if not self.overlay:
+            self._create_overlay()
+        
+        # Update overlay to highlight target widget
+        if self.overlay and step.target_widget:
+            self.overlay.set_highlight_widget(step.target_widget)
+            self.overlay.show()
+            self.overlay.raise_()
+        
+        # Create and show tutorial dialog
+        dialog = TutorialDialog(self.master, step, step_index, len(self.steps))
+        
+        # Position dialog based on highlight widget or center it
+        if step.target_widget and step.target_widget.isVisible():
+            # Position dialog near the highlighted widget
+            widget_global_pos = step.target_widget.mapToGlobal(QPoint(0, 0))
+            widget_rect = QRect(widget_global_pos, step.target_widget.size())
             
-            # Add buttons based on step configuration
-            if step_index < len(self.steps) - 1:
-                msg_box.setStandardButtons(QMessageBox.StandardButton.Ok)
-                msg_box.button(QMessageBox.StandardButton.Ok).setText(step.button_text)
-            else:
-                msg_box.setStandardButtons(QMessageBox.StandardButton.Ok)
-                msg_box.button(QMessageBox.StandardButton.Ok).setText("Finish")
+            # Try to position dialog to the right of the widget
+            dialog_x = widget_rect.right() + 20
+            dialog_y = widget_rect.top()
             
-            msg_box.exec()
+            # Make sure dialog stays on screen
+            screen_geometry = QApplication.primaryScreen().geometry()
+            if dialog_x + dialog.width() > screen_geometry.right():
+                # Position to the left instead
+                dialog_x = widget_rect.left() - dialog.width() - 20
+            if dialog_y + dialog.height() > screen_geometry.bottom():
+                dialog_y = screen_geometry.bottom() - dialog.height() - 20
             
-            # Auto-advance to next step
+            dialog.move(dialog_x, dialog_y)
+        else:
+            # Center dialog on screen
+            dialog.move(
+                self.master.x() + (self.master.width() - dialog.width()) // 2,
+                self.master.y() + (self.master.height() - dialog.height()) // 2
+            )
+        
+        # Show dialog and wait for user action
+        dialog.exec()
+        
+        # Handle user action
+        if dialog.result_action == 'next':
             if step_index < len(self.steps) - 1:
                 self._show_step(step_index + 1)
             else:
                 self._complete_tutorial()
+        elif dialog.result_action == 'back':
+            if step_index > 0:
+                self._show_step(step_index - 1)
+        elif dialog.result_action == 'skip':
+            self._skip_tutorial()
+        else:
+            # Dialog was closed without action
+            self._skip_tutorial()
     
     def _skip_tutorial(self):
         """Skip the tutorial"""
-        # Note: In PyQt6, the tutorial is not yet implemented with overlays
-        # This method would need full tutorial UI implementation
-        
         reply = QMessageBox.question(
             self.master,
             "Skip Tutorial",
@@ -5463,6 +5665,13 @@ class TutorialManager:
         """Complete and close the tutorial"""
         try:
             logger.info("Completing tutorial - starting cleanup process")
+            
+            # Clean up overlay
+            if self.overlay:
+                self.overlay.hide()
+                self.overlay.deleteLater()
+                self.overlay = None
+                logger.debug("Tutorial overlay cleaned up")
             
             # Check if user wants to skip tutorial in future
             try:
@@ -5481,10 +5690,8 @@ class TutorialManager:
                 logger.error(f"Failed to save tutorial preferences: {e}", exc_info=True)
                 # Continue cleanup even if config save fails
             
-            # Close tutorial windows (Qt6 version uses message boxes, no persistent window)
+            # Close tutorial windows
             self.tutorial_window = None
-            self.overlay = None
-            
             self.tutorial_active = False
             logger.info("Tutorial marked as inactive")
             
@@ -5502,7 +5709,10 @@ class TutorialManager:
             # Ensure cleanup happens even on error
             self.tutorial_active = False
             self.tutorial_window = None
-            self.overlay = None
+            if self.overlay:
+                self.overlay.hide()
+                self.overlay.deleteLater()
+                self.overlay = None
     
     def reset_tutorial(self):
         """Reset tutorial completion flags so it can be shown again"""
@@ -5523,17 +5733,17 @@ class TooltipVerbosityManager:
         # Tooltip collections for each mode
         self.tooltips = {
             TooltipMode.NORMAL: self._get_normal_tooltips(),
-            TooltipMode.DUMBED_DOWN: self._get_dumbed_down_tooltips(),
-            TooltipMode.UNHINGED_PANDA: self._get_unhinged_panda_tooltips()
+            TooltipMode.BEGINNER: self._get_dumbed_down_tooltips(),
+            TooltipMode.PROFANE: self._get_unhinged_panda_tooltips()
         }
     
     def _load_mode(self) -> TooltipMode:
         """Load tooltip mode from config"""
-        mode_str = self.config.get('ui', 'tooltip_mode', default='vulgar_panda')
+        mode_str = self.config.get('ui', 'tooltip_mode', default='normal')
         try:
             return TooltipMode(mode_str)
         except ValueError:
-            return TooltipMode.UNHINGED_PANDA
+            return TooltipMode.NORMAL
     
     def set_mode(self, mode: TooltipMode):
         """Change tooltip verbosity mode"""
@@ -8714,34 +8924,130 @@ class ContextHelp:
         self.config = config
         self.help_window = None
         
-        # Bind F1 key globally (Qt6 uses different event system)
-        # TODO: Implement Qt6 key binding for F1
-        # In Qt6, this would be done with QShortcut or installEventFilter
-        pass
+        # Bind F1 key globally using Qt6 QShortcut
+        if GUI_AVAILABLE:
+            try:
+                from PyQt6.QtGui import QShortcut, QKeySequence
+                from PyQt6.QtCore import Qt
+                
+                # Create F1 shortcut
+                self.f1_shortcut = QShortcut(QKeySequence(Qt.Key.Key_F1), master_window)
+                self.f1_shortcut.activated.connect(self._show_context_help)
+                logger.debug("F1 context help shortcut registered")
+            except Exception as e:
+                logger.error(f"Failed to register F1 shortcut: {e}")
     
-    def _show_context_help(self, event=None):
+    def _show_context_help(self):
         """Show help based on current context"""
         if not GUI_AVAILABLE:
             return
             
         # Get current focused widget or active tab
         context = self._determine_context()
-        
-        # Show help as QMessageBox for now
-        # TODO: Create proper QDialog with scrollable help content
         help_text = self._get_help_text(context)
         
-        msg_box = QMessageBox(self.master)
-        msg_box.setWindowTitle(f"Help: {context.capitalize()}")
-        msg_box.setText(help_text)
-        msg_box.setIcon(QMessageBox.Icon.Information)
-        msg_box.setStandardButtons(QMessageBox.StandardButton.Ok)
-        msg_box.exec()
+        # Create a proper QDialog with scrollable content
+        from PyQt6.QtWidgets import QTextBrowser, QVBoxLayout, QPushButton
+        
+        dialog = QDialog(self.master)
+        dialog.setWindowTitle(f"Help: {context.capitalize()}")
+        dialog.setMinimumSize(500, 400)
+        
+        layout = QVBoxLayout(dialog)
+        
+        # Use QTextBrowser for scrollable, formatted text
+        text_browser = QTextBrowser()
+        text_browser.setPlainText(help_text)
+        text_browser.setOpenExternalLinks(False)
+        layout.addWidget(text_browser)
+        
+        # Close button
+        close_btn = QPushButton("Close")
+        close_btn.clicked.connect(dialog.accept)
+        close_btn.setDefault(True)
+        layout.addWidget(close_btn)
+        
+        dialog.exec()
     
     def _determine_context(self) -> str:
-        """Determine what context the user is currently in"""
-        # Qt6 version - simplified
-        # TODO: Implement proper context detection using Qt's focus system
+        """Determine what context the user is currently in using Qt's focus system"""
+        if not GUI_AVAILABLE:
+            return 'general'
+        
+        try:
+            from PyQt6.QtWidgets import QApplication
+            
+            # Get the currently focused widget
+            focused_widget = QApplication.focusWidget()
+            
+            if not focused_widget:
+                # No focused widget, check active window or tab
+                return self._get_active_tab_context()
+            
+            # Walk up the widget hierarchy to find a recognizable parent
+            current = focused_widget
+            while current:
+                # Check widget class name or object name
+                class_name = current.__class__.__name__.lower()
+                object_name = current.objectName().lower()
+                
+                # Map widget types to contexts
+                if 'sort' in class_name or 'sort' in object_name:
+                    return 'sort'
+                elif 'convert' in class_name or 'convert' in object_name:
+                    return 'convert'
+                elif 'upscale' in class_name or 'upscale' in object_name:
+                    return 'upscale'
+                elif 'lineart' in class_name or 'lineart' in object_name:
+                    return 'lineart'
+                elif 'background' in class_name or 'background' in object_name:
+                    return 'background'
+                elif 'color' in class_name or 'color' in object_name:
+                    return 'color_correction'
+                elif 'batch' in class_name or 'batch' in object_name:
+                    if 'rename' in class_name or 'rename' in object_name:
+                        return 'batch_rename'
+                    else:
+                        return 'batch_normalize'
+                elif 'quality' in class_name or 'quality' in object_name:
+                    return 'quality_check'
+                elif 'repair' in class_name or 'repair' in object_name:
+                    return 'image_repair'
+                elif 'organizer' in class_name or 'organizer' in object_name:
+                    return 'organizer'
+                elif 'settings' in class_name or 'settings' in object_name:
+                    return 'settings'
+                elif 'achievement' in class_name or 'achievement' in object_name:
+                    return 'achievements'
+                
+                # Move up to parent
+                current = current.parent() if hasattr(current, 'parent') else None
+            
+            # Fallback to active tab context
+            return self._get_active_tab_context()
+            
+        except Exception as e:
+            logger.error(f"Error determining context: {e}")
+            return 'general'
+    
+    def _get_active_tab_context(self) -> str:
+        """Get context from the active tab in the main window"""
+        try:
+            # Try to get the tab widget from the main window
+            if hasattr(self.master, 'tabs'):
+                current_tab = self.master.tabs.currentWidget()
+                if current_tab:
+                    tab_name = current_tab.objectName().lower()
+                    if 'sort' in tab_name:
+                        return 'sort'
+                    elif 'convert' in tab_name:
+                        return 'convert'
+                    elif 'upscale' in tab_name:
+                        return 'upscale'
+                    # Add more tab mappings as needed
+        except Exception as e:
+            logger.debug(f"Could not determine tab context: {e}")
+        
         return 'general'
     
     def _get_help_text(self, context: str) -> str:

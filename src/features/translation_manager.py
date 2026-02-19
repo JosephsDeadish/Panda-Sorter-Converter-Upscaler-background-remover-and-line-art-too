@@ -161,7 +161,7 @@ class TranslationManager:
     def _load_translations(self) -> None:
         """Load translations from resource files."""
         # Try to load from resources directory (uses centralized path helper)
-        from config import get_resource_path
+        from ..config import get_resource_path
         resources_dir = get_resource_path('translations')
         
         if not resources_dir.exists():

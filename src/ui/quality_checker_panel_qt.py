@@ -6,7 +6,7 @@ Provides UI for image quality analysis with detailed reports
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
     QScrollArea, QFrame, QFileDialog, QMessageBox, QTextEdit,
-    QGroupBox, QListWidget, QSplitter
+    QGroupBox, QListWidget, QSplitter, QCheckBox
 )
 from PyQt6.QtCore import Qt, QThread, pyqtSignal
 from PyQt6.QtGui import QPixmap, QImage, QFont
@@ -15,7 +15,7 @@ from typing import List, Optional
 import logging
 from PIL import Image
 
-from tools.quality_checker import ImageQualityChecker, format_quality_report, QualityLevel
+from tools.quality_checker import ImageQualityChecker, format_quality_report, QualityLevel, QualityCheckOptions
 
 logger = logging.getLogger(__name__)
 
@@ -35,10 +35,11 @@ class QualityCheckWorker(QThread):
     result = pyqtSignal(object, str)  # report, filename
     finished = pyqtSignal(bool, str)  # success, message
     
-    def __init__(self, checker, files):
+    def __init__(self, checker, files, options=None):
         super().__init__()
         self.checker = checker
         self.files = files
+        self.options = options or QualityCheckOptions()
         self.results = []
     
     def run(self):
@@ -47,7 +48,7 @@ class QualityCheckWorker(QThread):
             for i, filepath in enumerate(self.files):
                 self.progress.emit(f"Checking {i+1}/{len(self.files)}: {Path(filepath).name}")
                 
-                report = self.checker.check_image(filepath)
+                report = self.checker.check_quality(filepath, self.options)
                 self.results.append((filepath, report))
                 self.result.emit(report, Path(filepath).name)
             
@@ -152,6 +153,28 @@ class QualityCheckerPanelQt(QWidget):
         archive_layout.addStretch()
         group_layout.addLayout(archive_layout)
         
+        # Check options
+        options_layout = QHBoxLayout()
+        options_layout.addWidget(QLabel("Quality Checks:"))
+        
+        self.check_resolution_cb = QCheckBox("📏 Resolution")
+        self.check_resolution_cb.setChecked(True)
+        self.check_resolution_cb.setToolTip("Analyze image resolution and dimensions")
+        options_layout.addWidget(self.check_resolution_cb)
+        
+        self.check_compression_cb = QCheckBox("📦 Compression")
+        self.check_compression_cb.setChecked(True)
+        self.check_compression_cb.setToolTip("Detect compression artifacts and quality")
+        options_layout.addWidget(self.check_compression_cb)
+        
+        self.check_dpi_cb = QCheckBox("🖨️ DPI")
+        self.check_dpi_cb.setChecked(True)
+        self.check_dpi_cb.setToolTip("Check DPI and print quality metrics")
+        options_layout.addWidget(self.check_dpi_cb)
+        
+        options_layout.addStretch()
+        group_layout.addLayout(options_layout)
+        
         group.setLayout(group_layout)
         layout.addWidget(group)
     
@@ -228,13 +251,23 @@ class QualityCheckerPanelQt(QWidget):
             QMessageBox.warning(self, "No Files", "Please select files to check")
             return
         
+        # Create options from checkboxes
+        options = QualityCheckOptions(
+            check_resolution=self.check_resolution_cb.isChecked(),
+            check_compression=self.check_compression_cb.isChecked(),
+            check_dpi=self.check_dpi_cb.isChecked(),
+            check_sharpness=True,  # Always check sharpness
+            check_noise=True,  # Always check noise
+            target_dpi=72.0
+        )
+        
         # Disable button
         self.check_btn.setEnabled(False)
         self.status_label.setText("Checking...")
         self.report_text.clear()
         
-        # Start worker thread
-        self.worker_thread = QualityCheckWorker(self.checker, self.selected_files)
+        # Start worker thread with options
+        self.worker_thread = QualityCheckWorker(self.checker, self.selected_files, options)
         self.worker_thread.progress.connect(self._on_progress)
         self.worker_thread.result.connect(self._on_result)
         self.worker_thread.finished.connect(self._on_finished)

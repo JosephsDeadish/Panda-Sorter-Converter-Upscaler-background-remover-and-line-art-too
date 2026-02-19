@@ -11,6 +11,21 @@ try:
     PYQT_AVAILABLE = True
 except ImportError:
     PYQT_AVAILABLE = False
+    QWidget = object
+    QFrame = object
+    class pyqtSignal:
+        def __init__(self, *args): pass
+        def connect(self, *args): pass
+        def emit(self, *args): pass
+    class Qt:
+        class AlignmentFlag:
+            AlignCenter = 0
+        class CursorShape:
+            PointingHandCursor = 0
+        class MouseButton:
+            LeftButton = 1
+        class ScrollBarPolicy:
+            ScrollBarAlwaysOff = 1
 
 
 class ClothingItemWidget(QFrame):
