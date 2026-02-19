@@ -72,6 +72,7 @@ class NormalizationSettings:
     naming_prefix: str = "image"
     preserve_alpha: bool = True
     force_rgb: bool = False
+    strip_metadata: bool = False  # Strip EXIF and other metadata from output
 
 
 @dataclass
@@ -456,17 +457,30 @@ class BatchFormatNormalizer:
                 background.paste(img)
             img = background
         
+        # Prepare save kwargs
+        save_kwargs = {}
+        
+        # Strip metadata if requested
+        if settings.strip_metadata:
+            # Create clean copy without metadata
+            # Don't pass exif or info to save
+            logger.debug(f"Stripping metadata from {Path(output_path).name}")
+        else:
+            # Preserve existing metadata if available
+            if hasattr(img, 'info') and img.info:
+                save_kwargs['exif'] = img.info.get('exif', b'')
+        
         # Save with format-specific options
         if output_format == 'JPEG':
-            img.save(output_path, format='JPEG', quality=settings.jpeg_quality, optimize=True)
+            img.save(output_path, format='JPEG', quality=settings.jpeg_quality, optimize=True, **save_kwargs)
         elif output_format == 'WEBP':
-            img.save(output_path, format='WEBP', quality=settings.webp_quality, method=6)
+            img.save(output_path, format='WEBP', quality=settings.webp_quality, method=6, **save_kwargs)
         elif output_format == 'PNG':
-            img.save(output_path, format='PNG', optimize=True)
+            img.save(output_path, format='PNG', optimize=True, **save_kwargs)
         elif output_format == 'TIFF':
-            img.save(output_path, format='TIFF', compression='tiff_lzw')
+            img.save(output_path, format='TIFF', compression='tiff_lzw', **save_kwargs)
         else:
-            img.save(output_path)
+            img.save(output_path, **save_kwargs)
     
     def _generate_output_path(self,
                             input_path: str,

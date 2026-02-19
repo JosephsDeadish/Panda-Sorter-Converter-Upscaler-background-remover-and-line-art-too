@@ -188,6 +188,11 @@ class BatchNormalizerPanelQt(QWidget):
         self.preserve_alpha_cb.setToolTip("Preserve alpha channel (transparency) in output images")
         options_layout.addWidget(self.preserve_alpha_cb)
         
+        self.strip_metadata_cb = QCheckBox("🧹 Strip Metadata")
+        self.strip_metadata_cb.setChecked(False)
+        self.strip_metadata_cb.setToolTip("Remove EXIF and other metadata from output images (reduces file size)")
+        options_layout.addWidget(self.strip_metadata_cb)
+        
         options_layout.addStretch()
         group_layout.addLayout(options_layout)
         
@@ -390,7 +395,8 @@ class BatchNormalizerPanelQt(QWidget):
             quality=self.quality_spin.value(),
             naming_pattern=self._get_naming_pattern(),
             prefix=self.prefix_edit.text() if self.prefix_edit.text() else None,
-            preserve_alpha=self.preserve_alpha_cb.isChecked()
+            preserve_alpha=self.preserve_alpha_cb.isChecked(),
+            strip_metadata=self.strip_metadata_cb.isChecked()
         )
         
         # Disable button
