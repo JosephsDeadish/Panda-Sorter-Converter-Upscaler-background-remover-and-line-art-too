@@ -150,9 +150,44 @@ class CustomizationPanelQt(QWidget):
     
     def apply_customization(self):
         """Apply current customization settings."""
-        # Update panda appearance
-        if hasattr(self.panda_widget, 'update_appearance'):
-            self.panda_widget.update_appearance()
+        try:
+            # Update panda appearance
+            if self.panda_widget and hasattr(self.panda_widget, 'update_appearance'):
+                self.panda_widget.update_appearance()
+            
+            # Save customization to config
+            if hasattr(self, 'config') and self.config:
+                if 'customization' not in self.config:
+                    self.config['customization'] = {}
+                
+                self.config['customization'].update({
+                    'body_color': self.current_color.getRgb()[:3] if hasattr(self, 'current_color') else (255, 255, 255),
+                    'trail_type': self.trail_combo.currentText() if hasattr(self, 'trail_combo') else 'None',
+                    'trail_length': self.trail_slider.value() if hasattr(self, 'trail_slider') else 10,
+                })
+            
+            # Show confirmation
+            from PyQt6.QtWidgets import QMessageBox
+            QMessageBox.information(
+                self,
+                "Customization Applied",
+                "Your customization settings have been applied and saved!"
+            )
+            
+            return True
+            
+        except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Error applying customization: {e}", exc_info=True)
+            
+            from PyQt6.QtWidgets import QMessageBox
+            QMessageBox.warning(
+                self,
+                "Error",
+                f"Failed to apply customization:\n{str(e)}"
+            )
+            return False
     
     def reset_customization(self):
         """Reset to default customization."""

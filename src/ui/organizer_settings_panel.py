@@ -520,6 +520,28 @@ class OrganizerSettingsPanel(QWidget):
             'case_sensitive': self.case_sensitive_check.isChecked(),
             'conflict_resolution': self.conflict_combo.currentText(),
         }
+    
+    def save_settings(self):
+        """Save current settings to config"""
+        try:
+            # Get current settings
+            settings = self.get_settings()
+            
+            # Update config
+            if 'organizer' not in self.config:
+                self.config['organizer'] = {}
+            
+            self.config['organizer'].update(settings)
+            
+            # Emit settings changed signal
+            self.emit_settings()
+            
+            return True
+        except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Error saving organizer settings: {e}", exc_info=True)
+            return False
 
     
     def _set_tooltip(self, widget, tooltip_key: str):
