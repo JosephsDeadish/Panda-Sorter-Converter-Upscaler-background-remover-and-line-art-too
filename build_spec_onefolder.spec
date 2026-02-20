@@ -158,6 +158,7 @@ a = Analysis(
         'advanced_analyzer',
         'native_ops',
         'startup_validation',
+        'qt_platform_setup',   # sets QT_QPA_PLATFORM=offscreen on headless Linux
         # Core image processing
         'PIL',
         'PIL.Image',

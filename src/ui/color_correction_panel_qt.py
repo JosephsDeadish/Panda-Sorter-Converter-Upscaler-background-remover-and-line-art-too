@@ -17,7 +17,7 @@ try:
     from PyQt6.QtWidgets import (
         QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
         QScrollArea, QFrame, QSlider, QSpinBox, QFileDialog,
-        QMessageBox, QProgressBar, QComboBox, QGroupBox
+        QMessageBox, QProgressBar, QComboBox, QGroupBox, QCheckBox
     )
     from PyQt6.QtCore import Qt, pyqtSignal, QThread
     from PyQt6.QtGui import QPixmap
@@ -29,6 +29,7 @@ except ImportError:
     QThread = object
     QScrollArea = object
     QGroupBox = object
+    QCheckBox = object
     def pyqtSignal(*args, **kwargs): return property(lambda self: None)
     class Qt:
         class AlignmentFlag:

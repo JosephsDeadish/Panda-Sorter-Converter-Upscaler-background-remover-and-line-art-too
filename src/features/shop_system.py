@@ -3666,8 +3666,19 @@ class ShopSystem:
     def is_purchased(self, item_id: str) -> bool:
         """Check if item has been purchased."""
         return item_id in self.purchased_items
-    
-    def get_purchase_history(self, count: int = 10) -> List[Dict]:
+
+    def get_available_items(self, user_level: int = 0) -> List[ShopItem]:
+        """Return all catalog items the user can see (not filtered by category)."""
+        return [
+            item for item in self.CATALOG.values()
+            if item.level_required <= user_level or user_level == 0
+        ]
+
+    def get_purchased_items(self) -> Set[str]:
+        """Return the set of purchased item IDs."""
+        return set(self.purchased_items)
+
+
         """Get recent purchase history."""
         return self.purchase_history[-count:]
     
