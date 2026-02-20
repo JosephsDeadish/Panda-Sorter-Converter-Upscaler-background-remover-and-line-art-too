@@ -1374,7 +1374,7 @@ class SettingsPanelQt(QWidget):
     def set_tooltip(self, widget: QWidget, widget_id: str):
         """Set tooltip for a widget using the tooltip manager"""
         try:
-            if self.main_window and hasattr(self.main_window, 'tooltip_manager'):
+            if self.main_window and getattr(self.main_window, 'tooltip_manager', None):
                 tooltip_text = self.main_window.tooltip_manager.get_tooltip(widget_id)
                 widget.setToolTip(tooltip_text)
             else:

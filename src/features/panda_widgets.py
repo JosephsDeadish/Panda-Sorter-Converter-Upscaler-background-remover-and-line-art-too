@@ -102,8 +102,12 @@ class PandaWidget:
         self.consumable = consumable
         self.quantity = 0  # For consumable items, tracks how many the user owns
         self.physics = physics or ItemPhysics()
-    
-    def use(self) -> Dict:
+
+    def get(self, key: str, default=None):
+        """Dict-like attribute access for widgets panel compatibility."""
+        return getattr(self, key, default)
+
+
         """
         Use the widget with the panda.
         

@@ -118,6 +118,8 @@ class QualityCheckWorker(QThread):
 
 class QualityCheckerPanelQt(QWidget):
     """PyQt6 panel for image quality checking."""
+
+    finished = pyqtSignal(bool, str)  # success, message
     
     def __init__(self, parent=None, tooltip_manager=None):
         super().__init__(parent)

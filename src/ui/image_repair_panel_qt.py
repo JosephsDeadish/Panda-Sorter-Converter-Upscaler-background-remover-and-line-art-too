@@ -171,6 +171,9 @@ class RepairWorker(QThread):
 
 class ImageRepairPanelQt(QWidget):
     """PyQt6 panel for repairing corrupted images."""
+
+    finished = pyqtSignal(bool, str)  # success, message
+    error = pyqtSignal(str)  # error message
     
     def __init__(self, parent=None, tooltip_manager=None):
         super().__init__(parent)

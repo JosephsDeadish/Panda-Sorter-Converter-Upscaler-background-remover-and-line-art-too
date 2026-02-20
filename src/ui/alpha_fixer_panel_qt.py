@@ -134,7 +134,9 @@ class AlphaFixWorker(QThread):
 
 class AlphaFixerPanelQt(QWidget):
     """PyQt6 panel for alpha channel fixing."""
-    
+
+    finished = pyqtSignal(bool, str)  # success, message
+
     def __init__(self, parent=None, tooltip_manager=None):
         super().__init__(parent)
         

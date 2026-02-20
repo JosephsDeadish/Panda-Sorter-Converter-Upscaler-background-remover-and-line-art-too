@@ -153,6 +153,8 @@ class ColorCorrectionWorker(QThread):
 
 class ColorCorrectionPanelQt(QWidget):
     """PyQt6 panel for color correction and enhancement."""
+
+    finished = pyqtSignal(bool, str)  # success, message
     
     def __init__(self, parent=None, unlockables_system=None, tooltip_manager=None):
         super().__init__(parent)

@@ -279,6 +279,7 @@ class TextureSorterMainWindow(QMainWindow):
         self.tool_panels = {}           # {panel_id: widget}
         self.tool_dock_widgets = {}     # {panel_id: QDockWidget}
         self._last_sorted_count = 0     # files moved in last sort (for achievements)
+        self.view_menu = None           # Set by setup_menubar(); guarded in _update_tool_panels_menu
 
         # Worker thread
         self.worker = None
@@ -764,6 +765,8 @@ class TextureSorterMainWindow(QMainWindow):
     
     def _update_tool_panels_menu(self):
         """Update View menu with tool panel visibility toggles."""
+        if self.view_menu is None:
+            return  # Menu bar not yet created; called too early
         # Add submenu for tool panels if it doesn't exist
         if not hasattr(self, 'tool_panels_menu'):
             self.tool_panels_menu = self.view_menu.addMenu("Tool Panels")

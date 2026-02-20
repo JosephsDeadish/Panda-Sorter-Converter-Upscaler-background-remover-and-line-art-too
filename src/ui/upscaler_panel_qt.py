@@ -332,6 +332,9 @@ class PreviewWorker(QThread):
 
 class ImageUpscalerPanelQt(QWidget):
     """PyQt6 panel for image upscaling."""
+
+    finished = pyqtSignal(bool, str)  # success, message
+    error = pyqtSignal(str)  # error message
     
     def __init__(self, parent=None, tooltip_manager=None):
         super().__init__(parent)

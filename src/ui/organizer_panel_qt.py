@@ -413,6 +413,8 @@ class OrganizerPanelQt(QWidget):
     - Live progress display
     - Settings panel
     """
+
+    finished = pyqtSignal(bool, str)  # success, message
     
     def __init__(self, parent=None, tooltip_manager=None):
         super().__init__(parent)

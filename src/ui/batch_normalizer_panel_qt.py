@@ -128,6 +128,8 @@ class NormalizationWorker(QThread):
 
 class BatchNormalizerPanelQt(QWidget):
     """PyQt6 panel for batch format normalization."""
+
+    finished = pyqtSignal(bool, str)  # success, message
     
     def __init__(self, parent=None, tooltip_manager=None):
         super().__init__(parent)
