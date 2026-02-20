@@ -50,8 +50,8 @@ def _ensure_qt_platform():
             display = os.environ.get('DISPLAY', '')
             wayland = os.environ.get('WAYLAND_DISPLAY', '')
             if not display and not wayland:
-                os.environ.setdefault('QT_QPA_PLATFORM', 'offscreen')
-                os.environ.setdefault('QT_QPA_FONTDIR', '')  # suppress font warnings
+                os.environ['QT_QPA_PLATFORM'] = 'offscreen'
+                os.environ['QT_QPA_FONTDIR'] = ''  # suppress font warnings
 
 _ensure_qt_platform()
 

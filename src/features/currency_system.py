@@ -149,7 +149,6 @@ class CurrencySystem:
         """Alias for spend_money(); ignores the currency-name argument."""
         return self.spend_money(amount, reason=f'subtract:{_unused_currency_name}')
 
-
     def get_balance(self) -> int:
         """Get current balance."""
         return self.balance
