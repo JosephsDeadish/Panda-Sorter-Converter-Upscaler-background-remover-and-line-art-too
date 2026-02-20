@@ -4,6 +4,9 @@ Combined analysis to detect UI textures
 Author: Dead On The Inside / JosephsDeadish
 """
 
+from __future__ import annotations
+
+
 import logging
 
 logger = logging.getLogger(__name__)

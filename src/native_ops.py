@@ -21,7 +21,12 @@ import logging
 import math
 from typing import List, Optional, Tuple
 
-import numpy as np
+try:
+    import numpy as np
+    HAS_NUMPY = True
+except ImportError:
+    np = None  # type: ignore[assignment]
+    HAS_NUMPY = False
 
 logger = logging.getLogger(__name__)
 

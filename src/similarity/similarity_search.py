@@ -9,7 +9,12 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 from typing import List, Dict, Any, Optional, Tuple
-import numpy as np
+try:
+    import numpy as np
+    HAS_NUMPY = True
+except ImportError:
+    np = None  # type: ignore[assignment]
+    HAS_NUMPY = False
 import pickle
 
 logger = logging.getLogger(__name__)

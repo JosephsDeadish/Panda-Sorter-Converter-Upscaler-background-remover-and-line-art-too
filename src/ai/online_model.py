@@ -11,7 +11,12 @@ import time
 import threading
 from typing import Dict, List, Optional, Any
 from dataclasses import dataclass
-import numpy as np
+try:
+    import numpy as np
+    HAS_NUMPY = True
+except ImportError:
+    np = None  # type: ignore[assignment]
+    HAS_NUMPY = False
 
 try:
     import requests

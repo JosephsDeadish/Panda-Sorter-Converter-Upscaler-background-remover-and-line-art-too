@@ -8,7 +8,12 @@ from __future__ import annotations
 
 import logging
 from typing import List, Dict, Any, Optional, Union, Tuple
-import numpy as np
+try:
+    import numpy as np
+    HAS_NUMPY = True
+except ImportError:
+    np = None  # type: ignore[assignment]
+    HAS_NUMPY = False
 from pathlib import Path
 
 logger = logging.getLogger(__name__)

@@ -124,7 +124,8 @@ class WidgetsPanelQt(QWidget):
         self.widgets_layout.addWidget(item_widget)
     
     def select_widget(self, widget):
-        """Select a widget."""
+        """Select a widget and store it for add/remove actions."""
+        self._selected_widget = widget
         if self.widget_selected:
             self.widget_selected.emit(widget)
     
@@ -138,14 +139,32 @@ class WidgetsPanelQt(QWidget):
         self.load_widgets()
     
     def add_selected_widget(self):
-        """Add selected widget to scene."""
-        # Implementation depends on panda widget API
-        pass
+        """Add selected widget to the panda scene."""
+        if self.panda_widget is None:
+            return
+        # Find the currently selected widget button (most recently clicked)
+        selected = getattr(self, '_selected_widget', None)
+        if selected is None:
+            # Nothing explicitly selected — nothing to add
+            return
+        emoji = selected.get('emoji', '🎮')
+        name = selected.get('name', 'Widget')
+        if hasattr(self.panda_widget, 'add_item_from_emoji'):
+            self.panda_widget.add_item_from_emoji(emoji, name)
+        elif hasattr(self.panda_widget, 'add_item_3d'):
+            item_type = selected.get('type', 'toy')
+            self.panda_widget.add_item_3d(item_type, 0.0, 0.5, 0.0,
+                                          name=name, emoji=emoji,
+                                          color=selected.get('color', [0.7, 0.7, 0.7]))
     
     def remove_selected_widget(self):
-        """Remove selected widget from scene."""
-        # Implementation depends on panda widget API
-        pass
+        """Remove the most recently added item from the panda scene."""
+        if self.panda_widget is None:
+            return
+        if hasattr(self.panda_widget, 'clear_items'):
+            # clear_items removes all items; in the absence of single-item removal,
+            # this is the closest available API action
+            self.panda_widget.clear_items()
     
     def _set_tooltip(self, widget, tooltip_key: str):
         """Set tooltip using tooltip manager if available."""

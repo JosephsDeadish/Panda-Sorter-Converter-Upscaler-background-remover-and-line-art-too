@@ -130,12 +130,14 @@ class TextureClassifier:
         Classify a texture file into a category
         
         Args:
-            file_path: Path to the texture file
+            file_path: Path to the texture file (str or Path)
             use_image_analysis: Whether to use image analysis (slower but more accurate)
         
         Returns:
             Tuple of (category_id, confidence_score)
         """
+        from pathlib import Path as _Path
+        file_path = _Path(file_path)
         # Check cache first
         cache_key = str(file_path)
         if cache_key in self.classification_cache:

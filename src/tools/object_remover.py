@@ -14,7 +14,12 @@ try:
 except ImportError:
     HAS_PIL = False
 
-import numpy as np
+try:
+    import numpy as np
+    HAS_NUMPY = True
+except ImportError:
+    np = None  # type: ignore[assignment]
+    HAS_NUMPY = False
 
 logger = logging.getLogger(__name__)
 

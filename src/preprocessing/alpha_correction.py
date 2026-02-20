@@ -10,7 +10,12 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 from typing import Optional, Dict, Any, List, Tuple, Union
-import numpy as np
+try:
+    import numpy as np
+    HAS_NUMPY = True
+except ImportError:
+    np = None  # type: ignore[assignment]
+    HAS_NUMPY = False
 try:
     from PIL import Image
     HAS_PIL = True

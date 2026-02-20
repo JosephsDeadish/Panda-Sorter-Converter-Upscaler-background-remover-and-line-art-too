@@ -23,7 +23,12 @@ try:
 except ImportError:
     HAS_PIL = False
 
-import numpy as np
+try:
+    import numpy as np
+    HAS_NUMPY = True
+except ImportError:
+    np = None  # type: ignore[assignment]
+    HAS_NUMPY = False
 try:
     import cv2
     HAS_CV2 = True

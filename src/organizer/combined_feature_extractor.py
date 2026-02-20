@@ -12,7 +12,12 @@ from __future__ import annotations
 import logging
 from typing import List, Optional, Tuple, Dict, Any
 from pathlib import Path
-import numpy as np
+try:
+    import numpy as np
+    HAS_NUMPY = True
+except ImportError:
+    np = None  # type: ignore[assignment]
+    HAS_NUMPY = False
 
 logger = logging.getLogger(__name__)
 

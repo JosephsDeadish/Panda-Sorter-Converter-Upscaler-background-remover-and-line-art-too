@@ -395,7 +395,7 @@ class FileBrowserPanelQt(QWidget):
             if filepath.suffix.lower() in self.ARCHIVE_EXTENSIONS:
                 item.setIcon(self.style().standardIcon(self.style().StandardPixmap.SP_FileDialogContentsView))
             else:
-                # Placeholder icon, will be replaced by thumbnail
+                # Initial icon — replaced by async thumbnail when ready
                 item.setIcon(self.style().standardIcon(self.style().StandardPixmap.SP_FileIcon))
             
             self.file_list.addItem(item)

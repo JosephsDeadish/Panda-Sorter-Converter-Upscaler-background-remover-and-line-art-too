@@ -7,7 +7,12 @@ Author: Dead On The Inside / JosephsDeadish
 
 from __future__ import annotations
 import logging
-import numpy as np
+try:
+    import numpy as np
+    HAS_NUMPY = True
+except ImportError:
+    np = None  # type: ignore[assignment]
+    HAS_NUMPY = False
 from pathlib import Path
 from typing import List, Optional, Tuple, Dict, Any, Callable
 from dataclasses import dataclass
