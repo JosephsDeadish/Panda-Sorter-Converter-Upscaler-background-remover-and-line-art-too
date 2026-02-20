@@ -466,3 +466,6 @@ class MiniGamePanelQt(QWidget):
             tooltip = self.tooltip_manager.get_tooltip(tooltip_key)
             if tooltip:
                 widget.setToolTip(tooltip)
+
+# Alias for backward compatibility
+MinigamePanelQt = MiniGamePanelQt

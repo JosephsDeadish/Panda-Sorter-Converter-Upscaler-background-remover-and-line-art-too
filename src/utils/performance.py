@@ -4,7 +4,12 @@ Author: Dead On The Inside / JosephsDeadish
 """
 
 import time
-import psutil
+try:
+    import psutil
+    HAS_PSUTIL = True
+except ImportError:
+    psutil = None  # type: ignore[assignment]
+    HAS_PSUTIL = False
 import threading
 from collections import deque
 from typing import Dict, List, Optional, Any
@@ -40,7 +45,7 @@ class PerformanceMonitor:
         """
         self.history_size = history_size
         self.metrics_history: deque = deque(maxlen=history_size)
-        self.process = psutil.Process()
+        self.process = psutil.Process() if HAS_PSUTIL else None
         self.lock = threading.Lock()
         
         # Counters
@@ -91,7 +96,15 @@ class PerformanceMonitor:
             cache_hit_rate: Current cache hit rate (0.0-1.0)
         """
         with self.lock:
-            mem_info = self.process.memory_info()
+            if HAS_PSUTIL and self.process is not None:
+                mem_info = self.process.memory_info()
+                memory_mb = mem_info.rss / (1024 * 1024)
+                cpu_pct = self.process.cpu_percent()
+                thread_cnt = self.process.num_threads()
+            else:
+                memory_mb = 0.0
+                cpu_pct = 0.0
+                thread_cnt = 0
             
             # Calculate textures per second
             elapsed = time.time() - self.start_time if self.start_time else 1.0
@@ -101,9 +114,9 @@ class PerformanceMonitor:
                 timestamp=time.time(),
                 textures_processed=self.total_textures_processed,
                 textures_per_second=tps,
-                memory_mb=mem_info.rss / (1024 * 1024),
-                cpu_percent=self.process.cpu_percent(),
-                thread_count=self.process.num_threads(),
+                memory_mb=memory_mb,
+                cpu_percent=cpu_pct,
+                thread_count=thread_cnt,
                 cache_hit_rate=cache_hit_rate
             )
             
