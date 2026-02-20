@@ -31,6 +31,30 @@ if str(src_dir) not in sys.path:
     sys.path.insert(0, str(src_dir))
 
 # Qt imports - REQUIRED, no fallbacks
+def _ensure_qt_platform():
+    """
+    Ensure QT_QPA_PLATFORM is set for headless / CI environments.
+
+    On Linux, PyQt6 requires a display server or a platform plugin.
+    When no display is available (e.g. CI, server, docker), we fall back to
+    the 'offscreen' platform so the application can still start, process
+    files, and run the GUI (rendered off-screen).
+
+    On Windows / macOS this is a no-op because those platforms always have
+    a display-compatible backend available.
+    """
+    if sys.platform.startswith('linux'):
+        # Only set if not already configured
+        if 'QT_QPA_PLATFORM' not in os.environ:
+            # Prefer xcb (real display) but fall back gracefully
+            display = os.environ.get('DISPLAY', '')
+            wayland = os.environ.get('WAYLAND_DISPLAY', '')
+            if not display and not wayland:
+                os.environ.setdefault('QT_QPA_PLATFORM', 'offscreen')
+                os.environ.setdefault('QT_QPA_FONTDIR', '')  # suppress font warnings
+
+_ensure_qt_platform()
+
 try:
     from PyQt6.QtWidgets import (
         QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
@@ -42,17 +66,32 @@ try:
     from PyQt6.QtCore import Qt, QTimer, pyqtSignal, QThread, QSize, QByteArray
     from PyQt6.QtGui import QAction, QIcon, QFont, QPalette, QColor
 except ImportError as e:
+    _err = str(e)
     print("=" * 70)
-    print("ERROR: PyQt6 is not installed!")
-    print("=" * 70)
-    print()
-    print("This application requires PyQt6 to run.")
-    print()
-    print("To install PyQt6, run:")
-    print("    pip install PyQt6")
-    print()
-    print("Or install all dependencies:")
-    print("    pip install -r requirements.txt")
+    # Distinguish "not installed" from "system libraries missing"
+    if 'libEGL' in _err or 'libGL' in _err or 'cannot open shared object' in _err:
+        print("ERROR: PyQt6 is installed but required system libraries are missing!")
+        print("=" * 70)
+        print()
+        print("PyQt6 is installed correctly, but a required system library is absent.")
+        print()
+        print("On Debian/Ubuntu, install the missing libraries with:")
+        print("    sudo apt-get install -y libegl1 libgl1 libgles2")
+        print("    sudo apt-get install -y libxcb-xinerama0 libxkbcommon-x11-0")
+        print()
+        print("Or run the application with an offscreen backend (headless):")
+        print("    QT_QPA_PLATFORM=offscreen python main.py")
+    else:
+        print("ERROR: PyQt6 is not installed!")
+        print("=" * 70)
+        print()
+        print("This application requires PyQt6 to run.")
+        print()
+        print("To install PyQt6, run:")
+        print("    pip install PyQt6")
+        print()
+        print("Or install all dependencies:")
+        print("    pip install -r requirements.txt")
     print()
     print(f"Technical details: {e}")
     print("=" * 70)
