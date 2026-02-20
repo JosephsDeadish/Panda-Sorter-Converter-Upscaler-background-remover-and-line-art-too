@@ -156,6 +156,14 @@ class TranslationManager:
         self.translations: Dict[Language, Dict[str, str]] = {
             Language.ENGLISH: self.DEFAULT_TRANSLATIONS.copy()
         }
+        # Register all built-in language translations in memory first so
+        # they work even when no translations/ directory exists on disk.
+        self.translations[Language.SPANISH] = self._get_spanish_translations()
+        self.translations[Language.FRENCH] = self._get_french_translations()
+        self.translations[Language.GERMAN] = self._get_german_translations()
+        self.translations[Language.JAPANESE] = self._get_japanese_translations()
+        self.translations[Language.CHINESE] = self._get_chinese_translations()
+        self.translations[Language.PORTUGUESE] = self._get_portuguese_translations()
         self._load_translations()
     
     def _load_translations(self) -> None:
@@ -222,7 +230,31 @@ class TranslationManager:
             fr_file = resources_dir / "fr.json"
             with open(fr_file, 'w', encoding='utf-8') as f:
                 json.dump(fr_translations, f, indent=2, ensure_ascii=False)
-            
+
+            # Create German translations
+            de_translations = self._get_german_translations()
+            de_file = resources_dir / "de.json"
+            with open(de_file, 'w', encoding='utf-8') as f:
+                json.dump(de_translations, f, indent=2, ensure_ascii=False)
+
+            # Create Japanese translations
+            ja_translations = self._get_japanese_translations()
+            ja_file = resources_dir / "ja.json"
+            with open(ja_file, 'w', encoding='utf-8') as f:
+                json.dump(ja_translations, f, indent=2, ensure_ascii=False)
+
+            # Create Chinese translations
+            zh_translations = self._get_chinese_translations()
+            zh_file = resources_dir / "zh.json"
+            with open(zh_file, 'w', encoding='utf-8') as f:
+                json.dump(zh_translations, f, indent=2, ensure_ascii=False)
+
+            # Create Portuguese translations
+            pt_translations = self._get_portuguese_translations()
+            pt_file = resources_dir / "pt.json"
+            with open(pt_file, 'w', encoding='utf-8') as f:
+                json.dump(pt_translations, f, indent=2, ensure_ascii=False)
+
             logger.info(f"Created default translation files in {resources_dir}")
             
         except Exception as e:
@@ -385,7 +417,255 @@ class TranslationManager:
             'msg_operation_complete': 'Opération terminée avec succès',
             'msg_operation_failed': "Échec de l'opération: {error}",
         }
-    
+
+    def _get_german_translations(self) -> Dict[str, str]:
+        """Get German translations."""
+        return {
+            'app_title': 'Textur-Sortierer',
+            'app_version': 'Version {version}',
+            'menu_file': 'Datei',
+            'menu_edit': 'Bearbeiten',
+            'menu_view': 'Ansicht',
+            'menu_tools': 'Werkzeuge',
+            'menu_help': 'Hilfe',
+            'file_open': 'Öffnen',
+            'file_save': 'Speichern',
+            'file_export': 'Exportieren',
+            'file_exit': 'Beenden',
+            'btn_start': 'Starten',
+            'btn_stop': 'Stoppen',
+            'btn_pause': 'Pausieren',
+            'btn_resume': 'Fortsetzen',
+            'btn_cancel': 'Abbrechen',
+            'btn_ok': 'OK',
+            'btn_apply': 'Anwenden',
+            'btn_close': 'Schließen',
+            'btn_save': 'Speichern',
+            'btn_load': 'Laden',
+            'btn_reset': 'Zurücksetzen',
+            'processing_title': 'Texturen werden verarbeitet',
+            'processing_status': 'Verarbeite {current} von {total} Dateien',
+            'processing_complete': 'Verarbeitung abgeschlossen!',
+            'processing_cancelled': 'Verarbeitung abgebrochen',
+            'processing_error': 'Verarbeitungsfehler',
+            'settings_title': 'Einstellungen',
+            'settings_general': 'Allgemein',
+            'settings_ui': 'Benutzeroberfläche',
+            'settings_performance': 'Leistung',
+            'settings_language': 'Sprache',
+            'settings_hotkeys': 'Tastenkürzel',
+            'panda_title': 'Panda-Begleiter',
+            'panda_mood': 'Stimmung: {mood}',
+            'panda_level': 'Level {level}',
+            'panda_xp': '{current} / {max} XP',
+            'panda_click_me': 'Klick mich! 🐼',
+            'panda_happy': 'Glücklich',
+            'panda_working': 'Arbeitend',
+            'panda_celebrating': 'Feiernd',
+            'panda_tired': 'Müde',
+            'panda_playing': 'Spielend',
+            'panda_eating': 'Essend',
+            'common_yes': 'Ja',
+            'common_no': 'Nein',
+            'common_confirm': 'Bestätigen',
+            'common_warning': 'Warnung',
+            'common_error': 'Fehler',
+            'common_success': 'Erfolg',
+            'common_loading': 'Laden...',
+            'common_saving': 'Speichern...',
+            'msg_welcome': 'Willkommen beim Textur-Sortierer! 🐼',
+            'msg_ready': 'Bereit zum Sortieren von Texturen',
+            'msg_no_files': 'Keine Dateien ausgewählt',
+            'msg_operation_complete': 'Vorgang erfolgreich abgeschlossen',
+            'msg_operation_failed': 'Vorgang fehlgeschlagen: {error}',
+        }
+
+    def _get_japanese_translations(self) -> Dict[str, str]:
+        """Get Japanese translations."""
+        return {
+            'app_title': 'テクスチャソーター',
+            'app_version': 'バージョン {version}',
+            'menu_file': 'ファイル',
+            'menu_edit': '編集',
+            'menu_view': '表示',
+            'menu_tools': 'ツール',
+            'menu_help': 'ヘルプ',
+            'file_open': '開く',
+            'file_save': '保存',
+            'file_export': 'エクスポート',
+            'file_exit': '終了',
+            'btn_start': '開始',
+            'btn_stop': '停止',
+            'btn_pause': '一時停止',
+            'btn_resume': '再開',
+            'btn_cancel': 'キャンセル',
+            'btn_ok': 'OK',
+            'btn_apply': '適用',
+            'btn_close': '閉じる',
+            'btn_save': '保存',
+            'btn_load': '読み込み',
+            'btn_reset': 'リセット',
+            'processing_title': 'テクスチャを処理中',
+            'processing_status': '{total}ファイル中{current}を処理中',
+            'processing_complete': '処理完了！',
+            'processing_cancelled': '処理がキャンセルされました',
+            'processing_error': '処理エラー',
+            'settings_title': '設定',
+            'settings_general': '一般',
+            'settings_ui': 'ユーザーインターフェース',
+            'settings_performance': 'パフォーマンス',
+            'settings_language': '言語',
+            'settings_hotkeys': 'ショートカットキー',
+            'panda_title': 'パンダコンパニオン',
+            'panda_mood': '気分: {mood}',
+            'panda_level': 'レベル {level}',
+            'panda_xp': '{current} / {max} XP',
+            'panda_click_me': 'クリックして！ 🐼',
+            'panda_happy': '幸せ',
+            'panda_working': '作業中',
+            'panda_celebrating': 'お祝い中',
+            'panda_tired': '疲れた',
+            'panda_playing': '遊んでいる',
+            'panda_eating': '食べている',
+            'common_yes': 'はい',
+            'common_no': 'いいえ',
+            'common_confirm': '確認',
+            'common_warning': '警告',
+            'common_error': 'エラー',
+            'common_success': '成功',
+            'common_loading': '読み込み中...',
+            'common_saving': '保存中...',
+            'msg_welcome': 'ゲームテクスチャソーターへようこそ！ 🐼',
+            'msg_ready': 'テクスチャを分類する準備ができました',
+            'msg_no_files': 'ファイルが選択されていません',
+            'msg_operation_complete': '操作が正常に完了しました',
+            'msg_operation_failed': '操作に失敗しました: {error}',
+        }
+
+    def _get_chinese_translations(self) -> Dict[str, str]:
+        """Get Chinese (Simplified) translations."""
+        return {
+            'app_title': '纹理分类器',
+            'app_version': '版本 {version}',
+            'menu_file': '文件',
+            'menu_edit': '编辑',
+            'menu_view': '视图',
+            'menu_tools': '工具',
+            'menu_help': '帮助',
+            'file_open': '打开',
+            'file_save': '保存',
+            'file_export': '导出',
+            'file_exit': '退出',
+            'btn_start': '开始',
+            'btn_stop': '停止',
+            'btn_pause': '暂停',
+            'btn_resume': '继续',
+            'btn_cancel': '取消',
+            'btn_ok': '确定',
+            'btn_apply': '应用',
+            'btn_close': '关闭',
+            'btn_save': '保存',
+            'btn_load': '加载',
+            'btn_reset': '重置',
+            'processing_title': '正在处理纹理',
+            'processing_status': '正在处理第{current}/{total}个文件',
+            'processing_complete': '处理完成！',
+            'processing_cancelled': '处理已取消',
+            'processing_error': '处理错误',
+            'settings_title': '设置',
+            'settings_general': '常规',
+            'settings_ui': '用户界面',
+            'settings_performance': '性能',
+            'settings_language': '语言',
+            'settings_hotkeys': '快捷键',
+            'panda_title': '熊猫伙伴',
+            'panda_mood': '心情: {mood}',
+            'panda_level': '{level}级',
+            'panda_xp': '{current} / {max} 经验',
+            'panda_click_me': '点我！🐼',
+            'panda_happy': '开心',
+            'panda_working': '工作中',
+            'panda_celebrating': '庆祝中',
+            'panda_tired': '疲倦',
+            'panda_playing': '玩耍中',
+            'panda_eating': '进食中',
+            'common_yes': '是',
+            'common_no': '否',
+            'common_confirm': '确认',
+            'common_warning': '警告',
+            'common_error': '错误',
+            'common_success': '成功',
+            'common_loading': '加载中...',
+            'common_saving': '保存中...',
+            'msg_welcome': '欢迎使用游戏纹理分类器！🐼',
+            'msg_ready': '准备好分类纹理',
+            'msg_no_files': '未选择文件',
+            'msg_operation_complete': '操作已成功完成',
+            'msg_operation_failed': '操作失败: {error}',
+        }
+
+    def _get_portuguese_translations(self) -> Dict[str, str]:
+        """Get Portuguese (Brazilian) translations."""
+        return {
+            'app_title': 'Classificador de Texturas',
+            'app_version': 'Versão {version}',
+            'menu_file': 'Arquivo',
+            'menu_edit': 'Editar',
+            'menu_view': 'Exibir',
+            'menu_tools': 'Ferramentas',
+            'menu_help': 'Ajuda',
+            'file_open': 'Abrir',
+            'file_save': 'Salvar',
+            'file_export': 'Exportar',
+            'file_exit': 'Sair',
+            'btn_start': 'Iniciar',
+            'btn_stop': 'Parar',
+            'btn_pause': 'Pausar',
+            'btn_resume': 'Retomar',
+            'btn_cancel': 'Cancelar',
+            'btn_ok': 'OK',
+            'btn_apply': 'Aplicar',
+            'btn_close': 'Fechar',
+            'btn_save': 'Salvar',
+            'btn_load': 'Carregar',
+            'btn_reset': 'Redefinir',
+            'processing_title': 'Processando Texturas',
+            'processing_status': 'Processando {current} de {total} arquivos',
+            'processing_complete': 'Processamento Concluído!',
+            'processing_cancelled': 'Processamento Cancelado',
+            'processing_error': 'Erro de Processamento',
+            'settings_title': 'Configurações',
+            'settings_general': 'Geral',
+            'settings_ui': 'Interface do Usuário',
+            'settings_performance': 'Desempenho',
+            'settings_language': 'Idioma',
+            'settings_hotkeys': 'Atalhos de Teclado',
+            'panda_title': 'Companheiro Panda',
+            'panda_mood': 'Humor: {mood}',
+            'panda_level': 'Nível {level}',
+            'panda_xp': '{current} / {max} XP',
+            'panda_click_me': 'Clique em mim! 🐼',
+            'panda_happy': 'Feliz',
+            'panda_working': 'Trabalhando',
+            'panda_celebrating': 'Celebrando',
+            'panda_tired': 'Cansado',
+            'panda_playing': 'Brincando',
+            'panda_eating': 'Comendo',
+            'common_yes': 'Sim',
+            'common_no': 'Não',
+            'common_confirm': 'Confirmar',
+            'common_warning': 'Aviso',
+            'common_error': 'Erro',
+            'common_success': 'Sucesso',
+            'common_loading': 'Carregando...',
+            'common_saving': 'Salvando...',
+            'msg_welcome': 'Bem-vindo ao Classificador de Texturas! 🐼',
+            'msg_ready': 'Pronto para classificar texturas',
+            'msg_no_files': 'Nenhum arquivo selecionado',
+            'msg_operation_complete': 'Operação concluída com sucesso',
+            'msg_operation_failed': 'Operação falhou: {error}',
+        }
+
     def set_language(self, language: Language) -> bool:
         """
         Set the current language.

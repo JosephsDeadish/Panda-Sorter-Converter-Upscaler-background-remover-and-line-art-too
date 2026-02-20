@@ -115,6 +115,7 @@ class SettingsPanelQt(QWidget):
         self.tabs.addTab(self.create_performance_tab(), "🚀 Performance")
         self.tabs.addTab(self.create_ai_models_tab(), "🤖 AI Models")
         self.tabs.addTab(self.create_hotkeys_tab(), "⌨️ Hotkeys")
+        self.tabs.addTab(self.create_language_tab(), "🌐 Language")
         self.tabs.addTab(self.create_advanced_tab(), "🔧 Advanced")
         
         # Bottom buttons
@@ -814,6 +815,58 @@ class SettingsPanelQt(QWidget):
 
         layout.addStretch()
         return tab
+
+    def create_language_tab(self):
+        """Create language selection tab."""
+        tab = QWidget()
+        layout = QVBoxLayout(tab)
+        layout.setSpacing(12)
+
+        lang_group = QGroupBox("Application Language")
+        lang_layout = QVBoxLayout()
+
+        lang_layout.addWidget(QLabel(
+            "Select the display language for the application UI.\n"
+            "Some labels will update immediately; others after restart."
+        ))
+
+        self.language_combo = QComboBox()
+        _LANGUAGE_OPTIONS = [
+            ("English",    "en"),
+            ("Español",    "es"),
+            ("Français",   "fr"),
+            ("Deutsch",    "de"),
+            ("日本語",      "ja"),
+            ("中文",        "zh"),
+            ("Português",  "pt"),
+        ]
+        for label, code in _LANGUAGE_OPTIONS:
+            self.language_combo.addItem(label, userData=code)
+
+        # Pre-select saved language
+        saved_lang = self.config.get('ui', 'language', default='en')
+        for i in range(self.language_combo.count()):
+            if self.language_combo.itemData(i) == saved_lang:
+                self.language_combo.setCurrentIndex(i)
+                break
+
+        self.language_combo.currentIndexChanged.connect(self._on_language_changed)
+        lang_layout.addWidget(self.language_combo)
+        lang_group.setLayout(lang_layout)
+        layout.addWidget(lang_group)
+        layout.addStretch()
+        return tab
+
+    def _on_language_changed(self, index: int):
+        """Handle language combo box selection change."""
+        if self._updating:
+            return
+        lang_code = self.language_combo.itemData(index)
+        if lang_code:
+            self.config.set('ui', 'language', value=lang_code)
+            self.config.save()
+            self.settingsChanged.emit('ui.language', lang_code)
+            logger.info(f"Language changed to: {lang_code}")
 
     def create_advanced_tab(self):
         """Create advanced settings tab"""

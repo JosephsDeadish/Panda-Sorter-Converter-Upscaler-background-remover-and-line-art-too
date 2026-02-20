@@ -1121,6 +1121,71 @@ class TextureSorterMainWindow(QMainWindow):
             label.setAlignment(Qt.AlignmentFlag.AlignCenter)
             panda_tabs.addTab(label, "📜 Quests")
 
+        # ── Skill Tree tab ────────────────────────────────────────────────────
+        try:
+            skill_container = QWidget()
+            skill_layout = QVBoxLayout(skill_container)
+
+            title = QLabel("🌳 Skill Tree")
+            title.setStyleSheet("font-size: 16px; font-weight: bold; padding: 6px;")
+            skill_layout.addWidget(title)
+
+            # Summary: unlocked / total
+            skill_tree = getattr(self, 'skill_tree', None)
+            if skill_tree is not None:
+                unlocked = len(skill_tree.get_unlocked_skills())
+                total = len(skill_tree.skills)
+                summary = QLabel(
+                    f"Skills unlocked: {unlocked}/{total}\n"
+                    f"Branches: Combat · Magic · Exploration · Panda"
+                )
+            else:
+                summary = QLabel("Skill tree loading…")
+            summary.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            skill_layout.addWidget(summary)
+
+            # List unlockable skills with Unlock button
+            scroll = QScrollArea()
+            scroll.setWidgetResizable(True)
+            scroll.setFrameShape(QScrollArea.Shape.NoFrame)
+            inner = QWidget()
+            inner_layout = QVBoxLayout(inner)
+
+            _MAX_DISPLAYED_SKILLS = 20
+            if skill_tree is not None:
+                for skill in list(skill_tree.skills.values())[:_MAX_DISPLAYED_SKILLS]:
+                    row = QHBoxLayout()
+                    icon = "✅" if skill.unlocked else "🔒"
+                    lbl = QLabel(f"{icon} [{skill.branch}] {skill.name} — {skill.description}")
+                    lbl.setWordWrap(True)
+                    row.addWidget(lbl, stretch=1)
+                    if not skill.unlocked:
+                        btn = QPushButton("Unlock")
+                        _skill_id = skill.skill_id
+                        def create_unlock_handler(sid):
+                            def unlock_handler():
+                                lvl = getattr(self.level_system, 'level', 1) if self.level_system else 1
+                                pts = getattr(self.level_system, 'skill_points', 99) if self.level_system else 99
+                                ok = self.skill_tree.unlock_skill(sid, lvl, pts)
+                                if ok:
+                                    self.statusBar().showMessage(f"🌳 Skill unlocked!", 3000)
+                                    logger.info(f"Skill unlocked: {sid}")
+                            return unlock_handler
+                        btn.clicked.connect(create_unlock_handler(_skill_id))
+                        row.addWidget(btn)
+                    inner_layout.addLayout(row)
+                inner_layout.addStretch()
+
+            scroll.setWidget(inner)
+            skill_layout.addWidget(scroll)
+            panda_tabs.addTab(skill_container, "🌳 Skills")
+            logger.info("✅ Skill Tree tab added to panda tab")
+        except Exception as e:
+            logger.warning(f"Could not load skill tree tab: {e}")
+            label = QLabel("🌳 Skill Tree\n\nLevel up to unlock skills!")
+            label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            panda_tabs.addTab(label, "🌳 Skills")
+
         layout.addWidget(panda_tabs)
         return tab
     
