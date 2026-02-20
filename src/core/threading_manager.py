@@ -652,3 +652,8 @@ class ThreadingManager:
                 self.shutdown(wait=False)
         except Exception:
             pass
+
+
+    def stop(self, wait: bool = True) -> None:
+        """Alias for shutdown(); stops all worker threads."""
+        self.shutdown(wait=wait)

@@ -166,3 +166,8 @@ class MemoryManager:
             recommendations.append("Memory usage normal")
         
         return recommendations
+
+    def get_memory_info(self) -> dict:
+        """Alias for get_current_usage()."""
+        return self.get_current_usage()
+

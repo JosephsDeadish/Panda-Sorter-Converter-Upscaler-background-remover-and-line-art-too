@@ -746,8 +746,16 @@ class FileHandler:
         except Exception as e:
             logger.error(f"Error moving {source} to {destination}: {e}")
             return False
-    
-    def safe_delete(self, file_path: Path, use_trash=True) -> bool:
+
+    def move_file(self, source, destination, overwrite=False) -> bool:
+        """Alias for safe_move(); accepts str or Path arguments."""
+        return self.safe_move(Path(source), Path(destination), overwrite=overwrite)
+
+    def copy_file(self, source, destination, overwrite=False) -> bool:
+        """Alias for safe_copy(); accepts str or Path arguments."""
+        return self.safe_copy(Path(source), Path(destination), overwrite=overwrite)
+
+
         """
         Safely delete file (optionally to trash)
         
