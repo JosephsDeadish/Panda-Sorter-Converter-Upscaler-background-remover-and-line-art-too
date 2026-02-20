@@ -173,3 +173,4 @@ models/
 *.pth
 *.onnx
 weights/
+app_data/
