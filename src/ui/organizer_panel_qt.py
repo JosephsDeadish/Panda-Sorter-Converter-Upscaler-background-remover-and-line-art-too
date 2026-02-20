@@ -12,16 +12,86 @@ import threading
 import shutil
 from pathlib import Path
 from typing import List, Optional, Dict, Any, Tuple
-from PyQt6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
-    QFileDialog, QMessageBox, QProgressBar, QComboBox,
-    QCheckBox, QGroupBox, QScrollArea, QFrame, QPlainTextEdit,
-    QToolButton, QGridLayout, QLineEdit, QCompleter, QListWidget,
-    QSplitter, QTextEdit, QSpinBox, QDoubleSpinBox, QTabWidget,
-    QListWidgetItem, QInputDialog
-)
-from PyQt6.QtCore import Qt, QThread, pyqtSignal, QStringListModel, QTimer
-from PyQt6.QtGui import QFont, QPixmap, QImage
+try:
+    from PyQt6.QtWidgets import (
+        QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
+        QFileDialog, QMessageBox, QProgressBar, QComboBox,
+        QCheckBox, QGroupBox, QScrollArea, QFrame, QPlainTextEdit,
+        QToolButton, QGridLayout, QLineEdit, QCompleter, QListWidget,
+        QSplitter, QTextEdit, QSpinBox, QDoubleSpinBox, QTabWidget,
+        QListWidgetItem, QInputDialog
+    )
+    from PyQt6.QtCore import Qt, QThread, pyqtSignal, QStringListModel, QTimer
+    from PyQt6.QtGui import QFont, QPixmap, QImage
+    PYQT_AVAILABLE = True
+except ImportError:
+    PYQT_AVAILABLE = False
+    QWidget = object
+    QFrame = object
+    QThread = object
+    QSplitter = object
+    QTabWidget = object
+    QScrollArea = object
+    QGroupBox = object
+    def pyqtSignal(*args, **kwargs): return property(lambda self: None)
+    class Qt:
+        class AlignmentFlag:
+            AlignLeft = AlignRight = AlignCenter = AlignTop = AlignBottom = AlignHCenter = AlignVCenter = 0
+        class WindowType:
+            FramelessWindowHint = WindowStaysOnTopHint = Tool = Window = Dialog = 0
+        class CursorShape:
+            ArrowCursor = PointingHandCursor = BusyCursor = WaitCursor = CrossCursor = 0
+        class DropAction:
+            CopyAction = MoveAction = IgnoreAction = 0
+        class Key:
+            Key_Escape = Key_Return = Key_Space = Key_Delete = Key_Up = Key_Down = Key_Left = Key_Right = 0
+        class ScrollBarPolicy:
+            ScrollBarAlwaysOff = ScrollBarAsNeeded = ScrollBarAlwaysOn = 0
+        class ItemFlag:
+            ItemIsEnabled = ItemIsSelectable = ItemIsEditable = 0
+        class CheckState:
+            Unchecked = Checked = PartiallyChecked = 0
+        class Orientation:
+            Horizontal = Vertical = 0
+        class SortOrder:
+            AscendingOrder = DescendingOrder = 0
+        class MatchFlag:
+            MatchExactly = MatchContains = 0
+        class ItemDataRole:
+            DisplayRole = UserRole = DecorationRole = 0
+    class QFont:
+        def __init__(self, *a): pass
+    class QPixmap:
+        def __init__(self, *a): pass
+        def isNull(self): return True
+    class QImage:
+        def __init__(self, *a): pass
+    class QTimer:
+        def __init__(self, *a): pass
+        def start(self, *a): pass
+        def stop(self): pass
+        timeout = property(lambda self: type("S", (), {"connect": lambda s,f: None, "emit": lambda s: None})())
+    QCheckBox = object
+    QComboBox = object
+    QCompleter = object
+    QDoubleSpinBox = object
+    QFileDialog = object
+    QGridLayout = object
+    QHBoxLayout = object
+    QInputDialog = object
+    QLabel = object
+    QLineEdit = object
+    QListWidget = object
+    QListWidgetItem = object
+    QMessageBox = object
+    QPlainTextEdit = object
+    QProgressBar = object
+    QPushButton = object
+    QSpinBox = object
+    QStringListModel = object
+    QTextEdit = object
+    QToolButton = object
+    QVBoxLayout = object
 
 logger = logging.getLogger(__name__)
 

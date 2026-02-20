@@ -1,11 +1,60 @@
+from __future__ import annotations
 """
 PyQt6-based visual effects renderer using QGraphicsScene.
 Pure PyQt6 graphics rendering for visual effects and animations.
 """
 
-from PyQt6.QtWidgets import QGraphicsScene, QGraphicsEllipseItem, QGraphicsLineItem, QGraphicsPolygonItem
-from PyQt6.QtCore import Qt, QPointF, QLineF
-from PyQt6.QtGui import QColor, QPen, QBrush, QPolygonF
+try:
+    from PyQt6.QtWidgets import QGraphicsScene, QGraphicsEllipseItem, QGraphicsLineItem, QGraphicsPolygonItem
+    from PyQt6.QtCore import Qt, QPointF, QLineF
+    from PyQt6.QtGui import QColor, QPen, QBrush, QPolygonF
+    PYQT_AVAILABLE = True
+except ImportError:
+    PYQT_AVAILABLE = False
+    QGraphicsScene = object
+    QGraphicsEllipseItem = object
+    QGraphicsLineItem = object
+    class Qt:
+        class AlignmentFlag:
+            AlignLeft = AlignRight = AlignCenter = AlignTop = AlignBottom = AlignHCenter = AlignVCenter = 0
+        class WindowType:
+            FramelessWindowHint = WindowStaysOnTopHint = Tool = Window = Dialog = 0
+        class CursorShape:
+            ArrowCursor = PointingHandCursor = BusyCursor = WaitCursor = CrossCursor = 0
+        class DropAction:
+            CopyAction = MoveAction = IgnoreAction = 0
+        class Key:
+            Key_Escape = Key_Return = Key_Space = Key_Delete = Key_Up = Key_Down = Key_Left = Key_Right = 0
+        class ScrollBarPolicy:
+            ScrollBarAlwaysOff = ScrollBarAsNeeded = ScrollBarAlwaysOn = 0
+        class ItemFlag:
+            ItemIsEnabled = ItemIsSelectable = ItemIsEditable = 0
+        class CheckState:
+            Unchecked = Checked = PartiallyChecked = 0
+        class Orientation:
+            Horizontal = Vertical = 0
+        class SortOrder:
+            AscendingOrder = DescendingOrder = 0
+        class MatchFlag:
+            MatchExactly = MatchContains = 0
+        class ItemDataRole:
+            DisplayRole = UserRole = DecorationRole = 0
+    class QColor:
+        def __init__(self, *a): pass
+        def name(self): return "#000000"
+        def isValid(self): return False
+    class QPen:
+        def __init__(self, *a): pass
+    class QBrush:
+        def __init__(self, *a): pass
+    class QPoint:
+        def __init__(self, x=0, y=0): self.x_=x; self.y_=y
+        def x(self): return self.x_
+        def y(self): return self.y_
+    QPointF = QPoint
+    QGraphicsPolygonItem = object
+    QLineF = object
+    QPolygonF = object
 import math
 from typing import List, Tuple, Optional
 

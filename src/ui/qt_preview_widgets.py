@@ -1,13 +1,73 @@
+from __future__ import annotations
 """
 Qt Preview Widgets - Unified preview system for tool panels
 Replaces canvas-based previews in customization, closet, widgets panels
 """
 
-from PyQt6.QtWidgets import (QWidget, QLabel, QVBoxLayout, QHBoxLayout,
-                              QScrollArea, QGridLayout, QListWidget,
-                              QListWidgetItem, QPushButton, QColorDialog)
-from PyQt6.QtCore import Qt, pyqtSignal, QSize
-from PyQt6.QtGui import QPixmap, QPainter, QColor, QImage, QPen, QBrush, QFont
+try:
+    from PyQt6.QtWidgets import (QWidget, QLabel, QVBoxLayout, QHBoxLayout,
+                                  QScrollArea, QGridLayout, QListWidget,
+                                  QListWidgetItem, QPushButton, QColorDialog)
+    from PyQt6.QtCore import Qt, pyqtSignal, QSize
+    from PyQt6.QtGui import QPixmap, QPainter, QColor, QImage, QPen, QBrush, QFont
+    PYQT_AVAILABLE = True
+except ImportError:
+    PYQT_AVAILABLE = False
+    QWidget = object
+    QScrollArea = object
+    def pyqtSignal(*args, **kwargs): return property(lambda self: None)
+    class Qt:
+        class AlignmentFlag:
+            AlignLeft = AlignRight = AlignCenter = AlignTop = AlignBottom = AlignHCenter = AlignVCenter = 0
+        class WindowType:
+            FramelessWindowHint = WindowStaysOnTopHint = Tool = Window = Dialog = 0
+        class CursorShape:
+            ArrowCursor = PointingHandCursor = BusyCursor = WaitCursor = CrossCursor = 0
+        class DropAction:
+            CopyAction = MoveAction = IgnoreAction = 0
+        class Key:
+            Key_Escape = Key_Return = Key_Space = Key_Delete = Key_Up = Key_Down = Key_Left = Key_Right = 0
+        class ScrollBarPolicy:
+            ScrollBarAlwaysOff = ScrollBarAsNeeded = ScrollBarAlwaysOn = 0
+        class ItemFlag:
+            ItemIsEnabled = ItemIsSelectable = ItemIsEditable = 0
+        class CheckState:
+            Unchecked = Checked = PartiallyChecked = 0
+        class Orientation:
+            Horizontal = Vertical = 0
+        class SortOrder:
+            AscendingOrder = DescendingOrder = 0
+        class MatchFlag:
+            MatchExactly = MatchContains = 0
+        class ItemDataRole:
+            DisplayRole = UserRole = DecorationRole = 0
+    class QColor:
+        def __init__(self, *a): pass
+        def name(self): return "#000000"
+        def isValid(self): return False
+    class QFont:
+        def __init__(self, *a): pass
+    class QPixmap:
+        def __init__(self, *a): pass
+        def isNull(self): return True
+    class QImage:
+        def __init__(self, *a): pass
+    class QPainter:
+        def __init__(self, *a): pass
+    class QPen:
+        def __init__(self, *a): pass
+    class QBrush:
+        def __init__(self, *a): pass
+    class QSize:
+        def __init__(self, *a): pass
+    QColorDialog = object
+    QGridLayout = object
+    QHBoxLayout = object
+    QLabel = object
+    QListWidget = object
+    QListWidgetItem = object
+    QPushButton = object
+    QVBoxLayout = object
 from typing import List, Optional, Callable
 import math
 

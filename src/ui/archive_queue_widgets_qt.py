@@ -12,12 +12,54 @@ from enum import Enum
 from dataclasses import dataclass
 from datetime import datetime
 import threading
-from PyQt6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
-    QCheckBox, QComboBox, QLineEdit, QSlider, QFrame,
-    QScrollArea, QGroupBox
-)
-from PyQt6.QtCore import Qt, pyqtSignal
+try:
+    from PyQt6.QtWidgets import (
+        QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
+        QCheckBox, QComboBox, QLineEdit, QSlider, QFrame,
+        QScrollArea, QGroupBox
+    )
+    from PyQt6.QtCore import Qt, pyqtSignal
+    PYQT_AVAILABLE = True
+except ImportError:
+    PYQT_AVAILABLE = False
+    QWidget = object
+    QFrame = object
+    QScrollArea = object
+    QGroupBox = object
+    def pyqtSignal(*args, **kwargs): return property(lambda self: None)
+    class Qt:
+        class AlignmentFlag:
+            AlignLeft = AlignRight = AlignCenter = AlignTop = AlignBottom = AlignHCenter = AlignVCenter = 0
+        class WindowType:
+            FramelessWindowHint = WindowStaysOnTopHint = Tool = Window = Dialog = 0
+        class CursorShape:
+            ArrowCursor = PointingHandCursor = BusyCursor = WaitCursor = CrossCursor = 0
+        class DropAction:
+            CopyAction = MoveAction = IgnoreAction = 0
+        class Key:
+            Key_Escape = Key_Return = Key_Space = Key_Delete = Key_Up = Key_Down = Key_Left = Key_Right = 0
+        class ScrollBarPolicy:
+            ScrollBarAlwaysOff = ScrollBarAsNeeded = ScrollBarAlwaysOn = 0
+        class ItemFlag:
+            ItemIsEnabled = ItemIsSelectable = ItemIsEditable = 0
+        class CheckState:
+            Unchecked = Checked = PartiallyChecked = 0
+        class Orientation:
+            Horizontal = Vertical = 0
+        class SortOrder:
+            AscendingOrder = DescendingOrder = 0
+        class MatchFlag:
+            MatchExactly = MatchContains = 0
+        class ItemDataRole:
+            DisplayRole = UserRole = DecorationRole = 0
+    QCheckBox = object
+    QComboBox = object
+    QHBoxLayout = object
+    QLabel = object
+    QLineEdit = object
+    QPushButton = object
+    QSlider = object
+    QVBoxLayout = object
 
 logger = logging.getLogger(__name__)
 

@@ -6,9 +6,51 @@ Uses QIcon and QPixmap with Qt's native SVG support.
 
 
 from __future__ import annotations
-from PyQt6.QtGui import QIcon, QPixmap, QPainter
-from PyQt6.QtSvg import QSvgRenderer
-from PyQt6.QtCore import QSize, QByteArray, Qt
+try:
+    from PyQt6.QtGui import QIcon, QPixmap, QPainter
+    from PyQt6.QtSvg import QSvgRenderer
+    from PyQt6.QtCore import QSize, QByteArray, Qt
+    PYQT_AVAILABLE = True
+except ImportError:
+    PYQT_AVAILABLE = False
+    class Qt:
+        class AlignmentFlag:
+            AlignLeft = AlignRight = AlignCenter = AlignTop = AlignBottom = AlignHCenter = AlignVCenter = 0
+        class WindowType:
+            FramelessWindowHint = WindowStaysOnTopHint = Tool = Window = Dialog = 0
+        class CursorShape:
+            ArrowCursor = PointingHandCursor = BusyCursor = WaitCursor = CrossCursor = 0
+        class DropAction:
+            CopyAction = MoveAction = IgnoreAction = 0
+        class Key:
+            Key_Escape = Key_Return = Key_Space = Key_Delete = Key_Up = Key_Down = Key_Left = Key_Right = 0
+        class ScrollBarPolicy:
+            ScrollBarAlwaysOff = ScrollBarAsNeeded = ScrollBarAlwaysOn = 0
+        class ItemFlag:
+            ItemIsEnabled = ItemIsSelectable = ItemIsEditable = 0
+        class CheckState:
+            Unchecked = Checked = PartiallyChecked = 0
+        class Orientation:
+            Horizontal = Vertical = 0
+        class SortOrder:
+            AscendingOrder = DescendingOrder = 0
+        class MatchFlag:
+            MatchExactly = MatchContains = 0
+        class ItemDataRole:
+            DisplayRole = UserRole = DecorationRole = 0
+    class QIcon:
+        def __init__(self, *a): pass
+    class QPixmap:
+        def __init__(self, *a): pass
+        def isNull(self): return True
+    class QPainter:
+        def __init__(self, *a): pass
+    class QSvgRenderer:
+        def __init__(self, *a): pass
+    class QSize:
+        def __init__(self, *a): pass
+    class QByteArray:
+        def __init__(self, *a): pass
 from pathlib import Path
 from typing import Optional, Dict, List, Tuple
 import logging
