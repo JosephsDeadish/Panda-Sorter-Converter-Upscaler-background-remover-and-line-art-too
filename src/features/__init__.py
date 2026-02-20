@@ -26,7 +26,8 @@ from .batch_operations import BatchQueue, Operation, OperationStatus, OperationP
 __all__.extend(['BatchQueue', 'Operation', 'OperationStatus', 'OperationPriority', 'BatchOperationHelper'])
 
 from .lod_replacement import LODReplacer, LODTexture, LODGroup
-__all__.extend(['LODReplacer', 'LODTexture', 'LODGroup'])
+LODReplacement = LODReplacer  # backward-compat alias
+__all__.extend(['LODReplacer', 'LODReplacement', 'LODTexture', 'LODGroup'])
 
 from .backup_system import BackupManager, BackupMetadata, RestorePoint
 __all__.extend(['BackupManager', 'BackupMetadata', 'RestorePoint'])
@@ -142,7 +143,8 @@ from .panda_interaction_behavior import InteractionBehavior, PandaInteractionBeh
 __all__.extend(['InteractionBehavior', 'PandaInteractionBehavior'])
 
 from .combat_system import AdventureLevel, CombatStats, DamageType
-__all__.extend(['AdventureLevel', 'CombatStats', 'DamageType'])
+CombatSystem = AdventureLevel  # backward-compat alias (AdventureLevel IS the combat system)
+__all__.extend(['AdventureLevel', 'CombatSystem', 'CombatStats', 'DamageType'])
 
 from .damage_system import (
     DamageCategory, DamageStage, DamageTracker, LimbDamage, LimbType, ProjectileStuck,

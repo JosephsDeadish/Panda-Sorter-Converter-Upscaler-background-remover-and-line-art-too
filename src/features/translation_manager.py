@@ -160,12 +160,13 @@ class TranslationManager:
     
     def _load_translations(self) -> None:
         """Load translations from resource files."""
+        import importlib  # stdlib — move to inner scope to avoid polluting module namespace
+
         # Resolve get_resource_path regardless of how this module was imported.
         def _get_resource_path(*parts):
             """Try multiple import strategies to locate get_resource_path."""
             for mod_name in ('config', 'src.config'):
                 try:
-                    import importlib
                     mod = importlib.import_module(mod_name)
                     return mod.get_resource_path(*parts)
                 except (ImportError, AttributeError):

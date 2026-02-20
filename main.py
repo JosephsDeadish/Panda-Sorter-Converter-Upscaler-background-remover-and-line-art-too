@@ -288,6 +288,17 @@ class TextureSorterMainWindow(QMainWindow):
         self.drag_drop_handler = None
         self.translation_manager = None
         self.environment_monitor = None
+
+        # Analytics / data systems
+        self.statistics_tracker = None   # StatisticsTracker – per-op ETA/throughput
+        self.search_filter = None        # SearchFilter – file search with presets
+        self.profile_manager = None      # ProfileManager – org profile load/save
+        self.backup_manager = None       # BackupManager – manual restore-point backups
+        self.game_identifier = None      # GameIdentifier – CRC/serial game detection
+        self.lod_replacer = None         # LODReplacer – LOD group scanner/replacer
+        self.batch_queue = None          # BatchQueue – priority operation queue
+        self.panda_character = None      # PandaCharacter – panda personality/animations
+        self.panda_stats = None          # PandaStats – panda happiness/hunger/energy
         
         # Paths
         self.input_path = None
@@ -1860,6 +1871,86 @@ class TextureSorterMainWindow(QMainWindow):
             except Exception as e:
                 logger.warning(f"Could not initialize EnvironmentMonitor: {e}")
 
+            # Initialize StatisticsTracker — tracks per-operation throughput/ETA/errors
+            try:
+                from features.statistics import StatisticsTracker
+                self.statistics_tracker = StatisticsTracker()
+                logger.info("StatisticsTracker initialized")
+            except Exception as e:
+                logger.warning(f"Could not initialize StatisticsTracker: {e}")
+
+            # Initialize SearchFilter — file search/filter with presets and favorites
+            try:
+                from features.search_filter import SearchFilter
+                self.search_filter = SearchFilter()
+                logger.info("SearchFilter initialized")
+            except Exception as e:
+                logger.warning(f"Could not initialize SearchFilter: {e}")
+
+            # Initialize ProfileManager — organization profile load/save/templates
+            try:
+                from features.profile_manager import ProfileManager
+                self.profile_manager = ProfileManager()
+                logger.info("ProfileManager initialized")
+            except Exception as e:
+                logger.warning(f"Could not initialize ProfileManager: {e}")
+
+            # Initialize BackupManager — manual restore-point backups of config/data
+            try:
+                from features.backup_system import BackupManager
+                _backup_root = Path(__file__).parent / 'app_data' / 'backups'
+                _backup_root.mkdir(parents=True, exist_ok=True)
+                self.backup_manager = BackupManager(backup_dir=_backup_root)
+                logger.info("BackupManager initialized")
+            except Exception as e:
+                logger.warning(f"Could not initialize BackupManager: {e}")
+
+            # Initialize GameIdentifier — CRC/serial-based game detection
+            try:
+                from features.game_identifier import GameIdentifier
+                self.game_identifier = GameIdentifier()
+                logger.info("GameIdentifier initialized")
+            except Exception as e:
+                logger.warning(f"Could not initialize GameIdentifier: {e}")
+
+            # Initialize LODReplacer — LOD group scanning and quality replacement
+            try:
+                from features.lod_replacement import LODReplacer
+                self.lod_replacer = LODReplacer()
+                logger.info("LODReplacer initialized")
+            except Exception as e:
+                logger.warning(f"Could not initialize LODReplacer: {e}")
+
+            # Initialize BatchQueue — priority queue for background operations
+            try:
+                from features.batch_operations import BatchQueue
+                self.batch_queue = BatchQueue()
+                logger.info("BatchQueue initialized")
+            except Exception as e:
+                logger.warning(f"Could not initialize BatchQueue: {e}")
+
+            # Initialize PandaCharacter — drives panda personality/animations
+            try:
+                from features.panda_character import PandaCharacter
+                self.panda_character = PandaCharacter()
+                logger.info("PandaCharacter initialized")
+            except Exception as e:
+                logger.warning(f"Could not initialize PandaCharacter: {e}")
+
+            # Initialize PandaStats — tracks panda happiness/hunger/energy
+            try:
+                from features.panda_stats import PandaStats
+                self.panda_stats = PandaStats()
+                # Load persisted stats if they exist
+                _stats_path = Path(__file__).parent / 'app_data' / 'panda_stats.json'
+                if _stats_path.exists():
+                    loaded = PandaStats.load_from_file(str(_stats_path))
+                    if loaded is not None:
+                        self.panda_stats = loaded
+                logger.info("PandaStats initialized")
+            except Exception as e:
+                logger.warning(f"Could not initialize PandaStats: {e}")
+
         except Exception as e:
             logger.error(f"Failed to initialize components: {e}", exc_info=True)
             self.log(f"⚠️ Warning: Some components failed to initialize: {e}")
@@ -1974,6 +2065,14 @@ class TextureSorterMainWindow(QMainWindow):
         except Exception:
             pass
 
+        # Set panda mood to WORKING during the sort
+        try:
+            if self.panda_character:
+                from features.panda_character import PandaMood
+                self.panda_character.set_mood(PandaMood.WORKING)
+        except Exception:
+            pass
+
         # Create worker thread
         self.worker = WorkerThread(self.perform_sorting)
         self.worker.progress.connect(self.update_progress)
@@ -2004,6 +2103,16 @@ class TextureSorterMainWindow(QMainWindow):
                 use_ai = False
             
             log_callback("🔍 Scanning input directory...")
+
+            # Auto-identify game from input path (non-blocking, best-effort)
+            if self.game_identifier:
+                try:
+                    game_info = self.game_identifier.identify_game(self.input_path)
+                    if game_info:
+                        game_name = getattr(game_info, 'name', str(game_info))
+                        log_callback(f"🎮 Detected game: {game_name}")
+                except Exception:
+                    pass
             
             # Collect texture files
             extensions = {'.dds', '.png', '.jpg', '.jpeg', '.tga', '.bmp', '.tif', '.tiff'}
@@ -2018,6 +2127,13 @@ class TextureSorterMainWindow(QMainWindow):
                 return
             
             log_callback(f"📊 Found {total_files} texture files")
+
+            # Initialize statistics tracker for this operation
+            if self.statistics_tracker:
+                try:
+                    self.statistics_tracker.set_total_files(total_files)
+                except Exception:
+                    pass
             
             # Process and move files
             moved_count = 0
@@ -2053,14 +2169,31 @@ class TextureSorterMainWindow(QMainWindow):
                         while target_path.exists():
                             target_path = target_folder / f"{base}_{counter}{ext}"
                             counter += 1
-                    
+
+                    import time as _time
+                    _t0 = _time.monotonic()
                     file_path.rename(target_path)
+                    _elapsed = _time.monotonic() - _t0
                     moved_count += 1
                     progress_callback(idx + 1, total_files, f"Moved {file_path.name} to {category}")
+                    # Record success in statistics tracker
+                    if self.statistics_tracker:
+                        try:
+                            self.statistics_tracker.record_file_processed(
+                                category, file_path.stat().st_size, _elapsed, success=True
+                            )
+                        except Exception:
+                            pass
                 except Exception as e:
                     failed_count += 1
                     log_callback(f"⚠️ Failed to move {file_path.name}: {e}")
                     progress_callback(idx + 1, total_files, f"Failed: {file_path.name}")
+                    # Record failure in statistics tracker
+                    if self.statistics_tracker:
+                        try:
+                            self.statistics_tracker.record_error('move_failed', str(e))
+                        except Exception:
+                            pass
             
             # Report results
             log_callback(f"\n✅ Sorting completed!")
@@ -2194,6 +2327,21 @@ class TextureSorterMainWindow(QMainWindow):
                     self.quest_system.check_quests(files_processed)
             except Exception:
                 pass
+            # Update panda stats with files processed
+            try:
+                if self.panda_stats and files_processed > 0:
+                    # Increment files_processed counter directly (avoids O(N) loop for large counts)
+                    self.panda_stats.files_processed = getattr(self.panda_stats, 'files_processed', 0) + files_processed
+                    self.panda_stats.add_experience(files_processed * 2)
+            except Exception:
+                pass
+            # Update panda character mood (happy after a successful sort)
+            try:
+                if self.panda_character:
+                    from features.panda_character import PandaMood
+                    self.panda_character.set_mood(PandaMood.HAPPY)
+            except Exception:
+                pass
         else:
             self.log(f"❌ {message}")
             QMessageBox.critical(self, "Error", message)
@@ -2202,6 +2350,15 @@ class TextureSorterMainWindow(QMainWindow):
                 if self.sound_manager:
                     from features.sound_manager import SoundEvent
                     self.sound_manager.play_sound(SoundEvent.ERROR)
+            except Exception:
+                pass
+            # Track failure in panda stats
+            try:
+                if self.panda_stats:
+                    self.panda_stats.track_operation_failure()
+                if self.panda_character:
+                    from features.panda_character import PandaMood
+                    self.panda_character.set_mood(PandaMood.TIRED)
             except Exception:
                 pass
     
@@ -2368,6 +2525,15 @@ class TextureSorterMainWindow(QMainWindow):
             try:
                 if self.achievement_system:
                     self.achievement_system.unlock_achievement('panda_lover')
+            except Exception:
+                pass
+
+            # Record click in panda stats
+            try:
+                if self.panda_stats:
+                    self.panda_stats.increment_clicks()
+                if self.panda_character:
+                    self.panda_character.update_mood_from_context(files_processed=0)
             except Exception:
                 pass
 
@@ -2632,6 +2798,22 @@ class TextureSorterMainWindow(QMainWindow):
             try:
                 if self.perf_dashboard:
                     self.perf_dashboard.stop()
+            except Exception:
+                pass
+            try:
+                if self.panda_stats:
+                    _stats_path = Path(__file__).parent / 'app_data' / 'panda_stats.json'
+                    self.panda_stats.save_to_file(str(_stats_path))
+            except Exception:
+                pass
+            try:
+                if self.batch_queue:
+                    self.batch_queue.stop()
+            except Exception:
+                pass
+            try:
+                if self.threading_manager:
+                    self.threading_manager.stop()
             except Exception:
                 pass
     
