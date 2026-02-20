@@ -150,14 +150,39 @@ class EnemyGraphicsWidget(QGraphicsView):
             )
     
     def _update_movement(self):
-        """Update position toward target."""
+        """Update position toward target — move this widget toward target_widget."""
         if not self.target_widget:
             return
-        
-        # Simple movement logic
-        # In full implementation, would move toward target
-        # For now, just animate in place
-        pass
+
+        try:
+            # Convert both widgets' centres to global coordinates, then to the
+            # parent's local coordinate system so we can call move().
+            parent = self.parent()
+            if parent is None:
+                return
+
+            target_global = self.target_widget.mapToGlobal(
+                self.target_widget.rect().center()
+            )
+            target_local = parent.mapFromGlobal(target_global)
+
+            my_center = self.geometry().center()
+            dx = target_local.x() - my_center.x()
+            dy = target_local.y() - my_center.y()
+            dist = math.hypot(dx, dy)
+
+            if dist < self.ATTACK_RANGE:
+                self.attack_target()
+                return
+
+            speed = self.MOVE_SPEED_BASE * getattr(self.enemy, 'speed', 1.0)
+            if dist > 0:
+                step_x = (dx / dist) * speed
+                step_y = (dy / dist) * speed
+                new_pos = self.pos() + QPointF(step_x, step_y).toPoint()
+                self.move(new_pos)
+        except Exception:
+            pass
     
     def is_alive(self):
         """Check if enemy is still alive."""

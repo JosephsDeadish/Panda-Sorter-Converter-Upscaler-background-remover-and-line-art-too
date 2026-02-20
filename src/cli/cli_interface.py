@@ -7,6 +7,7 @@ Author: Dead On The Inside / JosephsDeadish
 import sys
 import argparse
 import logging
+import shutil
 from pathlib import Path
 from typing import Optional, Dict, Any, List
 from datetime import datetime
@@ -499,8 +500,29 @@ Author: {APP_AUTHOR}
                 }
                 
                 if not args.dry_run:
-                    # Actual processing would go here
-                    pass
+                    # Classify the texture
+                    if classifier is not None:
+                        try:
+                            predictions = classifier.classify_texture(texture_file)
+                            if predictions:
+                                top = predictions[0]
+                                file_result['category'] = top.get('category', 'unclassified')
+                                file_result['confidence'] = top.get('confidence', 0.0)
+                        except Exception as classify_err:
+                            logger.debug(f"Classification failed for {texture_file}: {classify_err}")
+
+                    # Organise (move/copy) the texture into the output directory
+                    if organizer is not None:
+                        try:
+                            category = file_result.get('category', 'unclassified')
+                            dest_folder = output_path / category
+                            dest_folder.mkdir(parents=True, exist_ok=True)
+                            dest_file = dest_folder / texture_file.name
+                            if not dest_file.exists():
+                                shutil.copy2(texture_file, dest_file)
+                                file_result['destination'] = str(dest_file)
+                        except Exception as org_err:
+                            logger.debug(f"Organisation failed for {texture_file}: {org_err}")
                 
                 results['processed'] += 1
                 results['files'].append(file_result)
