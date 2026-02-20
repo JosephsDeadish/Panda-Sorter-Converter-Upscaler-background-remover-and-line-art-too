@@ -222,14 +222,22 @@ class TextureSorterMainWindow(QMainWindow):
         self.hotkey_manager = None
         self.sound_manager = None
 
-        # Gamification systems (initialised in create_panda_features_tab)
+        # Gamification systems (initialised in create_panda_features_tab / initialize_components)
         self.achievement_system = None
         self.currency_system = None
         self.shop_system = None
         self.panda_closet = None
-        self.level_system = None  # UserLevelSystem – XP / levelling
-        self.auto_backup = None   # AutoBackupSystem – periodic state backup
-        
+        self.level_system = None        # UserLevelSystem – XP / levelling
+        self.auto_backup = None         # AutoBackupSystem – periodic state backup
+        self.unlockables_system = None  # UnlockablesSystem – cursors/themes/outfits
+
+        # UI sub-components declared here so setup_ui() can reference them safely
+        self.panda_widget = None        # PandaOpenGLWidget (3-D panda sidebar)
+        self.perf_dashboard = None      # PerformanceDashboard dock panel
+        self.tool_panels = {}           # {panel_id: widget}
+        self.tool_dock_widgets = {}     # {panel_id: QDockWidget}
+        self._last_sorted_count = 0     # files moved in last sort (for achievements)
+
         # Worker thread
         self.worker = None
         
@@ -313,14 +321,16 @@ class TextureSorterMainWindow(QMainWindow):
         # Create tools tab (includes sorting + all tools)
         self.create_tools_tab()
         
-        # Create Panda Features tab (separate from tools!)
-        if PANDA_WIDGET_AVAILABLE and self.panda_widget is not None:
-            try:
-                panda_features_tab = self.create_panda_features_tab()
-                self.tabs.addTab(panda_features_tab, "🐼 Panda")
-                logger.info("✅ Panda Features tab added to main tabs")
-            except Exception as e:
-                logger.error(f"Could not create Panda Features tab: {e}", exc_info=True)
+        # Create Panda Features tab (always shown; handles missing OpenGL gracefully)
+        # NOTE: self.panda_widget is still None here — it is created later in setup_ui()
+        # after the left-side content_widget is fully assembled.  create_panda_features_tab()
+        # guards all panda_widget references with getattr(..., None), so None is safe.
+        try:
+            panda_features_tab = self.create_panda_features_tab()
+            self.tabs.addTab(panda_features_tab, "🐼 Panda")
+            logger.info("✅ Panda Features tab added to main tabs")
+        except Exception as e:
+            logger.error(f"Could not create Panda Features tab: {e}", exc_info=True)
         
         # Create file browser tab
         self.create_file_browser_tab()
@@ -568,11 +578,8 @@ class TextureSorterMainWindow(QMainWindow):
         central_info.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(central_info, 1)
         
-        # Initialize tool panels as dock widgets
-        self.tool_panels = {}
-        self.tool_dock_widgets = {}
-        
-        # Create all tool panels and dock them
+        # Create all tool panels and dock them (tool_panels / tool_dock_widgets
+        # are already declared as {} in __init__ so no re-init needed here)
         self._create_tool_dock_panels()
         
         return tab
@@ -1653,6 +1660,14 @@ class TextureSorterMainWindow(QMainWindow):
                 logger.info("Auto-backup system started")
             except Exception as e:
                 logger.warning(f"Could not initialize auto-backup: {e}")
+
+            # Initialize unlockables system (cursors, themes, outfits)
+            try:
+                from features.unlockables_system import UnlockablesSystem
+                self.unlockables_system = UnlockablesSystem()
+                logger.info("Unlockables system initialized")
+            except Exception as e:
+                logger.warning(f"Could not initialize unlockables system: {e}")
 
         except Exception as e:
             logger.error(f"Failed to initialize components: {e}", exc_info=True)

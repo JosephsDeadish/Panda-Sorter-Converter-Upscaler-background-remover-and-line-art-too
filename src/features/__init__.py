@@ -100,3 +100,86 @@ __all__.extend(['CustomizationCategory', 'ClothingSubCategory',
 
 from .quest_system import QuestSystem, Quest, QuestType, QuestStatus
 __all__.extend(['QuestSystem', 'Quest', 'QuestType', 'QuestStatus'])
+
+# ---------------------------------------------------------------------------
+# Extended game / dungeon / panda-interaction feature modules
+# ---------------------------------------------------------------------------
+
+from .unlockables_system import (
+    UnlockablesSystem, UnlockableCursor, PandaOutfit, UnlockableTheme,
+    WaveAnimation, TooltipCollection, UnlockCondition, UnlockConditionType,
+)
+__all__.extend([
+    'UnlockablesSystem', 'UnlockableCursor', 'PandaOutfit', 'UnlockableTheme',
+    'WaveAnimation', 'TooltipCollection', 'UnlockCondition', 'UnlockConditionType',
+])
+
+from .skill_tree import SkillNode, SkillTree
+__all__.extend(['SkillNode', 'SkillTree'])
+
+from .travel_system import (
+    Location, LocationType, DungeonDifficulty, DungeonRoom,
+    ProceduralDungeon, TravelScene, TravelSceneType,
+)
+__all__.extend([
+    'Location', 'LocationType', 'DungeonDifficulty', 'DungeonRoom',
+    'ProceduralDungeon', 'TravelScene', 'TravelSceneType',
+])
+
+from .tutorial_categories import TutorialCategory, CategorizedTutorialStep
+__all__.extend(['TutorialCategory', 'CategorizedTutorialStep'])
+
+from .widget_detector import WidgetDetector
+__all__.append('WidgetDetector')
+
+from .panda_clothing_3d import (
+    AccessoryType, Bone, BoneType, ClothingMesh, ClothingSystem, ClothingType, LODLevel,
+)
+__all__.extend(['AccessoryType', 'Bone', 'BoneType', 'ClothingMesh',
+                'ClothingSystem', 'ClothingType', 'LODLevel'])
+
+from .panda_interaction_behavior import InteractionBehavior, PandaInteractionBehavior
+__all__.extend(['InteractionBehavior', 'PandaInteractionBehavior'])
+
+from .combat_system import AdventureLevel, CombatStats, DamageType
+__all__.extend(['AdventureLevel', 'CombatStats', 'DamageType'])
+
+from .damage_system import (
+    DamageCategory, DamageStage, DamageTracker, LimbDamage, LimbType, ProjectileStuck,
+)
+__all__.extend([
+    'DamageCategory', 'DamageStage', 'DamageTracker',
+    'LimbDamage', 'LimbType', 'ProjectileStuck',
+])
+
+from .dungeon_generator import BSPNode, Corridor, DungeonFloor, DungeonGenerator, Room
+__all__.extend(['BSPNode', 'Corridor', 'DungeonFloor', 'DungeonGenerator', 'Room'])
+
+from .enemy_manager import EnemyManager
+__all__.append('EnemyManager')
+
+from .enemy_system import Enemy, EnemyBehavior, EnemyCollection, EnemyTemplate, EnemyType
+__all__.extend(['Enemy', 'EnemyBehavior', 'EnemyCollection', 'EnemyTemplate', 'EnemyType'])
+
+from .environment_monitor import EnvironmentMonitor, EnvironmentalEvent
+__all__.extend(['EnvironmentMonitor', 'EnvironmentalEvent'])
+
+from .integrated_dungeon import IntegratedDungeon, LootItem, SpawnedEnemy
+__all__.extend(['IntegratedDungeon', 'LootItem', 'SpawnedEnemy'])
+
+from .projectile_system import Projectile, ProjectileManager, ProjectilePhysics, ProjectileType
+__all__.extend(['Projectile', 'ProjectileManager', 'ProjectilePhysics', 'ProjectileType'])
+
+from .weapon_system import Weapon, WeaponCollection, WeaponRarity, WeaponStats, WeaponType
+__all__.extend(['Weapon', 'WeaponCollection', 'WeaponRarity', 'WeaponStats', 'WeaponType'])
+
+from .preview_viewer import PreviewViewer
+__all__.append('PreviewViewer')
+
+# PreviewViewerWidget is Qt-specific; guard so headless imports still work
+try:
+    from .preview_viewer_qt import PreviewViewerWidget
+    __all__.append('PreviewViewerWidget')
+except ImportError as _e:
+    _log.debug(f"PreviewViewerWidget unavailable (PyQt6 missing?): {_e}")
+    PreviewViewerWidget = None  # type: ignore[assignment,misc]
