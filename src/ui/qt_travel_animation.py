@@ -62,7 +62,7 @@ except ImportError:
         def __init__(self, *a): pass
         def start(self, *a): pass
         def stop(self): pass
-        timeout = property(lambda self: type("S", (), {"connect": lambda s,f: None, "emit": lambda s: None})())
+        timeout = _SignalStub()
     class QPropertyAnimation:
         def __init__(self, *a): pass
         def start(self): pass
