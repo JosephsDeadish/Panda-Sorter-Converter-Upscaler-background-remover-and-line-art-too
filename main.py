@@ -283,6 +283,7 @@ class TextureSorterMainWindow(QMainWindow):
         self._sort_style_key = None     # organisation style key captured before worker starts
         self.view_menu = None           # Set by setup_menubar(); guarded in _update_tool_panels_menu
         self.file_browser_panel = None  # FileBrowserPanelQt tab widget
+        self.live_preview_widget = None # LivePreviewWidget side-pane in file browser tab
         self.notepad_panel = None       # NotepadPanelQt tab widget
         self.processing_queue_panel = None  # ProcessingQueueQt archive dock
 
@@ -1189,20 +1190,48 @@ class TextureSorterMainWindow(QMainWindow):
             label.setAlignment(Qt.AlignmentFlag.AlignCenter)
             panda_tabs.addTab(label, "🌳 Skills")
 
+        # 11. Creative Tools tab (Paint + Weapon Positioning)
+        try:
+            from ui.paint_tools_qt import create_paint_tools
+            from ui.weapon_positioning_qt import create_weapon_positioning_widget
+            tools_container = QWidget()
+            tools_layout = QVBoxLayout(tools_container)
+            tools_layout.setContentsMargins(4, 4, 4, 4)
+            tools_sub = QTabWidget()
+            paint_widget = create_paint_tools(tools_container)
+            if paint_widget:
+                tools_sub.addTab(paint_widget, "🖌️ Paint")
+            weapon_widget = create_weapon_positioning_widget(tools_container)
+            if weapon_widget:
+                tools_sub.addTab(weapon_widget, "⚔️ Weapons")
+            tools_layout.addWidget(tools_sub)
+            panda_tabs.addTab(tools_container, "🛠️ Tools")
+            logger.info("✅ Creative Tools tab added to panda tab")
+        except Exception as e:
+            logger.warning(f"Could not load creative tools tab: {e}")
+            label = QLabel("🛠️ Creative Tools\n\nRequires PyQt6 + OpenGL.")
+            label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            panda_tabs.addTab(label, "🛠️ Tools")
+
         layout.addWidget(panda_tabs)
         return tab
     
     def create_file_browser_tab(self):
         """Create file browser tab."""
         tab = QWidget()
-        layout = QVBoxLayout(tab)
-        layout.setContentsMargins(0, 0, 0, 0)
-        
+        outer_layout = QVBoxLayout(tab)
+        outer_layout.setContentsMargins(0, 0, 0, 0)
+
+        # Left: file browser panel
+        browser_container = QWidget()
+        browser_layout = QVBoxLayout(browser_container)
+        browser_layout.setContentsMargins(0, 0, 0, 0)
+
         try:
             if UI_PANELS_AVAILABLE:
                 tooltip_manager = getattr(self, 'tooltip_manager', None)
                 self.file_browser_panel = FileBrowserPanelQt(config, tooltip_manager)
-                layout.addWidget(self.file_browser_panel)
+                browser_layout.addWidget(self.file_browser_panel)
                 # Wire file browser signals so selections update the main path fields
                 if hasattr(self.file_browser_panel, 'file_selected'):
                     self.file_browser_panel.file_selected.connect(self._on_file_browser_file_selected)
@@ -1212,13 +1241,44 @@ class TextureSorterMainWindow(QMainWindow):
             else:
                 label = QLabel("⚠️ File browser requires PyQt6 and PIL\n\nInstall with: pip install PyQt6 Pillow")
                 label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-                layout.addWidget(label)
+                browser_layout.addWidget(label)
         except Exception as e:
             logger.error(f"Error loading file browser panel: {e}", exc_info=True)
             label = QLabel(f"⚠️ Error loading file browser:\n{e}")
             label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            layout.addWidget(label)
-        
+            browser_layout.addWidget(label)
+
+        # Right: optional live before/after preview pane
+        try:
+            from ui.live_preview_qt import create_live_preview
+            from PyQt6.QtWidgets import QSplitter
+            self.live_preview_widget = create_live_preview(tab)
+            if self.live_preview_widget:
+                self.live_preview_widget.setMinimumWidth(200)
+                splitter = QSplitter(Qt.Orientation.Horizontal)
+                splitter.addWidget(browser_container)
+                splitter.addWidget(self.live_preview_widget)
+                splitter.setSizes([600, 300])
+                outer_layout.addWidget(splitter)
+                # Connect file selection to populate live preview
+                if self.file_browser_panel and hasattr(self.file_browser_panel, 'file_selected'):
+                    def _on_file_for_preview(path):
+                        try:
+                            from PyQt6.QtGui import QPixmap
+                            px = QPixmap(str(path))
+                            if not px.isNull():
+                                self.live_preview_widget.set_original(px)
+                        except Exception:
+                            pass
+                    self.file_browser_panel.file_selected.connect(_on_file_for_preview)
+                logger.info("✅ Live preview pane added to file browser tab")
+            else:
+                outer_layout.addWidget(browser_container)
+        except Exception as e:
+            logger.debug(f"Live preview pane unavailable: {e}")
+            self.live_preview_widget = None
+            outer_layout.addWidget(browser_container)
+
         self.tabs.addTab(tab, "📁 File Browser")
     
     def create_notepad_tab(self):
