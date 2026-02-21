@@ -28,11 +28,16 @@ import queue
 logger = logging.getLogger(__name__)
 
 # Check for rembg availability (AI background removal)
+# SystemExit must also be caught: rembg.bg calls sys.exit(1) when
+# onnxruntime fails to initialise its DLL (e.g. on Windows CI without
+# a full GPU driver stack).  SystemExit is a BaseException, not an
+# Exception/ImportError, so it would otherwise escape the except clause
+# and crash PyInstaller's isolated binary-dependency analysis subprocesses.
 try:
     from rembg import remove, new_session
     HAS_REMBG = True
     logger.info("rembg available for AI background removal")
-except ImportError:
+except (ImportError, SystemExit):
     HAS_REMBG = False
     logger.warning("rembg not available - AI background removal disabled")
 
