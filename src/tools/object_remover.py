@@ -23,14 +23,27 @@ except ImportError:
 
 logger = logging.getLogger(__name__)
 
-# Check for rembg availability
-try:
-    from rembg import remove
-    from rembg import new_session
-    REMBG_AVAILABLE = True
-except ImportError:
-    REMBG_AVAILABLE = False
-    logger.warning("rembg not available. Object removal features disabled.")
+
+def _get_rembg():
+    """Lazily import rembg at call time to avoid crashing PyInstaller's isolated
+    binary-dependency analysis subprocesses.
+
+    rembg.bg calls ``sys.exit(1)`` when onnxruntime fails to initialize its DLL
+    (e.g. on Windows CI without a full GPU driver stack).  ``SystemExit`` is a
+    ``BaseException``, not an ``Exception`` / ``ImportError``, so it must be
+    caught explicitly.  We also catch the broad ``Exception`` family to handle
+    ``OSError`` / ``RuntimeError`` / DLL-provider init failures that surface
+    before the ``sys.exit`` path is reached.
+
+    Returns:
+        tuple: ``(remove_fn, new_session_fn)`` if rembg is available, else
+               ``(None, None)``.
+    """
+    try:
+        from rembg import remove, new_session  # type: ignore[import-untyped]
+        return remove, new_session
+    except (ImportError, Exception, SystemExit):
+        return None, None
 
 
 class ObjectRemover:
@@ -308,17 +321,25 @@ class ObjectRemover:
     def remove_object(self, model: Optional[str] = None) -> bool:
         """
         Remove the masked object from the image.
-        
+
+        rembg is imported lazily here (not at module level) so that a failed
+        onnxruntime DLL initialization cannot crash PyInstaller's isolated
+        binary-dependency analysis subprocesses during the build.
+
         Args:
             model: Model to use (default: current_model)
             
         Returns:
             True if successful
         """
-        if not REMBG_AVAILABLE:
-            logger.error("rembg not available")
+        rembg_remove, rembg_new_session = _get_rembg()
+        if rembg_remove is None:
+            logger.error(
+                "rembg is not available – object removal disabled. "
+                "Install with: pip install 'rembg[cpu]'"
+            )
             return False
-        
+
         if self.mask is None or self.original_image is None:
             return False
         
@@ -328,7 +349,7 @@ class ObjectRemover:
             # Initialize session if needed
             if self.session is None or self.current_model != model:
                 self.current_model = model
-                self.session = new_session(model)
+                self.session = rembg_new_session(model)
             
             # Our internal convention: black (0) = keep, white (255) = remove
             # We invert for rembg API which uses opposite convention
@@ -345,7 +366,7 @@ class ObjectRemover:
             rgb_image = self.original_image.convert("RGB")
             
             # Remove background
-            output = remove(
+            output = rembg_remove(
                 rgb_image,
                 session=self.session,
                 alpha_matting=True,

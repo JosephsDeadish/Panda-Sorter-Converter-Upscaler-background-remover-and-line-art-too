@@ -6,6 +6,78 @@
 
 A professional Windows application for automatically sorting game texture dumps with advanced AI classification, massive-scale support (200,000+ textures), and a modern panda-themed UI. Distributed as a one-folder package for fast startup and easy customization.
 
+---
+
+## 🧠 Hybrid PyTorch + ONNX Architecture
+
+The app uses a **hybrid AI architecture** designed for batch automation, offline inference, and optional training — all on old/low-spec hardware.
+
+```
+┌───────────────────────────────────────────────────────────┐
+│                     TRAINING SIDE                          │
+│  (optional — requires PyTorch, dev / power-user only)      │
+│                                                            │
+│  src/ai/training_pytorch.py                                │
+│  • Train custom upscalers / classifiers                    │
+│  • Fine-tune segmentation models                           │
+│  • Experimental architecture search                        │
+│  • Export weights → ONNX  ──────────────────┐             │
+└─────────────────────────────────────────────┼─────────────┘
+                                              │ export_to_onnx()
+┌─────────────────────────────────────────────▼─────────────┐
+│                    INFERENCE SIDE                          │
+│  (always-on, EXE-safe, no torch dependency)                │
+│                                                            │
+│  src/ai/inference.py  →  OnnxInferenceSession              │
+│  • Batch upscaling pipelines                               │
+│  • Automated background removal                            │
+│  • Offline texture classification                          │
+│  • Fast, low-memory, predictable performance               │
+└────────────────────────────────────────────────────────────┘
+```
+
+### Why this split?
+
+| Concern | Training side (PyTorch) | Inference side (ONNX) |
+|---|---|---|
+| Flexibility | ✅ Dynamic graphs, autograd | — |
+| Cold-start speed | ❌ JIT compilation | ✅ Instant |
+| Memory overhead | ❌ High (training state) | ✅ Low |
+| Batch throughput | Fine | ✅ Excellent |
+| EXE bundle size | ❌ ~700 MB | ✅ ~10 MB |
+| Old hardware | ❌ May OOM | ✅ CPU-first |
+| Required for main app | ❌ **No** | ✅ **Yes** |
+
+### Installing training extras
+
+Training features are **not** required to run the app. Install PyTorch separately:
+
+```bash
+# CPU-only (smallest download)
+pip install torch torchvision
+
+# GPU (CUDA 12.1) — see https://pytorch.org/get-started/locally/
+pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121
+```
+
+When PyTorch is absent, training panels are disabled with a clear "install extras" message. Everything else keeps working.
+
+### Background removal (optional rembg)
+
+Background removal uses `rembg` which depends on `onnxruntime`. It is **not** required for the main app and is **lazy-imported** at call time, so a failed DLL load cannot crash the app or the EXE build.
+
+```bash
+# CPU backend (recommended)
+pip install "rembg[cpu]"
+
+# GPU backend
+pip install "rembg[gpu]"
+```
+
+If `rembg` fails to import (DLL error, missing onnxruntime provider, `sys.exit(1)` from rembg itself), the app catches `Exception` **and** `SystemExit`, logs a warning, and reports "background removal unavailable" — it does **not** crash.
+
+---
+
 ## 🎉 Technical Highlights
 
 ### Modern Qt6 Architecture

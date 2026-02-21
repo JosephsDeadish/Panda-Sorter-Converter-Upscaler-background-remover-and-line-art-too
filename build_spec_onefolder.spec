@@ -220,10 +220,20 @@ a = Analysis(
         # rembg.bg calls sys.exit(1) when onnxruntime fails to load in PyInstaller's
         # isolated binary-dependency analysis subprocesses, killing the build.
         # onnxruntime binaries are still collected by hook-onnxruntime.py.
-        'onnxruntime',  # Required for offline AI model inference (src/ai/offline_model.py)
+        # rembg is now lazy-imported at call time in tools/background_remover.py
+        # and tools/object_remover.py so it cannot crash module-level import.
+        'onnxruntime',  # Required for offline AI model inference (src/ai/inference.py, src/ai/offline_model.py)
         'pooch',  # Required for ML model downloads (used by various AI/ML libraries)
         'requests',
-        # PyTorch - Core deep learning
+        # Hybrid inference modules (ONNX – always-on, no torch dependency)
+        'ai.inference',           # OnnxInferenceSession / run_batch_inference
+        # PyTorch training modules – optional; NOT required for normal app operation.
+        # They are lazy-imported inside ai.training_pytorch and only activated when
+        # the user explicitly triggers a training workflow.
+        # torch itself is still listed below so it is bundled when available on the
+        # build machine, keeping advanced features working in the EXE.
+        'ai.training_pytorch',    # PyTorchTrainer, export_to_onnx
+        # PyTorch - Core deep learning (optional: EXE works without torch)
         'torch',
         'torch._C',
         'torch.nn',
