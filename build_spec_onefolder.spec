@@ -189,16 +189,20 @@ a = Analysis(
         'PyQt6.QtOpenGLWidgets',
         'PyQt6.QtSvg',
         'PyQt6.sip',
-        # OpenGL for 3D rendering
+        # OpenGL for 3D rendering (panda widget uses PyOpenGL + Qt6 OpenGL widgets)
         'OpenGL',
         'OpenGL.GL',
         'OpenGL.GLU',
         'OpenGL.GLUT',
         'OpenGL.arrays',
         'OpenGL.arrays.vbo',
+        'OpenGL.arrays.ctypesarrays',
+        'OpenGL.arrays.ctypesparameters',
+        'OpenGL.arrays.numpymodule',
+        'OpenGL.arrays.numbers',
         'OpenGL.GL.shaders',
         'OpenGL.platform',
-        'OpenGL.platform.glx',
+        'OpenGL.platform.win32',   # Windows platform backend (replaces glx which is Linux-only)
         'darkdetect',
         # Utilities
         'psutil',
