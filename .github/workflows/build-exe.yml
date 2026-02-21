@@ -56,14 +56,16 @@ jobs:
           pip install "pyinstaller>=6.0.0"
       
       - name: Verify Critical Dependencies
+        env:
+          PYTHONUTF8: "1"
         run: |
-          python -c "import PyQt6; print('✅ PyQt6 available')"
-          python -c "import numpy; print('✅ numpy available')"
-          python -c "import PIL; print('✅ Pillow available')"
-          python -c "import cv2; print('✅ OpenCV available')"
-          python -c "import onnxruntime; print('✅ onnxruntime available')"
-          python -c "import yaml; print('✅ PyYAML ' + yaml.__version__ + ' available')"
-          echo "✅ All critical dependencies verified"
+          python -c "import PyQt6; print('OK PyQt6 available')"
+          python -c "import numpy; print('OK numpy available')"
+          python -c "import PIL; print('OK Pillow available')"
+          python -c "import cv2; print('OK OpenCV available')"
+          python -c "import onnxruntime; print('OK onnxruntime available')"
+          python -c "import yaml; print('OK PyYAML ' + yaml.__version__ + ' available')"
+          echo "All critical dependencies verified"
       
       - name: Run Syntax Validation
         run: |
