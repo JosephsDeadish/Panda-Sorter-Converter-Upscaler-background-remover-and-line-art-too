@@ -71,6 +71,23 @@ jobs:
         run: |
           python -m compileall -q .
           echo "✅ All Python files compiled successfully"
+
+      - name: Run Architecture & Import Safety Tests
+        # Validates that:
+        #   1. The tools package can be imported without calling sys.exit (rembg
+        #      lazy-import fix — the exact crash that broke the PyInstaller build).
+        #   2. torch is NOT imported at module level by the ai package.
+        #   3. ai.inference and ai.training_pytorch degrade gracefully when their
+        #      optional dependencies (onnxruntime, torch) are absent.
+        #   4. Unicode encoding works correctly on Windows.
+        env:
+          PYTHONUTF8: "1"
+          QT_QPA_PLATFORM: "offscreen"
+        run: |
+          python test_hybrid_architecture.py
+          echo "✅ Hybrid architecture tests passed"
+          python test_unicode_fix.py
+          echo "✅ Unicode encoding tests passed"
       
       - name: Create Resource Directories
         run: |
