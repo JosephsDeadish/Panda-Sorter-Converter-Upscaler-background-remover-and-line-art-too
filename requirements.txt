@@ -88,8 +88,8 @@ cairosvg>=2.7.0  # SVG to raster conversion (optional, only for loading SVG file
 cairocffi>=1.6.0  # Cairo FFI bindings (dependency of cairosvg)
 
 # AI/ML - Offline Model Inference (Optional)
-# IMPORTANT: onnxruntime is optional but recommended for rembg background removal
-# The application gracefully degrades if not available
+# IMPORTANT: onnxruntime is optional but recommended for offline AI model inference
+# (src/ai/offline_model.py). The application gracefully degrades if not available.
 onnxruntime>=1.16.0  # Lightweight offline AI model inference (optional, recommended)
 
 # ============================================================================
@@ -182,11 +182,13 @@ pyinstaller>=6.0.0  # Create standalone executables (>= 6.0.0 for security fixes
 #     break compatibility with some older code. Test before upgrading.
 #
 
-# AI Background Removal Tool (REQUIRED for background removal feature)
+# AI Background Removal Tool (Optional for background removal feature)
 # IMPORTANT: Must be installed with [cpu] or [gpu] extras to include onnxruntime backend
-# The background removal tool in the application depends on this
-rembg[cpu]>=2.0.50  # AI-powered background removal with CPU backend (REQUIRED)
-# onnxruntime is included via rembg[cpu], no need to specify separately
+# The background removal tool in the application uses this when available.
+# NOTE: rembg is excluded from the PyInstaller build (see build_spec_onefolder.spec)
+# because rembg.bg calls sys.exit(1) at import time when onnxruntime DLL init fails
+# in PyInstaller's isolated analysis subprocesses. Install for development/runtime use.
+rembg[cpu]>=2.0.50  # AI-powered background removal with CPU backend (optional)
 
 # Image Metadata
 piexif>=1.1.3  # EXIF metadata reading/writing for batch rename

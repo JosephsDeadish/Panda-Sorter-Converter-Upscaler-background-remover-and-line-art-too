@@ -26,7 +26,7 @@ logger = logging.getLogger(__name__)
 # Check for rembg availability
 try:
     from rembg import remove
-    from rembg.session import new_session
+    from rembg import new_session
     REMBG_AVAILABLE = True
 except ImportError:
     REMBG_AVAILABLE = False

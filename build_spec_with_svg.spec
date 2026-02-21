@@ -243,10 +243,13 @@ a = Analysis(
         'cairocffi.surfaces',
         'cairocffi.patterns',
         'cairocffi.fonts',
-        # Optional: Include if installed
-        'onnxruntime',
-        'rembg',
-        'pooch',  # Required for rembg model downloads
+        # AI inference and model download utilities
+        # Note: rembg is excluded from analysis (see excludes list below) because
+        # rembg.bg calls sys.exit(1) when onnxruntime fails to load in PyInstaller's
+        # isolated binary-dependency analysis subprocesses, killing the build.
+        # onnxruntime binaries are still collected by hook-onnxruntime.py.
+        'onnxruntime',  # Required for offline AI model inference (src/ai/offline_model.py)
+        'pooch',  # Required for ML model downloads (used by various AI/ML libraries)
         'requests',
         # PyTorch - Core deep learning
         'torch',
@@ -347,22 +350,30 @@ a = Analysis(
         'sphinx',
         'setuptools',
         'distutils',
-    ],
-    excludedimports=[
-        # rembg - prevent PyInstaller from following imports during analysis
-        # rembg calls sys.exit(1) at import time if onnxruntime fails to load
-        # This kills the PyInstaller subprocess during binary dependency analysis
-        # The hook-rembg.py will collect rembg modules safely without importing
+        
+        # rembg - excluded to prevent build failure:
+        # rembg.bg calls sys.exit(1) when onnxruntime fails to load.
+        # PyInstaller's find_binary_dependencies spawns isolated child subprocesses
+        # to call import_library(package) for every collected package.  In those
+        # subprocesses sys.exit() is NOT patched, so the call is fatal and raises
+        # RuntimeError in the parent, aborting the build.
+        # onnxruntime DLLs are still collected via hook-onnxruntime.py; rembg can be
+        # added back once onnxruntime initialises cleanly in isolated subprocesses.
         'rembg',
         'rembg.bg',
-        'rembg.session',
         'rembg.sessions',
+        'rembg.sessions.base',
+        'rembg.sessions.u2net',
+        'rembg.sessions.u2netp',
+        'rembg.sessions.u2net_human_seg',
+        'rembg.sessions.silueta',
         
-        # Additional problematic imports
-        'onnxscript',  # Not needed, causes warnings in torch.onnx
+        # ONNX scripting extension - not needed, causes warnings in torch.onnx
+        # (onnxscript covers all onnxscript.* submodules)
+        'onnxscript',
         'torch.onnx._internal.exporter._torchlib.ops',  # Tries to use onnxscript
         
-        # Upscaler modules - will download at runtime
+        # Upscaler modules - download at runtime via AI Model Manager
         'basicsr',
         'realesrgan',
     ],
@@ -407,25 +418,6 @@ a.binaries = [
     )
 ]
 print(f"Binary count after filtering: {len(a.binaries)}")
-
-# Filter out unnecessary files but keep essential tcl/tk data
-# Note: We filter demos and timezone data to reduce size, but keep core tcl/tk files
-a.datas = [x for x in a.datas if not x[0].startswith('tk/demos')]
-a.datas = [x for x in a.datas if not x[0].startswith('tcl/tzdata')]
-
-# Ensure we keep critical TCL/Tk initialization files
-# These are required for tkinter to work properly
-print("\n" + "="*70)
-print("TCL/TK DATA FILES CHECK")
-print("="*70)
-tcl_files = [x for x in a.datas if x[0].startswith(('tcl/', 'tk/'))]
-print(f"Found {len(tcl_files)} TCL/Tk data files")
-if tcl_files:
-    print("✓ TCL/Tk data files are included")
-else:
-    print("⚠ WARNING: No TCL/Tk data files found!")
-    print("  Tkinter may not work properly in the built executable.")
-print("="*70 + "\n")
 
 pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
 

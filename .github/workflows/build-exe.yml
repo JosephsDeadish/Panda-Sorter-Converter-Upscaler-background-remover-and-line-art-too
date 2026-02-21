@@ -44,15 +44,26 @@ jobs:
           # Install optional heavy deps (allow failures - app degrades gracefully)
           pip install timm transformers open-clip-torch || echo "⚠️  Some optional ML deps failed (non-fatal)"
           pip install basicsr realesrgan || echo "⚠️  basicsr/realesrgan failed (non-fatal, downloaded at runtime)"
-          # Install core requirements (skip already-installed torch/torchvision)
-          pip install -r requirements.txt --upgrade-strategy only-if-needed
+          # Pre-install optional packages that may fail on Windows CI before the main
+          # requirements install.  rembg is excluded from the PyInstaller build anyway.
+          pip install "rembg[cpu]>=2.0.50" || echo "⚠️  rembg failed (non-fatal, excluded from PyInstaller build)"
+          pip install cairosvg cairocffi || echo "⚠️  Cairo SVG support failed (non-fatal)"
+          # Install core requirements.  Use || echo so that any remaining optional-package
+          # failures (e.g. pytesseract if Tesseract is absent) do not abort the step.
+          # Critical packages are verified in the next step.
+          pip install -r requirements.txt --upgrade-strategy only-if-needed || echo "⚠️  Some requirements failed (non-fatal optional packages)"
           # Ensure PyInstaller is available
           pip install "pyinstaller>=6.0.0"
       
-      - name: Verify PyYAML in PyInstaller Environment
+      - name: Verify Critical Dependencies
         run: |
-          python -c "import yaml; print(f'PyYAML {yaml.__version__} is available')"
-          echo "✅ PyYAML is installed in the same Python environment as PyInstaller"
+          python -c "import PyQt6; print('✅ PyQt6 available')"
+          python -c "import numpy; print('✅ numpy available')"
+          python -c "import PIL; print('✅ Pillow available')"
+          python -c "import cv2; print('✅ OpenCV available')"
+          python -c "import onnxruntime; print('✅ onnxruntime available')"
+          python -c "import yaml; print('✅ PyYAML ' + yaml.__version__ + ' available')"
+          echo "✅ All critical dependencies verified"
       
       - name: Run Syntax Validation
         run: |
@@ -109,6 +120,11 @@ jobs:
       - name: Build with PyInstaller (One-Folder)
         env:
           PYTHONWARNINGS: "ignore::DeprecationWarning"
+          # Prevent onnxruntime from attempting to load CUDA DLLs in PyInstaller's
+          # isolated analysis subprocesses (they inherit this environment).
+          ORT_DISABLE_CUDA: "1"
+          CUDA_VISIBLE_DEVICES: ""
+          ORT_TENSORRT_UNAVAILABLE: "1"
         run: |
           echo "Starting PyInstaller build..."
           echo "Using hooks from:"

@@ -127,6 +127,7 @@ test_component_independence.py
 test_source_verification.py
 
 # Leftover summary/demo files from previous sessions
+SESSION_*.txt
 BUG_FIXES_*.md
 COMPLETION_*.md
 DOCS_CLEANUP_*.md

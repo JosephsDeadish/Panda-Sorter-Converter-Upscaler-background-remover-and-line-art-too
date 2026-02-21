@@ -215,10 +215,13 @@ a = Analysis(
         'pynput',
         'pynput.keyboard',
         'pynput.mouse',
-        # Background removal and AI tools
-        # Note: rembg is collected by hook-rembg.py with proper dependency handling
-        'onnxruntime',  # Required for rembg background removal
-        'pooch',  # Required for rembg model downloads
+        # AI inference and model download utilities
+        # Note: rembg is excluded from analysis (see excludes list below) because
+        # rembg.bg calls sys.exit(1) when onnxruntime fails to load in PyInstaller's
+        # isolated binary-dependency analysis subprocesses, killing the build.
+        # onnxruntime binaries are still collected by hook-onnxruntime.py.
+        'onnxruntime',  # Required for offline AI model inference (src/ai/offline_model.py)
+        'pooch',  # Required for ML model downloads (used by various AI/ML libraries)
         'requests',
         # PyTorch - Core deep learning
         'torch',
@@ -249,14 +252,6 @@ a = Analysis(
         # Upscaling models - Real-ESRGAN (REMOVED - will download at runtime)
         # Note: basicsr and realesrgan are now optional runtime dependencies
         # Models will be downloaded on first use via the AI Model Manager
-        # Rembg (AI background removal) - collected by hook-rembg.py
-        'rembg',
-        'rembg.sessions',
-        'rembg.sessions.base',
-        'rembg.sessions.u2net',
-        'rembg.sessions.u2netp',
-        'rembg.sessions.u2net_human_seg',
-        'rembg.sessions.silueta',
         # Additional Qt submodules used by the app
         'PyQt6.QtMultimedia',
         'PyQt6.QtPrintSupport',
@@ -317,8 +312,12 @@ a = Analysis(
         'onnx.reference',  # Causes exit code 3221225477 (DLL initialization failure)
         'onnx.reference.ops',
         'onnx.reference.ops._op_list',
-        'onnxscript',  # Optional scripting extension
-        'onnxscript.onnx_opset',
+        'onnxscript',  # Optional scripting extension (covers all onnxscript.* submodules)
+        'torch.onnx._internal.exporter._torchlib.ops',  # Tries to use onnxscript
+        
+        # Upscaler modules - download at runtime via AI Model Manager
+        'basicsr',
+        'realesrgan',
         
         # Cairo SVG: cairosvg/cairocffi require native Cairo DLL not available on Windows CI
         # SVG support is optional - the application handles missing cairosvg gracefully
@@ -343,24 +342,23 @@ a = Analysis(
         'sphinx',
         'setuptools',
         'distutils',
-    ],
-    excludedimports=[
-        # Additional problematic imports that need to be excluded via excludedimports
-        'onnxscript',  # Not needed, causes warnings in torch.onnx
-        'torch.onnx._internal.exporter._torchlib.ops',  # Tries to use onnxscript
         
-        # Upscaler modules - will download at runtime
-        'basicsr',
-        'realesrgan',
-        
-        # rembg - prevent PyInstaller from following imports during analysis
-        # rembg calls sys.exit(1) at import time if onnxruntime fails to load
-        # This kills the PyInstaller subprocess during binary dependency analysis
-        # The hook-rembg.py will collect rembg modules safely without importing
+        # rembg - excluded to prevent build failure:
+        # rembg.bg calls sys.exit(1) when onnxruntime fails to load.
+        # PyInstaller's find_binary_dependencies spawns isolated child subprocesses
+        # to call import_library(package) for every collected package.  In those
+        # subprocesses sys.exit() is NOT patched, so the call is fatal and raises
+        # RuntimeError in the parent, aborting the build.
+        # onnxruntime DLLs are still collected via hook-onnxruntime.py; rembg can be
+        # added back once onnxruntime initialises cleanly in isolated subprocesses.
         'rembg',
         'rembg.bg',
-        'rembg.session',
         'rembg.sessions',
+        'rembg.sessions.base',
+        'rembg.sessions.u2net',
+        'rembg.sessions.u2netp',
+        'rembg.sessions.u2net_human_seg',
+        'rembg.sessions.silueta',
     ],
     win_no_prefer_redirects=False,
     win_private_assemblies=False,
