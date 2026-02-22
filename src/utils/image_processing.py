@@ -18,7 +18,7 @@ try:
     from PIL import Image, ImageOps, ImageFile
     HAS_PIL = True
     ImageFile.LOAD_TRUNCATED_IMAGES = True
-except ImportError:
+except (ImportError, OSError):
     HAS_PIL = False
     Image = None       # type: ignore[assignment]
     ImageOps = None    # type: ignore[assignment]
@@ -29,7 +29,7 @@ except ImportError:
 try:
     import numpy as np
     HAS_NUMPY = True
-except ImportError:
+except (ImportError, OSError):
     HAS_NUMPY = False
     np = None  # type: ignore[assignment]
     logger.warning("numpy not available — image processing limited. "
@@ -38,7 +38,7 @@ except ImportError:
 try:
     import cv2
     HAS_CV2 = True
-except ImportError:
+except (ImportError, OSError):
     HAS_CV2 = False
     cv2 = None  # type: ignore[assignment]
     logger.warning("OpenCV not available — advanced image ops disabled. "

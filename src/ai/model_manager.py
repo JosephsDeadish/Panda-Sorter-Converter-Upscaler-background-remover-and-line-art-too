@@ -15,7 +15,7 @@ from typing import Dict, List, Optional, Any
 try:
     import numpy as np
     HAS_NUMPY = True
-except ImportError:
+except (ImportError, OSError):
     HAS_NUMPY = False
     logger.error("numpy not available - limited functionality")
     logger.error("Install with: pip install numpy")

@@ -10,13 +10,13 @@ from typing import List, Dict, Any, Optional, Union
 try:
     import numpy as np
     HAS_NUMPY = True
-except ImportError:
+except (ImportError, OSError):
     np = None  # type: ignore[assignment]
     HAS_NUMPY = False
 try:
     from PIL import Image
     HAS_PIL = True
-except ImportError:
+except (ImportError, OSError):
     HAS_PIL = False
 
 

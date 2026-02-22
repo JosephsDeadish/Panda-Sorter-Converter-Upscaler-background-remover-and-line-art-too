@@ -24,7 +24,7 @@ from typing import List, Optional, Tuple
 try:
     import numpy as np
     HAS_NUMPY = True
-except ImportError:
+except (ImportError, OSError):
     np = None  # type: ignore[assignment]
     HAS_NUMPY = False
 
@@ -38,7 +38,7 @@ try:
 
     NATIVE_AVAILABLE = True
     logger.info("Native Rust acceleration module loaded successfully")
-except ImportError:
+except (ImportError, OSError):
     _native = None
     NATIVE_AVAILABLE = False
     logger.debug("Native Rust acceleration module not available, using Python fallbacks")
@@ -222,7 +222,7 @@ def edge_density(image: np.ndarray) -> float:
         gray = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
         edges = cv2.Canny(gray, 50, 150)
         return float(np.sum(edges > 0)) / edges.size
-    except ImportError:
+    except (ImportError, OSError):
         return 0.0
 
 
@@ -322,7 +322,7 @@ def bitmap_to_svg(
         svg_parts.append("</svg>")
         return "\n".join(svg_parts)
 
-    except ImportError:
+    except (ImportError, OSError):
         logger.warning("OpenCV not available for bitmap_to_svg fallback")
         return None
     except Exception as e:

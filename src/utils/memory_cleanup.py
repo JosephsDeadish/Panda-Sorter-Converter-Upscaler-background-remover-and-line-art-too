@@ -14,7 +14,7 @@ from threading import Lock
 try:
     from PIL import Image
     HAS_PIL = True
-except ImportError:
+except (ImportError, OSError):
     HAS_PIL = False
 
 

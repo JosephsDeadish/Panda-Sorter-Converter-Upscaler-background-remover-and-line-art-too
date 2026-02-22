@@ -6,7 +6,7 @@ Author: Dead On The Inside / JosephsDeadish
 try:
     import psutil
     HAS_PSUTIL = True
-except ImportError:
+except (ImportError, OSError):
     psutil = None  # type: ignore[assignment]
     HAS_PSUTIL = False
 import gc

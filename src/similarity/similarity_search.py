@@ -12,7 +12,7 @@ from typing import List, Dict, Any, Optional, Tuple
 try:
     import numpy as np
     HAS_NUMPY = True
-except ImportError:
+except (ImportError, OSError):
     np = None  # type: ignore[assignment]
     HAS_NUMPY = False
 import pickle
@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 try:
     import faiss
     FAISS_AVAILABLE = True
-except ImportError:
+except (ImportError, OSError, RuntimeError):
     FAISS_AVAILABLE = False
     logger.warning("FAISS not available. Similarity search disabled.")
 

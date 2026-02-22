@@ -58,7 +58,7 @@ logger = logging.getLogger(__name__)
 try:
     import numpy as np
     _HAS_NUMPY = True
-except ImportError:  # pragma: no cover
+except (ImportError, OSError):  # pragma: no cover
     np = None  # type: ignore[assignment]
     _HAS_NUMPY = False
 
