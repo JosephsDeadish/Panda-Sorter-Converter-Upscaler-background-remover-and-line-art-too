@@ -27,6 +27,17 @@ jobs:
       actions: read    # Required for workflow actions
     
     steps:
+      - name: Enable Windows Long Paths
+        # WinError 206 ("filename or extension too long") fires when PyInstaller's
+        # isolated analysis subprocesses try os.add_dll_directory() on the long
+        # hostedtoolcache path (e.g. …\Python\3.11.9\x64\Lib\site-packages\torch\lib).
+        # Enabling NTFS long-path support removes the 260-char MAX_PATH limit.
+        run: |
+          reg add "HKLM\SYSTEM\CurrentControlSet\Control\FileSystem" /v LongPathsEnabled /t REG_DWORD /d 1 /f
+          git config --global core.longpaths true
+          echo "Windows long path support enabled"
+        shell: cmd
+
       - name: Checkout Repository
         uses: actions/checkout@v4
       

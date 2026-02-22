@@ -12,6 +12,6 @@ try:
     from .customization_panel_qt import CustomizationPanelQt
     from .archive_queue_widgets_qt import ProcessingQueueQt
     __all__ = ['ColorWheelWidget', 'CustomizationPanelQt', 'ProcessingQueueQt']
-except ImportError as _e:
+except Exception as _e:
     _log.debug(f"Qt UI widgets not available (PyQt6 not installed?): {_e}")
     __all__ = []

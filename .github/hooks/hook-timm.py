@@ -15,7 +15,11 @@ excludedimports = []
 # Collect all timm submodules
 hiddenimports = collect_submodules('timm')
 
-# Collect timm data files (model configs, etc.)
-datas = collect_data_files('timm', include_py_files=False)
+# Collect timm data files AND Python source files.
+# TorchScript requires access to the .py source files at runtime to compile
+# model scripts.  Without include_py_files=True the frozen EXE raises:
+#   "Can't get source for class 'timm.models.hrnet.ModuleInterface'"
+# because PyInstaller compiles .py → .pyc but doesn't keep the raw sources.
+datas = collect_data_files('timm', include_py_files=True)
 
 print(f"[timm hook] Collected {len(hiddenimports)} modules and {len(datas)} data files")

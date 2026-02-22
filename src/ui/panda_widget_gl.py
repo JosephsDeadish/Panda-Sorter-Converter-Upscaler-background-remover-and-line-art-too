@@ -28,7 +28,12 @@ except (ImportError, OSError, RuntimeError):
     QStateMachine = object
     QMouseEvent = object  # Type hint fallback
     QTimer = object
-    pyqtSignal = lambda *args: None  # Dummy signal
+    class _SigStub:
+        def __init__(self, *a): pass
+        def connect(self, *a): pass
+        def disconnect(self, *a): pass
+        def emit(self, *a): pass
+    def pyqtSignal(*a): return _SigStub()  # type: ignore[misc]
 
 logger = logging.getLogger(__name__)
 
@@ -47,9 +52,9 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
     """
     
     # Signals for communication with main app
-    clicked = pyqtSignal() if QT_AVAILABLE else None
-    mood_changed = pyqtSignal(str) if QT_AVAILABLE else None
-    animation_changed = pyqtSignal(str) if QT_AVAILABLE else None
+    clicked = pyqtSignal()
+    mood_changed = pyqtSignal(str)
+    animation_changed = pyqtSignal(str)
     
     # Animation constants
     TARGET_FPS = 60

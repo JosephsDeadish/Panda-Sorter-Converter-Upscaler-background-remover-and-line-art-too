@@ -57,9 +57,14 @@ class PandaWidget2D(QWidget if _QT_AVAILABLE else object):  # type: ignore[misc]
         mood_changed = pyqtSignal(str)
         animation_changed = pyqtSignal(str)
     else:
-        clicked = None       # type: ignore[assignment]
-        mood_changed = None  # type: ignore[assignment]
-        animation_changed = None  # type: ignore[assignment]
+        class _SigStub:
+            def __init__(self, *a): pass
+            def connect(self, *a): pass
+            def disconnect(self, *a): pass
+            def emit(self, *a): pass
+        clicked = _SigStub()        # type: ignore[assignment]
+        mood_changed = _SigStub()   # type: ignore[assignment]
+        animation_changed = _SigStub()  # type: ignore[assignment]
 
     # ── Mood → background gradient colours ─────────────────────────────────────
     _MOOD_COLOURS: dict[str, tuple[str, str]] = {

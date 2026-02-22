@@ -21,7 +21,13 @@ try:
 except ImportError:
     PYQT_AVAILABLE = False
     class QWidget: pass
-    class pyqtSignal: pass
+    class _SigStub:
+        """Minimal signal stub so .connect() never raises AttributeError."""
+        def __init__(self, *a): pass
+        def connect(self, *a): pass
+        def disconnect(self, *a): pass
+        def emit(self, *a): pass
+    def pyqtSignal(*a): return _SigStub()  # type: ignore[misc]
 
 # Import PIL for image handling
 try:
@@ -55,8 +61,8 @@ class BackgroundRemoverPanelQt(QWidget):
     """Qt-based background remover panel with paint tools."""
     
     # Signals
-    image_loaded = pyqtSignal(str) if PYQT_AVAILABLE else None
-    processing_complete = pyqtSignal() if PYQT_AVAILABLE else None
+    image_loaded = pyqtSignal(str)
+    processing_complete = pyqtSignal()
     
     def __init__(self, parent=None, tooltip_manager=None):
         if not PYQT_AVAILABLE:
