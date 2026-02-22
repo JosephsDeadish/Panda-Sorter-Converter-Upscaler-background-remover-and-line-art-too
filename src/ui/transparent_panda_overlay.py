@@ -36,7 +36,9 @@ import random
 import time
 
 try:
-    from PyQt6.QtWidgets import QOpenGLWidget, QWidget
+    from PyQt6.QtWidgets import QWidget
+    # QOpenGLWidget was moved from QtWidgets → QtOpenGLWidgets in Qt6/PyQt6
+    from PyQt6.QtOpenGLWidgets import QOpenGLWidget
     from PyQt6.QtCore import Qt, QTimer, QPoint, QRect, pyqtSignal
     from PyQt6.QtGui import QPainter, QColor
     from OpenGL.GL import *

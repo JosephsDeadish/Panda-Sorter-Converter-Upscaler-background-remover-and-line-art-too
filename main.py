@@ -657,44 +657,75 @@ class TextureSorterMainWindow(QMainWindow):
             logger.warning("No panda widget available — placeholder shown")
     
     def create_main_tab(self):
-        """Create the main tab with welcome/dashboard."""
+        """Create the main tab with welcome/dashboard and quick-launch buttons."""
         tab = QWidget()
         layout = QVBoxLayout(tab)
         layout.setContentsMargins(20, 20, 20, 20)
-        
+
         # Welcome message
-        welcome_label = QLabel("🎮 Welcome to PS2 Texture Toolkit")
+        welcome_label = QLabel("🎮 PS2 Texture Toolkit")
         welcome_label.setStyleSheet("font-size: 24pt; font-weight: bold;")
         welcome_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(welcome_label)
-        
+
+        layout.addSpacing(10)
+
+        subtitle = QLabel("A comprehensive toolkit for managing, sorting, and enhancing PS2 game textures.")
+        subtitle.setStyleSheet("font-size: 11pt; color: #aaaaaa;")
+        subtitle.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        subtitle.setWordWrap(True)
+        layout.addWidget(subtitle)
+
         layout.addSpacing(20)
-        
-        # Description
-        desc_label = QLabel(
-            "A comprehensive toolkit for managing, sorting, and enhancing PS2 game textures.\n\n"
-            "Navigate to the Tools tab to access:\n"
-            "• Texture Sorter - Automatically organize textures by type\n"
-            "• Image Upscaler - Enhance texture resolution\n"
-            "• Background Remover - Remove backgrounds from images\n"
-            "• Alpha Fixer - Fix alpha channel issues\n"
-            "• Color Correction - Adjust colors and enhance images\n"
-            "• Line Art Converter - Convert images to line art\n"
-            "• And many more tools!"
-        )
-        desc_label.setStyleSheet("font-size: 12pt; color: #cccccc;")
-        desc_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        desc_label.setWordWrap(True)
-        layout.addWidget(desc_label)
-        
+
+        # Quick-launch section header
+        ql_header = QLabel("⚡ Quick Launch")
+        ql_header.setStyleSheet("font-size: 14pt; font-weight: bold; color: #dddddd;")
+        ql_header.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(ql_header)
+
+        layout.addSpacing(8)
+
+        # Quick-launch buttons grid — each navigates directly to the tool's sub-tab
+        # via switch_tool(tool_id).  Layout: 4 columns x 3 rows.
+        _QUICK_TOOLS = [
+            ("🗂️ Sorter",          "sorter"),
+            ("🎭 Background Remover","bg_remover"),
+            ("✨ Alpha Fixer",      "alpha_fixer"),
+            ("🎨 Color Correction", "color"),
+            ("⚙️ Batch Normalizer", "normalizer"),
+            ("✓ Quality Checker",  "quality"),
+            ("🔍 Image Upscaler",  "upscaler"),
+            ("✏️ Line Art",         "lineart"),
+            ("📝 Batch Rename",    "rename"),
+            ("🔧 Image Repair",    "repair"),
+            ("📁 Organizer",       "organizer"),
+        ]
+        grid_widget = QWidget()
+        grid = QGridLayout(grid_widget)
+        grid.setSpacing(8)
+        cols = 4
+        for i, (label, tool_id) in enumerate(_QUICK_TOOLS):
+            btn = QPushButton(label)
+            btn.setMinimumHeight(40)
+            btn.setStyleSheet(
+                "QPushButton { font-size: 10pt; border-radius: 6px; "
+                "background-color: #3a3a3a; color: #eeeeee; } "
+                "QPushButton:hover { background-color: #4a90d9; } "
+                "QPushButton:pressed { background-color: #2a70b9; }"
+            )
+            # Use default argument capture to avoid late-binding closure bug
+            btn.clicked.connect(lambda _checked=False, tid=tool_id: self.switch_tool(tid))
+            grid.addWidget(btn, i // cols, i % cols)
+        layout.addWidget(grid_widget)
+
         layout.addStretch()
-        
-        # Quick stats or info could go here in the future
+
         info_label = QLabel(f"Version: {APP_VERSION}")
         info_label.setStyleSheet("color: gray; font-size: 10pt;")
         info_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(info_label)
-        
+
         self.tabs.addTab(tab, "Home")
     
     def create_sorting_tab_widget(self):
@@ -1080,20 +1111,43 @@ class TextureSorterMainWindow(QMainWindow):
         logger.info(f"Added tool dock (hidden): {tool_id} - {title}")
     
     def _update_tool_panels_menu(self):
-        """Update View menu with tool panel visibility toggles."""
+        """Update View menu with tool panel visibility toggles AND sub-tab navigation."""
         if self.view_menu is None:
             return  # Menu bar not yet created; called too early
         # Add submenu for tool panels if it doesn't exist
         if not hasattr(self, 'tool_panels_menu'):
             self.tool_panels_menu = self.view_menu.addMenu("Tool Panels")
-        
+
         # Clear existing actions
         self.tool_panels_menu.clear()
-        
-        # Add toggle action for each tool
-        for tool_id, dock in self.tool_dock_widgets.items():
-            action = dock.toggleViewAction()
-            self.tool_panels_menu.addAction(action)
+
+        # Sub-tab tools: clicking navigates to the tool (Tools tab → correct sub-tab)
+        _TOOL_LABELS = {
+            'sorter':     "🗂️ Texture Sorter",
+            'bg_remover': "🎭 Background Remover",
+            'alpha_fixer':"✨ Alpha Fixer",
+            'color':      "🎨 Color Correction",
+            'normalizer': "⚙️ Batch Normalizer",
+            'quality':    "✓ Quality Checker",
+            'upscaler':   "🔍 Image Upscaler",
+            'lineart':    "✏️ Line Art Converter",
+            'rename':     "📝 Batch Rename",
+            'repair':     "🔧 Image Repair",
+            'organizer':  "📁 Organizer",
+        }
+        for tool_id, label in _TOOL_LABELS.items():
+            if tool_id in self.tool_panels:
+                action = self.tool_panels_menu.addAction(label)
+                action.triggered.connect(
+                    lambda _checked=False, tid=tool_id: self.switch_tool(tid)
+                )
+
+        # Lightweight docks (Processing Queue, Performance Monitor): keep their
+        # built-in toggleViewAction so they remain show/hide toggles
+        if self.tool_dock_widgets:
+            self.tool_panels_menu.addSeparator()
+            for _tid, dock in self.tool_dock_widgets.items():
+                self.tool_panels_menu.addAction(dock.toggleViewAction())
     
     def switch_tool(self, tool_id):
         """Switch to a tool: navigate to the Tools tab then select the matching sub-tab."""
