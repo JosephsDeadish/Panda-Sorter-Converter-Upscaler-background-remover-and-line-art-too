@@ -8,6 +8,7 @@ Author: Dead On The Inside / JosephsDeadish
 
 import sys
 import os
+import importlib
 import logging
 from pathlib import Path
 
@@ -245,27 +246,40 @@ except ImportError as e:
     PandaWidget2D = None
     logger.warning(f"Panda 2D widget not available: {e}")
 
-UI_PANELS_AVAILABLE = False
-try:
-    from ui.background_remover_panel_qt import BackgroundRemoverPanelQt
-    from ui.color_correction_panel_qt import ColorCorrectionPanelQt
-    from ui.batch_normalizer_panel_qt import BatchNormalizerPanelQt
-    from ui.quality_checker_panel_qt import QualityCheckerPanelQt
-    from ui.lineart_converter_panel_qt import LineArtConverterPanelQt
-    from ui.alpha_fixer_panel_qt import AlphaFixerPanelQt
-    from ui.batch_rename_panel_qt import BatchRenamePanelQt
-    from ui.image_repair_panel_qt import ImageRepairPanelQt
-    from ui.customization_panel_qt import CustomizationPanelQt
-    from ui.upscaler_panel_qt import ImageUpscalerPanelQt
-    from ui.organizer_panel_qt import OrganizerPanelQt
-    from ui.settings_panel_qt import SettingsPanelQt
-    from ui.file_browser_panel_qt import FileBrowserPanelQt
-    from ui.notepad_panel_qt import NotepadPanelQt
-    UI_PANELS_AVAILABLE = True
-    logger.info("✅ UI panels loaded successfully")
-except ImportError as e:
-    logger.warning(f"Some UI panels not available: {e}")
-    UI_PANELS_AVAILABLE = False
+# Import each UI panel independently so one bad import does not disable all tools.
+# Each name is set to None on failure; callers guard with `if PanelClass is not None`.
+def _try_import(module_path: str, class_name: str):
+    """Return the named class from module_path, or None on import/attribute failure."""
+    try:
+        mod = importlib.import_module(module_path)
+        return getattr(mod, class_name)
+    except (ImportError, ModuleNotFoundError, AttributeError) as _e:
+        logger.warning(f"Optional UI panel {class_name} not available: {_e}")
+        return None
+
+BackgroundRemoverPanelQt  = _try_import('ui.background_remover_panel_qt',  'BackgroundRemoverPanelQt')
+ColorCorrectionPanelQt    = _try_import('ui.color_correction_panel_qt',    'ColorCorrectionPanelQt')
+BatchNormalizerPanelQt    = _try_import('ui.batch_normalizer_panel_qt',     'BatchNormalizerPanelQt')
+QualityCheckerPanelQt     = _try_import('ui.quality_checker_panel_qt',      'QualityCheckerPanelQt')
+LineArtConverterPanelQt   = _try_import('ui.lineart_converter_panel_qt',   'LineArtConverterPanelQt')
+AlphaFixerPanelQt         = _try_import('ui.alpha_fixer_panel_qt',         'AlphaFixerPanelQt')
+BatchRenamePanelQt        = _try_import('ui.batch_rename_panel_qt',        'BatchRenamePanelQt')
+ImageRepairPanelQt        = _try_import('ui.image_repair_panel_qt',        'ImageRepairPanelQt')
+CustomizationPanelQt      = _try_import('ui.customization_panel_qt',       'CustomizationPanelQt')
+ImageUpscalerPanelQt      = _try_import('ui.upscaler_panel_qt',            'ImageUpscalerPanelQt')
+OrganizerPanelQt          = _try_import('ui.organizer_panel_qt',           'OrganizerPanelQt')
+SettingsPanelQt           = _try_import('ui.settings_panel_qt',            'SettingsPanelQt')
+FileBrowserPanelQt        = _try_import('ui.file_browser_panel_qt',        'FileBrowserPanelQt')
+NotepadPanelQt            = _try_import('ui.notepad_panel_qt',             'NotepadPanelQt')
+
+# UI_PANELS_AVAILABLE = True if at least the core tool panels loaded correctly.
+_core_panels = [BackgroundRemoverPanelQt, AlphaFixerPanelQt, ImageUpscalerPanelQt,
+                FileBrowserPanelQt, NotepadPanelQt, SettingsPanelQt]
+UI_PANELS_AVAILABLE = any(p is not None for p in _core_panels)
+if UI_PANELS_AVAILABLE:
+    logger.info("✅ UI panels loaded (individual failures are non-fatal)")
+else:
+    logger.warning("⚠️  All UI panels failed to load — check PyQt6 installation")
 
 
 class DraggableTabWidget(QTabWidget):
@@ -786,10 +800,11 @@ class TextureSorterMainWindow(QMainWindow):
         tool_tabs.addTab(sorter_widget, "🗂️ Sorter")
         self.tool_panels['sorter'] = sorter_widget
 
-        # 2. Remaining tools (only if UI panels are available)
-        if UI_PANELS_AVAILABLE:
-            tool_tab_defs = []  # (panel_instance, label) pairs built below
+        # 2. Remaining tools — each panel is guarded individually so one failure
+        #    does NOT prevent the other tools from loading.
+        tool_tab_defs = []  # (panel_instance, label, tool_id) triples
 
+        if BackgroundRemoverPanelQt is not None:
             try:
                 bg_panel = BackgroundRemoverPanelQt(tooltip_manager=self.tooltip_manager)
                 bg_panel.processing_complete.connect(
@@ -800,6 +815,7 @@ class TextureSorterMainWindow(QMainWindow):
             except Exception as _e:
                 logger.warning(f"BackgroundRemoverPanelQt unavailable: {_e}")
 
+        if AlphaFixerPanelQt is not None:
             try:
                 alpha_panel = AlphaFixerPanelQt(tooltip_manager=self.tooltip_manager)
                 alpha_panel.finished.connect(lambda ok, msg: self.statusBar().showMessage(
@@ -808,6 +824,7 @@ class TextureSorterMainWindow(QMainWindow):
             except Exception as _e:
                 logger.warning(f"AlphaFixerPanelQt unavailable: {_e}")
 
+        if ColorCorrectionPanelQt is not None:
             try:
                 color_panel = ColorCorrectionPanelQt(tooltip_manager=self.tooltip_manager)
                 color_panel.finished.connect(lambda ok, msg: self.statusBar().showMessage(
@@ -816,6 +833,7 @@ class TextureSorterMainWindow(QMainWindow):
             except Exception as _e:
                 logger.warning(f"ColorCorrectionPanelQt unavailable: {_e}")
 
+        if BatchNormalizerPanelQt is not None:
             try:
                 norm_panel = BatchNormalizerPanelQt(tooltip_manager=self.tooltip_manager)
                 norm_panel.finished.connect(lambda ok, msg: self.statusBar().showMessage(
@@ -824,6 +842,7 @@ class TextureSorterMainWindow(QMainWindow):
             except Exception as _e:
                 logger.warning(f"BatchNormalizerPanelQt unavailable: {_e}")
 
+        if QualityCheckerPanelQt is not None:
             try:
                 quality_panel = QualityCheckerPanelQt(tooltip_manager=self.tooltip_manager)
                 quality_panel.finished.connect(lambda ok, msg: self.statusBar().showMessage(
@@ -832,6 +851,7 @@ class TextureSorterMainWindow(QMainWindow):
             except Exception as _e:
                 logger.warning(f"QualityCheckerPanelQt unavailable: {_e}")
 
+        if ImageUpscalerPanelQt is not None:
             try:
                 upscaler_panel = ImageUpscalerPanelQt(tooltip_manager=self.tooltip_manager)
                 upscaler_panel.error.connect(
@@ -842,6 +862,7 @@ class TextureSorterMainWindow(QMainWindow):
             except Exception as _e:
                 logger.warning(f"ImageUpscalerPanelQt unavailable: {_e}")
 
+        if LineArtConverterPanelQt is not None:
             try:
                 line_panel = LineArtConverterPanelQt(tooltip_manager=self.tooltip_manager)
                 line_panel.error.connect(
@@ -852,6 +873,7 @@ class TextureSorterMainWindow(QMainWindow):
             except Exception as _e:
                 logger.warning(f"LineArtConverterPanelQt unavailable: {_e}")
 
+        if BatchRenamePanelQt is not None:
             try:
                 rename_panel = BatchRenamePanelQt(tooltip_manager=self.tooltip_manager)
                 rename_panel.finished.connect(lambda ok, errs: self.statusBar().showMessage(
@@ -860,6 +882,7 @@ class TextureSorterMainWindow(QMainWindow):
             except Exception as _e:
                 logger.warning(f"BatchRenamePanelQt unavailable: {_e}")
 
+        if ImageRepairPanelQt is not None:
             try:
                 repair_panel = ImageRepairPanelQt(tooltip_manager=self.tooltip_manager)
                 repair_panel.error.connect(
@@ -868,6 +891,7 @@ class TextureSorterMainWindow(QMainWindow):
             except Exception as _e:
                 logger.warning(f"ImageRepairPanelQt unavailable: {_e}")
 
+        if OrganizerPanelQt is not None:
             try:
                 organizer_panel = OrganizerPanelQt(tooltip_manager=self.tooltip_manager)
                 organizer_panel.log.connect(lambda msg: self.log(msg))
@@ -877,9 +901,9 @@ class TextureSorterMainWindow(QMainWindow):
             except Exception as _e:
                 logger.warning(f"OrganizerPanelQt unavailable: {_e}")
 
-            for panel, label, tool_id in tool_tab_defs:
-                tool_tabs.addTab(panel, label)
-                self.tool_panels[tool_id] = panel
+        for panel, label, tool_id in tool_tab_defs:
+            tool_tabs.addTab(panel, label)
+            self.tool_panels[tool_id] = panel
 
         outer_layout.addWidget(tool_tabs)
         self.tool_tabs_widget = tool_tabs  # keep reference for switch_tool()
@@ -1381,7 +1405,7 @@ class TextureSorterMainWindow(QMainWindow):
         browser_layout.setContentsMargins(0, 0, 0, 0)
 
         try:
-            if UI_PANELS_AVAILABLE:
+            if FileBrowserPanelQt is not None:
                 tooltip_manager = getattr(self, 'tooltip_manager', None)
                 self.file_browser_panel = FileBrowserPanelQt(config, tooltip_manager)
                 browser_layout.addWidget(self.file_browser_panel)
@@ -1441,7 +1465,7 @@ class TextureSorterMainWindow(QMainWindow):
         layout.setContentsMargins(0, 0, 0, 0)
         
         try:
-            if UI_PANELS_AVAILABLE:
+            if NotepadPanelQt is not None:
                 tooltip_manager = getattr(self, 'tooltip_manager', None)
                 self.notepad_panel = NotepadPanelQt(config, tooltip_manager)
                 layout.addWidget(self.notepad_panel)
@@ -1470,14 +1494,17 @@ class TextureSorterMainWindow(QMainWindow):
         layout.setContentsMargins(0, 0, 0, 0)
         
         try:
-            # Create comprehensive settings panel
-            self.settings_panel = SettingsPanelQt(config, self, tooltip_manager=self.tooltip_manager)
-            
-            # Connect settings changed signal
-            self.settings_panel.settingsChanged.connect(self.on_settings_changed)
-            
-            layout.addWidget(self.settings_panel)
-            self.log("✅ Settings panel loaded successfully")
+            if SettingsPanelQt is not None:
+                # Create comprehensive settings panel
+                self.settings_panel = SettingsPanelQt(config, self, tooltip_manager=self.tooltip_manager)
+                # Connect settings changed signal
+                self.settings_panel.settingsChanged.connect(self.on_settings_changed)
+                layout.addWidget(self.settings_panel)
+                self.log("✅ Settings panel loaded successfully")
+            else:
+                label = QLabel("⚠️ Settings panel requires PyQt6\n\nInstall with: pip install PyQt6")
+                label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+                layout.addWidget(label)
             
         except Exception as e:
             logger.error(f"Error loading settings panel: {e}", exc_info=True)
@@ -4025,7 +4052,7 @@ class TextureSorterMainWindow(QMainWindow):
                         dock = self.tool_dock_widgets[tool_id]
                         dock.setVisible(state.get('visible', True))
                         dock.setFloating(state.get('floating', False))
-            except:
+            except Exception:
                 pass
             
             logger.info("Dock layout restored")
