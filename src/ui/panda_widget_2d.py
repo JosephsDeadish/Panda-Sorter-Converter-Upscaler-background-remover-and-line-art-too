@@ -380,3 +380,7 @@ class PandaWidget2D(QWidget if _QT_AVAILABLE else object):  # type: ignore[misc]
         if item_id and item_id not in self._equipped_items:
             self._equipped_items.append(item_id)
         self.preview_item(item_id)
+
+    def update_appearance(self) -> None:
+        """Trigger a full redraw of the panda widget.  Called by CustomizationPanelQt."""
+        self.update()

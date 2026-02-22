@@ -134,7 +134,7 @@ class RenameWorker(QThread):
 class BatchRenamePanelQt(QWidget):
     """PyQt6 panel for batch file renaming."""
 
-    finished = pyqtSignal(bool, str)  # success, message
+    finished = pyqtSignal(int, list)  # successes count, errors list
     
     def __init__(self, parent=None, tooltip_manager=None):
         super().__init__(parent)
@@ -553,6 +553,9 @@ class BatchRenamePanelQt(QWidget):
         # Clear files after successful rename
         if successes > 0:
             self._clear_files()
+
+        # Notify listeners (e.g. main window status bar)
+        self.finished.emit(successes, errors)
     
     def _undo_rename(self):
         """Undo the last rename operation."""

@@ -1030,17 +1030,20 @@ class TextureSorterMainWindow(QMainWindow):
         panda_char = getattr(self.panda_widget, 'panda', None)
         
         # 1. Customization Tab
+        # panda_char may be None here because PandaCharacter is created in
+        # initialize_components() which runs after setup_ui().  We create the
+        # panel regardless; initialize_components() will set panda_widget.panda
+        # afterwards so colour/trail changes will work as expected.
         try:
             from ui.customization_panel_qt import CustomizationPanelQt
-            if panda_char is not None:
-                custom_panel = CustomizationPanelQt(panda_char, self.panda_widget, tooltip_manager=self.tooltip_manager)
-                
-                # Connect customization panel signals
-                custom_panel.color_changed.connect(self.on_customization_color_changed)
-                custom_panel.trail_changed.connect(self.on_customization_trail_changed)
-                
-                panda_tabs.addTab(custom_panel, "🎨 Customization")
-                logger.info("✅ Customization panel added to panda tab")
+            custom_panel = CustomizationPanelQt(panda_char, self.panda_widget, tooltip_manager=self.tooltip_manager)
+
+            # Connect customization panel signals
+            custom_panel.color_changed.connect(self.on_customization_color_changed)
+            custom_panel.trail_changed.connect(self.on_customization_trail_changed)
+
+            panda_tabs.addTab(custom_panel, "🎨 Customization")
+            logger.info("✅ Customization panel added to panda tab")
         except Exception as e:
             logger.error(f"Could not load customization panel: {e}", exc_info=True)
         
@@ -2390,6 +2393,14 @@ class TextureSorterMainWindow(QMainWindow):
                 from features.panda_character import PandaCharacter
                 self.panda_character = PandaCharacter()
                 logger.info("PandaCharacter initialized")
+                # Wire PandaCharacter to panda_widget so the sidebar widget
+                # responds to mood/animation changes.  This must happen here
+                # because setup_ui() creates panda_widget before
+                # initialize_components() runs, so panda_widget.panda is None
+                # when the Panda tab is first built.
+                if self.panda_widget is not None:
+                    self.panda_widget.panda = self.panda_character
+                    logger.info("PandaCharacter wired to panda_widget")
             except Exception as e:
                 logger.warning(f"Could not initialize PandaCharacter: {e}")
 

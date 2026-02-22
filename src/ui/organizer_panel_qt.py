@@ -419,7 +419,8 @@ class OrganizerPanelQt(QWidget):
     - Settings panel
     """
 
-    finished = pyqtSignal(bool, str)  # success, message
+    finished = pyqtSignal(bool, str, dict)  # success, message, stats
+    log = pyqtSignal(str)                  # log message (forwarded from worker)
     
     def __init__(self, parent=None, tooltip_manager=None):
         super().__init__(parent)

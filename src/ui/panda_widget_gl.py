@@ -1847,6 +1847,10 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
         logger.debug("Equipped item %r into slot %r", item_id, slot)
         self.update()
 
+    def update_appearance(self) -> None:
+        """Trigger a full redraw of the panda widget.  Called by CustomizationPanelQt."""
+        self.update()
+
     # ── Info ───────────────────────────────────────────────────────────────────
 
     def get_info(self) -> dict:
