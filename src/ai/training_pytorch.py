@@ -115,6 +115,10 @@ def is_pytorch_available() -> bool:
         return False
 
 
+# Module-level boolean flag for quick availability checks without a function call.
+PYTORCH_AVAILABLE: bool = is_pytorch_available()
+
+
 # ---------------------------------------------------------------------------
 # ONNX export bridge  (training → inference handoff)
 # ---------------------------------------------------------------------------

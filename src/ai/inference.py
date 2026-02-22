@@ -69,7 +69,7 @@ except (ImportError, OSError):  # pragma: no cover
 try:
     import onnxruntime as ort  # type: ignore[import-untyped]
     _ORT_AVAILABLE = True
-except (ImportError, OSError, RuntimeError):
+except ImportError:
     ort = None  # type: ignore[assignment]
     _ORT_AVAILABLE = False
     logger.warning(
@@ -93,6 +93,9 @@ except Exception as _ort_err:
         "onnxruntime raised an unexpected error during import – "
         "ONNX inference disabled. Error: %s", _ort_err
     )
+
+# Module-level boolean flag for quick availability checks without a function call.
+ONNX_AVAILABLE: bool = _ORT_AVAILABLE
 
 
 def is_available() -> bool:

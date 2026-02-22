@@ -53,6 +53,10 @@ except (ImportError, OSError, RuntimeError):
     OPEN_CLIP_AVAILABLE = False
     logger.debug("open_clip not available. Using transformers CLIP.")
 
+# Module-level flag: True when at least one CLIP backend (transformers or open_clip)
+# AND PyTorch are available.  Used by feature extractors to skip CLIP init early.
+CLIP_AVAILABLE: bool = TORCH_AVAILABLE and (TRANSFORMERS_AVAILABLE or OPEN_CLIP_AVAILABLE)
+
 
 class CLIPModel:
     """

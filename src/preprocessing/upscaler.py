@@ -92,6 +92,10 @@ except Exception as e:
     logger.warning(f"⚠️  Error loading Real-ESRGAN: {type(e).__name__}: {e}")
     REALESRGAN_AVAILABLE = False
 
+# Module-level flag: True when at minimum PIL is available (basic upscaling works).
+# REALESRGAN_AVAILABLE / NATIVE_AVAILABLE cover the optional faster backends.
+UPSCALER_AVAILABLE: bool = HAS_PIL
+
 
 class TextureUpscaler:
     """

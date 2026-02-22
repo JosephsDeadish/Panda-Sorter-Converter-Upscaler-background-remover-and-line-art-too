@@ -26,7 +26,7 @@ from .training import TrainingDataStore, IncrementalLearner
 from .model_exporter import ModelExporter, ModelImporter, ModelPackage, validate_ps2model_file
 
 # Inference runtime (ONNX) – always available, no torch dependency
-from .inference import OnnxInferenceSession, run_batch_inference, is_available as onnx_available
+from .inference import OnnxInferenceSession, run_batch_inference, is_available as onnx_available, ONNX_AVAILABLE
 
 # PyTorch training helpers – optional; callers must check is_pytorch_available()
 # before instantiating PyTorchTrainer to avoid ImportError when torch is absent.
@@ -34,6 +34,7 @@ from .training_pytorch import (
     is_pytorch_available,
     export_to_onnx,
     PyTorchTrainer,
+    PYTORCH_AVAILABLE,
 )
 
 __all__ = [
@@ -64,9 +65,11 @@ __all__ = [
     'OnnxInferenceSession',
     'run_batch_inference',
     'onnx_available',
+    'ONNX_AVAILABLE',
 
     # PyTorch training (optional)
     'is_pytorch_available',
+    'PYTORCH_AVAILABLE',
     'export_to_onnx',
     'PyTorchTrainer',
 ]

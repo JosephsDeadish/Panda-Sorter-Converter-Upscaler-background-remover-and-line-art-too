@@ -212,11 +212,15 @@ def test_ai_package_exports_hybrid_symbols():
     assert hasattr(ai, 'OnnxInferenceSession'), "Missing OnnxInferenceSession"
     assert hasattr(ai, 'run_batch_inference'), "Missing run_batch_inference"
     assert hasattr(ai, 'onnx_available'), "Missing onnx_available"
+    assert hasattr(ai, 'ONNX_AVAILABLE'), "Missing ONNX_AVAILABLE flag"
+    assert isinstance(ai.ONNX_AVAILABLE, bool), f"ONNX_AVAILABLE should be bool, got {type(ai.ONNX_AVAILABLE)}"
 
     # Training side (optional)
     assert hasattr(ai, 'PyTorchTrainer'), "Missing PyTorchTrainer"
     assert hasattr(ai, 'export_to_onnx'), "Missing export_to_onnx"
     assert hasattr(ai, 'is_pytorch_available'), "Missing is_pytorch_available"
+    assert hasattr(ai, 'PYTORCH_AVAILABLE'), "Missing PYTORCH_AVAILABLE flag"
+    assert isinstance(ai.PYTORCH_AVAILABLE, bool), f"PYTORCH_AVAILABLE should be bool, got {type(ai.PYTORCH_AVAILABLE)}"
 
     print("  PASS")
 
