@@ -235,7 +235,7 @@ def _setup_logging() -> None:
                 '%(asctime)s %(levelname)s %(name)s: %(message)s'
             ))
             _handlers.append(_file_handler)
-        except Exception:
+        except Exception as _e:
             import sys as _sys
             print(f"[logging] Could not set up file log handler: {_e!r}", file=_sys.stderr)
     logging.basicConfig(level=_log_level, handlers=_handlers)

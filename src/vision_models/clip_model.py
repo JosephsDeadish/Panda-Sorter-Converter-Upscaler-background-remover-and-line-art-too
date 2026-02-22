@@ -42,7 +42,7 @@ except Exception as e:
 try:
     from transformers import CLIPProcessor, CLIPModel as HFCLIPModel
     TRANSFORMERS_AVAILABLE = True
-except ImportError:
+except (ImportError, OSError, RuntimeError):
     TRANSFORMERS_AVAILABLE = False
     logger.warning("Transformers not available. CLIP model disabled.")
 

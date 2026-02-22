@@ -69,7 +69,7 @@ except ImportError:  # pragma: no cover
 try:
     import onnxruntime as ort  # type: ignore[import-untyped]
     _ORT_AVAILABLE = True
-except ImportError:
+except (ImportError, OSError, RuntimeError):
     ort = None  # type: ignore[assignment]
     _ORT_AVAILABLE = False
     logger.warning(
