@@ -554,6 +554,8 @@ class ColorCorrectionPanelQt(QWidget):
         else:
             QMessageBox.warning(self, "Error", message)
         self.finished.emit(success, message)
+
+    def cleanup(self):
         """Clean up resources."""
         if self.worker:
             self.worker.cancel()
