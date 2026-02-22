@@ -50,11 +50,12 @@ jobs:
       - name: Install Dependencies
         run: |
           python -m pip install --upgrade pip setuptools wheel
-          # Install PyTorch CPU (explicit index to avoid timeout/wrong version)
-          pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
+          # Install PyTorch CPU — pin to match requirements.txt (torch>=2.6.0)
+          # to guarantee consistent behaviour across CI runs.
+          pip install "torch>=2.6.0,<3.0" "torchvision>=0.21.0,<0.22" --index-url https://download.pytorch.org/whl/cpu
           # Install optional heavy deps (allow failures - app degrades gracefully)
-          pip install timm transformers open-clip-torch || echo "⚠️  Some optional ML deps failed (non-fatal)"
-          pip install basicsr realesrgan || echo "⚠️  basicsr/realesrgan failed (non-fatal, Real-ESRGAN upscaling unavailable)"
+          pip install "timm>=0.9.0" "transformers>=4.48.0" "open-clip-torch>=2.20.0" || echo "⚠️  Some optional ML deps failed (non-fatal)"
+          pip install "basicsr>=1.4.2" "realesrgan>=0.3.0" || echo "⚠️  basicsr/realesrgan failed (non-fatal, Real-ESRGAN upscaling unavailable)"
           # Pre-install optional packages that may fail on Windows CI before the main
           # requirements install.  rembg is excluded from the PyInstaller build anyway.
           pip install "rembg[cpu]>=2.0.50" || echo "⚠️  rembg failed (non-fatal, excluded from PyInstaller build)"

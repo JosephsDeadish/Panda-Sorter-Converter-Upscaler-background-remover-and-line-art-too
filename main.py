@@ -4455,6 +4455,14 @@ def log_startup_diagnostics(window):
 
 def main():
     """Main entry point."""
+    # In a frozen EXE PIL plugins are not auto-registered — call init() explicitly
+    # so that all image formats (PNG, JPEG, WebP, TGA, DDS, …) are available.
+    try:
+        from PIL import Image as _PILImage
+        _PILImage.init()
+    except Exception:
+        pass
+
     # Optimize memory before creating any Qt objects
     _startup_validation = None
     try:

@@ -668,6 +668,8 @@ class SettingsPanelQt(QWidget):
                 if _src not in sys.path:
                     sys.path.insert(0, _src)
                 from ui.ai_models_settings_tab import AIModelsSettingsTab as _AIModelsSettingsTab  # noqa: PLC0415
+            if _AIModelsSettingsTab is None:
+                raise ImportError("AIModelsSettingsTab could not be loaded from any path")
             return _AIModelsSettingsTab(self.config)
         except (ImportError, OSError) as e:
             # Specific handling for import errors

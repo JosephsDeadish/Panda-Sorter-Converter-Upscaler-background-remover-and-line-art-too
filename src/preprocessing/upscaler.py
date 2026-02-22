@@ -7,6 +7,7 @@ Author: Dead On The Inside / JosephsDeadish
 from __future__ import annotations
 
 import logging
+import os
 from typing import Optional, Union
 from pathlib import Path
 try:
@@ -280,6 +281,15 @@ class TextureUpscaler:
             else:
                 # Fallback to old location
                 model_path = f'weights/{model_name}.pth'
+
+            # Verify the model file exists before trying to load it
+            if not os.path.isfile(model_path):
+                logger.warning(
+                    f"Real-ESRGAN model file not found at '{model_path}'. "
+                    "Download it or run the model manager. Falling back to PIL upscaling."
+                )
+                self._realesrgan_loaded = False
+                return
             
             # Create model
             model = RRDBNet(
