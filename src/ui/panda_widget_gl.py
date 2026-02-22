@@ -20,7 +20,7 @@ try:
     from OpenGL.GLU import *
     import numpy as np
     QT_AVAILABLE = True
-except ImportError:
+except (ImportError, OSError, RuntimeError):
     QT_AVAILABLE = False
     QWidget = object
     QOpenGLWidget = object

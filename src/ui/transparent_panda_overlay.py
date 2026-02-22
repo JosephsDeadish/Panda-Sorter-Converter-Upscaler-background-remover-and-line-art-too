@@ -42,7 +42,7 @@ try:
     from OpenGL.GL import *
     from OpenGL.GLU import *
     PYQT_AVAILABLE = True
-except ImportError:
+except (ImportError, OSError, RuntimeError):
     PYQT_AVAILABLE = False
     QOpenGLWidget = object
     QWidget = object

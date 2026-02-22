@@ -69,7 +69,7 @@ try:
     from OpenGL.GL import *
     from OpenGL.GLU import *
     OPENGL_AVAILABLE = True
-except ImportError:
+except (ImportError, OSError, RuntimeError):
     OPENGL_AVAILABLE = False
 
 
