@@ -836,6 +836,8 @@ class TextureSorterMainWindow(QMainWindow):
                 upscaler_panel = ImageUpscalerPanelQt(tooltip_manager=self.tooltip_manager)
                 upscaler_panel.error.connect(
                     lambda msg: self.statusBar().showMessage(f"❌ Upscaler: {msg}", 5000))
+                upscaler_panel.finished.connect(lambda ok, msg: self.statusBar().showMessage(
+                    f"{'✅' if ok else '❌'} Upscaler: {msg}", 4000))
                 tool_tab_defs.append((upscaler_panel, "🔍 Image Upscaler", 'upscaler'))
             except Exception as _e:
                 logger.warning(f"ImageUpscalerPanelQt unavailable: {_e}")
@@ -844,6 +846,8 @@ class TextureSorterMainWindow(QMainWindow):
                 line_panel = LineArtConverterPanelQt(tooltip_manager=self.tooltip_manager)
                 line_panel.error.connect(
                     lambda msg: self.statusBar().showMessage(f"❌ Line Art: {msg}", 5000))
+                line_panel.finished.connect(lambda ok, msg: self.statusBar().showMessage(
+                    f"{'✅' if ok else '❌'} Line Art: {msg}", 4000))
                 tool_tab_defs.append((line_panel, "✏️ Line Art", 'lineart'))
             except Exception as _e:
                 logger.warning(f"LineArtConverterPanelQt unavailable: {_e}")
