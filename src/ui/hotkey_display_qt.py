@@ -239,3 +239,7 @@ def create_hotkey_display(parent=None, tooltip_manager=None):
     if not PYQT_AVAILABLE:
         return None
     return HotkeyDisplayWidget(parent, tooltip_manager)
+
+
+# Alias used by qt_panel_loader.py (kept for backward compatibility)
+HotkeyDisplayQt = HotkeyDisplayWidget

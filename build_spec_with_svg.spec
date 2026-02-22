@@ -261,6 +261,11 @@ a = Analysis(
         'ai.inference',           # OnnxInferenceSession / run_batch_inference
         # PyTorch training modules – optional; NOT required for normal app operation.
         'ai.training_pytorch',    # PyTorchTrainer, export_to_onnx
+        # Panda widget — always include both backends so the EXE can fall back
+        # from 3D OpenGL to 2D QPainter when hardware OpenGL is unavailable.
+        'ui.panda_widget_gl',     # 3D OpenGL panda (preferred)
+        'ui.panda_widget_2d',     # 2D QPainter panda (fallback — no OpenGL required)
+        'ui.panda_widget_loader', # loader that picks the right backend at runtime
         # PyTorch - Core deep learning (optional: EXE works without torch)
         'torch',
         'torch._C',

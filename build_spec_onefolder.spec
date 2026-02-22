@@ -237,6 +237,11 @@ a = Analysis(
         # torch itself is still listed below so it is bundled when available on the
         # build machine, keeping advanced features working in the EXE.
         'ai.training_pytorch',    # PyTorchTrainer, export_to_onnx
+        # Panda widget — always include both backends so the EXE can fall back
+        # from 3D OpenGL to 2D QPainter when hardware OpenGL is unavailable.
+        'ui.panda_widget_gl',     # 3D OpenGL panda (preferred)
+        'ui.panda_widget_2d',     # 2D QPainter panda (fallback — no OpenGL required)
+        'ui.panda_widget_loader', # loader that picks the right backend at runtime
         # PyTorch - Core deep learning (optional: EXE works without torch)
         'torch',
         'torch._C',

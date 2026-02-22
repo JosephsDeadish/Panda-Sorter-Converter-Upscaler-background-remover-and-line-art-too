@@ -48,6 +48,11 @@ jobs:
           # requirements install.  rembg is excluded from the PyInstaller build anyway.
           pip install "rembg[cpu]>=2.0.50" || echo "⚠️  rembg failed (non-fatal, excluded from PyInstaller build)"
           pip install cairosvg cairocffi || echo "⚠️  Cairo SVG support failed (non-fatal)"
+          # Install PyOpenGL explicitly BEFORE requirements.txt so 3D panda rendering
+          # is always available in the EXE even if the requirements.txt step fails.
+          # The 2D fallback (panda_widget_2d.py) means this is non-fatal, but we
+          # prefer the full 3D experience in shipped builds.
+          pip install PyOpenGL PyOpenGL-accelerate || echo "⚠️  PyOpenGL failed (non-fatal, 2D panda fallback will be used)"
           # Install core requirements.  Use || echo so that any remaining optional-package
           # failures (e.g. pytesseract if Tesseract is absent) do not abort the step.
           # Critical packages are verified in the next step.
@@ -65,6 +70,7 @@ jobs:
           python -c "import cv2; print('OK OpenCV available')"
           python -c "import onnxruntime; print('OK onnxruntime available')"
           python -c "import yaml; print('OK PyYAML ' + yaml.__version__ + ' available')"
+          python -c "import OpenGL; print('OK PyOpenGL available (3D panda)')" || echo "⚠️  PyOpenGL not available — 2D panda fallback will be used"
           echo "All critical dependencies verified"
       
       - name: Run Syntax Validation
