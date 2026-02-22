@@ -516,6 +516,7 @@ class AlphaFixerPanelQt(QWidget):
         else:
             QMessageBox.critical(self, "Error", message)
             self.progress_label.setText("✗ Processing failed")
+        self.finished.emit(success, message)
     
     def _set_tooltip(self, widget, tooltip_text_or_id):
         """Set tooltip on widget, using tooltip manager if available."""

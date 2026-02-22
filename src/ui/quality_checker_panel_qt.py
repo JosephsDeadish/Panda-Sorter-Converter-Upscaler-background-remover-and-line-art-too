@@ -389,6 +389,7 @@ class QualityCheckerPanelQt(QWidget):
             QMessageBox.critical(self, "Error", message)
             self.status_label.setText("✗ Check failed")
             self.status_label.setStyleSheet("color: red;")
+        self.finished.emit(success, message)
 
     def _set_tooltip(self, widget, text):
         """Set tooltip on a widget using tooltip manager if available."""

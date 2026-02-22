@@ -502,6 +502,7 @@ class BatchNormalizerPanelQt(QWidget):
         else:
             QMessageBox.critical(self, "Error", message)
             self.progress_label.setText("✗ Normalization failed")
+        self.finished.emit(success, message)
     
     def _get_resize_mode(self):
         """Get resize mode from combo box."""

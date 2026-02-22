@@ -1118,7 +1118,10 @@ class ImageUpscalerPanelQt(QWidget):
             self.status_label.setText(message)
             self.status_label.setStyleSheet("color: red; font-weight: bold;")
             QMessageBox.warning(self, "Error", message)
-        
+
+        self.finished.emit(success, message)
+        if not success:
+            self.error.emit(message)
         self.worker_thread = None
     
     def _set_tooltip(self, widget, text):

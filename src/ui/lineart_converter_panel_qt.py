@@ -887,6 +887,7 @@ class LineArtConverterPanelQt(QWidget):
         else:
             QMessageBox.critical(self, "Error", message)
             self.progress_label.setText("✗ Conversion failed")
+        self.finished.emit(success, message)
 
     def _set_tooltip(self, widget, text):
         """Set tooltip on a widget using tooltip manager if available."""

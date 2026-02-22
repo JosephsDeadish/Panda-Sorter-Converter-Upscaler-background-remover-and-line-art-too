@@ -478,6 +478,7 @@ class ImageRepairPanelQt(QWidget):
         self._set_ui_enabled(True)
         QMessageBox.critical(self, "Error", f"Diagnostic failed: {error_msg}")
         self.progress_label.setText("Diagnostic failed")
+        self.error.emit(error_msg)
     
     def _repair_files(self):
         """Repair selected files."""
@@ -555,6 +556,7 @@ class ImageRepairPanelQt(QWidget):
         self._set_ui_enabled(True)
         QMessageBox.critical(self, "Error", f"Repair failed: {error_msg}")
         self.progress_label.setText("Repair failed")
+        self.error.emit(error_msg)
     
     def _cancel_operation(self):
         """Cancel current operation."""
