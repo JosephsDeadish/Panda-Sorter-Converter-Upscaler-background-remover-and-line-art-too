@@ -12,7 +12,7 @@ from typing import List, Dict, Any, Optional, Tuple
 try:
     import numpy as np
     HAS_NUMPY = True
-except (ImportError, OSError):
+except (ImportError, OSError, RuntimeError):
     np = None  # type: ignore[assignment]
     HAS_NUMPY = False
 import pickle

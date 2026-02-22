@@ -74,7 +74,7 @@ import logging
 try:
     from PIL import Image
     HAS_PIL = True
-except (ImportError, OSError):
+except (ImportError, OSError, RuntimeError):
     HAS_PIL = False
 
 
@@ -94,7 +94,7 @@ logger = logging.getLogger(__name__)
 try:
     from utils.archive_handler import ArchiveHandler
     ARCHIVE_AVAILABLE = True
-except (ImportError, OSError):
+except (ImportError, OSError, RuntimeError):
     ARCHIVE_AVAILABLE = False
     logger.warning("Archive handler not available")
 

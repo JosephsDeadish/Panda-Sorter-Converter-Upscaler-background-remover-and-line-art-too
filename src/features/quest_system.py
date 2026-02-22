@@ -28,7 +28,7 @@ try:
     from PyQt6.QtWidgets import QLabel, QGraphicsOpacityEffect
     from PyQt6.QtGui import QFont
     PYQT_AVAILABLE = True
-except (ImportError, OSError):
+except (ImportError, OSError, RuntimeError):
     PYQT_AVAILABLE = False
     QObject = object
 

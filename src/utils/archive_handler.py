@@ -18,21 +18,21 @@ logger = logging.getLogger(__name__)
 try:
     import py7zr
     HAS_7Z = True
-except (ImportError, OSError):
+except (ImportError, OSError, RuntimeError):
     HAS_7Z = False
     logger.debug("py7zr not available. 7z support disabled.")
 
 try:
     import rarfile
     HAS_RAR = True
-except (ImportError, OSError):
+except (ImportError, OSError, RuntimeError):
     HAS_RAR = False
     logger.debug("rarfile not available. RAR support disabled.")
 
 try:
     import tarfile
     HAS_TAR = True
-except (ImportError, OSError):
+except (ImportError, OSError, RuntimeError):
     HAS_TAR = False
     logger.debug("tarfile not available. TAR support disabled.")
 

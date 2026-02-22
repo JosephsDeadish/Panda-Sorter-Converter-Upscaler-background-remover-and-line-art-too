@@ -10,7 +10,7 @@ import logging
 try:
     import numpy as np
     HAS_NUMPY = True
-except (ImportError, OSError):
+except (ImportError, OSError, RuntimeError):
     np = None  # type: ignore[assignment]
     HAS_NUMPY = False
 from pathlib import Path
@@ -19,7 +19,7 @@ from dataclasses import dataclass
 try:
     from PIL import Image, ImageStat
     HAS_PIL = True
-except (ImportError, OSError):
+except (ImportError, OSError, RuntimeError):
     HAS_PIL = False
 
 import threading
@@ -30,7 +30,7 @@ logger = logging.getLogger(__name__)
 try:
     import cv2
     HAS_CV2 = True
-except (ImportError, OSError):
+except (ImportError, OSError, RuntimeError):
     HAS_CV2 = False
     logger.warning("opencv-python not available - advanced artifact detection disabled")
 

@@ -8,7 +8,7 @@ try:
     from PyQt6.QtCore import Qt, QTimer, QPointF
     from PyQt6.QtGui import QBrush, QColor, QPainter
     PYQT_AVAILABLE = True
-except (ImportError, OSError):
+except (ImportError, OSError, RuntimeError):
     PYQT_AVAILABLE = False
     class QObject:  # type: ignore[no-redef]
         """Fallback stub when PyQt6 is not installed."""

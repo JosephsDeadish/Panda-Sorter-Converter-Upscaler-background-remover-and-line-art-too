@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 try:
     import numpy as np
     HAS_NUMPY = True
-except (ImportError, OSError):
+except (ImportError, OSError, RuntimeError):
     HAS_NUMPY = False
     np = None
     logger.warning("numpy not available — some texture analysis features disabled. "
@@ -26,7 +26,7 @@ except (ImportError, OSError):
 try:
     from PIL import Image
     HAS_PIL = True
-except (ImportError, OSError):
+except (ImportError, OSError, RuntimeError):
     HAS_PIL = False
     Image = None  # type: ignore[assignment]
     logger.warning("Pillow not available — texture analysis disabled. "
@@ -35,7 +35,7 @@ except (ImportError, OSError):
 try:
     import cv2
     HAS_CV2 = True
-except (ImportError, OSError):
+except (ImportError, OSError, RuntimeError):
     HAS_CV2 = False
     cv2 = None  # type: ignore[assignment]
     logger.warning("OpenCV not available — advanced texture analysis disabled. "

@@ -8,7 +8,7 @@ try:
                                   QLabel, QLineEdit, QComboBox, QScrollArea)
     from PyQt6.QtCore import Qt, pyqtSignal
     PYQT_AVAILABLE = True
-except (ImportError, OSError):
+except (ImportError, OSError, RuntimeError):
     PYQT_AVAILABLE = False
     # Dummy classes for when PyQt6 not available
     class QWidget: pass

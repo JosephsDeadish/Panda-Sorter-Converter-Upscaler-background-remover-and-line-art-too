@@ -7,7 +7,7 @@ import time
 try:
     import psutil
     HAS_PSUTIL = True
-except (ImportError, OSError):
+except (ImportError, OSError, RuntimeError):
     psutil = None  # type: ignore[assignment]
     HAS_PSUTIL = False
 import threading

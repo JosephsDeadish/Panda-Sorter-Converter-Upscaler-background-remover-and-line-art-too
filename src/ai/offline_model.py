@@ -13,7 +13,7 @@ from typing import Dict, List, Optional, Tuple, Any
 try:
     import numpy as np
     HAS_NUMPY = True
-except (ImportError, OSError):
+except (ImportError, OSError, RuntimeError):
     np = None  # type: ignore[assignment]
     HAS_NUMPY = False
 

@@ -16,7 +16,7 @@ try:
     from PyQt6.QtCore import Qt, pyqtSignal, QTimer, QThread, QSize, QMimeData, QUrl
     from PyQt6.QtGui import QIcon, QPixmap, QFont, QColor
     PYQT_AVAILABLE = True
-except (ImportError, OSError):
+except (ImportError, OSError, RuntimeError):
     PYQT_AVAILABLE = False
     class QWidget: pass  # noqa: E701
     class QFrame: pass  # noqa: E701

@@ -17,13 +17,13 @@ logger = logging.getLogger(__name__)
 try:
     from PIL import Image
     HAS_PIL = True
-except (ImportError, OSError):
+except (ImportError, OSError, RuntimeError):
     HAS_PIL = False
 
 try:
     import numpy as np
     HAS_NUMPY = True
-except (ImportError, OSError):
+except (ImportError, OSError, RuntimeError):
     HAS_NUMPY = False
     logger.error("numpy not available - limited functionality")
     logger.error("Install with: pip install numpy")

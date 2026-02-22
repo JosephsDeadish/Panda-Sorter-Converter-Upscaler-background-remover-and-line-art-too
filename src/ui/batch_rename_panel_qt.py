@@ -83,7 +83,7 @@ logger = logging.getLogger(__name__)
 try:
     from utils.archive_handler import ArchiveHandler
     ARCHIVE_AVAILABLE = True
-except (ImportError, OSError):
+except (ImportError, OSError, RuntimeError):
     ARCHIVE_AVAILABLE = False
     logger.warning("Archive handler not available")
 
@@ -91,7 +91,7 @@ except (ImportError, OSError):
 try:
     from utils.svg_icon_helper import load_icon
     SVG_ICONS_AVAILABLE = True
-except (ImportError, OSError):
+except (ImportError, OSError, RuntimeError):
     load_icon = None
     SVG_ICONS_AVAILABLE = False
 
@@ -99,7 +99,7 @@ except (ImportError, OSError):
 try:
     from features.tutorial_system import WidgetTooltip
     TOOLTIPS_AVAILABLE = True
-except (ImportError, OSError):
+except (ImportError, OSError, RuntimeError):
     WidgetTooltip = None
     TOOLTIPS_AVAILABLE = False
 

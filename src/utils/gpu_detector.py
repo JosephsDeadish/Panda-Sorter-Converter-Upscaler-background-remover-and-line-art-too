@@ -297,7 +297,7 @@ class GPUDetector:
         """Add compute capability to NVIDIA devices if not already set."""
         try:
             import torch
-        except (ImportError, OSError):
+        except (ImportError, OSError, RuntimeError):
             # torch not available or DLL initialization failed
             return
         

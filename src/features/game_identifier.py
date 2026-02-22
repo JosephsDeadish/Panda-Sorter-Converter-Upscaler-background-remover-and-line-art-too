@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 try:
     import yaml
     HAS_YAML = True
-except (ImportError, OSError):
+except (ImportError, OSError, RuntimeError):
     HAS_YAML = False
     logger.warning("PyYAML not available. GameIndex.yaml support disabled.")
 

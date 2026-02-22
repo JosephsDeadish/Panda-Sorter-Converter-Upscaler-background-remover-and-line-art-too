@@ -18,7 +18,7 @@ try:
     from PIL import Image, ImageOps, ImageFile
     HAS_PIL = True
     ImageFile.LOAD_TRUNCATED_IMAGES = True
-except (ImportError, OSError):
+except (ImportError, OSError, RuntimeError):
     HAS_PIL = False
     Image = None       # type: ignore[assignment]
     ImageOps = None    # type: ignore[assignment]
@@ -29,7 +29,7 @@ except (ImportError, OSError):
 try:
     import numpy as np
     HAS_NUMPY = True
-except (ImportError, OSError):
+except (ImportError, OSError, RuntimeError):
     HAS_NUMPY = False
     np = None  # type: ignore[assignment]
     logger.warning("numpy not available — image processing limited. "
@@ -38,7 +38,7 @@ except (ImportError, OSError):
 try:
     import cv2
     HAS_CV2 = True
-except (ImportError, OSError):
+except (ImportError, OSError, RuntimeError):
     HAS_CV2 = False
     cv2 = None  # type: ignore[assignment]
     logger.warning("OpenCV not available — advanced image ops disabled. "
@@ -603,7 +603,7 @@ def compare_images(
                 gray1 = cv2.cvtColor(img1, cv2.COLOR_BGR2GRAY)
                 gray2 = cv2.cvtColor(img2, cv2.COLOR_BGR2GRAY)
                 return float(ssim(gray1, gray2))
-            except (ImportError, OSError):
+            except (ImportError, OSError, RuntimeError):
                 logger.warning("scikit-image not available, using MSE instead")
                 return float(np.mean((img1 - img2) ** 2))
         

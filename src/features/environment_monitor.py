@@ -24,7 +24,7 @@ try:
     from PyQt6.QtCore import QObject, pyqtSignal, QTimer, QEvent
     from PyQt6.QtWidgets import QDialog, QScrollBar, QApplication
     PYQT_AVAILABLE = True
-except (ImportError, OSError):
+except (ImportError, OSError, RuntimeError):
     PYQT_AVAILABLE = False
     QObject = object
 

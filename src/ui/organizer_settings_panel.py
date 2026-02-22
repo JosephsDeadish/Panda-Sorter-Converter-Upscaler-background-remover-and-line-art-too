@@ -11,7 +11,7 @@ try:
     from PyQt6.QtCore import Qt, pyqtSignal
     from PyQt6.QtGui import QFont
     PYQT_AVAILABLE = True
-except (ImportError, OSError):
+except (ImportError, OSError, RuntimeError):
     PYQT_AVAILABLE = False
     QWidget = object
     QFrame = object
@@ -454,7 +454,7 @@ class OrganizerSettingsPanel(QWidget):
                     "History Cleared",
                     "Learning history has been cleared successfully."
                 )
-            except (ImportError, OSError):
+            except (ImportError, OSError, RuntimeError):
                 QMessageBox.warning(
                     self,
                     "Not Available",

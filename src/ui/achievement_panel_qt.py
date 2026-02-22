@@ -13,7 +13,7 @@ try:
     from PyQt6.QtCore import Qt, pyqtSignal
     from PyQt6.QtGui import QFont
     PYQT_AVAILABLE = True
-except (ImportError, OSError):
+except (ImportError, OSError, RuntimeError):
     PYQT_AVAILABLE = False
     QWidget = object
     QFrame = object
@@ -24,11 +24,11 @@ logger = logging.getLogger(__name__)
 try:
     from features.achievements import AchievementSystem, Achievement, AchievementTier
     ACHIEVEMENTS_AVAILABLE = True
-except (ImportError, OSError):
+except (ImportError, OSError, RuntimeError):
     try:
         from ..features.achievements import AchievementSystem, Achievement, AchievementTier
         ACHIEVEMENTS_AVAILABLE = True
-    except (ImportError, OSError):
+    except (ImportError, OSError, RuntimeError):
         logger.warning("Achievement system not available")
         ACHIEVEMENTS_AVAILABLE = False
         AchievementSystem = None

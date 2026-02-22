@@ -16,7 +16,7 @@ import json
 try:
     from ..config import APP_NAME, APP_VERSION, APP_AUTHOR, config
     from .config_loader import ConfigLoader
-except (ImportError, OSError):
+except (ImportError, OSError, RuntimeError):
     from config import APP_NAME, APP_VERSION, APP_AUTHOR, config  # type: ignore[no-redef]
     from cli.config_loader import ConfigLoader  # type: ignore[no-redef]
 
@@ -485,7 +485,7 @@ Author: {APP_AUTHOR}
         try:
             from tqdm import tqdm
             use_tqdm = args.progress == 'bar' and show_progress
-        except (ImportError, OSError):
+        except (ImportError, OSError, RuntimeError):
             use_tqdm = False
         
         iterator = tqdm(texture_files, desc="Processing") if use_tqdm else texture_files

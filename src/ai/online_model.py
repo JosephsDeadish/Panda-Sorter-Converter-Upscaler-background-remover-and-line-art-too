@@ -14,14 +14,14 @@ from dataclasses import dataclass
 try:
     import numpy as np
     HAS_NUMPY = True
-except (ImportError, OSError):
+except (ImportError, OSError, RuntimeError):
     np = None  # type: ignore[assignment]
     HAS_NUMPY = False
 
 try:
     import requests
     REQUESTS_AVAILABLE = True
-except (ImportError, OSError):
+except (ImportError, OSError, RuntimeError):
     REQUESTS_AVAILABLE = False
     logging.warning("Requests library not available. Online AI features disabled.")
 

@@ -23,7 +23,7 @@ try:
     from PyQt6.QtCore import Qt, pyqtSignal, QTimer
     from PyQt6.QtGui import QFont, QColor, QPainter, QPen
     PYQT_AVAILABLE = True
-except (ImportError, OSError):
+except (ImportError, OSError, RuntimeError):
     PYQT_AVAILABLE = False
     class QWidget:  # type: ignore[no-redef]
         """Fallback stub when PyQt6 is not installed."""
@@ -659,7 +659,7 @@ class SettingsPanelQt(QWidget):
             if _AIModelsSettingsTab is None:
                 try:
                     from ui.ai_models_settings_tab import AIModelsSettingsTab as _AIModelsSettingsTab  # noqa: PLC0415
-                except (ImportError, OSError):
+                except (ImportError, OSError, RuntimeError):
                     pass
             if _AIModelsSettingsTab is None:
                 import sys
@@ -794,7 +794,7 @@ class SettingsPanelQt(QWidget):
         try:
             try:
                 from .hotkey_display_qt import HotkeyDisplayWidget
-            except (ImportError, OSError):
+            except (ImportError, OSError, RuntimeError):
                 from ui.hotkey_display_qt import HotkeyDisplayWidget
 
             self.hotkey_widget = HotkeyDisplayWidget(

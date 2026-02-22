@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 # Resolve the sounds directory via the centralized path helper
 try:
     from ..config import get_resource_path  # relative import when inside src package
-except (ImportError, OSError):
+except (ImportError, OSError, RuntimeError):
     from config import get_resource_path  # absolute import when src/ is on sys.path
 _SOUNDS_DIR = get_resource_path("sounds")
 
@@ -33,7 +33,7 @@ if sys.platform == 'win32':
         import winsound
         SOUND_AVAILABLE = True
         _USE_WAV_FILES = True
-    except (ImportError, OSError):
+    except (ImportError, OSError, RuntimeError):
         logger.warning("winsound not available on Windows")
 else:
     # Unix/macOS - WAV playback via subprocess (aplay/afplay)

@@ -13,19 +13,19 @@ from pathlib import Path
 try:
     import numpy as np
     HAS_NUMPY = True
-except (ImportError, OSError):
+except (ImportError, OSError, RuntimeError):
     np = None  # type: ignore[assignment]
     HAS_NUMPY = False
 try:
     from PIL import Image
     HAS_PIL = True
-except (ImportError, OSError):
+except (ImportError, OSError, RuntimeError):
     HAS_PIL = False
 
 try:
     import cv2
     HAS_CV2 = True
-except (ImportError, OSError):
+except (ImportError, OSError, RuntimeError):
     HAS_CV2 = False
     cv2 = None  # type: ignore[assignment]
 
@@ -37,11 +37,11 @@ logger = logging.getLogger(__name__)
 try:
     from upscaler.model_manager import AIModelManager, ModelStatus
     model_manager = AIModelManager()
-except (ImportError, OSError):
+except (ImportError, OSError, RuntimeError):
     try:
         from src.upscaler.model_manager import AIModelManager, ModelStatus
         model_manager = AIModelManager()
-    except (ImportError, OSError):
+    except (ImportError, OSError, RuntimeError):
         logger.warning("Model manager not available - model downloads disabled")
         model_manager = None
         ModelStatus = None
@@ -51,7 +51,7 @@ except (ImportError, OSError):
 # extension) and falls back to pure-Python/PIL implementations automatically.
 try:
     from native_ops import lanczos_upscale as _native_lanczos, NATIVE_AVAILABLE
-except (ImportError, OSError):
+except (ImportError, OSError, RuntimeError):
     # Fallback: try importing texture_ops (the Rust wheel) directly
     try:
         import texture_ops as _tx

@@ -14,7 +14,7 @@ from threading import Lock
 try:
     from PIL import Image
     HAS_PIL = True
-except (ImportError, OSError):
+except (ImportError, OSError, RuntimeError):
     HAS_PIL = False
 
 
@@ -270,7 +270,7 @@ class MemoryManager:
             mem_info = process.memory_info()
             stats['memory_mb'] = mem_info.rss / (1024 * 1024)
             stats['memory_percent'] = process.memory_percent()
-        except (ImportError, OSError):
+        except (ImportError, OSError, RuntimeError):
             pass
         
         return stats

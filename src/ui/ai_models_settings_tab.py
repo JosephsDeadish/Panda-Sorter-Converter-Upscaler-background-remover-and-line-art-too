@@ -10,7 +10,7 @@ try:
     from PyQt6.QtCore import Qt, pyqtSignal, QThread, QSize
     from PyQt6.QtGui import QFont, QColor
     PYQT_AVAILABLE = True
-except (ImportError, OSError):
+except (ImportError, OSError, RuntimeError):
     PYQT_AVAILABLE = False
     QWidget = object
     QFrame = object
@@ -84,7 +84,7 @@ def _import_model_manager():
     try:
         from upscaler.model_manager import AIModelManager, ModelStatus  # noqa: PLC0415
         return AIModelManager, ModelStatus
-    except (ImportError, OSError):
+    except (ImportError, OSError, RuntimeError):
         pass
 
     # Attempt 3: explicit path insert (works in frozen EXE where sys.path differs)
@@ -99,7 +99,7 @@ def _import_model_manager():
                 sys.path.insert(0, _p)
         from model_manager import AIModelManager, ModelStatus  # noqa: PLC0415
         return AIModelManager, ModelStatus
-    except (ImportError, OSError):
+    except (ImportError, OSError, RuntimeError):
         pass
 
     return None, None

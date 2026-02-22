@@ -587,7 +587,7 @@ class BatchOperationHelper:
         try:
             from send2trash import send2trash
             HAS_SEND2TRASH = True
-        except (ImportError, OSError):
+        except (ImportError, OSError, RuntimeError):
             HAS_SEND2TRASH = False
             logger.warning("send2trash not available, using permanent deletion")
         

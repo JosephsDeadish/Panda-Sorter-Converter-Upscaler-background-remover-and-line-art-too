@@ -13,7 +13,7 @@ try:
     from PyQt6.QtWidgets import QWidget
     PYQT6_AVAILABLE = True
     logger.info("✅ PyQt6 available - using Qt panels")
-except (ImportError, OSError):
+except (ImportError, OSError, RuntimeError):
     PYQT6_AVAILABLE = False
     logger.error("❌ PyQt6 required but not available")
     logger.error("   Install with: pip install PyQt6")

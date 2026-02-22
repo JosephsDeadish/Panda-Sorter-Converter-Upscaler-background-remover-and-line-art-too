@@ -11,7 +11,7 @@ try:
     from PyQt6.QtSvg import QSvgRenderer
     from PyQt6.QtCore import QSize, QByteArray, Qt
     PYQT_AVAILABLE = True
-except (ImportError, OSError):
+except (ImportError, OSError, RuntimeError):
     PYQT_AVAILABLE = False
     class Qt:
         class AlignmentFlag:
@@ -58,7 +58,7 @@ import logging
 try:
     from PIL import Image
     HAS_PIL = True
-except (ImportError, OSError):
+except (ImportError, OSError, RuntimeError):
     HAS_PIL = False
 
 logger = logging.getLogger(__name__)
@@ -83,7 +83,7 @@ class SVGIconHelper:
             try:
                 from ..config import get_resource_path
                 icon_dir = get_resource_path("icons") / "svg"
-            except (ImportError, OSError):
+            except (ImportError, OSError, RuntimeError):
                 # Fallback if config is not available (should not happen in normal use)
                 icon_dir = Path(__file__).parent.parent / "resources" / "icons" / "svg"
         

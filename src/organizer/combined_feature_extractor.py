@@ -15,7 +15,7 @@ from pathlib import Path
 try:
     import numpy as np
     HAS_NUMPY = True
-except (ImportError, OSError):
+except (ImportError, OSError, RuntimeError):
     np = None  # type: ignore[assignment]
     HAS_NUMPY = False
 
@@ -83,7 +83,7 @@ class CombinedFeatureExtractor:
         try:
             try:
                 from vision_models.clip_model import CLIPModel
-            except (ImportError, OSError):
+            except (ImportError, OSError, RuntimeError):
                 from src.vision_models.clip_model import CLIPModel
             model = CLIPModel()
             self.models.append(('CLIP', model))
@@ -98,7 +98,7 @@ class CombinedFeatureExtractor:
         try:
             try:
                 from vision_models.dinov2_model import DINOv2Model
-            except (ImportError, OSError):
+            except (ImportError, OSError, RuntimeError):
                 from src.vision_models.dinov2_model import DINOv2Model
             model = DINOv2Model()
             self.models.append(('DINOv2', model))
@@ -118,7 +118,7 @@ class CombinedFeatureExtractor:
         try:
             try:
                 from vision_models.efficientnet_model import EfficientNetModel
-            except (ImportError, OSError):
+            except (ImportError, OSError, RuntimeError):
                 from src.vision_models.efficientnet_model import EfficientNetModel
             # Default to efficientnet_b0 - NOT compiled with TorchScript
             model = EfficientNetModel('efficientnet_b0')

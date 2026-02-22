@@ -26,7 +26,7 @@ if sys.platform == 'win32':
 try:
     from ..preprocessing.alpha_correction import AlphaCorrector, AlphaCorrectionPresets
     from ..config import APP_NAME, APP_VERSION
-except (ImportError, OSError):
+except (ImportError, OSError, RuntimeError):
     from preprocessing.alpha_correction import AlphaCorrector, AlphaCorrectionPresets  # type: ignore[no-redef]
     from config import APP_NAME, APP_VERSION  # type: ignore[no-redef]
 

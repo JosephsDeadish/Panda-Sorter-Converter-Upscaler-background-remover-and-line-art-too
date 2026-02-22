@@ -21,7 +21,7 @@ try:
     from PyQt6.QtCore import Qt, pyqtSignal, QSize, QTimer, QThread
     from PyQt6.QtGui import QPixmap, QIcon, QImage
     PYQT_AVAILABLE = True
-except (ImportError, OSError):
+except (ImportError, OSError, RuntimeError):
     PYQT_AVAILABLE = False
     class QObject:  # type: ignore[no-redef]
         """Fallback stub when PyQt6 is not installed."""
@@ -48,7 +48,7 @@ logger = logging.getLogger(__name__)
 try:
     from PIL import Image
     PIL_AVAILABLE = True
-except (ImportError, OSError):
+except (ImportError, OSError, RuntimeError):
     PIL_AVAILABLE = False
     logger.warning("PIL not available - thumbnails disabled")
 

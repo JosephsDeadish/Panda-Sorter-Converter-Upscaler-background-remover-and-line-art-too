@@ -82,19 +82,19 @@ except (ImportError, OSError, RuntimeError):
 try:
     from PIL import Image, ImageEnhance, ImageFilter
     HAS_PIL = True
-except (ImportError, OSError):
+except (ImportError, OSError, RuntimeError):
     HAS_PIL = False
 
 try:
     import numpy as np
     HAS_NUMPY = True
-except (ImportError, OSError):
+except (ImportError, OSError, RuntimeError):
     np = None  # type: ignore[assignment]
     HAS_NUMPY = False
 try:
     import cv2
     HAS_CV2 = True
-except (ImportError, OSError):
+except (ImportError, OSError, RuntimeError):
     HAS_CV2 = False
     cv2 = None  # type: ignore[assignment]
 
@@ -105,11 +105,11 @@ logger = logging.getLogger(__name__)
 try:
     from upscaler.model_manager import AIModelManager, ModelStatus
     MODEL_MANAGER_AVAILABLE = True
-except (ImportError, OSError):
+except (ImportError, OSError, RuntimeError):
     try:
         from src.upscaler.model_manager import AIModelManager, ModelStatus
         MODEL_MANAGER_AVAILABLE = True
-    except (ImportError, OSError):
+    except (ImportError, OSError, RuntimeError):
         logger.debug("Model manager not available")
         MODEL_MANAGER_AVAILABLE = False
         AIModelManager = None
@@ -162,7 +162,7 @@ def apply_post_processing(img, settings):
 try:
     from preprocessing.upscaler import TextureUpscaler
     UPSCALER_AVAILABLE = True
-except (ImportError, OSError):
+except (ImportError, OSError, RuntimeError):
     try:
         import sys as _sys
         import os as _os
@@ -187,7 +187,7 @@ except (ImportError, OSError) as e:
 try:
     from utils.archive_handler import ArchiveHandler
     ARCHIVE_AVAILABLE = True
-except (ImportError, OSError):
+except (ImportError, OSError, RuntimeError):
     ARCHIVE_AVAILABLE = False
     logger.warning("Archive handler not available")
 
@@ -703,7 +703,7 @@ class ImageUpscalerPanelQt(QWidget):
         NATIVE_AVAILABLE = False
         try:
             from preprocessing.upscaler import REALESRGAN_AVAILABLE, NATIVE_AVAILABLE
-        except (ImportError, OSError):
+        except (ImportError, OSError, RuntimeError):
             try:
                 import sys as _sys, os as _os
                 _src = _os.path.join(_os.path.dirname(__file__), '..')
@@ -1004,7 +1004,7 @@ class ImageUpscalerPanelQt(QWidget):
         # Create download thread (reuse from ai_models_settings_tab)
         try:
             from .ai_models_settings_tab import ModelDownloadThread
-        except (ImportError, OSError):
+        except (ImportError, OSError, RuntimeError):
             # Fallback to simple blocking download
             return self._download_model_blocking(model_name)
         

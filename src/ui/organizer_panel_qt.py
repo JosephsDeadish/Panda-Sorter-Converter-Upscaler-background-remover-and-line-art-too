@@ -24,7 +24,7 @@ try:
     from PyQt6.QtCore import Qt, QThread, pyqtSignal, QStringListModel, QTimer
     from PyQt6.QtGui import QFont, QPixmap, QImage
     PYQT_AVAILABLE = True
-except (ImportError, OSError):
+except (ImportError, OSError, RuntimeError):
     PYQT_AVAILABLE = False
     QWidget = object
     QFrame = object
@@ -145,7 +145,7 @@ except Exception as e:
 try:
     from PIL import Image
     PIL_AVAILABLE = True
-except (ImportError, OSError):
+except (ImportError, OSError, RuntimeError):
     PIL_AVAILABLE = False
     logger.warning("PIL not available - image preview disabled")
     logger.warning("To enable: pip install pillow")
@@ -156,7 +156,7 @@ except Exception as e:
 try:
     from utils.archive_handler import ArchiveHandler
     ARCHIVE_AVAILABLE = True
-except (ImportError, OSError):
+except (ImportError, OSError, RuntimeError):
     ARCHIVE_AVAILABLE = False
     logger.warning("Archive handler not available")
 

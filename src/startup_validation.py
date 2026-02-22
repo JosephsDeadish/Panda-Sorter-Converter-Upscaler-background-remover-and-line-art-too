@@ -107,7 +107,7 @@ def validate_dependencies() -> Tuple[bool, str, List[str]]:
     for module_name, description in critical_imports:
         try:
             __import__(module_name)
-        except (ImportError, OSError):
+        except (ImportError, OSError, RuntimeError):
             missing_deps.append(description)
     
     if missing_deps:
@@ -146,7 +146,7 @@ def validate_optional_dependencies() -> List[Tuple[str, str, str]]:
         try:
             __import__(module_name)
             results.append((description, 'installed', install_hint))
-        except (ImportError, OSError):
+        except (ImportError, OSError, RuntimeError):
             results.append((description, 'missing', install_hint))
     
     # Check native Lanczos acceleration
@@ -154,7 +154,7 @@ def validate_optional_dependencies() -> List[Tuple[str, str, str]]:
         import texture_ops
         results.append(('Native Lanczos acceleration', 'installed',
                         'cd native && maturin develop --release'))
-    except (ImportError, OSError):
+    except (ImportError, OSError, RuntimeError):
         results.append(('Native Lanczos acceleration', 'missing',
                         'cd native && maturin develop --release (optional, Python fallback available)'))
     

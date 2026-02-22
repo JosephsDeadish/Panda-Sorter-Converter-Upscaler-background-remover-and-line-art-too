@@ -13,13 +13,13 @@ from typing import Optional, Dict, Any, List, Tuple, Union
 try:
     import numpy as np
     HAS_NUMPY = True
-except (ImportError, OSError):
+except (ImportError, OSError, RuntimeError):
     np = None  # type: ignore[assignment]
     HAS_NUMPY = False
 try:
     from PIL import Image
     HAS_PIL = True
-except (ImportError, OSError):
+except (ImportError, OSError, RuntimeError):
     HAS_PIL = False
 
 
@@ -589,7 +589,7 @@ class AlphaCorrector:
         try:
             import cv2
             has_cv2 = True
-        except (ImportError, OSError):
+        except (ImportError, OSError, RuntimeError):
             has_cv2 = False
             logger.warning("OpenCV not available, using basic defringing")
         
@@ -692,7 +692,7 @@ class AlphaCorrector:
         try:
             import cv2
             has_cv2 = True
-        except (ImportError, OSError):
+        except (ImportError, OSError, RuntimeError):
             has_cv2 = False
             logger.warning("OpenCV not available, using PIL blur")
         
@@ -737,7 +737,7 @@ class AlphaCorrector:
         try:
             import cv2
             has_cv2 = True
-        except (ImportError, OSError):
+        except (ImportError, OSError, RuntimeError):
             has_cv2 = False
             logger.warning("OpenCV not available, using basic dilation")
         
@@ -780,7 +780,7 @@ class AlphaCorrector:
         try:
             import cv2
             has_cv2 = True
-        except (ImportError, OSError):
+        except (ImportError, OSError, RuntimeError):
             has_cv2 = False
             logger.warning("OpenCV not available, using basic erosion")
         

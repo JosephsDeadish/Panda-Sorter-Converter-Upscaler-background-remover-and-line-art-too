@@ -68,7 +68,7 @@ except (ImportError, OSError, RuntimeError):
 try:
     from tools.image_repairer import ImageRepairer, CorruptionType, RepairResult, RepairMode
     REPAIRER_AVAILABLE = True
-except (ImportError, OSError):
+except (ImportError, OSError, RuntimeError):
     ImageRepairer = None
     CorruptionType = None
     RepairResult = None
@@ -80,7 +80,7 @@ logger = logging.getLogger(__name__)
 try:
     from utils.archive_handler import ArchiveHandler
     ARCHIVE_AVAILABLE = True
-except (ImportError, OSError):
+except (ImportError, OSError, RuntimeError):
     ARCHIVE_AVAILABLE = False
     logger.warning("Archive handler not available")
 
