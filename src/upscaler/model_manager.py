@@ -153,8 +153,23 @@ class AIModelManager:
     }
     
     def __init__(self):
-        self.models_dir = Path.cwd() / 'models'
-        self.models_dir.mkdir(exist_ok=True)
+        # Determine models directory:
+        # 1. app_data/models/ next to EXE (portable, survives updates)
+        # 2. ~/.ps2_texture_sorter/models/ (fallback)
+        # Using config.get_data_dir() ensures the same location as logs/DB.
+        try:
+            from config import get_data_dir
+            self.models_dir = get_data_dir() / 'models'
+        except (ImportError, OSError, RuntimeError):
+            try:
+                from src.config import get_data_dir
+                self.models_dir = get_data_dir() / 'models'
+            except (ImportError, OSError, RuntimeError):
+                self.models_dir = Path.cwd() / 'models'
+        try:
+            self.models_dir.mkdir(parents=True, exist_ok=True)
+        except OSError as e:
+            logger.warning(f"Could not create models dir {self.models_dir}: {e}")
         self.status_file = self.models_dir / '.status.json'
         self.load_status()
     

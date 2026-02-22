@@ -121,7 +121,7 @@ class SystemDetector:
             import psutil
             mem = psutil.virtual_memory()
             return mem.total / (1024 ** 3)  # Convert to GB
-        except (ImportError, OSError):
+        except (ImportError, OSError, RuntimeError):
             logger.warning("psutil not available, estimating RAM")
             # Estimate based on CPU count (rough heuristic)
             cpu_cores = mp.cpu_count()
@@ -161,7 +161,7 @@ class SystemDetector:
             gpus = tf.config.list_physical_devices('GPU')
             if gpus:
                 return True, f"TensorFlow GPU ({len(gpus)} device(s))"
-        except (ImportError, OSError):
+        except (ImportError, OSError, RuntimeError):
             pass
         
         # Try OpenCV (for some GPU detection)

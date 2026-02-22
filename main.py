@@ -4290,7 +4290,7 @@ def check_feature_availability():
         from PIL import Image
         import PIL._imaging  # Check binary module
         features['pil'] = True
-    except ImportError:
+    except (ImportError, OSError, RuntimeError):
         pass
     except Exception as e:
         logger.warning(f"PIL check failed: {e}")
