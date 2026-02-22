@@ -10,7 +10,7 @@ import logging
 try:
     import numpy as np
     HAS_NUMPY = True
-except ImportError:
+except (ImportError, OSError, RuntimeError):
     np = None  # type: ignore[assignment]
     HAS_NUMPY = False
 from pathlib import Path
@@ -19,7 +19,7 @@ from dataclasses import dataclass
 try:
     from PIL import Image, ImageFilter
     HAS_PIL = True
-except ImportError:
+except (ImportError, OSError, RuntimeError):
     HAS_PIL = False
 
 import threading
@@ -28,24 +28,34 @@ import queue
 logger = logging.getLogger(__name__)
 
 # Check for rembg availability (AI background removal)
-# SystemExit must also be caught: rembg.bg calls sys.exit(1) when
-# onnxruntime fails to initialise its DLL (e.g. on Windows CI without
-# a full GPU driver stack).  SystemExit is a BaseException, not an
-# Exception/ImportError, so it would otherwise escape the except clause
-# and crash PyInstaller's isolated binary-dependency analysis subprocesses.
-try:
-    from rembg import remove, new_session
-    HAS_REMBG = True
+# rembg is NOT imported directly at module level.  Instead we call a helper
+# function once at module initialization.  This is thread-safe: Python's
+# import lock serializes module initialization so _try_import_rembg() is
+# called exactly once regardless of how many threads import this module.
+# rembg.bg calls sys.exit(1) when onnxruntime fails to initialize its DLL
+# (e.g. on Windows CI without a full GPU driver stack).  We also catch the
+# broad Exception family to handle OSError / RuntimeError / DLL-provider init
+# failures that can surface before the sys.exit path is reached.
+def _try_import_rembg():
+    """Attempt to import rembg; return (remove_fn, new_session_fn) or (None, None)."""
+    try:
+        from rembg import remove, new_session  # type: ignore[import-untyped]
+        return remove, new_session
+    except (ImportError, Exception, SystemExit):
+        return None, None
+
+_rembg_remove, _rembg_new_session = _try_import_rembg()
+HAS_REMBG = _rembg_remove is not None
+if HAS_REMBG:
     logger.info("rembg available for AI background removal")
-except (ImportError, SystemExit):
-    HAS_REMBG = False
+else:
     logger.warning("rembg not available - AI background removal disabled")
 
 # Check for OpenCV availability (for edge refinement)
 try:
     import cv2
     HAS_CV2 = True
-except ImportError:
+except (ImportError, OSError, RuntimeError):
     HAS_CV2 = False
     logger.warning("opencv-python not available - advanced edge refinement disabled")
 
@@ -229,7 +239,7 @@ class BackgroundRemover:
         # Initialize session if rembg available
         if HAS_REMBG:
             try:
-                self.session = new_session(model_name)
+                self.session = _rembg_new_session(model_name)
                 logger.info(f"Background removal session initialized with model: {model_name}")
             except Exception as e:
                 logger.error(f"Failed to initialize background removal session: {e}")
@@ -291,7 +301,7 @@ class BackgroundRemover:
         
         try:
             # Remove background using rembg
-            output = remove(
+            output = _rembg_remove(
                 image,
                 session=self.session,
                 alpha_matting=alpha_matting,
@@ -572,7 +582,7 @@ class BackgroundRemover:
         
         try:
             self.model_name = model_name
-            self.session = new_session(model_name)
+            self.session = _rembg_new_session(model_name)
             logger.info(f"Model changed to: {model_name}")
             return True
         except Exception as e:

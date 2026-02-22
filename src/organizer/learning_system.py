@@ -23,7 +23,7 @@ try:
     from cryptography.hazmat.primitives import hashes
     from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
     CRYPTO_AVAILABLE = True
-except ImportError:
+except (ImportError, OSError, RuntimeError):
     CRYPTO_AVAILABLE = False
     logger.warning("cryptography package not available - profile encryption disabled")
 

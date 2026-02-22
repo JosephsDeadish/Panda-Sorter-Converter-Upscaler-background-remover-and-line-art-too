@@ -5,12 +5,14 @@ Uses OpenGL for 3D effects and QPainter for 2D effects
 """
 
 try:
-    from PyQt6.QtWidgets import QWidget, QOpenGLWidget
+    from PyQt6.QtWidgets import QWidget
     from PyQt6.QtCore import Qt, QTimer, QPointF
     from PyQt6.QtGui import QPainter, QColor, QPen, QBrush, QPolygonF, QPainterPath
-    from PyQt6.QtOpenGLWidgets import QOpenGLWidget as GLWidget
+    # QOpenGLWidget moved from QtWidgets → QtOpenGLWidgets in Qt6/PyQt6
+    from PyQt6.QtOpenGLWidgets import QOpenGLWidget
+    GLWidget = QOpenGLWidget  # alias kept for internal use
     PYQT_AVAILABLE = True
-except ImportError:
+except (ImportError, OSError, RuntimeError):
     PYQT_AVAILABLE = False
     QWidget = object
     QOpenGLWidget = object
@@ -69,7 +71,7 @@ try:
     from OpenGL.GL import *
     from OpenGL.GLU import *
     OPENGL_AVAILABLE = True
-except ImportError:
+except (ImportError, OSError, RuntimeError):
     OPENGL_AVAILABLE = False
 
 

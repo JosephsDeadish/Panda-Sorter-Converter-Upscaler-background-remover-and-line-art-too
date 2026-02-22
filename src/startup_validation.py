@@ -99,13 +99,15 @@ def validate_dependencies() -> Tuple[bool, str, List[str]]:
     critical_imports = [
         ('PyQt6', 'PyQt6 (Qt6 GUI framework)'),
         ('PIL', 'Pillow (Image processing)'),
-        ('OpenGL', 'PyOpenGL (3D rendering)'),
+        # Note: OpenGL is intentionally NOT listed here.  The app ships a 2-D
+        # QPainter panda fallback (panda_widget_2d.py) so missing PyOpenGL is
+        # non-fatal — we report it in validate_optional_dependencies() instead.
     ]
     
     for module_name, description in critical_imports:
         try:
             __import__(module_name)
-        except ImportError:
+        except (ImportError, OSError, RuntimeError):
             missing_deps.append(description)
     
     if missing_deps:
@@ -129,6 +131,8 @@ def validate_optional_dependencies() -> List[Tuple[str, str, str]]:
         status is 'installed' or 'missing'.
     """
     optional_deps = [
+        # 3-D panda rendering -- non-fatal: 2D QPainter fallback is always available
+        ('OpenGL', 'PyOpenGL (3D panda rendering -- 2D fallback used if missing)', 'pip install PyOpenGL PyOpenGL-accelerate'),
         ('torch', 'PyTorch (deep learning framework)', 'pip install torch torchvision'),
         ('transformers', 'Transformers (CLIP, ViT models)', 'pip install transformers'),
         ('open_clip', 'open_clip (Open-source CLIP)', 'pip install open-clip-torch'),
@@ -142,7 +146,7 @@ def validate_optional_dependencies() -> List[Tuple[str, str, str]]:
         try:
             __import__(module_name)
             results.append((description, 'installed', install_hint))
-        except ImportError:
+        except (ImportError, OSError, RuntimeError):
             results.append((description, 'missing', install_hint))
     
     # Check native Lanczos acceleration
@@ -150,7 +154,7 @@ def validate_optional_dependencies() -> List[Tuple[str, str, str]]:
         import texture_ops
         results.append(('Native Lanczos acceleration', 'installed',
                         'cd native && maturin develop --release'))
-    except ImportError:
+    except (ImportError, OSError, RuntimeError):
         results.append(('Native Lanczos acceleration', 'missing',
                         'cd native && maturin develop --release (optional, Python fallback available)'))
     

@@ -24,7 +24,7 @@ try:
     from PyQt6.QtCore import Qt, QThread, pyqtSignal, QStringListModel, QTimer
     from PyQt6.QtGui import QFont, QPixmap, QImage
     PYQT_AVAILABLE = True
-except ImportError:
+except (ImportError, OSError, RuntimeError):
     PYQT_AVAILABLE = False
     QWidget = object
     QFrame = object
@@ -104,7 +104,7 @@ logger = logging.getLogger(__name__)
 try:
     from ui.organizer_settings_panel import OrganizerSettingsPanel
     ORGANIZER_SETTINGS_AVAILABLE = True
-except ImportError as e:
+except (ImportError, OSError) as e:
     logger.warning(f"Organizer settings panel not available: {e}")
     ORGANIZER_SETTINGS_AVAILABLE = False
 
@@ -113,14 +113,14 @@ try:
     from organizer import OrganizationEngine, TextureInfo, ORGANIZATION_STYLES
     from organizer.learning_system import AILearningSystem
     ORGANIZER_AVAILABLE = True
-except ImportError as e:
+except (ImportError, OSError) as e:
     logger.warning(f"Organizer not available: {e}")
     ORGANIZER_AVAILABLE = False
 
 try:
     from features.game_identifier import GameIdentifier
     GAME_IDENTIFIER_AVAILABLE = True
-except ImportError as e:
+except (ImportError, OSError) as e:
     logger.warning(f"GameIdentifier not available: {e}")
     GAME_IDENTIFIER_AVAILABLE = False
 
@@ -128,7 +128,7 @@ try:
     from vision_models.clip_model import CLIPModel
     from vision_models.dinov2_model import DINOv2Model
     VISION_MODELS_AVAILABLE = True
-except ImportError as e:
+except (ImportError, OSError) as e:
     logger.warning(f"Vision models not available: {e}")
     logger.warning("Please install required dependencies: pip install torch transformers open-clip-torch")
     VISION_MODELS_AVAILABLE = False
@@ -145,7 +145,7 @@ except Exception as e:
 try:
     from PIL import Image
     PIL_AVAILABLE = True
-except ImportError:
+except (ImportError, OSError, RuntimeError):
     PIL_AVAILABLE = False
     logger.warning("PIL not available - image preview disabled")
     logger.warning("To enable: pip install pillow")
@@ -156,7 +156,7 @@ except Exception as e:
 try:
     from utils.archive_handler import ArchiveHandler
     ARCHIVE_AVAILABLE = True
-except ImportError:
+except (ImportError, OSError, RuntimeError):
     ARCHIVE_AVAILABLE = False
     logger.warning("Archive handler not available")
 
@@ -419,7 +419,8 @@ class OrganizerPanelQt(QWidget):
     - Settings panel
     """
 
-    finished = pyqtSignal(bool, str)  # success, message
+    finished = pyqtSignal(bool, str, dict)  # success, message, stats
+    log = pyqtSignal(str)                  # log message (forwarded from worker)
     
     def __init__(self, parent=None, tooltip_manager=None):
         super().__init__(parent)

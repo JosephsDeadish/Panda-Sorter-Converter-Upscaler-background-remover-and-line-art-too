@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 try:
     import send2trash
     HAS_SEND2TRASH = True
-except ImportError:
+except (ImportError, OSError, RuntimeError):
     HAS_SEND2TRASH = False
     logger.warning("send2trash not available. Using permanent deletion instead of trash.")
     logger.warning("Install with: pip install send2trash")
@@ -25,7 +25,7 @@ except ImportError:
 try:
     from PIL import Image
     HAS_PIL = True
-except ImportError:
+except (ImportError, OSError, RuntimeError):
     HAS_PIL = False
     logger.warning("PIL/Pillow not available. Image operations disabled.")
 
@@ -33,7 +33,7 @@ except ImportError:
 try:
     import cairosvg
     HAS_SVG_CAIRO = True
-except (ImportError, OSError):
+except (ImportError, OSError, RuntimeError):
     HAS_SVG_CAIRO = False
     logger.debug("cairosvg not available. Cairo SVG conversion disabled.")
 
@@ -43,7 +43,7 @@ try:
     HAS_SVG_NATIVE = NATIVE_AVAILABLE
     # bitmap_to_svg works even without Rust via OpenCV fallback
     HAS_BITMAP_TO_SVG = True
-except ImportError:
+except (ImportError, OSError, RuntimeError):
     HAS_SVG_NATIVE = False
     HAS_BITMAP_TO_SVG = False
     logger.debug("Native vector tracing not available.")
@@ -54,14 +54,14 @@ HAS_SVG = HAS_SVG_CAIRO or HAS_BITMAP_TO_SVG
 try:
     from io import BytesIO
     HAS_BYTESIO = True
-except ImportError:
+except (ImportError, OSError, RuntimeError):
     HAS_BYTESIO = False
 
 # Import archive handler
 try:
     from ..utils.archive_handler import ArchiveHandler
     HAS_ARCHIVE_SUPPORT = True
-except ImportError:
+except (ImportError, OSError, RuntimeError):
     HAS_ARCHIVE_SUPPORT = False
     logger.debug("Archive handler not available.")
 

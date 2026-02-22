@@ -22,7 +22,7 @@ try:
     from PyQt6.QtCore import Qt, pyqtSignal, QThread
     from PyQt6.QtGui import QPixmap
     PYQT_AVAILABLE = True
-except ImportError:
+except (ImportError, OSError, RuntimeError):
     PYQT_AVAILABLE = False
     QWidget = object
     QFrame = object
@@ -77,7 +77,7 @@ except ImportError:
 try:
     from PIL import Image, ImageEnhance
     HAS_PIL = True
-except ImportError:
+except (ImportError, OSError, RuntimeError):
     HAS_PIL = False
 
 
@@ -86,14 +86,14 @@ logger = logging.getLogger(__name__)
 try:
     from utils.archive_handler import ArchiveHandler
     ARCHIVE_AVAILABLE = True
-except ImportError:
+except (ImportError, OSError, RuntimeError):
     ARCHIVE_AVAILABLE = False
     logger.warning("Archive handler not available")
 
 try:
     from tools.color_corrector import ColorCorrector
     COLOR_CORRECTOR_AVAILABLE = True
-except ImportError as e:
+except (ImportError, OSError) as e:
     logger.warning(f"Color corrector not available: {e}")
     COLOR_CORRECTOR_AVAILABLE = False
 
@@ -101,11 +101,11 @@ except ImportError as e:
 try:
     from ui.live_preview_slider_qt import ComparisonSliderWidget
     SLIDER_AVAILABLE = True
-except ImportError:
+except (ImportError, OSError, RuntimeError):
     try:
         from live_preview_slider_qt import ComparisonSliderWidget
         SLIDER_AVAILABLE = True
-    except ImportError:
+    except (ImportError, OSError, RuntimeError):
         SLIDER_AVAILABLE = False
         ComparisonSliderWidget = None
 
@@ -553,7 +553,8 @@ class ColorCorrectionPanelQt(QWidget):
             QMessageBox.information(self, "Success", message)
         else:
             QMessageBox.warning(self, "Error", message)
-    
+        self.finished.emit(success, message)
+
     def cleanup(self):
         """Clean up resources."""
         if self.worker:

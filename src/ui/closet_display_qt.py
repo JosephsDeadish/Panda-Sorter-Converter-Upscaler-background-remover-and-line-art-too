@@ -9,7 +9,7 @@ try:
     from PyQt6.QtCore import Qt, pyqtSignal
     from PyQt6.QtGui import QPixmap, QPainter, QColor
     PYQT_AVAILABLE = True
-except ImportError:
+except (ImportError, OSError, RuntimeError):
     PYQT_AVAILABLE = False
     QWidget = object
     QFrame = object
@@ -177,3 +177,7 @@ def create_closet_display(parent=None, tooltip_manager=None):
     if not PYQT_AVAILABLE:
         return None
     return ClosetDisplayWidget(parent, tooltip_manager)
+
+
+# Alias for callers that use the Qt-suffixed name (e.g. qt_panel_loader.py)
+ClosetDisplayQt = ClosetDisplayWidget

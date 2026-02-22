@@ -15,7 +15,7 @@ from pathlib import Path
 try:
     import numpy as np
     HAS_NUMPY = True
-except ImportError:
+except (ImportError, OSError, RuntimeError):
     np = None  # type: ignore[assignment]
     HAS_NUMPY = False
 
@@ -81,41 +81,50 @@ class CombinedFeatureExtractor:
     def _init_clip(self):
         """Initialize CLIP model."""
         try:
-            from src.vision_models.clip_model import CLIPModel
+            try:
+                from vision_models.clip_model import CLIPModel
+            except (ImportError, OSError, RuntimeError):
+                from src.vision_models.clip_model import CLIPModel
             model = CLIPModel()
             self.models.append(('CLIP', model))
             logger.info("✅ CLIP model initialized")
-        except ImportError as e:
+        except (ImportError, OSError) as e:
             logger.error(f"Failed to import CLIP model: {e}")
         except Exception as e:
             logger.error(f"Failed to initialize CLIP: {e}")
-    
+
     def _init_dinov2(self):
         """Initialize DINOv2 model."""
         try:
-            from src.vision_models.dinov2_model import DINOv2Model
+            try:
+                from vision_models.dinov2_model import DINOv2Model
+            except (ImportError, OSError, RuntimeError):
+                from src.vision_models.dinov2_model import DINOv2Model
             model = DINOv2Model()
             self.models.append(('DINOv2', model))
             logger.info("✅ DINOv2 model initialized")
-        except ImportError as e:
+        except (ImportError, OSError) as e:
             logger.error(f"Failed to import DINOv2 model: {e}")
         except Exception as e:
             logger.error(f"Failed to initialize DINOv2: {e}")
-    
+
     def _init_timm(self):
         """
         Initialize timm (EfficientNet) model.
-        
+
         IMPORTANT: Model is NOT compiled with TorchScript to avoid source access errors.
         Uses standard PyTorch .eval() mode only.
         """
         try:
-            from src.vision_models.efficientnet_model import EfficientNetModel
+            try:
+                from vision_models.efficientnet_model import EfficientNetModel
+            except (ImportError, OSError, RuntimeError):
+                from src.vision_models.efficientnet_model import EfficientNetModel
             # Default to efficientnet_b0 - NOT compiled with TorchScript
             model = EfficientNetModel('efficientnet_b0')
             self.models.append(('timm', model))
             logger.info("✅ timm (EfficientNet) model initialized (NOT TorchScript compiled)")
-        except ImportError as e:
+        except (ImportError, OSError) as e:
             logger.error(f"Failed to import timm model: {e}")
         except Exception as e:
             logger.error(f"Failed to initialize timm: {e}")

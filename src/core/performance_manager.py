@@ -25,7 +25,7 @@ from typing import Dict, Generator, List, Optional, Any
 try:
     import psutil
     HAS_PSUTIL = True
-except ImportError:
+except (ImportError, OSError, RuntimeError):
     psutil = None  # type: ignore[assignment]
     HAS_PSUTIL = False
 
@@ -33,7 +33,7 @@ except ImportError:
 try:
     from utils.gpu_detector import GPUDetector, GPUDevice
     GPU_DETECTOR_AVAILABLE = True
-except ImportError:
+except (ImportError, OSError, RuntimeError):
     GPU_DETECTOR_AVAILABLE = False
     GPUDetector = None
     GPUDevice = None

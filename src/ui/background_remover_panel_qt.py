@@ -18,23 +18,29 @@ try:
     from PyQt6.QtCore import Qt, pyqtSignal
     from PyQt6.QtGui import QPixmap
     PYQT_AVAILABLE = True
-except ImportError:
+except (ImportError, OSError, RuntimeError):
     PYQT_AVAILABLE = False
     class QWidget: pass
-    class pyqtSignal: pass
+    class _SigStub:
+        """Minimal signal stub so .connect() never raises AttributeError."""
+        def __init__(self, *a): pass
+        def connect(self, *a): pass
+        def disconnect(self, *a): pass
+        def emit(self, *a): pass
+    def pyqtSignal(*a): return _SigStub()  # type: ignore[misc]
 
 # Import PIL for image handling
 try:
     from PIL import Image
     PIL_AVAILABLE = True
-except ImportError:
+except (ImportError, OSError, RuntimeError):
     PIL_AVAILABLE = False
     Image = None
 
 try:
     from utils.archive_handler import ArchiveHandler
     ARCHIVE_AVAILABLE = True
-except ImportError:
+except (ImportError, OSError, RuntimeError):
     ARCHIVE_AVAILABLE = False
     logger.warning("Archive handler not available")
 
@@ -42,11 +48,11 @@ except ImportError:
 try:
     from ui.live_preview_slider_qt import ComparisonSliderWidget
     SLIDER_AVAILABLE = True
-except ImportError:
+except (ImportError, OSError, RuntimeError):
     try:
         from live_preview_slider_qt import ComparisonSliderWidget
         SLIDER_AVAILABLE = True
-    except ImportError:
+    except (ImportError, OSError, RuntimeError):
         SLIDER_AVAILABLE = False
         ComparisonSliderWidget = None
 
@@ -55,8 +61,8 @@ class BackgroundRemoverPanelQt(QWidget):
     """Qt-based background remover panel with paint tools."""
     
     # Signals
-    image_loaded = pyqtSignal(str) if PYQT_AVAILABLE else None
-    processing_complete = pyqtSignal() if PYQT_AVAILABLE else None
+    image_loaded = pyqtSignal(str)
+    processing_complete = pyqtSignal()
     
     def __init__(self, parent=None, tooltip_manager=None):
         if not PYQT_AVAILABLE:
@@ -444,7 +450,7 @@ class BackgroundRemoverPanelQt(QWidget):
         try:
             import rembg
             rembg_available = True
-        except ImportError:
+        except (ImportError, Exception, SystemExit):
             rembg_available = False
         
         if not rembg_available:

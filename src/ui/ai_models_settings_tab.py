@@ -10,7 +10,7 @@ try:
     from PyQt6.QtCore import Qt, pyqtSignal, QThread, QSize
     from PyQt6.QtGui import QFont, QColor
     PYQT_AVAILABLE = True
-except ImportError:
+except (ImportError, OSError, RuntimeError):
     PYQT_AVAILABLE = False
     QWidget = object
     QFrame = object
@@ -66,23 +66,56 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-# Try to import model manager with correct paths
-try:
-    # First try relative import from src/ui/
-    from ..upscaler.model_manager import AIModelManager, ModelStatus
-    MODEL_MANAGER_AVAILABLE = True
-    logger.info("✅ Model manager loaded successfully (relative import)")
-except ImportError:
+# Try to import model manager with correct paths.
+# Three-tier fallback so this works in:
+#   1. Normal development (src/ in sys.path, relative import works)
+#   2. Running main.py from repo root (absolute import works)
+#   3. Frozen PyInstaller EXE (relative imports may fail; explicit path insert works)
+def _import_model_manager():
+    """Return (AIModelManager, ModelStatus) or (None, None) on failure."""
+    # Attempt 1: relative import (works when ui is a proper package)
     try:
-        # Then try absolute import when src is in sys.path
-        from upscaler.model_manager import AIModelManager, ModelStatus
-        MODEL_MANAGER_AVAILABLE = True
-        logger.info("✅ Model manager loaded successfully (absolute import)")
-    except ImportError:
-        logger.warning("⚠️ Model manager not available - AI models tab will be limited")
-        MODEL_MANAGER_AVAILABLE = False
-        AIModelManager = None
-        ModelStatus = None
+        from ..upscaler.model_manager import AIModelManager, ModelStatus  # noqa: PLC0415
+        return AIModelManager, ModelStatus
+    except (ImportError, ValueError):
+        pass
+
+    # Attempt 2: absolute import (works when src/ is in sys.path)
+    try:
+        from upscaler.model_manager import AIModelManager, ModelStatus  # noqa: PLC0415
+        return AIModelManager, ModelStatus
+    except (ImportError, OSError, RuntimeError):
+        pass
+
+    # Attempt 3: explicit path insert (works in frozen EXE where sys.path differs)
+    try:
+        import sys
+        from pathlib import Path
+        _here = Path(__file__).resolve().parent          # .../src/ui/
+        _upscaler = str(_here.parent / 'upscaler')      # .../src/upscaler/
+        _src = str(_here.parent)                         # .../src/
+        for _p in (_src, _upscaler):
+            if _p not in sys.path:
+                sys.path.insert(0, _p)
+        from model_manager import AIModelManager, ModelStatus  # noqa: PLC0415
+        return AIModelManager, ModelStatus
+    except (ImportError, OSError, RuntimeError):
+        pass
+
+    return None, None
+
+
+_AIModelManager, _ModelStatus = _import_model_manager()
+if _AIModelManager is not None:
+    AIModelManager = _AIModelManager
+    ModelStatus = _ModelStatus
+    MODEL_MANAGER_AVAILABLE = True
+    logger.info("✅ Model manager loaded successfully")
+else:
+    logger.warning("⚠️ Model manager not available - AI models tab will be limited")
+    MODEL_MANAGER_AVAILABLE = False
+    AIModelManager = None
+    ModelStatus = None
 
 
 

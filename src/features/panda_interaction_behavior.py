@@ -20,7 +20,7 @@ try:
     from PyQt6.QtCore import QTimer, QPoint
     from PyQt6.QtWidgets import QPushButton, QSlider, QTabBar, QComboBox, QCheckBox
     PYQT_AVAILABLE = True
-except ImportError:
+except (ImportError, OSError, RuntimeError):
     PYQT_AVAILABLE = False
 
 import random

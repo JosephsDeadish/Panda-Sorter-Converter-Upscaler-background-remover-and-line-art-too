@@ -20,7 +20,7 @@ try:
     from OpenGL.GLU import *
     import numpy as np
     QT_AVAILABLE = True
-except ImportError:
+except (ImportError, OSError, RuntimeError):
     QT_AVAILABLE = False
     QWidget = object
     QOpenGLWidget = object
@@ -28,7 +28,12 @@ except ImportError:
     QStateMachine = object
     QMouseEvent = object  # Type hint fallback
     QTimer = object
-    pyqtSignal = lambda *args: None  # Dummy signal
+    class _SigStub:
+        def __init__(self, *a): pass
+        def connect(self, *a): pass
+        def disconnect(self, *a): pass
+        def emit(self, *a): pass
+    def pyqtSignal(*a): return _SigStub()  # type: ignore[misc]
 
 logger = logging.getLogger(__name__)
 
@@ -47,9 +52,9 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
     """
     
     # Signals for communication with main app
-    clicked = pyqtSignal() if QT_AVAILABLE else None
-    mood_changed = pyqtSignal(str) if QT_AVAILABLE else None
-    animation_changed = pyqtSignal(str) if QT_AVAILABLE else None
+    clicked = pyqtSignal()
+    mood_changed = pyqtSignal(str)
+    animation_changed = pyqtSignal(str)
     
     # Animation constants
     TARGET_FPS = 60
@@ -135,6 +140,7 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
         
         # Items (toys, food, clothes)
         self.items_3d = []  # List of 3D items in the scene
+        self._preview_item_ref: dict | None = None  # Currently previewed item (tracked separately)
         
         # Clothing system (3D attachments)
         self.clothing = {
@@ -1752,6 +1758,106 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
         
         glEnable(GL_LIGHTING)
     
+    # ── Unified public interface (matches main.py call sites) ──────────────────
+
+    def set_animation(self, animation: str) -> None:
+        """Alias for set_animation_state — used by main.py callback."""
+        self.set_animation_state(animation)
+
+    def preview_item(self, item_id: str) -> None:
+        """
+        Temporarily show an inventory item near the panda (hover/inspect).
+
+        Adds a floating 3D item above the panda's position so the user can
+        see what it looks like before equipping it.  The item is removed the
+        next time preview_item is called or when equip_item is called.
+
+        Args:
+            item_id: Inventory item identifier string.
+        """
+        # Clear any previous preview item using the tracked reference (O(1))
+        if self._preview_item_ref is not None and self._preview_item_ref in self.items_3d:
+            self.items_3d.remove(self._preview_item_ref)
+        self._preview_item_ref = None
+
+        if not item_id:
+            self.update()
+            return
+
+        # Map common item categories to 3D item types
+        _id = str(item_id).lower()
+        if any(k in _id for k in ('sword', 'axe', 'staff', 'weapon')):
+            item_type = 'weapon'
+        elif any(k in _id for k in ('hat', 'crown', 'helmet')):
+            item_type = 'hat'
+        elif any(k in _id for k in ('food', 'bamboo', 'apple', 'cake')):
+            item_type = 'food'
+        elif any(k in _id for k in ('toy', 'ball', 'plush')):
+            item_type = 'toy'
+        else:
+            item_type = 'toy'   # generic fallback — renders as floating cube
+
+        preview_item = {
+            '_preview': True,
+            'type': item_type,
+            'id': item_id,
+            'x': self.panda_x + 0.6,
+            'y': self.panda_y + 1.2,
+            'z': self.panda_z,
+        }
+        self._preview_item_ref = preview_item
+        self.items_3d.append(preview_item)
+        logger.debug("Previewing item: %s as %s", item_id, item_type)
+        self.update()
+
+    def equip_item(self, item_data) -> None:
+        """
+        Equip a clothing/accessory item onto the panda.
+
+        Delegates to equip_clothing() using the item's slot information.
+        Also clears any active preview for the same item.
+
+        Args:
+            item_data: dict with at least 'id' key, optionally 'slot' and 'type'.
+                       May also be a plain string item identifier.
+        """
+        if isinstance(item_data, str):
+            item_data = {'id': item_data}
+
+        item_id = item_data.get('id', '')
+        slot = item_data.get('slot', '')
+        item_type = str(item_data.get('type', item_id)).lower()
+
+        # Clear preview if it's the same item (O(1) via tracked ref)
+        if (self._preview_item_ref is not None
+                and self._preview_item_ref.get('id') == item_id
+                and self._preview_item_ref in self.items_3d):
+            self.items_3d.remove(self._preview_item_ref)
+            self._preview_item_ref = None
+
+        # Determine clothing slot from type/id heuristics
+        if not slot:
+            if any(k in item_type for k in ('hat', 'crown', 'helmet', 'bow')):
+                slot = 'hat'
+            elif any(k in item_type for k in ('shirt', 'jacket', 'top')):
+                slot = 'shirt'
+            elif any(k in item_type for k in ('pants', 'skirt', 'bottom')):
+                slot = 'pants'
+            elif any(k in item_type for k in ('glasses', 'goggles')):
+                slot = 'glasses'
+            else:
+                slot = 'accessory'
+
+        self.equip_clothing(slot, item_data)
+        logger.debug("Equipped item %r into slot %r", item_id, slot)
+        self.update()
+
+    def update_appearance(self) -> None:
+        """Trigger a full redraw of the panda widget.  Called by CustomizationPanelQt."""
+        self.update()
+
+    # ── Info ───────────────────────────────────────────────────────────────────
+
     def get_info(self) -> dict:
         """
         Get current panda widget information.

@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 try:
     import numpy as np
     HAS_NUMPY = True
-except ImportError:
+except (ImportError, OSError, RuntimeError):
     HAS_NUMPY = False
     logger.error("numpy not available - classifier will have limited functionality")
     logger.error("Install with: pip install numpy")
@@ -25,14 +25,14 @@ except ImportError:
 try:
     from PIL import Image
     HAS_PIL = True
-except ImportError:
+except (ImportError, OSError, RuntimeError):
     HAS_PIL = False
     logger.warning("PIL/Pillow not available - image analysis disabled")
 
 try:
     import cv2
     HAS_CV2 = True
-except ImportError:
+except (ImportError, OSError, RuntimeError):
     HAS_CV2 = False
     logger.debug("OpenCV not available - some features disabled")
 
@@ -43,7 +43,7 @@ try:
         color_histogram as native_color_histogram,
         NATIVE_AVAILABLE,
     )
-except ImportError as e:
+except (ImportError, OSError) as e:
     logger.debug(f"Native acceleration not available: {e}")
     NATIVE_AVAILABLE = False
     native_edge_density = None

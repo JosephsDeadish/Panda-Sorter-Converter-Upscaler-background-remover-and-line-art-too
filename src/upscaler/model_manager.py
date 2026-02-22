@@ -191,7 +191,7 @@ class AIModelManager:
                 for pkg in model_info.get('required_packages', []):
                     __import__(pkg)
                 return ModelStatus.INSTALLED
-            except ImportError:
+            except (ImportError, OSError, RuntimeError):
                 return ModelStatus.MISSING
         
         # Check if it's an auto-download model (CLIP, DINOv2)

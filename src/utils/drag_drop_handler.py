@@ -18,7 +18,7 @@ try:
     from PyQt6.QtGui import QDragEnterEvent, QDropEvent
     from PyQt6.QtWidgets import QWidget
     PYQT_AVAILABLE = True
-except ImportError:
+except (ImportError, OSError, RuntimeError):
     PYQT_AVAILABLE = False
     logger.warning("PyQt6 not available, drag-and-drop will not work")
     class QObject:  # type: ignore[no-redef]

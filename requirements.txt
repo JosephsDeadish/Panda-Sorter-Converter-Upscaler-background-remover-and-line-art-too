@@ -23,6 +23,7 @@
 # All UI components (tabs, buttons, layouts, events) use Qt6 widgets.
 # 3D rendering and animations use OpenGL for hardware acceleration.
 PyQt6>=6.6.0  # Qt6 framework - native UI widgets, event system, state machine
+PyQt6-sip>=13.6.0  # SIP bindings for PyQt6 (installed by PyQt6, listed for PyInstaller)
 PyOpenGL>=3.1.7  # OpenGL for 3D rendering and skeletal animations
 PyOpenGL-accelerate>=3.1.7  # Hardware acceleration for PyOpenGL
 
@@ -87,25 +88,47 @@ requests>=2.31.0  # HTTP requests for online features
 cairosvg>=2.7.0  # SVG to raster conversion (optional, only for loading SVG files)
 cairocffi>=1.6.0  # Cairo FFI bindings (dependency of cairosvg)
 
-# AI/ML - Offline Model Inference (Optional)
-# IMPORTANT: onnxruntime is optional but recommended for offline AI model inference
-# (src/ai/offline_model.py). The application gracefully degrades if not available.
-onnxruntime>=1.16.0  # Lightweight offline AI model inference (optional, recommended)
+# AI/ML - ONNX Runtime (Inference side — recommended for all installs)
+# ============================================================================
+# HYBRID ARCHITECTURE: ONNX for inference, PyTorch for training (optional).
+#
+# ONNX Runtime is the inference runtime used by the main app pipelines:
+#   src/ai/inference.py    → OnnxInferenceSession, run_batch_inference
+#   src/ai/offline_model.py → OfflineModel (classification)
+#
+# Why ONNX for inference?
+#   ✅ Starts faster (no JIT compilation)    ✅ Lower memory overhead
+#   ✅ Easier multi-threading                ✅ Predictable performance
+#   ✅ EXE-safe (compact native DLL)         ✅ Works on old/weak hardware
+#   ✅ No torch dependency at runtime
+#
+# The app degrades gracefully without it (features disabled, no crash).
+onnxruntime>=1.16.0  # ONNX inference runtime — batch pipelines & classification
 
 # ============================================================================
-# DEEP LEARNING DEPENDENCIES (Optional - for advanced vision models)
+# DEEP LEARNING DEPENDENCIES (Optional — training side only)
 # ============================================================================
-# Note: These are LARGE downloads (torch alone is ~700MB)
-# Only install if using advanced classification features
+# PyTorch is the TRAINING runtime. It is NOT required for normal app operation.
+# Install only if you want to:
+#   • Train custom upscalers or texture classifiers
+#   • Fine-tune segmentation models
+#   • Use advanced vision models (CLIP, DINOv2, EfficientNet)
+#
+# Training workflow:
+#   1. Train with PyTorchTrainer  (src/ai/training_pytorch.py)
+#   2. Export to ONNX             (trainer.export_checkpoint("model.onnx"))
+#   3. Load in inference pipeline (OnnxInferenceSession("model.onnx"))
+#
+# Note: torch alone is ~700MB download.
 # GPU support: See https://pytorch.org/get-started/locally/ for CUDA versions
 
-# PyTorch Framework
+# PyTorch Framework (training side)
 torch>=2.6.0  # Deep learning framework (>= 2.6.0 for torch.load RCE fix)
 torchvision>=0.21.0  # Computer vision models and transforms
 
-# ONNX Model Export/Import (Optional - for PyTorch model export/import)
-# NOTE: onnx.reference module may cause issues with PyInstaller - handled by hooks
-onnx>=1.14.0  # ONNX model format - needed for PyTorch model export (optional)
+# ONNX Model Export/Import (for PyTorch → ONNX conversion)
+# NOTE: onnx.reference module may cause issues with PyInstaller — handled by hooks
+onnx>=1.14.0  # ONNX model format — needed for PyTorch model export (optional)
 # onnxscript>=0.1.0  # Optional ONNX scripting (uncomment if needed)
 
 # Transformer Models

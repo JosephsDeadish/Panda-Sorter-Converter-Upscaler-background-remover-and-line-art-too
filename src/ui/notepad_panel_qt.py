@@ -21,7 +21,7 @@ try:
     from PyQt6.QtCore import Qt, pyqtSignal, QTimer
     from PyQt6.QtGui import QFont, QTextCharFormat, QColor
     PYQT_AVAILABLE = True
-except ImportError:
+except (ImportError, OSError, RuntimeError):
     PYQT_AVAILABLE = False
     class QWidget:  # type: ignore[no-redef]
         """Fallback stub when PyQt6 is not installed."""

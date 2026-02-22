@@ -7,24 +7,25 @@ Author: Dead On The Inside / JosephsDeadish
 from __future__ import annotations
 
 import logging
+import os
 from typing import Optional, Union
 from pathlib import Path
 try:
     import numpy as np
     HAS_NUMPY = True
-except ImportError:
+except (ImportError, OSError, RuntimeError):
     np = None  # type: ignore[assignment]
     HAS_NUMPY = False
 try:
     from PIL import Image
     HAS_PIL = True
-except ImportError:
+except (ImportError, OSError, RuntimeError):
     HAS_PIL = False
 
 try:
     import cv2
     HAS_CV2 = True
-except ImportError:
+except (ImportError, OSError, RuntimeError):
     HAS_CV2 = False
     cv2 = None  # type: ignore[assignment]
 
@@ -32,23 +33,41 @@ except ImportError:
 logger = logging.getLogger(__name__)
 
 # Import model manager for smart model downloads
+# Try direct import first (frozen EXE / src/ on sys.path), then src-prefixed fallback
 try:
-    from src.upscaler.model_manager import AIModelManager, ModelStatus
+    from upscaler.model_manager import AIModelManager, ModelStatus
     model_manager = AIModelManager()
-except ImportError:
-    # Fallback if running in different context
+except (ImportError, OSError, RuntimeError):
     try:
-        from upscaler.model_manager import AIModelManager, ModelStatus
+        from src.upscaler.model_manager import AIModelManager, ModelStatus
         model_manager = AIModelManager()
-    except ImportError:
+    except (ImportError, OSError, RuntimeError):
         logger.warning("Model manager not available - model downloads disabled")
         model_manager = None
         ModelStatus = None
 
 # Check for native Rust acceleration
+# native_ops.py is a wrapper that tries to import 'texture_ops' (the compiled Rust
+# extension) and falls back to pure-Python/PIL implementations automatically.
 try:
     from native_ops import lanczos_upscale as _native_lanczos, NATIVE_AVAILABLE
-except ImportError as e:
+except (ImportError, OSError, RuntimeError):
+    # Fallback: try importing texture_ops (the Rust wheel) directly
+    try:
+        import texture_ops as _tx
+        NATIVE_AVAILABLE = True
+        def _native_lanczos(image, scale_factor):
+            import numpy as np
+            flat = image.tobytes()
+            h, w = image.shape[:2]
+            channels = image.shape[2] if len(image.shape) == 3 else 1
+            result_bytes, new_w, new_h = _tx.lanczos_upscale(flat, w, h, channels, scale_factor)
+            return np.frombuffer(result_bytes, dtype=np.uint8).reshape(new_h, new_w, channels)
+    except Exception as e:
+        logger.debug(f"Native acceleration not available: {e}")
+        NATIVE_AVAILABLE = False
+        _native_lanczos = None
+except Exception as e:
     logger.debug(f"Native acceleration not available: {e}")
     NATIVE_AVAILABLE = False
     _native_lanczos = None
@@ -73,6 +92,10 @@ except ImportError as e:
 except Exception as e:
     logger.warning(f"⚠️  Error loading Real-ESRGAN: {type(e).__name__}: {e}")
     REALESRGAN_AVAILABLE = False
+
+# Module-level flag: True when at minimum PIL is available (basic upscaling works).
+# REALESRGAN_AVAILABLE / NATIVE_AVAILABLE cover the optional faster backends.
+UPSCALER_AVAILABLE: bool = HAS_PIL
 
 
 class TextureUpscaler:
@@ -258,6 +281,15 @@ class TextureUpscaler:
             else:
                 # Fallback to old location
                 model_path = f'weights/{model_name}.pth'
+
+            # Verify the model file exists before trying to load it
+            if not os.path.isfile(model_path):
+                logger.warning(
+                    f"Real-ESRGAN model file not found at '{model_path}'. "
+                    "Download it or run the model manager. Falling back to PIL upscaling."
+                )
+                self._realesrgan_loaded = False
+                return
             
             # Create model
             model = RRDBNet(

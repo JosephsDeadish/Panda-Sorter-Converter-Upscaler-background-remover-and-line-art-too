@@ -13,7 +13,7 @@ try:
     from PyQt6.QtCore import Qt, QThread, pyqtSignal
     from PyQt6.QtGui import QPixmap, QImage, QFont
     PYQT_AVAILABLE = True
-except ImportError:
+except (ImportError, OSError, RuntimeError):
     PYQT_AVAILABLE = False
     QWidget = object
     QFrame = object
@@ -74,18 +74,27 @@ import logging
 try:
     from PIL import Image
     HAS_PIL = True
-except ImportError:
+except (ImportError, OSError, RuntimeError):
     HAS_PIL = False
 
 
-from tools.quality_checker import ImageQualityChecker, format_quality_report, QualityLevel, QualityCheckOptions
+try:
+    from tools.quality_checker import ImageQualityChecker, format_quality_report, QualityLevel, QualityCheckOptions
+    _QUALITY_TOOL_AVAILABLE = True
+except Exception as _e:
+    import logging as _logging
+    _logging.getLogger(__name__).warning(f"quality_checker tool not available: {_e}")
+    ImageQualityChecker = None  # type: ignore[assignment,misc]
+    format_quality_report = None  # type: ignore[assignment]
+    QualityLevel = QualityCheckOptions = None  # type: ignore[assignment]
+    _QUALITY_TOOL_AVAILABLE = False
 
 logger = logging.getLogger(__name__)
 
 try:
     from utils.archive_handler import ArchiveHandler
     ARCHIVE_AVAILABLE = True
-except ImportError:
+except (ImportError, OSError, RuntimeError):
     ARCHIVE_AVAILABLE = False
     logger.warning("Archive handler not available")
 
@@ -130,7 +139,7 @@ class QualityCheckerPanelQt(QWidget):
         super().__init__(parent)
         
         self.tooltip_manager = tooltip_manager
-        self.checker = ImageQualityChecker()
+        self.checker = ImageQualityChecker() if ImageQualityChecker is not None else None
         self.selected_files: List[str] = []
         self.current_report = None
         self.worker_thread = None
@@ -389,6 +398,7 @@ class QualityCheckerPanelQt(QWidget):
             QMessageBox.critical(self, "Error", message)
             self.status_label.setText("✗ Check failed")
             self.status_label.setStyleSheet("color: red;")
+        self.finished.emit(success, message)
 
     def _set_tooltip(self, widget, text):
         """Set tooltip on a widget using tooltip manager if available."""

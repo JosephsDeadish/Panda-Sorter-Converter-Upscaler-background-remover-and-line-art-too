@@ -15,7 +15,7 @@ try:
     from PyQt6.QtCore import Qt, pyqtSignal
     from PyQt6.QtGui import QFont
     PYQT_AVAILABLE = True
-except ImportError:
+except (ImportError, OSError, RuntimeError):
     PYQT_AVAILABLE = False
     QWidget = object
     QFrame = object
@@ -36,12 +36,12 @@ try:
     from features.shop_system import ShopSystem, ShopCategory, ShopItem
     from features.currency_system import CurrencySystem
     SHOP_AVAILABLE = True
-except ImportError:
+except (ImportError, OSError, RuntimeError):
     try:
         from ..features.shop_system import ShopSystem, ShopCategory, ShopItem
         from ..features.currency_system import CurrencySystem
         SHOP_AVAILABLE = True
-    except ImportError:
+    except (ImportError, OSError, RuntimeError):
         logger.warning("Shop system not available")
         SHOP_AVAILABLE = False
         ShopSystem = None

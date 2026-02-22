@@ -16,7 +16,7 @@ try:
     )
     from PyQt6.QtCore import Qt, QThread, pyqtSignal
     PYQT_AVAILABLE = True
-except ImportError:
+except (ImportError, OSError, RuntimeError):
     PYQT_AVAILABLE = False
     QWidget = object
     QFrame = object
@@ -68,7 +68,7 @@ except ImportError:
 try:
     from tools.image_repairer import ImageRepairer, CorruptionType, RepairResult, RepairMode
     REPAIRER_AVAILABLE = True
-except ImportError:
+except (ImportError, OSError, RuntimeError):
     ImageRepairer = None
     CorruptionType = None
     RepairResult = None
@@ -80,7 +80,7 @@ logger = logging.getLogger(__name__)
 try:
     from utils.archive_handler import ArchiveHandler
     ARCHIVE_AVAILABLE = True
-except ImportError:
+except (ImportError, OSError, RuntimeError):
     ARCHIVE_AVAILABLE = False
     logger.warning("Archive handler not available")
 
@@ -478,6 +478,7 @@ class ImageRepairPanelQt(QWidget):
         self._set_ui_enabled(True)
         QMessageBox.critical(self, "Error", f"Diagnostic failed: {error_msg}")
         self.progress_label.setText("Diagnostic failed")
+        self.error.emit(error_msg)
     
     def _repair_files(self):
         """Repair selected files."""
@@ -548,6 +549,8 @@ class ImageRepairPanelQt(QWidget):
         )
         
         self.progress_label.setText("Repair complete")
+        success = failures == 0
+        self.finished.emit(success, f"Repaired {successes} files" + (f" ({failures} failed)" if failures else ""))
     
     def _on_repair_error(self, error_msg):
         """Handle repair error."""
@@ -555,6 +558,7 @@ class ImageRepairPanelQt(QWidget):
         self._set_ui_enabled(True)
         QMessageBox.critical(self, "Error", f"Repair failed: {error_msg}")
         self.progress_label.setText("Repair failed")
+        self.error.emit(error_msg)
     
     def _cancel_operation(self):
         """Cancel current operation."""

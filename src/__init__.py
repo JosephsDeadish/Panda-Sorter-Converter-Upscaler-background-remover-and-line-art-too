@@ -15,5 +15,5 @@ __project__ = "Game Texture Sorter"
 # This is a no-op on Windows/macOS and a no-op when a display is available.
 try:
     import qt_platform_setup  # noqa: F401
-except ImportError:
+except (ImportError, OSError, RuntimeError):
     pass

@@ -121,7 +121,7 @@ class SystemDetector:
             import psutil
             mem = psutil.virtual_memory()
             return mem.total / (1024 ** 3)  # Convert to GB
-        except ImportError:
+        except (ImportError, OSError):
             logger.warning("psutil not available, estimating RAM")
             # Estimate based on CPU count (rough heuristic)
             cpu_cores = mp.cpu_count()
@@ -140,7 +140,7 @@ class SystemDetector:
         except ImportError:
             logger.debug("PyTorch not available for GPU detection")
         except OSError as e:
-            # Handle DLL initialization errors gracefully
+            # Handle DLL initialization errors gracefully (Windows DLL load failures)
             logger.debug(f"PyTorch DLL initialization failed: {e}")
         except Exception as e:
             logger.debug(f"Unexpected error importing torch: {e}")
@@ -161,7 +161,7 @@ class SystemDetector:
             gpus = tf.config.list_physical_devices('GPU')
             if gpus:
                 return True, f"TensorFlow GPU ({len(gpus)} device(s))"
-        except ImportError:
+        except (ImportError, OSError):
             pass
         
         # Try OpenCV (for some GPU detection)

@@ -6,6 +6,78 @@
 
 A professional Windows application for automatically sorting game texture dumps with advanced AI classification, massive-scale support (200,000+ textures), and a modern panda-themed UI. Distributed as a one-folder package for fast startup and easy customization.
 
+---
+
+## 🧠 Hybrid PyTorch + ONNX Architecture
+
+The app uses a **hybrid AI architecture** designed for batch automation, offline inference, and optional training — all on old/low-spec hardware.
+
+```
+┌───────────────────────────────────────────────────────────┐
+│                     TRAINING SIDE                          │
+│  (optional — requires PyTorch, dev / power-user only)      │
+│                                                            │
+│  src/ai/training_pytorch.py                                │
+│  • Train custom upscalers / classifiers                    │
+│  • Fine-tune segmentation models                           │
+│  • Experimental architecture search                        │
+│  • Export weights → ONNX  ──────────────────┐             │
+└─────────────────────────────────────────────┼─────────────┘
+                                              │ export_to_onnx()
+┌─────────────────────────────────────────────▼─────────────┐
+│                    INFERENCE SIDE                          │
+│  (always-on, EXE-safe, no torch dependency)                │
+│                                                            │
+│  src/ai/inference.py  →  OnnxInferenceSession              │
+│  • Batch upscaling pipelines                               │
+│  • Automated background removal                            │
+│  • Offline texture classification                          │
+│  • Fast, low-memory, predictable performance               │
+└────────────────────────────────────────────────────────────┘
+```
+
+### Why this split?
+
+| Concern | Training side (PyTorch) | Inference side (ONNX) |
+|---|---|---|
+| Flexibility | ✅ Dynamic graphs, autograd | — |
+| Cold-start speed | ❌ JIT compilation | ✅ Instant |
+| Memory overhead | ❌ High (training state) | ✅ Low |
+| Batch throughput | Fine | ✅ Excellent |
+| EXE bundle size | ❌ ~700 MB | ✅ ~10 MB |
+| Old hardware | ❌ May OOM | ✅ CPU-first |
+| Required for main app | ❌ **No** | ✅ **Yes** |
+
+### Installing training extras
+
+Training features are **not** required to run the app. Install PyTorch separately:
+
+```bash
+# CPU-only (smallest download)
+pip install torch torchvision
+
+# GPU (CUDA 12.1) — see https://pytorch.org/get-started/locally/
+pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121
+```
+
+When PyTorch is absent, training panels are disabled with a clear "install extras" message. Everything else keeps working.
+
+### Background removal (optional rembg)
+
+Background removal uses `rembg` which depends on `onnxruntime`. It is **not** required for the main app and is **lazy-imported** at call time, so a failed DLL load cannot crash the app or the EXE build.
+
+```bash
+# CPU backend (recommended)
+pip install "rembg[cpu]"
+
+# GPU backend
+pip install "rembg[gpu]"
+```
+
+If `rembg` fails to import (DLL error, missing onnxruntime provider, `sys.exit(1)` from rembg itself), the app catches `Exception` **and** `SystemExit`, logs a warning, and reports "background removal unavailable" — it does **not** crash.
+
+---
+
 ## 🎉 Technical Highlights
 
 ### Modern Qt6 Architecture
@@ -293,18 +365,12 @@ Settings are stored in: `%USERPROFILE%\.ps2_texture_sorter\config.json`
 ## 📚 Documentation
 
 - **[README.md](README.md)** - This file: overview and quick start
-- **[INSTALL.md](INSTALL.md)** - 🆕 Installation guide for all platforms (Windows/Linux/macOS)
-- **[BUILD.md](BUILD.md)** - Detailed build instructions for developers
-- **[CODE_SIGNING.md](CODE_SIGNING.md)** - Guide to signing the EXE for Windows SmartScreen
-- **[ARCHIVE_SUPPORT.md](ARCHIVE_SUPPORT.md)** - 🆕 Archive extraction and compression guide
-- **[GAME_IDENTIFICATION.md](GAME_IDENTIFICATION.md)** - 🆕 Game recognition with 70+ PS2 titles
-- **[VISION_MODELS_GUIDE.md](VISION_MODELS_GUIDE.md)** - Vision models, HD/4K support, and keyword search
-- **[FORMAT_SUPPORT_GUIDE.md](FORMAT_SUPPORT_GUIDE.md)** - Extended format support (SVG, WEBP, etc.)
-- **[ALPHA_CORRECTION_GUIDE.md](ALPHA_CORRECTION_GUIDE.md)** - 🆕 Alpha color detection and correction with PS2 presets
-- **[PANDA_GUIDE.md](PANDA_GUIDE.md)** - Complete guide to panda features and interactions
-- **[UNLOCKABLES_GUIDE.md](UNLOCKABLES_GUIDE.md)** - Achievement and unlockables system documentation
-- **[UI_CUSTOMIZATION_GUIDE.md](UI_CUSTOMIZATION_GUIDE.md)** - UI theming and customization guide
-- **[QUICKSTART.md](QUICKSTART.md)** - Quick start guide for new users
+- **[INSTALL.md](INSTALL.md)** - Installation guide for all platforms (Windows/Linux/macOS)
+- **[SETUP_INSTRUCTIONS.md](SETUP_INSTRUCTIONS.md)** - Detailed step-by-step setup for every platform
+- **[BUILD.md](BUILD.md)** - Build instructions for developers (PyInstaller, CI, hooks)
+- **[FAQ.md](FAQ.md)** - Frequently asked questions
+- **[docs/SVG_BUILD_GUIDE.md](docs/SVG_BUILD_GUIDE.md)** - SVG support and Cairo build guide
+- **[TESTING.md](TESTING.md)** - Testing guide
 - **Built-in Help** - Press F1 anywhere in the application for context-sensitive help
 
 ## 🆕 What's New
@@ -315,14 +381,14 @@ Automatically detect and fix alpha channel colors:
 - **PS2 presets**: Binary, three-level, UI, and smooth gradient presets
 - **Batch processing**: Fix multiple images at once with CLI tool
 - **Custom thresholds**: Define your own alpha correction rules
-- See [ALPHA_CORRECTION_GUIDE.md](ALPHA_CORRECTION_GUIDE.md) for complete guide
+- See [INSTALL.md](INSTALL.md#optional-features) for complete alpha correction setup guide
 
 ### Archive Support (NEW!)
 Full support for working with compressed archives:
 - **Extract from archives**: ZIP, 7Z, RAR, TAR.GZ support
 - **Compress to archives**: Create ZIP files of sorted/converted textures
 - **Browse archives**: View archive contents in file browser
-- See [ARCHIVE_SUPPORT.md](ARCHIVE_SUPPORT.md) for complete guide
+- See [INSTALL.md](INSTALL.md) for archive support details
 
 ### Expanded Game Recognition (NEW!)
 Comprehensive PS2 game database:
@@ -330,14 +396,14 @@ Comprehensive PS2 game database:
 - All major franchises: GTA, Ratchet & Clank, Tekken, Sly Cooper, etc.
 - Popular titles: Okami, Katamari, Psychonauts, Bully, etc.
 - Game series: Devil May Cry, Resident Evil, Silent Hill, Final Fantasy, etc.
-- See [GAME_IDENTIFICATION.md](GAME_IDENTIFICATION.md) for full list
+- See [FAQ.md](FAQ.md) for full game list and recognition details
 
 ### HD/4K Texture Support
 The preprocessing pipeline now intelligently handles both low-resolution PS2 textures AND high-resolution HD/4K textures:
 - **Retro mode** (< 256px): Upscaling + sharpening for PS2 textures
 - **HD mode** (> 1024px): Minimal processing to preserve detail in HD/4K textures
 - **Consistent embeddings**: Same vision models work across all resolutions
-- See [VISION_MODELS_GUIDE.md](VISION_MODELS_GUIDE.md) for details
+- See [SETUP_INSTRUCTIONS.md](SETUP_INSTRUCTIONS.md) for vision model install details
 
 ### Extended Format Support
 Support for 16+ image formats:
@@ -345,7 +411,7 @@ Support for 16+ image formats:
 - **Modern**: WEBP, TIFF
 - **Standard**: PNG, JPEG, BMP, TGA, GIF, PCX
 - **Game**: DDS (with compression support)
-- See [FORMAT_SUPPORT_GUIDE.md](FORMAT_SUPPORT_GUIDE.md) for details
+- See [docs/SVG_BUILD_GUIDE.md](docs/SVG_BUILD_GUIDE.md) for SVG format details
 
 ### Keyword-Based Texture Search
 Search for textures using natural language:
@@ -402,7 +468,7 @@ GameTextureSorter/
 ├── build.ps1                    # Automated build (PowerShell)
 ├── sign.bat                     # Code signing script
 ├── BUILD.md                     # Build guide
-└── CODE_SIGNING.md              # Signing guide
+└── SETUP_INSTRUCTIONS.md        # Setup guide (all platforms)
 ```
 
 ### Technologies Used
@@ -422,10 +488,9 @@ GameTextureSorter/
 For Windows SmartScreen compatibility and trust:
 
 1. Obtain code signing certificate ($179-$600/year)
-2. Update certificate details in `sign.bat`
-3. Run: `sign.bat`
+2. Run: `sign.bat`
 
-See [CODE_SIGNING.md](CODE_SIGNING.md) for complete guide.
+See [BUILD.md](BUILD.md) for complete build and signing details.
 
 ## 📦 Building Application
 

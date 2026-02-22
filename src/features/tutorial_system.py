@@ -23,7 +23,7 @@ try:
     from PyQt6.QtCore import QTimer, Qt, QPoint, QRect, QPropertyAnimation, QEasingCurve
     from PyQt6.QtGui import QCursor, QPainter, QColor, QPen, QFont
     GUI_AVAILABLE = True
-except ImportError:
+except (ImportError, OSError, RuntimeError):
     GUI_AVAILABLE = False
     # Provide stub base classes so class definitions that inherit from Qt widgets
     # don't fail when PyQt6 is unavailable (e.g. during non-GUI imports or headless testing).

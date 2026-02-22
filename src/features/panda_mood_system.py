@@ -20,7 +20,7 @@ Features:
 try:
     from PyQt6.QtCore import QObject, pyqtSignal, QTimer
     PYQT_AVAILABLE = True
-except ImportError:
+except (ImportError, OSError, RuntimeError):
     PYQT_AVAILABLE = False
     QObject = object
     class _SignalStub:

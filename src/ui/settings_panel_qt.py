@@ -23,7 +23,7 @@ try:
     from PyQt6.QtCore import Qt, pyqtSignal, QTimer
     from PyQt6.QtGui import QFont, QColor, QPainter, QPen
     PYQT_AVAILABLE = True
-except ImportError:
+except (ImportError, OSError, RuntimeError):
     PYQT_AVAILABLE = False
     class QWidget:  # type: ignore[no-redef]
         """Fallback stub when PyQt6 is not installed."""
@@ -649,12 +649,29 @@ class SettingsPanelQt(QWidget):
         error_type = "general"
         
         try:
+            # Three-tier fallback mirrors ai_models_settings_tab._import_model_manager()
+            # so the AI models tab works in dev, running from repo root, and frozen EXE.
+            _AIModelsSettingsTab = None
             try:
-                from .ai_models_settings_tab import AIModelsSettingsTab
-            except ImportError:
-                from ui.ai_models_settings_tab import AIModelsSettingsTab
-            return AIModelsSettingsTab(self.config)
-        except ImportError as e:
+                from .ai_models_settings_tab import AIModelsSettingsTab as _AIModelsSettingsTab  # noqa: PLC0415
+            except (ImportError, ValueError):
+                pass
+            if _AIModelsSettingsTab is None:
+                try:
+                    from ui.ai_models_settings_tab import AIModelsSettingsTab as _AIModelsSettingsTab  # noqa: PLC0415
+                except (ImportError, OSError, RuntimeError):
+                    pass
+            if _AIModelsSettingsTab is None:
+                import sys
+                from pathlib import Path
+                _src = str(Path(__file__).resolve().parent.parent)  # .../src/
+                if _src not in sys.path:
+                    sys.path.insert(0, _src)
+                from ui.ai_models_settings_tab import AIModelsSettingsTab as _AIModelsSettingsTab  # noqa: PLC0415
+            if _AIModelsSettingsTab is None:
+                raise ImportError("AIModelsSettingsTab could not be loaded from any path")
+            return _AIModelsSettingsTab(self.config)
+        except (ImportError, OSError) as e:
             # Specific handling for import errors
             error_msg = str(e)
             if "PyQt6" in error_msg or "QtWidgets" in error_msg:
@@ -777,7 +794,7 @@ class SettingsPanelQt(QWidget):
         try:
             try:
                 from .hotkey_display_qt import HotkeyDisplayWidget
-            except ImportError:
+            except (ImportError, OSError, RuntimeError):
                 from ui.hotkey_display_qt import HotkeyDisplayWidget
 
             self.hotkey_widget = HotkeyDisplayWidget(
@@ -809,7 +826,7 @@ class SettingsPanelQt(QWidget):
                 self.hotkey_widget.load_hotkeys(saved)
 
             layout.addWidget(self.hotkey_widget)
-        except ImportError as e:
+        except (ImportError, OSError) as e:
             logger.warning(f"HotkeyDisplayWidget unavailable: {e}")
             self.hotkey_widget = None
             info = QLabel(

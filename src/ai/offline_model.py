@@ -13,14 +13,16 @@ from typing import Dict, List, Optional, Tuple, Any
 try:
     import numpy as np
     HAS_NUMPY = True
-except ImportError:
+except (ImportError, OSError, RuntimeError):
     np = None  # type: ignore[assignment]
     HAS_NUMPY = False
 
 try:
     import onnxruntime as ort
     ONNX_AVAILABLE = True
-except ImportError:
+except (ImportError, Exception):
+    # Also catches OSError / DLL load failures (e.g. "Not enough memory resources"
+    # from onnxruntime_pybind11_state in PyInstaller isolated subprocesses).
     ONNX_AVAILABLE = False
     logging.warning("ONNX Runtime not available. Offline AI models disabled.")
 

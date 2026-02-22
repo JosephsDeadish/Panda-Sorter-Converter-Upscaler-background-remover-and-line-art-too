@@ -44,21 +44,21 @@ def check_critical_dependencies():
     for module_name, install_cmd in critical_deps.items():
         try:
             __import__(module_name)
-        except ImportError:
+        except (ImportError, OSError, RuntimeError):
             missing.append((module_name, install_cmd, 'CRITICAL'))
     
     # Check important
     for module_name, install_cmd in important_deps.items():
         try:
             __import__(module_name)
-        except ImportError:
+        except (ImportError, OSError, RuntimeError):
             missing.append((module_name, install_cmd, 'IMPORTANT'))
     
     # Check optional (just warnings)
     for module_name, install_cmd in optional_deps.items():
         try:
             __import__(module_name)
-        except ImportError:
+        except (ImportError, OSError, RuntimeError):
             warnings.append((module_name, install_cmd))
     
     return (len(missing) == 0, missing, warnings)

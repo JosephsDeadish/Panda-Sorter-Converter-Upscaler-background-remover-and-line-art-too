@@ -14,7 +14,7 @@ try:
     from PyQt6.QtCore import Qt, QThread, pyqtSignal, QTimer
     from PyQt6.QtGui import QPixmap, QImage
     PYQT_AVAILABLE = True
-except ImportError:
+except (ImportError, OSError, RuntimeError):
     PYQT_AVAILABLE = False
     QWidget = object
     QFrame = object
@@ -79,21 +79,30 @@ import logging
 try:
     from PIL import Image
     HAS_PIL = True
-except ImportError:
+except (ImportError, OSError, RuntimeError):
     HAS_PIL = False
 
 
-from tools.batch_normalizer import (
-    BatchFormatNormalizer, NormalizationSettings,
-    PaddingMode, ResizeMode, OutputFormat, NamingPattern
-)
+try:
+    from tools.batch_normalizer import (
+        BatchFormatNormalizer, NormalizationSettings,
+        PaddingMode, ResizeMode, OutputFormat, NamingPattern
+    )
+    _NORMALIZER_TOOL_AVAILABLE = True
+except Exception as _e:
+    import logging as _logging
+    _logging.getLogger(__name__).warning(f"batch_normalizer tool not available: {_e}")
+    BatchFormatNormalizer = None  # type: ignore[assignment,misc]
+    NormalizationSettings = None  # type: ignore[assignment,misc]
+    PaddingMode = ResizeMode = OutputFormat = NamingPattern = None  # type: ignore[assignment]
+    _NORMALIZER_TOOL_AVAILABLE = False
 
 logger = logging.getLogger(__name__)
 
 try:
     from utils.archive_handler import ArchiveHandler
     ARCHIVE_AVAILABLE = True
-except ImportError:
+except (ImportError, OSError, RuntimeError):
     ARCHIVE_AVAILABLE = False
     logger.warning("Archive handler not available")
 
@@ -140,7 +149,7 @@ class BatchNormalizerPanelQt(QWidget):
         super().__init__(parent)
         
         self.tooltip_manager = tooltip_manager
-        self.normalizer = BatchFormatNormalizer()
+        self.normalizer = BatchFormatNormalizer() if BatchFormatNormalizer is not None else None
         self.selected_files: List[str] = []
         self.output_directory: Optional[str] = None
         self.worker_thread = None
@@ -502,6 +511,7 @@ class BatchNormalizerPanelQt(QWidget):
         else:
             QMessageBox.critical(self, "Error", message)
             self.progress_label.setText("✗ Normalization failed")
+        self.finished.emit(success, message)
     
     def _get_resize_mode(self):
         """Get resize mode from combo box."""

@@ -13,7 +13,7 @@ try:
     from PyQt6.QtCore import Qt, pyqtSignal
     from PyQt6.QtGui import QFont
     PYQT_AVAILABLE = True
-except ImportError:
+except (ImportError, OSError, RuntimeError):
     PYQT_AVAILABLE = False
     QWidget = object
     QFrame = object
@@ -31,11 +31,11 @@ logger = logging.getLogger(__name__)
 try:
     from features.shop_system import ShopSystem, ShopItem
     SHOP_AVAILABLE = True
-except ImportError:
+except (ImportError, OSError, RuntimeError):
     try:
         from ..features.shop_system import ShopSystem, ShopItem
         SHOP_AVAILABLE = True
-    except ImportError:
+    except (ImportError, OSError, RuntimeError):
         logger.warning("Shop system not available for inventory")
         SHOP_AVAILABLE = False
         ShopSystem = None

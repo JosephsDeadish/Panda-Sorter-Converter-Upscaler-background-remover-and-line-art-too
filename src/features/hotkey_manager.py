@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 try:
     from pynput import keyboard
     PYNPUT_AVAILABLE = True
-except ImportError:
+except (ImportError, OSError, RuntimeError):
     PYNPUT_AVAILABLE = False
     logger.warning("pynput not available - global hotkeys disabled")
 

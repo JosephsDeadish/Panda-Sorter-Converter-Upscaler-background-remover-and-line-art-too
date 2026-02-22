@@ -19,7 +19,7 @@ try:
     from PyQt6.QtCore import Qt, QThread, pyqtSignal, QTimer
     from PyQt6.QtGui import QPixmap, QImage
     PYQT_AVAILABLE = True
-except ImportError:
+except (ImportError, OSError, RuntimeError):
     PYQT_AVAILABLE = False
     QWidget = object
     QFrame = object
@@ -82,19 +82,19 @@ except ImportError:
 try:
     from PIL import Image, ImageEnhance, ImageFilter
     HAS_PIL = True
-except ImportError:
+except (ImportError, OSError, RuntimeError):
     HAS_PIL = False
 
 try:
     import numpy as np
     HAS_NUMPY = True
-except ImportError:
+except (ImportError, OSError, RuntimeError):
     np = None  # type: ignore[assignment]
     HAS_NUMPY = False
 try:
     import cv2
     HAS_CV2 = True
-except ImportError:
+except (ImportError, OSError, RuntimeError):
     HAS_CV2 = False
     cv2 = None  # type: ignore[assignment]
 
@@ -105,11 +105,11 @@ logger = logging.getLogger(__name__)
 try:
     from upscaler.model_manager import AIModelManager, ModelStatus
     MODEL_MANAGER_AVAILABLE = True
-except ImportError:
+except (ImportError, OSError, RuntimeError):
     try:
         from src.upscaler.model_manager import AIModelManager, ModelStatus
         MODEL_MANAGER_AVAILABLE = True
-    except ImportError:
+    except (ImportError, OSError, RuntimeError):
         logger.debug("Model manager not available")
         MODEL_MANAGER_AVAILABLE = False
         AIModelManager = None
@@ -162,14 +162,24 @@ def apply_post_processing(img, settings):
 try:
     from preprocessing.upscaler import TextureUpscaler
     UPSCALER_AVAILABLE = True
-except ImportError as e:
+except (ImportError, OSError, RuntimeError):
+    try:
+        import sys as _sys
+        import os as _os
+        _sys.path.insert(0, _os.path.join(_os.path.dirname(__file__), '..'))
+        from preprocessing.upscaler import TextureUpscaler
+        UPSCALER_AVAILABLE = True
+    except Exception as e:
+        logger.warning(f"Upscaler not available: {e}")
+        UPSCALER_AVAILABLE = False
+except Exception as e:
     logger.warning(f"Upscaler not available: {e}")
     UPSCALER_AVAILABLE = False
 
 try:
     from ui.live_preview_slider_qt import ComparisonSliderWidget
     SLIDER_AVAILABLE = True
-except ImportError as e:
+except (ImportError, OSError) as e:
     logger.warning(f"Comparison slider not available: {e}")
     SLIDER_AVAILABLE = False
     ComparisonSliderWidget = None
@@ -177,7 +187,7 @@ except ImportError as e:
 try:
     from utils.archive_handler import ArchiveHandler
     ARCHIVE_AVAILABLE = True
-except ImportError:
+except (ImportError, OSError, RuntimeError):
     ARCHIVE_AVAILABLE = False
     logger.warning("Archive handler not available")
 
@@ -226,7 +236,23 @@ UPSCALER_PRESETS = {
         "denoise": False,
         "auto_contrast": False,
         "desc": "Pure bicubic interpolation, no post-processing"
-    }
+    },
+    "🔴 Real-ESRGAN 4x (PS2 Optimal)": {
+        "method": "realesrgan",
+        "scale": 4,
+        "sharpen": 0.0,
+        "denoise": False,
+        "auto_contrast": False,
+        "desc": "Real-ESRGAN 4x — best quality for PS2/retro textures (requires basicsr + model download)"
+    },
+    "🟠 Real-ESRGAN 2x": {
+        "method": "realesrgan",
+        "scale": 2,
+        "sharpen": 0.0,
+        "denoise": False,
+        "auto_contrast": False,
+        "desc": "Real-ESRGAN 2x — faster, still high quality (requires basicsr + model download)"
+    },
 }
 
 
@@ -672,15 +698,22 @@ class ImageUpscalerPanelQt(QWidget):
     
     def _update_method_description(self, method):
         """Update the method description based on selection."""
-        # Import to check availability
+        # Import to check availability — three-tier fallback for frozen EXE
+        REALESRGAN_AVAILABLE = False
+        NATIVE_AVAILABLE = False
         try:
             from preprocessing.upscaler import REALESRGAN_AVAILABLE, NATIVE_AVAILABLE
-        except ImportError:
-            REALESRGAN_AVAILABLE = False
-            NATIVE_AVAILABLE = False
+        except (ImportError, OSError, RuntimeError):
+            try:
+                import sys as _sys, os as _os
+                _src = _os.path.join(_os.path.dirname(__file__), '..')
+                if _src not in _sys.path:
+                    _sys.path.insert(0, _src)
+                from preprocessing.upscaler import REALESRGAN_AVAILABLE, NATIVE_AVAILABLE
+            except Exception:
+                pass
         except Exception:
-            REALESRGAN_AVAILABLE = False
-            NATIVE_AVAILABLE = False
+            pass
         
         # Helper function for availability status
         def get_status(available):
@@ -734,6 +767,12 @@ class ImageUpscalerPanelQt(QWidget):
                 self.sharpen_spin.setValue(int(preset["sharpen"]))
             self.denoise_cb.setChecked(preset["denoise"])
             self.auto_contrast_cb.setChecked(preset["auto_contrast"])
+            
+            # For Real-ESRGAN presets, auto-select the appropriate scale
+            if preset.get("method") == "realesrgan":
+                scale = preset.get("scale", 4)  # default 4x unless preset says otherwise
+                if hasattr(self, 'scale_spin'):
+                    self.scale_spin.setValue(scale)
             
             # Trigger preview update
             self._schedule_preview_update()
@@ -965,7 +1004,7 @@ class ImageUpscalerPanelQt(QWidget):
         # Create download thread (reuse from ai_models_settings_tab)
         try:
             from .ai_models_settings_tab import ModelDownloadThread
-        except ImportError:
+        except (ImportError, OSError, RuntimeError):
             # Fallback to simple blocking download
             return self._download_model_blocking(model_name)
         
@@ -1118,7 +1157,10 @@ class ImageUpscalerPanelQt(QWidget):
             self.status_label.setText(message)
             self.status_label.setStyleSheet("color: red; font-weight: bold;")
             QMessageBox.warning(self, "Error", message)
-        
+
+        self.finished.emit(success, message)
+        if not success:
+            self.error.emit(message)
         self.worker_thread = None
     
     def _set_tooltip(self, widget, text):

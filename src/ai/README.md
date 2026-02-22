@@ -7,43 +7,149 @@
 
 The Game Texture Sorter AI Model System provides comprehensive texture classification capabilities with both offline and online model support, user feedback learning, and community model sharing.
 
+The system uses a **hybrid PyTorch + ONNX architecture**: inference pipelines and the packaged EXE use ONNX Runtime (lightweight, EXE-safe), while training / experimentation uses PyTorch (optional, not required for normal app operation).
+
 ## Architecture
 
-### Core Components
+### Hybrid PyTorch + ONNX Design
 
-1. **OfflineModel** (`offline_model.py`)
-   - ONNX Runtime wrapper for CPU-optimized inference
+```
+┌─────────────────────────────────────────────┐
+│            INFERENCE SIDE                   │
+│  (always-on, EXE-safe, no torch required)   │
+│                                             │
+│  inference.py → OnnxInferenceSession        │
+│  offline_model.py → OfflineModel            │
+│  • Batch upscaling / classification         │
+│  • Automation pipelines                     │
+│  • CPU-first, low memory, fast startup      │
+│  Install: pip install onnxruntime           │
+└─────────────────┬───────────────────────────┘
+                  │  export_to_onnx() / .onnx file
+┌─────────────────▼───────────────────────────┐
+│            TRAINING SIDE                    │
+│  (optional — requires PyTorch)              │
+│                                             │
+│  training_pytorch.py → PyTorchTrainer       │
+│  • Custom upscaler / classifier training    │
+│  • Fine-tuning segmentation models          │
+│  • export_checkpoint() → .onnx handoff      │
+│  Install: pip install torch torchvision     │
+└─────────────────────────────────────────────┘
+```
+
+**Key rule:** Training deps must NOT be required for normal app operation or the EXE build.  
+The inference side (`inference.py`) is imported unconditionally; the training side (`training_pytorch.py`) lazy-imports torch only when a training function is actually called.
+
+### Module Reference
+
+#### Inference (always-on)
+
+1. **`inference.py`** — `OnnxInferenceSession`, `run_batch_inference`
+   - Primary inference entry-point for all batch pipelines
+   - Thread-safe ONNX Runtime session wrapper
+   - CPU-first with optional GPU via `providers` argument
+   - Gracefully degrades if onnxruntime is absent
+   - **No torch dependency**
+
+2. **`offline_model.py`** — `OfflineModel`
+   - ONNX Runtime wrapper for texture classification
    - MobileNetV3-like model support
-   - Thread-safe operations
-   - Automatic image preprocessing
+   - Thread-safe operations with automatic image preprocessing
 
-2. **OnlineModel** (`online_model.py`)
+3. **`online_model.py`** — `OnlineModel`
    - Optional OpenAI CLIP API integration
-   - Configurable API endpoints
-   - Rate limiting and timeout handling
+   - Configurable API endpoints, rate limiting, timeout handling
    - Graceful fallback on errors
 
-3. **ModelManager** (`model_manager.py`)
+4. **`model_manager.py`** — `ModelManager`
    - Orchestrates offline and online models
    - Implements fallback logic (online → offline)
    - Blends predictions (confidence-weighted, max, average)
    - Thread-safe model switching
 
-4. **TrainingDataStore** (`training.py`)
-   - Stores user corrections in SQLite
-   - Incremental learning from feedback
-   - Export/import training history
-   - Category statistics tracking
+#### Training (optional — requires PyTorch)
 
-5. **ModelExporter/Importer** (`model_exporter.py`)
+5. **`training_pytorch.py`** — `PyTorchTrainer`, `export_to_onnx`
+   - Optional PyTorch training scaffold
+   - `is_pytorch_available()` — check before instantiating trainer
+   - `PyTorchTrainer` — training loop with progress callback support
+   - `export_to_onnx()` — bridge: trained model → `.onnx` file
+   - `export_checkpoint()` — convenience wrapper on `PyTorchTrainer`
+   - Raises `RuntimeError` with install instructions when torch is absent
+
+6. **`training.py`** — `TrainingDataStore`, `IncrementalLearner`
+   - SQLite-backed user correction storage (no torch dependency)
+   - Incremental learning from user feedback
+   - Export/import training history and category statistics
+
+#### Packaging
+
+7. **`model_exporter.py`** — `ModelExporter`, `ModelImporter`
    - Export models as `.ps2model` packages
    - Import community-shared models
-   - Model versioning and validation
-   - Metadata and documentation
+   - Model versioning, validation, metadata, and documentation
 
 ## Usage Examples
 
-### Basic Usage
+### Batch Inference (ONNX — always-on)
+
+```python
+from ai.inference import OnnxInferenceSession, run_batch_inference, is_available
+import numpy as np
+
+# Check availability
+print("ONNX available:", is_available())
+
+# Single image
+session = OnnxInferenceSession("models/classifier.onnx", num_threads=4)
+if session.is_ready():
+    image = np.random.randn(1, 3, 224, 224).astype(np.float32)
+    logits = session.run(image)         # shape: (1, num_classes)
+
+# Batch pipeline
+images = [np.random.randn(3, 224, 224).astype(np.float32) for _ in range(100)]
+results = run_batch_inference("models/classifier.onnx", images)
+```
+
+### Training a Custom Model (PyTorch — optional)
+
+```python
+from ai.training_pytorch import is_pytorch_available, PyTorchTrainer
+
+if not is_pytorch_available():
+    print("Install PyTorch to enable training: pip install torch torchvision")
+else:
+    import torch, torch.nn as nn
+    from torch.utils.data import DataLoader, TensorDataset
+
+    # Build a simple classifier
+    model = nn.Sequential(
+        nn.Flatten(),
+        nn.Linear(3 * 224 * 224, 256),
+        nn.ReLU(),
+        nn.Linear(256, 50),    # 50 texture categories
+    )
+
+    # Toy dataset
+    X = torch.randn(200, 3, 224, 224)
+    y = torch.randint(0, 50, (200,))
+    loader = DataLoader(TensorDataset(X, y), batch_size=16)
+
+    trainer = PyTorchTrainer(model, loader, learning_rate=1e-3)
+
+    # Optional progress callback for UI integration
+    def on_epoch(epoch, total, metrics):
+        print(f"  Epoch {epoch}/{total}: loss={metrics['train_loss']:.4f}")
+
+    trainer.train(epochs=5, progress_callback=on_epoch)
+
+    # Export to ONNX for use in inference pipeline
+    trainer.export_checkpoint("models/my_classifier.onnx")
+    # Now load it back with OnnxInferenceSession for batch processing
+```
+
+### Basic Usage (ModelManager)
 
 ```python
 from ai import ModelManager
@@ -362,12 +468,14 @@ logger.setLevel(logging.DEBUG)
 
 ## Future Enhancements
 
-- [ ] GPU acceleration support (CUDA)
-- [ ] Batch processing optimization
-- [ ] Model fine-tuning UI
+- [x] Hybrid PyTorch + ONNX architecture
+- [x] Batch inference pipeline (`run_batch_inference`)
+- [x] PyTorch training scaffold (`PyTorchTrainer`, `export_to_onnx`)
+- [x] Training → ONNX bridge (`export_checkpoint`)
+- [ ] GPU acceleration (CUDA) in `OnnxInferenceSession` (pass `providers` arg)
+- [ ] Model fine-tuning UI (training quest integration)
 - [ ] Automatic model updates
 - [ ] Community model marketplace
-- [ ] A/B testing framework
 - [ ] Prediction caching system
 - [ ] Model performance analytics
 

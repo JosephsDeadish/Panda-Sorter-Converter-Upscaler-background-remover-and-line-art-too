@@ -13,7 +13,7 @@ try:
     from PyQt6.QtCore import Qt, pyqtSignal
     from PyQt6.QtGui import QKeySequence
     PYQT_AVAILABLE = True
-except ImportError:
+except (ImportError, OSError, RuntimeError):
     PYQT_AVAILABLE = False
     class QObject:  # type: ignore[no-redef]
         """Fallback stub when PyQt6 is not installed."""
@@ -239,3 +239,7 @@ def create_hotkey_display(parent=None, tooltip_manager=None):
     if not PYQT_AVAILABLE:
         return None
     return HotkeyDisplayWidget(parent, tooltip_manager)
+
+
+# Alias used by qt_panel_loader.py (kept for backward compatibility)
+HotkeyDisplayQt = HotkeyDisplayWidget

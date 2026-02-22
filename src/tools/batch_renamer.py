@@ -22,13 +22,13 @@ from typing import List, Tuple, Optional, Dict, Callable
 try:
     from PIL import Image
     HAS_PIL = True
-except ImportError:
+except (ImportError, OSError, RuntimeError):
     HAS_PIL = False
 
 try:
     import piexif
     HAS_PIEXIF = True
-except ImportError:
+except (ImportError, OSError, RuntimeError):
     HAS_PIEXIF = False
     piexif = None  # type: ignore[assignment]
 
