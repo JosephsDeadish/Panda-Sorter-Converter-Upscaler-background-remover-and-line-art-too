@@ -153,6 +153,29 @@ print("="*70 + "\n")
 # PyInstaller Configuration
 # ============================================================================
 
+# CRITICAL: collect_submodules() needs src/ on sys.path so it can find
+# packages like 'ui', 'tools', 'ai', etc.  pathex only affects Analysis(),
+# not spec execution, so we must insert SRC_DIR into sys.path here.
+import sys as _sys
+if str(SRC_DIR) not in _sys.path:
+    _sys.path.insert(0, str(SRC_DIR))
+    print(f"[build_spec_svg] Added {SRC_DIR} to sys.path for collect_submodules")
+
+from PyInstaller.utils.hooks import collect_submodules as _collect  # noqa: E402
+_app_hidden_svg = []
+for _pkg_svg in [
+    'ui', 'features', 'tools', 'utils', 'core',
+    'ai', 'vision_models', 'organizer', 'classifier',
+    'preprocessing', 'similarity', 'structural_analysis',
+    'database', 'file_handler', 'lod_detector',
+    'upscaler', 'cli',
+]:
+    try:
+        _app_hidden_svg += _collect(_pkg_svg)
+    except Exception as _e:
+        print(f"[build_spec_svg] WARNING: collect_submodules({_pkg_svg!r}) failed (non-fatal): {_e}")
+print(f"[build_spec_svg] Collected {len(_app_hidden_svg)} app submodule entries via collect_submodules")
+
 # Collect all Python files
 a = Analysis(
     ['main.py'],
@@ -168,7 +191,7 @@ a = Analysis(
         (str(RESOURCES_DIR / 'sounds'), 'resources/sounds'),
         (str(RESOURCES_DIR / 'translations'), 'resources/translations'),
     ],
-    hiddenimports=[
+    hiddenimports=_app_hidden_svg + [
         # Core application modules from src/
         'config',
         'classifier',

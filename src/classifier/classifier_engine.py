@@ -43,7 +43,7 @@ try:
         color_histogram as native_color_histogram,
         NATIVE_AVAILABLE,
     )
-except ImportError as e:
+except (ImportError, OSError) as e:
     logger.debug(f"Native acceleration not available: {e}")
     NATIVE_AVAILABLE = False
     native_edge_density = None

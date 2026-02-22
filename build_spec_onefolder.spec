@@ -121,6 +121,14 @@ print(f"[build_spec] Including {len(_datas)} data directories")
 # Many of these are imported inside try blocks or function bodies, so PyInstaller's
 # static analysis misses them.  collect_submodules() walks the package tree and
 # returns every importable name, guaranteeing nothing is left out.
+#
+# CRITICAL: collect_submodules() needs src/ on sys.path so it can find packages
+# like 'ui', 'tools', 'ai', etc.  pathex only affects Analysis(), not spec
+# execution, so we must insert SRC_DIR into sys.path here explicitly.
+import sys as _sys
+if str(SRC_DIR) not in _sys.path:
+    _sys.path.insert(0, str(SRC_DIR))
+    print(f"[build_spec] Added {SRC_DIR} to sys.path for collect_submodules")
 from PyInstaller.utils.hooks import collect_submodules  # noqa: E402
 
 _app_hidden = []
@@ -138,6 +146,8 @@ for _pkg in [
         # realesrgan).  The build will continue; the feature that requires this
         # package will be unavailable in the frozen exe until the dep is installed.
         print(f"[build_spec] WARNING: collect_submodules({_pkg!r}) failed (non-fatal): {_e}")
+
+print(f"[build_spec] Collected {len(_app_hidden)} app submodule entries via collect_submodules")
 
 # Collect all Python files
 a = Analysis(
