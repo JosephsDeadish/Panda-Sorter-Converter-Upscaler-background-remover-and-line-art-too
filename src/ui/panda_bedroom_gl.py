@@ -67,6 +67,7 @@ _DEFAULT_POSITIONS = {
     'toy_box':      {'x': -3.0, 'z':  1.8, 'rot_y':  90.0},
     'fridge':       {'x':  3.2, 'z':  1.8, 'rot_y': -90.0},
     'trophy_stand': {'x':  0.0, 'z': -3.2, 'rot_y':   0.0},
+    'bedroom_door': {'x':  0.0, 'z':  3.8, 'rot_y': 180.0},
 }
 
 
@@ -95,6 +96,7 @@ def _build_furniture() -> List[FurniturePiece]:
         ('toy_box',      'Toy Box',      '🧸', -3.0, 0.0,  1.8,  90.0, -2.2,  1.2, 'Toys'),
         ('fridge',       'Fridge',       '🧊',  3.2, 0.0,  1.8, -90.0,  2.5,  1.2, 'Food'),
         ('trophy_stand', 'Trophy Stand', '🏆',  0.0, 0.0, -3.2,   0.0,  0.0, -2.0, 'achievements'),
+        ('bedroom_door', 'Front Door',   '🏠',  0.0, 0.0,  3.8, 180.0,  0.0,  2.8, 'world'),
     ]
     pieces = []
     for d in defs:
@@ -483,6 +485,7 @@ class PandaBedroomGL(QOpenGLWidget if OPENGL_AVAILABLE else QWidget):  # type: i
             'toy_box':      (1.0, 0.7, 0.7),
             'fridge':       (0.8, 2.0, 0.7),
             'trophy_stand': (1.4, 1.5, 0.4),
+            'bedroom_door': (1.0, 2.2, 0.15),
         }
         bw, bh, bd = _bounds.get(piece.id, (1.0, 1.0, 1.0))
 
@@ -793,6 +796,51 @@ class PandaBedroomGL(QOpenGLWidget if OPENGL_AVAILABLE else QWidget):  # type: i
                 self._draw_sphere(0.07, 8, 8)
                 glPopMatrix()
 
+    def _draw_bedroom_door(self) -> None:
+        """Front door set into the south wall — double panel with glass transom."""
+        glEnable(GL_LIGHTING)
+
+        # Door frame (dark wood surround)
+        glMaterialfv(GL_FRONT, GL_AMBIENT_AND_DIFFUSE, [0.28, 0.18, 0.10, 1.0])
+        self._draw_box(-0.55, 0.0, -0.06, 0.55, 2.25, 0.0, (0.28, 0.18, 0.10))
+
+        # Left door panel
+        glMaterialfv(GL_FRONT, GL_AMBIENT_AND_DIFFUSE, [0.55, 0.38, 0.20, 1.0])
+        self._draw_box(-0.52, 0.02, -0.04, -0.03, 2.0, 0.04, (0.55, 0.38, 0.20))
+
+        # Right door panel
+        self._draw_box(0.03, 0.02, -0.04, 0.52, 2.0, 0.04, (0.55, 0.38, 0.20))
+
+        # Transom glass (above door)
+        glDisable(GL_LIGHTING)
+        glEnable(GL_BLEND)
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
+        glColor4f(*_COL_GLASS)
+        self._draw_box(-0.52, 2.02, -0.03, 0.52, 2.20, 0.03, _COL_GLASS[:3])
+        glDisable(GL_BLEND)
+        glEnable(GL_LIGHTING)
+
+        # Door knobs
+        glMaterialfv(GL_FRONT, GL_AMBIENT_AND_DIFFUSE, [0.80, 0.65, 0.10, 1.0])
+        glMaterialfv(GL_FRONT, GL_SPECULAR,            [0.90, 0.80, 0.20, 1.0])
+        glMaterialf (GL_FRONT, GL_SHININESS, 64.0)
+        for knob_x in (-0.06, 0.06):
+            glPushMatrix()
+            glTranslatef(knob_x, 1.0, 0.05)
+            self._draw_sphere(0.05, 10, 10)
+            glPopMatrix()
+
+        # "Go outside" text hint drawn as a doormat (flat quad)
+        glDisable(GL_LIGHTING)
+        glColor3f(0.45, 0.30, 0.15)
+        glBegin(GL_QUADS)
+        glVertex3f(-0.45, 0.001, 0.15)
+        glVertex3f( 0.45, 0.001, 0.15)
+        glVertex3f( 0.45, 0.001, 0.55)
+        glVertex3f(-0.45, 0.001, 0.55)
+        glEnd()
+        glEnable(GL_LIGHTING)
+
     # ── Primitive helpers ─────────────────────────────────────────────────────
 
     @staticmethod
@@ -898,6 +946,7 @@ class PandaBedroomGL(QOpenGLWidget if OPENGL_AVAILABLE else QWidget):  # type: i
             'toy_box':      (1.0, 0.7, 0.7),
             'fridge':       (0.8, 2.0, 0.7),
             'trophy_stand': (1.4, 1.5, 0.4),
+            'bedroom_door': (1.0, 2.2, 0.15),
         }
 
         best: Optional[FurniturePiece] = None

@@ -30,14 +30,19 @@ from enum import Enum
 
 class InteractionBehavior(Enum):
     """Types of interactions panda can perform."""
-    BITE_BUTTON = "bite_button"
+    BITE_BUTTON    = "bite_button"
     JUMP_ON_BUTTON = "jump_on_button"
-    TAP_SLIDER = "tap_slider"
-    BITE_TAB = "bite_tab"
-    PUSH_CHECKBOX = "push_checkbox"
-    SPIN_COMBOBOX = "spin_combobox"
+    TAP_SLIDER     = "tap_slider"
+    BITE_TAB       = "bite_tab"
+    PUSH_CHECKBOX  = "push_checkbox"
+    SPIN_COMBOBOX  = "spin_combobox"
     MISCHIEVOUS_LOOK = "mischievous_look"
-    WALK_AROUND = "walk_around"
+    WALK_AROUND    = "walk_around"
+    POKE_BUTTON    = "poke_button"
+    SNIFF_FILE     = "sniff_file"
+    SIT_ON_PANEL   = "sit_on_panel"
+    HUG_WINDOW     = "hug_window"
+    PEEK_AT_WIDGET = "peek_at_widget"
 
 
 class PandaInteractionBehavior:
@@ -305,46 +310,86 @@ class PandaInteractionBehavior:
         elif behavior == InteractionBehavior.MISCHIEVOUS_LOOK:
             self._animate_look()
             self.behavior_duration = 2.0
-        
+
+        elif behavior == InteractionBehavior.POKE_BUTTON:
+            self._animate_poke()
+            self._trigger_widget_click_delayed(self.target_widget, 0.4)
+            self.behavior_duration = 0.9
+
+        elif behavior == InteractionBehavior.SNIFF_FILE:
+            self._animate_sniff()
+            self.behavior_duration = 2.5
+
+        elif behavior == InteractionBehavior.SIT_ON_PANEL:
+            self._animate_sit_on()
+            self.behavior_duration = 4.0
+
+        elif behavior == InteractionBehavior.HUG_WINDOW:
+            self._animate_hug()
+            self.behavior_duration = 2.0
+
+        elif behavior == InteractionBehavior.PEEK_AT_WIDGET:
+            self._animate_peek()
+            self.behavior_duration = 1.5
+
         # Set behavior timer
         self.behavior_timer = self.behavior_duration
         self.is_performing_action = True
     
     def _animate_bite(self):
-        """Animate panda biting."""
+        """Panda bites — mapped to waving animation (no dedicated bite state in GL)."""
         logger.debug("Panda biting!")
-        self.overlay.set_animation_state('biting')
-        # Open mouth wide animation would be implemented in overlay
-    
+        self.overlay.set_animation_state('waving')
+
     def _animate_jump(self):
-        """Animate panda jumping."""
+        """Panda jumps onto the widget."""
         logger.debug("Panda jumping!")
         self.overlay.set_animation_state('jumping')
-        # Jump animation
-    
+
     def _animate_tap(self):
-        """Animate panda tapping."""
+        """Panda taps with paw."""
         logger.debug("Panda tapping!")
-        self.overlay.set_animation_state('tapping')
-        # Tap animation with paw
-    
+        self.overlay.set_animation_state('waving')
+
     def _animate_push(self):
-        """Animate panda pushing."""
+        """Panda pushes — waving state."""
         logger.debug("Panda pushing!")
-        self.overlay.set_animation_state('pushing')
-        # Push animation
-    
+        self.overlay.set_animation_state('waving')
+
     def _animate_spin(self):
-        """Animate panda spinning around."""
+        """Panda spins — celebrating state."""
         logger.debug("Panda spinning!")
-        self.overlay.set_animation_state('spinning')
-        # Spin animation
-    
+        self.overlay.set_animation_state('celebrating')
+
     def _animate_look(self):
-        """Animate panda looking mischievously."""
-        logger.debug("Panda looking mischievous!")
-        self.overlay.set_animation_state('mischievous')
-        # Mischievous expression
+        """Panda looks mischievously — idle with head tilt."""
+        logger.debug("Panda mischievous look!")
+        self.overlay.set_animation_state('idle')
+
+    def _animate_poke(self):
+        """Panda pokes a UI button with one paw."""
+        logger.debug("Panda poking!")
+        self.overlay.set_animation_state('waving')
+
+    def _animate_sniff(self):
+        """Panda sniffs a dragged file — crawling forward."""
+        logger.debug("Panda sniffing!")
+        self.overlay.set_animation_state('crawling')
+
+    def _animate_sit_on(self):
+        """Panda sits on a panel — sitting_back state."""
+        logger.debug("Panda sitting on panel!")
+        self.overlay.set_animation_state('sitting_back')
+
+    def _animate_hug(self):
+        """Panda hugs a window edge — climbing_wall state."""
+        logger.debug("Panda hugging window!")
+        self.overlay.set_animation_state('climbing_wall')
+
+    def _animate_peek(self):
+        """Panda peeks at a widget — crawling with head up."""
+        logger.debug("Panda peeking!")
+        self.overlay.set_animation_state('crawling')
     
     def _trigger_widget_click_delayed(self, widget, delay):
         """

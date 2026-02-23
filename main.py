@@ -431,6 +431,7 @@ class TextureSorterMainWindow(QMainWindow):
         self.panda_closet = None
         # Bedroom + inventory panel refs (set in create_panda_features_tab)
         self._bedroom_widget = None   # PandaBedroomGL instance
+        self._world_widget   = None   # PandaWorldWidget instance (lazy-created)
         self._panda_tabs = None       # inner QTabWidget for panda features
         self._inventory_panel = None  # InventoryPanelQt instance
         self._home_tab_index = -1     # index of the "🏠 Panda Home" tab
@@ -1277,6 +1278,10 @@ class TextureSorterMainWindow(QMainWindow):
         # 2. Panda Home Tab — stacked widget: page 0 = 3D bedroom, page 1 = sub-panel
         try:
             from ui.panda_bedroom_gl import PandaBedroomGL
+            try:
+                from ui.panda_world_gl import PandaWorldWidget as _PandaWorldWidgetCls
+            except (ImportError, OSError, RuntimeError):
+                _PandaWorldWidgetCls = None
             from features.shop_system import ShopSystem
             from features.currency_system import CurrencySystem
 
@@ -1334,6 +1339,7 @@ class TextureSorterMainWindow(QMainWindow):
 
             # Save refs
             self._bedroom_widget = bedroom_gl
+            self._world_widget: 'Optional[QWidget]' = None
             self._home_stack = stack
             self._home_tab_widget = home_container
             self._home_back_btn = back_btn
@@ -4183,6 +4189,76 @@ class TextureSorterMainWindow(QMainWindow):
             logger.debug(f"Minigame completed callback error: {_e}")
 
     # ── Home tab navigation helpers ────────────────────────────────────────────
+    def _go_outside(self) -> None:
+        """Show the 3D world scene (outside the bedroom)."""
+        try:
+            # Walk panda to the door (use door furniture piece position when available)
+            _door_walk_x, _door_walk_z = 0.0, 2.8   # matches bedroom_door walk_z in _build_furniture
+            try:
+                if self._bedroom_widget:
+                    _p = self._bedroom_widget.get_furniture('bedroom_door')
+                    if _p:
+                        _door_walk_x, _door_walk_z = _p.walk_x, _p.walk_z
+            except Exception:
+                pass
+            if self.panda_widget and hasattr(self.panda_widget, 'walk_to_position'):
+                self.panda_widget.walk_to_position(_door_walk_x, 0.0, _door_walk_z)
+                self.panda_widget.set_animation_state('walking')
+
+            # Build world widget if needed
+            if self._world_widget is None:
+                try:
+                    from ui.panda_world_gl import PandaWorldWidget
+                    self._world_widget = PandaWorldWidget(self)
+                    self._world_widget.back_to_bedroom.connect(self._go_back_to_bedroom)
+                    self._world_widget.otter_clicked.connect(self._on_otter_clicked)
+                    self._world_widget.destination_selected.connect(
+                        lambda d: self.statusBar().showMessage(f"🚗 Heading to {d}…", 3000)
+                    )
+                except (ImportError, OSError, RuntimeError, Exception) as _e:
+                    logger.warning(f"World widget not available: {_e}")
+                    self._world_widget = QLabel(
+                        "🌍 Outside World\n\n"
+                        "The 3D world requires PyQt6 + OpenGL.\n"
+                        "Please install them and restart."
+                    )
+                    self._world_widget.setAlignment(Qt.AlignmentFlag.AlignCenter)
+                    self._world_widget.setStyleSheet("background:#1a2a1a;color:#aaaaaa;font-size:13px;")
+
+            if self._world_widget:
+                self._show_home_sub_panel(self._world_widget, '🌍 Outside World')
+            self.statusBar().showMessage("🐼 Panda goes outside…", 3000)
+        except Exception as _e:
+            logger.debug(f"_go_outside: {_e}")
+
+    def _go_back_to_bedroom(self) -> None:
+        """Return from the world to the bedroom."""
+        try:
+            if self._home_stack:
+                self._home_stack.setCurrentIndex(0)
+            if self._home_back_bar:
+                self._home_back_bar.hide()
+            if self._panda_tabs and self._home_tab_index >= 0:
+                self._panda_tabs.setTabText(self._home_tab_index, "🏠 Panda Home")
+            if self.panda_widget:
+                self.panda_widget.set_animation_state('idle')
+        except Exception as _e:
+            logger.debug(f"_go_back_to_bedroom: {_e}")
+
+    def _on_otter_clicked(self) -> None:
+        """Otter was clicked in the world — show the shop panel."""
+        try:
+            from ui.shop_panel_qt import ShopPanelQt
+            shop = ShopPanelQt(self.shop_system, self.inventory_system,
+                               self.currency_system, self.panda_character)
+            shop.purchase_completed.connect(self._on_shop_purchase_completed)
+            self._show_home_sub_panel(shop, '🦦 Otter Shop')
+        except Exception as _e:
+            logger.debug(f"_on_otter_clicked: {_e}")
+            label = QLabel("🛒 Otter Shop\n\n(Shop panel not available)")
+            label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            self._show_home_sub_panel(label, '🛒 Otter Shop')
+
     def _show_home_sub_panel(self, widget: 'QWidget', title: str) -> None:
         """Slide *widget* into page 1 of the Home stack, update tab + back-bar labels."""
         try:
@@ -4221,6 +4297,11 @@ class TextureSorterMainWindow(QMainWindow):
                     widget.open_furniture(fid)
             except Exception:
                 pass
+
+        # ── Bedroom door → go outside to world ───────────────────────────────
+        if furniture_id == 'bedroom_door':
+            self._go_outside()
+            return
 
         # ── Map furniture → sub-panel title ───────────────────────────────────
         _TITLES = {
