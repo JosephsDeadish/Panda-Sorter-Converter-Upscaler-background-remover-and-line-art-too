@@ -55,9 +55,11 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
     clicked = pyqtSignal()
     mood_changed = pyqtSignal(str)
     animation_changed = pyqtSignal(str)
+    # Emitted (with error string) when initializeGL() fails so main.py can swap in 2D fallback
+    gl_failed = pyqtSignal(str)
     
     # Animation constants
-    TARGET_FPS = 60
+    TARGET_FPS = 30          # 30 fps is plenty for the sidebar companion; reduces CPU load
     FRAME_TIME = 1.0 / TARGET_FPS  # 16.67ms per frame
     
     # Panda dimensions (3D units)
@@ -273,6 +275,16 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
     
     def initializeGL(self):
         """Initialize OpenGL settings."""
+        try:
+            self._do_initialize_gl()
+        except Exception as e:
+            logger.error(f"OpenGL initialization failed: {e}", exc_info=True)
+            self.gl_initialized = False
+            # Emit signal on next event-loop tick so callers can swap in 2D fallback
+            QTimer.singleShot(0, lambda: self.gl_failed.emit(str(e)))
+
+    def _do_initialize_gl(self):
+        """Actual GL initialization — called inside a try/except in initializeGL()."""
         # Enable depth testing for 3D
         glEnable(GL_DEPTH_TEST)
         glDepthFunc(GL_LEQUAL)
@@ -367,7 +379,8 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
     
     def paintGL(self):
         """Render the 3D scene."""
-        # FPS limiting
+        if not self.gl_initialized:
+            return  # GL init failed or hasn't run yet — don't attempt GL calls
         current_time = time.time()
         elapsed = current_time - self.last_frame_time
         if elapsed < self.FRAME_TIME:

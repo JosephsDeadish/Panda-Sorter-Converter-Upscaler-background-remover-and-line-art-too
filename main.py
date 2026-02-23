@@ -562,6 +562,9 @@ class TextureSorterMainWindow(QMainWindow):
         # Try OpenGL 3-D widget first; fall back to 2-D QPainter widget.
         # IMPORTANT: create panda_widget HERE — before create_panda_features_tab()
         # so that panda_char is available when the Customisation tab is built.
+        # Only ONE panda widget is ever shown: the GL widget if hardware OpenGL is
+        # available, or the 2D QPainter widget as a transparent fallback.
+        # The two are NEVER shown simultaneously.
         _panda_sidebar_widget = None   # will be added to splitter after content_widget
 
         if PANDA_WIDGET_AVAILABLE:
@@ -572,6 +575,9 @@ class TextureSorterMainWindow(QMainWindow):
                 self.panda_widget.clicked.connect(self.on_panda_clicked)
                 self.panda_widget.mood_changed.connect(self.on_panda_mood_changed)
                 self.panda_widget.animation_changed.connect(self.on_panda_animation_changed)
+                # Wire gl_failed so we can swap in the 2D widget if initializeGL fails
+                if hasattr(self.panda_widget, 'gl_failed'):
+                    self.panda_widget.gl_failed.connect(self._on_panda_gl_failed)
                 _panda_sidebar_widget = self.panda_widget
                 logger.info("✅ Panda 3D OpenGL widget created")
             except Exception as e:
@@ -591,6 +597,10 @@ class TextureSorterMainWindow(QMainWindow):
             except Exception as e2:
                 logger.error(f"Panda 2D fallback also failed: {e2}")
                 self.panda_widget = None
+
+        # Keep a reference to the splitter so _on_panda_gl_failed can swap in 2D
+        self._panda_splitter = splitter
+        self._panda_splitter_idx = 1  # right pane (0 = content, 1 = panda)
 
         # Create draggable tabs
         self.tabs = DraggableTabWidget()
@@ -2405,29 +2415,44 @@ class TextureSorterMainWindow(QMainWindow):
             except Exception as e:
                 logger.warning(f"Could not initialize unlockables system: {e}")
 
-            # Initialize transparent panda overlay (floating panda that reacts to UI events)
+            # Initialize transparent panda overlay (floating panda that reacts to UI events).
+            # DISABLED BY DEFAULT: the overlay covers the entire window with WA_TransparentForMouseEvents=False.
+            # On systems where the GL context fails silently, the overlay becomes an opaque
+            # full-screen rectangle that intercepts all mouse events, making the app appear frozen.
+            # Users can enable the overlay via Settings → Panda → "Enable floating overlay".
+            _overlay_enabled = False
             try:
-                from ui.transparent_panda_overlay import create_transparent_overlay
-                self.panda_overlay = create_transparent_overlay(self, main_window=self)
-                if self.panda_overlay:
-                    # Wire panda overlay signals to main window handlers
-                    if hasattr(self.panda_overlay, 'panda_clicked_widget') and self.panda_overlay.panda_clicked_widget:
-                        self.panda_overlay.panda_clicked_widget.connect(
-                            lambda w: logger.debug(f"Panda clicked widget: {w}")
-                        )
-                    if hasattr(self.panda_overlay, 'panda_moved') and self.panda_overlay.panda_moved:
-                        self.panda_overlay.panda_moved.connect(
-                            lambda x, y: logger.debug(f"Panda moved to ({x}, {y})")
-                        )
-                    if hasattr(self.panda_overlay, 'panda_triggered_button') and self.panda_overlay.panda_triggered_button:
-                        self.panda_overlay.panda_triggered_button.connect(
-                            lambda w: logger.debug(f"Panda triggered button: {w}")
-                        )
-                    logger.info("Transparent panda overlay created and signals wired")
-                else:
-                    logger.info("Panda overlay not available (PyOpenGL not installed)")
-            except Exception as e:
-                logger.debug(f"Could not create panda overlay: {e}")
+                _overlay_enabled = bool(
+                    self.config and self.config.get('panda', 'overlay_enabled', default=False)
+                )
+            except Exception:
+                pass
+
+            if _overlay_enabled:
+                try:
+                    from ui.transparent_panda_overlay import create_transparent_overlay
+                    self.panda_overlay = create_transparent_overlay(self, main_window=self)
+                    if self.panda_overlay:
+                        # Wire panda overlay signals to main window handlers
+                        if hasattr(self.panda_overlay, 'panda_clicked_widget') and self.panda_overlay.panda_clicked_widget:
+                            self.panda_overlay.panda_clicked_widget.connect(
+                                lambda w: logger.debug(f"Panda clicked widget: {w}")
+                            )
+                        if hasattr(self.panda_overlay, 'panda_moved') and self.panda_overlay.panda_moved:
+                            self.panda_overlay.panda_moved.connect(
+                                lambda x, y: logger.debug(f"Panda moved to ({x}, {y})")
+                            )
+                        if hasattr(self.panda_overlay, 'panda_triggered_button') and self.panda_overlay.panda_triggered_button:
+                            self.panda_overlay.panda_triggered_button.connect(
+                                lambda w: logger.debug(f"Panda triggered button: {w}")
+                            )
+                        logger.info("Transparent panda overlay created and signals wired")
+                    else:
+                        logger.info("Panda overlay not available (PyOpenGL not installed)")
+                except Exception as e:
+                    logger.debug(f"Could not create panda overlay: {e}")
+            else:
+                logger.debug("Transparent panda overlay disabled (enable via Settings → Panda → floating overlay)")
 
             # Wire drag-and-drop on the input/output path labels so users can
             # drag folders from the file manager directly onto them.
@@ -3456,6 +3481,75 @@ class TextureSorterMainWindow(QMainWindow):
         except Exception as e:
             logger.error(f"Error handling panda click: {e}", exc_info=True)
     
+    def _on_panda_gl_failed(self, error_msg: str):
+        """
+        Called via gl_failed signal when PandaOpenGLWidget.initializeGL() fails.
+
+        Replaces the broken GL widget in the sidebar splitter with the 2D QPainter
+        fallback.  This keeps exactly ONE panda visible at all times.
+        """
+        logger.warning(f"Panda GL init failed ({error_msg}), swapping in 2D fallback")
+
+        if PandaWidget2D is None:
+            logger.error("2D panda fallback not available; sidebar will be empty")
+            return
+
+        # Disconnect signals from the failed GL widget before destroying it
+        old_widget = self.panda_widget
+        if old_widget is not None:
+            if hasattr(old_widget, 'timer'):
+                try:
+                    old_widget.timer.stop()
+                except Exception:
+                    pass
+            for sig_name in ('clicked', 'mood_changed', 'animation_changed'):
+                sig = getattr(old_widget, sig_name, None)
+                if sig is not None:
+                    try:
+                        sig.disconnect()
+                    except Exception:
+                        pass
+
+        # Create 2D replacement
+        try:
+            w2d = PandaWidget2D()
+            w2d.setMinimumWidth(280)
+            w2d.setMaximumWidth(420)
+            w2d.clicked.connect(self.on_panda_clicked)
+            w2d.mood_changed.connect(self.on_panda_mood_changed)
+            w2d.animation_changed.connect(self.on_panda_animation_changed)
+            if self.panda_character is not None:
+                w2d.panda = self.panda_character
+        except Exception as e:
+            logger.error(f"2D panda fallback creation failed: {e}")
+            return
+
+        # Swap into the splitter — replaceWidget keeps the same position/sizes
+        try:
+            splitter = getattr(self, '_panda_splitter', None)
+            idx = getattr(self, '_panda_splitter_idx', 1)
+            if splitter is not None and idx < splitter.count():
+                splitter.replaceWidget(idx, w2d)
+                splitter.setStretchFactor(0, 3)
+                splitter.setStretchFactor(idx, 1)
+            elif splitter is not None:
+                logger.warning(f"splitter.count()={splitter.count()}, idx={idx} — cannot replaceWidget")
+                return
+        except Exception as e:
+            logger.error(f"Could not swap panda widget in splitter: {e}")
+            return
+
+        self.panda_widget = w2d
+
+        # Schedule deletion of the old GL widget (safe — already removed from splitter)
+        if old_widget is not None:
+            try:
+                old_widget.deleteLater()
+            except Exception:
+                pass
+
+        logger.info("✅ Panda 2D fallback active (GL init failed)")
+
     def on_panda_mood_changed(self, mood: str):
         """Handle panda mood changes."""
         try:
