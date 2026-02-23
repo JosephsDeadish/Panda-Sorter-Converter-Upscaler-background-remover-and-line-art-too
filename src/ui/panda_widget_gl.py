@@ -184,21 +184,81 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
         self.is_working = False
         self.work_progress = 0.0
         self.work_animation_phase = 0.0
-        
-        # Animation timer (60 FPS)
+
+        # ── Personality traits (per-instance random micro-variation) ──────────
+        self._micro = {
+            'blink_base':        random.uniform(2.2, 5.5),   # seconds between blinks
+            'blink_double_prob': random.uniform(0.10, 0.30),  # double-blink probability
+            'sway_speed':        random.uniform(0.88, 1.12),  # idle sway multiplier
+            'breath_amp':        random.uniform(0.90, 1.10),  # breathing amplitude
+            'ear_stiffness':     random.uniform(14.0, 22.0),  # ear spring stiffness
+            'ear_damping':       random.uniform(0.70, 0.88),  # ear spring damping
+            'reaction_delay_s':  random.uniform(0.04, 0.14),  # reaction delay seconds
+        }
+
+        # ── Time-based blink state ────────────────────────────────────────────
+        self._next_blink_t   = time.time() + self._micro['blink_base']
+        self._blink_phase    = 0.0      # 0.0=open … 1.0=fully closed … 2.0=open again
+        self._blink_speed    = 8.0      # phases per second (close+open takes ~0.25 s)
+        self._double_blink   = False    # True during second half of a double-blink
+        self._double_delay_t = 0.0     # time until second blink starts
+
+        # ── Ear spring physics (left=0, right=1) ─────────────────────────────
+        self._ear_pos = [0.0, 0.0]     # current rotational offset (degrees)
+        self._ear_vel = [0.0, 0.0]     # angular velocity
+
+        # ── Cursor awareness ─────────────────────────────────────────────────
+        self._cursor_wpos   = None      # QPoint in widget space (None = unknown)
+        self._look_yaw      = 0.0       # horizontal head-look offset (degrees), eased
+        self._look_pitch    = 0.0       # vertical offset
+        self._look_yaw_tgt  = 0.0
+        self._look_pitch_tgt = 0.0
+        self.setMouseTracking(True)
+
+        # ── Fatigue / boredom system ─────────────────────────────────────────
+        self._fatigue           = 0.0   # 0=fresh → 1=exhausted
+        self._fatigue_rate      = 1.0 / (3600 * 2)     # full fatigue in ~2 h
+        self._fatigue_recovery  = 1.0 / (3600 * 0.5)   # recover in ~30 min when sleeping
+        self._boredom_t         = 0.0   # seconds since last interaction
+        self._boredom_threshold = 45.0  # seconds of idle before boredom
+
+        # ── Emotion layer ─────────────────────────────────────────────────────
+        self._emotion = 'neutral'
+        self._emotion_weights: dict = {
+            'happy': 0.0, 'sad': 0.0, 'bored': 0.0,
+            'excited': 0.0, 'tired': 0.0, 'neutral': 1.0,
+        }
+
+        # ── Animation blending ─────────────────────────────────────────────
+        self._prev_state     = 'idle'
+        self._blend_alpha    = 1.0          # 1.0 = fully in new state
+        self._blend_duration = 0.20         # seconds for cross-fade
+        self._blend_start_t  = time.time()
+
+        # ── Squash-and-stretch ───────────────────────────────────────────────
+        self._squash_y   = 1.0      # applied to body Y scale (>1=stretch, <1=squash)
+        self._squash_vel = 0.0      # spring velocity toward rest (1.0)
+        self._was_airborne = False
+
+        # ── Anticipation before actions ──────────────────────────────────────
+        self._anticipation_t      = 0.0     # countdown seconds
+        self._anticipation_state  = 'idle'  # crouch-back state during anticipation
+        self._pending_action      = None    # action triggered after anticipation
+
+        # Animation timer (30 FPS)
         self.timer = QTimer(self)
         self.timer.timeout.connect(self._update_animation)
         self.timer.start(int(self.FRAME_TIME * 1000))  # Convert to ms
-        
+
         # Frame timing for FPS cap
         self.last_frame_time = time.time()
-        
+
         # OpenGL initialization flag
         self.gl_initialized = False
-        
+
         # Qt State Machine for animation state control
         self._setup_state_machine()
-        
+
         logger.info("OpenGL panda widget initialized with hardware acceleration")
     
     def _setup_state_machine(self):
@@ -670,16 +730,19 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
     def _get_blink_scale(self, t):
         """
         Return vertical eye scale (1.0 = fully open, ~0.05 = closed).
-        Blink cycle repeats every 200 frames.  Within the first 6 frames:
-          frames 0-2:  close  (scale drops from 1.0 → 0.05 → 1.0)
-          frame 3:     fully closed at minimum (abs(3-3)/3 = 0)
-          frames 3-5:  open   (scale rises back to 1.0)
-        The formula abs(phase-3)/3.0 gives a symmetric V centred at frame 3.
+        Uses time-based blink phase set by _update_subsystems().
+        phase 0–1: closing (ease-in),  phase 1–2: opening (ease-out).
+        Fatigue droops the eye (keeps scale slightly below 1.0 when open).
         """
-        phase = t % 200
-        if phase < 6:
-            return max(0.05, abs(phase - 3) / 3.0)
-        return 1.0
+        phase = self._blink_phase
+        if phase > 0.0:
+            if phase < 1.0:
+                return max(0.05, 1.0 - self._ease_in_cubic(phase))
+            else:
+                return max(0.05, self._ease_out_cubic(phase - 1.0))
+        # Open — droop increases with fatigue (bottom eyelid rises)
+        droop = self._fatigue * 0.30
+        return max(0.35, 1.0 - droop)
 
     # ─── Snout drawing ──────────────────────────────────────────────────────
     def _draw_panda_snout(self):
@@ -987,18 +1050,164 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
         glVertex3f(-size, size, -size)
         glEnd()
     
+    # ─── Easing functions ────────────────────────────────────────────────────
+    @staticmethod
+    def _ease_out_cubic(t: float) -> float:
+        """Decelerate: fast start → slow stop."""
+        t = max(0.0, min(1.0, t))
+        return 1.0 - (1.0 - t) ** 3
+
+    @staticmethod
+    def _ease_in_cubic(t: float) -> float:
+        """Accelerate: slow start → fast stop."""
+        t = max(0.0, min(1.0, t))
+        return t ** 3
+
+    @staticmethod
+    def _ease_in_out_cubic(t: float) -> float:
+        """Smooth S-curve."""
+        t = max(0.0, min(1.0, t))
+        return 4 * t * t * t if t < 0.5 else 1 - (-2 * t + 2) ** 3 / 2
+
+    # ─── Per-frame sub-system updates ────────────────────────────────────────
+    def _update_subsystems(self, now: float, dt: float):
+        """
+        Update all secondary animation subsystems once per timer tick.
+
+        Separated from _update_animation for readability; called at the
+        top of _update_animation before requesting a repaint.
+        """
+        # ── Fatigue accumulation / recovery ──────────────────────────────────
+        if self.animation_state == 'sleeping':
+            self._fatigue = max(0.0, self._fatigue - self._fatigue_recovery * dt)
+        else:
+            self._fatigue = min(1.0, self._fatigue + self._fatigue_rate * dt)
+
+        # Auto-sleep when exhausted
+        if self._fatigue >= 0.98 and self.animation_state not in ('sleeping',):
+            self._set_state_direct('sleeping')
+            self._emotion = 'tired'
+            self._emotion_weights = {k: 0.0 for k in self._emotion_weights}
+            self._emotion_weights['tired'] = 1.0
+
+        # ── Boredom tracking ──────────────────────────────────────────────────
+        self._boredom_t += dt
+        if self._boredom_t > self._boredom_threshold and self._emotion == 'neutral':
+            self._emotion = 'bored'
+            self._emotion_weights['neutral'] = 0.0
+            self._emotion_weights['bored'] = 1.0
+
+        # ── Time-based blink system ───────────────────────────────────────────
+        if now >= self._next_blink_t:
+            self._blink_phase = 0.001   # start a blink
+            # Decide on double-blink
+            self._double_blink = random.random() < self._micro['blink_double_prob']
+            jitter = random.uniform(-0.6, 0.6)
+            self._next_blink_t = (now + self._micro['blink_base']
+                                  + (3.0 if self._double_blink else 0.0) + jitter)
+            # Tired panda blinks more slowly
+            self._blink_speed = max(5.0, 8.0 - 3.0 * self._fatigue)
+
+        if self._blink_phase > 0.0:
+            self._blink_phase += self._blink_speed * dt
+            if self._blink_phase >= 2.0:
+                if self._double_blink:
+                    self._blink_phase = 0.0
+                    self._double_blink = False
+                    # Schedule the second blink in ~0.15 s
+                    self._next_blink_t = now + 0.15
+                else:
+                    self._blink_phase = 0.0   # blink complete
+
+        # ── Ear spring physics ────────────────────────────────────────────────
+        stiffness = self._micro['ear_stiffness']
+        damping   = self._micro['ear_damping']
+
+        # Target: slight flick on large body-bob direction changes; else rest
+        body_jerk = abs(self._get_body_bob()) * 120.0   # proportional nudge
+        for i in range(2):
+            # Spring toward 0
+            spring_force = -stiffness * self._ear_pos[i]
+            damp_force   = -damping * self._ear_vel[i]
+            self._ear_vel[i] += (spring_force + damp_force) * dt
+            self._ear_pos[i] += self._ear_vel[i] * dt
+
+        # Random ear twitch (independent per ear, low probability)
+        if random.random() < 0.002:   # ~0.2 % chance per tick = every ~5 s at 30 fps
+            ear_idx = random.randint(0, 1)
+            self._ear_vel[ear_idx] += random.uniform(-6.0, 6.0)
+
+        # ── Cursor look interpolation (eased) ─────────────────────────────────
+        if self._cursor_wpos is not None:
+            cx = self._cursor_wpos.x() - self.width()  / 2.0
+            cy = self._cursor_wpos.y() - self.height() / 2.0
+            proximity = 1.0 - min(1.0, math.hypot(cx, cy) / max(self.width(), 1))
+            self._look_yaw_tgt   = max(-12.0, min(12.0, cx / max(self.width(),  1) * 18.0)) * proximity
+            self._look_pitch_tgt = max(-8.0,  min( 8.0, -cy / max(self.height(), 1) * 12.0)) * proximity
+
+        ease = min(1.0, dt * 6.0)
+        self._look_yaw   += (self._look_yaw_tgt   - self._look_yaw)   * ease
+        self._look_pitch += (self._look_pitch_tgt - self._look_pitch) * ease
+
+        # ── State blend alpha ─────────────────────────────────────────────────
+        if self._blend_alpha < 1.0:
+            elapsed_blend = now - self._blend_start_t
+            raw = elapsed_blend / max(self._blend_duration, 1e-6)
+            self._blend_alpha = self._ease_in_out_cubic(raw)
+
+        # ── Squash-and-stretch spring ─────────────────────────────────────────
+        was_airborne_now = self.panda_y > -0.68
+        if self._was_airborne and not was_airborne_now:
+            # Landing impact: squash down
+            impact = min(abs(self.velocity_y) * 0.15, 0.30)
+            self._squash_y    = max(0.72, 1.0 - impact)
+            self._squash_vel  = 0.0
+        self._was_airborne = was_airborne_now
+
+        # Spring squash back to 1.0 (stiffness=24, damping=0.55)
+        spring = 24.0 * (1.0 - self._squash_y)
+        damp   = -0.55 * self._squash_vel
+        self._squash_vel += (spring + damp) * dt
+        self._squash_y   += self._squash_vel * dt
+        self._squash_y    = max(0.60, min(1.30, self._squash_y))
+
+        # ── Anticipation countdown ────────────────────────────────────────────
+        if self._anticipation_t > 0.0:
+            self._anticipation_t -= dt
+            if self._anticipation_t <= 0.0:
+                action = self._pending_action
+                self._pending_action   = None
+                self._anticipation_t   = 0.0
+                if action:
+                    self._set_state_direct(action)
+
+    def _set_state_direct(self, state: str):
+        """Set animation state bypassing anticipation (used internally)."""
+        self._prev_state    = self.animation_state
+        self._blend_alpha   = 0.0
+        self._blend_start_t = time.time()
+        self.animation_state = state
+        self.animation_changed.emit(state)
+
     # ─── Smooth animation helpers ────────────────────────────────────────────
     def _get_body_bob(self):
-        """Return vertical body-bob offset using smooth sinusoidal curves."""
-        t = self.animation_frame
-        state = self.animation_state
+        """Return vertical body-bob offset using smooth sinusoidal curves with personality."""
+        t     = self.animation_frame
+        state = self.animation_state if self._anticipation_t <= 0.0 else self._anticipation_state
+        spd   = self._micro['sway_speed']
+        amp   = self._micro['breath_amp']
+        tired = self._fatigue
+        excited = self._emotion_weights.get('excited', 0.0)
 
-        if state == 'idle':
-            # Layered breathing: slow primary + gentle secondary
-            return 0.016 * math.sin(t * 0.040) + 0.004 * math.sin(t * 0.110)
+        if state == 'idle' or state == 'neutral':
+            # Layered breathing + emotional variation
+            base = (0.016 * math.sin(t * 0.040 * spd) +
+                    0.004 * math.sin(t * 0.110 * spd)) * amp
+            # Tired: slower, shallower; Excited: bigger, bouncier
+            base *= (1.0 - tired * 0.50) * (1.0 + excited * 0.40)
+            return base
 
         if state in ('walking', 'walking_left', 'walking_right'):
-            # Two steps per gait cycle — abs(sin) gives an up-and-down per step
             return 0.038 * abs(math.sin(t * 0.160)) - 0.010
 
         if state == 'running':
@@ -1008,79 +1217,106 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
             phase = (t % 70) / 70.0
             return 0.35 * math.sin(phase * math.pi)
 
-        if state == 'celebrating':
-            return 0.06 * abs(math.sin(t * 0.22))
+        if state in ('celebrating', 'excited'):
+            return 0.06 * abs(math.sin(t * 0.22)) * (1.0 + excited * 0.30)
 
         if state == 'waving':
             return 0.010 * math.sin(t * 0.060)
+
+        if state == 'sleeping':
+            # Slow, deep breathing when sleeping
+            return 0.022 * math.sin(t * 0.020)
+
+        if state == '_anticipation':
+            # Slight crouch-back before a big action
+            return -0.04 * math.sin(t * 0.12)
 
         return 0.0
 
     def _get_limb_positions(self):
         """
         Return per-limb rotation angles (degrees) using smooth sinusoidal curves.
-        All curves use the same animation_frame counter so limbs stay in sync.
+        Blends between previous state and current state for smooth transitions.
         """
-        state = self.animation_state
         frame = self.animation_frame
 
-        pos = {
-            'left_arm_angle':  0.0,
-            'right_arm_angle': 0.0,
-            'left_leg_angle':  0.0,
-            'right_leg_angle': 0.0,
-        }
+        def _positions_for_state(state: str) -> dict:
+            pos = {
+                'left_arm_angle':  0.0,
+                'right_arm_angle': 0.0,
+                'left_leg_angle':  0.0,
+                'right_leg_angle': 0.0,
+            }
+            # Working animation overrides
+            if self.is_working:
+                pos.update(self._get_working_limb_offsets())
+                return pos
 
-        # Working animation overrides everything
-        if self.is_working:
-            pos.update(self._get_working_limb_offsets())
+            if state in ('walking', 'walking_left', 'walking_right'):
+                base  = frame * 0.160
+                swing = 32.0 * math.sin(base) + 5.0 * math.sin(base * 3) / 3.0
+                pos['left_arm_angle']  =  swing
+                pos['right_arm_angle'] = -swing
+                pos['left_leg_angle']  = -swing
+                pos['right_leg_angle'] =  swing
+
+            elif state == 'running':
+                base  = frame * 0.280
+                swing = 55.0 * math.sin(base) + 9.0 * math.sin(base * 3) / 3.0
+                pos['left_arm_angle']  =  swing
+                pos['right_arm_angle'] = -swing
+                pos['left_leg_angle']  = -swing
+                pos['right_leg_angle'] =  swing
+
+            elif state == 'jumping':
+                phase  = (frame % 70) / 70.0
+                extend = 40.0 * math.sin(phase * math.pi)
+                pos['left_arm_angle']  = -extend * 0.9
+                pos['right_arm_angle'] = -extend * 0.9
+                pos['left_leg_angle']  =  extend * 0.6
+                pos['right_leg_angle'] =  extend * 0.6
+
+            elif state == 'waving':
+                wave = -95.0 + 28.0 * math.sin(frame * 0.28)
+                pos['right_arm_angle'] = wave
+                pos['left_arm_angle']  = 5.0 * math.sin(frame * 0.060)
+
+            elif state in ('celebrating', 'excited'):
+                pos['left_arm_angle']  = -115.0 + 22.0 * math.sin(frame * 0.22)
+                pos['right_arm_angle'] = -115.0 + 22.0 * math.sin(frame * 0.22 + 0.4)
+                pos['left_leg_angle']  =  18.0 * math.sin(frame * 0.22)
+                pos['right_leg_angle'] = -18.0 * math.sin(frame * 0.22)
+
+            elif state == 'sleeping':
+                # Arms droop down, slight lean forward
+                droop = 20.0 + self._fatigue * 15.0
+                pos['left_arm_angle']  =  droop
+                pos['right_arm_angle'] =  droop
+
+            elif state == '_anticipation':
+                # Pull arms back and crouch before jump/celebrate
+                pos['left_arm_angle']  = 25.0
+                pos['right_arm_angle'] = 25.0
+                pos['left_leg_angle']  = 12.0
+                pos['right_leg_angle'] = 12.0
+
+            else:  # idle / neutral / default
+                sway = 3.5 * math.sin(frame * 0.040 * self._micro['sway_speed'])
+                pos['left_arm_angle']  =  sway
+                pos['right_arm_angle'] = -sway
+
             return pos
 
-        if state in ('walking', 'walking_left', 'walking_right'):
-            # Smooth gait: arms and legs counter-swing with sin(3x)/3 overshoot
-            base  = frame * 0.160
-            swing = 32.0 * math.sin(base) + 5.0 * math.sin(base * 3) / 3.0
-            pos['left_arm_angle']  =  swing
-            pos['right_arm_angle'] = -swing
-            pos['left_leg_angle']  = -swing
-            pos['right_leg_angle'] =  swing
+        cur  = _positions_for_state(self.animation_state)
+        if self._blend_alpha >= 1.0:
+            return cur
 
-        elif state == 'running':
-            base  = frame * 0.280
-            swing = 55.0 * math.sin(base) + 9.0 * math.sin(base * 3) / 3.0
-            pos['left_arm_angle']  =  swing
-            pos['right_arm_angle'] = -swing
-            pos['left_leg_angle']  = -swing
-            pos['right_leg_angle'] =  swing
-
-        elif state == 'jumping':
-            phase  = (frame % 70) / 70.0
-            extend = 40.0 * math.sin(phase * math.pi)
-            pos['left_arm_angle']  = -extend * 0.9
-            pos['right_arm_angle'] = -extend * 0.9
-            pos['left_leg_angle']  =  extend * 0.6
-            pos['right_leg_angle'] =  extend * 0.6
-
-        elif state == 'waving':
-            # Right arm rises and waves; left arm hangs with gentle sway
-            wave = -95.0 + 28.0 * math.sin(frame * 0.28)
-            pos['right_arm_angle'] = wave
-            pos['left_arm_angle']  = 5.0 * math.sin(frame * 0.060)
-
-        elif state == 'celebrating':
-            # Both arms up, bouncing with slightly different phases for life
-            pos['left_arm_angle']  = -115.0 + 22.0 * math.sin(frame * 0.22)
-            pos['right_arm_angle'] = -115.0 + 22.0 * math.sin(frame * 0.22 + 0.4)
-            pos['left_leg_angle']  =  18.0 * math.sin(frame * 0.22)
-            pos['right_leg_angle'] = -18.0 * math.sin(frame * 0.22)
-
-        else:
-            # Idle: micro-sway so panda never looks stiff
-            sway = 3.5 * math.sin(frame * 0.040)
-            pos['left_arm_angle']  =  sway
-            pos['right_arm_angle'] = -sway
-
-        return pos
+        prev = _positions_for_state(self._prev_state)
+        alpha = self._ease_in_out_cubic(self._blend_alpha)
+        blended = {}
+        for k in cur:
+            blended[k] = prev[k] * (1.0 - alpha) + cur[k] * alpha
+        return blended
     
     def _update_animation(self):
         """Update animation frame and physics."""
@@ -1089,9 +1325,13 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
             self.animation_frame = 0
         
         # Calculate delta time
-        current_time = time.time()
-        delta_time = current_time - self.last_frame_time
-        
+        now = time.time()
+        dt = min(now - self.last_frame_time, 0.10)   # cap at 100 ms to avoid spiral
+        self.last_frame_time = now
+
+        # Update all secondary animation subsystems
+        self._update_subsystems(now, dt)
+
         # Update physics
         self._update_physics()
         
@@ -1099,10 +1339,10 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
         self._update_trail()
         
         # Update autonomous behavior (walking around)
-        self._update_autonomous_behavior(delta_time)
+        self._update_autonomous_behavior(dt)
         
         # Update working animation
-        self._update_working_animation(delta_time)
+        self._update_working_animation(dt)
         
         # Request redraw
         self.update()
@@ -1152,10 +1392,19 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
             self.clicked.emit()
     
     def mouseMoveEvent(self, event: QMouseEvent):
-        """Handle mouse drag."""
+        """Handle mouse drag and track cursor for panda awareness."""
+        # Track cursor position for look-at-cursor system (always)
+        self._cursor_wpos = event.pos()
+        # Reset boredom when user moves cursor near panda
+        self._boredom_t = 0.0
+        if self._emotion == 'bored':
+            self._emotion = 'neutral'
+            self._emotion_weights['bored']   = 0.0
+            self._emotion_weights['neutral'] = 1.0
+
         if self.last_mouse_pos is None:
             return
-        
+
         delta = event.pos() - self.last_mouse_pos
         
         # Check if dragging
