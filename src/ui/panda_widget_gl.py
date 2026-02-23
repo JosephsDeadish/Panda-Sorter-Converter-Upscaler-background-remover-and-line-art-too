@@ -401,6 +401,9 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
         self._ui_interact_t      = 0.0  # countdown for current interaction (s)
         self._ui_interact_type   = ''   # 'poke', 'sniff', 'sit', 'bite', 'hug'
         self._last_drag_file     = None # last file path dragged over widget
+        self._jaw_open           = 0.0  # 0=closed, 1=fully open (for bite animation)
+        self._bite_duration      = 1.4  # seconds for one full bite cycle
+        self._bite_chomp_played  = False  # guard so chomp only plays once per bite
 
         # ── Autonomous idle-behavior extras ──────────────────────────────────
         # These are thin sub-states layered on top of the main state machine
@@ -760,12 +763,13 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
         belly_col  = self.custom_colors['belly']
         accent_col = self.custom_colors['accent']
 
-        # Apply squash/stretch to the torso (sub-pose can add stretch too)
-        sy = self._squash_y * _sub.get('body_y_scale', 1.0)
-
         # ── Torso ────────────────────────────────────────────────────────────
         # Gather idle sub-pose offsets (grooming/stretching/yawning/flopping etc.)
+        # MUST be fetched BEFORE sy calculation that reads it.
         _sub = self._get_idle_sub_pose()
+
+        # Apply squash/stretch to the torso (sub-pose can add stretch too)
+        sy = self._squash_y * _sub.get('body_y_scale', 1.0)
 
         glPushMatrix()
         glTranslatef(self.panda_x, 0.28 + bob, self.panda_z)
@@ -1263,7 +1267,9 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
 
     # ─── Snout drawing ──────────────────────────────────────────────────────
     def _draw_panda_snout(self):
-        """Draw muzzle, nose tip, philtrum and teeth."""
+        """Draw muzzle, nose tip, philtrum, teeth. Jaw drops by _jaw_open (0=closed→1=open)."""
+        jaw_drop = self._jaw_open * 0.055   # max 5.5 units of downward jaw movement
+
         # Muzzle — off-white ellipsoid
         glPushMatrix()
         glTranslatef(0.0, -0.065, self.HEAD_RADIUS * 0.84)
@@ -1301,22 +1307,51 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
         self._draw_sphere(0.022, 8, 8)
         glPopMatrix()
 
-        # Mouth line — thin dark crescent (two corner spheres + centre dip)
-        for mx, my in [(-0.048, -0.094), (0.0, -0.100), (0.048, -0.094)]:
+        # Lower jaw — drops when biting; subtle lower-muzzle mass
+        jaw_y = -0.100 - jaw_drop
+        glPushMatrix()
+        glTranslatef(0.0, jaw_y, self.HEAD_RADIUS * 0.88)
+        glScalef(0.95, 0.45 + jaw_drop * 2.0, 0.50)
+        glColor3f(0.93, 0.91, 0.88)
+        self._draw_sphere(0.110, 14, 14)
+        glPopMatrix()
+
+        # Mouth line — thin dark crescent (three corner spheres + centre dip)
+        # When jaw drops, corners separate vertically
+        for mx, my in [(-0.048, jaw_y + 0.006), (0.0, jaw_y + 0.000), (0.048, jaw_y + 0.006)]:
             glPushMatrix()
             glTranslatef(mx, my, self.HEAD_RADIUS * 0.91)
             glColor3f(0.30, 0.22, 0.20)
             self._draw_sphere(0.013, 8, 8)
             glPopMatrix()
 
-        # Teeth (two white incisors, visible when mouth slightly open)
-        for tx in (-0.018, 0.018):
-            glPushMatrix()
-            glTranslatef(tx, -0.098, self.HEAD_RADIUS * 0.91)
-            glScalef(0.55, 1.20, 0.50)
-            glColor3f(0.97, 0.97, 0.94)
-            self._draw_sphere(0.016, 8, 8)
-            glPopMatrix()
+        # Teeth (two white incisors — visible & scaled by jaw_open)
+        if self._jaw_open > 0.05:
+            teeth_scale = 0.6 + self._jaw_open * 0.8   # grow into view as jaw opens
+            for tx in (-0.018, 0.018):
+                glPushMatrix()
+                glTranslatef(tx, jaw_y + 0.012, self.HEAD_RADIUS * 0.91)
+                glScalef(0.55 * teeth_scale, 1.20, 0.50 * teeth_scale)
+                glColor3f(0.97, 0.97, 0.94)
+                self._draw_sphere(0.016, 8, 8)
+                glPopMatrix()
+            # Lower teeth row (smaller)
+            for tx in (-0.024, -0.008, 0.008, 0.024):
+                glPushMatrix()
+                glTranslatef(tx, jaw_y - 0.008, self.HEAD_RADIUS * 0.90)
+                glScalef(0.45 * teeth_scale, 0.90, 0.40 * teeth_scale)
+                glColor3f(0.96, 0.96, 0.93)
+                self._draw_sphere(0.012, 8, 8)
+                glPopMatrix()
+        else:
+            # Static top incisor hints (mouth closed)
+            for tx in (-0.018, 0.018):
+                glPushMatrix()
+                glTranslatef(tx, -0.098, self.HEAD_RADIUS * 0.91)
+                glScalef(0.55, 1.20, 0.50)
+                glColor3f(0.97, 0.97, 0.94)
+                self._draw_sphere(0.016, 8, 8)
+                glPopMatrix()
 
         # Whisker pad bumps — two raised oval areas on muzzle sides
         for wx, wy in [(-0.072, -0.058), (0.072, -0.058)]:
@@ -1903,6 +1938,25 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
         self._surprised_eye_t = max(0.0, self._surprised_eye_t - dt)
         self._ui_interact_t   = max(0.0, self._ui_interact_t   - dt)
 
+        # ── Jaw / bite animation ──────────────────────────────────────────────
+        # Phase: 0.0→0.5 = opening (ease-in), 0.5→1.0 = closing (ease-out)
+        # _ui_interact_type == 'bite' drives _jaw_open via interact timer progress
+        if self._ui_interact_type == 'bite' and self._ui_interact_t > 0.0:
+            phase = 1.0 - (self._ui_interact_t / max(self._bite_duration, 0.01))
+            if phase < 0.5:
+                self._jaw_open = self._ease_in_cubic(phase * 2.0)
+            else:
+                self._jaw_open = 1.0 - self._ease_out_cubic((phase - 0.5) * 2.0)
+            # Chomp sound at peak
+            if 0.48 < phase < 0.53 and not getattr(self, '_bite_chomp_played', False):
+                self._play_sound('chomp')
+                self._bite_chomp_played = True
+        else:
+            # Decay jaw closed smoothly
+            self._jaw_open = max(0.0, self._jaw_open - dt * 6.0)
+            if self._ui_interact_t <= 0.0:
+                self._bite_chomp_played = False
+
         # Flinch → trigger quick blink
         if self._flinch_t > 0.1 and self._blink_phase == 0.0:
             self._blink_phase = 0.001
@@ -2174,6 +2228,36 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
             self._ui_interact_type = 'poke'
             self._ui_interact_t = 1.2
             self._arm_over_vel[0] += random.choice([-1, 1]) * 18.0
+
+    def start_bite_tab(self):
+        """
+        Trigger the bite-tab animation: panda leans forward, jaw drops open,
+        chomps sound plays at peak, jaw closes. Call this when the panda
+        is positioned near a tab widget.
+        """
+        self._ui_interact_type  = 'bite'
+        self._ui_interact_t     = self._bite_duration
+        self._bite_chomp_played = False
+        # Head leans forward via body pitch spring kick
+        self._body_pitch_vel += 20.0
+        # Surprised wide-eyes (chomping is exciting)
+        self._surprised_eye_t = 0.35
+        # Micro-emotion: playful + excited
+        self._micro_emotion['playful']  = 0.9
+        self._micro_emotion['curious']  = 0.6
+
+    def start_hug_window(self):
+        """Panda climbs/hugs the window edge — triggers climbing_wall state."""
+        self.transition_to_state('climbing_wall')
+        self._micro_emotion['playful'] = 0.8
+        # Schedule return to idle after 3–5 seconds
+        fire_t = time.time() + random.uniform(3.0, 5.0)
+        self._reaction_delay_q.append((fire_t, lambda: self.transition_to_state('falling_back')))
+
+    def start_sit_on_panel(self):
+        """Panda sits down on a panel — triggers sitting_back state."""
+        self.transition_to_state('sitting_back')
+        self._micro_emotion['content'] = 0.9
 
     def set_micro_emotion(self, emotion_name: str, weight: float = 0.8):
         """Blend in a micro-emotion (curious, playful, annoyed, content, nervous)."""
@@ -2727,70 +2811,166 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
         glPopMatrix()
     
     def _draw_shirt(self, shirt_data):
-        """Draw shirt on panda's body."""
-        glPushMatrix()
-        # Position on body
-        glTranslatef(0.0, 0.3, 0.0)
-        
-        # Get shirt color
-        color = shirt_data.get('color', [0.2, 0.2, 0.8])
+        """
+        Draw shirt on panda's body + sleeve extensions over arms.
+        Called from inside the torso world-space matrix so positions are body-relative.
+        """
+        color   = shirt_data.get('color', [0.2, 0.2, 0.8]) if isinstance(shirt_data, dict) else [0.2, 0.2, 0.8]
+        style   = shirt_data.get('type', 'tshirt') if isinstance(shirt_data, dict) else 'tshirt'
         glColor3f(*color)
-        
-        # Draw shirt (slightly larger than body)
-        glScalef(self.BODY_WIDTH * 1.05, self.BODY_HEIGHT * 0.8, self.BODY_WIDTH * 0.85)
-        self._draw_sphere(1.0, 16, 16)
-        
+
+        # Main torso section — slightly proud of body sphere
+        glPushMatrix()
+        glScalef(self.BODY_WIDTH * 1.08, self.BODY_HEIGHT * 0.82, self.BODY_WIDTH * 0.88)
+        self._draw_sphere(1.0, 20, 20)
         glPopMatrix()
-    
+
+        # Collar / neckline ring
+        glPushMatrix()
+        glTranslatef(0.0, self.BODY_HEIGHT * 0.78, 0.0)
+        quad = gluNewQuadric()
+        glRotatef(-90.0, 1.0, 0.0, 0.0)
+        darker = [max(0.0, c - 0.12) for c in color]
+        glColor3f(*darker)
+        gluCylinder(quad, 0.14, 0.16, 0.04, 14, 1)
+        gluDeleteQuadric(quad)
+        glPopMatrix()
+
+        # Sleeve bands — at shoulder positions (body-relative ≈ ±arm_x offset)
+        arm_x = self.BODY_WIDTH * 0.88
+        arm_y = self.BODY_HEIGHT * 0.62
+        sleeve_len = 0.10 if style in ('tshirt', 'polo') else 0.20  # short vs long sleeve
+        for side in (-1.0, 1.0):
+            glPushMatrix()
+            glTranslatef(side * arm_x, arm_y, 0.0)
+            glRotatef(side * -60.0, 0.0, 0.0, 1.0)   # angled downward along arm
+            quad2 = gluNewQuadric()
+            glRotatef(-90.0, 0.0, 1.0, 0.0)
+            gluCylinder(quad2, 0.108, 0.095, sleeve_len, 12, 1)
+            # Cuff/hem ring
+            glTranslatef(0.0, 0.0, sleeve_len)
+            glColor3f(*darker)
+            gluDisk(quad2, 0.070, 0.096, 12, 1)
+            gluDeleteQuadric(quad2)
+            glColor3f(*color)
+            glPopMatrix()
+
+        # Shirt hem at bottom
+        glPushMatrix()
+        glTranslatef(0.0, -self.BODY_HEIGHT * 0.38, 0.0)
+        quad3 = gluNewQuadric()
+        glRotatef(-90.0, 1.0, 0.0, 0.0)
+        glColor3f(*darker)
+        gluCylinder(quad3, self.BODY_WIDTH * 0.95, self.BODY_WIDTH * 0.90, 0.03, 16, 1)
+        gluDeleteQuadric(quad3)
+        glPopMatrix()
+
     def _draw_pants(self, pants_data):
-        """Draw pants on panda's legs."""
-        # Get pants color
-        color = pants_data.get('color', [0.3, 0.3, 0.3])
+        """
+        Draw pants / trousers following the actual leg positions from _get_limb_positions().
+        Called inside the torso world-space matrix.
+        """
+        color  = pants_data.get('color', [0.2, 0.2, 0.4]) if isinstance(pants_data, dict) else [0.2, 0.2, 0.4]
+        style  = pants_data.get('type', 'jeans') if isinstance(pants_data, dict) else 'jeans'
+        limb   = self._get_limb_positions()
         glColor3f(*color)
-        
-        # Left leg pants
+
+        leg_x     = self.LEG_SPACING * 0.5
+        leg_top_y = -self.BODY_HEIGHT * 0.42
+        quad = gluNewQuadric()
+
+        for side in (-1.0, 1.0):
+            swing = limb.get('left_leg_angle' if side < 0 else 'right_leg_angle', 0.0)
+            glPushMatrix()
+            glTranslatef(side * leg_x, leg_top_y, 0.0)
+            glRotatef(swing, 1.0, 0.0, 0.0)    # follows leg swing
+
+            # Upper leg (thigh tube)
+            glPushMatrix()
+            glRotatef(-90.0, 1.0, 0.0, 0.0)
+            gluCylinder(quad, 0.115, 0.098, self.LEG_LENGTH * 0.52, 12, 1)
+            glPopMatrix()
+
+            # Knee-area curve
+            glPushMatrix()
+            glTranslatef(0.0, -self.LEG_LENGTH * 0.50, 0.0)
+            glScalef(1.0, 0.6, 1.0)
+            glColor3f(*[max(0.0, c - 0.05) for c in color])
+            self._draw_sphere(0.10, 10, 10)
+            glColor3f(*color)
+            glPopMatrix()
+
+            # Lower leg (shin tube)
+            glPushMatrix()
+            glTranslatef(0.0, -self.LEG_LENGTH * 0.50, 0.0)
+            glRotatef(-90.0, 1.0, 0.0, 0.0)
+            gluCylinder(quad, 0.095, 0.082, self.LEG_LENGTH * 0.45, 12, 1)
+            glPopMatrix()
+
+            # Cuff hem at ankle
+            glPushMatrix()
+            glTranslatef(0.0, -self.LEG_LENGTH * 0.90, 0.0)
+            darker = [max(0.0, c - 0.10) for c in color]
+            glColor3f(*darker)
+            glRotatef(-90.0, 1.0, 0.0, 0.0)
+            gluCylinder(quad, 0.086, 0.090, 0.035, 12, 1)
+            glColor3f(*color)
+            glPopMatrix()
+
+            glPopMatrix()   # end leg
+
+        # Waistband
         glPushMatrix()
-        glTranslatef(-0.2, -0.1, 0.0)
-        glScalef(0.16, self.LEG_LENGTH, 0.16)
-        glTranslatef(0.0, -0.5, 0.0)
-        self._draw_sphere(1.0, 12, 12)
+        glTranslatef(0.0, leg_top_y + 0.025, 0.0)
+        darker = [max(0.0, c - 0.08) for c in color]
+        glColor3f(*darker)
+        glRotatef(-90.0, 1.0, 0.0, 0.0)
+        gluCylinder(quad, self.LEG_SPACING * 0.70, self.LEG_SPACING * 0.72, 0.05, 16, 1)
         glPopMatrix()
-        
-        # Right leg pants
-        glPushMatrix()
-        glTranslatef(0.2, -0.1, 0.0)
-        glScalef(0.16, self.LEG_LENGTH, 0.16)
-        glTranslatef(0.0, -0.5, 0.0)
-        self._draw_sphere(1.0, 12, 12)
-        glPopMatrix()
+
+        gluDeleteQuadric(quad)
     
     def _draw_glasses(self, glasses_data):
-        """Draw glasses on panda's face."""
+        """Draw glasses on panda's face (called from head matrix)."""
         glPushMatrix()
         glTranslatef(0.0, 0.95, self.HEAD_RADIUS * 0.8)
-        
-        # Get glasses color
+
         color = glasses_data.get('color', [0.0, 0.0, 0.0])
         glColor3f(*color)
-        
-        # Left lens
+        quad = gluNewQuadric()
+
+        # Left lens ring — drawn as two concentric disks (frame)
+        for side, dx in ((-1, -0.12), (1, 0.12)):
+            glPushMatrix()
+            glTranslatef(dx, 0.0, 0.0)
+            glRotatef(90.0, 0.0, 1.0, 0.0)
+            # Outer ring
+            gluDisk(quad, 0.060, 0.080, 16, 1)
+            # Inner tinted lens
+            glColor4f(*color[:3], 0.25)
+            glEnable(GL_BLEND)
+            glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
+            gluDisk(quad, 0.0, 0.060, 16, 1)
+            glDisable(GL_BLEND)
+            glColor3f(*color)
+            glPopMatrix()
+
+        # Bridge piece — thin cylinder between lenses
         glPushMatrix()
-        glTranslatef(-0.12, 0.0, 0.0)
-        glutSolidTorus(0.02, 0.08, 8, 16) if 'glutSolidTorus' in dir() else None
+        glTranslatef(-0.04, 0.0, 0.0)
+        glRotatef(90.0, 0.0, 1.0, 0.0)
+        gluCylinder(quad, 0.008, 0.008, 0.08, 6, 1)
         glPopMatrix()
-        
-        # Right lens
-        glPushMatrix()
-        glTranslatef(0.12, 0.0, 0.0)
-        glutSolidTorus(0.02, 0.08, 8, 16) if 'glutSolidTorus' in dir() else None
-        glPopMatrix()
-        
-        # Bridge
-        glBegin(GL_LINES)
-        glVertex3f(-0.04, 0.0, 0.0)
-        glVertex3f(0.04, 0.0, 0.0)
-        glEnd()
-        
+
+        # Temple arms (side pieces)
+        for side_x in (-0.12 - 0.08, 0.12 + 0.08):
+            glPushMatrix()
+            glTranslatef(side_x, 0.0, 0.0)
+            glRotatef(90.0 * (1 if side_x < 0 else -1), 0.0, 1.0, 0.0)
+            gluCylinder(quad, 0.006, 0.004, 0.18, 6, 1)
+            glPopMatrix()
+
+        gluDeleteQuadric(quad)
         glPopMatrix()
     
     def _draw_accessory(self, accessory_data):

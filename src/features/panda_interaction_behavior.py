@@ -337,9 +337,13 @@ class PandaInteractionBehavior:
         self.is_performing_action = True
     
     def _animate_bite(self):
-        """Panda bites — mapped to waving animation (no dedicated bite state in GL)."""
+        """Panda bites — triggers dedicated jaw-drop animation via start_bite_tab()."""
         logger.debug("Panda biting!")
-        self.overlay.set_animation_state('waving')
+        # Use the dedicated bite animation if the GL widget supports it
+        if hasattr(self.overlay, 'start_bite_tab'):
+            self.overlay.start_bite_tab()
+        else:
+            self.overlay.set_animation_state('waving')
 
     def _animate_jump(self):
         """Panda jumps onto the widget."""
@@ -369,27 +373,40 @@ class PandaInteractionBehavior:
     def _animate_poke(self):
         """Panda pokes a UI button with one paw."""
         logger.debug("Panda poking!")
-        self.overlay.set_animation_state('waving')
+        if hasattr(self.overlay, 'notify_button_nearby'):
+            self.overlay.notify_button_nearby()
+        else:
+            self.overlay.set_animation_state('waving')
 
     def _animate_sniff(self):
-        """Panda sniffs a dragged file — crawling forward."""
+        """Panda sniffs a dragged file — crawling forward + sniff sub-state."""
         logger.debug("Panda sniffing!")
+        if hasattr(self.overlay, 'notify_file_dragged'):
+            self.overlay.notify_file_dragged('')
         self.overlay.set_animation_state('crawling')
 
     def _animate_sit_on(self):
-        """Panda sits on a panel — sitting_back state."""
+        """Panda sits on a panel — dedicated start_sit_on_panel if available."""
         logger.debug("Panda sitting on panel!")
-        self.overlay.set_animation_state('sitting_back')
+        if hasattr(self.overlay, 'start_sit_on_panel'):
+            self.overlay.start_sit_on_panel()
+        else:
+            self.overlay.set_animation_state('sitting_back')
 
     def _animate_hug(self):
-        """Panda hugs a window edge — climbing_wall state."""
+        """Panda hugs a window edge — dedicated start_hug_window if available."""
         logger.debug("Panda hugging window!")
-        self.overlay.set_animation_state('climbing_wall')
+        if hasattr(self.overlay, 'start_hug_window'):
+            self.overlay.start_hug_window()
+        else:
+            self.overlay.set_animation_state('climbing_wall')
 
     def _animate_peek(self):
-        """Panda peeks at a widget — crawling with head up."""
+        """Panda peeks at a widget — crawling with head raised."""
         logger.debug("Panda peeking!")
         self.overlay.set_animation_state('crawling')
+        if hasattr(self.overlay, 'set_micro_emotion'):
+            self.overlay.set_micro_emotion('curious', 0.9)
     
     def _trigger_widget_click_delayed(self, widget, delay):
         """
