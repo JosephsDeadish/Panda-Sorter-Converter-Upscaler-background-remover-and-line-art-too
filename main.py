@@ -609,7 +609,11 @@ class TextureSorterMainWindow(QMainWindow):
         content_layout.addWidget(self.tabs)
 
         # Create main tab (dashboard/welcome)
-        self.create_main_tab()
+        try:
+            self.create_main_tab()
+            logger.info("✅ Main (Home) tab added")
+        except Exception as e:
+            logger.error(f"Could not create Home tab: {e}", exc_info=True)
 
         # Create tools tab — creates sub-tabs for all tools and adds itself to self.tabs
         try:
@@ -628,13 +632,25 @@ class TextureSorterMainWindow(QMainWindow):
             logger.error(f"Could not create Panda Features tab: {e}", exc_info=True)
 
         # Create file browser tab
-        self.create_file_browser_tab()
+        try:
+            self.create_file_browser_tab()
+            logger.info("✅ File Browser tab added")
+        except Exception as e:
+            logger.error(f"Could not create File Browser tab: {e}", exc_info=True)
 
         # Create notepad tab
-        self.create_notepad_tab()
+        try:
+            self.create_notepad_tab()
+            logger.info("✅ Notepad tab added")
+        except Exception as e:
+            logger.error(f"Could not create Notepad tab: {e}", exc_info=True)
 
         # Create settings tab
-        self.create_settings_tab()
+        try:
+            self.create_settings_tab()
+            logger.info("✅ Settings tab added")
+        except Exception as e:
+            logger.error(f"Could not create Settings tab: {e}", exc_info=True)
 
         # Progress bar (at bottom of content)
         self.progress_bar = QProgressBar()

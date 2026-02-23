@@ -1476,12 +1476,39 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
         self._eye_head_pitch += (self._eye_pitch - self._eye_head_pitch) * head_speed
 
     # ─── Audio helper ─────────────────────────────────────────────────────────
+    # Map logical sound names → actual WAV filenames in resources/sounds/.
+    # This allows call-sites to use short, descriptive names without caring
+    # about the exact filename on disk.
+    _SOUND_ALIASES: dict = {
+        'boop':       'panda_boop',
+        'thump':      'panda_thud',
+        'landing':    'panda_thud',
+        'click':      'click',
+        'yawn':       'panda_sleepy_yawn',
+        'big_yawn':   'panda_big_yawn',
+        'tired_yawn': 'panda_tired_yawn',
+        'wake_yawn':  'panda_wake_yawn',
+        'giggle':     'panda_giggle',
+        'chomp':      'panda_chomp',
+        'plop':       'panda_plop',
+        'poke':       'panda_poke',
+        'purr':       'panda_purr',
+        'snore':      'panda_snore',
+        'achievement':'achievement',
+        'error':      'error',
+        'notification':'notification',
+    }
+
     def _play_sound(self, name: str):
         """
         Play a named sound effect.
-        Tries QSoundEffect from app_data/sounds/<name>.wav first.
-        Falls back to QApplication.beep() for 'boop'.
-        Fails silently on any error.
+
+        Looks up the logical name in _SOUND_ALIASES to get the actual WAV filename,
+        then searches (in order):
+          1. resources/sounds/<file>.wav via config.get_resource_path() — works in dev
+             mode AND in the frozen EXE (PyInstaller bundles resources/sounds/).
+          2. app_data/sounds/<file>.wav — user-installed custom sounds.
+        Falls back to QApplication.beep() for 'boop'.  Fails silently on any error.
         """
         if not self._audio_available:
             if name == 'boop':
@@ -1494,19 +1521,39 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
             if name not in self._audio_sfx:
                 from PyQt6.QtMultimedia import QSoundEffect
                 from PyQt6.QtCore import QUrl
-                import os
-                # Look for WAV in app_data/sounds/ next to the EXE / working dir
-                for base in (
-                    os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', 'app_data', 'sounds'),
-                    os.path.join(os.getcwd(), 'app_data', 'sounds'),
-                ):
-                    wav = os.path.normpath(os.path.join(base, f'{name}.wav'))
-                    if os.path.isfile(wav):
-                        sfx = QSoundEffect(self)
-                        sfx.setSource(QUrl.fromLocalFile(wav))
-                        sfx.setVolume(0.55)
-                        self._audio_sfx[name] = sfx
-                        break
+                # Resolve alias → actual filename (fall back to name itself)
+                file_stem = self._SOUND_ALIASES.get(name, name)
+                wav_name = f'{file_stem}.wav'
+                wav_path = None
+                # 1. Bundled resources (dev tree AND frozen EXE via _MEIPASS)
+                try:
+                    from config import get_resource_path
+                except (ImportError, OSError, RuntimeError):
+                    try:
+                        from src.config import get_resource_path
+                    except (ImportError, OSError, RuntimeError):
+                        get_resource_path = None
+                if get_resource_path is not None:
+                    candidate = get_resource_path('sounds', wav_name)
+                    if candidate.exists():
+                        wav_path = str(candidate)
+                # 2. app_data/sounds/ next to EXE (user-installed custom sounds)
+                if wav_path is None:
+                    import os
+                    for base in (
+                        os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', 'app_data', 'sounds'),
+                        os.path.join(os.getcwd(), 'app_data', 'sounds'),
+                    ):
+                        candidate_path = os.path.normpath(os.path.join(base, wav_name))
+                        if os.path.isfile(candidate_path):
+                            wav_path = candidate_path
+                            break
+                if wav_path is not None:
+                    sfx = QSoundEffect(self)
+                    from PyQt6.QtCore import QUrl
+                    sfx.setSource(QUrl.fromLocalFile(wav_path))
+                    sfx.setVolume(0.55)
+                    self._audio_sfx[name] = sfx
                 else:
                     self._audio_sfx[name] = None   # not found — mark as absent
             sfx = self._audio_sfx.get(name)
