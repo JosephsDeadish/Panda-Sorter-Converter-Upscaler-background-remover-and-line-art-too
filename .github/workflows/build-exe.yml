@@ -56,9 +56,13 @@ jobs:
           # them from being available for PyInstaller collection.
           pip install "onnxruntime>=1.16.0"
           pip install "numpy>=1.24.0" "Pillow>=10.0.0" "scipy>=1.10.0"
+          pip install "scikit-learn>=1.3.0"
           pip install "PyQt6>=6.6.0" "PyQt6-sip>=13.6.0"
           pip install "opencv-python-headless>=4.8.0"
+          pip install "xxhash>=3.0.0" "psutil>=5.9.0" "tqdm>=4.65.0"
+          pip install "pyyaml>=6.0" "send2trash>=1.8.0" "watchdog>=3.0.0"
           pip install PyOpenGL PyOpenGL-accelerate || echo "⚠️  PyOpenGL failed (non-fatal, 2D panda fallback will be used)"
+          pip install "faiss-cpu>=1.7.4" || echo "⚠️  faiss-cpu failed (non-fatal, numpy fallback used for similarity search)"
           # Install PyTorch CPU — pin to match requirements.txt (torch>=2.6.0)
           # to guarantee consistent behaviour across CI runs.
           pip install "torch>=2.6.0,<3.0" "torchvision>=0.21.0,<0.22" --index-url https://download.pytorch.org/whl/cpu
@@ -116,6 +120,8 @@ jobs:
           python -c "import open_clip; print('OK open_clip available (CLIP)')" || echo "⚠️  open_clip not available — open-source CLIP disabled"
           python -c "import basicsr; print('OK basicsr available (Real-ESRGAN)')" || echo "⚠️  basicsr not available — Real-ESRGAN upscaling disabled"
           python -c "import realesrgan; print('OK realesrgan available')" || echo "⚠️  realesrgan not available — Real-ESRGAN upscaling disabled"
+          python -c "import sklearn; print('OK scikit-learn available (classification)')"
+          python -c "import faiss; print('OK faiss available (similarity search)')" || echo "⚠️  faiss not available — numpy fallback used for similarity search"
           python -c "import texture_ops; print('OK texture_ops available (native Lanczos)')" || echo "⚠️  texture_ops not available — PIL Lanczos fallback will be used"
           echo "All critical dependencies verified"
       

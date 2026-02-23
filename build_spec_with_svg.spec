@@ -220,12 +220,15 @@ a = Analysis(
         'sklearn',
         'sklearn.metrics',
         'sklearn.cluster',
+        # FAISS similarity search (optional - pure-numpy fallback used when absent)
+        'faiss',
+        'faiss.loader',
+        'faiss.extra_wrappers',
         # Database and file handling
         'sqlite3',
         'send2trash',
         'watchdog',
         # Qt6 UI framework
-        
         'PyQt6',
         'PyQt6.QtCore',
         'PyQt6.QtGui',
