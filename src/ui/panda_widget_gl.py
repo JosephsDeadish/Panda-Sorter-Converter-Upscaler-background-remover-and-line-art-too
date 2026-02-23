@@ -3904,14 +3904,16 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
     def _choose_random_activity(self):
         """Choose a random activity for panda."""
         activities = [
-            ('walk_around',    0.35),
-            ('work',           0.25),
-            ('idle',           0.15),
-            ('celebrate',      0.08),
-            ('crawl_around',   0.10),
-            ('climb_wall',     0.07),
-            ('sit_back',       0.10),
-            ('hang_ceiling',   0.05),
+            ('walk_around',    0.22),
+            ('work',           0.18),
+            ('idle',           0.14),
+            ('celebrate',      0.07),
+            ('crawl_around',   0.08),
+            ('climb_wall',     0.06),
+            ('sit_back',       0.08),
+            ('hang_ceiling',   0.04),
+            ('rolling',        0.07),
+            ('sleeping',       0.06),
         ]
         
         # Weighted random choice
@@ -3964,6 +3966,20 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
                     QTimer.singleShot(int(dur * 1000) + 1800,
                                       lambda: self.set_animation_state('idle')
                                       if self.animation_state == 'falling_back' else None)
+                elif activity == 'rolling':
+                    # Roll on back then recover — belly jiggle kick on start
+                    self.set_animation_state('rolling')
+                    self._belly_y = -0.06
+                    dur = random.uniform(2.0, 4.0)
+                    QTimer.singleShot(int(dur * 1000),
+                                      lambda: self.set_animation_state('idle')
+                                      if self.animation_state == 'rolling' else None)
+                elif activity == 'sleeping':
+                    self.set_animation_state('sleeping')
+                    dur = random.uniform(5.0, 12.0)
+                    QTimer.singleShot(int(dur * 1000),
+                                      lambda: self.set_animation_state('idle')
+                                      if self.animation_state == 'sleeping' else None)
                 break
     
     # ========================================================================

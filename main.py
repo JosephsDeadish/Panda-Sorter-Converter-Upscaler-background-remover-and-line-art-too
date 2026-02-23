@@ -442,6 +442,7 @@ class TextureSorterMainWindow(QMainWindow):
         self._home_back_btn = None    # QPushButton "← Back to Home"
         self._home_sub_label = None   # QLabel showing current sub-panel title
         self._home_back_bar = None    # QWidget back-button toolbar (shown in sub-panels)
+        self._home_stack_owned = []   # list of widgets we created for page-1 (safe to delete)
         self.level_system = None        # UserLevelSystem – XP / levelling
         self.auto_backup = None         # AutoBackupSystem – periodic state backup
         self.unlockables_system = None  # UnlockablesSystem – cursors/themes/outfits
@@ -1341,7 +1342,8 @@ class TextureSorterMainWindow(QMainWindow):
             stack.addWidget(bedroom_gl)   # index 0
 
             # Page 1: placeholder — real sub-panel inserted dynamically
-            stack.addWidget(QLabel(""))   # index 1 (replaced on demand)
+            _ph = QLabel("")
+            stack.addWidget(_ph)          # index 1 (replaced on demand)
 
             home_vbox.addWidget(back_bar)
             home_vbox.addWidget(stack, 1)
@@ -1354,6 +1356,7 @@ class TextureSorterMainWindow(QMainWindow):
             self._home_back_btn = back_btn
             self._home_sub_label = sub_label
             self._home_back_bar = back_bar
+            self._home_stack_owned = [_ph]   # track widgets we own (safe to deleteLater)
 
             # Back button returns to bedroom
             def _go_home():
@@ -4308,6 +4311,7 @@ class TextureSorterMainWindow(QMainWindow):
                     self._world_widget.back_to_bedroom.connect(self._go_back_to_bedroom)
                     self._world_widget.otter_clicked.connect(self._on_otter_clicked)
                     self._world_widget.destination_selected.connect(self._on_world_destination_selected)
+                    self._home_stack_owned.append(self._world_widget)
                 except (ImportError, OSError, RuntimeError, Exception) as _e:
                     logger.warning(f"World widget not available: {_e}")
                     self._world_widget = QLabel(
@@ -4317,6 +4321,7 @@ class TextureSorterMainWindow(QMainWindow):
                     )
                     self._world_widget.setAlignment(Qt.AlignmentFlag.AlignCenter)
                     self._world_widget.setStyleSheet("background:#1a2a1a;color:#aaaaaa;font-size:13px;")
+                    self._home_stack_owned.append(self._world_widget)
 
             if self._world_widget:
                 self._show_home_sub_panel(self._world_widget, '🌍 Outside World')
@@ -4345,11 +4350,13 @@ class TextureSorterMainWindow(QMainWindow):
             shop = ShopPanelQt(self.shop_system, self.inventory_system,
                                self.currency_system, self.panda_character)
             shop.item_purchased.connect(self._on_shop_purchase_completed)
+            self._home_stack_owned.append(shop)
             self._show_home_sub_panel(shop, '🦦 Otter Shop')
         except Exception as _e:
             logger.debug(f"_on_otter_clicked: {_e}")
             label = QLabel("🛒 Otter Shop\n\n(Shop panel not available)")
             label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            self._home_stack_owned.append(label)
             self._show_home_sub_panel(label, '🛒 Otter Shop')
 
     def _on_world_destination_selected(self, destination: str) -> None:
@@ -4374,6 +4381,7 @@ class TextureSorterMainWindow(QMainWindow):
             from features.minigame_system import MiniGameManager
             mgr = MiniGameManager()
             panel = MinigamePanelQt(minigame_manager=mgr, tooltip_manager=self.tooltip_manager)
+            self._home_stack_owned.append(panel)
             self._show_home_sub_panel(panel, '🌲 Panda Park')
             if self.panda_widget:
                 QTimer.singleShot(800, lambda: self.panda_widget.set_animation_state('celebrating'))
@@ -4386,6 +4394,7 @@ class TextureSorterMainWindow(QMainWindow):
             )
             park_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
             park_label.setStyleSheet("background:#1a2a1a; color:#aaddaa; font-size:14px;")
+            self._home_stack_owned.append(park_label)
             self._show_home_sub_panel(park_label, '🌲 Panda Park')
 
     def _show_home_sub_panel(self, widget: 'QWidget', title: str) -> None:
@@ -4393,10 +4402,13 @@ class TextureSorterMainWindow(QMainWindow):
         try:
             if not self._home_stack:
                 return
-            # Replace page-1 widget
+            # Remove page-1 widget — only actually delete it if WE created it
             old = self._home_stack.widget(1)
             if old is not None:
                 self._home_stack.removeWidget(old)
+                if old in self._home_stack_owned:
+                    self._home_stack_owned.remove(old)
+                    old.deleteLater()
             self._home_stack.insertWidget(1, widget)
             self._home_stack.setCurrentIndex(1)
 
@@ -4478,9 +4490,10 @@ class TextureSorterMainWindow(QMainWindow):
                                 ach_widget = self._panda_tabs.widget(i)
                                 break
                     if ach_widget is None:
-                        # Build a minimal placeholder
+                        # Build a minimal placeholder — mark as owned so it's cleaned up
                         ach_widget = QLabel("🏆 Achievements\n\n(No achievement panel found)")
                         ach_widget.setAlignment(Qt.AlignmentFlag.AlignCenter)
+                        self._home_stack_owned.append(ach_widget)
                     self._show_home_sub_panel(ach_widget, '🏆 Achievements')
                 except Exception as _e2:
                     logger.debug(f"Trophy panel: {_e2}")
@@ -4499,6 +4512,7 @@ class TextureSorterMainWindow(QMainWindow):
                 if inv is None:
                     label = QLabel(f"📦 {sub_title}\n\n(Inventory not available)")
                     label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+                    self._home_stack_owned.append(label)
                     self._show_home_sub_panel(label, sub_title)
                     return
 
