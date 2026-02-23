@@ -49,6 +49,7 @@ def test_unicode_output():
     print("\n" + "=" * 60)
     print("✅ All Unicode tests passed!")
     print("=" * 60)
+    return True
 
 
 def test_imports_with_unicode():
@@ -71,6 +72,7 @@ def test_imports_with_unicode():
     sounds_path = os.path.join(os.path.dirname(__file__), 'generate_sounds.py')
     assert os.path.exists(sounds_path), "generate_sounds.py not found"
     print("    ✅ generate_sounds.py found")
+    return True
 
 def main():
     """Run all Unicode tests."""

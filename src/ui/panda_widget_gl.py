@@ -15,7 +15,7 @@ try:
     from PyQt6.QtWidgets import QWidget, QApplication
     from PyQt6.QtOpenGLWidgets import QOpenGLWidget
     from PyQt6.QtCore import QTimer, Qt, QPoint, pyqtSignal, QState, QStateMachine
-    from PyQt6.QtGui import QMouseEvent, QSurfaceFormat
+    from PyQt6.QtGui import QMouseEvent, QSurfaceFormat, QPainter, QColor, QFont
     from OpenGL.GL import *
     from OpenGL.GLU import *
     import numpy as np
@@ -686,6 +686,55 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
         # Draw items (toys, food, clothes)
         for item in self.items_3d:
             self._draw_item_3d(item)
+
+        # ── 2D overlay (drawn on top of GL via QPainter) ─────────────────────
+        if QT_AVAILABLE:
+            self._draw_2d_overlay()
+
+    def _draw_2d_overlay(self):
+        """Draw 2D text/icon overlays on top of the GL scene using QPainter.
+
+        Avoids deprecated glRasterPos/glutBitmapCharacter and works on any
+        OpenGL ES / core-profile context.  Called at the END of paintGL so
+        the GL scene is already composed.
+        """
+        try:
+            painter = QPainter(self)
+            painter.setRenderHint(QPainter.RenderHint.TextAntialiasing)
+
+            if self.animation_state == 'sleeping':
+                # Floating Z Z Z above panda head
+                t = self.animation_frame
+                if self._OVERLAY_FONT_ZZZ:
+                    painter.setFont(self._OVERLAY_FONT_ZZZ)
+                cx = self.width() // 2
+                cy = self.height() // 3  # upper third — above panda head
+                # Three 'Z' letters staggered upward and to the right
+                for i, letter in enumerate(['z', 'Z', 'Z']):
+                    offset_x = i * 14
+                    offset_y = -i * 18
+                    alpha = min(255, int(180 * (0.4 + 0.3 * i)))   # clamp [0,255]
+                    # Animate gentle float using animation_frame
+                    float_y = int(8 * math.sin((t * 0.04) + i * 1.2))
+                    painter.setPen(QColor(80, 80, 220, alpha))
+                    painter.drawText(cx + offset_x, cy + offset_y + float_y, letter)
+
+            elif self.animation_state in ('waving', 'celebrating') and self._micro_emotion.get('happy', 0) > 0.5:
+                # Happy hearts/sparkles
+                if self._OVERLAY_FONT_EMOJI:
+                    painter.setFont(self._OVERLAY_FONT_EMOJI)
+                cx, cy = self.width() // 2, self.height() // 4
+                t = self.animation_frame
+                for i, emoji in enumerate(['♥', '✨', '♥']):
+                    alpha = min(255, int(200 * abs(math.sin(t * 0.05 + i * 1.0))))
+                    ox = int(30 * math.cos(t * 0.06 + i * 2.1))
+                    oy = int(-i * 20 - 10)
+                    painter.setPen(QColor(220, 60, 120, alpha))
+                    painter.drawText(cx + ox, cy + oy, emoji)
+
+            painter.end()
+        except Exception:
+            pass  # Overlay is decorative — never crash the render loop
     
     def _render_shadows(self):
         """Render shadow map from light's perspective."""
@@ -790,6 +839,10 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
         # Flopping sub-behavior: roll torso sideways
         if _sub.get('body_x', 0.0):
             glRotatef(_sub['body_x'], 1.0, 0.0, 0.0)
+        # Rolling state: continuous Z-rotation (panda rolling on the ground)
+        if self.animation_state == 'rolling':
+            roll_angle = (self.animation_frame * 4.0) % 360.0
+            glRotatef(roll_angle, 0.0, 0.0, 1.0)
         # Quadruped body pitch (crawling/climbing/falling_back)
         if abs(self._body_pitch_cur) > 0.5:
             glRotatef(self._body_pitch_cur, 1.0, 0.0, 0.0)
@@ -1295,7 +1348,11 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
         Uses time-based blink phase set by _update_subsystems().
         phase 0–1: closing (ease-in),  phase 1–2: opening (ease-out).
         Fatigue droops the eye (keeps scale slightly below 1.0 when open).
+        Sleeping state forces eyes fully shut.
         """
+        # Sleeping — eyes always shut (slowly droop closed then stay)
+        if self.animation_state == 'sleeping':
+            return 0.05
         phase = self._blink_phase
         if phase > 0.0:
             if phase < 1.0:
@@ -2335,6 +2392,16 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
         self._squash_y = max(0.6, min(1.2, scale))
 
 
+    # 2D overlay fonts — created once as class constants to avoid per-frame allocations.
+    # QFont() returns a default placeholder when PyQt6 is absent; QPainter.setFont()
+    # is only called inside the try block in _draw_2d_overlay, so it's safe.
+    try:
+        _OVERLAY_FONT_ZZZ   = QFont('Arial', 16, QFont.Weight.Bold)
+        _OVERLAY_FONT_EMOJI = QFont('Arial', 14)
+    except Exception:
+        _OVERLAY_FONT_ZZZ   = None   # type: ignore[assignment]
+        _OVERLAY_FONT_EMOJI = None   # type: ignore[assignment]
+
     # Map logical sound names → actual WAV filenames in resources/sounds/.
     # This allows call-sites to use short, descriptive names without caring
     # about the exact filename on disk.
@@ -2456,11 +2523,17 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
 
     def _set_state_direct(self, state: str):
         """Set animation state with blend transition (bypasses anticipation, used internally)."""
-        self._prev_state    = self.animation_state
+        prev = self.animation_state
+        self._prev_state    = prev
         self._blend_alpha   = 0.0
         self._blend_start_t = time.time()
         self.animation_state = state
         self.animation_changed.emit(state)
+        # Play entry sound for special states
+        if state == 'sleeping' and prev != 'sleeping':
+            self._play_sound('snore')
+        elif state == 'rolling' and prev != 'rolling':
+            self._play_sound('bounce')
 
     # ─── Smooth animation helpers ────────────────────────────────────────────
     def _get_body_bob(self):
