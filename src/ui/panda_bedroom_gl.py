@@ -326,6 +326,8 @@ class PandaBedroomGL(QOpenGLWidget if OPENGL_AVAILABLE else QWidget):  # type: i
         self._draw_desk()
         self._draw_lamp()
         self._draw_window()
+        self._draw_wall_picture()
+        self._draw_bookshelf()
 
         glEnable(GL_LIGHTING)
 
@@ -444,8 +446,60 @@ class PandaBedroomGL(QOpenGLWidget if OPENGL_AVAILABLE else QWidget):  # type: i
         glColor3f(*_COL_GOLD)
         self._draw_box(-3.96, 2.95, -2.20, -3.94, 3.02, -0.00)
 
+    def _draw_wall_picture(self) -> None:
+        """Framed panda artwork on the back wall (centred at x=1.5, y=2.5)."""
+        # Wooden frame — warm brown border 0.72 wide × 0.60 tall
+        glColor3f(0.55, 0.38, 0.18)
+        self._draw_box(1.14, 2.22, -3.98, 1.86, 2.82, -3.96)
+        # Canvas — light cream fill inside the frame
+        glColor3f(0.95, 0.93, 0.85)
+        self._draw_box(1.18, 2.26, -3.97, 1.82, 2.78, -3.965)
+        # Panda art — simple black-on-cream silhouette drawn with quads
+        # Head circle (dark)
+        glColor3f(0.12, 0.12, 0.12)
+        self._draw_box(1.44, 2.56, -3.96, 1.56, 2.70, -3.955)   # head body
+        # White eye areas
+        glColor3f(0.95, 0.94, 0.92)
+        self._draw_box(1.455, 2.615, -3.956, 1.485, 2.645, -3.954)  # L eye white
+        self._draw_box(1.515, 2.615, -3.956, 1.545, 2.645, -3.954)  # R eye white
+        # Ear lumps
+        glColor3f(0.12, 0.12, 0.12)
+        self._draw_box(1.415, 2.64, -3.96, 1.445, 2.70, -3.955)  # L ear
+        self._draw_box(1.555, 2.64, -3.96, 1.585, 2.70, -3.955)  # R ear
+        # Body
+        self._draw_box(1.42, 2.38, -3.96, 1.58, 2.56, -3.955)
+        # Frame nail at top centre
+        glColor3f(*_COL_GOLD)
+        self._draw_box(1.495, 2.815, -3.97, 1.505, 2.825, -3.965)
+
+    def _draw_bookshelf(self) -> None:
+        """Wooden bookshelf on the right wall (x=3.85, z range -2.5 to -0.5)."""
+        # Back panel — dark walnut
+        glColor3f(0.38, 0.24, 0.10)
+        self._draw_box(3.85, 0.0, -2.50, 3.98, 2.80, -0.50)
+        # Three horizontal shelves
+        glColor3f(0.48, 0.32, 0.15)
+        for shelf_y in (0.55, 1.25, 1.95):
+            self._draw_box(3.84, shelf_y, -2.52, 3.99, shelf_y + 0.05, -0.48)
+        # Books on each shelf — alternating colours, varied heights
+        _book_colours = [
+            (0.70, 0.10, 0.10), (0.10, 0.35, 0.68), (0.15, 0.52, 0.22),
+            (0.72, 0.55, 0.08), (0.52, 0.10, 0.52), (0.80, 0.38, 0.12),
+            (0.20, 0.55, 0.55), (0.60, 0.60, 0.12), (0.42, 0.18, 0.62),
+        ]
+        book_w = 0.13
+        for shelf_idx, shelf_y in enumerate((0.60, 1.30, 2.00)):
+            z = -2.40
+            for bi, col in enumerate(_book_colours[shelf_idx * 3: shelf_idx * 3 + 3]):
+                h = 0.32 + (bi % 3) * 0.06   # varied heights
+                glColor3f(*col)
+                self._draw_box(3.86, shelf_y, z, 3.96, shelf_y + h, z + book_w)
+                # Spine highlight (lighter strip)
+                glColor3f(min(1.0, col[0] + 0.25), min(1.0, col[1] + 0.25), min(1.0, col[2] + 0.25))
+                self._draw_box(3.955, shelf_y, z + 0.01, 3.965, shelf_y + h * 0.9, z + book_w - 0.01)
+                z += book_w + 0.03
+
     def _draw_wall_back(self) -> None:
-        # Main wall surface
         glColor3f(*_COL_WALL)
         glBegin(GL_QUADS)
         glNormal3f(0.0, 0.0, 1.0)

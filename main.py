@@ -446,6 +446,7 @@ class TextureSorterMainWindow(QMainWindow):
         self._home_stack_owned = []   # list of widgets we created for page-1 (safe to delete)
         self._coin_label = None         # QLabel showing current coin balance (set in setup_statusbar)
         self._panda_mood_label = None   # QLabel showing panda mood (set in setup_statusbar)
+        self._achievement_panel = None  # AchievementDisplayWidget ref (for refresh on unlock)
         self.level_system = None        # UserLevelSystem – XP / levelling
         self.auto_backup = None         # AutoBackupSystem – periodic state backup
         self.unlockables_system = None  # UnlockablesSystem – cursors/themes/outfits
@@ -1453,6 +1454,7 @@ class TextureSorterMainWindow(QMainWindow):
             except Exception:
                 pass
             achievement_panel = AchievementDisplayWidget(self.achievement_system, tooltip_manager=self.tooltip_manager)
+            self._achievement_panel = achievement_panel   # keep ref for refresh on unlock
             panda_tabs.addTab(achievement_panel, "🏆 Achievements")
             logger.info("✅ Achievements panel added to panda tab")
         except Exception as e:
@@ -4316,6 +4318,13 @@ class TextureSorterMainWindow(QMainWindow):
                 self._bedroom_widget.set_achievement_count(count)
         except Exception as _e:
             logger.debug(f"Trophy stand update: {_e}")
+
+        # Refresh achievement panel grid so newly unlocked achievement card appears
+        try:
+            if self._achievement_panel and hasattr(self._achievement_panel, 'refresh_achievements'):
+                self._achievement_panel.refresh_achievements()
+        except Exception as _e:
+            logger.debug("Achievement panel refresh: %s", _e)
 
     # Coins awarded per new level on level-up (e.g. reaching level 10 gives 500 coins)
     _COINS_PER_LEVEL = 50

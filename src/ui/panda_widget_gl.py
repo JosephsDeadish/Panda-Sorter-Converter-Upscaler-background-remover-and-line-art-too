@@ -80,9 +80,9 @@ _MOOD_TO_ANIMATION: dict = {
     'tired':        'sleeping',
     'celebrating':  'celebrating',
     'sleeping':     'sleeping',
-    'sarcastic':    'sarcastic',
-    'rage':         'rage',
-    'drunk':        'drunk',
+    'sarcastic':    'sitting_back',   # sarcastic → relaxed sit (no specific state)
+    'rage':         'wall_hit',       # rage → hit/frustrated
+    'drunk':        'rolling',        # drunk → unsteady rolling
     'existential':  'idle',
     'motivating':   'celebrating',
     'tech_support': 'working',
@@ -95,7 +95,7 @@ _MOOD_TO_ANIMATION: dict = {
     'angry':        'wall_hit',
     'surprised':    'clicked',
     'playful':      'crawling',
-    'bored':        'idle',
+    'bored':        'sitting_back',   # bored → sits and looks listless
     # New quadruped states accessible via mood
     'climbing':     'climbing_wall',
     'falling':      'falling_back',
@@ -1493,6 +1493,25 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
             glColor3f(0.12, 0.10, 0.10)
             self._draw_sphere(0.018, 8, 8)
             glPopMatrix()
+
+        # Whiskers — 4 fine lines per side radiating from whisker pads
+        # GL_LINES: each pair of vertices = one whisker
+        glLineWidth(1.2)
+        glColor3f(0.82, 0.80, 0.78)
+        glBegin(GL_LINES)
+        _wz = self.HEAD_RADIUS * 0.87
+        for side in (-1.0, 1.0):
+            # Four whiskers fanning out from pad centre
+            _px = side * 0.072   # pad X centre
+            _py = -0.058          # pad Y centre
+            for angle_deg, length in [(-8.0, 0.11), (2.0, 0.12), (12.0, 0.11), (22.0, 0.09)]:
+                a = math.radians(angle_deg)
+                dx = math.cos(a) * length * side
+                dy = math.sin(a) * length
+                glVertex3f(_px, _py, _wz)
+                glVertex3f(_px + dx, _py + dy, _wz - 0.01)
+        glEnd()
+        glLineWidth(1.0)
 
     def _draw_panda_head_hair(self):
         """
