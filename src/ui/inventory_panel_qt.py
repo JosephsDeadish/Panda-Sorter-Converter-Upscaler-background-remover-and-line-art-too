@@ -153,8 +153,8 @@ class InventoryPanelQt(QWidget):
         filter_layout.addWidget(QLabel("Category:"))
         
         self.category_combo = QComboBox()
-        categories = ["All", "Outfits", "Clothes", "Hats", "Shoes", "Accessories", 
-                     "Fur Styles", "Fur Colors", "Toys", "Food", "Special"]
+        categories = ["All", "Outfits", "Clothes", "Hats", "Shoes", "Accessories",
+                      "Fur Styles", "Fur Colors", "Weapons", "Toys", "Food", "Special"]
         self.category_combo.addItems(categories)
         self.category_combo.currentTextChanged.connect(self.on_category_changed)
         filter_layout.addWidget(self.category_combo)
@@ -246,6 +246,7 @@ class InventoryPanelQt(QWidget):
             "Accessories": "ACCESSORIES",
             "Fur Styles": "FUR_STYLES",
             "Fur Colors": "FUR_COLORS",
+            "Weapons": "WEAPONS",
             "Toys": "TOYS",
             "Food": "FOOD",
             "Special": "SPECIAL"

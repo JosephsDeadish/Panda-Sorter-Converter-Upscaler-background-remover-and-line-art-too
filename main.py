@@ -429,6 +429,10 @@ class TextureSorterMainWindow(QMainWindow):
         self.currency_system = None
         self.shop_system = None
         self.panda_closet = None
+        # Bedroom + inventory panel refs (set in create_panda_features_tab)
+        self._bedroom_widget = None   # PandaBedroomGL instance
+        self._panda_tabs = None       # inner QTabWidget for panda features
+        self._inventory_panel = None  # InventoryPanelQt instance
         self.level_system = None        # UserLevelSystem – XP / levelling
         self.auto_backup = None         # AutoBackupSystem – periodic state backup
         self.unlockables_system = None  # UnlockablesSystem – cursors/themes/outfits
@@ -1234,14 +1238,15 @@ class TextureSorterMainWindow(QMainWindow):
             logger.info(f"Showed tool dock: {tool_id}")
     
     def create_panda_features_tab(self):
-        """Create panda features tab with shop, inventory, closet, achievements, and customization."""
+        """Create panda features tab with bedroom, inventory, closet, achievements, and customization."""
         tab = QWidget()
         layout = QVBoxLayout(tab)
         layout.setContentsMargins(0, 0, 0, 0)
-        
+
         # Create sub-tabs for panda features
         panda_tabs = QTabWidget()
         panda_tabs.setDocumentMode(True)
+        self._panda_tabs = panda_tabs   # save ref so _on_bedroom_furniture_clicked can switch tabs
         
         # Get panda character
         panda_char = getattr(self.panda_widget, 'panda', None)
@@ -1264,29 +1269,30 @@ class TextureSorterMainWindow(QMainWindow):
         except Exception as e:
             logger.error(f"Could not load customization panel: {e}", exc_info=True)
         
-        # 2. Shop Tab
+        # 2. Bedroom Tab (replaces old Shop tab — shop system kept for purchases in inventory)
         try:
-            from ui.shop_panel_qt import ShopPanelQt
+            from ui.panda_bedroom_gl import PandaBedroomGL
             from features.shop_system import ShopSystem
             from features.currency_system import CurrencySystem
 
-            # Initialize systems and store as instance vars so other methods can use them
+            # Initialise shop/currency so Inventory still works
             self.shop_system = ShopSystem()
             self.currency_system = CurrencySystem()
 
-            shop_panel = ShopPanelQt(self.shop_system, self.currency_system, tooltip_manager=self.tooltip_manager)
-
-            # Connect shop panel signals
-            shop_panel.item_purchased.connect(self.on_shop_item_purchased)
-
-            panda_tabs.addTab(shop_panel, "🛒 Shop")
-            logger.info("✅ Shop panel added to panda tab")
+            bedroom_gl = PandaBedroomGL()
+            bedroom_gl.furniture_clicked.connect(self._on_bedroom_furniture_clicked)
+            if hasattr(bedroom_gl, 'gl_failed'):
+                bedroom_gl.gl_failed.connect(
+                    lambda msg: logger.warning(f"Bedroom GL failed: {msg}")
+                )
+            self._bedroom_widget = bedroom_gl
+            panda_tabs.addTab(bedroom_gl, "🛏️ Bedroom")
+            logger.info("✅ 3D Bedroom panel added to panda tab")
         except Exception as e:
-            logger.error(f"Could not load shop panel: {e}", exc_info=True)
-            # Add placeholder
-            label = QLabel("⚠️ Shop not available\n\nInstall required dependencies")
+            logger.error(f"Could not load Bedroom panel: {e}", exc_info=True)
+            label = QLabel("⚠️ 3D Bedroom not available\n\nRequires PyQt6 + OpenGL")
             label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            panda_tabs.addTab(label, "🛒 Shop")
+            panda_tabs.addTab(label, "🛏️ Bedroom")
 
         # 3. Inventory Tab
         try:
@@ -1298,6 +1304,7 @@ class TextureSorterMainWindow(QMainWindow):
                 from features.shop_system import ShopSystem as _ShopSystem
                 _shop = _ShopSystem()
             inventory_panel = InventoryPanelQt(_shop, tooltip_manager=self.tooltip_manager)
+            self._inventory_panel = inventory_panel   # save ref for bedroom navigation
 
             # Connect inventory panel signals
             inventory_panel.item_selected.connect(self.on_inventory_item_selected)
@@ -4023,6 +4030,14 @@ class TextureSorterMainWindow(QMainWindow):
         except Exception:
             pass
 
+        # Update trophy stand in bedroom with new achievement count
+        try:
+            if self._bedroom_widget and self.achievement_system:
+                count = len(self.achievement_system.get_unlocked_achievements())
+                self._bedroom_widget.set_achievement_count(count)
+        except Exception as _e:
+            logger.debug(f"Trophy stand update: {_e}")
+
     # Coins awarded per new level on level-up (e.g. reaching level 10 gives 500 coins)
     _COINS_PER_LEVEL = 50
 
@@ -4099,6 +4114,82 @@ class TextureSorterMainWindow(QMainWindow):
                 self.quest_system.update_quest_progress('minigame_enjoyer')
         except Exception as _e:
             logger.debug(f"Minigame completed callback error: {_e}")
+
+    def _on_bedroom_furniture_clicked(self, furniture_id: str) -> None:
+        """Handle furniture click in the 3D bedroom.
+
+        1. Walk panda to the furniture's world position.
+        2. After arrival delay → play open_furniture animation.
+        3. Switch to Inventory tab filtered by the furniture's category,
+           OR to Achievements tab for the trophy stand.
+        """
+        def _safe_open(widget, fid):
+            try:
+                if widget and hasattr(widget, 'open_furniture'):
+                    widget.open_furniture(fid)
+            except Exception:
+                pass
+
+        # Trophy stand → go to achievements tab, not inventory
+        if furniture_id == 'trophy_stand':
+            try:
+                if self._panda_tabs:
+                    for i in range(self._panda_tabs.count()):
+                        if '🏆' in self._panda_tabs.tabText(i):
+                            self._panda_tabs.setCurrentIndex(i)
+                            break
+                if self.panda_widget and hasattr(self.panda_widget, 'walk_to_position'):
+                    self.panda_widget.walk_to_position(0.0, 0.0, -2.0)
+                    QTimer.singleShot(1400, lambda: _safe_open(self.panda_widget, 'trophy_stand'))
+            except Exception as _e:
+                logger.debug(f"Trophy stand click: {_e}")
+            return
+
+        # Get walk target from bedroom widget
+        walk_x, walk_z = 0.0, 0.0
+        category = 'All'
+        try:
+            if self._bedroom_widget:
+                piece = self._bedroom_widget.get_furniture(furniture_id)
+                if piece:
+                    walk_x, walk_z = piece.walk_x, piece.walk_z
+                    category = piece.category
+        except Exception:
+            pass
+
+        # Walk panda to furniture
+        try:
+            if self.panda_widget and hasattr(self.panda_widget, 'walk_to_position'):
+                self.panda_widget.walk_to_position(walk_x, 0.0, walk_z)
+                QTimer.singleShot(1400, lambda: _safe_open(self.panda_widget, furniture_id))
+        except Exception as _e:
+            logger.debug(f"Bedroom walk: {_e}")
+
+        # Switch to Inventory tab and set category filter
+        def _switch_tab():
+            try:
+                if not self._panda_tabs:
+                    return
+                for i in range(self._panda_tabs.count()):
+                    if '📦' in self._panda_tabs.tabText(i):
+                        self._panda_tabs.setCurrentIndex(i)
+                        break
+                if self._inventory_panel and hasattr(self._inventory_panel, 'category_combo'):
+                    combo = self._inventory_panel.category_combo
+                    idx = combo.findText(category)
+                    if idx >= 0:
+                        combo.setCurrentIndex(idx)
+                    else:
+                        combo.setCurrentIndex(0)   # fallback to "All"
+                if self._inventory_panel and hasattr(self._inventory_panel, 'refresh_inventory'):
+                    self._inventory_panel.refresh_inventory()
+            except Exception as _e:
+                logger.debug(f"Bedroom tab switch: {_e}")
+
+        QTimer.singleShot(800, _switch_tab)
+        self.statusBar().showMessage(
+            f"🐼 Panda is going to the {furniture_id.replace('_', ' ').title()}…", 3000
+        )
 
     def _on_closet_item_equipped(self, item_data: dict):
         """Handle item equipped from closet display — forward to panda widget."""

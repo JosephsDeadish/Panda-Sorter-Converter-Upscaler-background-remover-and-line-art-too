@@ -90,8 +90,8 @@ def _build_furniture() -> List[FurniturePiece]:
     """Return list of furniture pieces at their default positions."""
     defs = [
         ('wardrobe',     'Wardrobe',     '🚪', -2.8, 0.0, -3.0,   0.0, -2.2, -1.8, 'Clothes'),
-        ('armor_rack',   'Armor Rack',   '🛡️',  2.5, 0.0, -3.0, 180.0,  1.8, -1.8, 'Accessories'),
-        ('weapons_rack', 'Weapons Rack', '⚔️',  3.3, 0.0, -1.5, -90.0,  2.5, -0.8, 'Accessories'),
+        ('armor_rack',   'Armor Rack',   '🛡️',  2.5, 0.0, -3.0, 180.0,  1.8, -1.8, 'Weapons'),
+        ('weapons_rack', 'Weapons Rack', '⚔️',  3.3, 0.0, -1.5, -90.0,  2.5, -0.8, 'Weapons'),
         ('toy_box',      'Toy Box',      '🧸', -3.0, 0.0,  1.8,  90.0, -2.2,  1.2, 'Toys'),
         ('fridge',       'Fridge',       '🧊',  3.2, 0.0,  1.8, -90.0,  2.5,  1.2, 'Food'),
         ('trophy_stand', 'Trophy Stand', '🏆',  0.0, 0.0, -3.2,   0.0,  0.0, -2.0, 'achievements'),

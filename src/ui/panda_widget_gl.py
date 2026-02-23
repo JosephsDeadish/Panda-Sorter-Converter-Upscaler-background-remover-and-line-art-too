@@ -2979,6 +2979,37 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
         self.is_working = False
         self.set_animation_state('idle')
         logger.info("Panda stopped working")
+
+    def open_furniture(self, furniture_id: str) -> None:
+        """Play a short reach-forward animation as if opening a piece of furniture.
+
+        The panda faces the furniture (already walked there), reaches both arms
+        forward (arm overshoot kick), holds briefly, then returns to idle.
+        The ``furniture_id`` drives which side is emphasised:
+          - wardrobe / fridge / toy_box → both arms reach (opening double doors / lid)
+          - weapons_rack / armor_rack   → single reach-up pose
+          - trophy_stand               → gentle celebratory raise
+        """
+        try:
+            if furniture_id == 'trophy_stand':
+                self.set_animation_state('celebrating')
+                QTimer.singleShot(1800, lambda: self.animation_state == 'celebrating'
+                                  and self.set_animation_state('idle'))
+            elif furniture_id in ('weapons_rack', 'armor_rack'):
+                # Reach up to wall rack
+                self._arm_over[0] += 25.0   # both arms
+                self._arm_over[1] += 25.0
+                self.set_animation_state('waving')
+                QTimer.singleShot(900, lambda: self.animation_state == 'waving'
+                                  and self.set_animation_state('idle'))
+            else:
+                # Both arms forward (push/pull motion)
+                self._arm_over[0] += 20.0
+                self._arm_over[1] += 20.0
+                self.set_animation_state('working')
+                QTimer.singleShot(700, lambda: self.set_animation_state('idle'))
+        except Exception as _e:
+            logger.debug(f"open_furniture({furniture_id}): {_e}")
     
     def _update_working_animation(self, delta_time: float):
         """Update working animation state."""
