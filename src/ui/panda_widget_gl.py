@@ -51,6 +51,21 @@ _BODY_PITCH_TARGETS: dict = {
     'hanging_window_edge': -55.0,  # body angled forward/down, arms reaching up
 }
 
+# Tail wag amplitude targets (degrees) keyed by animation state.
+# Higher = more wagging; 0 = still; negative = droop.
+_TAIL_WAG_AMP: dict = {
+    'celebrating':      28.0,
+    'waving':           22.0,
+    'excited':          20.0,
+    'walking':          10.0,
+    'running':          14.0,
+    'crawling':          8.0,
+    'idle':              6.0,
+    'sitting_back':      5.0,
+    'sleeping':          0.0,
+    'hanging_ceiling': -10.0,
+}
+
 # Amount by which 'content' micro-emotion increases each grooming frame (~30fps).
 # Accumulates slowly so panda appears increasingly satisfied while grooming.
 _GROOMING_CONTENT_INCREMENT: float = 0.015
@@ -289,6 +304,11 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
         # ── Ear spring physics (left=0, right=1) ─────────────────────────────
         self._ear_pos = [0.0, 0.0]     # current rotational offset (degrees)
         self._ear_vel = [0.0, 0.0]     # angular velocity
+
+        # ── Tail spring physics ───────────────────────────────────────────────
+        self._tail_angle = 0.0         # current wag angle (degrees, Z-axis)
+        self._tail_vel   = 0.0         # angular velocity
+        self._tail_droop = 0.0         # current X-axis droop (0=up, 20=down)
 
         # ── Cursor awareness ─────────────────────────────────────────────────
         self._cursor_wpos   = None      # QPoint in widget space (None = unknown)
@@ -969,9 +989,11 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
         # ── Arms ─────────────────────────────────────────────────────────────
         self._draw_panda_arms(limb, bob, t, _sub)
 
-        # ── Tail (small white puff, slightly larger than before) ─────────────
+        # ── Tail (spring-physics wag; droops when sad/sleeping, wags when happy) ─
         glPushMatrix()
         glTranslatef(0.0, -0.05, -self.BODY_WIDTH * 0.78)
+        glRotatef(self._tail_droop, 1.0, 0.0, 0.0)   # droop / raise on X
+        glRotatef(self._tail_angle, 0.0, 0.0, 1.0)   # side wag on Z (spring)
         glScalef(1.0, 0.80, 1.0)
         glColor3f(*[min(1.0, c + 0.04) for c in body_col])
         self._draw_sphere(0.090, 12, 12)
@@ -1964,6 +1986,25 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
             if random.random() < base_prob:
                 self._ear_vel[i] += random.uniform(-8.0, 8.0)
 
+        # ── Tail spring physics ────────────────────────────────────────────────
+        state = self.animation_state
+        # Happy/excited states drive tail wag; idle = gentle sway; others = droop
+        wag_amp = _TAIL_WAG_AMP.get(state, 4.0)
+        if wag_amp > 0:
+            # Oscillating drive — frequency scales with animation energy
+            freq = 0.22 if state in ('celebrating', 'waving') else 0.12
+            tail_target = wag_amp * math.sin(self.animation_frame * freq)
+        else:
+            tail_target = 0.0
+        _tail_spring = 18.0 * (tail_target - self._tail_angle)
+        _tail_damp   = -6.0 * self._tail_vel
+        self._tail_vel   += (_tail_spring + _tail_damp) * dt
+        self._tail_angle += self._tail_vel * dt
+
+        # Tail droop: down when tired/sleeping, up when happy
+        droop_target = 20.0 if state == 'sleeping' else (-5.0 if wag_amp >= 20 else 8.0)
+        self._tail_droop += (droop_target - self._tail_droop) * 2.5 * dt
+
         # ── Cursor look interpolation (eased) ─────────────────────────────────
         if self._cursor_wpos is not None:
             cx = self._cursor_wpos.x() - self.width()  / 2.0
@@ -2421,9 +2462,10 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
         'purr':           'panda_purr',
         'snore':          'panda_snore',
         'stretch':        'panda_stretch',
-        'scratch':        'panda_shuffle',
-        'sniff':          'panda_breath',
-        'flop':           'panda_plop',
+        'scratch':        'panda_scratch',
+        'sniff':          'panda_sniff',
+        'flop':           'panda_flop',
+        'wag':            'panda_wag',
         'greet':          'panda_chirp',
         'excited':        'panda_excited',
         'munch':          'panda_munch',
@@ -2534,6 +2576,10 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
             self._play_sound('snore')
         elif state == 'rolling' and prev != 'rolling':
             self._play_sound('bounce')
+        elif state in ('celebrating', 'waving') and prev not in ('celebrating', 'waving'):
+            self._play_sound('wag')
+            # Kick the tail spring for big wag on happy state entry
+            self._tail_vel += 45.0
 
     # ─── Smooth animation helpers ────────────────────────────────────────────
     def _get_body_bob(self):

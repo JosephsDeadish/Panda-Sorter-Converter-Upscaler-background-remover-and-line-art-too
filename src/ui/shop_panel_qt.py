@@ -184,8 +184,10 @@ class ShopPanelQt(QWidget):
         filter_layout.addWidget(QLabel("Category:"))
         
         self.category_combo = QComboBox()
-        categories = ["All", "Outfits", "Clothes", "Hats", "Shoes", "Accessories", 
-                     "Fur Styles", "Fur Colors", "Toys", "Food", "Special"]
+        categories = ["All", "Outfits", "Clothes", "Hats", "Shoes", "Accessories",
+                     "Fur Styles", "Fur Colors", "Hair Styles", "Weapons",
+                     "Armor", "Boots", "Gloves", "Belt", "Backpack",
+                     "Toys", "Food", "Special"]
         self.category_combo.addItems(categories)
         self.category_combo.currentTextChanged.connect(self.on_category_changed)
         filter_layout.addWidget(self.category_combo)
@@ -273,16 +275,23 @@ class ShopPanelQt(QWidget):
     def matches_category(self, item: 'ShopItem') -> bool:
         """Check if item matches current category"""
         cat_map = {
-            "Outfits": "PANDA_OUTFITS",
-            "Clothes": "CLOTHES",
-            "Hats": "HATS",
-            "Shoes": "SHOES",
+            "Outfits":     "PANDA_OUTFITS",
+            "Clothes":     "CLOTHES",
+            "Hats":        "HATS",
+            "Shoes":       "SHOES",
             "Accessories": "ACCESSORIES",
-            "Fur Styles": "FUR_STYLES",
-            "Fur Colors": "FUR_COLORS",
-            "Toys": "TOYS",
-            "Food": "FOOD",
-            "Special": "SPECIAL"
+            "Fur Styles":  "FUR_STYLES",
+            "Fur Colors":  "FUR_COLORS",
+            "Hair Styles": "HAIRSTYLES",
+            "Weapons":     "WEAPONS",
+            "Armor":       "ARMOR",
+            "Boots":       "BOOTS",
+            "Gloves":      "GLOVES",
+            "Belt":        "BELT",
+            "Backpack":    "BACKPACK",
+            "Toys":        "TOYS",
+            "Food":        "FOOD",
+            "Special":     "SPECIAL",
         }
         
         target_cat = cat_map.get(self.current_category)

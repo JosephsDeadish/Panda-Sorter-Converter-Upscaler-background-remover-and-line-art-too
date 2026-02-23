@@ -49,7 +49,6 @@ def test_unicode_output():
     print("\n" + "=" * 60)
     print("✅ All Unicode tests passed!")
     print("=" * 60)
-    return True
 
 
 def test_imports_with_unicode():
@@ -72,29 +71,23 @@ def test_imports_with_unicode():
     sounds_path = os.path.join(os.path.dirname(__file__), 'generate_sounds.py')
     assert os.path.exists(sounds_path), "generate_sounds.py not found"
     print("    ✅ generate_sounds.py found")
-    return True
 
 def main():
     """Run all Unicode tests."""
     try:
-        # Run tests
-        unicode_ok = test_unicode_output()
-        imports_ok = test_imports_with_unicode()
+        # Run tests — both raise on failure, return None on success
+        test_unicode_output()
+        test_imports_with_unicode()
         
         # Summary
         print("\n" + "=" * 60)
         print("Test Summary:")
-        print(f"  Unicode output: {'✅ PASS' if unicode_ok else '❌ FAIL'}")
-        print(f"  Module imports: {'✅ PASS' if imports_ok else '❌ FAIL'}")
+        print("  Unicode output: ✅ PASS")
+        print("  Module imports: ✅ PASS")
         print("=" * 60)
+        print("\n🎉 All tests passed! Unicode encoding is working correctly.")
+        return 0
         
-        if unicode_ok and imports_ok:
-            print("\n🎉 All tests passed! Unicode encoding is working correctly.")
-            return 0
-        else:
-            print("\n❌ Some tests failed. Please check the errors above.")
-            return 1
-            
     except UnicodeEncodeError as e:
         print("\n" + "=" * 60)
         print("❌ UNICODE ENCODE ERROR DETECTED!")
