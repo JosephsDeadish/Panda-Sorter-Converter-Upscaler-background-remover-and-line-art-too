@@ -306,7 +306,21 @@ class InventoryPanelQt(QWidget):
         """Handle category change"""
         self.current_category = category
         self.refresh_inventory()
-        
+
+    def set_category_filter(self, category_label: str) -> None:
+        """Public API: select a category by its combo label text.
+
+        Args:
+            category_label: One of the combo items ('All', 'Clothes', 'Weapons', …)
+        """
+        if not hasattr(self, 'category_combo'):
+            return
+        idx = self.category_combo.findText(category_label)
+        if idx >= 0:
+            self.category_combo.setCurrentIndex(idx)
+        else:
+            self.category_combo.setCurrentIndex(0)  # fall back to 'All'
+
     def filter_items(self, text: str):
         """Filter items by search text"""
         # Re-display inventory with search filter

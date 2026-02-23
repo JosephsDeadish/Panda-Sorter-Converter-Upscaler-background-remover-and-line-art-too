@@ -444,7 +444,8 @@ class TextureSorterMainWindow(QMainWindow):
         self._home_sub_label = None   # QLabel showing current sub-panel title
         self._home_back_bar = None    # QWidget back-button toolbar (shown in sub-panels)
         self._home_stack_owned = []   # list of widgets we created for page-1 (safe to delete)
-        self._coin_label = None         # QLabel showing current coin balance (updated on purchase/earn)
+        self._coin_label = None         # QLabel showing current coin balance (set in setup_statusbar)
+        self._panda_mood_label = None   # QLabel showing panda mood (set in setup_statusbar)
         self.level_system = None        # UserLevelSystem – XP / levelling
         self.auto_backup = None         # AutoBackupSystem – periodic state backup
         self.unlockables_system = None  # UnlockablesSystem – cursors/themes/outfits
@@ -1893,10 +1894,31 @@ class TextureSorterMainWindow(QMainWindow):
         help_menu.addAction(about_action)
     
     def setup_statusbar(self):
-        """Setup status bar."""
+        """Setup status bar with permanent coin-balance and panda-mood indicators."""
         self.statusbar = QStatusBar()
         self.setStatusBar(self.statusbar)
         self.statusbar.showMessage("Ready")
+
+        # ── Permanent right-side widgets (always visible) ─────────────────────
+        try:
+            # Panda mood indicator
+            self._panda_mood_label = QLabel("🐼 idle")
+            self._panda_mood_label.setStyleSheet(
+                "color: #aaffaa; padding: 0 6px; font-size: 11px;"
+            )
+            self._panda_mood_label.setToolTip("Current panda mood / animation state")
+            self.statusbar.addPermanentWidget(self._panda_mood_label)
+
+            # Coin balance indicator — updated by _update_coin_display()
+            self._coin_label = QLabel("💰 —")
+            self._coin_label.setStyleSheet(
+                "color: #ffd700; padding: 0 8px; font-weight: bold; font-size: 11px;"
+            )
+            self._coin_label.setToolTip("Your Bamboo Bucks balance")
+            self.statusbar.addPermanentWidget(self._coin_label)
+        except Exception:
+            self._coin_label = None
+            self._panda_mood_label = None
     
     def apply_theme(self):
         """Apply theme stylesheet based on config."""
@@ -3005,6 +3027,24 @@ class TextureSorterMainWindow(QMainWindow):
             self.panda_interaction.update(self._INTERACTION_TICK_DT)
         except Exception as _e:
             logger.debug(f"Panda interaction tick failed: {_e}")
+
+        # Update panda mood label in status bar (every tick is fine — it's a cheap QLabel.setText)
+        try:
+            if self._panda_mood_label and self.panda_widget:
+                state = getattr(self.panda_widget, 'animation_state', 'idle')
+                _MOOD_EMOJI = {
+                    'idle': '🐼', 'walking': '🚶', 'running': '🏃',
+                    'waving': '👋', 'celebrating': '🎉', 'sleeping': '😴',
+                    'sitting_back': '🧘', 'crawling': '🐾', 'rolling': '🔄',
+                    'climbing_wall': '🧗', 'falling_back': '😵', 'hanging_ceiling': '🙃',
+                    'hanging_window_edge': '🪟', 'working': '💻', 'jumping': '🦘',
+                }
+                emoji = _MOOD_EMOJI.get(state, '🐼')
+                label_text = f"{emoji} {state.replace('_', ' ')}"
+                if self._panda_mood_label.text() != label_text:
+                    self._panda_mood_label.setText(label_text)
+        except Exception:
+            pass
 
     # ------------------------------------------------------------------
     # Shared helper: react to a tool-panel completion (panda + quest + sound)
@@ -4587,15 +4627,10 @@ class TextureSorterMainWindow(QMainWindow):
                     self._show_home_sub_panel(label, sub_title)
                     return
 
-                # Set category filter before showing
-                if hasattr(inv, 'category_combo'):
-                    combo = inv.category_combo
-                    idx = combo.findText(category)
-                    if idx >= 0:
-                        combo.setCurrentIndex(idx)
-                    else:
-                        combo.setCurrentIndex(0)
-                if hasattr(inv, 'refresh_inventory'):
+                # Set category filter before showing — use public API
+                if hasattr(inv, 'set_category_filter'):
+                    inv.set_category_filter(category)
+                elif hasattr(inv, 'refresh_inventory'):
                     inv.refresh_inventory()
 
                 self._show_home_sub_panel(inv, sub_title)

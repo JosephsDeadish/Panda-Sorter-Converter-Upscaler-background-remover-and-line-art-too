@@ -321,8 +321,128 @@ class PandaBedroomGL(QOpenGLWidget if OPENGL_AVAILABLE else QWidget):  # type: i
         self._draw_ceiling()
         # Baseboards
         self._draw_baseboards()
+        # Fixed room fixtures (not interactive/draggable)
+        self._draw_bed()
+        self._draw_desk()
+        self._draw_lamp()
+        self._draw_window()
 
         glEnable(GL_LIGHTING)
+
+    # ── Fixed room fixtures (not interactive) ─────────────────────────────────
+
+    def _draw_bed(self) -> None:
+        """Panda's cosy bamboo-frame bed against the left back wall."""
+        # Bed frame — dark wood
+        glColor3f(*_COL_WOOD_DARK)
+        # Base platform  (1.6 wide × 0.3 tall × 2.4 long; left back corner)
+        self._draw_box(-3.8, 0.0, -3.8, -2.2, 0.30, -1.4)
+        # Four corner posts
+        for px, pz in [(-3.8, -3.8), (-2.2, -3.8), (-3.8, -1.4), (-2.2, -1.4)]:
+            self._draw_box(px - 0.08, 0.0, pz - 0.08, px + 0.08, 1.1, pz + 0.08)
+        # Headboard (back)
+        self._draw_box(-3.8, 0.30, -3.85, -2.2, 1.10, -3.70)
+        # Footboard
+        self._draw_box(-3.8, 0.30, -1.45, -2.2, 0.70, -1.30)
+        # Mattress — soft cream
+        glColor3f(0.94, 0.90, 0.82)
+        self._draw_box(-3.78, 0.30, -3.78, -2.22, 0.48, -1.42)
+        # Pillow — white puff
+        glColor3f(*_COL_WHITE)
+        self._draw_box(-3.70, 0.48, -3.72, -2.30, 0.62, -3.40)
+        # Blanket — panda-green
+        glColor3f(0.28, 0.58, 0.35)
+        self._draw_box(-3.76, 0.48, -3.40, -2.24, 0.52, -1.44)
+        # Blanket fold-back (lighter)
+        glColor3f(0.35, 0.70, 0.42)
+        self._draw_box(-3.76, 0.52, -3.40, -2.24, 0.56, -3.10)
+
+    def _draw_desk(self) -> None:
+        """Small study desk against the right back wall."""
+        # Legs — dark wood
+        glColor3f(*_COL_WOOD_DARK)
+        for lx, lz in [(2.4, -3.8), (3.6, -3.8), (2.4, -3.0), (3.6, -3.0)]:
+            self._draw_box(lx - 0.06, 0.0, lz - 0.06, lx + 0.06, 0.78, lz + 0.06)
+        # Desktop surface — light maple
+        glColor3f(*_COL_WOOD_LIGHT)
+        self._draw_box(2.28, 0.78, -3.88, 3.72, 0.84, -2.92)
+        # Books stacked on desk
+        _book_colors = [(0.72, 0.18, 0.18), (0.18, 0.38, 0.72), (0.22, 0.65, 0.30)]
+        for i, bc in enumerate(_book_colors):
+            glColor3f(*bc)
+            bx = 2.40 + i * 0.28
+            self._draw_box(bx, 0.84, -3.80, bx + 0.24, 0.84 + 0.32 - i * 0.06, -3.50)
+        # Small desk lamp base
+        glColor3f(*_COL_GOLD)
+        self._draw_box(3.30, 0.84, -3.75, 3.50, 0.88, -3.55)
+        self._draw_box(3.37, 0.88, -3.70, 3.43, 1.08, -3.60)
+        # Lamp shade
+        glColor3f(0.98, 0.90, 0.60)
+        self._draw_box(3.25, 1.08, -3.78, 3.55, 1.22, -3.52)
+
+    def _draw_lamp(self) -> None:
+        """Tall floor lamp in the front-right corner."""
+        # Pole — brushed chrome
+        glColor3f(*_COL_CHROME)
+        self._draw_box(3.55, 0.0, 3.55, 3.65, 1.80, 3.65)
+        # Base disc
+        glColor3f(*_COL_WOOD_MID)
+        self._draw_box(3.40, 0.0, 3.40, 3.80, 0.05, 3.80)
+        # Shade — warm amber
+        glColor3f(0.95, 0.82, 0.42)
+        self._draw_box(3.30, 1.55, 3.28, 3.90, 1.80, 3.88)
+        # Inner shade (slightly darker, alpha tint illusion with colour)
+        glColor3f(0.85, 0.72, 0.30)
+        self._draw_box(3.38, 1.58, 3.36, 3.82, 1.77, 3.80)
+
+    def _draw_window(self) -> None:
+        """Window with curtains on the left wall."""
+        # Window recess in wall (lighter patch of wall colour)
+        glColor3f(0.75, 0.88, 0.98)   # sky blue glass
+        glBegin(GL_QUADS)
+        glNormal3f(1.0, 0.0, 0.0)
+        glVertex3f(-3.98, 1.20, -1.80)
+        glVertex3f(-3.98, 2.60, -1.80)
+        glVertex3f(-3.98, 2.60, -0.40)
+        glVertex3f(-3.98, 1.20, -0.40)
+        glEnd()
+        # Window frame — white
+        glColor3f(*_COL_WHITE)
+        # Horizontal bars
+        for fz in [-1.82, -0.38]:
+            glBegin(GL_QUADS)
+            glNormal3f(1.0, 0.0, 0.0)
+            glVertex3f(-3.97, 1.18, fz)
+            glVertex3f(-3.97, 2.62, fz)
+            glVertex3f(-3.97, 2.62, fz + 0.06 if fz < 0 else fz - 0.06)
+            glVertex3f(-3.97, 1.18, fz + 0.06 if fz < 0 else fz - 0.06)
+            glEnd()
+        # Vertical bars (top/bottom)
+        for fy in [1.18, 2.60]:
+            glBegin(GL_QUADS)
+            glNormal3f(1.0, 0.0, 0.0)
+            glVertex3f(-3.97, fy, -1.82)
+            glVertex3f(-3.97, fy + 0.06, -1.82)
+            glVertex3f(-3.97, fy + 0.06, -0.38)
+            glVertex3f(-3.97, fy, -0.38)
+            glEnd()
+        # Cross divider
+        glBegin(GL_QUADS)
+        glNormal3f(1.0, 0.0, 0.0)
+        glVertex3f(-3.97, 1.18, -1.14)
+        glVertex3f(-3.97, 2.62, -1.14)
+        glVertex3f(-3.97, 2.62, -1.10)
+        glVertex3f(-3.97, 1.18, -1.10)
+        glEnd()
+        # Curtains — deep teal fabric
+        glColor3f(0.08, 0.45, 0.50)
+        # Left curtain
+        self._draw_box(-3.96, 1.10, -2.05, -3.94, 3.00, -1.78)
+        # Right curtain
+        self._draw_box(-3.96, 1.10, -0.42, -3.94, 3.00, -0.15)
+        # Curtain rod — gold
+        glColor3f(*_COL_GOLD)
+        self._draw_box(-3.96, 2.95, -2.20, -3.94, 3.02, -0.00)
 
     def _draw_wall_back(self) -> None:
         # Main wall surface
