@@ -509,7 +509,14 @@ class TextureSorterMainWindow(QMainWindow):
         
         # Initialize components
         self.initialize_components()
-        
+
+        # Start panda interaction behavior tick (33 ms ≈ 30 Hz)
+        # Must run AFTER initialize_components so self.panda_interaction is set.
+        self._panda_interaction_timer = QTimer(self)
+        self._panda_interaction_timer.setInterval(int(self._INTERACTION_TICK_DT * 1000))
+        self._panda_interaction_timer.timeout.connect(self._tick_panda_interaction)
+        self._panda_interaction_timer.start()
+
         # Apply performance settings from config
         self.apply_performance_settings()
         
@@ -924,8 +931,10 @@ class TextureSorterMainWindow(QMainWindow):
         if AlphaFixerPanelQt is not None:
             try:
                 alpha_panel = AlphaFixerPanelQt(tooltip_manager=self.tooltip_manager)
-                alpha_panel.finished.connect(lambda ok, msg: self.statusBar().showMessage(
-                    f"{'✅' if ok else '❌'} Alpha Fixer: {msg}", 4000))
+                alpha_panel.finished.connect(lambda ok, msg, _tid='alpha_fixer': (
+                    self.statusBar().showMessage(f"{'✅' if ok else '❌'} Alpha Fixer: {msg}", 4000),
+                    self._on_tool_finished(ok, _tid),
+                ))
                 tool_tab_defs.append((alpha_panel, "✨ Alpha Fixer", 'alpha_fixer'))
             except Exception as _e:
                 logger.warning(f"AlphaFixerPanelQt unavailable: {_e}")
@@ -936,8 +945,10 @@ class TextureSorterMainWindow(QMainWindow):
         if ColorCorrectionPanelQt is not None:
             try:
                 color_panel = ColorCorrectionPanelQt(tooltip_manager=self.tooltip_manager)
-                color_panel.finished.connect(lambda ok, msg: self.statusBar().showMessage(
-                    f"{'✅' if ok else '❌'} Color Correction: {msg}", 4000))
+                color_panel.finished.connect(lambda ok, msg, _tid='color': (
+                    self.statusBar().showMessage(f"{'✅' if ok else '❌'} Color Correction: {msg}", 4000),
+                    self._on_tool_finished(ok, _tid),
+                ))
                 tool_tab_defs.append((color_panel, "🎨 Color Correction", 'color'))
             except Exception as _e:
                 logger.warning(f"ColorCorrectionPanelQt unavailable: {_e}")
@@ -948,8 +959,10 @@ class TextureSorterMainWindow(QMainWindow):
         if BatchNormalizerPanelQt is not None:
             try:
                 norm_panel = BatchNormalizerPanelQt(tooltip_manager=self.tooltip_manager)
-                norm_panel.finished.connect(lambda ok, msg: self.statusBar().showMessage(
-                    f"{'✅' if ok else '❌'} Batch Normalizer: {msg}", 4000))
+                norm_panel.finished.connect(lambda ok, msg, _tid='normalizer': (
+                    self.statusBar().showMessage(f"{'✅' if ok else '❌'} Batch Normalizer: {msg}", 4000),
+                    self._on_tool_finished(ok, _tid),
+                ))
                 tool_tab_defs.append((norm_panel, "⚙️ Batch Normalizer", 'normalizer'))
             except Exception as _e:
                 logger.warning(f"BatchNormalizerPanelQt unavailable: {_e}")
@@ -960,8 +973,10 @@ class TextureSorterMainWindow(QMainWindow):
         if QualityCheckerPanelQt is not None:
             try:
                 quality_panel = QualityCheckerPanelQt(tooltip_manager=self.tooltip_manager)
-                quality_panel.finished.connect(lambda ok, msg: self.statusBar().showMessage(
-                    f"{'✅' if ok else '❌'} Quality Check: {msg}", 4000))
+                quality_panel.finished.connect(lambda ok, msg, _tid='quality': (
+                    self.statusBar().showMessage(f"{'✅' if ok else '❌'} Quality Check: {msg}", 4000),
+                    self._on_tool_finished(ok, _tid),
+                ))
                 tool_tab_defs.append((quality_panel, "✓ Quality Checker", 'quality'))
             except Exception as _e:
                 logger.warning(f"QualityCheckerPanelQt unavailable: {_e}")
@@ -974,8 +989,10 @@ class TextureSorterMainWindow(QMainWindow):
                 upscaler_panel = ImageUpscalerPanelQt(tooltip_manager=self.tooltip_manager)
                 upscaler_panel.error.connect(
                     lambda msg: self.statusBar().showMessage(f"❌ Upscaler: {msg}", 5000))
-                upscaler_panel.finished.connect(lambda ok, msg: self.statusBar().showMessage(
-                    f"{'✅' if ok else '❌'} Upscaler: {msg}", 4000))
+                upscaler_panel.finished.connect(lambda ok, msg, _tid='upscaler': (
+                    self.statusBar().showMessage(f"{'✅' if ok else '❌'} Upscaler: {msg}", 4000),
+                    self._on_tool_finished(ok, _tid),
+                ))
                 tool_tab_defs.append((upscaler_panel, "🔍 Image Upscaler", 'upscaler'))
             except Exception as _e:
                 logger.warning(f"ImageUpscalerPanelQt unavailable: {_e}")
@@ -988,8 +1005,10 @@ class TextureSorterMainWindow(QMainWindow):
                 line_panel = LineArtConverterPanelQt(tooltip_manager=self.tooltip_manager)
                 line_panel.error.connect(
                     lambda msg: self.statusBar().showMessage(f"❌ Line Art: {msg}", 5000))
-                line_panel.finished.connect(lambda ok, msg: self.statusBar().showMessage(
-                    f"{'✅' if ok else '❌'} Line Art: {msg}", 4000))
+                line_panel.finished.connect(lambda ok, msg, _tid='lineart': (
+                    self.statusBar().showMessage(f"{'✅' if ok else '❌'} Line Art: {msg}", 4000),
+                    self._on_tool_finished(ok, _tid),
+                ))
                 tool_tab_defs.append((line_panel, "✏️ Line Art", 'lineart'))
             except Exception as _e:
                 logger.warning(f"LineArtConverterPanelQt unavailable: {_e}")
@@ -1000,8 +1019,11 @@ class TextureSorterMainWindow(QMainWindow):
         if BatchRenamePanelQt is not None:
             try:
                 rename_panel = BatchRenamePanelQt(tooltip_manager=self.tooltip_manager)
-                rename_panel.finished.connect(lambda ok, errs: self.statusBar().showMessage(
-                    f"📝 Renamed {ok} files" + (f" ({len(errs)} errors)" if errs else ""), 4000))
+                rename_panel.finished.connect(lambda ok, errs, _tid='rename': (
+                    self.statusBar().showMessage(
+                        f"📝 Renamed {ok} files" + (f" ({len(errs)} errors)" if errs else ""), 4000),
+                    self._on_tool_finished(bool(ok), _tid),
+                ))
                 tool_tab_defs.append((rename_panel, "📝 Batch Rename", 'rename'))
             except Exception as _e:
                 logger.warning(f"BatchRenamePanelQt unavailable: {_e}")
@@ -1014,8 +1036,10 @@ class TextureSorterMainWindow(QMainWindow):
                 repair_panel = ImageRepairPanelQt(tooltip_manager=self.tooltip_manager)
                 repair_panel.error.connect(
                     lambda msg: self.statusBar().showMessage(f"❌ Image Repair: {msg}", 5000))
-                repair_panel.finished.connect(lambda ok, msg: self.statusBar().showMessage(
-                    f"{'✅' if ok else '❌'} Image Repair: {msg}", 4000))
+                repair_panel.finished.connect(lambda ok, msg, _tid='repair': (
+                    self.statusBar().showMessage(f"{'✅' if ok else '❌'} Image Repair: {msg}", 4000),
+                    self._on_tool_finished(ok, _tid),
+                ))
                 tool_tab_defs.append((repair_panel, "🔧 Image Repair", 'repair'))
             except Exception as _e:
                 logger.warning(f"ImageRepairPanelQt unavailable: {_e}")
@@ -1027,8 +1051,10 @@ class TextureSorterMainWindow(QMainWindow):
             try:
                 organizer_panel = OrganizerPanelQt(tooltip_manager=self.tooltip_manager)
                 organizer_panel.log.connect(lambda msg: self.log(msg))
-                organizer_panel.finished.connect(lambda ok, msg, _stats: self.statusBar().showMessage(
-                    f"{'✅' if ok else '❌'} Organizer: {msg}", 4000))
+                organizer_panel.finished.connect(lambda ok, msg, _stats, _tid='organizer': (
+                    self.statusBar().showMessage(f"{'✅' if ok else '❌'} Organizer: {msg}", 4000),
+                    self._on_tool_finished(ok, _tid),
+                ))
                 tool_tab_defs.append((organizer_panel, "📁 Organizer", 'organizer'))
             except Exception as _e:
                 logger.warning(f"OrganizerPanelQt unavailable: {_e}")
@@ -2853,6 +2879,77 @@ class TextureSorterMainWindow(QMainWindow):
         
         self.sort_button.setEnabled(has_input and has_output)
     
+    # ------------------------------------------------------------------
+    # Panda interaction behavior tick (called at ~30 Hz by QTimer)
+    # ------------------------------------------------------------------
+    _INTERACTION_TICK_DT: float = 0.033  # seconds at 30 Hz
+
+    def _tick_panda_interaction(self) -> None:
+        """Advance PandaInteractionBehavior AI by one frame."""
+        if self.panda_interaction is None:
+            return
+        try:
+            self.panda_interaction.update(self._INTERACTION_TICK_DT)
+        except Exception as _e:
+            logger.debug(f"Panda interaction tick failed: {_e}")
+
+    # ------------------------------------------------------------------
+    # Shared helper: react to a tool-panel completion (panda + quest + sound)
+    # ------------------------------------------------------------------
+    def _on_tool_finished(self, success: bool, tool_id: str = 'tool') -> None:
+        """Called when any tool-panel `finished` signal fires.
+
+        Triggers panda mood, quest progress, and audio feedback — all guarded
+        so a missing optional component never prevents the status-bar update.
+        """
+        # Lazy imports pulled to module-level aliases so we don't re-import on each call
+        _PandaMood = None
+        _SoundEvent = None
+        try:
+            from features.panda_character import PandaMood as _PandaMood
+        except (ImportError, OSError, RuntimeError):
+            pass
+        try:
+            from features.sound_manager import SoundEvent as _SoundEvent
+        except (ImportError, OSError, RuntimeError):
+            pass
+
+        # Panda mood
+        try:
+            if self.panda_character and _PandaMood:
+                self.panda_character.set_mood(_PandaMood.HAPPY if success else _PandaMood.TIRED)
+            elif self.panda_widget and hasattr(self.panda_widget, 'set_animation'):
+                self.panda_widget.set_animation('celebrating' if success else 'idle')
+        except Exception as _e:
+            logger.debug(f"Panda mood update failed for {tool_id}: {_e}")
+        # Quest progress — generic "tool used" quest type
+        try:
+            if self.quest_system:
+                self.quest_system.check_quests(1)
+                if hasattr(self.quest_system, 'update_quest_progress'):
+                    self.quest_system.update_quest_progress(f'{tool_id}_user', 1)
+        except Exception as _e:
+            logger.debug(f"Quest progress update failed for {tool_id}: {_e}")
+        # XP
+        try:
+            if self.level_system:
+                self.level_system.add_xp(2, reason='tool_used')
+        except Exception as _e:
+            logger.debug(f"XP award failed for {tool_id}: {_e}")
+        # Sound
+        try:
+            if self.sound_manager and _SoundEvent:
+                self.sound_manager.play_sound(
+                    _SoundEvent.COMPLETE if success else _SoundEvent.ERROR)
+        except Exception as _e:
+            logger.debug(f"Sound playback failed for {tool_id}: {_e}")
+        # Mood system
+        try:
+            if self.panda_mood_system and success:
+                self.panda_mood_system.on_quest_completed()
+        except Exception as _e:
+            logger.debug(f"Mood system update failed for {tool_id}: {_e}")
+
     def start_sorting(self):
         """Start texture sorting operation."""
         if not self.input_path or not self.output_path:
