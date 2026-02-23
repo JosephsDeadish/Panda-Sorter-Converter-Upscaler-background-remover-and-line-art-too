@@ -63,6 +63,13 @@ SHOP_TO_CLOSET_CATEGORY = {
     ShopCategory.GLOVES:        "gloves",
     ShopCategory.BELT:          "belt",
     ShopCategory.BACKPACK:      "backpack",
+    ShopCategory.CURSOR_TRAILS: "cursor_trail",
+    ShopCategory.CURSORS:       "cursor",
+    ShopCategory.THEMES:        "theme",
+    ShopCategory.ANIMATIONS:    "animation",
+    ShopCategory.SOUNDS:        "sound",
+    ShopCategory.UPGRADES:      "upgrade",
+    ShopCategory.SPECIAL:       "special",
 }
 
 

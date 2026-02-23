@@ -31,6 +31,13 @@ class CustomizationCategory(Enum):
     BOOTS = "boots"
     BELT = "belt"
     BACKPACK = "backpack"
+    CURSOR_TRAIL = "cursor_trail"
+    CURSOR = "cursor"
+    THEME = "theme"
+    ANIMATION = "animation"
+    SOUND = "sound"
+    UPGRADE = "upgrade"
+    SPECIAL = "special"
 
 
 class ClothingSubCategory(Enum):

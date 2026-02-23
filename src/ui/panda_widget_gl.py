@@ -49,6 +49,10 @@ _BODY_PITCH_TARGETS: dict = {
     'rolling':       30.0,   # body pitching as it rolls
     'hanging_ceiling': 175.0, # nearly inverted, gripping ceiling
     'hanging_window_edge': -55.0,  # body angled forward/down, arms reaching up
+    'dance':          -5.0,   # slight forward lean while dancing
+    'backflip':        0.0,   # body pitch driven by frame (applied separately)
+    'spin':            0.0,   # body stays upright, yaw rotates
+    'juggle':         -8.0,   # slight forward lean to look at juggled items
 }
 
 # Tail wag amplitude targets (degrees) keyed by animation state.
@@ -100,6 +104,16 @@ _MOOD_TO_ANIMATION: dict = {
     'climbing':     'climbing_wall',
     'falling':      'falling_back',
     'crawling':     'crawling',
+    # Purchasable animation states (from shop ShopCategory.ANIMATIONS items)
+    'animation_dance':     'dance',
+    'animation_backflip':  'backflip',
+    'animation_magic':     'celebrating',
+    'animation_spin':      'spin',
+    'animation_juggle':    'juggle',
+    'dance':    'dance',
+    'backflip': 'backflip',
+    'spin':     'spin',
+    'juggle':   'juggle',
 }
 
 # Maps mood values to the internal emotion-weight key used by secondary motion.
@@ -162,16 +176,19 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
 
     # Weighted autonomous-activity table — tuple for immutability; weights sum to 1.0
     _ACTIVITY_WEIGHTS: tuple = (
-        ('walk_around',  0.22),
-        ('work',         0.18),
-        ('idle',         0.14),
+        ('walk_around',  0.20),
+        ('work',         0.16),
+        ('idle',         0.12),
         ('celebrate',    0.07),
         ('crawl_around', 0.08),
         ('climb_wall',   0.06),
-        ('sit_back',     0.08),
+        ('sit_back',     0.07),
         ('hang_ceiling', 0.04),
-        ('rolling',      0.07),
-        ('sleeping',     0.06),
+        ('rolling',      0.06),
+        ('sleeping',     0.05),
+        ('dance',        0.04),
+        ('spin',         0.03),
+        ('backflip',     0.02),
     )
 
     # Physics constants
@@ -808,6 +825,44 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
                     painter.setPen(QColor(160, 180, 220, alpha))
                     painter.drawText(cx + i * 12 - 12, cy - i * 10, glyph)
 
+            elif self.animation_state == 'dance':
+                # Music notes floating up while dancing
+                if self._OVERLAY_FONT_EMOJI:
+                    painter.setFont(self._OVERLAY_FONT_EMOJI)
+                cx, cy = self.width() // 2, self.height() // 3
+                t = self.animation_frame
+                for i, glyph in enumerate(['♪', '♫', '🎵']):
+                    alpha = min(255, int(190 * abs(math.sin(t * 0.07 + i * 1.5))))
+                    ox = int(35 * math.sin(t * 0.10 + i * 2.1))
+                    oy = int(-20 - i * 14 - 4 * math.sin(t * 0.12 + i))
+                    painter.setPen(QColor(220, 100, 180, alpha))
+                    painter.drawText(cx + ox, cy + oy, glyph)
+
+            elif self.animation_state == 'spin':
+                # Sparkle arc around spinning body
+                if self._OVERLAY_FONT_EMOJI:
+                    painter.setFont(self._OVERLAY_FONT_EMOJI)
+                cx, cy = self.width() // 2, self.height() // 2
+                t = self.animation_frame
+                for i, glyph in enumerate(['✨', '⭐', '✨']):
+                    a = t * 0.14 + i * 2.09
+                    ox = int(40 * math.cos(a))
+                    oy = int(20 * math.sin(a)) - 15
+                    alpha = min(255, int(200 * abs(math.sin(t * 0.12 + i))))
+                    painter.setPen(QColor(255, 220, 60, alpha))
+                    painter.drawText(cx + ox, cy + oy, glyph)
+
+            elif self.animation_state == 'backflip':
+                # Motion blur streaks
+                if self._OVERLAY_FONT_EMOJI:
+                    painter.setFont(self._OVERLAY_FONT_EMOJI)
+                cx, cy = self.width() // 2, self.height() // 2
+                t = self.animation_frame
+                alpha = min(255, int(200 * abs(math.sin(t * 0.20))))
+                painter.setPen(QColor(100, 200, 255, alpha))
+                painter.drawText(cx - 25, cy - 30, '💨')
+                painter.drawText(cx + 15, cy + 10, '💨')
+
             painter.end()
         except Exception:
             pass  # Overlay is decorative — never crash the render loop
@@ -953,6 +1008,14 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
         if self.animation_state == 'rolling':
             roll_angle = (self.animation_frame * 4.0) % 360.0
             glRotatef(roll_angle, 0.0, 0.0, 1.0)
+        # Backflip: continuous X-rotation (somersault backward)
+        elif self.animation_state == 'backflip':
+            flip_angle = (self.animation_frame * 6.0) % 360.0
+            glRotatef(flip_angle, 1.0, 0.0, 0.0)
+        # Spin: continuous Y-rotation (pirouette)
+        elif self.animation_state == 'spin':
+            spin_angle = (self.animation_frame * 8.0) % 360.0
+            glRotatef(spin_angle, 0.0, 1.0, 0.0)
         # Quadruped body pitch (crawling/climbing/falling_back)
         if abs(self._body_pitch_cur) > 0.5:
             glRotatef(self._body_pitch_cur, 1.0, 0.0, 0.0)
@@ -2811,6 +2874,10 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
             self._play_sound('plop')
         elif state == 'falling_back' and prev != 'falling_back':
             self._play_sound('landing')
+        elif state in ('dance', 'spin', 'backflip', 'juggle') and prev not in (
+                'dance', 'spin', 'backflip', 'juggle'):
+            self._play_sound('wag')
+            self._surprised_eye_t = 0.2
 
     # ─── Smooth animation helpers ────────────────────────────────────────────
     def _get_body_bob(self):
@@ -2992,6 +3059,38 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
                 pos['right_arm_angle'] = -70.0 - phase * 8.0
                 pos['left_leg_angle']  =  15.0
                 pos['right_leg_angle'] =  15.0
+
+            elif state == 'dance':
+                # Full-body dance: alternating arm pumps + leg kicks in 4-beat rhythm
+                beat = math.sin(frame * 0.18)           # ~0.9 Hz at 30fps
+                beat2 = math.sin(frame * 0.18 + math.pi)
+                pos['left_arm_angle']  = -110.0 + beat  * 40.0   # pump up/down
+                pos['right_arm_angle'] = -110.0 + beat2 * 40.0   # opposite phase
+                pos['left_leg_angle']  =  30.0  * abs(math.sin(frame * 0.18))
+                pos['right_leg_angle'] = -30.0  * abs(math.sin(frame * 0.18 + math.pi * 0.5))
+
+            elif state == 'backflip':
+                # Tuck arms in, both legs swing over (continuous rotation via body pitch)
+                t_norm = (frame % 40) / 40.0   # 40-frame cycle
+                pos['left_arm_angle']  = -30.0 + math.sin(t_norm * math.pi * 2) * 20.0
+                pos['right_arm_angle'] = -30.0 - math.sin(t_norm * math.pi * 2) * 20.0
+                pos['left_leg_angle']  = -60.0 + math.sin(t_norm * math.pi * 2) * 60.0
+                pos['right_leg_angle'] = -60.0 + math.sin(t_norm * math.pi * 2) * 60.0
+
+            elif state == 'spin':
+                # Arms wide, legs stable — continuous spin via body_yaw (applied in draw)
+                pos['left_arm_angle']  = -90.0
+                pos['right_arm_angle'] = -90.0
+                pos['left_leg_angle']  = 10.0
+                pos['right_leg_angle'] = 10.0
+
+            elif state == 'juggle':
+                # Alternating arm arcs as if tossing items
+                arc = math.sin(frame * 0.22)
+                pos['left_arm_angle']  = -80.0 + arc  * 55.0
+                pos['right_arm_angle'] = -80.0 - arc  * 55.0
+                pos['left_leg_angle']  =  5.0
+                pos['right_leg_angle'] =  5.0
 
             else:  # idle / neutral / default
                 sway = 3.5 * math.sin(frame * 0.040 * self._micro['sway_speed'])
@@ -4352,6 +4451,12 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
                     QTimer.singleShot(int(dur * 1000),
                                       lambda: self.set_animation_state('idle')
                                       if self.animation_state == 'sleeping' else None)
+                elif activity in ('dance', 'spin', 'backflip'):
+                    self.set_animation_state(activity)
+                    dur = random.uniform(2.5, 5.0) if activity == 'dance' else random.uniform(1.5, 3.0)
+                    QTimer.singleShot(int(dur * 1000),
+                                      lambda a=activity: self.set_animation_state('idle')
+                                      if self.animation_state == a else None)
                 break
     
     # ========================================================================

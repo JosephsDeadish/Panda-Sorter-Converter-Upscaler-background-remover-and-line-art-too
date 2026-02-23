@@ -14,6 +14,16 @@ import functools
 import types as _types
 from pathlib import Path
 
+# Animation ID → GL animation state mapping (mirrors _MOOD_TO_ANIMATION in panda_widget_gl)
+_MOOD_TO_ANIMATION_MAP: dict = {
+    'animation_dance':    'dance',
+    'animation_backflip': 'backflip',
+    'animation_magic':    'celebrating',
+    'animation_spin':     'spin',
+    'animation_juggle':   'juggle',
+    'dance': 'dance', 'backflip': 'backflip', 'spin': 'spin', 'juggle': 'juggle',
+}
+
 # Fix Unicode encoding issues on Windows
 # This prevents UnicodeEncodeError when printing emojis to console
 if sys.platform == 'win32':
@@ -271,6 +281,10 @@ _PANDA_STATE_EMOJI: dict = {
     'flopping':             '😂',
     'scratching':           '🐾',
     'daydream':             '💭',
+    'dance':                '💃',
+    'backflip':             '🤸',
+    'spin':                 '🌀',
+    'juggle':               '🎪',
 }
 
 # Import configuration (now that src is in path)
@@ -4192,6 +4206,29 @@ class TextureSorterMainWindow(QMainWindow):
                 self.panda_widget.equip_item(item)
             elif cat in (_CC.CLOTHING, _CC.SHOES, _CC.ACCESSORY) and hasattr(self.panda_widget, 'equip_item'):
                 self.panda_widget.equip_item(item)
+            elif cat == _CC.CURSOR_TRAIL and hasattr(self.panda_widget, 'set_trail'):
+                # Map trail item IDs to trail type strings
+                trail_type = item_id.replace('trail_', '') if item_id.startswith('trail_') else item_id
+                self.panda_widget.set_trail(trail_type, {'item_id': item_id})
+                self.log(f"🌈 Trail activated: {item_id}")
+            elif cat == _CC.ANIMATION and hasattr(self.panda_widget, 'set_animation_state'):
+                # Purchased animation — play it once then return to idle
+                anim_state = _MOOD_TO_ANIMATION_MAP.get(item_id, 'celebrating')
+                self.panda_widget.set_animation_state(anim_state)
+                _dur = {'dance': 5000, 'backflip': 3000, 'spin': 3500, 'juggle': 4000}.get(anim_state, 3000)
+                from PyQt6.QtCore import QTimer as _QT
+                _QT.singleShot(_dur, lambda: self.panda_widget.set_animation_state('idle')
+                               if self.panda_widget and self.panda_widget.animation_state == anim_state else None)
+            elif cat == _CC.SOUND:
+                # Purchased sound pack — activate via sound_manager
+                if self.sound_manager and hasattr(self.sound_manager, 'activate_sound_pack'):
+                    self.sound_manager.activate_sound_pack(item_id)
+                self.log(f"🎵 Sound pack activated: {item_id}")
+            elif cat == _CC.THEME:
+                # Apply app theme
+                if hasattr(self, 'apply_theme'):
+                    self.apply_theme(item_id)
+                self.log(f"🎨 Theme applied: {item_id}")
             else:
                 # Generic fallback — let equip_item heuristics sort it out
                 if hasattr(self.panda_widget, 'equip_item'):
