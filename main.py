@@ -439,6 +439,7 @@ class TextureSorterMainWindow(QMainWindow):
         self._home_tab_widget = None  # QWidget wrapper that owns the stack
         self._home_back_btn = None    # QPushButton "← Back to Home"
         self._home_sub_label = None   # QLabel showing current sub-panel title
+        self._home_back_bar = None    # QWidget back-button toolbar (shown in sub-panels)
         self.level_system = None        # UserLevelSystem – XP / levelling
         self.auto_backup = None         # AutoBackupSystem – periodic state backup
         self.unlockables_system = None  # UnlockablesSystem – cursors/themes/outfits
@@ -541,7 +542,8 @@ class TextureSorterMainWindow(QMainWindow):
         self.setWindowTitle(f"🐼 {APP_NAME} v{APP_VERSION}")
         self.setGeometry(100, 100, 1400, 900)
         self.setMinimumSize(900, 650)
-        
+        # Enable file drag-and-drop across the whole window
+        self.setAcceptDrops(True)
         # Set window icon
         icon_path = Path(__file__).parent / 'assets' / 'icon.ico'
         if icon_path.exists():
@@ -4224,9 +4226,7 @@ class TextureSorterMainWindow(QMainWindow):
                     self._world_widget = PandaWorldWidget(self)
                     self._world_widget.back_to_bedroom.connect(self._go_back_to_bedroom)
                     self._world_widget.otter_clicked.connect(self._on_otter_clicked)
-                    self._world_widget.destination_selected.connect(
-                        lambda d: self.statusBar().showMessage(f"🚗 Heading to {d}…", 3000)
-                    )
+                    self._world_widget.destination_selected.connect(self._on_world_destination_selected)
                 except (ImportError, OSError, RuntimeError, Exception) as _e:
                     logger.warning(f"World widget not available: {_e}")
                     self._world_widget = QLabel(
@@ -4270,6 +4270,42 @@ class TextureSorterMainWindow(QMainWindow):
             label = QLabel("🛒 Otter Shop\n\n(Shop panel not available)")
             label.setAlignment(Qt.AlignmentFlag.AlignCenter)
             self._show_home_sub_panel(label, '🛒 Otter Shop')
+
+    def _on_world_destination_selected(self, destination: str) -> None:
+        """Handle car/park/shop destination selection from the world scene."""
+        try:
+            self.statusBar().showMessage(f"🚗 Heading to {destination}…", 3000)
+            if self.panda_widget:
+                self.panda_widget.set_animation_state('walking')
+            if destination == 'shop':
+                self._on_otter_clicked()
+            elif destination == 'park':
+                self._on_go_to_park()
+            elif destination == 'home':
+                self._go_back_to_bedroom()
+        except Exception as _e:
+            logger.debug(f"_on_world_destination_selected({destination}): {_e}")
+
+    def _on_go_to_park(self) -> None:
+        """Show the park sub-panel (currently minigames / free play area)."""
+        try:
+            from ui.minigame_panel_qt import MinigamePanelQt
+            from features.minigame_system import MiniGameManager
+            mgr = MiniGameManager()
+            panel = MinigamePanelQt(minigame_manager=mgr, tooltip_manager=self.tooltip_manager)
+            self._show_home_sub_panel(panel, '🌲 Panda Park')
+            if self.panda_widget:
+                QTimer.singleShot(800, lambda: self.panda_widget.set_animation_state('celebrating'))
+        except Exception as _e:
+            logger.debug(f"_on_go_to_park: {_e}")
+            park_label = QLabel(
+                "🌲 Panda Park\n\n"
+                "🐼 Panda romps around the park!\n\n"
+                "Minigames coming soon…"
+            )
+            park_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            park_label.setStyleSheet("background:#1a2a1a; color:#aaddaa; font-size:14px;")
+            self._show_home_sub_panel(park_label, '🌲 Panda Park')
 
     def _show_home_sub_panel(self, widget: 'QWidget', title: str) -> None:
         """Slide *widget* into page 1 of the Home stack, update tab + back-bar labels."""
@@ -4600,7 +4636,61 @@ class TextureSorterMainWindow(QMainWindow):
             f"</ul>"
             f"<p>Author: Dead On The Inside / JosephsDeadish</p>"
         )
-    
+
+    # ── Drag-and-drop file handling ──────────────────────────────────────────
+    def dragEnterEvent(self, event: 'QDragEnterEvent'):
+        """Accept file drag-and-drop from OS."""
+        try:
+            if event.mimeData().hasUrls():
+                self._drag_sniff_notified = False  # reset throttle flag each new drag
+                event.acceptProposedAction()
+            else:
+                event.ignore()
+        except Exception:
+            event.ignore()
+
+    def dragMoveEvent(self, event: 'QDragMoveEvent'):
+        """Keep accepting while dragging over the window; notify panda once per drag."""
+        try:
+            if event.mimeData().hasUrls():
+                event.acceptProposedAction()
+                # Notify panda to sniff — throttled to once per drag operation
+                if not getattr(self, '_drag_sniff_notified', False):
+                    self._drag_sniff_notified = True
+                    urls = event.mimeData().urls()
+                    if urls:
+                        file_path = urls[0].toLocalFile()
+                        if self.panda_widget and hasattr(self.panda_widget, 'notify_file_dragged'):
+                            self.panda_widget.notify_file_dragged(file_path)
+                        elif self.panda_overlay and hasattr(self.panda_overlay, 'notify_file_dragged'):
+                            self.panda_overlay.notify_file_dragged(file_path)
+        except Exception:
+            event.ignore()
+
+    def dropEvent(self, event: 'QDropEvent'):
+        """Handle dropped files — forward to input path selector."""
+        try:
+            urls = event.mimeData().urls()
+            if not urls:
+                return
+            dropped_path = Path(urls[0].toLocalFile())
+            # Reset panda sniff state
+            if self.panda_widget and hasattr(self.panda_widget, 'set_animation_state'):
+                self.panda_widget.set_animation_state('idle')
+            # Show in status bar
+            self.statusBar().showMessage(f"📄 Dropped: {dropped_path.name}", 3000)
+            # Auto-fill the input path if it's a directory
+            if dropped_path.is_dir():
+                try:
+                    self.input_folder_entry.setText(str(dropped_path))
+                    self.input_path = dropped_path
+                except Exception:
+                    pass
+            event.acceptProposedAction()
+        except Exception as _e:
+            logger.debug(f"dropEvent error: {_e}")
+    # ─────────────────────────────────────────────────────────────────────────
+
     def closeEvent(self, event):
         """Handle window close event."""
         # Save dock layout before closing

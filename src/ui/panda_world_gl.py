@@ -550,7 +550,7 @@ class PandaWorldGL(
         wx, wz = self._screen_to_ground(event.position().x(), event.position().y())
         region = self._hit_region(wx, wz)
         if region == 'car':
-            self.destination_selected.emit('shop')  # default car destination
+            self._show_destination_picker()
         elif region in ('shop', 'otter'):
             self._otter_happy_t = 60
             self.otter_clicked.emit()
@@ -558,6 +558,33 @@ class PandaWorldGL(
             self.back_to_bedroom.emit()
         elif region == 'park_btn':
             self.destination_selected.emit('park')
+
+    def _show_destination_picker(self) -> None:
+        """Show a small dialog letting the user choose where to drive."""
+        if not PYQT_AVAILABLE:
+            self.destination_selected.emit('shop')
+            return
+        try:
+            from PyQt6.QtWidgets import QDialog, QVBoxLayout, QPushButton, QLabel as _QLabel
+            dlg = QDialog(self)
+            dlg.setWindowTitle("🚗 Where to?")
+            dlg.setModal(True)
+            dlg.setFixedSize(240, 180)
+            dlg.setStyleSheet(
+                "QDialog{background:#1a2a3a;color:#ddddff;}"
+                "QPushButton{background:#2a3a5a;color:#eeeeff;border:1px solid #445;border-radius:6px;"
+                "padding:6px 14px;font-size:13px;}"
+                "QPushButton:hover{background:#3a4a7a;}"
+            )
+            vbox = QVBoxLayout(dlg)
+            vbox.addWidget(_QLabel("🐼 Where shall we go?", dlg))
+            for dest, label in (('shop', '🛒  Otter Shop'), ('park', '🌲  Panda Park'), ('home', '🏠  Back Home')):
+                btn = QPushButton(label, dlg)
+                btn.clicked.connect(lambda _, d=dest: (dlg.accept(), self.destination_selected.emit(d)))
+                vbox.addWidget(btn)
+            dlg.exec()
+        except Exception:
+            self.destination_selected.emit('shop')
 
     # ── Coordinate helpers ────────────────────────────────────────────────────
     def _screen_to_ground(self, sx: float, sy: float) -> Tuple[float, float]:
