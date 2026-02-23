@@ -3785,6 +3785,17 @@ class TextureSorterMainWindow(QMainWindow):
                                 elif (item.category == CustomizationCategory.HAIR_STYLE
                                         and hasattr(self.panda_widget, 'set_hair_style')):
                                     self.panda_widget.set_hair_style(item_id)
+                                elif (item.category.value in ('weapon', 'food', 'toy')
+                                        and hasattr(self.panda_widget, 'equip_clothing')):
+                                    self.panda_widget.equip_clothing('held_right', {
+                                        'id': item_id, 'type': item_id,
+                                        'color': getattr(item, 'color', [0.7, 0.6, 0.3])
+                                        if hasattr(item, 'color') else [0.7, 0.6, 0.3],
+                                        'size': 0.5,
+                                    })
+                                elif (item.category.value == 'gloves'
+                                        and hasattr(self.panda_widget, 'equip_clothing')):
+                                    self.panda_widget.equip_clothing('gloves', {'id': item_id, 'type': 'gloves'})
                         except Exception as _fe:
                             logger.debug(f"fur/hair style apply: {_fe}")
             except Exception as _e:
@@ -3829,6 +3840,17 @@ class TextureSorterMainWindow(QMainWindow):
                                 elif (item.category == CustomizationCategory.HAIR_STYLE
                                         and hasattr(self.panda_widget, 'set_hair_style')):
                                     self.panda_widget.set_hair_style(item_id)
+                                elif (item.category.value in ('weapon', 'food', 'toy')
+                                        and hasattr(self.panda_widget, 'equip_clothing')):
+                                    self.panda_widget.equip_clothing('held_right', {
+                                        'id': item_id, 'type': item_id,
+                                        'color': getattr(item, 'color', [0.7, 0.6, 0.3])
+                                        if hasattr(item, 'color') else [0.7, 0.6, 0.3],
+                                        'size': 0.5,
+                                    })
+                                elif (item.category.value == 'gloves'
+                                        and hasattr(self.panda_widget, 'equip_clothing')):
+                                    self.panda_widget.equip_clothing('gloves', {'id': item_id, 'type': 'gloves'})
                         except Exception as _fe:
                             logger.debug(f"fur/hair style apply: {_fe}")
             except Exception as _e:

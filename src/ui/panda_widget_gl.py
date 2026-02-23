@@ -45,6 +45,10 @@ _BODY_PITCH_TARGETS: dict = {
     'climbing_wall': -80.0,   # near-vertical, claws on wall
     'falling_back':   85.0,   # on back, legs up
     'sleeping':       12.0,   # slight slump forward
+    'sitting_back': -10.0,   # slight backward lean when sitting upright
+    'rolling':       30.0,   # body pitching as it rolls
+    'hanging_ceiling': 175.0, # nearly inverted, gripping ceiling
+    'hanging_window_edge': -55.0,  # body angled forward/down, arms reaching up
 }
 
 # Maps every mood value used in PandaCharacter / PandaMoodSystem to an
@@ -134,6 +138,7 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
     HOLD_STATES: frozenset = frozenset({
         'waving', 'celebrating', 'jumping',
         'crawling', 'climbing_wall', 'falling_back',
+        'sitting_back', 'rolling', 'hanging_ceiling', 'hanging_window_edge',
     })
     
     # Physics constants
@@ -212,11 +217,14 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
         
         # Clothing system (3D attachments)
         self.clothing = {
-            'hat': None,      # Hat on head
-            'shirt': None,    # Shirt on body
-            'pants': None,    # Pants on legs
-            'glasses': None,  # Glasses on face
-            'accessory': None # Other accessories
+            'hat': None,       # Hat on head
+            'shirt': None,     # Shirt on body
+            'pants': None,     # Pants on legs
+            'glasses': None,   # Glasses on face
+            'accessory': None, # Other accessories
+            'held_right': None,  # Item held in right paw
+            'held_left': None,   # Item held in left paw
+            'gloves': None,      # Gloves on paws
         }
         
         # Weapon system
@@ -960,11 +968,16 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
         if self._hair_style not in ('none', '', None):
             self._draw_panda_head_hair()
 
+        # ── Hat (drawn here so it follows head bob/tilt/rotation) ─────────────
+        if self.clothing['hat']:
+            self._draw_hat(self.clothing['hat'])
+
         glPopMatrix()   # end head matrix
 
         # ── Clothing & weapons ────────────────────────────────────────────────
         self._draw_clothing()
         self._draw_weapon()
+        self._draw_held_items()
 
     def _draw_panda_geometry_only(self):
         """Draw simplified panda geometry for shadow pass (no colour changes)."""
@@ -2077,6 +2090,39 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
                 pos['left_leg_angle']  = 12.0
                 pos['right_leg_angle'] = 12.0
 
+            elif state == 'sitting_back':
+                # Relaxed sitting: legs splayed forward, arms resting on belly
+                pos['left_arm_angle']  = -20.0
+                pos['right_arm_angle'] = -20.0
+                pos['left_leg_angle']  =  45.0
+                pos['right_leg_angle'] =  45.0
+
+            elif state == 'rolling':
+                # Rolling on back: all limbs flailing loosely
+                swing = 40.0 * math.sin(frame * 0.18)
+                pos['left_arm_angle']  =  swing + 15.0
+                pos['right_arm_angle'] = -swing + 15.0
+                pos['left_leg_angle']  = -swing + 20.0
+                pos['right_leg_angle'] =  swing + 20.0
+
+            elif state == 'hanging_ceiling':
+                # Inverted grip: all limbs reaching upward (which is now downward)
+                base = frame * 0.08
+                sway = 12.0 * math.sin(base)
+                pos['left_arm_angle']  = -140.0 + sway
+                pos['right_arm_angle'] = -140.0 - sway
+                pos['left_leg_angle']  = -130.0 + sway * 0.7
+                pos['right_leg_angle'] = -130.0 - sway * 0.7
+
+            elif state == 'hanging_window_edge':
+                # Arms reaching up to grip edge, body dangling
+                base = frame * 0.07
+                grip_sway = 8.0 * math.sin(base)
+                pos['left_arm_angle']  = -160.0 + grip_sway
+                pos['right_arm_angle'] = -160.0 - grip_sway
+                pos['left_leg_angle']  =  25.0 + 15.0 * math.sin(base * 0.6)
+                pos['right_leg_angle'] =  25.0 - 15.0 * math.sin(base * 0.6 + 0.4)
+
             else:  # idle / neutral / default
                 sway = 3.5 * math.sin(frame * 0.040 * self._micro['sway_speed'])
                 pos['left_arm_angle']  =  sway
@@ -2287,43 +2333,70 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
             self.clothing[slot] = None
     
     def _draw_clothing(self):
-        """Draw all equipped clothing items in 3D."""
-        # Draw hat
-        if self.clothing['hat']:
-            self._draw_hat(self.clothing['hat'])
-        
-        # Draw shirt
+        """Draw body-relative clothing (shirt, pants, glasses, accessory).
+        NOTE: Hat is drawn inside the head matrix in _draw_panda() so it follows head bob/tilt.
+              Held items are drawn at paw positions via _draw_held_items().
+        """
+        # Draw shirt (body-relative)
         if self.clothing['shirt']:
             self._draw_shirt(self.clothing['shirt'])
-        
-        # Draw pants
+
+        # Draw pants (body-relative — drawn over leg positions)
         if self.clothing['pants']:
             self._draw_pants(self.clothing['pants'])
-        
-        # Draw glasses
+
+        # Draw glasses (body-relative — positioned at head-ish height)
         if self.clothing['glasses']:
             self._draw_glasses(self.clothing['glasses'])
-        
+
         # Draw accessory
         if self.clothing['accessory']:
             self._draw_accessory(self.clothing['accessory'])
     
     def _draw_hat(self, hat_data):
-        """Draw hat on panda's head."""
+        """Draw hat on panda's head. MUST be called inside the head pushMatrix."""
         glPushMatrix()
-        # Position on top of head
-        glTranslatef(0.0, 1.2, 0.0)
-        
-        # Get hat color
-        color = hat_data.get('color', [0.8, 0.2, 0.2])
+        # Offset from head centre to top — slightly forward of centre
+        glTranslatef(0.0, self.HEAD_RADIUS * 1.05, -self.HEAD_RADIUS * 0.05)
+
+        hat_type = hat_data.get('type', 'classic') if isinstance(hat_data, dict) else 'classic'
+        color    = hat_data.get('color', [0.8, 0.2, 0.2]) if isinstance(hat_data, dict) else [0.8, 0.2, 0.2]
         glColor3f(*color)
-        
-        # Draw hat (cone shape for simple hat)
-        glRotatef(-90, 1.0, 0.0, 0.0)
+
         quad = gluNewQuadric()
-        gluCylinder(quad, 0.3, 0.1, 0.3, 16, 1)
+        if hat_type in ('crown', 'tiara'):
+            # Crown: short cylinder base + spikes
+            glRotatef(-90.0, 1.0, 0.0, 0.0)
+            gluCylinder(quad, 0.26, 0.26, 0.08, 16, 1)
+            glTranslatef(0.0, 0.0, 0.08)
+            for i in range(5):
+                a = math.radians(i * 72)
+                glPushMatrix()
+                glTranslatef(math.cos(a) * 0.20, math.sin(a) * 0.20, 0.0)
+                gluCylinder(quad, 0.03, 0.01, 0.12, 8, 1)
+                glPopMatrix()
+        elif hat_type in ('top_hat', 'tophat'):
+            # Brim
+            glRotatef(-90.0, 1.0, 0.0, 0.0)
+            gluDisk(quad, 0.0, 0.34, 16, 1)
+            # Cylinder body
+            gluCylinder(quad, 0.22, 0.22, 0.32, 16, 1)
+            glTranslatef(0.0, 0.0, 0.32)
+            gluDisk(quad, 0.0, 0.22, 16, 1)
+        elif hat_type == 'wizard':
+            # Tall pointed cone
+            glRotatef(-90.0, 1.0, 0.0, 0.0)
+            gluCylinder(quad, 0.26, 0.01, 0.55, 16, 1)
+        elif hat_type in ('beanie', 'cap'):
+            self._draw_sphere(0.24, 12, 12)
+            glTranslatef(0.0, 0.20, 0.0)
+            glColor3f(*[min(1.0, c + 0.15) for c in color])
+            self._draw_sphere(0.08, 8, 8)
+        else:
+            # Default: rounded cone hat
+            glRotatef(-90.0, 1.0, 0.0, 0.0)
+            gluCylinder(quad, 0.28, 0.08, 0.30, 16, 1)
         gluDeleteQuadric(quad)
-        
         glPopMatrix()
     
     def _draw_shirt(self, shirt_data):
@@ -2554,7 +2627,213 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
         glColor3f(0.2, 0.5, 1.0)  # Blue orb
         self._draw_sphere(0.08, 12, 12)
         glPopMatrix()
-    
+
+    def _draw_held_items(self) -> None:
+        """Draw items held in paw(s) — positioned at actual paw world space."""
+        if not self.clothing['held_right'] and not self.clothing['held_left']:
+            return
+
+        limb   = self._get_limb_positions()
+        bob    = self._get_body_bob()
+        arm_x  = self.BODY_WIDTH * 0.82
+        arm_y  = 0.34 + bob
+
+        for side, key in ((-1, 'held_left'), (1, 'held_right')):
+            item = self.clothing[key]
+            if not item:
+                continue
+            angle = limb.get('left_arm_angle' if side == -1 else 'right_arm_angle', 0.0)
+            # Translate to shoulder then rotate by limb angle then move to paw tip
+            glPushMatrix()
+            glTranslatef(side * arm_x, arm_y, 0.0)
+            glRotatef(angle, 1.0, 0.0, 0.0)
+            # Paw tip offset
+            glTranslatef(0.0, -(self.ARM_LENGTH * 0.88 + 0.10), 0.0)
+            # Grip tilt — weapon points mostly upward/forward
+            glRotatef(-85.0, 1.0, 0.0, 0.0)
+            self._draw_held_item(item)
+            glPopMatrix()
+
+    def _draw_held_item(self, item: dict) -> None:
+        """Dispatch to specific item renderer based on type."""
+        if isinstance(item, str):
+            item = {'id': item, 'type': item}
+        item_type = str(item.get('type', item.get('id', 'bamboo'))).lower()
+        color = item.get('color', [0.7, 0.6, 0.3])
+        size  = float(item.get('size', 0.5))
+        glColor3f(*color)
+
+        if any(k in item_type for k in ('sword', 'blade', 'katana')):
+            self._draw_held_sword(size, color)
+        elif any(k in item_type for k in ('bow', 'archer')):
+            self._draw_held_bow(size, color)
+        elif any(k in item_type for k in ('bamboo', 'stick', 'staff', 'cane')):
+            self._draw_held_bamboo(size, color)
+        elif any(k in item_type for k in ('ball', 'toy', 'sphere')):
+            self._draw_held_toy_ball(size, color)
+        elif any(k in item_type for k in ('flower', 'rose', 'daisy')):
+            self._draw_held_flower(size, color)
+        elif any(k in item_type for k in ('food', 'fish', 'dumpling', 'apple', 'cookie')):
+            self._draw_held_food(item_type, size, color)
+        else:
+            # Generic: simple rod
+            quad = gluNewQuadric()
+            gluCylinder(quad, 0.020, 0.015, size, 8, 1)
+            gluDeleteQuadric(quad)
+
+    def _draw_held_sword(self, size: float, color: list) -> None:
+        """Sword held in paw — blade up, cross-guard at grip."""
+        quad = gluNewQuadric()
+        # Blade
+        glPushMatrix()
+        glColor3f(min(1.0, color[0]+0.2), min(1.0, color[1]+0.2), min(1.0, color[2]+0.2))
+        glScalef(0.035, 1.0, 0.018)
+        gluCylinder(quad, size * 0.5, size * 0.05, size, 12, 1)
+        glPopMatrix()
+        # Blade edge glint
+        glPushMatrix()
+        glTranslatef(0.018, 0.0, 0.0)
+        glColor4f(1.0, 1.0, 1.0, 0.55)
+        glEnable(GL_BLEND); glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
+        glScalef(0.004, size * 0.85, 0.004)
+        self._draw_sphere(1.0, 6, 6)
+        glDisable(GL_BLEND)
+        glPopMatrix()
+        # Cross-guard
+        glPushMatrix()
+        glColor3f(*color)
+        glTranslatef(0.0, -size * 0.08, 0.0)
+        glScalef(0.18, 0.022, 0.05)
+        self._draw_sphere(1.0, 8, 8)
+        glPopMatrix()
+        # Handle / grip with wrapping
+        glPushMatrix()
+        glTranslatef(0.0, -size * 0.22, 0.0)
+        c2 = [max(0, c - 0.2) for c in color]
+        glColor3f(*c2)
+        gluCylinder(quad, 0.030, 0.025, size * 0.18, 8, 1)
+        glPopMatrix()
+        # Pommel
+        glPushMatrix()
+        glTranslatef(0.0, -size * 0.40, 0.0)
+        glColor3f(*color)
+        self._draw_sphere(0.032, 8, 8)
+        glPopMatrix()
+        gluDeleteQuadric(quad)
+
+    def _draw_held_bow(self, size: float, color: list) -> None:
+        """Bow held in paw — arc of wood with string."""
+        import math as _m
+        quad = gluNewQuadric()
+        # Bow limbs: arc of small cylinders
+        num_seg = 12
+        arc_r = size * 0.38
+        for i in range(num_seg + 1):
+            a0 = _m.radians(-110 + i * (220 / num_seg))
+            a1 = _m.radians(-110 + (i+1) * (220 / num_seg))
+            if i >= num_seg:
+                break
+            x0, y0 = arc_r * _m.sin(a0), arc_r * _m.cos(a0)
+            x1, y1 = arc_r * _m.sin(a1), arc_r * _m.cos(a1)
+            dx, dy = x1 - x0, y1 - y0
+            length = _m.hypot(dx, dy)
+            angle  = _m.degrees(_m.atan2(dy, dx))
+            glPushMatrix()
+            glTranslatef(x0, y0, 0.0)
+            glRotatef(angle - 90, 0.0, 0.0, 1.0)
+            glColor3f(*color)
+            gluCylinder(quad, 0.018, 0.018, length, 6, 1)
+            glPopMatrix()
+        # String (thin pale line)
+        tip0y =  arc_r * _m.cos(_m.radians(-110))
+        tip1y =  arc_r * _m.cos(_m.radians( 110))
+        glBegin(GL_LINES)
+        glColor3f(0.9, 0.88, 0.78)
+        glVertex3f(0.0, tip0y, 0.0)
+        glVertex3f(0.0, tip1y, 0.0)
+        glEnd()
+        gluDeleteQuadric(quad)
+
+    def _draw_held_bamboo(self, size: float, color: list) -> None:
+        """Bamboo stalk with nodes."""
+        quad = gluNewQuadric()
+        seg_h = size / 5.0
+        for i in range(5):
+            y = i * seg_h
+            glPushMatrix()
+            glTranslatef(0.0, y, 0.0)
+            glColor3f(*color)
+            gluCylinder(quad, 0.026, 0.022, seg_h, 8, 1)
+            # Node ring
+            glTranslatef(0.0, seg_h, 0.0)
+            glColor3f(min(1.0, color[0]+0.06), min(1.0, color[1]+0.04), min(1.0, color[2]+0.0))
+            gluDisk(quad, 0.0, 0.030, 8, 1)
+            glPopMatrix()
+        gluDeleteQuadric(quad)
+
+    def _draw_held_toy_ball(self, size: float, color: list) -> None:
+        """Colourful toy ball."""
+        glColor3f(*color)
+        self._draw_sphere(size * 0.18, 14, 14)
+        # Stripe
+        glEnable(GL_BLEND); glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
+        glColor4f(1.0, 1.0, 1.0, 0.45)
+        glPushMatrix()
+        glScalef(1.0, 0.18, 1.0)
+        self._draw_sphere(size * 0.19, 10, 10)
+        glPopMatrix()
+        glDisable(GL_BLEND)
+
+    def _draw_held_flower(self, size: float, color: list) -> None:
+        """Simple flower — stem + petals."""
+        quad = gluNewQuadric()
+        # Stem
+        glColor3f(0.3, 0.65, 0.2)
+        gluCylinder(quad, 0.012, 0.010, size * 0.5, 6, 1)
+        # Petals
+        glTranslatef(0.0, size * 0.5, 0.0)
+        for i in range(6):
+            a = math.radians(i * 60)
+            glPushMatrix()
+            glTranslatef(math.cos(a) * 0.05, math.sin(a) * 0.05, 0.0)
+            glColor3f(*color)
+            self._draw_sphere(0.040, 8, 8)
+            glPopMatrix()
+        # Centre
+        glColor3f(1.0, 0.95, 0.2)
+        self._draw_sphere(0.028, 8, 8)
+        gluDeleteQuadric(quad)
+
+    def _draw_held_food(self, item_type: str, size: float, color: list) -> None:
+        """Generic food item."""
+        if 'fish' in item_type:
+            # Simple fish silhouette
+            glColor3f(*color)
+            glPushMatrix()
+            glScalef(0.06, 0.13, 0.04)
+            self._draw_sphere(1.0, 10, 10)
+            glPopMatrix()
+            glPushMatrix()
+            glTranslatef(0.0, -0.10, 0.0)
+            glScalef(0.10, 0.06, 0.02)
+            self._draw_sphere(1.0, 8, 8)
+            glPopMatrix()
+        elif 'apple' in item_type or 'fruit' in item_type:
+            glColor3f(*color)
+            self._draw_sphere(0.07, 12, 12)
+            glColor3f(0.3, 0.6, 0.1)
+            glPushMatrix()
+            glTranslatef(0.0, 0.06, 0.0)
+            glScalef(0.01, 0.055, 0.01)
+            quad = gluNewQuadric()
+            gluCylinder(quad, 1.0, 0.5, 1.0, 6, 1)
+            gluDeleteQuadric(quad)
+            glPopMatrix()
+        else:
+            # Default round food blob
+            glColor3f(*color)
+            self._draw_sphere(0.065, 10, 10)
+
     # ========================================================================
     # Autonomous Behavior
     # ========================================================================
@@ -2629,6 +2908,8 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
             ('celebrate',      0.08),
             ('crawl_around',   0.10),
             ('climb_wall',     0.07),
+            ('sit_back', 10),
+            ('hang_ceiling', 5),
         ]
         
         # Weighted random choice
@@ -2664,6 +2945,21 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
                                       lambda: (self.animation_state == 'climbing_wall'
                                                and self.set_animation_state('falling_back')))
                     QTimer.singleShot(idle_ms,
+                                      lambda: (self.animation_state == 'falling_back'
+                                               and self.set_animation_state('idle')))
+                elif activity == 'sit_back':
+                    self.set_animation_state('sitting_back')
+                    dur = random.uniform(3.0, 7.0)
+                    QTimer.singleShot(int(dur * 1000),
+                                      lambda: (self.animation_state == 'sitting_back'
+                                               and self.set_animation_state('idle')))
+                elif activity == 'hang_ceiling':
+                    self.set_animation_state('hanging_ceiling')
+                    dur = random.uniform(2.5, 5.0)
+                    QTimer.singleShot(int(dur * 1000),
+                                      lambda: (self.animation_state == 'hanging_ceiling'
+                                               and self.set_animation_state('falling_back')))
+                    QTimer.singleShot(int(dur * 1000) + 1800,
                                       lambda: (self.animation_state == 'falling_back'
                                                and self.set_animation_state('idle')))
                 break
@@ -3250,6 +3546,14 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
                 slot = 'pants'
             elif any(k in item_type for k in ('glasses', 'goggles')):
                 slot = 'glasses'
+            elif any(k in item_type for k in ('sword', 'bow', 'axe', 'staff', 'weapon', 'gun', 'blade', 'katana', 'bamboo', 'held_right')):
+                slot = 'held_right'
+            elif any(k in item_type for k in ('held_left', 'shield')):
+                slot = 'held_left'
+            elif any(k in item_type for k in ('gloves', 'gauntlet', 'mitten')):
+                slot = 'gloves'
+            elif any(k in item_type for k in ('food', 'fish', 'apple', 'cookie', 'toy', 'ball', 'flower')):
+                slot = 'held_right'
             else:
                 slot = 'accessory'
 

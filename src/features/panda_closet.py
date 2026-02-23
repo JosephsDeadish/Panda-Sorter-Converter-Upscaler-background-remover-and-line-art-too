@@ -23,6 +23,10 @@ class CustomizationCategory(Enum):
     HAT = "hat"
     SHOES = "shoes"
     ACCESSORY = "accessory"
+    WEAPON = "weapon"
+    FOOD = "food"
+    TOY = "toy"
+    GLOVES = "gloves"
 
 
 class ClothingSubCategory(Enum):

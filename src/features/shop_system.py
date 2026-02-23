@@ -46,6 +46,9 @@ SHOP_TO_CLOSET_CATEGORY = {
     ShopCategory.ACCESSORIES: "accessory",
     ShopCategory.FUR_STYLES: "fur_style",
     ShopCategory.FUR_COLORS: "fur_color",
+    ShopCategory.WEAPONS:   "weapon",
+    ShopCategory.FOOD:      "food",
+    ShopCategory.TOYS:      "toy",
 }
 
 
