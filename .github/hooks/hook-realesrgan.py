@@ -8,12 +8,12 @@ from PyInstaller.utils.hooks import collect_data_files
 binaries = []
 excludedimports = []
 
-# Force include these modules without trying to import them
+# Force include these modules without trying to import them.
+# NOTE: RRDBNet lives in basicsr.archs.rrdbnet_arch, NOT realesrgan.archs.
+# Listing realesrgan.archs.rrdbnet_arch would produce "not found" warnings;
+# basicsr hook already covers basicsr.archs.rrdbnet_arch.
 hiddenimports = [
     'realesrgan',
-    'realesrgan.archs',
-    'realesrgan.archs.rrdbnet_arch',
-    'realesrgan.data',
     'realesrgan.utils',
 ]
 

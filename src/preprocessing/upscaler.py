@@ -72,20 +72,48 @@ except Exception as e:
     NATIVE_AVAILABLE = False
     _native_lanczos = None
 
+# ---------------------------------------------------------------------------
+# torchvision compatibility shim for basicsr / realesrgan
+# ---------------------------------------------------------------------------
+# torchvision removed ``torchvision.transforms.functional_tensor`` in 0.16+.
+# basicsr ≤ 1.4.2 imports it directly.  We inject a thin compat module so
+# that ``import basicsr`` succeeds on any modern torchvision version.
+try:
+    import torchvision.transforms.functional_tensor as _tvft_check  # noqa: F401
+except (ImportError, ModuleNotFoundError):
+    try:
+        import sys as _sys
+        import types as _types
+        import torchvision.transforms.functional as _tvtf  # noqa: F401
+        _compat_mod = _types.ModuleType('torchvision.transforms.functional_tensor')
+        # Mirror functions that basicsr actually calls
+        for _attr in (
+            'rgb_to_grayscale', 'adjust_brightness', 'adjust_contrast',
+            'adjust_saturation', 'adjust_hue', 'normalize',
+            'pad', 'crop', 'center_crop', 'resize',
+            'to_tensor', 'to_pil_image',
+        ):
+            if hasattr(_tvtf, _attr):
+                setattr(_compat_mod, _attr, getattr(_tvtf, _attr))
+        _sys.modules['torchvision.transforms.functional_tensor'] = _compat_mod
+    except Exception:
+        pass  # best effort — if basicsr still fails the except below handles it
+# ---------------------------------------------------------------------------
+
 # Check for Real-ESRGAN - with comprehensive error handling
 REALESRGAN_AVAILABLE = False
 try:
     # Import both required packages
     import basicsr
     import realesrgan
-    
+
     # Import the specific classes we need
     from basicsr.archs.rrdbnet_arch import RRDBNet
     from realesrgan import RealESRGANer
-    
+
     REALESRGAN_AVAILABLE = True
     logger.info("✅ Real-ESRGAN upscaling available")
-    
+
 except ImportError as e:
     logger.warning(f"⚠️  Real-ESRGAN not available (optional): {e}")
     REALESRGAN_AVAILABLE = False

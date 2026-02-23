@@ -86,6 +86,13 @@ if sys.platform == 'win32':
                     fpath = os.path.join(root, fname)
                     flower = fname.lower()
                     if flower.endswith(('.dll', '.pyd')):
+                        # Skip old-MSVC-runtime DLLs (vc9/vc10 variants) —
+                        # they require MSVCR90.dll / MSVCR100.dll which are not
+                        # present on modern Windows and cause "Library not found"
+                        # warnings from PyInstaller.  The vc14+ variants (if
+                        # present) are preferred and work on Windows 10/11.
+                        if '.vc9.' in flower or '.vc10.' in flower:
+                            continue
                         # Compute destination relative to the opengl_dir parent
                         rel = os.path.relpath(root, sp)
                         key = flower
