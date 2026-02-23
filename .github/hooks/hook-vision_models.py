@@ -73,21 +73,21 @@ for imp in critical_imports:
 
 # Collect transformers data
 try:
-    datas.extend(collect_data_files('transformers', include_py_files=False))
+    datas.extend(collect_data_files('transformers', include_py_files=True))
     print(f"[vision_models hook] Collected transformers data files")
 except Exception as e:
     print(f"[vision_models hook] WARNING: Could not collect transformers data: {e}")
 
 # Collect timm data
 try:
-    datas.extend(collect_data_files('timm', include_py_files=False))
+    datas.extend(collect_data_files('timm', include_py_files=True))
     print(f"[vision_models hook] Collected timm data files")
 except Exception as e:
     print(f"[vision_models hook] WARNING: Could not collect timm data: {e}")
 
 # Collect open_clip data
 try:
-    datas.extend(collect_data_files('open_clip', include_py_files=False))
+    datas.extend(collect_data_files('open_clip', include_py_files=True))
     print(f"[vision_models hook] Collected open_clip data files")
 except Exception as e:
     print(f"[vision_models hook] WARNING: Could not collect open_clip data: {e}")

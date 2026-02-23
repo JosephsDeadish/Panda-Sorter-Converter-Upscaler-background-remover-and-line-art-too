@@ -216,7 +216,7 @@ class AIModelManager:
                 for pkg in model_info.get('required_packages', []):
                     __import__(pkg.replace('-', '_'))
                 return ModelStatus.INSTALLED
-            except ImportError as e:
+            except (ImportError, OSError, RuntimeError) as e:
                 logger.debug(f"Package {pkg} not installed for {model_name}: {e}")
                 return ModelStatus.MISSING
         

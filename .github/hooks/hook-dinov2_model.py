@@ -45,7 +45,7 @@ hiddenimports = [
 # Collect data files for timm (model configs, etc.)
 datas = []
 try:
-    datas.extend(collect_data_files('timm', include_py_files=False))
+    datas.extend(collect_data_files('timm', include_py_files=True))
     print(f"[dinov2_model hook] Collected timm data files")
 except Exception as e:
     print(f"[dinov2_model hook] WARNING: Could not collect timm data: {e}")

@@ -289,10 +289,16 @@ a = Analysis(
         'basicsr.utils.download_util',
         'realesrgan',
         'realesrgan.utils',
+        # torchvision — explicit submodules to guarantee bundling.
+        # hook-torchvision.py also runs collect_submodules() + include_py_files=True
+        # (needed so TorchScript inspect.getsource() works at runtime).
+        'torchvision.transforms.functional',   # used by basicsr compat shim
+        'torchvision.transforms.functional_tensor',  # may still exist in older installs
         # Additional Qt submodules used by the app
         'PyQt6.QtMultimedia',
         'PyQt6.QtPrintSupport',
         'PyQt6.QtNetwork',
+        'PyQt6.QtSvgWidgets',  # SVG rendering in UI
     ],
     hookspath=HOOKSPATH,  # Use validated hookspath variable
     hooksconfig={},

@@ -114,7 +114,7 @@ try:
     REALESRGAN_AVAILABLE = True
     logger.info("✅ Real-ESRGAN upscaling available")
 
-except ImportError as e:
+except (ImportError, OSError, RuntimeError) as e:
     logger.warning(f"⚠️  Real-ESRGAN not available (optional): {e}")
     REALESRGAN_AVAILABLE = False
 except Exception as e:
