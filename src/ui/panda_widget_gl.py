@@ -51,6 +51,10 @@ _BODY_PITCH_TARGETS: dict = {
     'hanging_window_edge': -55.0,  # body angled forward/down, arms reaching up
 }
 
+# Amount by which 'content' micro-emotion increases each grooming frame (~30fps).
+# Accumulates slowly so panda appears increasingly satisfied while grooming.
+_GROOMING_CONTENT_INCREMENT: float = 0.015
+
 # Maps every mood value used in PandaCharacter / PandaMoodSystem to an
 # animation state understood by the GL renderer.
 _MOOD_TO_ANIMATION: dict = {
@@ -253,7 +257,8 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
         
         # Autonomous behavior
         self.autonomous_mode = True
-        self.target_position = None  # Where panda is walking to
+        self.target_position = None       # Where panda is walking to
+        self._walk_arrived_cb = None      # Optional[Callable] fired when target reached
         self.walking_speed = 0.5  # Units per second
         self.idle_timer = 0.0
         self.next_activity_time = random.uniform(3.0, 8.0)
@@ -310,7 +315,7 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
         # Micro-emotion blend weights (pairs, run concurrently with main emotion)
         self._micro_emotion: dict = {
             'curious':    0.0, 'playful': 0.0, 'annoyed': 0.0,
-            'content':    0.0, 'nervous': 0.0,
+            'content':    0.0, 'nervous': 0.0, 'happy':   0.0,
         }
 
         # ── Animation blending ─────────────────────────────────────────────
@@ -1187,10 +1192,13 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
             if thinking > 0.2 and side == self._asym.get('eye_squint_side', 1):
                 squint = 1.0 - thinking * 0.22
 
-            # Micro-emotion: curious slightly widens; playful adds asymmetric tilt
+            # Micro-emotion: curious widens; playful adds asymmetric tilt; happy slightly narrows + lifts (smile shape)
             curious_w  = self._micro_emotion.get('curious', 0.0)
             playful_w  = self._micro_emotion.get('playful', 0.0)
-            blink_s = blink * (wide_factor + curious_w * 0.08) * squint
+            happy_w    = self._micro_emotion.get('happy',   0.0)
+            # Happy eye: cheek lifts compress the bottom of the eye (squint from below)
+            happy_squint = 1.0 - happy_w * 0.12
+            blink_s = blink * (wide_factor + curious_w * 0.08) * squint * happy_squint
 
             # ── Realistic eye mask: multi-layer ellipsoid + cheek extension ───
             # Per-instance asymmetry: one side is slightly bigger
@@ -2001,7 +2009,8 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
         self._update_idle_sub_behavior(dt)
 
         # ── Micro-emotion decay ───────────────────────────────────────────────
-        for k in self._micro_emotion:
+        # iterate over a snapshot so set_micro_emotion() won't cause RuntimeError
+        for k in tuple(self._micro_emotion):
             self._micro_emotion[k] = max(0.0, self._micro_emotion[k] - dt * 0.08)
 
     # ─── Follow-through springs ───────────────────────────────────────────────
@@ -2198,11 +2207,18 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
             return {}
 
         if s == 'grooming':
-            # Right paw lifts to head, small head tilt left
+            # Panda licks its paw then rubs over the ear / top of head.
+            # Full 3.5 s cycle: lift → rub (rapid oscillation) → lower.
             phase = t / 3.5
-            arm_r = -80.0 * math.sin(math.pi * phase) if phase < 1.0 else 0.0
-            head_z = -15.0 * math.sin(math.pi * phase)
-            return {'arm_r': arm_r, 'head_z': head_z}
+            swing  = math.sin(math.pi * phase)        # 0→1→0 envelope
+            rub_osc = math.sin(t * 14.0) * 10.0 * (1.0 - abs(2.0 * phase - 1.0))
+            arm_r  = -85.0 * swing + rub_osc          # right paw to head level
+            # Head turns toward the grooming paw and tilts slightly
+            head_z = -20.0 * swing                    # tilt toward right
+            head_x = -8.0 * swing                     # slight look-down
+            # Brief squint on grooming side (right eye)
+            self._micro_emotion['content'] = min(1.0, self._micro_emotion.get('content', 0.0) + _GROOMING_CONTENT_INCREMENT)
+            return {'arm_r': arm_r, 'head_z': head_z, 'head_x': head_x}
 
         elif s == 'stretching':
             # Both arms extend forward, body elongates
@@ -2226,9 +2242,10 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
             return {'head_z': head_z, 'head_x': head_x}
 
         elif s == 'sniffing':
-            # Head bobs up and down rapidly
-            head_x = math.sin(t * 12.0) * 8.0
-            return {'head_x': head_x}
+            # Head bobs up/down rapidly + small side twitch (nose-twitch effect)
+            head_x  = math.sin(t * 12.0) * 8.0
+            head_z  = math.sin(t * 7.3)  * 4.0   # slight side sway
+            return {'head_x': head_x, 'head_z': head_z}
 
         elif s == 'yawning':
             # Arms stretch out, jaw opens wide, then closes
@@ -2298,9 +2315,15 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
         self._micro_emotion['content'] = 0.9
 
     def set_micro_emotion(self, emotion_name: str, weight: float = 0.8):
-        """Blend in a micro-emotion (curious, playful, annoyed, content, nervous)."""
-        if emotion_name in self._micro_emotion:
-            self._micro_emotion[emotion_name] = max(0.0, min(1.0, weight))
+        """Blend in a micro-emotion (curious, playful, annoyed, content, nervous, happy, …).
+
+        Unknown emotion names are registered on first use so callers never silently fail.
+        """
+        clamped = max(0.0, min(1.0, weight))
+        # Allow any emotion name — registers at 0.0 if unseen before
+        if emotion_name not in self._micro_emotion:
+            self._micro_emotion[emotion_name] = 0.0
+        self._micro_emotion[emotion_name] = clamped
 
     def apply_squash_effect(self, scale: float = 0.85):
         """Temporarily squash/stretch the panda body (1.0 = normal, <1 = squash).
@@ -3814,10 +3837,12 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
         """Enable or disable autonomous wandering."""
         self.autonomous_mode = enabled
     
-    def walk_to_position(self, x: float, y: float, z: float):
-        """Make panda walk to specific position."""
+    def walk_to_position(self, x: float, y: float, z: float,
+                         callback: Optional[Callable] = None) -> None:
+        """Make panda walk to *x, y, z*.  Calls *callback* (no args) when arrived."""
         self.target_position = (x, y, z)
-        self.set_animation_state('walking')
+        self._walk_arrived_cb = callback
+        self.transition_to_state('walking')
     
     def _update_autonomous_behavior(self, delta_time: float):
         """Update autonomous walking and activities."""
@@ -3850,10 +3875,17 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
         
         distance = math.sqrt(dx*dx + dy*dy + dz*dz)
         
-        if distance < 0.1:
-            # Reached target
+        if distance < 0.12:
+            # Reached target — fire optional callback, then return to idle
             self.target_position = None
-            self.set_animation_state('idle')
+            self.transition_to_state('idle')
+            cb = getattr(self, '_walk_arrived_cb', None)
+            self._walk_arrived_cb = None  # clear before calling so re-entrancy is safe
+            if callable(cb):
+                try:
+                    cb()
+                except Exception as _e:  # noqa: BLE001
+                    logger.debug('walk_arrived_cb: %s', _e)
             return
         
         # Normalize direction

@@ -545,7 +545,13 @@ class TransparentPandaOverlay(QOpenGLWidget if PYQT_AVAILABLE else QWidget):
             gl.start_hug_window()
         else:
             self.set_animation_state('climbing_wall')
-    
+
+    def set_micro_emotion(self, emotion_name: str, weight: float = 0.8):
+        """Delegate micro-emotion to the 3D GL widget."""
+        gl = self._gl()
+        if gl and hasattr(gl, 'set_micro_emotion'):
+            gl.set_micro_emotion(emotion_name, weight)
+
     # ===========================
     # UI INTERACTION SYSTEM
     # ===========================

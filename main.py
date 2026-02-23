@@ -10,6 +10,7 @@ import sys
 import os
 import importlib
 import logging
+import functools
 from pathlib import Path
 
 # Fix Unicode encoding issues on Windows
@@ -4436,8 +4437,12 @@ class TextureSorterMainWindow(QMainWindow):
 
         try:
             if self.panda_widget and hasattr(self.panda_widget, 'walk_to_position'):
-                self.panda_widget.walk_to_position(walk_x, 0.0, walk_z)
-                QTimer.singleShot(1400, lambda: _safe_open(self.panda_widget, furniture_id))
+                # Use arrival callback instead of fixed timer — panda opens
+                # furniture as soon as it physically reaches the walk target.
+                self.panda_widget.walk_to_position(
+                    walk_x, 0.0, walk_z,
+                    callback=functools.partial(_safe_open, self.panda_widget, furniture_id),
+                )
         except Exception as _e:
             logger.debug(f"Bedroom walk: {_e}")
 
@@ -4459,7 +4464,8 @@ class TextureSorterMainWindow(QMainWindow):
                     self._show_home_sub_panel(ach_widget, '🏆 Achievements')
                 except Exception as _e2:
                     logger.debug(f"Trophy panel: {_e2}")
-            QTimer.singleShot(900, _open_achievements)
+            # Show 500 ms after panda opens the trophy stand animation
+            QTimer.singleShot(500, _open_achievements)
             self.statusBar().showMessage(
                 "🏆 Panda is going to look at their trophies…", 3000
             )
@@ -4491,7 +4497,8 @@ class TextureSorterMainWindow(QMainWindow):
             except Exception as _e2:
                 logger.debug(f"Inventory panel open: {_e2}")
 
-        QTimer.singleShot(900, _open_inventory)
+        # Show 500 ms after the open_furniture animation starts
+        QTimer.singleShot(500, _open_inventory)
         self.statusBar().showMessage(
             f"🐼 Panda is going to the {furniture_id.replace('_', ' ').title()}…", 3000
         )
