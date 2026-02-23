@@ -292,6 +292,7 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
         self._look_yaw_tgt  = 0.0
         self._look_pitch_tgt = 0.0
         self.setMouseTracking(True)
+        self.setAcceptDrops(True)   # accept food/toy drops from inventory panel
 
         # ── Fatigue / boredom system ─────────────────────────────────────────
         self._fatigue           = 0.0   # 0=fresh → 1=exhausted
@@ -2769,6 +2770,63 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
         self.last_mouse_pos = None
         self.drag_start_pos = None
         self.is_dragging = False
+
+    def dragEnterEvent(self, event) -> None:
+        """Accept food/toy drops dragged from the inventory panel."""
+        try:
+            if event.mimeData().hasText():
+                text = event.mimeData().text()
+                if text.startswith('panda_item:'):
+                    event.acceptProposedAction()
+                    return
+        except Exception:
+            pass
+        event.ignore()
+
+    def dragMoveEvent(self, event) -> None:
+        """Keep accepting the drag so the cursor stays as a copy icon."""
+        try:
+            if event.mimeData().hasText() and event.mimeData().text().startswith('panda_item:'):
+                event.acceptProposedAction()
+                return
+        except Exception:
+            pass
+        event.ignore()
+
+    def dropEvent(self, event) -> None:
+        """Item dropped on panda — play eat/play animation, trigger sniff→react."""
+        try:
+            text = event.mimeData().text()
+            if not text.startswith('panda_item:'):
+                event.ignore()
+                return
+            parts = text.split(':', 2)
+            item_id = parts[1] if len(parts) > 1 else 'item'
+            category = parts[2] if len(parts) > 2 else ''
+            event.acceptProposedAction()
+
+            # Sniff the incoming item, then react with eating/playing animation
+            self.notify_file_dragged(item_id)
+            is_food = 'food' in category.lower()
+            def _react_to_item():
+                if is_food:
+                    self._jaw_open = 0.8
+                    self._surprised_eye_t = 0.4
+                    self._micro_emotion['happy'] = min(1.0, self._micro_emotion.get('happy', 0) + 0.6)
+                    self._play_sound('boop')
+                    QTimer.singleShot(900, lambda: setattr(self, '_jaw_open', 0.0))
+                else:
+                    # Toy — playful reaction
+                    self.set_animation_state('waving')
+                    self._surprised_eye_t = 0.35
+                    self._micro_emotion['playful'] = min(1.0, self._micro_emotion.get('playful', 0) + 0.7)
+                    QTimer.singleShot(1500, lambda: (
+                        self.animation_state == 'waving'
+                        and self.set_animation_state('idle') is None
+                    ))
+            QTimer.singleShot(500, _react_to_item)
+        except Exception as _e:
+            logger.debug(f"Panda dropEvent error: {_e}")
     
     def wheelEvent(self, event):
         """Handle mouse wheel for zooming."""

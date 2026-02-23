@@ -524,18 +524,41 @@ class PandaWorldGL(
             glPopMatrix()
 
     def _draw_hover_highlights(self):
-        """Hover labels drawn as coloured outlines + destination panels."""
-        if not self._hover:
+        """Draw GL line-loop outlines for whichever region is hovered.
+
+        Car and otter highlights are drawn inline (inside their own draw methods)
+        so we only need to cover the remaining three regions here.
+        """
+        if self._hover not in ('home', 'shop', 'park_btn'):
             return
-        labels = {
-            'car':   '🚗 Drive here',
-            'shop':  '🏪 Visit Shop',
-            'otter': '🦦 Talk to Otter',
-            'home':  '🏠 Go Home',
-            'park_btn': '🌲 Visit Park',
-        }
-        # (In a real render we'd use QFontMetrics; we just draw a highlight rect.)
-        pass   # highlights are drawn inline above
+
+        glDisable(GL_LIGHTING)
+        glColor3f(1.0, 1.0, 0.2)
+        glLineWidth(2.5)
+
+        if self._hover == 'home':
+            # Outline around the house façade (west side)
+            glBegin(GL_LINE_LOOP)
+            for vx, vz in [(-5.8, -5.4), (-2.2, -5.4), (-2.2, -2.1), (-5.8, -2.1)]:
+                glVertex3f(vx, 3.5, vz)
+            glEnd()
+
+        elif self._hover == 'shop':
+            # Outline around the shop front (east side)
+            glBegin(GL_LINE_LOOP)
+            for vx, vz in [(2.1, -5.4), (5.9, -5.4), (5.9, -2.1), (2.1, -2.1)]:
+                glVertex3f(vx, 3.5, vz)
+            glEnd()
+
+        elif self._hover == 'park_btn':
+            # Outline around the park sign / far-back area
+            glBegin(GL_LINE_LOOP)
+            for vx, vz in [(-1.4, 3.1), (1.4, 3.1), (1.4, 4.9), (-1.4, 4.9)]:
+                glVertex3f(vx, 2.0, vz)
+            glEnd()
+
+        glLineWidth(1.0)
+        glEnable(GL_LIGHTING)
 
     # ── Mouse interaction ─────────────────────────────────────────────────────
     def mouseMoveEvent(self, event):

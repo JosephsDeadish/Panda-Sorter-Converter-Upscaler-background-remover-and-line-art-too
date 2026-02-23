@@ -8,10 +8,11 @@ import logging
 try:
     from PyQt6.QtWidgets import (
         QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
-        QScrollArea, QFrame, QGridLayout, QComboBox, QLineEdit
+        QScrollArea, QFrame, QGridLayout, QComboBox, QLineEdit,
+        QApplication,
     )
-    from PyQt6.QtCore import Qt, pyqtSignal
-    from PyQt6.QtGui import QFont
+    from PyQt6.QtCore import Qt, pyqtSignal, QMimeData, QPoint
+    from PyQt6.QtGui import QFont, QDrag
     PYQT_AVAILABLE = True
 except (ImportError, OSError, RuntimeError):
     PYQT_AVAILABLE = False
@@ -47,9 +48,13 @@ class InventoryItemWidget(QFrame):
     
     item_selected = pyqtSignal(str)  # item_id
     
+    # Category values whose items can be dragged to the panda
+    _DRAGGABLE_CATEGORIES = {'food', 'toys', 'toy', 'food_item'}
+
     def __init__(self, item: 'ShopItem', parent=None):
         super().__init__(parent)
         self.item = item
+        self._drag_start_pos: 'QPoint | None' = None
         self.setup_ui()
         
     def setup_ui(self):
@@ -101,10 +106,40 @@ class InventoryItemWidget(QFrame):
         layout.addWidget(owned_label)
         
     def mousePressEvent(self, event):
-        """Handle click"""
+        """Handle click and record drag start position."""
         if event.button() == Qt.MouseButton.LeftButton:
+            self._drag_start_pos = event.pos()
             self.item_selected.emit(self.item.id)
         super().mousePressEvent(event)
+
+    def mouseMoveEvent(self, event):
+        """Start a QDrag when dragging a food or toy item."""
+        if not PYQT_AVAILABLE:
+            return
+        if self._drag_start_pos is None:
+            return
+        if not (event.buttons() & Qt.MouseButton.LeftButton):
+            return
+        dist = (event.pos() - self._drag_start_pos).manhattanLength()
+        if dist < QApplication.startDragDistance():
+            return
+        # Only drag food / toy items to the panda
+        item_cat = str(getattr(self.item, 'category', '') or '').lower()
+        if item_cat not in self._DRAGGABLE_CATEGORIES:
+            return
+        try:
+            mime = QMimeData()
+            mime.setText(f'panda_item:{self.item.id}:{item_cat}')
+            drag = QDrag(self)
+            drag.setMimeData(mime)
+            drag.exec(Qt.DropAction.CopyAction)
+        except Exception:
+            pass
+        self._drag_start_pos = None
+
+    def mouseReleaseEvent(self, event):
+        self._drag_start_pos = None
+        super().mouseReleaseEvent(event)
 
 
 class InventoryPanelQt(QWidget):

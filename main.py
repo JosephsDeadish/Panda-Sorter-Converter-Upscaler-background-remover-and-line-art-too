@@ -544,6 +544,11 @@ class TextureSorterMainWindow(QMainWindow):
         self.setMinimumSize(900, 650)
         # Enable file drag-and-drop across the whole window
         self.setAcceptDrops(True)
+        # Install app-level event filter to detect button hover → panda peeks/pokes
+        try:
+            QApplication.instance().installEventFilter(self)
+        except Exception:
+            pass
         # Set window icon
         icon_path = Path(__file__).parent / 'assets' / 'icon.ico'
         if icon_path.exists():
@@ -3022,7 +3027,8 @@ class TextureSorterMainWindow(QMainWindow):
             if self.quest_system:
                 self.quest_system.check_quests(1)
                 if hasattr(self.quest_system, 'update_quest_progress'):
-                    self.quest_system.update_quest_progress(f'{tool_id}_user', 1)
+                    # 'panda_friend' tracks general tool/interaction usage
+                    self.quest_system.update_quest_progress('panda_friend', 1)
         except Exception as _e:
             logger.debug(f"Quest progress update failed for {tool_id}: {_e}")
         # XP
@@ -4690,6 +4696,22 @@ class TextureSorterMainWindow(QMainWindow):
             f"</ul>"
             f"<p>Author: Dead On The Inside / JosephsDeadish</p>"
         )
+
+    # ── App-level event filter: button hover → panda peek/poke ──────────────
+    def eventFilter(self, obj: 'QObject', event: 'QEvent') -> bool:
+        """Intercept mouse-enter events on QPushButton widgets so the panda
+        can react (peek / poke) when the cursor hovers over a button."""
+        try:
+            from PyQt6.QtCore import QEvent
+            from PyQt6.QtWidgets import QPushButton
+            if (event.type() == QEvent.Type.Enter
+                    and isinstance(obj, QPushButton)
+                    and self.panda_widget
+                    and hasattr(self.panda_widget, 'notify_button_nearby')):
+                self.panda_widget.notify_button_nearby()
+        except Exception:
+            pass
+        return super().eventFilter(obj, event)
 
     # ── Drag-and-drop file handling ──────────────────────────────────────────
     def dragEnterEvent(self, event: 'QDragEnterEvent'):
