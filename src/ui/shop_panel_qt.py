@@ -131,8 +131,113 @@ class ShopItemWidget(QFrame):
             """)
         layout.addWidget(btn)
 
+    def mouseDoubleClickEvent(self, event):  # type: ignore[override]
+        """Open item detail dialog on double-click."""
+        try:
+            dlg = ItemDetailDialog(self.item, self.owned, parent=self.window())
+            dlg.exec()
+            if getattr(dlg, 'buy_requested', False) and not self.owned:
+                self.purchase_requested.emit(self.item.id)
+        except (ImportError, AttributeError, RuntimeError) as _e:
+            logger.debug(f"ShopItemWidget double-click dialog: {_e}")
+        super().mouseDoubleClickEvent(event)
 
-class ShopPanelQt(QWidget):
+
+class ItemDetailDialog:
+    """Modal dialog showing full item details with buy/equip button."""
+
+    def __init__(self, item, owned: bool, parent=None):
+        if not PYQT_AVAILABLE:
+            return
+        from PyQt6.QtWidgets import QDialog, QDialogButtonBox  # type: ignore
+        from PyQt6.QtCore import QSize  # type: ignore
+
+        dlg = QDialog(parent)
+        dlg.setWindowTitle(item.name)
+        dlg.setFixedSize(QSize(320, 420))
+        dlg.setStyleSheet("QDialog { background: #1a1a2e; color: #e0e0e0; }")
+
+        layout = QVBoxLayout(dlg)
+        layout.setSpacing(12)
+        layout.setContentsMargins(20, 20, 20, 20)
+
+        # Large icon
+        icon_lbl = QLabel(getattr(item, 'icon', '🎁'))
+        icon_lbl.setFont(QFont("Segoe UI", 48))
+        icon_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(icon_lbl)
+
+        # Name
+        name_lbl = QLabel(item.name)
+        name_lbl.setFont(QFont("Segoe UI", 16, QFont.Weight.Bold))
+        name_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        name_lbl.setStyleSheet("color: #ffffff;")
+        layout.addWidget(name_lbl)
+
+        # Rarity badge
+        rarity = getattr(item, 'rarity', None)
+        if rarity is not None:
+            rarity_str = rarity.name if hasattr(rarity, 'name') else str(rarity)
+            try:
+                from ui.closet_display_qt import _RARITY_COLORS as _RC
+            except (ImportError, OSError, RuntimeError):
+                _RC = {'common': '#aaaaaa', 'uncommon': '#55cc55',
+                       'rare': '#5599ff', 'epic': '#cc55ff', 'legendary': '#ffaa00'}
+            col = _RC.get(rarity_str.lower(), '#9e9e9e')
+            rar_lbl = QLabel(rarity_str.capitalize())
+            rar_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            rar_lbl.setStyleSheet(
+                f"color: {col}; font-weight: bold; font-size: 11px;"
+                " border: 1px solid; border-radius: 4px; padding: 2px 8px;"
+                f" border-color: {col};"
+            )
+            layout.addWidget(rar_lbl)
+
+        # Description
+        desc = QLabel(getattr(item, 'description', ''))
+        desc.setWordWrap(True)
+        desc.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        desc.setStyleSheet("color: #b0b0b0; font-size: 11px;")
+        layout.addWidget(desc)
+
+        # Price
+        price_lbl = QLabel(
+            "✅ Owned" if owned else f"💰 {getattr(item, 'price', 0):,} Bamboo Bucks"
+        )
+        price_lbl.setFont(QFont("Segoe UI", 12, QFont.Weight.Bold))
+        price_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        price_lbl.setStyleSheet("color: #4CAF50;" if owned else "color: #FFD700;")
+        layout.addWidget(price_lbl)
+
+        layout.addStretch()
+
+        # Action button
+        if owned:
+            btn = QPushButton("✓ Owned")
+            btn.setEnabled(False)
+            btn.setStyleSheet(
+                "background:#555; color:#aaa; padding:10px; border-radius:6px;"
+            )
+        else:
+            btn = QPushButton("🛒 Buy")
+            btn.setStyleSheet(
+                "background:#4CAF50; color:white; padding:10px;"
+                " border-radius:6px; font-weight:bold; font-size:13px;"
+            )
+            btn.clicked.connect(lambda: (
+                setattr(self, 'buy_requested', True),
+                dlg.accept(),
+            ))
+        layout.addWidget(btn)
+
+        self._dlg = dlg
+
+    def exec(self):
+        try:
+            return self._dlg.exec()
+        except (RuntimeError, AttributeError) as e:
+            logger.debug(f"ItemDetailDialog.exec: {e}")
+            return 0
     """Main shop panel for purchasing items"""
     
     item_purchased = pyqtSignal(str)  # item_id
@@ -358,6 +463,13 @@ class ShopPanelQt(QWidget):
                     msg or "Could not complete purchase. Item may already be owned."
                 )
     
+    def update_coin_display(self, balance: int) -> None:
+        """Update the coin balance label (called by main.py after purchase/earn)."""
+        try:
+            self.currency_label.setText(f"💰 {balance:,} Bamboo Bucks")
+        except Exception:
+            pass
+
     def _set_tooltip(self, widget, tooltip_key: str):
         """Set tooltip using tooltip manager if available."""
         if self.tooltip_manager:

@@ -3857,8 +3857,9 @@ class TextureSorterMainWindow(QMainWindow):
     def on_shop_item_purchased(self, item_id: str):
         """Handle item purchase from shop panel."""
         try:
-            # Deduct cost before applying the item
-            if not self._deduct_coins(item_id):
+            # The ShopPanelQt already deducted coins via currency_system.subtract().
+            # Skip double-deduction by checking is_purchased status.
+            if not self._deduct_coins(item_id, skip_if_already_purchased=True):
                 return  # insufficient coins — _on_not_enough_coins already called
             logger.info(f"Item purchased: {item_id}")
             self.log(f"🛒 Purchased item: {item_id}")
@@ -3911,11 +3912,23 @@ class TextureSorterMainWindow(QMainWindow):
         except Exception as e:
             logger.error(f"Error handling shop purchase: {e}", exc_info=True)
 
-    def _deduct_coins(self, item_id: str) -> bool:
-        """Deduct item cost from currency_system.  Returns True on success."""
+    def _deduct_coins(self, item_id: str, skip_if_already_purchased: bool = False) -> bool:
+        """Deduct item cost from currency_system.  Returns True on success.
+
+        Pass skip_if_already_purchased=True when the purchase was handled by
+        ShopPanelQt (which already deducted coins internally via subtract()).
+        """
         try:
             if not self.currency_system:
                 return True  # no economy → treat as free
+            # If the shop panel already deducted, don't double-charge.
+            if skip_if_already_purchased and self.shop_system:
+                try:
+                    if self.shop_system.is_purchased(item_id):
+                        self._update_coin_display()
+                        return True
+                except Exception:
+                    pass
             cost = 0
             try:
                 if self.shop_system:

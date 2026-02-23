@@ -139,6 +139,19 @@ class ClothingItemWidget(QFrame):
             self.clicked.emit(self.item_data)
         super().mousePressEvent(event)
 
+    def mouseDoubleClickEvent(self, event):  # type: ignore[override]
+        """Open closet item detail dialog on double-click."""
+        try:
+            from ui.closet_item_detail_dialog import ClosetItemDetailDialog
+            dlg = ClosetItemDetailDialog(self.item_data, parent=self.window())
+            dlg.exec()
+            if dlg.equip_requested and self.item_data.get('unlocked', True):
+                # Equip the item as if the user clicked it
+                self.clicked.emit(self.item_data)
+        except (ImportError, AttributeError, RuntimeError) as _e:
+            logger.debug(f"ClothingItemWidget double-click dialog: {_e}")
+        super().mouseDoubleClickEvent(event)
+
 
 class ClosetDisplayWidget(QWidget):
     """Complete closet display with category filter, search, lock/unlock badges."""
