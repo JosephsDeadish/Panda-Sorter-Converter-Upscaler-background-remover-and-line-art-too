@@ -433,6 +433,11 @@ class TextureSorterMainWindow(QMainWindow):
         self._bedroom_widget = None   # PandaBedroomGL instance
         self._panda_tabs = None       # inner QTabWidget for panda features
         self._inventory_panel = None  # InventoryPanelQt instance
+        self._home_tab_index = -1     # index of the "🏠 Panda Home" tab
+        self._home_stack = None       # QStackedWidget: page 0=bedroom, page 1=sub-panel
+        self._home_tab_widget = None  # QWidget wrapper that owns the stack
+        self._home_back_btn = None    # QPushButton "← Back to Home"
+        self._home_sub_label = None   # QLabel showing current sub-panel title
         self.level_system = None        # UserLevelSystem – XP / levelling
         self.auto_backup = None         # AutoBackupSystem – periodic state backup
         self.unlockables_system = None  # UnlockablesSystem – cursors/themes/outfits
@@ -1269,7 +1274,7 @@ class TextureSorterMainWindow(QMainWindow):
         except Exception as e:
             logger.error(f"Could not load customization panel: {e}", exc_info=True)
         
-        # 2. Bedroom Tab (replaces old Shop tab — shop system kept for purchases in inventory)
+        # 2. Panda Home Tab — stacked widget: page 0 = 3D bedroom, page 1 = sub-panel
         try:
             from ui.panda_bedroom_gl import PandaBedroomGL
             from features.shop_system import ShopSystem
@@ -1279,20 +1284,82 @@ class TextureSorterMainWindow(QMainWindow):
             self.shop_system = ShopSystem()
             self.currency_system = CurrencySystem()
 
+            # ── Build stacked container ────────────────────────────────────
+            home_container = QWidget()
+            home_vbox = QVBoxLayout(home_container)
+            home_vbox.setContentsMargins(0, 0, 0, 0)
+            home_vbox.setSpacing(0)
+
+            # Back-button toolbar (hidden while on bedroom page)
+            back_bar = QWidget()
+            back_bar.setObjectName("homeBackBar")
+            back_bar.setStyleSheet(
+                "#homeBackBar { background: #1a1a2e; border-bottom: 1px solid #333; }"
+            )
+            back_bar_layout = QHBoxLayout(back_bar)
+            back_bar_layout.setContentsMargins(6, 4, 6, 4)
+
+            back_btn = QPushButton("← Back to Home")
+            back_btn.setFixedHeight(28)
+            back_btn.setStyleSheet(
+                "QPushButton { background: #2a2a4e; color: #aaaaff; border: 1px solid #555; "
+                "border-radius: 4px; padding: 0 10px; } "
+                "QPushButton:hover { background: #3a3a6e; }"
+            )
+            sub_label = QLabel("")
+            sub_label.setStyleSheet("color: #cccccc; font-weight: bold; padding-left: 8px;")
+
+            back_bar_layout.addWidget(back_btn)
+            back_bar_layout.addWidget(sub_label)
+            back_bar_layout.addStretch()
+            back_bar.hide()
+
+            # Stacked widget
+            stack = QStackedWidget()
+
+            # Page 0: 3D Bedroom
             bedroom_gl = PandaBedroomGL()
             bedroom_gl.furniture_clicked.connect(self._on_bedroom_furniture_clicked)
             if hasattr(bedroom_gl, 'gl_failed'):
                 bedroom_gl.gl_failed.connect(
                     lambda msg: logger.warning(f"Bedroom GL failed: {msg}")
                 )
+            stack.addWidget(bedroom_gl)   # index 0
+
+            # Page 1: placeholder — real sub-panel inserted dynamically
+            stack.addWidget(QLabel(""))   # index 1 (replaced on demand)
+
+            home_vbox.addWidget(back_bar)
+            home_vbox.addWidget(stack, 1)
+
+            # Save refs
             self._bedroom_widget = bedroom_gl
-            panda_tabs.addTab(bedroom_gl, "🛏️ Bedroom")
-            logger.info("✅ 3D Bedroom panel added to panda tab")
+            self._home_stack = stack
+            self._home_tab_widget = home_container
+            self._home_back_btn = back_btn
+            self._home_sub_label = sub_label
+            self._home_back_bar = back_bar
+
+            # Back button returns to bedroom
+            def _go_home():
+                stack.setCurrentIndex(0)
+                back_bar.hide()
+                if self._panda_tabs and self._home_tab_index >= 0:
+                    self._panda_tabs.setTabText(
+                        self._home_tab_index, "🏠 Panda Home"
+                    )
+            back_btn.clicked.connect(_go_home)
+
+            panda_tabs.addTab(home_container, "🏠 Panda Home")
+            self._home_tab_index = panda_tabs.indexOf(home_container)
+            logger.info("✅ 3D Panda Home panel added to panda tab")
+
         except Exception as e:
-            logger.error(f"Could not load Bedroom panel: {e}", exc_info=True)
-            label = QLabel("⚠️ 3D Bedroom not available\n\nRequires PyQt6 + OpenGL")
+            logger.error(f"Could not load Panda Home panel: {e}", exc_info=True)
+            label = QLabel("⚠️ 3D Panda Home not available\n\nRequires PyQt6 + OpenGL")
             label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            panda_tabs.addTab(label, "🛏️ Bedroom")
+            panda_tabs.addTab(label, "🏠 Panda Home")
+            self._home_tab_index = panda_tabs.indexOf(label)
 
         # 3. Inventory Tab
         try:
@@ -4115,13 +4182,38 @@ class TextureSorterMainWindow(QMainWindow):
         except Exception as _e:
             logger.debug(f"Minigame completed callback error: {_e}")
 
+    # ── Home tab navigation helpers ────────────────────────────────────────────
+    def _show_home_sub_panel(self, widget: 'QWidget', title: str) -> None:
+        """Slide *widget* into page 1 of the Home stack, update tab + back-bar labels."""
+        try:
+            if not self._home_stack:
+                return
+            # Replace page-1 widget
+            old = self._home_stack.widget(1)
+            if old is not None:
+                self._home_stack.removeWidget(old)
+            self._home_stack.insertWidget(1, widget)
+            self._home_stack.setCurrentIndex(1)
+
+            # Show back-bar with context title
+            if self._home_back_bar:
+                self._home_back_bar.show()
+            if self._home_sub_label:
+                self._home_sub_label.setText(title)
+
+            # Update the tab label in the outer tab bar
+            if self._panda_tabs and self._home_tab_index >= 0:
+                self._panda_tabs.setTabText(self._home_tab_index, f"🏠 {title}")
+                self._panda_tabs.setCurrentIndex(self._home_tab_index)
+        except Exception as _e:
+            logger.debug(f"_show_home_sub_panel: {_e}")
+
     def _on_bedroom_furniture_clicked(self, furniture_id: str) -> None:
         """Handle furniture click in the 3D bedroom.
 
         1. Walk panda to the furniture's world position.
         2. After arrival delay → play open_furniture animation.
-        3. Switch to Inventory tab filtered by the furniture's category,
-           OR to Achievements tab for the trophy stand.
+        3. Slide the corresponding sub-panel into the Home stack (NOT a separate tab).
         """
         def _safe_open(widget, fid):
             try:
@@ -4130,22 +4222,18 @@ class TextureSorterMainWindow(QMainWindow):
             except Exception:
                 pass
 
-        # Trophy stand → go to achievements tab, not inventory
-        if furniture_id == 'trophy_stand':
-            try:
-                if self._panda_tabs:
-                    for i in range(self._panda_tabs.count()):
-                        if '🏆' in self._panda_tabs.tabText(i):
-                            self._panda_tabs.setCurrentIndex(i)
-                            break
-                if self.panda_widget and hasattr(self.panda_widget, 'walk_to_position'):
-                    self.panda_widget.walk_to_position(0.0, 0.0, -2.0)
-                    QTimer.singleShot(1400, lambda: _safe_open(self.panda_widget, 'trophy_stand'))
-            except Exception as _e:
-                logger.debug(f"Trophy stand click: {_e}")
-            return
+        # ── Map furniture → sub-panel title ───────────────────────────────────
+        _TITLES = {
+            'wardrobe':    '👗 Wardrobe',
+            'armor_rack':  '🛡️ Armor',
+            'weapons_rack':'⚔️ Weapons',
+            'toy_box':     '🧸 Toy Box',
+            'fridge':      '🍎 Fridge',
+            'trophy_stand':'🏆 Achievements',
+        }
+        sub_title = _TITLES.get(furniture_id, furniture_id.replace('_', ' ').title())
 
-        # Get walk target from bedroom widget
+        # ── Walk panda to furniture first ─────────────────────────────────────
         walk_x, walk_z = 0.0, 0.0
         category = 'All'
         try:
@@ -4157,7 +4245,6 @@ class TextureSorterMainWindow(QMainWindow):
         except Exception:
             pass
 
-        # Walk panda to furniture
         try:
             if self.panda_widget and hasattr(self.panda_widget, 'walk_to_position'):
                 self.panda_widget.walk_to_position(walk_x, 0.0, walk_z)
@@ -4165,31 +4252,61 @@ class TextureSorterMainWindow(QMainWindow):
         except Exception as _e:
             logger.debug(f"Bedroom walk: {_e}")
 
-        # Switch to Inventory tab and set category filter
-        def _switch_tab():
+        # ── Trophy stand → show Achievements panel ─────────────────────────────
+        if furniture_id == 'trophy_stand':
+            def _open_achievements():
+                try:
+                    ach_widget = None
+                    # Try to find an existing achievement panel in panda_tabs
+                    if self._panda_tabs:
+                        for i in range(self._panda_tabs.count()):
+                            if '🏆' in self._panda_tabs.tabText(i):
+                                ach_widget = self._panda_tabs.widget(i)
+                                break
+                    if ach_widget is None:
+                        # Build a minimal placeholder
+                        ach_widget = QLabel("🏆 Achievements\n\n(No achievement panel found)")
+                        ach_widget.setAlignment(Qt.AlignmentFlag.AlignCenter)
+                    self._show_home_sub_panel(ach_widget, '🏆 Achievements')
+                except Exception as _e2:
+                    logger.debug(f"Trophy panel: {_e2}")
+            QTimer.singleShot(900, _open_achievements)
+            self.statusBar().showMessage(
+                "🏆 Panda is going to look at their trophies…", 3000
+            )
+            return
+
+        # ── All other furniture → show filtered Inventory panel ───────────────
+        def _open_inventory():
             try:
-                if not self._panda_tabs:
+                # Build or reuse inventory panel
+                inv = self._inventory_panel
+                if inv is None:
+                    label = QLabel(f"📦 {sub_title}\n\n(Inventory not available)")
+                    label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+                    self._show_home_sub_panel(label, sub_title)
                     return
-                for i in range(self._panda_tabs.count()):
-                    if '📦' in self._panda_tabs.tabText(i):
-                        self._panda_tabs.setCurrentIndex(i)
-                        break
-                if self._inventory_panel and hasattr(self._inventory_panel, 'category_combo'):
-                    combo = self._inventory_panel.category_combo
+
+                # Set category filter before showing
+                if hasattr(inv, 'category_combo'):
+                    combo = inv.category_combo
                     idx = combo.findText(category)
                     if idx >= 0:
                         combo.setCurrentIndex(idx)
                     else:
-                        combo.setCurrentIndex(0)   # fallback to "All"
-                if self._inventory_panel and hasattr(self._inventory_panel, 'refresh_inventory'):
-                    self._inventory_panel.refresh_inventory()
-            except Exception as _e:
-                logger.debug(f"Bedroom tab switch: {_e}")
+                        combo.setCurrentIndex(0)
+                if hasattr(inv, 'refresh_inventory'):
+                    inv.refresh_inventory()
 
-        QTimer.singleShot(800, _switch_tab)
+                self._show_home_sub_panel(inv, sub_title)
+            except Exception as _e2:
+                logger.debug(f"Inventory panel open: {_e2}")
+
+        QTimer.singleShot(900, _open_inventory)
         self.statusBar().showMessage(
             f"🐼 Panda is going to the {furniture_id.replace('_', ' ').title()}…", 3000
         )
+
 
     def _on_closet_item_equipped(self, item_data: dict):
         """Handle item equipped from closet display — forward to panda widget."""

@@ -302,6 +302,11 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
             'happy': 0.0, 'sad': 0.0, 'bored': 0.0,
             'excited': 0.0, 'tired': 0.0, 'neutral': 1.0,
         }
+        # Micro-emotion blend weights (pairs, run concurrently with main emotion)
+        self._micro_emotion: dict = {
+            'curious':    0.0, 'playful': 0.0, 'annoyed': 0.0,
+            'content':    0.0, 'nervous': 0.0,
+        }
 
         # ── Animation blending ─────────────────────────────────────────────
         self._prev_state     = 'idle'
@@ -328,6 +333,7 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
             'head_tilt_rest':   random.uniform(-3.5, 3.5),    # resting Z-tilt preference (deg)
             'breath_l_offset':  random.uniform(-0.002, 0.002), # left breathing uneven offset
             'breath_r_offset':  random.uniform(-0.002, 0.002),
+            'mask_lr_bias':     random.uniform(-0.08, 0.08),  # eye mask size L vs R asymmetry
         }
         self._asym['ear_twitch_mult'][_bias]     = random.uniform(2.0, 3.2)
         self._asym['ear_twitch_mult'][1 - _bias] = 1.0
@@ -384,6 +390,24 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
         self._body_pitch = 0.0          # target torso X rotation (degrees); 0=upright
         self._body_pitch_cur = 0.0      # current (spring eased toward target)
         self._body_pitch_vel = 0.0      # spring velocity
+
+        # ── Wobble / stumble (pandas are famously uncoordinated) ──────────────
+        self._wobble_x       = 0.0      # current lateral sway offset (degrees)
+        self._wobble_vel     = 0.0      # angular velocity of sway
+        self._stumble_timer  = random.uniform(15.0, 40.0)   # s until next stumble
+        self._stumble_active = False    # True during overcorrect phase
+
+        # ── UI-interaction tracking (poke, sniff, sit-on, bite, hug) ─────────
+        self._ui_interact_t      = 0.0  # countdown for current interaction (s)
+        self._ui_interact_type   = ''   # 'poke', 'sniff', 'sit', 'bite', 'hug'
+        self._last_drag_file     = None # last file path dragged over widget
+
+        # ── Autonomous idle-behavior extras ──────────────────────────────────
+        # These are thin sub-states layered on top of the main state machine
+        self._idle_sub_t     = 0.0     # frame counter inside current idle sub-behavior
+        self._idle_sub_state = ''      # 'grooming','stretching','flopping','scratching',
+                                       # 'daydream','sniffing','yawning' (empty=normal)
+        self._idle_sub_next  = random.uniform(8.0, 20.0)  # seconds until next sub-state
 
         # ── Audio ─────────────────────────────────────────────────────────────
         self._audio_sfx: dict = {}      # name → QSoundEffect (loaded lazily)
@@ -736,13 +760,22 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
         belly_col  = self.custom_colors['belly']
         accent_col = self.custom_colors['accent']
 
-        # Apply squash/stretch to the torso
-        sy = self._squash_y
+        # Apply squash/stretch to the torso (sub-pose can add stretch too)
+        sy = self._squash_y * _sub.get('body_y_scale', 1.0)
 
         # ── Torso ────────────────────────────────────────────────────────────
+        # Gather idle sub-pose offsets (grooming/stretching/yawning/flopping etc.)
+        _sub = self._get_idle_sub_pose()
+
         glPushMatrix()
         glTranslatef(self.panda_x, 0.28 + bob, self.panda_z)
         glRotatef(self.rotation_y, 0.0, 1.0, 0.0)
+        # Wobble: random lateral lean added to whole body (pandas are uncoordinated)
+        if abs(self._wobble_x) > 0.05:
+            glRotatef(self._wobble_x, 0.0, 0.0, 1.0)
+        # Flopping sub-behavior: roll torso sideways
+        if _sub.get('body_x', 0.0):
+            glRotatef(_sub['body_x'], 1.0, 0.0, 0.0)
         # Quadruped body pitch (crawling/climbing/falling_back)
         if abs(self._body_pitch_cur) > 0.5:
             glRotatef(self._body_pitch_cur, 1.0, 0.0, 0.0)
@@ -847,7 +880,7 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
         self._draw_panda_legs(limb, bob, t)
 
         # ── Arms ─────────────────────────────────────────────────────────────
-        self._draw_panda_arms(limb, bob, t)
+        self._draw_panda_arms(limb, bob, t, _sub)
 
         # ── Tail (small white puff, slightly larger than before) ─────────────
         glPushMatrix()
@@ -866,6 +899,38 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
         self._draw_sphere(1.0, 12, 12)
         glPopMatrix()
 
+        # ── Depth overlap shadows (adds realism: nothing floats in mid-air) ───
+        # Shadow pocket between chin and chest — dark ellipse at neck-front base
+        glEnable(GL_BLEND)
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
+        glPushMatrix()
+        glTranslatef(0.0, self.BODY_HEIGHT * 0.45 * sy, self.BODY_WIDTH * 0.46)
+        glScalef(0.35, 0.14 * sy, 0.12)
+        glColor4f(0.0, 0.0, 0.0, 0.28)
+        self._draw_sphere(1.0, 10, 10)
+        glPopMatrix()
+
+        # Belly-over-legs shadow — dark semi-oval at bottom of belly
+        glPushMatrix()
+        glTranslatef(0.0, -self.BODY_HEIGHT * 0.50 * sy, self.BODY_WIDTH * 0.22)
+        glScalef(0.55, 0.10 * sy, 0.35)
+        glColor4f(0.0, 0.0, 0.0, 0.22)
+        self._draw_sphere(1.0, 10, 10)
+        glPopMatrix()
+
+        # Arm contact shadows (both sides) — dark lens where arm meets body
+        for asx in (-self.BODY_WIDTH * 0.80, self.BODY_WIDTH * 0.80):
+            glPushMatrix()
+            glTranslatef(asx, 0.10, 0.0)
+            glScalef(0.18, 0.28 * sy, 0.16)
+            glColor4f(0.0, 0.0, 0.0, 0.20)
+            self._draw_sphere(1.0, 8, 8)
+            glPopMatrix()
+
+        # Ear base shadow — darker ring where each ear meets skull (drawn in head matrix)
+        # (done inside head matrix below; flag captured here)
+        glDisable(GL_BLEND)
+
         glPopMatrix()   # end torso matrix
 
         # ── Head (separate matrix so it can tilt independently) ───────────────
@@ -873,12 +938,13 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
         tilt = (4.0 * math.sin(t * 0.04) +
                 self._head_lag +
                 self._asym.get('head_tilt_rest', 0.0) +
-                self._eye_head_yaw * 0.5)
+                self._eye_head_yaw * 0.5 +
+                _sub.get('head_z', 0.0))
         glPushMatrix()
         glTranslatef(self.panda_x, 0.90 + bob * 1.1, self.panda_z)
         glRotatef(self.rotation_y + self._eye_head_yaw * 0.4, 0.0, 1.0, 0.0)
         glRotatef(tilt, 0.0, 0.0, 1.0)
-        glRotatef(self._eye_head_pitch * 0.5, 1.0, 0.0, 0.0)
+        glRotatef(self._eye_head_pitch * 0.5 + _sub.get('head_x', 0.0), 1.0, 0.0, 0.0)
 
         # "Whoa face" — slight backwards lean
         if self._whoa_t > 0.0:
@@ -955,6 +1021,24 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
                 self._draw_sphere(1.0, 10, 10)
                 glPopMatrix()
 
+        # ── Neck fluff overlap — fur collar from skull base down to torso ────
+        # Drawn in head matrix so it follows head tilt; wraps over the neck join
+        glEnable(GL_BLEND)
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
+        for ny, nz, na in [
+            (-self.HEAD_RADIUS * 0.65, -self.HEAD_RADIUS * 0.05, 0.55),
+            (-self.HEAD_RADIUS * 0.78,  self.HEAD_RADIUS * 0.05, 0.38),
+            (-self.HEAD_RADIUS * 0.60, -self.HEAD_RADIUS * 0.18, 0.30),
+        ]:
+            glPushMatrix()
+            glTranslatef(0.0, ny, nz)
+            glScalef(0.32, 0.20, 0.25)
+            body_c = self._get_color('body')
+            glColor4f(body_c[0], body_c[1], body_c[2], na)
+            self._draw_sphere(1.0, 10, 10)
+            glPopMatrix()
+        glDisable(GL_BLEND)
+
         # ── Ears ─────────────────────────────────────────────────────────────
         self._draw_panda_ears(bob, t)
 
@@ -999,6 +1083,18 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
         for i, (ex, ey, ez) in enumerate(ear_positions):
             side = 1 if ex > 0 else -1
             ear_rot = self._ear_pos[i]
+
+            # ── Ear base shadow (depth overlap where ear meets skull) ─────────
+            glEnable(GL_BLEND)
+            glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
+            glPushMatrix()
+            glTranslatef(ex * 0.80, ey - 0.015, ez - 0.008)
+            glScalef(0.55, 0.35, 0.28)
+            glColor4f(0.0, 0.0, 0.0, 0.26)
+            self._draw_sphere(self.EAR_SIZE, 10, 10)
+            glPopMatrix()
+            glDisable(GL_BLEND)
+
             glPushMatrix()
             glTranslatef(ex, ey, ez)
             glRotatef(ear_rot, 0.0, 0.0, 1.0)   # spring-driven tilt
@@ -1054,17 +1150,63 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
             if thinking > 0.2 and side == self._asym.get('eye_squint_side', 1):
                 squint = 1.0 - thinking * 0.22
 
-            blink_s = blink * wide_factor * squint
+            # Micro-emotion: curious slightly widens; playful adds asymmetric tilt
+            curious_w  = self._micro_emotion.get('curious', 0.0)
+            playful_w  = self._micro_emotion.get('playful', 0.0)
+            blink_s = blink * (wide_factor + curious_w * 0.08) * squint
 
-            # ── Black fur patch ────────────────────────────────────────────
+            # ── Realistic eye mask: multi-layer ellipsoid + cheek extension ───
+            # Per-instance asymmetry: one side is slightly bigger
+            mask_bias = self._asym.get('mask_lr_bias', 0.0)  # -0.08 to +0.08
+            mask_sx = 1.25 + side * mask_bias * 0.4
+            mask_sy = 0.90 + side * mask_bias * 0.2
+            # Playful adds slight tilt asymmetry
+            mask_tilt = side * -12.0 + playful_w * side * 4.0
+
+            # Outer feathered ring (slightly larger, slightly transparent)
+            glEnable(GL_BLEND)
+            glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
+            glPushMatrix()
+            glTranslatef(eye_x, eye_y, eye_z - 0.005)
+            glScalef(1.0, blink_s, 1.0)
+            glRotatef(mask_tilt, 0.0, 0.0, 1.0)
+            glScalef(mask_sx * 1.18, mask_sy * 1.12, 0.55)
+            glColor4f(*self._get_color('accent'), 0.55)
+            self._draw_sphere(0.118, 14, 14)
+            glPopMatrix()
+            glDisable(GL_BLEND)
+
+            # Inner solid patch
             glPushMatrix()
             glTranslatef(eye_x, eye_y, eye_z)
             glScalef(1.0, blink_s, 1.0)
-            glRotatef(side * -12.0, 0.0, 0.0, 1.0)
-            glScalef(1.25, 0.90, 0.60)
+            glRotatef(mask_tilt, 0.0, 0.0, 1.0)
+            glScalef(mask_sx, mask_sy, 0.60)
             glColor3f(*self._get_color('accent'))
             self._draw_sphere(0.118, 16, 16)
             glPopMatrix()
+
+            # Cheek-wrap extension: extra downward oval that wraps toward muzzle
+            glPushMatrix()
+            glTranslatef(eye_x + side * 0.010, eye_y - 0.040, eye_z - 0.010)
+            glScalef(0.60, 0.55, 0.40)
+            glColor3f(*self._get_color('accent'))
+            self._draw_sphere(0.095, 12, 12)
+            glPopMatrix()
+
+            # Tear-duct streak: dark smear from inner-eye corner diagonally down
+            # Most iconic giant-panda facial marking
+            for seg, (sdx, sdy, sdz, ssx, ssy) in enumerate([
+                (side * -0.045,  0.005, 0.008, 0.18, 0.30),
+                (side * -0.068, -0.022, 0.002, 0.14, 0.25),
+                (side * -0.085, -0.042, -0.004, 0.11, 0.20),
+            ]):
+                glPushMatrix()
+                glTranslatef(eye_x + sdx, eye_y + sdy, eye_z + sdz)
+                glScalef(ssx, ssy, 0.18)
+                glColor3f(*[max(0.0, c - 0.02) for c in self._get_color('accent')])
+                self._draw_sphere(0.065, 8, 8)
+                glPopMatrix()
 
             # ── White sclera ──────────────────────────────────────────────
             glPushMatrix()
@@ -1301,8 +1443,10 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
                 glPopMatrix()
 
     # ─── Arm drawing ────────────────────────────────────────────────────────
-    def _draw_panda_arms(self, limb, bob, t=0):
+    def _draw_panda_arms(self, limb, bob, t=0, sub_pose: dict | None = None):
         """Draw arms with follow-through overshoot, uneven breathing, paw/claws."""
+        if sub_pose is None:
+            sub_pose = {}
         arm_y   = 0.30 + bob
         arm_x   = self.BODY_WIDTH + 0.06
         ac = self._get_color('accent')   # fur-style accent colour for arm patches
@@ -1313,11 +1457,17 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
         breath_offset = [self._asym.get('breath_l_offset', 0.0),
                          self._asym.get('breath_r_offset', 0.0)]
 
+        # Sub-pose overrides (grooming, stretching, scratching, yawning)
+        sub_l = sub_pose.get('arm_l', 0.0)
+        sub_r = sub_pose.get('arm_r', 0.0)
+
         for idx, (side, key) in enumerate(((-1, 'left_arm_angle'), (1, 'right_arm_angle'))):
+            sub_extra = sub_l if idx == 0 else sub_r
             angle = (limb.get(key, 0)
                      + swing_idle * side
                      + self._arm_over[idx]           # follow-through overshoot
-                     + breath_offset[idx] * 180.0)   # tiny uneven breathing
+                     + breath_offset[idx] * 180.0    # tiny uneven breathing
+                     + sub_extra)                    # idle sub-behavior offset
 
             glPushMatrix()
             glTranslatef(side * arm_x, arm_y + 0.06, 0.0)
@@ -1751,10 +1901,21 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
         self._whoa_t    = max(0.0, self._whoa_t    - dt)
         self._flinch_t  = max(0.0, self._flinch_t  - dt)
         self._surprised_eye_t = max(0.0, self._surprised_eye_t - dt)
+        self._ui_interact_t   = max(0.0, self._ui_interact_t   - dt)
 
         # Flinch → trigger quick blink
         if self._flinch_t > 0.1 and self._blink_phase == 0.0:
             self._blink_phase = 0.001
+
+        # ── Wobble / stumble ─────────────────────────────────────────────────
+        self._update_wobble(dt)
+
+        # ── Idle sub-behaviors (grooming, stretching, etc.) ──────────────────
+        self._update_idle_sub_behavior(dt)
+
+        # ── Micro-emotion decay ───────────────────────────────────────────────
+        for k in self._micro_emotion:
+            self._micro_emotion[k] = max(0.0, self._micro_emotion[k] - dt * 0.08)
 
     # ─── Follow-through springs ───────────────────────────────────────────────
     def _update_follow_through(self, dt: float):
@@ -1853,7 +2014,173 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
         self._eye_head_yaw   += (self._eye_yaw   - self._eye_head_yaw)   * head_speed
         self._eye_head_pitch += (self._eye_pitch - self._eye_head_pitch) * head_speed
 
-    # ─── Audio helper ─────────────────────────────────────────────────────────
+    # ─── Wobble / stumble system ──────────────────────────────────────────────
+    def _update_wobble(self, dt: float):
+        """
+        Pandas are famously uncoordinated. Simulate subtle lateral sway with
+        occasional slow overcorrection and random stumbles.
+        Only active when panda is upright (idle, working, waving, celebrating).
+        """
+        upright = self.animation_state in (
+            'idle', 'working', 'waving', 'celebrating', 'sitting_back'
+        )
+        if not upright:
+            # Damp wobble quickly when not upright
+            self._wobble_x   *= max(0.0, 1.0 - dt * 8.0)
+            self._wobble_vel *= max(0.0, 1.0 - dt * 8.0)
+            return
+
+        # Spring back to centre with very soft stiffness (slow overcorrect)
+        spring = -3.5 * self._wobble_x
+        damp   = -0.45 * self._wobble_vel
+        # Tiny random breathing-rhythm perturbation
+        noise = random.gauss(0, 0.04) if random.random() < 0.15 else 0.0
+        self._wobble_vel += (spring + damp + noise) * dt
+        self._wobble_x   += self._wobble_vel * dt
+        self._wobble_x    = max(-6.0, min(6.0, self._wobble_x))
+
+        # Stumble countdown
+        self._stumble_timer -= dt
+        if self._stumble_timer <= 0.0 and not self._stumble_active:
+            # Kick a random stumble
+            self._wobble_vel += random.choice([-1, 1]) * random.uniform(12.0, 22.0)
+            self._stumble_active = True
+            self._stumble_timer  = random.uniform(20.0, 60.0)
+            QTimer.singleShot(int(random.uniform(0.4, 0.9) * 1000),
+                              lambda: setattr(self, '_stumble_active', False))
+
+    # ─── Idle sub-behaviors ───────────────────────────────────────────────────
+    def _update_idle_sub_behavior(self, dt: float):
+        """
+        Panda does things without being asked.
+        Sub-states layered on top of the main idle state (don't switch main state).
+        """
+        if self.animation_state not in ('idle', 'working'):
+            self._idle_sub_t = 0.0
+            self._idle_sub_state = ''
+            self._idle_sub_next = random.uniform(8.0, 20.0)
+            return
+
+        # Tick down to next sub-behavior
+        self._idle_sub_next -= dt
+        if self._idle_sub_next <= 0.0 and not self._idle_sub_state:
+            choices = [
+                ('grooming',   0.20),
+                ('stretching', 0.15),
+                ('scratching', 0.18),
+                ('daydream',   0.15),
+                ('sniffing',   0.12),
+                ('yawning',    0.10),
+                ('flopping',   0.10),
+            ]
+            total = sum(w for _, w in choices)
+            r = random.uniform(0, total)
+            c = 0.0
+            for name, w in choices:
+                c += w
+                if r <= c:
+                    self._idle_sub_state = name
+                    self._idle_sub_t = 0.0
+                    self._play_sound('boop' if name == 'yawning' else 'purr')
+                    break
+            self._idle_sub_next = random.uniform(8.0, 20.0)
+
+        if self._idle_sub_state:
+            self._idle_sub_t += dt
+            dur = {
+                'grooming':   3.5, 'stretching': 2.5, 'scratching': 2.0,
+                'daydream':   5.0, 'sniffing':   1.8, 'yawning':    2.0,
+                'flopping':   4.0,
+            }.get(self._idle_sub_state, 3.0)
+            if self._idle_sub_t >= dur:
+                self._idle_sub_state = ''
+                self._idle_sub_t = 0.0
+
+    def _get_idle_sub_pose(self) -> dict:
+        """
+        Return additional joint offsets for the current idle sub-behavior.
+        Keys: 'head_z', 'head_x', 'arm_l', 'arm_r', 'body_y_scale', 'body_x'.
+        All values are in degrees (for rotations) or scale factors.
+        """
+        s = self._idle_sub_state
+        t = self._idle_sub_t
+        if not s:
+            return {}
+
+        if s == 'grooming':
+            # Right paw lifts to head, small head tilt left
+            phase = t / 3.5
+            arm_r = -80.0 * math.sin(math.pi * phase) if phase < 1.0 else 0.0
+            head_z = -15.0 * math.sin(math.pi * phase)
+            return {'arm_r': arm_r, 'head_z': head_z}
+
+        elif s == 'stretching':
+            # Both arms extend forward, body elongates
+            phase = min(1.0, t / 1.2)
+            both = -120.0 * self._ease_in_out_cubic(phase) if phase < 1.0 \
+                   else -120.0 * self._ease_out_cubic(2.0 - t / 1.25)
+            return {'arm_l': both, 'arm_r': both, 'body_y_scale': 1.0 + 0.08 * math.sin(math.pi * min(1.0, t / 2.5))}
+
+        elif s == 'scratching':
+            # Left paw to side of head, rapid oscillation
+            osc = math.sin(t * 18.0) * 20.0
+            arm_l = -70.0 + osc
+            head_z = 12.0 + math.sin(t * 8.0) * 5.0
+            return {'arm_l': arm_l, 'head_z': head_z}
+
+        elif s == 'daydream':
+            # Head tilts up-left, slow sway, eyes soften (handled in _draw_panda_eyes via micro_emotion)
+            self._micro_emotion['curious'] = min(1.0, self._micro_emotion['curious'] + 0.02)
+            head_z = -18.0 * math.sin(t * 0.4)
+            head_x = 10.0 + math.sin(t * 0.3) * 5.0
+            return {'head_z': head_z, 'head_x': head_x}
+
+        elif s == 'sniffing':
+            # Head bobs up and down rapidly
+            head_x = math.sin(t * 12.0) * 8.0
+            return {'head_x': head_x}
+
+        elif s == 'yawning':
+            # Arms stretch out, jaw opens (approximated by body Y scale)
+            phase = min(1.0, t / 1.0)
+            arm_both = -90.0 * math.sin(math.pi * phase)
+            scale = 1.0 + 0.04 * math.sin(math.pi * phase)
+            return {'arm_l': arm_both, 'arm_r': arm_both, 'body_y_scale': scale}
+
+        elif s == 'flopping':
+            # Fall sideways, roll, recover
+            phase = t / 4.0
+            if phase < 0.3:
+                body_x = 45.0 * self._ease_in_cubic(phase / 0.3)
+            elif phase < 0.7:
+                body_x = 45.0 + math.sin((phase - 0.3) * math.pi * 3) * 15.0
+            else:
+                body_x = 45.0 * (1.0 - self._ease_out_cubic((phase - 0.7) / 0.3))
+            return {'body_x': body_x}
+
+        return {}
+
+    # ─── Public UI interaction methods ────────────────────────────────────────
+    def notify_file_dragged(self, file_path: str):
+        """Called when user drags a file near the panda — triggers sniff."""
+        self._last_drag_file = file_path
+        self._idle_sub_state = 'sniffing'
+        self._idle_sub_t = 0.0
+        self._micro_emotion['curious'] = 0.8
+
+    def notify_button_nearby(self):
+        """Called when cursor is near a UI button — panda peeks/pokes."""
+        if self._ui_interact_t <= 0.0:
+            self._ui_interact_type = 'poke'
+            self._ui_interact_t = 1.2
+            self._arm_over_vel[0] += random.choice([-1, 1]) * 18.0
+
+    def set_micro_emotion(self, emotion_name: str, weight: float = 0.8):
+        """Blend in a micro-emotion (curious, playful, annoyed, content, nervous)."""
+        if emotion_name in self._micro_emotion:
+            self._micro_emotion[emotion_name] = max(0.0, min(1.0, weight))
+
+
     # Map logical sound names → actual WAV filenames in resources/sounds/.
     # This allows call-sites to use short, descriptive names without caring
     # about the exact filename on disk.
