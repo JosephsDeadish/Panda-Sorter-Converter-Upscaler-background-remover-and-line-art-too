@@ -61,7 +61,7 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
     # Animation constants
     TARGET_FPS = 30          # 30 fps matches perceived smoothness for a sidebar widget
     #                          # and halves the per-second GL draw calls vs 60 fps
-    FRAME_TIME = 1.0 / TARGET_FPS  # 16.67ms per frame
+    FRAME_TIME = 1.0 / TARGET_FPS  # 33.33ms per frame at 30 fps
     
     # Panda dimensions (3D units)
     HEAD_RADIUS = 0.4
@@ -245,6 +245,72 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
         self._anticipation_state  = 'idle'  # crouch-back state during anticipation
         self._pending_action      = None    # action triggered after anticipation
 
+        # ── Per-instance asymmetry (fixed at creation) ────────────────────────
+        _bias = random.randint(0, 1)
+        self._asym = {
+            'ear_twitch_bias':  _bias,                        # 0=left ear twitchier, 1=right
+            'ear_twitch_mult':  [1.0, 1.0],
+            'eye_squint_side':  random.choice([-1, 1]),       # side that squints when thinking
+            'head_tilt_rest':   random.uniform(-3.5, 3.5),    # resting Z-tilt preference (deg)
+            'breath_l_offset':  random.uniform(-0.002, 0.002), # left breathing uneven offset
+            'breath_r_offset':  random.uniform(-0.002, 0.002),
+        }
+        self._asym['ear_twitch_mult'][_bias]     = random.uniform(2.0, 3.2)
+        self._asym['ear_twitch_mult'][1 - _bias] = 1.0
+
+        # ── Follow-through springs ────────────────────────────────────────────
+        # Head lag behind body motion
+        self._head_lag      = 0.0       # angular offset added to head Z-tilt
+        self._head_lag_vel  = 0.0
+        self._body_vel_prev_x = 0.0     # track body-x velocity for acceleration
+
+        # Belly/fur jiggle (spring oscillation on Y scale of fur layer)
+        self._belly_y    = 1.0
+        self._belly_vel  = 0.0
+
+        # Per-arm follow-through overshoot
+        self._arm_over   = [0.0, 0.0]   # [left, right] extra angle added to arms
+        self._arm_over_vel = [0.0, 0.0]
+
+        # Eyelid settle: tiny spring after blink re-opens
+        self._eyelid_extra = 0.0        # small positive offset when overshooting open
+        self._eyelid_vel   = 0.0
+
+        # ── Micro-holds ───────────────────────────────────────────────────────
+        self._hold_t      = 0.0     # remaining hold duration (seconds)
+        self._idle_pause_countdown = random.uniform(10.0, 20.0)  # next idle pause
+        self._reaction_delay_q: list = []   # queue of (fire_at_t, callable)
+
+        # ── Saccades (rapid eye darts) ────────────────────────────────────────
+        self._saccade_yaw   = 0.0       # current additive saccade offset (deg)
+        self._saccade_pitch = 0.0
+        self._saccade_tgt_yaw   = 0.0
+        self._saccade_tgt_pitch = 0.0
+        self._next_saccade_t  = time.time() + random.uniform(2.5, 5.5)
+        self._saccade_hold_t  = 0.0     # remaining hold time at saccade target
+        self._saccade_speed   = 22.0    # deg/s  (fast dart)
+
+        # Eye-lead: eyes move first, head follows with lag
+        self._eye_yaw     = 0.0
+        self._eye_pitch   = 0.0
+        self._eye_head_yaw    = 0.0     # head component lags eyes
+        self._eye_head_pitch  = 0.0
+
+        # ── Eyelid special states ─────────────────────────────────────────────
+        self._surprised_eye_t = 0.0     # >0 = eyes wide-open (surprised)
+        self._whoa_t          = 0.0     # >0 = "whoa face" (eyes wide, slight lean back)
+        self._flinch_t        = 0.0     # >0 = flinch / blink (window-hit reaction)
+        self._drag_vx_prev    = 0.0     # track drag velocity for whoa detection
+
+        # ── Audio ─────────────────────────────────────────────────────────────
+        self._audio_sfx: dict = {}      # name → QSoundEffect (loaded lazily)
+        self._audio_available = False
+        try:
+            from PyQt6.QtMultimedia import QSoundEffect   # noqa: F401
+            self._audio_available = True
+        except (ImportError, OSError, RuntimeError):
+            pass
+
         # Animation timer (30 FPS)
         self.timer = QTimer(self)
         self.timer.timeout.connect(self._update_animation)
@@ -306,34 +372,46 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
     
     def transition_to_state(self, state_name: str):
         """
-        Transition to a specific animation state.
-        
-        Uses a simplified approach where we maintain a mapping of states
-        and update the current state. In a full state machine implementation,
-        you would define explicit transitions with conditions.
+        Transition to an animation state with blending, anticipation, and follow-through kicks.
+        Big actions (jumping, celebrating) use a brief anticipation crouch first.
+        All transitions blend smoothly from the previous state.
         """
         if not self.state_machine:
-            # Fallback if state machine not available
-            self.animation_state = state_name
-            if hasattr(self, 'animation_changed'):
-                self.animation_changed.emit(state_name)
+            self._set_state_direct(state_name)
             return
-        
-        state_map = {
-            'idle': self.idle_state,
-            'walking': self.walking_state,
-            'jumping': self.jumping_state,
-            'working': self.working_state,
-            'celebrating': self.celebrating_state,
-            'waving': self.waving_state
-        }
-        
-        if state_name in state_map:
-            target_state = state_map[state_name]
-            # Manually invoke state entry since we're using programmatic control
-            # rather than event-driven transitions
-            self._on_state_entered(state_name)
-    
+
+        # ── Anticipation phase for high-energy actions ────────────────────────
+        if state_name in ('jumping', 'celebrating') and self.animation_state == 'idle':
+            # Brief anticipation → then the real action
+            self._anticipation_t     = random.uniform(0.10, 0.20)
+            self._anticipation_state = '_anticipation'
+            self._pending_action     = state_name
+            # Kick arm overshoots backward (windup)
+            self._arm_over_vel[0] += 8.0
+            self._arm_over_vel[1] += 8.0
+            return
+
+        # ── Micro-hold at end of action before going idle ─────────────────────
+        if state_name == 'idle' and self.animation_state in ('waving', 'celebrating', 'jumping'):
+            self._hold_t = random.uniform(0.12, 0.28)
+            # Schedule the idle transition after the hold
+            fire_t = time.time() + self._hold_t
+            self._reaction_delay_q.append((fire_t, lambda: self._set_state_direct('idle')))
+            return
+
+        # ── Follow-through kick on arm-heavy transitions ──────────────────────
+        if state_name in ('waving',):
+            self._arm_over_vel[1] += random.uniform(10.0, 18.0)  # right arm overshoot
+        elif state_name in ('walking', 'running'):
+            self._arm_over_vel[0] += random.uniform(4.0, 8.0)
+            self._arm_over_vel[1] -= random.uniform(4.0, 8.0)
+
+        # ── Surprised wide-eyes for jumps/celebrations ────────────────────────
+        if state_name in ('jumping', 'celebrating', 'waving'):
+            self._surprised_eye_t = 0.25
+
+        self._set_state_direct(state_name)
+
     def initializeGL(self):
         """Initialize OpenGL settings."""
         try:
@@ -556,30 +634,37 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
         limb = self._get_limb_positions()
         t  = self.animation_frame           # raw frame counter used for trig
 
+        # Apply squash/stretch to the torso
+        sy = self._squash_y
+
         # ── Torso ────────────────────────────────────────────────────────────
         glPushMatrix()
         glTranslatef(self.panda_x, 0.28 + bob, self.panda_z)
         glRotatef(self.rotation_y, 0.0, 1.0, 0.0)
 
-        # Belly — creamy white underside (slightly yellowish)
+        # Belly — creamy white underside; belly jiggle on Y (height oscillation)
         glPushMatrix()
-        glScalef(self.BODY_WIDTH * 0.65, self.BODY_HEIGHT * 0.55, self.BODY_WIDTH * 0.50)
+        glScalef(self.BODY_WIDTH * 0.65,
+                 self.BODY_HEIGHT * 0.55 * sy * self._belly_y,
+                 self.BODY_WIDTH * 0.50)
         glColor3f(1.0, 0.98, 0.93)
         self._draw_sphere(1.0, 24, 24)
         glPopMatrix()
 
         # Main body — bright white with subtle blue-white tint
         glPushMatrix()
-        glScalef(self.BODY_WIDTH, self.BODY_HEIGHT, self.BODY_WIDTH * 0.78)
+        glScalef(self.BODY_WIDTH, self.BODY_HEIGHT * sy, self.BODY_WIDTH * 0.78)
         glColor3f(0.97, 0.97, 0.99)
         self._draw_sphere(1.0, 24, 24)
         glPopMatrix()
 
-        # Fur layer — slightly larger white sphere at reduced alpha for depth
+        # Fur layer — belly_y also applied to Y so fur follows belly motion
         glEnable(GL_BLEND)
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
         glPushMatrix()
-        glScalef(self.BODY_WIDTH * 1.03, self.BODY_HEIGHT * 1.02, self.BODY_WIDTH * 0.81)
+        glScalef(self.BODY_WIDTH * 1.03,
+                 self.BODY_HEIGHT * 1.02 * sy * self._belly_y,
+                 self.BODY_WIDTH * 0.81)
         glColor4f(1.0, 1.0, 1.0, 0.18)
         self._draw_sphere(1.0, 16, 16)
         glPopMatrix()
@@ -588,7 +673,7 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
         # Black saddle patch across lower torso
         glPushMatrix()
         glTranslatef(0.0, -0.18, 0.0)
-        glScalef(self.BODY_WIDTH * 0.95, self.BODY_HEIGHT * 0.35, self.BODY_WIDTH * 0.70)
+        glScalef(self.BODY_WIDTH * 0.95, self.BODY_HEIGHT * 0.35 * sy, self.BODY_WIDTH * 0.70)
         glColor3f(0.08, 0.08, 0.08)
         self._draw_sphere(1.0, 20, 20)
         glPopMatrix()
@@ -609,11 +694,21 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
         glPopMatrix()   # end torso matrix
 
         # ── Head (separate matrix so it can tilt independently) ───────────────
-        tilt = 4.0 * math.sin(t * 0.04)   # gentle head-tilt breathing
+        # Head rotation = breathing tilt + head lag (follow-through) + resting asymmetry + look
+        tilt = (4.0 * math.sin(t * 0.04) +
+                self._head_lag +
+                self._asym.get('head_tilt_rest', 0.0) +
+                self._eye_head_yaw * 0.5)
         glPushMatrix()
         glTranslatef(self.panda_x, 0.90 + bob * 1.1, self.panda_z)
-        glRotatef(self.rotation_y, 0.0, 1.0, 0.0)
+        glRotatef(self.rotation_y + self._eye_head_yaw * 0.4, 0.0, 1.0, 0.0)
         glRotatef(tilt, 0.0, 0.0, 1.0)
+        glRotatef(self._eye_head_pitch * 0.5, 1.0, 0.0, 0.0)
+
+        # "Whoa face" — slight backwards lean
+        if self._whoa_t > 0.0:
+            lean = min(self._whoa_t / 0.5, 1.0) * -8.0
+            glRotatef(lean, 1.0, 0.0, 0.0)
 
         # Main skull — white
         glColor3f(0.97, 0.97, 0.99)
@@ -655,12 +750,14 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
 
     # ─── Ear drawing ────────────────────────────────────────────────────────
     def _draw_panda_ears(self, bob_offset, t=0):
-        """Draw rounded ears with black outer ring and pink inner ear."""
+        """Draw rounded ears with black outer ring, pink inner ear, and asymmetric spring physics."""
         ear_positions = [(-0.265, 0.295, 0.06), (0.265, 0.295, 0.06)]
-        for (ex, ey, ez) in ear_positions:
-            # Outer black ear
+        for i, (ex, ey, ez) in enumerate(ear_positions):
+            # Follow-through: rotate ear using spring position
+            ear_rot = self._ear_pos[i]
             glPushMatrix()
             glTranslatef(ex, ey, ez)
+            glRotatef(ear_rot, 0.0, 0.0, 1.0)   # spring-driven tilt
             glScalef(1.0, 0.88, 0.55)
             glColor3f(0.08, 0.08, 0.08)
             self._draw_sphere(self.EAR_SIZE, 16, 16)
@@ -675,52 +772,72 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
 
     # ─── Eye drawing ────────────────────────────────────────────────────────
     def _draw_panda_eyes(self, t=0):
-        """Draw detailed eyes: black patch, white sclera, iris, pupil, specular."""
+        """Draw detailed eyes with saccades, eye-lead, asymmetric squint and eyelid states."""
         blink = self._get_blink_scale(t)        # 1.0 = open, ≈0 = closed
+
+        # Surprised: widen eyes; whoa face: also widens
+        surprised_boost = min(1.0, self._surprised_eye_t / 0.3) * 0.18
+        whoa_boost      = min(1.0, self._whoa_t / 0.5) * 0.12
+        wide_factor     = 1.0 + surprised_boost + whoa_boost + self._eyelid_extra
+
         eye_y  = 0.055
         eye_z  = self.HEAD_RADIUS * 0.74
+
+        # Eye direction: use eye_yaw + saccade, converted to small translation offset
+        eye_dx = math.sin(math.radians(self._eye_yaw))   * 0.012
+        eye_dy = math.sin(math.radians(self._eye_pitch)) * 0.010
 
         for side in (-1, 1):
             eye_x = side * 0.158
 
-            # ── Black fur patch (almond-shaped via scaling) ───────────────
+            # Asymmetric squint during bored/thinking (one side only)
+            thinking = self._emotion_weights.get('bored', 0.0)
+            squint   = 1.0
+            if thinking > 0.2 and side == self._asym.get('eye_squint_side', 1):
+                squint = 1.0 - thinking * 0.22
+
+            blink_s = blink * wide_factor * squint
+
+            # ── Black fur patch ────────────────────────────────────────────
             glPushMatrix()
             glTranslatef(eye_x, eye_y, eye_z)
-            glScalef(1.0, blink, 1.0)
-            glRotatef(side * -12.0, 0.0, 0.0, 1.0)   # slight tilt
+            glScalef(1.0, blink_s, 1.0)
+            glRotatef(side * -12.0, 0.0, 0.0, 1.0)
             glScalef(1.25, 0.90, 0.60)
             glColor3f(0.07, 0.07, 0.07)
             self._draw_sphere(0.118, 16, 16)
             glPopMatrix()
 
-            # ── White sclera ─────────────────────────────────────────────
+            # ── White sclera ──────────────────────────────────────────────
             glPushMatrix()
             glTranslatef(eye_x, eye_y, eye_z + 0.052)
-            glScalef(1.0, blink, 1.0)
+            glScalef(1.0, blink_s, 1.0)
             glColor3f(1.0, 1.0, 1.0)
             self._draw_sphere(0.060, 16, 16)
             glPopMatrix()
 
-            # ── Coloured iris (brown) ─────────────────────────────────────
+            # ── Iris (brown) — shifted by eye direction ────────────────────
             glPushMatrix()
-            glTranslatef(eye_x, eye_y, eye_z + 0.092)
-            glScalef(1.0, blink, 1.0)
+            glTranslatef(eye_x + eye_dx * side, eye_y + eye_dy, eye_z + 0.092)
+            glScalef(1.0, blink_s, 1.0)
             glColor3f(0.42, 0.28, 0.12)
             self._draw_sphere(0.036, 14, 14)
             glPopMatrix()
 
-            # ── Black pupil ───────────────────────────────────────────────
+            # ── Pupil ─────────────────────────────────────────────────────
             glPushMatrix()
-            glTranslatef(eye_x, eye_y, eye_z + 0.118)
-            glScalef(1.0, blink, 1.0)
+            glTranslatef(eye_x + eye_dx * side, eye_y + eye_dy, eye_z + 0.118)
+            glScalef(1.0, blink_s, 1.0)
             glColor3f(0.04, 0.04, 0.04)
             self._draw_sphere(0.021, 12, 12)
             glPopMatrix()
 
-            # ── Specular highlight dot ────────────────────────────────────
+            # ── Specular highlight ─────────────────────────────────────────
             glPushMatrix()
-            glTranslatef(eye_x + side * 0.007, eye_y + 0.012, eye_z + 0.128)
-            glScalef(1.0, blink, 1.0)
+            glTranslatef(eye_x + side * 0.007 + eye_dx * side,
+                         eye_y + 0.012 + eye_dy,
+                         eye_z + 0.128)
+            glScalef(1.0, blink_s, 1.0)
             glDisable(GL_LIGHTING)
             glColor3f(1.0, 1.0, 1.0)
             self._draw_sphere(0.009, 8, 8)
@@ -803,14 +920,21 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
 
     # ─── Arm drawing ────────────────────────────────────────────────────────
     def _draw_panda_arms(self, limb, bob, t=0):
-        """Draw arms with upper arm, forearm, wrist taper and paw/claws."""
+        """Draw arms with follow-through overshoot, uneven breathing, paw/claws."""
         arm_y   = 0.30 + bob
         arm_x   = self.BODY_WIDTH + 0.06
 
         swing_idle = 5.0 * math.sin(t * 0.030)  # tiny idle sway
 
-        for side, key in ((-1, 'left_arm_angle'), (1, 'right_arm_angle')):
-            angle = limb.get(key, 0) + swing_idle * side
+        # Asymmetric breathing offset (uneven arm sway amplitude)
+        breath_offset = [self._asym.get('breath_l_offset', 0.0),
+                         self._asym.get('breath_r_offset', 0.0)]
+
+        for idx, (side, key) in enumerate(((-1, 'left_arm_angle'), (1, 'right_arm_angle'))):
+            angle = (limb.get(key, 0)
+                     + swing_idle * side
+                     + self._arm_over[idx]           # follow-through overshoot
+                     + breath_offset[idx] * 180.0)   # tiny uneven breathing
 
             glPushMatrix()
             glTranslatef(side * arm_x, arm_y + 0.06, 0.0)
@@ -1129,13 +1253,16 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
             # Spring toward 0
             spring_force = -stiffness * self._ear_pos[i]
             damp_force   = -damping * self._ear_vel[i]
-            self._ear_vel[i] += (spring_force + damp_force) * dt
+            # Body movement nudges ears opposite to motion (follow-through)
+            self._ear_vel[i] += (spring_force + damp_force + body_jerk * 0.06 * (1 - 2 * i)) * dt
             self._ear_pos[i] += self._ear_vel[i] * dt
 
-        # Random ear twitch (independent per ear, low probability)
-        if random.random() < 0.002:   # ~0.2 % chance per tick = every ~5 s at 30 fps
-            ear_idx = random.randint(0, 1)
-            self._ear_vel[ear_idx] += random.uniform(-6.0, 6.0)
+        # Asymmetric ear twitch: biased ear has higher probability
+        twitch_mult = self._asym.get('ear_twitch_mult', [1.0, 1.0])
+        for i in range(2):
+            base_prob = 0.0015 * twitch_mult[i]
+            if random.random() < base_prob:
+                self._ear_vel[i] += random.uniform(-8.0, 8.0)
 
         # ── Cursor look interpolation (eased) ─────────────────────────────────
         if self._cursor_wpos is not None:
@@ -1181,8 +1308,170 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
                 if action:
                     self._set_state_direct(action)
 
+        # ── Follow-through springs ────────────────────────────────────────────
+        self._update_follow_through(dt)
+
+        # ── Saccades + eye-lead ───────────────────────────────────────────────
+        self._update_saccades(now, dt)
+
+        # ── Micro-holds / reaction-delay queue ───────────────────────────────
+        fired = [item for item in self._reaction_delay_q if now >= item[0]]
+        for item in fired:
+            self._reaction_delay_q.remove(item)
+            try:
+                item[1]()
+            except Exception:
+                pass
+
+        # ── Idle loop pause ───────────────────────────────────────────────────
+        if self.animation_state == 'idle':
+            self._idle_pause_countdown -= dt
+            if self._idle_pause_countdown <= 0.0:
+                self._hold_t = random.uniform(0.12, 0.32)
+                self._idle_pause_countdown = random.uniform(9.0, 20.0)
+
+        # ── Decay reaction states ─────────────────────────────────────────────
+        self._whoa_t    = max(0.0, self._whoa_t    - dt)
+        self._flinch_t  = max(0.0, self._flinch_t  - dt)
+        self._surprised_eye_t = max(0.0, self._surprised_eye_t - dt)
+
+        # Flinch → trigger quick blink
+        if self._flinch_t > 0.1 and self._blink_phase == 0.0:
+            self._blink_phase = 0.001
+
+    # ─── Follow-through springs ───────────────────────────────────────────────
+    def _update_follow_through(self, dt: float):
+        """
+        Update all follow-through springs:
+        head lag, belly jiggle, per-arm overshoot, eyelid settle.
+        """
+        # ── Head lag (spring: head lags body horizontal acceleration) ─────────
+        body_vx = self.velocity_x
+        body_ax = (body_vx - self._body_vel_prev_x) / max(dt, 1e-4)
+        self._body_vel_prev_x = body_vx
+        # Target: pull head opposite to acceleration (fish-tail effect)
+        head_lag_tgt = -body_ax * 0.08
+        spring = 18.0 * (head_lag_tgt - self._head_lag)
+        damp   = -0.60 * self._head_lag_vel
+        self._head_lag_vel += (spring + damp) * dt
+        self._head_lag     += self._head_lag_vel * dt
+        self._head_lag      = max(-8.0, min(8.0, self._head_lag))
+
+        # ── Belly / fur jiggle spring ─────────────────────────────────────────
+        # Spring back to 1.0; excited by body-bob changes
+        bob_now = self._get_body_bob()
+        belly_spring  = 14.0 * (1.0 - self._belly_y)
+        belly_damp    = -0.50 * self._belly_vel
+        # Add small periodic nudge from breathing
+        belly_drive   = bob_now * 2.5
+        self._belly_vel += (belly_spring + belly_damp + belly_drive) * dt
+        self._belly_y   += self._belly_vel * dt
+        self._belly_y    = max(0.88, min(1.12, self._belly_y))
+
+        # ── Per-arm overshoot springs ─────────────────────────────────────────
+        for i in range(2):
+            spring_f = -20.0 * self._arm_over[i]
+            damp_f   = -0.58 * self._arm_over_vel[i]
+            self._arm_over_vel[i] += (spring_f + damp_f) * dt
+            self._arm_over[i]     += self._arm_over_vel[i] * dt
+            self._arm_over[i]      = max(-15.0, min(15.0, self._arm_over[i]))
+
+        # ── Eyelid settle spring (tiny overshoot when blink re-opens) ─────────
+        # When blink_phase crosses 2.0 (fully open), kick eyelid_vel upward
+        # so eyelid briefly opens wider than normal, then settles back
+        if self._blink_phase == 0.0 and abs(self._eyelid_extra) < 1e-3:
+            pass   # at rest
+        eyelid_spring = -22.0 * self._eyelid_extra
+        eyelid_damp   = -0.65 * self._eyelid_vel
+        self._eyelid_vel   += (eyelid_spring + eyelid_damp) * dt
+        self._eyelid_extra += self._eyelid_vel * dt
+        self._eyelid_extra  = max(-0.08, min(0.12, self._eyelid_extra))
+
+    # ─── Saccade + eye-lead system ────────────────────────────────────────────
+    def _update_saccades(self, now: float, dt: float):
+        """
+        Drive eye saccades (quick micro-darts) and eye-lead / head-follow.
+        Eyes move first at high speed; head follows at ~1/4 the speed.
+        """
+        # ── Schedule next saccade ─────────────────────────────────────────────
+        if now >= self._next_saccade_t and self._saccade_hold_t <= 0.0:
+            # Pick a random target offset relative to current look direction
+            max_sac = 5.0 + self._emotion_weights.get('excited', 0.0) * 4.0
+            self._saccade_tgt_yaw   = random.uniform(-max_sac, max_sac)
+            self._saccade_tgt_pitch = random.uniform(-max_sac * 0.6, max_sac * 0.6)
+            self._saccade_hold_t    = random.uniform(0.15, 0.70)
+            interval = self._micro['blink_base'] * random.uniform(0.5, 0.9)
+            self._next_saccade_t = now + interval
+
+        # ── Move saccade toward target (fast dart) ────────────────────────────
+        if self._saccade_hold_t > 0.0:
+            self._saccade_hold_t -= dt
+            spd = self._saccade_speed * dt
+            dy = self._saccade_tgt_yaw   - self._saccade_yaw
+            dp = self._saccade_tgt_pitch - self._saccade_pitch
+            self._saccade_yaw   += max(-spd, min(spd, dy))
+            self._saccade_pitch += max(-spd, min(spd, dp))
+        else:
+            # Return to cursor direction
+            self._saccade_yaw   *= max(0.0, 1.0 - dt * 5.0)
+            self._saccade_pitch *= max(0.0, 1.0 - dt * 5.0)
+
+        # ── Eye-lead: eyes = cursor_look + saccade ────────────────────────────
+        target_eye_yaw   = self._look_yaw_tgt   + self._saccade_yaw
+        target_eye_pitch = self._look_pitch_tgt + self._saccade_pitch
+        eye_speed = min(1.0, dt * 16.0)   # fast
+        self._eye_yaw   += (target_eye_yaw   - self._eye_yaw)   * eye_speed
+        self._eye_pitch += (target_eye_pitch - self._eye_pitch) * eye_speed
+
+        # ── Head follows eyes with lag ────────────────────────────────────────
+        head_speed = min(1.0, dt * 4.0)   # much slower
+        self._eye_head_yaw   += (self._eye_yaw   - self._eye_head_yaw)   * head_speed
+        self._eye_head_pitch += (self._eye_pitch - self._eye_head_pitch) * head_speed
+
+    # ─── Audio helper ─────────────────────────────────────────────────────────
+    def _play_sound(self, name: str):
+        """
+        Play a named sound effect.
+        Tries QSoundEffect from app_data/sounds/<name>.wav first.
+        Falls back to QApplication.beep() for 'boop'.
+        Fails silently on any error.
+        """
+        if not self._audio_available:
+            if name == 'boop':
+                try:
+                    QApplication.beep()
+                except Exception:
+                    pass
+            return
+        try:
+            if name not in self._audio_sfx:
+                from PyQt6.QtMultimedia import QSoundEffect
+                from PyQt6.QtCore import QUrl
+                import os
+                # Look for WAV in app_data/sounds/ next to the EXE / working dir
+                for base in (
+                    os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', 'app_data', 'sounds'),
+                    os.path.join(os.getcwd(), 'app_data', 'sounds'),
+                ):
+                    wav = os.path.normpath(os.path.join(base, f'{name}.wav'))
+                    if os.path.isfile(wav):
+                        sfx = QSoundEffect(self)
+                        sfx.setSource(QUrl.fromLocalFile(wav))
+                        sfx.setVolume(0.55)
+                        self._audio_sfx[name] = sfx
+                        break
+                else:
+                    self._audio_sfx[name] = None   # not found — mark as absent
+            sfx = self._audio_sfx.get(name)
+            if sfx is not None:
+                sfx.play()
+            elif name == 'boop':
+                QApplication.beep()
+        except Exception:
+            pass
+
     def _set_state_direct(self, state: str):
-        """Set animation state bypassing anticipation (used internally)."""
+        """Set animation state with blend transition (bypasses anticipation, used internally)."""
         self._prev_state    = self.animation_state
         self._blend_alpha   = 0.0
         self._blend_start_t = time.time()
@@ -1333,7 +1622,7 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
         self._update_subsystems(now, dt)
 
         # Update physics
-        self._update_physics()
+        self._update_physics(dt)
         
         # Update trail particles
         self._update_trail()
@@ -1347,49 +1636,76 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
         # Request redraw
         self.update()
     
-    def _update_physics(self):
-        """Update physics simulation."""
+    def _update_physics(self, dt: float = None):
+        """Update physics simulation. Uses actual dt for synchronized motion."""
+        if dt is None:
+            dt = self.FRAME_TIME   # fallback for direct calls
+
         # Apply gravity if not on ground
         if self.panda_y > -1.0:
-            self.velocity_y -= self.GRAVITY * 0.016  # 60 FPS delta
-        
+            self.velocity_y -= self.GRAVITY * dt
+
+        # Track pre-collision velocity for landing detection
+        vy_before = self.velocity_y
+
         # Apply velocities
-        self.panda_x += self.velocity_x * 0.016
-        self.panda_y += self.velocity_y * 0.016
-        self.panda_z += self.velocity_z * 0.016
-        self.rotation_y += self.angular_velocity * 0.016
-        
-        # Ground collision
+        self.panda_x += self.velocity_x * dt
+        self.panda_y += self.velocity_y * dt
+        self.panda_z += self.velocity_z * dt
+        self.rotation_y += self.angular_velocity * dt
+
+        # Ground collision — detect landing impact
         if self.panda_y < -0.7:
             self.panda_y = -0.7
+            if vy_before < -0.8:
+                # Landing impact: squash + belly jiggle + flinch blink + thump sound
+                impact = min(abs(vy_before) * 0.12, 0.28)
+                self._squash_y   = max(0.72, 1.0 - impact)
+                self._squash_vel = 0.0
+                self._belly_vel += abs(vy_before) * 0.18   # kick belly jiggle upward
+                self._flinch_t   = 0.15
+                self._play_sound('thump')
             self.velocity_y *= -self.BOUNCE_DAMPING
             if abs(self.velocity_y) < 0.01:
                 self.velocity_y = 0
-        
+
+        # Detect fast drag → "whoa face"
+        if self.is_dragging:
+            drag_vx = self.velocity_x
+            if abs(drag_vx - self._drag_vx_prev) > 0.4:
+                self._whoa_t            = 0.5
+                self._surprised_eye_t   = 0.3
+            self._drag_vx_prev = drag_vx
+
         # Apply friction
         self.velocity_x *= self.FRICTION
         self.velocity_z *= self.FRICTION
         self.angular_velocity *= self.FRICTION
-        
+
         # Update items physics
         for item in self.items_3d:
             if 'velocity_y' in item:
-                item['y'] += item['velocity_y'] * 0.016
-                item['velocity_y'] -= self.GRAVITY * 0.016
+                item['y'] += item['velocity_y'] * dt
+                item['velocity_y'] -= self.GRAVITY * dt
                 if item['y'] < -0.9:
                     item['y'] = -0.9
                     item['velocity_y'] *= -self.BOUNCE_DAMPING
-    
+
     def mousePressEvent(self, event: QMouseEvent):
-        """Handle mouse press."""
+        """Handle mouse press — play boop, reset boredom, surprised face."""
         self.last_mouse_pos = event.pos()
         self.drag_start_pos = event.pos()
         self.is_dragging = False
-        
+        self._boredom_t = 0.0
+
         if event.button() == Qt.MouseButton.LeftButton:
-            # Check if clicked on panda (simple distance check)
-            # In 3D, we'd need proper ray casting
+            # Quick surprised blink + boop sound
+            self._surprised_eye_t = 0.25
+            self._play_sound('boop')
+            # Kick an arm overshoot (right arm reacts to click)
+            self._arm_over_vel[1] += random.uniform(6.0, 12.0)
             self.clicked.emit()
+
     
     def mouseMoveEvent(self, event: QMouseEvent):
         """Handle mouse drag and track cursor for panda awareness."""
