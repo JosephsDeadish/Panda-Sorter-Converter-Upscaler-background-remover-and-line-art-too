@@ -59,7 +59,8 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
     gl_failed = pyqtSignal(str)
     
     # Animation constants
-    TARGET_FPS = 30          # 30 fps is plenty for the sidebar companion; reduces CPU load
+    TARGET_FPS = 30          # 30 fps matches perceived smoothness for a sidebar widget
+    #                          # and halves the per-second GL draw calls vs 60 fps
     FRAME_TIME = 1.0 / TARGET_FPS  # 16.67ms per frame
     
     # Panda dimensions (3D units)
@@ -490,206 +491,409 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
         glEnable(GL_LIGHTING)
     
     def _draw_panda(self):
-        """Draw 3D panda character with all body parts."""
-        # Get animation-specific offsets
-        bob_offset = self._get_body_bob()
-        limb_offsets = self._get_limb_positions()
-        
-        # Body (torso) - main oval shape
+        """Draw detailed 3D panda character with all body parts."""
+        bob = self._get_body_bob()
+        limb = self._get_limb_positions()
+        t  = self.animation_frame           # raw frame counter used for trig
+
+        # ── Torso ────────────────────────────────────────────────────────────
         glPushMatrix()
-        glTranslatef(0.0, 0.3 + bob_offset, 0.0)
-        glColor3f(1.0, 1.0, 1.0)  # White
+        glTranslatef(self.panda_x, 0.28 + bob, self.panda_z)
+        glRotatef(self.rotation_y, 0.0, 1.0, 0.0)
+
+        # Belly — creamy white underside (slightly yellowish)
         glPushMatrix()
-        glScalef(self.BODY_WIDTH, self.BODY_HEIGHT, self.BODY_WIDTH * 0.8)
+        glScalef(self.BODY_WIDTH * 0.65, self.BODY_HEIGHT * 0.55, self.BODY_WIDTH * 0.50)
+        glColor3f(1.0, 0.98, 0.93)
+        self._draw_sphere(1.0, 24, 24)
+        glPopMatrix()
+
+        # Main body — bright white with subtle blue-white tint
+        glPushMatrix()
+        glScalef(self.BODY_WIDTH, self.BODY_HEIGHT, self.BODY_WIDTH * 0.78)
+        glColor3f(0.97, 0.97, 0.99)
+        self._draw_sphere(1.0, 24, 24)
+        glPopMatrix()
+
+        # Fur layer — slightly larger white sphere at reduced alpha for depth
+        glEnable(GL_BLEND)
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
+        glPushMatrix()
+        glScalef(self.BODY_WIDTH * 1.03, self.BODY_HEIGHT * 1.02, self.BODY_WIDTH * 0.81)
+        glColor4f(1.0, 1.0, 1.0, 0.18)
+        self._draw_sphere(1.0, 16, 16)
+        glPopMatrix()
+        glDisable(GL_BLEND)
+
+        # Black saddle patch across lower torso
+        glPushMatrix()
+        glTranslatef(0.0, -0.18, 0.0)
+        glScalef(self.BODY_WIDTH * 0.95, self.BODY_HEIGHT * 0.35, self.BODY_WIDTH * 0.70)
+        glColor3f(0.08, 0.08, 0.08)
         self._draw_sphere(1.0, 20, 20)
         glPopMatrix()
-        glPopMatrix()
-        
-        # Head
+
+        # ── Legs ─────────────────────────────────────────────────────────────
+        self._draw_panda_legs(limb, bob, t)
+
+        # ── Arms ─────────────────────────────────────────────────────────────
+        self._draw_panda_arms(limb, bob, t)
+
+        # ── Tail (small white puff) ───────────────────────────────────────────
         glPushMatrix()
-        glTranslatef(0.0, 0.9 + bob_offset, 0.0)
-        glColor3f(1.0, 1.0, 1.0)  # White
-        self._draw_sphere(self.HEAD_RADIUS, 20, 20)
-        
-        # Ears
-        self._draw_panda_ears(bob_offset)
-        
-        # Eyes (black patches)
-        self._draw_panda_eyes()
-        
-        # Nose
+        glTranslatef(0.0, -0.05, -self.BODY_WIDTH * 0.78)
+        glColor3f(0.94, 0.94, 0.94)
+        self._draw_sphere(0.07, 10, 10)
+        glPopMatrix()
+
+        glPopMatrix()   # end torso matrix
+
+        # ── Head (separate matrix so it can tilt independently) ───────────────
+        tilt = 4.0 * math.sin(t * 0.04)   # gentle head-tilt breathing
         glPushMatrix()
-        glTranslatef(0.0, -0.05, self.HEAD_RADIUS * 0.8)
-        glColor3f(0.0, 0.0, 0.0)  # Black
-        self._draw_sphere(0.06, 12, 12)
-        glPopMatrix()
-        
-        glPopMatrix()
-        
-        # Arms
-        self._draw_panda_arms(limb_offsets, bob_offset)
-        
-        # Legs
-        self._draw_panda_legs(limb_offsets, bob_offset)
-        
-        # Draw 3D clothing (hats, shirts, pants, etc.)
+        glTranslatef(self.panda_x, 0.90 + bob * 1.1, self.panda_z)
+        glRotatef(self.rotation_y, 0.0, 1.0, 0.0)
+        glRotatef(tilt, 0.0, 0.0, 1.0)
+
+        # Main skull — white
+        glColor3f(0.97, 0.97, 0.99)
+        self._draw_sphere(self.HEAD_RADIUS, 28, 28)
+
+        # Fur fuzz over skull
+        glEnable(GL_BLEND)
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
+        glColor4f(1.0, 1.0, 1.0, 0.15)
+        self._draw_sphere(self.HEAD_RADIUS * 1.04, 16, 16)
+        glDisable(GL_BLEND)
+
+        # ── Ears ─────────────────────────────────────────────────────────────
+        self._draw_panda_ears(bob, t)
+
+        # ── Eye patches ───────────────────────────────────────────────────────
+        self._draw_panda_eyes(t)
+
+        # ── Snout ─────────────────────────────────────────────────────────────
+        self._draw_panda_snout()
+
+        glPopMatrix()   # end head matrix
+
+        # ── Clothing & weapons ────────────────────────────────────────────────
         self._draw_clothing()
-        
-        # Draw equipped weapon
         self._draw_weapon()
-    
+
     def _draw_panda_geometry_only(self):
-        """Draw panda geometry without colors (for shadow mapping)."""
-        # Simplified geometry for shadow pass
+        """Draw simplified panda geometry for shadow pass (no colour changes)."""
         glPushMatrix()
-        glTranslatef(0.0, 0.3, 0.0)
-        glScalef(self.BODY_WIDTH, self.BODY_HEIGHT, self.BODY_WIDTH * 0.8)
-        self._draw_sphere(1.0, 12, 12)
+        glTranslatef(self.panda_x, 0.28, self.panda_z)
+        glScalef(self.BODY_WIDTH, self.BODY_HEIGHT, self.BODY_WIDTH * 0.78)
+        self._draw_sphere(1.0, 10, 10)
         glPopMatrix()
-        
         glPushMatrix()
-        glTranslatef(0.0, 0.9, 0.0)
-        self._draw_sphere(self.HEAD_RADIUS, 12, 12)
+        glTranslatef(self.panda_x, 0.90, self.panda_z)
+        self._draw_sphere(self.HEAD_RADIUS, 10, 10)
         glPopMatrix()
-    
-    def _draw_panda_ears(self, bob_offset):
-        """Draw panda ears."""
-        ear_y = 0.3
-        ear_x = 0.25
-        
-        # Left ear
+
+    # ─── Ear drawing ────────────────────────────────────────────────────────
+    def _draw_panda_ears(self, bob_offset, t=0):
+        """Draw rounded ears with black outer ring and pink inner ear."""
+        ear_positions = [(-0.265, 0.295, 0.06), (0.265, 0.295, 0.06)]
+        for (ex, ey, ez) in ear_positions:
+            # Outer black ear
+            glPushMatrix()
+            glTranslatef(ex, ey, ez)
+            glScalef(1.0, 0.88, 0.55)
+            glColor3f(0.08, 0.08, 0.08)
+            self._draw_sphere(self.EAR_SIZE, 16, 16)
+            # Inner pink concha
+            glPushMatrix()
+            glTranslatef(0.0, -0.005, 0.015)
+            glScalef(0.58, 0.52, 0.40)
+            glColor3f(0.88, 0.60, 0.68)   # warm pink
+            self._draw_sphere(self.EAR_SIZE, 12, 12)
+            glPopMatrix()
+            glPopMatrix()
+
+    # ─── Eye drawing ────────────────────────────────────────────────────────
+    def _draw_panda_eyes(self, t=0):
+        """Draw detailed eyes: black patch, white sclera, iris, pupil, specular."""
+        blink = self._get_blink_scale(t)        # 1.0 = open, ≈0 = closed
+        eye_y  = 0.055
+        eye_z  = self.HEAD_RADIUS * 0.74
+
+        for side in (-1, 1):
+            eye_x = side * 0.158
+
+            # ── Black fur patch (almond-shaped via scaling) ───────────────
+            glPushMatrix()
+            glTranslatef(eye_x, eye_y, eye_z)
+            glScalef(1.0, blink, 1.0)
+            glRotatef(side * -12.0, 0.0, 0.0, 1.0)   # slight tilt
+            glScalef(1.25, 0.90, 0.60)
+            glColor3f(0.07, 0.07, 0.07)
+            self._draw_sphere(0.118, 16, 16)
+            glPopMatrix()
+
+            # ── White sclera ─────────────────────────────────────────────
+            glPushMatrix()
+            glTranslatef(eye_x, eye_y, eye_z + 0.052)
+            glScalef(1.0, blink, 1.0)
+            glColor3f(1.0, 1.0, 1.0)
+            self._draw_sphere(0.060, 16, 16)
+            glPopMatrix()
+
+            # ── Coloured iris (brown) ─────────────────────────────────────
+            glPushMatrix()
+            glTranslatef(eye_x, eye_y, eye_z + 0.092)
+            glScalef(1.0, blink, 1.0)
+            glColor3f(0.42, 0.28, 0.12)
+            self._draw_sphere(0.036, 14, 14)
+            glPopMatrix()
+
+            # ── Black pupil ───────────────────────────────────────────────
+            glPushMatrix()
+            glTranslatef(eye_x, eye_y, eye_z + 0.118)
+            glScalef(1.0, blink, 1.0)
+            glColor3f(0.04, 0.04, 0.04)
+            self._draw_sphere(0.021, 12, 12)
+            glPopMatrix()
+
+            # ── Specular highlight dot ────────────────────────────────────
+            glPushMatrix()
+            glTranslatef(eye_x + side * 0.007, eye_y + 0.012, eye_z + 0.128)
+            glScalef(1.0, blink, 1.0)
+            glDisable(GL_LIGHTING)
+            glColor3f(1.0, 1.0, 1.0)
+            self._draw_sphere(0.009, 8, 8)
+            glEnable(GL_LIGHTING)
+            glPopMatrix()
+
+    def _get_blink_scale(self, t):
+        """
+        Return vertical eye scale (1.0 = fully open, ~0.05 = closed).
+        Blink cycle repeats every 200 frames.  Within the first 6 frames:
+          frames 0-2:  close  (scale drops from 1.0 → 0.05 → 1.0)
+          frame 3:     fully closed at minimum (abs(3-3)/3 = 0)
+          frames 3-5:  open   (scale rises back to 1.0)
+        The formula abs(phase-3)/3.0 gives a symmetric V centred at frame 3.
+        """
+        phase = t % 200
+        if phase < 6:
+            return max(0.05, abs(phase - 3) / 3.0)
+        return 1.0
+
+    # ─── Snout drawing ──────────────────────────────────────────────────────
+    def _draw_panda_snout(self):
+        """Draw muzzle, nose tip, philtrum and teeth."""
+        # Muzzle — off-white ellipsoid
         glPushMatrix()
-        glTranslatef(-ear_x, ear_y, 0.0)
-        glColor3f(0.0, 0.0, 0.0)  # Black
-        self._draw_sphere(self.EAR_SIZE, 12, 12)
+        glTranslatef(0.0, -0.065, self.HEAD_RADIUS * 0.84)
+        glScalef(1.10, 0.72, 0.55)
+        glColor3f(0.96, 0.95, 0.91)
+        self._draw_sphere(0.138, 18, 18)
         glPopMatrix()
-        
-        # Right ear
+
+        # Nose bridge ridge (dark grey)
         glPushMatrix()
-        glTranslatef(ear_x, ear_y, 0.0)
-        glColor3f(0.0, 0.0, 0.0)  # Black
-        self._draw_sphere(self.EAR_SIZE, 12, 12)
+        glTranslatef(0.0, 0.010, self.HEAD_RADIUS * 0.88)
+        glScalef(0.75, 0.45, 0.35)
+        glColor3f(0.18, 0.15, 0.15)
+        self._draw_sphere(0.052, 12, 12)
         glPopMatrix()
-    
-    def _draw_panda_eyes(self):
-        """Draw panda eyes with black patches."""
-        eye_y = 0.05
-        eye_x = 0.15
-        eye_z = self.HEAD_RADIUS * 0.7
-        
-        # Left eye patch (black)
+
+        # Nose tip — shiny black oval
         glPushMatrix()
-        glTranslatef(-eye_x, eye_y, eye_z)
-        glColor3f(0.0, 0.0, 0.0)
-        self._draw_sphere(0.12, 12, 12)
+        glTranslatef(0.0, -0.020, self.HEAD_RADIUS * 0.92 + 0.002)
+        glScalef(1.20, 0.75, 0.60)
+        glMaterialfv(GL_FRONT, GL_SPECULAR, [0.9, 0.9, 0.9, 1.0])
+        glMaterialf(GL_FRONT, GL_SHININESS, 80.0)
+        glColor3f(0.06, 0.06, 0.06)
+        self._draw_sphere(0.048, 14, 14)
+        # restore default specular
+        glMaterialfv(GL_FRONT, GL_SPECULAR, [1.0, 1.0, 1.0, 1.0])
+        glMaterialf(GL_FRONT, GL_SHININESS, 50.0)
         glPopMatrix()
-        
-        # Right eye patch (black)
+
+        # Philtrum groove — dark line below nose
         glPushMatrix()
-        glTranslatef(eye_x, eye_y, eye_z)
-        glColor3f(0.0, 0.0, 0.0)
-        self._draw_sphere(0.12, 12, 12)
+        glTranslatef(0.0, -0.068, self.HEAD_RADIUS * 0.94)
+        glScalef(0.25, 1.10, 0.30)
+        glColor3f(0.55, 0.45, 0.42)
+        self._draw_sphere(0.022, 8, 8)
         glPopMatrix()
-        
-        # Left eyeball (white)
-        glPushMatrix()
-        glTranslatef(-eye_x, eye_y, eye_z + 0.05)
-        glColor3f(1.0, 1.0, 1.0)
-        self._draw_sphere(0.06, 12, 12)
-        glPopMatrix()
-        
-        # Right eyeball (white)
-        glPushMatrix()
-        glTranslatef(eye_x, eye_y, eye_z + 0.05)
-        glColor3f(1.0, 1.0, 1.0)
-        self._draw_sphere(0.06, 12, 12)
-        glPopMatrix()
-        
-        # Pupils (black)
-        pupil_offset = 0.02
-        glPushMatrix()
-        glTranslatef(-eye_x + pupil_offset, eye_y, eye_z + 0.1)
-        glColor3f(0.0, 0.0, 0.0)
-        self._draw_sphere(0.03, 8, 8)
-        glPopMatrix()
-        
-        glPushMatrix()
-        glTranslatef(eye_x + pupil_offset, eye_y, eye_z + 0.1)
-        glColor3f(0.0, 0.0, 0.0)
-        self._draw_sphere(0.03, 8, 8)
-        glPopMatrix()
-    
-    def _draw_panda_arms(self, limb_offsets, bob_offset):
-        """Draw panda arms."""
-        arm_y = 0.3 + bob_offset
-        arm_x = self.BODY_WIDTH + 0.1
-        
-        left_arm_angle = limb_offsets.get('left_arm_angle', 0)
-        right_arm_angle = limb_offsets.get('right_arm_angle', 0)
-        
-        # Left arm
-        glPushMatrix()
-        glTranslatef(-arm_x, arm_y, 0.0)
-        glRotatef(left_arm_angle, 1.0, 0.0, 0.0)
-        glColor3f(0.0, 0.0, 0.0)  # Black
-        glPushMatrix()
-        glScalef(0.12, self.ARM_LENGTH, 0.12)
-        glTranslatef(0.0, -0.5, 0.0)
-        self._draw_sphere(1.0, 12, 12)
-        glPopMatrix()
-        glPopMatrix()
-        
-        # Right arm
-        glPushMatrix()
-        glTranslatef(arm_x, arm_y, 0.0)
-        glRotatef(right_arm_angle, 1.0, 0.0, 0.0)
-        glColor3f(0.0, 0.0, 0.0)  # Black
-        glPushMatrix()
-        glScalef(0.12, self.ARM_LENGTH, 0.12)
-        glTranslatef(0.0, -0.5, 0.0)
-        self._draw_sphere(1.0, 12, 12)
-        glPopMatrix()
-        glPopMatrix()
-    
-    def _draw_panda_legs(self, limb_offsets, bob_offset):
-        """Draw panda legs."""
-        leg_y = -0.1 + bob_offset
-        leg_x = 0.2
-        
-        left_leg_angle = limb_offsets.get('left_leg_angle', 0)
-        right_leg_angle = limb_offsets.get('right_leg_angle', 0)
-        
-        # Left leg
-        glPushMatrix()
-        glTranslatef(-leg_x, leg_y, 0.0)
-        glRotatef(left_leg_angle, 1.0, 0.0, 0.0)
-        glColor3f(0.0, 0.0, 0.0)  # Black
-        glPushMatrix()
-        glScalef(0.15, self.LEG_LENGTH, 0.15)
-        glTranslatef(0.0, -0.5, 0.0)
-        self._draw_sphere(1.0, 12, 12)
-        glPopMatrix()
-        glPopMatrix()
-        
-        # Right leg
-        glPushMatrix()
-        glTranslatef(leg_x, leg_y, 0.0)
-        glRotatef(right_leg_angle, 1.0, 0.0, 0.0)
-        glColor3f(0.0, 0.0, 0.0)  # Black
-        glPushMatrix()
-        glScalef(0.15, self.LEG_LENGTH, 0.15)
-        glTranslatef(0.0, -0.5, 0.0)
-        self._draw_sphere(1.0, 12, 12)
-        glPopMatrix()
-        glPopMatrix()
+
+        # Mouth line — thin dark crescent (two corner spheres + centre dip)
+        for mx, my in [(-0.048, -0.094), (0.0, -0.100), (0.048, -0.094)]:
+            glPushMatrix()
+            glTranslatef(mx, my, self.HEAD_RADIUS * 0.91)
+            glColor3f(0.30, 0.22, 0.20)
+            self._draw_sphere(0.013, 8, 8)
+            glPopMatrix()
+
+        # Teeth (two white incisors, visible when mouth slightly open)
+        for tx in (-0.018, 0.018):
+            glPushMatrix()
+            glTranslatef(tx, -0.098, self.HEAD_RADIUS * 0.91)
+            glScalef(0.55, 1.20, 0.50)
+            glColor3f(0.97, 0.97, 0.94)
+            self._draw_sphere(0.016, 8, 8)
+            glPopMatrix()
+
+    # ─── Arm drawing ────────────────────────────────────────────────────────
+    def _draw_panda_arms(self, limb, bob, t=0):
+        """Draw arms with upper arm, forearm, wrist taper and paw/claws."""
+        arm_y   = 0.30 + bob
+        arm_x   = self.BODY_WIDTH + 0.06
+
+        swing_idle = 5.0 * math.sin(t * 0.030)  # tiny idle sway
+
+        for side, key in ((-1, 'left_arm_angle'), (1, 'right_arm_angle')):
+            angle = limb.get(key, 0) + swing_idle * side
+
+            glPushMatrix()
+            glTranslatef(side * arm_x, arm_y + 0.06, 0.0)
+            glRotatef(-side * 8, 0.0, 0.0, 1.0)   # arms hang slightly outward
+            glRotatef(angle, 1.0, 0.0, 0.0)
+
+            # Upper arm — thick black ovoid
+            glPushMatrix()
+            glScalef(0.115, 0.200, 0.115)
+            glTranslatef(0.0, -0.50, 0.0)
+            glColor3f(0.08, 0.08, 0.08)
+            self._draw_sphere(1.0, 16, 16)
+            glPopMatrix()
+
+            # Elbow joint
+            glPushMatrix()
+            glTranslatef(0.0, -self.ARM_LENGTH * 0.45, 0.0)
+            glColor3f(0.10, 0.10, 0.10)
+            self._draw_sphere(0.075, 12, 12)
+            glPopMatrix()
+
+            # Forearm — slightly thinner
+            glPushMatrix()
+            glTranslatef(0.0, -self.ARM_LENGTH * 0.45, 0.0)
+            glScalef(0.095, 0.185, 0.095)
+            glTranslatef(0.0, -0.50, 0.0)
+            glColor3f(0.09, 0.09, 0.09)
+            self._draw_sphere(1.0, 14, 14)
+            glPopMatrix()
+
+            # Paw (rounded teardrop)
+            glPushMatrix()
+            glTranslatef(0.0, -self.ARM_LENGTH * 0.88, 0.0)
+            glScalef(1.20, 0.65, 1.15)
+            glColor3f(0.08, 0.08, 0.08)
+            self._draw_sphere(0.082, 14, 14)
+            # Paw pad (pink ellipse on palm face)
+            glPushMatrix()
+            glTranslatef(0.0, 0.0, 0.07)
+            glScalef(0.70, 0.58, 0.30)
+            glColor3f(0.78, 0.48, 0.55)
+            self._draw_sphere(0.082, 10, 10)
+            glPopMatrix()
+            glPopMatrix()
+
+            # Claws — 4 small dark cones arranged in arc
+            glPushMatrix()
+            glTranslatef(0.0, -self.ARM_LENGTH * 0.88 - 0.07, 0.0)
+            for ci in range(4):
+                cx = (ci - 1.5) * 0.028
+                glPushMatrix()
+                glTranslatef(cx, -0.012, 0.06)
+                glRotatef(-25, 1.0, 0.0, 0.0)
+                glColor3f(0.20, 0.18, 0.16)
+                self._draw_claw(0.032, 0.012)
+                glPopMatrix()
+            glPopMatrix()
+
+            glPopMatrix()  # end arm
+
+    # ─── Leg drawing ────────────────────────────────────────────────────────
+    def _draw_panda_legs(self, limb, bob, t=0):
+        """Draw stocky legs with thigh, shin, foot and claws."""
+        leg_y = -0.04 + bob
+        leg_x = 0.20
+
+        for side, key in ((-1, 'left_leg_angle'), (1, 'right_leg_angle')):
+            angle = limb.get(key, 0)
+
+            glPushMatrix()
+            glTranslatef(side * leg_x, leg_y, 0.0)
+            glRotatef(angle, 1.0, 0.0, 0.0)
+
+            # Thigh — wide black sphere
+            glPushMatrix()
+            glScalef(0.155, 0.195, 0.155)
+            glTranslatef(0.0, -0.50, 0.0)
+            glColor3f(0.08, 0.08, 0.08)
+            self._draw_sphere(1.0, 16, 16)
+            glPopMatrix()
+
+            # Knee joint
+            glPushMatrix()
+            glTranslatef(0.0, -self.LEG_LENGTH * 0.42, 0.0)
+            glColor3f(0.10, 0.10, 0.10)
+            self._draw_sphere(0.082, 12, 12)
+            glPopMatrix()
+
+            # Shin
+            glPushMatrix()
+            glTranslatef(0.0, -self.LEG_LENGTH * 0.42, 0.0)
+            glScalef(0.130, 0.160, 0.130)
+            glTranslatef(0.0, -0.50, 0.0)
+            glColor3f(0.09, 0.09, 0.09)
+            self._draw_sphere(1.0, 14, 14)
+            glPopMatrix()
+
+            # Foot — flattened ovoid, slightly forward
+            glPushMatrix()
+            glTranslatef(0.0, -self.LEG_LENGTH * 0.85, 0.045)
+            glScalef(1.25, 0.55, 1.55)
+            glColor3f(0.07, 0.07, 0.07)
+            self._draw_sphere(0.092, 16, 16)
+            # Foot pad (pink)
+            glPushMatrix()
+            glTranslatef(0.0, -0.06, 0.04)
+            glScalef(0.65, 0.30, 0.75)
+            glColor3f(0.78, 0.48, 0.55)
+            self._draw_sphere(0.092, 10, 10)
+            glPopMatrix()
+            glPopMatrix()
+
+            # Toe claws — 5 per foot
+            glPushMatrix()
+            glTranslatef(0.0, -self.LEG_LENGTH * 0.85 - 0.055, 0.09)
+            for ci in range(5):
+                cx = (ci - 2.0) * 0.028
+                glPushMatrix()
+                glTranslatef(cx, -0.006, 0.0)
+                glRotatef(-30, 1.0, 0.0, 0.0)
+                glColor3f(0.22, 0.19, 0.16)
+                self._draw_claw(0.028, 0.010)
+                glPopMatrix()
+            glPopMatrix()
+
+            glPopMatrix()  # end leg
     
     def _draw_sphere(self, radius, slices, stacks):
-        """Draw a sphere using GLU quadrics."""
+        """Draw a smooth sphere using GLU quadrics."""
         quad = gluNewQuadric()
         gluQuadricNormals(quad, GLU_SMOOTH)
         gluQuadricTexture(quad, GL_TRUE)
         gluSphere(quad, radius, slices, stacks)
         gluDeleteQuadric(quad)
+
+    def _draw_claw(self, length: float, base_radius: float):
+        """Draw a single curved claw using a tapered cylinder + sphere tip."""
+        quad = gluNewQuadric()
+        gluQuadricNormals(quad, GLU_SMOOTH)
+        gluCylinder(quad, base_radius, base_radius * 0.08, length, 8, 2)
+        gluDeleteQuadric(quad)
+        # Tip sphere
+        glPushMatrix()
+        glTranslatef(0.0, 0.0, length)
+        self._draw_sphere(base_radius * 0.08, 6, 6)
+        glPopMatrix()
     
     def _draw_item_3d(self, item):
         """Draw a 3D item (toy, food, or clothing)."""
@@ -783,51 +987,100 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
         glVertex3f(-size, size, -size)
         glEnd()
     
+    # ─── Smooth animation helpers ────────────────────────────────────────────
     def _get_body_bob(self):
-        """Get body bobbing offset based on animation state."""
-        if self.animation_state == 'idle':
-            # Gentle breathing animation
-            return 0.02 * math.sin(self.animation_frame * 0.05)
-        elif self.animation_state in ['walking', 'walking_left', 'walking_right']:
-            # Walking bob
-            return 0.05 * abs(math.sin(self.animation_frame * 0.2))
-        elif self.animation_state == 'jumping':
-            # Jump arc
-            phase = (self.animation_frame % 60) / 60.0
-            return 0.3 * math.sin(phase * math.pi)
+        """Return vertical body-bob offset using smooth sinusoidal curves."""
+        t = self.animation_frame
+        state = self.animation_state
+
+        if state == 'idle':
+            # Layered breathing: slow primary + gentle secondary
+            return 0.016 * math.sin(t * 0.040) + 0.004 * math.sin(t * 0.110)
+
+        if state in ('walking', 'walking_left', 'walking_right'):
+            # Two steps per gait cycle — abs(sin) gives an up-and-down per step
+            return 0.038 * abs(math.sin(t * 0.160)) - 0.010
+
+        if state == 'running':
+            return 0.055 * abs(math.sin(t * 0.280)) - 0.012
+
+        if state == 'jumping':
+            phase = (t % 70) / 70.0
+            return 0.35 * math.sin(phase * math.pi)
+
+        if state == 'celebrating':
+            return 0.06 * abs(math.sin(t * 0.22))
+
+        if state == 'waving':
+            return 0.010 * math.sin(t * 0.060)
+
         return 0.0
-    
+
     def _get_limb_positions(self):
-        """Get limb rotation angles based on animation state."""
-        positions = {
-            'left_arm_angle': 0,
-            'right_arm_angle': 0,
-            'left_leg_angle': 0,
-            'right_leg_angle': 0
+        """
+        Return per-limb rotation angles (degrees) using smooth sinusoidal curves.
+        All curves use the same animation_frame counter so limbs stay in sync.
+        """
+        state = self.animation_state
+        frame = self.animation_frame
+
+        pos = {
+            'left_arm_angle':  0.0,
+            'right_arm_angle': 0.0,
+            'left_leg_angle':  0.0,
+            'right_leg_angle': 0.0,
         }
-        
-        # Check if working (overrides other animations)
+
+        # Working animation overrides everything
         if self.is_working:
-            working_offsets = self._get_working_limb_offsets()
-            positions.update(working_offsets)
-            return positions
-        
-        if self.animation_state in ['walking', 'walking_left', 'walking_right']:
-            # Walking animation - opposing arm/leg movement
-            swing = 30 * math.sin(self.animation_frame * 0.2)
-            positions['left_arm_angle'] = swing
-            positions['right_arm_angle'] = -swing
-            positions['left_leg_angle'] = -swing
-            positions['right_leg_angle'] = swing
-        elif self.animation_state == 'waving':
-            # Waving animation
-            positions['right_arm_angle'] = -90 + 20 * math.sin(self.animation_frame * 0.3)
-        elif self.animation_state == 'celebrating':
-            # Both arms up
-            positions['left_arm_angle'] = -120
-            positions['right_arm_angle'] = -120
-        
-        return positions
+            pos.update(self._get_working_limb_offsets())
+            return pos
+
+        if state in ('walking', 'walking_left', 'walking_right'):
+            # Smooth gait: arms and legs counter-swing with sin(3x)/3 overshoot
+            base  = frame * 0.160
+            swing = 32.0 * math.sin(base) + 5.0 * math.sin(base * 3) / 3.0
+            pos['left_arm_angle']  =  swing
+            pos['right_arm_angle'] = -swing
+            pos['left_leg_angle']  = -swing
+            pos['right_leg_angle'] =  swing
+
+        elif state == 'running':
+            base  = frame * 0.280
+            swing = 55.0 * math.sin(base) + 9.0 * math.sin(base * 3) / 3.0
+            pos['left_arm_angle']  =  swing
+            pos['right_arm_angle'] = -swing
+            pos['left_leg_angle']  = -swing
+            pos['right_leg_angle'] =  swing
+
+        elif state == 'jumping':
+            phase  = (frame % 70) / 70.0
+            extend = 40.0 * math.sin(phase * math.pi)
+            pos['left_arm_angle']  = -extend * 0.9
+            pos['right_arm_angle'] = -extend * 0.9
+            pos['left_leg_angle']  =  extend * 0.6
+            pos['right_leg_angle'] =  extend * 0.6
+
+        elif state == 'waving':
+            # Right arm rises and waves; left arm hangs with gentle sway
+            wave = -95.0 + 28.0 * math.sin(frame * 0.28)
+            pos['right_arm_angle'] = wave
+            pos['left_arm_angle']  = 5.0 * math.sin(frame * 0.060)
+
+        elif state == 'celebrating':
+            # Both arms up, bouncing with slightly different phases for life
+            pos['left_arm_angle']  = -115.0 + 22.0 * math.sin(frame * 0.22)
+            pos['right_arm_angle'] = -115.0 + 22.0 * math.sin(frame * 0.22 + 0.4)
+            pos['left_leg_angle']  =  18.0 * math.sin(frame * 0.22)
+            pos['right_leg_angle'] = -18.0 * math.sin(frame * 0.22)
+
+        else:
+            # Idle: micro-sway so panda never looks stiff
+            sway = 3.5 * math.sin(frame * 0.040)
+            pos['left_arm_angle']  =  sway
+            pos['right_arm_angle'] = -sway
+
+        return pos
     
     def _update_animation(self):
         """Update animation frame and physics."""
