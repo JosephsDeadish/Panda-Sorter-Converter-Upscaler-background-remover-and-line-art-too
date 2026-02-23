@@ -2167,7 +2167,7 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
                 if r <= c:
                     self._idle_sub_state = name
                     self._idle_sub_t = 0.0
-                    self._play_sound('boop' if name == 'yawning' else 'purr')
+                    self._play_sound('yawn' if name == 'yawning' else 'purr')
                     break
             self._idle_sub_next = random.uniform(8.0, 20.0)
 
@@ -2179,6 +2179,9 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
                 'flopping':   4.0,
             }.get(self._idle_sub_state, 3.0)
             if self._idle_sub_t >= dur:
+                # Reset jaw when yawning finishes
+                if self._idle_sub_state == 'yawning':
+                    self._jaw_open = 0.0
                 self._idle_sub_state = ''
                 self._idle_sub_t = 0.0
 
@@ -2227,10 +2230,12 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
             return {'head_x': head_x}
 
         elif s == 'yawning':
-            # Arms stretch out, jaw opens (approximated by body Y scale)
-            phase = min(1.0, t / 1.0)
-            arm_both = -90.0 * math.sin(math.pi * phase)
-            scale = 1.0 + 0.04 * math.sin(math.pi * phase)
+            # Arms stretch out, jaw opens wide, then closes
+            phase = min(1.0, t / 2.0)  # 2s total cycle
+            jaw_phase = math.sin(math.pi * phase)          # 0→1→0 over cycle
+            self._jaw_open = jaw_phase * 0.92              # actually open jaw
+            arm_both = -95.0 * jaw_phase
+            scale = 1.0 + 0.05 * jaw_phase
             return {'arm_l': arm_both, 'arm_r': arm_both, 'body_y_scale': scale}
 
         elif s == 'flopping':

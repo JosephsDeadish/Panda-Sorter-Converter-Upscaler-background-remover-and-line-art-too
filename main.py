@@ -3879,7 +3879,7 @@ class TextureSorterMainWindow(QMainWindow):
             logger.error(f"Error handling shop purchase: {e}", exc_info=True)
 
     def _on_shop_purchase_completed(self, item_id: str) -> None:
-        """Alias wired to ShopPanelQt.purchase_completed signal (otter shop)."""
+        """Alias wired to ShopPanelQt.item_purchased signal (otter shop)."""
         self.on_shop_item_purchased(item_id)
 
     def on_inventory_item_selected(self, item_id: str):
@@ -4263,7 +4263,7 @@ class TextureSorterMainWindow(QMainWindow):
             from ui.shop_panel_qt import ShopPanelQt
             shop = ShopPanelQt(self.shop_system, self.inventory_system,
                                self.currency_system, self.panda_character)
-            shop.purchase_completed.connect(self._on_shop_purchase_completed)
+            shop.item_purchased.connect(self._on_shop_purchase_completed)
             self._show_home_sub_panel(shop, '🦦 Otter Shop')
         except Exception as _e:
             logger.debug(f"_on_otter_clicked: {_e}")

@@ -22,8 +22,9 @@ logger = logging.getLogger(__name__)
 
 # ── Optional PyQt6 / OpenGL imports ──────────────────────────────────────────
 try:
-    from PyQt6.QtWidgets import QWidget, QVBoxLayout, QPushButton, QHBoxLayout, QLabel
+    from PyQt6.QtWidgets import QWidget, QVBoxLayout, QPushButton, QHBoxLayout, QLabel, QColorDialog
     from PyQt6.QtCore import pyqtSignal, QTimer, Qt
+    from PyQt6.QtGui import QColor
     PYQT_AVAILABLE = True
 except (ImportError, OSError, RuntimeError):
     PYQT_AVAILABLE = False
@@ -106,6 +107,7 @@ class PandaWorldGL(
         self._otter_blink = 0   # countdown frames to next blink
         self._otter_eye_close = 0
         self._car_bob   = 0.0
+        self._car_color = list(_CAR_R)  # mutable — changed by set_car_color()
         self._hover     = ''    # region currently under cursor
         self._otter_happy_t = 0  # orange flash frames when clicked
 
@@ -310,12 +312,13 @@ class PandaWorldGL(
         glTranslatef(-2.5, y, -0.5)
 
         # Body
-        glMaterialfv(GL_FRONT, GL_AMBIENT_AND_DIFFUSE, [*_CAR_R, 1.0])
+        glMaterialfv(GL_FRONT, GL_AMBIENT_AND_DIFFUSE, [*self._car_color, 1.0])
         glMaterialfv(GL_FRONT, GL_SPECULAR,            [0.6, 0.6, 0.6, 1.0])
         glMaterialf (GL_FRONT, GL_SHININESS, 48.0)
         self._box(-0.9, 0.3, -0.45,  0.9, 0.9,  0.45)
         # Cabin
-        glMaterialfv(GL_FRONT, GL_AMBIENT_AND_DIFFUSE, [0.65, 0.12, 0.12, 1.0])
+        _cab = [max(0.0, c * 0.80) for c in self._car_color]
+        glMaterialfv(GL_FRONT, GL_AMBIENT_AND_DIFFUSE, [*_cab, 1.0])
         self._box(-0.55, 0.9, -0.42,  0.55, 1.45,  0.42)
         # Windows
         glDisable(GL_LIGHTING)
@@ -559,6 +562,15 @@ class PandaWorldGL(
         elif region == 'park_btn':
             self.destination_selected.emit('park')
 
+    def get_car_color(self) -> list:
+        """Return current car colour as [r, g, b] float list."""
+        return list(self._car_color)
+
+    def set_car_color(self, r: float, g: float, b: float) -> None:
+        """Change the car body colour (0–1 float components). Triggers repaint."""
+        self._car_color = [float(r), float(g), float(b)]
+        self.update()
+
     def _show_destination_picker(self) -> None:
         """Show a small dialog letting the user choose where to drive."""
         if not PYQT_AVAILABLE:
@@ -688,6 +700,14 @@ class PandaWorldWidget(QWidget if PYQT_AVAILABLE else object):
         bb_layout.addWidget(btn)
         bb_layout.addWidget(lbl)
         bb_layout.addStretch()
+        # Car colour picker button
+        self._car_color_btn = QPushButton("🎨 Paint Car")
+        self._car_color_btn.setStyleSheet(
+            "QPushButton{background:#3a3a6a;color:white;border:none;padding:4px 10px;border-radius:4px;}"
+            "QPushButton:hover{background:#5a5a9a;}"
+        )
+        self._car_color_btn.clicked.connect(self.show_car_color_picker)
+        bb_layout.addWidget(self._car_color_btn)
         layout.addWidget(back_bar)
 
         # GL world
@@ -713,3 +733,22 @@ class PandaWorldWidget(QWidget if PYQT_AVAILABLE else object):
     def set_achievement_count(self, n: int) -> None:
         if hasattr(self, '_world_gl') and self._world_gl:
             self._world_gl.set_achievement_count(n)
+
+    def set_car_color(self, r: float, g: float, b: float) -> None:
+        """Change the car colour visible in the 3D world scene."""
+        if hasattr(self, '_world_gl') and self._world_gl:
+            self._world_gl.set_car_color(r, g, b)
+
+    def show_car_color_picker(self) -> None:
+        """Open a colour-picker dialog so the user can paint their car."""
+        if not PYQT_AVAILABLE:
+            return
+        try:
+            gl = getattr(self, '_world_gl', None)
+            current = gl.get_car_color() if gl and hasattr(gl, 'get_car_color') else [0.8, 0.15, 0.15]
+            initial = QColor.fromRgbF(*current)
+            color = QColorDialog.getColor(initial, self, "Choose Car Colour")
+            if color.isValid():
+                self.set_car_color(color.redF(), color.greenF(), color.blueF())
+        except Exception:
+            pass
