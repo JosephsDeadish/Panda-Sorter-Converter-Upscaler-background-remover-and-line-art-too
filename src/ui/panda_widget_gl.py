@@ -159,7 +159,21 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
         'crawling', 'climbing_wall', 'falling_back',
         'sitting_back', 'rolling', 'hanging_ceiling', 'hanging_window_edge',
     })
-    
+
+    # Weighted autonomous-activity table — tuple for immutability; weights sum to 1.0
+    _ACTIVITY_WEIGHTS: tuple = (
+        ('walk_around',  0.22),
+        ('work',         0.18),
+        ('idle',         0.14),
+        ('celebrate',    0.07),
+        ('crawl_around', 0.08),
+        ('climb_wall',   0.06),
+        ('sit_back',     0.08),
+        ('hang_ceiling', 0.04),
+        ('rolling',      0.07),
+        ('sleeping',     0.06),
+    )
+
     # Physics constants
     GRAVITY = 9.8
     BOUNCE_DAMPING = 0.6
@@ -755,6 +769,45 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
                     painter.setPen(QColor(220, 60, 120, alpha))
                     painter.drawText(cx + ox, cy + oy, emoji)
 
+            elif self.animation_state == 'wall_hit':
+                # Angry sparks — exclamation marks orbit head
+                if self._OVERLAY_FONT_EMOJI:
+                    painter.setFont(self._OVERLAY_FONT_EMOJI)
+                cx, cy = self.width() // 2, self.height() // 3
+                t = self.animation_frame
+                for i, glyph in enumerate(['!', '💢', '!']):
+                    a = t * 0.12 + i * 2.09   # orbit angle (fast angry spin)
+                    ox = int(28 * math.cos(a))
+                    oy = int(-28 * abs(math.sin(a)) - 8)
+                    alpha = min(255, int(220 * abs(math.sin(t * 0.15 + i))))
+                    painter.setPen(QColor(220, 40, 20, alpha))
+                    painter.drawText(cx + ox, cy + oy, glyph)
+
+            elif self.animation_state == 'working':
+                # Small gear/progress dots above head while working
+                if self._OVERLAY_FONT_EMOJI:
+                    painter.setFont(self._OVERLAY_FONT_EMOJI)
+                cx, cy = self.width() // 2, self.height() // 3
+                t = self.animation_frame
+                # Spinning gear
+                a = t * 0.08
+                ox = int(18 * math.cos(a))
+                oy = int(-18 * math.sin(a)) - 15
+                alpha = min(255, int(160 + 60 * math.sin(t * 0.10)))
+                painter.setPen(QColor(80, 160, 220, alpha))
+                painter.drawText(cx + ox, cy + oy, '⚙')
+
+            elif self._idle_sub_state == 'daydream':
+                # Thought bubble above head while daydreaming
+                if self._OVERLAY_FONT_EMOJI:
+                    painter.setFont(self._OVERLAY_FONT_EMOJI)
+                cx, cy = self.width() // 2, self.height() // 4
+                t = self.animation_frame
+                for i, glyph in enumerate(['·', '°', '💭']):
+                    alpha = min(255, int(180 * abs(math.sin(t * 0.03 + i * 0.8))))
+                    painter.setPen(QColor(160, 180, 220, alpha))
+                    painter.drawText(cx + i * 12 - 12, cy - i * 10, glyph)
+
             painter.end()
         except Exception:
             pass  # Overlay is decorative — never crash the render loop
@@ -820,18 +873,52 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
                self.custom_colors.get('body', [0.97, 0.97, 0.99]))
 
     def _draw_ground(self):
-        """Draw ground plane for spatial reference."""
+        """Draw a tiled ground plane for spatial reference (warm wood-tone checkerboard)."""
         glDisable(GL_LIGHTING)
-        glColor4f(0.85, 0.85, 0.85, 0.5)
-        
-        glBegin(GL_QUADS)
+        glEnable(GL_BLEND)
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
+
         size = 5.0
-        glVertex3f(-size, -1.0, -size)
-        glVertex3f(size, -1.0, -size)
-        glVertex3f(size, -1.0, size)
-        glVertex3f(-size, -1.0, size)
+        y    = -1.0
+        step = 1.0
+        x0   = -size
+
+        # Draw alternating light/dark tiles
+        i = 0
+        x = x0
+        while x < size:
+            z = x0
+            while z < size:
+                if (i % 2) == 0:
+                    glColor4f(0.88, 0.82, 0.74, 0.70)   # warm light oak
+                else:
+                    glColor4f(0.76, 0.68, 0.58, 0.70)   # warm dark oak
+                glBegin(GL_QUADS)
+                glVertex3f(x,        y, z)
+                glVertex3f(x + step, y, z)
+                glVertex3f(x + step, y, z + step)
+                glVertex3f(x,        y, z + step)
+                glEnd()
+                z += step
+                i += 1
+            x += step
+            i += 1   # offset row so columns alternate too
+
+        # Thin grid lines on top
+        glColor4f(0.55, 0.48, 0.40, 0.35)
+        glLineWidth(0.8)
+        glBegin(GL_LINES)
+        pos = x0
+        while pos <= size:
+            glVertex3f(pos, y + 0.001, x0)
+            glVertex3f(pos, y + 0.001, size)
+            glVertex3f(x0,  y + 0.001, pos)
+            glVertex3f(size, y + 0.001, pos)
+            pos += step
         glEnd()
-        
+        glLineWidth(1.0)
+
+        glDisable(GL_BLEND)
         glEnable(GL_LIGHTING)
     
     def _draw_panda(self):
@@ -1842,21 +1929,136 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
             self._draw_clothing_item(item)
         
         glPopMatrix()
-    
+
+    @staticmethod
+    def _matches_subtype(subtype: str, keywords: tuple) -> bool:
+        """Return True if any keyword appears in subtype string.  Used by food/toy renderers."""
+        return any(k in subtype for k in keywords)
+
     def _draw_food_item(self, item):
-        """Draw food item in 3D."""
-        # Example: Draw as colored sphere
-        color = item.get('color', [0.8, 0.2, 0.2])
+        """Draw food item in 3D — shaped by item subtype."""
+        color   = item.get('color', [0.8, 0.2, 0.2])
+        subtype = str(item.get('id', item.get('name', ''))).lower()
+        quad    = gluNewQuadric()
         glColor3f(*color)
-        self._draw_sphere(0.1, 12, 12)
-    
+        try:
+            if self._matches_subtype(subtype, ('bamboo', 'stick', 'shoot')):
+                # Bamboo shoot: tall segmented green cylinder
+                glColor3f(0.35, 0.70, 0.20)
+                for seg in range(4):
+                    glPushMatrix()
+                    glTranslatef(0.0, seg * 0.06 - 0.05, 0.0)
+                    gluCylinder(quad, 0.025, 0.020, 0.065, 8, 1)
+                    glColor3f(0.25, 0.55, 0.15)
+                    gluDisk(quad, 0.0, 0.030, 8, 1)
+                    glColor3f(0.35, 0.70, 0.20)
+                    glPopMatrix()
+            elif self._matches_subtype(subtype, ('apple', 'fruit')):
+                # Apple: red sphere with green leaf on top
+                glColor3f(0.85, 0.12, 0.10)
+                self._draw_sphere(0.09, 14, 14)
+                glPushMatrix()
+                glTranslatef(0.0, 0.10, 0.0)
+                glColor3f(0.18, 0.60, 0.12)
+                glScalef(0.8, 0.3, 0.4)
+                self._draw_sphere(0.04, 8, 8)
+                glPopMatrix()
+            elif self._matches_subtype(subtype, ('fish', 'salmon')):
+                # Fish: tapered body + tail
+                glColor3f(*color)
+                glPushMatrix()
+                glScalef(1.4, 0.55, 0.6)
+                self._draw_sphere(0.08, 12, 12)
+                glPopMatrix()
+                glPushMatrix()
+                glTranslatef(0.12, 0.0, 0.0)
+                glBegin(GL_TRIANGLES)
+                glVertex3f(0.0, 0.0, 0.0)
+                glVertex3f(0.07, 0.05, 0.0)
+                glVertex3f(0.07, -0.05, 0.0)
+                glEnd()
+                glPopMatrix()
+            elif self._matches_subtype(subtype, ('cookie', 'biscuit')):
+                # Cookie: flattened disc with chocolate dots
+                glColor3f(0.80, 0.60, 0.35)
+                glPushMatrix()
+                glScalef(1.0, 0.3, 1.0)
+                self._draw_sphere(0.09, 12, 12)
+                glPopMatrix()
+                glColor3f(0.45, 0.25, 0.10)
+                for cx, cz in ((0.04, 0.03), (-0.04, 0.03), (0.0, -0.04)):
+                    glPushMatrix()
+                    glTranslatef(cx, 0.03, cz)
+                    self._draw_sphere(0.015, 6, 6)
+                    glPopMatrix()
+            else:
+                glColor3f(*color)
+                self._draw_sphere(0.09, 14, 14)
+        finally:
+            gluDeleteQuadric(quad)
+
     def _draw_toy_item(self, item):
-        """Draw toy item in 3D."""
-        # Example: Draw as colored cube
-        color = item.get('color', [0.2, 0.2, 0.8])
-        glColor3f(*color)
-        size = 0.15
-        self._draw_cube(size)
+        """Draw toy item in 3D — shaped by item subtype."""
+        color   = item.get('color', [0.2, 0.4, 0.85])
+        subtype = str(item.get('id', item.get('name', ''))).lower()
+        quad    = gluNewQuadric()
+        try:
+            if self._matches_subtype(subtype, ('ball', 'orb', 'sphere')):
+                # Ball: coloured sphere with contrasting stripe
+                glColor3f(*color)
+                self._draw_sphere(0.10, 16, 16)
+                glEnable(GL_BLEND)
+                glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
+                alt = [1.0 - c for c in color]
+                glColor4f(*alt, 0.7)
+                glPushMatrix()
+                glScalef(1.0, 0.22, 1.0)
+                self._draw_sphere(0.105, 14, 14)
+                glPopMatrix()
+                glDisable(GL_BLEND)
+            elif self._matches_subtype(subtype, ('wand', 'magic')):
+                # Toy wand: thin shaft + glowing orb tip
+                glColor3f(0.55, 0.35, 0.15)
+                gluCylinder(quad, 0.012, 0.010, 0.22, 8, 1)
+                glPushMatrix()
+                glTranslatef(0.0, 0.0, 0.22)
+                glColor3f(1.0, 0.85, 0.20)
+                self._draw_sphere(0.025, 10, 10)
+                glPopMatrix()
+            elif self._matches_subtype(subtype, ('flower', 'daisy', 'rose')):
+                # Flower: green stem + five petals + yellow centre
+                glColor3f(0.25, 0.65, 0.20)
+                gluCylinder(quad, 0.008, 0.007, 0.14, 6, 1)
+                glPushMatrix()
+                glTranslatef(0.0, 0.0, 0.14)
+                for i in range(5):
+                    a = math.radians(i * 72)
+                    glPushMatrix()
+                    glTranslatef(math.cos(a) * 0.04, math.sin(a) * 0.04, 0.0)
+                    glColor3f(*color)
+                    self._draw_sphere(0.025, 8, 8)
+                    glPopMatrix()
+                glColor3f(1.0, 0.90, 0.15)
+                self._draw_sphere(0.020, 8, 8)
+                glPopMatrix()
+            elif self._matches_subtype(subtype, ('teddy', 'bear', 'plush', 'stuffed')):
+                # Plush teddy: body + head + ears
+                glColor3f(0.72, 0.50, 0.30)
+                self._draw_sphere(0.08, 12, 12)
+                glPushMatrix()
+                glTranslatef(0.0, 0.10, 0.0)
+                self._draw_sphere(0.06, 12, 12)
+                for side in (-1.0, 1.0):
+                    glPushMatrix()
+                    glTranslatef(side * 0.05, 0.05, 0.0)
+                    self._draw_sphere(0.022, 8, 8)
+                    glPopMatrix()
+                glPopMatrix()
+            else:
+                glColor3f(*color)
+                self._draw_cube(0.08)
+        finally:
+            gluDeleteQuadric(quad)
     
     def _draw_clothing_item(self, item):
         """Draw clothing item dropped in the world (not yet equipped)."""
@@ -2602,6 +2804,13 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
             self._play_sound('wag')
             # Kick the tail spring for big wag on happy state entry
             self._tail_vel += 45.0
+        elif state == 'wall_hit' and prev != 'wall_hit':
+            self._play_sound('thump')
+            self._surprised_eye_t = 0.4   # wide surprised eyes on impact
+        elif state == 'sitting_back' and prev not in ('sitting_back', 'sleeping'):
+            self._play_sound('plop')
+        elif state == 'falling_back' and prev != 'falling_back':
+            self._play_sound('landing')
 
     # ─── Smooth animation helpers ────────────────────────────────────────────
     def _get_body_bob(self):
@@ -2775,6 +2984,14 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
                 pos['right_arm_angle'] = -160.0 - grip_sway
                 pos['left_leg_angle']  =  25.0 + 15.0 * math.sin(base * 0.6)
                 pos['right_leg_angle'] =  25.0 - 15.0 * math.sin(base * 0.6 + 0.4)
+
+            elif state == 'wall_hit':
+                # Frustrated/angry slam: arms raised at sides, legs braced
+                phase = math.sin(frame * 0.25)   # fast angry tremor
+                pos['left_arm_angle']  = -70.0 + phase * 8.0
+                pos['right_arm_angle'] = -70.0 - phase * 8.0
+                pos['left_leg_angle']  =  15.0
+                pos['right_leg_angle'] =  15.0
 
             else:  # idle / neutral / default
                 sway = 3.5 * math.sin(frame * 0.040 * self._micro['sway_speed'])
@@ -4071,26 +4288,12 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
         self.rotation_y = math.degrees(angle)
     
     def _choose_random_activity(self):
-        """Choose a random activity for panda."""
-        activities = [
-            ('walk_around',    0.22),
-            ('work',           0.18),
-            ('idle',           0.14),
-            ('celebrate',      0.07),
-            ('crawl_around',   0.08),
-            ('climb_wall',     0.06),
-            ('sit_back',       0.08),
-            ('hang_ceiling',   0.04),
-            ('rolling',        0.07),
-            ('sleeping',       0.06),
-        ]
-        
-        # Weighted random choice
-        total = sum(w for _, w in activities)
-        r = random.uniform(0, total)
-        
-        cumulative = 0
-        for activity, weight in activities:
+        """Choose a random activity for panda using the class-level weights table."""
+        # Weights sum to 1.0 — use random.random() which returns [0.0, 1.0)
+        r = random.random()
+
+        cumulative = 0.0
+        for activity, weight in self._ACTIVITY_WEIGHTS:
             cumulative += weight
             if r <= cumulative:
                 if activity == 'walk_around':
@@ -4897,6 +5100,10 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
             'has_weapon': self.equipped_weapon is not None,
             'clothing_slots': list(self.clothing.keys())
         }
+
+    def get_idle_sub_state(self) -> str:
+        """Return the active idle sub-state (e.g. 'grooming', 'daydream'), or '' if none."""
+        return getattr(self, '_idle_sub_state', '')
 
 
 # Export PandaOpenGLWidget as the primary widget interface

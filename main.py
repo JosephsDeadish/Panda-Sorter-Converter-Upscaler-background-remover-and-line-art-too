@@ -245,6 +245,34 @@ def _setup_logging() -> None:
 _setup_logging()
 logger = logging.getLogger(__name__)
 
+# Module-level constant — built once, used by _tick_panda_interaction every 33 ms
+_PANDA_STATE_EMOJI: dict = {
+    'idle':                 '🐼',
+    'walking':              '🚶',
+    'running':              '🏃',
+    'waving':               '👋',
+    'celebrating':          '🎉',
+    'sleeping':             '😴',
+    'sitting_back':         '🧘',
+    'crawling':             '🐾',
+    'rolling':              '🔄',
+    'climbing_wall':        '🧗',
+    'falling_back':         '😵',
+    'hanging_ceiling':      '🙃',
+    'hanging_window_edge':  '🪟',
+    'working':              '💻',
+    'jumping':              '🦘',
+    'wall_hit':             '😤',
+    'clicked':              '😮',
+    'sniffing':             '👃',
+    'grooming':             '✨',
+    'yawning':              '🥱',
+    'stretching':           '🤸',
+    'flopping':             '😂',
+    'scratching':           '🐾',
+    'daydream':             '💭',
+}
+
 # Import configuration (now that src is in path)
 from config import config, APP_NAME, APP_VERSION
 
@@ -3034,15 +3062,11 @@ class TextureSorterMainWindow(QMainWindow):
         try:
             if self._panda_mood_label and self.panda_widget:
                 state = getattr(self.panda_widget, 'animation_state', 'idle')
-                _MOOD_EMOJI = {
-                    'idle': '🐼', 'walking': '🚶', 'running': '🏃',
-                    'waving': '👋', 'celebrating': '🎉', 'sleeping': '😴',
-                    'sitting_back': '🧘', 'crawling': '🐾', 'rolling': '🔄',
-                    'climbing_wall': '🧗', 'falling_back': '😵', 'hanging_ceiling': '🙃',
-                    'hanging_window_edge': '🪟', 'working': '💻', 'jumping': '🦘',
-                }
-                emoji = _MOOD_EMOJI.get(state, '🐼')
-                label_text = f"{emoji} {state.replace('_', ' ')}"
+                # Also surface the active idle sub-state if present (via public getter)
+                sub = self.panda_widget.get_idle_sub_state() if hasattr(self.panda_widget, 'get_idle_sub_state') else ''
+                display_state = sub if sub else state
+                emoji = _PANDA_STATE_EMOJI.get(display_state, _PANDA_STATE_EMOJI.get(state, '🐼'))
+                label_text = f"{emoji} {display_state.replace('_', ' ')}"
                 if self._panda_mood_label.text() != label_text:
                     self._panda_mood_label.setText(label_text)
         except Exception:
