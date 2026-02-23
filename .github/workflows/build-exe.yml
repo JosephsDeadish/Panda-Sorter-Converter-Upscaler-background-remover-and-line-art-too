@@ -156,6 +156,15 @@ jobs:
           mkdir -p src/resources/themes
           mkdir -p src/resources/sounds
         shell: bash
+
+      - name: Generate Sound Files
+        run: |
+          echo "Generating synthetic WAV sound files..."
+          # Non-fatal: sounds fall back to QApplication.beep() if WAV files are missing.
+          # The EXE still works without them; this just improves the audio experience.
+          python generate_sounds.py || echo "⚠️  generate_sounds.py failed — panda sounds will use system beep fallback"
+          echo "Sound files in src/resources/sounds/: $(ls src/resources/sounds/*.wav 2>/dev/null | wc -l)"
+        shell: bash
       
       - name: Verify PyInstaller Hooks Directory
         run: |

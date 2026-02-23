@@ -436,6 +436,7 @@ class TextureSorterMainWindow(QMainWindow):
         self._world_widget   = None   # PandaWorldWidget instance (lazy-created)
         self._panda_tabs = None       # inner QTabWidget for panda features
         self._inventory_panel = None  # InventoryPanelQt instance
+        self._closet_panel = None     # ClosetDisplayWidget instance (kept for grid refresh)
         self._home_tab_index = -1     # index of the "🏠 Panda Home" tab
         self._home_stack = None       # QStackedWidget: page 0=bedroom, page 1=sub-panel
         self._home_tab_widget = None  # QWidget wrapper that owns the stack
@@ -1418,27 +1419,13 @@ class TextureSorterMainWindow(QMainWindow):
             except Exception as _ce:
                 logger.debug(f"Closet load: {_ce}")
             closet_panel = ClosetDisplayWidget(tooltip_manager=self.tooltip_manager)
+            self._closet_panel = closet_panel   # keep ref so equip refreshes the grid
             # Wire item equip → forward to panda_widget + closet
             if hasattr(closet_panel, 'item_equipped'):
                 closet_panel.item_equipped.connect(self._on_closet_item_equipped)
             # Populate closet grid with all items from panda_closet
             try:
-                _closet_items = [
-                    {
-                        'id':          it.id,
-                        'name':        it.name,
-                        'emoji':       it.emoji,
-                        'description': it.description,
-                        'category':    it.category.value,
-                        'rarity':      it.rarity.value if hasattr(it.rarity, 'value') else (it.rarity.name if hasattr(it.rarity, 'name') else str(it.rarity)),
-                        'cost':        it.cost,
-                        'unlocked':    it.unlocked,
-                        'equipped':    it.equipped,
-                        'clothing_type': getattr(it, 'clothing_type', ''),
-                    }
-                    for it in self.panda_closet.items.values()
-                ]
-                closet_panel.load_clothing_items(_closet_items)
+                closet_panel.load_clothing_items(self._build_closet_items_list())
             except Exception as _pie:
                 logger.debug(f"Closet panel item population: {_pie}")
             panda_tabs.addTab(closet_panel, "👔 Closet")
@@ -4538,6 +4525,24 @@ class TextureSorterMainWindow(QMainWindow):
         )
 
 
+    def _build_closet_items_list(self) -> list:
+        """Return a list of item dicts from panda_closet suitable for ClosetDisplayWidget."""
+        return [
+            {
+                'id':          it.id,
+                'name':        it.name,
+                'emoji':       it.emoji,
+                'description': it.description,
+                'category':    it.category.value,
+                'rarity':      it.rarity.value if hasattr(it.rarity, 'value') else str(it.rarity),
+                'cost':        it.cost,
+                'unlocked':    it.unlocked,
+                'equipped':    it.equipped,
+                'clothing_type': getattr(it, 'clothing_type', ''),
+            }
+            for it in self.panda_closet.items.values()
+        ]
+
     def _on_closet_item_equipped(self, item_data: dict):
         """Handle item equipped from closet display — forward to panda widget."""
         try:
@@ -4547,8 +4552,16 @@ class TextureSorterMainWindow(QMainWindow):
             self.statusBar().showMessage(f"👔 Equipped: {item_name}", 3000)
             if self.panda_widget and hasattr(self.panda_widget, 'equip_item'):
                 self.panda_widget.equip_item(item_data)
-            if self.achievement_system:
-                self.achievement_system.unlock_achievement('fashionista_fur')
+            # Mark equipped in panda_closet + refresh the grid so equipped badge appears
+            try:
+                if self.panda_closet and item_id:
+                    self.panda_closet.equip_item(item_id)
+                    if hasattr(self, '_closet_panel') and self._closet_panel:
+                        self._closet_panel.load_clothing_items(self._build_closet_items_list())
+            except Exception as _ce:
+                logger.debug(f"Closet equip/refresh error: {_ce}")
+            # Check achievements after equipping
+            self._check_closet_achievements(item_id)
         except Exception as _e:
             logger.debug(f"Closet item equipped callback error: {_e}")
 

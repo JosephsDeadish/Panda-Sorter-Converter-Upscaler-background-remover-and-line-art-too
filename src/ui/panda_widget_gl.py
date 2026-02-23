@@ -164,6 +164,9 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
     GRAVITY = 9.8
     BOUNCE_DAMPING = 0.6
     FRICTION = 0.92
+    # World boundary — panda cannot walk beyond ±WORLD_HALF in X or Z
+    WORLD_HALF_X = 3.2
+    WORLD_HALF_Z = 2.8
     
     def __init__(self, panda_character=None, parent=None):
         """
@@ -2841,6 +2844,34 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
                 self._whoa_t            = 0.5
                 self._surprised_eye_t   = 0.3
             self._drag_vx_prev = drag_vx
+
+        # Wall (world-boundary) collision — flinch + blink on hit
+        if self.panda_x > self.WORLD_HALF_X:
+            self.panda_x = self.WORLD_HALF_X
+            if self.velocity_x > 0.05:
+                self.velocity_x *= -self.BOUNCE_DAMPING
+                self._flinch_t        = 0.25
+                self._surprised_eye_t = 0.25
+                self._play_sound('thump')
+        elif self.panda_x < -self.WORLD_HALF_X:
+            self.panda_x = -self.WORLD_HALF_X
+            if self.velocity_x < -0.05:
+                self.velocity_x *= -self.BOUNCE_DAMPING
+                self._flinch_t        = 0.25
+                self._surprised_eye_t = 0.25
+                self._play_sound('thump')
+        if self.panda_z > self.WORLD_HALF_Z:
+            self.panda_z = self.WORLD_HALF_Z
+            if self.velocity_z > 0.05:
+                self.velocity_z *= -self.BOUNCE_DAMPING
+                self._flinch_t        = 0.20
+                self._surprised_eye_t = 0.20
+        elif self.panda_z < -self.WORLD_HALF_Z:
+            self.panda_z = -self.WORLD_HALF_Z
+            if self.velocity_z < -0.05:
+                self.velocity_z *= -self.BOUNCE_DAMPING
+                self._flinch_t        = 0.20
+                self._surprised_eye_t = 0.20
 
         # Apply friction
         self.velocity_x *= self.FRICTION
