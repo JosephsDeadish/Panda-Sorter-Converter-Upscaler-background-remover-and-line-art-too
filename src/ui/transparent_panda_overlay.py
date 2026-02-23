@@ -86,10 +86,12 @@ class TransparentPandaOverlay(QOpenGLWidget if PYQT_AVAILABLE else QWidget):
     
     # Behavior probabilities (must sum to 1.0)
     BEHAVIOR_WEIGHTS = {
-        'idle': 0.4,
-        'walking': 0.3,
-        'interacting': 0.2,
-        'investigating': 0.1
+        'idle':          0.30,
+        'walking':       0.28,
+        'interacting':   0.18,
+        'investigating': 0.08,
+        'crawling':      0.10,
+        'climbing_wall': 0.06,
     }
     
     # Signals for interaction events
@@ -690,6 +692,9 @@ class TransparentPandaOverlay(QOpenGLWidget if PYQT_AVAILABLE else QWidget):
             # Check if there's something interesting nearby
             if random.random() < self.INVESTIGATION_TRIGGER_CHANCE:
                 self.behavior_state = 'interacting'
+        
+        # crawling / climbing_wall states are driven by QTimer in _decide_next_behavior;
+        # no continuous per-tick logic required here.
     
     def _decide_next_behavior(self):
         """Decide what panda should do next based on AI."""
@@ -705,6 +710,19 @@ class TransparentPandaOverlay(QOpenGLWidget if PYQT_AVAILABLE else QWidget):
                 self.panda_y,
                 random.uniform(-2.0, 2.0)
             )
+        elif self.behavior_state == 'crawling':
+            self.set_animation_state('crawling')
+            # Return to idle after a short crawl
+            dur = int(random.uniform(1500, 3500))
+            QTimer.singleShot(dur, lambda: self.set_animation_state('idle'))
+            self.behavior_state = 'idle'   # prevent re-entry next tick
+        elif self.behavior_state == 'climbing_wall':
+            self.set_animation_state('climbing_wall')
+            fall_ms = int(random.uniform(1000, 2500))
+            idle_ms = fall_ms + int(random.uniform(800, 1800))
+            QTimer.singleShot(fall_ms, lambda: self.set_animation_state('falling_back'))
+            QTimer.singleShot(idle_ms, lambda: self.set_animation_state('idle'))
+            self.behavior_state = 'idle'   # prevent re-entry
     
     # ===========================
     # 3D ITEMS RENDERING

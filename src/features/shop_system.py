@@ -1942,8 +1942,28 @@ class ShopSystem:
             one_time_purchase=True,
             unlockable_id='closet_ice_crown'
         ),
-
-        # New Shoes - Shop
+        'shop_top_hat': ShopItem(
+            id='shop_top_hat',
+            name='Classic Top Hat',
+            description='A distinguished black top hat — unlocks top_hat_owner achievement',
+            category=ShopCategory.HATS,
+            price=220,
+            icon='🎩',
+            level_required=2,
+            one_time_purchase=True,
+            unlockable_id='top_hat'
+        ),
+        'shop_cowboy_hat': ShopItem(
+            id='shop_cowboy_hat',
+            name='Cowboy Hat',
+            description='Yeehaw! Wide-brim western hat',
+            category=ShopCategory.HATS,
+            price=180,
+            icon='🤠',
+            level_required=1,
+            one_time_purchase=True,
+            unlockable_id='cowboy_hat'
+        ),
         'closet_cowboy_boots': ShopItem(
             id='closet_cowboy_boots',
             name='Cowboy Boots',

@@ -129,6 +129,12 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
     ARM_LENGTH = 0.4
     LEG_LENGTH = 0.35
     EAR_SIZE = 0.15
+
+    # States that receive a micro-hold pause before transitioning to idle
+    HOLD_STATES: frozenset = frozenset({
+        'waving', 'celebrating', 'jumping',
+        'crawling', 'climbing_wall', 'falling_back',
+    })
     
     # Physics constants
     GRAVITY = 9.8
@@ -461,8 +467,7 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
             return
 
         # ── Micro-hold at end of action before going idle ─────────────────────
-        if state_name == 'idle' and self.animation_state in ('waving', 'celebrating', 'jumping',
-                                                              'crawling', 'climbing_wall', 'falling_back'):
+        if state_name == 'idle' and self.animation_state in self.HOLD_STATES:
             self._hold_t = random.uniform(0.12, 0.28)
             # Schedule the idle transition after the hold
             fire_t = time.time() + self._hold_t
