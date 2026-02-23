@@ -11,6 +11,7 @@ import os
 import importlib
 import logging
 import functools
+import types as _types
 from pathlib import Path
 
 # Fix Unicode encoding issues on Windows
@@ -1417,6 +1418,26 @@ class TextureSorterMainWindow(QMainWindow):
             # Wire item equip → forward to panda_widget + closet
             if hasattr(closet_panel, 'item_equipped'):
                 closet_panel.item_equipped.connect(self._on_closet_item_equipped)
+            # Populate closet grid with all items from panda_closet
+            try:
+                _closet_items = [
+                    {
+                        'id':          it.id,
+                        'name':        it.name,
+                        'emoji':       it.emoji,
+                        'description': it.description,
+                        'category':    it.category.value,
+                        'rarity':      it.rarity.value if hasattr(it.rarity, 'value') else (it.rarity.name if hasattr(it.rarity, 'name') else str(it.rarity)),
+                        'cost':        it.cost,
+                        'unlocked':    it.unlocked,
+                        'equipped':    it.equipped,
+                        'clothing_type': getattr(it, 'clothing_type', ''),
+                    }
+                    for it in self.panda_closet.items.values()
+                ]
+                closet_panel.load_clothing_items(_closet_items)
+            except Exception as _pie:
+                logger.debug(f"Closet panel item population: {_pie}")
             panda_tabs.addTab(closet_panel, "👔 Closet")
             logger.info("✅ Closet panel added to panda tab")
         except Exception as e:
@@ -3985,17 +4006,16 @@ class TextureSorterMainWindow(QMainWindow):
                 if isinstance(item, _SI):
                     cat_str = SHOP_TO_CLOSET_CATEGORY.get(item.category, '')
                     # Build a minimal proxy with .category, .id, .color
-                    class _Proxy:
-                        pass
-                    proxy = _Proxy()
-                    proxy.id = item.id
-                    proxy.color = [0.7, 0.6, 0.3]
-                    # Convert string → CustomizationCategory
+                    _cat_val = None
                     try:
-                        proxy.category = _CC(cat_str) if cat_str else None
+                        _cat_val = _CC(cat_str) if cat_str else None
                     except ValueError:
-                        proxy.category = None
-                    item = proxy
+                        pass
+                    item = _types.SimpleNamespace(
+                        id=item.id,
+                        color=[0.7, 0.6, 0.3],
+                        category=_cat_val,
+                    )
             except Exception:
                 pass
 

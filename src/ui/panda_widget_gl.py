@@ -2843,10 +2843,8 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
                     self.set_animation_state('waving')
                     self._surprised_eye_t = 0.35
                     self._micro_emotion['playful'] = min(1.0, self._micro_emotion.get('playful', 0) + 0.7)
-                    QTimer.singleShot(1500, lambda: (
-                        self.animation_state == 'waving'
-                        and self.set_animation_state('idle') is None
-                    ))
+                    QTimer.singleShot(1500, lambda: self.set_animation_state('idle')
+                                      if self.animation_state == 'waving' else None)
             QTimer.singleShot(500, _react_to_item)
         except Exception as _e:
             logger.debug(f"Panda dropEvent error: {_e}")
@@ -3938,34 +3936,34 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
                     self.set_animation_state('crawling')
                     dur = random.uniform(1.5, 3.5)
                     QTimer.singleShot(int(dur * 1000),
-                                      lambda: (self.animation_state == 'crawling'
-                                               and self.set_animation_state('idle')))
+                                      lambda: self.set_animation_state('idle')
+                                      if self.animation_state == 'crawling' else None)
                 elif activity == 'climb_wall':
                     # Climb → fall back → idle  (each step checks current state)
                     self.set_animation_state('climbing_wall')
                     fall_ms = int(random.uniform(1.0, 2.5) * 1000)
                     idle_ms = fall_ms + int(random.uniform(0.8, 1.8) * 1000)
                     QTimer.singleShot(fall_ms,
-                                      lambda: (self.animation_state == 'climbing_wall'
-                                               and self.set_animation_state('falling_back')))
+                                      lambda: self.set_animation_state('falling_back')
+                                      if self.animation_state == 'climbing_wall' else None)
                     QTimer.singleShot(idle_ms,
-                                      lambda: (self.animation_state == 'falling_back'
-                                               and self.set_animation_state('idle')))
+                                      lambda: self.set_animation_state('idle')
+                                      if self.animation_state == 'falling_back' else None)
                 elif activity == 'sit_back':
                     self.set_animation_state('sitting_back')
                     dur = random.uniform(3.0, 7.0)
                     QTimer.singleShot(int(dur * 1000),
-                                      lambda: (self.animation_state == 'sitting_back'
-                                               and self.set_animation_state('idle')))
+                                      lambda: self.set_animation_state('idle')
+                                      if self.animation_state == 'sitting_back' else None)
                 elif activity == 'hang_ceiling':
                     self.set_animation_state('hanging_ceiling')
                     dur = random.uniform(2.5, 5.0)
                     QTimer.singleShot(int(dur * 1000),
-                                      lambda: (self.animation_state == 'hanging_ceiling'
-                                               and self.set_animation_state('falling_back')))
+                                      lambda: self.set_animation_state('falling_back')
+                                      if self.animation_state == 'hanging_ceiling' else None)
                     QTimer.singleShot(int(dur * 1000) + 1800,
-                                      lambda: (self.animation_state == 'falling_back'
-                                               and self.set_animation_state('idle')))
+                                      lambda: self.set_animation_state('idle')
+                                      if self.animation_state == 'falling_back' else None)
                 break
     
     # ========================================================================
@@ -3998,15 +3996,15 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
         try:
             if furniture_id == 'trophy_stand':
                 self.set_animation_state('celebrating')
-                QTimer.singleShot(1800, lambda: self.animation_state == 'celebrating'
-                                  and self.set_animation_state('idle'))
+                QTimer.singleShot(1800, lambda: self.set_animation_state('idle')
+                                  if self.animation_state == 'celebrating' else None)
             elif furniture_id in ('weapons_rack', 'armor_rack'):
                 # Reach up to wall rack
                 self._arm_over[0] += 25.0   # both arms
                 self._arm_over[1] += 25.0
                 self.set_animation_state('waving')
-                QTimer.singleShot(900, lambda: self.animation_state == 'waving'
-                                  and self.set_animation_state('idle'))
+                QTimer.singleShot(900, lambda: self.set_animation_state('idle')
+                                  if self.animation_state == 'waving' else None)
             else:
                 # Both arms forward (push/pull motion)
                 self._arm_over[0] += 20.0
