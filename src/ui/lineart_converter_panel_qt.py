@@ -344,12 +344,80 @@ class ConversionWorker(QThread):
             self.finished.emit(False, f"Conversion failed: {str(e)}")
 
 
+class _FormatConversionWorker(QThread):
+    """Worker thread for batch conversion with configurable output format and optional colour layer."""
+    progress = pyqtSignal(int, int, str)  # current, total, filename
+    finished = pyqtSignal(bool, str)      # success, message
+
+    # PIL save kwargs per extension
+    _SAVE_KWARGS: dict = {
+        'jpg':  {'quality': 92, 'optimize': True},
+        'jpeg': {'quality': 92, 'optimize': True},
+        'tiff': {'compression': 'tiff_lzw'},
+        'webp': {'quality': 90, 'method': 4},
+    }
+
+    def __init__(self, converter, files, output_dir, settings,
+                 out_ext: str = 'png', save_color_layer: bool = False):
+        super().__init__()
+        self.converter = converter
+        self.files = files
+        self.output_dir = Path(output_dir)
+        self.settings = settings
+        self.out_ext = out_ext.lstrip('.').lower()
+        self.save_color_layer = save_color_layer
+
+    def run(self):
+        """Execute conversion in background."""
+        try:
+            for i, filepath in enumerate(self.files):
+                src = Path(filepath)
+                self.progress.emit(i + 1, len(self.files), src.name)
+
+                original = Image.open(src)
+                converted = self.converter.convert(original, self.settings)
+
+                # Ensure correct mode for target format
+                out_stem = src.stem
+                out_name = f"{out_stem}.{self.out_ext}"
+                out_path = self.output_dir / out_name
+
+                img_to_save = converted
+                if self.out_ext in ('jpg', 'jpeg', 'bmp'):
+                    # These formats don't support transparency — flatten to white
+                    if img_to_save.mode in ('RGBA', 'LA', 'P'):
+                        bg = Image.new('RGB', img_to_save.size, (255, 255, 255))
+                        if img_to_save.mode == 'P':
+                            img_to_save = img_to_save.convert('RGBA')
+                        bg.paste(img_to_save, mask=img_to_save.split()[-1] if img_to_save.mode == 'RGBA' else None)
+                        img_to_save = bg
+                    elif img_to_save.mode != 'RGB':
+                        img_to_save = img_to_save.convert('RGB')
+
+                save_kwargs = self._SAVE_KWARGS.get(self.out_ext, {})
+                img_to_save.save(out_path, **save_kwargs)
+
+                # Optionally also save the original colour layer
+                if self.save_color_layer:
+                    color_name = f"{out_stem}_color.{self.out_ext}"
+                    color_path = self.output_dir / color_name
+                    color_img = original
+                    if self.out_ext in ('jpg', 'jpeg', 'bmp') and color_img.mode != 'RGB':
+                        color_img = color_img.convert('RGB')
+                    color_img.save(color_path, **save_kwargs)
+
+            self.finished.emit(True, f"Successfully converted {len(self.files)} image(s)")
+        except Exception as e:
+            logger.error(f"Batch conversion failed: {e}")
+            self.finished.emit(False, f"Conversion failed: {str(e)}")
+
+
 class LineArtConverterPanelQt(QWidget):
     """PyQt6 panel for line art conversion."""
 
     finished = pyqtSignal(bool, str)  # success, message
-    error = pyqtSignal(str)  # error message
-    
+    error = pyqtSignal(str)           # error message
+
     def __init__(self, parent=None, tooltip_manager=None):
         super().__init__(parent)
         
@@ -644,17 +712,41 @@ class LineArtConverterPanelQt(QWidget):
     
     def _create_action_buttons(self, layout):
         """Create action buttons."""
+        # Output format selector
+        fmt_group = QGroupBox("📤 Output Format")
+        fmt_layout = QHBoxLayout()
+        fmt_layout.addWidget(QLabel("Save as:"))
+        self.output_format_combo = QComboBox()
+        for label, ext in [
+            ("PNG (lossless, transparency)", "png"),
+            ("JPEG (small file size)", "jpg"),
+            ("TIFF (professional, lossless)", "tiff"),
+            ("BMP (uncompressed)", "bmp"),
+            ("WebP (modern, small size)", "webp"),
+        ]:
+            self.output_format_combo.addItem(label, ext)
+        fmt_layout.addWidget(self.output_format_combo, 1)
+
+        self.save_color_layer_cb = QCheckBox("Also save colour layer")
+        self.save_color_layer_cb.setToolTip(
+            "In addition to the line art output, also save the original colour image "
+            "in the same folder with a '_color' suffix."
+        )
+        fmt_layout.addWidget(self.save_color_layer_cb)
+        fmt_group.setLayout(fmt_layout)
+        layout.addWidget(fmt_group)
+
         # Convert button
         self.convert_button = QPushButton("🚀 Convert Selected Files")
         self.convert_button.setStyleSheet("background-color: #2196F3; color: white; padding: 10px; font-weight: bold;")
         self.convert_button.clicked.connect(self._convert_batch)
         layout.addWidget(self.convert_button)
-        
+
         # Progress bar
         self.progress_bar = QProgressBar()
         self.progress_bar.setVisible(False)
         layout.addWidget(self.progress_bar)
-        
+
         self.progress_label = QLabel("")
         self.progress_label.setStyleSheet("color: gray;")
         layout.addWidget(self.progress_label)
@@ -844,36 +936,51 @@ class LineArtConverterPanelQt(QWidget):
         if not self.selected_files:
             QMessageBox.warning(self, "No Files", "Please select files first")
             return
-        
+
         # Select output directory
         output_dir = QFileDialog.getExistingDirectory(
             self,
             "Select Output Directory"
         )
-        
+
         if not output_dir:
             return
-        
+
         try:
+            # Resolve selected output format (from combo, default png)
+            out_ext = "png"
+            try:
+                out_ext = self.output_format_combo.currentData() or "png"
+            except Exception:
+                pass
+
+            save_color = False
+            try:
+                save_color = self.save_color_layer_cb.isChecked()
+            except Exception:
+                pass
+
             # Create settings from current controls
             settings = self._create_settings_from_controls()
-            
-            # Start conversion worker
-            self.conversion_worker = ConversionWorker(
+
+            # Start conversion worker with format args
+            self.conversion_worker = _FormatConversionWorker(
                 self.converter,
                 self.selected_files,
                 output_dir,
-                settings
+                settings,
+                out_ext=out_ext,
+                save_color_layer=save_color,
             )
             self.conversion_worker.progress.connect(self._on_conversion_progress)
             self.conversion_worker.finished.connect(self._on_conversion_finished)
             self.conversion_worker.start()
-            
+
             self.convert_button.setEnabled(False)
             self.progress_bar.setVisible(True)
             self.progress_bar.setValue(0)
             self.progress_label.setText("Starting conversion...")
-            
+
         except Exception as e:
             logger.error(f"Error starting conversion: {e}")
             QMessageBox.critical(self, "Error", f"Failed to start conversion: {str(e)}")

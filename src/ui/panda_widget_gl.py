@@ -212,10 +212,12 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
         
         super().__init__(parent)
         
-        # Set OpenGL surface format for optimal rendering
+        # Set OpenGL surface format — use CompatibilityProfile so legacy fixed-function
+        # GL (glShadeModel, glEnable(GL_LIGHTING), glBegin/End, etc.) remain available.
+        # CoreProfile removes all legacy functions and would crash initializeGL().
         fmt = QSurfaceFormat()
-        fmt.setVersion(3, 3)  # OpenGL 3.3
-        fmt.setProfile(QSurfaceFormat.OpenGLContextProfile.CoreProfile)
+        fmt.setVersion(2, 1)  # OpenGL 2.1 — widely available, includes all legacy GL
+        fmt.setProfile(QSurfaceFormat.OpenGLContextProfile.CompatibilityProfile)
         fmt.setSamples(4)  # 4x MSAA for antialiasing
         fmt.setDepthBufferSize(24)
         fmt.setStencilBufferSize(8)
@@ -621,8 +623,10 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
         glEnable(GL_BLEND)
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
         
-        # Set background color (transparent or light color)
-        glClearColor(0.95, 0.95, 0.98, 1.0)
+        # Set background colour — match application theme (near-transparent dark)
+        # Using a near-black alpha=0 would require a translucent surface format;
+        # instead use the app's panel background colour so the panda sits naturally.
+        glClearColor(0.12, 0.12, 0.14, 1.0)  # dark-grey background, matches dark theme
         
         # Setup lighting
         glEnable(GL_LIGHTING)

@@ -1,5 +1,5 @@
 """
-Game Texture Sorter - Organization Styles
+Texture Sorter - Organization Styles
 Author: Dead On The Inside / JosephsDeadish
 
 Implementation of all 9 organization style presets for sorting textures.
@@ -9,19 +9,19 @@ from pathlib import Path
 from .organization_engine import OrganizationStyle, TextureInfo
 
 
-class SimsStyle(OrganizationStyle):
+class ByAppearanceStyle(OrganizationStyle):
     """
-    The Sims Style: Gender/Skin/BodyPart/Variant
-    Example: Male/DarkSkin/Head/variant_01.dds
+    By Appearance: organises textures by visual traits (gender cues, skin tone, body part).
+    Example: Male/Skin_Tan/Head/head_variant_01.dds
     """
-    
+
     def get_name(self) -> str:
-        return "The Sims Style"
-    
+        return "By Appearance"
+
     def get_description(self) -> str:
-        return ("Character-focused sorting by physical traits. "
-                "Best for: games with character customization (The Sims, Saints Row, WWE). "
-                "Hierarchy: Gender → Skin Tone → Body Part → Variant. "
+        return ("Sorts by visual traits detected in the texture: apparent gender cues, "
+                "skin/colour tone, body part, then variant. "
+                "Best for character/NPC texture sets with many visual variants. "
                 "Example: Male/Skin_Tan/Head/head_variant_01.dds")
     
     def get_target_path(self, texture: TextureInfo) -> str:
@@ -56,20 +56,22 @@ class SimsStyle(OrganizationStyle):
         return str(Path(*parts))
 
 
-class NeopetsStyle(OrganizationStyle):
+class ByTypeStyle(OrganizationStyle):
     """
-    Neopets Style: Category/Type/Individual
-    Example: Pets/Blumaroo/blumaroo_red.dds
+    By Type: Category/BaseType/Individual
+    Groups each texture by its content category, then by the base asset type,
+    then the individual file.
+    Example: Characters/warrior/warrior_red.dds
     """
-    
+
     def get_name(self) -> str:
-        return "Neopets Style"
-    
+        return "By Type"
+
     def get_description(self) -> str:
-        return ("Collectible-style sorting by species/type then individual. "
-                "Best for: games with many distinct creature or item types (Neopets, Pokemon, Monster Hunter). "
+        return ("Sorts by content type then by the specific asset sub-type. "
+                "Ideal for large sets with many distinct subtypes (creatures, items, props). "
                 "Hierarchy: Category → Base Type → Individual File. "
-                "Example: Pets/Blumaroo/blumaroo_red.dds")
+                "Example: Characters/warrior/warrior_red.dds")
     
     def get_target_path(self, texture: TextureInfo) -> str:
         parts = []
@@ -108,20 +110,20 @@ class FlatStyle(OrganizationStyle):
         return str(Path(texture.category) / texture.filename)
 
 
-class GameAreaStyle(OrganizationStyle):
+class ByLocationStyle(OrganizationStyle):
     """
-    Game Area Style: Level/Area/Type/Asset
-    Example: Level_01/Downtown/Buildings/shop_front.dds
+    By Location: organises by detected scene/area context, then asset type.
+    Example: Outdoor/Industrial/Buildings/shop_front.dds
     """
-    
+
     def get_name(self) -> str:
-        return "Game Area Style"
-    
+        return "By Location"
+
     def get_description(self) -> str:
-        return ("Level/area-based sorting for open-world and stage-based games. "
-                "Best for: GTA, God of War, Kingdom Hearts, or any game organized by locations. "
-                "Hierarchy: Level → Area → Asset Type → File. "
-                "Example: Level_01/Downtown/Buildings/shop_front.dds")
+        return ("Sorts by the scene or location the texture belongs to, then asset type. "
+                "Great for environment texture sets with distinct zones (indoor, outdoor, biome). "
+                "Hierarchy: Zone → Area Type → Category → File. "
+                "Example: Outdoor/Industrial/Buildings/shop_front.dds")
     
     def get_target_path(self, texture: TextureInfo) -> str:
         parts = []
@@ -136,46 +138,46 @@ class GameAreaStyle(OrganizationStyle):
                 level = f"Level_{i:02d}"
                 break
         parts.append(level)
-        
-        # Area detection (common game areas)
+
+        # Area detection (environment/location keywords)
         area = 'Common'
         area_keywords = {
-            'Downtown': ['downtown', 'city', 'urban'],
+            'Urban': ['downtown', 'city', 'urban', 'street'],
             'Residential': ['residential', 'house', 'home'],
             'Industrial': ['industrial', 'factory', 'warehouse'],
-            'Park': ['park', 'garden', 'outdoor'],
-            'Interior': ['interior', 'indoor', 'inside']
+            'Natural': ['park', 'garden', 'outdoor', 'forest', 'nature'],
+            'Interior': ['interior', 'indoor', 'inside', 'room']
         }
-        
+
         for area_name, keywords in area_keywords.items():
             if any(kw in filename_lower for kw in keywords):
                 area = area_name
                 break
         parts.append(area)
-        
+
         # Type is category
         parts.append(texture.category)
-        
+
         # Filename
         parts.append(texture.filename)
-        
+
         return str(Path(*parts))
 
 
-class AssetPipelineStyle(OrganizationStyle):
+class ByResolutionStyle(OrganizationStyle):
     """
-    Asset Pipeline Style: Type/Resolution/Format
-    Example: Textures/2K/DDS/building_wall.dds
+    By Resolution: Type/Resolution/Format — groups by texture size and file format.
+    Example: Characters/2K/DDS/building_wall.dds
     """
-    
+
     def get_name(self) -> str:
-        return "Asset Pipeline Style"
-    
+        return "By Resolution"
+
     def get_description(self) -> str:
-        return ("Production-pipeline sorting by type, resolution, and format. "
-                "Best for: modding workflows, HD texture packs, or export/import pipelines. "
-                "Groups textures by resolution tier and file format for batch processing. "
-                "Example: Textures/2K/DDS/building_wall.dds")
+        return ("Sorts by content type, then resolution tier, then file format. "
+                "Ideal for HD texture packs, modding workflows, or export/import pipelines. "
+                "Hierarchy: Category → Resolution (4K/2K/1K/512/Low) → Format → File. "
+                "Example: Characters/2K/DDS/head_texture.dds")
     
     def get_target_path(self, texture: TextureInfo) -> str:
         parts = []
@@ -215,19 +217,20 @@ class AssetPipelineStyle(OrganizationStyle):
         return str(Path(*parts))
 
 
-class ModularStyle(OrganizationStyle):
+class BySystemStyle(OrganizationStyle):
     """
-    Modular Style: Character/Vehicle/Environment/UI
+    By System: groups textures by the functional system they serve
+    (Characters, Vehicles, UI, Items, Environment).
     Example: Characters/Body/head_texture.dds
     """
-    
+
     def get_name(self) -> str:
-        return "Modular Style"
-    
+        return "By System"
+
     def get_description(self) -> str:
-        return ("Module-based sorting by gameplay system (characters, vehicles, UI, items, environment). "
-                "Best for: action games with diverse asset types (GTA, Gran Turismo, Final Fantasy). "
-                "Groups textures by the game system they belong to. "
+        return ("Sorts by the functional role the texture plays (characters, vehicles, UI, props, environment). "
+                "Best for large diverse sets spanning many asset types. "
+                "Hierarchy: System → Category → Variant → File. "
                 "Example: Characters/Body/head_texture.dds, Vehicles/Cars/sedan_body.dds")
     
     def get_target_path(self, texture: TextureInfo) -> str:
@@ -417,14 +420,21 @@ class CustomStyle(OrganizationStyle):
 
 
 # Dictionary of all available organization styles
+# Keys are the internal identifiers used by the UI combos and config files.
 ORGANIZATION_STYLES = {
-    'sims': SimsStyle,
-    'neopets': NeopetsStyle,
+    'by_appearance': ByAppearanceStyle,
+    'by_type': ByTypeStyle,
     'flat': FlatStyle,
-    'game_area': GameAreaStyle,
-    'asset_pipeline': AssetPipelineStyle,
-    'modular': ModularStyle,
+    'by_location': ByLocationStyle,
+    'by_resolution': ByResolutionStyle,
+    'by_system': BySystemStyle,
     'minimalist': MinimalistStyle,
     'maximum_detail': MaximumDetailStyle,
-    'custom': CustomStyle
+    'custom': CustomStyle,
+    # Legacy key aliases so old saved configs still load
+    'sims': ByAppearanceStyle,
+    'neopets': ByTypeStyle,
+    'game_area': ByLocationStyle,
+    'asset_pipeline': ByResolutionStyle,
+    'modular': BySystemStyle,
 }

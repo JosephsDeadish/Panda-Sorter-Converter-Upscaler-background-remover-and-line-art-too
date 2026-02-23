@@ -96,6 +96,13 @@ class PandaWidget2D(QWidget if _QT_AVAILABLE else object):  # type: ignore[misc]
             raise ImportError("PyQt6 is required for PandaWidget2D")
         super().__init__(parent)
 
+        # Make the widget fully transparent — no white or coloured panel behind the panda.
+        # WA_TranslucentBackground + NoSystemBackground tells Qt to not fill the widget
+        # background at all; the panda is painted directly on whatever is behind it.
+        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, True)
+        self.setAttribute(Qt.WidgetAttribute.WA_NoSystemBackground, True)
+        self.setAutoFillBackground(False)
+
         self.panda = panda_character  # PandaCharacter or None
 
         # ── State ─────────────────────────────────────────────────────────────
@@ -312,12 +319,12 @@ class PandaWidget2D(QWidget if _QT_AVAILABLE else object):  # type: ignore[misc]
 
         w, h = self.width(), self.height()
 
-        # Background gradient
-        top_c, bot_c = self._MOOD_COLOURS.get(self._mood, ('#f5f5f5', '#eeeeee'))
-        grad = QLinearGradient(0, 0, 0, h)
-        grad.setColorAt(0, QColor(top_c))
-        grad.setColorAt(1, QColor(bot_c))
-        painter.fillRect(0, 0, w, h, QBrush(grad))
+        # No background fill — the widget is fully transparent so it blends into
+        # whatever sits behind it in the splitter (dark theme, image, etc.).
+        # Clear only to fully transparent:
+        painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_Source)
+        painter.fillRect(0, 0, w, h, Qt.GlobalColor.transparent)
+        painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_SourceOver)
 
         # Centre the panda
         cx = w // 2

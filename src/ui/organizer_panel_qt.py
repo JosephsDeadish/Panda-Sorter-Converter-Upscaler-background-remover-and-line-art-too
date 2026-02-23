@@ -353,51 +353,99 @@ class OrganizerWorker(QThread):
         
         return sorted(files)
     
+    # Visual CLIP prompts — describe what the texture LOOKS LIKE, not game names
+    _VISUAL_PROMPTS: dict = {
+        "character_skin":     "a human or creature skin texture with skin tone colours",
+        "character_clothing": "a fabric or cloth texture worn as clothing",
+        "character_face":     "a face or head texture with eyes nose and mouth features",
+        "environment_ground": "a ground surface texture like dirt grass stone or pavement",
+        "environment_wall":   "a wall or building facade texture with bricks tiles or plaster",
+        "environment_nature": "a natural organic texture like bark leaves moss or rock",
+        "ui_icon":            "a flat icon or symbol graphic on a solid or transparent background",
+        "ui_button":          "a user interface button or panel graphic",
+        "ui_hud":             "a heads-up display or meter graphic",
+        "weapon_metal":       "a metallic weapon surface with specular highlights",
+        "vehicle_body":       "a vehicle paint or body panel texture with smooth colour",
+        "vehicle_interior":   "a vehicle interior texture with fabric or leather",
+        "effect_particle":    "a particle or smoke effect texture with alpha transparency",
+        "effect_glow":        "a glow or energy effect texture with bright emissive areas",
+        "prop_generic":       "a generic object or prop surface texture",
+    }
+
+    # Mapping from CLIP label → folder category name
+    _LABEL_TO_CATEGORY: dict = {
+        "character_skin":     "Characters/Skin",
+        "character_clothing": "Characters/Clothing",
+        "character_face":     "Characters/Face",
+        "environment_ground": "Environment/Ground",
+        "environment_wall":   "Environment/Walls",
+        "environment_nature": "Environment/Nature",
+        "ui_icon":            "UI/Icons",
+        "ui_button":          "UI/Buttons",
+        "ui_hud":             "UI/HUD",
+        "weapon_metal":       "Weapons",
+        "vehicle_body":       "Vehicles/Body",
+        "vehicle_interior":   "Vehicles/Interior",
+        "effect_particle":    "Effects/Particles",
+        "effect_glow":        "Effects/Glow",
+        "prop_generic":       "Props",
+    }
+
     def _classify_texture(self, file_path: Path) -> Tuple[str, float]:
         """
-        Classify texture using AI models.
-        
+        Classify texture using AI visual analysis (appearance-based, not filename-based).
+
         Returns:
             (suggested_folder, confidence)
         """
         if not self.clip_model and not self.dinov2_model:
-            # Fallback to simple heuristic
             return self._heuristic_classification(file_path)
-        
+
         try:
-            # Use CLIP for text-based classification
             if self.clip_model:
-                categories = [
-                    "character", "environment", "ui", "weapon", 
-                    "vehicle", "effect", "texture"
-                ]
-                
-                # Classify
-                results = self.clip_model.classify_image(str(file_path), categories)
+                # Use descriptive visual prompts so CLIP classifies by what it SEES
+                results = self.clip_model.classify_image(
+                    str(file_path), list(self._VISUAL_PROMPTS.values())
+                )
                 if results:
-                    top_category = max(results.items(), key=lambda x: x[1])
-                    return top_category[0], top_category[1]
-            
+                    # Map back from prompt string to label key
+                    prompt_to_label = {v: k for k, v in self._VISUAL_PROMPTS.items()}
+                    top_prompt, score = max(results.items(), key=lambda x: x[1])
+                    label = prompt_to_label.get(top_prompt, "prop_generic")
+                    folder = self._LABEL_TO_CATEGORY.get(label, "Misc")
+                    return folder, float(score)
+
         except Exception as e:
             logger.error(f"AI classification failed: {e}")
-        
+
         return self._heuristic_classification(file_path)
-    
+
     def _heuristic_classification(self, file_path: Path) -> Tuple[str, float]:
-        """Simple filename-based classification."""
+        """Filename-based fallback classification."""
         name_lower = file_path.stem.lower()
-        
-        # Simple keyword matching
-        if any(kw in name_lower for kw in ['char', 'player', 'npc', 'enemy']):
-            return "character", 0.7
-        elif any(kw in name_lower for kw in ['env', 'world', 'scene', 'level']):
-            return "environment", 0.7
-        elif any(kw in name_lower for kw in ['ui', 'hud', 'menu', 'button']):
-            return "ui", 0.7
-        elif any(kw in name_lower for kw in ['weapon', 'gun', 'sword', 'item']):
-            return "weapon", 0.7
+
+        if any(kw in name_lower for kw in ['skin', 'char', 'player', 'npc', 'enemy', 'body']):
+            return "Characters/Skin", 0.65
+        elif any(kw in name_lower for kw in ['face', 'head', 'hair']):
+            return "Characters/Face", 0.65
+        elif any(kw in name_lower for kw in ['cloth', 'shirt', 'pants', 'outfit']):
+            return "Characters/Clothing", 0.65
+        elif any(kw in name_lower for kw in ['ground', 'floor', 'grass', 'dirt', 'stone', 'pave']):
+            return "Environment/Ground", 0.65
+        elif any(kw in name_lower for kw in ['wall', 'brick', 'plaster', 'facade']):
+            return "Environment/Walls", 0.65
+        elif any(kw in name_lower for kw in ['bark', 'leaf', 'moss', 'rock', 'tree', 'nature']):
+            return "Environment/Nature", 0.65
+        elif any(kw in name_lower for kw in ['ui', 'hud', 'menu', 'button', 'icon']):
+            return "UI/Icons", 0.65
+        elif any(kw in name_lower for kw in ['weapon', 'gun', 'sword', 'blade', 'rifle']):
+            return "Weapons", 0.65
+        elif any(kw in name_lower for kw in ['car', 'vehicle', 'bike', 'truck', 'van']):
+            return "Vehicles/Body", 0.65
+        elif any(kw in name_lower for kw in ['smoke', 'fire', 'particle', 'glow', 'spark']):
+            return "Effects/Particles", 0.65
         else:
-            return "misc", 0.5
+            return "Props", 0.45
     
     def cancel(self):
         """Cancel the operation."""

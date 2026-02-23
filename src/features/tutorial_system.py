@@ -5336,28 +5336,40 @@ class TutorialOverlay(QWidget):
 
 
 class TutorialDialog(QDialog):
-    """Dialog for displaying tutorial steps with navigation"""
-    
+    """
+    Non-blocking tutorial step dialog.
+
+    Uses ``show()`` instead of ``exec()`` so the Qt event loop never nests.
+    The three action signals connect to ``TutorialManager._handle_dialog_action``
+    which closes this dialog and opens the next one.
+    """
+
+    # Signals emitted when the user clicks a button
+    action_next = pyqtSignal()
+    action_back = pyqtSignal()
+    action_skip = pyqtSignal()
+
     def __init__(self, parent, step: 'TutorialStep', step_number: int, total_steps: int):
         super().__init__(parent)
         self.step = step
-        self.result_action = None  # 'next', 'back', 'skip', or None
-        
+
         self.setWindowTitle(step.title)
-        self.setWindowFlags(Qt.WindowType.Dialog | Qt.WindowType.WindowStaysOnTopHint)
-        self.setModal(False)  # Allow interaction with highlighted widget
-        
-        # Set minimum size
+        # Tool-window so it sits on top without stealing keyboard focus from the app
+        self.setWindowFlags(
+            Qt.WindowType.Tool
+            | Qt.WindowType.WindowStaysOnTopHint
+            | Qt.WindowType.WindowCloseButtonHint
+        )
+        self.setModal(False)          # NON-MODAL — never blocks the event loop
         self.setMinimumWidth(400)
-        
-        # Create layout
+
         layout = QVBoxLayout(self)
-        
+
         # Progress indicator
         progress_label = QLabel(f"Step {step_number + 1} of {total_steps}")
         progress_label.setStyleSheet("color: #888; font-size: 11px;")
         layout.addWidget(progress_label)
-        
+
         # Title
         title_label = QLabel(step.title)
         title_font = QFont()
@@ -5365,37 +5377,37 @@ class TutorialDialog(QDialog):
         title_font.setBold(True)
         title_label.setFont(title_font)
         layout.addWidget(title_label)
-        
+
         # Message
         message_label = QLabel(step.message)
         message_label.setWordWrap(True)
         message_label.setStyleSheet("margin: 10px 0px;")
         layout.addWidget(message_label)
-        
+
         # Celebration emoji if this is the last step
         if step.celebration:
             celebration_label = QLabel("🎉 🐼 🎊")
             celebration_label.setStyleSheet("font-size: 24px; text-align: center;")
             celebration_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
             layout.addWidget(celebration_label)
-        
+
         # Button layout
         button_layout = QHBoxLayout()
-        
+
         # Skip button
         if step.show_skip:
             skip_btn = QPushButton("Skip Tutorial")
             skip_btn.clicked.connect(self._on_skip)
             button_layout.addWidget(skip_btn)
-        
+
         button_layout.addStretch()
-        
+
         # Back button
         if step.show_back and step_number > 0:
             back_btn = QPushButton("Back")
             back_btn.clicked.connect(self._on_back)
             button_layout.addWidget(back_btn)
-        
+
         # Next/Finish button
         next_btn = QPushButton(step.button_text)
         next_btn.setDefault(True)
@@ -5414,26 +5426,18 @@ class TutorialDialog(QDialog):
             }
         """)
         button_layout.addWidget(next_btn)
-        
+
         layout.addLayout(button_layout)
-        
-        # Set dialog size
         self.adjustSize()
-    
+
     def _on_next(self):
-        """Handle next button click"""
-        self.result_action = 'next'
-        self.accept()
-    
+        self.action_next.emit()
+
     def _on_back(self):
-        """Handle back button click"""
-        self.result_action = 'back'
-        self.accept()
-    
+        self.action_back.emit()
+
     def _on_skip(self):
-        """Handle skip button click"""
-        self.result_action = 'skip'
-        self.accept()
+        self.action_skip.emit()
 
 
 @dataclass
@@ -5591,75 +5595,106 @@ class TutorialManager:
             self._complete_tutorial()
     
     def _show_step(self, step_index: int):
-        """Display a tutorial step with full Qt6 UI implementation"""
+        """
+        Display a tutorial step — NON-BLOCKING.
+
+        Key change from the old implementation:
+        - The old code called ``dialog.exec()`` which opened a nested Qt event loop
+          on every step.  "Next" recursively called ``_show_step`` *inside* the
+          running ``exec()`` call, stacking event loops until the app froze.
+        - This version calls ``dialog.show()`` (non-blocking) and connects the three
+          action signals to ``_handle_dialog_action``, which is called on the NEXT
+          event-loop tick after the button is clicked.  No nesting, no freeze.
+        """
         if step_index < 0 or step_index >= len(self.steps):
             self._complete_tutorial()
             return
-            
+
         step = self.steps[step_index]
         self.current_step = step_index
-        
+
         logger.debug(f"Showing tutorial step {step_index + 1}/{len(self.steps)}: {step.title}")
-        
+
         if not GUI_AVAILABLE:
             logger.warning("GUI not available for tutorial")
             return
-        
+
+        # Close the previous dialog (if any) without triggering its signals again
+        if self.tutorial_window is not None:
+            try:
+                self.tutorial_window.action_next.disconnect()
+                self.tutorial_window.action_back.disconnect()
+                self.tutorial_window.action_skip.disconnect()
+            except Exception:
+                pass
+            try:
+                self.tutorial_window.close()
+            except Exception:
+                pass
+            self.tutorial_window = None
+
         # Create overlay if not exists
         if not self.overlay:
             self._create_overlay()
-        
+
         # Update overlay to highlight target widget
         if self.overlay and step.target_widget:
-            self.overlay.set_highlight_widget(step.target_widget)
-            self.overlay.show()
-            self.overlay.raise_()
-        
-        # Create and show tutorial dialog
+            try:
+                self.overlay.set_highlight_widget(step.target_widget)
+                self.overlay.show()
+                self.overlay.raise_()
+            except Exception:
+                pass
+
+        # Create dialog
         dialog = TutorialDialog(self.master, step, step_index, len(self.steps))
-        
-        # Position dialog based on highlight widget or center it
-        if step.target_widget and step.target_widget.isVisible():
-            # Position dialog near the highlighted widget
-            widget_global_pos = step.target_widget.mapToGlobal(QPoint(0, 0))
-            widget_rect = QRect(widget_global_pos, step.target_widget.size())
-            
-            # Try to position dialog to the right of the widget
-            dialog_x = widget_rect.right() + 20
-            dialog_y = widget_rect.top()
-            
-            # Make sure dialog stays on screen
-            screen_geometry = QApplication.primaryScreen().geometry()
-            if dialog_x + dialog.width() > screen_geometry.right():
-                # Position to the left instead
-                dialog_x = widget_rect.left() - dialog.width() - 20
-            if dialog_y + dialog.height() > screen_geometry.bottom():
-                dialog_y = screen_geometry.bottom() - dialog.height() - 20
-            
-            dialog.move(dialog_x, dialog_y)
-        else:
-            # Center dialog on screen
-            dialog.move(
-                self.master.x() + (self.master.width() - dialog.width()) // 2,
-                self.master.y() + (self.master.height() - dialog.height()) // 2
-            )
-        
-        # Show dialog and wait for user action
-        dialog.exec()
-        
-        # Handle user action
-        if dialog.result_action == 'next':
+
+        # Connect action signals → handler (no nesting, no blocking)
+        dialog.action_next.connect(lambda: self._handle_dialog_action('next'))
+        dialog.action_back.connect(lambda: self._handle_dialog_action('back'))
+        dialog.action_skip.connect(lambda: self._handle_dialog_action('skip'))
+
+        # Position dialog
+        try:
+            if step.target_widget and step.target_widget.isVisible():
+                widget_global_pos = step.target_widget.mapToGlobal(QPoint(0, 0))
+                widget_rect = QRect(widget_global_pos, step.target_widget.size())
+                dialog_x = widget_rect.right() + 20
+                dialog_y = widget_rect.top()
+                screen_geometry = QApplication.primaryScreen().geometry()
+                if dialog_x + dialog.width() > screen_geometry.right():
+                    dialog_x = widget_rect.left() - dialog.width() - 20
+                if dialog_y + dialog.height() > screen_geometry.bottom():
+                    dialog_y = screen_geometry.bottom() - dialog.height() - 20
+                dialog.move(dialog_x, dialog_y)
+            else:
+                dialog.move(
+                    self.master.x() + (self.master.width() - dialog.width()) // 2,
+                    self.master.y() + (self.master.height() - dialog.height()) // 2
+                )
+        except Exception:
+            pass
+
+        self.tutorial_window = dialog
+        dialog.show()    # NON-BLOCKING — returns immediately
+        dialog.raise_()
+        dialog.activateWindow()
+
+    def _handle_dialog_action(self, action: str):
+        """
+        Called when the user clicks Next / Back / Skip.
+        Runs in the normal event loop — no nesting.
+        """
+        step_index = self.current_step
+        if action == 'next':
             if step_index < len(self.steps) - 1:
                 self._show_step(step_index + 1)
             else:
                 self._complete_tutorial()
-        elif dialog.result_action == 'back':
+        elif action == 'back':
             if step_index > 0:
                 self._show_step(step_index - 1)
-        elif dialog.result_action == 'skip':
-            self._skip_tutorial()
-        else:
-            # Dialog was closed without action
+        elif action == 'skip':
             self._skip_tutorial()
     
     def _skip_tutorial(self):
@@ -5679,7 +5714,21 @@ class TutorialManager:
         """Complete and close the tutorial"""
         try:
             logger.info("Completing tutorial - starting cleanup process")
-            
+
+            # Close the current step dialog if still open
+            if self.tutorial_window is not None:
+                try:
+                    self.tutorial_window.action_next.disconnect()
+                    self.tutorial_window.action_back.disconnect()
+                    self.tutorial_window.action_skip.disconnect()
+                except Exception:
+                    pass
+                try:
+                    self.tutorial_window.close()
+                except Exception:
+                    pass
+                self.tutorial_window = None
+
             # Clean up overlay
             if self.overlay:
                 self.overlay.hide()
