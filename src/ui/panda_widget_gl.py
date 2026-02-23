@@ -2723,21 +2723,20 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
 
     def _draw_held_bow(self, size: float, color: list) -> None:
         """Bow held in paw — arc of wood with string."""
-        import math as _m
         quad = gluNewQuadric()
         # Bow limbs: arc of small cylinders
         num_seg = 12
         arc_r = size * 0.38
         for i in range(num_seg + 1):
-            a0 = _m.radians(-110 + i * (220 / num_seg))
-            a1 = _m.radians(-110 + (i+1) * (220 / num_seg))
+            a0 = math.radians(-110 + i * (220 / num_seg))
+            a1 = math.radians(-110 + (i+1) * (220 / num_seg))
             if i >= num_seg:
                 break
-            x0, y0 = arc_r * _m.sin(a0), arc_r * _m.cos(a0)
-            x1, y1 = arc_r * _m.sin(a1), arc_r * _m.cos(a1)
+            x0, y0 = arc_r * math.sin(a0), arc_r * math.cos(a0)
+            x1, y1 = arc_r * math.sin(a1), arc_r * math.cos(a1)
             dx, dy = x1 - x0, y1 - y0
-            length = _m.hypot(dx, dy)
-            angle  = _m.degrees(_m.atan2(dy, dx))
+            length = math.hypot(dx, dy)
+            angle  = math.degrees(math.atan2(dy, dx))
             glPushMatrix()
             glTranslatef(x0, y0, 0.0)
             glRotatef(angle - 90, 0.0, 0.0, 1.0)
@@ -2745,8 +2744,8 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
             gluCylinder(quad, 0.018, 0.018, length, 6, 1)
             glPopMatrix()
         # String (thin pale line)
-        tip0y =  arc_r * _m.cos(_m.radians(-110))
-        tip1y =  arc_r * _m.cos(_m.radians( 110))
+        tip0y =  arc_r * math.cos(math.radians(-110))
+        tip1y =  arc_r * math.cos(math.radians( 110))
         glBegin(GL_LINES)
         glColor3f(0.9, 0.88, 0.78)
         glVertex3f(0.0, tip0y, 0.0)
@@ -2908,8 +2907,8 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
             ('celebrate',      0.08),
             ('crawl_around',   0.10),
             ('climb_wall',     0.07),
-            ('sit_back', 10),
-            ('hang_ceiling', 5),
+            ('sit_back',       0.10),
+            ('hang_ceiling',   0.05),
         ]
         
         # Weighted random choice
