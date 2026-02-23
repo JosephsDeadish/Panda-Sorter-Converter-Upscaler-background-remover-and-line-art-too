@@ -497,6 +497,54 @@ class TransparentPandaOverlay(QOpenGLWidget if PYQT_AVAILABLE else QWidget):
     def get_feet_positions(self):
         """Get feet positions in screen coordinates."""
         return self.left_foot_position, self.right_foot_position
+
+    # ── Delegation helpers: forward interaction calls to the 3D GL widget ──
+    def _gl(self):
+        """Return the live PandaOpenGLWidget via main_window, or None."""
+        try:
+            return getattr(self.main_window, 'panda_widget', None)
+        except Exception:
+            return None
+
+    def start_bite_tab(self):
+        """Trigger jaw-open bite animation on the 3D GL widget."""
+        gl = self._gl()
+        if gl and hasattr(gl, 'start_bite_tab'):
+            gl.start_bite_tab()
+        else:
+            self.set_animation_state('waving')
+
+    def notify_button_nearby(self):
+        """Alert the 3D GL widget that a button is nearby."""
+        gl = self._gl()
+        if gl and hasattr(gl, 'notify_button_nearby'):
+            gl.notify_button_nearby()
+        else:
+            self.set_animation_state('waving')
+
+    def notify_file_dragged(self, file_path: str):
+        """Alert the 3D GL widget that a file is being dragged nearby."""
+        gl = self._gl()
+        if gl and hasattr(gl, 'notify_file_dragged'):
+            gl.notify_file_dragged(file_path)
+        else:
+            self.set_animation_state('crawling')
+
+    def start_sit_on_panel(self):
+        """Make the 3D GL widget sit on a panel."""
+        gl = self._gl()
+        if gl and hasattr(gl, 'start_sit_on_panel'):
+            gl.start_sit_on_panel()
+        else:
+            self.set_animation_state('sitting_back')
+
+    def start_hug_window(self):
+        """Make the 3D GL widget hug a window edge."""
+        gl = self._gl()
+        if gl and hasattr(gl, 'start_hug_window'):
+            gl.start_hug_window()
+        else:
+            self.set_animation_state('climbing_wall')
     
     # ===========================
     # UI INTERACTION SYSTEM

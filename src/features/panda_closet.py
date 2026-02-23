@@ -27,6 +27,10 @@ class CustomizationCategory(Enum):
     FOOD = "food"
     TOY = "toy"
     GLOVES = "gloves"
+    ARMOR = "armor"
+    BOOTS = "boots"
+    BELT = "belt"
+    BACKPACK = "backpack"
 
 
 class ClothingSubCategory(Enum):

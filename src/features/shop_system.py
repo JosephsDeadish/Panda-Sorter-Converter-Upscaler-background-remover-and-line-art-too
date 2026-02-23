@@ -34,6 +34,13 @@ class ShopCategory(Enum):
     SOUNDS = "sounds"
     FUR_STYLES = "fur_styles"
     FUR_COLORS = "fur_colors"
+    CUSTOMIZATION = "customization"  # Alias for fur styles / hair styles added later
+    HAIRSTYLES = "hairstyles"        # Hair style items
+    ARMOR = "armor"                  # Armor and shields
+    BOOTS = "boots"                  # Boots and footwear
+    GLOVES = "gloves"                # Gloves and gauntlets
+    BELT = "belt"                    # Belts and waist items
+    BACKPACK = "backpack"            # Backpacks and bags
 
 
 # Mapping from ShopCategory to CustomizationCategory for persistent
@@ -49,6 +56,13 @@ SHOP_TO_CLOSET_CATEGORY = {
     ShopCategory.WEAPONS:   "weapon",
     ShopCategory.FOOD:      "food",
     ShopCategory.TOYS:      "toy",
+    ShopCategory.CUSTOMIZATION: "fur_style",   # fur/hair items use CUSTOMIZATION alias
+    ShopCategory.HAIRSTYLES:    "hair_style",
+    ShopCategory.ARMOR:         "armor",
+    ShopCategory.BOOTS:         "boots",
+    ShopCategory.GLOVES:        "gloves",
+    ShopCategory.BELT:          "belt",
+    ShopCategory.BACKPACK:      "backpack",
 }
 
 
@@ -3618,37 +3632,37 @@ class ShopSystem:
         'hair_wild_mane': ShopItem(
             id='hair_wild_mane', name='Wild Mane',
             description='Thick untamed mane of fluffy head fur',
-            category=ShopCategory.CUSTOMIZATION, price=120, icon='🦁',
+            category=ShopCategory.HAIRSTYLES, price=120, icon='🦁',
             level_required=1, one_time_purchase=True, unlockable_id='hair_wild_mane'),
         'hair_mohawk': ShopItem(
             id='hair_mohawk', name='Punk Mohawk',
             description='Punk-rock ridge of fur running crown to neck',
-            category=ShopCategory.CUSTOMIZATION, price=280, icon='🤘',
+            category=ShopCategory.HAIRSTYLES, price=280, icon='🤘',
             level_required=3, one_time_purchase=True, unlockable_id='hair_mohawk'),
         'hair_top_knot': ShopItem(
             id='hair_top_knot', name='Top Knot',
             description='Elegant top-knot bun of long fur',
-            category=ShopCategory.CUSTOMIZATION, price=140, icon='🎎',
+            category=ShopCategory.HAIRSTYLES, price=140, icon='🎎',
             level_required=2, one_time_purchase=True, unlockable_id='hair_top_knot'),
         'hair_spiked': ShopItem(
             id='hair_spiked', name='Spiked Tips',
             description='Spiky lightning-bolt fur tips on head',
-            category=ShopCategory.CUSTOMIZATION, price=240, icon='⚡',
+            category=ShopCategory.HAIRSTYLES, price=240, icon='⚡',
             level_required=3, one_time_purchase=True, unlockable_id='hair_spiked'),
         'hair_bowl_cut': ShopItem(
             id='hair_bowl_cut', name='Bowl Cut',
             description='Classic perfectly round bowl-cut fur',
-            category=ShopCategory.CUSTOMIZATION, price=60, icon='🍜',
+            category=ShopCategory.HAIRSTYLES, price=60, icon='🍜',
             level_required=1, one_time_purchase=True, unlockable_id='hair_bowl_cut'),
         'hair_afro': ShopItem(
             id='hair_afro', name='Fur Afro',
             description='Gloriously round poofy afro head fur',
-            category=ShopCategory.CUSTOMIZATION, price=450, icon='🌟',
+            category=ShopCategory.HAIRSTYLES, price=450, icon='🌟',
             level_required=6, one_time_purchase=True, unlockable_id='hair_afro'),
         'hair_dreadlocks': ShopItem(
             id='hair_dreadlocks', name='Dreads',
             description='Long looped dreadlock fur strands',
-            category=ShopCategory.CUSTOMIZATION, price=300, icon='🌿',
+            category=ShopCategory.HAIRSTYLES, price=300, icon='🌿',
             level_required=4, one_time_purchase=True, unlockable_id='hair_dreadlocks'),
     }
     

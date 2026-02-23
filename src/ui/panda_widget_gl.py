@@ -810,14 +810,34 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
         glMaterialf(GL_FRONT, GL_SHININESS, 50.0)
 
         # Fur layer — belly_y also applied to Y so fur follows belly motion
+        # Shell-based fur simulation: 3 concentric shells with decreasing alpha
+        # Each shell is slightly larger and more transparent, creating depth illusion
         glEnable(GL_BLEND)
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
+        _fur_col = self._get_color('body')
+        # Shell 1 — innermost (near body surface, most opaque)
         glPushMatrix()
-        glScalef(self.BODY_WIDTH * 1.03,
-                 self.BODY_HEIGHT * 1.02 * sy * self._belly_y,
-                 self.BODY_WIDTH * 0.81)
-        glColor4f(1.0, 1.0, 1.0, 0.18)
+        glScalef(self.BODY_WIDTH * 1.025,
+                 self.BODY_HEIGHT * 1.018 * sy * self._belly_y,
+                 self.BODY_WIDTH * 0.805)
+        glColor4f(*_fur_col, 0.22)
         self._draw_sphere(1.0, 16, 16)
+        glPopMatrix()
+        # Shell 2 — middle layer
+        glPushMatrix()
+        glScalef(self.BODY_WIDTH * 1.045,
+                 self.BODY_HEIGHT * 1.030 * sy * self._belly_y,
+                 self.BODY_WIDTH * 0.820)
+        glColor4f(*_fur_col, 0.14)
+        self._draw_sphere(1.0, 14, 14)
+        glPopMatrix()
+        # Shell 3 — outermost (fluffy tips, very transparent)
+        glPushMatrix()
+        glScalef(self.BODY_WIDTH * 1.065,
+                 self.BODY_HEIGHT * 1.042 * sy * self._belly_y,
+                 self.BODY_WIDTH * 0.835)
+        glColor4f(*_fur_col, 0.07)
+        self._draw_sphere(1.0, 12, 12)
         glPopMatrix()
         glDisable(GL_BLEND)
 
@@ -966,6 +986,14 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
         self._draw_sphere(self.HEAD_RADIUS, 28, 28)
         glMaterialfv(GL_FRONT, GL_SPECULAR, [1.0, 1.0, 1.0, 1.0])
         glMaterialf(GL_FRONT, GL_SHININESS, 50.0)
+        # Head fur shells — two thin shells for fur depth on skull
+        glEnable(GL_BLEND)
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
+        glColor4f(*self._get_color('body'), 0.18)
+        self._draw_sphere(self.HEAD_RADIUS * 1.028, 14, 14)
+        glColor4f(*self._get_color('body'), 0.09)
+        self._draw_sphere(self.HEAD_RADIUS * 1.052, 12, 12)
+        glDisable(GL_BLEND)
 
         # ── Cranial dome / sagittal-crest ridge ───────────────────────────────
         # Real pandas have a broad rounded skull with a subtle midline fur ridge
@@ -4401,10 +4429,31 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
 
         Args:
             item_data: dict with at least 'id' key, optionally 'slot' and 'type'.
-                       May also be a plain string item identifier.
+                       May also be a plain string item identifier, or a
+                       CustomizationItem dataclass instance.
         """
         if isinstance(item_data, str):
             item_data = {'id': item_data}
+        elif not isinstance(item_data, dict):
+            # CustomizationItem or similar dataclass — convert to dict
+            _raw = item_data
+            item_data = {
+                'id':   getattr(_raw, 'id', ''),
+                'type': getattr(_raw, 'clothing_type', '') or getattr(_raw, 'id', ''),
+                'slot': '',
+            }
+            # Map category → slot if possible
+            try:
+                _cat_val = getattr(getattr(_raw, 'category', None), 'value', '')
+                _CAT_SLOT = {
+                    'hat': 'hat', 'shoes': 'boots', 'accessory': 'accessory',
+                    'gloves': 'gloves', 'armor': 'armor', 'boots': 'boots',
+                    'belt': 'belt', 'backpack': 'backpack', 'clothing': 'shirt',
+                    'weapon': 'held_right', 'food': 'held_left', 'toy': 'held_right',
+                }
+                item_data['slot'] = _CAT_SLOT.get(_cat_val, '')
+            except Exception:
+                pass
 
         item_id = item_data.get('id', '')
         slot = item_data.get('slot', '')

@@ -3855,29 +3855,8 @@ class TextureSorterMainWindow(QMainWindow):
                         item.unlocked = True
                         self.panda_closet.equip_item(item_id)
                         logger.info(f"Equipped item on panda: {item_id}")
-                        # Wire fur style changes directly to the GL widget
-                        try:
-                            from features.panda_closet import CustomizationCategory
-                            if self.panda_widget:
-                                if (item.category == CustomizationCategory.FUR_STYLE
-                                        and hasattr(self.panda_widget, 'set_fur_style')):
-                                    self.panda_widget.set_fur_style(item_id)
-                                elif (item.category == CustomizationCategory.HAIR_STYLE
-                                        and hasattr(self.panda_widget, 'set_hair_style')):
-                                    self.panda_widget.set_hair_style(item_id)
-                                elif (item.category.value in ('weapon', 'food', 'toy')
-                                        and hasattr(self.panda_widget, 'equip_clothing')):
-                                    self.panda_widget.equip_clothing('held_right', {
-                                        'id': item_id, 'type': item_id,
-                                        'color': getattr(item, 'color', [0.7, 0.6, 0.3])
-                                        if hasattr(item, 'color') else [0.7, 0.6, 0.3],
-                                        'size': 0.5,
-                                    })
-                                elif (item.category.value == 'gloves'
-                                        and hasattr(self.panda_widget, 'equip_clothing')):
-                                    self.panda_widget.equip_clothing('gloves', {'id': item_id, 'type': 'gloves'})
-                        except Exception as _fe:
-                            logger.debug(f"fur/hair style apply: {_fe}")
+                        # Forward to GL widget via unified helper
+                        self._apply_item_to_panda_widget(item)
             except Exception as _e:
                 logger.debug(f"Could not equip item {item_id}: {_e}")
 
@@ -3897,6 +3876,10 @@ class TextureSorterMainWindow(QMainWindow):
         except Exception as e:
             logger.error(f"Error handling shop purchase: {e}", exc_info=True)
 
+    def _on_shop_purchase_completed(self, item_id: str) -> None:
+        """Alias wired to ShopPanelQt.purchase_completed signal (otter shop)."""
+        self.on_shop_item_purchased(item_id)
+
     def on_inventory_item_selected(self, item_id: str):
         """Handle item selection from inventory panel."""
         try:
@@ -3910,29 +3893,8 @@ class TextureSorterMainWindow(QMainWindow):
                         self.panda_closet.equip_item(item_id)
                         self.log(f"👔 Equipped: {item.name if hasattr(item, 'name') else item_id}")
                         logger.info(f"Equipped item from inventory: {item_id}")
-                        # Wire fur/hair style changes to the GL widget
-                        try:
-                            from features.panda_closet import CustomizationCategory
-                            if self.panda_widget:
-                                if (item.category == CustomizationCategory.FUR_STYLE
-                                        and hasattr(self.panda_widget, 'set_fur_style')):
-                                    self.panda_widget.set_fur_style(item_id)
-                                elif (item.category == CustomizationCategory.HAIR_STYLE
-                                        and hasattr(self.panda_widget, 'set_hair_style')):
-                                    self.panda_widget.set_hair_style(item_id)
-                                elif (item.category.value in ('weapon', 'food', 'toy')
-                                        and hasattr(self.panda_widget, 'equip_clothing')):
-                                    self.panda_widget.equip_clothing('held_right', {
-                                        'id': item_id, 'type': item_id,
-                                        'color': getattr(item, 'color', [0.7, 0.6, 0.3])
-                                        if hasattr(item, 'color') else [0.7, 0.6, 0.3],
-                                        'size': 0.5,
-                                    })
-                                elif (item.category.value == 'gloves'
-                                        and hasattr(self.panda_widget, 'equip_clothing')):
-                                    self.panda_widget.equip_clothing('gloves', {'id': item_id, 'type': 'gloves'})
-                        except Exception as _fe:
-                            logger.debug(f"fur/hair style apply: {_fe}")
+                        # Forward to GL widget via unified helper
+                        self._apply_item_to_panda_widget(item)
             except Exception as _e:
                 logger.debug(f"Could not equip inventory item {item_id}: {_e}")
 
@@ -3966,6 +3928,56 @@ class TextureSorterMainWindow(QMainWindow):
             logger.debug(f"Panda appearance restored: fur={app.fur_style} hair={app.hair_style}")
         except Exception as e:
             logger.debug(f"_restore_panda_appearance_from_closet: {e}")
+
+    def _apply_item_to_panda_widget(self, item) -> None:
+        """Forward a closet CustomizationItem to the correct panda_widget slot.
+
+        Centralises the category→slot mapping used by both purchase and equip
+        handlers so they stay in sync automatically.
+        """
+        if not self.panda_widget or item is None:
+            return
+        try:
+            from features.panda_closet import CustomizationCategory as _CC
+            cat = item.category
+            item_id = item.id
+            _color = getattr(item, 'color', [0.7, 0.6, 0.3])
+            if not isinstance(_color, (list, tuple)):
+                _color = [0.7, 0.6, 0.3]
+
+            if cat == _CC.FUR_STYLE and hasattr(self.panda_widget, 'set_fur_style'):
+                self.panda_widget.set_fur_style(item_id)
+            elif cat == _CC.HAIR_STYLE and hasattr(self.panda_widget, 'set_hair_style'):
+                self.panda_widget.set_hair_style(item_id)
+            elif cat in (_CC.WEAPON,) and hasattr(self.panda_widget, 'equip_clothing'):
+                self.panda_widget.equip_clothing('held_right', {
+                    'id': item_id, 'type': item_id, 'color': _color, 'size': 0.5})
+            elif cat == _CC.FOOD and hasattr(self.panda_widget, 'equip_clothing'):
+                self.panda_widget.equip_clothing('held_left', {
+                    'id': item_id, 'type': item_id, 'color': _color, 'size': 0.35})
+            elif cat == _CC.TOY and hasattr(self.panda_widget, 'equip_clothing'):
+                self.panda_widget.equip_clothing('held_right', {
+                    'id': item_id, 'type': item_id, 'color': _color, 'size': 0.4})
+            elif cat == _CC.GLOVES and hasattr(self.panda_widget, 'equip_clothing'):
+                self.panda_widget.equip_clothing('gloves', {'id': item_id, 'type': 'gloves'})
+            elif cat == _CC.ARMOR and hasattr(self.panda_widget, 'equip_clothing'):
+                self.panda_widget.equip_clothing('armor', {'id': item_id, 'type': item_id})
+            elif cat == _CC.BOOTS and hasattr(self.panda_widget, 'equip_clothing'):
+                self.panda_widget.equip_clothing('boots', {'id': item_id, 'type': item_id})
+            elif cat == _CC.BELT and hasattr(self.panda_widget, 'equip_clothing'):
+                self.panda_widget.equip_clothing('belt', {'id': item_id, 'type': item_id})
+            elif cat == _CC.BACKPACK and hasattr(self.panda_widget, 'equip_clothing'):
+                self.panda_widget.equip_clothing('backpack', {'id': item_id, 'type': item_id})
+            elif cat == _CC.HAT and hasattr(self.panda_widget, 'equip_item'):
+                self.panda_widget.equip_item(item)
+            elif cat in (_CC.CLOTHING, _CC.SHOES, _CC.ACCESSORY) and hasattr(self.panda_widget, 'equip_item'):
+                self.panda_widget.equip_item(item)
+            else:
+                # Generic fallback — let equip_item heuristics sort it out
+                if hasattr(self.panda_widget, 'equip_item'):
+                    self.panda_widget.equip_item(item)
+        except Exception as _e:
+            logger.debug(f"_apply_item_to_panda_widget({getattr(item,'id','?')}): {_e}")
 
     def _check_closet_achievements(self, newly_equipped_id: str = '') -> None:
         """
