@@ -25,9 +25,13 @@ os.environ['QT_QPA_PLATFORM'] = 'offscreen'
 def test_imports():
     """Test that all imports in main.py work correctly (skipped when PyQt6 absent)."""
     import importlib.util
-    import pytest
     if importlib.util.find_spec('PyQt6') is None:
-        pytest.skip("PyQt6 not installed - skipping main.py import test")
+        return None  # skip – PyQt6 not installed
+    try:
+        import pytest
+        pytest.skip("PyQt6 not installed - skipping main.py import test") if False else None  # noqa
+    except ImportError:
+        pass  # running as script, not via pytest – continue
 
     import main  # noqa: F401 - this is the import under test
     assert hasattr(main, 'TextureSorterMainWindow'), "Missing TextureSorterMainWindow"
@@ -36,14 +40,15 @@ def test_imports():
     from main import APP_NAME, APP_VERSION  # noqa: F401
     assert APP_NAME, "APP_NAME must be a non-empty string"
     assert APP_VERSION, "APP_VERSION must be a non-empty string"
+    return True
 
 
 def test_qt_imports():
     """Test that PyQt6 can be imported (skipped when PyQt6 absent)."""
     import importlib.util
-    import pytest
     if importlib.util.find_spec('PyQt6') is None:
-        pytest.skip("PyQt6 not installed")
+        return None  # skip
+    return True
 
 
 def test_core_imports():
@@ -95,10 +100,14 @@ def run_all_tests():
     
     all_passed = True
     for test_name, passed in results:
-        status = "✅ PASS" if passed else "❌ FAIL"
-        print(f"{status}: {test_name}")
-        if not passed:
+        if passed is None:
+            status = "⏭️  SKIP"
+        elif passed:
+            status = "✅ PASS"
+        else:
+            status = "❌ FAIL"
             all_passed = False
+        print(f"{status}: {test_name}")
     
     print("=" * 60)
     

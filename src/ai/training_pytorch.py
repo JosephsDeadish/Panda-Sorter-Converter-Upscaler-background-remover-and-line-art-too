@@ -116,7 +116,15 @@ def is_pytorch_available() -> bool:
 
 
 # Module-level boolean flag for quick availability checks without a function call.
-PYTORCH_AVAILABLE: bool = is_pytorch_available()
+# Use importlib.util.find_spec instead of is_pytorch_available() so that
+# importing this module does NOT eagerly load torch at module level.
+# (The architecture test verifies that 'import ai' keeps torch out of sys.modules.)
+try:
+    import importlib.util as _ilu_pt
+    PYTORCH_AVAILABLE: bool = _ilu_pt.find_spec('torch') is not None
+    del _ilu_pt
+except Exception:
+    PYTORCH_AVAILABLE = False
 
 
 # ---------------------------------------------------------------------------

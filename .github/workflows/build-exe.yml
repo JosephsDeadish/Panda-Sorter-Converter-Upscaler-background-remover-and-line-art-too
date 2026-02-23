@@ -138,6 +138,8 @@ jobs:
         #   3. ai.inference and ai.training_pytorch degrade gracefully when their
         #      optional dependencies (onnxruntime, torch) are absent.
         #   4. Unicode encoding works correctly on Windows.
+        # shell: bash so that || (OR-operator) works correctly on Windows runners.
+        shell: bash
         env:
           PYTHONUTF8: "1"
           QT_QPA_PLATFORM: "offscreen"
