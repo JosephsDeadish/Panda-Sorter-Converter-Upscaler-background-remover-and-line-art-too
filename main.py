@@ -3787,6 +3787,9 @@ class TextureSorterMainWindow(QMainWindow):
             except Exception:
                 pass
 
+            # Track new closet achievements
+            self._check_closet_achievements(item_id)
+
         except Exception as e:
             logger.error(f"Error handling shop purchase: {e}", exc_info=True)
 
@@ -3825,8 +3828,104 @@ class TextureSorterMainWindow(QMainWindow):
             except Exception:
                 pass
 
+            # Track new closet achievements on equip
+            self._check_closet_achievements(item_id)
+
         except Exception as e:
             logger.error(f"Error handling inventory selection: {e}", exc_info=True)
+
+    def _check_closet_achievements(self, newly_equipped_id: str = '') -> None:
+        """
+        Check and update all closet-category achievements after an equip/purchase.
+
+        Called from both on_shop_purchase_completed and on_inventory_item_selected.
+        All operations are idempotent — safe to call redundantly.
+        """
+        if not self.achievement_system or not self.panda_closet:
+            return
+        try:
+            from features.panda_closet import CustomizationCategory, ItemRarity
+
+            ach = self.achievement_system
+            closet = self.panda_closet
+            # Build rare+ set once per call (not inside the inner try blocks)
+            rare_plus = frozenset({ItemRarity.RARE, ItemRarity.EPIC, ItemRarity.LEGENDARY})
+
+            # first_outfit — any clothing/hat/shoes item equipped
+            try:
+                item = closet.get_item(newly_equipped_id)
+                if item and item.category in (
+                    CustomizationCategory.CLOTHING,
+                    CustomizationCategory.HAT,
+                    CustomizationCategory.SHOES,
+                ):
+                    ach.unlock_achievement('first_outfit')
+            except Exception as _e:
+                logger.debug(f"first_outfit check: {_e}")
+
+            # full_outfit — clothing + hat + shoes all equipped simultaneously
+            try:
+                app = closet.get_current_appearance()
+                if app.clothing and app.hat and app.shoes:
+                    ach.unlock_achievement('full_outfit')
+            except Exception as _e:
+                logger.debug(f"full_outfit check: {_e}")
+
+            # collector_10 — 10 closet items unlocked
+            try:
+                unlocked_count = sum(
+                    1 for it in closet.items.values() if it.unlocked
+                )
+                ach.update_progress('collector_10', unlocked_count)
+            except Exception as _e:
+                logger.debug(f"collector_10 check: {_e}")
+
+            # rare_find — any Rare+ item unlocked
+            try:
+                if any(it.unlocked and it.rarity in rare_plus
+                       for it in closet.items.values()):
+                    ach.unlock_achievement('rare_find')
+            except Exception as _e:
+                logger.debug(f"rare_find check: {_e}")
+
+            # legendary_collector — any Legendary item unlocked
+            try:
+                if any(it.unlocked and it.rarity == ItemRarity.LEGENDARY
+                       for it in closet.items.values()):
+                    ach.unlock_achievement('legendary_collector')
+            except Exception as _e:
+                logger.debug(f"legendary_collector check: {_e}")
+
+            # custom_fur — 5 distinct FUR_STYLE items equipped (count unlocked fur styles)
+            try:
+                fur_unlocked = sum(
+                    1 for it in closet.items.values()
+                    if it.unlocked and it.category == CustomizationCategory.FUR_STYLE
+                )
+                ach.update_progress('custom_fur', fur_unlocked)
+            except Exception as _e:
+                logger.debug(f"custom_fur check: {_e}")
+
+            # top_hat_owner — any hat item unlocked
+            try:
+                if any(it.unlocked and it.category == CustomizationCategory.HAT
+                       for it in closet.items.values()):
+                    ach.unlock_achievement('top_hat_owner')
+            except Exception as _e:
+                logger.debug(f"top_hat_owner check: {_e}")
+
+            # hairstylist — 3 hair style items unlocked
+            try:
+                hair_unlocked = sum(
+                    1 for it in closet.items.values()
+                    if it.unlocked and it.category == CustomizationCategory.HAIR_STYLE
+                )
+                ach.update_progress('hairstylist', hair_unlocked)
+            except Exception as _e:
+                logger.debug(f"hairstylist check: {_e}")
+
+        except Exception as e:
+            logger.debug(f"_check_closet_achievements error: {e}")
 
     def _on_achievement_unlocked(self, achievement):
         """Callback fired by AchievementSystem when an achievement is unlocked.

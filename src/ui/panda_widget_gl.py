@@ -219,9 +219,10 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
         
         # Color customization system
         self.custom_colors = {
-            'body': [1.0, 1.0, 1.0],     # Default white/natural
-            'eyes': [0.0, 0.0, 0.0],      # Default black
-            'accent': [0.5, 0.5, 0.5],    # Default gray for patches
+            'body':   [1.0, 1.0, 1.0],    # Default white/natural
+            'belly':  [1.0, 0.98, 0.93],   # Default cream belly
+            'eyes':   [0.0, 0.0, 0.0],     # Default black
+            'accent': [0.08, 0.08, 0.08],  # Default dark patches
             'glow': None                   # Optional glow effect
         }
         
@@ -685,6 +686,17 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
         glBindFramebuffer(GL_FRAMEBUFFER, 0)
         glViewport(*viewport)
     
+    def _get_color(self, key: str) -> list:
+        """
+        Return the current colour for *key* from custom_colors.
+
+        Centralises default-value handling so callers don't each need their own
+        hardcoded fallback — the canonical defaults live in __init__ and here.
+        Falls back to the 'body' colour for unknown keys.
+        """
+        return self.custom_colors.get(key,
+               self.custom_colors.get('body', [0.97, 0.97, 0.99]))
+
     def _draw_ground(self):
         """Draw ground plane for spatial reference."""
         glDisable(GL_LIGHTING)
@@ -706,6 +718,11 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
         limb = self._get_limb_positions()
         t  = self.animation_frame           # raw frame counter used for trig
 
+        # Fetch fur colours once — avoids repeated dict lookups per frame
+        body_col   = self.custom_colors['body']
+        belly_col  = self.custom_colors['belly']
+        accent_col = self.custom_colors['accent']
+
         # Apply squash/stretch to the torso
         sy = self._squash_y
 
@@ -718,7 +735,6 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
             glRotatef(self._body_pitch_cur, 1.0, 0.0, 0.0)
 
         # Belly — creamy white underside; belly jiggle on Y (height oscillation)
-        belly_col = self.custom_colors.get('belly', [1.0, 0.98, 0.93])
         glPushMatrix()
         glScalef(self.BODY_WIDTH * 0.65,
                  self.BODY_HEIGHT * 0.55 * sy * self._belly_y,
@@ -728,7 +744,6 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
         glPopMatrix()
 
         # Main body — colour from custom_colors['body'] (fur style)
-        body_col = self.custom_colors.get('body', [0.97, 0.97, 0.99])
         glPushMatrix()
         glScalef(self.BODY_WIDTH, self.BODY_HEIGHT * sy, self.BODY_WIDTH * 0.78)
         glColor3f(*body_col)
@@ -748,12 +763,37 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
         glDisable(GL_BLEND)
 
         # Black saddle patch across lower torso — uses accent colour (fur style)
-        accent_col = self.custom_colors.get('accent', [0.08, 0.08, 0.08])
         glPushMatrix()
         glTranslatef(0.0, -0.18, 0.0)
         glScalef(self.BODY_WIDTH * 0.95, self.BODY_HEIGHT * 0.35 * sy, self.BODY_WIDTH * 0.70)
         glColor3f(*accent_col)
         self._draw_sphere(1.0, 20, 20)
+        glPopMatrix()
+
+        # Spine ridge — darker streak along the back
+        glPushMatrix()
+        glTranslatef(0.0, 0.05, -self.BODY_WIDTH * 0.65)
+        glScalef(0.20, 0.55 * sy, 0.22)
+        glColor3f(*[max(0.0, c - 0.06) for c in accent_col])
+        self._draw_sphere(1.0, 10, 10)
+        glPopMatrix()
+
+        # Shoulder muscle masses (black) — give quadruped shoulder hump
+        for sx in (-self.BODY_WIDTH * 0.70, self.BODY_WIDTH * 0.70):
+            glPushMatrix()
+            glTranslatef(sx, 0.12, -self.BODY_WIDTH * 0.15)
+            glScalef(0.30, 0.28 * sy, 0.24)
+            glColor3f(*accent_col)
+            self._draw_sphere(1.0, 12, 12)
+            glPopMatrix()
+
+        # ── Neck ─────────────────────────────────────────────────────────────
+        # Short cylinder-like neck connecting torso to head
+        glPushMatrix()
+        glTranslatef(0.0, self.BODY_HEIGHT * 0.48 * sy, 0.0)
+        glScalef(0.30, 0.32 * sy, 0.28)
+        glColor3f(*body_col)
+        self._draw_sphere(1.0, 14, 14)
         glPopMatrix()
 
         # ── Legs ─────────────────────────────────────────────────────────────
@@ -788,9 +828,18 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
             lean = min(self._whoa_t / 0.5, 1.0) * -8.0
             glRotatef(lean, 1.0, 0.0, 0.0)
 
-        # Main skull — white
-        glColor3f(0.97, 0.97, 0.99)
+        # Main skull — use body colour so fur style tints the head
+        glColor3f(*body_col)
         self._draw_sphere(self.HEAD_RADIUS, 28, 28)
+
+        # Cheek fur puffs — slightly larger, same body colour
+        for cx in (-self.HEAD_RADIUS * 0.68, self.HEAD_RADIUS * 0.68):
+            glPushMatrix()
+            glTranslatef(cx, -self.HEAD_RADIUS * 0.22, self.HEAD_RADIUS * 0.52)
+            glScalef(0.80, 0.68, 0.55)
+            glColor3f(*body_col)
+            self._draw_sphere(self.HEAD_RADIUS * 0.45, 12, 12)
+            glPopMatrix()
 
         # Fur fuzz over skull
         glEnable(GL_BLEND)
@@ -833,6 +882,7 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
     # ─── Ear drawing ────────────────────────────────────────────────────────
     def _draw_panda_ears(self, bob_offset, t=0):
         """Draw rounded ears with black outer ring, pink inner ear, and asymmetric spring physics."""
+        accent_col = self._get_color('accent')
         ear_positions = [(-0.265, 0.295, 0.06), (0.265, 0.295, 0.06)]
         for i, (ex, ey, ez) in enumerate(ear_positions):
             # Follow-through: rotate ear using spring position
@@ -841,9 +891,9 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
             glTranslatef(ex, ey, ez)
             glRotatef(ear_rot, 0.0, 0.0, 1.0)   # spring-driven tilt
             glScalef(1.0, 0.88, 0.55)
-            glColor3f(0.08, 0.08, 0.08)
+            glColor3f(*accent_col)
             self._draw_sphere(self.EAR_SIZE, 16, 16)
-            # Inner pink concha
+            # Inner pink concha — slightly lighter than accent
             glPushMatrix()
             glTranslatef(0.0, -0.005, 0.015)
             glScalef(0.58, 0.52, 0.40)
@@ -886,7 +936,7 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
             glScalef(1.0, blink_s, 1.0)
             glRotatef(side * -12.0, 0.0, 0.0, 1.0)
             glScalef(1.25, 0.90, 0.60)
-            glColor3f(0.07, 0.07, 0.07)
+            glColor3f(*self._get_color('accent'))
             self._draw_sphere(0.118, 16, 16)
             glPopMatrix()
 
@@ -1006,8 +1056,8 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
         Coordinates are relative to the head's local matrix (already active when called).
         """
         style = self._hair_style
-        body_col = self.custom_colors.get('body', [0.97, 0.97, 0.99])
-        accent_col = self.custom_colors.get('accent', [0.08, 0.08, 0.08])
+        body_col   = self._get_color('body')
+        accent_col = self._get_color('accent')
         # Most styles use a slightly darker tinted version of the body colour
         hair_col = [max(0.0, c - 0.10) for c in body_col]
 
@@ -1111,6 +1161,7 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
         """Draw arms with follow-through overshoot, uneven breathing, paw/claws."""
         arm_y   = 0.30 + bob
         arm_x   = self.BODY_WIDTH + 0.06
+        ac = self._get_color('accent')   # fur-style accent colour for arm patches
 
         swing_idle = 5.0 * math.sin(t * 0.030)  # tiny idle sway
 
@@ -1129,18 +1180,18 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
             glRotatef(-side * 8, 0.0, 0.0, 1.0)   # arms hang slightly outward
             glRotatef(angle, 1.0, 0.0, 0.0)
 
-            # Upper arm — thick black ovoid
+            # Upper arm — thick ovoid in accent colour
             glPushMatrix()
             glScalef(0.115, 0.200, 0.115)
             glTranslatef(0.0, -0.50, 0.0)
-            glColor3f(0.08, 0.08, 0.08)
+            glColor3f(*ac)
             self._draw_sphere(1.0, 16, 16)
             glPopMatrix()
 
             # Elbow joint
             glPushMatrix()
             glTranslatef(0.0, -self.ARM_LENGTH * 0.45, 0.0)
-            glColor3f(0.10, 0.10, 0.10)
+            glColor3f(*[min(1.0, c + 0.02) for c in ac])
             self._draw_sphere(0.075, 12, 12)
             glPopMatrix()
 
@@ -1149,7 +1200,7 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
             glTranslatef(0.0, -self.ARM_LENGTH * 0.45, 0.0)
             glScalef(0.095, 0.185, 0.095)
             glTranslatef(0.0, -0.50, 0.0)
-            glColor3f(0.09, 0.09, 0.09)
+            glColor3f(*ac)
             self._draw_sphere(1.0, 14, 14)
             glPopMatrix()
 
@@ -1157,7 +1208,7 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
             glPushMatrix()
             glTranslatef(0.0, -self.ARM_LENGTH * 0.88, 0.0)
             glScalef(1.20, 0.65, 1.15)
-            glColor3f(0.08, 0.08, 0.08)
+            glColor3f(*ac)
             self._draw_sphere(0.082, 14, 14)
             # Paw pad (pink ellipse on palm face)
             glPushMatrix()
@@ -1188,6 +1239,7 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
         """Draw stocky legs with thigh, shin, foot and claws."""
         leg_y = -0.04 + bob
         leg_x = 0.20
+        ac = self._get_color('accent')   # fur-style accent colour for leg patches
 
         for side, key in ((-1, 'left_leg_angle'), (1, 'right_leg_angle')):
             angle = limb.get(key, 0)
@@ -1196,18 +1248,18 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
             glTranslatef(side * leg_x, leg_y, 0.0)
             glRotatef(angle, 1.0, 0.0, 0.0)
 
-            # Thigh — wide black sphere
+            # Thigh — wide ovoid in accent colour
             glPushMatrix()
             glScalef(0.155, 0.195, 0.155)
             glTranslatef(0.0, -0.50, 0.0)
-            glColor3f(0.08, 0.08, 0.08)
+            glColor3f(*ac)
             self._draw_sphere(1.0, 16, 16)
             glPopMatrix()
 
             # Knee joint
             glPushMatrix()
             glTranslatef(0.0, -self.LEG_LENGTH * 0.42, 0.0)
-            glColor3f(0.10, 0.10, 0.10)
+            glColor3f(*[min(1.0, c + 0.02) for c in ac])
             self._draw_sphere(0.082, 12, 12)
             glPopMatrix()
 
@@ -1216,7 +1268,7 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
             glTranslatef(0.0, -self.LEG_LENGTH * 0.42, 0.0)
             glScalef(0.130, 0.160, 0.130)
             glTranslatef(0.0, -0.50, 0.0)
-            glColor3f(0.09, 0.09, 0.09)
+            glColor3f(*ac)
             self._draw_sphere(1.0, 14, 14)
             glPopMatrix()
 
@@ -1224,7 +1276,7 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
             glPushMatrix()
             glTranslatef(0.0, -self.LEG_LENGTH * 0.85, 0.045)
             glScalef(1.25, 0.55, 1.55)
-            glColor3f(0.07, 0.07, 0.07)
+            glColor3f(*ac)
             self._draw_sphere(0.092, 16, 16)
             # Foot pad (pink)
             glPushMatrix()

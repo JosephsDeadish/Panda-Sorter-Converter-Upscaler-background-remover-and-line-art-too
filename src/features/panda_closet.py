@@ -83,6 +83,7 @@ class PandaAppearance:
         """Initialize with default appearance."""
         self.fur_style = "classic"
         self.fur_color = "black_white"
+        self.hair_style = None   # head hair style id (None = no hair)
         self.clothing = None
         self.pants = None  # Separate pants slot for layered outfits
         self.hat = None
@@ -94,6 +95,7 @@ class PandaAppearance:
         return {
             'fur_style': self.fur_style,
             'fur_color': self.fur_color,
+            'hair_style': self.hair_style,
             'clothing': self.clothing,
             'pants': self.pants,
             'hat': self.hat,
@@ -105,6 +107,7 @@ class PandaAppearance:
         """Load from dictionary."""
         self.fur_style = data.get('fur_style', 'classic')
         self.fur_color = data.get('fur_color', 'black_white')
+        self.hair_style = data.get('hair_style')
         self.clothing = data.get('clothing')
         self.pants = data.get('pants')
         self.hat = data.get('hat')
@@ -117,6 +120,8 @@ class PandaAppearance:
             f"Fur: {self.fur_style} ({self.fur_color})"
         ]
         
+        if self.hair_style:
+            parts.append(f"Hair: {self.hair_style}")
         if self.hat:
             parts.append(f"Hat: {self.hat}")
         if self.clothing:
@@ -1381,6 +1386,8 @@ class PandaCloset:
                 self.appearance.fur_style = item_id
             elif item.category == CustomizationCategory.FUR_COLOR:
                 self.appearance.fur_color = item_id
+            elif item.category == CustomizationCategory.HAIR_STYLE:
+                self.appearance.hair_style = item_id
             elif item.category == CustomizationCategory.HAT:
                 self.appearance.hat = item_id
             elif item.category == CustomizationCategory.SHOES:
@@ -1416,6 +1423,8 @@ class PandaCloset:
             self.appearance.fur_style = "classic"
         elif item.category == CustomizationCategory.FUR_COLOR:
             self.appearance.fur_color = "black_white"
+        elif item.category == CustomizationCategory.HAIR_STYLE:
+            self.appearance.hair_style = None
         elif item.category == CustomizationCategory.CLOTHING:
             ctype = item.clothing_type or 'shirt'
             if ctype == 'pants':
