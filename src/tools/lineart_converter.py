@@ -119,6 +119,56 @@ class LineArtConverter:
         """Initialize the converter."""
         self.has_cv2 = HAS_CV2
     
+    def convert(self, image: 'Image.Image', settings: 'LineArtSettings') -> 'Image.Image':
+        """
+        Convert a PIL Image to line art in memory (no file I/O).
+
+        Args:
+            image: Input PIL Image
+            settings: LineArtSettings controlling conversion style
+
+        Returns:
+            Processed PIL Image ready for display or saving
+        """
+        try:
+            if image.mode != 'L':
+                gray = image.convert('L')
+            else:
+                gray = image.copy()
+
+            if settings.contrast_boost != 1.0:
+                from PIL import ImageEnhance as _IE
+                gray = _IE.Contrast(gray).enhance(settings.contrast_boost)
+
+            if settings.sharpen:
+                gray = self._sharpen_image(gray, settings.sharpen_amount)
+
+            threshold = (
+                self._calculate_auto_threshold(gray)
+                if settings.auto_threshold
+                else settings.threshold
+            )
+
+            result = self._apply_conversion_mode(gray, settings, threshold)
+
+            if settings.remove_midtones:
+                result = self._remove_midtones(result, settings.midtone_threshold)
+
+            if hasattr(settings, 'morphology_operation') and settings.morphology_operation != MorphologyOperation.NONE:
+                result = self._apply_morphology(result, settings)
+
+            if settings.denoise:
+                result = self._denoise(result, settings.denoise_size)
+
+            if settings.invert:
+                from PIL import ImageOps as _IO
+                result = _IO.invert(result)
+
+            return self._apply_background(result, settings.background_mode)
+        except Exception as e:
+            logger.error(f"convert() failed: {e}")
+            return image  # Return original on failure
+
     def convert_image(self,
                      input_path: str,
                      output_path: str,
