@@ -217,14 +217,18 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
         
         # Clothing system (3D attachments)
         self.clothing = {
-            'hat': None,       # Hat on head
-            'shirt': None,     # Shirt on body
-            'pants': None,     # Pants on legs
-            'glasses': None,   # Glasses on face
-            'accessory': None, # Other accessories
-            'held_right': None,  # Item held in right paw
-            'held_left': None,   # Item held in left paw
-            'gloves': None,      # Gloves on paws
+            'hat': None,        # Hat on head
+            'shirt': None,      # Shirt on body
+            'pants': None,      # Pants on legs
+            'glasses': None,    # Glasses on face
+            'accessory': None,  # Other accessories (bow, scarf, necklace, earrings)
+            'held_right': None, # Item held in right paw
+            'held_left': None,  # Item held in left paw
+            'gloves': None,     # Gloves on paws
+            'armor': None,      # Chest armour / robe / cape
+            'boots': None,      # Foot coverings
+            'belt': None,       # Belt / waistband accessory
+            'backpack': None,   # Backpack on back
         }
         
         # Weapon system
@@ -2264,6 +2268,15 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
         if emotion_name in self._micro_emotion:
             self._micro_emotion[emotion_name] = max(0.0, min(1.0, weight))
 
+    def apply_squash_effect(self, scale: float = 0.85):
+        """Temporarily squash/stretch the panda body (1.0 = normal, <1 = squash).
+
+        Called by PandaInteractionBehavior after click animations.  The value
+        is blended into the existing squash spring rather than overwriting it
+        so normal physics resume immediately.
+        """
+        self._squash_y = max(0.6, min(1.2, scale))
+
 
     # Map logical sound names → actual WAV filenames in resources/sounds/.
     # This allows call-sites to use short, descriptive names without caring
@@ -2727,12 +2740,13 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
     # ========================================================================
     
     def equip_clothing(self, slot: str, clothing_item):
-        """
-        Equip clothing item in 3D.
-        
+        """Equip clothing item in 3D.
+
         Args:
-            slot: 'hat', 'shirt', 'pants', 'glasses', 'accessory'
-            clothing_item: Clothing data (name, color, type)
+            slot: 'hat', 'shirt', 'pants', 'glasses', 'accessory',
+                  'held_right', 'held_left', 'gloves',
+                  'armor', 'boots', 'belt', 'backpack'
+            clothing_item: Clothing data dict (name, color, type)
         """
         if slot in self.clothing:
             self.clothing[slot] = clothing_item
@@ -2763,6 +2777,26 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
         # Draw accessory
         if self.clothing['accessory']:
             self._draw_accessory(self.clothing['accessory'])
+
+        # Draw gloves (on both paws)
+        if self.clothing['gloves']:
+            self._draw_gloves(self.clothing['gloves'])
+
+        # Draw armor / cape / robe (chest-relative)
+        if self.clothing['armor']:
+            self._draw_armor(self.clothing['armor'])
+
+        # Draw boots (at foot positions)
+        if self.clothing['boots']:
+            self._draw_boots(self.clothing['boots'])
+
+        # Draw belt
+        if self.clothing['belt']:
+            self._draw_belt(self.clothing['belt'])
+
+        # Draw backpack (rear body-relative)
+        if self.clothing['backpack']:
+            self._draw_backpack(self.clothing['backpack'])
     
     def _draw_hat(self, hat_data):
         """Draw hat on panda's head. MUST be called inside the head pushMatrix."""
@@ -3031,7 +3065,179 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
             glTranslatef(0.0, 0.5, 0.25)
             self._draw_cube(0.06)
             glPopMatrix()
-    
+
+    # ────────────────────────────────────────────────────────────────────────
+    # New clothing slot renderers
+    # ────────────────────────────────────────────────────────────────────────
+
+    def _draw_gloves(self, glove_data: dict) -> None:
+        """Draw gloves on both paws, following arm positions."""
+        color = glove_data.get('color', [0.9, 0.1, 0.1]) if isinstance(glove_data, dict) else [0.9, 0.1, 0.1]
+        glove_type = (glove_data.get('type', 'glove') if isinstance(glove_data, dict) else 'glove').lower()
+        glColor3f(*color)
+        quad = gluNewQuadric()
+        limb = self._get_limb_positions()
+        for side_sign, arm_key in ((-1.0, 'left_arm_angle'), (1.0, 'right_arm_angle')):
+            angle = limb.get(arm_key, 0.0)
+            # Approximate paw position from arm angle (matches _draw_panda_arms geometry)
+            arm_len = self.BODY_WIDTH * 0.85
+            rad = math.radians(angle)
+            paw_x = side_sign * (self.BODY_WIDTH * 0.62 + arm_len * math.sin(rad))
+            paw_y = 0.30 + arm_len * math.cos(rad)
+            glPushMatrix()
+            glTranslatef(paw_x, paw_y, 0.05)
+            glRotatef(angle * side_sign, 0.0, 0.0, 1.0)
+            # Glove body
+            if glove_type in ('gauntlet', 'metal', 'steel'):
+                glColor3f(min(1.0, color[0] * 0.85), min(1.0, color[1] * 0.85), min(1.0, color[2] * 0.85))
+                gluCylinder(quad, 0.058, 0.045, 0.09, 10, 1)
+                glTranslatef(0.0, 0.0, 0.09)
+                glColor3f(*color)
+                gluDisk(quad, 0.0, 0.058, 10, 1)
+            else:
+                # Soft glove — rounded paw cover
+                glColor3f(*color)
+                glScalef(1.1, 0.7, 1.1)
+                self._draw_sphere(0.062, 10, 10)
+                # Three knuckle bumps
+                for ki in range(3):
+                    kx = (ki - 1) * 0.026
+                    glPushMatrix()
+                    glTranslatef(kx, 0.04, 0.0)
+                    glColor3f(min(1.0, color[0] + 0.08), min(1.0, color[1] + 0.08), min(1.0, color[2] + 0.08))
+                    self._draw_sphere(0.018, 6, 6)
+                    glPopMatrix()
+            glPopMatrix()
+        gluDeleteQuadric(quad)
+
+    def _draw_armor(self, armor_data: dict) -> None:
+        """Draw chest armor, robe, or cape on panda torso."""
+        color = armor_data.get('color', [0.5, 0.5, 0.6]) if isinstance(armor_data, dict) else [0.5, 0.5, 0.6]
+        armor_type = (armor_data.get('type', 'chestplate') if isinstance(armor_data, dict) else 'chestplate').lower()
+        quad = gluNewQuadric()
+        glColor3f(*color)
+        if armor_type in ('cape', 'cloak', 'robe'):
+            # Long flowing cape hanging down back
+            glEnable(GL_BLEND); glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
+            glColor4f(*color, 0.88)
+            glPushMatrix()
+            glTranslatef(0.0, 0.65, -self.BODY_WIDTH * 0.52)
+            glScalef(0.60, 0.90, 0.08)
+            self._draw_sphere(1.0, 12, 8)
+            glPopMatrix()
+            # Hood (robe only)
+            if armor_type == 'robe':
+                glPushMatrix()
+                glTranslatef(0.0, 1.20, -self.BODY_WIDTH * 0.18)
+                glScalef(0.40, 0.30, 0.35)
+                self._draw_sphere(1.0, 10, 8)
+                glPopMatrix()
+            glDisable(GL_BLEND)
+        else:
+            # Chest plate: front torso coverage
+            glPushMatrix()
+            glTranslatef(0.0, 0.50, self.BODY_WIDTH * 0.46)
+            glScalef(0.68, 0.55, 0.15)
+            self._draw_sphere(1.0, 14, 10)
+            glPopMatrix()
+            # Shoulder pauldrons
+            c2 = [min(1.0, c + 0.12) for c in color]
+            glColor3f(*c2)
+            for sx in (-1.0, 1.0):
+                glPushMatrix()
+                glTranslatef(sx * self.BODY_WIDTH * 0.58, 0.72, 0.0)
+                glScalef(0.25, 0.22, 0.22)
+                self._draw_sphere(1.0, 10, 8)
+                glPopMatrix()
+            # Central chest gem / badge
+            glColor3f(1.0, 0.82, 0.1)
+            glPushMatrix()
+            glTranslatef(0.0, 0.55, self.BODY_WIDTH * 0.54)
+            self._draw_sphere(0.040, 8, 8)
+            glPopMatrix()
+        gluDeleteQuadric(quad)
+
+    def _draw_boots(self, boots_data: dict) -> None:
+        """Draw boots on both feet, following leg positions."""
+        color = boots_data.get('color', [0.35, 0.22, 0.10]) if isinstance(boots_data, dict) else [0.35, 0.22, 0.10]
+        boots_type = (boots_data.get('type', 'boot') if isinstance(boots_data, dict) else 'boot').lower()
+        glColor3f(*color)
+        quad = gluNewQuadric()
+        limb = self._get_limb_positions()
+        for side_sign, leg_key in ((-1.0, 'left_leg_angle'), (1.0, 'right_leg_angle')):
+            leg_ang = limb.get(leg_key, 0.0)
+            rad = math.radians(leg_ang)
+            leg_len = self.BODY_WIDTH * 0.82
+            foot_x = side_sign * self.BODY_WIDTH * 0.30
+            foot_y = -0.72 + leg_len * (1.0 - abs(math.cos(rad))) * 0.25
+            glPushMatrix()
+            glTranslatef(foot_x, foot_y, 0.0)
+            glRotatef(leg_ang * side_sign * 0.5, 0.0, 0.0, 1.0)
+            if boots_type in ('moon', 'ski', 'platform', 'lava'):
+                # Chunky sole
+                glPushMatrix()
+                glTranslatef(0.0, -0.02, 0.0)
+                glScalef(1.0, 0.3, 1.0)
+                glColor3f(min(1.0, color[0] * 0.7), min(1.0, color[1] * 0.7), min(1.0, color[2] * 0.7))
+                gluCylinder(quad, 0.07, 0.07, 0.04, 10, 1)
+                glPopMatrix()
+            glColor3f(*color)
+            # Boot shaft
+            gluCylinder(quad, 0.060, 0.055, 0.12, 10, 1)
+            glTranslatef(0.0, 0.0, 0.12)
+            gluDisk(quad, 0.0, 0.060, 10, 1)
+            glPopMatrix()
+        gluDeleteQuadric(quad)
+
+    def _draw_belt(self, belt_data: dict) -> None:
+        """Draw belt / waistband around panda torso."""
+        color = belt_data.get('color', [0.45, 0.25, 0.08]) if isinstance(belt_data, dict) else [0.45, 0.25, 0.08]
+        quad = gluNewQuadric()
+        glColor3f(*color)
+        # Belt strap: ring around torso at waist height
+        glPushMatrix()
+        glTranslatef(0.0, 0.12, 0.0)
+        glRotatef(90.0, 1.0, 0.0, 0.0)
+        gluCylinder(quad, self.BODY_WIDTH * 0.58, self.BODY_WIDTH * 0.58, 0.05, 20, 1)
+        glPopMatrix()
+        # Buckle
+        glColor3f(0.85, 0.78, 0.20)  # gold
+        glPushMatrix()
+        glTranslatef(0.0, 0.12, self.BODY_WIDTH * 0.60)
+        glScalef(0.09, 0.055, 0.02)
+        self._draw_sphere(1.0, 8, 6)
+        glPopMatrix()
+        gluDeleteQuadric(quad)
+
+    def _draw_backpack(self, pack_data: dict) -> None:
+        """Draw backpack on panda's back."""
+        color = pack_data.get('color', [0.2, 0.5, 0.8]) if isinstance(pack_data, dict) else [0.2, 0.5, 0.8]
+        quad = gluNewQuadric()
+        glColor3f(*color)
+        # Main bag body
+        glPushMatrix()
+        glTranslatef(0.0, 0.45, -self.BODY_WIDTH * 0.52)
+        glScalef(0.42, 0.48, 0.22)
+        self._draw_sphere(1.0, 12, 10)
+        glPopMatrix()
+        # Front pocket
+        c2 = [min(1.0, c + 0.10) for c in color]
+        glColor3f(*c2)
+        glPushMatrix()
+        glTranslatef(0.0, 0.35, -self.BODY_WIDTH * 0.62)
+        glScalef(0.26, 0.22, 0.08)
+        self._draw_sphere(1.0, 10, 8)
+        glPopMatrix()
+        # Shoulder straps
+        glColor3f(*[max(0, c - 0.12) for c in color])
+        for sx in (-0.18, 0.18):
+            glPushMatrix()
+            glTranslatef(sx, 0.72, -self.BODY_WIDTH * 0.35)
+            glRotatef(15.0 * (-1 if sx < 0 else 1), 0.0, 0.0, 1.0)
+            gluCylinder(quad, 0.025, 0.020, 0.45, 8, 1)
+            glPopMatrix()
+        gluDeleteQuadric(quad)
+
     # ========================================================================
     # Weapon System (3D)
     # ========================================================================
@@ -3072,12 +3278,26 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
         glColor3f(*color)
         
         # Draw different weapon types
-        if weapon_type == 'sword':
+        _wt = str(weapon_type).lower()
+        _wid = str(self.equipped_weapon.get('id', '')).lower()
+        if any(k in _wt or k in _wid for k in ('sword', 'blade', 'katana', 'dagger')):
             self._draw_sword(size)
-        elif weapon_type == 'axe':
+        elif any(k in _wt or k in _wid for k in ('axe', 'hatchet', 'battleaxe', 'halberd')):
             self._draw_axe(size)
-        elif weapon_type == 'staff':
+        elif any(k in _wt or k in _wid for k in ('staff', 'cane', 'scepter')):
             self._draw_staff(size)
+        elif any(k in _wt or k in _wid for k in ('wand', 'magic', 'enchanted')):
+            self._draw_held_wand(size, color)
+        elif any(k in _wt or k in _wid for k in ('spear', 'lance', 'polearm')):
+            self._draw_held_spear(size, color)
+        elif any(k in _wt or k in _wid for k in ('bow', 'longbow', 'crossbow', 'blowgun', 'archer')):
+            self._draw_held_bow(size, color)
+        elif any(k in _wt or k in _wid for k in ('gun', 'pistol', 'rifle', 'cannon', 'blaster')):
+            self._draw_held_gun(size, color)
+        elif any(k in _wt or k in _wid for k in ('shield', 'buckler', 'tower')):
+            self._draw_held_shield(size, color)
+        elif any(k in _wt or k in _wid for k in ('hammer', 'mallet', 'maul', 'mace', 'club')):
+            self._draw_held_hammer(size, color)
         else:
             self._draw_sword(size)  # Default
         
@@ -3170,12 +3390,26 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
         size  = float(item.get('size', 0.5))
         glColor3f(*color)
 
-        if any(k in item_type for k in ('sword', 'blade', 'katana')):
+        if any(k in item_type for k in ('sword', 'blade', 'katana', 'dagger')):
             self._draw_held_sword(size, color)
-        elif any(k in item_type for k in ('bow', 'archer')):
+        elif any(k in item_type for k in ('bow', 'longbow', 'crossbow', 'archer', 'blowgun')):
             self._draw_held_bow(size, color)
-        elif any(k in item_type for k in ('bamboo', 'stick', 'staff', 'cane')):
+        elif any(k in item_type for k in ('bamboo', 'stick', 'cane')):
             self._draw_held_bamboo(size, color)
+        elif any(k in item_type for k in ('staff', 'scepter')):
+            self._draw_held_bamboo(size, color)  # rod shape same as bamboo
+        elif any(k in item_type for k in ('wand', 'magic', 'enchanted')):
+            self._draw_held_wand(size, color)
+        elif any(k in item_type for k in ('spear', 'lance', 'polearm', 'halberd')):
+            self._draw_held_spear(size, color)
+        elif any(k in item_type for k in ('gun', 'pistol', 'rifle', 'cannon', 'blaster')):
+            self._draw_held_gun(size, color)
+        elif any(k in item_type for k in ('shield', 'buckler')):
+            self._draw_held_shield(size, color)
+        elif any(k in item_type for k in ('hammer', 'mace', 'maul')):
+            self._draw_held_hammer(size, color)
+        elif any(k in item_type for k in ('axe', 'hatchet', 'battleaxe')):
+            self._draw_axe(size)  # consistent with _draw_weapon axe path
         elif any(k in item_type for k in ('ball', 'toy', 'sphere')):
             self._draw_held_toy_ball(size, color)
         elif any(k in item_type for k in ('flower', 'rose', 'daisy')):
@@ -3339,6 +3573,116 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
             # Default round food blob
             glColor3f(*color)
             self._draw_sphere(0.065, 10, 10)
+
+    # ────────────────────────────────────────────────────────────────────────
+    # Additional held-weapon renderers (wand, spear, gun, shield, hammer)
+    # ────────────────────────────────────────────────────────────────────────
+
+    def _draw_held_wand(self, size: float, color: list) -> None:
+        """Magic wand with glowing orb tip."""
+        quad = gluNewQuadric()
+        # Wand shaft
+        glColor3f(*color)
+        gluCylinder(quad, 0.018, 0.014, size * 0.75, 8, 1)
+        # Orb tip
+        glTranslatef(0.0, 0.0, size * 0.75)
+        glEnable(GL_BLEND); glBlendFunc(GL_SRC_ALPHA, GL_ONE)
+        glColor4f(0.6, 0.2, 1.0, 0.90)
+        self._draw_sphere(0.040, 10, 10)
+        glColor4f(0.9, 0.7, 1.0, 0.55)
+        self._draw_sphere(0.055, 10, 10)
+        glDisable(GL_BLEND)
+        # Star sparkles
+        glColor3f(1.0, 0.95, 0.3)
+        for i in range(4):
+            a = math.radians(i * 90 + self._anim_frame * 3.0)
+            glPushMatrix()
+            glTranslatef(math.cos(a) * 0.045, math.sin(a) * 0.045, 0.0)
+            self._draw_sphere(0.010, 5, 5)
+            glPopMatrix()
+        gluDeleteQuadric(quad)
+
+    def _draw_held_spear(self, size: float, color: list) -> None:
+        """Spear: long shaft with metal tip."""
+        quad = gluNewQuadric()
+        # Shaft
+        glColor3f(*[max(0, c - 0.1) for c in color])
+        gluCylinder(quad, 0.022, 0.018, size * 0.85, 10, 1)
+        # Metal tip
+        glTranslatef(0.0, 0.0, size * 0.85)
+        glColor3f(0.78, 0.78, 0.82)
+        gluCylinder(quad, 0.028, 0.004, size * 0.20, 10, 1)
+        # Butt cap
+        glTranslatef(0.0, 0.0, -(size * 0.85 + 0.005))
+        glColor3f(*color)
+        self._draw_sphere(0.025, 8, 8)
+        gluDeleteQuadric(quad)
+
+    def _draw_held_gun(self, size: float, color: list) -> None:
+        """Stylized gun/pistol."""
+        quad = gluNewQuadric()
+        # Barrel
+        glColor3f(*color)
+        gluCylinder(quad, 0.025, 0.022, size * 0.55, 10, 1)
+        # Body / frame
+        glPushMatrix()
+        glTranslatef(0.0, -size * 0.08, size * 0.05)
+        glColor3f(*[max(0, c - 0.08) for c in color])
+        glScalef(0.06, 0.14, 0.16)
+        self._draw_sphere(1.0, 8, 8)
+        glPopMatrix()
+        # Handle grip
+        glPushMatrix()
+        glTranslatef(0.0, -size * 0.28, size * 0.08)
+        glRotatef(25.0, 1.0, 0.0, 0.0)
+        glColor3f(0.22, 0.16, 0.12)
+        gluCylinder(quad, 0.030, 0.025, size * 0.22, 8, 1)
+        glPopMatrix()
+        # Muzzle accent ring
+        glTranslatef(0.0, 0.0, size * 0.55)
+        glColor3f(0.55, 0.55, 0.55)
+        gluDisk(quad, 0.018, 0.030, 10, 1)
+        gluDeleteQuadric(quad)
+
+    def _draw_held_shield(self, size: float, color: list) -> None:
+        """Kite shield held on left arm."""
+        quad = gluNewQuadric()
+        # Shield face
+        glColor3f(*color)
+        glScalef(0.45, 0.55, 0.05)
+        self._draw_sphere(size, 14, 12)
+        glScalef(1 / 0.45, 1 / 0.55, 1 / 0.05)  # undo scale
+        # Rim
+        glColor3f(*[max(0, c - 0.15) for c in color])
+        glPushMatrix()
+        glScalef(0.46, 0.56, 0.04)
+        self._draw_sphere(size + 0.01, 14, 12)
+        glPopMatrix()
+        # Central boss / emblem
+        glColor3f(0.85, 0.75, 0.20)
+        glPushMatrix()
+        glTranslatef(0.0, 0.0, size * 0.055)
+        self._draw_sphere(0.058, 10, 10)
+        glPopMatrix()
+        gluDeleteQuadric(quad)
+
+    def _draw_held_hammer(self, size: float, color: list) -> None:
+        """Hammer / mace / maul."""
+        quad = gluNewQuadric()
+        # Shaft
+        glColor3f(*[max(0, c - 0.12) for c in color])
+        gluCylinder(quad, 0.025, 0.022, size * 0.70, 10, 1)
+        # Head (cylinder on side)
+        glTranslatef(0.0, 0.0, size * 0.70)
+        glColor3f(*color)
+        glRotatef(90.0, 1.0, 0.0, 0.0)
+        gluCylinder(quad, size * 0.12, size * 0.12, size * 0.28, 12, 1)
+        # Cap ends
+        glColor3f(min(1.0, color[0] + 0.12), min(1.0, color[1] + 0.12), min(1.0, color[2] + 0.12))
+        gluDisk(quad, 0.0, size * 0.12, 12, 1)
+        glTranslatef(0.0, 0.0, size * 0.28)
+        gluDisk(quad, 0.0, size * 0.12, 12, 1)
+        gluDeleteQuadric(quad)
 
     # ========================================================================
     # Autonomous Behavior
@@ -4077,15 +4421,27 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
         if not slot:
             if any(k in item_type for k in ('hat', 'crown', 'helmet', 'bow')):
                 slot = 'hat'
-            elif any(k in item_type for k in ('shirt', 'jacket', 'top')):
+            elif any(k in item_type for k in ('shirt', 'jacket', 'top', 'hoodie', 'tshirt', 't-shirt')):
                 slot = 'shirt'
-            elif any(k in item_type for k in ('pants', 'skirt', 'bottom')):
+            elif any(k in item_type for k in ('pants', 'skirt', 'bottom', 'trouser')):
                 slot = 'pants'
-            elif any(k in item_type for k in ('glasses', 'goggles')):
+            elif any(k in item_type for k in ('glasses', 'goggles', 'sunglasses')):
                 slot = 'glasses'
-            elif any(k in item_type for k in ('sword', 'bow', 'axe', 'staff', 'weapon', 'gun', 'blade', 'katana', 'bamboo', 'held_right')):
+            elif any(k in item_type for k in ('armor', 'chestplate', 'breastplate', 'cape', 'cloak', 'robe')):
+                slot = 'armor'
+            elif any(k in item_type for k in ('boot', 'shoe', 'sandal', 'slipper')):
+                slot = 'boots'
+            elif any(k in item_type for k in ('belt', 'waistband', 'sash')):
+                slot = 'belt'
+            elif any(k in item_type for k in ('backpack', 'bag', 'satchel', 'knapsack')):
+                slot = 'backpack'
+            elif any(k in item_type for k in ('sword', 'axe', 'staff', 'weapon', 'gun', 'blade',
+                                               'katana', 'wand', 'spear', 'hammer', 'mace',
+                                               'dagger', 'lance', 'halberd', 'pistol', 'rifle',
+                                               'cannon', 'blaster', 'bow', 'longbow', 'crossbow',
+                                               'archer', 'blowgun', 'bamboo', 'held_right')):
                 slot = 'held_right'
-            elif any(k in item_type for k in ('held_left', 'shield')):
+            elif any(k in item_type for k in ('held_left', 'shield', 'buckler')):
                 slot = 'held_left'
             elif any(k in item_type for k in ('gloves', 'gauntlet', 'mitten')):
                 slot = 'gloves'
