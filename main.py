@@ -3762,6 +3762,18 @@ class TextureSorterMainWindow(QMainWindow):
                         item.unlocked = True
                         self.panda_closet.equip_item(item_id)
                         logger.info(f"Equipped item on panda: {item_id}")
+                        # Wire fur style changes directly to the GL widget
+                        try:
+                            from features.panda_closet import CustomizationCategory
+                            if self.panda_widget:
+                                if (item.category == CustomizationCategory.FUR_STYLE
+                                        and hasattr(self.panda_widget, 'set_fur_style')):
+                                    self.panda_widget.set_fur_style(item_id)
+                                elif (item.category == CustomizationCategory.HAIR_STYLE
+                                        and hasattr(self.panda_widget, 'set_hair_style')):
+                                    self.panda_widget.set_hair_style(item_id)
+                        except Exception as _fe:
+                            logger.debug(f"fur/hair style apply: {_fe}")
             except Exception as _e:
                 logger.debug(f"Could not equip item {item_id}: {_e}")
 
@@ -3791,6 +3803,18 @@ class TextureSorterMainWindow(QMainWindow):
                         self.panda_closet.equip_item(item_id)
                         self.log(f"👔 Equipped: {item.name if hasattr(item, 'name') else item_id}")
                         logger.info(f"Equipped item from inventory: {item_id}")
+                        # Wire fur/hair style changes to the GL widget
+                        try:
+                            from features.panda_closet import CustomizationCategory
+                            if self.panda_widget:
+                                if (item.category == CustomizationCategory.FUR_STYLE
+                                        and hasattr(self.panda_widget, 'set_fur_style')):
+                                    self.panda_widget.set_fur_style(item_id)
+                                elif (item.category == CustomizationCategory.HAIR_STYLE
+                                        and hasattr(self.panda_widget, 'set_hair_style')):
+                                    self.panda_widget.set_hair_style(item_id)
+                        except Exception as _fe:
+                            logger.debug(f"fur/hair style apply: {_fe}")
             except Exception as _e:
                 logger.debug(f"Could not equip inventory item {item_id}: {_e}")
 

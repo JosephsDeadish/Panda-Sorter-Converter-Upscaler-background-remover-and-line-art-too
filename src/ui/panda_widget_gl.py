@@ -39,6 +39,14 @@ logger = logging.getLogger(__name__)
 
 # ── Module-level constants (avoid per-call allocations) ───────────────────────
 
+# Body pitch targets for quadruped stances (degrees, X-axis rotation of torso)
+_BODY_PITCH_TARGETS: dict = {
+    'crawling':      -42.0,   # body pitched forward, nose toward ground
+    'climbing_wall': -80.0,   # near-vertical, claws on wall
+    'falling_back':   85.0,   # on back, legs up
+    'sleeping':       12.0,   # slight slump forward
+}
+
 # Maps every mood value used in PandaCharacter / PandaMoodSystem to an
 # animation state understood by the GL renderer.
 _MOOD_TO_ANIMATION: dict = {
@@ -63,8 +71,12 @@ _MOOD_TO_ANIMATION: dict = {
     'sad':          'idle',
     'angry':        'wall_hit',
     'surprised':    'clicked',
-    'playful':      'jumping',
+    'playful':      'crawling',
     'bored':        'idle',
+    # New quadruped states accessible via mood
+    'climbing':     'climbing_wall',
+    'falling':      'falling_back',
+    'crawling':     'crawling',
 }
 
 # Maps mood values to the internal emotion-weight key used by secondary motion.
@@ -349,6 +361,15 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
         self._flinch_t        = 0.0     # >0 = flinch / blink (window-hit reaction)
         self._drag_vx_prev    = 0.0     # track drag velocity for whoa detection
 
+        # ── Fur / hair style ─────────────────────────────────────────────────
+        self._fur_style  = 'classic'    # current fur style id
+        self._hair_style = 'none'       # current hair style id ('none' = no hair)
+
+        # ── Quadruped locomotion: pitch/roll of torso for 4-leg stances ───────
+        self._body_pitch = 0.0          # target torso X rotation (degrees); 0=upright
+        self._body_pitch_cur = 0.0      # current (spring eased toward target)
+        self._body_pitch_vel = 0.0      # spring velocity
+
         # ── Audio ─────────────────────────────────────────────────────────────
         self._audio_sfx: dict = {}      # name → QSoundEffect (loaded lazily)
         self._audio_available = False
@@ -439,7 +460,8 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
             return
 
         # ── Micro-hold at end of action before going idle ─────────────────────
-        if state_name == 'idle' and self.animation_state in ('waving', 'celebrating', 'jumping'):
+        if state_name == 'idle' and self.animation_state in ('waving', 'celebrating', 'jumping',
+                                                              'crawling', 'climbing_wall', 'falling_back'):
             self._hold_t = random.uniform(0.12, 0.28)
             # Schedule the idle transition after the hold
             fire_t = time.time() + self._hold_t
@@ -449,12 +471,15 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
         # ── Follow-through kick on arm-heavy transitions ──────────────────────
         if state_name in ('waving',):
             self._arm_over_vel[1] += random.uniform(10.0, 18.0)  # right arm overshoot
-        elif state_name in ('walking', 'running'):
+        elif state_name in ('walking', 'running', 'crawling'):
             self._arm_over_vel[0] += random.uniform(4.0, 8.0)
             self._arm_over_vel[1] -= random.uniform(4.0, 8.0)
+        elif state_name == 'falling_back':
+            self._arm_over_vel[0] += random.uniform(-12.0, -8.0)
+            self._arm_over_vel[1] += random.uniform(-12.0, -8.0)
 
         # ── Surprised wide-eyes for jumps/celebrations ────────────────────────
-        if state_name in ('jumping', 'celebrating', 'waving'):
+        if state_name in ('jumping', 'celebrating', 'waving', 'falling_back'):
             self._surprised_eye_t = 0.25
 
         self._set_state_direct(state_name)
@@ -688,20 +713,25 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
         glPushMatrix()
         glTranslatef(self.panda_x, 0.28 + bob, self.panda_z)
         glRotatef(self.rotation_y, 0.0, 1.0, 0.0)
+        # Quadruped body pitch (crawling/climbing/falling_back)
+        if abs(self._body_pitch_cur) > 0.5:
+            glRotatef(self._body_pitch_cur, 1.0, 0.0, 0.0)
 
         # Belly — creamy white underside; belly jiggle on Y (height oscillation)
+        belly_col = self.custom_colors.get('belly', [1.0, 0.98, 0.93])
         glPushMatrix()
         glScalef(self.BODY_WIDTH * 0.65,
                  self.BODY_HEIGHT * 0.55 * sy * self._belly_y,
                  self.BODY_WIDTH * 0.50)
-        glColor3f(1.0, 0.98, 0.93)
+        glColor3f(*belly_col)
         self._draw_sphere(1.0, 24, 24)
         glPopMatrix()
 
-        # Main body — bright white with subtle blue-white tint
+        # Main body — colour from custom_colors['body'] (fur style)
+        body_col = self.custom_colors.get('body', [0.97, 0.97, 0.99])
         glPushMatrix()
         glScalef(self.BODY_WIDTH, self.BODY_HEIGHT * sy, self.BODY_WIDTH * 0.78)
-        glColor3f(0.97, 0.97, 0.99)
+        glColor3f(*body_col)
         self._draw_sphere(1.0, 24, 24)
         glPopMatrix()
 
@@ -717,11 +747,12 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
         glPopMatrix()
         glDisable(GL_BLEND)
 
-        # Black saddle patch across lower torso
+        # Black saddle patch across lower torso — uses accent colour (fur style)
+        accent_col = self.custom_colors.get('accent', [0.08, 0.08, 0.08])
         glPushMatrix()
         glTranslatef(0.0, -0.18, 0.0)
         glScalef(self.BODY_WIDTH * 0.95, self.BODY_HEIGHT * 0.35 * sy, self.BODY_WIDTH * 0.70)
-        glColor3f(0.08, 0.08, 0.08)
+        glColor3f(*accent_col)
         self._draw_sphere(1.0, 20, 20)
         glPopMatrix()
 
@@ -776,6 +807,10 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
 
         # ── Snout ─────────────────────────────────────────────────────────────
         self._draw_panda_snout()
+
+        # ── Hair style (head-top accessory) ───────────────────────────────────
+        if self._hair_style not in ('none', '', None):
+            self._draw_panda_head_hair()
 
         glPopMatrix()   # end head matrix
 
@@ -964,6 +999,112 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
             glColor3f(0.97, 0.97, 0.94)
             self._draw_sphere(0.016, 8, 8)
             glPopMatrix()
+
+    def _draw_panda_head_hair(self):
+        """
+        Draw the currently-equipped hair style on top of the panda's head.
+        Coordinates are relative to the head's local matrix (already active when called).
+        """
+        style = self._hair_style
+        body_col = self.custom_colors.get('body', [0.97, 0.97, 0.99])
+        accent_col = self.custom_colors.get('accent', [0.08, 0.08, 0.08])
+        # Most styles use a slightly darker tinted version of the body colour
+        hair_col = [max(0.0, c - 0.10) for c in body_col]
+
+        if style == 'hair_wild_mane':
+            # Ring of fluffy tufts around crown
+            for i in range(8):
+                a = i * math.pi / 4.0
+                glPushMatrix()
+                glTranslatef(math.cos(a) * 0.14, self.HEAD_RADIUS * 0.82, math.sin(a) * 0.10)
+                glColor3f(*hair_col)
+                self._draw_sphere(0.055, 8, 8)
+                glPopMatrix()
+
+        elif style == 'hair_mohawk':
+            # Ridge of spikes along the skull centre line
+            for i, (y, r) in enumerate([(0.80, 0.035), (0.88, 0.030), (0.92, 0.025),
+                                         (0.86, 0.030), (0.80, 0.032)]):
+                glPushMatrix()
+                glTranslatef(0.0, self.HEAD_RADIUS * y, -0.05 + i * 0.025)
+                glScalef(0.5, 1.6, 0.5)
+                glColor3f(*accent_col)
+                self._draw_sphere(r, 8, 8)
+                glPopMatrix()
+
+        elif style == 'hair_top_knot':
+            # Bun sphere sitting on top
+            glPushMatrix()
+            glTranslatef(0.0, self.HEAD_RADIUS * 1.05, 0.0)
+            glColor3f(*hair_col)
+            self._draw_sphere(0.08, 12, 12)
+            glPopMatrix()
+            # Knot band ring
+            for i in range(6):
+                a = i * math.pi / 3.0
+                glPushMatrix()
+                glTranslatef(math.cos(a) * 0.06, self.HEAD_RADIUS * 1.04, math.sin(a) * 0.06)
+                glColor3f(*accent_col)
+                self._draw_sphere(0.018, 6, 6)
+                glPopMatrix()
+
+        elif style == 'hair_spiked':
+            # 5 short spiky cones
+            for i, (a, y) in enumerate([(0, 0.95), (0.4, 0.90), (-0.4, 0.90),
+                                          (0.8, 0.85), (-0.8, 0.85)]):
+                glPushMatrix()
+                glTranslatef(math.sin(a) * 0.10, self.HEAD_RADIUS * y, 0.0)
+                glScalef(0.4, 2.0, 0.4)
+                glColor3f(*accent_col)
+                self._draw_sphere(0.028, 6, 6)
+                glPopMatrix()
+
+        elif style == 'hair_bowl_cut':
+            # Flat-bottomed dome cap
+            glPushMatrix()
+            glTranslatef(0.0, self.HEAD_RADIUS * 0.55, 0.0)
+            glScalef(1.08, 0.60, 1.00)
+            glColor3f(*hair_col)
+            self._draw_sphere(self.HEAD_RADIUS * 0.98, 16, 16)
+            glPopMatrix()
+
+        elif style == 'hair_braid':
+            # Series of pearls along one side representing a braid
+            for i in range(5):
+                glPushMatrix()
+                glTranslatef(-self.HEAD_RADIUS * 0.85,
+                             self.HEAD_RADIUS * (0.65 - i * 0.18),
+                             0.0)
+                glColor3f(*hair_col)
+                self._draw_sphere(0.030 if i < 4 else 0.020, 8, 8)
+                glPopMatrix()
+
+        elif style == 'hair_afro':
+            # Large poofy sphere cluster
+            glPushMatrix()
+            glTranslatef(0.0, self.HEAD_RADIUS * 0.75, 0.0)
+            glColor3f(*hair_col)
+            self._draw_sphere(0.22, 16, 16)
+            glPopMatrix()
+            # Smaller surrounding puffs
+            for i in range(6):
+                a = i * math.pi / 3.0
+                glPushMatrix()
+                glTranslatef(math.cos(a) * 0.18, self.HEAD_RADIUS * 0.60, math.sin(a) * 0.12)
+                glColor3f(*hair_col)
+                self._draw_sphere(0.10, 10, 10)
+                glPopMatrix()
+
+        elif style == 'hair_dreadlocks':
+            # Several elongated oval strands hanging down
+            for i in range(5):
+                a = (i - 2) * 0.22
+                glPushMatrix()
+                glTranslatef(math.sin(a) * 0.14, self.HEAD_RADIUS * 0.40, 0.0)
+                glScalef(0.35, 2.5, 0.35)
+                glColor3f(*hair_col)
+                self._draw_sphere(0.040, 8, 8)
+                glPopMatrix()
 
     # ─── Arm drawing ────────────────────────────────────────────────────────
     def _draw_panda_arms(self, limb, bob, t=0):
@@ -1434,6 +1575,14 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
         self._eyelid_extra += self._eyelid_vel * dt
         self._eyelid_extra  = max(-0.08, min(0.12, self._eyelid_extra))
 
+        # ── Body pitch spring (quadruped stances) ─────────────────────────────
+        pitch_tgt = _BODY_PITCH_TARGETS.get(self.animation_state, 0.0)
+        pitch_spring = 16.0 * (pitch_tgt - self._body_pitch_cur)
+        pitch_damp   = -5.0 * self._body_pitch_vel
+        self._body_pitch_vel += (pitch_spring + pitch_damp) * dt
+        self._body_pitch_cur += self._body_pitch_vel * dt
+        self._body_pitch_cur  = max(-90.0, min(90.0, self._body_pitch_cur))
+
     # ─── Saccade + eye-lead system ────────────────────────────────────────────
     def _update_saccades(self, now: float, dt: float):
         """
@@ -1675,6 +1824,35 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
                 droop = 20.0 + self._fatigue * 15.0
                 pos['left_arm_angle']  =  droop
                 pos['right_arm_angle'] =  droop
+
+            elif state == 'crawling':
+                # All-fours: diagonal pair gait (left-front / right-back together)
+                base  = frame * 0.130
+                swing = 28.0 * math.sin(base) + 4.0 * math.sin(base * 3) / 3.0
+                # Arms swing opposite to legs (front-left with rear-right)
+                pos['left_arm_angle']  =  45.0 + swing        # shoulder pitched forward
+                pos['right_arm_angle'] =  45.0 - swing
+                pos['left_leg_angle']  = -45.0 - swing        # hip pitched forward
+                pos['right_leg_angle'] = -45.0 + swing
+
+            elif state == 'climbing_wall':
+                # Vertical body: arms reach up alternately, legs push against wall
+                base  = frame * 0.100
+                reach = 30.0 * math.sin(base)
+                pos['left_arm_angle']  = -120.0 + reach
+                pos['right_arm_angle'] = -120.0 - reach
+                pos['left_leg_angle']  =  -60.0 - reach
+                pos['right_leg_angle'] =  -60.0 + reach
+
+            elif state == 'falling_back':
+                # On back: legs kick up, arms flail outward
+                phase = (frame % 50) / 50.0
+                flail = 25.0 * math.sin(phase * math.pi * 2)
+                kick  = 60.0 + 15.0 * math.sin(phase * math.pi)
+                pos['left_arm_angle']  = -90.0 + flail
+                pos['right_arm_angle'] = -90.0 - flail
+                pos['left_leg_angle']  =  kick
+                pos['right_leg_angle'] =  kick
 
             elif state == '_anticipation':
                 # Pull arms back and crouch before jump/celebrate
@@ -2229,10 +2407,12 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
     def _choose_random_activity(self):
         """Choose a random activity for panda."""
         activities = [
-            ('walk_around', 0.4),
-            ('work', 0.3),
-            ('idle', 0.2),
-            ('celebrate', 0.1)
+            ('walk_around',    0.35),
+            ('work',           0.25),
+            ('idle',           0.15),
+            ('celebrate',      0.08),
+            ('crawl_around',   0.10),
+            ('climb_wall',     0.07),
         ]
         
         # Weighted random choice
@@ -2252,6 +2432,19 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
                     self.start_working()
                 elif activity == 'celebrate':
                     self.set_animation_state('celebrating')
+                elif activity == 'crawl_around':
+                    # Crawl a short distance then return to idle
+                    self.set_animation_state('crawling')
+                    dur = random.uniform(1.5, 3.5)
+                    QTimer.singleShot(int(dur * 1000),
+                                      lambda: self.set_animation_state('idle'))
+                elif activity == 'climb_wall':
+                    # Briefly climb up a virtual wall edge then fall back
+                    self.set_animation_state('climbing_wall')
+                    QTimer.singleShot(int(random.uniform(1.0, 2.5) * 1000),
+                                      lambda: self.set_animation_state('falling_back'))
+                    QTimer.singleShot(int(random.uniform(2.5, 4.0) * 1000),
+                                      lambda: self.set_animation_state('idle'))
                 break
     
     # ========================================================================
@@ -2600,6 +2793,70 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
             self.update()  # Trigger redraw
         else:
             logger.warning(f"Unknown color type: {color_type}")
+
+    # Fur-style → (body_rgb, accent_rgb, belly_rgb) in 0-1 float range
+    _FUR_STYLE_COLORS: dict = {
+        'classic':         ((0.97, 0.97, 0.99), (0.08, 0.08, 0.08), (1.00, 0.98, 0.93)),
+        'albino':          ((1.00, 1.00, 1.00), (0.85, 0.82, 0.80), (1.00, 0.99, 0.97)),
+        'snow_panda':      ((0.92, 0.95, 1.00), (0.65, 0.72, 0.88), (0.95, 0.97, 1.00)),
+        'red_panda_fur':   ((0.80, 0.42, 0.18), (0.15, 0.10, 0.06), (0.90, 0.72, 0.50)),
+        'fluffy':          ((0.98, 0.98, 1.00), (0.06, 0.06, 0.06), (1.00, 0.97, 0.90)),
+        'young':           ((0.99, 0.99, 1.00), (0.25, 0.25, 0.30), (1.00, 0.98, 0.92)),
+        'elder':           ((0.88, 0.88, 0.86), (0.20, 0.20, 0.22), (0.92, 0.90, 0.85)),
+        'golden':          ((0.95, 0.82, 0.40), (0.50, 0.32, 0.08), (1.00, 0.92, 0.65)),
+    }
+
+    def set_fur_style(self, style_id: str) -> None:
+        """
+        Apply a fur-style preset to the panda's body colors.
+
+        Args:
+            style_id: One of the keys in _FUR_STYLE_COLORS (e.g. 'albino', 'snow_panda').
+                      Unknown ids are silently treated as 'classic'.
+        """
+        if hasattr(style_id, 'value'):
+            style_id = style_id.value
+        self._fur_style = str(style_id)
+        body_rgb, accent_rgb, belly_rgb = self._FUR_STYLE_COLORS.get(
+            self._fur_style, self._FUR_STYLE_COLORS['classic']
+        )
+        self.custom_colors['body']   = list(body_rgb)
+        self.custom_colors['accent'] = list(accent_rgb)
+        # belly colour stored separately so _draw_panda can use it
+        self.custom_colors['belly']  = list(belly_rgb)
+        logger.debug(f"Panda fur style set to '{self._fur_style}'")
+        self.update()
+
+    # Hair style id → description string (used for debug logging).
+    # Actual rendering is via head-top accessory spheres drawn in _draw_panda_head_hair().
+    _HAIR_STYLE_NAMES: dict = {
+        'hair_wild_mane':   'Wild Mane',
+        'hair_mohawk':      'Punk Mohawk',
+        'hair_top_knot':    'Top Knot',
+        'hair_spiked':      'Spiked Tips',
+        'hair_bowl_cut':    'Bowl Cut',
+        'hair_braid':       'Side Braid',
+        'hair_afro':        'Fur Afro',
+        'hair_dreadlocks':  'Dreads',
+    }
+
+    def set_hair_style(self, style_id: str) -> None:
+        """
+        Apply a hair-style to the panda's head.
+
+        The hair style is stored and rendered in _draw_panda_head_hair() which is
+        called from _draw_panda() after the ear/eye/snout pass.
+
+        Args:
+            style_id: One of the keys in _HAIR_STYLE_NAMES.
+                      Pass 'none' or '' to remove hair style.
+        """
+        if hasattr(style_id, 'value'):
+            style_id = style_id.value
+        self._hair_style = str(style_id)
+        name = self._HAIR_STYLE_NAMES.get(self._hair_style, self._hair_style)
+        logger.debug(f"Panda hair style set to '{name}'")
+        self.update()
     
     def set_trail(self, trail_type: str, trail_data: dict):
         """

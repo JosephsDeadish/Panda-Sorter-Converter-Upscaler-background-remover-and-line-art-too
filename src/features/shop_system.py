@@ -3558,6 +3558,75 @@ class ShopSystem:
             description='Soothing ASMR-style sounds for relaxation',
             category=ShopCategory.SOUNDS, price=225, icon='🎧',
             subcategory='panda'),
+
+        # ── Realistic fur styles (mapped to GL renderer presets) ──────────────
+        'fur_albino': ShopItem(
+            id='fur_albino', name='Albino Fur',
+            description='Rare cream-white albino panda coloring',
+            category=ShopCategory.CUSTOMIZATION, price=500, icon='🤍',
+            level_required=5, one_time_purchase=True, unlockable_id='albino'),
+        'fur_snow_panda': ShopItem(
+            id='fur_snow_panda', name='Snow Panda Fur',
+            description='Ice-blue tinted fur with pale lavender patches',
+            category=ShopCategory.CUSTOMIZATION, price=350, icon='❄️',
+            level_required=4, one_time_purchase=True, unlockable_id='snow_panda'),
+        'fur_red_panda': ShopItem(
+            id='fur_red_panda', name='Red Panda Coloring',
+            description='Warm russet body with dark chocolate patches',
+            category=ShopCategory.CUSTOMIZATION, price=300, icon='🦊',
+            level_required=3, one_time_purchase=True, unlockable_id='red_panda_fur'),
+        'fur_young': ShopItem(
+            id='fur_young', name='Young Cub Fur',
+            description='Soft off-white cub fur with light grey patches',
+            category=ShopCategory.CUSTOMIZATION, price=150, icon='🐣',
+            level_required=1, one_time_purchase=True, unlockable_id='young'),
+        'fur_elder': ShopItem(
+            id='fur_elder', name='Elder Panda Fur',
+            description='Distinguished silver-grey with aged dark patches',
+            category=ShopCategory.CUSTOMIZATION, price=280, icon='🧓',
+            level_required=8, one_time_purchase=True, unlockable_id='elder'),
+        'fur_golden': ShopItem(
+            id='fur_golden', name='Golden Panda Fur',
+            description='Legendary gold body with deep amber patches',
+            category=ShopCategory.CUSTOMIZATION, price=1000, icon='✨',
+            level_required=15, one_time_purchase=True, unlockable_id='golden_fur'),
+
+        # ── Hair styles ───────────────────────────────────────────────────────
+        'hair_wild_mane': ShopItem(
+            id='hair_wild_mane', name='Wild Mane',
+            description='Thick untamed mane of fluffy head fur',
+            category=ShopCategory.CUSTOMIZATION, price=120, icon='🦁',
+            level_required=1, one_time_purchase=True, unlockable_id='hair_wild_mane'),
+        'hair_mohawk': ShopItem(
+            id='hair_mohawk', name='Punk Mohawk',
+            description='Punk-rock ridge of fur running crown to neck',
+            category=ShopCategory.CUSTOMIZATION, price=280, icon='🤘',
+            level_required=3, one_time_purchase=True, unlockable_id='hair_mohawk'),
+        'hair_top_knot': ShopItem(
+            id='hair_top_knot', name='Top Knot',
+            description='Elegant top-knot bun of long fur',
+            category=ShopCategory.CUSTOMIZATION, price=140, icon='🎎',
+            level_required=2, one_time_purchase=True, unlockable_id='hair_top_knot'),
+        'hair_spiked': ShopItem(
+            id='hair_spiked', name='Spiked Tips',
+            description='Spiky lightning-bolt fur tips on head',
+            category=ShopCategory.CUSTOMIZATION, price=240, icon='⚡',
+            level_required=3, one_time_purchase=True, unlockable_id='hair_spiked'),
+        'hair_bowl_cut': ShopItem(
+            id='hair_bowl_cut', name='Bowl Cut',
+            description='Classic perfectly round bowl-cut fur',
+            category=ShopCategory.CUSTOMIZATION, price=60, icon='🍜',
+            level_required=1, one_time_purchase=True, unlockable_id='hair_bowl_cut'),
+        'hair_afro': ShopItem(
+            id='hair_afro', name='Fur Afro',
+            description='Gloriously round poofy afro head fur',
+            category=ShopCategory.CUSTOMIZATION, price=450, icon='🌟',
+            level_required=6, one_time_purchase=True, unlockable_id='hair_afro'),
+        'hair_dreadlocks': ShopItem(
+            id='hair_dreadlocks', name='Dreads',
+            description='Long looped dreadlock fur strands',
+            category=ShopCategory.CUSTOMIZATION, price=300, icon='🌿',
+            level_required=4, one_time_purchase=True, unlockable_id='hair_dreadlocks'),
     }
     
     def __init__(self, save_path: Optional[Path] = None):

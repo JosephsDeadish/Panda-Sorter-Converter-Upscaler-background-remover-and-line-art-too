@@ -18,6 +18,7 @@ class CustomizationCategory(Enum):
     """Categories of customization options."""
     FUR_STYLE = "fur_style"
     FUR_COLOR = "fur_color"
+    HAIR_STYLE = "hair_style"
     CLOTHING = "clothing"
     HAT = "hat"
     SHOES = "shoes"
@@ -290,8 +291,80 @@ class PandaCloset:
             'bamboo_spirit', 'Bamboo Spirit Panda', CustomizationCategory.FUR_STYLE,
             '🐼🎋', 'Ancient bamboo spirit fur', ItemRarity.EPIC, 0, False, False
         ),
-        
-        # Fur Colors
+
+        # ── Realistic fur styles (wired to GL renderer color presets) ─────────
+        'albino': CustomizationItem(
+            'albino', 'Albino Panda', CustomizationCategory.FUR_STYLE,
+            '🤍🐼', 'Rare albino coloring — near-white with cream patches',
+            ItemRarity.EPIC, 500, False, False
+        ),
+        'snow_panda': CustomizationItem(
+            'snow_panda', 'Snow Panda', CustomizationCategory.FUR_STYLE,
+            '❄️🐼', 'Ice-blue tinted fur with pale lavender patches',
+            ItemRarity.RARE, 350, False, False
+        ),
+        'red_panda_fur': CustomizationItem(
+            'red_panda_fur', 'Red Panda Coloring', CustomizationCategory.FUR_STYLE,
+            '🦊🐼', 'Warm russet fur with dark chocolate patches',
+            ItemRarity.RARE, 300, False, False
+        ),
+        'young': CustomizationItem(
+            'young', 'Young Cub', CustomizationCategory.FUR_STYLE,
+            '🐣🐼', 'Soft off-white cub fur with light grey patches',
+            ItemRarity.UNCOMMON, 150, False, False
+        ),
+        'elder': CustomizationItem(
+            'elder', 'Elder Panda', CustomizationCategory.FUR_STYLE,
+            '🧓🐼', 'Distinguished silver-grey fur with aged dark patches',
+            ItemRarity.RARE, 280, False, False
+        ),
+        'golden_fur': CustomizationItem(
+            'golden_fur', 'Golden Panda', CustomizationCategory.FUR_STYLE,
+            '✨🐼', 'Warm gold body fur with deep amber patches',
+            ItemRarity.LEGENDARY, 1000, False, False
+        ),
+
+        # ── Hair styles (head-hair slot, separate from body fur) ─────────────
+        'hair_wild_mane': CustomizationItem(
+            'hair_wild_mane', 'Wild Mane', CustomizationCategory.HAIR_STYLE,
+            '🦁🐼', 'Thick untamed mane of fluffy head fur',
+            ItemRarity.UNCOMMON, 120, False, False
+        ),
+        'hair_mohawk': CustomizationItem(
+            'hair_mohawk', 'Punk Mohawk', CustomizationCategory.HAIR_STYLE,
+            '🤘🐼', 'Punk-rock ridge of fur running crown to neck',
+            ItemRarity.RARE, 280, False, False
+        ),
+        'hair_top_knot': CustomizationItem(
+            'hair_top_knot', 'Top Knot', CustomizationCategory.HAIR_STYLE,
+            '🎎🐼', 'Elegant top-knot bun of long fur',
+            ItemRarity.UNCOMMON, 140, False, False
+        ),
+        'hair_spiked': CustomizationItem(
+            'hair_spiked', 'Spiked Tips', CustomizationCategory.HAIR_STYLE,
+            '⚡🐼', 'Spiky lightning-bolt fur tips on head',
+            ItemRarity.RARE, 240, False, False
+        ),
+        'hair_bowl_cut': CustomizationItem(
+            'hair_bowl_cut', 'Bowl Cut', CustomizationCategory.HAIR_STYLE,
+            '🍜🐼', 'Classic perfectly round bowl-cut fur',
+            ItemRarity.COMMON, 60, False, False
+        ),
+        'hair_braid': CustomizationItem(
+            'hair_braid', 'Side Braid', CustomizationCategory.HAIR_STYLE,
+            '🎀🐼', 'Long braid of fur over one shoulder',
+            ItemRarity.RARE, 260, False, False
+        ),
+        'hair_afro': CustomizationItem(
+            'hair_afro', 'Fur Afro', CustomizationCategory.HAIR_STYLE,
+            '🌟🐼', 'Gloriously round poofy afro head fur',
+            ItemRarity.EPIC, 450, False, False
+        ),
+        'hair_dreadlocks': CustomizationItem(
+            'hair_dreadlocks', 'Dreads', CustomizationCategory.HAIR_STYLE,
+            '🌿🐼', 'Long looped dreadlock fur strands',
+            ItemRarity.RARE, 300, False, False
+        ),
         'black_white': CustomizationItem(
             'black_white', 'Black & White', CustomizationCategory.FUR_COLOR,
             '⚫⚪', 'Classic panda colors', ItemRarity.COMMON, 0, True, True

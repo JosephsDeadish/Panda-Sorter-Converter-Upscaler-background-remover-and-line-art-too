@@ -785,6 +785,96 @@ class AchievementSystem:
             progress_max=1,
             reward={'type': 'currency', 'amount': 100, 'description': '100 Bamboo Bucks'}
         ),
+
+        # ── Closet / Fashion achievements ─────────────────────────────────────
+        'first_outfit': Achievement(
+            id='first_outfit',
+            name='First Outfit',
+            description='Equip your first clothing item on the panda',
+            tier=AchievementTier.BRONZE,
+            points=20,
+            icon='👕',
+            category='closet',
+            progress_max=1,
+            reward={'type': 'currency', 'amount': 50, 'description': '50 Bamboo Bucks'}
+        ),
+        'collector_10': Achievement(
+            id='collector_10',
+            name='Collector',
+            description='Unlock 10 closet items',
+            tier=AchievementTier.SILVER,
+            points=60,
+            icon='🗃️',
+            category='closet',
+            progress_max=10,
+            reward={'type': 'closet_item', 'item': 'hair_bowl_cut', 'description': 'Bowl Cut hair style'}
+        ),
+        'rare_find': Achievement(
+            id='rare_find',
+            name='Rare Find',
+            description='Unlock any Rare or higher rarity closet item',
+            tier=AchievementTier.GOLD,
+            points=100,
+            icon='💎',
+            category='closet',
+            progress_max=1,
+            reward={'type': 'currency', 'amount': 200, 'description': '200 Bamboo Bucks'}
+        ),
+        'full_outfit': Achievement(
+            id='full_outfit',
+            name='Full Outfit',
+            description='Have clothing, hat, and shoes all equipped at once',
+            tier=AchievementTier.GOLD,
+            points=120,
+            icon='🎩',
+            category='closet',
+            progress_max=1,
+            reward={'type': 'closet_item', 'item': 'hair_wild_mane', 'description': 'Wild Mane hair style'}
+        ),
+        'custom_fur': Achievement(
+            id='custom_fur',
+            name='Fur Couture',
+            description='Equip 5 different fur styles',
+            tier=AchievementTier.SILVER,
+            points=80,
+            icon='🐼✨',
+            category='closet',
+            progress_max=5,
+            reward={'type': 'closet_item', 'item': 'snow_panda', 'description': 'Snow Panda fur style'}
+        ),
+        'top_hat_owner': Achievement(
+            id='top_hat_owner',
+            name='Top Hat Owner',
+            description='Unlock any top hat item',
+            tier=AchievementTier.SILVER,
+            points=50,
+            icon='🎩',
+            category='closet',
+            progress_max=1,
+            reward={'type': 'currency', 'amount': 100, 'description': '100 Bamboo Bucks'}
+        ),
+        'legendary_collector': Achievement(
+            id='legendary_collector',
+            name='Legendary Collector',
+            description='Unlock any Legendary rarity closet item',
+            tier=AchievementTier.PLATINUM,
+            points=250,
+            icon='🌌',
+            category='closet',
+            progress_max=1,
+            reward={'type': 'closet_item', 'item': 'hair_afro', 'description': 'Fur Afro hair style'}
+        ),
+        'hairstylist': Achievement(
+            id='hairstylist',
+            name='Hairstylist',
+            description='Unlock 3 different hair styles for the panda',
+            tier=AchievementTier.SILVER,
+            points=70,
+            icon='💇',
+            category='closet',
+            progress_max=3,
+            reward={'type': 'closet_item', 'item': 'hair_mohawk', 'description': 'Punk Mohawk hair style'}
+        ),
     }
     
     def __init__(self, save_file: Optional[str] = None):
