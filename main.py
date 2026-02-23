@@ -3859,6 +3859,17 @@ class TextureSorterMainWindow(QMainWindow):
                         logger.info(f"Equipped item on panda: {item_id}")
                         # Forward to GL widget via unified helper
                         self._apply_item_to_panda_widget(item)
+                    else:
+                        # Item is from shop_system (weapon/toy/food) but not in
+                        # panda_closet — apply directly from shop_system lookup
+                        try:
+                            if self.shop_system:
+                                shop_item = self.shop_system.get_item(item_id)
+                                if shop_item:
+                                    self._apply_item_to_panda_widget(shop_item)
+                                    logger.info(f"Applied shop item directly: {item_id}")
+                        except Exception as _se:
+                            logger.debug(f"shop fallback for {item_id}: {_se}")
             except Exception as _e:
                 logger.debug(f"Could not equip item {item_id}: {_e}")
 
@@ -3897,6 +3908,16 @@ class TextureSorterMainWindow(QMainWindow):
                         logger.info(f"Equipped item from inventory: {item_id}")
                         # Forward to GL widget via unified helper
                         self._apply_item_to_panda_widget(item)
+                    elif item is None:
+                        # Weapon/toy/food from shop_system — apply directly
+                        try:
+                            if self.shop_system:
+                                shop_item = self.shop_system.get_item(item_id)
+                                if shop_item:
+                                    self._apply_item_to_panda_widget(shop_item)
+                                    self.log(f"🎮 Equipped: {shop_item.name}")
+                        except Exception as _se:
+                            logger.debug(f"inv shop fallback {item_id}: {_se}")
             except Exception as _e:
                 logger.debug(f"Could not equip inventory item {item_id}: {_e}")
 
@@ -3927,27 +3948,60 @@ class TextureSorterMainWindow(QMainWindow):
                 self.panda_widget.set_fur_style(app.fur_style)
             if hasattr(self.panda_widget, 'set_hair_style') and app.hair_style:
                 self.panda_widget.set_hair_style(app.hair_style)
+            # Restore all equipped clothing items
+            try:
+                equipped = self.panda_closet.get_equipped_items()
+                for eq_item in (equipped or []):
+                    self._apply_item_to_panda_widget(eq_item)
+            except Exception as _ce:
+                logger.debug(f"restore equipped clothing: {_ce}")
             logger.debug(f"Panda appearance restored: fur={app.fur_style} hair={app.hair_style}")
         except Exception as e:
             logger.debug(f"_restore_panda_appearance_from_closet: {e}")
 
     def _apply_item_to_panda_widget(self, item) -> None:
-        """Forward a closet CustomizationItem to the correct panda_widget slot.
+        """Forward a closet CustomizationItem (or ShopItem) to the correct panda_widget slot.
 
         Centralises the category→slot mapping used by both purchase and equip
-        handlers so they stay in sync automatically.
+        handlers so they stay in sync automatically.  Accepts both
+        ``CustomizationItem`` (from panda_closet) and ``ShopItem`` (from
+        shop_system) — the ShopItem→closet-category mapping is resolved via
+        ``SHOP_TO_CLOSET_CATEGORY``.
         """
         if not self.panda_widget or item is None:
             return
         try:
             from features.panda_closet import CustomizationCategory as _CC
-            cat = item.category
-            item_id = item.id
+            # Resolve ShopItem → effective closet category string
+            try:
+                from features.shop_system import ShopItem as _SI, SHOP_TO_CLOSET_CATEGORY
+                if isinstance(item, _SI):
+                    cat_str = SHOP_TO_CLOSET_CATEGORY.get(item.category, '')
+                    # Build a minimal proxy with .category, .id, .color
+                    class _Proxy:
+                        pass
+                    proxy = _Proxy()
+                    proxy.id = item.id
+                    proxy.color = [0.7, 0.6, 0.3]
+                    # Convert string → CustomizationCategory
+                    try:
+                        proxy.category = _CC(cat_str) if cat_str else None
+                    except ValueError:
+                        proxy.category = None
+                    item = proxy
+            except Exception:
+                pass
+
+            cat = getattr(item, 'category', None)
+            item_id = getattr(item, 'id', '')
             _color = getattr(item, 'color', [0.7, 0.6, 0.3])
             if not isinstance(_color, (list, tuple)):
                 _color = [0.7, 0.6, 0.3]
 
             if cat == _CC.FUR_STYLE and hasattr(self.panda_widget, 'set_fur_style'):
+                self.panda_widget.set_fur_style(item_id)
+            elif cat == _CC.FUR_COLOR and hasattr(self.panda_widget, 'set_fur_style'):
+                # FUR_COLOR items use the same _FUR_STYLE_COLORS dict keyed by item_id
                 self.panda_widget.set_fur_style(item_id)
             elif cat == _CC.HAIR_STYLE and hasattr(self.panda_widget, 'set_hair_style'):
                 self.panda_widget.set_hair_style(item_id)

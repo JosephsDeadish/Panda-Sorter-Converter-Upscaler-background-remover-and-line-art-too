@@ -2167,7 +2167,7 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
                 if r <= c:
                     self._idle_sub_state = name
                     self._idle_sub_t = 0.0
-                    self._play_sound('yawn' if name == 'yawning' else 'purr')
+                    self._play_sound(self._IDLE_SUB_SOUNDS.get(name, 'purr'))
                     break
             self._idle_sub_next = random.uniform(8.0, 20.0)
 
@@ -2315,23 +2315,54 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
     # This allows call-sites to use short, descriptive names without caring
     # about the exact filename on disk.
     _SOUND_ALIASES: dict = {
-        'boop':       'panda_boop',
-        'thump':      'panda_thud',
-        'landing':    'panda_thud',
-        'click':      'click',
-        'yawn':       'panda_sleepy_yawn',
-        'big_yawn':   'panda_big_yawn',
-        'tired_yawn': 'panda_tired_yawn',
-        'wake_yawn':  'panda_wake_yawn',
-        'giggle':     'panda_giggle',
-        'chomp':      'panda_chomp',
-        'plop':       'panda_plop',
-        'poke':       'panda_poke',
-        'purr':       'panda_purr',
-        'snore':      'panda_snore',
-        'achievement':'achievement',
-        'error':      'error',
-        'notification':'notification',
+        'boop':           'panda_boop',
+        'thump':          'panda_thud',
+        'landing':        'panda_thud',
+        'click':          'click',
+        'yawn':           'panda_sleepy_yawn',
+        'big_yawn':       'panda_big_yawn',
+        'tired_yawn':     'panda_tired_yawn',
+        'wake_yawn':      'panda_wake_yawn',
+        'giggle':         'panda_giggle',
+        'chomp':          'panda_chomp',
+        'plop':           'panda_plop',
+        'poke':           'panda_poke',
+        'purr':           'panda_purr',
+        'snore':          'panda_snore',
+        'stretch':        'panda_stretch',
+        'scratch':        'panda_shuffle',
+        'sniff':          'panda_breath',
+        'flop':           'panda_plop',
+        'greet':          'panda_chirp',
+        'excited':        'panda_excited',
+        'munch':          'panda_munch',
+        'nom':            'panda_nom',
+        'crunch':         'panda_crunch',
+        'slurp':          'panda_slurp',
+        'squeak':         'panda_squeak',
+        'sigh':           'panda_sigh',
+        'content':        'panda_content',
+        'hop':            'panda_hop',
+        'leap':           'panda_leap',
+        'bounce':         'panda_bounce',
+        'achievement':    'achievement',
+        'error':          'error',
+        'notification':   'notification',
+        'start':          'start',
+        'complete':       'complete',
+        'milestone':      'milestone',
+        'warning':        'warning',
+    }
+
+    # Sound played when each idle sub-behavior starts
+    _IDLE_SUB_SOUNDS: dict = {
+        'grooming':   'purr',
+        'stretching': 'stretch',
+        'scratching': 'scratch',
+        'daydream':   'sigh',
+        'sniffing':   'sniff',
+        'yawning':    'yawn',
+        'flopping':   'flop',
     }
 
     def _play_sound(self, name: str):
@@ -4227,14 +4258,76 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
 
     # Fur-style → (body_rgb, accent_rgb, belly_rgb) in 0-1 float range
     _FUR_STYLE_COLORS: dict = {
+        # ── Core presets ────────────────────────────────────────────────────
         'classic':         ((0.97, 0.97, 0.99), (0.08, 0.08, 0.08), (1.00, 0.98, 0.93)),
+        'black_white':     ((0.97, 0.97, 0.99), (0.08, 0.08, 0.08), (1.00, 0.98, 0.93)),
         'albino':          ((1.00, 1.00, 1.00), (0.85, 0.82, 0.80), (1.00, 0.99, 0.97)),
         'snow_panda':      ((0.92, 0.95, 1.00), (0.65, 0.72, 0.88), (0.95, 0.97, 1.00)),
         'red_panda_fur':   ((0.80, 0.42, 0.18), (0.15, 0.10, 0.06), (0.90, 0.72, 0.50)),
+        'red_panda':       ((0.80, 0.42, 0.18), (0.15, 0.10, 0.06), (0.90, 0.72, 0.50)),
         'fluffy':          ((0.98, 0.98, 1.00), (0.06, 0.06, 0.06), (1.00, 0.97, 0.90)),
         'young':           ((0.99, 0.99, 1.00), (0.25, 0.25, 0.30), (1.00, 0.98, 0.92)),
         'elder':           ((0.88, 0.88, 0.86), (0.20, 0.20, 0.22), (0.92, 0.90, 0.85)),
         'golden':          ((0.95, 0.82, 0.40), (0.50, 0.32, 0.08), (1.00, 0.92, 0.65)),
+        'golden_fur':      ((0.95, 0.82, 0.40), (0.50, 0.32, 0.08), (1.00, 0.92, 0.65)),
+        # ── Fur texture styles ────────────────────────────────────────────
+        'sleek':           ((0.97, 0.97, 0.99), (0.05, 0.05, 0.07), (1.00, 0.99, 0.95)),
+        'shaggy':          ((0.94, 0.92, 0.90), (0.12, 0.10, 0.10), (0.98, 0.95, 0.88)),
+        'curly':           ((0.98, 0.96, 0.94), (0.10, 0.08, 0.08), (1.00, 0.96, 0.88)),
+        'wavy':            ((0.96, 0.96, 0.98), (0.09, 0.09, 0.11), (1.00, 0.97, 0.90)),
+        'wispy':           ((0.99, 0.99, 1.00), (0.14, 0.14, 0.16), (1.00, 0.98, 0.93)),
+        'spiky':           ((0.95, 0.95, 0.97), (0.05, 0.05, 0.06), (0.99, 0.97, 0.91)),
+        'braided':         ((0.93, 0.91, 0.89), (0.11, 0.09, 0.09), (0.97, 0.94, 0.86)),
+        'woolly':          ((0.95, 0.93, 0.91), (0.14, 0.12, 0.12), (0.99, 0.95, 0.87)),
+        'velvet':          ((0.96, 0.94, 0.96), (0.06, 0.04, 0.08), (1.00, 0.96, 0.98)),
+        'plush':           ((0.98, 0.97, 0.97), (0.10, 0.08, 0.09), (1.00, 0.97, 0.94)),
+        'tufted':          ((0.95, 0.95, 0.98), (0.10, 0.10, 0.12), (0.99, 0.97, 0.91)),
+        'feathered':       ((0.97, 0.97, 0.99), (0.06, 0.06, 0.08), (1.00, 0.98, 0.94)),
+        'silky':           ((0.99, 0.98, 1.00), (0.07, 0.06, 0.10), (1.00, 0.99, 0.96)),
+        'windswept':       ((0.96, 0.96, 0.98), (0.08, 0.08, 0.10), (1.00, 0.97, 0.91)),
+        'mohawk':          ((0.96, 0.96, 0.98), (0.06, 0.06, 0.08), (1.00, 0.97, 0.91)),
+        'frosted':         ((0.93, 0.95, 0.99), (0.58, 0.64, 0.82), (0.96, 0.98, 1.00)),
+        'metallic':        ((0.82, 0.84, 0.88), (0.30, 0.32, 0.38), (0.88, 0.90, 0.94)),
+        'spotted':         ((0.97, 0.95, 0.93), (0.15, 0.12, 0.10), (1.00, 0.96, 0.90)),
+        'striped':         ((0.97, 0.97, 0.99), (0.08, 0.08, 0.10), (1.00, 0.97, 0.92)),
+        # ── Colour variants (FUR_COLOR category uses same dict) ───────────
+        'brown':           ((0.62, 0.42, 0.26), (0.22, 0.12, 0.06), (0.80, 0.60, 0.40)),
+        'cinnamon':        ((0.76, 0.52, 0.28), (0.30, 0.16, 0.06), (0.88, 0.70, 0.48)),
+        'silver':          ((0.82, 0.84, 0.88), (0.32, 0.34, 0.40), (0.90, 0.90, 0.92)),
+        'midnight':        ((0.18, 0.18, 0.22), (0.04, 0.04, 0.06), (0.28, 0.28, 0.34)),
+        'phantom':         ((0.22, 0.20, 0.26), (0.06, 0.04, 0.08), (0.32, 0.30, 0.36)),
+        'shadow':          ((0.20, 0.20, 0.24), (0.05, 0.05, 0.07), (0.30, 0.28, 0.32)),
+        'arctic_white':    ((1.00, 1.00, 1.00), (0.78, 0.80, 0.88), (1.00, 1.00, 1.00)),
+        'starlight':       ((0.92, 0.92, 1.00), (0.55, 0.55, 0.85), (0.96, 0.96, 1.00)),
+        'ice_crystal':     ((0.88, 0.94, 1.00), (0.50, 0.65, 0.90), (0.92, 0.96, 1.00)),
+        'cotton_candy':    ((1.00, 0.80, 0.88), (0.80, 0.45, 0.62), (1.00, 0.88, 0.94)),
+        'cherry_blossom':  ((1.00, 0.82, 0.88), (0.85, 0.40, 0.58), (1.00, 0.90, 0.94)),
+        'sakura':          ((1.00, 0.84, 0.90), (0.82, 0.42, 0.60), (1.00, 0.92, 0.95)),
+        'rose_gold':       ((0.95, 0.76, 0.70), (0.60, 0.36, 0.30), (1.00, 0.86, 0.80)),
+        'lavender':        ((0.82, 0.72, 0.92), (0.42, 0.28, 0.65), (0.90, 0.82, 0.96)),
+        'sunset_orange':   ((0.96, 0.64, 0.30), (0.55, 0.22, 0.06), (1.00, 0.80, 0.55)),
+        'ember':           ((0.90, 0.50, 0.22), (0.48, 0.18, 0.05), (0.98, 0.70, 0.44)),
+        'copper':          ((0.78, 0.52, 0.30), (0.40, 0.22, 0.08), (0.88, 0.68, 0.48)),
+        'emerald':         ((0.20, 0.70, 0.40), (0.05, 0.30, 0.14), (0.40, 0.82, 0.58)),
+        'mossy':           ((0.48, 0.62, 0.30), (0.18, 0.28, 0.10), (0.60, 0.72, 0.44)),
+        'ocean_blue':      ((0.28, 0.58, 0.88), (0.10, 0.28, 0.58), (0.48, 0.72, 0.96)),
+        'glacial':         ((0.70, 0.86, 0.96), (0.30, 0.58, 0.80), (0.82, 0.92, 1.00)),
+        'neon_green':      ((0.40, 0.98, 0.40), (0.10, 0.55, 0.10), (0.70, 1.00, 0.70)),
+        'electric':        ((0.60, 0.80, 1.00), (0.20, 0.40, 0.90), (0.80, 0.90, 1.00)),
+        'thunder':         ((0.50, 0.52, 0.68), (0.20, 0.22, 0.45), (0.65, 0.65, 0.80)),
+        # ── Fantasy / special ─────────────────────────────────────────────
+        'rainbow':         ((1.00, 0.50, 0.50), (0.50, 0.00, 0.50), (1.00, 0.80, 0.50)),
+        'galaxy':          ((0.18, 0.10, 0.30), (0.55, 0.20, 0.75), (0.30, 0.18, 0.48)),
+        'cosmic':          ((0.12, 0.08, 0.25), (0.48, 0.15, 0.68), (0.22, 0.14, 0.38)),
+        'starweave':       ((0.14, 0.10, 0.28), (0.60, 0.25, 0.80), (0.26, 0.18, 0.44)),
+        'holographic':     ((0.90, 0.85, 1.00), (0.55, 0.45, 0.90), (0.96, 0.92, 1.00)),
+        'aurora':          ((0.30, 0.85, 0.75), (0.10, 0.50, 0.85), (0.55, 0.92, 0.80)),
+        'phoenix':         ((0.95, 0.45, 0.10), (0.55, 0.10, 0.02), (1.00, 0.70, 0.35)),
+        'bamboo_spirit':   ((0.60, 0.80, 0.40), (0.20, 0.48, 0.15), (0.78, 0.90, 0.60)),
+        'crystalline':     ((0.88, 0.96, 1.00), (0.45, 0.70, 0.92), (0.94, 0.98, 1.00)),
+        'pixelated':       ((0.85, 0.85, 0.88), (0.15, 0.15, 0.18), (0.95, 0.92, 0.88)),
+        'diamond':         ((0.92, 0.96, 1.00), (0.60, 0.72, 0.90), (0.96, 0.98, 1.00)),
+        'volcanic':        ((0.25, 0.08, 0.04), (0.80, 0.30, 0.05), (0.40, 0.15, 0.08)),
     }
 
     def set_fur_style(self, style_id: str) -> None:
