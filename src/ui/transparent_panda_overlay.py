@@ -712,16 +712,19 @@ class TransparentPandaOverlay(QOpenGLWidget if PYQT_AVAILABLE else QWidget):
             )
         elif self.behavior_state == 'crawling':
             self.set_animation_state('crawling')
-            # Return to idle after a short crawl
+            # Return to idle after a short crawl — guard so a later state wins
             dur = int(random.uniform(1500, 3500))
-            QTimer.singleShot(dur, lambda: self.set_animation_state('idle'))
+            QTimer.singleShot(dur, lambda: (self.animation_state == 'crawling'
+                                            and self.set_animation_state('idle')))
             self.behavior_state = 'idle'   # prevent re-entry next tick
         elif self.behavior_state == 'climbing_wall':
             self.set_animation_state('climbing_wall')
             fall_ms = int(random.uniform(1000, 2500))
             idle_ms = fall_ms + int(random.uniform(800, 1800))
-            QTimer.singleShot(fall_ms, lambda: self.set_animation_state('falling_back'))
-            QTimer.singleShot(idle_ms, lambda: self.set_animation_state('idle'))
+            QTimer.singleShot(fall_ms, lambda: (self.animation_state == 'climbing_wall'
+                                                and self.set_animation_state('falling_back')))
+            QTimer.singleShot(idle_ms, lambda: (self.animation_state == 'falling_back'
+                                                and self.set_animation_state('idle')))
             self.behavior_state = 'idle'   # prevent re-entry
     
     # ===========================

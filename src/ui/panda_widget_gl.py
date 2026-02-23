@@ -749,11 +749,16 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
         glPopMatrix()
 
         # Main body — colour from custom_colors['body'] (fur style)
+        # Apply subtle specular sheen to simulate fur gloss
+        glMaterialfv(GL_FRONT, GL_SPECULAR, [0.25, 0.25, 0.25, 1.0])
+        glMaterialf(GL_FRONT, GL_SHININESS, 14.0)
         glPushMatrix()
         glScalef(self.BODY_WIDTH, self.BODY_HEIGHT * sy, self.BODY_WIDTH * 0.78)
         glColor3f(*body_col)
         self._draw_sphere(1.0, 24, 24)
         glPopMatrix()
+        glMaterialfv(GL_FRONT, GL_SPECULAR, [1.0, 1.0, 1.0, 1.0])
+        glMaterialf(GL_FRONT, GL_SHININESS, 50.0)
 
         # Fur layer — belly_y also applied to Y so fur follows belly motion
         glEnable(GL_BLEND)
@@ -801,17 +806,56 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
         self._draw_sphere(1.0, 14, 14)
         glPopMatrix()
 
+        # ── Chest / throat white patch ────────────────────────────────────────
+        # Real pandas have a bright white chest band between the black shoulders
+        glPushMatrix()
+        glTranslatef(0.0, self.BODY_HEIGHT * 0.28 * sy, self.BODY_WIDTH * 0.55)
+        glScalef(0.45, 0.38 * sy, 0.25)
+        bright_white = [min(1.0, c + 0.06) for c in belly_col]
+        glColor3f(*bright_white)
+        self._draw_sphere(1.0, 14, 14)
+        glPopMatrix()
+
+        # ── Belly ventral stripe ──────────────────────────────────────────────
+        # Cream-coloured midline stripe from chest to groin
+        glPushMatrix()
+        glTranslatef(0.0, 0.0, self.BODY_WIDTH * 0.46)
+        glScalef(0.18, 0.82 * sy, 0.15)
+        glColor3f(*belly_col)
+        self._draw_sphere(1.0, 10, 10)
+        glPopMatrix()
+
+        # ── Hip patches (black) ──────────────────────────────────────────────
+        # Real pandas have prominent black oval patches on each hip / upper thigh
+        for hx in (-self.BODY_WIDTH * 0.78, self.BODY_WIDTH * 0.78):
+            glPushMatrix()
+            glTranslatef(hx, -self.BODY_HEIGHT * 0.22 * sy, 0.0)
+            glScalef(0.36, 0.42 * sy, 0.30)
+            glColor3f(*accent_col)
+            self._draw_sphere(1.0, 12, 12)
+            glPopMatrix()
+
         # ── Legs ─────────────────────────────────────────────────────────────
         self._draw_panda_legs(limb, bob, t)
 
         # ── Arms ─────────────────────────────────────────────────────────────
         self._draw_panda_arms(limb, bob, t)
 
-        # ── Tail (small white puff) ───────────────────────────────────────────
+        # ── Tail (small white puff, slightly larger than before) ─────────────
         glPushMatrix()
         glTranslatef(0.0, -0.05, -self.BODY_WIDTH * 0.78)
-        glColor3f(0.94, 0.94, 0.94)
-        self._draw_sphere(0.07, 10, 10)
+        glScalef(1.0, 0.80, 1.0)
+        glColor3f(*[min(1.0, c + 0.04) for c in body_col])
+        self._draw_sphere(0.090, 12, 12)
+        glPopMatrix()
+
+        # ── Neck scruff ───────────────────────────────────────────────────────
+        # White fur tuft between the shoulder blades and the base of the skull
+        glPushMatrix()
+        glTranslatef(0.0, self.BODY_HEIGHT * 0.38 * sy, self.BODY_WIDTH * 0.35)
+        glScalef(0.28, 0.22 * sy, 0.22)
+        glColor3f(*[min(1.0, c + 0.06) for c in body_col])
+        self._draw_sphere(1.0, 12, 12)
         glPopMatrix()
 
         glPopMatrix()   # end torso matrix
@@ -833,11 +877,40 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
             lean = min(self._whoa_t / 0.5, 1.0) * -8.0
             glRotatef(lean, 1.0, 0.0, 0.0)
 
-        # Main skull — use body colour so fur style tints the head
+        # Main skull — subtle fur sheen, colour from fur style
+        glMaterialfv(GL_FRONT, GL_SPECULAR, [0.22, 0.22, 0.22, 1.0])
+        glMaterialf(GL_FRONT, GL_SHININESS, 12.0)
         glColor3f(*body_col)
         self._draw_sphere(self.HEAD_RADIUS, 28, 28)
+        glMaterialfv(GL_FRONT, GL_SPECULAR, [1.0, 1.0, 1.0, 1.0])
+        glMaterialf(GL_FRONT, GL_SHININESS, 50.0)
 
-        # Cheek fur puffs — slightly larger, same body colour
+        # ── Cranial dome / sagittal-crest ridge ───────────────────────────────
+        # Real pandas have a broad rounded skull with a subtle midline fur ridge
+        glPushMatrix()
+        glTranslatef(0.0, self.HEAD_RADIUS * 0.65, -self.HEAD_RADIUS * 0.05)
+        glScalef(0.52, 0.38, 0.44)
+        glColor3f(*body_col)
+        self._draw_sphere(self.HEAD_RADIUS, 14, 14)
+        glPopMatrix()
+        # Central fur ridge along top of skull
+        glPushMatrix()
+        glTranslatef(0.0, self.HEAD_RADIUS * 0.82, 0.0)
+        glScalef(0.18, 0.30, 0.48)
+        glColor3f(*[min(1.0, c + 0.04) for c in body_col])
+        self._draw_sphere(self.HEAD_RADIUS * 0.55, 10, 10)
+        glPopMatrix()
+
+        # ── Jaw / chin mass ──────────────────────────────────────────────────
+        # Real pandas have a heavy rounded lower jaw
+        glPushMatrix()
+        glTranslatef(0.0, -self.HEAD_RADIUS * 0.55, self.HEAD_RADIUS * 0.35)
+        glScalef(0.70, 0.42, 0.58)
+        glColor3f(*body_col)
+        self._draw_sphere(self.HEAD_RADIUS * 0.65, 14, 14)
+        glPopMatrix()
+
+        # ── Cheek fur puffs — slightly larger, same body colour ──────────────
         for cx in (-self.HEAD_RADIUS * 0.68, self.HEAD_RADIUS * 0.68):
             glPushMatrix()
             glTranslatef(cx, -self.HEAD_RADIUS * 0.22, self.HEAD_RADIUS * 0.52)
@@ -852,6 +925,27 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
         glColor4f(1.0, 1.0, 1.0, 0.15)
         self._draw_sphere(self.HEAD_RADIUS * 1.04, 16, 16)
         glDisable(GL_BLEND)
+
+        # ── Tear-duct streaks ────────────────────────────────────────────────
+        # Most iconic real panda feature: dark teardrop smear from inner
+        # eye corner running diagonally down toward the muzzle corners.
+        for side in (-1, 1):
+            for seg, (tx, ty, tz, sx, sy_s, sz) in enumerate([
+                # seg 0: eye-corner origin
+                ( side * 0.085,  0.035,  self.HEAD_RADIUS * 0.82,  0.055, 0.048, 0.038),
+                # seg 1: mid streak
+                ( side * 0.092,  -0.018, self.HEAD_RADIUS * 0.85,  0.040, 0.052, 0.030),
+                # seg 2: lower end — fades into muzzle side
+                ( side * 0.082,  -0.062, self.HEAD_RADIUS * 0.86,  0.030, 0.040, 0.025),
+            ]):
+                glPushMatrix()
+                glTranslatef(tx, ty, tz)
+                glScalef(sx, sy_s, sz)
+                # Slightly softer at the tip (seg 2)
+                dark = [max(0.0, c - 0.01 * seg) for c in accent_col]
+                glColor3f(*dark)
+                self._draw_sphere(1.0, 10, 10)
+                glPopMatrix()
 
         # ── Ears ─────────────────────────────────────────────────────────────
         self._draw_panda_ears(bob, t)
@@ -886,11 +980,11 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
 
     # ─── Ear drawing ────────────────────────────────────────────────────────
     def _draw_panda_ears(self, bob_offset, t=0):
-        """Draw rounded ears with black outer ring, pink inner ear, and asymmetric spring physics."""
+        """Draw rounded ears with black outer ring, pink inner ear, antihelical ridge and spring physics."""
         accent_col = self._get_color('accent')
         ear_positions = [(-0.265, 0.295, 0.06), (0.265, 0.295, 0.06)]
         for i, (ex, ey, ez) in enumerate(ear_positions):
-            # Follow-through: rotate ear using spring position
+            side = 1 if ex > 0 else -1
             ear_rot = self._ear_pos[i]
             glPushMatrix()
             glTranslatef(ex, ey, ez)
@@ -898,12 +992,26 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
             glScalef(1.0, 0.88, 0.55)
             glColor3f(*accent_col)
             self._draw_sphere(self.EAR_SIZE, 16, 16)
-            # Inner pink concha — slightly lighter than accent
+            # Inner pink concha
             glPushMatrix()
             glTranslatef(0.0, -0.005, 0.015)
             glScalef(0.58, 0.52, 0.40)
             glColor3f(0.88, 0.60, 0.68)   # warm pink
             self._draw_sphere(self.EAR_SIZE, 12, 12)
+            glPopMatrix()
+            # Antihelical ridge — darker rim arc along outer edge
+            glPushMatrix()
+            glTranslatef(side * 0.018, 0.035, 0.008)
+            glScalef(0.28, 0.72, 0.25)
+            glColor3f(*[max(0.0, c - 0.04) for c in accent_col])
+            self._draw_sphere(self.EAR_SIZE * 0.72, 10, 10)
+            glPopMatrix()
+            # Tiny pale tuft at ear tip
+            glPushMatrix()
+            glTranslatef(0.0, self.EAR_SIZE * 0.88, 0.0)
+            glScalef(0.40, 0.28, 0.35)
+            glColor3f(*self._get_color('body'))
+            self._draw_sphere(self.EAR_SIZE * 0.45, 8, 8)
             glPopMatrix()
             glPopMatrix()
 
@@ -1240,6 +1348,22 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
             glColor3f(0.78, 0.48, 0.55)
             self._draw_sphere(0.082, 10, 10)
             glPopMatrix()
+            # Pseudo-thumb (enlarged radial sesamoid) — inner edge of paw
+            # This is the iconic panda "extra thumb" used for gripping bamboo
+            glPushMatrix()
+            glTranslatef(-side * 0.072, 0.012, 0.035)
+            glScalef(0.50, 0.38, 0.42)
+            glColor3f(*ac)
+            self._draw_sphere(0.058, 10, 10)
+            glPopMatrix()
+            glPopMatrix()
+
+            # Wrist black band — ring of accent colour just above the paw
+            glPushMatrix()
+            glTranslatef(0.0, -self.ARM_LENGTH * 0.78, 0.0)
+            glScalef(0.130, 0.058, 0.130)
+            glColor3f(*ac)
+            self._draw_sphere(1.0, 12, 12)
             glPopMatrix()
 
             # Claws — 4 small dark cones arranged in arc
@@ -1301,13 +1425,30 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
             glScalef(1.25, 0.55, 1.55)
             glColor3f(*ac)
             self._draw_sphere(0.092, 16, 16)
-            # Foot pad (pink)
+            # Foot pad (central pink pad)
             glPushMatrix()
             glTranslatef(0.0, -0.06, 0.04)
             glScalef(0.65, 0.30, 0.75)
             glColor3f(0.78, 0.48, 0.55)
             self._draw_sphere(0.092, 10, 10)
             glPopMatrix()
+            # Individual toe pads — 5 small pink spheres in an arc
+            for ti in range(5):
+                ta = (ti - 2) * 0.30   # angular spread
+                glPushMatrix()
+                glTranslatef(math.sin(ta) * 0.065, -0.052, 0.08 + math.cos(ta) * 0.010)
+                glScalef(0.55, 0.30, 0.55)
+                glColor3f(0.74, 0.45, 0.52)
+                self._draw_sphere(0.028, 8, 8)
+                glPopMatrix()
+            glPopMatrix()
+
+            # Ankle black band — ring just above the foot
+            glPushMatrix()
+            glTranslatef(0.0, -self.LEG_LENGTH * 0.74, 0.015)
+            glScalef(0.155, 0.055, 0.155)
+            glColor3f(*ac)
+            self._draw_sphere(1.0, 12, 12)
             glPopMatrix()
 
             # Toe claws — 5 per foot
@@ -2508,18 +2649,23 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
                 elif activity == 'celebrate':
                     self.set_animation_state('celebrating')
                 elif activity == 'crawl_around':
-                    # Crawl a short distance then return to idle
+                    # Crawl then return to idle — guard so a later state change wins
                     self.set_animation_state('crawling')
                     dur = random.uniform(1.5, 3.5)
                     QTimer.singleShot(int(dur * 1000),
-                                      lambda: self.set_animation_state('idle'))
+                                      lambda: (self.animation_state == 'crawling'
+                                               and self.set_animation_state('idle')))
                 elif activity == 'climb_wall':
-                    # Briefly climb up a virtual wall edge then fall back
+                    # Climb → fall back → idle  (each step checks current state)
                     self.set_animation_state('climbing_wall')
-                    QTimer.singleShot(int(random.uniform(1.0, 2.5) * 1000),
-                                      lambda: self.set_animation_state('falling_back'))
-                    QTimer.singleShot(int(random.uniform(2.5, 4.0) * 1000),
-                                      lambda: self.set_animation_state('idle'))
+                    fall_ms = int(random.uniform(1.0, 2.5) * 1000)
+                    idle_ms = fall_ms + int(random.uniform(0.8, 1.8) * 1000)
+                    QTimer.singleShot(fall_ms,
+                                      lambda: (self.animation_state == 'climbing_wall'
+                                               and self.set_animation_state('falling_back')))
+                    QTimer.singleShot(idle_ms,
+                                      lambda: (self.animation_state == 'falling_back'
+                                               and self.set_animation_state('idle')))
                 break
     
     # ========================================================================
