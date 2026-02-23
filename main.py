@@ -2589,6 +2589,23 @@ class TextureSorterMainWindow(QMainWindow):
                 if self.panda_widget is not None:
                     self.panda_widget.panda = self.panda_character
                     logger.info("PandaCharacter wired to panda_widget")
+
+                    # Forward any PandaCharacter.set_mood() call to the GL widget
+                    # immediately so the 3D animation reacts without waiting for the
+                    # next timer tick.  We wrap the original method to preserve its
+                    # logic while adding the forwarding side-effect.
+                    _orig_set_mood = self.panda_character.set_mood
+                    _widget_ref = self.panda_widget
+
+                    def _forwarding_set_mood(mood, _orig=_orig_set_mood, _w=_widget_ref):
+                        _orig(mood)
+                        try:
+                            if _w and hasattr(_w, 'set_mood'):
+                                _w.set_mood(mood)
+                        except Exception as _fwd_err:
+                            logger.debug(f"Mood forward to GL widget failed: {_fwd_err}")
+
+                    self.panda_character.set_mood = _forwarding_set_mood
             except Exception as e:
                 logger.warning(f"Could not initialize PandaCharacter: {e}")
 
@@ -2612,11 +2629,16 @@ class TextureSorterMainWindow(QMainWindow):
                 panda_overlay = getattr(self, 'panda_overlay', None)
                 self.panda_mood_system = PandaMoodSystem(panda_overlay)
                 if hasattr(self.panda_mood_system, 'mood_changed'):
-                    self.panda_mood_system.mood_changed.connect(
-                        lambda old, new, reason: logger.debug(
-                            f"Panda mood: {old} → {new} ({reason})"
-                        )
-                    )
+                    # mood_changed emits (old_mood: str, new_mood: str, reason: str)
+                    # Forward new_mood to the 3D panda widget so it reacts visually.
+                    def _on_mood_system_changed(old: str, new: str, reason: str):
+                        logger.debug(f"Panda mood: {old} → {new} ({reason})")
+                        try:
+                            if self.panda_widget and hasattr(self.panda_widget, 'set_mood'):
+                                self.panda_widget.set_mood(new)
+                        except Exception as _ms_err:
+                            logger.debug(f"Mood system → GL widget failed: {_ms_err}")
+                    self.panda_mood_system.mood_changed.connect(_on_mood_system_changed)
                 # Wire mood intensity → update panda widget tint/animation speed
                 if hasattr(self.panda_mood_system, 'mood_intensity_changed'):
                     self.panda_mood_system.mood_intensity_changed.connect(
@@ -2839,6 +2861,9 @@ class TextureSorterMainWindow(QMainWindow):
             if self.panda_character:
                 from features.panda_character import PandaMood
                 self.panda_character.set_mood(PandaMood.WORKING)
+            elif self.panda_widget and hasattr(self.panda_widget, 'set_animation'):
+                # Fallback: no PandaCharacter, drive widget directly
+                self.panda_widget.set_animation('working')
         except Exception:
             pass
 
@@ -3251,6 +3276,9 @@ class TextureSorterMainWindow(QMainWindow):
                 if self.panda_character:
                     from features.panda_character import PandaMood
                     self.panda_character.set_mood(PandaMood.HAPPY)
+                elif self.panda_widget and hasattr(self.panda_widget, 'set_animation'):
+                    # Fallback: drive widget directly when PandaCharacter not initialised
+                    self.panda_widget.set_animation('celebrating')
             except Exception:
                 pass
             # Award AdventureLevel XP — 1 XP per file sorted, source 'texture_sort'
@@ -3551,26 +3579,27 @@ class TextureSorterMainWindow(QMainWindow):
         logger.info("✅ Panda 2D fallback active (GL init failed)")
 
     def on_panda_mood_changed(self, mood: str):
-        """Handle panda mood changes."""
+        """Handle panda mood changes (emitted by panda_widget.mood_changed signal)."""
         try:
-            # Log the mood change
             logger.info(f"Panda mood changed to: {mood}")
-            
-            # Update status bar to reflect mood
             self.statusbar.showMessage(f"🐼 Panda is feeling {mood}", 3000)
-            
+            # Forward to the GL widget so the animation layer responds.
+            # Guard against re-entry: panda_widget.set_mood() does NOT emit mood_changed,
+            # so there is no signal loop, but we guard defensively anyway.
+            if getattr(self, '_panda_mood_forwarding', False):
+                return
+            self._panda_mood_forwarding = True
+            try:
+                if self.panda_widget and hasattr(self.panda_widget, 'set_mood'):
+                    self.panda_widget.set_mood(mood)
+            finally:
+                self._panda_mood_forwarding = False
         except Exception as e:
             logger.error(f"Error handling panda mood change: {e}", exc_info=True)
     
     def on_panda_animation_changed(self, animation: str):
-        """Handle panda animation state changes."""
-        try:
-            logger.debug(f"Panda animation changed to: {animation}")
-            # Forward animation state to panda widget if it supports it
-            if self.panda_widget and hasattr(self.panda_widget, 'set_animation'):
-                self.panda_widget.set_animation(animation)
-        except Exception as e:
-            logger.error(f"Error handling panda animation change: {e}", exc_info=True)
+        """Handle panda animation state changes — just log, do not call back into widget."""
+        logger.debug(f"Panda animation changed to: {animation}")
     
     def on_customization_color_changed(self, color_data: dict):
         """Handle color changes from customization panel."""

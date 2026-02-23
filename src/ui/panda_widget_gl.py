@@ -37,6 +37,53 @@ except (ImportError, OSError, RuntimeError):
 
 logger = logging.getLogger(__name__)
 
+# ── Module-level constants (avoid per-call allocations) ───────────────────────
+
+# Maps every mood value used in PandaCharacter / PandaMoodSystem to an
+# animation state understood by the GL renderer.
+_MOOD_TO_ANIMATION: dict = {
+    # PandaCharacter moods
+    'happy':        'celebrating',
+    'excited':      'celebrating',
+    'working':      'working',
+    'tired':        'sleeping',
+    'celebrating':  'celebrating',
+    'sleeping':     'sleeping',
+    'sarcastic':    'sarcastic',
+    'rage':         'rage',
+    'drunk':        'drunk',
+    'existential':  'idle',
+    'motivating':   'celebrating',
+    'tech_support': 'working',
+    'sleepy':       'sleeping',
+    # PandaMoodSystem moods
+    'mischievous':  'jumping',
+    'annoyed':      'wall_hit',
+    # Legacy / generic names
+    'sad':          'idle',
+    'angry':        'wall_hit',
+    'surprised':    'clicked',
+    'playful':      'jumping',
+    'bored':        'idle',
+}
+
+# Maps mood values to the internal emotion-weight key used by secondary motion.
+_MOOD_TO_EMOTION: dict = {
+    'happy':        'happy',
+    'excited':      'excited',
+    'celebrating':  'excited',
+    'mischievous':  'happy',
+    'playful':      'happy',
+    'working':      'happy',
+    'sad':          'sad',
+    'tired':        'sad',
+    'sleeping':     'sad',
+    'sleepy':       'sad',
+    'angry':        'angry',
+    'rage':         'angry',
+    'annoyed':      'angry',
+}
+
 
 class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
     """
@@ -1941,7 +1988,7 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
                 angle = (i - 3) * 15.0
                 rad = math.radians(angle)
                 glPushMatrix()
-                glTranslatef(_math.sin(rad) * 0.18, 0.0, 0.0)
+                glTranslatef(math.sin(rad) * 0.18, 0.0, 0.0)
                 self._draw_sphere(0.025, 6, 6)
                 glPopMatrix()
             glPopMatrix()
@@ -2464,22 +2511,24 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
     def set_mood(self, mood: str):
         """
         Set panda's visual mood/expression.
-        
+
         Args:
-            mood: Mood name ('happy', 'sad', 'angry', 'surprised', 'tired')
+            mood: Mood name string (or Enum — .value is extracted automatically).
+                  Accepts values from both PandaCharacter and PandaMoodSystem enums.
         """
-        # Map moods to animations
-        mood_animations = {
-            'happy': 'celebrating',
-            'sad': 'idle',
-            'angry': 'wall_hit',
-            'surprised': 'clicked',
-            'tired': 'working',
-            'playful': 'jumping'
-        }
-        
-        animation = mood_animations.get(mood, 'idle')
+        # Accept Enum objects gracefully (panda_character passes PandaMood.WORKING etc.)
+        if hasattr(mood, 'value'):
+            mood = mood.value
+
+        animation = _MOOD_TO_ANIMATION.get(mood, 'idle')
         self.set_animation_state(animation)
+        # Also update the emotion layer so secondary motion reacts
+        if hasattr(self, '_emotion_weights'):
+            for key in self._emotion_weights:
+                self._emotion_weights[key] = 0.0
+            emo = _MOOD_TO_EMOTION.get(mood)
+            if emo and emo in self._emotion_weights:
+                self._emotion_weights[emo] = 1.0
     
     def set_color(self, color_type: str, rgb: tuple):
         """
