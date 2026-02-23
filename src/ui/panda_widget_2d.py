@@ -1,24 +1,16 @@
 """
 2-D Panda Widget — QPainter-based fallback for when PyOpenGL is unavailable.
 
-Draws a simple but charming 2-D panda using QColor / QPainter primitives and
-animates it with a QTimer.  Exposes the same public interface as PandaOpenGLWidget
-so the rest of main.py can use either widget interchangeably.
+Draws a charming 2-D panda using QPainter primitives with full secondary motion:
+- Fatigue accumulation / auto-sleep
+- Personality randomness (asymmetric blink, ear twitch bias, breathing amplitude)
+- Cursor awareness (looks toward cursor, saccades)
+- Ear spring follow-through physics
+- Idle micro-loop pauses and reaction delays
+- Smooth easing on animation transitions
 
-Signals
--------
-clicked          – emitted when the user clicks the panda
-mood_changed     – emitted with the new mood string when mood changes
-animation_changed – emitted with the new animation name when animation changes
-
-Public methods (compatible with PandaOpenGLWidget)
---------------------------------------------------
-set_mood(mood)
-set_animation(animation)
-set_color(color_type, color_rgb)
-set_trail(trail_type, trail_data)
-preview_item(item_id)
-equip_item(item_data)
+Exposes the same public interface as PandaOpenGLWidget so main.py uses either
+widget interchangeably.
 """
 
 from __future__ import annotations
@@ -26,11 +18,12 @@ from __future__ import annotations
 import logging
 import math
 import random
+import time
 from typing import Optional
 
 try:
-    from PyQt6.QtWidgets import QWidget, QVBoxLayout, QLabel, QSizePolicy
-    from PyQt6.QtCore import Qt, QTimer, QRect, QPoint, pyqtSignal, QRectF
+    from PyQt6.QtWidgets import QWidget, QSizePolicy
+    from PyQt6.QtCore import Qt, QTimer, QRect, QPoint, pyqtSignal, QRectF, QPointF
     from PyQt6.QtGui import (
         QPainter, QColor, QPen, QBrush, QFont, QMouseEvent,
         QPainterPath, QLinearGradient,
@@ -41,6 +34,27 @@ except (ImportError, OSError, RuntimeError):
     QWidget = object  # type: ignore[misc,assignment]
 
 logger = logging.getLogger(__name__)
+
+# ── module-level easing helpers ───────────────────────────────────────────────
+
+def _ease_out_cubic(t: float) -> float:
+    t = max(0.0, min(1.0, t))
+    return 1.0 - (1.0 - t) ** 3
+
+def _ease_in_out_cubic(t: float) -> float:
+    t = max(0.0, min(1.0, t))
+    return 4 * t * t * t if t < 0.5 else 1 - (-2 * t + 2) ** 3 / 2
+
+BOUNCE_INITIAL_VEL = 120.0   # px/s upward velocity given to panda on click
+
+
+def _spring_step(pos: float, vel: float, target: float,
+                 stiff: float, damp: float, dt: float) -> tuple[float, float]:
+    """Advance one spring simulation step. Returns (new_pos, new_vel)."""
+    acc = -stiff * (pos - target) - damp * vel
+    vel = vel + acc * dt
+    pos = pos + vel * dt
+    return pos, vel
 
 
 class PandaWidget2D(QWidget if _QT_AVAILABLE else object):  # type: ignore[misc]
@@ -84,28 +98,79 @@ class PandaWidget2D(QWidget if _QT_AVAILABLE else object):  # type: ignore[misc]
 
         self.panda = panda_character  # PandaCharacter or None
 
-        # State
+        # ── State ─────────────────────────────────────────────────────────────
         self._mood = 'neutral'
         self._animation = 'idle'
-        self._body_color = QColor(245, 245, 245)   # white body
-        self._ear_color  = QColor(30, 30, 30)       # black ears/patches
+        self._body_color = QColor(245, 245, 245)
+        self._ear_color  = QColor(30, 30, 30)
         self._hat: Optional[str] = None
         self._equipped_items: list[str] = []
 
-        # Animation variables
+        # ── Per-instance personality randomness ────────────────────────────────
+        r = random.Random()   # seeded fresh each time — unique per panda instance
+        self._micro = {
+            'blink_base':        r.uniform(2.8, 5.5),   # seconds between blinks
+            'blink_double_prob': r.uniform(0.06, 0.18),
+            'breathe_amp':       r.uniform(3.0, 6.5),   # idle bob amplitude px
+            'breathe_speed':     r.uniform(0.8, 1.4),   # multiplier
+            'sway_speed':        r.uniform(0.9, 1.25),
+            'ear_twitch_bias':   r.choice([0, 1]),       # which ear twitches more
+            'head_tilt':         r.uniform(-3.5, 3.5),  # degrees, fixed per instance
+            'reaction_delay':    r.uniform(0.05, 0.25), # seconds before reacting
+        }
+
+        # ── Animation tick vars ────────────────────────────────────────────────
         self._tick = 0.0
-        self._bob = 0.0       # vertical bob offset (pixels)
-        self._blink_timer = 0
-        self._blink_open = True
+        self._last_t = time.time()
+        self._bob = 0.0
+        self._arm_l = 0.0      # arm swing angle degrees
+        self._arm_r = 0.0
+        self._arm_vel_l = 0.0  # arm spring velocities
+        self._arm_vel_r = 0.0
+
+        # ── Blink state ────────────────────────────────────────────────────────
+        self._blink_phase = 0.0          # 0=open, >0 closing/opening
+        self._blink_speed = 8.0
+        self._double_blink = False
+        self._next_blink_t = time.time() + self._micro['blink_base']
+
+        # ── Ear spring physics (follow-through) ────────────────────────────────
+        self._ear_pos = [0.0, 0.0]   # deflection degrees
+        self._ear_vel = [0.0, 0.0]
+
+        # ── Cursor / saccade tracking ──────────────────────────────────────────
+        self._cursor_norm = QPointF(0.5, 0.5)   # 0-1 in widget space
+        self._eye_x = 0.0   # px offset for pupils (−ve = look left)
+        self._eye_y = 0.0
+        self._saccade_target_x = 0.0
+        self._saccade_target_y = 0.0
+        self._next_saccade_t = time.time() + random.uniform(3.0, 6.0)
+        self._surprised_eye_t = 0.0    # remaining seconds of wide-eye
+        self.setMouseTracking(True)
+
+        # ── Fatigue / emotion ──────────────────────────────────────────────────
+        self._fatigue = 0.0
+        self._fatigue_rate     = 0.004 / 30.0   # per frame at 30 fps
+        self._fatigue_recovery = 0.012 / 30.0
+        self._boredom_t   = 0.0
+        self._boredom_threshold = random.uniform(20.0, 35.0)
+
+        # ── Idle-loop pause ────────────────────────────────────────────────────
+        self._idle_pause_t = 0.0    # remaining pause seconds
+        self._next_pause_in = random.uniform(9.0, 20.0)
+
+        # ── Bounce physics ─────────────────────────────────────────────────────
         self._is_bouncing = False
         self._bounce_vel = 0.0
         self._bounce_y = 0.0
+
+        # ── Particles ─────────────────────────────────────────────────────────
         self._particles: list[dict] = []
 
-        # Timer drives the animation loop
+        # ── Timer ──────────────────────────────────────────────────────────────
         self._timer = QTimer(self)
         self._timer.timeout.connect(self._tick_animation)
-        self._timer.start(33)  # ~30 fps — gentle, low CPU
+        self._timer.start(33)   # ~30 fps
 
         self.setMinimumSize(200, 300)
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
@@ -114,41 +179,127 @@ class PandaWidget2D(QWidget if _QT_AVAILABLE else object):  # type: ignore[misc]
     # ── Animation loop ──────────────────────────────────────────────────────────
 
     def _tick_animation(self) -> None:
-        self._tick += 0.05
+        now = time.time()
+        dt = min(now - self._last_t, 0.10)
+        self._last_t = now
+        self._tick += dt
 
-        # Idle bob
-        if self._animation == 'idle':
-            self._bob = math.sin(self._tick) * 4.0
-        elif self._animation in ('happy', 'excited'):
-            self._bob = math.sin(self._tick * 2) * 8.0
-        elif self._animation in ('sad', 'tired'):
-            self._bob = math.sin(self._tick * 0.5) * 2.0
+        # ── Fatigue ────────────────────────────────────────────────────────────
+        if self._animation == 'sleeping':
+            self._fatigue = max(0.0, self._fatigue - self._fatigue_recovery)
         else:
-            self._bob = math.sin(self._tick) * 4.0
+            self._fatigue = min(1.0, self._fatigue + self._fatigue_rate)
+        if self._fatigue >= 0.98 and self._animation not in ('sleeping',):
+            self._animation = 'sleeping'
+            self.animation_changed.emit('sleeping')
 
-        # Blink every ~120 ticks
-        self._blink_timer += 1
-        if self._blink_timer > 120:
-            self._blink_open = False
-            if self._blink_timer > 124:
-                self._blink_open = True
-                self._blink_timer = 0
+        # ── Boredom ────────────────────────────────────────────────────────────
+        if self._animation == 'idle':
+            self._boredom_t += dt
+        else:
+            self._boredom_t = 0.0
 
-        # Bounce physics
+        # ── Idle-loop pause ────────────────────────────────────────────────────
+        if self._idle_pause_t > 0:
+            self._idle_pause_t -= dt
+        else:
+            self._next_pause_in -= dt
+            if self._next_pause_in <= 0:
+                self._idle_pause_t = random.uniform(0.1, 0.35)
+                self._next_pause_in = random.uniform(9.0, 20.0)
+
+        # ── Idle bob (layered breathing + tiny sway) ───────────────────────────
+        sp = self._micro['breathe_speed']
+        amp = self._micro['breathe_amp']
+        if self._idle_pause_t > 0:
+            self._bob = self._bob * 0.85   # freeze: ease to 0
+        elif self._animation == 'sleeping':
+            self._bob = math.sin(self._tick * 0.4 * sp) * 2.0
+        elif self._animation in ('excited', 'celebrating'):
+            self._bob = math.sin(self._tick * 3.5 * sp) * 10.0 + math.sin(self._tick * 7.0) * 3.0
+        elif self._animation in ('sad', 'tired', 'working'):
+            self._bob = math.sin(self._tick * 0.5 * sp) * 2.0
+        else:
+            self._bob = (math.sin(self._tick * 1.0 * sp) * amp
+                         + math.sin(self._tick * 2.7 * sp) * amp * 0.15)
+
+        # ── Arm spring physics (overshoot + settle) ────────────────────────────
+        target_l, target_r = 0.0, 0.0
+        if self._animation in ('waving', 'celebrating'):
+            target_l = -25.0
+            target_r = -25.0 + math.sin(self._tick * 3.0) * 18.0
+        elif self._animation == 'idle':
+            swing = math.sin(self._tick * 1.0 * self._micro['sway_speed']) * 7.0
+            target_l = swing
+            target_r = -swing
+        stiff, damp = 18.0, 5.5
+        self._arm_l, self._arm_vel_l = _spring_step(self._arm_l, self._arm_vel_l, target_l, stiff, damp, dt)
+        self._arm_r, self._arm_vel_r = _spring_step(self._arm_r, self._arm_vel_r, target_r, stiff, damp, dt)
+
+        # ── Ear spring follow-through ──────────────────────────────────────────
+        body_jerk = abs(self._bob - getattr(self, '_prev_bob', self._bob)) * 80.0
+        self._prev_bob = self._bob
+        stiff_e, damp_e = 22.0, 6.0
+        # Asymmetric twitch
+        for i in range(2):
+            nudge = body_jerk * 0.05 * (1 - 2 * i)   # opposite phases
+            if random.random() < (0.006 if i == self._micro['ear_twitch_bias'] else 0.002):
+                nudge += random.uniform(4.0, 12.0) * (-1 if i == 0 else 1)
+            self._ear_vel[i] += (-stiff_e * self._ear_pos[i]
+                                 - damp_e * self._ear_vel[i] + nudge) * dt
+            self._ear_pos[i] += self._ear_vel[i] * dt
+            self._ear_pos[i] = max(-15.0, min(15.0, self._ear_pos[i]))
+
+        # ── Time-based blink ───────────────────────────────────────────────────
+        if now >= self._next_blink_t:
+            self._blink_phase = 0.001
+            self._double_blink = random.random() < self._micro['blink_double_prob']
+            jitter = random.uniform(-0.5, 0.5)
+            self._next_blink_t = (now + self._micro['blink_base']
+                                  + (3.0 if self._double_blink else 0.0) + jitter)
+            self._blink_speed = max(5.0, 8.0 - 3.0 * self._fatigue)
+        if self._blink_phase > 0.0:
+            self._blink_phase += self._blink_speed * dt
+            if self._blink_phase >= 2.0:
+                if self._double_blink:
+                    self._blink_phase = 0.0
+                    self._double_blink = False
+                    self._next_blink_t = now + 0.15
+                else:
+                    self._blink_phase = 0.0
+
+        # ── Saccade / eye tracking ─────────────────────────────────────────────
+        if now >= self._next_saccade_t:
+            self._saccade_target_x = random.uniform(-4.0, 4.0)
+            self._saccade_target_y = random.uniform(-2.0, 2.0)
+            self._next_saccade_t = now + random.uniform(2.5, 5.5)
+        # Cursor pull (soft, eyes lead head)
+        cx_pull = (self._cursor_norm.x() - 0.5) * 5.0
+        cy_pull = (self._cursor_norm.y() - 0.5) * 3.0
+        target_ex = cx_pull + self._saccade_target_x
+        target_ey = cy_pull + self._saccade_target_y
+        self._eye_x += (target_ex - self._eye_x) * min(1.0, 8.0 * dt)
+        self._eye_y += (target_ey - self._eye_y) * min(1.0, 8.0 * dt)
+
+        # ── Surprised eye timer ────────────────────────────────────────────────
+        if self._surprised_eye_t > 0:
+            self._surprised_eye_t = max(0.0, self._surprised_eye_t - dt)
+
+        # ── Bounce physics ─────────────────────────────────────────────────────
         if self._is_bouncing:
-            self._bounce_vel -= 0.8   # gravity
-            self._bounce_y   += self._bounce_vel
+            self._bounce_vel -= 35.0 * dt
+            self._bounce_y   += self._bounce_vel * dt
             if self._bounce_y <= 0:
-                self._bounce_y = 0
-                self._bounce_vel = 0
+                self._bounce_y = 0.0
+                self._bounce_vel = 0.0
                 self._is_bouncing = False
 
-        # Age / remove particles
+        # ── Particles ─────────────────────────────────────────────────────────
         self._particles = [p for p in self._particles if p['life'] > 0]
         for p in self._particles:
-            p['x'] += p['vx']
-            p['y'] += p['vy']
-            p['vy'] += 0.15   # gravity
+            p['x']  += p['vx']
+            p['y']  += p['vy']
+            p['vy'] += 0.15
             p['life'] -= 1
 
         self.update()
@@ -182,15 +333,23 @@ class PandaWidget2D(QWidget if _QT_AVAILABLE else object):  # type: ignore[misc]
     def _draw_panda(self, p: QPainter, cx: int, cy: int, s: float) -> None:
         """Draw the full panda at (cx, cy) with scale s."""
         # Shadow
-        shadow = QColor(0, 0, 0, 30)
-        p.setBrush(QBrush(shadow))
+        p.setBrush(QBrush(QColor(0, 0, 0, 30)))
         p.setPen(Qt.PenStyle.NoPen)
         p.drawEllipse(int(cx - 45*s), int(cy + 70*s), int(90*s), int(20*s))
 
-        # Body
+        # Body — slight squash on hard landing
+        body_sx = 1.0
+        body_sy = 1.0
+        if abs(self._bounce_y) > 3:   # visible while descending or at peak
+            body_sx = 0.93
+            body_sy = 1.07
         p.setBrush(QBrush(self._body_color))
         p.setPen(QPen(QColor(200, 200, 200), max(1, int(1.5*s))))
-        p.drawEllipse(int(cx - 42*s), int(cy + 5*s), int(84*s), int(75*s))
+        p.save()
+        p.translate(cx, int(cy + 42*s))
+        p.scale(body_sx, body_sy)
+        p.drawEllipse(int(-42*s), int(-37*s), int(84*s), int(75*s))
+        p.restore()
 
         # Tummy patch
         p.setBrush(QBrush(QColor(230, 230, 230)))
@@ -199,99 +358,123 @@ class PandaWidget2D(QWidget if _QT_AVAILABLE else object):  # type: ignore[misc]
 
         # Black leg patches
         p.setBrush(QBrush(self._ear_color))
-        p.drawEllipse(int(cx - 38*s), int(cy + 55*s), int(28*s), int(28*s))   # left leg
-        p.drawEllipse(int(cx + 10*s), int(cy + 55*s), int(28*s), int(28*s))   # right leg
+        p.drawEllipse(int(cx - 38*s), int(cy + 55*s), int(28*s), int(28*s))
+        p.drawEllipse(int(cx + 10*s), int(cy + 55*s), int(28*s), int(28*s))
 
-        # Arms
-        arm_angle = math.sin(self._tick * 1.2) * 8 if self._animation == 'idle' else math.sin(self._tick * 3) * 20
-        # left arm
-        p.save()
-        p.translate(int(cx - 40*s), int(cy + 25*s))
-        p.rotate(-30 + arm_angle)
-        p.setBrush(QBrush(self._ear_color))
-        p.setPen(Qt.PenStyle.NoPen)
-        p.drawEllipse(int(-10*s), 0, int(22*s), int(36*s))
-        p.restore()
-        # right arm
-        p.save()
-        p.translate(int(cx + 40*s), int(cy + 25*s))
-        p.rotate(30 - arm_angle)
-        p.setBrush(QBrush(self._ear_color))
-        p.setPen(Qt.PenStyle.NoPen)
-        p.drawEllipse(int(-12*s), 0, int(22*s), int(36*s))
-        p.restore()
+        # Arms — driven by spring physics
+        for side, base_x, sign in (('l', -40, -1), ('r', 40, 1)):
+            ang = self._arm_l if side == 'l' else self._arm_r
+            p.save()
+            p.translate(int(cx + base_x*s), int(cy + 25*s))
+            p.rotate(sign * 30 + ang)
+            p.setBrush(QBrush(self._ear_color))
+            p.setPen(Qt.PenStyle.NoPen)
+            p.drawEllipse(int(-11*s), 0, int(22*s), int(36*s))
+            # paw pad
+            p.setBrush(QBrush(QColor(220, 150, 160)))
+            p.drawEllipse(int(-6*s), int(28*s), int(12*s), int(8*s))
+            p.restore()
 
-        # Head
+        # Head — apply head-tilt preference + cursor-driven micro tilt
+        head_tilt = self._micro['head_tilt'] + (self._cursor_norm.x() - 0.5) * 4.0
+        p.save()
+        p.translate(cx, int(cy - 38*s))
+        p.rotate(head_tilt)
         p.setBrush(QBrush(self._body_color))
         p.setPen(QPen(QColor(200, 200, 200), max(1, int(1.5*s))))
-        p.drawEllipse(int(cx - 40*s), int(cy - 78*s), int(80*s), int(80*s))
+        p.drawEllipse(int(-40*s), int(-40*s), int(80*s), int(80*s))
 
-        # Ears
+        # ── Ears (with spring deflection) ──────────────────────────────────────
         p.setBrush(QBrush(self._ear_color))
         p.setPen(Qt.PenStyle.NoPen)
-        p.drawEllipse(int(cx - 48*s), int(cy - 90*s), int(28*s), int(28*s))  # left
-        p.drawEllipse(int(cx + 20*s), int(cy - 90*s), int(28*s), int(28*s))  # right
+        for i, (ex, ey) in enumerate(((-34, -32), (20, -32))):
+            ep = self._ear_pos[i]   # spring deflection degrees
+            p.save()
+            p.translate(int(ex*s), int(ey*s))
+            p.rotate(ep)
+            p.drawEllipse(int(-14*s), int(-14*s), int(28*s), int(28*s))
+            # Inner ear pink
+            p.setBrush(QBrush(QColor(220, 150, 160)))
+            p.drawEllipse(int(-8*s), int(-8*s), int(16*s), int(16*s))
+            p.restore()
+            p.setBrush(QBrush(self._ear_color))
 
-        # Eye patches
-        p.drawEllipse(int(cx - 28*s), int(cy - 55*s), int(22*s), int(18*s))  # left
-        p.drawEllipse(int(cx + 6*s),  int(cy - 55*s), int(22*s), int(18*s))  # right
+        # ── Eye patches ────────────────────────────────────────────────────────
+        p.setBrush(QBrush(self._ear_color))
+        p.drawEllipse(int(-28*s), int(-18*s), int(22*s), int(18*s))
+        p.drawEllipse(int(6*s),   int(-18*s), int(22*s), int(18*s))
 
-        # Eyes
+        # ── Eyes ───────────────────────────────────────────────────────────────
+        # Blink scale: phase 0-1 closing, 1-2 opening
+        if self._blink_phase > 0.0:
+            if self._blink_phase < 1.0:
+                blink_scale = max(0.05, 1.0 - _ease_in_out_cubic(self._blink_phase))
+            else:
+                blink_scale = max(0.05, _ease_out_cubic(self._blink_phase - 1.0))
+        else:
+            droop = self._fatigue * 0.30
+            blink_scale = max(0.35, 1.0 - droop)
+
+        # Wide-eye on surprised
+        if self._surprised_eye_t > 0:
+            blink_scale = min(1.25, blink_scale + 0.3)
+
+        eye_h = max(2, int(12 * s * blink_scale))
+
         p.setBrush(QBrush(QColor(255, 255, 255)))
         p.setPen(Qt.PenStyle.NoPen)
-        if self._blink_open:
-            eye_h = int(12*s)
-        else:
-            eye_h = max(2, int(3*s))
-        p.drawEllipse(int(cx - 26*s), int(cy - 53*s), int(18*s), eye_h)  # left
-        p.drawEllipse(int(cx + 8*s),  int(cy - 53*s), int(18*s), eye_h)  # right
+        p.drawEllipse(int(-26*s), int(-16*s), int(18*s), eye_h)
+        p.drawEllipse(int(8*s),   int(-16*s), int(18*s), eye_h)
 
-        # Pupils
-        if self._blink_open:
+        # Pupils with eye-tracking offset
+        if blink_scale > 0.3:
+            ex_off = int(self._eye_x * s)
+            ey_off = int(self._eye_y * s)
             p.setBrush(QBrush(QColor(20, 20, 20)))
-            p.drawEllipse(int(cx - 21*s), int(cy - 51*s), int(8*s), int(8*s))
-            p.drawEllipse(int(cx + 13*s), int(cy - 51*s), int(8*s), int(8*s))
-            # Highlight
+            p.drawEllipse(int(-21*s + ex_off), int(-14*s + ey_off), int(8*s), int(8*s))
+            p.drawEllipse(int(13*s + ex_off),  int(-14*s + ey_off), int(8*s), int(8*s))
+            # Specular highlights
             p.setBrush(QBrush(QColor(255, 255, 255)))
-            p.drawEllipse(int(cx - 19*s), int(cy - 50*s), int(3*s), int(3*s))
-            p.drawEllipse(int(cx + 15*s), int(cy - 50*s), int(3*s), int(3*s))
+            p.drawEllipse(int(-19*s + ex_off), int(-13*s + ey_off), int(3*s), int(3*s))
+            p.drawEllipse(int(15*s + ex_off),  int(-13*s + ey_off), int(3*s), int(3*s))
 
-        # Nose
-        p.setBrush(QBrush(QColor(60, 40, 40)))
-        p.drawEllipse(int(cx - 7*s), int(cy - 38*s), int(14*s), int(8*s))
+        # ── Snout / nose / mouth ────────────────────────────────────────────────
+        p.setBrush(QBrush(QColor(235, 225, 215)))
+        p.setPen(Qt.PenStyle.NoPen)
+        p.drawEllipse(int(-12*s), int(-2*s), int(24*s), int(14*s))   # muzzle
 
-        # Mouth — smile or frown based on mood
-        mouth_path = QPainterPath()
+        p.setBrush(QBrush(QColor(50, 35, 35)))
+        p.drawEllipse(int(-7*s), int(-2*s), int(14*s), int(8*s))      # nose
+
+        mouth = QPainterPath()
         if self._mood in ('happy', 'excited'):
-            mouth_path.moveTo(cx - 10*s, cy - 30*s)
-            mouth_path.quadTo(cx, cy - 22*s, cx + 10*s, cy - 30*s)
+            mouth.moveTo(-9*s, 10*s)
+            mouth.quadTo(0, 17*s, 9*s, 10*s)
         elif self._mood in ('sad', 'angry'):
-            mouth_path.moveTo(cx - 10*s, cy - 24*s)
-            mouth_path.quadTo(cx, cy - 32*s, cx + 10*s, cy - 24*s)
+            mouth.moveTo(-9*s, 14*s)
+            mouth.quadTo(0, 8*s, 9*s, 14*s)
         else:
-            mouth_path.moveTo(cx - 8*s, cy - 28*s)
-            mouth_path.lineTo(cx + 8*s, cy - 28*s)
+            mouth.moveTo(-7*s, 12*s)
+            mouth.lineTo(7*s, 12*s)
         p.setPen(QPen(QColor(80, 50, 50), max(2, int(2*s))))
         p.setBrush(Qt.BrushStyle.NoBrush)
-        p.drawPath(mouth_path)
+        p.drawPath(mouth)
 
-        # Mood sparkle emoji above head
-        if self._mood == 'happy':
-            self._draw_text(p, cx, int(cy - 100*s), '✨', int(14*s))
-        elif self._mood == 'excited':
-            self._draw_text(p, cx, int(cy - 100*s), '🎉', int(14*s))
-        elif self._mood == 'sad':
-            self._draw_text(p, cx, int(cy - 100*s), '💧', int(14*s))
-        elif self._mood == 'tired':
-            self._draw_text(p, cx, int(cy - 100*s), '💤', int(14*s))
-        elif self._mood == 'curious':
-            self._draw_text(p, cx, int(cy - 100*s), '❓', int(14*s))
-        elif self._mood == 'angry':
-            self._draw_text(p, cx, int(cy - 100*s), '💢', int(14*s))
+        p.restore()   # restore head matrix
 
-        # Equipped hat
+        # ── Mood emoji above head ──────────────────────────────────────────────
+        mood_emoji = {
+            'happy': '✨', 'excited': '🎉', 'sad': '💧', 'tired': '💤',
+            'sleeping': '💤', 'curious': '❓', 'angry': '💢',
+            'bored': '😐', 'celebrating': '🎊',
+        }
+        emoji = mood_emoji.get(self._mood)
+        if emoji:
+            self._draw_text(p, cx, int(cy - 100*s), emoji, int(14*s))
+
+        # Hat
         if self._hat:
-            self._draw_text(p, cx, int(cy - 108*s), self._hat, int(20*s))
+            self._draw_text(p, cx, int(cy - 112*s), self._hat, int(20*s))
 
     @staticmethod
     def _draw_text(p: QPainter, cx: int, y: int, text: str, size: int) -> None:
@@ -320,10 +503,20 @@ class PandaWidget2D(QWidget if _QT_AVAILABLE else object):  # type: ignore[misc]
 
     # ── Interaction ─────────────────────────────────────────────────────────────
 
+    def mouseMoveEvent(self, event: QMouseEvent) -> None:  # type: ignore[override]
+        """Track cursor for eye-following."""
+        w, h = max(1, self.width()), max(1, self.height())
+        self._cursor_norm = QPointF(event.position().x() / w, event.position().y() / h)
+        super().mouseMoveEvent(event)
+
     def mousePressEvent(self, event: QMouseEvent) -> None:  # type: ignore[override]
         if event.button() == Qt.MouseButton.LeftButton:
             self._is_bouncing = True
-            self._bounce_vel = 12.0
+            self._bounce_vel = BOUNCE_INITIAL_VEL
+            self._surprised_eye_t = 0.25
+            # Arm kick toward surprise
+            self._arm_vel_l = -15.0
+            self._arm_vel_r = -15.0
             self._spawn_particles()
             self.clicked.emit()
         super().mousePressEvent(event)
@@ -345,13 +538,23 @@ class PandaWidget2D(QWidget if _QT_AVAILABLE else object):  # type: ignore[misc]
     # ── Public interface (matches PandaOpenGLWidget) ────────────────────────────
 
     def set_mood(self, mood: str) -> None:
+        if hasattr(mood, 'value'):
+            mood = mood.value
+        mood = str(mood)
         if mood != self._mood:
             self._mood = mood
-            self._animation = mood
+            # kick surprise eyes on positive transitions
+            if mood in ('happy', 'excited', 'celebrating'):
+                self._surprised_eye_t = 0.2
+                self._arm_vel_l = -12.0
+                self._arm_vel_r = -12.0
             self.mood_changed.emit(mood)
             self.update()
 
     def set_animation(self, animation: str) -> None:
+        if hasattr(animation, 'value'):
+            animation = animation.value
+        animation = str(animation)
         if animation != self._animation:
             self._animation = animation
             self.animation_changed.emit(animation)
