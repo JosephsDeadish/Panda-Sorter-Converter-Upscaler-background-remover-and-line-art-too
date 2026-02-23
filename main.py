@@ -495,6 +495,7 @@ class TextureSorterMainWindow(QMainWindow):
         self._adventure_level_path = _app_data / 'adventure_level.json'
         self._weapon_collection_path = _app_data / 'weapons.json'
         self._skill_tree_path = _app_data / 'skill_tree.json'
+        self._closet_path = _app_data / 'panda_closet.json'   # closet persistence
         
         # Docking system - track floating panels
         self.docked_widgets = {}  # {tab_name: QDockWidget}
@@ -587,6 +588,10 @@ class TextureSorterMainWindow(QMainWindow):
                     self.panda_widget.gl_failed.connect(self._on_panda_gl_failed)
                 _panda_sidebar_widget = self.panda_widget
                 logger.info("✅ Panda 3D OpenGL widget created")
+                # Restore appearance if closet already loaded (deferred single-shot so
+                # the GL context is ready before colour calls reach the GPU)
+                from PyQt6.QtCore import QTimer as _QT
+                _QT.singleShot(200, self._restore_panda_appearance_from_closet)
             except Exception as e:
                 logger.warning(f"OpenGL panda failed ({e}), trying 2D fallback")
                 self.panda_widget = None
@@ -1312,6 +1317,14 @@ class TextureSorterMainWindow(QMainWindow):
             from features.panda_closet import PandaCloset
 
             self.panda_closet = PandaCloset()
+            # Restore previously saved closet state (unlocked/equipped items, appearance)
+            try:
+                if self._closet_path.exists():
+                    self.panda_closet.load_from_file(str(self._closet_path))
+                    logger.info("Closet state loaded from disk")
+                    self._restore_panda_appearance_from_closet()
+            except Exception as _ce:
+                logger.debug(f"Closet load: {_ce}")
             closet_panel = ClosetDisplayWidget(tooltip_manager=self.tooltip_manager)
             # Wire item equip → forward to panda_widget + closet
             if hasattr(closet_panel, 'item_equipped'):
@@ -3834,6 +3847,24 @@ class TextureSorterMainWindow(QMainWindow):
         except Exception as e:
             logger.error(f"Error handling inventory selection: {e}", exc_info=True)
 
+    def _restore_panda_appearance_from_closet(self) -> None:
+        """
+        Apply the saved closet appearance (fur style, hair style, clothing) to the
+        live panda widget.  Called once after the closet file is loaded on startup,
+        and also after the GL widget is (re-)created.
+        """
+        if not self.panda_closet or not self.panda_widget:
+            return
+        try:
+            app = self.panda_closet.get_current_appearance()
+            if hasattr(self.panda_widget, 'set_fur_style') and app.fur_style:
+                self.panda_widget.set_fur_style(app.fur_style)
+            if hasattr(self.panda_widget, 'set_hair_style') and app.hair_style:
+                self.panda_widget.set_hair_style(app.hair_style)
+            logger.debug(f"Panda appearance restored: fur={app.fur_style} hair={app.hair_style}")
+        except Exception as e:
+            logger.debug(f"_restore_panda_appearance_from_closet: {e}")
+
     def _check_closet_achievements(self, newly_equipped_id: str = '') -> None:
         """
         Check and update all closet-category achievements after an equip/purchase.
@@ -4327,6 +4358,13 @@ class TextureSorterMainWindow(QMainWindow):
             try:
                 if self.adventure_level:
                     self.adventure_level.save_to_file(self._adventure_level_path)
+            except Exception:
+                pass
+            # Save closet state (unlocked items, appearance)
+            try:
+                if self.panda_closet:
+                    self._closet_path.parent.mkdir(parents=True, exist_ok=True)
+                    self.panda_closet.save_to_file(str(self._closet_path))
             except Exception:
                 pass
             # Save weapon collection state

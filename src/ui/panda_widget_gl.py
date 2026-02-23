@@ -1050,6 +1050,24 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
             self._draw_sphere(0.016, 8, 8)
             glPopMatrix()
 
+        # Whisker pad bumps — two raised oval areas on muzzle sides
+        for wx, wy in [(-0.072, -0.058), (0.072, -0.058)]:
+            glPushMatrix()
+            glTranslatef(wx, wy, self.HEAD_RADIUS * 0.87)
+            glScalef(0.60, 0.45, 0.35)
+            glColor3f(0.94, 0.92, 0.88)
+            self._draw_sphere(0.040, 10, 10)
+            glPopMatrix()
+
+        # Nostril flare marks — tiny dark ovals flanking nose tip
+        for nx in (-0.022, 0.022):
+            glPushMatrix()
+            glTranslatef(nx, -0.012, self.HEAD_RADIUS * 0.94)
+            glScalef(0.40, 0.35, 0.30)
+            glColor3f(0.12, 0.10, 0.10)
+            self._draw_sphere(0.018, 8, 8)
+            glPopMatrix()
+
     def _draw_panda_head_hair(self):
         """
         Draw the currently-equipped hair style on top of the panda's head.
