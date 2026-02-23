@@ -444,6 +444,7 @@ class TextureSorterMainWindow(QMainWindow):
         self._home_sub_label = None   # QLabel showing current sub-panel title
         self._home_back_bar = None    # QWidget back-button toolbar (shown in sub-panels)
         self._home_stack_owned = []   # list of widgets we created for page-1 (safe to delete)
+        self._coin_label = None         # QLabel showing current coin balance (updated on purchase/earn)
         self.level_system = None        # UserLevelSystem – XP / levelling
         self.auto_backup = None         # AutoBackupSystem – periodic state backup
         self.unlockables_system = None  # UnlockablesSystem – cursors/themes/outfits
@@ -3856,6 +3857,9 @@ class TextureSorterMainWindow(QMainWindow):
     def on_shop_item_purchased(self, item_id: str):
         """Handle item purchase from shop panel."""
         try:
+            # Deduct cost before applying the item
+            if not self._deduct_coins(item_id):
+                return  # insufficient coins — _on_not_enough_coins already called
             logger.info(f"Item purchased: {item_id}")
             self.log(f"🛒 Purchased item: {item_id}")
 
@@ -3906,6 +3910,70 @@ class TextureSorterMainWindow(QMainWindow):
 
         except Exception as e:
             logger.error(f"Error handling shop purchase: {e}", exc_info=True)
+
+    def _deduct_coins(self, item_id: str) -> bool:
+        """Deduct item cost from currency_system.  Returns True on success."""
+        try:
+            if not self.currency_system:
+                return True  # no economy → treat as free
+            cost = 0
+            try:
+                if self.shop_system:
+                    shop_item = self.shop_system.get_item(item_id)
+                    if shop_item and hasattr(shop_item, 'price'):
+                        cost = int(shop_item.price)
+            except Exception as _e:
+                logger.debug(f"_deduct_coins cost lookup: {_e}")
+            if cost <= 0:
+                return True  # free item
+            if not self.currency_system.can_afford(cost):
+                self._on_not_enough_coins()
+                return False
+            self.currency_system.spend_money(cost, f'purchase_{item_id}')
+            self._update_coin_display()
+            return True
+        except Exception as _e:
+            logger.debug(f"_deduct_coins({item_id}): {_e}")
+            return True  # fail-open
+
+    def _on_not_enough_coins(self) -> None:
+        """Notify the user they can't afford the item."""
+        try:
+            self.statusBar().showMessage("Not enough coins 💰", 3000)
+        except Exception:
+            pass
+        try:
+            if self.panda_widget:
+                self.panda_widget.set_animation_state('idle')
+                import types as _t
+                _w = self.panda_widget
+                from PyQt6.QtCore import QTimer  # type: ignore[attr-defined]
+                QTimer.singleShot(100, lambda: _w.set_animation_state('idle'))
+        except Exception:
+            pass
+
+    def _update_coin_display(self) -> None:
+        """Refresh the coin-balance label everywhere it is shown."""
+        try:
+            if not self.currency_system:
+                return
+            balance = self.currency_system.get_balance()
+            txt = f"💰 {balance:,}"
+            if self._coin_label and not self._coin_label.isHidden():
+                try:
+                    self._coin_label.setText(txt)
+                except Exception:
+                    pass
+            # Also update shop panel if it's visible
+            try:
+                if self._home_stack and self._home_stack.count() > 1:
+                    w = self._home_stack.widget(1)
+                    if w and hasattr(w, 'update_coin_display'):
+                        w.update_coin_display(balance)
+            except Exception:
+                pass
+        except Exception as _e:
+            logger.debug(f"_update_coin_display: {_e}")
 
     def _on_shop_purchase_completed(self, item_id: str) -> None:
         """Alias wired to ShopPanelQt.item_purchased signal (otter shop)."""
@@ -4210,6 +4278,7 @@ class TextureSorterMainWindow(QMainWindow):
             if self.currency_system:
                 bonus = new_level * self._COINS_PER_LEVEL
                 self.currency_system.earn_money(bonus, f'level_up_{new_level}')
+                self._update_coin_display()
         except Exception as _e:
             logger.debug(f"Level-up callback error: {_e}")
 
@@ -4235,6 +4304,7 @@ class TextureSorterMainWindow(QMainWindow):
             if self.currency_system:
                 try:
                     self.currency_system.earn_money(100, f'quest_{quest_id}')
+                    self._update_coin_display()
                 except Exception:
                     pass
             logger.info(f"Quest completed: {quest_id} — {reward_message}")
@@ -4264,6 +4334,7 @@ class TextureSorterMainWindow(QMainWindow):
             if self.currency_system:
                 coins = max(1, score // 5)
                 self.currency_system.earn_money(coins, f'minigame_{game_id}')
+                self._update_coin_display()
             if self.achievement_system:
                 self.achievement_system.unlock_achievement('minigame_player')
                 if score >= 100:
