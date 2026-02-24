@@ -1027,12 +1027,62 @@ class TextureSorterMainWindow(QMainWindow):
         else:
             tool_tab_defs.append((_make_error_label('OrganizerPanelQt', None), "📁 Organizer", 'organizer'))
 
-        for panel, label, tool_id in tool_tab_defs:
-            tool_tabs.addTab(panel, label)
+        # ── File Browser and Notepad as tool entries ────────────────────────
+        if FileBrowserPanelQt is not None:
+            try:
+                tooltip_manager = getattr(self, 'tooltip_manager', None)
+                fb_panel = FileBrowserPanelQt(config, tooltip_manager)
+                if hasattr(fb_panel, 'file_selected'):
+                    fb_panel.file_selected.connect(self._on_file_browser_file_selected)
+                if hasattr(fb_panel, 'folder_changed'):
+                    fb_panel.folder_changed.connect(self._on_file_browser_folder_changed)
+                self.file_browser_panel = fb_panel
+                tool_tab_defs.append((fb_panel, "📁 File Browser", 'file_browser'))
+            except Exception as _e:
+                tool_tab_defs.append((_make_error_label('FileBrowserPanelQt', _e), "📁 File Browser", 'file_browser'))
+        else:
+            tool_tab_defs.append((_make_error_label('FileBrowserPanelQt', None), "📁 File Browser", 'file_browser'))
+
+        if NotepadPanelQt is not None:
+            try:
+                tooltip_manager = getattr(self, 'tooltip_manager', None)
+                np_panel = NotepadPanelQt(config, tooltip_manager)
+                self.notepad_panel = np_panel
+                tool_tab_defs.append((np_panel, "📝 Notepad", 'notepad'))
+            except Exception as _e:
+                tool_tab_defs.append((_make_error_label('NotepadPanelQt', _e), "📝 Notepad", 'notepad'))
+        else:
+            tool_tab_defs.append((_make_error_label('NotepadPanelQt', None), "📝 Notepad", 'notepad'))
+
+        # ── Wire buttons and stacked panels ─────────────────────────────────
+        _COLS = 3
+        for _idx, (panel, label, tool_id) in enumerate(tool_tab_defs):
+            # Add panel to stack
+            stack_idx = tool_stack.addWidget(panel)
             self.tool_panels[tool_id] = panel
 
-        outer_layout.addWidget(tool_tabs)
-        self.tool_tabs_widget = tool_tabs  # keep reference for switch_tool()
+            # Create grid button
+            btn = QPushButton(label)
+            btn.setCheckable(True)
+            btn.setFixedHeight(34)
+            btn.setStyleSheet(
+                "QPushButton { background:#2a2a3e; color:#cccccc; border:1px solid #444; "
+                "border-radius:4px; font-size:12px; padding:0 8px; text-align:left; }"
+                "QPushButton:hover { background:#3a3a5e; color:#ffffff; }"
+                "QPushButton:checked { background:#0d7377; color:#ffffff; font-weight:bold; border-color:#0d9377; }"
+            )
+            btn.clicked.connect(lambda _chk, i=stack_idx, tid=tool_id: _select_tool(i, tid))
+            self._tool_btn_group.append((tool_id, btn))
+            btn_grid.addWidget(btn, _idx // _COLS, _idx % _COLS)
+
+        # Select first tool by default
+        if self._tool_btn_group:
+            first_id, first_btn = self._tool_btn_group[0]
+            first_btn.setChecked(True)
+            tool_stack.setCurrentIndex(0)
+
+        outer_layout.addWidget(btn_container)
+        outer_layout.addWidget(tool_stack, 1)
 
         # Wire up any lightweight dock panels (perf monitor, queue) — hidden by default
         self._create_tool_dock_panels()
@@ -1166,8 +1216,8 @@ class TextureSorterMainWindow(QMainWindow):
             for _tid, dock in self.tool_dock_widgets.items():
                 self.tool_panels_menu.addAction(dock.toggleViewAction())
     
-    def switch_tool(self, tool_id):
-        """Switch to a tool: navigate to the Tools tab then select the matching sub-tab."""
+    def switch_tool(self, tool_id: str):
+        """Switch to a tool: navigate to the Tools tab then select it in the grid."""
         # Find the Tools tab index in the main tab bar
         tools_tab_index = -1
         for i in range(self.tabs.count()):
@@ -1177,16 +1227,20 @@ class TextureSorterMainWindow(QMainWindow):
         if tools_tab_index >= 0:
             self.tabs.setCurrentIndex(tools_tab_index)
 
-        # Select the matching sub-tab inside the tool_tabs_widget
+        # Select the matching panel in the stacked widget and highlight its button
         tool_widget = self.tool_panels.get(tool_id)
         if tool_widget is not None and self.tool_tabs_widget is not None:
             idx = self.tool_tabs_widget.indexOf(tool_widget)
             if idx >= 0:
                 self.tool_tabs_widget.setCurrentIndex(idx)
-                logger.info(f"Switched to tool sub-tab: {tool_id}")
+                # Update button highlight
+                for _tid, _btn in getattr(self, '_tool_btn_group', []):
+                    checked = _tid == tool_id
+                    _btn.setChecked(checked)
+                logger.info(f"Switched to tool: {tool_id}")
                 return
 
-        # Fall back to showing the dock if one exists (e.g. perf_dashboard)
+        # Fall back to showing the dock if one exists
         if tool_id in self.tool_dock_widgets:
             dock = self.tool_dock_widgets[tool_id]
             dock.show()
@@ -1198,6 +1252,24 @@ class TextureSorterMainWindow(QMainWindow):
         tab = QWidget()
         layout = QVBoxLayout(tab)
         layout.setContentsMargins(0, 0, 0, 0)
+
+        try:
+            self._create_panda_features_content(layout)
+        except Exception as _e:
+            logger.error(f"create_panda_features_tab outer error: {_e}", exc_info=True)
+            err_lbl = QLabel(
+                f"⚠️ Panda tab failed to load.\n\n"
+                f"<b>{type(_e).__name__}</b>: {_e}\n\n"
+                "Check app_data/logs/app.log for details."
+            )
+            err_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            err_lbl.setWordWrap(True)
+            layout.addWidget(err_lbl)
+
+        return tab
+
+    def _create_panda_features_content(self, layout):
+        """Internal: populate the panda features tab. Separated so outer method can catch any crash."""
 
         # Create sub-tabs for panda features
         panda_tabs = QTabWidget()
@@ -1627,7 +1699,7 @@ class TextureSorterMainWindow(QMainWindow):
             panda_tabs.addTab(label, "🎨 Creative")
 
         layout.addWidget(panda_tabs)
-        return tab
+        # (tab returned by the outer create_panda_features_tab)
     
     def create_file_browser_tab(self):
         """Create file browser tab."""
@@ -2173,108 +2245,125 @@ class TextureSorterMainWindow(QMainWindow):
             """
         elif theme in ('solarized dark', 'solarized_dark'):
             stylesheet = f"""
-            QMainWindow {{
-                background-color: #002b36;
-            }}
-            QWidget {{
-                background-color: #002b36;
-                color: #839496;
-                font-family: 'Segoe UI', Arial, sans-serif;
-            }}
-            QPushButton {{
-                background-color: {accent};
-                color: #fdf6e3;
-                border: none;
-                padding: 8px 16px;
-                border-radius: 4px;
-                font-weight: bold;
-            }}
-            QPushButton:hover {{
-                background-color: {hover_color.name()};
-            }}
-            QPushButton:pressed {{
-                background-color: {pressed_color.name()};
-            }}
-            QPushButton:disabled {{
-                background-color: #073642;
-                color: #586e75;
-            }}
-            QLabel {{
-                color: #839496;
-                background-color: transparent;
-            }}
-            QTabWidget::pane {{
-                border: 1px solid #073642;
-                background-color: #073642;
-            }}
-            QTabBar::tab {{
-                background-color: #073642;
-                color: #839496;
-                padding: 8px 20px;
-                border: 1px solid #073642;
-                border-bottom: none;
-            }}
-            QTabBar::tab:selected {{
-                background-color: {accent};
-                color: #fdf6e3;
-            }}
-            QTabBar::tab:hover {{
-                background-color: #0d4251;
-            }}
-            QMenuBar {{
-                background-color: #073642;
-                color: #839496;
-                border-bottom: 1px solid #073642;
-            }}
-            QMenuBar::item:selected {{
-                background-color: {accent};
-                color: #fdf6e3;
-            }}
-            QMenu {{
-                background-color: #073642;
-                color: #839496;
-                border: 1px solid #073642;
-            }}
-            QMenu::item:selected {{
-                background-color: {accent};
-                color: #fdf6e3;
-            }}
-            QProgressBar {{
-                border: 1px solid #073642;
-                border-radius: 3px;
-                text-align: center;
-                background-color: #073642;
-                color: #839496;
-            }}
-            QProgressBar::chunk {{
-                background-color: {accent};
-            }}
-            QFrame {{
-                background-color: #073642;
-                border: 1px solid #073642;
-                border-radius: 4px;
-            }}
-            QTextEdit {{
-                background-color: #073642;
-                color: #839496;
-                border: 1px solid #073642;
-            }}
-            QScrollBar:vertical {{
-                background-color: #073642;
-                width: 12px;
-            }}
-            QScrollBar::handle:vertical {{
-                background-color: #586e75;
-                border-radius: 6px;
-            }}
-            QDockWidget {{
-                color: #839496;
-                titlebar-close-icon: none;
-            }}
-            QDockWidget::title {{
-                background-color: #073642;
-                padding: 4px;
-            }}
+            QMainWindow {{ background-color: #002b36; }}
+            QWidget {{ background-color: #002b36; color: #839496; font-family: 'Segoe UI', Arial, sans-serif; }}
+            QPushButton {{ background-color: {accent}; color: #fdf6e3; border: none; padding: 8px 16px; border-radius: 4px; font-weight: bold; }}
+            QPushButton:hover {{ background-color: {hover_color.name()}; }}
+            QPushButton:pressed {{ background-color: {pressed_color.name()}; }}
+            QPushButton:disabled {{ background-color: #073642; color: #586e75; }}
+            QLabel {{ color: #839496; background-color: transparent; }}
+            QTabWidget::pane {{ border: 1px solid #073642; background-color: #073642; }}
+            QTabBar::tab {{ background-color: #073642; color: #839496; padding: 8px 20px; border: 1px solid #073642; border-bottom: none; }}
+            QTabBar::tab:selected {{ background-color: {accent}; color: #fdf6e3; }}
+            QTabBar::tab:hover {{ background-color: #0d4251; }}
+            QMenuBar {{ background-color: #073642; color: #839496; border-bottom: 1px solid #073642; }}
+            QMenuBar::item:selected {{ background-color: {accent}; color: #fdf6e3; }}
+            QMenu {{ background-color: #073642; color: #839496; border: 1px solid #073642; }}
+            QMenu::item:selected {{ background-color: {accent}; color: #fdf6e3; }}
+            QProgressBar {{ border: 1px solid #073642; border-radius: 3px; text-align: center; background-color: #073642; color: #839496; }}
+            QProgressBar::chunk {{ background-color: {accent}; }}
+            QFrame {{ background-color: #073642; border: 1px solid #073642; border-radius: 4px; }}
+            QTextEdit {{ background-color: #073642; color: #839496; border: 1px solid #073642; }}
+            QScrollBar:vertical {{ background-color: #073642; width: 12px; }}
+            QScrollBar::handle:vertical {{ background-color: #586e75; border-radius: 6px; }}
+            QDockWidget {{ color: #839496; titlebar-close-icon: none; }}
+            QDockWidget::title {{ background-color: #073642; padding: 4px; }}
+            """
+        elif theme in ('forest', 'forest_green'):
+            stylesheet = f"""
+            QMainWindow {{ background-color: #1a2e1a; }}
+            QWidget {{ background-color: #1a2e1a; color: #c8e6c9; font-family: 'Segoe UI', Arial, sans-serif; }}
+            QPushButton {{ background-color: {accent}; color: #ffffff; border: none; padding: 8px 16px; border-radius: 4px; font-weight: bold; }}
+            QPushButton:hover {{ background-color: {hover_color.name()}; }}
+            QPushButton:pressed {{ background-color: {pressed_color.name()}; }}
+            QPushButton:disabled {{ background-color: #2d4a2d; color: #5a7a5a; }}
+            QLabel {{ color: #c8e6c9; background-color: transparent; }}
+            QTabWidget::pane {{ border: 1px solid #2d5a2d; background-color: #1e381e; }}
+            QTabBar::tab {{ background-color: #243d24; color: #a5d6a7; padding: 8px 20px; border: 1px solid #2d5a2d; border-bottom: none; }}
+            QTabBar::tab:selected {{ background-color: {accent}; color: #ffffff; }}
+            QTabBar::tab:hover {{ background-color: #2e4f2e; }}
+            QMenuBar {{ background-color: #1e381e; color: #c8e6c9; border-bottom: 1px solid #2d5a2d; }}
+            QMenuBar::item:selected {{ background-color: {accent}; color: #ffffff; }}
+            QMenu {{ background-color: #1e381e; color: #c8e6c9; border: 1px solid #2d5a2d; }}
+            QMenu::item:selected {{ background-color: {accent}; color: #ffffff; }}
+            QProgressBar {{ border: 1px solid #2d5a2d; border-radius: 3px; text-align: center; background-color: #1e381e; color: #c8e6c9; }}
+            QProgressBar::chunk {{ background-color: {accent}; }}
+            QFrame {{ background-color: #1e381e; border: 1px solid #2d5a2d; border-radius: 4px; }}
+            QTextEdit {{ background-color: #1a2e1a; color: #c8e6c9; border: 1px solid #2d5a2d; }}
+            QScrollBar:vertical {{ background-color: #1e381e; width: 12px; }}
+            QScrollBar::handle:vertical {{ background-color: #4a7a4a; border-radius: 6px; }}
+            """
+        elif theme in ('ocean', 'ocean_blue'):
+            stylesheet = f"""
+            QMainWindow {{ background-color: #0a1628; }}
+            QWidget {{ background-color: #0a1628; color: #b3d9f7; font-family: 'Segoe UI', Arial, sans-serif; }}
+            QPushButton {{ background-color: {accent}; color: #ffffff; border: none; padding: 8px 16px; border-radius: 4px; font-weight: bold; }}
+            QPushButton:hover {{ background-color: {hover_color.name()}; }}
+            QPushButton:pressed {{ background-color: {pressed_color.name()}; }}
+            QPushButton:disabled {{ background-color: #0d2240; color: #3a6080; }}
+            QLabel {{ color: #b3d9f7; background-color: transparent; }}
+            QTabWidget::pane {{ border: 1px solid #1a4060; background-color: #0d1e38; }}
+            QTabBar::tab {{ background-color: #0d1e38; color: #80bcd8; padding: 8px 20px; border: 1px solid #1a4060; border-bottom: none; }}
+            QTabBar::tab:selected {{ background-color: {accent}; color: #ffffff; }}
+            QTabBar::tab:hover {{ background-color: #152840; }}
+            QMenuBar {{ background-color: #0d1e38; color: #b3d9f7; border-bottom: 1px solid #1a4060; }}
+            QMenuBar::item:selected {{ background-color: {accent}; color: #ffffff; }}
+            QMenu {{ background-color: #0d1e38; color: #b3d9f7; border: 1px solid #1a4060; }}
+            QMenu::item:selected {{ background-color: {accent}; color: #ffffff; }}
+            QProgressBar {{ border: 1px solid #1a4060; border-radius: 3px; text-align: center; background-color: #0d1e38; color: #b3d9f7; }}
+            QProgressBar::chunk {{ background-color: {accent}; }}
+            QFrame {{ background-color: #0d1e38; border: 1px solid #1a4060; border-radius: 4px; }}
+            QTextEdit {{ background-color: #0a1628; color: #b3d9f7; border: 1px solid #1a4060; }}
+            QScrollBar:vertical {{ background-color: #0d1e38; width: 12px; }}
+            QScrollBar::handle:vertical {{ background-color: #2a6090; border-radius: 6px; }}
+            """
+        elif theme in ('sunset', 'sunset_warm'):
+            stylesheet = f"""
+            QMainWindow {{ background-color: #2a1a0e; }}
+            QWidget {{ background-color: #2a1a0e; color: #f5cba7; font-family: 'Segoe UI', Arial, sans-serif; }}
+            QPushButton {{ background-color: {accent}; color: #ffffff; border: none; padding: 8px 16px; border-radius: 4px; font-weight: bold; }}
+            QPushButton:hover {{ background-color: {hover_color.name()}; }}
+            QPushButton:pressed {{ background-color: {pressed_color.name()}; }}
+            QPushButton:disabled {{ background-color: #3d2510; color: #7a5030; }}
+            QLabel {{ color: #f5cba7; background-color: transparent; }}
+            QTabWidget::pane {{ border: 1px solid #5a3520; background-color: #321e0f; }}
+            QTabBar::tab {{ background-color: #321e0f; color: #e8b07a; padding: 8px 20px; border: 1px solid #5a3520; border-bottom: none; }}
+            QTabBar::tab:selected {{ background-color: {accent}; color: #ffffff; }}
+            QTabBar::tab:hover {{ background-color: #3e2614; }}
+            QMenuBar {{ background-color: #321e0f; color: #f5cba7; border-bottom: 1px solid #5a3520; }}
+            QMenuBar::item:selected {{ background-color: {accent}; color: #ffffff; }}
+            QMenu {{ background-color: #321e0f; color: #f5cba7; border: 1px solid #5a3520; }}
+            QMenu::item:selected {{ background-color: {accent}; color: #ffffff; }}
+            QProgressBar {{ border: 1px solid #5a3520; border-radius: 3px; text-align: center; background-color: #321e0f; color: #f5cba7; }}
+            QProgressBar::chunk {{ background-color: {accent}; }}
+            QFrame {{ background-color: #321e0f; border: 1px solid #5a3520; border-radius: 4px; }}
+            QTextEdit {{ background-color: #2a1a0e; color: #f5cba7; border: 1px solid #5a3520; }}
+            QScrollBar:vertical {{ background-color: #321e0f; width: 12px; }}
+            QScrollBar::handle:vertical {{ background-color: #8a5030; border-radius: 6px; }}
+            """
+        elif theme in ('cyberpunk',):
+            stylesheet = f"""
+            QMainWindow {{ background-color: #0d0d1a; }}
+            QWidget {{ background-color: #0d0d1a; color: #00ffcc; font-family: 'Courier New', monospace; }}
+            QPushButton {{ background-color: {accent}; color: #000000; border: 1px solid #00ffcc; padding: 8px 16px; border-radius: 2px; font-weight: bold; font-family: 'Courier New', monospace; }}
+            QPushButton:hover {{ background-color: {hover_color.name()}; border-color: #ff00aa; color: #ff00aa; }}
+            QPushButton:pressed {{ background-color: {pressed_color.name()}; }}
+            QPushButton:disabled {{ background-color: #1a1a2e; color: #336655; border-color: #336655; }}
+            QLabel {{ color: #00ffcc; background-color: transparent; }}
+            QTabWidget::pane {{ border: 1px solid #00ffcc; background-color: #0d0d1a; }}
+            QTabBar::tab {{ background-color: #0d0d1a; color: #00ffcc; padding: 8px 20px; border: 1px solid #00ffcc; border-bottom: none; }}
+            QTabBar::tab:selected {{ background-color: {accent}; color: #000000; }}
+            QTabBar::tab:hover {{ background-color: #1a1a2e; color: #ff00aa; }}
+            QMenuBar {{ background-color: #0d0d1a; color: #00ffcc; border-bottom: 1px solid #00ffcc; }}
+            QMenuBar::item:selected {{ background-color: {accent}; color: #000000; }}
+            QMenu {{ background-color: #0d0d1a; color: #00ffcc; border: 1px solid #00ffcc; }}
+            QMenu::item:selected {{ background-color: {accent}; color: #000000; }}
+            QProgressBar {{ border: 1px solid #00ffcc; border-radius: 1px; text-align: center; background-color: #0d0d1a; color: #00ffcc; }}
+            QProgressBar::chunk {{ background-color: {accent}; }}
+            QFrame {{ background-color: #0d0d1a; border: 1px solid #00ffcc; border-radius: 2px; }}
+            QTextEdit {{ background-color: #0d0d1a; color: #00ffcc; border: 1px solid #00ffcc; font-family: 'Courier New', monospace; }}
+            QScrollBar:vertical {{ background-color: #0d0d1a; width: 12px; }}
+            QScrollBar::handle:vertical {{ background-color: #00ffcc; border-radius: 2px; }}
             """
         else:  # Dark theme (default)
             stylesheet = f"""
@@ -2375,6 +2464,10 @@ class TextureSorterMainWindow(QMainWindow):
                     'dracula': 'shadow_walker',
                     'solarized_dark': 'bamboo_sage',
                     'light': 'angelic_sorter',
+                    'forest': 'bamboo_grove',
+                    'ocean': 'ocean_explorer',
+                    'sunset': 'golden_hour',
+                    'cyberpunk': 'neon_rider',
                 }
                 ach_id = _theme_ach.get(theme)
                 if ach_id:

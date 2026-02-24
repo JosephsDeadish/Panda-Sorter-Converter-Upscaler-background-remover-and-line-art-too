@@ -161,7 +161,10 @@ class SettingsPanelQt(QWidget):
         
         theme_label = QLabel("Theme Mode:")
         self.theme_combo = QComboBox()
-        self.theme_combo.addItems(["Dark", "Light", "Nord", "Dracula", "Solarized Dark"])
+        self.theme_combo.addItems([
+            "Dark", "Light", "Nord", "Dracula", "Solarized Dark",
+            "Forest", "Ocean", "Sunset", "Cyberpunk",
+        ])
         self.theme_combo.currentTextChanged.connect(lambda: self.on_setting_changed('ui', 'theme'))
         self.set_tooltip(self.theme_combo, 'theme_selector')
         
@@ -210,7 +213,47 @@ class SettingsPanelQt(QWidget):
         
         window_group.setLayout(window_layout)
         layout.addWidget(window_group)
-        
+
+        # ── Font sub-section ─────────────────────────────────────────────────
+        font_group = QGroupBox("Font")
+        font_layout = QVBoxLayout()
+
+        font_family_label = QLabel("Font Family:")
+        self.appearance_font_combo = QComboBox()
+        self.appearance_font_combo.addItems(["Segoe UI", "Arial", "Helvetica", "Calibri", "Roboto", "Consolas", "Courier New"])
+        self.appearance_font_combo.currentTextChanged.connect(lambda: self.on_setting_changed('ui', 'font_family'))
+        font_layout.addWidget(font_family_label)
+        font_layout.addWidget(self.appearance_font_combo)
+
+        font_size_label = QLabel("Font Size:")
+        self.appearance_font_size = QSpinBox()
+        self.appearance_font_size.setRange(8, 24)
+        self.appearance_font_size.setValue(12)
+        self.appearance_font_size.valueChanged.connect(lambda: self.on_setting_changed('ui', 'font_size'))
+        font_layout.addWidget(font_size_label)
+        font_layout.addWidget(self.appearance_font_size)
+
+        font_group.setLayout(font_layout)
+        layout.addWidget(font_group)
+
+        # ── Cursor sub-section ───────────────────────────────────────────────
+        cursor_group = QGroupBox("Cursor")
+        cursor_layout = QVBoxLayout()
+
+        cursor_label = QLabel("Cursor Style:")
+        self.appearance_cursor_combo = QComboBox()
+        self.appearance_cursor_combo.addItems(["Default", "Pointer", "Crosshair", "Panda Paw", "Bamboo", "Star"])
+        self.appearance_cursor_combo.currentTextChanged.connect(lambda: self.on_setting_changed('ui', 'cursor'))
+        cursor_layout.addWidget(cursor_label)
+        cursor_layout.addWidget(self.appearance_cursor_combo)
+
+        self.appearance_trail_check = QCheckBox("Enable Cursor Trail")
+        self.appearance_trail_check.stateChanged.connect(lambda: self.on_setting_changed('ui', 'cursor_trail'))
+        cursor_layout.addWidget(self.appearance_trail_check)
+
+        cursor_group.setLayout(cursor_layout)
+        layout.addWidget(cursor_group)
+
         layout.addStretch()
         scroll.setWidget(container)
         
@@ -971,7 +1014,14 @@ class SettingsPanelQt(QWidget):
         try:
             # Appearance
             theme = self.config.get('ui', 'theme', default='dark')
-            theme_map = {'dark': 'Dark', 'light': 'Light', 'nord': 'Nord', 'dracula': 'Dracula', 'solarized dark': 'Solarized Dark', 'solarized_dark': 'Solarized Dark'}
+            theme_map = {
+                'dark': 'Dark', 'light': 'Light', 'nord': 'Nord', 'dracula': 'Dracula',
+                'solarized dark': 'Solarized Dark', 'solarized_dark': 'Solarized Dark',
+                'forest': 'Forest', 'forest_green': 'Forest',
+                'ocean': 'Ocean', 'ocean_blue': 'Ocean',
+                'sunset': 'Sunset', 'sunset_warm': 'Sunset',
+                'cyberpunk': 'Cyberpunk',
+            }
             self.theme_combo.setCurrentText(theme_map.get(theme.lower(), theme.capitalize()))
             
             accent = self.config.get('ui', 'accent_color', default='#0d7377')
@@ -984,25 +1034,33 @@ class SettingsPanelQt(QWidget):
             compact = self.config.get('ui', 'compact_view', default=False)
             self.compact_view_check.setChecked(compact)
             
-            # Cursor
+            # Cursor (Appearance tab sub-section + full Cursor tab)
             cursor = self.config.get('ui', 'cursor', default='default')
             self.cursor_type_combo.setCurrentText(cursor.capitalize())
-            
+            if hasattr(self, 'appearance_cursor_combo'):
+                self.appearance_cursor_combo.setCurrentText(cursor.capitalize())
+
             cursor_size = self.config.get('ui', 'cursor_size', default='medium')
             self.cursor_size_combo.setCurrentText(cursor_size.capitalize())
             
             trail = self.config.get('ui', 'cursor_trail', default=False)
             self.cursor_trail_check.setChecked(trail)
+            if hasattr(self, 'appearance_trail_check'):
+                self.appearance_trail_check.setChecked(trail)
             
             trail_color = self.config.get('ui', 'cursor_trail_color', default='rainbow')
             self.cursor_trail_color_combo.setCurrentText(trail_color.capitalize())
             
-            # Font
+            # Font (Appearance tab sub-section + full Font tab)
             font_family = self.config.get('ui', 'font_family', default='Segoe UI')
             self.font_family_combo.setCurrentText(font_family)
-            
+            if hasattr(self, 'appearance_font_combo'):
+                self.appearance_font_combo.setCurrentText(font_family)
+
             font_size = self.config.get('ui', 'font_size', default=12)
             self.font_size_spin.setValue(font_size)
+            if hasattr(self, 'appearance_font_size'):
+                self.appearance_font_size.setValue(font_size)
             
             font_weight = self.config.get('ui', 'font_weight', default='normal')
             self.font_weight_combo.setCurrentText(font_weight.capitalize())
