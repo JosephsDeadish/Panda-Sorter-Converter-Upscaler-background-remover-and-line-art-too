@@ -709,19 +709,7 @@ class TextureSorterMainWindow(QMainWindow):
         except Exception as e:
             logger.error(f"Could not create Panda Features tab: {e}", exc_info=True)
 
-        # Create file browser tab
-        try:
-            self.create_file_browser_tab()
-            logger.info("✅ File Browser tab added")
-        except Exception as e:
-            logger.error(f"Could not create File Browser tab: {e}", exc_info=True)
-
-        # Create notepad tab
-        try:
-            self.create_notepad_tab()
-            logger.info("✅ Notepad tab added")
-        except Exception as e:
-            logger.error(f"Could not create Notepad tab: {e}", exc_info=True)
+        # File Browser and Notepad are now inside the Tools tab grid.
 
         # Create settings tab
         try:
@@ -839,10 +827,29 @@ class TextureSorterMainWindow(QMainWindow):
         outer_layout.setContentsMargins(0, 0, 0, 0)
         outer_layout.setSpacing(0)
 
-        # Sub-tab widget — one tab per tool, only the active one is visible
-        tool_tabs = QTabWidget()
-        tool_tabs.setDocumentMode(True)
-        tool_tabs.setTabPosition(QTabWidget.TabPosition.North)
+        # ── Button grid (3 columns, all tools visible at once) ──────────────
+        from PyQt6.QtWidgets import QGridLayout, QScrollArea as _SA
+        btn_container = QWidget()
+        btn_container.setObjectName("toolBtnContainer")
+        btn_container.setStyleSheet(
+            "#toolBtnContainer { background: #1a1a2a; border-bottom: 1px solid #333; }"
+        )
+        btn_grid = QGridLayout(btn_container)
+        btn_grid.setContentsMargins(8, 6, 8, 6)
+        btn_grid.setSpacing(4)
+
+        # QStackedWidget holds the actual panels
+        tool_stack = QStackedWidget()
+
+        self.tool_tabs_widget = tool_stack   # switch_tool() uses this
+        self._tool_btn_group: list = []       # (tool_id, QPushButton)
+
+        def _select_tool(idx: int, tool_id: str):
+            tool_stack.setCurrentIndex(idx)
+            for _tid, _btn in self._tool_btn_group:
+                _btn.setProperty("active", _tid == tool_id)
+                _btn.style().unpolish(_btn)
+                _btn.style().polish(_btn)
 
         # Tools — each panel is guarded individually so one failure
         #    does NOT prevent the other tools from loading.
