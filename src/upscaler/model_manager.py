@@ -67,7 +67,122 @@ class AIModelManager:
             'required_packages': ['basicsr', 'realesrgan'],
             'icon': '📈',
         },
-        
+        'realesr-animevideov3': {
+            'url': 'https://huggingface.co/xinntao/Real-ESRGAN/resolve/main/realesr-animevideov3.pth',
+            'mirror': 'https://github.com/xinntao/Real-ESRGAN/releases/download/v0.2.5.0/realesr-animevideov3.pth',
+            'size_mb': 7,
+            'version': '0.2.5.0',
+            'description': 'Real-ESRGAN Anime Video v3 - Fast anime video frame upscaling',
+            'tool': 'upscaler',
+            'category': 'upscaler',
+            'required_packages': ['basicsr', 'realesrgan'],
+            'icon': '🎬',
+        },
+        'realesr-general-x4v3': {
+            'url': 'https://huggingface.co/xinntao/Real-ESRGAN/resolve/main/realesr-general-x4v3.pth',
+            'mirror': 'https://github.com/xinntao/Real-ESRGAN/releases/download/v0.2.5.0/realesr-general-x4v3.pth',
+            'size_mb': 7,
+            'version': '0.2.5.0',
+            'description': 'Real-ESRGAN General x4v3 - Lightweight general-purpose upscaler',
+            'tool': 'upscaler',
+            'category': 'upscaler',
+            'required_packages': ['basicsr', 'realesrgan'],
+            'icon': '📈',
+        },
+
+        # ===== GFPGAN FACE RESTORATION =====
+        'GFPGANv1.4': {
+            'url': 'https://huggingface.co/TencentARC/GFPGAN/resolve/main/GFPGANv1.4.pth',
+            'mirror': 'https://github.com/TencentARC/GFPGAN/releases/download/v1.3.4/GFPGANv1.4.pth',
+            'size_mb': 348,
+            'version': '1.4',
+            'description': 'GFPGAN v1.4 - Face restoration & enhancement for character textures',
+            'tool': 'upscaler',
+            'category': 'face_restore',
+            'required_packages': ['gfpgan', 'basicsr'],
+            'icon': '🧑',
+        },
+        'RestoreFormer': {
+            'url': 'https://huggingface.co/TencentARC/GFPGAN/resolve/main/RestoreFormer.pth',
+            'mirror': 'https://github.com/TencentARC/GFPGAN/releases/download/v1.3.4/RestoreFormer.pth',
+            'size_mb': 340,
+            'version': '1.0',
+            'description': 'RestoreFormer - High-quality face restoration with richer facial details',
+            'tool': 'upscaler',
+            'category': 'face_restore',
+            'required_packages': ['gfpgan', 'basicsr'],
+            'icon': '🧑',
+        },
+
+        # ===== BACKGROUND REMOVAL MODELS (rembg) =====
+        # rembg downloads these to ~/.u2net/ on first use; we pre-download here
+        # so the app works offline and without internet delay.
+        'u2net': {
+            'url': 'https://huggingface.co/danielgatis/rembg/resolve/main/u2net.onnx',
+            'mirror': 'https://github.com/danielgatis/rembg/releases/download/v0.0.0/u2net.onnx',
+            'dest_filename': 'u2net.onnx',
+            'dest_dir_env': 'U2NET_HOME',  # rembg checks this env var
+            'size_mb': 176,
+            'version': '1.0',
+            'description': 'U2-Net - General purpose background removal (176 MB)',
+            'tool': 'background_remover',
+            'category': 'background_removal',
+            'required_packages': ['rembg'],
+            'icon': '✂️',
+        },
+        'u2netp': {
+            'url': 'https://huggingface.co/danielgatis/rembg/resolve/main/u2netp.onnx',
+            'mirror': 'https://github.com/danielgatis/rembg/releases/download/v0.0.0/u2netp.onnx',
+            'dest_filename': 'u2netp.onnx',
+            'dest_dir_env': 'U2NET_HOME',
+            'size_mb': 4,
+            'version': '1.0',
+            'description': 'U2-Net Portrait (p) - Fast lightweight background removal (4 MB)',
+            'tool': 'background_remover',
+            'category': 'background_removal',
+            'required_packages': ['rembg'],
+            'icon': '✂️',
+        },
+        'u2net_human_seg': {
+            'url': 'https://huggingface.co/danielgatis/rembg/resolve/main/u2net_human_seg.onnx',
+            'mirror': 'https://github.com/danielgatis/rembg/releases/download/v0.0.0/u2net_human_seg.onnx',
+            'dest_filename': 'u2net_human_seg.onnx',
+            'dest_dir_env': 'U2NET_HOME',
+            'size_mb': 176,
+            'version': '1.0',
+            'description': 'U2-Net Human Seg - Person/portrait background removal',
+            'tool': 'background_remover',
+            'category': 'background_removal',
+            'required_packages': ['rembg'],
+            'icon': '🧑',
+        },
+        'isnet-general-use': {
+            'url': 'https://huggingface.co/danielgatis/rembg/resolve/main/isnet-general-use.onnx',
+            'mirror': 'https://github.com/danielgatis/rembg/releases/download/v0.0.0/isnet-general-use.onnx',
+            'dest_filename': 'isnet-general-use.onnx',
+            'dest_dir_env': 'U2NET_HOME',
+            'size_mb': 178,
+            'version': '1.0',
+            'description': 'IS-Net General Use - High quality background removal (DIS)',
+            'tool': 'background_remover',
+            'category': 'background_removal',
+            'required_packages': ['rembg'],
+            'icon': '✂️',
+        },
+        'birefnet-general': {
+            'url': 'https://huggingface.co/danielgatis/rembg/resolve/main/birefnet-general.onnx',
+            'mirror': 'https://github.com/danielgatis/rembg/releases/download/v0.0.0/birefnet-general.onnx',
+            'dest_filename': 'birefnet-general.onnx',
+            'dest_dir_env': 'U2NET_HOME',
+            'size_mb': 186,
+            'version': '1.0',
+            'description': 'BiRefNet General - Best quality background removal (recommended)',
+            'tool': 'background_remover',
+            'category': 'background_removal',
+            'required_packages': ['rembg'],
+            'icon': '⭐',
+        },
+
         # ===== CLIP MODELS (AUTO-DOWNLOAD VIA TRANSFORMERS) =====
         'CLIP_ViT-B/32': {
             'hf_model_id': 'openai/clip-vit-base-patch32',
@@ -163,20 +278,23 @@ class AIModelManager:
         },
     }
     
-    def __init__(self):
-        # Determine models directory:
-        # 1. app_data/models/ next to EXE (portable, survives updates)
-        # 2. ~/.ps2_texture_sorter/models/ (fallback)
-        # Using config.get_data_dir() ensures the same location as logs/DB.
-        try:
-            from config import get_data_dir
-            self.models_dir = get_data_dir() / 'models'
-        except (ImportError, OSError, RuntimeError):
+    def __init__(self, models_dir: Optional[Path] = None):
+        # Allow an explicit override (used by CI / setup_models.py --output-dir).
+        if models_dir is not None:
+            self.models_dir = Path(models_dir)
+        else:
+            # Determine models directory:
+            # 1. app_data/models/ next to EXE (portable, survives updates)
+            # 2. ~/.ps2_texture_sorter/models/ (fallback)
             try:
-                from src.config import get_data_dir
+                from config import get_data_dir
                 self.models_dir = get_data_dir() / 'models'
             except (ImportError, OSError, RuntimeError):
-                self.models_dir = Path.cwd() / 'models'
+                try:
+                    from src.config import get_data_dir
+                    self.models_dir = get_data_dir() / 'models'
+                except (ImportError, OSError, RuntimeError):
+                    self.models_dir = Path.cwd() / 'models'
         try:
             self.models_dir.mkdir(parents=True, exist_ok=True)
         except OSError as e:
@@ -208,9 +326,9 @@ class AIModelManager:
         """Check if model is installed"""
         if model_name not in self.MODELS:
             return ModelStatus.ERROR
-        
+
         model_info = self.MODELS[model_name]
-        
+
         # Check native modules (Rust extensions)
         if model_info.get('native_module'):
             try:
@@ -219,23 +337,29 @@ class AIModelManager:
                 return ModelStatus.INSTALLED
             except (ImportError, OSError, RuntimeError):
                 return ModelStatus.MISSING
-        
+
         # Check if it's an auto-download model (CLIP, DINOv2)
         if model_info.get('auto_download'):
-            # These are installed via pip, not file-based
             try:
                 for pkg in model_info.get('required_packages', []):
                     __import__(pkg.replace('-', '_'))
                 return ModelStatus.INSTALLED
             except (ImportError, OSError, RuntimeError) as e:
-                logger.debug(f"Package {pkg} not installed for {model_name}: {e}")
+                logger.debug(f"Package not installed for {model_name}: {e}")
                 return ModelStatus.MISSING
-        
-        # Check if model file exists
-        model_file = self.models_dir / f"{model_name}.pth"
-        if model_file.exists():
+
+        # Determine the expected filename — .onnx for rembg models, else .pth
+        dest_filename = model_info.get('dest_filename', f"{model_name}.pth")
+        model_file = self.models_dir / dest_filename
+        if model_file.exists() and model_file.stat().st_size > 1024:
             return ModelStatus.INSTALLED
-        
+
+        # Also check rembg's own cache directory (~/.u2net/)
+        if model_info.get('dest_dir_env') == 'U2NET_HOME':
+            u2net_dir = Path.home() / '.u2net'
+            if (u2net_dir / dest_filename).exists():
+                return ModelStatus.INSTALLED
+
         return ModelStatus.MISSING
     
     def download_model(
@@ -263,10 +387,11 @@ class AIModelManager:
         if model_info.get('auto_download') or model_info.get('hf_model_id'):
             logger.info(f"Model {model_name} auto-downloads via pip/transformers")
             return False
-        
-        # Try primary URL first
+
         url = model_info['url']
-        model_file = self.models_dir / f"{model_name}.pth"
+        # Use dest_filename if specified (e.g. rembg .onnx files), else <name>.pth
+        dest_filename = model_info.get('dest_filename', f"{model_name}.pth")
+        model_file = self.models_dir / dest_filename
         
         try:
             logger.info(f"Downloading {model_name} from {url}")

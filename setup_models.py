@@ -15,6 +15,7 @@ The script is non-interactive and exit-code safe:
 from __future__ import annotations
 
 import sys
+import argparse
 import logging
 from pathlib import Path
 
@@ -29,7 +30,17 @@ logging.basicConfig(
 )
 logger = logging.getLogger('setup_models')
 
-_QUIET = '--quiet' in sys.argv or '-q' in sys.argv
+_parser = argparse.ArgumentParser(description='Download AI models for Game Texture Sorter')
+_parser.add_argument('--quiet', '-q', action='store_true', help='Suppress progress output')
+_parser.add_argument(
+    '--output-dir', '-o',
+    type=str,
+    default=None,
+    help='Directory to save downloaded .pth/.onnx files (overrides config.get_data_dir())',
+)
+_args, _unknown = _parser.parse_known_args()
+_QUIET = _args.quiet
+_OUTPUT_DIR = Path(_args.output_dir) if _args.output_dir else None
 
 
 def _progress(model_name: str, downloaded: int, total: int) -> None:
@@ -52,7 +63,6 @@ def main() -> int:
     try:
         from upscaler.model_manager import AIModelManager
     except ImportError:
-        # Try absolute path
         try:
             sys.path.insert(0, str(_ROOT))
             from src.upscaler.model_manager import AIModelManager  # type: ignore[no-redef]
@@ -60,7 +70,7 @@ def main() -> int:
             logger.error(f'Cannot import AIModelManager: {exc}')
             return 1
 
-    mgr = AIModelManager()
+    mgr = AIModelManager(models_dir=_OUTPUT_DIR)
     required = mgr.get_required_models()
 
     if not required:

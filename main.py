@@ -551,6 +551,7 @@ class TextureSorterMainWindow(QMainWindow):
         
         # Tooltip manager (will be initialized later)
         self.tooltip_manager = None
+        self.log_text = None           # QTextEdit for activity log (created in create_tools_tab)
 
         # Persistent data paths (stored once; reused in initialize_components and closeEvent)
         _app_data = Path(__file__).parent / 'app_data'
@@ -815,10 +816,48 @@ class TextureSorterMainWindow(QMainWindow):
             grid.addWidget(btn, i // cols, i % cols)
         layout.addWidget(grid_widget)
 
-        layout.addStretch()
+        layout.addSpacing(16)
+
+        # ── Activity Log at bottom of home page ─────────────────────────────
+        from PyQt6.QtWidgets import QTextEdit as _QTE, QSplitter as _QSpl
+        log_group = QGroupBox("📋 Activity Log")
+        log_group.setStyleSheet(
+            "QGroupBox { font-weight: bold; color: #aaaaaa; font-size: 11pt; "
+            "border: 1px solid #333; border-radius: 6px; margin-top: 6px; padding: 6px; }"
+            "QGroupBox::title { subcontrol-origin: margin; left: 10px; padding: 0 4px; }"
+        )
+        log_vbox = QVBoxLayout(log_group)
+        log_vbox.setContentsMargins(6, 8, 6, 6)
+        log_vbox.setSpacing(4)
+
+        self.log_text = _QTE()
+        self.log_text.setReadOnly(True)
+        self.log_text.setObjectName("homeActivityLog")
+        self.log_text.setFixedHeight(140)
+        self.log_text.setStyleSheet(
+            "QTextEdit#homeActivityLog { "
+            "background: #0d0d1a; color: #aaffaa; "
+            "font-family: 'Consolas','Courier New',monospace; font-size: 10px; "
+            "border: none; border-radius: 3px; }"
+        )
+        clear_log_btn = QPushButton("🗑 Clear")
+        clear_log_btn.setFixedWidth(70)
+        clear_log_btn.setFixedHeight(22)
+        clear_log_btn.setStyleSheet(
+            "QPushButton { background:#2a2a3e; color:#888; border:1px solid #444; "
+            "border-radius:3px; font-size:10px; } "
+            "QPushButton:hover { background:#3a3a5e; color:#fff; }"
+        )
+        clear_log_btn.clicked.connect(self.log_text.clear)
+        btn_row = QHBoxLayout()
+        btn_row.addStretch()
+        btn_row.addWidget(clear_log_btn)
+        log_vbox.addWidget(self.log_text)
+        log_vbox.addLayout(btn_row)
+        layout.addWidget(log_group)
 
         info_label = QLabel(f"Version: {APP_VERSION}")
-        info_label.setStyleSheet("color: gray; font-size: 10pt;")
+        info_label.setStyleSheet("color: gray; font-size: 10pt; margin-top: 4px;")
         info_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(info_label)
 
@@ -1057,6 +1096,40 @@ class TextureSorterMainWindow(QMainWindow):
                 tool_tab_defs.append((_make_error_label('NotepadPanelQt', _e), "📝 Notepad", 'notepad'))
         else:
             tool_tab_defs.append((_make_error_label('NotepadPanelQt', None), "📝 Notepad", 'notepad'))
+
+        # ── Activity Log panel ───────────────────────────────────────────────
+        # Shares the same QTextDocument as the home-page log so both panels
+        # show identical live content without reparenting the original widget.
+        from PyQt6.QtWidgets import QTextEdit as _QTE
+        _log_container = QWidget()
+        _log_vbox = QVBoxLayout(_log_container)
+        _log_vbox.setContentsMargins(8, 8, 8, 8)
+        _log_vbox.setSpacing(4)
+        _log_header = QLabel("📋 Activity Log")
+        _log_header.setStyleSheet("font-weight:bold; font-size:13px; color:#cccccc;")
+        _log_vbox.addWidget(_log_header)
+        _tools_log = _QTE()
+        _tools_log.setReadOnly(True)
+        _tools_log.setObjectName("toolsActivityLog")
+        _tools_log.setStyleSheet(
+            "QTextEdit#toolsActivityLog { background:#0d0d1a; color:#aaffaa; "
+            "font-family:'Consolas','Courier New',monospace; font-size:11px; "
+            "border:1px solid #333; border-radius:4px; }"
+        )
+        # Share document with the home-page log_text so content is identical
+        if self.log_text is not None:
+            _tools_log.setDocument(self.log_text.document())
+        _clear_btn = QPushButton("🗑 Clear Log")
+        _clear_btn.setFixedHeight(26)
+        _clear_btn.setStyleSheet(
+            "QPushButton { background:#2a2a3e; color:#aaaaaa; border:1px solid #444; "
+            "border-radius:3px; font-size:11px; } "
+            "QPushButton:hover { background:#3a3a5e; color:#ffffff; }"
+        )
+        _clear_btn.clicked.connect(lambda: self.log_text.clear() if self.log_text else None)
+        _log_vbox.addWidget(_tools_log, 1)
+        _log_vbox.addWidget(_clear_btn)
+        tool_tab_defs.append((_log_container, "📋 Activity Log", 'activity_log'))
 
         # ── Wire buttons and stacked panels ─────────────────────────────────
         _COLS = 3
@@ -3383,8 +3456,12 @@ class TextureSorterMainWindow(QMainWindow):
                 pass
     
     def log(self, message: str):
-        """Add message to log."""
-        self.log_text.append(message)
+        """Add message to activity log and Python logger."""
+        if self.log_text is not None:
+            try:
+                self.log_text.append(message)
+            except RuntimeError:
+                pass  # widget deleted (during shutdown)
         logger.info(message)
     
     def on_settings_changed(self, setting_key: str, value):
