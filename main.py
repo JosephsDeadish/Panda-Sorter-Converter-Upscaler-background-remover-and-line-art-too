@@ -478,6 +478,7 @@ class TextureSorterMainWindow(QMainWindow):
         self._world_widget   = None   # PandaWorldWidget instance (lazy-created)
         self._panda_tabs = None       # inner QTabWidget for panda features
         self._inventory_panel = None  # InventoryPanelQt instance
+        self._widgets_panel = None    # WidgetsPanelQt instance (shown via backpack)
         self._closet_panel = None     # ClosetDisplayWidget instance (kept for grid refresh)
         self._home_tab_index = -1     # index of the "🏠 Panda Home" tab
         self._home_stack = None       # QStackedWidget: page 0=bedroom, page 1=sub-panel
@@ -489,6 +490,7 @@ class TextureSorterMainWindow(QMainWindow):
         self._coin_label = None         # QLabel showing current coin balance (set in setup_statusbar)
         self._panda_mood_label = None   # QLabel showing panda mood (set in setup_statusbar)
         self._achievement_panel = None  # AchievementDisplayWidget ref (for refresh on unlock)
+        self._backpack_merged_panel = None  # Merged Inventory+Widgets QTabWidget (built once)
         self.level_system = None        # UserLevelSystem – XP / levelling
         self.auto_backup = None         # AutoBackupSystem – periodic state backup
         self.unlockables_system = None  # UnlockablesSystem – cursors/themes/outfits
@@ -4268,14 +4270,16 @@ class TextureSorterMainWindow(QMainWindow):
         try:
             if not self._home_stack:
                 return
-            # Remove page-1 widget — only actually delete it if WE created it
+            # Remove page-1 widget — only delete it if WE created it AND it isn't the
+            # same widget we're about to show (persistent panels like backpack are re-used).
             old = self._home_stack.widget(1)
-            if old is not None:
+            if old is not None and old is not widget:
                 self._home_stack.removeWidget(old)
                 if old in self._home_stack_owned:
                     self._home_stack_owned.remove(old)
                     old.deleteLater()
-            self._home_stack.insertWidget(1, widget)
+            if self._home_stack.indexOf(widget) == -1:
+                self._home_stack.insertWidget(1, widget)
             self._home_stack.setCurrentIndex(1)
 
             # Show back-bar with context title
@@ -4387,16 +4391,20 @@ class TextureSorterMainWindow(QMainWindow):
                         self._home_stack_owned.append(placeholder)
                         self._show_home_sub_panel(placeholder, '🎒 Inventory & Items')
                         return
-                    # Wrap in a QTabWidget so both panels are accessible
-                    from PyQt6.QtWidgets import QTabWidget as _TW
-                    merged = _TW()
-                    merged.setDocumentMode(True)
-                    if inv is not None:
-                        merged.addTab(inv, "📦 Inventory")
-                    if wid is not None:
-                        merged.addTab(wid, "🧸 Toys & Items")
-                    self._home_stack_owned.append(merged)
-                    self._show_home_sub_panel(merged, '🎒 Inventory & Items')
+                    # Build the merged tab widget once; re-use on subsequent opens
+                    # to avoid re-parenting the same panels into a new container each click.
+                    if self._backpack_merged_panel is None:
+                        from PyQt6.QtWidgets import QTabWidget as _TW
+                        merged = _TW()
+                        merged.setDocumentMode(True)
+                        if inv is not None:
+                            merged.addTab(inv, "📦 Inventory")
+                        if wid is not None:
+                            merged.addTab(wid, "🧸 Toys & Items")
+                        self._backpack_merged_panel = merged
+                        # NOTE: NOT added to _home_stack_owned — it's a persistent
+                        # panel that must survive across multiple opens.
+                    self._show_home_sub_panel(self._backpack_merged_panel, '🎒 Inventory & Items')
                 except Exception as _e2:
                     logger.debug(f"Backpack panel open: {_e2}")
             QTimer.singleShot(500, _open_backpack)
