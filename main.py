@@ -774,7 +774,7 @@ class TextureSorterMainWindow(QMainWindow):
 
         layout.addSpacing(10)
 
-        subtitle = QLabel("A comprehensive toolkit for managing, sorting, and enhancing PS2 game textures.")
+        subtitle = QLabel("A comprehensive toolkit for managing, organising, and enhancing game textures.")
         subtitle.setStyleSheet("font-size: 11pt; color: #aaaaaa;")
         subtitle.setAlignment(Qt.AlignmentFlag.AlignCenter)
         subtitle.setWordWrap(True)
@@ -793,7 +793,7 @@ class TextureSorterMainWindow(QMainWindow):
         # Quick-launch buttons grid — each navigates directly to the tool's sub-tab
         # via switch_tool(tool_id).  Layout: 4 columns x 3 rows.
         _QUICK_TOOLS = [
-            ("🗂️ Sorter",          "sorter"),
+            ("📁 Organizer",       "organizer"),
             ("🎭 Background Remover","bg_remover"),
             ("✨ Alpha Fixer",      "alpha_fixer"),
             ("🎨 Color Correction", "color"),
@@ -831,119 +831,7 @@ class TextureSorterMainWindow(QMainWindow):
         layout.addWidget(info_label)
 
         self.tabs.addTab(tab, "Home")
-    
-    def create_sorting_tab_widget(self):
-        """Create the texture sorting widget (for use in tools tab)."""
-        tab = QWidget()
-        layout = QVBoxLayout(tab)
-        layout.setSpacing(15)
-        
-        # Input section
-        input_group = QFrame()
-        input_group.setFrameShape(QFrame.Shape.StyledPanel)
-        input_layout = QVBoxLayout(input_group)
-        
-        input_label = QLabel("📁 Input Folder:")
-        input_label.setFont(QFont("Arial", 11, QFont.Weight.Bold))
-        input_layout.addWidget(input_label)
-        
-        input_row = QHBoxLayout()
-        self.input_path_label = QLabel("No folder selected")
-        self.input_path_label.setStyleSheet("padding: 5px; background-color: #2b2b2b; border-radius: 3px;")
-        input_row.addWidget(self.input_path_label, 1)
-        
-        input_btn = QPushButton("Browse...")
-        input_btn.clicked.connect(self.browse_input)
-        input_btn.setMinimumWidth(100)
-        input_row.addWidget(input_btn)
-        
-        input_layout.addLayout(input_row)
-        layout.addWidget(input_group)
-        
-        # Output section
-        output_group = QFrame()
-        output_group.setFrameShape(QFrame.Shape.StyledPanel)
-        output_layout = QVBoxLayout(output_group)
-        
-        output_label = QLabel("📂 Output Folder:")
-        output_label.setFont(QFont("Arial", 11, QFont.Weight.Bold))
-        output_layout.addWidget(output_label)
-        
-        output_row = QHBoxLayout()
-        self.output_path_label = QLabel("No folder selected")
-        self.output_path_label.setStyleSheet("padding: 5px; background-color: #2b2b2b; border-radius: 3px;")
-        output_row.addWidget(self.output_path_label, 1)
-        
-        output_btn = QPushButton("Browse...")
-        output_btn.clicked.connect(self.browse_output)
-        output_btn.setMinimumWidth(100)
-        output_row.addWidget(output_btn)
-        
-        output_layout.addLayout(output_row)
-        layout.addWidget(output_group)
-        
-        # Mode and Style selection
-        options_group = QFrame()
-        options_group.setFrameShape(QFrame.Shape.StyledPanel)
-        options_layout = QVBoxLayout(options_group)
-        
-        options_label = QLabel("⚙️ Sorting Options:")
-        options_label.setFont(QFont("Arial", 11, QFont.Weight.Bold))
-        options_layout.addWidget(options_label)
-        
-        mode_row = QHBoxLayout()
-        mode_row.addWidget(QLabel("Mode:"))
-        self.mode_combo = QComboBox()
-        self.mode_combo.addItem("🚀 Automatic - AI classifies and moves instantly", "automatic")
-        self.mode_combo.addItem("💡 Suggested - AI suggests, you confirm", "suggested")
-        self.mode_combo.addItem("✍️ Manual - You type folder, AI learns", "manual")
-        mode_row.addWidget(self.mode_combo, 1)
-        options_layout.addLayout(mode_row)
-        
-        style_row = QHBoxLayout()
-        style_row.addWidget(QLabel("Style:"))
-        self.style_combo = QComboBox()
-        for key, style_cls in ORGANIZATION_STYLES.items():
-            style_instance = style_cls()
-            self.style_combo.addItem(f"{style_instance.get_name()}", key)
-        style_row.addWidget(self.style_combo, 1)
-        options_layout.addLayout(style_row)
-        
-        layout.addWidget(options_group)
-        
-        # Action buttons
-        button_layout = QHBoxLayout()
-        button_layout.setSpacing(10)
-        
-        self.sort_button = QPushButton("🚀 Start Sorting")
-        self.sort_button.setMinimumHeight(50)
-        self.sort_button.setFont(QFont("Arial", 12, QFont.Weight.Bold))
-        self.sort_button.clicked.connect(self.start_sorting)
-        self.sort_button.setEnabled(False)
-        button_layout.addWidget(self.sort_button)
-        
-        self.cancel_button = QPushButton("⏹️ Cancel")
-        self.cancel_button.setMinimumHeight(50)
-        self.cancel_button.clicked.connect(self.cancel_operation)
-        self.cancel_button.setEnabled(False)
-        self.cancel_button.setVisible(False)
-        button_layout.addWidget(self.cancel_button)
-        
-        layout.addLayout(button_layout)
-        
-        # Log output
-        log_label = QLabel("📋 Log:")
-        log_label.setFont(QFont("Arial", 10, QFont.Weight.Bold))
-        layout.addWidget(log_label)
-        
-        self.log_text = QTextEdit()
-        self.log_text.setReadOnly(True)
-        self.log_text.setFont(QFont("Consolas", 9))
-        self.log_text.setStyleSheet("background-color: #1e1e1e; color: #d4d4d4;")
-        layout.addWidget(self.log_text, 1)  # Stretch factor 1
-        
-        return tab
-    
+
     def create_tools_tab(self):
         """Create the Tools tab: a QTabWidget with one sub-tab per tool."""
         outer = QWidget()
@@ -956,12 +844,7 @@ class TextureSorterMainWindow(QMainWindow):
         tool_tabs.setDocumentMode(True)
         tool_tabs.setTabPosition(QTabWidget.TabPosition.North)
 
-        # 1. Texture Sorter (always present — no external dep)
-        sorter_widget = self.create_sorting_tab_widget()
-        tool_tabs.addTab(sorter_widget, "🗂️ Sorter")
-        self.tool_panels['sorter'] = sorter_widget
-
-        # 2. Remaining tools — each panel is guarded individually so one failure
+        # Tools — each panel is guarded individually so one failure
         #    does NOT prevent the other tools from loading.
         tool_tab_defs = []  # (panel_instance, label, tool_id) triples
 
@@ -1125,6 +1008,10 @@ class TextureSorterMainWindow(QMainWindow):
                 organizer_panel.finished.connect(lambda ok, msg, _stats, _tid='organizer': (
                     self.statusBar().showMessage(f"{'✅' if ok else '❌'} Organizer: {msg}", 4000),
                     self._on_tool_finished(ok, _tid),
+                    self.operation_finished(
+                        ok, msg,
+                        int(_stats.get('files_moved', _stats.get('files_processed', 0)))
+                    ),
                 ))
                 tool_tab_defs.append((organizer_panel, "📁 Organizer", 'organizer'))
             except Exception as _e:
@@ -1246,7 +1133,7 @@ class TextureSorterMainWindow(QMainWindow):
 
         # Sub-tab tools: clicking navigates to the tool (Tools tab → correct sub-tab)
         _TOOL_LABELS = {
-            'sorter':     "🗂️ Texture Sorter",
+            'organizer':  "📁 Organizer",
             'bg_remover': "🎭 Background Remover",
             'alpha_fixer':"✨ Alpha Fixer",
             'color':      "🎨 Color Correction",
@@ -3052,11 +2939,8 @@ class TextureSorterMainWindow(QMainWindow):
             self.update_button_states()
     
     def update_button_states(self):
-        """Update button enabled states based on selected paths."""
-        has_input = self.input_path is not None
-        has_output = self.output_path is not None
-        
-        self.sort_button.setEnabled(has_input and has_output)
+        """Update button enabled states based on selected paths (no-op after sorter removal)."""
+        pass
     
     # ------------------------------------------------------------------
     # Panda interaction behavior tick (called at ~30 Hz by QTimer)
@@ -3144,330 +3028,9 @@ class TextureSorterMainWindow(QMainWindow):
         except Exception as _e:
             logger.debug(f"Mood system update failed for {tool_id}: {_e}")
 
-    def start_sorting(self):
-        """Start texture sorting operation."""
-        if not self.input_path or not self.output_path:
-            QMessageBox.warning(self, "Missing Paths", "Please select both input and output folders.")
-            return
-
-        self.log("🚀 Starting texture sorting...")
-        self.set_operation_running(True)
-
-        # Tell performance dashboard a sort is starting
-        try:
-            if self.perf_dashboard:
-                self.perf_dashboard.update_queue_status(
-                    pending=0, processing=1, completed=0, failed=0
-                )
-                self.perf_dashboard.start_operation_profile("sort_operation")
-        except Exception:
-            pass
-
-        # Set panda mood to WORKING during the sort
-        try:
-            if self.panda_character:
-                from features.panda_character import PandaMood
-                self.panda_character.set_mood(PandaMood.WORKING)
-            elif self.panda_widget and hasattr(self.panda_widget, 'set_animation'):
-                # Fallback: no PandaCharacter, drive widget directly
-                self.panda_widget.set_animation('working')
-        except Exception:
-            pass
-
-        # Trigger mood system — sort start is a high-energy interactive event
-        try:
-            if self.panda_mood_system:
-                from features.panda_mood_system import PandaMood as _PMood
-                self.panda_mood_system.on_user_interaction('sort_start')
-                self.panda_mood_system.force_mood(_PMood.HAPPY)
-        except Exception:
-            pass
-
-        # Capture selected style key on the main thread (QComboBox is not thread-safe)
-        try:
-            self._sort_style_key = self.style_combo.currentData()
-        except Exception:
-            self._sort_style_key = None
-
-        # Create worker thread
-        self.worker = WorkerThread(self.perform_sorting)
-        self.worker.progress.connect(self.update_progress)
-        self.worker.log.connect(self.log)
-        self.worker.finished.connect(self.operation_finished)
-        self.worker.start()
-    
-    def cancel_operation(self):
-        """Cancel current operation."""
-        if self.worker:
-            self.log("⏹️ Cancelling operation...")
-            self.worker.cancel()
-    
-    def perform_sorting(self, progress_callback, log_callback, check_cancelled):
-        """Perform actual sorting (runs in worker thread)."""
-        try:
-            import time as _time
-            from pathlib import Path
-
-            # Create a manual restore point before destructive file operations
-            try:
-                if self.backup_manager:
-                    self.backup_manager.create_restore_point(label="pre_sort")
-            except Exception:
-                pass
-
-            # Resolve the selected organization style (main thread set self._sort_style_key)
-            style_key = getattr(self, '_sort_style_key', None)
-            org_style_cls = ORGANIZATION_STYLES.get(style_key) if style_key else None
-            if org_style_cls:
-                try:
-                    self.organizer = OrganizationEngine(
-                        style_class=org_style_cls,
-                        output_dir=str(self.output_path),
-                    )
-                    log_callback(f"🗂️ Using organisation style: {self.organizer.get_style_name()}")
-                except Exception as _e:
-                    log_callback(f"⚠️ Could not create OrganizationEngine: {_e}")
-                    self.organizer = None
-
-            # Try to import AI classifier, fall back gracefully
-            try:
-                from organizer.combined_feature_extractor import CombinedFeatureExtractor
-                feature_extractor = CombinedFeatureExtractor()
-                use_ai = True
-                log_callback("✓ AI classifier loaded")
-            except Exception as e:
-                log_callback(f"⚠️ AI classifier unavailable, using pattern-based: {e}")
-                feature_extractor = None
-                use_ai = False
-            
-            log_callback("🔍 Scanning input directory...")
-
-            # Auto-identify game from input path (non-blocking, best-effort)
-            if self.game_identifier:
-                try:
-                    game_info = self.game_identifier.identify_game(self.input_path)
-                    if game_info:
-                        game_name = getattr(game_info, 'name', str(game_info))
-                        log_callback(f"🎮 Detected game: {game_name}")
-                except Exception:
-                    pass
-            
-            # Collect texture files
-            extensions = {'.dds', '.png', '.jpg', '.jpeg', '.tga', '.bmp', '.tif', '.tiff'}
-            files = []
-            
-            for ext in extensions:
-                files.extend(self.input_path.rglob(f'*{ext}'))
-            
-            total_files = len(files)
-            if total_files == 0:
-                log_callback("⚠️ No texture files found in input directory")
-                return
-            
-            log_callback(f"📊 Found {total_files} texture files")
-
-            # Initialize statistics tracker for this operation
-            if self.statistics_tracker:
-                try:
-                    self.statistics_tracker.set_total_files(total_files)
-                except Exception:
-                    pass
-            
-            # Process and move files
-            moved_count = 0
-            failed_count = 0
-            
-            for idx, file_path in enumerate(files):
-                if check_cancelled():
-                    log_callback("⏹️ Operation cancelled by user")
-                    break
-                
-                # Classify texture
-                if use_ai and feature_extractor:
-                    try:
-                        category, confidence = feature_extractor.classify_texture(str(file_path))
-                    except Exception:
-                        category, confidence = self._pattern_classify(file_path.name)
-                else:
-                    category, confidence = self._pattern_classify(file_path.name)
-
-                # Detect LOD group/level for this file
-                lod_group = None
-                lod_level = None
-                if self.lod_detector:
-                    try:
-                        _lod = self.lod_detector.detect_lod_level(file_path.name)
-                        if _lod:
-                            lod_group = getattr(_lod, 'group', None)
-                            lod_level = getattr(_lod, 'level', None)
-                    except Exception:
-                        pass
-
-                # Run TextureAnalyzer on each file for richer DB metadata
-                _tex_analysis: dict = {}
-                if self.texture_analyzer and HAS_PIL:
-                    try:
-                        _tex_analysis = self.texture_analyzer.analyze(file_path)
-                        if _tex_analysis.get('has_alpha') is True:
-                            category = category if category != 'unknown' else 'alpha_textures'
-                    except Exception:
-                        pass
-
-                # Determine target folder via OrganizationEngine or flat fallback
-                if self.organizer:
-                    try:
-                        from organizer.organization_engine import TextureInfo as _TI
-                        try:
-                            _ti_size = file_path.stat().st_size
-                        except OSError:
-                            _ti_size = 0
-                        _ti = _TI(
-                            file_path=str(file_path),
-                            filename=file_path.name,
-                            category=category,
-                            confidence=confidence,
-                            lod_group=lod_group,
-                            lod_level=lod_level,
-                            file_size=_ti_size,
-                            format=file_path.suffix.lstrip('.').upper(),
-                        )
-                        _t0_org = _time.monotonic()
-                        _result = self.organizer.organize_textures([_ti])
-                        _elapsed_org = _time.monotonic() - _t0_org
-                        # organize_textures moves the file itself; skip our own rename below
-                        _org_moved = _result.get('processed', _result.get('moved', 0)) if isinstance(_result, dict) else 0
-                        if _org_moved:
-                            moved_count += 1
-                            progress_callback(idx + 1, total_files, f"Organised {file_path.name} → {category}")
-                            if self.statistics_tracker:
-                                try:
-                                    self.statistics_tracker.record_file_processed(
-                                        category, _ti.file_size, _elapsed_org, success=True
-                                    )
-                                except Exception:
-                                    pass
-                            self._index_texture_in_db(
-                                file_path, category, confidence, lod_group, lod_level
-                            )
-                            continue  # organizer already moved the file
-                        # fall through to manual move if organizer didn't move it
-                    except Exception as _oe:
-                        logger.debug("OrganizationEngine error: %s", _oe)
-
-                target_folder = self.output_path / category
-                target_folder.mkdir(parents=True, exist_ok=True)
-
-                # Move file
-                try:
-                    target_path = target_folder / file_path.name
-
-                    # Handle duplicate filenames
-                    if target_path.exists():
-                        base = target_path.stem
-                        ext = target_path.suffix
-                        counter = 1
-                        while target_path.exists():
-                            target_path = target_folder / f"{base}_{counter}{ext}"
-                            counter += 1
-
-                    _t0 = _time.monotonic()
-                    file_path.rename(target_path)
-                    _elapsed = _time.monotonic() - _t0
-                    moved_count += 1
-                    progress_callback(idx + 1, total_files, f"Moved {file_path.name} to {category}")
-                    # Index in database (best-effort; never raises)
-                    self._index_texture_in_db(
-                        file_path, category, confidence, lod_group, lod_level
-                    )
-                    # Record success in statistics tracker
-                    if self.statistics_tracker:
-                        try:
-                            _fsize = file_path.stat().st_size
-                        except OSError:
-                            _fsize = 0
-                        try:
-                            self.statistics_tracker.record_file_processed(
-                                category, _fsize, _elapsed, success=True
-                            )
-                        except Exception:
-                            pass
-                except Exception as e:
-                    failed_count += 1
-                    log_callback(f"⚠️ Failed to move {file_path.name}: {e}")
-                    progress_callback(idx + 1, total_files, f"Failed: {file_path.name}")
-                    self._index_texture_in_db(
-                        file_path, category, confidence, lod_group, lod_level,
-                        operation='sort', error=str(e)
-                    )
-                    # Record failure in statistics tracker
-                    if self.statistics_tracker:
-                        try:
-                            self.statistics_tracker.record_error('move_failed', str(e))
-                        except Exception:
-                            pass
-            
-            # Report results
-            log_callback(f"\n✅ Sorting completed!")
-            log_callback(f"   Successfully moved: {moved_count} files")
-            if failed_count > 0:
-                log_callback(f"   Failed: {failed_count} files")
-            # Store for operation_finished achievement tracking
-            self._last_sorted_count = moved_count
-                
-        except Exception as e:
-            import traceback
-            log_callback(f"❌ Sorting failed: {str(e)}")
-            log_callback(f"Traceback: {traceback.format_exc()}")
-
-    def _index_texture_in_db(self, file_path: 'Path', category: str,
-                             confidence: float, lod_group, lod_level,
-                             operation: str = 'sort', error: str = '') -> None:
-        """Index a processed texture in the SQLite database (best-effort, never raises)."""
-        if not self.database:
-            return
-        try:
-            self.database.add_texture(file_path, {
-                'category': category,
-                'confidence': confidence,
-                'lod_group': lod_group,
-                'lod_level': lod_level,
-            })
-            status = 'ok' if not error else 'error'
-            self.database.log_operation(operation, file_path, status, error)
-        except Exception as _e:
-            logger.debug("Database index error: %s", _e)
-
-    def _pattern_classify(self, filename: str) -> tuple:
-        """Fallback pattern-based classification."""
-        filename_lower = filename.lower()
-        
-        # Simple pattern matching
-        patterns = {
-            'character': ['char', 'body', 'face', 'skin', 'hair', 'npc', 'player'],
-            'environment': ['ground', 'wall', 'floor', 'terrain', 'grass', 'rock', 'stone', 'dirt'],
-            'props': ['item', 'object', 'prop', 'weapon', 'armor', 'tool'],
-            'ui': ['ui', 'hud', 'icon', 'button', 'menu', 'cursor'],
-            'effects': ['particle', 'effect', 'fx', 'glow', 'spark', 'fire', 'smoke'],
-            'vegetation': ['tree', 'plant', 'leaf', 'flower', 'bush', 'foliage'],
-            'architecture': ['building', 'house', 'door', 'window', 'roof'],
-        }
-        
-        for category, keywords in patterns.items():
-            if any(keyword in filename_lower for keyword in keywords):
-                return category, 0.6
-        
-        # Default category
-        return 'miscellaneous', 0.3
-    
     def set_operation_running(self, running: bool):
-        """Update UI for operation running state."""
-        self.sort_button.setEnabled(not running)
-        self.cancel_button.setEnabled(running)
-        self.cancel_button.setVisible(running)
-        self.progress_bar.setVisible(running)
-        
+        """Update UI for operation running state (sorter widgets removed; no-op)."""
         if not running:
-            self.progress_bar.setValue(0)
             self.statusbar.showMessage("Ready")
     
     def update_progress(self, current: int, total: int, message: str):

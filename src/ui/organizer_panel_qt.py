@@ -231,44 +231,78 @@ class OrganizerWorker(QThread):
         """Automatic mode: AI classifies and moves files instantly."""
         source_dir = Path(self.settings['source_dir'])
         target_dir = Path(self.settings['target_dir'])
-        
+
         # Collect files
         files = self._collect_files(source_dir)
         total_files = len(files)
-        
+
         self.log.emit(f"Processing {total_files} files in automatic mode...")
-        
+
+        # Optionally use OrganizationEngine for folder structure
+        org_engine = None
+        style_key = self.settings.get('style_key')
+        if style_key:
+            try:
+                from organizer import ORGANIZATION_STYLES, OrganizationEngine
+                style_cls = ORGANIZATION_STYLES.get(style_key)
+                if style_cls:
+                    org_engine = OrganizationEngine(
+                        style_class=style_cls,
+                        output_dir=str(target_dir),
+                    )
+                    self.log.emit(f"🗂️ Using style: {org_engine.get_style_name()}")
+            except Exception as _e:
+                self.log.emit(f"⚠️ Could not load style '{style_key}': {_e}")
+
         moved_count = 0
         for idx, file_path in enumerate(files):
             if self._is_cancelled:
                 break
-            
+
             # Classify with AI
             suggested_folder, confidence = self._classify_texture(file_path)
-            
+
             # Auto-accept if confidence above threshold
             threshold = self.settings.get('confidence_threshold', 0.8)
             if confidence >= threshold:
-                # Move file
+                if org_engine:
+                    try:
+                        from organizer.organization_engine import TextureInfo as _TI
+                        ti = _TI(
+                            original_path=str(file_path),
+                            category=suggested_folder,
+                            confidence=confidence,
+                            visual_features={},
+                        )
+                        result = org_engine.organize_textures([ti])
+                        if result and result[0].get('success'):
+                            moved_count += 1
+                            self._files_processed += 1
+                            self.progress.emit(idx + 1, total_files, file_path.name, confidence)
+                            continue
+                    except Exception as _oe:
+                        self.log.emit(f"⚠ Style engine failed for {file_path.name}: {_oe}")
+
+                # Default: move to target_dir / suggested_folder
                 target_path = target_dir / suggested_folder / file_path.name
                 target_path.parent.mkdir(parents=True, exist_ok=True)
-                
                 try:
                     file_path.rename(target_path)
                     moved_count += 1
                     self._files_processed += 1
                 except Exception as e:
                     self.log.emit(f"⚠ Failed to move {file_path.name}: {e}")
-            
+
             self.progress.emit(idx + 1, total_files, file_path.name, confidence)
-        
+
         elapsed = time.time() - self._start_time
         stats = {
             'files_moved': moved_count,
             'files_skipped': total_files - moved_count,
-            'elapsed_time': elapsed
+            'elapsed_time': elapsed,
+            'files_processed': moved_count,
         }
-        
+
         self.finished.emit(True, f"Moved {moved_count}/{total_files} files", stats)
     
     def _run_suggested(self):
@@ -606,25 +640,46 @@ class OrganizerPanelQt(QWidget):
     
     def _create_mode_selection_section(self, layout):
         """Create mode selection section."""
-        group = QGroupBox("⚙️ Organization Mode")
+        group = QGroupBox("⚙️ Organization Mode & Style")
         group_layout = QVBoxLayout()
-        
+
+        # --- Mode row ---
+        mode_row = QHBoxLayout()
+        mode_row.addWidget(QLabel("Mode:"))
         self.mode_combo = QComboBox()
         self.mode_combo.addItem("🚀 Automatic - AI classifies and moves instantly", "automatic")
         self.mode_combo.addItem("💡 Suggested - AI suggests, you confirm", "suggested")
         self.mode_combo.addItem("✍️ Manual - You type folder, AI learns", "manual")
         self.mode_combo.currentIndexChanged.connect(self._on_mode_changed)
-        group_layout.addWidget(self.mode_combo)
-        
+        mode_row.addWidget(self.mode_combo, 1)
+        group_layout.addLayout(mode_row)
+
+        # --- Style row ---
+        style_row = QHBoxLayout()
+        style_row.addWidget(QLabel("Style:"))
+        self.style_combo = QComboBox()
+        if ORGANIZATION_STYLES:
+            for key, style_cls in ORGANIZATION_STYLES.items():
+                try:
+                    instance = style_cls()
+                    display = getattr(instance, 'get_name', lambda: key)()
+                except Exception:
+                    display = key
+                self.style_combo.addItem(display, key)
+        else:
+            self.style_combo.addItem("Default", "flat")
+        style_row.addWidget(self.style_combo, 1)
+        group_layout.addLayout(style_row)
+
         # Mode description
         self.mode_description = QLabel()
         self.mode_description.setWordWrap(True)
         self.mode_description.setStyleSheet("color: gray; padding: 5px;")
         group_layout.addWidget(self.mode_description)
-        
+
         group.setLayout(group_layout)
         layout.addWidget(group)
-        
+
         self._update_mode_description()
     
     def _create_file_input_section(self, layout):
@@ -1406,7 +1461,8 @@ class OrganizerPanelQt(QWidget):
             'confidence_threshold': confidence_threshold,
             'enable_learning': learning_enabled,
             'conflict_resolution': conflict_res,
-            'create_backup': backup
+            'create_backup': backup,
+            'style_key': getattr(self.style_combo, 'currentData', lambda: None)(),
         }
         
         # Disable UI
