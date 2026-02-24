@@ -67,6 +67,7 @@ _DEFAULT_POSITIONS = {
     'toy_box':      {'x': -3.0, 'z':  1.8, 'rot_y':  90.0},
     'fridge':       {'x':  3.2, 'z':  1.8, 'rot_y': -90.0},
     'trophy_stand': {'x':  0.0, 'z': -3.2, 'rot_y':   0.0},
+    'backpack':     {'x': -1.2, 'z': -3.0, 'rot_y':   0.0},
     'bedroom_door': {'x':  0.0, 'z':  3.8, 'rot_y': 180.0},
 }
 
@@ -96,6 +97,7 @@ def _build_furniture() -> List[FurniturePiece]:
         ('toy_box',      'Toy Box',      '🧸', -3.0, 0.0,  1.8,  90.0, -2.2,  1.2, 'Toys'),
         ('fridge',       'Fridge',       '🧊',  3.2, 0.0,  1.8, -90.0,  2.5,  1.2, 'Food'),
         ('trophy_stand', 'Trophy Stand', '🏆',  0.0, 0.0, -3.2,   0.0,  0.0, -2.0, 'achievements'),
+        ('backpack',     'Backpack',     '🎒', -1.2, 0.0, -3.0,   0.0, -0.8, -2.0, 'Inventory'),
         ('bedroom_door', 'Front Door',   '🏠',  0.0, 0.0,  3.8, 180.0,  0.0,  2.8, 'world'),
     ]
     pieces = []
@@ -659,6 +661,7 @@ class PandaBedroomGL(QOpenGLWidget if OPENGL_AVAILABLE else QWidget):  # type: i
             'toy_box':      (1.0, 0.7, 0.7),
             'fridge':       (0.8, 2.0, 0.7),
             'trophy_stand': (1.4, 1.5, 0.4),
+            'backpack':     (0.5, 0.7, 0.3),
             'bedroom_door': (1.0, 2.2, 0.15),
         }
         bw, bh, bd = _bounds.get(piece.id, (1.0, 1.0, 1.0))
@@ -970,6 +973,22 @@ class PandaBedroomGL(QOpenGLWidget if OPENGL_AVAILABLE else QWidget):  # type: i
                 self._draw_sphere(0.07, 8, 8)
                 glPopMatrix()
 
+    def _draw_backpack(self) -> None:
+        """Small panda-green backpack leaning against the wall."""
+        glEnable(GL_LIGHTING)
+        # Main body — slightly squashed box
+        self._draw_box(-0.22, 0.0, -0.12, 0.22, 0.60, 0.12, (0.18, 0.45, 0.22))
+        # Top flap (rounded look — slightly protruding darker panel)
+        self._draw_box(-0.20, 0.58, -0.11, 0.20, 0.68, 0.13, (0.12, 0.32, 0.16))
+        # Front pocket
+        self._draw_box(-0.16, 0.08, 0.10, 0.16, 0.38, 0.16, (0.14, 0.38, 0.18))
+        # Straps (two thin dark strips on back)
+        self._draw_box(-0.18, 0.05, -0.13, -0.10, 0.55, -0.10, (0.08, 0.20, 0.10))
+        self._draw_box( 0.10, 0.05, -0.13,  0.18, 0.55, -0.10, (0.08, 0.20, 0.10))
+        # Buckle (small gold rectangle on front pocket)
+        self._draw_box(-0.06, 0.22, 0.14, 0.06, 0.28, 0.17, (0.80, 0.65, 0.10))
+        glDisable(GL_LIGHTING)
+
     def _draw_bedroom_door(self) -> None:
         """Front door set into the south wall — double panel with glass transom."""
         glEnable(GL_LIGHTING)
@@ -1120,6 +1139,7 @@ class PandaBedroomGL(QOpenGLWidget if OPENGL_AVAILABLE else QWidget):  # type: i
             'toy_box':      (1.0, 0.7, 0.7),
             'fridge':       (0.8, 2.0, 0.7),
             'trophy_stand': (1.4, 1.5, 0.4),
+            'backpack':     (0.5, 0.7, 0.3),
             'bedroom_door': (1.0, 2.2, 0.15),
         }
 

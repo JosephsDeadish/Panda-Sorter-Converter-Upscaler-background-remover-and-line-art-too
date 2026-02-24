@@ -438,3 +438,10 @@ ORGANIZATION_STYLES = {
     'asset_pipeline': ByResolutionStyle,
     'modular': BySystemStyle,
 }
+
+# Legacy class-name aliases — kept so old imports (e.g. organizer/__init__.py) don't break
+SimsStyle = ByAppearanceStyle
+NeopetsStyle = ByTypeStyle
+GameAreaStyle = ByLocationStyle
+AssetPipelineStyle = ByResolutionStyle
+ModularStyle = BySystemStyle

@@ -1391,37 +1391,49 @@ class TextureSorterMainWindow(QMainWindow):
             panda_tabs.addTab(label, "🏠 Panda Home")
             self._home_tab_index = panda_tabs.indexOf(label)
 
-        # 3. Inventory Tab
+        # 3. Inventory + Widgets — built but NOT added as a tab.
+        #    Shown via Panda Home when panda clicks the backpack in the bedroom.
         try:
             from ui.inventory_panel_qt import InventoryPanelQt
 
-            # Reuse self.shop_system if already created above, else create fresh
             _shop = self.shop_system
             if _shop is None:
                 from features.shop_system import ShopSystem as _ShopSystem
                 _shop = _ShopSystem()
             inventory_panel = InventoryPanelQt(_shop, tooltip_manager=self.tooltip_manager)
-            self._inventory_panel = inventory_panel   # save ref for bedroom navigation
+            self._inventory_panel = inventory_panel
 
-            # Connect inventory panel signals
             inventory_panel.item_selected.connect(self.on_inventory_item_selected)
 
-            panda_tabs.addTab(inventory_panel, "📦 Inventory")
-            logger.info("✅ Inventory panel added to panda tab")
-        except Exception as e:
-            logger.error(f"Could not load inventory panel: {e}", exc_info=True)
-            # Add placeholder
-            label = QLabel("⚠️ Inventory not available\n\nInstall required dependencies")
-            label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            panda_tabs.addTab(label, "📦 Inventory")
+            # Try to embed Widgets panel as a sub-tab inside the inventory panel
+            try:
+                from ui.widgets_panel_qt import WidgetsPanelQt
+                from features.panda_widgets import WidgetCollection
+                widget_collection = WidgetCollection()
+                widgets_panel = WidgetsPanelQt(widget_collection, self.panda_widget, tooltip_manager=self.tooltip_manager)
+                if hasattr(widgets_panel, 'widget_selected'):
+                    widgets_panel.widget_selected.connect(
+                        lambda w: logger.debug(f"Widget selected: {w}")
+                    )
+                # Merge: add Widgets as a tab inside the inventory panel if it supports it;
+                # otherwise store separately for the backpack sub-panel QTabWidget wrapper.
+                self._widgets_panel = widgets_panel
+            except Exception as _we:
+                logger.debug(f"Widgets panel unavailable: {_we}")
+                self._widgets_panel = None
 
-        # 4. Closet Tab
+            logger.info("✅ Inventory + Widgets panels built (accessible via backpack)")
+        except Exception as e:
+            logger.error(f"Could not build inventory panel: {e}", exc_info=True)
+            self._widgets_panel = None
+
+        # 4. Closet — built but NOT added as a tab.
+        #    Shown via Panda Home when panda clicks the wardrobe in the bedroom.
         try:
             from ui.closet_display_qt import ClosetDisplayWidget
             from features.panda_closet import PandaCloset
 
             self.panda_closet = PandaCloset()
-            # Restore previously saved closet state (unlocked/equipped items, appearance)
             try:
                 if self._closet_path.exists():
                     self.panda_closet.load_from_file(str(self._closet_path))
@@ -1430,23 +1442,17 @@ class TextureSorterMainWindow(QMainWindow):
             except Exception as _ce:
                 logger.debug(f"Closet load: {_ce}")
             closet_panel = ClosetDisplayWidget(tooltip_manager=self.tooltip_manager)
-            self._closet_panel = closet_panel   # keep ref so equip refreshes the grid
-            # Wire item equip → forward to panda_widget + closet
+            self._closet_panel = closet_panel
             if hasattr(closet_panel, 'item_equipped'):
                 closet_panel.item_equipped.connect(self._on_closet_item_equipped)
-            # Populate closet grid with all items from panda_closet
             try:
                 closet_panel.load_clothing_items(self._build_closet_items_list())
             except Exception as _pie:
                 logger.debug(f"Closet panel item population: {_pie}")
-            panda_tabs.addTab(closet_panel, "👔 Closet")
-            logger.info("✅ Closet panel added to panda tab")
+            # NOT added as tab — accessible via wardrobe in bedroom
+            logger.info("✅ Closet panel built (accessible via wardrobe)")
         except Exception as e:
-            logger.error(f"Could not load closet panel: {e}", exc_info=True)
-            # Add placeholder
-            label = QLabel("⚠️ Closet not available\n\nInstall required dependencies")
-            label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            panda_tabs.addTab(label, "👔 Closet")
+            logger.error(f"Could not build closet panel: {e}", exc_info=True)
 
         # 5. Achievements Tab
         try:
@@ -1491,26 +1497,8 @@ class TextureSorterMainWindow(QMainWindow):
             label.setAlignment(Qt.AlignmentFlag.AlignCenter)
             panda_tabs.addTab(label, "🎮 Minigames")
         
-        # 7. Widgets Tab (Interactive toys/food/accessories)
-        try:
-            from ui.widgets_panel_qt import WidgetsPanelQt
-            from features.panda_widgets import WidgetCollection
-            
-            widget_collection = WidgetCollection()
-            widgets_panel = WidgetsPanelQt(widget_collection, self.panda_widget, tooltip_manager=self.tooltip_manager)
-            # Wire widget selection → log + achievement tracking
-            if hasattr(widgets_panel, 'widget_selected'):
-                widgets_panel.widget_selected.connect(
-                    lambda w: logger.debug(f"Widget selected: {w}")
-                )
-            panda_tabs.addTab(widgets_panel, "🧸 Widgets")
-            logger.info("✅ Widgets panel added to panda tab")
-        except Exception as e:
-            logger.error(f"Could not load widgets panel: {e}", exc_info=True)
-            # Add placeholder
-            label = QLabel("⚠️ Widgets not available\n\nInstall required dependencies")
-            label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            panda_tabs.addTab(label, "🧸 Widgets")
+        # 7. Widgets — built inside the inventory block above (section 3).
+        #    No separate tab; accessible via backpack in bedroom.
 
         # 8. Adventure / Dungeon Tab
         try:
@@ -4290,12 +4278,13 @@ class TextureSorterMainWindow(QMainWindow):
 
         # ── Map furniture → sub-panel title ───────────────────────────────────
         _TITLES = {
-            'wardrobe':    '👗 Wardrobe',
+            'wardrobe':    '👗 Wardrobe / Closet',
             'armor_rack':  '🛡️ Armor',
             'weapons_rack':'⚔️ Weapons',
-            'toy_box':     '🧸 Toy Box',
-            'fridge':      '🍎 Fridge',
+            'toy_box':     '🧸 Toys',
+            'fridge':      '🍎 Food',
             'trophy_stand':'🏆 Achievements',
+            'backpack':    '🎒 Inventory & Items',
         }
         sub_title = _TITLES.get(furniture_id, furniture_id.replace('_', ' ').title())
 
@@ -4313,8 +4302,6 @@ class TextureSorterMainWindow(QMainWindow):
 
         try:
             if self.panda_widget and hasattr(self.panda_widget, 'walk_to_position'):
-                # Use arrival callback instead of fixed timer — panda opens
-                # furniture as soon as it physically reaches the walk target.
                 self.panda_widget.walk_to_position(
                     walk_x, 0.0, walk_z,
                     callback=functools.partial(_safe_open, self.panda_widget, furniture_id),
@@ -4326,32 +4313,65 @@ class TextureSorterMainWindow(QMainWindow):
         if furniture_id == 'trophy_stand':
             def _open_achievements():
                 try:
-                    ach_widget = None
-                    # Try to find an existing achievement panel in panda_tabs
-                    if self._panda_tabs:
-                        for i in range(self._panda_tabs.count()):
-                            if '🏆' in self._panda_tabs.tabText(i):
-                                ach_widget = self._panda_tabs.widget(i)
-                                break
+                    ach_widget = getattr(self, '_achievement_panel', None)
                     if ach_widget is None:
-                        # Build a minimal placeholder — mark as owned so it's cleaned up
-                        ach_widget = QLabel("🏆 Achievements\n\n(No achievement panel found)")
+                        ach_widget = QLabel("🏆 Achievements\n\n(Loading…)")
                         ach_widget.setAlignment(Qt.AlignmentFlag.AlignCenter)
                         self._home_stack_owned.append(ach_widget)
                     self._show_home_sub_panel(ach_widget, '🏆 Achievements')
                 except Exception as _e2:
                     logger.debug(f"Trophy panel: {_e2}")
-            # Show 500 ms after panda opens the trophy stand animation
             QTimer.singleShot(500, _open_achievements)
-            self.statusBar().showMessage(
-                "🏆 Panda is going to look at their trophies…", 3000
-            )
+            self.statusBar().showMessage("🏆 Panda is checking their trophies…", 3000)
+            return
+
+        # ── Wardrobe → show Closet panel ──────────────────────────────────────
+        if furniture_id == 'wardrobe':
+            def _open_closet():
+                try:
+                    cp = getattr(self, '_closet_panel', None)
+                    if cp is None:
+                        cp = QLabel("👔 Closet\n\n(Not available — check dependencies)")
+                        cp.setAlignment(Qt.AlignmentFlag.AlignCenter)
+                        self._home_stack_owned.append(cp)
+                    self._show_home_sub_panel(cp, '👗 Wardrobe / Closet')
+                except Exception as _e2:
+                    logger.debug(f"Closet panel open: {_e2}")
+            QTimer.singleShot(500, _open_closet)
+            self.statusBar().showMessage("👔 Panda is browsing the wardrobe…", 3000)
+            return
+
+        # ── Backpack → show merged Inventory + Widgets panel ─────────────────
+        if furniture_id == 'backpack':
+            def _open_backpack():
+                try:
+                    inv = getattr(self, '_inventory_panel', None)
+                    wid = getattr(self, '_widgets_panel', None)
+                    if inv is None and wid is None:
+                        placeholder = QLabel("🎒 Inventory & Items\n\n(Not available)")
+                        placeholder.setAlignment(Qt.AlignmentFlag.AlignCenter)
+                        self._home_stack_owned.append(placeholder)
+                        self._show_home_sub_panel(placeholder, '🎒 Inventory & Items')
+                        return
+                    # Wrap in a QTabWidget so both panels are accessible
+                    from PyQt6.QtWidgets import QTabWidget as _TW
+                    merged = _TW()
+                    merged.setDocumentMode(True)
+                    if inv is not None:
+                        merged.addTab(inv, "📦 Inventory")
+                    if wid is not None:
+                        merged.addTab(wid, "🧸 Toys & Items")
+                    self._home_stack_owned.append(merged)
+                    self._show_home_sub_panel(merged, '🎒 Inventory & Items')
+                except Exception as _e2:
+                    logger.debug(f"Backpack panel open: {_e2}")
+            QTimer.singleShot(500, _open_backpack)
+            self.statusBar().showMessage("🎒 Panda is checking their backpack…", 3000)
             return
 
         # ── All other furniture → show filtered Inventory panel ───────────────
         def _open_inventory():
             try:
-                # Build or reuse inventory panel
                 inv = self._inventory_panel
                 if inv is None:
                     label = QLabel(f"📦 {sub_title}\n\n(Inventory not available)")
@@ -4359,18 +4379,14 @@ class TextureSorterMainWindow(QMainWindow):
                     self._home_stack_owned.append(label)
                     self._show_home_sub_panel(label, sub_title)
                     return
-
-                # Set category filter before showing — use public API
                 if hasattr(inv, 'set_category_filter'):
                     inv.set_category_filter(category)
                 elif hasattr(inv, 'refresh_inventory'):
                     inv.refresh_inventory()
-
                 self._show_home_sub_panel(inv, sub_title)
             except Exception as _e2:
                 logger.debug(f"Inventory panel open: {_e2}")
 
-        # Show 500 ms after the open_furniture animation starts
         QTimer.singleShot(500, _open_inventory)
         self.statusBar().showMessage(
             f"🐼 Panda is going to the {furniture_id.replace('_', ' ').title()}…", 3000
