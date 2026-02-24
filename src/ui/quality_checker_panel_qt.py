@@ -354,7 +354,10 @@ class QualityCheckerPanelQt(QWidget):
     def _on_result(self, report, filename):
         """Handle individual result."""
         # Add to report text
-        report_text = format_quality_report(report)
+        if format_quality_report is not None:
+            report_text = format_quality_report(report)
+        else:
+            report_text = f"Quality: {getattr(report, 'overall_quality', '?')}, Score: {getattr(report, 'quality_score', 0):.1f}/100"
         self.report_text.append(f"\n{'='*60}\n")
         self.report_text.append(f"File: {filename}\n")
         self.report_text.append(report_text)

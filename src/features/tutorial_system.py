@@ -20,7 +20,7 @@ try:
         QWidget, QMessageBox, QToolTip, QDialog, QVBoxLayout, QHBoxLayout,
         QLabel, QPushButton, QGraphicsOpacityEffect, QApplication
     )
-    from PyQt6.QtCore import QTimer, Qt, QPoint, QRect, QPropertyAnimation, QEasingCurve
+    from PyQt6.QtCore import QTimer, Qt, QPoint, QRect, QPropertyAnimation, QEasingCurve, pyqtSignal
     from PyQt6.QtGui import QCursor, QPainter, QColor, QPen, QFont
     GUI_AVAILABLE = True
 except (ImportError, OSError, RuntimeError):
@@ -33,6 +33,9 @@ except (ImportError, OSError, RuntimeError):
     class QDialog(QWidget):  # type: ignore[no-redef]
         """Fallback stub when PyQt6 is not installed."""
         pass
+    def pyqtSignal(*args, **kwargs):  # type: ignore[no-redef]
+        """Stub so class bodies using pyqtSignal() don't raise NameError."""
+        return None
 
 # Tooltip definitions with normal and vulgar variants per widget
 # (Previously stored in panda_mode.py – inlined here so the file can be removed)
