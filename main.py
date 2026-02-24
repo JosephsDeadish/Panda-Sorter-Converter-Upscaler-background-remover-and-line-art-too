@@ -3163,15 +3163,16 @@ class TextureSorterMainWindow(QMainWindow):
         class _TrainingThread(QThread):
             done = pyqtSignal(bool, str)
 
-            def __init__(self, mode, epochs, export_path):
+            def __init__(self, mode, epochs, export_path, dataset_path=''):
                 super().__init__()
                 self._mode = mode
                 self._epochs = epochs
                 self._export_path = export_path
+                self._dataset_path = dataset_path
 
             def run(self):
                 try:
-                    from ai.training_pytorch import PyTorchTrainer  # type: ignore[import-untyped]
+                    from ai.training_pytorch import PyTorchTrainer, TextureDataset  # type: ignore[import-untyped]
                     import torch  # type: ignore[import-untyped]
 
                     if self._mode in (TrainingMode.EXPORT_ONNX, TrainingMode.EXPORT_PYTORCH):
@@ -3179,7 +3180,27 @@ class TextureSorterMainWindow(QMainWindow):
                         self.done.emit(True, f"Export mode: {self._mode.value} — no checkpoint loaded")
                         return
 
-                    # Demonstrate the training loop with a tiny dummy model
+                    # For CUSTOM_DATASET: try to load from configured dataset path
+                    if self._mode == TrainingMode.CUSTOM_DATASET and self._dataset_path:
+                        try:
+                            ds = TextureDataset(self._dataset_path)
+                            loader = ds.to_dataloader(batch_size=16, shuffle=True)
+                            n_classes = len(ds.classes) or 4
+                            model = torch.nn.Sequential(
+                                torch.nn.Flatten(),
+                                torch.nn.Linear(3 * 224 * 224, 256),
+                                torch.nn.ReLU(),
+                                torch.nn.Linear(256, n_classes),
+                            )
+                            trainer = PyTorchTrainer(model, loader, learning_rate=1e-3)
+                            trainer.run_mode(self._mode, epochs=self._epochs)
+                            self.done.emit(True, f"Custom dataset training complete: {n_classes} classes, {len(ds)} samples")
+                            return
+                        except Exception as _ds_exc:
+                            self.done.emit(False, f"Custom dataset error: {_ds_exc}")
+                            return
+
+                    # Standard training demo with a tiny dummy model
                     model = torch.nn.Linear(16, 4)
                     X = torch.randn(32, 16)
                     y = torch.randint(0, 4, (32,))
@@ -3191,7 +3212,8 @@ class TextureSorterMainWindow(QMainWindow):
                 except Exception as exc:
                     self.done.emit(False, str(exc))
 
-        thread = _TrainingThread(mode, epochs, export_path)
+        dataset_path = config.get('ai', 'custom_dataset_path', default='')
+        thread = _TrainingThread(mode, epochs, export_path, dataset_path=dataset_path)
 
         def _on_done(ok: bool, msg: str) -> None:
             icon = "✅" if ok else "❌"
@@ -5517,6 +5539,26 @@ def _auto_download_models(main_window: 'TextureSorterMainWindow') -> None:
 
 def main():
     """Main entry point."""
+    # ── Set OpenGL surface format BEFORE creating QApplication ────────────────
+    # This must be done before any QOpenGLWidget is instantiated.
+    # We request OpenGL 2.1 CompatibilityProfile so that all three 3D widgets
+    # (PandaOpenGLWidget, PandaBedroomGL, PandaWorldGL) can use legacy
+    # fixed-function GL (glBegin/glEnd, glShadeModel, glLightfv, etc.).
+    # Without this, strict drivers may give a CoreProfile context that rejects
+    # every legacy call and immediately fails initializeGL, which would cause
+    # the 2D fallback panda to appear instead of the intended 3D experience.
+    try:
+        from PyQt6.QtGui import QSurfaceFormat as _SF
+        _fmt = _SF()
+        _fmt.setVersion(2, 1)
+        _fmt.setProfile(_SF.OpenGLContextProfile.CompatibilityProfile)
+        _fmt.setSamples(4)
+        _fmt.setDepthBufferSize(24)
+        _fmt.setStencilBufferSize(8)
+        _SF.setDefaultFormat(_fmt)
+    except Exception:
+        pass  # Qt not available in test environment; each widget sets its own format
+
     # In a frozen EXE PIL plugins are not auto-registered — call init() explicitly
     # so that all image formats (PNG, JPEG, WebP, TGA, DDS, …) are available.
     try:

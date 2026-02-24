@@ -566,6 +566,61 @@ class PandaWidget2D(QWidget if _QT_AVAILABLE else object):  # type: ignore[misc]
             self._animation = animation
             self.animation_changed.emit(animation)
 
+    # ── GL-compatible API stubs ──────────────────────────────────────────────
+    # These methods mirror the PandaOpenGLWidget API so that main.py can call
+    # them on self.panda_widget regardless of whether it's a GL or 2D widget.
+
+    def set_animation_state(self, state: str) -> None:
+        """GL-compatible alias for set_animation + mood update."""
+        _STATE_TO_MOOD = {
+            'idle': 'neutral', 'walking': 'neutral', 'running': 'excited',
+            'sleeping': 'tired', 'eating': 'happy', 'celebrating': 'excited',
+            'waving': 'happy', 'sitting': 'neutral', 'sad': 'sad',
+            'angry': 'angry', 'surprised': 'surprised', 'wall_hit': 'angry',
+            'rolling': 'playful', 'spinning': 'excited', 'dancing': 'excited',
+            'thinking': 'curious', 'grooming': 'content', 'sniffing': 'curious',
+        }
+        self.set_animation(state)
+        mood = _STATE_TO_MOOD.get(state, 'neutral')
+        self.set_mood(mood)
+
+    @property
+    def animation_state(self) -> str:
+        """GL-compatible property: current animation name."""
+        return self._animation
+
+    def walk_to_position(self, x: float, y: float, z: float,
+                         callback=None, speed: float = 2.0) -> None:
+        """GL-compatible stub: 2D panda can't physically walk; bounce and call callback."""
+        self.set_animation_state('walking')
+        self._is_bouncing = True
+        self._bounce_vel = 8.0
+        if callback is not None:
+            QTimer.singleShot(600, callback)
+
+    def set_micro_emotion(self, emotion_name: str, weight: float = 0.8) -> None:
+        """GL-compatible stub: map to nearest mood or eye reaction."""
+        _MICRO_TO_MOOD = {
+            'happy': 'happy', 'curious': 'curious', 'playful': 'playful',
+            'sad': 'sad', 'angry': 'angry', 'surprised': 'surprised',
+            'excited': 'excited', 'tired': 'tired', 'content': 'content',
+        }
+        if weight > 0.5:
+            mood = _MICRO_TO_MOOD.get(emotion_name.lower(), self._mood)
+            if mood != self._mood:
+                self.set_mood(mood)
+        if emotion_name.lower() in ('surprised', 'curious', 'excited'):
+            self._surprised_eye_t = 0.3 * weight
+
+    def notify_file_dragged(self, file_path: str) -> None:
+        """GL-compatible: trigger a sniff/curious reaction."""
+        self.set_micro_emotion('curious', 0.8)
+        self._surprised_eye_t = 0.25
+
+    def get_idle_sub_state(self) -> str:
+        """GL-compatible: 2D widget doesn't have sub-states; return empty string."""
+        return ''
+
     def set_color(self, color_type: str, color_rgb: tuple) -> None:
         try:
             color = QColor(*color_rgb[:3])

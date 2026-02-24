@@ -758,6 +758,32 @@ class SettingsPanelQt(QWidget):
             lambda: self.on_setting_changed('ai', 'checkpoint_interval'))
         train_layout.addRow(self.checkpoint_check, self.checkpoint_every_spin)
 
+        # Custom dataset path (shown when Custom Dataset mode selected)
+        self._dataset_path_row_lbl = QLabel("Dataset Folder:")
+        self._dataset_path_row = QWidget()
+        _ds_row_lay = QHBoxLayout(self._dataset_path_row)
+        _ds_row_lay.setContentsMargins(0, 0, 0, 0)
+        self.dataset_path_edit = QLineEdit()
+        self.dataset_path_edit.setPlaceholderText("Select folder with class sub-folders…")
+        self.dataset_path_edit.setReadOnly(True)
+        self.dataset_path_edit.textChanged.connect(
+            lambda: self.on_setting_changed('ai', 'custom_dataset_path'))
+        _ds_browse_btn = QPushButton("📂 Browse")
+        _ds_browse_btn.setFixedWidth(90)
+        _ds_browse_btn.clicked.connect(self._browse_dataset_folder)
+        _ds_row_lay.addWidget(self.dataset_path_edit, 1)
+        _ds_row_lay.addWidget(_ds_browse_btn)
+        train_layout.addRow(self._dataset_path_row_lbl, self._dataset_path_row)
+        # Show only when Custom Dataset mode is active
+        self._dataset_path_row_lbl.setVisible(False)
+        self._dataset_path_row.setVisible(False)
+
+        def _toggle_dataset_row(mode_text: str):
+            visible = 'custom' in mode_text.lower()
+            self._dataset_path_row_lbl.setVisible(visible)
+            self._dataset_path_row.setVisible(visible)
+        self.training_mode_combo.currentTextChanged.connect(_toggle_dataset_row)
+
         train_group.setLayout(train_layout)
         layout.addWidget(train_group)
 
@@ -1315,6 +1341,9 @@ class SettingsPanelQt(QWidget):
                 value = widget.isChecked()
             elif isinstance(widget, QSpinBox):
                 value = widget.value()
+            elif hasattr(widget, 'text') and not isinstance(widget, QCheckBox):
+                # QLineEdit, QLabel — use text() as string value
+                value = widget.text()
             else:
                 return
             
@@ -1476,6 +1505,23 @@ class SettingsPanelQt(QWidget):
             self.main_window.setCursor(_QCursor(shape))
         except Exception as e:
             logger.error(f"Error applying cursor: {e}", exc_info=True)
+
+    def _browse_dataset_folder(self) -> None:
+        """Open a folder-picker dialog for the custom training dataset path."""
+        try:
+            from PyQt6.QtWidgets import QFileDialog as _QFD
+            folder = _QFD.getExistingDirectory(
+                self, "Select Dataset Folder",
+                getattr(self, 'dataset_path_edit', None) and self.dataset_path_edit.text() or "",
+            )
+            if folder:
+                self.dataset_path_edit.setReadOnly(False)
+                self.dataset_path_edit.setText(folder)
+                self.dataset_path_edit.setReadOnly(True)
+                self.config.set('ai', 'custom_dataset_path', folder)
+                logger.info("Custom dataset path set: %s", folder)
+        except Exception as exc:
+            logger.error("_browse_dataset_folder: %s", exc)
 
     def _on_start_ai_training(self) -> None:
         """Handle 'Start Training / Export' button in AI Settings tab."""

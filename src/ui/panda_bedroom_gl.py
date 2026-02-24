@@ -134,6 +134,8 @@ class PandaBedroomGL(QOpenGLWidget if OPENGL_AVAILABLE else QWidget):  # type: i
         super().__init__(parent)
 
         fmt = QSurfaceFormat()
+        fmt.setVersion(2, 1)  # OpenGL 2.1 — keeps all legacy fixed-function GL
+        fmt.setProfile(QSurfaceFormat.OpenGLContextProfile.CompatibilityProfile)
         fmt.setDepthBufferSize(24)
         fmt.setSamples(4)
         self.setFormat(fmt)

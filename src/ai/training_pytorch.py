@@ -226,6 +226,129 @@ def export_to_onnx(
 
 
 # ---------------------------------------------------------------------------
+# TextureDataset  –  folder-based image dataset for custom training
+# ---------------------------------------------------------------------------
+
+class TextureDataset:
+    """Lazy-loading image dataset that reads a folder tree of textures.
+
+    Expected layout::
+
+        root/
+          class_a/  img1.png  img2.dds …
+          class_b/  …
+
+    Each sub-folder is treated as a class.  Supported extensions:
+    ``.png .jpg .jpeg .bmp .tga .dds .tiff .webp``.
+
+    Usage (requires PIL + torch)::
+
+        ds = TextureDataset('/my/textures', image_size=256)
+        loader = ds.to_dataloader(batch_size=16, shuffle=True)
+        trainer = PyTorchTrainer(model, loader)
+    """
+
+    SUPPORTED_EXT = {'.png', '.jpg', '.jpeg', '.bmp', '.tga', '.tiff', '.webp', '.dds'}
+    _DEFAULT_SIZE = 224  # matches ImageNet convention used by most pretrained models
+
+    def __init__(self, root: str, image_size: int = _DEFAULT_SIZE,
+                 augment: bool = False) -> None:
+        self._root = Path(root)
+        self._size = image_size
+        self._augment = augment
+        self._samples: List[tuple] = []   # (Path, class_idx)
+        self.classes: List[str] = []
+        self._build_index()
+
+    # ------------------------------------------------------------------
+    def _build_index(self) -> None:
+        """Walk root and build (path, class_idx) pairs."""
+        self._samples.clear()
+        self.classes = sorted(
+            d.name for d in self._root.iterdir()
+            if d.is_dir() and not d.name.startswith('.')
+        )
+        if not self.classes:
+            # Flat folder — treat everything as class 0
+            self.classes = ['default']
+            for f in self._root.iterdir():
+                if f.is_file() and f.suffix.lower() in self.SUPPORTED_EXT:
+                    self._samples.append((f, 0))
+        else:
+            for idx, cls in enumerate(self.classes):
+                cls_dir = self._root / cls
+                for f in cls_dir.rglob('*'):
+                    if f.is_file() and f.suffix.lower() in self.SUPPORTED_EXT:
+                        self._samples.append((f, idx))
+
+        logger.info(
+            "TextureDataset: %d samples in %d classes from %s",
+            len(self._samples), len(self.classes), self._root,
+        )
+
+    # ------------------------------------------------------------------
+    def __len__(self) -> int:
+        return len(self._samples)
+
+    def __getitem__(self, idx: int) -> tuple:
+        """Return ``(tensor, class_idx)`` normalised to ImageNet mean/std."""
+        torch = _require_torch()
+        try:
+            from PIL import Image  # type: ignore[import-untyped]
+        except ImportError as exc:
+            raise ImportError("Pillow is required for TextureDataset: pip install Pillow") from exc
+
+        path, label = self._samples[idx]
+        try:
+            img = Image.open(path).convert('RGB')
+        except Exception:
+            # Corrupted or unsupported (e.g. DDS without dxt5 support); return zeros
+            tensor = torch.zeros(3, self._size, self._size)
+            return tensor, label
+
+        # Resize
+        img = img.resize((self._size, self._size), Image.BILINEAR)
+
+        # Optional augmentation (horizontal flip, colour jitter)
+        if self._augment:
+            import random as _rnd
+            if _rnd.random() > 0.5:
+                import PIL.ImageOps
+                img = PIL.ImageOps.mirror(img)
+
+        # ToTensor: HWC uint8 → CHW float32 in [0,1]
+        import numpy as _np
+        arr = _np.array(img, dtype=_np.float32) / 255.0
+        tensor = torch.from_numpy(arr.transpose(2, 0, 1))   # CHW
+
+        # Normalise to ImageNet mean/std (μ=0.485/0.456/0.406, σ=0.229/0.224/0.225)
+        mean = torch.tensor([0.485, 0.456, 0.406], dtype=torch.float32).view(3, 1, 1)
+        std  = torch.tensor([0.229, 0.224, 0.225], dtype=torch.float32).view(3, 1, 1)
+        tensor = (tensor - mean) / std
+
+        return tensor, label
+
+    # ------------------------------------------------------------------
+    def to_dataloader(self, batch_size: int = 16, shuffle: bool = True,
+                      num_workers: int = 0) -> Any:
+        """Wrap this dataset in a ``torch.utils.data.DataLoader``."""
+        torch = _require_torch()
+        return torch.utils.data.DataLoader(
+            self,
+            batch_size=batch_size,
+            shuffle=shuffle,
+            num_workers=num_workers,
+            pin_memory=torch.cuda.is_available(),
+        )
+
+    @classmethod
+    def from_folder(cls, folder: str, image_size: int = _DEFAULT_SIZE,
+                    augment: bool = False) -> 'TextureDataset':
+        """Convenience constructor: ``TextureDataset.from_folder('/path')``."""
+        return cls(folder, image_size=image_size, augment=augment)
+
+
+# ---------------------------------------------------------------------------
 # PyTorchTrainer  –  optional training scaffold
 # ---------------------------------------------------------------------------
 
@@ -558,5 +681,13 @@ class PyTorchTrainer:
             return self.incremental_train(epochs=epochs,
                                           progress_callback=progress_callback)
         else:
-            # STANDARD or CUSTOM_DATASET — full train
+            # STANDARD or CUSTOM_DATASET — full train.
+            # For CUSTOM_DATASET, caller may supply dataset_path via progress_callback context;
+            # if self._train_loader is already a real loader the standard path is taken.
+            if mode == TrainingMode.CUSTOM_DATASET:
+                logger.info(
+                    "run_mode: CUSTOM_DATASET — using existing train_loader "
+                    "(replace self._train_loader with TextureDataset.to_dataloader() "
+                    "before calling run_mode to use custom images)"
+                )
             return self.train(epochs=epochs, progress_callback=progress_callback)

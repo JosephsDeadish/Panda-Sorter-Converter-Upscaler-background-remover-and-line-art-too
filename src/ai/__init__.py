@@ -35,7 +35,7 @@ from .inference import OnnxInferenceSession, run_batch_inference, is_available a
 # The training_pytorch module itself is only loaded by callers that explicitly
 # instantiate PyTorchTrainer (which will import torch at that point).
 try:
-    from .training_pytorch import is_pytorch_available, export_to_onnx, PyTorchTrainer, TrainingMode  # type: ignore[assignment]
+    from .training_pytorch import is_pytorch_available, export_to_onnx, PyTorchTrainer, TrainingMode, TextureDataset  # type: ignore[assignment]
 except (ImportError, OSError, RuntimeError):
     def is_pytorch_available() -> bool:  # type: ignore[misc]
         return False
@@ -50,6 +50,13 @@ except (ImportError, OSError, RuntimeError):
         EXPORT_ONNX = "export_to_onnx"
         EXPORT_PYTORCH = "export_to_pytorch"
         CUSTOM_DATASET = "custom_dataset"
+    class TextureDataset:  # type: ignore[no-redef]
+        """Stub when torch/Pillow unavailable."""
+        def __init__(self, *_a, **_kw): pass
+        def __len__(self): return 0
+        def to_dataloader(self, *_a, **_kw): return []
+        @classmethod
+        def from_folder(cls, *_a, **_kw): return cls()
 
 try:
     import importlib.util as _ilu
@@ -94,6 +101,7 @@ __all__ = [
     'export_to_onnx',
     'PyTorchTrainer',
     'TrainingMode',
+    'TextureDataset',
 ]
 
 __version__ = '1.0.0'

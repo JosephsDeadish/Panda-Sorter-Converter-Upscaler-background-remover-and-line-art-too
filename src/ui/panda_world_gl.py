@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)
 try:
     from PyQt6.QtWidgets import QWidget, QVBoxLayout, QPushButton, QHBoxLayout, QLabel, QColorDialog
     from PyQt6.QtCore import pyqtSignal, QTimer, Qt
-    from PyQt6.QtGui import QColor
+    from PyQt6.QtGui import QColor, QSurfaceFormat
     PYQT_AVAILABLE = True
 except (ImportError, OSError, RuntimeError):
     PYQT_AVAILABLE = False
@@ -41,15 +41,17 @@ try:
         GL_LIGHT0, GL_LIGHT1, GL_BLEND, GL_COLOR_MATERIAL,
         glLightfv, glLightf, GL_POSITION, GL_DIFFUSE, GL_SPECULAR,
         GL_AMBIENT, GL_AMBIENT_AND_DIFFUSE, GL_SHININESS, GL_FRONT,
-        glMaterialfv, glMaterialf,
+        glMaterialfv, glMaterialf, GL_FRONT_AND_BACK,
         GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, glBlendFunc,
         glClear, GL_COLOR_BUFFER_BIT, GL_DEPTH_BUFFER_BIT,
         glMatrixMode, GL_PROJECTION, GL_MODELVIEW,
         glLoadIdentity, glViewport, glPushMatrix, glPopMatrix,
         glTranslatef, glRotatef, glScalef, glColor3f, glColor4f,
         glBegin, glEnd, glVertex3f, glNormal3f,
-        GL_QUADS, GL_TRIANGLES, GL_LINES, GL_LINE_LOOP,
-        glLineWidth, glPointSize,
+        GL_QUADS, GL_TRIANGLES, GL_LINES, GL_LINE_LOOP, GL_LINE_STRIP, GL_POINTS,
+        glLineWidth, glPointSize, glShadeModel, GL_SMOOTH,
+        GL_MULTISAMPLE, GL_LINE_SMOOTH, glHint, GL_LINE_SMOOTH_HINT, GL_NICEST,
+        GL_DEPTH_COMPONENT,
     )
     from OpenGL.GLU import gluPerspective, gluNewQuadric, gluQuadricNormals
     from OpenGL.GLU import GLU_SMOOTH, gluSphere, gluCylinder, gluDisk, gluDeleteQuadric
@@ -113,6 +115,20 @@ class PandaWorldGL(
         if not PYQT_AVAILABLE:
             return
         super().__init__(parent)
+        # Request OpenGL 2.1 CompatibilityProfile so all legacy GL functions
+        # (glShadeModel, glBegin/glEnd, glLightfv, etc.) remain available.
+        # Without CompatibilityProfile, strict drivers issue GL_INVALID_OPERATION
+        # for every fixed-function call, causing initializeGL to fail and the
+        # 2D fallback to appear instead of the 3D world.
+        if QOGL_AVAILABLE and PYQT_AVAILABLE:
+            _fmt = QSurfaceFormat()
+            _fmt.setVersion(2, 1)
+            _fmt.setProfile(QSurfaceFormat.OpenGLContextProfile.CompatibilityProfile)
+            _fmt.setSamples(4)
+            _fmt.setDepthBufferSize(24)
+            _fmt.setStencilBufferSize(8)
+            self.setFormat(_fmt)
+
         self._gl_ready = False
         self._frame    = 0
         # Car animation
@@ -146,17 +162,24 @@ class PandaWorldGL(
         try:
             glClearColor(*_SKY, 1.0)
             glEnable(GL_DEPTH_TEST)
+            glShadeModel(GL_SMOOTH)
+            glEnable(GL_MULTISAMPLE)
+            glEnable(GL_LINE_SMOOTH)
+            glHint(GL_LINE_SMOOTH_HINT, GL_NICEST)
+            glEnable(GL_BLEND)
+            glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
             glEnable(GL_LIGHTING)
             glEnable(GL_LIGHT0)
             glEnable(GL_LIGHT1)
             glEnable(GL_COLOR_MATERIAL)
 
             glLightfv(GL_LIGHT0, GL_POSITION, [5.0, 10.0, 5.0, 1.0])
+            glLightfv(GL_LIGHT0, GL_AMBIENT,  [0.35, 0.33, 0.30, 1.0])
             glLightfv(GL_LIGHT0, GL_DIFFUSE,  [0.85, 0.82, 0.78, 1.0])
             glLightfv(GL_LIGHT0, GL_SPECULAR, [0.4,  0.4,  0.3,  1.0])
             glLightfv(GL_LIGHT1, GL_POSITION, [-4.0, 6.0, -2.0, 1.0])
+            glLightfv(GL_LIGHT1, GL_AMBIENT,  [0.08, 0.08, 0.10, 1.0])
             glLightfv(GL_LIGHT1, GL_DIFFUSE,  [0.25, 0.30, 0.40, 1.0])
-            glLightfv(GL_LIGHT0, GL_AMBIENT,  [0.35, 0.33, 0.30, 1.0])
 
             self._gl_ready = True
         except Exception as e:
@@ -474,7 +497,7 @@ class PandaWorldGL(
         glDisable(GL_LIGHTING)
         glColor3f(*_GOLD)
         glPointSize(4.0)
-        glBegin(0x0000)   # GL_POINTS = 0
+        glBegin(GL_POINTS)
         for sx, sz in [(2.4, -4.62), (2.9, -4.58), (5.8, -4.62), (6.1, -4.57),
                        (3.8, -4.72), (4.5, -4.68), (5.1, -4.72)]:
             glVertex3f(sx, 3.78, sz)
@@ -759,7 +782,7 @@ class PandaWorldGL(
             glDisable(GL_LIGHTING)
             glColor3f(*_LIVY_TURQ)
             glPointSize(3.0)
-            glBegin(0x0000)  # GL_POINTS
+            glBegin(GL_POINTS)
             t2 = self._otter_shuffle_t / 50.0
             for i in range(5):
                 px = -0.3 + i * 0.15
@@ -788,7 +811,7 @@ class PandaWorldGL(
             if self._hover == 'otter':
                 glColor3f(*_GOLD)
                 glPointSize(5.0)
-                glBegin(0x0000)
+                glBegin(GL_POINTS)
                 for sx, sy in [(-0.8, 3.55), (0.0, 3.65), (0.8, 3.55)]:
                     glVertex3f(sx, sy, 0.0)
                 glEnd()
