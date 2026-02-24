@@ -640,6 +640,13 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
         glLightfv(GL_LIGHT0, GL_DIFFUSE, self.diffuse_light)
         glLightfv(GL_LIGHT0, GL_SPECULAR, self.specular_light)
         
+        # LIGHT2 — warm rim light from behind/left for fur edge highlight
+        glEnable(GL_LIGHT2)
+        glLightfv(GL_LIGHT2, GL_POSITION, [-3.0, 2.0, -4.0, 1.0])
+        glLightfv(GL_LIGHT2, GL_AMBIENT,  [0.0,  0.0,  0.0,  1.0])
+        glLightfv(GL_LIGHT2, GL_DIFFUSE,  [0.18, 0.15, 0.10, 1.0])
+        glLightfv(GL_LIGHT2, GL_SPECULAR, [0.08, 0.06, 0.04, 1.0])
+        
         # Material properties for specular highlights
         glMaterialfv(GL_FRONT, GL_SPECULAR, [1.0, 1.0, 1.0, 1.0])
         glMaterialf(GL_FRONT, GL_SHININESS, 50.0)
@@ -1030,7 +1037,7 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
                  self.BODY_HEIGHT * 0.55 * sy * self._belly_y,
                  self.BODY_WIDTH * 0.50)
         glColor3f(*belly_col)
-        self._draw_sphere(1.0, 24, 24)
+        self._draw_sphere(1.0, 32, 32)
         glPopMatrix()
 
         # Main body — colour from custom_colors['body'] (fur style)
@@ -1040,7 +1047,7 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
         glPushMatrix()
         glScalef(self.BODY_WIDTH, self.BODY_HEIGHT * sy, self.BODY_WIDTH * 0.78)
         glColor3f(*body_col)
-        self._draw_sphere(1.0, 24, 24)
+        self._draw_sphere(1.0, 32, 32)
         glPopMatrix()
         glMaterialfv(GL_FRONT, GL_SPECULAR, [1.0, 1.0, 1.0, 1.0])
         glMaterialf(GL_FRONT, GL_SHININESS, 50.0)
@@ -1221,7 +1228,7 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
         glMaterialfv(GL_FRONT, GL_SPECULAR, [0.22, 0.22, 0.22, 1.0])
         glMaterialf(GL_FRONT, GL_SHININESS, 12.0)
         glColor3f(*body_col)
-        self._draw_sphere(self.HEAD_RADIUS, 28, 28)
+        self._draw_sphere(self.HEAD_RADIUS, 36, 36)
         glMaterialfv(GL_FRONT, GL_SPECULAR, [1.0, 1.0, 1.0, 1.0])
         glMaterialf(GL_FRONT, GL_SHININESS, 50.0)
         # Head fur shells — two thin shells for fur depth on skull
@@ -1381,6 +1388,13 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
             glScalef(0.58, 0.52, 0.40)
             glColor3f(0.88, 0.60, 0.68)   # warm pink
             self._draw_sphere(self.EAR_SIZE, 12, 12)
+            glPopMatrix()
+            # Ear canal depth — tiny dark oval in centre of concha
+            glPushMatrix()
+            glTranslatef(0.0, -0.008, 0.022)
+            glScalef(0.28, 0.22, 0.22)
+            glColor3f(0.12, 0.08, 0.10)
+            self._draw_sphere(self.EAR_SIZE * 0.45, 8, 8)
             glPopMatrix()
             # Antihelical ridge — darker rim arc along outer edge
             glPushMatrix()
@@ -1574,6 +1588,14 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
         # restore default specular
         glMaterialfv(GL_FRONT, GL_SPECULAR, [1.0, 1.0, 1.0, 1.0])
         glMaterialf(GL_FRONT, GL_SHININESS, 50.0)
+        # Wet nose specular catch-light
+        glDisable(GL_LIGHTING)
+        glPushMatrix()
+        glTranslatef(0.012, 0.008, 0.026)
+        glColor3f(1.0, 1.0, 1.0)
+        self._draw_sphere(0.008, 6, 6)
+        glPopMatrix()
+        glEnable(GL_LIGHTING)
         glPopMatrix()
 
         # Philtrum groove — dark line below nose
@@ -1620,6 +1642,20 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
                 glColor3f(0.96, 0.96, 0.93)
                 self._draw_sphere(0.012, 8, 8)
                 glPopMatrix()
+            # Tongue — pink, visible when mouth open
+            if self._jaw_open > 0.12:
+                tongue_scale = min(1.0, (self._jaw_open - 0.12) / 0.6)
+                glPushMatrix()
+                glTranslatef(0.0, jaw_y - 0.004, self.HEAD_RADIUS * 0.875)
+                glScalef(0.90 * tongue_scale, 0.28, 0.55 * tongue_scale)
+                glColor3f(0.92, 0.45, 0.52)
+                self._draw_sphere(0.055, 12, 12)
+                # Tongue tip (slightly lighter, rounded)
+                glTranslatef(0.0, -0.005, 0.042)
+                glScalef(0.80, 1.10, 0.70)
+                glColor3f(0.95, 0.50, 0.58)
+                self._draw_sphere(0.032, 10, 10)
+                glPopMatrix()
         else:
             # Static top incisor hints (mouth closed)
             for tx in (-0.018, 0.018):
@@ -1658,7 +1694,7 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
             # Four whiskers fanning out from pad centre
             _px = side * 0.072   # pad X centre
             _py = -0.058          # pad Y centre
-            for angle_deg, length in [(-8.0, 0.11), (2.0, 0.12), (12.0, 0.11), (22.0, 0.09)]:
+            for angle_deg, length in [(-12.0, 0.10), (-3.0, 0.13), (7.0, 0.13), (17.0, 0.11), (26.0, 0.08)]:
                 a = math.radians(angle_deg)
                 dx = math.cos(a) * length * side
                 dy = math.sin(a) * length
@@ -1810,7 +1846,7 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
             glScalef(0.115, 0.200, 0.115)
             glTranslatef(0.0, -0.50, 0.0)
             glColor3f(*ac)
-            self._draw_sphere(1.0, 16, 16)
+            self._draw_sphere(1.0, 22, 22)
             glPopMatrix()
 
             # Elbow joint
@@ -1834,7 +1870,7 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
             glTranslatef(0.0, -self.ARM_LENGTH * 0.88, 0.0)
             glScalef(1.20, 0.65, 1.15)
             glColor3f(*ac)
-            self._draw_sphere(0.082, 14, 14)
+            self._draw_sphere(0.082, 18, 18)
             # Paw pad (pink ellipse on palm face)
             glPushMatrix()
             glTranslatef(0.0, 0.0, 0.07)
@@ -1850,6 +1886,15 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
             glColor3f(*ac)
             self._draw_sphere(0.058, 10, 10)
             glPopMatrix()
+            # Individual toe pads — 4 small pink ovals above main pad
+            for ti in range(4):
+                tx = (ti - 1.5) * 0.030
+                glPushMatrix()
+                glTranslatef(tx, 0.055, 0.065)
+                glScalef(0.42, 0.35, 0.28)
+                glColor3f(0.72, 0.42, 0.50)
+                self._draw_sphere(0.028, 8, 8)
+                glPopMatrix()
             glPopMatrix()
 
             # Wrist black band — ring of accent colour just above the paw
@@ -1894,7 +1939,7 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
             glScalef(0.155, 0.195, 0.155)
             glTranslatef(0.0, -0.50, 0.0)
             glColor3f(*ac)
-            self._draw_sphere(1.0, 16, 16)
+            self._draw_sphere(1.0, 22, 22)
             glPopMatrix()
 
             # Knee joint
@@ -1934,6 +1979,15 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
                 glScalef(0.55, 0.30, 0.55)
                 glColor3f(0.74, 0.45, 0.52)
                 self._draw_sphere(0.028, 8, 8)
+                glPopMatrix()
+            # Hind toe pads
+            for ti in range(4):
+                tx = (ti - 1.5) * 0.032
+                glPushMatrix()
+                glTranslatef(tx, -0.005, 0.055)
+                glScalef(0.42, 0.32, 0.28)
+                glColor3f(0.72, 0.42, 0.50)
+                self._draw_sphere(0.025, 8, 8)
                 glPopMatrix()
             glPopMatrix()
 
