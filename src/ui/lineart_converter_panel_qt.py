@@ -597,7 +597,34 @@ class LineArtConverterPanelQt(QWidget):
         """Create settings section."""
         group = QGroupBox("⚙️ Settings")
         group_layout = QVBoxLayout()
-        
+
+        # Conversion Mode
+        mode_layout = QHBoxLayout()
+        mode_layout.addWidget(QLabel("Mode:"))
+        self.mode_combo = QComboBox()
+        _mode_items = [
+            ("Pure Black Lines",    "pure_black"),
+            ("Edge Detection",      "edge_detect"),
+            ("Adaptive Threshold",  "adaptive"),
+            ("Sketch / Pencil",     "sketch"),
+            ("Simple Threshold",    "threshold"),
+            ("1-bit Stencil",       "stencil_1bit"),
+        ]
+        for label, data in _mode_items:
+            self.mode_combo.addItem(label, data)
+        self.mode_combo.currentIndexChanged.connect(self._schedule_preview_update)
+        mode_layout.addWidget(self.mode_combo, 1)
+        group_layout.addLayout(mode_layout)
+
+        # Invert checkbox
+        inv_layout = QHBoxLayout()
+        self.invert_cb = QCheckBox("Invert (white lines on dark bg)")
+        self.invert_cb.setChecked(False)
+        self.invert_cb.stateChanged.connect(self._schedule_preview_update)
+        inv_layout.addWidget(self.invert_cb)
+        inv_layout.addStretch()
+        group_layout.addLayout(inv_layout)
+
         # Threshold
         threshold_layout = QHBoxLayout()
         threshold_layout.addWidget(QLabel("Threshold:"))
@@ -843,14 +870,13 @@ class LineArtConverterPanelQt(QWidget):
                     ))
                     self.preview_label.resize(w, h)
             elif hasattr(self, 'preview_widget') and SLIDER_AVAILABLE:
-                # Scale the ComparisonSliderWidget itself inside its scroll area
+                # Scale the ComparisonSliderWidget inside its scroll area.
+                # Use a fixed 600-px base so zoom works even before the widget is first shown.
                 pw = self.preview_widget
-                if not hasattr(pw, '_base_size'):
-                    pw._base_size = pw.size()
-                bw = max(400, pw._base_size.width())
-                bh = max(400, pw._base_size.height())
-                nw = max(200, int(bw * self._preview_zoom))
-                nh = max(200, int(bh * self._preview_zoom))
+                base_w = getattr(pw, '_base_w', 600)
+                base_h = getattr(pw, '_base_h', 450)
+                nw = max(200, int(base_w * self._preview_zoom))
+                nh = max(200, int(base_h * self._preview_zoom))
                 pw.setFixedSize(nw, nh)
         except Exception:
             pass
@@ -957,12 +983,22 @@ class LineArtConverterPanelQt(QWidget):
             self.contrast_spin.setValue(preset["contrast"])
             self.auto_threshold_cb.setChecked(preset["auto_threshold"])
             self.sharpen_cb.setChecked(preset["sharpen"])
-            if preset["sharpen"]:
-                self.sharpen_spin.setValue(preset["sharpen_amount"])
+            self.sharpen_spin.setValue(preset.get("sharpen_amount", 1.3))
             self.denoise_cb.setChecked(preset["denoise"])
-            if preset["denoise"]:
-                self.denoise_size.setValue(preset["denoise_size"])
-            
+            self.denoise_size.setValue(preset.get("denoise_size", 2))
+
+            # Conversion mode
+            if hasattr(self, 'mode_combo'):
+                mode_val = preset.get("mode", "pure_black")
+                for i in range(self.mode_combo.count()):
+                    if self.mode_combo.itemData(i) == mode_val:
+                        self.mode_combo.setCurrentIndex(i)
+                        break
+
+            # Invert
+            if hasattr(self, 'invert_cb'):
+                self.invert_cb.setChecked(bool(preset.get("invert", False)))
+
             # Morphology settings
             morph_map = {
                 "none": "None",
@@ -975,7 +1011,7 @@ class LineArtConverterPanelQt(QWidget):
             self.morphology_combo.setCurrentText(morph_text)
             self.morphology_iterations.setValue(preset["morph_iter"])
             self.kernel_size_spin.setValue(preset["kernel"])
-            
+
             # Midtone settings
             self.midtone_spin.setValue(preset["midtone_threshold"])
             self.remove_midtones_cb.setChecked(preset["remove_midtones"])
@@ -1037,25 +1073,42 @@ class LineArtConverterPanelQt(QWidget):
     
     def _create_settings_from_controls(self):
         """Create LineArtSettings from current control values."""
+        # Conversion mode from combo
+        _MODE_MAP = {
+            "pure_black":  getattr(ConversionMode, 'PURE_BLACK',   ConversionMode) if ConversionMode else None,
+            "edge_detect": getattr(ConversionMode, 'EDGE_DETECT',  ConversionMode) if ConversionMode else None,
+            "adaptive":    getattr(ConversionMode, 'ADAPTIVE',     ConversionMode) if ConversionMode else None,
+            "sketch":      getattr(ConversionMode, 'SKETCH',       ConversionMode) if ConversionMode else None,
+            "threshold":   getattr(ConversionMode, 'THRESHOLD',    ConversionMode) if ConversionMode else None,
+            "stencil_1bit":getattr(ConversionMode, 'STENCIL_1BIT', ConversionMode) if ConversionMode else None,
+        }
+        mode_key = "pure_black"
+        if hasattr(self, 'mode_combo') and ConversionMode:
+            mode_key = self.mode_combo.currentData() or "pure_black"
+        conv_mode = _MODE_MAP.get(mode_key) or (ConversionMode.PURE_BLACK if ConversionMode else None)
+
         # Background mode
         _BG_MAP = {
             "transparent": BackgroundMode.TRANSPARENT if BackgroundMode else None,
-            "white":       getattr(BackgroundMode, 'WHITE',       None) if BackgroundMode else None,
-            "black":       getattr(BackgroundMode, 'BLACK',       None) if BackgroundMode else None,
+            "white":       getattr(BackgroundMode, 'WHITE', None) if BackgroundMode else None,
+            "black":       getattr(BackgroundMode, 'BLACK', None) if BackgroundMode else None,
         }
         bg_key = "transparent"
         if hasattr(self, 'bg_mode_combo'):
             bg_key = self.bg_mode_combo.currentData() or "transparent"
             if bg_key == "custom":
-                bg_key = "white"   # custom colour falls back to white for backend (colouring applied later)
+                bg_key = "white"   # custom colour falls back to white for backend
         bg_mode = _BG_MAP.get(bg_key) or (BackgroundMode.TRANSPARENT if BackgroundMode else None)
 
+        # Invert
+        invert = self.invert_cb.isChecked() if hasattr(self, 'invert_cb') else False
+
         return LineArtSettings(
-            mode=ConversionMode.PURE_BLACK,
+            mode=conv_mode,
             threshold=self.threshold_slider.value(),
             auto_threshold=self.auto_threshold_cb.isChecked(),
             background_mode=bg_mode,
-            invert=False,
+            invert=invert,
             remove_midtones=self.remove_midtones_cb.isChecked(),
             midtone_threshold=self.midtone_spin.value(),
             contrast_boost=self.contrast_spin.value(),
@@ -1094,9 +1147,15 @@ class LineArtConverterPanelQt(QWidget):
                 # Use comparison slider
                 orig_pixmap = self._pil_to_pixmap(original)
                 proc_pixmap = self._pil_to_pixmap(processed)
-                
+
                 self.preview_widget.set_before_image(orig_pixmap)
                 self.preview_widget.set_after_image(proc_pixmap)
+                # Record image dimensions as zoom base so zoom buttons work correctly
+                if not orig_pixmap.isNull():
+                    self.preview_widget._base_w = max(200, orig_pixmap.width())
+                    self.preview_widget._base_h = max(200, orig_pixmap.height())
+                    # Apply current zoom
+                    self._apply_preview_zoom()
             elif hasattr(self, 'preview_label'):
                 # Fallback to scrollable/zoomable label
                 processed_rgb = processed.convert("RGBA")
@@ -1125,19 +1184,13 @@ class LineArtConverterPanelQt(QWidget):
                 self.preview_label.setText(f"Error: {str(e)}")
 
     
-    def _pil_to_pixmap(self, img, max_size=400):
-        """Convert PIL Image to QPixmap"""
-        # Resize for display
+    def _pil_to_pixmap(self, img, max_size=600):
+        """Convert PIL Image to QPixmap (600 px max for quality preview)."""
         img.thumbnail((max_size, max_size), Image.Resampling.LANCZOS)
-        
-        # Convert to RGBA
         if img.mode != 'RGBA':
             img = img.convert('RGBA')
-        
-        # Convert to QImage
         data = img.tobytes("raw", "RGBA")
         qimage = QImage(data, img.width, img.height, QImage.Format.Format_RGBA8888)
-        
         return QPixmap.fromImage(qimage)
     
     def _preview_error(self, error_msg):
