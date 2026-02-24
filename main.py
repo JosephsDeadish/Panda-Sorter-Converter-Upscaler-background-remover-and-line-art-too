@@ -3679,6 +3679,16 @@ class TextureSorterMainWindow(QMainWindow):
         """
         logger.warning(f"Panda GL init failed ({error_msg}), swapping in 2D fallback")
 
+        # Log to the activity log so the user can see WHY 3D failed
+        self.log(f"⚠️ 3D panda GL init failed: {error_msg}")
+        self.log("ℹ️ Switched to 2D panda backup. Check that your GPU driver supports OpenGL 2.1.")
+        try:
+            self.statusBar().showMessage(
+                f"⚠️ 3D panda unavailable ({error_msg[:60]}…) — using 2D backup", 8000
+            )
+        except Exception:
+            pass
+
         if PandaWidget2D is None:
             logger.error("2D panda fallback not available; sidebar will be empty")
             return
@@ -5616,6 +5626,24 @@ def _auto_download_models(main_window: 'TextureSorterMainWindow') -> None:
 
 def main():
     """Main entry point."""
+    # ── Windows EXE: configure PyOpenGL before any import touches it ──────────
+    # In a frozen EXE ctypes.util.find_library() does not search the app folder,
+    # so PyOpenGL would fail to locate opengl32.dll on some Windows configurations.
+    # Setting PYOPENGL_PLATFORM_HANDLER=win32 forces the Windows backend and
+    # os.add_dll_directory() makes the bundled DLLs visible to the OS loader.
+    import sys as _sys_main
+    if _sys_main.platform.startswith('win'):
+        import os as _os_main
+        if 'PYOPENGL_PLATFORM_HANDLER' not in _os_main.environ:
+            _os_main.environ['PYOPENGL_PLATFORM_HANDLER'] = 'win32'
+        if getattr(_sys_main, 'frozen', False):
+            _app_dir = _os_main.path.dirname(_sys_main.executable)
+            for _d in (_app_dir, getattr(_sys_main, '_MEIPASS', _app_dir)):
+                try:
+                    _os_main.add_dll_directory(_d)
+                except (AttributeError, OSError):
+                    pass
+
     # ── Set OpenGL surface format BEFORE creating QApplication ────────────────
     # This must be done before any QOpenGLWidget is instantiated.
     # We request OpenGL 2.1 CompatibilityProfile so that all three 3D widgets

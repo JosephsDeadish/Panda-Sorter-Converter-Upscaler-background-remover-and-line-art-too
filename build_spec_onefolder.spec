@@ -129,9 +129,12 @@ import sys as _sys
 if str(SRC_DIR) not in _sys.path:
     _sys.path.insert(0, str(SRC_DIR))
     print(f"[build_spec] Added {SRC_DIR} to sys.path for collect_submodules")
-from PyInstaller.utils.hooks import collect_submodules  # noqa: E402
+from PyInstaller.utils.hooks import collect_submodules, collect_all  # noqa: E402
 
 _app_hidden = []
+_extra_datas = []
+_extra_binaries = []
+
 for _pkg in [
     'ui', 'features', 'tools', 'utils', 'core',
     'ai', 'vision_models', 'organizer', 'classifier',
@@ -147,14 +150,31 @@ for _pkg in [
         # package will be unavailable in the frozen exe until the dep is installed.
         print(f"[build_spec] WARNING: collect_submodules({_pkg!r}) failed (non-fatal): {_e}")
 
-print(f"[build_spec] Collected {len(_app_hidden)} app submodule entries via collect_submodules")
+# ── Collect ALL of PyOpenGL (critical for 3D panda widget) ────────────────────
+# collect_all() walks the entire package and returns (datas, binaries, hiddenimports).
+# This catches every lazy-loaded submodule (platform backends, array handlers, etc.)
+# that PyInstaller's static analyser misses — including the Windows platform backend
+# (OpenGL.platform.win32) which is selected at runtime via sys.platform and is
+# completely invisible to static import tracing.
+try:
+    _ogl_datas, _ogl_bins, _ogl_hidden = collect_all('OpenGL')
+    _extra_datas    += _ogl_datas
+    _extra_binaries += _ogl_bins
+    _app_hidden     += _ogl_hidden
+    print(f"[build_spec] PyOpenGL collected: {len(_ogl_hidden)} hidden imports, "
+          f"{len(_ogl_bins)} binaries, {len(_ogl_datas)} data files")
+except Exception as _e:
+    print(f"[build_spec] WARNING: collect_all('OpenGL') failed ({_e}) — "
+          f"3D panda may fall back to 2D mode in the frozen EXE")
+
+print(f"[build_spec] Collected {len(_app_hidden)} total hidden-import entries")
 
 # Collect all Python files
 a = Analysis(
     ['main.py'],
     pathex=[str(SCRIPT_DIR), str(SRC_DIR)],  # Include src directory for module imports
-    binaries=[],
-    datas=_datas,
+    binaries=_extra_binaries,          # PyOpenGL DLLs collected by collect_all()
+    datas=_datas + _extra_datas,       # PyOpenGL data files collected by collect_all()
     hiddenimports=_app_hidden + [
         # Flat top-level application modules (not in a sub-package).
         # preprocessing.* is already covered by collect_submodules('preprocessing')
@@ -310,6 +330,7 @@ a = Analysis(
         str(SCRIPT_DIR / 'runtime-hook-qt-platform.py'),  # Set QT_QPA_PLATFORM=offscreen on headless Linux
         str(SCRIPT_DIR / 'runtime-hook-onnxruntime.py'),  # Disable CUDA providers for onnxruntime
         str(SCRIPT_DIR / 'runtime-hook-torch.py'),  # Graceful CUDA handling for torch
+        str(SCRIPT_DIR / 'runtime-hook-opengl.py'),  # os.add_dll_directory + PYOPENGL_PLATFORM_HANDLER for Windows
     ],
     excludes=[
         # Exclude tkinter

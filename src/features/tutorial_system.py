@@ -5442,6 +5442,18 @@ class TutorialDialog(QDialog):
     def _on_skip(self):
         self.action_skip.emit()
 
+    def closeEvent(self, event):
+        """Closing the dialog with X should trigger the skip/complete flow.
+
+        Without this override the default QDialog.closeEvent() just hides the
+        window, leaving ``tutorial_active = True`` and the overlay still visible.
+        """
+        # Emit action_skip so TutorialManager._handle_dialog_action runs the
+        # confirmation prompt and either completes or resumes the tutorial.
+        # Block the close first; _complete_tutorial() will call close() itself.
+        event.ignore()
+        self.action_skip.emit()
+
 
 @dataclass
 class TutorialStep:
@@ -5702,16 +5714,45 @@ class TutorialManager:
     
     def _skip_tutorial(self):
         """Skip the tutorial"""
+        # Temporarily lower the tutorial dialog's always-on-top flag so the
+        # QMessageBox confirmation is not hidden behind it.
+        tw = self.tutorial_window
+        if tw is not None:
+            try:
+                from PyQt6.QtCore import Qt as _Qt
+                tw.setWindowFlags(
+                    tw.windowFlags() & ~_Qt.WindowType.WindowStaysOnTopHint
+                )
+                tw.show()   # re-show after flag change (required by Qt)
+            except Exception:
+                pass
+
+        # Use the tutorial dialog as the parent so the QMessageBox is centred
+        # on it and guaranteed to be stacked above it.
+        parent_widget = tw if tw is not None else self.master
         reply = QMessageBox.question(
-            self.master,
+            parent_widget,
             "Skip Tutorial",
             "Are you sure you want to skip the tutorial? You can restart it later from Settings.",
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
             QMessageBox.StandardButton.No
         )
-        
+
         if reply == QMessageBox.StandardButton.Yes:
             self._complete_tutorial()
+        else:
+            # User said No — restore the always-on-top flag and keep going
+            if tw is not None:
+                try:
+                    from PyQt6.QtCore import Qt as _Qt
+                    tw.setWindowFlags(
+                        tw.windowFlags()
+                        | _Qt.WindowType.WindowStaysOnTopHint
+                    )
+                    tw.show()
+                    tw.raise_()
+                except Exception:
+                    pass
     
     def _complete_tutorial(self):
         """Complete and close the tutorial"""
