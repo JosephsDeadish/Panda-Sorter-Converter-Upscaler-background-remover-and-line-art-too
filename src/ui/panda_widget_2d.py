@@ -111,6 +111,7 @@ class PandaWidget2D(QWidget if _QT_AVAILABLE else object):  # type: ignore[misc]
         self._body_color = QColor(245, 245, 245)
         self._ear_color  = QColor(30, 30, 30)
         self._hat: Optional[str] = None
+        self._hair_style: str = ''
         self._equipped_items: list[str] = []
 
         # ── Per-instance personality randomness ────────────────────────────────
@@ -617,9 +618,47 @@ class PandaWidget2D(QWidget if _QT_AVAILABLE else object):  # type: ignore[misc]
         self.set_micro_emotion('curious', 0.8)
         self._surprised_eye_t = 0.25
 
+    def notify_button_nearby(self) -> None:
+        """GL-compatible: cursor is near a UI button — trigger a small poke reaction."""
+        self._arm_vel_r += -8.0
+        self._surprised_eye_t = 0.1
+
     def get_idle_sub_state(self) -> str:
         """GL-compatible: 2D widget doesn't have sub-states; return empty string."""
         return ''
+
+    def set_fur_style(self, style_id: str) -> None:
+        """GL-compatible: map fur-style id to nearest body/ear colour pair."""
+        _FUR_COLORS = {
+            'classic':       (QColor(245, 245, 245), QColor(30, 30, 30)),
+            'albino':        (QColor(255, 248, 240), QColor(220, 180, 180)),
+            'snow_panda':    (QColor(240, 248, 255), QColor(180, 200, 220)),
+            'golden':        (QColor(255, 230, 160), QColor(160, 110, 40)),
+            'red_panda':     (QColor(200, 100, 50),  QColor(60, 40, 20)),
+            'midnight':      (QColor(30, 30, 60),    QColor(10, 10, 30)),
+            'galaxy':        (QColor(60, 40, 90),    QColor(20, 10, 50)),
+            'cherry_blossom':(QColor(255, 210, 220), QColor(190, 100, 120)),
+            'ocean':         (QColor(160, 210, 230), QColor(40, 80, 130)),
+            'forest':        (QColor(130, 180, 120), QColor(40, 80, 40)),
+        }
+        sid = str(style_id).lower()
+        body_col, ear_col = _FUR_COLORS.get(sid, _FUR_COLORS['classic'])
+        self._body_color = body_col
+        self._ear_color  = ear_col
+        self.update()
+
+    def set_hair_style(self, style_id: str) -> None:
+        """GL-compatible: store hair style id (used in accessory overlay)."""
+        self._hair_style = str(style_id)
+        self.update()
+
+    def equip_clothing(self, slot: str, clothing_item) -> None:
+        """GL-compatible: record equipped clothing and refresh."""
+        item_id = (clothing_item.get('id', '') if isinstance(clothing_item, dict)
+                   else str(clothing_item))
+        if item_id and item_id not in self._equipped_items:
+            self._equipped_items.append(item_id)
+        self.preview_item(item_id)
 
     def set_color(self, color_type: str, color_rgb: tuple) -> None:
         try:
@@ -653,4 +692,21 @@ class PandaWidget2D(QWidget if _QT_AVAILABLE else object):  # type: ignore[misc]
 
     def update_appearance(self) -> None:
         """Trigger a full redraw of the panda widget.  Called by CustomizationPanelQt."""
+        self.update()
+
+    def add_item_3d(self, item_type: str, x: float = 0.0, y: float = 0.0,
+                    z: float = 0.0, **kwargs) -> None:
+        """GL-compatible stub: 3D items are not rendered in the 2D widget."""
+        logger.debug("PandaWidget2D.add_item_3d: %s ignored (2D mode)", item_type)
+
+    def add_item_from_emoji(self, emoji: str, name: str = None,
+                            position: tuple = (0, 0), **kwargs) -> None:
+        """GL-compatible stub: show emoji as a transient hat/overlay in 2D mode."""
+        self._hat = emoji
+        self.update()
+
+    def clear_items(self) -> None:
+        """GL-compatible stub: clear all 3D scene items."""
+        self._hat = None
+        self._equipped_items.clear()
         self.update()
