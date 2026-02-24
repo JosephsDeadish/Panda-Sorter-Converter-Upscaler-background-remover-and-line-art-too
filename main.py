@@ -4402,8 +4402,10 @@ class TextureSorterMainWindow(QMainWindow):
                         if wid is not None:
                             merged.addTab(wid, "🧸 Toys & Items")
                         self._backpack_merged_panel = merged
-                        # NOTE: NOT added to _home_stack_owned — it's a persistent
-                        # panel that must survive across multiple opens.
+                        # NOT added to _home_stack_owned — it's a persistent panel
+                        # that must survive across multiple opens.  It will be cleaned
+                        # up automatically when the main window is closed (Qt parent
+                        # ownership transfers to the home_stack on insertWidget).
                     self._show_home_sub_panel(self._backpack_merged_panel, '🎒 Inventory & Items')
                 except Exception as _e2:
                     logger.debug(f"Backpack panel open: {_e2}")
