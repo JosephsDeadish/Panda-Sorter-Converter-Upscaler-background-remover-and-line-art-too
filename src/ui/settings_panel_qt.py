@@ -18,7 +18,7 @@ try:
         QWidget, QVBoxLayout, QHBoxLayout, QTabWidget, QLabel, 
         QPushButton, QSlider, QComboBox, QSpinBox, QCheckBox,
         QGroupBox, QScrollArea, QLineEdit, QColorDialog, QMessageBox,
-        QFileDialog
+        QFileDialog, QFormLayout
     )
     from PyQt6.QtCore import Qt, pyqtSignal, QTimer
     from PyQt6.QtGui import QFont, QColor, QPainter, QPen
@@ -113,13 +113,12 @@ class SettingsPanelQt(QWidget):
         self.tabs = QTabWidget()
         layout.addWidget(self.tabs)
         
-        # Create tabs
+        # Create tabs — Cursor and Font are sub-sections of Appearance, not separate tabs
         self.tabs.addTab(self.create_appearance_tab(), "🎨 Appearance")
-        self.tabs.addTab(self.create_cursor_tab(), "🖱️ Cursor")
-        self.tabs.addTab(self.create_font_tab(), "🔤 Font")
         self.tabs.addTab(self.create_behavior_tab(), "⚡ Behavior")
         self.tabs.addTab(self.create_performance_tab(), "🚀 Performance")
-        self.tabs.addTab(self.create_ai_models_tab(), "🤖 AI Models")
+        self.tabs.addTab(self.create_ai_settings_tab(), "🤖 AI Settings")
+        self.tabs.addTab(self.create_ai_models_tab(), "📦 AI Models")
         self.tabs.addTab(self.create_hotkeys_tab(), "⌨️ Hotkeys")
         self.tabs.addTab(self.create_language_tab(), "🌐 Language")
         self.tabs.addTab(self.create_advanced_tab(), "🔧 Advanced")
@@ -686,6 +685,145 @@ class SettingsPanelQt(QWidget):
         tab_layout.addWidget(scroll)
         return tab
     
+    def create_ai_settings_tab(self):
+        """Create AI training + inference settings tab (separate from model downloads)."""
+        tab = QWidget()
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QScrollArea.Shape.NoFrame)
+        container = QWidget()
+        layout = QVBoxLayout(container)
+
+        # ── Training section ──────────────────────────────────────────────
+        train_group = QGroupBox("🏋️ Training Settings")
+        train_layout = QFormLayout()
+
+        # Training mode
+        self.training_mode_combo = QComboBox()
+        self.training_mode_combo.addItems([
+            "Standard", "Fine-Tune Existing", "Incremental (Continual)",
+            "Export to ONNX", "Export to PyTorch", "Custom Dataset",
+        ])
+        self.training_mode_combo.currentTextChanged.connect(
+            lambda: self.on_setting_changed('ai', 'training_mode'))
+        train_layout.addRow("Training Mode:", self.training_mode_combo)
+
+        # Epochs
+        self.epochs_spin = QSpinBox()
+        self.epochs_spin.setRange(1, 1000)
+        self.epochs_spin.setValue(50)
+        self.epochs_spin.valueChanged.connect(
+            lambda: self.on_setting_changed('ai', 'epochs'))
+        train_layout.addRow("Epochs:", self.epochs_spin)
+
+        # Batch size
+        self.batch_size_combo = QComboBox()
+        self.batch_size_combo.addItems(["4", "8", "16", "32", "64", "128"])
+        self.batch_size_combo.setCurrentText("16")
+        self.batch_size_combo.currentTextChanged.connect(
+            lambda: self.on_setting_changed('ai', 'batch_size'))
+        train_layout.addRow("Batch Size:", self.batch_size_combo)
+
+        # Learning rate
+        self.lr_combo = QComboBox()
+        self.lr_combo.addItems(["0.1", "0.01", "0.001", "0.0001", "0.00001"])
+        self.lr_combo.setCurrentText("0.0001")
+        self.lr_combo.currentTextChanged.connect(
+            lambda: self.on_setting_changed('ai', 'learning_rate'))
+        train_layout.addRow("Learning Rate:", self.lr_combo)
+
+        # Device
+        self.device_combo = QComboBox()
+        self.device_combo.addItems(["Auto (GPU if available)", "CPU only", "CUDA GPU", "MPS (Apple)"])
+        self.device_combo.currentTextChanged.connect(
+            lambda: self.on_setting_changed('ai', 'device'))
+        train_layout.addRow("Compute Device:", self.device_combo)
+
+        # Optimizer
+        self.optimizer_combo = QComboBox()
+        self.optimizer_combo.addItems(["AdamW", "Adam", "SGD", "RMSprop"])
+        self.optimizer_combo.currentTextChanged.connect(
+            lambda: self.on_setting_changed('ai', 'optimizer'))
+        train_layout.addRow("Optimizer:", self.optimizer_combo)
+
+        # Checkpoint
+        self.checkpoint_check = QCheckBox("Save checkpoints every N epochs")
+        self.checkpoint_check.setChecked(True)
+        self.checkpoint_check.stateChanged.connect(
+            lambda: self.on_setting_changed('ai', 'save_checkpoints'))
+        self.checkpoint_every_spin = QSpinBox()
+        self.checkpoint_every_spin.setRange(1, 100)
+        self.checkpoint_every_spin.setValue(10)
+        self.checkpoint_every_spin.valueChanged.connect(
+            lambda: self.on_setting_changed('ai', 'checkpoint_interval'))
+        train_layout.addRow(self.checkpoint_check, self.checkpoint_every_spin)
+
+        train_group.setLayout(train_layout)
+        layout.addWidget(train_group)
+
+        # ── Inference / runtime section ───────────────────────────────────
+        infer_group = QGroupBox("⚡ Inference Settings")
+        infer_layout = QFormLayout()
+
+        # Inference precision
+        self.precision_combo = QComboBox()
+        self.precision_combo.addItems(["FP32 (Full)", "FP16 (Half, faster)", "INT8 (Fastest)"])
+        self.precision_combo.currentTextChanged.connect(
+            lambda: self.on_setting_changed('ai', 'precision'))
+        infer_layout.addRow("Precision:", self.precision_combo)
+
+        # Max image size
+        self.max_img_spin = QSpinBox()
+        self.max_img_spin.setRange(128, 4096)
+        self.max_img_spin.setValue(1024)
+        self.max_img_spin.setSingleStep(128)
+        self.max_img_spin.setSuffix(" px")
+        self.max_img_spin.valueChanged.connect(
+            lambda: self.on_setting_changed('ai', 'max_image_size'))
+        infer_layout.addRow("Max Image Size:", self.max_img_spin)
+
+        # Threading
+        self.ai_threads_spin = QSpinBox()
+        self.ai_threads_spin.setRange(1, 16)
+        self.ai_threads_spin.setValue(4)
+        self.ai_threads_spin.valueChanged.connect(
+            lambda: self.on_setting_changed('ai', 'threads'))
+        infer_layout.addRow("AI Threads:", self.ai_threads_spin)
+
+        # Use GPU for inference
+        self.use_gpu_check = QCheckBox("Use GPU for inference (if available)")
+        self.use_gpu_check.setChecked(True)
+        self.use_gpu_check.stateChanged.connect(
+            lambda: self.on_setting_changed('ai', 'use_gpu'))
+        infer_layout.addRow("", self.use_gpu_check)
+
+        infer_group.setLayout(infer_layout)
+        layout.addWidget(infer_group)
+
+        # ── Export section ────────────────────────────────────────────────
+        export_group = QGroupBox("📤 Export Settings")
+        export_layout = QFormLayout()
+
+        self.export_format_combo = QComboBox()
+        self.export_format_combo.addItems(["PyTorch (.pt)", "ONNX (.onnx)", "TorchScript (.pts)", "SafeTensors"])
+        self.export_format_combo.currentTextChanged.connect(
+            lambda: self.on_setting_changed('ai', 'export_format'))
+        export_layout.addRow("Export Format:", self.export_format_combo)
+
+        self.quantize_check = QCheckBox("Quantize on export (smaller file, slight quality loss)")
+        self.quantize_check.stateChanged.connect(
+            lambda: self.on_setting_changed('ai', 'quantize_export'))
+        export_layout.addRow("", self.quantize_check)
+
+        export_group.setLayout(export_layout)
+        layout.addWidget(export_group)
+
+        layout.addStretch()
+        scroll.setWidget(container)
+        tab_layout = QVBoxLayout(tab)
+        tab_layout.addWidget(scroll)
+        return tab
+
     def create_ai_models_tab(self):
         """Create AI models management tab"""
         error_msg = None
@@ -1112,6 +1250,18 @@ class SettingsPanelQt(QWidget):
             
             verbose = self.config.get('logging', 'verbose', default=False)
             self.verbose_check.setChecked(verbose)
+
+            # AI settings
+            if hasattr(self, 'epochs_spin'):
+                self.epochs_spin.setValue(int(self.config.get('ai', 'epochs', default=50)))
+            if hasattr(self, 'batch_size_combo'):
+                self.batch_size_combo.setCurrentText(str(self.config.get('ai', 'batch_size', default=16)))
+            if hasattr(self, 'lr_combo'):
+                self.lr_combo.setCurrentText(str(self.config.get('ai', 'learning_rate', default=0.0001)))
+            if hasattr(self, 'max_img_spin'):
+                self.max_img_spin.setValue(int(self.config.get('ai', 'max_image_size', default=1024)))
+            if hasattr(self, 'ai_threads_spin'):
+                self.ai_threads_spin.setValue(int(self.config.get('ai', 'threads', default=4)))
             
         except Exception as e:
             logger.error(f"Error loading settings: {e}", exc_info=True)
@@ -1128,7 +1278,15 @@ class SettingsPanelQt(QWidget):
             
             # Determine value based on widget type
             if isinstance(widget, QComboBox):
-                value = widget.currentText().lower().replace(' ', '_')
+                raw = widget.currentText().lower().replace(' ', '_')
+                # Try to coerce numeric strings (batch_size, epochs etc.) to int/float
+                try:
+                    value = int(raw)
+                except ValueError:
+                    try:
+                        value = float(raw)
+                    except ValueError:
+                        value = raw
             elif isinstance(widget, QCheckBox):
                 value = widget.isChecked()
             elif isinstance(widget, QSpinBox):
@@ -1146,6 +1304,19 @@ class SettingsPanelQt(QWidget):
             # Apply specific changes
             if section == 'ui' and key == 'theme':
                 self.apply_theme()
+            elif section == 'ui' and key == 'font_family':
+                self._apply_font()
+            elif section == 'ui' and key == 'font_size':
+                self._apply_font()
+            elif section == 'ui' and key == 'cursor':
+                self._apply_cursor(value)
+            elif section == 'ui' and key == 'cursor_trail':
+                if self.main_window and hasattr(self.main_window, 'panda_widget'):
+                    pw = self.main_window.panda_widget
+                    if value and hasattr(pw, 'set_trail'):
+                        pw.set_trail('sparkle', {})
+                    elif not value and hasattr(pw, 'set_trail'):
+                        pw.set_trail('none', {})
             
         except Exception as e:
             logger.error(f"Error saving setting {section}.{key}: {e}", exc_info=True)
@@ -1237,139 +1408,51 @@ class SettingsPanelQt(QWidget):
             self.settingsChanged.emit("ui.sound_volume", volume)
     
     def apply_theme(self):
-        """Apply the current theme to the main window"""
+        """Delegate theme application to main window (which has all 9 theme implementations)."""
         if not self.main_window:
             return
-        
         try:
-            theme = self.config.get('ui', 'theme', default='dark')
-            accent = self.config.get('ui', 'accent_color', default='#0d7377')
-            
-            if theme == 'dark':
-                stylesheet = f"""
-                QMainWindow, QWidget {{
-                    background-color: #1e1e1e;
-                    color: #ffffff;
-                    font-family: 'Segoe UI', Arial, sans-serif;
-                }}
-                QPushButton {{
-                    background-color: {accent};
-                    color: white;
-                    border: none;
-                    padding: 8px 16px;
-                    border-radius: 4px;
-                    font-weight: bold;
-                }}
-                QPushButton:hover {{
-                    background-color: {self.adjust_color(accent, 1.2)};
-                }}
-                QPushButton:pressed {{
-                    background-color: {self.adjust_color(accent, 0.8)};
-                }}
-                QPushButton:disabled {{
-                    background-color: #555555;
-                    color: #999999;
-                }}
-                QLabel {{
-                    color: #ffffff;
-                    background-color: transparent;
-                }}
-                QTabWidget::pane {{
-                    border: 1px solid #333333;
-                    background-color: #252525;
-                }}
-                QTabBar::tab {{
-                    background-color: #2d2d2d;
-                    color: #ffffff;
-                    padding: 8px 20px;
-                    border: 1px solid #333333;
-                    border-bottom: none;
-                }}
-                QTabBar::tab:selected {{
-                    background-color: {accent};
-                }}
-                QTabBar::tab:hover {{
-                    background-color: #3d3d3d;
-                }}
-                QGroupBox {{
-                    border: 1px solid #444444;
-                    border-radius: 5px;
-                    margin-top: 10px;
-                    padding-top: 10px;
-                    font-weight: bold;
-                }}
-                QGroupBox::title {{
-                    subcontrol-origin: margin;
-                    left: 10px;
-                    padding: 0 5px;
-                }}
-                """
-            else:  # Light theme
-                stylesheet = f"""
-                QMainWindow, QWidget {{
-                    background-color: #f5f5f5;
-                    color: #000000;
-                    font-family: 'Segoe UI', Arial, sans-serif;
-                }}
-                QPushButton {{
-                    background-color: {accent};
-                    color: white;
-                    border: none;
-                    padding: 8px 16px;
-                    border-radius: 4px;
-                    font-weight: bold;
-                }}
-                QPushButton:hover {{
-                    background-color: {self.adjust_color(accent, 1.2)};
-                }}
-                QPushButton:pressed {{
-                    background-color: {self.adjust_color(accent, 0.8)};
-                }}
-                QPushButton:disabled {{
-                    background-color: #cccccc;
-                    color: #666666;
-                }}
-                QLabel {{
-                    color: #000000;
-                    background-color: transparent;
-                }}
-                QTabWidget::pane {{
-                    border: 1px solid #cccccc;
-                    background-color: #ffffff;
-                }}
-                QTabBar::tab {{
-                    background-color: #e0e0e0;
-                    color: #000000;
-                    padding: 8px 20px;
-                    border: 1px solid #cccccc;
-                    border-bottom: none;
-                }}
-                QTabBar::tab:selected {{
-                    background-color: {accent};
-                    color: white;
-                }}
-                QTabBar::tab:hover {{
-                    background-color: #d0d0d0;
-                }}
-                QGroupBox {{
-                    border: 1px solid #cccccc;
-                    border-radius: 5px;
-                    margin-top: 10px;
-                    padding-top: 10px;
-                    font-weight: bold;
-                }}
-                QGroupBox::title {{
-                    subcontrol-origin: margin;
-                    left: 10px;
-                    padding: 0 5px;
-                }}
-                """
-            
-            self.main_window.setStyleSheet(stylesheet)
-            logger.info(f"Applied {theme} theme with accent {accent}")
-            
+            if hasattr(self.main_window, 'apply_theme'):
+                self.main_window.apply_theme()
         except Exception as e:
-            logger.error(f"Error applying theme: {e}", exc_info=True)
+            logger.error(f"Error delegating apply_theme: {e}", exc_info=True)
+
+    def _apply_font(self):
+        """Apply font family + size from config to the main window."""
+        if not self.main_window:
+            return
+        try:
+            family = self.config.get('ui', 'font_family', default='Segoe UI')
+            size = int(self.config.get('ui', 'font_size', default=12))
+            from PyQt6.QtGui import QFont as _QFont
+            app_font = _QFont(family, size)
+            from PyQt6.QtWidgets import QApplication as _QApp
+            _QApp.setFont(app_font)
+            logger.info(f"Font applied: {family} {size}pt")
+        except Exception as e:
+            logger.error(f"Error applying font: {e}", exc_info=True)
+
+    def _apply_cursor(self, cursor_name: str):
+        """Apply cursor style to main window."""
+        if not self.main_window:
+            return
+        try:
+            from PyQt6.QtCore import Qt as _Qt
+            from PyQt6.QtGui import QCursor as _QCursor
+            _CURSOR_MAP = {
+                'default': _Qt.CursorShape.ArrowCursor,
+                'pointer': _Qt.CursorShape.PointingHandCursor,
+                'crosshair': _Qt.CursorShape.CrossCursor,
+                'panda_paw': _Qt.CursorShape.PointingHandCursor,
+                'bamboo': _Qt.CursorShape.PointingHandCursor,
+                'star': _Qt.CursorShape.PointingHandCursor,
+            }
+            shape = _CURSOR_MAP.get(cursor_name.lower().replace(' ', '_'),
+                                    _Qt.CursorShape.ArrowCursor)
+            self.main_window.setCursor(_QCursor(shape))
+        except Exception as e:
+            logger.error(f"Error applying cursor: {e}", exc_info=True)
+
     
     def adjust_color(self, hex_color: str, factor: float) -> str:
         """Adjust color brightness by factor"""
