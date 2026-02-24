@@ -227,7 +227,7 @@ LINEART_PRESETS = {
     },
     "✂️ Stencil / Vinyl Cut": {
         "desc": "Clean shapes optimized for vinyl cutting and stencils",
-        "mode": "stencil", "threshold": 140, "auto_threshold": False,
+        "mode": "stencil_1bit", "threshold": 140, "auto_threshold": False,
         "background": "transparent", "invert": False, "remove_midtones": True,
         "midtone_threshold": 200, "contrast": 2.3, "sharpen": True,
         "sharpen_amount": 1.5, "morphology": "close", "morph_iter": 3,
@@ -251,7 +251,7 @@ LINEART_PRESETS = {
     },
     "🌟 High Contrast Edges": {
         "desc": "Maximum contrast with edge detection emphasis",
-        "mode": "edge", "threshold": 120, "auto_threshold": False,
+        "mode": "edge_detect", "threshold": 120, "auto_threshold": False,
         "background": "white", "invert": False, "remove_midtones": True,
         "midtone_threshold": 180, "contrast": 3.0, "sharpen": True,
         "sharpen_amount": 2.5, "morphology": "dilate", "morph_iter": 2,
@@ -283,7 +283,7 @@ LINEART_PRESETS = {
     },
     "⚡ Speed Lines / Action": {
         "desc": "Dynamic speed lines for action and motion effects",
-        "mode": "edge", "threshold": 140, "auto_threshold": False,
+        "mode": "edge_detect", "threshold": 140, "auto_threshold": False,
         "background": "transparent", "invert": False, "remove_midtones": True,
         "midtone_threshold": 200, "contrast": 2.0, "sharpen": True,
         "sharpen_amount": 2.0, "morphology": "erode", "morph_iter": 1,
@@ -299,7 +299,7 @@ LINEART_PRESETS = {
     },
     "🎯 Logo / Icon Prep": {
         "desc": "Clean vectorization-ready lines for logos and icons",
-        "mode": "stencil", "threshold": 135, "auto_threshold": False,
+        "mode": "stencil_1bit", "threshold": 135, "auto_threshold": False,
         "background": "transparent", "invert": False, "remove_midtones": True,
         "midtone_threshold": 200, "contrast": 2.0, "sharpen": True,
         "sharpen_amount": 1.5, "morphology": "close", "morph_iter": 2,
@@ -1090,15 +1090,20 @@ class LineArtConverterPanelQt(QWidget):
         # Background mode
         _BG_MAP = {
             "transparent": BackgroundMode.TRANSPARENT if BackgroundMode else None,
-            "white":       getattr(BackgroundMode, 'WHITE', None) if BackgroundMode else None,
-            "black":       getattr(BackgroundMode, 'BLACK', None) if BackgroundMode else None,
+            "white":       getattr(BackgroundMode, 'WHITE',  None) if BackgroundMode else None,
+            "black":       getattr(BackgroundMode, 'BLACK',  None) if BackgroundMode else None,
+            "custom":      getattr(BackgroundMode, 'CUSTOM', None) if BackgroundMode else None,
         }
         bg_key = "transparent"
         if hasattr(self, 'bg_mode_combo'):
             bg_key = self.bg_mode_combo.currentData() or "transparent"
-            if bg_key == "custom":
-                bg_key = "white"   # custom colour falls back to white for backend
         bg_mode = _BG_MAP.get(bg_key) or (BackgroundMode.TRANSPARENT if BackgroundMode else None)
+        # Fall back to WHITE if CUSTOM enum member not yet present in the installed backend
+        if bg_mode is None and bg_key == "custom":
+            bg_mode = getattr(BackgroundMode, 'WHITE', None) if BackgroundMode else None
+
+        # Custom background colour (used when BackgroundMode.CUSTOM)
+        custom_bg = getattr(self, '_bg_custom_color', '#ffffff')
 
         # Invert
         invert = self.invert_cb.isChecked() if hasattr(self, 'invert_cb') else False
@@ -1118,7 +1123,8 @@ class LineArtConverterPanelQt(QWidget):
             morphology_iterations=self.morphology_iterations.value(),
             morphology_kernel_size=self.kernel_size_spin.value(),
             denoise=self.denoise_cb.isChecked(),
-            denoise_size=self.denoise_size.value()
+            denoise_size=self.denoise_size.value(),
+            custom_bg_color=custom_bg,
         )
     
     def _update_preview(self):
