@@ -62,73 +62,73 @@ class ShopItemWidget(QFrame):
         self.setup_ui()
         
     def setup_ui(self):
-        """Create the item UI"""
+        """Create the item card UI — turquoise Livy theme."""
         self.setFrameStyle(QFrame.Shape.StyledPanel)
-        self.setStyleSheet("""
-            QFrame {
-                background-color: #f9f9f9;
-                border: 2px solid #e0e0e0;
-                border-radius: 8px;
-                padding: 10px;
-            }
-            QFrame:hover {
-                border: 2px solid #4CAF50;
-                background-color: #ffffff;
-            }
+        # Rarity border colour
+        rarity = getattr(getattr(self.item, 'rarity', None), 'value', 'common')
+        _rarity_border = {
+            'common': '#B0E0E0', 'uncommon': '#2ECC71', 'rare': '#3498DB',
+            'epic': '#9B59B6', 'legendary': '#F39C12',
+        }.get(str(rarity).lower(), '#B0E0E0')
+        self.setStyleSheet(f"""
+            QFrame {{
+                background: white;
+                border: 2px solid {_rarity_border};
+                border-radius: 12px;
+                padding: 8px;
+            }}
+            QFrame:hover {{
+                border: 2px solid #0BBFBF;
+                background: #F0FAFA;
+            }}
         """)
-        
+        self.setFixedSize(148, 190)
+
         layout = QVBoxLayout(self)
-        layout.setSpacing(5)
-        
+        layout.setSpacing(3)
+        layout.setContentsMargins(6, 6, 6, 6)
+
         # Icon
-        icon_label = QLabel(self.item.icon)
-        icon_label.setFont(QFont("Segoe UI", 32))
+        icon_label = QLabel(getattr(self.item, 'icon', '🎁'))
+        icon_label.setFont(QFont("Segoe UI Emoji", 28))
         icon_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(icon_label)
-        
+
         # Name
-        name_label = QLabel(self.item.name)
-        name_label.setFont(QFont("Segoe UI", 10, QFont.Weight.Bold))
+        name_label = QLabel(getattr(self.item, 'name', ''))
+        name_label.setFont(QFont("Segoe UI", 9, QFont.Weight.Bold))
         name_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         name_label.setWordWrap(True)
+        name_label.setStyleSheet("color: #063040;")
         layout.addWidget(name_label)
-        
-        # Description
-        desc_label = QLabel(self.item.description)
-        desc_label.setFont(QFont("Segoe UI", 8))
-        desc_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        desc_label.setWordWrap(True)
-        desc_label.setMaximumHeight(40)
-        layout.addWidget(desc_label)
-        
+
         # Price
-        price_label = QLabel(f"💰 {self.item.price} Bamboo Bucks")
+        price = getattr(self.item, 'price', 0)
+        price_label = QLabel("✅ Owned" if self.owned else f"💰 {price:,}")
         price_label.setFont(QFont("Segoe UI", 9, QFont.Weight.Bold))
         price_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        price_label.setStyleSheet("color: #4CAF50;")
+        price_label.setStyleSheet("color: #089898;" if self.owned else "color: #B8860B;")
         layout.addWidget(price_label)
-        
-        # Buy button
+
+        layout.addStretch()
+
+        # Buy / owned button
         if self.owned:
             btn = QPushButton("✓ Owned")
             btn.setEnabled(False)
-            btn.setStyleSheet("background-color: #888; color: white;")
+            btn.setStyleSheet(
+                "background: #D0EEEE; color: #089898; border: none;"
+                " border-radius: 8px; padding: 5px; font-weight: bold; font-size: 11px;"
+            )
         else:
             btn = QPushButton("🛒 Buy")
             btn.clicked.connect(lambda: self.purchase_requested.emit(self.item.id))
-            btn.setStyleSheet("""
-                QPushButton {
-                    background-color: #4CAF50;
-                    color: white;
-                    border: none;
-                    padding: 8px;
-                    border-radius: 4px;
-                    font-weight: bold;
-                }
-                QPushButton:hover {
-                    background-color: #45a049;
-                }
-            """)
+            btn.setStyleSheet(
+                "background: #0BBFBF; color: white; border: none;"
+                " border-radius: 8px; padding: 5px;"
+                " font-weight: bold; font-size: 11px;"
+                " QPushButton:hover { background: #089898; }"
+            )
         layout.addWidget(btn)
 
     def mouseDoubleClickEvent(self, event):  # type: ignore[override]
@@ -265,123 +265,262 @@ class ShopPanelQt(QWidget):
         self.current_category = "All"
         self.setup_ui()
         self.refresh_shop()
-        
+
+    # ─────────────────────────── Turquoise colour palette ────────────────────
+    _TURQ      = "#0BBFBF"    # Livy's signature turquoise
+    _TURQ_D    = "#089898"    # darker turquoise for accents
+    _TURQ_L    = "#E0FAFA"    # very light turquoise background
+    _TURQ_HDR  = "#063040"    # deep cosmic header background
+    _STAR_GOLD = "#FFD700"    # gold stars
+
+    _SHOP_STYLESHEET = f"""
+        QWidget {{
+            background: #F0FAFA;
+        }}
+        QScrollArea {{
+            background: transparent;
+            border: none;
+        }}
+        QScrollBar:vertical {{
+            background: #D0EEEE;
+            width: 8px;
+            border-radius: 4px;
+        }}
+        QScrollBar::handle:vertical {{
+            background: #0BBFBF;
+            border-radius: 4px;
+        }}
+        QComboBox {{
+            background: white;
+            border: 2px solid #0BBFBF;
+            border-radius: 10px;
+            padding: 4px 10px;
+            color: #063040;
+            font-weight: bold;
+        }}
+        QComboBox::drop-down {{
+            border: none;
+        }}
+        QLineEdit {{
+            background: white;
+            border: 2px solid #0BBFBF;
+            border-radius: 10px;
+            padding: 4px 10px;
+            color: #063040;
+        }}
+    """
+
     def setup_ui(self):
-        """Create the shop UI"""
+        """Create the Cosmic Otter Supply Co. shop UI — Livy's turquoise world."""
+        self.setStyleSheet(self._SHOP_STYLESHEET)
         layout = QVBoxLayout(self)
-        
-        # Header
-        header = QHBoxLayout()
-        
-        title = QLabel("🛒 Panda Shop")
-        title.setFont(QFont("Segoe UI", 16, QFont.Weight.Bold))
-        header.addWidget(title)
-        
-        header.addStretch()
-        
-        # Currency display
+        layout.setSpacing(0)
+        layout.setContentsMargins(0, 0, 0, 0)
+
+        # ── Banner header ─────────────────────────────────────────────────────
+        banner = QWidget()
+        banner.setFixedHeight(90)
+        banner.setStyleSheet(f"background: {self._TURQ_HDR}; border-radius: 0px;")
+        banner_layout = QHBoxLayout(banner)
+        banner_layout.setContentsMargins(18, 8, 18, 8)
+
+        # Otter avatar (emoji + name)
+        otter_col = QVBoxLayout()
+        livy_name = QLabel("🦦  Livy's")
+        livy_name.setStyleSheet(f"color: {self._TURQ}; font-size: 18px; font-weight: bold;")
+        shop_name_lbl = QLabel("Cosmic Otter Supply Co. ✨")
+        shop_name_lbl.setStyleSheet(f"color: {self._STAR_GOLD}; font-size: 13px; font-weight: bold; letter-spacing: 1px;")
+        tagline = QLabel("Galactic Goods for Adventurous Pandas 🌌")
+        tagline.setStyleSheet("color: #90E0E0; font-size: 10px; font-style: italic;")
+        otter_col.addWidget(livy_name)
+        otter_col.addWidget(shop_name_lbl)
+        otter_col.addWidget(tagline)
+        banner_layout.addLayout(otter_col)
+
+        banner_layout.addStretch()
+
+        # Coin display
+        coin_col = QVBoxLayout()
+        coin_col.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.currency_label = QLabel("💰 0 Bamboo Bucks")
-        self.currency_label.setFont(QFont("Segoe UI", 12, QFont.Weight.Bold))
-        self.currency_label.setStyleSheet("color: #4CAF50; padding: 8px;")
-        header.addWidget(self.currency_label)
-        
-        layout.addLayout(header)
-        
-        # Category filter
-        filter_layout = QHBoxLayout()
-        filter_layout.addWidget(QLabel("Category:"))
-        
-        self.category_combo = QComboBox()
-        categories = ["All", "Outfits", "Clothes", "Hats", "Shoes", "Accessories",
-                     "Fur Styles", "Fur Colors", "Hair Styles", "Weapons",
-                     "Armor", "Boots", "Gloves", "Belt", "Backpack",
-                     "Toys", "Food", "Special"]
-        self.category_combo.addItems(categories)
-        self.category_combo.currentTextChanged.connect(self.on_category_changed)
-        filter_layout.addWidget(self.category_combo)
-        
-        # Search
-        filter_layout.addWidget(QLabel("Search:"))
+        self.currency_label.setStyleSheet(
+            f"color: {self._STAR_GOLD}; font-size: 14px; font-weight: bold;"
+            " background: rgba(255,215,0,0.12); border-radius: 10px; padding: 6px 14px;"
+        )
+        self.currency_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        coin_col.addWidget(self.currency_label)
+        banner_layout.addLayout(coin_col)
+
+        layout.addWidget(banner)
+
+        # ── Search + filter bar ───────────────────────────────────────────────
+        filter_bar = QWidget()
+        filter_bar.setStyleSheet(f"background: {self._TURQ_D}; padding: 6px;")
+        filter_layout = QHBoxLayout(filter_bar)
+        filter_layout.setContentsMargins(12, 4, 12, 4)
+        filter_layout.setSpacing(8)
+
+        search_lbl = QLabel("🔍")
+        search_lbl.setStyleSheet("color: white; font-size: 14px;")
+        filter_layout.addWidget(search_lbl)
+
         self.search_input = QLineEdit()
-        self.search_input.setPlaceholderText("Search items...")
+        self.search_input.setPlaceholderText("Search Livy's shelves…")
+        self.search_input.setFixedHeight(30)
         self.search_input.textChanged.connect(self.filter_items)
-        filter_layout.addWidget(self.search_input)
-        
-        filter_layout.addStretch()
-        
-        refresh_btn = QPushButton("🔄 Refresh")
+        self.search_input.setStyleSheet(
+            "background: white; border: none; border-radius: 8px;"
+            " padding: 2px 8px; color: #063040;"
+        )
+        filter_layout.addWidget(self.search_input, 1)
+
+        refresh_btn = QPushButton("🔄")
+        refresh_btn.setFixedSize(32, 30)
+        refresh_btn.setToolTip("Refresh shop")
+        refresh_btn.setStyleSheet(
+            f"background: {self._TURQ}; color: white; border: none;"
+            " border-radius: 8px; font-size: 14px; font-weight: bold;"
+        )
         refresh_btn.clicked.connect(self.refresh_shop)
         filter_layout.addWidget(refresh_btn)
-        
-        layout.addLayout(filter_layout)
-        
-        # Items grid
-        scroll = QScrollArea()
-        scroll.setWidgetResizable(True)
-        scroll.setFrameShape(QScrollArea.Shape.NoFrame)
-        
+
+        layout.addWidget(filter_bar)
+
+        # ── Category pills ────────────────────────────────────────────────────
+        cat_scroll = QScrollArea()
+        cat_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        cat_scroll.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        cat_scroll.setFixedHeight(46)
+        cat_scroll.setWidgetResizable(True)
+        cat_scroll.setFrameShape(QFrame.Shape.NoFrame)
+        cat_scroll.setStyleSheet(f"background: {self._TURQ_L}; border: none;")
+
+        cat_widget = QWidget()
+        cat_widget.setStyleSheet(f"background: {self._TURQ_L};")
+        cat_row = QHBoxLayout(cat_widget)
+        cat_row.setContentsMargins(8, 4, 8, 4)
+        cat_row.setSpacing(6)
+
+        self._cat_buttons: list = []
+        _categories = [
+            ("⭐ All", "All"), ("👗 Outfits", "Outfits"), ("👕 Clothes", "Clothes"),
+            ("🎩 Hats", "Hats"), ("👟 Shoes", "Shoes"), ("💎 Accessories", "Accessories"),
+            ("🐾 Fur", "Fur Styles"), ("🎨 Colours", "Fur Colors"),
+            ("💇 Hair", "Hair Styles"), ("⚔️ Weapons", "Weapons"),
+            ("🛡️ Armor", "Armor"), ("👢 Boots", "Boots"), ("🧤 Gloves", "Gloves"),
+            ("🔗 Belt", "Belt"), ("🎒 Backpack", "Backpack"),
+            ("🧸 Toys", "Toys"), ("🍎 Food", "Food"), ("✨ Special", "Special"),
+        ]
+        for label, cat_id in _categories:
+            btn = QPushButton(label)
+            btn.setCheckable(True)
+            btn.setFixedHeight(30)
+            btn.setStyleSheet(self._pill_style(active=(cat_id == "All")))
+            btn.clicked.connect(lambda checked, c=cat_id: self._on_cat_pill(c))
+            btn.setProperty("cat_id", cat_id)
+            cat_row.addWidget(btn)
+            self._cat_buttons.append(btn)
+        cat_row.addStretch()
+        cat_scroll.setWidget(cat_widget)
+        layout.addWidget(cat_scroll)
+
+        # ── Items scroll grid ─────────────────────────────────────────────────
+        self.scroll_area = QScrollArea()
+        self.scroll_area.setWidgetResizable(True)
+        self.scroll_area.setFrameShape(QFrame.Shape.NoFrame)
+        self.scroll_area.setStyleSheet("background: transparent; border: none;")
+
         self.grid_widget = QWidget()
+        self.grid_widget.setStyleSheet("background: transparent;")
         self.grid_layout = QGridLayout(self.grid_widget)
-        self.grid_layout.setSpacing(10)
-        scroll.setWidget(self.grid_widget)
-        
-        layout.addWidget(scroll)
-        
-        # Status message
+        self.grid_layout.setSpacing(12)
+        self.grid_layout.setContentsMargins(12, 12, 12, 12)
+        self.scroll_area.setWidget(self.grid_widget)
+        layout.addWidget(self.scroll_area, 1)
+
+        # ── Status bar ────────────────────────────────────────────────────────
         self.status_label = QLabel("")
         self.status_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.status_label.setFixedHeight(24)
+        self.status_label.setStyleSheet(
+            f"background: {self._TURQ_HDR}; color: {self._TURQ};"
+            " font-size: 11px; padding: 0 8px;"
+        )
         layout.addWidget(self.status_label)
-        
+
+    def _pill_style(self, active: bool = False) -> str:
+        if active:
+            return (
+                f"QPushButton {{ background: {self._TURQ}; color: white;"
+                " border: none; border-radius: 13px; padding: 4px 12px;"
+                " font-size: 11px; font-weight: bold; }}"
+            )
+        return (
+            f"QPushButton {{ background: white; color: {self._TURQ_D};"
+            f" border: 2px solid {self._TURQ}; border-radius: 13px; padding: 3px 12px;"
+            " font-size: 11px; }}"
+            f"QPushButton:hover {{ background: {self._TURQ_L}; }}"
+        )
+
+    def _on_cat_pill(self, cat_id: str) -> None:
+        self.current_category = cat_id
+        for btn in self._cat_buttons:
+            btn.setStyleSheet(self._pill_style(active=(btn.property("cat_id") == cat_id)))
+        self.refresh_shop()
+
     def refresh_shop(self):
-        """Refresh shop items and currency display"""
+        """Refresh shop items and currency display."""
         if not SHOP_AVAILABLE or not self.shop_system:
-            self.status_label.setText("⚠️ Shop system not available")
+            self.status_label.setText("⚠️ Livy's shelves are empty right now…")
             return
-        
+
         # Update currency
         if self.currency_system:
-            balance = self.currency_system.get_balance()
-            self.currency_label.setText(f"💰 {balance} Bamboo Bucks")
-        
+            try:
+                balance = self.currency_system.get_balance()
+                self.currency_label.setText(f"💰 {balance:,} Bamboo Bucks")
+            except Exception:
+                pass
+
         # Clear grid
         while self.grid_layout.count():
             item = self.grid_layout.takeAt(0)
             if item.widget():
                 item.widget().deleteLater()
-        
-        # Get items
+
+        # Get + filter items
         all_items = self.shop_system.get_available_items()
         owned_items = self.shop_system.get_purchased_items()
-        
-        # Filter by category
+
         if self.current_category != "All":
-            all_items = [item for item in all_items if self.matches_category(item)]
-        
-        # Filter by search text
+            all_items = [i for i in all_items if self.matches_category(i)]
+
         search_text = self.search_input.text().strip().lower()
         if search_text:
             all_items = [
-                item for item in all_items
-                if search_text in item.name.lower() or search_text in item.description.lower()
+                i for i in all_items
+                if search_text in getattr(i, 'name', '').lower()
+                   or search_text in getattr(i, 'description', '').lower()
             ]
-        
-        # Add items to grid
+
+        # Populate grid (3 columns)
         row, col = 0, 0
-        for item in all_items[:50]:  # Limit to 50 items
+        for item in all_items[:60]:
             owned = item.id in owned_items
             widget = ShopItemWidget(item, owned)
             widget.purchase_requested.connect(self.purchase_item)
             self.grid_layout.addWidget(widget, row, col)
-            
             col += 1
-            if col >= 4:  # 4 columns
+            if col >= 3:
                 col = 0
                 row += 1
-        
-        self.status_label.setText(f"📦 Showing {len(all_items)} items")
-        
+
+        self.status_label.setText(
+            f"✨ {len(all_items)} items from across the galaxy  •  Livy says: Happy shopping! 🦦"
+        )
+
     def matches_category(self, item: 'ShopItem') -> bool:
-        """Check if item matches current category"""
+        """Check if item matches current category."""
         cat_map = {
             "Outfits":     "PANDA_OUTFITS",
             "Clothes":     "CLOTHES",
@@ -401,69 +540,67 @@ class ShopPanelQt(QWidget):
             "Food":        "FOOD",
             "Special":     "SPECIAL",
         }
-        
         target_cat = cat_map.get(self.current_category)
         if not target_cat:
             return True
-        
-        return item.category.name == target_cat
-        
+        return getattr(getattr(item, 'category', None), 'name', '') == target_cat
+
     def on_category_changed(self, category: str):
-        """Handle category change"""
         self.current_category = category
         self.refresh_shop()
-        
+
     def filter_items(self, text: str):
-        """Filter items by search text"""
-        # Re-display items with search filter
         self.refresh_shop()
         
     def purchase_item(self, item_id: str):
-        """Purchase an item"""
+        """Purchase an item — Livy confirms the sale!"""
         if not SHOP_AVAILABLE or not self.shop_system or not self.currency_system:
             return
-        
-        # Get item
         item = self.shop_system.get_item(item_id)
         if not item:
             return
-        
-        # Check balance
+
         balance = self.currency_system.get_balance()
-        if balance < item.price:
+        price   = getattr(item, 'price', 0)
+        name    = getattr(item, 'name', item_id)
+        icon    = getattr(item, 'icon', '🎁')
+
+        if balance < price:
             QMessageBox.warning(
                 self,
-                "Insufficient Funds",
-                f"You need {item.price} Bamboo Bucks but only have {balance}.\n\n"
-                "Earn more by completing tasks!"
+                "💸 Livy says: Not enough Bamboo Bucks!",
+                f"{icon} {name} costs {price:,} Bamboo Bucks.\n"
+                f"You have {balance:,} — earn more by completing tasks! 🌟"
             )
             return
-        
-        # Confirm purchase
+
         reply = QMessageBox.question(
             self,
-            "Confirm Purchase",
-            f"Buy {item.name} for {item.price} Bamboo Bucks?",
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+            "🦦 Livy's Checkout",
+            f"Buy {icon} {name}\nfor 💰 {price:,} Bamboo Bucks?\n\n"
+            "Livy happily wraps it up for you! 🎀",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
         )
-        
         if reply == QMessageBox.StandardButton.Yes:
-            balance = self.currency_system.get_balance()
             success, msg, _ = self.shop_system.purchase_item(item_id, balance, level=0)
             if success:
-                self.currency_system.subtract('bamboo_bucks', item.price)
+                try:
+                    self.currency_system.subtract('bamboo_bucks', price)
+                except Exception:
+                    pass
                 QMessageBox.information(
                     self,
-                    "Purchase Successful",
-                    f"You bought {item.name}!\n\nCheck your closet to equip it."
+                    "✨ Purchase Complete!",
+                    f"Livy hands you {icon} {name}!\n\n"
+                    "Check your closet or backpack to equip it. 🎒"
                 )
                 self.item_purchased.emit(item_id)
                 self.refresh_shop()
             else:
                 QMessageBox.warning(
                     self,
-                    "Purchase Failed",
-                    msg or "Could not complete purchase. Item may already be owned."
+                    "⚠️ Oops!",
+                    msg or "Something went wrong — Livy will investigate! 🔍"
                 )
     
     def update_coin_display(self, balance: int) -> None:

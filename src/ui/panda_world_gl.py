@@ -65,13 +65,24 @@ _ROAD   = (0.32, 0.32, 0.32)
 _HOUSE  = (0.88, 0.82, 0.72)
 _ROOF   = (0.60, 0.35, 0.25)
 _SHOP   = (0.92, 0.88, 0.80)
-_SHOPRF = (0.25, 0.50, 0.35)
+_SHOPRF = (0.08, 0.52, 0.52)   # Livy's turquoise shop roof
 _CAR_R  = (0.80, 0.15, 0.15)
 _CAR_W  = (0.95, 0.95, 0.95)
-_OTTER  = (0.62, 0.48, 0.32)
-_GOLD   = (0.85, 0.72, 0.12)
-_WOOD   = (0.55, 0.38, 0.20)
-_SIGN   = (0.95, 0.88, 0.55)
+# Livy the otter — layered fur colours
+_OTTER_BACK  = (0.52, 0.38, 0.22)   # darker dorsal fur
+_OTTER_SIDE  = (0.64, 0.50, 0.33)   # mid fur
+_OTTER_BELLY = (0.88, 0.78, 0.60)   # light cream belly
+_OTTER_SNOUT = (0.80, 0.68, 0.50)   # muzzle pad
+_OTTER_NOSE  = (0.18, 0.12, 0.12)   # dark nose
+_OTTER_PAWS  = (0.46, 0.33, 0.18)   # darker paw pads
+# Livy's turquoise favourite colour
+_LIVY_TURQ   = (0.08, 0.72, 0.72)   # apron / scarf / eyes
+_LIVY_TURQ_D = (0.04, 0.52, 0.55)   # darker turquoise trim
+_GOLD        = (0.85, 0.72, 0.12)
+_WOOD        = (0.55, 0.38, 0.20)
+_SIGN        = (0.95, 0.88, 0.55)
+# Shop name displayed on sign
+_SHOP_NAME   = "Cosmic Otter Supply Co."
 
 # ── Named screen-position offsets for otter tooltip placement
 OTTER_SCREEN_OFFSET_X = 60
@@ -104,12 +115,20 @@ class PandaWorldGL(
         super().__init__(parent)
         self._gl_ready = False
         self._frame    = 0
-        self._otter_blink = 0   # countdown frames to next blink
-        self._otter_eye_close = 0
+        # Car animation
         self._car_bob   = 0.0
         self._car_color = list(_CAR_R)  # mutable — changed by set_car_color()
         self._hover     = ''    # region currently under cursor
-        self._otter_happy_t = 0  # orange flash frames when clicked
+        # Livy the otter animation state
+        self._otter_blink      = 180    # countdown frames to next blink
+        self._otter_eye_close  = 0      # frames to keep eyes shut
+        self._otter_happy_t    = 0      # turquoise flash frames when clicked
+        self._otter_wave_t     = 0      # arm-wave countdown
+        self._otter_head_bob   = 0.0    # idle head-bob phase
+        self._otter_tail_angle = 0.0    # tail sway angle
+        self._otter_shuffle_t  = 0      # counter-shuffle animation timer
+        self._otter_look_x     = 0.0    # head turn angle
+        self._otter_look_phase = 0      # countdown to next random look
 
         self.setMinimumSize(400, 300)
         if PYQT_AVAILABLE:
@@ -167,18 +186,49 @@ class PandaWorldGL(
 
     # ── Animation tick ────────────────────────────────────────────────────────
     def _tick(self):
+        import random
         self._frame += 1
+        # Car gentle suspension bob
         self._car_bob = math.sin(self._frame * 0.04) * 0.02
+
+        # Livy blink cycle
         if self._otter_blink <= 0:
-            import random
-            self._otter_blink     = random.randint(120, 300)
-            self._otter_eye_close = 5
+            self._otter_blink     = random.randint(100, 280)
+            self._otter_eye_close = 4
         else:
             self._otter_blink -= 1
         if self._otter_eye_close > 0:
             self._otter_eye_close -= 1
+
+        # Livy happy flash countdown
         if self._otter_happy_t > 0:
             self._otter_happy_t -= 1
+
+        # Livy wave countdown
+        if self._otter_wave_t > 0:
+            self._otter_wave_t -= 1
+
+        # Livy idle head-bob (smooth sine)
+        self._otter_head_bob = math.sin(self._frame * 0.025) * 4.0
+
+        # Livy tail sway
+        self._otter_tail_angle = math.sin(self._frame * 0.04) * 18.0
+
+        # Livy random look-around
+        if self._otter_look_phase <= 0:
+            self._otter_look_x = random.uniform(-12.0, 12.0)
+            self._otter_look_phase = random.randint(80, 200)
+        else:
+            self._otter_look_phase -= 1
+            # Smoothly blend current look toward target
+            self._otter_look_x *= 0.96
+
+        # Livy counter-shuffle (occasional item rearrange)
+        if self._otter_shuffle_t > 0:
+            self._otter_shuffle_t -= 1
+        elif random.random() < 0.003:
+            self._otter_shuffle_t = random.randint(20, 50)
+
         if QOGL_AVAILABLE:
             self.update()
 
@@ -364,128 +414,385 @@ class PandaWorldGL(
             glEnable(GL_LIGHTING)
 
     def _draw_shop(self):
-        """A friendly-looking shop on the right side."""
+        """Cosmic Otter Supply Co. — Livy's galactic shop."""
         glEnable(GL_LIGHTING)
-        # Walls
+        # ── Walls (warm cream) ────────────────────────────────────────────────
         glMaterialfv(GL_FRONT, GL_AMBIENT_AND_DIFFUSE, [*_SHOP, 1.0])
         self._box(2.0, 0.0, -5.5,  6.5, 3.2, -2.0)
-        # Roof
+        # ── Roof (Livy's turquoise) ───────────────────────────────────────────
         glMaterialfv(GL_FRONT, GL_AMBIENT_AND_DIFFUSE, [*_SHOPRF, 1.0])
-        self._box(1.8, 3.2, -5.8,  6.8, 3.5, -1.7)
-        # Awning
+        self._box(1.8, 3.2, -5.8,  6.8, 3.55, -1.7)
+        # roof ridge
+        glMaterialfv(GL_FRONT, GL_AMBIENT_AND_DIFFUSE, [*_LIVY_TURQ_D, 1.0])
+        self._box(1.7, 3.55, -5.9,  6.9, 3.70, -1.6)
+        # ── Awning (turquoise stripes) ────────────────────────────────────────
         glDisable(GL_LIGHTING)
-        glColor3f(*_SHOPRF)
-        glBegin(GL_QUADS)
-        glVertex3f(1.8, 3.0, -2.0)
-        glVertex3f(6.8, 3.0, -2.0)
-        glVertex3f(6.8, 2.5, -1.2)
-        glVertex3f(1.8, 2.5, -1.2)
+        for i in range(6):
+            t = i / 5.0
+            x0 = 1.8 + t * 5.0
+            x1 = x0 + 5.0 / 5.0
+            col = _LIVY_TURQ if i % 2 == 0 else _LIVY_TURQ_D
+            glColor3f(*col)
+            glBegin(GL_QUADS)
+            glVertex3f(x0, 3.0, -2.0);  glVertex3f(x1, 3.0, -2.0)
+            glVertex3f(x1, 2.45, -1.15); glVertex3f(x0, 2.45, -1.15)
+            glEnd()
+        # Awning fringe (tiny pendants)
+        glColor3f(*_GOLD)
+        glBegin(GL_LINES)
+        for i in range(12):
+            fx = 1.9 + i * (4.6 / 11.0)
+            glVertex3f(fx, 2.45, -1.15)
+            glVertex3f(fx, 2.22, -1.15)
         glEnd()
         glEnable(GL_LIGHTING)
-        # Shop window (big glass front)
+        # ── Big glass window ──────────────────────────────────────────────────
         glDisable(GL_LIGHTING)
         glEnable(GL_BLEND)
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
-        glColor4f(0.55, 0.75, 0.90, 0.55)
-        self._box(2.3, 0.3, -2.05,  6.2, 2.7, -1.95)
+        glColor4f(0.55, 0.88, 0.90, 0.45)   # turquoise-tinted glass
+        self._box(2.3, 0.3, -2.05, 6.2, 2.7, -1.95)
+        # Window frame bars
+        glColor4f(0.95, 0.95, 0.95, 0.95)
+        self._box(4.22, 0.3, -2.06, 4.28, 2.7, -1.94)   # vertical centre bar
+        self._box(2.3, 1.48, -2.06, 6.2, 1.54, -1.94)   # horizontal bar
         glDisable(GL_BLEND)
         glEnable(GL_LIGHTING)
-        # Door
+        # ── Wooden door ───────────────────────────────────────────────────────
         glMaterialfv(GL_FRONT, GL_AMBIENT_AND_DIFFUSE, [*_WOOD, 1.0])
-        self._box(3.9, 0.0, -2.06,  4.8, 2.2, -1.94)
-        # Sign
+        self._box(3.85, 0.0, -2.07, 4.65, 2.15, -1.93)
+        # door knob
+        glMaterialfv(GL_FRONT, GL_AMBIENT_AND_DIFFUSE, [*_GOLD, 1.0])
+        glPushMatrix()
+        glTranslatef(4.62, 1.05, -1.94)
+        self._sphere(0.05, 6, 6)
+        glPopMatrix()
+        # ── Shop sign ─────────────────────────────────────────────────────────
+        glMaterialfv(GL_FRONT, GL_AMBIENT_AND_DIFFUSE, [0.12, 0.08, 0.20, 1.0])
+        self._box(2.1, 3.5, -4.8, 6.4, 4.05, -4.45)
+        # Sign stars (gold dots as decoration)
         glDisable(GL_LIGHTING)
-        glColor3f(*_SIGN)
-        self._box(2.5, 3.5, -5.0,  6.0, 4.0, -4.5)
+        glColor3f(*_GOLD)
+        glPointSize(4.0)
+        glBegin(0x0000)   # GL_POINTS = 0
+        for sx, sz in [(2.4, -4.62), (2.9, -4.58), (5.8, -4.62), (6.1, -4.57),
+                       (3.8, -4.72), (4.5, -4.68), (5.1, -4.72)]:
+            glVertex3f(sx, 3.78, sz)
+        glEnd()
+        glPointSize(1.0)
         glEnable(GL_LIGHTING)
-        # Draw otter inside
+        # ── Counter ───────────────────────────────────────────────────────────
+        glMaterialfv(GL_FRONT, GL_AMBIENT_AND_DIFFUSE, [*_WOOD, 1.0])
+        self._box(3.0, 0.0, -3.5, 5.4, 1.02, -2.2)
+        # counter front panel
+        glMaterialfv(GL_FRONT, GL_AMBIENT_AND_DIFFUSE, [0.65, 0.45, 0.25, 1.0])
+        self._box(3.0, 0.0, -2.22, 5.4, 1.02, -2.1)
+        # items on counter
+        glMaterialfv(GL_FRONT, GL_AMBIENT_AND_DIFFUSE, [*_LIVY_TURQ, 1.0])
+        glPushMatrix(); glTranslatef(3.4, 1.12, -2.9); self._sphere(0.12, 8, 8); glPopMatrix()
+        glMaterialfv(GL_FRONT, GL_AMBIENT_AND_DIFFUSE, [*_GOLD, 1.0])
+        glPushMatrix(); glTranslatef(5.1, 1.12, -2.7); self._sphere(0.09, 6, 6); glPopMatrix()
+        # ── Draw Livy ─────────────────────────────────────────────────────────
         self._draw_otter()
 
     def _draw_otter(self):
-        """A simple 3-D animated otter standing behind the counter."""
+        """Livy — a fully detailed, animated otter shopkeeper.
+        
+        Livy is a cute girl otter who runs "Cosmic Otter Supply Co." 
+        Her favourite colour is turquoise. She's friendly, expressive, and
+        always happy to see the panda.
+        """
+        if not GL_AVAILABLE:
+            return
         glPushMatrix()
-        glTranslatef(4.2, 0.0, -4.2)
+        glTranslatef(4.2, 0.0, -3.8)
 
-        # Counter
-        glMaterialfv(GL_FRONT, GL_AMBIENT_AND_DIFFUSE, [*_WOOD, 1.0])
-        self._box(-0.8, 0.8, -0.15,  0.8, 1.0, 0.55)
+        # Apply Livy's idle look rotation (she occasionally glances around)
+        glRotatef(self._otter_look_x * 0.4, 0.0, 1.0, 0.0)
 
-        # Body (slightly taller than panda, slimmer)
-        glMaterialfv(GL_FRONT, GL_AMBIENT_AND_DIFFUSE, [*_OTTER, 1.0])
+        t = self._frame
+        head_bob = self._otter_head_bob  # ±4° gentle head nod
+
+        # ── Tail ──────────────────────────────────────────────────────────────
         glPushMatrix()
-        glTranslatef(0.0, 1.8, 0.0)
-        glScalef(0.5, 0.65, 0.45)
+        glTranslatef(0.0, 1.0, -0.55)
+        glRotatef(self._otter_tail_angle, 0.0, 0.0, 1.0)
+        glMaterialfv(GL_FRONT, GL_AMBIENT_AND_DIFFUSE, [*_OTTER_BACK, 1.0])
+        # tapered tail: three decreasing spheres
+        for i, (ty, sc) in enumerate([(0.0, 1.0), (0.22, 0.78), (0.42, 0.55), (0.58, 0.35)]):
+            glPushMatrix()
+            glTranslatef(0.0, -ty, -0.12 * i)
+            glScalef(sc * 0.32, sc * 0.18, sc * 0.22)
+            self._sphere(1.0, 8, 8)
+            glPopMatrix()
+        glPopMatrix()
+
+        # ── Hind legs / webbed feet ───────────────────────────────────────────
+        glMaterialfv(GL_FRONT, GL_AMBIENT_AND_DIFFUSE, [*_OTTER_SIDE, 1.0])
+        for fx in [-0.22, 0.22]:
+            glPushMatrix()
+            glTranslatef(fx, 0.42, 0.0)
+            glScalef(0.55, 1.0, 0.7)
+            self._sphere(0.28, 8, 8)
+            glPopMatrix()
+            # Webbed foot (flat oval)
+            glPushMatrix()
+            glTranslatef(fx, 0.08, 0.18)
+            glScalef(1.6, 0.28, 1.2)
+            glMaterialfv(GL_FRONT, GL_AMBIENT_AND_DIFFUSE, [*_OTTER_PAWS, 1.0])
+            self._sphere(0.20, 8, 8)
+            glPopMatrix()
+
+        # ── Body ──────────────────────────────────────────────────────────────
+        # Lower torso (wider)
+        glMaterialfv(GL_FRONT, GL_AMBIENT_AND_DIFFUSE, [*_OTTER_SIDE, 1.0])
+        glPushMatrix()
+        glTranslatef(0.0, 1.0, 0.0)
+        glScalef(0.62, 0.65, 0.52)
         self._sphere(1.0, 12, 12)
         glPopMatrix()
+        # Upper torso (slightly narrower, forward lean)
+        glPushMatrix()
+        glTranslatef(0.0, 1.65, 0.08)
+        glScalef(0.52, 0.55, 0.46)
+        self._sphere(1.0, 12, 12)
+        glPopMatrix()
+        # Cream belly
+        glMaterialfv(GL_FRONT, GL_AMBIENT_AND_DIFFUSE, [*_OTTER_BELLY, 1.0])
+        glPushMatrix()
+        glTranslatef(0.0, 1.1, 0.28)
+        glScalef(0.35, 0.55, 0.20)
+        self._sphere(1.0, 10, 10)
+        glPopMatrix()
 
-        # Head
+        # ── Turquoise apron ───────────────────────────────────────────────────
+        glEnable(GL_BLEND)
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
+        glMaterialfv(GL_FRONT, GL_AMBIENT_AND_DIFFUSE, [*_LIVY_TURQ, 0.9])
         glPushMatrix()
-        glTranslatef(0.0, 2.75, 0.0)
-        self._sphere(0.38, 12, 12)
-        # Snout
-        glMaterialfv(GL_FRONT, GL_AMBIENT_AND_DIFFUSE, [0.75, 0.62, 0.45, 1.0])
-        glPushMatrix()
-        glTranslatef(0.0, -0.06, 0.34)
-        glScalef(1.0, 0.7, 0.6)
-        self._sphere(0.18, 10, 10)
+        glTranslatef(0.0, 1.15, 0.36)
+        glScalef(0.30, 0.52, 0.12)
+        self._sphere(1.0, 8, 8)
         glPopMatrix()
-        # Nose
-        glMaterialfv(GL_FRONT, GL_AMBIENT_AND_DIFFUSE, [0.12, 0.10, 0.10, 1.0])
+        # Apron pocket
+        glMaterialfv(GL_FRONT, GL_AMBIENT_AND_DIFFUSE, [*_LIVY_TURQ_D, 0.95])
         glPushMatrix()
-        glTranslatef(0.0, 0.04, 0.52)
-        self._sphere(0.06, 8, 8)
+        glTranslatef(0.0, 0.95, 0.44)
+        glScalef(0.14, 0.10, 0.08)
+        self._sphere(1.0, 6, 6)
         glPopMatrix()
-        # Ears
-        glMaterialfv(GL_FRONT, GL_AMBIENT_AND_DIFFUSE, [*_OTTER, 1.0])
+        # Star badge on apron
+        glMaterialfv(GL_FRONT, GL_AMBIENT_AND_DIFFUSE, [*_GOLD, 1.0])
+        glPushMatrix()
+        glTranslatef(-0.18, 1.50, 0.44)
+        self._sphere(0.05, 6, 6)
+        glPopMatrix()
+        glDisable(GL_BLEND)
+
+        # ── Arms ──────────────────────────────────────────────────────────────
+        glMaterialfv(GL_FRONT, GL_AMBIENT_AND_DIFFUSE, [*_OTTER_SIDE, 1.0])
+        wave_bob = math.sin(t * 0.08) * 8.0
+        # Each arm: upper arm + forearm + paw
+        for ax, side in [(-0.52, 1.0), (0.52, -1.0)]:
+            base_angle = -45.0 + wave_bob * side   # greeting wave
+            if self._otter_wave_t > 0:
+                base_angle = -90.0 + math.sin(t * 0.25) * 30.0 * side
+            # Upper arm
+            glPushMatrix()
+            glTranslatef(ax, 1.75, 0.05)
+            glRotatef(base_angle, 0.0, 0.0, 1.0)
+            glPushMatrix()
+            glTranslatef(0.0, -0.22, 0.0)
+            glScalef(0.28, 0.42, 0.28)
+            self._sphere(1.0, 8, 8)
+            glPopMatrix()
+            # Forearm
+            glTranslatef(0.0, -0.44, 0.0)
+            glRotatef(12.0 * side, 0.0, 0.0, 1.0)
+            glPushMatrix()
+            glTranslatef(0.0, -0.18, 0.0)
+            glScalef(0.22, 0.36, 0.22)
+            self._sphere(1.0, 8, 8)
+            glPopMatrix()
+            # Paw
+            glTranslatef(0.0, -0.32, 0.0)
+            glMaterialfv(GL_FRONT, GL_AMBIENT_AND_DIFFUSE, [*_OTTER_PAWS, 1.0])
+            glScalef(1.3, 0.6, 1.2)
+            self._sphere(0.14, 8, 8)
+            glMaterialfv(GL_FRONT, GL_AMBIENT_AND_DIFFUSE, [*_OTTER_SIDE, 1.0])
+            glPopMatrix()
+
+        # ── Neck ──────────────────────────────────────────────────────────────
+        glMaterialfv(GL_FRONT, GL_AMBIENT_AND_DIFFUSE, [*_OTTER_SIDE, 1.0])
+        glPushMatrix()
+        glTranslatef(0.0, 2.18, 0.06)
+        glScalef(0.35, 0.36, 0.35)
+        self._sphere(1.0, 8, 8)
+        glPopMatrix()
+        # Turquoise scarf
+        glMaterialfv(GL_FRONT, GL_AMBIENT_AND_DIFFUSE, [*_LIVY_TURQ, 1.0])
+        glPushMatrix()
+        glTranslatef(0.0, 2.22, 0.05)
+        glScalef(0.42, 0.12, 0.40)
+        self._sphere(1.0, 8, 8)
+        glPopMatrix()
+
+        # ── Head ──────────────────────────────────────────────────────────────
+        glPushMatrix()
+        glTranslatef(0.0, 2.72, 0.05)
+        glRotatef(head_bob, 1.0, 0.0, 0.0)   # idle head nod
+
+        # Skull — wide, round forehead
+        glMaterialfv(GL_FRONT, GL_AMBIENT_AND_DIFFUSE, [*_OTTER_BACK, 1.0])
+        glPushMatrix()
+        glScalef(1.0, 0.96, 0.92)
+        self._sphere(0.40, 12, 12)
+        glPopMatrix()
+
+        # Forehead lighter patch
+        glMaterialfv(GL_FRONT, GL_AMBIENT_AND_DIFFUSE, [*_OTTER_SIDE, 1.0])
+        glPushMatrix()
+        glTranslatef(0.0, 0.10, 0.24)
+        glScalef(0.80, 0.55, 0.55)
+        self._sphere(0.34, 10, 10)
+        glPopMatrix()
+
+        # Rounded ears (small, close to head)
+        glMaterialfv(GL_FRONT, GL_AMBIENT_AND_DIFFUSE, [*_OTTER_BACK, 1.0])
         for ex in [-0.30, 0.30]:
             glPushMatrix()
-            glTranslatef(ex, 0.28, -0.10)
-            glScalef(0.6, 0.8, 0.5)
-            self._sphere(0.16, 8, 8)
+            glTranslatef(ex, 0.25, -0.10)
+            glScalef(0.70, 0.85, 0.60)
+            self._sphere(0.15, 8, 8)
             glPopMatrix()
+            # Inner ear (pink)
+            glMaterialfv(GL_FRONT, GL_AMBIENT_AND_DIFFUSE, [0.88, 0.60, 0.65, 1.0])
+            glPushMatrix()
+            glTranslatef(ex * 0.88, 0.25, -0.04)
+            glScalef(0.45, 0.55, 0.30)
+            self._sphere(0.12, 6, 6)
+            glPopMatrix()
+            glMaterialfv(GL_FRONT, GL_AMBIENT_AND_DIFFUSE, [*_OTTER_BACK, 1.0])
 
-        # Eyes (blink support)
+        # Snout pad (prominent, with whisker areas)
+        glMaterialfv(GL_FRONT, GL_AMBIENT_AND_DIFFUSE, [*_OTTER_SNOUT, 1.0])
+        glPushMatrix()
+        glTranslatef(0.0, -0.08, 0.33)
+        glScalef(1.05, 0.72, 0.72)
+        self._sphere(0.22, 10, 10)
+        glPopMatrix()
+        # Muzzle underside cream
+        glMaterialfv(GL_FRONT, GL_AMBIENT_AND_DIFFUSE, [*_OTTER_BELLY, 1.0])
+        glPushMatrix()
+        glTranslatef(0.0, -0.16, 0.38)
+        glScalef(0.80, 0.45, 0.55)
+        self._sphere(0.18, 8, 8)
+        glPopMatrix()
+        # Nose (dark, slightly heart-shaped via scaling)
+        glMaterialfv(GL_FRONT, GL_AMBIENT_AND_DIFFUSE, [*_OTTER_NOSE, 1.0])
+        glPushMatrix()
+        glTranslatef(0.0, 0.04, 0.54)
+        glScalef(1.2, 0.85, 0.70)
+        self._sphere(0.065, 8, 8)
+        glPopMatrix()
+
+        # ── Turquoise eyes with shine ─────────────────────────────────────────
         if self._otter_eye_close > 2:
-            eye_sy = 0.2   # squished (blinking)
+            eye_sy = 0.15   # squished (blinking)
         else:
             eye_sy = 1.0
-        happy_col = [0.20, 0.60, 0.90] if self._otter_happy_t > 0 else [0.12, 0.10, 0.10]
-        glMaterialfv(GL_FRONT, GL_AMBIENT_AND_DIFFUSE, [*happy_col, 1.0])
-        for ex in [-0.15, 0.15]:
+        # Iris (turquoise when happy, else bright turquoise)
+        happy = self._otter_happy_t > 0
+        iris_col = [0.0, 0.82, 0.85] if not happy else [0.92, 0.82, 0.10]
+        glMaterialfv(GL_FRONT, GL_AMBIENT_AND_DIFFUSE, [*iris_col, 1.0])
+        for ex in [-0.16, 0.16]:
             glPushMatrix()
-            glTranslatef(ex, 0.08, 0.34)
+            glTranslatef(ex, 0.09, 0.38)
             glScalef(1.0, eye_sy, 1.0)
-            self._sphere(0.06, 8, 8)
+            self._sphere(0.072, 8, 8)
             glPopMatrix()
-        glPopMatrix()   # end head
-
-        # Arms raised (shopkeeper greeting pose)
-        glMaterialfv(GL_FRONT, GL_AMBIENT_AND_DIFFUSE, [*_OTTER, 1.0])
-        bob_arm = math.sin(self._frame * 0.04) * 4.0
-        for ax, side in [(-0.5, 1.0), (0.5, -1.0)]:
+            # Pupil (dark centre)
+            glMaterialfv(GL_FRONT, GL_AMBIENT_AND_DIFFUSE, [0.05, 0.05, 0.08, 1.0])
             glPushMatrix()
-            glTranslatef(ax, 2.0, 0.0)
-            glRotatef(-50.0 + bob_arm * side, 0.0, 0.0, 1.0)
+            glTranslatef(ex, 0.09, 0.445)
+            glScalef(1.0, eye_sy, 1.0)
+            self._sphere(0.038, 6, 6)
+            glPopMatrix()
+            # Eye-shine (white sparkle, top-right of eye)
+            glMaterialfv(GL_FRONT, GL_AMBIENT_AND_DIFFUSE, [0.95, 0.95, 0.95, 1.0])
             glPushMatrix()
-            glTranslatef(0.0, -0.28, 0.0)
-            glScalef(0.3, 0.6, 0.3)
-            self._sphere(1.0, 10, 10)
+            glTranslatef(ex + 0.024, 0.118, 0.448)
+            glScalef(1.0, eye_sy, 1.0)
+            self._sphere(0.018, 6, 6)
             glPopMatrix()
-            glPopMatrix()
+            glMaterialfv(GL_FRONT, GL_AMBIENT_AND_DIFFUSE, [*iris_col, 1.0])
 
-        glPopMatrix()   # end otter transform
+        # Whiskers (GL_LINES — 3 per side)
+        glDisable(GL_LIGHTING)
+        glLineWidth(1.0)
+        glColor3f(0.90, 0.88, 0.82)
+        glBegin(GL_LINES)
+        for side, wx_base in [(-1.0, -0.22), (1.0, 0.22)]:
+            for angle in [-6.0, 0.0, 6.0]:
+                rad = math.radians(angle)
+                lx = math.sin(rad) * 0.22 * side
+                ly = math.cos(rad) * 0.05
+                glVertex3f(wx_base, -0.08, 0.38)
+                glVertex3f(wx_base + lx * side, -0.08 + ly, 0.38 + 0.20)
+        glEnd()
+        glLineWidth(1.0)
+        glEnable(GL_LIGHTING)
 
-        # Hover / click highlight
+        # Small smile line
+        glDisable(GL_LIGHTING)
+        glColor3f(*_OTTER_NOSE)
+        glLineWidth(1.5)
+        glBegin(GL_LINES)
+        glVertex3f(-0.04, -0.15, 0.53);  glVertex3f(0.0, -0.18, 0.555)
+        glVertex3f(0.04, -0.15, 0.53);   glVertex3f(0.0, -0.18, 0.555)
+        glEnd()
+        glLineWidth(1.0)
+        glEnable(GL_LIGHTING)
+
+        # Counter-shuffle animation: slight left-right lean when shuffling
+        if self._otter_shuffle_t > 0:
+            glDisable(GL_LIGHTING)
+            glColor3f(*_LIVY_TURQ)
+            glPointSize(3.0)
+            glBegin(0x0000)  # GL_POINTS
+            t2 = self._otter_shuffle_t / 50.0
+            for i in range(5):
+                px = -0.3 + i * 0.15
+                py = 0.35 + math.sin(t2 * math.pi + i) * 0.08
+                glVertex3f(px, py, 0.58)
+            glEnd()
+            glPointSize(1.0)
+            glEnable(GL_LIGHTING)
+
+        glPopMatrix()  # end head
+
+        glPopMatrix()  # end otter world transform
+
+        # ── Click / hover highlight (turquoise glow) ──────────────────────────
         if self._hover == 'otter' or self._otter_happy_t > 0:
             glDisable(GL_LIGHTING)
-            glColor3f(1.0, 0.85, 0.2)
-            glLineWidth(2.0)
+            glColor3f(*_LIVY_TURQ)
+            glLineWidth(2.5)
             glPushMatrix()
-            glTranslatef(4.2, 0.0, -4.2)
+            glTranslatef(4.2, 0.0, -3.8)
             glBegin(GL_LINE_LOOP)
-            for vx, vz in [(-1.0, -0.7), (1.0, -0.7), (1.0, 0.7), (-1.0, 0.7)]:
-                glVertex3f(vx, 3.2, vz)
+            for vx, vz in [(-1.1, -0.8), (1.1, -0.8), (1.1, 0.8), (-1.1, 0.8)]:
+                glVertex3f(vx, 3.4, vz)
             glEnd()
+            # "Click me!" indicator stars
+            if self._hover == 'otter':
+                glColor3f(*_GOLD)
+                glPointSize(5.0)
+                glBegin(0x0000)
+                for sx, sy in [(-0.8, 3.55), (0.0, 3.65), (0.8, 3.55)]:
+                    glVertex3f(sx, sy, 0.0)
+                glEnd()
+                glPointSize(1.0)
             glPopMatrix()
             glLineWidth(1.0)
             glEnable(GL_LIGHTING)
@@ -578,7 +885,8 @@ class PandaWorldGL(
         if region == 'car':
             self._show_destination_picker()
         elif region in ('shop', 'otter'):
-            self._otter_happy_t = 60
+            self._otter_happy_t = 80
+            self._otter_wave_t  = 90   # Livy waves when clicked
             self.otter_clicked.emit()
         elif region == 'home':
             self.back_to_bedroom.emit()

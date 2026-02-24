@@ -476,6 +476,7 @@ class TextureSorterMainWindow(QMainWindow):
         # Bedroom + inventory panel refs (set in create_panda_features_tab)
         self._bedroom_widget = None   # PandaBedroomGL instance
         self._world_widget   = None   # PandaWorldWidget instance (lazy-created)
+        self._otter_shop_panel = None  # ShopPanelQt — cached (Livy's shop)
         self._panda_tabs = None       # inner QTabWidget for panda features
         self._inventory_panel = None  # InventoryPanelQt instance
         self._widgets_panel = None    # WidgetsPanelQt instance (shown via backpack)
@@ -4212,20 +4213,32 @@ class TextureSorterMainWindow(QMainWindow):
             logger.debug(f"_go_back_to_bedroom: {_e}")
 
     def _on_otter_clicked(self) -> None:
-        """Otter was clicked in the world — show the shop panel."""
+        """Livy the otter was clicked — open Cosmic Otter Supply Co."""
         try:
             from ui.shop_panel_qt import ShopPanelQt
-            shop = ShopPanelQt(self.shop_system, self.inventory_system,
-                               self.currency_system, self.panda_character)
-            shop.item_purchased.connect(self._on_shop_purchase_completed)
-            self._home_stack_owned.append(shop)
-            self._show_home_sub_panel(shop, '🦦 Otter Shop')
+            if self._otter_shop_panel is None:
+                self._otter_shop_panel = ShopPanelQt(
+                    self.shop_system,
+                    getattr(self, 'currency_system', None),
+                    tooltip_manager=self.tooltip_manager,
+                )
+                self._otter_shop_panel.item_purchased.connect(self._on_shop_purchase_completed)
+                self._home_stack_owned.append(self._otter_shop_panel)
+            # Refresh coin balance every time the shop opens
+            try:
+                bal = self.currency_system.get_balance()
+                self._otter_shop_panel.update_coin_display(bal)
+            except Exception:
+                pass
+            self._show_home_sub_panel(self._otter_shop_panel, '🦦 Cosmic Otter Supply Co.')
+            if self.panda_widget:
+                self.panda_widget.set_animation_state('waving')
         except Exception as _e:
             logger.debug(f"_on_otter_clicked: {_e}")
-            label = QLabel("🛒 Otter Shop\n\n(Shop panel not available)")
+            label = QLabel("🛒 Cosmic Otter Supply Co.\n\n(Shop panel not available)")
             label.setAlignment(Qt.AlignmentFlag.AlignCenter)
             self._home_stack_owned.append(label)
-            self._show_home_sub_panel(label, '🛒 Otter Shop')
+            self._show_home_sub_panel(label, '🦦 Cosmic Otter Supply Co.')
 
     def _on_world_destination_selected(self, destination: str) -> None:
         """Handle car/park/shop destination selection from the world scene."""
