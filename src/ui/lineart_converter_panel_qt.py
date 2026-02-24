@@ -13,10 +13,10 @@ try:
         QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
         QFileDialog, QMessageBox, QProgressBar, QComboBox,
         QSlider, QCheckBox, QSpinBox, QDoubleSpinBox, QGroupBox,
-        QScrollArea, QFrame, QTextEdit
+        QScrollArea, QFrame, QTextEdit, QColorDialog, QSplitter
     )
     from PyQt6.QtCore import Qt, QThread, pyqtSignal, QTimer
-    from PyQt6.QtGui import QPixmap, QImage
+    from PyQt6.QtGui import QPixmap, QImage, QColor
     PYQT_AVAILABLE = True
 except (ImportError, OSError, RuntimeError):
     PYQT_AVAILABLE = False
@@ -121,8 +121,46 @@ except (ImportError, OSError, RuntimeError):
 
 IMAGE_EXTENSIONS = {'.png', '.jpg', '.jpeg', '.bmp', '.tiff', '.webp'}
 
-# Line art presets
+# Line art presets  (tattoo presets always first)
 LINEART_PRESETS = {
+    # ── Tattoo presets ─────────────────────────────────────────────────────
+    "🪡 Tattoo — Black on Transparent": {
+        "desc": "Ultra-clean black lines on a fully transparent background. "
+                "Best for tattoo reference sheets, layering in Photoshop, or printing on stencil film.",
+        "mode": "pure_black", "threshold": 118, "auto_threshold": False,
+        "background": "transparent", "invert": False, "remove_midtones": True,
+        "midtone_threshold": 192, "contrast": 2.5, "sharpen": True,
+        "sharpen_amount": 1.9, "morphology": "close", "morph_iter": 1,
+        "kernel": 3, "denoise": True, "denoise_size": 1,
+    },
+    "🪡 Tattoo — Black on White (Stencil Print)": {
+        "desc": "Solid black lines on white — ready to print as a tattoo stencil "
+                "or thermal transfer sheet.",
+        "mode": "pure_black", "threshold": 122, "auto_threshold": False,
+        "background": "white", "invert": False, "remove_midtones": True,
+        "midtone_threshold": 190, "contrast": 2.3, "sharpen": True,
+        "sharpen_amount": 1.7, "morphology": "close", "morph_iter": 1,
+        "kernel": 3, "denoise": True, "denoise_size": 2,
+    },
+    "🪡 Tattoo — Fine Line": {
+        "desc": "Delicate hairline strokes for contemporary fine-line tattoo artwork. "
+                "Preserves thin details; erodes stray noise.",
+        "mode": "pure_black", "threshold": 108, "auto_threshold": False,
+        "background": "transparent", "invert": False, "remove_midtones": True,
+        "midtone_threshold": 222, "contrast": 1.9, "sharpen": True,
+        "sharpen_amount": 2.6, "morphology": "erode", "morph_iter": 1,
+        "kernel": 3, "denoise": False, "denoise_size": 0,
+    },
+    "🪡 Tattoo — Bold Traditional": {
+        "desc": "Thick bold outlines in American-traditional style. "
+                "High contrast, heavily dilated strokes that hold up at any scale.",
+        "mode": "pure_black", "threshold": 128, "auto_threshold": False,
+        "background": "transparent", "invert": False, "remove_midtones": True,
+        "midtone_threshold": 172, "contrast": 3.1, "sharpen": True,
+        "sharpen_amount": 1.4, "morphology": "dilate", "morph_iter": 2,
+        "kernel": 5, "denoise": True, "denoise_size": 3,
+    },
+    # ── General-purpose presets ────────────────────────────────────────────
     "⭐ Clean Ink Lines": {
         "desc": "Crisp black ink lines — the go-to for most art & game textures",
         "mode": "pure_black", "threshold": 135, "auto_threshold": False,
@@ -222,7 +260,7 @@ LINEART_PRESETS = {
     "🖤 Inverted Lines (White on Black)": {
         "desc": "White lines on black background for dark themes",
         "mode": "pure_black", "threshold": 135, "auto_threshold": False,
-        "background": "white", "invert": True, "remove_midtones": True,
+        "background": "black", "invert": True, "remove_midtones": True,
         "midtone_threshold": 210, "contrast": 1.6, "sharpen": True,
         "sharpen_amount": 1.3, "morphology": "close", "morph_iter": 1,
         "kernel": 3, "denoise": True, "denoise_size": 2,
@@ -680,6 +718,26 @@ class LineArtConverterPanelQt(QWidget):
         self.remove_midtones_cb.setChecked(True)
         self.remove_midtones_cb.stateChanged.connect(self._schedule_preview_update)
         group_layout.addWidget(self.remove_midtones_cb)
+
+        # ── Background colour ──────────────────────────────────────────────
+        bg_layout = QHBoxLayout()
+        bg_layout.addWidget(QLabel("Background:"))
+        self.bg_mode_combo = QComboBox()
+        self.bg_mode_combo.addItem("⬜ Transparent (PNG/WebP only)", "transparent")
+        self.bg_mode_combo.addItem("⬜ White", "white")
+        self.bg_mode_combo.addItem("⬛ Black", "black")
+        self.bg_mode_combo.addItem("🎨 Custom colour…", "custom")
+        self.bg_mode_combo.currentIndexChanged.connect(self._on_bg_mode_changed)
+        bg_layout.addWidget(self.bg_mode_combo, 1)
+        self._bg_custom_color = "#ffffff"   # remembered custom colour
+        self.bg_custom_swatch = QPushButton()
+        self.bg_custom_swatch.setFixedSize(28, 28)
+        self.bg_custom_swatch.setToolTip("Click to pick a custom background colour")
+        self.bg_custom_swatch.setStyleSheet(f"background:{self._bg_custom_color}; border:1px solid #888; border-radius:3px;")
+        self.bg_custom_swatch.setVisible(False)
+        self.bg_custom_swatch.clicked.connect(self._pick_custom_bg_color)
+        bg_layout.addWidget(self.bg_custom_swatch)
+        group_layout.addLayout(bg_layout)
         
         group.setLayout(group_layout)
         layout.addWidget(group)
@@ -737,10 +795,12 @@ class LineArtConverterPanelQt(QWidget):
             # Wrap in QScrollArea for zoom/pan
             from PyQt6.QtWidgets import QScrollArea as _SA
             self._preview_scroll = _SA()
-            self._preview_scroll.setWidgetResizable(True)
+            self._preview_scroll.setWidgetResizable(False)
             self._preview_scroll.setWidget(self.preview_widget)
             self._preview_scroll.setMinimumHeight(400)
             group_layout.addWidget(self._preview_scroll)
+            # Scroll-wheel zoom works for both paths
+            self._preview_scroll.wheelEvent = self._preview_wheel_event
         else:
             # Fallback: scrollable label
             from PyQt6.QtWidgets import QScrollArea as _SA
@@ -766,21 +826,32 @@ class LineArtConverterPanelQt(QWidget):
         layout.addWidget(group)
 
     def _apply_preview_zoom(self):
-        """Scale the preview label to the current zoom level."""
+        """Scale the preview to the current zoom level (works for both label and slider)."""
         pct = int(self._preview_zoom * 100)
-        self._zoom_label.setText(f"{pct}%")
+        if hasattr(self, '_zoom_label'):
+            self._zoom_label.setText(f"{pct}%")
         try:
-            if hasattr(self, 'preview_label') and self.preview_label.pixmap() and not self.preview_label.pixmap().isNull():
+            if hasattr(self, 'preview_label'):
                 pm = self.preview_label.property('_original_pixmap')
-                if pm:
-                    w = int(pm.width()  * self._preview_zoom)
-                    h = int(pm.height() * self._preview_zoom)
+                if pm and not pm.isNull():
+                    w = max(1, int(pm.width() * self._preview_zoom))
+                    h = max(1, int(pm.height() * self._preview_zoom))
                     self.preview_label.setPixmap(pm.scaled(
                         w, h,
                         Qt.AspectRatioMode.KeepAspectRatio,
                         Qt.TransformationMode.SmoothTransformation,
                     ))
                     self.preview_label.resize(w, h)
+            elif hasattr(self, 'preview_widget') and SLIDER_AVAILABLE:
+                # Scale the ComparisonSliderWidget itself inside its scroll area
+                pw = self.preview_widget
+                if not hasattr(pw, '_base_size'):
+                    pw._base_size = pw.size()
+                bw = max(400, pw._base_size.width())
+                bh = max(400, pw._base_size.height())
+                nw = max(200, int(bw * self._preview_zoom))
+                nh = max(200, int(bh * self._preview_zoom))
+                pw.setFixedSize(nw, nh)
         except Exception:
             pass
 
@@ -908,10 +979,41 @@ class LineArtConverterPanelQt(QWidget):
             # Midtone settings
             self.midtone_spin.setValue(preset["midtone_threshold"])
             self.remove_midtones_cb.setChecked(preset["remove_midtones"])
-            
+
+            # Background mode
+            if hasattr(self, 'bg_mode_combo'):
+                bg_val = preset.get("background", "transparent")
+                for i in range(self.bg_mode_combo.count()):
+                    if self.bg_mode_combo.itemData(i) == bg_val:
+                        self.bg_mode_combo.setCurrentIndex(i)
+                        break
+
             # Trigger preview update
             self._schedule_preview_update()
     
+    def _on_bg_mode_changed(self, index: int):
+        """Show/hide the custom colour swatch, then trigger a preview update."""
+        is_custom = (self.bg_mode_combo.currentData() == "custom") if hasattr(self, 'bg_mode_combo') else False
+        if hasattr(self, 'bg_custom_swatch'):
+            self.bg_custom_swatch.setVisible(is_custom)
+        self._schedule_preview_update()
+
+    def _pick_custom_bg_color(self):
+        """Open a colour-picker dialog for custom background colour."""
+        try:
+            from PyQt6.QtWidgets import QColorDialog as _QCD
+            from PyQt6.QtGui import QColor as _QC
+            initial = _QC(self._bg_custom_color)
+            color = _QCD.getColor(initial, self, "Pick Background Colour")
+            if color.isValid():
+                self._bg_custom_color = color.name()
+                self.bg_custom_swatch.setStyleSheet(
+                    f"background:{self._bg_custom_color}; border:1px solid #888; border-radius:3px;"
+                )
+                self._schedule_preview_update()
+        except Exception:
+            pass
+
     def _schedule_preview_update(self):
         """Schedule preview update with debouncing."""
         # Cancel any pending preview
@@ -935,11 +1037,24 @@ class LineArtConverterPanelQt(QWidget):
     
     def _create_settings_from_controls(self):
         """Create LineArtSettings from current control values."""
+        # Background mode
+        _BG_MAP = {
+            "transparent": BackgroundMode.TRANSPARENT if BackgroundMode else None,
+            "white":       getattr(BackgroundMode, 'WHITE',       None) if BackgroundMode else None,
+            "black":       getattr(BackgroundMode, 'BLACK',       None) if BackgroundMode else None,
+        }
+        bg_key = "transparent"
+        if hasattr(self, 'bg_mode_combo'):
+            bg_key = self.bg_mode_combo.currentData() or "transparent"
+            if bg_key == "custom":
+                bg_key = "white"   # custom colour falls back to white for backend (colouring applied later)
+        bg_mode = _BG_MAP.get(bg_key) or (BackgroundMode.TRANSPARENT if BackgroundMode else None)
+
         return LineArtSettings(
             mode=ConversionMode.PURE_BLACK,
             threshold=self.threshold_slider.value(),
             auto_threshold=self.auto_threshold_cb.isChecked(),
-            background_mode=BackgroundMode.TRANSPARENT,
+            background_mode=bg_mode,
             invert=False,
             remove_midtones=self.remove_midtones_cb.isChecked(),
             midtone_threshold=self.midtone_spin.value(),

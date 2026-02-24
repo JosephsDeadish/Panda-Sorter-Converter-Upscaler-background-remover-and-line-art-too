@@ -890,9 +890,7 @@ class TextureSorterMainWindow(QMainWindow):
         def _select_tool(idx: int, tool_id: str):
             tool_stack.setCurrentIndex(idx)
             for _tid, _btn in self._tool_btn_group:
-                _btn.setProperty("active", _tid == tool_id)
-                _btn.style().unpolish(_btn)
-                _btn.style().polish(_btn)
+                _btn.setChecked(_tid == tool_id)
 
         # Tools — each panel is guarded individually so one failure
         #    does NOT prevent the other tools from loading.

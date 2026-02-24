@@ -160,6 +160,25 @@ except (ImportError, OSError, RuntimeError):
     ARCHIVE_AVAILABLE = False
     logger.warning("Archive handler not available")
 
+# Human-readable descriptions for every organisation style key.
+# Defined once here and referenced by both _create_mode_selection_section
+# and _on_style_changed so they never drift out of sync.
+_STYLE_DESCRIPTIONS: dict = {
+    "appearance":    "Groups files by visual look — skin tones, stone, metal, wood, fabric, etc.",
+    "by_appearance": "Groups files by visual look — skin tones, stone, metal, wood, fabric, etc.",
+    "type":          "Groups by subject type — characters, props, environments, UI elements…",
+    "by_type":       "Groups by subject type — characters, props, environments, UI elements…",
+    "location":      "Groups by in-scene location — interior rooms, exterior environments, terrain…",
+    "by_location":   "Groups by in-scene location — interior rooms, exterior environments, terrain…",
+    "resolution":    "Groups by pixel dimensions — separate folders for 512, 1K, 2K, 4K images.",
+    "by_resolution": "Groups by pixel dimensions — separate folders for 512, 1K, 2K, 4K images.",
+    "system":        "Groups by map/usage role — Diffuse, Normal, Specular, Alpha, Emissive…",
+    "by_system":     "Groups by map/usage role — Diffuse, Normal, Specular, Alpha, Emissive…",
+    "flat":          "All files go into one output folder, sorted alphabetically.",
+    "minimalist":    "Two-level hierarchy: broad category → filename only.",
+    "maximum_detail": "Deep hierarchy: category → sub-type → resolution sub-folder.",
+    "custom":        "Applies rules from your custom_style.json configuration file.",
+}
 
 class OrganizerWorker(QThread):
     """Worker thread for organizing textures with AI classification."""
@@ -553,65 +572,68 @@ class OrganizerPanelQt(QWidget):
         layout.addWidget(label)
     
     def _create_ui(self):
-        """Create the comprehensive UI."""
-        layout = QVBoxLayout(self)
-        layout.setSpacing(5)
-        layout.setContentsMargins(10, 10, 10, 10)
-        
-        # Title
+        """Create the comprehensive UI — left controls, right work area."""
+        root = QVBoxLayout(self)
+        root.setSpacing(4)
+        root.setContentsMargins(8, 8, 8, 8)
+
+        # ── Title bar ──────────────────────────────────────────────────────
         title_label = QLabel("🤖 AI-Powered Texture Organizer")
-        title_label.setStyleSheet("font-size: 18pt; font-weight: bold;")
+        title_label.setStyleSheet("font-size: 16pt; font-weight: bold;")
         title_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        layout.addWidget(title_label)
-        
-        # AI Status indicator with detailed information
+        root.addWidget(title_label)
+
         if VISION_MODELS_AVAILABLE:
-            status_label = QLabel("✓ AI Models Ready")
-            status_label.setStyleSheet("color: green; font-size: 10pt; font-weight: bold;")
+            status_label = QLabel("✓ AI Vision Ready — organizes by visual appearance")
+            status_label.setStyleSheet("color: #4caf50; font-size: 9pt; font-weight: bold;")
         else:
-            status_text = "⚠️ AI Models Not Available\n"
-            status_text += "📦 Missing dependencies: PyTorch and/or Transformers\n"
-            status_text += "💡 Install: pip install torch torchvision transformers\n"
-            status_text += "ℹ️ Organizer will use basic classification without AI"
-            status_label = QLabel(status_text)
-            status_label.setStyleSheet("color: orange; font-size: 9pt; font-weight: bold;")
-            status_label.setWordWrap(True)
+            status_label = QLabel(
+                "⚠️ AI not available — using filename/size heuristics  "
+                "│  Install: pip install torch torchvision transformers"
+            )
+            status_label.setStyleSheet("color: #ff9800; font-size: 9pt;")
         status_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        layout.addWidget(status_label)
-        
-        # Main scroll area
-        scroll = QScrollArea()
-        scroll.setWidgetResizable(True)
-        scroll.setFrameShape(QFrame.Shape.NoFrame)
-        
-        container = QWidget()
-        main_layout = QVBoxLayout(container)
-        
-        # Game Detection Section
-        self._create_game_detection_section(main_layout)
-        
-        # Mode Selection
-        self._create_mode_selection_section(main_layout)
-        
-        # File Input Section
-        self._create_file_input_section(main_layout)
-        
-        # Work Area (Preview + Classification)
-        self._create_work_area_section(main_layout)
-        
-        # Progress Section
-        self._create_progress_section(main_layout)
-        
-        # Action Buttons
-        self._create_action_buttons(main_layout)
-        
-        # Settings (collapsible)
-        self._create_settings_section(main_layout)
-        
-        main_layout.addStretch()
-        
-        scroll.setWidget(container)
-        layout.addWidget(scroll)
+        root.addWidget(status_label)
+
+        # ── Main horizontal splitter: LEFT = controls, RIGHT = work area ──
+        splitter = QSplitter(Qt.Orientation.Horizontal)
+        splitter.setChildrenCollapsible(False)
+
+        # ── LEFT PANEL (settings + file IO + buttons) ─────────────────────
+        left_scroll = QScrollArea()
+        left_scroll.setWidgetResizable(True)
+        left_scroll.setFrameShape(QFrame.Shape.NoFrame)
+        left_scroll.setMinimumWidth(280)
+        left_scroll.setMaximumWidth(420)
+
+        left_container = QWidget()
+        left_layout = QVBoxLayout(left_container)
+        left_layout.setSpacing(8)
+        left_layout.setContentsMargins(4, 4, 4, 4)
+
+        self._create_mode_selection_section(left_layout)
+        self._create_file_input_section(left_layout)
+        self._create_progress_section(left_layout)
+        self._create_action_buttons(left_layout)
+        self._create_settings_section(left_layout)
+        left_layout.addStretch()
+
+        left_scroll.setWidget(left_container)
+        splitter.addWidget(left_scroll)
+
+        # ── RIGHT PANEL (preview + classification) ─────────────────────────
+        right_container = QWidget()
+        right_layout = QVBoxLayout(right_container)
+        right_layout.setSpacing(6)
+        right_layout.setContentsMargins(4, 4, 4, 4)
+        self._create_work_area_section(right_layout)
+        splitter.addWidget(right_container)
+
+        splitter.setStretchFactor(0, 0)
+        splitter.setStretchFactor(1, 1)
+
+        root.addWidget(splitter, 1)
+
     
     def _create_game_detection_section(self, layout):
         """Create game detection section."""
@@ -639,48 +661,66 @@ class OrganizerPanelQt(QWidget):
         layout.addWidget(group)
     
     def _create_mode_selection_section(self, layout):
-        """Create mode selection section."""
+        """Create mode selection section with descriptive style tooltips."""
         group = QGroupBox("⚙️ Organization Mode & Style")
         group_layout = QVBoxLayout()
+        group_layout.setSpacing(6)
 
         # --- Mode row ---
         mode_row = QHBoxLayout()
         mode_row.addWidget(QLabel("Mode:"))
         self.mode_combo = QComboBox()
-        self.mode_combo.addItem("🚀 Automatic - AI classifies and moves instantly", "automatic")
-        self.mode_combo.addItem("💡 Suggested - AI suggests, you confirm", "suggested")
-        self.mode_combo.addItem("✍️ Manual - You type folder, AI learns", "manual")
+        self.mode_combo.addItem("🚀 Automatic — AI classifies & moves instantly", "automatic")
+        self.mode_combo.addItem("💡 Suggested — AI proposes, you approve each", "suggested")
+        self.mode_combo.addItem("✍️ Manual — you choose folder, AI learns your style", "manual")
         self.mode_combo.currentIndexChanged.connect(self._on_mode_changed)
         mode_row.addWidget(self.mode_combo, 1)
         group_layout.addLayout(mode_row)
 
-        # --- Style row ---
+        # --- Style row with descriptive tooltips ---
         style_row = QHBoxLayout()
         style_row.addWidget(QLabel("Style:"))
         self.style_combo = QComboBox()
+
         if ORGANIZATION_STYLES:
             for key, style_cls in ORGANIZATION_STYLES.items():
                 try:
                     instance = style_cls()
                     display = getattr(instance, 'get_name', lambda: key)()
                 except Exception:
-                    display = key
+                    display = key.replace('_', ' ').title()
                 self.style_combo.addItem(display, key)
+                tip = _STYLE_DESCRIPTIONS.get(str(key), display)
+                self.style_combo.setItemData(
+                    self.style_combo.count() - 1, tip,
+                    Qt.ItemDataRole.ToolTipRole,
+                )
         else:
-            self.style_combo.addItem("Default", "flat")
+            self.style_combo.addItem("Default (flat list)", "flat")
+
+        self.style_combo.currentIndexChanged.connect(self._on_style_changed)
         style_row.addWidget(self.style_combo, 1)
         group_layout.addLayout(style_row)
+
+        # Style description label (updates when style changes)
+        self.style_description = QLabel()
+        self.style_description.setWordWrap(True)
+        self.style_description.setStyleSheet(
+            "color: #888; font-style: italic; font-size: 9pt; padding: 2px 4px;"
+        )
+        group_layout.addWidget(self.style_description)
 
         # Mode description
         self.mode_description = QLabel()
         self.mode_description.setWordWrap(True)
-        self.mode_description.setStyleSheet("color: gray; padding: 5px;")
+        self.mode_description.setStyleSheet("color: gray; font-size: 9pt; padding: 2px 4px;")
         group_layout.addWidget(self.mode_description)
 
         group.setLayout(group_layout)
         layout.addWidget(group)
 
         self._update_mode_description()
+        self._on_style_changed(0)   # populate style_description on startup
     
     def _create_file_input_section(self, layout):
         """Create file input section."""
@@ -750,100 +790,104 @@ class OrganizerPanelQt(QWidget):
     
     def _create_work_area_section(self, layout):
         """Create preview and classification work area."""
-        group = QGroupBox("🖼️ Work Area")
-        group_layout = QHBoxLayout()
-        
+        group = QGroupBox("🖼️ Preview & Classification")
+        group_layout = QVBoxLayout()
+
+        # Horizontal splitter: image preview | classification controls
+        work_splitter = QSplitter(Qt.Orientation.Horizontal)
+        work_splitter.setChildrenCollapsible(False)
+
         # Left: Preview Panel
         preview_container = QWidget()
         preview_layout = QVBoxLayout(preview_container)
-        preview_layout.setContentsMargins(0, 0, 0, 0)
-        
+        preview_layout.setContentsMargins(4, 4, 4, 4)
+
         preview_title = QLabel("Image Preview")
-        preview_title.setStyleSheet("font-weight: bold;")
+        preview_title.setStyleSheet("font-weight: bold; font-size: 10pt;")
         preview_layout.addWidget(preview_title)
-        
+
         self.preview_label = QLabel()
         self.preview_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.preview_label.setMinimumSize(300, 300)
-        self.preview_label.setStyleSheet("border: 1px solid gray; background: #f0f0f0;")
+        self.preview_label.setMinimumSize(240, 240)
+        self.preview_label.setStyleSheet(
+            "border: 1px solid #555; background: #1e1e2a; color: #888;"
+            "border-radius: 4px;"
+        )
         self.preview_label.setText("No image loaded")
-        preview_layout.addWidget(self.preview_label)
-        
+        preview_layout.addWidget(self.preview_label, 1)
+
         self.preview_info_label = QLabel()
         self.preview_info_label.setStyleSheet("color: gray; font-size: 9pt;")
         preview_layout.addWidget(self.preview_info_label)
+
+        work_splitter.addWidget(preview_container)
         
         # Right: Classification Panel
         classification_container = QWidget()
         classification_layout = QVBoxLayout(classification_container)
-        classification_layout.setContentsMargins(0, 0, 0, 0)
-        
+        classification_layout.setContentsMargins(4, 4, 4, 4)
+        classification_layout.setSpacing(6)
+
         classification_title = QLabel("Classification")
-        classification_title.setStyleSheet("font-weight: bold;")
+        classification_title.setStyleSheet("font-weight: bold; font-size: 10pt;")
         classification_layout.addWidget(classification_title)
-        
+
         # AI Suggestion display
         self.suggestion_label = QLabel("AI Suggestion: —")
-        self.suggestion_label.setStyleSheet("font-size: 12pt; padding: 5px;")
+        self.suggestion_label.setStyleSheet("font-size: 11pt; padding: 4px;")
         self._set_tooltip(self.suggestion_label, 'ai_suggestion_label')
         classification_layout.addWidget(self.suggestion_label)
-        
+
         self.confidence_label = QLabel("Confidence: —")
-        self.confidence_label.setStyleSheet("color: gray; padding: 5px;")
+        self.confidence_label.setStyleSheet("color: gray; padding: 4px;")
         self._set_tooltip(self.confidence_label, 'ai_confidence_label')
         classification_layout.addWidget(self.confidence_label)
-        
+
         # Feedback buttons
         feedback_layout = QHBoxLayout()
-        self.good_btn = QPushButton("✅ Good")
-        self.good_btn.setStyleSheet("background: #4CAF50; color: white; padding: 10px; font-weight: bold;")
+        self.good_btn = QPushButton("✅ Correct")
+        self.good_btn.setStyleSheet("background: #4CAF50; color: white; padding: 8px; font-weight: bold;")
         self.good_btn.clicked.connect(self._on_good_feedback)
         self.good_btn.setEnabled(False)
         self._set_tooltip(self.good_btn, 'feedback_good_button')
         feedback_layout.addWidget(self.good_btn)
-        
-        self.bad_btn = QPushButton("❌ Bad")
-        self.bad_btn.setStyleSheet("background: #f44336; color: white; padding: 10px; font-weight: bold;")
+
+        self.bad_btn = QPushButton("❌ Wrong")
+        self.bad_btn.setStyleSheet("background: #f44336; color: white; padding: 8px; font-weight: bold;")
         self.bad_btn.clicked.connect(self._on_bad_feedback)
         self.bad_btn.setEnabled(False)
         self._set_tooltip(self.bad_btn, 'feedback_bad_button')
         feedback_layout.addWidget(self.bad_btn)
-        
         classification_layout.addLayout(feedback_layout)
-        
+
         # Manual override / folder input
-        classification_layout.addWidget(QLabel("Manual Override:"))
-        
+        classification_layout.addWidget(QLabel("Manual folder override:"))
         self.folder_input = QLineEdit()
-        self.folder_input.setPlaceholderText("Type folder name or path...")
+        self.folder_input.setPlaceholderText("Type target folder name…")
         self.folder_input.textChanged.connect(self._on_folder_text_changed)
         self._set_tooltip(self.folder_input, 'manual_override_input')
         classification_layout.addWidget(self.folder_input)
-        
+
         # Auto-complete suggestions list
         self.suggestions_list = QListWidget()
-        self.suggestions_list.setMaximumHeight(150)
+        self.suggestions_list.setMaximumHeight(120)
         self.suggestions_list.itemClicked.connect(self._on_suggestion_selected)
         self._set_tooltip(self.suggestions_list, 'folder_suggestions_list')
         classification_layout.addWidget(self.suggestions_list)
-        
+
         # Path preview
         self.path_preview_label = QLabel("Path: —")
-        self.path_preview_label.setStyleSheet("color: gray; font-style: italic; padding: 5px;")
+        self.path_preview_label.setStyleSheet("color: gray; font-style: italic; font-size: 9pt; padding: 3px;")
         classification_layout.addWidget(self.path_preview_label)
-        
         classification_layout.addStretch()
-        
-        # Add to splitter
-        splitter = QSplitter(Qt.Orientation.Horizontal)
-        splitter.addWidget(preview_container)
-        splitter.addWidget(classification_container)
-        splitter.setStretchFactor(0, 1)
-        splitter.setStretchFactor(1, 1)
-        
-        group_layout.addWidget(splitter)
+
+        work_splitter.addWidget(classification_container)
+        work_splitter.setStretchFactor(0, 1)
+        work_splitter.setStretchFactor(1, 1)
+
+        group_layout.addWidget(work_splitter, 1)
         group.setLayout(group_layout)
-        layout.addWidget(group)
+        layout.addWidget(group, 1)
     
     def _create_progress_section(self, layout):
         """Create progress display section."""
@@ -1160,6 +1204,13 @@ class OrganizerPanelQt(QWidget):
         self.current_mode = self.mode_combo.currentData()
         self._update_mode_description()
         self._log(f"Mode changed to: {self.mode_combo.currentText()}")
+
+    def _on_style_changed(self, index: int):
+        """Update style description label when style combo changes."""
+        key = self.style_combo.currentData() if hasattr(self, 'style_combo') else ""
+        desc = _STYLE_DESCRIPTIONS.get(str(key), "")
+        if hasattr(self, 'style_description'):
+            self.style_description.setText(desc)
     
     def _update_mode_description(self):
         """Update mode description."""
