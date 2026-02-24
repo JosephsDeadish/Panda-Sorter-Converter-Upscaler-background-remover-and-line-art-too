@@ -798,18 +798,95 @@ class PandaWorldGL(
             glEnable(GL_LIGHTING)
 
     def _draw_park_area(self):
-        """Bench + pond hint for the park destination."""
-        # Bench (far back centre)
+        """Bench, pond, flowers, play equipment for the park destination."""
         glEnable(GL_LIGHTING)
+
+        # ── Bench ──────────────────────────────────────────────────────────────
         glMaterialfv(GL_FRONT, GL_AMBIENT_AND_DIFFUSE, [*_WOOD, 1.0])
-        self._box(-0.8, 0.6, 4.0,  0.8, 0.7, 4.6)  # seat
-        self._box(-0.8, 0.0, 4.0, -0.7, 0.6, 4.15) # left leg
-        self._box( 0.7, 0.0, 4.0,  0.8, 0.6, 4.15) # right leg
-        # Park label (sign)
+        self._box(-0.8, 0.6, 4.0,  0.8, 0.7, 4.6)   # seat
+        self._box(-0.8, 0.0, 4.0, -0.7, 0.6, 4.15)  # left leg
+        self._box( 0.7, 0.0, 4.0,  0.8, 0.6, 4.15)  # right leg
+        self._box(-0.8, 0.7, 4.0,  0.8, 1.1, 4.1)   # back-rest
+
+        # ── Pond ───────────────────────────────────────────────────────────────
+        glMaterialfv(GL_FRONT, GL_AMBIENT_AND_DIFFUSE, [0.15, 0.55, 0.85, 0.85])
+        # Flat ellipse approximated with a scaled cylinder (pancake shape)
+        glPushMatrix()
+        glTranslatef(-3.5, 0.01, 5.5)
+        glScalef(1.6, 0.05, 1.1)
+        self._sphere(1.0, 12, 6)
+        glPopMatrix()
+        # Pond rim (lighter grey stones)
+        glMaterialfv(GL_FRONT, GL_AMBIENT_AND_DIFFUSE, [0.65, 0.65, 0.65, 1.0])
+        for ang in range(0, 360, 45):
+            rx = math.cos(math.radians(ang)) * 1.6
+            rz = math.sin(math.radians(ang)) * 1.1
+            glPushMatrix()
+            glTranslatef(-3.5 + rx, 0.05, 5.5 + rz)
+            self._sphere(0.18, 6, 4)
+            glPopMatrix()
+
+        # ── Flowers ────────────────────────────────────────────────────────────
+        _FLOWER_POSITIONS = [
+            (-2.0, 3.8), (-2.3, 4.5), (-1.6, 4.2),
+            (1.8, 3.9),  (2.1, 4.6),  (1.5, 4.1),
+            (-4.0, 4.8), (3.5, 4.5),
+        ]
+        for fx, fz in _FLOWER_POSITIONS:
+            # Stem
+            glMaterialfv(GL_FRONT, GL_AMBIENT_AND_DIFFUSE, [0.25, 0.65, 0.25, 1.0])
+            glPushMatrix()
+            glTranslatef(fx, 0.0, fz)
+            glRotatef(-90.0, 1.0, 0.0, 0.0)
+            self._cylinder(0.03, 0.45, 5)
+            glPopMatrix()
+            # Petals (pink/yellow alternating)
+            col = [1.0, 0.4, 0.7, 1.0] if int(fx * 10) % 2 == 0 else [1.0, 0.9, 0.2, 1.0]
+            glMaterialfv(GL_FRONT, GL_AMBIENT_AND_DIFFUSE, col)
+            glPushMatrix()
+            glTranslatef(fx, 0.45, fz)
+            self._sphere(0.12, 6, 5)
+            glPopMatrix()
+
+        # ── Play equipment: swing frame ────────────────────────────────────────
+        glMaterialfv(GL_FRONT, GL_AMBIENT_AND_DIFFUSE, [0.7, 0.35, 0.1, 1.0])
+        # Left post
+        glPushMatrix()
+        glTranslatef(2.5, 0.0, 6.5)
+        glRotatef(-90.0, 1.0, 0.0, 0.0)
+        self._cylinder(0.08, 1.8, 6)
+        glPopMatrix()
+        # Right post
+        glPushMatrix()
+        glTranslatef(3.5, 0.0, 6.5)
+        glRotatef(-90.0, 1.0, 0.0, 0.0)
+        self._cylinder(0.08, 1.8, 6)
+        glPopMatrix()
+        # Top bar
+        glMaterialfv(GL_FRONT, GL_AMBIENT_AND_DIFFUSE, [0.6, 0.3, 0.1, 1.0])
+        self._box(2.45, 1.75, 6.45,  3.55, 1.85, 6.55)
+        # Swing seat
+        glMaterialfv(GL_FRONT, GL_AMBIENT_AND_DIFFUSE, [*_WOOD, 1.0])
+        self._box(2.8, 0.8, 6.4,  3.2, 0.9, 6.6)
+        # Swing chains (thin vertical rods)
+        glMaterialfv(GL_FRONT, GL_AMBIENT_AND_DIFFUSE, [0.7, 0.7, 0.7, 1.0])
+        self._box(2.82, 0.9, 6.48,  2.86, 1.78, 6.52)
+        self._box(3.14, 0.9, 6.48,  3.18, 1.78, 6.52)
+
+        # ── Park sign ─────────────────────────────────────────────────────────
+        # Post
+        glMaterialfv(GL_FRONT, GL_AMBIENT_AND_DIFFUSE, [*_WOOD, 1.0])
+        self._box(-0.06, 0.0, 4.1,  0.06, 1.3, 4.2)
+        # Sign board
         glDisable(GL_LIGHTING)
         glColor3f(*_SIGN)
-        self._box(-0.6, 1.4, 4.1,  0.6, 1.8, 4.2)
+        self._box(-0.55, 1.3, 4.1,  0.55, 1.7, 4.2)
         glEnable(GL_LIGHTING)
+
+        # ── Grass patch (darker green squares) ────────────────────────────────
+        glMaterialfv(GL_FRONT, GL_AMBIENT_AND_DIFFUSE, [0.18, 0.52, 0.18, 1.0])
+        self._box(-5.0, 0.0, 3.0,   5.0, 0.01, 8.0)  # park grass zone
+
 
     def _draw_trees(self):
         """A few simple GL trees."""

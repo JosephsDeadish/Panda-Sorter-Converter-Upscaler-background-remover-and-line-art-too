@@ -1621,13 +1621,25 @@ class TextureSorterMainWindow(QMainWindow):
                 unlocked = len(skill_tree.get_unlocked_skills())
                 total = len(skill_tree.skills)
                 summary = QLabel(
-                    f"Skills unlocked: {unlocked}/{total}\n"
-                    f"Branches: Combat · Magic · Exploration · Panda"
+                    f"✨ Skills unlocked: {unlocked} / {total}   "
+                    f"│  Branches: Combat · Magic · Exploration · Panda"
                 )
             else:
-                summary = QLabel("Skill tree loading…")
+                summary = QLabel("🌱 Skill tree will load once components initialise…")
             summary.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            summary.setStyleSheet("padding:4px; color:#aaddaa;")
             skill_layout.addWidget(summary)
+
+            # Branch filter buttons
+            _branch_filter: list = ['All']
+            branch_bar = QHBoxLayout()
+            for _branch in ('All', 'Combat', 'Magic', 'Exploration', 'Panda'):
+                _bb = QPushButton(_branch)
+                _bb.setCheckable(True)
+                _bb.setChecked(_branch == 'All')
+                _bb.setFixedHeight(24)
+                branch_bar.addWidget(_bb)
+            skill_layout.addLayout(branch_bar)
 
             # List unlockable skills with Unlock button
             scroll = QScrollArea()
@@ -1635,30 +1647,84 @@ class TextureSorterMainWindow(QMainWindow):
             scroll.setFrameShape(QScrollArea.Shape.NoFrame)
             inner = QWidget()
             inner_layout = QVBoxLayout(inner)
+            inner_layout.setSpacing(4)
 
-            _MAX_DISPLAYED_SKILLS = 20
+            _MAX_DISPLAYED_SKILLS = 40
             if skill_tree is not None:
-                for skill in list(skill_tree.skills.values())[:_MAX_DISPLAYED_SKILLS]:
-                    row = QHBoxLayout()
-                    icon = "✅" if skill.unlocked else "🔒"
-                    lbl = QLabel(f"{icon} [{skill.branch}] {skill.name} — {skill.description}")
-                    lbl.setWordWrap(True)
-                    row.addWidget(lbl, stretch=1)
-                    if not skill.unlocked:
-                        btn = QPushButton("Unlock")
-                        _skill_id = skill.skill_id
-                        def create_unlock_handler(sid):
-                            def unlock_handler():
-                                lvl = getattr(self.level_system, 'level', 1) if self.level_system else 1
-                                pts = getattr(self.level_system, 'skill_points', 99) if self.level_system else 99
-                                ok = self.skill_tree.unlock_skill(sid, lvl, pts)
-                                if ok:
-                                    self.statusBar().showMessage(f"🌳 Skill unlocked!", 3000)
-                                    logger.info(f"Skill unlocked: {sid}")
-                            return unlock_handler
-                        btn.clicked.connect(create_unlock_handler(_skill_id))
-                        row.addWidget(btn)
-                    inner_layout.addLayout(row)
+                # Group by branch for visual clarity
+                by_branch: dict = {}
+                for sk in list(skill_tree.skills.values())[:_MAX_DISPLAYED_SKILLS]:
+                    by_branch.setdefault(getattr(sk, 'branch', 'General'), []).append(sk)
+
+                for branch_name, skills in by_branch.items():
+                    branch_hdr = QLabel(f"── {branch_name} ──")
+                    branch_hdr.setStyleSheet(
+                        "color:#88ccff; font-weight:bold; padding:4px 2px 2px 2px;"
+                    )
+                    inner_layout.addWidget(branch_hdr)
+
+                    for skill in skills:
+                        # Card widget
+                        card = QWidget()
+                        card.setObjectName("skillCard")
+                        card_col = "#223322" if skill.unlocked else "#1a1a2a"
+                        card.setStyleSheet(
+                            f"#skillCard {{ background:{card_col}; border:1px solid #444; "
+                            f"border-radius:4px; padding:2px; }}"
+                        )
+                        card_row = QHBoxLayout(card)
+                        card_row.setContentsMargins(6, 4, 6, 4)
+
+                        # Status icon + name
+                        icon = "✅" if skill.unlocked else "🔒"
+                        cost = getattr(skill, 'cost', getattr(skill, 'xp_cost', 1))
+                        req_lvl = getattr(skill, 'required_level', 1)
+                        name_lbl = QLabel(
+                            f"<b>{icon} {skill.name}</b>"
+                            f"<br><small style='color:#888'>{skill.description}</small>"
+                        )
+                        name_lbl.setTextFormat(Qt.TextFormat.RichText)
+                        name_lbl.setWordWrap(True)
+                        card_row.addWidget(name_lbl, stretch=1)
+
+                        if skill.unlocked:
+                            owned_lbl = QLabel("Owned")
+                            owned_lbl.setStyleSheet("color:#66dd66; font-size:9pt;")
+                            card_row.addWidget(owned_lbl)
+                        else:
+                            cost_lbl = QLabel(f"Lv.{req_lvl}  •  {cost} SP")
+                            cost_lbl.setStyleSheet("color:#ffcc44; font-size:9pt;")
+                            card_row.addWidget(cost_lbl)
+
+                            btn = QPushButton("Unlock")
+                            btn.setFixedWidth(64)
+                            btn.setFixedHeight(26)
+                            _skill_id = skill.skill_id
+                            def _make_unlock_handler(sid, card_widget, name_widget, cost_widget, btn_widget):
+                                def _unlock():
+                                    lvl = getattr(self.level_system, 'level', 1) if self.level_system else 1
+                                    pts = getattr(self.level_system, 'skill_points', 99) if self.level_system else 99
+                                    ok = self.skill_tree.unlock_skill(sid, lvl, pts)
+                                    if ok:
+                                        self.statusBar().showMessage(f"🌳 Skill unlocked!", 3000)
+                                        name_widget.setText(
+                                            name_widget.text().replace("🔒", "✅")
+                                        )
+                                        card_widget.setStyleSheet(
+                                            "#skillCard { background:#223322; border:1px solid #444; "
+                                            "border-radius:4px; padding:2px; }"
+                                        )
+                                        cost_widget.setText("Owned")
+                                        cost_widget.setStyleSheet("color:#66dd66; font-size:9pt;")
+                                        btn_widget.setVisible(False)
+                                    else:
+                                        self.statusBar().showMessage("❌ Not enough skill points or level too low", 3000)
+                                return _unlock
+                            btn.clicked.connect(_make_unlock_handler(_skill_id, card, name_lbl, cost_lbl, btn))
+                            card_row.addWidget(btn)
+
+                        inner_layout.addWidget(card)
+
                 inner_layout.addStretch()
 
             scroll.setWidget(inner)
@@ -1670,6 +1736,7 @@ class TextureSorterMainWindow(QMainWindow):
             label = QLabel("🌳 Skill Tree\n\nLevel up to unlock skills!")
             label.setAlignment(Qt.AlignmentFlag.AlignCenter)
             panda_tabs.addTab(label, "🌳 Skills")
+
 
         # 11. Creative Tools tab (Paint + Weapon Positioning)
         try:

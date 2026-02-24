@@ -400,6 +400,49 @@ class PyTorchTrainer:
         return export_to_onnx(self._model, onnx_path, input_shape=input_shape)
 
     # ------------------------------------------------------------------
+    # Named export methods (convenience aliases for the public API)
+    # ------------------------------------------------------------------
+
+    def export_onnx(
+        self,
+        output_path: 'Path | str | None' = None,
+        input_shape: tuple = (1, 3, 224, 224),
+    ) -> bool:
+        """Export the current model to ONNX format.
+
+        Alias for :meth:`export_checkpoint` with a descriptive name that
+        matches the ``TrainingMode.EXPORT_ONNX`` display text.
+
+        Parameters
+        ----------
+        output_path:
+            Destination ``.onnx`` file path.  Defaults to
+            ``model_export.onnx`` in the current working directory.
+        input_shape:
+            ONNX input tensor shape ``(batch, channels, height, width)``.
+        """
+        dest = Path(output_path or 'model_export.onnx')
+        return self.export_checkpoint(dest, input_shape=input_shape)
+
+    def export_pytorch(
+        self,
+        output_path: 'Path | str | None' = None,
+    ) -> bool:
+        """Save current model weights as a PyTorch ``.pt`` checkpoint.
+
+        Alias for :meth:`save_checkpoint` with a descriptive name that
+        matches the ``TrainingMode.EXPORT_PYTORCH`` display text.
+
+        Parameters
+        ----------
+        output_path:
+            Destination ``.pt`` file path.  Defaults to
+            ``model_export.pt`` in the current working directory.
+        """
+        dest = Path(output_path or 'model_export.pt')
+        return self.save_checkpoint(dest)
+
+    # ------------------------------------------------------------------
     # Training mode variants
     # ------------------------------------------------------------------
 

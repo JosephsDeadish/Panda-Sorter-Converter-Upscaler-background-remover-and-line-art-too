@@ -685,30 +685,118 @@ class LineArtConverterPanelQt(QWidget):
         layout.addWidget(group)
     
     def _create_preview_section(self, layout):
-        """Create preview section."""
+        """Create preview section with zoom/pan controls."""
         group = QGroupBox("👁️ Preview")
         group_layout = QVBoxLayout()
-        
+
+        # ── Zoom / pan toolbar ─────────────────────────────────────────────
+        zoom_bar = QHBoxLayout()
+        zoom_bar.setSpacing(4)
+        self._preview_zoom = 1.0          # current zoom factor
+
+        def _zoom_in():
+            self._preview_zoom = min(self._preview_zoom * 1.25, 8.0)
+            self._apply_preview_zoom()
+
+        def _zoom_out():
+            self._preview_zoom = max(self._preview_zoom / 1.25, 0.25)
+            self._apply_preview_zoom()
+
+        def _zoom_fit():
+            self._preview_zoom = 1.0
+            self._apply_preview_zoom()
+
+        btn_in  = QPushButton("🔍+")
+        btn_out = QPushButton("🔍−")
+        btn_fit = QPushButton("Fit")
+        for b in (btn_in, btn_out, btn_fit):
+            b.setFixedWidth(44)
+            b.setFixedHeight(24)
+        btn_in.setToolTip("Zoom in (also: scroll wheel)")
+        btn_out.setToolTip("Zoom out")
+        btn_fit.setToolTip("Reset to fit")
+        btn_in.clicked.connect(_zoom_in)
+        btn_out.clicked.connect(_zoom_out)
+        btn_fit.clicked.connect(_zoom_fit)
+
+        self._zoom_label = QLabel("100%")
+        self._zoom_label.setFixedWidth(45)
+        self._zoom_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
+        zoom_bar.addWidget(btn_out)
+        zoom_bar.addWidget(self._zoom_label)
+        zoom_bar.addWidget(btn_in)
+        zoom_bar.addWidget(btn_fit)
+        zoom_bar.addStretch()
+        group_layout.addLayout(zoom_bar)
+
+        # ── Preview area (scrollable) ──────────────────────────────────────
         if SLIDER_AVAILABLE:
-            # Use comparison slider widget
             self.preview_widget = ComparisonSliderWidget()
             self.preview_widget.setMinimumHeight(400)
-            group_layout.addWidget(self.preview_widget)
+            # Wrap in QScrollArea for zoom/pan
+            from PyQt6.QtWidgets import QScrollArea as _SA
+            self._preview_scroll = _SA()
+            self._preview_scroll.setWidgetResizable(True)
+            self._preview_scroll.setWidget(self.preview_widget)
+            self._preview_scroll.setMinimumHeight(400)
+            group_layout.addWidget(self._preview_scroll)
         else:
-            # Fallback to simple label
+            # Fallback: scrollable label
+            from PyQt6.QtWidgets import QScrollArea as _SA
             self.preview_label = QLabel("Select an image to see preview")
             self.preview_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
             self.preview_label.setMinimumSize(400, 400)
-            self.preview_label.setStyleSheet("border: 2px dashed gray; background-color: #f0f0f0;")
-            group_layout.addWidget(self.preview_label)
-        
-        # Preview updates automatically when settings change
-        preview_note = QLabel("💡 Preview updates live as you adjust settings")
+            self.preview_label.setStyleSheet(
+                "border: 2px dashed gray; background-color: #1a1a1a;"
+            )
+            self._preview_scroll = _SA()
+            self._preview_scroll.setWidgetResizable(True)
+            self._preview_scroll.setWidget(self.preview_label)
+            self._preview_scroll.setMinimumHeight(400)
+            group_layout.addWidget(self._preview_scroll)
+            self._preview_scroll.wheelEvent = self._preview_wheel_event
+
+        # Live-update note
+        preview_note = QLabel("💡 Preview updates live • Scroll to zoom • Drag to pan")
         preview_note.setStyleSheet("color: gray; font-style: italic; font-size: 9pt;")
         group_layout.addWidget(preview_note)
-        
+
         group.setLayout(group_layout)
         layout.addWidget(group)
+
+    def _apply_preview_zoom(self):
+        """Scale the preview label to the current zoom level."""
+        pct = int(self._preview_zoom * 100)
+        self._zoom_label.setText(f"{pct}%")
+        try:
+            if hasattr(self, 'preview_label') and self.preview_label.pixmap() and not self.preview_label.pixmap().isNull():
+                pm = self.preview_label.property('_original_pixmap')
+                if pm:
+                    w = int(pm.width()  * self._preview_zoom)
+                    h = int(pm.height() * self._preview_zoom)
+                    self.preview_label.setPixmap(pm.scaled(
+                        w, h,
+                        Qt.AspectRatioMode.KeepAspectRatio,
+                        Qt.TransformationMode.SmoothTransformation,
+                    ))
+                    self.preview_label.resize(w, h)
+        except Exception:
+            pass
+
+    def _preview_wheel_event(self, event):
+        """Zoom the preview on Ctrl+Scroll (or plain scroll)."""
+        try:
+            delta = event.angleDelta().y()
+            if delta > 0:
+                self._preview_zoom = min(self._preview_zoom * 1.15, 8.0)
+            elif delta < 0:
+                self._preview_zoom = max(self._preview_zoom / 1.15, 0.25)
+            self._apply_preview_zoom()
+            event.accept()
+        except Exception:
+            pass
+
     
     def _create_action_buttons(self, layout):
         """Create action buttons."""
@@ -895,21 +983,32 @@ class LineArtConverterPanelQt(QWidget):
                 self.preview_widget.set_before_image(orig_pixmap)
                 self.preview_widget.set_after_image(proc_pixmap)
             elif hasattr(self, 'preview_label'):
-                # Fallback to simple label
+                # Fallback to scrollable/zoomable label
                 processed_rgb = processed.convert("RGBA")
                 data = processed_rgb.tobytes("raw", "RGBA")
                 qimage = QImage(data, processed_rgb.width, processed_rgb.height, QImage.Format.Format_RGBA8888)
-                
-                # Scale to fit preview
+
+                # Store full-resolution pixmap so zoom can re-scale it
                 pixmap = QPixmap.fromImage(qimage)
-                scaled = pixmap.scaled(400, 400, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
-                
+                self.preview_label.setProperty('_original_pixmap', pixmap)
+
+                # Apply current zoom level
+                zoom = getattr(self, '_preview_zoom', 1.0)
+                w = int(pixmap.width()  * zoom)
+                h = int(pixmap.height() * zoom)
+                scaled = pixmap.scaled(
+                    max(w, 400), max(h, 400),
+                    Qt.AspectRatioMode.KeepAspectRatio,
+                    Qt.TransformationMode.SmoothTransformation,
+                )
                 self.preview_label.setPixmap(scaled)
+                self.preview_label.resize(scaled.width(), scaled.height())
             
         except Exception as e:
             logger.error(f"Error displaying preview: {e}")
             if hasattr(self, 'preview_label'):
                 self.preview_label.setText(f"Error: {str(e)}")
+
     
     def _pil_to_pixmap(self, img, max_size=400):
         """Convert PIL Image to QPixmap"""
