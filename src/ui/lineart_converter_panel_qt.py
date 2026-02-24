@@ -748,7 +748,7 @@ class LineArtConverterPanelQt(QWidget):
             self.preview_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
             self.preview_label.setMinimumSize(400, 400)
             self.preview_label.setStyleSheet(
-                "border: 2px dashed gray; background-color: #1a1a1a;"
+                "border: 2px dashed gray; background-color: #f0f0f0;"
             )
             self._preview_scroll = _SA()
             self._preview_scroll.setWidgetResizable(True)
@@ -997,7 +997,7 @@ class LineArtConverterPanelQt(QWidget):
                 w = int(pixmap.width()  * zoom)
                 h = int(pixmap.height() * zoom)
                 scaled = pixmap.scaled(
-                    max(w, 400), max(h, 400),
+                    w, h,
                     Qt.AspectRatioMode.KeepAspectRatio,
                     Qt.TransformationMode.SmoothTransformation,
                 )
