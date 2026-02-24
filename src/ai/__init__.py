@@ -35,7 +35,7 @@ from .inference import OnnxInferenceSession, run_batch_inference, is_available a
 # The training_pytorch module itself is only loaded by callers that explicitly
 # instantiate PyTorchTrainer (which will import torch at that point).
 try:
-    from .training_pytorch import is_pytorch_available, export_to_onnx, PyTorchTrainer  # type: ignore[assignment]
+    from .training_pytorch import is_pytorch_available, export_to_onnx, PyTorchTrainer, TrainingMode  # type: ignore[assignment]
 except (ImportError, OSError, RuntimeError):
     def is_pytorch_available() -> bool:  # type: ignore[misc]
         return False
@@ -43,6 +43,13 @@ except (ImportError, OSError, RuntimeError):
         raise RuntimeError("PyTorch not available")
     class PyTorchTrainer:  # type: ignore[no-redef]
         pass
+    class TrainingMode:  # type: ignore[no-redef]
+        STANDARD = "standard"
+        FINE_TUNE = "fine-tune_existing"
+        INCREMENTAL = "incremental_(continual)"
+        EXPORT_ONNX = "export_to_onnx"
+        EXPORT_PYTORCH = "export_to_pytorch"
+        CUSTOM_DATASET = "custom_dataset"
 
 try:
     import importlib.util as _ilu
@@ -86,6 +93,7 @@ __all__ = [
     'PYTORCH_AVAILABLE',
     'export_to_onnx',
     'PyTorchTrainer',
+    'TrainingMode',
 ]
 
 __version__ = '1.0.0'

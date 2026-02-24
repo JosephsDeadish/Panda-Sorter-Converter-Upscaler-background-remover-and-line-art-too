@@ -66,6 +66,7 @@ Author: Dead On The Inside / JosephsDeadish
 from __future__ import annotations
 
 import logging
+from enum import Enum
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -125,6 +126,25 @@ try:
     del _ilu_pt
 except Exception:
     PYTORCH_AVAILABLE = False
+
+
+# ---------------------------------------------------------------------------
+# Training mode enum
+# ---------------------------------------------------------------------------
+
+
+class TrainingMode(str, Enum):
+    """Selects how the ``PyTorchTrainer`` should approach model fitting.
+
+    The value string matches what ``settings_panel_qt.py`` stores in config
+    under ``ai.training_mode`` (lower-cased, underscored).
+    """
+    STANDARD = "standard"               # full training from scratch / warm start
+    FINE_TUNE = "fine-tune_existing"    # freeze base layers, train head
+    INCREMENTAL = "incremental_(continual)"  # small LR, replay-buffer style
+    EXPORT_ONNX = "export_to_onnx"      # no training — just export to ONNX
+    EXPORT_PYTORCH = "export_to_pytorch"  # no training — save .pt checkpoint
+    CUSTOM_DATASET = "custom_dataset"   # full train with custom data loader
 
 
 # ---------------------------------------------------------------------------
@@ -378,3 +398,122 @@ class PyTorchTrainer:
         ``ai.inference.OnnxInferenceSession``.
         """
         return export_to_onnx(self._model, onnx_path, input_shape=input_shape)
+
+    # ------------------------------------------------------------------
+    # Training mode variants
+    # ------------------------------------------------------------------
+
+    def fine_tune(
+        self,
+        epochs: int = 5,
+        unfreeze_layers: int = 2,
+        progress_callback: Optional[Any] = None,
+    ) -> List[Dict[str, float]]:
+        """Fine-tune: freeze all but the last *unfreeze_layers* layers.
+
+        Useful when adapting a pre-trained model to a new texture domain with
+        minimal training time and reduced risk of catastrophic forgetting.
+        """
+        torch = _require_torch()
+        params = list(self._model.parameters())
+        # Freeze all layers
+        for p in params:
+            p.requires_grad_(False)
+        # Unfreeze the last N layers
+        for p in params[-max(unfreeze_layers, 1):]:
+            p.requires_grad_(True)
+        # Re-create optimizer on unfrozen params only
+        self.optimizer = torch.optim.AdamW(
+            filter(lambda p: p.requires_grad, self._model.parameters()),
+            lr=self._lr * 0.1,  # lower LR for fine-tuning
+        )
+        result = self.train(epochs=epochs, progress_callback=progress_callback)
+        # Unfreeze everything after fine-tuning finishes
+        for p in params:
+            p.requires_grad_(True)
+        return result
+
+    def incremental_train(
+        self,
+        epochs: int = 2,
+        replay_fraction: float = 0.2,
+        progress_callback: Optional[Any] = None,
+    ) -> List[Dict[str, float]]:
+        """Incremental / continual learning with very low learning rate.
+
+        Intended for adding new texture classes without forgetting existing
+        ones.  Uses a lower LR and (optionally) a small replay buffer from
+        the existing train loader.
+
+        *replay_fraction* is stored for future use when a replay buffer is
+        provided by the caller.  Currently functions as a standard train with
+        reduced LR.
+        """
+        original_lr = self._lr
+        torch = _require_torch()
+        for g in self.optimizer.param_groups:
+            g['lr'] = original_lr * 0.01   # very small LR for continual learning
+        result = self.train(epochs=epochs, progress_callback=progress_callback)
+        for g in self.optimizer.param_groups:
+            g['lr'] = original_lr           # restore
+        return result
+
+    def run_mode(
+        self,
+        mode: 'TrainingMode | str',
+        epochs: int = 10,
+        output_path: Optional['Path | str'] = None,
+        progress_callback: Optional[Any] = None,
+    ) -> 'List[Dict[str, float]] | bool':
+        """Dispatch to the correct training/export variant based on *mode*.
+
+        This is the single entry point called by the AI Settings panel when
+        the user presses "Start Training".
+
+        Parameters
+        ----------
+        mode:
+            A ``TrainingMode`` enum value or the raw string stored in config
+            under ``ai.training_mode``.
+        epochs:
+            Number of epochs (ignored for export modes).
+        output_path:
+            Destination path for ONNX / PyTorch export modes.
+        progress_callback:
+            Optional ``(epoch, total, metrics)`` callable.
+
+        Returns
+        -------
+        list of dicts (training history) for train modes,
+        bool (success flag) for export modes.
+        """
+        if isinstance(mode, str):
+            try:
+                mode = TrainingMode(mode)
+            except ValueError:
+                # Accept partial / display-text strings from the combo box
+                _normalised = mode.lower().replace(' ', '_').replace('-', '_')
+                _map = {
+                    'standard': TrainingMode.STANDARD,
+                    'fine_tune_existing': TrainingMode.FINE_TUNE,
+                    'incremental_continual': TrainingMode.INCREMENTAL,
+                    'export_to_onnx': TrainingMode.EXPORT_ONNX,
+                    'export_to_pytorch': TrainingMode.EXPORT_PYTORCH,
+                    'custom_dataset': TrainingMode.CUSTOM_DATASET,
+                }
+                mode = _map.get(_normalised, TrainingMode.STANDARD)
+
+        if mode == TrainingMode.EXPORT_ONNX:
+            dest = Path(output_path or 'model_export.onnx')
+            return self.export_checkpoint(dest, input_shape=(1, 3, 224, 224))
+        elif mode == TrainingMode.EXPORT_PYTORCH:
+            dest = Path(output_path or 'model_export.pt')
+            return self.save_checkpoint(dest)
+        elif mode == TrainingMode.FINE_TUNE:
+            return self.fine_tune(epochs=epochs, progress_callback=progress_callback)
+        elif mode == TrainingMode.INCREMENTAL:
+            return self.incremental_train(epochs=epochs,
+                                          progress_callback=progress_callback)
+        else:
+            # STANDARD or CUSTOM_DATASET — full train
+            return self.train(epochs=epochs, progress_callback=progress_callback)

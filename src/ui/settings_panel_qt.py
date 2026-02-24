@@ -818,6 +818,30 @@ class SettingsPanelQt(QWidget):
         export_group.setLayout(export_layout)
         layout.addWidget(export_group)
 
+        # ── Start Training button ─────────────────────────────────────────
+        train_btn_group = QGroupBox("▶ Run")
+        train_btn_layout = QVBoxLayout()
+        self._ai_train_status = QLabel("Ready")
+        self._ai_train_status.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self._ai_train_progress = QProgressBar()
+        self._ai_train_progress.setRange(0, 100)
+        self._ai_train_progress.setValue(0)
+        self._ai_train_progress.setVisible(False)
+
+        start_btn = QPushButton("▶ Start Training / Export")
+        start_btn.setStyleSheet(
+            "QPushButton { background: #0d7377; color: #fff; border-radius: 4px; "
+            "font-weight: bold; padding: 8px 16px; } "
+            "QPushButton:hover { background: #0a5e62; }"
+        )
+        start_btn.clicked.connect(self._on_start_ai_training)
+
+        train_btn_layout.addWidget(self._ai_train_status)
+        train_btn_layout.addWidget(self._ai_train_progress)
+        train_btn_layout.addWidget(start_btn)
+        train_btn_group.setLayout(train_btn_layout)
+        layout.addWidget(train_btn_group)
+
         layout.addStretch()
         scroll.setWidget(container)
         tab_layout = QVBoxLayout(tab)
@@ -1453,7 +1477,50 @@ class SettingsPanelQt(QWidget):
         except Exception as e:
             logger.error(f"Error applying cursor: {e}", exc_info=True)
 
-    
+    def _on_start_ai_training(self) -> None:
+        """Handle 'Start Training / Export' button in AI Settings tab."""
+        try:
+            from ai.training_pytorch import is_pytorch_available, TrainingMode
+        except (ImportError, OSError, RuntimeError):
+            try:
+                from src.ai.training_pytorch import is_pytorch_available, TrainingMode  # type: ignore[no-redef]
+            except (ImportError, OSError, RuntimeError):
+                if hasattr(self, '_ai_train_status'):
+                    self._ai_train_status.setText(
+                        "⚠️ PyTorch not installed — cannot train.\n"
+                        "Install with: pip install torch torchvision"
+                    )
+                return
+
+        if not is_pytorch_available():
+            if hasattr(self, '_ai_train_status'):
+                self._ai_train_status.setText(
+                    "⚠️ PyTorch not available — install with:\n"
+                    "pip install torch torchvision"
+                )
+            return
+
+        mode_text = getattr(self, 'training_mode_combo', None)
+        mode_str = mode_text.currentText() if mode_text else 'Standard'
+        epochs = getattr(self, 'epochs_spin', None)
+        epochs_val = epochs.value() if epochs else 10
+
+        if hasattr(self, '_ai_train_status'):
+            self._ai_train_status.setText(f"⏳ {mode_str} — {epochs_val} epochs…")
+        if hasattr(self, '_ai_train_progress'):
+            self._ai_train_progress.setVisible(True)
+            self._ai_train_progress.setRange(0, 0)  # pulse
+
+        # Emit so main window knows training started
+        self.settingsChanged.emit('ai.training_started', {
+            'mode': mode_str,
+            'epochs': epochs_val,
+        })
+
+        logger.info(f"AI training requested: mode={mode_str}, epochs={epochs_val}")
+        # Actual training runs in main window's _start_ai_training_job() handler.
+        # The settings panel is not responsible for the QThread — main.py is.
+
     def adjust_color(self, hex_color: str, factor: float) -> str:
         """Adjust color brightness by factor"""
         try:

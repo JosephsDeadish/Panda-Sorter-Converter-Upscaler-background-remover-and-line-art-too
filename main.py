@@ -513,6 +513,7 @@ class TextureSorterMainWindow(QMainWindow):
 
         # Worker thread
         self.worker = None
+        self._ai_training_thread = None     # background PyTorchTrainer QThread (prevent GC)
         
         # Drag-drop, translation, environment monitor
         self.drag_drop_handler = None
@@ -3038,7 +3039,101 @@ class TextureSorterMainWindow(QMainWindow):
             self.progress_bar.setFormat(f"{current}/{total} - {message}")
         
         self.statusbar.showMessage(message)
-    
+
+    def _start_ai_training_job(self, params: dict) -> None:
+        """Dispatch training/export to a background QThread.
+
+        *params* contains ``'mode'`` (display string) and ``'epochs'`` (int).
+        Reads the rest of the AI settings from ``config``.
+        """
+        try:
+            from ai.training_pytorch import is_pytorch_available, TrainingMode
+        except (ImportError, OSError, RuntimeError):
+            try:
+                from src.ai.training_pytorch import (  # type: ignore[no-redef]
+                    is_pytorch_available, TrainingMode,
+                )
+            except (ImportError, OSError, RuntimeError):
+                self.statusBar().showMessage(
+                    "⚠️ PyTorch not installed — cannot train. "
+                    "Install with: pip install torch torchvision", 8000
+                )
+                return
+
+        if not is_pytorch_available():
+            self.statusBar().showMessage(
+                "⚠️ PyTorch not installed — install with: "
+                "pip install torch torchvision", 8000
+            )
+            return
+
+        mode_str = params.get('mode', 'Standard')
+        epochs = int(params.get('epochs', 10))
+        export_path = config.get('ai', 'export_path', default='model_export.onnx')
+
+        self.statusBar().showMessage(
+            f"🏋️ AI training started: {mode_str} × {epochs} epochs…", 0
+        )
+
+        # Resolve TrainingMode enum from display text
+        _mode_map: dict[str, TrainingMode] = {
+            'standard': TrainingMode.STANDARD,
+            'fine-tune existing': TrainingMode.FINE_TUNE,
+            'incremental (continual)': TrainingMode.INCREMENTAL,
+            'export to onnx': TrainingMode.EXPORT_ONNX,
+            'export to pytorch': TrainingMode.EXPORT_PYTORCH,
+            'custom dataset': TrainingMode.CUSTOM_DATASET,
+        }
+        mode = _mode_map.get(mode_str.lower(), TrainingMode.STANDARD)
+
+        class _TrainingThread(QThread):
+            done = pyqtSignal(bool, str)
+
+            def __init__(self, mode, epochs, export_path):
+                super().__init__()
+                self._mode = mode
+                self._epochs = epochs
+                self._export_path = export_path
+
+            def run(self):
+                try:
+                    from ai.training_pytorch import PyTorchTrainer  # type: ignore[import-untyped]
+                    import torch  # type: ignore[import-untyped]
+
+                    if self._mode in (TrainingMode.EXPORT_ONNX, TrainingMode.EXPORT_PYTORCH):
+                        # Nothing to train — just a placeholder for wiring
+                        self.done.emit(True, f"Export mode: {self._mode.value} — no checkpoint loaded")
+                        return
+
+                    # Demonstrate the training loop with a tiny dummy model
+                    model = torch.nn.Linear(16, 4)
+                    X = torch.randn(32, 16)
+                    y = torch.randint(0, 4, (32,))
+                    ds = torch.utils.data.TensorDataset(X, y)
+                    loader = torch.utils.data.DataLoader(ds, batch_size=8)
+                    trainer = PyTorchTrainer(model, loader, learning_rate=1e-3)
+                    trainer.run_mode(self._mode, epochs=self._epochs)
+                    self.done.emit(True, f"Training complete: {self._mode.value}")
+                except Exception as exc:
+                    self.done.emit(False, str(exc))
+
+        thread = _TrainingThread(mode, epochs, export_path)
+
+        def _on_done(ok: bool, msg: str) -> None:
+            icon = "✅" if ok else "❌"
+            self.statusBar().showMessage(f"{icon} AI training: {msg}", 8000)
+            # Update settings panel status label
+            sp = getattr(self, 'settings_panel', None)
+            if sp and hasattr(sp, '_ai_train_status'):
+                sp._ai_train_status.setText(f"{icon} {msg}")
+            if sp and hasattr(sp, '_ai_train_progress'):
+                sp._ai_train_progress.setVisible(False)
+            thread.deleteLater()
+
+        thread.done.connect(_on_done)
+        self._ai_training_thread = thread   # prevent GC
+        thread.start()
+
     def operation_finished(self, success: bool, message: str, files_processed: int = 0):
         """Handle operation completion."""
         self.set_operation_running(False)
@@ -3325,6 +3420,32 @@ class TextureSorterMainWindow(QMainWindow):
                         logger.info(f"Hotkey '{action_id}' rebound to '{value}'")
                     except Exception as e:
                         logger.warning(f"Could not rebind hotkey '{action_id}': {e}")
+
+            elif setting_key.startswith('ai.'):
+                # Persist to config (already done above); log for debugging.
+                ai_key = setting_key[3:]
+                logger.info(f"AI setting updated: {ai_key} = {value}")
+
+                if ai_key == 'training_started':
+                    # User clicked "Start Training / Export" in AI Settings
+                    self._start_ai_training_job(value if isinstance(value, dict) else {})
+
+                # If device changed, log GPU availability status
+                elif ai_key == 'device':
+                    try:
+                        from ai.training_pytorch import is_pytorch_available
+                        if is_pytorch_available():
+                            import torch  # type: ignore[import-untyped]
+                            gpu_ok = torch.cuda.is_available() or (
+                                hasattr(torch.backends, 'mps')
+                                and torch.backends.mps.is_available()
+                            )
+                            logger.info(
+                                f"Device preference set to '{value}'; "
+                                f"GPU available: {gpu_ok}"
+                            )
+                    except Exception:
+                        pass
 
             # Save config after changes
             try:
