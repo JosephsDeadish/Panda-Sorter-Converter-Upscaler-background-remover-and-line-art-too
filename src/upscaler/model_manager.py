@@ -1,15 +1,24 @@
 """Universal AI Model Manager - Downloads models on first use"""
 
-import os
 import json
 import logging
 from pathlib import Path
 from typing import Optional, Callable
 from enum import Enum
-import urllib.request
 import shutil
 
 logger = logging.getLogger(__name__)
+
+# Use requests for downloads (handles CDN redirects + User-Agent properly)
+# Fall back to urllib if requests is not available
+try:
+    import requests as _requests
+    _USE_REQUESTS = True
+except ImportError:
+    import urllib.request as _urllib_request  # type: ignore[no-redef]
+    _USE_REQUESTS = False
+
+_USER_AGENT = 'GameTextureTool/1.0 (github.com/JosephsDeadish)'
 
 class ModelStatus(Enum):
     INSTALLED = "installed"
@@ -22,12 +31,14 @@ class AIModelManager:
     
     # Model definitions
     MODELS = {
-        # ===== REALESRGAN MODELS (v0.2.4.0 - VERIFIED WORKING) =====
+        # ===== REALESRGAN MODELS =====
+        # Primary: HuggingFace official repo (xinntao/Real-ESRGAN) — stable CDN
+        # Mirror: GitHub v0.3.0 release assets
         'RealESRGAN_x4plus': {
-            'url': 'https://github.com/xinntao/Real-ESRGAN/releases/download/v0.2.4.0/RealESRGAN_x4plus.pth',
-            'mirror': 'https://huggingface.co/Ryzr/RealESRGAN-x4plus/resolve/main/RealESRGAN_x4plus.pth',
+            'url': 'https://huggingface.co/xinntao/Real-ESRGAN/resolve/main/RealESRGAN_x4plus.pth',
+            'mirror': 'https://github.com/xinntao/Real-ESRGAN/releases/download/v0.3.0/RealESRGAN_x4plus.pth',
             'size_mb': 67,
-            'version': '0.2.4.0',
+            'version': '0.3.0',
             'description': 'Real-ESRGAN 4x upscaler - Best quality for 4x upscaling',
             'tool': 'upscaler',
             'category': 'upscaler',
@@ -35,10 +46,10 @@ class AIModelManager:
             'icon': '📈',
         },
         'RealESRGAN_x4plus_anime_6B': {
-            'url': 'https://github.com/xinntao/Real-ESRGAN/releases/download/v0.2.4.0/RealESRGAN_x4plus_anime_6B.pth',
-            'mirror': 'https://huggingface.co/Ryzr/RealESRGAN-anime-x4/resolve/main/RealESRGAN_x4plus_anime_6B.pth',
+            'url': 'https://huggingface.co/xinntao/Real-ESRGAN/resolve/main/RealESRGAN_x4plus_anime_6B.pth',
+            'mirror': 'https://github.com/xinntao/Real-ESRGAN/releases/download/v0.3.0/RealESRGAN_x4plus_anime_6B.pth',
             'size_mb': 19,
-            'version': '0.2.4.0',
+            'version': '0.3.0',
             'description': 'Real-ESRGAN 4x anime upscaler - Optimized for anime/manga art',
             'tool': 'upscaler',
             'category': 'upscaler',
@@ -46,10 +57,10 @@ class AIModelManager:
             'icon': '📈',
         },
         'RealESRGAN_x2plus': {
-            'url': 'https://github.com/xinntao/Real-ESRGAN/releases/download/v0.2.4.0/RealESRGAN_x2plus.pth',
-            'mirror': 'https://huggingface.co/Ryzr/RealESRGAN-x2plus/resolve/main/RealESRGAN_x2plus.pth',
+            'url': 'https://huggingface.co/xinntao/Real-ESRGAN/resolve/main/RealESRGAN_x2plus.pth',
+            'mirror': 'https://github.com/xinntao/Real-ESRGAN/releases/download/v0.3.0/RealESRGAN_x2plus.pth',
             'size_mb': 66,
-            'version': '0.2.4.0',
+            'version': '0.3.0',
             'description': 'Real-ESRGAN 2x upscaler - Fast 2x upscaling',
             'tool': 'upscaler',
             'category': 'upscaler',
@@ -292,24 +303,62 @@ class AIModelManager:
             return False
     
     def _download_file(self, url: str, dest: Path, progress_callback: Optional[Callable]):
-        """Helper to download a file with retry logic"""
+        """Download a file with retry logic and proper headers.
+
+        Uses ``requests`` (streamed) when available — handles CDN redirects,
+        HuggingFace LFS pointers, and GitHub release asset redirects correctly.
+        Falls back to ``urllib`` when requests is not installed.
+        """
+        import time
         max_retries = 3
+        headers = {'User-Agent': _USER_AGENT}
+
         for attempt in range(max_retries):
             try:
-                def download_progress(block_num, block_size, total_size):
-                    if progress_callback:
-                        downloaded = block_num * block_size
-                        progress_callback(downloaded, total_size)
-                
-                urllib.request.urlretrieve(url, dest, reporthook=download_progress)
-                return  # Success
-            except Exception as e:
-                if attempt < max_retries - 1:
-                    logger.warning(f"Attempt {attempt + 1} failed, retrying...")
-                    import time
-                    time.sleep(1)  # Wait before retry
+                if _USE_REQUESTS:
+                    resp = _requests.get(url, headers=headers, stream=True,
+                                         timeout=60, allow_redirects=True)
+                    resp.raise_for_status()
+                    total = int(resp.headers.get('content-length', 0))
+                    downloaded = 0
+                    dest.parent.mkdir(parents=True, exist_ok=True)
+                    with open(dest, 'wb') as fh:
+                        for chunk in resp.iter_content(chunk_size=65536):
+                            if chunk:
+                                fh.write(chunk)
+                                downloaded += len(chunk)
+                                if progress_callback and total > 0:
+                                    progress_callback(downloaded, total)
+                    return  # success
                 else:
-                    raise
+                    # urllib fallback — set User-Agent via opener
+                    opener = _urllib_request.build_opener()
+                    opener.addheaders = [('User-Agent', _USER_AGENT)]
+                    _urllib_request.install_opener(opener)
+
+                    def _reporthook(block_num, block_size, total_size):
+                        if progress_callback:
+                            progress_callback(block_num * block_size, total_size)
+
+                    dest.parent.mkdir(parents=True, exist_ok=True)
+                    _urllib_request.urlretrieve(url, dest, reporthook=_reporthook)
+                    return  # success
+
+            except Exception as exc:
+                if dest.exists():
+                    dest.unlink(missing_ok=True)
+                if attempt < max_retries - 1:
+                    wait = 2 ** attempt  # exponential back-off: 1s, 2s
+                    logger.warning(f"Download attempt {attempt + 1}/{max_retries} failed "
+                                   f"({exc}); retrying in {wait}s…")
+                    time.sleep(wait)
+                else:
+                    raise RuntimeError(
+                        f"Download failed after {max_retries} attempts.\n"
+                        f"URL: {url}\n"
+                        f"Last error: {exc}\n"
+                        "Check your internet connection and try again."
+                    ) from exc
     
     def delete_model(self, model_name: str) -> bool:
         """Delete model file to free space"""
@@ -335,3 +384,46 @@ class AIModelManager:
             }
             for name, info in self.MODELS.items()
         }
+
+    def get_required_models(self) -> list[str]:
+        """Return the list of model IDs that should be present for core functionality.
+
+        These are auto-downloaded on first run so the user never has to click
+        "Download" manually.  Only models with ``url`` (actual file downloads) and
+        **not** ``auto_download`` (pip-managed) or ``native_module`` are included.
+        """
+        return [
+            name for name, info in self.MODELS.items()
+            if 'url' in info
+            and not info.get('auto_download')
+            and not info.get('native_module')
+        ]
+
+    def auto_download_required(
+        self,
+        progress_callback: Optional[Callable[[str, int, int], None]] = None,
+    ) -> dict[str, bool]:
+        """Download all required models that are not yet installed.
+
+        Called automatically on first run by ``main.py``.
+
+        Args:
+            progress_callback: ``(model_name, downloaded_bytes, total_bytes)``
+                               called periodically during each download.
+
+        Returns:
+            ``{model_name: success_bool}`` for every model that was attempted.
+        """
+        results: dict[str, bool] = {}
+        for model_name in self.get_required_models():
+            if self.get_model_status(model_name) == ModelStatus.INSTALLED:
+                logger.debug(f"Model already installed, skipping: {model_name}")
+                continue
+            logger.info(f"Auto-downloading required model: {model_name}")
+            cb = None
+            if progress_callback:
+                def _cb(dl, total, captured_name=model_name):
+                    progress_callback(captured_name, dl, total)
+                cb = _cb
+            results[model_name] = self.download_model(model_name, progress_callback=cb)
+        return results

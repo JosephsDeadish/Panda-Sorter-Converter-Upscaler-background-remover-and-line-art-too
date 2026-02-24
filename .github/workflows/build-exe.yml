@@ -241,6 +241,29 @@ jobs:
           mkdir -p dist/GameTextureSorter/app_data/themes
           mkdir -p dist/GameTextureSorter/app_data/models
         shell: bash
+
+      - name: Pre-download AI Models into EXE bundle
+        # Download upscaler .pth model files so users never need to click "Download".
+        # Uses setup_models.py which calls AIModelManager.auto_download_required().
+        # continue-on-error: true — build still succeeds even if CDN is unavailable.
+        continue-on-error: true
+        shell: bash
+        env:
+          PYTHONUTF8: "1"
+        run: |
+          echo "Pre-downloading required AI models…"
+          python setup_models.py --quiet && echo "✅ AI models downloaded" || echo "⚠️  Model download failed (app will re-attempt on first user run)"
+          # Copy downloaded models into the EXE bundle so they ship with the app
+          if [ -d "$HOME/.panda_texture_tool/models" ]; then
+            cp -r "$HOME/.panda_texture_tool/models/"* dist/GameTextureSorter/app_data/models/ 2>/dev/null || true
+            echo "Models in bundle: $(ls dist/GameTextureSorter/app_data/models/*.pth 2>/dev/null | wc -l)"
+          fi
+          # Also check common app_data paths
+          for dir in "app_data/models" "$APPDATA/GameTextureSorter/models"; do
+            if [ -d "$dir" ]; then
+              cp "$dir"/*.pth dist/GameTextureSorter/app_data/models/ 2>/dev/null || true
+            fi
+          done
       
       - name: Upload Build as Artifact
         uses: actions/upload-artifact@v4

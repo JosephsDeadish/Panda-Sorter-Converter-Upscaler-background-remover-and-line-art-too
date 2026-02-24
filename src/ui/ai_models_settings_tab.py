@@ -350,47 +350,56 @@ class ModelCardWidget(QFrame):
     
     def download_model(self):
         """Start downloading the model"""
-        # Check if auto-download model
+        # Check if auto-download model (installed via pip, not a .pth file)
         if self.model_info.get('auto_download'):
+            pkgs = ' '.join(self.model_info.get('required_packages', []))
             QMessageBox.information(
                 self,
-                "Package Install Required",
-                f"{self.model_name} is installed via package manager.\n\n"
-                f"Run: pip install {' '.join(self.model_info.get('required_packages', []))}"
+                "Installed via pip",
+                f"<b>{self.model_name}</b> is managed by pip (no separate download needed).<br><br>"
+                f"It is installed as part of:<br><code>pip install {pkgs}</code><br><br>"
+                f"Run <b>pip install -r requirements.txt</b> to install all packages at once.",
             )
             return
-        
+
         # Check if native module
         if self.model_info.get('native_module'):
             QMessageBox.information(
                 self,
-                "Native Module",
-                f"{self.model_name} is a native module built into the application."
+                "Built-in Module",
+                f"<b>{self.model_name}</b> is built into the application and requires no download.",
             )
             return
-        
+
         self.expand_btn.setEnabled(False)
         self.progress.setVisible(True)
         self.progress.setValue(0)
-        
+        self.progress.setRange(0, 100)
+
         self.download_thread = ModelDownloadThread(self.model_manager, self.model_name)
-        self.download_thread.progress.connect(
-            lambda d, t: self.progress.setValue(int((d / t) * 100)) if t > 0 else None
-        )
+        self.download_thread.progress.connect(self._on_progress)
         self.download_thread.finished.connect(self.on_download_finished)
         self.download_thread.start()
-    
+
+    def _on_progress(self, downloaded: int, total: int) -> None:
+        if total > 0:
+            self.progress.setValue(int(downloaded / total * 100))
+        else:
+            # Unknown total — pulse
+            self.progress.setRange(0, 0)
+
     def on_download_finished(self, success: bool):
         """Handle download completion"""
+        self.progress.setRange(0, 100)
         self.progress.setVisible(False)
         self.expand_btn.setEnabled(True)
-        
+
         if success:
             logger.info(f"✅ {self.model_name} downloaded successfully")
             QMessageBox.information(
                 self,
                 "Download Complete",
-                f"{self.model_name} has been downloaded successfully!"
+                f"✅ <b>{self.model_name}</b> has been downloaded and is ready to use!",
             )
             # Update UI to show installed status
             self.model_info['installed'] = True
@@ -398,26 +407,27 @@ class ModelCardWidget(QFrame):
             self.recreate_ui()
         else:
             logger.error(f"❌ Failed to download {self.model_name}")
-            # Show detailed error message with troubleshooting tips
+            url = self.model_info.get('url', 'unknown')
+            mirror = self.model_info.get('mirror', '')
             error_msg = (
-                f"❌ Could not download {self.model_name}\n\n"
-                f"Possible causes:\n"
-                f"• No internet connection\n"
-                f"• Server temporarily unavailable\n"
-                f"• Insufficient disk space\n"
-                f"• Firewall blocking downloads\n\n"
-                f"💡 Troubleshooting:\n"
-                f"• Check your internet connection\n"
-                f"• Try again in a few minutes\n"
-                f"• Free up disk space if needed\n"
-                f"• Check firewall settings\n\n"
-                f"The system tried both primary and mirror URLs."
+                f"❌ <b>Could not download {self.model_name}</b><br><br>"
+                f"Both download sources were tried and failed:<br>"
+                f"• <small>{url}</small><br>"
+                + (f"• <small>{mirror}</small><br>" if mirror else "")
+                + "<br>Possible causes:<br>"
+                "• Internet connection is down<br>"
+                "• CDN server is temporarily unavailable<br>"
+                "• Insufficient disk space<br>"
+                "• Firewall / proxy blocking the request<br><br>"
+                "💡 Try again in a few minutes, or download the model manually "
+                "and place the <code>.pth</code> file in <code>app_data/models/</code>."
             )
-            QMessageBox.critical(
-                self,
-                "Download Failed",
-                error_msg
-            )
+            msg = QMessageBox(self)
+            msg.setWindowTitle("Download Failed")
+            msg.setIcon(QMessageBox.Icon.Critical)
+            msg.setTextFormat(Qt.TextFormat.RichText)
+            msg.setText(error_msg)
+            msg.exec()
     
     def delete_model(self):
         """Delete the model"""

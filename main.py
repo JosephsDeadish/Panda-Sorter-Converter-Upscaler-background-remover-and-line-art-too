@@ -5224,6 +5224,82 @@ def log_startup_diagnostics(window):
     logger.info("Startup diagnostics completed")
 
 
+def _auto_download_models(main_window: 'TextureSorterMainWindow') -> None:
+    """Download any missing required AI models in a background QThread.
+
+    Shows a status-bar message while downloading; does NOT block the UI.
+    On first run this ensures the upscaler models are ready without the user
+    having to open Settings → AI Models and click "Download" manually.
+    """
+    try:
+        from upscaler.model_manager import AIModelManager, ModelStatus
+    except (ImportError, OSError, RuntimeError):
+        try:
+            from src.upscaler.model_manager import AIModelManager, ModelStatus  # type: ignore[no-redef]
+        except (ImportError, OSError, RuntimeError):
+            return
+
+    try:
+        mgr = AIModelManager()
+        required = mgr.get_required_models()
+        missing = [m for m in required
+                   if mgr.get_model_status(m) != ModelStatus.INSTALLED]
+        if not missing:
+            logger.debug("All required models already installed — no auto-download needed")
+            return
+
+        logger.info(f"Auto-downloading {len(missing)} missing model(s): {missing}")
+        main_window.statusBar().showMessage(
+            f"⬇️  Downloading {len(missing)} AI model(s) in background…", 0
+        )
+
+        # Use a QThread so UI never freezes
+        class _DownloadThread(QThread):
+            done = pyqtSignal(dict)   # {model_name: success}
+
+            def __init__(self, manager, models):
+                super().__init__()
+                self._mgr = manager
+                self._models = models
+
+            def run(self):
+                results = {}
+                for name in self._models:
+                    try:
+                        results[name] = self._mgr.download_model(name)
+                    except Exception as exc:
+                        logger.error(f"Auto-download {name} failed: {exc}")
+                        results[name] = False
+                self.done.emit(results)
+
+        thread = _DownloadThread(mgr, missing)
+
+        def _on_done(results: dict) -> None:
+            ok = [n for n, v in results.items() if v]
+            fail = [n for n, v in results.items() if not v]
+            if ok:
+                logger.info(f"Auto-downloaded: {ok}")
+                main_window.statusBar().showMessage(
+                    f"✅ AI models ready: {', '.join(ok)}", 6000
+                )
+            if fail:
+                logger.warning(f"Auto-download failed: {fail}")
+                main_window.statusBar().showMessage(
+                    f"⚠️ Could not download: {', '.join(fail)} — "
+                    "check Settings → AI Models to retry", 10000
+                )
+            # Keep thread alive until done
+            thread.deleteLater()
+
+        thread.done.connect(_on_done)
+        # Keep a reference so GC doesn't collect the thread
+        main_window._model_download_thread = thread
+        thread.start()
+
+    except Exception as exc:
+        logger.debug(f"_auto_download_models: {exc}")
+
+
 def main():
     """Main entry point."""
     # In a frozen EXE PIL plugins are not auto-registered — call init() explicitly
@@ -5285,6 +5361,12 @@ def main():
             _tm.start_tutorial(window)
     except Exception as _te:
         logger.debug(f"Tutorial check skipped: {_te}")
+
+    # Auto-download required AI models on first run (non-blocking — runs in background)
+    # Uses a QThread so the UI stays responsive while models download.
+    # 1500 ms delay: gives the main window time to finish painting and the event loop
+    # to settle before we start background I/O, preventing any startup jank.
+    QTimer.singleShot(1500, lambda: _auto_download_models(window))
 
     # Log startup
     logger.info(f"{APP_NAME} v{APP_VERSION} started with Qt6")
