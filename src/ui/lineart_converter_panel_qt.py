@@ -1075,12 +1075,12 @@ class LineArtConverterPanelQt(QWidget):
         """Create LineArtSettings from current control values."""
         # Conversion mode from combo
         _MODE_MAP = {
-            "pure_black":  getattr(ConversionMode, 'PURE_BLACK',   ConversionMode) if ConversionMode else None,
-            "edge_detect": getattr(ConversionMode, 'EDGE_DETECT',  ConversionMode) if ConversionMode else None,
-            "adaptive":    getattr(ConversionMode, 'ADAPTIVE',     ConversionMode) if ConversionMode else None,
-            "sketch":      getattr(ConversionMode, 'SKETCH',       ConversionMode) if ConversionMode else None,
-            "threshold":   getattr(ConversionMode, 'THRESHOLD',    ConversionMode) if ConversionMode else None,
-            "stencil_1bit":getattr(ConversionMode, 'STENCIL_1BIT', ConversionMode) if ConversionMode else None,
+            "pure_black":  getattr(ConversionMode, 'PURE_BLACK',   None) if ConversionMode else None,
+            "edge_detect": getattr(ConversionMode, 'EDGE_DETECT',  None) if ConversionMode else None,
+            "adaptive":    getattr(ConversionMode, 'ADAPTIVE',     None) if ConversionMode else None,
+            "sketch":      getattr(ConversionMode, 'SKETCH',       None) if ConversionMode else None,
+            "threshold":   getattr(ConversionMode, 'THRESHOLD',    None) if ConversionMode else None,
+            "stencil_1bit":getattr(ConversionMode, 'STENCIL_1BIT', None) if ConversionMode else None,
         }
         mode_key = "pure_black"
         if hasattr(self, 'mode_combo') and ConversionMode:

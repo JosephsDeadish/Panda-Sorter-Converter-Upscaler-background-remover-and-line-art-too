@@ -218,7 +218,7 @@ class ByResolutionStyle(OrganizationStyle):
         if '512' in n:               return '512'
         if 'hd' in n or 'high' in n: return '2K'
         if 'low' in n or 'lod' in n: return 'Low'
-        return '1K'  # sensible default
+        return '1K'  # 1K is the most common texture resolution in game assets
 
     def get_target_path(self, texture: TextureInfo) -> str:
         res_tier = (self._res_tier_from_dims(texture.dimensions)
