@@ -20,6 +20,11 @@ except ImportError:
 
 _USER_AGENT = 'GameTextureTool/1.0 (github.com/JosephsDeadish)'
 
+# Base URL for rembg model files hosted on GitHub releases.
+# danielgatis/rembg on HuggingFace is a PRIVATE repo → always returns HTTP 401
+# without an auth token.  The GitHub v0.0.0 release assets are public and fast.
+_REMBG_GH = 'https://github.com/danielgatis/rembg/releases/download/v0.0.0'
+
 class ModelStatus(Enum):
     INSTALLED = "installed"
     DOWNLOADING = "downloading"
@@ -113,13 +118,50 @@ class AIModelManager:
             'required_packages': ['gfpgan', 'basicsr'],
             'icon': '🧑',
         },
+        'CodeFormer': {
+            'url': 'https://github.com/sczhou/CodeFormer/releases/download/v0.1.0/codeformer.pth',
+            'mirror': 'https://huggingface.co/sczhou/CodeFormer/resolve/main/codeformer.pth',
+            'size_mb': 375,
+            'version': '0.1.0',
+            'description': 'CodeFormer - State-of-the-art face restoration (better than GFPGAN)',
+            'tool': 'upscaler',
+            'category': 'face_restore',
+            'required_packages': ['basicsr'],
+            'icon': '🧑',
+        },
+
+        # ===== SWINIR UPSCALER =====
+        'SwinIR_x4_realworld': {
+            'url': 'https://github.com/JingyunLiang/SwinIR/releases/download/v0.0/003_realSR_BSRGAN_DFOWMFC_s64w8_SwinIR-L_x4_GAN.pth',
+            'mirror': 'https://huggingface.co/JingyunLiang/SwinIR/resolve/main/003_realSR_BSRGAN_DFOWMFC_s64w8_SwinIR-L_x4_GAN.pth',
+            'size_mb': 66,
+            'version': '0.0',
+            'description': 'SwinIR-L x4 Real-World - Transformer-based upscaler (sharp details)',
+            'tool': 'upscaler',
+            'category': 'upscaler',
+            'required_packages': ['basicsr', 'timm'],
+            'icon': '📈',
+        },
+        'SwinIR_x4_anime': {
+            'url': 'https://github.com/JingyunLiang/SwinIR/releases/download/v0.0/001_classicalSR_DF2K_s64w8_SwinIR-M_x4.pth',
+            'mirror': 'https://huggingface.co/JingyunLiang/SwinIR/resolve/main/001_classicalSR_DF2K_s64w8_SwinIR-M_x4.pth',
+            'size_mb': 28,
+            'version': '0.0',
+            'description': 'SwinIR-M x4 Classical - Balanced quality/speed for clean images',
+            'tool': 'upscaler',
+            'category': 'upscaler',
+            'required_packages': ['basicsr', 'timm'],
+            'icon': '📈',
+        },
 
         # ===== BACKGROUND REMOVAL MODELS (rembg) =====
         # rembg downloads these to ~/.u2net/ on first use; we pre-download here
         # so the app works offline and without internet delay.
+        # NOTE: HuggingFace danielgatis/rembg is a PRIVATE repo → HTTP 401 without
+        # a token.  GitHub v0.0.0 release assets are public → use as PRIMARY.
         'u2net': {
-            'url': 'https://huggingface.co/danielgatis/rembg/resolve/main/u2net.onnx',
-            'mirror': 'https://github.com/danielgatis/rembg/releases/download/v0.0.0/u2net.onnx',
+            'url': f'{_REMBG_GH}/u2net.onnx',
+            'mirror': 'https://huggingface.co/danielgatis/rembg/resolve/main/u2net.onnx',
             'dest_filename': 'u2net.onnx',
             'dest_dir_env': 'U2NET_HOME',  # rembg checks this env var
             'size_mb': 176,
@@ -131,8 +173,8 @@ class AIModelManager:
             'icon': '✂️',
         },
         'u2netp': {
-            'url': 'https://huggingface.co/danielgatis/rembg/resolve/main/u2netp.onnx',
-            'mirror': 'https://github.com/danielgatis/rembg/releases/download/v0.0.0/u2netp.onnx',
+            'url': f'{_REMBG_GH}/u2netp.onnx',
+            'mirror': 'https://huggingface.co/danielgatis/rembg/resolve/main/u2netp.onnx',
             'dest_filename': 'u2netp.onnx',
             'dest_dir_env': 'U2NET_HOME',
             'size_mb': 4,
@@ -144,8 +186,8 @@ class AIModelManager:
             'icon': '✂️',
         },
         'u2net_human_seg': {
-            'url': 'https://huggingface.co/danielgatis/rembg/resolve/main/u2net_human_seg.onnx',
-            'mirror': 'https://github.com/danielgatis/rembg/releases/download/v0.0.0/u2net_human_seg.onnx',
+            'url': f'{_REMBG_GH}/u2net_human_seg.onnx',
+            'mirror': 'https://huggingface.co/danielgatis/rembg/resolve/main/u2net_human_seg.onnx',
             'dest_filename': 'u2net_human_seg.onnx',
             'dest_dir_env': 'U2NET_HOME',
             'size_mb': 176,
@@ -156,9 +198,35 @@ class AIModelManager:
             'required_packages': ['rembg'],
             'icon': '🧑',
         },
+        'silueta': {
+            'url': f'{_REMBG_GH}/silueta.onnx',
+            'mirror': 'https://huggingface.co/danielgatis/rembg/resolve/main/silueta.onnx',
+            'dest_filename': 'silueta.onnx',
+            'dest_dir_env': 'U2NET_HOME',
+            'size_mb': 43,
+            'version': '1.0',
+            'description': 'Silueta - Compact people/subject removal (43 MB, fast)',
+            'tool': 'background_remover',
+            'category': 'background_removal',
+            'required_packages': ['rembg'],
+            'icon': '🧑',
+        },
+        'u2net_cloth_seg': {
+            'url': f'{_REMBG_GH}/u2net_cloth_seg.onnx',
+            'mirror': 'https://huggingface.co/danielgatis/rembg/resolve/main/u2net_cloth_seg.onnx',
+            'dest_filename': 'u2net_cloth_seg.onnx',
+            'dest_dir_env': 'U2NET_HOME',
+            'size_mb': 176,
+            'version': '1.0',
+            'description': 'U2-Net Cloth Seg - Clothing/fabric segmentation',
+            'tool': 'background_remover',
+            'category': 'background_removal',
+            'required_packages': ['rembg'],
+            'icon': '👔',
+        },
         'isnet-general-use': {
-            'url': 'https://huggingface.co/danielgatis/rembg/resolve/main/isnet-general-use.onnx',
-            'mirror': 'https://github.com/danielgatis/rembg/releases/download/v0.0.0/isnet-general-use.onnx',
+            'url': f'{_REMBG_GH}/isnet-general-use.onnx',
+            'mirror': 'https://huggingface.co/danielgatis/rembg/resolve/main/isnet-general-use.onnx',
             'dest_filename': 'isnet-general-use.onnx',
             'dest_dir_env': 'U2NET_HOME',
             'size_mb': 178,
@@ -169,9 +237,25 @@ class AIModelManager:
             'required_packages': ['rembg'],
             'icon': '✂️',
         },
+        'isnet_dis': {
+            'url': f'{_REMBG_GH}/isnet_dis.onnx',
+            'mirror': 'https://huggingface.co/danielgatis/rembg/resolve/main/isnet_dis.onnx',
+            'dest_filename': 'isnet_dis.onnx',
+            'dest_dir_env': 'U2NET_HOME',
+            'size_mb': 178,
+            'version': '1.0',
+            'description': 'IS-Net DIS - Dichotomous image segmentation (precise cuts)',
+            'tool': 'background_remover',
+            'category': 'background_removal',
+            'required_packages': ['rembg'],
+            'icon': '✂️',
+        },
         'birefnet-general': {
-            'url': 'https://huggingface.co/danielgatis/rembg/resolve/main/birefnet-general.onnx',
-            'mirror': 'https://github.com/danielgatis/rembg/releases/download/v0.0.0/birefnet-general.onnx',
+            # birefnet is NOT in danielgatis/rembg GitHub v0.0.0 release.
+            # Primary: ZhengPeng7/BiRefNet on HuggingFace (PUBLIC repo, no auth needed).
+            # Mirror: danielgatis/rembg HF (requires token — kept as fallback).
+            'url': 'https://huggingface.co/ZhengPeng7/BiRefNet/resolve/main/onnx/birefnet-general.onnx',
+            'mirror': 'https://huggingface.co/danielgatis/rembg/resolve/main/birefnet-general.onnx',
             'dest_filename': 'birefnet-general.onnx',
             'dest_dir_env': 'U2NET_HOME',
             'size_mb': 186,

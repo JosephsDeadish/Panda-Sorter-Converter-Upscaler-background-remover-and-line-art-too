@@ -252,19 +252,26 @@ jobs:
 
       - name: Pre-download AI Models into EXE bundle
         # Download upscaler .pth/.onnx model files so users never need to click "Download".
-        # --output-dir tells setup_models.py to write files directly into the bundle folder,
-        # removing the need for a separate copy step (and the old path-mismatch bug).
-        # continue-on-error: true — build still succeeds even if CDN is unavailable.
+        # --output-dir tells setup_models.py to write files directly into the bundle folder.
+        # continue-on-error: true — build still succeeds even if a CDN is unavailable.
         continue-on-error: true
         shell: bash
         env:
           PYTHONUTF8: "1"
         run: |
           echo "Pre-downloading required AI models into EXE bundle…"
-          python setup_models.py --quiet --output-dir dist/GameTextureSorter/app_data/models \
-            && echo "✅ AI models downloaded" \
-            || echo "⚠️  Some models could not be downloaded (app will retry on first run)"
-          echo "Models bundled: $(ls dist/GameTextureSorter/app_data/models/ 2>/dev/null | wc -l) files"
+          python setup_models.py --output-dir dist/GameTextureSorter/app_data/models
+          EXIT=$?
+          echo ""
+          echo "=== Model bundle summary ==="
+          ls dist/GameTextureSorter/app_data/models/ 2>/dev/null || echo "(no files)"
+          NFILES=$(ls dist/GameTextureSorter/app_data/models/ 2>/dev/null | wc -l)
+          echo "Models bundled: $NFILES file(s)"
+          if [ $EXIT -eq 0 ]; then
+            echo "✅ All AI models downloaded successfully"
+          else
+            echo "⚠️  Some models could not be downloaded (app will retry on first run)"
+          fi
       
       - name: Upload Build as Artifact
         uses: actions/upload-artifact@v4
