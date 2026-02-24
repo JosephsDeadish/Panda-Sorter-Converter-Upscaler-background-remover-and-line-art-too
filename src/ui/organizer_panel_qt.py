@@ -269,13 +269,13 @@ class OrganizerWorker(QThread):
                     try:
                         from organizer.organization_engine import TextureInfo as _TI
                         ti = _TI(
-                            original_path=str(file_path),
+                            file_path=str(file_path),
+                            filename=file_path.name,
                             category=suggested_folder,
                             confidence=confidence,
-                            visual_features={},
                         )
                         result = org_engine.organize_textures([ti])
-                        if result and result[0].get('success'):
+                        if result and result.get('success'):
                             moved_count += 1
                             self._files_processed += 1
                             self.progress.emit(idx + 1, total_files, file_path.name, confidence)
@@ -1616,6 +1616,21 @@ class OrganizerPanelQt(QWidget):
                     self._log("Learning profile saved")
                 except Exception as e:
                     logger.error(f"Failed to save profile: {e}")
+
+            # Save operation log to target directory
+            try:
+                target_dir = self.target_directory or ""
+                if target_dir:
+                    from organizer import OrganizationEngine
+                    _log_path = str(Path(target_dir) / "organization_log.txt")
+                    # Write stats-only log (no engine ref here since it lives in the worker)
+                    with open(_log_path, 'w', encoding='utf-8') as _lf:
+                        _lf.write(f"Organization completed: {message}\n")
+                        for k, v in stats.items():
+                            _lf.write(f"  {k}: {v}\n")
+                    self._log(f"📋 Log saved to {_log_path}")
+            except Exception as _le:
+                logger.debug(f"Could not save operation log: {_le}")
         else:
             self.status_label.setText(message)
             self.status_label.setStyleSheet("color: red; font-weight: bold;")

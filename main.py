@@ -1305,12 +1305,16 @@ class TextureSorterMainWindow(QMainWindow):
                 from ui.panda_world_gl import PandaWorldWidget as _PandaWorldWidgetCls
             except (ImportError, OSError, RuntimeError):
                 _PandaWorldWidgetCls = None
-            from features.shop_system import ShopSystem
-            from features.currency_system import CurrencySystem
-
-            # Initialise shop/currency so Inventory still works
-            self.shop_system = ShopSystem()
-            self.currency_system = CurrencySystem()
+            try:
+                from features.shop_system import ShopSystem
+                from features.currency_system import CurrencySystem
+                # Initialise shop/currency so Inventory still works
+                self.shop_system = ShopSystem()
+                self.currency_system = CurrencySystem()
+            except (ImportError, OSError, RuntimeError) as _se:
+                logger.warning(f"Shop/currency system unavailable: {_se}")
+                self.shop_system = None
+                self.currency_system = None
 
             # ── Build stacked container ────────────────────────────────────
             home_container = QWidget()
@@ -2411,7 +2415,7 @@ class TextureSorterMainWindow(QMainWindow):
             self.lod_detector = LODDetector()
             self.file_handler = FileHandler(create_backup=True, config=config)
             # OrganizationEngine requires output_dir + style_class; created on-demand in
-            # perform_sorting() once the user has selected an output folder and style.
+            # _start_organization() once the user has selected an output folder and style.
             # TextureDatabase is initialized once per session — here if app_data exists,
             # or on first sort run if the directory isn't created yet.
             try:
@@ -3137,7 +3141,7 @@ class TextureSorterMainWindow(QMainWindow):
     def operation_finished(self, success: bool, message: str, files_processed: int = 0):
         """Handle operation completion."""
         self.set_operation_running(False)
-        # Use count stored by perform_sorting when caller doesn't supply it
+        # Use count stored by the previous operation when caller doesn't supply it
         if files_processed == 0:
             files_processed = getattr(self, '_last_sorted_count', 0)
             self._last_sorted_count = 0
