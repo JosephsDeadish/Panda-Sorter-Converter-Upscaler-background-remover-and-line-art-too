@@ -238,8 +238,11 @@ class ItemDetailDialog:
         except (RuntimeError, AttributeError) as e:
             logger.debug(f"ItemDetailDialog.exec: {e}")
             return 0
-    """Main shop panel for purchasing items"""
-    
+
+
+class ShopPanelQt(QWidget):
+    """Main shop panel for purchasing items."""
+
     item_purchased = pyqtSignal(str)  # item_id
     
     def __init__(self, shop_system: Optional['ShopSystem'] = None, 
