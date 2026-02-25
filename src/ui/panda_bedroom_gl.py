@@ -72,6 +72,7 @@ _COL_RED          = (0.80, 0.12, 0.12)
 _COL_BLUE_GLOW    = (0.30, 0.55, 1.00)
 _COL_CHROME       = (0.82, 0.82, 0.84)
 _COL_HIGHLIGHT    = (1.00, 0.92, 0.20, 0.50)  # yellow selection box
+_COL_GLASS        = (0.72, 0.88, 0.96, 0.45)  # pale blue semi-transparent glass
 
 # ── Default furniture layout ──────────────────────────────────────────────────
 
