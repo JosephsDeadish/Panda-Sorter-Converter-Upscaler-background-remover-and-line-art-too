@@ -122,7 +122,8 @@ class AIModelManager:
         },
         'CodeFormer': {
             'url': 'https://github.com/sczhou/CodeFormer/releases/download/v0.1.0/codeformer.pth',
-            'mirror': 'https://huggingface.co/sczhou/CodeFormer/resolve/main/codeformer.pth',
+            # HF path is weights/CodeFormer/codeformer.pth (inside a subfolder, not at repo root)
+            'mirror': 'https://huggingface.co/sczhou/CodeFormer/resolve/main/weights/CodeFormer/codeformer.pth',
             'size_mb': 375,
             'version': '0.1.0',
             'description': 'CodeFormer - State-of-the-art face restoration (better than GFPGAN)',
@@ -253,11 +254,11 @@ class AIModelManager:
             'icon': '✂️',
         },
         'birefnet-general': {
-            # birefnet is NOT in danielgatis/rembg GitHub v0.0.0 release.
-            # Primary: ZhengPeng7/BiRefNet on HuggingFace (PUBLIC repo, no auth needed).
-            # Mirror: danielgatis/rembg HF (requires token — kept as fallback).
-            'url': 'https://huggingface.co/ZhengPeng7/BiRefNet/resolve/main/onnx/birefnet-general.onnx',
-            'mirror': 'https://huggingface.co/danielgatis/rembg/resolve/main/birefnet-general.onnx',
+            # birefnet-general.onnx was added to the danielgatis/rembg v0.0.0 release
+            # after the other models.  Use it as primary (same as all other rembg models).
+            # Mirror: ZhengPeng7/BiRefNet HuggingFace repo (public, no auth needed) as backup.
+            'url': f'{_REMBG_GH}/birefnet-general.onnx',
+            'mirror': 'https://huggingface.co/ZhengPeng7/BiRefNet/resolve/main/onnx/birefnet-general.onnx',
             'dest_filename': 'birefnet-general.onnx',
             'dest_dir_env': 'U2NET_HOME',
             'size_mb': 186,

@@ -285,6 +285,57 @@ def test_organizer_style_no_false_positives():
         print(f"  ⚠️  Skipped (import failed: {exc})")
 
 
+def test_model_manager_url_structure():
+    """Verify that known-wrong HuggingFace URL patterns are not present in model_manager."""
+    print("\ntest_model_manager_url_structure ...")
+    import sys
+    import os
+    # Add src to path
+    _root = os.path.dirname(os.path.abspath(__file__))
+    sys.path.insert(0, os.path.join(_root, 'src'))
+    try:
+        from upscaler.model_manager import AIModelManager
+        mgr = AIModelManager.__new__(AIModelManager)
+        models = AIModelManager.MODELS
+
+        # 1. CodeFormer HF mirror must include the 'weights/CodeFormer/' subfolder
+        cf = models.get('CodeFormer', {})
+        mirror = cf.get('mirror', '')
+        assert 'sczhou/CodeFormer' not in mirror or 'weights/CodeFormer/' in mirror, (
+            f"CodeFormer HF mirror URL is missing the 'weights/CodeFormer/' subfolder: {mirror!r}\n"
+            "Correct path: .../sczhou/CodeFormer/resolve/main/weights/CodeFormer/codeformer.pth"
+        )
+
+        # 2. birefnet-general should NOT use private danielgatis/rembg HF as primary
+        #    (The HF repo is private — it returns HTTP 401 without a token)
+        #    GitHub releases ARE public and fine to use as primary.
+        bn = models.get('birefnet-general', {})
+        primary = bn.get('url', '')
+        assert 'huggingface.co/danielgatis/rembg' not in primary, (
+            f"birefnet-general primary URL uses private danielgatis/rembg HuggingFace repo "
+            f"(returns HTTP 401 without a token): {primary!r}\n"
+            "Use GitHub releases or a public HF repo as primary."
+        )
+
+        # 3. All rembg models with dest_dir_env should have dest_filename set
+        for name, info in models.items():
+            if info.get('dest_dir_env') == 'U2NET_HOME':
+                assert 'dest_filename' in info, (
+                    f"Model '{name}' has dest_dir_env='U2NET_HOME' but no dest_filename — "
+                    "get_model_status() will look for wrong filename"
+                )
+
+        # 4. All models must have a 'url' or 'hf_model_id' or 'auto_download'
+        for name, info in models.items():
+            has_source = ('url' in info or 'hf_model_id' in info
+                          or info.get('auto_download') or info.get('native_module'))
+            assert has_source, f"Model '{name}' has no download source (url/hf_model_id/auto_download)"
+
+        print("  ✅ model_manager URL structure correct")
+    except ImportError as exc:
+        print(f"  ⚠️  Skipped (import failed: {exc})")
+
+
 # ---------------------------------------------------------------------------
 # Runner
 # ---------------------------------------------------------------------------
@@ -303,6 +354,7 @@ def run_all_tests():
         test_ai_training_pytorch_importable_without_torch,
         test_ai_package_exports_hybrid_symbols,
         test_organizer_style_no_false_positives,
+        test_model_manager_url_structure,
     ]
 
     passed, failed = [], []

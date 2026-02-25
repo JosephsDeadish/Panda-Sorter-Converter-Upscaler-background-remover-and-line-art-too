@@ -349,6 +349,16 @@ def _setup_opengl_for_exe() -> None:
                 os.add_dll_directory(_d)  # type: ignore[attr-defined]
             except (AttributeError, OSError):
                 pass
+    # Set Qt's application-level AA_UseDesktopOpenGL attribute.
+    # This must be called before QApplication is instantiated (it is a static
+    # class method in Qt6 that can be called without a QApplication instance).
+    # Belt-and-suspenders alongside QT_OPENGL=desktop.
+    try:
+        from PyQt6.QtWidgets import QApplication as _QApp
+        from PyQt6.QtCore import Qt as _Qt6
+        _QApp.setAttribute(_Qt6.ApplicationAttribute.AA_UseDesktopOpenGL)
+    except Exception:
+        pass  # Qt not yet imported at module-load time; main() sets it too
 
 
 _setup_opengl_for_exe()
@@ -5900,6 +5910,21 @@ def main():
         _startup_validation.optimize_memory()
     except Exception:
         pass
+
+    # Force Qt to use the native desktop OpenGL renderer BEFORE QApplication is created.
+    # This is a Qt C++-level flag (not just an env var) — the most reliable way to
+    # prevent Qt from choosing ANGLE (Direct3D/OpenGL ES) on Windows.
+    # ANGLE only supports OpenGL ES, which lacks CompatibilityProfile functions
+    # (glShadeModel, glLightfv, glBegin/glEnd) — they all raise GLError(1282) on ANGLE,
+    # causing initializeGL() to fail and the 2D panda fallback to show.
+    # Belt-and-suspenders: QT_OPENGL=desktop (env var, set above) + AA_UseDesktopOpenGL
+    # (C++ attribute) together guarantee desktop GL on every Qt6 Windows installation.
+    try:
+        from PyQt6.QtCore import Qt as _Qt6Core
+        QApplication.setAttribute(_Qt6Core.ApplicationAttribute.AA_UseDesktopOpenGL)
+        QApplication.setAttribute(_Qt6Core.ApplicationAttribute.AA_ShareOpenGLContexts)
+    except Exception:
+        pass  # Qt not available in test environment; env var alone is enough
 
     # Create Qt application
     app = QApplication(sys.argv)

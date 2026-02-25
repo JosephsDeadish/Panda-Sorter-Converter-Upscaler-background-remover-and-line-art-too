@@ -58,9 +58,16 @@ jobs:
           pip install "numpy>=1.24.0" "Pillow>=10.0.0" "scipy>=1.10.0"
           pip install "scikit-learn>=1.3.0"
           pip install "PyQt6>=6.6.0" "PyQt6-sip>=13.6.0"
+          # PyQt6-Qt6 contains the actual Qt6 DLLs (Qt6Core.dll, Qt6Gui.dll, Qt6OpenGL.dll etc.)
+          # It is a dependency of PyQt6 but pinning it separately ensures PyInstaller can find
+          # and bundle all Qt6 runtime DLLs (including Qt6OpenGL.dll for the 3D panda widget).
+          pip install "PyQt6-Qt6>=6.6.0" || echo "⚠️  PyQt6-Qt6 install failed (should be auto-installed with PyQt6)"
           pip install "opencv-python-headless>=4.8.0"
           pip install "xxhash>=3.0.0" "psutil>=5.9.0" "tqdm>=4.65.0"
           pip install "pyyaml>=6.0" "send2trash>=1.8.0" "watchdog>=3.0.0"
+          # requests is REQUIRED for AI model downloads (handles CDN redirects, HuggingFace LFS,
+          # and GitHub release redirects correctly — urllib does not follow some of these).
+          pip install "requests>=2.31.0"
           # ── PyOpenGL: install core first (REQUIRED for 3D panda), then accelerate ──
           # Install them separately so a build-time failure of PyOpenGL-accelerate
           # (which needs MSVC on Windows) does NOT block PyOpenGL itself.

@@ -54,7 +54,15 @@ def _pre_configure_opengl() -> None:
                 os.add_dll_directory(_d)  # type: ignore[attr-defined]
         except (AttributeError, OSError):
             pass
-
+    # Also set Qt application-level attribute for desktop OpenGL, which is
+    # more reliable than the env var alone on some Qt6 Windows installations.
+    # This can be set before QApplication is created (it's a static attr).
+    try:
+        from PyQt6.QtWidgets import QApplication as _QAppCls
+        from PyQt6.QtCore import Qt as _Qt6
+        _QAppCls.setAttribute(_Qt6.ApplicationAttribute.AA_UseDesktopOpenGL)
+    except Exception:
+        pass
 
 _pre_configure_opengl()
 

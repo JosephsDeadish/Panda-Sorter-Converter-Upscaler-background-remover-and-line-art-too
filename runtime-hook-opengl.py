@@ -87,6 +87,18 @@ def _configure_pyopengl() -> None:
     except Exception:
         pass  # Not yet imported; the sys.modules stub above handles it.
 
+    # 5. Set Qt's AA_UseDesktopOpenGL application attribute.
+    #    This is the C++-level equivalent of QT_OPENGL=desktop — more reliable
+    #    than the env var alone because it is processed by Qt's platform plugin
+    #    loader before ANGLE selection logic runs.
+    #    Must be called before QApplication is constructed.
+    try:
+        from PyQt6.QtWidgets import QApplication as _QA
+        from PyQt6.QtCore import Qt as _Qt
+        _QA.setAttribute(_Qt.ApplicationAttribute.AA_UseDesktopOpenGL)
+    except Exception:
+        pass  # Qt not yet imported at hook time; main.py sets it too.
+
 
 def _configure_rembg_home() -> None:
     """Point rembg at the app_data/models directory inside the frozen EXE bundle.
