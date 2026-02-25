@@ -29,9 +29,15 @@ try:
     # Set default GL format at MODULE LOAD TIME — Qt requires this before the
     # first QOpenGLWidget is constructed (calling setDefaultFormat() in __init__
     # is too late if the GL context is created by Qt before the first paintGL).
+    # Set QT_OPENGL=desktop before the format is created so Qt uses native
+    # opengl32.dll (not ANGLE).  ANGLE only supports OpenGL ES — it rejects
+    # glShadeModel/glLightfv/glBegin which causes initializeGL to fail.
+    import os as _os
+    _os.environ.setdefault('QT_OPENGL', 'desktop')
     _fmt = QSurfaceFormat()
     _fmt.setVersion(2, 1)
     _fmt.setProfile(QSurfaceFormat.OpenGLContextProfile.CompatibilityProfile)
+    _fmt.setRenderableType(QSurfaceFormat.RenderableType.OpenGL)  # desktop GL, not OpenGL ES
     _fmt.setSamples(4)
     _fmt.setDepthBufferSize(24)
     _fmt.setStencilBufferSize(8)
@@ -234,6 +240,7 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
         fmt = QSurfaceFormat()
         fmt.setVersion(2, 1)  # OpenGL 2.1 — widely available, includes all legacy GL
         fmt.setProfile(QSurfaceFormat.OpenGLContextProfile.CompatibilityProfile)
+        fmt.setRenderableType(QSurfaceFormat.RenderableType.OpenGL)  # native desktop GL, not ANGLE
         fmt.setSamples(4)  # 4x MSAA for antialiasing
         fmt.setDepthBufferSize(24)
         fmt.setStencilBufferSize(8)
@@ -513,6 +520,7 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
 
         # OpenGL initialization flag
         self.gl_initialized = False
+        self._has_gl_lighting = False  # set True in _do_initialize_gl if lighting available
 
         # Qt State Machine for animation state control
         self._setup_state_machine()
@@ -619,59 +627,62 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
 
     def _do_initialize_gl(self):
         """Actual GL initialization — called inside a try/except in initializeGL()."""
-        # Enable depth testing for 3D
+        # Core calls — available in ALL GL profiles (1.1+)
         glEnable(GL_DEPTH_TEST)
         glDepthFunc(GL_LEQUAL)
-        
-        # Enable face culling for performance
         glEnable(GL_CULL_FACE)
         glCullFace(GL_BACK)
-        
-        # Enable smooth shading
-        glShadeModel(GL_SMOOTH)
-        
-        # Enable antialiasing
-        glEnable(GL_MULTISAMPLE)
-        glEnable(GL_LINE_SMOOTH)
-        glHint(GL_LINE_SMOOTH_HINT, GL_NICEST)
-        
-        # Enable blending for transparency
         glEnable(GL_BLEND)
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
-        
-        # Set background colour — match application theme (near-transparent dark)
-        # Using a near-black alpha=0 would require a translucent surface format;
-        # instead use the app's panel background colour so the panda sits naturally.
         glClearColor(0.12, 0.12, 0.14, 1.0)  # dark-grey background, matches dark theme
-        
-        # Setup lighting
-        glEnable(GL_LIGHTING)
-        glEnable(GL_LIGHT0)
-        glEnable(GL_COLOR_MATERIAL)
-        glColorMaterial(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE)
-        
-        # Set light properties
-        glLightfv(GL_LIGHT0, GL_POSITION, self.light_position)
-        glLightfv(GL_LIGHT0, GL_AMBIENT, self.ambient_light)
-        glLightfv(GL_LIGHT0, GL_DIFFUSE, self.diffuse_light)
-        glLightfv(GL_LIGHT0, GL_SPECULAR, self.specular_light)
-        
-        # LIGHT2 — warm rim light from behind/left for fur edge highlight
-        glEnable(GL_LIGHT2)
-        glLightfv(GL_LIGHT2, GL_POSITION, [-3.0, 2.0, -4.0, 1.0])
-        glLightfv(GL_LIGHT2, GL_AMBIENT,  [0.0,  0.0,  0.0,  1.0])
-        glLightfv(GL_LIGHT2, GL_DIFFUSE,  [0.18, 0.15, 0.10, 1.0])
-        glLightfv(GL_LIGHT2, GL_SPECULAR, [0.08, 0.06, 0.04, 1.0])
-        
-        # Material properties for specular highlights
-        glMaterialfv(GL_FRONT, GL_SPECULAR, [1.0, 1.0, 1.0, 1.0])
-        glMaterialf(GL_FRONT, GL_SHININESS, 50.0)
-        
+
+        # CompatibilityProfile-only calls — safe to skip on CoreProfile/ANGLE
+        # (QT_OPENGL=desktop should mean we NEVER reach this on ANGLE, but be
+        # defensive in case the env var wasn't honoured by the driver/platform)
+        self._has_gl_lighting = False
+
+        try:
+            glShadeModel(GL_SMOOTH)
+        except Exception:
+            pass  # CoreProfile: glShadeModel removed; shading still works via color
+
+        try:
+            glEnable(GL_MULTISAMPLE)
+        except Exception:
+            pass
+
+        try:
+            glEnable(GL_LINE_SMOOTH)
+            glHint(GL_LINE_SMOOTH_HINT, GL_NICEST)
+        except Exception:
+            pass
+
+        try:
+            # Lighting — CompatibilityProfile only (fixed-function pipeline)
+            glEnable(GL_LIGHTING)
+            glEnable(GL_LIGHT0)
+            glEnable(GL_COLOR_MATERIAL)
+            glColorMaterial(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE)
+            glLightfv(GL_LIGHT0, GL_POSITION, self.light_position)
+            glLightfv(GL_LIGHT0, GL_AMBIENT, self.ambient_light)
+            glLightfv(GL_LIGHT0, GL_DIFFUSE, self.diffuse_light)
+            glLightfv(GL_LIGHT0, GL_SPECULAR, self.specular_light)
+            glEnable(GL_LIGHT2)
+            glLightfv(GL_LIGHT2, GL_POSITION, [-3.0, 2.0, -4.0, 1.0])
+            glLightfv(GL_LIGHT2, GL_AMBIENT,  [0.0,  0.0,  0.0,  1.0])
+            glLightfv(GL_LIGHT2, GL_DIFFUSE,  [0.18, 0.15, 0.10, 1.0])
+            glLightfv(GL_LIGHT2, GL_SPECULAR, [0.08, 0.06, 0.04, 1.0])
+            glMaterialfv(GL_FRONT, GL_SPECULAR, [1.0, 1.0, 1.0, 1.0])
+            glMaterialf(GL_FRONT, GL_SHININESS, 50.0)
+            self._has_gl_lighting = True
+        except Exception as _le:
+            logger.warning(f"GL lighting unavailable ({_le}); using flat-colour rendering")
+
         # Initialize shadow mapping
         self._init_shadow_mapping()
-        
+
         self.gl_initialized = True
-        logger.info("OpenGL initialized successfully")
+        logger.info(f"OpenGL initialized successfully (lighting={'yes' if self._has_gl_lighting else 'no'})")
     
     def _init_shadow_mapping(self):
         """Initialize shadow mapping framebuffer and texture."""
@@ -744,7 +755,10 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
         glRotatef(self.camera_angle_y, 0.0, 1.0, 0.0)
         
         # Update light position relative to camera
-        glLightfv(GL_LIGHT0, GL_POSITION, self.light_position)
+        try:
+            glLightfv(GL_LIGHT0, GL_POSITION, self.light_position)
+        except Exception:
+            pass  # not available if lighting not initialized
         
         # Draw ground plane (for shadow reference)
         self._draw_ground()
@@ -923,7 +937,10 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
         )
         
         # Disable lighting for shadow pass
-        glDisable(GL_LIGHTING)
+        try:
+            glDisable(GL_LIGHTING)
+        except Exception:
+            pass  # not available if lighting not initialized
         
         # Render scene geometry (depth only)
         glPushMatrix()
@@ -933,7 +950,10 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
         glPopMatrix()
         
         # Restore state
-        glEnable(GL_LIGHTING)
+        try:
+            glEnable(GL_LIGHTING)
+        except Exception:
+            pass  # not available if lighting not initialized
         glPopMatrix()
         glMatrixMode(GL_PROJECTION)
         glPopMatrix()
@@ -956,7 +976,10 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
 
     def _draw_ground(self):
         """Draw a tiled ground plane for spatial reference (warm wood-tone checkerboard)."""
-        glDisable(GL_LIGHTING)
+        try:
+            glDisable(GL_LIGHTING)
+        except Exception:
+            pass  # not available if lighting not initialized
         glEnable(GL_BLEND)
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
 
@@ -1001,7 +1024,10 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
         glLineWidth(1.0)
 
         glDisable(GL_BLEND)
-        glEnable(GL_LIGHTING)
+        try:
+            glEnable(GL_LIGHTING)
+        except Exception:
+            pass  # not available if lighting not initialized
     
     def _draw_panda(self):
         """Draw detailed 3D panda character with all body parts."""
@@ -1545,10 +1571,16 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
                          eye_y + 0.012 + eye_dy,
                          eye_z + 0.128)
             glScalef(1.0, blink_s, 1.0)
-            glDisable(GL_LIGHTING)
+            try:
+                glDisable(GL_LIGHTING)
+            except Exception:
+                pass  # not available if lighting not initialized
             glColor3f(1.0, 1.0, 1.0)
             self._draw_sphere(0.009, 8, 8)
-            glEnable(GL_LIGHTING)
+            try:
+                glEnable(GL_LIGHTING)
+            except Exception:
+                pass  # not available if lighting not initialized
             glPopMatrix()
 
     def _get_blink_scale(self, t):
@@ -1605,13 +1637,19 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
         glMaterialfv(GL_FRONT, GL_SPECULAR, [1.0, 1.0, 1.0, 1.0])
         glMaterialf(GL_FRONT, GL_SHININESS, 50.0)
         # Wet nose specular catch-light
-        glDisable(GL_LIGHTING)
+        try:
+            glDisable(GL_LIGHTING)
+        except Exception:
+            pass  # not available if lighting not initialized
         glPushMatrix()
         glTranslatef(0.012, 0.008, 0.026)
         glColor3f(1.0, 1.0, 1.0)
         self._draw_sphere(0.008, 6, 6)
         glPopMatrix()
-        glEnable(GL_LIGHTING)
+        try:
+            glEnable(GL_LIGHTING)
+        except Exception:
+            pass  # not available if lighting not initialized
         glPopMatrix()
 
         # Philtrum groove — dark line below nose
@@ -5106,7 +5144,10 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
         if not self.trail_enabled or not self.trail_particles:
             return
         
-        glDisable(GL_LIGHTING)
+        try:
+            glDisable(GL_LIGHTING)
+        except Exception:
+            pass  # not available if lighting not initialized
         glEnable(GL_BLEND)
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
         glPointSize(5.0)
@@ -5119,7 +5160,10 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
             glVertex3f(particle['pos'][0], particle['pos'][1], particle['pos'][2])
         glEnd()
         
-        glEnable(GL_LIGHTING)
+        try:
+            glEnable(GL_LIGHTING)
+        except Exception:
+            pass  # not available if lighting not initialized
     
     # ── Unified public interface (matches main.py call sites) ──────────────────
 

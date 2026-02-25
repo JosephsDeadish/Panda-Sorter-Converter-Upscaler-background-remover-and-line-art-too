@@ -310,6 +310,12 @@ def _setup_opengl_for_exe() -> None:
     """Configure PyOpenGL env. Safe to call multiple times (idempotent)."""
     if not sys.platform.startswith('win'):
         return
+    # Force Qt to use native opengl32.dll (desktop GL) NOT ANGLE (Direct3D).
+    # ANGLE only supports OpenGL ES — CompatibilityProfile is NOT available via ANGLE.
+    # Without this, glShadeModel(GL_SMOOTH) raises GLError(1282) on first initializeGL()
+    # call, triggering the 2D panda fallback even on machines with good GPU drivers.
+    # Must be set BEFORE QApplication is created (Qt reads it during platform init).
+    os.environ.setdefault('QT_OPENGL', 'desktop')
     # Force the Windows platform backend (not GLX/EGL which don't exist on Win)
     os.environ.setdefault('PYOPENGL_PLATFORM_HANDLER', 'win32')
     # Block the C-accelerate extension before OpenGL is imported.
@@ -5853,6 +5859,10 @@ def main():
         _fmt = _SF()
         _fmt.setVersion(2, 1)
         _fmt.setProfile(_SF.OpenGLContextProfile.CompatibilityProfile)
+        # RenderableType.OpenGL = native desktop GL (opengl32.dll).
+        # WITHOUT this, Qt may choose OpenGLES/ANGLE which does NOT support
+        # CompatibilityProfile — glShadeModel/glBegin/glLightfv all raise GLError.
+        _fmt.setRenderableType(_SF.RenderableType.OpenGL)
         _fmt.setSamples(4)
         _fmt.setDepthBufferSize(24)
         _fmt.setStencilBufferSize(8)

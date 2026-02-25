@@ -26,6 +26,11 @@ def _pre_configure_opengl() -> None:
     """Block opengl_accelerate and set up DLL search paths early."""
     if not sys.platform.startswith('win'):
         return
+    # Force Qt to use native opengl32.dll NOT ANGLE (Direct3D translation layer).
+    # ANGLE supports only OpenGL ES — glShadeModel/glLightfv/glBegin/glEnd all raise
+    # GLError(1282 INVALID_OPERATION) under ANGLE, causing initializeGL to fail and
+    # fall back to the 2D panda.  Must be set before QApplication is created.
+    os.environ.setdefault('QT_OPENGL', 'desktop')
     os.environ.setdefault('PYOPENGL_PLATFORM_HANDLER', 'win32')
     import types as _tm
     _stub = _tm.ModuleType('opengl_accelerate')

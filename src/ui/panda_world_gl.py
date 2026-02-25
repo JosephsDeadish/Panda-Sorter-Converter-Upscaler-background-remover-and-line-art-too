@@ -70,9 +70,12 @@ except (ImportError, OSError, RuntimeError):
 # QOpenGLWidget in this module is instantiated.
 if PYQT_AVAILABLE and QOGL_AVAILABLE:
     try:
+        import os as _os_world
+        _os_world.environ.setdefault('QT_OPENGL', 'desktop')  # force native GL, not ANGLE
         _wfmt = QSurfaceFormat()
         _wfmt.setVersion(2, 1)
         _wfmt.setProfile(QSurfaceFormat.OpenGLContextProfile.CompatibilityProfile)
+        _wfmt.setRenderableType(QSurfaceFormat.RenderableType.OpenGL)  # desktop GL
         _wfmt.setSamples(4)
         _wfmt.setDepthBufferSize(24)
         QSurfaceFormat.setDefaultFormat(_wfmt)
@@ -144,6 +147,7 @@ class PandaWorldGL(
             _fmt = QSurfaceFormat()
             _fmt.setVersion(2, 1)
             _fmt.setProfile(QSurfaceFormat.OpenGLContextProfile.CompatibilityProfile)
+            _fmt.setRenderableType(QSurfaceFormat.RenderableType.OpenGL)  # native desktop GL
             _fmt.setSamples(4)
             _fmt.setDepthBufferSize(24)
             _fmt.setStencilBufferSize(8)

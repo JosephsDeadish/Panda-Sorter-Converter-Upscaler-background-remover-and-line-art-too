@@ -51,11 +51,20 @@ def _configure_pyopengl() -> None:
     except (AttributeError, OSError):
         pass
 
-    # 2. Force the Win32 platform backend so PyOpenGL doesn't attempt GLX/EGL.
+    # 2. Force Qt to use native OpenGL (opengl32.dll) NOT ANGLE (Direct3D).
+    #    ANGLE only supports OpenGL ES — it DOES NOT support CompatibilityProfile.
+    #    Without this, glShadeModel/glLightfv/glBegin fail with GL_INVALID_OPERATION
+    #    and the 3D panda's initializeGL() raises GLError, triggering the 2D fallback.
+    #    QT_OPENGL=desktop forces native opengl32.dll which supports CompatibilityProfile
+    #    on all modern Windows GPUs (NVIDIA, AMD, Intel HD 4000+).
+    if 'QT_OPENGL' not in os.environ:
+        os.environ['QT_OPENGL'] = 'desktop'
+
+    # 3. Force the Win32 platform backend so PyOpenGL doesn't attempt GLX/EGL.
     if 'PYOPENGL_PLATFORM_HANDLER' not in os.environ:
         os.environ['PYOPENGL_PLATFORM_HANDLER'] = 'win32'
 
-    # 3. Block opengl_accelerate BEFORE OpenGL is imported.
+    # 4. Block opengl_accelerate BEFORE OpenGL is imported.
     #    Inserting a stub module into sys.modules prevents any real
     #    opengl_accelerate C extension from loading.  If the C extension
     #    is buggy or built against a different driver it can segfault; pure-

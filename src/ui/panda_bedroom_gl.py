@@ -25,9 +25,12 @@ try:
     from OpenGL.GLU import *
     OPENGL_AVAILABLE = True
     # Set default GL format at module load time (belt-and-suspenders alongside main())
+    import os as _os_bed
+    _os_bed.environ.setdefault('QT_OPENGL', 'desktop')  # force native GL, not ANGLE
     _fmt = QSurfaceFormat()
     _fmt.setVersion(2, 1)
     _fmt.setProfile(QSurfaceFormat.OpenGLContextProfile.CompatibilityProfile)
+    _fmt.setRenderableType(QSurfaceFormat.RenderableType.OpenGL)  # desktop GL
     _fmt.setSamples(4)
     _fmt.setDepthBufferSize(24)
     QSurfaceFormat.setDefaultFormat(_fmt)
@@ -148,6 +151,7 @@ class PandaBedroomGL(QOpenGLWidget if OPENGL_AVAILABLE else QWidget):  # type: i
         fmt = QSurfaceFormat()
         fmt.setVersion(2, 1)  # OpenGL 2.1 — keeps all legacy fixed-function GL
         fmt.setProfile(QSurfaceFormat.OpenGLContextProfile.CompatibilityProfile)
+        fmt.setRenderableType(QSurfaceFormat.RenderableType.OpenGL)  # native desktop GL
         fmt.setDepthBufferSize(24)
         fmt.setSamples(4)
         self.setFormat(fmt)
