@@ -336,6 +336,57 @@ def test_model_manager_url_structure():
         print(f"  ⚠️  Skipped (import failed: {exc})")
 
 
+def test_panda_widget_gl_qstate_import():
+    """panda_widget_gl must try PyQt6.QtStateMachine for QState/QStateMachine.
+
+    In PyQt6 >= 6.1, QState and QStateMachine were moved from PyQt6.QtCore
+    to PyQt6.QtStateMachine.  If panda_widget_gl.py only tries QtCore (no
+    QtStateMachine attempt), the ImportError sets QT_AVAILABLE=False, which
+    makes the entire 3D panda system silently fall back to the 2D widget on
+    EVERY machine with a modern PyQt6 install — regardless of whether OpenGL
+    is available.
+
+    Correct fix: try PyQt6.QtStateMachine first; fall back to QtCore only for
+    old PyQt6 installs where the class was still in QtCore.
+    """
+    print("\ntest_panda_widget_gl_qstate_import ...")
+    import ast
+    from pathlib import Path
+
+    src = Path(__file__).parent / 'src' / 'ui' / 'panda_widget_gl.py'
+    if not src.exists():
+        print("  ⚠️  Skipped (panda_widget_gl.py not found)")
+        return
+
+    code = src.read_text(encoding='utf-8')
+    tree = ast.parse(code, filename=str(src))
+
+    # Collect all ImportFrom nodes for QState/QStateMachine
+    qtcore_lines = []   # bad: only source if no QtStateMachine attempt
+    qtstate_lines = []  # good: PyQt6.QtStateMachine
+
+    for node in ast.walk(tree):
+        if isinstance(node, ast.ImportFrom):
+            names = {a.name for a in (node.names or [])}
+            if names & {'QState', 'QStateMachine'}:
+                if node.module == 'PyQt6.QtStateMachine':
+                    qtstate_lines.append(node.lineno)
+                elif node.module == 'PyQt6.QtCore':
+                    qtcore_lines.append(node.lineno)
+
+    # The file MUST contain a PyQt6.QtStateMachine import attempt
+    assert qtstate_lines, (
+        "panda_widget_gl.py does NOT import QState/QStateMachine from PyQt6.QtStateMachine!\n"
+        "In PyQt6 >= 6.1, these classes are in PyQt6.QtStateMachine (NOT PyQt6.QtCore).\n"
+        "Without this import, QT_AVAILABLE=False and 3D panda never shows (always 2D).\n"
+        "Fix: add 'from PyQt6.QtStateMachine import QState, QStateMachine' as the PRIMARY import,\n"
+        "     with 'from PyQt6.QtCore import QState, QStateMachine' as a fallback for older PyQt6."
+    )
+    print(f"  ✅ PyQt6.QtStateMachine import found at line(s): {qtstate_lines}")
+    if qtcore_lines:
+        print(f"  ✅ PyQt6.QtCore fallback also present at line(s): {qtcore_lines} (correct — for older PyQt6)")
+
+
 # ---------------------------------------------------------------------------
 # Runner
 # ---------------------------------------------------------------------------
@@ -355,6 +406,7 @@ def run_all_tests():
         test_ai_package_exports_hybrid_symbols,
         test_organizer_style_no_false_positives,
         test_model_manager_url_structure,
+        test_panda_widget_gl_qstate_import,
     ]
 
     passed, failed = [], []

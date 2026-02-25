@@ -244,6 +244,7 @@ a = Analysis(
         'PyQt6.QtOpenGL',
         'PyQt6.QtOpenGLWidgets',
         'PyQt6.QtSvg',
+        'PyQt6.QtStateMachine',        # QState/QStateMachine moved here in PyQt6 6.1+
         'PyQt6.sip',
         # OpenGL for 3D rendering (panda widget uses PyOpenGL + Qt6 OpenGL widgets)
         'OpenGL',
@@ -358,6 +359,7 @@ a = Analysis(
         'PyQt6.QtPrintSupport',
         'PyQt6.QtNetwork',
         'PyQt6.QtSvgWidgets',  # SVG rendering in UI
+        'PyQt6.QtStateMachine',  # QState/QStateMachine - moved from QtCore in PyQt6 6.1+
     ],
     hookspath=HOOKSPATH,  # Use validated hookspath variable
     hooksconfig={},

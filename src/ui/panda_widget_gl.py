@@ -14,7 +14,13 @@ from enum import Enum
 try:
     from PyQt6.QtWidgets import QWidget, QApplication
     from PyQt6.QtOpenGLWidgets import QOpenGLWidget
-    from PyQt6.QtCore import QTimer, Qt, QPoint, pyqtSignal, QState, QStateMachine
+    from PyQt6.QtCore import QTimer, Qt, QPoint, pyqtSignal
+    # QState and QStateMachine were moved from PyQt6.QtCore → PyQt6.QtStateMachine
+    # in PyQt6 6.1+.  Try the new location first, fall back to QtCore for older installs.
+    try:
+        from PyQt6.QtStateMachine import QState, QStateMachine
+    except (ImportError, OSError, RuntimeError):
+        from PyQt6.QtCore import QState, QStateMachine  # type: ignore[no-redef]
     from PyQt6.QtGui import QMouseEvent, QSurfaceFormat, QPainter, QColor, QFont
     # Disable C accelerate BEFORE importing OpenGL.GL — pure-Python mode is
     # driver-agnostic and avoids segfaults from buggy opengl_accelerate builds.
