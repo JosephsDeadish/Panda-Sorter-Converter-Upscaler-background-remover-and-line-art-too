@@ -5357,9 +5357,12 @@ class TutorialDialog(QDialog):
         self.step = step
 
         self.setWindowTitle(step.title)
-        # Tool-window so it sits on top without stealing keyboard focus from the app
+        # Regular window that stays on top.  Do NOT use Qt.WindowType.Tool here:
+        # Tool windows on Windows have WS_EX_TOOLWINDOW which causes focus and
+        # click-handling problems — clicks may land on the inactive tool title bar
+        # instead of the button underneath, making the dialog appear frozen.
         self.setWindowFlags(
-            Qt.WindowType.Tool
+            Qt.WindowType.Window
             | Qt.WindowType.WindowStaysOnTopHint
             | Qt.WindowType.WindowCloseButtonHint
         )
@@ -5595,7 +5598,14 @@ class TutorialManager:
         # Create overlay widget that covers the main window
         if self.master and hasattr(self.master, 'isVisible') and self.master.isVisible():
             self.overlay = TutorialOverlay(self.master)
-            self.overlay.resize(self.master.size())
+            # Position overlay at master window's screen position, not at (0,0).
+            # parent.rect() returns (0,0,w,h) in LOCAL coords; for a top-level
+            # overlay that must cover the master window on screen we need
+            # master.geometry() (screen coordinates of the content area).
+            try:
+                self.overlay.setGeometry(self.master.geometry())
+            except Exception:
+                self.overlay.resize(self.master.size())
             self.overlay.show()
             logger.debug("Tutorial overlay created")
         else:
@@ -5634,7 +5644,12 @@ class TutorialManager:
             logger.warning("GUI not available for tutorial")
             return
 
-        # Close the previous dialog (if any) without triggering its signals again
+        # Dismiss the previous dialog without triggering its signals again.
+        # IMPORTANT: use hide() + deleteLater() instead of close().
+        # close() fires closeEvent() which has event.ignore() to support the
+        # X-button flow — that would block the programmatic dismiss and leave
+        # the old dialog visible on screen with disconnected signals (the
+        # "tutorial stuck / buttons do nothing" bug).
         if self.tutorial_window is not None:
             try:
                 self.tutorial_window.action_next.disconnect()
@@ -5643,7 +5658,8 @@ class TutorialManager:
             except Exception:
                 pass
             try:
-                self.tutorial_window.close()
+                self.tutorial_window.hide()
+                self.tutorial_window.deleteLater()
             except Exception:
                 pass
             self.tutorial_window = None
@@ -5759,7 +5775,9 @@ class TutorialManager:
         try:
             logger.info("Completing tutorial - starting cleanup process")
 
-            # Close the current step dialog if still open
+            # Dismiss the current step dialog (use hide()+deleteLater(), NOT close()).
+            # close() triggers closeEvent() which has event.ignore() — that would
+            # prevent the dialog from actually closing and leave it on-screen.
             if self.tutorial_window is not None:
                 try:
                     self.tutorial_window.action_next.disconnect()
@@ -5768,7 +5786,8 @@ class TutorialManager:
                 except Exception:
                     pass
                 try:
-                    self.tutorial_window.close()
+                    self.tutorial_window.hide()
+                    self.tutorial_window.deleteLater()
                 except Exception:
                     pass
                 self.tutorial_window = None

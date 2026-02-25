@@ -307,6 +307,22 @@ except (ImportError, OSError, RuntimeError) as e:
     logger.warning(f"Panda widget not available: {e}")
     PandaOpenGLWidget = None
 
+# Runtime sanity-check: verify that OpenGL constants are actually accessible.
+# In a frozen EXE the Python wrapper may import fine but the underlying DLL
+# lookup can still fail.  We probe one constant (GL_DEPTH_TEST = 0x0B71) to
+# surface any such failure early, so we fall back to 2D gracefully instead of
+# crashing inside initializeGL later.
+_OPENGL_RUNTIME_OK: bool = False
+if PANDA_WIDGET_AVAILABLE:
+    try:
+        from OpenGL.GL import GL_DEPTH_TEST as _GL_DEPTH_TEST_PROBE  # noqa: F401
+        _OPENGL_RUNTIME_OK = True
+        logger.info("✅ PyOpenGL runtime check passed")
+    except Exception as _gle:
+        logger.warning(f"PyOpenGL runtime check failed ({_gle}); using 2D panda fallback")
+        PANDA_WIDGET_AVAILABLE = False
+        PandaOpenGLWidget = None
+
 # 2-D panda fallback (QPainter — no OpenGL required)
 try:
     from ui.panda_widget_2d import PandaWidget2D
@@ -1427,9 +1443,28 @@ class TextureSorterMainWindow(QMainWindow):
             bedroom_gl = PandaBedroomGL()
             bedroom_gl.furniture_clicked.connect(self._on_bedroom_furniture_clicked)
             if hasattr(bedroom_gl, 'gl_failed'):
-                bedroom_gl.gl_failed.connect(
-                    lambda msg: logger.warning(f"Bedroom GL failed: {msg}")
-                )
+                # When GL initialisation fails, swap the bedroom for a user-friendly
+                # placeholder so there's no black/broken screen and no app crash.
+                def _on_bedroom_gl_failed(msg: str, _stack=stack):
+                    logger.warning(f"Bedroom GL failed: {msg}")
+                    self.log(f"⚠️ 3D Bedroom GL init failed: {msg}")
+                    placeholder = QLabel(
+                        "🛏️ 3D Bedroom requires OpenGL 2.1\n\n"
+                        f"Error: {msg[:120]}\n\n"
+                        "Your GPU driver may not support OpenGL 2.1.\n"
+                        "Try updating your graphics drivers."
+                    )
+                    placeholder.setAlignment(Qt.AlignmentFlag.AlignCenter)
+                    placeholder.setStyleSheet(
+                        "color:#aaaaaa; background:#1a1a2e; font-size:12px; padding:20px;"
+                    )
+                    placeholder.setWordWrap(True)
+                    try:
+                        _stack.insertWidget(0, placeholder)
+                        _stack.setCurrentIndex(0)
+                    except Exception:
+                        pass
+                bedroom_gl.gl_failed.connect(_on_bedroom_gl_failed)
             stack.addWidget(bedroom_gl)   # index 0
 
             # Page 1: placeholder — real sub-panel inserted dynamically
@@ -5641,6 +5676,23 @@ def main():
                     _os_main.add_dll_directory(_d)
                 except (AttributeError, OSError):
                     pass
+        # Always add System32 — opengl32.dll and glu32.dll live there on all
+        # modern Windows installations regardless of whether the app is frozen.
+        _sys32 = _os_main.path.join(
+            _os_main.environ.get('SystemRoot', r'C:\Windows'), 'System32'
+        )
+        try:
+            if _os_main.path.isdir(_sys32):
+                _os_main.add_dll_directory(_sys32)
+        except (AttributeError, OSError):
+            pass
+        # Disable C accelerate — pure-Python mode always works; the accelerate
+        # wheel often fails to build on Windows and causes confusing ImportErrors.
+        try:
+            import OpenGL as _ogl_main
+            _ogl_main.USE_ACCELERATE = False
+        except Exception:
+            pass
 
     # ── Set OpenGL surface format BEFORE creating QApplication ────────────────
     # This must be done before any QOpenGLWidget is instantiated.
@@ -5713,12 +5765,15 @@ def main():
     window = TextureSorterMainWindow()
     window.show()
     
-    # Show first-run tutorial if this is a new installation
+    # Show first-run tutorial if this is a new installation.
+    # Deferred 800 ms so the main window is fully painted and the event loop is
+    # running before we create the overlay / dialog — avoids race conditions where
+    # master.isVisible() returns False or geometry() is still (0,0) during startup.
     try:
         from features.tutorial_system import TutorialManager
         _tm = TutorialManager(master_window=window, config=config)
         if _tm.should_show_tutorial():
-            _tm.start_tutorial(window)
+            QTimer.singleShot(800, lambda: _tm.start_tutorial(window))
     except Exception as _te:
         logger.debug(f"Tutorial check skipped: {_te}")
 

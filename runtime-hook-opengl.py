@@ -41,6 +41,14 @@ def _configure_pyopengl() -> None:
                 os.add_dll_directory(mei)
             except (AttributeError, OSError):
                 pass
+        # Add System32 — opengl32.dll and glu32.dll live there on all modern Windows.
+        # In a frozen EXE the default DLL search path may omit System32.
+        sys32 = os.path.join(os.environ.get('SystemRoot', r'C:\Windows'), 'System32')
+        try:
+            if os.path.isdir(sys32):
+                os.add_dll_directory(sys32)
+        except (AttributeError, OSError):
+            pass
 
     # 2. Force the Win32 platform backend so PyOpenGL doesn't attempt GLX/EGL.
     if 'PYOPENGL_PLATFORM_HANDLER' not in os.environ:
