@@ -158,11 +158,21 @@ for _pkg in [
 # completely invisible to static import tracing.
 try:
     _ogl_datas, _ogl_bins, _ogl_hidden = collect_all('OpenGL')
+    # Strip opengl_accelerate C-extension from binaries — it is a platform-specific
+    # compiled extension that is excluded from the frozen bundle (pure-Python mode is
+    # used instead via USE_ACCELERATE=False set in runtime-hook-opengl.py).
+    # Without this filter, the .pyd/.so ends up in _extra_binaries and gets bundled
+    # even though it appears in Analysis(excludes=[...]).  On machines with a different
+    # driver/ABI it can segfault the process before the first GL context is opened.
+    _ogl_bins = [
+        (dst, src, typ) for (dst, src, typ) in _ogl_bins
+        if 'accelerate' not in src.lower() and 'accelerate' not in dst.lower()
+    ]
     _extra_datas    += _ogl_datas
     _extra_binaries += _ogl_bins
     _app_hidden     += _ogl_hidden
     print(f"[build_spec] PyOpenGL collected: {len(_ogl_hidden)} hidden imports, "
-          f"{len(_ogl_bins)} binaries, {len(_ogl_datas)} data files")
+          f"{len(_ogl_bins)} binaries (accelerate excluded), {len(_ogl_datas)} data files")
 except Exception as _e:
     print(f"[build_spec] WARNING: collect_all('OpenGL') failed ({_e}) — "
           f"3D panda may fall back to 2D mode in the frozen EXE")

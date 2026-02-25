@@ -557,6 +557,7 @@ class TextureSorterMainWindow(QMainWindow):
         self._coin_label = None         # QLabel showing current coin balance (set in setup_statusbar)
         self._panda_mood_label = None   # QLabel showing panda mood (set in setup_statusbar)
         self._achievement_panel = None  # AchievementDisplayWidget ref (for refresh on unlock)
+        self._achievement_tab_index = -1  # panda_tabs index for the Achievements tab
         self._backpack_merged_panel = None  # Merged Inventory+Widgets QTabWidget (built once)
         self.level_system = None        # UserLevelSystem – XP / levelling
         self.auto_backup = None         # AutoBackupSystem – periodic state backup
@@ -1648,6 +1649,7 @@ class TextureSorterMainWindow(QMainWindow):
             achievement_panel = AchievementDisplayWidget(self.achievement_system, tooltip_manager=self.tooltip_manager)
             self._achievement_panel = achievement_panel   # keep ref for refresh on unlock
             panda_tabs.addTab(achievement_panel, "🏆 Achievements")
+            self._achievement_tab_index = panda_tabs.indexOf(achievement_panel)
             logger.info("✅ Achievements panel added to panda tab")
         except Exception as e:
             logger.error(f"Could not load achievements panel: {e}", exc_info=True)
@@ -4643,16 +4645,23 @@ class TextureSorterMainWindow(QMainWindow):
         except Exception as _e:
             logger.debug(f"Bedroom walk: {_e}")
 
-        # ── Trophy stand → show Achievements panel ─────────────────────────────
+        # ── Trophy stand → switch to Achievements tab ─────────────────────────
         if furniture_id == 'trophy_stand':
             def _open_achievements():
                 try:
-                    ach_widget = getattr(self, '_achievement_panel', None)
-                    if ach_widget is None:
-                        ach_widget = QLabel("🏆 Achievements\n\n(Loading…)")
-                        ach_widget.setAlignment(Qt.AlignmentFlag.AlignCenter)
-                        self._home_stack_owned.append(ach_widget)
-                    self._show_home_sub_panel(ach_widget, '🏆 Achievements')
+                    if self._panda_tabs is not None and self._achievement_tab_index >= 0:
+                        # Switch to the Achievements tab (don't embed it in home stack —
+                        # it's already a proper tab and reparenting it would corrupt panda_tabs)
+                        self._panda_tabs.setCurrentIndex(self._achievement_tab_index)
+                        if self._achievement_panel and hasattr(self._achievement_panel, 'refresh_achievements'):
+                            self._achievement_panel.refresh_achievements()
+                    else:
+                        ach_widget = getattr(self, '_achievement_panel', None)
+                        if ach_widget is None:
+                            ach_widget = QLabel("🏆 Achievements\n\n(Loading…)")
+                            ach_widget.setAlignment(Qt.AlignmentFlag.AlignCenter)
+                            self._home_stack_owned.append(ach_widget)
+                        self._show_home_sub_panel(ach_widget, '🏆 Achievements')
                 except Exception as _e2:
                     logger.debug(f"Trophy panel: {_e2}")
             QTimer.singleShot(500, _open_achievements)
@@ -4729,11 +4738,35 @@ class TextureSorterMainWindow(QMainWindow):
                     self._home_stack_owned.append(label)
                     self._show_home_sub_panel(label, sub_title)
                     return
+                # IMPORTANT: Never reparent _inventory_panel directly if it is already
+                # embedded inside _backpack_merged_panel._inv_wrap.  Instead, always
+                # show _backpack_merged_panel (build it first if needed) and set the
+                # category filter.  This prevents the use-after-free crash that occurred
+                # when _show_home_sub_panel reparented inv OUT of its wrapper container.
+                if self._backpack_merged_panel is None:
+                    from PyQt6.QtWidgets import QTabWidget as _TW, QVBoxLayout as _VBL
+                    merged = _TW()
+                    merged.setDocumentMode(True)
+                    _inv_wrap = QWidget()
+                    _inv_vb = QVBoxLayout(_inv_wrap)
+                    _inv_vb.setContentsMargins(0, 0, 0, 0)
+                    _inv_vb.addWidget(inv)
+                    merged.addTab(_inv_wrap, "📦 Inventory")
+                    wid = getattr(self, '_widgets_panel', None)
+                    if wid is not None:
+                        _wid_wrap = QWidget()
+                        _wid_vb = QVBoxLayout(_wid_wrap)
+                        _wid_vb.setContentsMargins(0, 0, 0, 0)
+                        _wid_vb.addWidget(wid)
+                        merged.addTab(_wid_wrap, "🧸 Toys & Items")
+                    self._backpack_merged_panel = merged
+                # Apply category filter on the real panel (safe — it is inside its wrapper)
                 if hasattr(inv, 'set_category_filter'):
                     inv.set_category_filter(category)
                 elif hasattr(inv, 'refresh_inventory'):
                     inv.refresh_inventory()
-                self._show_home_sub_panel(inv, sub_title)
+                self._backpack_merged_panel.setCurrentIndex(0)
+                self._show_home_sub_panel(self._backpack_merged_panel, sub_title)
             except Exception as _e2:
                 logger.debug(f"Inventory panel open: {_e2}")
 

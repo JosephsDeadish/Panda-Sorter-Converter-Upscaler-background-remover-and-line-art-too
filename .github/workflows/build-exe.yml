@@ -1,4 +1,4 @@
-name: Build PS2 Texture Sorter EXE
+name: Build Panda Sorter Converter Upscaler EXE
 
 on:
   # Trigger on push to main branch
