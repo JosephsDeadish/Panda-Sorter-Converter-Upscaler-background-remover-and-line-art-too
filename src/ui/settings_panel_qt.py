@@ -1435,6 +1435,9 @@ class SettingsPanelQt(QWidget):
                 from features.tutorial_system import TooltipMode
                 mode_enum = getattr(TooltipMode, mode_enum_name, TooltipMode.NORMAL)
                 self.main_window.tooltip_manager.set_mode(mode_enum)
+                # set_mode already calls refresh_all(), but call explicitly as belt-and-suspenders
+                if hasattr(self.main_window.tooltip_manager, 'refresh_all'):
+                    self.main_window.tooltip_manager.refresh_all()
                 logger.info(f"Tooltip mode changed to: {mode_value} ({mode_enum_name})")
             
         except Exception as e:
@@ -1705,8 +1708,12 @@ class SettingsPanelQt(QWidget):
         """Set tooltip for a widget using the tooltip manager"""
         try:
             if self.main_window and getattr(self.main_window, 'tooltip_manager', None):
-                tooltip_text = self.main_window.tooltip_manager.get_tooltip(widget_id)
+                tm = self.main_window.tooltip_manager
+                tooltip_text = tm.get_tooltip(widget_id)
                 widget.setToolTip(tooltip_text)
+                # Register so the widget gets updated on mode changes and cycles tips
+                if hasattr(tm, 'register'):
+                    tm.register(widget, widget_id)
             else:
                 # Fallback tooltips
                 fallback_tooltips = {

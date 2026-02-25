@@ -20,14 +20,22 @@ try:
         QWidget, QMessageBox, QToolTip, QDialog, QVBoxLayout, QHBoxLayout,
         QLabel, QPushButton, QGraphicsOpacityEffect, QApplication
     )
-    from PyQt6.QtCore import QTimer, Qt, QPoint, QRect, QPropertyAnimation, QEasingCurve, pyqtSignal
+    from PyQt6.QtCore import QTimer, Qt, QPoint, QRect, QPropertyAnimation, QEasingCurve, pyqtSignal, QEvent, QObject
     from PyQt6.QtGui import QCursor, QPainter, QColor, QPen, QFont
     GUI_AVAILABLE = True
 except (ImportError, OSError, RuntimeError):
     GUI_AVAILABLE = False
     # Provide stub base classes so class definitions that inherit from Qt widgets
     # don't fail when PyQt6 is unavailable (e.g. during non-GUI imports or headless testing).
-    class QWidget:  # type: ignore[no-redef]
+    class QObject:  # type: ignore[no-redef]
+        """Fallback stub when PyQt6 is not installed."""
+        def __init__(self, *a, **kw): pass
+        def eventFilter(self, obj, event): return False
+    class QEvent:  # type: ignore[no-redef]
+        """Fallback stub when PyQt6 is not installed."""
+        class Type:
+            ToolTip = 110
+    class QWidget(QObject):  # type: ignore[no-redef]
         """Fallback stub when PyQt6 is not installed."""
         pass
     class QDialog(QWidget):  # type: ignore[no-redef]
@@ -5848,6 +5856,28 @@ class TutorialManager:
         logger.info("Tutorial reset - will show on next start or manual trigger")
 
 
+class _TooltipCyclerFilter(QObject):
+    """Event filter installed on a widget to advance the tip cycle on each tooltip show.
+
+    Each time Qt is about to show the tooltip for the widget (QEvent.Type.ToolTip),
+    the filter asks the manager for the *next* tip in the cycle and updates the
+    widget's toolTip text so the user sees a fresh tip on every hover.
+    """
+
+    def __init__(self, widget, widget_id: str, manager: 'TooltipVerbosityManager'):
+        super().__init__(widget)
+        self._widget = widget
+        self._widget_id = widget_id
+        self._manager = manager
+
+    def eventFilter(self, obj, event) -> bool:  # type: ignore[override]
+        if obj is self._widget and event.type() == QEvent.Type.ToolTip:
+            tip = self._manager.get_tooltip(self._widget_id)
+            if tip:
+                obj.setToolTip(tip)
+        return False  # never consume the event — let Qt show the tooltip normally
+
+
 class TooltipVerbosityManager:
     """Manages tooltip verbosity levels across the application"""
     
@@ -5855,6 +5885,9 @@ class TooltipVerbosityManager:
         self.config = config
         self.current_mode = self._load_mode()
         self._last_tooltip = {}  # Track last tooltip per widget_id to avoid repeats
+        self._tip_idx: Dict[str, int] = {}  # Sequential cycle index per widget_id
+        # Registered widgets: list of (widget_ref, widget_id, cycler_filter)
+        self._registered: list = []
         
         # Tooltip collections for each mode
         self.tooltips = {
@@ -5870,19 +5903,62 @@ class TooltipVerbosityManager:
             return TooltipMode(mode_str)
         except ValueError:
             return TooltipMode.NORMAL
+
+    def register(self, widget, widget_id: str) -> None:
+        """Register a widget so its tooltip is refreshed on mode changes and cycles.
+
+        Installs a ``_TooltipCyclerFilter`` on *widget* so each hover shows the
+        next tip in the list.  Safe to call multiple times — duplicate registrations
+        are silently ignored.
+        """
+        if not GUI_AVAILABLE:
+            return
+        # Avoid duplicate registrations
+        for _w, _wid, _f in self._registered:
+            if _w is widget and _wid == widget_id:
+                return
+        try:
+            cycler = _TooltipCyclerFilter(widget, widget_id, self)
+            widget.installEventFilter(cycler)
+            self._registered.append((widget, widget_id, cycler))
+        except Exception as e:
+            logger.debug(f"Could not register tooltip cycler for {widget_id}: {e}")
+
+    def refresh_all(self) -> None:
+        """Re-apply current-mode tooltip text to every registered widget.
+
+        Called after a mode change so widgets immediately reflect the new mode
+        without requiring a restart or re-hover.
+        """
+        stale = []
+        for widget, widget_id, _cycler in self._registered:
+            try:
+                tip = self.get_tooltip(widget_id)
+                if tip and hasattr(widget, 'setToolTip'):
+                    widget.setToolTip(tip)
+            except RuntimeError:
+                # C++ widget has been deleted — mark for cleanup
+                stale.append((widget, widget_id, _cycler))
+        for entry in stale:
+            try:
+                self._registered.remove(entry)
+            except ValueError:
+                pass
     
     def set_mode(self, mode: TooltipMode):
-        """Change tooltip verbosity mode"""
+        """Change tooltip verbosity mode and refresh all registered widgets."""
         self.current_mode = mode
+        self._tip_idx.clear()   # reset cycling positions for new mode
+        self._last_tooltip.clear()
         self.config.set('ui', 'tooltip_mode', value=mode.value)
         self.config.save()
+        self.refresh_all()
     
     def get_tooltip(self, widget_id: str) -> str:
-        """Get tooltip text for a widget based on current mode.
-        
-        For list-based tooltips (e.g. vulgar mode), picks a random variant
-        with cooldown to avoid repeating the same line back-to-back.
-        Falls back to normal mode if widget_id not found in current mode.
+        """Get the *next* tip for widget_id in the current mode.
+
+        Cycles sequentially through the list so each call returns the next tip.
+        Falls back to normal mode if the current mode doesn't have an entry.
         """
         tooltips = self.tooltips.get(self.current_mode, {})
         tooltip = tooltips.get(widget_id, "")
@@ -5892,20 +5968,15 @@ class TooltipVerbosityManager:
             normal_tooltips = self.tooltips.get(TooltipMode.NORMAL, {})
             tooltip = normal_tooltips.get(widget_id, "")
         
-        # If tooltip is a list, pick a random one with cooldown
+        # If tooltip is a list, cycle sequentially
         if isinstance(tooltip, list):
             if not tooltip:
                 return ""
             if len(tooltip) == 1:
                 return tooltip[0]
-            # Avoid repeating last shown tooltip for this widget
-            last = self._last_tooltip.get(widget_id)
-            choices = [t for t in tooltip if t != last]
-            if not choices:
-                choices = tooltip
-            selected = random.choice(choices)
-            self._last_tooltip[widget_id] = selected
-            return selected
+            idx = self._tip_idx.get(widget_id, 0) % len(tooltip)
+            self._tip_idx[widget_id] = idx + 1
+            return tooltip[idx]
         
         return tooltip
     

@@ -657,6 +657,7 @@ class TextureSorterMainWindow(QMainWindow):
         # Tooltip manager (will be initialized later)
         self.tooltip_manager = None
         self.log_text = None           # QTextEdit for activity log (created in create_tools_tab)
+        self._cursor_trail_overlay = None  # CursorTrailOverlay — installed when cursor trail enabled
 
         # Persistent data paths (stored once; reused in initialize_components and closeEvent)
         _app_data = Path(__file__).parent / 'app_data'
@@ -2646,6 +2647,9 @@ class TextureSorterMainWindow(QMainWindow):
             """
         self.setStyleSheet(stylesheet)
         self.apply_cursor()
+        # Re-apply cursor trail on theme change (overlay may have been covered)
+        trail_enabled = bool(config.get('ui', 'cursor_trail', default=False))
+        self._apply_cursor_trail(trail_enabled)
 
         # Unlock theme-related achievements
         try:
@@ -2698,6 +2702,25 @@ class TextureSorterMainWindow(QMainWindow):
             logger.debug(f"Cursor applied: {cursor_name} → {shape.name if hasattr(shape, 'name') else shape}")
         except Exception as e:
             logger.warning(f"Could not apply cursor: {e}")
+
+    def _apply_cursor_trail(self, enabled: bool) -> None:
+        """Install or remove the cursor trail overlay based on *enabled*."""
+        try:
+            if enabled:
+                if self._cursor_trail_overlay is None:
+                    from ui.cursor_trail_overlay import CursorTrailOverlay
+                    self._cursor_trail_overlay = CursorTrailOverlay(self)
+                color_scheme = config.get('ui', 'cursor_trail_color', default='rainbow')
+                self._cursor_trail_overlay.set_color_scheme(str(color_scheme))
+                self._cursor_trail_overlay.show()
+                self._cursor_trail_overlay.raise_()
+            else:
+                if self._cursor_trail_overlay is not None:
+                    self._cursor_trail_overlay.hide()
+                    self._cursor_trail_overlay.deleteLater()
+                    self._cursor_trail_overlay = None
+        except Exception as e:
+            logger.warning(f"Could not apply cursor trail: {e}")
 
     def initialize_components(self):
         """Initialize core components."""
@@ -3658,6 +3681,13 @@ class TextureSorterMainWindow(QMainWindow):
             # Handle cursor changes — apply immediately
             elif setting_key == "ui.cursor":
                 self.apply_cursor()
+
+            # Handle cursor trail toggle — install or remove the overlay
+            elif setting_key == "ui.cursor_trail":
+                self._apply_cursor_trail(bool(value))
+            elif setting_key == "ui.cursor_trail_color":
+                if self._cursor_trail_overlay is not None:
+                    self._cursor_trail_overlay.set_color_scheme(str(value))
 
             # Handle font changes
             elif setting_key in ("ui.font_family", "ui.font_size"):

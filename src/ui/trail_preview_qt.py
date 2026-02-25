@@ -1,10 +1,16 @@
 """
 PyQt6 Trail Preview
-Replaces canvas-based trail preview with animated Qt graphics
+Replaces canvas-based trail preview with animated Qt graphics.
+
+The preview has two modes:
+  • **Mouse-follow mode** (default when the cursor is inside the widget):
+    moves a dot with the mouse; trail follows real cursor position.
+  • **Demo/bounce mode** (auto-start when no cursor is present):
+    a small ball bounces around the preview so it's never static.
 """
 
 try:
-    from PyQt6.QtWidgets import QGraphicsView, QGraphicsScene, QGraphicsEllipseItem, QWidget, QVBoxLayout
+    from PyQt6.QtWidgets import QGraphicsView, QGraphicsScene, QGraphicsEllipseItem, QWidget, QVBoxLayout, QLabel
     from PyQt6.QtCore import Qt, QTimer, QPointF
     from PyQt6.QtGui import QBrush, QColor, QPainter
     PYQT_AVAILABLE = True
@@ -23,26 +29,33 @@ except (ImportError, OSError, RuntimeError):
 
 
 class TrailPreviewView(QGraphicsView):
-    """Animated trail preview"""
+    """Trail preview that follows the mouse cursor when hovered,
+    or bounces automatically when the cursor is outside."""
     
     def __init__(self, parent=None):
         super().__init__(parent)
         self.scene = QGraphicsScene(self)
         self.setScene(self.scene)
         self.setRenderHint(QPainter.RenderHint.Antialiasing)
-        
+        # Accept mouse tracking so we receive moves without a button pressed
+        self.setMouseTracking(True)
+
         self.trail_items = []
         self.trail_color = QColor(255, 0, 0)
         self.trail_length = 20
+        # Bounce-mode state
         self.position = QPointF(0, 0)
         self.velocity = QPointF(2, 1)
-        
-        # Animation timer
+        self._mouse_inside = False
+
+        # Single timer drives both bounce and fade
         self.timer = QTimer()
-        self.timer.timeout.connect(self.update_animation)
-        
+        self.timer.timeout.connect(self._tick)
+
         self.setSceneRect(-150, -150, 300, 300)
-        
+
+    # ── public API ────────────────────────────────────────────────────────────
+
     def set_trail_color(self, color):
         """Set trail color"""
         if isinstance(color, tuple):
@@ -57,54 +70,90 @@ class TrailPreviewView(QGraphicsView):
         self.trail_length = max(5, min(50, length))
         
     def start_animation(self):
-        """Start trail animation"""
+        """Start the timer (bounce mode active when no cursor is inside)."""
         self.timer.start(33)  # ~30 FPS
         
     def stop_animation(self):
         """Stop animation"""
         self.timer.stop()
-        
-    def update_animation(self):
-        """Update animation frame"""
-        # Update position
-        self.position += self.velocity
-        
-        # Bounce off edges
-        if abs(self.position.x()) > 140:
-            self.velocity.setX(-self.velocity.x())
-        if abs(self.position.y()) > 140:
-            self.velocity.setY(-self.velocity.y())
-            
-        # Add trail dot
-        dot = QGraphicsEllipseItem(-3, -3, 6, 6)
+        for item in self.trail_items:
+            self.scene.removeItem(item)
+        self.trail_items.clear()
+
+    # ── Qt mouse events — mouse-follow mode ──────────────────────────────────
+
+    def enterEvent(self, event):
+        """Mouse entered the widget — switch to mouse-follow mode."""
+        self._mouse_inside = True
+        super().enterEvent(event)
+
+    def leaveEvent(self, event):
+        """Mouse left the widget — switch back to bounce mode."""
+        self._mouse_inside = False
+        super().leaveEvent(event)
+
+    def mouseMoveEvent(self, event):
+        """Track cursor position for mouse-follow mode."""
+        # Map widget coordinates to scene coordinates
+        scene_pos = self.mapToScene(event.pos())
+        if self._mouse_inside:
+            self._add_dot(scene_pos)
+        super().mouseMoveEvent(event)
+
+    # ── internal tick ─────────────────────────────────────────────────────────
+
+    def _tick(self):
+        """Timer callback — advance bounce mode or just fade existing dots."""
+        if not self._mouse_inside:
+            # Bounce the demo dot around the scene
+            self.position += self.velocity
+
+            # Bounce off edges
+            if abs(self.position.x()) > 140:
+                self.velocity.setX(-self.velocity.x())
+            if abs(self.position.y()) > 140:
+                self.velocity.setY(-self.velocity.y())
+
+            self._add_dot(self.position)
+        else:
+            # Mouse-follow mode: just fade existing dots, no new position
+            self._fade_dots()
+
+    def _add_dot(self, pos: QPointF):
+        """Add a new dot at *pos* and fade/remove old ones."""
+        dot = QGraphicsEllipseItem(-4, -4, 8, 8)
         dot.setBrush(QBrush(self.trail_color))
-        dot.setPos(self.position)
+        dot.setPos(pos)
         dot.setOpacity(1.0)
         self.scene.addItem(dot)
         self.trail_items.append(dot)
-        
-        # Fade and remove old dots
+        self._fade_dots()
+
+    def _fade_dots(self):
+        """Fade older dots and remove expired ones."""
         while len(self.trail_items) > self.trail_length:
-            old_dot = self.trail_items.pop(0)
-            self.scene.removeItem(old_dot)
-            
-        # Fade existing dots
+            old = self.trail_items.pop(0)
+            self.scene.removeItem(old)
+        n = len(self.trail_items)
         for i, dot in enumerate(self.trail_items):
-            opacity = (i + 1) / len(self.trail_items)
-            dot.setOpacity(opacity)
+            dot.setOpacity((i + 1) / max(n, 1))
 
 
 class TrailPreviewWidget(QWidget):
-    """Complete trail preview widget"""
+    """Complete trail preview widget with a label."""
     
     def __init__(self, parent=None):
         super().__init__(parent)
         layout = QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        hint = QLabel("Move mouse here to preview trail ↓")
+        hint.setStyleSheet("color: #888; font-size: 10px;")
+        hint.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(hint)
         self.view = TrailPreviewView()
         layout.addWidget(self.view)
-        layout.setContentsMargins(0, 0, 0, 0)
-        
-        # Auto-start animation
+
+        # Start the bounce demo so the widget is never fully static
         self.view.start_animation()
         
     def set_trail_color(self, color):

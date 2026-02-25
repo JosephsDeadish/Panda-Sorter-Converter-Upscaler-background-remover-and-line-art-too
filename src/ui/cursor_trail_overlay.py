@@ -1,0 +1,157 @@
+"""
+Cursor Trail Overlay
+====================
+Transparent frameless QWidget that overlays the main window and paints a
+fading dot-trail wherever the mouse cursor moves.
+
+Usage (from main window)::
+
+    from ui.cursor_trail_overlay import CursorTrailOverlay
+    self._cursor_trail = CursorTrailOverlay(self)
+    self._cursor_trail.set_color_scheme('rainbow')
+    self._cursor_trail.show()
+    # To remove:
+    self._cursor_trail.hide()
+    self._cursor_trail.deleteLater()
+    self._cursor_trail = None
+"""
+from __future__ import annotations
+
+import math
+from collections import deque
+
+try:
+    from PyQt6.QtWidgets import QWidget, QApplication
+    from PyQt6.QtCore import Qt, QTimer, QPoint, QEvent, QObject
+    from PyQt6.QtGui import QPainter, QColor, QBrush, QPen
+    _PYQT_OK = True
+except (ImportError, OSError, RuntimeError):
+    _PYQT_OK = False
+    QWidget = object  # type: ignore[assignment,misc]
+    QObject = object  # type: ignore[assignment,misc]
+
+
+# ─── colour schemes ────────────────────────────────────────────────────────────
+_SCHEMES: dict[str, list[tuple[int, int, int]]] = {
+    'rainbow':   [(255, 0, 0), (255, 128, 0), (255, 255, 0),
+                  (0, 200, 0), (0, 128, 255), (128, 0, 255)],
+    'sparkle':   [(255, 220, 50), (255, 255, 150), (200, 200, 255),
+                  (255, 200, 255), (180, 255, 180)],
+    'fire':      [(255, 50, 0), (255, 120, 0), (255, 200, 0),
+                  (255, 80, 30), (200, 20, 0)],
+    'ice':       [(180, 230, 255), (100, 200, 255), (60, 160, 255),
+                  (200, 240, 255), (130, 200, 230)],
+    'purple':    [(180, 0, 255), (140, 50, 200), (200, 100, 255),
+                  (100, 0, 200), (220, 150, 255)],
+    'white':     [(255, 255, 255)],
+    'red':       [(220, 30, 30)],
+    'blue':      [(30, 100, 255)],
+    'green':     [(30, 200, 80)],
+    'gold':      [(255, 200, 0), (255, 165, 0), (200, 130, 0)],
+}
+
+_MAX_DOTS = 30        # trail length (number of positions kept)
+_DOT_BASE_SIZE = 8    # px diameter of freshest dot
+_TICK_MS = 16         # ~60 fps repaint timer
+
+
+class CursorTrailOverlay(QWidget):  # type: ignore[misc]
+    """Transparent overlay that draws a fading cursor trail.
+
+    Parent *must* be the main window.  The overlay resizes itself whenever
+    the parent resizes so it always covers the full window area.
+    """
+
+    def __init__(self, parent: QWidget):
+        if not _PYQT_OK:
+            raise ImportError("PyQt6 is required for CursorTrailOverlay")
+        super().__init__(parent)
+
+        # Make completely transparent to mouse events (clicks pass through)
+        self.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
+        self.setAttribute(Qt.WidgetAttribute.WA_NoSystemBackground, True)
+        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, True)
+        self.setWindowFlags(Qt.WindowType.FramelessWindowHint |
+                            Qt.WindowType.WindowTransparentForInput)
+
+        self._dots: deque[tuple[int, int]] = deque(maxlen=_MAX_DOTS)
+        self._color_idx = 0
+        self._scheme: list[tuple[int, int, int]] = _SCHEMES['rainbow']
+
+        # Install event filter on parent to capture mouse moves
+        if parent is not None:
+            parent.installEventFilter(self)
+
+        self._timer = QTimer(self)
+        self._timer.timeout.connect(self.update)
+        self._timer.start(_TICK_MS)
+
+        self._cover_parent()
+
+    # ── public API ────────────────────────────────────────────────────────────
+
+    def set_color_scheme(self, name: str) -> None:
+        """Set trail colour scheme by name (see _SCHEMES)."""
+        key = name.lower().replace(' ', '_')
+        self._scheme = _SCHEMES.get(key, _SCHEMES['rainbow'])
+        self._color_idx = 0
+
+    # ── event filter on parent ────────────────────────────────────────────────
+
+    def eventFilter(self, obj: QObject, event: QEvent) -> bool:  # type: ignore[override]
+        """Intercept mouse-move events on the parent to record trail positions."""
+        try:
+            if event.type() == QEvent.Type.MouseMove:
+                pos = event.pos()  # type: ignore[attr-defined]
+                self._dots.append((pos.x(), pos.y()))
+        except Exception:
+            pass
+        return False  # never consume the event
+
+    # ── Qt overrides ──────────────────────────────────────────────────────────
+
+    def resizeEvent(self, event) -> None:
+        self._cover_parent()
+        super().resizeEvent(event)
+
+    def showEvent(self, event) -> None:
+        self._cover_parent()
+        super().showEvent(event)
+
+    def paintEvent(self, event) -> None:  # type: ignore[override]
+        if not self._dots:
+            return
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        painter.setPen(QPen(Qt.PenStyle.NoPen))
+
+        n = len(self._dots)
+        dots = list(self._dots)
+        scheme = self._scheme
+        s_len = len(scheme)
+
+        for i, (x, y) in enumerate(dots):
+            # Oldest dot = index 0, newest = index n-1
+            progress = (i + 1) / n          # 0..1 (newest = 1.0)
+            alpha = int(progress * 220)
+            size = max(2, int(_DOT_BASE_SIZE * progress))
+            # Cycle through colour palette based on position in trail
+            r, g, b = scheme[(i + self._color_idx) % s_len]
+            color = QColor(r, g, b, alpha)
+            painter.setBrush(QBrush(color))
+            painter.drawEllipse(x - size // 2, y - size // 2, size, size)
+
+        self._color_idx = (self._color_idx + 1) % max(1, s_len)
+        painter.end()
+
+    # ── helpers ───────────────────────────────────────────────────────────────
+
+    def _cover_parent(self) -> None:
+        """Resize/reposition to cover the entire parent widget."""
+        p = self.parent()
+        if p is not None:
+            try:
+                self.setGeometry(0, 0, p.width(), p.height())
+                self.raise_()
+            except Exception:
+                pass
