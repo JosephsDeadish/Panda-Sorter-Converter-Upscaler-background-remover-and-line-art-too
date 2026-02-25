@@ -350,6 +350,7 @@ LineArtConverterPanelQt   = _try_import('ui.lineart_converter_panel_qt',   'Line
 AlphaFixerPanelQt         = _try_import('ui.alpha_fixer_panel_qt',         'AlphaFixerPanelQt')
 BatchRenamePanelQt        = _try_import('ui.batch_rename_panel_qt',        'BatchRenamePanelQt')
 ImageRepairPanelQt        = _try_import('ui.image_repair_panel_qt',        'ImageRepairPanelQt')
+FormatConverterPanelQt    = _try_import('ui.format_converter_panel_qt',    'FormatConverterPanelQt')
 CustomizationPanelQt      = _try_import('ui.customization_panel_qt',       'CustomizationPanelQt')
 ImageUpscalerPanelQt      = _try_import('ui.upscaler_panel_qt',            'ImageUpscalerPanelQt')
 OrganizerPanelQt          = _try_import('ui.organizer_panel_qt',           'OrganizerPanelQt')
@@ -1064,6 +1065,20 @@ class TextureSorterMainWindow(QMainWindow):
                 tool_tab_defs.append((_make_error_label('ImageRepairPanelQt', _e), "🔧 Image Repair", 'repair'))
         else:
             tool_tab_defs.append((_make_error_label('ImageRepairPanelQt', None), "🔧 Image Repair", 'repair'))
+
+        if FormatConverterPanelQt is not None:
+            try:
+                conv_panel = FormatConverterPanelQt(tooltip_manager=self.tooltip_manager)
+                conv_panel.finished.connect(lambda ok, msg, _tid='converter': (
+                    self.statusBar().showMessage(f"{'✅' if ok else '⚠️'} Converter: {msg}", 4000),
+                    self._on_tool_finished(ok, _tid),
+                ))
+                tool_tab_defs.append((conv_panel, "🔄 Format Converter", 'converter'))
+            except Exception as _e:
+                logger.warning(f"FormatConverterPanelQt unavailable: {_e}")
+                tool_tab_defs.append((_make_error_label('FormatConverterPanelQt', _e), "🔄 Format Converter", 'converter'))
+        else:
+            tool_tab_defs.append((_make_error_label('FormatConverterPanelQt', None), "🔄 Format Converter", 'converter'))
 
         if OrganizerPanelQt is not None:
             try:

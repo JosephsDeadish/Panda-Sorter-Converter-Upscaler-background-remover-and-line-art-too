@@ -1,0 +1,586 @@
+"""
+Format Converter Panel — PyQt6
+Batch-converts images between formats with quality, resize, and colour-space options.
+"""
+from __future__ import annotations
+import logging
+import os
+from pathlib import Path
+from typing import List, Optional, Tuple
+
+logger = logging.getLogger(__name__)
+
+try:
+    from PyQt6.QtWidgets import (
+        QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
+        QTextEdit, QFileDialog, QProgressBar, QGroupBox, QComboBox,
+        QSpinBox, QDoubleSpinBox, QCheckBox, QSplitter, QScrollArea,
+        QFrame, QLineEdit, QGridLayout, QSizePolicy, QMessageBox,
+    )
+    from PyQt6.QtCore import Qt, QThread, pyqtSignal, QSize
+    from PyQt6.QtGui import QPixmap, QImageReader
+    _PYQT = True
+except (ImportError, OSError, RuntimeError):
+    _PYQT = False
+    QWidget = object
+    QThread = object
+    QFrame = object
+    QSplitter = object
+    QGroupBox = object
+    QScrollArea = object
+    class _Stub:
+        def __init__(self, *a, **k): pass
+        def connect(self, *a): pass
+        def disconnect(self, *a): pass
+        def emit(self, *a): pass
+    def pyqtSignal(*a): return _Stub()  # noqa: E302
+    class Qt:  # noqa: E302
+        class AlignmentFlag:
+            AlignLeft = AlignRight = AlignCenter = AlignTop = AlignHCenter = AlignVCenter = 0
+        class Orientation:
+            Horizontal = Vertical = 0
+
+try:
+    from PIL import Image
+    _PIL = True
+except (ImportError, OSError):
+    _PIL = False
+
+# ─── Format definitions ──────────────────────────────────────────────────────
+_INPUT_EXTS = {
+    ".png", ".jpg", ".jpeg", ".bmp", ".tiff", ".tif",
+    ".webp", ".tga", ".gif", ".ico", ".psd",
+}
+
+_OUTPUT_FORMATS: List[Tuple[str, str, str]] = [
+    # (display_label, extension, PIL_save_format)
+    ("PNG (lossless, alpha)",          ".png",  "PNG"),
+    ("JPEG / JPG (lossy, no alpha)",   ".jpg",  "JPEG"),
+    ("WebP (lossy+lossless)",          ".webp", "WEBP"),
+    ("TIFF (lossless, layered)",       ".tiff", "TIFF"),
+    ("BMP (uncompressed)",             ".bmp",  "BMP"),
+    ("TGA / Targa (game-ready)",       ".tga",  "TGA"),
+    ("ICO (icon, max 256×256)",        ".ico",  "ICO"),
+]
+
+_COLOUR_SPACES: List[Tuple[str, str]] = [
+    ("Keep original",   "keep"),
+    ("RGBA (32-bit)",   "RGBA"),
+    ("RGB (24-bit)",    "RGB"),
+    ("Grayscale (L)",   "L"),
+    ("1-bit B&W",       "1"),
+]
+
+_RESIZE_MODES: List[Tuple[str, str]] = [
+    ("Keep original size",      "keep"),
+    ("Scale by percentage",     "percent"),
+    ("Scale to max dimension",  "max_dim"),
+    ("Fixed width × height",    "fixed"),
+    ("Power-of-two (up)",       "pot_up"),
+    ("Power-of-two (down)",     "pot_down"),
+]
+
+
+# ─── Worker thread ────────────────────────────────────────────────────────────
+class _ConvertWorker(QThread):
+    """Runs the conversion in a background thread."""
+    progress   = pyqtSignal(int, int, str)   # done, total, filename
+    log_msg    = pyqtSignal(str)
+    finished   = pyqtSignal(bool, str, int)  # success, message, count
+
+    def __init__(self, files: List[Path], settings: dict, parent=None):
+        super().__init__(parent)
+        self._files    = files
+        self._settings = settings
+        self._cancel   = False
+
+    def cancel(self):
+        self._cancel = True
+
+    def run(self):
+        if not _PIL:
+            self.finished.emit(False, "Pillow not installed — cannot convert images", 0)
+            return
+        s         = self._settings
+        out_dir   = Path(s["out_dir"])
+        out_dir.mkdir(parents=True, exist_ok=True)
+        out_ext   = s["out_ext"]
+        pil_fmt   = s["pil_fmt"]
+        colour    = s["colour"]
+        resize_md = s["resize_mode"]
+        jpeg_q    = s["jpeg_quality"]
+        png_cmp   = s["png_compress"]
+        webp_q    = s["webp_quality"]
+        webp_ll   = s["webp_lossless"]
+        strip_xmp = s["strip_metadata"]
+        name_tpl  = s["name_template"]  # e.g. "{stem}{ext}"
+        suffix    = s.get("name_suffix", "")
+        total     = len(self._files)
+        done      = 0
+        errors    = 0
+
+        for fp in self._files:
+            if self._cancel:
+                break
+            try:
+                img = Image.open(fp)
+                img.load()  # force decode (catches lazy errors)
+
+                # ── Colour conversion ─────────────────────────────────────
+                if colour != "keep":
+                    if colour == "RGBA" and pil_fmt in ("JPEG", "BMP"):
+                        # JPEG/BMP cannot store alpha — flatten to RGB
+                        bg = Image.new("RGB", img.size, (255, 255, 255))
+                        if img.mode in ("RGBA", "LA", "PA"):
+                            bg.paste(img, mask=img.split()[-1])
+                        else:
+                            bg.paste(img.convert("RGB"))
+                        img = bg
+                    else:
+                        target_mode = colour
+                        if target_mode == "RGB" and pil_fmt in ("PNG", "TIFF", "WEBP", "TGA"):
+                            pass  # allow
+                        img = img.convert(target_mode)
+                elif pil_fmt == "JPEG" and img.mode in ("RGBA", "LA", "P", "1"):
+                    # Auto-flatten alpha for JPEG even when "keep"
+                    bg = Image.new("RGB", img.size, (255, 255, 255))
+                    if img.mode in ("RGBA", "LA"):
+                        bg.paste(img, mask=img.split()[-1])
+                    else:
+                        bg.paste(img.convert("RGB"))
+                    img = bg
+                elif pil_fmt == "ICO":
+                    img = img.convert("RGBA")
+
+                # ── Resize ────────────────────────────────────────────────
+                img = _resize_image(img, resize_md, s)
+
+                # ── ICO size cap ──────────────────────────────────────────
+                if pil_fmt == "ICO":
+                    img.thumbnail((256, 256), Image.LANCZOS)
+
+                # ── Output path ───────────────────────────────────────────
+                stem = fp.stem + suffix
+                out_name = (name_tpl
+                            .replace("{stem}", stem)
+                            .replace("{ext}", out_ext)
+                            .replace("{name}", fp.name))
+                out_path = out_dir / out_name
+
+                # ── Save kwargs ───────────────────────────────────────────
+                save_kw: dict = {}
+                if pil_fmt == "JPEG":
+                    save_kw = {"quality": jpeg_q, "optimize": True}
+                    if strip_xmp:
+                        save_kw["exif"] = b""
+                elif pil_fmt == "PNG":
+                    save_kw = {"compress_level": png_cmp, "optimize": True}
+                elif pil_fmt == "WEBP":
+                    save_kw = {"quality": webp_q, "lossless": webp_ll}
+                elif pil_fmt == "TIFF":
+                    save_kw = {"compression": "tiff_lzw"}
+
+                img.save(out_path, format=pil_fmt, **save_kw)
+                done += 1
+                self.log_msg.emit(f"✅ {fp.name}  →  {out_path.name}")
+            except Exception as exc:
+                errors += 1
+                self.log_msg.emit(f"❌ {fp.name}: {exc}")
+                logger.warning(f"Format convert: {fp}: {exc}")
+
+            self.progress.emit(done + errors, total, fp.name)
+
+        ok  = errors == 0
+        msg = f"Done — {done} converted, {errors} errors"
+        self.finished.emit(ok, msg, done)
+
+
+def _resize_image(img: "Image.Image", mode: str, s: dict) -> "Image.Image":
+    """Resize `img` according to settings dict `s`."""
+    if mode == "keep":
+        return img
+    w, h = img.size
+    if mode == "percent":
+        pct = s.get("resize_percent", 100) / 100.0
+        nw, nh = max(1, int(w * pct)), max(1, int(h * pct))
+    elif mode == "max_dim":
+        mx = s.get("resize_max_dim", 1024)
+        scale = mx / max(w, h) if max(w, h) > 0 else 1.0
+        nw, nh = max(1, int(w * scale)), max(1, int(h * scale))
+    elif mode == "fixed":
+        nw = s.get("resize_fixed_w", w)
+        nh = s.get("resize_fixed_h", h)
+    elif mode == "pot_up":
+        nw = 1 << ((w - 1).bit_length())
+        nh = 1 << ((h - 1).bit_length())
+    elif mode == "pot_down":
+        nw = 1 << (max(1, w).bit_length() - 1)
+        nh = 1 << (max(1, h).bit_length() - 1)
+    else:
+        return img
+    return img.resize((nw, nh), Image.LANCZOS)
+
+
+# ─── Panel ────────────────────────────────────────────────────────────────────
+if _PYQT:
+    class FormatConverterPanelQt(QWidget):
+        """Batch image format converter panel."""
+
+        finished = pyqtSignal(bool, str)
+
+        def __init__(self, tooltip_manager=None, parent=None):
+            super().__init__(parent)
+            self._tooltip_mgr  = tooltip_manager
+            self._files: List[Path] = []
+            self._worker: Optional[_ConvertWorker] = None
+            self._setup_ui()
+
+        # ── UI construction ────────────────────────────────────────────────
+        def _setup_ui(self):
+            root = QVBoxLayout(self)
+            root.setContentsMargins(8, 8, 8, 8)
+            root.setSpacing(6)
+
+            # Title
+            title = QLabel("🔄 Format Converter")
+            title.setStyleSheet("font-size:15px; font-weight:bold; color:#aee4ff;")
+            root.addWidget(title)
+
+            # Splitter: left = settings, right = log
+            splitter = QSplitter(Qt.Orientation.Horizontal)
+            root.addWidget(splitter, stretch=1)
+
+            # ── Left column ────────────────────────────────────────────────
+            left = QWidget()
+            left.setMinimumWidth(290)
+            left.setMaximumWidth(440)
+            lv = QVBoxLayout(left)
+            lv.setContentsMargins(0, 0, 4, 0)
+            lv.setSpacing(6)
+
+            # Input
+            inp_box = QGroupBox("📂 Input")
+            inp_lay = QVBoxLayout(inp_box)
+            inp_lay.setSpacing(4)
+
+            h = QHBoxLayout()
+            self._in_dir_edit = QLineEdit()
+            self._in_dir_edit.setPlaceholderText("Input folder or drag files here…")
+            self._in_dir_edit.setReadOnly(True)
+            h.addWidget(self._in_dir_edit, stretch=1)
+            btn_pick_dir = QPushButton("📁 Folder")
+            btn_pick_dir.setFixedWidth(76)
+            btn_pick_dir.clicked.connect(self._pick_input_folder)
+            h.addWidget(btn_pick_dir)
+            btn_pick_files = QPushButton("🖼 Files")
+            btn_pick_files.setFixedWidth(70)
+            btn_pick_files.clicked.connect(self._pick_input_files)
+            h.addWidget(btn_pick_files)
+            inp_lay.addLayout(h)
+
+            self._file_count_lbl = QLabel("No files selected")
+            self._file_count_lbl.setStyleSheet("color:#888; font-size:11px;")
+            inp_lay.addWidget(self._file_count_lbl)
+            lv.addWidget(inp_box)
+
+            # Output format
+            fmt_box = QGroupBox("🎯 Output Format")
+            fmt_lay = QGridLayout(fmt_box)
+            fmt_lay.setSpacing(4)
+            fmt_lay.addWidget(QLabel("Format:"), 0, 0)
+            self._fmt_combo = QComboBox()
+            for label, _, _ in _OUTPUT_FORMATS:
+                self._fmt_combo.addItem(label)
+            fmt_lay.addWidget(self._fmt_combo, 0, 1)
+
+            # Output directory
+            fmt_lay.addWidget(QLabel("Output:"), 1, 0)
+            out_h = QHBoxLayout()
+            self._out_dir_edit = QLineEdit()
+            self._out_dir_edit.setPlaceholderText("(same as input)")
+            out_h.addWidget(self._out_dir_edit, stretch=1)
+            btn_out = QPushButton("📁")
+            btn_out.setFixedWidth(30)
+            btn_out.clicked.connect(self._pick_output_dir)
+            out_h.addWidget(btn_out)
+            fmt_lay.addLayout(out_h, 1, 1)
+
+            fmt_lay.addWidget(QLabel("Name template:"), 2, 0)
+            self._name_tpl_edit = QLineEdit("{stem}{ext}")
+            self._name_tpl_edit.setToolTip(
+                "Use {stem} = filename without extension, {ext} = new extension, {name} = original filename")
+            fmt_lay.addWidget(self._name_tpl_edit, 2, 1)
+
+            fmt_lay.addWidget(QLabel("Suffix:"), 3, 0)
+            self._suffix_edit = QLineEdit("")
+            self._suffix_edit.setPlaceholderText("e.g. _converted (optional)")
+            fmt_lay.addWidget(self._suffix_edit, 3, 1)
+            lv.addWidget(fmt_box)
+
+            # Quality / compression
+            qual_box = QGroupBox("⚙️ Quality & Compression")
+            qual_lay = QGridLayout(qual_box)
+            qual_lay.setSpacing(4)
+
+            qual_lay.addWidget(QLabel("JPEG quality:"), 0, 0)
+            self._jpeg_q = QSpinBox()
+            self._jpeg_q.setRange(1, 100)
+            self._jpeg_q.setValue(92)
+            self._jpeg_q.setSuffix(" %")
+            qual_lay.addWidget(self._jpeg_q, 0, 1)
+
+            qual_lay.addWidget(QLabel("PNG compress:"), 1, 0)
+            self._png_cmp = QSpinBox()
+            self._png_cmp.setRange(0, 9)
+            self._png_cmp.setValue(6)
+            self._png_cmp.setToolTip("0 = fastest (larger file), 9 = smallest (slower)")
+            qual_lay.addWidget(self._png_cmp, 1, 1)
+
+            qual_lay.addWidget(QLabel("WebP quality:"), 2, 0)
+            self._webp_q = QSpinBox()
+            self._webp_q.setRange(1, 100)
+            self._webp_q.setValue(90)
+            self._webp_q.setSuffix(" %")
+            qual_lay.addWidget(self._webp_q, 2, 1)
+
+            self._webp_ll = QCheckBox("WebP lossless")
+            qual_lay.addWidget(self._webp_ll, 3, 0, 1, 2)
+
+            self._strip_meta = QCheckBox("Strip metadata (EXIF / XMP)")
+            self._strip_meta.setChecked(True)
+            qual_lay.addWidget(self._strip_meta, 4, 0, 1, 2)
+            lv.addWidget(qual_box)
+
+            # Colour space
+            col_box = QGroupBox("🎨 Colour Space")
+            col_lay = QHBoxLayout(col_box)
+            col_lay.addWidget(QLabel("Convert to:"))
+            self._colour_combo = QComboBox()
+            for label, _ in _COLOUR_SPACES:
+                self._colour_combo.addItem(label)
+            col_lay.addWidget(self._colour_combo, stretch=1)
+            lv.addWidget(col_box)
+
+            # Resize
+            rsz_box = QGroupBox("📐 Resize")
+            rsz_lay = QVBoxLayout(rsz_box)
+            rsz_lay.setSpacing(4)
+
+            mode_h = QHBoxLayout()
+            mode_h.addWidget(QLabel("Mode:"))
+            self._resize_combo = QComboBox()
+            for label, _ in _RESIZE_MODES:
+                self._resize_combo.addItem(label)
+            self._resize_combo.currentIndexChanged.connect(self._on_resize_mode_changed)
+            mode_h.addWidget(self._resize_combo, stretch=1)
+            rsz_lay.addLayout(mode_h)
+
+            # Sub-controls as container widgets for clean show/hide
+            self._rsz_row_pct = QWidget()
+            pct_h = QHBoxLayout(self._rsz_row_pct)
+            pct_h.setContentsMargins(0, 0, 0, 0)
+            pct_h.addWidget(QLabel("Percent:"))
+            self._rsz_pct = QSpinBox()
+            self._rsz_pct.setRange(1, 800)
+            self._rsz_pct.setValue(100)
+            self._rsz_pct.setSuffix(" %")
+            pct_h.addWidget(self._rsz_pct, stretch=1)
+            rsz_lay.addWidget(self._rsz_row_pct)
+            self._rsz_row_pct.hide()
+
+            self._rsz_row_max = QWidget()
+            max_h = QHBoxLayout(self._rsz_row_max)
+            max_h.setContentsMargins(0, 0, 0, 0)
+            max_h.addWidget(QLabel("Max dim px:"))
+            self._rsz_max = QSpinBox()
+            self._rsz_max.setRange(16, 16384)
+            self._rsz_max.setValue(1024)
+            max_h.addWidget(self._rsz_max, stretch=1)
+            rsz_lay.addWidget(self._rsz_row_max)
+            self._rsz_row_max.hide()
+
+            self._rsz_row_fixed = QWidget()
+            fix_h = QHBoxLayout(self._rsz_row_fixed)
+            fix_h.setContentsMargins(0, 0, 0, 0)
+            fix_h.addWidget(QLabel("W:"))
+            self._rsz_fw = QSpinBox(); self._rsz_fw.setRange(1, 16384); self._rsz_fw.setValue(512)
+            fix_h.addWidget(self._rsz_fw)
+            fix_h.addWidget(QLabel("H:"))
+            self._rsz_fh = QSpinBox(); self._rsz_fh.setRange(1, 16384); self._rsz_fh.setValue(512)
+            fix_h.addWidget(self._rsz_fh)
+            rsz_lay.addWidget(self._rsz_row_fixed)
+            self._rsz_row_fixed.hide()
+            lv.addWidget(rsz_box)
+
+            lv.addStretch()
+            splitter.addWidget(left)
+
+            # ── Right column (log + progress) ──────────────────────────────
+            right = QWidget()
+            rv = QVBoxLayout(right)
+            rv.setContentsMargins(4, 0, 0, 0)
+            rv.setSpacing(6)
+
+            self._log = QTextEdit()
+            self._log.setReadOnly(True)
+            self._log.setStyleSheet(
+                "background:#0d1117; color:#c9d1d9; font-family:Consolas,monospace; font-size:11px;")
+            self._log.setPlaceholderText("Conversion log will appear here…")
+            rv.addWidget(self._log, stretch=1)
+
+            self._progress = QProgressBar()
+            self._progress.setVisible(False)
+            rv.addWidget(self._progress)
+
+            btn_row = QHBoxLayout()
+            self._convert_btn = QPushButton("▶ Convert")
+            self._convert_btn.setFixedHeight(36)
+            self._convert_btn.setStyleSheet(
+                "QPushButton{background:#1f6feb; color:white; font-weight:bold; border-radius:6px;}"
+                "QPushButton:disabled{background:#30363d; color:#6e7681;}")
+            self._convert_btn.clicked.connect(self._start_conversion)
+            self._cancel_btn = QPushButton("⬛ Cancel")
+            self._cancel_btn.setFixedHeight(36)
+            self._cancel_btn.setEnabled(False)
+            self._cancel_btn.clicked.connect(self._cancel_conversion)
+            self._clear_btn = QPushButton("🗑 Clear Log")
+            self._clear_btn.setFixedHeight(36)
+            self._clear_btn.clicked.connect(self._log.clear)
+            btn_row.addWidget(self._convert_btn)
+            btn_row.addWidget(self._cancel_btn)
+            btn_row.addStretch()
+            btn_row.addWidget(self._clear_btn)
+            rv.addLayout(btn_row)
+
+            self._status_lbl = QLabel("Ready")
+            self._status_lbl.setStyleSheet("color:#58a6ff; font-size:11px;")
+            rv.addWidget(self._status_lbl)
+            splitter.addWidget(right)
+            splitter.setSizes([320, 480])
+
+        # ── Resize sub-control visibility ─────────────────────────────────
+        def _on_resize_mode_changed(self, idx: int):
+            mode_key = _RESIZE_MODES[idx][1]
+            self._rsz_row_pct.setVisible(mode_key == "percent")
+            self._rsz_row_max.setVisible(mode_key == "max_dim")
+            self._rsz_row_fixed.setVisible(mode_key == "fixed")
+
+        # ── File / dir pickers ────────────────────────────────────────────
+        def _pick_input_folder(self):
+            d = QFileDialog.getExistingDirectory(self, "Select Input Folder")
+            if not d:
+                return
+            exts = _INPUT_EXTS
+            self._files = sorted(
+                p for p in Path(d).iterdir()
+                if p.suffix.lower() in exts
+            )
+            self._in_dir_edit.setText(d)
+            self._file_count_lbl.setText(f"{len(self._files)} image(s) found")
+            if not self._out_dir_edit.text():
+                self._out_dir_edit.setText(d)
+
+        def _pick_input_files(self):
+            exts_str = " ".join(f"*{e}" for e in sorted(_INPUT_EXTS))
+            paths, _ = QFileDialog.getOpenFileNames(
+                self, "Select Images", "",
+                f"Images ({exts_str});;All files (*.*)")
+            if not paths:
+                return
+            self._files = [Path(p) for p in paths]
+            if self._files:
+                self._in_dir_edit.setText(str(self._files[0].parent))
+                if not self._out_dir_edit.text():
+                    self._out_dir_edit.setText(str(self._files[0].parent))
+            self._file_count_lbl.setText(f"{len(self._files)} file(s) selected")
+
+        def _pick_output_dir(self):
+            d = QFileDialog.getExistingDirectory(self, "Select Output Folder")
+            if d:
+                self._out_dir_edit.setText(d)
+
+        # ── Build settings dict ───────────────────────────────────────────
+        def _build_settings(self) -> dict:
+            fmt_idx  = self._fmt_combo.currentIndex()
+            _, ext, pil_fmt = _OUTPUT_FORMATS[fmt_idx]
+            colour_idx = self._colour_combo.currentIndex()
+            _, colour = _COLOUR_SPACES[colour_idx]
+            resize_idx = self._resize_combo.currentIndex()
+            _, resize_mode = _RESIZE_MODES[resize_idx]
+
+            out_dir = self._out_dir_edit.text().strip()
+            if not out_dir and self._files:
+                out_dir = str(self._files[0].parent)
+            name_tpl = self._name_tpl_edit.text().strip() or "{stem}{ext}"
+
+            return {
+                "out_dir":        out_dir,
+                "out_ext":        ext,
+                "pil_fmt":        pil_fmt,
+                "colour":         colour,
+                "resize_mode":    resize_mode,
+                "resize_percent": self._rsz_pct.value(),
+                "resize_max_dim": self._rsz_max.value(),
+                "resize_fixed_w": self._rsz_fw.value(),
+                "resize_fixed_h": self._rsz_fh.value(),
+                "jpeg_quality":   self._jpeg_q.value(),
+                "png_compress":   self._png_cmp.value(),
+                "webp_quality":   self._webp_q.value(),
+                "webp_lossless":  self._webp_ll.isChecked(),
+                "strip_metadata": self._strip_meta.isChecked(),
+                "name_template":  name_tpl,
+                "name_suffix":    self._suffix_edit.text(),
+            }
+
+        # ── Conversion control ────────────────────────────────────────────
+        def _start_conversion(self):
+            if not _PIL:
+                QMessageBox.critical(self, "Pillow missing",
+                    "Pillow (PIL) is not installed.\n\npip install Pillow")
+                return
+            if not self._files:
+                QMessageBox.information(self, "No files", "Please select input files or a folder first.")
+                return
+            settings = self._build_settings()
+            if not settings["out_dir"]:
+                QMessageBox.warning(self, "No output folder", "Please select an output folder.")
+                return
+
+            self._log.clear()
+            self._progress.setMaximum(len(self._files))
+            self._progress.setValue(0)
+            self._progress.setVisible(True)
+            self._convert_btn.setEnabled(False)
+            self._cancel_btn.setEnabled(True)
+            self._status_lbl.setText("Converting…")
+
+            self._worker = _ConvertWorker(self._files, settings, parent=self)
+            self._worker.progress.connect(self._on_progress)
+            self._worker.log_msg.connect(self._log.append)
+            self._worker.finished.connect(self._on_finished)
+            self._worker.start()
+
+        def _cancel_conversion(self):
+            if self._worker and self._worker.isRunning():
+                self._worker.cancel()
+                self._status_lbl.setText("Cancelling…")
+
+        def _on_progress(self, done: int, total: int, filename: str):
+            self._progress.setMaximum(total)
+            self._progress.setValue(done)
+            self._status_lbl.setText(f"Processing: {filename}  ({done}/{total})")
+
+        def _on_finished(self, success: bool, message: str, count: int):
+            self._convert_btn.setEnabled(True)
+            self._cancel_btn.setEnabled(False)
+            self._progress.setVisible(False)
+            icon = "✅" if success else "⚠️"
+            self._status_lbl.setText(f"{icon} {message}")
+            self._log.append(f"\n{icon} {message}")
+            self.finished.emit(success, message)
+
+else:
+    class FormatConverterPanelQt(object):  # type: ignore[no-redef]
+        """Stub when PyQt6 is absent."""
+        finished = None
+        def __init__(self, *a, **k): pass
