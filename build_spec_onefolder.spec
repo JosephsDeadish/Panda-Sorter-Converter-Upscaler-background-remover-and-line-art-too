@@ -279,13 +279,24 @@ a = Analysis(
         'pynput.keyboard',
         'pynput.mouse',
         # AI inference and model download utilities
-        # Note: rembg is excluded from analysis (see excludes list below) because
-        # rembg.bg calls sys.exit(1) when onnxruntime fails to load in PyInstaller's
-        # isolated binary-dependency analysis subprocesses, killing the build.
+        # Note: rembg is NO LONGER excluded (see excludes section for explanation).
+        # pre_safe_import_module/hook-rembg.py patches sys.exit() so that
+        # rembg.bg's sys.exit(1) becomes a harmless SystemExit during analysis.
         # onnxruntime binaries are still collected by hook-onnxruntime.py.
-        # rembg is now lazy-imported at call time in tools/background_remover.py
-        # and tools/object_remover.py so it cannot crash module-level import.
         'onnxruntime',  # Required for offline AI model inference (src/ai/inference.py, src/ai/offline_model.py)
+        # rembg is no longer in excludes — bundle it so background removal works in the EXE.
+        # The pre_safe_import_module/hook-rembg.py patches sys.exit during analysis.
+        'rembg',
+        'rembg.sessions',
+        'rembg.sessions.base',
+        'rembg.sessions.simple',
+        'rembg.sessions.u2net',
+        'rembg.sessions.u2netp',
+        'rembg.sessions.u2net_human_seg',
+        'rembg.sessions.silueta',
+        'rembg.sessions.isnet',
+        'rembg.sessions.isnet_dis',
+        'rembg.sessions.birefnet',
         'pooch',  # Required for ML model downloads (used by various AI/ML libraries)
         'requests',
         # Hybrid inference modules (ONNX – always-on, no torch dependency)
@@ -443,20 +454,11 @@ a = Analysis(
         'setuptools',
         'distutils',
         
-        # rembg - kept in excludes as a safety net even though it is now
-        # lazy-imported at call time (tools/background_remover.py,
-        # tools/object_remover.py, ui/background_remover_panel_qt.py).
-        # Excluding it ensures PyInstaller never tries to statically analyse
-        # rembg.bg, which calls sys.exit(1) on onnxruntime DLL failure.
-        # onnxruntime DLLs are still collected via hook-onnxruntime.py.
-        'rembg',
-        'rembg.bg',
-        'rembg.sessions',
-        'rembg.sessions.base',
-        'rembg.sessions.u2net',
-        'rembg.sessions.u2netp',
-        'rembg.sessions.u2net_human_seg',
-        'rembg.sessions.silueta',
+        # NOTE: rembg is NO LONGER in excludes.
+        # The pre_safe_import_module/hook-rembg.py patches sys.exit() during
+        # PyInstaller analysis so rembg.bg's sys.exit(1) becomes a harmless
+        # SystemExit.  Bundling rembg enables background removal in the EXE.
+        # onnxruntime DLLs are collected via hook-onnxruntime.py.
     ],
     win_no_prefer_redirects=False,
     win_private_assemblies=False,

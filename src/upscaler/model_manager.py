@@ -2,6 +2,7 @@
 
 import json
 import logging
+import os
 from pathlib import Path
 from typing import Optional, Callable
 from enum import Enum
@@ -439,8 +440,15 @@ class AIModelManager:
         if model_file.exists() and model_file.stat().st_size > 1024:
             return ModelStatus.INSTALLED
 
-        # Also check rembg's own cache directory (~/.u2net/)
+        # Also check rembg's own cache directory and U2NET_HOME env var
         if model_info.get('dest_dir_env') == 'U2NET_HOME':
+            # Check U2NET_HOME first (our pre-download path in the frozen EXE)
+            u2net_home = os.environ.get('U2NET_HOME')
+            if u2net_home:
+                u2net_home_path = Path(u2net_home) / dest_filename
+                if u2net_home_path.exists() and u2net_home_path.stat().st_size > 1024:
+                    return ModelStatus.INSTALLED
+            # Fallback: check rembg's legacy default (~/.u2net/)
             u2net_dir = Path.home() / '.u2net'
             if (u2net_dir / dest_filename).exists():
                 return ModelStatus.INSTALLED
