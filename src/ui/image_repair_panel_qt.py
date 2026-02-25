@@ -585,9 +585,17 @@ class ImageRepairPanelQt(QWidget):
         self.repair_btn.setEnabled(enabled)
         self.cancel_btn.setEnabled(not enabled)
 
-    def _set_tooltip(self, widget, text):
-        """Set tooltip on a widget using tooltip manager if available."""
-        if self.tooltip_manager and hasattr(self.tooltip_manager, 'set_tooltip'):
-            self.tooltip_manager.set_tooltip(widget, text)
+    def _set_tooltip(self, widget, text_or_id: str):
+        """Set tooltip on a widget using tooltip manager if available.
+
+        If *text_or_id* has no spaces it is treated as a widget-ID key and
+        registered with the cycling tooltip system so that mode changes and
+        repeated hovers cycle through the full tip list.
+        """
+        if self.tooltip_manager:
+            tip = self.tooltip_manager.get_tooltip(text_or_id) if ' ' not in text_or_id else text_or_id
+            widget.setToolTip(tip)
+            if hasattr(self.tooltip_manager, 'register'):
+                self.tooltip_manager.register(widget, text_or_id if ' ' not in text_or_id else None)
         else:
-            widget.setToolTip(text)
+            widget.setToolTip(text_or_id)

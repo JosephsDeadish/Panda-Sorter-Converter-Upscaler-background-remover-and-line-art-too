@@ -3572,6 +3572,9 @@ class TextureSorterMainWindow(QMainWindow):
                     # unlock_achievement() is idempotent — safe to call every sort;
                     # the system only fires the callback the first time it's unlocked.
                     self.achievement_system.unlock_achievement('first_sort')
+                    # batch_master: fire when 500+ files processed in a single operation
+                    if files_processed >= 500:
+                        self.achievement_system.update_progress('batch_master', 1)
             except Exception:
                 pass
             # Award XP for each file processed
