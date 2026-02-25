@@ -317,6 +317,14 @@ def test_model_manager_url_structure():
             "Use GitHub releases or a public HF repo as primary."
         )
 
+        # 2b. birefnet-general must NOT use the danielgatis/rembg v0.0.0 GitHub release
+        #     as primary — that file does NOT exist there (HTTP 404 confirmed).
+        assert 'github.com/danielgatis/rembg/releases/download' not in primary, (
+            f"birefnet-general primary URL points to danielgatis/rembg GitHub releases "
+            f"where the file does NOT exist (HTTP 404): {primary!r}\n"
+            "Use the ZhengPeng7/BiRefNet HuggingFace repo as primary."
+        )
+
         # 3. All rembg models with dest_dir_env should have dest_filename set
         for name, info in models.items():
             if info.get('dest_dir_env') == 'U2NET_HOME':
@@ -387,6 +395,78 @@ def test_panda_widget_gl_qstate_import():
         print(f"  ✅ PyQt6.QtCore fallback also present at line(s): {qtcore_lines} (correct — for older PyQt6)")
 
 
+def test_bedroom_mouse_release_event():
+    """furniture_clicked must be emitted from mouseReleaseEvent, NOT mouseMoveEvent.
+
+    In Qt, event.button() inside mouseMoveEvent() ALWAYS returns
+    Qt.MouseButton.NoButton — the condition ``event.button() ==
+    Qt.MouseButton.LeftButton`` is therefore NEVER true inside a move handler.
+
+    If the release/click logic is embedded in mouseMoveEvent(), clicking a
+    piece of furniture does nothing: no wardrobe, no backpack, no door.
+    The fix: add a dedicated mouseReleaseEvent() method.
+    """
+    print("\ntest_bedroom_mouse_release_event ...")
+    import ast
+    from pathlib import Path
+
+    src_path = Path(__file__).parent / 'src' / 'ui' / 'panda_bedroom_gl.py'
+    if not src_path.exists():
+        print("  ⚠️  Skipped (panda_bedroom_gl.py not found)")
+        return
+
+    code = src_path.read_text(encoding='utf-8')
+    tree = ast.parse(code, filename=str(src_path))
+
+    # Collect all method definitions and the line ranges of each
+    class MethodFinder(ast.NodeVisitor):
+        def __init__(self):
+            self.methods = {}  # name -> (start_line, end_line)
+
+        def visit_FunctionDef(self, node):
+            # end_lineno requires Python ≥ 3.8 (which we require anyway)
+            self.methods[node.name] = (node.lineno, getattr(node, 'end_lineno', node.lineno))
+            self.generic_visit(node)
+
+    finder = MethodFinder()
+    finder.visit(tree)
+
+    assert 'mouseReleaseEvent' in finder.methods, (
+        "panda_bedroom_gl.PandaBedroomGL is missing mouseReleaseEvent()!\n"
+        "The furniture-click (furniture_clicked signal) must be emitted in "
+        "mouseReleaseEvent, NOT mouseMoveEvent.\n"
+        "In Qt, event.button() inside mouseMoveEvent() always returns NoButton, "
+        "so placing release logic there means furniture clicks never fire."
+    )
+
+    move_start, move_end = finder.methods.get('mouseMoveEvent', (0, 0))
+    release_start, release_end = finder.methods.get('mouseReleaseEvent', (0, 0))
+
+    # Verify furniture_clicked.emit is in mouseReleaseEvent, NOT mouseMoveEvent
+    lines = code.split('\n')
+    emit_in_move = [
+        i + 1
+        for i in range(move_start - 1, move_end)
+        if 'furniture_clicked.emit' in lines[i]
+    ]
+    emit_in_release = [
+        i + 1
+        for i in range(release_start - 1, release_end)
+        if 'furniture_clicked.emit' in lines[i]
+    ]
+
+    assert not emit_in_move, (
+        f"furniture_clicked.emit found inside mouseMoveEvent (lines {emit_in_move})!\n"
+        "event.button() in mouseMoveEvent always returns NoButton — furniture clicks "
+        "will NEVER fire.  Move the emit to mouseReleaseEvent."
+    )
+    assert emit_in_release, (
+        "furniture_clicked.emit NOT found inside mouseReleaseEvent!\n"
+        "Furniture clicks will never be processed."
+    )
+    print(f"  ✅ mouseReleaseEvent present; furniture_clicked.emit at line(s): {emit_in_release}")
+
+
 # ---------------------------------------------------------------------------
 # Runner
 # ---------------------------------------------------------------------------
@@ -407,6 +487,7 @@ def run_all_tests():
         test_organizer_style_no_false_positives,
         test_model_manager_url_structure,
         test_panda_widget_gl_qstate_import,
+        test_bedroom_mouse_release_event,
     ]
 
     passed, failed = [], []

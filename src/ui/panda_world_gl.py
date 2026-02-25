@@ -1219,8 +1219,11 @@ class PandaWorldGL(
         if PYQT_AVAILABLE:
             wx, wz = self._screen_to_ground(event.position().x(), event.position().y())
             self._hover = self._hit_region(wx, wz)
-            if QOGL_AVAILABLE:
+            try:
                 self.setCursor(Qt.CursorShape.PointingHandCursor if self._hover else Qt.CursorShape.ArrowCursor)
+            except Exception:
+                pass
+            if QOGL_AVAILABLE:
                 self.update()  # repaint immediately so hover glow appears without waiting for _tick
 
     def mousePressEvent(self, event):

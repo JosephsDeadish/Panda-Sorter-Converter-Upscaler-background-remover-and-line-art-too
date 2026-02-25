@@ -254,11 +254,12 @@ class AIModelManager:
             'icon': '✂️',
         },
         'birefnet-general': {
-            # birefnet-general.onnx was added to the danielgatis/rembg v0.0.0 release
-            # after the other models.  Use it as primary (same as all other rembg models).
-            # Mirror: ZhengPeng7/BiRefNet HuggingFace repo (public, no auth needed) as backup.
-            'url': f'{_REMBG_GH}/birefnet-general.onnx',
-            'mirror': 'https://huggingface.co/ZhengPeng7/BiRefNet/resolve/main/onnx/birefnet-general.onnx',
+            # birefnet-general.onnx is NOT in the danielgatis/rembg v0.0.0 GitHub release
+            # (returns HTTP 404).  It is only available from HuggingFace.
+            # Primary: ZhengPeng7/BiRefNet HuggingFace repo (public, no auth needed).
+            # Mirror: danielgatis/rembg HuggingFace repo (same content, alternative CDN).
+            'url': 'https://huggingface.co/ZhengPeng7/BiRefNet/resolve/main/onnx/birefnet-general.onnx',
+            'mirror': 'https://huggingface.co/danielgatis/rembg/resolve/main/birefnet-general.onnx',
             'dest_filename': 'birefnet-general.onnx',
             'dest_dir_env': 'U2NET_HOME',
             'size_mb': 186,
