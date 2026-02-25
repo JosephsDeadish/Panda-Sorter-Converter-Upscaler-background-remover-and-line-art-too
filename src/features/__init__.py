@@ -1,5 +1,5 @@
 """
-Feature modules for Game Texture Sorter
+Feature modules for Panda Sorter Converter Upscaler
 Includes statistics tracking, texture analysis, search/filter, profiles, batch operations, LOD replacement, backups,
 hotkeys, sound system, and achievements
 Author: Dead On The Inside / JosephsDeadish

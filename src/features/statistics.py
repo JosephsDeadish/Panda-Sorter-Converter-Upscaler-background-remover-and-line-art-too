@@ -321,7 +321,7 @@ class StatisticsTracker:
                 writer = csv.writer(f)
                 
                 # Write header
-                writer.writerow(['Game Texture Sorter - Statistics Report'])
+                writer.writerow(['Panda Sorter Converter Upscaler - Statistics Report'])
                 writer.writerow(['Session', summary['session']['name']])
                 writer.writerow(['Generated', datetime.now().isoformat()])
                 writer.writerow([])
@@ -379,7 +379,7 @@ class StatisticsTracker:
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Game Texture Sorter - Statistics Report</title>
+    <title>Panda Sorter Converter Upscaler - Statistics Report</title>
     <style>
         * {{ margin: 0; padding: 0; box-sizing: border-box; }}
         body {{
@@ -483,7 +483,7 @@ class StatisticsTracker:
 </head>
 <body>
     <div class="container">
-        <h1>🎮 Game Texture Sorter</h1>
+        <h1>🐼 Panda Sorter Converter Upscaler</h1>
         <div class="meta">
             <strong>Session:</strong> {summary['session']['name']}<br>
             <strong>Generated:</strong> {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}<br>

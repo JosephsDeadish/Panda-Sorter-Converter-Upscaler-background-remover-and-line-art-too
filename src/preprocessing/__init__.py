@@ -1,5 +1,5 @@
 """
-Preprocessing Module for PS2 Textures
+Preprocessing Module for Panda Sorter Converter Upscaler
 Author: Dead On The Inside / JosephsDeadish
 """
 

@@ -5559,11 +5559,11 @@ class TutorialManager:
         logger.warning("Using fallback tutorial steps")
         steps = [
             TutorialStep(
-                title="Welcome to Game Texture Sorter! 🐼",
+                title="Welcome to Panda Sorter Converter Upscaler! 🐼",
                 message=(
                     "Welcome! This quick tutorial will show you how to use the application.\n\n"
-                    "Game Texture Sorter helps you organize and manage texture files from "
-                    "game texture dumps with intelligent classification and LOD detection.\n\n"
+                    "Panda Sorter Converter Upscaler helps you organize, convert, upscale, "
+                    "and remove backgrounds from images with intelligent AI-powered tools.\n\n"
                     "Let's get started!"
                 ),
                 target_widget=None,
@@ -9180,21 +9180,22 @@ class ContextHelp:
         """Get help text for a specific context"""
         help_texts = {
             'general': """
-Game Texture Sorter - Quick Help
+Panda Sorter Converter Upscaler - Quick Help
 
-This application helps you organize and manage texture files from game texture dumps.
+This application helps you organize, convert, upscale, and remove backgrounds from images.
 
 Key Features:
-• Automatic texture classification with 50+ categories
+• Automatic texture/image classification with 50+ categories
 • LOD (Level of Detail) detection and grouping
-• Format conversion (DDS ↔ PNG ↔ JPG ↔ BMP ↔ TGA)
-• Duplicate detection
+• Format conversion (PNG ↔ JPG ↔ WebP ↔ TIFF ↔ BMP ↔ TGA)
+• AI-powered upscaling (RealESRGAN, SwinIR, bicubic, lanczos)
+• Background removal (rembg: u2net, birefnet, isnet and more)
+• Line art converter with tattoo/stencil/sketch presets
 • File browser with thumbnail previews
-• Interactive panda companion (drag, toss, pet, feed!)
+• Interactive 3D panda companion in a bedroom scene
 • Achievement system with Bamboo Bucks currency
 • Customizable themes, cursors, and tooltips
 • Undo/redo with 50-level history
-• Pop-out tabs for multi-monitor setups
 
 Press F1 anytime for context-sensitive help based on what you're doing.
 
@@ -9308,10 +9309,10 @@ Q: How do I earn achievements?
 A: Process files, explore features, interact with the panda, and discover Easter eggs! Check the Achievements tab to see all available achievements.
 
 Q: Does this require internet?
-A: No! Game Texture Sorter is 100% offline. No network calls, complete privacy.
+A: No! Panda Sorter Converter Upscaler is 100% offline. No network calls, complete privacy.
 
 Q: Where are my settings and data stored?
-A: In your user profile folder: ~/.ps2_texture_sorter/ (or %USERPROFILE%\\.ps2_texture_sorter\\ on Windows)
+A: In your user profile folder: ~/Panda Sorter Converter Upscaler/ (or the app_data/ folder next to the EXE on Windows)
 
 Q: Can I dress up the panda?
 A: Yes! Unlock outfits, hats, shoes, and accessories through achievements and the shop, then customize your panda in the Closet tab.

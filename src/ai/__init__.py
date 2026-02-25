@@ -1,5 +1,5 @@
 """
-Game Texture Sorter - AI Model System
+Panda Sorter Converter Upscaler - AI Model System
 Comprehensive AI-powered texture classification with offline and online support
 Author: Dead On The Inside / JosephsDeadish
 

@@ -1,5 +1,5 @@
 """
-Game Texture Sorter - Organization System Package
+Panda Sorter Converter Upscaler - Organization System Package
 Author: Dead On The Inside / JosephsDeadish
 
 This package contains the organization/hierarchy system for sorting textures

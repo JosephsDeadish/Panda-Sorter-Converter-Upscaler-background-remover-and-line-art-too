@@ -1,5 +1,5 @@
 """
-CLI Interface - Command Line Interface for Game Texture Sorter
+CLI Interface - Command Line Interface for Panda Sorter Converter Upscaler
 Supports batch processing and automation workflows
 Author: Dead On The Inside / JosephsDeadish
 """
@@ -25,7 +25,7 @@ logger = logging.getLogger(__name__)
 
 
 class CLIInterface:
-    """Command-line interface for Game Texture Sorter."""
+    """Command-line interface for Panda Sorter Converter Upscaler."""
     
     def __init__(self):
         """Initialize CLI interface."""

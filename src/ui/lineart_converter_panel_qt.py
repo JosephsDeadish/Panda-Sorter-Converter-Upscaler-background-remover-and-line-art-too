@@ -864,7 +864,7 @@ class LineArtConverterPanelQt(QWidget):
         _sg_layout.addWidget(_sg_label)
         _sl_lo = QHBoxLayout()
         self.smooth_lines_cb = QCheckBox("Smooth Lines")
-        self.smooth_lines_cb.setChecked(True)
+        self.smooth_lines_cb.setChecked(False)
         self.smooth_lines_cb.setToolTip("Apply Gaussian smoothing before edge extraction for softer sketch look")
         self.smooth_lines_cb.stateChanged.connect(self._schedule_preview_update)
         _sl_lo.addWidget(self.smooth_lines_cb)

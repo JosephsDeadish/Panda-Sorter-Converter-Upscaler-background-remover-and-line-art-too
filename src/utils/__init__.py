@@ -1,5 +1,5 @@
 """
-Utility modules for Game Texture Sorter
+Utility modules for Panda Sorter Converter Upscaler
 Includes caching, memory management, performance utilities, and image processing
 """
 

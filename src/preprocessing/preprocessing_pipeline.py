@@ -1,6 +1,6 @@
 """
-PS2 Texture Preprocessing Pipeline
-Handles upscaling, sharpening, denoising, color normalization for PS2 textures
+Image Preprocessing Pipeline
+Handles upscaling, sharpening, denoising, color normalization for images
 Author: Dead On The Inside / JosephsDeadish
 """
 

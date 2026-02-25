@@ -91,9 +91,9 @@ class AlphaPresets:
     """
     
     PS2_TEXTURES = AlphaPreset(
-        name="PS2 Textures",
-        description="Optimized for PlayStation 2 game textures with sharp, pixelated edges",
-        why_use="PS2 textures often have hard edges and limited alpha channels. This preset uses "
+        name="Game Textures",
+        description="Optimized for game textures with sharp, pixelated edges",
+        why_use="Game textures often have hard edges and limited alpha channels. This preset uses "
                 "aggressive thresholds (250/5) to preserve pixel-perfect boundaries while removing "
                 "backgrounds. Best for sprite sheets, UI elements, and low-res character textures.",
         foreground_threshold=250,

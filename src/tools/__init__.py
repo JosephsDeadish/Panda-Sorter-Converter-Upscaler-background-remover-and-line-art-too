@@ -1,5 +1,5 @@
 """
-Tools package for Game Texture Sorter.
+Tools package for Panda Sorter Converter Upscaler.
 Image processing tools: background removal, normalization, renaming, color correction,
 image repair, line-art conversion, object removal, and quality checking.
 Author: Dead On The Inside / JosephsDeadish

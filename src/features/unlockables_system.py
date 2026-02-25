@@ -1088,7 +1088,15 @@ class UnlockablesSystem:
         Args:
             save_dir: Directory to save/load progress from
         """
-        self.save_dir = save_dir or Path.home() / ".ps2_texture_sorter"
+        try:
+            from config import get_data_dir as _gdd
+            self.save_dir = save_dir or _gdd()
+        except (ImportError, Exception):
+            try:
+                from src.config import get_data_dir as _gdd
+                self.save_dir = save_dir or _gdd()
+            except (ImportError, Exception):
+                self.save_dir = save_dir or Path.home() / ".ps2_texture_sorter"
         self.save_dir.mkdir(parents=True, exist_ok=True)
         self.save_file = self.save_dir / "unlockables.json"
         

@@ -1,5 +1,5 @@
 """
-Game Texture Sorter - Organization Engine
+Panda Sorter Converter Upscaler - Organization Engine
 Author: Dead On The Inside / JosephsDeadish
 
 Main engine for organizing textures into hierarchical folder structures.
