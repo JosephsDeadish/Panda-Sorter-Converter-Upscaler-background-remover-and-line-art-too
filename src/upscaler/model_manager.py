@@ -583,6 +583,22 @@ class AIModelManager:
             logger.error(f"Failed to delete {model_name}: {e}")
             return False
     
+    def get_model_path(self, model_name: str) -> Optional[Path]:
+        """Return the absolute Path to a model file, or None if not installed."""
+        if model_name not in self.MODELS:
+            return None
+        info = self.MODELS[model_name]
+        dest_filename = info.get('dest_filename', f"{model_name}.pth")
+        p = self.models_dir / dest_filename
+        if p.exists() and p.stat().st_size > 1024:
+            return p
+        # Also check rembg's u2net cache
+        if info.get('dest_dir_env') == 'U2NET_HOME':
+            u2net_p = Path.home() / '.u2net' / dest_filename
+            if u2net_p.exists():
+                return u2net_p
+        return None
+
     def get_models_info(self) -> dict:
         """Get info about all models"""
         return {

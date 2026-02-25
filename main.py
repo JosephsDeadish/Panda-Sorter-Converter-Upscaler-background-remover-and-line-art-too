@@ -4389,7 +4389,7 @@ class TextureSorterMainWindow(QMainWindow):
                     self._world_widget.back_to_bedroom.connect(self._go_back_to_bedroom)
                     self._world_widget.otter_clicked.connect(self._on_otter_clicked)
                     self._world_widget.destination_selected.connect(self._on_world_destination_selected)
-                    self._home_stack_owned.append(self._world_widget)
+                    # NOT added to _home_stack_owned — persistent panel re-used across visits.
                 except (ImportError, OSError, RuntimeError, Exception) as _e:
                     logger.warning(f"World widget not available: {_e}")
                     self._world_widget = QLabel(
@@ -4399,7 +4399,7 @@ class TextureSorterMainWindow(QMainWindow):
                     )
                     self._world_widget.setAlignment(Qt.AlignmentFlag.AlignCenter)
                     self._world_widget.setStyleSheet("background:#1a2a1a;color:#aaaaaa;font-size:13px;")
-                    self._home_stack_owned.append(self._world_widget)
+                    # NOT added to _home_stack_owned — persistent label re-used across visits.
 
             if self._world_widget:
                 self._show_home_sub_panel(self._world_widget, '🌍 Outside World')
@@ -4432,7 +4432,7 @@ class TextureSorterMainWindow(QMainWindow):
                     tooltip_manager=self.tooltip_manager,
                 )
                 self._otter_shop_panel.item_purchased.connect(self._on_shop_purchase_completed)
-                self._home_stack_owned.append(self._otter_shop_panel)
+                # NOT added to _home_stack_owned — persistent panel re-used across visits.
             # Refresh coin balance every time the shop opens
             try:
                 bal = self.currency_system.get_balance()

@@ -184,6 +184,27 @@ class BackgroundRemoverPanelQt(QWidget):
         size_group.setLayout(size_layout)
         layout.addWidget(size_group)
         
+        # AI Model selection — shown above the process buttons
+        model_group = QGroupBox("🤖 AI Model")
+        model_layout = QHBoxLayout()
+        model_layout.addWidget(QLabel("Model:"))
+        self.bg_model_combo = QComboBox()
+        _BG_MODELS = [
+            ("u2net",            "U2Net (default, balanced)"),
+            ("u2netp",           "U2Netp (fast, lightweight)"),
+            ("u2net_human_seg",  "U2Net Human Seg (portraits)"),
+            ("silueta",          "Silueta (compact, 43 MB)"),
+            ("isnet-general-use","ISNet General (high quality)"),
+            ("isnet_dis",        "ISNet-DIS (precise edges)"),
+            ("birefnet-general", "BiRefNet (best quality, slow)"),
+            ("u2net_cloth_seg",  "U2Net Cloth Seg (clothing)"),
+        ]
+        for model_id, model_label in _BG_MODELS:
+            self.bg_model_combo.addItem(model_label, model_id)
+        model_layout.addWidget(self.bg_model_combo, 1)
+        model_group.setLayout(model_layout)
+        layout.addWidget(model_group)
+
         # Processing options
         process_layout = QHBoxLayout()
         
@@ -493,8 +514,19 @@ class BackgroundRemoverPanelQt(QWidget):
             self.current_image.save(buffer, "PNG")
             pil_image = Image.open(io.BytesIO(buffer.data()))
             
-            # Process with rembg
-            output = rembg.remove(pil_image)
+            # Process with rembg — use selected model if available
+            selected_model = getattr(
+                getattr(self, 'bg_model_combo', None), 'currentData',
+                lambda: 'u2net'
+            )()
+            try:
+                import rembg
+                session = rembg.new_session(selected_model)
+                output = rembg.remove(pil_image, session=session)
+            except Exception as _me:
+                # Fallback: no session (rembg picks its own default)
+                logger.warning(f"rembg session creation failed for {selected_model}: {_me}")
+                output = rembg.remove(pil_image)
             
             # Convert back to QImage
             output_buffer = io.BytesIO()
