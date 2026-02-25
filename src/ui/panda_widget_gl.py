@@ -4342,7 +4342,7 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
         # Star sparkles
         glColor3f(1.0, 0.95, 0.3)
         for i in range(4):
-            a = math.radians(i * 90 + self._anim_frame * 3.0)
+            a = math.radians(i * 90 + self.animation_frame * 3.0)
             glPushMatrix()
             glTranslatef(math.cos(a) * 0.045, math.sin(a) * 0.045, 0.0)
             self._draw_sphere(0.010, 5, 5)
