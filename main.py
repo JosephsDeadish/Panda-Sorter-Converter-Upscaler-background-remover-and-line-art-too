@@ -865,14 +865,14 @@ class TextureSorterMainWindow(QMainWindow):
         layout.setContentsMargins(20, 20, 20, 20)
 
         # Welcome message
-        welcome_label = QLabel("🎮 PS2 Texture Toolkit")
+        welcome_label = QLabel("🐼 Panda Sorter Converter Upscaler")
         welcome_label.setStyleSheet("font-size: 24pt; font-weight: bold;")
         welcome_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(welcome_label)
 
         layout.addSpacing(10)
 
-        subtitle = QLabel("A comprehensive toolkit for managing, organising, and enhancing game textures.")
+        subtitle = QLabel("Your all-in-one toolkit: organise, upscale, remove backgrounds, create line art, convert formats and more.")
         subtitle.setStyleSheet("font-size: 11pt; color: #aaaaaa;")
         subtitle.setAlignment(Qt.AlignmentFlag.AlignCenter)
         subtitle.setWordWrap(True)
@@ -891,17 +891,18 @@ class TextureSorterMainWindow(QMainWindow):
         # Quick-launch buttons grid — each navigates directly to the tool's sub-tab
         # via switch_tool(tool_id).  Layout: 4 columns x 3 rows.
         _QUICK_TOOLS = [
-            ("📁 Organizer",       "organizer"),
+            ("📁 Organizer",         "organizer"),
             ("🎭 Background Remover","bg_remover"),
-            ("✨ Alpha Fixer",      "alpha_fixer"),
-            ("🎨 Color Correction", "color"),
-            ("⚙️ Batch Normalizer", "normalizer"),
-            ("✓ Quality Checker",  "quality"),
-            ("🔍 Image Upscaler",  "upscaler"),
-            ("✏️ Line Art",         "lineart"),
-            ("📝 Batch Rename",    "rename"),
-            ("🔧 Image Repair",    "repair"),
-            ("📁 Organizer",       "organizer"),
+            ("✨ Alpha Fixer",        "alpha_fixer"),
+            ("🎨 Color Correction",  "color"),
+            ("⚙️ Batch Normalizer",  "normalizer"),
+            ("✓ Quality Checker",   "quality"),
+            ("🔍 Image Upscaler",   "upscaler"),
+            ("✏️ Line Art",          "lineart"),
+            ("🔄 Format Converter",  "converter"),
+            ("📝 Batch Rename",     "rename"),
+            ("🔧 Image Repair",     "repair"),
+            ("🏠 Panda Home",       "panda_home"),
         ]
         grid_widget = QWidget()
         grid = QGridLayout(grid_widget)
@@ -1412,6 +1413,14 @@ class TextureSorterMainWindow(QMainWindow):
     
     def switch_tool(self, tool_id: str):
         """Switch to a tool: navigate to the Tools tab then select it in the grid."""
+        # Special case: navigate to the Panda Features tab
+        if tool_id == "panda_home":
+            for i in range(self.tabs.count()):
+                if "Panda" in self.tabs.tabText(i) or "🐼" in self.tabs.tabText(i):
+                    self.tabs.setCurrentIndex(i)
+                    return
+            return
+
         # Find the Tools tab index in the main tab bar
         tools_tab_index = -1
         for i in range(self.tabs.count()):

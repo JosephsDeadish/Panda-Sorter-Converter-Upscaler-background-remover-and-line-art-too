@@ -613,6 +613,7 @@ class LineArtConverterPanelQt(QWidget):
         for label, data in _mode_items:
             self.mode_combo.addItem(label, data)
         self.mode_combo.currentIndexChanged.connect(self._schedule_preview_update)
+        self.mode_combo.currentIndexChanged.connect(self._on_mode_changed)
         mode_layout.addWidget(self.mode_combo, 1)
         group_layout.addLayout(mode_layout)
 
@@ -765,7 +766,120 @@ class LineArtConverterPanelQt(QWidget):
         self.bg_custom_swatch.clicked.connect(self._pick_custom_bg_color)
         bg_layout.addWidget(self.bg_custom_swatch)
         group_layout.addLayout(bg_layout)
-        
+
+        # ── Mode-specific advanced controls (shown/hidden by _on_mode_changed) ─────
+        # Edge Detection controls
+        self._edge_group = QWidget()
+        _eg_layout = QVBoxLayout(self._edge_group)
+        _eg_layout.setContentsMargins(0, 0, 0, 0)
+        _eg_layout.setSpacing(4)
+        _eg_label = QLabel("Edge Detection Controls:")
+        _eg_label.setStyleSheet("font-weight:bold; font-size:9pt; color:#8fc; margin-top:4px;")
+        _eg_layout.addWidget(_eg_label)
+        _el_lo = QHBoxLayout()
+        _el_lo.addWidget(QLabel("Low Threshold:"))
+        self.edge_low_spin = QSpinBox()
+        self.edge_low_spin.setRange(1, 255)
+        self.edge_low_spin.setValue(50)
+        self.edge_low_spin.setToolTip("Canny edge low hysteresis threshold (pixels below this are not edges)")
+        self.edge_low_spin.valueChanged.connect(self._schedule_preview_update)
+        _el_lo.addWidget(self.edge_low_spin)
+        _el_lo.addStretch()
+        _eg_layout.addLayout(_el_lo)
+        _eh_lo = QHBoxLayout()
+        _eh_lo.addWidget(QLabel("High Threshold:"))
+        self.edge_high_spin = QSpinBox()
+        self.edge_high_spin.setRange(1, 255)
+        self.edge_high_spin.setValue(150)
+        self.edge_high_spin.setToolTip("Canny edge high hysteresis threshold (pixels above this are strong edges)")
+        self.edge_high_spin.valueChanged.connect(self._schedule_preview_update)
+        _eh_lo.addWidget(self.edge_high_spin)
+        _eh_lo.addStretch()
+        _eg_layout.addLayout(_eh_lo)
+        _ea_lo = QHBoxLayout()
+        _ea_lo.addWidget(QLabel("Aperture:"))
+        self.edge_aperture_combo = QComboBox()
+        self.edge_aperture_combo.addItem("3 (fine)", 3)
+        self.edge_aperture_combo.addItem("5 (medium)", 5)
+        self.edge_aperture_combo.addItem("7 (coarse)", 7)
+        self.edge_aperture_combo.setToolTip("Sobel aperture size — 3=thin lines, 7=thick lines")
+        self.edge_aperture_combo.currentIndexChanged.connect(self._schedule_preview_update)
+        _ea_lo.addWidget(self.edge_aperture_combo)
+        _ea_lo.addStretch()
+        _eg_layout.addLayout(_ea_lo)
+        group_layout.addWidget(self._edge_group)
+        self._edge_group.setVisible(False)
+
+        # Adaptive Threshold controls
+        self._adaptive_group = QWidget()
+        _ag_layout = QVBoxLayout(self._adaptive_group)
+        _ag_layout.setContentsMargins(0, 0, 0, 0)
+        _ag_layout.setSpacing(4)
+        _ag_label = QLabel("Adaptive Threshold Controls:")
+        _ag_label.setStyleSheet("font-weight:bold; font-size:9pt; color:#8fc; margin-top:4px;")
+        _ag_layout.addWidget(_ag_label)
+        _ab_lo = QHBoxLayout()
+        _ab_lo.addWidget(QLabel("Block Size:"))
+        self.adaptive_block_spin = QSpinBox()
+        self.adaptive_block_spin.setRange(3, 99)
+        self.adaptive_block_spin.setValue(11)
+        self.adaptive_block_spin.setSingleStep(2)  # must be odd
+        self.adaptive_block_spin.setToolTip("Pixel neighbourhood size used to compute threshold (must be odd)")
+        self.adaptive_block_spin.valueChanged.connect(self._ensure_odd_block_size)
+        self.adaptive_block_spin.valueChanged.connect(self._schedule_preview_update)
+        _ab_lo.addWidget(self.adaptive_block_spin)
+        _ab_lo.addStretch()
+        _ag_layout.addLayout(_ab_lo)
+        _ac_lo = QHBoxLayout()
+        _ac_lo.addWidget(QLabel("C Constant:"))
+        self.adaptive_c_spin = QDoubleSpinBox()
+        self.adaptive_c_spin.setRange(-20.0, 20.0)
+        self.adaptive_c_spin.setValue(2.0)
+        self.adaptive_c_spin.setSingleStep(0.5)
+        self.adaptive_c_spin.setToolTip("Subtracted from weighted mean (higher = fewer lines)")
+        self.adaptive_c_spin.valueChanged.connect(self._schedule_preview_update)
+        _ac_lo.addWidget(self.adaptive_c_spin)
+        _ac_lo.addStretch()
+        _ag_layout.addLayout(_ac_lo)
+        _am_lo = QHBoxLayout()
+        _am_lo.addWidget(QLabel("Method:"))
+        self.adaptive_method_combo = QComboBox()
+        self.adaptive_method_combo.addItem("Gaussian (smooth)", "gaussian")
+        self.adaptive_method_combo.addItem("Mean (sharp)", "mean")
+        self.adaptive_method_combo.setToolTip("Gaussian weights nearby pixels more; Mean treats all equally")
+        self.adaptive_method_combo.currentIndexChanged.connect(self._schedule_preview_update)
+        _am_lo.addWidget(self.adaptive_method_combo)
+        _am_lo.addStretch()
+        _ag_layout.addLayout(_am_lo)
+        group_layout.addWidget(self._adaptive_group)
+        self._adaptive_group.setVisible(False)
+
+        # Smooth Lines controls (for Sketch / Pencil mode)
+        self._smooth_group = QWidget()
+        _sg_layout = QVBoxLayout(self._smooth_group)
+        _sg_layout.setContentsMargins(0, 0, 0, 0)
+        _sg_layout.setSpacing(4)
+        _sg_label = QLabel("Sketch / Smooth Controls:")
+        _sg_label.setStyleSheet("font-weight:bold; font-size:9pt; color:#8fc; margin-top:4px;")
+        _sg_layout.addWidget(_sg_label)
+        _sl_lo = QHBoxLayout()
+        self.smooth_lines_cb = QCheckBox("Smooth Lines")
+        self.smooth_lines_cb.setChecked(True)
+        self.smooth_lines_cb.setToolTip("Apply Gaussian smoothing before edge extraction for softer sketch look")
+        self.smooth_lines_cb.stateChanged.connect(self._schedule_preview_update)
+        _sl_lo.addWidget(self.smooth_lines_cb)
+        self.smooth_amount_spin = QDoubleSpinBox()
+        self.smooth_amount_spin.setRange(0.5, 5.0)
+        self.smooth_amount_spin.setValue(1.0)
+        self.smooth_amount_spin.setSingleStep(0.5)
+        self.smooth_amount_spin.setToolTip("Smoothing radius — higher = softer pencil look")
+        self.smooth_amount_spin.valueChanged.connect(self._schedule_preview_update)
+        _sl_lo.addWidget(self.smooth_amount_spin)
+        _sl_lo.addStretch()
+        _sg_layout.addLayout(_sl_lo)
+        group_layout.addWidget(self._smooth_group)
+        self._smooth_group.setVisible(False)
+
         group.setLayout(group_layout)
         layout.addWidget(group)
     
@@ -1024,6 +1138,34 @@ class LineArtConverterPanelQt(QWidget):
                         self.bg_mode_combo.setCurrentIndex(i)
                         break
 
+            # Edge detection params
+            if hasattr(self, 'edge_low_spin'):
+                self.edge_low_spin.setValue(preset.get("edge_low", 50))
+            if hasattr(self, 'edge_high_spin'):
+                self.edge_high_spin.setValue(preset.get("edge_high", 150))
+            if hasattr(self, 'edge_aperture_combo'):
+                ap = preset.get("edge_aperture", 3)
+                for i in range(self.edge_aperture_combo.count()):
+                    if self.edge_aperture_combo.itemData(i) == ap:
+                        self.edge_aperture_combo.setCurrentIndex(i)
+                        break
+            # Adaptive threshold params
+            if hasattr(self, 'adaptive_block_spin'):
+                self.adaptive_block_spin.setValue(preset.get("adaptive_block", 11))
+            if hasattr(self, 'adaptive_c_spin'):
+                self.adaptive_c_spin.setValue(preset.get("adaptive_c", 2.0))
+            if hasattr(self, 'adaptive_method_combo'):
+                meth = preset.get("adaptive_method", "gaussian")
+                for i in range(self.adaptive_method_combo.count()):
+                    if self.adaptive_method_combo.itemData(i) == meth:
+                        self.adaptive_method_combo.setCurrentIndex(i)
+                        break
+            # Smooth lines params
+            if hasattr(self, 'smooth_lines_cb'):
+                self.smooth_lines_cb.setChecked(bool(preset.get("smooth_lines", False)))
+            if hasattr(self, 'smooth_amount_spin'):
+                self.smooth_amount_spin.setValue(preset.get("smooth_amount", 1.0))
+
             # Trigger preview update
             self._schedule_preview_update()
     
@@ -1033,6 +1175,21 @@ class LineArtConverterPanelQt(QWidget):
         if hasattr(self, 'bg_custom_swatch'):
             self.bg_custom_swatch.setVisible(is_custom)
         self._schedule_preview_update()
+
+    def _on_mode_changed(self, _index: int = 0):
+        """Show/hide mode-specific advanced control groups."""
+        mode = self.mode_combo.currentData() if hasattr(self, 'mode_combo') else "pure_black"
+        if hasattr(self, '_edge_group'):
+            self._edge_group.setVisible(mode == "edge_detect")
+        if hasattr(self, '_adaptive_group'):
+            self._adaptive_group.setVisible(mode == "adaptive")
+        if hasattr(self, '_smooth_group'):
+            self._smooth_group.setVisible(mode == "sketch")
+
+    def _ensure_odd_block_size(self, value: int):
+        """Adaptive block size must be an odd integer ≥ 3."""
+        if hasattr(self, 'adaptive_block_spin') and value % 2 == 0:
+            self.adaptive_block_spin.setValue(value + 1)
 
     def _pick_custom_bg_color(self):
         """Open a colour-picker dialog for custom background colour."""
@@ -1108,6 +1265,20 @@ class LineArtConverterPanelQt(QWidget):
         # Invert
         invert = self.invert_cb.isChecked() if hasattr(self, 'invert_cb') else False
 
+        # Edge detection params (active when mode == edge_detect)
+        edge_low  = self.edge_low_spin.value()  if hasattr(self, 'edge_low_spin')  else 50
+        edge_high = self.edge_high_spin.value() if hasattr(self, 'edge_high_spin') else 150
+        edge_ap   = self.edge_aperture_combo.currentData() if hasattr(self, 'edge_aperture_combo') else 3
+
+        # Adaptive threshold params (active when mode == adaptive)
+        ada_block = self.adaptive_block_spin.value() if hasattr(self, 'adaptive_block_spin') else 11
+        ada_c     = self.adaptive_c_spin.value()     if hasattr(self, 'adaptive_c_spin')     else 2.0
+        ada_meth  = self.adaptive_method_combo.currentData() if hasattr(self, 'adaptive_method_combo') else 'gaussian'
+
+        # Smooth lines params (active when mode == sketch)
+        smooth    = self.smooth_lines_cb.isChecked()  if hasattr(self, 'smooth_lines_cb')  else False
+        smooth_am = self.smooth_amount_spin.value()   if hasattr(self, 'smooth_amount_spin') else 1.0
+
         return LineArtSettings(
             mode=conv_mode,
             threshold=self.threshold_slider.value(),
@@ -1124,6 +1295,14 @@ class LineArtConverterPanelQt(QWidget):
             morphology_kernel_size=self.kernel_size_spin.value(),
             denoise=self.denoise_cb.isChecked(),
             denoise_size=self.denoise_size.value(),
+            edge_low_threshold=edge_low,
+            edge_high_threshold=edge_high,
+            edge_aperture_size=edge_ap,
+            adaptive_block_size=ada_block,
+            adaptive_c_constant=ada_c,
+            adaptive_method=ada_meth,
+            smooth_lines=smooth,
+            smooth_amount=smooth_am,
             custom_bg_color=custom_bg,
         )
     
