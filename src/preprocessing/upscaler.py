@@ -151,6 +151,7 @@ class TextureUpscaler:
         """Initialize upscaler."""
         self.realesrgan_model = None
         self._realesrgan_loaded = False
+        self._loaded_model_name: str = ''
         self._gfpgan_model = None
         self._gfpgan_loaded = False
         self.model_manager = model_manager
@@ -179,13 +180,22 @@ class TextureUpscaler:
         elif method == 'bicubic':
             return self._upscale_bicubic(image, scale_factor)
         elif method == 'realesrgan' and REALESRGAN_AVAILABLE:
-            return self._upscale_realesrgan(image, scale_factor)
+            return self._upscale_realesrgan(image, scale_factor, model_name='RealESRGAN_x4plus')
+        elif method == 'realesrgan_anime' and REALESRGAN_AVAILABLE:
+            return self._upscale_realesrgan(image, scale_factor, model_name='RealESRGAN_x4plus_anime_6B')
+        elif method == 'realesrgan_x2' and REALESRGAN_AVAILABLE:
+            return self._upscale_realesrgan(image, 2, model_name='RealESRGAN_x2plus')
+        elif method in ('swinir', 'swinir_anime') and REALESRGAN_AVAILABLE:
+            # SwinIR is loaded via basicsr — delegate to realesrgan path with correct model
+            _mname = 'SwinIR_x4_realworld' if method == 'swinir' else 'SwinIR_x4_anime'
+            return self._upscale_realesrgan(image, scale_factor, model_name=_mname)
         elif method == 'esrgan':
             # Fallback to bicubic if ESRGAN not available
             logger.warning("ESRGAN not fully implemented, using bicubic")
             return self._upscale_bicubic(image, scale_factor)
         else:
-            logger.warning(f"Unknown upscaling method '{method}', using bicubic")
+            if method not in ('bicubic', 'lanczos'):
+                logger.warning(f"Method '{method}' unavailable (missing deps or unknown), using bicubic")
             return self._upscale_bicubic(image, scale_factor)
     
     def _upscale_bicubic(self, image: np.ndarray, scale_factor: int) -> np.ndarray:
@@ -261,102 +271,127 @@ class TextureUpscaler:
     def _upscale_realesrgan(
         self,
         image: np.ndarray,
-        scale_factor: int
+        scale_factor: int,
+        model_name: str = 'RealESRGAN_x4plus',
     ) -> np.ndarray:
         """
-        Upscale using Real-ESRGAN.
-        
-        Best quality for retro/PS2 textures but slower.
+        Upscale using Real-ESRGAN (or a compatible model like SwinIR via basicsr).
+
+        Selects model by *model_name*.  Falls back to bicubic when the required
+        model file or library is unavailable.
         """
         if not REALESRGAN_AVAILABLE:
             logger.warning("Real-ESRGAN libraries not available, falling back to bicubic")
             return self._upscale_bicubic(image, scale_factor)
-        
-        # Check if model is available
-        model_name = 'RealESRGAN_x2plus' if scale_factor == 2 else 'RealESRGAN_x4plus'
+
+        # For x2 variants always use 2x scale
+        if model_name == 'RealESRGAN_x2plus':
+            scale_factor = 2
+
         if not self.ensure_model_available(model_name):
             logger.warning(f"Model {model_name} not available, falling back to bicubic")
             return self._upscale_bicubic(image, scale_factor)
-        
+
         try:
-            # Load model if not already loaded
-            if not self._realesrgan_loaded:
-                self._load_realesrgan_model(scale_factor)
-            
+            # Reload if model name changed
+            if not self._realesrgan_loaded or getattr(self, '_loaded_model_name', None) != model_name:
+                self._load_realesrgan_model(scale_factor, model_name=model_name)
+
             # Real-ESRGAN expects BGR format
             if len(image.shape) == 3 and image.shape[2] == 3:
                 image_bgr = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
             else:
                 image_bgr = image
-            
+
             # Upscale
             output, _ = self.realesrgan_model.enhance(image_bgr, outscale=scale_factor)
-            
+
             # Convert back to RGB
             if len(output.shape) == 3 and output.shape[2] == 3:
                 output = cv2.cvtColor(output, cv2.COLOR_BGR2RGB)
-            
-            logger.debug(f"Real-ESRGAN upscale: {image.shape[:2]} -> {output.shape[:2]}")
+
+            logger.debug(f"Real-ESRGAN ({model_name}) upscale: {image.shape[:2]} -> {output.shape[:2]}")
             return output
-            
+
         except Exception as e:
-            logger.error(f"Real-ESRGAN upscaling failed: {e}")
+            logger.error(f"Real-ESRGAN upscaling failed ({model_name}): {e}")
             return self._upscale_bicubic(image, scale_factor)
     
-    def _load_realesrgan_model(self, scale_factor: int):
-        """Load Real-ESRGAN model."""
+    def _load_realesrgan_model(self, scale_factor: int, model_name: str = None):
+        """Load Real-ESRGAN model (or a compatible SwinIR model via basicsr)."""
         try:
-            # Choose model based on scale factor
-            if scale_factor == 4:
-                model_name = 'RealESRGAN_x4plus'
-            elif scale_factor == 2:
-                model_name = 'RealESRGAN_x2plus'
-            else:
-                # Default to x4
-                model_name = 'RealESRGAN_x4plus'
-            
-            # Get model path from model manager
+            # Choose model name if not explicitly given
+            if model_name is None:
+                model_name = 'RealESRGAN_x2plus' if scale_factor == 2 else 'RealESRGAN_x4plus'
+
+            # SwinIR models use long filenames that differ from their dict key
+            _SWINIR_FILES = {
+                'SwinIR_x4_realworld': '003_realSR_BSRGAN_DFOWMFC_s64w8_SwinIR-L_x4_GAN.pth',
+                'SwinIR_x4_anime':     '001_classicalSR_DF2K_s64w8_SwinIR-M_x4.pth',
+            }
+
+            # Get model path from model manager (uses dest_filename for SwinIR too)
             if self.model_manager:
-                model_path = str(self.model_manager.models_dir / f"{model_name}.pth")
+                if model_name in _SWINIR_FILES:
+                    model_path = str(self.model_manager.models_dir / _SWINIR_FILES[model_name])
+                else:
+                    model_path = str(self.model_manager.models_dir / f"{model_name}.pth")
+                    # Fallback: check anime_6B variant filename
+                    if model_name == 'RealESRGAN_x4plus_anime_6B' and not os.path.isfile(model_path):
+                        model_path = str(self.model_manager.models_dir / 'RealESRGAN_x4plus_anime_6B.pth')
             else:
-                # Fallback to old location
-                model_path = f'weights/{model_name}.pth'
+                pth = _SWINIR_FILES.get(model_name, f"{model_name}.pth")
+                model_path = os.path.join('weights', pth)
 
             # Verify the model file exists before trying to load it
             if not os.path.isfile(model_path):
                 logger.warning(
-                    f"Real-ESRGAN model file not found at '{model_path}'. "
-                    "Download it or run the model manager. Falling back to PIL upscaling."
+                    f"Model file not found at '{model_path}'. "
+                    "Download it via Settings → AI Models. Falling back to bicubic."
                 )
                 self._realesrgan_loaded = False
                 return
-            
-            # Create model
-            model = RRDBNet(
-                num_in_ch=3,
-                num_out_ch=3,
-                num_feat=64,
-                num_block=23,
-                num_grow_ch=32,
-                scale=scale_factor
-            )
-            
-            # Use model from model manager
+
+            # Anime 6B uses fewer RRDB blocks
+            if 'anime_6B' in model_name:
+                model = RRDBNet(
+                    num_in_ch=3, num_out_ch=3, num_feat=64,
+                    num_block=6, num_grow_ch=32, scale=4
+                )
+                _scale = 4
+            elif model_name == 'RealESRGAN_x2plus':
+                model = RRDBNet(
+                    num_in_ch=3, num_out_ch=3, num_feat=64,
+                    num_block=23, num_grow_ch=32, scale=2
+                )
+                _scale = 2
+            elif model_name in _SWINIR_FILES:
+                # SwinIR models are loaded by RealESRGANer with model=None
+                model = None
+                _scale = scale_factor
+            else:
+                model = RRDBNet(
+                    num_in_ch=3, num_out_ch=3, num_feat=64,
+                    num_block=23, num_grow_ch=32, scale=scale_factor
+                )
+                _scale = scale_factor
+
             self.realesrgan_model = RealESRGANer(
-                scale=scale_factor,
+                scale=_scale,
                 model_path=model_path,
                 model=model,
                 tile=0,
                 tile_pad=10,
                 pre_pad=0,
-                half=False  # Use FP32 for better compatibility
+                half=False,  # FP32 for better compatibility
             )
-            
+
             self._realesrgan_loaded = True
-            logger.info(f"Real-ESRGAN model loaded: {model_name}")
-            
+            self._loaded_model_name = model_name
+            logger.info(f"Upscaler model loaded: {model_name}")
+
         except Exception as e:
-            logger.error(f"Failed to load Real-ESRGAN model: {e}")
+            logger.error(f"Failed to load upscaler model '{model_name}': {e}")
             self._realesrgan_loaded = False
 
     # ── GFPGAN face / character restoration ─────────────────────────────────

@@ -296,33 +296,39 @@ jobs:
           prerelease: false
           generate_release_notes: true
           body: |
-            ## PS2 Texture Sorter Release ${{ github.ref_name }}
-            
-            🐼 **Automatic texture classification and organization for PS2 texture dumps**
-            
+            ## 🐼 Panda Sorter Converter Upscaler — Release ${{ github.ref_name }}
+
+            🦦 *Cosmic Otter Supply Co. edition — powered by Livy the otter*
+
             ### Download
             Download the zip file below, extract it, and run `GameTextureSorter.exe` from the extracted folder.
-            
-            ### Features
-            - 🤖 Automatic classification with 50+ texture categories
-            - 🔄 DDS ↔ PNG bidirectional conversion
-            - 📊 Support for 200,000+ textures with database indexing
-            - 🎮 LOD detection and grouping
-            - 🗂️ Multiple organization styles (Sims, Neopets, Flat, etc.)
-            - 🔍 Duplicate detection by hash or name+size
-            - 🐼 Fun panda-themed UI with dark/light modes
-            
+
+            ### What's included
+            - 🤖 **AI Organizer** — 50+ texture categories, CLIP visual classification, appearance/location/resolution/system organisation styles
+            - 🔄 **Converter** — DDS ↔ PNG ↔ WebP ↔ JPEG bidirectional batch conversion
+            - 🔍 **Upscaler** — Real-ESRGAN x4/x2, Anime 6B, SwinIR, bicubic, Lanczos
+            - ✂️ **Background Remover** — 9 AI models (u2net, BiRefNet, IS-Net, silueta …)
+            - ✏️ **Line Art Converter** — 6 modes, tattoo presets, zoom preview
+            - 🎨 **Color Correction, Batch Normalizer, Quality Checker, Alpha Fixer, Batch Rename, Image Repair**
+            - 🐼 **3D Panda** (OpenGL) + 🦦 **Livy the otter shopkeeper** (Cosmic Otter Supply Co.)
+            - 🏠 **3D Bedroom** with furniture interactions, wardrobe, backpack
+            - 🌍 **3D World** — park, shop, destinations
+            - 🌟 Coin economy, closet (66+ presets), achievements, skill tree
+            - 🎨 9 themes, customisable cursor & font
+            - 📋 Activity Log, File Browser, Notepad with undo/redo
+            - 🤖 AI model auto-download on first run (18 models pre-bundled)
+
             ### System Requirements
-            - Windows 7/8/10/11 (64-bit)
-            - No Python or dependencies needed
-            - Works 100% offline
-            
+            - Windows 10/11 (64-bit recommended; Windows 7/8 may work)
+            - No Python or dependencies needed — fully self-contained
+            - OpenGL 2.1+ for 3D panda (falls back to 2D if unavailable)
+            - Works 100% offline after first AI model download
+
             ### Notes
-            - This is a one-folder build for faster startup performance
-            - Extract the zip and run GameTextureSorter.exe from the folder
-            - You can customize themes, sounds, and other assets in the folder
-            - Windows may show SmartScreen warning (click "More info" → "Run anyway")
-            
+            - One-folder build — extract the zip and run `GameTextureSorter.exe`
+            - Windows SmartScreen may warn on first run → click "More info" → "Run anyway"
+            - AI models (~2 GB total) auto-download on first use if not pre-bundled
+
             **Author:** Dead On The Inside / JosephsDeadish
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

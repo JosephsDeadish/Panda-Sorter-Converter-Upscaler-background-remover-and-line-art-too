@@ -515,7 +515,11 @@ class ImageUpscalerPanelQt(QWidget):
             "bicubic",
             "lanczos",
             "realesrgan",
-            "esrgan"
+            "realesrgan_anime",
+            "realesrgan_x2",
+            "swinir",
+            "swinir_anime",
+            "esrgan",
         ])
         self.method_combo.setCurrentText("bicubic")
         method_layout.addWidget(self.method_combo)
@@ -745,10 +749,14 @@ class ImageUpscalerPanelQt(QWidget):
             return '✅ Available' if available else '❌ Not installed - pip install basicsr realesrgan'
         
         descriptions = {
-            "bicubic": "Bicubic: Fast, good quality for most images (always available)",
-            "lanczos": f"Lanczos: Sharp results, best for textures with fine details {get_status(NATIVE_AVAILABLE)}",
-            "realesrgan": f"Real-ESRGAN: Best for retro/PS2 textures, slower {get_realesrgan_status(REALESRGAN_AVAILABLE)}",
-            "esrgan": "ESRGAN: High quality (currently uses bicubic as fallback)"
+            "bicubic":        "Bicubic: Fast, good quality for most images (always available)",
+            "lanczos":        f"Lanczos: Sharp results, best for textures with fine details {get_status(NATIVE_AVAILABLE)}",
+            "realesrgan":     f"Real-ESRGAN x4plus: Best for photo-realistic textures (4×) {get_realesrgan_status(REALESRGAN_AVAILABLE)}",
+            "realesrgan_anime": f"Real-ESRGAN Anime 6B: Optimised for anime/cartoon art (4×) {get_realesrgan_status(REALESRGAN_AVAILABLE)}",
+            "realesrgan_x2":  f"Real-ESRGAN x2plus: High quality 2× upscaling {get_realesrgan_status(REALESRGAN_AVAILABLE)}",
+            "swinir":         f"SwinIR x4 Real-World: Transformer upscaler — very sharp detail {get_realesrgan_status(REALESRGAN_AVAILABLE)}",
+            "swinir_anime":   f"SwinIR x4 Classical: Balanced quality/speed for clean images {get_realesrgan_status(REALESRGAN_AVAILABLE)}",
+            "esrgan":         "ESRGAN: High quality (currently uses bicubic as fallback)",
         }
         self.method_desc_label.setText(descriptions.get(method, ""))
     
@@ -927,7 +935,7 @@ class ImageUpscalerPanelQt(QWidget):
         method = self.method_combo.currentText()
         
         # Check if Real-ESRGAN model is available (if needed)
-        if method == 'realesrgan':
+        if method in ('realesrgan', 'realesrgan_anime', 'realesrgan_x2', 'swinir', 'swinir_anime'):
             if not self._ensure_realesrgan_model(scale_factor):
                 return
         

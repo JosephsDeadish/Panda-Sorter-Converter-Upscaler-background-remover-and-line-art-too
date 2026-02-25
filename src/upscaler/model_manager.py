@@ -37,13 +37,14 @@ class AIModelManager:
     # Model definitions
     MODELS = {
         # ===== REALESRGAN MODELS =====
-        # Primary: HuggingFace official repo (xinntao/Real-ESRGAN) — stable CDN
-        # Mirror: GitHub v0.3.0 release assets
+        # Primary: HuggingFace official repo (xinntao/Real-ESRGAN) — stable CDN.
+        # Mirror: GitHub release assets.  NOTE: the model files were published at
+        # tag v0.2.4.0 on GitHub; there is no "v0.3.0" release with .pth assets.
         'RealESRGAN_x4plus': {
             'url': 'https://huggingface.co/xinntao/Real-ESRGAN/resolve/main/RealESRGAN_x4plus.pth',
-            'mirror': 'https://github.com/xinntao/Real-ESRGAN/releases/download/v0.3.0/RealESRGAN_x4plus.pth',
+            'mirror': 'https://github.com/xinntao/Real-ESRGAN/releases/download/v0.2.4.0/RealESRGAN_x4plus.pth',
             'size_mb': 67,
-            'version': '0.3.0',
+            'version': '0.2.4.0',
             'description': 'Real-ESRGAN 4x upscaler - Best quality for 4x upscaling',
             'tool': 'upscaler',
             'category': 'upscaler',
@@ -52,9 +53,9 @@ class AIModelManager:
         },
         'RealESRGAN_x4plus_anime_6B': {
             'url': 'https://huggingface.co/xinntao/Real-ESRGAN/resolve/main/RealESRGAN_x4plus_anime_6B.pth',
-            'mirror': 'https://github.com/xinntao/Real-ESRGAN/releases/download/v0.3.0/RealESRGAN_x4plus_anime_6B.pth',
+            'mirror': 'https://github.com/xinntao/Real-ESRGAN/releases/download/v0.2.4.0/RealESRGAN_x4plus_anime_6B.pth',
             'size_mb': 19,
-            'version': '0.3.0',
+            'version': '0.2.4.0',
             'description': 'Real-ESRGAN 4x anime upscaler - Optimized for anime/manga art',
             'tool': 'upscaler',
             'category': 'upscaler',
@@ -63,9 +64,9 @@ class AIModelManager:
         },
         'RealESRGAN_x2plus': {
             'url': 'https://huggingface.co/xinntao/Real-ESRGAN/resolve/main/RealESRGAN_x2plus.pth',
-            'mirror': 'https://github.com/xinntao/Real-ESRGAN/releases/download/v0.3.0/RealESRGAN_x2plus.pth',
+            'mirror': 'https://github.com/xinntao/Real-ESRGAN/releases/download/v0.2.4.0/RealESRGAN_x2plus.pth',
             'size_mb': 66,
-            'version': '0.3.0',
+            'version': '0.2.4.0',
             'description': 'Real-ESRGAN 2x upscaler - Fast 2x upscaling',
             'tool': 'upscaler',
             'category': 'upscaler',
