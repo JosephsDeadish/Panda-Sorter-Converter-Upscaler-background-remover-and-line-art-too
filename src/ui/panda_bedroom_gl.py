@@ -1298,8 +1298,7 @@ class PandaBedroomGL(QOpenGLWidget if OPENGL_AVAILABLE else QWidget):  # type: i
                 self.update()
 
         self._last_mouse = cur
-
-    def mouseReleaseEvent(self, event: 'QMouseEvent') -> None:  # type: ignore[override]
+        self.update()  # always repaint so hover highlights update in paintGL._update_hover()
         if not self._gl_ok:
             return
         if event.button() == Qt.MouseButton.LeftButton:
