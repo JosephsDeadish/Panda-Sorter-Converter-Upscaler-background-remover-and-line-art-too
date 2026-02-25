@@ -297,6 +297,56 @@ from file_handler import FileHandler
 from database import TextureDatabase
 from organizer import OrganizationEngine, ORGANIZATION_STYLES
 
+# ── EXE: configure PyOpenGL BEFORE any GL import fires ───────────────────────
+# This MUST run at module level (not in main()) so that the environment is
+# ready before the module-level GL probe below.  In a frozen Windows EXE the
+# Python module is loaded (and all module-level code executes) before main()
+# is ever called.  If USE_ACCELERATE is still True when OpenGL.GL is first
+# imported, the C-accelerate extension (opengl_accelerate) is loaded; if that
+# extension is absent or built against a different driver version it can
+# segfault the process.  Setting USE_ACCELERATE=False first forces pure-Python
+# mode which is always safe.
+def _setup_opengl_for_exe() -> None:
+    """Configure PyOpenGL env. Safe to call multiple times (idempotent)."""
+    if not sys.platform.startswith('win'):
+        return
+    # Force the Windows platform backend (not GLX/EGL which don't exist on Win)
+    os.environ.setdefault('PYOPENGL_PLATFORM_HANDLER', 'win32')
+    # Block the C-accelerate extension before OpenGL is imported.
+    # sys.modules trick: inserting a falsy sentinel causes PyOpenGL's
+    # `if opengl_accelerate:` guard to evaluate False.
+    import types as _tm
+    _acc_stub = _tm.ModuleType('opengl_accelerate')
+    _acc_stub.USE_ACCELERATE = False  # type: ignore[attr-defined]
+    for _acc_name in ('opengl_accelerate', 'OpenGL_accelerate',
+                      'OpenGL.arrays.numpymodule'):
+        if _acc_name not in sys.modules:
+            sys.modules[_acc_name] = _acc_stub  # type: ignore[assignment]
+    # Tell PyOpenGL itself to skip accelerate BEFORE it is imported
+    try:
+        import OpenGL as _ogl
+        _ogl.USE_ACCELERATE = False
+    except Exception:
+        pass  # OpenGL not yet importable; sys.modules stub above is enough
+    # Add DLL directories so ctypes can find opengl32.dll
+    _sys32 = os.path.join(os.environ.get('SystemRoot', r'C:\Windows'), 'System32')
+    for _d in [_sys32]:
+        try:
+            if os.path.isdir(_d):
+                os.add_dll_directory(_d)  # type: ignore[attr-defined]
+        except (AttributeError, OSError):
+            pass
+    if getattr(sys, 'frozen', False):
+        _app_dir = os.path.dirname(sys.executable)
+        for _d in [_app_dir, getattr(sys, '_MEIPASS', _app_dir)]:
+            try:
+                os.add_dll_directory(_d)  # type: ignore[attr-defined]
+            except (AttributeError, OSError):
+                pass
+
+
+_setup_opengl_for_exe()
+
 # Import UI components
 PANDA_WIDGET_AVAILABLE = False
 try:
@@ -308,10 +358,9 @@ except (ImportError, OSError, RuntimeError) as e:
     PandaOpenGLWidget = None
 
 # Runtime sanity-check: verify that OpenGL constants are actually accessible.
-# In a frozen EXE the Python wrapper may import fine but the underlying DLL
-# lookup can still fail.  We probe one constant (GL_DEPTH_TEST = 0x0B71) to
-# surface any such failure early, so we fall back to 2D gracefully instead of
-# crashing inside initializeGL later.
+# Now that _setup_opengl_for_exe() has already run, USE_ACCELERATE=False and
+# DLL search paths are configured, so this probe should succeed whenever
+# opengl32.dll is present on the system.
 _OPENGL_RUNTIME_OK: bool = False
 if PANDA_WIDGET_AVAILABLE:
     try:
@@ -4507,14 +4556,24 @@ class TextureSorterMainWindow(QMainWindow):
         try:
             if not self._home_stack:
                 return
+            # Guard against stale C++ pointers (widget deleted between creation and show)
+            try:
+                _ = widget.objectName()   # cheap property access; raises RuntimeError if deleted
+            except RuntimeError:
+                logger.debug("_show_home_sub_panel: target widget already deleted")
+                return
             # Remove page-1 widget — only delete it if WE created it AND it isn't the
             # same widget we're about to show (persistent panels like backpack are re-used).
             old = self._home_stack.widget(1)
             if old is not None and old is not widget:
-                self._home_stack.removeWidget(old)
-                if old in self._home_stack_owned:
-                    self._home_stack_owned.remove(old)
-                    old.deleteLater()
+                try:
+                    _ = old.objectName()  # check old widget is still alive
+                    self._home_stack.removeWidget(old)
+                    if old in self._home_stack_owned:
+                        self._home_stack_owned.remove(old)
+                        old.deleteLater()
+                except RuntimeError:
+                    pass  # old widget already deleted externally; just ignore
             if self._home_stack.indexOf(widget) == -1:
                 self._home_stack.insertWidget(1, widget)
             self._home_stack.setCurrentIndex(1)
@@ -4628,21 +4687,31 @@ class TextureSorterMainWindow(QMainWindow):
                         self._home_stack_owned.append(placeholder)
                         self._show_home_sub_panel(placeholder, '🎒 Inventory & Items')
                         return
-                    # Build the merged tab widget once; re-use on subsequent opens
-                    # to avoid re-parenting the same panels into a new container each click.
+                    # Build the merged tab widget once; re-use on subsequent opens.
+                    # IMPORTANT: wrap each panel in a proxy QWidget container so
+                    # that addTab() parents the *wrapper*, not the real panel.
+                    # This prevents re-parenting _inventory_panel / _widgets_panel
+                    # out of their original location, which would cause
+                    #   RuntimeError: wrapped C++ object … has been deleted
+                    # on any subsequent attempt to show them directly.
                     if self._backpack_merged_panel is None:
-                        from PyQt6.QtWidgets import QTabWidget as _TW
+                        from PyQt6.QtWidgets import QTabWidget as _TW, QVBoxLayout as _VBL
                         merged = _TW()
                         merged.setDocumentMode(True)
                         if inv is not None:
-                            merged.addTab(inv, "📦 Inventory")
+                            _inv_wrap = QWidget()
+                            _inv_vb = QVBoxLayout(_inv_wrap)
+                            _inv_vb.setContentsMargins(0, 0, 0, 0)
+                            _inv_vb.addWidget(inv)
+                            merged.addTab(_inv_wrap, "📦 Inventory")
                         if wid is not None:
-                            merged.addTab(wid, "🧸 Toys & Items")
+                            _wid_wrap = QWidget()
+                            _wid_vb = QVBoxLayout(_wid_wrap)
+                            _wid_vb.setContentsMargins(0, 0, 0, 0)
+                            _wid_vb.addWidget(wid)
+                            merged.addTab(_wid_wrap, "🧸 Toys & Items")
                         self._backpack_merged_panel = merged
-                        # NOT added to _home_stack_owned — it's a persistent panel
-                        # that must survive across multiple opens.  It will be cleaned
-                        # up automatically when the main window is closed (Qt parent
-                        # ownership transfers to the home_stack on insertWidget).
+                        # NOT added to _home_stack_owned — persistent panel
                     self._show_home_sub_panel(self._backpack_merged_panel, '🎒 Inventory & Items')
                 except Exception as _e2:
                     logger.debug(f"Backpack panel open: {_e2}")

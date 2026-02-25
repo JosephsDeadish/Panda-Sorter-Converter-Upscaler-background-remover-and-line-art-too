@@ -244,7 +244,10 @@ a = Analysis(
         'OpenGL.arrays.vbo',
         'OpenGL.arrays.ctypesarrays',
         'OpenGL.arrays.ctypesparameters',
-        'OpenGL.arrays.numpymodule',
+        # NOTE: OpenGL.arrays.numpymodule is intentionally omitted — it imports
+        # opengl_accelerate which is excluded from the bundle (see excludes list).
+        # The runtime hook blocks opengl_accelerate via sys.modules before any
+        # OpenGL import fires, so pure-Python array mode is used automatically.
         'OpenGL.arrays.numbers',
         'OpenGL.GL.shaders',
         'OpenGL.platform',
@@ -344,6 +347,13 @@ a = Analysis(
         str(SCRIPT_DIR / 'runtime-hook-opengl.py'),  # os.add_dll_directory + PYOPENGL_PLATFORM_HANDLER for Windows
     ],
     excludes=[
+        # opengl_accelerate C extension: excluded deliberately.
+        # We run PyOpenGL in pure-Python mode (USE_ACCELERATE=False) which is
+        # safe and driver-agnostic.  The C extension can segfault on some
+        # Windows GPU drivers, and the runtime hook + module-level setup in
+        # main.py block it via sys.modules before it can be imported.
+        'opengl_accelerate',
+        'OpenGL_accelerate',
         # Exclude tkinter
         'tkinter',
         'tkinter.ttk',

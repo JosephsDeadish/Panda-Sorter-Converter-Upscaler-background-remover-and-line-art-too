@@ -16,6 +16,12 @@ try:
     from PyQt6.QtOpenGLWidgets import QOpenGLWidget
     from PyQt6.QtCore import QTimer, Qt, QPoint, pyqtSignal, QState, QStateMachine
     from PyQt6.QtGui import QMouseEvent, QSurfaceFormat, QPainter, QColor, QFont
+    # Disable C accelerate BEFORE importing OpenGL.GL — pure-Python mode is
+    # driver-agnostic and avoids segfaults from buggy opengl_accelerate builds.
+    try:
+        import OpenGL as _ogl_pre; _ogl_pre.USE_ACCELERATE = False
+    except Exception:
+        pass
     from OpenGL.GL import *
     from OpenGL.GLU import *
     import numpy as np

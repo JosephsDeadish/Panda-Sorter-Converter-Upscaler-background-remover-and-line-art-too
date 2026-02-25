@@ -35,6 +35,12 @@ try:
 except (ImportError, OSError, RuntimeError):
     QOGL_AVAILABLE = False
 
+# Disable C accelerate BEFORE importing OpenGL.GL so pure-Python mode is used.
+try:
+    import OpenGL as _ogl_pre; _ogl_pre.USE_ACCELERATE = False
+except Exception:
+    pass
+
 try:
     from OpenGL.GL import (
         glClearColor, glEnable, glDisable, GL_DEPTH_TEST, GL_LIGHTING,
