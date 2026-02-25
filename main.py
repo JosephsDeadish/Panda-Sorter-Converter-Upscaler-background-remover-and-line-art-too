@@ -389,6 +389,18 @@ except Exception as _loader_err:
     except Exception:
         pass
 
+# Always ensure PandaWidget2D is loaded as a runtime fallback even when the
+# 3D loader succeeded.  Without this, _on_panda_gl_failed and the line-747
+# construction-failure path both see PandaWidget2D=None and leave an empty
+# sidebar when the GL widget fails to initialise at runtime.
+if PandaWidget2D is None:
+    try:
+        from ui.panda_widget_2d import PandaWidget2D as _PW2D_fallback
+        PandaWidget2D = _PW2D_fallback
+        logger.debug("PandaWidget2D loaded as GL runtime-failure fallback")
+    except Exception as _2d_fallback_err:
+        logger.debug(f"PandaWidget2D fallback unavailable: {_2d_fallback_err}")
+
 # Import each UI panel independently so one bad import does not disable all tools.
 # Each name is set to None on failure; callers guard with `if PanelClass is not None`.
 def _try_import(module_path: str, class_name: str):
