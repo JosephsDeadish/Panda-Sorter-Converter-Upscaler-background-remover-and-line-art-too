@@ -112,7 +112,8 @@ class PandaWidget2D(QWidget if _QT_AVAILABLE else object):  # type: ignore[misc]
         self._ear_color  = QColor(30, 30, 30)
         self._hat: Optional[str] = None
         self._hair_style: str = ''
-        self._equipped_items: list[str] = []
+        self._fur_style: str = 'classic'
+        self._equipped_items: dict = {}   # slot → item_id
 
         # ── Per-instance personality randomness ────────────────────────────────
         r = random.Random()   # seeded fresh each time — unique per panda instance
@@ -643,6 +644,7 @@ class PandaWidget2D(QWidget if _QT_AVAILABLE else object):  # type: ignore[misc]
         }
         sid = str(style_id).lower()
         body_col, ear_col = _FUR_COLORS.get(sid, _FUR_COLORS['classic'])
+        self._fur_style = sid
         self._body_color = body_col
         self._ear_color  = ear_col
         self.update()
@@ -656,8 +658,8 @@ class PandaWidget2D(QWidget if _QT_AVAILABLE else object):  # type: ignore[misc]
         """GL-compatible: record equipped clothing and refresh."""
         item_id = (clothing_item.get('id', '') if isinstance(clothing_item, dict)
                    else str(clothing_item))
-        if item_id and item_id not in self._equipped_items:
-            self._equipped_items.append(item_id)
+        if item_id:
+            self._equipped_items[slot] = item_id
         self.preview_item(item_id)
 
     def set_color(self, color_type: str, color_rgb: tuple) -> None:
@@ -686,8 +688,9 @@ class PandaWidget2D(QWidget if _QT_AVAILABLE else object):  # type: ignore[misc]
 
     def equip_item(self, item_data: dict) -> None:
         item_id = item_data.get('id', '') if isinstance(item_data, dict) else str(item_data)
-        if item_id and item_id not in self._equipped_items:
-            self._equipped_items.append(item_id)
+        slot = item_data.get('slot', 'misc') if isinstance(item_data, dict) else 'misc'
+        if item_id:
+            self._equipped_items[slot] = item_id
         self.preview_item(item_id)
 
     def update_appearance(self) -> None:
@@ -710,3 +713,49 @@ class PandaWidget2D(QWidget if _QT_AVAILABLE else object):  # type: ignore[misc]
         self._hat = None
         self._equipped_items.clear()
         self.update()
+
+    # ------------------------------------------------------------------
+    # GL-compatible stubs — these methods exist on PandaOpenGLWidget and
+    # are called via hasattr() guards in main.py.  The 2D widget silently
+    # ignores calls that would require a 3D scene.
+    # ------------------------------------------------------------------
+
+    def open_furniture(self, furniture_id: str) -> None:
+        """GL-compatible stub: play furniture-open animation (2D: no-op)."""
+        pass
+
+    def unequip_clothing(self, slot: str) -> None:
+        """GL-compatible stub: remove a clothing slot (2D: clear equipped)."""
+        self._equipped_items.pop(slot, None)
+        self.update()
+
+    def play_animation_sequence(self, states: list, durations: list) -> None:
+        """GL-compatible stub: play a scripted animation sequence (2D: set first state)."""
+        if states:
+            self.set_animation_state(states[0])
+
+    def set_autonomous_mode(self, enabled: bool) -> None:
+        """GL-compatible stub: enable/disable autonomous panda behaviour (2D: no-op)."""
+        pass
+
+    def apply_squash_effect(self, scale: float = 0.85) -> None:
+        """GL-compatible stub: apply squash/stretch deformation (2D: no-op)."""
+        pass
+
+    def interact_with_item(self, item_index: int, interaction_type: str = 'auto') -> None:
+        """GL-compatible stub: panda interacts with a 3D scene item (2D: no-op)."""
+        pass
+
+    def walk_to_item(self, item_index: int, callback=None) -> None:
+        """GL-compatible stub: walk to a 3D item position (2D: invoke callback directly)."""
+        if callable(callback):
+            callback()
+
+    def get_info(self) -> dict:
+        """GL-compatible stub: return panda state info dict."""
+        return {
+            'mood': self._mood,
+            'animation': self._animation_state,
+            'fur_style': self._fur_style,
+            'widget_type': '2d',
+        }
