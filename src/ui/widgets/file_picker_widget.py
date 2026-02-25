@@ -83,8 +83,16 @@ class FilePickerWidget(QWidget):
         self.allow_multiple = allow_multiple
         self.allow_folders = allow_folders
         self.allow_archives = allow_archives
-        self.config_dir = Path.home() / '.ps2_texture_sorter'
-        self.config_dir.mkdir(exist_ok=True)
+        try:
+            from config import get_data_dir as _gdd
+            self.config_dir = _gdd()
+        except (ImportError, Exception):
+            try:
+                from src.config import get_data_dir as _gdd
+                self.config_dir = _gdd()
+            except (ImportError, Exception):
+                self.config_dir = Path.home() / '.ps2_texture_sorter'
+        self.config_dir.mkdir(parents=True, exist_ok=True)
         self.recent_files_path = self.config_dir / 'recent_files.json'
         
         self.selected_files: List[Path] = []

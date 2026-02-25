@@ -40,7 +40,14 @@ class TrainingDataStore:
             db_path: Path to SQLite database file
         """
         if db_path is None:
-            db_path = Path.home() / ".ps2_texture_sorter" / "training_data.db"
+            try:
+                from config import get_data_dir as _gdd
+            except (ImportError, Exception):
+                try:
+                    from src.config import get_data_dir as _gdd
+                except (ImportError, Exception):
+                    _gdd = lambda: Path.home() / '.ps2_texture_sorter'
+            db_path = _gdd() / "training_data.db"
         
         self.db_path = db_path
         self.db_path.parent.mkdir(parents=True, exist_ok=True)

@@ -290,9 +290,17 @@ def get_default_model_path() -> Optional[Path]:
     # Check multiple possible locations (including portable app_data folder)
     from ..config import get_app_dir
     _app = get_app_dir()
+    try:
+        from config import get_data_dir as _gdd
+    except (ImportError, Exception):
+        try:
+            from src.config import get_data_dir as _gdd
+        except (ImportError, Exception):
+            _gdd = lambda: Path.home() / '.ps2_texture_sorter'
     possible_paths = [
         _app / "app_data" / "models" / "texture_classifier.onnx",
         Path(__file__).parent / "models" / "texture_classifier.onnx",
+        _gdd() / "models" / "texture_classifier.onnx",
         Path.home() / ".ps2_texture_sorter" / "models" / "texture_classifier.onnx",
         Path("models") / "texture_classifier.onnx",
     ]

@@ -30,7 +30,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger('setup_models')
 
-_parser = argparse.ArgumentParser(description='Download AI models for Game Texture Sorter')
+_parser = argparse.ArgumentParser(description='Download AI models for Panda Sorter Converter Upscaler')
 _parser.add_argument('--quiet', '-q', action='store_true', help='Suppress progress output')
 _parser.add_argument(
     '--output-dir', '-o',

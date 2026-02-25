@@ -143,8 +143,16 @@ class FileBrowserPanelQt(QWidget):
         self.thumbnail_generator: Optional[ThumbnailGenerator] = None
         
         # Load recent folders
-        self.config_dir = Path.home() / '.ps2_texture_sorter'
-        self.config_dir.mkdir(exist_ok=True)
+        try:
+            from config import get_data_dir as _gdd
+            self.config_dir = _gdd()
+        except (ImportError, Exception):
+            try:
+                from src.config import get_data_dir as _gdd
+                self.config_dir = _gdd()
+            except (ImportError, Exception):
+                self.config_dir = Path.home() / '.ps2_texture_sorter'
+        self.config_dir.mkdir(parents=True, exist_ok=True)
         self.recent_folders_path = self.config_dir / 'recent_folders.json'
         self.recent_folders: List[str] = []
         self.load_recent_folders()

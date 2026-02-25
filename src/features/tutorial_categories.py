@@ -38,11 +38,11 @@ def get_categorized_tutorials() -> dict:
     tutorials = {
         TutorialCategory.GETTING_STARTED: [
             CategorizedTutorialStep(
-                title="Welcome to Game Texture Sorter! 🐼",
+                title="Welcome to Panda Sorter Converter Upscaler! 🐼",
                 message=(
                     "Welcome! This quick tutorial will show you how to use the application.\n\n"
-                    "Game Texture Sorter helps you organize and manage texture files from "
-                    "game texture dumps with intelligent classification and LOD detection.\n\n"
+                    "Panda Sorter Converter Upscaler helps you organize, convert, upscale and process images "
+                    "with intelligent AI classification, upscaling, background removal and line art conversion.\n\n"
                     "Let's get started!"
                 ),
                 category=TutorialCategory.GETTING_STARTED,

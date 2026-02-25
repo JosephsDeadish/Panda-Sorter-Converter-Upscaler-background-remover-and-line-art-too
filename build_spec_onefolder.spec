@@ -39,7 +39,7 @@ if sys.platform == 'win32':
         print(f"[spec] Note: Could not check Windows long path setting: {e}")
 
 # Application metadata
-APP_NAME = "Game Texture Sorter"
+APP_NAME = "Panda Sorter Converter Upscaler"
 APP_VERSION = "1.0.0"
 APP_AUTHOR = "Dead On The Inside / JosephsDeadish"
 EXE_NAME = "GameTextureSorter"

@@ -28,12 +28,12 @@ VSVersionInfo(
       StringTable(
         u'040904B0',
         [StringStruct(u'CompanyName', u'Dead On The Inside / JosephsDeadish'),
-        StringStruct(u'FileDescription', u'Game Texture Sorter - Automatic texture classification and organization for game texture dumps'),
+        StringStruct(u'FileDescription', u'Panda Sorter Converter Upscaler - AI-powered image organizer, converter, upscaler and line art tool'),
         StringStruct(u'FileVersion', u'1.0.0.0'),
         StringStruct(u'InternalName', u'GameTextureSorter'),
         StringStruct(u'LegalCopyright', u'© 2024 Dead On The Inside / JosephsDeadish'),
         StringStruct(u'OriginalFilename', u'GameTextureSorter.exe'),
-        StringStruct(u'ProductName', u'Game Texture Sorter'),
+        StringStruct(u'ProductName', u'Panda Sorter Converter Upscaler'),
         StringStruct(u'ProductVersion', u'1.0.0.0'),
         StringStruct(u'Author', u'Dead On The Inside / JosephsDeadish')])
       ]),

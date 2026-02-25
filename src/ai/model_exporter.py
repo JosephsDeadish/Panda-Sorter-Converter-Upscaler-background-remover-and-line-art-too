@@ -253,7 +253,7 @@ This model classifies textures into {len(categories)} categories:
 ## Usage
 
 1. Place this .ps2model file in your models directory
-2. Restart Game Texture Sorter
+2. Restart Panda Sorter Converter Upscaler
 3. Select this model in Settings → AI Models
 
 ## Compatibility
@@ -263,7 +263,7 @@ This model classifies textures into {len(categories)} categories:
 
 ---
 
-*Exported with Game Texture Sorter Model Exporter*
+*Exported with Panda Sorter Converter Upscaler Model Exporter*
 """
         return readme
 
@@ -283,7 +283,14 @@ class ModelImporter:
             models_dir: Directory for installed models
         """
         if models_dir is None:
-            models_dir = Path.home() / ".ps2_texture_sorter" / "models"
+            try:
+                from config import get_data_dir as _gdd
+            except (ImportError, Exception):
+                try:
+                    from src.config import get_data_dir as _gdd
+                except (ImportError, Exception):
+                    _gdd = lambda: Path.home() / '.ps2_texture_sorter'
+            models_dir = _gdd() / "models"
         
         self.models_dir = models_dir
         self.models_dir.mkdir(parents=True, exist_ok=True)

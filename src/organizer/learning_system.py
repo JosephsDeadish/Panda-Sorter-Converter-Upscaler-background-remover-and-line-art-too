@@ -74,7 +74,14 @@ class AILearningSystem:
             config_dir: Directory for storing learning profiles
         """
         if config_dir is None:
-            config_dir = Path.home() / ".ps2_texture_sorter" / "organizer_profiles"
+            try:
+                from config import get_data_dir as _gdd
+            except (ImportError, Exception):
+                try:
+                    from src.config import get_data_dir as _gdd
+                except (ImportError, Exception):
+                    _gdd = lambda: Path.home() / '.ps2_texture_sorter'
+            config_dir = _gdd() / "organizer_profiles"
         
         self.config_dir = Path(config_dir)
         self.config_dir.mkdir(parents=True, exist_ok=True)
