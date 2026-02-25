@@ -581,6 +581,7 @@ class LineArtConverterPanelQt(QWidget):
             self.preset_combo.addItem(preset_name)
         self.preset_combo.currentTextChanged.connect(self._on_preset_changed)
         group_layout.addWidget(self.preset_combo)
+        self._set_tooltip(self.preset_combo, 'lineart_preset')
         
         # Preset description
         self.preset_desc = QLabel("")
@@ -615,6 +616,7 @@ class LineArtConverterPanelQt(QWidget):
         self.mode_combo.currentIndexChanged.connect(self._schedule_preview_update)
         self.mode_combo.currentIndexChanged.connect(self._on_mode_changed)
         mode_layout.addWidget(self.mode_combo, 1)
+        self._set_tooltip(self.mode_combo, 'lineart_mode')
         group_layout.addLayout(mode_layout)
 
         # Invert checkbox
@@ -1456,9 +1458,16 @@ class LineArtConverterPanelQt(QWidget):
             self.progress_label.setText("✗ Conversion failed")
         self.finished.emit(success, message)
 
-    def _set_tooltip(self, widget, text):
+    def _set_tooltip(self, widget, widget_id_or_text):
         """Set tooltip on a widget using tooltip manager if available."""
-        if self.tooltip_manager and hasattr(self.tooltip_manager, 'set_tooltip'):
-            self.tooltip_manager.set_tooltip(widget, text)
-        else:
-            widget.setToolTip(text)
+        if self.tooltip_manager and hasattr(self.tooltip_manager, 'register'):
+            if isinstance(widget_id_or_text, str) and ' ' not in widget_id_or_text:
+                try:
+                    tip = self.tooltip_manager.get_tooltip(widget_id_or_text)
+                    if tip:
+                        widget.setToolTip(tip)
+                        self.tooltip_manager.register(widget, widget_id_or_text)
+                        return
+                except Exception:
+                    pass
+        widget.setToolTip(str(widget_id_or_text))

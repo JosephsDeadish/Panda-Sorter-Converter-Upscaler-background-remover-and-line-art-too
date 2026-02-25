@@ -703,6 +703,7 @@ class ImageUpscalerPanelQt(QWidget):
         self.process_btn = QPushButton("🚀 Start Upscaling")
         self.process_btn.clicked.connect(self._start_upscaling)
         self.process_btn.setEnabled(False)
+        self._set_tooltip(self.process_btn, 'upscale_button')
         button_layout.addWidget(self.process_btn)
         
         self.cancel_btn = QPushButton("Cancel")
@@ -1204,9 +1205,23 @@ class ImageUpscalerPanelQt(QWidget):
             self.error.emit(message)
         self.worker_thread = None
     
-    def _set_tooltip(self, widget, text):
-        """Set tooltip on a widget using tooltip manager if available."""
-        if self.tooltip_manager and hasattr(self.tooltip_manager, 'set_tooltip'):
-            self.tooltip_manager.set_tooltip(widget, text)
-        else:
-            widget.setToolTip(text)
+    def _set_tooltip(self, widget, widget_id_or_text):
+        """Set tooltip on a widget using tooltip manager if available.
+        
+        If widget_id_or_text looks like a widget_id key (no spaces, no punctuation
+        that indicates it's a literal sentence), register via the manager so the
+        tooltip cycles through all tips for the current mode.  Otherwise fall back
+        to setting the literal string.
+        """
+        if self.tooltip_manager and hasattr(self.tooltip_manager, 'register'):
+            # If it's a widget_id (no spaces), register for cycling
+            if isinstance(widget_id_or_text, str) and ' ' not in widget_id_or_text:
+                try:
+                    tip = self.tooltip_manager.get_tooltip(widget_id_or_text)
+                    if tip:
+                        widget.setToolTip(tip)
+                        self.tooltip_manager.register(widget, widget_id_or_text)
+                        return
+                except Exception:
+                    pass
+        widget.setToolTip(str(widget_id_or_text))

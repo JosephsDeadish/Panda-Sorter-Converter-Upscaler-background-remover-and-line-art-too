@@ -202,6 +202,7 @@ class BackgroundRemoverPanelQt(QWidget):
         for model_id, model_label in _BG_MODELS:
             self.bg_model_combo.addItem(model_label, model_id)
         model_layout.addWidget(self.bg_model_combo, 1)
+        self._set_tooltip(self.bg_model_combo, 'bg_model_selector')
         model_group.setLayout(model_layout)
         layout.addWidget(model_group)
 
@@ -210,7 +211,7 @@ class BackgroundRemoverPanelQt(QWidget):
         
         auto_btn = QPushButton("🤖 Auto Remove")
         auto_btn.clicked.connect(self.auto_remove_background)
-        self._set_tooltip(auto_btn, "Automatically remove background using AI")
+        self._set_tooltip(auto_btn, 'bg_remove_button')
         process_layout.addWidget(auto_btn)
         
         clear_btn = QPushButton("🗑️ Clear All")
@@ -623,9 +624,16 @@ class BackgroundRemoverPanelQt(QWidget):
         }
         self.preview_widget.set_mode(mode_map.get(mode_text, "slider"))
     
-    def _set_tooltip(self, widget, text):
+    def _set_tooltip(self, widget, widget_id_or_text):
         """Set tooltip on a widget using tooltip manager if available."""
-        if self.tooltip_manager and hasattr(self.tooltip_manager, 'set_tooltip'):
-            self.tooltip_manager.set_tooltip(widget, text)
-        else:
-            widget.setToolTip(text)
+        if self.tooltip_manager and hasattr(self.tooltip_manager, 'register'):
+            if isinstance(widget_id_or_text, str) and ' ' not in widget_id_or_text:
+                try:
+                    tip = self.tooltip_manager.get_tooltip(widget_id_or_text)
+                    if tip:
+                        widget.setToolTip(tip)
+                        self.tooltip_manager.register(widget, widget_id_or_text)
+                        return
+                except Exception:
+                    pass
+        widget.setToolTip(str(widget_id_or_text))
