@@ -121,6 +121,15 @@ except Exception as e:
     logger.warning(f"⚠️  Error loading Real-ESRGAN: {type(e).__name__}: {e}")
     REALESRGAN_AVAILABLE = False
 
+# Check for GFPGAN face restoration
+GFPGAN_AVAILABLE = False
+try:
+    from gfpgan import GFPGANer  # noqa: F401
+    GFPGAN_AVAILABLE = True
+    logger.info("✅ GFPGAN face restoration available")
+except (ImportError, OSError, RuntimeError) as _e:
+    logger.debug(f"GFPGAN not available (optional): {_e}")
+
 # Module-level flag: True when at minimum PIL is available (basic upscaling works).
 # REALESRGAN_AVAILABLE / NATIVE_AVAILABLE cover the optional faster backends.
 UPSCALER_AVAILABLE: bool = HAS_PIL
@@ -135,12 +144,15 @@ class TextureUpscaler:
     - Lanczos via native Rust (fast, sharp – uses multi-threaded Rust code)
     - ESRGAN (slow, best quality for general images)
     - Real-ESRGAN (slow, best for PS2/retro textures)
+    - GFPGAN face restoration (enhance faces/characters before upscaling)
     """
     
     def __init__(self):
         """Initialize upscaler."""
         self.realesrgan_model = None
         self._realesrgan_loaded = False
+        self._gfpgan_model = None
+        self._gfpgan_loaded = False
         self.model_manager = model_manager
         if NATIVE_AVAILABLE:
             logger.info("Native Rust Lanczos upscaler available")
@@ -346,3 +358,85 @@ class TextureUpscaler:
         except Exception as e:
             logger.error(f"Failed to load Real-ESRGAN model: {e}")
             self._realesrgan_loaded = False
+
+    # ── GFPGAN face / character restoration ─────────────────────────────────
+
+    def enhance_faces(self, image: np.ndarray, upscale: int = 2) -> np.ndarray:
+        """Apply GFPGAN face / character restoration to *image*.
+
+        Falls back to the original image on any error (safe to call unconditionally).
+
+        Args:
+            image: BGR or RGB numpy array (uint8).
+            upscale: Output scale factor (1 or 2 recommended).
+
+        Returns:
+            Restored image as numpy array (same colour order as input).
+        """
+        if not GFPGAN_AVAILABLE:
+            logger.debug("GFPGAN not available — skipping face enhancement")
+            return image
+
+        try:
+            if not self._gfpgan_loaded:
+                self._load_gfpgan_model(upscale)
+            if self._gfpgan_model is None:
+                return image
+
+            # GFPGAN expects BGR uint8; guard against 2D grayscale or single-channel arrays
+            if image.ndim < 3 or image.shape[2] != 3:
+                bgr = image
+            else:
+                bgr = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
+            _, _, restored = self._gfpgan_model.enhance(
+                bgr,
+                has_aligned=False,
+                only_center_face=False,
+                paste_back=True,
+            )
+            out = cv2.cvtColor(restored, cv2.COLOR_BGR2RGB)
+            logger.debug("GFPGAN face restoration applied")
+            return out
+        except Exception as exc:
+            logger.warning(f"GFPGAN enhance failed ({exc}); returning original")
+            return image
+
+    def _load_gfpgan_model(self, upscale: int = 2) -> None:
+        """Load GFPGANer once and cache in *self._gfpgan_model*."""
+        try:
+            from gfpgan import GFPGANer  # late import — optional dep
+
+            # Try model manager path first, then common fallback paths
+            model_path: str | None = None
+            if self.model_manager:
+                mp = self.model_manager.get_model_path('GFPGANv1.4')
+                if mp and mp.exists():
+                    model_path = str(mp)
+            if not model_path:
+                candidates = [
+                    os.path.join('app_data', 'models', 'GFPGANv1.4.pth'),
+                    os.path.join(os.path.expanduser('~'), '.cache', 'gfpgan', 'GFPGANv1.4.pth'),
+                ]
+                for c in candidates:
+                    if os.path.isfile(c):
+                        model_path = c
+                        break
+
+            if not model_path:
+                logger.warning("GFPGANv1.4.pth not found — face enhancement skipped. "
+                               "Run setup_models.py or download from Settings → AI Models.")
+                self._gfpgan_loaded = True   # avoid repeated attempts
+                return
+
+            self._gfpgan_model = GFPGANer(
+                model_path=model_path,
+                upscale=upscale,
+                arch='clean',
+                channel_multiplier=2,
+                bg_upsampler=None,   # set externally if Real-ESRGAN bg desired
+            )
+            self._gfpgan_loaded = True
+            logger.info(f"GFPGANer loaded from {model_path}")
+        except Exception as exc:
+            logger.error(f"Failed to load GFPGAN model: {exc}")
+            self._gfpgan_loaded = True  # avoid repeated attempts

@@ -167,6 +167,17 @@ except Exception as _e:
     print(f"[build_spec] WARNING: collect_all('OpenGL') failed ({_e}) — "
           f"3D panda may fall back to 2D mode in the frozen EXE")
 
+# ── Collect optional heavy deps (graceful failure each) ───────────────────────
+for _opt_pkg in ('gfpgan', 'basicsr', 'realesrgan', 'facexlib', 'rembg'):
+    try:
+        _d, _b, _h = collect_all(_opt_pkg)
+        _extra_datas    += _d
+        _extra_binaries += _b
+        _app_hidden     += _h
+        print(f"[build_spec] {_opt_pkg} collected: {len(_h)} hidden imports")
+    except Exception as _e:
+        print(f"[build_spec] INFO: {_opt_pkg} not available ({_e}) — feature disabled in EXE")
+
 print(f"[build_spec] Collected {len(_app_hidden)} total hidden-import entries")
 
 # Collect all Python files

@@ -295,7 +295,11 @@ class UpscaleWorker(QThread):
                     scale_factor=self.scale_factor,
                     method=self.method
                 )
-                
+
+                # Optional GFPGAN face enhancement
+                if self.post_process_settings.get('enhance_faces'):
+                    upscaled = self.upscaler.enhance_faces(upscaled, upscale=1)
+
                 # Post-processing
                 upscaled_img = Image.fromarray(upscaled)
                 upscaled_img = apply_post_processing(upscaled_img, self.post_process_settings)
@@ -526,7 +530,25 @@ class ImageUpscalerPanelQt(QWidget):
         self.method_desc_label.setWordWrap(True)
         self.method_combo.currentTextChanged.connect(self._update_method_description)
         settings_layout.addWidget(self.method_desc_label)
-        
+
+        # Face / character enhancement
+        self.face_enhance_check = QCheckBox("✨ Enhance faces / characters (GFPGAN)")
+        self.face_enhance_check.setToolTip(
+            "Run GFPGAN face-restoration pass after upscaling.\n"
+            "Best for textures containing character faces or portraits.\n"
+            "Requires GFPGANv1.4.pth model (Settings → AI Models to download)."
+        )
+        try:
+            from preprocessing.upscaler import GFPGAN_AVAILABLE
+            self.face_enhance_check.setEnabled(GFPGAN_AVAILABLE)
+            if not GFPGAN_AVAILABLE:
+                self.face_enhance_check.setText(
+                    "✨ Enhance faces / characters (GFPGAN) — install gfpgan to enable"
+                )
+        except Exception:
+            self.face_enhance_check.setEnabled(False)
+        settings_layout.addWidget(self.face_enhance_check)
+
         settings_group.setLayout(settings_layout)
         main_layout.addWidget(settings_group)
         
@@ -919,7 +941,8 @@ class ImageUpscalerPanelQt(QWidget):
             'contrast_factor': self.contrast_spin.value(),
             'custom_resolution': self.custom_res_cb.isChecked(),
             'custom_width': self.custom_width.value(),
-            'custom_height': self.custom_height.value()
+            'custom_height': self.custom_height.value(),
+            'enhance_faces': hasattr(self, 'face_enhance_check') and self.face_enhance_check.isChecked(),
         }
         
         # Create output directory if it doesn't exist

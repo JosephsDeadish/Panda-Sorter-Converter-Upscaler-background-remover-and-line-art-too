@@ -877,7 +877,7 @@ class TextureSorterMainWindow(QMainWindow):
         info_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(info_label)
 
-        self.tabs.addTab(tab, "Home")
+        self.tabs.addTab(tab, "🏠 Home")
 
     def create_tools_tab(self):
         """Create the Tools tab: a QTabWidget with one sub-tab per tool."""

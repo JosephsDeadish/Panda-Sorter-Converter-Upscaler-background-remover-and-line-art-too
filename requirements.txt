@@ -146,6 +146,7 @@ faiss-cpu>=1.7.4  # Fast similarity search (bundled in EXE via hook-faiss.py)
 # Image Upscaling and Super-Resolution
 basicsr>=1.4.2  # Super-resolution models framework
 realesrgan>=0.3.0  # Real-ESRGAN upscaling models
+gfpgan>=1.3.8  # GFPGANv1.4 face / character restoration (optional)
 
 # OCR for UI Text Detection
 pytesseract>=0.3.10  # Tesseract OCR wrapper (requires tesseract-ocr system package)

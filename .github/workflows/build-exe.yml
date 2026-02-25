@@ -77,6 +77,7 @@ jobs:
           # Install optional heavy deps (allow failures - app degrades gracefully)
           pip install "timm>=0.9.0" "transformers>=4.48.0" "open-clip-torch>=2.20.0" || echo "⚠️  Some optional ML deps failed (non-fatal)"
           pip install "basicsr>=1.4.2" "realesrgan>=0.3.0" || echo "⚠️  basicsr/realesrgan failed (non-fatal, Real-ESRGAN upscaling unavailable)"
+          pip install "gfpgan>=1.3.8" || echo "⚠️  gfpgan failed (non-fatal, face restoration unavailable)"
           # Pre-install optional packages that may fail on Windows CI before the main
           # requirements install.  rembg is excluded from the PyInstaller build anyway.
           pip install "rembg[cpu]>=2.0.50" || echo "⚠️  rembg failed (non-fatal, excluded from PyInstaller build)"
