@@ -399,6 +399,7 @@ class SettingsPanelQt(QWidget):
         
         trail_layout.addWidget(intensity_label)
         trail_layout.addWidget(self.cursor_trail_intensity)
+        self.set_tooltip(self.cursor_trail_intensity, 'cursor_trail_intensity')
         
         trail_group.setLayout(trail_layout)
         layout.addWidget(trail_group)

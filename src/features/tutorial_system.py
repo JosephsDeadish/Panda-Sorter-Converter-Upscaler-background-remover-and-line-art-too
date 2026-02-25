@@ -7095,6 +7095,50 @@ class TooltipVerbosityManager:
                 "Undock this tab for use on another monitor",
                 "Create a standalone window from this tab",
             ],
+            # Line art tool
+            'lineart_start_button': [
+                "Convert the selected image(s) to line art using the chosen algorithm",
+                "Start the line art conversion process",
+                "Run the line art engine on your selected files",
+                "Begin converting images to clean black-and-white line art",
+                "Process files with the current line art settings",
+            ],
+            'lineart_mode': [
+                "Choose which line art algorithm to use",
+                "Select the conversion method that best suits your image style",
+                "Different modes work better for different image types (photos, illustrations, etc.)",
+                "Adaptive works well for photos; Pure Black is best for solid artwork",
+                "Try different modes to find the best look for your image",
+            ],
+            'lineart_preset': [
+                "Apply a preset with optimised settings for a specific use case",
+                "Choose a preset to automatically configure line art settings",
+                "Presets like Tattoo or Stencil set all parameters for that style",
+                "Use a preset as a starting point, then tweak to taste",
+                "Preset saves you from manually tuning every slider",
+            ],
+            'lineart_input': [
+                "Select the image file(s) to convert to line art",
+                "Browse for source images for line art conversion",
+                "Pick one or more images to process",
+                "Choose your input file — JPEG, PNG, WebP and more are supported",
+                "Select the source image to convert",
+            ],
+            # Background remover
+            'bg_remove_button': [
+                "Remove the background from the selected image using AI",
+                "Start AI-powered background removal",
+                "Use the selected AI model to cut out the subject",
+                "Automatically remove the background in one click",
+                "Process the image and save a transparent-background PNG",
+            ],
+            'bg_model_selector': [
+                "Choose which AI model to use for background removal",
+                "u2net is a good general purpose model; birefnet-general gives highest quality",
+                "u2net_human_seg is optimised for people and portraits",
+                "silueta is faster and smaller; good for quick results",
+                "Different models have different strengths — try a few to compare",
+            ],
         }
         
         # Merge tooltip variants from the inlined tooltip definitions
@@ -8151,6 +8195,45 @@ class TooltipVerbosityManager:
             'undo_button': [
                 "Undo the last thing you did. Works like Ctrl+Z in most programs.",
                 "Takes back your last action.",
+            ],
+            # Line art tool — beginner-friendly explanations
+            'lineart_start_button': [
+                "Click this to turn your photo or illustration into a black-and-white line drawing! "
+                "The app will look at all the edges and lines in your image and trace them for you.",
+                "This converts your image to line art — great for colouring pages, tattoo stencils, or artwork outlines.",
+            ],
+            'lineart_mode': [
+                "This controls how the app finds the lines in your image. "
+                "'Pure Black Lines' gives solid black outlines. 'Adaptive Threshold' works better for photos with uneven lighting. "
+                "Try a few to see which looks best.",
+                "Choose how the app detects lines. Different images need different modes — a photograph needs a different mode to a cartoon.",
+            ],
+            'lineart_preset': [
+                "A preset is a saved group of settings for a specific use. "
+                "'Tattoo Design' sets everything up for tattoo-style stencils. 'Colouring Book' makes nice bold outlines. "
+                "Just pick one that matches what you want to make!",
+                "Presets let you skip all the manual settings — just pick the style you want and click Convert!",
+            ],
+            'lineart_input': [
+                "Click here to choose the image file you want to convert to line art. "
+                "You can use photos (JPEG), drawings (PNG), or many other image formats.",
+                "Select the image you want to turn into line art. Tip: clear, well-lit images give the best results!",
+            ],
+            # Background remover — beginner-friendly
+            'bg_remove_button': [
+                "Click this to remove the background from your image automatically! "
+                "The AI looks at your picture and figures out what's the main subject, "
+                "then erases everything behind it.",
+                "This uses AI to cut out the subject of your image and make the background transparent. "
+                "The result is saved as a PNG with a clear background.",
+            ],
+            'bg_model_selector': [
+                "This lets you choose which AI brain to use for background removal. "
+                "'u2net' is the standard and works for most things. "
+                "'u2net_human_seg' is specially trained for removing backgrounds from photos of people. "
+                "Try u2net first — if it doesn't look great, try another!",
+                "Different AI models are better at different types of images. "
+                "u2net is general-purpose. birefnet-general gives higher quality but takes longer.",
             ],
         }
 

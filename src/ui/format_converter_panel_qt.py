@@ -226,7 +226,7 @@ if _PYQT:
     class FormatConverterPanelQt(QWidget):
         """Batch image format converter panel."""
 
-        finished = pyqtSignal(bool, str)
+        finished = pyqtSignal(bool, str, int)
 
         def __init__(self, tooltip_manager=None, parent=None):
             super().__init__(parent)
@@ -577,7 +577,7 @@ if _PYQT:
             icon = "✅" if success else "⚠️"
             self._status_lbl.setText(f"{icon} {message}")
             self._log.append(f"\n{icon} {message}")
-            self.finished.emit(success, message)
+            self.finished.emit(success, message, count)
 
 else:
     class FormatConverterPanelQt(object):  # type: ignore[no-redef]

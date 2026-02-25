@@ -1159,8 +1159,8 @@ class TextureSorterMainWindow(QMainWindow):
         if FormatConverterPanelQt is not None:
             try:
                 conv_panel = FormatConverterPanelQt(tooltip_manager=self.tooltip_manager)
-                conv_panel.finished.connect(lambda ok, msg, _tid='converter': (
-                    self.statusBar().showMessage(f"{'✅' if ok else '⚠️'} Converter: {msg}", 4000),
+                conv_panel.finished.connect(lambda ok, msg, cnt, _tid='converter': (
+                    self.statusBar().showMessage(f"{'✅' if ok else '⚠️'} Converter: {msg} ({cnt} files)", 4000),
                     self._on_tool_finished(ok, _tid),
                 ))
                 tool_tab_defs.append((conv_panel, "🔄 Format Converter", 'converter'))
@@ -1928,7 +1928,12 @@ class TextureSorterMainWindow(QMainWindow):
                                     pts = getattr(self.level_system, 'skill_points', 99) if self.level_system else 99
                                     ok = self.skill_tree.unlock_skill(sid, lvl, pts)
                                     if ok:
-                                        self.statusBar().showMessage(f"🌳 Skill unlocked!", 3000)
+                                        # Deduct the skill's cost from level_system
+                                        skill_node = self.skill_tree.get_skill(sid)
+                                        cost = getattr(skill_node, 'cost', 1) if skill_node else 1
+                                        if self.level_system and hasattr(self.level_system, 'deduct_skill_points'):
+                                            self.level_system.deduct_skill_points(cost)
+                                        self.statusBar().showMessage(f"🌳 Skill unlocked! (-{cost} skill point{'s' if cost != 1 else ''})", 3000)
                                         name_widget.setText(
                                             name_widget.text().replace("🔒", "✅")
                                         )
