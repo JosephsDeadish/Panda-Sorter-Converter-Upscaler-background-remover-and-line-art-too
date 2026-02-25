@@ -1238,6 +1238,9 @@ class SettingsPanelQt(QWidget):
             
             trail_color = self.config.get('ui', 'cursor_trail_color', default='rainbow')
             self.cursor_trail_color_combo.setCurrentText(trail_color.capitalize())
+
+            trail_intensity = self.config.get('ui', 'cursor_trail_intensity', default=5)
+            self.cursor_trail_intensity.setValue(max(1, min(10, int(trail_intensity))))
             
             # Font (Appearance tab sub-section + full Font tab)
             font_family = self.config.get('ui', 'font_family', default='Segoe UI')
@@ -1341,6 +1344,8 @@ class SettingsPanelQt(QWidget):
                 value = widget.isChecked()
             elif isinstance(widget, QSpinBox):
                 value = widget.value()
+            elif isinstance(widget, QSlider):
+                value = widget.value()
             elif hasattr(widget, 'text') and not isinstance(widget, QCheckBox):
                 # QLineEdit, QLabel — use text() as string value
                 value = widget.text()
@@ -1364,12 +1369,15 @@ class SettingsPanelQt(QWidget):
             elif section == 'ui' and key == 'cursor':
                 self._apply_cursor(value)
             elif section == 'ui' and key == 'cursor_trail':
-                if self.main_window and hasattr(self.main_window, 'panda_widget'):
-                    pw = self.main_window.panda_widget
-                    if value and hasattr(pw, 'set_trail'):
-                        pw.set_trail('sparkle', {})
-                    elif not value and hasattr(pw, 'set_trail'):
-                        pw.set_trail('none', {})
+                # Delegate to main window — the settingsChanged signal above already triggers
+                # _apply_cursor_trail() via on_settings_changed; no extra action needed here.
+                if self.main_window and hasattr(self.main_window, '_apply_cursor_trail'):
+                    self.main_window._apply_cursor_trail(bool(value))
+            elif section == 'ui' and key == 'cursor_trail_intensity':
+                if self.main_window and hasattr(self.main_window, '_cursor_trail_overlay'):
+                    overlay = self.main_window._cursor_trail_overlay
+                    if overlay is not None and hasattr(overlay, 'set_intensity'):
+                        overlay.set_intensity(int(value))
             
         except Exception as e:
             logger.error(f"Error saving setting {section}.{key}: {e}", exc_info=True)

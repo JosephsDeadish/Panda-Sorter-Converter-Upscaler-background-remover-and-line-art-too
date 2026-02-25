@@ -77,6 +77,7 @@ class CursorTrailOverlay(QWidget):  # type: ignore[misc]
         self._dots: deque[tuple[int, int]] = deque(maxlen=_MAX_DOTS)
         self._color_idx = 0
         self._scheme: list[tuple[int, int, int]] = _SCHEMES['rainbow']
+        self._intensity: int = 5  # 1–10; default mid
 
         # Install event filter on parent to capture mouse moves
         if parent is not None:
@@ -95,6 +96,15 @@ class CursorTrailOverlay(QWidget):  # type: ignore[misc]
         key = name.lower().replace(' ', '_')
         self._scheme = _SCHEMES.get(key, _SCHEMES['rainbow'])
         self._color_idx = 0
+
+    def set_intensity(self, level: int) -> None:
+        """Set trail intensity (1–10).
+
+        Higher intensity means more dots kept and a slightly larger dot size.
+        """
+        level = max(1, min(10, int(level)))
+        self._dots = deque(self._dots, maxlen=max(5, level * 4))  # 4–40 dots
+        self._intensity = level
 
     # ── event filter on parent ────────────────────────────────────────────────
 
@@ -134,7 +144,9 @@ class CursorTrailOverlay(QWidget):  # type: ignore[misc]
             # Oldest dot = index 0, newest = index n-1
             progress = (i + 1) / n          # 0..1 (newest = 1.0)
             alpha = int(progress * 220)
-            size = max(2, int(_DOT_BASE_SIZE * progress))
+            # Scale dot size by both trail progress and intensity (1=small, 10=large)
+            dot_base = _DOT_BASE_SIZE * (0.5 + self._intensity * 0.1)
+            size = max(2, int(dot_base * progress))
             # Cycle through colour palette based on position in trail
             r, g, b = scheme[(i + self._color_idx) % s_len]
             color = QColor(r, g, b, alpha)

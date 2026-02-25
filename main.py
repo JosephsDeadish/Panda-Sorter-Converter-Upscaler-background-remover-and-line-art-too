@@ -2712,6 +2712,8 @@ class TextureSorterMainWindow(QMainWindow):
                     self._cursor_trail_overlay = CursorTrailOverlay(self)
                 color_scheme = config.get('ui', 'cursor_trail_color', default='rainbow')
                 self._cursor_trail_overlay.set_color_scheme(str(color_scheme))
+                intensity = config.get('ui', 'cursor_trail_intensity', default=5)
+                self._cursor_trail_overlay.set_intensity(int(intensity))
                 self._cursor_trail_overlay.show()
                 self._cursor_trail_overlay.raise_()
             else:
@@ -3688,6 +3690,9 @@ class TextureSorterMainWindow(QMainWindow):
             elif setting_key == "ui.cursor_trail_color":
                 if self._cursor_trail_overlay is not None:
                     self._cursor_trail_overlay.set_color_scheme(str(value))
+            elif setting_key == "ui.cursor_trail_intensity":
+                if self._cursor_trail_overlay is not None:
+                    self._cursor_trail_overlay.set_intensity(int(value))
 
             # Handle font changes
             elif setting_key in ("ui.font_family", "ui.font_size"):
