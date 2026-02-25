@@ -65,8 +65,13 @@ class NotepadPanelQt(QWidget):
         self.auto_save_timer.timeout.connect(self.auto_save)
         self.auto_save_timer.setInterval(2000)  # Auto-save every 2 seconds
         
-        # Data directory
-        self.data_dir = Path.home() / '.ps2_texture_sorter' / 'notes'
+        # Data directory — use the app's canonical data dir so notes are stored
+        # alongside other user data (app_data/ in frozen EXE, ~/.ps2_texture_sorter/ in dev).
+        try:
+            from config import get_data_dir as _get_data_dir
+            self.data_dir = _get_data_dir() / 'notes'
+        except Exception:
+            self.data_dir = Path.home() / '.ps2_texture_sorter' / 'notes'
         self.data_dir.mkdir(parents=True, exist_ok=True)
         self.notes_file = self.data_dir / 'notes.json'
         

@@ -3680,7 +3680,12 @@ class ShopSystem:
         Args:
             save_path: Path to save purchase data
         """
-        self.save_path = save_path or Path.home() / '.ps2_texture_sorter' / 'shop.json'
+        try:
+            from config import get_data_dir as _gdd
+            _default_path = _gdd() / 'shop.json'
+        except Exception:
+            _default_path = Path.home() / '.ps2_texture_sorter' / 'shop.json'
+        self.save_path = save_path or _default_path
         self.save_path.parent.mkdir(parents=True, exist_ok=True)
         
         self.purchased_items: Set[str] = set()

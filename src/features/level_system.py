@@ -45,7 +45,12 @@ class LevelSystem:
             save_path: Path to save level data
         """
         self.name = name
-        self.save_path = save_path or Path.home() / '.ps2_texture_sorter' / f'{name}_level.json'
+        try:
+            from config import get_data_dir as _gdd
+            _default_path = _gdd() / f'{name}_level.json'
+        except Exception:
+            _default_path = Path.home() / '.ps2_texture_sorter' / f'{name}_level.json'
+        self.save_path = save_path or _default_path
         self.save_path.parent.mkdir(parents=True, exist_ok=True)
         
         self.level = 1

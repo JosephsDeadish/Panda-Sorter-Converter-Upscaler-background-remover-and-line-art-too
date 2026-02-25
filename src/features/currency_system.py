@@ -68,7 +68,12 @@ class CurrencySystem:
         Args:
             save_path: Path to save money data
         """
-        self.save_path = save_path or Path.home() / '.ps2_texture_sorter' / 'money.json'
+        try:
+            from config import get_data_dir as _gdd
+            _default_path = _gdd() / 'money.json'
+        except Exception:
+            _default_path = Path.home() / '.ps2_texture_sorter' / 'money.json'
+        self.save_path = save_path or _default_path
         self.save_path.parent.mkdir(parents=True, exist_ok=True)
         
         self.balance = 0

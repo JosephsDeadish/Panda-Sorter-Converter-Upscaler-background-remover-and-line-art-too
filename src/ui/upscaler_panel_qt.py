@@ -936,7 +936,7 @@ class ImageUpscalerPanelQt(QWidget):
         
         # Check if Real-ESRGAN model is available (if needed)
         if method in ('realesrgan', 'realesrgan_anime', 'realesrgan_x2', 'swinir', 'swinir_anime'):
-            if not self._ensure_realesrgan_model(scale_factor):
+            if not self._ensure_realesrgan_model(scale_factor, method):
                 return
         
         # Gather post-processing settings
@@ -983,10 +983,10 @@ class ImageUpscalerPanelQt(QWidget):
         self.worker_thread.finished.connect(self._upscaling_finished)
         self.worker_thread.start()
     
-    def _ensure_realesrgan_model(self, scale_factor: int) -> bool:
+    def _ensure_realesrgan_model(self, scale_factor: int, method: str = 'realesrgan') -> bool:
         """
-        Ensure Real-ESRGAN model is available, prompt to download if not.
-        
+        Ensure Real-ESRGAN / SwinIR model is available, prompt to download if not.
+
         Returns:
             True if model is available or successfully downloaded
         """
@@ -998,30 +998,40 @@ class ImageUpscalerPanelQt(QWidget):
                 "Please use bicubic or lanczos methods instead."
             )
             return False
-        
-        # Determine which model is needed
-        model_name = 'RealESRGAN_x2plus' if scale_factor == 2 else 'RealESRGAN_x4plus'
-        
+
+        # Determine which model is needed based on the selected method
+        _METHOD_MODEL = {
+            'realesrgan':       'RealESRGAN_x4plus',
+            'realesrgan_anime': 'RealESRGAN_x4plus_anime_6B',
+            'realesrgan_x2':    'RealESRGAN_x2plus',
+            'swinir':           'SwinIR_x4_realworld',
+            'swinir_anime':     'SwinIR_x4_anime',
+        }
+        model_name = _METHOD_MODEL.get(method)
+        if model_name is None:
+            # Legacy fallback: choose by scale factor
+            model_name = 'RealESRGAN_x2plus' if scale_factor == 2 else 'RealESRGAN_x4plus'
+
         # Check if model exists
         if self.model_manager.get_model_status(model_name) == ModelStatus.INSTALLED:
             return True
-        
+
         # Ask user if they want to download
         model_info = self.model_manager.MODELS.get(model_name, {})
         size_mb = model_info.get('size_mb', '?')
-        
+
         reply = QMessageBox.question(
             self,
-            "Download Real-ESRGAN Model?",
-            f"Real-ESRGAN {scale_factor}x model ({size_mb}MB) is required for upscaling.\n\n"
+            "Download AI Model?",
+            f"The {model_name} model ({size_mb} MB) is required for this upscaling method.\n\n"
             "Download now? You can also download from Settings → AI Models later.",
-            QMessageBox.StandardButton.Yes | 
+            QMessageBox.StandardButton.Yes |
             QMessageBox.StandardButton.No
         )
-        
+
         if reply != QMessageBox.StandardButton.Yes:
             return False
-        
+
         # Download the model
         return self._download_model(model_name)
     

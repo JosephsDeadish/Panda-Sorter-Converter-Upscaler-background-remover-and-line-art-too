@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Game Texture Sorter - Qt Main Application
+Panda Sorter Converter Upscaler - Qt Main Application
 A Qt6-based application with OpenGL rendering.
 Author: Dead On The Inside / JosephsDeadish
 """
@@ -59,7 +59,7 @@ def _handle_early_cli() -> None:
         try:
             from config import APP_NAME, APP_VERSION
         except Exception:
-            APP_NAME, APP_VERSION = "Game Texture Sorter", "1.0.0"
+            APP_NAME, APP_VERSION = "Panda Sorter Converter Upscaler", "1.0.0"
         print(f"{APP_NAME} v{APP_VERSION}")
         print("Author: Dead On The Inside / JosephsDeadish")
         print("https://github.com/JosephsDeadish/Panda-Sorter-Converter-Upscaler-background-remover-and-line-art-too")
@@ -69,7 +69,7 @@ def _handle_early_cli() -> None:
         try:
             from config import APP_NAME
         except Exception:
-            APP_NAME = "Game Texture Sorter"
+            APP_NAME = "Panda Sorter Converter Upscaler"
         print(f"Usage: python main.py [options]")
         print()
         print("Options:")
@@ -85,7 +85,7 @@ def _handle_early_cli() -> None:
         try:
             from config import APP_NAME, APP_VERSION
         except Exception:
-            APP_NAME, APP_VERSION = "Game Texture Sorter", "1.0.0"
+            APP_NAME, APP_VERSION = "Panda Sorter Converter Upscaler", "1.0.0"
 
         print(f"{APP_NAME} v{APP_VERSION} — Feature Check")
         print("=" * 55)
@@ -549,7 +549,7 @@ class WorkerThread(QThread):
 
 class TextureSorterMainWindow(QMainWindow):
     """
-    Main application window for Game Texture Sorter.
+    Main application window for Panda Sorter Converter Upscaler.
     Pure Qt6 implementation - no tkinter, no canvas.
     """
     

@@ -1247,6 +1247,7 @@ class PandaBedroomGL(QOpenGLWidget if OPENGL_AVAILABLE else QWidget):  # type: i
             centre_y = {
                 'wardrobe': 1.0, 'armor_rack': 0.9, 'weapons_rack': 0.75,
                 'toy_box': 0.35, 'fridge': 1.0, 'trophy_stand': 0.75,
+                'backpack': 0.35, 'bedroom_door': 1.1,
             }.get(piece.id, 0.5)
             proj = self._project_to_screen(piece.x, centre_y, piece.z)
             if proj is None:
