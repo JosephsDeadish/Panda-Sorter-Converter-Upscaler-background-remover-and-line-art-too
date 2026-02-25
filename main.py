@@ -4485,6 +4485,21 @@ class TextureSorterMainWindow(QMainWindow):
                     self._world_widget.back_to_bedroom.connect(self._go_back_to_bedroom)
                     self._world_widget.otter_clicked.connect(self._on_otter_clicked)
                     self._world_widget.destination_selected.connect(self._on_world_destination_selected)
+                    if hasattr(self._world_widget, 'gl_failed'):
+                        def _on_world_gl_failed(msg: str) -> None:
+                            logger.warning(f"World GL failed: {msg}")
+                            self.log(f"⚠️ 3D World GL init failed: {msg}")
+                            # Replace world widget with placeholder so user sees something useful
+                            ph = QLabel(
+                                "🌍 Outside World\n\n"
+                                f"3D rendering unavailable: {msg[:80]}\n\n"
+                                "Requires OpenGL 2.1+."
+                            )
+                            ph.setAlignment(Qt.AlignmentFlag.AlignCenter)
+                            ph.setStyleSheet("background:#1a2a1a;color:#aaaaaa;font-size:12px;padding:20px;")
+                            ph.setWordWrap(True)
+                            self._world_widget = ph
+                        self._world_widget.gl_failed.connect(_on_world_gl_failed)
                     # NOT added to _home_stack_owned — persistent panel re-used across visits.
                 except (ImportError, OSError, RuntimeError, Exception) as _e:
                     logger.warning(f"World widget not available: {_e}")

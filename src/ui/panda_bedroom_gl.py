@@ -210,6 +210,10 @@ class PandaBedroomGL(QOpenGLWidget if OPENGL_AVAILABLE else QWidget):  # type: i
     def initializeGL(self) -> None:
         try:
             self._do_init_gl()
+            # Probe that fixed-function matrix mode is available (CompatibilityProfile).
+            # Raises GLError on ANGLE/CoreProfile → emit gl_failed → 2D fallback.
+            glMatrixMode(GL_MODELVIEW)
+            glLoadIdentity()
             self._gl_ok = True
         except Exception as exc:
             logger.error("PandaBedroomGL initializeGL failed: %s", exc, exc_info=True)
@@ -221,13 +225,19 @@ class PandaBedroomGL(QOpenGLWidget if OPENGL_AVAILABLE else QWidget):  # type: i
         glDepthFunc(GL_LEQUAL)
         glEnable(GL_CULL_FACE)
         glCullFace(GL_BACK)
-        glShadeModel(GL_SMOOTH)
-        glEnable(GL_MULTISAMPLE)
+        try:
+            glShadeModel(GL_SMOOTH)
+        except Exception:
+            pass  # CompatibilityProfile only; probe in initializeGL will catch ANGLE
+        try:
+            glEnable(GL_MULTISAMPLE)
+        except Exception:
+            pass
         glEnable(GL_BLEND)
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
         glClearColor(0.15, 0.12, 0.10, 1.0)
 
-        # Lighting
+        # Lighting (CompatibilityProfile; may fail on CoreProfile/ANGLE)
         glEnable(GL_LIGHTING)
         glEnable(GL_LIGHT0)
         glEnable(GL_LIGHT1)
@@ -256,11 +266,14 @@ class PandaBedroomGL(QOpenGLWidget if OPENGL_AVAILABLE else QWidget):  # type: i
     def resizeGL(self, w: int, h: int) -> None:
         if h == 0:
             h = 1
-        glViewport(0, 0, w, h)
-        glMatrixMode(GL_PROJECTION)
-        glLoadIdentity()
-        gluPerspective(40.0, w / h, 0.1, 50.0)
-        glMatrixMode(GL_MODELVIEW)
+        try:
+            glViewport(0, 0, w, h)
+            glMatrixMode(GL_PROJECTION)
+            glLoadIdentity()
+            gluPerspective(40.0, w / h, 0.1, 50.0)
+            glMatrixMode(GL_MODELVIEW)
+        except Exception:
+            pass
 
     def paintGL(self) -> None:
         if not self._gl_ok:

@@ -619,6 +619,12 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
         """Initialize OpenGL settings."""
         try:
             self._do_initialize_gl()
+            # Probe that fixed-function matrix mode works (CompatibilityProfile required).
+            # If this raises (e.g. ANGLE / CoreProfile), we cannot render 3D at all —
+            # emit gl_failed so the caller can swap in the 2D QPainter fallback instead
+            # of leaving a black square where the panda should be.
+            glMatrixMode(GL_MODELVIEW)
+            glLoadIdentity()
         except Exception as e:
             logger.error(f"OpenGL initialization failed: {e}", exc_info=True)
             self.gl_initialized = False
@@ -721,16 +727,17 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
         """Handle window resize."""
         if height == 0:
             height = 1
-        
-        glViewport(0, 0, width, height)
-        
-        # Setup projection matrix
-        glMatrixMode(GL_PROJECTION)
-        glLoadIdentity()
-        aspect = width / height
-        gluPerspective(45.0, aspect, 0.1, 100.0)
-        glMatrixMode(GL_MODELVIEW)
-    
+        try:
+            glViewport(0, 0, width, height)
+            # Setup projection matrix (fixed-function GL — requires CompatibilityProfile)
+            glMatrixMode(GL_PROJECTION)
+            glLoadIdentity()
+            aspect = width / height
+            gluPerspective(45.0, aspect, 0.1, 100.0)
+            glMatrixMode(GL_MODELVIEW)
+        except Exception:
+            pass  # CoreProfile: matrix mode calls unavailable; paintGL handles this gracefully
+
     def paintGL(self):
         """Render the 3D scene."""
         if not self.gl_initialized:

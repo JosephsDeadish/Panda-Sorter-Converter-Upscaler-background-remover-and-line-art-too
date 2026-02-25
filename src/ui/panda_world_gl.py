@@ -186,10 +186,19 @@ class PandaWorldGL(
         try:
             glClearColor(*_SKY, 1.0)
             glEnable(GL_DEPTH_TEST)
-            glShadeModel(GL_SMOOTH)
-            glEnable(GL_MULTISAMPLE)
-            glEnable(GL_LINE_SMOOTH)
-            glHint(GL_LINE_SMOOTH_HINT, GL_NICEST)
+            try:
+                glShadeModel(GL_SMOOTH)
+            except Exception:
+                pass  # CompatibilityProfile only
+            try:
+                glEnable(GL_MULTISAMPLE)
+            except Exception:
+                pass
+            try:
+                glEnable(GL_LINE_SMOOTH)
+                glHint(GL_LINE_SMOOTH_HINT, GL_NICEST)
+            except Exception:
+                pass
             glEnable(GL_BLEND)
             glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
             glEnable(GL_LIGHTING)
@@ -211,6 +220,10 @@ class PandaWorldGL(
             glLightfv(GL_LIGHT2, GL_DIFFUSE,  [0.12, 0.14, 0.16, 1.0])
             glLightfv(GL_LIGHT2, GL_SPECULAR, [0.05, 0.05, 0.06, 1.0])
 
+            # Probe fixed-function matrix mode (CompatibilityProfile check)
+            glMatrixMode(GL_MODELVIEW)
+            glLoadIdentity()
+
             self._gl_ready = True
         except Exception as e:
             self._gl_ready = False
@@ -220,11 +233,14 @@ class PandaWorldGL(
     def resizeGL(self, w: int, h: int):
         if not GL_AVAILABLE or not self._gl_ready:
             return
-        glViewport(0, 0, max(1, w), max(1, h))
-        glMatrixMode(GL_PROJECTION)
-        glLoadIdentity()
-        gluPerspective(50.0, w / max(1, h), 0.1, 60.0)
-        glMatrixMode(GL_MODELVIEW)
+        try:
+            glViewport(0, 0, max(1, w), max(1, h))
+            glMatrixMode(GL_PROJECTION)
+            glLoadIdentity()
+            gluPerspective(50.0, w / max(1, h), 0.1, 60.0)
+            glMatrixMode(GL_MODELVIEW)
+        except Exception:
+            pass
 
     def paintGL(self):
         if not GL_AVAILABLE or not self._gl_ready:
