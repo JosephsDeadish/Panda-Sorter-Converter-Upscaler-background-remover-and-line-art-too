@@ -347,38 +347,47 @@ def _setup_opengl_for_exe() -> None:
 
 _setup_opengl_for_exe()
 
-# Import UI components
+# ── Panda widget selection (delegated to panda_widget_loader) ──────────────
+# panda_widget_loader selects the best available backend:
+#   1. PandaOpenGLWidget  — hardware-accelerated 3D (preferred)
+#   2. PandaWidget2D      — QPainter 2D fallback (no OpenGL required)
+# It performs the runtime GL probe so we don't duplicate that logic here.
+PandaOpenGLWidget = None
+PandaWidget2D = None
 PANDA_WIDGET_AVAILABLE = False
-try:
-    from ui.panda_widget_gl import PandaOpenGLWidget
-    PANDA_WIDGET_AVAILABLE = True
-    logger.info("✅ Panda OpenGL widget module loaded")
-except (ImportError, OSError, RuntimeError) as e:
-    logger.warning(f"Panda widget not available: {e}")
-    PandaOpenGLWidget = None
-
-# Runtime sanity-check: verify that OpenGL constants are actually accessible.
-# Now that _setup_opengl_for_exe() has already run, USE_ACCELERATE=False and
-# DLL search paths are configured, so this probe should succeed whenever
-# opengl32.dll is present on the system.
 _OPENGL_RUNTIME_OK: bool = False
-if PANDA_WIDGET_AVAILABLE:
-    try:
-        from OpenGL.GL import GL_DEPTH_TEST as _GL_DEPTH_TEST_PROBE  # noqa: F401
-        _OPENGL_RUNTIME_OK = True
-        logger.info("✅ PyOpenGL runtime check passed")
-    except Exception as _gle:
-        logger.warning(f"PyOpenGL runtime check failed ({_gle}); using 2D panda fallback")
-        PANDA_WIDGET_AVAILABLE = False
-        PandaOpenGLWidget = None
-
-# 2-D panda fallback (QPainter — no OpenGL required)
 try:
-    from ui.panda_widget_2d import PandaWidget2D
-    logger.info("✅ Panda 2D fallback widget loaded")
-except (ImportError, OSError, RuntimeError) as e:
-    PandaWidget2D = None
-    logger.warning(f"Panda 2D widget not available: {e}")
+    from ui.panda_widget_loader import (
+        PandaWidget as _PandaWidgetCls,
+        OPENGL_AVAILABLE as _OPENGL_AVAILABLE,
+        PANDA_2D_AVAILABLE as _PANDA_2D_AVAILABLE,
+    )
+    if _OPENGL_AVAILABLE:
+        PandaOpenGLWidget = _PandaWidgetCls
+        PANDA_WIDGET_AVAILABLE = True
+        _OPENGL_RUNTIME_OK = True
+        logger.info("✅ panda_widget_loader selected 3D OpenGL backend")
+    elif _PANDA_2D_AVAILABLE:
+        PandaWidget2D = _PandaWidgetCls
+        logger.info("✅ panda_widget_loader selected 2D QPainter backend (OpenGL unavailable)")
+    else:
+        logger.warning("No panda widget backend available")
+except Exception as _loader_err:
+    logger.warning(f"panda_widget_loader failed ({_loader_err}); trying direct imports")
+    # Direct-import fallback (belt-and-suspenders if loader itself is broken)
+    try:
+        from ui.panda_widget_gl import PandaOpenGLWidget as _POWC
+        from OpenGL.GL import GL_DEPTH_TEST as _GL_DEPTH_TEST_PROBE  # noqa: F401
+        PandaOpenGLWidget = _POWC
+        PANDA_WIDGET_AVAILABLE = True
+        _OPENGL_RUNTIME_OK = True
+    except Exception:
+        pass
+    try:
+        from ui.panda_widget_2d import PandaWidget2D as _PW2D
+        PandaWidget2D = _PW2D
+    except Exception:
+        pass
 
 # Import each UI panel independently so one bad import does not disable all tools.
 # Each name is set to None on failure; callers guard with `if PanelClass is not None`.

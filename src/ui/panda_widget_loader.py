@@ -12,8 +12,46 @@ importing PandaOpenGLWidget or PandaWidget2D directly.
 """
 
 import logging
+import os
+import sys
 
 logger = logging.getLogger(__name__)
+
+# ------------------------------------------------------------------
+# Pre-configure OpenGL environment BEFORE importing the GL widget.
+# This mirrors what main._setup_opengl_for_exe() does, so the loader
+# works correctly even when imported before main.py runs.
+# ------------------------------------------------------------------
+def _pre_configure_opengl() -> None:
+    """Block opengl_accelerate and set up DLL search paths early."""
+    if not sys.platform.startswith('win'):
+        return
+    os.environ.setdefault('PYOPENGL_PLATFORM_HANDLER', 'win32')
+    import types as _tm
+    _stub = _tm.ModuleType('opengl_accelerate')
+    _stub.USE_ACCELERATE = False  # type: ignore[attr-defined]
+    for _name in ('opengl_accelerate', 'OpenGL_accelerate', 'OpenGL.arrays.numpymodule'):
+        if _name not in sys.modules:
+            sys.modules[_name] = _stub  # type: ignore[assignment]
+    try:
+        import OpenGL as _ogl; _ogl.USE_ACCELERATE = False
+    except Exception:
+        pass
+    _sys32 = os.path.join(os.environ.get('SystemRoot', r'C:\Windows'), 'System32')
+    if getattr(sys, 'frozen', False):
+        _app_dir = os.path.dirname(sys.executable)
+        _dirs = [_sys32, _app_dir, getattr(sys, '_MEIPASS', _app_dir)]
+    else:
+        _dirs = [_sys32]
+    for _d in _dirs:
+        try:
+            if os.path.isdir(_d):
+                os.add_dll_directory(_d)  # type: ignore[attr-defined]
+        except (AttributeError, OSError):
+            pass
+
+
+_pre_configure_opengl()
 
 # ------------------------------------------------------------------
 # Attempt 1: hardware-accelerated 3-D OpenGL widget

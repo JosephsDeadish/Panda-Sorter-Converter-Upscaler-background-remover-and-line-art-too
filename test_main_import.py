@@ -27,6 +27,15 @@ def test_imports():
     import importlib.util
     if importlib.util.find_spec('PyQt6') is None:
         return None  # skip – PyQt6 not installed
+    # Also skip when PyQt6 is installed but system GL/EGL libraries are missing
+    # (common on headless CI runners without a GPU or display).
+    try:
+        from PyQt6.QtWidgets import QApplication  # noqa: F401
+    except ImportError as _egl_err:
+        _msg = str(_egl_err)
+        if any(k in _msg for k in ('libEGL', 'libGL', 'cannot open shared object', 'No such file')):
+            return None  # skip – system libs absent (headless CI)
+        raise  # unexpected – re-raise
     try:
         import pytest
         pytest.skip("PyQt6 not installed - skipping main.py import test") if False else None  # noqa

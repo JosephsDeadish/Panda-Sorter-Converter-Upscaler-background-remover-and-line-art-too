@@ -357,7 +357,10 @@ class QualityCheckerPanelQt(QWidget):
         if format_quality_report is not None:
             report_text = format_quality_report(report)
         else:
-            report_text = f"Quality: {getattr(report, 'overall_quality', '?')}, Score: {getattr(report, 'quality_score', 0):.1f}/100"
+            ql = getattr(report, 'quality_level', None) or getattr(report, 'overall_quality', '?')
+            ql_val = ql.value if hasattr(ql, 'value') else str(ql)
+            score = getattr(report, 'overall_score', None) or getattr(report, 'quality_score', 0)
+            report_text = f"Quality: {ql_val}, Score: {score:.1f}/100"
         self.report_text.append(f"\n{'='*60}\n")
         self.report_text.append(f"File: {filename}\n")
         self.report_text.append(report_text)
@@ -371,21 +374,36 @@ class QualityCheckerPanelQt(QWidget):
             return
         
         # Get quality level color
-        colors = {
-            QualityLevel.EXCELLENT: "#4CAF50",
-            QualityLevel.GOOD: "#8BC34A",
-            QualityLevel.FAIR: "#FFC107",
-            QualityLevel.POOR: "#FF9800",
-            QualityLevel.VERY_POOR: "#F44336"
-        }
-        color = colors.get(report.overall_quality, "gray")
-        
+        # Use correct field names from QualityReport dataclass:
+        # quality_level (not overall_quality), overall_score (not quality_score),
+        # width/height (not resolution tuple).  Fall back gracefully if old field
+        # names somehow appear (e.g. future refactor).
+        ql = (getattr(report, 'quality_level', None)
+              or getattr(report, 'overall_quality', None))
+        score = (getattr(report, 'overall_score', None)
+                 or getattr(report, 'quality_score', 0) or 0)
+        width  = getattr(report, 'width',  None) or (getattr(report, 'resolution', (0, 0))[0])
+        height = getattr(report, 'height', None) or (getattr(report, 'resolution', (0, 0))[1])
+        fmt    = getattr(report, 'format', '?')
+        if QualityLevel is not None:
+            colors = {
+                QualityLevel.EXCELLENT:    "#4CAF50",
+                QualityLevel.GOOD:         "#8BC34A",
+                QualityLevel.FAIR:         "#FFC107",
+                QualityLevel.POOR:         "#FF9800",
+                getattr(QualityLevel, 'UNACCEPTABLE', None): "#F44336",
+                getattr(QualityLevel, 'VERY_POOR',    None): "#F44336",
+            }
+        else:
+            colors = {}
+        color = colors.get(ql, "gray")
+        ql_str = ql.value if hasattr(ql, 'value') else str(ql) if ql else '?'
         summary = f"""
         <div style='background-color: {color}; color: white; padding: 10px; border-radius: 5px;'>
-        <b>Quality:</b> {report.overall_quality.value}<br/>
-        <b>Score:</b> {report.quality_score:.1f}/100<br/>
-        <b>Resolution:</b> {report.resolution[0]}×{report.resolution[1]}<br/>
-        <b>Format:</b> {report.format}
+        <b>Quality:</b> {ql_str}<br/>
+        <b>Score:</b> {score:.1f}/100<br/>
+        <b>Resolution:</b> {width}×{height}<br/>
+        <b>Format:</b> {fmt}
         </div>
         """
         self.summary_label.setText(summary)
