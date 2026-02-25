@@ -226,6 +226,66 @@ def test_ai_package_exports_hybrid_symbols():
 
 
 # ---------------------------------------------------------------------------
+# Organizer style keyword matching
+# ---------------------------------------------------------------------------
+
+def test_organizer_style_no_false_positives():
+    """'iron' in 'environment' must NOT classify env textures as Metal_Surfaces.
+
+    Before the _has_kw() fix, `'iron' in 'environment'` evaluated to True
+    because Python substring search found "iron" inside "env**iron**ment".
+    This caused EVERY texture with category='environment' to be incorrectly
+    filed under Metal_Surfaces regardless of its actual filename.
+    """
+    print("\ntest_organizer_style_no_false_positives ...")
+    import sys as _sys
+    _sys.path.insert(0, 'src')
+    try:
+        from organizer.organization_styles import ByAppearanceStyle, _has_kw
+        from organizer.organization_engine import TextureInfo
+
+        style = ByAppearanceStyle()
+
+        # Core fix: 'iron' must NOT match the word 'environment'
+        assert not _has_kw('environment', ['iron']), \
+            "_has_kw('environment', ['iron']) must be False (bug: 'iron' is substring of 'environiron')"
+        # But 'iron' MUST match when it IS a token
+        assert _has_kw('iron_gate', ['iron']), \
+            "_has_kw('iron_gate', ['iron']) must be True"
+
+        # rock_texture.dds with category='environment' must go to Stone_Surfaces, not Metal_Surfaces
+        tex_rock = TextureInfo(
+            file_path='/test/rock_texture.dds', filename='rock_texture.dds',
+            category='environment', confidence=0.6,
+        )
+        result = style.get_target_path(tex_rock)
+        assert result.startswith('Stone_Surfaces'), \
+            f"Expected Stone_Surfaces/... but got {result!r}"
+
+        # iron_gate.dds SHOULD go to Metal_Surfaces
+        tex_iron = TextureInfo(
+            file_path='/test/iron_gate.dds', filename='iron_gate.dds',
+            category='environment', confidence=0.8,
+        )
+        result2 = style.get_target_path(tex_iron)
+        assert result2.startswith('Metal_Surfaces'), \
+            f"Expected Metal_Surfaces/... but got {result2!r}"
+
+        # generic env texture (no material keyword) falls back to category
+        tex_env = TextureInfo(
+            file_path='/test/ground_env.dds', filename='ground_env.dds',
+            category='environment', confidence=0.7,
+        )
+        result3 = style.get_target_path(tex_env)
+        assert 'Metal_Surfaces' not in result3, \
+            f"env texture without metal keywords got Metal_Surfaces: {result3!r}"
+
+        print("  ✅ ByAppearanceStyle no false positives")
+    except ImportError as exc:
+        print(f"  ⚠️  Skipped (import failed: {exc})")
+
+
+# ---------------------------------------------------------------------------
 # Runner
 # ---------------------------------------------------------------------------
 
@@ -242,6 +302,7 @@ def run_all_tests():
         test_ai_inference_importable_without_onnxruntime,
         test_ai_training_pytorch_importable_without_torch,
         test_ai_package_exports_hybrid_symbols,
+        test_organizer_style_no_false_positives,
     ]
 
     passed, failed = [], []

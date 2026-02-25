@@ -5,8 +5,22 @@ Author: Dead On The Inside / JosephsDeadish
 Implementation of all 9 organization style presets for sorting textures.
 """
 
+import re as _re
 from pathlib import Path
 from .organization_engine import OrganizationStyle, TextureInfo
+
+
+def _has_kw(text: str, keywords) -> bool:
+    """Return True if *any* keyword appears as a whole token in *text*.
+
+    Splits on non-alphanumeric characters so that e.g. ``'iron'`` does NOT
+    match ``'environment'`` (which contains the *substring* "iron" inside
+    "env**iron**ment" but NOT as a standalone word/token).  Without this guard
+    every texture with category ``'environment'`` was misclassified as
+    ``Metal_Surfaces`` because ``'iron' in 'environment'`` is True in Python.
+    """
+    tokens = set(_re.split(r'[^a-z0-9]', text))
+    return any(kw in tokens for kw in keywords)
 
 
 class ByAppearanceStyle(OrganizationStyle):
@@ -32,7 +46,8 @@ class ByAppearanceStyle(OrganizationStyle):
         cat = texture.category.lower()
 
         # Skin/body tones
-        if any(kw in name or kw in cat for kw in ['skin', 'body', 'torso', 'arm', 'leg', 'face', 'head']):
+        if _has_kw(name, ['skin', 'body', 'torso', 'arm', 'leg', 'face', 'head']) or \
+                _has_kw(cat, ['skin', 'body', 'torso', 'arm', 'leg', 'face', 'head']):
             tone = 'Neutral'
             for t in [('dark', 'Dark'), ('black', 'Dark'), ('brown', 'Brown'),
                        ('tan', 'Tan'), ('light', 'Light'), ('pale', 'Light'), ('white', 'Light')]:
@@ -41,33 +56,40 @@ class ByAppearanceStyle(OrganizationStyle):
                     break
             return str(Path('Skin_Tones', tone, texture.filename))
 
-        # Metal surfaces
-        if any(kw in name or kw in cat for kw in ['metal', 'steel', 'iron', 'chrome', 'gold', 'silver', 'armor']):
+        # Metal surfaces — use _has_kw to avoid 'iron' matching 'environment'
+        if _has_kw(name, ['metal', 'steel', 'iron', 'chrome', 'gold', 'silver', 'armor']) or \
+                _has_kw(cat, ['metal', 'steel', 'iron', 'chrome', 'gold', 'silver', 'armor']):
             sub = 'Polished' if any(k in name for k in ['polish', 'shiny', 'clean']) else 'Rough'
             return str(Path('Metal_Surfaces', sub, texture.filename))
 
         # Stone / rock / concrete
-        if any(kw in name or kw in cat for kw in ['stone', 'rock', 'concrete', 'brick', 'cobble', 'gravel']):
+        if _has_kw(name, ['stone', 'rock', 'concrete', 'brick', 'cobble', 'gravel']) or \
+                _has_kw(cat, ['stone', 'rock', 'concrete', 'brick', 'cobble', 'gravel']):
             return str(Path('Stone_Surfaces', texture.filename))
 
         # Wood
-        if any(kw in name or kw in cat for kw in ['wood', 'plank', 'timber', 'bark', 'log']):
+        if _has_kw(name, ['wood', 'plank', 'timber', 'bark', 'log']) or \
+                _has_kw(cat, ['wood', 'plank', 'timber', 'bark', 'log']):
             return str(Path('Wood_Surfaces', texture.filename))
 
         # Fabric / cloth
-        if any(kw in name or kw in cat for kw in ['cloth', 'fabric', 'textile', 'shirt', 'pants', 'dress', 'outfit']):
+        if _has_kw(name, ['cloth', 'fabric', 'textile', 'shirt', 'pants', 'dress', 'outfit']) or \
+                _has_kw(cat, ['cloth', 'fabric', 'textile', 'shirt', 'pants', 'dress', 'outfit']):
             return str(Path('Fabric', texture.filename))
 
         # Nature / organic
-        if any(kw in name or kw in cat for kw in ['grass', 'leaf', 'moss', 'dirt', 'mud', 'sand', 'nature']):
+        if _has_kw(name, ['grass', 'leaf', 'moss', 'dirt', 'mud', 'sand', 'nature']) or \
+                _has_kw(cat, ['grass', 'leaf', 'moss', 'dirt', 'mud', 'sand', 'nature']):
             return str(Path('Natural_Surfaces', texture.filename))
 
         # Transparent / alpha / glass
-        if any(kw in name or kw in cat for kw in ['glass', 'window', 'transparent', 'alpha', 'crystal']):
+        if _has_kw(name, ['glass', 'window', 'transparent', 'alpha', 'crystal']) or \
+                _has_kw(cat, ['glass', 'window', 'transparent', 'alpha', 'crystal']):
             return str(Path('Transparent', texture.filename))
 
         # Glow / energy
-        if any(kw in name or kw in cat for kw in ['glow', 'light', 'neon', 'energy', 'fire', 'flame', 'electric']):
+        if _has_kw(name, ['glow', 'light', 'neon', 'energy', 'fire', 'flame', 'electric']) or \
+                _has_kw(cat, ['glow', 'light', 'neon', 'energy', 'fire', 'flame', 'electric']):
             return str(Path('Glowing_Energy', texture.filename))
 
         # Fall back to category
