@@ -60,6 +60,13 @@ def _progress(model_name: str, downloaded: int, total: int) -> None:
 
 def main() -> int:
     """Download all required models.  Returns exit-code (0=success, 1=partial failure)."""
+    # Point rembg at our output directory so models are found in the right place.
+    # This matches what main.py does at runtime: set U2NET_HOME to app_data/models/
+    # so rembg's new_session() finds the ONNX files we download here.
+    if _OUTPUT_DIR is not None:
+        import os as _setup_os
+        _setup_os.environ.setdefault('U2NET_HOME', str(_OUTPUT_DIR))
+
     try:
         from upscaler.model_manager import AIModelManager
     except ImportError:

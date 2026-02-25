@@ -8,13 +8,16 @@ falls back to the raw DLL name and relies on the OS loader.  This hook:
 
 1. Calls os.add_dll_directory() for the frozen app folder so the OS DLL
    loader can find any bundled OpenGL DLLs placed there by the build.
-2. Sets PYOPENGL_PLATFORM_HANDLER to 'win32' so PyOpenGL does not try
+2. Sets QT_OPENGL=desktop so Qt uses native opengl32.dll, NOT ANGLE.
+   ANGLE only supports OpenGL ES — it rejects CompatibilityProfile calls
+   (glShadeModel, glLightfv, glBegin/glEnd) with GL_INVALID_OPERATION,
+   causing initializeGL() to fail and the 2D panda fallback to show.
+3. Sets PYOPENGL_PLATFORM_HANDLER to 'win32' so PyOpenGL does not try
    the Linux/EGL backends that would be missing in the Windows bundle.
-3. Disables PyOpenGL-accelerate's C extension so any missing or
+4. Disables PyOpenGL-accelerate's C extension so any missing or
    incompatible opengl_accelerate build does not crash the process.
-   We do this via a sys.modules stub inserted BEFORE OpenGL is imported,
-   which is more reliable than setting OpenGL.USE_ACCELERATE after the
-   fact (by the time the main module runs, OpenGL may already be cached).
+5. Sets U2NET_HOME to app_data/models/ so rembg's new_session() finds
+   the pre-bundled ONNX files without downloading again on first run.
 
 This hook is a no-op on Linux and macOS (they find OpenGL via the system
 loader without extra paths).
@@ -85,4 +88,24 @@ def _configure_pyopengl() -> None:
         pass  # Not yet imported; the sys.modules stub above handles it.
 
 
+def _configure_rembg_home() -> None:
+    """Point rembg at the app_data/models directory inside the frozen EXE bundle.
+
+    rembg uses U2NET_HOME (or ~/.u2net/) to find ONNX model files.  In the
+    frozen EXE, models are pre-bundled into dist/GameTextureSorter/app_data/models/.
+    Setting U2NET_HOME here (before any imports run) ensures rembg's
+    new_session() finds them without downloading again on first run.
+    """
+    if not getattr(sys, 'frozen', False):
+        return  # source runs: let main.py handle this via config.get_data_dir()
+    try:
+        _exe_dir = os.path.dirname(sys.executable)
+        _models_dir = os.path.join(_exe_dir, 'app_data', 'models')
+        if 'U2NET_HOME' not in os.environ:
+            os.environ['U2NET_HOME'] = _models_dir
+    except Exception:
+        pass  # Non-fatal: rembg will fall back to ~/.u2net/
+
+
 _configure_pyopengl()
+_configure_rembg_home()

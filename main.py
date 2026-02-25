@@ -5932,6 +5932,21 @@ def main():
     font = QFont("Segoe UI", 10)
     app.setFont(font)
     
+    # ── Point rembg's model search path at our pre-downloaded models dir ────────
+    # rembg looks for ONNX files in U2NET_HOME (or ~/.u2net/ by default).
+    # We pre-download them to app_data/models/ in the CI bundle AND in
+    # _auto_download_models(), so setting U2NET_HOME ensures rembg finds them
+    # without prompting the user to wait for a separate download.
+    try:
+        from config import get_data_dir as _get_data_dir
+        _models_dir = str(_get_data_dir() / 'models')
+        import os as _os_u2
+        # Only set if not already overridden by user/environment
+        _os_u2.environ.setdefault('U2NET_HOME', _models_dir)
+        logger.debug(f"U2NET_HOME → {_models_dir}")
+    except Exception as _u2err:
+        logger.debug(f"U2NET_HOME setup skipped: {_u2err}")
+
     # Create and show main window
     window = TextureSorterMainWindow()
     window.show()
