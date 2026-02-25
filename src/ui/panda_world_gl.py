@@ -15,6 +15,7 @@ Signals
 from __future__ import annotations
 
 import math
+import random
 import logging
 from typing import Optional, List, Tuple
 
@@ -255,7 +256,6 @@ class PandaWorldGL(
 
     # ── Animation tick ────────────────────────────────────────────────────────
     def _tick(self):
-        import random
         self._frame += 1
         # Car gentle suspension bob
         self._car_bob = math.sin(self._frame * 0.04) * 0.02
@@ -1353,6 +1353,7 @@ class PandaWorldWidget(QWidget if PYQT_AVAILABLE else object):
         destination_selected = pyqtSignal(str)
         otter_clicked        = pyqtSignal()
         back_to_bedroom      = pyqtSignal()
+        gl_failed            = pyqtSignal(str)
 
     def __init__(self, parent=None):
         if not PYQT_AVAILABLE:
@@ -1394,6 +1395,7 @@ class PandaWorldWidget(QWidget if PYQT_AVAILABLE else object):
             self._world_gl.destination_selected.connect(self.destination_selected)
             self._world_gl.otter_clicked.connect(self.otter_clicked)
             self._world_gl.back_to_bedroom.connect(self.back_to_bedroom)
+            self._world_gl.gl_failed.connect(self.gl_failed)
             layout.addWidget(self._world_gl, 1)
         else:
             fallback = QLabel(
