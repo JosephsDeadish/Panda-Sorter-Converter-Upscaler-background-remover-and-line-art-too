@@ -896,6 +896,9 @@ class AchievementSystem:
         self.total_textures_sorted = 0
         self.total_sessions = 0
         self.total_time_minutes = 0
+        self.total_images_upscaled = 0
+        self.total_bg_removed = 0
+        self.total_lineart_converted = 0
         
         # Initialize achievements
         self._initialize_achievements()
@@ -1085,6 +1088,22 @@ class AchievementSystem:
         if 'dedicated' in self.achievements:
             self.update_progress('dedicated', self.total_sessions)
     
+    def increment_images_upscaled(self, count: int = 1) -> None:
+        """Increment upscaled image count and update related achievements."""
+        self.total_images_upscaled += count
+        self.update_progress('upscaler_rookie', self.total_images_upscaled)
+        self.update_progress('upscaler_pro', self.total_images_upscaled)
+
+    def increment_bg_removed(self, count: int = 1) -> None:
+        """Increment background-removed image count and update related achievements."""
+        self.total_bg_removed += count
+        self.update_progress('background_buster', self.total_bg_removed)
+
+    def increment_lineart_converted(self, count: int = 1) -> None:
+        """Increment line-art-converted image count and update related achievements."""
+        self.total_lineart_converted += count
+        self.update_progress('line_artist', self.total_lineart_converted)
+
     def get_achievement(self, achievement_id: str) -> Optional[Achievement]:
         """
         Get achievement by ID.
@@ -1245,7 +1264,10 @@ class AchievementSystem:
                 'statistics': {
                     'total_textures_sorted': self.total_textures_sorted,
                     'total_sessions': self.total_sessions,
-                    'total_time_minutes': self.total_time_minutes
+                    'total_time_minutes': self.total_time_minutes,
+                    'total_images_upscaled': self.total_images_upscaled,
+                    'total_bg_removed': self.total_bg_removed,
+                    'total_lineart_converted': self.total_lineart_converted,
                 },
                 'achievements': {}
             }
@@ -1297,6 +1319,9 @@ class AchievementSystem:
             self.total_textures_sorted = stats.get('total_textures_sorted', 0)
             self.total_sessions = stats.get('total_sessions', 0)
             self.total_time_minutes = stats.get('total_time_minutes', 0)
+            self.total_images_upscaled = stats.get('total_images_upscaled', 0)
+            self.total_bg_removed = stats.get('total_bg_removed', 0)
+            self.total_lineart_converted = stats.get('total_lineart_converted', 0)
             
             # Load achievement data
             achievements_data = save_data.get('achievements', {})
@@ -1326,7 +1351,10 @@ class AchievementSystem:
             self.total_textures_sorted = 0
             self.total_sessions = 0
             self.total_time_minutes = 0
-            
+            self.total_images_upscaled = 0
+            self.total_bg_removed = 0
+            self.total_lineart_converted = 0
+
             logger.info("Reset all achievement progress")
     
     def get_summary(self) -> Dict:

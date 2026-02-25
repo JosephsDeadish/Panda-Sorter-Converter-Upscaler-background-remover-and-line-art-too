@@ -753,7 +753,13 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
         if elapsed < self.FRAME_TIME:
             return  # Skip frame to maintain 60 FPS cap
         self.last_frame_time = current_time
-        
+        try:
+            self._paint_gl_body()
+        except Exception as _e:
+            logger.debug(f"paintGL error (frame skipped): {_e}")
+
+    def _paint_gl_body(self):
+        """Inner paintGL — wrapped by paintGL's try/except so a GL error skips the frame."""
         # Clear buffers
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
         

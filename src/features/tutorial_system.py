@@ -1039,15 +1039,31 @@ _PANDA_TOOLTIPS = {
             "Enable or disable cursor trail effects",
             "Add a decorative trail behind your cursor",
             "Toggle the cursor sparkle trail on or off",
-            "Turn cursor trail effects on or off"
+            "Turn cursor trail effects on or off",
+            "A cursor trail follows your mouse with colorful dots",
+            "Cursor trails are purely cosmetic — no performance impact",
+            "Enable this for a magical, sparkling mouse experience",
+            "Pairs beautifully with the Rainbow or Fire color schemes",
+            "The trail fades out automatically as you stop moving",
+            "Combine with high intensity for maximum visual drama",
         ],
         'vulgar': [
             "Cursor trail. Leave sparkles wherever you go. Majestic. Like a unicorn. Or a glitter bomb. Beautiful chaos.",
             "Enable trails. Your cursor will look fabulous. Trust me. I'm a professional. Okay not really. But it looks good.",
             "Sparkle trail toggle. For the extra in all of us. Extra is a lifestyle. Embrace it. Sparkle on, you magnificent bastard.",
             "Cursor trail. Because your mouse movements deserve to be celebrated. Every click. Every hover. Art in motion.",
-            "Turn on trails and watch your productivity drop. Worth it. Beauty requires sacrifice. In this case, focus."
-        ]
+            "Turn on trails and watch your productivity drop. Worth it. Beauty requires sacrifice. In this case, focus.",
+            "Enable this and your cursor becomes a comet. A goddamn comet. You're basically an astronomer now.",
+            "Cursor trail on: your desk becomes a runway. Every mouse move is haute couture. Fashion. Icons.",
+            "With this enabled, even hovering over the close button becomes performance art. You're welcome.",
+            "Turn it on and go wow your cat. Cats love cursor trails. Science. Probably.",
+            "This toggle transforms your cursor from a boring arrow into a traveling sparkle disaster. Upgrade accepted.",
+        ],
+        'dumbed-down': [
+            "Make a colorful trail follow your mouse pointer.",
+            "Turn on to see sparkly dots follow your mouse cursor.",
+            "Cursor trails are fun decorative effects — they don't slow down your computer.",
+        ],
     },
     'trail_style': {
         'normal': [
@@ -1063,6 +1079,40 @@ _PANDA_TOOLTIPS = {
             "Choose your sparkle style. No wrong answers here. Except maybe that one. Yeah, that one's wrong. Kidding. Maybe.",
             "Trail options. From 'subtle nature' to 'galactic overkill'. Subtle is boring. Overkill is living. Choose life."
         ]
+    },
+    'cursor_trail_intensity': {
+        'normal': [
+            "Adjust how strong the cursor trail effect appears",
+            "Higher intensity means more and larger trail dots",
+            "Lower intensity gives a subtle, minimal trail",
+            "Level 1: barely-there whisper of a trail",
+            "Level 5: balanced trail — visible but not overwhelming",
+            "Level 10: maximum trail — full sparkle mode",
+            "Drag right for more dramatic effect",
+            "Drag left for a subtler, professional look",
+            "Intensity also controls how long the trail lingers",
+            "Find the right balance for your screen size and preference",
+        ],
+        'vulgar': [
+            "Intensity slider. 1 = barely there, like your attention span. 10 = blinding chaos. Pick wisely.",
+            "Crank this up for maximum cursor drama. Or don't. The trail won't take it personally. Much.",
+            "Trail intensity. Low = subtle unicorn fart. High = supernova every mouse move. Both valid life choices.",
+            "Turn it up. Make every mouse movement a spectacle. You've earned it, you pixel-herding legend.",
+            "Intensity knob. Dial it to 11 if you want. We don't judge. Okay we judge. But in an impressed way.",
+            "Low intensity for secret agents. High intensity for people who want to be noticed from space.",
+            "Slider goes brrr. More intensity = more dots = more sparkle = more you. Maximum YOU.",
+            "This is the 'how extra are you today' slider. I trust you'll choose correctly. Or chaotically. Same thing.",
+            "High intensity setting: 'I want my cursor to leave a permanent scar on the universe.' Achievement unlocked.",
+            "Set it to max. Go full glitter bomb. You only live once and your cursor should be legendary.",
+        ],
+        'dumbed-down': [
+            "Control how strong and visible the cursor trail is",
+            "Low intensity (1-3): subtle, barely-there effect",
+            "Medium intensity (4-6): balanced — visible but not distracting",
+            "High intensity (7-10): dramatic, eye-catching trail",
+            "Drag right for a more dramatic sparkle effect",
+            "Drag left for a more professional, subtle look",
+        ],
     },
     'hotkey_edit': {
         'normal': [

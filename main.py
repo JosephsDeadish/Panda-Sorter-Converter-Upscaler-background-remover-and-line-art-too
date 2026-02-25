@@ -3345,6 +3345,18 @@ class TextureSorterMainWindow(QMainWindow):
                 self.panda_mood_system.on_quest_completed()
         except Exception as _e:
             logger.debug(f"Mood system update failed for {tool_id}: {_e}")
+        # Achievement triggers per tool
+        try:
+            if self.achievement_system and success:
+                ach = self.achievement_system
+                if tool_id == 'upscaler':
+                    ach.increment_images_upscaled(1)
+                elif tool_id in ('bg_remover', 'background_remover'):
+                    ach.increment_bg_removed(1)
+                elif tool_id == 'lineart':
+                    ach.increment_lineart_converted(1)
+        except Exception as _e:
+            logger.debug(f"Achievement trigger failed for {tool_id}: {_e}")
 
     def set_operation_running(self, running: bool):
         """Update UI for operation running state (sorter widgets removed; no-op)."""

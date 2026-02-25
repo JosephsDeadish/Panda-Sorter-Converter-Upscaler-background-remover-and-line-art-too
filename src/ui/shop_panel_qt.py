@@ -468,6 +468,14 @@ class ShopPanelQt(QWidget):
             btn.setStyleSheet(self._pill_style(active=(btn.property("cat_id") == cat_id)))
         self.refresh_shop()
 
+    def showEvent(self, event):
+        """Refresh coin balance and items when the shop panel becomes visible."""
+        super().showEvent(event)
+        try:
+            self.refresh_shop()
+        except Exception:
+            pass
+
     def refresh_shop(self):
         """Refresh shop items and currency display."""
         if not SHOP_AVAILABLE or not self.shop_system:
