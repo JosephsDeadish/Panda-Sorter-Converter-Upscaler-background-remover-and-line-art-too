@@ -3360,6 +3360,10 @@ class TextureSorterMainWindow(QMainWindow):
                     ach.increment_bg_removed(1)
                 elif tool_id == 'lineart':
                     ach.increment_lineart_converted(1)
+                elif tool_id == 'converter':
+                    ach.increment_files_converted(1)
+                elif tool_id == 'quality':
+                    ach.increment_quality_checked(1)
         except Exception as _e:
             logger.debug(f"Achievement trigger failed for {tool_id}: {_e}")
 

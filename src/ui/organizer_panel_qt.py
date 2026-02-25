@@ -1814,9 +1814,12 @@ class OrganizerPanelQt(QWidget):
         scrollbar = self.log_text.verticalScrollBar()
         scrollbar.setValue(scrollbar.maximum())
 
-    def _set_tooltip(self, widget, text):
-        """Set tooltip on a widget using tooltip manager if available."""
-        if self.tooltip_manager and hasattr(self.tooltip_manager, 'set_tooltip'):
-            self.tooltip_manager.set_tooltip(widget, text)
+    def _set_tooltip(self, widget, text_or_id: str):
+        """Set tooltip on a widget — register with cycling system when a widget ID is given."""
+        if self.tooltip_manager:
+            tip = self.tooltip_manager.get_tooltip(text_or_id) if ' ' not in text_or_id else text_or_id
+            widget.setToolTip(tip)
+            if hasattr(self.tooltip_manager, 'register'):
+                self.tooltip_manager.register(widget, text_or_id if ' ' not in text_or_id else None)
         else:
-            widget.setToolTip(text)
+            widget.setToolTip(text_or_id)

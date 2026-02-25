@@ -691,6 +691,28 @@ class AchievementSystem:
             progress_max=1,
             reward={'type': 'currency', 'amount': 500, 'description': '500 Bamboo Bucks'}
         ),
+        'format_wizard': Achievement(
+            id='format_wizard',
+            name='Format Wizard',
+            description='Convert 100 files to a new format',
+            tier=AchievementTier.SILVER,
+            points=70,
+            icon='🔄',
+            category='tools',
+            progress_max=100,
+            reward={'type': 'currency', 'amount': 280, 'description': '280 Bamboo Bucks'}
+        ),
+        'format_rookie': Achievement(
+            id='format_rookie',
+            name='Format Rookie',
+            description='Convert your first file to a new format',
+            tier=AchievementTier.BRONZE,
+            points=15,
+            icon='🔁',
+            category='tools',
+            progress_max=1,
+            reward={'type': 'currency', 'amount': 40, 'description': '40 Bamboo Bucks'}
+        ),
 
         # Minigame achievements
         'first_game': Achievement(
@@ -899,6 +921,8 @@ class AchievementSystem:
         self.total_images_upscaled = 0
         self.total_bg_removed = 0
         self.total_lineart_converted = 0
+        self.total_files_converted = 0
+        self.total_quality_checked = 0
         
         # Initialize achievements
         self._initialize_achievements()
@@ -1104,6 +1128,17 @@ class AchievementSystem:
         self.total_lineart_converted += count
         self.update_progress('line_artist', self.total_lineart_converted)
 
+    def increment_files_converted(self, count: int = 1) -> None:
+        """Increment format-converter file count and update related achievements."""
+        self.total_files_converted += count
+        self.update_progress('format_rookie', self.total_files_converted)
+        self.update_progress('format_wizard', self.total_files_converted)
+
+    def increment_quality_checked(self, count: int = 1) -> None:
+        """Increment quality-checker image count and update related achievements."""
+        self.total_quality_checked += count
+        self.update_progress('quality_inspector', self.total_quality_checked)
+
     def get_achievement(self, achievement_id: str) -> Optional[Achievement]:
         """
         Get achievement by ID.
@@ -1268,6 +1303,8 @@ class AchievementSystem:
                     'total_images_upscaled': self.total_images_upscaled,
                     'total_bg_removed': self.total_bg_removed,
                     'total_lineart_converted': self.total_lineart_converted,
+                    'total_files_converted': self.total_files_converted,
+                    'total_quality_checked': self.total_quality_checked,
                 },
                 'achievements': {}
             }
@@ -1322,6 +1359,8 @@ class AchievementSystem:
             self.total_images_upscaled = stats.get('total_images_upscaled', 0)
             self.total_bg_removed = stats.get('total_bg_removed', 0)
             self.total_lineart_converted = stats.get('total_lineart_converted', 0)
+            self.total_files_converted = stats.get('total_files_converted', 0)
+            self.total_quality_checked = stats.get('total_quality_checked', 0)
             
             # Load achievement data
             achievements_data = save_data.get('achievements', {})
@@ -1354,6 +1393,8 @@ class AchievementSystem:
             self.total_images_upscaled = 0
             self.total_bg_removed = 0
             self.total_lineart_converted = 0
+            self.total_files_converted = 0
+            self.total_quality_checked = 0
 
             logger.info("Reset all achievement progress")
     

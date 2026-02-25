@@ -7139,8 +7139,72 @@ class TooltipVerbosityManager:
                 "silueta is faster and smaller; good for quick results",
                 "Different models have different strengths — try a few to compare",
             ],
+            # Organizer widget IDs
+            'ai_suggestion_label': [
+                "AI-predicted category for this texture based on visual analysis",
+                "The CLIP model classified this texture into this category",
+                "This is the AI's best guess — click 👍 to confirm or 👎 to correct",
+                "AI suggestion gets smarter with your feedback over time",
+                "The confidence bar shows how certain the AI is about this classification",
+            ],
+            'ai_confidence_label': [
+                "How confident the AI is in its category prediction (0–100%)",
+                "Higher confidence means the AI is more certain",
+                "Low confidence suggests the image may fit multiple categories",
+                "You can still override the AI regardless of confidence",
+                "Confidence improves as you give the AI more feedback",
+            ],
+            'feedback_good_button': [
+                "Confirm the AI's suggestion — train the model to be more accurate",
+                "Click 👍 to tell the AI it got this one right",
+                "Positive feedback helps the AI learn your file naming patterns",
+                "Confirming correct predictions improves future accuracy",
+                "Give feedback to personalise the AI's classifications",
+            ],
+            'feedback_bad_button': [
+                "Reject the AI's suggestion and choose the correct category",
+                "Click 👎 to correct the AI and select the right folder",
+                "Negative feedback teaches the AI what NOT to classify this as",
+                "Correcting errors makes the AI smarter for similar textures",
+                "The AI will update its model based on your correction",
+            ],
+            'recursive_search_checkbox': [
+                "Also search inside sub-folders of the selected input folder",
+                "When checked, textures in sub-directories are included",
+                "Uncheck this to only process files in the top-level folder",
+                "Useful for processing an entire project folder tree at once",
+                "Recursive search can find hundreds of textures across deep folder structures",
+            ],
+            'input_archive_checkbox': [
+                "Also process textures from ZIP/RAR/7z archive files in the input folder",
+                "When checked, compressed archives are extracted and scanned",
+                "Useful for game asset packs that ship as zip files",
+                "Archives are extracted to a temp folder, processed, then cleaned up",
+                "Disable if you only want to process loose image files",
+            ],
+            'output_archive_checkbox': [
+                "Bundle the output files into a ZIP archive instead of loose folders",
+                "When checked, organised results are packed into a single ZIP",
+                "Useful for sharing or uploading sorted texture sets",
+                "The output ZIP will mirror the folder structure of sorted output",
+                "Disable to keep organised files as loose folders (default)",
+            ],
+            'manual_override_input': [
+                "Type a custom folder name to manually override the AI's suggestion",
+                "Enter the exact folder path to force this texture into",
+                "Use this to correct a wrong AI classification permanently",
+                "Manual overrides are saved and applied to similar textures in future",
+                "Leave blank to use the AI suggestion",
+            ],
+            'folder_suggestions_list': [
+                "Click a suggested folder to use it as the classification target",
+                "These are the AI's top-5 category matches for this texture",
+                "The percentage shows how well each category matches",
+                "Choose any suggestion or type a custom folder in the box above",
+                "Suggestions are ranked by confidence score",
+            ],
         }
-        
+
         # Merge tooltip variants from the inlined tooltip definitions
         try:
             for widget_id, tooltip_dict in _PANDA_TOOLTIPS.items():
@@ -8234,6 +8298,43 @@ class TooltipVerbosityManager:
                 "Try u2net first — if it doesn't look great, try another!",
                 "Different AI models are better at different types of images. "
                 "u2net is general-purpose. birefnet-general gives higher quality but takes longer.",
+            ],
+            # Organizer widget IDs
+            'ai_suggestion_label': [
+                "This shows the AI's best guess for which folder this texture should go into. "
+                "Click the 👍 button if it's right, or 👎 to correct it!",
+            ],
+            'ai_confidence_label': [
+                "This percentage shows how SURE the AI is about its suggestion. "
+                "100% means very confident. 30% means it's not sure — double check!",
+            ],
+            'feedback_good_button': [
+                "Click 👍 to tell the AI it guessed the right folder! "
+                "This makes it smarter over time — like training a helpful puppy.",
+            ],
+            'feedback_bad_button': [
+                "Click 👎 if the AI guessed the WRONG folder. "
+                "You can then pick the right one so it learns from its mistake.",
+            ],
+            'recursive_search_checkbox': [
+                "Tick this box to also look INSIDE sub-folders. "
+                "Leave it ticked if your textures are spread across many folders.",
+            ],
+            'input_archive_checkbox': [
+                "Tick this to let the Organizer open ZIP files and process the textures inside. "
+                "Useful if your assets came in a zip pack.",
+            ],
+            'output_archive_checkbox': [
+                "Tick this if you want all the sorted output files bundled into a single ZIP. "
+                "Useful if you want to share or back up the sorted results.",
+            ],
+            'manual_override_input': [
+                "Type the folder name here if you want to put this texture in a SPECIFIC place "
+                "instead of using what the AI suggested.",
+            ],
+            'folder_suggestions_list': [
+                "These are the AI's top picks for where this texture should go. "
+                "Click any of them to use that folder, or type your own above.",
             ],
         }
 
@@ -9413,8 +9514,72 @@ class TooltipVerbosityManager:
                 "Model dropdown. birefnet-general is impressive if you downloaded it. u2net works right out of the box.",
                 "Which AI brain do you want doing the surgery? Pick one. They're all smarter than most humans.",
             ],
+            # Organizer profane widget IDs
+            'ai_suggestion_label': [
+                "The AI looked at your texture and made its best guess. Is it right? Is it wrong? WHO KNOWS. That's why there are feedback buttons, genius.",
+                "AI classification result. The neural network stared into your texture's soul and said 'this goes HERE'. Argue with it if you dare.",
+                "This is the AI's answer. Sometimes it's brilliant. Sometimes it's fucking stupid. The 👍👎 buttons are your power.",
+                "AI suggestion label. The model analysed your file and spat out a category. Could be perfect. Could be horseshit.",
+                "Your AI classification is RIGHT HERE. If it's wrong, that's what the feedback buttons are for. USE THEM.",
+            ],
+            'ai_confidence_label': [
+                "Confidence score. 90%+ means the AI is basically certain. 30% means the AI is guessing and knows it.",
+                "How sure is the AI? Low confidence = the image is ambiguous or the model hasn't seen stuff like this before.",
+                "Confidence percentage. High = AI is very sure. Low = AI is taking a wild-ass guess and hoping for the best.",
+                "The AI's certainty level. Under 50%? Override that shit manually. The AI is lost.",
+                "Confidence number. The closer to 100 the better. The closer to 0 the more you should take over.",
+            ],
+            'feedback_good_button': [
+                "Hit 👍 if the AI got it right! You're training a neural network like a fucking Pokemon trainer.",
+                "Positive feedback! Tell the AI it did good! It can't feel pride but you can pretend it can.",
+                "CONFIRM THE AI'S CLASSIFICATION. Hit 👍. The model improves. Science happens. Textures get sorted.",
+                "Good feedback. Reinforces the model's decision. Think of it as giving the AI a tiny cookie.",
+                "👍 = yes you're right you brilliant algorithm. The AI lives for this validation.",
+            ],
+            'feedback_bad_button': [
+                "Hit 👎 if the AI is WRONG and correct it! You're the teacher now. The AI is a disappointing student.",
+                "BAD AI! Wrong answer! Hit 👎 and pick the right folder. The model will learn from its embarrassing mistake.",
+                "Negative feedback. The AI fucked up. Tell it. Pick the right folder. Make it learn.",
+                "👎 = wrong you dumb algorithm, try again. The feedback loop of shame begins.",
+                "Correction mode activated. The AI guessed wrong. You know better. Prove it. Click 👎.",
+            ],
+            'recursive_search_checkbox': [
+                "Search sub-folders too. Because apparently your textures live in NESTED CHAOS like a folder hoarder.",
+                "Recursive search. Check this if your textures are buried 12 folders deep like you ENJOY making things hard.",
+                "Dig into sub-directories. For people who organise files like a deranged filing cabinet explosion.",
+                "Check this to also scan inside folders. Because apparently a flat structure was too SANE.",
+                "Sub-folder search. When your file organisation is a crime scene, this option saves the day.",
+            ],
+            'input_archive_checkbox': [
+                "Extract and process ZIP files too. Because downloading game assets in a zip and NOT extracting is peak laziness.",
+                "Archive processing. Let the app open your zip files automatically. One less thing for you to mess up.",
+                "Read from archives. Zip files, RAR files, whatever compressed nightmare you're dealing with. Handled.",
+                "Process zipped assets directly. Because some people ship everything in a zip file FOR SOME REASON.",
+                "Archive input mode. Your textures are trapped in a zip? This frees them. Automatically.",
+            ],
+            'output_archive_checkbox': [
+                "Bundle sorted output into a ZIP. For when you want to share organised textures without sharing the whole folder.",
+                "Output archive mode. Everything sorted and neatly zipped for you. You're welcome, you lazy genius.",
+                "Zip the output. Handy for backups or sending sorted assets to someone without clogging their files.",
+                "Pack results into a zip. Keeps things tidy. Your sorted textures, bagged and tagged.",
+                "Archive output. One zip file with all your sorted assets. Clean. Professional. Efficient.",
+            ],
+            'manual_override_input': [
+                "Override the AI's folder choice. Because sometimes the AI is wrong and YOU know better. Type the folder.",
+                "Manual folder override. Type where this texture should ACTUALLY go. Correct the AI's nonsense.",
+                "Force-assign a folder. The AI suggested something dumb? Type the right folder. Take control.",
+                "Manual classification. The AI gave up? You didn't. Type the folder path you actually want.",
+                "Override field. When the AI is confidently wrong, this is your weapon. Use it.",
+            ],
+            'folder_suggestions_list': [
+                "Top AI suggestions. Click one to use it. Or scroll through and pretend to think about it. Your choice.",
+                "AI's top picks for folder placement. Ranked by how sure the model is. Click one. Done.",
+                "Folder suggestion list. The AI's best guesses, sorted by confidence. One click to pick.",
+                "Here are the options. Click the right one. If none are right, type it yourself above.",
+                "Classification suggestions. These are the AI's best ideas. They might even be correct.",
+            ],
         }
-        
+
         # Merge tooltip variants from the inlined tooltip definitions
         try:
             for widget_id, tooltip_dict in _PANDA_TOOLTIPS.items():
