@@ -5959,7 +5959,7 @@ def main():
         from features.tutorial_system import TutorialManager
         _tm = TutorialManager(master_window=window, config=config)
         if _tm.should_show_tutorial():
-            QTimer.singleShot(800, lambda: _tm.start_tutorial(window))
+            QTimer.singleShot(800, lambda: _tm.start_tutorial())
     except Exception as _te:
         logger.debug(f"Tutorial check skipped: {_te}")
 
