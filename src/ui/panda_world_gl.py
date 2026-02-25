@@ -65,6 +65,20 @@ try:
 except (ImportError, OSError, RuntimeError):
     GL_AVAILABLE = False
 
+# Set default GL surface format at module load time if Qt is available.
+# This ensures CompatibilityProfile (legacy GL) is requested before any
+# QOpenGLWidget in this module is instantiated.
+if PYQT_AVAILABLE and QOGL_AVAILABLE:
+    try:
+        _wfmt = QSurfaceFormat()
+        _wfmt.setVersion(2, 1)
+        _wfmt.setProfile(QSurfaceFormat.OpenGLContextProfile.CompatibilityProfile)
+        _wfmt.setSamples(4)
+        _wfmt.setDepthBufferSize(24)
+        QSurfaceFormat.setDefaultFormat(_wfmt)
+    except Exception:
+        pass
+
 # ── Colours ───────────────────────────────────────────────────────────────────
 _SKY    = (0.53, 0.81, 0.92)
 _GRASS  = (0.35, 0.65, 0.28)

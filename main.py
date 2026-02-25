@@ -568,6 +568,7 @@ class TextureSorterMainWindow(QMainWindow):
         self._achievement_panel = None  # AchievementDisplayWidget ref (for refresh on unlock)
         self._achievement_tab_index = -1  # panda_tabs index for the Achievements tab
         self._backpack_merged_panel = None  # Merged Inventory+Widgets QTabWidget (built once)
+        self._park_panel = None         # MinigamePanelQt — cached (park destination)
         self.level_system = None        # UserLevelSystem – XP / levelling
         self.auto_backup = None         # AutoBackupSystem – periodic state backup
         self.unlockables_system = None  # UnlockablesSystem – cursors/themes/outfits
@@ -1538,6 +1539,8 @@ class TextureSorterMainWindow(QMainWindow):
                         _stack.setCurrentIndex(0)
                     except Exception:
                         pass
+                    # Null out the broken widget ref so _go_outside() does not query it
+                    self._bedroom_widget = None
                 bedroom_gl.gl_failed.connect(_on_bedroom_gl_failed)
             stack.addWidget(bedroom_gl)   # index 0
 
@@ -4540,27 +4543,32 @@ class TextureSorterMainWindow(QMainWindow):
             logger.debug(f"_on_world_destination_selected({destination}): {_e}")
 
     def _on_go_to_park(self) -> None:
-        """Show the park sub-panel (currently minigames / free play area)."""
+        """Show the park sub-panel (minigames / free play area) — cached like shop."""
         try:
-            from ui.minigame_panel_qt import MinigamePanelQt
-            from features.minigame_system import MiniGameManager
-            mgr = MiniGameManager()
-            panel = MinigamePanelQt(minigame_manager=mgr, tooltip_manager=self.tooltip_manager)
-            self._home_stack_owned.append(panel)
-            self._show_home_sub_panel(panel, '🌲 Panda Park')
+            if self._park_panel is None:
+                from ui.minigame_panel_qt import MinigamePanelQt
+                from features.minigame_system import MiniGameManager
+                mgr = MiniGameManager()
+                self._park_panel = MinigamePanelQt(
+                    minigame_manager=mgr, tooltip_manager=self.tooltip_manager
+                )
+                # NOT added to _home_stack_owned — persistent panel re-used across visits.
+            self._show_home_sub_panel(self._park_panel, '🌲 Panda Park')
             if self.panda_widget:
                 QTimer.singleShot(800, lambda: self.panda_widget.set_animation_state('celebrating'))
         except Exception as _e:
             logger.debug(f"_on_go_to_park: {_e}")
-            park_label = QLabel(
-                "🌲 Panda Park\n\n"
-                "🐼 Panda romps around the park!\n\n"
-                "Minigames coming soon…"
-            )
-            park_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            park_label.setStyleSheet("background:#1a2a1a; color:#aaddaa; font-size:14px;")
-            self._home_stack_owned.append(park_label)
-            self._show_home_sub_panel(park_label, '🌲 Panda Park')
+            if self._park_panel is None:
+                park_label = QLabel(
+                    "🌲 Panda Park\n\n"
+                    "🐼 Panda romps around the park!\n\n"
+                    "Minigames coming soon…"
+                )
+                park_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+                park_label.setStyleSheet("background:#1a2a1a; color:#aaddaa; font-size:14px;")
+                self._park_panel = park_label
+                # NOT added to _home_stack_owned — persistent label re-used across visits.
+            self._show_home_sub_panel(self._park_panel, '🌲 Panda Park')
 
     def _show_home_sub_panel(self, widget: 'QWidget', title: str) -> None:
         """Slide *widget* into page 1 of the Home stack, update tab + back-bar labels."""

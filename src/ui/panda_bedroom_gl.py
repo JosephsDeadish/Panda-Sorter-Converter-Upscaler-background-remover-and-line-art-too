@@ -24,6 +24,13 @@ try:
     from OpenGL.GL import *
     from OpenGL.GLU import *
     OPENGL_AVAILABLE = True
+    # Set default GL format at module load time (belt-and-suspenders alongside main())
+    _fmt = QSurfaceFormat()
+    _fmt.setVersion(2, 1)
+    _fmt.setProfile(QSurfaceFormat.OpenGLContextProfile.CompatibilityProfile)
+    _fmt.setSamples(4)
+    _fmt.setDepthBufferSize(24)
+    QSurfaceFormat.setDefaultFormat(_fmt)
 except (ImportError, OSError, RuntimeError):
     OPENGL_AVAILABLE = False
     QWidget = object          # type: ignore[assignment,misc]

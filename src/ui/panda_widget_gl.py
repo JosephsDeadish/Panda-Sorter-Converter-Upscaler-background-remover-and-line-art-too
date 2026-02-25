@@ -26,6 +26,16 @@ try:
     from OpenGL.GLU import *
     import numpy as np
     QT_AVAILABLE = True
+    # Set default GL format at MODULE LOAD TIME — Qt requires this before the
+    # first QOpenGLWidget is constructed (calling setDefaultFormat() in __init__
+    # is too late if the GL context is created by Qt before the first paintGL).
+    _fmt = QSurfaceFormat()
+    _fmt.setVersion(2, 1)
+    _fmt.setProfile(QSurfaceFormat.OpenGLContextProfile.CompatibilityProfile)
+    _fmt.setSamples(4)
+    _fmt.setDepthBufferSize(24)
+    _fmt.setStencilBufferSize(8)
+    QSurfaceFormat.setDefaultFormat(_fmt)
 except (ImportError, OSError, RuntimeError):
     QT_AVAILABLE = False
     QWidget = object
