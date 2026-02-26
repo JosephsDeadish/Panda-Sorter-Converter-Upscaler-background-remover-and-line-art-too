@@ -36,6 +36,14 @@ except (ImportError, OSError, RuntimeError):
         def emit(self, *a): pass
     def pyqtSignal(*a): return _SignalStub()  # noqa: E301
 
+# Attempt to import TrailPreviewWidget for the cursor trail live preview
+try:
+    from ui.trail_preview_qt import TrailPreviewWidget as _CursorTrailPreviewWidget
+    _CURSOR_TRAIL_PREVIEW_AVAILABLE = True
+except Exception:
+    _CursorTrailPreviewWidget = None  # type: ignore[assignment,misc]
+    _CURSOR_TRAIL_PREVIEW_AVAILABLE = False
+
 
 class ColorWheelWidget(QWidget):
     """Custom color picker widget for accent color selection"""
@@ -248,10 +256,6 @@ class SettingsPanelQt(QWidget):
         cursor_layout.addWidget(cursor_label)
         cursor_layout.addWidget(self.appearance_cursor_combo)
 
-        self.appearance_trail_check = QCheckBox("Enable Cursor Trail")
-        self.appearance_trail_check.stateChanged.connect(lambda: self.on_setting_changed('ui', 'cursor_trail'))
-        cursor_layout.addWidget(self.appearance_trail_check)
-
         cursor_group.setLayout(cursor_layout)
         layout.addWidget(cursor_group)
 
@@ -402,6 +406,19 @@ class SettingsPanelQt(QWidget):
         trail_layout.addWidget(intensity_label)
         trail_layout.addWidget(self.cursor_trail_intensity)
         self.set_tooltip(self.cursor_trail_intensity, 'cursor_trail_intensity')
+
+        # Live cursor trail preview
+        if _CURSOR_TRAIL_PREVIEW_AVAILABLE and _CursorTrailPreviewWidget is not None:
+            try:
+                self._cursor_trail_preview = _CursorTrailPreviewWidget()
+                self._cursor_trail_preview.setFixedHeight(120)
+                trail_layout.addWidget(QLabel("Preview (move mouse over to test):"))
+                trail_layout.addWidget(self._cursor_trail_preview)
+            except Exception as _pe:
+                logger.debug("Cursor trail preview could not be created: %s", _pe)
+                self._cursor_trail_preview = None
+        else:
+            self._cursor_trail_preview = None
         
         trail_group.setLayout(trail_layout)
         layout.addWidget(trail_group)
@@ -1376,11 +1393,23 @@ class SettingsPanelQt(QWidget):
                 # _apply_cursor_trail() via on_settings_changed; no extra action needed here.
                 if self.main_window and hasattr(self.main_window, '_apply_cursor_trail'):
                     self.main_window._apply_cursor_trail(bool(value))
+                # Update preview widget visibility
+                if hasattr(self, '_cursor_trail_preview') and self._cursor_trail_preview is not None:
+                    if bool(value):
+                        self._cursor_trail_preview.view.start_animation()
+                    else:
+                        self._cursor_trail_preview.view.stop_animation()
             elif section == 'ui' and key == 'cursor_trail_intensity':
                 if self.main_window and hasattr(self.main_window, '_cursor_trail_overlay'):
                     overlay = self.main_window._cursor_trail_overlay
                     if overlay is not None and hasattr(overlay, 'set_intensity'):
                         overlay.set_intensity(int(value))
+                # Update preview intensity
+                if hasattr(self, '_cursor_trail_preview') and self._cursor_trail_preview is not None:
+                    try:
+                        self._cursor_trail_preview.set_trail_length(int(value))
+                    except Exception:
+                        pass
             
         except Exception as e:
             logger.error(f"Error saving setting {section}.{key}: {e}", exc_info=True)
