@@ -14,7 +14,8 @@ logger = logging.getLogger(__name__)
 try:
     from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QPushButton,
                                   QLabel, QSlider, QFileDialog, QSpinBox, QCheckBox,
-                                  QGroupBox, QComboBox, QMessageBox)
+                                  QGroupBox, QComboBox, QMessageBox, QSplitter,
+                                  QRadioButton, QScrollArea)
     from PyQt6.QtCore import Qt, pyqtSignal
     from PyQt6.QtGui import QPixmap
     PYQT_AVAILABLE = True
@@ -148,32 +149,61 @@ class BackgroundRemoverPanelQt(QWidget):
         self.setup_ui()
     
     def setup_ui(self):
-        """Create the UI layout."""
-        layout = QVBoxLayout(self)
-        
-        # Title
+        """Create the UI layout with left-control / right-preview splitter."""
+        root = QVBoxLayout(self)
+        root.setContentsMargins(6, 6, 6, 6)
+        root.setSpacing(4)
+        self.setMinimumSize(700, 480)
+
+        # Title row
         title = QLabel("🎨 Background Remover")
-        title.setStyleSheet("font-size: 18px; font-weight: bold;")
-        layout.addWidget(title)
-        
-        # File operations
+        title.setStyleSheet("font-size: 16px; font-weight: bold;")
+        root.addWidget(title)
+
+        # ── Main splitter: LEFT = controls, RIGHT = preview ────────────────
+        splitter = QSplitter(Qt.Orientation.Horizontal)
+        splitter.setChildrenCollapsible(False)
+        root.addWidget(splitter, stretch=1)
+
+        # ── LEFT: controls in a scroll area ───────────────────────────────
+        left_scroll = QScrollArea()
+        left_scroll.setWidgetResizable(True)
+        left_scroll.setMinimumWidth(320)
+        left_scroll.setMaximumWidth(480)
+        left_widget = QWidget()
+        layout = QVBoxLayout(left_widget)
+        layout.setContentsMargins(4, 4, 4, 4)
+        layout.setSpacing(6)
+        left_scroll.setWidget(left_widget)
+        splitter.addWidget(left_scroll)
+
+        # ── RIGHT: preview ─────────────────────────────────────────────────
+        right_widget = QWidget()
+        right_layout = QVBoxLayout(right_widget)
+        right_layout.setContentsMargins(4, 4, 4, 4)
+        right_layout.setSpacing(4)
+        splitter.addWidget(right_widget)
+        splitter.setStretchFactor(0, 0)
+        splitter.setStretchFactor(1, 1)
+
+        # ── File operations ────────────────────────────────────────────────
         file_layout = QHBoxLayout()
-        
+
         load_btn = QPushButton("📁 Load Image")
         load_btn.clicked.connect(self.load_image)
         self._set_tooltip(load_btn, "Load an image file to remove its background")
         file_layout.addWidget(load_btn)
-        
+
         save_btn = QPushButton("💾 Save Result")
         save_btn.clicked.connect(self.save_image)
         self._set_tooltip(save_btn, "Save the processed image with transparent background")
         file_layout.addWidget(save_btn)
-        
+
         layout.addLayout(file_layout)
-        
+
         # Archive options
         archive_layout = QHBoxLayout()
-        
+
         self.archive_input_cb = QCheckBox("📦 Input is Archive")
         if not ARCHIVE_AVAILABLE:
             self.archive_input_cb.setEnabled(False)
@@ -183,7 +213,7 @@ class BackgroundRemoverPanelQt(QWidget):
             self.archive_input_cb.setToolTip("Extract images from archive file (ZIP, 7Z, RAR, TAR)")
             self._set_tooltip(self.archive_input_cb, 'input_archive_checkbox')
         archive_layout.addWidget(self.archive_input_cb)
-        
+
         self.archive_output_cb = QCheckBox("📦 Export to Archive")
         if not ARCHIVE_AVAILABLE:
             self.archive_output_cb.setEnabled(False)
@@ -193,42 +223,88 @@ class BackgroundRemoverPanelQt(QWidget):
             self.archive_output_cb.setToolTip("Save processed images to archive file")
             self._set_tooltip(self.archive_output_cb, 'output_archive_checkbox')
         archive_layout.addWidget(self.archive_output_cb)
-        
+
         archive_layout.addStretch()
         layout.addLayout(archive_layout)
-        
-        # Tools - Using checkboxes for toggle selection
-        tools_group = QGroupBox("🛠️ Tools")
+
+        # ── AI Backend selection ───────────────────────────────────────────
+        backend_group = QGroupBox("🔧 Removal Backend")
+        backend_layout = QVBoxLayout(backend_group)
+        backend_layout.setSpacing(2)
+
+        # Check which backends are available
+        _rembg_ok = False
+        _ort_ok   = False
+        try:
+            import rembg  # noqa: F401
+            _rembg_ok = True
+        except ImportError:
+            pass
+        except Exception:
+            pass
+        except SystemExit:
+            # rembg.bg calls sys.exit(1) when its ONNX DLL fails to init —
+            # catch it here so the UI check doesn't kill the app.
+            pass
+        try:
+            import onnxruntime  # noqa: F401
+            _ort_ok = True
+        except (ImportError, Exception):
+            pass
+
+        self._backend_rembg_rb = QRadioButton("rembg (recommended)" + ("" if _rembg_ok else " — not installed"))
+        self._backend_ort_rb   = QRadioButton("Direct onnxruntime (EXE-safe fallback)" + ("" if _ort_ok else " — not installed"))
+
+        if not _rembg_ok:
+            self._backend_rembg_rb.setEnabled(False)
+            self._backend_rembg_rb.setToolTip("Install rembg:  pip install 'rembg[cpu]'")
+        if not _ort_ok:
+            self._backend_ort_rb.setEnabled(False)
+            self._backend_ort_rb.setToolTip("Install onnxruntime:  pip install onnxruntime")
+
+        # Default: prefer rembg if available, else onnxruntime
+        if _rembg_ok:
+            self._backend_rembg_rb.setChecked(True)
+        elif _ort_ok:
+            self._backend_ort_rb.setChecked(True)
+        else:
+            self._backend_rembg_rb.setChecked(True)  # checked but disabled
+
+        backend_layout.addWidget(self._backend_rembg_rb)
+        backend_layout.addWidget(self._backend_ort_rb)
+        layout.addWidget(backend_group)
+
+        # ── Tools ─────────────────────────────────────────────────────────
+        tools_group = QGroupBox("🛠️ Manual Tools")
         tools_layout = QVBoxLayout()
-        
-        # Tool selection checkboxes
+
         tool_select_layout = QHBoxLayout()
-        
+
         self.brush_cb = QCheckBox("🖌️ Brush")
         self.brush_cb.setChecked(True)
         self.brush_cb.toggled.connect(lambda checked: self.select_tool("brush") if checked else None)
         self._set_tooltip(self.brush_cb, "Paint to keep areas visible")
         tool_select_layout.addWidget(self.brush_cb)
-        
+
         self.eraser_cb = QCheckBox("🧹 Eraser")
         self.eraser_cb.toggled.connect(lambda checked: self.select_tool("eraser") if checked else None)
         self._set_tooltip(self.eraser_cb, "Erase to make areas transparent")
         tool_select_layout.addWidget(self.eraser_cb)
-        
+
         self.fill_cb = QCheckBox("🪣 Fill")
         self.fill_cb.toggled.connect(lambda checked: self.select_tool("fill") if checked else None)
         self._set_tooltip(self.fill_cb, "Fill connected areas with transparency")
         tool_select_layout.addWidget(self.fill_cb)
-        
+
         tools_layout.addLayout(tool_select_layout)
         tools_group.setLayout(tools_layout)
         layout.addWidget(tools_group)
-        
+
         # Brush size
         size_group = QGroupBox("✏️ Brush Size")
         size_layout = QHBoxLayout()
         size_layout.addWidget(QLabel("Size:"))
-        
+
         self.size_slider = QSlider(Qt.Orientation.Horizontal)
         self.size_slider.setMinimum(1)
         self.size_slider.setMaximum(50)
@@ -236,7 +312,7 @@ class BackgroundRemoverPanelQt(QWidget):
         self.size_slider.valueChanged.connect(self.on_size_changed)
         self._set_tooltip(self.size_slider, "Adjust brush size (1-50 pixels)")
         size_layout.addWidget(self.size_slider)
-        
+
         self.size_spinbox = QSpinBox()
         self.size_spinbox.setMinimum(1)
         self.size_spinbox.setMaximum(50)
@@ -244,11 +320,11 @@ class BackgroundRemoverPanelQt(QWidget):
         self.size_spinbox.valueChanged.connect(self.on_size_changed)
         self._set_tooltip(self.size_spinbox, "Brush size value")
         size_layout.addWidget(self.size_spinbox)
-        
+
         size_group.setLayout(size_layout)
         layout.addWidget(size_group)
-        
-        # AI Model selection — shown above the process buttons
+
+        # AI Model selection
         model_group = QGroupBox("🤖 AI Model")
         model_layout = QHBoxLayout()
         model_layout.addWidget(QLabel("Model:"))
@@ -270,67 +346,74 @@ class BackgroundRemoverPanelQt(QWidget):
         model_group.setLayout(model_layout)
         layout.addWidget(model_group)
 
-        # Processing options
+        # Processing buttons
         process_layout = QHBoxLayout()
-        
+
         auto_btn = QPushButton("🤖 Auto Remove")
         auto_btn.clicked.connect(self.auto_remove_background)
         self._set_tooltip(auto_btn, 'bg_remove_button')
         process_layout.addWidget(auto_btn)
-        
+
         clear_btn = QPushButton("🗑️ Clear All")
         clear_btn.clicked.connect(self.clear_all)
         self._set_tooltip(clear_btn, "Clear all edits and start over")
         process_layout.addWidget(clear_btn)
-        
+
         layout.addLayout(process_layout)
-        
+
         # Undo/Redo
         history_layout = QHBoxLayout()
-        
+
         undo_btn = QPushButton("↶ Undo")
         undo_btn.clicked.connect(self.undo)
         self._set_tooltip(undo_btn, "Undo last action (Ctrl+Z)")
         history_layout.addWidget(undo_btn)
-        
+
         redo_btn = QPushButton("↷ Redo")
         redo_btn.clicked.connect(self.redo)
         self._set_tooltip(redo_btn, "Redo last undone action (Ctrl+Y)")
         history_layout.addWidget(redo_btn)
-        
+
         layout.addLayout(history_layout)
-        
-        # Live Preview - Before/After Comparison
+        layout.addStretch()
+
+        # ── RIGHT: Live Preview ────────────────────────────────────────────
+        preview_title = QLabel("👁️ Live Preview (Before / After)")
+        preview_title.setStyleSheet("font-weight: bold; font-size: 13px;")
+        right_layout.addWidget(preview_title)
+
         if SLIDER_AVAILABLE:
-            preview_group = QGroupBox("👁️ Live Preview (Before/After)")
-            preview_layout = QVBoxLayout()
-            
             # Comparison mode selector
             mode_layout = QHBoxLayout()
-            mode_layout.addWidget(QLabel("Comparison Mode:"))
+            mode_layout.addWidget(QLabel("Mode:"))
             self.comparison_mode_combo = QComboBox()
             self.comparison_mode_combo.addItems(["Slider", "Toggle", "Overlay"])
             self.comparison_mode_combo.currentTextChanged.connect(self._on_comparison_mode_changed)
             self._set_tooltip(self.comparison_mode_combo, "Choose how to compare before/after images")
             mode_layout.addWidget(self.comparison_mode_combo)
             mode_layout.addStretch()
-            preview_layout.addLayout(mode_layout)
-            
-            # Comparison slider widget
+
+            pan_hint = QLabel("Scroll: zoom  •  Ctrl+drag: pan  •  Drag handle: compare")
+            pan_hint.setStyleSheet("color: #888; font-size: 10px;")
+            mode_layout.addWidget(pan_hint)
+            right_layout.addLayout(mode_layout)
+
             self.preview_widget = ComparisonSliderWidget()
             self.preview_widget.setMinimumHeight(300)
             self._set_tooltip(self.preview_widget, "Drag slider to compare original and processed images")
-            # Log slider position changes for debugging
             if hasattr(self.preview_widget, 'slider_moved'):
                 self.preview_widget.slider_moved.connect(
                     lambda pos: logger.debug(f"BG remover preview slider: {pos}%")
                 )
-            preview_layout.addWidget(self.preview_widget)
-            
-            preview_group.setLayout(preview_layout)
-            layout.addWidget(preview_group)
-        
-        layout.addStretch()
+            right_layout.addWidget(self.preview_widget, stretch=1)
+        else:
+            no_preview = QLabel(
+                "⚠️ Live preview not available.\n\n"
+                "Install the comparison slider module to enable before/after comparison."
+            )
+            no_preview.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            no_preview.setStyleSheet("color: #aaa; font-size: 12px;")
+            right_layout.addWidget(no_preview, stretch=1)
     
     def load_image(self):
         """Load an image file or extract from archive."""
@@ -529,8 +612,14 @@ class BackgroundRemoverPanelQt(QWidget):
         try:
             import rembg  # noqa: F401
             rembg_available = True
-        except (ImportError, Exception, SystemExit):
+        except ImportError:
             pass
+        except Exception:
+            pass
+        except SystemExit:
+            # rembg.bg calls sys.exit(1) when its ONNX DLL fails to init —
+            # catch it here so the removal logic doesn't terminate the app.
+            logger.warning("rembg import raised SystemExit (likely DLL init failure) — treating as not available")
 
         try:
             import onnxruntime  # noqa: F401
@@ -538,6 +627,18 @@ class BackgroundRemoverPanelQt(QWidget):
             ort_available = True
         except (ImportError, Exception):
             pass
+
+        # Respect the user's explicit backend choice from the radio buttons
+        _rembg_rb = getattr(self, '_backend_rembg_rb', None)
+        _ort_rb   = getattr(self, '_backend_ort_rb', None)
+        if _rembg_rb is not None and _ort_rb is not None:
+            if _ort_rb.isChecked():
+                # User explicitly chose onnxruntime — skip rembg even if available
+                rembg_available = False
+            elif _rembg_rb.isChecked():
+                # User explicitly chose rembg — skip onnxruntime as primary path
+                # (onnxruntime fallback still applies if rembg fails)
+                pass
 
         if not rembg_available and not ort_available:
             QMessageBox.information(

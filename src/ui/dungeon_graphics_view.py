@@ -73,8 +73,13 @@ class DungeonGraphicsView(QGraphicsView):
     - Collision detection ready
     - Hardware accelerated
     """
-    
+
     def __init__(self, dungeon_data=None, parent=None, tooltip_manager=None):
+        if not PYQT_AVAILABLE:
+            raise ImportError(
+                "DungeonGraphicsView requires PyQt6.\n"
+                "Install with: pip install PyQt6"
+            )
         super().__init__(parent)
         
         self.dungeon = dungeon_data

@@ -1773,8 +1773,24 @@ class TextureSorterMainWindow(QMainWindow):
             logger.info("✅ Adventure/Dungeon panel added to panda tab")
         except Exception as e:
             logger.warning(f"Could not load dungeon panel: {e}")
-            label = QLabel(f"⚔️ Adventure Mode\n\nFailed to load dungeon panel.\n{type(e).__name__}: {e}")
+            from ui.dungeon_graphics_view import PYQT_AVAILABLE as _DUNGEON_QT
+            if not _DUNGEON_QT:
+                _err_msg = (
+                    "⚔️ Adventure Mode\n\n"
+                    "Requires PyQt6 to be installed.\n\n"
+                    "Install with:\n"
+                    "    pip install PyQt6\n\n"
+                    "Then restart the application."
+                )
+            else:
+                _err_msg = (
+                    f"⚔️ Adventure Mode\n\n"
+                    f"Failed to load dungeon panel.\n"
+                    f"{type(e).__name__}: {e}"
+                )
+            label = QLabel(_err_msg)
             label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            label.setWordWrap(True)
             panda_tabs.addTab(label, "⚔️ Adventure")
 
         # 9. Quests Tab
@@ -2745,6 +2761,35 @@ class TextureSorterMainWindow(QMainWindow):
                 border: 1px solid #333333;
             }}
             """
+        # Append interactive-element styling common to ALL themes.
+        # This ensures buttons, combo boxes, checkboxes, and spin boxes all show
+        # a pointer cursor so users can clearly tell they are clickable/changeable.
+        stylesheet += """
+        QPushButton {
+            cursor: pointer;
+        }
+        QComboBox {
+            cursor: pointer;
+        }
+        QCheckBox {
+            cursor: pointer;
+        }
+        QRadioButton {
+            cursor: pointer;
+        }
+        QTabBar::tab {
+            cursor: pointer;
+        }
+        QSlider {
+            cursor: pointer;
+        }
+        QListWidget::item {
+            cursor: pointer;
+        }
+        QTreeWidget::item {
+            cursor: pointer;
+        }
+        """
         self.setStyleSheet(stylesheet)
         self.apply_cursor()
         # Re-apply cursor trail on theme change (overlay may have been covered)

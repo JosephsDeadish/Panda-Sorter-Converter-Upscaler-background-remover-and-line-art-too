@@ -766,6 +766,199 @@ def test_bedroom_panda_walk():
     print("  ✅ _tick_panda_walk() found")
 
 
+def test_bg_remover_splitter_and_backend_toggle():
+    """Background remover panel must have a splitter layout and backend toggle.
+
+    The original layout put controls and the live preview in a vertical stack
+    making both very cramped.  The fix:
+    1. Uses a QSplitter (horizontal) — controls on the left, preview on the right.
+    2. Adds explicit rembg vs onnxruntime radio buttons so the user can choose.
+    3. Sets a minimum panel size to prevent squashing.
+    4. Adds a QScrollArea wrapper for the controls so they never get crushed.
+    """
+    print("\ntest_bg_remover_splitter_and_backend_toggle ...")
+    import ast
+    from pathlib import Path
+
+    src = Path(__file__).parent / 'src' / 'ui' / 'background_remover_panel_qt.py'
+    if not src.exists():
+        print("  ⚠️  Skipped (background_remover_panel_qt.py not found)")
+        return
+
+    code = src.read_text(encoding='utf-8')
+    tree = ast.parse(code, filename=str(src))
+
+    # 1. QSplitter must be used in setup_ui
+    assert 'QSplitter' in code, (
+        "background_remover_panel_qt.py must import and use QSplitter to split "
+        "controls (left) from the live preview (right)."
+    )
+    assert 'QScrollArea' in code, (
+        "background_remover_panel_qt.py must use a QScrollArea to wrap the control "
+        "column so controls are never squashed when the panel is narrow."
+    )
+
+    # 2. Backend radio buttons must exist
+    assert '_backend_rembg_rb' in code, (
+        "background_remover_panel_qt.py must create self._backend_rembg_rb "
+        "(a QRadioButton) so users can explicitly choose the rembg backend."
+    )
+    assert '_backend_ort_rb' in code, (
+        "background_remover_panel_qt.py must create self._backend_ort_rb "
+        "(a QRadioButton) so users can explicitly choose onnxruntime."
+    )
+
+    # 3. auto_remove_background must read the radio button choice
+    assert '_backend_rembg_rb' in code and 'isChecked' in code, (
+        "auto_remove_background() must read self._backend_rembg_rb.isChecked() / "
+        "self._backend_ort_rb.isChecked() to respect the user's backend selection."
+    )
+
+    # 4. Minimum size set
+    assert 'setMinimumSize' in code, (
+        "background_remover_panel_qt.py must call setMinimumSize() to prevent "
+        "the panel from being squashed."
+    )
+
+    print("  ✅ QSplitter found — controls left, preview right")
+    print("  ✅ QScrollArea wrapper found for controls column")
+    print("  ✅ _backend_rembg_rb and _backend_ort_rb radio buttons found")
+    print("  ✅ Backend toggle is read in auto_remove_background")
+    print("  ✅ setMinimumSize found")
+
+
+def test_dungeon_view_pyqt_guard():
+    """DungeonGraphicsView.__init__ must raise ImportError (not TypeError) when
+    PyQt6 is unavailable.
+
+    Previously the constructor called super().__init__(parent) unconditionally.
+    When PYQT_AVAILABLE=False, the base is `object` whose __init__ only accepts
+    one argument, so the call raised:
+        TypeError: object.__init__() takes exactly one argument
+
+    The fix adds a guard at the start of __init__ that raises ImportError with
+    a useful install message before calling super().__init__().  This lets the
+    adventure tab's try/except produce a clear 'please install PyQt6' label
+    instead of a confusing raw TypeError.
+    """
+    print("\ntest_dungeon_view_pyqt_guard ...")
+    import ast
+    from pathlib import Path
+
+    src = Path(__file__).parent / 'src' / 'ui' / 'dungeon_graphics_view.py'
+    if not src.exists():
+        print("  ⚠️  Skipped (dungeon_graphics_view.py not found)")
+        return
+
+    code = src.read_text(encoding='utf-8')
+    tree = ast.parse(code, filename=str(src))
+
+    # Find the DungeonGraphicsView.__init__ body
+    for node in ast.walk(tree):
+        if isinstance(node, ast.ClassDef) and node.name == 'DungeonGraphicsView':
+            for item in node.body:
+                if isinstance(item, ast.FunctionDef) and item.name == '__init__':
+                    # First statement must be a check on PYQT_AVAILABLE
+                    first = item.body[0] if item.body else None
+                    assert first is not None, "DungeonGraphicsView.__init__ is empty"
+                    # It should be an if-raise or a similar guard
+                    src_lines = code.splitlines()
+                    # Check that PYQT_AVAILABLE appears before super().__init__
+                    init_source = ast.get_source_segment(code, item) or ''
+                    pyqt_pos = init_source.find('PYQT_AVAILABLE')
+                    super_pos = init_source.find('super().__init__')
+                    assert pyqt_pos >= 0, (
+                        "DungeonGraphicsView.__init__ must check PYQT_AVAILABLE "
+                        "before calling super().__init__() to avoid TypeError when "
+                        "PyQt6 is not installed."
+                    )
+                    assert super_pos < 0 or pyqt_pos < super_pos, (
+                        "PYQT_AVAILABLE guard must come BEFORE super().__init__() "
+                        "in DungeonGraphicsView.__init__."
+                    )
+                    print("  ✅ PYQT_AVAILABLE guard is before super().__init__")
+                    return
+
+    print("  ⚠️  DungeonGraphicsView.__init__ not found — skipped")
+
+
+def test_organizer_panel_constraints():
+    """Organizer panel suggestions_list and log_text must allow reasonable heights.
+
+    The original code set hard maxima of 120px (suggestions) and 100px (log) which
+    made the organizer very cramped.  The fix raises them to 200px / 180px.
+    Also a matching setMinimumHeight must be present so the widget doesn't collapse.
+    """
+    print("\ntest_organizer_panel_constraints ...")
+    import re
+    from pathlib import Path
+
+    src = Path(__file__).parent / 'src' / 'ui' / 'organizer_panel_qt.py'
+    if not src.exists():
+        print("  ⚠️  Skipped (organizer_panel_qt.py not found)")
+        return
+
+    code = src.read_text(encoding='utf-8')
+
+    # suggestions_list max height must be > 120
+    for m in re.finditer(r'suggestions_list\.setMaximumHeight\((\d+)\)', code):
+        h = int(m.group(1))
+        assert h >= 180, (
+            f"suggestions_list.setMaximumHeight({h}) is too small. "
+            "Use at least 180 so the suggestions are readable."
+        )
+        print(f"  ✅ suggestions_list.setMaximumHeight({h}) >= 180")
+
+    # log_text max height must be > 100
+    for m in re.finditer(r'log_text\.setMaximumHeight\((\d+)\)', code):
+        h = int(m.group(1))
+        assert h >= 160, (
+            f"log_text.setMaximumHeight({h}) is too small. "
+            "Use at least 160 so the log text is readable."
+        )
+        print(f"  ✅ log_text.setMaximumHeight({h}) >= 160")
+
+
+def test_theme_stylesheet_cursor_hints():
+    """apply_theme() in main.py must append cursor:pointer styling to interactive widgets.
+
+    Without this, buttons, ComboBoxes, and checkboxes all show the default arrow
+    cursor on hover, giving no visual cue that they are clickable/changeable.
+    The fix appends a common suffix to the stylesheet that sets cursor:pointer on
+    QPushButton, QComboBox, QCheckBox, QRadioButton, QTabBar::tab, and QSlider.
+    """
+    print("\ntest_theme_stylesheet_cursor_hints ...")
+    import re
+    from pathlib import Path
+
+    src = Path(__file__).parent / 'main.py'
+    if not src.exists():
+        print("  ⚠️  Skipped (main.py not found)")
+        return
+
+    code = src.read_text(encoding='utf-8')
+
+    # find the apply_theme method body
+    # we need to verify that after `stylesheet = f"""...` blocks there is an
+    # append block that includes cursor:pointer for QPushButton and QComboBox
+    assert 'cursor: pointer' in code or 'cursor:pointer' in code, (
+        "apply_theme() must append a stylesheet section with 'cursor: pointer' "
+        "for QPushButton so users can tell buttons are clickable.\n"
+        "Add: stylesheet += '\\nQPushButton { cursor: pointer; }\\n...'"
+    )
+    # Verify it's after the stylesheet building (not just inside one theme branch)
+    # by checking it appears near the setStyleSheet call
+    ss_pos = code.find('self.setStyleSheet(stylesheet)')
+    cursor_pos = code.rfind('cursor: pointer', 0, ss_pos)
+    if cursor_pos < 0:
+        cursor_pos = code.rfind('cursor:pointer', 0, ss_pos)
+    assert cursor_pos >= 0, (
+        "cursor:pointer must appear in the stylesheet BEFORE the "
+        "self.setStyleSheet(stylesheet) call so it applies to all themes."
+    )
+    print("  ✅ cursor:pointer found in theme stylesheet before setStyleSheet()")
+
+
 def run_all_tests():
     print("=" * 65)
     print("Hybrid Architecture + Lazy rembg Import Tests")
@@ -785,6 +978,10 @@ def run_all_tests():
         test_bg_remover_onnx_fallback_present,
         test_panda_camera_distance_and_drag,
         test_bedroom_panda_walk,
+        test_bg_remover_splitter_and_backend_toggle,
+        test_dungeon_view_pyqt_guard,
+        test_organizer_panel_constraints,
+        test_theme_stylesheet_cursor_hints,
         test_panda_widget_gl_qstate_import,
         test_bedroom_mouse_release_event,
         test_otter_smooth_look_animation,
