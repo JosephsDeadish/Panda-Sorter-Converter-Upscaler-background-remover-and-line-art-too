@@ -467,6 +467,59 @@ def test_bedroom_mouse_release_event():
     print(f"  ✅ mouseReleaseEvent present; furniture_clicked.emit at line(s): {emit_in_release}")
 
 
+def test_otter_smooth_look_animation():
+    """PandaWorldGL must use _otter_look_tgt for smooth look blending.
+
+    The old code snapped Livy's look direction instantly to a new random angle
+    then decayed it back to 0 (multiplying by 0.96 each tick).  This caused a
+    jarring visual snap on every look-around event.
+
+    The fix: store a *target* in _otter_look_tgt and exponentially blend
+    _otter_look_x toward it every tick — so Livy smoothly swivels her head
+    rather than snapping.
+    """
+    print("\ntest_otter_smooth_look_animation ...")
+    import ast
+    from pathlib import Path
+
+    src = Path(__file__).parent / 'src' / 'ui' / 'panda_world_gl.py'
+    if not src.exists():
+        print("  ⚠️  Skipped (panda_world_gl.py not found)")
+        return
+
+    code = src.read_text(encoding='utf-8')
+    tree = ast.parse(code, filename=str(src))
+
+    # _otter_look_tgt must be assigned in __init__
+    init_assigns = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.FunctionDef) and node.name == '__init__':
+            for child in ast.walk(node):
+                if isinstance(child, ast.Assign):
+                    for tgt in child.targets:
+                        if isinstance(tgt, ast.Attribute):
+                            init_assigns.add(tgt.attr)
+
+    assert '_otter_look_tgt' in init_assigns, (
+        "PandaWorldGL.__init__ does not initialise _otter_look_tgt!\n"
+        "Without this, the smooth look-blend will crash on the first tick."
+    )
+    print("  ✅ _otter_look_tgt initialised in __init__")
+
+    # A lerp line must reference both _otter_look_tgt and _otter_look_x
+    lerp_lines = [
+        ln.strip() for ln in code.split('\n')
+        if '_otter_look_x' in ln and '_otter_look_tgt' in ln
+    ]
+    assert lerp_lines, (
+        "No line found that blends _otter_look_x toward _otter_look_tgt.\n"
+        "Expected e.g.:\n"
+        "  self._otter_look_x += (self._otter_look_tgt - self._otter_look_x) * 0.07"
+    )
+    print(f"  ✅ smooth lerp line: {lerp_lines[0]!r}")
+    print("  PASS")
+
+
 # ---------------------------------------------------------------------------
 # Runner
 # ---------------------------------------------------------------------------
@@ -488,6 +541,7 @@ def run_all_tests():
         test_model_manager_url_structure,
         test_panda_widget_gl_qstate_import,
         test_bedroom_mouse_release_event,
+        test_otter_smooth_look_animation,
     ]
 
     passed, failed = [], []

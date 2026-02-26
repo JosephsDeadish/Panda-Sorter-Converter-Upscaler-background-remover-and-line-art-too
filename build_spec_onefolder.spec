@@ -157,7 +157,23 @@ for _pkg in [
 # (OpenGL.platform.win32) which is selected at runtime via sys.platform and is
 # completely invisible to static import tracing.
 try:
-    _ogl_datas, _ogl_bins, _ogl_hidden = collect_all('OpenGL')
+    _ogl_result = collect_all('OpenGL')
+    # collect_all returns (datas, binaries, hiddenimports) in PyInstaller 4.x+.
+    # Some PyInstaller 6.x builds return only 2 values in rare edge cases
+    # (e.g. when the OpenGL package's submodule walker hits a platform error).
+    # Guard against both cases: if we get 3 values, use them; otherwise fall
+    # back gracefully so hook-OpenGL.py (which always runs during Analysis)
+    # provides the necessary coverage instead.
+    if len(_ogl_result) == 3:
+        _ogl_datas, _ogl_bins, _ogl_hidden = _ogl_result
+    elif len(_ogl_result) == 2:
+        # Could be (binaries, hiddenimports) or (datas, binaries) — ambiguous;
+        # skip the partial result and rely entirely on hook-OpenGL.py.
+        print(f"[build_spec] Note: collect_all('OpenGL') returned 2 values "
+              f"(expected 3); hook-OpenGL.py will handle OpenGL collection")
+        _ogl_datas, _ogl_bins, _ogl_hidden = [], [], []
+    else:
+        _ogl_datas, _ogl_bins, _ogl_hidden = [], [], []
     # Strip opengl_accelerate C-extension from binaries — it is a platform-specific
     # compiled extension that is excluded from the frozen bundle (pure-Python mode is
     # used instead via USE_ACCELERATE=False set in runtime-hook-opengl.py).
@@ -175,7 +191,7 @@ try:
           f"{len(_ogl_bins)} binaries (accelerate excluded), {len(_ogl_datas)} data files")
 except Exception as _e:
     print(f"[build_spec] WARNING: collect_all('OpenGL') failed ({_e}) — "
-          f"3D panda may fall back to 2D mode in the frozen EXE")
+          f"hook-OpenGL.py will still bundle PyOpenGL via the Analysis hook phase")
 
 # ── Collect optional heavy deps (graceful failure each) ───────────────────────
 # rembg is intentionally excluded: rembg.bg calls sys.exit(1) when onnxruntime
