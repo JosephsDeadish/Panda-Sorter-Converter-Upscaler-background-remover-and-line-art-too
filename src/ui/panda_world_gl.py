@@ -114,6 +114,14 @@ _SHOP_NAME   = "Cosmic Otter Supply Co."
 OTTER_SCREEN_OFFSET_X = 60
 OTTER_SCREEN_OFFSET_Y = -40
 
+# ── Otter animation tuning constants ─────────────────────────────────────────
+# Breathing: sine frequency (radians/frame at ~30fps ≈ 0.30 Hz) and amplitude
+# (±2.2% X/Z torso scale, subtle but clearly visible).
+_OTTER_BREATH_FREQ  = 0.019   # ~0.30 Hz at 33ms/tick
+_OTTER_BREATH_AMP   = 0.022   # ±2.2% scale pulse
+# Probability that a new look-event aims at a random angle (vs. back at center)
+_OTTER_LOOK_RANDOM_PROB = 0.70
+
 # ── Hit-test regions (world x/z bounding box, y ignored) ─────────────────────
 _CLICK_REGIONS = {
     'car':      (-3.5, -1.5, -3.0, -0.5),   # (x_min, x_max, z_min, z_max)
@@ -168,7 +176,8 @@ class PandaWorldGL(
         self._otter_head_bob   = 0.0    # idle head-bob phase
         self._otter_tail_angle = 0.0    # tail sway angle
         self._otter_shuffle_t  = 0      # counter-shuffle animation timer
-        self._otter_look_x     = 0.0    # head turn angle
+        self._otter_look_x     = 0.0    # current head-turn angle (eased)
+        self._otter_look_tgt   = 0.0    # target look angle for smooth blending
         self._otter_look_phase = 0      # countdown to next random look
 
         self.setMinimumSize(400, 300)
@@ -283,14 +292,17 @@ class PandaWorldGL(
         # Livy tail sway
         self._otter_tail_angle = math.sin(self._frame * 0.04) * 18.0
 
-        # Livy random look-around
+        # Livy random look-around — smooth exponential blend toward target
         if self._otter_look_phase <= 0:
-            self._otter_look_x = random.uniform(-12.0, 12.0)
+            # 30 % of the time glance back at center (player); otherwise look around
+            self._otter_look_tgt = (
+                random.uniform(-14.0, 14.0) if random.random() < _OTTER_LOOK_RANDOM_PROB else 0.0
+            )
             self._otter_look_phase = random.randint(80, 200)
         else:
             self._otter_look_phase -= 1
-            # Smoothly blend current look toward target
-            self._otter_look_x *= 0.96
+        # Smooth approach toward target every tick (never snaps)
+        self._otter_look_x += (self._otter_look_tgt - self._otter_look_x) * 0.07
 
         # Livy counter-shuffle (occasional item rearrange)
         if self._otter_shuffle_t > 0:
@@ -662,17 +674,19 @@ class PandaWorldGL(
             _mat(_OTTER_SIDE)
 
         # ── Body ──────────────────────────────────────────────────────────
+        # Subtle breathing: ±2% X/Z scale pulse on the torso (~0.3 Hz at 30fps)
+        _breath = 1.0 + _math.sin(t * _OTTER_BREATH_FREQ) * _OTTER_BREATH_AMP
         # Lower torso — wide hips (otter body plan)
         _mat(_OTTER_SIDE)
         glPushMatrix()
         glTranslatef(0.0, 1.10, 0.0)
-        glScalef(0.72, 0.70, 0.58)
+        glScalef(0.72 * _breath, 0.70, 0.58 * _breath)
         self._sphere(1.0, 14, 14)
         glPopMatrix()
         # Upper torso — slightly narrower, forward lean
         glPushMatrix()
         glTranslatef(0.0, 1.72, 0.06)
-        glScalef(0.58, 0.62, 0.52)
+        glScalef(0.58 * _breath, 0.62, 0.52 * _breath)
         self._sphere(1.0, 14, 14)
         glPopMatrix()
         # Back dorsal — darker stripe

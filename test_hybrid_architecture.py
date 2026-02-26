@@ -467,6 +467,110 @@ def test_bedroom_mouse_release_event():
     print(f"  ✅ mouseReleaseEvent present; furniture_clicked.emit at line(s): {emit_in_release}")
 
 
+def test_otter_smooth_look_animation():
+    """PandaWorldGL must use _otter_look_tgt for smooth look blending.
+
+    The old code snapped Livy's look direction instantly to a new random angle
+    then decayed it back to 0 (multiplying by 0.96 each tick).  This caused a
+    jarring visual snap on every look-around event.
+
+    The fix: store a *target* in _otter_look_tgt and exponentially blend
+    _otter_look_x toward it every tick — so Livy smoothly swivels her head
+    rather than snapping.
+    """
+    print("\ntest_otter_smooth_look_animation ...")
+    import ast
+    from pathlib import Path
+
+    src = Path(__file__).parent / 'src' / 'ui' / 'panda_world_gl.py'
+    if not src.exists():
+        print("  ⚠️  Skipped (panda_world_gl.py not found)")
+        return
+
+    code = src.read_text(encoding='utf-8')
+    tree = ast.parse(code, filename=str(src))
+
+    # _otter_look_tgt must be assigned in __init__
+    init_assigns = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.FunctionDef) and node.name == '__init__':
+            for child in ast.walk(node):
+                if isinstance(child, ast.Assign):
+                    for tgt in child.targets:
+                        if isinstance(tgt, ast.Attribute):
+                            init_assigns.add(tgt.attr)
+
+    assert '_otter_look_tgt' in init_assigns, (
+        "PandaWorldGL.__init__ does not initialise _otter_look_tgt!\n"
+        "Without this, the smooth look-blend will crash on the first tick."
+    )
+    print("  ✅ _otter_look_tgt initialised in __init__")
+
+    # A lerp line must reference both _otter_look_tgt and _otter_look_x
+    lerp_lines = [
+        ln.strip() for ln in code.split('\n')
+        if '_otter_look_x' in ln and '_otter_look_tgt' in ln
+    ]
+    assert lerp_lines, (
+        "No line found that blends _otter_look_x toward _otter_look_tgt.\n"
+        "Expected e.g.:\n"
+        "  self._otter_look_x += (self._otter_look_tgt - self._otter_look_x) * 0.07"
+    )
+    print(f"  ✅ smooth lerp line: {lerp_lines[0]!r}")
+    print("  PASS")
+
+
+def test_spec_bundle_completeness():
+    """build_spec_onefolder.spec must declare hiddenimports for all external
+    packages that are imported (lazily or otherwise) in src/.
+
+    This test catches the three packages that were missing after a previous
+    bundle-completeness audit:
+
+    1. cryptography — profile encryption in organizer/learning_system.py
+    2. skimage (scikit-image) — SSIM quality check in utils/image_processing.py
+    3. pytesseract — OCR in structural_analysis/ocr_detector.py
+    """
+    print("\ntest_spec_bundle_completeness ...")
+    from pathlib import Path
+
+    spec_path = Path(__file__).parent / 'build_spec_onefolder.spec'
+    if not spec_path.exists():
+        print("  ⚠️  Skipped (build_spec_onefolder.spec not found)")
+        return
+
+    spec = spec_path.read_text(encoding='utf-8')
+
+    # Each entry: (import_name, source_file, purpose)
+    _REQUIRED = [
+        ('cryptography', 'organizer/learning_system.py',
+         'Fernet profile encryption — Fernet/PBKDF2 C-extensions must be bundled'),
+        ('skimage',      'utils/image_processing.py',
+         'skimage.metrics.structural_similarity (SSIM quality check)'),
+        ('pytesseract',  'structural_analysis/ocr_detector.py',
+         'Tesseract OCR wrapper — lazy import missed by PyInstaller static analysis'),
+    ]
+
+    for pkg, src_file, purpose in _REQUIRED:
+        assert f"'{pkg}'" in spec or f'"{pkg}"' in spec, (
+            f"'{pkg}' missing from spec hiddenimports!\n"
+            f"Used in: {src_file}\n"
+            f"Purpose: {purpose}"
+        )
+        print(f"  ✅ '{pkg}' present in spec hiddenimports  ({src_file})")
+
+    # cryptography must also be in requirements.txt (was missing before this fix)
+    req_path = Path(__file__).parent / 'requirements.txt'
+    if req_path.exists():
+        assert 'cryptography' in req_path.read_text(encoding='utf-8'), (
+            "cryptography missing from requirements.txt — "
+            "add: cryptography>=41.0.0  # profile encryption"
+        )
+        print("  ✅ cryptography present in requirements.txt")
+
+    print("  PASS")
+
+
 # ---------------------------------------------------------------------------
 # Runner
 # ---------------------------------------------------------------------------
@@ -488,6 +592,8 @@ def run_all_tests():
         test_model_manager_url_structure,
         test_panda_widget_gl_qstate_import,
         test_bedroom_mouse_release_event,
+        test_otter_smooth_look_animation,
+        test_spec_bundle_completeness,
     ]
 
     passed, failed = [], []

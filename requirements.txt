@@ -65,6 +65,7 @@ pynput>=1.7.6  # Global keyboard hotkey support
 colorama>=0.4.6  # Cross-platform colored terminal output
 pyyaml>=6.0  # YAML configuration file support
 requests>=2.31.0  # HTTP requests for online features
+cryptography>=41.0.0  # Profile encryption for AI learning system (organizer/learning_system.py)
 
 # ============================================================================
 # OPTIONAL DEPENDENCIES (Enhanced features - gracefully degrade if missing)

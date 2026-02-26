@@ -157,7 +157,23 @@ for _pkg in [
 # (OpenGL.platform.win32) which is selected at runtime via sys.platform and is
 # completely invisible to static import tracing.
 try:
-    _ogl_datas, _ogl_bins, _ogl_hidden = collect_all('OpenGL')
+    _ogl_result = collect_all('OpenGL')
+    # collect_all returns (datas, binaries, hiddenimports) in PyInstaller 4.x+.
+    # Some PyInstaller 6.x builds return only 2 values in rare edge cases
+    # (e.g. when the OpenGL package's submodule walker hits a platform error).
+    # Guard against both cases: if we get 3 values, use them; otherwise fall
+    # back gracefully so hook-OpenGL.py (which always runs during Analysis)
+    # provides the necessary coverage instead.
+    if len(_ogl_result) == 3:
+        _ogl_datas, _ogl_bins, _ogl_hidden = _ogl_result
+    elif len(_ogl_result) == 2:
+        # Could be (binaries, hiddenimports) or (datas, binaries) — ambiguous;
+        # skip the partial result and rely entirely on hook-OpenGL.py.
+        print(f"[build_spec] Note: collect_all('OpenGL') returned 2 values "
+              f"(expected 3); hook-OpenGL.py will handle OpenGL collection")
+        _ogl_datas, _ogl_bins, _ogl_hidden = [], [], []
+    else:
+        _ogl_datas, _ogl_bins, _ogl_hidden = [], [], []
     # Strip opengl_accelerate C-extension from binaries — it is a platform-specific
     # compiled extension that is excluded from the frozen bundle (pure-Python mode is
     # used instead via USE_ACCELERATE=False set in runtime-hook-opengl.py).
@@ -175,10 +191,16 @@ try:
           f"{len(_ogl_bins)} binaries (accelerate excluded), {len(_ogl_datas)} data files")
 except Exception as _e:
     print(f"[build_spec] WARNING: collect_all('OpenGL') failed ({_e}) — "
-          f"3D panda may fall back to 2D mode in the frozen EXE")
+          f"hook-OpenGL.py will still bundle PyOpenGL via the Analysis hook phase")
 
 # ── Collect optional heavy deps (graceful failure each) ───────────────────────
-for _opt_pkg in ('gfpgan', 'basicsr', 'realesrgan', 'facexlib', 'rembg'):
+# rembg is intentionally excluded: rembg.bg calls sys.exit(1) when onnxruntime
+# fails to initialise its DLL in PyInstaller's isolated find_binary_dependencies
+# subprocesses.  pre_safe_import_module/hook-rembg.py only patches sys.exit
+# during the module-analysis phase; it cannot patch the fully-isolated binary
+# dependency subprocesses.  The runtime code already lazy-imports rembg and
+# degrades gracefully when it is unavailable.
+for _opt_pkg in ('gfpgan', 'basicsr', 'realesrgan', 'facexlib'):
     try:
         _d, _b, _h = collect_all(_opt_pkg)
         _extra_datas    += _d
@@ -279,25 +301,22 @@ a = Analysis(
         'pynput',
         'pynput.keyboard',
         'pynput.mouse',
+        # Profile encryption (organizer/learning_system.py — gracefully disabled when absent)
+        'cryptography',
+        'cryptography.fernet',
+        'cryptography.hazmat',
+        'cryptography.hazmat.primitives',
+        'cryptography.hazmat.primitives.kdf',
+        'cryptography.hazmat.primitives.kdf.pbkdf2',
+        # scikit-image — SSIM quality check in utils/image_processing.py (optional)
+        'skimage',
+        'skimage.metrics',
+        # Tesseract OCR wrapper — structural_analysis/ocr_detector.py (optional)
+        'pytesseract',
         # AI inference and model download utilities
-        # Note: rembg is NO LONGER excluded (see excludes section for explanation).
-        # pre_safe_import_module/hook-rembg.py patches sys.exit() so that
-        # rembg.bg's sys.exit(1) becomes a harmless SystemExit during analysis.
-        # onnxruntime binaries are still collected by hook-onnxruntime.py.
+        # onnxruntime binaries are collected by hook-onnxruntime.py.
+        # rembg is excluded (see excludes list) — runtime code lazy-imports it.
         'onnxruntime',  # Required for offline AI model inference (src/ai/inference.py, src/ai/offline_model.py)
-        # rembg is no longer in excludes — bundle it so background removal works in the EXE.
-        # The pre_safe_import_module/hook-rembg.py patches sys.exit during analysis.
-        'rembg',
-        'rembg.sessions',
-        'rembg.sessions.base',
-        'rembg.sessions.simple',
-        'rembg.sessions.u2net',
-        'rembg.sessions.u2netp',
-        'rembg.sessions.u2net_human_seg',
-        'rembg.sessions.silueta',
-        'rembg.sessions.isnet',
-        'rembg.sessions.isnet_dis',
-        'rembg.sessions.birefnet',
         'pooch',  # Required for ML model downloads (used by various AI/ML libraries)
         'requests',
         # Hybrid inference modules (ONNX – always-on, no torch dependency)
@@ -353,7 +372,7 @@ a = Analysis(
         # hook-torchvision.py also runs collect_submodules() + include_py_files=True
         # (needed so TorchScript inspect.getsource() works at runtime).
         'torchvision.transforms.functional',   # used by basicsr compat shim
-        'torchvision.transforms.functional_tensor',  # may still exist in older installs
+        # Removed hidden import: torchvision.transforms.functional_tensor was removed in torchvision 0.16+
         # Additional Qt submodules used by the app
         'PyQt6.QtMultimedia',
         'PyQt6.QtPrintSupport',
@@ -455,12 +474,19 @@ a = Analysis(
         'sphinx',
         'setuptools',
         'distutils',
-        
-        # NOTE: rembg is NO LONGER in excludes.
-        # The pre_safe_import_module/hook-rembg.py patches sys.exit() during
-        # PyInstaller analysis so rembg.bg's sys.exit(1) becomes a harmless
-        # SystemExit.  Bundling rembg enables background removal in the EXE.
-        # onnxruntime DLLs are collected via hook-onnxruntime.py.
+
+        # rembg: excluded to prevent a fatal build-time crash.
+        # rembg.bg imports onnxruntime at module level and calls sys.exit(1) when
+        # its DLL fails to initialise.  PyInstaller's find_binary_dependencies step
+        # spawns fully-isolated subprocesses to resolve DLL deps; pre_safe_import_module
+        # hooks do NOT run in those subprocesses, so sys.exit(1) propagates and kills
+        # the build.  The runtime code (background_remover_panel_qt.py) already
+        # lazy-imports rembg and shows a "not available" message when absent.
+        'rembg',
+        'rembg.bg',
+        'rembg.sessions',
+        'rembg.session_base',
+        'rembg.session_factory',
     ],
     win_no_prefer_redirects=False,
     win_private_assemblies=False,
