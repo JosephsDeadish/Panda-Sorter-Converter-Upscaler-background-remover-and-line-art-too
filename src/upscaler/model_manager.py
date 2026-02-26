@@ -603,11 +603,17 @@ class AIModelManager:
         p = self.models_dir / dest_filename
         if p.exists() and p.stat().st_size > 1024:
             return p
-        # Also check rembg's u2net cache
+        # Check U2NET_HOME env var (set by main.py to app_data/models/ on startup)
         if info.get('dest_dir_env') == 'U2NET_HOME':
-            u2net_p = Path.home() / '.u2net' / dest_filename
-            if u2net_p.exists():
-                return u2net_p
+            u2net_home = os.environ.get('U2NET_HOME', '')
+            if u2net_home:
+                u2net_p = Path(u2net_home) / dest_filename
+                if u2net_p.exists() and u2net_p.stat().st_size > 1024:
+                    return u2net_p
+            # Legacy fallback: rembg's default download location
+            legacy_p = Path.home() / '.u2net' / dest_filename
+            if legacy_p.exists():
+                return legacy_p
         return None
 
     def get_models_info(self) -> dict:

@@ -344,6 +344,84 @@ def test_model_manager_url_structure():
         print(f"  ⚠️  Skipped (import failed: {exc})")
 
 
+def test_panda_no_double_bob():
+    """_draw_panda_arms and _draw_panda_legs must NOT add bob to their Y offsets.
+
+    Both methods are called INSIDE the torso glPushMatrix, which already applies
+    (0.28 + bob, ...).  If they also add bob, arms/legs move at 2× the body rate,
+    causing them to appear to disconnect from the torso during animations.
+
+    The fix: arm_y = 0.30 (constant), leg_y = -0.04 (constant).
+    """
+    print("\ntest_panda_no_double_bob ...")
+    import ast
+    from pathlib import Path
+
+    src = Path(__file__).parent / 'src' / 'ui' / 'panda_widget_gl.py'
+    if not src.exists():
+        print("  ⚠️  Skipped (panda_widget_gl.py not found)")
+        return
+
+    code = src.read_text(encoding='utf-8')
+
+    # Verify no "+ bob" in the arm_y / leg_y assignment lines
+    for i, line in enumerate(code.splitlines(), 1):
+        stripped = line.strip()
+        if stripped.startswith('arm_y') and '+ bob' in stripped and '0.34' not in stripped:
+            # The only arm_y that may legitimately have bob is _draw_held_items (outside torso)
+            # where we intentionally add the torso offset = 0.64 + bob
+            if '0.64' not in stripped and '0.28' not in stripped:
+                assert False, (
+                    f"line {i}: '{stripped}' adds bob to arm_y inside a torso-scoped method.\n"
+                    "Fix: arm_y = 0.30  (bob is already applied in the torso matrix)"
+                )
+        if stripped.startswith('leg_y') and '+ bob' in stripped:
+            assert False, (
+                f"line {i}: '{stripped}' adds bob to leg_y inside a torso-scoped method.\n"
+                "Fix: leg_y = -0.04  (bob is already applied in the torso matrix)"
+            )
+
+    print("  ✅ No double-bob in _draw_panda_arms / _draw_panda_legs")
+
+
+def test_bg_remover_onnx_fallback_present():
+    """background_remover_panel_qt must define _remove_bg_onnx for the build fallback.
+
+    In the PyInstaller build rembg is excluded (sys.exit crash prevention).
+    The onnxruntime-based fallback must be present so background removal works
+    even without the rembg package, as long as the ONNX models are on disk.
+    """
+    print("\ntest_bg_remover_onnx_fallback_present ...")
+    import ast
+    from pathlib import Path
+
+    src = Path(__file__).parent / 'src' / 'ui' / 'background_remover_panel_qt.py'
+    if not src.exists():
+        print("  ⚠️  Skipped (background_remover_panel_qt.py not found)")
+        return
+
+    code = src.read_text(encoding='utf-8')
+    tree = ast.parse(code, filename=str(src))
+
+    func_names = {node.name for node in ast.walk(tree)
+                  if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))}
+
+    assert '_remove_bg_onnx' in func_names, (
+        "_remove_bg_onnx() not found in background_remover_panel_qt.py!\n"
+        "This module-level function provides onnxruntime-based background removal\n"
+        "as a fallback when rembg is absent (excluded from the PyInstaller bundle)."
+    )
+
+    # auto_remove_background must reference onnxruntime availability
+    assert 'ort_available' in code, (
+        "auto_remove_background() does not check ort_available — "
+        "onnxruntime fallback path is missing."
+    )
+
+    print("  ✅ _remove_bg_onnx fallback present")
+    print("  ✅ ort_available check present in auto_remove_background")
+
+
 def test_panda_widget_gl_qstate_import():
     """panda_widget_gl must try PyQt6.QtStateMachine for QState/QStateMachine.
 
@@ -590,6 +668,8 @@ def run_all_tests():
         test_ai_package_exports_hybrid_symbols,
         test_organizer_style_no_false_positives,
         test_model_manager_url_structure,
+        test_panda_no_double_bob,
+        test_bg_remover_onnx_fallback_present,
         test_panda_widget_gl_qstate_import,
         test_bedroom_mouse_release_event,
         test_otter_smooth_look_animation,

@@ -57,6 +57,66 @@ except (ImportError, OSError, RuntimeError):
         ComparisonSliderWidget = None
 
 
+def _remove_bg_onnx(pil_image, model_path: str):
+    """Remove background using a U2-Net/ISNet ONNX model without the rembg package.
+
+    This is used as a fallback when ``rembg`` is not importable (e.g. in the
+    PyInstaller build where rembg is excluded to prevent a sys.exit crash).
+
+    Args:
+        pil_image: PIL.Image.Image in any mode.
+        model_path: Absolute path to a compatible ONNX model (u2net, silueta, …).
+
+    Returns:
+        PIL.Image.Image in RGBA mode with background removed.
+
+    Raises:
+        ImportError: if onnxruntime or numpy is not available.
+        FileNotFoundError: if model_path does not exist.
+    """
+    import os
+    import numpy as np
+    import onnxruntime as ort
+
+    if not os.path.isfile(model_path):
+        raise FileNotFoundError(f"ONNX model not found: {model_path}")
+
+    # ── Pre-process ───────────────────────────────────────────────────────────
+    orig_size = pil_image.size
+    rgb = pil_image.convert('RGB').resize((320, 320))
+    img = np.array(rgb, dtype=np.float32) / 255.0
+    mean = np.array([0.485, 0.456, 0.406], dtype=np.float32)
+    std  = np.array([0.229, 0.224, 0.225], dtype=np.float32)
+    img  = (img - mean) / std
+    img  = img.transpose(2, 0, 1)[np.newaxis, :].astype(np.float32)  # NCHW
+
+    # ── Inference ─────────────────────────────────────────────────────────────
+    sess_opts = ort.SessionOptions()
+    sess_opts.log_severity_level = 3  # suppress verbose ort logging
+    sess = ort.InferenceSession(model_path, sess_options=sess_opts,
+                                providers=['CPUExecutionProvider'])
+    input_name = sess.get_inputs()[0].name
+    outputs    = sess.run(None, {input_name: img})
+
+    # First output — shape may be (1,1,H,W), (1,H,W), or (H,W)
+    mask = np.squeeze(outputs[0]).astype(np.float32)
+
+    # ── Post-process ─────────────────────────────────────────────────────────
+    mn, mx = mask.min(), mask.max()
+    if mx - mn > 1e-6:
+        mask = (mask - mn) / (mx - mn)
+
+    from PIL import Image as _PILImage
+    mask_img = _PILImage.fromarray((mask * 255).astype(np.uint8)).resize(
+        orig_size, _PILImage.LANCZOS
+    )
+
+    result = pil_image.convert('RGBA')
+    r, g, b, _ = result.split()
+    result = _PILImage.merge('RGBA', (r, g, b, mask_img))
+    return result
+
+
 class BackgroundRemoverPanelQt(QWidget):
     """Qt-based background remover panel with paint tools."""
     
@@ -453,58 +513,50 @@ class BackgroundRemoverPanelQt(QWidget):
         self.size_spinbox.setValue(value)
     
     def auto_remove_background(self):
-        """
-        Automatically remove background using AI (rembg).
-        
-        FUTURE FEATURE: This requires the 'rembg' library to be installed.
-        
-        Installation: pip install rembg
-        
-        When implemented, this will:
-        1. Load the current image
-        2. Use rembg to remove the background
-        3. Save the result with alpha transparency
-        4. Update the preview with the processed image
-        5. Add to edit history for undo/redo
-        
-        For now, shows a message to the user that this feature is planned.
+        """Automatically remove background using AI.
+
+        Uses rembg when available; falls back to a direct onnxruntime inference
+        path using pre-downloaded ONNX models (U2-Net, IS-Net, etc.) so the
+        feature works in the PyInstaller build even though rembg is excluded from
+        the bundle.
         """
         if not self.current_image:
             return
-        
-        # Check if rembg is available
+
+        # ── Check available backends ─────────────────────────────────────────
+        rembg_available = False
+        ort_available   = False
         try:
-            import rembg
+            import rembg  # noqa: F401
             rembg_available = True
         except (ImportError, Exception, SystemExit):
-            rembg_available = False
-        
-        if not rembg_available:
+            pass
+
+        try:
+            import onnxruntime  # noqa: F401
+            import numpy  # noqa: F401
+            ort_available = True
+        except (ImportError, Exception):
+            pass
+
+        if not rembg_available and not ort_available:
             QMessageBox.information(
                 self,
                 "Feature Not Available",
-                "Automatic background removal requires the 'rembg' library.\n\n"
-                "To enable this feature, install it with:\n"
-                "pip install 'rembg[cpu]'\n\n"
-                "For GPU support:\n"
-                "pip install 'rembg[gpu]'"
+                "Automatic background removal requires the 'rembg' library OR "
+                "'onnxruntime' + a pre-downloaded ONNX model.\n\n"
+                "Install rembg with:\n"
+                "  pip install 'rembg[cpu]'\n\n"
+                "Or ensure onnxruntime is installed and a model has been downloaded "
+                "via Settings → AI Models."
             )
             return
-        
-        # Implement actual background removal
-        if not self.current_image:
-            QMessageBox.warning(
-                self,
-                "No Image",
-                "Please load an image first before removing background."
-            )
-            return
-        
+
         try:
             from PyQt6.QtWidgets import QProgressDialog
             from PyQt6.QtCore import Qt
             from PyQt6.QtGui import QPixmap
-            import tempfile, io
+            import tempfile
 
             if not PIL_AVAILABLE:
                 QMessageBox.critical(self, "Error", "PIL/Pillow not installed. Cannot process image.")
@@ -518,10 +570,10 @@ class BackgroundRemoverPanelQt(QWidget):
             progress.setWindowTitle("Processing")
             progress.show()
 
-            # Open image from file path (self.current_image is always a path string)
+            # Open image (self.current_image is always a path string)
             pil_image = Image.open(self.current_image)
 
-            # Process with rembg — use selected model if available
+            # Determine which model to use
             selected_model = 'u2net'
             bg_combo = getattr(self, 'bg_model_combo', None)
             if bg_combo is not None and hasattr(bg_combo, 'currentData'):
@@ -529,25 +581,95 @@ class BackgroundRemoverPanelQt(QWidget):
                 if model_data:
                     selected_model = model_data
 
-            import rembg
-            try:
-                session = rembg.new_session(selected_model)
-                output = rembg.remove(pil_image, session=session)
-            except Exception as _me:
-                # Fallback: no session (rembg picks its own default)
-                logger.warning(f"rembg session creation failed for {selected_model}: {_me}")
-                output = rembg.remove(pil_image)
+            output: Image.Image | None = None
 
-            # Save result to a temp PNG file (preserving alpha)
+            # ── Path 1: rembg ────────────────────────────────────────────────
+            if rembg_available:
+                import rembg
+                try:
+                    session = rembg.new_session(selected_model)
+                    output = rembg.remove(pil_image, session=session)
+                except Exception as _me:
+                    logger.warning(f"rembg session failed for '{selected_model}': {_me}")
+                    try:
+                        output = rembg.remove(pil_image)
+                    except Exception as _me2:
+                        logger.warning(f"rembg.remove() also failed: {_me2}")
+                        rembg_available = False  # fall through to onnxruntime
+
+            # ── Path 2: direct onnxruntime (fallback / build mode) ───────────
+            if output is None and ort_available:
+                # Locate the ONNX model — check U2NET_HOME, AIModelManager, app data
+                import os
+                model_filename = f"{selected_model}.onnx"
+                search_dirs = []
+                u2home = os.environ.get('U2NET_HOME', '')
+                if u2home:
+                    search_dirs.append(u2home)
+                try:
+                    from config import get_data_dir as _gdd
+                    search_dirs.append(str(_gdd() / 'models'))
+                except Exception:
+                    pass
+                try:
+                    from upscaler.model_manager import AIModelManager as _AMM
+                    search_dirs.append(str(_AMM().models_dir))
+                except Exception:
+                    pass
+                # Also check next to the EXE (for PyInstaller bundles)
+                import sys
+                exe_dir = Path(sys.executable).parent
+                search_dirs.append(str(exe_dir / 'app_data' / 'models'))
+                # Deduplicate while preserving insertion order
+                seen_dirs: set = set()
+                unique_dirs = []
+                for d in search_dirs:
+                    if d not in seen_dirs:
+                        seen_dirs.add(d)
+                        unique_dirs.append(d)
+                search_dirs = unique_dirs
+
+                model_path: str | None = None
+                for d in search_dirs:
+                    candidate = os.path.join(d, model_filename)
+                    if os.path.isfile(candidate):
+                        model_path = candidate
+                        break
+                # If requested model not found, try u2net as fallback
+                if model_path is None and selected_model != 'u2net':
+                    for d in search_dirs:
+                        candidate = os.path.join(d, 'u2net.onnx')
+                        if os.path.isfile(candidate):
+                            model_path = candidate
+                            break
+
+                if model_path is None:
+                    progress.close()
+                    QMessageBox.warning(
+                        self, "Model Not Found",
+                        f"ONNX model '{model_filename}' not found in:\n"
+                        + "\n".join(f"  • {d}" for d in search_dirs)
+                        + "\n\nDownload models via Settings → AI Models."
+                    )
+                    return
+
+                logger.info(f"Using direct onnxruntime inference: {model_path}")
+                output = _remove_bg_onnx(pil_image, model_path)
+
+            if output is None:
+                progress.close()
+                QMessageBox.critical(self, "Error", "Background removal failed with all available backends.")
+                return
+
+            # ── Save result and update UI ────────────────────────────────────
             tmp_dir = Path(tempfile.mkdtemp(prefix=self.TEMP_DIR_PREFIX))
-            self._rembg_temp_dirs.append(tmp_dir)  # track for later cleanup
+            self._rembg_temp_dirs.append(tmp_dir)
             result_path = tmp_dir / (Path(self.current_image).stem + "_no_bg.png")
             output.save(str(result_path), format='PNG')
 
-            # Update processed_image path
             self.processed_image = str(result_path)
 
-            # Add to undo/redo history
+            # Undo/redo history
             self.history_index += 1
             if self.history_index < len(self.edit_history):
                 self.edit_history = self.edit_history[:self.history_index]
@@ -559,29 +681,24 @@ class BackgroundRemoverPanelQt(QWidget):
             # Update before/after preview
             if SLIDER_AVAILABLE and hasattr(self, 'preview_widget'):
                 before_px = QPixmap(self.current_image)
-                after_px = QPixmap(self.processed_image)
+                after_px  = QPixmap(self.processed_image)
                 self.preview_widget.set_before_image(before_px)
                 self.preview_widget.set_after_image(after_px)
 
             progress.close()
-
-            QMessageBox.information(
-                self,
-                "Success",
-                "Background removed successfully!"
-            )
+            QMessageBox.information(self, "Success", "Background removed successfully!")
 
             if self.processing_complete:
                 self.processing_complete.emit()
 
         except Exception as e:
             logger.error(f"Error removing background: {e}", exc_info=True)
+            try:
+                progress.close()  # type: ignore[possibly-undefined]
+            except Exception:
+                pass
+            QMessageBox.critical(self, "Error", f"Failed to remove background:\n{e}")
 
-            QMessageBox.critical(
-                self,
-                "Error",
-                f"Failed to remove background:\n{str(e)}"
-            )
 
     
     def clear_all(self):

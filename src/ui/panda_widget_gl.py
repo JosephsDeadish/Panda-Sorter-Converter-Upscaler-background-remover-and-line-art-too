@@ -1912,7 +1912,10 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
         """Draw arms with follow-through overshoot, uneven breathing, paw/claws."""
         if sub_pose is None:
             sub_pose = {}
-        arm_y   = 0.30 + bob
+        # NOTE: this method is called INSIDE the torso glPushMatrix which already
+        # translates by (0, 0.28 + bob, 0).  Do NOT add bob here again or the arms
+        # will appear to move at 2× the body bob rate.
+        arm_y   = 0.30
         arm_x   = self.BODY_WIDTH + 0.06
         ac = self._get_color('accent')   # fur-style accent colour for arm patches
 
@@ -2021,7 +2024,9 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
     # ─── Leg drawing ────────────────────────────────────────────────────────
     def _draw_panda_legs(self, limb, bob, t=0):
         """Draw stocky legs with thigh, shin, foot and claws."""
-        leg_y = -0.04 + bob
+        # NOTE: called INSIDE the torso glPushMatrix; bob is already applied there.
+        # Do NOT add bob here or legs will double-bob relative to the body.
+        leg_y = -0.04
         leg_x = self.BODY_WIDTH * 0.80   # match hip-patch positions for realistic stance
         ac = self._get_color('accent')   # fur-style accent colour for leg patches
 
@@ -4205,8 +4210,11 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
 
         limb   = self._get_limb_positions()
         bob    = self._get_body_bob()
-        arm_x  = self.BODY_WIDTH * 0.82
-        arm_y  = 0.34 + bob
+        # Shoulder position in panda-local space:
+        #   torso matrix Y = 0.28 + bob, arm shoulder inside torso = 0.30 + 0.06
+        # Total: 0.64 + bob  (matches _draw_panda_arms after double-bob fix)
+        arm_x  = self.BODY_WIDTH + 0.06
+        arm_y  = 0.64 + bob
 
         for side, key in ((-1, 'held_left'), (1, 'held_right')):
             item = self.clothing[key]
