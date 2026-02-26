@@ -279,20 +279,22 @@ class PandaBedroomGL(QOpenGLWidget if OPENGL_AVAILABLE else QWidget):  # type: i
     def paintGL(self) -> None:
         if not self._gl_ok:
             return
+        try:
+            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+            glLoadIdentity()
 
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
-        glLoadIdentity()
+            # Camera orbit
+            gluLookAt(0, 0, self._cam_dist,  0, 0, 0,  0, 1, 0)
+            glRotatef(self._cam_el, 1.0, 0.0, 0.0)
+            glRotatef(self._cam_az, 0.0, 1.0, 0.0)
 
-        # Camera orbit
-        gluLookAt(0, 0, self._cam_dist,  0, 0, 0,  0, 1, 0)
-        glRotatef(self._cam_el, 1.0, 0.0, 0.0)
-        glRotatef(self._cam_az, 0.0, 1.0, 0.0)
+            # Update hover by projecting furniture centres to screen
+            self._update_hover()
 
-        # Update hover by projecting furniture centres to screen
-        self._update_hover()
-
-        self._draw_room()
-        self._draw_furniture()
+            self._draw_room()
+            self._draw_furniture()
+        except Exception as _e:
+            logger.debug("PandaBedroomGL paintGL error (frame skipped): %s", _e)
 
     # ── Room geometry ─────────────────────────────────────────────────────────
 

@@ -1445,6 +1445,9 @@ class TextureSorterMainWindow(QMainWindow):
             for i in range(self.tabs.count()):
                 if "Panda" in self.tabs.tabText(i) or "🐼" in self.tabs.tabText(i):
                     self.tabs.setCurrentIndex(i)
+                    # Also navigate to the Home sub-tab within the Panda panel
+                    if self._panda_tabs is not None and self._home_tab_index >= 0:
+                        self._panda_tabs.setCurrentIndex(self._home_tab_index)
                     return
             return
 
@@ -2873,14 +2876,13 @@ class TextureSorterMainWindow(QMainWindow):
                 logger.warning(f"Could not initialize unlockables system: {e}")
 
             # Initialize transparent panda overlay (floating panda that reacts to UI events).
-            # DISABLED BY DEFAULT: the overlay covers the entire window with WA_TransparentForMouseEvents=False.
-            # On systems where the GL context fails silently, the overlay becomes an opaque
-            # full-screen rectangle that intercepts all mouse events, making the app appear frozen.
-            # Users can enable the overlay via Settings → Panda → "Enable floating overlay".
-            _overlay_enabled = False
+            # Enabled by default when GL is available.  The overlay now uses
+            # WA_TransparentForMouseEvents=True so all clicks pass through — it
+            # cannot block the UI even if the GL context fails to initialise.
+            _overlay_enabled = True
             try:
                 _overlay_enabled = bool(
-                    self.config and self.config.get('panda', 'overlay_enabled', default=False)
+                    self.config and self.config.get('panda', 'overlay_enabled', default=True)
                 )
             except Exception:
                 pass
@@ -5225,6 +5227,15 @@ class TextureSorterMainWindow(QMainWindow):
         except Exception as _e:
             logger.debug(f"dropEvent error: {_e}")
     # ─────────────────────────────────────────────────────────────────────────
+
+    def resizeEvent(self, event):
+        """Resize transparent panda overlay to always cover the full window."""
+        super().resizeEvent(event)
+        try:
+            if self.panda_overlay is not None:
+                self.panda_overlay.resize(self.size())
+        except Exception:
+            pass
 
     def closeEvent(self, event):
         """Handle window close event."""
