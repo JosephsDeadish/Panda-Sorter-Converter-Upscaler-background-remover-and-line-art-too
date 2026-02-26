@@ -1068,10 +1068,10 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
         sy = self._squash_y * _sub.get('body_y_scale', 1.0)
 
         glPushMatrix()
-        # _paint_gl_body already applied panda_x/panda_z via glTranslatef; only
-        # add the vertical bob offset here to avoid doubling the XZ position.
+        # _paint_gl_body already applied panda_x/panda_z and rotation_y via
+        # glTranslatef/glRotatef; only add the vertical bob offset here to avoid
+        # doubling the XZ position or rotation.
         glTranslatef(0.0, 0.28 + bob, 0.0)
-        glRotatef(self.rotation_y, 0.0, 1.0, 0.0)
         # Wobble: random lateral lean added to whole body (pandas are uncoordinated)
         if abs(self._wobble_x) > 0.05:
             glRotatef(self._wobble_x, 0.0, 0.0, 1.0)
@@ -1277,8 +1277,13 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
                 self._eye_head_yaw * 0.5 +
                 _sub.get('head_z', 0.0))
         glPushMatrix()
-        glTranslatef(self.panda_x, 0.90 + bob * 1.1, self.panda_z)
-        glRotatef(self.rotation_y + self._eye_head_yaw * 0.4, 0.0, 1.0, 0.0)
+        # _paint_gl_body already applied panda_x/panda_z and rotation_y via the
+        # parent glTranslatef/glRotatef block; use only local offsets here so the
+        # head stays attached to the body regardless of where the panda has walked.
+        glTranslatef(0.0, 0.90 + bob * 1.1, 0.0)
+        # Only the extra eye-lead yaw is applied here; the base rotation_y is already
+        # in the parent matrix so adding it again would double the facing direction.
+        glRotatef(self._eye_head_yaw * 0.4, 0.0, 1.0, 0.0)
         glRotatef(tilt, 0.0, 0.0, 1.0)
         glRotatef(self._eye_head_pitch * 0.5 + _sub.get('head_x', 0.0), 1.0, 0.0, 0.0)
 
