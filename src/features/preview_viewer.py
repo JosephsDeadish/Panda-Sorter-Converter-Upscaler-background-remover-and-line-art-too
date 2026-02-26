@@ -13,7 +13,7 @@ from collections import deque
 try:
     from PIL import Image
     HAS_PIL = True
-except ImportError:
+except (ImportError, OSError, RuntimeError):
     HAS_PIL = False
 
 import os
@@ -28,7 +28,7 @@ try:
     from PyQt6.QtCore import Qt, QRectF, pyqtSignal
     from PyQt6.QtGui import QPixmap, QImage, QWheelEvent, QMouseEvent, QKeyEvent
     GUI_AVAILABLE = True
-except ImportError:
+except (ImportError, OSError, RuntimeError):
     GUI_AVAILABLE = False
 
 

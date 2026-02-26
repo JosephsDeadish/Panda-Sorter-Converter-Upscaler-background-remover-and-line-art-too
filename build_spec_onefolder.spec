@@ -39,7 +39,7 @@ if sys.platform == 'win32':
         print(f"[spec] Note: Could not check Windows long path setting: {e}")
 
 # Application metadata
-APP_NAME = "Game Texture Sorter"
+APP_NAME = "Panda Sorter Converter Upscaler"
 APP_VERSION = "1.0.0"
 APP_AUTHOR = "Dead On The Inside / JosephsDeadish"
 EXE_NAME = "GameTextureSorter"
@@ -121,9 +121,20 @@ print(f"[build_spec] Including {len(_datas)} data directories")
 # Many of these are imported inside try blocks or function bodies, so PyInstaller's
 # static analysis misses them.  collect_submodules() walks the package tree and
 # returns every importable name, guaranteeing nothing is left out.
-from PyInstaller.utils.hooks import collect_submodules  # noqa: E402
+#
+# CRITICAL: collect_submodules() needs src/ on sys.path so it can find packages
+# like 'ui', 'tools', 'ai', etc.  pathex only affects Analysis(), not spec
+# execution, so we must insert SRC_DIR into sys.path here explicitly.
+import sys as _sys
+if str(SRC_DIR) not in _sys.path:
+    _sys.path.insert(0, str(SRC_DIR))
+    print(f"[build_spec] Added {SRC_DIR} to sys.path for collect_submodules")
+from PyInstaller.utils.hooks import collect_submodules, collect_all  # noqa: E402
 
 _app_hidden = []
+_extra_datas = []
+_extra_binaries = []
+
 for _pkg in [
     'ui', 'features', 'tools', 'utils', 'core',
     'ai', 'vision_models', 'organizer', 'classifier',
@@ -139,12 +150,52 @@ for _pkg in [
         # package will be unavailable in the frozen exe until the dep is installed.
         print(f"[build_spec] WARNING: collect_submodules({_pkg!r}) failed (non-fatal): {_e}")
 
+# ── Collect ALL of PyOpenGL (critical for 3D panda widget) ────────────────────
+# collect_all() walks the entire package and returns (datas, binaries, hiddenimports).
+# This catches every lazy-loaded submodule (platform backends, array handlers, etc.)
+# that PyInstaller's static analyser misses — including the Windows platform backend
+# (OpenGL.platform.win32) which is selected at runtime via sys.platform and is
+# completely invisible to static import tracing.
+try:
+    _ogl_datas, _ogl_bins, _ogl_hidden = collect_all('OpenGL')
+    # Strip opengl_accelerate C-extension from binaries — it is a platform-specific
+    # compiled extension that is excluded from the frozen bundle (pure-Python mode is
+    # used instead via USE_ACCELERATE=False set in runtime-hook-opengl.py).
+    # Without this filter, the .pyd/.so ends up in _extra_binaries and gets bundled
+    # even though it appears in Analysis(excludes=[...]).  On machines with a different
+    # driver/ABI it can segfault the process before the first GL context is opened.
+    _ogl_bins = [
+        (dst, src, typ) for (dst, src, typ) in _ogl_bins
+        if 'accelerate' not in src.lower() and 'accelerate' not in dst.lower()
+    ]
+    _extra_datas    += _ogl_datas
+    _extra_binaries += _ogl_bins
+    _app_hidden     += _ogl_hidden
+    print(f"[build_spec] PyOpenGL collected: {len(_ogl_hidden)} hidden imports, "
+          f"{len(_ogl_bins)} binaries (accelerate excluded), {len(_ogl_datas)} data files")
+except Exception as _e:
+    print(f"[build_spec] WARNING: collect_all('OpenGL') failed ({_e}) — "
+          f"3D panda may fall back to 2D mode in the frozen EXE")
+
+# ── Collect optional heavy deps (graceful failure each) ───────────────────────
+for _opt_pkg in ('gfpgan', 'basicsr', 'realesrgan', 'facexlib', 'rembg'):
+    try:
+        _d, _b, _h = collect_all(_opt_pkg)
+        _extra_datas    += _d
+        _extra_binaries += _b
+        _app_hidden     += _h
+        print(f"[build_spec] {_opt_pkg} collected: {len(_h)} hidden imports")
+    except Exception as _e:
+        print(f"[build_spec] INFO: {_opt_pkg} not available ({_e}) — feature disabled in EXE")
+
+print(f"[build_spec] Collected {len(_app_hidden)} total hidden-import entries")
+
 # Collect all Python files
 a = Analysis(
     ['main.py'],
     pathex=[str(SCRIPT_DIR), str(SRC_DIR)],  # Include src directory for module imports
-    binaries=[],
-    datas=_datas,
+    binaries=_extra_binaries,          # PyOpenGL DLLs collected by collect_all()
+    datas=_datas + _extra_datas,       # PyOpenGL data files collected by collect_all()
     hiddenimports=_app_hidden + [
         # Flat top-level application modules (not in a sub-package).
         # preprocessing.* is already covered by collect_submodules('preprocessing')
@@ -157,6 +208,7 @@ a = Analysis(
         'organizer',
         'advanced_analyzer',
         'native_ops',
+        'texture_ops',         # Native Rust Lanczos acceleration (built by maturin in CI)
         'startup_validation',
         'qt_platform_setup',   # sets QT_QPA_PLATFORM=offscreen on headless Linux
         # Core image processing
@@ -176,6 +228,10 @@ a = Analysis(
         'sklearn',
         'sklearn.metrics',
         'sklearn.cluster',
+        # FAISS similarity search (optional - pure-numpy fallback used when absent)
+        'faiss',
+        'faiss.loader',
+        'faiss.extra_wrappers',
         # Database and file handling
         'sqlite3',
         'send2trash',
@@ -188,17 +244,25 @@ a = Analysis(
         'PyQt6.QtOpenGL',
         'PyQt6.QtOpenGLWidgets',
         'PyQt6.QtSvg',
+        'PyQt6.QtStateMachine',        # QState/QStateMachine moved here in PyQt6 6.1+
         'PyQt6.sip',
-        # OpenGL for 3D rendering
+        # OpenGL for 3D rendering (panda widget uses PyOpenGL + Qt6 OpenGL widgets)
         'OpenGL',
         'OpenGL.GL',
         'OpenGL.GLU',
         'OpenGL.GLUT',
         'OpenGL.arrays',
         'OpenGL.arrays.vbo',
+        'OpenGL.arrays.ctypesarrays',
+        'OpenGL.arrays.ctypesparameters',
+        # NOTE: OpenGL.arrays.numpymodule is intentionally omitted — it imports
+        # opengl_accelerate which is excluded from the bundle (see excludes list).
+        # The runtime hook blocks opengl_accelerate via sys.modules before any
+        # OpenGL import fires, so pure-Python array mode is used automatically.
+        'OpenGL.arrays.numbers',
         'OpenGL.GL.shaders',
         'OpenGL.platform',
-        'OpenGL.platform.glx',
+        'OpenGL.platform.win32',   # Windows platform backend (replaces glx which is Linux-only)
         'darkdetect',
         # Utilities
         'psutil',
@@ -216,14 +280,40 @@ a = Analysis(
         'pynput.keyboard',
         'pynput.mouse',
         # AI inference and model download utilities
-        # Note: rembg is excluded from analysis (see excludes list below) because
-        # rembg.bg calls sys.exit(1) when onnxruntime fails to load in PyInstaller's
-        # isolated binary-dependency analysis subprocesses, killing the build.
+        # Note: rembg is NO LONGER excluded (see excludes section for explanation).
+        # pre_safe_import_module/hook-rembg.py patches sys.exit() so that
+        # rembg.bg's sys.exit(1) becomes a harmless SystemExit during analysis.
         # onnxruntime binaries are still collected by hook-onnxruntime.py.
-        'onnxruntime',  # Required for offline AI model inference (src/ai/offline_model.py)
+        'onnxruntime',  # Required for offline AI model inference (src/ai/inference.py, src/ai/offline_model.py)
+        # rembg is no longer in excludes — bundle it so background removal works in the EXE.
+        # The pre_safe_import_module/hook-rembg.py patches sys.exit during analysis.
+        'rembg',
+        'rembg.sessions',
+        'rembg.sessions.base',
+        'rembg.sessions.simple',
+        'rembg.sessions.u2net',
+        'rembg.sessions.u2netp',
+        'rembg.sessions.u2net_human_seg',
+        'rembg.sessions.silueta',
+        'rembg.sessions.isnet',
+        'rembg.sessions.isnet_dis',
+        'rembg.sessions.birefnet',
         'pooch',  # Required for ML model downloads (used by various AI/ML libraries)
         'requests',
-        # PyTorch - Core deep learning
+        # Hybrid inference modules (ONNX – always-on, no torch dependency)
+        'ai.inference',           # OnnxInferenceSession / run_batch_inference
+        # PyTorch training modules – optional; NOT required for normal app operation.
+        # They are lazy-imported inside ai.training_pytorch and only activated when
+        # the user explicitly triggers a training workflow.
+        # torch itself is still listed below so it is bundled when available on the
+        # build machine, keeping advanced features working in the EXE.
+        'ai.training_pytorch',    # PyTorchTrainer, export_to_onnx
+        # Panda widget — always include both backends so the EXE can fall back
+        # from 3D OpenGL to 2D QPainter when hardware OpenGL is unavailable.
+        'ui.panda_widget_gl',     # 3D OpenGL panda (preferred)
+        'ui.panda_widget_2d',     # 2D QPainter panda (fallback — no OpenGL required)
+        'ui.panda_widget_loader', # loader that picks the right backend at runtime
+        # PyTorch - Core deep learning (optional: EXE works without torch)
         'torch',
         'torch._C',
         'torch.nn',
@@ -249,13 +339,27 @@ a = Analysis(
         'tokenizers',
         'safetensors',
         'regex',
-        # Upscaling models - Real-ESRGAN (REMOVED - will download at runtime)
-        # Note: basicsr and realesrgan are now optional runtime dependencies
-        # Models will be downloaded on first use via the AI Model Manager
+        # Upscaling models - Real-ESRGAN (bundled when available on build machine)
+        # basicsr/realesrgan are installed in CI; models (.pth) download at runtime
+        # via the AI Model Manager once the user requests Real-ESRGAN upscaling.
+        'basicsr',
+        'basicsr.archs',
+        'basicsr.archs.rrdbnet_arch',
+        'basicsr.utils',
+        'basicsr.utils.download_util',
+        'realesrgan',
+        'realesrgan.utils',
+        # torchvision — explicit submodules to guarantee bundling.
+        # hook-torchvision.py also runs collect_submodules() + include_py_files=True
+        # (needed so TorchScript inspect.getsource() works at runtime).
+        'torchvision.transforms.functional',   # used by basicsr compat shim
+        'torchvision.transforms.functional_tensor',  # may still exist in older installs
         # Additional Qt submodules used by the app
         'PyQt6.QtMultimedia',
         'PyQt6.QtPrintSupport',
         'PyQt6.QtNetwork',
+        'PyQt6.QtSvgWidgets',  # SVG rendering in UI
+        'PyQt6.QtStateMachine',  # QState/QStateMachine - moved from QtCore in PyQt6 6.1+
     ],
     hookspath=HOOKSPATH,  # Use validated hookspath variable
     hooksconfig={},
@@ -263,8 +367,16 @@ a = Analysis(
         str(SCRIPT_DIR / 'runtime-hook-qt-platform.py'),  # Set QT_QPA_PLATFORM=offscreen on headless Linux
         str(SCRIPT_DIR / 'runtime-hook-onnxruntime.py'),  # Disable CUDA providers for onnxruntime
         str(SCRIPT_DIR / 'runtime-hook-torch.py'),  # Graceful CUDA handling for torch
+        str(SCRIPT_DIR / 'runtime-hook-opengl.py'),  # os.add_dll_directory + PYOPENGL_PLATFORM_HANDLER for Windows
     ],
     excludes=[
+        # opengl_accelerate C extension: excluded deliberately.
+        # We run PyOpenGL in pure-Python mode (USE_ACCELERATE=False) which is
+        # safe and driver-agnostic.  The C extension can segfault on some
+        # Windows GPU drivers, and the runtime hook + module-level setup in
+        # main.py block it via sys.modules before it can be imported.
+        'opengl_accelerate',
+        'OpenGL_accelerate',
         # Exclude tkinter
         'tkinter',
         'tkinter.ttk',
@@ -315,9 +427,10 @@ a = Analysis(
         'onnxscript',  # Optional scripting extension (covers all onnxscript.* submodules)
         'torch.onnx._internal.exporter._torchlib.ops',  # Tries to use onnxscript
         
-        # Upscaler modules - download at runtime via AI Model Manager
-        'basicsr',
-        'realesrgan',
+        # Upscaler modules - included when available (installed in CI via pip)
+        # Models (.pth files) download at runtime via the AI Model Manager.
+        # Removing from excludes lets PyInstaller bundle the libraries themselves.
+        # 'basicsr' and 'realesrgan' intentionally NOT excluded here.
         
         # Cairo SVG: cairosvg/cairocffi require native Cairo DLL not available on Windows CI
         # SVG support is optional - the application handles missing cairosvg gracefully
@@ -343,22 +456,11 @@ a = Analysis(
         'setuptools',
         'distutils',
         
-        # rembg - excluded to prevent build failure:
-        # rembg.bg calls sys.exit(1) when onnxruntime fails to load.
-        # PyInstaller's find_binary_dependencies spawns isolated child subprocesses
-        # to call import_library(package) for every collected package.  In those
-        # subprocesses sys.exit() is NOT patched, so the call is fatal and raises
-        # RuntimeError in the parent, aborting the build.
-        # onnxruntime DLLs are still collected via hook-onnxruntime.py; rembg can be
-        # added back once onnxruntime initialises cleanly in isolated subprocesses.
-        'rembg',
-        'rembg.bg',
-        'rembg.sessions',
-        'rembg.sessions.base',
-        'rembg.sessions.u2net',
-        'rembg.sessions.u2netp',
-        'rembg.sessions.u2net_human_seg',
-        'rembg.sessions.silueta',
+        # NOTE: rembg is NO LONGER in excludes.
+        # The pre_safe_import_module/hook-rembg.py patches sys.exit() during
+        # PyInstaller analysis so rembg.bg's sys.exit(1) becomes a harmless
+        # SystemExit.  Bundling rembg enables background removal in the EXE.
+        # onnxruntime DLLs are collected via hook-onnxruntime.py.
     ],
     win_no_prefer_redirects=False,
     win_private_assemblies=False,

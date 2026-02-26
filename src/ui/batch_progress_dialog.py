@@ -21,7 +21,7 @@ try:
     from PyQt6.QtCore import Qt, QTimer
     from PyQt6.QtGui import QFont
     GUI_AVAILABLE = True
-except ImportError:
+except (ImportError, OSError, RuntimeError):
     GUI_AVAILABLE = False
     logger.warning("PyQt6 not available")
 

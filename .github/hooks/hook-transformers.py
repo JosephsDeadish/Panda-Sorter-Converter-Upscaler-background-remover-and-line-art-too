@@ -26,6 +26,6 @@ hiddenimports.extend([
 ])
 
 # Collect transformers data files (model configs, tokenizers, etc.)
-datas = collect_data_files('transformers', include_py_files=False)
+datas = collect_data_files('transformers', include_py_files=True)
 
 print(f"[transformers hook] Collected {len(hiddenimports)} modules and {len(datas)} data files")

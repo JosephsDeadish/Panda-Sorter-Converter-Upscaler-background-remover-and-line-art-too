@@ -1,5 +1,5 @@
 """
-CLI Interface - Command Line Interface for Game Texture Sorter
+CLI Interface - Command Line Interface for Panda Sorter Converter Upscaler
 Supports batch processing and automation workflows
 Author: Dead On The Inside / JosephsDeadish
 """
@@ -16,7 +16,7 @@ import json
 try:
     from ..config import APP_NAME, APP_VERSION, APP_AUTHOR, config
     from .config_loader import ConfigLoader
-except ImportError:
+except (ImportError, OSError, RuntimeError):
     from config import APP_NAME, APP_VERSION, APP_AUTHOR, config  # type: ignore[no-redef]
     from cli.config_loader import ConfigLoader  # type: ignore[no-redef]
 
@@ -25,7 +25,7 @@ logger = logging.getLogger(__name__)
 
 
 class CLIInterface:
-    """Command-line interface for Game Texture Sorter."""
+    """Command-line interface for Panda Sorter Converter Upscaler."""
     
     def __init__(self):
         """Initialize CLI interface."""
@@ -485,7 +485,7 @@ Author: {APP_AUTHOR}
         try:
             from tqdm import tqdm
             use_tqdm = args.progress == 'bar' and show_progress
-        except ImportError:
+        except (ImportError, OSError, RuntimeError):
             use_tqdm = False
         
         iterator = tqdm(texture_files, desc="Processing") if use_tqdm else texture_files

@@ -12,7 +12,7 @@ try:
     from PyQt6.QtCore import Qt, pyqtSignal
     from PyQt6.QtGui import QColor
     PYQT_AVAILABLE = True
-except ImportError:
+except (ImportError, OSError, RuntimeError):
     PYQT_AVAILABLE = False
     class _SignalStub:
         def connect(self, *a, **kw): pass

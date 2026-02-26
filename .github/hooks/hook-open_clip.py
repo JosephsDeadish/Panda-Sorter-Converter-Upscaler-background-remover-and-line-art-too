@@ -15,7 +15,7 @@ excludedimports = []
 # Collect all open_clip submodules
 hiddenimports = collect_submodules('open_clip')
 
-# Collect open_clip data files (model configs, etc.)
-datas = collect_data_files('open_clip', include_py_files=False)
+# Collect open_clip data files (model configs + .py files for TorchScript getsource())
+datas = collect_data_files('open_clip', include_py_files=True)
 
 print(f"[open_clip hook] Collected {len(hiddenimports)} modules and {len(datas)} data files")

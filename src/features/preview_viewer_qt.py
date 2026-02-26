@@ -8,7 +8,7 @@ try:
     from PyQt6.QtCore import Qt
     from PyQt6.QtGui import QPixmap, QPainter, QImage
     PYQT_AVAILABLE = True
-except ImportError:
+except (ImportError, OSError, RuntimeError):
     PYQT_AVAILABLE = False
     # Stub base classes so class bodies don't raise NameError at definition time
     # when PyQt6 is unavailable.

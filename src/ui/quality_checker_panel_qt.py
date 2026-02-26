@@ -13,7 +13,7 @@ try:
     from PyQt6.QtCore import Qt, QThread, pyqtSignal
     from PyQt6.QtGui import QPixmap, QImage, QFont
     PYQT_AVAILABLE = True
-except ImportError:
+except (ImportError, OSError, RuntimeError):
     PYQT_AVAILABLE = False
     QWidget = object
     QFrame = object
@@ -74,18 +74,27 @@ import logging
 try:
     from PIL import Image
     HAS_PIL = True
-except ImportError:
+except (ImportError, OSError, RuntimeError):
     HAS_PIL = False
 
 
-from tools.quality_checker import ImageQualityChecker, format_quality_report, QualityLevel, QualityCheckOptions
+try:
+    from tools.quality_checker import ImageQualityChecker, format_quality_report, QualityLevel, QualityCheckOptions
+    _QUALITY_TOOL_AVAILABLE = True
+except Exception as _e:
+    import logging as _logging
+    _logging.getLogger(__name__).warning(f"quality_checker tool not available: {_e}")
+    ImageQualityChecker = None  # type: ignore[assignment,misc]
+    format_quality_report = None  # type: ignore[assignment]
+    QualityLevel = QualityCheckOptions = None  # type: ignore[assignment]
+    _QUALITY_TOOL_AVAILABLE = False
 
 logger = logging.getLogger(__name__)
 
 try:
     from utils.archive_handler import ArchiveHandler
     ARCHIVE_AVAILABLE = True
-except ImportError:
+except (ImportError, OSError, RuntimeError):
     ARCHIVE_AVAILABLE = False
     logger.warning("Archive handler not available")
 
@@ -130,7 +139,7 @@ class QualityCheckerPanelQt(QWidget):
         super().__init__(parent)
         
         self.tooltip_manager = tooltip_manager
-        self.checker = ImageQualityChecker()
+        self.checker = ImageQualityChecker() if ImageQualityChecker is not None else None
         self.selected_files: List[str] = []
         self.current_report = None
         self.worker_thread = None
@@ -345,7 +354,13 @@ class QualityCheckerPanelQt(QWidget):
     def _on_result(self, report, filename):
         """Handle individual result."""
         # Add to report text
-        report_text = format_quality_report(report)
+        if format_quality_report is not None:
+            report_text = format_quality_report(report)
+        else:
+            ql = getattr(report, 'quality_level', None) or getattr(report, 'overall_quality', '?')
+            ql_val = ql.value if hasattr(ql, 'value') else str(ql)
+            score = getattr(report, 'overall_score', None) or getattr(report, 'quality_score', 0)
+            report_text = f"Quality: {ql_val}, Score: {score:.1f}/100"
         self.report_text.append(f"\n{'='*60}\n")
         self.report_text.append(f"File: {filename}\n")
         self.report_text.append(report_text)
@@ -359,21 +374,36 @@ class QualityCheckerPanelQt(QWidget):
             return
         
         # Get quality level color
-        colors = {
-            QualityLevel.EXCELLENT: "#4CAF50",
-            QualityLevel.GOOD: "#8BC34A",
-            QualityLevel.FAIR: "#FFC107",
-            QualityLevel.POOR: "#FF9800",
-            QualityLevel.VERY_POOR: "#F44336"
-        }
-        color = colors.get(report.overall_quality, "gray")
-        
+        # Use correct field names from QualityReport dataclass:
+        # quality_level (not overall_quality), overall_score (not quality_score),
+        # width/height (not resolution tuple).  Fall back gracefully if old field
+        # names somehow appear (e.g. future refactor).
+        ql = (getattr(report, 'quality_level', None)
+              or getattr(report, 'overall_quality', None))
+        score = (getattr(report, 'overall_score', None)
+                 or getattr(report, 'quality_score', 0) or 0)
+        width  = getattr(report, 'width',  None) or (getattr(report, 'resolution', (0, 0))[0])
+        height = getattr(report, 'height', None) or (getattr(report, 'resolution', (0, 0))[1])
+        fmt    = getattr(report, 'format', '?')
+        if QualityLevel is not None:
+            colors = {
+                QualityLevel.EXCELLENT:    "#4CAF50",
+                QualityLevel.GOOD:         "#8BC34A",
+                QualityLevel.FAIR:         "#FFC107",
+                QualityLevel.POOR:         "#FF9800",
+                getattr(QualityLevel, 'UNACCEPTABLE', None): "#F44336",
+                getattr(QualityLevel, 'VERY_POOR',    None): "#F44336",
+            }
+        else:
+            colors = {}
+        color = colors.get(ql, "gray")
+        ql_str = ql.value if hasattr(ql, 'value') else str(ql) if ql else '?'
         summary = f"""
         <div style='background-color: {color}; color: white; padding: 10px; border-radius: 5px;'>
-        <b>Quality:</b> {report.overall_quality.value}<br/>
-        <b>Score:</b> {report.quality_score:.1f}/100<br/>
-        <b>Resolution:</b> {report.resolution[0]}×{report.resolution[1]}<br/>
-        <b>Format:</b> {report.format}
+        <b>Quality:</b> {ql_str}<br/>
+        <b>Score:</b> {score:.1f}/100<br/>
+        <b>Resolution:</b> {width}×{height}<br/>
+        <b>Format:</b> {fmt}
         </div>
         """
         self.summary_label.setText(summary)
@@ -389,10 +419,19 @@ class QualityCheckerPanelQt(QWidget):
             QMessageBox.critical(self, "Error", message)
             self.status_label.setText("✗ Check failed")
             self.status_label.setStyleSheet("color: red;")
+        self.finished.emit(success, message)
 
-    def _set_tooltip(self, widget, text):
-        """Set tooltip on a widget using tooltip manager if available."""
-        if self.tooltip_manager and hasattr(self.tooltip_manager, 'set_tooltip'):
-            self.tooltip_manager.set_tooltip(widget, text)
+    def _set_tooltip(self, widget, text_or_id: str):
+        """Set tooltip on a widget using tooltip manager if available.
+
+        If *text_or_id* has no spaces it is treated as a widget-ID key and
+        registered with the cycling tooltip system so that mode changes and
+        repeated hovers cycle through the full tip list.
+        """
+        if self.tooltip_manager:
+            tip = self.tooltip_manager.get_tooltip(text_or_id) if ' ' not in text_or_id else text_or_id
+            widget.setToolTip(tip)
+            if hasattr(self.tooltip_manager, 'register'):
+                self.tooltip_manager.register(widget, text_or_id if ' ' not in text_or_id else None)
         else:
-            widget.setToolTip(text)
+            widget.setToolTip(text_or_id)

@@ -1,5 +1,5 @@
 """
-Game Texture Sorter
+Panda Sorter Converter Upscaler
 Author: Dead On The Inside / JosephsDeadish
 
 A professional Windows application for automatically sorting game texture 
@@ -9,11 +9,11 @@ dumps with advanced AI classification and massive-scale support
 
 __version__ = "1.0.0"
 __author__ = "Dead On The Inside / JosephsDeadish"
-__project__ = "Game Texture Sorter"
+__project__ = "Panda Sorter Converter Upscaler"
 
 # Ensure Qt can start in headless/CI Linux environments before any UI import.
 # This is a no-op on Windows/macOS and a no-op when a display is available.
 try:
     import qt_platform_setup  # noqa: F401
-except ImportError:
+except (ImportError, OSError, RuntimeError):
     pass

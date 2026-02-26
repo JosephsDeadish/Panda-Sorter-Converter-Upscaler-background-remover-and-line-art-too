@@ -19,7 +19,7 @@ try:
     from PyQt6.QtCore import Qt, QThread, pyqtSignal, QTimer
     from PyQt6.QtGui import QPixmap, QImage
     PYQT_AVAILABLE = True
-except ImportError:
+except (ImportError, OSError, RuntimeError):
     PYQT_AVAILABLE = False
     QWidget = object
     QFrame = object
@@ -82,19 +82,19 @@ except ImportError:
 try:
     from PIL import Image, ImageEnhance, ImageFilter
     HAS_PIL = True
-except ImportError:
+except (ImportError, OSError, RuntimeError):
     HAS_PIL = False
 
 try:
     import numpy as np
     HAS_NUMPY = True
-except ImportError:
+except (ImportError, OSError, RuntimeError):
     np = None  # type: ignore[assignment]
     HAS_NUMPY = False
 try:
     import cv2
     HAS_CV2 = True
-except ImportError:
+except (ImportError, OSError, RuntimeError):
     HAS_CV2 = False
     cv2 = None  # type: ignore[assignment]
 
@@ -105,11 +105,11 @@ logger = logging.getLogger(__name__)
 try:
     from upscaler.model_manager import AIModelManager, ModelStatus
     MODEL_MANAGER_AVAILABLE = True
-except ImportError:
+except (ImportError, OSError, RuntimeError):
     try:
         from src.upscaler.model_manager import AIModelManager, ModelStatus
         MODEL_MANAGER_AVAILABLE = True
-    except ImportError:
+    except (ImportError, OSError, RuntimeError):
         logger.debug("Model manager not available")
         MODEL_MANAGER_AVAILABLE = False
         AIModelManager = None
@@ -162,14 +162,24 @@ def apply_post_processing(img, settings):
 try:
     from preprocessing.upscaler import TextureUpscaler
     UPSCALER_AVAILABLE = True
-except ImportError as e:
+except (ImportError, OSError, RuntimeError):
+    try:
+        import sys as _sys
+        import os as _os
+        _sys.path.insert(0, _os.path.join(_os.path.dirname(__file__), '..'))
+        from preprocessing.upscaler import TextureUpscaler
+        UPSCALER_AVAILABLE = True
+    except Exception as e:
+        logger.warning(f"Upscaler not available: {e}")
+        UPSCALER_AVAILABLE = False
+except Exception as e:
     logger.warning(f"Upscaler not available: {e}")
     UPSCALER_AVAILABLE = False
 
 try:
     from ui.live_preview_slider_qt import ComparisonSliderWidget
     SLIDER_AVAILABLE = True
-except ImportError as e:
+except (ImportError, OSError) as e:
     logger.warning(f"Comparison slider not available: {e}")
     SLIDER_AVAILABLE = False
     ComparisonSliderWidget = None
@@ -177,7 +187,7 @@ except ImportError as e:
 try:
     from utils.archive_handler import ArchiveHandler
     ARCHIVE_AVAILABLE = True
-except ImportError:
+except (ImportError, OSError, RuntimeError):
     ARCHIVE_AVAILABLE = False
     logger.warning("Archive handler not available")
 
@@ -226,7 +236,23 @@ UPSCALER_PRESETS = {
         "denoise": False,
         "auto_contrast": False,
         "desc": "Pure bicubic interpolation, no post-processing"
-    }
+    },
+    "🔴 Real-ESRGAN 4x (PS2 Optimal)": {
+        "method": "realesrgan",
+        "scale": 4,
+        "sharpen": 0.0,
+        "denoise": False,
+        "auto_contrast": False,
+        "desc": "Real-ESRGAN 4x — best quality for PS2/retro textures (requires basicsr + model download)"
+    },
+    "🟠 Real-ESRGAN 2x": {
+        "method": "realesrgan",
+        "scale": 2,
+        "sharpen": 0.0,
+        "denoise": False,
+        "auto_contrast": False,
+        "desc": "Real-ESRGAN 2x — faster, still high quality (requires basicsr + model download)"
+    },
 }
 
 
@@ -269,7 +295,11 @@ class UpscaleWorker(QThread):
                     scale_factor=self.scale_factor,
                     method=self.method
                 )
-                
+
+                # Optional GFPGAN face enhancement
+                if self.post_process_settings.get('enhance_faces'):
+                    upscaled = self.upscaler.enhance_faces(upscaled, upscale=1)
+
                 # Post-processing
                 upscaled_img = Image.fromarray(upscaled)
                 upscaled_img = apply_post_processing(upscaled_img, self.post_process_settings)
@@ -485,7 +515,11 @@ class ImageUpscalerPanelQt(QWidget):
             "bicubic",
             "lanczos",
             "realesrgan",
-            "esrgan"
+            "realesrgan_anime",
+            "realesrgan_x2",
+            "swinir",
+            "swinir_anime",
+            "esrgan",
         ])
         self.method_combo.setCurrentText("bicubic")
         method_layout.addWidget(self.method_combo)
@@ -500,7 +534,25 @@ class ImageUpscalerPanelQt(QWidget):
         self.method_desc_label.setWordWrap(True)
         self.method_combo.currentTextChanged.connect(self._update_method_description)
         settings_layout.addWidget(self.method_desc_label)
-        
+
+        # Face / character enhancement
+        self.face_enhance_check = QCheckBox("✨ Enhance faces / characters (GFPGAN)")
+        self.face_enhance_check.setToolTip(
+            "Run GFPGAN face-restoration pass after upscaling.\n"
+            "Best for textures containing character faces or portraits.\n"
+            "Requires GFPGANv1.4.pth model (Settings → AI Models to download)."
+        )
+        try:
+            from preprocessing.upscaler import GFPGAN_AVAILABLE
+            self.face_enhance_check.setEnabled(GFPGAN_AVAILABLE)
+            if not GFPGAN_AVAILABLE:
+                self.face_enhance_check.setText(
+                    "✨ Enhance faces / characters (GFPGAN) — install gfpgan to enable"
+                )
+        except Exception:
+            self.face_enhance_check.setEnabled(False)
+        settings_layout.addWidget(self.face_enhance_check)
+
         settings_group.setLayout(settings_layout)
         main_layout.addWidget(settings_group)
         
@@ -651,6 +703,7 @@ class ImageUpscalerPanelQt(QWidget):
         self.process_btn = QPushButton("🚀 Start Upscaling")
         self.process_btn.clicked.connect(self._start_upscaling)
         self.process_btn.setEnabled(False)
+        self._set_tooltip(self.process_btn, 'upscale_button')
         button_layout.addWidget(self.process_btn)
         
         self.cancel_btn = QPushButton("Cancel")
@@ -672,15 +725,22 @@ class ImageUpscalerPanelQt(QWidget):
     
     def _update_method_description(self, method):
         """Update the method description based on selection."""
-        # Import to check availability
+        # Import to check availability — three-tier fallback for frozen EXE
+        REALESRGAN_AVAILABLE = False
+        NATIVE_AVAILABLE = False
         try:
             from preprocessing.upscaler import REALESRGAN_AVAILABLE, NATIVE_AVAILABLE
-        except ImportError:
-            REALESRGAN_AVAILABLE = False
-            NATIVE_AVAILABLE = False
+        except (ImportError, OSError, RuntimeError):
+            try:
+                import sys as _sys, os as _os
+                _src = _os.path.join(_os.path.dirname(__file__), '..')
+                if _src not in _sys.path:
+                    _sys.path.insert(0, _src)
+                from preprocessing.upscaler import REALESRGAN_AVAILABLE, NATIVE_AVAILABLE
+            except Exception:
+                pass
         except Exception:
-            REALESRGAN_AVAILABLE = False
-            NATIVE_AVAILABLE = False
+            pass
         
         # Helper function for availability status
         def get_status(available):
@@ -690,10 +750,14 @@ class ImageUpscalerPanelQt(QWidget):
             return '✅ Available' if available else '❌ Not installed - pip install basicsr realesrgan'
         
         descriptions = {
-            "bicubic": "Bicubic: Fast, good quality for most images (always available)",
-            "lanczos": f"Lanczos: Sharp results, best for textures with fine details {get_status(NATIVE_AVAILABLE)}",
-            "realesrgan": f"Real-ESRGAN: Best for retro/PS2 textures, slower {get_realesrgan_status(REALESRGAN_AVAILABLE)}",
-            "esrgan": "ESRGAN: High quality (currently uses bicubic as fallback)"
+            "bicubic":        "Bicubic: Fast, good quality for most images (always available)",
+            "lanczos":        f"Lanczos: Sharp results, best for textures with fine details {get_status(NATIVE_AVAILABLE)}",
+            "realesrgan":     f"Real-ESRGAN x4plus: Best for photo-realistic textures (4×) {get_realesrgan_status(REALESRGAN_AVAILABLE)}",
+            "realesrgan_anime": f"Real-ESRGAN Anime 6B: Optimised for anime/cartoon art (4×) {get_realesrgan_status(REALESRGAN_AVAILABLE)}",
+            "realesrgan_x2":  f"Real-ESRGAN x2plus: High quality 2× upscaling {get_realesrgan_status(REALESRGAN_AVAILABLE)}",
+            "swinir":         f"SwinIR x4 Real-World: Transformer upscaler — very sharp detail {get_realesrgan_status(REALESRGAN_AVAILABLE)}",
+            "swinir_anime":   f"SwinIR x4 Classical: Balanced quality/speed for clean images {get_realesrgan_status(REALESRGAN_AVAILABLE)}",
+            "esrgan":         "ESRGAN: High quality (currently uses bicubic as fallback)",
         }
         self.method_desc_label.setText(descriptions.get(method, ""))
     
@@ -734,6 +798,12 @@ class ImageUpscalerPanelQt(QWidget):
                 self.sharpen_spin.setValue(int(preset["sharpen"]))
             self.denoise_cb.setChecked(preset["denoise"])
             self.auto_contrast_cb.setChecked(preset["auto_contrast"])
+            
+            # For Real-ESRGAN presets, auto-select the appropriate scale
+            if preset.get("method") == "realesrgan":
+                scale = preset.get("scale", 4)  # default 4x unless preset says otherwise
+                if hasattr(self, 'scale_spin'):
+                    self.scale_spin.setValue(scale)
             
             # Trigger preview update
             self._schedule_preview_update()
@@ -866,8 +936,8 @@ class ImageUpscalerPanelQt(QWidget):
         method = self.method_combo.currentText()
         
         # Check if Real-ESRGAN model is available (if needed)
-        if method == 'realesrgan':
-            if not self._ensure_realesrgan_model(scale_factor):
+        if method in ('realesrgan', 'realesrgan_anime', 'realesrgan_x2', 'swinir', 'swinir_anime'):
+            if not self._ensure_realesrgan_model(scale_factor, method):
                 return
         
         # Gather post-processing settings
@@ -880,7 +950,8 @@ class ImageUpscalerPanelQt(QWidget):
             'contrast_factor': self.contrast_spin.value(),
             'custom_resolution': self.custom_res_cb.isChecked(),
             'custom_width': self.custom_width.value(),
-            'custom_height': self.custom_height.value()
+            'custom_height': self.custom_height.value(),
+            'enhance_faces': hasattr(self, 'face_enhance_check') and self.face_enhance_check.isChecked(),
         }
         
         # Create output directory if it doesn't exist
@@ -913,10 +984,10 @@ class ImageUpscalerPanelQt(QWidget):
         self.worker_thread.finished.connect(self._upscaling_finished)
         self.worker_thread.start()
     
-    def _ensure_realesrgan_model(self, scale_factor: int) -> bool:
+    def _ensure_realesrgan_model(self, scale_factor: int, method: str = 'realesrgan') -> bool:
         """
-        Ensure Real-ESRGAN model is available, prompt to download if not.
-        
+        Ensure Real-ESRGAN / SwinIR model is available, prompt to download if not.
+
         Returns:
             True if model is available or successfully downloaded
         """
@@ -928,30 +999,40 @@ class ImageUpscalerPanelQt(QWidget):
                 "Please use bicubic or lanczos methods instead."
             )
             return False
-        
-        # Determine which model is needed
-        model_name = 'RealESRGAN_x2plus' if scale_factor == 2 else 'RealESRGAN_x4plus'
-        
+
+        # Determine which model is needed based on the selected method
+        _METHOD_MODEL = {
+            'realesrgan':       'RealESRGAN_x4plus',
+            'realesrgan_anime': 'RealESRGAN_x4plus_anime_6B',
+            'realesrgan_x2':    'RealESRGAN_x2plus',
+            'swinir':           'SwinIR_x4_realworld',
+            'swinir_anime':     'SwinIR_x4_anime',
+        }
+        model_name = _METHOD_MODEL.get(method)
+        if model_name is None:
+            # Legacy fallback: choose by scale factor
+            model_name = 'RealESRGAN_x2plus' if scale_factor == 2 else 'RealESRGAN_x4plus'
+
         # Check if model exists
         if self.model_manager.get_model_status(model_name) == ModelStatus.INSTALLED:
             return True
-        
+
         # Ask user if they want to download
         model_info = self.model_manager.MODELS.get(model_name, {})
         size_mb = model_info.get('size_mb', '?')
-        
+
         reply = QMessageBox.question(
             self,
-            "Download Real-ESRGAN Model?",
-            f"Real-ESRGAN {scale_factor}x model ({size_mb}MB) is required for upscaling.\n\n"
+            "Download AI Model?",
+            f"The {model_name} model ({size_mb} MB) is required for this upscaling method.\n\n"
             "Download now? You can also download from Settings → AI Models later.",
-            QMessageBox.StandardButton.Yes | 
+            QMessageBox.StandardButton.Yes |
             QMessageBox.StandardButton.No
         )
-        
+
         if reply != QMessageBox.StandardButton.Yes:
             return False
-        
+
         # Download the model
         return self._download_model(model_name)
     
@@ -965,7 +1046,7 @@ class ImageUpscalerPanelQt(QWidget):
         # Create download thread (reuse from ai_models_settings_tab)
         try:
             from .ai_models_settings_tab import ModelDownloadThread
-        except ImportError:
+        except (ImportError, OSError, RuntimeError):
             # Fallback to simple blocking download
             return self._download_model_blocking(model_name)
         
@@ -1118,12 +1199,29 @@ class ImageUpscalerPanelQt(QWidget):
             self.status_label.setText(message)
             self.status_label.setStyleSheet("color: red; font-weight: bold;")
             QMessageBox.warning(self, "Error", message)
-        
+
+        self.finished.emit(success, message)
+        if not success:
+            self.error.emit(message)
         self.worker_thread = None
     
-    def _set_tooltip(self, widget, text):
-        """Set tooltip on a widget using tooltip manager if available."""
-        if self.tooltip_manager and hasattr(self.tooltip_manager, 'set_tooltip'):
-            self.tooltip_manager.set_tooltip(widget, text)
-        else:
-            widget.setToolTip(text)
+    def _set_tooltip(self, widget, widget_id_or_text):
+        """Set tooltip on a widget using tooltip manager if available.
+        
+        If widget_id_or_text looks like a widget_id key (no spaces, no punctuation
+        that indicates it's a literal sentence), register via the manager so the
+        tooltip cycles through all tips for the current mode.  Otherwise fall back
+        to setting the literal string.
+        """
+        if self.tooltip_manager and hasattr(self.tooltip_manager, 'register'):
+            # If it's a widget_id (no spaces), register for cycling
+            if isinstance(widget_id_or_text, str) and ' ' not in widget_id_or_text:
+                try:
+                    tip = self.tooltip_manager.get_tooltip(widget_id_or_text)
+                    if tip:
+                        widget.setToolTip(tip)
+                        self.tooltip_manager.register(widget, widget_id_or_text)
+                        return
+                except Exception:
+                    pass
+        widget.setToolTip(str(widget_id_or_text))

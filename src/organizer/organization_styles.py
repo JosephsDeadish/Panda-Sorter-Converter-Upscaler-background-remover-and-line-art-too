@@ -1,75 +1,118 @@
 """
-Game Texture Sorter - Organization Styles
+Texture Sorter - Organization Styles
 Author: Dead On The Inside / JosephsDeadish
 
 Implementation of all 9 organization style presets for sorting textures.
 """
 
+import re as _re
 from pathlib import Path
 from .organization_engine import OrganizationStyle, TextureInfo
 
 
-class SimsStyle(OrganizationStyle):
+def _has_kw(text: str, keywords) -> bool:
+    """Return True if *any* keyword appears as a whole token in *text*.
+
+    Splits on non-alphanumeric characters so that e.g. ``'iron'`` does NOT
+    match ``'environment'`` (which contains the *substring* "iron" inside
+    "env**iron**ment" but NOT as a standalone word/token).  Without this guard
+    every texture with category ``'environment'`` was misclassified as
+    ``Metal_Surfaces`` because ``'iron' in 'environment'`` is True in Python.
     """
-    The Sims Style: Gender/Skin/BodyPart/Variant
-    Example: Male/DarkSkin/Head/variant_01.dds
+    tokens = set(_re.split(r'[^a-z0-9]', text))
+    return any(kw in tokens for kw in keywords)
+
+
+class ByAppearanceStyle(OrganizationStyle):
     """
-    
+    By Appearance: organises textures by visual traits detected in the image.
+    Folder structure: AppearanceType/Subtype/filename
+    Example: Skin_Tones/Dark/face_skin_dark.dds
+    """
+
     def get_name(self) -> str:
-        return "The Sims Style"
-    
+        return "By Appearance"
+
     def get_description(self) -> str:
-        return ("Character-focused sorting by physical traits. "
-                "Best for: games with character customization (The Sims, Saints Row, WWE). "
-                "Hierarchy: Gender → Skin Tone → Body Part → Variant. "
-                "Example: Male/Skin_Tan/Head/head_variant_01.dds")
-    
+        return (
+            "Groups textures by what they look like visually: skin tones, surface materials, "
+            "patterns, colours. Best for character/NPC texture sets with many visual variants. "
+            "Folders reflect visual traits, not asset function. "
+            "Example: Skin_Tones/Tan/, Metal_Surfaces/Polished/, Fabric/Striped/"
+        )
+
     def get_target_path(self, texture: TextureInfo) -> str:
-        parts = []
-        
-        # Detect gender
-        gender = self.detect_variant(texture.filename)
-        if gender in ['Male', 'Female']:
-            parts.append(gender)
-        else:
-            parts.append('Unisex')
-        
-        # Detect skin/color variant (for character textures)
-        if 'character' in texture.category.lower() or 'skin' in texture.category.lower():
-            skin_tone = 'Default'
-            for tone in ['Black', 'White', 'Brown', 'Tan']:
-                if tone.lower() in texture.filename.lower():
-                    skin_tone = tone
+        name = texture.filename.lower()
+        cat = texture.category.lower()
+
+        # Skin/body tones
+        if _has_kw(name, ['skin', 'body', 'torso', 'arm', 'leg', 'face', 'head']) or \
+                _has_kw(cat, ['skin', 'body', 'torso', 'arm', 'leg', 'face', 'head']):
+            tone = 'Neutral'
+            for t in [('dark', 'Dark'), ('black', 'Dark'), ('brown', 'Brown'),
+                       ('tan', 'Tan'), ('light', 'Light'), ('pale', 'Light'), ('white', 'Light')]:
+                if t[0] in name:
+                    tone = t[1]
                     break
-            parts.append(f"Skin_{skin_tone}")
-        
-        # Add category as body part
-        parts.append(texture.category)
-        
-        # Add LOD folder if applicable
-        if texture.lod_group:
-            parts.append(f"LOD_{texture.lod_level if texture.lod_level is not None else 'unknown'}")
-        
-        # Final filename
-        parts.append(texture.filename)
-        
-        return str(Path(*parts))
+            return str(Path('Skin_Tones', tone, texture.filename))
+
+        # Metal surfaces — use _has_kw to avoid 'iron' matching 'environment'
+        if _has_kw(name, ['metal', 'steel', 'iron', 'chrome', 'gold', 'silver', 'armor']) or \
+                _has_kw(cat, ['metal', 'steel', 'iron', 'chrome', 'gold', 'silver', 'armor']):
+            sub = 'Polished' if any(k in name for k in ['polish', 'shiny', 'clean']) else 'Rough'
+            return str(Path('Metal_Surfaces', sub, texture.filename))
+
+        # Stone / rock / concrete
+        if _has_kw(name, ['stone', 'rock', 'concrete', 'brick', 'cobble', 'gravel']) or \
+                _has_kw(cat, ['stone', 'rock', 'concrete', 'brick', 'cobble', 'gravel']):
+            return str(Path('Stone_Surfaces', texture.filename))
+
+        # Wood
+        if _has_kw(name, ['wood', 'plank', 'timber', 'bark', 'log']) or \
+                _has_kw(cat, ['wood', 'plank', 'timber', 'bark', 'log']):
+            return str(Path('Wood_Surfaces', texture.filename))
+
+        # Fabric / cloth
+        if _has_kw(name, ['cloth', 'fabric', 'textile', 'shirt', 'pants', 'dress', 'outfit']) or \
+                _has_kw(cat, ['cloth', 'fabric', 'textile', 'shirt', 'pants', 'dress', 'outfit']):
+            return str(Path('Fabric', texture.filename))
+
+        # Nature / organic
+        if _has_kw(name, ['grass', 'leaf', 'moss', 'dirt', 'mud', 'sand', 'nature']) or \
+                _has_kw(cat, ['grass', 'leaf', 'moss', 'dirt', 'mud', 'sand', 'nature']):
+            return str(Path('Natural_Surfaces', texture.filename))
+
+        # Transparent / alpha / glass
+        if _has_kw(name, ['glass', 'window', 'transparent', 'alpha', 'crystal']) or \
+                _has_kw(cat, ['glass', 'window', 'transparent', 'alpha', 'crystal']):
+            return str(Path('Transparent', texture.filename))
+
+        # Glow / energy
+        if _has_kw(name, ['glow', 'light', 'neon', 'energy', 'fire', 'flame', 'electric']) or \
+                _has_kw(cat, ['glow', 'light', 'neon', 'energy', 'fire', 'flame', 'electric']):
+            return str(Path('Glowing_Energy', texture.filename))
+
+        # Fall back to category
+        top = texture.category.replace('/', '_') or 'Other'
+        return str(Path(top, texture.filename))
 
 
-class NeopetsStyle(OrganizationStyle):
+class ByTypeStyle(OrganizationStyle):
     """
-    Neopets Style: Category/Type/Individual
-    Example: Pets/Blumaroo/blumaroo_red.dds
+    By Type: Category/BaseType/Individual
+    Groups each texture by its content category, then by the base asset type,
+    then the individual file.
+    Example: Characters/warrior/warrior_red.dds
     """
-    
+
     def get_name(self) -> str:
-        return "Neopets Style"
-    
+        return "By Type"
+
     def get_description(self) -> str:
-        return ("Collectible-style sorting by species/type then individual. "
-                "Best for: games with many distinct creature or item types (Neopets, Pokemon, Monster Hunter). "
+        return ("Sorts by content type then by the specific asset sub-type. "
+                "Ideal for large sets with many distinct subtypes (creatures, items, props). "
                 "Hierarchy: Category → Base Type → Individual File. "
-                "Example: Pets/Blumaroo/blumaroo_red.dds")
+                "Example: Characters/warrior/warrior_red.dds")
     
     def get_target_path(self, texture: TextureInfo) -> str:
         parts = []
@@ -108,159 +151,154 @@ class FlatStyle(OrganizationStyle):
         return str(Path(texture.category) / texture.filename)
 
 
-class GameAreaStyle(OrganizationStyle):
+class ByLocationStyle(OrganizationStyle):
     """
-    Game Area Style: Level/Area/Type/Asset
-    Example: Level_01/Downtown/Buildings/shop_front.dds
+    By Location: organises by detected scene/area context, then asset type.
+    Example: Outdoor/Urban/Buildings/shop_front.dds
     """
-    
+
     def get_name(self) -> str:
-        return "Game Area Style"
-    
+        return "By Location"
+
     def get_description(self) -> str:
-        return ("Level/area-based sorting for open-world and stage-based games. "
-                "Best for: GTA, God of War, Kingdom Hearts, or any game organized by locations. "
-                "Hierarchy: Level → Area → Asset Type → File. "
-                "Example: Level_01/Downtown/Buildings/shop_front.dds")
-    
+        return (
+            "Groups textures by the scene or location they belong to. "
+            "Automatically detects indoor vs outdoor, environment zone, and area type. "
+            "Hierarchy: Zone → Area → Category → File. "
+            "Example: Outdoor/Urban/Buildings/shop_front.dds, Indoor/Residential/Floors/floor_wood.dds"
+        )
+
+    # Zone keywords → (zone_folder, area_folder)
+    _ZONES = [
+        # Outdoor areas
+        (['city', 'urban', 'street', 'road', 'sidewalk', 'downtown', 'alley'], ('Outdoor', 'Urban')),
+        (['residential', 'suburb', 'house', 'home', 'garden', 'yard', 'fence'], ('Outdoor', 'Residential')),
+        (['industrial', 'factory', 'warehouse', 'pipe', 'machinery', 'plant'], ('Outdoor', 'Industrial')),
+        (['nature', 'forest', 'jungle', 'swamp', 'marsh', 'woodland', 'tree'], ('Outdoor', 'Nature')),
+        (['desert', 'sand', 'dune', 'arid', 'wasteland'], ('Outdoor', 'Desert')),
+        (['snow', 'ice', 'arctic', 'tundra', 'frozen'], ('Outdoor', 'Arctic')),
+        (['ocean', 'sea', 'beach', 'coast', 'shore', 'water', 'river', 'lake'], ('Outdoor', 'Water')),
+        (['mountain', 'cliff', 'canyon', 'rock', 'cave', 'cavern'], ('Outdoor', 'Rocky')),
+        # Indoor areas
+        (['interior', 'indoor', 'room', 'corridor', 'hall', 'lobby', 'office', 'apartment'], ('Indoor', 'General')),
+        (['kitchen', 'bathroom', 'bedroom', 'living'], ('Indoor', 'Residential')),
+        (['dungeon', 'prison', 'cell', 'sewer'], ('Indoor', 'Underground')),
+        (['castle', 'church', 'cathedral', 'ruin', 'temple', 'shrine'], ('Indoor', 'Historic')),
+        (['sci', 'futur', 'space', 'station', 'lab', 'tech', 'cyber'], ('Indoor', 'SciFi')),
+    ]
+
     def get_target_path(self, texture: TextureInfo) -> str:
-        parts = []
-        
-        # Try to detect level/area from filename
-        filename_lower = texture.filename.lower()
-        
-        # Level detection
-        level = 'General'
-        for i in range(1, 20):
-            if f'level{i}' in filename_lower or f'lvl{i}' in filename_lower or f'l{i}_' in filename_lower:
-                level = f"Level_{i:02d}"
+        name_lower = texture.filename.lower()
+        cat_lower = texture.category.lower()
+        combined = name_lower + ' ' + cat_lower
+
+        zone = 'Outdoor'
+        area = 'General'
+
+        for keywords, (z, a) in self._ZONES:
+            if any(kw in combined for kw in keywords):
+                zone, area = z, a
                 break
-        parts.append(level)
-        
-        # Area detection (common game areas)
-        area = 'Common'
-        area_keywords = {
-            'Downtown': ['downtown', 'city', 'urban'],
-            'Residential': ['residential', 'house', 'home'],
-            'Industrial': ['industrial', 'factory', 'warehouse'],
-            'Park': ['park', 'garden', 'outdoor'],
-            'Interior': ['interior', 'indoor', 'inside']
-        }
-        
-        for area_name, keywords in area_keywords.items():
-            if any(kw in filename_lower for kw in keywords):
-                area = area_name
-                break
-        parts.append(area)
-        
-        # Type is category
-        parts.append(texture.category)
-        
-        # Filename
+
+        return str(Path(zone, area, texture.category or 'Misc', texture.filename))
+
+
+class ByResolutionStyle(OrganizationStyle):
+    """
+    By Resolution: Category/Resolution/Format — groups by texture size and file format.
+    Example: Characters/2K/DDS/head_texture.dds
+    """
+
+    def get_name(self) -> str:
+        return "By Resolution"
+
+    def get_description(self) -> str:
+        return (
+            "Groups by content type, then resolution tier, then file format. "
+            "Resolution is read from image metadata when available; otherwise inferred from filename keywords. "
+            "Hierarchy: Category → Resolution (4K/2K/1K/512/Low) → Format → File. "
+            "Example: Characters/2K/DDS/head_texture.dds, Environment/4K/PNG/ground_rock.png"
+        )
+
+    @staticmethod
+    def _res_tier_from_dims(dims):
+        w, h = dims
+        m = max(w, h)
+        if m >= 4096:   return '4K+'
+        if m >= 2048:   return '2K'
+        if m >= 1024:   return '1K'
+        if m >= 512:    return '512'
+        return 'Low'
+
+    @staticmethod
+    def _res_tier_from_name(name: str) -> str:
+        """Infer resolution tier from filename keywords."""
+        n = name.lower()
+        if '4k' in n or '4096' in n: return '4K+'
+        if '2k' in n or '2048' in n: return '2K'
+        if '1k' in n or '1024' in n: return '1K'
+        if '512' in n:               return '512'
+        if 'hd' in n or 'high' in n: return '2K'
+        if 'low' in n or 'lod' in n: return 'Low'
+        return '1K'  # 1K is the most common texture resolution in game assets
+
+    def get_target_path(self, texture: TextureInfo) -> str:
+        res_tier = (self._res_tier_from_dims(texture.dimensions)
+                    if texture.dimensions else
+                    self._res_tier_from_name(texture.filename))
+        fmt = (texture.format.upper() if texture.format else
+               Path(texture.filename).suffix.lstrip('.').upper() or 'Unknown')
+        lod = f"LOD{texture.lod_level}" if texture.lod_level is not None else None
+        parts = [texture.category or 'Misc', res_tier, fmt]
+        if lod:
+            parts.append(lod)
         parts.append(texture.filename)
-        
         return str(Path(*parts))
 
 
-class AssetPipelineStyle(OrganizationStyle):
+class BySystemStyle(OrganizationStyle):
     """
-    Asset Pipeline Style: Type/Resolution/Format
-    Example: Textures/2K/DDS/building_wall.dds
-    """
-    
-    def get_name(self) -> str:
-        return "Asset Pipeline Style"
-    
-    def get_description(self) -> str:
-        return ("Production-pipeline sorting by type, resolution, and format. "
-                "Best for: modding workflows, HD texture packs, or export/import pipelines. "
-                "Groups textures by resolution tier and file format for batch processing. "
-                "Example: Textures/2K/DDS/building_wall.dds")
-    
-    def get_target_path(self, texture: TextureInfo) -> str:
-        parts = []
-        
-        # Type is category
-        parts.append(texture.category)
-        
-        # Resolution tier
-        if texture.dimensions:
-            width, height = texture.dimensions
-            max_dim = max(width, height)
-            
-            if max_dim >= 4096:
-                res_tier = '4K+'
-            elif max_dim >= 2048:
-                res_tier = '2K'
-            elif max_dim >= 1024:
-                res_tier = '1K'
-            elif max_dim >= 512:
-                res_tier = '512'
-            else:
-                res_tier = 'Low'
-            parts.append(res_tier)
-        else:
-            parts.append('Unknown_Res')
-        
-        # Format
-        parts.append(texture.format.upper() if texture.format else 'Unknown')
-        
-        # LOD if applicable
-        if texture.lod_level is not None:
-            parts.append(f"LOD{texture.lod_level}")
-        
-        # Filename
-        parts.append(texture.filename)
-        
-        return str(Path(*parts))
-
-
-class ModularStyle(OrganizationStyle):
-    """
-    Modular Style: Character/Vehicle/Environment/UI
+    By System: groups textures by the functional system they serve
+    (Characters, Vehicles, UI, Items, Environment, etc.)
     Example: Characters/Body/head_texture.dds
     """
-    
+
     def get_name(self) -> str:
-        return "Modular Style"
-    
+        return "By System"
+
     def get_description(self) -> str:
-        return ("Module-based sorting by gameplay system (characters, vehicles, UI, items, environment). "
-                "Best for: action games with diverse asset types (GTA, Gran Turismo, Final Fantasy). "
-                "Groups textures by the game system they belong to. "
-                "Example: Characters/Body/head_texture.dds, Vehicles/Cars/sedan_body.dds")
-    
+        return (
+            "Groups textures by their functional role in the project: Characters, Vehicles, UI, "
+            "Weapons, Environment, Effects, Props. "
+            "Best for large diverse sets with many asset types. "
+            "Hierarchy: System → Sub-category → File. "
+            "Example: Characters/Body/head_texture.dds, Vehicles/Cars/sedan_body.dds"
+        )
+
+    # (keywords_in_category_or_filename) → system folder
+    _SYSTEMS = [
+        (['character', 'npc', 'player', 'body', 'face', 'hair', 'skin', 'outfit', 'cloth'], 'Characters'),
+        (['vehicle', 'car', 'bike', 'plane', 'boat', 'truck', 'van', 'bus', 'moto'],       'Vehicles'),
+        (['weapon', 'gun', 'sword', 'blade', 'rifle', 'pistol', 'axe', 'bow', 'ammo'],     'Weapons'),
+        (['ui', 'hud', 'menu', 'button', 'icon', 'cursor', 'interface', 'font'],            'UI'),
+        (['effect', 'particle', 'smoke', 'fire', 'glow', 'spark', 'decal', 'splash'],      'Effects'),
+        (['env', 'environment', 'ground', 'floor', 'wall', 'ceiling', 'sky', 'terrain',
+          'grass', 'tree', 'nature', 'rock', 'water', 'ocean', 'sand', 'snow'],            'Environment'),
+        (['prop', 'furniture', 'food', 'plant', 'sign', 'box', 'crate', 'barrel'],         'Props'),
+        (['animal', 'creature', 'monster', 'beast', 'wildlife'],                             'Creatures'),
+    ]
+
     def get_target_path(self, texture: TextureInfo) -> str:
-        parts = []
-        
-        # Determine module type from category
-        category_lower = texture.category.lower()
-        
-        if any(kw in category_lower for kw in ['character', 'npc', 'player', 'body', 'face', 'hair', 'skin']):
-            module = 'Characters'
-        elif any(kw in category_lower for kw in ['vehicle', 'car', 'bike', 'plane', 'boat']):
-            module = 'Vehicles'
-        elif any(kw in category_lower for kw in ['ui', 'hud', 'menu', 'button', 'icon', 'interface']):
-            module = 'UI'
-        elif any(kw in category_lower for kw in ['weapon', 'gun', 'sword', 'item']):
-            module = 'Items'
-        else:
-            module = 'Environment'
-        
-        parts.append(module)
-        
-        # Category
-        parts.append(texture.category)
-        
-        # Variant folder if detected
-        variant = self.detect_variant(texture.filename)
-        if variant and variant not in ['Variant_01', 'Variant_02']:  # Skip generic numeric variants
-            parts.append(variant)
-        
-        # Filename
-        parts.append(texture.filename)
-        
-        return str(Path(*parts))
+        combined = (texture.category + ' ' + texture.filename).lower()
+        system = 'Props'   # default
+        for keywords, sys_folder in self._SYSTEMS:
+            if any(kw in combined for kw in keywords):
+                system = sys_folder
+                break
+        # Sub-category: first part of the AI-classified category (e.g. "Characters/Skin" → "Skin")
+        parts_cat = texture.category.split('/')
+        sub = parts_cat[1] if len(parts_cat) > 1 else (parts_cat[0] if parts_cat else 'General')
+        return str(Path(system, sub, texture.filename))
 
 
 class MinimalistStyle(OrganizationStyle):
@@ -417,14 +455,28 @@ class CustomStyle(OrganizationStyle):
 
 
 # Dictionary of all available organization styles
+# Keys are the internal identifiers used by the UI combos and config files.
 ORGANIZATION_STYLES = {
-    'sims': SimsStyle,
-    'neopets': NeopetsStyle,
+    'by_appearance': ByAppearanceStyle,
+    'by_type': ByTypeStyle,
     'flat': FlatStyle,
-    'game_area': GameAreaStyle,
-    'asset_pipeline': AssetPipelineStyle,
-    'modular': ModularStyle,
+    'by_location': ByLocationStyle,
+    'by_resolution': ByResolutionStyle,
+    'by_system': BySystemStyle,
     'minimalist': MinimalistStyle,
     'maximum_detail': MaximumDetailStyle,
-    'custom': CustomStyle
+    'custom': CustomStyle,
+    # Legacy key aliases so old saved configs still load
+    'sims': ByAppearanceStyle,
+    'neopets': ByTypeStyle,
+    'game_area': ByLocationStyle,
+    'asset_pipeline': ByResolutionStyle,
+    'modular': BySystemStyle,
 }
+
+# Legacy class-name aliases — kept so old imports (e.g. organizer/__init__.py) don't break
+SimsStyle = ByAppearanceStyle
+NeopetsStyle = ByTypeStyle
+GameAreaStyle = ByLocationStyle
+AssetPipelineStyle = ByResolutionStyle
+ModularStyle = BySystemStyle

@@ -10,7 +10,7 @@ try:
     from PyQt6.QtCore import Qt, pyqtSignal, QThread, QSize
     from PyQt6.QtGui import QFont, QColor
     PYQT_AVAILABLE = True
-except ImportError:
+except (ImportError, OSError, RuntimeError):
     PYQT_AVAILABLE = False
     QWidget = object
     QFrame = object
@@ -66,23 +66,56 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-# Try to import model manager with correct paths
-try:
-    # First try relative import from src/ui/
-    from ..upscaler.model_manager import AIModelManager, ModelStatus
-    MODEL_MANAGER_AVAILABLE = True
-    logger.info("✅ Model manager loaded successfully (relative import)")
-except ImportError:
+# Try to import model manager with correct paths.
+# Three-tier fallback so this works in:
+#   1. Normal development (src/ in sys.path, relative import works)
+#   2. Running main.py from repo root (absolute import works)
+#   3. Frozen PyInstaller EXE (relative imports may fail; explicit path insert works)
+def _import_model_manager():
+    """Return (AIModelManager, ModelStatus) or (None, None) on failure."""
+    # Attempt 1: relative import (works when ui is a proper package)
     try:
-        # Then try absolute import when src is in sys.path
-        from upscaler.model_manager import AIModelManager, ModelStatus
-        MODEL_MANAGER_AVAILABLE = True
-        logger.info("✅ Model manager loaded successfully (absolute import)")
-    except ImportError:
-        logger.warning("⚠️ Model manager not available - AI models tab will be limited")
-        MODEL_MANAGER_AVAILABLE = False
-        AIModelManager = None
-        ModelStatus = None
+        from ..upscaler.model_manager import AIModelManager, ModelStatus  # noqa: PLC0415
+        return AIModelManager, ModelStatus
+    except (ImportError, ValueError):
+        pass
+
+    # Attempt 2: absolute import (works when src/ is in sys.path)
+    try:
+        from upscaler.model_manager import AIModelManager, ModelStatus  # noqa: PLC0415
+        return AIModelManager, ModelStatus
+    except (ImportError, OSError, RuntimeError):
+        pass
+
+    # Attempt 3: explicit path insert (works in frozen EXE where sys.path differs)
+    try:
+        import sys
+        from pathlib import Path
+        _here = Path(__file__).resolve().parent          # .../src/ui/
+        _upscaler = str(_here.parent / 'upscaler')      # .../src/upscaler/
+        _src = str(_here.parent)                         # .../src/
+        for _p in (_src, _upscaler):
+            if _p not in sys.path:
+                sys.path.insert(0, _p)
+        from model_manager import AIModelManager, ModelStatus  # noqa: PLC0415
+        return AIModelManager, ModelStatus
+    except (ImportError, OSError, RuntimeError):
+        pass
+
+    return None, None
+
+
+_AIModelManager, _ModelStatus = _import_model_manager()
+if _AIModelManager is not None:
+    AIModelManager = _AIModelManager
+    ModelStatus = _ModelStatus
+    MODEL_MANAGER_AVAILABLE = True
+    logger.info("✅ Model manager loaded successfully")
+else:
+    logger.warning("⚠️ Model manager not available - AI models tab will be limited")
+    MODEL_MANAGER_AVAILABLE = False
+    AIModelManager = None
+    ModelStatus = None
 
 
 
@@ -317,47 +350,56 @@ class ModelCardWidget(QFrame):
     
     def download_model(self):
         """Start downloading the model"""
-        # Check if auto-download model
+        # Check if auto-download model (installed via pip, not a .pth file)
         if self.model_info.get('auto_download'):
+            pkgs = ' '.join(self.model_info.get('required_packages', []))
             QMessageBox.information(
                 self,
-                "Package Install Required",
-                f"{self.model_name} is installed via package manager.\n\n"
-                f"Run: pip install {' '.join(self.model_info.get('required_packages', []))}"
+                "Installed via pip",
+                f"<b>{self.model_name}</b> is managed by pip (no separate download needed).<br><br>"
+                f"It is installed as part of:<br><code>pip install {pkgs}</code><br><br>"
+                f"Run <b>pip install -r requirements.txt</b> to install all packages at once.",
             )
             return
-        
+
         # Check if native module
         if self.model_info.get('native_module'):
             QMessageBox.information(
                 self,
-                "Native Module",
-                f"{self.model_name} is a native module built into the application."
+                "Built-in Module",
+                f"<b>{self.model_name}</b> is built into the application and requires no download.",
             )
             return
-        
+
         self.expand_btn.setEnabled(False)
         self.progress.setVisible(True)
         self.progress.setValue(0)
-        
+        self.progress.setRange(0, 100)
+
         self.download_thread = ModelDownloadThread(self.model_manager, self.model_name)
-        self.download_thread.progress.connect(
-            lambda d, t: self.progress.setValue(int((d / t) * 100)) if t > 0 else None
-        )
+        self.download_thread.progress.connect(self._on_progress)
         self.download_thread.finished.connect(self.on_download_finished)
         self.download_thread.start()
-    
+
+    def _on_progress(self, downloaded: int, total: int) -> None:
+        if total > 0:
+            self.progress.setValue(int(downloaded / total * 100))
+        else:
+            # Unknown total — pulse
+            self.progress.setRange(0, 0)
+
     def on_download_finished(self, success: bool):
         """Handle download completion"""
+        self.progress.setRange(0, 100)
         self.progress.setVisible(False)
         self.expand_btn.setEnabled(True)
-        
+
         if success:
             logger.info(f"✅ {self.model_name} downloaded successfully")
             QMessageBox.information(
                 self,
                 "Download Complete",
-                f"{self.model_name} has been downloaded successfully!"
+                f"✅ <b>{self.model_name}</b> has been downloaded and is ready to use!",
             )
             # Update UI to show installed status
             self.model_info['installed'] = True
@@ -365,26 +407,27 @@ class ModelCardWidget(QFrame):
             self.recreate_ui()
         else:
             logger.error(f"❌ Failed to download {self.model_name}")
-            # Show detailed error message with troubleshooting tips
+            url = self.model_info.get('url', 'unknown')
+            mirror = self.model_info.get('mirror', '')
             error_msg = (
-                f"❌ Could not download {self.model_name}\n\n"
-                f"Possible causes:\n"
-                f"• No internet connection\n"
-                f"• Server temporarily unavailable\n"
-                f"• Insufficient disk space\n"
-                f"• Firewall blocking downloads\n\n"
-                f"💡 Troubleshooting:\n"
-                f"• Check your internet connection\n"
-                f"• Try again in a few minutes\n"
-                f"• Free up disk space if needed\n"
-                f"• Check firewall settings\n\n"
-                f"The system tried both primary and mirror URLs."
+                f"❌ <b>Could not download {self.model_name}</b><br><br>"
+                f"Both download sources were tried and failed:<br>"
+                f"• <small>{url}</small><br>"
+                + (f"• <small>{mirror}</small><br>" if mirror else "")
+                + "<br>Possible causes:<br>"
+                "• Internet connection is down<br>"
+                "• CDN server is temporarily unavailable<br>"
+                "• Insufficient disk space<br>"
+                "• Firewall / proxy blocking the request<br><br>"
+                "💡 Try again in a few minutes, or download the model manually "
+                "and place the <code>.pth</code> file in <code>app_data/models/</code>."
             )
-            QMessageBox.critical(
-                self,
-                "Download Failed",
-                error_msg
-            )
+            msg = QMessageBox(self)
+            msg.setWindowTitle("Download Failed")
+            msg.setIcon(QMessageBox.Icon.Critical)
+            msg.setTextFormat(Qt.TextFormat.RichText)
+            msg.setText(error_msg)
+            msg.exec()
     
     def delete_model(self):
         """Delete the model"""

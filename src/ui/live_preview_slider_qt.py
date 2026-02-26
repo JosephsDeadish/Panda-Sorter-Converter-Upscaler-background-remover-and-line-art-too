@@ -10,7 +10,7 @@ try:
     from PyQt6.QtCore import Qt, QRect, pyqtSignal
     from PyQt6.QtGui import QPainter, QPen, QPixmap, QColor, QCursor
     PYQT_AVAILABLE = True
-except ImportError:
+except (ImportError, OSError, RuntimeError):
     PYQT_AVAILABLE = False
     QWidget = object
     class _SignalStub:  # noqa: E301

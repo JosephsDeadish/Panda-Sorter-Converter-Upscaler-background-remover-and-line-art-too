@@ -14,6 +14,7 @@
 # UI Framework - Qt/PyQt6 (REQUIRED - ONLY SUPPORTED UI)
 # The application uses Qt6 exclusively. Tkinter/CustomTkinter are NOT supported.
 PyQt6>=6.6.0  # Qt6 framework for UI (tabs, buttons, layouts, events) - REQUIRED
+PyQt6-sip>=13.6.0  # SIP bindings for PyQt6 (required by PyInstaller to bundle PyQt6)
 PyOpenGL>=3.1.7  # OpenGL for 3D rendering (panda, skeletal animations) - REQUIRED
 PyOpenGL-accelerate>=3.1.7  # Performance optimizations for PyOpenGL - REQUIRED
 
@@ -25,6 +26,7 @@ darkdetect>=0.8.0  # System dark mode detection
 opencv-python>=4.8.1.78
 numpy>=1.24.0
 scikit-image>=0.21.0
+scipy>=1.10.0  # Scientific computing (alpha correction filter fallbacks)
 
 # Machine Learning (Core - lightweight)
 scikit-learn>=1.3.0
@@ -64,8 +66,16 @@ pyinstaller>=6.0.0
 # cairosvg>=2.7.0
 # cairocffi>=1.6.0
 
-# Lightweight AI inference
-# onnxruntime>=1.16.0
+# ONNX Runtime — lightweight inference for batch pipelines (ai/inference.py)
+# Strongly recommended: enables offline AI classification, batch upscaling,
+# and automation pipelines without requiring PyTorch.  The app runs without
+# it but AI inference features will be unavailable.
+onnxruntime>=1.16.0
+
+# timm — Image models (EfficientNet, ResNet, ViT) used by the AI classifier.
+# Required for advanced texture classification; app runs without it but
+# classification falls back to simpler heuristics.
+timm>=0.9.0
 
 # OCR Support (requires tesseract-ocr system package)
 # pytesseract>=0.3.10
@@ -75,10 +85,20 @@ pyinstaller>=6.0.0
 # ============================================================================
 #
 # This minimal installation uses Qt6/OpenGL for the UI and EXCLUDES:
-#   - PyTorch (torch, torchvision) - saves ~1GB
-#   - Transformers, CLIP models - saves ~500MB
+#   - PyTorch (torch, torchvision) - saves ~1GB  [training features only]
+#   - Transformers, CLIP models - saves ~500MB   [advanced vision models]
 #   - Vector search (FAISS, ChromaDB) - saves ~200MB
 #   - Super-resolution models - saves ~100MB
+#
+# Hybrid architecture:
+#   - ONNX Runtime (included above): inference, batch pipelines, automation
+#   - PyTorch (NOT included): training, fine-tuning, experimentation
+#     To enable training: pip install torch torchvision
+#
+# Background removal (optional):
+#   pip install "rembg[cpu]"   # CPU backend
+#   pip install "rembg[gpu]"   # GPU backend
+#   The app works without rembg; background removal is disabled gracefully.
 #
 # For full feature set including advanced AI classification:
 #   pip install -r requirements.txt

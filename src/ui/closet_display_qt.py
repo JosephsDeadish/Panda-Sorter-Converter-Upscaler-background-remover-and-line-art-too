@@ -5,11 +5,12 @@ Replaces canvas-based clothing display with Qt widgets
 
 try:
     from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QScrollArea,
-                                 QLabel, QPushButton, QGridLayout, QFrame, QLineEdit)
-    from PyQt6.QtCore import Qt, pyqtSignal
-    from PyQt6.QtGui import QPixmap, QPainter, QColor
+                                 QLabel, QPushButton, QGridLayout, QFrame,
+                                 QLineEdit, QComboBox, QSizePolicy, QToolTip)
+    from PyQt6.QtCore import Qt, pyqtSignal, QSize
+    from PyQt6.QtGui import QPixmap, QPainter, QColor, QFont
     PYQT_AVAILABLE = True
-except ImportError:
+except (ImportError, OSError, RuntimeError):
     PYQT_AVAILABLE = False
     QWidget = object
     QFrame = object
@@ -27,149 +28,246 @@ except ImportError:
         class ScrollBarPolicy:
             ScrollBarAlwaysOff = 1
 
+# Maps category value string → display label shown in the combo box
+_CATEGORY_LABELS = {
+    'all':         '🗂️ All',
+    'fur_style':   '🐼 Fur Styles',
+    'fur_color':   '🎨 Fur Colours',
+    'hair_style':  '💇 Hair Styles',
+    'hat':         '🎩 Hats',
+    'clothing':    '👕 Clothing',
+    'shoes':       '👟 Shoes',
+    'accessory':   '💎 Accessories',
+    'gloves':      '🧤 Gloves',
+    'armor':       '🛡️ Armor',
+    'boots':       '🥾 Boots',
+    'belt':        '🔗 Belts',
+    'backpack':    '🎒 Backpacks',
+    'weapon':      '⚔️ Weapons',
+    'toy':         '🧸 Toys',
+    'food':        '🍎 Food',
+}
+
+_RARITY_COLORS = {
+    'common':    '#aaaaaa',
+    'uncommon':  '#55cc55',
+    'rare':      '#5599ff',
+    'epic':      '#cc55ff',
+    'legendary': '#ffaa00',
+}
+
 
 class ClothingItemWidget(QFrame):
-    """Individual clothing item"""
-    
+    """Individual clothing item card: emoji, name, rarity badge, lock overlay."""
+
     clicked = pyqtSignal(dict)
-    
-    def __init__(self, item_data, parent=None):
+
+    def __init__(self, item_data: dict, parent=None):
         super().__init__(parent)
         self.item_data = item_data
-        self.setup_ui()
-        
-    def setup_ui(self):
-        self.setFrameStyle(QFrame.Shape.Box)
-        self.setLineWidth(2)
+        self._setup_ui()
+
+    def _setup_ui(self):
+        unlocked = self.item_data.get('unlocked', True)
+        equipped  = self.item_data.get('equipped',  False)
+        rarity    = self.item_data.get('rarity', 'common')
+        rarity_col = _RARITY_COLORS.get(str(rarity).lower(), '#aaaaaa')
+
+        self.setFixedSize(QSize(90, 110))
         self.setCursor(Qt.CursorShape.PointingHandCursor)
-        
+
+        # Frame style — highlight equipped items, dim locked items
+        if equipped:
+            self.setStyleSheet(
+                f"QFrame {{ border: 2px solid #ffdd55; background: #2a2a1e; border-radius: 6px; }}"
+            )
+        elif unlocked:
+            self.setStyleSheet(
+                f"QFrame {{ border: 2px solid {rarity_col}; background: #1e1e2e; border-radius: 6px; }}"
+            )
+        else:
+            self.setStyleSheet(
+                "QFrame { border: 1px solid #444; background: #111118; border-radius: 6px; }"
+            )
+
         layout = QVBoxLayout(self)
-        
-        # Icon
-        icon_label = QLabel()
-        icon_label.setFixedSize(64, 64)
+        layout.setContentsMargins(4, 4, 4, 4)
+        layout.setSpacing(2)
+
+        # Emoji icon
+        icon_label = QLabel(self.item_data.get('emoji', '❓'))
         icon_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        icon_label.setStyleSheet("background-color: #f0f0f0; border-radius: 4px;")
-        
-        # Set icon if available
-        if 'emoji' in self.item_data:
-            icon_label.setText(self.item_data['emoji'])
-            icon_label.setStyleSheet("font-size: 32pt; background-color: #f0f0f0;")
-        
+        icon_label.setStyleSheet("font-size: 26pt; background: transparent; border: none;")
+        if not unlocked:
+            icon_label.setText('🔒')
         layout.addWidget(icon_label)
-        
+
         # Name
-        name_label = QLabel(self.item_data.get('name', 'Unknown'))
+        name = self.item_data.get('name', 'Unknown')
+        name_label = QLabel(name)
         name_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         name_label.setWordWrap(True)
+        name_label.setStyleSheet(
+            f"color: {'#ffdd55' if equipped else ('#cccccc' if unlocked else '#555555')};"
+            "font-size: 8pt; background: transparent; border: none;"
+        )
         layout.addWidget(name_label)
-        
+
+        # Rarity badge
+        rarity_label = QLabel(rarity.capitalize() if unlocked else 'Locked')
+        rarity_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        rarity_label.setStyleSheet(
+            f"color: {rarity_col if unlocked else '#444444'}; font-size: 7pt;"
+            "background: transparent; border: none;"
+        )
+        layout.addWidget(rarity_label)
+
+        # Tooltip: description + cost if locked
+        desc = self.item_data.get('description', '')
+        cost = self.item_data.get('cost', 0)
+        tip = f"<b>{name}</b>"
+        if desc:
+            tip += f"<br>{desc}"
+        if not unlocked and cost:
+            tip += f"<br><i>Cost: {cost} 🪙</i>"
+        if equipped:
+            tip += "<br><b>✅ Equipped</b>"
+        self.setToolTip(tip)
+
     def mousePressEvent(self, event):
         if event.button() == Qt.MouseButton.LeftButton:
             self.clicked.emit(self.item_data)
         super().mousePressEvent(event)
 
+    def mouseDoubleClickEvent(self, event):  # type: ignore[override]
+        """Open closet item detail dialog on double-click."""
+        try:
+            from ui.closet_item_detail_dialog import ClosetItemDetailDialog
+            dlg = ClosetItemDetailDialog(self.item_data, parent=self.window())
+            dlg.exec()
+            if dlg.equip_requested and self.item_data.get('unlocked', True):
+                # Equip the item as if the user clicked it
+                self.clicked.emit(self.item_data)
+        except (ImportError, AttributeError, RuntimeError) as _e:
+            logger.debug(f"ClothingItemWidget double-click dialog: {_e}")
+        super().mouseDoubleClickEvent(event)
+
 
 class ClosetDisplayWidget(QWidget):
-    """Complete closet display with clothing items"""
-    
+    """Complete closet display with category filter, search, lock/unlock badges."""
+
     item_equipped = pyqtSignal(dict)
-    
+
     def __init__(self, parent=None, tooltip_manager=None):
         super().__init__(parent)
-        self.items = []
+        self.items: list = []
+        self._active_category = 'all'
         self.tooltip_manager = tooltip_manager
-        self.setup_ui()
-        
-    def setup_ui(self):
+        self._setup_ui()
+
+    def _setup_ui(self):
         main_layout = QVBoxLayout(self)
-        
-        # Search bar
-        search_layout = QHBoxLayout()
-        search_layout.addWidget(QLabel("Search:"))
-        self.search_input = QLineEdit()
-        self.search_input.textChanged.connect(self.filter_items)
-        search_layout.addWidget(self.search_input)
-        main_layout.addLayout(search_layout)
-        
-        # Category filters
-        filter_layout = QHBoxLayout()
-        categories = ['All', 'Hats', 'Shirts', 'Pants', 'Shoes', 'Accessories']
-        for cat in categories:
-            btn = QPushButton(cat)
-            btn.clicked.connect(lambda checked, c=cat: self.filter_by_category(c))
-            filter_layout.addWidget(btn)
-        main_layout.addLayout(filter_layout)
-        
-        # Scroll area for items
+        main_layout.setContentsMargins(6, 6, 6, 6)
+        main_layout.setSpacing(4)
+
+        # ── Top bar: category combo + search ─────────────────────────────────
+        top_bar = QHBoxLayout()
+
+        self._cat_combo = QComboBox()
+        for val, label in _CATEGORY_LABELS.items():
+            self._cat_combo.addItem(label, val)
+        self._cat_combo.currentIndexChanged.connect(self._on_category_changed)
+        top_bar.addWidget(self._cat_combo)
+
+        self._search_input = QLineEdit()
+        self._search_input.setPlaceholderText("Search items…")
+        self._search_input.textChanged.connect(self._apply_filters)
+        top_bar.addWidget(self._search_input)
+
+        main_layout.addLayout(top_bar)
+
+        # ── Item count label ──────────────────────────────────────────────────
+        self._count_label = QLabel("0 items")
+        self._count_label.setStyleSheet("color: #888888; font-size: 8pt;")
+        main_layout.addWidget(self._count_label)
+
+        # ── Scroll area with item grid ────────────────────────────────────────
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
         scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        
-        # Grid for items
-        self.grid_widget = QWidget()
-        self.grid_layout = QGridLayout(self.grid_widget)
-        scroll.setWidget(self.grid_widget)
-        
-        main_layout.addWidget(scroll)
-        
-    def load_clothing_items(self, items):
-        """Load list of clothing items"""
-        self.items = items
-        self.display_items(items)
-        
-    def display_items(self, items):
-        """Display items in grid"""
-        # Clear existing
-        while self.grid_layout.count():
-            item = self.grid_layout.takeAt(0)
-            if item.widget():
-                item.widget().deleteLater()
-        
-        # Add items
-        row, col = 0, 0
+        scroll.setStyleSheet("QScrollArea { border: none; background: transparent; }")
+
+        self._grid_widget = QWidget()
+        self._grid_layout = QGridLayout(self._grid_widget)
+        self._grid_layout.setSpacing(6)
+        scroll.setWidget(self._grid_widget)
+        main_layout.addWidget(scroll, 1)
+
+    # ── Public API ────────────────────────────────────────────────────────────
+
+    def load_clothing_items(self, items: list):
+        """Load a list of item dicts and refresh the display."""
+        self.items = list(items)
+        self._apply_filters()
+
+    def set_category_filter(self, category_value: str):
+        """Programmatically select a category (used by bedroom furniture wiring)."""
+        for i in range(self._cat_combo.count()):
+            if self._cat_combo.itemData(i) == category_value:
+                self._cat_combo.setCurrentIndex(i)
+                return
+        # Unknown value — show All
+        self._cat_combo.setCurrentIndex(0)
+
+    # ── Internal ──────────────────────────────────────────────────────────────
+
+    def _on_category_changed(self, _idx: int):
+        self._active_category = self._cat_combo.currentData() or 'all'
+        self._apply_filters()
+
+    def _apply_filters(self):
+        cat   = self._active_category
+        text  = self._search_input.text().lower()
+        result = []
+        for item in self.items:
+            if cat != 'all' and item.get('category') != cat:
+                continue
+            if text and text not in item.get('name', '').lower():
+                continue
+            result.append(item)
+        self._display_items(result)
+
+    def _display_items(self, items: list):
+        # Remove old widgets
+        while self._grid_layout.count():
+            w = self._grid_layout.takeAt(0)
+            if w.widget():
+                w.widget().deleteLater()
+
         cols = 4
-        
-        for item_data in items:
-            item_widget = ClothingItemWidget(item_data)
-            item_widget.clicked.connect(self.on_item_clicked)
-            self.grid_layout.addWidget(item_widget, row, col)
-            
-            col += 1
-            if col >= cols:
-                col = 0
-                row += 1
-                
-    def on_item_clicked(self, item_data):
-        """Handle item click"""
+        for idx, item_data in enumerate(items):
+            widget = ClothingItemWidget(item_data)
+            widget.clicked.connect(self._on_item_clicked)
+            self._grid_layout.addWidget(widget, idx // cols, idx % cols)
+
+        self._count_label.setText(f"{len(items)} item{'s' if len(items) != 1 else ''}")
+
+    def _on_item_clicked(self, item_data: dict):
         self.item_equipped.emit(item_data)
-        
-    def filter_by_category(self, category):
-        """Filter items by category"""
-        if category == 'All':
-            filtered = self.items
-        else:
-            filtered = [item for item in self.items 
-                       if item.get('category') == category.lower()]
-        self.display_items(filtered)
-        
-    def filter_items(self, text):
-        """Filter by search text"""
-        if not text:
-            self.display_items(self.items)
-            return
-            
-        text_lower = text.lower()
-        filtered = [item for item in self.items
-                   if text_lower in item.get('name', '').lower()]
-        self.display_items(filtered)
-    
+
+    # Kept for legacy callers
+    def load_clothing_items_legacy(self, items):
+        self.load_clothing_items(items)
+
+    def filter_by_category(self, category: str):
+        """Legacy string filter (old callers use this)."""
+        self.set_category_filter(category.lower().replace(' ', '_').replace('é', 'e'))
+
     def _set_tooltip(self, widget, tooltip_key: str):
-        """Set tooltip using tooltip manager if available."""
         if self.tooltip_manager:
-            tooltip = self.tooltip_manager.get_tooltip(tooltip_key)
-            if tooltip:
-                widget.setToolTip(tooltip)
+            tip = self.tooltip_manager.get_tooltip(tooltip_key)
+            if tip:
+                widget.setToolTip(tip)
 
 
 def create_closet_display(parent=None, tooltip_manager=None):
@@ -177,3 +275,7 @@ def create_closet_display(parent=None, tooltip_manager=None):
     if not PYQT_AVAILABLE:
         return None
     return ClosetDisplayWidget(parent, tooltip_manager)
+
+
+# Alias for callers that use the Qt-suffixed name (e.g. qt_panel_loader.py)
+ClosetDisplayQt = ClosetDisplayWidget

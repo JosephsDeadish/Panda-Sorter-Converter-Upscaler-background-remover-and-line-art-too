@@ -22,13 +22,13 @@ from typing import List, Tuple, Optional, Dict, Callable
 try:
     from PIL import Image
     HAS_PIL = True
-except ImportError:
+except (ImportError, OSError, RuntimeError):
     HAS_PIL = False
 
 try:
     import piexif
     HAS_PIEXIF = True
-except ImportError:
+except (ImportError, OSError, RuntimeError):
     HAS_PIEXIF = False
     piexif = None  # type: ignore[assignment]
 
@@ -326,31 +326,34 @@ class BatchRenamer:
         except Exception as e:
             self.logger.error(f"Error injecting metadata into {filepath}: {e}")
     
-    def undo_last_rename(self) -> bool:
+    def can_undo(self) -> bool:
+        """Return True if there is a rename operation that can be undone."""
+        return bool(self.rename_history)
+
+    def undo_last_rename(self) -> int:
         """
         Undo the last batch rename operation.
-        
+
         Returns:
-            True if undo successful, False otherwise
+            Number of files restored (0 on failure or nothing to undo).
         """
         if not self.rename_history:
             self.logger.warning("No rename operations to undo")
-            return False
-        
+            return 0
+
         try:
             rename_ops = self.rename_history.pop()
-            
-            # Reverse the rename operations
+            count = 0
             for new_path, old_path in reversed(rename_ops):
                 if os.path.exists(new_path):
                     os.rename(new_path, old_path)
                     self.logger.info(f"Undone: {new_path} -> {old_path}")
-            
-            return True
-            
+                    count += 1
+            return count
+
         except Exception as e:
             self.logger.error(f"Error undoing rename: {e}")
-            return False
+            return 0
     
     def get_metadata_from_file(self, filepath: str) -> Dict[str, str]:
         """

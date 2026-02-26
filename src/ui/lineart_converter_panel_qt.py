@@ -13,12 +13,12 @@ try:
         QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
         QFileDialog, QMessageBox, QProgressBar, QComboBox,
         QSlider, QCheckBox, QSpinBox, QDoubleSpinBox, QGroupBox,
-        QScrollArea, QFrame, QTextEdit
+        QScrollArea, QFrame, QTextEdit, QColorDialog, QSplitter
     )
     from PyQt6.QtCore import Qt, QThread, pyqtSignal, QTimer
-    from PyQt6.QtGui import QPixmap, QImage
+    from PyQt6.QtGui import QPixmap, QImage, QColor
     PYQT_AVAILABLE = True
-except ImportError:
+except (ImportError, OSError, RuntimeError):
     PYQT_AVAILABLE = False
     QWidget = object
     QFrame = object
@@ -82,39 +82,85 @@ except ImportError:
 try:
     from PIL import Image
     HAS_PIL = True
-except ImportError:
+except (ImportError, OSError, RuntimeError):
     HAS_PIL = False
 
 
-from tools.lineart_converter import (
-    LineArtConverter, LineArtSettings,
-    ConversionMode, BackgroundMode, MorphologyOperation
-)
+try:
+    from tools.lineart_converter import (
+        LineArtConverter, LineArtSettings,
+        ConversionMode, BackgroundMode, MorphologyOperation
+    )
+    _LINEART_TOOL_AVAILABLE = True
+except Exception as _e:
+    import logging as _logging
+    _logging.getLogger(__name__).warning(f"lineart_converter tool not available: {_e}")
+    LineArtConverter = None  # type: ignore[assignment,misc]
+    LineArtSettings = ConversionMode = BackgroundMode = MorphologyOperation = None  # type: ignore[assignment]
+    _LINEART_TOOL_AVAILABLE = False
 
 logger = logging.getLogger(__name__)
 
 try:
     from ui.live_preview_slider_qt import ComparisonSliderWidget
     SLIDER_AVAILABLE = True
-except ImportError:
+except (ImportError, OSError, RuntimeError):
     try:
         from live_preview_slider_qt import ComparisonSliderWidget
         SLIDER_AVAILABLE = True
-    except ImportError:
+    except (ImportError, OSError, RuntimeError):
         SLIDER_AVAILABLE = False
         ComparisonSliderWidget = None
 
 try:
     from utils.archive_handler import ArchiveHandler
     ARCHIVE_AVAILABLE = True
-except ImportError:
+except (ImportError, OSError, RuntimeError):
     ARCHIVE_AVAILABLE = False
     logger.warning("Archive handler not available")
 
 IMAGE_EXTENSIONS = {'.png', '.jpg', '.jpeg', '.bmp', '.tiff', '.webp'}
 
-# Line art presets
+# Line art presets  (tattoo presets always first)
 LINEART_PRESETS = {
+    # ── Tattoo presets ─────────────────────────────────────────────────────
+    "🪡 Tattoo — Black on Transparent": {
+        "desc": "Ultra-clean black lines on a fully transparent background. "
+                "Best for tattoo reference sheets, layering in Photoshop, or printing on stencil film.",
+        "mode": "pure_black", "threshold": 118, "auto_threshold": False,
+        "background": "transparent", "invert": False, "remove_midtones": True,
+        "midtone_threshold": 192, "contrast": 2.5, "sharpen": True,
+        "sharpen_amount": 1.9, "morphology": "close", "morph_iter": 1,
+        "kernel": 3, "denoise": True, "denoise_size": 1,
+    },
+    "🪡 Tattoo — Black on White (Stencil Print)": {
+        "desc": "Solid black lines on white — ready to print as a tattoo stencil "
+                "or thermal transfer sheet.",
+        "mode": "pure_black", "threshold": 122, "auto_threshold": False,
+        "background": "white", "invert": False, "remove_midtones": True,
+        "midtone_threshold": 190, "contrast": 2.3, "sharpen": True,
+        "sharpen_amount": 1.7, "morphology": "close", "morph_iter": 1,
+        "kernel": 3, "denoise": True, "denoise_size": 2,
+    },
+    "🪡 Tattoo — Fine Line": {
+        "desc": "Delicate hairline strokes for contemporary fine-line tattoo artwork. "
+                "Preserves thin details; erodes stray noise.",
+        "mode": "pure_black", "threshold": 108, "auto_threshold": False,
+        "background": "transparent", "invert": False, "remove_midtones": True,
+        "midtone_threshold": 222, "contrast": 1.9, "sharpen": True,
+        "sharpen_amount": 2.6, "morphology": "erode", "morph_iter": 1,
+        "kernel": 3, "denoise": False, "denoise_size": 0,
+    },
+    "🪡 Tattoo — Bold Traditional": {
+        "desc": "Thick bold outlines in American-traditional style. "
+                "High contrast, heavily dilated strokes that hold up at any scale.",
+        "mode": "pure_black", "threshold": 128, "auto_threshold": False,
+        "background": "transparent", "invert": False, "remove_midtones": True,
+        "midtone_threshold": 172, "contrast": 3.1, "sharpen": True,
+        "sharpen_amount": 1.4, "morphology": "dilate", "morph_iter": 2,
+        "kernel": 5, "denoise": True, "denoise_size": 3,
+    },
+    # ── General-purpose presets ────────────────────────────────────────────
     "⭐ Clean Ink Lines": {
         "desc": "Crisp black ink lines — the go-to for most art & game textures",
         "mode": "pure_black", "threshold": 135, "auto_threshold": False,
@@ -181,7 +227,7 @@ LINEART_PRESETS = {
     },
     "✂️ Stencil / Vinyl Cut": {
         "desc": "Clean shapes optimized for vinyl cutting and stencils",
-        "mode": "stencil", "threshold": 140, "auto_threshold": False,
+        "mode": "stencil_1bit", "threshold": 140, "auto_threshold": False,
         "background": "transparent", "invert": False, "remove_midtones": True,
         "midtone_threshold": 200, "contrast": 2.3, "sharpen": True,
         "sharpen_amount": 1.5, "morphology": "close", "morph_iter": 3,
@@ -205,7 +251,7 @@ LINEART_PRESETS = {
     },
     "🌟 High Contrast Edges": {
         "desc": "Maximum contrast with edge detection emphasis",
-        "mode": "edge", "threshold": 120, "auto_threshold": False,
+        "mode": "edge_detect", "threshold": 120, "auto_threshold": False,
         "background": "white", "invert": False, "remove_midtones": True,
         "midtone_threshold": 180, "contrast": 3.0, "sharpen": True,
         "sharpen_amount": 2.5, "morphology": "dilate", "morph_iter": 2,
@@ -214,7 +260,7 @@ LINEART_PRESETS = {
     "🖤 Inverted Lines (White on Black)": {
         "desc": "White lines on black background for dark themes",
         "mode": "pure_black", "threshold": 135, "auto_threshold": False,
-        "background": "white", "invert": True, "remove_midtones": True,
+        "background": "black", "invert": True, "remove_midtones": True,
         "midtone_threshold": 210, "contrast": 1.6, "sharpen": True,
         "sharpen_amount": 1.3, "morphology": "close", "morph_iter": 1,
         "kernel": 3, "denoise": True, "denoise_size": 2,
@@ -237,7 +283,7 @@ LINEART_PRESETS = {
     },
     "⚡ Speed Lines / Action": {
         "desc": "Dynamic speed lines for action and motion effects",
-        "mode": "edge", "threshold": 140, "auto_threshold": False,
+        "mode": "edge_detect", "threshold": 140, "auto_threshold": False,
         "background": "transparent", "invert": False, "remove_midtones": True,
         "midtone_threshold": 200, "contrast": 2.0, "sharpen": True,
         "sharpen_amount": 2.0, "morphology": "erode", "morph_iter": 1,
@@ -253,7 +299,7 @@ LINEART_PRESETS = {
     },
     "🎯 Logo / Icon Prep": {
         "desc": "Clean vectorization-ready lines for logos and icons",
-        "mode": "stencil", "threshold": 135, "auto_threshold": False,
+        "mode": "stencil_1bit", "threshold": 135, "auto_threshold": False,
         "background": "transparent", "invert": False, "remove_midtones": True,
         "midtone_threshold": 200, "contrast": 2.0, "sharpen": True,
         "sharpen_amount": 1.5, "morphology": "close", "morph_iter": 2,
@@ -336,17 +382,85 @@ class ConversionWorker(QThread):
             self.finished.emit(False, f"Conversion failed: {str(e)}")
 
 
+class _FormatConversionWorker(QThread):
+    """Worker thread for batch conversion with configurable output format and optional colour layer."""
+    progress = pyqtSignal(int, int, str)  # current, total, filename
+    finished = pyqtSignal(bool, str)      # success, message
+
+    # PIL save kwargs per extension
+    _SAVE_KWARGS: dict = {
+        'jpg':  {'quality': 92, 'optimize': True},
+        'jpeg': {'quality': 92, 'optimize': True},
+        'tiff': {'compression': 'tiff_lzw'},
+        'webp': {'quality': 90, 'method': 4},
+    }
+
+    def __init__(self, converter, files, output_dir, settings,
+                 out_ext: str = 'png', save_color_layer: bool = False):
+        super().__init__()
+        self.converter = converter
+        self.files = files
+        self.output_dir = Path(output_dir)
+        self.settings = settings
+        self.out_ext = out_ext.lstrip('.').lower()
+        self.save_color_layer = save_color_layer
+
+    def run(self):
+        """Execute conversion in background."""
+        try:
+            for i, filepath in enumerate(self.files):
+                src = Path(filepath)
+                self.progress.emit(i + 1, len(self.files), src.name)
+
+                original = Image.open(src)
+                converted = self.converter.convert(original, self.settings)
+
+                # Ensure correct mode for target format
+                out_stem = src.stem
+                out_name = f"{out_stem}.{self.out_ext}"
+                out_path = self.output_dir / out_name
+
+                img_to_save = converted
+                if self.out_ext in ('jpg', 'jpeg', 'bmp'):
+                    # These formats don't support transparency — flatten to white
+                    if img_to_save.mode in ('RGBA', 'LA', 'P'):
+                        bg = Image.new('RGB', img_to_save.size, (255, 255, 255))
+                        if img_to_save.mode == 'P':
+                            img_to_save = img_to_save.convert('RGBA')
+                        bg.paste(img_to_save, mask=img_to_save.split()[-1] if img_to_save.mode == 'RGBA' else None)
+                        img_to_save = bg
+                    elif img_to_save.mode != 'RGB':
+                        img_to_save = img_to_save.convert('RGB')
+
+                save_kwargs = self._SAVE_KWARGS.get(self.out_ext, {})
+                img_to_save.save(out_path, **save_kwargs)
+
+                # Optionally also save the original colour layer
+                if self.save_color_layer:
+                    color_name = f"{out_stem}_color.{self.out_ext}"
+                    color_path = self.output_dir / color_name
+                    color_img = original
+                    if self.out_ext in ('jpg', 'jpeg', 'bmp') and color_img.mode != 'RGB':
+                        color_img = color_img.convert('RGB')
+                    color_img.save(color_path, **save_kwargs)
+
+            self.finished.emit(True, f"Successfully converted {len(self.files)} image(s)")
+        except Exception as e:
+            logger.error(f"Batch conversion failed: {e}")
+            self.finished.emit(False, f"Conversion failed: {str(e)}")
+
+
 class LineArtConverterPanelQt(QWidget):
     """PyQt6 panel for line art conversion."""
 
     finished = pyqtSignal(bool, str)  # success, message
-    error = pyqtSignal(str)  # error message
-    
+    error = pyqtSignal(str)           # error message
+
     def __init__(self, parent=None, tooltip_manager=None):
         super().__init__(parent)
         
         self.tooltip_manager = tooltip_manager
-        self.converter = LineArtConverter()
+        self.converter = LineArtConverter() if LineArtConverter is not None else None
         self.selected_file = None
         self.selected_files: List[str] = []
         self.preview_worker = None
@@ -467,6 +581,7 @@ class LineArtConverterPanelQt(QWidget):
             self.preset_combo.addItem(preset_name)
         self.preset_combo.currentTextChanged.connect(self._on_preset_changed)
         group_layout.addWidget(self.preset_combo)
+        self._set_tooltip(self.preset_combo, 'lineart_preset')
         
         # Preset description
         self.preset_desc = QLabel("")
@@ -483,7 +598,36 @@ class LineArtConverterPanelQt(QWidget):
         """Create settings section."""
         group = QGroupBox("⚙️ Settings")
         group_layout = QVBoxLayout()
-        
+
+        # Conversion Mode
+        mode_layout = QHBoxLayout()
+        mode_layout.addWidget(QLabel("Mode:"))
+        self.mode_combo = QComboBox()
+        _mode_items = [
+            ("Pure Black Lines",    "pure_black"),
+            ("Edge Detection",      "edge_detect"),
+            ("Adaptive Threshold",  "adaptive"),
+            ("Sketch / Pencil",     "sketch"),
+            ("Simple Threshold",    "threshold"),
+            ("1-bit Stencil",       "stencil_1bit"),
+        ]
+        for label, data in _mode_items:
+            self.mode_combo.addItem(label, data)
+        self.mode_combo.currentIndexChanged.connect(self._schedule_preview_update)
+        self.mode_combo.currentIndexChanged.connect(self._on_mode_changed)
+        mode_layout.addWidget(self.mode_combo, 1)
+        self._set_tooltip(self.mode_combo, 'lineart_mode')
+        group_layout.addLayout(mode_layout)
+
+        # Invert checkbox
+        inv_layout = QHBoxLayout()
+        self.invert_cb = QCheckBox("Invert (white lines on dark bg)")
+        self.invert_cb.setChecked(False)
+        self.invert_cb.stateChanged.connect(self._schedule_preview_update)
+        inv_layout.addWidget(self.invert_cb)
+        inv_layout.addStretch()
+        group_layout.addLayout(inv_layout)
+
         # Threshold
         threshold_layout = QHBoxLayout()
         threshold_layout.addWidget(QLabel("Threshold:"))
@@ -604,49 +748,306 @@ class LineArtConverterPanelQt(QWidget):
         self.remove_midtones_cb.setChecked(True)
         self.remove_midtones_cb.stateChanged.connect(self._schedule_preview_update)
         group_layout.addWidget(self.remove_midtones_cb)
-        
+
+        # ── Background colour ──────────────────────────────────────────────
+        bg_layout = QHBoxLayout()
+        bg_layout.addWidget(QLabel("Background:"))
+        self.bg_mode_combo = QComboBox()
+        self.bg_mode_combo.addItem("⬜ Transparent (PNG/WebP only)", "transparent")
+        self.bg_mode_combo.addItem("⬜ White", "white")
+        self.bg_mode_combo.addItem("⬛ Black", "black")
+        self.bg_mode_combo.addItem("🎨 Custom colour…", "custom")
+        self.bg_mode_combo.currentIndexChanged.connect(self._on_bg_mode_changed)
+        bg_layout.addWidget(self.bg_mode_combo, 1)
+        self._bg_custom_color = "#ffffff"   # remembered custom colour
+        self.bg_custom_swatch = QPushButton()
+        self.bg_custom_swatch.setFixedSize(28, 28)
+        self.bg_custom_swatch.setToolTip("Click to pick a custom background colour")
+        self.bg_custom_swatch.setStyleSheet(f"background:{self._bg_custom_color}; border:1px solid #888; border-radius:3px;")
+        self.bg_custom_swatch.setVisible(False)
+        self.bg_custom_swatch.clicked.connect(self._pick_custom_bg_color)
+        bg_layout.addWidget(self.bg_custom_swatch)
+        group_layout.addLayout(bg_layout)
+
+        # ── Mode-specific advanced controls (shown/hidden by _on_mode_changed) ─────
+        # Edge Detection controls
+        self._edge_group = QWidget()
+        _eg_layout = QVBoxLayout(self._edge_group)
+        _eg_layout.setContentsMargins(0, 0, 0, 0)
+        _eg_layout.setSpacing(4)
+        _eg_label = QLabel("Edge Detection Controls:")
+        _eg_label.setStyleSheet("font-weight:bold; font-size:9pt; color:#8fc; margin-top:4px;")
+        _eg_layout.addWidget(_eg_label)
+        _el_lo = QHBoxLayout()
+        _el_lo.addWidget(QLabel("Low Threshold:"))
+        self.edge_low_spin = QSpinBox()
+        self.edge_low_spin.setRange(1, 255)
+        self.edge_low_spin.setValue(50)
+        self.edge_low_spin.setToolTip("Canny edge low hysteresis threshold (pixels below this are not edges)")
+        self.edge_low_spin.valueChanged.connect(self._schedule_preview_update)
+        _el_lo.addWidget(self.edge_low_spin)
+        _el_lo.addStretch()
+        _eg_layout.addLayout(_el_lo)
+        _eh_lo = QHBoxLayout()
+        _eh_lo.addWidget(QLabel("High Threshold:"))
+        self.edge_high_spin = QSpinBox()
+        self.edge_high_spin.setRange(1, 255)
+        self.edge_high_spin.setValue(150)
+        self.edge_high_spin.setToolTip("Canny edge high hysteresis threshold (pixels above this are strong edges)")
+        self.edge_high_spin.valueChanged.connect(self._schedule_preview_update)
+        _eh_lo.addWidget(self.edge_high_spin)
+        _eh_lo.addStretch()
+        _eg_layout.addLayout(_eh_lo)
+        _ea_lo = QHBoxLayout()
+        _ea_lo.addWidget(QLabel("Aperture:"))
+        self.edge_aperture_combo = QComboBox()
+        self.edge_aperture_combo.addItem("3 (fine)", 3)
+        self.edge_aperture_combo.addItem("5 (medium)", 5)
+        self.edge_aperture_combo.addItem("7 (coarse)", 7)
+        self.edge_aperture_combo.setToolTip("Sobel aperture size — 3=thin lines, 7=thick lines")
+        self.edge_aperture_combo.currentIndexChanged.connect(self._schedule_preview_update)
+        _ea_lo.addWidget(self.edge_aperture_combo)
+        _ea_lo.addStretch()
+        _eg_layout.addLayout(_ea_lo)
+        group_layout.addWidget(self._edge_group)
+        self._edge_group.setVisible(False)
+
+        # Adaptive Threshold controls
+        self._adaptive_group = QWidget()
+        _ag_layout = QVBoxLayout(self._adaptive_group)
+        _ag_layout.setContentsMargins(0, 0, 0, 0)
+        _ag_layout.setSpacing(4)
+        _ag_label = QLabel("Adaptive Threshold Controls:")
+        _ag_label.setStyleSheet("font-weight:bold; font-size:9pt; color:#8fc; margin-top:4px;")
+        _ag_layout.addWidget(_ag_label)
+        _ab_lo = QHBoxLayout()
+        _ab_lo.addWidget(QLabel("Block Size:"))
+        self.adaptive_block_spin = QSpinBox()
+        self.adaptive_block_spin.setRange(3, 99)
+        self.adaptive_block_spin.setValue(11)
+        self.adaptive_block_spin.setSingleStep(2)  # must be odd
+        self.adaptive_block_spin.setToolTip("Pixel neighbourhood size used to compute threshold (must be odd)")
+        self.adaptive_block_spin.valueChanged.connect(self._ensure_odd_block_size)
+        self.adaptive_block_spin.valueChanged.connect(self._schedule_preview_update)
+        _ab_lo.addWidget(self.adaptive_block_spin)
+        _ab_lo.addStretch()
+        _ag_layout.addLayout(_ab_lo)
+        _ac_lo = QHBoxLayout()
+        _ac_lo.addWidget(QLabel("C Constant:"))
+        self.adaptive_c_spin = QDoubleSpinBox()
+        self.adaptive_c_spin.setRange(-20.0, 20.0)
+        self.adaptive_c_spin.setValue(2.0)
+        self.adaptive_c_spin.setSingleStep(0.5)
+        self.adaptive_c_spin.setToolTip("Subtracted from weighted mean (higher = fewer lines)")
+        self.adaptive_c_spin.valueChanged.connect(self._schedule_preview_update)
+        _ac_lo.addWidget(self.adaptive_c_spin)
+        _ac_lo.addStretch()
+        _ag_layout.addLayout(_ac_lo)
+        _am_lo = QHBoxLayout()
+        _am_lo.addWidget(QLabel("Method:"))
+        self.adaptive_method_combo = QComboBox()
+        self.adaptive_method_combo.addItem("Gaussian (smooth)", "gaussian")
+        self.adaptive_method_combo.addItem("Mean (sharp)", "mean")
+        self.adaptive_method_combo.setToolTip("Gaussian weights nearby pixels more; Mean treats all equally")
+        self.adaptive_method_combo.currentIndexChanged.connect(self._schedule_preview_update)
+        _am_lo.addWidget(self.adaptive_method_combo)
+        _am_lo.addStretch()
+        _ag_layout.addLayout(_am_lo)
+        group_layout.addWidget(self._adaptive_group)
+        self._adaptive_group.setVisible(False)
+
+        # Smooth Lines controls (for Sketch / Pencil mode)
+        self._smooth_group = QWidget()
+        _sg_layout = QVBoxLayout(self._smooth_group)
+        _sg_layout.setContentsMargins(0, 0, 0, 0)
+        _sg_layout.setSpacing(4)
+        _sg_label = QLabel("Sketch / Smooth Controls:")
+        _sg_label.setStyleSheet("font-weight:bold; font-size:9pt; color:#8fc; margin-top:4px;")
+        _sg_layout.addWidget(_sg_label)
+        _sl_lo = QHBoxLayout()
+        self.smooth_lines_cb = QCheckBox("Smooth Lines")
+        self.smooth_lines_cb.setChecked(False)
+        self.smooth_lines_cb.setToolTip("Apply Gaussian smoothing before edge extraction for softer sketch look")
+        self.smooth_lines_cb.stateChanged.connect(self._schedule_preview_update)
+        _sl_lo.addWidget(self.smooth_lines_cb)
+        self.smooth_amount_spin = QDoubleSpinBox()
+        self.smooth_amount_spin.setRange(0.5, 5.0)
+        self.smooth_amount_spin.setValue(1.0)
+        self.smooth_amount_spin.setSingleStep(0.5)
+        self.smooth_amount_spin.setToolTip("Smoothing radius — higher = softer pencil look")
+        self.smooth_amount_spin.valueChanged.connect(self._schedule_preview_update)
+        _sl_lo.addWidget(self.smooth_amount_spin)
+        _sl_lo.addStretch()
+        _sg_layout.addLayout(_sl_lo)
+        group_layout.addWidget(self._smooth_group)
+        self._smooth_group.setVisible(False)
+
         group.setLayout(group_layout)
         layout.addWidget(group)
     
     def _create_preview_section(self, layout):
-        """Create preview section."""
+        """Create preview section with zoom/pan controls."""
         group = QGroupBox("👁️ Preview")
         group_layout = QVBoxLayout()
-        
+
+        # ── Zoom / pan toolbar ─────────────────────────────────────────────
+        zoom_bar = QHBoxLayout()
+        zoom_bar.setSpacing(4)
+        self._preview_zoom = 1.0          # current zoom factor
+
+        def _zoom_in():
+            self._preview_zoom = min(self._preview_zoom * 1.25, 8.0)
+            self._apply_preview_zoom()
+
+        def _zoom_out():
+            self._preview_zoom = max(self._preview_zoom / 1.25, 0.25)
+            self._apply_preview_zoom()
+
+        def _zoom_fit():
+            self._preview_zoom = 1.0
+            self._apply_preview_zoom()
+
+        btn_in  = QPushButton("🔍+")
+        btn_out = QPushButton("🔍−")
+        btn_fit = QPushButton("Fit")
+        for b in (btn_in, btn_out, btn_fit):
+            b.setFixedWidth(44)
+            b.setFixedHeight(24)
+        btn_in.setToolTip("Zoom in (also: scroll wheel)")
+        btn_out.setToolTip("Zoom out")
+        btn_fit.setToolTip("Reset to fit")
+        btn_in.clicked.connect(_zoom_in)
+        btn_out.clicked.connect(_zoom_out)
+        btn_fit.clicked.connect(_zoom_fit)
+
+        self._zoom_label = QLabel("100%")
+        self._zoom_label.setFixedWidth(45)
+        self._zoom_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
+        zoom_bar.addWidget(btn_out)
+        zoom_bar.addWidget(self._zoom_label)
+        zoom_bar.addWidget(btn_in)
+        zoom_bar.addWidget(btn_fit)
+        zoom_bar.addStretch()
+        group_layout.addLayout(zoom_bar)
+
+        # ── Preview area (scrollable) ──────────────────────────────────────
         if SLIDER_AVAILABLE:
-            # Use comparison slider widget
             self.preview_widget = ComparisonSliderWidget()
             self.preview_widget.setMinimumHeight(400)
-            group_layout.addWidget(self.preview_widget)
+            # Wrap in QScrollArea for zoom/pan
+            from PyQt6.QtWidgets import QScrollArea as _SA
+            self._preview_scroll = _SA()
+            self._preview_scroll.setWidgetResizable(False)
+            self._preview_scroll.setWidget(self.preview_widget)
+            self._preview_scroll.setMinimumHeight(400)
+            group_layout.addWidget(self._preview_scroll)
+            # Scroll-wheel zoom works for both paths
+            self._preview_scroll.wheelEvent = self._preview_wheel_event
         else:
-            # Fallback to simple label
+            # Fallback: scrollable label
+            from PyQt6.QtWidgets import QScrollArea as _SA
             self.preview_label = QLabel("Select an image to see preview")
             self.preview_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
             self.preview_label.setMinimumSize(400, 400)
-            self.preview_label.setStyleSheet("border: 2px dashed gray; background-color: #f0f0f0;")
-            group_layout.addWidget(self.preview_label)
-        
-        # Preview updates automatically when settings change
-        preview_note = QLabel("💡 Preview updates live as you adjust settings")
+            self.preview_label.setStyleSheet(
+                "border: 2px dashed gray; background-color: #f0f0f0;"
+            )
+            self._preview_scroll = _SA()
+            self._preview_scroll.setWidgetResizable(True)
+            self._preview_scroll.setWidget(self.preview_label)
+            self._preview_scroll.setMinimumHeight(400)
+            group_layout.addWidget(self._preview_scroll)
+            self._preview_scroll.wheelEvent = self._preview_wheel_event
+
+        # Live-update note
+        preview_note = QLabel("💡 Preview updates live • Scroll to zoom • Drag to pan")
         preview_note.setStyleSheet("color: gray; font-style: italic; font-size: 9pt;")
         group_layout.addWidget(preview_note)
-        
+
         group.setLayout(group_layout)
         layout.addWidget(group)
+
+    def _apply_preview_zoom(self):
+        """Scale the preview to the current zoom level (works for both label and slider)."""
+        pct = int(self._preview_zoom * 100)
+        if hasattr(self, '_zoom_label'):
+            self._zoom_label.setText(f"{pct}%")
+        try:
+            if hasattr(self, 'preview_label'):
+                pm = self.preview_label.property('_original_pixmap')
+                if pm and not pm.isNull():
+                    w = max(1, int(pm.width() * self._preview_zoom))
+                    h = max(1, int(pm.height() * self._preview_zoom))
+                    self.preview_label.setPixmap(pm.scaled(
+                        w, h,
+                        Qt.AspectRatioMode.KeepAspectRatio,
+                        Qt.TransformationMode.SmoothTransformation,
+                    ))
+                    self.preview_label.resize(w, h)
+            elif hasattr(self, 'preview_widget') and SLIDER_AVAILABLE:
+                # Scale the ComparisonSliderWidget inside its scroll area.
+                # Use a fixed 600-px base so zoom works even before the widget is first shown.
+                pw = self.preview_widget
+                base_w = getattr(pw, '_base_w', 600)
+                base_h = getattr(pw, '_base_h', 450)
+                nw = max(200, int(base_w * self._preview_zoom))
+                nh = max(200, int(base_h * self._preview_zoom))
+                pw.setFixedSize(nw, nh)
+        except Exception:
+            pass
+
+    def _preview_wheel_event(self, event):
+        """Zoom the preview on Ctrl+Scroll (or plain scroll)."""
+        try:
+            delta = event.angleDelta().y()
+            if delta > 0:
+                self._preview_zoom = min(self._preview_zoom * 1.15, 8.0)
+            elif delta < 0:
+                self._preview_zoom = max(self._preview_zoom / 1.15, 0.25)
+            self._apply_preview_zoom()
+            event.accept()
+        except Exception:
+            pass
+
     
     def _create_action_buttons(self, layout):
         """Create action buttons."""
+        # Output format selector
+        fmt_group = QGroupBox("📤 Output Format")
+        fmt_layout = QHBoxLayout()
+        fmt_layout.addWidget(QLabel("Save as:"))
+        self.output_format_combo = QComboBox()
+        for label, ext in [
+            ("PNG (lossless, transparency)", "png"),
+            ("JPEG (small file size)", "jpg"),
+            ("TIFF (professional, lossless)", "tiff"),
+            ("BMP (uncompressed)", "bmp"),
+            ("WebP (modern, small size)", "webp"),
+        ]:
+            self.output_format_combo.addItem(label, ext)
+        fmt_layout.addWidget(self.output_format_combo, 1)
+
+        self.save_color_layer_cb = QCheckBox("Also save colour layer")
+        self.save_color_layer_cb.setToolTip(
+            "In addition to the line art output, also save the original colour image "
+            "in the same folder with a '_color' suffix."
+        )
+        fmt_layout.addWidget(self.save_color_layer_cb)
+        fmt_group.setLayout(fmt_layout)
+        layout.addWidget(fmt_group)
+
         # Convert button
         self.convert_button = QPushButton("🚀 Convert Selected Files")
         self.convert_button.setStyleSheet("background-color: #2196F3; color: white; padding: 10px; font-weight: bold;")
         self.convert_button.clicked.connect(self._convert_batch)
         layout.addWidget(self.convert_button)
-        
+
         # Progress bar
         self.progress_bar = QProgressBar()
         self.progress_bar.setVisible(False)
         layout.addWidget(self.progress_bar)
-        
+
         self.progress_label = QLabel("")
         self.progress_label.setStyleSheet("color: gray;")
         layout.addWidget(self.progress_label)
@@ -698,12 +1099,22 @@ class LineArtConverterPanelQt(QWidget):
             self.contrast_spin.setValue(preset["contrast"])
             self.auto_threshold_cb.setChecked(preset["auto_threshold"])
             self.sharpen_cb.setChecked(preset["sharpen"])
-            if preset["sharpen"]:
-                self.sharpen_spin.setValue(preset["sharpen_amount"])
+            self.sharpen_spin.setValue(preset.get("sharpen_amount", 1.3))
             self.denoise_cb.setChecked(preset["denoise"])
-            if preset["denoise"]:
-                self.denoise_size.setValue(preset["denoise_size"])
-            
+            self.denoise_size.setValue(preset.get("denoise_size", 2))
+
+            # Conversion mode
+            if hasattr(self, 'mode_combo'):
+                mode_val = preset.get("mode", "pure_black")
+                for i in range(self.mode_combo.count()):
+                    if self.mode_combo.itemData(i) == mode_val:
+                        self.mode_combo.setCurrentIndex(i)
+                        break
+
+            # Invert
+            if hasattr(self, 'invert_cb'):
+                self.invert_cb.setChecked(bool(preset.get("invert", False)))
+
             # Morphology settings
             morph_map = {
                 "none": "None",
@@ -716,14 +1127,88 @@ class LineArtConverterPanelQt(QWidget):
             self.morphology_combo.setCurrentText(morph_text)
             self.morphology_iterations.setValue(preset["morph_iter"])
             self.kernel_size_spin.setValue(preset["kernel"])
-            
+
             # Midtone settings
             self.midtone_spin.setValue(preset["midtone_threshold"])
             self.remove_midtones_cb.setChecked(preset["remove_midtones"])
-            
+
+            # Background mode
+            if hasattr(self, 'bg_mode_combo'):
+                bg_val = preset.get("background", "transparent")
+                for i in range(self.bg_mode_combo.count()):
+                    if self.bg_mode_combo.itemData(i) == bg_val:
+                        self.bg_mode_combo.setCurrentIndex(i)
+                        break
+
+            # Edge detection params
+            if hasattr(self, 'edge_low_spin'):
+                self.edge_low_spin.setValue(preset.get("edge_low", 50))
+            if hasattr(self, 'edge_high_spin'):
+                self.edge_high_spin.setValue(preset.get("edge_high", 150))
+            if hasattr(self, 'edge_aperture_combo'):
+                ap = preset.get("edge_aperture", 3)
+                for i in range(self.edge_aperture_combo.count()):
+                    if self.edge_aperture_combo.itemData(i) == ap:
+                        self.edge_aperture_combo.setCurrentIndex(i)
+                        break
+            # Adaptive threshold params
+            if hasattr(self, 'adaptive_block_spin'):
+                self.adaptive_block_spin.setValue(preset.get("adaptive_block", 11))
+            if hasattr(self, 'adaptive_c_spin'):
+                self.adaptive_c_spin.setValue(preset.get("adaptive_c", 2.0))
+            if hasattr(self, 'adaptive_method_combo'):
+                meth = preset.get("adaptive_method", "gaussian")
+                for i in range(self.adaptive_method_combo.count()):
+                    if self.adaptive_method_combo.itemData(i) == meth:
+                        self.adaptive_method_combo.setCurrentIndex(i)
+                        break
+            # Smooth lines params
+            if hasattr(self, 'smooth_lines_cb'):
+                self.smooth_lines_cb.setChecked(bool(preset.get("smooth_lines", False)))
+            if hasattr(self, 'smooth_amount_spin'):
+                self.smooth_amount_spin.setValue(preset.get("smooth_amount", 1.0))
+
             # Trigger preview update
             self._schedule_preview_update()
     
+    def _on_bg_mode_changed(self, index: int):
+        """Show/hide the custom colour swatch, then trigger a preview update."""
+        is_custom = (self.bg_mode_combo.currentData() == "custom") if hasattr(self, 'bg_mode_combo') else False
+        if hasattr(self, 'bg_custom_swatch'):
+            self.bg_custom_swatch.setVisible(is_custom)
+        self._schedule_preview_update()
+
+    def _on_mode_changed(self, _index: int = 0):
+        """Show/hide mode-specific advanced control groups."""
+        mode = self.mode_combo.currentData() if hasattr(self, 'mode_combo') else "pure_black"
+        if hasattr(self, '_edge_group'):
+            self._edge_group.setVisible(mode == "edge_detect")
+        if hasattr(self, '_adaptive_group'):
+            self._adaptive_group.setVisible(mode == "adaptive")
+        if hasattr(self, '_smooth_group'):
+            self._smooth_group.setVisible(mode == "sketch")
+
+    def _ensure_odd_block_size(self, value: int):
+        """Adaptive block size must be an odd integer ≥ 3."""
+        if hasattr(self, 'adaptive_block_spin') and value % 2 == 0:
+            self.adaptive_block_spin.setValue(value + 1)
+
+    def _pick_custom_bg_color(self):
+        """Open a colour-picker dialog for custom background colour."""
+        try:
+            from PyQt6.QtWidgets import QColorDialog as _QCD
+            from PyQt6.QtGui import QColor as _QC
+            initial = _QC(self._bg_custom_color)
+            color = _QCD.getColor(initial, self, "Pick Background Colour")
+            if color.isValid():
+                self._bg_custom_color = color.name()
+                self.bg_custom_swatch.setStyleSheet(
+                    f"background:{self._bg_custom_color}; border:1px solid #888; border-radius:3px;"
+                )
+                self._schedule_preview_update()
+        except Exception:
+            pass
+
     def _schedule_preview_update(self):
         """Schedule preview update with debouncing."""
         # Cancel any pending preview
@@ -747,12 +1232,61 @@ class LineArtConverterPanelQt(QWidget):
     
     def _create_settings_from_controls(self):
         """Create LineArtSettings from current control values."""
+        # Conversion mode from combo
+        _MODE_MAP = {
+            "pure_black":  getattr(ConversionMode, 'PURE_BLACK',   None) if ConversionMode else None,
+            "edge_detect": getattr(ConversionMode, 'EDGE_DETECT',  None) if ConversionMode else None,
+            "adaptive":    getattr(ConversionMode, 'ADAPTIVE',     None) if ConversionMode else None,
+            "sketch":      getattr(ConversionMode, 'SKETCH',       None) if ConversionMode else None,
+            "threshold":   getattr(ConversionMode, 'THRESHOLD',    None) if ConversionMode else None,
+            "stencil_1bit":getattr(ConversionMode, 'STENCIL_1BIT', None) if ConversionMode else None,
+        }
+        mode_key = "pure_black"
+        if hasattr(self, 'mode_combo') and ConversionMode:
+            mode_key = self.mode_combo.currentData() or "pure_black"
+        conv_mode = _MODE_MAP.get(mode_key) or (ConversionMode.PURE_BLACK if ConversionMode else None)
+
+        # Background mode
+        _BG_MAP = {
+            "transparent": BackgroundMode.TRANSPARENT if BackgroundMode else None,
+            "white":       getattr(BackgroundMode, 'WHITE',  None) if BackgroundMode else None,
+            "black":       getattr(BackgroundMode, 'BLACK',  None) if BackgroundMode else None,
+            "custom":      getattr(BackgroundMode, 'CUSTOM', None) if BackgroundMode else None,
+        }
+        bg_key = "transparent"
+        if hasattr(self, 'bg_mode_combo'):
+            bg_key = self.bg_mode_combo.currentData() or "transparent"
+        bg_mode = _BG_MAP.get(bg_key) or (BackgroundMode.TRANSPARENT if BackgroundMode else None)
+        # Fall back to WHITE if CUSTOM enum member not yet present in the installed backend
+        if bg_mode is None and bg_key == "custom":
+            bg_mode = getattr(BackgroundMode, 'WHITE', None) if BackgroundMode else None
+
+        # Custom background colour (used when BackgroundMode.CUSTOM)
+        custom_bg = getattr(self, '_bg_custom_color', '#ffffff')
+
+        # Invert
+        invert = self.invert_cb.isChecked() if hasattr(self, 'invert_cb') else False
+
+        # Edge detection params (active when mode == edge_detect)
+        edge_low  = self.edge_low_spin.value()  if hasattr(self, 'edge_low_spin')  else 50
+        edge_high = self.edge_high_spin.value() if hasattr(self, 'edge_high_spin') else 150
+        edge_ap   = self.edge_aperture_combo.currentData() if hasattr(self, 'edge_aperture_combo') else 3
+
+        # Adaptive threshold params (active when mode == adaptive)
+        ada_block = self.adaptive_block_spin.value() if hasattr(self, 'adaptive_block_spin') else 11
+        ada_c     = self.adaptive_c_spin.value()     if hasattr(self, 'adaptive_c_spin')     else 2.0
+        ada_meth  = self.adaptive_method_combo.currentData() if hasattr(self, 'adaptive_method_combo') else 'gaussian'
+
+        # Smooth lines params (active when mode == sketch)
+        smooth    = self.smooth_lines_cb.isChecked()  if hasattr(self, 'smooth_lines_cb')  else False
+        smooth_am = self.smooth_amount_spin.value()   if hasattr(self, 'smooth_amount_spin') else 1.0
+
         return LineArtSettings(
-            mode=ConversionMode.PURE_BLACK,
+            mode=conv_mode,
             threshold=self.threshold_slider.value(),
             auto_threshold=self.auto_threshold_cb.isChecked(),
-            background_mode=BackgroundMode.TRANSPARENT,
-            invert=False,
+            background_mode=bg_mode,
+            invert=invert,
             remove_midtones=self.remove_midtones_cb.isChecked(),
             midtone_threshold=self.midtone_spin.value(),
             contrast_boost=self.contrast_spin.value(),
@@ -762,7 +1296,16 @@ class LineArtConverterPanelQt(QWidget):
             morphology_iterations=self.morphology_iterations.value(),
             morphology_kernel_size=self.kernel_size_spin.value(),
             denoise=self.denoise_cb.isChecked(),
-            denoise_size=self.denoise_size.value()
+            denoise_size=self.denoise_size.value(),
+            edge_low_threshold=edge_low,
+            edge_high_threshold=edge_high,
+            edge_aperture_size=edge_ap,
+            adaptive_block_size=ada_block,
+            adaptive_c_constant=ada_c,
+            adaptive_method=ada_meth,
+            smooth_lines=smooth,
+            smooth_amount=smooth_am,
+            custom_bg_color=custom_bg,
         )
     
     def _update_preview(self):
@@ -791,39 +1334,50 @@ class LineArtConverterPanelQt(QWidget):
                 # Use comparison slider
                 orig_pixmap = self._pil_to_pixmap(original)
                 proc_pixmap = self._pil_to_pixmap(processed)
-                
+
                 self.preview_widget.set_before_image(orig_pixmap)
                 self.preview_widget.set_after_image(proc_pixmap)
+                # Record image dimensions as zoom base so zoom buttons work correctly
+                if not orig_pixmap.isNull():
+                    self.preview_widget._base_w = max(200, orig_pixmap.width())
+                    self.preview_widget._base_h = max(200, orig_pixmap.height())
+                    # Apply current zoom
+                    self._apply_preview_zoom()
             elif hasattr(self, 'preview_label'):
-                # Fallback to simple label
+                # Fallback to scrollable/zoomable label
                 processed_rgb = processed.convert("RGBA")
                 data = processed_rgb.tobytes("raw", "RGBA")
                 qimage = QImage(data, processed_rgb.width, processed_rgb.height, QImage.Format.Format_RGBA8888)
-                
-                # Scale to fit preview
+
+                # Store full-resolution pixmap so zoom can re-scale it
                 pixmap = QPixmap.fromImage(qimage)
-                scaled = pixmap.scaled(400, 400, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
-                
+                self.preview_label.setProperty('_original_pixmap', pixmap)
+
+                # Apply current zoom level
+                zoom = getattr(self, '_preview_zoom', 1.0)
+                w = int(pixmap.width()  * zoom)
+                h = int(pixmap.height() * zoom)
+                scaled = pixmap.scaled(
+                    w, h,
+                    Qt.AspectRatioMode.KeepAspectRatio,
+                    Qt.TransformationMode.SmoothTransformation,
+                )
                 self.preview_label.setPixmap(scaled)
+                self.preview_label.resize(scaled.width(), scaled.height())
             
         except Exception as e:
             logger.error(f"Error displaying preview: {e}")
             if hasattr(self, 'preview_label'):
                 self.preview_label.setText(f"Error: {str(e)}")
+
     
-    def _pil_to_pixmap(self, img, max_size=400):
-        """Convert PIL Image to QPixmap"""
-        # Resize for display
+    def _pil_to_pixmap(self, img, max_size=600):
+        """Convert PIL Image to QPixmap (600 px max for quality preview)."""
         img.thumbnail((max_size, max_size), Image.Resampling.LANCZOS)
-        
-        # Convert to RGBA
         if img.mode != 'RGBA':
             img = img.convert('RGBA')
-        
-        # Convert to QImage
         data = img.tobytes("raw", "RGBA")
         qimage = QImage(data, img.width, img.height, QImage.Format.Format_RGBA8888)
-        
         return QPixmap.fromImage(qimage)
     
     def _preview_error(self, error_msg):
@@ -836,36 +1390,51 @@ class LineArtConverterPanelQt(QWidget):
         if not self.selected_files:
             QMessageBox.warning(self, "No Files", "Please select files first")
             return
-        
+
         # Select output directory
         output_dir = QFileDialog.getExistingDirectory(
             self,
             "Select Output Directory"
         )
-        
+
         if not output_dir:
             return
-        
+
         try:
+            # Resolve selected output format (from combo, default png)
+            out_ext = "png"
+            try:
+                out_ext = self.output_format_combo.currentData() or "png"
+            except Exception:
+                pass
+
+            save_color = False
+            try:
+                save_color = self.save_color_layer_cb.isChecked()
+            except Exception:
+                pass
+
             # Create settings from current controls
             settings = self._create_settings_from_controls()
-            
-            # Start conversion worker
-            self.conversion_worker = ConversionWorker(
+
+            # Start conversion worker with format args
+            self.conversion_worker = _FormatConversionWorker(
                 self.converter,
                 self.selected_files,
                 output_dir,
-                settings
+                settings,
+                out_ext=out_ext,
+                save_color_layer=save_color,
             )
             self.conversion_worker.progress.connect(self._on_conversion_progress)
             self.conversion_worker.finished.connect(self._on_conversion_finished)
             self.conversion_worker.start()
-            
+
             self.convert_button.setEnabled(False)
             self.progress_bar.setVisible(True)
             self.progress_bar.setValue(0)
             self.progress_label.setText("Starting conversion...")
-            
+
         except Exception as e:
             logger.error(f"Error starting conversion: {e}")
             QMessageBox.critical(self, "Error", f"Failed to start conversion: {str(e)}")
@@ -887,10 +1456,18 @@ class LineArtConverterPanelQt(QWidget):
         else:
             QMessageBox.critical(self, "Error", message)
             self.progress_label.setText("✗ Conversion failed")
+        self.finished.emit(success, message)
 
-    def _set_tooltip(self, widget, text):
+    def _set_tooltip(self, widget, widget_id_or_text):
         """Set tooltip on a widget using tooltip manager if available."""
-        if self.tooltip_manager and hasattr(self.tooltip_manager, 'set_tooltip'):
-            self.tooltip_manager.set_tooltip(widget, text)
-        else:
-            widget.setToolTip(text)
+        if self.tooltip_manager and hasattr(self.tooltip_manager, 'register'):
+            if isinstance(widget_id_or_text, str) and ' ' not in widget_id_or_text:
+                try:
+                    tip = self.tooltip_manager.get_tooltip(widget_id_or_text)
+                    if tip:
+                        widget.setToolTip(tip)
+                        self.tooltip_manager.register(widget, widget_id_or_text)
+                        return
+                except Exception:
+                    pass
+        widget.setToolTip(str(widget_id_or_text))

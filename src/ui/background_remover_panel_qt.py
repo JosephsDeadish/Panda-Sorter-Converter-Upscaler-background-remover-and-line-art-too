@@ -18,23 +18,29 @@ try:
     from PyQt6.QtCore import Qt, pyqtSignal
     from PyQt6.QtGui import QPixmap
     PYQT_AVAILABLE = True
-except ImportError:
+except (ImportError, OSError, RuntimeError):
     PYQT_AVAILABLE = False
     class QWidget: pass
-    class pyqtSignal: pass
+    class _SigStub:
+        """Minimal signal stub so .connect() never raises AttributeError."""
+        def __init__(self, *a): pass
+        def connect(self, *a): pass
+        def disconnect(self, *a): pass
+        def emit(self, *a): pass
+    def pyqtSignal(*a): return _SigStub()  # type: ignore[misc]
 
 # Import PIL for image handling
 try:
     from PIL import Image
     PIL_AVAILABLE = True
-except ImportError:
+except (ImportError, OSError, RuntimeError):
     PIL_AVAILABLE = False
     Image = None
 
 try:
     from utils.archive_handler import ArchiveHandler
     ARCHIVE_AVAILABLE = True
-except ImportError:
+except (ImportError, OSError, RuntimeError):
     ARCHIVE_AVAILABLE = False
     logger.warning("Archive handler not available")
 
@@ -42,11 +48,11 @@ except ImportError:
 try:
     from ui.live_preview_slider_qt import ComparisonSliderWidget
     SLIDER_AVAILABLE = True
-except ImportError:
+except (ImportError, OSError, RuntimeError):
     try:
         from live_preview_slider_qt import ComparisonSliderWidget
         SLIDER_AVAILABLE = True
-    except ImportError:
+    except (ImportError, OSError, RuntimeError):
         SLIDER_AVAILABLE = False
         ComparisonSliderWidget = None
 
@@ -55,8 +61,8 @@ class BackgroundRemoverPanelQt(QWidget):
     """Qt-based background remover panel with paint tools."""
     
     # Signals
-    image_loaded = pyqtSignal(str) if PYQT_AVAILABLE else None
-    processing_complete = pyqtSignal() if PYQT_AVAILABLE else None
+    image_loaded = pyqtSignal(str)
+    processing_complete = pyqtSignal()
     
     def __init__(self, parent=None, tooltip_manager=None):
         if not PYQT_AVAILABLE:
@@ -178,12 +184,34 @@ class BackgroundRemoverPanelQt(QWidget):
         size_group.setLayout(size_layout)
         layout.addWidget(size_group)
         
+        # AI Model selection — shown above the process buttons
+        model_group = QGroupBox("🤖 AI Model")
+        model_layout = QHBoxLayout()
+        model_layout.addWidget(QLabel("Model:"))
+        self.bg_model_combo = QComboBox()
+        _BG_MODELS = [
+            ("u2net",            "U2Net (default, balanced)"),
+            ("u2netp",           "U2Netp (fast, lightweight)"),
+            ("u2net_human_seg",  "U2Net Human Seg (portraits)"),
+            ("silueta",          "Silueta (compact, 43 MB)"),
+            ("isnet-general-use","ISNet General (high quality)"),
+            ("isnet_dis",        "ISNet-DIS (precise edges)"),
+            ("birefnet-general", "BiRefNet (best quality, slow)"),
+            ("u2net_cloth_seg",  "U2Net Cloth Seg (clothing)"),
+        ]
+        for model_id, model_label in _BG_MODELS:
+            self.bg_model_combo.addItem(model_label, model_id)
+        model_layout.addWidget(self.bg_model_combo, 1)
+        self._set_tooltip(self.bg_model_combo, 'bg_model_selector')
+        model_group.setLayout(model_layout)
+        layout.addWidget(model_group)
+
         # Processing options
         process_layout = QHBoxLayout()
         
         auto_btn = QPushButton("🤖 Auto Remove")
         auto_btn.clicked.connect(self.auto_remove_background)
-        self._set_tooltip(auto_btn, "Automatically remove background using AI")
+        self._set_tooltip(auto_btn, 'bg_remove_button')
         process_layout.addWidget(auto_btn)
         
         clear_btn = QPushButton("🗑️ Clear All")
@@ -444,7 +472,7 @@ class BackgroundRemoverPanelQt(QWidget):
         try:
             import rembg
             rembg_available = True
-        except ImportError:
+        except (ImportError, Exception, SystemExit):
             rembg_available = False
         
         if not rembg_available:
@@ -487,8 +515,19 @@ class BackgroundRemoverPanelQt(QWidget):
             self.current_image.save(buffer, "PNG")
             pil_image = Image.open(io.BytesIO(buffer.data()))
             
-            # Process with rembg
-            output = rembg.remove(pil_image)
+            # Process with rembg — use selected model if available
+            selected_model = getattr(
+                getattr(self, 'bg_model_combo', None), 'currentData',
+                lambda: 'u2net'
+            )()
+            try:
+                import rembg
+                session = rembg.new_session(selected_model)
+                output = rembg.remove(pil_image, session=session)
+            except Exception as _me:
+                # Fallback: no session (rembg picks its own default)
+                logger.warning(f"rembg session creation failed for {selected_model}: {_me}")
+                output = rembg.remove(pil_image)
             
             # Convert back to QImage
             output_buffer = io.BytesIO()
@@ -585,9 +624,16 @@ class BackgroundRemoverPanelQt(QWidget):
         }
         self.preview_widget.set_mode(mode_map.get(mode_text, "slider"))
     
-    def _set_tooltip(self, widget, text):
+    def _set_tooltip(self, widget, widget_id_or_text):
         """Set tooltip on a widget using tooltip manager if available."""
-        if self.tooltip_manager and hasattr(self.tooltip_manager, 'set_tooltip'):
-            self.tooltip_manager.set_tooltip(widget, text)
-        else:
-            widget.setToolTip(text)
+        if self.tooltip_manager and hasattr(self.tooltip_manager, 'register'):
+            if isinstance(widget_id_or_text, str) and ' ' not in widget_id_or_text:
+                try:
+                    tip = self.tooltip_manager.get_tooltip(widget_id_or_text)
+                    if tip:
+                        widget.setToolTip(tip)
+                        self.tooltip_manager.register(widget, widget_id_or_text)
+                        return
+                except Exception:
+                    pass
+        widget.setToolTip(str(widget_id_or_text))

@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import Dict, Any, Optional
 
 # Application metadata
-APP_NAME = "Game Texture Sorter"
+APP_NAME = "Panda Sorter Converter Upscaler"
 APP_VERSION = "1.0.0"
 APP_AUTHOR = "Dead On The Inside / JosephsDeadish"
 

@@ -691,6 +691,28 @@ class AchievementSystem:
             progress_max=1,
             reward={'type': 'currency', 'amount': 500, 'description': '500 Bamboo Bucks'}
         ),
+        'format_wizard': Achievement(
+            id='format_wizard',
+            name='Format Wizard',
+            description='Convert 100 files to a new format',
+            tier=AchievementTier.SILVER,
+            points=70,
+            icon='🔄',
+            category='tools',
+            progress_max=100,
+            reward={'type': 'currency', 'amount': 280, 'description': '280 Bamboo Bucks'}
+        ),
+        'format_rookie': Achievement(
+            id='format_rookie',
+            name='Format Rookie',
+            description='Convert your first file to a new format',
+            tier=AchievementTier.BRONZE,
+            points=15,
+            icon='🔁',
+            category='tools',
+            progress_max=1,
+            reward={'type': 'currency', 'amount': 40, 'description': '40 Bamboo Bucks'}
+        ),
 
         # Minigame achievements
         'first_game': Achievement(
@@ -785,6 +807,96 @@ class AchievementSystem:
             progress_max=1,
             reward={'type': 'currency', 'amount': 100, 'description': '100 Bamboo Bucks'}
         ),
+
+        # ── Closet / Fashion achievements ─────────────────────────────────────
+        'first_outfit': Achievement(
+            id='first_outfit',
+            name='First Outfit',
+            description='Equip your first clothing item on the panda',
+            tier=AchievementTier.BRONZE,
+            points=20,
+            icon='👕',
+            category='closet',
+            progress_max=1,
+            reward={'type': 'currency', 'amount': 50, 'description': '50 Bamboo Bucks'}
+        ),
+        'collector_10': Achievement(
+            id='collector_10',
+            name='Collector',
+            description='Unlock 10 closet items',
+            tier=AchievementTier.SILVER,
+            points=60,
+            icon='🗃️',
+            category='closet',
+            progress_max=10,
+            reward={'type': 'closet_item', 'item': 'hair_bowl_cut', 'description': 'Bowl Cut hair style'}
+        ),
+        'rare_find': Achievement(
+            id='rare_find',
+            name='Rare Find',
+            description='Unlock any Rare or higher rarity closet item',
+            tier=AchievementTier.GOLD,
+            points=100,
+            icon='💎',
+            category='closet',
+            progress_max=1,
+            reward={'type': 'currency', 'amount': 200, 'description': '200 Bamboo Bucks'}
+        ),
+        'full_outfit': Achievement(
+            id='full_outfit',
+            name='Full Outfit',
+            description='Have clothing, hat, and shoes all equipped at once',
+            tier=AchievementTier.GOLD,
+            points=120,
+            icon='🎩',
+            category='closet',
+            progress_max=1,
+            reward={'type': 'closet_item', 'item': 'hair_wild_mane', 'description': 'Wild Mane hair style'}
+        ),
+        'custom_fur': Achievement(
+            id='custom_fur',
+            name='Fur Couture',
+            description='Equip 5 different fur styles',
+            tier=AchievementTier.SILVER,
+            points=80,
+            icon='🐼✨',
+            category='closet',
+            progress_max=5,
+            reward={'type': 'closet_item', 'item': 'snow_panda', 'description': 'Snow Panda fur style'}
+        ),
+        'top_hat_owner': Achievement(
+            id='top_hat_owner',
+            name='Top Hat Owner',
+            description='Unlock any top hat item',
+            tier=AchievementTier.SILVER,
+            points=50,
+            icon='🎩',
+            category='closet',
+            progress_max=1,
+            reward={'type': 'currency', 'amount': 100, 'description': '100 Bamboo Bucks'}
+        ),
+        'legendary_collector': Achievement(
+            id='legendary_collector',
+            name='Legendary Collector',
+            description='Unlock any Legendary rarity closet item',
+            tier=AchievementTier.PLATINUM,
+            points=250,
+            icon='🌌',
+            category='closet',
+            progress_max=1,
+            reward={'type': 'closet_item', 'item': 'hair_afro', 'description': 'Fur Afro hair style'}
+        ),
+        'hairstylist': Achievement(
+            id='hairstylist',
+            name='Hairstylist',
+            description='Unlock 3 different hair styles for the panda',
+            tier=AchievementTier.SILVER,
+            points=70,
+            icon='💇',
+            category='closet',
+            progress_max=3,
+            reward={'type': 'closet_item', 'item': 'hair_mohawk', 'description': 'Punk Mohawk hair style'}
+        ),
     }
     
     def __init__(self, save_file: Optional[str] = None):
@@ -806,6 +918,11 @@ class AchievementSystem:
         self.total_textures_sorted = 0
         self.total_sessions = 0
         self.total_time_minutes = 0
+        self.total_images_upscaled = 0
+        self.total_bg_removed = 0
+        self.total_lineart_converted = 0
+        self.total_files_converted = 0
+        self.total_quality_checked = 0
         
         # Initialize achievements
         self._initialize_achievements()
@@ -995,6 +1112,33 @@ class AchievementSystem:
         if 'dedicated' in self.achievements:
             self.update_progress('dedicated', self.total_sessions)
     
+    def increment_images_upscaled(self, count: int = 1) -> None:
+        """Increment upscaled image count and update related achievements."""
+        self.total_images_upscaled += count
+        self.update_progress('upscaler_rookie', self.total_images_upscaled)
+        self.update_progress('upscaler_pro', self.total_images_upscaled)
+
+    def increment_bg_removed(self, count: int = 1) -> None:
+        """Increment background-removed image count and update related achievements."""
+        self.total_bg_removed += count
+        self.update_progress('background_buster', self.total_bg_removed)
+
+    def increment_lineart_converted(self, count: int = 1) -> None:
+        """Increment line-art-converted image count and update related achievements."""
+        self.total_lineart_converted += count
+        self.update_progress('line_artist', self.total_lineart_converted)
+
+    def increment_files_converted(self, count: int = 1) -> None:
+        """Increment format-converter file count and update related achievements."""
+        self.total_files_converted += count
+        self.update_progress('format_rookie', self.total_files_converted)
+        self.update_progress('format_wizard', self.total_files_converted)
+
+    def increment_quality_checked(self, count: int = 1) -> None:
+        """Increment quality-checker image count and update related achievements."""
+        self.total_quality_checked += count
+        self.update_progress('quality_inspector', self.total_quality_checked)
+
     def get_achievement(self, achievement_id: str) -> Optional[Achievement]:
         """
         Get achievement by ID.
@@ -1155,7 +1299,12 @@ class AchievementSystem:
                 'statistics': {
                     'total_textures_sorted': self.total_textures_sorted,
                     'total_sessions': self.total_sessions,
-                    'total_time_minutes': self.total_time_minutes
+                    'total_time_minutes': self.total_time_minutes,
+                    'total_images_upscaled': self.total_images_upscaled,
+                    'total_bg_removed': self.total_bg_removed,
+                    'total_lineart_converted': self.total_lineart_converted,
+                    'total_files_converted': self.total_files_converted,
+                    'total_quality_checked': self.total_quality_checked,
                 },
                 'achievements': {}
             }
@@ -1207,6 +1356,11 @@ class AchievementSystem:
             self.total_textures_sorted = stats.get('total_textures_sorted', 0)
             self.total_sessions = stats.get('total_sessions', 0)
             self.total_time_minutes = stats.get('total_time_minutes', 0)
+            self.total_images_upscaled = stats.get('total_images_upscaled', 0)
+            self.total_bg_removed = stats.get('total_bg_removed', 0)
+            self.total_lineart_converted = stats.get('total_lineart_converted', 0)
+            self.total_files_converted = stats.get('total_files_converted', 0)
+            self.total_quality_checked = stats.get('total_quality_checked', 0)
             
             # Load achievement data
             achievements_data = save_data.get('achievements', {})
@@ -1236,7 +1390,12 @@ class AchievementSystem:
             self.total_textures_sorted = 0
             self.total_sessions = 0
             self.total_time_minutes = 0
-            
+            self.total_images_upscaled = 0
+            self.total_bg_removed = 0
+            self.total_lineart_converted = 0
+            self.total_files_converted = 0
+            self.total_quality_checked = 0
+
             logger.info("Reset all achievement progress")
     
     def get_summary(self) -> Dict:

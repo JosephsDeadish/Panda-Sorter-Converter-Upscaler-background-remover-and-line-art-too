@@ -17,13 +17,13 @@ logger = logging.getLogger(__name__)
 try:
     from PIL import Image
     HAS_PIL = True
-except ImportError:
+except (ImportError, OSError, RuntimeError):
     HAS_PIL = False
 
 try:
     import numpy as np
     HAS_NUMPY = True
-except ImportError:
+except (ImportError, OSError, RuntimeError):
     HAS_NUMPY = False
     logger.error("numpy not available - limited functionality")
     logger.error("Install with: pip install numpy")
@@ -332,6 +332,69 @@ class ColorCorrector:
             logger.error(f"LUT application failed: {e}")
             return image
     
+    def correct_file(
+        self,
+        input_path: str,
+        output_path: str,
+        brightness: int = 0,
+        contrast: int = 0,
+        saturation: int = 0,
+        sharpness: int = 100,
+        lut: Optional[str] = None,
+        **kwargs: Any,
+    ) -> None:
+        """
+        Load an image, apply corrections from UI slider values, and save.
+
+        Slider convention (matches ColorCorrectionPanelQt):
+            brightness : -100 .. +100  (0 = no change)
+            contrast   : -100 .. +100  (0 = no change)
+            saturation : -100 .. +100  (0 = no change)
+            sharpness  :    0 .. 200  (100 = no change)
+            lut        : path string or None
+
+        Raises:
+            Any PIL / OS exception is re-raised so the worker can log it.
+        """
+        from PIL import Image, ImageEnhance  # local import for frozen-EXE safety
+
+        img = Image.open(input_path).convert("RGB")
+
+        # Brightness: map [-100, 100] → factor [0.0, 2.0]
+        if brightness != 0:
+            factor = 1.0 + brightness / 100.0
+            img = ImageEnhance.Brightness(img).enhance(max(0.0, factor))
+
+        # Contrast: map [-100, 100] → factor [0.0, 2.0]
+        if contrast != 0:
+            factor = 1.0 + contrast / 100.0
+            img = ImageEnhance.Contrast(img).enhance(max(0.0, factor))
+
+        # Saturation: map [-100, 100] → factor [0.0, 2.0]
+        if saturation != 0:
+            factor = 1.0 + saturation / 100.0
+            img = ImageEnhance.Color(img).enhance(max(0.0, factor))
+
+        # Sharpness: map [0, 200] → factor [0.0, 2.0]
+        if sharpness != 100:
+            factor = sharpness / 100.0
+            img = ImageEnhance.Sharpness(img).enhance(max(0.0, factor))
+
+        # LUT (optional .cube file)
+        if lut:
+            lut_array = self.load_lut(lut)
+            if lut_array is not None:
+                img = self.apply_lut(img, lut_array)
+
+        # Preserve original format where possible
+        fmt = Path(output_path).suffix.lstrip('.').upper()
+        if fmt in ('JPG', 'JPEG'):
+            img.save(output_path, 'JPEG', quality=95)
+        elif fmt == 'PNG':
+            img.save(output_path, 'PNG')
+        else:
+            img.save(output_path)
+
     def apply_corrections(
         self,
         image: Image.Image,

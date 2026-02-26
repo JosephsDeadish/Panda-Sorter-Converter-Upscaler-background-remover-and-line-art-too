@@ -9,7 +9,7 @@ try:
     from PyQt6.QtCore import Qt, QTimer, QPointF, QRectF
     from PyQt6.QtGui import QColor, QPen, QBrush, QPolygonF, QPainter
     PYQT_AVAILABLE = True
-except ImportError:
+except (ImportError, OSError, RuntimeError):
     PYQT_AVAILABLE = False
     QGraphicsView = object
     QGraphicsScene = object

@@ -10,7 +10,7 @@ import logging
 try:
     import numpy as np
     HAS_NUMPY = True
-except ImportError:
+except (ImportError, OSError, RuntimeError):
     np = None  # type: ignore[assignment]
     HAS_NUMPY = False
 from pathlib import Path
@@ -19,7 +19,7 @@ from dataclasses import dataclass
 try:
     from PIL import Image, ImageFilter, ImageOps, ImageEnhance
     HAS_PIL = True
-except ImportError:
+except (ImportError, OSError, RuntimeError):
     HAS_PIL = False
 
 from enum import Enum
@@ -29,7 +29,7 @@ logger = logging.getLogger(__name__)
 try:
     import cv2
     HAS_CV2 = True
-except ImportError:
+except (ImportError, OSError, RuntimeError):
     HAS_CV2 = False
     logger.warning("opencv-python not available - advanced line detection disabled")
 
@@ -49,6 +49,7 @@ class BackgroundMode(Enum):
     TRANSPARENT = "transparent"
     WHITE = "white"
     BLACK = "black"
+    CUSTOM = "custom"  # custom solid colour — set LineArtSettings.custom_bg_color
 
 
 class MorphologyOperation(Enum):
@@ -89,6 +90,8 @@ class LineArtSettings:
     # Post-processing options
     smooth_lines: bool = False
     smooth_amount: float = 1.0
+    # Custom background colour (used when background_mode == BackgroundMode.CUSTOM)
+    custom_bg_color: str = "#ffffff"  # hex colour string
 
 
 @dataclass
@@ -119,6 +122,56 @@ class LineArtConverter:
         """Initialize the converter."""
         self.has_cv2 = HAS_CV2
     
+    def convert(self, image: 'Image.Image', settings: 'LineArtSettings') -> 'Image.Image':
+        """
+        Convert a PIL Image to line art in memory (no file I/O).
+
+        Args:
+            image: Input PIL Image
+            settings: LineArtSettings controlling conversion style
+
+        Returns:
+            Processed PIL Image ready for display or saving
+        """
+        try:
+            if image.mode != 'L':
+                gray = image.convert('L')
+            else:
+                gray = image.copy()
+
+            if settings.contrast_boost != 1.0:
+                from PIL import ImageEnhance as _IE
+                gray = _IE.Contrast(gray).enhance(settings.contrast_boost)
+
+            if settings.sharpen:
+                gray = self._sharpen_image(gray, settings.sharpen_amount)
+
+            threshold = (
+                self._calculate_auto_threshold(gray)
+                if settings.auto_threshold
+                else settings.threshold
+            )
+
+            result = self._apply_conversion_mode(gray, settings, threshold)
+
+            if settings.remove_midtones:
+                result = self._remove_midtones(result, settings.midtone_threshold)
+
+            if hasattr(settings, 'morphology_operation') and settings.morphology_operation != MorphologyOperation.NONE:
+                result = self._apply_morphology(result, settings)
+
+            if settings.denoise:
+                result = self._denoise(result, settings.denoise_size)
+
+            if settings.invert:
+                from PIL import ImageOps as _IO
+                result = _IO.invert(result)
+
+            return self._apply_background(result, settings.background_mode, getattr(settings, "custom_bg_color", "#ffffff"))
+        except Exception as e:
+            logger.error(f"convert() failed: {e}")
+            return image  # Return original on failure
+
     def convert_image(self,
                      input_path: str,
                      output_path: str,
@@ -184,7 +237,7 @@ class LineArtConverter:
                 result_img = ImageOps.invert(result_img)
             
             # Apply background mode
-            final_img = self._apply_background(result_img, settings.background_mode)
+            final_img = self._apply_background(result_img, settings.background_mode, getattr(settings, "custom_bg_color", "#ffffff"))
             
             # Save
             final_img.save(output_path, format='PNG', optimize=True)
@@ -572,7 +625,8 @@ class LineArtConverter:
                 smoothed = smoothed.filter(ImageFilter.SMOOTH)
             return smoothed
     
-    def _apply_background(self, img: Image.Image, mode: BackgroundMode) -> Image.Image:
+    def _apply_background(self, img: Image.Image, mode: BackgroundMode,
+                          custom_color: str = "#ffffff") -> Image.Image:
         """Apply background mode to result."""
         if mode == BackgroundMode.TRANSPARENT:
             # Convert to RGBA with transparent background
@@ -597,6 +651,25 @@ class LineArtConverter:
         elif mode == BackgroundMode.BLACK:
             # Invert to get black background
             return ImageOps.invert(img)
+
+        elif mode == BackgroundMode.CUSTOM:
+            # Composite black lines over the custom solid colour
+            try:
+                r = int(custom_color[1:3], 16)
+                g = int(custom_color[3:5], 16)
+                b = int(custom_color[5:7], 16)
+            except Exception:
+                import logging as _log
+                _log.getLogger(__name__).warning(
+                    "Invalid custom background color format: %s, defaulting to white", custom_color
+                )
+                r, g, b = 255, 255, 255
+            bg = Image.new("RGB", img.size, (r, g, b))
+            # img is grayscale: 0=line, 255=background — paste black lines over bg
+            mask = ImageOps.invert(img.convert("L"))  # white where lines are
+            black_img = Image.new("RGB", img.size, (0, 0, 0))
+            bg.paste(black_img, mask=mask)
+            return bg
         
         return img
     
@@ -655,6 +728,6 @@ class LineArtConverter:
             result_img = ImageOps.invert(result_img)
         
         # Apply background mode
-        final_img = self._apply_background(result_img, settings.background_mode)
+        final_img = self._apply_background(result_img, settings.background_mode, getattr(settings, "custom_bg_color", "#ffffff"))
         
         return final_img

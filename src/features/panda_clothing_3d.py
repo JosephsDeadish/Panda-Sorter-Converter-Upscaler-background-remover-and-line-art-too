@@ -20,7 +20,7 @@ try:
     from OpenGL.GLU import *
     import numpy as np
     OPENGL_AVAILABLE = True
-except ImportError:
+except (ImportError, OSError, RuntimeError):
     OPENGL_AVAILABLE = False
     np = None
 

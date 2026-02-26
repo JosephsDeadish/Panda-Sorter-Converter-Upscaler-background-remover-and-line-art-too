@@ -8,12 +8,13 @@ import logging
 try:
     from PyQt6.QtWidgets import (
         QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
-        QScrollArea, QFrame, QGridLayout, QComboBox, QLineEdit
+        QScrollArea, QFrame, QGridLayout, QComboBox, QLineEdit,
+        QApplication,
     )
-    from PyQt6.QtCore import Qt, pyqtSignal
-    from PyQt6.QtGui import QFont
+    from PyQt6.QtCore import Qt, pyqtSignal, QMimeData, QPoint
+    from PyQt6.QtGui import QFont, QDrag
     PYQT_AVAILABLE = True
-except ImportError:
+except (ImportError, OSError, RuntimeError):
     PYQT_AVAILABLE = False
     QWidget = object
     QFrame = object
@@ -31,11 +32,11 @@ logger = logging.getLogger(__name__)
 try:
     from features.shop_system import ShopSystem, ShopItem
     SHOP_AVAILABLE = True
-except ImportError:
+except (ImportError, OSError, RuntimeError):
     try:
         from ..features.shop_system import ShopSystem, ShopItem
         SHOP_AVAILABLE = True
-    except ImportError:
+    except (ImportError, OSError, RuntimeError):
         logger.warning("Shop system not available for inventory")
         SHOP_AVAILABLE = False
         ShopSystem = None
@@ -47,9 +48,13 @@ class InventoryItemWidget(QFrame):
     
     item_selected = pyqtSignal(str)  # item_id
     
+    # Category values whose items can be dragged to the panda
+    _DRAGGABLE_CATEGORIES = {'food', 'toys', 'toy', 'food_item'}
+
     def __init__(self, item: 'ShopItem', parent=None):
         super().__init__(parent)
         self.item = item
+        self._drag_start_pos: 'QPoint | None' = None
         self.setup_ui()
         
     def setup_ui(self):
@@ -101,10 +106,40 @@ class InventoryItemWidget(QFrame):
         layout.addWidget(owned_label)
         
     def mousePressEvent(self, event):
-        """Handle click"""
+        """Handle click and record drag start position."""
         if event.button() == Qt.MouseButton.LeftButton:
+            self._drag_start_pos = event.pos()
             self.item_selected.emit(self.item.id)
         super().mousePressEvent(event)
+
+    def mouseMoveEvent(self, event):
+        """Start a QDrag when dragging a food or toy item."""
+        if not PYQT_AVAILABLE:
+            return
+        if self._drag_start_pos is None:
+            return
+        if not (event.buttons() & Qt.MouseButton.LeftButton):
+            return
+        dist = (event.pos() - self._drag_start_pos).manhattanLength()
+        if dist < QApplication.startDragDistance():
+            return
+        # Only drag food / toy items to the panda
+        item_cat = str(getattr(self.item, 'category', '') or '').lower()
+        if item_cat not in self._DRAGGABLE_CATEGORIES:
+            return
+        try:
+            mime = QMimeData()
+            mime.setText(f'panda_item:{self.item.id}:{item_cat}')
+            drag = QDrag(self)
+            drag.setMimeData(mime)
+            drag.exec(Qt.DropAction.CopyAction)
+        except Exception:
+            pass
+        self._drag_start_pos = None
+
+    def mouseReleaseEvent(self, event):
+        self._drag_start_pos = None
+        super().mouseReleaseEvent(event)
 
 
 class InventoryPanelQt(QWidget):
@@ -153,8 +188,10 @@ class InventoryPanelQt(QWidget):
         filter_layout.addWidget(QLabel("Category:"))
         
         self.category_combo = QComboBox()
-        categories = ["All", "Outfits", "Clothes", "Hats", "Shoes", "Accessories", 
-                     "Fur Styles", "Fur Colors", "Toys", "Food", "Special"]
+        categories = ["All", "Outfits", "Clothes", "Hats", "Shoes", "Accessories",
+                      "Fur Styles", "Hair Styles", "Fur Colors", "Weapons",
+                      "Armor", "Boots", "Gloves", "Belt", "Backpack",
+                      "Toys", "Food", "Special", "Sounds"]
         self.category_combo.addItems(categories)
         self.category_combo.currentTextChanged.connect(self.on_category_changed)
         filter_layout.addWidget(self.category_combo)
@@ -245,10 +282,18 @@ class InventoryPanelQt(QWidget):
             "Shoes": "SHOES",
             "Accessories": "ACCESSORIES",
             "Fur Styles": "FUR_STYLES",
+            "Hair Styles": "HAIRSTYLES",
             "Fur Colors": "FUR_COLORS",
+            "Weapons": "WEAPONS",
+            "Armor": "ARMOR",
+            "Boots": "BOOTS",
+            "Gloves": "GLOVES",
+            "Belt": "BELT",
+            "Backpack": "BACKPACK",
             "Toys": "TOYS",
             "Food": "FOOD",
-            "Special": "SPECIAL"
+            "Special": "SPECIAL",
+            "Sounds": "SOUNDS",
         }
         
         target_cat = cat_map.get(self.current_category)
@@ -261,7 +306,21 @@ class InventoryPanelQt(QWidget):
         """Handle category change"""
         self.current_category = category
         self.refresh_inventory()
-        
+
+    def set_category_filter(self, category_label: str) -> None:
+        """Public API: select a category by its combo label text.
+
+        Args:
+            category_label: One of the combo items ('All', 'Clothes', 'Weapons', …)
+        """
+        if not hasattr(self, 'category_combo'):
+            return
+        idx = self.category_combo.findText(category_label)
+        if idx >= 0:
+            self.category_combo.setCurrentIndex(idx)
+        else:
+            self.category_combo.setCurrentIndex(0)  # fall back to 'All'
+
     def filter_items(self, text: str):
         """Filter items by search text"""
         # Re-display inventory with search filter

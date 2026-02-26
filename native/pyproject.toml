@@ -1,0 +1,14 @@
+[build-system]
+requires = ["maturin>=1.0,<2.0"]
+build-backend = "maturin"
+
+[project]
+name = "texture_ops"
+version = "0.1.0"
+description = "Native Rust acceleration for PS2 texture sorting — Lanczos upscaling, feature extraction, and batch processing"
+requires-python = ">=3.8"
+
+[tool.maturin]
+# Build the cdylib target named 'texture_ops' as a Python extension module.
+# The resulting .pyd (Windows) / .so (Linux/macOS) is importable as 'texture_ops'.
+features = ["pyo3/extension-module"]

@@ -11,7 +11,7 @@ from typing import List, Dict, Any, Union, Optional
 try:
     import numpy as np
     HAS_NUMPY = True
-except ImportError:
+except (ImportError, OSError, RuntimeError):
     np = None  # type: ignore[assignment]
     HAS_NUMPY = False
 from pathlib import Path
@@ -26,7 +26,7 @@ try:
     try:
         from segment_anything import sam_model_registry, SamPredictor, SamAutomaticMaskGenerator
         HAS_SAM = True
-    except ImportError:
+    except (ImportError, OSError, RuntimeError):
         HAS_SAM = False
     HAS_TORCH = True
 except ImportError as e:

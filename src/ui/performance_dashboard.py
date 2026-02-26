@@ -13,7 +13,7 @@ try:
     from PyQt6.QtCore import Qt, QTimer
     from PyQt6.QtGui import QFont
     PYQT_AVAILABLE = True
-except ImportError:
+except (ImportError, OSError, RuntimeError):
     PYQT_AVAILABLE = False
     QWidget = object
     QFrame = object
@@ -59,7 +59,7 @@ except ImportError:
 try:
     import psutil
     HAS_PSUTIL = True
-except ImportError:
+except (ImportError, OSError, RuntimeError):
     psutil = None  # type: ignore[assignment]
     HAS_PSUTIL = False
 import time
@@ -74,7 +74,7 @@ logger = logging.getLogger(__name__)
 try:
     from core.performance_manager import OperationProfiler, ProfileResult
     PROFILER_AVAILABLE = True
-except ImportError:
+except (ImportError, OSError, RuntimeError):
     OperationProfiler = None  # type: ignore[assignment,misc]
     ProfileResult = None  # type: ignore[assignment]
     PROFILER_AVAILABLE = False
@@ -83,7 +83,7 @@ except ImportError:
 try:
     from features.tutorial_system import WidgetTooltip
     TOOLTIPS_AVAILABLE = True
-except ImportError:
+except (ImportError, OSError, RuntimeError):
     WidgetTooltip = None
     TOOLTIPS_AVAILABLE = False
     logger.warning("Tooltips not available for Performance Dashboard")

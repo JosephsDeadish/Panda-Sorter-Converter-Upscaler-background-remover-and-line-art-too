@@ -15,7 +15,7 @@ try:
     from PyQt6.QtCore import Qt, QThread, pyqtSignal
     from PyQt6.QtGui import QPixmap, QImage
     PYQT_AVAILABLE = True
-except ImportError:
+except (ImportError, OSError, RuntimeError):
     PYQT_AVAILABLE = False
     QWidget = object
     QFrame = object
@@ -78,18 +78,26 @@ import os
 try:
     from PIL import Image
     HAS_PIL = True
-except ImportError:
+except (ImportError, OSError, RuntimeError):
     HAS_PIL = False
 
 
-from preprocessing.alpha_correction import AlphaCorrector, AlphaCorrectionPresets
+try:
+    from preprocessing.alpha_correction import AlphaCorrector, AlphaCorrectionPresets
+    _ALPHA_TOOL_AVAILABLE = True
+except Exception as _e:
+    import logging as _logging
+    _logging.getLogger(__name__).warning(f"alpha_correction tool not available: {_e}")
+    AlphaCorrector = None  # type: ignore[assignment,misc]
+    AlphaCorrectionPresets = None  # type: ignore[assignment,misc]
+    _ALPHA_TOOL_AVAILABLE = False
 
 logger = logging.getLogger(__name__)
 
 try:
     from utils.archive_handler import ArchiveHandler
     ARCHIVE_AVAILABLE = True
-except ImportError:
+except (ImportError, OSError, RuntimeError):
     ARCHIVE_AVAILABLE = False
     logger.warning("Archive handler not available")
 
@@ -146,7 +154,7 @@ class AlphaFixerPanelQt(QWidget):
         super().__init__(parent)
         
         self.tooltip_manager = tooltip_manager
-        self.corrector = AlphaCorrector()
+        self.corrector = AlphaCorrector() if AlphaCorrector is not None else None
         self.selected_files: List[str] = []
         self.output_directory: Optional[str] = None
         self.worker_thread = None
@@ -516,11 +524,19 @@ class AlphaFixerPanelQt(QWidget):
         else:
             QMessageBox.critical(self, "Error", message)
             self.progress_label.setText("✗ Processing failed")
+        self.finished.emit(success, message)
     
-    def _set_tooltip(self, widget, tooltip_text_or_id):
-        """Set tooltip on widget, using tooltip manager if available."""
-        if self.tooltip_manager and hasattr(self.tooltip_manager, 'set_tooltip'):
-            self.tooltip_manager.set_tooltip(widget, tooltip_text_or_id)
+    def _set_tooltip(self, widget, text_or_id: str):
+        """Set tooltip on a widget using tooltip manager if available.
+
+        If *text_or_id* has no spaces it is treated as a widget-ID key and
+        registered with the cycling tooltip system so that mode changes and
+        repeated hovers cycle through the full tip list.
+        """
+        if self.tooltip_manager:
+            tip = self.tooltip_manager.get_tooltip(text_or_id) if ' ' not in text_or_id else text_or_id
+            widget.setToolTip(tip)
+            if hasattr(self.tooltip_manager, 'register'):
+                self.tooltip_manager.register(widget, text_or_id if ' ' not in text_or_id else None)
         else:
-            # Fallback to direct tooltip setting
-            widget.setToolTip(str(tooltip_text_or_id))
+            widget.setToolTip(text_or_id)

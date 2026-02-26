@@ -49,58 +49,45 @@ def test_unicode_output():
     print("\n" + "=" * 60)
     print("✅ All Unicode tests passed!")
     print("=" * 60)
-    
-    return True
+
 
 def test_imports_with_unicode():
     """Test that modules with Unicode in their print statements can be imported."""
     print("\nTesting module imports...")
-    
-    try:
-        # These modules all contain print statements with Unicode emojis
-        print("  Importing test_main_import...")
-        # Don't actually import to avoid running the tests, just verify the file exists
-        import_path = os.path.join(os.path.dirname(__file__), 'test_main_import.py')
-        assert os.path.exists(import_path), "test_main_import.py not found"
-        print("    ✅ test_main_import.py found")
-        
-        print("  Checking main.py...")
-        main_path = os.path.join(os.path.dirname(__file__), 'main.py')
-        assert os.path.exists(main_path), "main.py not found"
-        print("    ✅ main.py found")
-        
-        print("  Checking generate_sounds.py...")
-        sounds_path = os.path.join(os.path.dirname(__file__), 'generate_sounds.py')
-        assert os.path.exists(sounds_path), "generate_sounds.py not found"
-        print("    ✅ generate_sounds.py found")
-        
-        return True
-        
-    except Exception as e:
-        print(f"  ❌ Import test failed: {e}")
-        return False
+
+    # These modules all contain print statements with Unicode emojis
+    print("  Importing test_main_import...")
+    # Don't actually import to avoid running the tests, just verify the file exists
+    import_path = os.path.join(os.path.dirname(__file__), 'test_main_import.py')
+    assert os.path.exists(import_path), "test_main_import.py not found"
+    print("    ✅ test_main_import.py found")
+
+    print("  Checking main.py...")
+    main_path = os.path.join(os.path.dirname(__file__), 'main.py')
+    assert os.path.exists(main_path), "main.py not found"
+    print("    ✅ main.py found")
+
+    print("  Checking generate_sounds.py...")
+    sounds_path = os.path.join(os.path.dirname(__file__), 'generate_sounds.py')
+    assert os.path.exists(sounds_path), "generate_sounds.py not found"
+    print("    ✅ generate_sounds.py found")
 
 def main():
     """Run all Unicode tests."""
     try:
-        # Run tests
-        unicode_ok = test_unicode_output()
-        imports_ok = test_imports_with_unicode()
+        # Run tests — both raise on failure, return None on success
+        test_unicode_output()
+        test_imports_with_unicode()
         
         # Summary
         print("\n" + "=" * 60)
         print("Test Summary:")
-        print(f"  Unicode output: {'✅ PASS' if unicode_ok else '❌ FAIL'}")
-        print(f"  Module imports: {'✅ PASS' if imports_ok else '❌ FAIL'}")
+        print("  Unicode output: ✅ PASS")
+        print("  Module imports: ✅ PASS")
         print("=" * 60)
+        print("\n🎉 All tests passed! Unicode encoding is working correctly.")
+        return 0
         
-        if unicode_ok and imports_ok:
-            print("\n🎉 All tests passed! Unicode encoding is working correctly.")
-            return 0
-        else:
-            print("\n❌ Some tests failed. Please check the errors above.")
-            return 1
-            
     except UnicodeEncodeError as e:
         print("\n" + "=" * 60)
         print("❌ UNICODE ENCODE ERROR DETECTED!")

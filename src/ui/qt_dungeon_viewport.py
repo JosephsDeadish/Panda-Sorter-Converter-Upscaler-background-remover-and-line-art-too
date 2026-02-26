@@ -14,7 +14,7 @@ try:
     from OpenGL.GLU import *
     import math
     PYQT_AVAILABLE = True
-except ImportError:
+except (ImportError, OSError, RuntimeError):
     PYQT_AVAILABLE = False
     QOpenGLWidget = object  # Dummy for type hints
     class QWidget:  # type: ignore[no-redef]

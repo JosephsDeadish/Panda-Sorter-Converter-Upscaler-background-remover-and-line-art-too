@@ -18,12 +18,12 @@ try:
         QWidget, QVBoxLayout, QHBoxLayout, QTabWidget, QLabel, 
         QPushButton, QSlider, QComboBox, QSpinBox, QCheckBox,
         QGroupBox, QScrollArea, QLineEdit, QColorDialog, QMessageBox,
-        QFileDialog
+        QFileDialog, QFormLayout
     )
     from PyQt6.QtCore import Qt, pyqtSignal, QTimer
     from PyQt6.QtGui import QFont, QColor, QPainter, QPen
     PYQT_AVAILABLE = True
-except ImportError:
+except (ImportError, OSError, RuntimeError):
     PYQT_AVAILABLE = False
     class QWidget:  # type: ignore[no-redef]
         """Fallback stub when PyQt6 is not installed."""
@@ -113,13 +113,12 @@ class SettingsPanelQt(QWidget):
         self.tabs = QTabWidget()
         layout.addWidget(self.tabs)
         
-        # Create tabs
+        # Create tabs — Cursor and Font are sub-sections of Appearance, not separate tabs
         self.tabs.addTab(self.create_appearance_tab(), "🎨 Appearance")
-        self.tabs.addTab(self.create_cursor_tab(), "🖱️ Cursor")
-        self.tabs.addTab(self.create_font_tab(), "🔤 Font")
         self.tabs.addTab(self.create_behavior_tab(), "⚡ Behavior")
         self.tabs.addTab(self.create_performance_tab(), "🚀 Performance")
-        self.tabs.addTab(self.create_ai_models_tab(), "🤖 AI Models")
+        self.tabs.addTab(self.create_ai_settings_tab(), "🤖 AI Settings")
+        self.tabs.addTab(self.create_ai_models_tab(), "📦 AI Models")
         self.tabs.addTab(self.create_hotkeys_tab(), "⌨️ Hotkeys")
         self.tabs.addTab(self.create_language_tab(), "🌐 Language")
         self.tabs.addTab(self.create_advanced_tab(), "🔧 Advanced")
@@ -161,7 +160,10 @@ class SettingsPanelQt(QWidget):
         
         theme_label = QLabel("Theme Mode:")
         self.theme_combo = QComboBox()
-        self.theme_combo.addItems(["Dark", "Light", "Nord", "Dracula", "Solarized Dark"])
+        self.theme_combo.addItems([
+            "Dark", "Light", "Nord", "Dracula", "Solarized Dark",
+            "Forest", "Ocean", "Sunset", "Cyberpunk",
+        ])
         self.theme_combo.currentTextChanged.connect(lambda: self.on_setting_changed('ui', 'theme'))
         self.set_tooltip(self.theme_combo, 'theme_selector')
         
@@ -210,7 +212,47 @@ class SettingsPanelQt(QWidget):
         
         window_group.setLayout(window_layout)
         layout.addWidget(window_group)
-        
+
+        # ── Font sub-section ─────────────────────────────────────────────────
+        font_group = QGroupBox("Font")
+        font_layout = QVBoxLayout()
+
+        font_family_label = QLabel("Font Family:")
+        self.appearance_font_combo = QComboBox()
+        self.appearance_font_combo.addItems(["Segoe UI", "Arial", "Helvetica", "Calibri", "Roboto", "Consolas", "Courier New"])
+        self.appearance_font_combo.currentTextChanged.connect(lambda: self.on_setting_changed('ui', 'font_family'))
+        font_layout.addWidget(font_family_label)
+        font_layout.addWidget(self.appearance_font_combo)
+
+        font_size_label = QLabel("Font Size:")
+        self.appearance_font_size = QSpinBox()
+        self.appearance_font_size.setRange(8, 24)
+        self.appearance_font_size.setValue(12)
+        self.appearance_font_size.valueChanged.connect(lambda: self.on_setting_changed('ui', 'font_size'))
+        font_layout.addWidget(font_size_label)
+        font_layout.addWidget(self.appearance_font_size)
+
+        font_group.setLayout(font_layout)
+        layout.addWidget(font_group)
+
+        # ── Cursor sub-section ───────────────────────────────────────────────
+        cursor_group = QGroupBox("Cursor")
+        cursor_layout = QVBoxLayout()
+
+        cursor_label = QLabel("Cursor Style:")
+        self.appearance_cursor_combo = QComboBox()
+        self.appearance_cursor_combo.addItems(["Default", "Pointer", "Crosshair", "Panda Paw", "Bamboo", "Star"])
+        self.appearance_cursor_combo.currentTextChanged.connect(lambda: self.on_setting_changed('ui', 'cursor'))
+        cursor_layout.addWidget(cursor_label)
+        cursor_layout.addWidget(self.appearance_cursor_combo)
+
+        self.appearance_trail_check = QCheckBox("Enable Cursor Trail")
+        self.appearance_trail_check.stateChanged.connect(lambda: self.on_setting_changed('ui', 'cursor_trail'))
+        cursor_layout.addWidget(self.appearance_trail_check)
+
+        cursor_group.setLayout(cursor_layout)
+        layout.addWidget(cursor_group)
+
         layout.addStretch()
         scroll.setWidget(container)
         
@@ -357,6 +399,7 @@ class SettingsPanelQt(QWidget):
         
         trail_layout.addWidget(intensity_label)
         trail_layout.addWidget(self.cursor_trail_intensity)
+        self.set_tooltip(self.cursor_trail_intensity, 'cursor_trail_intensity')
         
         trail_group.setLayout(trail_layout)
         layout.addWidget(trail_group)
@@ -643,18 +686,224 @@ class SettingsPanelQt(QWidget):
         tab_layout.addWidget(scroll)
         return tab
     
+    def create_ai_settings_tab(self):
+        """Create AI training + inference settings tab (separate from model downloads)."""
+        tab = QWidget()
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QScrollArea.Shape.NoFrame)
+        container = QWidget()
+        layout = QVBoxLayout(container)
+
+        # ── Training section ──────────────────────────────────────────────
+        train_group = QGroupBox("🏋️ Training Settings")
+        train_layout = QFormLayout()
+
+        # Training mode
+        self.training_mode_combo = QComboBox()
+        self.training_mode_combo.addItems([
+            "Standard", "Fine-Tune Existing", "Incremental (Continual)",
+            "Export to ONNX", "Export to PyTorch", "Custom Dataset",
+        ])
+        self.training_mode_combo.currentTextChanged.connect(
+            lambda: self.on_setting_changed('ai', 'training_mode'))
+        train_layout.addRow("Training Mode:", self.training_mode_combo)
+
+        # Epochs
+        self.epochs_spin = QSpinBox()
+        self.epochs_spin.setRange(1, 1000)
+        self.epochs_spin.setValue(50)
+        self.epochs_spin.valueChanged.connect(
+            lambda: self.on_setting_changed('ai', 'epochs'))
+        train_layout.addRow("Epochs:", self.epochs_spin)
+
+        # Batch size
+        self.batch_size_combo = QComboBox()
+        self.batch_size_combo.addItems(["4", "8", "16", "32", "64", "128"])
+        self.batch_size_combo.setCurrentText("16")
+        self.batch_size_combo.currentTextChanged.connect(
+            lambda: self.on_setting_changed('ai', 'batch_size'))
+        train_layout.addRow("Batch Size:", self.batch_size_combo)
+
+        # Learning rate
+        self.lr_combo = QComboBox()
+        self.lr_combo.addItems(["0.1", "0.01", "0.001", "0.0001", "0.00001"])
+        self.lr_combo.setCurrentText("0.0001")
+        self.lr_combo.currentTextChanged.connect(
+            lambda: self.on_setting_changed('ai', 'learning_rate'))
+        train_layout.addRow("Learning Rate:", self.lr_combo)
+
+        # Device
+        self.device_combo = QComboBox()
+        self.device_combo.addItems(["Auto (GPU if available)", "CPU only", "CUDA GPU", "MPS (Apple)"])
+        self.device_combo.currentTextChanged.connect(
+            lambda: self.on_setting_changed('ai', 'device'))
+        train_layout.addRow("Compute Device:", self.device_combo)
+
+        # Optimizer
+        self.optimizer_combo = QComboBox()
+        self.optimizer_combo.addItems(["AdamW", "Adam", "SGD", "RMSprop"])
+        self.optimizer_combo.currentTextChanged.connect(
+            lambda: self.on_setting_changed('ai', 'optimizer'))
+        train_layout.addRow("Optimizer:", self.optimizer_combo)
+
+        # Checkpoint
+        self.checkpoint_check = QCheckBox("Save checkpoints every N epochs")
+        self.checkpoint_check.setChecked(True)
+        self.checkpoint_check.stateChanged.connect(
+            lambda: self.on_setting_changed('ai', 'save_checkpoints'))
+        self.checkpoint_every_spin = QSpinBox()
+        self.checkpoint_every_spin.setRange(1, 100)
+        self.checkpoint_every_spin.setValue(10)
+        self.checkpoint_every_spin.valueChanged.connect(
+            lambda: self.on_setting_changed('ai', 'checkpoint_interval'))
+        train_layout.addRow(self.checkpoint_check, self.checkpoint_every_spin)
+
+        # Custom dataset path (shown when Custom Dataset mode selected)
+        self._dataset_path_row_lbl = QLabel("Dataset Folder:")
+        self._dataset_path_row = QWidget()
+        _ds_row_lay = QHBoxLayout(self._dataset_path_row)
+        _ds_row_lay.setContentsMargins(0, 0, 0, 0)
+        self.dataset_path_edit = QLineEdit()
+        self.dataset_path_edit.setPlaceholderText("Select folder with class sub-folders…")
+        self.dataset_path_edit.setReadOnly(True)
+        self.dataset_path_edit.textChanged.connect(
+            lambda: self.on_setting_changed('ai', 'custom_dataset_path'))
+        _ds_browse_btn = QPushButton("📂 Browse")
+        _ds_browse_btn.setFixedWidth(90)
+        _ds_browse_btn.clicked.connect(self._browse_dataset_folder)
+        _ds_row_lay.addWidget(self.dataset_path_edit, 1)
+        _ds_row_lay.addWidget(_ds_browse_btn)
+        train_layout.addRow(self._dataset_path_row_lbl, self._dataset_path_row)
+        # Show only when Custom Dataset mode is active
+        self._dataset_path_row_lbl.setVisible(False)
+        self._dataset_path_row.setVisible(False)
+
+        def _toggle_dataset_row(mode_text: str):
+            visible = 'custom' in mode_text.lower()
+            self._dataset_path_row_lbl.setVisible(visible)
+            self._dataset_path_row.setVisible(visible)
+        self.training_mode_combo.currentTextChanged.connect(_toggle_dataset_row)
+
+        train_group.setLayout(train_layout)
+        layout.addWidget(train_group)
+
+        # ── Inference / runtime section ───────────────────────────────────
+        infer_group = QGroupBox("⚡ Inference Settings")
+        infer_layout = QFormLayout()
+
+        # Inference precision
+        self.precision_combo = QComboBox()
+        self.precision_combo.addItems(["FP32 (Full)", "FP16 (Half, faster)", "INT8 (Fastest)"])
+        self.precision_combo.currentTextChanged.connect(
+            lambda: self.on_setting_changed('ai', 'precision'))
+        infer_layout.addRow("Precision:", self.precision_combo)
+
+        # Max image size
+        self.max_img_spin = QSpinBox()
+        self.max_img_spin.setRange(128, 4096)
+        self.max_img_spin.setValue(1024)
+        self.max_img_spin.setSingleStep(128)
+        self.max_img_spin.setSuffix(" px")
+        self.max_img_spin.valueChanged.connect(
+            lambda: self.on_setting_changed('ai', 'max_image_size'))
+        infer_layout.addRow("Max Image Size:", self.max_img_spin)
+
+        # Threading
+        self.ai_threads_spin = QSpinBox()
+        self.ai_threads_spin.setRange(1, 16)
+        self.ai_threads_spin.setValue(4)
+        self.ai_threads_spin.valueChanged.connect(
+            lambda: self.on_setting_changed('ai', 'threads'))
+        infer_layout.addRow("AI Threads:", self.ai_threads_spin)
+
+        # Use GPU for inference
+        self.use_gpu_check = QCheckBox("Use GPU for inference (if available)")
+        self.use_gpu_check.setChecked(True)
+        self.use_gpu_check.stateChanged.connect(
+            lambda: self.on_setting_changed('ai', 'use_gpu'))
+        infer_layout.addRow("", self.use_gpu_check)
+
+        infer_group.setLayout(infer_layout)
+        layout.addWidget(infer_group)
+
+        # ── Export section ────────────────────────────────────────────────
+        export_group = QGroupBox("📤 Export Settings")
+        export_layout = QFormLayout()
+
+        self.export_format_combo = QComboBox()
+        self.export_format_combo.addItems(["PyTorch (.pt)", "ONNX (.onnx)", "TorchScript (.pts)", "SafeTensors"])
+        self.export_format_combo.currentTextChanged.connect(
+            lambda: self.on_setting_changed('ai', 'export_format'))
+        export_layout.addRow("Export Format:", self.export_format_combo)
+
+        self.quantize_check = QCheckBox("Quantize on export (smaller file, slight quality loss)")
+        self.quantize_check.stateChanged.connect(
+            lambda: self.on_setting_changed('ai', 'quantize_export'))
+        export_layout.addRow("", self.quantize_check)
+
+        export_group.setLayout(export_layout)
+        layout.addWidget(export_group)
+
+        # ── Start Training button ─────────────────────────────────────────
+        train_btn_group = QGroupBox("▶ Run")
+        train_btn_layout = QVBoxLayout()
+        self._ai_train_status = QLabel("Ready")
+        self._ai_train_status.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self._ai_train_progress = QProgressBar()
+        self._ai_train_progress.setRange(0, 100)
+        self._ai_train_progress.setValue(0)
+        self._ai_train_progress.setVisible(False)
+
+        start_btn = QPushButton("▶ Start Training / Export")
+        start_btn.setStyleSheet(
+            "QPushButton { background: #0d7377; color: #fff; border-radius: 4px; "
+            "font-weight: bold; padding: 8px 16px; } "
+            "QPushButton:hover { background: #0a5e62; }"
+        )
+        start_btn.clicked.connect(self._on_start_ai_training)
+
+        train_btn_layout.addWidget(self._ai_train_status)
+        train_btn_layout.addWidget(self._ai_train_progress)
+        train_btn_layout.addWidget(start_btn)
+        train_btn_group.setLayout(train_btn_layout)
+        layout.addWidget(train_btn_group)
+
+        layout.addStretch()
+        scroll.setWidget(container)
+        tab_layout = QVBoxLayout(tab)
+        tab_layout.addWidget(scroll)
+        return tab
+
     def create_ai_models_tab(self):
         """Create AI models management tab"""
         error_msg = None
         error_type = "general"
         
         try:
+            # Three-tier fallback mirrors ai_models_settings_tab._import_model_manager()
+            # so the AI models tab works in dev, running from repo root, and frozen EXE.
+            _AIModelsSettingsTab = None
             try:
-                from .ai_models_settings_tab import AIModelsSettingsTab
-            except ImportError:
-                from ui.ai_models_settings_tab import AIModelsSettingsTab
-            return AIModelsSettingsTab(self.config)
-        except ImportError as e:
+                from .ai_models_settings_tab import AIModelsSettingsTab as _AIModelsSettingsTab  # noqa: PLC0415
+            except (ImportError, ValueError):
+                pass
+            if _AIModelsSettingsTab is None:
+                try:
+                    from ui.ai_models_settings_tab import AIModelsSettingsTab as _AIModelsSettingsTab  # noqa: PLC0415
+                except (ImportError, OSError, RuntimeError):
+                    pass
+            if _AIModelsSettingsTab is None:
+                import sys
+                from pathlib import Path
+                _src = str(Path(__file__).resolve().parent.parent)  # .../src/
+                if _src not in sys.path:
+                    sys.path.insert(0, _src)
+                from ui.ai_models_settings_tab import AIModelsSettingsTab as _AIModelsSettingsTab  # noqa: PLC0415
+            if _AIModelsSettingsTab is None:
+                raise ImportError("AIModelsSettingsTab could not be loaded from any path")
+            return _AIModelsSettingsTab(self.config)
+        except (ImportError, OSError) as e:
             # Specific handling for import errors
             error_msg = str(e)
             if "PyQt6" in error_msg or "QtWidgets" in error_msg:
@@ -777,7 +1026,7 @@ class SettingsPanelQt(QWidget):
         try:
             try:
                 from .hotkey_display_qt import HotkeyDisplayWidget
-            except ImportError:
+            except (ImportError, OSError, RuntimeError):
                 from ui.hotkey_display_qt import HotkeyDisplayWidget
 
             self.hotkey_widget = HotkeyDisplayWidget(
@@ -809,7 +1058,7 @@ class SettingsPanelQt(QWidget):
                 self.hotkey_widget.load_hotkeys(saved)
 
             layout.addWidget(self.hotkey_widget)
-        except ImportError as e:
+        except (ImportError, OSError) as e:
             logger.warning(f"HotkeyDisplayWidget unavailable: {e}")
             self.hotkey_widget = None
             info = QLabel(
@@ -954,7 +1203,14 @@ class SettingsPanelQt(QWidget):
         try:
             # Appearance
             theme = self.config.get('ui', 'theme', default='dark')
-            theme_map = {'dark': 'Dark', 'light': 'Light', 'nord': 'Nord', 'dracula': 'Dracula', 'solarized dark': 'Solarized Dark', 'solarized_dark': 'Solarized Dark'}
+            theme_map = {
+                'dark': 'Dark', 'light': 'Light', 'nord': 'Nord', 'dracula': 'Dracula',
+                'solarized dark': 'Solarized Dark', 'solarized_dark': 'Solarized Dark',
+                'forest': 'Forest', 'forest_green': 'Forest',
+                'ocean': 'Ocean', 'ocean_blue': 'Ocean',
+                'sunset': 'Sunset', 'sunset_warm': 'Sunset',
+                'cyberpunk': 'Cyberpunk',
+            }
             self.theme_combo.setCurrentText(theme_map.get(theme.lower(), theme.capitalize()))
             
             accent = self.config.get('ui', 'accent_color', default='#0d7377')
@@ -967,25 +1223,36 @@ class SettingsPanelQt(QWidget):
             compact = self.config.get('ui', 'compact_view', default=False)
             self.compact_view_check.setChecked(compact)
             
-            # Cursor
+            # Cursor (Appearance tab sub-section + full Cursor tab)
             cursor = self.config.get('ui', 'cursor', default='default')
             self.cursor_type_combo.setCurrentText(cursor.capitalize())
-            
+            if hasattr(self, 'appearance_cursor_combo'):
+                self.appearance_cursor_combo.setCurrentText(cursor.capitalize())
+
             cursor_size = self.config.get('ui', 'cursor_size', default='medium')
             self.cursor_size_combo.setCurrentText(cursor_size.capitalize())
             
             trail = self.config.get('ui', 'cursor_trail', default=False)
             self.cursor_trail_check.setChecked(trail)
+            if hasattr(self, 'appearance_trail_check'):
+                self.appearance_trail_check.setChecked(trail)
             
             trail_color = self.config.get('ui', 'cursor_trail_color', default='rainbow')
             self.cursor_trail_color_combo.setCurrentText(trail_color.capitalize())
+
+            trail_intensity = self.config.get('ui', 'cursor_trail_intensity', default=5)
+            self.cursor_trail_intensity.setValue(max(1, min(10, int(trail_intensity))))
             
-            # Font
+            # Font (Appearance tab sub-section + full Font tab)
             font_family = self.config.get('ui', 'font_family', default='Segoe UI')
             self.font_family_combo.setCurrentText(font_family)
-            
+            if hasattr(self, 'appearance_font_combo'):
+                self.appearance_font_combo.setCurrentText(font_family)
+
             font_size = self.config.get('ui', 'font_size', default=12)
             self.font_size_spin.setValue(font_size)
+            if hasattr(self, 'appearance_font_size'):
+                self.appearance_font_size.setValue(font_size)
             
             font_weight = self.config.get('ui', 'font_weight', default='normal')
             self.font_weight_combo.setCurrentText(font_weight.capitalize())
@@ -1037,6 +1304,18 @@ class SettingsPanelQt(QWidget):
             
             verbose = self.config.get('logging', 'verbose', default=False)
             self.verbose_check.setChecked(verbose)
+
+            # AI settings
+            if hasattr(self, 'epochs_spin'):
+                self.epochs_spin.setValue(int(self.config.get('ai', 'epochs', default=50)))
+            if hasattr(self, 'batch_size_combo'):
+                self.batch_size_combo.setCurrentText(str(self.config.get('ai', 'batch_size', default=16)))
+            if hasattr(self, 'lr_combo'):
+                self.lr_combo.setCurrentText(str(self.config.get('ai', 'learning_rate', default=0.0001)))
+            if hasattr(self, 'max_img_spin'):
+                self.max_img_spin.setValue(int(self.config.get('ai', 'max_image_size', default=1024)))
+            if hasattr(self, 'ai_threads_spin'):
+                self.ai_threads_spin.setValue(int(self.config.get('ai', 'threads', default=4)))
             
         except Exception as e:
             logger.error(f"Error loading settings: {e}", exc_info=True)
@@ -1053,11 +1332,24 @@ class SettingsPanelQt(QWidget):
             
             # Determine value based on widget type
             if isinstance(widget, QComboBox):
-                value = widget.currentText().lower().replace(' ', '_')
+                raw = widget.currentText().lower().replace(' ', '_')
+                # Try to coerce numeric strings (batch_size, epochs etc.) to int/float
+                try:
+                    value = int(raw)
+                except ValueError:
+                    try:
+                        value = float(raw)
+                    except ValueError:
+                        value = raw
             elif isinstance(widget, QCheckBox):
                 value = widget.isChecked()
             elif isinstance(widget, QSpinBox):
                 value = widget.value()
+            elif isinstance(widget, QSlider):
+                value = widget.value()
+            elif hasattr(widget, 'text') and not isinstance(widget, QCheckBox):
+                # QLineEdit, QLabel — use text() as string value
+                value = widget.text()
             else:
                 return
             
@@ -1071,6 +1363,22 @@ class SettingsPanelQt(QWidget):
             # Apply specific changes
             if section == 'ui' and key == 'theme':
                 self.apply_theme()
+            elif section == 'ui' and key == 'font_family':
+                self._apply_font()
+            elif section == 'ui' and key == 'font_size':
+                self._apply_font()
+            elif section == 'ui' and key == 'cursor':
+                self._apply_cursor(value)
+            elif section == 'ui' and key == 'cursor_trail':
+                # Delegate to main window — the settingsChanged signal above already triggers
+                # _apply_cursor_trail() via on_settings_changed; no extra action needed here.
+                if self.main_window and hasattr(self.main_window, '_apply_cursor_trail'):
+                    self.main_window._apply_cursor_trail(bool(value))
+            elif section == 'ui' and key == 'cursor_trail_intensity':
+                if self.main_window and hasattr(self.main_window, '_cursor_trail_overlay'):
+                    overlay = self.main_window._cursor_trail_overlay
+                    if overlay is not None and hasattr(overlay, 'set_intensity'):
+                        overlay.set_intensity(int(value))
             
         except Exception as e:
             logger.error(f"Error saving setting {section}.{key}: {e}", exc_info=True)
@@ -1136,6 +1444,9 @@ class SettingsPanelQt(QWidget):
                 from features.tutorial_system import TooltipMode
                 mode_enum = getattr(TooltipMode, mode_enum_name, TooltipMode.NORMAL)
                 self.main_window.tooltip_manager.set_mode(mode_enum)
+                # set_mode already calls refresh_all(), but call explicitly as belt-and-suspenders
+                if hasattr(self.main_window.tooltip_manager, 'refresh_all'):
+                    self.main_window.tooltip_manager.refresh_all()
                 logger.info(f"Tooltip mode changed to: {mode_value} ({mode_enum_name})")
             
         except Exception as e:
@@ -1162,140 +1473,112 @@ class SettingsPanelQt(QWidget):
             self.settingsChanged.emit("ui.sound_volume", volume)
     
     def apply_theme(self):
-        """Apply the current theme to the main window"""
+        """Delegate theme application to main window (which has all 9 theme implementations)."""
         if not self.main_window:
             return
-        
         try:
-            theme = self.config.get('ui', 'theme', default='dark')
-            accent = self.config.get('ui', 'accent_color', default='#0d7377')
-            
-            if theme == 'dark':
-                stylesheet = f"""
-                QMainWindow, QWidget {{
-                    background-color: #1e1e1e;
-                    color: #ffffff;
-                    font-family: 'Segoe UI', Arial, sans-serif;
-                }}
-                QPushButton {{
-                    background-color: {accent};
-                    color: white;
-                    border: none;
-                    padding: 8px 16px;
-                    border-radius: 4px;
-                    font-weight: bold;
-                }}
-                QPushButton:hover {{
-                    background-color: {self.adjust_color(accent, 1.2)};
-                }}
-                QPushButton:pressed {{
-                    background-color: {self.adjust_color(accent, 0.8)};
-                }}
-                QPushButton:disabled {{
-                    background-color: #555555;
-                    color: #999999;
-                }}
-                QLabel {{
-                    color: #ffffff;
-                    background-color: transparent;
-                }}
-                QTabWidget::pane {{
-                    border: 1px solid #333333;
-                    background-color: #252525;
-                }}
-                QTabBar::tab {{
-                    background-color: #2d2d2d;
-                    color: #ffffff;
-                    padding: 8px 20px;
-                    border: 1px solid #333333;
-                    border-bottom: none;
-                }}
-                QTabBar::tab:selected {{
-                    background-color: {accent};
-                }}
-                QTabBar::tab:hover {{
-                    background-color: #3d3d3d;
-                }}
-                QGroupBox {{
-                    border: 1px solid #444444;
-                    border-radius: 5px;
-                    margin-top: 10px;
-                    padding-top: 10px;
-                    font-weight: bold;
-                }}
-                QGroupBox::title {{
-                    subcontrol-origin: margin;
-                    left: 10px;
-                    padding: 0 5px;
-                }}
-                """
-            else:  # Light theme
-                stylesheet = f"""
-                QMainWindow, QWidget {{
-                    background-color: #f5f5f5;
-                    color: #000000;
-                    font-family: 'Segoe UI', Arial, sans-serif;
-                }}
-                QPushButton {{
-                    background-color: {accent};
-                    color: white;
-                    border: none;
-                    padding: 8px 16px;
-                    border-radius: 4px;
-                    font-weight: bold;
-                }}
-                QPushButton:hover {{
-                    background-color: {self.adjust_color(accent, 1.2)};
-                }}
-                QPushButton:pressed {{
-                    background-color: {self.adjust_color(accent, 0.8)};
-                }}
-                QPushButton:disabled {{
-                    background-color: #cccccc;
-                    color: #666666;
-                }}
-                QLabel {{
-                    color: #000000;
-                    background-color: transparent;
-                }}
-                QTabWidget::pane {{
-                    border: 1px solid #cccccc;
-                    background-color: #ffffff;
-                }}
-                QTabBar::tab {{
-                    background-color: #e0e0e0;
-                    color: #000000;
-                    padding: 8px 20px;
-                    border: 1px solid #cccccc;
-                    border-bottom: none;
-                }}
-                QTabBar::tab:selected {{
-                    background-color: {accent};
-                    color: white;
-                }}
-                QTabBar::tab:hover {{
-                    background-color: #d0d0d0;
-                }}
-                QGroupBox {{
-                    border: 1px solid #cccccc;
-                    border-radius: 5px;
-                    margin-top: 10px;
-                    padding-top: 10px;
-                    font-weight: bold;
-                }}
-                QGroupBox::title {{
-                    subcontrol-origin: margin;
-                    left: 10px;
-                    padding: 0 5px;
-                }}
-                """
-            
-            self.main_window.setStyleSheet(stylesheet)
-            logger.info(f"Applied {theme} theme with accent {accent}")
-            
+            if hasattr(self.main_window, 'apply_theme'):
+                self.main_window.apply_theme()
         except Exception as e:
-            logger.error(f"Error applying theme: {e}", exc_info=True)
-    
+            logger.error(f"Error delegating apply_theme: {e}", exc_info=True)
+
+    def _apply_font(self):
+        """Apply font family + size from config to the main window."""
+        if not self.main_window:
+            return
+        try:
+            family = self.config.get('ui', 'font_family', default='Segoe UI')
+            size = int(self.config.get('ui', 'font_size', default=12))
+            from PyQt6.QtGui import QFont as _QFont
+            app_font = _QFont(family, size)
+            from PyQt6.QtWidgets import QApplication as _QApp
+            _QApp.setFont(app_font)
+            logger.info(f"Font applied: {family} {size}pt")
+        except Exception as e:
+            logger.error(f"Error applying font: {e}", exc_info=True)
+
+    def _apply_cursor(self, cursor_name: str):
+        """Apply cursor style to main window."""
+        if not self.main_window:
+            return
+        try:
+            from PyQt6.QtCore import Qt as _Qt
+            from PyQt6.QtGui import QCursor as _QCursor
+            _CURSOR_MAP = {
+                'default': _Qt.CursorShape.ArrowCursor,
+                'pointer': _Qt.CursorShape.PointingHandCursor,
+                'crosshair': _Qt.CursorShape.CrossCursor,
+                'panda_paw': _Qt.CursorShape.PointingHandCursor,
+                'bamboo': _Qt.CursorShape.PointingHandCursor,
+                'star': _Qt.CursorShape.PointingHandCursor,
+            }
+            shape = _CURSOR_MAP.get(cursor_name.lower().replace(' ', '_'),
+                                    _Qt.CursorShape.ArrowCursor)
+            self.main_window.setCursor(_QCursor(shape))
+        except Exception as e:
+            logger.error(f"Error applying cursor: {e}", exc_info=True)
+
+    def _browse_dataset_folder(self) -> None:
+        """Open a folder-picker dialog for the custom training dataset path."""
+        try:
+            from PyQt6.QtWidgets import QFileDialog as _QFD
+            folder = _QFD.getExistingDirectory(
+                self, "Select Dataset Folder",
+                getattr(self, 'dataset_path_edit', None) and self.dataset_path_edit.text() or "",
+            )
+            if folder:
+                self.dataset_path_edit.setReadOnly(False)
+                self.dataset_path_edit.setText(folder)
+                self.dataset_path_edit.setReadOnly(True)
+                self.config.set('ai', 'custom_dataset_path', folder)
+                logger.info("Custom dataset path set: %s", folder)
+        except Exception as exc:
+            logger.error("_browse_dataset_folder: %s", exc)
+
+    def _on_start_ai_training(self) -> None:
+        """Handle 'Start Training / Export' button in AI Settings tab."""
+        try:
+            from ai.training_pytorch import is_pytorch_available, TrainingMode
+        except (ImportError, OSError, RuntimeError):
+            try:
+                from src.ai.training_pytorch import is_pytorch_available, TrainingMode  # type: ignore[no-redef]
+            except (ImportError, OSError, RuntimeError):
+                if hasattr(self, '_ai_train_status'):
+                    self._ai_train_status.setText(
+                        "⚠️ PyTorch not installed — cannot train.\n"
+                        "Install with: pip install torch torchvision"
+                    )
+                return
+
+        if not is_pytorch_available():
+            if hasattr(self, '_ai_train_status'):
+                self._ai_train_status.setText(
+                    "⚠️ PyTorch not available — install with:\n"
+                    "pip install torch torchvision"
+                )
+            return
+
+        mode_text = getattr(self, 'training_mode_combo', None)
+        mode_str = mode_text.currentText() if mode_text else 'Standard'
+        epochs = getattr(self, 'epochs_spin', None)
+        epochs_val = epochs.value() if epochs else 10
+
+        if hasattr(self, '_ai_train_status'):
+            self._ai_train_status.setText(f"⏳ {mode_str} — {epochs_val} epochs…")
+        if hasattr(self, '_ai_train_progress'):
+            self._ai_train_progress.setVisible(True)
+            self._ai_train_progress.setRange(0, 0)  # pulse
+
+        # Emit so main window knows training started
+        self.settingsChanged.emit('ai.training_started', {
+            'mode': mode_str,
+            'epochs': epochs_val,
+        })
+
+        logger.info(f"AI training requested: mode={mode_str}, epochs={epochs_val}")
+        # Actual training runs in main window's _start_ai_training_job() handler.
+        # The settings panel is not responsible for the QThread — main.py is.
+
     def adjust_color(self, hex_color: str, factor: float) -> str:
         """Adjust color brightness by factor"""
         try:
@@ -1434,8 +1717,12 @@ class SettingsPanelQt(QWidget):
         """Set tooltip for a widget using the tooltip manager"""
         try:
             if self.main_window and getattr(self.main_window, 'tooltip_manager', None):
-                tooltip_text = self.main_window.tooltip_manager.get_tooltip(widget_id)
+                tm = self.main_window.tooltip_manager
+                tooltip_text = tm.get_tooltip(widget_id)
                 widget.setToolTip(tooltip_text)
+                # Register so the widget gets updated on mode changes and cycles tips
+                if hasattr(tm, 'register'):
+                    tm.register(widget, widget_id)
             else:
                 # Fallback tooltips
                 fallback_tooltips = {

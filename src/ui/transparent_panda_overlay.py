@@ -36,13 +36,15 @@ import random
 import time
 
 try:
-    from PyQt6.QtWidgets import QOpenGLWidget, QWidget
+    from PyQt6.QtWidgets import QWidget
+    # QOpenGLWidget was moved from QtWidgets → QtOpenGLWidgets in Qt6/PyQt6
+    from PyQt6.QtOpenGLWidgets import QOpenGLWidget
     from PyQt6.QtCore import Qt, QTimer, QPoint, QRect, pyqtSignal
     from PyQt6.QtGui import QPainter, QColor
     from OpenGL.GL import *
     from OpenGL.GLU import *
     PYQT_AVAILABLE = True
-except ImportError:
+except (ImportError, OSError, RuntimeError):
     PYQT_AVAILABLE = False
     QOpenGLWidget = object
     QWidget = object
@@ -84,10 +86,12 @@ class TransparentPandaOverlay(QOpenGLWidget if PYQT_AVAILABLE else QWidget):
     
     # Behavior probabilities (must sum to 1.0)
     BEHAVIOR_WEIGHTS = {
-        'idle': 0.4,
-        'walking': 0.3,
-        'interacting': 0.2,
-        'investigating': 0.1
+        'idle':          0.30,
+        'walking':       0.28,
+        'interacting':   0.18,
+        'investigating': 0.08,
+        'crawling':      0.10,
+        'climbing_wall': 0.06,
     }
     
     # Signals for interaction events
@@ -493,7 +497,61 @@ class TransparentPandaOverlay(QOpenGLWidget if PYQT_AVAILABLE else QWidget):
     def get_feet_positions(self):
         """Get feet positions in screen coordinates."""
         return self.left_foot_position, self.right_foot_position
-    
+
+    # ── Delegation helpers: forward interaction calls to the 3D GL widget ──
+    def _gl(self):
+        """Return the live PandaOpenGLWidget via main_window, or None."""
+        try:
+            return getattr(self.main_window, 'panda_widget', None)
+        except Exception:
+            return None
+
+    def start_bite_tab(self):
+        """Trigger jaw-open bite animation on the 3D GL widget."""
+        gl = self._gl()
+        if gl and hasattr(gl, 'start_bite_tab'):
+            gl.start_bite_tab()
+        else:
+            self.set_animation_state('waving')
+
+    def notify_button_nearby(self):
+        """Alert the 3D GL widget that a button is nearby."""
+        gl = self._gl()
+        if gl and hasattr(gl, 'notify_button_nearby'):
+            gl.notify_button_nearby()
+        else:
+            self.set_animation_state('waving')
+
+    def notify_file_dragged(self, file_path: str):
+        """Alert the 3D GL widget that a file is being dragged nearby."""
+        gl = self._gl()
+        if gl and hasattr(gl, 'notify_file_dragged'):
+            gl.notify_file_dragged(file_path)
+        else:
+            self.set_animation_state('crawling')
+
+    def start_sit_on_panel(self):
+        """Make the 3D GL widget sit on a panel."""
+        gl = self._gl()
+        if gl and hasattr(gl, 'start_sit_on_panel'):
+            gl.start_sit_on_panel()
+        else:
+            self.set_animation_state('sitting_back')
+
+    def start_hug_window(self):
+        """Make the 3D GL widget hug a window edge."""
+        gl = self._gl()
+        if gl and hasattr(gl, 'start_hug_window'):
+            gl.start_hug_window()
+        else:
+            self.set_animation_state('climbing_wall')
+
+    def set_micro_emotion(self, emotion_name: str, weight: float = 0.8):
+        """Delegate micro-emotion to the 3D GL widget."""
+        gl = self._gl()
+        if gl and hasattr(gl, 'set_micro_emotion'):
+            gl.set_micro_emotion(emotion_name, weight)
+
     # ===========================
     # UI INTERACTION SYSTEM
     # ===========================
@@ -688,6 +746,9 @@ class TransparentPandaOverlay(QOpenGLWidget if PYQT_AVAILABLE else QWidget):
             # Check if there's something interesting nearby
             if random.random() < self.INVESTIGATION_TRIGGER_CHANCE:
                 self.behavior_state = 'interacting'
+        
+        # crawling / climbing_wall states are driven by QTimer in _decide_next_behavior;
+        # no continuous per-tick logic required here.
     
     def _decide_next_behavior(self):
         """Decide what panda should do next based on AI."""
@@ -703,6 +764,22 @@ class TransparentPandaOverlay(QOpenGLWidget if PYQT_AVAILABLE else QWidget):
                 self.panda_y,
                 random.uniform(-2.0, 2.0)
             )
+        elif self.behavior_state == 'crawling':
+            self.set_animation_state('crawling')
+            # Return to idle after a short crawl — guard so a later state wins
+            dur = int(random.uniform(1500, 3500))
+            QTimer.singleShot(dur, lambda: (self.animation_state == 'crawling'
+                                            and self.set_animation_state('idle')))
+            self.behavior_state = 'idle'   # prevent re-entry next tick
+        elif self.behavior_state == 'climbing_wall':
+            self.set_animation_state('climbing_wall')
+            fall_ms = int(random.uniform(1000, 2500))
+            idle_ms = fall_ms + int(random.uniform(800, 1800))
+            QTimer.singleShot(fall_ms, lambda: (self.animation_state == 'climbing_wall'
+                                                and self.set_animation_state('falling_back')))
+            QTimer.singleShot(idle_ms, lambda: (self.animation_state == 'falling_back'
+                                                and self.set_animation_state('idle')))
+            self.behavior_state = 'idle'   # prevent re-entry
     
     # ===========================
     # 3D ITEMS RENDERING

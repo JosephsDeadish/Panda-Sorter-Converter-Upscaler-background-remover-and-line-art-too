@@ -1,4 +1,4 @@
-name: Build PS2 Texture Sorter EXE
+name: Build Panda Sorter Converter Upscaler EXE
 
 on:
   # Trigger on push to main branch
@@ -27,6 +27,17 @@ jobs:
       actions: read    # Required for workflow actions
     
     steps:
+      - name: Enable Windows Long Paths
+        # WinError 206 ("filename or extension too long") fires when PyInstaller's
+        # isolated analysis subprocesses try os.add_dll_directory() on the long
+        # hostedtoolcache path (e.g. …\Python\3.11.9\x64\Lib\site-packages\torch\lib).
+        # Enabling NTFS long-path support removes the 260-char MAX_PATH limit.
+        run: |
+          reg add "HKLM\SYSTEM\CurrentControlSet\Control\FileSystem" /v LongPathsEnabled /t REG_DWORD /d 1 /f
+          git config --global core.longpaths true
+          echo "Windows long path support enabled"
+        shell: cmd
+
       - name: Checkout Repository
         uses: actions/checkout@v4
       
@@ -39,38 +50,127 @@ jobs:
       - name: Install Dependencies
         run: |
           python -m pip install --upgrade pip setuptools wheel
-          # Install PyTorch CPU (explicit index to avoid timeout/wrong version)
-          pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
+          # Install core runtime deps that must always be present in the EXE.
+          # These are installed BEFORE requirements.txt so that a failure in
+          # the optional packages (basicsr, facexlib, etc.) does not prevent
+          # them from being available for PyInstaller collection.
+          pip install "onnxruntime>=1.16.0"
+          pip install "numpy>=1.24.0" "Pillow>=10.0.0" "scipy>=1.10.0"
+          pip install "scikit-learn>=1.3.0"
+          pip install "PyQt6>=6.6.0" "PyQt6-sip>=13.6.0"
+          # PyQt6-Qt6 contains the actual Qt6 DLLs (Qt6Core.dll, Qt6Gui.dll, Qt6OpenGL.dll etc.)
+          # It is a dependency of PyQt6 but pinning it separately ensures PyInstaller can find
+          # and bundle all Qt6 runtime DLLs (including Qt6OpenGL.dll for the 3D panda widget).
+          pip install "PyQt6-Qt6>=6.6.0" || echo "⚠️  PyQt6-Qt6 install failed (should be auto-installed with PyQt6)"
+          # IMPORTANT: PyQt6.QtStateMachine (QState, QStateMachine) was moved out of PyQt6.QtCore
+          # in PyQt6 6.1+ into a separate module.  It IS included in the PyQt6 wheel (no extra
+          # package needed) but verify it is importable so the 3D panda widget loads correctly.
+          python -c "from PyQt6.QtStateMachine import QState, QStateMachine; print('✅ PyQt6.QtStateMachine OK')" || echo "⚠️  PyQt6.QtStateMachine not available — 3D panda will use 2D fallback"
+          pip install "opencv-python-headless>=4.8.0"
+          pip install "xxhash>=3.0.0" "psutil>=5.9.0" "tqdm>=4.65.0"
+          pip install "pyyaml>=6.0" "send2trash>=1.8.0" "watchdog>=3.0.0"
+          # requests is REQUIRED for AI model downloads (handles CDN redirects, HuggingFace LFS,
+          # and GitHub release redirects correctly — urllib does not follow some of these).
+          pip install "requests>=2.31.0"
+          # ── PyOpenGL: install core first (REQUIRED for 3D panda), then accelerate ──
+          # Install them separately so a build-time failure of PyOpenGL-accelerate
+          # (which needs MSVC on Windows) does NOT block PyOpenGL itself.
+          # PyOpenGL core is pure-Python and always installs cleanly; the accelerate
+          # extension is optional (speeds up array copies but is not required for
+          # the fixed-function GL pipeline used by the panda and otter widgets).
+          pip install "PyOpenGL>=3.1.7"
+          pip install "PyOpenGL-accelerate>=3.1.7" || echo "⚠️  PyOpenGL-accelerate not available (needs MSVC) — using pure-Python mode (non-fatal)"
+          python -c "import OpenGL; print('✅ PyOpenGL', OpenGL.__version__, 'ready for 3D panda bundling')"
+          pip install "faiss-cpu>=1.7.4" || echo "⚠️  faiss-cpu failed (non-fatal, numpy fallback used for similarity search)"
+          # Install PyTorch CPU — pin to match requirements.txt (torch>=2.6.0)
+          # to guarantee consistent behaviour across CI runs.
+          pip install "torch>=2.6.0,<3.0" "torchvision>=0.21.0,<0.22" --index-url https://download.pytorch.org/whl/cpu
           # Install optional heavy deps (allow failures - app degrades gracefully)
-          pip install timm transformers open-clip-torch || echo "⚠️  Some optional ML deps failed (non-fatal)"
-          pip install basicsr realesrgan || echo "⚠️  basicsr/realesrgan failed (non-fatal, downloaded at runtime)"
+          pip install "timm>=0.9.0" "transformers>=4.48.0" "open-clip-torch>=2.20.0" || echo "⚠️  Some optional ML deps failed (non-fatal)"
+          pip install "basicsr>=1.4.2" "realesrgan>=0.3.0" || echo "⚠️  basicsr/realesrgan failed (non-fatal, Real-ESRGAN upscaling unavailable)"
+          pip install "gfpgan>=1.3.8" || echo "⚠️  gfpgan failed (non-fatal, face restoration unavailable)"
           # Pre-install optional packages that may fail on Windows CI before the main
-          # requirements install.  rembg is excluded from the PyInstaller build anyway.
-          pip install "rembg[cpu]>=2.0.50" || echo "⚠️  rembg failed (non-fatal, excluded from PyInstaller build)"
+          # requirements install.  rembg IS now included in the PyInstaller bundle
+          # (removed from excludes list; pre_safe_import hook handles sys.exit during analysis).
+          pip install "rembg[cpu]>=2.0.50" || echo "⚠️  rembg install failed (non-fatal, bg removal will be limited)"
           pip install cairosvg cairocffi || echo "⚠️  Cairo SVG support failed (non-fatal)"
-          # Install core requirements.  Use || echo so that any remaining optional-package
+          # Install remaining requirements.  Use || echo so that any remaining optional-package
           # failures (e.g. pytesseract if Tesseract is absent) do not abort the step.
-          # Critical packages are verified in the next step.
+          # Critical packages are already installed above and verified in the next step.
           pip install -r requirements.txt --upgrade-strategy only-if-needed || echo "⚠️  Some requirements failed (non-fatal optional packages)"
           # Ensure PyInstaller is available
           pip install "pyinstaller>=6.0.0"
+
+      - name: Build Native Rust Extension (Lanczos acceleration)
+        run: |
+          echo "Installing maturin for Rust extension build..."
+          pip install maturin
+          echo "Building texture_ops Rust extension..."
+          cd native
+          maturin build --release --out ../dist_wheels 2>&1
+          if ($LASTEXITCODE -eq 0) {
+            echo "✅ Rust extension built successfully"
+            $wheel = Get-ChildItem ../dist_wheels/*.whl | Select-Object -First 1
+            if ($wheel) {
+              pip install $wheel.FullName --force-reinstall
+              echo "✅ texture_ops installed: $($wheel.Name)"
+              python -c "import texture_ops; print('OK native Lanczos available')"
+            }
+          } else {
+            echo "⚠️  Rust extension build failed (non-fatal — PIL Lanczos fallback will be used)"
+          }
+        shell: pwsh
+        continue-on-error: true
       
       - name: Verify Critical Dependencies
         env:
           PYTHONUTF8: "1"
         run: |
           python -c "import PyQt6; print('OK PyQt6 available')"
+          python -c "import PyQt6.QtOpenGLWidgets; print('OK PyQt6.QtOpenGLWidgets available (3D panda)')"
+          python -c "import PyQt6.QtSvgWidgets; print('OK PyQt6.QtSvgWidgets available')"
           python -c "import numpy; print('OK numpy available')"
-          python -c "import PIL; print('OK Pillow available')"
+          python -c "import PIL; PIL.Image.init(); print('OK Pillow + plugins available')"
           python -c "import cv2; print('OK OpenCV available')"
           python -c "import onnxruntime; print('OK onnxruntime available')"
           python -c "import yaml; print('OK PyYAML ' + yaml.__version__ + ' available')"
+          python -c "import torch; import torchvision; print('OK torch', torch.__version__, '+ torchvision', torchvision.__version__, 'available')" || echo "⚠️  torch/torchvision not available — CLIP, DINOv2, Real-ESRGAN and AI training disabled"
+          python -c "import OpenGL; from OpenGL.GL import GL_VERSION; print('✅ PyOpenGL', OpenGL.__version__, '+ OpenGL.GL ready — 3D panda will be bundled')"
+          python -c "import timm; print('OK timm available (image models)')" || echo "⚠️  timm not available — advanced classification disabled"
+          python -c "import transformers; print('OK transformers available (CLIP/ViT)')" || echo "⚠️  transformers not available — CLIP models disabled"
+          python -c "import open_clip; print('OK open_clip available (CLIP)')" || echo "⚠️  open_clip not available — open-source CLIP disabled"
+          python -c "import basicsr; print('OK basicsr available (Real-ESRGAN)')" || echo "⚠️  basicsr not available — Real-ESRGAN upscaling disabled"
+          python -c "import realesrgan; print('OK realesrgan available')" || echo "⚠️  realesrgan not available — Real-ESRGAN upscaling disabled"
+          python -c "import sklearn; print('OK scikit-learn available (classification)')"
+          python -c "import faiss; print('OK faiss available (similarity search)')" || echo "⚠️  faiss not available — numpy fallback used for similarity search"
+          python -c "import texture_ops; print('OK texture_ops available (native Lanczos)')" || echo "⚠️  texture_ops not available — PIL Lanczos fallback will be used"
           echo "All critical dependencies verified"
       
       - name: Run Syntax Validation
         run: |
           python -m compileall -q .
           echo "✅ All Python files compiled successfully"
+
+      - name: Run Architecture & Import Safety Tests
+        # Validates that:
+        #   1. The tools package can be imported without calling sys.exit (rembg
+        #      lazy-import fix — the exact crash that broke the PyInstaller build).
+        #   2. torch is NOT imported at module level by the ai package.
+        #   3. ai.inference and ai.training_pytorch degrade gracefully when their
+        #      optional dependencies (onnxruntime, torch) are absent.
+        #   4. Unicode encoding works correctly on Windows.
+        # shell: bash so that || (OR-operator) works correctly on Windows runners.
+        shell: bash
+        env:
+          PYTHONUTF8: "1"
+          QT_QPA_PLATFORM: "offscreen"
+        run: |
+          python test_hybrid_architecture.py
+          echo "✅ Hybrid architecture tests passed"
+          python test_unicode_fix.py
+          echo "✅ Unicode encoding tests passed"
+          python test_main_import.py || echo "⚠️ test_main_import.py check failed (non-fatal - requires full dependencies)"
+          echo "✅ Import tests completed"
       
       - name: Create Resource Directories
         run: |
@@ -78,6 +178,15 @@ jobs:
           mkdir -p src/resources/cursors
           mkdir -p src/resources/themes
           mkdir -p src/resources/sounds
+        shell: bash
+
+      - name: Generate Sound Files
+        run: |
+          echo "Generating synthetic WAV sound files..."
+          # Non-fatal: sounds fall back to QApplication.beep() if WAV files are missing.
+          # The EXE still works without them; this just improves the audio experience.
+          python generate_sounds.py || echo "⚠️  generate_sounds.py failed — panda sounds will use system beep fallback"
+          echo "Sound files in src/resources/sounds/: $(ls src/resources/sounds/*.wav 2>/dev/null | wc -l)"
         shell: bash
       
       - name: Verify PyInstaller Hooks Directory
@@ -153,6 +262,29 @@ jobs:
           mkdir -p dist/GameTextureSorter/app_data/themes
           mkdir -p dist/GameTextureSorter/app_data/models
         shell: bash
+
+      - name: Pre-download AI Models into EXE bundle
+        # Download upscaler .pth/.onnx model files so users never need to click "Download".
+        # --output-dir tells setup_models.py to write files directly into the bundle folder.
+        # continue-on-error: true — build still succeeds even if a CDN is unavailable.
+        continue-on-error: true
+        shell: bash
+        env:
+          PYTHONUTF8: "1"
+        run: |
+          echo "Pre-downloading required AI models into EXE bundle…"
+          python setup_models.py --output-dir dist/GameTextureSorter/app_data/models
+          EXIT=$?
+          echo ""
+          echo "=== Model bundle summary ==="
+          ls dist/GameTextureSorter/app_data/models/ 2>/dev/null || echo "(no files)"
+          NFILES=$(ls dist/GameTextureSorter/app_data/models/ 2>/dev/null | wc -l)
+          echo "Models bundled: $NFILES file(s)"
+          if [ $EXIT -eq 0 ]; then
+            echo "✅ All AI models downloaded successfully"
+          else
+            echo "⚠️  Some models could not be downloaded (app will retry on first run)"
+          fi
       
       - name: Upload Build as Artifact
         uses: actions/upload-artifact@v4
@@ -176,33 +308,39 @@ jobs:
           prerelease: false
           generate_release_notes: true
           body: |
-            ## PS2 Texture Sorter Release ${{ github.ref_name }}
-            
-            🐼 **Automatic texture classification and organization for PS2 texture dumps**
-            
+            ## 🐼 Panda Sorter Converter Upscaler — Release ${{ github.ref_name }}
+
+            🦦 *Cosmic Otter Supply Co. edition — powered by Livy the otter*
+
             ### Download
             Download the zip file below, extract it, and run `GameTextureSorter.exe` from the extracted folder.
-            
-            ### Features
-            - 🤖 Automatic classification with 50+ texture categories
-            - 🔄 DDS ↔ PNG bidirectional conversion
-            - 📊 Support for 200,000+ textures with database indexing
-            - 🎮 LOD detection and grouping
-            - 🗂️ Multiple organization styles (Sims, Neopets, Flat, etc.)
-            - 🔍 Duplicate detection by hash or name+size
-            - 🐼 Fun panda-themed UI with dark/light modes
-            
+
+            ### What's included
+            - 🤖 **AI Organizer** — 50+ texture categories, CLIP visual classification, appearance/location/resolution/system organisation styles
+            - 🔄 **Converter** — DDS ↔ PNG ↔ WebP ↔ JPEG bidirectional batch conversion
+            - 🔍 **Upscaler** — Real-ESRGAN x4/x2, Anime 6B, SwinIR, bicubic, Lanczos
+            - ✂️ **Background Remover** — 9 AI models (u2net, BiRefNet, IS-Net, silueta …)
+            - ✏️ **Line Art Converter** — 6 modes, tattoo presets, zoom preview
+            - 🎨 **Color Correction, Batch Normalizer, Quality Checker, Alpha Fixer, Batch Rename, Image Repair**
+            - 🐼 **3D Panda** (OpenGL) + 🦦 **Livy the otter shopkeeper** (Cosmic Otter Supply Co.)
+            - 🏠 **3D Bedroom** with furniture interactions, wardrobe, backpack
+            - 🌍 **3D World** — park, shop, destinations
+            - 🌟 Coin economy, closet (66+ presets), achievements, skill tree
+            - 🎨 9 themes, customisable cursor & font
+            - 📋 Activity Log, File Browser, Notepad with undo/redo
+            - 🤖 AI model auto-download on first run (18 models pre-bundled)
+
             ### System Requirements
-            - Windows 7/8/10/11 (64-bit)
-            - No Python or dependencies needed
-            - Works 100% offline
-            
+            - Windows 10/11 (64-bit recommended; Windows 7/8 may work)
+            - No Python or dependencies needed — fully self-contained
+            - OpenGL 2.1+ for 3D panda (falls back to 2D if unavailable)
+            - Works 100% offline after first AI model download
+
             ### Notes
-            - This is a one-folder build for faster startup performance
-            - Extract the zip and run GameTextureSorter.exe from the folder
-            - You can customize themes, sounds, and other assets in the folder
-            - Windows may show SmartScreen warning (click "More info" → "Run anyway")
-            
+            - One-folder build — extract the zip and run `GameTextureSorter.exe`
+            - Windows SmartScreen may warn on first run → click "More info" → "Run anyway"
+            - AI models (~2 GB total) auto-download on first use if not pre-bundled
+
             **Author:** Dead On The Inside / JosephsDeadish
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

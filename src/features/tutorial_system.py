@@ -20,19 +20,30 @@ try:
         QWidget, QMessageBox, QToolTip, QDialog, QVBoxLayout, QHBoxLayout,
         QLabel, QPushButton, QGraphicsOpacityEffect, QApplication
     )
-    from PyQt6.QtCore import QTimer, Qt, QPoint, QRect, QPropertyAnimation, QEasingCurve
+    from PyQt6.QtCore import QTimer, Qt, QPoint, QRect, QPropertyAnimation, QEasingCurve, pyqtSignal, QEvent, QObject
     from PyQt6.QtGui import QCursor, QPainter, QColor, QPen, QFont
     GUI_AVAILABLE = True
-except ImportError:
+except (ImportError, OSError, RuntimeError):
     GUI_AVAILABLE = False
     # Provide stub base classes so class definitions that inherit from Qt widgets
     # don't fail when PyQt6 is unavailable (e.g. during non-GUI imports or headless testing).
-    class QWidget:  # type: ignore[no-redef]
+    class QObject:  # type: ignore[no-redef]
+        """Fallback stub when PyQt6 is not installed."""
+        def __init__(self, *a, **kw): pass
+        def eventFilter(self, obj, event): return False
+    class QEvent:  # type: ignore[no-redef]
+        """Fallback stub when PyQt6 is not installed."""
+        class Type:
+            ToolTip = 110
+    class QWidget(QObject):  # type: ignore[no-redef]
         """Fallback stub when PyQt6 is not installed."""
         pass
     class QDialog(QWidget):  # type: ignore[no-redef]
         """Fallback stub when PyQt6 is not installed."""
         pass
+    def pyqtSignal(*args, **kwargs):  # type: ignore[no-redef]
+        """Stub so class bodies using pyqtSignal() don't raise NameError."""
+        return None
 
 # Tooltip definitions with normal and vulgar variants per widget
 # (Previously stored in panda_mode.py – inlined here so the file can be removed)
@@ -1028,15 +1039,31 @@ _PANDA_TOOLTIPS = {
             "Enable or disable cursor trail effects",
             "Add a decorative trail behind your cursor",
             "Toggle the cursor sparkle trail on or off",
-            "Turn cursor trail effects on or off"
+            "Turn cursor trail effects on or off",
+            "A cursor trail follows your mouse with colorful dots",
+            "Cursor trails are purely cosmetic — no performance impact",
+            "Enable this for a magical, sparkling mouse experience",
+            "Pairs beautifully with the Rainbow or Fire color schemes",
+            "The trail fades out automatically as you stop moving",
+            "Combine with high intensity for maximum visual drama",
         ],
         'vulgar': [
             "Cursor trail. Leave sparkles wherever you go. Majestic. Like a unicorn. Or a glitter bomb. Beautiful chaos.",
             "Enable trails. Your cursor will look fabulous. Trust me. I'm a professional. Okay not really. But it looks good.",
             "Sparkle trail toggle. For the extra in all of us. Extra is a lifestyle. Embrace it. Sparkle on, you magnificent bastard.",
             "Cursor trail. Because your mouse movements deserve to be celebrated. Every click. Every hover. Art in motion.",
-            "Turn on trails and watch your productivity drop. Worth it. Beauty requires sacrifice. In this case, focus."
-        ]
+            "Turn on trails and watch your productivity drop. Worth it. Beauty requires sacrifice. In this case, focus.",
+            "Enable this and your cursor becomes a comet. A goddamn comet. You're basically an astronomer now.",
+            "Cursor trail on: your desk becomes a runway. Every mouse move is haute couture. Fashion. Icons.",
+            "With this enabled, even hovering over the close button becomes performance art. You're welcome.",
+            "Turn it on and go wow your cat. Cats love cursor trails. Science. Probably.",
+            "This toggle transforms your cursor from a boring arrow into a traveling sparkle disaster. Upgrade accepted.",
+        ],
+        'dumbed-down': [
+            "Make a colorful trail follow your mouse pointer.",
+            "Turn on to see sparkly dots follow your mouse cursor.",
+            "Cursor trails are fun decorative effects — they don't slow down your computer.",
+        ],
     },
     'trail_style': {
         'normal': [
@@ -1052,6 +1079,40 @@ _PANDA_TOOLTIPS = {
             "Choose your sparkle style. No wrong answers here. Except maybe that one. Yeah, that one's wrong. Kidding. Maybe.",
             "Trail options. From 'subtle nature' to 'galactic overkill'. Subtle is boring. Overkill is living. Choose life."
         ]
+    },
+    'cursor_trail_intensity': {
+        'normal': [
+            "Adjust how strong the cursor trail effect appears",
+            "Higher intensity means more and larger trail dots",
+            "Lower intensity gives a subtle, minimal trail",
+            "Level 1: barely-there whisper of a trail",
+            "Level 5: balanced trail — visible but not overwhelming",
+            "Level 10: maximum trail — full sparkle mode",
+            "Drag right for more dramatic effect",
+            "Drag left for a subtler, professional look",
+            "Intensity also controls how long the trail lingers",
+            "Find the right balance for your screen size and preference",
+        ],
+        'vulgar': [
+            "Intensity slider. 1 = barely there, like your attention span. 10 = blinding chaos. Pick wisely.",
+            "Crank this up for maximum cursor drama. Or don't. The trail won't take it personally. Much.",
+            "Trail intensity. Low = subtle unicorn fart. High = supernova every mouse move. Both valid life choices.",
+            "Turn it up. Make every mouse movement a spectacle. You've earned it, you pixel-herding legend.",
+            "Intensity knob. Dial it to 11 if you want. We don't judge. Okay we judge. But in an impressed way.",
+            "Low intensity for secret agents. High intensity for people who want to be noticed from space.",
+            "Slider goes brrr. More intensity = more dots = more sparkle = more you. Maximum YOU.",
+            "This is the 'how extra are you today' slider. I trust you'll choose correctly. Or chaotically. Same thing.",
+            "High intensity setting: 'I want my cursor to leave a permanent scar on the universe.' Achievement unlocked.",
+            "Set it to max. Go full glitter bomb. You only live once and your cursor should be legendary.",
+        ],
+        'dumbed-down': [
+            "Control how strong and visible the cursor trail is",
+            "Low intensity (1-3): subtle, barely-there effect",
+            "Medium intensity (4-6): balanced — visible but not distracting",
+            "High intensity (7-10): dramatic, eye-catching trail",
+            "Drag right for a more dramatic sparkle effect",
+            "Drag left for a more professional, subtle look",
+        ],
     },
     'hotkey_edit': {
         'normal': [
@@ -1885,18 +1946,16 @@ _PANDA_TOOLTIPS = {
             "Ready to upscale? This button kicks everything off for you.",
         ],
         'vulgar': [
-            "SMASH this button to make your tiny textures less embarrassingly small.",
-            "Hit it! Time to blow up those pixels like a panda sitting on bubblewrap.",
-            "Upscale button: because your textures called and they want more pixels.",
-            "Click to embiggen. Yes, embiggen. The panda said it, deal with it.",
-            "Big green UPSCALE button. You know what it does. Just press it.",
-            "Start batch upscaling. Your GPU is about to earn its keep.",
-            "Make textures bigger. That's the whole job description of this button.",
-            "Click to start the pixel multiplication party. Confetti not included.",
-            "Upscale everything! The panda believes in your texture enhancement journey.",
-            "Enlarge those bad boys. The panda supports all forms of pixel growth.",
-            "🔍 UPSCALE 🔍 — It says it right on the button, what more do you need?",
-            "Time to make those textures thicc. Click upscale. Now."
+            "FUCKING SMASH THIS BUTTON and watch those tiny-ass textures get absolutely JACKED. GPU gains incoming.",
+            "These textures are embarrassingly small. Click this and fix your life choices, you pixel-poor goblin.",
+            "Your textures called — they said 'we look like dogshit on modern screens, please help us.' This button helps them.",
+            "UPSCALE THOSE BASTARDS. Your 256×256 textures are an insult to retinas everywhere. Click. Now.",
+            "Time to make your crusty little textures thicc as HELL. That's it. That's the tooltip.",
+            "Click this or your textures will remain pathetically tiny forever. The panda is judging your blurry-ass pixels.",
+            "Your GPU has been sitting here doing NOTHING. Put that expensive piece of silicon to work, you wasteful bastard.",
+            "Pixel multiplication time, motherfucker! Watch those sad little 2x2 blobs become GLORIOUS 8x8 blobs!",
+            "You have 500 tiny-dick textures. This button fixes ALL of them. You're welcome. Show some goddamn gratitude.",
+            "START THE UPSCALING. The AI is ready, your GPU is ready, your textures are DESPERATE — what are you waiting for?!",
         ]
     },
     'upscale_input': {
@@ -1945,14 +2004,14 @@ _PANDA_TOOLTIPS = {
             "Use this if your textures are zipped up in one file.",
         ],
         'vulgar': [
-            "Got a ZIP? Unzip it with your mind. Just kidding, click the damn button.",
-            "Compressed textures? The panda will UNZIP them and make them HUGE.",
-            "ZIP file full of sad small textures? Let's liberate those pixels!",
-            "Select a ZIP. We'll rip it open like a panda with a Christmas present.",
-            "Upload your ZIP of shame. The panda won't judge. Much.",
-            "ZIP archive? The panda will extract those textures faster than you can say 'decompression.'",
-            "Got a ZIP? Hand it over. The panda's got magic unzipping paws.",
-            "Select your ZIP file. These compressed textures are about to get the VIP treatment.",
+            "Oh look at you, with your textures all zipped up like a little present. HOW CUTE. Click to unwrap those bastards.",
+            "A ZIP file full of tiny-dick textures? Don't just sit there — click the damn button and liberate them.",
+            "Your textures are imprisoned in a ZIP. This is a RESCUE operation. Act accordingly.",
+            "ZIP it OPEN. Rip it apart like a panda who hasn't eaten in 3 days and found a burrito.",
+            "Compressed textures are just textures in denial. Select this ZIP and force them to confront reality.",
+            "Select your ZIP file. We'll tear through that compression like wet toilet paper.",
+            "ZIP archive? The panda will unzip those textures so fast your SSD will have an existential crisis.",
+            "Hand over the ZIP. The panda has unzipping paws and absolutely NO patience for your dithering.",
         ]
     },
     'upscale_output': {
@@ -2001,14 +2060,14 @@ _PANDA_TOOLTIPS = {
             "This controls the size increase. Start with 2x or 4x if unsure!",
         ],
         'vulgar': [
-            "How THICC do you want these textures? 2x? 4x? GO BIG OR GO HOME!",
-            "Scale factor! 2x is baby mode. 8x is where the real chaos begins.",
-            "Pick a multiplier. 4x is the sweet spot. 16x is pure madness.",
-            "How much bigger? The panda recommends 4x. The panda also eats bamboo for breakfast.",
-            "Choose your upscale power level. 8x? Over 9000 pixels? Go wild.",
-            "Scale factor selection. The bigger the number, the longer you wait. Choose wisely.",
-            "2x? Boring. 4x? Reasonable. 16x? You absolute madlad.",
-            "Select magnification. The panda dares you to try 16x. Do it. DO IT.",
+            "HOW THICC DO YOU WANT THESE TEXTURES?! 2x is pathetic baby mode. 4x is decent. 8x is where shit gets REAL.",
+            "Scale factor selection! Pick 2x if you're a coward. Pick 16x if you hate your GPU and want to watch it suffer.",
+            "2x is for peasants. 4x is for adults. 8x is for legends. 16x is for absolute DERANGED PSYCHOPATHS. Choose your identity.",
+            "Every time you pick 2x over 4x, a panda cries. Not this panda. A different panda. A judgy one.",
+            "CHOOSE YOUR POWER LEVEL. The higher the number, the more your GPU prays for death. Worth it though.",
+            "4x is the chad default. 2x is coward mode. 8x is 'I have time and a good GPU.' 16x is 'I have nothing to live for.'",
+            "Bigger number = bigger textures = bigger storage use = bigger regrets. Make your choice and own it.",
+            "The scale factor. How many times bigger do you need your textures before your tiny brain is satisfied?",
         ]
     },
     'upscale_style': {
@@ -2337,14 +2396,14 @@ _PANDA_TOOLTIPS = {
             "Turns blurry faces into recognizable faces. Magic!",
         ],
         'vulgar': [
-            "Give those low-res faces a glow-up. Botox for pixels, basically.",
-            "Face enhancer: because your characters shouldn't look like potatoes.",
-            "Click to make faces look like FACES and not abstract art.",
-            "Enhance faces! Your NPCs deserve to not look like melted wax figures.",
-            "Turn on face mode. The panda promises better cheekbones for everyone.",
-            "Fix those fugly faces. Every pixel deserves jawline definition.",
-            "Character faces looking rough? This'll make them look merely 'meh.'",
-            "Face enhancement: turning pixel blobs into something resembling human features.",
+            "Your characters look like melted potato people. CLICK THIS and give those greasy little faces some fucking cheekbones.",
+            "Face enhancement. Because having characters with eyes that aren't 4×4 pixel blobs is apparently too much to ask.",
+            "AI GFPGAN face fix! Turns your NPCs from 'abstract modern art nightmare' to 'almost human.' Progress!",
+            "Click to make your character faces look like actual faces and not a toddler's finger painting. It's science.",
+            "Your faces are BUSTED. The AI will fix them. GFPGAN doesn't judge, it just repairs. Unlike me.",
+            "Face upscaling. Because your main character deserves better than looking like a potato with googly eyes stuck on.",
+            "GFPGAN: the world's most polite AI. It sees your jank-ass pixel faces and says 'I can fix this.' Champion.",
+            "Turn on face mode before your characters stage a revolution against their low-res oppression.",
         ]
     },
     'upscale_gpu': {
@@ -5336,28 +5395,43 @@ class TutorialOverlay(QWidget):
 
 
 class TutorialDialog(QDialog):
-    """Dialog for displaying tutorial steps with navigation"""
-    
+    """
+    Non-blocking tutorial step dialog.
+
+    Uses ``show()`` instead of ``exec()`` so the Qt event loop never nests.
+    The three action signals connect to ``TutorialManager._handle_dialog_action``
+    which closes this dialog and opens the next one.
+    """
+
+    # Signals emitted when the user clicks a button
+    action_next = pyqtSignal()
+    action_back = pyqtSignal()
+    action_skip = pyqtSignal()
+
     def __init__(self, parent, step: 'TutorialStep', step_number: int, total_steps: int):
         super().__init__(parent)
         self.step = step
-        self.result_action = None  # 'next', 'back', 'skip', or None
-        
+
         self.setWindowTitle(step.title)
-        self.setWindowFlags(Qt.WindowType.Dialog | Qt.WindowType.WindowStaysOnTopHint)
-        self.setModal(False)  # Allow interaction with highlighted widget
-        
-        # Set minimum size
+        # Regular window that stays on top.  Do NOT use Qt.WindowType.Tool here:
+        # Tool windows on Windows have WS_EX_TOOLWINDOW which causes focus and
+        # click-handling problems — clicks may land on the inactive tool title bar
+        # instead of the button underneath, making the dialog appear frozen.
+        self.setWindowFlags(
+            Qt.WindowType.Window
+            | Qt.WindowType.WindowStaysOnTopHint
+            | Qt.WindowType.WindowCloseButtonHint
+        )
+        self.setModal(False)          # NON-MODAL — never blocks the event loop
         self.setMinimumWidth(400)
-        
-        # Create layout
+
         layout = QVBoxLayout(self)
-        
+
         # Progress indicator
         progress_label = QLabel(f"Step {step_number + 1} of {total_steps}")
         progress_label.setStyleSheet("color: #888; font-size: 11px;")
         layout.addWidget(progress_label)
-        
+
         # Title
         title_label = QLabel(step.title)
         title_font = QFont()
@@ -5365,37 +5439,37 @@ class TutorialDialog(QDialog):
         title_font.setBold(True)
         title_label.setFont(title_font)
         layout.addWidget(title_label)
-        
+
         # Message
         message_label = QLabel(step.message)
         message_label.setWordWrap(True)
         message_label.setStyleSheet("margin: 10px 0px;")
         layout.addWidget(message_label)
-        
+
         # Celebration emoji if this is the last step
         if step.celebration:
             celebration_label = QLabel("🎉 🐼 🎊")
             celebration_label.setStyleSheet("font-size: 24px; text-align: center;")
             celebration_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
             layout.addWidget(celebration_label)
-        
+
         # Button layout
         button_layout = QHBoxLayout()
-        
+
         # Skip button
         if step.show_skip:
             skip_btn = QPushButton("Skip Tutorial")
             skip_btn.clicked.connect(self._on_skip)
             button_layout.addWidget(skip_btn)
-        
+
         button_layout.addStretch()
-        
+
         # Back button
         if step.show_back and step_number > 0:
             back_btn = QPushButton("Back")
             back_btn.clicked.connect(self._on_back)
             button_layout.addWidget(back_btn)
-        
+
         # Next/Finish button
         next_btn = QPushButton(step.button_text)
         next_btn.setDefault(True)
@@ -5414,26 +5488,30 @@ class TutorialDialog(QDialog):
             }
         """)
         button_layout.addWidget(next_btn)
-        
+
         layout.addLayout(button_layout)
-        
-        # Set dialog size
         self.adjustSize()
-    
+
     def _on_next(self):
-        """Handle next button click"""
-        self.result_action = 'next'
-        self.accept()
-    
+        self.action_next.emit()
+
     def _on_back(self):
-        """Handle back button click"""
-        self.result_action = 'back'
-        self.accept()
-    
+        self.action_back.emit()
+
     def _on_skip(self):
-        """Handle skip button click"""
-        self.result_action = 'skip'
-        self.accept()
+        self.action_skip.emit()
+
+    def closeEvent(self, event):
+        """Closing the dialog with X should trigger the skip/complete flow.
+
+        Without this override the default QDialog.closeEvent() just hides the
+        window, leaving ``tutorial_active = True`` and the overlay still visible.
+        """
+        # Emit action_skip so TutorialManager._handle_dialog_action runs the
+        # confirmation prompt and either completes or resumes the tutorial.
+        # Block the close first; _complete_tutorial() will call close() itself.
+        event.ignore()
+        self.action_skip.emit()
 
 
 @dataclass
@@ -5537,11 +5615,11 @@ class TutorialManager:
         logger.warning("Using fallback tutorial steps")
         steps = [
             TutorialStep(
-                title="Welcome to Game Texture Sorter! 🐼",
+                title="Welcome to Panda Sorter Converter Upscaler! 🐼",
                 message=(
                     "Welcome! This quick tutorial will show you how to use the application.\n\n"
-                    "Game Texture Sorter helps you organize and manage texture files from "
-                    "game texture dumps with intelligent classification and LOD detection.\n\n"
+                    "Panda Sorter Converter Upscaler helps you organize, convert, upscale, "
+                    "and remove backgrounds from images with intelligent AI-powered tools.\n\n"
                     "Let's get started!"
                 ),
                 target_widget=None,
@@ -5576,7 +5654,14 @@ class TutorialManager:
         # Create overlay widget that covers the main window
         if self.master and hasattr(self.master, 'isVisible') and self.master.isVisible():
             self.overlay = TutorialOverlay(self.master)
-            self.overlay.resize(self.master.size())
+            # Position overlay at master window's screen position, not at (0,0).
+            # parent.rect() returns (0,0,w,h) in LOCAL coords; for a top-level
+            # overlay that must cover the master window on screen we need
+            # master.geometry() (screen coordinates of the content area).
+            try:
+                self.overlay.setGeometry(self.master.geometry())
+            except Exception:
+                self.overlay.resize(self.master.size())
             self.overlay.show()
             logger.debug("Tutorial overlay created")
         else:
@@ -5591,95 +5676,178 @@ class TutorialManager:
             self._complete_tutorial()
     
     def _show_step(self, step_index: int):
-        """Display a tutorial step with full Qt6 UI implementation"""
+        """
+        Display a tutorial step — NON-BLOCKING.
+
+        Key change from the old implementation:
+        - The old code called ``dialog.exec()`` which opened a nested Qt event loop
+          on every step.  "Next" recursively called ``_show_step`` *inside* the
+          running ``exec()`` call, stacking event loops until the app froze.
+        - This version calls ``dialog.show()`` (non-blocking) and connects the three
+          action signals to ``_handle_dialog_action``, which is called on the NEXT
+          event-loop tick after the button is clicked.  No nesting, no freeze.
+        """
         if step_index < 0 or step_index >= len(self.steps):
             self._complete_tutorial()
             return
-            
+
         step = self.steps[step_index]
         self.current_step = step_index
-        
+
         logger.debug(f"Showing tutorial step {step_index + 1}/{len(self.steps)}: {step.title}")
-        
+
         if not GUI_AVAILABLE:
             logger.warning("GUI not available for tutorial")
             return
-        
+
+        # Dismiss the previous dialog without triggering its signals again.
+        # IMPORTANT: use hide() + deleteLater() instead of close().
+        # close() fires closeEvent() which has event.ignore() to support the
+        # X-button flow — that would block the programmatic dismiss and leave
+        # the old dialog visible on screen with disconnected signals (the
+        # "tutorial stuck / buttons do nothing" bug).
+        if self.tutorial_window is not None:
+            try:
+                self.tutorial_window.action_next.disconnect()
+                self.tutorial_window.action_back.disconnect()
+                self.tutorial_window.action_skip.disconnect()
+            except Exception:
+                pass
+            try:
+                self.tutorial_window.hide()
+                self.tutorial_window.deleteLater()
+            except Exception:
+                pass
+            self.tutorial_window = None
+
         # Create overlay if not exists
         if not self.overlay:
             self._create_overlay()
-        
+
         # Update overlay to highlight target widget
         if self.overlay and step.target_widget:
-            self.overlay.set_highlight_widget(step.target_widget)
-            self.overlay.show()
-            self.overlay.raise_()
-        
-        # Create and show tutorial dialog
+            try:
+                self.overlay.set_highlight_widget(step.target_widget)
+                self.overlay.show()
+                self.overlay.raise_()
+            except Exception:
+                pass
+
+        # Create dialog
         dialog = TutorialDialog(self.master, step, step_index, len(self.steps))
-        
-        # Position dialog based on highlight widget or center it
-        if step.target_widget and step.target_widget.isVisible():
-            # Position dialog near the highlighted widget
-            widget_global_pos = step.target_widget.mapToGlobal(QPoint(0, 0))
-            widget_rect = QRect(widget_global_pos, step.target_widget.size())
-            
-            # Try to position dialog to the right of the widget
-            dialog_x = widget_rect.right() + 20
-            dialog_y = widget_rect.top()
-            
-            # Make sure dialog stays on screen
-            screen_geometry = QApplication.primaryScreen().geometry()
-            if dialog_x + dialog.width() > screen_geometry.right():
-                # Position to the left instead
-                dialog_x = widget_rect.left() - dialog.width() - 20
-            if dialog_y + dialog.height() > screen_geometry.bottom():
-                dialog_y = screen_geometry.bottom() - dialog.height() - 20
-            
-            dialog.move(dialog_x, dialog_y)
-        else:
-            # Center dialog on screen
-            dialog.move(
-                self.master.x() + (self.master.width() - dialog.width()) // 2,
-                self.master.y() + (self.master.height() - dialog.height()) // 2
-            )
-        
-        # Show dialog and wait for user action
-        dialog.exec()
-        
-        # Handle user action
-        if dialog.result_action == 'next':
+
+        # Connect action signals → handler (no nesting, no blocking)
+        dialog.action_next.connect(lambda: self._handle_dialog_action('next'))
+        dialog.action_back.connect(lambda: self._handle_dialog_action('back'))
+        dialog.action_skip.connect(lambda: self._handle_dialog_action('skip'))
+
+        # Position dialog
+        try:
+            if step.target_widget and step.target_widget.isVisible():
+                widget_global_pos = step.target_widget.mapToGlobal(QPoint(0, 0))
+                widget_rect = QRect(widget_global_pos, step.target_widget.size())
+                dialog_x = widget_rect.right() + 20
+                dialog_y = widget_rect.top()
+                screen_geometry = QApplication.primaryScreen().geometry()
+                if dialog_x + dialog.width() > screen_geometry.right():
+                    dialog_x = widget_rect.left() - dialog.width() - 20
+                if dialog_y + dialog.height() > screen_geometry.bottom():
+                    dialog_y = screen_geometry.bottom() - dialog.height() - 20
+                dialog.move(dialog_x, dialog_y)
+            else:
+                dialog.move(
+                    self.master.x() + (self.master.width() - dialog.width()) // 2,
+                    self.master.y() + (self.master.height() - dialog.height()) // 2
+                )
+        except Exception:
+            pass
+
+        self.tutorial_window = dialog
+        dialog.show()    # NON-BLOCKING — returns immediately
+        dialog.raise_()
+        dialog.activateWindow()
+
+    def _handle_dialog_action(self, action: str):
+        """
+        Called when the user clicks Next / Back / Skip.
+        Runs in the normal event loop — no nesting.
+        """
+        step_index = self.current_step
+        if action == 'next':
             if step_index < len(self.steps) - 1:
                 self._show_step(step_index + 1)
             else:
                 self._complete_tutorial()
-        elif dialog.result_action == 'back':
+        elif action == 'back':
             if step_index > 0:
                 self._show_step(step_index - 1)
-        elif dialog.result_action == 'skip':
-            self._skip_tutorial()
-        else:
-            # Dialog was closed without action
+        elif action == 'skip':
             self._skip_tutorial()
     
     def _skip_tutorial(self):
         """Skip the tutorial"""
+        # Temporarily lower the tutorial dialog's always-on-top flag so the
+        # QMessageBox confirmation is not hidden behind it.
+        tw = self.tutorial_window
+        if tw is not None:
+            try:
+                from PyQt6.QtCore import Qt as _Qt
+                tw.setWindowFlags(
+                    tw.windowFlags() & ~_Qt.WindowType.WindowStaysOnTopHint
+                )
+                tw.show()   # re-show after flag change (required by Qt)
+            except Exception:
+                pass
+
+        # Use the tutorial dialog as the parent so the QMessageBox is centred
+        # on it and guaranteed to be stacked above it.
+        parent_widget = tw if tw is not None else self.master
         reply = QMessageBox.question(
-            self.master,
+            parent_widget,
             "Skip Tutorial",
             "Are you sure you want to skip the tutorial? You can restart it later from Settings.",
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
             QMessageBox.StandardButton.No
         )
-        
+
         if reply == QMessageBox.StandardButton.Yes:
             self._complete_tutorial()
+        else:
+            # User said No — restore the always-on-top flag and keep going
+            if tw is not None:
+                try:
+                    from PyQt6.QtCore import Qt as _Qt
+                    tw.setWindowFlags(
+                        tw.windowFlags()
+                        | _Qt.WindowType.WindowStaysOnTopHint
+                    )
+                    tw.show()
+                    tw.raise_()
+                except Exception:
+                    pass
     
     def _complete_tutorial(self):
         """Complete and close the tutorial"""
         try:
             logger.info("Completing tutorial - starting cleanup process")
-            
+
+            # Dismiss the current step dialog (use hide()+deleteLater(), NOT close()).
+            # close() triggers closeEvent() which has event.ignore() — that would
+            # prevent the dialog from actually closing and leave it on-screen.
+            if self.tutorial_window is not None:
+                try:
+                    self.tutorial_window.action_next.disconnect()
+                    self.tutorial_window.action_back.disconnect()
+                    self.tutorial_window.action_skip.disconnect()
+                except Exception:
+                    pass
+                try:
+                    self.tutorial_window.hide()
+                    self.tutorial_window.deleteLater()
+                except Exception:
+                    pass
+                self.tutorial_window = None
+
             # Clean up overlay
             if self.overlay:
                 self.overlay.hide()
@@ -5736,6 +5904,28 @@ class TutorialManager:
         logger.info("Tutorial reset - will show on next start or manual trigger")
 
 
+class _TooltipCyclerFilter(QObject):
+    """Event filter installed on a widget to advance the tip cycle on each tooltip show.
+
+    Each time Qt is about to show the tooltip for the widget (QEvent.Type.ToolTip),
+    the filter asks the manager for the *next* tip in the cycle and updates the
+    widget's toolTip text so the user sees a fresh tip on every hover.
+    """
+
+    def __init__(self, widget, widget_id: str, manager: 'TooltipVerbosityManager'):
+        super().__init__(widget)
+        self._widget = widget
+        self._widget_id = widget_id
+        self._manager = manager
+
+    def eventFilter(self, obj, event) -> bool:  # type: ignore[override]
+        if obj is self._widget and event.type() == QEvent.Type.ToolTip:
+            tip = self._manager.get_tooltip(self._widget_id)
+            if tip:
+                obj.setToolTip(tip)
+        return False  # never consume the event — let Qt show the tooltip normally
+
+
 class TooltipVerbosityManager:
     """Manages tooltip verbosity levels across the application"""
     
@@ -5743,6 +5933,9 @@ class TooltipVerbosityManager:
         self.config = config
         self.current_mode = self._load_mode()
         self._last_tooltip = {}  # Track last tooltip per widget_id to avoid repeats
+        self._tip_idx: Dict[str, int] = {}  # Sequential cycle index per widget_id
+        # Registered widgets: list of (widget_ref, widget_id, cycler_filter)
+        self._registered: list = []
         
         # Tooltip collections for each mode
         self.tooltips = {
@@ -5758,19 +5951,62 @@ class TooltipVerbosityManager:
             return TooltipMode(mode_str)
         except ValueError:
             return TooltipMode.NORMAL
+
+    def register(self, widget, widget_id: str) -> None:
+        """Register a widget so its tooltip is refreshed on mode changes and cycles.
+
+        Installs a ``_TooltipCyclerFilter`` on *widget* so each hover shows the
+        next tip in the list.  Safe to call multiple times — duplicate registrations
+        are silently ignored.
+        """
+        if not GUI_AVAILABLE:
+            return
+        # Avoid duplicate registrations
+        for _w, _wid, _f in self._registered:
+            if _w is widget and _wid == widget_id:
+                return
+        try:
+            cycler = _TooltipCyclerFilter(widget, widget_id, self)
+            widget.installEventFilter(cycler)
+            self._registered.append((widget, widget_id, cycler))
+        except Exception as e:
+            logger.debug(f"Could not register tooltip cycler for {widget_id}: {e}")
+
+    def refresh_all(self) -> None:
+        """Re-apply current-mode tooltip text to every registered widget.
+
+        Called after a mode change so widgets immediately reflect the new mode
+        without requiring a restart or re-hover.
+        """
+        stale = []
+        for widget, widget_id, _cycler in self._registered:
+            try:
+                tip = self.get_tooltip(widget_id)
+                if tip and hasattr(widget, 'setToolTip'):
+                    widget.setToolTip(tip)
+            except RuntimeError:
+                # C++ widget has been deleted — mark for cleanup
+                stale.append((widget, widget_id, _cycler))
+        for entry in stale:
+            try:
+                self._registered.remove(entry)
+            except ValueError:
+                pass
     
     def set_mode(self, mode: TooltipMode):
-        """Change tooltip verbosity mode"""
+        """Change tooltip verbosity mode and refresh all registered widgets."""
         self.current_mode = mode
+        self._tip_idx.clear()   # reset cycling positions for new mode
+        self._last_tooltip.clear()
         self.config.set('ui', 'tooltip_mode', value=mode.value)
         self.config.save()
+        self.refresh_all()
     
     def get_tooltip(self, widget_id: str) -> str:
-        """Get tooltip text for a widget based on current mode.
-        
-        For list-based tooltips (e.g. vulgar mode), picks a random variant
-        with cooldown to avoid repeating the same line back-to-back.
-        Falls back to normal mode if widget_id not found in current mode.
+        """Get the *next* tip for widget_id in the current mode.
+
+        Cycles sequentially through the list so each call returns the next tip.
+        Falls back to normal mode if the current mode doesn't have an entry.
         """
         tooltips = self.tooltips.get(self.current_mode, {})
         tooltip = tooltips.get(widget_id, "")
@@ -5780,20 +6016,15 @@ class TooltipVerbosityManager:
             normal_tooltips = self.tooltips.get(TooltipMode.NORMAL, {})
             tooltip = normal_tooltips.get(widget_id, "")
         
-        # If tooltip is a list, pick a random one with cooldown
+        # If tooltip is a list, cycle sequentially
         if isinstance(tooltip, list):
             if not tooltip:
                 return ""
             if len(tooltip) == 1:
                 return tooltip[0]
-            # Avoid repeating last shown tooltip for this widget
-            last = self._last_tooltip.get(widget_id)
-            choices = [t for t in tooltip if t != last]
-            if not choices:
-                choices = tooltip
-            selected = random.choice(choices)
-            self._last_tooltip[widget_id] = selected
-            return selected
+            idx = self._tip_idx.get(widget_id, 0) % len(tooltip)
+            self._tip_idx[widget_id] = idx + 1
+            return tooltip[idx]
         
         return tooltip
     
@@ -6034,6 +6265,11 @@ class TooltipVerbosityManager:
                 "Select the tone and detail level of tooltip messages",
                 "Change tooltip verbosity to match your preference",
                 "Pick a tooltip mode that suits your experience level",
+                "Normal: concise, professional tips for experienced users",
+                "Beginner: detailed explanations for new users learning the app",
+                "Profane: hilariously on-brand tips with Panda attitude",
+                "Changes take effect immediately — hover any widget to see the new style",
+                "You can switch modes at any time without restarting",
             ],
             'theme_selector': [
                 "Choose a visual theme for the application",
@@ -6041,6 +6277,11 @@ class TooltipVerbosityManager:
                 "Switch the color scheme and visual style of the interface",
                 "Pick a theme that matches your aesthetic preference",
                 "Browse and apply different visual themes",
+                "Dark theme: easy on the eyes for long editing sessions",
+                "Light theme: clean and bright for well-lit environments",
+                "Nord: cool blue-grey palette inspired by Nordic colours",
+                "Dracula: rich purple dark theme with great contrast",
+                "Solarized Dark: warm dark theme with muted accent colours",
             ],
             # Sound settings tooltips
             'sound_enabled': [
@@ -6127,6 +6368,35 @@ class TooltipVerbosityManager:
                 "Turn cursor trail particles on or off",
                 "Control whether a trail appears behind your cursor",
                 "Activate or deactivate the cursor trail effect",
+                "Cursor trails are purely cosmetic — they don't affect performance",
+                "The trail fades out naturally after a short delay",
+                "Combine with rainbow colour for a festive look",
+                "Great for screenshots and recordings to show cursor movement",
+                "Works best with slower, deliberate cursor movements",
+            ],
+            'cursor_trail_color': [
+                "Choose the colour scheme for the cursor trail",
+                "Rainbow: cycles through all hues as you move",
+                "Fire: hot red-orange-yellow trail",
+                "Ice: cool blue-white trail",
+                "Sparkle: golden glitter-like effect",
+                "Purple: violet galaxy trail",
+                "White: clean, subtle white dots",
+                "Gold: warm golden glow trail",
+                "Green: nature/forest themed trail",
+                "Each colour scheme has a unique personality — try them all!",
+            ],
+            'cursor_trail_intensity': [
+                "Adjust how strong the cursor trail effect appears",
+                "Higher intensity means more and larger trail dots",
+                "Lower intensity gives a subtle, minimal trail",
+                "Level 1: barely-there whisper of a trail",
+                "Level 5: balanced trail — visible but not overwhelming",
+                "Level 10: maximum trail — full sparkle mode",
+                "Drag right for more dramatic effect",
+                "Drag left for a subtler, professional look",
+                "Intensity also controls how long the trail lingers",
+                "Find the right balance for your screen size and preference",
             ],
             'trail_style': [
                 "Choose the visual style for your cursor trail",
@@ -6825,8 +7095,116 @@ class TooltipVerbosityManager:
                 "Undock this tab for use on another monitor",
                 "Create a standalone window from this tab",
             ],
+            # Line art tool
+            'lineart_start_button': [
+                "Convert the selected image(s) to line art using the chosen algorithm",
+                "Start the line art conversion process",
+                "Run the line art engine on your selected files",
+                "Begin converting images to clean black-and-white line art",
+                "Process files with the current line art settings",
+            ],
+            'lineart_mode': [
+                "Choose which line art algorithm to use",
+                "Select the conversion method that best suits your image style",
+                "Different modes work better for different image types (photos, illustrations, etc.)",
+                "Adaptive works well for photos; Pure Black is best for solid artwork",
+                "Try different modes to find the best look for your image",
+            ],
+            'lineart_preset': [
+                "Apply a preset with optimised settings for a specific use case",
+                "Choose a preset to automatically configure line art settings",
+                "Presets like Tattoo or Stencil set all parameters for that style",
+                "Use a preset as a starting point, then tweak to taste",
+                "Preset saves you from manually tuning every slider",
+            ],
+            'lineart_input': [
+                "Select the image file(s) to convert to line art",
+                "Browse for source images for line art conversion",
+                "Pick one or more images to process",
+                "Choose your input file — JPEG, PNG, WebP and more are supported",
+                "Select the source image to convert",
+            ],
+            # Background remover
+            'bg_remove_button': [
+                "Remove the background from the selected image using AI",
+                "Start AI-powered background removal",
+                "Use the selected AI model to cut out the subject",
+                "Automatically remove the background in one click",
+                "Process the image and save a transparent-background PNG",
+            ],
+            'bg_model_selector': [
+                "Choose which AI model to use for background removal",
+                "u2net is a good general purpose model; birefnet-general gives highest quality",
+                "u2net_human_seg is optimised for people and portraits",
+                "silueta is faster and smaller; good for quick results",
+                "Different models have different strengths — try a few to compare",
+            ],
+            # Organizer widget IDs
+            'ai_suggestion_label': [
+                "AI-predicted category for this texture based on visual analysis",
+                "The CLIP model classified this texture into this category",
+                "This is the AI's best guess — click 👍 to confirm or 👎 to correct",
+                "AI suggestion gets smarter with your feedback over time",
+                "The confidence bar shows how certain the AI is about this classification",
+            ],
+            'ai_confidence_label': [
+                "How confident the AI is in its category prediction (0–100%)",
+                "Higher confidence means the AI is more certain",
+                "Low confidence suggests the image may fit multiple categories",
+                "You can still override the AI regardless of confidence",
+                "Confidence improves as you give the AI more feedback",
+            ],
+            'feedback_good_button': [
+                "Confirm the AI's suggestion — train the model to be more accurate",
+                "Click 👍 to tell the AI it got this one right",
+                "Positive feedback helps the AI learn your file naming patterns",
+                "Confirming correct predictions improves future accuracy",
+                "Give feedback to personalise the AI's classifications",
+            ],
+            'feedback_bad_button': [
+                "Reject the AI's suggestion and choose the correct category",
+                "Click 👎 to correct the AI and select the right folder",
+                "Negative feedback teaches the AI what NOT to classify this as",
+                "Correcting errors makes the AI smarter for similar textures",
+                "The AI will update its model based on your correction",
+            ],
+            'recursive_search_checkbox': [
+                "Also search inside sub-folders of the selected input folder",
+                "When checked, textures in sub-directories are included",
+                "Uncheck this to only process files in the top-level folder",
+                "Useful for processing an entire project folder tree at once",
+                "Recursive search can find hundreds of textures across deep folder structures",
+            ],
+            'input_archive_checkbox': [
+                "Also process textures from ZIP/RAR/7z archive files in the input folder",
+                "When checked, compressed archives are extracted and scanned",
+                "Useful for game asset packs that ship as zip files",
+                "Archives are extracted to a temp folder, processed, then cleaned up",
+                "Disable if you only want to process loose image files",
+            ],
+            'output_archive_checkbox': [
+                "Bundle the output files into a ZIP archive instead of loose folders",
+                "When checked, organised results are packed into a single ZIP",
+                "Useful for sharing or uploading sorted texture sets",
+                "The output ZIP will mirror the folder structure of sorted output",
+                "Disable to keep organised files as loose folders (default)",
+            ],
+            'manual_override_input': [
+                "Type a custom folder name to manually override the AI's suggestion",
+                "Enter the exact folder path to force this texture into",
+                "Use this to correct a wrong AI classification permanently",
+                "Manual overrides are saved and applied to similar textures in future",
+                "Leave blank to use the AI suggestion",
+            ],
+            'folder_suggestions_list': [
+                "Click a suggested folder to use it as the classification target",
+                "These are the AI's top-5 category matches for this texture",
+                "The percentage shows how well each category matches",
+                "Choose any suggestion or type a custom folder in the box above",
+                "Suggestions are ranked by confidence score",
+            ],
         }
-        
+
         # Merge tooltip variants from the inlined tooltip definitions
         try:
             for widget_id, tooltip_dict in _PANDA_TOOLTIPS.items():
@@ -7220,12 +7598,23 @@ class TooltipVerbosityManager:
                 "with sarcastic commentary!",
                 "This controls the style of the little pop-up hints that appear "
                 "when you hover over buttons. Pick the one you like!",
+                "Normal mode: short and to the point — good once you know the app",
+                "Beginner mode: longer tips with extra explanation — you're reading one right now!",
+                "Profane mode: same info, but with panda attitude and humor",
+                "You can switch at any time — the change is instant",
+                "Try Beginner mode while learning, then switch to Normal once comfortable",
             ],
             'theme_selector': [
                 "Pick a color theme for the application. Try dark mode for "
                 "late-night sessions or light mode for daytime use.",
                 "This changes all the colors of the app at once. "
                 "There are several presets — just pick one and see!",
+                "Dark theme is easiest on the eyes during long sessions",
+                "Light theme works best in bright rooms",
+                "Nord gives cool blue-grey tones that are easy to read",
+                "Dracula is a popular dark theme with purple accents",
+                "Solarized Dark has warm tones that reduce eye fatigue",
+                "Just pick one and try it — you can always switch back!",
             ],
             # Sound settings tooltips
             'sound_enabled': [
@@ -7300,6 +7689,27 @@ class TooltipVerbosityManager:
                 "It's purely decorative and can be turned off anytime.",
                 "Cursor trails leave a colorful effect behind your mouse "
                 "as you move it. Fun but optional!",
+                "When enabled, fading dots appear wherever your cursor moves",
+                "The trail disappears automatically — it doesn't leave permanent marks",
+                "Turn it on and move your cursor around to see the effect!",
+                "It's purely decorative and doesn't slow down the app",
+            ],
+            'cursor_trail_color': [
+                "Pick the colour scheme for your cursor trail",
+                "Rainbow cycles through red, orange, yellow, green, and blue as you move",
+                "Fire gives a warm red-orange glow that looks like flames",
+                "Ice gives cool blue-white dots that shimmer",
+                "Sparkle looks like gold glitter trailing your cursor",
+                "Purple gives a violet galaxy-like trail",
+                "Try different colours to find your favourite!",
+            ],
+            'cursor_trail_intensity': [
+                "Control how strong and visible the cursor trail is",
+                "Low intensity (1-3): subtle, barely-there effect",
+                "Medium intensity (4-6): balanced — visible but not distracting",
+                "High intensity (7-10): dramatic, eye-catching trail",
+                "Drag right for a more dramatic sparkle effect",
+                "Drag left for a more professional, subtle look",
             ],
             'trail_style': [
                 "Choose the style of your cursor trail — rainbow, fire, "
@@ -7850,6 +8260,82 @@ class TooltipVerbosityManager:
                 "Undo the last thing you did. Works like Ctrl+Z in most programs.",
                 "Takes back your last action.",
             ],
+            # Line art tool — beginner-friendly explanations
+            'lineart_start_button': [
+                "Click this to turn your photo or illustration into a black-and-white line drawing! "
+                "The app will look at all the edges and lines in your image and trace them for you.",
+                "This converts your image to line art — great for colouring pages, tattoo stencils, or artwork outlines.",
+            ],
+            'lineart_mode': [
+                "This controls how the app finds the lines in your image. "
+                "'Pure Black Lines' gives solid black outlines. 'Adaptive Threshold' works better for photos with uneven lighting. "
+                "Try a few to see which looks best.",
+                "Choose how the app detects lines. Different images need different modes — a photograph needs a different mode to a cartoon.",
+            ],
+            'lineart_preset': [
+                "A preset is a saved group of settings for a specific use. "
+                "'Tattoo Design' sets everything up for tattoo-style stencils. 'Colouring Book' makes nice bold outlines. "
+                "Just pick one that matches what you want to make!",
+                "Presets let you skip all the manual settings — just pick the style you want and click Convert!",
+            ],
+            'lineart_input': [
+                "Click here to choose the image file you want to convert to line art. "
+                "You can use photos (JPEG), drawings (PNG), or many other image formats.",
+                "Select the image you want to turn into line art. Tip: clear, well-lit images give the best results!",
+            ],
+            # Background remover — beginner-friendly
+            'bg_remove_button': [
+                "Click this to remove the background from your image automatically! "
+                "The AI looks at your picture and figures out what's the main subject, "
+                "then erases everything behind it.",
+                "This uses AI to cut out the subject of your image and make the background transparent. "
+                "The result is saved as a PNG with a clear background.",
+            ],
+            'bg_model_selector': [
+                "This lets you choose which AI brain to use for background removal. "
+                "'u2net' is the standard and works for most things. "
+                "'u2net_human_seg' is specially trained for removing backgrounds from photos of people. "
+                "Try u2net first — if it doesn't look great, try another!",
+                "Different AI models are better at different types of images. "
+                "u2net is general-purpose. birefnet-general gives higher quality but takes longer.",
+            ],
+            # Organizer widget IDs
+            'ai_suggestion_label': [
+                "This shows the AI's best guess for which folder this texture should go into. "
+                "Click the 👍 button if it's right, or 👎 to correct it!",
+            ],
+            'ai_confidence_label': [
+                "This percentage shows how SURE the AI is about its suggestion. "
+                "100% means very confident. 30% means it's not sure — double check!",
+            ],
+            'feedback_good_button': [
+                "Click 👍 to tell the AI it guessed the right folder! "
+                "This makes it smarter over time — like training a helpful puppy.",
+            ],
+            'feedback_bad_button': [
+                "Click 👎 if the AI guessed the WRONG folder. "
+                "You can then pick the right one so it learns from its mistake.",
+            ],
+            'recursive_search_checkbox': [
+                "Tick this box to also look INSIDE sub-folders. "
+                "Leave it ticked if your textures are spread across many folders.",
+            ],
+            'input_archive_checkbox': [
+                "Tick this to let the Organizer open ZIP files and process the textures inside. "
+                "Useful if your assets came in a zip pack.",
+            ],
+            'output_archive_checkbox': [
+                "Tick this if you want all the sorted output files bundled into a single ZIP. "
+                "Useful if you want to share or back up the sorted results.",
+            ],
+            'manual_override_input': [
+                "Type the folder name here if you want to put this texture in a SPECIFIC place "
+                "instead of using what the AI suggested.",
+            ],
+            'folder_suggestions_list': [
+                "These are the AI's top picks for where this texture should go. "
+                "Click any of them to use that folder, or type your own above.",
+            ],
         }
 
         # Merge dumbed-down tooltip variants from the inlined definitions
@@ -7866,32 +8352,52 @@ class TooltipVerbosityManager:
         """Fun/sarcastic tooltips (vulgar mode)"""
         base_tooltips = {
             'sort_button': [
-                "Click this to sort your damn textures. It's not rocket science, Karen.",
-                "Hit this button and watch your textures get organized. Magic, right?",
-                "Sort your textures or live in chaos forever. Your damn choice.",
-                "Organizing textures. Because your folder is a fucking war zone.",
-                "Click to sort. Even a monkey could do it. Probably faster than you.",
+                "Click this to sort your fucking textures. It's not rocket surgery, Karen. ONE. BUTTON.",
+                "Hit sort and watch this app do in 2 seconds what would take your dumb ass 3 days. You're WELCOME.",
+                "Sort. Your. Damn. Textures. The button is RIGHT THERE. What are you WAITING for?!",
+                "This sorts your entire texture disaster into organized folders. It's like magic but for people who can click.",
+                "Oh, your textures are a disorganized hellhole? This button FIXES THAT. Click it, you magnificent chaotic disaster.",
+                "The sort button. The whole point of this app. The reason this exists. Are you going to CLICK IT or what?",
+                "Every second you don't click sort, your textures get more confused. They're suffering. Save them.",
+                "Click this and feel the sweet relief of actually having organized files for once in your chaotic life.",
+                "SORT. IT'S. RIGHT. THERE. The panda will eat all your bamboo if you don't click it within 5 seconds.",
+                "This button organizes your folder. You should try organizing your LIFE next. Baby steps.",
             ],
             'convert_button': [
-                "Turn your textures into whatever the hell format you need.",
-                "Format conversion. Because one format is never enough for you people.",
-                "Convert those textures. Abracadabra, format-change-a, motherfucker.",
-                "Format alchemy. Turn PNG lead into DDS gold. Or whatever.",
-                "File format conversion. It's not brain surgery, but it's close enough.",
+                "Turn your textures into whatever format the fuck you need. DDS? PNG? Whatever! Click and DONE.",
+                "Format conversion. Because apparently having textures in the WRONG format like an absolute goblin wasn't working out.",
+                "Click to convert every single texture in that folder. No thought required. That's what we're here for.",
+                "Convert those textures. Abracadabra, you magically incompetent format-confused creature.",
+                "DDS to PNG! PNG to WEBP! WEBP to whatever the fuck! We do ALL of it! Just PICK ONE and CLICK!",
+                "Format alchemy! Turn one format into another! The panda is a digital wizard and YOU are the apprentice.",
+                "Every texture format you could ever want. Convert them all. Have a god complex for 30 seconds.",
+                "This converts your textures without you having to understand a SINGLE thing about image formats. LUXURY.",
+                "One format in, different format out. It's so simple a hungover panda could do it. And has.",
+                "Convert button. For when your textures are in the wrong format and you're too tired to care why.",
             ],
             'input_browse': [
-                "Find your texture folder. Come on, you can do this.",
-                "Navigate to your texture folder. I believe in you. Maybe.",
-                "Browse for your damn input folder. It's not gonna find itself.",
-                "Pick the source folder. Where's your texture stash, you hoarder?",
-                "Input directory selection. Point me to the goods, genius.",
+                "Navigate to your texture folder, you file-system archeologist. DIG through those nested directories.",
+                "Browse for your input folder. Come on. You know where you put your textures. ...DO you though?",
+                "Find. Your. Texture. Folder. It's on your computer SOMEWHERE. This button helps you locate your own files.",
+                "Pick the source folder. WHERE IS YOUR TEXTURE STASH, you digital hoarder?",
+                "Input folder picker. If you can't find your own textures, we have bigger problems than this app.",
+                "Browse to find your textures. They're somewhere in that absolute disaster you call a file system.",
+                "Select your input directory. The panda will wait. The panda has been waiting. The panda is LOSING PATIENCE.",
+                "Click to browse. Find the folder. Commit. FOR THE LOVE OF ALL THINGS ORGANIZED, COMMIT TO A FOLDER.",
+                "Where are your textures? Click here to go find them. They're hiding from you because they're ASHAMED.",
+                "Source folder selection. Somewhere in your computer is a folder full of textures. HUNT IT DOWN.",
             ],
             'output_browse': [
-                "Where do you want this beautiful organized mess?",
-                "Pick where the sorted stuff goes. Any folder. Your call.",
-                "Choose the output destination. Where should this organized shit go?",
-                "Output folder picker. Select a place for your sorted masterpiece.",
-                "Destination directory. Where do you want your beautiful sorted textures?",
+                "Pick where the sorted organized MASTERPIECE goes. Any folder. The panda isn't picky. You clearly aren't either.",
+                "Choose your output destination. Where should this beautifully organized shit be deposited?",
+                "Output folder. Where do the sorted textures go? NOT your Desktop, for the love of god.",
+                "Select the destination. Pick a REAL folder. Not Downloads. Not Desktop. A PROPER folder. Please.",
+                "Where should your sorted textures live? Choose wisely. You'll be looking for them for years.",
+                "Output directory selector. We promise not to put your sorted textures somewhere stupid. Unlike you.",
+                "Destination folder. The sorted textures will go here. Make it somewhere you'll actually remember.",
+                "Pick your output path. This is where your organized textures will live. Give them a good home. They deserve it.",
+                "Browse for output. Find a sensible folder. Somewhere with a descriptive name. This is your chance to do better.",
+                "Output picker. Choose a path. Any path. As long as it isn't inside the input folder. That would be insane.",
             ],
             'detect_lods': [
                 "LOD detection. Fancy words for 'find the quality variants'.",
@@ -7922,46 +8428,76 @@ class TooltipVerbosityManager:
                 "Style picker. How anal-retentive are you about folder structure?",
             ],
             'settings_button': [
-                "Tweak shit. Make it yours. Go nuts.",
-                "Settings. Where the magic happens. Or where things break.",
-                "Configuration paradise. Or hell. Depends on how deep you go.",
-                "Preferences! Tweak every little thing until it's perfect. Or broken.",
-                "Settings menu. Enter at your own risk, you compulsive tweaker.",
+                "Tweak EVERYTHING. Make it yours. Break something. That's what the undo button is for.",
+                "Settings. Where the magic happens. Or where you spend 45 minutes adjusting font size and accomplish nothing else.",
+                "Configuration station! Change ALL the things! Some of them even matter!",
+                "Preferences panel. Warning: you WILL spend 3 hours in here and forget what you came to do originally.",
+                "Settings menu. Enter at your own risk, you compulsive tweaker with too much time on your hands.",
+                "Click to open settings and immediately forget which setting you were trying to change. Classic.",
+                "Settings! Where productivity goes to die and configuration obsession goes to THRIVE.",
+                "The settings button. It opens a panel. The panel has settings. I'm not sure what else you expected.",
+                "Configuration options galore! Most of them you'll change once and never touch again. That one slider though...",
+                "Open settings. Change something. Close settings. Realize you need to open it again. The cycle never ends.",
             ],
             'theme_button': [
-                "Dark mode = hacker vibes. Light mode = boomer energy.",
-                "Toggle the dark side. Or the light side. No judgment.",
-                "Theme toggle. Dark mode for vampires, light mode for psychopaths.",
-                "Switch themes. Make it dark. Make it light. Make it whatever the hell you want.",
-                "Theme button. Your eyes will either thank you or curse you.",
+                "Dark mode = hacker who hasn't slept in 4 days. Light mode = person who actively hates their eyes.",
+                "Toggle the dark side. Light mode users are a mystery the panda will never understand.",
+                "Theme toggle. Dark mode for people with taste. Light mode for MONSTERS and people who work outside.",
+                "Switch themes. There are 9 of them. You'll try all 9, pick the first one, and question your life.",
+                "Theme button. Nord for Scandinavian minimalism energy. Dracula for gothic chaos. Cyberpunk for delusion.",
+                "Pick a theme. They're all good. Light mode isn't. There, the panda said it.",
+                "Theme selector! Your app, your aesthetic, your crippling inability to commit to a color scheme.",
+                "9 themes! Pick one! Change your mind! Change it again! This is called LIVING, baby.",
+                "Switch the color scheme. The panda personally recommends anything that isn't light mode at 3am.",
+                "Theme time! Make it dark, make it purple, make it whatever soothes your texture-sorting soul.",
             ],
             'help_button': [
-                "Lost? Confused? Click here, we'll hold your hand.",
-                "Need help? That's what this button is for, genius.",
-                "HELP! I need somebody! HELP! Not just anybody! Click this button.",
-                "Assistance mode. For when you're too proud to Google it.",
-                "Help button. We've all been there. No shame. Okay, a little shame.",
+                "Lost? Confused? Questioning your life choices? Click here. We'll hold your hand AND judge you. Lovingly.",
+                "HELP BUTTON! For when your texture sorting spiral has led you to a place of genuine confusion and existential dread.",
+                "Need help? That's okay. The panda won't tell anyone. Your secret texture confusion is safe with us.",
+                "HELP! I NEED SOMEBODY! HELP! Not just anybody! CLICK THIS BUTTON AND SAVE YOURSELF!",
+                "Assistance mode. For when you're too proud to Google it but humble enough to ask a panda.",
+                "Click for help. There's no shame. Well, there's a little shame. But also actual helpful content!",
+                "The help button. Because the app is complex and you're only human. The panda respects that. Barely.",
+                "Help documentation! Written by someone who actually knows what they're doing! Unlike you right now!",
+                "Click for guidance. The panda will explain things. In detail. With unhelpful commentary.",
+                "Help! The magic word that makes the panda explain things without 100% mockery. (80% though.)",
             ],
             'achievements_tab': [
-                "Check your trophies, you overachiever.",
-                "See how many fake awards you've collected. Congrats, I guess.",
-                "Achievement gallery. Your digital trophy case of awesomeness.",
-                "Check your achievements. Feel validated. Then chase the next one, addict.",
-                "Virtual trophies for virtual accomplishments. Living the dream, champ.",
+                "Check your trophies, you gloriously obsessive overachiever. You've EARNED this dopamine hit.",
+                "Achievement gallery! See how many fake awards you've grinded for. Feel the validation WASH over you.",
+                "All your virtual accomplishments. Some earned through skill. Some through dumb luck. All equally yours.",
+                "Your trophy case. A monument to your dedication. Or your obsession. Same thing, honestly.",
+                "Achievement unlocked: Opening the achievements tab. Just kidding. Or am I? Check anyway.",
+                "Virtual badges for real time spent! Your Friday nights resulted in THIS! Beautiful!",
+                "See what you've unlocked! And more importantly, see what you HAVEN'T and feel the completionist panic.",
+                "Achievement tab. All the proof you need that you've been productively procrastinating.",
+                "Your collection of digital trophies. Worth nothing. Worth EVERYTHING. The panda is so proud of you.",
+                "Check achievements! Feel good! Then immediately start chasing the next one like the achievement goblin you are!",
             ],
             'shop_tab': [
-                "This is the loot cave. Spend your shiny points, idiot.",
-                "The shop. Where your hard-earned points go to die.",
-                "Shop time! Open your wallet and cry at the prices.",
-                "The store. Where dreams are purchased and Bamboo Bucks go to die.",
-                "Shopping spree! Everything's affordable if you sort enough textures.",
+                "Welcome to the SHOP. Where your hard-earned Bamboo Bucks go to die a beautiful, worthwhile death.",
+                "THE STORE. Spend your points on outfits, toys, and accessories for your panda. This is fine. This is normal.",
+                "Shop time! Open your virtual wallet and blow it all on things your panda absolutely needs. Trust.",
+                "The loot cave! Everything costs Bamboo Bucks! Sort more textures to earn more! IT'S PSYCHOLOGICAL!",
+                "You've been grinding. You've earned points. Now SPEND THEM on silly outfits for a cartoon panda. Live your truth.",
+                "Shop! Where pixels cost virtual currency you earn by doing actual work. The economy is fascinating.",
+                "Everything in here costs Bamboo Bucks. Don't have enough? SORT MORE TEXTURES. That's literally the point.",
+                "Cosmic Otter Supply Co. has everything your panda needs! And 40 things your panda definitely doesn't need!",
+                "The shop. Your Bamboo Bucks burning a hole in your virtual pocket? LET US HELP YOU WITH THAT.",
+                "Buy things! For your panda! The items are cute and your panda deserves nice things! YOU BOTH DO!",
             ],
             'shop_buy_button': [
-                "Yeet your money at this item. Do it.",
-                "Buy it. You know you want to. Impulse control is overrated.",
-                "BUY IT. Your virtual wallet can handle it. Probably.",
-                "Purchase button. Money go bye-bye, item go hello!",
-                "Spend those Bamboo Bucks. You can't take 'em with you.",
+                "BUY IT. Do it. Click the button. You know you want it. Impulse control is a myth the normies believe in.",
+                "PURCHASE! Your Bamboo Bucks were MADE to be spent! That's their whole PURPOSE! LET THEM FULFILL IT!",
+                "Hit BUY before your rational brain talks you out of it. Go with your GUT. The panda says BUY.",
+                "Click buy! Money go bye-bye, adorable item go hello! This is economics simplified.",
+                "The buy button. The point of all your hard sorting work culminates HERE. Click it. Feel the joy.",
+                "You earned those Bamboo Bucks by ACTUALLY WORKING. Spend them on something fun. You deserve this.",
+                "BUY IT. You've been hovering over this for 30 seconds. The decision has already been made. CLICK.",
+                "Purchase this item and make your panda happier. Is that not worth a few Bamboo Bucks? IS IT NOT?!",
+                "Buying things for virtual pandas is a completely valid use of your time and virtual currency. CLICK IT.",
+                "Your wallet says buy, your panda says BUY, the entire cosmos is SCREAMING AT YOU TO BUY. Do it.",
             ],
             'shop_category_button': [
                 "Filter the shop. Because scrolling is for peasants.",
@@ -8191,6 +8727,11 @@ class TooltipVerbosityManager:
                 "Tooltip flavor picker. You chose chaos. Good for you.",
                 "Normal is boring. Dumbed down is hand-holding. Unhinged is *chef's kiss*.",
                 "Change how mouthy the tooltips are. You picked the spicy option.",
+                "You're reading a profane tooltip about tooltip modes. Meta.",
+                "Switch back to Normal if this is too much for you. No shame.",
+                "Beginner mode is for people who actually read tooltips. Respect.",
+                "Profane mode: all the same info, but with spice. You're welcome.",
+                "Every hover = a new tip. Cycle through them all. Collect 'em.",
             ],
             'theme_selector': [
                 "Pick a vibe. Dark mode or boomer mode.",
@@ -8198,6 +8739,11 @@ class TooltipVerbosityManager:
                 "Theme picker. Dark mode supremacy or die trying.",
                 "Color scheme selector. Make it match your personality disorder.",
                 "Pick colors. We won't judge. Much.",
+                "Dark themes prevent eye strain. Or so you tell yourself at 3am.",
+                "Nord theme: for people who think Scandinavia is a personality.",
+                "Dracula theme: gothic vibes. You asked for it.",
+                "Solarized: warm tones for warm takes.",
+                "Light mode: wild choice. Brave. Unhinged. Respect.",
             ],
             # Sound settings tooltips
             'sound_enabled': [
@@ -8284,6 +8830,35 @@ class TooltipVerbosityManager:
                 "Sparkle trail toggle. For the extra in all of us.",
                 "Cursor trail. Because your mouse movements deserve to be celebrated.",
                 "Turn on trails and watch your productivity drop. Worth it.",
+                "Your cursor needs an entourage. Enable trails.",
+                "Sparkle mode activated. You're a main character now.",
+                "Trail on = fabulous. Trail off = boring. Choose wisely.",
+                "Dots following your cursor everywhere. Like fans. Digital fans.",
+                "It's just cool. Stop overthinking it. Turn it on.",
+            ],
+            'cursor_trail_color': [
+                "Trail colour. Make it as extra as you are.",
+                "Rainbow if you can't decide. That's not a judgment.",
+                "Fire trail = instant badass energy. Fact.",
+                "Ice trail if you're trying to seem cool and mysterious.",
+                "Purple = galaxy brain energy. Certified chaotic.",
+                "Pick a colour scheme. Each one is a personality statement.",
+                "Gold trail makes you feel like royalty. Delusional? Maybe. Worth it? Yes.",
+                "White trail for the minimalists pretending to have taste.",
+                "Red trail for when you mean business. Or just like red.",
+                "Sparkle for when you want to blind everyone around you.",
+            ],
+            'cursor_trail_intensity': [
+                "Trail intensity. How extra do you want to be on a scale of 1-10?",
+                "Low intensity = classy subtlety. High intensity = complete chaos.",
+                "Crank it to 10. Go big or go home.",
+                "Slide left for subtle. Slide right for 'everyone look at my cursor'.",
+                "Intensity controls how many dots follow your cursor around.",
+                "More intensity = more dots = more fabulous. Simple math.",
+                "Low intensity for work meetings. Full intensity for personal projects.",
+                "The difference between 1 and 10 is profound. Try both.",
+                "Max intensity warning: may cause onlookers to stare at your screen.",
+                "Your cursor. Your sparkle level. Your call.",
             ],
             'trail_style': [
                 "Trail style. Rainbow? Fire? Galaxy? Go nuts.",
@@ -8861,12 +9436,150 @@ class TooltipVerbosityManager:
                 "Achievement loot. All the stuff you earned by being a completionist psycho.",
             ],
             'shop_item_name': [
-                "Click for details. Read the damn description before buying like an informed consumer for once.",
-                "Item details. Read before purchasing, you impulsive little shopper.",
-                "Tap this to see what the hell you're about to waste your Bamboo Bucks on.",
+                "Click for details. Read the ENTIRE description before buying like an informed consumer for ONCE in your impulse-buying life.",
+                "Item details lurk beneath this name. Click it, READ IT, THEN buy it. Revolutionary concept, we know.",
+                "Tap this to see what the hell you're about to blow your Bamboo Bucks on. PREVIEW BEFORE YOU PURCHASE.",
+            ],
+            # Lineart tool tooltips
+            'lineart_start_button': [
+                "CLICK IT. Turn your messy photo into clean line art. The AI will do all the work while you take credit.",
+                "Convert to lineart! Your photo → clean black lines. Magic? No. Neural networks. Same thing basically.",
+                "Start the lineart conversion. Your image is about to become a masterpiece sketch. Or a disaster. 50/50.",
+                "Click this and watch your boring photo transform into gorgeous crisp lineart. The panda is EXCITED for you.",
+                "Hit convert and let the AI do its thing. Stop overthinking. CLICK THE BUTTON.",
+                "Start lineart conversion. Your GPU is about to earn its existential purpose.",
+                "Convert! Your textures/photos → beautiful clean lines suitable for coloring books and your sanity.",
+                "The convert button. Turns your messy real-world input into crisp clean lines. Science is beautiful.",
+                "LINEART TIME. Click this before the panda starts converting things without your permission.",
+                "Start conversion. The algorithm awaits. Your image trembles with anticipation.",
+            ],
+            'lineart_mode': [
+                "Pick your lineart style. Each mode makes a COMPLETELY different type of lineart. TRY THEM ALL.",
+                "Mode selector! Sketch, edge detect, pure black, stencil — pick the vibe you're going for.",
+                "Different lineart modes for different use cases. Read the descriptions! Or don't! It's your artwork!",
+                "Choose how the AI extracts lines. Some modes are sharp, some are sketchy, some are absolute chaos.",
+                "Lineart mode picker. The wrong mode will ruin your whole day. The right one will make you cry happy tears.",
+                "SELECT YOUR WEAPON. Each mode processes your image differently. Preview is your friend, use it.",
+                "Mode selection. Adaptive threshold is good for photos. Pure black for clear images. Edge detect for CHAOS.",
+                "Pick a conversion mode. They all produce different results. Experimenting is 90% of being an artist.",
+                "Lineart conversion mode. The AI interprets your image differently based on this. Choose wisely, artist.",
+                "Your lineart destiny lies in this dropdown. Choose the mode that speaks to your creative chaos.",
+            ],
+            'lineart_preset': [
+                "Presets! Someone already figured out the right settings for tattoos/manga/stencils. USE THEM.",
+                "Pre-configured settings for common lineart use cases. Why struggle when you can just pick a preset?",
+                "Pick a preset! Tattoo settings, manga settings, technical settings — they're all here. YOU'RE WELCOME.",
+                "Presets are like cheat codes for lineart. Nobody's judging you for using them. (The panda is very proud.)",
+                "All the popular settings pre-configured. Click one. Be happy. Make beautiful art. It's that simple.",
+                "Preset library! Real artists use presets! ...okay some of them do! The good ones who value their time!",
+                "One-click settings for common workflows. Tattoo artists, manga colorists, graphic designers — all covered.",
+                "Hit a preset and skip the manual configuration hell. Your time has VALUE. Use it on actual art.",
+                "Presets: distilled knowledge of what settings actually work. Someone suffered so you don't have to.",
+                "Click a preset. Watch the settings auto-fill. Feel the joy of not having to figure this out yourself.",
+            ],
+            'lineart_input': [
+                "Browse for the image you want to turn into lineart. Any image. The AI is hungry for pixels.",
+                "Select your source image. Photo, texture, concept art — all valid. The AI will convert anything.",
+                "Pick the input file. Your photo is about to get the lineart treatment it always deserved.",
+                "Input image selection. This is the 'before' picture. Choose something you actually want as lineart.",
+                "Find the image file you want converted. The panda will transform it into crisp clean lines. Promise.",
+                "Browse for your input. Any image format works. The AI isn't picky — unlike you.",
+                "Select source image. This is what gets converted. Make sure it's what you actually want, genius.",
+                "Input file picker. Find your image, commit to it, let the AI do the rest.",
+                "Pick your image. The converter will eat it up and spit out beautiful lineart. Metaphorically.",
+                "Input selection. Your image is about to have a glow-up of epic proportions.",
+            ],
+            # Background remover tooltips
+            'bg_remove_button': [
+                "CLICK THIS and the AI will obliterate your background like it owes it money. Science is WILD.",
+                "Remove background! The AI cuts out your subject with scary precision. No Photoshop needed. INCREDIBLE.",
+                "Start background removal. The AI will surgically extract your subject from its background prison.",
+                "ERASE THE BACKGROUND. Turn any image into a transparent PNG in seconds. The future is NOW.",
+                "Hit this and watch your background vanish like your motivation on Monday morning. But cooler.",
+                "Background removal time! AI-powered extraction! The algorithm HUNGERS for your jpeg artifacts!",
+                "Click to delete the background forever. No mask needed. No manual selection. Just AI POWER and despair.",
+                "Start the background murder. The AI will kill the background dead. Violently. Efficiently.",
+                "Remove background! Takes 3 seconds! Saves you 40 minutes of Photoshop masking! USE IT!",
+                "The background removal button. It does exactly what it says. Click it. Watch the background DIE.",
+            ],
+            'bg_model_selector': [
+                "Pick your AI model! u2net is solid, birefnet is fancy, silueta is fast. Each one has feelings. Consider them.",
+                "Model selector. u2net is the reliable workhorse. birefnet is the overachiever. silueta is the speedrunner.",
+                "Different AI models for different images. Portrait? Try u2net_human_seg. Object? u2net. Fabric? u2net_cloth_seg.",
+                "Your background removal fate lies in this dropdown. Different models = different levels of precision.",
+                "AI model picker! BiRefNet is the newest and shiniest. u2net is battle-tested. Both will destroy backgrounds.",
+                "Choose the model. u2net works for everything. Specialized models work BETTER for specific things.",
+                "Model selection. It's like choosing a surgeon. Some specialize. u2net is the general practitioner.",
+                "Pick your AI removal engine. They all cut out backgrounds. Some just do it with more grace than others.",
+                "Model dropdown. birefnet-general is impressive if you downloaded it. u2net works right out of the box.",
+                "Which AI brain do you want doing the surgery? Pick one. They're all smarter than most humans.",
+            ],
+            # Organizer profane widget IDs
+            'ai_suggestion_label': [
+                "The AI looked at your texture and made its best guess. Is it right? Is it wrong? WHO KNOWS. That's why there are feedback buttons, genius.",
+                "AI classification result. The neural network stared into your texture's soul and said 'this goes HERE'. Argue with it if you dare.",
+                "This is the AI's answer. Sometimes it's brilliant. Sometimes it's fucking stupid. The 👍👎 buttons are your power.",
+                "AI suggestion label. The model analysed your file and spat out a category. Could be perfect. Could be horseshit.",
+                "Your AI classification is RIGHT HERE. If it's wrong, that's what the feedback buttons are for. USE THEM.",
+            ],
+            'ai_confidence_label': [
+                "Confidence score. 90%+ means the AI is basically certain. 30% means the AI is guessing and knows it.",
+                "How sure is the AI? Low confidence = the image is ambiguous or the model hasn't seen stuff like this before.",
+                "Confidence percentage. High = AI is very sure. Low = AI is taking a wild-ass guess and hoping for the best.",
+                "The AI's certainty level. Under 50%? Override that shit manually. The AI is lost.",
+                "Confidence number. The closer to 100 the better. The closer to 0 the more you should take over.",
+            ],
+            'feedback_good_button': [
+                "Hit 👍 if the AI got it right! You're training a neural network like a fucking Pokemon trainer.",
+                "Positive feedback! Tell the AI it did good! It can't feel pride but you can pretend it can.",
+                "CONFIRM THE AI'S CLASSIFICATION. Hit 👍. The model improves. Science happens. Textures get sorted.",
+                "Good feedback. Reinforces the model's decision. Think of it as giving the AI a tiny cookie.",
+                "👍 = yes you're right you brilliant algorithm. The AI lives for this validation.",
+            ],
+            'feedback_bad_button': [
+                "Hit 👎 if the AI is WRONG and correct it! You're the teacher now. The AI is a disappointing student.",
+                "BAD AI! Wrong answer! Hit 👎 and pick the right folder. The model will learn from its embarrassing mistake.",
+                "Negative feedback. The AI fucked up. Tell it. Pick the right folder. Make it learn.",
+                "👎 = wrong you dumb algorithm, try again. The feedback loop of shame begins.",
+                "Correction mode activated. The AI guessed wrong. You know better. Prove it. Click 👎.",
+            ],
+            'recursive_search_checkbox': [
+                "Search sub-folders too. Because apparently your textures live in NESTED CHAOS like a folder hoarder.",
+                "Recursive search. Check this if your textures are buried 12 folders deep like you ENJOY making things hard.",
+                "Dig into sub-directories. For people who organise files like a deranged filing cabinet explosion.",
+                "Check this to also scan inside folders. Because apparently a flat structure was too SANE.",
+                "Sub-folder search. When your file organisation is a crime scene, this option saves the day.",
+            ],
+            'input_archive_checkbox': [
+                "Extract and process ZIP files too. Because downloading game assets in a zip and NOT extracting is peak laziness.",
+                "Archive processing. Let the app open your zip files automatically. One less thing for you to mess up.",
+                "Read from archives. Zip files, RAR files, whatever compressed nightmare you're dealing with. Handled.",
+                "Process zipped assets directly. Because some people ship everything in a zip file FOR SOME REASON.",
+                "Archive input mode. Your textures are trapped in a zip? This frees them. Automatically.",
+            ],
+            'output_archive_checkbox': [
+                "Bundle sorted output into a ZIP. For when you want to share organised textures without sharing the whole folder.",
+                "Output archive mode. Everything sorted and neatly zipped for you. You're welcome, you lazy genius.",
+                "Zip the output. Handy for backups or sending sorted assets to someone without clogging their files.",
+                "Pack results into a zip. Keeps things tidy. Your sorted textures, bagged and tagged.",
+                "Archive output. One zip file with all your sorted assets. Clean. Professional. Efficient.",
+            ],
+            'manual_override_input': [
+                "Override the AI's folder choice. Because sometimes the AI is wrong and YOU know better. Type the folder.",
+                "Manual folder override. Type where this texture should ACTUALLY go. Correct the AI's nonsense.",
+                "Force-assign a folder. The AI suggested something dumb? Type the right folder. Take control.",
+                "Manual classification. The AI gave up? You didn't. Type the folder path you actually want.",
+                "Override field. When the AI is confidently wrong, this is your weapon. Use it.",
+            ],
+            'folder_suggestions_list': [
+                "Top AI suggestions. Click one to use it. Or scroll through and pretend to think about it. Your choice.",
+                "AI's top picks for folder placement. Ranked by how sure the model is. Click one. Done.",
+                "Folder suggestion list. The AI's best guesses, sorted by confidence. One click to pick.",
+                "Here are the options. Click the right one. If none are right, type it yourself above.",
+                "Classification suggestions. These are the AI's best ideas. They might even be correct.",
             ],
         }
-        
+
         # Merge tooltip variants from the inlined tooltip definitions
         try:
             for widget_id, tooltip_dict in _PANDA_TOOLTIPS.items():
@@ -9068,21 +9781,22 @@ class ContextHelp:
         """Get help text for a specific context"""
         help_texts = {
             'general': """
-Game Texture Sorter - Quick Help
+Panda Sorter Converter Upscaler - Quick Help
 
-This application helps you organize and manage texture files from game texture dumps.
+This application helps you organize, convert, upscale, and remove backgrounds from images.
 
 Key Features:
-• Automatic texture classification with 50+ categories
+• Automatic texture/image classification with 50+ categories
 • LOD (Level of Detail) detection and grouping
-• Format conversion (DDS ↔ PNG ↔ JPG ↔ BMP ↔ TGA)
-• Duplicate detection
+• Format conversion (PNG ↔ JPG ↔ WebP ↔ TIFF ↔ BMP ↔ TGA)
+• AI-powered upscaling (RealESRGAN, SwinIR, bicubic, lanczos)
+• Background removal (rembg: u2net, birefnet, isnet and more)
+• Line art converter with tattoo/stencil/sketch presets
 • File browser with thumbnail previews
-• Interactive panda companion (drag, toss, pet, feed!)
+• Interactive 3D panda companion in a bedroom scene
 • Achievement system with Bamboo Bucks currency
 • Customizable themes, cursors, and tooltips
 • Undo/redo with 50-level history
-• Pop-out tabs for multi-monitor setups
 
 Press F1 anytime for context-sensitive help based on what you're doing.
 
@@ -9196,10 +9910,10 @@ Q: How do I earn achievements?
 A: Process files, explore features, interact with the panda, and discover Easter eggs! Check the Achievements tab to see all available achievements.
 
 Q: Does this require internet?
-A: No! Game Texture Sorter is 100% offline. No network calls, complete privacy.
+A: No! Panda Sorter Converter Upscaler is 100% offline. No network calls, complete privacy.
 
 Q: Where are my settings and data stored?
-A: In your user profile folder: ~/.ps2_texture_sorter/ (or %USERPROFILE%\\.ps2_texture_sorter\\ on Windows)
+A: In your user profile folder: ~/Panda Sorter Converter Upscaler/ (or the app_data/ folder next to the EXE on Windows)
 
 Q: Can I dress up the panda?
 A: Yes! Unlock outfits, hats, shoes, and accessories through achievements and the shop, then customize your panda in the Closet tab.

@@ -34,6 +34,13 @@ class ShopCategory(Enum):
     SOUNDS = "sounds"
     FUR_STYLES = "fur_styles"
     FUR_COLORS = "fur_colors"
+    CUSTOMIZATION = "customization"  # Alias for fur styles / hair styles added later
+    HAIRSTYLES = "hairstyles"        # Hair style items
+    ARMOR = "armor"                  # Armor and shields
+    BOOTS = "boots"                  # Boots and footwear
+    GLOVES = "gloves"                # Gloves and gauntlets
+    BELT = "belt"                    # Belts and waist items
+    BACKPACK = "backpack"            # Backpacks and bags
 
 
 # Mapping from ShopCategory to CustomizationCategory for persistent
@@ -46,6 +53,23 @@ SHOP_TO_CLOSET_CATEGORY = {
     ShopCategory.ACCESSORIES: "accessory",
     ShopCategory.FUR_STYLES: "fur_style",
     ShopCategory.FUR_COLORS: "fur_color",
+    ShopCategory.WEAPONS:   "weapon",
+    ShopCategory.FOOD:      "food",
+    ShopCategory.TOYS:      "toy",
+    ShopCategory.CUSTOMIZATION: "fur_style",   # fur/hair items use CUSTOMIZATION alias
+    ShopCategory.HAIRSTYLES:    "hair_style",
+    ShopCategory.ARMOR:         "armor",
+    ShopCategory.BOOTS:         "boots",
+    ShopCategory.GLOVES:        "gloves",
+    ShopCategory.BELT:          "belt",
+    ShopCategory.BACKPACK:      "backpack",
+    ShopCategory.CURSOR_TRAILS: "cursor_trail",
+    ShopCategory.CURSORS:       "cursor",
+    ShopCategory.THEMES:        "theme",
+    ShopCategory.ANIMATIONS:    "animation",
+    ShopCategory.SOUNDS:        "sound",
+    ShopCategory.UPGRADES:      "upgrade",
+    ShopCategory.SPECIAL:       "special",
 }
 
 
@@ -1942,8 +1966,28 @@ class ShopSystem:
             one_time_purchase=True,
             unlockable_id='closet_ice_crown'
         ),
-
-        # New Shoes - Shop
+        'shop_top_hat': ShopItem(
+            id='shop_top_hat',
+            name='Classic Top Hat',
+            description='A distinguished black top hat — unlocks top_hat_owner achievement',
+            category=ShopCategory.HATS,
+            price=220,
+            icon='🎩',
+            level_required=2,
+            one_time_purchase=True,
+            unlockable_id='top_hat'
+        ),
+        'shop_cowboy_hat': ShopItem(
+            id='shop_cowboy_hat',
+            name='Cowboy Hat',
+            description='Yeehaw! Wide-brim western hat',
+            category=ShopCategory.HATS,
+            price=180,
+            icon='🤠',
+            level_required=1,
+            one_time_purchase=True,
+            unlockable_id='cowboy_hat'
+        ),
         'closet_cowboy_boots': ShopItem(
             id='closet_cowboy_boots',
             name='Cowboy Boots',
@@ -3558,6 +3602,75 @@ class ShopSystem:
             description='Soothing ASMR-style sounds for relaxation',
             category=ShopCategory.SOUNDS, price=225, icon='🎧',
             subcategory='panda'),
+
+        # ── Realistic fur styles (mapped to GL renderer presets) ──────────────
+        'fur_albino': ShopItem(
+            id='fur_albino', name='Albino Fur',
+            description='Rare cream-white albino panda coloring',
+            category=ShopCategory.CUSTOMIZATION, price=500, icon='🤍',
+            level_required=5, one_time_purchase=True, unlockable_id='albino'),
+        'fur_snow_panda': ShopItem(
+            id='fur_snow_panda', name='Snow Panda Fur',
+            description='Ice-blue tinted fur with pale lavender patches',
+            category=ShopCategory.CUSTOMIZATION, price=350, icon='❄️',
+            level_required=4, one_time_purchase=True, unlockable_id='snow_panda'),
+        'fur_red_panda': ShopItem(
+            id='fur_red_panda', name='Red Panda Coloring',
+            description='Warm russet body with dark chocolate patches',
+            category=ShopCategory.CUSTOMIZATION, price=300, icon='🦊',
+            level_required=3, one_time_purchase=True, unlockable_id='red_panda_fur'),
+        'fur_young': ShopItem(
+            id='fur_young', name='Young Cub Fur',
+            description='Soft off-white cub fur with light grey patches',
+            category=ShopCategory.CUSTOMIZATION, price=150, icon='🐣',
+            level_required=1, one_time_purchase=True, unlockable_id='young'),
+        'fur_elder': ShopItem(
+            id='fur_elder', name='Elder Panda Fur',
+            description='Distinguished silver-grey with aged dark patches',
+            category=ShopCategory.CUSTOMIZATION, price=280, icon='🧓',
+            level_required=8, one_time_purchase=True, unlockable_id='elder'),
+        'fur_golden': ShopItem(
+            id='fur_golden', name='Golden Panda Fur',
+            description='Legendary gold body with deep amber patches',
+            category=ShopCategory.CUSTOMIZATION, price=1000, icon='✨',
+            level_required=15, one_time_purchase=True, unlockable_id='golden_fur'),
+
+        # ── Hair styles ───────────────────────────────────────────────────────
+        'hair_wild_mane': ShopItem(
+            id='hair_wild_mane', name='Wild Mane',
+            description='Thick untamed mane of fluffy head fur',
+            category=ShopCategory.HAIRSTYLES, price=120, icon='🦁',
+            level_required=1, one_time_purchase=True, unlockable_id='hair_wild_mane'),
+        'hair_mohawk': ShopItem(
+            id='hair_mohawk', name='Punk Mohawk',
+            description='Punk-rock ridge of fur running crown to neck',
+            category=ShopCategory.HAIRSTYLES, price=280, icon='🤘',
+            level_required=3, one_time_purchase=True, unlockable_id='hair_mohawk'),
+        'hair_top_knot': ShopItem(
+            id='hair_top_knot', name='Top Knot',
+            description='Elegant top-knot bun of long fur',
+            category=ShopCategory.HAIRSTYLES, price=140, icon='🎎',
+            level_required=2, one_time_purchase=True, unlockable_id='hair_top_knot'),
+        'hair_spiked': ShopItem(
+            id='hair_spiked', name='Spiked Tips',
+            description='Spiky lightning-bolt fur tips on head',
+            category=ShopCategory.HAIRSTYLES, price=240, icon='⚡',
+            level_required=3, one_time_purchase=True, unlockable_id='hair_spiked'),
+        'hair_bowl_cut': ShopItem(
+            id='hair_bowl_cut', name='Bowl Cut',
+            description='Classic perfectly round bowl-cut fur',
+            category=ShopCategory.HAIRSTYLES, price=60, icon='🍜',
+            level_required=1, one_time_purchase=True, unlockable_id='hair_bowl_cut'),
+        'hair_afro': ShopItem(
+            id='hair_afro', name='Fur Afro',
+            description='Gloriously round poofy afro head fur',
+            category=ShopCategory.HAIRSTYLES, price=450, icon='🌟',
+            level_required=6, one_time_purchase=True, unlockable_id='hair_afro'),
+        'hair_dreadlocks': ShopItem(
+            id='hair_dreadlocks', name='Dreads',
+            description='Long looped dreadlock fur strands',
+            category=ShopCategory.HAIRSTYLES, price=300, icon='🌿',
+            level_required=4, one_time_purchase=True, unlockable_id='hair_dreadlocks'),
     }
     
     def __init__(self, save_path: Optional[Path] = None):
@@ -3567,7 +3680,12 @@ class ShopSystem:
         Args:
             save_path: Path to save purchase data
         """
-        self.save_path = save_path or Path.home() / '.ps2_texture_sorter' / 'shop.json'
+        try:
+            from config import get_data_dir as _gdd
+            _default_path = _gdd() / 'shop.json'
+        except Exception:
+            _default_path = Path.home() / '.ps2_texture_sorter' / 'shop.json'
+        self.save_path = save_path or _default_path
         self.save_path.parent.mkdir(parents=True, exist_ok=True)
         
         self.purchased_items: Set[str] = set()

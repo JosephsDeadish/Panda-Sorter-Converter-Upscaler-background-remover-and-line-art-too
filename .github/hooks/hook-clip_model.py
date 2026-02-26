@@ -55,13 +55,13 @@ hiddenimports = [
 # Collect data files for transformers (model configs, tokenizers, etc.)
 datas = []
 try:
-    datas.extend(collect_data_files('transformers', include_py_files=False))
+    datas.extend(collect_data_files('transformers', include_py_files=True))
     print(f"[clip_model hook] Collected transformers data files")
 except Exception as e:
     print(f"[clip_model hook] WARNING: Could not collect transformers data: {e}")
 
 try:
-    datas.extend(collect_data_files('open_clip', include_py_files=False))
+    datas.extend(collect_data_files('open_clip', include_py_files=True))
     print(f"[clip_model hook] Collected open_clip data files")
 except Exception as e:
     print(f"[clip_model hook] WARNING: Could not collect open_clip data: {e}")

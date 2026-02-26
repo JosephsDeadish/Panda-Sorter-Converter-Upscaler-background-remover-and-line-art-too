@@ -21,7 +21,7 @@ try:
     from PyQt6.QtCore import Qt, pyqtSignal, QTimer
     from PyQt6.QtGui import QFont, QTextCharFormat, QColor
     PYQT_AVAILABLE = True
-except ImportError:
+except (ImportError, OSError, RuntimeError):
     PYQT_AVAILABLE = False
     class QWidget:  # type: ignore[no-redef]
         """Fallback stub when PyQt6 is not installed."""
@@ -65,8 +65,13 @@ class NotepadPanelQt(QWidget):
         self.auto_save_timer.timeout.connect(self.auto_save)
         self.auto_save_timer.setInterval(2000)  # Auto-save every 2 seconds
         
-        # Data directory
-        self.data_dir = Path.home() / '.ps2_texture_sorter' / 'notes'
+        # Data directory — use the app's canonical data dir so notes are stored
+        # alongside other user data (app_data/ in frozen EXE, ~/.ps2_texture_sorter/ in dev).
+        try:
+            from config import get_data_dir as _get_data_dir
+            self.data_dir = _get_data_dir() / 'notes'
+        except Exception:
+            self.data_dir = Path.home() / '.ps2_texture_sorter' / 'notes'
         self.data_dir.mkdir(parents=True, exist_ok=True)
         self.notes_file = self.data_dir / 'notes.json'
         
@@ -117,8 +122,22 @@ class NotepadPanelQt(QWidget):
         self.export_btn.setEnabled(False)
         self._set_tooltip(self.export_btn, 'export_note_button')
         controls_layout.addWidget(self.export_btn)
-        
+
         controls_layout.addStretch()
+
+        # Undo / Redo buttons (QTextEdit already supports Ctrl+Z/Ctrl+Y natively;
+        # these buttons make the feature visible and discoverable in the toolbar).
+        self.undo_btn = QPushButton("↩ Undo")
+        self.undo_btn.setEnabled(False)
+        self.undo_btn.setToolTip("Undo last edit (Ctrl+Z)")
+        self.undo_btn.setAccessibleName("Undo")
+        controls_layout.addWidget(self.undo_btn)
+
+        self.redo_btn = QPushButton("↪ Redo")
+        self.redo_btn.setEnabled(False)
+        self.redo_btn.setToolTip("Redo last undone edit (Ctrl+Y)")
+        self.redo_btn.setAccessibleName("Redo")
+        controls_layout.addWidget(self.redo_btn)
         
         # Word count label
         self.word_count_label = QLabel("0 words")
@@ -159,6 +178,11 @@ class NotepadPanelQt(QWidget):
         self.text_editor = QTextEdit()
         self.text_editor.setPlaceholderText("Write your notes here...")
         self.text_editor.textChanged.connect(self.on_text_changed)
+        # Wire undo/redo availability to toolbar button states
+        self.text_editor.undoAvailable.connect(self.undo_btn.setEnabled)
+        self.text_editor.redoAvailable.connect(self.redo_btn.setEnabled)
+        self.undo_btn.clicked.connect(self.text_editor.undo)
+        self.redo_btn.clicked.connect(self.text_editor.redo)
         self.text_editor.setEnabled(False)
         
         # Set font

@@ -12,19 +12,19 @@ from typing import List, Dict, Any, Union, Optional
 try:
     import numpy as np
     HAS_NUMPY = True
-except ImportError:
+except (ImportError, OSError, RuntimeError):
     np = None  # type: ignore[assignment]
     HAS_NUMPY = False
 try:
     from PIL import Image
     HAS_PIL = True
-except ImportError:
+except (ImportError, OSError, RuntimeError):
     HAS_PIL = False
 
 try:
     import cv2
     HAS_CV2 = True
-except ImportError:
+except (ImportError, OSError, RuntimeError):
     HAS_CV2 = False
     cv2 = None  # type: ignore[assignment]
 
@@ -35,7 +35,7 @@ logger = logging.getLogger(__name__)
 try:
     import pytesseract
     PYTESSERACT_AVAILABLE = True
-except ImportError:
+except (ImportError, OSError, RuntimeError):
     PYTESSERACT_AVAILABLE = False
     logger.debug("pytesseract not available. OCR disabled.")
 

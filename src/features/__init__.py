@@ -1,5 +1,5 @@
 """
-Feature modules for Game Texture Sorter
+Feature modules for Panda Sorter Converter Upscaler
 Includes statistics tracking, texture analysis, search/filter, profiles, batch operations, LOD replacement, backups,
 hotkeys, sound system, and achievements
 Author: Dead On The Inside / JosephsDeadish
@@ -36,7 +36,7 @@ __all__.extend(['BackupManager', 'BackupMetadata', 'RestorePoint'])
 try:
     from .hotkey_manager import HotkeyManager, Hotkey
     __all__.extend(['HotkeyManager', 'Hotkey'])
-except ImportError as _e:
+except (ImportError, OSError) as _e:
     _log.warning(f"HotkeyManager unavailable (pynput missing?): {_e}")
     HotkeyManager = None  # type: ignore[assignment,misc]
     Hotkey = None         # type: ignore[assignment,misc]
@@ -45,7 +45,7 @@ except ImportError as _e:
 try:
     from .sound_manager import SoundManager, SoundEvent, SoundPack
     __all__.extend(['SoundManager', 'SoundEvent', 'SoundPack'])
-except ImportError as _e:
+except (ImportError, OSError) as _e:
     _log.warning(f"SoundManager unavailable (audio library missing?): {_e}")
     SoundManager = None  # type: ignore[assignment,misc]
     SoundEvent = None    # type: ignore[assignment,misc]
@@ -182,6 +182,6 @@ __all__.append('PreviewViewer')
 try:
     from .preview_viewer_qt import PreviewViewerWidget
     __all__.append('PreviewViewerWidget')
-except ImportError as _e:
+except (ImportError, OSError) as _e:
     _log.debug(f"PreviewViewerWidget unavailable (PyQt6 missing?): {_e}")
     PreviewViewerWidget = None  # type: ignore[assignment,misc]

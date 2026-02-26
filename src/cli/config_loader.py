@@ -312,7 +312,7 @@ class ConfigLoader:
         """
         return {
             "version": "1.0",
-            "description": "Game Texture Sorter Configuration Template",
+            "description": "Panda Sorter Converter Upscaler Configuration Template",
             "settings": {
                 "organization_style": "by_category",
                 "auto_classify": True,

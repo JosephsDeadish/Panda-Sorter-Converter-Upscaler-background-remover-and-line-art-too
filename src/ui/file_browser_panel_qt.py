@@ -21,7 +21,7 @@ try:
     from PyQt6.QtCore import Qt, pyqtSignal, QSize, QTimer, QThread
     from PyQt6.QtGui import QPixmap, QIcon, QImage
     PYQT_AVAILABLE = True
-except ImportError:
+except (ImportError, OSError, RuntimeError):
     PYQT_AVAILABLE = False
     class QObject:  # type: ignore[no-redef]
         """Fallback stub when PyQt6 is not installed."""
@@ -48,7 +48,7 @@ logger = logging.getLogger(__name__)
 try:
     from PIL import Image
     PIL_AVAILABLE = True
-except ImportError:
+except (ImportError, OSError, RuntimeError):
     PIL_AVAILABLE = False
     logger.warning("PIL not available - thumbnails disabled")
 
@@ -143,8 +143,16 @@ class FileBrowserPanelQt(QWidget):
         self.thumbnail_generator: Optional[ThumbnailGenerator] = None
         
         # Load recent folders
-        self.config_dir = Path.home() / '.ps2_texture_sorter'
-        self.config_dir.mkdir(exist_ok=True)
+        try:
+            from config import get_data_dir as _gdd
+            self.config_dir = _gdd()
+        except (ImportError, Exception):
+            try:
+                from src.config import get_data_dir as _gdd
+                self.config_dir = _gdd()
+            except (ImportError, Exception):
+                self.config_dir = Path.home() / '.ps2_texture_sorter'
+        self.config_dir.mkdir(parents=True, exist_ok=True)
         self.recent_folders_path = self.config_dir / 'recent_folders.json'
         self.recent_folders: List[str] = []
         self.load_recent_folders()

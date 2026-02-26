@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 try:
     from PIL import Image
     HAS_PIL = True
-except ImportError:
+except (ImportError, OSError, RuntimeError):
     HAS_PIL = False
     Image = None  # type: ignore[assignment]
     logger.warning("Pillow not available — LOD resolution detection disabled. "

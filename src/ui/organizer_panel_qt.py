@@ -24,7 +24,7 @@ try:
     from PyQt6.QtCore import Qt, QThread, pyqtSignal, QStringListModel, QTimer
     from PyQt6.QtGui import QFont, QPixmap, QImage
     PYQT_AVAILABLE = True
-except ImportError:
+except (ImportError, OSError, RuntimeError):
     PYQT_AVAILABLE = False
     QWidget = object
     QFrame = object
@@ -104,7 +104,7 @@ logger = logging.getLogger(__name__)
 try:
     from ui.organizer_settings_panel import OrganizerSettingsPanel
     ORGANIZER_SETTINGS_AVAILABLE = True
-except ImportError as e:
+except (ImportError, OSError) as e:
     logger.warning(f"Organizer settings panel not available: {e}")
     ORGANIZER_SETTINGS_AVAILABLE = False
 
@@ -113,14 +113,14 @@ try:
     from organizer import OrganizationEngine, TextureInfo, ORGANIZATION_STYLES
     from organizer.learning_system import AILearningSystem
     ORGANIZER_AVAILABLE = True
-except ImportError as e:
+except (ImportError, OSError) as e:
     logger.warning(f"Organizer not available: {e}")
     ORGANIZER_AVAILABLE = False
 
 try:
     from features.game_identifier import GameIdentifier
     GAME_IDENTIFIER_AVAILABLE = True
-except ImportError as e:
+except (ImportError, OSError) as e:
     logger.warning(f"GameIdentifier not available: {e}")
     GAME_IDENTIFIER_AVAILABLE = False
 
@@ -128,7 +128,7 @@ try:
     from vision_models.clip_model import CLIPModel
     from vision_models.dinov2_model import DINOv2Model
     VISION_MODELS_AVAILABLE = True
-except ImportError as e:
+except (ImportError, OSError) as e:
     logger.warning(f"Vision models not available: {e}")
     logger.warning("Please install required dependencies: pip install torch transformers open-clip-torch")
     VISION_MODELS_AVAILABLE = False
@@ -145,7 +145,7 @@ except Exception as e:
 try:
     from PIL import Image
     PIL_AVAILABLE = True
-except ImportError:
+except (ImportError, OSError, RuntimeError):
     PIL_AVAILABLE = False
     logger.warning("PIL not available - image preview disabled")
     logger.warning("To enable: pip install pillow")
@@ -156,10 +156,29 @@ except Exception as e:
 try:
     from utils.archive_handler import ArchiveHandler
     ARCHIVE_AVAILABLE = True
-except ImportError:
+except (ImportError, OSError, RuntimeError):
     ARCHIVE_AVAILABLE = False
     logger.warning("Archive handler not available")
 
+# Human-readable descriptions for every organisation style key.
+# Defined once here and referenced by both _create_mode_selection_section
+# and _on_style_changed so they never drift out of sync.
+_STYLE_DESCRIPTIONS: dict = {
+    "appearance":    "Groups files by visual look — skin tones, stone, metal, wood, fabric, etc.",
+    "by_appearance": "Groups files by visual look — skin tones, stone, metal, wood, fabric, etc.",
+    "type":          "Groups by subject type — characters, props, environments, UI elements…",
+    "by_type":       "Groups by subject type — characters, props, environments, UI elements…",
+    "location":      "Groups by in-scene location — interior rooms, exterior environments, terrain…",
+    "by_location":   "Groups by in-scene location — interior rooms, exterior environments, terrain…",
+    "resolution":    "Groups by pixel dimensions — separate folders for 512, 1K, 2K, 4K images.",
+    "by_resolution": "Groups by pixel dimensions — separate folders for 512, 1K, 2K, 4K images.",
+    "system":        "Groups by map/usage role — Diffuse, Normal, Specular, Alpha, Emissive…",
+    "by_system":     "Groups by map/usage role — Diffuse, Normal, Specular, Alpha, Emissive…",
+    "flat":          "All files go into one output folder, sorted alphabetically.",
+    "minimalist":    "Two-level hierarchy: broad category → filename only.",
+    "maximum_detail": "Deep hierarchy: category → sub-type → resolution sub-folder.",
+    "custom":        "Applies rules from your custom_style.json configuration file.",
+}
 
 class OrganizerWorker(QThread):
     """Worker thread for organizing textures with AI classification."""
@@ -231,44 +250,78 @@ class OrganizerWorker(QThread):
         """Automatic mode: AI classifies and moves files instantly."""
         source_dir = Path(self.settings['source_dir'])
         target_dir = Path(self.settings['target_dir'])
-        
+
         # Collect files
         files = self._collect_files(source_dir)
         total_files = len(files)
-        
+
         self.log.emit(f"Processing {total_files} files in automatic mode...")
-        
+
+        # Optionally use OrganizationEngine for folder structure
+        org_engine = None
+        style_key = self.settings.get('style_key')
+        if style_key:
+            try:
+                from organizer import ORGANIZATION_STYLES, OrganizationEngine
+                style_cls = ORGANIZATION_STYLES.get(style_key)
+                if style_cls:
+                    org_engine = OrganizationEngine(
+                        style_class=style_cls,
+                        output_dir=str(target_dir),
+                    )
+                    self.log.emit(f"🗂️ Using style: {org_engine.get_style_name()}")
+            except Exception as _e:
+                self.log.emit(f"⚠️ Could not load style '{style_key}': {_e}")
+
         moved_count = 0
         for idx, file_path in enumerate(files):
             if self._is_cancelled:
                 break
-            
+
             # Classify with AI
             suggested_folder, confidence = self._classify_texture(file_path)
-            
+
             # Auto-accept if confidence above threshold
             threshold = self.settings.get('confidence_threshold', 0.8)
             if confidence >= threshold:
-                # Move file
+                if org_engine:
+                    try:
+                        from organizer.organization_engine import TextureInfo as _TI
+                        ti = _TI(
+                            file_path=str(file_path),
+                            filename=file_path.name,
+                            category=suggested_folder,
+                            confidence=confidence,
+                        )
+                        result = org_engine.organize_textures([ti])
+                        if result and result.get('success'):
+                            moved_count += 1
+                            self._files_processed += 1
+                            self.progress.emit(idx + 1, total_files, file_path.name, confidence)
+                            continue
+                    except Exception as _oe:
+                        self.log.emit(f"⚠ Style engine failed for {file_path.name}: {_oe}")
+
+                # Default: move to target_dir / suggested_folder
                 target_path = target_dir / suggested_folder / file_path.name
                 target_path.parent.mkdir(parents=True, exist_ok=True)
-                
                 try:
                     file_path.rename(target_path)
                     moved_count += 1
                     self._files_processed += 1
                 except Exception as e:
                     self.log.emit(f"⚠ Failed to move {file_path.name}: {e}")
-            
+
             self.progress.emit(idx + 1, total_files, file_path.name, confidence)
-        
+
         elapsed = time.time() - self._start_time
         stats = {
             'files_moved': moved_count,
             'files_skipped': total_files - moved_count,
-            'elapsed_time': elapsed
+            'elapsed_time': elapsed,
+            'files_processed': moved_count,
         }
-        
+
         self.finished.emit(True, f"Moved {moved_count}/{total_files} files", stats)
     
     def _run_suggested(self):
@@ -353,51 +406,99 @@ class OrganizerWorker(QThread):
         
         return sorted(files)
     
+    # Visual CLIP prompts — describe what the texture LOOKS LIKE, not game names
+    _VISUAL_PROMPTS: dict = {
+        "character_skin":     "a human or creature skin texture with skin tone colours",
+        "character_clothing": "a fabric or cloth texture worn as clothing",
+        "character_face":     "a face or head texture with eyes nose and mouth features",
+        "environment_ground": "a ground surface texture like dirt grass stone or pavement",
+        "environment_wall":   "a wall or building facade texture with bricks tiles or plaster",
+        "environment_nature": "a natural organic texture like bark leaves moss or rock",
+        "ui_icon":            "a flat icon or symbol graphic on a solid or transparent background",
+        "ui_button":          "a user interface button or panel graphic",
+        "ui_hud":             "a heads-up display or meter graphic",
+        "weapon_metal":       "a metallic weapon surface with specular highlights",
+        "vehicle_body":       "a vehicle paint or body panel texture with smooth colour",
+        "vehicle_interior":   "a vehicle interior texture with fabric or leather",
+        "effect_particle":    "a particle or smoke effect texture with alpha transparency",
+        "effect_glow":        "a glow or energy effect texture with bright emissive areas",
+        "prop_generic":       "a generic object or prop surface texture",
+    }
+
+    # Mapping from CLIP label → folder category name
+    _LABEL_TO_CATEGORY: dict = {
+        "character_skin":     "Characters/Skin",
+        "character_clothing": "Characters/Clothing",
+        "character_face":     "Characters/Face",
+        "environment_ground": "Environment/Ground",
+        "environment_wall":   "Environment/Walls",
+        "environment_nature": "Environment/Nature",
+        "ui_icon":            "UI/Icons",
+        "ui_button":          "UI/Buttons",
+        "ui_hud":             "UI/HUD",
+        "weapon_metal":       "Weapons",
+        "vehicle_body":       "Vehicles/Body",
+        "vehicle_interior":   "Vehicles/Interior",
+        "effect_particle":    "Effects/Particles",
+        "effect_glow":        "Effects/Glow",
+        "prop_generic":       "Props",
+    }
+
     def _classify_texture(self, file_path: Path) -> Tuple[str, float]:
         """
-        Classify texture using AI models.
-        
+        Classify texture using AI visual analysis (appearance-based, not filename-based).
+
         Returns:
             (suggested_folder, confidence)
         """
         if not self.clip_model and not self.dinov2_model:
-            # Fallback to simple heuristic
             return self._heuristic_classification(file_path)
-        
+
         try:
-            # Use CLIP for text-based classification
             if self.clip_model:
-                categories = [
-                    "character", "environment", "ui", "weapon", 
-                    "vehicle", "effect", "texture"
-                ]
-                
-                # Classify
-                results = self.clip_model.classify_image(str(file_path), categories)
+                # Use descriptive visual prompts so CLIP classifies by what it SEES
+                results = self.clip_model.classify_image(
+                    str(file_path), list(self._VISUAL_PROMPTS.values())
+                )
                 if results:
-                    top_category = max(results.items(), key=lambda x: x[1])
-                    return top_category[0], top_category[1]
-            
+                    # Map back from prompt string to label key
+                    prompt_to_label = {v: k for k, v in self._VISUAL_PROMPTS.items()}
+                    top_prompt, score = max(results.items(), key=lambda x: x[1])
+                    label = prompt_to_label.get(top_prompt, "prop_generic")
+                    folder = self._LABEL_TO_CATEGORY.get(label, "Misc")
+                    return folder, float(score)
+
         except Exception as e:
             logger.error(f"AI classification failed: {e}")
-        
+
         return self._heuristic_classification(file_path)
-    
+
     def _heuristic_classification(self, file_path: Path) -> Tuple[str, float]:
-        """Simple filename-based classification."""
+        """Filename-based fallback classification."""
         name_lower = file_path.stem.lower()
-        
-        # Simple keyword matching
-        if any(kw in name_lower for kw in ['char', 'player', 'npc', 'enemy']):
-            return "character", 0.7
-        elif any(kw in name_lower for kw in ['env', 'world', 'scene', 'level']):
-            return "environment", 0.7
-        elif any(kw in name_lower for kw in ['ui', 'hud', 'menu', 'button']):
-            return "ui", 0.7
-        elif any(kw in name_lower for kw in ['weapon', 'gun', 'sword', 'item']):
-            return "weapon", 0.7
+
+        if any(kw in name_lower for kw in ['skin', 'char', 'player', 'npc', 'enemy', 'body']):
+            return "Characters/Skin", 0.65
+        elif any(kw in name_lower for kw in ['face', 'head', 'hair']):
+            return "Characters/Face", 0.65
+        elif any(kw in name_lower for kw in ['cloth', 'shirt', 'pants', 'outfit']):
+            return "Characters/Clothing", 0.65
+        elif any(kw in name_lower for kw in ['ground', 'floor', 'grass', 'dirt', 'stone', 'pave']):
+            return "Environment/Ground", 0.65
+        elif any(kw in name_lower for kw in ['wall', 'brick', 'plaster', 'facade']):
+            return "Environment/Walls", 0.65
+        elif any(kw in name_lower for kw in ['bark', 'leaf', 'moss', 'rock', 'tree', 'nature']):
+            return "Environment/Nature", 0.65
+        elif any(kw in name_lower for kw in ['ui', 'hud', 'menu', 'button', 'icon']):
+            return "UI/Icons", 0.65
+        elif any(kw in name_lower for kw in ['weapon', 'gun', 'sword', 'blade', 'rifle']):
+            return "Weapons", 0.65
+        elif any(kw in name_lower for kw in ['car', 'vehicle', 'bike', 'truck', 'van']):
+            return "Vehicles/Body", 0.65
+        elif any(kw in name_lower for kw in ['smoke', 'fire', 'particle', 'glow', 'spark']):
+            return "Effects/Particles", 0.65
         else:
-            return "misc", 0.5
+            return "Props", 0.45
     
     def cancel(self):
         """Cancel the operation."""
@@ -419,7 +520,8 @@ class OrganizerPanelQt(QWidget):
     - Settings panel
     """
 
-    finished = pyqtSignal(bool, str)  # success, message
+    finished = pyqtSignal(bool, str, dict)  # success, message, stats
+    log = pyqtSignal(str)                  # log message (forwarded from worker)
     
     def __init__(self, parent=None, tooltip_manager=None):
         super().__init__(parent)
@@ -470,65 +572,68 @@ class OrganizerPanelQt(QWidget):
         layout.addWidget(label)
     
     def _create_ui(self):
-        """Create the comprehensive UI."""
-        layout = QVBoxLayout(self)
-        layout.setSpacing(5)
-        layout.setContentsMargins(10, 10, 10, 10)
-        
-        # Title
+        """Create the comprehensive UI — left controls, right work area."""
+        root = QVBoxLayout(self)
+        root.setSpacing(4)
+        root.setContentsMargins(8, 8, 8, 8)
+
+        # ── Title bar ──────────────────────────────────────────────────────
         title_label = QLabel("🤖 AI-Powered Texture Organizer")
-        title_label.setStyleSheet("font-size: 18pt; font-weight: bold;")
+        title_label.setStyleSheet("font-size: 16pt; font-weight: bold;")
         title_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        layout.addWidget(title_label)
-        
-        # AI Status indicator with detailed information
+        root.addWidget(title_label)
+
         if VISION_MODELS_AVAILABLE:
-            status_label = QLabel("✓ AI Models Ready")
-            status_label.setStyleSheet("color: green; font-size: 10pt; font-weight: bold;")
+            status_label = QLabel("✓ AI Vision Ready — organizes by visual appearance")
+            status_label.setStyleSheet("color: #4caf50; font-size: 9pt; font-weight: bold;")
         else:
-            status_text = "⚠️ AI Models Not Available\n"
-            status_text += "📦 Missing dependencies: PyTorch and/or Transformers\n"
-            status_text += "💡 Install: pip install torch torchvision transformers\n"
-            status_text += "ℹ️ Organizer will use basic classification without AI"
-            status_label = QLabel(status_text)
-            status_label.setStyleSheet("color: orange; font-size: 9pt; font-weight: bold;")
-            status_label.setWordWrap(True)
+            status_label = QLabel(
+                "⚠️ AI not available — using filename/size heuristics  "
+                "│  Install: pip install torch torchvision transformers"
+            )
+            status_label.setStyleSheet("color: #ff9800; font-size: 9pt;")
         status_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        layout.addWidget(status_label)
-        
-        # Main scroll area
-        scroll = QScrollArea()
-        scroll.setWidgetResizable(True)
-        scroll.setFrameShape(QFrame.Shape.NoFrame)
-        
-        container = QWidget()
-        main_layout = QVBoxLayout(container)
-        
-        # Game Detection Section
-        self._create_game_detection_section(main_layout)
-        
-        # Mode Selection
-        self._create_mode_selection_section(main_layout)
-        
-        # File Input Section
-        self._create_file_input_section(main_layout)
-        
-        # Work Area (Preview + Classification)
-        self._create_work_area_section(main_layout)
-        
-        # Progress Section
-        self._create_progress_section(main_layout)
-        
-        # Action Buttons
-        self._create_action_buttons(main_layout)
-        
-        # Settings (collapsible)
-        self._create_settings_section(main_layout)
-        
-        main_layout.addStretch()
-        
-        scroll.setWidget(container)
-        layout.addWidget(scroll)
+        root.addWidget(status_label)
+
+        # ── Main horizontal splitter: LEFT = controls, RIGHT = work area ──
+        splitter = QSplitter(Qt.Orientation.Horizontal)
+        splitter.setChildrenCollapsible(False)
+
+        # ── LEFT PANEL (settings + file IO + buttons) ─────────────────────
+        left_scroll = QScrollArea()
+        left_scroll.setWidgetResizable(True)
+        left_scroll.setFrameShape(QFrame.Shape.NoFrame)
+        left_scroll.setMinimumWidth(280)
+        left_scroll.setMaximumWidth(420)
+
+        left_container = QWidget()
+        left_layout = QVBoxLayout(left_container)
+        left_layout.setSpacing(8)
+        left_layout.setContentsMargins(4, 4, 4, 4)
+
+        self._create_mode_selection_section(left_layout)
+        self._create_file_input_section(left_layout)
+        self._create_progress_section(left_layout)
+        self._create_action_buttons(left_layout)
+        self._create_settings_section(left_layout)
+        left_layout.addStretch()
+
+        left_scroll.setWidget(left_container)
+        splitter.addWidget(left_scroll)
+
+        # ── RIGHT PANEL (preview + classification) ─────────────────────────
+        right_container = QWidget()
+        right_layout = QVBoxLayout(right_container)
+        right_layout.setSpacing(6)
+        right_layout.setContentsMargins(4, 4, 4, 4)
+        self._create_work_area_section(right_layout)
+        splitter.addWidget(right_container)
+
+        splitter.setStretchFactor(0, 0)
+        splitter.setStretchFactor(1, 1)
+
+        root.addWidget(splitter, 1)
+
     
     def _create_game_detection_section(self, layout):
         """Create game detection section."""
@@ -556,27 +661,66 @@ class OrganizerPanelQt(QWidget):
         layout.addWidget(group)
     
     def _create_mode_selection_section(self, layout):
-        """Create mode selection section."""
-        group = QGroupBox("⚙️ Organization Mode")
+        """Create mode selection section with descriptive style tooltips."""
+        group = QGroupBox("⚙️ Organization Mode & Style")
         group_layout = QVBoxLayout()
-        
+        group_layout.setSpacing(6)
+
+        # --- Mode row ---
+        mode_row = QHBoxLayout()
+        mode_row.addWidget(QLabel("Mode:"))
         self.mode_combo = QComboBox()
-        self.mode_combo.addItem("🚀 Automatic - AI classifies and moves instantly", "automatic")
-        self.mode_combo.addItem("💡 Suggested - AI suggests, you confirm", "suggested")
-        self.mode_combo.addItem("✍️ Manual - You type folder, AI learns", "manual")
+        self.mode_combo.addItem("🚀 Automatic — AI classifies & moves instantly", "automatic")
+        self.mode_combo.addItem("💡 Suggested — AI proposes, you approve each", "suggested")
+        self.mode_combo.addItem("✍️ Manual — you choose folder, AI learns your style", "manual")
         self.mode_combo.currentIndexChanged.connect(self._on_mode_changed)
-        group_layout.addWidget(self.mode_combo)
-        
+        mode_row.addWidget(self.mode_combo, 1)
+        group_layout.addLayout(mode_row)
+
+        # --- Style row with descriptive tooltips ---
+        style_row = QHBoxLayout()
+        style_row.addWidget(QLabel("Style:"))
+        self.style_combo = QComboBox()
+
+        if ORGANIZATION_STYLES:
+            for key, style_cls in ORGANIZATION_STYLES.items():
+                try:
+                    instance = style_cls()
+                    display = getattr(instance, 'get_name', lambda: key)()
+                except Exception:
+                    display = key.replace('_', ' ').title()
+                self.style_combo.addItem(display, key)
+                tip = _STYLE_DESCRIPTIONS.get(str(key), display)
+                self.style_combo.setItemData(
+                    self.style_combo.count() - 1, tip,
+                    Qt.ItemDataRole.ToolTipRole,
+                )
+        else:
+            self.style_combo.addItem("Default (flat list)", "flat")
+
+        self.style_combo.currentIndexChanged.connect(self._on_style_changed)
+        style_row.addWidget(self.style_combo, 1)
+        group_layout.addLayout(style_row)
+
+        # Style description label (updates when style changes)
+        self.style_description = QLabel()
+        self.style_description.setWordWrap(True)
+        self.style_description.setStyleSheet(
+            "color: #888; font-style: italic; font-size: 9pt; padding: 2px 4px;"
+        )
+        group_layout.addWidget(self.style_description)
+
         # Mode description
         self.mode_description = QLabel()
         self.mode_description.setWordWrap(True)
-        self.mode_description.setStyleSheet("color: gray; padding: 5px;")
+        self.mode_description.setStyleSheet("color: gray; font-size: 9pt; padding: 2px 4px;")
         group_layout.addWidget(self.mode_description)
-        
+
         group.setLayout(group_layout)
         layout.addWidget(group)
-        
+
         self._update_mode_description()
+        self._on_style_changed(0)   # populate style_description on startup
     
     def _create_file_input_section(self, layout):
         """Create file input section."""
@@ -646,100 +790,104 @@ class OrganizerPanelQt(QWidget):
     
     def _create_work_area_section(self, layout):
         """Create preview and classification work area."""
-        group = QGroupBox("🖼️ Work Area")
-        group_layout = QHBoxLayout()
-        
+        group = QGroupBox("🖼️ Preview & Classification")
+        group_layout = QVBoxLayout()
+
+        # Horizontal splitter: image preview | classification controls
+        work_splitter = QSplitter(Qt.Orientation.Horizontal)
+        work_splitter.setChildrenCollapsible(False)
+
         # Left: Preview Panel
         preview_container = QWidget()
         preview_layout = QVBoxLayout(preview_container)
-        preview_layout.setContentsMargins(0, 0, 0, 0)
-        
+        preview_layout.setContentsMargins(4, 4, 4, 4)
+
         preview_title = QLabel("Image Preview")
-        preview_title.setStyleSheet("font-weight: bold;")
+        preview_title.setStyleSheet("font-weight: bold; font-size: 10pt;")
         preview_layout.addWidget(preview_title)
-        
+
         self.preview_label = QLabel()
         self.preview_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.preview_label.setMinimumSize(300, 300)
-        self.preview_label.setStyleSheet("border: 1px solid gray; background: #f0f0f0;")
+        self.preview_label.setMinimumSize(240, 240)
+        self.preview_label.setStyleSheet(
+            "border: 1px solid #555; background: #1e1e2a; color: #888;"
+            "border-radius: 4px;"
+        )
         self.preview_label.setText("No image loaded")
-        preview_layout.addWidget(self.preview_label)
-        
+        preview_layout.addWidget(self.preview_label, 1)
+
         self.preview_info_label = QLabel()
         self.preview_info_label.setStyleSheet("color: gray; font-size: 9pt;")
         preview_layout.addWidget(self.preview_info_label)
+
+        work_splitter.addWidget(preview_container)
         
         # Right: Classification Panel
         classification_container = QWidget()
         classification_layout = QVBoxLayout(classification_container)
-        classification_layout.setContentsMargins(0, 0, 0, 0)
-        
+        classification_layout.setContentsMargins(4, 4, 4, 4)
+        classification_layout.setSpacing(6)
+
         classification_title = QLabel("Classification")
-        classification_title.setStyleSheet("font-weight: bold;")
+        classification_title.setStyleSheet("font-weight: bold; font-size: 10pt;")
         classification_layout.addWidget(classification_title)
-        
+
         # AI Suggestion display
         self.suggestion_label = QLabel("AI Suggestion: —")
-        self.suggestion_label.setStyleSheet("font-size: 12pt; padding: 5px;")
+        self.suggestion_label.setStyleSheet("font-size: 11pt; padding: 4px;")
         self._set_tooltip(self.suggestion_label, 'ai_suggestion_label')
         classification_layout.addWidget(self.suggestion_label)
-        
+
         self.confidence_label = QLabel("Confidence: —")
-        self.confidence_label.setStyleSheet("color: gray; padding: 5px;")
+        self.confidence_label.setStyleSheet("color: gray; padding: 4px;")
         self._set_tooltip(self.confidence_label, 'ai_confidence_label')
         classification_layout.addWidget(self.confidence_label)
-        
+
         # Feedback buttons
         feedback_layout = QHBoxLayout()
-        self.good_btn = QPushButton("✅ Good")
-        self.good_btn.setStyleSheet("background: #4CAF50; color: white; padding: 10px; font-weight: bold;")
+        self.good_btn = QPushButton("✅ Correct")
+        self.good_btn.setStyleSheet("background: #4CAF50; color: white; padding: 8px; font-weight: bold;")
         self.good_btn.clicked.connect(self._on_good_feedback)
         self.good_btn.setEnabled(False)
         self._set_tooltip(self.good_btn, 'feedback_good_button')
         feedback_layout.addWidget(self.good_btn)
-        
-        self.bad_btn = QPushButton("❌ Bad")
-        self.bad_btn.setStyleSheet("background: #f44336; color: white; padding: 10px; font-weight: bold;")
+
+        self.bad_btn = QPushButton("❌ Wrong")
+        self.bad_btn.setStyleSheet("background: #f44336; color: white; padding: 8px; font-weight: bold;")
         self.bad_btn.clicked.connect(self._on_bad_feedback)
         self.bad_btn.setEnabled(False)
         self._set_tooltip(self.bad_btn, 'feedback_bad_button')
         feedback_layout.addWidget(self.bad_btn)
-        
         classification_layout.addLayout(feedback_layout)
-        
+
         # Manual override / folder input
-        classification_layout.addWidget(QLabel("Manual Override:"))
-        
+        classification_layout.addWidget(QLabel("Manual folder override:"))
         self.folder_input = QLineEdit()
-        self.folder_input.setPlaceholderText("Type folder name or path...")
+        self.folder_input.setPlaceholderText("Type target folder name…")
         self.folder_input.textChanged.connect(self._on_folder_text_changed)
         self._set_tooltip(self.folder_input, 'manual_override_input')
         classification_layout.addWidget(self.folder_input)
-        
+
         # Auto-complete suggestions list
         self.suggestions_list = QListWidget()
-        self.suggestions_list.setMaximumHeight(150)
+        self.suggestions_list.setMaximumHeight(120)
         self.suggestions_list.itemClicked.connect(self._on_suggestion_selected)
         self._set_tooltip(self.suggestions_list, 'folder_suggestions_list')
         classification_layout.addWidget(self.suggestions_list)
-        
+
         # Path preview
         self.path_preview_label = QLabel("Path: —")
-        self.path_preview_label.setStyleSheet("color: gray; font-style: italic; padding: 5px;")
+        self.path_preview_label.setStyleSheet("color: gray; font-style: italic; font-size: 9pt; padding: 3px;")
         classification_layout.addWidget(self.path_preview_label)
-        
         classification_layout.addStretch()
-        
-        # Add to splitter
-        splitter = QSplitter(Qt.Orientation.Horizontal)
-        splitter.addWidget(preview_container)
-        splitter.addWidget(classification_container)
-        splitter.setStretchFactor(0, 1)
-        splitter.setStretchFactor(1, 1)
-        
-        group_layout.addWidget(splitter)
+
+        work_splitter.addWidget(classification_container)
+        work_splitter.setStretchFactor(0, 1)
+        work_splitter.setStretchFactor(1, 1)
+
+        group_layout.addWidget(work_splitter, 1)
         group.setLayout(group_layout)
-        layout.addWidget(group)
+        layout.addWidget(group, 1)
     
     def _create_progress_section(self, layout):
         """Create progress display section."""
@@ -1056,6 +1204,13 @@ class OrganizerPanelQt(QWidget):
         self.current_mode = self.mode_combo.currentData()
         self._update_mode_description()
         self._log(f"Mode changed to: {self.mode_combo.currentText()}")
+
+    def _on_style_changed(self, index: int):
+        """Update style description label when style combo changes."""
+        key = self.style_combo.currentData() if hasattr(self, 'style_combo') else ""
+        desc = _STYLE_DESCRIPTIONS.get(str(key), "")
+        if hasattr(self, 'style_description'):
+            self.style_description.setText(desc)
     
     def _update_mode_description(self):
         """Update mode description."""
@@ -1357,7 +1512,8 @@ class OrganizerPanelQt(QWidget):
             'confidence_threshold': confidence_threshold,
             'enable_learning': learning_enabled,
             'conflict_resolution': conflict_res,
-            'create_backup': backup
+            'create_backup': backup,
+            'style_key': getattr(self.style_combo, 'currentData', lambda: None)(),
         }
         
         # Disable UI
@@ -1511,6 +1667,21 @@ class OrganizerPanelQt(QWidget):
                     self._log("Learning profile saved")
                 except Exception as e:
                     logger.error(f"Failed to save profile: {e}")
+
+            # Save operation log to target directory
+            try:
+                target_dir = self.target_directory or ""
+                if target_dir:
+                    from organizer import OrganizationEngine
+                    _log_path = str(Path(target_dir) / "organization_log.txt")
+                    # Write stats-only log (no engine ref here since it lives in the worker)
+                    with open(_log_path, 'w', encoding='utf-8') as _lf:
+                        _lf.write(f"Organization completed: {message}\n")
+                        for k, v in stats.items():
+                            _lf.write(f"  {k}: {v}\n")
+                    self._log(f"📋 Log saved to {_log_path}")
+            except Exception as _le:
+                logger.debug(f"Could not save operation log: {_le}")
         else:
             self.status_label.setText(message)
             self.status_label.setStyleSheet("color: red; font-weight: bold;")
@@ -1643,9 +1814,12 @@ class OrganizerPanelQt(QWidget):
         scrollbar = self.log_text.verticalScrollBar()
         scrollbar.setValue(scrollbar.maximum())
 
-    def _set_tooltip(self, widget, text):
-        """Set tooltip on a widget using tooltip manager if available."""
-        if self.tooltip_manager and hasattr(self.tooltip_manager, 'set_tooltip'):
-            self.tooltip_manager.set_tooltip(widget, text)
+    def _set_tooltip(self, widget, text_or_id: str):
+        """Set tooltip on a widget — register with cycling system when a widget ID is given."""
+        if self.tooltip_manager:
+            tip = self.tooltip_manager.get_tooltip(text_or_id) if ' ' not in text_or_id else text_or_id
+            widget.setToolTip(tip)
+            if hasattr(self.tooltip_manager, 'register'):
+                self.tooltip_manager.register(widget, text_or_id if ' ' not in text_or_id else None)
         else:
-            widget.setToolTip(text)
+            widget.setToolTip(text_or_id)

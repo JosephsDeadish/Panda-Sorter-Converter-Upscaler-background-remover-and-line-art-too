@@ -1,6 +1,6 @@
 """
 Texture Categories Definition
-Comprehensive list of 50+ texture categories for PS2 texture classification
+Comprehensive list of 50+ texture categories for image classification
 """
 
 # Character/Organic Categories

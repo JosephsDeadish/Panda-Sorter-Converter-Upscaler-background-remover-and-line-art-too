@@ -225,6 +225,11 @@ def main():
         "panda_slide.wav": lambda: generate_sweep(400, 200, 300),
         "panda_drag_whoosh.wav": lambda: generate_sweep(300, 800, 250),
         "panda_shuffle.wav": lambda: generate_sawtooth_wave(220, 200, 0.25),
+        # scratch / sniff / flop sounds (mapped by _SOUND_ALIASES in panda_widget_gl.py)
+        "panda_scratch.wav": lambda: generate_sawtooth_wave(180, 250, 0.25),
+        "panda_sniff.wav":   lambda: generate_sweep(160, 220, 300, 0.15),
+        "panda_flop.wav":    lambda: generate_sweep(280, 80, 350, 0.35),
+        "panda_wag.wav":     lambda: apply_envelope(generate_sine_wave(600, 120)),
         
         "panda_thud.wav": lambda: generate_sweep(200, 50, 200, 0.5),
         "panda_bounce.wav": lambda: apply_envelope(generate_sine_wave(300, 150)),

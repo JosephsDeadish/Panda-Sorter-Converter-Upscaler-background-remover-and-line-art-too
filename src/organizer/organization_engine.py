@@ -1,5 +1,5 @@
 """
-Game Texture Sorter - Organization Engine
+Panda Sorter Converter Upscaler - Organization Engine
 Author: Dead On The Inside / JosephsDeadish
 
 Main engine for organizing textures into hierarchical folder structures.
@@ -159,6 +159,29 @@ class OrganizationEngine:
     def get_style_description(self) -> str:
         """Get the description of the current organization style"""
         return self.style.get_description()
+
+    def get_operation_log(self) -> str:
+        """Return a human-readable summary of all file operations performed."""
+        if not self.operations_log:
+            return "No operations recorded."
+        lines = [f"Organization log ({len(self.operations_log)} operations):", ""]
+        for op in self.operations_log:
+            status = op.get('status', 'unknown')
+            src = op.get('source', '')
+            tgt = op.get('target', '')
+            action = op.get('action', 'copy')
+            lines.append(f"  [{status}] {action}: {src} → {tgt}")
+        return "\n".join(lines)
+
+    def save_operation_log(self, log_path: str) -> bool:
+        """Write the operation log to *log_path*. Returns True on success."""
+        try:
+            Path(log_path).parent.mkdir(parents=True, exist_ok=True)
+            with open(log_path, 'w', encoding='utf-8') as fh:
+                fh.write(self.get_operation_log())
+            return True
+        except OSError:
+            return False
 
 
 class OrganizationStyle(ABC):

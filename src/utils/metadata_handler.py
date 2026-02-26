@@ -13,7 +13,7 @@ from typing import Optional, Dict, Any, Tuple
 try:
     from PIL import Image
     HAS_PIL = True
-except ImportError:
+except (ImportError, OSError, RuntimeError):
     HAS_PIL = False
 
 

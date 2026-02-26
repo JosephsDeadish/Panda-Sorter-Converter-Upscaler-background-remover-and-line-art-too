@@ -24,14 +24,14 @@ try:
     import cairosvg
     HAS_CAIROSVG = True
     logger.info("cairosvg available for SVG rendering")
-except ImportError:
+except (ImportError, OSError, RuntimeError):
     HAS_CAIROSVG = False
     logger.debug("cairosvg not available - SVG rendering disabled")
 
 try:
     from PIL import Image
     HAS_PIL = True
-except ImportError:
+except (ImportError, OSError, RuntimeError):
     HAS_PIL = False
     logger.warning("PIL not available - image handling limited")
 

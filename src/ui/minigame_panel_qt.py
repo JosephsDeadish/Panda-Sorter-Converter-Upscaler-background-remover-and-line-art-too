@@ -14,7 +14,7 @@ try:
     from PyQt6.QtCore import Qt, QTimer, pyqtSignal
     from PyQt6.QtGui import QFont
     PYQT_AVAILABLE = True
-except ImportError:
+except (ImportError, OSError, RuntimeError):
     PYQT_AVAILABLE = False
     QWidget = object
     QFrame = object
@@ -64,9 +64,22 @@ except ImportError:
     QPushButton = object
     QVBoxLayout = object
 
-from features.minigame_system import (
-    MiniGameManager, MiniGame, GameDifficulty, GameResult
-)
+try:
+    from features.minigame_system import (
+        MiniGameManager, MiniGame, GameDifficulty, GameResult
+    )
+    MINIGAME_SYSTEM_AVAILABLE = True
+except (ImportError, OSError, RuntimeError) as _mg_err:
+    MINIGAME_SYSTEM_AVAILABLE = False
+    # Stub classes so the panel can still be imported without crashing
+    class MiniGameManager:  # type: ignore[no-redef]
+        def get_available_games(self): return []
+    class MiniGame:  # type: ignore[no-redef]
+        pass
+    class GameDifficulty:  # type: ignore[no-redef]
+        pass
+    class GameResult:  # type: ignore[no-redef]
+        pass
 
 logger = logging.getLogger(__name__)
 

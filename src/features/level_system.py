@@ -45,12 +45,18 @@ class LevelSystem:
             save_path: Path to save level data
         """
         self.name = name
-        self.save_path = save_path or Path.home() / '.ps2_texture_sorter' / f'{name}_level.json'
+        try:
+            from config import get_data_dir as _gdd
+            _default_path = _gdd() / f'{name}_level.json'
+        except Exception:
+            _default_path = Path.home() / '.ps2_texture_sorter' / f'{name}_level.json'
+        self.save_path = save_path or _default_path
         self.save_path.parent.mkdir(parents=True, exist_ok=True)
         
         self.level = 1
         self.xp = 0
         self.total_xp = 0
+        self.skill_points = 0      # Earned on level-up, spent on skill tree
         
         # Callbacks for level up events
         self.level_up_callbacks: List[Callable] = []
@@ -112,8 +118,9 @@ class LevelSystem:
             
             self.xp -= xp_needed
             self.level += 1
+            self.skill_points += 1      # Award 1 skill point per level
             leveled_up = True
-            logger.info(f"{self.name} leveled up! Now level {self.level}")
+            logger.info(f"{self.name} leveled up! Now level {self.level} (skill points: {self.skill_points})")
             
             # Safety check to prevent infinite loops
             if self.level > 1000:
@@ -147,7 +154,15 @@ class LevelSystem:
     def register_level_up_callback(self, callback: Callable):
         """Register callback for level up events."""
         self.level_up_callbacks.append(callback)
-    
+
+    def deduct_skill_points(self, cost: int) -> bool:
+        """Deduct skill points. Returns True if successful (had enough points)."""
+        if self.skill_points >= cost:
+            self.skill_points -= cost
+            self.save()
+            return True
+        return False
+
     def get_statistics(self) -> Dict:
         """Get level statistics."""
         return {
@@ -166,6 +181,7 @@ class LevelSystem:
                 'level': self.level,
                 'xp': self.xp,
                 'total_xp': self.total_xp,
+                'skill_points': self.skill_points,
             }
             
             with open(self.save_path, 'w') as f:
@@ -185,6 +201,7 @@ class LevelSystem:
                 self.level = data.get('level', 1)
                 self.xp = data.get('xp', 0)
                 self.total_xp = data.get('total_xp', 0)
+                self.skill_points = data.get('skill_points', 0)
                 
                 logger.info(f"Loaded {self.name} level data. Level: {self.level}, XP: {self.xp}")
             else:

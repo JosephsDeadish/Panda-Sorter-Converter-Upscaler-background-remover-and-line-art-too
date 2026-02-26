@@ -1,5 +1,5 @@
 {
-  "app_title": "Game Texture Sorter",
+  "app_title": "Panda Sorter Converter Upscaler",
   "app_version": "Version {version}",
   "menu_file": "File",
   "menu_edit": "Edit",
@@ -83,7 +83,7 @@
   "tooltip_stop": "Stop current operation",
   "tooltip_settings": "Open settings",
   "tooltip_help": "Show help",
-  "msg_welcome": "Welcome to Game Texture Sorter! 🐼",
+  "msg_welcome": "Welcome to Panda Sorter Converter Upscaler! 🐼",
   "msg_ready": "Ready to sort textures",
   "msg_no_files": "No files selected",
   "msg_operation_complete": "Operation completed successfully",
