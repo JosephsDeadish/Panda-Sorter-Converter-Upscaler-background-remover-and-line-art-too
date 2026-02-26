@@ -1094,7 +1094,7 @@ class PandaBedroomGL(QOpenGLWidget if OPENGL_AVAILABLE else QWidget):  # type: i
     def _draw_box(
         x0: float, y0: float, z0: float,
         x1: float, y1: float, z1: float,
-        colour: tuple = None,
+        colour: Optional[tuple] = None,
     ) -> None:
         """Draw a solid axis-aligned box.
 
