@@ -255,13 +255,16 @@ class PandaWorldGL(
     def paintGL(self):
         if not GL_AVAILABLE or not self._gl_ready:
             return
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
-        glLoadIdentity()
-        # Camera: slightly elevated, looking into the scene
-        glTranslatef(0.0, -2.5, -10.0)
-        glRotatef(18.0, 1.0, 0.0, 0.0)
+        try:
+            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+            glLoadIdentity()
+            # Camera: slightly elevated, looking into the scene
+            glTranslatef(0.0, -2.5, -10.0)
+            glRotatef(18.0, 1.0, 0.0, 0.0)
 
-        self._draw_world()
+            self._draw_world()
+        except Exception as _e:
+            logger.debug("PandaWorldGL paintGL error (frame skipped): %s", _e)
 
     # ── Animation tick ────────────────────────────────────────────────────────
     def _tick(self):

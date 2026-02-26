@@ -107,17 +107,20 @@ class TransparentPandaOverlay(QOpenGLWidget if PYQT_AVAILABLE else QWidget):
         
         # Reference to main window for widget detection
         self.main_window = main_window
+
+        # GL initialization guard — prevents drawing before context is ready
+        self._gl_initialized = False
         
-        # Make transparent
+        # Make transparent — use WA_AlwaysStackOnTop (child-widget stacking) instead
+        # of WindowStaysOnTopHint (which promotes the widget to a separate top-level
+        # window and breaks the parent→child geometry relationship on many platforms).
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
         self.setAttribute(Qt.WidgetAttribute.WA_AlwaysStackOnTop)
-        self.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, False)
+        # Start with mouse events passing through; only capture when cursor is on panda
+        self.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
         
-        # Window flags for overlay behavior
-        self.setWindowFlags(
-            Qt.WindowType.FramelessWindowHint |
-            Qt.WindowType.WindowStaysOnTopHint
-        )
+        # Window flags: frameless but NOT WindowStaysOnTopHint (that promotes to toplevel)
+        self.setWindowFlags(Qt.WindowType.FramelessWindowHint)
         
         # Panda state
         self.panda_x = 0.0
@@ -198,28 +201,44 @@ class TransparentPandaOverlay(QOpenGLWidget if PYQT_AVAILABLE else QWidget):
     
     def initializeGL(self):
         """Initialize OpenGL context."""
-        # Enable transparency
-        glEnable(GL_BLEND)
-        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
-        
-        # Enable depth testing
-        glEnable(GL_DEPTH_TEST)
-        glDepthFunc(GL_LEQUAL)
-        
-        # Enable smooth shading
-        glShadeModel(GL_SMOOTH)
-        
-        # Clear color (transparent)
-        glClearColor(0.0, 0.0, 0.0, 0.0)
-        
-        # Lighting
-        glEnable(GL_LIGHTING)
-        glEnable(GL_LIGHT0)
-        
-        # Light position
-        glLightfv(GL_LIGHT0, GL_POSITION, [1.0, 1.0, 1.0, 0.0])
-        glLightfv(GL_LIGHT0, GL_AMBIENT, [0.3, 0.3, 0.3, 1.0])
-        glLightfv(GL_LIGHT0, GL_DIFFUSE, [0.8, 0.8, 0.8, 1.0])
+        try:
+            # Enable transparency
+            glEnable(GL_BLEND)
+            glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
+            
+            # Enable depth testing
+            glEnable(GL_DEPTH_TEST)
+            glDepthFunc(GL_LEQUAL)
+            
+            # Enable smooth shading (CompatibilityProfile only; ignore on CoreProfile)
+            try:
+                glShadeModel(GL_SMOOTH)
+            except Exception as _e:
+                logger.debug("Overlay: glShadeModel not available: %s", _e)
+            
+            # Clear color (transparent)
+            glClearColor(0.0, 0.0, 0.0, 0.0)
+            
+            # Lighting (CompatibilityProfile; skip on CoreProfile/ANGLE)
+            try:
+                glEnable(GL_LIGHTING)
+                glEnable(GL_LIGHT0)
+                glLightfv(GL_LIGHT0, GL_POSITION, [1.0, 1.0, 1.0, 0.0])
+                glLightfv(GL_LIGHT0, GL_AMBIENT, [0.3, 0.3, 0.3, 1.0])
+                glLightfv(GL_LIGHT0, GL_DIFFUSE, [0.8, 0.8, 0.8, 1.0])
+            except Exception as _e:
+                logger.debug("Overlay: lighting not available (CoreProfile/ANGLE): %s", _e)
+
+            # Probe fixed-function matrix mode (fails on CoreProfile / ANGLE)
+            glMatrixMode(GL_MODELVIEW)
+            glLoadIdentity()
+
+            self._gl_initialized = True
+        except Exception as exc:
+            logger.warning("TransparentPandaOverlay GL init failed: %s — overlay hidden", exc)
+            self._gl_initialized = False
+            # Make overlay fully transparent for mouse events so it cannot block the UI
+            self.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
     
     def resizeGL(self, w, h):
         """Handle window resize."""
@@ -235,28 +254,33 @@ class TransparentPandaOverlay(QOpenGLWidget if PYQT_AVAILABLE else QWidget):
     
     def paintGL(self):
         """Render the overlay with hardware acceleration."""
-        # Clear with transparency
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
-        
-        glLoadIdentity()
-        
-        # Position camera
-        glTranslatef(0.0, 0.0, -self.camera_distance)
-        glRotatef(self.camera_rotation_x, 1.0, 0.0, 0.0)
-        glRotatef(self.camera_rotation_y, 0.0, 1.0, 0.0)
-        
-        # Render shadow (if enabled and widget below)
-        if self.shadow_enabled and self.widget_below:
-            self._render_shadow()
-        
-        # Render all 3D items (toys, food, clothes) with OpenGL
-        self._render_items_3d()
-        
-        # Render panda
-        self._render_panda()
-        
-        # Update body part positions for interaction detection
-        self._update_body_part_positions()
+        if not self._gl_initialized:
+            return
+        try:
+            # Clear with transparency
+            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+            
+            glLoadIdentity()
+            
+            # Position camera
+            glTranslatef(0.0, 0.0, -self.camera_distance)
+            glRotatef(self.camera_rotation_x, 1.0, 0.0, 0.0)
+            glRotatef(self.camera_rotation_y, 0.0, 1.0, 0.0)
+            
+            # Render shadow (if enabled and widget below)
+            if self.shadow_enabled and self.widget_below:
+                self._render_shadow()
+            
+            # Render all 3D items (toys, food, clothes) with OpenGL
+            self._render_items_3d()
+            
+            # Render panda
+            self._render_panda()
+            
+            # Update body part positions for interaction detection
+            self._update_body_part_positions()
+        except Exception as _e:
+            logger.debug("TransparentPandaOverlay paintGL error (frame skipped): %s", _e)
     
     def _render_shadow(self):
         """Render shadow below panda onto widget."""
@@ -357,37 +381,40 @@ class TransparentPandaOverlay(QOpenGLWidget if PYQT_AVAILABLE else QWidget):
     
     def _update_body_part_positions(self):
         """Update body part positions in screen coordinates for interaction detection."""
-        # Get model-view-projection matrices
-        model_matrix = glGetDoublev(GL_MODELVIEW_MATRIX)
-        proj_matrix = glGetDoublev(GL_PROJECTION_MATRIX)
-        viewport = glGetIntegerv(GL_VIEWPORT)
-        
-        # Project 3D positions to 2D screen coordinates
-        def project_point(x, y, z):
-            screen_pos = gluProject(x, y, z, model_matrix, proj_matrix, viewport)
-            return QPoint(int(screen_pos[0]), int(viewport[3] - screen_pos[1]))
-        
-        # Head position
-        self.head_position = project_point(self.panda_x, self.panda_y + 0.4, self.panda_z)
-        
-        # Mouth position
-        self.mouth_position = project_point(self.panda_x, self.panda_y + 0.35, self.panda_z + 0.23)
-        
-        # Feet positions
-        self.left_foot_position = project_point(
-            self.panda_x - 0.15, self.panda_y - 0.3, self.panda_z
-        )
-        self.right_foot_position = project_point(
-            self.panda_x + 0.15, self.panda_y - 0.3, self.panda_z
-        )
-        
-        # Hand positions (for tapping/grabbing interactions)
-        self.left_hand_position = project_point(
-            self.panda_x - 0.25, self.panda_y + 0.05, self.panda_z
-        )
-        self.right_hand_position = project_point(
-            self.panda_x + 0.25, self.panda_y + 0.05, self.panda_z
-        )
+        try:
+            # Get model-view-projection matrices
+            model_matrix = glGetDoublev(GL_MODELVIEW_MATRIX)
+            proj_matrix = glGetDoublev(GL_PROJECTION_MATRIX)
+            viewport = glGetIntegerv(GL_VIEWPORT)
+            
+            # Project 3D positions to 2D screen coordinates
+            def project_point(x, y, z):
+                screen_pos = gluProject(x, y, z, model_matrix, proj_matrix, viewport)
+                return QPoint(int(screen_pos[0]), int(viewport[3] - screen_pos[1]))
+            
+            # Head position
+            self.head_position = project_point(self.panda_x, self.panda_y + 0.4, self.panda_z)
+            
+            # Mouth position
+            self.mouth_position = project_point(self.panda_x, self.panda_y + 0.35, self.panda_z + 0.23)
+            
+            # Feet positions
+            self.left_foot_position = project_point(
+                self.panda_x - 0.15, self.panda_y - 0.3, self.panda_z
+            )
+            self.right_foot_position = project_point(
+                self.panda_x + 0.15, self.panda_y - 0.3, self.panda_z
+            )
+            
+            # Hand positions (for tapping/grabbing interactions)
+            self.left_hand_position = project_point(
+                self.panda_x - 0.25, self.panda_y + 0.05, self.panda_z
+            )
+            self.right_hand_position = project_point(
+                self.panda_x + 0.25, self.panda_y + 0.05, self.panda_z
+            )
+        except Exception as _e:
+            logger.debug("Overlay: body-part projection failed (GL state not ready): %s", _e)
     
     def _update_frame(self):
         """Update animation, physics, AI behavior and request repaint - 60 FPS."""
@@ -440,12 +467,15 @@ class TransparentPandaOverlay(QOpenGLWidget if PYQT_AVAILABLE else QWidget):
     
     def _world_to_screen(self, x, y, z):
         """Convert 3D world coordinates to 2D screen coordinates."""
-        model_matrix = glGetDoublev(GL_MODELVIEW_MATRIX)
-        proj_matrix = glGetDoublev(GL_PROJECTION_MATRIX)
-        viewport = glGetIntegerv(GL_VIEWPORT)
-        
-        screen_pos = gluProject(x, y, z, model_matrix, proj_matrix, viewport)
-        return QPoint(int(screen_pos[0]), int(viewport[3] - screen_pos[1]))
+        try:
+            model_matrix = glGetDoublev(GL_MODELVIEW_MATRIX)
+            proj_matrix = glGetDoublev(GL_PROJECTION_MATRIX)
+            viewport = glGetIntegerv(GL_VIEWPORT)
+            screen_pos = gluProject(x, y, z, model_matrix, proj_matrix, viewport)
+            return QPoint(int(screen_pos[0]), int(viewport[3] - screen_pos[1]))
+        except Exception as _e:
+            logger.debug("Overlay: world-to-screen projection failed: %s", _e)
+            return QPoint(self.width() // 2, self.height() // 2)
     
     def mousePressEvent(self, event):
         """Handle mouse press - check if clicking on panda."""

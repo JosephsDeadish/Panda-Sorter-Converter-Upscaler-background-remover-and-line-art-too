@@ -748,11 +748,10 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
         """Render the 3D scene."""
         if not self.gl_initialized:
             return  # GL init failed or hasn't run yet — don't attempt GL calls
-        current_time = time.time()
-        elapsed = current_time - self.last_frame_time
-        if elapsed < self.FRAME_TIME:
-            return  # Skip frame to maintain 60 FPS cap
-        self.last_frame_time = current_time
+        # The animation timer (_update_animation) already fires at TARGET_FPS, so
+        # no extra time-gate is needed here.  The previous gate caused every frame
+        # to be skipped because _update_animation resets last_frame_time right
+        # before calling update(), leaving elapsed ≈ 0 < FRAME_TIME always.
         try:
             self._paint_gl_body()
         except Exception as _e:
@@ -1068,7 +1067,9 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
         sy = self._squash_y * _sub.get('body_y_scale', 1.0)
 
         glPushMatrix()
-        glTranslatef(self.panda_x, 0.28 + bob, self.panda_z)
+        # _paint_gl_body already applied panda_x/panda_z via glTranslatef; only
+        # add the vertical bob offset here to avoid doubling the XZ position.
+        glTranslatef(0.0, 0.28 + bob, 0.0)
         glRotatef(self.rotation_y, 0.0, 1.0, 0.0)
         # Wobble: random lateral lean added to whole body (pandas are uncoordinated)
         if abs(self._wobble_x) > 0.05:
@@ -1407,13 +1408,14 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
 
     def _draw_panda_geometry_only(self):
         """Draw simplified panda geometry for shadow pass (no colour changes)."""
+        # Caller already applied panda_x/z via glTranslatef; use local offsets only.
         glPushMatrix()
-        glTranslatef(self.panda_x, 0.28, self.panda_z)
+        glTranslatef(0.0, 0.28, 0.0)
         glScalef(self.BODY_WIDTH, self.BODY_HEIGHT, self.BODY_WIDTH * 0.78)
         self._draw_sphere(1.0, 10, 10)
         glPopMatrix()
         glPushMatrix()
-        glTranslatef(self.panda_x, 0.90, self.panda_z)
+        glTranslatef(0.0, 0.90, 0.0)
         self._draw_sphere(self.HEAD_RADIUS, 10, 10)
         glPopMatrix()
 
