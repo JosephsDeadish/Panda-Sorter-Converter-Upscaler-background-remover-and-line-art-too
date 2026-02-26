@@ -1489,11 +1489,19 @@ def test_panda_overlay_scale_capped():
     for node in ast.walk(tree):
         if isinstance(node, ast.FunctionDef) and node.name == 'paintEvent':
             method_src = ast.get_source_segment(code, node) or ''
-            # Scale must be capped: look for min(..., 0.8) or similar
-            assert '0.8' in method_src or '0.75' in method_src or '0.9' in method_src, (
+            # Scale must be capped: the assignment must contain a nested min()
+            # call that limits the raw dimension/320 ratio.  We check for the
+            # structural pattern "min(... / 320 ..., <cap>)" rather than a
+            # specific literal so the test survives minor numeric tweaks.
+            import re as _re
+            has_cap = bool(_re.search(
+                r'\bmin\s*\(.*320.*,\s*\d*\.\d+\s*\)',  # min(...320..., 0.N)
+                method_src,
+            ))
+            assert has_cap, (
                 "PandaWidget2D.paintEvent() must cap the scale to prevent the panda\n"
                 "from growing to 500+ px on a 1280×800 full-window overlay.\n"
-                "Expected: scale = min(min(w, h) / 320.0, 0.8)"
+                "Expected pattern: scale = min(min(w, h) / 320.0, <cap_value>)"
             )
             # The vertical position must NOT be h*0.52 (dead centre) any more —
             # it should be lower so the panda doesn't block top-of-window content.
@@ -1507,50 +1515,67 @@ def test_panda_overlay_scale_capped():
     assert False, "PandaWidget2D.paintEvent() not found"
 
 
-def test_settings_panel_has_save_settings():
-    """SettingsPanelQt must have a save_settings() method.
+def test_settings_panel_auto_saves_on_change():
+    """SettingsPanelQt must save each setting immediately when a widget changes.
 
-    The main window's save_settings() delegates to
-    ``self.settings_panel.save_settings()`` when the method exists.  Without it,
-    explicit save calls skip the panel entirely (the hasattr guard silently
-    passes over missing methods).
+    Design intent: every setting takes effect the moment the user interacts
+    with the widget — there is no "Save Settings" button.  Each widget is
+    wired to ``on_setting_changed`` which calls ``config.set()`` + ``config.save()``
+    immediately.
+
+    This test verifies:
+    1. ``on_setting_changed`` exists and calls config.save() directly.
+    2. ``SettingsPanelQt`` does NOT have a ``save_settings()`` method
+       (which would imply a separate explicit save step in the UI).
+    3. The settings panel has no QPushButton labelled "Save" or "Save Settings".
     """
-    print("\ntest_settings_panel_has_save_settings ...")
+    print("\ntest_settings_panel_auto_saves_on_change ...")
     from pathlib import Path
-    import ast
+    import ast, re
     src = Path(__file__).parent / 'src' / 'ui' / 'settings_panel_qt.py'
     code = src.read_text(encoding='utf-8')
     tree = ast.parse(code)
 
-    found = False
+    # 1. on_setting_changed must call config.save()
+    panel_methods: dict = {}
     for node in ast.walk(tree):
         if isinstance(node, ast.ClassDef) and node.name == 'SettingsPanelQt':
             for item in node.body:
-                if isinstance(item, ast.FunctionDef) and item.name == 'save_settings':
-                    # Must not be pass-only
-                    body = item.body
-                    is_pass_only = (
-                        len(body) == 1 and isinstance(body[0], ast.Pass)
-                    ) or (
-                        len(body) == 2
-                        and isinstance(body[0], ast.Expr)
-                        and isinstance(body[0].value, ast.Constant)
-                        and isinstance(body[1], ast.Pass)
-                    )
-                    assert not is_pass_only, (
-                        "SettingsPanelQt.save_settings() must have a real implementation,\n"
-                        "not just a pass body."
-                    )
-                    found = True
-                    break
+                if isinstance(item, ast.FunctionDef):
+                    panel_methods[item.name] = ast.get_source_segment(code, item) or ''
             break
 
-    assert found, (
-        "SettingsPanelQt is missing save_settings().\n"
-        "main.py's save_settings() calls self.settings_panel.save_settings() if it\n"
-        "exists — without it the panel is silently skipped."
+    assert 'on_setting_changed' in panel_methods, (
+        "SettingsPanelQt is missing on_setting_changed(). "
+        "This is the auto-save entry point wired to every settings widget."
     )
-    print("  ✅ SettingsPanelQt.save_settings() present and implemented")
+    oc_src = panel_methods['on_setting_changed']
+    assert 'config.save()' in oc_src, (
+        "on_setting_changed() must call config.save() immediately so every\n"
+        "widget change is persisted without a separate Save button."
+    )
+    print("  ✅ on_setting_changed() calls config.save() immediately")
+
+    # 2. save_settings() must NOT exist in the panel class
+    assert 'save_settings' not in panel_methods, (
+        "SettingsPanelQt must not have a save_settings() method.\n"
+        "Its presence implies a separate explicit save step; all settings\n"
+        "must instead be persisted immediately via on_setting_changed()."
+    )
+    print("  ✅ SettingsPanelQt has no save_settings() method (settings auto-save)")
+
+    # 3. No 'Save Settings' or standalone 'Save' QPushButton in the panel.
+    #    We check only direct-literal QPushButton(…) calls; variable-assigned
+    #    labels are not checked here but are controlled by code review.
+    save_btns = re.findall(
+        r'QPushButton\s*\(\s*["\'](?:Save Settings|Save)\s*["\']\s*\)',
+        code
+    )
+    assert not save_btns, (
+        f"SettingsPanelQt creates a 'Save Settings' or 'Save' button: {save_btns}\n"
+        "Remove it — settings must apply and persist immediately on change."
+    )
+    print("  ✅ No 'Save Settings' button in SettingsPanelQt")
 
 
 def test_clear_button_not_too_narrow():
@@ -1658,7 +1683,7 @@ def run_all_tests():
         test_auto_backup_recovery_wired,
         test_panda_overlay_no_source_mode_fill,
         test_panda_overlay_scale_capped,
-        test_settings_panel_has_save_settings,
+        test_settings_panel_auto_saves_on_change,
         test_clear_button_not_too_narrow,
         test_trail_preview_show_hide_events,
         test_panda_widget_gl_qstate_import,

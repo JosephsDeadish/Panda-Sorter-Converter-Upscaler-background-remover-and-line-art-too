@@ -5380,21 +5380,22 @@ class TextureSorterMainWindow(QMainWindow):
         msg.exec()
 
     def save_settings(self) -> bool:
-        """Persist current settings to disk.
+        """Flush the current config to disk.
 
-        Delegates to SettingsPanelQt when available, then falls back to
-        saving the global config directly so callers always get a result.
+        Settings in ``SettingsPanelQt`` already persist themselves immediately
+        on every widget change via ``on_setting_changed`` → ``config.save()``.
+        This method exists only for programmatic callers (e.g. ``closeEvent``)
+        that want a guaranteed final flush — it does **not** correspond to any
+        "Save Settings" button in the UI.
 
         Returns
         -------
         bool
-            True if settings were saved successfully, False otherwise.
+            True if the config was flushed successfully, False otherwise.
         """
         try:
-            if self.settings_panel and hasattr(self.settings_panel, 'save_settings'):
-                self.settings_panel.save_settings()
             config.save()
-            logger.info("Settings saved")
+            logger.info("Settings flushed to disk")
             return True
         except Exception as _e:
             logger.error(f"save_settings failed: {_e}", exc_info=True)

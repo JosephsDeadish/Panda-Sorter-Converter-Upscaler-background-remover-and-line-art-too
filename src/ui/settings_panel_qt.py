@@ -1341,21 +1341,6 @@ class SettingsPanelQt(QWidget):
         finally:
             self._updating = False
 
-    def save_settings(self) -> None:
-        """Explicitly flush all current config values to disk.
-
-        Each individual widget already calls ``self.config.set()`` +
-        ``self.config.save()`` in ``on_setting_changed``, so settings are
-        persisted on every change.  This method is provided for callers that
-        need a guaranteed save at an explicit point (e.g. the main window's
-        ``save_settings()`` → ``self.settings_panel.save_settings()``).
-        """
-        try:
-            self.config.save()
-            logger.info("Settings flushed to disk via SettingsPanelQt.save_settings()")
-        except Exception as _e:
-            logger.error(f"SettingsPanelQt.save_settings() failed: {_e}", exc_info=True)
-
     def on_setting_changed(self, section: str, key: str):
         """Handle generic setting changes"""
         if self._updating:
