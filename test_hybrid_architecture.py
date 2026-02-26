@@ -1471,6 +1471,157 @@ def test_panda_overlay_no_source_mode_fill():
     assert False, "PandaWidget2D.paintEvent() not found in panda_widget_2d.py"
 
 
+def test_panda_overlay_scale_capped():
+    """PandaWidget2D.paintEvent must cap the panda scale at ≤ 0.8.
+
+    The formula ``min(w, h) / 320.0`` gives scale=2.5 on a 1280×800 full-window
+    overlay, making the panda ~500 px tall and blocking the entire centre column
+    of the UI.  Capping at 0.8 keeps the panda at ~130 px — visible as a
+    companion but not obstructive.
+    """
+    print("\ntest_panda_overlay_scale_capped ...")
+    from pathlib import Path
+    import ast
+    src = Path(__file__).parent / 'src' / 'ui' / 'panda_widget_2d.py'
+    code = src.read_text(encoding='utf-8')
+    tree = ast.parse(code)
+
+    for node in ast.walk(tree):
+        if isinstance(node, ast.FunctionDef) and node.name == 'paintEvent':
+            method_src = ast.get_source_segment(code, node) or ''
+            # Scale must be capped: look for min(..., 0.8) or similar
+            assert '0.8' in method_src or '0.75' in method_src or '0.9' in method_src, (
+                "PandaWidget2D.paintEvent() must cap the scale to prevent the panda\n"
+                "from growing to 500+ px on a 1280×800 full-window overlay.\n"
+                "Expected: scale = min(min(w, h) / 320.0, 0.8)"
+            )
+            # The vertical position must NOT be h*0.52 (dead centre) any more —
+            # it should be lower so the panda doesn't block top-of-window content.
+            assert 'h * 0.52' not in method_src, (
+                "The panda vertical position h*0.52 places it at the dead centre of the\n"
+                "window, blocking Quick Launch buttons and panel content.\n"
+                "Fix: use h*0.72 or similar to keep the panda in the lower portion."
+            )
+            print("  ✅ scale is capped and panda is positioned below centre")
+            return
+    assert False, "PandaWidget2D.paintEvent() not found"
+
+
+def test_settings_panel_has_save_settings():
+    """SettingsPanelQt must have a save_settings() method.
+
+    The main window's save_settings() delegates to
+    ``self.settings_panel.save_settings()`` when the method exists.  Without it,
+    explicit save calls skip the panel entirely (the hasattr guard silently
+    passes over missing methods).
+    """
+    print("\ntest_settings_panel_has_save_settings ...")
+    from pathlib import Path
+    import ast
+    src = Path(__file__).parent / 'src' / 'ui' / 'settings_panel_qt.py'
+    code = src.read_text(encoding='utf-8')
+    tree = ast.parse(code)
+
+    found = False
+    for node in ast.walk(tree):
+        if isinstance(node, ast.ClassDef) and node.name == 'SettingsPanelQt':
+            for item in node.body:
+                if isinstance(item, ast.FunctionDef) and item.name == 'save_settings':
+                    # Must not be pass-only
+                    body = item.body
+                    is_pass_only = (
+                        len(body) == 1 and isinstance(body[0], ast.Pass)
+                    ) or (
+                        len(body) == 2
+                        and isinstance(body[0], ast.Expr)
+                        and isinstance(body[0].value, ast.Constant)
+                        and isinstance(body[1], ast.Pass)
+                    )
+                    assert not is_pass_only, (
+                        "SettingsPanelQt.save_settings() must have a real implementation,\n"
+                        "not just a pass body."
+                    )
+                    found = True
+                    break
+            break
+
+    assert found, (
+        "SettingsPanelQt is missing save_settings().\n"
+        "main.py's save_settings() calls self.settings_panel.save_settings() if it\n"
+        "exists — without it the panel is silently skipped."
+    )
+    print("  ✅ SettingsPanelQt.save_settings() present and implemented")
+
+
+def test_clear_button_not_too_narrow():
+    """The 'Clear' log button in the Home tab must not use setFixedWidth(80).
+
+    setFixedWidth(80) is too narrow for '🗑 Clear' with an emoji, causing Qt to
+    letter-space the characters and rendering the button text as '🗑 L i e a r'
+    in the UI.  The fix is to use setMinimumWidth() instead so Qt can expand
+    the button to fit its label.
+    """
+    print("\ntest_clear_button_not_too_narrow ...")
+    from pathlib import Path
+    import re
+    src = Path(__file__).parent / 'main.py'
+    code = src.read_text(encoding='utf-8')
+
+    # Look for the clear_log_btn block
+    # We specifically check that setFixedWidth(80) is NOT used right after the
+    # Clear button is created (within 3 lines of QPushButton("🗑 Clear"))
+    lines = code.splitlines()
+    for i, line in enumerate(lines):
+        if 'QPushButton("🗑 Clear")' in line or "QPushButton('🗑 Clear')" in line:
+            # Look at the next 4 lines for setFixedWidth(80)
+            context = '\n'.join(lines[i:i+5])
+            assert 'setFixedWidth(80)' not in context, (
+                f"Line {i+1}: The Clear log button still uses setFixedWidth(80).\n"
+                "80 px is too narrow for '🗑 Clear' with an emoji — Qt letter-spaces\n"
+                "the text, rendering it as '🗑 L i e a r'.\n"
+                "Fix: replace setFixedWidth(80) with setMinimumWidth(90) or remove it."
+            )
+            print(f"  ✅ Clear button (line {i+1}) does not use setFixedWidth(80)")
+            return
+    assert False, "QPushButton('🗑 Clear') not found in main.py"
+
+
+def test_trail_preview_show_hide_events():
+    """TrailPreviewWidget must implement showEvent and hideEvent.
+
+    When the Customisation tab is hidden (user switches to another tab) the
+    animation timer keeps ticking in the background, wasting CPU.  showEvent
+    should restart the animation and hideEvent should pause it so resources are
+    only consumed when the widget is actually on screen.
+    """
+    print("\ntest_trail_preview_show_hide_events ...")
+    from pathlib import Path
+    import ast
+    src = Path(__file__).parent / 'src' / 'ui' / 'trail_preview_qt.py'
+    code = src.read_text(encoding='utf-8')
+    tree = ast.parse(code)
+
+    class_methods: set = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.ClassDef) and node.name == 'TrailPreviewWidget':
+            for item in ast.walk(node):
+                if isinstance(item, ast.FunctionDef):
+                    class_methods.add(item.name)
+            break
+
+    assert 'showEvent' in class_methods, (
+        "TrailPreviewWidget is missing showEvent().\n"
+        "Without it the animation does not restart when the Customisation tab\n"
+        "becomes visible after the user switches away and back."
+    )
+    assert 'hideEvent' in class_methods, (
+        "TrailPreviewWidget is missing hideEvent().\n"
+        "Without it the animation timer keeps firing even when the widget is\n"
+        "hidden (user is on a different tab), wasting CPU cycles."
+    )
+    print("  ✅ TrailPreviewWidget has showEvent() and hideEvent()")
+
+
 def run_all_tests():
     print("=" * 65)
     print("Hybrid Architecture + Lazy rembg Import Tests")
@@ -1506,6 +1657,10 @@ def run_all_tests():
         test_tool_labels_no_duplicates,
         test_auto_backup_recovery_wired,
         test_panda_overlay_no_source_mode_fill,
+        test_panda_overlay_scale_capped,
+        test_settings_panel_has_save_settings,
+        test_clear_button_not_too_narrow,
+        test_trail_preview_show_hide_events,
         test_panda_widget_gl_qstate_import,
         test_bedroom_mouse_release_event,
         test_otter_smooth_look_animation,

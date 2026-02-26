@@ -993,7 +993,7 @@ class TextureSorterMainWindow(QMainWindow):
             "border: none; border-radius: 3px; }"
         )
         clear_log_btn = QPushButton("🗑 Clear")
-        clear_log_btn.setFixedWidth(80)
+        clear_log_btn.setMinimumWidth(90)
         clear_log_btn.setFixedHeight(22)
         clear_log_btn.setStyleSheet(
             "QPushButton { background:#2a2a3e; color:#888; border:1px solid #444; "
