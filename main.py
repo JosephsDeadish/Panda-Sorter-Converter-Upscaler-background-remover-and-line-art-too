@@ -950,7 +950,7 @@ class TextureSorterMainWindow(QMainWindow):
         self.input_path_label.setMinimumWidth(200)
         folder_grid.addWidget(self.input_path_label, 0, 1)
         input_browse_btn = QPushButton("Browse…")
-        input_browse_btn.setFixedWidth(80)
+        input_browse_btn.setFixedWidth(90)
         input_browse_btn.clicked.connect(self.browse_input)
         folder_grid.addWidget(input_browse_btn, 0, 2)
 
@@ -963,7 +963,7 @@ class TextureSorterMainWindow(QMainWindow):
         self.output_path_label.setMinimumWidth(200)
         folder_grid.addWidget(self.output_path_label, 1, 1)
         output_browse_btn = QPushButton("Browse…")
-        output_browse_btn.setFixedWidth(80)
+        output_browse_btn.setFixedWidth(90)
         output_browse_btn.clicked.connect(self.browse_output)
         folder_grid.addWidget(output_browse_btn, 1, 2)
 
@@ -2193,8 +2193,17 @@ class TextureSorterMainWindow(QMainWindow):
             self._coin_label = None
             self._panda_mood_label = None
     
-    def apply_theme(self):
-        """Apply theme stylesheet based on config."""
+    def apply_theme(self, theme_name: str = None):
+        """Apply theme stylesheet based on config.
+
+        Args:
+            theme_name: Optional theme name override.  When provided the name is
+                        saved to config before applying so it persists.  When
+                        omitted (normal case) the value already stored in config
+                        is used.
+        """
+        if theme_name is not None:
+            config.set('ui', 'theme', value=theme_name)
         theme = config.get('ui', 'theme', default='dark')
         accent = config.get('ui', 'accent_color', default='#0d7377')
         
@@ -2645,7 +2654,6 @@ class TextureSorterMainWindow(QMainWindow):
                 padding: 8px 16px;
                 border-radius: 4px;
                 font-weight: bold;
-                cursor: pointer;
             }}
             QPushButton:hover {{
                 background-color: {hover_color.name()};

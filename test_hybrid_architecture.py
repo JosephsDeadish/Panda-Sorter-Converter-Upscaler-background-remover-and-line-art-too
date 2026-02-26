@@ -1066,6 +1066,107 @@ def test_dungeon_render_integrated_dungeon():
     print("  ✅ render_dungeon handles legacy list-of-floors format")
 
 
+def test_apply_theme_accepts_optional_name():
+    """apply_theme() must accept an optional theme-name argument.
+
+    When the shop sells a theme item, ``_apply_item_to_panda_widget()``
+    calls ``self.apply_theme(item_id)`` where *item_id* is the theme name
+    string (e.g. ``'dark'``, ``'nord'``).  The original signature was
+    ``def apply_theme(self)`` (no args), which raised
+    ``TypeError: apply_theme() takes 1 positional argument but 2 were given``.
+
+    The fix adds an optional ``theme_name: str = None`` parameter that, when
+    provided, is saved to config before reading it back — so every code path
+    (direct call with a name, signal-driven call with no args) still works.
+    """
+    print("\ntest_apply_theme_accepts_optional_name ...")
+    from pathlib import Path
+    import re
+    src = Path(__file__).parent / 'main.py'
+    code = src.read_text(encoding='utf-8')
+
+    # Signature must accept an optional argument named exactly 'theme_name'
+    sig_match = re.search(r'def apply_theme\(self([^)]*)\)', code)
+    assert sig_match, "apply_theme() not found in main.py"
+    sig_params = sig_match.group(1)
+    assert 'theme_name' in sig_params, (
+        "apply_theme() must accept an optional parameter named 'theme_name' "
+        "(e.g. 'theme_name: str = None') so it can be called as "
+        "apply_theme('dark') from _apply_item_to_panda_widget().\n"
+        f"Current signature: def apply_theme(self{sig_params})"
+    )
+    # Must also default to None / have a default value (= None or = '')
+    assert '= None' in sig_params or "= ''" in sig_params, (
+        "The theme_name parameter must default to None so the no-arg call "
+        "apply_theme() (used from on_settings_changed) still works."
+    )
+    # Verify it saves to config when a name is provided
+    assert "config.set('ui', 'theme'" in code or 'config.set("ui", "theme"' in code, (
+        "apply_theme(theme_name) must save theme_name to config before reading "
+        "it back, so the setting persists across calls."
+    )
+    print("  ✅ apply_theme() accepts optional theme_name parameter")
+    print("  ✅ theme_name defaults to None (no-arg call still works)")
+    print("  ✅ theme_name saved to config when provided")
+
+
+def test_qss_no_cursor_pointer():
+    """Qt6 QSS must NOT contain 'cursor: pointer' — it is unsupported and noisy.
+
+    Qt6's QSS parser does not support the CSS ``cursor`` property.  Every widget
+    that receives a stylesheet containing ``cursor: pointer`` emits a
+    ``Unknown property cursor`` warning — with hundreds of widgets this produces
+    a flood that pollutes the console and CI logs.
+
+    The correct Qt6 approach is ``widget.setCursor(Qt.CursorShape.PointingHandCursor)``,
+    which is implemented in ``_install_pointing_cursor_filter()``.
+    """
+    print("\ntest_qss_no_cursor_pointer ...")
+    from pathlib import Path
+    import ast, re
+    src = Path(__file__).parent / 'main.py'
+    code = src.read_text(encoding='utf-8')
+
+    # Use the AST to find string literals that are used as *values* (not docstrings).
+    # Only value strings (right-hand-side of assignments, arguments to calls, etc.)
+    # can be passed to setStyleSheet() — docstrings are ast.Expr(ast.Constant) at
+    # the start of a function/class/module body and are skipped.
+    try:
+        tree = ast.parse(code)
+    except SyntaxError as e:
+        assert False, f"main.py has a SyntaxError: {e}"
+
+    # Collect line numbers of all docstrings so we can exclude them
+    docstring_lines: set = set()
+    for node in ast.walk(tree):
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef, ast.Module)):
+            body = node.body
+            if (body and isinstance(body[0], ast.Expr) and
+                    isinstance(body[0].value, ast.Constant) and
+                    isinstance(body[0].value.value, str)):
+                docstring_lines.add(body[0].value.lineno)
+
+    qss_cursor_hits = []
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Constant) and isinstance(node.value, str):
+            if node.lineno in docstring_lines:
+                continue  # skip docstrings
+            val = node.value
+            if 'cursor: pointer' in val or 'cursor:pointer' in val:
+                snippet = val.replace('\n', ' ')[:80]
+                qss_cursor_hits.append((node.lineno, snippet))
+
+    assert not qss_cursor_hits, (
+        "QSS stylesheet strings in main.py must NOT contain 'cursor: pointer'.\n"
+        "Qt6 does not support the CSS cursor property — it silently ignores it but\n"
+        "emits hundreds of 'Unknown property cursor' warnings (one per widget).\n"
+        "Use _install_pointing_cursor_filter() / setCursor() instead.\n"
+        "Offending string literals:\n" +
+        "\n".join(f"  L{ln}: ...{snip}..." for ln, snip in qss_cursor_hits)
+    )
+    print("  ✅ No 'cursor: pointer' found in any string literal (QSS-safe)")
+
+
 def run_all_tests():
     print("=" * 65)
     print("Hybrid Architecture + Lazy rembg Import Tests")
@@ -1092,6 +1193,8 @@ def run_all_tests():
         test_main_qgroupbox_import,
         test_main_input_path_label_exists,
         test_dungeon_render_integrated_dungeon,
+        test_apply_theme_accepts_optional_name,
+        test_qss_no_cursor_pointer,
         test_panda_widget_gl_qstate_import,
         test_bedroom_mouse_release_event,
         test_otter_smooth_look_animation,
