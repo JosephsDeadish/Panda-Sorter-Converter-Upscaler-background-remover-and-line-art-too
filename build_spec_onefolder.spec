@@ -178,7 +178,13 @@ except Exception as _e:
           f"3D panda may fall back to 2D mode in the frozen EXE")
 
 # ── Collect optional heavy deps (graceful failure each) ───────────────────────
-for _opt_pkg in ('gfpgan', 'basicsr', 'realesrgan', 'facexlib', 'rembg'):
+# rembg is intentionally excluded: rembg.bg calls sys.exit(1) when onnxruntime
+# fails to initialise its DLL in PyInstaller's isolated find_binary_dependencies
+# subprocesses.  pre_safe_import_module/hook-rembg.py only patches sys.exit
+# during the module-analysis phase; it cannot patch the fully-isolated binary
+# dependency subprocesses.  The runtime code already lazy-imports rembg and
+# degrades gracefully when it is unavailable.
+for _opt_pkg in ('gfpgan', 'basicsr', 'realesrgan', 'facexlib'):
     try:
         _d, _b, _h = collect_all(_opt_pkg)
         _extra_datas    += _d
@@ -280,24 +286,9 @@ a = Analysis(
         'pynput.keyboard',
         'pynput.mouse',
         # AI inference and model download utilities
-        # Note: rembg is NO LONGER excluded (see excludes section for explanation).
-        # pre_safe_import_module/hook-rembg.py patches sys.exit() so that
-        # rembg.bg's sys.exit(1) becomes a harmless SystemExit during analysis.
-        # onnxruntime binaries are still collected by hook-onnxruntime.py.
+        # onnxruntime binaries are collected by hook-onnxruntime.py.
+        # rembg is excluded (see excludes list) — runtime code lazy-imports it.
         'onnxruntime',  # Required for offline AI model inference (src/ai/inference.py, src/ai/offline_model.py)
-        # rembg is no longer in excludes — bundle it so background removal works in the EXE.
-        # The pre_safe_import_module/hook-rembg.py patches sys.exit during analysis.
-        'rembg',
-        'rembg.sessions',
-        'rembg.sessions.base',
-        'rembg.sessions.simple',
-        'rembg.sessions.u2net',
-        'rembg.sessions.u2netp',
-        'rembg.sessions.u2net_human_seg',
-        'rembg.sessions.silueta',
-        'rembg.sessions.isnet',
-        'rembg.sessions.isnet_dis',
-        'rembg.sessions.birefnet',
         'pooch',  # Required for ML model downloads (used by various AI/ML libraries)
         'requests',
         # Hybrid inference modules (ONNX – always-on, no torch dependency)
@@ -353,7 +344,7 @@ a = Analysis(
         # hook-torchvision.py also runs collect_submodules() + include_py_files=True
         # (needed so TorchScript inspect.getsource() works at runtime).
         'torchvision.transforms.functional',   # used by basicsr compat shim
-        'torchvision.transforms.functional_tensor',  # may still exist in older installs
+        # Removed hidden import: torchvision.transforms.functional_tensor was removed in torchvision 0.16+
         # Additional Qt submodules used by the app
         'PyQt6.QtMultimedia',
         'PyQt6.QtPrintSupport',
@@ -455,12 +446,19 @@ a = Analysis(
         'sphinx',
         'setuptools',
         'distutils',
-        
-        # NOTE: rembg is NO LONGER in excludes.
-        # The pre_safe_import_module/hook-rembg.py patches sys.exit() during
-        # PyInstaller analysis so rembg.bg's sys.exit(1) becomes a harmless
-        # SystemExit.  Bundling rembg enables background removal in the EXE.
-        # onnxruntime DLLs are collected via hook-onnxruntime.py.
+
+        # rembg: excluded to prevent a fatal build-time crash.
+        # rembg.bg imports onnxruntime at module level and calls sys.exit(1) when
+        # its DLL fails to initialise.  PyInstaller's find_binary_dependencies step
+        # spawns fully-isolated subprocesses to resolve DLL deps; pre_safe_import_module
+        # hooks do NOT run in those subprocesses, so sys.exit(1) propagates and kills
+        # the build.  The runtime code (background_remover_panel_qt.py) already
+        # lazy-imports rembg and shows a "not available" message when absent.
+        'rembg',
+        'rembg.bg',
+        'rembg.sessions',
+        'rembg.session_base',
+        'rembg.session_factory',
     ],
     win_no_prefer_redirects=False,
     win_private_assemblies=False,
