@@ -122,6 +122,35 @@ def validate_dependencies() -> Tuple[bool, str, List[str]]:
     return True, "", []
 
 
+def _apply_torchvision_compat_shim():
+    """Inject a torchvision.transforms.functional_tensor compat shim.
+
+    torchvision 0.16+ removed ``torchvision.transforms.functional_tensor``.
+    basicsr ≤ 1.4.2 imports it at module level, so without the shim every
+    ``import basicsr`` raises ModuleNotFoundError even when basicsr is installed.
+    This shim must be applied before the first ``import basicsr`` anywhere in
+    the process.
+    """
+    import types as _types
+    import sys as _sys
+    if 'torchvision.transforms.functional_tensor' in _sys.modules:
+        return  # already present (old torchvision or previously patched)
+    try:
+        import torchvision.transforms.functional as _tvtf  # noqa: F401
+        _compat = _types.ModuleType('torchvision.transforms.functional_tensor')
+        for _attr in (
+            'rgb_to_grayscale', 'adjust_brightness', 'adjust_contrast',
+            'adjust_saturation', 'adjust_hue', 'normalize',
+            'pad', 'crop', 'center_crop', 'resize',
+            'to_tensor', 'to_pil_image',
+        ):
+            if hasattr(_tvtf, _attr):
+                setattr(_compat, _attr, getattr(_tvtf, _attr))
+        _sys.modules['torchvision.transforms.functional_tensor'] = _compat
+    except Exception:
+        pass  # torchvision not installed — basicsr checks will fail gracefully
+
+
 def validate_optional_dependencies() -> List[Tuple[str, str, str]]:
     """
     Check optional ML/AI dependencies and return status for each.
@@ -130,6 +159,10 @@ def validate_optional_dependencies() -> List[Tuple[str, str, str]]:
         List of (module_name, status, install_hint) tuples.
         status is 'installed' or 'missing'.
     """
+    # Apply torchvision compat shim so that basicsr can be imported on
+    # torchvision 0.16+ (which removed functional_tensor).
+    _apply_torchvision_compat_shim()
+
     optional_deps = [
         # 3-D panda rendering -- non-fatal: 2D QPainter fallback is always available
         ('OpenGL', 'PyOpenGL (3D panda rendering -- 2D fallback used if missing)', 'pip install PyOpenGL PyOpenGL-accelerate'),

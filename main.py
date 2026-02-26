@@ -43,6 +43,32 @@ src_dir = Path(__file__).parent / 'src'
 if str(src_dir) not in sys.path:
     sys.path.insert(0, str(src_dir))
 
+# ---------------------------------------------------------------------------
+# torchvision compat shim — must run BEFORE any import of basicsr/realesrgan
+# ---------------------------------------------------------------------------
+# torchvision 0.16+ removed torchvision.transforms.functional_tensor.
+# basicsr ≤ 1.4.2 imports it at module level, causing ImportError on modern
+# torchvision.  Inject a thin shim so basicsr imports cleanly everywhere.
+try:
+    import torchvision.transforms.functional_tensor as _tvft_early  # noqa: F401
+except (ImportError, ModuleNotFoundError):
+    try:
+        import torchvision.transforms.functional as _tvtf_early  # noqa: F401
+        _compat_early = _types.ModuleType('torchvision.transforms.functional_tensor')
+        for _attr_early in (
+            'rgb_to_grayscale', 'adjust_brightness', 'adjust_contrast',
+            'adjust_saturation', 'adjust_hue', 'normalize',
+            'pad', 'crop', 'center_crop', 'resize',
+            'to_tensor', 'to_pil_image',
+        ):
+            if hasattr(_tvtf_early, _attr_early):
+                setattr(_compat_early, _attr_early, getattr(_tvtf_early, _attr_early))
+        sys.modules['torchvision.transforms.functional_tensor'] = _compat_early
+        del _compat_early, _tvtf_early
+    except Exception:
+        pass  # torchvision not installed; basicsr/realesrgan checks handle this gracefully
+# ---------------------------------------------------------------------------
+
 # Handle lightweight CLI flags BEFORE importing Qt (no display needed)
 # These must run early — before any module-level Qt import — so they work
 # even when PyQt6 is not installed.
