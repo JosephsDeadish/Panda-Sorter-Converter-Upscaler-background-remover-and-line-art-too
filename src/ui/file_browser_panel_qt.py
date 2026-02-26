@@ -458,12 +458,15 @@ class FileBrowserPanelQt(QWidget):
             if not _clip_backend and not _hf_available:
                 raise ImportError("Neither open-clip-torch nor transformers is installed")
 
+            def _process_events():
+                try:
+                    from PyQt6.QtWidgets import QApplication as _QApp
+                    _QApp.processEvents()
+                except Exception:
+                    pass
+
             self.content_search_status.setText("⏳ Loading CLIP model…")
-            try:
-                from PyQt6.QtWidgets import QApplication as _QApp
-                _QApp.processEvents()
-            except Exception:
-                pass
+            _process_events()
 
             from PIL import Image as _PILImage
 
@@ -481,11 +484,7 @@ class FileBrowserPanelQt(QWidget):
 
                 scores: list = []
                 self.content_search_status.setText("⏳ Scoring images…")
-                try:
-                    from PyQt6.QtWidgets import QApplication as _QApp2
-                    _QApp2.processEvents()
-                except Exception:
-                    pass
+                _process_events()
                 for fp in image_files:
                     try:
                         img = preprocess(_PILImage.open(fp).convert("RGB")).unsqueeze(0)
@@ -503,11 +502,7 @@ class FileBrowserPanelQt(QWidget):
 
                 scores = []
                 self.content_search_status.setText("⏳ Scoring images…")
-                try:
-                    from PyQt6.QtWidgets import QApplication as _QApp3
-                    _QApp3.processEvents()
-                except Exception:
-                    pass
+                _process_events()
                 for fp in image_files:
                     try:
                         img = _PILImage.open(fp).convert("RGB")
@@ -523,9 +518,9 @@ class FileBrowserPanelQt(QWidget):
                 self.content_search_status.setText("No images could be scored.")
                 return
 
+            _MAX_RESULTS = 50
             scores.sort(reverse=True)
-            # Keep top 50 or those with positive/above-median similarity
-            top_files = [fp for _, fp in scores[:50]]
+            top_files = [fp for _, fp in scores[:_MAX_RESULTS]]
             self.display_files(top_files)
             self.content_search_status.setText(
                 f"✅ Showing {len(top_files)} best matches for \"{query}\""

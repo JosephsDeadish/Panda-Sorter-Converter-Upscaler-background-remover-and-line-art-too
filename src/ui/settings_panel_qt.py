@@ -1015,7 +1015,7 @@ class SettingsPanelQt(QWidget):
         
         layout.addStretch()
         return widget
-    
+
     def show_ai_install_guide(self):
         """Show detailed installation guide for AI features"""
         guide = QMessageBox(self)

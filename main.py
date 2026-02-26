@@ -2582,6 +2582,7 @@ class TextureSorterMainWindow(QMainWindow):
                 padding: 8px 16px;
                 border-radius: 4px;
                 font-weight: bold;
+                cursor: pointer;
             }}
             QPushButton:hover {{
                 background-color: {hover_color.name()};
@@ -2592,6 +2593,99 @@ class TextureSorterMainWindow(QMainWindow):
             QPushButton:disabled {{
                 background-color: #555555;
                 color: #999999;
+            }}
+            QLineEdit {{
+                background-color: #2a2a2a;
+                color: #ffffff;
+                border: 1px solid #555555;
+                border-radius: 3px;
+                padding: 4px 6px;
+                selection-background-color: {accent};
+            }}
+            QLineEdit:focus {{
+                border: 2px solid {accent};
+            }}
+            QLineEdit:read-only {{
+                background-color: #232323;
+                color: #aaaaaa;
+            }}
+            QComboBox {{
+                background-color: #2a2a2a;
+                color: #ffffff;
+                border: 1px solid #555555;
+                border-radius: 3px;
+                padding: 4px 6px;
+                min-height: 22px;
+            }}
+            QComboBox:hover {{
+                border: 1px solid {accent};
+            }}
+            QComboBox::drop-down {{
+                border: none;
+                width: 20px;
+            }}
+            QComboBox::down-arrow {{
+                image: none;
+                border-left: 4px solid transparent;
+                border-right: 4px solid transparent;
+                border-top: 6px solid #aaaaaa;
+                width: 0;
+                height: 0;
+                margin-right: 4px;
+            }}
+            QComboBox QAbstractItemView {{
+                background-color: #2a2a2a;
+                color: #ffffff;
+                border: 1px solid #555555;
+                selection-background-color: {accent};
+            }}
+            QCheckBox {{
+                spacing: 6px;
+                color: #e0e0e0;
+            }}
+            QCheckBox::indicator {{
+                width: 15px;
+                height: 15px;
+                border: 2px solid #666666;
+                border-radius: 3px;
+                background: #2a2a2a;
+            }}
+            QCheckBox::indicator:checked {{
+                background: {accent};
+                border: 2px solid {accent};
+            }}
+            QCheckBox::indicator:hover {{
+                border: 2px solid {hover_color.name()};
+            }}
+            QSpinBox, QDoubleSpinBox {{
+                background-color: #2a2a2a;
+                color: #ffffff;
+                border: 1px solid #555555;
+                border-radius: 3px;
+                padding: 3px 5px;
+            }}
+            QSpinBox:focus, QDoubleSpinBox:focus {{
+                border: 2px solid {accent};
+            }}
+            QSlider::groove:horizontal {{
+                height: 6px;
+                background: #333333;
+                border-radius: 3px;
+            }}
+            QSlider::handle:horizontal {{
+                background: {accent};
+                border: 2px solid {hover_color.name()};
+                width: 16px;
+                height: 16px;
+                border-radius: 9px;
+                margin: -5px 0;
+            }}
+            QSlider::handle:horizontal:hover {{
+                background: {hover_color.name()};
+            }}
+            QSlider::sub-page:horizontal {{
+                background: {accent};
+                border-radius: 3px;
             }}
             QLabel {{
                 color: #ffffff;

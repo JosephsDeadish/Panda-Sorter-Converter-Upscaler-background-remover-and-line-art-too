@@ -63,6 +63,9 @@ class BackgroundRemoverPanelQt(QWidget):
     # Signals
     image_loaded = pyqtSignal(str)
     processing_complete = pyqtSignal()
+
+    # Prefix for temp directories created during background removal
+    TEMP_DIR_PREFIX = "bg_remover_"
     
     def __init__(self, parent=None, tooltip_manager=None):
         if not PYQT_AVAILABLE:
@@ -536,7 +539,7 @@ class BackgroundRemoverPanelQt(QWidget):
                 output = rembg.remove(pil_image)
 
             # Save result to a temp PNG file (preserving alpha)
-            tmp_dir = Path(tempfile.mkdtemp(prefix="bg_remover_"))
+            tmp_dir = Path(tempfile.mkdtemp(prefix=self.TEMP_DIR_PREFIX))
             self._rembg_temp_dirs.append(tmp_dir)  # track for later cleanup
             result_path = tmp_dir / (Path(self.current_image).stem + "_no_bg.png")
             output.save(str(result_path), format='PNG')
