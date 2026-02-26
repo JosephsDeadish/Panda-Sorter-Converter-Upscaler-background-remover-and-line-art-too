@@ -868,8 +868,8 @@ class TextureSorterMainWindow(QMainWindow):
         layout = QVBoxLayout(tab)
         layout.setContentsMargins(20, 20, 20, 20)
 
-        # Welcome message
-        welcome_label = QLabel("🐼 Panda Sorter Converter Upscaler")
+        # Welcome message — use APP_NAME from config so it stays in sync
+        welcome_label = QLabel(f"🐼 {APP_NAME}")
         welcome_label.setStyleSheet("font-size: 24pt; font-weight: bold;")
         welcome_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(welcome_label)
@@ -993,7 +993,7 @@ class TextureSorterMainWindow(QMainWindow):
             "border: none; border-radius: 3px; }"
         )
         clear_log_btn = QPushButton("🗑 Clear")
-        clear_log_btn.setFixedWidth(70)
+        clear_log_btn.setFixedWidth(80)
         clear_log_btn.setFixedHeight(22)
         clear_log_btn.setStyleSheet(
             "QPushButton { background:#2a2a3e; color:#888; border:1px solid #444; "
@@ -1394,8 +1394,10 @@ class TextureSorterMainWindow(QMainWindow):
         # Store panel reference
         self.tool_panels[tool_id] = widget
         
-        # Create dock widget
+        # Create dock widget — objectName must be set so QMainWindow.saveState() can
+        # serialize the dock geometry without emitting "objectName not set" warnings.
         dock = QDockWidget(title, self)
+        dock.setObjectName(f"dock_{tool_id}")
         dock.setWidget(widget)
         dock.setFeatures(
             QDockWidget.DockWidgetFeature.DockWidgetMovable |
@@ -2837,10 +2839,10 @@ class TextureSorterMainWindow(QMainWindow):
                     'dracula': 'shadow_walker',
                     'solarized_dark': 'bamboo_sage',
                     'light': 'angelic_sorter',
-                    'forest': 'bamboo_grove',
-                    'ocean': 'ocean_explorer',
-                    'sunset': 'golden_hour',
-                    'cyberpunk': 'neon_rider',
+                    'forest': 'bamboo_sage',      # closest existing achievement
+                    'ocean': 'pirate_adventure',  # closest existing achievement
+                    'sunset': 'golden_touch',     # closest existing achievement
+                    'cyberpunk': 'thunderstruck', # closest existing achievement
                 }
                 ach_id = _theme_ach.get(theme)
                 if ach_id:
@@ -4700,11 +4702,16 @@ class TextureSorterMainWindow(QMainWindow):
                 self.currency_system.earn_money(coins, f'minigame_{game_id}')
                 self._update_coin_display()
             if self.achievement_system:
-                self.achievement_system.unlock_achievement('minigame_player')
+                # 'first_game' unlocks on the first minigame completed
+                self.achievement_system.unlock_achievement('first_game')
+                # 'click_champion' awards a high-score badge (100+)
                 if score >= 100:
-                    self.achievement_system.unlock_achievement('minigame_master')
+                    self.achievement_system.unlock_achievement('click_champion')
+                # 'minigame_addict' tracks 50+ plays — increment via progress
+                self.achievement_system.update_progress('minigame_addict', 1, increment=True)
             if self.quest_system:
-                self.quest_system.update_quest_progress('minigame_enjoyer')
+                # No dedicated minigame quest — mark general interaction progress
+                self.quest_system.update_quest_progress('first_interaction')
         except Exception as _e:
             logger.debug(f"Minigame completed callback error: {_e}")
 
@@ -5501,6 +5508,9 @@ class TextureSorterMainWindow(QMainWindow):
     def _make_tab_dock(self, tab_name: str, clean_name: str, widget: QWidget) -> QDockWidget:
         """Create a QDockWidget for a detached tab with a 'Restore as Tab' context menu."""
         dock = QDockWidget(tab_name, self)
+        # objectName must be set so QMainWindow.saveState() serialises geometry correctly
+        safe_name = ''.join(c if c.isalnum() or c in ('_', '-') else '_' for c in clean_name)
+        dock.setObjectName(f"dock_tab_{safe_name}")
         dock.setWidget(widget)
         dock.setFeatures(
             QDockWidget.DockWidgetFeature.DockWidgetMovable |

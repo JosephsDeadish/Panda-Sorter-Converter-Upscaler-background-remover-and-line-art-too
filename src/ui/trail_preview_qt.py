@@ -40,6 +40,10 @@ class TrailPreviewView(QGraphicsView):
         self.setRenderHint(QPainter.RenderHint.Antialiasing)
         # Accept mouse tracking so we receive moves without a button pressed
         self.setMouseTracking(True)
+        # Hide scrollbars — the scene is larger than the visible area by design;
+        # the view fits into the fixed-height preview strip.
+        self.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
 
         self.trail_items = []
         self.trail_color = QColor(255, 0, 0)

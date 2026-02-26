@@ -1167,6 +1167,134 @@ def test_qss_no_cursor_pointer():
     print("  ✅ No 'cursor: pointer' found in any string literal (QSS-safe)")
 
 
+def test_dock_widget_object_names():
+    """All QDockWidgets created by _add_tool_dock must have objectName set.
+
+    QMainWindow.saveState() silently skips (and warns about) dock widgets
+    with an empty objectName, which means their positions are not saved or
+    restored across sessions.  _add_tool_dock() must call
+    ``dock.setObjectName(f"dock_{tool_id}")`` before addDockWidget().
+    """
+    print("\ntest_dock_widget_object_names ...")
+    from pathlib import Path
+    import re
+    src = Path(__file__).parent / 'main.py'
+    code = src.read_text(encoding='utf-8')
+
+    # The _add_tool_dock method must call setObjectName on the dock
+    add_dock_match = re.search(
+        r'def _add_tool_dock\(.*?\n(.*?)(?=\n    def |\Z)', code, re.DOTALL
+    )
+    assert add_dock_match, "_add_tool_dock() not found in main.py"
+    body = add_dock_match.group(1)
+    assert 'setObjectName' in body, (
+        "_add_tool_dock() must call dock.setObjectName() so QMainWindow.saveState()\n"
+        "can serialise dock widget layout.  Without an objectName, Qt warns:\n"
+        "  QMainWindow::saveState(): 'objectName' not set for QDockWidget …\n"
+        "Fix: add dock.setObjectName(f\"dock_{tool_id}\") before addDockWidget()."
+    )
+    # Also check _make_tab_dock
+    tab_dock_match = re.search(
+        r'def _make_tab_dock\(.*?\n(.*?)(?=\n    def |\Z)', code, re.DOTALL
+    )
+    assert tab_dock_match, "_make_tab_dock() not found in main.py"
+    tab_body = tab_dock_match.group(1)
+    assert 'setObjectName' in tab_body, (
+        "_make_tab_dock() must call dock.setObjectName() for saveState() compatibility."
+    )
+    print("  ✅ _add_tool_dock() calls dock.setObjectName()")
+    print("  ✅ _make_tab_dock() calls dock.setObjectName()")
+
+
+def test_minigame_achievement_ids_valid():
+    """_on_minigame_completed must reference valid achievement IDs.
+
+    Previously the method called:
+      achievement_system.unlock_achievement('minigame_player')   # does not exist
+      achievement_system.unlock_achievement('minigame_master')   # does not exist
+      quest_system.update_quest_progress('minigame_enjoyer')     # does not exist
+
+    These silently produce WARNING log lines every time a minigame is completed.
+    The correct IDs come from the AchievementSystem and QuestSystem definitions.
+    """
+    print("\ntest_minigame_achievement_ids_valid ...")
+    import sys as _sys
+    _sys.path.insert(0, 'src')
+    from pathlib import Path
+    import re
+
+    # Load the set of defined achievement IDs
+    from features.achievements import AchievementSystem
+    valid_ach_ids = set(AchievementSystem().achievements.keys())
+
+    # Load the set of defined quest IDs
+    from features.quest_system import QuestSystem
+    valid_quest_ids = set(QuestSystem().quests.keys())
+
+    src = Path(__file__).parent / 'main.py'
+    code = src.read_text(encoding='utf-8')
+
+    # Find the _on_minigame_completed method body
+    m = re.search(
+        r'def _on_minigame_completed\(.*?\n(.*?)(?=\n    def |\Z)', code, re.DOTALL
+    )
+    assert m, "_on_minigame_completed() not found in main.py"
+    body = m.group(1)
+
+    # Extract all unlock_achievement('id') calls in the method
+    ach_ids_used = set(re.findall(r"unlock_achievement\(\s*['\"]([^'\"]+)['\"]\s*\)", body))
+    bad_ach = ach_ids_used - valid_ach_ids
+    assert not bad_ach, (
+        f"_on_minigame_completed() calls unlock_achievement() with unknown IDs: {bad_ach}\n"
+        f"Valid IDs are: {sorted(valid_ach_ids)}"
+    )
+
+    # Extract all update_quest_progress('id') calls in the method
+    quest_ids_used = set(re.findall(r"update_quest_progress\(\s*['\"]([^'\"]+)['\"]\s*\)", body))
+    bad_quest = quest_ids_used - valid_quest_ids
+    assert not bad_quest, (
+        f"_on_minigame_completed() calls update_quest_progress() with unknown IDs: {bad_quest}\n"
+        f"Valid IDs are: {sorted(valid_quest_ids)}"
+    )
+
+    print(f"  ✅ All achievement IDs valid: {sorted(ach_ids_used)}")
+    print(f"  ✅ All quest IDs valid: {sorted(quest_ids_used)}")
+
+
+def test_theme_achievement_ids_valid():
+    """apply_theme() must map theme names to valid achievement IDs only.
+
+    The _theme_ach dict maps theme names ('forest', 'ocean', etc.) to achievement
+    IDs.  If an ID does not exist in AchievementSystem.achievements, the
+    unlock_achievement() call logs a WARNING on every theme switch.
+    """
+    print("\ntest_theme_achievement_ids_valid ...")
+    import sys as _sys
+    _sys.path.insert(0, 'src')
+    from pathlib import Path
+    import re
+
+    from features.achievements import AchievementSystem
+    valid_ach_ids = set(AchievementSystem().achievements.keys())
+
+    src = Path(__file__).parent / 'main.py'
+    code = src.read_text(encoding='utf-8')
+
+    # Find the _theme_ach dict literal inside apply_theme()
+    m = re.search(r'_theme_ach\s*=\s*\{([^}]+)\}', code, re.DOTALL)
+    assert m, "_theme_ach dict not found in main.py (inside apply_theme)"
+    block = m.group(1)
+
+    # Extract all values (achievement IDs)
+    ach_values = set(re.findall(r":\s*['\"]([^'\"]+)['\"]", block))
+    bad = ach_values - valid_ach_ids
+    assert not bad, (
+        f"apply_theme() _theme_ach maps to unknown achievement IDs: {bad}\n"
+        f"Valid IDs: {sorted(valid_ach_ids)}"
+    )
+    print(f"  ✅ All {len(ach_values)} theme achievement IDs are valid")
+
+
 def run_all_tests():
     print("=" * 65)
     print("Hybrid Architecture + Lazy rembg Import Tests")
@@ -1195,6 +1323,9 @@ def run_all_tests():
         test_dungeon_render_integrated_dungeon,
         test_apply_theme_accepts_optional_name,
         test_qss_no_cursor_pointer,
+        test_dock_widget_object_names,
+        test_minigame_achievement_ids_valid,
+        test_theme_achievement_ids_valid,
         test_panda_widget_gl_qstate_import,
         test_bedroom_mouse_release_event,
         test_otter_smooth_look_animation,
