@@ -465,10 +465,14 @@ class ImageRepairPanelQt(QWidget):
                 self.diagnostic_text.append(f"⚠️ {filename}")
                 self.diagnostic_text.append(f"   Status: CORRUPTED")
                 self.diagnostic_text.append(f"   Type: {result.corruption_type}")
-                self.diagnostic_text.append(f"   Details: {result.message}\n")
+                if result.repairable:
+                    self.diagnostic_text.append(f"   Recovery: {result.recovery_percentage:.0f}% recoverable")
+                details = '; '.join(result.notes) if result.notes else 'No additional details'
+                self.diagnostic_text.append(f"   Details: {details}\n")
             else:
                 self.diagnostic_text.append(f"✓ {filename}")
-                self.diagnostic_text.append(f"   Status: OK\n")
+                extra = f' ({"; ".join(result.notes)})' if result.notes else ''
+                self.diagnostic_text.append(f"   Status: OK{extra}\n")
         
         self.progress_label.setText("Diagnostic complete")
     

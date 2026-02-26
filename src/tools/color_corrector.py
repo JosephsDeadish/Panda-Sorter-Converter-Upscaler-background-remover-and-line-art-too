@@ -24,6 +24,7 @@ try:
     import numpy as np
     HAS_NUMPY = True
 except (ImportError, OSError, RuntimeError):
+    np = None  # type: ignore[assignment]
     HAS_NUMPY = False
     logger.error("numpy not available - limited functionality")
     logger.error("Install with: pip install numpy")
@@ -51,6 +52,9 @@ class ColorCorrector:
         Returns:
             Corrected PIL Image
         """
+        if not HAS_NUMPY:
+            logger.warning("auto_white_balance requires numpy; returning original image")
+            return image
         try:
             # Convert to numpy array
             img_array = np.array(image, dtype=np.float32)
@@ -88,7 +92,7 @@ class ColorCorrector:
     def adjust_exposure(self, image: Image.Image, ev_stops: float) -> Image.Image:
         """
         Adjust image exposure in EV stops.
-        
+
         Args:
             image: Input PIL Image
             ev_stops: Exposure adjustment in stops (-3.0 to +3.0)
@@ -96,6 +100,9 @@ class ColorCorrector:
         Returns:
             Adjusted PIL Image
         """
+        if not HAS_NUMPY:
+            logger.warning("adjust_exposure requires numpy; returning original image")
+            return image
         try:
             # Convert to numpy array
             img_array = np.array(image, dtype=np.float32)
@@ -127,6 +134,9 @@ class ColorCorrector:
         Returns:
             Enhanced PIL Image
         """
+        if not HAS_NUMPY:
+            logger.warning("enhance_vibrance requires numpy; returning original image")
+            return image
         try:
             # Convert to numpy array
             img_array = np.array(image, dtype=np.float32) / 255.0
@@ -176,6 +186,9 @@ class ColorCorrector:
         Returns:
             Enhanced PIL Image
         """
+        if not HAS_NUMPY:
+            logger.warning("enhance_clarity requires numpy; returning original image")
+            return image
         try:
             from PIL import ImageFilter
             
@@ -211,6 +224,9 @@ class ColorCorrector:
         Returns:
             3D LUT array or None if failed
         """
+        if not HAS_NUMPY:
+            logger.warning("load_lut requires numpy; LUT loading disabled")
+            return None
         try:
             # Check cache first
             if lut_path in self.lut_cache:
@@ -273,6 +289,9 @@ class ColorCorrector:
         Returns:
             LUT-applied PIL Image
         """
+        if not HAS_NUMPY:
+            logger.warning("apply_lut requires numpy; returning original image")
+            return image
         try:
             # Convert to numpy array
             img_array = np.array(image, dtype=np.float32) / 255.0

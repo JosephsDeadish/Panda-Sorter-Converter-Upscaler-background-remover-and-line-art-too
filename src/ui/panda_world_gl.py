@@ -597,11 +597,14 @@ class PandaWorldGL(
 
         # ── Helper: set fur material ──────────────────────────────────────
         def _mat(col, alpha=1.0):
-            glMaterialfv(GL_FRONT, GL_AMBIENT_AND_DIFFUSE, [*col, alpha])
-            glMaterialfv(GL_FRONT, GL_SPECULAR, [0.10, 0.09, 0.07, 1.0])
-            glMaterialf(GL_FRONT, GL_SHININESS, 8.0)
+            # Silky otter fur: warm ambient, low-medium specular, medium shininess
+            ambient = [min(1.0, c * 0.45) for c in col]
+            glMaterialfv(GL_FRONT, GL_AMBIENT, [*ambient, alpha])
+            glMaterialfv(GL_FRONT, GL_DIFFUSE,  [*col, alpha])
+            glMaterialfv(GL_FRONT, GL_SPECULAR, [0.18, 0.16, 0.12, 1.0])
+            glMaterialf(GL_FRONT, GL_SHININESS, 18.0)
 
-        def _mat_shiny(col, spec=0.7, shin=60.0):
+        def _mat_shiny(col, spec=0.7, shin=80.0):
             glMaterialfv(GL_FRONT, GL_AMBIENT_AND_DIFFUSE, [*col, 1.0])
             glMaterialfv(GL_FRONT, GL_SPECULAR, [spec, spec, spec * 0.9, 1.0])
             glMaterialf(GL_FRONT, GL_SHININESS, shin)
@@ -696,23 +699,32 @@ class PandaWorldGL(
         glScalef(0.40, 0.72, 0.22)
         self._sphere(1.0, 10, 10)
         glPopMatrix()
-        # Belly cream patch
+        # Belly cream patch — wider, taller for more realistic ventral coloring
         _mat(_OTTER_BELLY)
         glPushMatrix()
         glTranslatef(0.0, 1.18, 0.34)
-        glScalef(0.42, 0.60, 0.18)
-        self._sphere(1.0, 12, 12)
+        glScalef(0.48, 0.70, 0.20)
+        self._sphere(1.0, 14, 14)
         glPopMatrix()
-        # Fur shells — 2 alpha-blended shells for fur depth
+        # Chest/throat lighter highlight (transitions belly up to neck)
+        _mat([min(1.0, c + 0.07) for c in _OTTER_BELLY])
+        glPushMatrix()
+        glTranslatef(0.0, 1.75, 0.36)
+        glScalef(0.28, 0.30, 0.14)
+        self._sphere(1.0, 10, 10)
+        glPopMatrix()
+        # Fur shells — 2 alpha-blended shells for fur depth and silky sheen
         glEnable(GL_BLEND)
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
-        glMaterialfv(GL_FRONT, GL_AMBIENT_AND_DIFFUSE, [*_OTTER_SIDE, 0.18])
+        glMaterialfv(GL_FRONT, GL_AMBIENT_AND_DIFFUSE, [*_OTTER_SIDE, 0.22])
+        glMaterialfv(GL_FRONT, GL_SPECULAR, [0.25, 0.22, 0.18, 1.0])
+        glMaterialf(GL_FRONT, GL_SHININESS, 30.0)
         glPushMatrix()
         glTranslatef(0.0, 1.10, 0.0)
         glScalef(0.76, 0.74, 0.62)
         self._sphere(1.0, 10, 10)
         glPopMatrix()
-        glMaterialfv(GL_FRONT, GL_AMBIENT_AND_DIFFUSE, [*_OTTER_SIDE, 0.09])
+        glMaterialfv(GL_FRONT, GL_AMBIENT_AND_DIFFUSE, [*_OTTER_SIDE, 0.10])
         glPushMatrix()
         glTranslatef(0.0, 1.10, 0.0)
         glScalef(0.80, 0.78, 0.66)
@@ -843,15 +855,23 @@ class PandaWorldGL(
         _mat(_OTTER_BACK)
         glPushMatrix()
         glScalef(1.0, 0.95, 0.90)
-        self._sphere(0.42, 16, 16)
+        self._sphere(0.42, 18, 18)
         glPopMatrix()
         # Forehead lighter highlight
         _mat(_OTTER_SIDE)
         glPushMatrix()
         glTranslatef(0.0, 0.12, 0.26)
         glScalef(0.75, 0.52, 0.52)
-        self._sphere(0.36, 12, 12)
+        self._sphere(0.36, 14, 14)
         glPopMatrix()
+        # Brow ridges — subtle supraorbital ridge for realism
+        _mat([max(0.0, c - 0.04) for c in _OTTER_BACK])
+        for bx in [-0.155, 0.155]:
+            glPushMatrix()
+            glTranslatef(bx, 0.20, 0.30)
+            glScalef(0.60, 0.22, 0.45)
+            self._sphere(0.14, 8, 8)
+            glPopMatrix()
         # Cheekbones — slight rounding at sides
         _mat(_OTTER_SIDE)
         for cx in [-0.24, 0.24]:
@@ -860,13 +880,15 @@ class PandaWorldGL(
             glScalef(0.65, 0.52, 0.55)
             self._sphere(0.22, 10, 10)
             glPopMatrix()
-        # Head fur shell
+        # Head fur shell — silky sheen layer
         glEnable(GL_BLEND)
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
-        glMaterialfv(GL_FRONT, GL_AMBIENT_AND_DIFFUSE, [*_OTTER_BACK, 0.15])
+        glMaterialfv(GL_FRONT, GL_AMBIENT_AND_DIFFUSE, [*_OTTER_BACK, 0.18])
+        glMaterialfv(GL_FRONT, GL_SPECULAR, [0.28, 0.24, 0.18, 1.0])
+        glMaterialf(GL_FRONT, GL_SHININESS, 35.0)
         glPushMatrix()
         glScalef(1.04, 0.99, 0.94)
-        self._sphere(0.42, 10, 10)
+        self._sphere(0.42, 12, 12)
         glPopMatrix()
         glDisable(GL_BLEND)
 
@@ -878,12 +900,12 @@ class PandaWorldGL(
             glScalef(0.75, 0.90, 0.62)
             self._sphere(0.155, 10, 10)
             glPopMatrix()
-            # Inner ear concha — warm pink
-            _mat([0.88, 0.58, 0.62])
+            # Inner ear concha — vivid warm pink for realism
+            _mat([0.92, 0.55, 0.60])
             glPushMatrix()
             glTranslatef(ex * 0.90, 0.30, -0.06)
             glScalef(0.48, 0.58, 0.30)
-            self._sphere(0.125, 8, 8)
+            self._sphere(0.125, 10, 10)
             glPopMatrix()
             # Ear canal depth dot
             _mat([0.18, 0.12, 0.14])
@@ -895,56 +917,61 @@ class PandaWorldGL(
             _mat(_OTTER_BACK)
 
         # ── Snout — prominent otter muzzle ────────────────────────────────
-        # Muzzle pad (rounded trapezoid shape)
+        # Muzzle pad (rounded trapezoid shape) — slightly larger for realism
         _mat(_OTTER_SNOUT)
         glPushMatrix()
         glTranslatef(0.0, -0.06, 0.36)
-        glScalef(1.08, 0.75, 0.78)
-        self._sphere(0.24, 12, 12)
+        glScalef(1.12, 0.78, 0.82)
+        self._sphere(0.24, 14, 14)
         glPopMatrix()
         # Muzzle underside (cream)
         _mat(_OTTER_BELLY)
         glPushMatrix()
         glTranslatef(0.0, -0.20, 0.42)
-        glScalef(0.88, 0.48, 0.58)
-        self._sphere(0.20, 10, 10)
+        glScalef(0.92, 0.50, 0.60)
+        self._sphere(0.20, 12, 12)
         glPopMatrix()
-        # Whisker pad bumps — raised oval areas
+        # Whisker pad bumps — raised oval areas, more prominent
         _mat(_OTTER_SNOUT)
-        for wpx in [-0.12, 0.12]:
+        for wpx in [-0.13, 0.13]:
             glPushMatrix()
-            glTranslatef(wpx, -0.06, 0.48)
-            glScalef(0.62, 0.52, 0.35)
-            self._sphere(0.14, 10, 10)
+            glTranslatef(wpx, -0.05, 0.49)
+            glScalef(0.68, 0.56, 0.38)
+            self._sphere(0.15, 12, 12)
             glPopMatrix()
         # Lower jaw
         _mat(_OTTER_SNOUT)
         glPushMatrix()
         glTranslatef(0.0, -0.22, 0.38)
-        glScalef(0.78, 0.38, 0.60)
+        glScalef(0.80, 0.40, 0.62)
         self._sphere(0.18, 10, 10)
         glPopMatrix()
-        # Nose — dark, slightly heart-shaped
-        _mat_shiny(_OTTER_NOSE, spec=0.85, shin=90.0)
+        # Nose — dark, wet, slightly heart-shaped; higher gloss for wet look
+        _mat_shiny(_OTTER_NOSE, spec=0.95, shin=110.0)
         glPushMatrix()
-        glTranslatef(0.0, 0.06, 0.57)
-        glScalef(1.25, 0.82, 0.72)
-        self._sphere(0.068, 10, 10)
+        glTranslatef(0.0, 0.06, 0.58)
+        glScalef(1.30, 0.85, 0.75)
+        self._sphere(0.075, 14, 14)
         glPopMatrix()
         # Nostril dots
         _mat([0.08, 0.05, 0.05])
-        for nx in [-0.028, 0.028]:
+        for nx in [-0.030, 0.030]:
             glPushMatrix()
-            glTranslatef(nx, 0.048, 0.610)
-            glScalef(0.42, 0.38, 0.30)
-            self._sphere(0.032, 7, 7)
+            glTranslatef(nx, 0.048, 0.622)
+            glScalef(0.44, 0.40, 0.32)
+            self._sphere(0.034, 7, 7)
             glPopMatrix()
-        # Wet nose specular catch-light
+        # Wet nose specular catch-light — two highlights for realism
         glDisable(GL_LIGHTING)
         glColor3f(1.0, 1.0, 1.0)
         glPushMatrix()
-        glTranslatef(0.012, 0.075, 0.622)
-        self._sphere(0.010, 5, 5)
+        glTranslatef(0.016, 0.080, 0.635)
+        self._sphere(0.012, 5, 5)
+        glPopMatrix()
+        # Secondary small highlight
+        glPushMatrix()
+        glTranslatef(-0.008, 0.062, 0.630)
+        self._sphere(0.006, 4, 4)
         glPopMatrix()
         glEnable(GL_LIGHTING)
         # Philtrum groove
@@ -966,75 +993,110 @@ class PandaWorldGL(
         glEnable(GL_LIGHTING)
 
         # ── Eyes — sclera + iris + pupil + specular ────────────────────────
-        # Eye socket fur surround (dark ring)
-        _mat([max(0.0, c - 0.10) for c in _OTTER_BACK])
+        # Eye socket fur surround (dark ring) — larger for more depth
+        _mat([max(0.0, c - 0.12) for c in _OTTER_BACK])
         for ex in [-0.175, 0.175]:
             glPushMatrix()
             glTranslatef(ex, 0.11, 0.37)
             eye_sy = 0.15 if self._otter_eye_close > 2 else 1.0
-            glScalef(1.0, eye_sy, 0.55)
-            self._sphere(0.092, 12, 12)
+            glScalef(1.05, eye_sy, 0.58)
+            self._sphere(0.098, 14, 14)
             glPopMatrix()
 
         happy = self._otter_happy_t > 0
         for ex in [-0.175, 0.175]:
             eye_sy = 0.15 if self._otter_eye_close > 2 else 1.0
-            # Sclera (white)
+            # Sclera (white) — slightly warm white, visible peripheral
             glPushMatrix()
             glTranslatef(ex, 0.112, 0.415)
             glScalef(1.0, eye_sy, 1.0)
-            _mat([0.98, 0.98, 0.98])
-            self._sphere(0.068, 12, 12)
+            _mat_shiny([0.97, 0.97, 0.96], spec=0.35, shin=30.0)
+            self._sphere(0.068, 14, 14)
             glPopMatrix()
             # Iris (turquoise — Livy's signature colour; gold when happy/excited)
             iris_col = _LIVY_TURQ if not happy else _GOLD
             glPushMatrix()
-            glTranslatef(ex, 0.112, 0.460)
+            glTranslatef(ex, 0.112, 0.462)
             glScalef(1.0, eye_sy, 1.0)
-            _mat(iris_col)
-            self._sphere(0.050, 12, 12)
+            _mat_shiny(iris_col, spec=0.50, shin=40.0)
+            self._sphere(0.052, 14, 14)
             glPopMatrix()
             # Limbal ring (dark edge of iris)
             _mat([0.04, 0.18, 0.20])
             glPushMatrix()
-            glTranslatef(ex, 0.112, 0.455)
-            glScalef(1.08, eye_sy, 1.08)
-            self._sphere(0.050, 10, 10)
+            glTranslatef(ex, 0.112, 0.456)
+            glScalef(1.10, eye_sy, 1.10)
+            self._sphere(0.052, 12, 12)
             glPopMatrix()
-            # Pupil
-            _mat([0.04, 0.04, 0.06])
+            # Pupil — vertically oval for realism
+            _mat([0.03, 0.03, 0.04])
             glPushMatrix()
-            glTranslatef(ex, 0.112, 0.478)
-            glScalef(1.0, eye_sy, 1.0)
-            self._sphere(0.030, 10, 10)
+            glTranslatef(ex, 0.112, 0.480)
+            glScalef(0.80, eye_sy * 1.20, 1.0)
+            self._sphere(0.031, 12, 12)
             glPopMatrix()
+            # Corneal dome — thin glossy layer over entire eye for wet look
+            glEnable(GL_BLEND)
+            glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
+            glMaterialfv(GL_FRONT, GL_AMBIENT_AND_DIFFUSE, [0.95, 0.97, 1.0, 0.12])
+            glMaterialfv(GL_FRONT, GL_SPECULAR, [0.90, 0.90, 0.90, 1.0])
+            glMaterialf(GL_FRONT, GL_SHININESS, 120.0)
+            glPushMatrix()
+            glTranslatef(ex, 0.112, 0.470)
+            glScalef(1.0, eye_sy, 1.0)
+            self._sphere(0.058, 12, 12)
+            glPopMatrix()
+            glDisable(GL_BLEND)
             # Corneal specular highlight — turns off lighting for clean white dot
             glDisable(GL_LIGHTING)
             glColor3f(1.0, 1.0, 1.0)
             glPushMatrix()
-            glTranslatef(ex + 0.022, 0.132, 0.488)
+            glTranslatef(ex + 0.022, 0.134, 0.492)
             glScalef(1.0, eye_sy, 1.0)
-            self._sphere(0.014, 6, 6)
+            self._sphere(0.015, 6, 6)
             glPopMatrix()
             # Secondary smaller highlight
             glPushMatrix()
-            glTranslatef(ex - 0.010, 0.096, 0.484)
-            self._sphere(0.007, 5, 5)
+            glTranslatef(ex - 0.010, 0.095, 0.486)
+            self._sphere(0.008, 5, 5)
             glPopMatrix()
             glEnable(GL_LIGHTING)
+            # Eyelashes — thin dark lines above eye for realism
+            if eye_sy > 0.5:  # only draw when eyes open
+                glDisable(GL_LIGHTING)
+                glColor3f(0.12, 0.08, 0.10)
+                glLineWidth(1.2)
+                glBegin(GL_LINES)
+                for langle in [-20.0, -8.0, 5.0, 18.0]:
+                    lrad = _math.radians(langle)
+                    lx2 = _math.sin(lrad) * 0.055
+                    ly2 = _math.cos(lrad) * 0.040
+                    glVertex3f(ex + lx2 * 0.5, 0.160 + ly2 * 0.3, 0.418)
+                    glVertex3f(ex + lx2, 0.162 + ly2, 0.412)
+                glEnd()
+                glLineWidth(1.0)
+                glEnable(GL_LIGHTING)
 
-        # ── Whiskers — 5 per side, varying lengths ────────────────────────
+        # ── Whiskers — 6 per side, 2 rows, varying lengths ────────────────
         glDisable(GL_LIGHTING)
-        glLineWidth(1.5)
-        glColor3f(0.92, 0.90, 0.85)
+        glLineWidth(1.8)
+        glColor3f(0.94, 0.92, 0.88)
         glBegin(GL_LINES)
-        for side, wx_base in [(-1.0, -0.26), (1.0, 0.26)]:
-            for angle_deg, length in [(-14.0, 0.13), (-5.0, 0.15), (5.0, 0.16), (15.0, 0.14), (25.0, 0.10)]:
+        for side, wx_base in [(-1.0, -0.27), (1.0, 0.27)]:
+            # Upper whisker row
+            for angle_deg, length in [(-16.0, 0.15), (-6.0, 0.18), (4.0, 0.19), (14.0, 0.17), (26.0, 0.12)]:
                 rad = _math.radians(angle_deg)
                 lx = _math.sin(rad) * length * side
-                ly = _math.cos(rad) * length * 0.30
-                glVertex3f(wx_base, -0.07, 0.44)
-                glVertex3f(wx_base + lx, -0.07 + ly, 0.44 + length * 0.85)
+                ly = _math.cos(rad) * length * 0.28
+                glVertex3f(wx_base, -0.04, 0.45)
+                glVertex3f(wx_base + lx, -0.04 + ly, 0.45 + length * 0.88)
+            # Lower whisker row (shorter)
+            for angle_deg, length in [(-10.0, 0.10), (0.0, 0.12), (10.0, 0.11)]:
+                rad = _math.radians(angle_deg)
+                lx = _math.sin(rad) * length * side
+                ly = _math.cos(rad) * length * 0.20
+                glVertex3f(wx_base, -0.12, 0.45)
+                glVertex3f(wx_base + lx, -0.12 + ly, 0.45 + length * 0.80)
         glEnd()
         glLineWidth(1.0)
         glEnable(GL_LIGHTING)
