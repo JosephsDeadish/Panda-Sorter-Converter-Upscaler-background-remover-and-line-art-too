@@ -18,7 +18,7 @@ try:
         QWidget, QVBoxLayout, QHBoxLayout, QTabWidget, QLabel, 
         QPushButton, QSlider, QComboBox, QSpinBox, QCheckBox,
         QGroupBox, QScrollArea, QLineEdit, QColorDialog, QMessageBox,
-        QFileDialog, QFormLayout
+        QFileDialog, QFormLayout, QProgressBar
     )
     from PyQt6.QtCore import Qt, pyqtSignal, QTimer
     from PyQt6.QtGui import QFont, QColor, QPainter, QPen
@@ -113,8 +113,10 @@ class SettingsPanelQt(QWidget):
         self.tabs = QTabWidget()
         layout.addWidget(self.tabs)
         
-        # Create tabs — Cursor and Font are sub-sections of Appearance, not separate tabs
+        # Create tabs — Cursor and Font have their own full tabs (plus summary sub-sections in Appearance)
         self.tabs.addTab(self.create_appearance_tab(), "🎨 Appearance")
+        self.tabs.addTab(self.create_cursor_tab(), "🖱️ Cursor")
+        self.tabs.addTab(self.create_font_tab(), "🔤 Font")
         self.tabs.addTab(self.create_behavior_tab(), "⚡ Behavior")
         self.tabs.addTab(self.create_performance_tab(), "🚀 Performance")
         self.tabs.addTab(self.create_ai_settings_tab(), "🤖 AI Settings")
@@ -1048,10 +1050,10 @@ class SettingsPanelQt(QWidget):
             # Pre-populate widget from saved config
             saved = {}
             try:
-                hotkeys_section = self.config.config_parser.options('hotkeys') \
-                    if self.config.config_parser.has_section('hotkeys') else []
-                for key in hotkeys_section:
-                    saved[key] = self.config.get('hotkeys', key, default='')
+                hotkeys_section = self.config.settings.get('hotkeys', {})
+                for key, val in hotkeys_section.items():
+                    if isinstance(val, str):
+                        saved[key] = val
             except Exception:
                 pass
             if saved:
@@ -1268,13 +1270,13 @@ class SettingsPanelQt(QWidget):
             self.tooltip_enabled_check.setChecked(tooltip_enabled)
             
             tooltip_mode = self.config.get('ui', 'tooltip_mode', default='normal')
-            mode_map = {
-                'normal': 'Normal',
-                'dumbed_down': 'Dumbed Down',
-                'dumbed-down': 'Dumbed Down',
-                'vulgar_panda': 'Vulgar Panda'
+            mode_index_map = {
+                'normal': 0,
+                'dumbed_down': 1,
+                'dumbed-down': 1,
+                'vulgar_panda': 2,
             }
-            self.tooltip_mode_combo.setCurrentText(mode_map.get(tooltip_mode, 'Normal'))
+            self.tooltip_mode_combo.setCurrentIndex(mode_index_map.get(tooltip_mode, 0))
             
             tooltip_delay = self.config.get('ui', 'tooltip_delay', default=0.5)
             self.tooltip_delay_slider.setValue(int(tooltip_delay * 10))
