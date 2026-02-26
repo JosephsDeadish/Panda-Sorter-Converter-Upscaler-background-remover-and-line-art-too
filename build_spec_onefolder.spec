@@ -301,6 +301,18 @@ a = Analysis(
         'pynput',
         'pynput.keyboard',
         'pynput.mouse',
+        # Profile encryption (organizer/learning_system.py — gracefully disabled when absent)
+        'cryptography',
+        'cryptography.fernet',
+        'cryptography.hazmat',
+        'cryptography.hazmat.primitives',
+        'cryptography.hazmat.primitives.kdf',
+        'cryptography.hazmat.primitives.kdf.pbkdf2',
+        # scikit-image — SSIM quality check in utils/image_processing.py (optional)
+        'skimage',
+        'skimage.metrics',
+        # Tesseract OCR wrapper — structural_analysis/ocr_detector.py (optional)
+        'pytesseract',
         # AI inference and model download utilities
         # onnxruntime binaries are collected by hook-onnxruntime.py.
         # rembg is excluded (see excludes list) — runtime code lazy-imports it.

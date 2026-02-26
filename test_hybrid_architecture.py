@@ -520,6 +520,57 @@ def test_otter_smooth_look_animation():
     print("  PASS")
 
 
+def test_spec_bundle_completeness():
+    """build_spec_onefolder.spec must declare hiddenimports for all external
+    packages that are imported (lazily or otherwise) in src/.
+
+    This test catches the three packages that were missing after a previous
+    bundle-completeness audit:
+
+    1. cryptography — profile encryption in organizer/learning_system.py
+    2. skimage (scikit-image) — SSIM quality check in utils/image_processing.py
+    3. pytesseract — OCR in structural_analysis/ocr_detector.py
+    """
+    print("\ntest_spec_bundle_completeness ...")
+    from pathlib import Path
+
+    spec_path = Path(__file__).parent / 'build_spec_onefolder.spec'
+    if not spec_path.exists():
+        print("  ⚠️  Skipped (build_spec_onefolder.spec not found)")
+        return
+
+    spec = spec_path.read_text(encoding='utf-8')
+
+    # Each entry: (import_name, source_file, purpose)
+    _REQUIRED = [
+        ('cryptography', 'organizer/learning_system.py',
+         'Fernet profile encryption — Fernet/PBKDF2 C-extensions must be bundled'),
+        ('skimage',      'utils/image_processing.py',
+         'skimage.metrics.structural_similarity (SSIM quality check)'),
+        ('pytesseract',  'structural_analysis/ocr_detector.py',
+         'Tesseract OCR wrapper — lazy import missed by PyInstaller static analysis'),
+    ]
+
+    for pkg, src_file, purpose in _REQUIRED:
+        assert f"'{pkg}'" in spec or f'"{pkg}"' in spec, (
+            f"'{pkg}' missing from spec hiddenimports!\n"
+            f"Used in: {src_file}\n"
+            f"Purpose: {purpose}"
+        )
+        print(f"  ✅ '{pkg}' present in spec hiddenimports  ({src_file})")
+
+    # cryptography must also be in requirements.txt (was missing before this fix)
+    req_path = Path(__file__).parent / 'requirements.txt'
+    if req_path.exists():
+        assert 'cryptography' in req_path.read_text(encoding='utf-8'), (
+            "cryptography missing from requirements.txt — "
+            "add: cryptography>=41.0.0  # profile encryption"
+        )
+        print("  ✅ cryptography present in requirements.txt")
+
+    print("  PASS")
+
+
 # ---------------------------------------------------------------------------
 # Runner
 # ---------------------------------------------------------------------------
@@ -542,6 +593,7 @@ def run_all_tests():
         test_panda_widget_gl_qstate_import,
         test_bedroom_mouse_release_event,
         test_otter_smooth_look_animation,
+        test_spec_bundle_completeness,
     ]
 
     passed, failed = [], []
