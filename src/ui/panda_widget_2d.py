@@ -759,3 +759,41 @@ class PandaWidget2D(QWidget if _QT_AVAILABLE else object):  # type: ignore[misc]
             'fur_style': self._fur_style,
             'widget_type': '2d',
         }
+
+    # ------------------------------------------------------------------
+    # Interaction animation stubs — mirror the GL widget API so that the
+    # overlay (transparent_panda_overlay) and PandaInteractionBehavior can
+    # call these with hasattr() checks and the 2D widget responds sensibly.
+    # ------------------------------------------------------------------
+
+    def start_bite_tab(self) -> None:
+        """GL-compatible: panda bites a tab — play surprised + curious reaction in 2D."""
+        self._surprised_eye_t = 0.4
+        self._micro_emotion['playful'] = 0.9
+        self._micro_emotion['curious'] = 0.6
+        self.set_animation_state('waving')
+        QTimer.singleShot(1200, lambda: self.set_animation_state('idle')
+                          if self._animation_state == 'waving' else None)
+
+    def start_hug_window(self) -> None:
+        """GL-compatible: panda hugs a window edge — play climbing_wall in 2D."""
+        self.set_animation_state('climbing_wall')
+        self._micro_emotion['playful'] = 0.8
+        QTimer.singleShot(3000, lambda: self.set_animation_state('falling_back')
+                          if self._animation_state == 'climbing_wall' else None)
+        QTimer.singleShot(4200, lambda: self.set_animation_state('idle')
+                          if self._animation_state == 'falling_back' else None)
+
+    def start_sit_on_panel(self) -> None:
+        """GL-compatible: panda sits on a panel — play sitting_back state in 2D."""
+        self.set_animation_state('sitting_back')
+        self._micro_emotion['content'] = 0.9
+
+    def start_working(self) -> None:
+        """GL-compatible: panda starts working animation."""
+        self.set_animation_state('working')
+        self._micro_emotion['content'] = 0.7
+
+    def stop_working(self) -> None:
+        """GL-compatible: panda stops working animation."""
+        self.set_animation_state('idle')

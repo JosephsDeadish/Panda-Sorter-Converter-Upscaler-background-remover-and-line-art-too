@@ -3,6 +3,7 @@ OpenGL Panda Widget - Hardware-accelerated 3D panda companion
 Qt OpenGL rendering for smooth 60fps animation, real lighting, shadows, and 3D interactions.
 Author: Dead On The Inside / JosephsDeadish
 """
+from __future__ import annotations
 
 import logging
 import math

@@ -8,6 +8,7 @@ The preview has two modes:
   • **Demo/bounce mode** (auto-start when no cursor is present):
     a small ball bounces around the preview so it's never static.
 """
+from __future__ import annotations
 
 try:
     from PyQt6.QtWidgets import QGraphicsView, QGraphicsScene, QGraphicsEllipseItem, QWidget, QVBoxLayout, QLabel
