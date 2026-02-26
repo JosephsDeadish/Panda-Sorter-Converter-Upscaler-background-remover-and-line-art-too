@@ -1441,9 +1441,9 @@ class TextureSorterMainWindow(QMainWindow):
             'quality':    "✓ Quality Checker",
             'upscaler':   "🔍 Image Upscaler",
             'lineart':    "✏️ Line Art Converter",
+            'converter':  "🔄 Format Converter",
             'rename':     "📝 Batch Rename",
             'repair':     "🔧 Image Repair",
-            'organizer':  "📁 Organizer",
         }
         for tool_id, label in _TOOL_LABELS.items():
             if tool_id in self.tool_panels:
@@ -2163,6 +2163,13 @@ class TextureSorterMainWindow(QMainWindow):
 
         # ── Help menu ────────────────────────────────────────────────────────
         help_menu = menubar.addMenu("&Help")
+
+        help_action = QAction("&Help / Documentation", self)
+        help_action.setShortcut("F1")
+        help_action.triggered.connect(self.show_help)
+        help_menu.addAction(help_action)
+
+        help_menu.addSeparator()
 
         about_action = QAction("&About", self)
         about_action.triggered.connect(self.show_about)
@@ -3030,6 +3037,9 @@ class TextureSorterMainWindow(QMainWindow):
                 _app_dir = Path(__file__).parent / 'app_data'
                 _app_dir.mkdir(parents=True, exist_ok=True)
                 self.auto_backup = AutoBackupSystem(app_dir=_app_dir, config=_backup_cfg)
+                # Wire crash-recovery callback before calling start() so it fires
+                # when start() detects a previous unclean shutdown.
+                self.auto_backup.on_recovery_available = self._offer_crash_recovery
                 self.auto_backup.start()
                 logger.info("Auto-backup system started")
             except Exception as e:
@@ -5324,10 +5334,137 @@ class TextureSorterMainWindow(QMainWindow):
             f"<p>Author: Dead On The Inside / JosephsDeadish</p>"
         )
 
+    def show_help(self):
+        """Show help / documentation dialog (F1)."""
+        help_text = (
+            f"<h2>🐼 {APP_NAME} — Quick Help</h2>"
+            "<h3>Tools</h3>"
+            "<ul>"
+            "<li><b>📁 Organizer</b> — Sort images into sub-folders by category, date, size or hash.</li>"
+            "<li><b>🎭 Background Remover</b> — Remove backgrounds using AI (rembg/ONNX) or edge detection.</li>"
+            "<li><b>✨ Alpha Fixer</b> — Repair transparent / semi-transparent alpha channels.</li>"
+            "<li><b>🎨 Color Correction</b> — Batch adjust brightness, contrast, saturation and curves.</li>"
+            "<li><b>⚙️ Batch Normalizer</b> — Resize, pad or crop images to a target resolution.</li>"
+            "<li><b>✓ Quality Checker</b> — Detect blurry, corrupt or low-quality images.</li>"
+            "<li><b>🔍 Image Upscaler</b> — Upscale via Real-ESRGAN or Pillow bicubic.</li>"
+            "<li><b>✏️ Line Art</b> — Convert photos or textures to clean line-art / sketch.</li>"
+            "<li><b>🔄 Format Converter</b> — Batch convert between PNG, JPEG, WebP, DDS, TGA and more.</li>"
+            "<li><b>📝 Batch Rename</b> — Rename files with templates, counters, date/EXIF tags.</li>"
+            "<li><b>🔧 Image Repair</b> — Fix corrupted image headers and reserialise lossy files.</li>"
+            "</ul>"
+            "<h3>Workflow</h3>"
+            "<ol>"
+            "<li>Select an <b>Input Folder</b> on the Home tab or via File → Open Input Folder.</li>"
+            "<li>Choose an <b>Output Folder</b> (optional — defaults to a sub-folder of input).</li>"
+            "<li>Open the desired tool from the <b>Tools</b> tab or via the Quick Launch buttons.</li>"
+            "<li>Adjust options and click <b>Process</b> / <b>Start</b>.</li>"
+            "</ol>"
+            "<h3>Panda Features</h3>"
+            "<p>The <b>🐼 Panda</b> tab contains your virtual panda companion with a bedroom, "
+            "closet, shop, minigames, achievements, quests and an adventure dungeon. "
+            "Interact with the panda for rewards and unlockable themes!</p>"
+            "<h3>Keyboard Shortcuts</h3>"
+            "<ul>"
+            "<li><b>F1</b> — This help dialog</li>"
+            "<li><b>Ctrl+O</b> — Open input folder</li>"
+            "<li><b>Ctrl+Q</b> — Quit</li>"
+            "</ul>"
+            f"<p><small>Version {APP_VERSION} &bull; "
+            "Report bugs at github.com/JosephsDeadish</small></p>"
+        )
+        msg = QMessageBox(self)
+        msg.setWindowTitle(f"{APP_NAME} — Help")
+        msg.setTextFormat(Qt.TextFormat.RichText)
+        msg.setText(help_text)
+        msg.setIcon(QMessageBox.Icon.Information)
+        msg.exec()
+
+    def save_settings(self) -> bool:
+        """Persist current settings to disk.
+
+        Delegates to SettingsPanelQt when available, then falls back to
+        saving the global config directly so callers always get a result.
+
+        Returns
+        -------
+        bool
+            True if settings were saved successfully, False otherwise.
+        """
+        try:
+            if self.settings_panel and hasattr(self.settings_panel, 'save_settings'):
+                self.settings_panel.save_settings()
+            config.save()
+            logger.info("Settings saved")
+            return True
+        except Exception as _e:
+            logger.error(f"save_settings failed: {_e}", exc_info=True)
+            return False
+
+    def load_settings(self) -> bool:
+        """Reload settings from disk into the UI.
+
+        Delegates to SettingsPanelQt when available, then re-applies the
+        theme so the live UI reflects the persisted values.
+
+        Returns
+        -------
+        bool
+            True if settings were reloaded successfully, False otherwise.
+        """
+        try:
+            if self.settings_panel and hasattr(self.settings_panel, 'load_settings'):
+                self.settings_panel.load_settings()
+            self.apply_theme()
+            logger.info("Settings loaded")
+            return True
+        except Exception as _e:
+            logger.error(f"load_settings failed: {_e}", exc_info=True)
+            return False
+
+    def _offer_crash_recovery(self) -> None:
+        """Called by AutoBackupSystem when a previous session crashed.
+
+        Uses a deferred single-shot timer so the dialog appears *after* the
+        main window finishes initialising (the callback may fire during
+        ``auto_backup.start()`` which runs inside ``initialize_components``).
+        """
+        def _show_dialog():
+            try:
+                reply = QMessageBox.question(
+                    self,
+                    "⚠️ Crash Recovery",
+                    "It looks like the previous session ended unexpectedly.\n\n"
+                    "Would you like to restore from the last auto-backup?",
+                    QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                    QMessageBox.StandardButton.Yes,
+                )
+                if reply == QMessageBox.StandardButton.Yes:
+                    state = self.auto_backup.restore_from_backup() if self.auto_backup else None
+                    if state:
+                        # Re-apply any paths that were saved in the backup state
+                        input_path = state.get('input_path')
+                        output_path = state.get('output_path')
+                        if input_path and Path(input_path).exists():
+                            self.input_path_label.setText(input_path)
+                        if output_path and Path(output_path).exists():
+                            self.output_path_label.setText(output_path)
+                        self.statusBar().showMessage("✅ Session restored from backup", 5000)
+                        self.log("✅ Session restored from auto-backup after crash.")
+                        logger.info("Crash recovery: session state restored")
+                    else:
+                        QMessageBox.information(
+                            self, "Recovery",
+                            "No backup data found or restore failed.\n"
+                            "Starting with a clean session."
+                        )
+                else:
+                    self.log("ℹ️ Crash recovery skipped by user.")
+            except Exception as _e:
+                logger.debug(f"_offer_crash_recovery dialog: {_e}")
+        # Defer until after __init__ / initialize_components finishes
+        QTimer.singleShot(1000, _show_dialog)
+
     # ── App-level event filter: button hover → panda peek/poke ──────────────
-    def eventFilter(self, obj: 'QObject', event: 'QEvent') -> bool:
-        """Intercept mouse-enter events on QPushButton widgets so the panda
-        can react (peek / poke) when the cursor hovers over a button."""
         try:
             from PyQt6.QtCore import QEvent
             from PyQt6.QtWidgets import QPushButton

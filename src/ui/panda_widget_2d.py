@@ -321,11 +321,15 @@ class PandaWidget2D(QWidget if _QT_AVAILABLE else object):  # type: ignore[misc]
 
         w, h = self.width(), self.height()
 
-        # No background fill — the widget is fully transparent so it blends into
-        # whatever sits behind it in the splitter (dark theme, image, etc.).
-        # Clear only to fully transparent:
-        painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_Source)
-        painter.fillRect(0, 0, w, h, Qt.GlobalColor.transparent)
+        # WA_TranslucentBackground + WA_NoSystemBackground tell Qt not to fill
+        # the backing store.  We must NOT use CompositionMode_Source here: on
+        # platforms without window-manager compositing (X11 without a compositor,
+        # virtual displays) Source-mode fills each frame with opaque black, making
+        # the entire overlay solid black and hiding the application content behind
+        # the panda.  Skipping the fill entirely lets the Qt backing store stay
+        # transparent — old panda pixels are erased by Qt before paintEvent is
+        # called (Qt always calls begin() on a clean buffer for top-level
+        # transparent windows), so animation trails do not accumulate.
         painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_SourceOver)
 
         # Centre the panda

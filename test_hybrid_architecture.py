@@ -1302,6 +1302,175 @@ def test_theme_achievement_ids_valid():
     print(f"  ✅ All {len(ach_values)} theme achievement IDs are valid")
 
 
+def test_show_help_and_settings_methods():
+    """TextureSorterMainWindow must expose show_help(), save_settings(), load_settings(),
+    and _offer_crash_recovery().
+
+    These were previously missing, causing AttributeError on F1, on programmatic
+    settings saves/loads, and when the auto-backup crash-recovery path fired.
+    """
+    print("\ntest_show_help_and_settings_methods ...")
+    from pathlib import Path
+    import ast
+    src = Path(__file__).parent / 'main.py'
+    code = src.read_text(encoding='utf-8')
+    tree = ast.parse(code)
+
+    # Walk the AST to find all method definitions in TextureSorterMainWindow
+    class_methods: set = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.ClassDef) and node.name == 'TextureSorterMainWindow':
+            for item in ast.walk(node):
+                if isinstance(item, ast.FunctionDef):
+                    class_methods.add(item.name)
+            break
+
+    required = {
+        'show_help': 'show_help() — called by F1 Help menu action',
+        'save_settings': 'save_settings() — persists settings to disk',
+        'load_settings': 'load_settings() — reloads settings from disk',
+        '_offer_crash_recovery': '_offer_crash_recovery() — wired to auto_backup.on_recovery_available',
+    }
+    for method, desc in required.items():
+        assert method in class_methods, (
+            f"TextureSorterMainWindow is missing {desc}."
+        )
+        print(f"  ✅ {method}() present")
+
+    # Check Help menu has a "Help" action (not just "About")
+    # Look for the setup_menubar method and verify both help_action and about_action appear
+    for node in ast.walk(tree):
+        if isinstance(node, ast.FunctionDef) and node.name == 'setup_menubar':
+            method_src = ast.get_source_segment(code, node) or ''
+            assert 'show_help' in method_src, (
+                "setup_menubar() must wire a Help action to self.show_help().\n"
+                "The Help menu only had 'About'; a 'Help / Documentation' item is needed."
+            )
+            print("  ✅ setup_menubar() wires show_help to Help menu")
+            break
+
+
+def test_tool_labels_no_duplicates():
+    """_update_tool_panels_menu must not have duplicate keys in _TOOL_LABELS and
+    must include 'converter'.
+
+    The old dict had 'organizer' listed twice (the second entry silently overwrote
+    the first in CPython) and was missing 'converter', so the Format Converter tool
+    was absent from View → Tool Panels.
+    """
+    print("\ntest_tool_labels_no_duplicates ...")
+    from pathlib import Path
+    import ast, re
+    src = Path(__file__).parent / 'main.py'
+    code = src.read_text(encoding='utf-8')
+    tree = ast.parse(code)
+
+    for node in ast.walk(tree):
+        if isinstance(node, ast.FunctionDef) and node.name == '_update_tool_panels_menu':
+            method_src = ast.get_source_segment(code, node) or ''
+
+            # Extract all string keys from the _TOOL_LABELS dict literal
+            keys = re.findall(r"'(\w+)'\s*:", method_src)
+            # Only consider those inside the _TOOL_LABELS block
+            # (the first N keys before 'for tool_id' appear)
+            label_keys = []
+            for k in keys:
+                if k == 'tool_id':
+                    break
+                label_keys.append(k)
+
+            # No duplicates
+            dupes = [k for k in label_keys if label_keys.count(k) > 1]
+            assert not dupes, (
+                f"_TOOL_LABELS has duplicate key(s): {list(set(dupes))}\n"
+                "Fix: remove the second 'organizer' entry."
+            )
+            # 'converter' must be present
+            assert 'converter' in label_keys, (
+                "'converter' is missing from _TOOL_LABELS in _update_tool_panels_menu.\n"
+                "The Format Converter panel is not reachable via View → Tool Panels."
+            )
+            print(f"  ✅ _TOOL_LABELS has {len(label_keys)} unique keys including 'converter'")
+            return
+    assert False, "_update_tool_panels_menu() not found in main.py"
+
+
+def test_auto_backup_recovery_wired():
+    """auto_backup.on_recovery_available must be assigned to _offer_crash_recovery()
+    before auto_backup.start() is called.
+
+    Without this wiring, a crash in the previous session is detected and logged
+    (WARNING: Previous session crashed - recovery available) but the user is never
+    prompted to restore — the recovery callback is None.
+    """
+    print("\ntest_auto_backup_recovery_wired ...")
+    from pathlib import Path
+    import ast
+    src = Path(__file__).parent / 'main.py'
+    code = src.read_text(encoding='utf-8')
+    tree = ast.parse(code)
+
+    for node in ast.walk(tree):
+        if isinstance(node, ast.FunctionDef) and node.name == 'initialize_components':
+            method_src = ast.get_source_segment(code, node) or ''
+            assert 'on_recovery_available' in method_src, (
+                "initialize_components() must assign auto_backup.on_recovery_available "
+                "before calling auto_backup.start().\n"
+                "Without it the crash-recovery dialog is never shown."
+            )
+            # The assignment must precede start()
+            idx_assign = method_src.find('on_recovery_available')
+            idx_start  = method_src.find('auto_backup.start()')
+            assert idx_assign < idx_start, (
+                "on_recovery_available must be assigned BEFORE auto_backup.start()."
+            )
+            print("  ✅ on_recovery_available wired before auto_backup.start()")
+            return
+    assert False, "initialize_components() not found in main.py"
+
+
+def test_panda_overlay_no_source_mode_fill():
+    """PandaWidget2D.paintEvent must NOT use CompositionMode_Source to fill with transparent.
+
+    On Linux/X11 without a compositing window manager and on virtual displays,
+    CompositionMode_Source + transparent fill renders as solid opaque black,
+    making the entire panda overlay window appear all-black and hiding the
+    application content beneath the panda.
+
+    The correct approach is to skip the background fill entirely: Qt clears
+    the backing store for WA_TranslucentBackground widgets before paintEvent so
+    the Source-mode fill is both redundant and harmful on non-compositing platforms.
+    """
+    print("\ntest_panda_overlay_no_source_mode_fill ...")
+    from pathlib import Path
+    import ast
+    src = Path(__file__).parent / 'src' / 'ui' / 'panda_widget_2d.py'
+    code = src.read_text(encoding='utf-8')
+    tree = ast.parse(code)
+
+    for node in ast.walk(tree):
+        if isinstance(node, ast.FunctionDef) and node.name == 'paintEvent':
+            method_src = ast.get_source_segment(code, node) or ''
+            # Check that the method does NOT call fillRect with CompositionMode_Source
+            # We look for the actual Python call pattern, not just the constant name
+            # (the constant name appears in comments explaining why it was removed)
+            import re
+            source_mode_calls = re.findall(
+                r'setCompositionMode\s*\(.*CompositionMode_Source\b(?!Over)',
+                method_src
+            )
+            assert not source_mode_calls, (
+                "PandaWidget2D.paintEvent() must not use CompositionMode_Source.\n"
+                "On Linux/X11 without compositing this fills the entire overlay with\n"
+                "opaque black, hiding all application content behind the panda.\n"
+                "Fix: remove the fillRect(transparent) call; Qt handles backing-store\n"
+                "clearing automatically for WA_TranslucentBackground widgets."
+            )
+            print("  ✅ paintEvent uses SourceOver (not Source) mode — no black overlay")
+            return
+    assert False, "PandaWidget2D.paintEvent() not found in panda_widget_2d.py"
+
+
 def run_all_tests():
     print("=" * 65)
     print("Hybrid Architecture + Lazy rembg Import Tests")
@@ -1333,6 +1502,10 @@ def run_all_tests():
         test_dock_widget_object_names,
         test_minigame_achievement_ids_valid,
         test_theme_achievement_ids_valid,
+        test_show_help_and_settings_methods,
+        test_tool_labels_no_duplicates,
+        test_auto_backup_recovery_wired,
+        test_panda_overlay_no_source_mode_fill,
         test_panda_widget_gl_qstate_import,
         test_bedroom_mouse_release_event,
         test_otter_smooth_look_animation,
