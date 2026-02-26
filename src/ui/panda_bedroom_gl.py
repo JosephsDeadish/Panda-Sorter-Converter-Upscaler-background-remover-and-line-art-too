@@ -1094,10 +1094,16 @@ class PandaBedroomGL(QOpenGLWidget if OPENGL_AVAILABLE else QWidget):  # type: i
     def _draw_box(
         x0: float, y0: float, z0: float,
         x1: float, y1: float, z1: float,
-        colour: tuple,
+        colour: tuple = None,
     ) -> None:
-        """Draw a solid axis-aligned box with the given colour."""
-        glColor3f(*colour[:3])
+        """Draw a solid axis-aligned box.
+
+        If *colour* is provided it is applied with glColor3f; otherwise the
+        current GL colour (set by the caller via glColor3f / glMaterialfv) is
+        used.  This allows callers that pre-set the colour to omit the argument.
+        """
+        if colour is not None:
+            glColor3f(*colour[:3])
         glBegin(GL_QUADS)
         # Bottom
         glNormal3f(0.0, -1.0, 0.0)

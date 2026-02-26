@@ -862,28 +862,9 @@ class TextureSorterMainWindow(QMainWindow):
         content_layout.addWidget(self.progress_bar)
 
         splitter.addWidget(content_widget)
-
-        # ── Add panda sidebar to splitter ─────────────────────────────────────
-        if _panda_sidebar_widget is not None:
-            splitter.addWidget(_panda_sidebar_widget)
-            splitter.setStretchFactor(0, 3)  # content gets 75 %
-            splitter.setStretchFactor(1, 1)  # panda sidebar gets 25 %
-        else:
-            # No panda widget at all — show a gentle placeholder
-            ph = QWidget()
-            ph_layout = QVBoxLayout(ph)
-            ph_label = QLabel(
-                "🐼\n\nPanda companion\nunavailable\n\n"
-                "Install PyOpenGL for\n3-D panda rendering"
-            )
-            ph_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            ph_label.setStyleSheet("color: #aaa; font-size: 10pt;")
-            ph_label.setWordWrap(True)
-            ph_layout.addWidget(ph_label)
-            splitter.addWidget(ph)
-            splitter.setStretchFactor(0, 3)
-            splitter.setStretchFactor(1, 1)
-            logger.warning("No panda widget available — placeholder shown")
+        # panda_widget is kept as a state-management reference (mood, animations,
+        # PandaCharacter) but is NOT added to the splitter/UI — the transparent
+        # overlay panda (panda_overlay) is the only visible panda in the window.
     
     def create_main_tab(self):
         """Create the main tab with welcome/dashboard and quick-launch buttons."""
