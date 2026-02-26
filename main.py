@@ -5508,9 +5508,14 @@ class TextureSorterMainWindow(QMainWindow):
     def _make_tab_dock(self, tab_name: str, clean_name: str, widget: QWidget) -> QDockWidget:
         """Create a QDockWidget for a detached tab with a 'Restore as Tab' context menu."""
         dock = QDockWidget(tab_name, self)
-        # objectName must be set so QMainWindow.saveState() serialises geometry correctly
+        # objectName must be unique for QMainWindow.saveState() to serialise
+        # geometry correctly.  Build a safe ASCII name from clean_name and append
+        # a counter so that two tabs with names that differ only in special
+        # characters (e.g. 'My-Tab' vs 'My_Tab') don't collide.
         safe_name = ''.join(c if c.isalnum() or c in ('_', '-') else '_' for c in clean_name)
-        dock.setObjectName(f"dock_tab_{safe_name}")
+        counter = getattr(self, '_tab_dock_counter', 0) + 1
+        self._tab_dock_counter = counter
+        dock.setObjectName(f"dock_tab_{safe_name}_{counter}")
         dock.setWidget(widget)
         dock.setFeatures(
             QDockWidget.DockWidgetFeature.DockWidgetMovable |

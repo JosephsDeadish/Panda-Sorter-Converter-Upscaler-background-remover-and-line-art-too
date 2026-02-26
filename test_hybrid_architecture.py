@@ -1177,33 +1177,38 @@ def test_dock_widget_object_names():
     """
     print("\ntest_dock_widget_object_names ...")
     from pathlib import Path
-    import re
+    import ast
     src = Path(__file__).parent / 'main.py'
     code = src.read_text(encoding='utf-8')
+    tree = ast.parse(code)
 
-    # The _add_tool_dock method must call setObjectName on the dock
-    add_dock_match = re.search(
-        r'def _add_tool_dock\(.*?\n(.*?)(?=\n    def |\Z)', code, re.DOTALL
-    )
-    assert add_dock_match, "_add_tool_dock() not found in main.py"
-    body = add_dock_match.group(1)
-    assert 'setObjectName' in body, (
+    # Walk AST to find _add_tool_dock and _make_tab_dock method bodies
+    methods_found: dict = {}
+    for node in ast.walk(tree):
+        if isinstance(node, ast.FunctionDef) and node.name in ('_add_tool_dock', '_make_tab_dock'):
+            # Collect all string literals and attribute accesses in the body
+            body_source = ast.get_source_segment(code, node) or ''
+            methods_found[node.name] = body_source
+
+    assert '_add_tool_dock' in methods_found, "_add_tool_dock() not found in main.py"
+    assert 'setObjectName' in methods_found['_add_tool_dock'], (
         "_add_tool_dock() must call dock.setObjectName() so QMainWindow.saveState()\n"
         "can serialise dock widget layout.  Without an objectName, Qt warns:\n"
         "  QMainWindow::saveState(): 'objectName' not set for QDockWidget …\n"
         "Fix: add dock.setObjectName(f\"dock_{tool_id}\") before addDockWidget()."
     )
-    # Also check _make_tab_dock
-    tab_dock_match = re.search(
-        r'def _make_tab_dock\(.*?\n(.*?)(?=\n    def |\Z)', code, re.DOTALL
-    )
-    assert tab_dock_match, "_make_tab_dock() not found in main.py"
-    tab_body = tab_dock_match.group(1)
-    assert 'setObjectName' in tab_body, (
+    assert '_make_tab_dock' in methods_found, "_make_tab_dock() not found in main.py"
+    assert 'setObjectName' in methods_found['_make_tab_dock'], (
         "_make_tab_dock() must call dock.setObjectName() for saveState() compatibility."
     )
     print("  ✅ _add_tool_dock() calls dock.setObjectName()")
     print("  ✅ _make_tab_dock() calls dock.setObjectName()")
+    # Also verify that _make_tab_dock uses a counter/index to ensure uniqueness
+    assert '_tab_dock_counter' in methods_found['_make_tab_dock'] or 'counter' in methods_found['_make_tab_dock'], (
+        "_make_tab_dock() should append a uniqueness counter to the objectName\n"
+        "to prevent collisions when two tab names differ only in special characters."
+    )
+    print("  ✅ _make_tab_dock() uses a counter for unique objectNames")
 
 
 def test_minigame_achievement_ids_valid():
@@ -1221,7 +1226,7 @@ def test_minigame_achievement_ids_valid():
     import sys as _sys
     _sys.path.insert(0, 'src')
     from pathlib import Path
-    import re
+    import ast, re
 
     # Load the set of defined achievement IDs
     from features.achievements import AchievementSystem
@@ -1233,16 +1238,18 @@ def test_minigame_achievement_ids_valid():
 
     src = Path(__file__).parent / 'main.py'
     code = src.read_text(encoding='utf-8')
+    tree = ast.parse(code)
 
-    # Find the _on_minigame_completed method body
-    m = re.search(
-        r'def _on_minigame_completed\(.*?\n(.*?)(?=\n    def |\Z)', code, re.DOTALL
-    )
-    assert m, "_on_minigame_completed() not found in main.py"
-    body = m.group(1)
+    # Use AST to find the _on_minigame_completed method body source
+    method_source = ''
+    for node in ast.walk(tree):
+        if isinstance(node, ast.FunctionDef) and node.name == '_on_minigame_completed':
+            method_source = ast.get_source_segment(code, node) or ''
+            break
+    assert method_source, "_on_minigame_completed() not found in main.py"
 
     # Extract all unlock_achievement('id') calls in the method
-    ach_ids_used = set(re.findall(r"unlock_achievement\(\s*['\"]([^'\"]+)['\"]\s*\)", body))
+    ach_ids_used = set(re.findall(r"unlock_achievement\(\s*['\"]([^'\"]+)['\"]\s*\)", method_source))
     bad_ach = ach_ids_used - valid_ach_ids
     assert not bad_ach, (
         f"_on_minigame_completed() calls unlock_achievement() with unknown IDs: {bad_ach}\n"
@@ -1250,7 +1257,7 @@ def test_minigame_achievement_ids_valid():
     )
 
     # Extract all update_quest_progress('id') calls in the method
-    quest_ids_used = set(re.findall(r"update_quest_progress\(\s*['\"]([^'\"]+)['\"]\s*\)", body))
+    quest_ids_used = set(re.findall(r"update_quest_progress\(\s*['\"]([^'\"]+)['\"]\s*\)", method_source))
     bad_quest = quest_ids_used - valid_quest_ids
     assert not bad_quest, (
         f"_on_minigame_completed() calls update_quest_progress() with unknown IDs: {bad_quest}\n"
