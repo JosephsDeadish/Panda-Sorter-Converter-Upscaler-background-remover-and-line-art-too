@@ -216,7 +216,7 @@ try:
         QLabel, QPushButton, QProgressBar, QTextEdit, QTabWidget,
         QFileDialog, QMessageBox, QStatusBar, QMenuBar, QMenu,
         QSplitter, QFrame, QComboBox, QGridLayout, QStackedWidget,
-        QScrollArea, QDockWidget, QToolBar, QInputDialog
+        QScrollArea, QDockWidget, QToolBar, QInputDialog, QGroupBox
     )
     from PyQt6.QtCore import Qt, QTimer, pyqtSignal, QThread, QSize, QByteArray
     from PyQt6.QtGui import QAction, QIcon, QFont, QPalette, QColor
@@ -679,6 +679,11 @@ class TextureSorterMainWindow(QMainWindow):
         # Paths
         self.input_path = None
         self.output_path = None
+        # Path display labels — created as hidden stubs here so browse_input /
+        # browse_output can always call .setText() safely.  The home tab also
+        # embeds them in a visible Folder Picker section.
+        self.input_path_label = QLabel("(none)")
+        self.output_path_label = QLabel("(none)")
         
         # Tooltip manager (will be initialized later)
         self.tooltip_manager = None
@@ -921,9 +926,51 @@ class TextureSorterMainWindow(QMainWindow):
             grid.addWidget(btn, i // cols, i % cols)
         layout.addWidget(grid_widget)
 
-        layout.addSpacing(16)
+        layout.addSpacing(10)
 
-        # ── Activity Log at bottom of home page ─────────────────────────────
+        # ── Folder Picker section ────────────────────────────────────────────
+        # The browse_input / browse_output methods need self.input_path_label and
+        # self.output_path_label to call .setText().  We assign them here so the
+        # labels shown on the home tab ARE those same objects.
+        folder_group = QGroupBox("📂 Folder Selection")
+        folder_group.setStyleSheet(
+            "QGroupBox { font-weight: bold; color: #aaaaaa; font-size: 11pt; "
+            "border: 1px solid #333; border-radius: 6px; margin-top: 6px; padding: 6px; }"
+            "QGroupBox::title { subcontrol-origin: margin; left: 10px; padding: 0 4px; }"
+        )
+        folder_grid = QGridLayout(folder_group)
+        folder_grid.setSpacing(6)
+
+        # Input folder row
+        folder_grid.addWidget(QLabel("📁 Input:"), 0, 0)
+        self.input_path_label.setStyleSheet(
+            "color: #aaaaaa; font-style: italic; padding: 4px 6px; "
+            "background: #1e1e2e; border: 1px solid #444; border-radius: 4px;"
+        )
+        self.input_path_label.setMinimumWidth(200)
+        folder_grid.addWidget(self.input_path_label, 0, 1)
+        input_browse_btn = QPushButton("Browse…")
+        input_browse_btn.setFixedWidth(80)
+        input_browse_btn.clicked.connect(self.browse_input)
+        folder_grid.addWidget(input_browse_btn, 0, 2)
+
+        # Output folder row
+        folder_grid.addWidget(QLabel("📂 Output:"), 1, 0)
+        self.output_path_label.setStyleSheet(
+            "color: #aaaaaa; font-style: italic; padding: 4px 6px; "
+            "background: #1e1e2e; border: 1px solid #444; border-radius: 4px;"
+        )
+        self.output_path_label.setMinimumWidth(200)
+        folder_grid.addWidget(self.output_path_label, 1, 1)
+        output_browse_btn = QPushButton("Browse…")
+        output_browse_btn.setFixedWidth(80)
+        output_browse_btn.clicked.connect(self.browse_output)
+        folder_grid.addWidget(output_browse_btn, 1, 2)
+
+        folder_grid.setColumnStretch(1, 1)
+        layout.addWidget(folder_group)
+
+        layout.addSpacing(6)
         from PyQt6.QtWidgets import QTextEdit as _QTE, QSplitter as _QSpl
         log_group = QGroupBox("📋 Activity Log")
         log_group.setStyleSheet(
@@ -2761,37 +2808,13 @@ class TextureSorterMainWindow(QMainWindow):
                 border: 1px solid #333333;
             }}
             """
-        # Append interactive-element styling common to ALL themes.
-        # This ensures buttons, combo boxes, checkboxes, and spin boxes all show
-        # a pointer cursor so users can clearly tell they are clickable/changeable.
-        stylesheet += """
-        QPushButton {
-            cursor: pointer;
-        }
-        QComboBox {
-            cursor: pointer;
-        }
-        QCheckBox {
-            cursor: pointer;
-        }
-        QRadioButton {
-            cursor: pointer;
-        }
-        QTabBar::tab {
-            cursor: pointer;
-        }
-        QSlider {
-            cursor: pointer;
-        }
-        QListWidget::item {
-            cursor: pointer;
-        }
-        QTreeWidget::item {
-            cursor: pointer;
-        }
-        """
         self.setStyleSheet(stylesheet)
         self.apply_cursor()
+        # Apply pointer cursor to interactive widgets application-wide after
+        # the stylesheet is applied.  Qt6 QSS does not support 'cursor: pointer'
+        # so we use an installEventFilter-based approach via the PointingCursorFilter
+        # (see _install_pointing_cursor_filter).
+        self._install_pointing_cursor_filter()
         # Re-apply cursor trail on theme change (overlay may have been covered)
         trail_enabled = bool(config.get('ui', 'cursor_trail', default=False))
         self._apply_cursor_trail(trail_enabled)
@@ -2816,6 +2839,30 @@ class TextureSorterMainWindow(QMainWindow):
                     self.achievement_system.unlock_achievement(ach_id)
         except Exception:
             pass
+
+    def _install_pointing_cursor_filter(self) -> None:
+        """Walk all child widgets and set PointingHandCursor on interactive ones.
+
+        Qt6 QSS does NOT support 'cursor: pointer' — that CSS property is silently
+        ignored (producing 'Unknown property cursor' warnings).  The correct Qt6
+        way is to call setCursor() on each widget.  We do it post-theme-application
+        so the cursor sticks even after style reloads.
+        """
+        try:
+            from PyQt6.QtWidgets import (QComboBox, QTabBar, QSlider,
+                                          QAbstractButton)
+            from PyQt6.QtCore import Qt
+            _hand = Qt.CursorShape.PointingHandCursor
+            for child in self.findChildren(QAbstractButton):
+                child.setCursor(_hand)
+            for child in self.findChildren(QComboBox):
+                child.setCursor(_hand)
+            for child in self.findChildren(QSlider):
+                child.setCursor(_hand)
+            for child in self.findChildren(QTabBar):
+                child.setCursor(_hand)
+        except Exception as e:
+            logger.debug(f"_install_pointing_cursor_filter: {e}")
 
     def apply_cursor(self):
         """Apply the cursor style saved in config to the whole application."""

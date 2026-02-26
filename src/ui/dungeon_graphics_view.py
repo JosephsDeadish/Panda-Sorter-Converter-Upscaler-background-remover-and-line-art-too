@@ -125,41 +125,82 @@ class DungeonGraphicsView(QGraphicsView):
         self.centerOn(x * self.tile_size, y * self.tile_size)
     
     def render_dungeon(self):
-        """Render the dungeon to the scene."""
+        """Render the dungeon to the scene.
+
+        Supports two dungeon data shapes:
+        1. ``list[list[list[int]]]`` — a raw ``floors[floor][row][col]`` grid
+           (legacy / test data).
+        2. ``IntegratedDungeon`` / any object with a ``.dungeon`` attribute that
+           has a ``get_floor(n)`` method returning a ``DungeonFloor`` with a
+           ``collision_map`` 2-D list.
+        """
         self.scene.clear()
-        
-        if not self.dungeon or self.current_floor >= len(self.dungeon):
+
+        if not self.dungeon:
             return
-        
-        floor_data = self.dungeon[self.current_floor]
+
+        # ── Resolve floor_data ────────────────────────────────────────────
+        floor_data = None
+        floor_obj  = None  # DungeonFloor when available (used for stair drawing)
+
+        # Shape 1: plain list-of-floors (each floor is a 2-D list)
+        if isinstance(self.dungeon, list):
+            if self.current_floor < len(self.dungeon):
+                floor_data = self.dungeon[self.current_floor]
+
+        # Shape 2: IntegratedDungeon wrapper (has .dungeon with get_floor())
+        elif hasattr(self.dungeon, 'dungeon') and hasattr(self.dungeon.dungeon, 'get_floor'):
+            dg = self.dungeon.dungeon  # DungeonGenerator
+            floor_obj = dg.get_floor(self.current_floor)
+            if floor_obj is not None:
+                floor_data = floor_obj.collision_map  # list[list[int]], 1=wall 0=walkable
+
+        # Shape 3: DungeonGenerator directly (has get_floor())
+        elif hasattr(self.dungeon, 'get_floor'):
+            floor_obj = self.dungeon.get_floor(self.current_floor)
+            if floor_obj is not None:
+                floor_data = floor_obj.collision_map
+
+        if floor_data is None:
+            return
+
         rows = len(floor_data)
         cols = len(floor_data[0]) if rows > 0 else 0
-        
-        # Tile colors
+
+        # Tile colors — collision_map uses 1=wall, 0=walkable
         tile_colors = {
-            0: QColor("#1a1a1a"),  # Wall/void
-            1: QColor("#3a3a3a"),  # Floor
-            2: QColor("#00aa00"),  # Start
-            3: QColor("#aa0000"),  # End/stairs
-            4: QColor("#0000aa"),  # Water
-            5: QColor("#aa5500"),  # Lava
+            0: QColor("#3a3a3a"),  # Walkable floor
+            1: QColor("#1a1a1a"),  # Wall/void
+            2: QColor("#00aa00"),  # Start (legacy grid)
+            3: QColor("#aa0000"),  # End/stairs (legacy grid)
+            4: QColor("#0000aa"),  # Water (legacy grid)
+            5: QColor("#aa5500"),  # Lava (legacy grid)
         }
-        
+
         # Draw tiles
         for row in range(rows):
             for col in range(cols):
                 tile_type = floor_data[row][col]
-                
+
                 x = col * self.tile_size
                 y = row * self.tile_size
-                
-                # Create tile rect
+
                 color = tile_colors.get(tile_type, QColor("#1a1a1a"))
                 rect = QGraphicsRectItem(x, y, self.tile_size, self.tile_size)
                 rect.setBrush(QBrush(color))
                 rect.setPen(QPen(QColor("#000000"), 1))
                 self.scene.addItem(rect)
-        
+
+        # Draw stairs markers — reuse floor_obj already resolved above
+        if floor_obj is not None:
+            stair_color = QColor("#ffcc00")
+            for (sx, sy) in getattr(floor_obj, 'stairs_down', []):
+                rect = QGraphicsRectItem(sx * self.tile_size, sy * self.tile_size,
+                                        self.tile_size, self.tile_size)
+                rect.setBrush(QBrush(stair_color))
+                rect.setPen(QPen(QColor("#000000"), 1))
+                self.scene.addItem(rect)
+
         # Set scene rect
         self.scene.setSceneRect(0, 0, cols * self.tile_size, rows * self.tile_size)
     

@@ -938,25 +938,132 @@ def test_theme_stylesheet_cursor_hints():
 
     code = src.read_text(encoding='utf-8')
 
-    # find the apply_theme method body
-    # we need to verify that after `stylesheet = f"""...` blocks there is an
-    # append block that includes cursor:pointer for QPushButton and QComboBox
-    assert 'cursor: pointer' in code or 'cursor:pointer' in code, (
-        "apply_theme() must append a stylesheet section with 'cursor: pointer' "
-        "for QPushButton so users can tell buttons are clickable.\n"
-        "Add: stylesheet += '\\nQPushButton { cursor: pointer; }\\n...'"
+    # Qt6 QSS does NOT support 'cursor: pointer' — it generates "Unknown property"
+    # warnings.  The correct approach is to call setCursor(PointingHandCursor) on
+    # each interactive widget.  Check that _install_pointing_cursor_filter exists
+    # and is called from apply_theme().
+    assert '_install_pointing_cursor_filter' in code, (
+        "main.py must define _install_pointing_cursor_filter() to call "
+        "setCursor(PointingHandCursor) on interactive widgets (QPushButton, "
+        "QComboBox, QSlider, QTabBar, QAbstractButton).\n"
+        "Qt6 QSS does NOT support 'cursor: pointer' — use setCursor() instead."
     )
-    # Verify it's after the stylesheet building (not just inside one theme branch)
-    # by checking it appears near the setStyleSheet call
-    ss_pos = code.find('self.setStyleSheet(stylesheet)')
-    cursor_pos = code.rfind('cursor: pointer', 0, ss_pos)
-    if cursor_pos < 0:
-        cursor_pos = code.rfind('cursor:pointer', 0, ss_pos)
-    assert cursor_pos >= 0, (
-        "cursor:pointer must appear in the stylesheet BEFORE the "
-        "self.setStyleSheet(stylesheet) call so it applies to all themes."
+    assert 'PointingHandCursor' in code, (
+        "_install_pointing_cursor_filter must use Qt.CursorShape.PointingHandCursor "
+        "to set the pointer cursor on interactive widgets."
     )
-    print("  ✅ cursor:pointer found in theme stylesheet before setStyleSheet()")
+    # Must be called from apply_theme (or called every time theme changes)
+    theme_pos  = code.find('def apply_theme(')
+    filter_call_pos = code.find('_install_pointing_cursor_filter', theme_pos)
+    assert filter_call_pos >= 0, (
+        "_install_pointing_cursor_filter() must be called from apply_theme() "
+        "so that the cursor is reset after every theme change."
+    )
+    print("  ✅ _install_pointing_cursor_filter found (Qt6-correct cursor approach)")
+    print("  ✅ PointingHandCursor used for interactive widgets")
+    print("  ✅ Called from apply_theme() so it runs on every theme change")
+
+
+def test_main_qgroupbox_import():
+    """QGroupBox must be in the top-level import block of main.py.
+
+    create_main_tab() uses QGroupBox directly (no local import).  It was
+    previously missing from the module-level ``from PyQt6.QtWidgets import …``
+    block, causing a ``NameError: name 'QGroupBox' is not defined`` whenever
+    the main window was instantiated.
+    """
+    print("\ntest_main_qgroupbox_import ...")
+    from pathlib import Path
+    src = Path(__file__).parent / 'main.py'
+    code = src.read_text(encoding='utf-8')
+
+    # Find the first QtWidgets import block (module level) — use DOTALL so the
+    # regex matches across line breaks (the import is a multi-line parenthesised list).
+    import re
+    m = re.search(r'from PyQt6\.QtWidgets import \((.+?)\)', code, re.DOTALL)
+    assert m, "Could not find the top-level 'from PyQt6.QtWidgets import (…)' block in main.py"
+    block = m.group(1)
+    assert 'QGroupBox' in block, (
+        "QGroupBox is missing from the top-level 'from PyQt6.QtWidgets import' block.\n"
+        "create_main_tab() uses QGroupBox without a local import, causing NameError."
+    )
+    print("  ✅ QGroupBox found in top-level QtWidgets import block")
+
+
+def test_main_input_path_label_exists():
+    """main.py must initialise self.input_path_label and self.output_path_label.
+
+    browse_input() and browse_output() call self.input_path_label.setText() and
+    self.output_path_label.setText().  Without these attributes the app crashes
+    with AttributeError on the first file-browse action AND when drag-and-drop
+    tries to wire them.
+
+    The fix:
+    1. Creates them as QLabel stubs in __init__ (so they always exist).
+    2. Adds them to the home tab's 'Folder Selection' group box so they are
+       visible and functional.
+    """
+    print("\ntest_main_input_path_label_exists ...")
+    from pathlib import Path
+    src = Path(__file__).parent / 'main.py'
+    code = src.read_text(encoding='utf-8')
+
+    assert 'self.input_path_label' in code, (
+        "main.py must define self.input_path_label (a QLabel) in __init__() "
+        "so browse_input() can call .setText() without AttributeError."
+    )
+    assert 'self.output_path_label' in code, (
+        "main.py must define self.output_path_label (a QLabel) in __init__() "
+        "so browse_output() can call .setText() without AttributeError."
+    )
+    # Must appear before the first use in browse_input (line ~3367)
+    label_pos = code.find('self.input_path_label = ')
+    use_pos   = code.find('self.input_path_label.setText(')
+    assert label_pos >= 0, "self.input_path_label = ... assignment not found"
+    assert use_pos >= 0,   "self.input_path_label.setText() not found"
+    assert label_pos < use_pos, (
+        "self.input_path_label must be ASSIGNED before it is USED (.setText()). "
+        f"Assigned at char {label_pos}, first use at char {use_pos}."
+    )
+    print("  ✅ self.input_path_label assigned before first use")
+    print("  ✅ self.output_path_label present")
+    # Also check the home tab has a Folder Selection group box
+    assert 'Folder Selection' in code, (
+        "The home tab should display the input/output path labels inside a "
+        "'Folder Selection' QGroupBox so users can see and interact with them."
+    )
+    print("  ✅ 'Folder Selection' QGroupBox found in home tab")
+
+
+def test_dungeon_render_integrated_dungeon():
+    """DungeonGraphicsView.render_dungeon() must handle IntegratedDungeon objects.
+
+    The original code called ``len(self.dungeon)`` and ``self.dungeon[floor]``
+    which only works on a plain list.  IntegratedDungeon is an object with a
+    nested ``.dungeon`` (DungeonGenerator) that exposes ``get_floor(n)`` →
+    ``DungeonFloor`` with a ``collision_map`` 2-D list.
+
+    The fix detects the data shape at render time and adapts accordingly.
+    """
+    print("\ntest_dungeon_render_integrated_dungeon ...")
+    from pathlib import Path
+    src = Path(__file__).parent / 'src' / 'ui' / 'dungeon_graphics_view.py'
+    code = src.read_text(encoding='utf-8')
+
+    assert 'get_floor' in code, (
+        "render_dungeon() must call dungeon.dungeon.get_floor(n) to support "
+        "IntegratedDungeon objects (which do NOT support len() or indexing)."
+    )
+    assert 'collision_map' in code, (
+        "render_dungeon() must read floor_obj.collision_map to get the tile grid "
+        "from a DungeonFloor (DungeonFloor stores tiles in .collision_map)."
+    )
+    assert 'isinstance(self.dungeon, list)' in code, (
+        "render_dungeon() must handle the legacy list-of-floors format as well "
+        "(used in tests and standalone demos)."
+    )
+    print("  ✅ render_dungeon handles IntegratedDungeon via get_floor() + collision_map")
+    print("  ✅ render_dungeon handles legacy list-of-floors format")
 
 
 def run_all_tests():
@@ -982,6 +1089,9 @@ def run_all_tests():
         test_dungeon_view_pyqt_guard,
         test_organizer_panel_constraints,
         test_theme_stylesheet_cursor_hints,
+        test_main_qgroupbox_import,
+        test_main_input_path_label_exists,
+        test_dungeon_render_integrated_dungeon,
         test_panda_widget_gl_qstate_import,
         test_bedroom_mouse_release_event,
         test_otter_smooth_look_animation,
