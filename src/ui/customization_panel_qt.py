@@ -143,12 +143,12 @@ class CustomizationPanelQt(QWidget):
         length_layout.addWidget(self.trail_slider)
         trail_layout.addLayout(length_layout)
 
-        # Animated trail preview
+        # Animated panda trail preview
         if _TRAIL_PREVIEW_AVAILABLE and _TrailPreviewWidget is not None:
             try:
                 self._trail_preview = _TrailPreviewWidget()
                 self._trail_preview.setFixedHeight(120)
-                trail_layout.addWidget(QLabel("Preview:"))
+                trail_layout.addWidget(QLabel("Panda Trail Preview:"))
                 trail_layout.addWidget(self._trail_preview)
             except Exception as _e:
                 logger.debug("Trail preview widget could not be created: %s", _e)

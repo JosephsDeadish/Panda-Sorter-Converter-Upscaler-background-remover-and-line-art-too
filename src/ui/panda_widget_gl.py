@@ -70,6 +70,9 @@ logger = logging.getLogger(__name__)
 
 # Body pitch targets for quadruped stances (degrees, X-axis rotation of torso)
 _BODY_PITCH_TARGETS: dict = {
+    'walking':       -30.0,   # body pitched forward for all-fours walk
+    'walking_left':  -30.0,
+    'walking_right': -30.0,
     'crawling':      -42.0,   # body pitched forward, nose toward ground
     'climbing_wall': -80.0,   # near-vertical, claws on wall
     'falling_back':   85.0,   # on back, legs up
@@ -194,6 +197,7 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
     BODY_HEIGHT = 0.6
     ARM_LENGTH = 0.4
     LEG_LENGTH = 0.35
+    LEG_SPACING = 0.40   # lateral distance between left/right leg pivots
     EAR_SIZE = 0.15
 
     # States that receive a micro-hold pause before transitioning to idle
@@ -254,11 +258,11 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
         fmt.setAlphaBufferSize(8)  # needed for WA_TranslucentBackground transparency
         self.setFormat(fmt)
 
-        # Overlay mode — transparent, always on top, mouse events pass through to UI below
+        # Overlay mode — transparent, always on top; mouse events are NOT
+        # passed through so the panda responds to clicks and drags.
         self._overlay_mode = True
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
         self.setAttribute(Qt.WidgetAttribute.WA_AlwaysStackOnTop)
-        self.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
 
         # Panda state
         self.panda = panda_character
@@ -2014,7 +2018,7 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
     def _draw_panda_legs(self, limb, bob, t=0):
         """Draw stocky legs with thigh, shin, foot and claws."""
         leg_y = -0.04 + bob
-        leg_x = 0.20
+        leg_x = self.BODY_WIDTH * 0.80   # match hip-patch positions for realistic stance
         ac = self._get_color('accent')   # fur-style accent colour for leg patches
 
         for side, key in ((-1, 'left_leg_angle'), (1, 'right_leg_angle')):
@@ -3091,12 +3095,15 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
                 return pos
 
             if state in ('walking', 'walking_left', 'walking_right'):
+                # Quadruped diagonal gait: front-left/rear-right move together.
+                # Base angle 35° pitches limbs forward/back from the body; swing
+                # amplitude 28° provides natural reach; harmonic 4° adds realism.
                 base  = frame * 0.160
-                swing = 32.0 * math.sin(base) + 5.0 * math.sin(base * 3) / 3.0
-                pos['left_arm_angle']  =  swing
-                pos['right_arm_angle'] = -swing
-                pos['left_leg_angle']  = -swing
-                pos['right_leg_angle'] =  swing
+                swing = 28.0 * math.sin(base) + 4.0 * math.sin(base * 3) / 3.0
+                pos['left_arm_angle']  =  35.0 + swing    # front legs pitched forward
+                pos['right_arm_angle'] =  35.0 - swing
+                pos['left_leg_angle']  = -35.0 - swing    # rear legs pitched backward
+                pos['right_leg_angle'] = -35.0 + swing
 
             elif state == 'running':
                 base  = frame * 0.280
@@ -5116,9 +5123,20 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
         Set motion trail/effect for panda.
         
         Args:
-            trail_type: Type of trail ('sparkle', 'rainbow', 'fire', 'ice', 'none')
+            trail_type: Type of trail ('sparkle', 'rainbow', 'fire', 'ice', 'none').
+                        Also accepts UI display names ('Dots', 'Line', 'Glow', 'Particles', 'None').
             trail_data: Configuration dict for trail (color, intensity, duration, etc.)
         """
+        # Normalize UI display names → internal trail type strings
+        _type_map = {
+            'none': 'none', 'None': 'none', '': 'none',
+            'dots': 'sparkle', 'Dots': 'sparkle',
+            'line': 'rainbow', 'Line': 'rainbow',
+            'glow': 'fire',    'Glow': 'fire',
+            'particles': 'ice', 'Particles': 'ice',
+        }
+        trail_type = _type_map.get(trail_type, trail_type.lower() if trail_type else 'none')
+
         self.trail_type = trail_type
         self.trail_data = trail_data
         self.trail_enabled = trail_type != 'none'
@@ -5134,8 +5152,8 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
         if not self.trail_enabled or self.trail_type == 'none':
             return
         
-        # Add new particle at current position if panda is moving
-        if abs(self.velocity_x) > 0.01 or abs(self.velocity_z) > 0.01:
+        # Add new particle at current position whenever the panda is moving
+        if abs(self.velocity_x) > 0.002 or abs(self.velocity_z) > 0.002:
             particle = {
                 'pos': [self.panda_x, self.panda_y + 0.3, self.panda_z],
                 'life': 1.0,  # Life from 1.0 to 0.0
