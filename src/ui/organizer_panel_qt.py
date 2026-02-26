@@ -573,6 +573,7 @@ class OrganizerPanelQt(QWidget):
     
     def _create_ui(self):
         """Create the comprehensive UI — left controls, right work area."""
+        self.setMinimumSize(700, 500)  # prevent squashed layout
         root = QVBoxLayout(self)
         root.setSpacing(4)
         root.setContentsMargins(8, 8, 8, 8)
@@ -603,8 +604,8 @@ class OrganizerPanelQt(QWidget):
         left_scroll = QScrollArea()
         left_scroll.setWidgetResizable(True)
         left_scroll.setFrameShape(QFrame.Shape.NoFrame)
-        left_scroll.setMinimumWidth(280)
-        left_scroll.setMaximumWidth(420)
+        left_scroll.setMinimumWidth(300)
+        left_scroll.setMaximumWidth(520)
 
         left_container = QWidget()
         left_layout = QVBoxLayout(left_container)

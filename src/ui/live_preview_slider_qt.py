@@ -290,10 +290,13 @@ class ComparisonSliderWidget(QWidget):
                            Qt.TransformationMode.SmoothTransformation)
         
     def mousePressEvent(self, event):
-        """Handle mouse press for dragging"""
+        """Handle mouse press for dragging — only start drag when near the handle."""
         if self.comparison_mode == "slider" and event.button() == Qt.MouseButton.LeftButton:
-            self.is_dragging = True
-            self._update_slider_from_mouse(event.pos())
+            slider_x = int(self.width() * (self.slider_position / 100.0))
+            # Only begin dragging when the click lands within the handle area
+            if abs(event.pos().x() - slider_x) <= 20:
+                self.is_dragging = True
+                self._update_slider_from_mouse(event.pos())
             
     def mouseMoveEvent(self, event):
         """Handle mouse move for dragging"""

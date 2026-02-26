@@ -1773,7 +1773,7 @@ class TextureSorterMainWindow(QMainWindow):
             logger.info("✅ Adventure/Dungeon panel added to panda tab")
         except Exception as e:
             logger.warning(f"Could not load dungeon panel: {e}")
-            label = QLabel("⚔️ Adventure Mode\n\nDungeon exploration coming soon!\nInstall PyQt6 to enable.")
+            label = QLabel(f"⚔️ Adventure Mode\n\nFailed to load dungeon panel.\n{type(e).__name__}: {e}")
             label.setAlignment(Qt.AlignmentFlag.AlignCenter)
             panda_tabs.addTab(label, "⚔️ Adventure")
 

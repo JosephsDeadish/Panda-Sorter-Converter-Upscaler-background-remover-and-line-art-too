@@ -74,10 +74,11 @@ class DungeonGraphicsView(QGraphicsView):
     - Hardware accelerated
     """
     
-    def __init__(self, dungeon_data, parent=None):
+    def __init__(self, dungeon_data=None, parent=None, tooltip_manager=None):
         super().__init__(parent)
         
         self.dungeon = dungeon_data
+        self.tooltip_manager = tooltip_manager
         self.current_floor = 0
         self.camera_x = 0
         self.camera_y = 0
@@ -100,6 +101,11 @@ class DungeonGraphicsView(QGraphicsView):
         self.setBackgroundBrush(QBrush(QColor("#1a1a1a")))
         
         # Initial render
+        self.render_dungeon()
+
+    def set_dungeon(self, dungeon):
+        """Set the dungeon data and re-render."""
+        self.dungeon = dungeon
         self.render_dungeon()
     
     def set_floor(self, floor_index: int):

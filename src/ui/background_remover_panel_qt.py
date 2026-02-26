@@ -75,6 +75,7 @@ class BackgroundRemoverPanelQt(QWidget):
         self.brush_size = 10
         self.current_tool = "brush"
         self._temp_extract_dir = None  # Track temp directory for archive extraction
+        self._rembg_temp_dirs: list = []  # Track rembg result temp dirs for cleanup
         
         # Undo/Redo history management
         self.edit_history = []
@@ -498,70 +499,81 @@ class BackgroundRemoverPanelQt(QWidget):
         
         try:
             from PyQt6.QtWidgets import QProgressDialog
-            from PyQt6.QtCore import Qt, QBuffer
-            from PyQt6.QtGui import QImage
+            from PyQt6.QtCore import Qt
+            from PyQt6.QtGui import QPixmap
+            import tempfile, io
+
+            if not PIL_AVAILABLE:
+                QMessageBox.critical(self, "Error", "PIL/Pillow not installed. Cannot process image.")
+                return
+
             from PIL import Image
-            import io
-            
+
             # Show progress dialog
             progress = QProgressDialog("Removing background...", "Cancel", 0, 0, self)
             progress.setWindowModality(Qt.WindowModality.WindowModal)
             progress.setWindowTitle("Processing")
             progress.show()
-            
-            # Convert QImage to PIL Image
-            buffer = QBuffer()
-            buffer.open(QBuffer.OpenModeFlag.ReadWrite)
-            self.current_image.save(buffer, "PNG")
-            pil_image = Image.open(io.BytesIO(buffer.data()))
-            
+
+            # Open image from file path (self.current_image is always a path string)
+            pil_image = Image.open(self.current_image)
+
             # Process with rembg — use selected model if available
-            selected_model = getattr(
-                getattr(self, 'bg_model_combo', None), 'currentData',
-                lambda: 'u2net'
-            )()
+            selected_model = 'u2net'
+            bg_combo = getattr(self, 'bg_model_combo', None)
+            if bg_combo is not None and hasattr(bg_combo, 'currentData'):
+                model_data = bg_combo.currentData()
+                if model_data:
+                    selected_model = model_data
+
+            import rembg
             try:
-                import rembg
                 session = rembg.new_session(selected_model)
                 output = rembg.remove(pil_image, session=session)
             except Exception as _me:
                 # Fallback: no session (rembg picks its own default)
                 logger.warning(f"rembg session creation failed for {selected_model}: {_me}")
                 output = rembg.remove(pil_image)
-            
-            # Convert back to QImage
-            output_buffer = io.BytesIO()
-            output.save(output_buffer, format='PNG')
-            output_buffer.seek(0)
-            
-            result_image = QImage()
-            result_image.loadFromData(output_buffer.read())
-            
-            # Update current image
-            self.current_image = result_image
-            
-            # Update preview
-            if hasattr(self, 'update_preview'):
-                self.update_preview()
-            
-            # Add to undo history
-            if hasattr(self, 'undo_stack'):
-                self.undo_stack.append(result_image.copy())
-            
+
+            # Save result to a temp PNG file (preserving alpha)
+            tmp_dir = Path(tempfile.mkdtemp(prefix="bg_remover_"))
+            self._rembg_temp_dirs.append(tmp_dir)  # track for later cleanup
+            result_path = tmp_dir / (Path(self.current_image).stem + "_no_bg.png")
+            output.save(str(result_path), format='PNG')
+
+            # Update processed_image path
+            self.processed_image = str(result_path)
+
+            # Add to undo/redo history
+            self.history_index += 1
+            if self.history_index < len(self.edit_history):
+                self.edit_history = self.edit_history[:self.history_index]
+            self.edit_history.append(self.processed_image)
+            if len(self.edit_history) > self.max_history:
+                self.edit_history.pop(0)
+                self.history_index = len(self.edit_history) - 1
+
+            # Update before/after preview
+            if SLIDER_AVAILABLE and hasattr(self, 'preview_widget'):
+                before_px = QPixmap(self.current_image)
+                after_px = QPixmap(self.processed_image)
+                self.preview_widget.set_before_image(before_px)
+                self.preview_widget.set_after_image(after_px)
+
             progress.close()
-            
+
             QMessageBox.information(
                 self,
                 "Success",
                 "Background removed successfully!"
             )
-            
+
             if self.processing_complete:
                 self.processing_complete.emit()
-                
+
         except Exception as e:
             logger.error(f"Error removing background: {e}", exc_info=True)
-            
+
             QMessageBox.critical(
                 self,
                 "Error",
@@ -637,3 +649,13 @@ class BackgroundRemoverPanelQt(QWidget):
                 except Exception:
                     pass
         widget.setToolTip(str(widget_id_or_text))
+
+    def closeEvent(self, event):
+        """Clean up temp directories created during background removal."""
+        for tmp_dir in self._rembg_temp_dirs:
+            try:
+                shutil.rmtree(str(tmp_dir), ignore_errors=True)
+            except Exception:
+                pass
+        self._rembg_temp_dirs.clear()
+        super().closeEvent(event)

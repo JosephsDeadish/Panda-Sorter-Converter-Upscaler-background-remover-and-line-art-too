@@ -240,6 +240,7 @@ if _PYQT:
             root = QVBoxLayout(self)
             root.setContentsMargins(8, 8, 8, 8)
             root.setSpacing(6)
+            self.setMinimumSize(700, 500)  # prevent squashed layout
 
             # Title
             title = QLabel("🔄 Format Converter")
@@ -252,8 +253,8 @@ if _PYQT:
 
             # ── Left column ────────────────────────────────────────────────
             left = QWidget()
-            left.setMinimumWidth(290)
-            left.setMaximumWidth(440)
+            left.setMinimumWidth(340)
+            left.setMaximumWidth(520)
             lv = QVBoxLayout(left)
             lv.setContentsMargins(0, 0, 4, 0)
             lv.setSpacing(6)
@@ -456,7 +457,7 @@ if _PYQT:
             self._status_lbl.setStyleSheet("color:#58a6ff; font-size:11px;")
             rv.addWidget(self._status_lbl)
             splitter.addWidget(right)
-            splitter.setSizes([320, 480])
+            splitter.setSizes([380, 480])
 
         # ── Resize sub-control visibility ─────────────────────────────────
         def _on_resize_mode_changed(self, idx: int):
