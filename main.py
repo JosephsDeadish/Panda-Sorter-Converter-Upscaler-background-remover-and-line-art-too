@@ -4834,14 +4834,31 @@ class TextureSorterMainWindow(QMainWindow):
         except Exception:
             pass
 
+        # Walk the in-room bedroom panda to the furniture's walk position.
+        # The panda character visually walks to the object in the bedroom scene.
+        # Panel opening is handled by the furniture-specific blocks below which
+        # already use QTimer delays that roughly correspond to the walk duration.
+        def _open_panel_after_walk():
+            # The bedroom panda has arrived at the furniture; trigger the overlay
+            # panda's open_furniture animation (visual reaction on the overlay widget).
+            # Note: this fires when the bedroom panda arrives, which may not be
+            # synchronised with the overlay panda's walk — the overlay panda is a
+            # separate widget that plays its own walk animation independently.
+            _safe_open(self.panda_widget, furniture_id)
+
+        try:
+            if self._bedroom_widget and hasattr(self._bedroom_widget, 'walk_panda_to'):
+                self._bedroom_widget.walk_panda_to(walk_x, walk_z, callback=_open_panel_after_walk)
+        except Exception as _e:
+            logger.debug(f"Bedroom panda walk: {_e}")
+
+        # Also animate the overlay panda widget (walk animation plays on the
+        # floating panda overlay independently of the bedroom panda's walk).
         try:
             if self.panda_widget and hasattr(self.panda_widget, 'walk_to_position'):
-                self.panda_widget.walk_to_position(
-                    walk_x, 0.0, walk_z,
-                    callback=functools.partial(_safe_open, self.panda_widget, furniture_id),
-                )
+                self.panda_widget.walk_to_position(walk_x, 0.0, walk_z)
         except Exception as _e:
-            logger.debug(f"Bedroom walk: {_e}")
+            logger.debug(f"Overlay panda walk: {_e}")
 
         # ── Trophy stand → switch to Achievements tab ─────────────────────────
         if furniture_id == 'trophy_stand':

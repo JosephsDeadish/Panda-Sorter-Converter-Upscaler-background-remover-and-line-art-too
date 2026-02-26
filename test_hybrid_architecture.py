@@ -653,6 +653,119 @@ def test_spec_bundle_completeness():
 # Runner
 # ---------------------------------------------------------------------------
 
+def test_panda_camera_distance_and_drag():
+    """Panda overlay widget must have camera_distance >= 6.0 and drag scale <= /500.
+
+    camera_distance = 5.0 makes the panda fill a large portion of the window,
+    causing body parts to appear distorted by perspective and making the widget
+    feel overwhelming.  7.0 is a comfortable default.
+
+    drag_scale = camera_distance / 300.0 was too sensitive (twitchy drag).
+    Changed to / 600.0 for smoother feel.
+    """
+    print("\ntest_panda_camera_distance_and_drag ...")
+    import ast
+    from pathlib import Path
+
+    src = Path(__file__).parent / 'src' / 'ui' / 'panda_widget_gl.py'
+    if not src.exists():
+        print("  ⚠️  Skipped (panda_widget_gl.py not found)")
+        return
+
+    code = src.read_text(encoding='utf-8')
+
+    # camera_distance must be >= 6.0
+    for i, line in enumerate(code.splitlines(), 1):
+        s = line.strip()
+        if s.startswith('self.camera_distance = ') and 'max' not in s:
+            try:
+                val = float(s.split('=')[1].strip())
+                assert val >= 6.0, (
+                    f"line {i}: camera_distance = {val} is too small (minimum 6.0). "
+                    "A distance of 7.0 gives a comfortable non-filling panda size."
+                )
+                print(f"  ✅ camera_distance = {val} (>= 6.0)")
+            except (ValueError, IndexError):
+                pass
+
+    # drag scale must be /500 or larger denominator (less sensitive)
+    import re as _re
+    for i, line in enumerate(code.splitlines(), 1):
+        s = line.strip()
+        if 'drag_scale' in s and 'camera_distance /' in s:
+            m = _re.search(r'camera_distance\s*/\s*([0-9]+(?:\.[0-9]+)?)', s)
+            if m:
+                denom = float(m.group(1))
+                assert denom >= 500, (
+                    f"line {i}: drag_scale denominator {denom} is too low (min 500). "
+                    "Use camera_distance / 600.0 for a less twitchy drag."
+                )
+                print(f"  ✅ drag_scale denominator = {denom} (>= 500)")
+
+
+def test_bedroom_panda_walk():
+    """PandaBedroomGL must implement walk_panda_to() and _draw_panda_in_room().
+
+    The bedroom scene needs its own panda character that:
+    1. Walks toward furniture when furniture_clicked is emitted.
+    2. Is drawn in the bedroom 3D scene (not just the floating overlay).
+
+    This makes the furniture interaction visually meaningful — the user sees
+    the panda character walking to the object before the panel opens.
+    """
+    print("\ntest_bedroom_panda_walk ...")
+    import ast
+    from pathlib import Path
+
+    src = Path(__file__).parent / 'src' / 'ui' / 'panda_bedroom_gl.py'
+    if not src.exists():
+        print("  ⚠️  Skipped (panda_bedroom_gl.py not found)")
+        return
+
+    code = src.read_text(encoding='utf-8')
+    tree = ast.parse(code, filename=str(src))
+
+    func_names = {
+        node.name
+        for node in ast.walk(tree)
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+    }
+
+    assert 'walk_panda_to' in func_names, (
+        "PandaBedroomGL.walk_panda_to() not found!\n"
+        "This method should animate the in-room panda walking toward a target position "
+        "so the user sees it moving to the clicked furniture piece."
+    )
+    assert '_draw_panda_in_room' in func_names, (
+        "PandaBedroomGL._draw_panda_in_room() not found!\n"
+        "This method draws the panda character inside the bedroom 3D scene."
+    )
+    assert '_tick_panda_walk' in func_names, (
+        "PandaBedroomGL._tick_panda_walk() not found!\n"
+        "This method advances the panda toward its walk target each animation tick."
+    )
+
+    # walk_panda_to must have a callback parameter
+    for node in ast.walk(tree):
+        if isinstance(node, ast.FunctionDef) and node.name == 'walk_panda_to':
+            arg_names = [a.arg for a in node.args.args] + [
+                a.arg for a in node.args.kwonlyargs
+            ]
+            if node.args.vararg:
+                arg_names.append(node.args.vararg.arg)
+            defaults = node.args.defaults + node.args.kw_defaults
+            has_callback = 'callback' in arg_names
+            assert has_callback, (
+                "walk_panda_to() must accept a 'callback' parameter — called "
+                "once the panda arrives at the target so the furniture panel can open."
+            )
+            print(f"  ✅ walk_panda_to() found with args: {arg_names}")
+            break
+
+    print("  ✅ _draw_panda_in_room() found")
+    print("  ✅ _tick_panda_walk() found")
+
+
 def run_all_tests():
     print("=" * 65)
     print("Hybrid Architecture + Lazy rembg Import Tests")
@@ -670,6 +783,8 @@ def run_all_tests():
         test_model_manager_url_structure,
         test_panda_no_double_bob,
         test_bg_remover_onnx_fallback_present,
+        test_panda_camera_distance_and_drag,
+        test_bedroom_panda_walk,
         test_panda_widget_gl_qstate_import,
         test_bedroom_mouse_release_event,
         test_otter_smooth_look_animation,

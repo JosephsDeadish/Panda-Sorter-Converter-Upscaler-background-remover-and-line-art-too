@@ -287,8 +287,8 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
         self.angular_velocity = 0.0
         
         # Camera settings — camera_distance controls apparent panda size.
-        # Value 5.0 gives a comfortable size relative to the window.
-        self.camera_distance = 5.0
+        # 7.0 keeps the panda from filling the entire window while still being clearly visible.
+        self.camera_distance = 7.0
         self.camera_angle_x = 20.0
         self.camera_angle_y = 0.0
         
@@ -774,6 +774,10 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
         """Inner paintGL — wrapped by paintGL's try/except so a GL error skips the frame."""
         # Clear buffers
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+        # Ensure blend is off at frame start so the first opaque draws are truly opaque.
+        # Individual draw sections re-enable it as needed and are required to disable it
+        # before returning.
+        glDisable(GL_BLEND)
         
         # Render shadows first (if supported)
         if self.shadow_fbo:
@@ -3481,8 +3485,9 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
         
         if event.buttons() & Qt.MouseButton.LeftButton:
             if self.is_dragging:
-                # Drag panda — scale factor keeps drag proportional to camera distance
-                drag_scale = self.camera_distance / 300.0
+                # Drag panda — scale factor keeps drag proportional to camera distance.
+                # Divide by 600 (was 300) for a less twitchy drag feel.
+                drag_scale = self.camera_distance / 600.0
                 self.panda_x += delta.x() * drag_scale
                 self.panda_y -= delta.y() * drag_scale
             else:
@@ -3558,7 +3563,7 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
         """Handle mouse wheel for zooming."""
         delta = event.angleDelta().y()
         self.camera_distance -= delta * 0.001
-        self.camera_distance = max(1.0, min(10.0, self.camera_distance))
+        self.camera_distance = max(2.0, min(12.0, self.camera_distance))
         self.update()
     
     def set_animation_state(self, state: str):
