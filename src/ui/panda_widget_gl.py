@@ -251,8 +251,15 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
         fmt.setSamples(4)  # 4x MSAA for antialiasing
         fmt.setDepthBufferSize(24)
         fmt.setStencilBufferSize(8)
+        fmt.setAlphaBufferSize(8)  # needed for WA_TranslucentBackground transparency
         self.setFormat(fmt)
-        
+
+        # Overlay mode — transparent, always on top, mouse events pass through to UI below
+        self._overlay_mode = True
+        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+        self.setAttribute(Qt.WidgetAttribute.WA_AlwaysStackOnTop)
+        self.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
+
         # Panda state
         self.panda = panda_character
         
@@ -647,7 +654,7 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
         glCullFace(GL_BACK)
         glEnable(GL_BLEND)
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
-        glClearColor(0.12, 0.12, 0.14, 1.0)  # dark-grey background, matches dark theme
+        glClearColor(0.0, 0.0, 0.0, 0.0)  # fully transparent — composited over the app UI
 
         # CompatibilityProfile-only calls — safe to skip on CoreProfile/ANGLE
         # (QT_OPENGL=desktop should mean we NEVER reach this on ANGLE, but be
@@ -994,7 +1001,9 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
                self.custom_colors.get('body', [0.97, 0.97, 0.99]))
 
     def _draw_ground(self):
-        """Draw a tiled ground plane for spatial reference (warm wood-tone checkerboard)."""
+        """Draw a tiled ground plane — skipped in overlay mode where the app UI is the floor."""
+        if self._overlay_mode:
+            return  # no floor texture when the panda floats over the application window
         try:
             glDisable(GL_LIGHTING)
         except Exception:
@@ -1068,10 +1077,10 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
         sy = self._squash_y * _sub.get('body_y_scale', 1.0)
 
         glPushMatrix()
-        # _paint_gl_body already applied panda_x/panda_z via glTranslatef; only
-        # add the vertical bob offset here to avoid doubling the XZ position.
+        # _paint_gl_body already applied panda_x/panda_z and rotation_y via
+        # glTranslatef/glRotatef; only add the vertical bob offset here to avoid
+        # doubling the XZ position or rotation.
         glTranslatef(0.0, 0.28 + bob, 0.0)
-        glRotatef(self.rotation_y, 0.0, 1.0, 0.0)
         # Wobble: random lateral lean added to whole body (pandas are uncoordinated)
         if abs(self._wobble_x) > 0.05:
             glRotatef(self._wobble_x, 0.0, 0.0, 1.0)
@@ -1277,8 +1286,13 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
                 self._eye_head_yaw * 0.5 +
                 _sub.get('head_z', 0.0))
         glPushMatrix()
-        glTranslatef(self.panda_x, 0.90 + bob * 1.1, self.panda_z)
-        glRotatef(self.rotation_y + self._eye_head_yaw * 0.4, 0.0, 1.0, 0.0)
+        # _paint_gl_body already applied panda_x/panda_z and rotation_y via the
+        # parent glTranslatef/glRotatef block; use only local offsets here so the
+        # head stays attached to the body regardless of where the panda has walked.
+        glTranslatef(0.0, 0.90 + bob * 1.1, 0.0)
+        # Only the extra eye-lead yaw is applied here; the base rotation_y is already
+        # in the parent matrix so adding it again would double the facing direction.
+        glRotatef(self._eye_head_yaw * 0.4, 0.0, 1.0, 0.0)
         glRotatef(tilt, 0.0, 0.0, 1.0)
         glRotatef(self._eye_head_pitch * 0.5 + _sub.get('head_x', 0.0), 1.0, 0.0, 0.0)
 

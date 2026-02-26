@@ -234,6 +234,10 @@ class TransparentPandaOverlay(QOpenGLWidget if PYQT_AVAILABLE else QWidget):
             glLoadIdentity()
 
             self._gl_initialized = True
+            # Create a single reusable GLU quadric for sphere drawing — avoids
+            # allocating/deleting a new object on every frame.
+            self._sphere_quadric = gluNewQuadric()
+            gluQuadricNormals(self._sphere_quadric, GLU_SMOOTH)
         except Exception as exc:
             logger.warning("TransparentPandaOverlay GL init failed: %s — overlay hidden", exc)
             self._gl_initialized = False
@@ -310,74 +314,279 @@ class TransparentPandaOverlay(QOpenGLWidget if PYQT_AVAILABLE else QWidget):
         glPopMatrix()
     
     def _render_panda(self):
-        """Render the 3D panda."""
+        """Render the 3D panda with detailed body parts matching the GL sidebar panda."""
         glPushMatrix()
-        
-        # Position panda
+
+        # Position and orient panda
         glTranslatef(self.panda_x, self.panda_y, self.panda_z)
         glRotatef(self.panda_rotation, 0.0, 1.0, 0.0)
         glScalef(self.panda_scale, self.panda_scale * self.squash_factor, self.panda_scale)
-        
-        # Panda body (white torso)
+
+        t = self.animation_phase
+        is_walking = self.animation_state == 'walking'
+        arm_swing  = math.sin(t) * 25.0 if is_walking else 0.0
+        leg_swing  = math.sin(t) * 20.0 if is_walking else 0.0
+        bob        = math.sin(t * 2.0) * 0.012 if is_walking else 0.0
+
+        # ── Torso ──────────────────────────────────────────────────────────
+        glPushMatrix()
+        glTranslatef(0.0, 0.28 + bob, 0.0)
+
+        # Belly / cream underside (ellipsoid)
+        glMaterialfv(GL_FRONT, GL_AMBIENT_AND_DIFFUSE, [1.0, 0.98, 0.93, 1.0])
+        glPushMatrix()
+        glScalef(0.50 * 0.65, 0.60 * 0.55, 0.50 * 0.50)
+        self._draw_unit_sphere(32)
+        glPopMatrix()
+
+        # Main body (white)
         glMaterialfv(GL_FRONT, GL_AMBIENT_AND_DIFFUSE, [1.0, 1.0, 1.0, 1.0])
-        self._draw_sphere(0.0, 0.0, 0.0, 0.3)
-        
-        # Panda head (white)
-        self._draw_sphere(0.0, 0.4, 0.0, 0.25)
-        
-        # Black ears
-        glMaterialfv(GL_FRONT, GL_AMBIENT_AND_DIFFUSE, [0.0, 0.0, 0.0, 1.0])
-        self._draw_sphere(-0.15, 0.55, 0.0, 0.1)
-        self._draw_sphere(0.15, 0.55, 0.0, 0.1)
-        
-        # Black eye patches
-        self._draw_sphere(-0.1, 0.45, 0.2, 0.08)
-        self._draw_sphere(0.1, 0.45, 0.2, 0.08)
-        
+        glPushMatrix()
+        glScalef(0.50, 0.60, 0.50 * 0.78)
+        self._draw_unit_sphere(32)
+        glPopMatrix()
+
+        # Black saddle patch (lower torso)
+        glMaterialfv(GL_FRONT, GL_AMBIENT_AND_DIFFUSE, [0.08, 0.08, 0.08, 1.0])
+        glPushMatrix()
+        glTranslatef(0.0, -0.18, 0.0)
+        glScalef(0.50 * 0.95, 0.60 * 0.35, 0.50 * 0.70)
+        self._draw_unit_sphere(20)
+        glPopMatrix()
+
+        # Shoulder muscle masses (black)
+        for sx in (-0.35, 0.35):
+            glPushMatrix()
+            glTranslatef(sx, 0.12, -0.50 * 0.15)
+            glScalef(0.30, 0.28, 0.24)
+            self._draw_unit_sphere(12)
+            glPopMatrix()
+
+        # Chest white patch
+        glMaterialfv(GL_FRONT, GL_AMBIENT_AND_DIFFUSE, [1.0, 1.0, 1.0, 1.0])
+        glPushMatrix()
+        glTranslatef(0.0, 0.60 * 0.28, 0.50 * 0.55)
+        glScalef(0.45, 0.38, 0.25)
+        self._draw_unit_sphere(14)
+        glPopMatrix()
+
+        # Neck
+        glMaterialfv(GL_FRONT, GL_AMBIENT_AND_DIFFUSE, [1.0, 1.0, 1.0, 1.0])
+        glPushMatrix()
+        glTranslatef(0.0, 0.60 * 0.48, 0.0)
+        glScalef(0.30, 0.32, 0.28)
+        self._draw_unit_sphere(14)
+        glPopMatrix()
+
+        # ── Tail ────────────────────────────────────────────────────────────
+        glMaterialfv(GL_FRONT, GL_AMBIENT_AND_DIFFUSE, [1.0, 1.0, 1.0, 1.0])
+        glPushMatrix()
+        glTranslatef(0.0, -0.05, -0.50 * 0.78)
+        self._draw_unit_sphere_r(0.090, 12)
+        glPopMatrix()
+
+        # ── Legs (black) ──────────────────────────────────────────────────
+        glMaterialfv(GL_FRONT, GL_AMBIENT_AND_DIFFUSE, [0.08, 0.08, 0.08, 1.0])
+        for lx, phase in ((-0.18, 0.0), (0.18, math.pi)):
+            glPushMatrix()
+            glTranslatef(lx, -0.60 * 0.22, 0.0)
+            glRotatef(math.sin(t + phase) * 18.0 if is_walking else 0.0, 1.0, 0.0, 0.0)
+            # Upper leg
+            glPushMatrix()
+            glTranslatef(0.0, -0.10, 0.0)
+            glScalef(0.14, 0.22, 0.14)
+            self._draw_unit_sphere(14)
+            glPopMatrix()
+            # Lower leg / paw
+            glPushMatrix()
+            glTranslatef(0.0, -0.28, 0.05)
+            glScalef(0.12, 0.18, 0.14)
+            self._draw_unit_sphere(12)
+            glPopMatrix()
+            # Paw
+            glPushMatrix()
+            glTranslatef(0.0, -0.34, 0.08)
+            glScalef(0.14, 0.10, 0.16)
+            self._draw_unit_sphere(10)
+            glPopMatrix()
+            glPopMatrix()
+
+        # ── Arms (black) ─────────────────────────────────────────────────
+        glMaterialfv(GL_FRONT, GL_AMBIENT_AND_DIFFUSE, [0.08, 0.08, 0.08, 1.0])
+        for ax, phase in ((-0.28, 0.0), (0.28, math.pi)):
+            glPushMatrix()
+            glTranslatef(ax, 0.60 * 0.10, 0.0)
+            glRotatef(math.sin(t + phase) * arm_swing, 1.0, 0.0, 0.0)
+            # Upper arm
+            glPushMatrix()
+            glTranslatef(0.0, -0.06, 0.0)
+            glScalef(0.12, 0.20, 0.12)
+            self._draw_unit_sphere(12)
+            glPopMatrix()
+            # Lower arm / paw
+            glPushMatrix()
+            glTranslatef(0.0, -0.20, 0.05)
+            glScalef(0.10, 0.14, 0.10)
+            self._draw_unit_sphere(12)
+            glPopMatrix()
+            # Paw pad
+            glPushMatrix()
+            glTranslatef(0.0, -0.25, 0.08)
+            glScalef(0.12, 0.08, 0.14)
+            self._draw_unit_sphere(10)
+            glPopMatrix()
+            glPopMatrix()
+
+        glPopMatrix()  # end torso matrix
+
+        # ── Head (separate matrix for independent tilt) ───────────────────
+        glPushMatrix()
+        glTranslatef(0.0, 0.90 + bob * 1.1, 0.0)
+        # Gentle breathing head-tilt
+        head_tilt = 3.5 * math.sin(t * 0.04)
+        glRotatef(head_tilt, 0.0, 0.0, 1.0)
+
+        # Main skull (white)
+        glMaterialfv(GL_FRONT, GL_AMBIENT_AND_DIFFUSE, [1.0, 1.0, 1.0, 1.0])
+        self._draw_unit_sphere_r(0.40, 32)
+
+        # Cranial dome
+        glPushMatrix()
+        glTranslatef(0.0, 0.40 * 0.65, -0.40 * 0.05)
+        glScalef(0.52, 0.38, 0.44)
+        self._draw_unit_sphere_r(0.40, 14)
+        glPopMatrix()
+
+        # Jaw / chin mass
+        glPushMatrix()
+        glTranslatef(0.0, -0.40 * 0.55, 0.40 * 0.35)
+        glScalef(0.70, 0.42, 0.58)
+        self._draw_unit_sphere_r(0.40 * 0.65, 14)
+        glPopMatrix()
+
+        # Cheek puffs (white)
+        for cx in (-0.40 * 0.68, 0.40 * 0.68):
+            glPushMatrix()
+            glTranslatef(cx, -0.40 * 0.22, 0.40 * 0.52)
+            glScalef(0.80, 0.68, 0.55)
+            self._draw_unit_sphere_r(0.40 * 0.45, 12)
+            glPopMatrix()
+
+        # ── Ears (black with pink inner) ──────────────────────────────────
+        glMaterialfv(GL_FRONT, GL_AMBIENT_AND_DIFFUSE, [0.08, 0.08, 0.08, 1.0])
+        for ex in (-0.265, 0.265):
+            glPushMatrix()
+            glTranslatef(ex, 0.295, 0.06)
+            glScalef(1.0, 0.88, 0.55)
+            self._draw_unit_sphere_r(0.15, 16)
+            # Inner pink concha
+            glPushMatrix()
+            glTranslatef(0.0, -0.005, 0.015)
+            glScalef(0.58, 0.52, 0.40)
+            glMaterialfv(GL_FRONT, GL_AMBIENT_AND_DIFFUSE, [0.88, 0.60, 0.68, 1.0])
+            self._draw_unit_sphere_r(0.15, 12)
+            glPopMatrix()
+            glPopMatrix()
+
+        # ── Eye patches (black) ───────────────────────────────────────────
+        glMaterialfv(GL_FRONT, GL_AMBIENT_AND_DIFFUSE, [0.08, 0.08, 0.08, 1.0])
+        patch_asym = 0.04  # slight size asymmetry for naturalism
+        for side, px in ((-1, -0.158), (1, 0.158)):
+            patch_r = 0.40 * (0.325 + side * patch_asym * 0.08)
+            glPushMatrix()
+            glTranslatef(px, 0.055, 0.40 * 0.78)
+            glScalef(1.0, 1.25, 0.65)
+            self._draw_unit_sphere_r(patch_r, 16)
+            glPopMatrix()
+
         # White eyes
-        glMaterialfv(GL_FRONT, GL_AMBIENT_AND_DIFFUSE, [1.0, 1.0, 1.0, 1.0])
-        self._draw_sphere(-0.1, 0.45, 0.22, 0.04)
-        self._draw_sphere(0.1, 0.45, 0.22, 0.04)
-        
+        glMaterialfv(GL_FRONT, GL_AMBIENT_AND_DIFFUSE, [0.95, 0.95, 0.92, 1.0])
+        for px in (-0.158, 0.158):
+            glPushMatrix()
+            glTranslatef(px, 0.055, 0.40 * 0.84)
+            self._draw_unit_sphere_r(0.072, 14)
+            glPopMatrix()
+
         # Black pupils
-        glMaterialfv(GL_FRONT, GL_AMBIENT_AND_DIFFUSE, [0.0, 0.0, 0.0, 1.0])
-        self._draw_sphere(-0.1, 0.45, 0.24, 0.02)
-        self._draw_sphere(0.1, 0.45, 0.24, 0.02)
-        
-        # Black nose
-        self._draw_sphere(0.0, 0.4, 0.23, 0.03)
-        
-        # Legs (black)
-        self._draw_sphere(-0.15, -0.2, 0.1, 0.12)
-        self._draw_sphere(0.15, -0.2, 0.1, 0.12)
-        
-        # Arms (black)
-        arm_angle = math.sin(self.animation_phase) * 20 if self.animation_state == 'walking' else 0
-        
+        glMaterialfv(GL_FRONT, GL_AMBIENT_AND_DIFFUSE, [0.02, 0.02, 0.02, 1.0])
+        for px in (-0.158, 0.158):
+            glPushMatrix()
+            glTranslatef(px, 0.055, 0.40 * 0.90)
+            self._draw_unit_sphere_r(0.040, 12)
+            glPopMatrix()
+
+        # ── Tear-duct streaks (diagonal dark marks from inner eye corner down) ─
+        # Each streak is 3 oval segments: eye-corner origin → mid-streak → muzzle tip.
+        # Coordinates are in head-local space (head radius = 0.40).
+        # tx/ty = lateral/vertical offset; tz = depth along face (positive = forward).
+        # sr = sphere radius for the segment (shrinks toward tip for teardrop shape).
+        glMaterialfv(GL_FRONT, GL_AMBIENT_AND_DIFFUSE, [0.08, 0.08, 0.08, 1.0])
+        for side in (-1, 1):
+            for tx, ty, tz, sr in [
+                (side * 0.085,  0.035, 0.40 * 0.82, 0.048),   # seg 0: eye-corner origin
+                (side * 0.092, -0.018, 0.40 * 0.85, 0.036),   # seg 1: mid-streak
+                (side * 0.082, -0.062, 0.40 * 0.86, 0.026),   # seg 2: lower tip
+            ]:
+                glPushMatrix()
+                glTranslatef(tx, ty, tz)
+                glScalef(sr * 0.55, sr * 0.49, sr * 0.38)
+                self._draw_unit_sphere(10)
+                glPopMatrix()
+
+        # ── Snout / muzzle ────────────────────────────────────────────────
+        glMaterialfv(GL_FRONT, GL_AMBIENT_AND_DIFFUSE, [0.92, 0.88, 0.80, 1.0])
         glPushMatrix()
-        glRotatef(arm_angle, 1.0, 0.0, 0.0)
-        self._draw_sphere(-0.25, 0.05, 0.0, 0.1)
+        glTranslatef(0.0, -0.40 * 0.18, 0.40 * 0.72)
+        glScalef(0.55, 0.38, 0.32)
+        self._draw_unit_sphere_r(0.40 * 0.55, 14)
         glPopMatrix()
-        
+
+        # Nose (black)
+        glMaterialfv(GL_FRONT, GL_AMBIENT_AND_DIFFUSE, [0.05, 0.05, 0.05, 1.0])
         glPushMatrix()
-        glRotatef(-arm_angle, 1.0, 0.0, 0.0)
-        self._draw_sphere(0.25, 0.05, 0.0, 0.1)
+        glTranslatef(0.0, -0.40 * 0.08, 0.40 * 0.96)
+        glScalef(0.55, 0.40, 0.38)
+        self._draw_unit_sphere_r(0.40 * 0.22, 12)
         glPopMatrix()
-        
-        glPopMatrix()
+
+        glPopMatrix()  # end head matrix
     
     def _draw_sphere(self, x, y, z, radius):
         """Draw a sphere at position with radius."""
         glPushMatrix()
         glTranslatef(x, y, z)
-        
-        # Use GLU quadric for smooth sphere
-        quadric = gluNewQuadric()
-        gluQuadricNormals(quadric, GLU_SMOOTH)
-        gluSphere(quadric, radius, 20, 20)
-        gluDeleteQuadric(quadric)
-        
+        q = getattr(self, '_sphere_quadric', None)
+        if q is not None:
+            gluSphere(q, radius, 20, 20)
+        else:
+            quadric = gluNewQuadric()
+            gluQuadricNormals(quadric, GLU_SMOOTH)
+            gluSphere(quadric, radius, 20, 20)
+            gluDeleteQuadric(quadric)
         glPopMatrix()
+
+    def _draw_unit_sphere(self, slices: int = 20) -> None:
+        """Draw a unit sphere (radius=1) centered at the current matrix origin.
+        The caller is responsible for applying glScalef / glTranslatef first."""
+        q = getattr(self, '_sphere_quadric', None)
+        if q is not None:
+            gluSphere(q, 1.0, slices, slices)
+        else:
+            quadric = gluNewQuadric()
+            gluQuadricNormals(quadric, GLU_SMOOTH)
+            gluSphere(quadric, 1.0, slices, slices)
+            gluDeleteQuadric(quadric)
+
+    def _draw_unit_sphere_r(self, radius: float, slices: int = 20) -> None:
+        """Draw a sphere of the given *radius* centered at the current matrix origin."""
+        q = getattr(self, '_sphere_quadric', None)
+        if q is not None:
+            gluSphere(q, radius, slices, slices)
+        else:
+            quadric = gluNewQuadric()
+            gluQuadricNormals(quadric, GLU_SMOOTH)
+            gluSphere(quadric, radius, slices, slices)
+            gluDeleteQuadric(quadric)
     
     def _update_body_part_positions(self):
         """Update body part positions in screen coordinates for interaction detection."""
