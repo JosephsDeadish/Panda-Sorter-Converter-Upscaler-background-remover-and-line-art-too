@@ -4499,6 +4499,11 @@ class TextureSorterMainWindow(QMainWindow):
                     mode = mode_map.get(value)
                     if mode:
                         self.tooltip_manager.set_mode(mode)
+
+            # Handle tooltip enabled/disabled toggle
+            elif setting_key == "ui.tooltip_enabled":
+                if self.tooltip_manager and hasattr(self.tooltip_manager, 'set_enabled'):
+                    self.tooltip_manager.set_enabled(bool(value))
             
             # Handle cursor changes — apply immediately
             elif setting_key == "ui.cursor":

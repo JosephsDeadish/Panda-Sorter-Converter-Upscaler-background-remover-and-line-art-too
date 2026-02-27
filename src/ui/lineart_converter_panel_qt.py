@@ -539,6 +539,7 @@ class LineArtConverterPanelQt(QWidget):
         select_btn = QPushButton("Select Image")
         select_btn.clicked.connect(self._select_file)
         btn_layout.addWidget(select_btn)
+        self._set_tooltip(select_btn, 'lineart_input')
         
         select_multiple_btn = QPushButton("Select Multiple")
         select_multiple_btn.clicked.connect(self._select_files)
@@ -627,6 +628,7 @@ class LineArtConverterPanelQt(QWidget):
         inv_layout.addWidget(self.invert_cb)
         inv_layout.addStretch()
         group_layout.addLayout(inv_layout)
+        self._set_tooltip(self.invert_cb, 'lineart_invert')
 
         # Threshold
         threshold_layout = QHBoxLayout()
@@ -640,6 +642,7 @@ class LineArtConverterPanelQt(QWidget):
         self.threshold_slider.valueChanged.connect(lambda v: self.threshold_label.setText(str(v)))
         threshold_layout.addWidget(self.threshold_label)
         group_layout.addLayout(threshold_layout)
+        self._set_tooltip(self.threshold_slider, 'lineart_threshold')
         
         # Contrast
         contrast_layout = QHBoxLayout()
@@ -652,6 +655,7 @@ class LineArtConverterPanelQt(QWidget):
         contrast_layout.addWidget(self.contrast_spin)
         contrast_layout.addStretch()
         group_layout.addLayout(contrast_layout)
+        self._set_tooltip(self.contrast_spin, 'lineart_contrast')
         
         # Morphology Operation
         morph_layout = QHBoxLayout()
@@ -669,6 +673,7 @@ class LineArtConverterPanelQt(QWidget):
         morph_layout.addWidget(self.morphology_combo)
         morph_layout.addStretch()
         group_layout.addLayout(morph_layout)
+        self._set_tooltip(self.morphology_combo, 'lineart_morphology')
         
         # Morphology Iterations
         iter_layout = QHBoxLayout()
@@ -681,6 +686,7 @@ class LineArtConverterPanelQt(QWidget):
         iter_layout.addWidget(self.morphology_iterations)
         iter_layout.addStretch()
         group_layout.addLayout(iter_layout)
+        self._set_tooltip(self.morphology_iterations, 'lineart_morph_iter')
         
         # Kernel Size
         kernel_layout = QHBoxLayout()
@@ -694,6 +700,7 @@ class LineArtConverterPanelQt(QWidget):
         kernel_layout.addWidget(self.kernel_size_spin)
         kernel_layout.addStretch()
         group_layout.addLayout(kernel_layout)
+        self._set_tooltip(self.kernel_size_spin, 'lineart_kernel')
         
         # Sharpen
         sharpen_layout = QHBoxLayout()
@@ -710,6 +717,8 @@ class LineArtConverterPanelQt(QWidget):
         sharpen_layout.addWidget(self.sharpen_spin)
         sharpen_layout.addStretch()
         group_layout.addLayout(sharpen_layout)
+        self._set_tooltip(self.sharpen_cb, 'lineart_sharpen')
+        self._set_tooltip(self.sharpen_spin, 'lineart_sharpen_amount')
         
         # Denoise
         denoise_layout = QHBoxLayout()
@@ -725,11 +734,14 @@ class LineArtConverterPanelQt(QWidget):
         denoise_layout.addWidget(self.denoise_size)
         denoise_layout.addStretch()
         group_layout.addLayout(denoise_layout)
+        self._set_tooltip(self.denoise_cb, 'lineart_denoise')
+        self._set_tooltip(self.denoise_size, 'lineart_denoise_size')
         
         # Checkboxes
         self.auto_threshold_cb = QCheckBox("Auto Threshold")
         self.auto_threshold_cb.stateChanged.connect(self._schedule_preview_update)
         group_layout.addWidget(self.auto_threshold_cb)
+        self._set_tooltip(self.auto_threshold_cb, 'lineart_auto_threshold')
         
         # Midtone Threshold
         midtone_layout = QHBoxLayout()
@@ -742,12 +754,14 @@ class LineArtConverterPanelQt(QWidget):
         midtone_layout.addWidget(self.midtone_spin)
         midtone_layout.addStretch()
         group_layout.addLayout(midtone_layout)
+        self._set_tooltip(self.midtone_spin, 'lineart_midtone_threshold')
         
         # Remove Midtones
         self.remove_midtones_cb = QCheckBox("Remove midtones")
         self.remove_midtones_cb.setChecked(True)
         self.remove_midtones_cb.stateChanged.connect(self._schedule_preview_update)
         group_layout.addWidget(self.remove_midtones_cb)
+        self._set_tooltip(self.remove_midtones_cb, 'lineart_remove_midtones')
 
         # ── Background colour ──────────────────────────────────────────────
         bg_layout = QHBoxLayout()
@@ -768,6 +782,7 @@ class LineArtConverterPanelQt(QWidget):
         self.bg_custom_swatch.clicked.connect(self._pick_custom_bg_color)
         bg_layout.addWidget(self.bg_custom_swatch)
         group_layout.addLayout(bg_layout)
+        self._set_tooltip(self.bg_mode_combo, 'lineart_bg_mode')
 
         # ── Mode-specific advanced controls (shown/hidden by _on_mode_changed) ─────
         # Edge Detection controls
@@ -783,32 +798,32 @@ class LineArtConverterPanelQt(QWidget):
         self.edge_low_spin = QSpinBox()
         self.edge_low_spin.setRange(1, 255)
         self.edge_low_spin.setValue(50)
-        self.edge_low_spin.setToolTip("Canny edge low hysteresis threshold (pixels below this are not edges)")
         self.edge_low_spin.valueChanged.connect(self._schedule_preview_update)
         _el_lo.addWidget(self.edge_low_spin)
         _el_lo.addStretch()
         _eg_layout.addLayout(_el_lo)
+        self._set_tooltip(self.edge_low_spin, 'lineart_edge_low')
         _eh_lo = QHBoxLayout()
         _eh_lo.addWidget(QLabel("High Threshold:"))
         self.edge_high_spin = QSpinBox()
         self.edge_high_spin.setRange(1, 255)
         self.edge_high_spin.setValue(150)
-        self.edge_high_spin.setToolTip("Canny edge high hysteresis threshold (pixels above this are strong edges)")
         self.edge_high_spin.valueChanged.connect(self._schedule_preview_update)
         _eh_lo.addWidget(self.edge_high_spin)
         _eh_lo.addStretch()
         _eg_layout.addLayout(_eh_lo)
+        self._set_tooltip(self.edge_high_spin, 'lineart_edge_high')
         _ea_lo = QHBoxLayout()
         _ea_lo.addWidget(QLabel("Aperture:"))
         self.edge_aperture_combo = QComboBox()
         self.edge_aperture_combo.addItem("3 (fine)", 3)
         self.edge_aperture_combo.addItem("5 (medium)", 5)
         self.edge_aperture_combo.addItem("7 (coarse)", 7)
-        self.edge_aperture_combo.setToolTip("Sobel aperture size — 3=thin lines, 7=thick lines")
         self.edge_aperture_combo.currentIndexChanged.connect(self._schedule_preview_update)
         _ea_lo.addWidget(self.edge_aperture_combo)
         _ea_lo.addStretch()
         _eg_layout.addLayout(_ea_lo)
+        self._set_tooltip(self.edge_aperture_combo, 'lineart_edge_aperture')
         group_layout.addWidget(self._edge_group)
         self._edge_group.setVisible(False)
 
@@ -826,33 +841,33 @@ class LineArtConverterPanelQt(QWidget):
         self.adaptive_block_spin.setRange(3, 99)
         self.adaptive_block_spin.setValue(11)
         self.adaptive_block_spin.setSingleStep(2)  # must be odd
-        self.adaptive_block_spin.setToolTip("Pixel neighbourhood size used to compute threshold (must be odd)")
         self.adaptive_block_spin.valueChanged.connect(self._ensure_odd_block_size)
         self.adaptive_block_spin.valueChanged.connect(self._schedule_preview_update)
         _ab_lo.addWidget(self.adaptive_block_spin)
         _ab_lo.addStretch()
         _ag_layout.addLayout(_ab_lo)
+        self._set_tooltip(self.adaptive_block_spin, 'lineart_adaptive_block')
         _ac_lo = QHBoxLayout()
         _ac_lo.addWidget(QLabel("C Constant:"))
         self.adaptive_c_spin = QDoubleSpinBox()
         self.adaptive_c_spin.setRange(-20.0, 20.0)
         self.adaptive_c_spin.setValue(2.0)
         self.adaptive_c_spin.setSingleStep(0.5)
-        self.adaptive_c_spin.setToolTip("Subtracted from weighted mean (higher = fewer lines)")
         self.adaptive_c_spin.valueChanged.connect(self._schedule_preview_update)
         _ac_lo.addWidget(self.adaptive_c_spin)
         _ac_lo.addStretch()
         _ag_layout.addLayout(_ac_lo)
+        self._set_tooltip(self.adaptive_c_spin, 'lineart_adaptive_c')
         _am_lo = QHBoxLayout()
         _am_lo.addWidget(QLabel("Method:"))
         self.adaptive_method_combo = QComboBox()
         self.adaptive_method_combo.addItem("Gaussian (smooth)", "gaussian")
         self.adaptive_method_combo.addItem("Mean (sharp)", "mean")
-        self.adaptive_method_combo.setToolTip("Gaussian weights nearby pixels more; Mean treats all equally")
         self.adaptive_method_combo.currentIndexChanged.connect(self._schedule_preview_update)
         _am_lo.addWidget(self.adaptive_method_combo)
         _am_lo.addStretch()
         _ag_layout.addLayout(_am_lo)
+        self._set_tooltip(self.adaptive_method_combo, 'lineart_adaptive_method')
         group_layout.addWidget(self._adaptive_group)
         self._adaptive_group.setVisible(False)
 
@@ -867,18 +882,18 @@ class LineArtConverterPanelQt(QWidget):
         _sl_lo = QHBoxLayout()
         self.smooth_lines_cb = QCheckBox("Smooth Lines")
         self.smooth_lines_cb.setChecked(False)
-        self.smooth_lines_cb.setToolTip("Apply Gaussian smoothing before edge extraction for softer sketch look")
         self.smooth_lines_cb.stateChanged.connect(self._schedule_preview_update)
         _sl_lo.addWidget(self.smooth_lines_cb)
         self.smooth_amount_spin = QDoubleSpinBox()
         self.smooth_amount_spin.setRange(0.5, 5.0)
         self.smooth_amount_spin.setValue(1.0)
         self.smooth_amount_spin.setSingleStep(0.5)
-        self.smooth_amount_spin.setToolTip("Smoothing radius — higher = softer pencil look")
         self.smooth_amount_spin.valueChanged.connect(self._schedule_preview_update)
         _sl_lo.addWidget(self.smooth_amount_spin)
         _sl_lo.addStretch()
         _sg_layout.addLayout(_sl_lo)
+        self._set_tooltip(self.smooth_lines_cb, 'lineart_smooth_lines')
+        self._set_tooltip(self.smooth_amount_spin, 'lineart_smooth_amount')
         group_layout.addWidget(self._smooth_group)
         self._smooth_group.setVisible(False)
 
@@ -1042,6 +1057,7 @@ class LineArtConverterPanelQt(QWidget):
         self.convert_button.setStyleSheet("background-color: #2196F3; color: white; padding: 10px; font-weight: bold;")
         self.convert_button.clicked.connect(self._convert_batch)
         layout.addWidget(self.convert_button)
+        self._set_tooltip(self.convert_button, 'lineart_start_button')
 
         # Progress bar
         self.progress_bar = QProgressBar()
