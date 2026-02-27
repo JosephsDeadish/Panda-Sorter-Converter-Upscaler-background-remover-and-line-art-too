@@ -1845,6 +1845,95 @@ def test_panda_home_2d_fallback():
     print("  ✅ Furniture shortcut buttons contain expected labels")
 
 
+def test_gore_goth_themes_apply():
+    """Gore and Goth themes must apply without errors and be listed in the settings combo.
+
+    This test verifies:
+    1. settings_panel_qt.py addItems includes 'Gore' and 'Goth'
+    2. apply_theme('Gore') and apply_theme('Goth') both apply a non-empty stylesheet
+       without raising exceptions
+    3. GoreSplatterFilter is installed when Gore theme is active and removed when
+       the theme changes to Goth
+    4. Theme name normalisation: mixed-case 'Gore'/'Goth' must be resolved correctly
+    """
+    print("\ntest_gore_goth_themes_apply ...")
+    from pathlib import Path
+
+    settings_src = (Path(__file__).parent / 'src' / 'ui' / 'settings_panel_qt.py').read_text(encoding='utf-8')
+    assert "'Gore'" in settings_src or '"Gore"' in settings_src, \
+        "settings_panel_qt.py addItems must include 'Gore'"
+    assert "'Goth'" in settings_src or '"Goth"' in settings_src, \
+        "settings_panel_qt.py addItems must include 'Goth'"
+    print("  ✅ Source: Gore and Goth present in settings combo addItems")
+
+    # Runtime: apply each theme and verify stylesheet is non-empty and different
+    import sys, logging, os
+    os.environ.setdefault('QT_QPA_PLATFORM', 'offscreen')
+    logging.disable(logging.CRITICAL)
+    import main as _m
+    from PyQt6.QtWidgets import QApplication
+    _app = QApplication.instance() or QApplication(sys.argv)
+    win = _m.TextureSorterMainWindow()
+    win.resize(1280, 800)
+
+    win.apply_theme('Gore')
+    gore_ss = win.styleSheet()
+    assert gore_ss, "Gore theme produced an empty stylesheet"
+    assert '#8b0000' in gore_ss or '#cc0000' in gore_ss, \
+        "Gore stylesheet should contain blood-red color (#8b0000 or #cc0000)"
+    # GoreSplatterFilter must be installed
+    assert win._gore_splatter_filter is not None, \
+        "GoreSplatterFilter must be installed when Gore theme is active"
+    print("  ✅ Gore theme: non-empty stylesheet with blood-red colors; splatter filter installed")
+
+    win.apply_theme('Goth')
+    goth_ss = win.styleSheet()
+    assert goth_ss, "Goth theme produced an empty stylesheet"
+    assert '#4a2060' in goth_ss or '#000000' in goth_ss, \
+        "Goth stylesheet should contain dark-purple (#4a2060) or pure-black (#000000)"
+    # GoreSplatterFilter must be removed when theme changes away from Gore
+    assert win._gore_splatter_filter is None, \
+        "GoreSplatterFilter must be uninstalled when switching away from Gore theme"
+    print("  ✅ Goth theme: non-empty stylesheet with gothic colors; splatter filter removed")
+
+    # Verify themes are distinct
+    assert gore_ss != goth_ss, "Gore and Goth stylesheets should differ"
+    print("  ✅ Gore and Goth stylesheets are distinct")
+
+
+def test_theme_name_normalisation():
+    """apply_theme() must normalise mixed-case names so 'Dracula' → 'dracula' branch executes.
+
+    Previously apply_theme stored the display name ('Dracula') verbatim but compared
+    against the lower-case string ('dracula'), so themes fell through to the default
+    dark theme.  The fix adds .lower().strip() normalisation to the read-back.
+    """
+    print("\ntest_theme_name_normalisation ...")
+    import sys, logging, os
+    os.environ.setdefault('QT_QPA_PLATFORM', 'offscreen')
+    logging.disable(logging.CRITICAL)
+    import main as _m
+    from PyQt6.QtWidgets import QApplication
+    _app = QApplication.instance() or QApplication(sys.argv)
+    win = _m.TextureSorterMainWindow()
+
+    # Dracula should be deep-purple/crimson, NOT the grey default-dark theme
+    win.apply_theme('Dracula')
+    dracula_ss = win.styleSheet()
+    assert '#8b0000' in dracula_ss or '#1a0a1e' in dracula_ss, \
+        "apply_theme('Dracula') must produce Dracula stylesheet (deep purple/crimson) " \
+        "not the grey default dark theme. Theme name normalisation is missing."
+    print("  ✅ 'Dracula' (mixed-case) correctly resolves to Dracula stylesheet")
+
+    # Ocean should be deep navy, NOT the grey default
+    win.apply_theme('Ocean')
+    ocean_ss = win.styleSheet()
+    assert '#00b4d8' in ocean_ss or '#020e1c' in ocean_ss, \
+        "apply_theme('Ocean') must produce Ocean stylesheet (deep navy/teal). " \
+        "Theme name normalisation is missing."
+    print("  ✅ 'Ocean' (mixed-case) correctly resolves to Ocean stylesheet")
+
+
 def run_all_tests():
     print("=" * 65)
     print("Hybrid Architecture + Lazy rembg Import Tests")
@@ -1887,6 +1976,8 @@ def run_all_tests():
         test_panda_overlay_hidden_on_non_home_tabs,
         test_settings_tab_has_emoji,
         test_panda_home_2d_fallback,
+        test_gore_goth_themes_apply,
+        test_theme_name_normalisation,
         test_panda_widget_gl_qstate_import,
         test_bedroom_mouse_release_event,
         test_otter_smooth_look_animation,

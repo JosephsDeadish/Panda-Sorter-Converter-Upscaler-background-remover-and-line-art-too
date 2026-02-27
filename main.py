@@ -218,7 +218,7 @@ try:
         QSplitter, QFrame, QComboBox, QGridLayout, QStackedWidget,
         QScrollArea, QDockWidget, QToolBar, QInputDialog, QGroupBox
     )
-    from PyQt6.QtCore import Qt, QTimer, pyqtSignal, QThread, QSize, QByteArray
+    from PyQt6.QtCore import Qt, QTimer, pyqtSignal, QThread, QSize, QByteArray, QObject, QEvent, QPoint
     from PyQt6.QtGui import QAction, QIcon, QFont, QPalette, QColor
 except ImportError as e:
     _err = str(e)
@@ -541,6 +541,68 @@ class DraggableTabWidget(QTabWidget):
         super().mouseReleaseEvent(event)
 
 
+class BloodSplatterLabel(QLabel):
+    """Temporary blood-splatter overlay that fades out after a click (Gore theme)."""
+
+    SPLATTERS = ["🩸💦🩸", "💉🩸💦", "🩸🔴🩸", "🔴💦🔴", "🩸🩸💉"]
+
+    def __init__(self, parent: 'QWidget', pos: 'QPoint') -> None:
+        super().__init__(parent)
+        import random as _r
+        self.setText(_r.choice(self.SPLATTERS))
+        self.setStyleSheet(
+            "QLabel { background: transparent; font-size: 26px; color: #cc0000; "
+            "border: none; padding: 0; }"
+        )
+        self.adjustSize()
+        # Centre on click point with a small random jitter
+        dx = _r.randint(-12, 12)
+        dy = _r.randint(-12, 12)
+        self.move(pos.x() - self.width() // 2 + dx,
+                  pos.y() - self.height() // 2 + dy)
+        self.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
+        self.show()
+        self.raise_()
+
+        # Fade-out animation
+        from PyQt6.QtWidgets import QGraphicsOpacityEffect
+        from PyQt6.QtCore import QPropertyAnimation, QEasingCurve
+        eff = QGraphicsOpacityEffect(self)
+        self.setGraphicsEffect(eff)
+        anim = QPropertyAnimation(eff, b"opacity", self)
+        anim.setDuration(900)
+        anim.setStartValue(1.0)
+        anim.setEndValue(0.0)
+        anim.setEasingCurve(QEasingCurve.Type.OutQuad)
+        anim.finished.connect(self.deleteLater)
+        anim.start()
+        self._anim = anim  # keep reference alive
+
+
+class GoreSplatterFilter(QObject):
+    """Application-wide event filter: shows BloodSplatterLabel on every button click.
+
+    Install with ``QApplication.instance().installEventFilter(instance)`` and
+    remove with ``QApplication.instance().removeEventFilter(instance)``.
+    """
+
+    def eventFilter(self, obj: 'QObject', event: 'QEvent') -> bool:
+        try:
+            from PyQt6.QtWidgets import QAbstractButton
+            from PyQt6.QtCore import QEvent as _QEv
+            if (event.type() == _QEv.Type.MouseButtonRelease
+                    and isinstance(obj, QAbstractButton)
+                    and obj.isEnabled()
+                    and hasattr(event, 'pos')):
+                win = obj.window()
+                if win is not None:
+                    pos = obj.mapTo(win, event.pos())
+                    BloodSplatterLabel(win, pos)
+        except Exception:
+            pass
+        return False  # never consume the event
+
+
 class WorkerThread(QThread):
     """Background worker thread for long-running operations."""
     
@@ -648,6 +710,7 @@ class TextureSorterMainWindow(QMainWindow):
         # Worker thread
         self.worker = None
         self._ai_training_thread = None     # background PyTorchTrainer QThread (prevent GC)
+        self._gore_splatter_filter = None   # GoreSplatterFilter instance (Gore theme only)
         
         # Drag-drop, translation, environment monitor
         self.drag_drop_handler = None
@@ -2310,7 +2373,16 @@ class TextureSorterMainWindow(QMainWindow):
         """
         if theme_name is not None:
             config.set('ui', 'theme', value=theme_name)
-        theme = config.get('ui', 'theme', default='dark')
+        # Normalise: map combo-box display names → internal lowercase keys
+        _RAW = config.get('ui', 'theme', default='dark')
+        _DISPLAY_MAP = {
+            'dark': 'dark', 'light': 'light', 'nord': 'nord',
+            'dracula': 'dracula', 'solarized dark': 'solarized dark',
+            'solarized_dark': 'solarized dark',
+            'forest': 'forest', 'ocean': 'ocean', 'sunset': 'sunset',
+            'cyberpunk': 'cyberpunk', 'gore': 'gore', 'goth': 'goth',
+        }
+        theme = _DISPLAY_MAP.get(_RAW.lower().strip(), _RAW.lower().strip())
         accent = config.get('ui', 'accent_color', default='#0d7377')
         
         # Calculate hover and pressed colors
@@ -2519,107 +2591,82 @@ class TextureSorterMainWindow(QMainWindow):
             }}
             """
         elif theme == 'dracula':
+            # 🧛 Vampiric Dracula — crimson fangs, deep purple-black, blood-drip accents
             stylesheet = f"""
-            QMainWindow {{
-                background-color: #282a36;
-            }}
+            QMainWindow {{ background-color: #1a0a1e; }}
             QWidget {{
-                background-color: #282a36;
+                background-color: #1a0a1e;
                 color: #f8f8f2;
-                font-family: 'Segoe UI', Arial, sans-serif;
+                font-family: 'Palatino Linotype', 'Georgia', serif;
             }}
             QPushButton {{
                 background-color: {accent};
                 color: #f8f8f2;
-                border: none;
+                border: 2px solid #8b0000;
                 padding: 8px 16px;
-                border-radius: 4px;
+                border-radius: 0px 0px 8px 8px;
                 font-weight: bold;
+                font-family: 'Palatino Linotype', 'Georgia', serif;
             }}
             QPushButton:hover {{
                 background-color: {hover_color.name()};
+                border-color: #ff2244;
+                color: #ff9999;
             }}
-            QPushButton:pressed {{
-                background-color: {pressed_color.name()};
-            }}
-            QPushButton:disabled {{
-                background-color: #44475a;
-                color: #6272a4;
-            }}
-            QLabel {{
-                color: #f8f8f2;
-                background-color: transparent;
-            }}
-            QTabWidget::pane {{
-                border: 1px solid #44475a;
-                background-color: #44475a;
-            }}
-            QTabBar::tab {{
-                background-color: #383a4a;
-                color: #f8f8f2;
-                padding: 8px 20px;
-                border: 1px solid #44475a;
-                border-bottom: none;
-            }}
-            QTabBar::tab:selected {{
-                background-color: {accent};
-                color: #f8f8f2;
-            }}
-            QTabBar::tab:hover {{
-                background-color: #44475a;
-            }}
-            QMenuBar {{
-                background-color: #383a4a;
-                color: #f8f8f2;
-                border-bottom: 1px solid #44475a;
-            }}
-            QMenuBar::item:selected {{
-                background-color: {accent};
-            }}
-            QMenu {{
-                background-color: #383a4a;
-                color: #f8f8f2;
-                border: 1px solid #44475a;
-            }}
-            QMenu::item:selected {{
-                background-color: {accent};
-            }}
-            QProgressBar {{
-                border: 1px solid #44475a;
-                border-radius: 3px;
-                text-align: center;
-                background-color: #383a4a;
-                color: #f8f8f2;
-            }}
-            QProgressBar::chunk {{
-                background-color: {accent};
-            }}
-            QFrame {{
-                background-color: #383a4a;
-                border: 1px solid #44475a;
+            QPushButton:pressed {{ background-color: {pressed_color.name()}; border-color: #cc0022; }}
+            QPushButton:disabled {{ background-color: #2a0a2e; color: #6272a4; border-color: #44174a; }}
+            QLabel {{ color: #f8f8f2; background-color: transparent; }}
+            QGroupBox {{
+                color: #bd93f9;
+                border: 2px solid #8b0000;
                 border-radius: 4px;
+                margin-top: 8px;
+                font-weight: bold;
             }}
-            QTextEdit {{
-                background-color: #383a4a;
+            QGroupBox::title {{ color: #ff7eb3; subcontrol-position: top left; padding: 2px 6px; }}
+            QTabWidget::pane {{ border: 2px solid #8b0000; background-color: #22042a; }}
+            QTabBar::tab {{
+                background-color: #2a0a30;
+                color: #bd93f9;
+                padding: 8px 20px;
+                border: 2px solid #8b0000;
+                border-bottom: none;
+                border-radius: 6px 6px 0px 0px;
+            }}
+            QTabBar::tab:selected {{ background-color: #8b0000; color: #f8f8f2; border-color: #cc0022; }}
+            QTabBar::tab:hover {{ background-color: #3a0a40; color: #ff9999; }}
+            QMenuBar {{ background-color: #2a0a30; color: #f8f8f2; border-bottom: 2px solid #8b0000; }}
+            QMenuBar::item:selected {{ background-color: #8b0000; }}
+            QMenu {{ background-color: #2a0a30; color: #f8f8f2; border: 2px solid #8b0000; }}
+            QMenu::item:selected {{ background-color: #8b0000; color: #f8f8f2; }}
+            QProgressBar {{
+                border: 2px solid #8b0000;
+                border-radius: 0px;
+                text-align: center;
+                background-color: #2a0a30;
                 color: #f8f8f2;
-                border: 1px solid #44475a;
             }}
-            QScrollBar:vertical {{
-                background-color: #383a4a;
-                width: 12px;
-            }}
-            QScrollBar::handle:vertical {{
-                background-color: #44475a;
-                border-radius: 6px;
-            }}
-            QDockWidget {{
-                color: #f8f8f2;
-                titlebar-close-icon: none;
-            }}
-            QDockWidget::title {{
-                background-color: #44475a;
-                padding: 4px;
-            }}
+            QProgressBar::chunk {{ background-color: #cc0022; }}
+            QFrame {{ background-color: #22042a; border: 2px solid #8b0000; border-radius: 4px; }}
+            QTextEdit {{ background-color: #22042a; color: #f8f8f2; border: 2px solid #8b0000; font-family: 'Palatino Linotype', 'Georgia', serif; }}
+            QLineEdit {{ background-color: #2a0a30; color: #f8f8f2; border: 2px solid #8b0000; border-radius: 3px; padding: 4px 6px; }}
+            QLineEdit:focus {{ border: 2px solid #cc0022; }}
+            QComboBox {{ background-color: #2a0a30; color: #f8f8f2; border: 2px solid #8b0000; border-radius: 0px 0px 6px 6px; padding: 4px 6px; min-height: 22px; }}
+            QComboBox:hover {{ border-color: #cc0022; }}
+            QComboBox QAbstractItemView {{ background-color: #2a0a30; color: #f8f8f2; border: 2px solid #8b0000; selection-background-color: #8b0000; }}
+            QCheckBox {{ color: #f8f8f2; spacing: 6px; }}
+            QCheckBox::indicator {{ width: 14px; height: 14px; border: 2px solid #8b0000; border-radius: 2px; background: #2a0a30; }}
+            QCheckBox::indicator:checked {{ background: #8b0000; border-color: #cc0022; }}
+            QScrollBar:vertical {{ background-color: #22042a; width: 12px; }}
+            QScrollBar::handle:vertical {{ background-color: #8b0000; border-radius: 6px; }}
+            QScrollBar::handle:vertical:hover {{ background-color: #cc0022; }}
+            QSlider::groove:horizontal {{ height: 6px; background: #2a0a30; border: 1px solid #8b0000; border-radius: 3px; }}
+            QSlider::handle:horizontal {{ background: #8b0000; border: 2px solid #cc0022; width: 16px; height: 16px; border-radius: 8px; margin: -5px 0; }}
+            QSlider::sub-page:horizontal {{ background: #8b0000; border-radius: 3px; }}
+            QSpinBox, QDoubleSpinBox {{ background-color: #2a0a30; color: #f8f8f2; border: 2px solid #8b0000; border-radius: 3px; padding: 3px 5px; }}
+            QDockWidget {{ color: #f8f8f2; titlebar-close-icon: none; }}
+            QDockWidget::title {{ background-color: #8b0000; padding: 4px; color: #f8f8f2; }}
+            QStatusBar {{ background-color: #22042a; color: #bd93f9; border-top: 2px solid #8b0000; }}
             """
         elif theme in ('solarized dark', 'solarized_dark'):
             stylesheet = f"""
@@ -2672,28 +2719,47 @@ class TextureSorterMainWindow(QMainWindow):
             QScrollBar::handle:vertical {{ background-color: #4a7a4a; border-radius: 6px; }}
             """
         elif theme in ('ocean', 'ocean_blue'):
+            # 🌊 Ocean — deep-sea blues, coral accents, wave-styled borders
             stylesheet = f"""
-            QMainWindow {{ background-color: #0a1628; }}
-            QWidget {{ background-color: #0a1628; color: #b3d9f7; font-family: 'Segoe UI', Arial, sans-serif; }}
-            QPushButton {{ background-color: {accent}; color: #ffffff; border: none; padding: 8px 16px; border-radius: 4px; font-weight: bold; }}
-            QPushButton:hover {{ background-color: {hover_color.name()}; }}
-            QPushButton:pressed {{ background-color: {pressed_color.name()}; }}
-            QPushButton:disabled {{ background-color: #0d2240; color: #3a6080; }}
-            QLabel {{ color: #b3d9f7; background-color: transparent; }}
-            QTabWidget::pane {{ border: 1px solid #1a4060; background-color: #0d1e38; }}
-            QTabBar::tab {{ background-color: #0d1e38; color: #80bcd8; padding: 8px 20px; border: 1px solid #1a4060; border-bottom: none; }}
-            QTabBar::tab:selected {{ background-color: {accent}; color: #ffffff; }}
-            QTabBar::tab:hover {{ background-color: #152840; }}
-            QMenuBar {{ background-color: #0d1e38; color: #b3d9f7; border-bottom: 1px solid #1a4060; }}
-            QMenuBar::item:selected {{ background-color: {accent}; color: #ffffff; }}
-            QMenu {{ background-color: #0d1e38; color: #b3d9f7; border: 1px solid #1a4060; }}
-            QMenu::item:selected {{ background-color: {accent}; color: #ffffff; }}
-            QProgressBar {{ border: 1px solid #1a4060; border-radius: 3px; text-align: center; background-color: #0d1e38; color: #b3d9f7; }}
-            QProgressBar::chunk {{ background-color: {accent}; }}
-            QFrame {{ background-color: #0d1e38; border: 1px solid #1a4060; border-radius: 4px; }}
-            QTextEdit {{ background-color: #0a1628; color: #b3d9f7; border: 1px solid #1a4060; }}
-            QScrollBar:vertical {{ background-color: #0d1e38; width: 12px; }}
-            QScrollBar::handle:vertical {{ background-color: #2a6090; border-radius: 6px; }}
+            QMainWindow {{ background-color: #020e1c; }}
+            QWidget {{ background-color: #020e1c; color: #b3e5fc; font-family: 'Segoe UI', Arial, sans-serif; }}
+            QPushButton {{ background-color: {accent}; color: #ffffff; border: 2px solid #00b4d8; padding: 8px 16px; border-radius: 16px 4px 16px 4px; font-weight: bold; }}
+            QPushButton:hover {{ background-color: {hover_color.name()}; border-color: #ff6b6b; color: #ffe0e0; }}
+            QPushButton:pressed {{ background-color: {pressed_color.name()}; border-color: #00b4d8; }}
+            QPushButton:disabled {{ background-color: #052040; color: #3a6080; border-color: #0a3050; }}
+            QLabel {{ color: #b3e5fc; background-color: transparent; }}
+            QGroupBox {{ color: #4dd0e1; border: 2px solid #00b4d8; border-radius: 8px; margin-top: 8px; font-weight: bold; }}
+            QGroupBox::title {{ color: #ff6b6b; subcontrol-position: top left; padding: 2px 6px; }}
+            QTabWidget::pane {{ border: 2px solid #00b4d8; background-color: #031426; }}
+            QTabBar::tab {{ background-color: #052040; color: #80deea; padding: 8px 20px; border: 2px solid #00b4d8; border-bottom: none; border-radius: 10px 10px 0px 0px; }}
+            QTabBar::tab:selected {{ background-color: #00b4d8; color: #ffffff; border-color: #00e5ff; }}
+            QTabBar::tab:hover {{ background-color: #063050; color: #e0f7fa; }}
+            QMenuBar {{ background-color: #031426; color: #b3e5fc; border-bottom: 2px solid #00b4d8; }}
+            QMenuBar::item:selected {{ background-color: #00b4d8; color: #ffffff; }}
+            QMenu {{ background-color: #031426; color: #b3e5fc; border: 2px solid #00b4d8; }}
+            QMenu::item:selected {{ background-color: #00b4d8; color: #ffffff; }}
+            QProgressBar {{ border: 2px solid #00b4d8; border-radius: 8px; text-align: center; background-color: #031426; color: #b3e5fc; }}
+            QProgressBar::chunk {{ background-color: #00b4d8; border-radius: 6px; }}
+            QFrame {{ background-color: #031426; border: 2px solid #00b4d8; border-radius: 8px; }}
+            QTextEdit {{ background-color: #020e1c; color: #b3e5fc; border: 2px solid #00b4d8; border-radius: 4px; }}
+            QLineEdit {{ background-color: #052040; color: #b3e5fc; border: 2px solid #00b4d8; border-radius: 4px; padding: 4px 6px; }}
+            QLineEdit:focus {{ border-color: #00e5ff; }}
+            QComboBox {{ background-color: #052040; color: #b3e5fc; border: 2px solid #00b4d8; border-radius: 12px 4px 12px 4px; padding: 4px 6px; min-height: 22px; }}
+            QComboBox:hover {{ border-color: #ff6b6b; }}
+            QComboBox QAbstractItemView {{ background-color: #052040; color: #b3e5fc; border: 2px solid #00b4d8; selection-background-color: #00b4d8; }}
+            QCheckBox {{ color: #b3e5fc; spacing: 6px; }}
+            QCheckBox::indicator {{ width: 14px; height: 14px; border: 2px solid #00b4d8; border-radius: 7px; background: #052040; }}
+            QCheckBox::indicator:checked {{ background: #00b4d8; border-color: #00e5ff; }}
+            QScrollBar:vertical {{ background-color: #031426; width: 12px; }}
+            QScrollBar::handle:vertical {{ background-color: #00b4d8; border-radius: 6px; }}
+            QScrollBar::handle:vertical:hover {{ background-color: #00e5ff; }}
+            QSlider::groove:horizontal {{ height: 6px; background: #052040; border: 1px solid #00b4d8; border-radius: 3px; }}
+            QSlider::handle:horizontal {{ background: #00b4d8; border: 2px solid #00e5ff; width: 16px; height: 16px; border-radius: 8px; margin: -5px 0; }}
+            QSlider::sub-page:horizontal {{ background: #00b4d8; border-radius: 3px; }}
+            QSpinBox, QDoubleSpinBox {{ background-color: #052040; color: #b3e5fc; border: 2px solid #00b4d8; border-radius: 3px; padding: 3px 5px; }}
+            QDockWidget {{ color: #b3e5fc; titlebar-close-icon: none; }}
+            QDockWidget::title {{ background-color: #00b4d8; padding: 4px; color: #ffffff; }}
+            QStatusBar {{ background-color: #031426; color: #4dd0e1; border-top: 2px solid #00b4d8; }}
             """
         elif theme in ('sunset', 'sunset_warm'):
             stylesheet = f"""
@@ -2742,6 +2808,166 @@ class TextureSorterMainWindow(QMainWindow):
             QTextEdit {{ background-color: #0d0d1a; color: #00ffcc; border: 1px solid #00ffcc; font-family: 'Courier New', monospace; }}
             QScrollBar:vertical {{ background-color: #0d0d1a; width: 12px; }}
             QScrollBar::handle:vertical {{ background-color: #00ffcc; border-radius: 2px; }}
+            """
+        elif theme in ('gore',):
+            # 💀 Gore — blood-soaked, dripping, organ-coloured UI with click splatter
+            stylesheet = f"""
+            QMainWindow {{ background-color: #0d0000; }}
+            QWidget {{
+                background-color: #0d0000;
+                color: #ffaaaa;
+                font-family: 'Segoe UI', Arial, sans-serif;
+            }}
+            QPushButton {{
+                background-color: {accent};
+                color: #ffdddd;
+                border: 3px solid #8b0000;
+                padding: 8px 16px;
+                border-radius: 4px 4px 0px 0px;
+                font-weight: bold;
+                border-bottom: 6px solid #660000;
+            }}
+            QPushButton:hover {{
+                background-color: {hover_color.name()};
+                border-color: #ff0000;
+                border-bottom: 6px solid #cc0000;
+                color: #ffffff;
+            }}
+            QPushButton:pressed {{ background-color: {pressed_color.name()}; border-color: #440000; }}
+            QPushButton:disabled {{ background-color: #2a0000; color: #663333; border-color: #3a0000; }}
+            QLabel {{ color: #ffaaaa; background-color: transparent; }}
+            QGroupBox {{
+                color: #ff4444;
+                border: 3px solid #8b0000;
+                border-radius: 2px;
+                margin-top: 8px;
+                font-weight: bold;
+            }}
+            QGroupBox::title {{ color: #ff2222; subcontrol-position: top left; padding: 2px 6px; }}
+            QTabWidget::pane {{ border: 3px solid #8b0000; background-color: #140000; }}
+            QTabBar::tab {{
+                background-color: #1a0000;
+                color: #ff6666;
+                padding: 8px 20px;
+                border: 2px solid #8b0000;
+                border-bottom: none;
+                border-radius: 4px 4px 0px 0px;
+            }}
+            QTabBar::tab:selected {{ background-color: #8b0000; color: #ffdddd; border-color: #cc0000; }}
+            QTabBar::tab:hover {{ background-color: #260000; color: #ff9999; }}
+            QMenuBar {{ background-color: #140000; color: #ffaaaa; border-bottom: 3px solid #8b0000; }}
+            QMenuBar::item:selected {{ background-color: #8b0000; color: #ffffff; }}
+            QMenu {{ background-color: #140000; color: #ffaaaa; border: 3px solid #8b0000; }}
+            QMenu::item:selected {{ background-color: #8b0000; color: #ffffff; }}
+            QProgressBar {{
+                border: 3px solid #8b0000;
+                border-radius: 0px;
+                text-align: center;
+                background-color: #140000;
+                color: #ffaaaa;
+            }}
+            QProgressBar::chunk {{ background-color: #cc0000; }}
+            QFrame {{ background-color: #140000; border: 3px solid #8b0000; border-radius: 2px; }}
+            QTextEdit {{ background-color: #0d0000; color: #ffaaaa; border: 3px solid #8b0000; }}
+            QLineEdit {{ background-color: #1a0000; color: #ffaaaa; border: 3px solid #8b0000; border-radius: 2px; padding: 4px 6px; }}
+            QLineEdit:focus {{ border-color: #ff0000; }}
+            QComboBox {{ background-color: #1a0000; color: #ffaaaa; border: 3px solid #8b0000; border-radius: 2px; padding: 4px 6px; min-height: 22px; }}
+            QComboBox:hover {{ border-color: #ff0000; }}
+            QComboBox QAbstractItemView {{ background-color: #1a0000; color: #ffaaaa; border: 2px solid #8b0000; selection-background-color: #8b0000; }}
+            QCheckBox {{ color: #ffaaaa; spacing: 6px; }}
+            QCheckBox::indicator {{ width: 14px; height: 14px; border: 3px solid #8b0000; border-radius: 2px; background: #1a0000; }}
+            QCheckBox::indicator:checked {{ background: #8b0000; border-color: #ff0000; }}
+            QScrollBar:vertical {{ background-color: #140000; width: 12px; }}
+            QScrollBar::handle:vertical {{ background-color: #8b0000; border-radius: 0px; }}
+            QScrollBar::handle:vertical:hover {{ background-color: #cc0000; }}
+            QSlider::groove:horizontal {{ height: 6px; background: #1a0000; border: 2px solid #8b0000; border-radius: 2px; }}
+            QSlider::handle:horizontal {{ background: #8b0000; border: 2px solid #cc0000; width: 16px; height: 16px; border-radius: 2px; margin: -5px 0; }}
+            QSlider::sub-page:horizontal {{ background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #4d0000, stop:1 #cc0000); border-radius: 2px; }}
+            QSpinBox, QDoubleSpinBox {{ background-color: #1a0000; color: #ffaaaa; border: 3px solid #8b0000; border-radius: 2px; padding: 3px 5px; }}
+            QDockWidget {{ color: #ffaaaa; titlebar-close-icon: none; }}
+            QDockWidget::title {{ background-color: #8b0000; padding: 4px; color: #ffdddd; }}
+            QStatusBar {{ background-color: #140000; color: #ff4444; border-top: 3px solid #8b0000; }}
+            """
+        elif theme in ('goth',):
+            # 💀 Goth — pure black, dark purple/grey, gothic grunge aesthetic
+            stylesheet = f"""
+            QMainWindow {{ background-color: #000000; }}
+            QWidget {{
+                background-color: #000000;
+                color: #c0b0d0;
+                font-family: 'Palatino Linotype', 'Georgia', 'Times New Roman', serif;
+            }}
+            QPushButton {{
+                background-color: {accent};
+                color: #e0d0f0;
+                border: 2px solid #4a2060;
+                padding: 8px 16px;
+                border-radius: 0px;
+                font-weight: bold;
+                font-family: 'Palatino Linotype', 'Georgia', serif;
+            }}
+            QPushButton:hover {{
+                background-color: {hover_color.name()};
+                border-color: #8844aa;
+                color: #ffffff;
+            }}
+            QPushButton:pressed {{ background-color: {pressed_color.name()}; border-color: #220033; }}
+            QPushButton:disabled {{ background-color: #0d0d0d; color: #443355; border-color: #221133; }}
+            QLabel {{ color: #c0b0d0; background-color: transparent; }}
+            QGroupBox {{
+                color: #9966bb;
+                border: 2px solid #4a2060;
+                border-radius: 0px;
+                margin-top: 8px;
+                font-weight: bold;
+            }}
+            QGroupBox::title {{ color: #bb88dd; subcontrol-position: top left; padding: 2px 6px; }}
+            QTabWidget::pane {{
+                border: 2px solid #4a2060;
+                background-color: #050005;
+            }}
+            QTabBar::tab {{
+                background-color: #0a000f;
+                color: #9966bb;
+                padding: 8px 20px;
+                border: 2px solid #4a2060;
+                border-bottom: none;
+                border-radius: 0px;
+            }}
+            QTabBar::tab:selected {{ background-color: #1a0028; color: #e0d0f0; border-color: #8844aa; }}
+            QTabBar::tab:hover {{ background-color: #120018; color: #cc99ee; }}
+            QMenuBar {{ background-color: #050005; color: #c0b0d0; border-bottom: 2px solid #4a2060; }}
+            QMenuBar::item:selected {{ background-color: #1a0028; color: #e0d0f0; }}
+            QMenu {{ background-color: #050005; color: #c0b0d0; border: 2px solid #4a2060; }}
+            QMenu::item:selected {{ background-color: #1a0028; color: #e0d0f0; }}
+            QProgressBar {{
+                border: 2px solid #4a2060;
+                border-radius: 0px;
+                text-align: center;
+                background-color: #0a000f;
+                color: #c0b0d0;
+            }}
+            QProgressBar::chunk {{ background-color: #4a2060; }}
+            QFrame {{ background-color: #050005; border: 2px solid #4a2060; border-radius: 0px; }}
+            QTextEdit {{ background-color: #000000; color: #c0b0d0; border: 2px solid #4a2060; font-family: 'Palatino Linotype', 'Georgia', serif; }}
+            QLineEdit {{ background-color: #0a000f; color: #c0b0d0; border: 2px solid #4a2060; border-radius: 0px; padding: 4px 6px; }}
+            QLineEdit:focus {{ border-color: #8844aa; }}
+            QComboBox {{ background-color: #0a000f; color: #c0b0d0; border: 2px solid #4a2060; border-radius: 0px; padding: 4px 6px; min-height: 22px; }}
+            QComboBox:hover {{ border-color: #8844aa; }}
+            QComboBox QAbstractItemView {{ background-color: #0a000f; color: #c0b0d0; border: 2px solid #4a2060; selection-background-color: #1a0028; }}
+            QCheckBox {{ color: #c0b0d0; spacing: 6px; }}
+            QCheckBox::indicator {{ width: 14px; height: 14px; border: 2px solid #4a2060; border-radius: 0px; background: #0a000f; }}
+            QCheckBox::indicator:checked {{ background: #4a2060; border-color: #8844aa; }}
+            QScrollBar:vertical {{ background-color: #050005; width: 12px; }}
+            QScrollBar::handle:vertical {{ background-color: #4a2060; border-radius: 0px; }}
+            QScrollBar::handle:vertical:hover {{ background-color: #6a3090; }}
+            QSlider::groove:horizontal {{ height: 6px; background: #0a000f; border: 1px solid #4a2060; border-radius: 0px; }}
+            QSlider::handle:horizontal {{ background: #4a2060; border: 2px solid #8844aa; width: 16px; height: 16px; border-radius: 0px; margin: -5px 0; }}
+            QSlider::sub-page:horizontal {{ background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #220033, stop:1 #6a3090); border-radius: 0px; }}
+            QSpinBox, QDoubleSpinBox {{ background-color: #0a000f; color: #c0b0d0; border: 2px solid #4a2060; border-radius: 0px; padding: 3px 5px; }}
+            QDockWidget {{ color: #c0b0d0; titlebar-close-icon: none; }}
+            QDockWidget::title {{ background-color: #1a0028; padding: 4px; color: #9966bb; }}
+            QStatusBar {{ background-color: #050005; color: #9966bb; border-top: 2px solid #4a2060; }}
             """
         else:  # Dark theme (default)
             stylesheet = f"""
@@ -2933,6 +3159,9 @@ class TextureSorterMainWindow(QMainWindow):
         trail_enabled = bool(config.get('ui', 'cursor_trail', default=False))
         self._apply_cursor_trail(trail_enabled)
 
+        # ── Gore theme: install/remove blood-splatter click filter ────────────
+        self._update_gore_splatter(theme)
+
         # Unlock theme-related achievements
         try:
             if self.achievement_system:
@@ -2943,10 +3172,12 @@ class TextureSorterMainWindow(QMainWindow):
                     'dracula': 'shadow_walker',
                     'solarized_dark': 'bamboo_sage',
                     'light': 'angelic_sorter',
-                    'forest': 'bamboo_sage',      # closest existing achievement
-                    'ocean': 'pirate_adventure',  # closest existing achievement
-                    'sunset': 'golden_touch',     # closest existing achievement
-                    'cyberpunk': 'thunderstruck', # closest existing achievement
+                    'forest': 'bamboo_sage',
+                    'ocean': 'pirate_adventure',
+                    'sunset': 'golden_touch',
+                    'cyberpunk': 'thunderstruck',
+                    'gore': 'shadow_walker',   # closest existing dark achievement
+                    'goth': 'shadow_walker',
                 }
                 ach_id = _theme_ach.get(theme)
                 if ach_id:
@@ -2977,6 +3208,25 @@ class TextureSorterMainWindow(QMainWindow):
                 child.setCursor(_hand)
         except Exception as e:
             logger.debug(f"_install_pointing_cursor_filter: {e}")
+
+    def _update_gore_splatter(self, theme: str) -> None:
+        """Install or remove the GoreSplatterFilter depending on the active theme."""
+        try:
+            from PyQt6.QtWidgets import QApplication as _QA
+            _app = _QA.instance()
+            if _app is None:
+                return
+            want_gore = (theme == 'gore')
+            if want_gore and self._gore_splatter_filter is None:
+                self._gore_splatter_filter = GoreSplatterFilter(self)
+                _app.installEventFilter(self._gore_splatter_filter)
+                logger.info("🩸 Gore splatter filter installed")
+            elif not want_gore and self._gore_splatter_filter is not None:
+                _app.removeEventFilter(self._gore_splatter_filter)
+                self._gore_splatter_filter = None
+                logger.info("Gore splatter filter removed")
+        except Exception as _e:
+            logger.debug(f"_update_gore_splatter: {_e}")
 
     def apply_cursor(self):
         """Apply the cursor style saved in config to the whole application."""
