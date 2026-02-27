@@ -233,6 +233,7 @@ class SettingsPanelQt(QWidget):
         self.appearance_font_combo.currentTextChanged.connect(lambda: self.on_setting_changed('ui', 'font_family'))
         font_layout.addWidget(font_family_label)
         font_layout.addWidget(self.appearance_font_combo)
+        self.set_tooltip(self.appearance_font_combo, 'font_family')
 
         font_size_label = QLabel("Font Size:")
         self.appearance_font_size = QSpinBox()
@@ -256,6 +257,7 @@ class SettingsPanelQt(QWidget):
         self.appearance_cursor_combo.currentTextChanged.connect(lambda: self.on_setting_changed('ui', 'cursor'))
         cursor_layout.addWidget(cursor_label)
         cursor_layout.addWidget(self.appearance_cursor_combo)
+        self.set_tooltip(self.appearance_cursor_combo, 'cursor_type')
 
         cursor_group.setLayout(cursor_layout)
         layout.addWidget(cursor_group)

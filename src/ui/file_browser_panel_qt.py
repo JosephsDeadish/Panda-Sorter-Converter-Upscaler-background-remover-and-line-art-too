@@ -189,7 +189,7 @@ class FileBrowserPanelQt(QWidget):
         # Browse button
         self.browse_btn = QPushButton("📂 Browse Folder")
         self.browse_btn.clicked.connect(self.browse_folder)
-        self._set_tooltip(self.browse_btn, 'browse_folder_button')
+        self._set_tooltip(self.browse_btn, 'browser_browse_button')
         controls_layout.addWidget(self.browse_btn)
         
         # Recent folders dropdown
@@ -206,7 +206,7 @@ class FileBrowserPanelQt(QWidget):
         self.refresh_btn = QPushButton("🔄 Refresh")
         self.refresh_btn.clicked.connect(self.refresh_view)
         self.refresh_btn.setEnabled(False)
-        self._set_tooltip(self.refresh_btn, 'refresh_browser_button')
+        self._set_tooltip(self.refresh_btn, 'browser_refresh_button')
         controls_layout.addWidget(self.refresh_btn)
         
         controls_layout.addStretch()
@@ -222,7 +222,7 @@ class FileBrowserPanelQt(QWidget):
         self.search_box = QLineEdit()
         self.search_box.setPlaceholderText("Filter by filename...")
         self.search_box.textChanged.connect(self.filter_files)
-        self._set_tooltip(self.search_box, 'file_search_box')
+        self._set_tooltip(self.search_box, 'browser_search')
         filter_layout.addWidget(self.search_box)
         
         # File type filter
@@ -243,7 +243,7 @@ class FileBrowserPanelQt(QWidget):
         self.show_archives_cb = QCheckBox("📦 Include Archives")
         self.show_archives_cb.setChecked(True)
         self.show_archives_cb.stateChanged.connect(self.filter_files)
-        self._set_tooltip(self.show_archives_cb, 'show_archives_checkbox')
+        self._set_tooltip(self.show_archives_cb, 'browser_show_archives')
         filter_layout.addWidget(self.show_archives_cb)
         
         layout.addLayout(filter_layout)
@@ -265,7 +265,7 @@ class FileBrowserPanelQt(QWidget):
         self.content_search_btn = QPushButton("🔎 Search Content")
         self._set_tooltip(
             self.content_search_btn,
-            "Find images matching the description above. Requires CLIP (transformers / open-clip-torch) to be installed."
+            'browser_smart_search'
         )
         self.content_search_btn.clicked.connect(self._search_by_content)
         content_search_layout.addWidget(self.content_search_btn)

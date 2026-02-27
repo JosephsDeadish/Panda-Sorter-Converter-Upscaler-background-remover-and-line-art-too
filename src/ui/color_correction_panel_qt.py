@@ -318,7 +318,7 @@ class ColorCorrectionPanelQt(QWidget):
         lut_layout.addWidget(QLabel("LUT:"))
         self.lut_combo = QComboBox()
         self.lut_combo.addItems(["None", "Warm", "Cool", "Cinematic", "Vintage"])
-        self._set_tooltip(self.lut_combo, "Apply color lookup table for stylized color grading")
+        self._set_tooltip(self.lut_combo, 'cc_lut')
         lut_layout.addWidget(self.lut_combo, 1)
         group_layout.addLayout(lut_layout)
         

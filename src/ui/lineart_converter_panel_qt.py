@@ -543,6 +543,7 @@ class LineArtConverterPanelQt(QWidget):
         
         select_multiple_btn = QPushButton("Select Multiple")
         select_multiple_btn.clicked.connect(self._select_files)
+        self._set_tooltip(select_multiple_btn, 'la_select_files')
         btn_layout.addWidget(select_multiple_btn)
         
         group_layout.addLayout(btn_layout)
@@ -1042,6 +1043,7 @@ class LineArtConverterPanelQt(QWidget):
         ]:
             self.output_format_combo.addItem(label, ext)
         fmt_layout.addWidget(self.output_format_combo, 1)
+        self._set_tooltip(self.output_format_combo, 'la_export')
 
         self.save_color_layer_cb = QCheckBox("Also save colour layer")
         self._set_tooltip(

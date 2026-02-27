@@ -738,6 +738,7 @@ class OrganizerPanelQt(QWidget):
         
         select_source_btn = QPushButton("Browse...")
         select_source_btn.clicked.connect(self._select_source_directory)
+        self._set_tooltip(select_source_btn, 'input_browse')
         dir_layout.addWidget(select_source_btn)
         
         group_layout.addLayout(dir_layout)
@@ -750,6 +751,7 @@ class OrganizerPanelQt(QWidget):
         
         select_target_btn = QPushButton("Browse...")
         select_target_btn.clicked.connect(self._select_target_directory)
+        self._set_tooltip(select_target_btn, 'output_browse')
         target_layout.addWidget(select_target_btn)
         
         group_layout.addLayout(target_layout)
@@ -937,6 +939,7 @@ class OrganizerPanelQt(QWidget):
         self.start_btn.setStyleSheet("background: #4CAF50; color: white; padding: 12px; font-size: 12pt; font-weight: bold;")
         self.start_btn.clicked.connect(self._start_organization)
         self.start_btn.setEnabled(False)
+        self._set_tooltip(self.start_btn, 'sort_button')
         button_layout.addWidget(self.start_btn)
         
         self.cancel_btn = QPushButton("Cancel")

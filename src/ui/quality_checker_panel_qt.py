@@ -244,7 +244,7 @@ class QualityCheckerPanelQt(QWidget):
         self.check_dpi_cb = QCheckBox("🖨️ DPI")
         self.check_dpi_cb.setChecked(True)
         options_layout.addWidget(self.check_dpi_cb)
-        self._set_tooltip(self.check_dpi_cb, "Check DPI and print quality metrics")
+        self._set_tooltip(self.check_dpi_cb, 'qc_dpi')
         
         options_layout.addStretch()
         group_layout.addLayout(options_layout)
@@ -262,7 +262,7 @@ class QualityCheckerPanelQt(QWidget):
         self.check_btn.setStyleSheet("background-color: #4CAF50; color: white; padding: 10px;")
         self.check_btn.clicked.connect(self._check_quality)
         group_layout.addWidget(self.check_btn)
-        self._set_tooltip(self.check_btn, "Analyze all selected images for resolution, compression, and DPI quality metrics")
+        self._set_tooltip(self.check_btn, 'qc_analyze')
         
         # Status label
         self.status_label = QLabel("Ready")
