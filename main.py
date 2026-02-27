@@ -1725,6 +1725,42 @@ class TextureSorterMainWindow(QMainWindow):
                     )
             back_btn.clicked.connect(_go_home)
 
+            # Furniture quick-access bar — shown permanently at the bottom of the
+            # 3D home panel so users can jump to any room feature with one click.
+            # This also satisfies the test expectation: ≥3 QPushButtons with
+            # furniture labels must exist as children of the Panda Home tab widget.
+            _furn_quick_bar = QWidget()
+            _furn_quick_bar.setObjectName("furnitureQuickBar")
+            _furn_quick_bar.setStyleSheet(
+                "#furnitureQuickBar { background: #1a1a2e; border-top: 1px solid #333; }"
+            )
+            _furn_quick_h = QHBoxLayout(_furn_quick_bar)
+            _furn_quick_h.setContentsMargins(6, 4, 6, 4)
+            _furn_quick_h.setSpacing(6)
+            _FURN_SHORTCUTS = [
+                ("👗 Wardrobe",    "wardrobe"),
+                ("🎒 Inventory",   "backpack"),
+                ("🏆 Trophies",    "trophy_stand"),
+                ("🍎 Food & Shop", "fridge"),
+                ("🧸 Toy Box",     "toy_box"),
+                ("🚪 Outside",     "bedroom_door"),
+            ]
+            _fshort_style = (
+                "QPushButton { background: #2a2a4e; color: #ccccff; "
+                "border: 1px solid #444; border-radius: 4px; "
+                "font-size: 11px; padding: 4px 8px; }"
+                "QPushButton:hover { background: #3a3a6e; color: #ffffff; border-color: #6666aa; }"
+                "QPushButton:pressed { background: #4a4a8e; }"
+            )
+            for _flabel, _ffid in _FURN_SHORTCUTS:
+                _fsbtn = QPushButton(_flabel)
+                _fsbtn.setStyleSheet(_fshort_style)
+                _fsbtn.clicked.connect(
+                    lambda _checked=False, _fid=_ffid: self._on_bedroom_furniture_clicked(_fid)
+                )
+                _furn_quick_h.addWidget(_fsbtn)
+            home_vbox.addWidget(_furn_quick_bar)
+
             panda_tabs.addTab(home_container, "🏠 Panda Home")
             self._home_tab_index = panda_tabs.indexOf(home_container)
             logger.info("✅ 3D Panda Home panel added to panda tab")
@@ -2486,108 +2522,307 @@ class TextureSorterMainWindow(QMainWindow):
             }}
             """
         elif theme == 'nord':
+            # ⚔️  Norse Mythology / Nordic theme
+            # Colour story: deep fjord midnight (#0f1923), carved runestone (#1e2d3d),
+            # iron-grey steel (#2e4057), frost-white (#dde8f4), ice-blue (#88c0d0),
+            # aurora green (#a3be8c), ember gold (#ebcb8b), blood iron (#bf616a).
+            # Typography: 'Palatino Linotype', 'Georgia' serif — evoking ancient scrolls.
+            # Borders: sharp, angular (border-radius ≤ 2px) like chiselled rune stones.
+            # Decorative: runic-style angular chevrons on tabs; carved-beam dock titles.
             stylesheet = f"""
             QMainWindow {{
-                background-color: #2e3440;
+                background-color: #0f1923;
             }}
             QWidget {{
-                background-color: #2e3440;
-                color: #d8dee9;
-                font-family: 'Segoe UI', Arial, sans-serif;
+                background-color: #0f1923;
+                color: #dde8f4;
+                font-family: 'Palatino Linotype', 'Georgia', 'Times New Roman', serif;
             }}
+            /* ── Rune-stone buttons — angular, iron-forged ─────────────────── */
             QPushButton {{
                 background-color: {accent};
                 color: #eceff4;
-                border: none;
-                padding: 8px 16px;
-                border-radius: 4px;
+                border: 2px solid #4a6880;
+                padding: 8px 18px;
+                border-radius: 2px;
                 font-weight: bold;
+                font-family: 'Palatino Linotype', 'Georgia', serif;
+                letter-spacing: 1px;
             }}
             QPushButton:hover {{
                 background-color: {hover_color.name()};
+                border-color: #88c0d0;
+                color: #ffffff;
             }}
             QPushButton:pressed {{
                 background-color: {pressed_color.name()};
+                border-color: #5e81ac;
             }}
             QPushButton:disabled {{
-                background-color: #434c5e;
-                color: #616e88;
+                background-color: #1e2d3d;
+                color: #4a5a6a;
+                border-color: #2e3d4d;
             }}
             QLabel {{
-                color: #d8dee9;
+                color: #dde8f4;
                 background-color: transparent;
             }}
+            /* ── Carved runestone group-boxes ───────────────────────────────── */
+            QGroupBox {{
+                color: #88c0d0;
+                border: 2px solid #4a6880;
+                border-radius: 0px;
+                margin-top: 10px;
+                font-weight: bold;
+                font-family: 'Palatino Linotype', 'Georgia', serif;
+            }}
+            QGroupBox::title {{
+                color: #ebcb8b;
+                subcontrol-position: top left;
+                padding: 2px 8px;
+                background: #1e2d3d;
+                border: 1px solid #4a6880;
+            }}
+            /* ── Fjord-plank tab bar ─────────────────────────────────────────── */
             QTabWidget::pane {{
-                border: 1px solid #3b4252;
-                background-color: #3b4252;
+                border: 2px solid #2e4057;
+                background-color: #131f2b;
             }}
             QTabBar::tab {{
-                background-color: #434c5e;
-                color: #d8dee9;
-                padding: 8px 20px;
-                border: 1px solid #3b4252;
+                background-color: #1e2d3d;
+                color: #8aa4b8;
+                padding: 8px 22px;
+                border: 2px solid #2e4057;
                 border-bottom: none;
+                border-radius: 2px 2px 0px 0px;
+                font-family: 'Palatino Linotype', 'Georgia', serif;
+                letter-spacing: 1px;
             }}
             QTabBar::tab:selected {{
                 background-color: {accent};
                 color: #eceff4;
+                border-color: #88c0d0;
+                font-weight: bold;
             }}
             QTabBar::tab:hover {{
-                background-color: #4c566a;
+                background-color: #2a3d52;
+                color: #dde8f4;
+                border-color: #4a6880;
             }}
+            /* ── Norse menu bar ─────────────────────────────────────────────── */
             QMenuBar {{
-                background-color: #3b4252;
-                color: #d8dee9;
-                border-bottom: 1px solid #434c5e;
+                background-color: #0d1720;
+                color: #8aa4b8;
+                border-bottom: 2px solid #2e4057;
+                font-family: 'Palatino Linotype', 'Georgia', serif;
             }}
             QMenuBar::item:selected {{
-                background-color: {accent};
-                color: #eceff4;
+                background-color: #2e4057;
+                color: #ebcb8b;
             }}
             QMenu {{
-                background-color: #3b4252;
-                color: #d8dee9;
-                border: 1px solid #434c5e;
+                background-color: #131f2b;
+                color: #dde8f4;
+                border: 2px solid #2e4057;
+                font-family: 'Palatino Linotype', 'Georgia', serif;
             }}
             QMenu::item:selected {{
-                background-color: {accent};
-                color: #eceff4;
+                background-color: #2e4057;
+                color: #ebcb8b;
             }}
+            QMenu::separator {{
+                height: 1px;
+                background: #2e4057;
+                margin: 3px 8px;
+            }}
+            /* ── Ship-prow progress bar ─────────────────────────────────────── */
             QProgressBar {{
-                border: 1px solid #434c5e;
-                border-radius: 3px;
+                border: 2px solid #2e4057;
+                border-radius: 0px;
                 text-align: center;
-                background-color: #3b4252;
-                color: #d8dee9;
+                background-color: #131f2b;
+                color: #88c0d0;
+                font-family: 'Palatino Linotype', 'Georgia', serif;
             }}
             QProgressBar::chunk {{
-                background-color: {accent};
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+                    stop:0 #2e4057, stop:0.5 {accent}, stop:1 #88c0d0);
+                border-radius: 0px;
             }}
             QFrame {{
-                background-color: #3b4252;
-                border: 1px solid #434c5e;
-                border-radius: 4px;
+                background-color: #131f2b;
+                border: 2px solid #2e4057;
+                border-radius: 0px;
             }}
             QTextEdit {{
-                background-color: #3b4252;
-                color: #d8dee9;
-                border: 1px solid #434c5e;
+                background-color: #0d1720;
+                color: #dde8f4;
+                border: 2px solid #2e4057;
+                border-radius: 0px;
+                font-family: 'Palatino Linotype', 'Georgia', serif;
             }}
+            QLineEdit {{
+                background-color: #1e2d3d;
+                color: #dde8f4;
+                border: 2px solid #2e4057;
+                border-radius: 2px;
+                padding: 4px 6px;
+                font-family: 'Palatino Linotype', 'Georgia', serif;
+            }}
+            QLineEdit:focus {{
+                border-color: #88c0d0;
+            }}
+            QLineEdit:read-only {{
+                background-color: #131f2b;
+                color: #8aa4b8;
+            }}
+            /* ── Rune-carved combo boxes ─────────────────────────────────────── */
+            QComboBox {{
+                background-color: #1e2d3d;
+                color: #dde8f4;
+                border: 2px solid #2e4057;
+                border-radius: 2px;
+                padding: 4px 8px;
+                min-height: 22px;
+                font-family: 'Palatino Linotype', 'Georgia', serif;
+            }}
+            QComboBox:hover {{
+                border-color: #88c0d0;
+            }}
+            QComboBox QAbstractItemView {{
+                background-color: #131f2b;
+                color: #dde8f4;
+                border: 2px solid #2e4057;
+                selection-background-color: #2e4057;
+                selection-color: #ebcb8b;
+            }}
+            /* ── Norse check-rune ────────────────────────────────────────────── */
+            QCheckBox {{
+                color: #dde8f4;
+                spacing: 8px;
+                font-family: 'Palatino Linotype', 'Georgia', serif;
+            }}
+            QCheckBox::indicator {{
+                width: 14px;
+                height: 14px;
+                border: 2px solid #4a6880;
+                border-radius: 0px;
+                background: #1e2d3d;
+            }}
+            QCheckBox::indicator:checked {{
+                background: #5e81ac;
+                border-color: #88c0d0;
+            }}
+            QCheckBox::indicator:hover {{
+                border-color: #88c0d0;
+            }}
+            /* ── Carved-wood scrollbar ───────────────────────────────────────── */
             QScrollBar:vertical {{
-                background-color: #3b4252;
-                width: 12px;
+                background-color: #0d1720;
+                width: 14px;
+                border-left: 1px solid #2e4057;
             }}
             QScrollBar::handle:vertical {{
-                background-color: #4c566a;
-                border-radius: 6px;
+                background-color: #2e4057;
+                border-radius: 0px;
+                min-height: 24px;
             }}
+            QScrollBar::handle:vertical:hover {{
+                background-color: #4a6880;
+            }}
+            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {{
+                height: 0px;
+            }}
+            QScrollBar:horizontal {{
+                background-color: #0d1720;
+                height: 14px;
+                border-top: 1px solid #2e4057;
+            }}
+            QScrollBar::handle:horizontal {{
+                background-color: #2e4057;
+                border-radius: 0px;
+                min-width: 24px;
+            }}
+            QScrollBar::handle:horizontal:hover {{
+                background-color: #4a6880;
+            }}
+            /* ── Thor-hammer slider ──────────────────────────────────────────── */
+            QSlider::groove:horizontal {{
+                height: 6px;
+                background: #1e2d3d;
+                border: 1px solid #2e4057;
+                border-radius: 0px;
+            }}
+            QSlider::handle:horizontal {{
+                background: #5e81ac;
+                border: 2px solid #88c0d0;
+                width: 18px;
+                height: 18px;
+                border-radius: 0px;
+                margin: -6px 0;
+            }}
+            QSlider::handle:horizontal:hover {{
+                background: #88c0d0;
+                border-color: #ebcb8b;
+            }}
+            QSlider::sub-page:horizontal {{
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+                    stop:0 #2e4057, stop:1 #5e81ac);
+                border-radius: 0px;
+            }}
+            QSpinBox, QDoubleSpinBox {{
+                background-color: #1e2d3d;
+                color: #dde8f4;
+                border: 2px solid #2e4057;
+                border-radius: 2px;
+                padding: 3px 5px;
+                font-family: 'Palatino Linotype', 'Georgia', serif;
+            }}
+            QSpinBox:focus, QDoubleSpinBox:focus {{
+                border-color: #88c0d0;
+            }}
+            /* ── Norse longhouse dock widgets ───────────────────────────────── */
             QDockWidget {{
-                color: #d8dee9;
-                titlebar-close-icon: none;
+                color: #dde8f4;
+                font-family: 'Palatino Linotype', 'Georgia', serif;
             }}
             QDockWidget::title {{
-                background-color: #434c5e;
-                padding: 4px;
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+                    stop:0 #0d1720, stop:0.5 #1e2d3d, stop:1 #0d1720);
+                padding: 5px 10px;
+                border: 2px solid #2e4057;
+                color: #88c0d0;
+                font-weight: bold;
+                text-align: center;
+            }}
+            /* ── Rune-stone status bar ───────────────────────────────────────── */
+            QStatusBar {{
+                background-color: #0d1720;
+                color: #8aa4b8;
+                border-top: 2px solid #2e4057;
+                font-family: 'Palatino Linotype', 'Georgia', serif;
+            }}
+            QStatusBar::item {{
+                border: none;
+            }}
+            /* ── Valhalla tooltip ────────────────────────────────────────────── */
+            QToolTip {{
+                background-color: #1e2d3d;
+                color: #ebcb8b;
+                border: 2px solid #4a6880;
+                border-radius: 0px;
+                padding: 4px 8px;
+                font-family: 'Palatino Linotype', 'Georgia', serif;
+            }}
+            /* ── Runic splitter handle ───────────────────────────────────────── */
+            QSplitter::handle {{
+                background-color: #2e4057;
+            }}
+            QSplitter::handle:horizontal {{
+                width: 3px;
+            }}
+            QSplitter::handle:vertical {{
+                height: 3px;
             }}
             """
         elif theme == 'dracula':
@@ -3162,6 +3397,9 @@ class TextureSorterMainWindow(QMainWindow):
         # ── Gore theme: install/remove blood-splatter click filter ────────────
         self._update_gore_splatter(theme)
 
+        # ── Nord theme: Norse mythology window decorations ─────────────────────
+        self._update_nord_runes(theme)
+
         # Unlock theme-related achievements
         try:
             if self.achievement_system:
@@ -3227,6 +3465,30 @@ class TextureSorterMainWindow(QMainWindow):
                 logger.info("Gore splatter filter removed")
         except Exception as _e:
             logger.debug(f"_update_gore_splatter: {_e}")
+
+    def _update_nord_runes(self, theme: str) -> None:
+        """Decorate the window title with Elder Futhark runes when the Nord
+        theme is active; remove decorations for all other themes.
+
+        The rune ᚱ (Raido — journey) frames the title on both sides,
+        representing the user's creative journey through their textures.
+        """
+        _RUNE = "ᚱ"    # Raido: journey, movement — same symbol on both sides
+        try:
+            title = self.windowTitle()
+            if theme == 'nord':
+                # Add rune brackets if not already present
+                if not (title.startswith(_RUNE + " ") and title.endswith(" " + _RUNE)):
+                    # Strip any pre-existing ᚱ decoration before re-applying
+                    clean = title.replace("ᚱ ", "").replace(" ᚱ", "")
+                    self.setWindowTitle(f"{_RUNE} {clean.strip()} {_RUNE}")
+                logger.debug("⚔️  Nord rune window decorations applied")
+            else:
+                # Remove rune decorations if they were previously added
+                if title.startswith(_RUNE + " ") and title.endswith(" " + _RUNE):
+                    self.setWindowTitle(title[len(_RUNE) + 1: -len(_RUNE) - 1])
+        except Exception as _e:
+            logger.debug(f"_update_nord_runes: {_e}")
 
     def apply_cursor(self):
         """Apply the cursor style saved in config to the whole application."""
@@ -5370,8 +5632,31 @@ class TextureSorterMainWindow(QMainWindow):
                     inv = getattr(self, '_inventory_panel', None)
                     wid = getattr(self, '_widgets_panel', None)
                     if inv is None and wid is None:
-                        placeholder = QLabel("🎒 Inventory & Items\n\n(Not available)")
-                        placeholder.setAlignment(Qt.AlignmentFlag.AlignCenter)
+                        placeholder = QWidget()
+                        placeholder.setStyleSheet(
+                            "QWidget { background: #1a1a2e; }"
+                        )
+                        _ph_layout = QVBoxLayout(placeholder)
+                        _ph_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
+                        _ph_icon = QLabel("🎒")
+                        _ph_icon.setStyleSheet("font-size: 48px; background: transparent;")
+                        _ph_icon.setAlignment(Qt.AlignmentFlag.AlignCenter)
+                        _ph_title = QLabel("Inventory & Items")
+                        _ph_title.setStyleSheet(
+                            "color: #ccccff; font-size: 16px; font-weight: bold; background: transparent;"
+                        )
+                        _ph_title.setAlignment(Qt.AlignmentFlag.AlignCenter)
+                        _ph_msg = QLabel(
+                            "Inventory panels could not be loaded.\n"
+                            "Run:  pip install -r requirements.txt\n"
+                            "then restart the application."
+                        )
+                        _ph_msg.setStyleSheet("color: #8888aa; font-size: 11px; background: transparent;")
+                        _ph_msg.setAlignment(Qt.AlignmentFlag.AlignCenter)
+                        _ph_msg.setWordWrap(True)
+                        _ph_layout.addWidget(_ph_icon)
+                        _ph_layout.addWidget(_ph_title)
+                        _ph_layout.addWidget(_ph_msg)
                         self._home_stack_owned.append(placeholder)
                         self._show_home_sub_panel(placeholder, '🎒 Inventory & Items')
                         return
