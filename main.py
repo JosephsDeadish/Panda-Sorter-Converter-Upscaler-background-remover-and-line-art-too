@@ -5829,27 +5829,22 @@ class TextureSorterMainWindow(QMainWindow):
             logger.debug(f"panda_should_hide callback error: {_e}")
 
     def _on_main_tab_changed(self, index: int) -> None:
-        """Show the panda companion overlay on the Home tab (index 0) and the
-        Panda tab (index 2, bedroom/home).
+        """Show the panda companion overlay only on the Home tab (index 0).
 
         The overlay is a transparent full-window widget that paints the
-        animated panda on top of everything.  It now uses a QRegion mask so
-        only the panda's bounding ellipse captures mouse events — clicks
-        outside the panda pass through to whatever widget lies underneath.
-        This means the overlay can safely remain visible on the Panda tab
-        without blocking the bedroom furniture controls.
+        animated panda on top of everything.  Keeping it visible on other tabs
+        blocks interactive widgets:
+        - Tools tab (index 1): covers the Background Remover live preview pane
+        - Panda tab (index 2): overlaps the Trail Preview strip in Customization
+        - Settings tab (index 3): overlaps Font Family / Font Size combo boxes
 
-        The overlay is still hidden on Tools and Settings tabs where the
-        panda companion would be distracting and out of place.
+        The overlay is therefore hidden on every tab except the Home tab.
         """
         try:
             overlay = getattr(self, 'panda_overlay', None)
             if overlay is None or not hasattr(overlay, 'setVisible'):
                 return
-            # Tab 0 = Home, Tab 2 = Panda (bedroom / home) — show overlay on both.
-            # Tab 1 = Tools, Tab 3 = Settings — hide overlay so it stays out of
-            # the way of the processing tools and settings inputs.
-            overlay.setVisible(index in (0, 2))
+            overlay.setVisible(index == 0)
         except Exception as _e:
             logger.debug(f"_on_main_tab_changed error: {_e}")
 
