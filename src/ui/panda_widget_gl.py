@@ -788,7 +788,11 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
         
         # Setup camera
         glLoadIdentity()
-        glTranslatef(0.0, -0.5, -self.camera_distance)
+        # Camera Y = +0.1: world objects at Y≈0 appear at screen centre.
+        # Panda mid-point (half-way between body centre and head) is at world Y≈−0.1
+        # when standing on ground (panda_y=−0.7), so +0.1 gives a well-centred view.
+        # (Old value was −0.5, which looked up at Y=0.5 and put the panda far below centre.)
+        glTranslatef(0.0, 0.1, -self.camera_distance)
         glRotatef(self.camera_angle_x, 1.0, 0.0, 0.0)
         glRotatef(self.camera_angle_y, 0.0, 1.0, 0.0)
         
@@ -1134,7 +1138,7 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
         glMaterialfv(GL_FRONT, GL_SPECULAR, [0.25, 0.25, 0.25, 1.0])
         glMaterialf(GL_FRONT, GL_SHININESS, 14.0)
         glPushMatrix()
-        glScalef(self.BODY_WIDTH, self.BODY_HEIGHT * sy, self.BODY_WIDTH * 0.78)
+        glScalef(self.BODY_WIDTH, self.BODY_HEIGHT * sy, self.BODY_WIDTH * 0.92)
         glColor4f(*body_col, 1.0)
         self._draw_sphere(1.0, 32, 32)
         glPopMatrix()
@@ -1153,7 +1157,7 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
             glPushMatrix()
             glScalef(self.BODY_WIDTH * 1.025,
                      self.BODY_HEIGHT * 1.018 * sy * self._belly_y,
-                     self.BODY_WIDTH * 0.805)
+                     self.BODY_WIDTH * 0.945)
             glColor4f(*_fur_col, 0.22)
             self._draw_sphere(1.0, 16, 16)
             glPopMatrix()
@@ -1161,7 +1165,7 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
             glPushMatrix()
             glScalef(self.BODY_WIDTH * 1.045,
                      self.BODY_HEIGHT * 1.030 * sy * self._belly_y,
-                     self.BODY_WIDTH * 0.820)
+                     self.BODY_WIDTH * 0.960)
             glColor4f(*_fur_col, 0.14)
             self._draw_sphere(1.0, 14, 14)
             glPopMatrix()
@@ -1169,7 +1173,7 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
             glPushMatrix()
             glScalef(self.BODY_WIDTH * 1.065,
                      self.BODY_HEIGHT * 1.042 * sy * self._belly_y,
-                     self.BODY_WIDTH * 0.835)
+                     self.BODY_WIDTH * 0.978)
             glColor4f(*_fur_col, 0.07)
             self._draw_sphere(1.0, 12, 12)
             glPopMatrix()
@@ -1454,7 +1458,7 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
         # correctly follows any body pitch/roll applied during animation.
         glPushMatrix()
         glTranslatef(0.0, 0.30, 0.0)
-        glScalef(self.BODY_WIDTH, self.BODY_HEIGHT, self.BODY_WIDTH * 0.78)
+        glScalef(self.BODY_WIDTH, self.BODY_HEIGHT, self.BODY_WIDTH * 0.92)
         self._draw_sphere(1.0, 10, 10)
         glPopMatrix()
         # Head at torso-local Y = 0.58 (same as in _draw_panda)
@@ -1530,7 +1534,10 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
         wide_factor     = 1.0 + surprised_boost + whoa_boost + self._eyelid_extra
 
         eye_y  = 0.055
-        eye_z  = self.HEAD_RADIUS * 0.74
+        # eye_z: HEAD_RADIUS * 0.86 places the eye patches on the head surface so they
+        # protrude as distinct dark bumps (old 0.74 put them deep inside the head, making
+        # them look flat/painted-on rather than 3-dimensional).
+        eye_z  = self.HEAD_RADIUS * 0.86
 
         # Eye direction: use eye_yaw + saccade, converted to small translation offset
         eye_dx = math.sin(math.radians(self._eye_yaw))   * 0.012
@@ -1674,12 +1681,16 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
         """Draw muzzle, nose tip, philtrum, teeth. Jaw drops by _jaw_open (0=closed→1=open)."""
         jaw_drop = self._jaw_open * 0.055   # max 5.5 units of downward jaw movement
 
-        # Muzzle — off-white ellipsoid
+        # Muzzle — off-white ellipsoid.
+        # Center moved to HEAD_RADIUS * 0.90 so it protrudes visibly from the head sphere
+        # (old: 0.84, muzzle barely broke the surface; real pandas have a distinct snout).
+        # Radius increased from 0.138 to 0.155 and Z-scale from 0.55 to 0.75 for bulk.
+        # Y kept at -0.065 (slightly below eye line, same as before).
         glPushMatrix()
-        glTranslatef(0.0, -0.065, self.HEAD_RADIUS * 0.84)
-        glScalef(1.10, 0.72, 0.55)
+        glTranslatef(0.0, -0.065, self.HEAD_RADIUS * 0.90)
+        glScalef(1.10, 0.72, 0.75)
         glColor3f(0.96, 0.95, 0.91)
-        self._draw_sphere(0.138, 18, 18)
+        self._draw_sphere(0.155, 18, 18)
         glPopMatrix()
 
         # Nose bridge ridge (dark grey)
@@ -1934,7 +1945,7 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
         if sub_pose is None:
             sub_pose = {}
         # NOTE: this method is called INSIDE the torso glPushMatrix which already
-        # translates by (0, 0.28 + bob, 0).  Do NOT add bob here again or the arms
+        # translates by (0, 0.30 + bob, 0).  Do NOT add bob here again or the arms
         # will appear to move at 2× the body bob rate.
         arm_y   = 0.30
         arm_x   = self.BODY_WIDTH + 0.06
@@ -4036,62 +4047,76 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
         quad = gluNewQuadric()
         glColor3f(*color)
         if armor_type in ('cape', 'cloak', 'robe'):
-            # Long flowing cape hanging down back
+            # Long flowing cape hanging down back.
+            # Y = 0.35 = 0.65 panda-local − 0.30 body-translate = mid-back torso level.
             glEnable(GL_BLEND); glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
             glColor4f(*color, 0.88)
             glPushMatrix()
-            glTranslatef(0.0, 0.65, -self.BODY_WIDTH * 0.52)
+            glTranslatef(0.0, 0.35, -self.BODY_WIDTH * 0.52)
             glScalef(0.60, 0.90, 0.08)
             self._draw_sphere(1.0, 12, 8)
             glPopMatrix()
             # Hood (robe only)
             if armor_type == 'robe':
+                # Y = 0.90 ≈ head top in torso-local (head centre 0.58 + HEAD_RADIUS 0.42*0.75)
                 glPushMatrix()
-                glTranslatef(0.0, 1.20, -self.BODY_WIDTH * 0.18)
+                glTranslatef(0.0, 0.90, -self.BODY_WIDTH * 0.18)
                 glScalef(0.40, 0.30, 0.35)
                 self._draw_sphere(1.0, 10, 8)
                 glPopMatrix()
             glDisable(GL_BLEND)
         else:
-            # Chest plate: front torso coverage
+            # Chest plate: front torso coverage.
+            # Y = 0.20 = 0.50 panda-local − 0.30 = upper quarter of body sphere.
             glPushMatrix()
-            glTranslatef(0.0, 0.50, self.BODY_WIDTH * 0.46)
+            glTranslatef(0.0, 0.20, self.BODY_WIDTH * 0.46)
             glScalef(0.68, 0.55, 0.15)
             self._draw_sphere(1.0, 14, 10)
             glPopMatrix()
-            # Shoulder pauldrons
+            # Shoulder pauldrons.
+            # Y = 0.42 = 0.72 panda-local − 0.30 ≈ arm-pivot level.
             c2 = [min(1.0, c + 0.12) for c in color]
             glColor3f(*c2)
             for sx in (-1.0, 1.0):
                 glPushMatrix()
-                glTranslatef(sx * self.BODY_WIDTH * 0.58, 0.72, 0.0)
+                glTranslatef(sx * self.BODY_WIDTH * 0.58, 0.42, 0.0)
                 glScalef(0.25, 0.22, 0.22)
                 self._draw_sphere(1.0, 10, 8)
                 glPopMatrix()
-            # Central chest gem / badge
+            # Central chest gem / badge.
+            # Y = 0.25 = 0.55 panda-local − 0.30.
             glColor3f(1.0, 0.82, 0.1)
             glPushMatrix()
-            glTranslatef(0.0, 0.55, self.BODY_WIDTH * 0.54)
+            glTranslatef(0.0, 0.25, self.BODY_WIDTH * 0.54)
             self._draw_sphere(0.040, 8, 8)
             glPopMatrix()
         gluDeleteQuadric(quad)
 
     def _draw_boots(self, boots_data: dict) -> None:
-        """Draw boots on both feet, following leg positions."""
+        """Draw boots on both feet, following leg positions (torso-local space)."""
         color = boots_data.get('color', [0.35, 0.22, 0.10]) if isinstance(boots_data, dict) else [0.35, 0.22, 0.10]
         boots_type = (boots_data.get('type', 'boot') if isinstance(boots_data, dict) else 'boot').lower()
         glColor3f(*color)
         quad = gluNewQuadric()
         limb = self._get_limb_positions()
+        # Use the exact same geometry as _draw_panda_legs:
+        #   leg pivot at (side * BODY_WIDTH * 0.78, -0.24, 0) in torso-local space.
+        #   foot centre at (0, -LEG_LENGTH * 0.85, 0.045) in leg-local (after rotation).
+        leg_pivot_x = self.BODY_WIDTH * 0.78   # matches leg_x in _draw_panda_legs
+        leg_pivot_y = -0.24                     # matches leg_y in _draw_panda_legs
         for side_sign, leg_key in ((-1.0, 'left_leg_angle'), (1.0, 'right_leg_angle')):
             leg_ang = limb.get(leg_key, 0.0)
             rad = math.radians(leg_ang)
-            leg_len = self.BODY_WIDTH * 0.82
-            foot_x = side_sign * self.BODY_WIDTH * 0.30
-            foot_y = -0.72 + leg_len * (1.0 - abs(math.cos(rad))) * 0.25
+            # Apply the same rotation as _draw_panda_legs to find foot-tip in torso-local.
+            # Unrotated foot offset: (0, -LEG_LENGTH*0.85, 0.045).
+            # After glRotatef(angle, 1, 0, 0): y' = y*cos - z*sin, z' = y*sin + z*cos.
+            fy_local = -self.LEG_LENGTH * 0.85 * math.cos(rad) - 0.045 * math.sin(rad)
+            foot_x = side_sign * leg_pivot_x
+            foot_y = leg_pivot_y + fy_local
             glPushMatrix()
             glTranslatef(foot_x, foot_y, 0.0)
-            glRotatef(leg_ang * side_sign * 0.5, 0.0, 0.0, 1.0)
+            # Tilt boot to match foot orientation
+            glRotatef(leg_ang, 1.0, 0.0, 0.0)
             if boots_type in ('moon', 'ski', 'platform', 'lava'):
                 # Chunky sole
                 glPushMatrix()
@@ -4109,49 +4134,53 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
         gluDeleteQuadric(quad)
 
     def _draw_belt(self, belt_data: dict) -> None:
-        """Draw belt / waistband around panda torso."""
+        """Draw belt / waistband around panda torso (torso-local space)."""
         color = belt_data.get('color', [0.45, 0.25, 0.08]) if isinstance(belt_data, dict) else [0.45, 0.25, 0.08]
         quad = gluNewQuadric()
         glColor3f(*color)
-        # Belt strap: ring around torso at waist height
+        # Belt strap: ring around torso at waist height.
+        # Y = -0.18 = 0.12 panda-local − 0.30 body-translate = just below body centre.
         glPushMatrix()
-        glTranslatef(0.0, 0.12, 0.0)
+        glTranslatef(0.0, -0.18, 0.0)
         glRotatef(90.0, 1.0, 0.0, 0.0)
         gluCylinder(quad, self.BODY_WIDTH * 0.58, self.BODY_WIDTH * 0.58, 0.05, 20, 1)
         glPopMatrix()
         # Buckle
         glColor3f(0.85, 0.78, 0.20)  # gold
         glPushMatrix()
-        glTranslatef(0.0, 0.12, self.BODY_WIDTH * 0.60)
+        glTranslatef(0.0, -0.18, self.BODY_WIDTH * 0.60)
         glScalef(0.09, 0.055, 0.02)
         self._draw_sphere(1.0, 8, 6)
         glPopMatrix()
         gluDeleteQuadric(quad)
 
     def _draw_backpack(self, pack_data: dict) -> None:
-        """Draw backpack on panda's back."""
+        """Draw backpack on panda's back (torso-local space)."""
         color = pack_data.get('color', [0.2, 0.5, 0.8]) if isinstance(pack_data, dict) else [0.2, 0.5, 0.8]
         quad = gluNewQuadric()
         glColor3f(*color)
-        # Main bag body
+        # Main bag body.
+        # Y = 0.15 = 0.45 panda-local − 0.30 = mid-back area of torso sphere.
         glPushMatrix()
-        glTranslatef(0.0, 0.45, -self.BODY_WIDTH * 0.52)
+        glTranslatef(0.0, 0.15, -self.BODY_WIDTH * 0.52)
         glScalef(0.42, 0.48, 0.22)
         self._draw_sphere(1.0, 12, 10)
         glPopMatrix()
-        # Front pocket
+        # Front pocket.
+        # Y = 0.05 = 0.35 panda-local − 0.30.
         c2 = [min(1.0, c + 0.10) for c in color]
         glColor3f(*c2)
         glPushMatrix()
-        glTranslatef(0.0, 0.35, -self.BODY_WIDTH * 0.62)
+        glTranslatef(0.0, 0.05, -self.BODY_WIDTH * 0.62)
         glScalef(0.26, 0.22, 0.08)
         self._draw_sphere(1.0, 10, 8)
         glPopMatrix()
-        # Shoulder straps
+        # Shoulder straps.
+        # Y = 0.42 = 0.72 panda-local − 0.30 ≈ arm-pivot level (shoulder area).
         glColor3f(*[max(0, c - 0.12) for c in color])
         for sx in (-0.18, 0.18):
             glPushMatrix()
-            glTranslatef(sx, 0.72, -self.BODY_WIDTH * 0.35)
+            glTranslatef(sx, 0.42, -self.BODY_WIDTH * 0.35)
             glRotatef(15.0 * (-1 if sx < 0 else 1), 0.0, 0.0, 1.0)
             gluCylinder(quad, 0.025, 0.020, 0.45, 8, 1)
             glPopMatrix()
