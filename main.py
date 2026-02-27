@@ -738,6 +738,7 @@ class TextureSorterMainWindow(QMainWindow):
         self.widget_detector = None      # WidgetDetector – Qt hit-testing for panda overlay
         self.panda_interaction = None    # PandaInteractionBehavior – mischievous AI
         self.preview_viewer = None       # PreviewViewer – standalone non-blocking preview
+        self._tutorial_manager = None   # TutorialManager – set in main() for crash recovery check
 
         # Paths
         self.input_path = None
@@ -5828,24 +5829,27 @@ class TextureSorterMainWindow(QMainWindow):
             logger.debug(f"panda_should_hide callback error: {_e}")
 
     def _on_main_tab_changed(self, index: int) -> None:
-        """Show the panda companion overlay only on the Home tab (index 0).
+        """Show the panda companion overlay on the Home tab (index 0) and the
+        Panda tab (index 2, bedroom/home).
 
         The overlay is a transparent full-window widget that paints the
-        animated panda on top of everything.  While that makes for a nice
-        companion experience on the Home screen, it physically covers
-        interactive widgets on the Tools, Panda, and Settings tabs —
-        the Background Remover live preview, the Trail Preview strip,
-        and the Font / Font Size combo boxes, among others.
+        animated panda on top of everything.  It now uses a QRegion mask so
+        only the panda's bounding ellipse captures mouse events — clicks
+        outside the panda pass through to whatever widget lies underneath.
+        This means the overlay can safely remain visible on the Panda tab
+        without blocking the bedroom furniture controls.
 
-        Hiding the overlay whenever the user is not on the Home tab lets
-        all panels remain fully interactive without removing the companion.
+        The overlay is still hidden on Tools and Settings tabs where the
+        panda companion would be distracting and out of place.
         """
         try:
             overlay = getattr(self, 'panda_overlay', None)
             if overlay is None or not hasattr(overlay, 'setVisible'):
                 return
-            # Tab 0 is always the Home tab (added first in setup_ui).
-            overlay.setVisible(index == 0)
+            # Tab 0 = Home, Tab 2 = Panda (bedroom / home) — show overlay on both.
+            # Tab 1 = Tools, Tab 3 = Settings — hide overlay so it stays out of
+            # the way of the processing tools and settings inputs.
+            overlay.setVisible(index in (0, 2))
         except Exception as _e:
             logger.debug(f"_on_main_tab_changed error: {_e}")
 
@@ -6089,9 +6093,18 @@ class TextureSorterMainWindow(QMainWindow):
         Uses a deferred single-shot timer so the dialog appears *after* the
         main window finishes initialising (the callback may fire during
         ``auto_backup.start()`` which runs inside ``initialize_components``).
+
+        If the first-run tutorial is currently active the dialog is re-deferred
+        by 3 s each check so it never appears behind the tutorial overlay where
+        the user cannot click its buttons.
         """
         def _show_dialog():
             try:
+                # If the tutorial overlay is blocking input, wait for it to finish.
+                _tm = self._tutorial_manager
+                if _tm is not None and _tm.tutorial_active:
+                    QTimer.singleShot(3000, _show_dialog)
+                    return
                 reply = QMessageBox.question(
                     self,
                     "⚠️ Crash Recovery",
@@ -7058,9 +7071,13 @@ def main():
     # Deferred 800 ms so the main window is fully painted and the event loop is
     # running before we create the overlay / dialog — avoids race conditions where
     # master.isVisible() returns False or geometry() is still (0,0) during startup.
+    # The TutorialManager reference is stored on the window so that the crash
+    # recovery dialog can check whether the tutorial is currently active before
+    # showing — prevents the backup dialog from appearing behind the tutorial overlay.
     try:
         from features.tutorial_system import TutorialManager
         _tm = TutorialManager(master_window=window, config=config)
+        window._tutorial_manager = _tm   # store so _offer_crash_recovery can check
         if _tm.should_show_tutorial():
             QTimer.singleShot(800, lambda: _tm.start_tutorial())
     except Exception as _te:

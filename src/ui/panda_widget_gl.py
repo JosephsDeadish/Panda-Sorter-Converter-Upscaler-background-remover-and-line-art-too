@@ -1136,37 +1136,39 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
         glMaterialfv(GL_FRONT, GL_SPECULAR, [1.0, 1.0, 1.0, 1.0])
         glMaterialf(GL_FRONT, GL_SHININESS, 50.0)
 
-        # Fur layer — belly_y also applied to Y so fur follows belly motion
-        # Shell-based fur simulation: 3 concentric shells with decreasing alpha
-        # Each shell is slightly larger and more transparent, creating depth illusion
-        glEnable(GL_BLEND)
-        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
-        _fur_col = self._get_color('body')
-        # Shell 1 — innermost (near body surface, most opaque)
-        glPushMatrix()
-        glScalef(self.BODY_WIDTH * 1.025,
-                 self.BODY_HEIGHT * 1.018 * sy * self._belly_y,
-                 self.BODY_WIDTH * 0.805)
-        glColor4f(*_fur_col, 0.22)
-        self._draw_sphere(1.0, 16, 16)
-        glPopMatrix()
-        # Shell 2 — middle layer
-        glPushMatrix()
-        glScalef(self.BODY_WIDTH * 1.045,
-                 self.BODY_HEIGHT * 1.030 * sy * self._belly_y,
-                 self.BODY_WIDTH * 0.820)
-        glColor4f(*_fur_col, 0.14)
-        self._draw_sphere(1.0, 14, 14)
-        glPopMatrix()
-        # Shell 3 — outermost (fluffy tips, very transparent)
-        glPushMatrix()
-        glScalef(self.BODY_WIDTH * 1.065,
-                 self.BODY_HEIGHT * 1.042 * sy * self._belly_y,
-                 self.BODY_WIDTH * 0.835)
-        glColor4f(*_fur_col, 0.07)
-        self._draw_sphere(1.0, 12, 12)
-        glPopMatrix()
-        glDisable(GL_BLEND)
+        # Fur layer — skip in overlay mode: semi-transparent shells over a
+        # transparent-background GL context make the panda look ghostly/translucent
+        # because the shell alpha blends against the transparent window rather than
+        # the solid body beneath it at the silhouette edges.
+        if not self._overlay_mode:
+            glEnable(GL_BLEND)
+            glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
+            _fur_col = self._get_color('body')
+            # Shell 1 — innermost (near body surface, most opaque)
+            glPushMatrix()
+            glScalef(self.BODY_WIDTH * 1.025,
+                     self.BODY_HEIGHT * 1.018 * sy * self._belly_y,
+                     self.BODY_WIDTH * 0.805)
+            glColor4f(*_fur_col, 0.22)
+            self._draw_sphere(1.0, 16, 16)
+            glPopMatrix()
+            # Shell 2 — middle layer
+            glPushMatrix()
+            glScalef(self.BODY_WIDTH * 1.045,
+                     self.BODY_HEIGHT * 1.030 * sy * self._belly_y,
+                     self.BODY_WIDTH * 0.820)
+            glColor4f(*_fur_col, 0.14)
+            self._draw_sphere(1.0, 14, 14)
+            glPopMatrix()
+            # Shell 3 — outermost (fluffy tips, very transparent)
+            glPushMatrix()
+            glScalef(self.BODY_WIDTH * 1.065,
+                     self.BODY_HEIGHT * 1.042 * sy * self._belly_y,
+                     self.BODY_WIDTH * 0.835)
+            glColor4f(*_fur_col, 0.07)
+            self._draw_sphere(1.0, 12, 12)
+            glPopMatrix()
+            glDisable(GL_BLEND)
 
         # Black saddle patch across lower torso — uses accent colour (fur style)
         glPushMatrix()
@@ -3303,6 +3305,11 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
         
         # Update working animation
         self._update_working_animation(dt)
+
+        # Update click mask so only the panda region captures mouse events;
+        # everything outside the mask passes through to the UI widgets below.
+        if self._overlay_mode:
+            self._update_click_mask()
         
         # Request redraw
         self.update()
@@ -3416,6 +3423,28 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
         panda_world_radius = max(self.HEAD_RADIUS, self.BODY_HEIGHT) * 1.8
         radius = int(panda_world_radius / frustum_h * h) + 30  # +30px margin
         return sx, sy, radius
+
+    def _update_click_mask(self):
+        """Set the widget mask to the panda's bounding ellipse.
+
+        Using setMask() means Qt only routes mouse/keyboard events to this
+        widget for pixels INSIDE the mask.  Clicks outside the ellipse are
+        automatically delivered to whatever widget lies underneath — this is
+        the correct Qt-native way to achieve per-pixel click-through for a
+        full-window transparent overlay.  event.ignore() alone is insufficient
+        because ignored child-widget events propagate to the parent, not to
+        sibling widgets at the same screen position.
+        """
+        try:
+            from PyQt6.QtGui import QRegion
+            sx, sy, radius = self._get_panda_screen_center()
+            # Ellipse slightly taller than wide (panda is taller than wide)
+            rx = int(radius * 0.85)
+            ry = radius
+            region = QRegion(sx - rx, sy - ry, rx * 2, ry * 2, QRegion.RegionType.Ellipse)
+            self.setMask(region)
+        except (ImportError, AttributeError, ValueError):
+            pass  # non-critical; worst case is full-window hit area
 
     def mousePressEvent(self, event: QMouseEvent):
         """Handle mouse press — play boop, reset boredom, surprised face.
