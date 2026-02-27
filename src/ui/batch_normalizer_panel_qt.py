@@ -219,6 +219,7 @@ class BatchNormalizerPanelQt(QWidget):
         select_btn = QPushButton("Select Images")
         select_btn.clicked.connect(self._select_files)
         group_layout.addWidget(select_btn)
+        self._set_tooltip(select_btn, "Select image files to normalize")
         
         # Output directory
         output_label = QLabel("Output Directory:")
@@ -231,6 +232,7 @@ class BatchNormalizerPanelQt(QWidget):
         output_btn = QPushButton("Set Output Directory")
         output_btn.clicked.connect(self._select_output)
         group_layout.addWidget(output_btn)
+        self._set_tooltip(output_btn, "Choose the folder where normalised images will be saved")
         
         # Archive options
         archive_layout = QHBoxLayout()
@@ -259,18 +261,18 @@ class BatchNormalizerPanelQt(QWidget):
         
         self.make_square_cb = QCheckBox("⬛ Make Square")
         self.make_square_cb.setChecked(True)
-        self.make_square_cb.setToolTip("Force output images to be square (width = height)")
         options_layout.addWidget(self.make_square_cb)
+        self._set_tooltip(self.make_square_cb, "Force output images to be square (width = height)")
         
         self.preserve_alpha_cb = QCheckBox("🎭 Preserve Alpha")
         self.preserve_alpha_cb.setChecked(True)
-        self.preserve_alpha_cb.setToolTip("Preserve alpha channel (transparency) in output images")
         options_layout.addWidget(self.preserve_alpha_cb)
+        self._set_tooltip(self.preserve_alpha_cb, "Preserve alpha channel (transparency) in output images")
         
         self.strip_metadata_cb = QCheckBox("🧹 Strip Metadata")
         self.strip_metadata_cb.setChecked(False)
-        self.strip_metadata_cb.setToolTip("Remove EXIF and other metadata from output images (reduces file size)")
         options_layout.addWidget(self.strip_metadata_cb)
+        self._set_tooltip(self.strip_metadata_cb, "Remove EXIF and other metadata from output images (reduces file size)")
         
         options_layout.addStretch()
         group_layout.addLayout(options_layout)
@@ -291,6 +293,7 @@ class BatchNormalizerPanelQt(QWidget):
         self.width_spin.setRange(1, 8192)
         self.width_spin.setValue(512)
         size_layout.addWidget(self.width_spin)
+        self._set_tooltip(self.width_spin, "Target output width in pixels")
         
         size_layout.addWidget(QLabel("×"))
         
@@ -298,6 +301,7 @@ class BatchNormalizerPanelQt(QWidget):
         self.height_spin.setRange(1, 8192)
         self.height_spin.setValue(512)
         size_layout.addWidget(self.height_spin)
+        self._set_tooltip(self.height_spin, "Target output height in pixels")
         
         group_layout.addLayout(size_layout)
         
@@ -306,12 +310,14 @@ class BatchNormalizerPanelQt(QWidget):
         self.resize_combo = QComboBox()
         self.resize_combo.addItems(["Fit (preserve aspect)", "Fill (crop)", "Stretch"])
         group_layout.addWidget(self.resize_combo)
+        self._set_tooltip(self.resize_combo, "Fit: adds padding to preserve aspect ratio. Fill: crops to fill the target size. Stretch: ignores aspect ratio.")
         
         # Padding mode
         group_layout.addWidget(QLabel("Padding Mode:"))
         self.padding_combo = QComboBox()
         self.padding_combo.addItems(["Transparent", "Black", "White", "Blur Edge"])
         group_layout.addWidget(self.padding_combo)
+        self._set_tooltip(self.padding_combo, "Colour/style used to fill empty space when the image is smaller than the target size")
         
         group.setLayout(group_layout)
         layout.addWidget(group)
@@ -326,6 +332,7 @@ class BatchNormalizerPanelQt(QWidget):
         self.format_combo = QComboBox()
         self.format_combo.addItems(["PNG", "JPEG", "WebP"])
         group_layout.addWidget(self.format_combo)
+        self._set_tooltip(self.format_combo, "File format for the normalised output images")
         
         # Quality (for JPEG/WebP)
         quality_layout = QHBoxLayout()
@@ -335,6 +342,7 @@ class BatchNormalizerPanelQt(QWidget):
         self.quality_spin.setValue(95)
         quality_layout.addWidget(self.quality_spin)
         group_layout.addLayout(quality_layout)
+        self._set_tooltip(self.quality_spin, "JPEG/WebP compression quality (1=smallest file, 100=best quality)")
         
         group.setLayout(group_layout)
         layout.addWidget(group)
@@ -370,6 +378,7 @@ class BatchNormalizerPanelQt(QWidget):
         self.normalize_btn.setStyleSheet("background-color: #2196F3; color: white; padding: 10px;")
         self.normalize_btn.clicked.connect(self._start_normalization)
         buttons_layout.addWidget(self.normalize_btn)
+        self._set_tooltip(self.normalize_btn, "Resize and reformat all selected images to the configured target settings")
         
         layout.addLayout(buttons_layout)
         

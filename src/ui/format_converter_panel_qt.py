@@ -308,8 +308,10 @@ if _PYQT:
 
             fmt_lay.addWidget(QLabel("Name template:"), 2, 0)
             self._name_tpl_edit = QLineEdit("{stem}{ext}")
-            self._name_tpl_edit.setToolTip(
-                "Use {stem} = filename without extension, {ext} = new extension, {name} = original filename")
+            self._set_tooltip(
+                self._name_tpl_edit,
+                "Use {stem} = filename without extension, {ext} = new extension, {name} = original filename"
+            )
             fmt_lay.addWidget(self._name_tpl_edit, 2, 1)
 
             fmt_lay.addWidget(QLabel("Suffix:"), 3, 0)
@@ -334,8 +336,8 @@ if _PYQT:
             self._png_cmp = QSpinBox()
             self._png_cmp.setRange(0, 9)
             self._png_cmp.setValue(6)
-            self._png_cmp.setToolTip("0 = fastest (larger file), 9 = smallest (slower)")
             qual_lay.addWidget(self._png_cmp, 1, 1)
+            self._set_tooltip(self._png_cmp, "0 = fastest (larger file), 9 = smallest (slower)")
 
             qual_lay.addWidget(QLabel("WebP quality:"), 2, 0)
             self._webp_q = QSpinBox()

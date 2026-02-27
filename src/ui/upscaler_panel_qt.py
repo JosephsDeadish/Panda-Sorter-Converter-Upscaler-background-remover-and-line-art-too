@@ -445,6 +445,7 @@ class ImageUpscalerPanelQt(QWidget):
         self.select_files_btn = QPushButton("Select Files")
         self.select_files_btn.clicked.connect(self._select_files)
         select_btn_layout.addWidget(self.select_files_btn)
+        self._set_tooltip(self.select_files_btn, 'upscale_input')
         
         self.file_count_label = QLabel("No files selected")
         self.file_count_label.setStyleSheet("color: gray;")
@@ -458,6 +459,7 @@ class ImageUpscalerPanelQt(QWidget):
         self.select_output_btn = QPushButton("Select Output Directory")
         self.select_output_btn.clicked.connect(self._select_output_directory)
         output_btn_layout.addWidget(self.select_output_btn)
+        self._set_tooltip(self.select_output_btn, 'upscale_output')
         
         self.output_dir_label = QLabel("No output directory selected")
         self.output_dir_label.setStyleSheet("color: gray;")
@@ -506,6 +508,7 @@ class ImageUpscalerPanelQt(QWidget):
         scale_layout.addWidget(self.scale_spin)
         scale_layout.addStretch()
         settings_layout.addLayout(scale_layout)
+        self._set_tooltip(self.scale_spin, 'upscale_factor')
         
         # Upscaling method
         method_layout = QHBoxLayout()
@@ -525,6 +528,7 @@ class ImageUpscalerPanelQt(QWidget):
         method_layout.addWidget(self.method_combo)
         method_layout.addStretch()
         settings_layout.addLayout(method_layout)
+        self._set_tooltip(self.method_combo, 'upscale_style')
         
         # Method description
         self.method_desc_label = QLabel(
@@ -537,11 +541,6 @@ class ImageUpscalerPanelQt(QWidget):
 
         # Face / character enhancement
         self.face_enhance_check = QCheckBox("✨ Enhance faces / characters (GFPGAN)")
-        self.face_enhance_check.setToolTip(
-            "Run GFPGAN face-restoration pass after upscaling.\n"
-            "Best for textures containing character faces or portraits.\n"
-            "Requires GFPGANv1.4.pth model (Settings → AI Models to download)."
-        )
         try:
             from preprocessing.upscaler import GFPGAN_AVAILABLE
             self.face_enhance_check.setEnabled(GFPGAN_AVAILABLE)
@@ -552,6 +551,7 @@ class ImageUpscalerPanelQt(QWidget):
         except Exception:
             self.face_enhance_check.setEnabled(False)
         settings_layout.addWidget(self.face_enhance_check)
+        self._set_tooltip(self.face_enhance_check, 'upscale_face_enhance')
 
         settings_group.setLayout(settings_layout)
         main_layout.addWidget(settings_group)
@@ -565,6 +565,7 @@ class ImageUpscalerPanelQt(QWidget):
             self.preset_combo.addItem(preset_name)
         self.preset_combo.currentTextChanged.connect(self._on_preset_changed)
         preset_layout.addWidget(self.preset_combo)
+        self._set_tooltip(self.preset_combo, 'upscale_style')
         
         self.preset_desc_label = QLabel(UPSCALER_PRESETS["🔷 Lanczos (Sharpest)"]["desc"])
         self.preset_desc_label.setStyleSheet("color: gray; font-size: 10pt;")
@@ -593,6 +594,8 @@ class ImageUpscalerPanelQt(QWidget):
         sharpen_layout.addWidget(self.sharpen_spin)
         sharpen_layout.addStretch()
         advanced_layout.addLayout(sharpen_layout)
+        self._set_tooltip(self.sharpen_cb, 'upscale_sharpen')
+        self._set_tooltip(self.sharpen_spin, 'upscale_sharpen')
         
         # Denoise
         denoise_layout = QHBoxLayout()
@@ -608,6 +611,8 @@ class ImageUpscalerPanelQt(QWidget):
         denoise_layout.addWidget(self.denoise_strength)
         denoise_layout.addStretch()
         advanced_layout.addLayout(denoise_layout)
+        self._set_tooltip(self.denoise_cb, 'upscale_denoise')
+        self._set_tooltip(self.denoise_strength, 'upscale_denoise')
         
         # Auto-contrast
         contrast_layout = QHBoxLayout()
@@ -624,12 +629,15 @@ class ImageUpscalerPanelQt(QWidget):
         contrast_layout.addWidget(self.contrast_spin)
         contrast_layout.addStretch()
         advanced_layout.addLayout(contrast_layout)
+        self._set_tooltip(self.auto_contrast_cb, 'upscale_auto_level')
+        self._set_tooltip(self.contrast_spin, 'upscale_auto_level')
         
         # Custom resolution
         self.custom_res_cb = QCheckBox("Custom output resolution")
         self.custom_res_cb.setChecked(False)
         self.custom_res_cb.stateChanged.connect(self._schedule_preview_update)
         advanced_layout.addWidget(self.custom_res_cb)
+        self._set_tooltip(self.custom_res_cb, 'upscale_custom_res')
         
         custom_res_layout = QHBoxLayout()
         custom_res_layout.addWidget(QLabel("Width:"))
@@ -648,6 +656,8 @@ class ImageUpscalerPanelQt(QWidget):
         custom_res_layout.addWidget(self.custom_height)
         custom_res_layout.addStretch()
         advanced_layout.addLayout(custom_res_layout)
+        self._set_tooltip(self.custom_width, 'upscale_custom_res')
+        self._set_tooltip(self.custom_height, 'upscale_custom_res')
         
         advanced_group.setLayout(advanced_layout)
         main_layout.addWidget(advanced_group)
@@ -664,6 +674,7 @@ class ImageUpscalerPanelQt(QWidget):
             self.preview_file_combo.currentTextChanged.connect(self._schedule_preview_update)
             preview_file_layout.addWidget(self.preview_file_combo)
             preview_layout.addLayout(preview_file_layout)
+            self._set_tooltip(self.preview_file_combo, 'upscale_preview')
             
             # Preview scale
             preview_scale_layout = QHBoxLayout()
@@ -677,11 +688,13 @@ class ImageUpscalerPanelQt(QWidget):
             preview_scale_layout.addWidget(self.preview_scale_spin)
             preview_scale_layout.addStretch()
             preview_layout.addLayout(preview_scale_layout)
+            self._set_tooltip(self.preview_scale_spin, 'upscale_factor')
             
             # Comparison slider widget
             self.preview_widget = ComparisonSliderWidget()
             self.preview_widget.setMinimumHeight(300)
             preview_layout.addWidget(self.preview_widget)
+            self._set_tooltip(self.preview_widget, 'upscale_preview')
             
             preview_group.setLayout(preview_layout)
             main_layout.addWidget(preview_group)
@@ -710,6 +723,7 @@ class ImageUpscalerPanelQt(QWidget):
         self.cancel_btn.clicked.connect(self._cancel_processing)
         self.cancel_btn.setEnabled(False)
         self.cancel_btn.setVisible(False)
+        self._set_tooltip(self.cancel_btn, "Cancel the current upscaling operation")
         button_layout.addWidget(self.cancel_btn)
         
         button_layout.addStretch()

@@ -233,18 +233,18 @@ class QualityCheckerPanelQt(QWidget):
         
         self.check_resolution_cb = QCheckBox("📏 Resolution")
         self.check_resolution_cb.setChecked(True)
-        self.check_resolution_cb.setToolTip("Analyze image resolution and dimensions")
         options_layout.addWidget(self.check_resolution_cb)
+        self._set_tooltip(self.check_resolution_cb, "Analyze image resolution and dimensions")
         
         self.check_compression_cb = QCheckBox("📦 Compression")
         self.check_compression_cb.setChecked(True)
-        self.check_compression_cb.setToolTip("Detect compression artifacts and quality")
         options_layout.addWidget(self.check_compression_cb)
+        self._set_tooltip(self.check_compression_cb, "Detect compression artifacts and quality")
         
         self.check_dpi_cb = QCheckBox("🖨️ DPI")
         self.check_dpi_cb.setChecked(True)
-        self.check_dpi_cb.setToolTip("Check DPI and print quality metrics")
         options_layout.addWidget(self.check_dpi_cb)
+        self._set_tooltip(self.check_dpi_cb, "Check DPI and print quality metrics")
         
         options_layout.addStretch()
         group_layout.addLayout(options_layout)
@@ -262,6 +262,7 @@ class QualityCheckerPanelQt(QWidget):
         self.check_btn.setStyleSheet("background-color: #4CAF50; color: white; padding: 10px;")
         self.check_btn.clicked.connect(self._check_quality)
         group_layout.addWidget(self.check_btn)
+        self._set_tooltip(self.check_btn, "Analyze all selected images for resolution, compression, and DPI quality metrics")
         
         # Status label
         self.status_label = QLabel("Ready")

@@ -233,10 +233,12 @@ class AlphaFixerPanelQt(QWidget):
         select_btn = QPushButton("Select Images")
         select_btn.clicked.connect(self._select_files)
         btn_layout.addWidget(select_btn)
+        self._set_tooltip(select_btn, 'alpha_fix_input')
         
         clear_btn = QPushButton("Clear")
         clear_btn.clicked.connect(self._clear_files)
         btn_layout.addWidget(clear_btn)
+        self._set_tooltip(clear_btn, "Remove all selected files from the list")
         
         group_layout.addLayout(btn_layout)
         
@@ -248,6 +250,7 @@ class AlphaFixerPanelQt(QWidget):
         output_btn = QPushButton("Set Output Directory")
         output_btn.clicked.connect(self._select_output)
         group_layout.addWidget(output_btn)
+        self._set_tooltip(output_btn, 'alpha_fix_output')
         
         # Archive options
         archive_layout = QHBoxLayout()
@@ -290,6 +293,7 @@ class AlphaFixerPanelQt(QWidget):
         ])
         self.preset_combo.currentIndexChanged.connect(self._on_preset_changed)
         group_layout.addWidget(self.preset_combo)
+        self._set_tooltip(self.preset_combo, 'alpha_fix_preset')
         
         group.setLayout(group_layout)
         layout.addWidget(group)
@@ -302,6 +306,7 @@ class AlphaFixerPanelQt(QWidget):
         self.defringe_check = QCheckBox("Enable De-fringing")
         self.defringe_check.setChecked(True)
         group_layout.addWidget(self.defringe_check)
+        self._set_tooltip(self.defringe_check, "Remove colour fringing around transparent edges — eliminates halos from cutouts")
         
         # Threshold slider
         threshold_layout = QHBoxLayout()
@@ -316,6 +321,7 @@ class AlphaFixerPanelQt(QWidget):
             lambda v: self.defringe_value.setText(str(v))
         )
         group_layout.addLayout(threshold_layout)
+        self._set_tooltip(self.defringe_slider, "Sensitivity for detecting fringe pixels — higher removes more colour bleed")
         
         group.setLayout(group_layout)
         layout.addWidget(group)
@@ -328,6 +334,7 @@ class AlphaFixerPanelQt(QWidget):
         self.matte_check = QCheckBox("Enable Matte Removal")
         self.matte_check.setChecked(False)
         group_layout.addWidget(self.matte_check)
+        self._set_tooltip(self.matte_check, "Remove solid-colour matte backgrounds left over from compositing or format conversion")
         
         # Background color combo
         bg_layout = QHBoxLayout()
@@ -336,6 +343,7 @@ class AlphaFixerPanelQt(QWidget):
         self.bg_combo.addItems(["Black", "White", "Auto-detect"])
         bg_layout.addWidget(self.bg_combo)
         group_layout.addLayout(bg_layout)
+        self._set_tooltip(self.bg_combo, "Colour of the matte to remove — select the background colour that was used when the image was composited")
         
         group.setLayout(group_layout)
         layout.addWidget(group)
@@ -348,6 +356,7 @@ class AlphaFixerPanelQt(QWidget):
         self.edge_check = QCheckBox("Enhance Alpha Edges")
         self.edge_check.setChecked(False)
         group_layout.addWidget(self.edge_check)
+        self._set_tooltip(self.edge_check, "Refine and smooth the alpha channel boundary for cleaner cutout edges")
         
         # Smoothing amount
         smooth_layout = QHBoxLayout()
@@ -357,6 +366,7 @@ class AlphaFixerPanelQt(QWidget):
         self.smooth_spin.setValue(2)
         smooth_layout.addWidget(self.smooth_spin)
         group_layout.addLayout(smooth_layout)
+        self._set_tooltip(self.smooth_spin, "Amount of edge smoothing applied to the alpha boundary (0 = none, 10 = maximum)")
         
         group.setLayout(group_layout)
         layout.addWidget(group)
@@ -371,11 +381,13 @@ class AlphaFixerPanelQt(QWidget):
         self.process_btn.setStyleSheet("background-color: #4CAF50; color: white; padding: 10px;")
         self.process_btn.clicked.connect(self._process_images)
         group_layout.addWidget(self.process_btn)
+        self._set_tooltip(self.process_btn, 'alpha_fix_button')
         
         # Preview button
         preview_btn = QPushButton("Preview First Image")
         preview_btn.clicked.connect(self._preview_first)
         group_layout.addWidget(preview_btn)
+        self._set_tooltip(preview_btn, 'alpha_fix_preview')
         
         # Progress bar
         self.progress_bar = QProgressBar()

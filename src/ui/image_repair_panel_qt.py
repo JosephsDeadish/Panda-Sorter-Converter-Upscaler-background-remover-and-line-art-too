@@ -310,7 +310,8 @@ class ImageRepairPanelQt(QWidget):
         self.repair_mode_combo = QComboBox()
         self.repair_mode_combo.addItems(["Safe (PIL only)", "Balanced (Recommended)", "Aggressive (All methods)"])
         self.repair_mode_combo.setCurrentIndex(1)  # Default to Balanced
-        self.repair_mode_combo.setToolTip(
+        self._set_tooltip(
+            self.repair_mode_combo,
             "Safe: Only uses PIL recovery methods (safest, may miss some repairs)\n"
             "Balanced: Tries PIL first, then manual repairs (recommended)\n"
             "Aggressive: Attempts all recovery methods including segment extraction (risky but may recover more data)"
@@ -352,16 +353,19 @@ class ImageRepairPanelQt(QWidget):
         self.diagnose_btn = QPushButton("🔍 Diagnose")
         self.diagnose_btn.clicked.connect(self._diagnose_files)
         btn_layout.addWidget(self.diagnose_btn)
+        self._set_tooltip(self.diagnose_btn, 'repair_diagnose')
         
         self.repair_btn = QPushButton("🔧 Repair Files")
         self.repair_btn.setStyleSheet("background-color: green; color: white; padding: 8px;")
         self.repair_btn.clicked.connect(self._repair_files)
         btn_layout.addWidget(self.repair_btn)
+        self._set_tooltip(self.repair_btn, 'repair_fix')
         
         self.cancel_btn = QPushButton("Cancel")
         self.cancel_btn.setEnabled(False)
         self.cancel_btn.clicked.connect(self._cancel_operation)
         btn_layout.addWidget(self.cancel_btn)
+        self._set_tooltip(self.cancel_btn, "Cancel the current operation")
         
         layout.addLayout(btn_layout)
     
