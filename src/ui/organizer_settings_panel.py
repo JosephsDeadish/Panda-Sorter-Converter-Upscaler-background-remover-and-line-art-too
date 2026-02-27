@@ -314,7 +314,7 @@ class OrganizerSettingsPanel(QWidget):
         pattern_label.setMinimumWidth(120)
         self.pattern_input = QLineEdit()
         self.pattern_input.setText("{category}/{filename}")
-        self.pattern_input.setToolTip("Use: {category}, {filename}, {game}, {confidence}")
+        self._set_tooltip(self.pattern_input, "Use: {category}, {filename}, {game}, {confidence}")
         self.pattern_input.textChanged.connect(lambda: self.emit_settings())
         pattern_layout.addWidget(pattern_label)
         pattern_layout.addWidget(self.pattern_input)
@@ -600,7 +600,14 @@ class OrganizerSettingsPanel(QWidget):
     
     def _set_tooltip(self, widget, tooltip_key: str):
         """Set tooltip using tooltip manager if available."""
-        if self.tooltip_manager:
-            tooltip = self.tooltip_manager.get_tooltip(tooltip_key)
-            if tooltip:
-                widget.setToolTip(tooltip)
+        if self.tooltip_manager and hasattr(self.tooltip_manager, 'register'):
+            if ' ' not in tooltip_key:
+                try:
+                    tooltip = self.tooltip_manager.get_tooltip(tooltip_key)
+                    if tooltip:
+                        widget.setToolTip(tooltip)
+                        self.tooltip_manager.register(widget, tooltip_key)
+                        return
+                except Exception:
+                    pass
+        widget.setToolTip(str(tooltip_key))

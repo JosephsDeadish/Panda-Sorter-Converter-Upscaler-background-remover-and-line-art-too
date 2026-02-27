@@ -1934,6 +1934,80 @@ def test_theme_name_normalisation():
     print("  ✅ 'Ocean' (mixed-case) correctly resolves to Ocean stylesheet")
 
 
+def test_set_tooltip_no_set_tooltip_method_call():
+    """_set_tooltip helpers must NOT call tooltip_manager.set_tooltip().
+
+    TooltipVerbosityManager has no set_tooltip() method.  Panels that call
+    self.tooltip_manager.set_tooltip(widget, id) will raise AttributeError at
+    init time, causing their tab to display an error label instead of content.
+
+    The correct pattern is register(widget, id) + get_tooltip(id).
+    """
+    print("\ntest_set_tooltip_no_set_tooltip_method_call ...")
+    import ast
+    from pathlib import Path
+
+    panels_to_check = [
+        'src/ui/notepad_panel_qt.py',
+        'src/ui/file_browser_panel_qt.py',
+        'src/ui/shop_panel_qt.py',
+        'src/ui/organizer_settings_panel.py',
+    ]
+
+    for rel_path in panels_to_check:
+        src_path = Path(__file__).parent / rel_path
+        if not src_path.exists():
+            continue
+        code = src_path.read_text(encoding='utf-8')
+        # Find the _set_tooltip method body
+        tree = ast.parse(code)
+        for node in ast.walk(tree):
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and node.name == '_set_tooltip':
+                method_src = ast.get_source_segment(code, node) or ''
+                assert 'tooltip_manager.set_tooltip' not in method_src, (
+                    f"{rel_path}: _set_tooltip must NOT call tooltip_manager.set_tooltip() "
+                    f"— that method does not exist on TooltipVerbosityManager. "
+                    f"Use tooltip_manager.register(widget, id) + get_tooltip(id) instead."
+                )
+
+    print("  ✅ No panel calls tooltip_manager.set_tooltip() (which does not exist)")
+
+
+def test_set_tooltip_registers_with_manager():
+    """_set_tooltip helpers must call tooltip_manager.register() for cycling support.
+
+    Panels that only call get_tooltip() without register() will display the
+    initial tooltip text but won't cycle on hover or update when the mode changes.
+    """
+    print("\ntest_set_tooltip_registers_with_manager ...")
+    import ast
+    from pathlib import Path
+
+    panels_to_check = [
+        'src/ui/notepad_panel_qt.py',
+        'src/ui/file_browser_panel_qt.py',
+        'src/ui/shop_panel_qt.py',
+        'src/ui/organizer_settings_panel.py',
+    ]
+
+    for rel_path in panels_to_check:
+        src_path = Path(__file__).parent / rel_path
+        if not src_path.exists():
+            continue
+        code = src_path.read_text(encoding='utf-8')
+        tree = ast.parse(code)
+        for node in ast.walk(tree):
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and node.name == '_set_tooltip':
+                method_src = ast.get_source_segment(code, node) or ''
+                assert 'register' in method_src, (
+                    f"{rel_path}: _set_tooltip must call tooltip_manager.register(widget, id) "
+                    f"so widgets are enrolled in the cycling/mode-change system. "
+                    f"Without register(), tooltip mode changes have no effect on the widget."
+                )
+
+    print("  ✅ All _set_tooltip helpers call tooltip_manager.register()")
+
+
 def run_all_tests():
     print("=" * 65)
     print("Hybrid Architecture + Lazy rembg Import Tests")
@@ -1982,6 +2056,8 @@ def run_all_tests():
         test_bedroom_mouse_release_event,
         test_otter_smooth_look_animation,
         test_spec_bundle_completeness,
+        test_set_tooltip_no_set_tooltip_method_call,
+        test_set_tooltip_registers_with_manager,
     ]
 
     passed, failed = [], []

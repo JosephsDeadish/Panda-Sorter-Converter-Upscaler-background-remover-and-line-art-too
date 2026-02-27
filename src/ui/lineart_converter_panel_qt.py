@@ -776,7 +776,7 @@ class LineArtConverterPanelQt(QWidget):
         self._bg_custom_color = "#ffffff"   # remembered custom colour
         self.bg_custom_swatch = QPushButton()
         self.bg_custom_swatch.setFixedSize(28, 28)
-        self.bg_custom_swatch.setToolTip("Click to pick a custom background colour")
+        self._set_tooltip(self.bg_custom_swatch, "Click to pick a custom background colour")
         self.bg_custom_swatch.setStyleSheet(f"background:{self._bg_custom_color}; border:1px solid #888; border-radius:3px;")
         self.bg_custom_swatch.setVisible(False)
         self.bg_custom_swatch.clicked.connect(self._pick_custom_bg_color)
@@ -928,9 +928,9 @@ class LineArtConverterPanelQt(QWidget):
         for b in (btn_in, btn_out, btn_fit):
             b.setFixedWidth(44)
             b.setFixedHeight(24)
-        btn_in.setToolTip("Zoom in (also: scroll wheel)")
-        btn_out.setToolTip("Zoom out")
-        btn_fit.setToolTip("Reset to fit")
+        self._set_tooltip(btn_in, "Zoom in (also: scroll wheel)")
+        self._set_tooltip(btn_out, "Zoom out")
+        self._set_tooltip(btn_fit, "Reset to fit")
         btn_in.clicked.connect(_zoom_in)
         btn_out.clicked.connect(_zoom_out)
         btn_fit.clicked.connect(_zoom_fit)
@@ -1044,7 +1044,8 @@ class LineArtConverterPanelQt(QWidget):
         fmt_layout.addWidget(self.output_format_combo, 1)
 
         self.save_color_layer_cb = QCheckBox("Also save colour layer")
-        self.save_color_layer_cb.setToolTip(
+        self._set_tooltip(
+            self.save_color_layer_cb,
             "In addition to the line art output, also save the original colour image "
             "in the same folder with a '_color' suffix."
         )

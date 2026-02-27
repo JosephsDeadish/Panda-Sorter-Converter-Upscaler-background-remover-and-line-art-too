@@ -241,6 +241,7 @@ class SettingsPanelQt(QWidget):
         self.appearance_font_size.valueChanged.connect(lambda: self.on_setting_changed('ui', 'font_size'))
         font_layout.addWidget(font_size_label)
         font_layout.addWidget(self.appearance_font_size)
+        self.set_tooltip(self.appearance_font_size, 'ui_font_size')
 
         font_group.setLayout(font_layout)
         layout.addWidget(font_group)
@@ -1126,6 +1127,7 @@ class SettingsPanelQt(QWidget):
 
         self.language_combo.currentIndexChanged.connect(self._on_language_changed)
         lang_layout.addWidget(self.language_combo)
+        self.set_tooltip(self.language_combo, 'ui_language')
         lang_group.setLayout(lang_layout)
         layout.addWidget(lang_group)
         layout.addStretch()

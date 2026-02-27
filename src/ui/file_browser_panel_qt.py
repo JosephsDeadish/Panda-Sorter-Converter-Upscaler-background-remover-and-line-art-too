@@ -159,10 +159,19 @@ class FileBrowserPanelQt(QWidget):
         
         self.setup_ui()
     
-    def _set_tooltip(self, widget, tooltip_id: str):
-        """Helper to set tooltip from manager"""
-        if self.tooltip_manager:
-            self.tooltip_manager.set_tooltip(widget, tooltip_id)
+    def _set_tooltip(self, widget, widget_id_or_text: str):
+        """Set tooltip via manager (cycling) when available, else plain text."""
+        if self.tooltip_manager and hasattr(self.tooltip_manager, 'register'):
+            if ' ' not in widget_id_or_text:
+                try:
+                    tip = self.tooltip_manager.get_tooltip(widget_id_or_text)
+                    if tip:
+                        widget.setToolTip(tip)
+                        self.tooltip_manager.register(widget, widget_id_or_text)
+                        return
+                except Exception:
+                    pass
+        widget.setToolTip(str(widget_id_or_text))
     
     def setup_ui(self):
         """Setup the UI"""
@@ -242,21 +251,21 @@ class FileBrowserPanelQt(QWidget):
         # === IMAGE CONTENT SEARCH ===
         content_search_layout = QHBoxLayout()
         content_search_label = QLabel("🖼 Content Search:")
-        content_search_label.setToolTip("Search images by what they contain (requires CLIP/transformers)")
+        self._set_tooltip(content_search_label, "Search images by what they contain (requires CLIP/transformers)")
         content_search_layout.addWidget(content_search_label)
 
         self.content_search_box = QLineEdit()
         self.content_search_box.setPlaceholderText("Describe image content, e.g. 'panda eating bamboo'...")
-        self.content_search_box.setToolTip(
-            "Search images by visual content using CLIP AI.\n"
-            "Requires: pip install transformers open-clip-torch torch"
+        self._set_tooltip(
+            self.content_search_box,
+            "Search images by visual content using CLIP AI. Requires: pip install transformers open-clip-torch torch"
         )
         content_search_layout.addWidget(self.content_search_box)
 
         self.content_search_btn = QPushButton("🔎 Search Content")
-        self.content_search_btn.setToolTip(
-            "Find images matching the description above.\n"
-            "Requires CLIP (transformers / open-clip-torch) to be installed."
+        self._set_tooltip(
+            self.content_search_btn,
+            "Find images matching the description above. Requires CLIP (transformers / open-clip-torch) to be installed."
         )
         self.content_search_btn.clicked.connect(self._search_by_content)
         content_search_layout.addWidget(self.content_search_btn)

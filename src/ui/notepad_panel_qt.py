@@ -78,10 +78,19 @@ class NotepadPanelQt(QWidget):
         self.setup_ui()
         self.load_notes()
     
-    def _set_tooltip(self, widget, tooltip_id: str):
-        """Helper to set tooltip from manager"""
-        if self.tooltip_manager:
-            self.tooltip_manager.set_tooltip(widget, tooltip_id)
+    def _set_tooltip(self, widget, widget_id_or_text: str):
+        """Set tooltip via manager (cycling) when available, else plain text."""
+        if self.tooltip_manager and hasattr(self.tooltip_manager, 'register'):
+            if ' ' not in widget_id_or_text:
+                try:
+                    tip = self.tooltip_manager.get_tooltip(widget_id_or_text)
+                    if tip:
+                        widget.setToolTip(tip)
+                        self.tooltip_manager.register(widget, widget_id_or_text)
+                        return
+                except Exception:
+                    pass
+        widget.setToolTip(str(widget_id_or_text))
     
     def setup_ui(self):
         """Setup the UI"""
@@ -129,13 +138,13 @@ class NotepadPanelQt(QWidget):
         # these buttons make the feature visible and discoverable in the toolbar).
         self.undo_btn = QPushButton("↩ Undo")
         self.undo_btn.setEnabled(False)
-        self.undo_btn.setToolTip("Undo last edit (Ctrl+Z)")
+        self._set_tooltip(self.undo_btn, 'undo_button')
         self.undo_btn.setAccessibleName("Undo")
         controls_layout.addWidget(self.undo_btn)
 
         self.redo_btn = QPushButton("↪ Redo")
         self.redo_btn.setEnabled(False)
-        self.redo_btn.setToolTip("Redo last undone edit (Ctrl+Y)")
+        self._set_tooltip(self.redo_btn, 'redo_button')
         self.redo_btn.setAccessibleName("Redo")
         controls_layout.addWidget(self.redo_btn)
         

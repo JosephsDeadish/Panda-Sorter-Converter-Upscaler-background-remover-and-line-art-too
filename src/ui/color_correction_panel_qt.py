@@ -270,7 +270,6 @@ class ColorCorrectionPanelQt(QWidget):
             self.archive_input_cb.setToolTip("⚠️ Archive support not available. Install: pip install py7zr rarfile")
             self.archive_input_cb.setStyleSheet("color: gray;")
         else:
-            self.archive_input_cb.setToolTip("Extract images from archive file (ZIP, 7Z, RAR, TAR)")
             self._set_tooltip(self.archive_input_cb, 'input_archive_checkbox')
         archive_layout.addWidget(self.archive_input_cb)
         
@@ -280,7 +279,6 @@ class ColorCorrectionPanelQt(QWidget):
             self.archive_output_cb.setToolTip("⚠️ Archive support not available. Install: pip install py7zr rarfile")
             self.archive_output_cb.setStyleSheet("color: gray;")
         else:
-            self.archive_output_cb.setToolTip("Save processed images to archive file")
             self._set_tooltip(self.archive_output_cb, 'output_archive_checkbox')
         archive_layout.addWidget(self.archive_output_cb)
         

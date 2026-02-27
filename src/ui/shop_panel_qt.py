@@ -349,6 +349,7 @@ class ShopPanelQt(QWidget):
         )
         self.currency_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         coin_col.addWidget(self.currency_label)
+        self._set_tooltip(self.currency_label, 'shop_balance')
         banner_layout.addLayout(coin_col)
 
         layout.addWidget(banner)
@@ -376,7 +377,7 @@ class ShopPanelQt(QWidget):
 
         refresh_btn = QPushButton("🔄")
         refresh_btn.setFixedSize(32, 30)
-        refresh_btn.setToolTip("Refresh shop")
+        self._set_tooltip(refresh_btn, "Refresh shop")
         refresh_btn.setStyleSheet(
             f"background: {self._TURQ}; color: white; border: none;"
             " border-radius: 8px; font-size: 14px; font-weight: bold;"
@@ -620,7 +621,14 @@ class ShopPanelQt(QWidget):
 
     def _set_tooltip(self, widget, tooltip_key: str):
         """Set tooltip using tooltip manager if available."""
-        if self.tooltip_manager:
-            tooltip = self.tooltip_manager.get_tooltip(tooltip_key)
-            if tooltip:
-                widget.setToolTip(tooltip)
+        if self.tooltip_manager and hasattr(self.tooltip_manager, 'register'):
+            if ' ' not in tooltip_key:
+                try:
+                    tooltip = self.tooltip_manager.get_tooltip(tooltip_key)
+                    if tooltip:
+                        widget.setToolTip(tooltip)
+                        self.tooltip_manager.register(widget, tooltip_key)
+                        return
+                except Exception:
+                    pass
+        widget.setToolTip(str(tooltip_key))

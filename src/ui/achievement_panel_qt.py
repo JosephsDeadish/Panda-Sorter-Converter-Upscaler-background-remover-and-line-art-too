@@ -193,6 +193,7 @@ class AchievementDisplayWidget(QWidget):
         self.stats_label.setFont(QFont("Segoe UI", 11, QFont.Weight.Bold))
         self.stats_label.setStyleSheet("color: #4CAF50;")
         header.addWidget(self.stats_label)
+        self._set_tooltip(self.stats_label, 'achievement_progress')
         
         layout.addLayout(header)
         

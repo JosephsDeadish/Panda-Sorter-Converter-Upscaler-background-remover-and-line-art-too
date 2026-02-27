@@ -282,6 +282,7 @@ class BatchRenamePanelQt(QWidget):
         self.template_entry = QLineEdit()
         self.template_entry.setPlaceholderText("e.g., image_{index}_{date}")
         template_layout.addWidget(self.template_entry)
+        self._set_tooltip(self.template_entry, 'rename_template')
         group_layout.addLayout(template_layout)
         
         # Start index for sequential
@@ -321,6 +322,7 @@ class BatchRenamePanelQt(QWidget):
         self.copyright_entry.setPlaceholderText("Copyright")
         meta_layout.addWidget(QLabel("Copyright:"))
         meta_layout.addWidget(self.copyright_entry)
+        self._set_tooltip(self.copyright_entry, 'rename_copyright')
         
         self.author_entry = QLineEdit()
         self.author_entry.setPlaceholderText("Author")
@@ -352,6 +354,7 @@ class BatchRenamePanelQt(QWidget):
         self.preview_text.setMinimumHeight(200)
         self.preview_text.setPlaceholderText("Preview will appear here...")
         group_layout.addWidget(self.preview_text)
+        self._set_tooltip(self.preview_text, 'rename_preview')
         
         group.setLayout(group_layout)
         layout.addWidget(group)
@@ -370,6 +373,7 @@ class BatchRenamePanelQt(QWidget):
         self.undo_btn = QPushButton("↩️ Undo Last Rename")
         self.undo_btn.clicked.connect(self._undo_rename)
         btn_layout.addWidget(self.undo_btn)
+        self._set_tooltip(self.undo_btn, 'rename_undo')
         
         layout.addLayout(btn_layout)
         

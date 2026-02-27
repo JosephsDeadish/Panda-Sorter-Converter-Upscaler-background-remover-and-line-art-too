@@ -292,6 +292,7 @@ class QualityCheckerPanelQt(QWidget):
         self.report_text.setReadOnly(True)
         self.report_text.setFont(QFont("Courier", 9))
         group_layout.addWidget(self.report_text)
+        self._set_tooltip(self.report_text, 'qc_results')
         
         group.setLayout(group_layout)
         layout.addWidget(group)
