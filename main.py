@@ -817,6 +817,9 @@ class TextureSorterMainWindow(QMainWindow):
         self.tabs = DraggableTabWidget()
         self.tabs.setDocumentMode(True)
         self.tabs.tab_detached.connect(self.on_tab_detached)
+        # Hide the panda overlay when switching away from the Home tab so it
+        # never blocks functional UI on the Tools, Panda, or Settings tabs.
+        self.tabs.currentChanged.connect(self._on_main_tab_changed)
         content_layout.addWidget(self.tabs)
 
         # Create main tab (dashboard/welcome)
@@ -5179,14 +5182,43 @@ class TextureSorterMainWindow(QMainWindow):
             logger.debug(f"File browser folder_changed error: {_e}")
 
     def _on_panda_should_hide(self, should_hide: bool):
-        """Show/hide the panda overlay when environment events require it."""
+        """Show/hide the panda overlay when environment events require it.
+
+        The overlay is only ever shown on the Home tab; this method may further
+        hide it (e.g. when the user minimises the window) but will never make it
+        visible on a non-Home tab.
+        """
         try:
             overlay = getattr(self, 'panda_overlay', None)
-            if overlay and hasattr(overlay, 'setVisible'):
-                overlay.setVisible(not should_hide)
-            logger.debug(f"Panda overlay hide={should_hide}")
+            if overlay is None or not hasattr(overlay, 'setVisible'):
+                return
+            on_home = (self.tabs.currentIndex() == 0)
+            overlay.setVisible(on_home and not should_hide)
+            logger.debug(f"Panda overlay hide={should_hide}, on_home={on_home}")
         except Exception as _e:
             logger.debug(f"panda_should_hide callback error: {_e}")
+
+    def _on_main_tab_changed(self, index: int) -> None:
+        """Show the panda companion overlay only on the Home tab (index 0).
+
+        The overlay is a transparent full-window widget that paints the
+        animated panda on top of everything.  While that makes for a nice
+        companion experience on the Home screen, it physically covers
+        interactive widgets on the Tools, Panda, and Settings tabs —
+        the Background Remover live preview, the Trail Preview strip,
+        and the Font / Font Size combo boxes, among others.
+
+        Hiding the overlay whenever the user is not on the Home tab lets
+        all panels remain fully interactive without removing the companion.
+        """
+        try:
+            overlay = getattr(self, 'panda_overlay', None)
+            if overlay is None or not hasattr(overlay, 'setVisible'):
+                return
+            # Tab 0 is always the Home tab (added first in setup_ui).
+            overlay.setVisible(index == 0)
+        except Exception as _e:
+            logger.debug(f"_on_main_tab_changed error: {_e}")
 
     def _on_panda_should_react(self, event_type: str, event_data):
         """Forward environment events to the panda mood system for reactions."""

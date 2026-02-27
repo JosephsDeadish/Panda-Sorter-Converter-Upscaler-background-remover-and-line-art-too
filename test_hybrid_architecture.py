@@ -1647,6 +1647,100 @@ def test_trail_preview_show_hide_events():
     print("  ✅ TrailPreviewWidget has showEvent() and hideEvent()")
 
 
+def test_panda_overlay_hidden_on_non_home_tabs():
+    """Panda overlay must be visible only on the Home tab (index 0).
+
+    The transparent full-window panda widget covers interactive UI on every
+    other tab:
+    - Tools tab (index 1): blocks the Background Remover live preview pane
+    - Panda tab (index 2): covers the Trail Preview strip in Customization
+    - Settings tab (index 3): overlaps the Font Family and Font Size combo boxes
+
+    Fix: `tabs.currentChanged` is connected to `_on_main_tab_changed` which
+    calls ``overlay.setVisible(index == 0)``.
+
+    This test verifies both the signal wiring in source code (AST check) and
+    the live runtime behaviour by switching tabs on a real window instance.
+    """
+    print("\ntest_panda_overlay_hidden_on_non_home_tabs ...")
+    import ast
+    from pathlib import Path
+
+    src = Path(__file__).parent / 'main.py'
+    code = src.read_text(encoding='utf-8')
+
+    # 1. Signal must be connected
+    assert 'currentChanged.connect' in code and '_on_main_tab_changed' in code, (
+        "main.py must connect tabs.currentChanged to _on_main_tab_changed.\n"
+        "Without this the panda overlay stays visible on all tabs, blocking\n"
+        "the Background Remover preview, Font settings, and Trail Preview."
+    )
+    print("  ✅ tabs.currentChanged connected to _on_main_tab_changed")
+
+    # 2. _on_main_tab_changed must exist and use index == 0 logic
+    tree = ast.parse(code)
+    found_method = False
+    for node in ast.walk(tree):
+        if isinstance(node, ast.ClassDef) and node.name == 'TextureSorterMainWindow':
+            for item in node.body:
+                if isinstance(item, ast.FunctionDef) and item.name == '_on_main_tab_changed':
+                    method_src = ast.get_source_segment(code, item) or ''
+                    assert 'index == 0' in method_src or 'index==0' in method_src, (
+                        "_on_main_tab_changed must use `index == 0` to show the\n"
+                        "overlay only on the Home tab."
+                    )
+                    assert 'setVisible' in method_src, (
+                        "_on_main_tab_changed must call setVisible() on the overlay."
+                    )
+                    found_method = True
+                    break
+            break
+
+    assert found_method, (
+        "TextureSorterMainWindow is missing _on_main_tab_changed().\n"
+        "Add a method that calls overlay.setVisible(index == 0)."
+    )
+    print("  ✅ _on_main_tab_changed() exists and uses index==0 guard")
+
+    # 3. Runtime check: actually switch tabs and verify visibility
+    import sys, logging, os
+    os.environ.setdefault('QT_QPA_PLATFORM', 'offscreen')
+    logging.disable(logging.CRITICAL)
+
+    import main as _main_mod
+    from PyQt6.QtWidgets import QApplication
+    _app = QApplication.instance() or QApplication(sys.argv)
+
+    win = _main_mod.TextureSorterMainWindow()
+    overlay = win.panda_overlay
+    if overlay is None:
+        print("  ⚠️  No panda_overlay present — skipping runtime tab check")
+        return
+
+    win.resize(1280, 800)
+    win.show()
+    _app.processEvents()
+
+    expected = {0: True, 1: False, 2: False, 3: False}
+    for idx, should_be_visible in expected.items():
+        if idx < win.tabs.count():
+            win.tabs.setCurrentIndex(idx)
+            _app.processEvents()
+            actual = overlay.isVisible()
+            assert actual == should_be_visible, (
+                f"Tab {idx}: overlay visible={actual}, expected {should_be_visible}.\n"
+                f"The panda overlay must only be visible on the Home tab (index 0)."
+            )
+
+    # Go back to Home and verify it re-shows
+    win.tabs.setCurrentIndex(0)
+    _app.processEvents()
+    assert overlay.isVisible(), (
+        "Switching back to Home tab must make the overlay visible again."
+    )
+    print("  ✅ Runtime: overlay visible=True on Home, False on Tools/Panda/Settings")
+
+
 def run_all_tests():
     print("=" * 65)
     print("Hybrid Architecture + Lazy rembg Import Tests")
@@ -1686,6 +1780,7 @@ def run_all_tests():
         test_settings_panel_auto_saves_on_change,
         test_clear_button_not_too_narrow,
         test_trail_preview_show_hide_events,
+        test_panda_overlay_hidden_on_non_home_tabs,
         test_panda_widget_gl_qstate_import,
         test_bedroom_mouse_release_event,
         test_otter_smooth_look_animation,
