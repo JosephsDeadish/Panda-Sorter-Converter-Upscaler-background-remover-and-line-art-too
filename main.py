@@ -1668,10 +1668,104 @@ class TextureSorterMainWindow(QMainWindow):
 
         except Exception as e:
             logger.error(f"Could not load Panda Home panel: {e}", exc_info=True)
-            label = QLabel("⚠️ 3D Panda Home not available\n\nRequires PyQt6 + OpenGL")
-            label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            panda_tabs.addTab(label, "🏠 Panda Home")
-            self._home_tab_index = panda_tabs.indexOf(label)
+            # ── 2D Panda Home fallback ────────────────────────────────────────
+            # When PyOpenGL is unavailable the 3D bedroom can't be created.
+            # Replace the bare error label with a styled interactive panel that
+            # shows the panda character and furniture shortcut buttons so the
+            # user can still open the Wardrobe, Inventory, Achievements and Shop.
+            home_2d = QWidget()
+            home_2d.setObjectName("pandaHome2DFallback")
+            home_2d.setStyleSheet(
+                "QWidget#pandaHome2DFallback { "
+                "background: qlineargradient(x1:0, y1:0, x2:0, y2:1, "
+                "stop:0 #0d0d1a, stop:0.6 #1a1a3e, stop:1 #14101e); }"
+            )
+            _h2d_layout = QVBoxLayout(home_2d)
+            _h2d_layout.setContentsMargins(20, 16, 20, 16)
+            _h2d_layout.setSpacing(12)
+
+            # Header
+            _h2d_title = QLabel("🏠  Panda's Home")
+            _h2d_title.setStyleSheet(
+                "color: #ffffff; font-size: 18px; font-weight: bold; "
+                "background: transparent;"
+            )
+            _h2d_title.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            _h2d_layout.addWidget(_h2d_title)
+
+            # Panda 2D widget embedded in the room
+            _panda_area = QWidget()
+            _panda_area.setObjectName("pandaHomeRoomArea")
+            _panda_area.setMinimumHeight(240)
+            _panda_area.setStyleSheet(
+                "QWidget#pandaHomeRoomArea { "
+                "background: qlineargradient(x1:0, y1:0, x2:0, y2:1, "
+                "stop:0 #1a1a3e, stop:0.8 #22223e, stop:1 #111122); "
+                "border-radius: 10px; border: 1px solid #333; }"
+            )
+            _room_vbox = QVBoxLayout(_panda_area)
+            _room_vbox.setContentsMargins(0, 0, 0, 0)
+            # Embed a fresh PandaWidget2D instance (independent of the overlay)
+            try:
+                _panda_char = getattr(self, 'panda_widget', None)
+                _panda_char = getattr(_panda_char, 'panda', None)
+                from ui.panda_widget_2d import PandaWidget2D as _PW2DHome
+                _bedroom_panda = _PW2DHome(panda_character=_panda_char, parent=_panda_area)
+                _bedroom_panda.setMinimumHeight(200)
+                _room_vbox.addWidget(_bedroom_panda)
+                self._bedroom_panda_2d = _bedroom_panda
+            except Exception as _pw:
+                logger.debug(f"2D panda in home fallback: {_pw}")
+                _room_vbox.addStretch()
+            _h2d_layout.addWidget(_panda_area, 1)
+
+            # Furniture shortcut buttons grid
+            _furn_label = QLabel("✨ Visit a room")
+            _furn_label.setStyleSheet(
+                "color: #aaaacc; font-size: 11px; background: transparent;"
+            )
+            _furn_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            _h2d_layout.addWidget(_furn_label)
+
+            _btn_row = QWidget()
+            _btn_row.setStyleSheet("background: transparent;")
+            _btn_grid = QGridLayout(_btn_row)
+            _btn_grid.setContentsMargins(0, 0, 0, 0)
+            _btn_grid.setSpacing(8)
+            _FURN_BTNS = [
+                ("👗\nWardrobe",    "wardrobe"),
+                ("🎒\nInventory",   "backpack"),
+                ("🏆\nTrophies",    "trophy_stand"),
+                ("🍎\nFood & Shop", "fridge"),
+                ("🧸\nToy Box",     "toy_box"),
+                ("🚪\nGo Outside",  "bedroom_door"),
+            ]
+            _furn_style = (
+                "QPushButton { background: #2a2a4e; color: #ccccff; "
+                "border: 1px solid #444; border-radius: 8px; "
+                "font-size: 13px; padding: 8px 4px; min-width: 80px; min-height: 64px; }"
+                "QPushButton:hover { background: #3a3a6e; color: #ffffff; border-color: #6666aa; }"
+                "QPushButton:pressed { background: #4a4a8e; }"
+            )
+            for _bi, (_blabel, _bfid) in enumerate(_FURN_BTNS):
+                _fbtn = QPushButton(_blabel)
+                _fbtn.setStyleSheet(_furn_style)
+                # Capture loop variable in default arg
+                _fbtn.clicked.connect(
+                    lambda _checked=False, _fid=_bfid: self._on_bedroom_furniture_clicked(_fid)
+                )
+                _btn_grid.addWidget(_fbtn, _bi // 3, _bi % 3)
+            _h2d_layout.addWidget(_btn_row)
+
+            panda_tabs.addTab(home_2d, "🏠 Panda Home")
+            self._home_tab_index = panda_tabs.indexOf(home_2d)
+            # Expose refs needed by the furniture-click handler
+            self._bedroom_widget = None
+            self._home_stack = None
+            self._home_back_bar = None
+            self._home_back_btn = None
+            self._home_sub_label = None
+            self._home_stack_owned = []
 
         # 3. Inventory + Widgets — built but NOT added as a tab.
         #    Shown via Panda Home when panda clicks the backpack in the bedroom.
@@ -2089,7 +2183,7 @@ class TextureSorterMainWindow(QMainWindow):
             label.setAlignment(Qt.AlignmentFlag.AlignCenter)
             layout.addWidget(label)
         
-        self.tabs.addTab(tab, "Settings")
+        self.tabs.addTab(tab, "⚙️ Settings")
     
     def setup_menubar(self):
         """Setup menu bar."""

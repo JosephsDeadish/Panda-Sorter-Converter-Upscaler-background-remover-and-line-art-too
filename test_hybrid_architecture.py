@@ -1741,6 +1741,110 @@ def test_panda_overlay_hidden_on_non_home_tabs():
     print("  ✅ Runtime: overlay visible=True on Home, False on Tools/Panda/Settings")
 
 
+def test_settings_tab_has_emoji():
+    """Settings main tab must display '⚙️ Settings', not the bare word 'Settings'.
+
+    All other main tabs carry emojis (🏠 Home, 🛠️ Tools, 🐼 Panda).  The
+    Settings tab previously lacked one, breaking visual consistency.
+
+    Fix: ``self.tabs.addTab(tab, "⚙️ Settings")`` in create_settings_tab().
+    """
+    print("\ntest_settings_tab_has_emoji ...")
+    import ast
+    from pathlib import Path
+
+    code = (Path(__file__).parent / 'main.py').read_text(encoding='utf-8')
+
+    # Source-level check — the literal string must contain the emoji
+    assert '"⚙️ Settings"' in code or "'⚙️ Settings'" in code, (
+        "main.py must call self.tabs.addTab(tab, \"⚙️ Settings\").\n"
+        "The Settings tab label is missing its ⚙️ emoji."
+    )
+    print("  ✅ Source: ⚙️ emoji present in Settings tab label")
+
+    # Runtime check
+    import sys, logging, os
+    os.environ.setdefault('QT_QPA_PLATFORM', 'offscreen')
+    logging.disable(logging.CRITICAL)
+    import main as _m
+    from PyQt6.QtWidgets import QApplication
+    _app = QApplication.instance() or QApplication(sys.argv)
+    win = _m.TextureSorterMainWindow()
+
+    settings_label = None
+    for i in range(win.tabs.count()):
+        txt = win.tabs.tabText(i)
+        if 'Settings' in txt or 'settings' in txt.lower():
+            settings_label = txt
+            break
+
+    assert settings_label is not None, "No Settings tab found at runtime."
+    assert '⚙' in settings_label, (
+        f"Settings tab label at runtime is {repr(settings_label)} — missing ⚙️ emoji."
+    )
+    print(f"  ✅ Runtime: Settings tab label = {repr(settings_label)}")
+
+
+def test_panda_home_2d_fallback():
+    """Panda Home tab must show an interactive 2D fallback when OpenGL is absent.
+
+    When PyOpenGL is not installed, ``PandaBedroomGL()`` raises an exception and
+    the Panda Home tab previously showed a bare QLabel error message.  The fix
+    replaces that with a styled QWidget panel containing:
+    - A gradient room background
+    - An embedded PandaWidget2D companion
+    - Furniture shortcut buttons wired to ``_on_bedroom_furniture_clicked``
+
+    This test verifies that the Panda Home widget is a QWidget (not a QLabel
+    error message) and that it contains child buttons labelled with furniture names.
+    """
+    print("\ntest_panda_home_2d_fallback ...")
+    import sys, logging, os
+    os.environ.setdefault('QT_QPA_PLATFORM', 'offscreen')
+    logging.disable(logging.CRITICAL)
+    import main as _m
+    from PyQt6.QtWidgets import QApplication, QLabel, QPushButton
+    _app = QApplication.instance() or QApplication(sys.argv)
+    win = _m.TextureSorterMainWindow()
+    win.resize(1280, 800)
+    win.show()
+    _app.processEvents()
+
+    # Locate the Panda Home tab
+    panda_home_widget = None
+    for i in range(win._panda_tabs.count()):
+        if 'Panda Home' in win._panda_tabs.tabText(i) or 'Home' in win._panda_tabs.tabText(i):
+            panda_home_widget = win._panda_tabs.widget(i)
+            break
+
+    assert panda_home_widget is not None, "Could not find Panda Home tab."
+
+    # Must NOT be a bare error QLabel
+    assert not isinstance(panda_home_widget, QLabel), (
+        "Panda Home tab is still a bare QLabel error message.\n"
+        "Expected a rich QWidget panel with furniture buttons and a 2D panda."
+    )
+    print(f"  ✅ Panda Home widget type: {type(panda_home_widget).__name__} (not QLabel)")
+
+    # Must have furniture shortcut buttons
+    all_btns = panda_home_widget.findChildren(QPushButton)
+    assert len(all_btns) >= 3, (
+        f"Panda Home 2D fallback has only {len(all_btns)} button(s); "
+        "expected at least 3 furniture shortcut buttons."
+    )
+    btn_texts = [b.text() for b in all_btns]
+    print(f"  ✅ Found {len(all_btns)} buttons: {btn_texts}")
+
+    # Check furniture keywords appear in at least one button label
+    keywords = ('Wardrobe', 'Inventory', 'Trophies', 'Achievements',
+                'Shop', 'Food', 'Toy', 'Outside')
+    found_any = any(any(kw in t for kw in keywords) for t in btn_texts)
+    assert found_any, (
+        f"No recognisable furniture labels found in buttons: {btn_texts}"
+    )
+    print("  ✅ Furniture shortcut buttons contain expected labels")
+
+
 def run_all_tests():
     print("=" * 65)
     print("Hybrid Architecture + Lazy rembg Import Tests")
@@ -1781,6 +1885,8 @@ def run_all_tests():
         test_clear_button_not_too_narrow,
         test_trail_preview_show_hide_events,
         test_panda_overlay_hidden_on_non_home_tabs,
+        test_settings_tab_has_emoji,
+        test_panda_home_2d_fallback,
         test_panda_widget_gl_qstate_import,
         test_bedroom_mouse_release_event,
         test_otter_smooth_look_animation,
