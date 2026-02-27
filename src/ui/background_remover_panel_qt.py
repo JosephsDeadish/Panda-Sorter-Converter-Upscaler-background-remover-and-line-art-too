@@ -14,7 +14,8 @@ logger = logging.getLogger(__name__)
 try:
     from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QPushButton,
                                   QLabel, QSlider, QFileDialog, QSpinBox, QCheckBox,
-                                  QGroupBox, QComboBox, QMessageBox)
+                                  QGroupBox, QComboBox, QMessageBox, QSplitter,
+                                  QRadioButton, QScrollArea)
     from PyQt6.QtCore import Qt, pyqtSignal
     from PyQt6.QtGui import QPixmap
     PYQT_AVAILABLE = True
@@ -57,12 +58,75 @@ except (ImportError, OSError, RuntimeError):
         ComparisonSliderWidget = None
 
 
+def _remove_bg_onnx(pil_image, model_path: str):
+    """Remove background using a U2-Net/ISNet ONNX model without the rembg package.
+
+    This is used as a fallback when ``rembg`` is not importable (e.g. in the
+    PyInstaller build where rembg is excluded to prevent a sys.exit crash).
+
+    Args:
+        pil_image: PIL.Image.Image in any mode.
+        model_path: Absolute path to a compatible ONNX model (u2net, silueta, …).
+
+    Returns:
+        PIL.Image.Image in RGBA mode with background removed.
+
+    Raises:
+        ImportError: if onnxruntime or numpy is not available.
+        FileNotFoundError: if model_path does not exist.
+    """
+    import os
+    import numpy as np
+    import onnxruntime as ort
+
+    if not os.path.isfile(model_path):
+        raise FileNotFoundError(f"ONNX model not found: {model_path}")
+
+    # ── Pre-process ───────────────────────────────────────────────────────────
+    orig_size = pil_image.size
+    rgb = pil_image.convert('RGB').resize((320, 320))
+    img = np.array(rgb, dtype=np.float32) / 255.0
+    mean = np.array([0.485, 0.456, 0.406], dtype=np.float32)
+    std  = np.array([0.229, 0.224, 0.225], dtype=np.float32)
+    img  = (img - mean) / std
+    img  = img.transpose(2, 0, 1)[np.newaxis, :].astype(np.float32)  # NCHW
+
+    # ── Inference ─────────────────────────────────────────────────────────────
+    sess_opts = ort.SessionOptions()
+    sess_opts.log_severity_level = 3  # suppress verbose ort logging
+    sess = ort.InferenceSession(model_path, sess_options=sess_opts,
+                                providers=['CPUExecutionProvider'])
+    input_name = sess.get_inputs()[0].name
+    outputs    = sess.run(None, {input_name: img})
+
+    # First output — shape may be (1,1,H,W), (1,H,W), or (H,W)
+    mask = np.squeeze(outputs[0]).astype(np.float32)
+
+    # ── Post-process ─────────────────────────────────────────────────────────
+    mn, mx = mask.min(), mask.max()
+    if mx - mn > 1e-6:
+        mask = (mask - mn) / (mx - mn)
+
+    from PIL import Image as _PILImage
+    mask_img = _PILImage.fromarray((mask * 255).astype(np.uint8)).resize(
+        orig_size, _PILImage.LANCZOS
+    )
+
+    result = pil_image.convert('RGBA')
+    r, g, b, _ = result.split()
+    result = _PILImage.merge('RGBA', (r, g, b, mask_img))
+    return result
+
+
 class BackgroundRemoverPanelQt(QWidget):
     """Qt-based background remover panel with paint tools."""
     
     # Signals
     image_loaded = pyqtSignal(str)
     processing_complete = pyqtSignal()
+
+    # Prefix for temp directories created during background removal
+    TEMP_DIR_PREFIX = "bg_remover_"
     
     def __init__(self, parent=None, tooltip_manager=None):
         if not PYQT_AVAILABLE:
@@ -75,6 +139,7 @@ class BackgroundRemoverPanelQt(QWidget):
         self.brush_size = 10
         self.current_tool = "brush"
         self._temp_extract_dir = None  # Track temp directory for archive extraction
+        self._rembg_temp_dirs: list = []  # Track rembg result temp dirs for cleanup
         
         # Undo/Redo history management
         self.edit_history = []
@@ -84,32 +149,61 @@ class BackgroundRemoverPanelQt(QWidget):
         self.setup_ui()
     
     def setup_ui(self):
-        """Create the UI layout."""
-        layout = QVBoxLayout(self)
-        
-        # Title
+        """Create the UI layout with left-control / right-preview splitter."""
+        root = QVBoxLayout(self)
+        root.setContentsMargins(6, 6, 6, 6)
+        root.setSpacing(4)
+        self.setMinimumSize(700, 480)
+
+        # Title row
         title = QLabel("🎨 Background Remover")
-        title.setStyleSheet("font-size: 18px; font-weight: bold;")
-        layout.addWidget(title)
-        
-        # File operations
+        title.setStyleSheet("font-size: 16px; font-weight: bold;")
+        root.addWidget(title)
+
+        # ── Main splitter: LEFT = controls, RIGHT = preview ────────────────
+        splitter = QSplitter(Qt.Orientation.Horizontal)
+        splitter.setChildrenCollapsible(False)
+        root.addWidget(splitter, stretch=1)
+
+        # ── LEFT: controls in a scroll area ───────────────────────────────
+        left_scroll = QScrollArea()
+        left_scroll.setWidgetResizable(True)
+        left_scroll.setMinimumWidth(320)
+        left_scroll.setMaximumWidth(480)
+        left_widget = QWidget()
+        layout = QVBoxLayout(left_widget)
+        layout.setContentsMargins(4, 4, 4, 4)
+        layout.setSpacing(6)
+        left_scroll.setWidget(left_widget)
+        splitter.addWidget(left_scroll)
+
+        # ── RIGHT: preview ─────────────────────────────────────────────────
+        right_widget = QWidget()
+        right_layout = QVBoxLayout(right_widget)
+        right_layout.setContentsMargins(4, 4, 4, 4)
+        right_layout.setSpacing(4)
+        splitter.addWidget(right_widget)
+        splitter.setStretchFactor(0, 0)
+        splitter.setStretchFactor(1, 1)
+
+        # ── File operations ────────────────────────────────────────────────
         file_layout = QHBoxLayout()
-        
+
         load_btn = QPushButton("📁 Load Image")
         load_btn.clicked.connect(self.load_image)
         self._set_tooltip(load_btn, "Load an image file to remove its background")
         file_layout.addWidget(load_btn)
-        
+
         save_btn = QPushButton("💾 Save Result")
         save_btn.clicked.connect(self.save_image)
         self._set_tooltip(save_btn, "Save the processed image with transparent background")
         file_layout.addWidget(save_btn)
-        
+
         layout.addLayout(file_layout)
-        
+
         # Archive options
         archive_layout = QHBoxLayout()
-        
+
         self.archive_input_cb = QCheckBox("📦 Input is Archive")
         if not ARCHIVE_AVAILABLE:
             self.archive_input_cb.setEnabled(False)
@@ -119,7 +213,7 @@ class BackgroundRemoverPanelQt(QWidget):
             self.archive_input_cb.setToolTip("Extract images from archive file (ZIP, 7Z, RAR, TAR)")
             self._set_tooltip(self.archive_input_cb, 'input_archive_checkbox')
         archive_layout.addWidget(self.archive_input_cb)
-        
+
         self.archive_output_cb = QCheckBox("📦 Export to Archive")
         if not ARCHIVE_AVAILABLE:
             self.archive_output_cb.setEnabled(False)
@@ -129,42 +223,88 @@ class BackgroundRemoverPanelQt(QWidget):
             self.archive_output_cb.setToolTip("Save processed images to archive file")
             self._set_tooltip(self.archive_output_cb, 'output_archive_checkbox')
         archive_layout.addWidget(self.archive_output_cb)
-        
+
         archive_layout.addStretch()
         layout.addLayout(archive_layout)
-        
-        # Tools - Using checkboxes for toggle selection
-        tools_group = QGroupBox("🛠️ Tools")
+
+        # ── AI Backend selection ───────────────────────────────────────────
+        backend_group = QGroupBox("🔧 Removal Backend")
+        backend_layout = QVBoxLayout(backend_group)
+        backend_layout.setSpacing(2)
+
+        # Check which backends are available
+        _rembg_ok = False
+        _ort_ok   = False
+        try:
+            import rembg  # noqa: F401
+            _rembg_ok = True
+        except ImportError:
+            pass
+        except Exception:
+            pass
+        except SystemExit:
+            # rembg.bg calls sys.exit(1) when its ONNX DLL fails to init —
+            # catch it here so the UI check doesn't kill the app.
+            pass
+        try:
+            import onnxruntime  # noqa: F401
+            _ort_ok = True
+        except (ImportError, Exception):
+            pass
+
+        self._backend_rembg_rb = QRadioButton("rembg (recommended)" + ("" if _rembg_ok else " — not installed"))
+        self._backend_ort_rb   = QRadioButton("Direct onnxruntime (EXE-safe fallback)" + ("" if _ort_ok else " — not installed"))
+
+        if not _rembg_ok:
+            self._backend_rembg_rb.setEnabled(False)
+            self._backend_rembg_rb.setToolTip("Install rembg:  pip install 'rembg[cpu]'")
+        if not _ort_ok:
+            self._backend_ort_rb.setEnabled(False)
+            self._backend_ort_rb.setToolTip("Install onnxruntime:  pip install onnxruntime")
+
+        # Default: prefer rembg if available, else onnxruntime
+        if _rembg_ok:
+            self._backend_rembg_rb.setChecked(True)
+        elif _ort_ok:
+            self._backend_ort_rb.setChecked(True)
+        else:
+            self._backend_rembg_rb.setChecked(True)  # checked but disabled
+
+        backend_layout.addWidget(self._backend_rembg_rb)
+        backend_layout.addWidget(self._backend_ort_rb)
+        layout.addWidget(backend_group)
+
+        # ── Tools ─────────────────────────────────────────────────────────
+        tools_group = QGroupBox("🛠️ Manual Tools")
         tools_layout = QVBoxLayout()
-        
-        # Tool selection checkboxes
+
         tool_select_layout = QHBoxLayout()
-        
+
         self.brush_cb = QCheckBox("🖌️ Brush")
         self.brush_cb.setChecked(True)
         self.brush_cb.toggled.connect(lambda checked: self.select_tool("brush") if checked else None)
         self._set_tooltip(self.brush_cb, "Paint to keep areas visible")
         tool_select_layout.addWidget(self.brush_cb)
-        
+
         self.eraser_cb = QCheckBox("🧹 Eraser")
         self.eraser_cb.toggled.connect(lambda checked: self.select_tool("eraser") if checked else None)
         self._set_tooltip(self.eraser_cb, "Erase to make areas transparent")
         tool_select_layout.addWidget(self.eraser_cb)
-        
+
         self.fill_cb = QCheckBox("🪣 Fill")
         self.fill_cb.toggled.connect(lambda checked: self.select_tool("fill") if checked else None)
         self._set_tooltip(self.fill_cb, "Fill connected areas with transparency")
         tool_select_layout.addWidget(self.fill_cb)
-        
+
         tools_layout.addLayout(tool_select_layout)
         tools_group.setLayout(tools_layout)
         layout.addWidget(tools_group)
-        
+
         # Brush size
         size_group = QGroupBox("✏️ Brush Size")
         size_layout = QHBoxLayout()
         size_layout.addWidget(QLabel("Size:"))
-        
+
         self.size_slider = QSlider(Qt.Orientation.Horizontal)
         self.size_slider.setMinimum(1)
         self.size_slider.setMaximum(50)
@@ -172,7 +312,7 @@ class BackgroundRemoverPanelQt(QWidget):
         self.size_slider.valueChanged.connect(self.on_size_changed)
         self._set_tooltip(self.size_slider, "Adjust brush size (1-50 pixels)")
         size_layout.addWidget(self.size_slider)
-        
+
         self.size_spinbox = QSpinBox()
         self.size_spinbox.setMinimum(1)
         self.size_spinbox.setMaximum(50)
@@ -180,11 +320,11 @@ class BackgroundRemoverPanelQt(QWidget):
         self.size_spinbox.valueChanged.connect(self.on_size_changed)
         self._set_tooltip(self.size_spinbox, "Brush size value")
         size_layout.addWidget(self.size_spinbox)
-        
+
         size_group.setLayout(size_layout)
         layout.addWidget(size_group)
-        
-        # AI Model selection — shown above the process buttons
+
+        # AI Model selection
         model_group = QGroupBox("🤖 AI Model")
         model_layout = QHBoxLayout()
         model_layout.addWidget(QLabel("Model:"))
@@ -206,67 +346,74 @@ class BackgroundRemoverPanelQt(QWidget):
         model_group.setLayout(model_layout)
         layout.addWidget(model_group)
 
-        # Processing options
+        # Processing buttons
         process_layout = QHBoxLayout()
-        
+
         auto_btn = QPushButton("🤖 Auto Remove")
         auto_btn.clicked.connect(self.auto_remove_background)
         self._set_tooltip(auto_btn, 'bg_remove_button')
         process_layout.addWidget(auto_btn)
-        
+
         clear_btn = QPushButton("🗑️ Clear All")
         clear_btn.clicked.connect(self.clear_all)
         self._set_tooltip(clear_btn, "Clear all edits and start over")
         process_layout.addWidget(clear_btn)
-        
+
         layout.addLayout(process_layout)
-        
+
         # Undo/Redo
         history_layout = QHBoxLayout()
-        
+
         undo_btn = QPushButton("↶ Undo")
         undo_btn.clicked.connect(self.undo)
         self._set_tooltip(undo_btn, "Undo last action (Ctrl+Z)")
         history_layout.addWidget(undo_btn)
-        
+
         redo_btn = QPushButton("↷ Redo")
         redo_btn.clicked.connect(self.redo)
         self._set_tooltip(redo_btn, "Redo last undone action (Ctrl+Y)")
         history_layout.addWidget(redo_btn)
-        
+
         layout.addLayout(history_layout)
-        
-        # Live Preview - Before/After Comparison
+        layout.addStretch()
+
+        # ── RIGHT: Live Preview ────────────────────────────────────────────
+        preview_title = QLabel("👁️ Live Preview (Before / After)")
+        preview_title.setStyleSheet("font-weight: bold; font-size: 13px;")
+        right_layout.addWidget(preview_title)
+
         if SLIDER_AVAILABLE:
-            preview_group = QGroupBox("👁️ Live Preview (Before/After)")
-            preview_layout = QVBoxLayout()
-            
             # Comparison mode selector
             mode_layout = QHBoxLayout()
-            mode_layout.addWidget(QLabel("Comparison Mode:"))
+            mode_layout.addWidget(QLabel("Mode:"))
             self.comparison_mode_combo = QComboBox()
             self.comparison_mode_combo.addItems(["Slider", "Toggle", "Overlay"])
             self.comparison_mode_combo.currentTextChanged.connect(self._on_comparison_mode_changed)
             self._set_tooltip(self.comparison_mode_combo, "Choose how to compare before/after images")
             mode_layout.addWidget(self.comparison_mode_combo)
             mode_layout.addStretch()
-            preview_layout.addLayout(mode_layout)
-            
-            # Comparison slider widget
+
+            pan_hint = QLabel("Scroll: zoom  •  Ctrl+drag: pan  •  Drag handle: compare")
+            pan_hint.setStyleSheet("color: #888; font-size: 10px;")
+            mode_layout.addWidget(pan_hint)
+            right_layout.addLayout(mode_layout)
+
             self.preview_widget = ComparisonSliderWidget()
             self.preview_widget.setMinimumHeight(300)
             self._set_tooltip(self.preview_widget, "Drag slider to compare original and processed images")
-            # Log slider position changes for debugging
             if hasattr(self.preview_widget, 'slider_moved'):
                 self.preview_widget.slider_moved.connect(
                     lambda pos: logger.debug(f"BG remover preview slider: {pos}%")
                 )
-            preview_layout.addWidget(self.preview_widget)
-            
-            preview_group.setLayout(preview_layout)
-            layout.addWidget(preview_group)
-        
-        layout.addStretch()
+            right_layout.addWidget(self.preview_widget, stretch=1)
+        else:
+            no_preview = QLabel(
+                "⚠️ Live preview not available.\n\n"
+                "Install the comparison slider module to enable before/after comparison."
+            )
+            no_preview.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            no_preview.setStyleSheet("color: #aaa; font-size: 12px;")
+            right_layout.addWidget(no_preview, stretch=1)
     
     def load_image(self):
         """Load an image file or extract from archive."""
@@ -449,124 +596,210 @@ class BackgroundRemoverPanelQt(QWidget):
         self.size_spinbox.setValue(value)
     
     def auto_remove_background(self):
-        """
-        Automatically remove background using AI (rembg).
-        
-        FUTURE FEATURE: This requires the 'rembg' library to be installed.
-        
-        Installation: pip install rembg
-        
-        When implemented, this will:
-        1. Load the current image
-        2. Use rembg to remove the background
-        3. Save the result with alpha transparency
-        4. Update the preview with the processed image
-        5. Add to edit history for undo/redo
-        
-        For now, shows a message to the user that this feature is planned.
+        """Automatically remove background using AI.
+
+        Uses rembg when available; falls back to a direct onnxruntime inference
+        path using pre-downloaded ONNX models (U2-Net, IS-Net, etc.) so the
+        feature works in the PyInstaller build even though rembg is excluded from
+        the bundle.
         """
         if not self.current_image:
             return
-        
-        # Check if rembg is available
+
+        # ── Check available backends ─────────────────────────────────────────
+        rembg_available = False
+        ort_available   = False
         try:
-            import rembg
+            import rembg  # noqa: F401
             rembg_available = True
-        except (ImportError, Exception, SystemExit):
-            rembg_available = False
-        
-        if not rembg_available:
+        except ImportError:
+            pass
+        except Exception:
+            pass
+        except SystemExit:
+            # rembg.bg calls sys.exit(1) when its ONNX DLL fails to init —
+            # catch it here so the removal logic doesn't terminate the app.
+            logger.warning("rembg import raised SystemExit (likely DLL init failure) — treating as not available")
+
+        try:
+            import onnxruntime  # noqa: F401
+            import numpy  # noqa: F401
+            ort_available = True
+        except (ImportError, Exception):
+            pass
+
+        # Respect the user's explicit backend choice from the radio buttons
+        _rembg_rb = getattr(self, '_backend_rembg_rb', None)
+        _ort_rb   = getattr(self, '_backend_ort_rb', None)
+        if _rembg_rb is not None and _ort_rb is not None:
+            if _ort_rb.isChecked():
+                # User explicitly chose onnxruntime — skip rembg even if available
+                rembg_available = False
+            elif _rembg_rb.isChecked():
+                # User explicitly chose rembg — skip onnxruntime as primary path
+                # (onnxruntime fallback still applies if rembg fails)
+                pass
+
+        if not rembg_available and not ort_available:
             QMessageBox.information(
                 self,
                 "Feature Not Available",
-                "Automatic background removal requires the 'rembg' library.\n\n"
-                "To enable this feature, install it with:\n"
-                "pip install 'rembg[cpu]'\n\n"
-                "For GPU support:\n"
-                "pip install 'rembg[gpu]'"
+                "Automatic background removal requires the 'rembg' library OR "
+                "'onnxruntime' + a pre-downloaded ONNX model.\n\n"
+                "Install rembg with:\n"
+                "  pip install 'rembg[cpu]'\n\n"
+                "Or ensure onnxruntime is installed and a model has been downloaded "
+                "via Settings → AI Models."
             )
             return
-        
-        # Implement actual background removal
-        if not self.current_image:
-            QMessageBox.warning(
-                self,
-                "No Image",
-                "Please load an image first before removing background."
-            )
-            return
-        
+
         try:
             from PyQt6.QtWidgets import QProgressDialog
-            from PyQt6.QtCore import Qt, QBuffer
-            from PyQt6.QtGui import QImage
+            from PyQt6.QtCore import Qt
+            from PyQt6.QtGui import QPixmap
+            import tempfile
+
+            if not PIL_AVAILABLE:
+                QMessageBox.critical(self, "Error", "PIL/Pillow not installed. Cannot process image.")
+                return
+
             from PIL import Image
-            import io
-            
+
             # Show progress dialog
             progress = QProgressDialog("Removing background...", "Cancel", 0, 0, self)
             progress.setWindowModality(Qt.WindowModality.WindowModal)
             progress.setWindowTitle("Processing")
             progress.show()
-            
-            # Convert QImage to PIL Image
-            buffer = QBuffer()
-            buffer.open(QBuffer.OpenModeFlag.ReadWrite)
-            self.current_image.save(buffer, "PNG")
-            pil_image = Image.open(io.BytesIO(buffer.data()))
-            
-            # Process with rembg — use selected model if available
-            selected_model = getattr(
-                getattr(self, 'bg_model_combo', None), 'currentData',
-                lambda: 'u2net'
-            )()
-            try:
+
+            # Open image (self.current_image is always a path string)
+            pil_image = Image.open(self.current_image)
+
+            # Determine which model to use
+            selected_model = 'u2net'
+            bg_combo = getattr(self, 'bg_model_combo', None)
+            if bg_combo is not None and hasattr(bg_combo, 'currentData'):
+                model_data = bg_combo.currentData()
+                if model_data:
+                    selected_model = model_data
+
+            output: Image.Image | None = None
+
+            # ── Path 1: rembg ────────────────────────────────────────────────
+            if rembg_available:
                 import rembg
-                session = rembg.new_session(selected_model)
-                output = rembg.remove(pil_image, session=session)
-            except Exception as _me:
-                # Fallback: no session (rembg picks its own default)
-                logger.warning(f"rembg session creation failed for {selected_model}: {_me}")
-                output = rembg.remove(pil_image)
-            
-            # Convert back to QImage
-            output_buffer = io.BytesIO()
-            output.save(output_buffer, format='PNG')
-            output_buffer.seek(0)
-            
-            result_image = QImage()
-            result_image.loadFromData(output_buffer.read())
-            
-            # Update current image
-            self.current_image = result_image
-            
-            # Update preview
-            if hasattr(self, 'update_preview'):
-                self.update_preview()
-            
-            # Add to undo history
-            if hasattr(self, 'undo_stack'):
-                self.undo_stack.append(result_image.copy())
-            
+                try:
+                    session = rembg.new_session(selected_model)
+                    output = rembg.remove(pil_image, session=session)
+                except Exception as _me:
+                    logger.warning(f"rembg session failed for '{selected_model}': {_me}")
+                    try:
+                        output = rembg.remove(pil_image)
+                    except Exception as _me2:
+                        logger.warning(f"rembg.remove() also failed: {_me2}")
+                        rembg_available = False  # fall through to onnxruntime
+
+            # ── Path 2: direct onnxruntime (fallback / build mode) ───────────
+            if output is None and ort_available:
+                # Locate the ONNX model — check U2NET_HOME, AIModelManager, app data
+                import os
+                model_filename = f"{selected_model}.onnx"
+                search_dirs = []
+                u2home = os.environ.get('U2NET_HOME', '')
+                if u2home:
+                    search_dirs.append(u2home)
+                try:
+                    from config import get_data_dir as _gdd
+                    search_dirs.append(str(_gdd() / 'models'))
+                except Exception:
+                    pass
+                try:
+                    from upscaler.model_manager import AIModelManager as _AMM
+                    search_dirs.append(str(_AMM().models_dir))
+                except Exception:
+                    pass
+                # Also check next to the EXE (for PyInstaller bundles)
+                import sys
+                exe_dir = Path(sys.executable).parent
+                search_dirs.append(str(exe_dir / 'app_data' / 'models'))
+                # Deduplicate while preserving insertion order
+                seen_dirs: set = set()
+                unique_dirs = []
+                for d in search_dirs:
+                    if d not in seen_dirs:
+                        seen_dirs.add(d)
+                        unique_dirs.append(d)
+                search_dirs = unique_dirs
+
+                model_path: str | None = None
+                for d in search_dirs:
+                    candidate = os.path.join(d, model_filename)
+                    if os.path.isfile(candidate):
+                        model_path = candidate
+                        break
+                # If requested model not found, try u2net as fallback
+                if model_path is None and selected_model != 'u2net':
+                    for d in search_dirs:
+                        candidate = os.path.join(d, 'u2net.onnx')
+                        if os.path.isfile(candidate):
+                            model_path = candidate
+                            break
+
+                if model_path is None:
+                    progress.close()
+                    QMessageBox.warning(
+                        self, "Model Not Found",
+                        f"ONNX model '{model_filename}' not found in:\n"
+                        + "\n".join(f"  • {d}" for d in search_dirs)
+                        + "\n\nDownload models via Settings → AI Models."
+                    )
+                    return
+
+                logger.info(f"Using direct onnxruntime inference: {model_path}")
+                output = _remove_bg_onnx(pil_image, model_path)
+
+            if output is None:
+                progress.close()
+                QMessageBox.critical(self, "Error", "Background removal failed with all available backends.")
+                return
+
+            # ── Save result and update UI ────────────────────────────────────
+            tmp_dir = Path(tempfile.mkdtemp(prefix=self.TEMP_DIR_PREFIX))
+            self._rembg_temp_dirs.append(tmp_dir)
+            result_path = tmp_dir / (Path(self.current_image).stem + "_no_bg.png")
+            output.save(str(result_path), format='PNG')
+
+            self.processed_image = str(result_path)
+
+            # Undo/redo history
+            self.history_index += 1
+            if self.history_index < len(self.edit_history):
+                self.edit_history = self.edit_history[:self.history_index]
+            self.edit_history.append(self.processed_image)
+            if len(self.edit_history) > self.max_history:
+                self.edit_history.pop(0)
+                self.history_index = len(self.edit_history) - 1
+
+            # Update before/after preview
+            if SLIDER_AVAILABLE and hasattr(self, 'preview_widget'):
+                before_px = QPixmap(self.current_image)
+                after_px  = QPixmap(self.processed_image)
+                self.preview_widget.set_before_image(before_px)
+                self.preview_widget.set_after_image(after_px)
+
             progress.close()
-            
-            QMessageBox.information(
-                self,
-                "Success",
-                "Background removed successfully!"
-            )
-            
+            QMessageBox.information(self, "Success", "Background removed successfully!")
+
             if self.processing_complete:
                 self.processing_complete.emit()
-                
+
         except Exception as e:
             logger.error(f"Error removing background: {e}", exc_info=True)
-            
-            QMessageBox.critical(
-                self,
-                "Error",
-                f"Failed to remove background:\n{str(e)}"
-            )
+            try:
+                progress.close()  # type: ignore[possibly-undefined]
+            except Exception:
+                pass
+            QMessageBox.critical(self, "Error", f"Failed to remove background:\n{e}")
+
 
     
     def clear_all(self):
@@ -637,3 +870,13 @@ class BackgroundRemoverPanelQt(QWidget):
                 except Exception:
                     pass
         widget.setToolTip(str(widget_id_or_text))
+
+    def closeEvent(self, event):
+        """Clean up temp directories created during background removal."""
+        for tmp_dir in self._rembg_temp_dirs:
+            try:
+                shutil.rmtree(str(tmp_dir), ignore_errors=True)
+            except Exception:
+                pass
+        self._rembg_temp_dirs.clear()
+        super().closeEvent(event)

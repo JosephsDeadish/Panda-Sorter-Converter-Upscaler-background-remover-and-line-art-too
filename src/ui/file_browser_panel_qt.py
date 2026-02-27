@@ -238,6 +238,34 @@ class FileBrowserPanelQt(QWidget):
         filter_layout.addWidget(self.show_archives_cb)
         
         layout.addLayout(filter_layout)
+
+        # === IMAGE CONTENT SEARCH ===
+        content_search_layout = QHBoxLayout()
+        content_search_label = QLabel("🖼 Content Search:")
+        content_search_label.setToolTip("Search images by what they contain (requires CLIP/transformers)")
+        content_search_layout.addWidget(content_search_label)
+
+        self.content_search_box = QLineEdit()
+        self.content_search_box.setPlaceholderText("Describe image content, e.g. 'panda eating bamboo'...")
+        self.content_search_box.setToolTip(
+            "Search images by visual content using CLIP AI.\n"
+            "Requires: pip install transformers open-clip-torch torch"
+        )
+        content_search_layout.addWidget(self.content_search_box)
+
+        self.content_search_btn = QPushButton("🔎 Search Content")
+        self.content_search_btn.setToolTip(
+            "Find images matching the description above.\n"
+            "Requires CLIP (transformers / open-clip-torch) to be installed."
+        )
+        self.content_search_btn.clicked.connect(self._search_by_content)
+        content_search_layout.addWidget(self.content_search_btn)
+
+        self.content_search_status = QLabel("")
+        self.content_search_status.setStyleSheet("color: #888; font-size: 10px;")
+        content_search_layout.addWidget(self.content_search_status)
+
+        layout.addLayout(content_search_layout)
         
         # === SPLITTER FOR FILE LIST AND PREVIEW ===
         splitter = QSplitter(Qt.Orientation.Horizontal)
@@ -394,7 +422,125 @@ class FileBrowserPanelQt(QWidget):
             filtered = candidates
 
         self.display_files(filtered)
-    
+
+    def _search_by_content(self):
+        """Search displayed images by visual content description using CLIP."""
+        query = self.content_search_box.text().strip()
+        if not query:
+            self.content_search_status.setText("Enter a description first.")
+            return
+
+        # Only search image files currently shown
+        image_files = [
+            p for p in self.current_files
+            if p.suffix.lower() in self.IMAGE_EXTENSIONS
+        ]
+        if not image_files:
+            self.content_search_status.setText("No images loaded. Browse a folder first.")
+            return
+
+        # Try CLIP-based content search
+        try:
+            import torch
+            try:
+                import open_clip
+                _clip_backend = "open_clip"
+            except ImportError:
+                open_clip = None
+                _clip_backend = None
+
+            try:
+                from transformers import CLIPProcessor, CLIPModel
+                _hf_available = True
+            except ImportError:
+                _hf_available = False
+
+            if not _clip_backend and not _hf_available:
+                raise ImportError("Neither open-clip-torch nor transformers is installed")
+
+            def _process_events():
+                try:
+                    from PyQt6.QtWidgets import QApplication as _QApp
+                    _QApp.processEvents()
+                except Exception:
+                    pass
+
+            self.content_search_status.setText("⏳ Loading CLIP model…")
+            _process_events()
+
+            from PIL import Image as _PILImage
+
+            if _clip_backend == "open_clip":
+                model, _, preprocess = open_clip.create_model_and_transforms(
+                    'ViT-B-32', pretrained='openai'
+                )
+                tokenizer = open_clip.get_tokenizer('ViT-B-32')
+                model.eval()
+
+                text_tokens = tokenizer([query])
+                with torch.no_grad():
+                    text_features = model.encode_text(text_tokens)
+                    text_features /= text_features.norm(dim=-1, keepdim=True)
+
+                scores: list = []
+                self.content_search_status.setText("⏳ Scoring images…")
+                _process_events()
+                for fp in image_files:
+                    try:
+                        img = preprocess(_PILImage.open(fp).convert("RGB")).unsqueeze(0)
+                        with torch.no_grad():
+                            img_feat = model.encode_image(img)
+                            img_feat /= img_feat.norm(dim=-1, keepdim=True)
+                        score = (img_feat @ text_features.T).item()
+                        scores.append((score, fp))
+                    except Exception:
+                        pass
+            else:
+                processor = CLIPProcessor.from_pretrained("openai/clip-vit-base-patch32")
+                model = CLIPModel.from_pretrained("openai/clip-vit-base-patch32")
+                model.eval()
+
+                scores = []
+                self.content_search_status.setText("⏳ Scoring images…")
+                _process_events()
+                for fp in image_files:
+                    try:
+                        img = _PILImage.open(fp).convert("RGB")
+                        inputs = processor(text=[query], images=img, return_tensors="pt", padding=True)
+                        with torch.no_grad():
+                            outputs = model(**inputs)
+                        score = outputs.logits_per_image.item()
+                        scores.append((score, fp))
+                    except Exception:
+                        pass
+
+            if not scores:
+                self.content_search_status.setText("No images could be scored.")
+                return
+
+            _MAX_RESULTS = 50
+            scores.sort(reverse=True)
+            top_files = [fp for _, fp in scores[:_MAX_RESULTS]]
+            self.display_files(top_files)
+            self.content_search_status.setText(
+                f"✅ Showing {len(top_files)} best matches for \"{query}\""
+            )
+
+        except ImportError as _ie:
+            self.content_search_status.setText("⚠️ CLIP not installed")
+            from PyQt6.QtWidgets import QMessageBox
+            QMessageBox.information(
+                self,
+                "Content Search Unavailable",
+                f"Image content search requires AI libraries.\n\n"
+                f"Install with:\n  pip install open-clip-torch torch\n"
+                f"or:\n  pip install transformers torch\n\n"
+                f"Technical details: {_ie}"
+            )
+        except Exception as _e:
+            logger.error(f"Content search failed: {_e}", exc_info=True)
+            self.content_search_status.setText(f"❌ Error: {_e}")
+
     def display_files(self, files: List[Path]):
         """Display files in the list"""
         self.file_list.clear()

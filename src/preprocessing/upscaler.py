@@ -441,16 +441,23 @@ class TextureUpscaler:
         try:
             from gfpgan import GFPGANer  # late import — optional dep
 
-            # Try model manager path first, then common fallback paths
+            # Build candidate list — check model_manager first, then common paths
             model_path: str | None = None
             if self.model_manager:
                 mp = self.model_manager.get_model_path('GFPGANv1.4')
                 if mp and mp.exists():
                     model_path = str(mp)
             if not model_path:
+                import sys as _sys
+                exe_dir = os.path.dirname(_sys.executable)
                 candidates = [
+                    # PyInstaller bundle: app_data/models/ next to EXE
+                    os.path.join(exe_dir, 'app_data', 'models', 'GFPGANv1.4.pth'),
+                    # Dev / source-tree run
                     os.path.join('app_data', 'models', 'GFPGANv1.4.pth'),
+                    # User's home cache (gfpgan default download location)
                     os.path.join(os.path.expanduser('~'), '.cache', 'gfpgan', 'GFPGANv1.4.pth'),
+                    os.path.join(os.path.expanduser('~'), 'gfpgan', 'weights', 'GFPGANv1.4.pth'),
                 ]
                 for c in candidates:
                     if os.path.isfile(c):

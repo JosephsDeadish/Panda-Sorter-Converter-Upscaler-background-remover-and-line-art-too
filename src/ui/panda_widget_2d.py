@@ -321,18 +321,29 @@ class PandaWidget2D(QWidget if _QT_AVAILABLE else object):  # type: ignore[misc]
 
         w, h = self.width(), self.height()
 
-        # No background fill — the widget is fully transparent so it blends into
-        # whatever sits behind it in the splitter (dark theme, image, etc.).
-        # Clear only to fully transparent:
-        painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_Source)
-        painter.fillRect(0, 0, w, h, Qt.GlobalColor.transparent)
+        # WA_TranslucentBackground + WA_NoSystemBackground tell Qt not to fill
+        # the backing store.  We must NOT use CompositionMode_Source here: on
+        # platforms without window-manager compositing (X11 without a compositor,
+        # virtual displays) Source-mode fills each frame with opaque black, making
+        # the entire overlay solid black and hiding the application content behind
+        # the panda.  Skipping the fill entirely lets the Qt backing store stay
+        # transparent — old panda pixels are erased by Qt before paintEvent is
+        # called (Qt always calls begin() on a clean buffer for top-level
+        # transparent windows), so animation trails do not accumulate.
         painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_SourceOver)
 
-        # Centre the panda
+        # Position the panda in the lower portion of the window so it doesn't
+        # block the main UI content (Quick Launch buttons, tool panels, etc.).
+        # The panda center (mid-torso) sits at ~72 % of the window height.
         cx = w // 2
-        cy = int(h * 0.52 - self._bob - self._bounce_y)
+        cy = int(h * 0.72 - self._bob - self._bounce_y)
 
-        scale = min(w, h) / 320.0  # scale to fit widget
+        # Cap scale so the panda stays at a reasonable companion size regardless
+        # of window dimensions.  min(w,h)/320 was designed for a ~200 px sidebar;
+        # on a 1280×800 full-window overlay it would give scale=2.5 (panda ~500 px
+        # tall, blocking the entire centre column).  Capping at 0.8 keeps the
+        # panda at roughly 130 px tall — clearly visible but not obstructive.
+        scale = min(min(w, h) / 320.0, 0.8)
         self._draw_panda(painter, cx, cy, scale)
         self._draw_particles(painter)
         self._draw_mood_label(painter, w, h)

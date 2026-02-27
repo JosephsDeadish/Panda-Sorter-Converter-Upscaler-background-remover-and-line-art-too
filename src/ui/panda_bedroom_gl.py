@@ -181,6 +181,8 @@ class PandaBedroomGL(QOpenGLWidget if OPENGL_AVAILABLE else QWidget):  # type: i
 
         # GL flag
         self._gl_ok: bool = False
+        # Reusable GLU quadric for sphere drawing — created in _do_init_gl
+        self._glu_quadric = None
 
         # Layout persistence
         try:
@@ -191,6 +193,24 @@ class PandaBedroomGL(QOpenGLWidget if OPENGL_AVAILABLE else QWidget):  # type: i
 
         self.setMouseTracking(True)
         self.setMinimumSize(400, 300)
+
+        # ── In-room panda character ───────────────────────────────────────────
+        # The panda starts at the centre of the room and walks to furniture when
+        # the user clicks a piece.  Walking is handled inside the bedroom scene
+        # (separate from the full-window overlay panda_widget).
+        self._panda_x: float = 0.0        # current room X position
+        self._panda_z: float = 1.5        # current room Z position (starts near rug centre)
+        self._panda_target_x: float = 0.0
+        self._panda_target_z: float = 1.5
+        self._panda_facing_y: float = 180.0  # degrees; 180 = facing toward camera
+        self._panda_walk_callback = None   # called once panda arrives at target
+        self._panda_walk_frame: float = 0.0  # oscillation counter for leg swing
+        self._panda_is_walking: bool = False
+
+        # Animation timer — drives the panda walk each ~33 ms (≈30 fps)
+        self._anim_timer = QTimer(self)
+        self._anim_timer.timeout.connect(self._tick_panda_walk)
+        self._anim_timer.start(33)
 
     # ── Public API ────────────────────────────────────────────────────────────
 
@@ -206,7 +226,130 @@ class PandaBedroomGL(QOpenGLWidget if OPENGL_AVAILABLE else QWidget):  # type: i
                 return p
         return None
 
-    # ── OpenGL lifecycle ──────────────────────────────────────────────────────
+    def walk_panda_to(self, x: float, z: float, callback=None) -> None:
+        """Walk the in-room panda character to world position (x, z).
+
+        The panda will smoothly move toward the target each animation tick.
+        ``callback`` is called (with no arguments) once the panda arrives.
+        """
+        self._panda_target_x = x
+        self._panda_target_z = z
+        self._panda_walk_callback = callback
+        self._panda_is_walking = True
+
+    # ── In-room panda animation ───────────────────────────────────────────────
+
+    def _tick_panda_walk(self) -> None:
+        """Advance the panda one step toward its walk target.  Called by QTimer."""
+        if not self._panda_is_walking:
+            return
+        dx = self._panda_target_x - self._panda_x
+        dz = self._panda_target_z - self._panda_z
+        dist = math.sqrt(dx * dx + dz * dz)
+        step = 0.06  # world units per tick
+        if dist <= step:
+            # Arrived
+            self._panda_x = self._panda_target_x
+            self._panda_z = self._panda_target_z
+            self._panda_is_walking = False
+            self._panda_walk_frame = 0.0
+            cb = self._panda_walk_callback
+            self._panda_walk_callback = None
+            if cb is not None:
+                try:
+                    cb()
+                except Exception as _cb_err:
+                    logger.debug("Panda walk callback error: %s", _cb_err)
+        else:
+            self._panda_x += dx / dist * step
+            self._panda_z += dz / dist * step
+            # Face direction of travel
+            self._panda_facing_y = math.degrees(math.atan2(dx, dz))
+            self._panda_walk_frame += 0.25
+        self.update()
+
+    def _draw_panda_in_room(self) -> None:
+        """Draw a simplified panda character standing at (_panda_x, 0, _panda_z)."""
+        _COL_PANDA_WHITE = (0.92, 0.92, 0.90)
+        _COL_PANDA_BLACK = (0.08, 0.06, 0.06)
+
+        glPushMatrix()
+        glTranslatef(self._panda_x, 0.0, self._panda_z)
+        glRotatef(self._panda_facing_y, 0.0, 1.0, 0.0)
+
+        # ── Body ──────────────────────────────────────────────────────────────
+        glPushMatrix()
+        glTranslatef(0.0, 0.38, 0.0)
+        glScalef(0.32, 0.38, 0.28)
+        glColor3f(*_COL_PANDA_WHITE)
+        self._draw_sphere_br(1.0, 16, 16)
+        glPopMatrix()
+
+        # ── Head ──────────────────────────────────────────────────────────────
+        glPushMatrix()
+        glTranslatef(0.0, 0.88, 0.08)
+        glColor3f(*_COL_PANDA_WHITE)
+        self._draw_sphere_br(0.22, 16, 16)
+
+        # Ears
+        for ex in (-0.14, 0.14):
+            glPushMatrix()
+            glTranslatef(ex, 0.18, -0.04)
+            glColor3f(*_COL_PANDA_BLACK)
+            self._draw_sphere_br(0.07, 10, 10)
+            glPopMatrix()
+
+        # Eye patches
+        for ex in (-0.08, 0.08):
+            glPushMatrix()
+            glTranslatef(ex, 0.04, 0.19)
+            glScalef(1.0, 0.9, 0.55)
+            glColor3f(*_COL_PANDA_BLACK)
+            self._draw_sphere_br(0.06, 10, 10)
+            glPopMatrix()
+
+        # Nose
+        glPushMatrix()
+        glTranslatef(0.0, -0.03, 0.21)
+        glColor3f(0.15, 0.10, 0.10)
+        self._draw_sphere_br(0.025, 8, 8)
+        glPopMatrix()
+
+        glPopMatrix()  # end head
+
+        # ── Arms ──────────────────────────────────────────────────────────────
+        for ax in (-0.30, 0.30):
+            glPushMatrix()
+            glTranslatef(ax, 0.44, 0.0)
+            glScalef(0.12, 0.26, 0.12)
+            glColor3f(*_COL_PANDA_BLACK)
+            self._draw_sphere_br(1.0, 10, 10)
+            glPopMatrix()
+
+        # ── Legs (with simple walk oscillation) ───────────────────────────────
+        swing_amp = 18.0 if self._panda_is_walking else 0.0
+        for side, lx in ((-1, -0.14), (1, 0.14)):
+            swing = swing_amp * math.sin(self._panda_walk_frame + side * math.pi)
+            glPushMatrix()
+            glTranslatef(lx, 0.15, 0.0)
+            glRotatef(swing, 1.0, 0.0, 0.0)
+            glPushMatrix()
+            glTranslatef(0.0, -0.14, 0.0)
+            glScalef(0.12, 0.28, 0.12)
+            glColor3f(*_COL_PANDA_BLACK)
+            self._draw_sphere_br(1.0, 10, 10)
+            glPopMatrix()
+            glPopMatrix()
+
+        glPopMatrix()  # end panda
+
+    def _draw_sphere_br(self, radius: float, slices: int, stacks: int) -> None:
+        """Draw a GLU sphere using the cached quadric (avoids per-call alloc overhead)."""
+        if self._glu_quadric is None:
+            # Lazy creation if called before _do_init_gl (shouldn't happen normally)
+            self._glu_quadric = gluNewQuadric()
+        gluSphere(self._glu_quadric, radius, slices, stacks)
+
 
     def initializeGL(self) -> None:
         try:
@@ -262,6 +405,10 @@ class PandaBedroomGL(QOpenGLWidget if OPENGL_AVAILABLE else QWidget):  # type: i
         glMaterialfv(GL_FRONT, GL_SPECULAR,  [0.40, 0.40, 0.40, 1.0])
         glMaterialf(GL_FRONT,  GL_SHININESS, 32.0)
 
+        # Create a reusable GLU quadric for all sphere/cylinder draws.
+        # This avoids the overhead of gluNewQuadric/gluDeleteQuadric per frame.
+        self._glu_quadric = gluNewQuadric()
+
         self._load_layout()
 
     def resizeGL(self, w: int, h: int) -> None:
@@ -293,6 +440,8 @@ class PandaBedroomGL(QOpenGLWidget if OPENGL_AVAILABLE else QWidget):  # type: i
 
             self._draw_room()
             self._draw_furniture()
+            # Draw in-room panda character (on top of floor, under hover boxes)
+            self._draw_panda_in_room()
         except Exception as _e:
             logger.debug("PandaBedroomGL paintGL error (frame skipped): %s", _e)
 

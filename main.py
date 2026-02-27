@@ -216,9 +216,9 @@ try:
         QLabel, QPushButton, QProgressBar, QTextEdit, QTabWidget,
         QFileDialog, QMessageBox, QStatusBar, QMenuBar, QMenu,
         QSplitter, QFrame, QComboBox, QGridLayout, QStackedWidget,
-        QScrollArea, QDockWidget, QToolBar, QInputDialog
+        QScrollArea, QDockWidget, QToolBar, QInputDialog, QGroupBox
     )
-    from PyQt6.QtCore import Qt, QTimer, pyqtSignal, QThread, QSize, QByteArray
+    from PyQt6.QtCore import Qt, QTimer, pyqtSignal, QThread, QSize, QByteArray, QObject, QEvent, QPoint
     from PyQt6.QtGui import QAction, QIcon, QFont, QPalette, QColor
 except ImportError as e:
     _err = str(e)
@@ -541,6 +541,68 @@ class DraggableTabWidget(QTabWidget):
         super().mouseReleaseEvent(event)
 
 
+class BloodSplatterLabel(QLabel):
+    """Temporary blood-splatter overlay that fades out after a click (Gore theme)."""
+
+    SPLATTERS = ["🩸💦🩸", "💉🩸💦", "🩸🔴🩸", "🔴💦🔴", "🩸🩸💉"]
+
+    def __init__(self, parent: 'QWidget', pos: 'QPoint') -> None:
+        super().__init__(parent)
+        import random as _r
+        self.setText(_r.choice(self.SPLATTERS))
+        self.setStyleSheet(
+            "QLabel { background: transparent; font-size: 26px; color: #cc0000; "
+            "border: none; padding: 0; }"
+        )
+        self.adjustSize()
+        # Centre on click point with a small random jitter
+        dx = _r.randint(-12, 12)
+        dy = _r.randint(-12, 12)
+        self.move(pos.x() - self.width() // 2 + dx,
+                  pos.y() - self.height() // 2 + dy)
+        self.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
+        self.show()
+        self.raise_()
+
+        # Fade-out animation
+        from PyQt6.QtWidgets import QGraphicsOpacityEffect
+        from PyQt6.QtCore import QPropertyAnimation, QEasingCurve
+        eff = QGraphicsOpacityEffect(self)
+        self.setGraphicsEffect(eff)
+        anim = QPropertyAnimation(eff, b"opacity", self)
+        anim.setDuration(900)
+        anim.setStartValue(1.0)
+        anim.setEndValue(0.0)
+        anim.setEasingCurve(QEasingCurve.Type.OutQuad)
+        anim.finished.connect(self.deleteLater)
+        anim.start()
+        self._anim = anim  # keep reference alive
+
+
+class GoreSplatterFilter(QObject):
+    """Application-wide event filter: shows BloodSplatterLabel on every button click.
+
+    Install with ``QApplication.instance().installEventFilter(instance)`` and
+    remove with ``QApplication.instance().removeEventFilter(instance)``.
+    """
+
+    def eventFilter(self, obj: 'QObject', event: 'QEvent') -> bool:
+        try:
+            from PyQt6.QtWidgets import QAbstractButton
+            from PyQt6.QtCore import QEvent as _QEv
+            if (event.type() == _QEv.Type.MouseButtonRelease
+                    and isinstance(obj, QAbstractButton)
+                    and obj.isEnabled()
+                    and hasattr(event, 'pos')):
+                win = obj.window()
+                if win is not None:
+                    pos = obj.mapTo(win, event.pos())
+                    BloodSplatterLabel(win, pos)
+        except Exception:
+            pass
+        return False  # never consume the event
+
+
 class WorkerThread(QThread):
     """Background worker thread for long-running operations."""
     
@@ -648,6 +710,7 @@ class TextureSorterMainWindow(QMainWindow):
         # Worker thread
         self.worker = None
         self._ai_training_thread = None     # background PyTorchTrainer QThread (prevent GC)
+        self._gore_splatter_filter = None   # GoreSplatterFilter instance (Gore theme only)
         
         # Drag-drop, translation, environment monitor
         self.drag_drop_handler = None
@@ -679,6 +742,11 @@ class TextureSorterMainWindow(QMainWindow):
         # Paths
         self.input_path = None
         self.output_path = None
+        # Path display labels — created as hidden stubs here so browse_input /
+        # browse_output can always call .setText() safely.  The home tab also
+        # embeds them in a visible Folder Picker section.
+        self.input_path_label = QLabel("(none)")
+        self.output_path_label = QLabel("(none)")
         
         # Tooltip manager (will be initialized later)
         self.tooltip_manager = None
@@ -812,6 +880,9 @@ class TextureSorterMainWindow(QMainWindow):
         self.tabs = DraggableTabWidget()
         self.tabs.setDocumentMode(True)
         self.tabs.tab_detached.connect(self.on_tab_detached)
+        # Hide the panda overlay when switching away from the Home tab so it
+        # never blocks functional UI on the Tools, Panda, or Settings tabs.
+        self.tabs.currentChanged.connect(self._on_main_tab_changed)
         content_layout.addWidget(self.tabs)
 
         # Create main tab (dashboard/welcome)
@@ -863,8 +934,8 @@ class TextureSorterMainWindow(QMainWindow):
         layout = QVBoxLayout(tab)
         layout.setContentsMargins(20, 20, 20, 20)
 
-        # Welcome message
-        welcome_label = QLabel("🐼 Panda Sorter Converter Upscaler")
+        # Welcome message — use APP_NAME from config so it stays in sync
+        welcome_label = QLabel(f"🐼 {APP_NAME}")
         welcome_label.setStyleSheet("font-size: 24pt; font-weight: bold;")
         welcome_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(welcome_label)
@@ -921,9 +992,51 @@ class TextureSorterMainWindow(QMainWindow):
             grid.addWidget(btn, i // cols, i % cols)
         layout.addWidget(grid_widget)
 
-        layout.addSpacing(16)
+        layout.addSpacing(10)
 
-        # ── Activity Log at bottom of home page ─────────────────────────────
+        # ── Folder Picker section ────────────────────────────────────────────
+        # The browse_input / browse_output methods need self.input_path_label and
+        # self.output_path_label to call .setText().  We assign them here so the
+        # labels shown on the home tab ARE those same objects.
+        folder_group = QGroupBox("📂 Folder Selection")
+        folder_group.setStyleSheet(
+            "QGroupBox { font-weight: bold; color: #aaaaaa; font-size: 11pt; "
+            "border: 1px solid #333; border-radius: 6px; margin-top: 6px; padding: 6px; }"
+            "QGroupBox::title { subcontrol-origin: margin; left: 10px; padding: 0 4px; }"
+        )
+        folder_grid = QGridLayout(folder_group)
+        folder_grid.setSpacing(6)
+
+        # Input folder row
+        folder_grid.addWidget(QLabel("📁 Input:"), 0, 0)
+        self.input_path_label.setStyleSheet(
+            "color: #aaaaaa; font-style: italic; padding: 4px 6px; "
+            "background: #1e1e2e; border: 1px solid #444; border-radius: 4px;"
+        )
+        self.input_path_label.setMinimumWidth(200)
+        folder_grid.addWidget(self.input_path_label, 0, 1)
+        input_browse_btn = QPushButton("Browse…")
+        input_browse_btn.setFixedWidth(90)
+        input_browse_btn.clicked.connect(self.browse_input)
+        folder_grid.addWidget(input_browse_btn, 0, 2)
+
+        # Output folder row
+        folder_grid.addWidget(QLabel("📂 Output:"), 1, 0)
+        self.output_path_label.setStyleSheet(
+            "color: #aaaaaa; font-style: italic; padding: 4px 6px; "
+            "background: #1e1e2e; border: 1px solid #444; border-radius: 4px;"
+        )
+        self.output_path_label.setMinimumWidth(200)
+        folder_grid.addWidget(self.output_path_label, 1, 1)
+        output_browse_btn = QPushButton("Browse…")
+        output_browse_btn.setFixedWidth(90)
+        output_browse_btn.clicked.connect(self.browse_output)
+        folder_grid.addWidget(output_browse_btn, 1, 2)
+
+        folder_grid.setColumnStretch(1, 1)
+        layout.addWidget(folder_group)
+
+        layout.addSpacing(6)
         from PyQt6.QtWidgets import QTextEdit as _QTE, QSplitter as _QSpl
         log_group = QGroupBox("📋 Activity Log")
         log_group.setStyleSheet(
@@ -946,7 +1059,7 @@ class TextureSorterMainWindow(QMainWindow):
             "border: none; border-radius: 3px; }"
         )
         clear_log_btn = QPushButton("🗑 Clear")
-        clear_log_btn.setFixedWidth(70)
+        clear_log_btn.setMinimumWidth(90)
         clear_log_btn.setFixedHeight(22)
         clear_log_btn.setStyleSheet(
             "QPushButton { background:#2a2a3e; color:#888; border:1px solid #444; "
@@ -1347,8 +1460,10 @@ class TextureSorterMainWindow(QMainWindow):
         # Store panel reference
         self.tool_panels[tool_id] = widget
         
-        # Create dock widget
+        # Create dock widget — objectName must be set so QMainWindow.saveState() can
+        # serialize the dock geometry without emitting "objectName not set" warnings.
         dock = QDockWidget(title, self)
+        dock.setObjectName(f"dock_{tool_id}")
         dock.setWidget(widget)
         dock.setFeatures(
             QDockWidget.DockWidgetFeature.DockWidgetMovable |
@@ -1392,9 +1507,9 @@ class TextureSorterMainWindow(QMainWindow):
             'quality':    "✓ Quality Checker",
             'upscaler':   "🔍 Image Upscaler",
             'lineart':    "✏️ Line Art Converter",
+            'converter':  "🔄 Format Converter",
             'rename':     "📝 Batch Rename",
             'repair':     "🔧 Image Repair",
-            'organizer':  "📁 Organizer",
         }
         for tool_id, label in _TOOL_LABELS.items():
             if tool_id in self.tool_panels:
@@ -1616,10 +1731,104 @@ class TextureSorterMainWindow(QMainWindow):
 
         except Exception as e:
             logger.error(f"Could not load Panda Home panel: {e}", exc_info=True)
-            label = QLabel("⚠️ 3D Panda Home not available\n\nRequires PyQt6 + OpenGL")
-            label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            panda_tabs.addTab(label, "🏠 Panda Home")
-            self._home_tab_index = panda_tabs.indexOf(label)
+            # ── 2D Panda Home fallback ────────────────────────────────────────
+            # When PyOpenGL is unavailable the 3D bedroom can't be created.
+            # Replace the bare error label with a styled interactive panel that
+            # shows the panda character and furniture shortcut buttons so the
+            # user can still open the Wardrobe, Inventory, Achievements and Shop.
+            home_2d = QWidget()
+            home_2d.setObjectName("pandaHome2DFallback")
+            home_2d.setStyleSheet(
+                "QWidget#pandaHome2DFallback { "
+                "background: qlineargradient(x1:0, y1:0, x2:0, y2:1, "
+                "stop:0 #0d0d1a, stop:0.6 #1a1a3e, stop:1 #14101e); }"
+            )
+            _h2d_layout = QVBoxLayout(home_2d)
+            _h2d_layout.setContentsMargins(20, 16, 20, 16)
+            _h2d_layout.setSpacing(12)
+
+            # Header
+            _h2d_title = QLabel("🏠  Panda's Home")
+            _h2d_title.setStyleSheet(
+                "color: #ffffff; font-size: 18px; font-weight: bold; "
+                "background: transparent;"
+            )
+            _h2d_title.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            _h2d_layout.addWidget(_h2d_title)
+
+            # Panda 2D widget embedded in the room
+            _panda_area = QWidget()
+            _panda_area.setObjectName("pandaHomeRoomArea")
+            _panda_area.setMinimumHeight(240)
+            _panda_area.setStyleSheet(
+                "QWidget#pandaHomeRoomArea { "
+                "background: qlineargradient(x1:0, y1:0, x2:0, y2:1, "
+                "stop:0 #1a1a3e, stop:0.8 #22223e, stop:1 #111122); "
+                "border-radius: 10px; border: 1px solid #333; }"
+            )
+            _room_vbox = QVBoxLayout(_panda_area)
+            _room_vbox.setContentsMargins(0, 0, 0, 0)
+            # Embed a fresh PandaWidget2D instance (independent of the overlay)
+            try:
+                _panda_char = getattr(self, 'panda_widget', None)
+                _panda_char = getattr(_panda_char, 'panda', None)
+                from ui.panda_widget_2d import PandaWidget2D as _PW2DHome
+                _bedroom_panda = _PW2DHome(panda_character=_panda_char, parent=_panda_area)
+                _bedroom_panda.setMinimumHeight(200)
+                _room_vbox.addWidget(_bedroom_panda)
+                self._bedroom_panda_2d = _bedroom_panda
+            except Exception as _pw:
+                logger.debug(f"2D panda in home fallback: {_pw}")
+                _room_vbox.addStretch()
+            _h2d_layout.addWidget(_panda_area, 1)
+
+            # Furniture shortcut buttons grid
+            _furn_label = QLabel("✨ Visit a room")
+            _furn_label.setStyleSheet(
+                "color: #aaaacc; font-size: 11px; background: transparent;"
+            )
+            _furn_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            _h2d_layout.addWidget(_furn_label)
+
+            _btn_row = QWidget()
+            _btn_row.setStyleSheet("background: transparent;")
+            _btn_grid = QGridLayout(_btn_row)
+            _btn_grid.setContentsMargins(0, 0, 0, 0)
+            _btn_grid.setSpacing(8)
+            _FURN_BTNS = [
+                ("👗\nWardrobe",    "wardrobe"),
+                ("🎒\nInventory",   "backpack"),
+                ("🏆\nTrophies",    "trophy_stand"),
+                ("🍎\nFood & Shop", "fridge"),
+                ("🧸\nToy Box",     "toy_box"),
+                ("🚪\nGo Outside",  "bedroom_door"),
+            ]
+            _furn_style = (
+                "QPushButton { background: #2a2a4e; color: #ccccff; "
+                "border: 1px solid #444; border-radius: 8px; "
+                "font-size: 13px; padding: 8px 4px; min-width: 80px; min-height: 64px; }"
+                "QPushButton:hover { background: #3a3a6e; color: #ffffff; border-color: #6666aa; }"
+                "QPushButton:pressed { background: #4a4a8e; }"
+            )
+            for _bi, (_blabel, _bfid) in enumerate(_FURN_BTNS):
+                _fbtn = QPushButton(_blabel)
+                _fbtn.setStyleSheet(_furn_style)
+                # Capture loop variable in default arg
+                _fbtn.clicked.connect(
+                    lambda _checked=False, _fid=_bfid: self._on_bedroom_furniture_clicked(_fid)
+                )
+                _btn_grid.addWidget(_fbtn, _bi // 3, _bi % 3)
+            _h2d_layout.addWidget(_btn_row)
+
+            panda_tabs.addTab(home_2d, "🏠 Panda Home")
+            self._home_tab_index = panda_tabs.indexOf(home_2d)
+            # Expose refs needed by the furniture-click handler
+            self._bedroom_widget = None
+            self._home_stack = None
+            self._home_back_bar = None
+            self._home_back_btn = None
+            self._home_sub_label = None
+            self._home_stack_owned = []
 
         # 3. Inventory + Widgets — built but NOT added as a tab.
         #    Shown via Panda Home when panda clicks the backpack in the bedroom.
@@ -1773,8 +1982,24 @@ class TextureSorterMainWindow(QMainWindow):
             logger.info("✅ Adventure/Dungeon panel added to panda tab")
         except Exception as e:
             logger.warning(f"Could not load dungeon panel: {e}")
-            label = QLabel("⚔️ Adventure Mode\n\nDungeon exploration coming soon!\nInstall PyQt6 to enable.")
+            from ui.dungeon_graphics_view import PYQT_AVAILABLE as _DUNGEON_QT
+            if not _DUNGEON_QT:
+                _err_msg = (
+                    "⚔️ Adventure Mode\n\n"
+                    "Requires PyQt6 to be installed.\n\n"
+                    "Install with:\n"
+                    "    pip install PyQt6\n\n"
+                    "Then restart the application."
+                )
+            else:
+                _err_msg = (
+                    f"⚔️ Adventure Mode\n\n"
+                    f"Failed to load dungeon panel.\n"
+                    f"{type(e).__name__}: {e}"
+                )
+            label = QLabel(_err_msg)
             label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            label.setWordWrap(True)
             panda_tabs.addTab(label, "⚔️ Adventure")
 
         # 9. Quests Tab
@@ -2021,7 +2246,7 @@ class TextureSorterMainWindow(QMainWindow):
             label.setAlignment(Qt.AlignmentFlag.AlignCenter)
             layout.addWidget(label)
         
-        self.tabs.addTab(tab, "Settings")
+        self.tabs.addTab(tab, "⚙️ Settings")
     
     def setup_menubar(self):
         """Setup menu bar."""
@@ -2099,6 +2324,13 @@ class TextureSorterMainWindow(QMainWindow):
         # ── Help menu ────────────────────────────────────────────────────────
         help_menu = menubar.addMenu("&Help")
 
+        help_action = QAction("&Help / Documentation", self)
+        help_action.setShortcut("F1")
+        help_action.triggered.connect(self.show_help)
+        help_menu.addAction(help_action)
+
+        help_menu.addSeparator()
+
         about_action = QAction("&About", self)
         about_action.triggered.connect(self.show_about)
         help_menu.addAction(about_action)
@@ -2130,9 +2362,27 @@ class TextureSorterMainWindow(QMainWindow):
             self._coin_label = None
             self._panda_mood_label = None
     
-    def apply_theme(self):
-        """Apply theme stylesheet based on config."""
-        theme = config.get('ui', 'theme', default='dark')
+    def apply_theme(self, theme_name: str = None):
+        """Apply theme stylesheet based on config.
+
+        Args:
+            theme_name: Optional theme name override.  When provided the name is
+                        saved to config before applying so it persists.  When
+                        omitted (normal case) the value already stored in config
+                        is used.
+        """
+        if theme_name is not None:
+            config.set('ui', 'theme', value=theme_name)
+        # Normalise: map combo-box display names → internal lowercase keys
+        _RAW = config.get('ui', 'theme', default='dark')
+        _DISPLAY_MAP = {
+            'dark': 'dark', 'light': 'light', 'nord': 'nord',
+            'dracula': 'dracula', 'solarized dark': 'solarized dark',
+            'solarized_dark': 'solarized dark',
+            'forest': 'forest', 'ocean': 'ocean', 'sunset': 'sunset',
+            'cyberpunk': 'cyberpunk', 'gore': 'gore', 'goth': 'goth',
+        }
+        theme = _DISPLAY_MAP.get(_RAW.lower().strip(), _RAW.lower().strip())
         accent = config.get('ui', 'accent_color', default='#0d7377')
         
         # Calculate hover and pressed colors
@@ -2341,107 +2591,82 @@ class TextureSorterMainWindow(QMainWindow):
             }}
             """
         elif theme == 'dracula':
+            # 🧛 Vampiric Dracula — crimson fangs, deep purple-black, blood-drip accents
             stylesheet = f"""
-            QMainWindow {{
-                background-color: #282a36;
-            }}
+            QMainWindow {{ background-color: #1a0a1e; }}
             QWidget {{
-                background-color: #282a36;
+                background-color: #1a0a1e;
                 color: #f8f8f2;
-                font-family: 'Segoe UI', Arial, sans-serif;
+                font-family: 'Palatino Linotype', 'Georgia', serif;
             }}
             QPushButton {{
                 background-color: {accent};
                 color: #f8f8f2;
-                border: none;
+                border: 2px solid #8b0000;
                 padding: 8px 16px;
-                border-radius: 4px;
+                border-radius: 0px 0px 8px 8px;
                 font-weight: bold;
+                font-family: 'Palatino Linotype', 'Georgia', serif;
             }}
             QPushButton:hover {{
                 background-color: {hover_color.name()};
+                border-color: #ff2244;
+                color: #ff9999;
             }}
-            QPushButton:pressed {{
-                background-color: {pressed_color.name()};
-            }}
-            QPushButton:disabled {{
-                background-color: #44475a;
-                color: #6272a4;
-            }}
-            QLabel {{
-                color: #f8f8f2;
-                background-color: transparent;
-            }}
-            QTabWidget::pane {{
-                border: 1px solid #44475a;
-                background-color: #44475a;
-            }}
-            QTabBar::tab {{
-                background-color: #383a4a;
-                color: #f8f8f2;
-                padding: 8px 20px;
-                border: 1px solid #44475a;
-                border-bottom: none;
-            }}
-            QTabBar::tab:selected {{
-                background-color: {accent};
-                color: #f8f8f2;
-            }}
-            QTabBar::tab:hover {{
-                background-color: #44475a;
-            }}
-            QMenuBar {{
-                background-color: #383a4a;
-                color: #f8f8f2;
-                border-bottom: 1px solid #44475a;
-            }}
-            QMenuBar::item:selected {{
-                background-color: {accent};
-            }}
-            QMenu {{
-                background-color: #383a4a;
-                color: #f8f8f2;
-                border: 1px solid #44475a;
-            }}
-            QMenu::item:selected {{
-                background-color: {accent};
-            }}
-            QProgressBar {{
-                border: 1px solid #44475a;
-                border-radius: 3px;
-                text-align: center;
-                background-color: #383a4a;
-                color: #f8f8f2;
-            }}
-            QProgressBar::chunk {{
-                background-color: {accent};
-            }}
-            QFrame {{
-                background-color: #383a4a;
-                border: 1px solid #44475a;
+            QPushButton:pressed {{ background-color: {pressed_color.name()}; border-color: #cc0022; }}
+            QPushButton:disabled {{ background-color: #2a0a2e; color: #6272a4; border-color: #44174a; }}
+            QLabel {{ color: #f8f8f2; background-color: transparent; }}
+            QGroupBox {{
+                color: #bd93f9;
+                border: 2px solid #8b0000;
                 border-radius: 4px;
+                margin-top: 8px;
+                font-weight: bold;
             }}
-            QTextEdit {{
-                background-color: #383a4a;
+            QGroupBox::title {{ color: #ff7eb3; subcontrol-position: top left; padding: 2px 6px; }}
+            QTabWidget::pane {{ border: 2px solid #8b0000; background-color: #22042a; }}
+            QTabBar::tab {{
+                background-color: #2a0a30;
+                color: #bd93f9;
+                padding: 8px 20px;
+                border: 2px solid #8b0000;
+                border-bottom: none;
+                border-radius: 6px 6px 0px 0px;
+            }}
+            QTabBar::tab:selected {{ background-color: #8b0000; color: #f8f8f2; border-color: #cc0022; }}
+            QTabBar::tab:hover {{ background-color: #3a0a40; color: #ff9999; }}
+            QMenuBar {{ background-color: #2a0a30; color: #f8f8f2; border-bottom: 2px solid #8b0000; }}
+            QMenuBar::item:selected {{ background-color: #8b0000; }}
+            QMenu {{ background-color: #2a0a30; color: #f8f8f2; border: 2px solid #8b0000; }}
+            QMenu::item:selected {{ background-color: #8b0000; color: #f8f8f2; }}
+            QProgressBar {{
+                border: 2px solid #8b0000;
+                border-radius: 0px;
+                text-align: center;
+                background-color: #2a0a30;
                 color: #f8f8f2;
-                border: 1px solid #44475a;
             }}
-            QScrollBar:vertical {{
-                background-color: #383a4a;
-                width: 12px;
-            }}
-            QScrollBar::handle:vertical {{
-                background-color: #44475a;
-                border-radius: 6px;
-            }}
-            QDockWidget {{
-                color: #f8f8f2;
-                titlebar-close-icon: none;
-            }}
-            QDockWidget::title {{
-                background-color: #44475a;
-                padding: 4px;
-            }}
+            QProgressBar::chunk {{ background-color: #cc0022; }}
+            QFrame {{ background-color: #22042a; border: 2px solid #8b0000; border-radius: 4px; }}
+            QTextEdit {{ background-color: #22042a; color: #f8f8f2; border: 2px solid #8b0000; font-family: 'Palatino Linotype', 'Georgia', serif; }}
+            QLineEdit {{ background-color: #2a0a30; color: #f8f8f2; border: 2px solid #8b0000; border-radius: 3px; padding: 4px 6px; }}
+            QLineEdit:focus {{ border: 2px solid #cc0022; }}
+            QComboBox {{ background-color: #2a0a30; color: #f8f8f2; border: 2px solid #8b0000; border-radius: 0px 0px 6px 6px; padding: 4px 6px; min-height: 22px; }}
+            QComboBox:hover {{ border-color: #cc0022; }}
+            QComboBox QAbstractItemView {{ background-color: #2a0a30; color: #f8f8f2; border: 2px solid #8b0000; selection-background-color: #8b0000; }}
+            QCheckBox {{ color: #f8f8f2; spacing: 6px; }}
+            QCheckBox::indicator {{ width: 14px; height: 14px; border: 2px solid #8b0000; border-radius: 2px; background: #2a0a30; }}
+            QCheckBox::indicator:checked {{ background: #8b0000; border-color: #cc0022; }}
+            QScrollBar:vertical {{ background-color: #22042a; width: 12px; }}
+            QScrollBar::handle:vertical {{ background-color: #8b0000; border-radius: 6px; }}
+            QScrollBar::handle:vertical:hover {{ background-color: #cc0022; }}
+            QSlider::groove:horizontal {{ height: 6px; background: #2a0a30; border: 1px solid #8b0000; border-radius: 3px; }}
+            QSlider::handle:horizontal {{ background: #8b0000; border: 2px solid #cc0022; width: 16px; height: 16px; border-radius: 8px; margin: -5px 0; }}
+            QSlider::sub-page:horizontal {{ background: #8b0000; border-radius: 3px; }}
+            QSpinBox, QDoubleSpinBox {{ background-color: #2a0a30; color: #f8f8f2; border: 2px solid #8b0000; border-radius: 3px; padding: 3px 5px; }}
+            QDockWidget {{ color: #f8f8f2; titlebar-close-icon: none; }}
+            QDockWidget::title {{ background-color: #8b0000; padding: 4px; color: #f8f8f2; }}
+            QStatusBar {{ background-color: #22042a; color: #bd93f9; border-top: 2px solid #8b0000; }}
             """
         elif theme in ('solarized dark', 'solarized_dark'):
             stylesheet = f"""
@@ -2494,28 +2719,47 @@ class TextureSorterMainWindow(QMainWindow):
             QScrollBar::handle:vertical {{ background-color: #4a7a4a; border-radius: 6px; }}
             """
         elif theme in ('ocean', 'ocean_blue'):
+            # 🌊 Ocean — deep-sea blues, coral accents, wave-styled borders
             stylesheet = f"""
-            QMainWindow {{ background-color: #0a1628; }}
-            QWidget {{ background-color: #0a1628; color: #b3d9f7; font-family: 'Segoe UI', Arial, sans-serif; }}
-            QPushButton {{ background-color: {accent}; color: #ffffff; border: none; padding: 8px 16px; border-radius: 4px; font-weight: bold; }}
-            QPushButton:hover {{ background-color: {hover_color.name()}; }}
-            QPushButton:pressed {{ background-color: {pressed_color.name()}; }}
-            QPushButton:disabled {{ background-color: #0d2240; color: #3a6080; }}
-            QLabel {{ color: #b3d9f7; background-color: transparent; }}
-            QTabWidget::pane {{ border: 1px solid #1a4060; background-color: #0d1e38; }}
-            QTabBar::tab {{ background-color: #0d1e38; color: #80bcd8; padding: 8px 20px; border: 1px solid #1a4060; border-bottom: none; }}
-            QTabBar::tab:selected {{ background-color: {accent}; color: #ffffff; }}
-            QTabBar::tab:hover {{ background-color: #152840; }}
-            QMenuBar {{ background-color: #0d1e38; color: #b3d9f7; border-bottom: 1px solid #1a4060; }}
-            QMenuBar::item:selected {{ background-color: {accent}; color: #ffffff; }}
-            QMenu {{ background-color: #0d1e38; color: #b3d9f7; border: 1px solid #1a4060; }}
-            QMenu::item:selected {{ background-color: {accent}; color: #ffffff; }}
-            QProgressBar {{ border: 1px solid #1a4060; border-radius: 3px; text-align: center; background-color: #0d1e38; color: #b3d9f7; }}
-            QProgressBar::chunk {{ background-color: {accent}; }}
-            QFrame {{ background-color: #0d1e38; border: 1px solid #1a4060; border-radius: 4px; }}
-            QTextEdit {{ background-color: #0a1628; color: #b3d9f7; border: 1px solid #1a4060; }}
-            QScrollBar:vertical {{ background-color: #0d1e38; width: 12px; }}
-            QScrollBar::handle:vertical {{ background-color: #2a6090; border-radius: 6px; }}
+            QMainWindow {{ background-color: #020e1c; }}
+            QWidget {{ background-color: #020e1c; color: #b3e5fc; font-family: 'Segoe UI', Arial, sans-serif; }}
+            QPushButton {{ background-color: {accent}; color: #ffffff; border: 2px solid #00b4d8; padding: 8px 16px; border-radius: 16px 4px 16px 4px; font-weight: bold; }}
+            QPushButton:hover {{ background-color: {hover_color.name()}; border-color: #ff6b6b; color: #ffe0e0; }}
+            QPushButton:pressed {{ background-color: {pressed_color.name()}; border-color: #00b4d8; }}
+            QPushButton:disabled {{ background-color: #052040; color: #3a6080; border-color: #0a3050; }}
+            QLabel {{ color: #b3e5fc; background-color: transparent; }}
+            QGroupBox {{ color: #4dd0e1; border: 2px solid #00b4d8; border-radius: 8px; margin-top: 8px; font-weight: bold; }}
+            QGroupBox::title {{ color: #ff6b6b; subcontrol-position: top left; padding: 2px 6px; }}
+            QTabWidget::pane {{ border: 2px solid #00b4d8; background-color: #031426; }}
+            QTabBar::tab {{ background-color: #052040; color: #80deea; padding: 8px 20px; border: 2px solid #00b4d8; border-bottom: none; border-radius: 10px 10px 0px 0px; }}
+            QTabBar::tab:selected {{ background-color: #00b4d8; color: #ffffff; border-color: #00e5ff; }}
+            QTabBar::tab:hover {{ background-color: #063050; color: #e0f7fa; }}
+            QMenuBar {{ background-color: #031426; color: #b3e5fc; border-bottom: 2px solid #00b4d8; }}
+            QMenuBar::item:selected {{ background-color: #00b4d8; color: #ffffff; }}
+            QMenu {{ background-color: #031426; color: #b3e5fc; border: 2px solid #00b4d8; }}
+            QMenu::item:selected {{ background-color: #00b4d8; color: #ffffff; }}
+            QProgressBar {{ border: 2px solid #00b4d8; border-radius: 8px; text-align: center; background-color: #031426; color: #b3e5fc; }}
+            QProgressBar::chunk {{ background-color: #00b4d8; border-radius: 6px; }}
+            QFrame {{ background-color: #031426; border: 2px solid #00b4d8; border-radius: 8px; }}
+            QTextEdit {{ background-color: #020e1c; color: #b3e5fc; border: 2px solid #00b4d8; border-radius: 4px; }}
+            QLineEdit {{ background-color: #052040; color: #b3e5fc; border: 2px solid #00b4d8; border-radius: 4px; padding: 4px 6px; }}
+            QLineEdit:focus {{ border-color: #00e5ff; }}
+            QComboBox {{ background-color: #052040; color: #b3e5fc; border: 2px solid #00b4d8; border-radius: 12px 4px 12px 4px; padding: 4px 6px; min-height: 22px; }}
+            QComboBox:hover {{ border-color: #ff6b6b; }}
+            QComboBox QAbstractItemView {{ background-color: #052040; color: #b3e5fc; border: 2px solid #00b4d8; selection-background-color: #00b4d8; }}
+            QCheckBox {{ color: #b3e5fc; spacing: 6px; }}
+            QCheckBox::indicator {{ width: 14px; height: 14px; border: 2px solid #00b4d8; border-radius: 7px; background: #052040; }}
+            QCheckBox::indicator:checked {{ background: #00b4d8; border-color: #00e5ff; }}
+            QScrollBar:vertical {{ background-color: #031426; width: 12px; }}
+            QScrollBar::handle:vertical {{ background-color: #00b4d8; border-radius: 6px; }}
+            QScrollBar::handle:vertical:hover {{ background-color: #00e5ff; }}
+            QSlider::groove:horizontal {{ height: 6px; background: #052040; border: 1px solid #00b4d8; border-radius: 3px; }}
+            QSlider::handle:horizontal {{ background: #00b4d8; border: 2px solid #00e5ff; width: 16px; height: 16px; border-radius: 8px; margin: -5px 0; }}
+            QSlider::sub-page:horizontal {{ background: #00b4d8; border-radius: 3px; }}
+            QSpinBox, QDoubleSpinBox {{ background-color: #052040; color: #b3e5fc; border: 2px solid #00b4d8; border-radius: 3px; padding: 3px 5px; }}
+            QDockWidget {{ color: #b3e5fc; titlebar-close-icon: none; }}
+            QDockWidget::title {{ background-color: #00b4d8; padding: 4px; color: #ffffff; }}
+            QStatusBar {{ background-color: #031426; color: #4dd0e1; border-top: 2px solid #00b4d8; }}
             """
         elif theme in ('sunset', 'sunset_warm'):
             stylesheet = f"""
@@ -2565,6 +2809,166 @@ class TextureSorterMainWindow(QMainWindow):
             QScrollBar:vertical {{ background-color: #0d0d1a; width: 12px; }}
             QScrollBar::handle:vertical {{ background-color: #00ffcc; border-radius: 2px; }}
             """
+        elif theme in ('gore',):
+            # 💀 Gore — blood-soaked, dripping, organ-coloured UI with click splatter
+            stylesheet = f"""
+            QMainWindow {{ background-color: #0d0000; }}
+            QWidget {{
+                background-color: #0d0000;
+                color: #ffaaaa;
+                font-family: 'Segoe UI', Arial, sans-serif;
+            }}
+            QPushButton {{
+                background-color: {accent};
+                color: #ffdddd;
+                border: 3px solid #8b0000;
+                padding: 8px 16px;
+                border-radius: 4px 4px 0px 0px;
+                font-weight: bold;
+                border-bottom: 6px solid #660000;
+            }}
+            QPushButton:hover {{
+                background-color: {hover_color.name()};
+                border-color: #ff0000;
+                border-bottom: 6px solid #cc0000;
+                color: #ffffff;
+            }}
+            QPushButton:pressed {{ background-color: {pressed_color.name()}; border-color: #440000; }}
+            QPushButton:disabled {{ background-color: #2a0000; color: #663333; border-color: #3a0000; }}
+            QLabel {{ color: #ffaaaa; background-color: transparent; }}
+            QGroupBox {{
+                color: #ff4444;
+                border: 3px solid #8b0000;
+                border-radius: 2px;
+                margin-top: 8px;
+                font-weight: bold;
+            }}
+            QGroupBox::title {{ color: #ff2222; subcontrol-position: top left; padding: 2px 6px; }}
+            QTabWidget::pane {{ border: 3px solid #8b0000; background-color: #140000; }}
+            QTabBar::tab {{
+                background-color: #1a0000;
+                color: #ff6666;
+                padding: 8px 20px;
+                border: 2px solid #8b0000;
+                border-bottom: none;
+                border-radius: 4px 4px 0px 0px;
+            }}
+            QTabBar::tab:selected {{ background-color: #8b0000; color: #ffdddd; border-color: #cc0000; }}
+            QTabBar::tab:hover {{ background-color: #260000; color: #ff9999; }}
+            QMenuBar {{ background-color: #140000; color: #ffaaaa; border-bottom: 3px solid #8b0000; }}
+            QMenuBar::item:selected {{ background-color: #8b0000; color: #ffffff; }}
+            QMenu {{ background-color: #140000; color: #ffaaaa; border: 3px solid #8b0000; }}
+            QMenu::item:selected {{ background-color: #8b0000; color: #ffffff; }}
+            QProgressBar {{
+                border: 3px solid #8b0000;
+                border-radius: 0px;
+                text-align: center;
+                background-color: #140000;
+                color: #ffaaaa;
+            }}
+            QProgressBar::chunk {{ background-color: #cc0000; }}
+            QFrame {{ background-color: #140000; border: 3px solid #8b0000; border-radius: 2px; }}
+            QTextEdit {{ background-color: #0d0000; color: #ffaaaa; border: 3px solid #8b0000; }}
+            QLineEdit {{ background-color: #1a0000; color: #ffaaaa; border: 3px solid #8b0000; border-radius: 2px; padding: 4px 6px; }}
+            QLineEdit:focus {{ border-color: #ff0000; }}
+            QComboBox {{ background-color: #1a0000; color: #ffaaaa; border: 3px solid #8b0000; border-radius: 2px; padding: 4px 6px; min-height: 22px; }}
+            QComboBox:hover {{ border-color: #ff0000; }}
+            QComboBox QAbstractItemView {{ background-color: #1a0000; color: #ffaaaa; border: 2px solid #8b0000; selection-background-color: #8b0000; }}
+            QCheckBox {{ color: #ffaaaa; spacing: 6px; }}
+            QCheckBox::indicator {{ width: 14px; height: 14px; border: 3px solid #8b0000; border-radius: 2px; background: #1a0000; }}
+            QCheckBox::indicator:checked {{ background: #8b0000; border-color: #ff0000; }}
+            QScrollBar:vertical {{ background-color: #140000; width: 12px; }}
+            QScrollBar::handle:vertical {{ background-color: #8b0000; border-radius: 0px; }}
+            QScrollBar::handle:vertical:hover {{ background-color: #cc0000; }}
+            QSlider::groove:horizontal {{ height: 6px; background: #1a0000; border: 2px solid #8b0000; border-radius: 2px; }}
+            QSlider::handle:horizontal {{ background: #8b0000; border: 2px solid #cc0000; width: 16px; height: 16px; border-radius: 2px; margin: -5px 0; }}
+            QSlider::sub-page:horizontal {{ background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #4d0000, stop:1 #cc0000); border-radius: 2px; }}
+            QSpinBox, QDoubleSpinBox {{ background-color: #1a0000; color: #ffaaaa; border: 3px solid #8b0000; border-radius: 2px; padding: 3px 5px; }}
+            QDockWidget {{ color: #ffaaaa; titlebar-close-icon: none; }}
+            QDockWidget::title {{ background-color: #8b0000; padding: 4px; color: #ffdddd; }}
+            QStatusBar {{ background-color: #140000; color: #ff4444; border-top: 3px solid #8b0000; }}
+            """
+        elif theme in ('goth',):
+            # 💀 Goth — pure black, dark purple/grey, gothic grunge aesthetic
+            stylesheet = f"""
+            QMainWindow {{ background-color: #000000; }}
+            QWidget {{
+                background-color: #000000;
+                color: #c0b0d0;
+                font-family: 'Palatino Linotype', 'Georgia', 'Times New Roman', serif;
+            }}
+            QPushButton {{
+                background-color: {accent};
+                color: #e0d0f0;
+                border: 2px solid #4a2060;
+                padding: 8px 16px;
+                border-radius: 0px;
+                font-weight: bold;
+                font-family: 'Palatino Linotype', 'Georgia', serif;
+            }}
+            QPushButton:hover {{
+                background-color: {hover_color.name()};
+                border-color: #8844aa;
+                color: #ffffff;
+            }}
+            QPushButton:pressed {{ background-color: {pressed_color.name()}; border-color: #220033; }}
+            QPushButton:disabled {{ background-color: #0d0d0d; color: #443355; border-color: #221133; }}
+            QLabel {{ color: #c0b0d0; background-color: transparent; }}
+            QGroupBox {{
+                color: #9966bb;
+                border: 2px solid #4a2060;
+                border-radius: 0px;
+                margin-top: 8px;
+                font-weight: bold;
+            }}
+            QGroupBox::title {{ color: #bb88dd; subcontrol-position: top left; padding: 2px 6px; }}
+            QTabWidget::pane {{
+                border: 2px solid #4a2060;
+                background-color: #050005;
+            }}
+            QTabBar::tab {{
+                background-color: #0a000f;
+                color: #9966bb;
+                padding: 8px 20px;
+                border: 2px solid #4a2060;
+                border-bottom: none;
+                border-radius: 0px;
+            }}
+            QTabBar::tab:selected {{ background-color: #1a0028; color: #e0d0f0; border-color: #8844aa; }}
+            QTabBar::tab:hover {{ background-color: #120018; color: #cc99ee; }}
+            QMenuBar {{ background-color: #050005; color: #c0b0d0; border-bottom: 2px solid #4a2060; }}
+            QMenuBar::item:selected {{ background-color: #1a0028; color: #e0d0f0; }}
+            QMenu {{ background-color: #050005; color: #c0b0d0; border: 2px solid #4a2060; }}
+            QMenu::item:selected {{ background-color: #1a0028; color: #e0d0f0; }}
+            QProgressBar {{
+                border: 2px solid #4a2060;
+                border-radius: 0px;
+                text-align: center;
+                background-color: #0a000f;
+                color: #c0b0d0;
+            }}
+            QProgressBar::chunk {{ background-color: #4a2060; }}
+            QFrame {{ background-color: #050005; border: 2px solid #4a2060; border-radius: 0px; }}
+            QTextEdit {{ background-color: #000000; color: #c0b0d0; border: 2px solid #4a2060; font-family: 'Palatino Linotype', 'Georgia', serif; }}
+            QLineEdit {{ background-color: #0a000f; color: #c0b0d0; border: 2px solid #4a2060; border-radius: 0px; padding: 4px 6px; }}
+            QLineEdit:focus {{ border-color: #8844aa; }}
+            QComboBox {{ background-color: #0a000f; color: #c0b0d0; border: 2px solid #4a2060; border-radius: 0px; padding: 4px 6px; min-height: 22px; }}
+            QComboBox:hover {{ border-color: #8844aa; }}
+            QComboBox QAbstractItemView {{ background-color: #0a000f; color: #c0b0d0; border: 2px solid #4a2060; selection-background-color: #1a0028; }}
+            QCheckBox {{ color: #c0b0d0; spacing: 6px; }}
+            QCheckBox::indicator {{ width: 14px; height: 14px; border: 2px solid #4a2060; border-radius: 0px; background: #0a000f; }}
+            QCheckBox::indicator:checked {{ background: #4a2060; border-color: #8844aa; }}
+            QScrollBar:vertical {{ background-color: #050005; width: 12px; }}
+            QScrollBar::handle:vertical {{ background-color: #4a2060; border-radius: 0px; }}
+            QScrollBar::handle:vertical:hover {{ background-color: #6a3090; }}
+            QSlider::groove:horizontal {{ height: 6px; background: #0a000f; border: 1px solid #4a2060; border-radius: 0px; }}
+            QSlider::handle:horizontal {{ background: #4a2060; border: 2px solid #8844aa; width: 16px; height: 16px; border-radius: 0px; margin: -5px 0; }}
+            QSlider::sub-page:horizontal {{ background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #220033, stop:1 #6a3090); border-radius: 0px; }}
+            QSpinBox, QDoubleSpinBox {{ background-color: #0a000f; color: #c0b0d0; border: 2px solid #4a2060; border-radius: 0px; padding: 3px 5px; }}
+            QDockWidget {{ color: #c0b0d0; titlebar-close-icon: none; }}
+            QDockWidget::title {{ background-color: #1a0028; padding: 4px; color: #9966bb; }}
+            QStatusBar {{ background-color: #050005; color: #9966bb; border-top: 2px solid #4a2060; }}
+            """
         else:  # Dark theme (default)
             stylesheet = f"""
             QMainWindow {{
@@ -2592,6 +2996,99 @@ class TextureSorterMainWindow(QMainWindow):
             QPushButton:disabled {{
                 background-color: #555555;
                 color: #999999;
+            }}
+            QLineEdit {{
+                background-color: #2a2a2a;
+                color: #ffffff;
+                border: 1px solid #555555;
+                border-radius: 3px;
+                padding: 4px 6px;
+                selection-background-color: {accent};
+            }}
+            QLineEdit:focus {{
+                border: 2px solid {accent};
+            }}
+            QLineEdit:read-only {{
+                background-color: #232323;
+                color: #aaaaaa;
+            }}
+            QComboBox {{
+                background-color: #2a2a2a;
+                color: #ffffff;
+                border: 1px solid #555555;
+                border-radius: 3px;
+                padding: 4px 6px;
+                min-height: 22px;
+            }}
+            QComboBox:hover {{
+                border: 1px solid {accent};
+            }}
+            QComboBox::drop-down {{
+                border: none;
+                width: 20px;
+            }}
+            QComboBox::down-arrow {{
+                image: none;
+                border-left: 4px solid transparent;
+                border-right: 4px solid transparent;
+                border-top: 6px solid #aaaaaa;
+                width: 0;
+                height: 0;
+                margin-right: 4px;
+            }}
+            QComboBox QAbstractItemView {{
+                background-color: #2a2a2a;
+                color: #ffffff;
+                border: 1px solid #555555;
+                selection-background-color: {accent};
+            }}
+            QCheckBox {{
+                spacing: 6px;
+                color: #e0e0e0;
+            }}
+            QCheckBox::indicator {{
+                width: 15px;
+                height: 15px;
+                border: 2px solid #666666;
+                border-radius: 3px;
+                background: #2a2a2a;
+            }}
+            QCheckBox::indicator:checked {{
+                background: {accent};
+                border: 2px solid {accent};
+            }}
+            QCheckBox::indicator:hover {{
+                border: 2px solid {hover_color.name()};
+            }}
+            QSpinBox, QDoubleSpinBox {{
+                background-color: #2a2a2a;
+                color: #ffffff;
+                border: 1px solid #555555;
+                border-radius: 3px;
+                padding: 3px 5px;
+            }}
+            QSpinBox:focus, QDoubleSpinBox:focus {{
+                border: 2px solid {accent};
+            }}
+            QSlider::groove:horizontal {{
+                height: 6px;
+                background: #333333;
+                border-radius: 3px;
+            }}
+            QSlider::handle:horizontal {{
+                background: {accent};
+                border: 2px solid {hover_color.name()};
+                width: 16px;
+                height: 16px;
+                border-radius: 9px;
+                margin: -5px 0;
+            }}
+            QSlider::handle:horizontal:hover {{
+                background: {hover_color.name()};
+            }}
+            QSlider::sub-page:horizontal {{
+                background: {accent};
+                border-radius: 3px;
             }}
             QLabel {{
                 color: #ffffff;
@@ -2653,9 +3150,17 @@ class TextureSorterMainWindow(QMainWindow):
             """
         self.setStyleSheet(stylesheet)
         self.apply_cursor()
+        # Apply pointer cursor to interactive widgets application-wide after
+        # the stylesheet is applied.  Qt6 QSS does not support 'cursor: pointer'
+        # so we use an installEventFilter-based approach via the PointingCursorFilter
+        # (see _install_pointing_cursor_filter).
+        self._install_pointing_cursor_filter()
         # Re-apply cursor trail on theme change (overlay may have been covered)
         trail_enabled = bool(config.get('ui', 'cursor_trail', default=False))
         self._apply_cursor_trail(trail_enabled)
+
+        # ── Gore theme: install/remove blood-splatter click filter ────────────
+        self._update_gore_splatter(theme)
 
         # Unlock theme-related achievements
         try:
@@ -2667,16 +3172,61 @@ class TextureSorterMainWindow(QMainWindow):
                     'dracula': 'shadow_walker',
                     'solarized_dark': 'bamboo_sage',
                     'light': 'angelic_sorter',
-                    'forest': 'bamboo_grove',
-                    'ocean': 'ocean_explorer',
-                    'sunset': 'golden_hour',
-                    'cyberpunk': 'neon_rider',
+                    'forest': 'bamboo_sage',
+                    'ocean': 'pirate_adventure',
+                    'sunset': 'golden_touch',
+                    'cyberpunk': 'thunderstruck',
+                    'gore': 'shadow_walker',   # closest existing dark achievement
+                    'goth': 'shadow_walker',
                 }
                 ach_id = _theme_ach.get(theme)
                 if ach_id:
                     self.achievement_system.unlock_achievement(ach_id)
         except Exception:
             pass
+
+    def _install_pointing_cursor_filter(self) -> None:
+        """Walk all child widgets and set PointingHandCursor on interactive ones.
+
+        Qt6 QSS does NOT support 'cursor: pointer' — that CSS property is silently
+        ignored (producing 'Unknown property cursor' warnings).  The correct Qt6
+        way is to call setCursor() on each widget.  We do it post-theme-application
+        so the cursor sticks even after style reloads.
+        """
+        try:
+            from PyQt6.QtWidgets import (QComboBox, QTabBar, QSlider,
+                                          QAbstractButton)
+            from PyQt6.QtCore import Qt
+            _hand = Qt.CursorShape.PointingHandCursor
+            for child in self.findChildren(QAbstractButton):
+                child.setCursor(_hand)
+            for child in self.findChildren(QComboBox):
+                child.setCursor(_hand)
+            for child in self.findChildren(QSlider):
+                child.setCursor(_hand)
+            for child in self.findChildren(QTabBar):
+                child.setCursor(_hand)
+        except Exception as e:
+            logger.debug(f"_install_pointing_cursor_filter: {e}")
+
+    def _update_gore_splatter(self, theme: str) -> None:
+        """Install or remove the GoreSplatterFilter depending on the active theme."""
+        try:
+            from PyQt6.QtWidgets import QApplication as _QA
+            _app = _QA.instance()
+            if _app is None:
+                return
+            want_gore = (theme == 'gore')
+            if want_gore and self._gore_splatter_filter is None:
+                self._gore_splatter_filter = GoreSplatterFilter(self)
+                _app.installEventFilter(self._gore_splatter_filter)
+                logger.info("🩸 Gore splatter filter installed")
+            elif not want_gore and self._gore_splatter_filter is not None:
+                _app.removeEventFilter(self._gore_splatter_filter)
+                self._gore_splatter_filter = None
+                logger.info("Gore splatter filter removed")
+        except Exception as _e:
+            logger.debug(f"_update_gore_splatter: {_e}")
 
     def apply_cursor(self):
         """Apply the cursor style saved in config to the whole application."""
@@ -2834,6 +3384,9 @@ class TextureSorterMainWindow(QMainWindow):
                 _app_dir = Path(__file__).parent / 'app_data'
                 _app_dir.mkdir(parents=True, exist_ok=True)
                 self.auto_backup = AutoBackupSystem(app_dir=_app_dir, config=_backup_cfg)
+                # Wire crash-recovery callback before calling start() so it fires
+                # when start() detects a previous unclean shutdown.
+                self.auto_backup.on_recovery_available = self._offer_crash_recovery
                 self.auto_backup.start()
                 logger.info("Auto-backup system started")
             except Exception as e:
@@ -4506,11 +5059,16 @@ class TextureSorterMainWindow(QMainWindow):
                 self.currency_system.earn_money(coins, f'minigame_{game_id}')
                 self._update_coin_display()
             if self.achievement_system:
-                self.achievement_system.unlock_achievement('minigame_player')
+                # 'first_game' unlocks on the first minigame completed
+                self.achievement_system.unlock_achievement('first_game')
+                # 'click_champion' awards a high-score badge (100+)
                 if score >= 100:
-                    self.achievement_system.unlock_achievement('minigame_master')
+                    self.achievement_system.unlock_achievement('click_champion')
+                # 'minigame_addict' tracks 50+ plays — increment via progress
+                self.achievement_system.update_progress('minigame_addict', 1, increment=True)
             if self.quest_system:
-                self.quest_system.update_quest_progress('minigame_enjoyer')
+                # No dedicated minigame quest — mark general interaction progress
+                self.quest_system.update_quest_progress('first_interaction')
         except Exception as _e:
             logger.debug(f"Minigame completed callback error: {_e}")
 
@@ -4740,14 +5298,31 @@ class TextureSorterMainWindow(QMainWindow):
         except Exception:
             pass
 
+        # Walk the in-room bedroom panda to the furniture's walk position.
+        # The panda character visually walks to the object in the bedroom scene.
+        # Panel opening is handled by the furniture-specific blocks below which
+        # already use QTimer delays that roughly correspond to the walk duration.
+        def _open_panel_after_walk():
+            # The bedroom panda has arrived at the furniture; trigger the overlay
+            # panda's open_furniture animation (visual reaction on the overlay widget).
+            # Note: this fires when the bedroom panda arrives, which may not be
+            # synchronised with the overlay panda's walk — the overlay panda is a
+            # separate widget that plays its own walk animation independently.
+            _safe_open(self.panda_widget, furniture_id)
+
+        try:
+            if self._bedroom_widget and hasattr(self._bedroom_widget, 'walk_panda_to'):
+                self._bedroom_widget.walk_panda_to(walk_x, walk_z, callback=_open_panel_after_walk)
+        except Exception as _e:
+            logger.debug(f"Bedroom panda walk: {_e}")
+
+        # Also animate the overlay panda widget (walk animation plays on the
+        # floating panda overlay independently of the bedroom panda's walk).
         try:
             if self.panda_widget and hasattr(self.panda_widget, 'walk_to_position'):
-                self.panda_widget.walk_to_position(
-                    walk_x, 0.0, walk_z,
-                    callback=functools.partial(_safe_open, self.panda_widget, furniture_id),
-                )
+                self.panda_widget.walk_to_position(walk_x, 0.0, walk_z)
         except Exception as _e:
-            logger.debug(f"Bedroom walk: {_e}")
+            logger.debug(f"Overlay panda walk: {_e}")
 
         # ── Trophy stand → switch to Achievements tab ─────────────────────────
         if furniture_id == 'trophy_stand':
@@ -4951,14 +5526,43 @@ class TextureSorterMainWindow(QMainWindow):
             logger.debug(f"File browser folder_changed error: {_e}")
 
     def _on_panda_should_hide(self, should_hide: bool):
-        """Show/hide the panda overlay when environment events require it."""
+        """Show/hide the panda overlay when environment events require it.
+
+        The overlay is only ever shown on the Home tab; this method may further
+        hide it (e.g. when the user minimises the window) but will never make it
+        visible on a non-Home tab.
+        """
         try:
             overlay = getattr(self, 'panda_overlay', None)
-            if overlay and hasattr(overlay, 'setVisible'):
-                overlay.setVisible(not should_hide)
-            logger.debug(f"Panda overlay hide={should_hide}")
+            if overlay is None or not hasattr(overlay, 'setVisible'):
+                return
+            on_home = (self.tabs.currentIndex() == 0)
+            overlay.setVisible(on_home and not should_hide)
+            logger.debug(f"Panda overlay hide={should_hide}, on_home={on_home}")
         except Exception as _e:
             logger.debug(f"panda_should_hide callback error: {_e}")
+
+    def _on_main_tab_changed(self, index: int) -> None:
+        """Show the panda companion overlay only on the Home tab (index 0).
+
+        The overlay is a transparent full-window widget that paints the
+        animated panda on top of everything.  While that makes for a nice
+        companion experience on the Home screen, it physically covers
+        interactive widgets on the Tools, Panda, and Settings tabs —
+        the Background Remover live preview, the Trail Preview strip,
+        and the Font / Font Size combo boxes, among others.
+
+        Hiding the overlay whenever the user is not on the Home tab lets
+        all panels remain fully interactive without removing the companion.
+        """
+        try:
+            overlay = getattr(self, 'panda_overlay', None)
+            if overlay is None or not hasattr(overlay, 'setVisible'):
+                return
+            # Tab 0 is always the Home tab (added first in setup_ui).
+            overlay.setVisible(index == 0)
+        except Exception as _e:
+            logger.debug(f"_on_main_tab_changed error: {_e}")
 
     def _on_panda_should_react(self, event_type: str, event_data):
         """Forward environment events to the panda mood system for reactions."""
@@ -5106,10 +5710,138 @@ class TextureSorterMainWindow(QMainWindow):
             f"<p>Author: Dead On The Inside / JosephsDeadish</p>"
         )
 
+    def show_help(self):
+        """Show help / documentation dialog (F1)."""
+        help_text = (
+            f"<h2>🐼 {APP_NAME} — Quick Help</h2>"
+            "<h3>Tools</h3>"
+            "<ul>"
+            "<li><b>📁 Organizer</b> — Sort images into sub-folders by category, date, size or hash.</li>"
+            "<li><b>🎭 Background Remover</b> — Remove backgrounds using AI (rembg/ONNX) or edge detection.</li>"
+            "<li><b>✨ Alpha Fixer</b> — Repair transparent / semi-transparent alpha channels.</li>"
+            "<li><b>🎨 Color Correction</b> — Batch adjust brightness, contrast, saturation and curves.</li>"
+            "<li><b>⚙️ Batch Normalizer</b> — Resize, pad or crop images to a target resolution.</li>"
+            "<li><b>✓ Quality Checker</b> — Detect blurry, corrupt or low-quality images.</li>"
+            "<li><b>🔍 Image Upscaler</b> — Upscale via Real-ESRGAN or Pillow bicubic.</li>"
+            "<li><b>✏️ Line Art</b> — Convert photos or textures to clean line-art / sketch.</li>"
+            "<li><b>🔄 Format Converter</b> — Batch convert between PNG, JPEG, WebP, DDS, TGA and more.</li>"
+            "<li><b>📝 Batch Rename</b> — Rename files with templates, counters, date/EXIF tags.</li>"
+            "<li><b>🔧 Image Repair</b> — Fix corrupted image headers and reserialise lossy files.</li>"
+            "</ul>"
+            "<h3>Workflow</h3>"
+            "<ol>"
+            "<li>Select an <b>Input Folder</b> on the Home tab or via File → Open Input Folder.</li>"
+            "<li>Choose an <b>Output Folder</b> (optional — defaults to a sub-folder of input).</li>"
+            "<li>Open the desired tool from the <b>Tools</b> tab or via the Quick Launch buttons.</li>"
+            "<li>Adjust options and click <b>Process</b> / <b>Start</b>.</li>"
+            "</ol>"
+            "<h3>Panda Features</h3>"
+            "<p>The <b>🐼 Panda</b> tab contains your virtual panda companion with a bedroom, "
+            "closet, shop, minigames, achievements, quests and an adventure dungeon. "
+            "Interact with the panda for rewards and unlockable themes!</p>"
+            "<h3>Keyboard Shortcuts</h3>"
+            "<ul>"
+            "<li><b>F1</b> — This help dialog</li>"
+            "<li><b>Ctrl+O</b> — Open input folder</li>"
+            "<li><b>Ctrl+Q</b> — Quit</li>"
+            "</ul>"
+            f"<p><small>Version {APP_VERSION} &bull; "
+            "Report bugs at github.com/JosephsDeadish</small></p>"
+        )
+        msg = QMessageBox(self)
+        msg.setWindowTitle(f"{APP_NAME} — Help")
+        msg.setTextFormat(Qt.TextFormat.RichText)
+        msg.setText(help_text)
+        msg.setIcon(QMessageBox.Icon.Information)
+        msg.exec()
+
+    def save_settings(self) -> bool:
+        """Flush the current config to disk.
+
+        Settings in ``SettingsPanelQt`` already persist themselves immediately
+        on every widget change via ``on_setting_changed`` → ``config.save()``.
+        This method exists only for programmatic callers (e.g. ``closeEvent``)
+        that want a guaranteed final flush — it does **not** correspond to any
+        "Save Settings" button in the UI.
+
+        Returns
+        -------
+        bool
+            True if the config was flushed successfully, False otherwise.
+        """
+        try:
+            config.save()
+            logger.info("Settings flushed to disk")
+            return True
+        except Exception as _e:
+            logger.error(f"save_settings failed: {_e}", exc_info=True)
+            return False
+
+    def load_settings(self) -> bool:
+        """Reload settings from disk into the UI.
+
+        Delegates to SettingsPanelQt when available, then re-applies the
+        theme so the live UI reflects the persisted values.
+
+        Returns
+        -------
+        bool
+            True if settings were reloaded successfully, False otherwise.
+        """
+        try:
+            if self.settings_panel and hasattr(self.settings_panel, 'load_settings'):
+                self.settings_panel.load_settings()
+            self.apply_theme()
+            logger.info("Settings loaded")
+            return True
+        except Exception as _e:
+            logger.error(f"load_settings failed: {_e}", exc_info=True)
+            return False
+
+    def _offer_crash_recovery(self) -> None:
+        """Called by AutoBackupSystem when a previous session crashed.
+
+        Uses a deferred single-shot timer so the dialog appears *after* the
+        main window finishes initialising (the callback may fire during
+        ``auto_backup.start()`` which runs inside ``initialize_components``).
+        """
+        def _show_dialog():
+            try:
+                reply = QMessageBox.question(
+                    self,
+                    "⚠️ Crash Recovery",
+                    "It looks like the previous session ended unexpectedly.\n\n"
+                    "Would you like to restore from the last auto-backup?",
+                    QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                    QMessageBox.StandardButton.Yes,
+                )
+                if reply == QMessageBox.StandardButton.Yes:
+                    state = self.auto_backup.restore_from_backup() if self.auto_backup else None
+                    if state:
+                        # Re-apply any paths that were saved in the backup state
+                        input_path = state.get('input_path')
+                        output_path = state.get('output_path')
+                        if input_path and Path(input_path).exists():
+                            self.input_path_label.setText(input_path)
+                        if output_path and Path(output_path).exists():
+                            self.output_path_label.setText(output_path)
+                        self.statusBar().showMessage("✅ Session restored from backup", 5000)
+                        self.log("✅ Session restored from auto-backup after crash.")
+                        logger.info("Crash recovery: session state restored")
+                    else:
+                        QMessageBox.information(
+                            self, "Recovery",
+                            "No backup data found or restore failed.\n"
+                            "Starting with a clean session."
+                        )
+                else:
+                    self.log("ℹ️ Crash recovery skipped by user.")
+            except Exception as _e:
+                logger.debug(f"_offer_crash_recovery dialog: {_e}")
+        # Defer until after __init__ / initialize_components finishes
+        QTimer.singleShot(1000, _show_dialog)
+
     # ── App-level event filter: button hover → panda peek/poke ──────────────
-    def eventFilter(self, obj: 'QObject', event: 'QEvent') -> bool:
-        """Intercept mouse-enter events on QPushButton widgets so the panda
-        can react (peek / poke) when the cursor hovers over a button."""
         try:
             from PyQt6.QtCore import QEvent
             from PyQt6.QtWidgets import QPushButton
@@ -5290,6 +6022,14 @@ class TextureSorterMainWindow(QMainWindow):
     def _make_tab_dock(self, tab_name: str, clean_name: str, widget: QWidget) -> QDockWidget:
         """Create a QDockWidget for a detached tab with a 'Restore as Tab' context menu."""
         dock = QDockWidget(tab_name, self)
+        # objectName must be unique for QMainWindow.saveState() to serialise
+        # geometry correctly.  Build a safe ASCII name from clean_name and append
+        # a counter so that two tabs with names that differ only in special
+        # characters (e.g. 'My-Tab' vs 'My_Tab') don't collide.
+        safe_name = ''.join(c if c.isalnum() or c in ('_', '-') else '_' for c in clean_name)
+        counter = getattr(self, '_tab_dock_counter', 0) + 1
+        self._tab_dock_counter = counter
+        dock.setObjectName(f"dock_tab_{safe_name}_{counter}")
         dock.setWidget(widget)
         dock.setFeatures(
             QDockWidget.DockWidgetFeature.DockWidgetMovable |

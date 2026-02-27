@@ -40,6 +40,10 @@ class TrailPreviewView(QGraphicsView):
         self.setRenderHint(QPainter.RenderHint.Antialiasing)
         # Accept mouse tracking so we receive moves without a button pressed
         self.setMouseTracking(True)
+        # Hide scrollbars — the scene is larger than the visible area by design;
+        # the view fits into the fixed-height preview strip.
+        self.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
 
         self.trail_items = []
         self.trail_color = QColor(255, 0, 0)
@@ -156,7 +160,24 @@ class TrailPreviewWidget(QWidget):
 
         # Start the bounce demo so the widget is never fully static
         self.view.start_animation()
-        
+
+    def showEvent(self, event) -> None:  # type: ignore[override]
+        """Restart the bounce animation whenever the widget becomes visible.
+
+        Qt stops animations (timer events still fire, but the scene isn't
+        painted) while a parent tab/widget is hidden.  When the tab is
+        switched back to the Customisation panel the dots should appear
+        immediately rather than waiting for the next timer tick to fire.
+        """
+        super().showEvent(event)
+        if not self.view.timer.isActive():
+            self.view.start_animation()
+
+    def hideEvent(self, event) -> None:  # type: ignore[override]
+        """Pause the animation while the widget is hidden to save CPU."""
+        super().hideEvent(event)
+        self.view.stop_animation()
+
     def set_trail_color(self, color):
         self.view.set_trail_color(color)
         

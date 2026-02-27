@@ -573,6 +573,7 @@ class OrganizerPanelQt(QWidget):
     
     def _create_ui(self):
         """Create the comprehensive UI — left controls, right work area."""
+        self.setMinimumSize(700, 500)  # prevent squashed layout
         root = QVBoxLayout(self)
         root.setSpacing(4)
         root.setContentsMargins(8, 8, 8, 8)
@@ -603,8 +604,8 @@ class OrganizerPanelQt(QWidget):
         left_scroll = QScrollArea()
         left_scroll.setWidgetResizable(True)
         left_scroll.setFrameShape(QFrame.Shape.NoFrame)
-        left_scroll.setMinimumWidth(280)
-        left_scroll.setMaximumWidth(420)
+        left_scroll.setMinimumWidth(300)
+        left_scroll.setMaximumWidth(520)
 
         left_container = QWidget()
         left_layout = QVBoxLayout(left_container)
@@ -870,7 +871,8 @@ class OrganizerPanelQt(QWidget):
 
         # Auto-complete suggestions list
         self.suggestions_list = QListWidget()
-        self.suggestions_list.setMaximumHeight(120)
+        self.suggestions_list.setMaximumHeight(200)
+        self.suggestions_list.setMinimumHeight(60)
         self.suggestions_list.itemClicked.connect(self._on_suggestion_selected)
         self._set_tooltip(self.suggestions_list, 'folder_suggestions_list')
         classification_layout.addWidget(self.suggestions_list)
@@ -919,7 +921,8 @@ class OrganizerPanelQt(QWidget):
         # Recent actions log
         self.log_text = QTextEdit()
         self.log_text.setReadOnly(True)
-        self.log_text.setMaximumHeight(100)
+        self.log_text.setMaximumHeight(180)
+        self.log_text.setMinimumHeight(60)
         self.log_text.setStyleSheet("font-family: monospace; font-size: 9pt;")
         group_layout.addWidget(self.log_text)
         

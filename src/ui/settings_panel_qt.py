@@ -172,7 +172,7 @@ class SettingsPanelQt(QWidget):
         self.theme_combo = QComboBox()
         self.theme_combo.addItems([
             "Dark", "Light", "Nord", "Dracula", "Solarized Dark",
-            "Forest", "Ocean", "Sunset", "Cyberpunk",
+            "Forest", "Ocean", "Sunset", "Cyberpunk", "Gore", "Goth",
         ])
         self.theme_combo.currentTextChanged.connect(lambda: self.on_setting_changed('ui', 'theme'))
         self.set_tooltip(self.theme_combo, 'theme_selector')
@@ -1015,7 +1015,7 @@ class SettingsPanelQt(QWidget):
         
         layout.addStretch()
         return widget
-    
+
     def show_ai_install_guide(self):
         """Show detailed installation guide for AI features"""
         guide = QMessageBox(self)
@@ -1229,6 +1229,8 @@ class SettingsPanelQt(QWidget):
                 'ocean': 'Ocean', 'ocean_blue': 'Ocean',
                 'sunset': 'Sunset', 'sunset_warm': 'Sunset',
                 'cyberpunk': 'Cyberpunk',
+                'gore': 'Gore',
+                'goth': 'Goth',
             }
             self.theme_combo.setCurrentText(theme_map.get(theme.lower(), theme.capitalize()))
             
@@ -1340,7 +1342,7 @@ class SettingsPanelQt(QWidget):
             logger.error(f"Error loading settings: {e}", exc_info=True)
         finally:
             self._updating = False
-    
+
     def on_setting_changed(self, section: str, key: str):
         """Handle generic setting changes"""
         if self._updating:

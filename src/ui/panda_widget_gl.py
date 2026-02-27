@@ -286,8 +286,9 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
         self.velocity_z = 0.0
         self.angular_velocity = 0.0
         
-        # Camera settings
-        self.camera_distance = 3.0
+        # Camera settings — camera_distance controls apparent panda size.
+        # 7.0 keeps the panda from filling the entire window while still being clearly visible.
+        self.camera_distance = 7.0
         self.camera_angle_x = 20.0
         self.camera_angle_y = 0.0
         
@@ -773,6 +774,10 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
         """Inner paintGL — wrapped by paintGL's try/except so a GL error skips the frame."""
         # Clear buffers
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+        # Ensure blend is off at frame start so the first opaque draws are truly opaque.
+        # Individual draw sections re-enable it as needed and are required to disable it
+        # before returning.
+        glDisable(GL_BLEND)
         
         # Render shadows first (if supported)
         if self.shadow_fbo:
@@ -1107,12 +1112,15 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
         if abs(self._body_pitch_cur) > 0.5:
             glRotatef(self._body_pitch_cur, 1.0, 0.0, 0.0)
 
+        # Disable blending for opaque solid body parts so they are never transparent
+        glDisable(GL_BLEND)
+
         # Belly — creamy white underside; belly jiggle on Y (height oscillation)
         glPushMatrix()
         glScalef(self.BODY_WIDTH * 0.65,
                  self.BODY_HEIGHT * 0.55 * sy * self._belly_y,
                  self.BODY_WIDTH * 0.50)
-        glColor3f(*belly_col)
+        glColor4f(*belly_col, 1.0)
         self._draw_sphere(1.0, 32, 32)
         glPopMatrix()
 
@@ -1122,7 +1130,7 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
         glMaterialf(GL_FRONT, GL_SHININESS, 14.0)
         glPushMatrix()
         glScalef(self.BODY_WIDTH, self.BODY_HEIGHT * sy, self.BODY_WIDTH * 0.78)
-        glColor3f(*body_col)
+        glColor4f(*body_col, 1.0)
         self._draw_sphere(1.0, 32, 32)
         glPopMatrix()
         glMaterialfv(GL_FRONT, GL_SPECULAR, [1.0, 1.0, 1.0, 1.0])
@@ -1908,7 +1916,10 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
         """Draw arms with follow-through overshoot, uneven breathing, paw/claws."""
         if sub_pose is None:
             sub_pose = {}
-        arm_y   = 0.30 + bob
+        # NOTE: this method is called INSIDE the torso glPushMatrix which already
+        # translates by (0, 0.28 + bob, 0).  Do NOT add bob here again or the arms
+        # will appear to move at 2× the body bob rate.
+        arm_y   = 0.30
         arm_x   = self.BODY_WIDTH + 0.06
         ac = self._get_color('accent')   # fur-style accent colour for arm patches
 
@@ -2017,7 +2028,9 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
     # ─── Leg drawing ────────────────────────────────────────────────────────
     def _draw_panda_legs(self, limb, bob, t=0):
         """Draw stocky legs with thigh, shin, foot and claws."""
-        leg_y = -0.04 + bob
+        # NOTE: called INSIDE the torso glPushMatrix; bob is already applied there.
+        # Do NOT add bob here or legs will double-bob relative to the body.
+        leg_y = -0.04
         leg_x = self.BODY_WIDTH * 0.80   # match hip-patch positions for realistic stance
         ac = self._get_color('accent')   # fur-style accent colour for leg patches
 
@@ -3377,8 +3390,50 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
                     item['y'] = -0.9
                     item['velocity_y'] *= -self.BOUNCE_DAMPING
 
+    def _get_panda_screen_center(self):
+        """Return the approximate (screen_x, screen_y, screen_radius) of the rendered panda.
+
+        Uses the OpenGL perspective formula to map panda world-position to screen
+        coordinates.  The result is a rough hit-test area — not pixel-perfect.
+        """
+        import math as _math
+        w, h = self.width(), self.height()
+        if w <= 0 or h <= 0:
+            return w // 2, h // 2, max(w, h) // 2
+        aspect = w / h
+        # Half-tangent of 45° vertical FOV
+        half_fov_tan = _math.tan(_math.radians(22.5))
+        # World frustum height at z=0 (panda z is ~0)
+        frustum_h = 2.0 * self.camera_distance * half_fov_tan
+        frustum_w = frustum_h * aspect
+        # The camera is shifted so it looks at y=0.5
+        look_at_y = 0.5
+        pan_world_x = self.panda_x
+        pan_world_y = self.panda_y - look_at_y
+        sx = int(w / 2 + pan_world_x / frustum_w * w)
+        sy = int(h / 2 - pan_world_y / frustum_h * h)
+        # Screen radius that encloses the full panda (head + body ~1.4 world units tall)
+        panda_world_radius = max(self.HEAD_RADIUS, self.BODY_HEIGHT) * 1.8
+        radius = int(panda_world_radius / frustum_h * h) + 30  # +30px margin
+        return sx, sy, radius
+
     def mousePressEvent(self, event: QMouseEvent):
-        """Handle mouse press — play boop, reset boredom, surprised face."""
+        """Handle mouse press — play boop, reset boredom, surprised face.
+
+        When used as a full-window transparent overlay, pass events through to
+        the UI layer below if the click is outside the panda's hit area.
+        """
+        # --- Hit test: only consume events near the panda ---
+        try:
+            sx, sy, radius = self._get_panda_screen_center()
+            dx = event.pos().x() - sx
+            dy = event.pos().y() - sy
+            if dx * dx + dy * dy > radius * radius:
+                event.ignore()
+                return
+        except Exception:
+            pass  # fall through if hit-test fails
+
         self.last_mouse_pos = event.pos()
         self.drag_start_pos = event.pos()
         self.is_dragging = False
@@ -3392,11 +3447,24 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
             self._arm_over_vel[1] += random.uniform(6.0, 12.0)
             self.clicked.emit()
 
-    
+
     def mouseMoveEvent(self, event: QMouseEvent):
         """Handle mouse drag and track cursor for panda awareness."""
         # Track cursor position for look-at-cursor system (always)
         self._cursor_wpos = event.pos()
+
+        # If not currently dragging, only track cursor; pass event through to UI.
+        # This prevents the overlay from consuming mouse-move events over buttons/sliders.
+        if not self.is_dragging and not (event.buttons() & Qt.MouseButton.LeftButton):
+            event.ignore()
+            # Still update boredom reset and look-at, but don't consume the event
+            self._boredom_t = 0.0
+            if self._emotion == 'bored':
+                self._emotion = 'neutral'
+                self._emotion_weights['bored']   = 0.0
+                self._emotion_weights['neutral'] = 1.0
+            return
+
         # Reset boredom when user moves cursor near panda
         self._boredom_t = 0.0
         if self._emotion == 'bored':
@@ -3417,9 +3485,11 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
         
         if event.buttons() & Qt.MouseButton.LeftButton:
             if self.is_dragging:
-                # Drag panda
-                self.panda_x += delta.x() * 0.01
-                self.panda_y -= delta.y() * 0.01
+                # Drag panda — scale factor keeps drag proportional to camera distance.
+                # Divide by 600 (was 300) for a less twitchy drag feel.
+                drag_scale = self.camera_distance / 600.0
+                self.panda_x += delta.x() * drag_scale
+                self.panda_y -= delta.y() * drag_scale
             else:
                 # Rotate camera
                 self.camera_angle_y += delta.x() * 0.5
@@ -3493,7 +3563,7 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
         """Handle mouse wheel for zooming."""
         delta = event.angleDelta().y()
         self.camera_distance -= delta * 0.001
-        self.camera_distance = max(1.0, min(10.0, self.camera_distance))
+        self.camera_distance = max(2.0, min(12.0, self.camera_distance))
         self.update()
     
     def set_animation_state(self, state: str):
@@ -4145,8 +4215,11 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
 
         limb   = self._get_limb_positions()
         bob    = self._get_body_bob()
-        arm_x  = self.BODY_WIDTH * 0.82
-        arm_y  = 0.34 + bob
+        # Shoulder position in panda-local space:
+        #   torso matrix Y = 0.28 + bob, arm shoulder inside torso = 0.30 + 0.06
+        # Total: 0.64 + bob  (matches _draw_panda_arms after double-bob fix)
+        arm_x  = self.BODY_WIDTH + 0.06
+        arm_y  = 0.64 + bob
 
         for side, key in ((-1, 'held_left'), (1, 'held_right')):
             item = self.clothing[key]
