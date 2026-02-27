@@ -1192,9 +1192,10 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
         glPopMatrix()
 
         # Shoulder muscle masses (black) — give quadruped shoulder hump
+        # Y = 0.32 matches the arm pivot (arm_y + 0.06 = 0.36) for visual alignment
         for sx in (-self.BODY_WIDTH * 0.70, self.BODY_WIDTH * 0.70):
             glPushMatrix()
-            glTranslatef(sx, 0.12, -self.BODY_WIDTH * 0.15)
+            glTranslatef(sx, 0.32, -self.BODY_WIDTH * 0.15)
             glScalef(0.30, 0.28 * sy, 0.24)
             glColor3f(*accent_col)
             self._draw_sphere(1.0, 12, 12)
@@ -1229,10 +1230,12 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
         glPopMatrix()
 
         # ── Hip patches (black) ──────────────────────────────────────────────
-        # Real pandas have prominent black oval patches on each hip / upper thigh
+        # Real pandas have prominent black oval patches on each hip / upper thigh.
+        # Y = -BODY_HEIGHT * 0.48 = -0.24 matches the leg pivot (leg_y = -0.24)
+        # so the black patch visually joins the body to the upper leg.
         for hx in (-self.BODY_WIDTH * 0.78, self.BODY_WIDTH * 0.78):
             glPushMatrix()
-            glTranslatef(hx, -self.BODY_HEIGHT * 0.22 * sy, 0.0)
+            glTranslatef(hx, -self.BODY_HEIGHT * 0.48 * sy, 0.0)
             glScalef(0.36, 0.42 * sy, 0.30)
             glColor3f(*accent_col)
             self._draw_sphere(1.0, 12, 12)
@@ -1293,24 +1296,22 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
                 glPopMatrix()
             glDisable(GL_BLEND)
 
-        glPopMatrix()   # end torso matrix
-
-        # ── Head (separate matrix so it can tilt independently) ───────────────
-        # Head rotation = breathing tilt + head lag (follow-through) + resting asymmetry + look
+        # ── Head (inside torso matrix so it follows body pitch, roll, and spin) ─
+        # Keeping the head in the SAME GL matrix as the body means it
+        # automatically inherits every rotation applied to the torso (walking
+        # pitch, rolling Z-spin, backflip X-rotation, wobble, etc.), which fixes
+        # the previously visible disconnect between the pitched body and the
+        # floating head.
+        # Head Y in torso-local space = 0.88 (old world) − 0.30 (body translate) = 0.58.
+        # Body bob is already incorporated in the parent glTranslatef(0.30+bob, ...),
+        # so we do NOT add bob here again (avoids 2× head-bob relative to body).
         tilt = (4.0 * math.sin(t * 0.04) +
                 self._head_lag +
                 self._asym.get('head_tilt_rest', 0.0) +
                 self._eye_head_yaw * 0.5 +
                 _sub.get('head_z', 0.0))
         glPushMatrix()
-        # _paint_gl_body already applied panda_x/panda_z and rotation_y via the
-        # parent glTranslatef/glRotatef block; use only local offsets here so the
-        # head stays attached to the body regardless of where the panda has walked.
-        # 0.88 (was 0.90) — body centre moved to 0.30 and body is shorter (0.50),
-        # so body top is at ~0.80; head sits just above that.
-        glTranslatef(0.0, 0.88 + bob * 1.1, 0.0)
-        # Only the extra eye-lead yaw is applied here; the base rotation_y is already
-        # in the parent matrix so adding it again would double the facing direction.
+        glTranslatef(0.0, 0.58, 0.0)   # 0.58 above body centre (torso-local)
         glRotatef(self._eye_head_yaw * 0.4, 0.0, 1.0, 0.0)
         glRotatef(tilt, 0.0, 0.0, 1.0)
         glRotatef(self._eye_head_pitch * 0.5 + _sub.get('head_x', 0.0), 1.0, 0.0, 0.0)
@@ -1438,23 +1439,27 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
         if self.clothing['hat']:
             self._draw_hat(self.clothing['hat'])
 
-        glPopMatrix()   # end head matrix
+        glPopMatrix()   # end head sub-matrix
 
-        # ── Clothing & weapons ────────────────────────────────────────────────
+        # ── Clothing & weapons (inside torso matrix so they follow body pitch) ─
         self._draw_clothing()
         self._draw_weapon()
         self._draw_held_items()
 
+        glPopMatrix()   # end torso matrix
+
     def _draw_panda_geometry_only(self):
         """Draw simplified panda geometry for shadow pass (no colour changes)."""
-        # Caller already applied panda_x/z via glTranslatef; use local offsets only.
+        # Both body and head inside the single torso matrix so the shadow geometry
+        # correctly follows any body pitch/roll applied during animation.
         glPushMatrix()
         glTranslatef(0.0, 0.30, 0.0)
         glScalef(self.BODY_WIDTH, self.BODY_HEIGHT, self.BODY_WIDTH * 0.78)
         self._draw_sphere(1.0, 10, 10)
         glPopMatrix()
+        # Head at torso-local Y = 0.58 (same as in _draw_panda)
         glPushMatrix()
-        glTranslatef(0.0, 0.88, 0.0)
+        glTranslatef(0.0, 0.30 + 0.58, 0.0)  # body translate + head local = 0.88
         self._draw_sphere(self.HEAD_RADIUS, 10, 10)
         glPopMatrix()
 
@@ -3808,7 +3813,10 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
         glColor3f(*color)
 
         leg_x     = self.LEG_SPACING * 0.5
-        leg_top_y = -self.BODY_HEIGHT * 0.42
+        # leg_top_y matches the leg pivot used by _draw_panda_legs: leg_y = -0.24.
+        # Expressed as a fraction of BODY_HEIGHT for consistency with the rest of
+        # the body-relative coordinate expressions: -0.48 × 0.50 = -0.24.
+        leg_top_y = -self.BODY_HEIGHT * 0.48
         quad = gluNewQuadric()
 
         for side in (-1.0, 1.0):
@@ -3863,9 +3871,11 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
         gluDeleteQuadric(quad)
     
     def _draw_glasses(self, glasses_data):
-        """Draw glasses on panda's face (called from head matrix)."""
+        """Draw glasses on panda's face (torso-local space — head centre at Y=0.58)."""
         glPushMatrix()
-        glTranslatef(0.0, 0.95, self.HEAD_RADIUS * 0.8)
+        # Eye level in torso-local: head_y_local + eye_y_on_head + slight forward
+        # = 0.58 + 0.055 ≈ 0.64; Z = HEAD_RADIUS * 0.80
+        glTranslatef(0.0, 0.65, self.HEAD_RADIUS * 0.8)
 
         color = glasses_data.get('color', [0.0, 0.0, 0.0])
         glColor3f(*color)
@@ -3912,9 +3922,10 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
         glColor3f(*color)
 
         if accessory_type == 'bow':
-            # Bow on top of head: two small spheres side-by-side
+            # Bow on top of head: two small spheres side-by-side.
+            # Head top in torso-local = 0.58 + HEAD_RADIUS ≈ 1.00; bow just above = 1.05.
             glPushMatrix()
-            glTranslatef(0.0, 1.35, 0.0)
+            glTranslatef(0.0, 1.05, 0.0)
             glPushMatrix()
             glTranslatef(-0.08, 0.0, 0.0)
             self._draw_sphere(0.07, 8, 8)
@@ -3926,17 +3937,19 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
             glPopMatrix()
 
         elif accessory_type == 'scarf':
-            # Scarf around neck: flat torus-like ring
+            # Scarf around neck: flat torus-like ring.
+            # Neck centre torso-local ≈ BODY_HEIGHT * 0.48 = 0.24; top of neck ≈ 0.32
             glPushMatrix()
-            glTranslatef(0.0, 0.62, 0.0)
+            glTranslatef(0.0, 0.32, 0.0)
             glScalef(1.0, 0.3, 1.0)
             self._draw_sphere(0.25, 16, 8)
             glPopMatrix()
 
         elif accessory_type == 'necklace':
-            # Necklace: small spheres in a arc at front of neck
+            # Necklace: small spheres in an arc at front of neck.
+            # Chest-neck area torso-local ≈ 0.28
             glPushMatrix()
-            glTranslatef(0.0, 0.58, 0.22)
+            glTranslatef(0.0, 0.28, 0.22)
             for i in range(7):
                 angle = (i - 3) * 15.0
                 rad = math.radians(angle)
@@ -3947,20 +3960,22 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
             glPopMatrix()
 
         elif accessory_type == 'earrings':
-            # Earrings: small dangling spheres on each side of head
+            # Earrings: small dangling spheres on each side of head.
+            # Ear Y torso-local ≈ head_local + ear_local_y = 0.58 + 0.295 = 0.875;
+            # earrings dangle ~0.35 below ears → 0.875 - 0.35 = 0.525 ≈ 0.55
             glPushMatrix()
-            glTranslatef(-0.35, 0.85, 0.0)
+            glTranslatef(-0.35, 0.55, 0.0)
             self._draw_sphere(0.05, 8, 8)
             glPopMatrix()
             glPushMatrix()
-            glTranslatef(0.35, 0.85, 0.0)
+            glTranslatef(0.35, 0.55, 0.0)
             self._draw_sphere(0.05, 8, 8)
             glPopMatrix()
 
         else:
-            # Generic accessory: small cube on chest
+            # Generic accessory: small cube on chest (torso-local ≈ 0.20)
             glPushMatrix()
-            glTranslatef(0.0, 0.5, 0.25)
+            glTranslatef(0.0, 0.20, 0.25)
             self._draw_cube(0.06)
             glPopMatrix()
 
@@ -3969,7 +3984,7 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
     # ────────────────────────────────────────────────────────────────────────
 
     def _draw_gloves(self, glove_data: dict) -> None:
-        """Draw gloves on both paws, following arm positions."""
+        """Draw gloves on both paws, following arm positions (torso-local space)."""
         color = glove_data.get('color', [0.9, 0.1, 0.1]) if isinstance(glove_data, dict) else [0.9, 0.1, 0.1]
         glove_type = (glove_data.get('type', 'glove') if isinstance(glove_data, dict) else 'glove').lower()
         glColor3f(*color)
@@ -3977,11 +3992,17 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
         limb = self._get_limb_positions()
         for side_sign, arm_key in ((-1.0, 'left_arm_angle'), (1.0, 'right_arm_angle')):
             angle = limb.get(arm_key, 0.0)
-            # Approximate paw position from arm angle (matches _draw_panda_arms geometry)
-            arm_len = self.BODY_WIDTH * 0.85
+            # Paw position in torso-local space (mirrors _draw_panda_arms geometry).
+            # arm_pivot_x already incorporates side_sign so the pivot is at
+            # (±(BODY_WIDTH+0.06), 0.36, 0) — same values as _draw_panda_arms.
+            # The paw swings away from the pivot along the arm angle; the X
+            # component of that swing also flips per side (sin * side_sign).
+            arm_pivot_x = side_sign * (self.BODY_WIDTH + 0.06)
+            arm_pivot_y = 0.36
+            paw_len = self.ARM_LENGTH * 0.88
             rad = math.radians(angle)
-            paw_x = side_sign * (self.BODY_WIDTH * 0.62 + arm_len * math.sin(rad))
-            paw_y = 0.30 + arm_len * math.cos(rad)
+            paw_x = arm_pivot_x + paw_len * math.sin(rad) * side_sign
+            paw_y = arm_pivot_y - paw_len * math.cos(rad)
             glPushMatrix()
             glTranslatef(paw_x, paw_y, 0.05)
             glRotatef(angle * side_sign, 0.0, 0.0, 1.0)
@@ -4161,9 +4182,10 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
         
         glPushMatrix()
         
-        # Position in right arm
+        # Position in right arm — torso-local space (body centre = origin)
+        # arm pivot: (BODY_WIDTH + 0.1, arm_y + 0.06, 0) = (0.66, 0.36, 0)
         arm_x = self.BODY_WIDTH + 0.1
-        arm_y = 0.15
+        arm_y = 0.36
         
         glTranslatef(arm_x, arm_y, 0.0)
         glRotatef(self.weapon_rotation, 0.0, 0.0, 1.0)
@@ -4254,17 +4276,17 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
         glPopMatrix()
 
     def _draw_held_items(self) -> None:
-        """Draw items held in paw(s) — positioned at actual paw world space."""
+        """Draw items held in paw(s) — positioned in torso-local space."""
         if not self.clothing['held_right'] and not self.clothing['held_left']:
             return
 
         limb   = self._get_limb_positions()
-        bob    = self._get_body_bob()
-        # Shoulder position in panda-local space:
-        #   torso matrix Y = 0.28 + bob, arm shoulder inside torso = 0.30 + 0.06
-        # Total: 0.64 + bob  (matches _draw_panda_arms after double-bob fix)
+        # Arm shoulder in torso-local space:
+        #   arm_y + 0.06 = 0.30 + 0.06 = 0.36 (same pivot used by _draw_panda_arms)
+        # Body bob is already incorporated in the parent torso glTranslatef,
+        # so we do NOT add it here again.
         arm_x  = self.BODY_WIDTH + 0.06
-        arm_y  = 0.64 + bob
+        arm_y  = 0.36
 
         for side, key in ((-1, 'held_left'), (1, 'held_right')):
             item = self.clothing[key]
