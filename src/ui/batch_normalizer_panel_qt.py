@@ -293,7 +293,7 @@ class BatchNormalizerPanelQt(QWidget):
         self.width_spin.setRange(1, 8192)
         self.width_spin.setValue(512)
         size_layout.addWidget(self.width_spin)
-        self._set_tooltip(self.width_spin, "Target output width in pixels")
+        self._set_tooltip(self.width_spin, 'bn_resolution')
         
         size_layout.addWidget(QLabel("×"))
         
@@ -301,7 +301,7 @@ class BatchNormalizerPanelQt(QWidget):
         self.height_spin.setRange(1, 8192)
         self.height_spin.setValue(512)
         size_layout.addWidget(self.height_spin)
-        self._set_tooltip(self.height_spin, "Target output height in pixels")
+        self._set_tooltip(self.height_spin, 'bn_resolution')
         
         group_layout.addLayout(size_layout)
         
@@ -310,14 +310,14 @@ class BatchNormalizerPanelQt(QWidget):
         self.resize_combo = QComboBox()
         self.resize_combo.addItems(["Fit (preserve aspect)", "Fill (crop)", "Stretch"])
         group_layout.addWidget(self.resize_combo)
-        self._set_tooltip(self.resize_combo, "Fit: adds padding to preserve aspect ratio. Fill: crops to fill the target size. Stretch: ignores aspect ratio.")
+        self._set_tooltip(self.resize_combo, 'bn_resize_mode')
         
         # Padding mode
         group_layout.addWidget(QLabel("Padding Mode:"))
         self.padding_combo = QComboBox()
         self.padding_combo.addItems(["Transparent", "Black", "White", "Blur Edge"])
         group_layout.addWidget(self.padding_combo)
-        self._set_tooltip(self.padding_combo, "Colour/style used to fill empty space when the image is smaller than the target size")
+        self._set_tooltip(self.padding_combo, 'bn_padding')
         
         group.setLayout(group_layout)
         layout.addWidget(group)
@@ -332,7 +332,7 @@ class BatchNormalizerPanelQt(QWidget):
         self.format_combo = QComboBox()
         self.format_combo.addItems(["PNG", "JPEG", "WebP"])
         group_layout.addWidget(self.format_combo)
-        self._set_tooltip(self.format_combo, "File format for the normalised output images")
+        self._set_tooltip(self.format_combo, 'bn_format')
         
         # Quality (for JPEG/WebP)
         quality_layout = QHBoxLayout()
@@ -342,7 +342,7 @@ class BatchNormalizerPanelQt(QWidget):
         self.quality_spin.setValue(95)
         quality_layout.addWidget(self.quality_spin)
         group_layout.addLayout(quality_layout)
-        self._set_tooltip(self.quality_spin, "JPEG/WebP compression quality (1=smallest file, 100=best quality)")
+        self._set_tooltip(self.quality_spin, 'bn_quality')
         
         group.setLayout(group_layout)
         layout.addWidget(group)
@@ -378,7 +378,7 @@ class BatchNormalizerPanelQt(QWidget):
         self.normalize_btn.setStyleSheet("background-color: #2196F3; color: white; padding: 10px;")
         self.normalize_btn.clicked.connect(self._start_normalization)
         buttons_layout.addWidget(self.normalize_btn)
-        self._set_tooltip(self.normalize_btn, "Resize and reformat all selected images to the configured target settings")
+        self._set_tooltip(self.normalize_btn, 'bn_normalize')
         
         layout.addLayout(buttons_layout)
         

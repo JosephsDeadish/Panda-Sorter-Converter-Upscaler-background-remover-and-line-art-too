@@ -442,6 +442,7 @@ if _PYQT:
                 "QPushButton{background:#1f6feb; color:white; font-weight:bold; border-radius:6px;}"
                 "QPushButton:disabled{background:#30363d; color:#6e7681;}")
             self._convert_btn.clicked.connect(self._start_conversion)
+            self._set_tooltip(self._convert_btn, 'convert_button')
             self._cancel_btn = QPushButton("⬛ Cancel")
             self._cancel_btn.setFixedHeight(36)
             self._cancel_btn.setEnabled(False)
@@ -460,6 +461,22 @@ if _PYQT:
             rv.addWidget(self._status_lbl)
             splitter.addWidget(right)
             splitter.setSizes([380, 480])
+
+        # ── Tooltip helper ────────────────────────────────────────────────
+        def _set_tooltip(self, widget, widget_id_or_text: str):
+            """Set tooltip via manager (cycling) when available, else plain text."""
+            tm = self._tooltip_mgr
+            if tm and hasattr(tm, 'register'):
+                if ' ' not in widget_id_or_text:
+                    try:
+                        tip = tm.get_tooltip(widget_id_or_text)
+                        if tip:
+                            widget.setToolTip(tip)
+                            tm.register(widget, widget_id_or_text)
+                            return
+                    except Exception:
+                        pass
+            widget.setToolTip(str(widget_id_or_text))
 
         # ── Resize sub-control visibility ─────────────────────────────────
         def _on_resize_mode_changed(self, idx: int):

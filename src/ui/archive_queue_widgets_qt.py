@@ -278,6 +278,7 @@ class ProcessingQueueQt(QWidget):
         
         self.pause_btn = QPushButton("⏸ Pause")
         self.pause_btn.setEnabled(False)
+        self.pause_btn.setToolTip("Pause or resume processing the archive queue")
         self.pause_btn.clicked.connect(self.pause_processing)
         header_layout.addWidget(self.pause_btn)
         

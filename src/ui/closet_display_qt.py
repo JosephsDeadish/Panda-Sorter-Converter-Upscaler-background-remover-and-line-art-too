@@ -263,11 +263,19 @@ class ClosetDisplayWidget(QWidget):
         """Legacy string filter (old callers use this)."""
         self.set_category_filter(category.lower().replace(' ', '_').replace('é', 'e'))
 
-    def _set_tooltip(self, widget, tooltip_key: str):
-        if self.tooltip_manager:
-            tip = self.tooltip_manager.get_tooltip(tooltip_key)
-            if tip:
-                widget.setToolTip(tip)
+    def _set_tooltip(self, widget, widget_id_or_text: str):
+        """Set tooltip via manager (cycling) when available, else plain text."""
+        if self.tooltip_manager and hasattr(self.tooltip_manager, 'register'):
+            if ' ' not in widget_id_or_text:
+                try:
+                    tip = self.tooltip_manager.get_tooltip(widget_id_or_text)
+                    if tip:
+                        widget.setToolTip(tip)
+                        self.tooltip_manager.register(widget, widget_id_or_text)
+                        return
+                except Exception:
+                    pass
+        widget.setToolTip(str(widget_id_or_text))
 
 
 def create_closet_display(parent=None, tooltip_manager=None):

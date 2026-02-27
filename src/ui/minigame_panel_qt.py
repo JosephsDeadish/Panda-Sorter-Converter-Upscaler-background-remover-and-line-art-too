@@ -525,12 +525,19 @@ class MiniGamePanelQt(QWidget):
             f"Currency Earned: {total_currency} | Perfect Scores: {perfect_scores}"
         )
     
-    def _set_tooltip(self, widget, tooltip_key: str):
-        """Set tooltip using tooltip manager if available."""
-        if self.tooltip_manager:
-            tooltip = self.tooltip_manager.get_tooltip(tooltip_key)
-            if tooltip:
-                widget.setToolTip(tooltip)
+    def _set_tooltip(self, widget, widget_id_or_text: str):
+        """Set tooltip via manager (cycling) when available, else plain text."""
+        if self.tooltip_manager and hasattr(self.tooltip_manager, 'register'):
+            if ' ' not in widget_id_or_text:
+                try:
+                    tip = self.tooltip_manager.get_tooltip(widget_id_or_text)
+                    if tip:
+                        widget.setToolTip(tip)
+                        self.tooltip_manager.register(widget, widget_id_or_text)
+                        return
+                except Exception:
+                    pass
+        widget.setToolTip(str(widget_id_or_text))
 
 # Alias for backward compatibility
 MinigamePanelQt = MiniGamePanelQt

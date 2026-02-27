@@ -332,6 +332,7 @@ class ImageRepairPanelQt(QWidget):
         self.diagnostic_text.setReadOnly(True)
         self.diagnostic_text.setMinimumHeight(200)
         self.diagnostic_text.setPlaceholderText("Run diagnostics to see corruption analysis...")
+        self._set_tooltip(self.diagnostic_text, 'repair_results')
         group_layout.addWidget(self.diagnostic_text)
         
         # Progress bar

@@ -373,6 +373,7 @@ class ShopPanelQt(QWidget):
             "background: white; border: none; border-radius: 8px;"
             " padding: 2px 8px; color: #063040;"
         )
+        self._set_tooltip(self.search_input, 'search_button')
         filter_layout.addWidget(self.search_input, 1)
 
         refresh_btn = QPushButton("🔄")
@@ -419,6 +420,7 @@ class ShopPanelQt(QWidget):
             btn.setStyleSheet(self._pill_style(active=(cat_id == "All")))
             btn.clicked.connect(lambda checked, c=cat_id: self._on_cat_pill(c))
             btn.setProperty("cat_id", cat_id)
+            self._set_tooltip(btn, 'shop_category_button')
             cat_row.addWidget(btn)
             self._cat_buttons.append(btn)
         cat_row.addStretch()
