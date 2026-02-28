@@ -207,7 +207,7 @@ class SettingsPanelQt(QWidget):
         self.theme_combo = QComboBox()
         self.theme_combo.addItems([
             "Dark", "Light", "Nord", "Dracula", "Solarized Dark",
-            "Forest", "Ocean", "Sunset", "Cyberpunk", "Gore", "Goth",
+            "Forest", "Ocean", "Sunset", "Cyberpunk", "Gore", "Goth", "Vampire",
         ])
         self.theme_combo.currentTextChanged.connect(lambda: self.on_setting_changed('ui', 'theme'))
         self.set_tooltip(self.theme_combo, 'theme_selector')
@@ -1529,6 +1529,7 @@ class SettingsPanelQt(QWidget):
                 'cyberpunk': 'Cyberpunk',
                 'gore': 'Gore',
                 'goth': 'Goth',
+                'vampire': 'Vampire',
             }
             self.theme_combo.setCurrentText(theme_map.get(theme.lower(), theme.capitalize()))
             

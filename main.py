@@ -603,6 +603,139 @@ class GoreSplatterFilter(QObject):
         return False  # never consume the event
 
 
+class VampireBatLabel(QLabel):
+    """Temporary bat emoji that flies upward and fades out on click (Vampire theme)."""
+
+    BATS = ["🦇", "🦇🦇", "🦇 🦇", "🦇🌙", "🦇💜🦇"]
+
+    def __init__(self, parent: 'QWidget', pos: 'QPoint') -> None:
+        super().__init__(parent)
+        import random as _r
+        self.setText(_r.choice(self.BATS))
+        self.setStyleSheet(
+            "QLabel { background: transparent; font-size: 22px; color: #cc44ff; "
+            "border: none; padding: 0; }"
+        )
+        self.adjustSize()
+        dx = _r.randint(-10, 10)
+        self.move(pos.x() - self.width() // 2 + dx,
+                  pos.y() - self.height() // 2)
+        self.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
+        self.show()
+        self.raise_()
+
+        # Fly upward using geometry animation
+        from PyQt6.QtWidgets import QGraphicsOpacityEffect
+        from PyQt6.QtCore import QPropertyAnimation, QEasingCurve, QRect
+        eff = QGraphicsOpacityEffect(self)
+        self.setGraphicsEffect(eff)
+
+        # Opacity fade
+        self._fade = QPropertyAnimation(eff, b"opacity", self)
+        self._fade.setDuration(1100)
+        self._fade.setStartValue(1.0)
+        self._fade.setEndValue(0.0)
+        self._fade.setEasingCurve(QEasingCurve.Type.InQuad)
+        self._fade.finished.connect(self.deleteLater)
+
+        # Rise up
+        start_geo = self.geometry()
+        end_geo = QRect(start_geo.x() + _r.randint(-20, 20),
+                        start_geo.y() - 80,
+                        start_geo.width(), start_geo.height())
+        self._rise = QPropertyAnimation(self, b"geometry", self)
+        self._rise.setDuration(1100)
+        self._rise.setStartValue(start_geo)
+        self._rise.setEndValue(end_geo)
+        self._rise.setEasingCurve(QEasingCurve.Type.OutQuad)
+
+        self._fade.start()
+        self._rise.start()
+
+
+class VampireBatFilter(QObject):
+    """Application-wide event filter: spawns bats on every button click (Vampire theme)."""
+
+    def eventFilter(self, obj: 'QObject', event: 'QEvent') -> bool:
+        try:
+            from PyQt6.QtWidgets import QAbstractButton
+            from PyQt6.QtCore import QEvent as _QEv
+            if (event.type() == _QEv.Type.MouseButtonRelease
+                    and isinstance(obj, QAbstractButton)
+                    and obj.isEnabled()
+                    and hasattr(event, 'pos')):
+                win = obj.window()
+                if win is not None:
+                    pos = obj.mapTo(win, event.pos())
+                    VampireBatLabel(win, pos)
+        except Exception:
+            pass
+        return False
+
+
+class OceanRippleLabel(QLabel):
+    """Expanding concentric ring that simulates a water ripple on click (Ocean theme)."""
+
+    def __init__(self, parent: 'QWidget', pos: 'QPoint') -> None:
+        super().__init__(parent)
+        self.setText("🌊")
+        self.setStyleSheet(
+            "QLabel { background: transparent; font-size: 28px; color: #00e5ff; "
+            "border: none; padding: 0; }"
+        )
+        self.adjustSize()
+        self.move(pos.x() - self.width() // 2,
+                  pos.y() - self.height() // 2)
+        self.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
+        self.show()
+        self.raise_()
+
+        from PyQt6.QtWidgets import QGraphicsOpacityEffect
+        from PyQt6.QtCore import QPropertyAnimation, QEasingCurve, QRect
+        eff = QGraphicsOpacityEffect(self)
+        self.setGraphicsEffect(eff)
+
+        self._fade = QPropertyAnimation(eff, b"opacity", self)
+        self._fade.setDuration(800)
+        self._fade.setStartValue(1.0)
+        self._fade.setEndValue(0.0)
+        self._fade.setEasingCurve(QEasingCurve.Type.OutCubic)
+        self._fade.finished.connect(self.deleteLater)
+
+        start_geo = self.geometry()
+        expand = 30
+        end_geo = QRect(start_geo.x() - expand, start_geo.y() - expand,
+                        start_geo.width() + expand * 2, start_geo.height() + expand * 2)
+        self._expand = QPropertyAnimation(self, b"geometry", self)
+        self._expand.setDuration(800)
+        self._expand.setStartValue(start_geo)
+        self._expand.setEndValue(end_geo)
+        self._expand.setEasingCurve(QEasingCurve.Type.OutCubic)
+
+        self._fade.start()
+        self._expand.start()
+
+
+class OceanRippleFilter(QObject):
+    """Application-wide event filter: shows a ripple on every button click (Ocean theme)."""
+
+    def eventFilter(self, obj: 'QObject', event: 'QEvent') -> bool:
+        try:
+            from PyQt6.QtWidgets import QAbstractButton
+            from PyQt6.QtCore import QEvent as _QEv
+            if (event.type() == _QEv.Type.MouseButtonRelease
+                    and isinstance(obj, QAbstractButton)
+                    and obj.isEnabled()
+                    and hasattr(event, 'pos')):
+                win = obj.window()
+                if win is not None:
+                    pos = obj.mapTo(win, event.pos())
+                    OceanRippleLabel(win, pos)
+        except Exception:
+            pass
+        return False
+
+
 class WorkerThread(QThread):
     """Background worker thread for long-running operations."""
     
@@ -711,6 +844,8 @@ class TextureSorterMainWindow(QMainWindow):
         self.worker = None
         self._ai_training_thread = None     # background PyTorchTrainer QThread (prevent GC)
         self._gore_splatter_filter = None   # GoreSplatterFilter instance (Gore theme only)
+        self._vampire_bat_filter = None     # VampireBatFilter instance (Vampire theme only)
+        self._ocean_ripple_filter = None    # OceanRippleFilter instance (Ocean theme only)
         
         # Drag-drop, translation, environment monitor
         self.drag_drop_handler = None
@@ -2430,6 +2565,7 @@ class TextureSorterMainWindow(QMainWindow):
             'solarized_dark': 'solarized dark',
             'forest': 'forest', 'ocean': 'ocean', 'sunset': 'sunset',
             'cyberpunk': 'cyberpunk', 'gore': 'gore', 'goth': 'goth',
+            'vampire': 'vampire',
         }
         theme = _DISPLAY_MAP.get(_RAW.lower().strip(), _RAW.lower().strip())
         accent = config.get('ui', 'accent_color', default='#0d7377')
@@ -3217,6 +3353,79 @@ class TextureSorterMainWindow(QMainWindow):
             QDockWidget::title {{ background-color: #1a0028; padding: 4px; color: #9966bb; }}
             QStatusBar {{ background-color: #050005; color: #9966bb; border-top: 2px solid #4a2060; }}
             """
+        elif theme in ('vampire',):
+            # 🦇 Vampire — crimson blood on midnight black, bat-spawn click effect
+            stylesheet = f"""
+            QMainWindow {{ background-color: #080010; }}
+            QWidget {{
+                background-color: #080010;
+                color: #e8c0e8;
+                font-family: 'Palatino Linotype', 'Georgia', serif;
+            }}
+            QPushButton {{
+                background-color: {accent};
+                color: #f0d0f0;
+                border: 2px solid #7a0030;
+                padding: 7px 16px;
+                border-radius: 3px;
+                font-weight: bold;
+                border-bottom: 4px solid #550020;
+            }}
+            QPushButton:hover {{
+                background-color: {hover_color.name()};
+                border-color: #cc0044;
+                color: #ffffff;
+            }}
+            QPushButton:pressed {{ background-color: {pressed_color.name()}; border-color: #330015; }}
+            QPushButton:disabled {{ background-color: #1a0022; color: #553355; border-color: #2a0035; }}
+            QLabel {{ color: #e8c0e8; background-color: transparent; min-height: 18px; }}
+            QGroupBox {{
+                color: #cc44aa;
+                border: 2px solid #7a0030;
+                border-radius: 4px;
+                margin-top: 10px;
+                font-weight: bold;
+            }}
+            QGroupBox::title {{ color: #ff44aa; subcontrol-position: top left; padding: 2px 8px; min-width: 40px; }}
+            QTabWidget::pane {{ border: 2px solid #7a0030; background-color: #0d001a; }}
+            QTabBar::tab {{
+                background-color: #12001e;
+                color: #cc88cc;
+                padding: 8px 18px;
+                min-width: 70px;
+                border: 2px solid #7a0030;
+                border-bottom: none;
+                border-radius: 4px 4px 0px 0px;
+            }}
+            QTabBar::tab:selected {{ background-color: #7a0030; color: #f0d0f0; border-color: #cc0044; }}
+            QTabBar::tab:hover {{ background-color: #1e0030; color: #ffaaee; }}
+            QMenuBar {{ background-color: #0d001a; color: #e8c0e8; border-bottom: 2px solid #7a0030; }}
+            QMenuBar::item:selected {{ background-color: #7a0030; color: #ffffff; }}
+            QMenu {{ background-color: #0d001a; color: #e8c0e8; border: 2px solid #7a0030; }}
+            QMenu::item:selected {{ background-color: #7a0030; color: #ffffff; }}
+            QProgressBar {{ border: 2px solid #7a0030; border-radius: 3px; text-align: center; background-color: #0d001a; color: #e8c0e8; }}
+            QProgressBar::chunk {{ background-color: #cc0044; }}
+            QFrame {{ background-color: #0d001a; border: 2px solid #7a0030; border-radius: 4px; }}
+            QTextEdit {{ background-color: #080010; color: #e8c0e8; border: 2px solid #7a0030; }}
+            QLineEdit {{ background-color: #12001e; color: #e8c0e8; border: 2px solid #7a0030; border-radius: 3px; padding: 4px 6px; }}
+            QLineEdit:focus {{ border-color: #cc0044; }}
+            QComboBox {{ background-color: #12001e; color: #e8c0e8; border: 2px solid #7a0030; border-radius: 3px; padding: 4px 6px; min-height: 22px; }}
+            QComboBox:hover {{ border-color: #cc0044; }}
+            QComboBox QAbstractItemView {{ background-color: #12001e; color: #e8c0e8; border: 2px solid #7a0030; selection-background-color: #7a0030; }}
+            QCheckBox {{ color: #e8c0e8; spacing: 6px; }}
+            QCheckBox::indicator {{ width: 14px; height: 14px; border: 2px solid #7a0030; border-radius: 2px; background: #12001e; }}
+            QCheckBox::indicator:checked {{ background: #7a0030; border-color: #cc0044; }}
+            QScrollBar:vertical {{ background-color: #0d001a; width: 12px; }}
+            QScrollBar::handle:vertical {{ background-color: #7a0030; border-radius: 3px; }}
+            QScrollBar::handle:vertical:hover {{ background-color: #cc0044; }}
+            QSlider::groove:horizontal {{ height: 6px; background: #12001e; border: 1px solid #7a0030; border-radius: 3px; }}
+            QSlider::handle:horizontal {{ background: #7a0030; border: 2px solid #cc0044; width: 16px; height: 16px; border-radius: 3px; margin: -5px 0; }}
+            QSlider::sub-page:horizontal {{ background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #3a0018, stop:1 #cc0044); border-radius: 3px; }}
+            QSpinBox, QDoubleSpinBox {{ background-color: #12001e; color: #e8c0e8; border: 2px solid #7a0030; border-radius: 3px; padding: 3px 5px; }}
+            QDockWidget {{ color: #e8c0e8; titlebar-close-icon: none; }}
+            QDockWidget::title {{ background-color: #7a0030; padding: 4px; color: #f0d0f0; }}
+            QStatusBar {{ background-color: #0d001a; color: #cc44aa; border-top: 2px solid #7a0030; }}
+            """
         else:  # Dark theme (default)
             stylesheet = f"""
             QMainWindow {{
@@ -3396,7 +3605,18 @@ class TextureSorterMainWindow(QMainWindow):
                 border: 1px solid #333333;
             }}
             """
-        self.setStyleSheet(stylesheet)
+        # ── Common layout-fix overrides to prevent text clipping across themes ──
+        # These are appended to every theme so individual themes don't need to
+        # repeat them.  They set minimum sizes on elements that Qt can otherwise
+        # clip when the window is narrow or when emoji/Unicode characters in tab
+        # labels require extra horizontal space.
+        _LAYOUT_FIXES = """
+            QTabBar::tab { min-width: 70px; }
+            QGroupBox::title { min-width: 30px; }
+            QLabel { min-height: 16px; }
+            QToolTip { padding: 4px 6px; }
+        """
+        self.setStyleSheet(stylesheet + _LAYOUT_FIXES)
         self.apply_cursor()
         # Apply pointer cursor to interactive widgets application-wide after
         # the stylesheet is applied.  Qt6 QSS does not support 'cursor: pointer'
@@ -3409,6 +3629,12 @@ class TextureSorterMainWindow(QMainWindow):
 
         # ── Gore theme: install/remove blood-splatter click filter ────────────
         self._update_gore_splatter(theme)
+
+        # ── Vampire theme: install/remove bat-spawn click filter ──────────────
+        self._update_vampire_bats(theme)
+
+        # ── Ocean theme: install/remove ripple click filter ───────────────────
+        self._update_ocean_ripple(theme)
 
         # ── Nord theme: Norse mythology window decorations ─────────────────────
         self._update_nord_runes(theme)
@@ -3429,6 +3655,7 @@ class TextureSorterMainWindow(QMainWindow):
                     'cyberpunk': 'thunderstruck',
                     'gore': 'shadow_walker',   # closest existing dark achievement
                     'goth': 'shadow_walker',
+                    'vampire': 'shadow_walker',
                 }
                 ach_id = _theme_ach.get(theme)
                 if ach_id:
@@ -3478,6 +3705,52 @@ class TextureSorterMainWindow(QMainWindow):
                 logger.info("Gore splatter filter removed")
         except Exception as _e:
             logger.debug(f"_update_gore_splatter: {_e}")
+
+    def _update_vampire_bats(self, theme: str) -> None:
+        """Install or remove the VampireBatFilter depending on the active theme."""
+        try:
+            from PyQt6.QtWidgets import QApplication as _QA
+            _app = _QA.instance()
+            if _app is None:
+                return
+            want = (theme == 'vampire')
+            if want and self._vampire_bat_filter is None:
+                self._vampire_bat_filter = VampireBatFilter(self)
+                _app.installEventFilter(self._vampire_bat_filter)
+                # Decorate window title with bat symbols
+                _title = self.windowTitle()
+                if not _title.startswith("🦇 "):
+                    self.setWindowTitle(f"🦇 {_title.strip()} 🦇")
+                logger.info("🦇 Vampire bat filter installed")
+            elif not want and self._vampire_bat_filter is not None:
+                _app.removeEventFilter(self._vampire_bat_filter)
+                self._vampire_bat_filter = None
+                # Remove bat window title decoration
+                _title = self.windowTitle()
+                if _title.startswith("🦇 ") and _title.endswith(" 🦇"):
+                    self.setWindowTitle(_title[2:-2].strip())
+                logger.info("Vampire bat filter removed")
+        except Exception as _e:
+            logger.debug(f"_update_vampire_bats: {_e}")
+
+    def _update_ocean_ripple(self, theme: str) -> None:
+        """Install or remove the OceanRippleFilter depending on the active theme."""
+        try:
+            from PyQt6.QtWidgets import QApplication as _QA
+            _app = _QA.instance()
+            if _app is None:
+                return
+            want = (theme in ('ocean', 'ocean_blue'))
+            if want and self._ocean_ripple_filter is None:
+                self._ocean_ripple_filter = OceanRippleFilter(self)
+                _app.installEventFilter(self._ocean_ripple_filter)
+                logger.info("🌊 Ocean ripple filter installed")
+            elif not want and self._ocean_ripple_filter is not None:
+                _app.removeEventFilter(self._ocean_ripple_filter)
+                self._ocean_ripple_filter = None
+                logger.info("Ocean ripple filter removed")
+        except Exception as _e:
+            logger.debug(f"_update_ocean_ripple: {_e}")
 
     def _update_nord_runes(self, theme: str) -> None:
         """Decorate the window title with Elder Futhark runes when the Nord

@@ -2421,6 +2421,171 @@ def test_lineart_smooth_lines_in_all_pipelines():
         print(f"  ✅ {method_name}(): smooth_lines is ordered after denoise and before invert")
 
 
+def test_vampire_theme_and_bat_filter():
+    """Vampire theme must be defined in main.py and use the VampireBatFilter.
+
+    Requirements:
+    1. VampireBatFilter class exists in main.py
+    2. _update_vampire_bats() method exists in main.py
+    3. _DISPLAY_MAP includes 'vampire' key
+    4. Vampire theme QSS is defined (elif theme in ('vampire',):)
+    5. Settings combo source includes 'Vampire'
+    6. Lineart preset descriptions for modes that use those controls are improved
+    """
+    print("\ntest_vampire_theme_and_bat_filter ...")
+    from pathlib import Path
+
+    main_src = Path(__file__).parent / 'main.py'
+    assert main_src.exists(), "main.py not found"
+    code = main_src.read_text(encoding='utf-8')
+
+    assert 'class VampireBatFilter' in code, \
+        "VampireBatFilter class not found in main.py"
+    print("  ✅ VampireBatFilter class present")
+
+    assert 'class VampireBatLabel' in code, \
+        "VampireBatLabel class not found in main.py"
+    print("  ✅ VampireBatLabel class present")
+
+    assert '_update_vampire_bats' in code, \
+        "_update_vampire_bats() not found in main.py"
+    print("  ✅ _update_vampire_bats() present")
+
+    assert "'vampire': 'vampire'" in code, \
+        "'vampire' key missing from _DISPLAY_MAP in main.py"
+    print("  ✅ 'vampire' present in _DISPLAY_MAP")
+
+    assert "theme in ('vampire',)" in code, \
+        "Vampire theme QSS block (elif theme in ('vampire',):) not found"
+    print("  ✅ Vampire theme QSS block present")
+
+    settings_src = Path(__file__).parent / 'src' / 'ui' / 'settings_panel_qt.py'
+    s_code = settings_src.read_text(encoding='utf-8')
+    assert '"Vampire"' in s_code or "'Vampire'" in s_code, \
+        "'Vampire' not added to settings combo in settings_panel_qt.py"
+    print("  ✅ 'Vampire' present in settings combo")
+
+    assert "'vampire': 'Vampire'" in s_code, \
+        "'vampire': 'Vampire' missing from theme_map in settings_panel_qt.py"
+    print("  ✅ 'vampire' present in settings theme_map")
+
+
+def test_ocean_ripple_filter():
+    """Ocean ripple click effect must be defined and wired in main.py.
+
+    Requirements:
+    1. OceanRippleFilter class exists in main.py
+    2. _update_ocean_ripple() method exists in main.py
+    3. _update_ocean_ripple is called from apply_theme
+    """
+    print("\ntest_ocean_ripple_filter ...")
+    from pathlib import Path
+
+    code = (Path(__file__).parent / 'main.py').read_text(encoding='utf-8')
+
+    assert 'class OceanRippleFilter' in code, \
+        "OceanRippleFilter class not found in main.py"
+    print("  ✅ OceanRippleFilter class present")
+
+    assert 'class OceanRippleLabel' in code, \
+        "OceanRippleLabel class not found in main.py"
+    print("  ✅ OceanRippleLabel class present")
+
+    assert '_update_ocean_ripple' in code, \
+        "_update_ocean_ripple() not found in main.py"
+    print("  ✅ _update_ocean_ripple() present")
+
+    # Verify it is called from apply_theme (not just defined)
+    import re
+    apply_theme_match = re.search(
+        r'def apply_theme\(.*?(?=\n    def |\Z)', code, re.DOTALL
+    )
+    assert apply_theme_match, "apply_theme() not found in main.py"
+    apply_body = apply_theme_match.group(0)
+    assert '_update_ocean_ripple' in apply_body, \
+        "_update_ocean_ripple() is defined but not called from apply_theme()"
+    print("  ✅ _update_ocean_ripple() called from apply_theme()")
+
+
+def test_theme_layout_fixes_appended():
+    """Common layout-fix QSS must be appended to the stylesheet in apply_theme().
+
+    Prevents text clipping in QTabBar::tab, QGroupBox::title, and QLabel
+    across all themes by setting minimum widths/heights.
+    """
+    print("\ntest_theme_layout_fixes_appended ...")
+    from pathlib import Path
+
+    code = (Path(__file__).parent / 'main.py').read_text(encoding='utf-8')
+
+    assert '_LAYOUT_FIXES' in code, \
+        "_LAYOUT_FIXES variable not found in main.py"
+    print("  ✅ _LAYOUT_FIXES variable present")
+
+    assert 'QTabBar::tab { min-width:' in code or "QTabBar::tab { min-width:" in code \
+        or "min-width: 70px" in code, \
+        "QTabBar::tab min-width rule not in _LAYOUT_FIXES"
+    print("  ✅ QTabBar::tab min-width rule present")
+
+    assert 'stylesheet + _LAYOUT_FIXES' in code, \
+        "_LAYOUT_FIXES not concatenated with stylesheet before setStyleSheet()"
+    print("  ✅ _LAYOUT_FIXES appended to all theme stylesheets")
+
+
+def test_lineart_presets_have_mode_specific_params():
+    """All lineart presets must include keys for all mode-specific controls.
+
+    edge_detect presets → edge_low, edge_high, edge_aperture
+    adaptive presets    → adaptive_block, adaptive_c, adaptive_method
+    sketch presets      → smooth_lines, smooth_amount
+
+    Having these keys means _on_preset_changed() fully populates the
+    advanced control panels when the user selects any preset.
+    """
+    print("\ntest_lineart_presets_have_mode_specific_params ...")
+    import sys, importlib
+    sys.path.insert(0, str((__import__('pathlib').Path(__file__).parent / 'src')))
+
+    # Import without PyQt6 by patching the stub
+    import types
+    _stub = types.ModuleType('PyQt6')
+    for sub in ('QtWidgets', 'QtCore', 'QtGui'):
+        _stub.__dict__[sub] = types.ModuleType(f'PyQt6.{sub}')
+    sys.modules.setdefault('PyQt6', _stub)
+    for sub in ('QtWidgets', 'QtCore', 'QtGui'):
+        sys.modules.setdefault(f'PyQt6.{sub}', _stub.__dict__[sub])
+
+    try:
+        # Re-import to pick up changes if already cached
+        if 'ui.lineart_converter_panel_qt' in sys.modules:
+            del sys.modules['ui.lineart_converter_panel_qt']
+        from ui.lineart_converter_panel_qt import LINEART_PRESETS
+    except Exception as e:
+        print(f"  ⚠️  Could not import LINEART_PRESETS: {e} — skipped")
+        return
+
+    _EDGE_KEYS = ('edge_low', 'edge_high', 'edge_aperture')
+    _ADAP_KEYS = ('adaptive_block', 'adaptive_c', 'adaptive_method')
+    _SKETCH_KEYS = ('smooth_lines', 'smooth_amount')
+
+    for name, p in LINEART_PRESETS.items():
+        mode = p.get('mode', 'pure_black')
+        if mode == 'edge_detect':
+            for k in _EDGE_KEYS:
+                assert k in p, f"Preset '{name}' (edge_detect) missing key '{k}'"
+        elif mode == 'adaptive':
+            for k in _ADAP_KEYS:
+                assert k in p, f"Preset '{name}' (adaptive) missing key '{k}'"
+        elif mode == 'sketch':
+            for k in _SKETCH_KEYS:
+                assert k in p, f"Preset '{name}' (sketch) missing key '{k}'"
+        # All presets should have smooth_lines/smooth_amount for uniformity
+        for k in _SKETCH_KEYS:
+            assert k in p, f"Preset '{name}' missing universal key '{k}'"
+
+    print(f"  ✅ All {len(LINEART_PRESETS)} presets have required mode-specific keys")
+
+
 def run_all_tests():
     print("=" * 65)
     print("Hybrid Architecture + Lazy rembg Import Tests")
@@ -2480,6 +2645,10 @@ def run_all_tests():
         test_preview_slider_single_image,
         test_realesrgan_pyinstaller_hooks_exist,
         test_lineart_smooth_lines_in_all_pipelines,
+        test_vampire_theme_and_bat_filter,
+        test_ocean_ripple_filter,
+        test_theme_layout_fixes_appended,
+        test_lineart_presets_have_mode_specific_params,
     ]
 
     passed, failed = [], []

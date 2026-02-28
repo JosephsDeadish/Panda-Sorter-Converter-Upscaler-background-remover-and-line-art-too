@@ -132,6 +132,9 @@ LINEART_PRESETS = {
         "midtone_threshold": 192, "contrast": 2.5, "sharpen": True,
         "sharpen_amount": 1.9, "morphology": "close", "morph_iter": 1,
         "kernel": 3, "denoise": True, "denoise_size": 1,
+        "smooth_lines": False, "smooth_amount": 1.0,
+        "edge_low": 50, "edge_high": 150, "edge_aperture": 3,
+        "adaptive_block": 11, "adaptive_c": 2.0, "adaptive_method": "gaussian",
     },
     "🪡 Tattoo — Black on White (Stencil Print)": {
         "desc": "Solid black lines on white — ready to print as a tattoo stencil "
@@ -141,6 +144,9 @@ LINEART_PRESETS = {
         "midtone_threshold": 190, "contrast": 2.3, "sharpen": True,
         "sharpen_amount": 1.7, "morphology": "close", "morph_iter": 1,
         "kernel": 3, "denoise": True, "denoise_size": 2,
+        "smooth_lines": False, "smooth_amount": 1.0,
+        "edge_low": 50, "edge_high": 150, "edge_aperture": 3,
+        "adaptive_block": 11, "adaptive_c": 2.0, "adaptive_method": "gaussian",
     },
     "🪡 Tattoo — Fine Line": {
         "desc": "Delicate hairline strokes for contemporary fine-line tattoo artwork. "
@@ -150,6 +156,9 @@ LINEART_PRESETS = {
         "midtone_threshold": 222, "contrast": 1.9, "sharpen": True,
         "sharpen_amount": 2.6, "morphology": "erode", "morph_iter": 1,
         "kernel": 3, "denoise": False, "denoise_size": 0,
+        "smooth_lines": False, "smooth_amount": 1.0,
+        "edge_low": 50, "edge_high": 150, "edge_aperture": 3,
+        "adaptive_block": 11, "adaptive_c": 2.0, "adaptive_method": "gaussian",
     },
     "🪡 Tattoo — Bold Traditional": {
         "desc": "Thick bold outlines in American-traditional style. "
@@ -159,6 +168,9 @@ LINEART_PRESETS = {
         "midtone_threshold": 172, "contrast": 3.1, "sharpen": True,
         "sharpen_amount": 1.4, "morphology": "dilate", "morph_iter": 2,
         "kernel": 5, "denoise": True, "denoise_size": 3,
+        "smooth_lines": False, "smooth_amount": 1.0,
+        "edge_low": 50, "edge_high": 150, "edge_aperture": 3,
+        "adaptive_block": 11, "adaptive_c": 2.0, "adaptive_method": "gaussian",
     },
     # ── General-purpose presets ────────────────────────────────────────────
     "⭐ Clean Ink Lines": {
@@ -168,14 +180,21 @@ LINEART_PRESETS = {
         "midtone_threshold": 210, "contrast": 1.6, "sharpen": True,
         "sharpen_amount": 1.3, "morphology": "close", "morph_iter": 1,
         "kernel": 3, "denoise": True, "denoise_size": 2,
+        "smooth_lines": False, "smooth_amount": 1.0,
+        "edge_low": 50, "edge_high": 150, "edge_aperture": 3,
+        "adaptive_block": 11, "adaptive_c": 2.0, "adaptive_method": "gaussian",
     },
     "✏️ Pencil Sketch": {
-        "desc": "Soft graphite pencil look with natural tonal gradation",
+        "desc": "Soft graphite pencil look with natural tonal gradation. "
+                "Smooth lines enabled to produce organic, hand-drawn feel.",
         "mode": "sketch", "threshold": 140, "auto_threshold": False,
         "background": "white", "invert": False, "remove_midtones": False,
         "midtone_threshold": 200, "contrast": 1.1, "sharpen": False,
         "sharpen_amount": 1.0, "morphology": "none", "morph_iter": 1,
         "kernel": 3, "denoise": False, "denoise_size": 1,
+        "smooth_lines": True, "smooth_amount": 1.2,
+        "edge_low": 50, "edge_high": 150, "edge_aperture": 3,
+        "adaptive_block": 11, "adaptive_c": 2.0, "adaptive_method": "gaussian",
     },
     "🖊️ Bold Outlines": {
         "desc": "Thick, punchy outlines — great for stickers or cartoon style",
@@ -184,6 +203,9 @@ LINEART_PRESETS = {
         "midtone_threshold": 170, "contrast": 2.2, "sharpen": True,
         "sharpen_amount": 1.6, "morphology": "dilate", "morph_iter": 3,
         "kernel": 5, "denoise": True, "denoise_size": 4,
+        "smooth_lines": False, "smooth_amount": 1.0,
+        "edge_low": 50, "edge_high": 150, "edge_aperture": 3,
+        "adaptive_block": 11, "adaptive_c": 2.0, "adaptive_method": "gaussian",
     },
     "🔍 Fine Detail Lines": {
         "desc": "Preserve intricate details in technical or detailed artwork",
@@ -192,6 +214,9 @@ LINEART_PRESETS = {
         "midtone_threshold": 230, "contrast": 1.9, "sharpen": True,
         "sharpen_amount": 2.2, "morphology": "none", "morph_iter": 1,
         "kernel": 3, "denoise": False, "denoise_size": 0,
+        "smooth_lines": False, "smooth_amount": 1.0,
+        "edge_low": 50, "edge_high": 150, "edge_aperture": 3,
+        "adaptive_block": 11, "adaptive_c": 2.0, "adaptive_method": "gaussian",
     },
     "💥 Comic Book Inks": {
         "desc": "High-contrast inks like professional comic book art",
@@ -200,14 +225,21 @@ LINEART_PRESETS = {
         "midtone_threshold": 185, "contrast": 2.7, "sharpen": True,
         "sharpen_amount": 2.0, "morphology": "close", "morph_iter": 2,
         "kernel": 3, "denoise": True, "denoise_size": 3,
+        "smooth_lines": False, "smooth_amount": 1.0,
+        "edge_low": 50, "edge_high": 150, "edge_aperture": 3,
+        "adaptive_block": 11, "adaptive_c": 2.0, "adaptive_method": "gaussian",
     },
     "📖 Manga Lines": {
-        "desc": "Clean adaptive lines suited for manga / anime styles",
+        "desc": "Clean adaptive lines suited for manga / anime styles. "
+                "Gaussian adaptive threshold preserves panel-boundary precision.",
         "mode": "adaptive", "threshold": 130, "auto_threshold": False,
         "background": "white", "invert": False, "remove_midtones": True,
         "midtone_threshold": 215, "contrast": 1.7, "sharpen": True,
         "sharpen_amount": 1.5, "morphology": "close", "morph_iter": 1,
         "kernel": 3, "denoise": True, "denoise_size": 2,
+        "smooth_lines": False, "smooth_amount": 1.0,
+        "edge_low": 50, "edge_high": 150, "edge_aperture": 3,
+        "adaptive_block": 11, "adaptive_c": 2.0, "adaptive_method": "gaussian",
     },
     "🖍️ Coloring Book": {
         "desc": "Thick outlines perfect for coloring books and children's art",
@@ -216,6 +248,9 @@ LINEART_PRESETS = {
         "midtone_threshold": 200, "contrast": 1.5, "sharpen": True,
         "sharpen_amount": 1.0, "morphology": "dilate", "morph_iter": 4,
         "kernel": 7, "denoise": True, "denoise_size": 5,
+        "smooth_lines": False, "smooth_amount": 1.0,
+        "edge_low": 50, "edge_high": 150, "edge_aperture": 3,
+        "adaptive_block": 11, "adaptive_c": 2.0, "adaptive_method": "gaussian",
     },
     "📐 Blueprint / Technical": {
         "desc": "Precise technical drawings with clean lines",
@@ -224,6 +259,9 @@ LINEART_PRESETS = {
         "midtone_threshold": 200, "contrast": 1.2, "sharpen": True,
         "sharpen_amount": 1.8, "morphology": "none", "morph_iter": 1,
         "kernel": 3, "denoise": True, "denoise_size": 1,
+        "smooth_lines": False, "smooth_amount": 1.0,
+        "edge_low": 50, "edge_high": 150, "edge_aperture": 3,
+        "adaptive_block": 11, "adaptive_c": 2.0, "adaptive_method": "gaussian",
     },
     "✂️ Stencil / Vinyl Cut": {
         "desc": "Clean shapes optimized for vinyl cutting and stencils",
@@ -232,14 +270,21 @@ LINEART_PRESETS = {
         "midtone_threshold": 200, "contrast": 2.3, "sharpen": True,
         "sharpen_amount": 1.5, "morphology": "close", "morph_iter": 3,
         "kernel": 5, "denoise": True, "denoise_size": 6,
+        "smooth_lines": False, "smooth_amount": 1.0,
+        "edge_low": 50, "edge_high": 150, "edge_aperture": 3,
+        "adaptive_block": 11, "adaptive_c": 2.0, "adaptive_method": "gaussian",
     },
     "🎨 Watercolor Edges": {
-        "desc": "Soft edges with artistic watercolor appearance",
+        "desc": "Soft edges with artistic watercolor appearance. "
+                "Sketch mode with smoothing gives organic washes and soft detail.",
         "mode": "sketch", "threshold": 135, "auto_threshold": False,
         "background": "white", "invert": False, "remove_midtones": False,
         "midtone_threshold": 190, "contrast": 1.3, "sharpen": False,
         "sharpen_amount": 0.8, "morphology": "none", "morph_iter": 1,
         "kernel": 3, "denoise": True, "denoise_size": 3,
+        "smooth_lines": True, "smooth_amount": 1.8,
+        "edge_low": 50, "edge_high": 150, "edge_aperture": 3,
+        "adaptive_block": 11, "adaptive_c": 2.0, "adaptive_method": "gaussian",
     },
     "🔲 Pixel Art Lines": {
         "desc": "Preserve pixel-perfect edges for retro/pixel art",
@@ -248,14 +293,21 @@ LINEART_PRESETS = {
         "midtone_threshold": 200, "contrast": 1.0, "sharpen": False,
         "sharpen_amount": 0.0, "morphology": "none", "morph_iter": 1,
         "kernel": 3, "denoise": False, "denoise_size": 0,
+        "smooth_lines": False, "smooth_amount": 1.0,
+        "edge_low": 50, "edge_high": 150, "edge_aperture": 3,
+        "adaptive_block": 11, "adaptive_c": 2.0, "adaptive_method": "gaussian",
     },
     "🌟 High Contrast Edges": {
-        "desc": "Maximum contrast with edge detection emphasis",
+        "desc": "Maximum contrast with Canny edge detection. "
+                "High thresholds pick out the sharpest, most prominent outlines.",
         "mode": "edge_detect", "threshold": 120, "auto_threshold": False,
         "background": "white", "invert": False, "remove_midtones": True,
         "midtone_threshold": 180, "contrast": 3.0, "sharpen": True,
         "sharpen_amount": 2.5, "morphology": "dilate", "morph_iter": 2,
         "kernel": 3, "denoise": False, "denoise_size": 0,
+        "smooth_lines": False, "smooth_amount": 1.0,
+        "edge_low": 80, "edge_high": 200, "edge_aperture": 3,
+        "adaptive_block": 11, "adaptive_c": 2.0, "adaptive_method": "gaussian",
     },
     "🖤 Inverted Lines (White on Black)": {
         "desc": "White lines on black background for dark themes",
@@ -264,14 +316,21 @@ LINEART_PRESETS = {
         "midtone_threshold": 210, "contrast": 1.6, "sharpen": True,
         "sharpen_amount": 1.3, "morphology": "close", "morph_iter": 1,
         "kernel": 3, "denoise": True, "denoise_size": 2,
+        "smooth_lines": False, "smooth_amount": 1.0,
+        "edge_low": 50, "edge_high": 150, "edge_aperture": 3,
+        "adaptive_block": 11, "adaptive_c": 2.0, "adaptive_method": "gaussian",
     },
     "🎭 Dramatic Shadows": {
-        "desc": "Heavy shadows with strong contrast for dramatic effect",
+        "desc": "Heavy shadows with strong contrast for dramatic effect. "
+                "Mean adaptive threshold with large block size for sweeping dark regions.",
         "mode": "adaptive", "threshold": 110, "auto_threshold": False,
         "background": "white", "invert": False, "remove_midtones": False,
         "midtone_threshold": 170, "contrast": 2.5, "sharpen": True,
         "sharpen_amount": 1.8, "morphology": "dilate", "morph_iter": 2,
         "kernel": 5, "denoise": True, "denoise_size": 2,
+        "smooth_lines": False, "smooth_amount": 1.0,
+        "edge_low": 50, "edge_high": 150, "edge_aperture": 3,
+        "adaptive_block": 15, "adaptive_c": 4.0, "adaptive_method": "mean",
     },
     "📝 Handwriting / Script": {
         "desc": "Preserve delicate script and handwriting details",
@@ -280,22 +339,33 @@ LINEART_PRESETS = {
         "midtone_threshold": 220, "contrast": 1.4, "sharpen": True,
         "sharpen_amount": 1.0, "morphology": "close", "morph_iter": 1,
         "kernel": 3, "denoise": True, "denoise_size": 1,
+        "smooth_lines": False, "smooth_amount": 1.0,
+        "edge_low": 50, "edge_high": 150, "edge_aperture": 3,
+        "adaptive_block": 11, "adaptive_c": 2.0, "adaptive_method": "gaussian",
     },
     "⚡ Speed Lines / Action": {
-        "desc": "Dynamic speed lines for action and motion effects",
+        "desc": "Dynamic speed lines for action and motion effects. "
+                "Fine aperture Canny edges catch directional motion strokes.",
         "mode": "edge_detect", "threshold": 140, "auto_threshold": False,
         "background": "transparent", "invert": False, "remove_midtones": True,
         "midtone_threshold": 200, "contrast": 2.0, "sharpen": True,
         "sharpen_amount": 2.0, "morphology": "erode", "morph_iter": 1,
         "kernel": 3, "denoise": False, "denoise_size": 0,
+        "smooth_lines": False, "smooth_amount": 1.0,
+        "edge_low": 40, "edge_high": 120, "edge_aperture": 5,
+        "adaptive_block": 11, "adaptive_c": 2.0, "adaptive_method": "gaussian",
     },
     "🏞️ Landscape Outlines": {
-        "desc": "Natural flowing lines for landscape and environment art",
+        "desc": "Natural flowing lines for landscape and environment art. "
+                "Gaussian adaptive with smoothing gives organic, rolling edges.",
         "mode": "adaptive", "threshold": 140, "auto_threshold": False,
         "background": "white", "invert": False, "remove_midtones": True,
         "midtone_threshold": 205, "contrast": 1.5, "sharpen": True,
         "sharpen_amount": 1.2, "morphology": "close", "morph_iter": 1,
         "kernel": 5, "denoise": True, "denoise_size": 3,
+        "smooth_lines": True, "smooth_amount": 1.0,
+        "edge_low": 50, "edge_high": 150, "edge_aperture": 3,
+        "adaptive_block": 13, "adaptive_c": 3.0, "adaptive_method": "gaussian",
     },
     "🎯 Logo / Icon Prep": {
         "desc": "Clean vectorization-ready lines for logos and icons",
@@ -304,6 +374,9 @@ LINEART_PRESETS = {
         "midtone_threshold": 200, "contrast": 2.0, "sharpen": True,
         "sharpen_amount": 1.5, "morphology": "close", "morph_iter": 2,
         "kernel": 3, "denoise": True, "denoise_size": 4,
+        "smooth_lines": False, "smooth_amount": 1.0,
+        "edge_low": 50, "edge_high": 150, "edge_aperture": 3,
+        "adaptive_block": 11, "adaptive_c": 2.0, "adaptive_method": "gaussian",
     },
     "🔬 Scientific Illustration": {
         "desc": "Precise lines for scientific diagrams and illustrations",
@@ -312,6 +385,9 @@ LINEART_PRESETS = {
         "midtone_threshold": 215, "contrast": 1.3, "sharpen": True,
         "sharpen_amount": 1.6, "morphology": "none", "morph_iter": 1,
         "kernel": 3, "denoise": True, "denoise_size": 1,
+        "smooth_lines": False, "smooth_amount": 1.0,
+        "edge_low": 50, "edge_high": 150, "edge_aperture": 3,
+        "adaptive_block": 11, "adaptive_c": 2.0, "adaptive_method": "gaussian",
     },
 }
 
@@ -1220,7 +1296,8 @@ class LineArtConverterPanelQt(QWidget):
             if hasattr(self, 'smooth_amount_spin'):
                 self.smooth_amount_spin.setValue(preset.get("smooth_amount", 1.0))
 
-            # Trigger preview update
+            # Trigger mode-specific panel visibility update, then preview update
+            self._on_mode_changed()
             self._schedule_preview_update()
     
     def _on_bg_mode_changed(self, index: int):
