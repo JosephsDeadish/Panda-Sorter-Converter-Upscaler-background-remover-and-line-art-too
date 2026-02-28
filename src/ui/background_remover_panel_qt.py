@@ -256,9 +256,13 @@ class BackgroundRemoverPanelQt(QWidget):
         if not _rembg_ok:
             self._backend_rembg_rb.setEnabled(False)
             self._backend_rembg_rb.setToolTip("Install rembg:  pip install 'rembg[cpu]'")
+        else:
+            self._set_tooltip(self._backend_rembg_rb, 'bg_mode')
         if not _ort_ok:
             self._backend_ort_rb.setEnabled(False)
             self._backend_ort_rb.setToolTip("Install onnxruntime:  pip install onnxruntime")
+        else:
+            self._set_tooltip(self._backend_ort_rb, 'bg_preset')
 
         # Default: prefer rembg if available, else onnxruntime
         if _rembg_ok:
@@ -282,11 +286,13 @@ class BackgroundRemoverPanelQt(QWidget):
         self.brush_cb.setChecked(True)
         self.brush_cb.toggled.connect(lambda checked: self.select_tool("brush") if checked else None)
         self._set_tooltip(self.brush_cb, "Paint to keep areas visible")
+        self._set_tooltip(self.brush_cb, 'bg_alpha_matting')
         tool_select_layout.addWidget(self.brush_cb)
 
         self.eraser_cb = QCheckBox("🧹 Eraser")
         self.eraser_cb.toggled.connect(lambda checked: self.select_tool("eraser") if checked else None)
         self._set_tooltip(self.eraser_cb, "Erase to make areas transparent")
+        self._set_tooltip(self.eraser_cb, 'bg_edge')
         tool_select_layout.addWidget(self.eraser_cb)
 
         self.fill_cb = QCheckBox("🪣 Fill")

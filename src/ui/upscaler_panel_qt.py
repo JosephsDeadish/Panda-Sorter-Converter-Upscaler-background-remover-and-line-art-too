@@ -477,6 +477,8 @@ class ImageUpscalerPanelQt(QWidget):
             self.archive_input_cb.setStyleSheet("color: gray;")
         else:
             self._set_tooltip(self.archive_input_cb, 'input_archive_checkbox')
+            self._set_tooltip(self.archive_input_cb, 'upscale_zip_input')
+            self._set_tooltip(self.archive_input_cb, 'upscale_recursive')
         archive_layout.addWidget(self.archive_input_cb)
         
         self.archive_output_cb = QCheckBox("📦 Export to Archive")
@@ -485,6 +487,8 @@ class ImageUpscalerPanelQt(QWidget):
             self.archive_output_cb.setStyleSheet("color: gray;")
         else:
             self._set_tooltip(self.archive_output_cb, 'output_archive_checkbox')
+            self._set_tooltip(self.archive_output_cb, 'upscale_zip_output')
+            self._set_tooltip(self.archive_output_cb, 'upscale_overwrite')
         archive_layout.addWidget(self.archive_output_cb)
         
         archive_layout.addStretch()
@@ -529,6 +533,8 @@ class ImageUpscalerPanelQt(QWidget):
         method_layout.addStretch()
         settings_layout.addLayout(method_layout)
         self._set_tooltip(self.method_combo, 'upscale_style')
+        self._set_tooltip(self.method_combo, 'upscale_gpu')
+        self._set_tooltip(self.method_combo, 'upscale_format')
         
         # Method description
         self.method_desc_label = QLabel(
@@ -552,6 +558,8 @@ class ImageUpscalerPanelQt(QWidget):
             self.face_enhance_check.setEnabled(False)
         settings_layout.addWidget(self.face_enhance_check)
         self._set_tooltip(self.face_enhance_check, 'upscale_face_enhance')
+        self._set_tooltip(self.face_enhance_check, 'upscale_alpha')
+        self._set_tooltip(self.face_enhance_check, 'upscale_preserve_metadata')
 
         settings_group.setLayout(settings_layout)
         main_layout.addWidget(settings_group)
@@ -596,6 +604,7 @@ class ImageUpscalerPanelQt(QWidget):
         advanced_layout.addLayout(sharpen_layout)
         self._set_tooltip(self.sharpen_cb, 'upscale_sharpen')
         self._set_tooltip(self.sharpen_spin, 'upscale_sharpen')
+        self._set_tooltip(self.sharpen_cb, 'upscale_tile_seamless')
         
         # Denoise
         denoise_layout = QHBoxLayout()
@@ -613,6 +622,7 @@ class ImageUpscalerPanelQt(QWidget):
         advanced_layout.addLayout(denoise_layout)
         self._set_tooltip(self.denoise_cb, 'upscale_denoise')
         self._set_tooltip(self.denoise_strength, 'upscale_denoise')
+        self._set_tooltip(self.denoise_cb, 'upscale_normal_map')
         
         # Auto-contrast
         contrast_layout = QHBoxLayout()
@@ -717,6 +727,10 @@ class ImageUpscalerPanelQt(QWidget):
         self.process_btn.clicked.connect(self._start_upscaling)
         self.process_btn.setEnabled(False)
         self._set_tooltip(self.process_btn, 'upscale_button')
+        self._set_tooltip(self.process_btn, 'upscale_export_single')
+        self._set_tooltip(self.process_btn, 'upscale_send_organizer')
+        self._set_tooltip(self.process_btn, 'upscale_fb_good')
+        self._set_tooltip(self.process_btn, 'upscale_fb_bad')
         button_layout.addWidget(self.process_btn)
         
         self.cancel_btn = QPushButton("Cancel")

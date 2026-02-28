@@ -281,7 +281,7 @@ class ProcessingQueueQt(QWidget):
         self.pause_btn.setToolTip("Pause or resume processing the archive queue")
         self.pause_btn.clicked.connect(self.pause_processing)
         header_layout.addWidget(self.pause_btn)
-        
+
         self.clear_btn = QPushButton("🗑 Clear")
         self.clear_btn.setStyleSheet("background-color: gray; color: white; padding: 5px;")
         self.clear_btn.clicked.connect(self.clear_queue)

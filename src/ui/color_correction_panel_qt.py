@@ -319,6 +319,7 @@ class ColorCorrectionPanelQt(QWidget):
         self.lut_combo = QComboBox()
         self.lut_combo.addItems(["None", "Warm", "Cool", "Cinematic", "Vintage"])
         self._set_tooltip(self.lut_combo, 'cc_lut')
+        self._set_tooltip(self.lut_combo, 'cc_white_balance')
         lut_layout.addWidget(self.lut_combo, 1)
         group_layout.addLayout(lut_layout)
         

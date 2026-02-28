@@ -8,7 +8,7 @@ import logging
 try:
     from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QPushButton,
                                   QLabel, QSlider, QComboBox, QColorDialog, QGroupBox,
-                                  QMessageBox, QScrollArea)
+                                  QMessageBox, QScrollArea, QLineEdit, QCheckBox)
     from PyQt6.QtCore import Qt, pyqtSignal
     from PyQt6.QtGui import QColor
     PYQT_AVAILABLE = True
@@ -157,6 +157,51 @@ class CustomizationPanelQt(QWidget):
 
         trail_group.setLayout(trail_layout)
         layout.addWidget(trail_group)
+
+        # Panda Personality section
+        personality_group = QGroupBox("🐼 Panda Personality")
+        personality_layout = QVBoxLayout()
+
+        name_layout = QHBoxLayout()
+        name_layout.addWidget(QLabel("Name:"))
+        self.panda_name_edit = QLineEdit()
+        self.panda_name_edit.setPlaceholderText("Panda")
+        self._set_tooltip(self.panda_name_edit, 'panda_name')
+        name_layout.addWidget(self.panda_name_edit, 1)
+        personality_layout.addLayout(name_layout)
+
+        gender_layout = QHBoxLayout()
+        gender_layout.addWidget(QLabel("Pronouns:"))
+        self.panda_gender_combo = QComboBox()
+        self.panda_gender_combo.addItems([
+            "They/Them (Non-binary)", "She/Her", "He/Him", "It/Its"
+        ])
+        self._set_tooltip(self.panda_gender_combo, 'panda_gender')
+        gender_layout.addWidget(self.panda_gender_combo, 1)
+        personality_layout.addLayout(gender_layout)
+
+        self.panda_auto_walk_check = QCheckBox("Auto-walk around the screen")
+        self.panda_auto_walk_check.setChecked(True)
+        self._set_tooltip(self.panda_auto_walk_check, 'panda_auto_walk')
+        personality_layout.addWidget(self.panda_auto_walk_check)
+
+        self.panda_drag_enabled_check = QCheckBox("Allow dragging panda with mouse")
+        self.panda_drag_enabled_check.setChecked(True)
+        self._set_tooltip(self.panda_drag_enabled_check, 'panda_drag_enabled')
+        personality_layout.addWidget(self.panda_drag_enabled_check)
+
+        self.panda_idle_anim_check = QCheckBox("Play idle animations")
+        self.panda_idle_anim_check.setChecked(True)
+        self._set_tooltip(self.panda_idle_anim_check, 'panda_idle_animations')
+        personality_layout.addWidget(self.panda_idle_anim_check)
+
+        self.panda_speech_bubbles_check = QCheckBox("Show speech bubbles")
+        self.panda_speech_bubbles_check.setChecked(True)
+        self._set_tooltip(self.panda_speech_bubbles_check, 'panda_speech_bubbles')
+        personality_layout.addWidget(self.panda_speech_bubbles_check)
+
+        personality_group.setLayout(personality_layout)
+        layout.addWidget(personality_group)
 
         # Actions
         button_layout = QHBoxLayout()

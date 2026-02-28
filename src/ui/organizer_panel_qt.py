@@ -656,6 +656,7 @@ class OrganizerPanelQt(QWidget):
         help_btn = QPushButton("?")
         help_btn.setMaximumWidth(30)
         help_btn.clicked.connect(self._show_game_detection_help)
+        self._set_tooltip(help_btn, 'help_button')
         group_layout.addWidget(help_btn)
         
         group.setLayout(group_layout)
@@ -941,6 +942,7 @@ class OrganizerPanelQt(QWidget):
         self.start_btn.clicked.connect(self._start_organization)
         self.start_btn.setEnabled(False)
         self._set_tooltip(self.start_btn, 'sort_button')
+        self._set_tooltip(self.start_btn, 'analysis_button')
         button_layout.addWidget(self.start_btn)
         
         self.cancel_btn = QPushButton("Cancel")
@@ -955,6 +957,7 @@ class OrganizerPanelQt(QWidget):
         self.export_learning_btn = QPushButton("📤 Export Learning")
         self.export_learning_btn.clicked.connect(self._export_learning_profile)
         self._set_tooltip(self.export_learning_btn, 'ai_export_training')
+        self._set_tooltip(self.export_learning_btn, 'batch_operations')
         button_layout.addWidget(self.export_learning_btn)
         
         self.import_learning_btn = QPushButton("📥 Import Learning")

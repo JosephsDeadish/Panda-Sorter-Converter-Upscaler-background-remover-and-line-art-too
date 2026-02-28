@@ -303,6 +303,27 @@ class OrganizerSettingsPanel(QWidget):
         self.backup_check.stateChanged.connect(lambda: self.emit_settings())
         self._set_tooltip(self.backup_check, 'alpha_fix_backup')
         file_layout.addWidget(self.backup_check)
+
+        # Detect duplicates
+        self.detect_duplicates_check = QCheckBox("Detect and skip duplicate files")
+        self.detect_duplicates_check.setChecked(False)
+        self.detect_duplicates_check.stateChanged.connect(lambda: self.emit_settings())
+        self._set_tooltip(self.detect_duplicates_check, 'detect_duplicates')
+        file_layout.addWidget(self.detect_duplicates_check)
+
+        # Group LOD variants
+        self.group_lods_check = QCheckBox("Group LOD variants in the same folder")
+        self.group_lods_check.setChecked(True)
+        self.group_lods_check.stateChanged.connect(lambda: self.emit_settings())
+        self._set_tooltip(self.group_lods_check, 'group_lods')
+        file_layout.addWidget(self.group_lods_check)
+
+        # LOD auto-detection
+        self.lod_detection_check = QCheckBox("Auto-detect LOD level from filename")
+        self.lod_detection_check.setChecked(True)
+        self.lod_detection_check.stateChanged.connect(lambda: self.emit_settings())
+        self._set_tooltip(self.lod_detection_check, 'lod_detection')
+        file_layout.addWidget(self.lod_detection_check)
         
         file_group.setLayout(file_layout)
         scroll_layout.addWidget(file_group)

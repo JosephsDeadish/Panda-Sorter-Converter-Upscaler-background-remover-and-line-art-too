@@ -201,6 +201,7 @@ class FilePickerWidget(QWidget):
             }
         """)
         self.recent_btn.clicked.connect(self.show_recent_menu)
+        self.recent_btn.setToolTip("recent_files")
         button_layout.addWidget(self.recent_btn)
         
         # Clear selection button

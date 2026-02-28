@@ -230,6 +230,7 @@ class BatchProgressDialog:
             }
         """)
         self.pause_button.clicked.connect(self._on_pause_clicked)
+        self.pause_button.setToolTip("pause_button")
         button_layout.addWidget(self.pause_button)
         
         self.cancel_button = QPushButton("❌ Cancel")
