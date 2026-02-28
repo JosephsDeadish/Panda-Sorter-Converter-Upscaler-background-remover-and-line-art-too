@@ -185,6 +185,11 @@ class BackgroundRemoverPanelQt(QWidget):
         splitter.addWidget(right_widget)
         splitter.setStretchFactor(0, 0)
         splitter.setStretchFactor(1, 1)
+        # Set initial sizes so the controls panel is fully visible and the preview
+        # panel starts at a modest 320 px — the user can resize via the splitter.
+        # Without this, Qt sizes the preview to stretch across the full remaining
+        # width which makes it hard to see the controls.
+        splitter.setSizes([360, 320])
 
         # ── File operations ────────────────────────────────────────────────
         file_layout = QHBoxLayout()
@@ -410,7 +415,8 @@ class BackgroundRemoverPanelQt(QWidget):
             right_layout.addLayout(mode_layout)
 
             self.preview_widget = ComparisonSliderWidget()
-            self.preview_widget.setMinimumHeight(300)
+            self.preview_widget.setMinimumHeight(200)
+            # Allow the preview to grow when the splitter is resized (Qt default maximum)
             self._set_tooltip(self.preview_widget, "Drag slider to compare original and processed images")
             if hasattr(self.preview_widget, 'slider_moved'):
                 self.preview_widget.slider_moved.connect(

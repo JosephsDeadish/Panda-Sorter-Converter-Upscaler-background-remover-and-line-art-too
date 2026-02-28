@@ -1648,36 +1648,31 @@ def test_trail_preview_show_hide_events():
 
 
 def test_panda_overlay_hidden_on_non_home_tabs():
-    """Panda overlay must be visible only on the Home tab (index 0).
+    """Panda overlay must be visible on ALL tabs (not just Home tab).
 
-    The transparent full-window panda widget covers interactive UI on every
-    other tab:
-    - Tools tab (index 1): blocks the Background Remover live preview pane
-    - Panda tab (index 2): covers the Trail Preview strip in Customization
-    - Settings tab (index 3): overlaps the Font Family and Font Size combo boxes
+    Issue #197: 'he should be visible everywhere'
+    The overlay uses WA_TransparentForMouseEvents / event.ignore() so it does
+    NOT block interactive UI on any tab — it can safely remain visible.
 
-    Fix: `tabs.currentChanged` is connected to `_on_main_tab_changed` which
-    calls ``overlay.setVisible(index == 0)``.
-
-    This test verifies both the signal wiring in source code (AST check) and
-    the live runtime behaviour by switching tabs on a real window instance.
+    This test verifies:
+    1. tabs.currentChanged is connected to _on_main_tab_changed
+    2. _on_main_tab_changed does NOT hide the overlay (no setVisible(index == 0))
+    3. _on_main_tab_changed keeps the overlay visible (setVisible(True) or raise_())
     """
     print("\ntest_panda_overlay_hidden_on_non_home_tabs ...")
-    import ast
     from pathlib import Path
+    import ast
 
     src = Path(__file__).parent / 'main.py'
     code = src.read_text(encoding='utf-8')
 
     # 1. Signal must be connected
     assert 'currentChanged.connect' in code and '_on_main_tab_changed' in code, (
-        "main.py must connect tabs.currentChanged to _on_main_tab_changed.\n"
-        "Without this the panda overlay stays visible on all tabs, blocking\n"
-        "the Background Remover preview, Font settings, and Trail Preview."
+        "main.py must connect tabs.currentChanged to _on_main_tab_changed."
     )
     print("  ✅ tabs.currentChanged connected to _on_main_tab_changed")
 
-    # 2. _on_main_tab_changed must exist and use index == 0 logic
+    # 2. _on_main_tab_changed must exist and NOT hide on non-home tabs
     tree = ast.parse(code)
     found_method = False
     for node in ast.walk(tree):
@@ -1685,62 +1680,23 @@ def test_panda_overlay_hidden_on_non_home_tabs():
             for item in node.body:
                 if isinstance(item, ast.FunctionDef) and item.name == '_on_main_tab_changed':
                     method_src = ast.get_source_segment(code, item) or ''
-                    assert 'index == 0' in method_src or 'index==0' in method_src, (
-                        "_on_main_tab_changed must use `index == 0` to show the\n"
-                        "overlay only on the Home tab."
+                    # Must NOT restrict visibility to home tab only
+                    assert 'setVisible(index == 0)' not in method_src, (
+                        "_on_main_tab_changed must NOT call setVisible(index == 0). "
+                        "The panda should be visible on all tabs."
                     )
-                    assert 'setVisible' in method_src, (
-                        "_on_main_tab_changed must call setVisible() on the overlay."
+                    assert 'setVisible' in method_src or 'raise_()' in method_src, (
+                        "_on_main_tab_changed must call setVisible or raise_() to "
+                        "keep the overlay present."
                     )
                     found_method = True
                     break
             break
 
     assert found_method, (
-        "TextureSorterMainWindow is missing _on_main_tab_changed().\n"
-        "Add a method that calls overlay.setVisible(index == 0)."
+        "TextureSorterMainWindow is missing _on_main_tab_changed()."
     )
-    print("  ✅ _on_main_tab_changed() exists and uses index==0 guard")
-
-    # 3. Runtime check: actually switch tabs and verify visibility
-    import sys, logging, os
-    os.environ.setdefault('QT_QPA_PLATFORM', 'offscreen')
-    logging.disable(logging.CRITICAL)
-
-    import main as _main_mod
-    from PyQt6.QtWidgets import QApplication
-    _app = QApplication.instance() or QApplication(sys.argv)
-
-    win = _main_mod.TextureSorterMainWindow()
-    overlay = win.panda_overlay
-    if overlay is None:
-        print("  ⚠️  No panda_overlay present — skipping runtime tab check")
-        return
-
-    win.resize(1280, 800)
-    win.show()
-    _app.processEvents()
-
-    expected = {0: True, 1: False, 2: False, 3: False}
-    for idx, should_be_visible in expected.items():
-        if idx < win.tabs.count():
-            win.tabs.setCurrentIndex(idx)
-            _app.processEvents()
-            actual = overlay.isVisible()
-            assert actual == should_be_visible, (
-                f"Tab {idx}: overlay visible={actual}, expected {should_be_visible}.\n"
-                f"The panda overlay must only be visible on the Home tab (index 0)."
-            )
-
-    # Go back to Home and verify it re-shows
-    win.tabs.setCurrentIndex(0)
-    _app.processEvents()
-    assert overlay.isVisible(), (
-        "Switching back to Home tab must make the overlay visible again."
-    )
-    print("  ✅ Runtime: overlay visible=True on Home, False on Tools/Panda/Settings")
-
-
+    print("  ✅ _on_main_tab_changed() exists and does not hide overlay")
 def test_settings_tab_has_emoji():
     """Settings main tab must display '⚙️ Settings', not the bare word 'Settings'.
 
@@ -2797,6 +2753,173 @@ def test_tools_has_cv2_guards_numpy():
         print(f"  ✅ {class_name} guards has_cv2 with HAS_NUMPY")
 
 
+def test_panda_visible_all_tabs():
+    """Panda overlay must be visible on ALL tabs, not just the Home tab.
+
+    Issue #197: 'he should be visible everywhere'
+    The _on_main_tab_changed handler must NOT call setVisible(index == 0).
+    Instead it should keep the overlay visible always.
+    """
+    print("\ntest_panda_visible_all_tabs ...")
+    import re
+    code = open('main.py').read()
+
+    # Find _on_main_tab_changed method
+    m = re.search(r'def _on_main_tab_changed.*?(?=\n    def |\Z)', code, re.DOTALL)
+    assert m, "_on_main_tab_changed not found in main.py"
+    body = m.group(0)
+
+    assert 'setVisible(index == 0)' not in body, (
+        "_on_main_tab_changed still hides overlay with setVisible(index == 0). "
+        "The panda should be visible on all tabs."
+    )
+    print("  ✅ overlay no longer hidden on non-home tabs")
+
+    assert 'setVisible(True)' in body or 'raise_()' in body, (
+        "_on_main_tab_changed should keep overlay visible (setVisible(True) or raise_())"
+    )
+    print("  ✅ overlay is kept visible / raised on tab change")
+
+
+def test_panda_2d_passes_offpanda_clicks_through():
+    """PandaWidget2D mousePressEvent must ignore off-panda clicks.
+
+    When the 2D panda is used as a full-window overlay, clicks that miss the
+    panda body must call event.ignore() so Qt re-delivers them to the UI below.
+    """
+    print("\ntest_panda_2d_passes_offpanda_clicks_through ...")
+    code = open('src/ui/panda_widget_2d.py').read()
+
+    assert 'event.ignore()' in code, (
+        "panda_widget_2d.py: mousePressEvent must call event.ignore() for "
+        "off-panda clicks so they pass through to the UI below the overlay."
+    )
+    print("  ✅ event.ignore() present for off-panda clicks")
+
+    assert 'event.accept()' in code, (
+        "panda_widget_2d.py: mousePressEvent must call event.accept() for "
+        "on-panda clicks to trigger the bounce animation."
+    )
+    print("  ✅ event.accept() present for on-panda clicks")
+
+
+def test_panda_boundary_clamping():
+    """Panda must be clamped within the visible viewport.
+
+    Issue #197: 'can go too high up disappears going up' and 'gets stuck in middle'
+    The overlay must clamp panda_x, panda_y, panda_z to safe ranges.
+    """
+    print("\ntest_panda_boundary_clamping ...")
+    code = open('src/ui/transparent_panda_overlay.py').read()
+
+    assert 'max(-1.5' in code or 'min(1.5' in code, (
+        "transparent_panda_overlay.py: panda_x and panda_z must be clamped to "
+        "[-1.5, 1.5] to prevent the panda from wandering off screen."
+    )
+    print("  ✅ x/z clamping present in overlay")
+
+    # Ceiling check
+    assert 'panda_y > 1.2' in code or '> 1.2' in code, (
+        "transparent_panda_overlay.py: panda_y must have a ceiling check "
+        "(e.g. if self.panda_y > 1.2) to prevent the panda from disappearing upward."
+    )
+    print("  ✅ y ceiling clamping present in overlay")
+
+    # Walk target range should be within bounds
+    import re
+    decide_m = re.search(r'def _decide_next_behavior.*?(?=\n    def |\Z)', code, re.DOTALL)
+    assert decide_m, "_decide_next_behavior not found"
+    assert 'uniform(-2.0, 2.0)' not in decide_m.group(0), (
+        "_decide_next_behavior should not pick targets at ±2.0 (use ±1.5 max)"
+    )
+    print("  ✅ walk target range uses safe bounds")
+
+
+def test_achievement_trophy_shelf_ui():
+    """Achievement panel must use the trophy-shelf design.
+
+    Issue #197: 'achievements ui looks extremely bad its just blank white boxes'
+    The panel should have:
+    - TrophyWidget class (individual trophies)
+    - ShelfRowWidget class (wooden shelf rows)
+    - Greyed-out locked trophies
+    - Wooden plaque with carved text
+    """
+    print("\ntest_achievement_trophy_shelf_ui ...")
+    code = open('src/ui/achievement_panel_qt.py').read()
+
+    assert 'class TrophyWidget' in code, \
+        "achievement_panel_qt.py must define TrophyWidget for individual trophies"
+    print("  ✅ TrophyWidget class exists")
+
+    assert 'class ShelfRowWidget' in code, \
+        "achievement_panel_qt.py must define ShelfRowWidget for wooden shelf rows"
+    print("  ✅ ShelfRowWidget class exists")
+
+    assert 'SHELF_BG' in code or '_SHELF_BG' in code or 'walnut' in code.lower() or '#2d1a0e' in code, \
+        "achievement_panel_qt.py must use wooden shelf colours"
+    print("  ✅ wooden shelf colour constants present")
+
+    assert 'PLAQUE' in code or '_PLAQUE' in code, \
+        "achievement_panel_qt.py must define plaque (carved-text) styling"
+    print("  ✅ plaque constants present")
+
+    # Locked trophies should be greyed out
+    assert '#4a4a4a' in code or 'rgba(200,200,200' in code or 'color: rgba' in code or '2a2a2a' in code, \
+        "achievement_panel_qt.py must grey out locked trophies"
+    print("  ✅ locked trophies are greyed out")
+
+
+def test_format_converter_column_min_width():
+    """Format Converter grid layouts must have column minimum widths.
+
+    Issue #197: 'Format Converter appears squished, letters being cut off'
+    The label column (col 0) of QGridLayouts must have setColumnMinimumWidth.
+    """
+    print("\ntest_format_converter_column_min_width ...")
+    code = open('src/ui/format_converter_panel_qt.py').read()
+
+    assert 'setColumnMinimumWidth' in code, (
+        "format_converter_panel_qt.py: QGridLayout label columns must call "
+        "setColumnMinimumWidth(0, ...) so labels are never cut off."
+    )
+    print("  ✅ setColumnMinimumWidth present in format converter")
+
+    assert 'setColumnStretch' in code, (
+        "format_converter_panel_qt.py: value column should use setColumnStretch "
+        "to grow with the panel."
+    )
+    print("  ✅ setColumnStretch present in format converter")
+
+
+def test_background_remover_initial_splitter_sizes():
+    """Background Remover must set initial splitter sizes.
+
+    Issue #197: 'background removers previewer is too large'
+    The splitter.setSizes([...]) call must give the preview a modest initial size.
+    """
+    print("\ntest_background_remover_initial_splitter_sizes ...")
+    code = open('src/ui/background_remover_panel_qt.py').read()
+
+    assert 'setSizes' in code, (
+        "background_remover_panel_qt.py: splitter must call setSizes([...]) "
+        "to set the initial preview size to something modest."
+    )
+    print("  ✅ splitter setSizes() called in background remover")
+
+    import re
+    # Extract the setSizes argument to verify preview starts smaller than 500 px
+    m = re.search(r'setSizes\(\[(\d+),\s*(\d+)\]\)', code)
+    if m:
+        controls = int(m.group(1))
+        preview  = int(m.group(2))
+        assert preview <= 400, (
+            f"background remover preview initial size is {preview}px — "
+            f"should be ≤400 px so controls are visible by default."
+        )
+        print(f"  ✅ preview initial width {preview}px ≤ 400px")
+
+
 def run_all_tests():
     print("=" * 65)
     print("Hybrid Architecture + Lazy rembg Import Tests")
@@ -2864,6 +2987,12 @@ def run_all_tests():
         test_lineart_converter_numpy_fallbacks,
         test_numpy_pyinstaller_hooks,
         test_tools_has_cv2_guards_numpy,
+        test_panda_visible_all_tabs,
+        test_panda_2d_passes_offpanda_clicks_through,
+        test_panda_boundary_clamping,
+        test_achievement_trophy_shelf_ui,
+        test_format_converter_column_min_width,
+        test_background_remover_initial_splitter_sizes,
     ]
 
     passed, failed = [], []

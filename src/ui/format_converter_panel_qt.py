@@ -291,6 +291,11 @@ if _PYQT:
             fmt_box = QGroupBox("🎯 Output Format")
             fmt_lay = QGridLayout(fmt_box)
             fmt_lay.setSpacing(4)
+            # Ensure the label column has a fixed minimum width so it is never
+            # cut off when the panel is narrow.  The value column gets all
+            # remaining space via setColumnStretch.
+            fmt_lay.setColumnMinimumWidth(0, 110)
+            fmt_lay.setColumnStretch(1, 1)
             fmt_lay.addWidget(QLabel("Format:"), 0, 0)
             self._fmt_combo = QComboBox()
             for label, _, _ in _OUTPUT_FORMATS:
@@ -331,6 +336,8 @@ if _PYQT:
             qual_box = QGroupBox("⚙️ Quality & Compression")
             qual_lay = QGridLayout(qual_box)
             qual_lay.setSpacing(4)
+            qual_lay.setColumnMinimumWidth(0, 110)
+            qual_lay.setColumnStretch(1, 1)
 
             qual_lay.addWidget(QLabel("JPEG quality:"), 0, 0)
             self._jpeg_q = QSpinBox()
@@ -475,7 +482,11 @@ if _PYQT:
             self._status_lbl.setStyleSheet("color:#58a6ff; font-size:11px;")
             rv.addWidget(self._status_lbl)
             splitter.addWidget(right)
-            splitter.setSizes([380, 480])
+            # Give the left (settings) panel slightly more initial width so
+            # labels are never cut off on first open.
+            splitter.setSizes([420, 440])
+            splitter.setStretchFactor(0, 0)
+            splitter.setStretchFactor(1, 1)
 
         # ── Tooltip helper ────────────────────────────────────────────────
         def _set_tooltip(self, widget, widget_id_or_text: str):

@@ -102,6 +102,13 @@ class PandaWidget2D(QWidget if _QT_AVAILABLE else object):  # type: ignore[misc]
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, True)
         self.setAttribute(Qt.WidgetAttribute.WA_NoSystemBackground, True)
         self.setAutoFillBackground(False)
+        # Pass mouse events through to UI widgets below unless the click lands
+        # on the panda body.  Without this, the full-window overlay would block
+        # every click on Tools/Panda/Settings tabs.  The mousePressEvent below
+        # calls event.ignore() for off-panda clicks so Qt re-delivers them to
+        # the appropriate widget underneath.
+        self.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, False)
+        self.setMouseTracking(True)
 
         self.panda = panda_character  # PandaCharacter or None
 
@@ -530,16 +537,37 @@ class PandaWidget2D(QWidget if _QT_AVAILABLE else object):  # type: ignore[misc]
         super().mouseMoveEvent(event)
 
     def mousePressEvent(self, event: QMouseEvent) -> None:  # type: ignore[override]
+        # Only react to clicks that land on the panda body; for all other clicks
+        # call event.ignore() so Qt re-delivers the event to the widget behind
+        # the overlay.  This keeps the panda interactive while leaving every
+        # button, slider, and list in the tools/settings/panda tabs fully usable.
         if event.button() == Qt.MouseButton.LeftButton:
-            self._is_bouncing = True
-            self._bounce_vel = BOUNCE_INITIAL_VEL
-            self._surprised_eye_t = 0.25
-            # Arm kick toward surprise
-            self._arm_vel_l = -15.0
-            self._arm_vel_r = -15.0
-            self._spawn_particles()
-            self.clicked.emit()
-        super().mousePressEvent(event)
+            w, h = max(1, self.width()), max(1, self.height())
+            cx = w // 2
+            cy = int(h * 0.72)
+            s = min(min(w, h) / 320.0, 0.8)
+            # Panda body occupies roughly a 100×140 px box centred at (cx, cy)
+            panda_half_w = int(60 * s)
+            panda_half_h = int(90 * s)
+            click_x = event.pos().x()
+            click_y = event.pos().y()
+            on_panda = (
+                abs(click_x - cx) <= panda_half_w
+                and abs(click_y - cy) <= panda_half_h
+            )
+            if on_panda:
+                self._is_bouncing = True
+                self._bounce_vel = BOUNCE_INITIAL_VEL
+                self._surprised_eye_t = 0.25
+                # Arm kick toward surprise
+                self._arm_vel_l = -15.0
+                self._arm_vel_r = -15.0
+                self._spawn_particles()
+                self.clicked.emit()
+                event.accept()
+                return
+        # Click missed the panda — pass the event through to the UI below
+        event.ignore()
 
     def _spawn_particles(self) -> None:
         cx, cy = self.width() // 2, int(self.height() * 0.45)

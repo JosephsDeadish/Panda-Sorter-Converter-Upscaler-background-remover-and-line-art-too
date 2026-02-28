@@ -657,6 +657,12 @@ class TransparentPandaOverlay(QOpenGLWidget if PYQT_AVAILABLE else QWidget):
         if self.panda_y < -0.5:
             self.panda_y = -0.5
             self.velocity_y = 0.0
+
+        # Ceiling — prevent panda from disappearing above the visible area
+        # (GL y≈1.2 typically maps to the top of the window)
+        if self.panda_y > 1.2:
+            self.panda_y = 1.2
+            self.velocity_y = min(0.0, self.velocity_y)  # stop upward movement
         
         # Detect widget under panda for shadow rendering
         if self.main_window:
@@ -953,6 +959,9 @@ class TransparentPandaOverlay(QOpenGLWidget if PYQT_AVAILABLE else QWidget):
                 # Normalize and move
                 self.panda_x += (dx / distance) * self.walk_speed * delta_time
                 self.panda_z += (dz / distance) * self.walk_speed * delta_time
+                # Clamp to visible boundary so panda never walks off screen
+                self.panda_x = max(-1.5, min(1.5, self.panda_x))
+                self.panda_z = max(-1.5, min(1.5, self.panda_z))
                 self.set_animation_state('walking')
                 
                 # Face direction of movement
@@ -997,11 +1006,13 @@ class TransparentPandaOverlay(QOpenGLWidget if PYQT_AVAILABLE else QWidget):
         self.behavior_state = random.choices(behaviors, weights=weights)[0]
         
         if self.behavior_state == 'walking':
-            # Pick random target position
+            # Pick random target position — clamped to [-1.5, 1.5] so the panda
+            # stays within the visible viewport on typical window sizes.
+            # GL world units: ±2.0 often maps to near the window edge or beyond.
             self.target_position = (
-                random.uniform(-2.0, 2.0),
+                random.uniform(-1.5, 1.5),
                 self.panda_y,
-                random.uniform(-2.0, 2.0)
+                random.uniform(-1.5, 1.5)
             )
         elif self.behavior_state == 'crawling':
             self.set_animation_state('crawling')
