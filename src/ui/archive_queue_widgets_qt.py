@@ -284,6 +284,13 @@ class ProcessingQueueQt(QWidget):
         self.pause_btn.clicked.connect(self.pause_processing)
         header_layout.addWidget(self.pause_btn)
 
+        self.cancel_btn = QPushButton("✕ Cancel")
+        self.cancel_btn.setStyleSheet("background-color: #EF4444; color: white; padding: 5px;")
+        self.cancel_btn.setToolTip("Cancel the current processing run")
+        self.cancel_btn.setEnabled(False)
+        self.cancel_btn.clicked.connect(self.cancel_processing)
+        header_layout.addWidget(self.cancel_btn)
+
         self.clear_btn = QPushButton("🗑 Clear")
         self.clear_btn.setStyleSheet("background-color: gray; color: white; padding: 5px;")
         self.clear_btn.setToolTip("Remove all pending items from the archive queue")
@@ -356,6 +363,7 @@ class ProcessingQueueQt(QWidget):
         
         self.start_btn.setEnabled(False)
         self.pause_btn.setEnabled(True)
+        self.cancel_btn.setEnabled(True)
         self.clear_btn.setEnabled(False)
         
         self.processing_started.emit()
@@ -383,6 +391,20 @@ class ProcessingQueueQt(QWidget):
             self.pause_btn.setText("⏸ Pause")
             logger.info("Processing resumed")
         
+        self._update_ui()
+
+    def cancel_processing(self):
+        """Stop the current processing run immediately."""
+        if not self.is_processing:
+            return
+        self.is_processing = False
+        self.is_paused = False
+        self.pause_btn.setText("⏸ Pause")
+        self.pause_btn.setEnabled(False)
+        self.cancel_btn.setEnabled(False)
+        self.start_btn.setEnabled(True)
+        self.clear_btn.setEnabled(True)
+        logger.info("Processing cancelled by user")
         self._update_ui()
     
     def _process_queue(self):
@@ -416,6 +438,7 @@ class ProcessingQueueQt(QWidget):
         self.is_processing = False
         self.start_btn.setEnabled(True)
         self.pause_btn.setEnabled(False)
+        self.cancel_btn.setEnabled(False)
         self.clear_btn.setEnabled(True)
         self.processing_completed.emit()
         self._update_ui()
