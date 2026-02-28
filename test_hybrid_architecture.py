@@ -2362,6 +2362,65 @@ def test_realesrgan_pyinstaller_hooks_exist():
             print(f"  ✅ '{pkg}' present in spec hiddenimports")
 
 
+def test_lineart_smooth_lines_in_all_pipelines():
+    """LineArtConverter.convert() and preview_settings() must apply smooth_lines.
+
+    convert_image() has always applied smooth_lines (lines 232-233 in the
+    original file).  However convert() — used by the live preview worker and
+    by _FormatConversionWorker — was missing the step entirely, so:
+
+    1. The 'Smooth lines' checkbox had zero visible effect on the preview.
+    2. When the user saved via the format-conversion worker the lines were
+       never smoothed either.
+    3. preview_settings() was also missing the step, so the settings-preview
+       helper produced different results from the full save pipeline.
+
+    Requirements:
+    1. convert() applies smooth_lines after denoise and before invert
+    2. preview_settings() applies smooth_lines at the same position
+    """
+    print("\ntest_lineart_smooth_lines_in_all_pipelines ...")
+    import re
+    from pathlib import Path
+
+    src = Path(__file__).parent / 'src' / 'tools' / 'lineart_converter.py'
+    if not src.exists():
+        print("  ⚠️  Skipped (lineart_converter.py not found)")
+        return
+
+    code = src.read_text(encoding='utf-8')
+
+    for method_name in ('convert', 'preview_settings'):
+        # Extract the method body up to the next top-level method definition
+        m = re.search(
+            rf'def {method_name}\(self.*?(?=\n    def |\Z)',
+            code, re.DOTALL
+        )
+        assert m, f"Method {method_name}() not found in lineart_converter.py"
+        body = m.group(0)
+
+        assert 'smooth_lines' in body, (
+            f"LineArtConverter.{method_name}() does not apply smooth_lines.\n"
+            f"Add: if settings.smooth_lines: result = self._smooth_lines(result, settings.smooth_amount)\n"
+            f"between the denoise step and the invert step."
+        )
+        print(f"  ✅ {method_name}() applies smooth_lines")
+
+        # Verify ordering: smooth_lines must come after denoise and before invert
+        denoise_pos = body.find('settings.denoise')
+        smooth_pos = body.find('smooth_lines')
+        invert_pos = body.rfind('settings.invert')  # rfind to skip data-class line
+
+        assert denoise_pos < smooth_pos, (
+            f"{method_name}(): smooth_lines step must come AFTER denoise step"
+        )
+        if invert_pos > 0:
+            assert smooth_pos < invert_pos, (
+                f"{method_name}(): smooth_lines step must come BEFORE invert step"
+            )
+        print(f"  ✅ {method_name}(): smooth_lines is ordered after denoise and before invert")
+
+
 def run_all_tests():
     print("=" * 65)
     print("Hybrid Architecture + Lazy rembg Import Tests")
@@ -2420,6 +2479,7 @@ def run_all_tests():
         test_lineart_conversion_worker_supports_cancellation,
         test_preview_slider_single_image,
         test_realesrgan_pyinstaller_hooks_exist,
+        test_lineart_smooth_lines_in_all_pipelines,
     ]
 
     passed, failed = [], []

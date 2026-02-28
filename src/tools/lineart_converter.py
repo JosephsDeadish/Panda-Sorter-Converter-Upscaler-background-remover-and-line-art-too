@@ -163,6 +163,9 @@ class LineArtConverter:
             if settings.denoise:
                 result = self._denoise(result, settings.denoise_size)
 
+            if settings.smooth_lines:
+                result = self._smooth_lines(result, settings.smooth_amount)
+
             if settings.invert:
                 from PIL import ImageOps as _IO
                 result = _IO.invert(result)
@@ -722,6 +725,10 @@ class LineArtConverter:
         # Denoise if requested
         if settings.denoise:
             result_img = self._denoise(result_img, settings.denoise_size)
+        
+        # Smooth lines if requested
+        if settings.smooth_lines:
+            result_img = self._smooth_lines(result_img, settings.smooth_amount)
         
         # Invert if requested
         if settings.invert:
