@@ -409,6 +409,7 @@ class ExamplePanel(BasePyQtPanel):
         self.file_input.setPlaceholderText("No file selected")
         browse_btn = QPushButton("Browse...")
         browse_btn.clicked.connect(self._browse_input_file)
+        self._set_tooltip(browse_btn, 'input_browse')
         
         file_layout.addWidget(QLabel("Input File:"))
         file_layout.addWidget(self.file_input, 1)

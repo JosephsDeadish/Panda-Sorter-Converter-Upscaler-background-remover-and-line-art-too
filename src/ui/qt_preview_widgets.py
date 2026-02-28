@@ -113,6 +113,7 @@ class ColorPreviewWidget(QWidget):
         
         # Color picker button
         self.pick_button = QPushButton("Pick Color")
+        self.pick_button.setToolTip("Open a colour picker dialog to choose a new colour")
         self.pick_button.clicked.connect(self._open_color_picker)
         layout.addWidget(self.pick_button)
     

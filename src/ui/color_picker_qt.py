@@ -76,6 +76,7 @@ class ColorPickerWidget(QWidget):
         button_layout = QHBoxLayout()
         
         pick_btn = QPushButton("Pick Color...")
+        pick_btn.setToolTip("Open a colour picker dialog")
         pick_btn.clicked.connect(self.show_color_dialog)
         button_layout.addWidget(pick_btn)
         
