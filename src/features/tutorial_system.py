@@ -1653,6 +1653,97 @@ _PANDA_TOOLTIPS = {
             "Keep both versions. Your disk space is crying but whatever. Hard drives are cheap. Data loss is expensive. Math works out."
         ]
     },
+    'input_files_browse': {
+        'normal': [
+            "Select individual image files to convert",
+            "Browse and pick specific image files for conversion",
+            "Choose files one by one instead of an entire folder",
+            "Multi-select image files for batch conversion",
+        ],
+        'vulgar': [
+            "Pick the actual FILES you want converted. Not a folder. Files. Individual. File. By. File. You know what files are, right?",
+            "Select image files. Like, the specific ones. Not the whole folder. Unless the whole folder. Then use the folder button, genius.",
+            "File picker time! Select your chosen images for conversion. Ctrl+click for multiple. You probably knew that. Maybe.",
+        ],
+    },
+    'output_suffix': {
+        'normal': [
+            "Optional text appended to output filenames",
+            "Add a suffix like '_converted' to avoid overwriting originals",
+            "Leave blank to keep the original filename",
+        ],
+        'vulgar': [
+            "Suffix. The thing that goes at the END of the filename. Like '_converted' or '_done_finally'. Optional but useful.",
+            "Append text to output filenames. Prevents overwriting your originals. Which you definitely care about. Right?",
+        ],
+    },
+    'jpeg_quality': {
+        'normal': [
+            "JPEG quality 1-100: higher = better quality, larger file",
+            "Set JPEG compression quality (92 is a good balance)",
+            "Lower quality reduces file size but introduces artifacts",
+            "100 = lossless-like JPEG, 1 = maximum compression artifacts",
+        ],
+        'vulgar': [
+            "JPEG quality. 1 = looks like it was compressed through a potato. 100 = massive file that looks perfect. Pick wisely.",
+            "How much do you hate image quality? 1 = a lot. 100 = you're a file size masochist who deserves good things.",
+        ],
+    },
+    'webp_quality': {
+        'normal': [
+            "WebP quality 1-100: higher = better quality, larger file",
+            "Set WebP lossy compression quality (90 is a good default)",
+            "WebP offers better compression than JPEG at same quality",
+        ],
+        'vulgar': [
+            "WebP quality, same deal as JPEG. Higher = prettier. Lower = smaller. Pick your poison and move on.",
+            "WebP quality setting. It's like JPEG quality but for WebP. Yes, that's it. That's the whole explanation.",
+        ],
+    },
+    'webp_lossless': {
+        'normal': [
+            "WebP lossless: perfect quality at the cost of larger file size",
+            "Enable lossless WebP compression for pixel-perfect output",
+            "Lossless mode ignores the quality setting above",
+        ],
+        'vulgar': [
+            "Lossless WebP: perfect quality, huge file. Your HD needs therapy anyway. Enable it if you hate compression artifacts.",
+            "No compression artifacts but larger files. Quality over storage. A noble choice. Your SSD disagrees.",
+        ],
+    },
+    'colour_space': {
+        'normal': [
+            "Convert the colour space of output images",
+            "Change between RGB, RGBA (with alpha), Greyscale, CMYK",
+            "Leave as 'Keep Original' to preserve the source colour space",
+        ],
+        'vulgar': [
+            "Colour space. RGB, RGBA, Greyscale — choose what colour mode your output files use. Not the colours, the SPACE they exist in.",
+            "Change the colour model. This is where you turn colour images grey or strip transparency. Science!",
+        ],
+    },
+    'resize_mode': {
+        'normal': [
+            "Resize output images during conversion",
+            "Choose None to keep original dimensions",
+            "Scale by percentage, limit max dimension, or set exact size",
+        ],
+        'vulgar': [
+            "Resize your images during conversion. None = same size. Percent = bigger/smaller. Max dim = won't exceed X pixels. Fixed = forced dimensions.",
+            "Size matters. Here you decide if your outputs should be the same size or a different size. Life is choices.",
+        ],
+    },
+    'clear_log_button': {
+        'normal': [
+            "Clear the conversion log output",
+            "Erase all log messages from the panel",
+            "Start fresh with an empty log",
+        ],
+        'vulgar': [
+            "Wipe the log. Burn the evidence. Whatever you were converting, the log no longer knows about it. Fresh start.",
+            "Clear log. Delete all those messages you stopped reading 3 minutes ago. Cleanliness is next to godliness.",
+        ],
+    },
     'profile_new': {
         'normal': [
             "Create a new game organization profile",

@@ -273,10 +273,12 @@ if _PYQT:
             btn_pick_dir = QPushButton("📁 Folder")
             btn_pick_dir.setFixedWidth(76)
             btn_pick_dir.clicked.connect(self._pick_input_folder)
+            self._set_tooltip(btn_pick_dir, 'input_browse')
             h.addWidget(btn_pick_dir)
             btn_pick_files = QPushButton("🖼 Files")
             btn_pick_files.setFixedWidth(70)
             btn_pick_files.clicked.connect(self._pick_input_files)
+            self._set_tooltip(btn_pick_files, 'input_files_browse')
             h.addWidget(btn_pick_files)
             inp_lay.addLayout(h)
 
@@ -301,10 +303,12 @@ if _PYQT:
             out_h = QHBoxLayout()
             self._out_dir_edit = QLineEdit()
             self._out_dir_edit.setPlaceholderText("(same as input)")
+            self._set_tooltip(self._out_dir_edit, 'output_browse')
             out_h.addWidget(self._out_dir_edit, stretch=1)
             btn_out = QPushButton("📁")
             btn_out.setFixedWidth(30)
             btn_out.clicked.connect(self._pick_output_dir)
+            self._set_tooltip(btn_out, 'output_browse')
             out_h.addWidget(btn_out)
             fmt_lay.addLayout(out_h, 1, 1)
 
@@ -319,6 +323,7 @@ if _PYQT:
             fmt_lay.addWidget(QLabel("Suffix:"), 3, 0)
             self._suffix_edit = QLineEdit("")
             self._suffix_edit.setPlaceholderText("e.g. _converted (optional)")
+            self._set_tooltip(self._suffix_edit, 'output_suffix')
             fmt_lay.addWidget(self._suffix_edit, 3, 1)
             lv.addWidget(fmt_box)
 
@@ -332,6 +337,7 @@ if _PYQT:
             self._jpeg_q.setRange(1, 100)
             self._jpeg_q.setValue(92)
             self._jpeg_q.setSuffix(" %")
+            self._set_tooltip(self._jpeg_q, 'jpeg_quality')
             qual_lay.addWidget(self._jpeg_q, 0, 1)
 
             qual_lay.addWidget(QLabel("PNG compress:"), 1, 0)
@@ -346,9 +352,11 @@ if _PYQT:
             self._webp_q.setRange(1, 100)
             self._webp_q.setValue(90)
             self._webp_q.setSuffix(" %")
+            self._set_tooltip(self._webp_q, 'webp_quality')
             qual_lay.addWidget(self._webp_q, 2, 1)
 
             self._webp_ll = QCheckBox("WebP lossless")
+            self._set_tooltip(self._webp_ll, 'webp_lossless')
             qual_lay.addWidget(self._webp_ll, 3, 0, 1, 2)
 
             self._strip_meta = QCheckBox("Strip metadata (EXIF / XMP)")
@@ -364,6 +372,7 @@ if _PYQT:
             self._colour_combo = QComboBox()
             for label, _ in _COLOUR_SPACES:
                 self._colour_combo.addItem(label)
+            self._set_tooltip(self._colour_combo, 'colour_space')
             col_lay.addWidget(self._colour_combo, stretch=1)
             lv.addWidget(col_box)
 
@@ -378,6 +387,7 @@ if _PYQT:
             for label, _ in _RESIZE_MODES:
                 self._resize_combo.addItem(label)
             self._resize_combo.currentIndexChanged.connect(self._on_resize_mode_changed)
+            self._set_tooltip(self._resize_combo, 'resize_mode')
             mode_h.addWidget(self._resize_combo, stretch=1)
             rsz_lay.addLayout(mode_h)
 
@@ -450,9 +460,11 @@ if _PYQT:
             self._cancel_btn.setFixedHeight(36)
             self._cancel_btn.setEnabled(False)
             self._cancel_btn.clicked.connect(self._cancel_conversion)
+            self._set_tooltip(self._cancel_btn, 'stop_button')
             self._clear_btn = QPushButton("🗑 Clear Log")
             self._clear_btn.setFixedHeight(36)
             self._clear_btn.clicked.connect(self._log.clear)
+            self._set_tooltip(self._clear_btn, 'clear_log_button')
             btn_row.addWidget(self._convert_btn)
             btn_row.addWidget(self._cancel_btn)
             btn_row.addStretch()

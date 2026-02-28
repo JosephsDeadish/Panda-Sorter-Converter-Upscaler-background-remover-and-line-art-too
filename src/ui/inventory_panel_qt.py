@@ -179,7 +179,7 @@ class InventoryPanelQt(QWidget):
         
         refresh_btn = QPushButton("🔄 Refresh")
         refresh_btn.clicked.connect(self.refresh_inventory)
-        self._set_tooltip(refresh_btn, 'inventory_animations')
+        self._set_tooltip(refresh_btn, "Refresh the inventory display")
         header.addWidget(refresh_btn)
         
         layout.addLayout(header)
@@ -195,6 +195,7 @@ class InventoryPanelQt(QWidget):
                       "Toys", "Food", "Special", "Sounds"]
         self.category_combo.addItems(categories)
         self.category_combo.currentTextChanged.connect(self.on_category_changed)
+        self._set_tooltip(self.category_combo, 'inventory_tab')
         filter_layout.addWidget(self.category_combo)
         
         # Search
@@ -202,6 +203,7 @@ class InventoryPanelQt(QWidget):
         self.search_input = QLineEdit()
         self.search_input.setPlaceholderText("Search your items...")
         self.search_input.textChanged.connect(self.filter_items)
+        self._set_tooltip(self.search_input, 'search_button')
         filter_layout.addWidget(self.search_input)
         
         filter_layout.addStretch()

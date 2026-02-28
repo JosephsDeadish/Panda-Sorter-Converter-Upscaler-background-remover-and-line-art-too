@@ -55,10 +55,12 @@ class ShopItemWidget(QFrame):
     
     purchase_requested = pyqtSignal(str)  # item_id
     
-    def __init__(self, item: 'ShopItem', owned: bool = False, parent=None):
+    def __init__(self, item: 'ShopItem', owned: bool = False,
+                 tooltip_manager=None, parent=None):
         super().__init__(parent)
         self.item = item
         self.owned = owned
+        self._tooltip_mgr = tooltip_manager
         self.setup_ui()
 
     def setup_ui(self):
@@ -100,6 +102,8 @@ class ShopItemWidget(QFrame):
         name_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         name_label.setWordWrap(True)
         name_label.setStyleSheet("color: #063040;")
+        self._wire_tip(name_label, 'shop_item_name',
+                       getattr(self.item, 'name', ''))
         layout.addWidget(name_label)
 
         # Price
@@ -108,6 +112,8 @@ class ShopItemWidget(QFrame):
         price_label.setFont(QFont("Segoe UI", 9, QFont.Weight.Bold))
         price_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         price_label.setStyleSheet("color: #089898;" if self.owned else "color: #B8860B;")
+        self._wire_tip(price_label, 'shop_price',
+                       f"Price: {price:,} coins" if not self.owned else "Already owned")
         layout.addWidget(price_label)
 
         layout.addStretch()
@@ -129,8 +135,21 @@ class ShopItemWidget(QFrame):
                 " font-weight: bold; font-size: 11px;"
                 " QPushButton:hover { background: #089898; }"
             )
-        btn.setToolTip('shop_buy_button')
+        self._wire_tip(btn, 'shop_buy_button', "Purchase this item")
         layout.addWidget(btn)
+
+    def _wire_tip(self, widget, tip_id: str, fallback: str = '') -> None:
+        """Set tooltip on widget, registering with tooltip_manager when available."""
+        mgr = self._tooltip_mgr
+        if mgr is not None and hasattr(mgr, 'register'):
+            try:
+                text = mgr.get_tooltip(tip_id) or fallback
+                widget.setToolTip(text)
+                mgr.register(widget, tip_id)
+                return
+            except Exception:
+                pass
+        widget.setToolTip(fallback or tip_id)
 
     def mouseDoubleClickEvent(self, event):  # type: ignore[override]
         """Open item detail dialog on double-click."""
@@ -246,7 +265,18 @@ class ShopPanelQt(QWidget):
     """Main shop panel for purchasing items."""
 
     item_purchased = pyqtSignal(str)  # item_id
-    
+
+    # Maps shop category IDs to specific tooltip catalog keys
+    _CATEGORY_TOOLTIP_IDS = {
+        "Outfits":     'shop_outfits_cat',
+        "Clothes":     'shop_clothes_cat',
+        "Hats":        'shop_hats_cat',
+        "Shoes":       'shop_shoes_cat',
+        "Accessories": 'shop_accessories_cat',
+        "Toys":        'shop_toys_cat',
+        "Food":        'shop_food_cat',
+        "Special":     'shop_special_cat',
+    }
     def __init__(self, shop_system: Optional['ShopSystem'] = None, 
                  currency_system: Optional['CurrencySystem'] = None,
                  parent=None, tooltip_manager=None):
@@ -424,7 +454,8 @@ class ShopPanelQt(QWidget):
             btn.setStyleSheet(self._pill_style(active=(cat_id == "All")))
             btn.clicked.connect(lambda checked, c=cat_id: self._on_cat_pill(c))
             btn.setProperty("cat_id", cat_id)
-            self._set_tooltip(btn, 'shop_category_button')
+            tip_id = self._CATEGORY_TOOLTIP_IDS.get(cat_id, 'shop_category_button')
+            self._set_tooltip(btn, tip_id)
             cat_row.addWidget(btn)
             self._cat_buttons.append(btn)
         cat_row.addStretch()
@@ -522,7 +553,8 @@ class ShopPanelQt(QWidget):
         row, col = 0, 0
         for item in all_items[:60]:
             owned = item.id in owned_items
-            widget = ShopItemWidget(item, owned)
+            widget = ShopItemWidget(item, owned,
+                                    tooltip_manager=self.tooltip_manager)
             widget.purchase_requested.connect(self.purchase_item)
             self.grid_layout.addWidget(widget, row, col)
             col += 1
