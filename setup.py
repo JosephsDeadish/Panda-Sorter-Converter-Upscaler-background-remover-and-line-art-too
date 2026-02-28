@@ -109,6 +109,8 @@ EXTRAS_REQUIRE = {
     'upscaling': [
         'basicsr>=1.4.2',
         'realesrgan>=0.3.0',
+        'gfpgan>=1.3.8',  # Face / character restoration (GFPGANv1.4)
+        'timm>=0.9.0',    # PyTorch Image Models (required by SwinIR/CodeFormer)
     ],
     
     # AI background removal

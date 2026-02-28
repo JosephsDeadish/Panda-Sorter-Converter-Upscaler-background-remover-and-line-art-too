@@ -439,20 +439,31 @@ class ImageUpscalerPanelQt(QWidget):
         # File selection group
         file_group = QGroupBox("📁 File Selection")
         file_layout = QVBoxLayout()
-        
-        # Select files button
+
+        # Select files + Add Folder buttons
         select_btn_layout = QHBoxLayout()
         self.select_files_btn = QPushButton("Select Files")
         self.select_files_btn.clicked.connect(self._select_files)
         select_btn_layout.addWidget(self.select_files_btn)
         self._set_tooltip(self.select_files_btn, 'upscale_input')
-        
+
+        add_folder_btn = QPushButton("📂 Add Folder")
+        add_folder_btn.clicked.connect(self._add_folder)
+        self._set_tooltip(add_folder_btn, "Add all images from a folder to the selection")
+        select_btn_layout.addWidget(add_folder_btn)
+
         self.file_count_label = QLabel("No files selected")
         self.file_count_label.setStyleSheet("color: gray;")
         select_btn_layout.addWidget(self.file_count_label)
         select_btn_layout.addStretch()
-        
+
         file_layout.addLayout(select_btn_layout)
+
+        # Recursive checkbox
+        self.recursive_cb = QCheckBox("Process subfolders")
+        self.recursive_cb.setChecked(False)
+        self._set_tooltip(self.recursive_cb, "When adding a folder, also include images in sub-folders")
+        file_layout.addWidget(self.recursive_cb)
         
         # Output directory button
         output_btn_layout = QHBoxLayout()
@@ -877,20 +888,48 @@ class ImageUpscalerPanelQt(QWidget):
             "",
             "Images (*.png *.jpg *.jpeg *.bmp *.tiff *.webp);;All Files (*)"
         )
-        
+
         if files:
             self.selected_files = files
             count = len(files)
             self.file_count_label.setText(f"{count} file(s) selected")
             self.file_count_label.setStyleSheet("color: green;")
-            
+
             # Update preview file combo
             if SLIDER_AVAILABLE and hasattr(self, 'preview_file_combo'):
                 self.preview_file_combo.clear()
                 for f in files:
                     self.preview_file_combo.addItem(Path(f).name, f)
                 self._schedule_preview_update()
-            
+
+            self._check_ready()
+
+    def _add_folder(self):
+        """Add all images from a folder (optionally recursive) to the selection."""
+        folder = QFileDialog.getExistingDirectory(self, "Select Folder")
+        if not folder:
+            return
+        recursive = hasattr(self, 'recursive_cb') and self.recursive_cb.isChecked()
+        folder_path = Path(folder)
+        from ui import IMAGE_EXTENSIONS
+        new_files = []
+        pattern = '**/*' if recursive else '*'
+        for ext in IMAGE_EXTENSIONS:
+            new_files.extend(folder_path.glob(f'{pattern}{ext}'))
+            new_files.extend(folder_path.glob(f'{pattern}{ext.upper()}'))
+        new_paths = sorted({str(p) for p in new_files})
+        existing = set(self.selected_files)
+        added = [p for p in new_paths if p not in existing]
+        self.selected_files.extend(added)
+        count = len(self.selected_files)
+        self.file_count_label.setText(f"{count} file(s) selected")
+        self.file_count_label.setStyleSheet("color: green;")
+        if added and SLIDER_AVAILABLE and hasattr(self, 'preview_file_combo'):
+            for p in added:
+                self.preview_file_combo.addItem(Path(p).name, p)
+            if count == len(added):  # first batch — trigger preview
+                self._schedule_preview_update()
+        if added:
             self._check_ready()
     
     def _on_preset_changed(self, preset_name):

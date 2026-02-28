@@ -627,7 +627,7 @@ class OrganizerPanelQt(QWidget):
     
     def _create_ui(self):
         """Create the comprehensive UI — left controls, right work area."""
-        self.setMinimumSize(700, 500)  # prevent squashed layout
+        self.setMinimumSize(900, 600)  # wider minimum to prevent squashed layout
         root = QVBoxLayout(self)
         root.setSpacing(4)
         root.setContentsMargins(8, 8, 8, 8)
@@ -658,8 +658,8 @@ class OrganizerPanelQt(QWidget):
         left_scroll = QScrollArea()
         left_scroll.setWidgetResizable(True)
         left_scroll.setFrameShape(QFrame.Shape.NoFrame)
-        left_scroll.setMinimumWidth(300)
-        left_scroll.setMaximumWidth(520)
+        left_scroll.setMinimumWidth(340)
+        left_scroll.setMaximumWidth(560)
 
         left_container = QWidget()
         left_layout = QVBoxLayout(left_container)
@@ -686,6 +686,8 @@ class OrganizerPanelQt(QWidget):
 
         splitter.setStretchFactor(0, 0)
         splitter.setStretchFactor(1, 1)
+        # Set initial splitter sizes so the right panel gets plenty of space
+        splitter.setSizes([380, 620])
 
         root.addWidget(splitter, 1)
 
@@ -869,7 +871,7 @@ class OrganizerPanelQt(QWidget):
 
         self.preview_label = QLabel()
         self.preview_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.preview_label.setMinimumSize(240, 240)
+        self.preview_label.setMinimumSize(280, 280)
         self.preview_label.setStyleSheet(
             "border: 1px solid #555; background: #1e1e2a; color: #888;"
             "border-radius: 4px;"
@@ -957,6 +959,7 @@ class OrganizerPanelQt(QWidget):
         work_splitter.addWidget(classification_container)
         work_splitter.setStretchFactor(0, 1)
         work_splitter.setStretchFactor(1, 1)
+        work_splitter.setSizes([300, 300])
 
         group_layout.addWidget(work_splitter, 1)
         group.setLayout(group_layout)
@@ -992,8 +995,8 @@ class OrganizerPanelQt(QWidget):
         # Recent actions log
         self.log_text = QTextEdit()
         self.log_text.setReadOnly(True)
-        self.log_text.setMaximumHeight(180)
-        self.log_text.setMinimumHeight(60)
+        self.log_text.setMaximumHeight(220)
+        self.log_text.setMinimumHeight(90)
         self.log_text.setStyleSheet("font-family: monospace; font-size: 9pt;")
         group_layout.addWidget(self.log_text)
         
