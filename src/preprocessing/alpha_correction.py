@@ -133,7 +133,25 @@ class AlphaCorrectionPresets:
         'thresholds': [(0, 84, 0), (85, 170, 128), (171, 255, 255)],
         'mode': 'threshold'
     }
-    
+
+    # Nintendo 64 - N64 used 5-bit (0–31) alpha stored in RGBA5551 and CI8 formats,
+    # quantized to 8 equally-spaced levels of 8-bit alpha when converted to PNG/RGBA.
+    NINTENDO_64 = {
+        'name': 'Nintendo 64',
+        'description': 'N64 textures — 5-bit alpha (RGBA5551/CI8) quantised to 8 levels',
+        'thresholds': [
+            (0,   15,  0),
+            (16,  47,  36),
+            (48,  79,  73),
+            (80, 111, 109),
+            (112, 143, 146),
+            (144, 175, 182),
+            (176, 207, 219),
+            (208, 255, 255),
+        ],
+        'mode': 'threshold'
+    }
+
     @classmethod
     def get_preset(cls, name: str) -> Optional[Dict[str, Any]]:
         """Get preset by name."""
@@ -151,9 +169,11 @@ class AlphaCorrectionPresets:
             'fade_out': cls.FADE_OUT,
             'soft_edges': cls.SOFT_EDGES,
             'dithered': cls.DITHERED,
+            'nintendo_64': cls.NINTENDO_64,
+            'n64': cls.NINTENDO_64,  # convenience alias
         }
         return presets.get(name.lower())
-    
+
     @classmethod
     def list_presets(cls) -> List[str]:
         """List all available preset names."""
@@ -167,6 +187,7 @@ class AlphaCorrectionPresets:
             'ps2_four_level',
             'psp_binary',
             'gamecube_wii',
+            'nintendo_64',
             'xbox_standard',
             'fade_out',
             'soft_edges',

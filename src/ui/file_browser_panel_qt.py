@@ -65,33 +65,33 @@ except Exception:
 
 class ThumbnailGenerator(QThread):
     """Background thread for generating thumbnails"""
-    thumbnail_ready = pyqtSignal(str, QPixmap)  # filepath, pixmap
-    
+    thumbnail_ready = pyqtSignal(str, QImage)  # filepath, qimage (QPixmap must be created in main thread)
+
     def __init__(self, files: List[Path], size: int = 128):
         super().__init__()
         self.files = files
         self.size = size
         self._stopped = False
-    
+
     def stop(self):
         """Stop thumbnail generation"""
         self._stopped = True
-    
+
     def run(self):
-        """Generate thumbnails"""
+        """Generate thumbnails (produce QImage — caller converts to QPixmap in main thread)."""
         for filepath in self.files:
             if self._stopped:
                 break
-            
+
             try:
                 if not PIL_AVAILABLE:
                     continue
-                    
+
                 # Load and resize image
                 img = Image.open(filepath)
                 img.thumbnail((self.size, self.size), Image.Resampling.LANCZOS)
-                
-                # Convert to QPixmap
+
+                # Convert to QImage (safe to create in any thread; QPixmap is GUI-only)
                 if img.mode == 'RGBA':
                     data = img.tobytes("raw", "RGBA")
                     qimage = QImage(data, img.size[0], img.size[1], QImage.Format.Format_RGBA8888)
@@ -99,14 +99,13 @@ class ThumbnailGenerator(QThread):
                     data = img.tobytes("raw", "RGB")
                     qimage = QImage(data, img.size[0], img.size[1], QImage.Format.Format_RGB888)
                 else:
-                    # Convert to RGB for other modes
                     img = img.convert('RGB')
                     data = img.tobytes("raw", "RGB")
                     qimage = QImage(data, img.size[0], img.size[1], QImage.Format.Format_RGB888)
-                
-                pixmap = QPixmap.fromImage(qimage)
-                self.thumbnail_ready.emit(str(filepath), pixmap)
-                
+
+                # QImage.copy() ensures the underlying buffer outlives the local `data` bytes
+                self.thumbnail_ready.emit(str(filepath), qimage.copy())
+
             except Exception as e:
                 logger.debug(f"Failed to generate thumbnail for {filepath}: {e}")
                 continue
@@ -648,10 +647,15 @@ class FileBrowserPanelQt(QWidget):
             self.thumbnail_generator.thumbnail_ready.connect(self.on_thumbnail_ready)
             self.thumbnail_generator.start()
     
-    def on_thumbnail_ready(self, filepath: str, pixmap: QPixmap):
-        """Handle thumbnail generated"""
+    def on_thumbnail_ready(self, filepath: str, qimage: QImage):
+        """Handle thumbnail generated — convert QImage → QPixmap in the main (GUI) thread."""
+        try:
+            pixmap = QPixmap.fromImage(qimage)
+        except Exception as _e:
+            logger.debug(f"QImage→QPixmap conversion failed: {_e}")
+            return
         self.thumbnail_cache[filepath] = pixmap
-        
+
         # Find item and update icon
         for i in range(self.file_list.count()):
             item = self.file_list.item(i)

@@ -108,14 +108,14 @@ class AlphaFixWorker(QThread):
     """Worker thread for alpha fixing."""
     progress = pyqtSignal(float, str)  # progress, message
     finished = pyqtSignal(bool, str)  # success, message
-    
-    def __init__(self, corrector, files, output_dir, settings):
+
+    def __init__(self, corrector, files, output_dir, preset_key):
         super().__init__()
         self.corrector = corrector
         self.files = files
         self.output_dir = output_dir
-        self.settings = settings
-    
+        self.preset_key = preset_key
+
     def run(self):
         """Execute alpha fixing in background thread."""
         try:
@@ -126,24 +126,29 @@ class AlphaFixWorker(QThread):
                     return
                 progress = ((i + 1) / len(self.files)) * 100
                 self.progress.emit(progress, f"Processing ({i+1}/{len(self.files)}): {Path(filepath).name}")
-                
-                # Validate file exists and is readable
+
                 if not os.path.exists(filepath):
                     logger.warning(f"File not found, skipping: {filepath}")
                     continue
                 if not os.access(filepath, os.R_OK):
                     logger.warning(f"File not readable, skipping: {filepath}")
                     continue
-                
-                # Process image
-                image = Image.open(filepath)
-                result = self.corrector.correct_alpha(image, **self.settings)
-                
-                # Save result
+
+                # Use the higher-level process_image() which handles PIL loading,
+                # RGBA conversion, numpy conversion and saving internally.
                 output_path = Path(self.output_dir) / Path(filepath).name
-                result.save(output_path)
-                processed += 1
-            
+                result = self.corrector.process_image(
+                    Path(filepath),
+                    output_path=output_path,
+                    preset=self.preset_key,
+                    overwrite=False,
+                    backup=False,
+                )
+                if result.get('success'):
+                    processed += 1
+                else:
+                    logger.warning(f"Skipped {filepath}: {result.get('reason', 'unknown')}")
+
             self.finished.emit(True, f"Successfully processed {processed} images")
         except Exception as e:
             logger.error(f"Alpha fixing failed: {e}")
@@ -157,14 +162,16 @@ class AlphaFixerPanelQt(QWidget):
 
     def __init__(self, parent=None, tooltip_manager=None):
         super().__init__(parent)
-        
+
         self.tooltip_manager = tooltip_manager
         self.corrector = AlphaCorrector() if AlphaCorrector is not None else None
         self.selected_files: List[str] = []
         self.output_directory: Optional[str] = None
         self.worker_thread = None
         self.current_image = None
-        
+        # Default preset key — set correctly by _on_preset_changed when the combo is built
+        self._selected_preset_key: Optional[str] = 'generic_binary'
+
         self._create_widgets()
     
     def _create_widgets(self):
@@ -288,20 +295,40 @@ class AlphaFixerPanelQt(QWidget):
         """Create correction presets section."""
         group = QGroupBox("🎨 Correction Presets")
         group_layout = QVBoxLayout()
-        
+
         self.preset_combo = QComboBox()
-        self.preset_combo.addItems([
-            "Standard",
-            "Aggressive",
-            "Conservative",
-            "Photo Cutout",
-            "Game Asset",
-            "Custom"
-        ])
+
+        # Map of display label → backend preset key (None = custom/no-op)
+        self._preset_items = [
+            # General
+            ("Generic Binary (transparent / opaque)",  "generic_binary"),
+            ("Clean Edges (remove fringing)",          "clean_edges"),
+            ("Soft Edges (preserve anti-aliasing)",    "soft_edges"),
+            ("Fade Out (normalise gradients)",         "fade_out"),
+            ("Dithered (fix dithered transparency)",   "dithered"),
+            # Nintendo
+            ("Nintendo 64 (RGBA5551 / CI8)",           "nintendo_64"),
+            ("GameCube / Wii (5-bit, 8 levels)",       "gamecube_wii"),
+            # PlayStation
+            ("PS2 Binary",                             "ps2_binary"),
+            ("PS2 Three-Level",                        "ps2_three_level"),
+            ("PS2 Four-Level",                         "ps2_four_level"),
+            ("PS2 Smooth (preserve gradients)",        "ps2_smooth"),
+            ("PS2 UI (sharp cutoff)",                  "ps2_ui"),
+            ("PSP Binary",                             "psp_binary"),
+            # Microsoft
+            ("Xbox Standard",                          "xbox_standard"),
+            # Custom
+            ("Custom (use sliders below)",             None),
+        ]
+
+        for label, _key in self._preset_items:
+            self.preset_combo.addItem(label)
+
         self.preset_combo.currentIndexChanged.connect(self._on_preset_changed)
         group_layout.addWidget(self.preset_combo)
         self._set_tooltip(self.preset_combo, 'alpha_fix_preset')
-        
+
         group.setLayout(group_layout)
         layout.addWidget(group)
     
@@ -482,20 +509,20 @@ class AlphaFixerPanelQt(QWidget):
             self.output_label.setStyleSheet("color: green;")
     
     def _on_preset_changed(self, index):
-        """Handle preset change."""
-        # Update settings based on preset
-        presets = {
-            0: {"defringe": True, "threshold": 30},  # Standard
-            1: {"defringe": True, "threshold": 50},  # Aggressive
-            2: {"defringe": True, "threshold": 15},  # Conservative
-            3: {"defringe": True, "threshold": 40},  # Photo Cutout
-            4: {"defringe": True, "threshold": 35},  # Game Asset
+        """Handle preset change — store the selected backend preset key."""
+        if not hasattr(self, '_preset_items') or index < 0 or index >= len(self._preset_items):
+            return
+        _, self._selected_preset_key = self._preset_items[index]
+        # Update the defringe slider to a sensible default for each category
+        slider_hints = {
+            "generic_binary": 30, "clean_edges": 20, "soft_edges": 10,
+            "fade_out": 15, "dithered": 40, "nintendo_64": 35,
+            "gamecube_wii": 35, "ps2_binary": 30, "ps2_three_level": 30,
+            "ps2_four_level": 30, "ps2_smooth": 15, "ps2_ui": 50,
+            "psp_binary": 30, "xbox_standard": 30,
         }
-        
-        # Get preset settings with bounds checking
-        if index < 5:
-            settings = presets.get(index, presets[0])  # Use .get() for safety
-            self.defringe_slider.setValue(settings["threshold"])
+        hint = slider_hints.get(self._selected_preset_key or "", 30)
+        self.defringe_slider.setValue(hint)
     
     def _preview_first(self):
         """Preview first selected image."""
@@ -522,20 +549,14 @@ class AlphaFixerPanelQt(QWidget):
         if not self.selected_files:
             QMessageBox.warning(self, "No Files", "Please select files to process")
             return
-        
+
         if not self.output_directory:
             QMessageBox.warning(self, "No Output", "Please select output directory")
             return
-        
-        # Get settings
-        settings = {
-            "remove_fringes": self.defringe_check.isChecked(),
-            "fringe_threshold": self.defringe_slider.value(),
-            "remove_matte": self.matte_check.isChecked(),
-            "enhance_edges": self.edge_check.isChecked(),
-            "edge_smooth": self.smooth_spin.value()
-        }
-        
+
+        # Resolve the selected preset key (default to 'generic_binary' if none)
+        preset_key = getattr(self, '_selected_preset_key', None) or 'generic_binary'
+
         # Disable process button; show cancel button
         self.process_btn.setEnabled(False)
         if hasattr(self, 'cancel_btn'):
@@ -543,13 +564,13 @@ class AlphaFixerPanelQt(QWidget):
             self.cancel_btn.setVisible(True)
         self.progress_bar.setVisible(True)
         self.progress_bar.setValue(0)
-        
+
         # Start worker
         self.worker_thread = AlphaFixWorker(
             self.corrector,
             self.selected_files,
             self.output_directory,
-            settings
+            preset_key,
         )
         self.worker_thread.progress.connect(self._on_progress)
         self.worker_thread.finished.connect(self._on_finished)
