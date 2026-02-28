@@ -16,7 +16,7 @@ try:
         QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
         QLineEdit, QComboBox, QListWidget, QListWidgetItem,
         QFileDialog, QMessageBox, QGroupBox, QCheckBox,
-        QScrollArea, QFrame, QGridLayout, QSplitter
+        QScrollArea, QFrame, QGridLayout, QSplitter, QMainWindow
     )
     from PyQt6.QtCore import Qt, pyqtSignal, QSize, QTimer, QThread
     from PyQt6.QtGui import QPixmap, QIcon, QImage
@@ -27,6 +27,9 @@ except (ImportError, OSError, RuntimeError):
         """Fallback stub when PyQt6 is not installed."""
         pass
     class QWidget(QObject):  # type: ignore[no-redef]
+        """Fallback stub when PyQt6 is not installed."""
+        pass
+    class QMainWindow(QWidget):  # type: ignore[no-redef]
         """Fallback stub when PyQt6 is not installed."""
         pass
     class QThread(QObject):  # type: ignore[no-redef]
@@ -141,6 +144,8 @@ class FileBrowserPanelQt(QWidget):
         self.current_files: List[Path] = []
         self.thumbnail_cache: dict = {}
         self.thumbnail_generator: Optional[ThumbnailGenerator] = None
+        # Track floating pop-out windows so they aren't garbage collected
+        self._popout_windows: list = []
         
         # Load recent folders
         try:
@@ -209,7 +214,13 @@ class FileBrowserPanelQt(QWidget):
         self.refresh_btn.setEnabled(False)
         self._set_tooltip(self.refresh_btn, 'browser_refresh_button')
         controls_layout.addWidget(self.refresh_btn)
-        
+
+        # Pop-out button — opens this browser in a standalone floating window
+        self.popout_btn = QPushButton("⎊ Pop Out")
+        self.popout_btn.clicked.connect(self._popout_to_window)
+        self._set_tooltip(self.popout_btn, 'popout_button')
+        controls_layout.addWidget(self.popout_btn)
+
         controls_layout.addStretch()
         layout.addLayout(controls_layout)
         
@@ -245,9 +256,16 @@ class FileBrowserPanelQt(QWidget):
         self.show_archives_cb.setChecked(True)
         self.show_archives_cb.stateChanged.connect(self.filter_files)
         self._set_tooltip(self.show_archives_cb, 'browser_show_archives')
-        self._set_tooltip(self.show_archives_cb, 'browser_show_all')
         filter_layout.addWidget(self.show_archives_cb)
-        
+
+        # Favorites filter button — shows only files bookmarked as favorites
+        self.favorites_btn = QPushButton("⭐ Favorites")
+        self.favorites_btn.setCheckable(True)
+        self.favorites_btn.setChecked(False)
+        self.favorites_btn.toggled.connect(self._on_favorites_toggled)
+        self._set_tooltip(self.favorites_btn, 'favorites_button')
+        filter_layout.addWidget(self.favorites_btn)
+
         layout.addLayout(filter_layout)
 
         # === IMAGE CONTENT SEARCH ===
@@ -432,7 +450,48 @@ class FileBrowserPanelQt(QWidget):
         else:
             filtered = candidates
 
+        # Apply favorites filter when the button is active
+        if hasattr(self, 'favorites_btn') and self.favorites_btn.isChecked():
+            if _SEARCH_FILTER is not None:
+                try:
+                    filtered = _SEARCH_FILTER.quick_filter_favorites(filtered)
+                except Exception:
+                    pass
+
         self.display_files(filtered)
+
+    def _on_favorites_toggled(self, checked: bool):
+        """Handle Favorites filter toggle — re-run the filter with/without favorites."""
+        self.favorites_btn.setStyleSheet(
+            "background: #FFC107; color: black; font-weight: bold;" if checked else ""
+        )
+        self.filter_files()
+
+    def _popout_to_window(self):
+        """Open this file browser panel in its own floating window.
+
+        Multiple pop-out windows are supported; references are kept in
+        `_popout_windows` to prevent garbage collection.
+        """
+        try:
+            win = QMainWindow(None)
+            win.setWindowTitle("📂 File Browser — Floating")
+            win.resize(900, 600)
+            # Create a standalone browser instance sharing config / tooltip_manager
+            clone = FileBrowserPanelQt(
+                config=self.config,
+                tooltip_manager=self.tooltip_manager,
+                parent=win,
+            )
+            if self.current_folder:
+                clone.load_folder(self.current_folder)
+            win.setCentralWidget(clone)
+            # Clean up the reference when the window is closed
+            win.destroyed.connect(lambda: self._popout_windows.remove(win) if win in self._popout_windows else None)
+            self._popout_windows.append(win)
+            win.show()
+        except Exception as e:
+            logger.warning(f"Pop-out window failed: {e}")
 
     def _search_by_content(self):
         """Search displayed images by visual content description using CLIP."""
