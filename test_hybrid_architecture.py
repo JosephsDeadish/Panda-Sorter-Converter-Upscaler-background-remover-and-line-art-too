@@ -29,6 +29,42 @@ _src = Path(__file__).parent / 'src'
 if str(_src) not in sys.path:
     sys.path.insert(0, str(_src))
 
+# ---------------------------------------------------------------------------
+# Ensure PyQt6 is always available — install automatically if missing.
+# This prevents confusing "ModuleNotFoundError: No module named 'PyQt6'" errors
+# when running tests locally without a full `pip install -r requirements.txt`.
+# ---------------------------------------------------------------------------
+def _ensure_pyqt6() -> None:
+    """Install PyQt6 (+ required system libs) if not already present."""
+    try:
+        import PyQt6  # noqa: F401
+        return  # already installed
+    except ImportError:
+        pass
+    import subprocess
+    print("⚠️  PyQt6 not found — installing automatically (requires internet)…")
+    subprocess.check_call([
+        sys.executable, "-m", "pip", "install", "--quiet",
+        "PyQt6>=6.6.0", "PyQt6-Qt6>=6.6.0", "PyQt6-sip>=13.6.0",
+    ])
+    # On headless Linux the system EGL/GL libs are also needed.
+    if sys.platform.startswith("linux"):
+        try:
+            subprocess.check_call([
+                "sudo", "apt-get", "install", "-y", "-q",
+                "libegl1", "libgl1", "libgles2",
+                "libxcb-xinerama0", "libxkbcommon-x11-0",
+            ], stderr=subprocess.DEVNULL)
+        except Exception:
+            pass  # non-fatal — user may need to install libs manually
+    print("✅ PyQt6 installed successfully")
+
+
+_ensure_pyqt6()
+
+# Set offscreen platform before any Qt import so tests run in headless CI.
+os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+
 
 # ---------------------------------------------------------------------------
 # Helpers
