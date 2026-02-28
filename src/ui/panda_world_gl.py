@@ -1457,6 +1457,7 @@ class PandaWorldWidget(QWidget if PYQT_AVAILABLE else object):
             "QPushButton{background:#3a5a3a;color:white;border:none;padding:4px 12px;border-radius:4px;}"
             "QPushButton:hover{background:#4a7a4a;}"
         )
+        btn.setToolTip("Return to the bedroom view")
         lbl = QLabel("🌍 Outside World")
         lbl.setStyleSheet("color:#dddddd;font-size:13px;font-weight:bold;")
         bb_layout.addWidget(btn)
@@ -1468,6 +1469,7 @@ class PandaWorldWidget(QWidget if PYQT_AVAILABLE else object):
             "QPushButton{background:#3a3a6a;color:white;border:none;padding:4px 10px;border-radius:4px;}"
             "QPushButton:hover{background:#5a5a9a;}"
         )
+        self._car_color_btn.setToolTip("Choose a custom colour for the car")
         self._car_color_btn.clicked.connect(self.show_car_color_picker)
         bb_layout.addWidget(self._car_color_btn)
         layout.addWidget(back_bar)

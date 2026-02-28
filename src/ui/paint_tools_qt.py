@@ -119,11 +119,13 @@ class PaintToolsWidget(QWidget):
         
         # Color button
         self.color_btn = QPushButton("Color...")
+        self.color_btn.setToolTip("Choose the brush colour")
         self.color_btn.clicked.connect(self.choose_color)
         controls.addWidget(self.color_btn)
         
         # Clear button
         clear_btn = QPushButton("Clear")
+        clear_btn.setToolTip("Clear the canvas")
         clear_btn.clicked.connect(self.paint_view.clear_canvas)
         controls.addWidget(clear_btn)
         

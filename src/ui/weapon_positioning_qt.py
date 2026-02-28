@@ -120,7 +120,9 @@ class WeaponPositioningWidget(QWidget):
         # Buttons
         buttons = QHBoxLayout()
         self.reset_btn = QPushButton("Reset")
+        self.reset_btn.setToolTip("Reset weapon position to default")
         self.save_btn = QPushButton("Save")
+        self.save_btn.setToolTip("Save the current weapon position")
         buttons.addWidget(self.reset_btn)
         buttons.addWidget(self.save_btn)
         layout.addLayout(buttons)

@@ -385,11 +385,13 @@ class PerformanceDashboard(QFrame):
 
             self.profile_btn = QPushButton("▶ Start Profile")
             self.profile_btn.setFixedWidth(140)
+            self.profile_btn.setToolTip("Start or stop Python profiling to measure performance bottlenecks")
             self.profile_btn.clicked.connect(self._toggle_profiling)
             prof_header.addWidget(self.profile_btn)
 
             self.optimize_mem_btn = QPushButton("🗑 Free Memory")
             self.optimize_mem_btn.setFixedWidth(120)
+            self.optimize_mem_btn.setToolTip("Run garbage collection to free unused memory")
             self.optimize_mem_btn.clicked.connect(self._run_optimize_memory)
             prof_header.addWidget(self.optimize_mem_btn)
 
