@@ -66,6 +66,7 @@ class HotkeyDisplayWidget(QWidget):
         
         self.table.setAlternatingRowColors(True)
         self.table.cellDoubleClicked.connect(self.on_cell_double_clicked)
+        self._set_tooltip(self.table, 'hotkey_toggle')
         
         layout.addWidget(self.table)
         
@@ -75,6 +76,7 @@ class HotkeyDisplayWidget(QWidget):
         reset_btn = QPushButton("Reset to Defaults")
         reset_btn.setToolTip("Reset all hotkeys to their default key bindings")
         reset_btn.clicked.connect(self.reset_to_defaults)
+        self._set_tooltip(reset_btn, 'hotkey_reset')
         button_layout.addWidget(reset_btn)
         
         button_layout.addStretch()
@@ -82,6 +84,7 @@ class HotkeyDisplayWidget(QWidget):
         save_btn = QPushButton("Save")
         save_btn.setToolTip("Save the current hotkey configuration")
         save_btn.clicked.connect(self.save_config)
+        self._set_tooltip(save_btn, 'save_settings')
         button_layout.addWidget(save_btn)
         
         layout.addLayout(button_layout)
@@ -160,6 +163,7 @@ class HotkeyDisplayWidget(QWidget):
         
         key_edit = QKeySequenceEdit()
         key_edit.setKeySequence(QKeySequence(current_item.text()))
+        self._set_tooltip(key_edit, 'hotkey_edit')
         layout.addWidget(key_edit)
         
         buttons = QDialogButtonBox(

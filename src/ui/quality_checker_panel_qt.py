@@ -198,6 +198,7 @@ class QualityCheckerPanelQt(QWidget):
         # Select button
         select_btn = QPushButton("Select Images")
         select_btn.clicked.connect(self._select_files)
+        self._set_tooltip(select_btn, 'qc_export')
         group_layout.addWidget(select_btn)
         
         # Clear button

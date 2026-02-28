@@ -225,6 +225,7 @@ class SettingsPanelQt(QWidget):
         self.opacity_slider.setTickPosition(QSlider.TickPosition.TicksBelow)
         self.opacity_slider.setTickInterval(10)
         self.opacity_slider.valueChanged.connect(lambda v: self.on_opacity_changed(opacity_label, v))
+        self.set_tooltip(self.opacity_slider, 'opacity_slider')
         self.set_tooltip(self.opacity_slider, 'ui_transparency')
         
         window_layout.addWidget(opacity_label)
@@ -233,6 +234,7 @@ class SettingsPanelQt(QWidget):
         # Compact view
         self.compact_view_check = QCheckBox("Compact View")
         self.compact_view_check.stateChanged.connect(lambda: self.on_setting_changed('ui', 'compact_view'))
+        self.set_tooltip(self.compact_view_check, 'compact_view')
         self.set_tooltip(self.compact_view_check, 'ui_compact_mode')
         window_layout.addWidget(self.compact_view_check)
         
@@ -553,6 +555,7 @@ class SettingsPanelQt(QWidget):
         self.animation_slider.setTickPosition(QSlider.TickPosition.TicksBelow)
         self.animation_slider.setTickInterval(5)
         self.animation_slider.valueChanged.connect(lambda v: self.on_animation_speed_changed(anim_label, v))
+        self.set_tooltip(self.animation_slider, 'animation_speed')
         self.set_tooltip(self.animation_slider, 'ui_animations')
         
         anim_layout.addWidget(anim_label)
@@ -578,6 +581,9 @@ class SettingsPanelQt(QWidget):
         ])
         self.tooltip_mode_combo.currentIndexChanged.connect(lambda: self.on_tooltip_mode_changed())
         self.set_tooltip(self.tooltip_mode_combo, 'tooltip_mode')
+        self.set_tooltip(self.tooltip_mode_combo, 'tooltip_mode_normal')
+        self.set_tooltip(self.tooltip_mode_combo, 'tooltip_mode_dumbed_down')
+        self.set_tooltip(self.tooltip_mode_combo, 'tooltip_mode_vulgar')
         
         # Add description label
         mode_desc = QLabel(
@@ -615,6 +621,7 @@ class SettingsPanelQt(QWidget):
         self.sound_enabled_check = QCheckBox("Enable Sound Effects")
         self.sound_enabled_check.stateChanged.connect(lambda: self.on_setting_changed('ui', 'sound_enabled'))
         self.set_tooltip(self.sound_enabled_check, 'sound_enabled')
+        self.set_tooltip(self.sound_enabled_check, 'sound_settings')
         sound_layout.addWidget(self.sound_enabled_check)
         
         volume_label = QLabel("Volume: 70%")
@@ -626,6 +633,7 @@ class SettingsPanelQt(QWidget):
         self.sound_volume_slider.setTickInterval(10)
         self.sound_volume_slider.valueChanged.connect(lambda v: self.on_volume_changed(volume_label, v))
         self.set_tooltip(self.sound_volume_slider, 'sound_volume')
+        self.set_tooltip(self.sound_volume_slider, 'master_volume')
         
         sound_layout.addWidget(volume_label)
         sound_layout.addWidget(self.sound_volume_slider)
@@ -659,6 +667,7 @@ class SettingsPanelQt(QWidget):
         self.thread_spin.setMaximum(16)
         self.thread_spin.setValue(4)
         self.thread_spin.valueChanged.connect(lambda: self.on_setting_changed('performance', 'max_threads'))
+        self.set_tooltip(self.thread_spin, 'thread_count')
         self.set_tooltip(self.thread_spin, 'perf_thread_count')
         
         thread_layout.addWidget(thread_label)
@@ -677,6 +686,7 @@ class SettingsPanelQt(QWidget):
         self.memory_spin.setSingleStep(256)
         self.memory_spin.setValue(2048)
         self.memory_spin.valueChanged.connect(lambda: self.on_setting_changed('performance', 'memory_limit_mb'))
+        self.set_tooltip(self.memory_spin, 'memory_limit')
         self.set_tooltip(self.memory_spin, 'perf_memory')
         
         memory_layout.addWidget(memory_label)
@@ -695,6 +705,7 @@ class SettingsPanelQt(QWidget):
         self.cache_spin.setSingleStep(128)
         self.cache_spin.setValue(512)
         self.cache_spin.valueChanged.connect(lambda: self.on_setting_changed('performance', 'cache_size_mb'))
+        self.set_tooltip(self.cache_spin, 'cache_size')
         self.set_tooltip(self.cache_spin, 'perf_cache_size')
         
         cache_layout.addWidget(cache_label)
@@ -1227,6 +1238,7 @@ class SettingsPanelQt(QWidget):
         open_config_btn = QPushButton("Open Config Folder")
         open_config_btn.clicked.connect(self.open_config_folder)
         self.set_tooltip(open_config_btn, 'open_config')
+        self.set_tooltip(open_config_btn, 'open_config_dir')
         location_layout.addWidget(open_config_btn)
         
         location_group.setLayout(location_layout)

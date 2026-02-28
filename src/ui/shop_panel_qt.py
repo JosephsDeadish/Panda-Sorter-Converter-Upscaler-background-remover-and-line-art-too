@@ -60,6 +60,10 @@ class ShopItemWidget(QFrame):
         self.item = item
         self.owned = owned
         self.setup_ui()
+
+    def _set_tooltip(self, widget, tooltip_key: str):
+        """Set tooltip; uses setToolTip directly since no tooltip_manager here."""
+        widget.setToolTip(str(tooltip_key))
         
     def setup_ui(self):
         """Create the item card UI — turquoise Livy theme."""
@@ -129,6 +133,8 @@ class ShopItemWidget(QFrame):
                 " font-weight: bold; font-size: 11px;"
                 " QPushButton:hover { background: #089898; }"
             )
+        btn.setToolTip("🛒 Purchase this item from the shop")
+        self._set_tooltip(btn, 'shop_buy_button')
         layout.addWidget(btn)
 
     def mouseDoubleClickEvent(self, event):  # type: ignore[override]
@@ -228,6 +234,7 @@ class ItemDetailDialog:
                 setattr(self, 'buy_requested', True),
                 dlg.accept(),
             ))
+        btn.setToolTip("🛒 Purchase this item from the shop")
         layout.addWidget(btn)
 
         self._dlg = dlg
@@ -330,8 +337,10 @@ class ShopPanelQt(QWidget):
         livy_name.setStyleSheet(f"color: {self._TURQ}; font-size: 18px; font-weight: bold;")
         shop_name_lbl = QLabel("Cosmic Otter Supply Co. ✨")
         shop_name_lbl.setStyleSheet(f"color: {self._STAR_GOLD}; font-size: 13px; font-weight: bold; letter-spacing: 1px;")
+        self._set_tooltip(shop_name_lbl, 'shop_tab')
         tagline = QLabel("Galactic Goods for Adventurous Pandas 🌌")
         tagline.setStyleSheet("color: #90E0E0; font-size: 10px; font-style: italic;")
+        self._set_tooltip(tagline, 'shop_level')
         otter_col.addWidget(livy_name)
         otter_col.addWidget(shop_name_lbl)
         otter_col.addWidget(tagline)

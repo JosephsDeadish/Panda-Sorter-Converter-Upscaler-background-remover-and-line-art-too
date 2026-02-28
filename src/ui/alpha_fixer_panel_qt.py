@@ -261,6 +261,7 @@ class AlphaFixerPanelQt(QWidget):
             self.archive_input_cb.setStyleSheet("color: gray;")
         else:
             self._set_tooltip(self.archive_input_cb, 'input_archive_checkbox')
+            self._set_tooltip(self.archive_input_cb, 'alpha_fix_extract_archive')
         archive_layout.addWidget(self.archive_input_cb)
         
         self.archive_output_cb = QCheckBox("📦 Export to Archive")
@@ -269,6 +270,7 @@ class AlphaFixerPanelQt(QWidget):
             self.archive_output_cb.setStyleSheet("color: gray;")
         else:
             self._set_tooltip(self.archive_output_cb, 'output_archive_checkbox')
+            self._set_tooltip(self.archive_output_cb, 'alpha_fix_compress_archive')
         archive_layout.addWidget(self.archive_output_cb)
         
         archive_layout.addStretch()
@@ -356,7 +358,7 @@ class AlphaFixerPanelQt(QWidget):
         self.edge_check = QCheckBox("Enhance Alpha Edges")
         self.edge_check.setChecked(False)
         group_layout.addWidget(self.edge_check)
-        self._set_tooltip(self.edge_check, "Refine and smooth the alpha channel boundary for cleaner cutout edges")
+        self._set_tooltip(self.edge_check, 'alpha_fix_overwrite')
         
         # Smoothing amount
         smooth_layout = QHBoxLayout()
@@ -382,6 +384,7 @@ class AlphaFixerPanelQt(QWidget):
         self.process_btn.clicked.connect(self._process_images)
         group_layout.addWidget(self.process_btn)
         self._set_tooltip(self.process_btn, 'alpha_fix_button')
+        self._set_tooltip(self.process_btn, 'alpha_fix_export')
         
         # Preview button
         preview_btn = QPushButton("Preview First Image")

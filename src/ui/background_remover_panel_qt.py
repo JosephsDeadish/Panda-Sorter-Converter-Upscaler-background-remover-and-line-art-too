@@ -341,6 +341,7 @@ class BackgroundRemoverPanelQt(QWidget):
             self.bg_model_combo.addItem(model_label, model_id)
         model_layout.addWidget(self.bg_model_combo, 1)
         self._set_tooltip(self.bg_model_combo, 'bg_model_selector')
+        self._set_tooltip(self.bg_model_combo, 'bg_model')
         model_group.setLayout(model_layout)
         layout.addWidget(model_group)
 

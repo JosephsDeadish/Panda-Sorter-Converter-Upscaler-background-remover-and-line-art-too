@@ -244,6 +244,7 @@ class FileBrowserPanelQt(QWidget):
         self.show_archives_cb.setChecked(True)
         self.show_archives_cb.stateChanged.connect(self.filter_files)
         self._set_tooltip(self.show_archives_cb, 'browser_show_archives')
+        self._set_tooltip(self.show_archives_cb, 'browser_show_all')
         filter_layout.addWidget(self.show_archives_cb)
         
         layout.addLayout(filter_layout)

@@ -268,6 +268,7 @@ if _PYQT:
             self._in_dir_edit = QLineEdit()
             self._in_dir_edit.setPlaceholderText("Input folder or drag files here…")
             self._in_dir_edit.setReadOnly(True)
+            self._set_tooltip(self._in_dir_edit, 'convert_from_format')
             h.addWidget(self._in_dir_edit, stretch=1)
             btn_pick_dir = QPushButton("📁 Folder")
             btn_pick_dir.setFixedWidth(76)

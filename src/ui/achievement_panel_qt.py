@@ -205,12 +205,14 @@ class AchievementDisplayWidget(QWidget):
         filters = ["All", "Unlocked", "Locked", "Bronze", "Silver", "Gold", "Platinum", "Legendary"]
         self.filter_combo.addItems(filters)
         self.filter_combo.currentTextChanged.connect(self.on_filter_changed)
+        self._set_tooltip(self.filter_combo, 'achievements_tab')
         filter_layout.addWidget(self.filter_combo)
         
         filter_layout.addStretch()
         
         refresh_btn = QPushButton("🔄 Refresh")
         refresh_btn.clicked.connect(self.refresh_achievements)
+        self._set_tooltip(refresh_btn, 'rewards_tab')
         filter_layout.addWidget(refresh_btn)
         
         layout.addLayout(filter_layout)

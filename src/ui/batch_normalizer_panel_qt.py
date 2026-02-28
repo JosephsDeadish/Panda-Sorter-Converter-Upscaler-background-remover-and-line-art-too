@@ -333,6 +333,7 @@ class BatchNormalizerPanelQt(QWidget):
         self.format_combo.addItems(["PNG", "JPEG", "WebP"])
         group_layout.addWidget(self.format_combo)
         self._set_tooltip(self.format_combo, 'bn_format')
+        self._set_tooltip(self.format_combo, 'bn_output_format')
         
         # Quality (for JPEG/WebP)
         quality_layout = QHBoxLayout()
