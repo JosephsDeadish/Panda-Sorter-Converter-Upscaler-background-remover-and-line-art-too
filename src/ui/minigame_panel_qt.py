@@ -194,6 +194,7 @@ class MiniGamePanelQt(QWidget):
         play_btn = QPushButton("▶ Play")
         play_btn.setStyleSheet("background-color: #10B981; color: white; padding: 8px;")
         play_btn.clicked.connect(lambda: self._start_game(game_info['id']))
+        self._set_tooltip(play_btn, 'minigames_tab')
         game_layout.addWidget(play_btn)
         
         self.content_layout.addWidget(game_frame)
@@ -239,6 +240,7 @@ class MiniGamePanelQt(QWidget):
         self.click_btn = QPushButton("CLICK ME!")
         self.click_btn.setStyleSheet("font-size: 24pt; padding: 40px; background-color: #3B82F6;")
         self.click_btn.clicked.connect(self._on_click_game_click)
+        self._set_tooltip(self.click_btn, 'minigames_tab')
         self.content_layout.addWidget(self.click_btn)
         
         # Score and timer

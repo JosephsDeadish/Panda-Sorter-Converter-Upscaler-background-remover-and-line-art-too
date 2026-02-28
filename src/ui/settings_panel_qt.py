@@ -225,7 +225,7 @@ class SettingsPanelQt(QWidget):
         self.opacity_slider.setTickPosition(QSlider.TickPosition.TicksBelow)
         self.opacity_slider.setTickInterval(10)
         self.opacity_slider.valueChanged.connect(lambda v: self.on_opacity_changed(opacity_label, v))
-        self.set_tooltip(self.opacity_slider, 'opacity_slider')
+        self.set_tooltip(self.opacity_slider, 'ui_transparency')
         
         window_layout.addWidget(opacity_label)
         window_layout.addWidget(self.opacity_slider)
@@ -233,7 +233,7 @@ class SettingsPanelQt(QWidget):
         # Compact view
         self.compact_view_check = QCheckBox("Compact View")
         self.compact_view_check.stateChanged.connect(lambda: self.on_setting_changed('ui', 'compact_view'))
-        self.set_tooltip(self.compact_view_check, 'compact_view')
+        self.set_tooltip(self.compact_view_check, 'ui_compact_mode')
         window_layout.addWidget(self.compact_view_check)
         
         window_group.setLayout(window_layout)
@@ -553,7 +553,7 @@ class SettingsPanelQt(QWidget):
         self.animation_slider.setTickPosition(QSlider.TickPosition.TicksBelow)
         self.animation_slider.setTickInterval(5)
         self.animation_slider.valueChanged.connect(lambda v: self.on_animation_speed_changed(anim_label, v))
-        self.set_tooltip(self.animation_slider, 'animation_speed')
+        self.set_tooltip(self.animation_slider, 'ui_animations')
         
         anim_layout.addWidget(anim_label)
         anim_layout.addWidget(self.animation_slider)
@@ -659,7 +659,7 @@ class SettingsPanelQt(QWidget):
         self.thread_spin.setMaximum(16)
         self.thread_spin.setValue(4)
         self.thread_spin.valueChanged.connect(lambda: self.on_setting_changed('performance', 'max_threads'))
-        self.set_tooltip(self.thread_spin, 'thread_count')
+        self.set_tooltip(self.thread_spin, 'perf_thread_count')
         
         thread_layout.addWidget(thread_label)
         thread_layout.addWidget(self.thread_spin)
@@ -677,7 +677,7 @@ class SettingsPanelQt(QWidget):
         self.memory_spin.setSingleStep(256)
         self.memory_spin.setValue(2048)
         self.memory_spin.valueChanged.connect(lambda: self.on_setting_changed('performance', 'memory_limit_mb'))
-        self.set_tooltip(self.memory_spin, 'memory_limit')
+        self.set_tooltip(self.memory_spin, 'perf_memory')
         
         memory_layout.addWidget(memory_label)
         memory_layout.addWidget(self.memory_spin)
@@ -695,7 +695,7 @@ class SettingsPanelQt(QWidget):
         self.cache_spin.setSingleStep(128)
         self.cache_spin.setValue(512)
         self.cache_spin.valueChanged.connect(lambda: self.on_setting_changed('performance', 'cache_size_mb'))
-        self.set_tooltip(self.cache_spin, 'cache_size')
+        self.set_tooltip(self.cache_spin, 'perf_cache_size')
         
         cache_layout.addWidget(cache_label)
         cache_layout.addWidget(self.cache_spin)

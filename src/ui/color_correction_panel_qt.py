@@ -310,7 +310,7 @@ class ColorCorrectionPanelQt(QWidget):
         
         # Sharpness
         self.sharpness_slider = self._create_slider(
-            group_layout, "Sharpness", 0, 200, 100, 'cc_white_balance'
+            group_layout, "Sharpness", 0, 200, 100, "Adjust image sharpness"
         )
         
         # LUT selection

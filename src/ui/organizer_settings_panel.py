@@ -280,24 +280,28 @@ class OrganizerSettingsPanel(QWidget):
         self.subfolders_check = QCheckBox("Include subfolders in processing")
         self.subfolders_check.setChecked(True)
         self.subfolders_check.stateChanged.connect(lambda: self.emit_settings())
+        self._set_tooltip(self.subfolders_check, 'convert_recursive')
         file_layout.addWidget(self.subfolders_check)
         
         # Archive input
         self.archive_input_check = QCheckBox("Support archive input (.zip, .7z, .rar, .tar)")
         self.archive_input_check.setChecked(False)
         self.archive_input_check.stateChanged.connect(lambda: self.emit_settings())
+        self._set_tooltip(self.archive_input_check, 'extract_archives')
         file_layout.addWidget(self.archive_input_check)
         
         # Archive output
         self.archive_output_check = QCheckBox("Save organized result to archive")
         self.archive_output_check.setChecked(False)
         self.archive_output_check.stateChanged.connect(lambda: self.emit_settings())
+        self._set_tooltip(self.archive_output_check, 'compress_output')
         file_layout.addWidget(self.archive_output_check)
         
         # Backup original files
         self.backup_check = QCheckBox("Backup original files before moving")
         self.backup_check.setChecked(True)
         self.backup_check.stateChanged.connect(lambda: self.emit_settings())
+        self._set_tooltip(self.backup_check, 'alpha_fix_backup')
         file_layout.addWidget(self.backup_check)
         
         file_group.setLayout(file_layout)
@@ -314,7 +318,7 @@ class OrganizerSettingsPanel(QWidget):
         pattern_label.setMinimumWidth(120)
         self.pattern_input = QLineEdit()
         self.pattern_input.setText("{category}/{filename}")
-        self._set_tooltip(self.pattern_input, "Use: {category}, {filename}, {game}, {confidence}")
+        self._set_tooltip(self.pattern_input, 'rename_template')
         self.pattern_input.textChanged.connect(lambda: self.emit_settings())
         pattern_layout.addWidget(pattern_label)
         pattern_layout.addWidget(self.pattern_input)
@@ -337,6 +341,7 @@ class OrganizerSettingsPanel(QWidget):
         ])
         self.conflict_combo.setCurrentIndex(2)  # Default to numbering
         self.conflict_combo.currentTextChanged.connect(lambda: self.emit_settings())
+        self._set_tooltip(self.conflict_combo, 'sort_mode_menu')
         conflict_layout.addWidget(conflict_label)
         conflict_layout.addWidget(self.conflict_combo)
         conflict_layout.addStretch()

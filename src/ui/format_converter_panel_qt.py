@@ -292,6 +292,7 @@ if _PYQT:
             self._fmt_combo = QComboBox()
             for label, _, _ in _OUTPUT_FORMATS:
                 self._fmt_combo.addItem(label)
+            self._set_tooltip(self._fmt_combo, 'convert_to_format')
             fmt_lay.addWidget(self._fmt_combo, 0, 1)
 
             # Output directory
@@ -351,6 +352,7 @@ if _PYQT:
 
             self._strip_meta = QCheckBox("Strip metadata (EXIF / XMP)")
             self._strip_meta.setChecked(True)
+            self._set_tooltip(self._strip_meta, 'convert_keep_original')
             qual_lay.addWidget(self._strip_meta, 4, 0, 1, 2)
             lv.addWidget(qual_box)
 

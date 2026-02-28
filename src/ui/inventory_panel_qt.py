@@ -179,6 +179,7 @@ class InventoryPanelQt(QWidget):
         
         refresh_btn = QPushButton("🔄 Refresh")
         refresh_btn.clicked.connect(self.refresh_inventory)
+        self._set_tooltip(refresh_btn, 'inventory_animations')
         header.addWidget(refresh_btn)
         
         layout.addLayout(header)
