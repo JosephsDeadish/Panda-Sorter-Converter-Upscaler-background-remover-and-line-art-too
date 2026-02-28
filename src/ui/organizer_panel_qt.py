@@ -944,6 +944,7 @@ class OrganizerPanelQt(QWidget):
         self.suggestions_list.setMaximumHeight(200)
         self.suggestions_list.setMinimumHeight(60)
         self.suggestions_list.itemClicked.connect(self._on_suggestion_selected)
+        self.suggestions_list.itemDoubleClicked.connect(self._on_suggestion_selected)
         self._set_tooltip(self.suggestions_list, 'folder_suggestions_list')
         classification_layout.addWidget(self.suggestions_list)
 

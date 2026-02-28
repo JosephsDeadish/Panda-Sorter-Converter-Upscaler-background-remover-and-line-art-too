@@ -128,7 +128,7 @@ class NormalizationWorker(QThread):
                 if self.isInterruptionRequested():
                     raise InterruptedError("Cancelled by user")
                 progress = (current / total) * 100
-                self.progress.emit(progress, f"Processing: {filename}")
+                self.progress.emit(progress, f"Processing ({current}/{total}): {filename}")
             
             self.normalizer.normalize_batch(
                 self.files,

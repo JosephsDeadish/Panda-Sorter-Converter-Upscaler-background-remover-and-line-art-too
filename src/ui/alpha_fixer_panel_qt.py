@@ -125,7 +125,7 @@ class AlphaFixWorker(QThread):
                     self.finished.emit(False, f"Cancelled after processing {processed} images")
                     return
                 progress = ((i + 1) / len(self.files)) * 100
-                self.progress.emit(progress, f"Processing: {Path(filepath).name}")
+                self.progress.emit(progress, f"Processing ({i+1}/{len(self.files)}): {Path(filepath).name}")
                 
                 # Validate file exists and is readable
                 if not os.path.exists(filepath):
