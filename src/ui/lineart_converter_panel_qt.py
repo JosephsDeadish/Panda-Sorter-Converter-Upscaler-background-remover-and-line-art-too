@@ -409,6 +409,9 @@ class _FormatConversionWorker(QThread):
         """Execute conversion in background."""
         try:
             for i, filepath in enumerate(self.files):
+                if self.isInterruptionRequested():
+                    self.finished.emit(False, f"Cancelled after converting {i} image(s)")
+                    return
                 src = Path(filepath)
                 self.progress.emit(i + 1, len(self.files), src.name)
 
@@ -1066,12 +1069,22 @@ class LineArtConverterPanelQt(QWidget):
         fmt_group.setLayout(fmt_layout)
         layout.addWidget(fmt_group)
 
-        # Convert button
+        # Convert + cancel button row
+        _conv_row = QHBoxLayout()
         self.convert_button = QPushButton("🚀 Convert Selected Files")
         self.convert_button.setStyleSheet("background-color: #2196F3; color: white; padding: 10px; font-weight: bold;")
         self.convert_button.clicked.connect(self._convert_batch)
-        layout.addWidget(self.convert_button)
+        _conv_row.addWidget(self.convert_button)
         self._set_tooltip(self.convert_button, 'la_convert')
+
+        self._cancel_btn = QPushButton("Cancel")
+        self._cancel_btn.setStyleSheet("background-color: #f44336; color: white; padding: 10px;")
+        self._cancel_btn.clicked.connect(self._cancel_batch)
+        self._cancel_btn.setEnabled(False)
+        self._cancel_btn.setVisible(False)
+        self._set_tooltip(self._cancel_btn, 'stop_button')
+        _conv_row.addWidget(self._cancel_btn)
+        layout.addLayout(_conv_row)
 
         # Browse output directory
         self.browse_output_btn = QPushButton("📂 Browse Output Folder")
@@ -1478,6 +1491,9 @@ class LineArtConverterPanelQt(QWidget):
             self.conversion_worker.start()
 
             self.convert_button.setEnabled(False)
+            if hasattr(self, '_cancel_btn'):
+                self._cancel_btn.setEnabled(True)
+                self._cancel_btn.setVisible(True)
             self.progress_bar.setVisible(True)
             self.progress_bar.setValue(0)
             self.progress_label.setText("Starting conversion...")
@@ -1496,6 +1512,9 @@ class LineArtConverterPanelQt(QWidget):
         """Handle conversion completion."""
         self.progress_bar.setVisible(False)
         self.convert_button.setEnabled(True)
+        if hasattr(self, '_cancel_btn'):
+            self._cancel_btn.setEnabled(False)
+            self._cancel_btn.setVisible(False)
         
         if success:
             QMessageBox.information(self, "Complete", message)
@@ -1504,6 +1523,14 @@ class LineArtConverterPanelQt(QWidget):
             QMessageBox.critical(self, "Error", message)
             self.progress_label.setText("✗ Conversion failed")
         self.finished.emit(success, message)
+
+    def _cancel_batch(self):
+        """Cancel the running batch conversion."""
+        if hasattr(self, 'conversion_worker') and self.conversion_worker and self.conversion_worker.isRunning():
+            self.conversion_worker.requestInterruption()
+            if hasattr(self, '_cancel_btn'):
+                self._cancel_btn.setEnabled(False)
+            self.progress_label.setText("Cancelling…")
 
     def _set_tooltip(self, widget, widget_id_or_text):
         """Set tooltip on a widget using tooltip manager if available."""
