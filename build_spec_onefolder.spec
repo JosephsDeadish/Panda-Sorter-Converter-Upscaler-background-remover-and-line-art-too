@@ -193,6 +193,41 @@ except Exception as _e:
     print(f"[build_spec] WARNING: collect_all('OpenGL') failed ({_e}) — "
           f"hook-OpenGL.py will still bundle PyOpenGL via the Analysis hook phase")
 
+# ── Collect ALL of NumPy (critical for image processing, line-art, AI) ───────
+# numpy ships compiled binary extensions (.pyd on Windows, .so on Linux/macOS)
+# and, in numpy 2.x, internal DLLs for BLAS/LAPACK.  Just listing 'numpy' and
+# 'numpy.core' as string hidden imports is not enough — the binaries won't be
+# found by PyInstaller's dependency scanner.  collect_all() retrieves:
+#   • datas   — .pyi stubs, VERSION, and any non-Python resources
+#   • binaries — compiled extensions (.pyd/.so) and DLLs
+#   • hiddenimports — every importable name (random generators, linalg, fft…)
+# hook-numpy.py (same directory) also runs automatically during Analysis and
+# adds the full hidden-import list; this collect_all() call additionally grabs
+# the binary artefacts that hook-numpy.py's collect_dynamic_libs may miss on
+# certain platforms.
+try:
+    _np_datas, _np_bins, _np_hidden = collect_all('numpy')
+    _extra_datas    += _np_datas
+    _extra_binaries += _np_bins
+    _app_hidden     += _np_hidden
+    print(f"[build_spec] NumPy collected: {len(_np_hidden)} hidden imports, "
+          f"{len(_np_bins)} binaries, {len(_np_datas)} data files")
+except Exception as _e:
+    print(f"[build_spec] WARNING: collect_all('numpy') failed ({_e}) — "
+          f"hook-numpy.py will still bundle NumPy via the Analysis hook phase")
+
+# ── Collect scipy (array/signal tools used for lineart adaptive-threshold) ────
+try:
+    _sp_datas, _sp_bins, _sp_hidden = collect_all('scipy')
+    _extra_datas    += _sp_datas
+    _extra_binaries += _sp_bins
+    _app_hidden     += _sp_hidden
+    print(f"[build_spec] SciPy collected: {len(_sp_hidden)} hidden imports, "
+          f"{len(_sp_bins)} binaries")
+except Exception as _e:
+    print(f"[build_spec] INFO: collect_all('scipy') failed ({_e}) — "
+          f"SciPy features will use pure-numpy/PIL fallbacks")
+
 # ── Collect optional heavy deps (graceful failure each) ───────────────────────
 # rembg is intentionally excluded: rembg.bg calls sys.exit(1) when onnxruntime
 # fails to initialise its DLL in PyInstaller's isolated find_binary_dependencies
@@ -239,9 +274,30 @@ a = Analysis(
         'PIL.ImageFile',
         'PIL.ImageDraw',
         'PIL.ImageFont',
-        # Scientific computing
+        # Scientific computing — numpy 1.x and 2.x compatible
         'numpy',
         'numpy.core',
+        'numpy.core.multiarray',
+        'numpy.core.umath',
+        'numpy.core.fromnumeric',
+        'numpy.core.numeric',
+        # NumPy 2.x uses numpy._core internally (numpy.core is a compat shim)
+        'numpy._core',
+        'numpy._core.multiarray',
+        'numpy._core.umath',
+        'numpy.linalg',
+        'numpy.random',
+        'numpy.random.mtrand',
+        'numpy.random._mt19937',
+        'numpy.random._pcg64',
+        'numpy.random._bit_generator',
+        'numpy.fft',
+        'numpy.polynomial',
+        'numpy.ma',
+        'numpy.lib',
+        'numpy.lib.stride_tricks',
+        'numpy.lib.npyio',
+        'numpy.lib.format',
         'scipy',
         'scipy.ndimage',
         'scipy.signal',
@@ -389,6 +445,7 @@ a = Analysis(
     hookspath=HOOKSPATH,  # Use validated hookspath variable
     hooksconfig={},
     runtime_hooks=[
+        str(SCRIPT_DIR / 'runtime-hook-numpy.py'),    # numpy DLL PATH setup for Windows frozen exe
         str(SCRIPT_DIR / 'runtime-hook-qt-platform.py'),  # Set QT_QPA_PLATFORM=offscreen on headless Linux
         str(SCRIPT_DIR / 'runtime-hook-onnxruntime.py'),  # Disable CUDA providers for onnxruntime
         str(SCRIPT_DIR / 'runtime-hook-torch.py'),  # Graceful CUDA handling for torch

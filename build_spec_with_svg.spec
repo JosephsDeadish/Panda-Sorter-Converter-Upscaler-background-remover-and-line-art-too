@@ -161,8 +161,10 @@ if str(SRC_DIR) not in _sys.path:
     _sys.path.insert(0, str(SRC_DIR))
     print(f"[build_spec_svg] Added {SRC_DIR} to sys.path for collect_submodules")
 
-from PyInstaller.utils.hooks import collect_submodules as _collect  # noqa: E402
+from PyInstaller.utils.hooks import collect_submodules as _collect, collect_all as _collect_all  # noqa: E402
 _app_hidden_svg = []
+_extra_datas_svg = []
+_extra_binaries_svg = []
 for _pkg_svg in [
     'ui', 'features', 'tools', 'utils', 'core',
     'ai', 'vision_models', 'organizer', 'classifier',
@@ -176,11 +178,31 @@ for _pkg_svg in [
         print(f"[build_spec_svg] WARNING: collect_submodules({_pkg_svg!r}) failed (non-fatal): {_e}")
 print(f"[build_spec_svg] Collected {len(_app_hidden_svg)} app submodule entries via collect_submodules")
 
+# ── Collect ALL of NumPy (binary extensions + DLLs for Windows) ──────────────
+try:
+    _np_d, _np_b, _np_h = _collect_all('numpy')
+    _extra_datas_svg    += _np_d
+    _extra_binaries_svg += _np_b
+    _app_hidden_svg     += _np_h
+    print(f"[build_spec_svg] NumPy collected: {len(_np_h)} hidden imports, {len(_np_b)} binaries")
+except Exception as _e:
+    print(f"[build_spec_svg] WARNING: collect_all('numpy') failed ({_e}) — hook-numpy.py covers this")
+
+# ── Collect scipy (optional — adaptive-threshold fallback) ───────────────────
+try:
+    _sp_d, _sp_b, _sp_h = _collect_all('scipy')
+    _extra_datas_svg    += _sp_d
+    _extra_binaries_svg += _sp_b
+    _app_hidden_svg     += _sp_h
+    print(f"[build_spec_svg] SciPy collected: {len(_sp_h)} hidden imports")
+except Exception as _e:
+    print(f"[build_spec_svg] INFO: collect_all('scipy') failed ({_e}) — SciPy features use PIL fallback")
+
 # Collect all Python files
 a = Analysis(
     ['main.py'],
     pathex=[str(SCRIPT_DIR), str(SRC_DIR)],  # Include src directory for module imports
-    binaries=cairo_binaries,  # Include Cairo DLLs
+    binaries=cairo_binaries + _extra_binaries_svg,  # Include Cairo DLLs + numpy/scipy binaries
     datas=[
         # Include entire assets directory
         (str(ASSETS_DIR), 'assets'),
@@ -190,7 +212,7 @@ a = Analysis(
         (str(RESOURCES_DIR / 'cursors'), 'resources/cursors'),
         (str(RESOURCES_DIR / 'sounds'), 'resources/sounds'),
         (str(RESOURCES_DIR / 'translations'), 'resources/translations'),
-    ],
+    ] + _extra_datas_svg,
     hiddenimports=_app_hidden_svg + [
         # Core application modules from src/
         'config',
@@ -213,9 +235,32 @@ a = Analysis(
         'PIL.ImageFile',
         'PIL.ImageDraw',
         'PIL.ImageFont',
-        # Scientific computing
+        # Scientific computing — numpy 1.x and 2.x compatible
         'numpy',
         'numpy.core',
+        'numpy.core.multiarray',
+        'numpy.core.umath',
+        'numpy.core.fromnumeric',
+        # NumPy 2.x uses numpy._core internally (numpy.core is a compat shim)
+        'numpy._core',
+        'numpy._core.multiarray',
+        'numpy._core.umath',
+        'numpy.linalg',
+        'numpy.random',
+        'numpy.random.mtrand',
+        'numpy.random._mt19937',
+        'numpy.random._pcg64',
+        'numpy.random._bit_generator',
+        'numpy.fft',
+        'numpy.polynomial',
+        'numpy.ma',
+        'numpy.lib',
+        'numpy.lib.stride_tricks',
+        'numpy.lib.npyio',
+        'scipy',
+        'scipy.ndimage',
+        'scipy.signal',
+        'scipy.sparse',
         'cv2',
         'sklearn',
         'sklearn.metrics',
@@ -349,6 +394,7 @@ a = Analysis(
     ],
     hooksconfig={},
     runtime_hooks=[
+        str(SCRIPT_DIR / 'runtime-hook-numpy.py'),    # numpy DLL PATH setup for Windows frozen exe
         str(SCRIPT_DIR / 'runtime-hook-onnxruntime.py'),  # Disable CUDA providers for onnxruntime
         str(SCRIPT_DIR / 'runtime-hook-torch.py'),  # Graceful CUDA handling for torch
     ],

@@ -120,7 +120,8 @@ class LineArtConverter:
     
     def __init__(self):
         """Initialize the converter."""
-        self.has_cv2 = HAS_CV2
+        # cv2 requires numpy — treat both as unavailable if either is missing
+        self.has_cv2 = HAS_CV2 and HAS_NUMPY
     
     def convert(self, image: 'Image.Image', settings: 'LineArtSettings') -> 'Image.Image':
         """

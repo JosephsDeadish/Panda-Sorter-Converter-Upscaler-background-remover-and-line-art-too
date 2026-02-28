@@ -113,7 +113,8 @@ class BatchFormatNormalizer:
     
     def __init__(self):
         """Initialize the normalizer."""
-        self.has_cv2 = HAS_CV2
+        # cv2 requires numpy — treat both as unavailable if either is missing
+        self.has_cv2 = HAS_CV2 and HAS_NUMPY
     
     def normalize_image(self, 
                        input_path: str,

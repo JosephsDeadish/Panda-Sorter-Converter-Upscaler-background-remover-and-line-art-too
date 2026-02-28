@@ -2680,6 +2680,123 @@ def test_lineart_converter_numpy_fallbacks():
     print("  ✅ _apply_conversion_mode guarded with HAS_NUMPY")
 
 
+def test_numpy_pyinstaller_hooks():
+    """Verify that the numpy PyInstaller hook and runtime hook exist and are valid.
+
+    The hook files ensure that NumPy's compiled binary extensions (.pyd/.so)
+    and data files are collected when building a frozen exe.  Without them,
+    numpy fails to import at runtime in the frozen exe because the DLL
+    dependencies (BLAS/LAPACK) are not included.
+
+    Checks:
+    1. hook-numpy.py exists and calls collect_all / collect_submodules
+    2. runtime-hook-numpy.py exists and handles Windows DLL PATH setup
+    3. Both spec files reference runtime-hook-numpy.py
+    4. Both spec files call collect_all('numpy')
+    5. Both spec files include numpy._core as a hidden import (numpy 2.x compat)
+    """
+    print("\ntest_numpy_pyinstaller_hooks ...")
+    from pathlib import Path
+
+    repo = Path(__file__).parent
+
+    # ── hook-numpy.py ──────────────────────────────────────────────────────
+    hook = repo / 'hook-numpy.py'
+    assert hook.exists(), "hook-numpy.py not found in repo root"
+    hook_code = hook.read_text(encoding='utf-8')
+
+    assert 'collect_all' in hook_code, \
+        "hook-numpy.py must call collect_all('numpy') to bundle DLLs"
+    print("  ✅ hook-numpy.py calls collect_all")
+
+    assert 'collect_submodules' in hook_code, \
+        "hook-numpy.py must call collect_submodules('numpy')"
+    print("  ✅ hook-numpy.py calls collect_submodules")
+
+    assert 'numpy._core' in hook_code, \
+        "hook-numpy.py must list numpy._core for NumPy 2.x compatibility"
+    print("  ✅ hook-numpy.py includes numpy._core for NumPy 2.x")
+
+    # ── runtime-hook-numpy.py ──────────────────────────────────────────────
+    rt_hook = repo / 'runtime-hook-numpy.py'
+    assert rt_hook.exists(), "runtime-hook-numpy.py not found in repo root"
+    rt_code = rt_hook.read_text(encoding='utf-8')
+
+    assert 'getattr(sys, \'frozen\', False)' in rt_code or "getattr(sys, 'frozen', False)" in rt_code, \
+        "runtime-hook-numpy.py must guard with getattr(sys, 'frozen', False)"
+    print("  ✅ runtime-hook-numpy.py checks sys.frozen")
+
+    assert 'AddDllDirectory' in rt_code or 'PATH' in rt_code, \
+        "runtime-hook-numpy.py must set up Windows DLL search path"
+    print("  ✅ runtime-hook-numpy.py handles Windows DLL path")
+
+    # ── both spec files ────────────────────────────────────────────────────
+    for spec_name in ('build_spec_onefolder.spec', 'build_spec_with_svg.spec'):
+        spec = repo / spec_name
+        assert spec.exists(), f"{spec_name} not found"
+        spec_code = spec.read_text(encoding='utf-8')
+
+        assert "collect_all('numpy')" in spec_code, \
+            (f"{spec_name}: must call collect_all('numpy') to collect "
+             f"numpy DLLs/binaries (just listing string hidden imports is not enough)")
+        print(f"  ✅ {spec_name} calls collect_all('numpy')")
+
+        assert 'runtime-hook-numpy.py' in spec_code, \
+            f"{spec_name}: must include runtime-hook-numpy.py in runtime_hooks"
+        print(f"  ✅ {spec_name} references runtime-hook-numpy.py")
+
+        assert "numpy._core" in spec_code, \
+            (f"{spec_name}: must list numpy._core as a hidden import "
+             f"for NumPy 2.x compatibility (numpy.core is a compat shim in 2.x)")
+        print(f"  ✅ {spec_name} has numpy._core hidden import")
+
+    print("  ✅ All numpy PyInstaller hook checks passed")
+
+
+def test_tools_has_cv2_guards_numpy():
+    """cv2-using tools must link has_cv2 to HAS_NUMPY.
+
+    cv2 (opencv-python) requires numpy.  If numpy is unavailable,
+    cv2 will also fail to import.  The defensive pattern
+        self.has_cv2 = HAS_CV2 and HAS_NUMPY
+    ensures that when numpy is absent, every code path that calls
+    np.array() is gated by the same has_cv2 check — preventing
+    NameError: name 'np' is not defined crashes.
+    """
+    print("\ntest_tools_has_cv2_guards_numpy ...")
+    from pathlib import Path
+    import re
+
+    tools_to_check = [
+        ('src/tools/lineart_converter.py', 'LineArtConverter'),
+        ('src/tools/batch_normalizer.py',  'BatchFormatNormalizer'),
+        ('src/tools/quality_checker.py',   'ImageQualityChecker'),
+    ]
+
+    repo = Path(__file__).parent
+
+    for rel_path, class_name in tools_to_check:
+        code = (repo / rel_path).read_text(encoding='utf-8')
+
+        # Find the __init__ method of each class
+        pattern = re.compile(
+            rf'class {class_name}.*?def __init__.*?(?=\n    def |\Z)',
+            re.DOTALL,
+        )
+        m = pattern.search(code)
+        assert m, f"{class_name}.__init__ not found in {rel_path}"
+
+        body = m.group(0)
+        assert 'HAS_CV2 and HAS_NUMPY' in body, (
+            f"{class_name}.__init__ in {rel_path} sets "
+            f"self.has_cv2 = HAS_CV2 without AND-ing HAS_NUMPY. "
+            f"cv2 requires numpy; if numpy is absent, cv2 will also be absent "
+            f"and every np.array() call inside the cv2 branch will crash with "
+            f"NameError. Fix: self.has_cv2 = HAS_CV2 and HAS_NUMPY"
+        )
+        print(f"  ✅ {class_name} guards has_cv2 with HAS_NUMPY")
+
+
 def run_all_tests():
     print("=" * 65)
     print("Hybrid Architecture + Lazy rembg Import Tests")
@@ -2745,6 +2862,8 @@ def run_all_tests():
         test_lineart_presets_have_mode_specific_params,
         test_click_filters_use_qt6_position_api,
         test_lineart_converter_numpy_fallbacks,
+        test_numpy_pyinstaller_hooks,
+        test_tools_has_cv2_guards_numpy,
     ]
 
     passed, failed = [], []
