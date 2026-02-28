@@ -198,7 +198,7 @@ class QualityCheckerPanelQt(QWidget):
         # Select button
         select_btn = QPushButton("Select Images")
         select_btn.clicked.connect(self._select_files)
-        self._set_tooltip(select_btn, 'qc_export')
+        self._set_tooltip(select_btn, 'qc_analyze')
         group_layout.addWidget(select_btn)
         
         # Clear button
@@ -294,6 +294,7 @@ class QualityCheckerPanelQt(QWidget):
         self.report_text.setFont(QFont("Courier", 9))
         group_layout.addWidget(self.report_text)
         self._set_tooltip(self.report_text, 'qc_results')
+        self._set_tooltip(self.report_text, 'qc_export')
         
         group.setLayout(group_layout)
         layout.addWidget(group)

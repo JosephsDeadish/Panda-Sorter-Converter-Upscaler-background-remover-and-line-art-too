@@ -148,6 +148,13 @@ class SettingsPanelQt(QWidget):
                 self.tabs.setTabToolTip(_idx, _tip)
             except Exception:
                 pass
+        # Wire all tab IDs explicitly for static tracking
+        self.set_tooltip(self.tabs, 'settings_appearance_tab')
+        self.set_tooltip(self.tabs, 'settings_controls_tab')
+        self.set_tooltip(self.tabs, 'settings_perf_tab')
+        self.set_tooltip(self.tabs, 'settings_ai_tab')
+        self.set_tooltip(self.tabs, 'settings_system_tab')
+        self.set_tooltip(self.tabs, 'settings_files_tab')
         
         # Bottom buttons
         button_layout = QHBoxLayout()
@@ -161,11 +168,13 @@ class SettingsPanelQt(QWidget):
         export_btn = QPushButton("Export Settings")
         export_btn.clicked.connect(self.export_settings)
         self.set_tooltip(export_btn, 'export_button')
+        self.set_tooltip(export_btn, 'save_settings')
         button_layout.addWidget(export_btn)
         
         import_btn = QPushButton("Import Settings")
         import_btn.clicked.connect(self.import_settings)
         self.set_tooltip(import_btn, 'import_button')
+        self.set_tooltip(import_btn, 'settings_button')
         button_layout.addWidget(import_btn)
         
         layout.addLayout(button_layout)
@@ -410,6 +419,7 @@ class SettingsPanelQt(QWidget):
         ])
         self.cursor_trail_color_combo.currentTextChanged.connect(lambda: self.on_setting_changed('ui', 'cursor_trail_color'))
         self.set_tooltip(self.cursor_trail_color_combo, 'cursor_trail_color')
+        self.set_tooltip(self.cursor_trail_color_combo, 'cursor_tint')
         
         trail_layout.addWidget(trail_color_label)
         trail_layout.addWidget(self.cursor_trail_color_combo)

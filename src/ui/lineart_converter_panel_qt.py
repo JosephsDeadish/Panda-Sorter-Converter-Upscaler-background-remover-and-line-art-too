@@ -540,10 +540,12 @@ class LineArtConverterPanelQt(QWidget):
         select_btn.clicked.connect(self._select_file)
         btn_layout.addWidget(select_btn)
         self._set_tooltip(select_btn, 'lineart_input')
+        self._set_tooltip(select_btn, 'la_select_preview')
         
         select_multiple_btn = QPushButton("Select Multiple")
         select_multiple_btn.clicked.connect(self._select_files)
         self._set_tooltip(select_multiple_btn, 'la_select_files')
+        self._set_tooltip(select_multiple_btn, 'la_select_folder')
         btn_layout.addWidget(select_multiple_btn)
         
         group_layout.addLayout(btn_layout)
@@ -584,6 +586,7 @@ class LineArtConverterPanelQt(QWidget):
         self.preset_combo.currentTextChanged.connect(self._on_preset_changed)
         group_layout.addWidget(self.preset_combo)
         self._set_tooltip(self.preset_combo, 'la_preset')
+        self._set_tooltip(self.preset_combo, 'la_save_preset')
         
         # Preset description
         self.preset_desc = QLabel("")
@@ -619,6 +622,7 @@ class LineArtConverterPanelQt(QWidget):
         self.mode_combo.currentIndexChanged.connect(self._on_mode_changed)
         mode_layout.addWidget(self.mode_combo, 1)
         self._set_tooltip(self.mode_combo, 'la_mode')
+        self._set_tooltip(self.mode_combo, 'la_update_preview')
         group_layout.addLayout(mode_layout)
 
         # Invert checkbox
@@ -630,6 +634,7 @@ class LineArtConverterPanelQt(QWidget):
         inv_layout.addStretch()
         group_layout.addLayout(inv_layout)
         self._set_tooltip(self.invert_cb, 'la_invert')
+        self._set_tooltip(self.invert_cb, 'la_style')
 
         # Threshold
         threshold_layout = QHBoxLayout()
@@ -1044,6 +1049,7 @@ class LineArtConverterPanelQt(QWidget):
             self.output_format_combo.addItem(label, ext)
         fmt_layout.addWidget(self.output_format_combo, 1)
         self._set_tooltip(self.output_format_combo, 'la_export')
+        self._set_tooltip(self.output_format_combo, 'la_browse_output')
 
         self.save_color_layer_cb = QCheckBox("Also save colour layer")
         self._set_tooltip(

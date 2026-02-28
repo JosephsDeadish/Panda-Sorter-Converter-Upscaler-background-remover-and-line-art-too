@@ -133,7 +133,6 @@ class ShopItemWidget(QFrame):
                 " font-weight: bold; font-size: 11px;"
                 " QPushButton:hover { background: #089898; }"
             )
-        btn.setToolTip("🛒 Purchase this item from the shop")
         self._set_tooltip(btn, 'shop_buy_button')
         layout.addWidget(btn)
 
