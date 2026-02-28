@@ -322,18 +322,20 @@ class LineArtConverter:
     
     def _sharpen_image(self, img: Image.Image, amount: float) -> Image.Image:
         """Sharpen image for better line detection."""
-        from PIL import ImageFilter
-        
-        # Apply unsharp mask
-        blurred = img.filter(ImageFilter.GaussianBlur(radius=1))
-        arr = np.array(img).astype(float)
-        blurred_arr = np.array(blurred).astype(float)
-        
-        # Sharpen formula: original + amount * (original - blurred)
-        sharpened = arr + amount * (arr - blurred_arr)
-        sharpened = np.clip(sharpened, 0, 255).astype(np.uint8)
-        
-        return Image.fromarray(sharpened, mode='L')
+        from PIL import ImageFilter as _IF
+        if HAS_NUMPY:
+            # Fast numpy unsharp-mask
+            blurred = img.filter(_IF.GaussianBlur(radius=1))
+            arr = np.array(img).astype(float)
+            blurred_arr = np.array(blurred).astype(float)
+            sharpened = arr + amount * (arr - blurred_arr)
+            sharpened = np.clip(sharpened, 0, 255).astype(np.uint8)
+            return Image.fromarray(sharpened, mode='L')
+        else:
+            # PIL-only fallback: use UnsharpMask filter
+            radius = max(1, int(amount))
+            percent = int(amount * 100)
+            return img.filter(_IF.UnsharpMask(radius=radius, percent=percent, threshold=3))
     
     def _calculate_auto_threshold(self, img: Image.Image) -> int:
         """
@@ -386,37 +388,46 @@ class LineArtConverter:
         """Apply the selected conversion mode."""
         if settings.mode == ConversionMode.PURE_BLACK:
             # Pure black lines on white
-            arr = np.array(img)
-            binary = (arr < threshold).astype(np.uint8) * 255
-            return Image.fromarray(binary, mode='L')
-        
+            if HAS_NUMPY:
+                arr = np.array(img)
+                binary = (arr < threshold).astype(np.uint8) * 255
+                return Image.fromarray(binary, mode='L')
+            else:
+                return img.point(lambda p: 0 if p < threshold else 255)
+
         elif settings.mode == ConversionMode.THRESHOLD:
             # Simple threshold
-            arr = np.array(img)
-            binary = (arr >= threshold).astype(np.uint8) * 255
-            return Image.fromarray(binary, mode='L')
-        
+            if HAS_NUMPY:
+                arr = np.array(img)
+                binary = (arr >= threshold).astype(np.uint8) * 255
+                return Image.fromarray(binary, mode='L')
+            else:
+                return img.point(lambda p: 255 if p >= threshold else 0)
+
         elif settings.mode == ConversionMode.STENCIL_1BIT:
             # 1-bit stencil (pure black and white)
             return img.point(lambda p: 255 if p >= threshold else 0, mode='1').convert('L')
-        
+
         elif settings.mode == ConversionMode.EDGE_DETECT:
             # Edge detection with configurable parameters
             return self._detect_edges(img, settings)
-        
+
         elif settings.mode == ConversionMode.ADAPTIVE:
             # Adaptive thresholding with configurable parameters
             return self._adaptive_threshold(img, settings)
-        
+
         elif settings.mode == ConversionMode.SKETCH:
             # Sketch effect
             return self._sketch_effect(img)
-        
+
         else:
             # Default to pure black
-            arr = np.array(img)
-            binary = (arr < threshold).astype(np.uint8) * 255
-            return Image.fromarray(binary, mode='L')
+            if HAS_NUMPY:
+                arr = np.array(img)
+                binary = (arr < threshold).astype(np.uint8) * 255
+                return Image.fromarray(binary, mode='L')
+            else:
+                return img.point(lambda p: 0 if p < threshold else 255)
     
     def _detect_edges(self, img: Image.Image, settings: LineArtSettings = None) -> Image.Image:
         """Detect edges in image with configurable parameters."""
@@ -475,28 +486,45 @@ class LineArtConverter:
             
             return Image.fromarray(binary, mode='L')
         else:
-            # Fallback: simple local threshold
-            arr = np.array(img)
-            window_size = settings.adaptive_block_size if settings else 11
+            # Fallback: simple local threshold without cv2
+            block_size = settings.adaptive_block_size if settings else 11
             c_constant = settings.adaptive_c_constant if settings else 2
-            
-            # Ensure odd window size
-            if window_size % 2 == 0:
-                window_size += 1
-            pad = window_size // 2
-            
-            # Pad array
-            padded = np.pad(arr, pad, mode='edge')
-            
-            # Calculate local mean
-            result = np.zeros_like(arr)
-            for i in range(arr.shape[0]):
-                for j in range(arr.shape[1]):
-                    window = padded[i:i+window_size, j:j+window_size]
-                    local_mean = window.mean()
-                    result[i, j] = 255 if arr[i, j] >= local_mean - c_constant else 0
-            
-            return Image.fromarray(result, mode='L')
+            if block_size % 2 == 0:
+                block_size += 1
+
+            if HAS_NUMPY:
+                # Use a 2-D integral image (summed-area table) to compute local
+                # means in O(n) time — no scipy dependency needed.
+                arr = np.array(img).astype(np.float32)
+                pad = block_size // 2
+                padded = np.pad(arr, pad, mode='edge')
+                # Build cumulative-sum table on the padded array
+                cumsum = np.cumsum(np.cumsum(padded, axis=0), axis=1)
+                h, w = arr.shape
+                s = block_size
+                # Vectorised look-up for block sum across the whole image
+                r1, c1 = np.arange(h)[:, None], np.arange(w)[None, :]
+                r2, c2 = r1 + s, c1 + s
+                block_sum = (cumsum[r2, c2] - cumsum[r1, c2]
+                             - cumsum[r2, c1] + cumsum[r1, c1])
+                local_mean = block_sum / (s * s)
+                result = np.where(arr >= local_mean - c_constant,
+                                  255, 0).astype(np.uint8)
+                return Image.fromarray(result, mode='L')
+            else:
+                # Pure PIL fallback — use BoxBlur to approximate local mean then
+                # compare pixel-wise using fast load() array access.
+                from PIL import ImageFilter as _IF
+                blurred = img.filter(_IF.BoxBlur(radius=block_size // 2))
+                pix = img.load()
+                blur_pix = blurred.load()
+                result = Image.new('L', img.size)
+                res_pix = result.load()
+                for y in range(img.height):
+                    for x in range(img.width):
+                        res_pix[x, y] = (255 if pix[x, y] >= blur_pix[x, y] - c_constant
+                                         else 0)
+                return result
     
     def _sketch_effect(self, img: Image.Image) -> Image.Image:
         """Apply sketch effect."""
@@ -522,18 +550,17 @@ class LineArtConverter:
     def _remove_midtones(self, img: Image.Image, threshold: int) -> Image.Image:
         """
         Remove midtones, keeping only pure black and white.
-        
+
         Args:
             img: Input grayscale image
             threshold: Threshold for white (0-255). Values above this become white.
         """
-        arr = np.array(img)
-        
-        # Everything above threshold becomes white (255)
-        # Everything below becomes black (0)
-        binary = np.where(arr >= threshold, 255, 0).astype(np.uint8)
-        
-        return Image.fromarray(binary, mode='L')
+        if HAS_NUMPY:
+            arr = np.array(img)
+            binary = np.where(arr >= threshold, 255, 0).astype(np.uint8)
+            return Image.fromarray(binary, mode='L')
+        else:
+            return img.point(lambda p: 255 if p >= threshold else 0)
     
     def _apply_morphology(self, img: Image.Image, settings: LineArtSettings) -> Image.Image:
         """Apply morphology operations to modify lines."""
@@ -632,20 +659,22 @@ class LineArtConverter:
                           custom_color: str = "#ffffff") -> Image.Image:
         """Apply background mode to result."""
         if mode == BackgroundMode.TRANSPARENT:
-            # Convert to RGBA with transparent background
-            arr = np.array(img)
-            
-            # Create RGBA array
-            rgba = np.zeros((arr.shape[0], arr.shape[1], 4), dtype=np.uint8)
-            
-            # Black pixels become opaque black
-            # White pixels become transparent
-            rgba[:, :, 0] = arr  # R
-            rgba[:, :, 1] = arr  # G
-            rgba[:, :, 2] = arr  # B
-            rgba[:, :, 3] = 255 - arr  # Alpha (inverted)
-            
-            return Image.fromarray(rgba, mode='RGBA')
+            # Convert to RGBA: black lines opaque, white background transparent
+            if HAS_NUMPY:
+                arr = np.array(img.convert('L'))
+                rgba = np.zeros((arr.shape[0], arr.shape[1], 4), dtype=np.uint8)
+                rgba[:, :, 0] = arr  # R
+                rgba[:, :, 1] = arr  # G
+                rgba[:, :, 2] = arr  # B
+                rgba[:, :, 3] = 255 - arr  # Alpha (inverted — lines are opaque)
+                return Image.fromarray(rgba, mode='RGBA')
+            else:
+                # PIL-only: use split/merge
+                gray = img.convert('L')
+                alpha = gray.point(lambda p: 255 - p)  # black→255, white→0
+                rgba = gray.convert('RGB')
+                rgba.putalpha(alpha)
+                return rgba
         
         elif mode == BackgroundMode.WHITE:
             # Keep as grayscale with white background

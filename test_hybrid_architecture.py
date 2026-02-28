@@ -2586,6 +2586,100 @@ def test_lineart_presets_have_mode_specific_params():
     print(f"  ✅ All {len(LINEART_PRESETS)} presets have required mode-specific keys")
 
 
+def test_click_filters_use_qt6_position_api():
+    """All click-effect event filters must use event.position().toPoint()
+    (the Qt6-correct API) instead of the deprecated event.pos().
+
+    In PyQt6 >= 6.4, QMouseEvent.pos() returns QPointF in some builds,
+    causing a TypeError when passed to QWidget.mapTo() which expects QPoint.
+    Using event.position().toPoint() is the correct Qt6 approach and avoids
+    this type mismatch that silently prevents the visual effect from firing.
+    """
+    print("\ntest_click_filters_use_qt6_position_api ...")
+    from pathlib import Path
+    import re
+
+    code = (Path(__file__).parent / 'main.py').read_text(encoding='utf-8')
+
+    # Must NOT use the deprecated event.pos() in any event filter
+    # (Check inside the three filter eventFilter methods)
+    filter_classes = [
+        'GoreSplatterFilter',
+        'VampireBatFilter',
+        'OceanRippleFilter',
+    ]
+    for cls in filter_classes:
+        # Extract the eventFilter body for this class
+        pattern = re.compile(
+            rf'class {cls}.*?(?=\nclass |\Z)', re.DOTALL
+        )
+        m = pattern.search(code)
+        assert m, f"Class {cls} not found in main.py"
+        body = m.group(0)
+
+        assert 'event.position().toPoint()' in body, \
+            (f"{cls}.eventFilter uses deprecated event.pos() instead of "
+             f"event.position().toPoint() — this is the likely cause of "
+             f"the splatter effect not firing in PyQt6 >= 6.4")
+        print(f"  ✅ {cls} uses event.position().toPoint()")
+
+        assert "hasattr(event, 'position')" in body, \
+            (f"{cls}.eventFilter checks hasattr(event, 'pos') instead of "
+             f"hasattr(event, 'position') — update the guard to match the new API")
+        print(f"  ✅ {cls} guards with hasattr(event, 'position')")
+
+        # Must not use the deprecated form
+        assert "event.pos()" not in body, \
+            f"{cls} still contains event.pos() — remove it"
+        print(f"  ✅ {cls} does not use deprecated event.pos()")
+
+
+def test_lineart_converter_numpy_fallbacks():
+    """The lineart converter must not crash when numpy is unavailable.
+
+    Key methods that previously used numpy unconditionally:
+    - _sharpen_image: now has PIL UnsharpMask fallback
+    - _apply_conversion_mode (PURE_BLACK / THRESHOLD): now has point() fallback
+    - _remove_midtones: now has point() fallback
+    - _apply_background TRANSPARENT: now has PIL putalpha fallback
+    - _adaptive_threshold fallback branch: no longer uses nested np loops alone
+    """
+    print("\ntest_lineart_converter_numpy_fallbacks ...")
+    from pathlib import Path
+
+    code = (Path(__file__).parent / 'src' / 'tools' / 'lineart_converter.py'
+            ).read_text(encoding='utf-8')
+
+    # _sharpen_image must guard with HAS_NUMPY
+    import re
+    sharpen_m = re.search(r'def _sharpen_image.*?(?=\n    def |\Z)', code, re.DOTALL)
+    assert sharpen_m, "_sharpen_image not found"
+    assert 'HAS_NUMPY' in sharpen_m.group(0), \
+        "_sharpen_image does not guard with HAS_NUMPY"
+    print("  ✅ _sharpen_image guarded with HAS_NUMPY")
+
+    # _remove_midtones must guard with HAS_NUMPY
+    rm_m = re.search(r'def _remove_midtones.*?(?=\n    def |\Z)', code, re.DOTALL)
+    assert rm_m, "_remove_midtones not found"
+    assert 'HAS_NUMPY' in rm_m.group(0), \
+        "_remove_midtones does not guard with HAS_NUMPY"
+    print("  ✅ _remove_midtones guarded with HAS_NUMPY")
+
+    # _apply_background TRANSPARENT must guard with HAS_NUMPY
+    bg_m = re.search(r'def _apply_background.*?(?=\n    def |\Z)', code, re.DOTALL)
+    assert bg_m, "_apply_background not found"
+    assert 'HAS_NUMPY' in bg_m.group(0), \
+        "_apply_background does not guard with HAS_NUMPY"
+    print("  ✅ _apply_background guarded with HAS_NUMPY")
+
+    # _apply_conversion_mode must have PIL fallbacks
+    mode_m = re.search(r'def _apply_conversion_mode.*?(?=\n    def |\Z)', code, re.DOTALL)
+    assert mode_m, "_apply_conversion_mode not found"
+    assert 'HAS_NUMPY' in mode_m.group(0), \
+        "_apply_conversion_mode does not guard with HAS_NUMPY"
+    print("  ✅ _apply_conversion_mode guarded with HAS_NUMPY")
+
+
 def run_all_tests():
     print("=" * 65)
     print("Hybrid Architecture + Lazy rembg Import Tests")
@@ -2649,6 +2743,8 @@ def run_all_tests():
         test_ocean_ripple_filter,
         test_theme_layout_fixes_appended,
         test_lineart_presets_have_mode_specific_params,
+        test_click_filters_use_qt6_position_api,
+        test_lineart_converter_numpy_fallbacks,
     ]
 
     passed, failed = [], []

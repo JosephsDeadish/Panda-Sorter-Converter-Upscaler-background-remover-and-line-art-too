@@ -593,13 +593,17 @@ class GoreSplatterFilter(QObject):
             if (event.type() == _QEv.Type.MouseButtonRelease
                     and isinstance(obj, QAbstractButton)
                     and obj.isEnabled()
-                    and hasattr(event, 'pos')):
+                    and hasattr(event, 'position')):
                 win = obj.window()
                 if win is not None:
-                    pos = obj.mapTo(win, event.pos())
+                    # Use event.position().toPoint() — the Qt6-correct way.
+                    # The deprecated pos() method returns QPointF in newer
+                    # PyQt6 builds, causing a TypeError in mapTo().
+                    pos = obj.mapTo(win, event.position().toPoint())
                     BloodSplatterLabel(win, pos)
-        except Exception:
-            pass
+        except Exception as _e:
+            import logging as _log
+            _log.getLogger(__name__).debug(f"GoreSplatterFilter: {_e}")
         return False  # never consume the event
 
 
@@ -663,13 +667,14 @@ class VampireBatFilter(QObject):
             if (event.type() == _QEv.Type.MouseButtonRelease
                     and isinstance(obj, QAbstractButton)
                     and obj.isEnabled()
-                    and hasattr(event, 'pos')):
+                    and hasattr(event, 'position')):
                 win = obj.window()
                 if win is not None:
-                    pos = obj.mapTo(win, event.pos())
+                    pos = obj.mapTo(win, event.position().toPoint())
                     VampireBatLabel(win, pos)
-        except Exception:
-            pass
+        except Exception as _e:
+            import logging as _log
+            _log.getLogger(__name__).debug(f"VampireBatFilter: {_e}")
         return False
 
 
@@ -726,13 +731,14 @@ class OceanRippleFilter(QObject):
             if (event.type() == _QEv.Type.MouseButtonRelease
                     and isinstance(obj, QAbstractButton)
                     and obj.isEnabled()
-                    and hasattr(event, 'pos')):
+                    and hasattr(event, 'position')):
                 win = obj.window()
                 if win is not None:
-                    pos = obj.mapTo(win, event.pos())
+                    pos = obj.mapTo(win, event.position().toPoint())
                     OceanRippleLabel(win, pos)
-        except Exception:
-            pass
+        except Exception as _e:
+            import logging as _log
+            _log.getLogger(__name__).debug(f"OceanRippleFilter: {_e}")
         return False
 
 
