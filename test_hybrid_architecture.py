@@ -2008,6 +2008,61 @@ def test_set_tooltip_registers_with_manager():
     print("  ✅ All _set_tooltip helpers call tooltip_manager.register()")
 
 
+def test_cancel_buttons_have_interruption_support():
+    """Processing panels that start QThread workers must support cancellation.
+
+    The pattern required:
+    1. The panel has a ``cancel_btn`` (or ``_cancel_btn``) attribute.
+    2. The panel has a ``_cancel_*`` method that calls ``requestInterruption()``.
+    3. The worker's ``run()`` method calls ``isInterruptionRequested()`` to
+       honour the cancel request without terminating the thread forcefully.
+
+    Panels that start long-running workers without this pattern leave users
+    with no way to stop an accidental large-batch operation.
+    """
+    print("\ntest_cancel_buttons_have_interruption_support ...")
+    from pathlib import Path
+    import re
+
+    panels_to_check = [
+        'src/ui/alpha_fixer_panel_qt.py',
+        'src/ui/batch_normalizer_panel_qt.py',
+        'src/ui/batch_rename_panel_qt.py',
+        'src/ui/quality_checker_panel_qt.py',
+        'src/ui/lineart_converter_panel_qt.py',
+    ]
+
+    for rel_path in panels_to_check:
+        src_path = Path(__file__).parent / rel_path
+        if not src_path.exists():
+            print(f"  ⚠️  Skipped (not found): {rel_path}")
+            continue
+
+        code = src_path.read_text(encoding='utf-8')
+
+        # 1. Panel must have a cancel button
+        assert re.search(r'self\._?cancel_btn\b', code), (
+            f"{rel_path}: missing cancel button attribute (self.cancel_btn or self._cancel_btn).\n"
+            "Add a QPushButton('Cancel') with visible=False, enabled=False that shows during processing."
+        )
+
+        # 2. Panel must have a _cancel_* method that calls requestInterruption()
+        assert 'requestInterruption' in code, (
+            f"{rel_path}: _cancel_* method must call self.worker_thread.requestInterruption().\n"
+            "This signals the worker to stop cleanly between files."
+        )
+
+        # 3. Worker run() method must check isInterruptionRequested()
+        assert 'isInterruptionRequested' in code, (
+            f"{rel_path}: worker run() must call self.isInterruptionRequested() per iteration.\n"
+            "Without this, requestInterruption() is sent but never checked — cancel has no effect."
+        )
+
+        print(f"  ✅ {rel_path.split('/')[-1]}: cancel_btn + requestInterruption + isInterruptionRequested")
+
+    print("  PASS")
+
+
 def run_all_tests():
     print("=" * 65)
     print("Hybrid Architecture + Lazy rembg Import Tests")
@@ -2058,6 +2113,7 @@ def run_all_tests():
         test_spec_bundle_completeness,
         test_set_tooltip_no_set_tooltip_method_call,
         test_set_tooltip_registers_with_manager,
+        test_cancel_buttons_have_interruption_support,
     ]
 
     passed, failed = [], []
@@ -2065,7 +2121,7 @@ def run_all_tests():
         try:
             test()
             passed.append(test.__name__)
-        except (AssertionError, Exception) as exc:
+        except (AssertionError, Exception, SystemExit) as exc:
             failed.append((test.__name__, exc))
             print(f"  FAIL: {exc}")
 
