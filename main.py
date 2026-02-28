@@ -2294,11 +2294,13 @@ class TextureSorterMainWindow(QMainWindow):
 
         open_action = QAction("&Open Input Folder…", self)
         open_action.setShortcut("Ctrl+O")
+        open_action.setStatusTip("Select the input folder containing images to process (Ctrl+O)")
         open_action.triggered.connect(self.browse_input)
         file_menu.addAction(open_action)
 
         open_out_action = QAction("Open &Output Folder…", self)
         open_out_action.setShortcut("Ctrl+Shift+O")
+        open_out_action.setStatusTip("Select the output folder where processed files will be saved (Ctrl+Shift+O)")
         open_out_action.triggered.connect(self.browse_output)
         file_menu.addAction(open_out_action)
 
@@ -2307,15 +2309,18 @@ class TextureSorterMainWindow(QMainWindow):
         # Profiles sub-menu (uses ProfileManager)
         profile_menu = file_menu.addMenu("&Profiles")
         save_profile_action = QAction("&Save Current Profile…", self)
+        save_profile_action.setStatusTip("Save current organizer settings as a named profile for reuse")
         save_profile_action.triggered.connect(self._save_profile)
         profile_menu.addAction(save_profile_action)
         load_profile_action = QAction("&Load Profile…", self)
+        load_profile_action.setStatusTip("Load a previously saved organizer settings profile")
         load_profile_action.triggered.connect(self._load_profile)
         profile_menu.addAction(load_profile_action)
 
         # Backup sub-menu (uses BackupManager)
         backup_menu = file_menu.addMenu("&Backup")
         create_restore_action = QAction("Create &Restore Point…", self)
+        create_restore_action.setStatusTip("Create a restore point to recover from if something goes wrong")
         create_restore_action.triggered.connect(self._create_restore_point)
         backup_menu.addAction(create_restore_action)
 
@@ -2323,6 +2328,7 @@ class TextureSorterMainWindow(QMainWindow):
 
         exit_action = QAction("E&xit", self)
         exit_action.setShortcut("Ctrl+Q")
+        exit_action.setStatusTip("Exit the application (Ctrl+Q)")
         exit_action.triggered.connect(self.close)
         file_menu.addAction(exit_action)
 
@@ -2332,6 +2338,7 @@ class TextureSorterMainWindow(QMainWindow):
 
         popout_action = QAction("Pop Out Current Tab", self)
         popout_action.setShortcut("Ctrl+Shift+P")
+        popout_action.setStatusTip("Detach the current tool tab into its own floating window (Ctrl+Shift+P)")
         popout_action.triggered.connect(self.popout_current_tab)
         view_menu.addAction(popout_action)
 
@@ -2344,6 +2351,7 @@ class TextureSorterMainWindow(QMainWindow):
         view_menu.addSeparator()
 
         reset_layout_action = QAction("Reset Window Layout", self)
+        reset_layout_action.setStatusTip("Reset all dock widgets and panels to their default positions")
         reset_layout_action.triggered.connect(self.reset_window_layout)
         view_menu.addAction(reset_layout_action)
 
@@ -2351,10 +2359,12 @@ class TextureSorterMainWindow(QMainWindow):
         tools_menu = menubar.addMenu("&Actions")
 
         find_dupes_action = QAction("🔍 Find Duplicate Textures…", self)
+        find_dupes_action.setStatusTip("Scan the input folder for duplicate or near-duplicate texture files")
         find_dupes_action.triggered.connect(self._find_duplicate_textures)
         tools_menu.addAction(find_dupes_action)
 
         analyze_action = QAction("🔬 Analyze Selected Texture…", self)
+        analyze_action.setStatusTip("Open a texture file and display its detailed analysis (dimensions, format, etc.)")
         analyze_action.triggered.connect(self._analyze_selected_texture)
         tools_menu.addAction(analyze_action)
 
@@ -2363,12 +2373,14 @@ class TextureSorterMainWindow(QMainWindow):
 
         help_action = QAction("&Help / Documentation", self)
         help_action.setShortcut("F1")
+        help_action.setStatusTip("Open the help documentation (F1)")
         help_action.triggered.connect(self.show_help)
         help_menu.addAction(help_action)
 
         help_menu.addSeparator()
 
         about_action = QAction("&About", self)
+        about_action.setStatusTip("Show version information and credits for this application")
         about_action.triggered.connect(self.show_about)
         help_menu.addAction(about_action)
     
