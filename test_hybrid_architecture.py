@@ -35,7 +35,18 @@ if str(_src) not in sys.path:
 # when running tests locally without a full `pip install -r requirements.txt`.
 # ---------------------------------------------------------------------------
 def _ensure_pyqt6() -> None:
-    """Install PyQt6 (+ required system libs) if not already present."""
+    """Install PyQt6 if not already present.
+
+    This guard lets the test file be run with a bare ``python test_hybrid_architecture.py``
+    without a pre-installed PyQt6.  The CI workflow (``.github/workflows/test.yml``) always
+    installs PyQt6 and the required system libraries explicitly before running this file,
+    so the auto-install path here is only needed for local development convenience.
+
+    Note: system-level EGL/GL libraries (libegl1, libgl1 …) must be installed
+    separately on headless Linux; see `.github/workflows/test.yml` for the canonical
+    steps.  We do NOT attempt ``sudo apt-get`` here — that requires root privileges and
+    is out of scope for a test-module guard.
+    """
     try:
         import PyQt6  # noqa: F401
         return  # already installed
@@ -47,16 +58,6 @@ def _ensure_pyqt6() -> None:
         sys.executable, "-m", "pip", "install", "--quiet",
         "PyQt6>=6.6.0", "PyQt6-Qt6>=6.6.0", "PyQt6-sip>=13.6.0",
     ])
-    # On headless Linux the system EGL/GL libs are also needed.
-    if sys.platform.startswith("linux"):
-        try:
-            subprocess.check_call([
-                "sudo", "apt-get", "install", "-y", "-q",
-                "libegl1", "libgl1", "libgles2",
-                "libxcb-xinerama0", "libxkbcommon-x11-0",
-            ], stderr=subprocess.DEVNULL)
-        except Exception:
-            pass  # non-fatal — user may need to install libs manually
     print("✅ PyQt6 installed successfully")
 
 
