@@ -7404,6 +7404,32 @@ def main():
     app.setOrganizationName("JosephsDeadish")
     app.setOrganizationDomain("github.com/JosephsDeadish")
 
+    # ── Single-instance guard ─────────────────────────────────────────────────
+    # Prevent a second copy of the application from opening.  We use a lock
+    # file in the user-writable app_data directory.  QLockFile provides both
+    # creation and stale-lock detection (process no longer running).
+    _lock_file = None
+    try:
+        from PyQt6.QtCore import QLockFile
+        from config import get_data_dir
+        _lock_path = str(get_data_dir() / ".app.lock")
+        _lock_file = QLockFile(_lock_path)
+        # 5 000 ms: if the lock is older than 5 s AND the owner PID is gone,
+        # Qt treats it as a stale lock from a crashed instance and removes it.
+        _lock_file.setStaleLockTime(5000)
+        if not _lock_file.tryLock(100):
+            QMessageBox.warning(
+                None,
+                f"{APP_NAME} — Already Running",
+                f"🐼 {APP_NAME} is already open!\n\n"
+                "Only one instance can run at a time.\n"
+                "Please check your taskbar or system tray.",
+            )
+            sys.exit(0)
+    except Exception as _lock_err:
+        logger.debug(f"Single-instance lock skipped: {_lock_err}")
+        _lock_file = None
+
     # Validate frozen-EXE extraction integrity (no-op in dev mode)
     try:
         if _startup_validation and not _startup_validation.run_startup_validation():
@@ -7428,7 +7454,94 @@ def main():
     # Set application-wide font
     font = QFont("Segoe UI", 10)
     app.setFont(font)
-    
+
+    # ── Startup splash screen ─────────────────────────────────────────────────
+    # Show a panda-themed splash immediately so the user sees feedback while
+    # the heavy module imports (torch, onnxruntime, UI panels, …) happen.
+    # We draw directly onto a QPixmap using QPainter so no external image file
+    # is required — the splash always works even in a fresh EXE extraction.
+    _splash = None
+    try:
+        from PyQt6.QtWidgets import QSplashScreen
+        from PyQt6.QtGui import QPixmap, QPainter, QLinearGradient, QRadialGradient, QBrush, QPen, QColor
+        from PyQt6.QtCore import Qt as _SplashQt
+
+        _W, _H = 480, 300
+        _pix = QPixmap(_W, _H)
+        _pix.fill(_SplashQt.GlobalColor.transparent)
+
+        _p = QPainter(_pix)
+        _p.setRenderHint(QPainter.RenderHint.Antialiasing)
+
+        # Background gradient (dark bamboo-green → near-black)
+        _bg = QLinearGradient(0, 0, 0, _H)
+        _bg.setColorAt(0.0, QColor("#1a2e1a"))
+        _bg.setColorAt(1.0, QColor("#0a160a"))
+        _p.fillRect(0, 0, _W, _H, QBrush(_bg))
+
+        # Soft vignette
+        _vig = QRadialGradient(_W / 2, _H / 2, _W * 0.7)
+        _vig.setColorAt(0.0, QColor(0, 0, 0, 0))
+        _vig.setColorAt(1.0, QColor(0, 0, 0, 160))
+        _p.fillRect(0, 0, _W, _H, QBrush(_vig))
+
+        # Panda face — drawn with basic circles (no image asset needed)
+        _cx, _cy = _W // 2, _H // 2 - 20
+        # Main head
+        _p.setBrush(QBrush(QColor("#f8f8f8")))
+        _p.setPen(QPen(QColor("#cccccc"), 1))
+        _p.drawEllipse(_cx - 60, _cy - 55, 120, 110)
+        # Ears (black patches)
+        _p.setBrush(QBrush(QColor("#222222")))
+        _p.setPen(QPen(_SplashQt.PenStyle.NoPen))
+        _p.drawEllipse(_cx - 70, _cy - 80, 40, 40)
+        _p.drawEllipse(_cx + 30, _cy - 80, 40, 40)
+        # Eye patches
+        _p.drawEllipse(_cx - 42, _cy - 30, 32, 28)
+        _p.drawEllipse(_cx + 10, _cy - 30, 32, 28)
+        # Eyes (white)
+        _p.setBrush(QBrush(QColor("#ffffff")))
+        _p.drawEllipse(_cx - 34, _cy - 24, 16, 16)
+        _p.drawEllipse(_cx + 18, _cy - 24, 16, 16)
+        # Pupils
+        _p.setBrush(QBrush(QColor("#111111")))
+        _p.drawEllipse(_cx - 30, _cy - 20, 8, 10)
+        _p.drawEllipse(_cx + 22, _cy - 20, 8, 10)
+        # Nose
+        _p.setBrush(QBrush(QColor("#444444")))
+        _p.drawEllipse(_cx - 8, _cy + 4, 16, 10)
+        # Mouth
+        _p.setPen(QPen(QColor("#555555"), 2))
+        _p.setBrush(QBrush(_SplashQt.BrushStyle.NoBrush))
+        from PyQt6.QtCore import QRect as _QRect
+        _p.drawArc(_QRect(_cx - 14, _cy + 12, 28, 16), 200 * 16, 140 * 16)
+
+        # Title text
+        _tf = QFont("Segoe UI", 16, QFont.Weight.Bold)
+        _p.setFont(_tf)
+        _p.setPen(QPen(QColor("#ffffff")))
+        _p.drawText(0, _H - 90, _W, 28, int(_SplashQt.AlignmentFlag.AlignHCenter), APP_NAME)
+
+        # Subtitle
+        _sf = QFont("Segoe UI", 10)
+        _p.setFont(_sf)
+        _p.setPen(QPen(QColor("#aaddaa")))
+        _p.drawText(0, _H - 62, _W, 22, int(_SplashQt.AlignmentFlag.AlignHCenter), f"v{APP_VERSION}  ·  Starting up, please wait…")
+
+        # Author
+        _af = QFont("Segoe UI", 8)
+        _p.setFont(_af)
+        _p.setPen(QPen(QColor("#557755")))
+        _p.drawText(0, _H - 22, _W, 18, int(_SplashQt.AlignmentFlag.AlignHCenter), "by Dead On The Inside / JosephsDeadish")
+        _p.end()
+
+        _splash = QSplashScreen(_pix, _SplashQt.WindowType.WindowStaysOnTopHint)
+        _splash.show()
+        app.processEvents()
+    except Exception as _spl_err:
+        logger.debug(f"Splash screen skipped: {_spl_err}")
+        _splash = None
+
     # ── Point rembg's model search path at our pre-downloaded models dir ────────
     # rembg looks for ONNX files in U2NET_HOME (or ~/.u2net/ by default).
     # We pre-download them to app_data/models/ in the CI bundle AND in
@@ -7447,8 +7560,15 @@ def main():
     # Create and show main window
     window = TextureSorterMainWindow()
     window.show()
-    
-    # Show first-run tutorial if this is a new installation.
+
+    # Close splash screen now that the main window is visible
+    if _splash is not None:
+        try:
+            _splash.finish(window)
+        except Exception:
+            pass
+
+    # Show first-run tutorial
     # Deferred 800 ms so the main window is fully painted and the event loop is
     # running before we create the overlay / dialog — avoids race conditions where
     # master.isVisible() returns False or geometry() is still (0,0) during startup.
@@ -7480,7 +7600,14 @@ def main():
     log_startup_diagnostics(window)
     
     # Start event loop
-    sys.exit(app.exec())
+    _exit_code = app.exec()
+    # Release the single-instance lock so the next launch can start normally
+    if _lock_file is not None:
+        try:
+            _lock_file.unlock()
+        except Exception:
+            pass
+    sys.exit(_exit_code)
 
 
 if __name__ == "__main__":
