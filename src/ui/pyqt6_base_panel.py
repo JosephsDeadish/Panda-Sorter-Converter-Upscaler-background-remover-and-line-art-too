@@ -275,6 +275,7 @@ class BasePyQtPanel(QWidget):
         layout = QHBoxLayout()
         for text, callback in button_configs:
             button = QPushButton(text)
+            button.setToolTip(text)
             button.clicked.connect(callback)
             layout.addWidget(button)
         return layout
