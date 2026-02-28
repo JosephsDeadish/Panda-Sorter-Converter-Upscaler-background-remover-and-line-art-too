@@ -862,7 +862,16 @@ class OrganizerPanelQt(QWidget):
         self.bad_btn.clicked.connect(self._on_bad_feedback)
         self.bad_btn.setEnabled(False)
         self._set_tooltip(self.bad_btn, 'feedback_bad_button')
+        self._set_tooltip(self.bad_btn, 'ai_feedback_bad')
         feedback_layout.addWidget(self.bad_btn)
+
+        # Retry AI suggestion button
+        self.retry_btn = QPushButton("🔄 Retry")
+        self.retry_btn.setStyleSheet("padding: 8px;")
+        self.retry_btn.clicked.connect(self._on_retry_classification)
+        self.retry_btn.setEnabled(False)
+        self._set_tooltip(self.retry_btn, 'ai_feedback_retry')
+        feedback_layout.addWidget(self.retry_btn)
         classification_layout.addLayout(feedback_layout)
 
         # Manual override / folder input
@@ -943,6 +952,7 @@ class OrganizerPanelQt(QWidget):
         self.start_btn.setEnabled(False)
         self._set_tooltip(self.start_btn, 'sort_button')
         self._set_tooltip(self.start_btn, 'analysis_button')
+        self._set_tooltip(self.start_btn, 'batch_operations')
         button_layout.addWidget(self.start_btn)
         
         self.cancel_btn = QPushButton("Cancel")
@@ -957,7 +967,6 @@ class OrganizerPanelQt(QWidget):
         self.export_learning_btn = QPushButton("📤 Export Learning")
         self.export_learning_btn.clicked.connect(self._export_learning_profile)
         self._set_tooltip(self.export_learning_btn, 'ai_export_training')
-        self._set_tooltip(self.export_learning_btn, 'batch_operations')
         button_layout.addWidget(self.export_learning_btn)
         
         self.import_learning_btn = QPushButton("📥 Import Learning")
@@ -1104,6 +1113,27 @@ class OrganizerPanelQt(QWidget):
         clear_learning_btn = QPushButton("🗑️ Clear Learning History")
         clear_learning_btn.clicked.connect(self._clear_learning_history)
         group_layout.addWidget(clear_learning_btn)
+
+        # Organization Profile Management
+        profile_group_layout = QHBoxLayout()
+
+        new_profile_btn = QPushButton("➕ New Profile")
+        new_profile_btn.setToolTip("Create a new game organization profile")
+        new_profile_btn.clicked.connect(self._new_org_profile)
+        self._set_tooltip(new_profile_btn, 'profile_new')
+        profile_group_layout.addWidget(new_profile_btn)
+
+        save_profile_btn = QPushButton("💾 Save Profile")
+        save_profile_btn.clicked.connect(self._save_org_profile)
+        self._set_tooltip(save_profile_btn, 'profile_save')
+        profile_group_layout.addWidget(save_profile_btn)
+
+        load_profile_btn = QPushButton("📂 Load Profile")
+        load_profile_btn.clicked.connect(self._load_org_profile)
+        self._set_tooltip(load_profile_btn, 'profile_load')
+        profile_group_layout.addWidget(load_profile_btn)
+
+        group_layout.addLayout(profile_group_layout)
         
         group.setLayout(group_layout)
         layout.addWidget(group)
@@ -1430,10 +1460,23 @@ class OrganizerPanelQt(QWidget):
         # Disable buttons while waiting for next file
         self.good_btn.setEnabled(False)
         self.bad_btn.setEnabled(False)
+        if hasattr(self, 'retry_btn'):
+            self.retry_btn.setEnabled(False)
         
         # Advance worker to next file
         self._advance_worker()
     
+    def _on_retry_classification(self):
+        """Re-run AI classification on the current file."""
+        if not self.current_filename:
+            self._log("⚠ No current file to retry")
+            return
+        self._log(f"🔄 Retrying classification for: {self.current_filename}")
+        if self.worker_thread and hasattr(self.worker_thread, 'retry'):
+            self.worker_thread.retry()
+        else:
+            self._advance_worker()
+
     def _advance_worker(self):
         """Tell the worker thread to advance to the next file."""
         if self.worker_thread and hasattr(self.worker_thread, 'advance'):
@@ -1619,6 +1662,8 @@ class OrganizerPanelQt(QWidget):
         # Enable feedback buttons
         self.good_btn.setEnabled(True)
         self.bad_btn.setEnabled(True)
+        if hasattr(self, 'retry_btn'):
+            self.retry_btn.setEnabled(True)
         
         if is_manual:
             self.good_btn.setText("✅ Accept & Move")
@@ -1820,6 +1865,64 @@ class OrganizerPanelQt(QWidget):
             self.learning_system.clear_learning_history()
             QMessageBox.information(self, "Cleared", "Learning history cleared.")
             self._log("Learning history cleared")
+
+    def _new_org_profile(self):
+        """Create a new (blank) organization profile."""
+        try:
+            from PyQt6.QtWidgets import QInputDialog
+            name, ok = QInputDialog.getText(
+                self, "New Organization Profile", "Profile name:"
+            )
+            if ok and name.strip():
+                self._log(f"New organization profile created: {name.strip()}")
+                QMessageBox.information(self, "Profile Created",
+                    f"Organization profile '{name.strip()}' created.\n"
+                    "Configure the settings above and use Save Profile to persist them.")
+        except Exception as e:
+            logger.error(f"_new_org_profile: {e}", exc_info=True)
+
+    def _save_org_profile(self):
+        """Save current organizer settings to a profile file."""
+        try:
+            from PyQt6.QtWidgets import QFileDialog
+            import json
+            path, _ = QFileDialog.getSaveFileName(
+                self, "Save Organization Profile", "", "JSON Profile (*.json)"
+            )
+            if path:
+                profile = {
+                    'mode': self.mode_combo.currentData() if hasattr(self, 'mode_combo') else 'automatic',
+                }
+                with open(path, 'w', encoding='utf-8') as f:
+                    json.dump(profile, f, indent=2)
+                self._log(f"Organization profile saved: {path}")
+                QMessageBox.information(self, "Saved", f"Profile saved to:\n{path}")
+        except Exception as e:
+            logger.error(f"_save_org_profile: {e}", exc_info=True)
+            QMessageBox.warning(self, "Save Failed", str(e))
+
+    def _load_org_profile(self):
+        """Load an organization profile from a file."""
+        try:
+            from PyQt6.QtWidgets import QFileDialog
+            import json
+            path, _ = QFileDialog.getOpenFileName(
+                self, "Load Organization Profile", "", "JSON Profile (*.json)"
+            )
+            if path:
+                with open(path, 'r', encoding='utf-8') as f:
+                    profile = json.load(f)
+                mode = profile.get('mode', 'automatic')
+                if hasattr(self, 'mode_combo'):
+                    for i in range(self.mode_combo.count()):
+                        if self.mode_combo.itemData(i) == mode:
+                            self.mode_combo.setCurrentIndex(i)
+                            break
+                self._log(f"Organization profile loaded: {path}")
+                QMessageBox.information(self, "Loaded", f"Profile loaded from:\n{path}")
+        except Exception as e:
+            logger.error(f"_load_org_profile: {e}", exc_info=True)
+            QMessageBox.warning(self, "Load Failed", str(e))
     
     def _log(self, message: str):
         """Add message to log."""

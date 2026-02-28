@@ -296,7 +296,6 @@ class AlphaFixerPanelQt(QWidget):
         self.preset_combo.currentIndexChanged.connect(self._on_preset_changed)
         group_layout.addWidget(self.preset_combo)
         self._set_tooltip(self.preset_combo, 'alpha_fix_preset')
-        self._set_tooltip(self.preset_combo, 'alpha_fix_overwrite')
         
         group.setLayout(group_layout)
         layout.addWidget(group)
@@ -310,7 +309,6 @@ class AlphaFixerPanelQt(QWidget):
         self.defringe_check.setChecked(True)
         group_layout.addWidget(self.defringe_check)
         self._set_tooltip(self.defringe_check, "Remove colour fringing around transparent edges — eliminates halos from cutouts")
-        self._set_tooltip(self.defringe_check, 'alpha_fix_recursive')
         
         # Threshold slider
         threshold_layout = QHBoxLayout()
@@ -387,6 +385,18 @@ class AlphaFixerPanelQt(QWidget):
         group_layout.addWidget(self.process_btn)
         self._set_tooltip(self.process_btn, 'alpha_fix_button')
         self._set_tooltip(self.process_btn, 'alpha_fix_export')
+
+        # Overwrite originals
+        self.overwrite_check = QCheckBox("Overwrite original files")
+        self.overwrite_check.setChecked(False)
+        self._set_tooltip(self.overwrite_check, 'alpha_fix_overwrite')
+        group_layout.addWidget(self.overwrite_check)
+
+        # Process subdirectories
+        self.recursive_check = QCheckBox("Process subdirectories")
+        self.recursive_check.setChecked(False)
+        self._set_tooltip(self.recursive_check, 'alpha_fix_recursive')
+        group_layout.addWidget(self.recursive_check)
         
         # Preview button
         preview_btn = QPushButton("Preview First Image")

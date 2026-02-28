@@ -319,9 +319,14 @@ class ColorCorrectionPanelQt(QWidget):
         self.lut_combo = QComboBox()
         self.lut_combo.addItems(["None", "Warm", "Cool", "Cinematic", "Vintage"])
         self._set_tooltip(self.lut_combo, 'cc_lut')
-        self._set_tooltip(self.lut_combo, 'cc_white_balance')
         lut_layout.addWidget(self.lut_combo, 1)
         group_layout.addLayout(lut_layout)
+
+        # White balance
+        self.white_balance_slider = self._create_slider(
+            group_layout, "White Balance", -100, 100, 0,
+            'cc_white_balance'
+        )
         
         # Reset button
         reset_btn = QPushButton("Reset to Defaults")
@@ -485,6 +490,8 @@ class ColorCorrectionPanelQt(QWidget):
         self.saturation_slider.setValue(0)
         self.sharpness_slider.setValue(100)
         self.lut_combo.setCurrentIndex(0)
+        if hasattr(self, 'white_balance_slider'):
+            self.white_balance_slider.setValue(0)
     
     def _start_processing(self):
         """Start color correction processing."""
@@ -497,7 +504,8 @@ class ColorCorrectionPanelQt(QWidget):
             'contrast': self.contrast_slider.value(),
             'saturation': self.saturation_slider.value(),
             'sharpness': self.sharpness_slider.value(),
-            'lut': self.lut_combo.currentText() if self.lut_combo.currentIndex() > 0 else None
+            'lut': self.lut_combo.currentText() if self.lut_combo.currentIndex() > 0 else None,
+            'white_balance': self.white_balance_slider.value() if hasattr(self, 'white_balance_slider') else 0,
         }
         
         # Create and start worker

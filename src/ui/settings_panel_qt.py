@@ -159,12 +159,20 @@ class SettingsPanelQt(QWidget):
         # Bottom buttons
         button_layout = QHBoxLayout()
         button_layout.addStretch()
+
+        about_btn = QPushButton("ℹ️ About")
+        about_btn.clicked.connect(self._show_about)
+        self.set_tooltip(about_btn, 'about_button')
+        button_layout.addWidget(about_btn)
+
+        tutorial_btn = QPushButton("📖 Tutorial")
+        tutorial_btn.clicked.connect(self._show_tutorial)
+        self.set_tooltip(tutorial_btn, 'tutorial_button')
+        button_layout.addWidget(tutorial_btn)
         
         reset_btn = QPushButton("Reset to Defaults")
         reset_btn.clicked.connect(self.reset_to_defaults)
         self.set_tooltip(reset_btn, 'reset_button')
-        self.set_tooltip(reset_btn, 'about_button')
-        self.set_tooltip(reset_btn, 'tutorial_button')
         button_layout.addWidget(reset_btn)
         
         export_btn = QPushButton("Export Settings")
@@ -634,7 +642,6 @@ class SettingsPanelQt(QWidget):
         self.sound_enabled_check.stateChanged.connect(lambda: self.on_setting_changed('ui', 'sound_enabled'))
         self.set_tooltip(self.sound_enabled_check, 'sound_enabled')
         self.set_tooltip(self.sound_enabled_check, 'sound_settings')
-        self.set_tooltip(self.sound_enabled_check, 'open_sound_settings')
         sound_layout.addWidget(self.sound_enabled_check)
         
         volume_label = QLabel("Volume: 70%")
@@ -733,6 +740,12 @@ class SettingsPanelQt(QWidget):
         test_sound_btn.clicked.connect(self._test_sound)
         self.set_tooltip(test_sound_btn, 'sound_test_button')
         sound_layout.addWidget(test_sound_btn)
+
+        # Open sound settings (scrolls to this sound section)
+        open_sound_btn = QPushButton("🎵 Open Sound Settings")
+        open_sound_btn.clicked.connect(lambda: self.tabs.setCurrentIndex(3))
+        self.set_tooltip(open_sound_btn, 'open_sound_settings')
+        sound_layout.addWidget(open_sound_btn)
 
         sound_group.setLayout(sound_layout)
         layout.addWidget(sound_group)
@@ -1051,6 +1064,109 @@ class SettingsPanelQt(QWidget):
         train_btn_group.setLayout(train_btn_layout)
         layout.addWidget(train_btn_group)
 
+        # ── Custom API endpoints ──────────────────────────────────────────
+        api_group = QGroupBox("🌐 Custom API Endpoints")
+        api_layout = QFormLayout()
+
+        # Background removal custom API
+        self.bgr_custom_api_check = QCheckBox("Use custom API for background removal")
+        self.bgr_custom_api_check.stateChanged.connect(
+            lambda: self.on_setting_changed('ai', 'bgr_custom_api'))
+        self.set_tooltip(self.bgr_custom_api_check, 'ai_bgr_custom_api')
+        api_layout.addRow("", self.bgr_custom_api_check)
+
+        self.bgr_api_url_edit = QLineEdit()
+        self.bgr_api_url_edit.setPlaceholderText("https://your-server/remove-bg")
+        self.bgr_api_url_edit.textChanged.connect(
+            lambda: self.on_setting_changed('ai', 'bgr_api_url'))
+        self.set_tooltip(self.bgr_api_url_edit, 'ai_bgr_api_url')
+        api_layout.addRow("BGR URL:", self.bgr_api_url_edit)
+
+        self.bgr_api_key_edit = QLineEdit()
+        self.bgr_api_key_edit.setPlaceholderText("API key (stored locally)")
+        self.bgr_api_key_edit.setEchoMode(QLineEdit.EchoMode.Password)
+        self.bgr_api_key_edit.textChanged.connect(
+            lambda: self.on_setting_changed('ai', 'bgr_api_key'))
+        self.set_tooltip(self.bgr_api_key_edit, 'ai_bgr_api_key')
+        api_layout.addRow("BGR Key:", self.bgr_api_key_edit)
+
+        bgr_model_layout = QHBoxLayout()
+        self.bgr_api_model_edit = QLineEdit()
+        self.bgr_api_model_edit.setPlaceholderText("e.g. u2net, isnet-anime")
+        self.bgr_api_model_edit.textChanged.connect(
+            lambda: self.on_setting_changed('ai', 'bgr_api_model'))
+        self.set_tooltip(self.bgr_api_model_edit, 'ai_bgr_model')
+        bgr_model_layout.addWidget(self.bgr_api_model_edit)
+        api_layout.addRow("BGR Model:", bgr_model_layout)
+
+        api_layout.addRow(QLabel(""))  # spacer
+
+        # Classification custom API
+        self.cls_custom_api_check = QCheckBox("Use custom API for classification")
+        self.cls_custom_api_check.stateChanged.connect(
+            lambda: self.on_setting_changed('ai', 'cls_custom_api'))
+        self.set_tooltip(self.cls_custom_api_check, 'ai_cls_custom_api')
+        api_layout.addRow("", self.cls_custom_api_check)
+
+        self.cls_api_url_edit = QLineEdit()
+        self.cls_api_url_edit.setPlaceholderText("https://your-server/classify")
+        self.cls_api_url_edit.textChanged.connect(
+            lambda: self.on_setting_changed('ai', 'cls_api_url'))
+        self.set_tooltip(self.cls_api_url_edit, 'ai_cls_api_url')
+        api_layout.addRow("CLS URL:", self.cls_api_url_edit)
+
+        self.cls_api_key_edit = QLineEdit()
+        self.cls_api_key_edit.setPlaceholderText("API key (stored locally)")
+        self.cls_api_key_edit.setEchoMode(QLineEdit.EchoMode.Password)
+        self.cls_api_key_edit.textChanged.connect(
+            lambda: self.on_setting_changed('ai', 'cls_api_key'))
+        self.set_tooltip(self.cls_api_key_edit, 'ai_cls_api_key')
+        api_layout.addRow("CLS Key:", self.cls_api_key_edit)
+
+        self.cls_api_model_edit = QLineEdit()
+        self.cls_api_model_edit.setPlaceholderText("model name")
+        self.cls_api_model_edit.textChanged.connect(
+            lambda: self.on_setting_changed('ai', 'cls_api_model'))
+        self.set_tooltip(self.cls_api_model_edit, 'ai_cls_model')
+        api_layout.addRow("CLS Model:", self.cls_api_model_edit)
+
+        api_layout.addRow(QLabel(""))  # spacer
+
+        # Upscaling custom API
+        self.ups_custom_api_check = QCheckBox("Use custom API for upscaling")
+        self.ups_custom_api_check.stateChanged.connect(
+            lambda: self.on_setting_changed('ai', 'ups_custom_api'))
+        self.set_tooltip(self.ups_custom_api_check, 'ai_ups_custom_api')
+        api_layout.addRow("", self.ups_custom_api_check)
+
+        self.ups_api_url_edit = QLineEdit()
+        self.ups_api_url_edit.setPlaceholderText("https://your-server/upscale")
+        self.ups_api_url_edit.textChanged.connect(
+            lambda: self.on_setting_changed('ai', 'ups_api_url'))
+        self.set_tooltip(self.ups_api_url_edit, 'ai_ups_api_url')
+        api_layout.addRow("UPS URL:", self.ups_api_url_edit)
+
+        self.ups_api_key_edit = QLineEdit()
+        self.ups_api_key_edit.setPlaceholderText("API key (stored locally)")
+        self.ups_api_key_edit.setEchoMode(QLineEdit.EchoMode.Password)
+        self.ups_api_key_edit.textChanged.connect(
+            lambda: self.on_setting_changed('ai', 'ups_api_key'))
+        self.set_tooltip(self.ups_api_key_edit, 'ai_ups_api_key')
+        api_layout.addRow("UPS Key:", self.ups_api_key_edit)
+
+        self.ups_tile_spin = QSpinBox()
+        self.ups_tile_spin.setRange(0, 1024)
+        self.ups_tile_spin.setValue(0)
+        self.ups_tile_spin.setSpecialValueText("Auto")
+        self.ups_tile_spin.setSuffix(" px")
+        self.ups_tile_spin.valueChanged.connect(
+            lambda: self.on_setting_changed('ai', 'ups_tile_size'))
+        self.set_tooltip(self.ups_tile_spin, 'ai_ups_tile')
+        api_layout.addRow("UPS Tile Size:", self.ups_tile_spin)
+
+        api_group.setLayout(api_layout)
+        layout.addWidget(api_group)
+
         layout.addStretch()
         scroll.setWidget(container)
         tab_layout = QVBoxLayout(tab)
@@ -1345,19 +1461,16 @@ class SettingsPanelQt(QWidget):
         export_config_btn = QPushButton("Export Configuration")
         export_config_btn.clicked.connect(self.export_settings)
         self.set_tooltip(export_config_btn, 'export_button')
-        self.set_tooltip(export_config_btn, 'profile_save')
         io_layout.addWidget(export_config_btn)
         
         import_config_btn = QPushButton("Import Configuration")
         import_config_btn.clicked.connect(self.import_settings)
         self.set_tooltip(import_config_btn, 'import_button')
-        self.set_tooltip(import_config_btn, 'profile_load')
         io_layout.addWidget(import_config_btn)
 
         reset_profile_btn = QPushButton("Reset to Defaults")
         reset_profile_btn.clicked.connect(self.reset_to_defaults)
         self.set_tooltip(reset_profile_btn, 'reset_button')
-        self.set_tooltip(reset_profile_btn, 'profile_new')
         io_layout.addWidget(reset_profile_btn)
         
         io_group.setLayout(io_layout)
@@ -1988,6 +2101,36 @@ class SettingsPanelQt(QWidget):
                 logger.info("Sound test triggered")
         except Exception as e:
             logger.debug(f"_test_sound: {e}")
+
+    def _show_about(self):
+        """Show the About dialog."""
+        try:
+            QMessageBox.about(
+                self,
+                "About Panda Sorter",
+                "Panda Sorter / Converter / Upscaler\n\n"
+                "An all-in-one texture management tool.\n"
+                "Sort, convert, upscale, remove backgrounds,\n"
+                "create line art, and more.\n\n"
+                "By JosephsDeadish / Dead On The Inside"
+            )
+        except Exception as e:
+            logger.error(f"_show_about: {e}", exc_info=True)
+
+    def _show_tutorial(self):
+        """Open the tutorial / guide."""
+        try:
+            if self.main_window and hasattr(self.main_window, 'start_tutorial'):
+                self.main_window.start_tutorial()
+            else:
+                QMessageBox.information(
+                    self,
+                    "Tutorial",
+                    "Hover over any control to see a tooltip explaining what it does.\n\n"
+                    "You can change the tooltip style in Settings → Behavior → Tooltips."
+                )
+        except Exception as e:
+            logger.error(f"_show_tutorial: {e}", exc_info=True)
     
     def set_tooltip(self, widget: QWidget, widget_id: str):
         """Set tooltip for a widget using the tooltip manager"""

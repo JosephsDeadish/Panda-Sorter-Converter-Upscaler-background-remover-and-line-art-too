@@ -190,8 +190,6 @@ class FileBrowserPanelQt(QWidget):
         self.browse_btn = QPushButton("📂 Browse Folder")
         self.browse_btn.clicked.connect(self.browse_folder)
         self._set_tooltip(self.browse_btn, 'browser_browse_button')
-        self._set_tooltip(self.browse_btn, 'favorites_button')
-        self._set_tooltip(self.browse_btn, 'popout_button')
         controls_layout.addWidget(self.browse_btn)
         
         # Recent folders dropdown

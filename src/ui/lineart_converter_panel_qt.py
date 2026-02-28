@@ -622,7 +622,6 @@ class LineArtConverterPanelQt(QWidget):
         self.mode_combo.currentIndexChanged.connect(self._on_mode_changed)
         mode_layout.addWidget(self.mode_combo, 1)
         self._set_tooltip(self.mode_combo, 'la_mode')
-        self._set_tooltip(self.mode_combo, 'la_update_preview')
         group_layout.addLayout(mode_layout)
 
         # Invert checkbox
@@ -950,6 +949,13 @@ class LineArtConverterPanelQt(QWidget):
         zoom_bar.addWidget(btn_in)
         zoom_bar.addWidget(btn_fit)
         zoom_bar.addStretch()
+
+        refresh_btn = QPushButton("🔄 Update Preview")
+        refresh_btn.setFixedHeight(24)
+        refresh_btn.clicked.connect(self._schedule_preview_update)
+        self._set_tooltip(refresh_btn, 'la_update_preview')
+        zoom_bar.addWidget(refresh_btn)
+
         group_layout.addLayout(zoom_bar)
 
         # ── Preview area (scrollable) ──────────────────────────────────────
@@ -1049,7 +1055,6 @@ class LineArtConverterPanelQt(QWidget):
             self.output_format_combo.addItem(label, ext)
         fmt_layout.addWidget(self.output_format_combo, 1)
         self._set_tooltip(self.output_format_combo, 'la_export')
-        self._set_tooltip(self.output_format_combo, 'la_browse_output')
 
         self.save_color_layer_cb = QCheckBox("Also save colour layer")
         self._set_tooltip(
@@ -1067,6 +1072,12 @@ class LineArtConverterPanelQt(QWidget):
         self.convert_button.clicked.connect(self._convert_batch)
         layout.addWidget(self.convert_button)
         self._set_tooltip(self.convert_button, 'la_convert')
+
+        # Browse output directory
+        self.browse_output_btn = QPushButton("📂 Browse Output Folder")
+        self.browse_output_btn.clicked.connect(self._browse_output_dir)
+        self._set_tooltip(self.browse_output_btn, 'la_browse_output')
+        layout.addWidget(self.browse_output_btn)
 
         # Progress bar
         self.progress_bar = QProgressBar()
@@ -1409,6 +1420,17 @@ class LineArtConverterPanelQt(QWidget):
         """Handle preview error."""
         if hasattr(self, 'preview_label'):
             self.preview_label.setText(f"Error: {error_msg}")
+
+    def _browse_output_dir(self):
+        """Let the user pre-select the output directory for conversions."""
+        try:
+            from PyQt6.QtWidgets import QFileDialog
+            path = QFileDialog.getExistingDirectory(self, "Select Output Directory")
+            if path:
+                self._preset_output_dir = path
+                logger.info(f"Lineart output directory pre-set to: {path}")
+        except Exception as e:
+            logger.error(f"_browse_output_dir: {e}", exc_info=True)
     
     def _convert_batch(self):
         """Convert selected files in batch."""

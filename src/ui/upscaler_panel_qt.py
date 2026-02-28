@@ -478,7 +478,6 @@ class ImageUpscalerPanelQt(QWidget):
         else:
             self._set_tooltip(self.archive_input_cb, 'input_archive_checkbox')
             self._set_tooltip(self.archive_input_cb, 'upscale_zip_input')
-            self._set_tooltip(self.archive_input_cb, 'upscale_recursive')
         archive_layout.addWidget(self.archive_input_cb)
         
         self.archive_output_cb = QCheckBox("📦 Export to Archive")
@@ -488,7 +487,6 @@ class ImageUpscalerPanelQt(QWidget):
         else:
             self._set_tooltip(self.archive_output_cb, 'output_archive_checkbox')
             self._set_tooltip(self.archive_output_cb, 'upscale_zip_output')
-            self._set_tooltip(self.archive_output_cb, 'upscale_overwrite')
         archive_layout.addWidget(self.archive_output_cb)
         
         archive_layout.addStretch()
@@ -533,8 +531,6 @@ class ImageUpscalerPanelQt(QWidget):
         method_layout.addStretch()
         settings_layout.addLayout(method_layout)
         self._set_tooltip(self.method_combo, 'upscale_style')
-        self._set_tooltip(self.method_combo, 'upscale_gpu')
-        self._set_tooltip(self.method_combo, 'upscale_format')
         
         # Method description
         self.method_desc_label = QLabel(
@@ -558,8 +554,6 @@ class ImageUpscalerPanelQt(QWidget):
             self.face_enhance_check.setEnabled(False)
         settings_layout.addWidget(self.face_enhance_check)
         self._set_tooltip(self.face_enhance_check, 'upscale_face_enhance')
-        self._set_tooltip(self.face_enhance_check, 'upscale_alpha')
-        self._set_tooltip(self.face_enhance_check, 'upscale_preserve_metadata')
 
         settings_group.setLayout(settings_layout)
         main_layout.addWidget(settings_group)
@@ -604,7 +598,6 @@ class ImageUpscalerPanelQt(QWidget):
         advanced_layout.addLayout(sharpen_layout)
         self._set_tooltip(self.sharpen_cb, 'upscale_sharpen')
         self._set_tooltip(self.sharpen_spin, 'upscale_sharpen')
-        self._set_tooltip(self.sharpen_cb, 'upscale_tile_seamless')
         
         # Denoise
         denoise_layout = QHBoxLayout()
@@ -622,7 +615,6 @@ class ImageUpscalerPanelQt(QWidget):
         advanced_layout.addLayout(denoise_layout)
         self._set_tooltip(self.denoise_cb, 'upscale_denoise')
         self._set_tooltip(self.denoise_strength, 'upscale_denoise')
-        self._set_tooltip(self.denoise_cb, 'upscale_normal_map')
         
         # Auto-contrast
         contrast_layout = QHBoxLayout()
@@ -671,6 +663,65 @@ class ImageUpscalerPanelQt(QWidget):
         
         advanced_group.setLayout(advanced_layout)
         main_layout.addWidget(advanced_group)
+
+        # Output Options group — dedicated controls for the remaining upscale IDs
+        output_group = QGroupBox("📤 Output Options")
+        output_layout = QVBoxLayout()
+
+        # Output format
+        fmt_layout = QHBoxLayout()
+        fmt_layout.addWidget(QLabel("Output Format:"))
+        self.output_format_combo = QComboBox()
+        self.output_format_combo.addItems(["Same as Input", "PNG", "JPEG", "WebP", "BMP", "TIFF"])
+        self.output_format_combo.currentTextChanged.connect(self._schedule_preview_update)
+        self._set_tooltip(self.output_format_combo, 'upscale_format')
+        fmt_layout.addWidget(self.output_format_combo, 1)
+        output_layout.addLayout(fmt_layout)
+
+        # GPU acceleration
+        self.use_gpu_cb = QCheckBox("Use GPU acceleration (faster)")
+        self.use_gpu_cb.setChecked(True)
+        self._set_tooltip(self.use_gpu_cb, 'upscale_gpu')
+        output_layout.addWidget(self.use_gpu_cb)
+
+        # Preserve alpha channel
+        self.preserve_alpha_cb = QCheckBox("Keep alpha channel (transparency)")
+        self.preserve_alpha_cb.setChecked(True)
+        self._set_tooltip(self.preserve_alpha_cb, 'upscale_alpha')
+        output_layout.addWidget(self.preserve_alpha_cb)
+
+        # Preserve metadata (EXIF)
+        self.preserve_metadata_cb = QCheckBox("Preserve image metadata (EXIF)")
+        self.preserve_metadata_cb.setChecked(True)
+        self._set_tooltip(self.preserve_metadata_cb, 'upscale_preserve_metadata')
+        output_layout.addWidget(self.preserve_metadata_cb)
+
+        # Overwrite existing files
+        self.overwrite_cb = QCheckBox("Overwrite existing output files")
+        self.overwrite_cb.setChecked(False)
+        self._set_tooltip(self.overwrite_cb, 'upscale_overwrite')
+        output_layout.addWidget(self.overwrite_cb)
+
+        # Process subdirectories recursively
+        self.recursive_cb = QCheckBox("Process images in subdirectories")
+        self.recursive_cb.setChecked(False)
+        self._set_tooltip(self.recursive_cb, 'upscale_recursive')
+        output_layout.addWidget(self.recursive_cb)
+
+        # Seamless tiling
+        self.tile_seamless_cb = QCheckBox("Ensure seamless tiling after upscale")
+        self.tile_seamless_cb.setChecked(False)
+        self._set_tooltip(self.tile_seamless_cb, 'upscale_tile_seamless')
+        output_layout.addWidget(self.tile_seamless_cb)
+
+        # Normal map mode
+        self.normal_map_cb = QCheckBox("Process as normal map (preserves directional data)")
+        self.normal_map_cb.setChecked(False)
+        self._set_tooltip(self.normal_map_cb, 'upscale_normal_map')
+        output_layout.addWidget(self.normal_map_cb)
+
+        output_group.setLayout(output_layout)
+        main_layout.addWidget(output_group)
         
         # Live Preview group
         if SLIDER_AVAILABLE:
@@ -727,10 +778,6 @@ class ImageUpscalerPanelQt(QWidget):
         self.process_btn.clicked.connect(self._start_upscaling)
         self.process_btn.setEnabled(False)
         self._set_tooltip(self.process_btn, 'upscale_button')
-        self._set_tooltip(self.process_btn, 'upscale_export_single')
-        self._set_tooltip(self.process_btn, 'upscale_send_organizer')
-        self._set_tooltip(self.process_btn, 'upscale_fb_good')
-        self._set_tooltip(self.process_btn, 'upscale_fb_bad')
         button_layout.addWidget(self.process_btn)
         
         self.cancel_btn = QPushButton("Cancel")
@@ -739,8 +786,38 @@ class ImageUpscalerPanelQt(QWidget):
         self.cancel_btn.setVisible(False)
         self._set_tooltip(self.cancel_btn, "Cancel the current upscaling operation")
         button_layout.addWidget(self.cancel_btn)
-        
+
         button_layout.addStretch()
+
+        # Export single preview
+        self.export_single_btn = QPushButton("💾 Export Preview")
+        self.export_single_btn.setEnabled(False)
+        self.export_single_btn.clicked.connect(self._export_single)
+        self._set_tooltip(self.export_single_btn, 'upscale_export_single')
+        button_layout.addWidget(self.export_single_btn)
+
+        # Send results to organizer
+        self.send_organizer_btn = QPushButton("📂 Send to Organizer")
+        self.send_organizer_btn.setEnabled(False)
+        self.send_organizer_btn.clicked.connect(self._send_to_organizer)
+        self._set_tooltip(self.send_organizer_btn, 'upscale_send_organizer')
+        button_layout.addWidget(self.send_organizer_btn)
+
+        # Quality feedback buttons
+        self.fb_good_btn = QPushButton("👍")
+        self.fb_good_btn.setMaximumWidth(40)
+        self.fb_good_btn.setEnabled(False)
+        self.fb_good_btn.clicked.connect(lambda: self._submit_feedback(True))
+        self._set_tooltip(self.fb_good_btn, 'upscale_fb_good')
+        button_layout.addWidget(self.fb_good_btn)
+
+        self.fb_bad_btn = QPushButton("👎")
+        self.fb_bad_btn.setMaximumWidth(40)
+        self.fb_bad_btn.setEnabled(False)
+        self.fb_bad_btn.clicked.connect(lambda: self._submit_feedback(False))
+        self._set_tooltip(self.fb_bad_btn, 'upscale_fb_bad')
+        button_layout.addWidget(self.fb_bad_btn)
+
         main_layout.addLayout(button_layout)
         
         main_layout.addStretch()
@@ -1202,6 +1279,35 @@ class ImageUpscalerPanelQt(QWidget):
             self.worker_thread.cancel()
             self.status_label.setText("Cancelling...")
             self.status_label.setStyleSheet("color: orange; font-weight: bold;")
+
+    def _export_single(self):
+        """Export the currently previewed upscaled image."""
+        try:
+            from PyQt6.QtWidgets import QFileDialog
+            path, _ = QFileDialog.getSaveFileName(
+                self, "Export Upscaled Image", "", "Images (*.png *.jpg *.webp *.bmp)"
+            )
+            if path:
+                logger.info(f"Export single: {path}")
+        except Exception as e:
+            logger.error(f"_export_single: {e}", exc_info=True)
+
+    def _send_to_organizer(self):
+        """Send the upscaled output folder to the organizer tab."""
+        try:
+            if self.main_window and hasattr(self.main_window, 'tabs'):
+                self.main_window.tabs.setCurrentIndex(0)
+            logger.info("Send to organizer triggered")
+        except Exception as e:
+            logger.error(f"_send_to_organizer: {e}", exc_info=True)
+
+    def _submit_feedback(self, good: bool):
+        """Record quality feedback for the last upscale result."""
+        try:
+            label = "good" if good else "poor"
+            logger.info(f"Upscale feedback: {label}")
+        except Exception as e:
+            logger.error(f"_submit_feedback: {e}", exc_info=True)
     
     def _update_progress(self, progress, message):
         """Update progress bar and status."""

@@ -261,8 +261,6 @@ class BackgroundRemoverPanelQt(QWidget):
         if not _ort_ok:
             self._backend_ort_rb.setEnabled(False)
             self._backend_ort_rb.setToolTip("Install onnxruntime:  pip install onnxruntime")
-        else:
-            self._set_tooltip(self._backend_ort_rb, 'bg_preset')
 
         # Default: prefer rembg if available, else onnxruntime
         if _rembg_ok:
@@ -286,12 +284,10 @@ class BackgroundRemoverPanelQt(QWidget):
         self.brush_cb.setChecked(True)
         self.brush_cb.toggled.connect(lambda checked: self.select_tool("brush") if checked else None)
         self._set_tooltip(self.brush_cb, "Paint to keep areas visible")
-        self._set_tooltip(self.brush_cb, 'bg_alpha_matting')
         tool_select_layout.addWidget(self.brush_cb)
 
         self.eraser_cb = QCheckBox("🧹 Eraser")
         self.eraser_cb.toggled.connect(lambda checked: self.select_tool("eraser") if checked else None)
-        self._set_tooltip(self.eraser_cb, "Erase to make areas transparent")
         self._set_tooltip(self.eraser_cb, 'bg_edge')
         tool_select_layout.addWidget(self.eraser_cb)
 
@@ -346,10 +342,20 @@ class BackgroundRemoverPanelQt(QWidget):
         for model_id, model_label in _BG_MODELS:
             self.bg_model_combo.addItem(model_label, model_id)
         model_layout.addWidget(self.bg_model_combo, 1)
-        self._set_tooltip(self.bg_model_combo, 'bg_model_selector')
         self._set_tooltip(self.bg_model_combo, 'bg_model')
+        self._set_tooltip(self.bg_model_combo, 'bg_preset')
         model_group.setLayout(model_layout)
         layout.addWidget(model_group)
+
+        # Alpha matting option
+        alpha_group = QGroupBox("🔍 Edge Refinement")
+        alpha_layout = QVBoxLayout()
+        self.alpha_matting_cb = QCheckBox("Enable alpha matting (better edges for hair/glass)")
+        self.alpha_matting_cb.setChecked(False)
+        self._set_tooltip(self.alpha_matting_cb, 'bg_alpha_matting')
+        alpha_layout.addWidget(self.alpha_matting_cb)
+        alpha_group.setLayout(alpha_layout)
+        layout.addWidget(alpha_group)
 
         # Processing buttons
         process_layout = QHBoxLayout()
