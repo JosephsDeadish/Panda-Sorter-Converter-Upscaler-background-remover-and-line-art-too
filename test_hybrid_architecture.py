@@ -2920,6 +2920,126 @@ def test_background_remover_initial_splitter_sizes():
         print(f"  ✅ preview initial width {preview}px ≤ 400px")
 
 
+def test_tooltip_manager_propagated_after_init():
+    """_propagate_tooltip_manager() must exist and inject manager into tool panels.
+
+    Issue #197: 'tooltips not working... not cycling tips'
+    The root cause is setup_ui() creates all panels before initialize_components()
+    creates the TooltipVerbosityManager.  After init, _propagate_tooltip_manager()
+    must push the manager to every panel so cycling works.
+    """
+    print("\ntest_tooltip_manager_propagated_after_init ...")
+    code = open('main.py').read()
+
+    assert '_propagate_tooltip_manager' in code, (
+        "main.py must define _propagate_tooltip_manager() — called after "
+        "initialize_components() creates the tooltip manager to push it to "
+        "all panels that were built with tooltip_manager=None."
+    )
+    print("  ✅ _propagate_tooltip_manager() defined in main.py")
+
+    assert 'self._propagate_tooltip_manager()' in code, (
+        "main.py must CALL self._propagate_tooltip_manager() after creating "
+        "the TooltipVerbosityManager inside initialize_components()."
+    )
+    print("  ✅ _propagate_tooltip_manager() is called after manager creation")
+
+    import re
+    m = re.search(
+        r'def _propagate_tooltip_manager.*?(?=\n    def |\Z)', code, re.DOTALL
+    )
+    assert m, "_propagate_tooltip_manager method body not found"
+    body = m.group(0)
+
+    # Must iterate tool_panels
+    assert 'tool_panels' in body, (
+        "_propagate_tooltip_manager must inject into self.tool_panels"
+    )
+    print("  ✅ propagates to tool_panels")
+
+    # Must call refresh_all to apply tooltips immediately
+    assert 'refresh_all' in body, (
+        "_propagate_tooltip_manager must call refresh_all() after injection "
+        "so tooltip texts are applied without requiring a hover."
+    )
+    print("  ✅ refresh_all() called after injection")
+
+
+def test_tools_tab_collapse_button():
+    """Tools tab must have a collapse/expand button to hide the selector grid.
+
+    Issue #197: 'tools tab needs a minimize hide and unhide button to hide all
+    the tabs to make more room'
+    """
+    print("\ntest_tools_tab_collapse_button ...")
+    code = open('main.py').read()
+
+    assert 'Hide panel selector' in code or 'Show panel selector' in code, (
+        "main.py tools tab must include a collapse/expand toggle button for "
+        "the tool selector grid (e.g. '▲ Hide panel selector')."
+    )
+    print("  ✅ collapse/expand toggle button label present in main.py")
+
+    assert '_toggle_btn_container' in code or 'toggle_btn_container' in code, (
+        "main.py must define a handler to toggle the btn_container visibility."
+    )
+    print("  ✅ toggle handler present")
+
+
+def test_panda_gl_arm_y_at_shoulder_level():
+    """GL panda ARM_Y must be ≤ 0.22 to place arms at shoulder level.
+
+    Issue #197: 'body syncing, body shape and parts, placements'
+    The torso body sphere half-height = BODY_HEIGHT/2 = 0.25.
+    ARM_Y must be ≤ 0.22 so arm pivots are inside the body (shoulder level),
+    not floating above it.  Old value 0.30 put arms 0.06 above the body top.
+    """
+    print("\ntest_panda_gl_arm_y_at_shoulder_level ...")
+    import re
+    code = open('src/ui/panda_widget_gl.py').read()
+
+    # Check the ARM_Y class constant (preferred) or arm_y local variable
+    arm_y_val = None
+    const_m = re.search(r'ARM_Y\s*=\s*([\d.]+)', code)
+    if const_m:
+        arm_y_val = float(const_m.group(1))
+    else:
+        # Fallback: look for arm_y local inside _draw_panda_arms
+        m = re.search(r'def _draw_panda_arms.*?(?=\n    def |\Z)', code, re.DOTALL)
+        if m:
+            local_m = re.search(r'arm_y\s*=\s*([\d.]+)', m.group(0))
+            if local_m:
+                arm_y_val = float(local_m.group(1))
+
+    assert arm_y_val is not None, "ARM_Y constant or arm_y local not found in panda_widget_gl.py"
+    assert arm_y_val <= 0.22, (
+        f"ARM_Y = {arm_y_val} is above the body sphere top (BODY_HEIGHT/2=0.25). "
+        f"Set ARM_Y ≤ 0.22 so arms attach at shoulder level."
+    )
+    print(f"  ✅ ARM_Y = {arm_y_val} (≤ 0.22 — at shoulder level)")
+
+
+def test_panda_gl_starts_on_ground():
+    """GL panda must initialise with panda_y = -0.7 (on the ground).
+
+    Previously panda_y=0.0 meant the panda spawned floating 0.7 units above
+    the floor and dropped abruptly when the physics timer first ticked.
+    """
+    print("\ntest_panda_gl_starts_on_ground ...")
+    import re
+    code = open('src/ui/panda_widget_gl.py').read()
+
+    # Find the __init__ initialisation block
+    init_m = re.search(r'self\.panda_y\s*=\s*([-\d.]+)', code)
+    assert init_m, "self.panda_y initialisation not found in panda_widget_gl.py"
+    init_val = float(init_m.group(1))
+    assert init_val <= -0.5, (
+        f"panda_widget_gl.py: self.panda_y = {init_val} — panda starts floating. "
+        f"Set to -0.7 (ground level) so it appears on the floor immediately."
+    )
+    print(f"  ✅ panda_y initialised to {init_val} (on the ground)")
+
+
 def run_all_tests():
     print("=" * 65)
     print("Hybrid Architecture + Lazy rembg Import Tests")
@@ -2993,6 +3113,10 @@ def run_all_tests():
         test_achievement_trophy_shelf_ui,
         test_format_converter_column_min_width,
         test_background_remover_initial_splitter_sizes,
+        test_tooltip_manager_propagated_after_init,
+        test_tools_tab_collapse_button,
+        test_panda_gl_arm_y_at_shoulder_level,
+        test_panda_gl_starts_on_ground,
     ]
 
     passed, failed = [], []

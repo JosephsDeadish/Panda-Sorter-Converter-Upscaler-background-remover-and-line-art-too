@@ -1513,7 +1513,7 @@ class TextureSorterMainWindow(QMainWindow):
             # Create grid button
             btn = QPushButton(label)
             btn.setCheckable(True)
-            btn.setFixedHeight(34)
+            btn.setFixedHeight(28)   # was 34 — shorter buttons so the grid is less tall
             btn.setStyleSheet(
                 "QPushButton { background:#2a2a3e; color:#cccccc; border:1px solid #444; "
                 "border-radius:4px; font-size:12px; padding:0 8px; text-align:left; }"
@@ -1532,6 +1532,29 @@ class TextureSorterMainWindow(QMainWindow):
 
         outer_layout.addWidget(btn_container)
         outer_layout.addWidget(tool_stack, 1)
+
+        # ── Collapse/expand toggle for the button grid ───────────────────────
+        # A single small chevron button at the bottom of the button bar lets
+        # the user hide the grid to give the active panel maximum vertical room.
+        collapse_btn = QPushButton("▲ Hide panel selector")
+        collapse_btn.setFixedHeight(22)
+        collapse_btn.setStyleSheet(
+            "QPushButton { background: #1a1a2a; color: #666; border: none; "
+            "border-top: 1px solid #333; font-size: 10px; }"
+            "QPushButton:hover { color: #aaaaaa; }"
+        )
+        btn_visible = True   # tracks current visibility state
+
+        def _toggle_btn_container():
+            nonlocal btn_visible
+            btn_visible = not btn_visible
+            btn_container.setVisible(btn_visible)
+            collapse_btn.setText(
+                "▲ Hide panel selector" if btn_visible else "▼ Show panel selector"
+            )
+
+        collapse_btn.clicked.connect(_toggle_btn_container)
+        outer_layout.addWidget(collapse_btn)
 
         # Wire up any lightweight dock panels (perf monitor, queue) — hidden by default
         self._create_tool_dock_panels()
@@ -3858,6 +3881,15 @@ class TextureSorterMainWindow(QMainWindow):
                 from features.tutorial_system import TooltipVerbosityManager
                 self.tooltip_manager = TooltipVerbosityManager(config)
                 logger.info("Tooltip manager initialized")
+                # Propagate to all panels that were created in setup_ui() before
+                # the manager existed.  Each panel stores the manager under
+                # self.tooltip_manager OR self._tooltip_mgr depending on origin.
+                # After injection, refresh_all() re-applies the correct tooltip
+                # texts to every registered widget so cycling works immediately.
+                try:
+                    self._propagate_tooltip_manager()
+                except Exception as _te:
+                    logger.debug(f"Failed to propagate tooltip manager to panels: {_te}")
             except Exception as e:
                 logger.warning(f"Could not initialize tooltip manager: {e}")
             
@@ -4264,6 +4296,65 @@ class TextureSorterMainWindow(QMainWindow):
             logger.error(f"Failed to initialize components: {e}", exc_info=True)
             self.log(f"⚠️ Warning: Some components failed to initialize: {e}")
     
+    def _propagate_tooltip_manager(self):
+        """Inject self.tooltip_manager into all panels created before it existed.
+
+        ``setup_ui()`` runs before ``initialize_components()``, so all tool
+        panels, the settings panel, and panda-feature panels are constructed
+        with ``tooltip_manager=None``.  After the manager is created we push it
+        to every panel, re-register their widgets, and call ``refresh_all()``
+        so tooltip text is immediately available for the current mode.
+        """
+        if not self.tooltip_manager:
+            return
+        mgr = self.tooltip_manager
+
+        # Collect all panel objects that may hold a tooltip_manager reference.
+        # Panels use either .tooltip_manager or ._tooltip_mgr depending on implementation.
+        candidates = []
+
+        # All tool panels
+        candidates.extend(self.tool_panels.values())
+
+        # Settings panel
+        if hasattr(self, 'settings_panel') and self.settings_panel is not None:
+            candidates.append(self.settings_panel)
+
+        # Panda-feature panels (achievement, closet, inventory, etc.)
+        for attr in (
+            '_achievement_panel', '_closet_panel', '_inventory_panel',
+            '_customization_panel', '_minigame_panel', '_dungeon_view',
+        ):
+            obj = getattr(self, attr, None)
+            if obj is not None:
+                candidates.append(obj)
+
+        injected = 0
+        for panel in candidates:
+            if panel is None:
+                continue
+            changed = False
+            if hasattr(panel, 'tooltip_manager') and panel.tooltip_manager is None:
+                panel.tooltip_manager = mgr
+                changed = True
+            if hasattr(panel, '_tooltip_mgr') and panel._tooltip_mgr is None:
+                panel._tooltip_mgr = mgr
+                changed = True
+            if changed:
+                injected += 1
+
+        # Flush: re-apply tooltip text for every already-registered widget so
+        # the current mode is immediately active without requiring a hover.
+        try:
+            mgr.refresh_all()
+        except Exception as _re:
+            logger.debug(f"Failed to refresh tooltips after propagation: {_re}")
+
+        logger.info(
+            f"Tooltip manager propagated to {injected}/{len(candidates)} panels; "
+            f"refresh_all() called."
+        )
+
     def apply_performance_settings(self):
         """Apply performance settings from config to actual system components."""
         try:

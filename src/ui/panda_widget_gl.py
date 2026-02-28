@@ -198,6 +198,7 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
     BODY_WIDTH = 0.56    # wider than before for a round, stocky silhouette
     BODY_HEIGHT = 0.50   # shorter than old 0.6 — pandas are squat, not tall
     ARM_LENGTH = 0.38    # slightly shorter (was 0.40) to look proportional on wider body
+    ARM_Y = 0.18         # shoulder height in torso-local space (body extends ±0.25)
     LEG_LENGTH = 0.40    # longer legs so they protrude below the belly
     LEG_SPACING = 0.44   # wider stance, matches real panda hip width
     EAR_SIZE = 0.15
@@ -276,7 +277,7 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
         
         # Position and rotation (in 3D space)
         self.panda_x = 0.0
-        self.panda_y = 0.0
+        self.panda_y = -0.7   # start on the ground (physics ground at -0.7)
         self.panda_z = 0.0
         self.rotation_x = 0.0
         self.rotation_y = 0.0
@@ -289,10 +290,10 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
         self.angular_velocity = 0.0
         
         # Camera settings — camera_distance controls apparent panda size.
-        # 6.5 keeps the panda nicely visible; 15° downward tilt gives a slightly
-        # more front-on view than the old 20° so the panda looks less top-down.
+        # 6.5 keeps the panda comfortably visible without distorting perspective.
+        # A 12° downward tilt (was 15°) gives a more front-on view.
         self.camera_distance = 6.5
-        self.camera_angle_x = 15.0
+        self.camera_angle_x = 12.0
         self.camera_angle_y = 0.0
         
         # Lighting
@@ -788,11 +789,10 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
         
         # Setup camera
         glLoadIdentity()
-        # Camera Y = +0.1: world objects at Y≈0 appear at screen centre.
-        # Panda mid-point (half-way between body centre and head) is at world Y≈−0.1
-        # when standing on ground (panda_y=−0.7), so +0.1 gives a well-centred view.
-        # (Old value was −0.5, which looked up at Y=0.5 and put the panda far below centre.)
-        glTranslatef(0.0, 0.1, -self.camera_distance)
+        # Camera Y = +0.3: lifts the view target so the panda (ground at y=-0.7,
+        # body centre at y=-0.4, head at y≈-0.1) is framed in the upper two-thirds
+        # of the viewport with room for the feet at the bottom.
+        glTranslatef(0.0, 0.3, -self.camera_distance)
         glRotatef(self.camera_angle_x, 1.0, 0.0, 0.0)
         glRotatef(self.camera_angle_y, 0.0, 1.0, 0.0)
         
@@ -1196,10 +1196,11 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
         glPopMatrix()
 
         # Shoulder muscle masses (black) — give quadruped shoulder hump
-        # Y = 0.32 matches the arm pivot (arm_y + 0.06 = 0.36) for visual alignment
+        # Y derived from ARM_Y (+ 0.02 for slight upward centre) so shoulder
+        # blobs visually connect to the arm pivot point.
         for sx in (-self.BODY_WIDTH * 0.70, self.BODY_WIDTH * 0.70):
             glPushMatrix()
-            glTranslatef(sx, 0.32, -self.BODY_WIDTH * 0.15)
+            glTranslatef(sx, self.ARM_Y + 0.02, -self.BODY_WIDTH * 0.15)
             glScalef(0.30, 0.28 * sy, 0.24)
             glColor3f(*accent_col)
             self._draw_sphere(1.0, 12, 12)
@@ -1947,7 +1948,9 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
         # NOTE: this method is called INSIDE the torso glPushMatrix which already
         # translates by (0, 0.30 + bob, 0).  Do NOT add bob here again or the arms
         # will appear to move at 2× the body bob rate.
-        arm_y   = 0.30
+        # arm_y from class constant ARM_Y: shoulder height inside the body
+        # (body extends ±0.25 from torso centre; ARM_Y=0.18 sits at shoulder level).
+        arm_y   = self.ARM_Y
         arm_x   = self.BODY_WIDTH + 0.06
         ac = self._get_color('accent')   # fur-style accent colour for arm patches
 
