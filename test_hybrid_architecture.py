@@ -2040,9 +2040,10 @@ def test_cancel_buttons_have_interruption_support():
 
         code = src_path.read_text(encoding='utf-8')
 
-        # 1. Panel must have a cancel button
-        assert re.search(r'self\._?cancel_btn\b', code), (
-            f"{rel_path}: missing cancel button attribute (self.cancel_btn or self._cancel_btn).\n"
+        # 1. Panel must have a cancel button — look for assignment, not any occurrence
+        #    (This avoids false-positives from comment lines or string literals.)
+        assert re.search(r'self\._?cancel_btn\s*=\s*QPushButton', code), (
+            f"{rel_path}: missing cancel button assignment (self.cancel_btn = QPushButton(...) or self._cancel_btn = ...).\n"
             "Add a QPushButton('Cancel') with visible=False, enabled=False that shows during processing."
         )
 
