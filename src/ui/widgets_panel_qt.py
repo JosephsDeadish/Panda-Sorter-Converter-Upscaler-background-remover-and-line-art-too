@@ -120,7 +120,7 @@ class WidgetsPanelQt(QWidget):
         
         # Select button
         select_btn = QPushButton("Select")
-        select_btn.setToolTip(f"Select {widget.get('name', 'this widget')} to add or remove")
+        self._set_tooltip(select_btn, "Select this widget to add it to or remove it from the scene")
         select_btn.clicked.connect(lambda: self.select_widget(widget))
         item_layout.addWidget(select_btn)
         

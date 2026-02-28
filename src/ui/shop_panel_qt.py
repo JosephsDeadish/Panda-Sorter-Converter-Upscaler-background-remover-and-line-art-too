@@ -56,7 +56,7 @@ class ShopItemWidget(QFrame):
     purchase_requested = pyqtSignal(str)  # item_id
     
     def __init__(self, item: 'ShopItem', owned: bool = False,
-                 tooltip_manager=None, parent=None):
+                 parent=None, tooltip_manager=None):
         super().__init__(parent)
         self.item = item
         self.owned = owned
