@@ -2105,6 +2105,95 @@ def test_panda_set_mood_emits_signal():
     print("  ✅ set_mood() calls self.mood_changed.emit(mood)")
 
 
+def test_color_correction_guards_empty_files():
+    """ColorCorrectionPanelQt._start_processing() must guard against empty file selection.
+
+    Starting the ColorCorrectionWorker with an empty ``input_files`` list is
+    wasted work (the worker loop does nothing) and gives users no feedback.
+    The guard must show a QMessageBox.warning and return early before starting
+    the background thread.
+    """
+    print("\ntest_color_correction_guards_empty_files ...")
+    import ast
+    from pathlib import Path
+
+    src = Path(__file__).parent / 'src' / 'ui' / 'color_correction_panel_qt.py'
+    if not src.exists():
+        print("  ⚠️  Skipped (color_correction_panel_qt.py not found)")
+        return
+
+    code = src.read_text(encoding='utf-8')
+    tree = ast.parse(code, filename=str(src))
+
+    found_method = False
+    has_empty_guard = False
+    for node in ast.walk(tree):
+        if isinstance(node, (ast.FunctionDef,)) and node.name == '_start_processing':
+            found_method = True
+            method_src = ast.get_source_segment(code, node) or ''
+            # Must have an early-return when input_files is empty
+            has_empty_guard = (
+                'not self.input_files' in method_src or
+                'not self.selected_files' in method_src or
+                'len(self.input_files) == 0' in method_src
+            )
+            break
+
+    assert found_method, "ColorCorrectionPanelQt._start_processing() not found"
+    assert has_empty_guard, (
+        "ColorCorrectionPanelQt._start_processing() must check 'if not self.input_files' "
+        "and show a QMessageBox.warning + return before starting the worker.\n"
+        "Starting the worker with no files is silent no-op waste."
+    )
+    print("  ✅ _start_processing() guards against empty input_files")
+
+
+def test_model_download_thread_supports_cancellation():
+    """ModelDownloadThread must support cancellation via isInterruptionRequested().
+
+    When a large model download is started and the user clicks Cancel,
+    the thread should check isInterruptionRequested() in the progress callback
+    and raise InterruptedError to stop the download cleanly — without
+    forcefully terminating the thread or leaving a partial file.
+
+    Requirements:
+    1. ModelDownloadThread.run() uses a progress callback that checks
+       isInterruptionRequested() (via InterruptedError or direct check).
+    2. ModelCardWidget has a ``_cancel_download_btn`` that calls
+       ``requestInterruption()`` on the running thread.
+    """
+    print("\ntest_model_download_thread_supports_cancellation ...")
+    import re
+    from pathlib import Path
+
+    src = Path(__file__).parent / 'src' / 'ui' / 'ai_models_settings_tab.py'
+    if not src.exists():
+        print("  ⚠️  Skipped (ai_models_settings_tab.py not found)")
+        return
+
+    code = src.read_text(encoding='utf-8')
+
+    # 1. Worker checks for interruption
+    assert 'isInterruptionRequested' in code, (
+        "ModelDownloadThread must check isInterruptionRequested() in its "
+        "progress callback to support clean cancellation."
+    )
+
+    # 2. Cancel button is created and wired
+    assert re.search(r'self\._cancel_download_btn\s*=\s*QPushButton', code), (
+        "ModelCardWidget must create self._cancel_download_btn = QPushButton(...) "
+        "that becomes visible when a download starts."
+    )
+
+    # 3. requestInterruption is called to signal the thread
+    assert 'requestInterruption' in code, (
+        "The _cancel_download() method must call self.download_thread.requestInterruption() "
+        "to signal the download thread to stop."
+    )
+
+    print("  ✅ ModelDownloadThread: isInterruptionRequested + _cancel_download_btn + requestInterruption")
+
+
 def run_all_tests():
     print("=" * 65)
     print("Hybrid Architecture + Lazy rembg Import Tests")
@@ -2157,6 +2246,8 @@ def run_all_tests():
         test_set_tooltip_registers_with_manager,
         test_cancel_buttons_have_interruption_support,
         test_panda_set_mood_emits_signal,
+        test_color_correction_guards_empty_files,
+        test_model_download_thread_supports_cancellation,
     ]
 
     passed, failed = [], []
