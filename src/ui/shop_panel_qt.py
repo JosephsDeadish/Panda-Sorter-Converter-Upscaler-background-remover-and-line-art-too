@@ -61,10 +61,6 @@ class ShopItemWidget(QFrame):
         self.owned = owned
         self.setup_ui()
 
-    def _set_tooltip(self, widget, tooltip_key: str):
-        """Set tooltip; uses setToolTip directly since no tooltip_manager here."""
-        widget.setToolTip(str(tooltip_key))
-        
     def setup_ui(self):
         """Create the item card UI — turquoise Livy theme."""
         self.setFrameStyle(QFrame.Shape.StyledPanel)
@@ -133,7 +129,7 @@ class ShopItemWidget(QFrame):
                 " font-weight: bold; font-size: 11px;"
                 " QPushButton:hover { background: #089898; }"
             )
-        self._set_tooltip(btn, 'shop_buy_button')
+        btn.setToolTip('shop_buy_button')
         layout.addWidget(btn)
 
     def mouseDoubleClickEvent(self, event):  # type: ignore[override]
