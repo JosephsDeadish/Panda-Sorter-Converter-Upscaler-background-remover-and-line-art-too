@@ -5136,6 +5136,8 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
             emo = _MOOD_TO_EMOTION.get(mood)
             if emo and emo in self._emotion_weights:
                 self._emotion_weights[emo] = 1.0
+
+        self.mood_changed.emit(mood)
     
     def set_color(self, color_type: str, rgb: tuple):
         """

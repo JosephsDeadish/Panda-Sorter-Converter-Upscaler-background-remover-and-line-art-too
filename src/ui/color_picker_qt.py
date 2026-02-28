@@ -63,6 +63,7 @@ class ColorPickerWidget(QWidget):
         hex_layout = QHBoxLayout()
         hex_layout.addWidget(QLabel("Hex:"))
         self.hex_input = QLineEdit()
+        self.hex_input.setPlaceholderText("#rrggbb")
         self.hex_input.setText(self.current_color.name())
         self.hex_input.textChanged.connect(self.on_hex_changed)
         hex_layout.addWidget(self.hex_input)

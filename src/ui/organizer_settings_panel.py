@@ -339,6 +339,7 @@ class OrganizerSettingsPanel(QWidget):
         pattern_label = QLabel("Naming Pattern:")
         pattern_label.setMinimumWidth(120)
         self.pattern_input = QLineEdit()
+        self.pattern_input.setPlaceholderText("{category}/{filename}")
         self.pattern_input.setText("{category}/{filename}")
         self._set_tooltip(self.pattern_input, 'rename_template')
         self.pattern_input.textChanged.connect(lambda: self.emit_settings())

@@ -130,11 +130,19 @@ class ModelDownloadThread(QThread):
         self.model_name = model_name
     
     def run(self):
-        success = self.model_manager.download_model(
-            self.model_name,
-            progress_callback=lambda d, t: self.progress.emit(d, t)
-        )
-        self.finished.emit(success)
+        def _progress_cb(d, t):
+            if self.isInterruptionRequested():
+                raise InterruptedError("Download cancelled by user")
+            self.progress.emit(d, t)
+
+        try:
+            success = self.model_manager.download_model(
+                self.model_name,
+                progress_callback=_progress_cb
+            )
+            self.finished.emit(success)
+        except InterruptedError:
+            self.finished.emit(False)
 
 
 class ModelCardWidget(QFrame):
@@ -319,6 +327,29 @@ class ModelCardWidget(QFrame):
             """)
             download_btn.clicked.connect(self.download_model)
             button_layout.addWidget(download_btn)
+
+            # Cancel download button (hidden until download starts)
+            self._cancel_download_btn = QPushButton("✕ Cancel")
+            self._cancel_download_btn.setMinimumHeight(40)
+            self._cancel_download_btn.setMinimumWidth(120)
+            self._cancel_download_btn.setToolTip("Cancel the current model download")
+            self._cancel_download_btn.setStyleSheet("""
+                QPushButton {
+                    background-color: #f44336;
+                    color: white;
+                    border: none;
+                    border-radius: 4px;
+                    font-weight: bold;
+                    font-size: 12px;
+                }
+                QPushButton:hover {
+                    background-color: #da190b;
+                }
+            """)
+            self._cancel_download_btn.clicked.connect(self._cancel_download)
+            self._cancel_download_btn.setEnabled(False)
+            self._cancel_download_btn.setVisible(False)
+            button_layout.addWidget(self._cancel_download_btn)
         else:
             # Delete button
             delete_text = "🗑️  Delete"
@@ -378,11 +409,23 @@ class ModelCardWidget(QFrame):
         self.progress.setVisible(True)
         self.progress.setValue(0)
         self.progress.setRange(0, 100)
+        if hasattr(self, '_cancel_download_btn'):
+            self._cancel_download_btn.setEnabled(True)
+            self._cancel_download_btn.setVisible(True)
 
         self.download_thread = ModelDownloadThread(self.model_manager, self.model_name)
         self.download_thread.progress.connect(self._on_progress)
         self.download_thread.finished.connect(self.on_download_finished)
         self.download_thread.start()
+
+    def _cancel_download(self):
+        """Cancel the running model download."""
+        if self.download_thread and self.download_thread.isRunning():
+            self.download_thread.requestInterruption()
+            if hasattr(self, '_cancel_download_btn'):
+                self._cancel_download_btn.setEnabled(False)
+            self.progress.setRange(0, 100)
+            self.progress.setVisible(False)
 
     def _on_progress(self, downloaded: int, total: int) -> None:
         if total > 0:
@@ -396,6 +439,9 @@ class ModelCardWidget(QFrame):
         self.progress.setRange(0, 100)
         self.progress.setVisible(False)
         self.expand_btn.setEnabled(True)
+        if hasattr(self, '_cancel_download_btn'):
+            self._cancel_download_btn.setEnabled(False)
+            self._cancel_download_btn.setVisible(False)
 
         if success:
             logger.info(f"✅ {self.model_name} downloaded successfully")

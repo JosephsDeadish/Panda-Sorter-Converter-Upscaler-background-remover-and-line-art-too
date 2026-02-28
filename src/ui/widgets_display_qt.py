@@ -50,6 +50,7 @@ class WidgetsDisplayWidget(QWidget):
         search_layout = QHBoxLayout()
         search_layout.addWidget(QLabel("Search:"))
         self.search_input = QLineEdit()
+        self.search_input.setPlaceholderText("Search widgets…")
         self.search_input.textChanged.connect(self.filter_items)
         search_layout.addWidget(self.search_input)
         left_layout.addLayout(search_layout)
