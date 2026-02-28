@@ -119,7 +119,11 @@ class AlphaFixWorker(QThread):
     def run(self):
         """Execute alpha fixing in background thread."""
         try:
+            processed = 0
             for i, filepath in enumerate(self.files):
+                if self.isInterruptionRequested():
+                    self.finished.emit(False, f"Cancelled after processing {processed} images")
+                    return
                 progress = ((i + 1) / len(self.files)) * 100
                 self.progress.emit(progress, f"Processing: {Path(filepath).name}")
                 
@@ -138,8 +142,9 @@ class AlphaFixWorker(QThread):
                 # Save result
                 output_path = Path(self.output_dir) / Path(filepath).name
                 result.save(output_path)
+                processed += 1
             
-            self.finished.emit(True, f"Successfully processed {len(self.files)} images")
+            self.finished.emit(True, f"Successfully processed {processed} images")
         except Exception as e:
             logger.error(f"Alpha fixing failed: {e}")
             self.finished.emit(False, f"Processing failed: {str(e)}")
@@ -378,13 +383,26 @@ class AlphaFixerPanelQt(QWidget):
         group = QGroupBox("🚀 Actions")
         group_layout = QVBoxLayout()
         
+        btn_row = QHBoxLayout()
+
         # Process button
         self.process_btn = QPushButton("Process Images")
         self.process_btn.setStyleSheet("background-color: #4CAF50; color: white; padding: 10px;")
         self.process_btn.clicked.connect(self._process_images)
-        group_layout.addWidget(self.process_btn)
+        btn_row.addWidget(self.process_btn)
         self._set_tooltip(self.process_btn, 'alpha_fix_button')
         self._set_tooltip(self.process_btn, 'alpha_fix_export')
+
+        # Cancel button (hidden until processing starts)
+        self.cancel_btn = QPushButton("Cancel")
+        self.cancel_btn.setStyleSheet("background-color: #f44336; color: white; padding: 10px;")
+        self.cancel_btn.clicked.connect(self._cancel_processing)
+        self.cancel_btn.setEnabled(False)
+        self.cancel_btn.setVisible(False)
+        self._set_tooltip(self.cancel_btn, 'stop_button')
+        btn_row.addWidget(self.cancel_btn)
+
+        group_layout.addLayout(btn_row)
 
         # Overwrite originals
         self.overwrite_check = QCheckBox("Overwrite original files")
@@ -519,8 +537,11 @@ class AlphaFixerPanelQt(QWidget):
             "edge_smooth": self.smooth_spin.value()
         }
         
-        # Disable button
+        # Disable process button; show cancel button
         self.process_btn.setEnabled(False)
+        if hasattr(self, 'cancel_btn'):
+            self.cancel_btn.setEnabled(True)
+            self.cancel_btn.setVisible(True)
         self.progress_bar.setVisible(True)
         self.progress_bar.setValue(0)
         
@@ -534,6 +555,14 @@ class AlphaFixerPanelQt(QWidget):
         self.worker_thread.progress.connect(self._on_progress)
         self.worker_thread.finished.connect(self._on_finished)
         self.worker_thread.start()
+
+    def _cancel_processing(self):
+        """Cancel the running alpha-fix operation."""
+        if self.worker_thread and self.worker_thread.isRunning():
+            self.worker_thread.requestInterruption()
+            if hasattr(self, 'cancel_btn'):
+                self.cancel_btn.setEnabled(False)
+            self.progress_label.setText("Cancelling…")
     
     def _on_progress(self, progress, message):
         """Handle progress updates."""
@@ -544,6 +573,9 @@ class AlphaFixerPanelQt(QWidget):
         """Handle completion."""
         self.progress_bar.setVisible(False)
         self.process_btn.setEnabled(True)
+        if hasattr(self, 'cancel_btn'):
+            self.cancel_btn.setEnabled(False)
+            self.cancel_btn.setVisible(False)
         
         if success:
             QMessageBox.information(self, "Complete", message)

@@ -118,6 +118,9 @@ class QualityCheckWorker(QThread):
         """Execute quality check in background thread."""
         try:
             for i, filepath in enumerate(self.files):
+                if self.isInterruptionRequested():
+                    self.finished.emit(False, f"Cancelled after checking {i} images")
+                    return
                 self.progress.emit(f"Checking {i+1}/{len(self.files)}: {Path(filepath).name}")
                 
                 report = self.checker.check_quality(filepath, self.options)
@@ -260,11 +263,21 @@ class QualityCheckerPanelQt(QWidget):
         group_layout = QVBoxLayout()
         
         # Check quality button
+        check_row = QHBoxLayout()
         self.check_btn = QPushButton("🔍 Check Quality")
         self.check_btn.setStyleSheet("background-color: #4CAF50; color: white; padding: 10px;")
         self.check_btn.clicked.connect(self._check_quality)
-        group_layout.addWidget(self.check_btn)
+        check_row.addWidget(self.check_btn)
         self._set_tooltip(self.check_btn, 'qc_analyze')
+
+        self.cancel_btn = QPushButton("Cancel")
+        self.cancel_btn.setStyleSheet("background-color: #f44336; color: white; padding: 10px;")
+        self.cancel_btn.clicked.connect(self._cancel_check)
+        self.cancel_btn.setEnabled(False)
+        self.cancel_btn.setVisible(False)
+        self._set_tooltip(self.cancel_btn, 'stop_button')
+        check_row.addWidget(self.cancel_btn)
+        group_layout.addLayout(check_row)
         
         # Status label
         self.status_label = QLabel("Ready")
@@ -340,8 +353,11 @@ class QualityCheckerPanelQt(QWidget):
             target_dpi=72.0
         )
         
-        # Disable button
+        # Disable check button; show cancel button
         self.check_btn.setEnabled(False)
+        if hasattr(self, 'cancel_btn'):
+            self.cancel_btn.setEnabled(True)
+            self.cancel_btn.setVisible(True)
         self.status_label.setText("Checking...")
         self.report_text.clear()
         
@@ -351,6 +367,14 @@ class QualityCheckerPanelQt(QWidget):
         self.worker_thread.result.connect(self._on_result)
         self.worker_thread.finished.connect(self._on_finished)
         self.worker_thread.start()
+
+    def _cancel_check(self):
+        """Cancel the running quality-check operation."""
+        if self.worker_thread and self.worker_thread.isRunning():
+            self.worker_thread.requestInterruption()
+            if hasattr(self, 'cancel_btn'):
+                self.cancel_btn.setEnabled(False)
+            self.status_label.setText("Cancelling…")
     
     def _on_progress(self, message):
         """Handle progress updates."""
@@ -416,6 +440,9 @@ class QualityCheckerPanelQt(QWidget):
     def _on_finished(self, success, message):
         """Handle completion."""
         self.check_btn.setEnabled(True)
+        if hasattr(self, 'cancel_btn'):
+            self.cancel_btn.setEnabled(False)
+            self.cancel_btn.setVisible(False)
         
         if success:
             self.status_label.setText(f"✓ {message}")

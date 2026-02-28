@@ -125,6 +125,8 @@ class NormalizationWorker(QThread):
         """Execute normalization in background thread."""
         try:
             def progress_callback(current, total, filename):
+                if self.isInterruptionRequested():
+                    raise InterruptedError("Cancelled by user")
                 progress = (current / total) * 100
                 self.progress.emit(progress, f"Processing: {filename}")
             
@@ -136,6 +138,8 @@ class NormalizationWorker(QThread):
             )
             
             self.finished.emit(True, f"Successfully normalized {len(self.files)} images")
+        except InterruptedError as e:
+            self.finished.emit(False, str(e))
         except Exception as e:
             self.finished.emit(False, f"Normalization failed: {str(e)}")
 
@@ -380,6 +384,15 @@ class BatchNormalizerPanelQt(QWidget):
         self.normalize_btn.clicked.connect(self._start_normalization)
         buttons_layout.addWidget(self.normalize_btn)
         self._set_tooltip(self.normalize_btn, 'bn_normalize')
+
+        # Cancel button (hidden until normalization starts)
+        self.cancel_btn = QPushButton("Cancel")
+        self.cancel_btn.setStyleSheet("background-color: #f44336; color: white; padding: 10px;")
+        self.cancel_btn.clicked.connect(self._cancel_normalization)
+        self.cancel_btn.setEnabled(False)
+        self.cancel_btn.setVisible(False)
+        self._set_tooltip(self.cancel_btn, 'stop_button')
+        buttons_layout.addWidget(self.cancel_btn)
         
         layout.addLayout(buttons_layout)
         
@@ -488,8 +501,11 @@ class BatchNormalizerPanelQt(QWidget):
             strip_metadata=self.strip_metadata_cb.isChecked()
         )
         
-        # Disable button
+        # Disable normalize button; show cancel button
         self.normalize_btn.setEnabled(False)
+        if hasattr(self, 'cancel_btn'):
+            self.cancel_btn.setEnabled(True)
+            self.cancel_btn.setVisible(True)
         self.progress_bar.setVisible(True)
         self.progress_bar.setValue(0)
         self.progress_label.setText("Starting...")
@@ -504,6 +520,14 @@ class BatchNormalizerPanelQt(QWidget):
         self.worker_thread.progress.connect(self._on_progress)
         self.worker_thread.finished.connect(self._on_finished)
         self.worker_thread.start()
+
+    def _cancel_normalization(self):
+        """Cancel the running normalization operation."""
+        if self.worker_thread and self.worker_thread.isRunning():
+            self.worker_thread.requestInterruption()
+            if hasattr(self, 'cancel_btn'):
+                self.cancel_btn.setEnabled(False)
+            self.progress_label.setText("Cancelling…")
     
     def _on_progress(self, progress, message):
         """Handle progress updates."""
@@ -514,6 +538,9 @@ class BatchNormalizerPanelQt(QWidget):
         """Handle completion."""
         self.progress_bar.setVisible(False)
         self.normalize_btn.setEnabled(True)
+        if hasattr(self, 'cancel_btn'):
+            self.cancel_btn.setEnabled(False)
+            self.cancel_btn.setVisible(False)
         
         if success:
             QMessageBox.information(self, "Complete", message)
