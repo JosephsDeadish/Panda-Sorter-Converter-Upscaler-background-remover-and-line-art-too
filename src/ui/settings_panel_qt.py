@@ -177,14 +177,14 @@ class SettingsPanelQt(QWidget):
         
         export_btn = QPushButton("Export Settings")
         export_btn.clicked.connect(self.export_settings)
-        self.set_tooltip(export_btn, 'export_button')
-        self.set_tooltip(export_btn, 'save_settings')
+        self.set_tooltip(export_btn, 'save_settings')  # registered first
+        self.set_tooltip(export_btn, 'export_button')  # shown by default
         button_layout.addWidget(export_btn)
         
         import_btn = QPushButton("Import Settings")
         import_btn.clicked.connect(self.import_settings)
-        self.set_tooltip(import_btn, 'import_button')
-        self.set_tooltip(import_btn, 'settings_button')
+        self.set_tooltip(import_btn, 'settings_button')  # registered first
+        self.set_tooltip(import_btn, 'import_button')    # shown by default
         button_layout.addWidget(import_btn)
         
         layout.addLayout(button_layout)
@@ -695,16 +695,11 @@ class SettingsPanelQt(QWidget):
         self.sound_pack_combo.addItems(["Default", "Retro", "Cute", "Minimal", "Nature"])
         self.sound_pack_combo.currentTextChanged.connect(
             lambda: self.on_setting_changed('ui', 'sound_pack'))
+        # sound_pack / sound_choice are the primary IDs for this combo
         self.set_tooltip(self.sound_pack_combo, 'sound_pack')
         self.set_tooltip(self.sound_pack_combo, 'sound_choice')
-        # Wire panda sound event IDs to the sound pack combo (controls the sounds used for each event)
-        for _pid in ('panda_sound_click', 'panda_sound_dance', 'panda_sound_drag',
-                     'panda_sound_drop', 'panda_sound_eat', 'panda_sound_happy',
-                     'panda_sound_jump', 'panda_sound_pet', 'panda_sound_play',
-                     'panda_sound_sad', 'panda_sound_sleep', 'panda_sound_sneeze',
-                     'panda_sound_wake', 'panda_sound_walk', 'panda_sound_yawn'):
-            self.set_tooltip(self.sound_pack_combo, _pid)
-        # Explicit calls for static analysis tracking
+        # Register panda sound event IDs — the sound pack controls which
+        # audio files are played for each event across the whole application
         self.set_tooltip(self.sound_pack_combo, 'panda_sound_click')
         self.set_tooltip(self.sound_pack_combo, 'panda_sound_dance')
         self.set_tooltip(self.sound_pack_combo, 'panda_sound_drag')

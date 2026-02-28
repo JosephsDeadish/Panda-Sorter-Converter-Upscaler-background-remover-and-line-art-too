@@ -476,6 +476,8 @@ class ImageUpscalerPanelQt(QWidget):
             self.archive_input_cb.setToolTip("⚠️ Archive support not available. Install: pip install py7zr rarfile")
             self.archive_input_cb.setStyleSheet("color: gray;")
         else:
+            # upscale_zip_input last so its text shows as default; input_archive_checkbox
+            # is also registered for the tutorial system cycling
             self._set_tooltip(self.archive_input_cb, 'input_archive_checkbox')
             self._set_tooltip(self.archive_input_cb, 'upscale_zip_input')
         archive_layout.addWidget(self.archive_input_cb)
@@ -485,6 +487,7 @@ class ImageUpscalerPanelQt(QWidget):
             self.archive_output_cb.setToolTip("⚠️ Archive support not available. Install: pip install py7zr rarfile")
             self.archive_output_cb.setStyleSheet("color: gray;")
         else:
+            # upscale_zip_output last so its text shows as default
             self._set_tooltip(self.archive_output_cb, 'output_archive_checkbox')
             self._set_tooltip(self.archive_output_cb, 'upscale_zip_output')
         archive_layout.addWidget(self.archive_output_cb)

@@ -195,7 +195,9 @@ class OrganizerWorker(QThread):
         self._start_time = 0
         self._files_processed = 0
         self._advance_event = threading.Event()
+        self._retry_event = threading.Event()
         self._current_file_path = None  # Full path for suggested/manual modes
+        self._retry_count = 0  # How many times current file has been retried
         
         # Initialize AI models - ALWAYS attempt to load them
         self.clip_model = None
@@ -344,25 +346,47 @@ class OrganizerWorker(QThread):
                 break
             
             self._current_file_path = file_path
-            
-            # Classify with AI
-            suggested_folder, confidence = self._classify_texture(file_path)
-            
-            # Load image for preview
-            image = None
-            if PIL_AVAILABLE:
-                try:
-                    image = Image.open(file_path)
-                except Exception as e:
-                    logger.warning(f"Could not load image {file_path}: {e}")
-            
-            # Emit for UI handling
-            self.classification_ready.emit(str(file_path), suggested_folder, confidence, image)
-            self.progress.emit(index + 1, total_files, file_path.name, confidence)
-            
-            # Wait for user to accept/reject before continuing
-            self._advance_event.wait()
-            self._advance_event.clear()
+            self._retry_count = 0
+
+            # Inner loop: keep re-classifying the same file until advance() or cancel
+            while not self._is_cancelled:
+                # Classify: first attempt uses primary strategy; retries use alternatives
+                suggested_folder, confidence = self._classify_texture(
+                    file_path, skip_top=self._retry_count
+                )
+
+                # Load image for preview (only on first pass — PIL already cached)
+                image = None
+                if PIL_AVAILABLE:
+                    try:
+                        image = Image.open(file_path)
+                    except Exception as e:
+                        logger.warning(f"Could not load image {file_path}: {e}")
+
+                # Emit for UI handling
+                self.classification_ready.emit(str(file_path), suggested_folder, confidence, image)
+                self.progress.emit(index + 1, total_files, file_path.name, confidence)
+
+                # Wait for advance OR retry signal
+                self._advance_event.clear()
+                self._retry_event.clear()
+                # Block until either event fires
+                while not self._advance_event.is_set() and not self._retry_event.is_set():
+                    if self._is_cancelled:
+                        break
+                    self._advance_event.wait(timeout=0.1)
+
+                if self._advance_event.is_set():
+                    self._advance_event.clear()
+                    break  # Move on to next file
+
+                if self._retry_event.is_set():
+                    self._retry_event.clear()
+                    self._retry_count += 1
+                    continue  # Re-classify same file
+
+                if self._is_cancelled:
+                    break
             
             if self._is_cancelled:
                 break
@@ -383,6 +407,12 @@ class OrganizerWorker(QThread):
         """Signal the worker to advance to the next file (called from UI thread)."""
         self._files_processed += 1
         self._advance_event.set()
+        self._retry_event.clear()
+
+    def retry(self):
+        """Signal the worker to re-classify the current file with an alternative suggestion."""
+        self._retry_event.set()
+        self._advance_event.clear()
     
     def get_current_file_path(self) -> Optional[Path]:
         """Get the full path of the file currently being reviewed."""
@@ -444,15 +474,20 @@ class OrganizerWorker(QThread):
         "prop_generic":       "Props",
     }
 
-    def _classify_texture(self, file_path: Path) -> Tuple[str, float]:
+    def _classify_texture(self, file_path: Path, skip_top: int = 0) -> Tuple[str, float]:
         """
         Classify texture using AI visual analysis (appearance-based, not filename-based).
+
+        Args:
+            file_path: Path to the texture file.
+            skip_top: Skip the top N results and return the next best alternative.
+                      Used by the retry mechanism to suggest alternatives.
 
         Returns:
             (suggested_folder, confidence)
         """
         if not self.clip_model and not self.dinov2_model:
-            return self._heuristic_classification(file_path)
+            return self._heuristic_classification(file_path, skip_top=skip_top)
 
         try:
             if self.clip_model:
@@ -463,47 +498,66 @@ class OrganizerWorker(QThread):
                 if results:
                     # Map back from prompt string to label key
                     prompt_to_label = {v: k for k, v in self._VISUAL_PROMPTS.items()}
-                    top_prompt, score = max(results.items(), key=lambda x: x[1])
+                    # Sort all results by score descending, skip the top N
+                    sorted_results = sorted(results.items(), key=lambda x: x[1], reverse=True)
+                    # Skip already-suggested top results to surface alternatives
+                    idx = min(skip_top, len(sorted_results) - 1)
+                    top_prompt, score = sorted_results[idx]
                     label = prompt_to_label.get(top_prompt, "prop_generic")
                     folder = self._LABEL_TO_CATEGORY.get(label, "Misc")
-                    return folder, float(score)
+                    # Mark confidence reduction for alternatives so UI can show it
+                    adjusted_confidence = float(score) * (0.9 ** skip_top)
+                    return folder, adjusted_confidence
 
         except Exception as e:
             logger.error(f"AI classification failed: {e}")
 
-        return self._heuristic_classification(file_path)
+        return self._heuristic_classification(file_path, skip_top=skip_top)
 
-    def _heuristic_classification(self, file_path: Path) -> Tuple[str, float]:
-        """Filename-based fallback classification."""
+    def _heuristic_classification(self, file_path: Path, skip_top: int = 0) -> Tuple[str, float]:
+        """Filename-based fallback classification with alternative support for retry."""
         name_lower = file_path.stem.lower()
 
-        if any(kw in name_lower for kw in ['skin', 'char', 'player', 'npc', 'enemy', 'body']):
-            return "Characters/Skin", 0.65
-        elif any(kw in name_lower for kw in ['face', 'head', 'hair']):
-            return "Characters/Face", 0.65
-        elif any(kw in name_lower for kw in ['cloth', 'shirt', 'pants', 'outfit']):
-            return "Characters/Clothing", 0.65
-        elif any(kw in name_lower for kw in ['ground', 'floor', 'grass', 'dirt', 'stone', 'pave']):
-            return "Environment/Ground", 0.65
-        elif any(kw in name_lower for kw in ['wall', 'brick', 'plaster', 'facade']):
-            return "Environment/Walls", 0.65
-        elif any(kw in name_lower for kw in ['bark', 'leaf', 'moss', 'rock', 'tree', 'nature']):
-            return "Environment/Nature", 0.65
-        elif any(kw in name_lower for kw in ['ui', 'hud', 'menu', 'button', 'icon']):
-            return "UI/Icons", 0.65
-        elif any(kw in name_lower for kw in ['weapon', 'gun', 'sword', 'blade', 'rifle']):
-            return "Weapons", 0.65
-        elif any(kw in name_lower for kw in ['car', 'vehicle', 'bike', 'truck', 'van']):
-            return "Vehicles/Body", 0.65
-        elif any(kw in name_lower for kw in ['smoke', 'fire', 'particle', 'glow', 'spark']):
-            return "Effects/Particles", 0.65
-        else:
-            return "Props", 0.45
+        # Build ordered list of (folder, confidence) candidates by keyword match
+        candidates: list = []
+        keyword_map = [
+            (['skin', 'char', 'player', 'npc', 'enemy', 'body'], "Characters/Skin", 0.65),
+            (['face', 'head', 'hair'],                             "Characters/Face", 0.65),
+            (['cloth', 'shirt', 'pants', 'outfit'],                "Characters/Clothing", 0.65),
+            (['ground', 'floor', 'grass', 'dirt', 'stone', 'pave'], "Environment/Ground", 0.65),
+            (['wall', 'brick', 'plaster', 'facade'],               "Environment/Walls", 0.65),
+            (['bark', 'leaf', 'moss', 'rock', 'tree', 'nature'],   "Environment/Nature", 0.65),
+            (['ui', 'hud', 'menu', 'button', 'icon'],              "UI/Icons", 0.65),
+            (['weapon', 'gun', 'sword', 'blade', 'rifle'],         "Weapons", 0.65),
+            (['car', 'vehicle', 'bike', 'truck', 'van'],           "Vehicles/Body", 0.65),
+            (['smoke', 'fire', 'particle', 'glow', 'spark'],       "Effects/Particles", 0.65),
+        ]
+
+        for keywords, folder, confidence in keyword_map:
+            if any(kw in name_lower for kw in keywords):
+                candidates.append((folder, confidence))
+
+        # Always add Props as the catch-all fallback
+        candidates.append(("Props", 0.45))
+
+        # Deduplicate while preserving order
+        seen: set = set()
+        unique_candidates: list = []
+        for folder, conf in candidates:
+            if folder not in seen:
+                seen.add(folder)
+                unique_candidates.append((folder, conf))
+
+        idx = min(skip_top, len(unique_candidates) - 1)
+        folder, confidence = unique_candidates[idx]
+        adjusted_confidence = confidence * (0.9 ** skip_top)
+        return folder, adjusted_confidence
     
     def cancel(self):
         """Cancel the operation."""
         self._is_cancelled = True
         self._advance_event.set()  # Unblock if waiting for user input
+        self._retry_event.set()    # Also unblock if waiting in retry loop
 
 
 class OrganizerPanelQt(QWidget):
@@ -861,8 +915,9 @@ class OrganizerPanelQt(QWidget):
         self.bad_btn.setStyleSheet("background: #f44336; color: white; padding: 8px; font-weight: bold;")
         self.bad_btn.clicked.connect(self._on_bad_feedback)
         self.bad_btn.setEnabled(False)
-        self._set_tooltip(self.bad_btn, 'feedback_bad_button')
+        # ai_feedback_bad registered first so feedback_bad_button tooltip shows by default
         self._set_tooltip(self.bad_btn, 'ai_feedback_bad')
+        self._set_tooltip(self.bad_btn, 'feedback_bad_button')
         feedback_layout.addWidget(self.bad_btn)
 
         # Retry AI suggestion button
@@ -950,9 +1005,11 @@ class OrganizerPanelQt(QWidget):
         self.start_btn.setStyleSheet("background: #4CAF50; color: white; padding: 12px; font-size: 12pt; font-weight: bold;")
         self.start_btn.clicked.connect(self._start_organization)
         self.start_btn.setEnabled(False)
-        self._set_tooltip(self.start_btn, 'sort_button')
+        # sort_button is the primary ID; analysis_button and batch_operations are
+        # also registered so the tutorial covers them when the user hovers here
         self._set_tooltip(self.start_btn, 'analysis_button')
         self._set_tooltip(self.start_btn, 'batch_operations')
+        self._set_tooltip(self.start_btn, 'sort_button')  # last = shown first
         button_layout.addWidget(self.start_btn)
         
         self.cancel_btn = QPushButton("Cancel")
@@ -1419,6 +1476,9 @@ class OrganizerPanelQt(QWidget):
         # Disable buttons while waiting for next file
         self.good_btn.setEnabled(False)
         self.bad_btn.setEnabled(False)
+        if hasattr(self, 'retry_btn'):
+            self.retry_btn.setEnabled(False)
+            self.retry_btn.setToolTip("Ask the AI to try classifying this texture again")
         
         # Advance worker to next file
         self._advance_worker()
@@ -1467,14 +1527,42 @@ class OrganizerPanelQt(QWidget):
         self._advance_worker()
     
     def _on_retry_classification(self):
-        """Re-run AI classification on the current file."""
+        """Re-run AI classification on the current file with an alternative suggestion.
+
+        Records the rejection of the current suggestion to the learning system so
+        future classifications improve, then signals the worker to try again.
+        """
         if not self.current_filename:
             self._log("⚠ No current file to retry")
             return
-        self._log(f"🔄 Retrying classification for: {self.current_filename}")
+
+        # Record that the current suggestion was rejected — this trains the learning system
+        enable_learning = self._get_learning_enabled()
+        if enable_learning and self.current_suggested_folder and self.learning_system:
+            try:
+                self.learning_system.add_learning(
+                    filename=self.current_filename,
+                    suggested_folder=self.current_suggested_folder,
+                    user_choice=self.current_suggested_folder,  # same folder flagged as wrong
+                    confidence=self.current_confidence or 0.0,
+                    accepted=False,
+                )
+            except Exception as e:
+                logger.debug(f"Learning system update during retry: {e}")
+
+        retry_num = getattr(self.worker_thread, '_retry_count', 0) + 1 if self.worker_thread else 1
+        self._log(f"🔄 Retrying classification (attempt #{retry_num}): {self.current_filename}")
+
+        # Disable buttons while the worker re-classifies
+        self.good_btn.setEnabled(False)
+        self.bad_btn.setEnabled(False)
+        if hasattr(self, 'retry_btn'):
+            self.retry_btn.setEnabled(False)
+
         if self.worker_thread and hasattr(self.worker_thread, 'retry'):
             self.worker_thread.retry()
         else:
+            # Fallback: advance to next file if retry not supported
             self._advance_worker()
 
     def _advance_worker(self):
@@ -1622,7 +1710,7 @@ class OrganizerPanelQt(QWidget):
                 self.speed_label.setText(f"{speed:.1f} files/sec")
                 self.eta_label.setText(f"ETA: {eta:.0f}s")
     
-    def _handle_classification(self, file_path_str: str, suggested_folder: str, 
+    def _handle_classification(self, file_path_str: str, suggested_folder: str,
                               confidence: float, image):
         """Handle classification result in suggested/manual mode."""
         # Store current classification data (full file path)
@@ -1630,9 +1718,10 @@ class OrganizerPanelQt(QWidget):
         self.current_file_path_str = file_path_str
         self.current_suggested_folder = suggested_folder
         self.current_confidence = confidence
-        
+
         is_manual = (self.current_mode == 'manual')
-        
+        retry_count = getattr(self.worker_thread, '_retry_count', 0) if self.worker_thread else 0
+
         # Update suggestion display
         if is_manual:
             # Manual mode: de-emphasize AI suggestion, highlight manual input
@@ -1643,13 +1732,21 @@ class OrganizerPanelQt(QWidget):
             self.folder_input.clear()
         else:
             # Suggested mode: show AI suggestion prominently
-            self.suggestion_label.setText(f"AI Suggestion: {suggested_folder}")
-            self.suggestion_label.setStyleSheet("font-size: 12pt; padding: 5px;")
+            if retry_count > 0:
+                self.suggestion_label.setText(
+                    f"AI Suggestion #{retry_count + 1}: {suggested_folder}"
+                )
+                self.suggestion_label.setStyleSheet(
+                    "font-size: 12pt; color: #1565C0; padding: 5px;"
+                )
+            else:
+                self.suggestion_label.setText(f"AI Suggestion: {suggested_folder}")
+                self.suggestion_label.setStyleSheet("font-size: 12pt; padding: 5px;")
             self.folder_input.setPlaceholderText("Override: type a different folder or accept above")
             self.folder_input.clear()
-        
+
         self.confidence_label.setText(f"Confidence: {confidence:.0%}")
-        
+
         # Update confidence color
         if confidence >= 0.8:
             color = "green"
@@ -1658,20 +1755,25 @@ class OrganizerPanelQt(QWidget):
         else:
             color = "red"
         self.confidence_label.setStyleSheet(f"color: {color}; font-weight: bold; padding: 5px;")
-        
+
         # Enable feedback buttons
         self.good_btn.setEnabled(True)
         self.bad_btn.setEnabled(True)
         if hasattr(self, 'retry_btn'):
             self.retry_btn.setEnabled(True)
-        
+            # Update retry button tooltip to show attempt context
+            if retry_count > 0:
+                self.retry_btn.setToolTip(
+                    f"Try another suggestion (attempt #{retry_count + 1})"
+                )
+
         if is_manual:
             self.good_btn.setText("✅ Accept & Move")
             self.bad_btn.setText("⏭️ Skip")
         else:
             self.good_btn.setText("✅ Good")
             self.bad_btn.setText("❌ Bad")
-        
+
         # Show image preview
         if image and PIL_AVAILABLE:
             self._show_image_preview(image, self.current_filename)
