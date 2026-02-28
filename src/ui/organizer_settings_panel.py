@@ -265,6 +265,7 @@ class OrganizerSettingsPanel(QWidget):
                 background-color: #ff9999;
             }
         """)
+        self._set_tooltip(clear_btn, 'ai_clear_training')
         clear_btn.clicked.connect(self.on_clear_learning)
         learning_layout.addWidget(clear_btn)
         

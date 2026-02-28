@@ -701,10 +701,12 @@ class OrganizerPanelQt(QWidget):
         
         detect_btn = QPushButton("🔍 Detect")
         detect_btn.clicked.connect(self._detect_game)
+        self._set_tooltip(detect_btn, "Auto-detect the game type from the selected folder")
         group_layout.addWidget(detect_btn)
         
         change_btn = QPushButton("Change")
         change_btn.clicked.connect(self._change_game)
+        self._set_tooltip(change_btn, "Manually select a different game profile")
         group_layout.addWidget(change_btn)
         
         help_btn = QPushButton("?")
@@ -1033,6 +1035,7 @@ class OrganizerPanelQt(QWidget):
         
         self.clear_log_btn = QPushButton("🗑️ Clear Log")
         self.clear_log_btn.clicked.connect(self._clear_log)
+        self._set_tooltip(self.clear_log_btn, 'clear_log_button')
         button_layout.addWidget(self.clear_log_btn)
         
         layout.addLayout(button_layout)
@@ -1048,6 +1051,7 @@ class OrganizerPanelQt(QWidget):
         # Toggle button for settings visibility
         toggle_btn = QPushButton("⚙️ Show Advanced Settings")
         toggle_btn.setCheckable(True)
+        toggle_btn.setToolTip("Show or hide advanced organizer settings")
         toggle_btn.setStyleSheet("""
             QPushButton {
                 background-color: #e0e0e0;
@@ -1169,6 +1173,7 @@ class OrganizerPanelQt(QWidget):
         # Clear learning button
         clear_learning_btn = QPushButton("🗑️ Clear Learning History")
         clear_learning_btn.clicked.connect(self._clear_learning_history)
+        self._set_tooltip(clear_learning_btn, 'ai_clear_training')
         group_layout.addWidget(clear_learning_btn)
 
         # Organization Profile Management
