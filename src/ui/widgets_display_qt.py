@@ -59,6 +59,7 @@ class WidgetsDisplayWidget(QWidget):
         categories = ['All', 'Toys', 'Food', 'Tools', 'Decorations']
         for cat in categories:
             btn = QPushButton(cat)
+            btn.setToolTip(f"Filter widgets to show only {cat.lower()}")
             btn.clicked.connect(lambda checked, c=cat: self.filter_by_category(c))
             filter_layout.addWidget(btn)
         left_layout.addLayout(filter_layout)

@@ -1353,6 +1353,7 @@ class PandaWorldGL(
             vbox.addWidget(_QLabel("🐼 Where shall we go?", dlg))
             for dest, label in (('shop', '🛒  Otter Shop'), ('park', '🌲  Panda Park'), ('home', '🏠  Back Home')):
                 btn = QPushButton(label, dlg)
+                btn.setToolTip(f"Travel to {label.strip()}")
                 btn.clicked.connect(lambda _, d=dest: (dlg.accept(), self.destination_selected.emit(d)))
                 vbox.addWidget(btn)
             dlg.exec()

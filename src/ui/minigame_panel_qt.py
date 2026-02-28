@@ -259,6 +259,7 @@ class MiniGamePanelQt(QWidget):
         
         # Back button
         back_btn = QPushButton("Back to Menu")
+        back_btn.setToolTip("Return to the mini-game selection menu")
         back_btn.clicked.connect(self._end_game)
         self.content_layout.addWidget(back_btn)
         
@@ -334,6 +335,7 @@ class MiniGamePanelQt(QWidget):
                 btn = QPushButton("?")
                 btn.setMinimumSize(80, 80)
                 btn.setStyleSheet("font-size: 24pt;")
+                btn.setToolTip("Click to flip this memory card")
                 btn.clicked.connect(lambda checked, idx=i*4+j: self._on_memory_card_click(idx))
                 grid_layout.addWidget(btn, i, j)
                 self.memory_cards.append(btn)
@@ -347,6 +349,7 @@ class MiniGamePanelQt(QWidget):
         
         # Back button
         back_btn = QPushButton("Back to Menu")
+        back_btn.setToolTip("Return to the mini-game selection menu")
         back_btn.clicked.connect(self._end_game)
         self.content_layout.addWidget(back_btn)
         
@@ -420,6 +423,7 @@ class MiniGamePanelQt(QWidget):
         
         # Target area
         self.reflex_target = QPushButton("READY...")
+        self.reflex_target.setToolTip("Click as quickly as possible when the target turns green!")
         self.reflex_target.setStyleSheet("font-size: 18pt; padding: 60px; background-color: gray;")
         self.reflex_target.setEnabled(False)
         self.reflex_target.clicked.connect(self._on_reflex_click)
@@ -432,6 +436,7 @@ class MiniGamePanelQt(QWidget):
         
         # Back button
         back_btn = QPushButton("Back to Menu")
+        back_btn.setToolTip("Return to the mini-game selection menu")
         back_btn.clicked.connect(self._end_game)
         self.content_layout.addWidget(back_btn)
         

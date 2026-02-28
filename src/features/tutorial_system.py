@@ -5550,6 +5550,7 @@ class TutorialDialog(QDialog):
         # Skip button
         if step.show_skip:
             skip_btn = QPushButton("Skip Tutorial")
+            skip_btn.setToolTip("Skip the rest of the tutorial")
             skip_btn.clicked.connect(self._on_skip)
             button_layout.addWidget(skip_btn)
 
@@ -5558,12 +5559,14 @@ class TutorialDialog(QDialog):
         # Back button
         if step.show_back and step_number > 0:
             back_btn = QPushButton("Back")
+            back_btn.setToolTip("Go back to the previous tutorial step")
             back_btn.clicked.connect(self._on_back)
             button_layout.addWidget(back_btn)
 
         # Next/Finish button
         next_btn = QPushButton(step.button_text)
         next_btn.setDefault(True)
+        next_btn.setToolTip("Proceed to the next tutorial step")
         next_btn.clicked.connect(self._on_next)
         next_btn.setStyleSheet("""
             QPushButton {
@@ -10267,6 +10270,7 @@ class ContextHelp:
         
         # Close button
         close_btn = QPushButton("Close")
+        close_btn.setToolTip("Close this help dialog")
         close_btn.clicked.connect(dialog.accept)
         close_btn.setDefault(True)
         layout.addWidget(close_btn)

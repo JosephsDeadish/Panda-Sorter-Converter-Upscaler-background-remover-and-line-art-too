@@ -958,6 +958,7 @@ class SettingsPanelQt(QWidget):
             lambda: self.on_setting_changed('ai', 'custom_dataset_path'))
         _ds_browse_btn = QPushButton("📂 Browse")
         _ds_browse_btn.setFixedWidth(90)
+        _ds_browse_btn.setToolTip("Select the folder containing your custom dataset class sub-folders")
         _ds_browse_btn.clicked.connect(self._browse_dataset_folder)
         _ds_row_lay.addWidget(self.dataset_path_edit, 1)
         _ds_row_lay.addWidget(_ds_browse_btn)
@@ -1270,6 +1271,7 @@ class SettingsPanelQt(QWidget):
         
         # Add helpful button
         install_btn = QPushButton("📖 View Installation Guide")
+        install_btn.setToolTip("Open the AI models installation guide in your browser")
         install_btn.clicked.connect(self.show_ai_install_guide)
         install_btn.setStyleSheet("""
             QPushButton {
