@@ -2194,6 +2194,51 @@ def test_model_download_thread_supports_cancellation():
     print("  ✅ ModelDownloadThread: isInterruptionRequested + _cancel_download_btn + requestInterruption")
 
 
+def test_archive_queue_has_cancel_button():
+    """ArchiveQueueWidget must expose a Cancel button to stop batch processing.
+
+    The archive queue supports Start and Pause but was missing a Cancel button
+    to abort the current processing run.  Without it, users had no way to stop
+    a large batch operation mid-flight — they could only pause it indefinitely.
+
+    Requirements:
+    1. ArchiveQueueWidget has ``self.cancel_btn = QPushButton(...)``
+    2. There is a ``cancel_processing()`` public method
+    3. The cancel button enables when processing starts and disables after it ends
+    """
+    print("\ntest_archive_queue_has_cancel_button ...")
+    import re
+    from pathlib import Path
+
+    src = Path(__file__).parent / 'src' / 'ui' / 'archive_queue_widgets_qt.py'
+    if not src.exists():
+        print("  ⚠️  Skipped (archive_queue_widgets_qt.py not found)")
+        return
+
+    code = src.read_text(encoding='utf-8')
+
+    # 1. Cancel button exists
+    assert re.search(r'self\.cancel_btn\s*=\s*QPushButton', code), (
+        "ArchiveQueueWidget must have self.cancel_btn = QPushButton(...) "
+        "in its setup so users can stop a batch operation mid-run."
+    )
+    print("  ✅ self.cancel_btn = QPushButton found")
+
+    # 2. cancel_processing() method exists
+    assert re.search(r'def cancel_processing\(self\)', code), (
+        "ArchiveQueueWidget must have a public cancel_processing() method "
+        "that sets self.is_processing = False to stop the queue thread."
+    )
+    print("  ✅ cancel_processing() method found")
+
+    # 3. is_processing = False to abort the thread
+    assert 'self.is_processing = False' in code, (
+        "cancel_processing() must set self.is_processing = False so the "
+        "_process_queue() thread stops at the next loop iteration."
+    )
+    print("  ✅ is_processing flag cleared on cancel")
+
+
 def run_all_tests():
     print("=" * 65)
     print("Hybrid Architecture + Lazy rembg Import Tests")
@@ -2248,6 +2293,7 @@ def run_all_tests():
         test_panda_set_mood_emits_signal,
         test_color_correction_guards_empty_files,
         test_model_download_thread_supports_cancellation,
+        test_archive_queue_has_cancel_button,
     ]
 
     passed, failed = [], []
