@@ -391,7 +391,6 @@ class AlphaFixerPanelQt(QWidget):
         self.process_btn.clicked.connect(self._process_images)
         btn_row.addWidget(self.process_btn)
         self._set_tooltip(self.process_btn, 'alpha_fix_button')
-        self._set_tooltip(self.process_btn, 'alpha_fix_export')
 
         # Cancel button (hidden until processing starts)
         self.cancel_btn = QPushButton("Cancel")
