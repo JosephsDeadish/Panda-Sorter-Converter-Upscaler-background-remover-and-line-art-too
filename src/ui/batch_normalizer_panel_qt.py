@@ -82,6 +82,11 @@ try:
 except (ImportError, OSError, RuntimeError):
     HAS_PIL = False
 
+try:
+    from ui import IMAGE_EXTENSIONS
+except ImportError:
+    IMAGE_EXTENSIONS = frozenset({'.png', '.jpg', '.jpeg', '.bmp', '.tiff', '.tif', '.webp', '.dds', '.tga'})
+
 
 try:
     from tools.batch_normalizer import (
@@ -220,10 +225,25 @@ class BatchNormalizerPanelQt(QWidget):
         group_layout.addWidget(self.files_label)
         
         # Select files button
+        btn_row = QHBoxLayout()
+
         select_btn = QPushButton("Select Images")
         select_btn.clicked.connect(self._select_files)
-        group_layout.addWidget(select_btn)
+        btn_row.addWidget(select_btn)
         self._set_tooltip(select_btn, "Select image files to normalize")
+
+        add_folder_btn = QPushButton("📂 Add Folder")
+        add_folder_btn.clicked.connect(self._add_folder)
+        btn_row.addWidget(add_folder_btn)
+        self._set_tooltip(add_folder_btn, "Add all images from a folder to the selection")
+
+        group_layout.addLayout(btn_row)
+
+        # Recursive checkbox
+        self.recursive_cb = QCheckBox("Process subfolders")
+        self.recursive_cb.setChecked(False)
+        self._set_tooltip(self.recursive_cb, "When adding a folder, also include images in sub-folders")
+        group_layout.addWidget(self.recursive_cb)
         
         # Output directory
         output_label = QLabel("Output Directory:")
@@ -447,11 +467,33 @@ class BatchNormalizerPanelQt(QWidget):
             self,
             "Select Output Directory"
         )
-        
+
         if directory:
             self.output_directory = directory
             self.output_label.setText(directory)
             self.output_label.setStyleSheet("color: green;")
+
+    def _add_folder(self):
+        """Add all images from a folder (optionally recursive) to the selection."""
+        folder = QFileDialog.getExistingDirectory(self, "Select Folder")
+        if not folder:
+            return
+        recursive = hasattr(self, 'recursive_cb') and self.recursive_cb.isChecked()
+        folder_path = Path(folder)
+        new_files = []
+        pattern = '**/*' if recursive else '*'
+        for ext in IMAGE_EXTENSIONS:
+            new_files.extend(folder_path.glob(f'{pattern}{ext}'))
+            new_files.extend(folder_path.glob(f'{pattern}{ext.upper()}'))
+        new_paths = sorted({str(p) for p in new_files})
+        existing = set(self.selected_files)
+        added = [p for p in new_paths if p not in existing]
+        self.selected_files.extend(added)
+        count = len(self.selected_files)
+        self.files_label.setText(f"{count} file{'s' if count != 1 else ''} selected")
+        self.files_label.setStyleSheet("color: green;")
+        if added:
+            self._update_preview()
     
     def _update_preview(self):
         """Update preview with first selected image."""

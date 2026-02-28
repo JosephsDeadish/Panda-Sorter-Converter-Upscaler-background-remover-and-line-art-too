@@ -14,6 +14,11 @@ import tempfile
 import os
 
 try:
+    from ui import IMAGE_EXTENSIONS
+except ImportError:
+    IMAGE_EXTENSIONS = frozenset({'.png', '.jpg', '.jpeg', '.bmp', '.tiff', '.tif', '.webp', '.dds', '.tga'})
+
+try:
     from PyQt6.QtWidgets import (
         QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
         QScrollArea, QFrame, QSlider, QSpinBox, QFileDialog,
@@ -241,13 +246,24 @@ class ColorCorrectionPanelQt(QWidget):
         input_layout = QHBoxLayout()
         self.input_label = QLabel("No files selected")
         input_layout.addWidget(self.input_label, 1)
-        
+
         self.select_btn = QPushButton("Select Images...")
         self.select_btn.clicked.connect(self._select_files)
         self._set_tooltip(self.select_btn, "Select image files to apply color correction")
         input_layout.addWidget(self.select_btn)
-        
+
+        add_folder_btn = QPushButton("📂 Add Folder")
+        add_folder_btn.clicked.connect(self._add_folder)
+        self._set_tooltip(add_folder_btn, "Add all images from a folder to the selection")
+        input_layout.addWidget(add_folder_btn)
+
         group_layout.addLayout(input_layout)
+
+        # Recursive checkbox
+        self.recursive_cb = QCheckBox("Process subfolders")
+        self.recursive_cb.setChecked(False)
+        self._set_tooltip(self.recursive_cb, "When adding a folder, also include images in sub-folders")
+        group_layout.addWidget(self.recursive_cb)
         
         # Output directory
         output_layout = QHBoxLayout()
@@ -468,11 +484,36 @@ class ColorCorrectionPanelQt(QWidget):
             self,
             "Select Output Directory"
         )
-        
+
         if directory:
             self.output_dir = directory
             self.output_label.setText(f"Output: {directory}")
             self._update_ui_state()
+
+    def _add_folder(self):
+        """Add all images from a folder (optionally recursive) to the selection."""
+        folder = QFileDialog.getExistingDirectory(self, "Select Folder")
+        if not folder:
+            return
+        recursive = hasattr(self, 'recursive_cb') and self.recursive_cb.isChecked()
+        folder_path = Path(folder)
+        new_files = []
+        pattern = '**/*' if recursive else '*'
+        for ext in IMAGE_EXTENSIONS:
+            new_files.extend(folder_path.glob(f'{pattern}{ext}'))
+            new_files.extend(folder_path.glob(f'{pattern}{ext.upper()}'))
+        new_paths = sorted({str(p) for p in new_files})
+        existing = {str(p) for p in self.input_files}
+        added = [Path(p) for p in new_paths if p not in existing]
+        self.input_files.extend(added)
+        count = len(self.input_files)
+        self.input_label.setText(f"Selected: {count} file{'s' if count != 1 else ''}")
+        if added and SLIDER_AVAILABLE and hasattr(self, 'preview_file_combo'):
+            for p in added:
+                self.preview_file_combo.addItem(p.name, str(p))
+            if count == len(added):  # first batch
+                self._load_preview_file(added[0].name)
+        self._update_ui_state()
     
     def _update_ui_state(self):
         """Update button states based on current state."""

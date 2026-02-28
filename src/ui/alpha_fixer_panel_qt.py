@@ -81,6 +81,11 @@ try:
 except (ImportError, OSError, RuntimeError):
     HAS_PIL = False
 
+try:
+    from ui import IMAGE_EXTENSIONS
+except ImportError:
+    IMAGE_EXTENSIONS = frozenset({'.png', '.jpg', '.jpeg', '.bmp', '.tiff', '.tif', '.webp', '.dds', '.tga'})
+
 
 try:
     from preprocessing.alpha_correction import AlphaCorrector, AlphaCorrectionPresets
@@ -100,8 +105,6 @@ try:
 except (ImportError, OSError, RuntimeError):
     ARCHIVE_AVAILABLE = False
     logger.warning("Archive handler not available")
-
-IMAGE_EXTENSIONS = {'.png', '.jpg', '.jpeg', '.bmp', '.tiff', '.webp'}
 
 
 class AlphaFixWorker(QThread):
@@ -241,12 +244,17 @@ class AlphaFixerPanelQt(QWidget):
         
         # Buttons
         btn_layout = QHBoxLayout()
-        
+
         select_btn = QPushButton("Select Images")
         select_btn.clicked.connect(self._select_files)
         btn_layout.addWidget(select_btn)
         self._set_tooltip(select_btn, 'alpha_fix_input')
-        
+
+        add_folder_btn = QPushButton("📂 Add Folder")
+        add_folder_btn.clicked.connect(self._add_folder)
+        btn_layout.addWidget(add_folder_btn)
+        self._set_tooltip(add_folder_btn, "Add all images from a folder to the selection")
+
         clear_btn = QPushButton("Clear")
         clear_btn.clicked.connect(self._clear_files)
         btn_layout.addWidget(clear_btn)
@@ -499,6 +507,25 @@ class AlphaFixerPanelQt(QWidget):
         """Clear file selection."""
         self.selected_files = []
         self.files_list.clear()
+
+    def _add_folder(self):
+        """Add all images from a folder (optionally recursive) to the selection."""
+        folder = QFileDialog.getExistingDirectory(self, "Select Folder")
+        if not folder:
+            return
+        recursive = hasattr(self, 'recursive_check') and self.recursive_check.isChecked()
+        folder_path = Path(folder)
+        new_files = []
+        pattern = '**/*' if recursive else '*'
+        for ext in IMAGE_EXTENSIONS:
+            new_files.extend(folder_path.glob(f'{pattern}{ext}'))
+            new_files.extend(folder_path.glob(f'{pattern}{ext.upper()}'))
+        new_paths = sorted({str(p) for p in new_files})
+        existing = set(self.selected_files)
+        added = [p for p in new_paths if p not in existing]
+        self.selected_files.extend(added)
+        for p in added:
+            self.files_list.addItem(Path(p).name)
     
     def _select_output(self):
         """Select output directory."""

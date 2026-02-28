@@ -6,6 +6,11 @@ Custom UI components and customization systems
 import logging
 _log = logging.getLogger(__name__)
 
+# Shared set of image file extensions recognised by all tool panels.
+IMAGE_EXTENSIONS: frozenset = frozenset({
+    '.png', '.jpg', '.jpeg', '.bmp', '.tiff', '.tif', '.webp', '.dds', '.tga'
+})
+
 # Each widget is imported independently so one failure doesn't disable all exports.
 ColorWheelWidget = None
 CustomizationPanelQt = None

@@ -77,6 +77,11 @@ try:
 except (ImportError, OSError, RuntimeError):
     HAS_PIL = False
 
+try:
+    from ui import IMAGE_EXTENSIONS
+except ImportError:
+    IMAGE_EXTENSIONS = frozenset({'.png', '.jpg', '.jpeg', '.bmp', '.tiff', '.tif', '.webp', '.dds', '.tga'})
+
 
 try:
     from tools.quality_checker import ImageQualityChecker, format_quality_report, QualityLevel, QualityCheckOptions
@@ -199,16 +204,34 @@ class QualityCheckerPanelQt(QWidget):
         group_layout.addWidget(self.files_list)
         
         # Select button
+        btn_layout = QHBoxLayout()
+
         select_btn = QPushButton("Select Images")
         select_btn.clicked.connect(self._select_files)
         self._set_tooltip(select_btn, 'qc_analyze')
-        group_layout.addWidget(select_btn)
-        
+        btn_layout.addWidget(select_btn)
+
+        add_folder_btn = QPushButton("📂 Add Folder")
+        add_folder_btn.clicked.connect(self._add_folder)
+        self._set_tooltip(add_folder_btn, "Add all images from a folder to the selection")
+        btn_layout.addWidget(add_folder_btn)
+
+        group_layout.addLayout(btn_layout)
+
+        # Recursive and clear row
+        sub_layout = QHBoxLayout()
+        self.recursive_cb = QCheckBox("Process subfolders")
+        self.recursive_cb.setChecked(False)
+        self._set_tooltip(self.recursive_cb, "When adding a folder, also include images in sub-folders")
+        sub_layout.addWidget(self.recursive_cb)
+        sub_layout.addStretch()
+
         # Clear button
         clear_btn = QPushButton("Clear Selection")
         clear_btn.clicked.connect(self._clear_files)
         self._set_tooltip(clear_btn, "Clear the selected images list")
-        group_layout.addWidget(clear_btn)
+        sub_layout.addWidget(clear_btn)
+        group_layout.addLayout(sub_layout)
         
         # Archive options
         archive_layout = QHBoxLayout()
@@ -335,6 +358,28 @@ class QualityCheckerPanelQt(QWidget):
         self.files_list.clear()
         self.status_label.setText("Ready")
         self.status_label.setStyleSheet("color: gray;")
+
+    def _add_folder(self):
+        """Add all images from a folder (optionally recursive) to the selection."""
+        folder = QFileDialog.getExistingDirectory(self, "Select Folder")
+        if not folder:
+            return
+        recursive = hasattr(self, 'recursive_cb') and self.recursive_cb.isChecked()
+        folder_path = Path(folder)
+        new_files = []
+        pattern = '**/*' if recursive else '*'
+        for ext in IMAGE_EXTENSIONS:
+            new_files.extend(folder_path.glob(f'{pattern}{ext}'))
+            new_files.extend(folder_path.glob(f'{pattern}{ext.upper()}'))
+        new_paths = sorted({str(p) for p in new_files})
+        existing = set(self.selected_files)
+        added = [p for p in new_paths if p not in existing]
+        self.selected_files.extend(added)
+        for p in added:
+            self.files_list.addItem(Path(p).name)
+        count = len(self.selected_files)
+        self.status_label.setText(f"{count} file{'s' if count != 1 else ''} selected")
+        self.status_label.setStyleSheet("color: green;")
     
     def _check_quality(self):
         """Start quality check process."""

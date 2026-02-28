@@ -8,6 +8,11 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 from typing import List, Optional
+
+try:
+    from ui import IMAGE_EXTENSIONS
+except ImportError:
+    IMAGE_EXTENSIONS = frozenset({'.png', '.jpg', '.jpeg', '.bmp', '.tiff', '.tif', '.webp', '.dds', '.tga'})
 try:
     from PyQt6.QtWidgets import (
         QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
@@ -623,14 +628,25 @@ class LineArtConverterPanelQt(QWidget):
         btn_layout.addWidget(select_btn)
         self._set_tooltip(select_btn, 'lineart_input')
         self._set_tooltip(select_btn, 'la_select_preview')
-        
+
         select_multiple_btn = QPushButton("Select Multiple")
         select_multiple_btn.clicked.connect(self._select_files)
         self._set_tooltip(select_multiple_btn, 'la_select_files')
         self._set_tooltip(select_multiple_btn, 'la_select_folder')
         btn_layout.addWidget(select_multiple_btn)
-        
+
+        add_folder_btn = QPushButton("📂 Add Folder")
+        add_folder_btn.clicked.connect(self._add_folder)
+        self._set_tooltip(add_folder_btn, "Add all images from a folder to the selection")
+        btn_layout.addWidget(add_folder_btn)
+
         group_layout.addLayout(btn_layout)
+
+        # Recursive checkbox
+        self.recursive_cb = QCheckBox("Process subfolders")
+        self.recursive_cb.setChecked(False)
+        self._set_tooltip(self.recursive_cb, "When adding a folder, also include images in sub-folders")
+        group_layout.addWidget(self.recursive_cb)
         
         # Archive options
         archive_layout = QHBoxLayout()
@@ -1204,12 +1220,35 @@ class LineArtConverterPanelQt(QWidget):
             "",
             "Images (*.png *.jpg *.jpeg *.bmp *.tiff *.webp);;All Files (*.*)"
         )
-        
+
         if files:
             self.selected_files = files
             self.selected_file = files[0]
             self.file_label.setText(f"{len(files)} files selected")
             self.file_label.setStyleSheet("color: green; font-weight: bold;")
+            self._schedule_preview_update()
+
+    def _add_folder(self):
+        """Add all images from a folder (optionally recursive) to the selection."""
+        folder = QFileDialog.getExistingDirectory(self, "Select Folder")
+        if not folder:
+            return
+        recursive = hasattr(self, 'recursive_cb') and self.recursive_cb.isChecked()
+        folder_path = Path(folder)
+        new_files = []
+        pattern = '**/*' if recursive else '*'
+        for ext in IMAGE_EXTENSIONS:
+            new_files.extend(folder_path.glob(f'{pattern}{ext}'))
+            new_files.extend(folder_path.glob(f'{pattern}{ext.upper()}'))
+        new_paths = sorted({str(p) for p in new_files})
+        existing = set(self.selected_files)
+        added = [p for p in new_paths if p not in existing]
+        self.selected_files.extend(added)
+        count = len(self.selected_files)
+        self.file_label.setText(f"{count} file{'s' if count != 1 else ''} selected")
+        self.file_label.setStyleSheet("color: green; font-weight: bold;")
+        if added and not self.selected_file:
+            self.selected_file = added[0]
             self._schedule_preview_update()
     
     def _on_preset_changed(self, preset_name):
