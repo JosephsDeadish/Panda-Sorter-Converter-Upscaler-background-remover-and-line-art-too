@@ -497,6 +497,11 @@ class ColorCorrectionPanelQt(QWidget):
         """Start color correction processing."""
         if self.worker is not None:
             return
+
+        if not self.input_files:
+            from PyQt6.QtWidgets import QMessageBox
+            QMessageBox.warning(self, "No Files Selected", "Please select input files before starting.")
+            return
         
         # Get settings from UI
         settings = {

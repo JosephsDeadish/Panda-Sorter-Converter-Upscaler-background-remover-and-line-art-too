@@ -2063,6 +2063,47 @@ def test_cancel_buttons_have_interruption_support():
     print("  PASS")
 
 
+def test_panda_set_mood_emits_signal():
+    """PandaWidgetGL.set_mood() must emit mood_changed after updating state.
+
+    The main window connects ``panda_widget.mood_changed`` to
+    ``on_panda_mood_changed`` so the mood system can react to 3D panda mood
+    transitions.  Without the emit, the signal is connected but never fires,
+    making mood-driven feedback (achievement toasts, sound cues, etc.) silent.
+
+    Fix: add ``self.mood_changed.emit(mood)`` at the end of ``set_mood()``.
+    """
+    print("\ntest_panda_set_mood_emits_signal ...")
+    import ast
+    from pathlib import Path
+
+    src = Path(__file__).parent / 'src' / 'ui' / 'panda_widget_gl.py'
+    if not src.exists():
+        print("  ⚠️  Skipped (panda_widget_gl.py not found)")
+        return
+
+    code = src.read_text(encoding='utf-8')
+    tree = ast.parse(code, filename=str(src))
+
+    # Find the set_mood method body and check it emits mood_changed
+    found_set_mood = False
+    emits_signal = False
+    for node in ast.walk(tree):
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and node.name == 'set_mood':
+            found_set_mood = True
+            method_src = ast.get_source_segment(code, node) or ''
+            emits_signal = 'mood_changed.emit' in method_src
+            break
+
+    assert found_set_mood, "PandaWidgetGL.set_mood() method not found in panda_widget_gl.py"
+    assert emits_signal, (
+        "set_mood() does NOT call self.mood_changed.emit(mood).\n"
+        "Add 'self.mood_changed.emit(mood)' at the end of set_mood() so\n"
+        "the main window's on_panda_mood_changed handler receives mood updates."
+    )
+    print("  ✅ set_mood() calls self.mood_changed.emit(mood)")
+
+
 def run_all_tests():
     print("=" * 65)
     print("Hybrid Architecture + Lazy rembg Import Tests")
@@ -2114,6 +2155,7 @@ def run_all_tests():
         test_set_tooltip_no_set_tooltip_method_call,
         test_set_tooltip_registers_with_manager,
         test_cancel_buttons_have_interruption_support,
+        test_panda_set_mood_emits_signal,
     ]
 
     passed, failed = [], []

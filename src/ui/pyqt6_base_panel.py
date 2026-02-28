@@ -384,6 +384,7 @@ class BasePyQtPanel(QWidget):
     def stop_worker(self):
         """Stop the worker thread if running."""
         if self.worker_thread and self.worker_thread.isRunning():
+            self.worker_thread.requestInterruption()
             self.worker_thread.quit()
             self.worker_thread.wait()
 
