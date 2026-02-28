@@ -50,6 +50,10 @@ except (ImportError, OSError):
 _INPUT_EXTS = {
     ".png", ".jpg", ".jpeg", ".bmp", ".tiff", ".tif",
     ".webp", ".tga", ".gif", ".ico", ".psd",
+    # Additional game/HDR/modern formats
+    ".dds", ".hdr", ".exr", ".avif", ".jp2", ".j2k",
+    ".pbm", ".pgm", ".ppm", ".pnm", ".xbm", ".xpm",
+    ".cur", ".pcx", ".sgi", ".rgb", ".rgba", ".im",
 }
 
 _OUTPUT_FORMATS: List[Tuple[str, str, str]] = [
@@ -61,6 +65,7 @@ _OUTPUT_FORMATS: List[Tuple[str, str, str]] = [
     ("BMP (uncompressed)",             ".bmp",  "BMP"),
     ("TGA / Targa (game-ready)",       ".tga",  "TGA"),
     ("ICO (icon, max 256×256)",        ".ico",  "ICO"),
+    ("AVIF (modern, very small)",      ".avif", "AVIF"),
 ]
 
 _COLOUR_SPACES: List[Tuple[str, str]] = [
@@ -179,6 +184,8 @@ class _ConvertWorker(QThread):
                     save_kw = {"quality": webp_q, "lossless": webp_ll}
                 elif pil_fmt == "TIFF":
                     save_kw = {"compression": "tiff_lzw"}
+                elif pil_fmt == "AVIF":
+                    save_kw = {"quality": webp_q}
 
                 img.save(out_path, format=pil_fmt, **save_kw)
                 done += 1
@@ -281,6 +288,13 @@ if _PYQT:
             self._set_tooltip(btn_pick_files, 'input_files_browse')
             h.addWidget(btn_pick_files)
             inp_lay.addLayout(h)
+
+            # Recursive checkbox
+            self._recursive_cb = QCheckBox("📂 Process subfolders recursively")
+            self._recursive_cb.setChecked(False)
+            self._set_tooltip(self._recursive_cb,
+                "When enabled, the selected folder and all its subfolders are scanned for images")
+            inp_lay.addWidget(self._recursive_cb)
 
             self._file_count_lbl = QLabel("No files selected")
             self._file_count_lbl.setStyleSheet("color:#888; font-size:11px;")
@@ -517,10 +531,17 @@ if _PYQT:
             if not d:
                 return
             exts = _INPUT_EXTS
-            self._files = sorted(
-                p for p in Path(d).iterdir()
-                if p.suffix.lower() in exts
-            )
+            recursive = hasattr(self, '_recursive_cb') and self._recursive_cb.isChecked()
+            if recursive:
+                self._files = sorted(
+                    p for p in Path(d).rglob('*')
+                    if p.is_file() and p.suffix.lower() in exts
+                )
+            else:
+                self._files = sorted(
+                    p for p in Path(d).iterdir()
+                    if p.is_file() and p.suffix.lower() in exts
+                )
             self._in_dir_edit.setText(d)
             self._file_count_lbl.setText(f"{len(self._files)} image(s) found")
             if not self._out_dir_edit.text():
