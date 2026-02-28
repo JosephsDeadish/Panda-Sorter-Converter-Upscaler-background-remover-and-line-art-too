@@ -74,10 +74,12 @@ class WidgetsPanelQt(QWidget):
         
         add_btn = QPushButton("➕ Add to Scene")
         add_btn.clicked.connect(self.add_selected_widget)
+        self._set_tooltip(add_btn, "Add the selected widget to the bedroom scene")
         button_layout.addWidget(add_btn)
         
         remove_btn = QPushButton("❌ Remove Selected")
         remove_btn.clicked.connect(self.remove_selected_widget)
+        self._set_tooltip(remove_btn, "Remove the selected widget from the scene")
         button_layout.addWidget(remove_btn)
         
         layout.addLayout(button_layout)
@@ -118,6 +120,7 @@ class WidgetsPanelQt(QWidget):
         
         # Select button
         select_btn = QPushButton("Select")
+        select_btn.setToolTip(f"Select {widget.get('name', 'this widget')} to add or remove")
         select_btn.clicked.connect(lambda: self.select_widget(widget))
         item_layout.addWidget(select_btn)
         

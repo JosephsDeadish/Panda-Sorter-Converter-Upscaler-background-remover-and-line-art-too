@@ -206,14 +206,17 @@ class BatchRenamePanelQt(QWidget):
         
         select_files_btn = QPushButton("➕ Select Images")
         select_files_btn.clicked.connect(self._select_files)
+        self._set_tooltip(select_files_btn, 'input_browse')
         btn_layout.addWidget(select_files_btn)
-        
+
         select_folder_btn = QPushButton("📂 Select Folder")
         select_folder_btn.clicked.connect(self._select_folder)
+        self._set_tooltip(select_folder_btn, 'input_browse')
         btn_layout.addWidget(select_folder_btn)
-        
+
         clear_btn = QPushButton("🗑️ Clear")
         clear_btn.clicked.connect(self._clear_files)
+        self._set_tooltip(clear_btn, "Clear the selected files list")
         btn_layout.addWidget(clear_btn)
         
         group_layout.addLayout(btn_layout)

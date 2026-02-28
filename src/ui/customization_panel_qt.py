@@ -86,6 +86,7 @@ class CustomizationPanelQt(QWidget):
         body_layout = QHBoxLayout()
         body_layout.addWidget(QLabel("Body Color:"))
         self.body_color_btn = QPushButton("Choose Color")
+        self.body_color_btn.setToolTip("Pick a custom colour for your panda's body")
         self.body_color_btn.clicked.connect(lambda: self.choose_color('body'))
         body_layout.addWidget(self.body_color_btn)
         color_layout.addLayout(body_layout)
@@ -94,6 +95,7 @@ class CustomizationPanelQt(QWidget):
         eye_layout = QHBoxLayout()
         eye_layout.addWidget(QLabel("Eye Color:"))
         self.eye_color_btn = QPushButton("Choose Color")
+        self.eye_color_btn.setToolTip("Pick a custom colour for your panda's eyes")
         self.eye_color_btn.clicked.connect(lambda: self.choose_color('eyes'))
         eye_layout.addWidget(self.eye_color_btn)
         color_layout.addLayout(eye_layout)
@@ -129,6 +131,7 @@ class CustomizationPanelQt(QWidget):
         trail_color_layout = QHBoxLayout()
         trail_color_layout.addWidget(QLabel("Trail Color:"))
         self.trail_color_btn = QPushButton("Choose Color")
+        self.trail_color_btn.setToolTip("Pick a custom colour for your cursor trail")
         self.trail_color_btn.clicked.connect(lambda: self.choose_color('trail'))
         trail_color_layout.addWidget(self.trail_color_btn)
         trail_layout.addLayout(trail_color_layout)
@@ -207,10 +210,12 @@ class CustomizationPanelQt(QWidget):
         button_layout = QHBoxLayout()
 
         apply_btn = QPushButton("✓ Apply Changes")
+        apply_btn.setToolTip("Apply your customisation changes to the panda")
         apply_btn.clicked.connect(self.apply_customization)
         button_layout.addWidget(apply_btn)
 
         reset_btn = QPushButton("↺ Reset to Default")
+        reset_btn.setToolTip("Reset all panda customisations back to the defaults")
         reset_btn.clicked.connect(self.reset_customization)
         button_layout.addWidget(reset_btn)
 

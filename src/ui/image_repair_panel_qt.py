@@ -253,14 +253,17 @@ class ImageRepairPanelQt(QWidget):
         
         self.select_files_btn = QPushButton("Select Files")
         self.select_files_btn.clicked.connect(self._select_files)
+        self._set_tooltip(self.select_files_btn, 'input_browse')
         btn_layout.addWidget(self.select_files_btn)
         
         self.select_folder_btn = QPushButton("Select Folder")
         self.select_folder_btn.clicked.connect(self._select_folder)
+        self._set_tooltip(self.select_folder_btn, 'input_browse')
         btn_layout.addWidget(self.select_folder_btn)
         
         self.clear_btn = QPushButton("Clear")
         self.clear_btn.clicked.connect(self._clear_files)
+        self._set_tooltip(self.clear_btn, "Clear the selected files list")
         btn_layout.addWidget(self.clear_btn)
         
         group_layout.addLayout(btn_layout)
@@ -279,6 +282,7 @@ class ImageRepairPanelQt(QWidget):
         
         self.output_dir_btn = QPushButton("Select Output Directory")
         self.output_dir_btn.clicked.connect(self._select_output_dir)
+        self._set_tooltip(self.output_dir_btn, 'output_browse')
         group_layout.addWidget(self.output_dir_btn)
         
         # Archive options
