@@ -121,6 +121,7 @@ class CustomizationPanelQt(QWidget):
         self.trail_combo = QComboBox()
         self.trail_combo.addItems(["None", "Dots", "Line", "Glow", "Particles"])
         self.trail_combo.currentTextChanged.connect(self.on_trail_changed)
+        self._set_tooltip(self.trail_combo, 'trail_style')
         type_layout.addWidget(self.trail_combo)
         trail_layout.addLayout(type_layout)
 

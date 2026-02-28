@@ -583,7 +583,7 @@ class LineArtConverterPanelQt(QWidget):
             self.preset_combo.addItem(preset_name)
         self.preset_combo.currentTextChanged.connect(self._on_preset_changed)
         group_layout.addWidget(self.preset_combo)
-        self._set_tooltip(self.preset_combo, 'lineart_preset')
+        self._set_tooltip(self.preset_combo, 'la_preset')
         
         # Preset description
         self.preset_desc = QLabel("")
@@ -618,7 +618,7 @@ class LineArtConverterPanelQt(QWidget):
         self.mode_combo.currentIndexChanged.connect(self._schedule_preview_update)
         self.mode_combo.currentIndexChanged.connect(self._on_mode_changed)
         mode_layout.addWidget(self.mode_combo, 1)
-        self._set_tooltip(self.mode_combo, 'lineart_mode')
+        self._set_tooltip(self.mode_combo, 'la_mode')
         group_layout.addLayout(mode_layout)
 
         # Invert checkbox
@@ -629,7 +629,7 @@ class LineArtConverterPanelQt(QWidget):
         inv_layout.addWidget(self.invert_cb)
         inv_layout.addStretch()
         group_layout.addLayout(inv_layout)
-        self._set_tooltip(self.invert_cb, 'lineart_invert')
+        self._set_tooltip(self.invert_cb, 'la_invert')
 
         # Threshold
         threshold_layout = QHBoxLayout()
@@ -643,7 +643,7 @@ class LineArtConverterPanelQt(QWidget):
         self.threshold_slider.valueChanged.connect(lambda v: self.threshold_label.setText(str(v)))
         threshold_layout.addWidget(self.threshold_label)
         group_layout.addLayout(threshold_layout)
-        self._set_tooltip(self.threshold_slider, 'lineart_threshold')
+        self._set_tooltip(self.threshold_slider, 'la_threshold')
         
         # Contrast
         contrast_layout = QHBoxLayout()
@@ -656,7 +656,7 @@ class LineArtConverterPanelQt(QWidget):
         contrast_layout.addWidget(self.contrast_spin)
         contrast_layout.addStretch()
         group_layout.addLayout(contrast_layout)
-        self._set_tooltip(self.contrast_spin, 'lineart_contrast')
+        self._set_tooltip(self.contrast_spin, 'la_contrast')
         
         # Morphology Operation
         morph_layout = QHBoxLayout()
@@ -674,7 +674,7 @@ class LineArtConverterPanelQt(QWidget):
         morph_layout.addWidget(self.morphology_combo)
         morph_layout.addStretch()
         group_layout.addLayout(morph_layout)
-        self._set_tooltip(self.morphology_combo, 'lineart_morphology')
+        self._set_tooltip(self.morphology_combo, 'la_morphology')
         
         # Morphology Iterations
         iter_layout = QHBoxLayout()
@@ -687,7 +687,7 @@ class LineArtConverterPanelQt(QWidget):
         iter_layout.addWidget(self.morphology_iterations)
         iter_layout.addStretch()
         group_layout.addLayout(iter_layout)
-        self._set_tooltip(self.morphology_iterations, 'lineart_morph_iter')
+        self._set_tooltip(self.morphology_iterations, 'la_morph_iterations')
         
         # Kernel Size
         kernel_layout = QHBoxLayout()
@@ -701,7 +701,7 @@ class LineArtConverterPanelQt(QWidget):
         kernel_layout.addWidget(self.kernel_size_spin)
         kernel_layout.addStretch()
         group_layout.addLayout(kernel_layout)
-        self._set_tooltip(self.kernel_size_spin, 'lineart_kernel')
+        self._set_tooltip(self.kernel_size_spin, 'la_kernel_size')
         
         # Sharpen
         sharpen_layout = QHBoxLayout()
@@ -718,8 +718,8 @@ class LineArtConverterPanelQt(QWidget):
         sharpen_layout.addWidget(self.sharpen_spin)
         sharpen_layout.addStretch()
         group_layout.addLayout(sharpen_layout)
-        self._set_tooltip(self.sharpen_cb, 'lineart_sharpen')
-        self._set_tooltip(self.sharpen_spin, 'lineart_sharpen_amount')
+        self._set_tooltip(self.sharpen_cb, 'la_sharpen')
+        self._set_tooltip(self.sharpen_spin, 'la_sharpen_amount')
         
         # Denoise
         denoise_layout = QHBoxLayout()
@@ -735,14 +735,14 @@ class LineArtConverterPanelQt(QWidget):
         denoise_layout.addWidget(self.denoise_size)
         denoise_layout.addStretch()
         group_layout.addLayout(denoise_layout)
-        self._set_tooltip(self.denoise_cb, 'lineart_denoise')
-        self._set_tooltip(self.denoise_size, 'lineart_denoise_size')
+        self._set_tooltip(self.denoise_cb, 'la_denoise')
+        self._set_tooltip(self.denoise_size, 'la_denoise_size')
         
         # Checkboxes
         self.auto_threshold_cb = QCheckBox("Auto Threshold")
         self.auto_threshold_cb.stateChanged.connect(self._schedule_preview_update)
         group_layout.addWidget(self.auto_threshold_cb)
-        self._set_tooltip(self.auto_threshold_cb, 'lineart_auto_threshold')
+        self._set_tooltip(self.auto_threshold_cb, 'la_auto_threshold')
         
         # Midtone Threshold
         midtone_layout = QHBoxLayout()
@@ -755,14 +755,14 @@ class LineArtConverterPanelQt(QWidget):
         midtone_layout.addWidget(self.midtone_spin)
         midtone_layout.addStretch()
         group_layout.addLayout(midtone_layout)
-        self._set_tooltip(self.midtone_spin, 'lineart_midtone_threshold')
+        self._set_tooltip(self.midtone_spin, 'la_midtone_threshold')
         
         # Remove Midtones
         self.remove_midtones_cb = QCheckBox("Remove midtones")
         self.remove_midtones_cb.setChecked(True)
         self.remove_midtones_cb.stateChanged.connect(self._schedule_preview_update)
         group_layout.addWidget(self.remove_midtones_cb)
-        self._set_tooltip(self.remove_midtones_cb, 'lineart_remove_midtones')
+        self._set_tooltip(self.remove_midtones_cb, 'la_remove_midtones')
 
         # ── Background colour ──────────────────────────────────────────────
         bg_layout = QHBoxLayout()
@@ -783,7 +783,7 @@ class LineArtConverterPanelQt(QWidget):
         self.bg_custom_swatch.clicked.connect(self._pick_custom_bg_color)
         bg_layout.addWidget(self.bg_custom_swatch)
         group_layout.addLayout(bg_layout)
-        self._set_tooltip(self.bg_mode_combo, 'lineart_bg_mode')
+        self._set_tooltip(self.bg_mode_combo, 'la_background')
 
         # ── Mode-specific advanced controls (shown/hidden by _on_mode_changed) ─────
         # Edge Detection controls
@@ -929,9 +929,9 @@ class LineArtConverterPanelQt(QWidget):
         for b in (btn_in, btn_out, btn_fit):
             b.setFixedWidth(44)
             b.setFixedHeight(24)
-        self._set_tooltip(btn_in, "Zoom in (also: scroll wheel)")
-        self._set_tooltip(btn_out, "Zoom out")
-        self._set_tooltip(btn_fit, "Reset to fit")
+        self._set_tooltip(btn_in, 'upscale_zoom_in')
+        self._set_tooltip(btn_out, 'upscale_zoom_out')
+        self._set_tooltip(btn_fit, 'upscale_zoom_fit')
         btn_in.clicked.connect(_zoom_in)
         btn_out.clicked.connect(_zoom_out)
         btn_fit.clicked.connect(_zoom_fit)
@@ -1060,7 +1060,7 @@ class LineArtConverterPanelQt(QWidget):
         self.convert_button.setStyleSheet("background-color: #2196F3; color: white; padding: 10px; font-weight: bold;")
         self.convert_button.clicked.connect(self._convert_batch)
         layout.addWidget(self.convert_button)
-        self._set_tooltip(self.convert_button, 'lineart_start_button')
+        self._set_tooltip(self.convert_button, 'la_convert')
 
         # Progress bar
         self.progress_bar = QProgressBar()

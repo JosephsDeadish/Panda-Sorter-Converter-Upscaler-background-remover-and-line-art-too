@@ -177,11 +177,13 @@ class ClosetDisplayWidget(QWidget):
         for val, label in _CATEGORY_LABELS.items():
             self._cat_combo.addItem(label, val)
         self._cat_combo.currentIndexChanged.connect(self._on_category_changed)
+        self._set_tooltip(self._cat_combo, 'closet_tab')
         top_bar.addWidget(self._cat_combo)
 
         self._search_input = QLineEdit()
         self._search_input.setPlaceholderText("Search items…")
         self._search_input.textChanged.connect(self._apply_filters)
+        self._set_tooltip(self._search_input, 'closet_appearance')
         top_bar.addWidget(self._search_input)
 
         main_layout.addLayout(top_bar)

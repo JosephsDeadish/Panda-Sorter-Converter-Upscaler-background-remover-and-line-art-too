@@ -264,6 +264,8 @@ class BatchRenamePanelQt(QWidget):
             radio = QRadioButton(text)
             radio.setProperty("pattern", value)
             self.pattern_group.addButton(radio)
+            if value in (RenamePattern.DATE_CREATED, RenamePattern.DATE_MODIFIED, RenamePattern.DATE_EXIF):
+                self._set_tooltip(radio, 'rename_date')
             group_layout.addWidget(radio)
             if value == RenamePattern.SEQUENTIAL:
                 radio.setChecked(True)
@@ -346,6 +348,7 @@ class BatchRenamePanelQt(QWidget):
         # Preview button
         preview_btn = QPushButton("🔍 Generate Preview")
         preview_btn.clicked.connect(self._generate_preview)
+        self._set_tooltip(preview_btn, 'preview_button')
         group_layout.addWidget(preview_btn)
         
         # Preview text
@@ -367,6 +370,7 @@ class BatchRenamePanelQt(QWidget):
         self.rename_btn = QPushButton("🚀 Rename Files")
         self.rename_btn.setStyleSheet("background-color: #2196F3; color: white; padding: 10px; font-weight: bold;")
         self.rename_btn.clicked.connect(self._rename_files)
+        self._set_tooltip(self.rename_btn, 'file_selection')
         btn_layout.addWidget(self.rename_btn)
         
         # Undo button

@@ -675,6 +675,7 @@ class OrganizerPanelQt(QWidget):
         self.mode_combo.addItem("💡 Suggested — AI proposes, you approve each", "suggested")
         self.mode_combo.addItem("✍️ Manual — you choose folder, AI learns your style", "manual")
         self.mode_combo.currentIndexChanged.connect(self._on_mode_changed)
+        self._set_tooltip(self.mode_combo, 'category_selection')
         mode_row.addWidget(self.mode_combo, 1)
         group_layout.addLayout(mode_row)
 
@@ -946,16 +947,19 @@ class OrganizerPanelQt(QWidget):
         self.cancel_btn.clicked.connect(self._cancel_organization)
         self.cancel_btn.setEnabled(False)
         self.cancel_btn.setVisible(False)
+        self._set_tooltip(self.cancel_btn, 'stop_button')
         button_layout.addWidget(self.cancel_btn)
         
         button_layout.addStretch()
         
         self.export_learning_btn = QPushButton("📤 Export Learning")
         self.export_learning_btn.clicked.connect(self._export_learning_profile)
+        self._set_tooltip(self.export_learning_btn, 'ai_export_training')
         button_layout.addWidget(self.export_learning_btn)
         
         self.import_learning_btn = QPushButton("📥 Import Learning")
         self.import_learning_btn.clicked.connect(self._import_learning_profile)
+        self._set_tooltip(self.import_learning_btn, 'ai_import_training')
         button_layout.addWidget(self.import_learning_btn)
         
         self.clear_log_btn = QPushButton("🗑️ Clear Log")
@@ -1081,10 +1085,12 @@ class OrganizerPanelQt(QWidget):
         self.conflict_combo.addItem("Skip", "skip")
         self.conflict_combo.addItem("Overwrite", "overwrite")
         self.conflict_combo.addItem("Number (file_1, file_2...)", "number")
+        self._set_tooltip(self.conflict_combo, 'sort_mode_menu')
         org_settings_layout.addWidget(self.conflict_combo)
         
         self.create_backup_cb = QCheckBox("Create Backup")
         self.create_backup_cb.setChecked(True)
+        self._set_tooltip(self.create_backup_cb, 'alpha_fix_backup')
         org_settings_layout.addWidget(self.create_backup_cb)
         
         org_settings_layout.addStretch()

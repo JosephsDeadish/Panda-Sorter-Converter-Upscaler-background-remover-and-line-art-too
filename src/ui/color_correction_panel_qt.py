@@ -295,22 +295,22 @@ class ColorCorrectionPanelQt(QWidget):
         
         # Brightness
         self.brightness_slider = self._create_slider(
-            group_layout, "Brightness", -100, 100, 0, "Adjust image brightness"
+            group_layout, "Brightness", -100, 100, 0, 'cc_exposure'
         )
         
         # Contrast
         self.contrast_slider = self._create_slider(
-            group_layout, "Contrast", -100, 100, 0, "Adjust image contrast"
+            group_layout, "Contrast", -100, 100, 0, 'cc_clarity'
         )
         
         # Saturation
         self.saturation_slider = self._create_slider(
-            group_layout, "Saturation", -100, 100, 0, "Adjust color saturation"
+            group_layout, "Saturation", -100, 100, 0, 'cc_vibrance'
         )
         
         # Sharpness
         self.sharpness_slider = self._create_slider(
-            group_layout, "Sharpness", 0, 200, 100, "Adjust image sharpness"
+            group_layout, "Sharpness", 0, 200, 100, 'cc_white_balance'
         )
         
         # LUT selection

@@ -132,6 +132,22 @@ class SettingsPanelQt(QWidget):
         self.tabs.addTab(self.create_hotkeys_tab(), "⌨️ Hotkeys")
         self.tabs.addTab(self.create_language_tab(), "🌐 Language")
         self.tabs.addTab(self.create_advanced_tab(), "🔧 Advanced")
+        # Wire tab-bar tooltips using setTabToolTip
+        _tab_tip_map = {
+            0: 'settings_appearance_tab',
+            3: 'settings_controls_tab',
+            4: 'settings_perf_tab',
+            5: 'settings_ai_tab',
+            9: 'settings_system_tab',
+        }
+        for _idx, _tid in _tab_tip_map.items():
+            try:
+                _tip = self.main_window.tooltip_manager.get_tooltip(_tid) if (
+                    self.main_window and getattr(self.main_window, 'tooltip_manager', None)
+                ) else _tid.replace('_', ' ')
+                self.tabs.setTabToolTip(_idx, _tip)
+            except Exception:
+                pass
         
         # Bottom buttons
         button_layout = QHBoxLayout()
@@ -760,6 +776,7 @@ class SettingsPanelQt(QWidget):
         self.device_combo.addItems(["Auto (GPU if available)", "CPU only", "CUDA GPU", "MPS (Apple)"])
         self.device_combo.currentTextChanged.connect(
             lambda: self.on_setting_changed('ai', 'device'))
+        self.set_tooltip(self.device_combo, 'ai_ups_gpu')
         train_layout.addRow("Compute Device:", self.device_combo)
 
         # Optimizer
@@ -844,6 +861,7 @@ class SettingsPanelQt(QWidget):
         self.use_gpu_check.setChecked(True)
         self.use_gpu_check.stateChanged.connect(
             lambda: self.on_setting_changed('ai', 'use_gpu'))
+        self.set_tooltip(self.use_gpu_check, 'ai_ups_gpu')
         infer_layout.addRow("", self.use_gpu_check)
 
         infer_group.setLayout(infer_layout)
@@ -857,6 +875,7 @@ class SettingsPanelQt(QWidget):
         self.export_format_combo.addItems(["PyTorch (.pt)", "ONNX (.onnx)", "TorchScript (.pts)", "SafeTensors"])
         self.export_format_combo.currentTextChanged.connect(
             lambda: self.on_setting_changed('ai', 'export_format'))
+        self.set_tooltip(self.export_format_combo, 'ai_ups_model')
         export_layout.addRow("Export Format:", self.export_format_combo)
 
         self.quantize_check = QCheckBox("Quantize on export (smaller file, slight quality loss)")
@@ -884,6 +903,7 @@ class SettingsPanelQt(QWidget):
             "QPushButton:hover { background: #0a5e62; }"
         )
         start_btn.clicked.connect(self._on_start_ai_training)
+        self.set_tooltip(start_btn, 'ai_export_training')
 
         train_btn_layout.addWidget(self._ai_train_status)
         train_btn_layout.addWidget(self._ai_train_progress)
