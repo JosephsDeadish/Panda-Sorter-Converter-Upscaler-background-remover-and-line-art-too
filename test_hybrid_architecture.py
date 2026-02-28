@@ -2239,6 +2239,129 @@ def test_archive_queue_has_cancel_button():
     print("  ✅ is_processing flag cleared on cancel")
 
 
+def test_lineart_conversion_worker_supports_cancellation():
+    """ConversionWorker.run() must check isInterruptionRequested() per file.
+
+    The older ConversionWorker class (used as a fallback when the format combo
+    is absent) did not check isInterruptionRequested() at all.  This made the
+    Cancel button in the lineart panel a no-op for that code path — the thread
+    would finish the entire batch even after the user clicked Cancel.
+
+    Requirements:
+    1. ConversionWorker.run() calls isInterruptionRequested()
+    2. When interrupted it emits finished(False, ...) without completing
+    """
+    print("\ntest_lineart_conversion_worker_supports_cancellation ...")
+    import re
+    from pathlib import Path
+
+    src = Path(__file__).parent / 'src' / 'ui' / 'lineart_converter_panel_qt.py'
+    if not src.exists():
+        print("  ⚠️  Skipped (lineart_converter_panel_qt.py not found)")
+        return
+
+    code = src.read_text(encoding='utf-8')
+
+    # Locate ConversionWorker.run() — stop before _FormatConversionWorker
+    m = re.search(
+        r'class ConversionWorker\(QThread\).*?(?=class _FormatConversionWorker)',
+        code, re.DOTALL
+    )
+    assert m, "ConversionWorker class not found in lineart_converter_panel_qt.py"
+    worker_code = m.group(0)
+
+    assert 'isInterruptionRequested' in worker_code, (
+        "ConversionWorker.run() must call isInterruptionRequested() per loop "
+        "iteration so the Cancel button stops the batch mid-run."
+    )
+    print("  ✅ ConversionWorker.run() checks isInterruptionRequested()")
+
+
+def test_preview_slider_single_image():
+    """ComparisonSliderWidget._paint_slider_mode must handle missing after_pixmap.
+
+    Before: if after_pixmap was None (image loaded but not yet processed),
+    _paint_slider_mode returned early and the widget showed a blank grey box.
+    After: it falls back to showing the available image as a single-panel
+    preview so the user sees the loaded image immediately.
+
+    Requirements:
+    1. _paint_slider_mode does NOT return immediately when only one image is set
+    2. It falls back to showing the available pixmap as a single image
+    """
+    print("\ntest_preview_slider_single_image ...")
+    import re
+    from pathlib import Path
+
+    src = Path(__file__).parent / 'src' / 'ui' / 'live_preview_slider_qt.py'
+    if not src.exists():
+        print("  ⚠️  Skipped (live_preview_slider_qt.py not found)")
+        return
+
+    code = src.read_text(encoding='utf-8')
+
+    # Find _paint_slider_mode
+    m = re.search(r'def _paint_slider_mode\(self.*?(?=\n    def )', code, re.DOTALL)
+    assert m, "_paint_slider_mode not found in live_preview_slider_qt.py"
+    paint_code = m.group(0)
+
+    # Must NOT have the simple "if not before_scaled or not after_scaled: return" pattern
+    old_pattern = r'if not before_scaled or not after_scaled:\s*\n\s*painter\.restore\(\)\s*\n\s*return'
+    assert not re.search(old_pattern, paint_code), (
+        "_paint_slider_mode still has the old early-return that blanks the preview "
+        "when only one image is loaded.  The fix should fall back to single-image mode."
+    )
+    print("  ✅ _paint_slider_mode no longer blanks when only one image is available")
+
+    # Should handle the case where only one of the two is set
+    assert 'only one' in paint_code.lower() or 'only_pm' in paint_code or 'only_label' in paint_code, (
+        "_paint_slider_mode should have a single-image fallback path "
+        "(look for 'only_pm' or a comment about single image)."
+    )
+    print("  ✅ Single-image fallback path present")
+
+
+def test_realesrgan_pyinstaller_hooks_exist():
+    """PyInstaller hooks for basicsr, realesrgan, and gfpgan must exist.
+
+    Without dedicated hooks, PyInstaller's static analyser misses:
+    - basicsr dynamic arch-loader (imports submodules by name at runtime)
+    - realesrgan utility helpers that are loaded via getattr
+    - gfpgan/facexlib face-parsing models loaded at detection time
+
+    Each hook must call collect_submodules() to ensure every submodule is
+    bundled so the frozen EXE can run Real-ESRGAN without a separate install.
+    """
+    print("\ntest_realesrgan_pyinstaller_hooks_exist ...")
+    from pathlib import Path
+
+    root = Path(__file__).parent
+
+    for pkg in ('basicsr', 'realesrgan', 'gfpgan'):
+        hook_path = root / f'hook-{pkg}.py'
+        assert hook_path.exists(), (
+            f"hook-{pkg}.py not found in project root.\n"
+            f"Create it with collect_submodules('{pkg}') so PyInstaller bundles "
+            f"all {pkg} submodules into the frozen EXE."
+        )
+        hook_code = hook_path.read_text(encoding='utf-8')
+        assert 'collect_submodules' in hook_code, (
+            f"hook-{pkg}.py must call collect_submodules('{pkg}') to ensure "
+            f"all dynamic submodule imports work inside the frozen EXE."
+        )
+        print(f"  ✅ hook-{pkg}.py exists and calls collect_submodules()")
+
+    # Spec must reference gfpgan and facexlib hiddenimports
+    spec_path = root / 'build_spec_onefolder.spec'
+    if spec_path.exists():
+        spec = spec_path.read_text(encoding='utf-8')
+        for pkg in ('gfpgan', 'facexlib'):
+            assert f"'{pkg}'" in spec or f'"{pkg}"' in spec, (
+                f"'{pkg}' missing from build_spec_onefolder.spec hiddenimports"
+            )
+            print(f"  ✅ '{pkg}' present in spec hiddenimports")
+
+
 def run_all_tests():
     print("=" * 65)
     print("Hybrid Architecture + Lazy rembg Import Tests")
@@ -2294,6 +2417,9 @@ def run_all_tests():
         test_color_correction_guards_empty_files,
         test_model_download_thread_supports_cancellation,
         test_archive_queue_has_cancel_button,
+        test_lineart_conversion_worker_supports_cancellation,
+        test_preview_slider_single_image,
+        test_realesrgan_pyinstaller_hooks_exist,
     ]
 
     passed, failed = [], []

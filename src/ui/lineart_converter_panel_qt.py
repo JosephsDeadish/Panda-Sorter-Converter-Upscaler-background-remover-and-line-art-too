@@ -366,6 +366,9 @@ class ConversionWorker(QThread):
         """Execute conversion in background."""
         try:
             for i, filepath in enumerate(self.files):
+                if self.isInterruptionRequested():
+                    self.finished.emit(False, f"Cancelled after converting {i} image(s)")
+                    return
                 filename = Path(filepath).name
                 self.progress.emit(i + 1, len(self.files), filename)
                 
@@ -1422,6 +1425,7 @@ class LineArtConverterPanelQt(QWidget):
     
     def _pil_to_pixmap(self, img, max_size=600):
         """Convert PIL Image to QPixmap (600 px max for quality preview)."""
+        img = img.copy()
         img.thumbnail((max_size, max_size), Image.Resampling.LANCZOS)
         if img.mode != 'RGBA':
             img = img.convert('RGBA')

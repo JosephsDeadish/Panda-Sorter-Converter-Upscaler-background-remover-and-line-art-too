@@ -323,6 +323,7 @@ a = Analysis(
         # Upscaling models - Real-ESRGAN (bundled when available on build machine)
         # basicsr/realesrgan are installed in CI; models (.pth) download at runtime
         # via the AI Model Manager once the user requests Real-ESRGAN upscaling.
+        # hook-basicsr.py, hook-realesrgan.py, hook-gfpgan.py handle full collection.
         'basicsr',
         'basicsr.archs',
         'basicsr.archs.rrdbnet_arch',
@@ -330,6 +331,11 @@ a = Analysis(
         'basicsr.utils.download_util',
         'realesrgan',
         'realesrgan.utils',
+        'gfpgan',
+        'facexlib',
+        'facexlib.detection',
+        'facexlib.parsing',
+        'facexlib.utils',
         # torchvision — explicit submodules to guarantee bundling.
         # hook-torchvision.py also runs collect_submodules() + include_py_files=True.
         'torchvision.transforms.functional',   # used by basicsr compat shim

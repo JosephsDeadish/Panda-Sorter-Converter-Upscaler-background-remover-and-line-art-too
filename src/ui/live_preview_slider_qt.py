@@ -215,8 +215,20 @@ class ComparisonSliderWidget(QWidget):
         before_scaled = self._scaled_at_zoom(self.before_pixmap, widget_rect)
         after_scaled = self._scaled_at_zoom(self.after_pixmap, widget_rect)
 
-        if not before_scaled or not after_scaled:
+        # If only one image is available, show it as a full-widget preview
+        if not before_scaled and not after_scaled:
             painter.restore()
+            return
+        if not before_scaled or not after_scaled:
+            # Fall back to single-image mode: show whichever image is present
+            only_pm = self.before_pixmap or self.after_pixmap
+            only_label = "BEFORE" if self.before_pixmap else "PROCESSED"
+            scaled = self._scaled_at_zoom(only_pm, widget_rect)
+            if scaled:
+                painter.drawPixmap(0, 0, scaled)
+            painter.restore()
+            painter.setPen(QColor(255, 255, 255))
+            painter.drawText(10, 25, only_label)
             return
 
         # Slider position in *logical* (pre-zoom/pan) image-coordinate x
