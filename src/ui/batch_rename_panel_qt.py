@@ -122,6 +122,8 @@ class RenameWorker(QThread):
         """Execute rename in background thread."""
         try:
             def progress_callback(current, total, filename):
+                if self.isInterruptionRequested():
+                    raise InterruptedError("Cancelled by user")
                 self.progress.emit(current, total, filename)
             
             successes, errors = self.renamer.batch_rename(
@@ -134,6 +136,8 @@ class RenameWorker(QThread):
             )
             
             self.finished.emit(len(successes), errors)
+        except InterruptedError as e:
+            self.finished.emit(0, [str(e)])
         except Exception as e:
             logger.error(f"Rename failed: {e}")
             self.finished.emit(0, [str(e)])
@@ -375,6 +379,15 @@ class BatchRenamePanelQt(QWidget):
         self.rename_btn.clicked.connect(self._rename_files)
         self._set_tooltip(self.rename_btn, 'file_selection')
         btn_layout.addWidget(self.rename_btn)
+
+        # Cancel button (hidden until rename starts)
+        self.cancel_btn = QPushButton("Cancel")
+        self.cancel_btn.setStyleSheet("background-color: #f44336; color: white; padding: 10px;")
+        self.cancel_btn.clicked.connect(self._cancel_rename)
+        self.cancel_btn.setEnabled(False)
+        self.cancel_btn.setVisible(False)
+        self._set_tooltip(self.cancel_btn, 'stop_button')
+        btn_layout.addWidget(self.cancel_btn)
         
         # Undo button
         self.undo_btn = QPushButton("↩️ Undo Last Rename")
@@ -522,8 +535,11 @@ class BatchRenamePanelQt(QWidget):
                 'description': self.description_entry.text()
             }
         
-        # Disable button and show progress
+        # Disable rename button; show cancel button
         self.rename_btn.setEnabled(False)
+        if hasattr(self, 'cancel_btn'):
+            self.cancel_btn.setEnabled(True)
+            self.cancel_btn.setVisible(True)
         self.progress_bar.setVisible(True)
         self.progress_bar.setValue(0)
         self.status_label.setText("Renaming files...")
@@ -540,6 +556,14 @@ class BatchRenamePanelQt(QWidget):
         self.worker_thread.progress.connect(self._on_rename_progress)
         self.worker_thread.finished.connect(self._on_rename_finished)
         self.worker_thread.start()
+
+    def _cancel_rename(self):
+        """Cancel the running rename operation."""
+        if self.worker_thread and self.worker_thread.isRunning():
+            self.worker_thread.requestInterruption()
+            if hasattr(self, 'cancel_btn'):
+                self.cancel_btn.setEnabled(False)
+            self.status_label.setText("Cancelling…")
     
     def _on_rename_progress(self, current, total, filename):
         """Handle rename progress updates."""
@@ -551,6 +575,9 @@ class BatchRenamePanelQt(QWidget):
         """Handle rename completion."""
         self.progress_bar.setVisible(False)
         self.rename_btn.setEnabled(True)
+        if hasattr(self, 'cancel_btn'):
+            self.cancel_btn.setEnabled(False)
+            self.cancel_btn.setVisible(False)
         
         if errors:
             error_msg = f"Renamed {successes} files successfully.\n\n"
