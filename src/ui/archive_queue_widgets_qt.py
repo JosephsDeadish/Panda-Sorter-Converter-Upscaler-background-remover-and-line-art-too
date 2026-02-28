@@ -131,6 +131,7 @@ class ArchiveSettingsWidgetQt(QWidget):
         format_row.addWidget(QLabel("Format:"))
         self.format_combo = QComboBox()
         self.format_combo.addItems(["ZIP", "7-Zip"])
+        self.format_combo.setToolTip("Select the archive format for output: ZIP or 7-Zip")
         self.format_combo.currentTextChanged.connect(self._on_format_change)
         format_row.addWidget(self.format_combo)
         format_row.addStretch()
@@ -273,6 +274,7 @@ class ProcessingQueueQt(QWidget):
         # Control buttons
         self.start_btn = QPushButton("▶ Start")
         self.start_btn.setStyleSheet("background-color: #10B981; color: white; padding: 5px;")
+        self.start_btn.setToolTip("Start processing the archive queue")
         self.start_btn.clicked.connect(self.start_processing)
         header_layout.addWidget(self.start_btn)
         
@@ -284,6 +286,7 @@ class ProcessingQueueQt(QWidget):
 
         self.clear_btn = QPushButton("🗑 Clear")
         self.clear_btn.setStyleSheet("background-color: gray; color: white; padding: 5px;")
+        self.clear_btn.setToolTip("Remove all pending items from the archive queue")
         self.clear_btn.clicked.connect(self.clear_queue)
         header_layout.addWidget(self.clear_btn)
         

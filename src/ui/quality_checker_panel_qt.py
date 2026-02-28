@@ -204,6 +204,7 @@ class QualityCheckerPanelQt(QWidget):
         # Clear button
         clear_btn = QPushButton("Clear Selection")
         clear_btn.clicked.connect(self._clear_files)
+        self._set_tooltip(clear_btn, "Clear the selected images list")
         group_layout.addWidget(clear_btn)
         
         # Archive options

@@ -226,6 +226,7 @@ class ModelCardWidget(QFrame):
         self.expand_btn = QPushButton("▼")
         self.expand_btn.setMaximumWidth(35)
         self.expand_btn.setMaximumHeight(35)
+        self.expand_btn.setToolTip("Expand or collapse model details")
         self.expand_btn.setStyleSheet("""
             QPushButton {
                 background-color: #e3f2fd;
@@ -299,6 +300,7 @@ class ModelCardWidget(QFrame):
                 download_btn.setText(f"⬇️  Download Now ({self.model_info['size_mb']} MB)")
             download_btn.setMinimumHeight(40)
             download_btn.setMinimumWidth(200)
+            download_btn.setToolTip("Download this AI model to enable the feature")
             download_btn.setStyleSheet("""
                 QPushButton {
                     background-color: #4CAF50;
@@ -326,6 +328,7 @@ class ModelCardWidget(QFrame):
             delete_btn = QPushButton(delete_text)
             delete_btn.setMinimumHeight(40)
             delete_btn.setMinimumWidth(200)
+            delete_btn.setToolTip("Delete this AI model from disk to free up space")
             delete_btn.setStyleSheet("""
                 QPushButton {
                     background-color: #f44336;

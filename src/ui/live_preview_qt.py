@@ -41,11 +41,13 @@ class LivePreviewWidget(QWidget):
         controls.addWidget(QLabel("View Mode:"))
         self.mode_combo = QComboBox()
         self.mode_combo.addItems(["Side by Side", "Toggle", "Overlay", "Single"])
+        self.mode_combo.setToolTip("Choose how to display the before/after comparison")
         self.mode_combo.currentTextChanged.connect(self.on_mode_changed)
         controls.addWidget(self.mode_combo)
         
         # Toggle button
         self.toggle_btn = QPushButton("Toggle View")
+        self.toggle_btn.setToolTip("Switch between the original and processed image")
         self.toggle_btn.clicked.connect(self.toggle_view)
         self.toggle_btn.setEnabled(False)
         controls.addWidget(self.toggle_btn)

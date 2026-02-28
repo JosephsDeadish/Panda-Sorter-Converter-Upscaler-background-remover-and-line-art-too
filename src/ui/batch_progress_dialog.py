@@ -259,6 +259,16 @@ class BatchProgressDialog:
             }
         """)
         self.cancel_button.clicked.connect(self._on_cancel_clicked)
+        _cancel_tip = "Stop the current batch operation"
+        try:
+            _tm = getattr(self.parent, 'tooltip_manager', None)
+            if _tm and hasattr(_tm, 'get_tooltip'):
+                _cancel_tip = _tm.get_tooltip('stop_button') or _cancel_tip
+            if _tm and hasattr(_tm, 'register'):
+                _tm.register(self.cancel_button, 'stop_button')
+        except Exception:
+            pass
+        self.cancel_button.setToolTip(_cancel_tip)
         button_layout.addWidget(self.cancel_button)
         
         button_layout.addStretch()
