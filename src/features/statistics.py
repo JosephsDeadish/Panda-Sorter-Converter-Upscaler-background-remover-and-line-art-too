@@ -123,6 +123,40 @@ class StatisticsTracker:
         if self.success_count > 0:
             self.average_file_size = self.total_bytes_processed // self.success_count
     
+    def record_batch_processed(
+        self,
+        count: int,
+        category: str = 'processed',
+        avg_file_size: int = 256 * 1024,  # 256 KB default — rough approximation
+        total_elapsed: float = 0.0,
+    ) -> None:
+        """Efficiently record a batch of successfully-processed files.
+
+        Avoids the O(count) loop of calling ``record_file_processed`` once per
+        file.  Updates all aggregate counters in O(1) time.
+
+        Args:
+            count: Number of files that were processed successfully.
+            category: Shared sort category for all files in the batch.
+            avg_file_size: Approximate bytes per file (default 256 KB).
+            total_elapsed: Total processing time for the whole batch in seconds.
+        """
+        if count <= 0:
+            return
+        total_bytes = avg_file_size * count
+        self.processed_files += count
+        self.success_count += count
+        self.category_counts[category] += count
+        self.category_sizes[category] += total_bytes
+        self.total_bytes_processed += total_bytes
+        if count > 0:
+            self.average_file_size = self.total_bytes_processed // self.success_count
+        per_file = total_elapsed / count if total_elapsed > 0 and count > 0 else 0.0
+        # Store a single representative timing entry rather than N duplicate values
+        if per_file > 0:
+            self.processing_times.append(per_file)
+        self.last_update_time = time.time()
+
     def record_skipped(self) -> None:
         """Record a file that was skipped."""
         self.skipped_files += 1

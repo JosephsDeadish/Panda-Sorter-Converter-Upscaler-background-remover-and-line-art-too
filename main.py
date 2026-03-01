@@ -1589,6 +1589,7 @@ class TextureSorterMainWindow(QMainWindow):
                 conv_panel.finished.connect(lambda ok, msg, cnt, _tid='converter': (
                     self.statusBar().showMessage(f"{'✅' if ok else '⚠️'} Converter: {msg} ({cnt} files)", 4000),
                     self._on_tool_finished(ok, _tid),
+                    self.operation_finished(ok, msg, cnt) if ok and cnt > 0 else None,
                 ))
                 tool_tab_defs.append((conv_panel, "🔄 Format Converter", 'converter'))
             except Exception as _e:
@@ -5069,23 +5070,20 @@ class TextureSorterMainWindow(QMainWindow):
             # Show statistics summary in log area
             try:
                 if self.statistics_tracker and files_processed > 0:
-                    # Populate the tracker with batch totals so get_summary() returns
-                    # meaningful per-operation throughput (not accumulated session data).
-                    import time as _time_mod
                     # Use the actual elapsed time from the operation panel when available;
                     # fall back to computing it from the tracker's start_time.
+                    import time as _time_mod
                     op_elapsed = elapsed_time if elapsed_time > 0 else (
                         _time_mod.time() - self.statistics_tracker.start_time
                     )
                     self.statistics_tracker.set_total_files(files_processed)
-                    per_file_time = op_elapsed / files_processed if files_processed else 0
-                    for _ in range(files_processed):
-                        self.statistics_tracker.record_file_processed(
-                            category='processed',
-                            file_size=256 * 1024,  # approximate 256 KB per file
-                            processing_time=per_file_time,
-                            success=True,
-                        )
+                    # Efficient O(1) batch update — avoids looping over every file.
+                    # avg_file_size 256 KB is a reasonable approximation for texture
+                    # files; actual sizes vary but this is sufficient for the log display.
+                    self.statistics_tracker.record_batch_processed(
+                        count=files_processed,
+                        total_elapsed=op_elapsed,
+                    )
                     rate = round(files_processed / op_elapsed, 1) if op_elapsed > 0 else 0
                     errors = self.statistics_tracker.error_count
                     self.log(
