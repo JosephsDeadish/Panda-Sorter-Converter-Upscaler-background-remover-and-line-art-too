@@ -140,6 +140,8 @@ class BackgroundRemoverPanelQt(QWidget):
         self.current_tool = "brush"
         self._temp_extract_dir = None  # Track temp directory for archive extraction
         self._rembg_temp_dirs: list = []  # Track rembg result temp dirs for cleanup
+        # Batch processing state
+        self._batch_files: list = []   # Path objects queued for batch removal
         
         # Undo/Redo history management
         self.edit_history = []
@@ -205,6 +207,47 @@ class BackgroundRemoverPanelQt(QWidget):
         file_layout.addWidget(save_btn)
 
         layout.addLayout(file_layout)
+
+        # ── Batch folder selection ─────────────────────────────────────────
+        batch_group = QGroupBox("📂 Batch Processing")
+        batch_vlayout = QVBoxLayout(batch_group)
+        batch_vlayout.setSpacing(4)
+
+        batch_btn_row = QHBoxLayout()
+        add_files_btn = QPushButton("🖼 Add Files")
+        add_files_btn.setToolTip("Add individual image files to the batch queue")
+        add_files_btn.clicked.connect(self._batch_add_files)
+        batch_btn_row.addWidget(add_files_btn)
+
+        add_folder_btn = QPushButton("📂 Add Folder")
+        add_folder_btn.setToolTip("Add all images from a folder to the batch queue")
+        add_folder_btn.clicked.connect(self._batch_add_folder)
+        batch_btn_row.addWidget(add_folder_btn)
+
+        clear_batch_btn = QPushButton("🗑 Clear")
+        clear_batch_btn.setToolTip("Clear the batch queue")
+        clear_batch_btn.clicked.connect(self._batch_clear)
+        batch_btn_row.addWidget(clear_batch_btn)
+        batch_vlayout.addLayout(batch_btn_row)
+
+        self._batch_recursive_cb = QCheckBox("📂 Process subfolders")
+        self._batch_recursive_cb.setChecked(False)
+        self._batch_recursive_cb.setToolTip("When adding a folder, also include images in sub-folders")
+        batch_vlayout.addWidget(self._batch_recursive_cb)
+
+        self._batch_count_lbl = QLabel("No files queued")
+        self._batch_count_lbl.setStyleSheet("color: #888; font-size: 10pt;")
+        batch_vlayout.addWidget(self._batch_count_lbl)
+
+        batch_run_row = QHBoxLayout()
+        self._batch_run_btn = QPushButton("▶ Process Batch")
+        self._batch_run_btn.setToolTip("Remove background from all queued images")
+        self._batch_run_btn.setEnabled(False)
+        self._batch_run_btn.clicked.connect(self._batch_process)
+        batch_run_row.addWidget(self._batch_run_btn)
+        batch_vlayout.addLayout(batch_run_row)
+
+        layout.addWidget(batch_group)
 
         # Archive options
         archive_layout = QHBoxLayout()
@@ -907,6 +950,129 @@ class BackgroundRemoverPanelQt(QWidget):
                 except Exception:
                     pass
         widget.setToolTip(str(widget_id_or_text))
+
+    # ── Batch processing ──────────────────────────────────────────────────────
+
+    _BATCH_IMAGE_EXTS = {
+        '.png', '.jpg', '.jpeg', '.bmp', '.tiff', '.tif',
+        '.webp', '.tga', '.gif', '.ico',
+    }
+
+    def _batch_add_files(self) -> None:
+        """Add individual image files to the batch queue."""
+        if not PYQT_AVAILABLE:
+            return
+        exts_str = " ".join(f"*{e}" for e in sorted(self._BATCH_IMAGE_EXTS))
+        paths, _ = QFileDialog.getOpenFileNames(
+            self, "Select Images", "",
+            f"Images ({exts_str});;All files (*.*)"
+        )
+        if not paths:
+            return
+        existing = {str(p) for p in self._batch_files}
+        added = [Path(p) for p in paths if p not in existing]
+        self._batch_files.extend(added)
+        self._update_batch_ui()
+
+    def _batch_add_folder(self) -> None:
+        """Add all images from a folder (optionally recursive) to the batch queue."""
+        if not PYQT_AVAILABLE:
+            return
+        folder = QFileDialog.getExistingDirectory(self, "Select Folder")
+        if not folder:
+            return
+        folder_path = Path(folder)
+        recursive = hasattr(self, '_batch_recursive_cb') and self._batch_recursive_cb.isChecked()
+        pattern = '**/*' if recursive else '*'
+        new_files = []
+        for ext in self._BATCH_IMAGE_EXTS:
+            new_files.extend(folder_path.glob(f'{pattern}{ext}'))
+            new_files.extend(folder_path.glob(f'{pattern}{ext.upper()}'))
+        existing = {str(p) for p in self._batch_files}
+        added = [p for p in sorted(set(new_files)) if str(p) not in existing]
+        self._batch_files.extend(added)
+        self._update_batch_ui()
+
+    def _batch_clear(self) -> None:
+        """Clear the batch queue."""
+        self._batch_files.clear()
+        self._update_batch_ui()
+
+    def _update_batch_ui(self) -> None:
+        """Refresh the batch count label and run-button enabled state."""
+        n = len(self._batch_files)
+        if hasattr(self, '_batch_count_lbl'):
+            if n == 0:
+                self._batch_count_lbl.setText("No files queued")
+                self._batch_count_lbl.setStyleSheet("color: #888; font-size: 10pt;")
+            else:
+                self._batch_count_lbl.setText(f"{n} file{'s' if n != 1 else ''} queued")
+                self._batch_count_lbl.setStyleSheet("color: green; font-weight: bold; font-size: 10pt;")
+        if hasattr(self, '_batch_run_btn'):
+            self._batch_run_btn.setEnabled(n > 0)
+
+    def _batch_process(self) -> None:
+        """Remove background from all queued images and save alongside originals.
+
+        Each output is saved as ``<original_stem>_nobg.png`` in the same folder
+        as the source image.  A summary message box reports success / failure.
+        """
+        if not self._batch_files:
+            return
+        if not PYQT_AVAILABLE:
+            return
+
+        done, errors = 0, 0
+        error_msgs: list = []
+        for fp in list(self._batch_files):
+            try:
+                out_path = fp.parent / f"{fp.stem}_nobg.png"
+                # Try rembg first
+                removed = None
+                try:
+                    from tools.object_remover import get_rembg
+                    rembg_fn, _ = get_rembg()
+                    if rembg_fn is not None and PIL_AVAILABLE:
+                        with fp.open('rb') as fh:
+                            removed_bytes = rembg_fn(fh.read())
+                        import io
+                        removed = Image.open(io.BytesIO(removed_bytes)).convert('RGBA')
+                except Exception:
+                    pass
+                # ONNX fallback
+                if removed is None and PIL_AVAILABLE:
+                    try:
+                        import sys as _sys
+                        import os as _os
+                        exe_dir = _os.path.dirname(_sys.executable)
+                        candidates = [
+                            _os.path.join(exe_dir, 'app_data', 'models', 'u2net.onnx'),
+                            _os.path.join('app_data', 'models', 'u2net.onnx'),
+                        ]
+                        model_path = next((c for c in candidates if _os.path.isfile(c)), None)
+                        if model_path:
+                            removed = _remove_bg_onnx(Image.open(fp), model_path)
+                    except Exception:
+                        pass
+                if removed is None:
+                    raise RuntimeError("No background-removal backend available "
+                                       "(rembg and ONNX model both unavailable)")
+                removed.save(str(out_path), format='PNG')
+                done += 1
+            except Exception as exc:
+                errors += 1
+                error_msgs.append(f"{fp.name}: {exc}")
+                logger.warning(f"Batch bg remove failed for {fp}: {exc}")
+
+        self._batch_files.clear()
+        self._update_batch_ui()
+
+        summary = f"✅ {done} image{'s' if done != 1 else ''} processed"
+        if errors:
+            summary += f"\n❌ {errors} failed:\n" + "\n".join(error_msgs[:5])
+            if len(error_msgs) > 5:
+                summary += f"\n… and {len(error_msgs) - 5} more"
+        QMessageBox.information(self, "Batch Complete", summary)
 
     def closeEvent(self, event):
         """Clean up temp directories created during background removal."""

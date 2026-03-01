@@ -3741,6 +3741,83 @@ def test_timm_bundled_in_spec():
     print("  ✅ build_spec_onefolder.spec: timm in collect_all() loop")
 
 
+def test_bg_remover_batch_folder_support():
+    """BackgroundRemoverPanelQt must support batch folder/file selection.
+
+    Issue #198: upscaler and other tools were missing folder/subfolder
+    selection.  The background remover also lacked any batch processing UI —
+    users could only process one image at a time.
+
+    Required additions:
+    1. _batch_files list attribute initialized in __init__
+    2. _batch_add_folder() method with recursive checkbox support
+    3. _batch_add_files() method for multi-file selection
+    4. _batch_process() method that saves <stem>_nobg.png output files
+    5. _batch_recursive_cb checkbox in the UI
+    """
+    print("\ntest_bg_remover_batch_folder_support ...")
+    from pathlib import Path
+    import ast
+
+    src_path = Path(__file__).parent / 'src' / 'ui' / 'background_remover_panel_qt.py'
+    code = src_path.read_text(encoding='utf-8')
+    tree = ast.parse(code)
+
+    # Find BackgroundRemoverPanelQt class
+    bg_class = None
+    for node in ast.walk(tree):
+        if isinstance(node, ast.ClassDef) and node.name == 'BackgroundRemoverPanelQt':
+            bg_class = node
+            break
+    assert bg_class is not None, "BackgroundRemoverPanelQt class not found"
+
+    # Collect all method names in the class
+    methods = {n.name for n in ast.walk(bg_class) if isinstance(n, ast.FunctionDef)}
+
+    assert '_batch_add_folder' in methods, (
+        "BackgroundRemoverPanelQt is missing _batch_add_folder().\n"
+        "Add a method that opens a folder picker and appends images to self._batch_files."
+    )
+    print("  ✅ Source: _batch_add_folder() method present")
+
+    assert '_batch_add_files' in methods, (
+        "BackgroundRemoverPanelQt is missing _batch_add_files().\n"
+        "Add a method that opens a multi-file picker and appends to self._batch_files."
+    )
+    print("  ✅ Source: _batch_add_files() method present")
+
+    assert '_batch_process' in methods, (
+        "BackgroundRemoverPanelQt is missing _batch_process().\n"
+        "Add a method that processes all _batch_files and saves <stem>_nobg.png outputs."
+    )
+    print("  ✅ Source: _batch_process() method present")
+
+    # _batch_files must be initialized in __init__
+    assert '_batch_files' in code, (
+        "BackgroundRemoverPanelQt: _batch_files list not found.\n"
+        "Add self._batch_files: list = [] in __init__."
+    )
+    print("  ✅ Source: _batch_files list initialized")
+
+    # Recursive checkbox
+    assert '_batch_recursive_cb' in code, (
+        "BackgroundRemoverPanelQt: _batch_recursive_cb checkbox not found.\n"
+        "Add a 'Process subfolders' QCheckBox so users can recurse into sub-folders."
+    )
+    print("  ✅ Source: _batch_recursive_cb checkbox present")
+
+    # _batch_process must save _nobg.png
+    bp_src = ''
+    for node in ast.walk(bg_class):
+        if isinstance(node, ast.FunctionDef) and node.name == '_batch_process':
+            bp_src = ast.unparse(node)
+    assert '_nobg' in bp_src, (
+        "_batch_process() does not output _nobg.png files.\n"
+        "Save results as <original_stem>_nobg.png."
+    )
+    print("  ✅ Source: _batch_process() saves _nobg.png output files")
+
+
 def run_all_tests():
     print("=" * 65)
     print("Hybrid Architecture + Lazy rembg Import Tests")
@@ -3828,6 +3905,7 @@ def run_all_tests():
         test_file_browser_close_event_stops_thread,
         test_avif_plugin_auto_registered,
         test_timm_bundled_in_spec,
+        test_bg_remover_batch_folder_support,
     ]
 
     passed, failed = [], []
