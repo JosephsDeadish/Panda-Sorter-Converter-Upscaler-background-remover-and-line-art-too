@@ -714,6 +714,98 @@ class AchievementSystem:
             reward={'type': 'currency', 'amount': 40, 'description': '40 Bamboo Bucks'}
         ),
 
+        # Alpha Fixer achievements
+        'alpha_rookie': Achievement(
+            id='alpha_rookie',
+            name='Transparent Talent',
+            description='Fix alpha channels on 10 images',
+            tier=AchievementTier.BRONZE,
+            points=15,
+            icon='✨',
+            category='tools',
+            progress_max=10,
+            reward={'type': 'currency', 'amount': 50, 'description': '50 Bamboo Bucks'}
+        ),
+        'alpha_pro': Achievement(
+            id='alpha_pro',
+            name='Alpha Master',
+            description='Fix alpha channels on 100 images',
+            tier=AchievementTier.SILVER,
+            points=40,
+            icon='✨',
+            category='tools',
+            progress_max=100,
+            reward={'type': 'currency', 'amount': 200, 'description': '200 Bamboo Bucks'}
+        ),
+        # Color Correction achievements
+        'color_rookie': Achievement(
+            id='color_rookie',
+            name='Colour Curious',
+            description='Colour-correct 10 images',
+            tier=AchievementTier.BRONZE,
+            points=15,
+            icon='🎨',
+            category='tools',
+            progress_max=10,
+            reward={'type': 'currency', 'amount': 50, 'description': '50 Bamboo Bucks'}
+        ),
+        'color_master': Achievement(
+            id='color_master',
+            name='Colour Maestro',
+            description='Colour-correct 100 images',
+            tier=AchievementTier.SILVER,
+            points=40,
+            icon='🎨',
+            category='tools',
+            progress_max=100,
+            reward={'type': 'currency', 'amount': 200, 'description': '200 Bamboo Bucks'}
+        ),
+        # Image Repair achievements
+        'repair_rookie': Achievement(
+            id='repair_rookie',
+            name='First Aid',
+            description='Repair 10 corrupted images',
+            tier=AchievementTier.BRONZE,
+            points=15,
+            icon='🔧',
+            category='tools',
+            progress_max=10,
+            reward={'type': 'currency', 'amount': 50, 'description': '50 Bamboo Bucks'}
+        ),
+        'repair_expert': Achievement(
+            id='repair_expert',
+            name='Restoration Expert',
+            description='Repair 100 corrupted images',
+            tier=AchievementTier.SILVER,
+            points=40,
+            icon='🔧',
+            category='tools',
+            progress_max=100,
+            reward={'type': 'currency', 'amount': 200, 'description': '200 Bamboo Bucks'}
+        ),
+        # Batch Rename achievements
+        'rename_rookie': Achievement(
+            id='rename_rookie',
+            name='Name Game',
+            description='Batch-rename 50 files',
+            tier=AchievementTier.BRONZE,
+            points=15,
+            icon='📝',
+            category='tools',
+            progress_max=50,
+            reward={'type': 'currency', 'amount': 50, 'description': '50 Bamboo Bucks'}
+        ),
+        'rename_master': Achievement(
+            id='rename_master',
+            name='Master Renamer',
+            description='Batch-rename 500 files',
+            tier=AchievementTier.SILVER,
+            points=40,
+            icon='📝',
+            category='tools',
+            progress_max=500,
+            reward={'type': 'currency', 'amount': 200, 'description': '200 Bamboo Bucks'}
+        ),
         # Minigame achievements
         'first_game': Achievement(
             id='first_game',
@@ -923,6 +1015,10 @@ class AchievementSystem:
         self.total_lineart_converted = 0
         self.total_files_converted = 0
         self.total_quality_checked = 0
+        self.total_alpha_fixed = 0
+        self.total_color_corrected = 0
+        self.total_images_repaired = 0
+        self.total_files_renamed = 0
         
         # Initialize achievements
         self._initialize_achievements()
@@ -1139,6 +1235,30 @@ class AchievementSystem:
         self.total_quality_checked += count
         self.update_progress('quality_inspector', self.total_quality_checked)
 
+    def increment_alpha_fixed(self, count: int = 1) -> None:
+        """Increment alpha-fixed image count and update related achievements."""
+        self.total_alpha_fixed += count
+        self.update_progress('alpha_rookie', self.total_alpha_fixed)
+        self.update_progress('alpha_pro', self.total_alpha_fixed)
+
+    def increment_color_corrected(self, count: int = 1) -> None:
+        """Increment colour-corrected image count and update related achievements."""
+        self.total_color_corrected += count
+        self.update_progress('color_rookie', self.total_color_corrected)
+        self.update_progress('color_master', self.total_color_corrected)
+
+    def increment_images_repaired(self, count: int = 1) -> None:
+        """Increment repaired image count and update related achievements."""
+        self.total_images_repaired += count
+        self.update_progress('repair_rookie', self.total_images_repaired)
+        self.update_progress('repair_expert', self.total_images_repaired)
+
+    def increment_files_renamed(self, count: int = 1) -> None:
+        """Increment batch-renamed file count and update related achievements."""
+        self.total_files_renamed += count
+        self.update_progress('rename_rookie', self.total_files_renamed)
+        self.update_progress('rename_master', self.total_files_renamed)
+
     def get_achievement(self, achievement_id: str) -> Optional[Achievement]:
         """
         Get achievement by ID.
@@ -1305,6 +1425,10 @@ class AchievementSystem:
                     'total_lineart_converted': self.total_lineart_converted,
                     'total_files_converted': self.total_files_converted,
                     'total_quality_checked': self.total_quality_checked,
+                    'total_alpha_fixed': self.total_alpha_fixed,
+                    'total_color_corrected': self.total_color_corrected,
+                    'total_images_repaired': self.total_images_repaired,
+                    'total_files_renamed': self.total_files_renamed,
                 },
                 'achievements': {}
             }
@@ -1361,6 +1485,10 @@ class AchievementSystem:
             self.total_lineart_converted = stats.get('total_lineart_converted', 0)
             self.total_files_converted = stats.get('total_files_converted', 0)
             self.total_quality_checked = stats.get('total_quality_checked', 0)
+            self.total_alpha_fixed = stats.get('total_alpha_fixed', 0)
+            self.total_color_corrected = stats.get('total_color_corrected', 0)
+            self.total_images_repaired = stats.get('total_images_repaired', 0)
+            self.total_files_renamed = stats.get('total_files_renamed', 0)
             
             # Load achievement data
             achievements_data = save_data.get('achievements', {})
