@@ -467,7 +467,7 @@ class ConversionWorker(QThread):
 class _FormatConversionWorker(QThread):
     """Worker thread for batch conversion with configurable output format and optional colour layer."""
     progress = pyqtSignal(int, int, str)  # current, total, filename
-    finished = pyqtSignal(bool, str)      # success, message
+    finished = pyqtSignal(bool, str, int)  # success, message, files_processed
 
     # PIL save kwargs per extension
     _SAVE_KWARGS: dict = {
@@ -496,7 +496,7 @@ class _FormatConversionWorker(QThread):
             skipped = 0
             for i, filepath in enumerate(self.files):
                 if self.isInterruptionRequested():
-                    self.finished.emit(False, f"Cancelled after converting {done} image(s)")
+                    self.finished.emit(False, f"Cancelled after converting {done} image(s)", done)
                     return
                 src = Path(filepath)
                 self.progress.emit(i + 1, len(self.files), src.name)
@@ -541,16 +541,16 @@ class _FormatConversionWorker(QThread):
             parts = [f"Converted {done} image{'s' if done != 1 else ''}"]
             if skipped:
                 parts.append(f"{skipped} skipped (already existed)")
-            self.finished.emit(True, ", ".join(parts) + " successfully")
+            self.finished.emit(True, ", ".join(parts) + " successfully", done)
         except Exception as e:
             logger.error(f"Batch conversion failed: {e}")
-            self.finished.emit(False, f"Conversion failed: {str(e)}")
+            self.finished.emit(False, f"Conversion failed: {str(e)}", 0)
 
 
 class LineArtConverterPanelQt(QWidget):
     """PyQt6 panel for line art conversion."""
 
-    finished = pyqtSignal(bool, str)  # success, message
+    finished = pyqtSignal(bool, str, int)  # success, message, files_processed
     error = pyqtSignal(str)           # error message
 
     def __init__(self, parent=None, tooltip_manager=None):
@@ -1644,7 +1644,7 @@ class LineArtConverterPanelQt(QWidget):
         self.progress_bar.setValue(progress)
         self.progress_label.setText(f"Converting {current}/{total}: {filename}")
     
-    def _on_conversion_finished(self, success, message):
+    def _on_conversion_finished(self, success, message, files_processed: int = 0):
         """Handle conversion completion."""
         self.progress_bar.setVisible(False)
         self.convert_button.setEnabled(True)
@@ -1658,7 +1658,7 @@ class LineArtConverterPanelQt(QWidget):
         else:
             QMessageBox.critical(self, "Error", message)
             self.progress_label.setText("✗ Conversion failed")
-        self.finished.emit(success, message)
+        self.finished.emit(success, message, files_processed)
 
     def _cancel_batch(self):
         """Cancel the running batch conversion."""

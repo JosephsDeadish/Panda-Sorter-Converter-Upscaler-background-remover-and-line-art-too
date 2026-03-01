@@ -1544,9 +1544,10 @@ class TextureSorterMainWindow(QMainWindow):
                 line_panel = LineArtConverterPanelQt(tooltip_manager=self.tooltip_manager)
                 line_panel.error.connect(
                     lambda msg: self.statusBar().showMessage(f"❌ Line Art: {msg}", 5000))
-                line_panel.finished.connect(lambda ok, msg, _tid='lineart': (
+                line_panel.finished.connect(lambda ok, msg, cnt, _tid='lineart': (
                     self.statusBar().showMessage(f"{'✅' if ok else '❌'} Line Art: {msg}", 4000),
                     self._on_tool_finished(ok, _tid),
+                    self.operation_finished(ok, msg, cnt) if ok and cnt > 0 else None,
                 ))
                 tool_tab_defs.append((line_panel, "✏️ Line Art", 'lineart'))
             except Exception as _e:
