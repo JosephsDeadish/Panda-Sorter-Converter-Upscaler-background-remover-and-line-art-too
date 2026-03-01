@@ -1143,6 +1143,20 @@ class TransparentPandaOverlay(QOpenGLWidget if PYQT_AVAILABLE else QWidget):
             if abs(item['velocity'][0]) > 0.01 or abs(item['velocity'][2]) > 0.01:
                 item['rotation'] += 100.0 * delta_time
 
+    def set_trail(self, trail_type: str, trail_data: dict) -> None:
+        """Accept trail configuration from the customization panel.
+
+        The trail type is stored and forwarded to the panda_moved signal
+        listener (if any).  Visual rendering of the overlay panda trail
+        is handled by whoever connects to panda_moved.
+        """
+        self._trail_type = trail_type.lower() if trail_type else 'none'
+        self._trail_active = self._trail_type not in ('none', 'off', 'disabled', '')
+        logger.debug(
+            "TransparentPandaOverlay.set_trail: active=%s type=%s",
+            self._trail_active, self._trail_type,
+        )
+
 # Convenience function
 def create_transparent_overlay(parent, main_window=None):
     """

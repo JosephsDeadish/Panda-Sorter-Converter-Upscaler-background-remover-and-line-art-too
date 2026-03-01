@@ -5489,11 +5489,17 @@ class TextureSorterMainWindow(QMainWindow):
         """Handle trail changes from customization panel."""
         try:
             logger.info(f"Customization: trail changed to {trail_type} with settings {trail_data}")
-            
-            # Apply the trail change to the panda widget if it has the method
+
+            # Apply to sidebar panda widget
             if hasattr(self.panda_widget, 'set_trail'):
                 self.panda_widget.set_trail(trail_type, trail_data)
-            
+
+            # Apply to floating overlay panda (if present and different from panda_widget)
+            _overlay = getattr(self, 'panda_overlay', None)
+            if _overlay is not None and _overlay is not self.panda_widget:
+                if hasattr(_overlay, 'set_trail'):
+                    _overlay.set_trail(trail_type, trail_data)
+
         except Exception as e:
             logger.error(f"Error handling customization trail change: {e}", exc_info=True)
     
