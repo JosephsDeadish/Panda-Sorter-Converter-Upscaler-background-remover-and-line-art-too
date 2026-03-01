@@ -115,6 +115,7 @@ class ClosetItemDetailDialog:
             "background:#444; color:#ccc; padding:9px 20px;"
             " border-radius:6px; font-size:12px;"
         )
+        close_btn.setToolTip("Close this detail view")
         close_btn.clicked.connect(dlg.reject)
         btn_row.addWidget(close_btn)
 
@@ -124,6 +125,7 @@ class ClosetItemDetailDialog:
                 "background:#4CAF50; color:white; padding:9px 20px;"
                 " border-radius:6px; font-size:12px; font-weight:bold;"
             )
+            equip_btn.setToolTip("Equip this item on your panda")
             equip_btn.clicked.connect(lambda: (
                 setattr(self, 'equip_requested', True),
                 dlg.accept(),

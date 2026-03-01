@@ -125,7 +125,8 @@ class ImageQualityChecker:
     
     def __init__(self):
         """Initialize the quality checker."""
-        self.has_cv2 = HAS_CV2
+        # cv2 requires numpy — treat both as unavailable if either is missing
+        self.has_cv2 = HAS_CV2 and HAS_NUMPY
     
     def check_quality(self, image_path: str, options: Optional[QualityCheckOptions] = None) -> QualityReport:
         """

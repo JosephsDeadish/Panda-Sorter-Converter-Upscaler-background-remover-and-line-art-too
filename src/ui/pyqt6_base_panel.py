@@ -275,6 +275,7 @@ class BasePyQtPanel(QWidget):
         layout = QHBoxLayout()
         for text, callback in button_configs:
             button = QPushButton(text)
+            button.setToolTip(text)
             button.clicked.connect(callback)
             layout.addWidget(button)
         return layout
@@ -384,6 +385,7 @@ class BasePyQtPanel(QWidget):
     def stop_worker(self):
         """Stop the worker thread if running."""
         if self.worker_thread and self.worker_thread.isRunning():
+            self.worker_thread.requestInterruption()
             self.worker_thread.quit()
             self.worker_thread.wait()
 
@@ -409,6 +411,7 @@ class ExamplePanel(BasePyQtPanel):
         self.file_input.setPlaceholderText("No file selected")
         browse_btn = QPushButton("Browse...")
         browse_btn.clicked.connect(self._browse_input_file)
+        self._set_tooltip(browse_btn, 'input_browse')
         
         file_layout.addWidget(QLabel("Input File:"))
         file_layout.addWidget(self.file_input, 1)

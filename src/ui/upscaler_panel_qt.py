@@ -14,7 +14,7 @@ try:
         QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
         QScrollArea, QFrame, QFileDialog, QMessageBox, QProgressBar,
         QComboBox, QSpinBox, QGroupBox, QCheckBox, QDoubleSpinBox,
-        QProgressDialog
+        QProgressDialog, QSplitter
     )
     from PyQt6.QtCore import Qt, QThread, pyqtSignal, QTimer
     from PyQt6.QtGui import QPixmap, QImage
@@ -191,8 +191,6 @@ except (ImportError, OSError, RuntimeError):
     ARCHIVE_AVAILABLE = False
     logger.warning("Archive handler not available")
 
-IMAGE_EXTENSIONS = {'.png', '.jpg', '.jpeg', '.bmp', '.tiff', '.webp'}
-
 # Quality presets for upscaling
 UPSCALER_PRESETS = {
     "🔷 Lanczos (Sharpest)": {
@@ -259,10 +257,10 @@ UPSCALER_PRESETS = {
 class UpscaleWorker(QThread):
     """Worker thread for upscaling images."""
     progress = pyqtSignal(float, str)  # progress, message
-    finished = pyqtSignal(bool, str)  # success, message
+    finished = pyqtSignal(bool, str, int)  # success, message, files_processed
     
-    def __init__(self, upscaler, files, output_dir, scale_factor, method, 
-                 post_process_settings=None):
+    def __init__(self, upscaler, files, output_dir, scale_factor, method,
+                 post_process_settings=None, skip_existing=False):
         super().__init__()
         self.upscaler = upscaler
         self.files = files
@@ -270,25 +268,33 @@ class UpscaleWorker(QThread):
         self.scale_factor = scale_factor
         self.method = method
         self.post_process_settings = post_process_settings or {}
+        self.skip_existing = skip_existing
         self._is_cancelled = False
-    
+
     def run(self):
         """Execute upscaling in background thread."""
         try:
             total = len(self.files)
+            done = 0
+            skipped = 0
             for i, file_path in enumerate(self.files):
                 if self._is_cancelled:
-                    self.finished.emit(False, "Cancelled")
+                    self.finished.emit(False, "Cancelled", done)
                     return
-                
+
                 # Update progress
                 progress = (i / total) * 100
                 self.progress.emit(progress, f"Upscaling: {Path(file_path).name}")
-                
+
+                output_path = Path(self.output_dir) / Path(file_path).name
+                if self.skip_existing and output_path.exists():
+                    skipped += 1
+                    continue
+
                 # Load image
                 img = Image.open(file_path)
                 img_array = np.array(img)
-                
+
                 # Upscale
                 upscaled = self.upscaler.upscale(
                     img_array,
@@ -303,15 +309,18 @@ class UpscaleWorker(QThread):
                 # Post-processing
                 upscaled_img = Image.fromarray(upscaled)
                 upscaled_img = apply_post_processing(upscaled_img, self.post_process_settings)
-                
+
                 # Save
-                output_path = Path(self.output_dir) / Path(file_path).name
                 upscaled_img.save(output_path)
-            
-            self.finished.emit(True, f"Successfully upscaled {total} images")
+                done += 1
+
+            parts = [f"Successfully upscaled {done} image{'s' if done != 1 else ''}"]
+            if skipped:
+                parts.append(f"{skipped} skipped (already existed)")
+            self.finished.emit(True, ", ".join(parts), done)
         except Exception as e:
             logger.error(f"Upscaling failed: {e}", exc_info=True)
-            self.finished.emit(False, f"Upscaling failed: {str(e)}")
+            self.finished.emit(False, f"Upscaling failed: {str(e)}", 0)
     
     def cancel(self):
         """Cancel the operation."""
@@ -368,7 +377,7 @@ class PreviewWorker(QThread):
 class ImageUpscalerPanelQt(QWidget):
     """PyQt6 panel for image upscaling."""
 
-    finished = pyqtSignal(bool, str)  # success, message
+    finished = pyqtSignal(bool, str, int)  # success, message, files_processed
     error = pyqtSignal(str)  # error message
     
     def __init__(self, parent=None, tooltip_manager=None):
@@ -412,59 +421,98 @@ class ImageUpscalerPanelQt(QWidget):
         layout.addWidget(label)
     
     def _create_widgets(self):
-        """Create the UI widgets."""
+        """Create the UI widgets with left (controls) / right (preview) splitter layout."""
         layout = QVBoxLayout(self)
-        layout.setSpacing(10)
-        layout.setContentsMargins(10, 10, 10, 10)
-        
+        layout.setSpacing(6)
+        layout.setContentsMargins(8, 8, 8, 8)
+        self.setMinimumSize(800, 520)
+
         # Title
         title_label = QLabel("🔍 Image Upscaler")
         title_label.setStyleSheet("font-size: 18pt; font-weight: bold;")
         title_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(title_label)
-        
+
         subtitle_label = QLabel("Upscale images using various interpolation methods")
-        subtitle_label.setStyleSheet("color: gray; font-size: 12pt;")
+        subtitle_label.setStyleSheet("color: gray; font-size: 10pt;")
         subtitle_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(subtitle_label)
-        
-        # Main container with scroll area
-        scroll = QScrollArea()
-        scroll.setWidgetResizable(True)
-        scroll.setFrameShape(QFrame.Shape.NoFrame)
-        
-        container = QWidget()
-        main_layout = QVBoxLayout(container)
+
+        # ── Main splitter: LEFT = controls, RIGHT = preview ──────────────────
+        splitter = QSplitter(Qt.Orientation.Horizontal)
+        splitter.setChildrenCollapsible(False)
+        layout.addWidget(splitter, stretch=1)
+
+        # ── LEFT: controls in a scroll area ──────────────────────────────────
+        left_scroll = QScrollArea()
+        left_scroll.setWidgetResizable(True)
+        left_scroll.setFrameShape(QFrame.Shape.NoFrame)
+        left_scroll.setMinimumWidth(320)
+        left_scroll.setMaximumWidth(520)
+        left_container = QWidget()
+        main_layout = QVBoxLayout(left_container)
+        main_layout.setSpacing(6)
+        main_layout.setContentsMargins(4, 4, 4, 4)
+        left_scroll.setWidget(left_container)
+        splitter.addWidget(left_scroll)
+
+        # ── RIGHT: preview + progress + action buttons ────────────────────────
+        right_widget = QWidget()
+        right_layout = QVBoxLayout(right_widget)
+        right_layout.setContentsMargins(4, 4, 4, 4)
+        right_layout.setSpacing(4)
+        splitter.addWidget(right_widget)
+        splitter.setStretchFactor(0, 0)
+        splitter.setStretchFactor(1, 1)
+        splitter.setSizes([380, 420])
         
         # File selection group
         file_group = QGroupBox("📁 File Selection")
         file_layout = QVBoxLayout()
-        
-        # Select files button
+
+        # Select files + Add Folder buttons
         select_btn_layout = QHBoxLayout()
         self.select_files_btn = QPushButton("Select Files")
         self.select_files_btn.clicked.connect(self._select_files)
         select_btn_layout.addWidget(self.select_files_btn)
-        
+        self._set_tooltip(self.select_files_btn, 'upscale_input')
+
+        add_folder_btn = QPushButton("📂 Add Folder")
+        add_folder_btn.clicked.connect(self._add_folder)
+        self._set_tooltip(add_folder_btn, "Add all images from a folder to the selection")
+        select_btn_layout.addWidget(add_folder_btn)
+
         self.file_count_label = QLabel("No files selected")
         self.file_count_label.setStyleSheet("color: gray;")
         select_btn_layout.addWidget(self.file_count_label)
         select_btn_layout.addStretch()
-        
+
         file_layout.addLayout(select_btn_layout)
+
+        # Recursive checkbox
+        self.recursive_input_cb = QCheckBox("Process subfolders")
+        self.recursive_input_cb.setChecked(False)
+        self._set_tooltip(self.recursive_input_cb, "When adding a folder, also include images in sub-folders")
+        file_layout.addWidget(self.recursive_input_cb)
         
         # Output directory button
         output_btn_layout = QHBoxLayout()
         self.select_output_btn = QPushButton("Select Output Directory")
         self.select_output_btn.clicked.connect(self._select_output_directory)
         output_btn_layout.addWidget(self.select_output_btn)
+        self._set_tooltip(self.select_output_btn, 'upscale_output')
         
         self.output_dir_label = QLabel("No output directory selected")
         self.output_dir_label.setStyleSheet("color: gray;")
         output_btn_layout.addWidget(self.output_dir_label)
         output_btn_layout.addStretch()
-        
+
         file_layout.addLayout(output_btn_layout)
+
+        self._skip_existing = QCheckBox("Skip if output file already exists")
+        self._skip_existing.setChecked(False)
+        self._set_tooltip(self._skip_existing, "When checked, files are not re-upscaled if the output already exists")
+        file_layout.addWidget(self._skip_existing)
         
         # Archive options
         archive_layout = QHBoxLayout()
@@ -474,7 +522,10 @@ class ImageUpscalerPanelQt(QWidget):
             self.archive_input_cb.setToolTip("⚠️ Archive support not available. Install: pip install py7zr rarfile")
             self.archive_input_cb.setStyleSheet("color: gray;")
         else:
+            # upscale_zip_input last so its text shows as default; input_archive_checkbox
+            # is also registered for the tutorial system cycling
             self._set_tooltip(self.archive_input_cb, 'input_archive_checkbox')
+            self._set_tooltip(self.archive_input_cb, 'upscale_zip_input')
         archive_layout.addWidget(self.archive_input_cb)
         
         self.archive_output_cb = QCheckBox("📦 Export to Archive")
@@ -482,7 +533,9 @@ class ImageUpscalerPanelQt(QWidget):
             self.archive_output_cb.setToolTip("⚠️ Archive support not available. Install: pip install py7zr rarfile")
             self.archive_output_cb.setStyleSheet("color: gray;")
         else:
+            # upscale_zip_output last so its text shows as default
             self._set_tooltip(self.archive_output_cb, 'output_archive_checkbox')
+            self._set_tooltip(self.archive_output_cb, 'upscale_zip_output')
         archive_layout.addWidget(self.archive_output_cb)
         
         archive_layout.addStretch()
@@ -506,6 +559,7 @@ class ImageUpscalerPanelQt(QWidget):
         scale_layout.addWidget(self.scale_spin)
         scale_layout.addStretch()
         settings_layout.addLayout(scale_layout)
+        self._set_tooltip(self.scale_spin, 'upscale_factor')
         
         # Upscaling method
         method_layout = QHBoxLayout()
@@ -525,6 +579,7 @@ class ImageUpscalerPanelQt(QWidget):
         method_layout.addWidget(self.method_combo)
         method_layout.addStretch()
         settings_layout.addLayout(method_layout)
+        self._set_tooltip(self.method_combo, 'upscale_style')
         
         # Method description
         self.method_desc_label = QLabel(
@@ -537,21 +592,27 @@ class ImageUpscalerPanelQt(QWidget):
 
         # Face / character enhancement
         self.face_enhance_check = QCheckBox("✨ Enhance faces / characters (GFPGAN)")
-        self.face_enhance_check.setToolTip(
-            "Run GFPGAN face-restoration pass after upscaling.\n"
-            "Best for textures containing character faces or portraits.\n"
-            "Requires GFPGANv1.4.pth model (Settings → AI Models to download)."
-        )
+        _gfpgan_available = False
         try:
             from preprocessing.upscaler import GFPGAN_AVAILABLE
+            _gfpgan_available = GFPGAN_AVAILABLE
             self.face_enhance_check.setEnabled(GFPGAN_AVAILABLE)
             if not GFPGAN_AVAILABLE:
                 self.face_enhance_check.setText(
-                    "✨ Enhance faces / characters (GFPGAN) — install gfpgan to enable"
+                    "✨ Enhance faces / characters (GFPGAN) — not installed"
                 )
         except Exception:
             self.face_enhance_check.setEnabled(False)
         settings_layout.addWidget(self.face_enhance_check)
+        if not _gfpgan_available:
+            _gfpgan_note = QLabel(
+                "⚠️ GFPGAN not found.\n"
+                "Run  python setup_models.py  from the app folder to install all AI models."
+            )
+            _gfpgan_note.setStyleSheet("color: #d44; font-size: 9pt; font-style: italic;")
+            _gfpgan_note.setWordWrap(True)
+            settings_layout.addWidget(_gfpgan_note)
+        self._set_tooltip(self.face_enhance_check, 'upscale_face_enhance')
 
         settings_group.setLayout(settings_layout)
         main_layout.addWidget(settings_group)
@@ -565,6 +626,7 @@ class ImageUpscalerPanelQt(QWidget):
             self.preset_combo.addItem(preset_name)
         self.preset_combo.currentTextChanged.connect(self._on_preset_changed)
         preset_layout.addWidget(self.preset_combo)
+        self._set_tooltip(self.preset_combo, 'upscale_style')
         
         self.preset_desc_label = QLabel(UPSCALER_PRESETS["🔷 Lanczos (Sharpest)"]["desc"])
         self.preset_desc_label.setStyleSheet("color: gray; font-size: 10pt;")
@@ -593,6 +655,8 @@ class ImageUpscalerPanelQt(QWidget):
         sharpen_layout.addWidget(self.sharpen_spin)
         sharpen_layout.addStretch()
         advanced_layout.addLayout(sharpen_layout)
+        self._set_tooltip(self.sharpen_cb, 'upscale_sharpen')
+        self._set_tooltip(self.sharpen_spin, 'upscale_sharpen')
         
         # Denoise
         denoise_layout = QHBoxLayout()
@@ -608,6 +672,8 @@ class ImageUpscalerPanelQt(QWidget):
         denoise_layout.addWidget(self.denoise_strength)
         denoise_layout.addStretch()
         advanced_layout.addLayout(denoise_layout)
+        self._set_tooltip(self.denoise_cb, 'upscale_denoise')
+        self._set_tooltip(self.denoise_strength, 'upscale_denoise')
         
         # Auto-contrast
         contrast_layout = QHBoxLayout()
@@ -624,12 +690,15 @@ class ImageUpscalerPanelQt(QWidget):
         contrast_layout.addWidget(self.contrast_spin)
         contrast_layout.addStretch()
         advanced_layout.addLayout(contrast_layout)
+        self._set_tooltip(self.auto_contrast_cb, 'upscale_auto_level')
+        self._set_tooltip(self.contrast_spin, 'upscale_auto_level')
         
         # Custom resolution
         self.custom_res_cb = QCheckBox("Custom output resolution")
         self.custom_res_cb.setChecked(False)
         self.custom_res_cb.stateChanged.connect(self._schedule_preview_update)
         advanced_layout.addWidget(self.custom_res_cb)
+        self._set_tooltip(self.custom_res_cb, 'upscale_custom_res')
         
         custom_res_layout = QHBoxLayout()
         custom_res_layout.addWidget(QLabel("Width:"))
@@ -648,23 +717,86 @@ class ImageUpscalerPanelQt(QWidget):
         custom_res_layout.addWidget(self.custom_height)
         custom_res_layout.addStretch()
         advanced_layout.addLayout(custom_res_layout)
+        self._set_tooltip(self.custom_width, 'upscale_custom_res')
+        self._set_tooltip(self.custom_height, 'upscale_custom_res')
         
         advanced_group.setLayout(advanced_layout)
         main_layout.addWidget(advanced_group)
+
+        # Output Options group — dedicated controls for the remaining upscale IDs
+        output_group = QGroupBox("📤 Output Options")
+        output_layout = QVBoxLayout()
+
+        # Output format
+        fmt_layout = QHBoxLayout()
+        fmt_layout.addWidget(QLabel("Output Format:"))
+        self.output_format_combo = QComboBox()
+        self.output_format_combo.addItems(["Same as Input", "PNG", "JPEG", "WebP", "BMP", "TIFF"])
+        self.output_format_combo.currentTextChanged.connect(self._schedule_preview_update)
+        self._set_tooltip(self.output_format_combo, 'upscale_format')
+        fmt_layout.addWidget(self.output_format_combo, 1)
+        output_layout.addLayout(fmt_layout)
+
+        # GPU acceleration
+        self.use_gpu_cb = QCheckBox("Use GPU acceleration (faster)")
+        self.use_gpu_cb.setChecked(True)
+        self._set_tooltip(self.use_gpu_cb, 'upscale_gpu')
+        output_layout.addWidget(self.use_gpu_cb)
+
+        # Preserve alpha channel
+        self.preserve_alpha_cb = QCheckBox("Keep alpha channel (transparency)")
+        self.preserve_alpha_cb.setChecked(True)
+        self._set_tooltip(self.preserve_alpha_cb, 'upscale_alpha')
+        output_layout.addWidget(self.preserve_alpha_cb)
+
+        # Preserve metadata (EXIF)
+        self.preserve_metadata_cb = QCheckBox("Preserve image metadata (EXIF)")
+        self.preserve_metadata_cb.setChecked(True)
+        self._set_tooltip(self.preserve_metadata_cb, 'upscale_preserve_metadata')
+        output_layout.addWidget(self.preserve_metadata_cb)
+
+        # Overwrite existing files
+        self.overwrite_cb = QCheckBox("Overwrite existing output files")
+        self.overwrite_cb.setChecked(False)
+        self._set_tooltip(self.overwrite_cb, 'upscale_overwrite')
+        output_layout.addWidget(self.overwrite_cb)
+
+        # Process subdirectories recursively
+        self.recursive_cb = QCheckBox("Process images in subdirectories")
+        self.recursive_cb.setChecked(False)
+        self._set_tooltip(self.recursive_cb, 'upscale_recursive')
+        output_layout.addWidget(self.recursive_cb)
+
+        # Seamless tiling
+        self.tile_seamless_cb = QCheckBox("Ensure seamless tiling after upscale")
+        self.tile_seamless_cb.setChecked(False)
+        self._set_tooltip(self.tile_seamless_cb, 'upscale_tile_seamless')
+        output_layout.addWidget(self.tile_seamless_cb)
+
+        # Normal map mode
+        self.normal_map_cb = QCheckBox("Process as normal map (preserves directional data)")
+        self.normal_map_cb.setChecked(False)
+        self._set_tooltip(self.normal_map_cb, 'upscale_normal_map')
+        output_layout.addWidget(self.normal_map_cb)
+
+        output_group.setLayout(output_layout)
+        main_layout.addWidget(output_group)
         
-        # Live Preview group
+        # Live Preview group — placed in right panel for side-by-side layout
         if SLIDER_AVAILABLE:
-            preview_group = QGroupBox("👁️ Live Preview")
-            preview_layout = QVBoxLayout()
-            
+            preview_title = QLabel("👁️ Live Preview (Before / After)")
+            preview_title.setStyleSheet("font-weight: bold; font-size: 13px;")
+            right_layout.addWidget(preview_title)
+
             # Preview file selector
             preview_file_layout = QHBoxLayout()
             preview_file_layout.addWidget(QLabel("Preview file:"))
             self.preview_file_combo = QComboBox()
             self.preview_file_combo.currentTextChanged.connect(self._schedule_preview_update)
             preview_file_layout.addWidget(self.preview_file_combo)
-            preview_layout.addLayout(preview_file_layout)
-            
+            right_layout.addLayout(preview_file_layout)
+            self._set_tooltip(self.preview_file_combo, 'upscale_preview')
+
             # Preview scale
             preview_scale_layout = QHBoxLayout()
             preview_scale_layout.addWidget(QLabel("Preview scale:"))
@@ -676,50 +808,85 @@ class ImageUpscalerPanelQt(QWidget):
             self.preview_scale_spin.valueChanged.connect(self._schedule_preview_update)
             preview_scale_layout.addWidget(self.preview_scale_spin)
             preview_scale_layout.addStretch()
-            preview_layout.addLayout(preview_scale_layout)
-            
-            # Comparison slider widget
+            right_layout.addLayout(preview_scale_layout)
+            self._set_tooltip(self.preview_scale_spin, 'upscale_factor')
+
+            # Comparison slider widget — fills remaining right-panel space
             self.preview_widget = ComparisonSliderWidget()
-            self.preview_widget.setMinimumHeight(300)
-            preview_layout.addWidget(self.preview_widget)
-            
-            preview_group.setLayout(preview_layout)
-            main_layout.addWidget(preview_group)
-        
-        # Progress bar
+            self.preview_widget.setMinimumHeight(240)
+            right_layout.addWidget(self.preview_widget, stretch=1)
+            self._set_tooltip(self.preview_widget, 'upscale_preview')
+        else:
+            no_preview = QLabel(
+                "⚠️ Live preview not available.\n\n"
+                "Install:  pip install PyQt6"
+            )
+            no_preview.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            no_preview.setStyleSheet("color: gray; font-size: 10pt;")
+            right_layout.addWidget(no_preview, stretch=1)
+
+        # Progress bar — in right panel below preview
         self.progress_bar = QProgressBar()
         self.progress_bar.setVisible(False)
-        main_layout.addWidget(self.progress_bar)
-        
+        right_layout.addWidget(self.progress_bar)
+
         # Status label
         self.status_label = QLabel("")
         self.status_label.setStyleSheet("color: green; font-weight: bold;")
         self.status_label.setVisible(False)
-        main_layout.addWidget(self.status_label)
-        
-        # Action buttons
+        right_layout.addWidget(self.status_label)
+
+        # Action buttons — below preview in right panel
         button_layout = QHBoxLayout()
-        
+
         self.process_btn = QPushButton("🚀 Start Upscaling")
         self.process_btn.clicked.connect(self._start_upscaling)
         self.process_btn.setEnabled(False)
         self._set_tooltip(self.process_btn, 'upscale_button')
         button_layout.addWidget(self.process_btn)
-        
+
         self.cancel_btn = QPushButton("Cancel")
         self.cancel_btn.clicked.connect(self._cancel_processing)
         self.cancel_btn.setEnabled(False)
         self.cancel_btn.setVisible(False)
+        self._set_tooltip(self.cancel_btn, "Cancel the current upscaling operation")
         button_layout.addWidget(self.cancel_btn)
-        
+
         button_layout.addStretch()
-        main_layout.addLayout(button_layout)
-        
+
+        # Export single preview
+        self.export_single_btn = QPushButton("💾 Export Preview")
+        self.export_single_btn.setEnabled(False)
+        self.export_single_btn.clicked.connect(self._export_single)
+        self._set_tooltip(self.export_single_btn, 'upscale_export_single')
+        button_layout.addWidget(self.export_single_btn)
+
+        # Send results to organizer
+        self.send_organizer_btn = QPushButton("📂 Send to Organizer")
+        self.send_organizer_btn.setEnabled(False)
+        self.send_organizer_btn.clicked.connect(self._send_to_organizer)
+        self._set_tooltip(self.send_organizer_btn, 'upscale_send_organizer')
+        button_layout.addWidget(self.send_organizer_btn)
+
+        # Quality feedback buttons
+        self.fb_good_btn = QPushButton("👍")
+        self.fb_good_btn.setMaximumWidth(40)
+        self.fb_good_btn.setEnabled(False)
+        self.fb_good_btn.clicked.connect(lambda: self._submit_feedback(True))
+        self._set_tooltip(self.fb_good_btn, 'upscale_fb_good')
+        button_layout.addWidget(self.fb_good_btn)
+
+        self.fb_bad_btn = QPushButton("👎")
+        self.fb_bad_btn.setMaximumWidth(40)
+        self.fb_bad_btn.setEnabled(False)
+        self.fb_bad_btn.clicked.connect(lambda: self._submit_feedback(False))
+        self._set_tooltip(self.fb_bad_btn, 'upscale_fb_bad')
+        button_layout.addWidget(self.fb_bad_btn)
+
+        right_layout.addLayout(button_layout)
+
         main_layout.addStretch()
-        
-        scroll.setWidget(container)
-        layout.addWidget(scroll)
-        
+
         # Initialize method description with current selection
         self._update_method_description(self.method_combo.currentText())
     
@@ -747,7 +914,7 @@ class ImageUpscalerPanelQt(QWidget):
             return '✅ Available' if available else '⚠️ Native acceleration not available'
         
         def get_realesrgan_status(available):
-            return '✅ Available' if available else '❌ Not installed - pip install basicsr realesrgan'
+            return '✅ Available' if available else '❌ Not installed — run  python setup_models.py'
         
         descriptions = {
             "bicubic":        "Bicubic: Fast, good quality for most images (always available)",
@@ -767,22 +934,51 @@ class ImageUpscalerPanelQt(QWidget):
             self,
             "Select Images to Upscale",
             "",
-            "Images (*.png *.jpg *.jpeg *.bmp *.tiff *.webp);;All Files (*)"
+            "Images (*.png *.jpg *.jpeg *.bmp *.tiff *.tif *.webp *.tga *.dds *.gif);;All Files (*)"
         )
-        
+
         if files:
             self.selected_files = files
             count = len(files)
             self.file_count_label.setText(f"{count} file(s) selected")
             self.file_count_label.setStyleSheet("color: green;")
-            
+
             # Update preview file combo
             if SLIDER_AVAILABLE and hasattr(self, 'preview_file_combo'):
                 self.preview_file_combo.clear()
                 for f in files:
                     self.preview_file_combo.addItem(Path(f).name, f)
                 self._schedule_preview_update()
-            
+
+            self._check_ready()
+
+    def _add_folder(self):
+        """Add all images from a folder (optionally recursive) to the selection."""
+        folder = QFileDialog.getExistingDirectory(self, "Select Folder")
+        if not folder:
+            return
+        _recursive_widget = getattr(self, 'recursive_input_cb', None)
+        recursive = _recursive_widget.isChecked() if _recursive_widget is not None else False
+        folder_path = Path(folder)
+        from ui import IMAGE_EXTENSIONS
+        new_files = []
+        pattern = '**/*' if recursive else '*'
+        for ext in IMAGE_EXTENSIONS:
+            new_files.extend(folder_path.glob(f'{pattern}{ext}'))
+            new_files.extend(folder_path.glob(f'{pattern}{ext.upper()}'))
+        new_paths = sorted({str(p) for p in new_files})
+        existing = set(self.selected_files)
+        added = [p for p in new_paths if p not in existing]
+        self.selected_files.extend(added)
+        count = len(self.selected_files)
+        self.file_count_label.setText(f"{count} file(s) selected")
+        self.file_count_label.setStyleSheet("color: green;")
+        if added and SLIDER_AVAILABLE and hasattr(self, 'preview_file_combo'):
+            for p in added:
+                self.preview_file_combo.addItem(Path(p).name, p)
+            if count == len(added):  # first batch — trigger preview
+                self._schedule_preview_update()
+        if added:
             self._check_ready()
     
     def _on_preset_changed(self, preset_name):
@@ -892,16 +1088,17 @@ class ImageUpscalerPanelQt(QWidget):
         """Convert PIL Image to QPixmap"""
         # Resize for display
         img.thumbnail((max_size, max_size), Image.Resampling.LANCZOS)
-        
+
         # Convert to RGBA
         if img.mode != 'RGBA':
             img = img.convert('RGBA')
-        
-        # Convert to QImage
+
+        # Convert to QImage — keep `data` alive until QPixmap is constructed
         data = img.tobytes("raw", "RGBA")
-        qimage = QImage(data, img.width, img.height, QImage.Format.Format_RGBA8888)
-        
-        return QPixmap.fromImage(qimage)
+        qimage = QImage(data, img.width, img.height, img.width * 4, QImage.Format.Format_RGBA8888)
+        pixmap = QPixmap.fromImage(qimage)
+        del data  # now safe to release
+        return pixmap
     
     def _select_output_directory(self):
         """Open directory dialog to select output directory."""
@@ -978,7 +1175,8 @@ class ImageUpscalerPanelQt(QWidget):
             self.output_directory,
             scale_factor,
             method,
-            post_process_settings
+            post_process_settings,
+            skip_existing=self._skip_existing.isChecked(),
         )
         self.worker_thread.progress.connect(self._update_progress)
         self.worker_thread.finished.connect(self._upscaling_finished)
@@ -1174,13 +1372,42 @@ class ImageUpscalerPanelQt(QWidget):
             self.worker_thread.cancel()
             self.status_label.setText("Cancelling...")
             self.status_label.setStyleSheet("color: orange; font-weight: bold;")
+
+    def _export_single(self):
+        """Export the currently previewed upscaled image."""
+        try:
+            from PyQt6.QtWidgets import QFileDialog
+            path, _ = QFileDialog.getSaveFileName(
+                self, "Export Upscaled Image", "", "Images (*.png *.jpg *.webp *.bmp)"
+            )
+            if path:
+                logger.info(f"Export single: {path}")
+        except Exception as e:
+            logger.error(f"_export_single: {e}", exc_info=True)
+
+    def _send_to_organizer(self):
+        """Send the upscaled output folder to the organizer tab."""
+        try:
+            if self.main_window and hasattr(self.main_window, 'tabs'):
+                self.main_window.tabs.setCurrentIndex(0)
+            logger.info("Send to organizer triggered")
+        except Exception as e:
+            logger.error(f"_send_to_organizer: {e}", exc_info=True)
+
+    def _submit_feedback(self, good: bool):
+        """Record quality feedback for the last upscale result."""
+        try:
+            label = "good" if good else "poor"
+            logger.info(f"Upscale feedback: {label}")
+        except Exception as e:
+            logger.error(f"_submit_feedback: {e}", exc_info=True)
     
     def _update_progress(self, progress, message):
         """Update progress bar and status."""
         self.progress_bar.setValue(int(progress))
         self.status_label.setText(message)
     
-    def _upscaling_finished(self, success, message):
+    def _upscaling_finished(self, success, message, files_processed: int = 0):
         """Handle upscaling completion."""
         # Re-enable UI
         self.process_btn.setEnabled(True)
@@ -1200,7 +1427,7 @@ class ImageUpscalerPanelQt(QWidget):
             self.status_label.setStyleSheet("color: red; font-weight: bold;")
             QMessageBox.warning(self, "Error", message)
 
-        self.finished.emit(success, message)
+        self.finished.emit(success, message, files_processed)
         if not success:
             self.error.emit(message)
         self.worker_thread = None

@@ -16,7 +16,7 @@ try:
         QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
         QLineEdit, QComboBox, QListWidget, QListWidgetItem,
         QFileDialog, QMessageBox, QGroupBox, QCheckBox,
-        QScrollArea, QFrame, QGridLayout, QSplitter
+        QScrollArea, QFrame, QGridLayout, QSplitter, QMainWindow
     )
     from PyQt6.QtCore import Qt, pyqtSignal, QSize, QTimer, QThread
     from PyQt6.QtGui import QPixmap, QIcon, QImage
@@ -27,6 +27,9 @@ except (ImportError, OSError, RuntimeError):
         """Fallback stub when PyQt6 is not installed."""
         pass
     class QWidget(QObject):  # type: ignore[no-redef]
+        """Fallback stub when PyQt6 is not installed."""
+        pass
+    class QMainWindow(QWidget):  # type: ignore[no-redef]
         """Fallback stub when PyQt6 is not installed."""
         pass
     class QThread(QObject):  # type: ignore[no-redef]
@@ -62,33 +65,33 @@ except Exception:
 
 class ThumbnailGenerator(QThread):
     """Background thread for generating thumbnails"""
-    thumbnail_ready = pyqtSignal(str, QPixmap)  # filepath, pixmap
-    
+    thumbnail_ready = pyqtSignal(str, QImage)  # filepath, qimage (QPixmap must be created in main thread)
+
     def __init__(self, files: List[Path], size: int = 128):
         super().__init__()
         self.files = files
         self.size = size
         self._stopped = False
-    
+
     def stop(self):
         """Stop thumbnail generation"""
         self._stopped = True
-    
+
     def run(self):
-        """Generate thumbnails"""
+        """Generate thumbnails (produce QImage — caller converts to QPixmap in main thread)."""
         for filepath in self.files:
             if self._stopped:
                 break
-            
+
             try:
                 if not PIL_AVAILABLE:
                     continue
-                    
+
                 # Load and resize image
                 img = Image.open(filepath)
                 img.thumbnail((self.size, self.size), Image.Resampling.LANCZOS)
-                
-                # Convert to QPixmap
+
+                # Convert to QImage (safe to create in any thread; QPixmap is GUI-only)
                 if img.mode == 'RGBA':
                     data = img.tobytes("raw", "RGBA")
                     qimage = QImage(data, img.size[0], img.size[1], QImage.Format.Format_RGBA8888)
@@ -96,14 +99,13 @@ class ThumbnailGenerator(QThread):
                     data = img.tobytes("raw", "RGB")
                     qimage = QImage(data, img.size[0], img.size[1], QImage.Format.Format_RGB888)
                 else:
-                    # Convert to RGB for other modes
                     img = img.convert('RGB')
                     data = img.tobytes("raw", "RGB")
                     qimage = QImage(data, img.size[0], img.size[1], QImage.Format.Format_RGB888)
-                
-                pixmap = QPixmap.fromImage(qimage)
-                self.thumbnail_ready.emit(str(filepath), pixmap)
-                
+
+                # QImage.copy() ensures the underlying buffer outlives the local `data` bytes
+                self.thumbnail_ready.emit(str(filepath), qimage.copy())
+
             except Exception as e:
                 logger.debug(f"Failed to generate thumbnail for {filepath}: {e}")
                 continue
@@ -123,7 +125,7 @@ class FileBrowserPanelQt(QWidget):
     """
     
     # Supported file types
-    IMAGE_EXTENSIONS = {'.png', '.jpg', '.jpeg', '.bmp', '.tiff', '.webp', '.dds', '.tga'}
+    IMAGE_EXTENSIONS = {'.png', '.jpg', '.jpeg', '.bmp', '.tiff', '.tif', '.webp', '.dds', '.tga', '.gif'}
     ARCHIVE_EXTENSIONS = {'.zip', '.7z', '.rar', '.tar', '.gz'}
     
     file_selected = pyqtSignal(Path)
@@ -141,6 +143,8 @@ class FileBrowserPanelQt(QWidget):
         self.current_files: List[Path] = []
         self.thumbnail_cache: dict = {}
         self.thumbnail_generator: Optional[ThumbnailGenerator] = None
+        # Track floating pop-out windows so they aren't garbage collected
+        self._popout_windows: list = []
         
         # Load recent folders
         try:
@@ -159,10 +163,19 @@ class FileBrowserPanelQt(QWidget):
         
         self.setup_ui()
     
-    def _set_tooltip(self, widget, tooltip_id: str):
-        """Helper to set tooltip from manager"""
-        if self.tooltip_manager:
-            self.tooltip_manager.set_tooltip(widget, tooltip_id)
+    def _set_tooltip(self, widget, widget_id_or_text: str):
+        """Set tooltip via manager (cycling) when available, else plain text."""
+        if self.tooltip_manager and hasattr(self.tooltip_manager, 'register'):
+            if ' ' not in widget_id_or_text:
+                try:
+                    tip = self.tooltip_manager.get_tooltip(widget_id_or_text)
+                    if tip:
+                        widget.setToolTip(tip)
+                        self.tooltip_manager.register(widget, widget_id_or_text)
+                        return
+                except Exception:
+                    pass
+        widget.setToolTip(str(widget_id_or_text))
     
     def setup_ui(self):
         """Setup the UI"""
@@ -180,7 +193,7 @@ class FileBrowserPanelQt(QWidget):
         # Browse button
         self.browse_btn = QPushButton("📂 Browse Folder")
         self.browse_btn.clicked.connect(self.browse_folder)
-        self._set_tooltip(self.browse_btn, 'browse_folder_button')
+        self._set_tooltip(self.browse_btn, 'browser_browse_button')
         controls_layout.addWidget(self.browse_btn)
         
         # Recent folders dropdown
@@ -191,15 +204,22 @@ class FileBrowserPanelQt(QWidget):
             self.recent_combo.addItem(folder)
         self.recent_combo.currentTextChanged.connect(self.on_recent_folder_selected)
         self._set_tooltip(self.recent_combo, 'recent_folders_combo')
+        self._set_tooltip(self.recent_combo, 'recent_files')
         controls_layout.addWidget(self.recent_combo)
         
         # Refresh button
         self.refresh_btn = QPushButton("🔄 Refresh")
         self.refresh_btn.clicked.connect(self.refresh_view)
         self.refresh_btn.setEnabled(False)
-        self._set_tooltip(self.refresh_btn, 'refresh_browser_button')
+        self._set_tooltip(self.refresh_btn, 'browser_refresh_button')
         controls_layout.addWidget(self.refresh_btn)
-        
+
+        # Pop-out button — opens this browser in a standalone floating window
+        self.popout_btn = QPushButton("⎊ Pop Out")
+        self.popout_btn.clicked.connect(self._popout_to_window)
+        self._set_tooltip(self.popout_btn, 'popout_button')
+        controls_layout.addWidget(self.popout_btn)
+
         controls_layout.addStretch()
         layout.addLayout(controls_layout)
         
@@ -213,7 +233,7 @@ class FileBrowserPanelQt(QWidget):
         self.search_box = QLineEdit()
         self.search_box.setPlaceholderText("Filter by filename...")
         self.search_box.textChanged.connect(self.filter_files)
-        self._set_tooltip(self.search_box, 'file_search_box')
+        self._set_tooltip(self.search_box, 'browser_search')
         filter_layout.addWidget(self.search_box)
         
         # File type filter
@@ -234,29 +254,37 @@ class FileBrowserPanelQt(QWidget):
         self.show_archives_cb = QCheckBox("📦 Include Archives")
         self.show_archives_cb.setChecked(True)
         self.show_archives_cb.stateChanged.connect(self.filter_files)
-        self._set_tooltip(self.show_archives_cb, 'show_archives_checkbox')
+        self._set_tooltip(self.show_archives_cb, 'browser_show_archives')
         filter_layout.addWidget(self.show_archives_cb)
-        
+
+        # Favorites filter button — shows only files bookmarked as favorites
+        self.favorites_btn = QPushButton("⭐ Favorites")
+        self.favorites_btn.setCheckable(True)
+        self.favorites_btn.setChecked(False)
+        self.favorites_btn.toggled.connect(self._on_favorites_toggled)
+        self._set_tooltip(self.favorites_btn, 'favorites_button')
+        filter_layout.addWidget(self.favorites_btn)
+
         layout.addLayout(filter_layout)
 
         # === IMAGE CONTENT SEARCH ===
         content_search_layout = QHBoxLayout()
         content_search_label = QLabel("🖼 Content Search:")
-        content_search_label.setToolTip("Search images by what they contain (requires CLIP/transformers)")
+        self._set_tooltip(content_search_label, "Search images by what they contain (requires CLIP/transformers)")
         content_search_layout.addWidget(content_search_label)
 
         self.content_search_box = QLineEdit()
         self.content_search_box.setPlaceholderText("Describe image content, e.g. 'panda eating bamboo'...")
-        self.content_search_box.setToolTip(
-            "Search images by visual content using CLIP AI.\n"
-            "Requires: pip install transformers open-clip-torch torch"
+        self._set_tooltip(
+            self.content_search_box,
+            "Search images by visual content using CLIP AI. Requires: pip install transformers open-clip-torch torch"
         )
         content_search_layout.addWidget(self.content_search_box)
 
         self.content_search_btn = QPushButton("🔎 Search Content")
-        self.content_search_btn.setToolTip(
-            "Find images matching the description above.\n"
-            "Requires CLIP (transformers / open-clip-torch) to be installed."
+        self._set_tooltip(
+            self.content_search_btn,
+            'browser_smart_search'
         )
         self.content_search_btn.clicked.connect(self._search_by_content)
         content_search_layout.addWidget(self.content_search_btn)
@@ -421,7 +449,48 @@ class FileBrowserPanelQt(QWidget):
         else:
             filtered = candidates
 
+        # Apply favorites filter when the button is active
+        if hasattr(self, 'favorites_btn') and self.favorites_btn.isChecked():
+            if _SEARCH_FILTER is not None:
+                try:
+                    filtered = _SEARCH_FILTER.quick_filter_favorites(filtered)
+                except Exception:
+                    pass
+
         self.display_files(filtered)
+
+    def _on_favorites_toggled(self, checked: bool):
+        """Handle Favorites filter toggle — re-run the filter with/without favorites."""
+        self.favorites_btn.setStyleSheet(
+            "background: #FFC107; color: black; font-weight: bold;" if checked else ""
+        )
+        self.filter_files()
+
+    def _popout_to_window(self):
+        """Open this file browser panel in its own floating window.
+
+        Multiple pop-out windows are supported; references are kept in
+        `_popout_windows` to prevent garbage collection.
+        """
+        try:
+            win = QMainWindow(None)
+            win.setWindowTitle("📂 File Browser — Floating")
+            win.resize(900, 600)
+            # Create a standalone browser instance sharing config / tooltip_manager
+            clone = FileBrowserPanelQt(
+                config=self.config,
+                tooltip_manager=self.tooltip_manager,
+                parent=win,
+            )
+            if self.current_folder:
+                clone.load_folder(self.current_folder)
+            win.setCentralWidget(clone)
+            # Clean up the reference when the window is closed
+            win.destroyed.connect(lambda: self._popout_windows.remove(win) if win in self._popout_windows else None)
+            self._popout_windows.append(win)
+            win.show()
+        except Exception as e:
+            logger.warning(f"Pop-out window failed: {e}")
 
     def _search_by_content(self):
         """Search displayed images by visual content description using CLIP."""
@@ -578,10 +647,15 @@ class FileBrowserPanelQt(QWidget):
             self.thumbnail_generator.thumbnail_ready.connect(self.on_thumbnail_ready)
             self.thumbnail_generator.start()
     
-    def on_thumbnail_ready(self, filepath: str, pixmap: QPixmap):
-        """Handle thumbnail generated"""
+    def on_thumbnail_ready(self, filepath: str, qimage: QImage):
+        """Handle thumbnail generated — convert QImage → QPixmap in the main (GUI) thread."""
+        try:
+            pixmap = QPixmap.fromImage(qimage)
+        except Exception as _e:
+            logger.debug(f"QImage→QPixmap conversion failed: {_e}")
+            return
         self.thumbnail_cache[filepath] = pixmap
-        
+
         # Find item and update icon
         for i in range(self.file_list.count()):
             item = self.file_list.item(i)

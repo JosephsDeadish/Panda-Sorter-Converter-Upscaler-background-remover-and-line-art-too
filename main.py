@@ -12,6 +12,7 @@ import importlib
 import logging
 import functools
 import types as _types
+import random as _random
 from pathlib import Path
 
 # Animation ID → GL animation state mapping (mirrors _MOOD_TO_ANIMATION in panda_widget_gl)
@@ -83,12 +84,17 @@ def _handle_early_cli() -> None:
         # APP_NAME / APP_VERSION are in src/config.py; import lazily so we
         # don't pull in the full Qt stack just for a version string.
         try:
-            from config import APP_NAME, APP_VERSION
+            from config import APP_NAME, APP_VERSION, PATREON_URL as _PATREON
         except Exception:
+            # Fallback values — update all three PATREON_URL locations if the URL changes:
+            #   1. src/config.py (PATREON_URL constant)
+            #   2. main.py _PATREON fallback (here)
+            #   3. src/ui/settings_panel_qt.py _PATREON_URL fallback
             APP_NAME, APP_VERSION = "Panda Sorter Converter Upscaler", "1.0.0"
+            _PATREON = "https://www.patreon.com/JosephsDeadish"
         print(f"{APP_NAME} v{APP_VERSION}")
         print("Author: Dead On The Inside / JosephsDeadish")
-        print("https://github.com/JosephsDeadish/Panda-Sorter-Converter-Upscaler-background-remover-and-line-art-too")
+        print(f"Support: {_PATREON}")
         sys.exit(0)
 
     if arg in ('--help', '-h'):
@@ -314,7 +320,7 @@ _PANDA_STATE_EMOJI: dict = {
 }
 
 # Import configuration (now that src is in path)
-from config import config, APP_NAME, APP_VERSION
+from config import config, APP_NAME, APP_VERSION, PATREON_URL
 
 # Import core modules
 from classifier import TextureClassifier, ALL_CATEGORIES
@@ -548,7 +554,7 @@ class BloodSplatterLabel(QLabel):
 
     def __init__(self, parent: 'QWidget', pos: 'QPoint') -> None:
         super().__init__(parent)
-        import random as _r
+        _r = _random
         self.setText(_r.choice(self.SPLATTERS))
         self.setStyleSheet(
             "QLabel { background: transparent; font-size: 26px; color: #cc0000; "
@@ -593,19 +599,498 @@ class GoreSplatterFilter(QObject):
             if (event.type() == _QEv.Type.MouseButtonRelease
                     and isinstance(obj, QAbstractButton)
                     and obj.isEnabled()
-                    and hasattr(event, 'pos')):
+                    and hasattr(event, 'position')):
                 win = obj.window()
                 if win is not None:
-                    pos = obj.mapTo(win, event.pos())
+                    # Use event.position().toPoint() — the Qt6-correct way.
+                    # The deprecated pos() method returns QPointF in newer
+                    # PyQt6 builds, causing a TypeError in mapTo().
+                    pos = obj.mapTo(win, event.position().toPoint())
                     BloodSplatterLabel(win, pos)
-        except Exception:
-            pass
+        except Exception as _e:
+            import logging as _log
+            _log.getLogger(__name__).debug(f"GoreSplatterFilter: {_e}")
         return False  # never consume the event
+
+
+class VampireBatLabel(QLabel):
+    """Temporary bat emoji that flies upward and fades out on click (Vampire theme)."""
+
+    BATS = ["🦇", "🦇🦇", "🦇 🦇", "🦇🌙", "🦇💜🦇"]
+
+    def __init__(self, parent: 'QWidget', pos: 'QPoint') -> None:
+        super().__init__(parent)
+        _r = _random
+        self.setText(_r.choice(self.BATS))
+        self.setStyleSheet(
+            "QLabel { background: transparent; font-size: 22px; color: #cc44ff; "
+            "border: none; padding: 0; }"
+        )
+        self.adjustSize()
+        dx = _r.randint(-10, 10)
+        self.move(pos.x() - self.width() // 2 + dx,
+                  pos.y() - self.height() // 2)
+        self.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
+        self.show()
+        self.raise_()
+
+        # Fly upward using geometry animation
+        from PyQt6.QtWidgets import QGraphicsOpacityEffect
+        from PyQt6.QtCore import QPropertyAnimation, QEasingCurve, QRect
+        eff = QGraphicsOpacityEffect(self)
+        self.setGraphicsEffect(eff)
+
+        # Opacity fade
+        self._fade = QPropertyAnimation(eff, b"opacity", self)
+        self._fade.setDuration(1100)
+        self._fade.setStartValue(1.0)
+        self._fade.setEndValue(0.0)
+        self._fade.setEasingCurve(QEasingCurve.Type.InQuad)
+        self._fade.finished.connect(self.deleteLater)
+
+        # Rise up
+        start_geo = self.geometry()
+        end_geo = QRect(start_geo.x() + _r.randint(-20, 20),
+                        start_geo.y() - 80,
+                        start_geo.width(), start_geo.height())
+        self._rise = QPropertyAnimation(self, b"geometry", self)
+        self._rise.setDuration(1100)
+        self._rise.setStartValue(start_geo)
+        self._rise.setEndValue(end_geo)
+        self._rise.setEasingCurve(QEasingCurve.Type.OutQuad)
+
+        self._fade.start()
+        self._rise.start()
+
+
+class VampireBatFilter(QObject):
+    """Application-wide event filter: spawns bats on every button click (Vampire theme)."""
+
+    def eventFilter(self, obj: 'QObject', event: 'QEvent') -> bool:
+        try:
+            from PyQt6.QtWidgets import QAbstractButton
+            from PyQt6.QtCore import QEvent as _QEv
+            if (event.type() == _QEv.Type.MouseButtonRelease
+                    and isinstance(obj, QAbstractButton)
+                    and obj.isEnabled()
+                    and hasattr(event, 'position')):
+                win = obj.window()
+                if win is not None:
+                    pos = obj.mapTo(win, event.position().toPoint())
+                    VampireBatLabel(win, pos)
+        except Exception as _e:
+            import logging as _log
+            _log.getLogger(__name__).debug(f"VampireBatFilter: {_e}")
+        return False
+
+
+class OceanRippleLabel(QLabel):
+    """Expanding concentric ring that simulates a water ripple on click (Ocean theme)."""
+
+    CREATURES = [
+        "🌊", "🐠", "🐡", "🦀", "🐙", "🪸", "🐚", "🦑", "🐟", "🦈",
+        "🐬", "🐳", "🐋", "🦞", "🦐", "🦭", "🐊", "🌺", "🪼",
+        "🦀🌊", "🐚✨", "🌊🐙", "🐡🪸", "🦑🌊",
+    ]
+
+    def __init__(self, parent: 'QWidget', pos: 'QPoint') -> None:
+        super().__init__(parent)
+        _r = _random
+        self.setText(_r.choice(self.CREATURES))
+        self.setStyleSheet(
+            "QLabel { background: transparent; font-size: 24px; color: #00e5ff; "
+            "border: none; padding: 0; }"
+        )
+        self.adjustSize()
+        self.move(pos.x() - self.width() // 2,
+                  pos.y() - self.height() // 2)
+        self.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
+        self.show()
+        self.raise_()
+
+        from PyQt6.QtWidgets import QGraphicsOpacityEffect
+        from PyQt6.QtCore import QPropertyAnimation, QEasingCurve, QRect
+        eff = QGraphicsOpacityEffect(self)
+        self.setGraphicsEffect(eff)
+
+        self._fade = QPropertyAnimation(eff, b"opacity", self)
+        self._fade.setDuration(900)
+        self._fade.setStartValue(1.0)
+        self._fade.setEndValue(0.0)
+        self._fade.setEasingCurve(QEasingCurve.Type.OutCubic)
+        self._fade.finished.connect(self.deleteLater)
+
+        start_geo = self.geometry()
+        expand = 26
+        end_geo = QRect(start_geo.x() - expand, start_geo.y() - expand,
+                        start_geo.width() + expand * 2, start_geo.height() + expand * 2)
+        self._expand = QPropertyAnimation(self, b"geometry", self)
+        self._expand.setDuration(900)
+        self._expand.setStartValue(start_geo)
+        self._expand.setEndValue(end_geo)
+        self._expand.setEasingCurve(QEasingCurve.Type.OutCubic)
+
+        self._fade.start()
+        self._expand.start()
+
+
+class OceanRippleFilter(QObject):
+    """Application-wide event filter: shows a ripple on every button click (Ocean theme)."""
+
+    def eventFilter(self, obj: 'QObject', event: 'QEvent') -> bool:
+        try:
+            from PyQt6.QtWidgets import QAbstractButton
+            from PyQt6.QtCore import QEvent as _QEv
+            if (event.type() == _QEv.Type.MouseButtonRelease
+                    and isinstance(obj, QAbstractButton)
+                    and obj.isEnabled()
+                    and hasattr(event, 'position')):
+                win = obj.window()
+                if win is not None:
+                    pos = obj.mapTo(win, event.position().toPoint())
+                    OceanRippleLabel(win, pos)
+        except Exception as _e:
+            import logging as _log
+            _log.getLogger(__name__).debug(f"OceanRippleFilter: {_e}")
+        return False
+
+
+class GothSkullLabel(QLabel):
+    """Floating skull that rises and fades on click (Goth theme)."""
+
+    SKULLS = [
+        "💀", "🖤💀", "💀🕸️", "☠️", "🕷️💀🕷️", "💀🌑", "🖤☠️🖤",
+        "🦇💀", "💀🥀", "☠️🖤", "🕯️💀", "💀⛓️", "🕸️☠️🕸️",
+        "👁️💀👁️", "💀🌹", "⛧💀⛧", "🖤🩸💀", "🌑☠️🌑",
+    ]
+
+    def __init__(self, parent: 'QWidget', pos: 'QPoint') -> None:
+        super().__init__(parent)
+        _r = _random
+        self.setText(_r.choice(self.SKULLS))
+        self.setStyleSheet(
+            "QLabel { background: transparent; font-size: 20px; color: #9966bb; "
+            "border: none; padding: 0; }"
+        )
+        self.adjustSize()
+        dx = _r.randint(-12, 12)
+        self.move(pos.x() - self.width() // 2 + dx,
+                  pos.y() - self.height() // 2)
+        self.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
+        self.show()
+        self.raise_()
+
+        from PyQt6.QtWidgets import QGraphicsOpacityEffect
+        from PyQt6.QtCore import QPropertyAnimation, QEasingCurve, QRect
+        eff = QGraphicsOpacityEffect(self)
+        self.setGraphicsEffect(eff)
+
+        self._fade = QPropertyAnimation(eff, b"opacity", self)
+        self._fade.setDuration(1300)
+        self._fade.setStartValue(1.0)
+        self._fade.setEndValue(0.0)
+        self._fade.setEasingCurve(QEasingCurve.Type.InQuad)
+        self._fade.finished.connect(self.deleteLater)
+
+        start_geo = self.geometry()
+        end_geo = QRect(start_geo.x() + _r.randint(-15, 15),
+                        start_geo.y() - 70,
+                        start_geo.width(), start_geo.height())
+        self._rise = QPropertyAnimation(self, b"geometry", self)
+        self._rise.setDuration(1300)
+        self._rise.setStartValue(start_geo)
+        self._rise.setEndValue(end_geo)
+        self._rise.setEasingCurve(QEasingCurve.Type.OutQuad)
+
+        self._fade.start()
+        self._rise.start()
+
+
+class GothSkullFilter(QObject):
+    """Application-wide event filter: spawns skulls on every button click (Goth theme)."""
+
+    def eventFilter(self, obj: 'QObject', event: 'QEvent') -> bool:
+        try:
+            from PyQt6.QtWidgets import QAbstractButton
+            from PyQt6.QtCore import QEvent as _QEv
+            if (event.type() == _QEv.Type.MouseButtonRelease
+                    and isinstance(obj, QAbstractButton)
+                    and obj.isEnabled()
+                    and hasattr(event, 'position')):
+                win = obj.window()
+                if win is not None:
+                    pos = obj.mapTo(win, event.position().toPoint())
+                    GothSkullLabel(win, pos)
+        except Exception as _e:
+            import logging as _log
+            _log.getLogger(__name__).debug(f"GothSkullFilter: {_e}")
+        return False
+
+
+class DraculaDropLabel(QLabel):
+    """Blood drop that drips down and fades on click (Dracula theme)."""
+
+    DROPS = [
+        "🩸", "🧛", "🦇🩸", "🩸💜", "🧛‍♂️",
+        "🦇", "🌑🩸", "💜🧛", "🩸🦇", "🧛‍♀️🩸",
+        "🦇🦇", "🌑🧛🌑", "💀🩸", "🩸🌹",
+    ]
+
+    def __init__(self, parent: 'QWidget', pos: 'QPoint') -> None:
+        super().__init__(parent)
+        _r = _random
+        self.setText(_r.choice(self.DROPS))
+        self.setStyleSheet(
+            "QLabel { background: transparent; font-size: 20px; color: #cc0033; "
+            "border: none; padding: 0; }"
+        )
+        self.adjustSize()
+        dx = _r.randint(-8, 8)
+        self.move(pos.x() - self.width() // 2 + dx,
+                  pos.y() - self.height() // 2)
+        self.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
+        self.show()
+        self.raise_()
+
+        from PyQt6.QtWidgets import QGraphicsOpacityEffect
+        from PyQt6.QtCore import QPropertyAnimation, QEasingCurve, QRect
+        eff = QGraphicsOpacityEffect(self)
+        self.setGraphicsEffect(eff)
+
+        self._fade = QPropertyAnimation(eff, b"opacity", self)
+        self._fade.setDuration(1000)
+        self._fade.setStartValue(1.0)
+        self._fade.setEndValue(0.0)
+        self._fade.setEasingCurve(QEasingCurve.Type.InQuad)
+        self._fade.finished.connect(self.deleteLater)
+
+        # Drip DOWN (like blood dripping)
+        start_geo = self.geometry()
+        end_geo = QRect(start_geo.x() + dx // 2,
+                        start_geo.y() + 60,
+                        start_geo.width(), start_geo.height())
+        self._drip = QPropertyAnimation(self, b"geometry", self)
+        self._drip.setDuration(1000)
+        self._drip.setStartValue(start_geo)
+        self._drip.setEndValue(end_geo)
+        self._drip.setEasingCurve(QEasingCurve.Type.InQuad)
+
+        self._fade.start()
+        self._drip.start()
+
+
+class DraculaDropFilter(QObject):
+    """Application-wide event filter: spawns blood drops on button click (Dracula theme)."""
+
+    def eventFilter(self, obj: 'QObject', event: 'QEvent') -> bool:
+        try:
+            from PyQt6.QtWidgets import QAbstractButton
+            from PyQt6.QtCore import QEvent as _QEv
+            if (event.type() == _QEv.Type.MouseButtonRelease
+                    and isinstance(obj, QAbstractButton)
+                    and obj.isEnabled()
+                    and hasattr(event, 'position')):
+                win = obj.window()
+                if win is not None:
+                    pos = obj.mapTo(win, event.position().toPoint())
+                    DraculaDropLabel(win, pos)
+        except Exception as _e:
+            import logging as _log
+            _log.getLogger(__name__).debug(f"DraculaDropFilter: {_e}")
+        return False
+
+
+# ── Ambient idle-theme decorator labels ───────────────────────────────────────
+# These classes are spawned by a QTimer on the main window and drift across the
+# window to add "ambient personality" to themed modes.  They are transparent to
+# mouse events so they never interfere with UI interaction.
+
+class OceanAmbientCreature(QLabel):
+    """A sea creature that drifts from the left edge to the right across the window.
+
+    Spawned periodically by the Ocean theme's ambient timer to give the UI a
+    sense of a living underwater environment — fish, jellyfish, coral emojis
+    wander across the lower third of the window.
+    """
+
+    _ICONS = ["🐠", "🐡", "🐟", "🐙", "🦑", "🦈", "🐬", "🪼", "🦀", "🦞",
+              "🐚", "🪸", "🌊", "🐳", "🐋", "🦭", "🦐"]
+
+    def __init__(self, parent: 'QWidget') -> None:
+        super().__init__(parent)
+        _r = _random
+        self.setText(_r.choice(self._ICONS))
+        self.setStyleSheet(
+            "QLabel { background: transparent; font-size: 22px; color: #00e5ff;"
+            " border: none; padding: 0; }"
+        )
+        self.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
+        self.adjustSize()
+
+        pw, ph = parent.width(), parent.height()
+        # Spawn in the lower 45% of the window (y_ratio=0.55 → lower 45%)
+        # so creatures swim near the ocean floor without blocking the UI header.
+        _OCEAN_Y_MIN_RATIO = 0.55
+        y_min = int(ph * _OCEAN_Y_MIN_RATIO)
+        y_max = max(y_min + 20, ph - self.height() - 10)
+        start_y = _r.randint(y_min, y_max)
+        self.move(-self.width() - 10, start_y)
+        self.show()
+        self.raise_()
+
+        from PyQt6.QtWidgets import QGraphicsOpacityEffect
+        from PyQt6.QtCore import QPropertyAnimation, QEasingCurve, QRect, QPoint
+        eff = QGraphicsOpacityEffect(self)
+        self.setGraphicsEffect(eff)
+
+        # Fade: in → hold → out
+        self._fade_in = QPropertyAnimation(eff, b"opacity", self)
+        self._fade_in.setDuration(600)
+        self._fade_in.setStartValue(0.0)
+        self._fade_in.setEndValue(0.75)
+        self._fade_in.setEasingCurve(QEasingCurve.Type.InQuad)
+
+        duration = _r.randint(4500, 7000)
+        self._drift = QPropertyAnimation(self, b"geometry", self)
+        self._drift.setDuration(duration)
+        self._drift.setStartValue(QRect(-self.width() - 10, start_y, self.width(), self.height()))
+        self._drift.setEndValue(QRect(pw + 20, start_y + _r.randint(-30, 30),
+                                      self.width(), self.height()))
+        self._drift.setEasingCurve(QEasingCurve.Type.Linear)
+        self._drift.finished.connect(self.deleteLater)
+
+        self._fade_in.start()
+        self._drift.start()
+
+
+class GothAmbientSpider(QLabel):
+    """A spider/skull that descends from the top of the window on a web thread.
+
+    Appears in the Goth theme to add an ambient creepy feeling. Spawns at a
+    random x position, drops down, sways, then retracts back up and vanishes.
+    """
+
+    _ICONS = ["🕷️", "💀", "🕸️", "🦇", "🌑", "💀🕷️", "🕷️🕸️", "💀💜"]
+
+    def __init__(self, parent: 'QWidget') -> None:
+        super().__init__(parent)
+        _r = _random
+        self.setText(_r.choice(self._ICONS))
+        self.setStyleSheet(
+            "QLabel { background: transparent; font-size: 20px; color: #9966bb;"
+            " border: none; padding: 0; }"
+        )
+        self.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
+        self.adjustSize()
+
+        pw = parent.width()
+        x = _r.randint(30, max(31, pw - 50))
+        # Drop between 8% and 35% of window height — enough to be visible
+        # without permanently obscuring the tool controls.
+        _SPIDER_DROP_MIN_RATIO = 0.08
+        _SPIDER_DROP_MAX_RATIO = 0.35
+        drop_depth = _r.randint(int(parent.height() * _SPIDER_DROP_MIN_RATIO),
+                                int(parent.height() * _SPIDER_DROP_MAX_RATIO))
+
+        self.move(x, -self.height() - 5)
+        self.show()
+        self.raise_()
+
+        from PyQt6.QtWidgets import QGraphicsOpacityEffect
+        from PyQt6.QtCore import QPropertyAnimation, QEasingCurve, QRect
+        eff = QGraphicsOpacityEffect(self)
+        self.setGraphicsEffect(eff)
+        eff.setOpacity(0.85)
+
+        hang_ms = _r.randint(1200, 2500)
+        # Drop down
+        self._drop = QPropertyAnimation(self, b"geometry", self)
+        self._drop.setDuration(1800)
+        self._drop.setStartValue(QRect(x, -self.height() - 5, self.width(), self.height()))
+        self._drop.setEndValue(QRect(x, drop_depth, self.width(), self.height()))
+        self._drop.setEasingCurve(QEasingCurve.Type.OutBounce)
+
+        # Retract back up after hanging
+        self._retract = QPropertyAnimation(self, b"geometry", self)
+        self._retract.setDuration(1400)
+        self._retract.setStartValue(QRect(x, drop_depth, self.width(), self.height()))
+        self._retract.setEndValue(QRect(x, -self.height() - 5, self.width(), self.height()))
+        self._retract.setEasingCurve(QEasingCurve.Type.InQuad)
+        self._retract.finished.connect(self.deleteLater)
+
+        def _start_retract():
+            try:
+                self._retract.start()
+            except RuntimeError:
+                pass
+
+        from PyQt6.QtCore import QTimer as _QT
+        self._hang_timer = _QT(self)
+        self._hang_timer.setSingleShot(True)
+        self._hang_timer.timeout.connect(_start_retract)
+
+        self._drop.finished.connect(lambda: self._hang_timer.start(hang_ms))
+        self._drop.start()
+
+
+class DraculaAmbientBat(QLabel):
+    """A bat that swoops across the top of the window in the Dracula theme.
+
+    Adds ambient personality: dark silhouette bats fly from right to left
+    near the top of the window, reinforcing the nocturnal Dracula atmosphere.
+    """
+
+    _ICONS = ["🦇", "🧛🦇", "🦇🌑", "🌑🦇", "🦇💜", "🧛‍♂️", "🦇🦇"]
+
+    def __init__(self, parent: 'QWidget') -> None:
+        super().__init__(parent)
+        _r = _random
+        self.setText(_r.choice(self._ICONS))
+        self.setStyleSheet(
+            "QLabel { background: transparent; font-size: 20px; color: #cc0033;"
+            " border: none; padding: 0; }"
+        )
+        self.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
+        self.adjustSize()
+
+        pw, ph = parent.width(), parent.height()
+        # Bats fly in the top 22% of the window — above the tab bar area.
+        _BAT_Y_MAX_RATIO = 0.22
+        y = _r.randint(10, max(11, int(ph * _BAT_Y_MAX_RATIO)))
+        # Start at the right edge, fly left
+        self.move(pw + self.width() + 10, y)
+        self.show()
+        self.raise_()
+
+        from PyQt6.QtWidgets import QGraphicsOpacityEffect
+        from PyQt6.QtCore import QPropertyAnimation, QEasingCurve, QRect
+        eff = QGraphicsOpacityEffect(self)
+        self.setGraphicsEffect(eff)
+
+        self._fade_in = QPropertyAnimation(eff, b"opacity", self)
+        self._fade_in.setDuration(500)
+        self._fade_in.setStartValue(0.0)
+        self._fade_in.setEndValue(0.8)
+        self._fade_in.setEasingCurve(QEasingCurve.Type.InQuad)
+
+        duration = _r.randint(3500, 5500)
+        end_y = y + _r.randint(-20, 20)
+        self._swoop = QPropertyAnimation(self, b"geometry", self)
+        self._swoop.setDuration(duration)
+        self._swoop.setStartValue(QRect(pw + self.width() + 10, y,
+                                        self.width(), self.height()))
+        self._swoop.setEndValue(QRect(-self.width() - 20, end_y,
+                                      self.width(), self.height()))
+        self._swoop.setEasingCurve(QEasingCurve.Type.InOutSine)
+        self._swoop.finished.connect(self.deleteLater)
+
+        self._fade_in.start()
+        self._swoop.start()
 
 
 class WorkerThread(QThread):
     """Background worker thread for long-running operations."""
-    
+
     progress = pyqtSignal(int, int, str)  # current, total, message
     finished = pyqtSignal(bool, str)  # success, message
     log = pyqtSignal(str)  # log message
@@ -711,6 +1196,14 @@ class TextureSorterMainWindow(QMainWindow):
         self.worker = None
         self._ai_training_thread = None     # background PyTorchTrainer QThread (prevent GC)
         self._gore_splatter_filter = None   # GoreSplatterFilter instance (Gore theme only)
+        self._vampire_bat_filter = None     # VampireBatFilter instance (Vampire theme only)
+        self._ocean_ripple_filter = None    # OceanRippleFilter instance (Ocean theme only)
+        self._goth_skull_filter = None      # GothSkullFilter instance (Goth theme only)
+        self._dracula_drop_filter = None    # DraculaDropFilter instance (Dracula theme only)
+        # Ambient idle-animation timers (fire periodically to spawn drifting decorators)
+        self._ocean_ambient_timer = None    # QTimer — drifts sea creatures across the window
+        self._goth_ambient_timer  = None    # QTimer — drops a spider or skull at random
+        self._dracula_ambient_timer = None  # QTimer — flies a bat across the window top
         
         # Drag-drop, translation, environment monitor
         self.drag_drop_handler = None
@@ -738,6 +1231,7 @@ class TextureSorterMainWindow(QMainWindow):
         self.widget_detector = None      # WidgetDetector – Qt hit-testing for panda overlay
         self.panda_interaction = None    # PandaInteractionBehavior – mischievous AI
         self.preview_viewer = None       # PreviewViewer – standalone non-blocking preview
+        self._tutorial_manager = None   # TutorialManager – set in main() for crash recovery check
 
         # Paths
         self.input_path = None
@@ -783,8 +1277,18 @@ class TextureSorterMainWindow(QMainWindow):
         self._panda_interaction_timer.timeout.connect(self._tick_panda_interaction)
         self._panda_interaction_timer.start()
 
+        # Session-hour coin reward — fires every 60 minutes of active use
+        _SESSION_HOUR_MS = 3_600_000  # 60 min × 60 s × 1000 ms
+        self._session_hour_timer = QTimer(self)
+        self._session_hour_timer.setInterval(_SESSION_HOUR_MS)
+        self._session_hour_timer.timeout.connect(self._on_session_hour)
+        self._session_hour_timer.start()
+
         # Apply performance settings from config
         self.apply_performance_settings()
+
+        # Refresh coin display now that currency_system has been initialized
+        QTimer.singleShot(200, self._update_coin_display)
         
         # Restore dock layout from previous session
         QTimer.singleShot(100, self.restore_dock_layout)  # Delay to ensure widgets are created
@@ -852,6 +1356,8 @@ class TextureSorterMainWindow(QMainWindow):
                 self.panda_widget.clicked.connect(self.on_panda_clicked)
                 self.panda_widget.mood_changed.connect(self.on_panda_mood_changed)
                 self.panda_widget.animation_changed.connect(self.on_panda_animation_changed)
+                if hasattr(self.panda_widget, 'food_eaten'):
+                    self.panda_widget.food_eaten.connect(self._on_panda_food_eaten)
                 # Wire gl_failed so we can swap in the 2D widget if initializeGL fails
                 if hasattr(self.panda_widget, 'gl_failed'):
                     self.panda_widget.gl_failed.connect(self._on_panda_gl_failed)
@@ -871,6 +1377,8 @@ class TextureSorterMainWindow(QMainWindow):
                 self.panda_widget.clicked.connect(self.on_panda_clicked)
                 self.panda_widget.mood_changed.connect(self.on_panda_mood_changed)
                 self.panda_widget.animation_changed.connect(self.on_panda_animation_changed)
+                if hasattr(self.panda_widget, 'food_eaten'):
+                    self.panda_widget.food_eaten.connect(self._on_panda_food_eaten)
                 logger.info("✅ Panda 2D QPainter widget created (OpenGL unavailable)")
             except Exception as e2:
                 logger.error(f"Panda 2D fallback also failed: {e2}")
@@ -1151,9 +1659,10 @@ class TextureSorterMainWindow(QMainWindow):
         if AlphaFixerPanelQt is not None:
             try:
                 alpha_panel = AlphaFixerPanelQt(tooltip_manager=self.tooltip_manager)
-                alpha_panel.finished.connect(lambda ok, msg, _tid='alpha_fixer': (
+                alpha_panel.finished.connect(lambda ok, msg, cnt, _tid='alpha_fixer': (
                     self.statusBar().showMessage(f"{'✅' if ok else '❌'} Alpha Fixer: {msg}", 4000),
-                    self._on_tool_finished(ok, _tid),
+                    self._on_tool_finished(ok, _tid, cnt if ok else 0),
+                    self.operation_finished(ok, msg, cnt) if ok and cnt > 0 else None,
                 ))
                 tool_tab_defs.append((alpha_panel, "✨ Alpha Fixer", 'alpha_fixer'))
             except Exception as _e:
@@ -1165,9 +1674,10 @@ class TextureSorterMainWindow(QMainWindow):
         if ColorCorrectionPanelQt is not None:
             try:
                 color_panel = ColorCorrectionPanelQt(tooltip_manager=self.tooltip_manager)
-                color_panel.finished.connect(lambda ok, msg, _tid='color': (
+                color_panel.finished.connect(lambda ok, msg, cnt, _tid='color': (
                     self.statusBar().showMessage(f"{'✅' if ok else '❌'} Color Correction: {msg}", 4000),
-                    self._on_tool_finished(ok, _tid),
+                    self._on_tool_finished(ok, _tid, cnt if ok else 0),
+                    self.operation_finished(ok, msg, cnt) if ok and cnt > 0 else None,
                 ))
                 tool_tab_defs.append((color_panel, "🎨 Color Correction", 'color'))
             except Exception as _e:
@@ -1179,9 +1689,10 @@ class TextureSorterMainWindow(QMainWindow):
         if BatchNormalizerPanelQt is not None:
             try:
                 norm_panel = BatchNormalizerPanelQt(tooltip_manager=self.tooltip_manager)
-                norm_panel.finished.connect(lambda ok, msg, _tid='normalizer': (
+                norm_panel.finished.connect(lambda ok, msg, cnt, _tid='normalizer': (
                     self.statusBar().showMessage(f"{'✅' if ok else '❌'} Batch Normalizer: {msg}", 4000),
-                    self._on_tool_finished(ok, _tid),
+                    self._on_tool_finished(ok, _tid, cnt if ok else 0),
+                    self.operation_finished(ok, msg, cnt) if ok and cnt > 0 else None,
                 ))
                 tool_tab_defs.append((norm_panel, "⚙️ Batch Normalizer", 'normalizer'))
             except Exception as _e:
@@ -1209,9 +1720,10 @@ class TextureSorterMainWindow(QMainWindow):
                 upscaler_panel = ImageUpscalerPanelQt(tooltip_manager=self.tooltip_manager)
                 upscaler_panel.error.connect(
                     lambda msg: self.statusBar().showMessage(f"❌ Upscaler: {msg}", 5000))
-                upscaler_panel.finished.connect(lambda ok, msg, _tid='upscaler': (
+                upscaler_panel.finished.connect(lambda ok, msg, cnt, _tid='upscaler': (
                     self.statusBar().showMessage(f"{'✅' if ok else '❌'} Upscaler: {msg}", 4000),
-                    self._on_tool_finished(ok, _tid),
+                    self._on_tool_finished(ok, _tid, cnt if ok else 0),
+                    self.operation_finished(ok, msg, cnt) if ok and cnt > 0 else None,
                 ))
                 tool_tab_defs.append((upscaler_panel, "🔍 Image Upscaler", 'upscaler'))
             except Exception as _e:
@@ -1225,9 +1737,10 @@ class TextureSorterMainWindow(QMainWindow):
                 line_panel = LineArtConverterPanelQt(tooltip_manager=self.tooltip_manager)
                 line_panel.error.connect(
                     lambda msg: self.statusBar().showMessage(f"❌ Line Art: {msg}", 5000))
-                line_panel.finished.connect(lambda ok, msg, _tid='lineart': (
+                line_panel.finished.connect(lambda ok, msg, cnt, _tid='lineart': (
                     self.statusBar().showMessage(f"{'✅' if ok else '❌'} Line Art: {msg}", 4000),
-                    self._on_tool_finished(ok, _tid),
+                    self._on_tool_finished(ok, _tid, cnt if ok else 0),
+                    self.operation_finished(ok, msg, cnt) if ok and cnt > 0 else None,
                 ))
                 tool_tab_defs.append((line_panel, "✏️ Line Art", 'lineart'))
             except Exception as _e:
@@ -1242,7 +1755,8 @@ class TextureSorterMainWindow(QMainWindow):
                 rename_panel.finished.connect(lambda ok, errs, _tid='rename': (
                     self.statusBar().showMessage(
                         f"📝 Renamed {ok} files" + (f" ({len(errs)} errors)" if errs else ""), 4000),
-                    self._on_tool_finished(bool(ok), _tid),
+                    self._on_tool_finished(bool(ok), _tid, ok),
+                    self.operation_finished(bool(ok), f"Renamed {ok} files", ok) if ok > 0 else None,
                 ))
                 tool_tab_defs.append((rename_panel, "📝 Batch Rename", 'rename'))
             except Exception as _e:
@@ -1256,9 +1770,10 @@ class TextureSorterMainWindow(QMainWindow):
                 repair_panel = ImageRepairPanelQt(tooltip_manager=self.tooltip_manager)
                 repair_panel.error.connect(
                     lambda msg: self.statusBar().showMessage(f"❌ Image Repair: {msg}", 5000))
-                repair_panel.finished.connect(lambda ok, msg, _tid='repair': (
+                repair_panel.finished.connect(lambda ok, msg, cnt, _tid='repair': (
                     self.statusBar().showMessage(f"{'✅' if ok else '❌'} Image Repair: {msg}", 4000),
-                    self._on_tool_finished(ok, _tid),
+                    self._on_tool_finished(ok, _tid, cnt if ok else 0),
+                    self.operation_finished(ok, msg, cnt) if ok and cnt > 0 else None,
                 ))
                 tool_tab_defs.append((repair_panel, "🔧 Image Repair", 'repair'))
             except Exception as _e:
@@ -1272,7 +1787,8 @@ class TextureSorterMainWindow(QMainWindow):
                 conv_panel = FormatConverterPanelQt(tooltip_manager=self.tooltip_manager)
                 conv_panel.finished.connect(lambda ok, msg, cnt, _tid='converter': (
                     self.statusBar().showMessage(f"{'✅' if ok else '⚠️'} Converter: {msg} ({cnt} files)", 4000),
-                    self._on_tool_finished(ok, _tid),
+                    self._on_tool_finished(ok, _tid, cnt if ok else 0),
+                    self.operation_finished(ok, msg, cnt) if ok and cnt > 0 else None,
                 ))
                 tool_tab_defs.append((conv_panel, "🔄 Format Converter", 'converter'))
             except Exception as _e:
@@ -1290,7 +1806,8 @@ class TextureSorterMainWindow(QMainWindow):
                     self._on_tool_finished(ok, _tid),
                     self.operation_finished(
                         ok, msg,
-                        int(_stats.get('files_moved', _stats.get('files_processed', 0)))
+                        int(_stats.get('files_moved', _stats.get('files_processed', 0))),
+                        float(_stats.get('elapsed_time', 0.0)),
                     ),
                 ))
                 tool_tab_defs.append((organizer_panel, "📁 Organizer", 'organizer'))
@@ -1371,7 +1888,7 @@ class TextureSorterMainWindow(QMainWindow):
             # Create grid button
             btn = QPushButton(label)
             btn.setCheckable(True)
-            btn.setFixedHeight(34)
+            btn.setFixedHeight(28)   # was 34 — shorter buttons so the grid is less tall
             btn.setStyleSheet(
                 "QPushButton { background:#2a2a3e; color:#cccccc; border:1px solid #444; "
                 "border-radius:4px; font-size:12px; padding:0 8px; text-align:left; }"
@@ -1390,6 +1907,29 @@ class TextureSorterMainWindow(QMainWindow):
 
         outer_layout.addWidget(btn_container)
         outer_layout.addWidget(tool_stack, 1)
+
+        # ── Collapse/expand toggle for the button grid ───────────────────────
+        # A single small chevron button at the bottom of the button bar lets
+        # the user hide the grid to give the active panel maximum vertical room.
+        collapse_btn = QPushButton("▲ Hide panel selector")
+        collapse_btn.setFixedHeight(22)
+        collapse_btn.setStyleSheet(
+            "QPushButton { background: #1a1a2a; color: #666; border: none; "
+            "border-top: 1px solid #333; font-size: 10px; }"
+            "QPushButton:hover { color: #aaaaaa; }"
+        )
+        btn_visible = True   # tracks current visibility state
+
+        def _toggle_btn_container():
+            nonlocal btn_visible
+            btn_visible = not btn_visible
+            btn_container.setVisible(btn_visible)
+            collapse_btn.setText(
+                "▲ Hide panel selector" if btn_visible else "▼ Show panel selector"
+            )
+
+        collapse_btn.clicked.connect(_toggle_btn_container)
+        outer_layout.addWidget(collapse_btn)
 
         # Wire up any lightweight dock panels (perf monitor, queue) — hidden by default
         self._create_tool_dock_panels()
@@ -1630,6 +2170,13 @@ class TextureSorterMainWindow(QMainWindow):
                 # Initialise shop/currency so Inventory still works
                 self.shop_system = ShopSystem()
                 self.currency_system = CurrencySystem()
+                # Award daily login bonus (idempotent — no-op if already claimed today)
+                try:
+                    daily_bonus = self.currency_system.process_daily_login()
+                    if daily_bonus > 0:
+                        logger.info(f"💰 Daily login bonus: +{daily_bonus} Bamboo Bucks")
+                except Exception as _dl:
+                    logger.debug(f"Daily login bonus: {_dl}")
             except (ImportError, OSError, RuntimeError) as _se:
                 logger.warning(f"Shop/currency system unavailable: {_se}")
                 self.shop_system = None
@@ -2057,11 +2604,19 @@ class TextureSorterMainWindow(QMainWindow):
                 self.quest_system.achievement_unlocked.connect(
                     lambda aid: logger.info(f"🏆 Quest achievement: {aid}")
                 )
-            # Wire easter_egg_found → fun status bar message
+            # Wire easter_egg_found → fun status bar message + coin reward
             if hasattr(self.quest_system, 'easter_egg_found') and self.quest_system.easter_egg_found:
-                self.quest_system.easter_egg_found.connect(
-                    lambda eid: self.statusBar().showMessage(f"🥚 Easter egg found: {eid}!", 5000)
-                )
+                def _on_easter_egg(eid: str) -> None:
+                    self.statusBar().showMessage(f"🥚 Easter egg found: {eid}!", 5000)
+                    try:
+                        if self.currency_system:
+                            coins = self.currency_system.get_reward_for_action('easter_egg_found')
+                            if coins > 0:
+                                self.currency_system.earn_money(coins, f'easter_egg_{eid}')
+                                self._update_coin_display()
+                    except Exception:
+                        pass
+                self.quest_system.easter_egg_found.connect(_on_easter_egg)
             # Activate first set of quests
             self.quest_system.check_quests(0)
 
@@ -2293,11 +2848,13 @@ class TextureSorterMainWindow(QMainWindow):
 
         open_action = QAction("&Open Input Folder…", self)
         open_action.setShortcut("Ctrl+O")
+        open_action.setStatusTip("Select the input folder containing images to process (Ctrl+O)")
         open_action.triggered.connect(self.browse_input)
         file_menu.addAction(open_action)
 
         open_out_action = QAction("Open &Output Folder…", self)
         open_out_action.setShortcut("Ctrl+Shift+O")
+        open_out_action.setStatusTip("Select the output folder where processed files will be saved (Ctrl+Shift+O)")
         open_out_action.triggered.connect(self.browse_output)
         file_menu.addAction(open_out_action)
 
@@ -2306,15 +2863,18 @@ class TextureSorterMainWindow(QMainWindow):
         # Profiles sub-menu (uses ProfileManager)
         profile_menu = file_menu.addMenu("&Profiles")
         save_profile_action = QAction("&Save Current Profile…", self)
+        save_profile_action.setStatusTip("Save current organizer settings as a named profile for reuse")
         save_profile_action.triggered.connect(self._save_profile)
         profile_menu.addAction(save_profile_action)
         load_profile_action = QAction("&Load Profile…", self)
+        load_profile_action.setStatusTip("Load a previously saved organizer settings profile")
         load_profile_action.triggered.connect(self._load_profile)
         profile_menu.addAction(load_profile_action)
 
         # Backup sub-menu (uses BackupManager)
         backup_menu = file_menu.addMenu("&Backup")
         create_restore_action = QAction("Create &Restore Point…", self)
+        create_restore_action.setStatusTip("Create a restore point to recover from if something goes wrong")
         create_restore_action.triggered.connect(self._create_restore_point)
         backup_menu.addAction(create_restore_action)
 
@@ -2322,6 +2882,7 @@ class TextureSorterMainWindow(QMainWindow):
 
         exit_action = QAction("E&xit", self)
         exit_action.setShortcut("Ctrl+Q")
+        exit_action.setStatusTip("Exit the application (Ctrl+Q)")
         exit_action.triggered.connect(self.close)
         file_menu.addAction(exit_action)
 
@@ -2331,6 +2892,7 @@ class TextureSorterMainWindow(QMainWindow):
 
         popout_action = QAction("Pop Out Current Tab", self)
         popout_action.setShortcut("Ctrl+Shift+P")
+        popout_action.setStatusTip("Detach the current tool tab into its own floating window (Ctrl+Shift+P)")
         popout_action.triggered.connect(self.popout_current_tab)
         view_menu.addAction(popout_action)
 
@@ -2343,6 +2905,7 @@ class TextureSorterMainWindow(QMainWindow):
         view_menu.addSeparator()
 
         reset_layout_action = QAction("Reset Window Layout", self)
+        reset_layout_action.setStatusTip("Reset all dock widgets and panels to their default positions")
         reset_layout_action.triggered.connect(self.reset_window_layout)
         view_menu.addAction(reset_layout_action)
 
@@ -2350,10 +2913,12 @@ class TextureSorterMainWindow(QMainWindow):
         tools_menu = menubar.addMenu("&Actions")
 
         find_dupes_action = QAction("🔍 Find Duplicate Textures…", self)
+        find_dupes_action.setStatusTip("Scan the input folder for duplicate or near-duplicate texture files")
         find_dupes_action.triggered.connect(self._find_duplicate_textures)
         tools_menu.addAction(find_dupes_action)
 
         analyze_action = QAction("🔬 Analyze Selected Texture…", self)
+        analyze_action.setStatusTip("Open a texture file and display its detailed analysis (dimensions, format, etc.)")
         analyze_action.triggered.connect(self._analyze_selected_texture)
         tools_menu.addAction(analyze_action)
 
@@ -2362,12 +2927,21 @@ class TextureSorterMainWindow(QMainWindow):
 
         help_action = QAction("&Help / Documentation", self)
         help_action.setShortcut("F1")
+        help_action.setStatusTip("Open the help documentation (F1)")
         help_action.triggered.connect(self.show_help)
         help_menu.addAction(help_action)
 
         help_menu.addSeparator()
 
+        support_action = QAction("❤️ Support on &Patreon", self)
+        support_action.setStatusTip("Open the Patreon support page")
+        support_action.triggered.connect(self._open_patreon)
+        help_menu.addAction(support_action)
+
+        help_menu.addSeparator()
+
         about_action = QAction("&About", self)
+        about_action.setStatusTip("Show version information and credits for this application")
         about_action.triggered.connect(self.show_about)
         help_menu.addAction(about_action)
     
@@ -2417,6 +2991,7 @@ class TextureSorterMainWindow(QMainWindow):
             'solarized_dark': 'solarized dark',
             'forest': 'forest', 'ocean': 'ocean', 'sunset': 'sunset',
             'cyberpunk': 'cyberpunk', 'gore': 'gore', 'goth': 'goth',
+            'vampire': 'vampire',
         }
         theme = _DISPLAY_MAP.get(_RAW.lower().strip(), _RAW.lower().strip())
         accent = config.get('ui', 'accent_color', default='#0d7377')
@@ -3204,6 +3779,79 @@ class TextureSorterMainWindow(QMainWindow):
             QDockWidget::title {{ background-color: #1a0028; padding: 4px; color: #9966bb; }}
             QStatusBar {{ background-color: #050005; color: #9966bb; border-top: 2px solid #4a2060; }}
             """
+        elif theme in ('vampire',):
+            # 🦇 Vampire — crimson blood on midnight black, bat-spawn click effect
+            stylesheet = f"""
+            QMainWindow {{ background-color: #080010; }}
+            QWidget {{
+                background-color: #080010;
+                color: #e8c0e8;
+                font-family: 'Palatino Linotype', 'Georgia', serif;
+            }}
+            QPushButton {{
+                background-color: {accent};
+                color: #f0d0f0;
+                border: 2px solid #7a0030;
+                padding: 7px 16px;
+                border-radius: 3px;
+                font-weight: bold;
+                border-bottom: 4px solid #550020;
+            }}
+            QPushButton:hover {{
+                background-color: {hover_color.name()};
+                border-color: #cc0044;
+                color: #ffffff;
+            }}
+            QPushButton:pressed {{ background-color: {pressed_color.name()}; border-color: #330015; }}
+            QPushButton:disabled {{ background-color: #1a0022; color: #553355; border-color: #2a0035; }}
+            QLabel {{ color: #e8c0e8; background-color: transparent; min-height: 18px; }}
+            QGroupBox {{
+                color: #cc44aa;
+                border: 2px solid #7a0030;
+                border-radius: 4px;
+                margin-top: 10px;
+                font-weight: bold;
+            }}
+            QGroupBox::title {{ color: #ff44aa; subcontrol-position: top left; padding: 2px 8px; min-width: 40px; }}
+            QTabWidget::pane {{ border: 2px solid #7a0030; background-color: #0d001a; }}
+            QTabBar::tab {{
+                background-color: #12001e;
+                color: #cc88cc;
+                padding: 8px 18px;
+                min-width: 70px;
+                border: 2px solid #7a0030;
+                border-bottom: none;
+                border-radius: 4px 4px 0px 0px;
+            }}
+            QTabBar::tab:selected {{ background-color: #7a0030; color: #f0d0f0; border-color: #cc0044; }}
+            QTabBar::tab:hover {{ background-color: #1e0030; color: #ffaaee; }}
+            QMenuBar {{ background-color: #0d001a; color: #e8c0e8; border-bottom: 2px solid #7a0030; }}
+            QMenuBar::item:selected {{ background-color: #7a0030; color: #ffffff; }}
+            QMenu {{ background-color: #0d001a; color: #e8c0e8; border: 2px solid #7a0030; }}
+            QMenu::item:selected {{ background-color: #7a0030; color: #ffffff; }}
+            QProgressBar {{ border: 2px solid #7a0030; border-radius: 3px; text-align: center; background-color: #0d001a; color: #e8c0e8; }}
+            QProgressBar::chunk {{ background-color: #cc0044; }}
+            QFrame {{ background-color: #0d001a; border: 2px solid #7a0030; border-radius: 4px; }}
+            QTextEdit {{ background-color: #080010; color: #e8c0e8; border: 2px solid #7a0030; }}
+            QLineEdit {{ background-color: #12001e; color: #e8c0e8; border: 2px solid #7a0030; border-radius: 3px; padding: 4px 6px; }}
+            QLineEdit:focus {{ border-color: #cc0044; }}
+            QComboBox {{ background-color: #12001e; color: #e8c0e8; border: 2px solid #7a0030; border-radius: 3px; padding: 4px 6px; min-height: 22px; }}
+            QComboBox:hover {{ border-color: #cc0044; }}
+            QComboBox QAbstractItemView {{ background-color: #12001e; color: #e8c0e8; border: 2px solid #7a0030; selection-background-color: #7a0030; }}
+            QCheckBox {{ color: #e8c0e8; spacing: 6px; }}
+            QCheckBox::indicator {{ width: 14px; height: 14px; border: 2px solid #7a0030; border-radius: 2px; background: #12001e; }}
+            QCheckBox::indicator:checked {{ background: #7a0030; border-color: #cc0044; }}
+            QScrollBar:vertical {{ background-color: #0d001a; width: 12px; }}
+            QScrollBar::handle:vertical {{ background-color: #7a0030; border-radius: 3px; }}
+            QScrollBar::handle:vertical:hover {{ background-color: #cc0044; }}
+            QSlider::groove:horizontal {{ height: 6px; background: #12001e; border: 1px solid #7a0030; border-radius: 3px; }}
+            QSlider::handle:horizontal {{ background: #7a0030; border: 2px solid #cc0044; width: 16px; height: 16px; border-radius: 3px; margin: -5px 0; }}
+            QSlider::sub-page:horizontal {{ background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #3a0018, stop:1 #cc0044); border-radius: 3px; }}
+            QSpinBox, QDoubleSpinBox {{ background-color: #12001e; color: #e8c0e8; border: 2px solid #7a0030; border-radius: 3px; padding: 3px 5px; }}
+            QDockWidget {{ color: #e8c0e8; titlebar-close-icon: none; }}
+            QDockWidget::title {{ background-color: #7a0030; padding: 4px; color: #f0d0f0; }}
+            QStatusBar {{ background-color: #0d001a; color: #cc44aa; border-top: 2px solid #7a0030; }}
+            """
         else:  # Dark theme (default)
             stylesheet = f"""
             QMainWindow {{
@@ -3383,7 +4031,18 @@ class TextureSorterMainWindow(QMainWindow):
                 border: 1px solid #333333;
             }}
             """
-        self.setStyleSheet(stylesheet)
+        # ── Common layout-fix overrides to prevent text clipping across themes ──
+        # These are appended to every theme so individual themes don't need to
+        # repeat them.  They set minimum sizes on elements that Qt can otherwise
+        # clip when the window is narrow or when emoji/Unicode characters in tab
+        # labels require extra horizontal space.
+        _LAYOUT_FIXES = """
+            QTabBar::tab { min-width: 70px; }
+            QGroupBox::title { min-width: 30px; }
+            QLabel { min-height: 16px; }
+            QToolTip { padding: 4px 6px; }
+        """
+        self.setStyleSheet(stylesheet + _LAYOUT_FIXES)
         self.apply_cursor()
         # Apply pointer cursor to interactive widgets application-wide after
         # the stylesheet is applied.  Qt6 QSS does not support 'cursor: pointer'
@@ -3396,6 +4055,18 @@ class TextureSorterMainWindow(QMainWindow):
 
         # ── Gore theme: install/remove blood-splatter click filter ────────────
         self._update_gore_splatter(theme)
+
+        # ── Vampire theme: install/remove bat-spawn click filter ──────────────
+        self._update_vampire_bats(theme)
+
+        # ── Ocean theme: install/remove ripple click filter ───────────────────
+        self._update_ocean_ripple(theme)
+
+        # ── Goth theme: install/remove skull-float click filter ───────────────
+        self._update_goth_skulls(theme)
+
+        # ── Dracula theme: install/remove blood-drip click filter ─────────────
+        self._update_dracula_drops(theme)
 
         # ── Nord theme: Norse mythology window decorations ─────────────────────
         self._update_nord_runes(theme)
@@ -3416,6 +4087,7 @@ class TextureSorterMainWindow(QMainWindow):
                     'cyberpunk': 'thunderstruck',
                     'gore': 'shadow_walker',   # closest existing dark achievement
                     'goth': 'shadow_walker',
+                    'vampire': 'shadow_walker',
                 }
                 ach_id = _theme_ach.get(theme)
                 if ach_id:
@@ -3466,6 +4138,176 @@ class TextureSorterMainWindow(QMainWindow):
         except Exception as _e:
             logger.debug(f"_update_gore_splatter: {_e}")
 
+    def _update_vampire_bats(self, theme: str) -> None:
+        """Install or remove the VampireBatFilter depending on the active theme."""
+        try:
+            from PyQt6.QtWidgets import QApplication as _QA
+            _app = _QA.instance()
+            if _app is None:
+                return
+            want = (theme == 'vampire')
+            if want and self._vampire_bat_filter is None:
+                self._vampire_bat_filter = VampireBatFilter(self)
+                _app.installEventFilter(self._vampire_bat_filter)
+                # Decorate window title with bat symbols
+                _title = self.windowTitle()
+                if not _title.startswith("🦇 "):
+                    self.setWindowTitle(f"🦇 {_title.strip()} 🦇")
+                logger.info("🦇 Vampire bat filter installed")
+            elif not want and self._vampire_bat_filter is not None:
+                _app.removeEventFilter(self._vampire_bat_filter)
+                self._vampire_bat_filter = None
+                # Remove bat window title decoration
+                _title = self.windowTitle()
+                if _title.startswith("🦇 ") or _title.endswith(" 🦇"):
+                    self.setWindowTitle(
+                        _title.removeprefix("🦇 ").removesuffix(" 🦇").strip()
+                    )
+                logger.info("Vampire bat filter removed")
+        except Exception as _e:
+            logger.debug(f"_update_vampire_bats: {_e}")
+
+    def _update_ocean_ripple(self, theme: str) -> None:
+        """Install or remove the OceanRippleFilter and ambient-creature timer."""
+        try:
+            from PyQt6.QtWidgets import QApplication as _QA
+            _app = _QA.instance()
+            if _app is None:
+                return
+            want = (theme in ('ocean', 'ocean_blue'))
+            if want and self._ocean_ripple_filter is None:
+                self._ocean_ripple_filter = OceanRippleFilter(self)
+                _app.installEventFilter(self._ocean_ripple_filter)
+                # Decorate window title with ocean creature symbols
+                _title = self.windowTitle()
+                if not _title.startswith("🐙 "):
+                    self.setWindowTitle(f"🐙 {_title.strip()} 🐠")
+                logger.info("🌊 Ocean ripple filter installed")
+                # Ambient creatures — drift a sea creature across every ~14 s
+                if self._ocean_ambient_timer is None:
+                    self._ocean_ambient_timer = QTimer(self)
+                    self._ocean_ambient_timer.setInterval(14000)
+                    self._ocean_ambient_timer.timeout.connect(self._spawn_ocean_creature)
+                    self._ocean_ambient_timer.start()
+                    # Spawn one immediately so the effect is visible right away
+                    QTimer.singleShot(1200, self._spawn_ocean_creature)
+            elif not want and self._ocean_ripple_filter is not None:
+                _app.removeEventFilter(self._ocean_ripple_filter)
+                self._ocean_ripple_filter = None
+                # Remove ocean title decoration
+                _title = self.windowTitle()
+                if _title.startswith("🐙 ") or _title.endswith(" 🐠"):
+                    self.setWindowTitle(
+                        _title.removeprefix("🐙 ").removesuffix(" 🐠").strip()
+                    )
+                logger.info("Ocean ripple filter removed")
+                # Stop ambient timer
+                if self._ocean_ambient_timer is not None:
+                    self._ocean_ambient_timer.stop()
+                    self._ocean_ambient_timer = None
+        except Exception as _e:
+            logger.debug(f"_update_ocean_ripple: {_e}")
+
+    def _spawn_ocean_creature(self) -> None:
+        """Spawn one ambient OceanAmbientCreature drifting across the window."""
+        try:
+            if self.isVisible() and self.width() > 200:
+                OceanAmbientCreature(self)
+        except Exception:
+            pass
+
+    def _update_goth_skulls(self, theme: str) -> None:
+        """Install/remove the GothSkullFilter and ambient-spider timer."""
+        try:
+            _app = QApplication.instance()
+            if _app is None:
+                return
+            want = (theme == 'goth')
+            if want and self._goth_skull_filter is None:
+                self._goth_skull_filter = GothSkullFilter(self)
+                _app.installEventFilter(self._goth_skull_filter)
+                # Decorate window title with skull symbols
+                _title = self.windowTitle()
+                if not _title.startswith("💀 "):
+                    self.setWindowTitle(f"💀 {_title.strip()} 💀")
+                logger.info("💀 Goth skull filter installed")
+                # Ambient spiders — drop one from top every ~12 s
+                if self._goth_ambient_timer is None:
+                    self._goth_ambient_timer = QTimer(self)
+                    self._goth_ambient_timer.setInterval(12000)
+                    self._goth_ambient_timer.timeout.connect(self._spawn_goth_spider)
+                    self._goth_ambient_timer.start()
+                    QTimer.singleShot(2000, self._spawn_goth_spider)
+            elif not want and self._goth_skull_filter is not None:
+                _app.removeEventFilter(self._goth_skull_filter)
+                self._goth_skull_filter = None
+                # Remove skull window title decoration
+                _title = self.windowTitle()
+                if _title.startswith("💀 ") or _title.endswith(" 💀"):
+                    self.setWindowTitle(
+                        _title.removeprefix("💀 ").removesuffix(" 💀").strip()
+                    )
+                logger.info("Goth skull filter removed")
+                if self._goth_ambient_timer is not None:
+                    self._goth_ambient_timer.stop()
+                    self._goth_ambient_timer = None
+        except Exception as _e:
+            logger.debug(f"_update_goth_skulls: {_e}")
+
+    def _spawn_goth_spider(self) -> None:
+        """Spawn one ambient GothAmbientSpider descending from the window top."""
+        try:
+            if self.isVisible() and self.width() > 200:
+                GothAmbientSpider(self)
+        except Exception:
+            pass
+
+    def _update_dracula_drops(self, theme: str) -> None:
+        """Install/remove the DraculaDropFilter and ambient-bat timer."""
+        try:
+            _app = QApplication.instance()
+            if _app is None:
+                return
+            want = (theme == 'dracula')
+            if want and self._dracula_drop_filter is None:
+                self._dracula_drop_filter = DraculaDropFilter(self)
+                _app.installEventFilter(self._dracula_drop_filter)
+                # Decorate window title with blood drop symbols
+                _title = self.windowTitle()
+                if not _title.startswith("🩸 "):
+                    self.setWindowTitle(f"🩸 {_title.strip()} 🩸")
+                logger.info("🩸 Dracula drop filter installed")
+                # Ambient bats — fly one across the window top every ~11 s
+                if self._dracula_ambient_timer is None:
+                    self._dracula_ambient_timer = QTimer(self)
+                    self._dracula_ambient_timer.setInterval(11000)
+                    self._dracula_ambient_timer.timeout.connect(self._spawn_dracula_bat)
+                    self._dracula_ambient_timer.start()
+                    QTimer.singleShot(1500, self._spawn_dracula_bat)
+            elif not want and self._dracula_drop_filter is not None:
+                _app.removeEventFilter(self._dracula_drop_filter)
+                self._dracula_drop_filter = None
+                # Remove blood drop title decoration
+                _title = self.windowTitle()
+                if _title.startswith("🩸 ") or _title.endswith(" 🩸"):
+                    self.setWindowTitle(
+                        _title.removeprefix("🩸 ").removesuffix(" 🩸").strip()
+                    )
+                logger.info("Dracula drop filter removed")
+                if self._dracula_ambient_timer is not None:
+                    self._dracula_ambient_timer.stop()
+                    self._dracula_ambient_timer = None
+        except Exception as _e:
+            logger.debug(f"_update_dracula_drops: {_e}")
+
+    def _spawn_dracula_bat(self) -> None:
+        """Spawn one ambient DraculaAmbientBat swooping across the window."""
+        try:
+            if self.isVisible() and self.width() > 200:
+                DraculaAmbientBat(self)
+        except Exception:
+            pass
+
     def _update_nord_runes(self, theme: str) -> None:
         """Decorate the window title with Elder Futhark runes when the Nord
         theme is active; remove decorations for all other themes.
@@ -3491,11 +4333,22 @@ class TextureSorterMainWindow(QMainWindow):
             logger.debug(f"_update_nord_runes: {_e}")
 
     def apply_cursor(self):
-        """Apply the cursor style saved in config to the whole application."""
+        """Apply the cursor style saved in config to the whole application.
+
+        Supports both Qt built-in cursors and custom emoji pixmap cursors
+        (skull 💀, panda 🐼, etc.) at the configured size.
+        """
         try:
-            from PyQt6.QtGui import QCursor
+            from PyQt6.QtGui import QCursor, QPixmap, QPainter, QFont, QColor
             from PyQt6.QtCore import Qt
             cursor_name = str(config.get('ui', 'cursor', default='default')).lower().strip()
+            # Size mapping: Small=24, Medium=32, Large=48, Extra Large=64
+            size_name = str(config.get('ui', 'cursor_size', default='medium')).lower().strip()
+            # Accept both "extra large" (display text) and "extra_large" (config key)
+            _size_map = {'small': 24, 'medium': 32, 'large': 48, 'extra large': 64}
+            pix_size = _size_map.get(size_name.replace('_', ' '), 32)
+
+            # Built-in Qt cursor shapes
             _cursor_map = {
                 'default':   Qt.CursorShape.ArrowCursor,
                 'arrow':     Qt.CursorShape.ArrowCursor,
@@ -3505,19 +4358,79 @@ class TextureSorterMainWindow(QMainWindow):
                 'text':      Qt.CursorShape.IBeamCursor,
                 'forbidden': Qt.CursorShape.ForbiddenCursor,
                 'move':      Qt.CursorShape.SizeAllCursor,
-                'zoom_in':   Qt.CursorShape.PointingHandCursor,  # "click to zoom in"
-                'zoom_out':  Qt.CursorShape.ArrowCursor,          # no native zoom-out cursor in Qt
+                'zoom_in':   Qt.CursorShape.PointingHandCursor,
+                'zoom_out':  Qt.CursorShape.ArrowCursor,
             }
-            shape = _cursor_map.get(cursor_name, Qt.CursorShape.ArrowCursor)
+            # Emoji-based cursors — rendered to a QPixmap on the fly
+            _emoji_map = {
+                'skull':     '💀',
+                'panda':     '🐼',
+                'ghost':     '👻',
+                'spider':    '🕷️',
+                'sword':     '⚔️',
+                'wand':      '🪄',
+                'heart':     '❤️',
+                'star':      '⭐',
+                'diamond':   '💎',
+                'crown':     '👑',
+                'fire':      '🔥',
+                'ice':       '❄️',
+                'rainbow':   '🌈',
+                'galaxy':    '🌌',
+                'cat':       '🐱',
+                'butterfly': '🦋',
+                'moon':      '🌙',
+                'lightning': '⚡',
+            }
             app = QApplication.instance()
-            if app:
-                # Restore any previous override so we don't stack overrides
-                while app.overrideCursor():
-                    app.restoreOverrideCursor()
-                # For non-default cursors set an application-wide override
-                if cursor_name not in ('default', 'arrow'):
-                    app.setOverrideCursor(QCursor(shape))
-            logger.debug(f"Cursor applied: {cursor_name} → {shape.name if hasattr(shape, 'name') else shape}")
+            if app is None:
+                return
+            # Restore any previous override so we don't stack overrides
+            while app.overrideCursor():
+                app.restoreOverrideCursor()
+
+            # Strip unlock prefix if present (e.g. "🔒 Skull ⚠️" → "skull")
+            clean_name = cursor_name.strip().lstrip('🔒 ').split()[0].lower()
+
+            if clean_name in _emoji_map:
+                # Render emoji into a pixmap cursor at the configured size
+                emoji = _emoji_map[clean_name]
+                pix = QPixmap(pix_size, pix_size)
+                pix.fill(QColor(0, 0, 0, 0))  # transparent background
+                painter = QPainter(pix)
+                painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+                font = QFont()
+                font.setPixelSize(int(pix_size * 0.85))
+                painter.setFont(font)
+                painter.drawText(pix.rect(), Qt.AlignmentFlag.AlignCenter, emoji)
+
+                # Apply user-chosen color tint via SourceIn composition.
+                # Per-cursor colors take priority: config key 'cursor_color_{name}'
+                # (e.g. 'cursor_color_skull').  Falls back to the global tint.
+                per_cursor_key = f'cursor_color_{clean_name}'
+                per_cursor_hex = str(config.get('ui', per_cursor_key, default=''))
+                global_enabled = bool(config.get('ui', 'cursor_color_enabled', default=False))
+                hex_color = per_cursor_hex or (
+                    str(config.get('ui', 'cursor_color', default=''))
+                    if global_enabled else ''
+                )
+                if hex_color:
+                    tint = QColor(hex_color)
+                    if tint.isValid() and tint.alpha() > 0:
+                        painter.setCompositionMode(
+                            QPainter.CompositionMode.CompositionMode_SourceIn
+                        )
+                        painter.fillRect(pix.rect(), tint)
+
+                painter.end()
+                app.setOverrideCursor(QCursor(pix, 0, 0))
+                logger.debug(f"Emoji cursor applied: {clean_name} ({emoji}) size={pix_size}")
+            elif clean_name not in ('default', 'arrow'):
+                shape = _cursor_map.get(clean_name, Qt.CursorShape.ArrowCursor)
+                app.setOverrideCursor(QCursor(shape))
+                logger.debug(f"Cursor applied: {clean_name} → {shape}")
+            else:
+                logger.debug("Cursor restored to default arrow")
         except Exception as e:
             logger.warning(f"Could not apply cursor: {e}")
 
@@ -3566,6 +4479,15 @@ class TextureSorterMainWindow(QMainWindow):
                 from features.tutorial_system import TooltipVerbosityManager
                 self.tooltip_manager = TooltipVerbosityManager(config)
                 logger.info("Tooltip manager initialized")
+                # Propagate to all panels that were created in setup_ui() before
+                # the manager existed.  Each panel stores the manager under
+                # self.tooltip_manager OR self._tooltip_mgr depending on origin.
+                # After injection, refresh_all() re-applies the correct tooltip
+                # texts to every registered widget so cycling works immediately.
+                try:
+                    self._propagate_tooltip_manager()
+                except Exception as _te:
+                    logger.debug(f"Failed to propagate tooltip manager to panels: {_te}")
             except Exception as e:
                 logger.warning(f"Could not initialize tooltip manager: {e}")
             
@@ -3972,6 +4894,65 @@ class TextureSorterMainWindow(QMainWindow):
             logger.error(f"Failed to initialize components: {e}", exc_info=True)
             self.log(f"⚠️ Warning: Some components failed to initialize: {e}")
     
+    def _propagate_tooltip_manager(self):
+        """Inject self.tooltip_manager into all panels created before it existed.
+
+        ``setup_ui()`` runs before ``initialize_components()``, so all tool
+        panels, the settings panel, and panda-feature panels are constructed
+        with ``tooltip_manager=None``.  After the manager is created we push it
+        to every panel, re-register their widgets, and call ``refresh_all()``
+        so tooltip text is immediately available for the current mode.
+        """
+        if not self.tooltip_manager:
+            return
+        mgr = self.tooltip_manager
+
+        # Collect all panel objects that may hold a tooltip_manager reference.
+        # Panels use either .tooltip_manager or ._tooltip_mgr depending on implementation.
+        candidates = []
+
+        # All tool panels
+        candidates.extend(self.tool_panels.values())
+
+        # Settings panel
+        if hasattr(self, 'settings_panel') and self.settings_panel is not None:
+            candidates.append(self.settings_panel)
+
+        # Panda-feature panels (achievement, closet, inventory, etc.)
+        for attr in (
+            '_achievement_panel', '_closet_panel', '_inventory_panel',
+            '_customization_panel', '_minigame_panel', '_dungeon_view',
+        ):
+            obj = getattr(self, attr, None)
+            if obj is not None:
+                candidates.append(obj)
+
+        injected = 0
+        for panel in candidates:
+            if panel is None:
+                continue
+            changed = False
+            if hasattr(panel, 'tooltip_manager') and panel.tooltip_manager is None:
+                panel.tooltip_manager = mgr
+                changed = True
+            if hasattr(panel, '_tooltip_mgr') and panel._tooltip_mgr is None:
+                panel._tooltip_mgr = mgr
+                changed = True
+            if changed:
+                injected += 1
+
+        # Flush: re-apply tooltip text for every already-registered widget so
+        # the current mode is immediately active without requiring a hover.
+        try:
+            mgr.refresh_all()
+        except Exception as _re:
+            logger.debug(f"Failed to refresh tooltips after propagation: {_re}")
+
+        logger.info(
+            f"Tooltip manager propagated to {injected}/{len(candidates)} panels; "
+            f"refresh_all() called."
+        )
+
     def apply_performance_settings(self):
         """Apply performance settings from config to actual system components."""
         try:
@@ -4091,7 +5072,7 @@ class TextureSorterMainWindow(QMainWindow):
     # ------------------------------------------------------------------
     # Shared helper: react to a tool-panel completion (panda + quest + sound)
     # ------------------------------------------------------------------
-    def _on_tool_finished(self, success: bool, tool_id: str = 'tool') -> None:
+    def _on_tool_finished(self, success: bool, tool_id: str = 'tool', count: int = 1) -> None:
         """Called when any tool-panel `finished` signal fires.
 
         Triggers panda mood, quest progress, and audio feedback — all guarded
@@ -4126,10 +5107,11 @@ class TextureSorterMainWindow(QMainWindow):
                     self.quest_system.update_quest_progress('panda_friend', 1)
         except Exception as _e:
             logger.debug(f"Quest progress update failed for {tool_id}: {_e}")
-        # XP
+        # XP — base 2 XP per tool launch + 1 XP per file processed (capped at 100)
         try:
             if self.level_system:
-                self.level_system.add_xp(2, reason='tool_used')
+                xp = 2 + min(count, 100)
+                self.level_system.add_xp(xp, reason='tool_used')
         except Exception as _e:
             logger.debug(f"XP award failed for {tool_id}: {_e}")
         # Sound
@@ -4150,17 +5132,35 @@ class TextureSorterMainWindow(QMainWindow):
             if self.achievement_system and success:
                 ach = self.achievement_system
                 if tool_id == 'upscaler':
-                    ach.increment_images_upscaled(1)
+                    ach.increment_images_upscaled(count)
                 elif tool_id in ('bg_remover', 'background_remover'):
-                    ach.increment_bg_removed(1)
+                    ach.increment_bg_removed(count)
                 elif tool_id == 'lineart':
-                    ach.increment_lineart_converted(1)
+                    ach.increment_lineart_converted(count)
                 elif tool_id == 'converter':
-                    ach.increment_files_converted(1)
+                    ach.increment_files_converted(count)
                 elif tool_id == 'quality':
-                    ach.increment_quality_checked(1)
+                    ach.increment_quality_checked(count)
+                elif tool_id == 'alpha_fixer':
+                    ach.increment_alpha_fixed(count)
+                elif tool_id == 'color':
+                    ach.increment_color_corrected(count)
+                elif tool_id == 'repair':
+                    ach.increment_images_repaired(count)
+                elif tool_id == 'rename':
+                    ach.increment_files_renamed(count)
         except Exception as _e:
             logger.debug(f"Achievement trigger failed for {tool_id}: {_e}")
+        # Award Panda Coins per file processed (capped at 50 files to prevent flooding)
+        try:
+            if self.currency_system and success:
+                coins_per_file = self.currency_system.get_reward_for_action('conversion_complete')
+                if coins_per_file > 0:
+                    total_coins = coins_per_file * min(count, 50)
+                    self.currency_system.earn_money(total_coins, f'tool_{tool_id}')
+                    self._update_coin_display()
+        except Exception as _e:
+            logger.debug(f"Coin award failed for {tool_id}: {_e}")
 
     def set_operation_running(self, running: bool):
         """Update UI for operation running state (sorter widgets removed; no-op)."""
@@ -4292,7 +5292,8 @@ class TextureSorterMainWindow(QMainWindow):
         self._ai_training_thread = thread   # prevent GC
         thread.start()
 
-    def operation_finished(self, success: bool, message: str, files_processed: int = 0):
+    def operation_finished(self, success: bool, message: str, files_processed: int = 0,
+                           elapsed_time: float = 0.0):
         """Handle operation completion."""
         self.set_operation_running(False)
         # Use count stored by the previous operation when caller doesn't supply it
@@ -4341,12 +5342,24 @@ class TextureSorterMainWindow(QMainWindow):
             # Show statistics summary in log area
             try:
                 if self.statistics_tracker and files_processed > 0:
-                    summary = self.statistics_tracker.get_summary()
-                    elapsed = summary.get('total_time', 0)
-                    rate = summary.get('files_per_second', 0)
-                    errors = summary.get('error_count', 0)
+                    # Use the actual elapsed time from the operation panel when available;
+                    # fall back to computing it from the tracker's start_time.
+                    import time as _time_mod
+                    op_elapsed = elapsed_time if elapsed_time > 0 else (
+                        _time_mod.time() - self.statistics_tracker.start_time
+                    )
+                    self.statistics_tracker.set_total_files(files_processed)
+                    # Efficient O(1) batch update — avoids looping over every file.
+                    # avg_file_size 256 KB is a reasonable approximation for texture
+                    # files; actual sizes vary but this is sufficient for the log display.
+                    self.statistics_tracker.record_batch_processed(
+                        count=files_processed,
+                        total_elapsed=op_elapsed,
+                    )
+                    rate = round(files_processed / op_elapsed, 1) if op_elapsed > 0 else 0
+                    errors = self.statistics_tracker.error_count
                     self.log(
-                        f"📊 Stats: {files_processed} files in {elapsed:.1f}s"
+                        f"📊 Stats: {files_processed} files in {op_elapsed:.1f}s"
                         f" ({rate:.1f} files/sec)"
                         + (f" | {errors} error(s)" if errors else "")
                     )
@@ -4412,6 +5425,17 @@ class TextureSorterMainWindow(QMainWindow):
                         self.statusBar().showMessage(
                             f"⚔️ Adventure level up! Now level {new_level}", 5000
                         )
+            except Exception:
+                pass
+            # Award Panda Coins for files processed
+            try:
+                if self.currency_system and files_processed > 0:
+                    coins = self.currency_system.get_reward_for_action('file_processed') * files_processed
+                    if files_processed >= 100:
+                        coins += self.currency_system.get_reward_for_action('batch_complete')
+                    if coins > 0:
+                        self.currency_system.earn_money(coins, 'file_processed')
+                        self._update_coin_display()
             except Exception:
                 pass
             # Update mood system — sort complete is a positive event
@@ -4498,9 +5522,22 @@ class TextureSorterMainWindow(QMainWindow):
                     mode = mode_map.get(value)
                     if mode:
                         self.tooltip_manager.set_mode(mode)
+
+            # Handle tooltip enabled/disabled toggle
+            elif setting_key == "ui.tooltip_enabled":
+                if self.tooltip_manager and hasattr(self.tooltip_manager, 'set_enabled'):
+                    self.tooltip_manager.set_enabled(bool(value))
             
             # Handle cursor changes — apply immediately
             elif setting_key == "ui.cursor":
+                self.apply_cursor()
+
+            # Handle cursor size changes — re-apply cursor at new size
+            elif setting_key == "ui.cursor_size":
+                self.apply_cursor()
+
+            # Handle cursor color tint changes — re-apply immediately
+            elif setting_key in ("ui.cursor_color", "ui.cursor_color_enabled"):
                 self.apply_cursor()
 
             # Handle cursor trail toggle — install or remove the overlay
@@ -4668,10 +5705,46 @@ class TextureSorterMainWindow(QMainWindow):
                     self.panda_mood_system.on_user_interaction('click')
             except Exception:
                 pass
+            # Award Panda Coins for petting
+            try:
+                if self.currency_system:
+                    coins = self.currency_system.get_reward_for_action('panda_pet')
+                    if coins > 0:
+                        self.currency_system.earn_money(coins, 'panda_pet')
+                        self._update_coin_display()
+            except Exception:
+                pass
 
         except Exception as e:
             logger.error(f"Error handling panda click: {e}", exc_info=True)
     
+    def _on_panda_food_eaten(self, item_id: str) -> None:
+        """Award coins, update stats and mood when food is dropped onto the panda."""
+        try:
+            if self.currency_system:
+                coins = self.currency_system.get_reward_for_action('panda_feed')
+                if coins > 0:
+                    self.currency_system.earn_money(coins, f'panda_feed_{item_id}')
+                    self._update_coin_display()
+            if self.panda_stats:
+                self.panda_stats.increment_feeds()
+            if self.panda_mood_system:
+                self.panda_mood_system.on_user_interaction('feed')
+        except Exception as _e:
+            logger.debug(f"Panda feed handler: {_e}")
+
+    def _on_session_hour(self) -> None:
+        """Award session-hour coins every 60 minutes of active use."""
+        try:
+            if self.currency_system:
+                coins = self.currency_system.get_reward_for_action('session_hour')
+                if coins > 0:
+                    self.currency_system.earn_money(coins, 'session_hour')
+                    self._update_coin_display()
+                    self.statusBar().showMessage(f"⏰ +{coins} Bamboo Bucks for playing for an hour! 🐼", 5000)
+        except Exception as _e:
+            logger.debug(f"Session hour coin award: {_e}")
+
     def _on_panda_gl_failed(self, error_msg: str):
         """
         Called via gl_failed signal when PandaOpenGLWidget.initializeGL() fails.
@@ -4718,6 +5791,8 @@ class TextureSorterMainWindow(QMainWindow):
             w2d.clicked.connect(self.on_panda_clicked)
             w2d.mood_changed.connect(self.on_panda_mood_changed)
             w2d.animation_changed.connect(self.on_panda_animation_changed)
+            if hasattr(w2d, 'food_eaten'):
+                w2d.food_eaten.connect(self._on_panda_food_eaten)
             if self.panda_character is not None:
                 w2d.panda = self.panda_character
         except Exception as e:
@@ -4788,11 +5863,17 @@ class TextureSorterMainWindow(QMainWindow):
         """Handle trail changes from customization panel."""
         try:
             logger.info(f"Customization: trail changed to {trail_type} with settings {trail_data}")
-            
-            # Apply the trail change to the panda widget if it has the method
+
+            # Apply to sidebar panda widget
             if hasattr(self.panda_widget, 'set_trail'):
                 self.panda_widget.set_trail(trail_type, trail_data)
-            
+
+            # Apply to floating overlay panda (if present and different from panda_widget)
+            _overlay = getattr(self, 'panda_overlay', None)
+            if _overlay is not None and _overlay is not self.panda_widget:
+                if hasattr(_overlay, 'set_trail'):
+                    _overlay.set_trail(trail_type, trail_data)
+
         except Exception as e:
             logger.error(f"Error handling customization trail change: {e}", exc_info=True)
     
@@ -5215,6 +6296,18 @@ class TextureSorterMainWindow(QMainWindow):
                 self.level_system.save()
         except Exception:
             pass
+        try:
+            # Award Panda Coins for unlocking the achievement
+            if self.currency_system:
+                rarity = getattr(achievement, 'rarity', 'bronze')
+                reward_key = f'achievement_{rarity}'
+                coins = self.currency_system.get_reward_for_action(reward_key)
+                if coins > 0:
+                    ach_name = getattr(achievement, 'name', str(achievement))
+                    self.currency_system.earn_money(coins, f'achievement_{ach_name}')
+                    self._update_coin_display()
+        except Exception:
+            pass
 
         try:
             from ui.qt_achievement_popup import show_achievement_popup
@@ -5263,6 +6356,16 @@ class TextureSorterMainWindow(QMainWindow):
             if self.currency_system:
                 bonus = new_level * self._COINS_PER_LEVEL
                 self.currency_system.earn_money(bonus, f'level_up_{new_level}')
+                # Milestone bonus for significant level thresholds
+                _MILESTONES = {5, 10, 25, 50, 100}
+                if new_level in _MILESTONES:
+                    milestone_bonus = self.currency_system.get_reward_for_action('milestone_reached')
+                    if milestone_bonus > 0:
+                        self.currency_system.earn_money(milestone_bonus, f'milestone_level_{new_level}')
+                        self.statusBar().showMessage(
+                            f"🏆 Milestone! Level {new_level} — +{milestone_bonus} Bamboo Bucks bonus! 🐼",
+                            8000,
+                        )
                 self._update_coin_display()
         except Exception as _e:
             logger.debug(f"Level-up callback error: {_e}")
@@ -5521,7 +6624,7 @@ class TextureSorterMainWindow(QMainWindow):
         """Handle furniture click in the 3D bedroom.
 
         1. Walk panda to the furniture's world position.
-        2. After arrival delay → play open_furniture animation.
+        2. When panda arrives → play open_furniture animation + open sub-panel.
         3. Slide the corresponding sub-panel into the Home stack (NOT a separate tab).
         """
         def _safe_open(widget, fid):
@@ -5548,7 +6651,7 @@ class TextureSorterMainWindow(QMainWindow):
         }
         sub_title = _TITLES.get(furniture_id, furniture_id.replace('_', ' ').title())
 
-        # ── Walk panda to furniture first ─────────────────────────────────────
+        # ── Resolve walk target ───────────────────────────────────────────────
         walk_x, walk_z = 0.0, 0.0
         category = 'All'
         try:
@@ -5560,39 +6663,11 @@ class TextureSorterMainWindow(QMainWindow):
         except Exception:
             pass
 
-        # Walk the in-room bedroom panda to the furniture's walk position.
-        # The panda character visually walks to the object in the bedroom scene.
-        # Panel opening is handled by the furniture-specific blocks below which
-        # already use QTimer delays that roughly correspond to the walk duration.
-        def _open_panel_after_walk():
-            # The bedroom panda has arrived at the furniture; trigger the overlay
-            # panda's open_furniture animation (visual reaction on the overlay widget).
-            # Note: this fires when the bedroom panda arrives, which may not be
-            # synchronised with the overlay panda's walk — the overlay panda is a
-            # separate widget that plays its own walk animation independently.
-            _safe_open(self.panda_widget, furniture_id)
-
-        try:
-            if self._bedroom_widget and hasattr(self._bedroom_widget, 'walk_panda_to'):
-                self._bedroom_widget.walk_panda_to(walk_x, walk_z, callback=_open_panel_after_walk)
-        except Exception as _e:
-            logger.debug(f"Bedroom panda walk: {_e}")
-
-        # Also animate the overlay panda widget (walk animation plays on the
-        # floating panda overlay independently of the bedroom panda's walk).
-        try:
-            if self.panda_widget and hasattr(self.panda_widget, 'walk_to_position'):
-                self.panda_widget.walk_to_position(walk_x, 0.0, walk_z)
-        except Exception as _e:
-            logger.debug(f"Overlay panda walk: {_e}")
-
-        # ── Trophy stand → switch to Achievements tab ─────────────────────────
+        # ── Define each furniture's panel-open function ───────────────────────
         if furniture_id == 'trophy_stand':
-            def _open_achievements():
+            def _open_panel():
                 try:
                     if self._panda_tabs is not None and self._achievement_tab_index >= 0:
-                        # Switch to the Achievements tab (don't embed it in home stack —
-                        # it's already a proper tab and reparenting it would corrupt panda_tabs)
                         self._panda_tabs.setCurrentIndex(self._achievement_tab_index)
                         if self._achievement_panel and hasattr(self._achievement_panel, 'refresh_achievements'):
                             self._achievement_panel.refresh_achievements()
@@ -5605,13 +6680,10 @@ class TextureSorterMainWindow(QMainWindow):
                         self._show_home_sub_panel(ach_widget, '🏆 Achievements')
                 except Exception as _e2:
                     logger.debug(f"Trophy panel: {_e2}")
-            QTimer.singleShot(500, _open_achievements)
             self.statusBar().showMessage("🏆 Panda is checking their trophies…", 3000)
-            return
 
-        # ── Wardrobe → show Closet panel ──────────────────────────────────────
-        if furniture_id == 'wardrobe':
-            def _open_closet():
+        elif furniture_id == 'wardrobe':
+            def _open_panel():
                 try:
                     cp = getattr(self, '_closet_panel', None)
                     if cp is None:
@@ -5621,21 +6693,16 @@ class TextureSorterMainWindow(QMainWindow):
                     self._show_home_sub_panel(cp, '👗 Wardrobe / Closet')
                 except Exception as _e2:
                     logger.debug(f"Closet panel open: {_e2}")
-            QTimer.singleShot(500, _open_closet)
-            self.statusBar().showMessage("👔 Panda is browsing the wardrobe…", 3000)
-            return
+            self.statusBar().showMessage("👔 Panda is walking to the wardrobe…", 3000)
 
-        # ── Backpack → show merged Inventory + Widgets panel ─────────────────
-        if furniture_id == 'backpack':
-            def _open_backpack():
+        elif furniture_id == 'backpack':
+            def _open_panel():
                 try:
                     inv = getattr(self, '_inventory_panel', None)
                     wid = getattr(self, '_widgets_panel', None)
                     if inv is None and wid is None:
                         placeholder = QWidget()
-                        placeholder.setStyleSheet(
-                            "QWidget { background: #1a1a2e; }"
-                        )
+                        placeholder.setStyleSheet("QWidget { background: #1a1a2e; }")
                         _ph_layout = QVBoxLayout(placeholder)
                         _ph_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
                         _ph_icon = QLabel("🎒")
@@ -5660,13 +6727,6 @@ class TextureSorterMainWindow(QMainWindow):
                         self._home_stack_owned.append(placeholder)
                         self._show_home_sub_panel(placeholder, '🎒 Inventory & Items')
                         return
-                    # Build the merged tab widget once; re-use on subsequent opens.
-                    # IMPORTANT: wrap each panel in a proxy QWidget container so
-                    # that addTab() parents the *wrapper*, not the real panel.
-                    # This prevents re-parenting _inventory_panel / _widgets_panel
-                    # out of their original location, which would cause
-                    #   RuntimeError: wrapped C++ object … has been deleted
-                    # on any subsequent attempt to show them directly.
                     if self._backpack_merged_panel is None:
                         from PyQt6.QtWidgets import QTabWidget as _TW, QVBoxLayout as _VBL
                         merged = _TW()
@@ -5684,60 +6744,78 @@ class TextureSorterMainWindow(QMainWindow):
                             _wid_vb.addWidget(wid)
                             merged.addTab(_wid_wrap, "🧸 Toys & Items")
                         self._backpack_merged_panel = merged
-                        # NOT added to _home_stack_owned — persistent panel
                     self._show_home_sub_panel(self._backpack_merged_panel, '🎒 Inventory & Items')
                 except Exception as _e2:
                     logger.debug(f"Backpack panel open: {_e2}")
-            QTimer.singleShot(500, _open_backpack)
-            self.statusBar().showMessage("🎒 Panda is checking their backpack…", 3000)
-            return
+            self.statusBar().showMessage("🎒 Panda is walking to the backpack…", 3000)
 
-        # ── All other furniture → show filtered Inventory panel ───────────────
-        def _open_inventory():
-            try:
-                inv = self._inventory_panel
-                if inv is None:
-                    label = QLabel(f"📦 {sub_title}\n\n(Inventory not available)")
-                    label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-                    self._home_stack_owned.append(label)
-                    self._show_home_sub_panel(label, sub_title)
-                    return
-                # IMPORTANT: Never reparent _inventory_panel directly if it is already
-                # embedded inside _backpack_merged_panel._inv_wrap.  Instead, always
-                # show _backpack_merged_panel (build it first if needed) and set the
-                # category filter.  This prevents the use-after-free crash that occurred
-                # when _show_home_sub_panel reparented inv OUT of its wrapper container.
-                if self._backpack_merged_panel is None:
-                    from PyQt6.QtWidgets import QTabWidget as _TW, QVBoxLayout as _VBL
-                    merged = _TW()
-                    merged.setDocumentMode(True)
-                    _inv_wrap = QWidget()
-                    _inv_vb = QVBoxLayout(_inv_wrap)
-                    _inv_vb.setContentsMargins(0, 0, 0, 0)
-                    _inv_vb.addWidget(inv)
-                    merged.addTab(_inv_wrap, "📦 Inventory")
-                    wid = getattr(self, '_widgets_panel', None)
-                    if wid is not None:
-                        _wid_wrap = QWidget()
-                        _wid_vb = QVBoxLayout(_wid_wrap)
-                        _wid_vb.setContentsMargins(0, 0, 0, 0)
-                        _wid_vb.addWidget(wid)
-                        merged.addTab(_wid_wrap, "🧸 Toys & Items")
-                    self._backpack_merged_panel = merged
-                # Apply category filter on the real panel (safe — it is inside its wrapper)
-                if hasattr(inv, 'set_category_filter'):
-                    inv.set_category_filter(category)
-                elif hasattr(inv, 'refresh_inventory'):
-                    inv.refresh_inventory()
-                self._backpack_merged_panel.setCurrentIndex(0)
-                self._show_home_sub_panel(self._backpack_merged_panel, sub_title)
-            except Exception as _e2:
-                logger.debug(f"Inventory panel open: {_e2}")
+        else:
+            # All other furniture → show filtered Inventory panel
+            def _open_panel():
+                try:
+                    inv = self._inventory_panel
+                    if inv is None:
+                        label = QLabel(f"📦 {sub_title}\n\n(Inventory not available)")
+                        label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+                        self._home_stack_owned.append(label)
+                        self._show_home_sub_panel(label, sub_title)
+                        return
+                    if self._backpack_merged_panel is None:
+                        from PyQt6.QtWidgets import QTabWidget as _TW, QVBoxLayout as _VBL
+                        merged = _TW()
+                        merged.setDocumentMode(True)
+                        _inv_wrap = QWidget()
+                        _inv_vb = QVBoxLayout(_inv_wrap)
+                        _inv_vb.setContentsMargins(0, 0, 0, 0)
+                        _inv_vb.addWidget(inv)
+                        merged.addTab(_inv_wrap, "📦 Inventory")
+                        wid = getattr(self, '_widgets_panel', None)
+                        if wid is not None:
+                            _wid_wrap = QWidget()
+                            _wid_vb = QVBoxLayout(_wid_wrap)
+                            _wid_vb.setContentsMargins(0, 0, 0, 0)
+                            _wid_vb.addWidget(wid)
+                            merged.addTab(_wid_wrap, "🧸 Toys & Items")
+                        self._backpack_merged_panel = merged
+                    if hasattr(inv, 'set_category_filter'):
+                        inv.set_category_filter(category)
+                    elif hasattr(inv, 'refresh_inventory'):
+                        inv.refresh_inventory()
+                    self._backpack_merged_panel.setCurrentIndex(0)
+                    self._show_home_sub_panel(self._backpack_merged_panel, sub_title)
+                except Exception as _e2:
+                    logger.debug(f"Inventory panel open: {_e2}")
+            self.statusBar().showMessage(
+                f"🐼 Panda is walking to the {furniture_id.replace('_', ' ').title()}…", 3000
+            )
 
-        QTimer.singleShot(500, _open_inventory)
-        self.statusBar().showMessage(
-            f"🐼 Panda is going to the {furniture_id.replace('_', ' ').title()}…", 3000
-        )
+        # ── Walk panda; open panel + play animation after arrival ─────────────
+        def _open_panel_after_walk():
+            """Called when the bedroom panda reaches the furniture."""
+            # Play overlay panda's open_furniture animation
+            _safe_open(self.panda_widget, furniture_id)
+            # Small buffer (200 ms) for the door-open animation before showing panel
+            QTimer.singleShot(200, _open_panel)
+
+        # Start the in-room panda walk
+        _started_walk = False
+        try:
+            if self._bedroom_widget and hasattr(self._bedroom_widget, 'walk_panda_to'):
+                self._bedroom_widget.walk_panda_to(walk_x, walk_z, callback=_open_panel_after_walk)
+                _started_walk = True
+        except Exception as _e:
+            logger.debug(f"Bedroom panda walk: {_e}")
+
+        # Start the overlay panda walk animation (independent, visual only)
+        try:
+            if self.panda_widget and hasattr(self.panda_widget, 'walk_to_position'):
+                self.panda_widget.walk_to_position(walk_x, 0.0, walk_z)
+        except Exception as _e:
+            logger.debug(f"Overlay panda walk: {_e}")
+
+        # Fallback: if no bedroom widget, open panel after a short delay
+        if not _started_walk:
+            QTimer.singleShot(400, _open_panel_after_walk)
 
 
     def _build_closet_items_list(self) -> list:
@@ -5828,24 +6906,21 @@ class TextureSorterMainWindow(QMainWindow):
             logger.debug(f"panda_should_hide callback error: {_e}")
 
     def _on_main_tab_changed(self, index: int) -> None:
-        """Show the panda companion overlay only on the Home tab (index 0).
+        """Keep the panda companion overlay visible on all tabs.
 
-        The overlay is a transparent full-window widget that paints the
-        animated panda on top of everything.  While that makes for a nice
-        companion experience on the Home screen, it physically covers
-        interactive widgets on the Tools, Panda, and Settings tabs —
-        the Background Remover live preview, the Trail Preview strip,
-        and the Font / Font Size combo boxes, among others.
-
-        Hiding the overlay whenever the user is not on the Home tab lets
-        all panels remain fully interactive without removing the companion.
+        The overlay uses WA_TransparentForMouseEvents so mouse events pass
+        through to the UI elements behind it on every tab — it does not block
+        interactive widgets.  The panda companion should be a persistent
+        presence throughout the application, not just on the Home tab.
         """
         try:
             overlay = getattr(self, 'panda_overlay', None)
             if overlay is None or not hasattr(overlay, 'setVisible'):
                 return
-            # Tab 0 is always the Home tab (added first in setup_ui).
-            overlay.setVisible(index == 0)
+            # Always keep the overlay visible; raise it above other widgets in
+            # case a tab change caused z-order restack.
+            overlay.setVisible(True)
+            overlay.raise_()
         except Exception as _e:
             logger.debug(f"_on_main_tab_changed error: {_e}")
 
@@ -5993,7 +7068,16 @@ class TextureSorterMainWindow(QMainWindow):
             f"<li>No tkinter, no canvas</li>"
             f"</ul>"
             f"<p>Author: Dead On The Inside / JosephsDeadish</p>"
+            f"<p>❤️ Support us on Patreon: <a href='{PATREON_URL}'>{PATREON_URL}</a></p>"
         )
+
+    def _open_patreon(self):
+        """Open the Patreon support page in the default browser."""
+        try:
+            import webbrowser
+            webbrowser.open(PATREON_URL)
+        except Exception as _e:
+            logger.debug(f"_open_patreon: {_e}")
 
     def show_help(self):
         """Show help / documentation dialog (F1)."""
@@ -6031,7 +7115,7 @@ class TextureSorterMainWindow(QMainWindow):
             "<li><b>Ctrl+Q</b> — Quit</li>"
             "</ul>"
             f"<p><small>Version {APP_VERSION} &bull; "
-            "Report bugs at github.com/JosephsDeadish</small></p>"
+            f"Support us on Patreon: <a href='{PATREON_URL}'>{PATREON_URL}</a></small></p>"
         )
         msg = QMessageBox(self)
         msg.setWindowTitle(f"{APP_NAME} — Help")
@@ -6089,9 +7173,18 @@ class TextureSorterMainWindow(QMainWindow):
         Uses a deferred single-shot timer so the dialog appears *after* the
         main window finishes initialising (the callback may fire during
         ``auto_backup.start()`` which runs inside ``initialize_components``).
+
+        If the first-run tutorial is currently active the dialog is re-deferred
+        by 3 s each check so it never appears behind the tutorial overlay where
+        the user cannot click its buttons.
         """
         def _show_dialog():
             try:
+                # If the tutorial overlay is blocking input, wait for it to finish.
+                _tm = self._tutorial_manager
+                if _tm is not None and _tm.tutorial_active:
+                    QTimer.singleShot(3000, _show_dialog)
+                    return
                 reply = QMessageBox.question(
                     self,
                     "⚠️ Crash Recovery",
@@ -7008,7 +8101,33 @@ def main():
     app = QApplication(sys.argv)
     app.setApplicationName(APP_NAME)
     app.setOrganizationName("JosephsDeadish")
-    app.setOrganizationDomain("github.com/JosephsDeadish")
+    app.setOrganizationDomain("patreon.com/JosephsDeadish")
+
+    # ── Single-instance guard ─────────────────────────────────────────────────
+    # Prevent a second copy of the application from opening.  We use a lock
+    # file in the user-writable app_data directory.  QLockFile provides both
+    # creation and stale-lock detection (process no longer running).
+    _lock_file = None
+    try:
+        from PyQt6.QtCore import QLockFile
+        from config import get_data_dir
+        _lock_path = str(get_data_dir() / ".app.lock")
+        _lock_file = QLockFile(_lock_path)
+        # 5 000 ms: if the lock is older than 5 s AND the owner PID is gone,
+        # Qt treats it as a stale lock from a crashed instance and removes it.
+        _lock_file.setStaleLockTime(5000)
+        if not _lock_file.tryLock(100):
+            QMessageBox.warning(
+                None,
+                f"{APP_NAME} — Already Running",
+                f"🐼 {APP_NAME} is already open!\n\n"
+                "Only one instance can run at a time.\n"
+                "Please check your taskbar or system tray.",
+            )
+            sys.exit(0)
+    except Exception as _lock_err:
+        logger.debug(f"Single-instance lock skipped: {_lock_err}")
+        _lock_file = None
 
     # Validate frozen-EXE extraction integrity (no-op in dev mode)
     try:
@@ -7034,7 +8153,94 @@ def main():
     # Set application-wide font
     font = QFont("Segoe UI", 10)
     app.setFont(font)
-    
+
+    # ── Startup splash screen ─────────────────────────────────────────────────
+    # Show a panda-themed splash immediately so the user sees feedback while
+    # the heavy module imports (torch, onnxruntime, UI panels, …) happen.
+    # We draw directly onto a QPixmap using QPainter so no external image file
+    # is required — the splash always works even in a fresh EXE extraction.
+    _splash = None
+    try:
+        from PyQt6.QtWidgets import QSplashScreen
+        from PyQt6.QtGui import QPixmap, QPainter, QLinearGradient, QRadialGradient, QBrush, QPen, QColor
+        from PyQt6.QtCore import Qt as _SplashQt
+
+        _W, _H = 480, 300
+        _pix = QPixmap(_W, _H)
+        _pix.fill(_SplashQt.GlobalColor.transparent)
+
+        _p = QPainter(_pix)
+        _p.setRenderHint(QPainter.RenderHint.Antialiasing)
+
+        # Background gradient (dark bamboo-green → near-black)
+        _bg = QLinearGradient(0, 0, 0, _H)
+        _bg.setColorAt(0.0, QColor("#1a2e1a"))
+        _bg.setColorAt(1.0, QColor("#0a160a"))
+        _p.fillRect(0, 0, _W, _H, QBrush(_bg))
+
+        # Soft vignette
+        _vig = QRadialGradient(_W / 2, _H / 2, _W * 0.7)
+        _vig.setColorAt(0.0, QColor(0, 0, 0, 0))
+        _vig.setColorAt(1.0, QColor(0, 0, 0, 160))
+        _p.fillRect(0, 0, _W, _H, QBrush(_vig))
+
+        # Panda face — drawn with basic circles (no image asset needed)
+        _cx, _cy = _W // 2, _H // 2 - 20
+        # Main head
+        _p.setBrush(QBrush(QColor("#f8f8f8")))
+        _p.setPen(QPen(QColor("#cccccc"), 1))
+        _p.drawEllipse(_cx - 60, _cy - 55, 120, 110)
+        # Ears (black patches)
+        _p.setBrush(QBrush(QColor("#222222")))
+        _p.setPen(QPen(_SplashQt.PenStyle.NoPen))
+        _p.drawEllipse(_cx - 70, _cy - 80, 40, 40)
+        _p.drawEllipse(_cx + 30, _cy - 80, 40, 40)
+        # Eye patches
+        _p.drawEllipse(_cx - 42, _cy - 30, 32, 28)
+        _p.drawEllipse(_cx + 10, _cy - 30, 32, 28)
+        # Eyes (white)
+        _p.setBrush(QBrush(QColor("#ffffff")))
+        _p.drawEllipse(_cx - 34, _cy - 24, 16, 16)
+        _p.drawEllipse(_cx + 18, _cy - 24, 16, 16)
+        # Pupils
+        _p.setBrush(QBrush(QColor("#111111")))
+        _p.drawEllipse(_cx - 30, _cy - 20, 8, 10)
+        _p.drawEllipse(_cx + 22, _cy - 20, 8, 10)
+        # Nose
+        _p.setBrush(QBrush(QColor("#444444")))
+        _p.drawEllipse(_cx - 8, _cy + 4, 16, 10)
+        # Mouth
+        _p.setPen(QPen(QColor("#555555"), 2))
+        _p.setBrush(QBrush(_SplashQt.BrushStyle.NoBrush))
+        from PyQt6.QtCore import QRect as _QRect
+        _p.drawArc(_QRect(_cx - 14, _cy + 12, 28, 16), 200 * 16, 140 * 16)
+
+        # Title text
+        _tf = QFont("Segoe UI", 16, QFont.Weight.Bold)
+        _p.setFont(_tf)
+        _p.setPen(QPen(QColor("#ffffff")))
+        _p.drawText(0, _H - 90, _W, 28, int(_SplashQt.AlignmentFlag.AlignHCenter), APP_NAME)
+
+        # Subtitle
+        _sf = QFont("Segoe UI", 10)
+        _p.setFont(_sf)
+        _p.setPen(QPen(QColor("#aaddaa")))
+        _p.drawText(0, _H - 62, _W, 22, int(_SplashQt.AlignmentFlag.AlignHCenter), f"v{APP_VERSION}  ·  Starting up, please wait…")
+
+        # Author
+        _af = QFont("Segoe UI", 8)
+        _p.setFont(_af)
+        _p.setPen(QPen(QColor("#557755")))
+        _p.drawText(0, _H - 22, _W, 18, int(_SplashQt.AlignmentFlag.AlignHCenter), "by Dead On The Inside / JosephsDeadish")
+        _p.end()
+
+        _splash = QSplashScreen(_pix, _SplashQt.WindowType.WindowStaysOnTopHint)
+        _splash.show()
+        app.processEvents()
+    except Exception as _spl_err:
+        logger.debug(f"Splash screen skipped: {_spl_err}")
+        _splash = None
+
     # ── Point rembg's model search path at our pre-downloaded models dir ────────
     # rembg looks for ONNX files in U2NET_HOME (or ~/.u2net/ by default).
     # We pre-download them to app_data/models/ in the CI bundle AND in
@@ -7053,14 +8259,25 @@ def main():
     # Create and show main window
     window = TextureSorterMainWindow()
     window.show()
-    
-    # Show first-run tutorial if this is a new installation.
+
+    # Close splash screen now that the main window is visible
+    if _splash is not None:
+        try:
+            _splash.finish(window)
+        except Exception:
+            pass
+
+    # Show first-run tutorial
     # Deferred 800 ms so the main window is fully painted and the event loop is
     # running before we create the overlay / dialog — avoids race conditions where
     # master.isVisible() returns False or geometry() is still (0,0) during startup.
+    # The TutorialManager reference is stored on the window so that the crash
+    # recovery dialog can check whether the tutorial is currently active before
+    # showing — prevents the backup dialog from appearing behind the tutorial overlay.
     try:
         from features.tutorial_system import TutorialManager
         _tm = TutorialManager(master_window=window, config=config)
+        window._tutorial_manager = _tm   # store so _offer_crash_recovery can check
         if _tm.should_show_tutorial():
             QTimer.singleShot(800, lambda: _tm.start_tutorial())
     except Exception as _te:
@@ -7082,7 +8299,14 @@ def main():
     log_startup_diagnostics(window)
     
     # Start event loop
-    sys.exit(app.exec())
+    _exit_code = app.exec()
+    # Release the single-instance lock so the next launch can start normally
+    if _lock_file is not None:
+        try:
+            _lock_file.unlock()
+        except Exception:
+            pass
+    sys.exit(_exit_code)
 
 
 if __name__ == "__main__":

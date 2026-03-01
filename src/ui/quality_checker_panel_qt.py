@@ -8,7 +8,7 @@ try:
     from PyQt6.QtWidgets import (
         QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
         QScrollArea, QFrame, QFileDialog, QMessageBox, QTextEdit,
-        QGroupBox, QListWidget, QSplitter, QCheckBox
+        QGroupBox, QListWidget, QSplitter, QCheckBox, QApplication
     )
     from PyQt6.QtCore import Qt, QThread, pyqtSignal
     from PyQt6.QtGui import QPixmap, QImage, QFont
@@ -77,6 +77,11 @@ try:
 except (ImportError, OSError, RuntimeError):
     HAS_PIL = False
 
+try:
+    from ui import IMAGE_EXTENSIONS
+except ImportError:
+    IMAGE_EXTENSIONS = frozenset({'.png', '.jpg', '.jpeg', '.bmp', '.tiff', '.tif', '.webp', '.dds', '.tga', '.gif'})
+
 
 try:
     from tools.quality_checker import ImageQualityChecker, format_quality_report, QualityLevel, QualityCheckOptions
@@ -98,8 +103,6 @@ except (ImportError, OSError, RuntimeError):
     ARCHIVE_AVAILABLE = False
     logger.warning("Archive handler not available")
 
-IMAGE_EXTENSIONS = {'.png', '.jpg', '.jpeg', '.bmp', '.tiff', '.webp'}
-
 
 class QualityCheckWorker(QThread):
     """Worker thread for quality checking."""
@@ -118,6 +121,9 @@ class QualityCheckWorker(QThread):
         """Execute quality check in background thread."""
         try:
             for i, filepath in enumerate(self.files):
+                if self.isInterruptionRequested():
+                    self.finished.emit(False, f"Cancelled after checking {i} images")
+                    return
                 self.progress.emit(f"Checking {i+1}/{len(self.files)}: {Path(filepath).name}")
                 
                 report = self.checker.check_quality(filepath, self.options)
@@ -196,14 +202,34 @@ class QualityCheckerPanelQt(QWidget):
         group_layout.addWidget(self.files_list)
         
         # Select button
+        btn_layout = QHBoxLayout()
+
         select_btn = QPushButton("Select Images")
         select_btn.clicked.connect(self._select_files)
-        group_layout.addWidget(select_btn)
-        
+        self._set_tooltip(select_btn, 'qc_analyze')
+        btn_layout.addWidget(select_btn)
+
+        add_folder_btn = QPushButton("📂 Add Folder")
+        add_folder_btn.clicked.connect(self._add_folder)
+        self._set_tooltip(add_folder_btn, "Add all images from a folder to the selection")
+        btn_layout.addWidget(add_folder_btn)
+
+        group_layout.addLayout(btn_layout)
+
+        # Recursive and clear row
+        sub_layout = QHBoxLayout()
+        self.recursive_cb = QCheckBox("Process subfolders")
+        self.recursive_cb.setChecked(False)
+        self._set_tooltip(self.recursive_cb, "When adding a folder, also include images in sub-folders")
+        sub_layout.addWidget(self.recursive_cb)
+        sub_layout.addStretch()
+
         # Clear button
         clear_btn = QPushButton("Clear Selection")
         clear_btn.clicked.connect(self._clear_files)
-        group_layout.addWidget(clear_btn)
+        self._set_tooltip(clear_btn, "Clear the selected images list")
+        sub_layout.addWidget(clear_btn)
+        group_layout.addLayout(sub_layout)
         
         # Archive options
         archive_layout = QHBoxLayout()
@@ -233,18 +259,18 @@ class QualityCheckerPanelQt(QWidget):
         
         self.check_resolution_cb = QCheckBox("📏 Resolution")
         self.check_resolution_cb.setChecked(True)
-        self.check_resolution_cb.setToolTip("Analyze image resolution and dimensions")
         options_layout.addWidget(self.check_resolution_cb)
+        self._set_tooltip(self.check_resolution_cb, "Analyze image resolution and dimensions")
         
         self.check_compression_cb = QCheckBox("📦 Compression")
         self.check_compression_cb.setChecked(True)
-        self.check_compression_cb.setToolTip("Detect compression artifacts and quality")
         options_layout.addWidget(self.check_compression_cb)
+        self._set_tooltip(self.check_compression_cb, "Detect compression artifacts and quality")
         
         self.check_dpi_cb = QCheckBox("🖨️ DPI")
         self.check_dpi_cb.setChecked(True)
-        self.check_dpi_cb.setToolTip("Check DPI and print quality metrics")
         options_layout.addWidget(self.check_dpi_cb)
+        self._set_tooltip(self.check_dpi_cb, 'qc_dpi')
         
         options_layout.addStretch()
         group_layout.addLayout(options_layout)
@@ -258,10 +284,21 @@ class QualityCheckerPanelQt(QWidget):
         group_layout = QVBoxLayout()
         
         # Check quality button
+        check_row = QHBoxLayout()
         self.check_btn = QPushButton("🔍 Check Quality")
         self.check_btn.setStyleSheet("background-color: #4CAF50; color: white; padding: 10px;")
         self.check_btn.clicked.connect(self._check_quality)
-        group_layout.addWidget(self.check_btn)
+        check_row.addWidget(self.check_btn)
+        self._set_tooltip(self.check_btn, 'qc_analyze')
+
+        self.cancel_btn = QPushButton("Cancel")
+        self.cancel_btn.setStyleSheet("background-color: #f44336; color: white; padding: 10px;")
+        self.cancel_btn.clicked.connect(self._cancel_check)
+        self.cancel_btn.setEnabled(False)
+        self.cancel_btn.setVisible(False)
+        self._set_tooltip(self.cancel_btn, 'stop_button')
+        check_row.addWidget(self.cancel_btn)
+        group_layout.addLayout(check_row)
         
         # Status label
         self.status_label = QLabel("Ready")
@@ -291,6 +328,20 @@ class QualityCheckerPanelQt(QWidget):
         self.report_text.setReadOnly(True)
         self.report_text.setFont(QFont("Courier", 9))
         group_layout.addWidget(self.report_text)
+        self._set_tooltip(self.report_text, 'qc_results')
+
+        # Copy / Export buttons
+        report_btn_row = QHBoxLayout()
+        copy_btn = QPushButton("📋 Copy Report")
+        copy_btn.clicked.connect(self._copy_report)
+        self._set_tooltip(copy_btn, "Copy the full quality report to the clipboard")
+        report_btn_row.addWidget(copy_btn)
+
+        export_btn = QPushButton("💾 Export Report…")
+        export_btn.clicked.connect(self._export_report)
+        self._set_tooltip(export_btn, "Save the quality report to a text file")
+        report_btn_row.addWidget(export_btn)
+        group_layout.addLayout(report_btn_row)
         
         group.setLayout(group_layout)
         layout.addWidget(group)
@@ -301,7 +352,7 @@ class QualityCheckerPanelQt(QWidget):
             self,
             "Select Images",
             "",
-            "Images (*.png *.jpg *.jpeg *.bmp *.tiff *.webp);;All Files (*.*)"
+            "Images (*.png *.jpg *.jpeg *.bmp *.tiff *.tif *.webp *.tga *.dds *.gif);;All Files (*.*)"
         )
         
         if files:
@@ -318,6 +369,28 @@ class QualityCheckerPanelQt(QWidget):
         self.files_list.clear()
         self.status_label.setText("Ready")
         self.status_label.setStyleSheet("color: gray;")
+
+    def _add_folder(self):
+        """Add all images from a folder (optionally recursive) to the selection."""
+        folder = QFileDialog.getExistingDirectory(self, "Select Folder")
+        if not folder:
+            return
+        recursive = hasattr(self, 'recursive_cb') and self.recursive_cb.isChecked()
+        folder_path = Path(folder)
+        new_files = []
+        pattern = '**/*' if recursive else '*'
+        for ext in IMAGE_EXTENSIONS:
+            new_files.extend(folder_path.glob(f'{pattern}{ext}'))
+            new_files.extend(folder_path.glob(f'{pattern}{ext.upper()}'))
+        new_paths = sorted({str(p) for p in new_files})
+        existing = set(self.selected_files)
+        added = [p for p in new_paths if p not in existing]
+        self.selected_files.extend(added)
+        for p in added:
+            self.files_list.addItem(Path(p).name)
+        count = len(self.selected_files)
+        self.status_label.setText(f"{count} file{'s' if count != 1 else ''} selected")
+        self.status_label.setStyleSheet("color: green;")
     
     def _check_quality(self):
         """Start quality check process."""
@@ -335,8 +408,11 @@ class QualityCheckerPanelQt(QWidget):
             target_dpi=72.0
         )
         
-        # Disable button
+        # Disable check button; show cancel button
         self.check_btn.setEnabled(False)
+        if hasattr(self, 'cancel_btn'):
+            self.cancel_btn.setEnabled(True)
+            self.cancel_btn.setVisible(True)
         self.status_label.setText("Checking...")
         self.report_text.clear()
         
@@ -346,6 +422,14 @@ class QualityCheckerPanelQt(QWidget):
         self.worker_thread.result.connect(self._on_result)
         self.worker_thread.finished.connect(self._on_finished)
         self.worker_thread.start()
+
+    def _cancel_check(self):
+        """Cancel the running quality-check operation."""
+        if self.worker_thread and self.worker_thread.isRunning():
+            self.worker_thread.requestInterruption()
+            if hasattr(self, 'cancel_btn'):
+                self.cancel_btn.setEnabled(False)
+            self.status_label.setText("Cancelling…")
     
     def _on_progress(self, message):
         """Handle progress updates."""
@@ -411,6 +495,9 @@ class QualityCheckerPanelQt(QWidget):
     def _on_finished(self, success, message):
         """Handle completion."""
         self.check_btn.setEnabled(True)
+        if hasattr(self, 'cancel_btn'):
+            self.cancel_btn.setEnabled(False)
+            self.cancel_btn.setVisible(False)
         
         if success:
             self.status_label.setText(f"✓ {message}")
@@ -420,6 +507,40 @@ class QualityCheckerPanelQt(QWidget):
             self.status_label.setText("✗ Check failed")
             self.status_label.setStyleSheet("color: red;")
         self.finished.emit(success, message)
+
+    def _copy_report(self) -> None:
+        """Copy the full quality report text to the clipboard."""
+        text = self.report_text.toPlainText()
+        if not text:
+            QMessageBox.information(self, "Nothing to Copy", "Run a quality check first.")
+            return
+        try:
+            clipboard = QApplication.clipboard()
+            clipboard.setText(text)
+            self.status_label.setText("📋 Report copied to clipboard")
+        except Exception as _e:
+            QMessageBox.warning(self, "Copy Failed", f"Could not copy to clipboard:\n{_e}")
+
+    def _export_report(self) -> None:
+        """Save the quality report to a text file chosen by the user."""
+        text = self.report_text.toPlainText()
+        if not text:
+            QMessageBox.information(self, "Nothing to Export", "Run a quality check first.")
+            return
+        path, _ = QFileDialog.getSaveFileName(
+            self,
+            "Export Quality Report",
+            "quality_report.txt",
+            "Text Files (*.txt);;All Files (*.*)",
+        )
+        if not path:
+            return
+        try:
+            with open(path, 'w', encoding='utf-8') as fh:
+                fh.write(text)
+            self.status_label.setText(f"💾 Report exported to {Path(path).name}")
+        except Exception as _e:
+            QMessageBox.critical(self, "Export Failed", f"Could not save report:\n{_e}")
 
     def _set_tooltip(self, widget, text_or_id: str):
         """Set tooltip on a widget using tooltip manager if available.

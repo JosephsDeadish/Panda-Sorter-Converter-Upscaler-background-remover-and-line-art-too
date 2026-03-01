@@ -122,6 +122,8 @@ class RenameWorker(QThread):
         """Execute rename in background thread."""
         try:
             def progress_callback(current, total, filename):
+                if self.isInterruptionRequested():
+                    raise InterruptedError("Cancelled by user")
                 self.progress.emit(current, total, filename)
             
             successes, errors = self.renamer.batch_rename(
@@ -134,6 +136,8 @@ class RenameWorker(QThread):
             )
             
             self.finished.emit(len(successes), errors)
+        except InterruptedError as e:
+            self.finished.emit(0, [str(e)])
         except Exception as e:
             logger.error(f"Rename failed: {e}")
             self.finished.emit(0, [str(e)])
@@ -206,18 +210,26 @@ class BatchRenamePanelQt(QWidget):
         
         select_files_btn = QPushButton("➕ Select Images")
         select_files_btn.clicked.connect(self._select_files)
+        self._set_tooltip(select_files_btn, 'input_browse')
         btn_layout.addWidget(select_files_btn)
-        
+
         select_folder_btn = QPushButton("📂 Select Folder")
         select_folder_btn.clicked.connect(self._select_folder)
+        self._set_tooltip(select_folder_btn, 'input_browse')
         btn_layout.addWidget(select_folder_btn)
-        
+
         clear_btn = QPushButton("🗑️ Clear")
         clear_btn.clicked.connect(self._clear_files)
+        self._set_tooltip(clear_btn, "Clear the selected files list")
         btn_layout.addWidget(clear_btn)
         
         group_layout.addLayout(btn_layout)
-        
+
+        self.recursive_cb = QCheckBox("📂 Process sub-folders recursively")
+        self.recursive_cb.setChecked(False)
+        self._set_tooltip(self.recursive_cb, "When adding a folder, also include images in sub-folders")
+        group_layout.addWidget(self.recursive_cb)
+
         # Archive options
         archive_layout = QHBoxLayout()
         
@@ -264,6 +276,8 @@ class BatchRenamePanelQt(QWidget):
             radio = QRadioButton(text)
             radio.setProperty("pattern", value)
             self.pattern_group.addButton(radio)
+            if value in (RenamePattern.DATE_CREATED, RenamePattern.DATE_MODIFIED, RenamePattern.DATE_EXIF):
+                self._set_tooltip(radio, 'rename_date')
             group_layout.addWidget(radio)
             if value == RenamePattern.SEQUENTIAL:
                 radio.setChecked(True)
@@ -282,6 +296,7 @@ class BatchRenamePanelQt(QWidget):
         self.template_entry = QLineEdit()
         self.template_entry.setPlaceholderText("e.g., image_{index}_{date}")
         template_layout.addWidget(self.template_entry)
+        self._set_tooltip(self.template_entry, 'rename_template')
         group_layout.addLayout(template_layout)
         
         # Start index for sequential
@@ -321,6 +336,7 @@ class BatchRenamePanelQt(QWidget):
         self.copyright_entry.setPlaceholderText("Copyright")
         meta_layout.addWidget(QLabel("Copyright:"))
         meta_layout.addWidget(self.copyright_entry)
+        self._set_tooltip(self.copyright_entry, 'rename_copyright')
         
         self.author_entry = QLineEdit()
         self.author_entry.setPlaceholderText("Author")
@@ -344,6 +360,7 @@ class BatchRenamePanelQt(QWidget):
         # Preview button
         preview_btn = QPushButton("🔍 Generate Preview")
         preview_btn.clicked.connect(self._generate_preview)
+        self._set_tooltip(preview_btn, 'preview_button')
         group_layout.addWidget(preview_btn)
         
         # Preview text
@@ -352,6 +369,7 @@ class BatchRenamePanelQt(QWidget):
         self.preview_text.setMinimumHeight(200)
         self.preview_text.setPlaceholderText("Preview will appear here...")
         group_layout.addWidget(self.preview_text)
+        self._set_tooltip(self.preview_text, 'rename_preview')
         
         group.setLayout(group_layout)
         layout.addWidget(group)
@@ -364,12 +382,23 @@ class BatchRenamePanelQt(QWidget):
         self.rename_btn = QPushButton("🚀 Rename Files")
         self.rename_btn.setStyleSheet("background-color: #2196F3; color: white; padding: 10px; font-weight: bold;")
         self.rename_btn.clicked.connect(self._rename_files)
+        self._set_tooltip(self.rename_btn, 'file_selection')
         btn_layout.addWidget(self.rename_btn)
+
+        # Cancel button (hidden until rename starts)
+        self.cancel_btn = QPushButton("Cancel")
+        self.cancel_btn.setStyleSheet("background-color: #f44336; color: white; padding: 10px;")
+        self.cancel_btn.clicked.connect(self._cancel_rename)
+        self.cancel_btn.setEnabled(False)
+        self.cancel_btn.setVisible(False)
+        self._set_tooltip(self.cancel_btn, 'stop_button')
+        btn_layout.addWidget(self.cancel_btn)
         
         # Undo button
         self.undo_btn = QPushButton("↩️ Undo Last Rename")
         self.undo_btn.clicked.connect(self._undo_rename)
         btn_layout.addWidget(self.undo_btn)
+        self._set_tooltip(self.undo_btn, 'rename_undo')
         
         layout.addLayout(btn_layout)
         
@@ -389,7 +418,7 @@ class BatchRenamePanelQt(QWidget):
             self,
             "Select Images",
             "",
-            "Images (*.png *.jpg *.jpeg *.bmp *.tiff *.webp);;All Files (*.*)"
+            "Images (*.png *.jpg *.jpeg *.bmp *.tiff *.tif *.webp *.tga *.dds *.gif);;All Files (*.*)"
         )
         
         if files:
@@ -404,15 +433,23 @@ class BatchRenamePanelQt(QWidget):
             self,
             "Select Folder"
         )
-        
+
         if directory:
-            # Get all image files in directory
-            extensions = {'.png', '.jpg', '.jpeg', '.bmp', '.tiff', '.webp'}
+            extensions = {'.png', '.jpg', '.jpeg', '.bmp', '.tiff', '.tif',
+                          '.webp', '.tga', '.gif', '.dds'}
             files = []
+            recursive = hasattr(self, 'recursive_cb') and self.recursive_cb.isChecked()
             try:
-                for file in os.listdir(directory):
-                    if any(file.lower().endswith(ext) for ext in extensions):
-                        files.append(os.path.join(directory, file))
+                if recursive:
+                    for root, _dirs, file_list in os.walk(directory):
+                        for file in file_list:
+                            if any(file.lower().endswith(ext) for ext in extensions):
+                                files.append(os.path.join(root, file))
+                else:
+                    for file in os.listdir(directory):
+                        fp = os.path.join(directory, file)
+                        if os.path.isfile(fp) and any(file.lower().endswith(ext) for ext in extensions):
+                            files.append(fp)
             except (OSError, PermissionError) as e:
                 logger.error(f"Error accessing directory {directory}: {e}")
                 QMessageBox.warning(
@@ -421,7 +458,7 @@ class BatchRenamePanelQt(QWidget):
                     f"Could not access directory:\n{directory}\n\n{str(e)}"
                 )
                 return
-            
+
             if files:
                 self.selected_files = files
                 self.file_count_label.setText(f"{len(files)} files selected from folder")
@@ -511,8 +548,11 @@ class BatchRenamePanelQt(QWidget):
                 'description': self.description_entry.text()
             }
         
-        # Disable button and show progress
+        # Disable rename button; show cancel button
         self.rename_btn.setEnabled(False)
+        if hasattr(self, 'cancel_btn'):
+            self.cancel_btn.setEnabled(True)
+            self.cancel_btn.setVisible(True)
         self.progress_bar.setVisible(True)
         self.progress_bar.setValue(0)
         self.status_label.setText("Renaming files...")
@@ -529,6 +569,14 @@ class BatchRenamePanelQt(QWidget):
         self.worker_thread.progress.connect(self._on_rename_progress)
         self.worker_thread.finished.connect(self._on_rename_finished)
         self.worker_thread.start()
+
+    def _cancel_rename(self):
+        """Cancel the running rename operation."""
+        if self.worker_thread and self.worker_thread.isRunning():
+            self.worker_thread.requestInterruption()
+            if hasattr(self, 'cancel_btn'):
+                self.cancel_btn.setEnabled(False)
+            self.status_label.setText("Cancelling…")
     
     def _on_rename_progress(self, current, total, filename):
         """Handle rename progress updates."""
@@ -540,6 +588,9 @@ class BatchRenamePanelQt(QWidget):
         """Handle rename completion."""
         self.progress_bar.setVisible(False)
         self.rename_btn.setEnabled(True)
+        if hasattr(self, 'cancel_btn'):
+            self.cancel_btn.setEnabled(False)
+            self.cancel_btn.setVisible(False)
         
         if errors:
             error_msg = f"Renamed {successes} files successfully.\n\n"

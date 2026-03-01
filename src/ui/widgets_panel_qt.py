@@ -74,10 +74,12 @@ class WidgetsPanelQt(QWidget):
         
         add_btn = QPushButton("➕ Add to Scene")
         add_btn.clicked.connect(self.add_selected_widget)
+        self._set_tooltip(add_btn, "Add the selected widget to the bedroom scene")
         button_layout.addWidget(add_btn)
         
         remove_btn = QPushButton("❌ Remove Selected")
         remove_btn.clicked.connect(self.remove_selected_widget)
+        self._set_tooltip(remove_btn, "Remove the selected widget from the scene")
         button_layout.addWidget(remove_btn)
         
         layout.addLayout(button_layout)
@@ -118,6 +120,7 @@ class WidgetsPanelQt(QWidget):
         
         # Select button
         select_btn = QPushButton("Select")
+        self._set_tooltip(select_btn, "Select this widget to add it to or remove it from the scene")
         select_btn.clicked.connect(lambda: self.select_widget(widget))
         item_layout.addWidget(select_btn)
         
@@ -166,9 +169,16 @@ class WidgetsPanelQt(QWidget):
             # this is the closest available API action
             self.panda_widget.clear_items()
     
-    def _set_tooltip(self, widget, tooltip_key: str):
-        """Set tooltip using tooltip manager if available."""
-        if self.tooltip_manager:
-            tooltip = self.tooltip_manager.get_tooltip(tooltip_key)
-            if tooltip:
-                widget.setToolTip(tooltip)
+    def _set_tooltip(self, widget, widget_id_or_text: str):
+        """Set tooltip via manager (cycling) when available, else plain text."""
+        if self.tooltip_manager and hasattr(self.tooltip_manager, 'register'):
+            if ' ' not in widget_id_or_text:
+                try:
+                    tip = self.tooltip_manager.get_tooltip(widget_id_or_text)
+                    if tip:
+                        widget.setToolTip(tip)
+                        self.tooltip_manager.register(widget, widget_id_or_text)
+                        return
+                except Exception:
+                    pass
+        widget.setToolTip(str(widget_id_or_text))

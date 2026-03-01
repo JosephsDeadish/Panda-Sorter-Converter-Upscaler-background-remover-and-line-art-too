@@ -126,34 +126,54 @@ class RepairWorker(QThread):
     finished = pyqtSignal(int, int)  # successes, failures
     error = pyqtSignal(str)
     
-    def __init__(self, repairer, files, output_dir, mode=None):
+    def __init__(self, repairer, files, output_dir, mode=None, skip_existing=False):
         super().__init__()
         self.repairer = repairer
         self.files = files
         self.output_dir = output_dir
         self.mode = mode or RepairMode.BALANCED
+        self.skip_existing = skip_existing
         self._should_cancel = False
+
+    @staticmethod
+    def _compute_output_path(filepath: str, output_dir) -> str:
+        """Return the output file path for *filepath*.
+
+        Mirrors ``ImageRepairer.repair_file()``'s own auto-generation so the
+        skip-if-exists check and the actual repair call agree on the path.
+        """
+        if output_dir is not None:
+            return os.path.join(output_dir, Path(filepath).name)
+        base, ext = os.path.splitext(filepath)
+        return f"{base}_repaired{ext}"
     
     def run(self):
         """Run repair in background."""
         try:
             successes = 0
             failures = 0
-            
+
             for i, filepath in enumerate(self.files):
                 if self._should_cancel:
                     break
-                
+
                 filename = Path(filepath).name
                 self.progress.emit(i + 1, len(self.files), filename)
-                
+
                 try:
-                    # Get output path for this file
-                    output_path = os.path.join(self.output_dir, filename)
-                    
-                    # Call repair with mode
-                    result, message = self.repairer.repair_file(filepath, output_path, self.mode)
-                    
+                    # Use the shared helper so skip-check and repair_file agree on path.
+                    output_path = self._compute_output_path(filepath, self.output_dir)
+
+                    if self.skip_existing and os.path.exists(output_path):
+                        successes += 1
+                        self.result.emit(filepath, True, f"⏭️ {filename}: skipped (already exists)")
+                        continue
+
+                    # Pass the computed path, or None for auto-generation when
+                    # output_dir wasn't set (repair_file computes the same path).
+                    repair_path = output_path if self.output_dir is not None else None
+                    result, message = self.repairer.repair_file(filepath, repair_path, self.mode)
+
                     if result in (RepairResult.SUCCESS, RepairResult.PARTIAL):
                         successes += 1
                         self.result.emit(filepath, True, f"✓ {filename}: {message}")
@@ -163,7 +183,7 @@ class RepairWorker(QThread):
                 except Exception as e:
                     failures += 1
                     self.result.emit(filepath, False, f"✗ {filename}: {str(e)}")
-            
+
             self.finished.emit(successes, failures)
         except Exception as e:
             logger.error(f"Repair failed: {e}")
@@ -177,9 +197,9 @@ class RepairWorker(QThread):
 class ImageRepairPanelQt(QWidget):
     """PyQt6 panel for repairing corrupted images."""
 
-    finished = pyqtSignal(bool, str)  # success, message
+    finished = pyqtSignal(bool, str, int)  # success, message, files_processed
     error = pyqtSignal(str)  # error message
-    
+
     def __init__(self, parent=None, tooltip_manager=None):
         super().__init__(parent)
         
@@ -253,17 +273,26 @@ class ImageRepairPanelQt(QWidget):
         
         self.select_files_btn = QPushButton("Select Files")
         self.select_files_btn.clicked.connect(self._select_files)
+        self._set_tooltip(self.select_files_btn, 'input_browse')
         btn_layout.addWidget(self.select_files_btn)
-        
+
         self.select_folder_btn = QPushButton("Select Folder")
         self.select_folder_btn.clicked.connect(self._select_folder)
+        self._set_tooltip(self.select_folder_btn, 'input_browse')
         btn_layout.addWidget(self.select_folder_btn)
-        
+
         self.clear_btn = QPushButton("Clear")
         self.clear_btn.clicked.connect(self._clear_files)
+        self._set_tooltip(self.clear_btn, "Clear the selected files list")
         btn_layout.addWidget(self.clear_btn)
-        
+
         group_layout.addLayout(btn_layout)
+
+        self.recursive_cb = QCheckBox("📂 Process sub-folders recursively")
+        self.recursive_cb.setChecked(True)
+        self._set_tooltip(self.recursive_cb, "When enabled, also searches sub-folders when a folder is selected")
+        group_layout.addWidget(self.recursive_cb)
+
         group.setLayout(group_layout)
         layout.addWidget(group)
     
@@ -279,7 +308,16 @@ class ImageRepairPanelQt(QWidget):
         
         self.output_dir_btn = QPushButton("Select Output Directory")
         self.output_dir_btn.clicked.connect(self._select_output_dir)
+        self._set_tooltip(self.output_dir_btn, 'output_browse')
         group_layout.addWidget(self.output_dir_btn)
+
+        self._skip_existing = QCheckBox("Skip if output file already exists")
+        self._skip_existing.setChecked(False)
+        self._set_tooltip(self._skip_existing,
+            "When checked, files are not re-processed if the output already exists.\n"
+            "Without an output directory, the auto-generated '<name>_repaired.ext' path is checked."
+        )
+        group_layout.addWidget(self._skip_existing)
         
         # Archive options
         archive_layout = QHBoxLayout()
@@ -310,7 +348,8 @@ class ImageRepairPanelQt(QWidget):
         self.repair_mode_combo = QComboBox()
         self.repair_mode_combo.addItems(["Safe (PIL only)", "Balanced (Recommended)", "Aggressive (All methods)"])
         self.repair_mode_combo.setCurrentIndex(1)  # Default to Balanced
-        self.repair_mode_combo.setToolTip(
+        self._set_tooltip(
+            self.repair_mode_combo,
             "Safe: Only uses PIL recovery methods (safest, may miss some repairs)\n"
             "Balanced: Tries PIL first, then manual repairs (recommended)\n"
             "Aggressive: Attempts all recovery methods including segment extraction (risky but may recover more data)"
@@ -331,6 +370,7 @@ class ImageRepairPanelQt(QWidget):
         self.diagnostic_text.setReadOnly(True)
         self.diagnostic_text.setMinimumHeight(200)
         self.diagnostic_text.setPlaceholderText("Run diagnostics to see corruption analysis...")
+        self._set_tooltip(self.diagnostic_text, 'repair_results')
         group_layout.addWidget(self.diagnostic_text)
         
         # Progress bar
@@ -352,16 +392,19 @@ class ImageRepairPanelQt(QWidget):
         self.diagnose_btn = QPushButton("🔍 Diagnose")
         self.diagnose_btn.clicked.connect(self._diagnose_files)
         btn_layout.addWidget(self.diagnose_btn)
+        self._set_tooltip(self.diagnose_btn, 'repair_diagnose')
         
         self.repair_btn = QPushButton("🔧 Repair Files")
         self.repair_btn.setStyleSheet("background-color: green; color: white; padding: 8px;")
         self.repair_btn.clicked.connect(self._repair_files)
         btn_layout.addWidget(self.repair_btn)
+        self._set_tooltip(self.repair_btn, 'repair_fix')
         
         self.cancel_btn = QPushButton("Cancel")
         self.cancel_btn.setEnabled(False)
         self.cancel_btn.clicked.connect(self._cancel_operation)
         btn_layout.addWidget(self.cancel_btn)
+        self._set_tooltip(self.cancel_btn, "Cancel the current operation")
         
         layout.addLayout(btn_layout)
     
@@ -371,7 +414,10 @@ class ImageRepairPanelQt(QWidget):
             self,
             "Select Image Files",
             "",
-            "Image files (*.png *.jpg *.jpeg);;PNG files (*.png);;JPEG files (*.jpg *.jpeg);;All files (*.*)"
+            "Image files (*.png *.jpg *.jpeg *.bmp *.tiff *.tif *.webp *.tga *.gif);;"
+            "PNG files (*.png);;JPEG files (*.jpg *.jpeg);;BMP files (*.bmp);;"
+            "TIFF files (*.tiff *.tif);;WebP files (*.webp);;TGA files (*.tga);;"
+            "GIF files (*.gif);;All files (*.*)"
         )
         
         if files:
@@ -384,15 +430,22 @@ class ImageRepairPanelQt(QWidget):
             self,
             "Select Folder"
         )
-        
+
         if folder:
-            # Find all image files in folder
-            for root, dirs, files in os.walk(folder):
-                for file in files:
-                    if file.lower().endswith(('.png', '.jpg', '.jpeg')):
-                        filepath = os.path.join(root, file)
-                        self.selected_files.append(filepath)
-            
+            _REPAIR_EXTS = ('.png', '.jpg', '.jpeg', '.bmp', '.tiff', '.tif',
+                            '.webp', '.tga', '.gif')
+            recursive = self.recursive_cb.isChecked()
+            if recursive:
+                for root, _dirs, files in os.walk(folder):
+                    for file in files:
+                        if file.lower().endswith(_REPAIR_EXTS):
+                            self.selected_files.append(os.path.join(root, file))
+            else:
+                for file in os.listdir(folder):
+                    fp = os.path.join(folder, file)
+                    if os.path.isfile(fp) and file.lower().endswith(_REPAIR_EXTS):
+                        self.selected_files.append(fp)
+
             self._update_file_count()
     
     def _clear_files(self):
@@ -521,7 +574,10 @@ class ImageRepairPanelQt(QWidget):
         self.progress_bar.setValue(0)
         
         # Start repair worker with selected mode
-        self.repair_worker = RepairWorker(self.repairer, self.selected_files, self.output_dir, mode)
+        self.repair_worker = RepairWorker(
+            self.repairer, self.selected_files, self.output_dir, mode,
+            skip_existing=self._skip_existing.isChecked(),
+        )
         self.repair_worker.progress.connect(self._on_repair_progress)
         self.repair_worker.result.connect(self._on_repair_result)
         self.repair_worker.finished.connect(self._on_repair_finished)
@@ -554,7 +610,7 @@ class ImageRepairPanelQt(QWidget):
         
         self.progress_label.setText("Repair complete")
         success = failures == 0
-        self.finished.emit(success, f"Repaired {successes} files" + (f" ({failures} failed)" if failures else ""))
+        self.finished.emit(success, f"Repaired {successes} files" + (f" ({failures} failed)" if failures else ""), successes)
     
     def _on_repair_error(self, error_msg):
         """Handle repair error."""

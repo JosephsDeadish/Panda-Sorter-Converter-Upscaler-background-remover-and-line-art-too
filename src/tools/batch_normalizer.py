@@ -85,6 +85,7 @@ class NormalizationSettings:
     preserve_alpha: bool = True
     force_rgb: bool = False
     strip_metadata: bool = False  # Strip EXIF and other metadata from output
+    skip_existing: bool = False   # Skip output files that already exist
 
 
 @dataclass
@@ -113,7 +114,8 @@ class BatchFormatNormalizer:
     
     def __init__(self):
         """Initialize the normalizer."""
-        self.has_cv2 = HAS_CV2
+        # cv2 requires numpy — treat both as unavailable if either is missing
+        self.has_cv2 = HAS_CV2 and HAS_NUMPY
     
     def normalize_image(self, 
                        input_path: str,
@@ -210,7 +212,14 @@ class BatchFormatNormalizer:
                 output_path = self._generate_output_path(
                     input_path, output_dir, i, total, settings
                 )
-                
+
+                # Skip if output already exists and skip_existing is enabled
+                if settings.skip_existing and output_path.exists():
+                    logger.debug(f"Skipped (exists): {output_path.name}")
+                    if progress_callback:
+                        progress_callback(i + 1, total, Path(input_path).name)
+                    continue
+
                 # Normalize image
                 result = self.normalize_image(input_path, str(output_path), settings)
                 results.append(result)

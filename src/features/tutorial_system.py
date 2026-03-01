@@ -1653,6 +1653,97 @@ _PANDA_TOOLTIPS = {
             "Keep both versions. Your disk space is crying but whatever. Hard drives are cheap. Data loss is expensive. Math works out."
         ]
     },
+    'input_files_browse': {
+        'normal': [
+            "Select individual image files to convert",
+            "Browse and pick specific image files for conversion",
+            "Choose files one by one instead of an entire folder",
+            "Multi-select image files for batch conversion",
+        ],
+        'vulgar': [
+            "Pick the actual FILES you want converted. Not a folder. Files. Individual. File. By. File. You know what files are, right?",
+            "Select image files. Like, the specific ones. Not the whole folder. Unless the whole folder. Then use the folder button, genius.",
+            "File picker time! Select your chosen images for conversion. Ctrl+click for multiple. You probably knew that. Maybe.",
+        ],
+    },
+    'output_suffix': {
+        'normal': [
+            "Optional text appended to output filenames",
+            "Add a suffix like '_converted' to avoid overwriting originals",
+            "Leave blank to keep the original filename",
+        ],
+        'vulgar': [
+            "Suffix. The thing that goes at the END of the filename. Like '_converted' or '_done_finally'. Optional but useful.",
+            "Append text to output filenames. Prevents overwriting your originals. Which you definitely care about. Right?",
+        ],
+    },
+    'jpeg_quality': {
+        'normal': [
+            "JPEG quality 1-100: higher = better quality, larger file",
+            "Set JPEG compression quality (92 is a good balance)",
+            "Lower quality reduces file size but introduces artifacts",
+            "100 = lossless-like JPEG, 1 = maximum compression artifacts",
+        ],
+        'vulgar': [
+            "JPEG quality. 1 = looks like it was compressed through a potato. 100 = massive file that looks perfect. Pick wisely.",
+            "How much do you hate image quality? 1 = a lot. 100 = you're a file size masochist who deserves good things.",
+        ],
+    },
+    'webp_quality': {
+        'normal': [
+            "WebP quality 1-100: higher = better quality, larger file",
+            "Set WebP lossy compression quality (90 is a good default)",
+            "WebP offers better compression than JPEG at same quality",
+        ],
+        'vulgar': [
+            "WebP quality, same deal as JPEG. Higher = prettier. Lower = smaller. Pick your poison and move on.",
+            "WebP quality setting. It's like JPEG quality but for WebP. Yes, that's it. That's the whole explanation.",
+        ],
+    },
+    'webp_lossless': {
+        'normal': [
+            "WebP lossless: perfect quality at the cost of larger file size",
+            "Enable lossless WebP compression for pixel-perfect output",
+            "Lossless mode ignores the quality setting above",
+        ],
+        'vulgar': [
+            "Lossless WebP: perfect quality, huge file. Your HD needs therapy anyway. Enable it if you hate compression artifacts.",
+            "No compression artifacts but larger files. Quality over storage. A noble choice. Your SSD disagrees.",
+        ],
+    },
+    'colour_space': {
+        'normal': [
+            "Convert the colour space of output images",
+            "Change between RGB, RGBA (with alpha), Greyscale, CMYK",
+            "Leave as 'Keep Original' to preserve the source colour space",
+        ],
+        'vulgar': [
+            "Colour space. RGB, RGBA, Greyscale — choose what colour mode your output files use. Not the colours, the SPACE they exist in.",
+            "Change the colour model. This is where you turn colour images grey or strip transparency. Science!",
+        ],
+    },
+    'resize_mode': {
+        'normal': [
+            "Resize output images during conversion",
+            "Choose None to keep original dimensions",
+            "Scale by percentage, limit max dimension, or set exact size",
+        ],
+        'vulgar': [
+            "Resize your images during conversion. None = same size. Percent = bigger/smaller. Max dim = won't exceed X pixels. Fixed = forced dimensions.",
+            "Size matters. Here you decide if your outputs should be the same size or a different size. Life is choices.",
+        ],
+    },
+    'clear_log_button': {
+        'normal': [
+            "Clear the conversion log output",
+            "Erase all log messages from the panel",
+            "Start fresh with an empty log",
+        ],
+        'vulgar': [
+            "Wipe the log. Burn the evidence. Whatever you were converting, the log no longer knows about it. Fresh start.",
+            "Clear log. Delete all those messages you stopped reading 3 minutes ago. Cleanliness is next to godliness.",
+        ],
+    },
     'profile_new': {
         'normal': [
             "Create a new game organization profile",
@@ -5459,6 +5550,7 @@ class TutorialDialog(QDialog):
         # Skip button
         if step.show_skip:
             skip_btn = QPushButton("Skip Tutorial")
+            skip_btn.setToolTip("Skip the rest of the tutorial")
             skip_btn.clicked.connect(self._on_skip)
             button_layout.addWidget(skip_btn)
 
@@ -5467,12 +5559,14 @@ class TutorialDialog(QDialog):
         # Back button
         if step.show_back and step_number > 0:
             back_btn = QPushButton("Back")
+            back_btn.setToolTip("Go back to the previous tutorial step")
             back_btn.clicked.connect(self._on_back)
             button_layout.addWidget(back_btn)
 
         # Next/Finish button
         next_btn = QPushButton(step.button_text)
         next_btn.setDefault(True)
+        next_btn.setToolTip("Proceed to the next tutorial step")
         next_btn.clicked.connect(self._on_next)
         next_btn.setStyleSheet("""
             QPushButton {
@@ -5920,6 +6014,9 @@ class _TooltipCyclerFilter(QObject):
 
     def eventFilter(self, obj, event) -> bool:  # type: ignore[override]
         if obj is self._widget and event.type() == QEvent.Type.ToolTip:
+            if not self._manager.is_enabled():
+                obj.setToolTip("")
+                return False
             tip = self._manager.get_tooltip(self._widget_id)
             if tip:
                 obj.setToolTip(tip)
@@ -5932,6 +6029,7 @@ class TooltipVerbosityManager:
     def __init__(self, config):
         self.config = config
         self.current_mode = self._load_mode()
+        self._enabled: bool = bool(config.get('ui', 'tooltip_enabled', default=True))
         self._last_tooltip = {}  # Track last tooltip per widget_id to avoid repeats
         self._tip_idx: Dict[str, int] = {}  # Sequential cycle index per widget_id
         # Registered widgets: list of (widget_ref, widget_id, cycler_filter)
@@ -5943,6 +6041,17 @@ class TooltipVerbosityManager:
             TooltipMode.BEGINNER: self._get_dumbed_down_tooltips(),
             TooltipMode.PROFANE: self._get_unhinged_panda_tooltips()
         }
+
+    def set_enabled(self, enabled: bool) -> None:
+        """Enable or disable all tooltips globally and refresh registered widgets."""
+        self._enabled = bool(enabled)
+        self.config.set('ui', 'tooltip_enabled', value=self._enabled)
+        self.config.save()
+        self.refresh_all()
+
+    def is_enabled(self) -> bool:
+        """Return True when tooltips are currently switched on."""
+        return self._enabled
     
     def _load_mode(self) -> TooltipMode:
         """Load tooltip mode from config"""
@@ -5975,15 +6084,19 @@ class TooltipVerbosityManager:
     def refresh_all(self) -> None:
         """Re-apply current-mode tooltip text to every registered widget.
 
-        Called after a mode change so widgets immediately reflect the new mode
-        without requiring a restart or re-hover.
+        Called after a mode change or enabled-state change so widgets
+        immediately reflect the new state without requiring a restart or re-hover.
+        When tooltips are disabled the empty string is written so Qt shows nothing.
         """
         stale = []
         for widget, widget_id, _cycler in self._registered:
             try:
-                tip = self.get_tooltip(widget_id)
-                if tip and hasattr(widget, 'setToolTip'):
-                    widget.setToolTip(tip)
+                if hasattr(widget, 'setToolTip'):
+                    if self._enabled:
+                        tip = self.get_tooltip(widget_id)
+                        widget.setToolTip(tip)
+                    else:
+                        widget.setToolTip("")
             except RuntimeError:
                 # C++ widget has been deleted — mark for cleanup
                 stale.append((widget, widget_id, _cycler))
@@ -5993,8 +6106,20 @@ class TooltipVerbosityManager:
             except ValueError:
                 pass
     
-    def set_mode(self, mode: TooltipMode):
-        """Change tooltip verbosity mode and refresh all registered widgets."""
+    def set_mode(self, mode: 'TooltipMode'):
+        """Change tooltip verbosity mode and refresh all registered widgets.
+
+        Normalises *mode* to the local TooltipMode enum to handle the case
+        where settings_panel_qt.py imports TooltipMode via the ``src.features``
+        path while the manager was built with the ``features`` path.  The two
+        paths produce distinct enum classes whose instances compare unequal even
+        though they carry the same value, causing dict-key lookup failures in
+        ``get_tooltip``.  Normalising by ``.value`` avoids this.
+        """
+        try:
+            mode = TooltipMode(mode.value)
+        except (AttributeError, ValueError):
+            pass
         self.current_mode = mode
         self._tip_idx.clear()   # reset cycling positions for new mode
         self._last_tooltip.clear()
@@ -6005,10 +6130,33 @@ class TooltipVerbosityManager:
     def get_tooltip(self, widget_id: str) -> str:
         """Get the *next* tip for widget_id in the current mode.
 
+        Returns an empty string when tooltips are disabled globally.
         Cycles sequentially through the list so each call returns the next tip.
         Falls back to normal mode if the current mode doesn't have an entry.
+
+        The lookup uses ``self.current_mode`` which is normalised by
+        ``set_mode()``; additionally we perform a value-based fallback here to
+        guard against any leftover cross-path enum instances.
         """
+        if not self._enabled:
+            return ""
+
+        # Primary lookup — fast path when mode is already normalised.
+        # set_mode() normalises via TooltipMode(mode.value) so this branch is
+        # taken on every call after a proper set_mode(); the fallback below is
+        # only reached if current_mode was set without going through set_mode
+        # (e.g. direct assignment in tests).
         tooltips = self.tooltips.get(self.current_mode, {})
+        if not tooltips:
+            # Safety-net value-based fallback for cross-path enum instances.
+            # self.tooltips has only 3 entries so the scan is O(1) in practice.
+            for key, val in self.tooltips.items():
+                if key.value == getattr(self.current_mode, 'value', None):
+                    tooltips = val
+                    # Heal current_mode so subsequent calls take the fast path
+                    self.current_mode = key
+                    break
+
         tooltip = tooltips.get(widget_id, "")
         
         # Fall back to normal mode if current mode doesn't have this widget
@@ -7116,6 +7264,174 @@ class TooltipVerbosityManager:
                 "Presets like Tattoo or Stencil set all parameters for that style",
                 "Use a preset as a starting point, then tweak to taste",
                 "Preset saves you from manually tuning every slider",
+            ],
+            'lineart_threshold': [
+                "Sets the brightness cut-off: pixels darker than this become black lines",
+                "Lower values keep only the darkest edges; higher values capture more detail",
+                "Increase threshold to reduce noise; decrease to recover fine detail",
+                "Controls how many pixels become part of the line art",
+                "Adjust until the lines look right — usually 110-150 for most images",
+            ],
+            'lineart_auto_threshold': [
+                "Let the app calculate the best threshold value automatically",
+                "Auto-threshold uses image statistics to pick the optimal cut-off",
+                "Uncheck to set the threshold value manually",
+                "Useful when processing batches of images with varying brightness",
+                "Enable for quick one-click processing; disable for precise manual control",
+            ],
+            'lineart_contrast': [
+                "Boost contrast before extracting edges — makes lines pop",
+                "Higher contrast produces bolder, more defined lines",
+                "Reduces washed-out or low-contrast source images before conversion",
+                "Values above 1.5 suit faint or soft originals",
+                "Try 1.0 for already-high-contrast artwork; 2.0+ for photos",
+            ],
+            'lineart_sharpen': [
+                "Apply sharpening before edge extraction for crisper lines",
+                "Sharpening enhances fine details before the algorithm runs",
+                "Useful for slightly blurry or soft source images",
+                "Disable sharpening when the source image is already very crisp",
+                "Works well combined with high contrast for tattoo-style results",
+            ],
+            'lineart_sharpen_amount': [
+                "Controls how much sharpening is applied (higher = more aggressive)",
+                "Values around 1.3 are subtle; 2.0+ is very strong",
+                "Excessive sharpening can introduce noise — keep preview open",
+                "Increase to bring out fine hair-thin strokes",
+                "Reduce if the result looks over-sharpened or has artifacts",
+            ],
+            'lineart_denoise': [
+                "Remove small specks and noise before extracting lines",
+                "Denoising smooths out random pixel-level noise",
+                "Helps when source images have JPEG artifacts or film grain",
+                "Disable for pixel art or images where every pixel counts",
+                "Reduces unwanted dots and speckles in the final line art",
+            ],
+            'lineart_denoise_size': [
+                "Size of the denoising blur kernel (larger = more smoothing)",
+                "1-2 for light noise; 4-6 for heavy grain",
+                "Higher values may blur fine details along with the noise",
+                "Increase only as much as needed for clean results",
+                "Zero means denoising is disabled even when the checkbox is on",
+            ],
+            'lineart_morphology': [
+                "Post-process the extracted lines with a morphology operation",
+                "Close fills small gaps in strokes; Dilate thickens lines; Erode thins them",
+                "None leaves lines exactly as extracted — use for precise work",
+                "Open removes small noise blobs while keeping large lines intact",
+                "Use Close for tattoo/stencil work; Dilate for bold/comic styles",
+            ],
+            'lineart_morph_iter': [
+                "Number of times the morphology operation is applied",
+                "More iterations = stronger effect (e.g. thicker or cleaner lines)",
+                "1-2 iterations for subtle adjustment; 3+ for dramatic results",
+                "Higher iterations with Dilate make very thick bold strokes",
+                "Use sparingly with Erode to avoid breaking thin lines",
+            ],
+            'lineart_kernel': [
+                "Size of the morphology kernel in pixels (must be odd: 3, 5, 7)",
+                "Larger kernel affects a wider area with each operation",
+                "3 is fine detail; 5 is medium; 7 is coarse/chunky",
+                "Match kernel to the thickness of lines you want to affect",
+                "Increase for bolder, chunkier morphology effects",
+            ],
+            'lineart_remove_midtones': [
+                "Remove grey mid-tone pixels, keeping only pure black edges",
+                "Produces cleaner, more graphic results for stencils and tattoos",
+                "Disable to keep tonal gradations in sketch/watercolor modes",
+                "Essential for pure-black line art styles",
+                "Combines with the midtone threshold to control what counts as 'mid-tone'",
+            ],
+            'lineart_midtone_threshold': [
+                "Pixels brighter than this value are removed as mid-tones",
+                "Higher value keeps more grey pixels; lower removes more",
+                "Works with Remove Mid-tones checkbox — has no effect if that is off",
+                "Set around 190-220 for typical clean line art",
+                "Lower this if mid-tone blobs remain in the output",
+            ],
+            'lineart_bg_mode': [
+                "Choose the background colour of the output image",
+                "Transparent is best for layering in other apps (PNG/WebP only)",
+                "White is standard for printing and stencils",
+                "Black inverts the look — white lines on black",
+                "Custom lets you pick any background colour you want",
+            ],
+            'lineart_invert': [
+                "Swap black and white — turns black lines into white lines",
+                "Use for white-on-black or white-on-coloured-background output",
+                "Combine with a black background for a dramatic reversed look",
+                "Useful for dark-themed projects or screen printing",
+                "Inversion is applied as the last step after all processing",
+            ],
+            'lineart_edge_low': [
+                "Canny edge detection: lower hysteresis threshold",
+                "Pixels with gradient magnitude below this value are not edges",
+                "Lower value = more edges detected (but also more noise)",
+                "Typically set to about 1/3 of the high threshold value",
+                "Increase to reduce spurious weak edges in the result",
+            ],
+            'lineart_edge_high': [
+                "Canny edge detection: upper hysteresis threshold",
+                "Pixels above this value are definite strong edges",
+                "Increase for fewer but more confident edge lines",
+                "Decrease to capture more subtle edges in the image",
+                "The ratio between low and high threshold matters most",
+            ],
+            'lineart_edge_aperture': [
+                "Sobel kernel aperture for Canny edge detection (3/5/7)",
+                "3 produces thin, precise edges; 7 produces thicker, coarser edges",
+                "Larger apertures smooth out noise before detection",
+                "Use 3 for fine detail; 5-7 for bold or noisy images",
+                "Aperture must be an odd number: 3, 5, or 7",
+            ],
+            'lineart_adaptive_block': [
+                "Neighbourhood size used to compute the adaptive threshold (must be odd)",
+                "Larger block = considers more context around each pixel",
+                "Small block (11) for fine detail; large block (51+) for even lighting",
+                "Must always be an odd number — the app rounds up if needed",
+                "Increase if the threshold varies too sharply across the image",
+            ],
+            'lineart_adaptive_c': [
+                "Constant subtracted from the adaptive neighbourhood mean",
+                "Higher value = fewer pixels become black (fewer lines)",
+                "Lower or negative value = more pixels become black (more lines)",
+                "Tune this to control density/darkness of the adaptive result",
+                "Start around 2 and adjust ±1 until lines look correct",
+            ],
+            'lineart_adaptive_method': [
+                "Weighting method for the adaptive threshold neighbourhood",
+                "Gaussian weights the centre pixel more — smoother, less noise",
+                "Mean weights all pixels equally — sharper, may pick up noise",
+                "Gaussian is the default and works well for most images",
+                "Try Mean for images with very uniform local contrast",
+            ],
+            'lineart_smooth_lines': [
+                "Apply Gaussian smoothing before edge extraction (sketch mode)",
+                "Creates softer, more organic pencil-like strokes",
+                "Blurs the image slightly so edges are smooth instead of jagged",
+                "Essential for watercolour and sketch visual styles",
+                "Disable for crisp technical or architectural lines",
+            ],
+            'lineart_smooth_amount': [
+                "Radius of the Gaussian smoothing blur (higher = softer look)",
+                "0.5-1.0 is subtle; 2.0+ gives a very soft pencil appearance",
+                "Increasing this blurs fine details more aggressively",
+                "Balance against contrast settings for best sketch results",
+                "Low values keep detail; high values give impressionistic softness",
+            ],
+            'lineart_output_dir': [
+                "Type or paste the folder path where processed line art files will be saved",
+                "Leave empty to automatically save alongside the input file",
+                "Batch processing drops all converted files into this directory",
+                "Creates the destination directory automatically if it doesn't exist yet",
+                "Use an absolute path (e.g. C:\\Users\\You\\LineArt) for reliable results",
+            ],
+            'lineart_output_browse': [
+                "Open a folder picker to choose the output destination",
+                "Navigate your file system and select a folder without typing a path",
+                "After clicking, the chosen path is filled into the output directory box",
+                "Useful when you want to send results to a different drive or shared folder",
+                "Opens a native OS folder dialog — no need to remember exact paths",
             ],
             'lineart_input': [
                 "Select the image file(s) to convert to line art",
@@ -8277,6 +8593,133 @@ class TooltipVerbosityManager:
                 "'Tattoo Design' sets everything up for tattoo-style stencils. 'Colouring Book' makes nice bold outlines. "
                 "Just pick one that matches what you want to make!",
                 "Presets let you skip all the manual settings — just pick the style you want and click Convert!",
+            ],
+            'lineart_threshold': [
+                "Think of this as a brightness dial for what counts as a 'line'. "
+                "If it's too low, only very dark pixels become lines. Too high and everything turns black. "
+                "Most images look good somewhere between 110 and 145.",
+                "This slider decides how dark a pixel has to be before it becomes a line. "
+                "Drag it left for fewer lines, right for more lines.",
+            ],
+            'lineart_auto_threshold': [
+                "Tick this box and the app will automatically pick the best brightness cut-off for your image. "
+                "It's great for beginners — just enable it and the app figures out the details!",
+                "When checked, the app calculates the ideal threshold value automatically. Untick to set it yourself.",
+            ],
+            'lineart_contrast': [
+                "This makes the difference between light and dark parts of your image stronger before converting. "
+                "Increase this if your source image looks washed-out or grey and the lines aren't showing up well.",
+                "Boost contrast to make edges stand out more. 1.0 = no change; 2.0 = doubles the contrast.",
+            ],
+            'lineart_sharpen': [
+                "Tick this to make the image sharper before converting to line art. "
+                "It helps if your photo is a bit blurry and the lines look fuzzy.",
+                "Sharpening makes details crisper. Enable it for soft or blurry source images.",
+            ],
+            'lineart_sharpen_amount': [
+                "Controls how much sharpening is applied. "
+                "1.0 is a gentle sharpen. 2.0+ is quite strong — keep an eye on the preview to avoid over-sharpening.",
+                "Higher numbers = sharper image before conversion. Don't go too high or the image will look weird.",
+            ],
+            'lineart_denoise': [
+                "Tick this to remove small specks and random noise from your image before converting. "
+                "Helpful if your image has a grainy or dotty texture that you don't want to appear as lines.",
+                "Denoising smooths out random dots so they don't turn into messy line art.",
+            ],
+            'lineart_denoise_size': [
+                "Controls how aggressively noise is removed. "
+                "1-2 removes light specks. 4-6 smooths out heavier grain. "
+                "Be careful with very high numbers — it can also blur fine details you want to keep.",
+                "Higher value = more smoothing. Start at 2 and increase only if there is still a lot of noise.",
+            ],
+            'lineart_morphology': [
+                "This applies a final touch-up to the lines after converting. "
+                "'Close' fills in tiny gaps so lines are continuous. "
+                "'Dilate' makes lines thicker. 'Erode' makes them thinner. 'None' leaves lines exactly as they are.",
+                "Morphology shapes and tidies up the lines. Close fills gaps; Dilate thickens; Erode thins; None does nothing.",
+            ],
+            'lineart_morph_iter': [
+                "How many times the touch-up operation is applied. "
+                "1 is subtle, 3-4 is quite strong. More iterations = stronger effect.",
+                "The number of times to repeat the morphology operation. More = stronger result.",
+            ],
+            'lineart_kernel': [
+                "Controls the size of the tool used for the touch-up operation. "
+                "3 = small and precise; 5 = medium; 7 = large and chunky. "
+                "It must always be an odd number (3, 5, or 7).",
+                "Bigger kernel = affects a wider area. 3 is fine; 7 is chunky. Must be an odd number.",
+            ],
+            'lineart_remove_midtones': [
+                "Tick this to remove grey mid-tone pixels and keep only clean black lines. "
+                "This makes the result look much sharper and more graphic — great for tattoos and stencils.",
+                "Removes grey pixels so you only have pure black lines. Strongly recommended for clean line art.",
+            ],
+            'lineart_midtone_threshold': [
+                "Pixels lighter than this brightness level are removed as grey mid-tones. "
+                "Set higher (e.g. 220) to remove almost all grey; lower (e.g. 170) to keep darker greys.",
+                "Controls which grey pixels get removed. Higher = remove more grey; lower = keep some grey tones.",
+            ],
+            'lineart_bg_mode': [
+                "Choose what colour the background of your output image will be. "
+                "'Transparent' means no background (best for layering in Photoshop). "
+                "'White' is standard for printing. 'Black' gives white lines on black.",
+                "Set the background colour of the output: transparent, white, black, or a custom colour of your choice.",
+            ],
+            'lineart_invert': [
+                "This flips the colours — black lines become white, white background becomes black. "
+                "Useful if you want white lines on a dark background instead of the usual black lines.",
+                "Inverts the result. Normally lines are black; after inverting they are white.",
+            ],
+            'lineart_edge_low': [
+                "The lower sensitivity setting for edge detection. "
+                "Lower number = finds more edges (but may add noise). Higher = misses subtle edges.",
+                "Lower threshold for detecting edges. Set lower to find more edges; higher for only strong edges.",
+            ],
+            'lineart_edge_high': [
+                "The upper sensitivity setting for edge detection. "
+                "Only pixels that are clearly part of an edge count as definite edges. "
+                "Increase to make the result cleaner; decrease to capture more edges.",
+                "Upper threshold for edge detection. Higher = only strong edges; lower = includes subtle edges too.",
+            ],
+            'lineart_edge_aperture': [
+                "The size of the edge-finding tool. "
+                "3 finds thin, sharp edges. 7 finds thicker, more obvious edges but misses fine detail.",
+                "Aperture size for the edge detector. 3=thin precise edges; 5=medium; 7=thicker results.",
+            ],
+            'lineart_adaptive_block': [
+                "The app looks at a square block of pixels around each point to decide if it's a line. "
+                "Smaller blocks (11) work for fine detail. Larger blocks (51+) work for images with uneven lighting.",
+                "Size of the area checked around each pixel. Larger values help when lighting is uneven across the image.",
+            ],
+            'lineart_adaptive_c': [
+                "This number is subtracted from the local average brightness to set the line threshold. "
+                "Higher = fewer lines (only dark edges qualify). Lower or negative = more lines.",
+                "Fine-tuning number for adaptive threshold. Higher = fewer lines; lower = more lines.",
+            ],
+            'lineart_adaptive_method': [
+                "How the app calculates the average brightness in the block. "
+                "'Gaussian' gives more weight to pixels in the centre — smoother result, good for most images. "
+                "'Mean' treats all pixels equally — sharper, but can pick up more noise.",
+                "Gaussian = smooth average (recommended). Mean = simple average (sharper but noisier).",
+            ],
+            'lineart_smooth_lines': [
+                "Applies a gentle blur before extracting edges to give a soft, pencil-like look. "
+                "Great for the Sketch mode and watercolour-style results.",
+                "Smooths the image first for softer, more natural-looking lines.",
+            ],
+            'lineart_smooth_amount': [
+                "Controls how much the image is blurred before edge extraction. "
+                "Higher = softer, more painterly look. Lower = crisper lines.",
+                "Smoothing strength. Higher = softer pencil-sketch effect.",
+            ],
+            'lineart_output_dir': [
+                "This is the folder where your finished line art images will be saved. "
+                "Leave it empty to save them in the same folder as your original images.",
+                "Where to save the converted line art files. Empty = save next to the original.",
+            ],
+            'lineart_output_browse': [
+                "Click here to choose the folder where your converted images will be saved.",
+                "Browse to select an output folder for the converted line art files.",
             ],
             'lineart_input': [
                 "Click here to choose the image file you want to convert to line art. "
@@ -9477,6 +9920,174 @@ class TooltipVerbosityManager:
                 "Presets: distilled knowledge of what settings actually work. Someone suffered so you don't have to.",
                 "Click a preset. Watch the settings auto-fill. Feel the joy of not having to figure this out yourself.",
             ],
+            'lineart_threshold': [
+                "THE THRESHOLD. The sacred line between 'this pixel is a line' and 'this pixel is nothing'. Choose WISELY.",
+                "Brightness cutoff for what counts as a line. Too low = barely any lines. Too high = everything is lines.",
+                "Dial this in or your lineart will look like absolute garbage. 110-145 is the sweet spot for most images.",
+                "The darkness threshold. Lower = only the darkest shit becomes a line. Higher = everything gets lines.",
+                "Threshold slider. Move it until the result doesn't make you want to cry. Preview helps.",
+            ],
+            'lineart_auto_threshold': [
+                "AUTO THRESHOLD. Let the algorithm figure out the right cutoff so you don't have to use your brain.",
+                "Check this and the app picks the threshold for you. Lazy? Yes. Effective? Also yes.",
+                "Automatic brightness analysis. Turns a manual headache into a one-click solution.",
+                "Let the code do the math. Uncheck it when you think you know better (you probably don't).",
+                "Auto mode. Convenient as hell. The computer analyzes your image and picks a sensible threshold.",
+            ],
+            'lineart_contrast': [
+                "CONTRAST BOOST. Makes the light parts lighter and dark parts darker before finding edges. DRAMATIC.",
+                "Pump up the contrast. Washed-out source image? Crank this up. Too harsh? Dial it back.",
+                "Pre-conversion contrast amplification. Makes your lines pop out like they've had too much coffee.",
+                "The contrast booster. 1.0 = no change. 2.0 = double the drama. 3.0 = ART.",
+                "Contrast control. Because not every image arrives with adequate contrast for good lineart. Fix it here.",
+            ],
+            'lineart_sharpen': [
+                "SHARPEN. Because apparently your source image is blurry and needs HELP.",
+                "Pre-sharpening toggle. Makes soft images crisp before the algorithm eats them.",
+                "Enable sharpening for those photos that look like they were taken through a dirty sock.",
+                "Sharpening pre-pass. Crisps up your image so the edge detector finds REAL edges not blur.",
+                "Turn this on for blurry sources. Turn this off for already-sharp artwork.",
+            ],
+            'lineart_sharpen_amount': [
+                "How aggressively to sharpen. 1.3 is polite. 2.0 is assertive. 3.0 is VIOLENT.",
+                "Sharpen strength. Don't go too high or your image will look like it went through a cheese grater.",
+                "Sharpening intensity. Moderate = finds more detail. Too high = creates artifacts and regret.",
+                "Higher number = more sharpening. Diminishing returns after 2.5. Watch the preview, genius.",
+                "Amount of pre-sharpening. Balance it with the denoise setting for best results.",
+            ],
+            'lineart_denoise': [
+                "DENOISE. Remove the random grain and noise before it turns into ugly-ass specks in your lineart.",
+                "Noise removal toggle. Enable if your source image looks like TV static threw up on it.",
+                "Denoising pre-pass. Smooths out JPEG artifacts and grain so they don't ruin your beautiful lines.",
+                "Turn this on for grainy photos. Turn it off for clean pixel art or vector-derived images.",
+                "Denoiser checkbox. Because photographic noise has no place in your gorgeous line art. BANISH IT.",
+            ],
+            'lineart_denoise_size': [
+                "How hard to hammer the noise. 1-2 for light grain. 4-6 for heavy-ass noise. Don't overdo it.",
+                "Denoising kernel size. Bigger = smoother = more blurred fine details. Trade-off time, genius.",
+                "Noise removal intensity. Higher values smooth more aggressively. High enough and you'll lose detail.",
+                "Denoise radius. Start small. Go up only if noise persists. Stop before you turn your image into mush.",
+                "Denoising strength. Recommended: start at 2, go up by 1 until noise is gone. Don't be a hero.",
+            ],
+            'lineart_morphology': [
+                "LINE SURGERY. Close fills gaps, Dilate fattens lines, Erode thins them, None does nothing. Choose your fate.",
+                "Post-processing for your lines. Because the raw extraction is rarely perfect and needs TLC.",
+                "Morphology operation. Close = fill gaps. Dilate = chonky lines. Erode = anorexic lines. None = leave it.",
+                "Shape-processing pass. Tattoo artists want Close or Dilate. Technical work wants None or Erode.",
+                "Morph your lines into submission. Pick the operation that makes your art look intentional.",
+            ],
+            'lineart_morph_iter': [
+                "How many times to apply the line surgery. More iterations = more dramatic change. Don't be surprised.",
+                "Repetitions of the morphology operation. 1 = subtle. 4 = significant. 8 = you have strong opinions.",
+                "Iteration count. Each pass amplifies the effect. Preview before cranking this past 3.",
+                "How many times to perform the morphology. More = stronger. Watch the preview. Trust no one.",
+                "Morph iterations. More = bigger effect. Less = subtle. Use your goddamn eyes and check the preview.",
+            ],
+            'lineart_kernel': [
+                "SIZE OF THE MORPHOLOGY TOOL. 3=scalpel. 5=regular knife. 7=cleaver. Pick appropriately.",
+                "Kernel size controls how wide an area each morphology operation affects. Bigger = chunkier.",
+                "Must be odd (3, 5, 7). 3 for precise fine work. 7 for big chunky results.",
+                "How large the morphology brush is. Small for fine detail preservation. Large for bold chunky lines.",
+                "Kernel size. If you want subtle, stay at 3. If you want DRAMATIC, go to 7. Medium? 5. Math!",
+            ],
+            'lineart_remove_midtones': [
+                "REMOVE THE GREY. Pure black and white only, no wishy-washy in-between nonsense.",
+                "Midtone removal. Get rid of all the grey pixels so you have ACTUAL clean black lines.",
+                "Strip out mid-tones for clean graphic results. Essential for tattoos, stencils, and respectable line art.",
+                "Remove the grey garbage. Makes your output clean, crisp, and binary. No grey zone. COMMIT.",
+                "Mid-tone killer checkbox. Enable for clean lineart. Disable if you actually want grey tones.",
+            ],
+            'lineart_midtone_threshold': [
+                "Where does 'mid-tone' end and 'actually dark enough to be a line' begin? YOU DECIDE.",
+                "Midtone cutoff. Higher = removes more greys. Lower = keeps darker greys. Tune to taste.",
+                "The brightness above which pixels get classified as mid-tones and nuked. Try 190-220.",
+                "Remove midtones control. Works only when 'Remove Mid-tones' is checked. Otherwise useless.",
+                "Midtone sensitivity. Higher value = more aggressive grey removal. Lower = keeps more texture.",
+            ],
+            'lineart_bg_mode': [
+                "BACKGROUND! Transparent for Photoshop warriors. White for boring printing. Black for goths.",
+                "Pick your background. Transparent = pro move. White = default. Black = edgy. Custom = your problem.",
+                "Output background colour. Transparent is PNG only (obviously). White for printing. Black for drama.",
+                "Background selector. What colour should the non-line-art parts be? Choose wisely. Or randomly.",
+                "Choose a background. Transparent if you're layering in other software. Otherwise white like a coward.",
+            ],
+            'lineart_invert': [
+                "INVERT. White lines on black. Because apparently you live in the Matrix.",
+                "Flip the colours. Black → white, white → black. For dark themes and dramatic personalities.",
+                "Invert toggle. If you want white lines on a dark background, this is your checkbox.",
+                "Colour inversion. Applied last, after all other processing. Reverses the whole thing. Goes HARD.",
+                "Check this for inverted results. Pairs well with a black background for that edgy look you clearly want.",
+            ],
+            'lineart_edge_low': [
+                "Canny low threshold. Below this value pixels don't even qualify as candidate edges. Set it low.",
+                "Lower edge sensitivity. Too high and you'll miss subtle lines. Too low and noise becomes edges.",
+                "Low hysteresis threshold. Should be roughly 1/3 of the high value. Keep that ratio.",
+                "Minimum edge sensitivity for Canny. Low value = more edges. High = only the most obvious ones.",
+                "Edge detection lower bound. Tune lower to find more edges. Tune higher to suppress noise.",
+            ],
+            'lineart_edge_high': [
+                "Canny high threshold. Above this = definitely an edge. Below it = maybe an edge if connected.",
+                "Upper edge sensitivity. Increase to reduce false positives. Decrease for more complete edge maps.",
+                "High hysteresis threshold for Canny. This is where confident edges get confirmed.",
+                "Strong edge cutoff. Higher = cleaner but sparser. Lower = denser but noisier. Balance it.",
+                "Edge detection upper bound. The ratio to the low threshold matters more than the exact value.",
+            ],
+            'lineart_edge_aperture': [
+                "Sobel aperture (3/5/7). 3 = razor-sharp precision lines. 7 = chunky industrial-looking edges.",
+                "Aperture size for Canny's Sobel filter. Larger = smoother edges but loses fine detail.",
+                "Must be odd: 3, 5, or 7. Use 3 for fine work. 5 or 7 for noisy images.",
+                "Edge kernel size. 3 is standard. 7 is for when you want THICKER edges and don't care about precision.",
+                "Sobel aperture. Affects edge thickness and noise sensitivity. 3 = sharp. 7 = bold.",
+            ],
+            'lineart_adaptive_block': [
+                "Block size for adaptive threshold. How big a neighbourhood to average. Must be odd. Yes, must.",
+                "Pixel neighbourhood size. Larger = considers more context. Smaller = reacts to local contrast more.",
+                "Adaptive block size. 11 for fine detail. 51+ for images with very uneven illumination.",
+                "Must be ODD or the app will round up. Start at 11. Go bigger if threshold varies too much.",
+                "How many pixels to average around each point for the threshold. Bigger = smoother result.",
+            ],
+            'lineart_adaptive_c': [
+                "Subtracted from the local average to set the threshold. Higher = fewer lines. Lower = more lines.",
+                "C constant. Positive = stricter threshold (fewer lines). Negative = looser threshold (more lines).",
+                "Fine-tune constant for adaptive mode. Pull toward 0 to get more lines. Push to 5+ for cleaner result.",
+                "The magic number that offsets the local average. Try ±1 adjustments until it looks right.",
+                "Adaptive C value. Changes the threshold relative to local brightness. Experiment. There's no wrong answer.",
+            ],
+            'lineart_adaptive_method': [
+                "Gaussian = smooth local average (recommended and sensible). Mean = sharp but picks up noise.",
+                "Weighting for local threshold. Gaussian is forgiving. Mean is harsh. Start with Gaussian.",
+                "How to calculate the local average. Gaussian weights the centre more. Mean is democratic.",
+                "Adaptive method. Gaussian = good for most. Mean = only if you want sharper, noisier results.",
+                "Weighting method. Gaussian is almost always the right choice unless you WANT the extra noise.",
+            ],
+            'lineart_smooth_lines': [
+                "Pre-blur for soft pencil effects. Makes your output look like it was drawn by a real artist.",
+                "Gaussian pre-smoothing for sketch/watercolour modes. Softens everything before edge extraction.",
+                "Smooth lines toggle. On = soft organic edges. Off = crisp digital precision. Vibes.",
+                "Enable for watercolour or pencil sketch aesthetics. Disable for technical precision linework.",
+                "Pre-smoothing. Makes lines softer and more organic. Essential for the sketchy romantic look.",
+            ],
+            'lineart_smooth_amount': [
+                "How much pre-blur to apply. 0.5 is polite. 2.0 is very soft. Higher = abstract impressionism.",
+                "Smoothing radius. More = softer and more artistic. Less = crisper and more defined.",
+                "Blur strength for pre-smoothing. Balance this against your contrast setting for best sketch results.",
+                "Amount of pre-conversion softening. Watch the preview before you go above 2.0.",
+                "Smooth amount slider. Controls how 'painterly' the result looks. More = you're basically Monet.",
+            ],
+            'lineart_output_dir': [
+                "Where the converted line art gets DUMPED. Pick somewhere you'll actually remember.",
+                "Output directory. Don't save to Desktop. Pick a real folder. Show some self-respect.",
+                "The destination folder for your line art. Empty = saves next to source. Filled = saves there.",
+                "Where should the output go? Somewhere organised, not your Downloads folder you digital goblin.",
+                "Output location. Browse for a sensible path or leave blank to save alongside the originals.",
+            ],
+            'lineart_output_browse': [
+                "Browse for an output folder. Pick somewhere SENSIBLE. Your Desktop doesn't count.",
+                "Find the folder where converted line art should live. Make it somewhere logical. Please.",
+                "Output folder picker. Navigate to your destination. Commit. For once in your life, COMMIT.",
+                "Browse for output path. Somewhere that isn't 'untitled folder (5)' on your Desktop.",
+                "Select the output directory. Any folder. A real one. With a descriptive name. You've got this.",
+            ],
             'lineart_input': [
                 "Browse for the image you want to turn into lineart. Any image. The AI is hungry for pixels.",
                 "Select your source image. Photo, texture, concept art — all valid. The AI will convert anything.",
@@ -9690,6 +10301,7 @@ class ContextHelp:
         
         # Close button
         close_btn = QPushButton("Close")
+        close_btn.setToolTip("Close this help dialog")
         close_btn.clicked.connect(dialog.accept)
         close_btn.setDefault(True)
         layout.addWidget(close_btn)

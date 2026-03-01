@@ -230,6 +230,18 @@ class BatchProgressDialog:
             }
         """)
         self.pause_button.clicked.connect(self._on_pause_clicked)
+        # Look up the real tooltip text via the parent's tooltip_manager, with a
+        # sensible fallback so the button always shows something useful.
+        _pause_tip = "Pause or resume the current batch operation"
+        try:
+            _tm = getattr(self.parent, 'tooltip_manager', None)
+            if _tm and hasattr(_tm, 'get_tooltip'):
+                _pause_tip = _tm.get_tooltip('pause_button') or _pause_tip
+            if _tm and hasattr(_tm, 'register'):
+                _tm.register(self.pause_button, 'pause_button')
+        except Exception:
+            pass
+        self.pause_button.setToolTip(_pause_tip)
         button_layout.addWidget(self.pause_button)
         
         self.cancel_button = QPushButton("❌ Cancel")
@@ -247,6 +259,16 @@ class BatchProgressDialog:
             }
         """)
         self.cancel_button.clicked.connect(self._on_cancel_clicked)
+        _cancel_tip = "Stop the current batch operation"
+        try:
+            _tm = getattr(self.parent, 'tooltip_manager', None)
+            if _tm and hasattr(_tm, 'get_tooltip'):
+                _cancel_tip = _tm.get_tooltip('stop_button') or _cancel_tip
+            if _tm and hasattr(_tm, 'register'):
+                _tm.register(self.cancel_button, 'stop_button')
+        except Exception:
+            pass
+        self.cancel_button.setToolTip(_cancel_tip)
         button_layout.addWidget(self.cancel_button)
         
         button_layout.addStretch()

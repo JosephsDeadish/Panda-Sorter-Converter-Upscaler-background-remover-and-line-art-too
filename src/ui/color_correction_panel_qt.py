@@ -14,6 +14,11 @@ import tempfile
 import os
 
 try:
+    from ui import IMAGE_EXTENSIONS
+except ImportError:
+    IMAGE_EXTENSIONS = frozenset({'.png', '.jpg', '.jpeg', '.bmp', '.tiff', '.tif', '.webp', '.dds', '.tga', '.gif'})
+
+try:
     from PyQt6.QtWidgets import (
         QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
         QScrollArea, QFrame, QSlider, QSpinBox, QFileDialog,
@@ -112,45 +117,55 @@ except (ImportError, OSError, RuntimeError):
 
 class ColorCorrectionWorker(QThread):
     """Worker thread for color correction processing."""
-    
+
     progress_updated = pyqtSignal(int, str)  # progress, status
-    finished = pyqtSignal(bool, str)  # success, message
-    
-    def __init__(self, corrector, input_files, output_dir, settings):
+    finished = pyqtSignal(bool, str, int)  # success, message, files_processed
+
+    def __init__(self, corrector, input_files, output_dir, settings, skip_existing=False):
         super().__init__()
         self.corrector = corrector
         self.input_files = input_files
         self.output_dir = output_dir
         self.settings = settings
+        self.skip_existing = skip_existing
         self._is_cancelled = False
-    
+
     def run(self):
         """Run color correction in background thread."""
         try:
             total = len(self.input_files)
+            done = 0
+            skipped = 0
             for i, file_path in enumerate(self.input_files):
                 if self._is_cancelled:
-                    self.finished.emit(False, "Cancelled")
+                    self.finished.emit(False, "Cancelled", done)
                     return
-                
+
                 # Update progress
                 progress = int((i / total) * 100)
                 self.progress_updated.emit(progress, f"Processing {file_path.name}...")
-                
+
                 # Process file
                 output_path = Path(self.output_dir) / file_path.name
+                if self.skip_existing and output_path.exists():
+                    skipped += 1
+                    continue
                 self.corrector.correct_file(
                     str(file_path),
                     str(output_path),
                     **self.settings
                 )
-            
-            self.finished.emit(True, f"✅ Corrected {total} images successfully!")
-        
+                done += 1
+
+            parts = [f"✅ Corrected {done} image{'s' if done != 1 else ''}"]
+            if skipped:
+                parts.append(f"{skipped} skipped (already existed)")
+            self.finished.emit(True, ", ".join(parts) + "!", done)
+
         except Exception as e:
             logger.error(f"Color correction failed: {e}")
-            self.finished.emit(False, f"❌ Error: {str(e)}")
-    
+            self.finished.emit(False, f"❌ Error: {str(e)}", 0)
+
     def cancel(self):
         """Cancel the operation."""
         self._is_cancelled = True
@@ -159,10 +174,9 @@ class ColorCorrectionWorker(QThread):
 class ColorCorrectionPanelQt(QWidget):
     """PyQt6 panel for color correction and enhancement."""
 
-    finished = pyqtSignal(bool, str)  # success, message
-    
+    finished = pyqtSignal(bool, str, int)  # success, message, files_processed
+
     def __init__(self, parent=None, unlockables_system=None, tooltip_manager=None):
-        super().__init__(parent)
         
         if not COLOR_CORRECTOR_AVAILABLE:
             self._show_unavailable()
@@ -241,13 +255,24 @@ class ColorCorrectionPanelQt(QWidget):
         input_layout = QHBoxLayout()
         self.input_label = QLabel("No files selected")
         input_layout.addWidget(self.input_label, 1)
-        
+
         self.select_btn = QPushButton("Select Images...")
         self.select_btn.clicked.connect(self._select_files)
         self._set_tooltip(self.select_btn, "Select image files to apply color correction")
         input_layout.addWidget(self.select_btn)
-        
+
+        add_folder_btn = QPushButton("📂 Add Folder")
+        add_folder_btn.clicked.connect(self._add_folder)
+        self._set_tooltip(add_folder_btn, "Add all images from a folder to the selection")
+        input_layout.addWidget(add_folder_btn)
+
         group_layout.addLayout(input_layout)
+
+        # Recursive checkbox
+        self.recursive_cb = QCheckBox("Process subfolders")
+        self.recursive_cb.setChecked(False)
+        self._set_tooltip(self.recursive_cb, "When adding a folder, also include images in sub-folders")
+        group_layout.addWidget(self.recursive_cb)
         
         # Output directory
         output_layout = QHBoxLayout()
@@ -258,8 +283,13 @@ class ColorCorrectionPanelQt(QWidget):
         self.output_btn.clicked.connect(self._select_output)
         self._set_tooltip(self.output_btn, "Choose where to save corrected images")
         output_layout.addWidget(self.output_btn)
-        
+
         group_layout.addLayout(output_layout)
+
+        self._skip_existing = QCheckBox("Skip if output file already exists")
+        self._skip_existing.setChecked(False)
+        self._set_tooltip(self._skip_existing, "When checked, files are not re-processed if the output already exists")
+        group_layout.addWidget(self._skip_existing)
         
         # Archive options
         archive_layout = QHBoxLayout()
@@ -270,7 +300,6 @@ class ColorCorrectionPanelQt(QWidget):
             self.archive_input_cb.setToolTip("⚠️ Archive support not available. Install: pip install py7zr rarfile")
             self.archive_input_cb.setStyleSheet("color: gray;")
         else:
-            self.archive_input_cb.setToolTip("Extract images from archive file (ZIP, 7Z, RAR, TAR)")
             self._set_tooltip(self.archive_input_cb, 'input_archive_checkbox')
         archive_layout.addWidget(self.archive_input_cb)
         
@@ -280,7 +309,6 @@ class ColorCorrectionPanelQt(QWidget):
             self.archive_output_cb.setToolTip("⚠️ Archive support not available. Install: pip install py7zr rarfile")
             self.archive_output_cb.setStyleSheet("color: gray;")
         else:
-            self.archive_output_cb.setToolTip("Save processed images to archive file")
             self._set_tooltip(self.archive_output_cb, 'output_archive_checkbox')
         archive_layout.addWidget(self.archive_output_cb)
         
@@ -297,17 +325,17 @@ class ColorCorrectionPanelQt(QWidget):
         
         # Brightness
         self.brightness_slider = self._create_slider(
-            group_layout, "Brightness", -100, 100, 0, "Adjust image brightness"
+            group_layout, "Brightness", -100, 100, 0, 'cc_exposure'
         )
         
         # Contrast
         self.contrast_slider = self._create_slider(
-            group_layout, "Contrast", -100, 100, 0, "Adjust image contrast"
+            group_layout, "Contrast", -100, 100, 0, 'cc_clarity'
         )
         
         # Saturation
         self.saturation_slider = self._create_slider(
-            group_layout, "Saturation", -100, 100, 0, "Adjust color saturation"
+            group_layout, "Saturation", -100, 100, 0, 'cc_vibrance'
         )
         
         # Sharpness
@@ -320,9 +348,15 @@ class ColorCorrectionPanelQt(QWidget):
         lut_layout.addWidget(QLabel("LUT:"))
         self.lut_combo = QComboBox()
         self.lut_combo.addItems(["None", "Warm", "Cool", "Cinematic", "Vintage"])
-        self._set_tooltip(self.lut_combo, "Apply color lookup table for stylized color grading")
+        self._set_tooltip(self.lut_combo, 'cc_lut')
         lut_layout.addWidget(self.lut_combo, 1)
         group_layout.addLayout(lut_layout)
+
+        # White balance
+        self.white_balance_slider = self._create_slider(
+            group_layout, "White Balance", -100, 100, 0,
+            'cc_white_balance'
+        )
         
         # Reset button
         reset_btn = QPushButton("Reset to Defaults")
@@ -441,7 +475,7 @@ class ColorCorrectionPanelQt(QWidget):
             self,
             "Select Images",
             "",
-            "Images (*.png *.jpg *.jpeg *.bmp *.tif *.tiff);;All Files (*)"
+            "Images (*.png *.jpg *.jpeg *.bmp *.tif *.tiff *.webp *.tga *.dds *.gif);;All Files (*)"
         )
         
         if files:
@@ -464,11 +498,36 @@ class ColorCorrectionPanelQt(QWidget):
             self,
             "Select Output Directory"
         )
-        
+
         if directory:
             self.output_dir = directory
             self.output_label.setText(f"Output: {directory}")
             self._update_ui_state()
+
+    def _add_folder(self):
+        """Add all images from a folder (optionally recursive) to the selection."""
+        folder = QFileDialog.getExistingDirectory(self, "Select Folder")
+        if not folder:
+            return
+        recursive = hasattr(self, 'recursive_cb') and self.recursive_cb.isChecked()
+        folder_path = Path(folder)
+        new_files = []
+        pattern = '**/*' if recursive else '*'
+        for ext in IMAGE_EXTENSIONS:
+            new_files.extend(folder_path.glob(f'{pattern}{ext}'))
+            new_files.extend(folder_path.glob(f'{pattern}{ext.upper()}'))
+        new_paths = sorted({str(p) for p in new_files})
+        existing = {str(p) for p in self.input_files}
+        added = [Path(p) for p in new_paths if p not in existing]
+        self.input_files.extend(added)
+        count = len(self.input_files)
+        self.input_label.setText(f"Selected: {count} file{'s' if count != 1 else ''}")
+        if added and SLIDER_AVAILABLE and hasattr(self, 'preview_file_combo'):
+            for p in added:
+                self.preview_file_combo.addItem(p.name, str(p))
+            if count == len(added):  # first batch
+                self._load_preview_file(added[0].name)
+        self._update_ui_state()
     
     def _update_ui_state(self):
         """Update button states based on current state."""
@@ -486,10 +545,17 @@ class ColorCorrectionPanelQt(QWidget):
         self.saturation_slider.setValue(0)
         self.sharpness_slider.setValue(100)
         self.lut_combo.setCurrentIndex(0)
+        if hasattr(self, 'white_balance_slider'):
+            self.white_balance_slider.setValue(0)
     
     def _start_processing(self):
         """Start color correction processing."""
         if self.worker is not None:
+            return
+
+        if not self.input_files:
+            from PyQt6.QtWidgets import QMessageBox
+            QMessageBox.warning(self, "No Files Selected", "Please select input files before starting.")
             return
         
         # Get settings from UI
@@ -498,7 +564,8 @@ class ColorCorrectionPanelQt(QWidget):
             'contrast': self.contrast_slider.value(),
             'saturation': self.saturation_slider.value(),
             'sharpness': self.sharpness_slider.value(),
-            'lut': self.lut_combo.currentText() if self.lut_combo.currentIndex() > 0 else None
+            'lut': self.lut_combo.currentText() if self.lut_combo.currentIndex() > 0 else None,
+            'white_balance': self.white_balance_slider.value() if hasattr(self, 'white_balance_slider') else 0,
         }
         
         # Create and start worker
@@ -506,7 +573,8 @@ class ColorCorrectionPanelQt(QWidget):
             self.corrector,
             self.input_files,
             self.output_dir,
-            settings
+            settings,
+            skip_existing=self._skip_existing.isChecked(),
         )
         
         # Connect signals
@@ -535,7 +603,7 @@ class ColorCorrectionPanelQt(QWidget):
         self.progress_bar.setValue(progress)
         self.status_label.setText(status)
     
-    def _on_finished(self, success, message):
+    def _on_finished(self, success, message, files_processed: int = 0):
         """Handle completion from worker thread."""
         # Clean up worker
         if self.worker:
@@ -553,7 +621,7 @@ class ColorCorrectionPanelQt(QWidget):
             QMessageBox.information(self, "Success", message)
         else:
             QMessageBox.warning(self, "Error", message)
-        self.finished.emit(success, message)
+        self.finished.emit(success, message, files_processed)
 
     def cleanup(self):
         """Clean up resources."""

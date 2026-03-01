@@ -50,6 +50,7 @@ class WidgetsDisplayWidget(QWidget):
         search_layout = QHBoxLayout()
         search_layout.addWidget(QLabel("Search:"))
         self.search_input = QLineEdit()
+        self.search_input.setPlaceholderText("Search widgets…")
         self.search_input.textChanged.connect(self.filter_items)
         search_layout.addWidget(self.search_input)
         left_layout.addLayout(search_layout)
@@ -59,6 +60,7 @@ class WidgetsDisplayWidget(QWidget):
         categories = ['All', 'Toys', 'Food', 'Tools', 'Decorations']
         for cat in categories:
             btn = QPushButton(cat)
+            btn.setToolTip(f"Filter widgets to show only {cat.lower()}")
             btn.clicked.connect(lambda checked, c=cat: self.filter_by_category(c))
             filter_layout.addWidget(btn)
         left_layout.addLayout(filter_layout)

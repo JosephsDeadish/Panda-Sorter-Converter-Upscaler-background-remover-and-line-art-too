@@ -586,6 +586,7 @@ class PandaBedroomWidget(QWidget if PYQT_AVAILABLE else object):
         info_layout.addWidget(self._info_label, stretch=1)
 
         self._open_btn = QPushButton("Open")
+        self._open_btn.setToolTip("Interact with this bedroom item")
         self._open_btn.setStyleSheet(
             "QPushButton { background:#7b4b1a; color:#ffe0a0; border:1px solid #c88030; "
             "border-radius:4px; padding:4px 12px; font-weight:bold; }"

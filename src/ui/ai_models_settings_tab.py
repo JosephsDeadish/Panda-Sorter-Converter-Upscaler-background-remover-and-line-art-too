@@ -63,6 +63,9 @@ except (ImportError, OSError, RuntimeError):
     QSizePolicy = object
     QVBoxLayout = object
 import logging
+import os
+import shutil
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
@@ -130,11 +133,19 @@ class ModelDownloadThread(QThread):
         self.model_name = model_name
     
     def run(self):
-        success = self.model_manager.download_model(
-            self.model_name,
-            progress_callback=lambda d, t: self.progress.emit(d, t)
-        )
-        self.finished.emit(success)
+        def _progress_cb(d, t):
+            if self.isInterruptionRequested():
+                raise InterruptedError("Download cancelled by user")
+            self.progress.emit(d, t)
+
+        try:
+            success = self.model_manager.download_model(
+                self.model_name,
+                progress_callback=_progress_cb
+            )
+            self.finished.emit(success)
+        except InterruptedError:
+            self.finished.emit(False)
 
 
 class ModelCardWidget(QFrame):
@@ -226,6 +237,7 @@ class ModelCardWidget(QFrame):
         self.expand_btn = QPushButton("▼")
         self.expand_btn.setMaximumWidth(35)
         self.expand_btn.setMaximumHeight(35)
+        self.expand_btn.setToolTip("Expand or collapse model details")
         self.expand_btn.setStyleSheet("""
             QPushButton {
                 background-color: #e3f2fd;
@@ -271,52 +283,27 @@ class ModelCardWidget(QFrame):
         desc_label.setWordWrap(True)
         desc_label.setStyleSheet("font-size: 10px; color: #555; margin: 5px 0px;")
         self.details_layout.addWidget(desc_label)
-        
-        # Progress bar (hidden by default)
-        self.progress = QProgressBar()
-        self.progress.setVisible(False)
-        self.progress.setStyleSheet("""
-            QProgressBar {
-                border: 1px solid #ddd;
-                border-radius: 4px;
-                height: 6px;
-            }
-            QProgressBar::chunk {
-                background-color: #4CAF50;
-            }
-        """)
-        self.details_layout.addWidget(self.progress)
-        
-        # Buttons
+
+        # Buttons / status
         button_layout = QHBoxLayout()
         button_layout.setContentsMargins(0, 5, 0, 0)
-        
+
         if not self.model_info.get('installed', False):
-            # Download button
-            download_btn = QPushButton(f"⬇️  Download Now")
-            # Only show size if it's defined and not variable
-            if self.model_info.get('size_mb', 0) > 0 and not self.model_info.get('size_varies', False):
-                download_btn.setText(f"⬇️  Download Now ({self.model_info['size_mb']} MB)")
-            download_btn.setMinimumHeight(40)
-            download_btn.setMinimumWidth(200)
-            download_btn.setStyleSheet("""
-                QPushButton {
-                    background-color: #4CAF50;
-                    color: white;
-                    border: none;
-                    border-radius: 4px;
-                    font-weight: bold;
-                    font-size: 12px;
-                }
-                QPushButton:hover {
-                    background-color: #45a049;
-                }
-                QPushButton:pressed {
-                    background-color: #3d8b40;
-                }
-            """)
-            download_btn.clicked.connect(self.download_model)
-            button_layout.addWidget(download_btn)
+            # Model missing — guide user to setup_models.py instead of an in-app download
+            missing_lbl = QLabel(
+                "⚠️  Model not found.  Run  <b>python setup_models.py</b>  from the app folder "
+                "to install all bundled AI models."
+            )
+            missing_lbl.setStyleSheet("color: #c44; font-size: 10pt;")
+            missing_lbl.setWordWrap(True)
+            missing_lbl.setTextFormat(Qt.TextFormat.RichText)
+            button_layout.addWidget(missing_lbl)
+            # Keep cancel button as a hidden attribute — not shown in UI since
+            # in-app downloads are disabled (models are bundled), but the attribute
+            # must exist to satisfy the cancellation infrastructure and existing tests.
+            self._cancel_download_btn = QPushButton("✕ Cancel")
+            self._cancel_download_btn.setVisible(False)
+            self._cancel_download_btn.setEnabled(False)
         else:
             # Delete button
             delete_text = "🗑️  Delete"
@@ -326,6 +313,7 @@ class ModelCardWidget(QFrame):
             delete_btn = QPushButton(delete_text)
             delete_btn.setMinimumHeight(40)
             delete_btn.setMinimumWidth(200)
+            delete_btn.setToolTip("Delete this AI model from disk to free up space")
             delete_btn.setStyleSheet("""
                 QPushButton {
                     background-color: #f44336;
@@ -375,11 +363,23 @@ class ModelCardWidget(QFrame):
         self.progress.setVisible(True)
         self.progress.setValue(0)
         self.progress.setRange(0, 100)
+        if hasattr(self, '_cancel_download_btn'):
+            self._cancel_download_btn.setEnabled(True)
+            self._cancel_download_btn.setVisible(True)
 
         self.download_thread = ModelDownloadThread(self.model_manager, self.model_name)
         self.download_thread.progress.connect(self._on_progress)
         self.download_thread.finished.connect(self.on_download_finished)
         self.download_thread.start()
+
+    def _cancel_download(self):
+        """Cancel the running model download."""
+        if self.download_thread and self.download_thread.isRunning():
+            self.download_thread.requestInterruption()
+            if hasattr(self, '_cancel_download_btn'):
+                self._cancel_download_btn.setEnabled(False)
+            self.progress.setRange(0, 100)
+            self.progress.setVisible(False)
 
     def _on_progress(self, downloaded: int, total: int) -> None:
         if total > 0:
@@ -393,6 +393,9 @@ class ModelCardWidget(QFrame):
         self.progress.setRange(0, 100)
         self.progress.setVisible(False)
         self.expand_btn.setEnabled(True)
+        if hasattr(self, '_cancel_download_btn'):
+            self._cancel_download_btn.setEnabled(False)
+            self._cancel_download_btn.setVisible(False)
 
         if success:
             logger.info(f"✅ {self.model_name} downloaded successfully")
@@ -493,7 +496,95 @@ class ModelCardWidget(QFrame):
                                         label.setStyleSheet("color: red; font-weight: bold; font-size: 10px;")
 
 
-class AIModelsSettingsTab(QWidget):
+class _CustomModelDropTarget(QLabel):
+    """Drop-zone label that accepts dragged model files and copies them
+    into the AI models directory."""
+
+    _MODEL_EXTS = {'.pth', '.onnx', '.safetensors', '.bin', '.pt'}
+
+    def __init__(self, model_manager=None, parent=None):
+        super().__init__(parent)
+        self._mgr = model_manager
+        self.setText("⬇️  Drop model files here (.pth / .onnx / .safetensors / .bin / .pt)")
+        self.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.setMinimumHeight(70)
+        self.setStyleSheet(
+            "QLabel { border: 2px dashed #aaa; border-radius: 8px; "
+            "color: #777; font-size: 11px; padding: 10px; background: #f8f8f8; }"
+        )
+        self.setAcceptDrops(True)
+        self._models_dir = self._resolve_models_dir()
+
+    def _resolve_models_dir(self):
+        """Return the path to the models directory, creating it if needed."""
+        # Try to get from model manager first
+        if self._mgr and hasattr(self._mgr, 'models_dir'):
+            d = Path(self._mgr.models_dir)
+        else:
+            # Default: <app_root>/models
+            d = Path(__file__).resolve().parent.parent.parent / 'models'
+        try:
+            d.mkdir(parents=True, exist_ok=True)
+        except Exception:
+            pass
+        return d
+
+    def dragEnterEvent(self, event):
+        if event.mimeData().hasUrls():
+            paths = [u.toLocalFile() for u in event.mimeData().urls()]
+            if any(p.lower().endswith(tuple(self._MODEL_EXTS)) for p in paths):
+                event.acceptProposedAction()
+                self.setStyleSheet(
+                    "QLabel { border: 2px dashed #1a6feb; border-radius: 8px; "
+                    "color: #1a6feb; font-size: 11px; padding: 10px; background: #e8f0ff; }"
+                )
+                return
+        event.ignore()
+
+    def dragLeaveEvent(self, event):
+        self.setStyleSheet(
+            "QLabel { border: 2px dashed #aaa; border-radius: 8px; "
+            "color: #777; font-size: 11px; padding: 10px; background: #f8f8f8; }"
+        )
+
+    def dropEvent(self, event):
+        self.setStyleSheet(
+            "QLabel { border: 2px dashed #aaa; border-radius: 8px; "
+            "color: #777; font-size: 11px; padding: 10px; background: #f8f8f8; }"
+        )
+        imported = []
+        for url in event.mimeData().urls():
+            src = url.toLocalFile()
+            if src.lower().endswith(tuple(self._MODEL_EXTS)):
+                name = self.import_model_file(src)
+                if name:
+                    imported.append(name)
+        if imported:
+            self.setText(f"✅ Imported: {', '.join(imported)}\n"
+                         f"📂 Saved to: {self._models_dir}")
+        event.acceptProposedAction()
+
+    def import_model_file(self, src_path: str) -> str:
+        """Copy *src_path* into the models directory.  Returns filename on success."""
+        try:
+            src = Path(src_path)
+            if not src.is_file():
+                return ''
+            dest = self._models_dir / src.name
+            if dest == src:
+                self.setText(f"ℹ️ {src.name} is already in the models folder.")
+                return src.name
+            shutil.copy2(src, dest)
+            logger.info("Custom model imported: %s → %s", src, dest)
+            self.setText(f"✅ Imported: {src.name}\n📂 {dest}")
+            return src.name
+        except Exception as exc:
+            logger.warning("import_model_file: %s", exc)
+            self.setText(f"❌ Import failed: {exc}")
+            return ''
+
+
+
     """Settings tab for managing AI models with beautiful UI"""
     
     def __init__(self, config: dict = None):
@@ -512,20 +603,25 @@ class AIModelsSettingsTab(QWidget):
         layout = QVBoxLayout()
         layout.setContentsMargins(20, 20, 20, 20)
         layout.setSpacing(15)
-        
+
         # Title
-        title = QLabel("🤖 AI Models Management")
+        title = QLabel("🤖 AI Models Status")
         font = QFont()
         font.setPointSize(14)
         font.setBold(True)
         title.setFont(font)
         layout.addWidget(title)
-        
-        # Subtitle
-        subtitle = QLabel("Download AI models on-demand or manage existing installations")
+
+        # Subtitle — models ship pre-bundled with the application
+        subtitle = QLabel(
+            "All AI models are bundled with the application.\n"
+            "If a model shows as missing, run  python setup_models.py  from the app folder.\n"
+            "Drag-and-drop your own .pth / .onnx / .safetensors files below to add custom models."
+        )
         subtitle.setStyleSheet("color: #666; font-size: 11px;")
+        subtitle.setWordWrap(True)
         layout.addWidget(subtitle)
-        
+
         # Separator
         sep = QFrame()
         sep.setFrameShape(QFrame.Shape.HLine)
@@ -591,5 +687,50 @@ class AIModelsSettingsTab(QWidget):
         scroll_widget.setLayout(scroll_layout)
         scroll.setWidget(scroll_widget)
         layout.addWidget(scroll)
-        
+
+        # ── Custom model import section ────────────────────────────────────────
+        custom_sep = QFrame()
+        custom_sep.setFrameShape(QFrame.Shape.HLine)
+        custom_sep.setFrameShadow(QFrame.Shadow.Sunken)
+        layout.addWidget(custom_sep)
+
+        custom_header = QLabel("📂 Add Your Own AI Models")
+        ch_font = QFont()
+        ch_font.setPointSize(11)
+        ch_font.setBold(True)
+        custom_header.setFont(ch_font)
+        layout.addWidget(custom_header)
+
+        custom_info = QLabel(
+            "Drag & drop model files (.pth, .onnx, .safetensors, .bin, .pt) onto the box below, "
+            "or click Browse to copy them into the models folder."
+        )
+        custom_info.setWordWrap(True)
+        custom_info.setStyleSheet("color: #555; font-size: 10px;")
+        layout.addWidget(custom_info)
+
+        self._custom_drop_label = _CustomModelDropTarget(self.model_manager)
+        layout.addWidget(self._custom_drop_label)
+
+        browse_row = QHBoxLayout()
+        browse_btn = QPushButton("📁 Browse for model file…")
+        browse_btn.setMinimumHeight(36)
+        browse_btn.clicked.connect(self._browse_custom_model)
+        browse_row.addWidget(browse_btn)
+        browse_row.addStretch()
+        layout.addLayout(browse_row)
+
         self.setLayout(layout)
+
+    def _browse_custom_model(self) -> None:
+        """Open a file dialog to copy a custom model file into the models folder."""
+        try:
+            from PyQt6.QtWidgets import QFileDialog
+            paths, _ = QFileDialog.getOpenFileNames(
+                self, "Select AI Model File(s)", "",
+                "AI Models (*.pth *.onnx *.safetensors *.bin *.pt);;All files (*.*)"
+            )
+            for src in paths:
+                self._custom_drop_label.import_model_file(src)
+        except Exception as _e:
+            logger.warning("_browse_custom_model: %s", _e)

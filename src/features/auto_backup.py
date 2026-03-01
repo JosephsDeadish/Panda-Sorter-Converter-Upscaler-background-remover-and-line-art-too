@@ -278,15 +278,21 @@ class AutoBackupSystem:
     
     def _check_for_crash(self) -> bool:
         """
-        Check if previous session crashed.
-        
+        Check if previous session crashed AND backup files exist to restore from.
+
         Returns:
-            True if crash detected
+            True only when a crash marker is present AND at least one backup
+            file is available so that the recovery dialog is never shown when
+            there is nothing to actually restore.
         """
-        if self.crash_file.exists():
-            logger.warning("Previous session crashed - recovery available")
-            return True
-        return False
+        if not self.crash_file.exists():
+            return False
+        # Only offer recovery when there is at least one backup to restore.
+        if not self.list_backups():
+            logger.info("Crash marker found but no backups available — skipping recovery dialog")
+            return False
+        logger.warning("Previous session crashed - recovery available")
+        return True
     
     def get_backup_stats(self) -> Dict[str, Any]:
         """

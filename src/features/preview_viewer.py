@@ -122,11 +122,13 @@ class PreviewViewer:
         # Navigation buttons
         prev_btn = QPushButton("◀ Previous")
         prev_btn.setFixedWidth(100)
+        prev_btn.setToolTip("Show the previous image")
         prev_btn.clicked.connect(self._show_previous)
         toolbar_layout.addWidget(prev_btn)
         
         next_btn = QPushButton("Next ▶")
         next_btn.setFixedWidth(100)
+        next_btn.setToolTip("Show the next image")
         next_btn.clicked.connect(self._show_next)
         toolbar_layout.addWidget(next_btn)
         
@@ -135,6 +137,7 @@ class PreviewViewer:
         # Zoom controls
         zoom_out_btn = QPushButton("🔍−")
         zoom_out_btn.setFixedWidth(50)
+        zoom_out_btn.setToolTip("Zoom out")
         zoom_out_btn.clicked.connect(self._zoom_out)
         toolbar_layout.addWidget(zoom_out_btn)
         
@@ -145,21 +148,25 @@ class PreviewViewer:
         
         zoom_in_btn = QPushButton("🔍+")
         zoom_in_btn.setFixedWidth(50)
+        zoom_in_btn.setToolTip("Zoom in")
         zoom_in_btn.clicked.connect(self._zoom_in)
         toolbar_layout.addWidget(zoom_in_btn)
         
         reset_btn = QPushButton("Reset")
         reset_btn.setFixedWidth(70)
+        reset_btn.setToolTip("Reset zoom to 100%")
         reset_btn.clicked.connect(self._reset_view)
         toolbar_layout.addWidget(reset_btn)
         
         fit_btn = QPushButton("Fit")
         fit_btn.setFixedWidth(60)
+        fit_btn.setToolTip("Fit the image to the window")
         fit_btn.clicked.connect(self._fit_to_window)
         toolbar_layout.addWidget(fit_btn)
         
         actual_size_btn = QPushButton("1:1")
         actual_size_btn.setFixedWidth(50)
+        actual_size_btn.setToolTip("Show the image at actual pixel size (1:1)")
         actual_size_btn.clicked.connect(self._actual_size)
         toolbar_layout.addWidget(actual_size_btn)
         
@@ -168,12 +175,14 @@ class PreviewViewer:
         # Properties toggle
         props_btn = QPushButton("ℹ️ Properties")
         props_btn.setFixedWidth(100)
+        props_btn.setToolTip("Show or hide image properties panel")
         props_btn.clicked.connect(self._toggle_properties)
         toolbar_layout.addWidget(props_btn)
         
         # Export button
         export_btn = QPushButton("💾 Export")
         export_btn.setFixedWidth(100)
+        export_btn.setToolTip("Export or save the current image")
         export_btn.clicked.connect(self._export_image)
         toolbar_layout.addWidget(export_btn)
         

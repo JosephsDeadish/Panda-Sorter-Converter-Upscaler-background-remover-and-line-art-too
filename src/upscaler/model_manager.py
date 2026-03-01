@@ -19,7 +19,7 @@ except ImportError:
     import urllib.request as _urllib_request  # type: ignore[no-redef]
     _USE_REQUESTS = False
 
-_USER_AGENT = 'GameTextureTool/1.0 (github.com/JosephsDeadish)'
+_USER_AGENT = 'PandaSorterConverterUpscaler/1.0 (patreon.com/JosephsDeadish)'
 
 # Base URL for rembg model files hosted on GitHub releases.
 # danielgatis/rembg on HuggingFace is a PRIVATE repo → always returns HTTP 401

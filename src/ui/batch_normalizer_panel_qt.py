@@ -82,6 +82,11 @@ try:
 except (ImportError, OSError, RuntimeError):
     HAS_PIL = False
 
+try:
+    from ui import IMAGE_EXTENSIONS
+except ImportError:
+    IMAGE_EXTENSIONS = frozenset({'.png', '.jpg', '.jpeg', '.bmp', '.tiff', '.tif', '.webp', '.dds', '.tga', '.gif'})
+
 
 try:
     from tools.batch_normalizer import (
@@ -106,13 +111,11 @@ except (ImportError, OSError, RuntimeError):
     ARCHIVE_AVAILABLE = False
     logger.warning("Archive handler not available")
 
-IMAGE_EXTENSIONS = {'.png', '.jpg', '.jpeg', '.bmp', '.tiff', '.webp'}
-
 
 class NormalizationWorker(QThread):
     """Worker thread for batch normalization."""
     progress = pyqtSignal(float, str)  # progress, message
-    finished = pyqtSignal(bool, str)  # success, message
+    finished = pyqtSignal(bool, str, int)  # success, message, files_processed
     
     def __init__(self, normalizer, files, output_dir, settings):
         super().__init__()
@@ -125,8 +128,10 @@ class NormalizationWorker(QThread):
         """Execute normalization in background thread."""
         try:
             def progress_callback(current, total, filename):
+                if self.isInterruptionRequested():
+                    raise InterruptedError("Cancelled by user")
                 progress = (current / total) * 100
-                self.progress.emit(progress, f"Processing: {filename}")
+                self.progress.emit(progress, f"Processing ({current}/{total}): {filename}")
             
             self.normalizer.normalize_batch(
                 self.files,
@@ -135,15 +140,17 @@ class NormalizationWorker(QThread):
                 progress_callback=progress_callback
             )
             
-            self.finished.emit(True, f"Successfully normalized {len(self.files)} images")
+            self.finished.emit(True, f"Successfully normalized {len(self.files)} images", len(self.files))
+        except InterruptedError as e:
+            self.finished.emit(False, str(e), 0)
         except Exception as e:
-            self.finished.emit(False, f"Normalization failed: {str(e)}")
+            self.finished.emit(False, f"Normalization failed: {str(e)}", 0)
 
 
 class BatchNormalizerPanelQt(QWidget):
     """PyQt6 panel for batch format normalization."""
 
-    finished = pyqtSignal(bool, str)  # success, message
+    finished = pyqtSignal(bool, str, int)  # success, message, files_processed
     
     def __init__(self, parent=None, tooltip_manager=None):
         super().__init__(parent)
@@ -216,9 +223,25 @@ class BatchNormalizerPanelQt(QWidget):
         group_layout.addWidget(self.files_label)
         
         # Select files button
+        btn_row = QHBoxLayout()
+
         select_btn = QPushButton("Select Images")
         select_btn.clicked.connect(self._select_files)
-        group_layout.addWidget(select_btn)
+        btn_row.addWidget(select_btn)
+        self._set_tooltip(select_btn, "Select image files to normalize")
+
+        add_folder_btn = QPushButton("📂 Add Folder")
+        add_folder_btn.clicked.connect(self._add_folder)
+        btn_row.addWidget(add_folder_btn)
+        self._set_tooltip(add_folder_btn, "Add all images from a folder to the selection")
+
+        group_layout.addLayout(btn_row)
+
+        # Recursive checkbox
+        self.recursive_cb = QCheckBox("Process subfolders")
+        self.recursive_cb.setChecked(False)
+        self._set_tooltip(self.recursive_cb, "When adding a folder, also include images in sub-folders")
+        group_layout.addWidget(self.recursive_cb)
         
         # Output directory
         output_label = QLabel("Output Directory:")
@@ -231,6 +254,12 @@ class BatchNormalizerPanelQt(QWidget):
         output_btn = QPushButton("Set Output Directory")
         output_btn.clicked.connect(self._select_output)
         group_layout.addWidget(output_btn)
+        self._set_tooltip(output_btn, "Choose the folder where normalised images will be saved")
+
+        self._skip_existing = QCheckBox("Skip if output file already exists")
+        self._skip_existing.setChecked(False)
+        self._set_tooltip(self._skip_existing, "When checked, files are not re-processed if the output already exists")
+        group_layout.addWidget(self._skip_existing)
         
         # Archive options
         archive_layout = QHBoxLayout()
@@ -259,18 +288,18 @@ class BatchNormalizerPanelQt(QWidget):
         
         self.make_square_cb = QCheckBox("⬛ Make Square")
         self.make_square_cb.setChecked(True)
-        self.make_square_cb.setToolTip("Force output images to be square (width = height)")
         options_layout.addWidget(self.make_square_cb)
+        self._set_tooltip(self.make_square_cb, "Force output images to be square (width = height)")
         
         self.preserve_alpha_cb = QCheckBox("🎭 Preserve Alpha")
         self.preserve_alpha_cb.setChecked(True)
-        self.preserve_alpha_cb.setToolTip("Preserve alpha channel (transparency) in output images")
         options_layout.addWidget(self.preserve_alpha_cb)
+        self._set_tooltip(self.preserve_alpha_cb, "Preserve alpha channel (transparency) in output images")
         
         self.strip_metadata_cb = QCheckBox("🧹 Strip Metadata")
         self.strip_metadata_cb.setChecked(False)
-        self.strip_metadata_cb.setToolTip("Remove EXIF and other metadata from output images (reduces file size)")
         options_layout.addWidget(self.strip_metadata_cb)
+        self._set_tooltip(self.strip_metadata_cb, "Remove EXIF and other metadata from output images (reduces file size)")
         
         options_layout.addStretch()
         group_layout.addLayout(options_layout)
@@ -291,6 +320,7 @@ class BatchNormalizerPanelQt(QWidget):
         self.width_spin.setRange(1, 8192)
         self.width_spin.setValue(512)
         size_layout.addWidget(self.width_spin)
+        self._set_tooltip(self.width_spin, 'bn_resolution')
         
         size_layout.addWidget(QLabel("×"))
         
@@ -298,6 +328,7 @@ class BatchNormalizerPanelQt(QWidget):
         self.height_spin.setRange(1, 8192)
         self.height_spin.setValue(512)
         size_layout.addWidget(self.height_spin)
+        self._set_tooltip(self.height_spin, 'bn_resolution')
         
         group_layout.addLayout(size_layout)
         
@@ -306,12 +337,14 @@ class BatchNormalizerPanelQt(QWidget):
         self.resize_combo = QComboBox()
         self.resize_combo.addItems(["Fit (preserve aspect)", "Fill (crop)", "Stretch"])
         group_layout.addWidget(self.resize_combo)
+        self._set_tooltip(self.resize_combo, 'bn_resize_mode')
         
         # Padding mode
         group_layout.addWidget(QLabel("Padding Mode:"))
         self.padding_combo = QComboBox()
         self.padding_combo.addItems(["Transparent", "Black", "White", "Blur Edge"])
         group_layout.addWidget(self.padding_combo)
+        self._set_tooltip(self.padding_combo, 'bn_padding')
         
         group.setLayout(group_layout)
         layout.addWidget(group)
@@ -326,6 +359,8 @@ class BatchNormalizerPanelQt(QWidget):
         self.format_combo = QComboBox()
         self.format_combo.addItems(["PNG", "JPEG", "WebP"])
         group_layout.addWidget(self.format_combo)
+        self._set_tooltip(self.format_combo, 'bn_format')
+        self._set_tooltip(self.format_combo, 'bn_output_format')
         
         # Quality (for JPEG/WebP)
         quality_layout = QHBoxLayout()
@@ -335,6 +370,7 @@ class BatchNormalizerPanelQt(QWidget):
         self.quality_spin.setValue(95)
         quality_layout.addWidget(self.quality_spin)
         group_layout.addLayout(quality_layout)
+        self._set_tooltip(self.quality_spin, 'bn_quality')
         
         group.setLayout(group_layout)
         layout.addWidget(group)
@@ -370,6 +406,16 @@ class BatchNormalizerPanelQt(QWidget):
         self.normalize_btn.setStyleSheet("background-color: #2196F3; color: white; padding: 10px;")
         self.normalize_btn.clicked.connect(self._start_normalization)
         buttons_layout.addWidget(self.normalize_btn)
+        self._set_tooltip(self.normalize_btn, 'bn_normalize')
+
+        # Cancel button (hidden until normalization starts)
+        self.cancel_btn = QPushButton("Cancel")
+        self.cancel_btn.setStyleSheet("background-color: #f44336; color: white; padding: 10px;")
+        self.cancel_btn.clicked.connect(self._cancel_normalization)
+        self.cancel_btn.setEnabled(False)
+        self.cancel_btn.setVisible(False)
+        self._set_tooltip(self.cancel_btn, 'stop_button')
+        buttons_layout.addWidget(self.cancel_btn)
         
         layout.addLayout(buttons_layout)
         
@@ -409,7 +455,7 @@ class BatchNormalizerPanelQt(QWidget):
             self,
             "Select Images",
             "",
-            "Images (*.png *.jpg *.jpeg *.bmp *.tiff *.webp);;All Files (*.*)"
+            "Images (*.png *.jpg *.jpeg *.bmp *.tiff *.tif *.webp *.tga *.dds *.gif);;All Files (*.*)"
         )
         
         if files:
@@ -424,11 +470,33 @@ class BatchNormalizerPanelQt(QWidget):
             self,
             "Select Output Directory"
         )
-        
+
         if directory:
             self.output_directory = directory
             self.output_label.setText(directory)
             self.output_label.setStyleSheet("color: green;")
+
+    def _add_folder(self):
+        """Add all images from a folder (optionally recursive) to the selection."""
+        folder = QFileDialog.getExistingDirectory(self, "Select Folder")
+        if not folder:
+            return
+        recursive = hasattr(self, 'recursive_cb') and self.recursive_cb.isChecked()
+        folder_path = Path(folder)
+        new_files = []
+        pattern = '**/*' if recursive else '*'
+        for ext in IMAGE_EXTENSIONS:
+            new_files.extend(folder_path.glob(f'{pattern}{ext}'))
+            new_files.extend(folder_path.glob(f'{pattern}{ext.upper()}'))
+        new_paths = sorted({str(p) for p in new_files})
+        existing = set(self.selected_files)
+        added = [p for p in new_paths if p not in existing]
+        self.selected_files.extend(added)
+        count = len(self.selected_files)
+        self.files_label.setText(f"{count} file{'s' if count != 1 else ''} selected")
+        self.files_label.setStyleSheet("color: green;")
+        if added:
+            self._update_preview()
     
     def _update_preview(self):
         """Update preview with first selected image."""
@@ -475,11 +543,15 @@ class BatchNormalizerPanelQt(QWidget):
             naming_pattern=self._get_naming_pattern(),
             prefix=self.prefix_edit.text() if self.prefix_edit.text() else None,
             preserve_alpha=self.preserve_alpha_cb.isChecked(),
-            strip_metadata=self.strip_metadata_cb.isChecked()
+            strip_metadata=self.strip_metadata_cb.isChecked(),
+            skip_existing=self._skip_existing.isChecked(),
         )
         
-        # Disable button
+        # Disable normalize button; show cancel button
         self.normalize_btn.setEnabled(False)
+        if hasattr(self, 'cancel_btn'):
+            self.cancel_btn.setEnabled(True)
+            self.cancel_btn.setVisible(True)
         self.progress_bar.setVisible(True)
         self.progress_bar.setValue(0)
         self.progress_label.setText("Starting...")
@@ -494,16 +566,27 @@ class BatchNormalizerPanelQt(QWidget):
         self.worker_thread.progress.connect(self._on_progress)
         self.worker_thread.finished.connect(self._on_finished)
         self.worker_thread.start()
+
+    def _cancel_normalization(self):
+        """Cancel the running normalization operation."""
+        if self.worker_thread and self.worker_thread.isRunning():
+            self.worker_thread.requestInterruption()
+            if hasattr(self, 'cancel_btn'):
+                self.cancel_btn.setEnabled(False)
+            self.progress_label.setText("Cancelling…")
     
     def _on_progress(self, progress, message):
         """Handle progress updates."""
         self.progress_bar.setValue(int(progress))
         self.progress_label.setText(message)
     
-    def _on_finished(self, success, message):
+    def _on_finished(self, success, message, files_processed: int = 0):
         """Handle completion."""
         self.progress_bar.setVisible(False)
         self.normalize_btn.setEnabled(True)
+        if hasattr(self, 'cancel_btn'):
+            self.cancel_btn.setEnabled(False)
+            self.cancel_btn.setVisible(False)
         
         if success:
             QMessageBox.information(self, "Complete", message)
@@ -511,7 +594,7 @@ class BatchNormalizerPanelQt(QWidget):
         else:
             QMessageBox.critical(self, "Error", message)
             self.progress_label.setText("✗ Normalization failed")
-        self.finished.emit(success, message)
+        self.finished.emit(success, message, files_processed)
     
     def _get_resize_mode(self):
         """Get resize mode from combo box."""

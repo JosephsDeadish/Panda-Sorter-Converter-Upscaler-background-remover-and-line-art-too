@@ -8,6 +8,11 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 from typing import List, Optional
+
+try:
+    from ui import IMAGE_EXTENSIONS
+except ImportError:
+    IMAGE_EXTENSIONS = frozenset({'.png', '.jpg', '.jpeg', '.bmp', '.tiff', '.tif', '.webp', '.dds', '.tga', '.gif'})
 try:
     from PyQt6.QtWidgets import (
         QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
@@ -119,8 +124,6 @@ except (ImportError, OSError, RuntimeError):
     ARCHIVE_AVAILABLE = False
     logger.warning("Archive handler not available")
 
-IMAGE_EXTENSIONS = {'.png', '.jpg', '.jpeg', '.bmp', '.tiff', '.webp'}
-
 # Line art presets  (tattoo presets always first)
 LINEART_PRESETS = {
     # ── Tattoo presets ─────────────────────────────────────────────────────
@@ -132,6 +135,9 @@ LINEART_PRESETS = {
         "midtone_threshold": 192, "contrast": 2.5, "sharpen": True,
         "sharpen_amount": 1.9, "morphology": "close", "morph_iter": 1,
         "kernel": 3, "denoise": True, "denoise_size": 1,
+        "smooth_lines": False, "smooth_amount": 1.0,
+        "edge_low": 50, "edge_high": 150, "edge_aperture": 3,
+        "adaptive_block": 11, "adaptive_c": 2.0, "adaptive_method": "gaussian",
     },
     "🪡 Tattoo — Black on White (Stencil Print)": {
         "desc": "Solid black lines on white — ready to print as a tattoo stencil "
@@ -141,6 +147,9 @@ LINEART_PRESETS = {
         "midtone_threshold": 190, "contrast": 2.3, "sharpen": True,
         "sharpen_amount": 1.7, "morphology": "close", "morph_iter": 1,
         "kernel": 3, "denoise": True, "denoise_size": 2,
+        "smooth_lines": False, "smooth_amount": 1.0,
+        "edge_low": 50, "edge_high": 150, "edge_aperture": 3,
+        "adaptive_block": 11, "adaptive_c": 2.0, "adaptive_method": "gaussian",
     },
     "🪡 Tattoo — Fine Line": {
         "desc": "Delicate hairline strokes for contemporary fine-line tattoo artwork. "
@@ -150,6 +159,9 @@ LINEART_PRESETS = {
         "midtone_threshold": 222, "contrast": 1.9, "sharpen": True,
         "sharpen_amount": 2.6, "morphology": "erode", "morph_iter": 1,
         "kernel": 3, "denoise": False, "denoise_size": 0,
+        "smooth_lines": False, "smooth_amount": 1.0,
+        "edge_low": 50, "edge_high": 150, "edge_aperture": 3,
+        "adaptive_block": 11, "adaptive_c": 2.0, "adaptive_method": "gaussian",
     },
     "🪡 Tattoo — Bold Traditional": {
         "desc": "Thick bold outlines in American-traditional style. "
@@ -159,6 +171,9 @@ LINEART_PRESETS = {
         "midtone_threshold": 172, "contrast": 3.1, "sharpen": True,
         "sharpen_amount": 1.4, "morphology": "dilate", "morph_iter": 2,
         "kernel": 5, "denoise": True, "denoise_size": 3,
+        "smooth_lines": False, "smooth_amount": 1.0,
+        "edge_low": 50, "edge_high": 150, "edge_aperture": 3,
+        "adaptive_block": 11, "adaptive_c": 2.0, "adaptive_method": "gaussian",
     },
     # ── General-purpose presets ────────────────────────────────────────────
     "⭐ Clean Ink Lines": {
@@ -168,14 +183,21 @@ LINEART_PRESETS = {
         "midtone_threshold": 210, "contrast": 1.6, "sharpen": True,
         "sharpen_amount": 1.3, "morphology": "close", "morph_iter": 1,
         "kernel": 3, "denoise": True, "denoise_size": 2,
+        "smooth_lines": False, "smooth_amount": 1.0,
+        "edge_low": 50, "edge_high": 150, "edge_aperture": 3,
+        "adaptive_block": 11, "adaptive_c": 2.0, "adaptive_method": "gaussian",
     },
     "✏️ Pencil Sketch": {
-        "desc": "Soft graphite pencil look with natural tonal gradation",
+        "desc": "Soft graphite pencil look with natural tonal gradation. "
+                "Smooth lines enabled to produce organic, hand-drawn feel.",
         "mode": "sketch", "threshold": 140, "auto_threshold": False,
         "background": "white", "invert": False, "remove_midtones": False,
         "midtone_threshold": 200, "contrast": 1.1, "sharpen": False,
         "sharpen_amount": 1.0, "morphology": "none", "morph_iter": 1,
         "kernel": 3, "denoise": False, "denoise_size": 1,
+        "smooth_lines": True, "smooth_amount": 1.2,
+        "edge_low": 50, "edge_high": 150, "edge_aperture": 3,
+        "adaptive_block": 11, "adaptive_c": 2.0, "adaptive_method": "gaussian",
     },
     "🖊️ Bold Outlines": {
         "desc": "Thick, punchy outlines — great for stickers or cartoon style",
@@ -184,6 +206,9 @@ LINEART_PRESETS = {
         "midtone_threshold": 170, "contrast": 2.2, "sharpen": True,
         "sharpen_amount": 1.6, "morphology": "dilate", "morph_iter": 3,
         "kernel": 5, "denoise": True, "denoise_size": 4,
+        "smooth_lines": False, "smooth_amount": 1.0,
+        "edge_low": 50, "edge_high": 150, "edge_aperture": 3,
+        "adaptive_block": 11, "adaptive_c": 2.0, "adaptive_method": "gaussian",
     },
     "🔍 Fine Detail Lines": {
         "desc": "Preserve intricate details in technical or detailed artwork",
@@ -192,6 +217,9 @@ LINEART_PRESETS = {
         "midtone_threshold": 230, "contrast": 1.9, "sharpen": True,
         "sharpen_amount": 2.2, "morphology": "none", "morph_iter": 1,
         "kernel": 3, "denoise": False, "denoise_size": 0,
+        "smooth_lines": False, "smooth_amount": 1.0,
+        "edge_low": 50, "edge_high": 150, "edge_aperture": 3,
+        "adaptive_block": 11, "adaptive_c": 2.0, "adaptive_method": "gaussian",
     },
     "💥 Comic Book Inks": {
         "desc": "High-contrast inks like professional comic book art",
@@ -200,14 +228,21 @@ LINEART_PRESETS = {
         "midtone_threshold": 185, "contrast": 2.7, "sharpen": True,
         "sharpen_amount": 2.0, "morphology": "close", "morph_iter": 2,
         "kernel": 3, "denoise": True, "denoise_size": 3,
+        "smooth_lines": False, "smooth_amount": 1.0,
+        "edge_low": 50, "edge_high": 150, "edge_aperture": 3,
+        "adaptive_block": 11, "adaptive_c": 2.0, "adaptive_method": "gaussian",
     },
     "📖 Manga Lines": {
-        "desc": "Clean adaptive lines suited for manga / anime styles",
+        "desc": "Clean adaptive lines suited for manga / anime styles. "
+                "Gaussian adaptive threshold preserves panel-boundary precision.",
         "mode": "adaptive", "threshold": 130, "auto_threshold": False,
         "background": "white", "invert": False, "remove_midtones": True,
         "midtone_threshold": 215, "contrast": 1.7, "sharpen": True,
         "sharpen_amount": 1.5, "morphology": "close", "morph_iter": 1,
         "kernel": 3, "denoise": True, "denoise_size": 2,
+        "smooth_lines": False, "smooth_amount": 1.0,
+        "edge_low": 50, "edge_high": 150, "edge_aperture": 3,
+        "adaptive_block": 11, "adaptive_c": 2.0, "adaptive_method": "gaussian",
     },
     "🖍️ Coloring Book": {
         "desc": "Thick outlines perfect for coloring books and children's art",
@@ -216,6 +251,9 @@ LINEART_PRESETS = {
         "midtone_threshold": 200, "contrast": 1.5, "sharpen": True,
         "sharpen_amount": 1.0, "morphology": "dilate", "morph_iter": 4,
         "kernel": 7, "denoise": True, "denoise_size": 5,
+        "smooth_lines": False, "smooth_amount": 1.0,
+        "edge_low": 50, "edge_high": 150, "edge_aperture": 3,
+        "adaptive_block": 11, "adaptive_c": 2.0, "adaptive_method": "gaussian",
     },
     "📐 Blueprint / Technical": {
         "desc": "Precise technical drawings with clean lines",
@@ -224,6 +262,9 @@ LINEART_PRESETS = {
         "midtone_threshold": 200, "contrast": 1.2, "sharpen": True,
         "sharpen_amount": 1.8, "morphology": "none", "morph_iter": 1,
         "kernel": 3, "denoise": True, "denoise_size": 1,
+        "smooth_lines": False, "smooth_amount": 1.0,
+        "edge_low": 50, "edge_high": 150, "edge_aperture": 3,
+        "adaptive_block": 11, "adaptive_c": 2.0, "adaptive_method": "gaussian",
     },
     "✂️ Stencil / Vinyl Cut": {
         "desc": "Clean shapes optimized for vinyl cutting and stencils",
@@ -232,14 +273,21 @@ LINEART_PRESETS = {
         "midtone_threshold": 200, "contrast": 2.3, "sharpen": True,
         "sharpen_amount": 1.5, "morphology": "close", "morph_iter": 3,
         "kernel": 5, "denoise": True, "denoise_size": 6,
+        "smooth_lines": False, "smooth_amount": 1.0,
+        "edge_low": 50, "edge_high": 150, "edge_aperture": 3,
+        "adaptive_block": 11, "adaptive_c": 2.0, "adaptive_method": "gaussian",
     },
     "🎨 Watercolor Edges": {
-        "desc": "Soft edges with artistic watercolor appearance",
+        "desc": "Soft edges with artistic watercolor appearance. "
+                "Sketch mode with smoothing gives organic washes and soft detail.",
         "mode": "sketch", "threshold": 135, "auto_threshold": False,
         "background": "white", "invert": False, "remove_midtones": False,
         "midtone_threshold": 190, "contrast": 1.3, "sharpen": False,
         "sharpen_amount": 0.8, "morphology": "none", "morph_iter": 1,
         "kernel": 3, "denoise": True, "denoise_size": 3,
+        "smooth_lines": True, "smooth_amount": 1.8,
+        "edge_low": 50, "edge_high": 150, "edge_aperture": 3,
+        "adaptive_block": 11, "adaptive_c": 2.0, "adaptive_method": "gaussian",
     },
     "🔲 Pixel Art Lines": {
         "desc": "Preserve pixel-perfect edges for retro/pixel art",
@@ -248,14 +296,21 @@ LINEART_PRESETS = {
         "midtone_threshold": 200, "contrast": 1.0, "sharpen": False,
         "sharpen_amount": 0.0, "morphology": "none", "morph_iter": 1,
         "kernel": 3, "denoise": False, "denoise_size": 0,
+        "smooth_lines": False, "smooth_amount": 1.0,
+        "edge_low": 50, "edge_high": 150, "edge_aperture": 3,
+        "adaptive_block": 11, "adaptive_c": 2.0, "adaptive_method": "gaussian",
     },
     "🌟 High Contrast Edges": {
-        "desc": "Maximum contrast with edge detection emphasis",
+        "desc": "Maximum contrast with Canny edge detection. "
+                "High thresholds pick out the sharpest, most prominent outlines.",
         "mode": "edge_detect", "threshold": 120, "auto_threshold": False,
         "background": "white", "invert": False, "remove_midtones": True,
         "midtone_threshold": 180, "contrast": 3.0, "sharpen": True,
         "sharpen_amount": 2.5, "morphology": "dilate", "morph_iter": 2,
         "kernel": 3, "denoise": False, "denoise_size": 0,
+        "smooth_lines": False, "smooth_amount": 1.0,
+        "edge_low": 80, "edge_high": 200, "edge_aperture": 3,
+        "adaptive_block": 11, "adaptive_c": 2.0, "adaptive_method": "gaussian",
     },
     "🖤 Inverted Lines (White on Black)": {
         "desc": "White lines on black background for dark themes",
@@ -264,14 +319,21 @@ LINEART_PRESETS = {
         "midtone_threshold": 210, "contrast": 1.6, "sharpen": True,
         "sharpen_amount": 1.3, "morphology": "close", "morph_iter": 1,
         "kernel": 3, "denoise": True, "denoise_size": 2,
+        "smooth_lines": False, "smooth_amount": 1.0,
+        "edge_low": 50, "edge_high": 150, "edge_aperture": 3,
+        "adaptive_block": 11, "adaptive_c": 2.0, "adaptive_method": "gaussian",
     },
     "🎭 Dramatic Shadows": {
-        "desc": "Heavy shadows with strong contrast for dramatic effect",
+        "desc": "Heavy shadows with strong contrast for dramatic effect. "
+                "Mean adaptive threshold with large block size for sweeping dark regions.",
         "mode": "adaptive", "threshold": 110, "auto_threshold": False,
         "background": "white", "invert": False, "remove_midtones": False,
         "midtone_threshold": 170, "contrast": 2.5, "sharpen": True,
         "sharpen_amount": 1.8, "morphology": "dilate", "morph_iter": 2,
         "kernel": 5, "denoise": True, "denoise_size": 2,
+        "smooth_lines": False, "smooth_amount": 1.0,
+        "edge_low": 50, "edge_high": 150, "edge_aperture": 3,
+        "adaptive_block": 15, "adaptive_c": 4.0, "adaptive_method": "mean",
     },
     "📝 Handwriting / Script": {
         "desc": "Preserve delicate script and handwriting details",
@@ -280,22 +342,33 @@ LINEART_PRESETS = {
         "midtone_threshold": 220, "contrast": 1.4, "sharpen": True,
         "sharpen_amount": 1.0, "morphology": "close", "morph_iter": 1,
         "kernel": 3, "denoise": True, "denoise_size": 1,
+        "smooth_lines": False, "smooth_amount": 1.0,
+        "edge_low": 50, "edge_high": 150, "edge_aperture": 3,
+        "adaptive_block": 11, "adaptive_c": 2.0, "adaptive_method": "gaussian",
     },
     "⚡ Speed Lines / Action": {
-        "desc": "Dynamic speed lines for action and motion effects",
+        "desc": "Dynamic speed lines for action and motion effects. "
+                "Fine aperture Canny edges catch directional motion strokes.",
         "mode": "edge_detect", "threshold": 140, "auto_threshold": False,
         "background": "transparent", "invert": False, "remove_midtones": True,
         "midtone_threshold": 200, "contrast": 2.0, "sharpen": True,
         "sharpen_amount": 2.0, "morphology": "erode", "morph_iter": 1,
         "kernel": 3, "denoise": False, "denoise_size": 0,
+        "smooth_lines": False, "smooth_amount": 1.0,
+        "edge_low": 40, "edge_high": 120, "edge_aperture": 5,
+        "adaptive_block": 11, "adaptive_c": 2.0, "adaptive_method": "gaussian",
     },
     "🏞️ Landscape Outlines": {
-        "desc": "Natural flowing lines for landscape and environment art",
+        "desc": "Natural flowing lines for landscape and environment art. "
+                "Gaussian adaptive with smoothing gives organic, rolling edges.",
         "mode": "adaptive", "threshold": 140, "auto_threshold": False,
         "background": "white", "invert": False, "remove_midtones": True,
         "midtone_threshold": 205, "contrast": 1.5, "sharpen": True,
         "sharpen_amount": 1.2, "morphology": "close", "morph_iter": 1,
         "kernel": 5, "denoise": True, "denoise_size": 3,
+        "smooth_lines": True, "smooth_amount": 1.0,
+        "edge_low": 50, "edge_high": 150, "edge_aperture": 3,
+        "adaptive_block": 13, "adaptive_c": 3.0, "adaptive_method": "gaussian",
     },
     "🎯 Logo / Icon Prep": {
         "desc": "Clean vectorization-ready lines for logos and icons",
@@ -304,6 +377,9 @@ LINEART_PRESETS = {
         "midtone_threshold": 200, "contrast": 2.0, "sharpen": True,
         "sharpen_amount": 1.5, "morphology": "close", "morph_iter": 2,
         "kernel": 3, "denoise": True, "denoise_size": 4,
+        "smooth_lines": False, "smooth_amount": 1.0,
+        "edge_low": 50, "edge_high": 150, "edge_aperture": 3,
+        "adaptive_block": 11, "adaptive_c": 2.0, "adaptive_method": "gaussian",
     },
     "🔬 Scientific Illustration": {
         "desc": "Precise lines for scientific diagrams and illustrations",
@@ -312,6 +388,9 @@ LINEART_PRESETS = {
         "midtone_threshold": 215, "contrast": 1.3, "sharpen": True,
         "sharpen_amount": 1.6, "morphology": "none", "morph_iter": 1,
         "kernel": 3, "denoise": True, "denoise_size": 1,
+        "smooth_lines": False, "smooth_amount": 1.0,
+        "edge_low": 50, "edge_high": 150, "edge_aperture": 3,
+        "adaptive_block": 11, "adaptive_c": 2.0, "adaptive_method": "gaussian",
     },
 }
 
@@ -366,6 +445,9 @@ class ConversionWorker(QThread):
         """Execute conversion in background."""
         try:
             for i, filepath in enumerate(self.files):
+                if self.isInterruptionRequested():
+                    self.finished.emit(False, f"Cancelled after converting {i} image(s)")
+                    return
                 filename = Path(filepath).name
                 self.progress.emit(i + 1, len(self.files), filename)
                 
@@ -385,7 +467,7 @@ class ConversionWorker(QThread):
 class _FormatConversionWorker(QThread):
     """Worker thread for batch conversion with configurable output format and optional colour layer."""
     progress = pyqtSignal(int, int, str)  # current, total, filename
-    finished = pyqtSignal(bool, str)      # success, message
+    finished = pyqtSignal(bool, str, int)  # success, message, files_processed
 
     # PIL save kwargs per extension
     _SAVE_KWARGS: dict = {
@@ -396,7 +478,8 @@ class _FormatConversionWorker(QThread):
     }
 
     def __init__(self, converter, files, output_dir, settings,
-                 out_ext: str = 'png', save_color_layer: bool = False):
+                 out_ext: str = 'png', save_color_layer: bool = False,
+                 skip_existing: bool = False):
         super().__init__()
         self.converter = converter
         self.files = files
@@ -404,11 +487,17 @@ class _FormatConversionWorker(QThread):
         self.settings = settings
         self.out_ext = out_ext.lstrip('.').lower()
         self.save_color_layer = save_color_layer
+        self.skip_existing = skip_existing
 
     def run(self):
         """Execute conversion in background."""
         try:
+            done = 0
+            skipped = 0
             for i, filepath in enumerate(self.files):
+                if self.isInterruptionRequested():
+                    self.finished.emit(False, f"Cancelled after converting {done} image(s)", done)
+                    return
                 src = Path(filepath)
                 self.progress.emit(i + 1, len(self.files), src.name)
 
@@ -419,6 +508,10 @@ class _FormatConversionWorker(QThread):
                 out_stem = src.stem
                 out_name = f"{out_stem}.{self.out_ext}"
                 out_path = self.output_dir / out_name
+
+                if self.skip_existing and out_path.exists():
+                    skipped += 1
+                    continue
 
                 img_to_save = converted
                 if self.out_ext in ('jpg', 'jpeg', 'bmp'):
@@ -434,6 +527,7 @@ class _FormatConversionWorker(QThread):
 
                 save_kwargs = self._SAVE_KWARGS.get(self.out_ext, {})
                 img_to_save.save(out_path, **save_kwargs)
+                done += 1
 
                 # Optionally also save the original colour layer
                 if self.save_color_layer:
@@ -444,16 +538,19 @@ class _FormatConversionWorker(QThread):
                         color_img = color_img.convert('RGB')
                     color_img.save(color_path, **save_kwargs)
 
-            self.finished.emit(True, f"Successfully converted {len(self.files)} image(s)")
+            parts = [f"Converted {done} image{'s' if done != 1 else ''}"]
+            if skipped:
+                parts.append(f"{skipped} skipped (already existed)")
+            self.finished.emit(True, ", ".join(parts) + " successfully", done)
         except Exception as e:
             logger.error(f"Batch conversion failed: {e}")
-            self.finished.emit(False, f"Conversion failed: {str(e)}")
+            self.finished.emit(False, f"Conversion failed: {str(e)}", 0)
 
 
 class LineArtConverterPanelQt(QWidget):
     """PyQt6 panel for line art conversion."""
 
-    finished = pyqtSignal(bool, str)  # success, message
+    finished = pyqtSignal(bool, str, int)  # success, message, files_processed
     error = pyqtSignal(str)           # error message
 
     def __init__(self, parent=None, tooltip_manager=None):
@@ -539,12 +636,27 @@ class LineArtConverterPanelQt(QWidget):
         select_btn = QPushButton("Select Image")
         select_btn.clicked.connect(self._select_file)
         btn_layout.addWidget(select_btn)
-        
+        self._set_tooltip(select_btn, 'lineart_input')
+        self._set_tooltip(select_btn, 'la_select_preview')
+
         select_multiple_btn = QPushButton("Select Multiple")
         select_multiple_btn.clicked.connect(self._select_files)
+        self._set_tooltip(select_multiple_btn, 'la_select_files')
+        self._set_tooltip(select_multiple_btn, 'la_select_folder')
         btn_layout.addWidget(select_multiple_btn)
-        
+
+        add_folder_btn = QPushButton("📂 Add Folder")
+        add_folder_btn.clicked.connect(self._add_folder)
+        self._set_tooltip(add_folder_btn, "Add all images from a folder to the selection")
+        btn_layout.addWidget(add_folder_btn)
+
         group_layout.addLayout(btn_layout)
+
+        # Recursive checkbox
+        self.recursive_cb = QCheckBox("Process subfolders")
+        self.recursive_cb.setChecked(False)
+        self._set_tooltip(self.recursive_cb, "When adding a folder, also include images in sub-folders")
+        group_layout.addWidget(self.recursive_cb)
         
         # Archive options
         archive_layout = QHBoxLayout()
@@ -581,7 +693,8 @@ class LineArtConverterPanelQt(QWidget):
             self.preset_combo.addItem(preset_name)
         self.preset_combo.currentTextChanged.connect(self._on_preset_changed)
         group_layout.addWidget(self.preset_combo)
-        self._set_tooltip(self.preset_combo, 'lineart_preset')
+        self._set_tooltip(self.preset_combo, 'la_preset')
+        self._set_tooltip(self.preset_combo, 'la_save_preset')
         
         # Preset description
         self.preset_desc = QLabel("")
@@ -616,7 +729,7 @@ class LineArtConverterPanelQt(QWidget):
         self.mode_combo.currentIndexChanged.connect(self._schedule_preview_update)
         self.mode_combo.currentIndexChanged.connect(self._on_mode_changed)
         mode_layout.addWidget(self.mode_combo, 1)
-        self._set_tooltip(self.mode_combo, 'lineart_mode')
+        self._set_tooltip(self.mode_combo, 'la_mode')
         group_layout.addLayout(mode_layout)
 
         # Invert checkbox
@@ -627,6 +740,8 @@ class LineArtConverterPanelQt(QWidget):
         inv_layout.addWidget(self.invert_cb)
         inv_layout.addStretch()
         group_layout.addLayout(inv_layout)
+        self._set_tooltip(self.invert_cb, 'la_invert')
+        self._set_tooltip(self.invert_cb, 'la_style')
 
         # Threshold
         threshold_layout = QHBoxLayout()
@@ -640,6 +755,7 @@ class LineArtConverterPanelQt(QWidget):
         self.threshold_slider.valueChanged.connect(lambda v: self.threshold_label.setText(str(v)))
         threshold_layout.addWidget(self.threshold_label)
         group_layout.addLayout(threshold_layout)
+        self._set_tooltip(self.threshold_slider, 'la_threshold')
         
         # Contrast
         contrast_layout = QHBoxLayout()
@@ -652,6 +768,7 @@ class LineArtConverterPanelQt(QWidget):
         contrast_layout.addWidget(self.contrast_spin)
         contrast_layout.addStretch()
         group_layout.addLayout(contrast_layout)
+        self._set_tooltip(self.contrast_spin, 'la_contrast')
         
         # Morphology Operation
         morph_layout = QHBoxLayout()
@@ -669,6 +786,7 @@ class LineArtConverterPanelQt(QWidget):
         morph_layout.addWidget(self.morphology_combo)
         morph_layout.addStretch()
         group_layout.addLayout(morph_layout)
+        self._set_tooltip(self.morphology_combo, 'la_morphology')
         
         # Morphology Iterations
         iter_layout = QHBoxLayout()
@@ -681,6 +799,7 @@ class LineArtConverterPanelQt(QWidget):
         iter_layout.addWidget(self.morphology_iterations)
         iter_layout.addStretch()
         group_layout.addLayout(iter_layout)
+        self._set_tooltip(self.morphology_iterations, 'la_morph_iterations')
         
         # Kernel Size
         kernel_layout = QHBoxLayout()
@@ -694,6 +813,7 @@ class LineArtConverterPanelQt(QWidget):
         kernel_layout.addWidget(self.kernel_size_spin)
         kernel_layout.addStretch()
         group_layout.addLayout(kernel_layout)
+        self._set_tooltip(self.kernel_size_spin, 'la_kernel_size')
         
         # Sharpen
         sharpen_layout = QHBoxLayout()
@@ -710,6 +830,8 @@ class LineArtConverterPanelQt(QWidget):
         sharpen_layout.addWidget(self.sharpen_spin)
         sharpen_layout.addStretch()
         group_layout.addLayout(sharpen_layout)
+        self._set_tooltip(self.sharpen_cb, 'la_sharpen')
+        self._set_tooltip(self.sharpen_spin, 'la_sharpen_amount')
         
         # Denoise
         denoise_layout = QHBoxLayout()
@@ -725,11 +847,14 @@ class LineArtConverterPanelQt(QWidget):
         denoise_layout.addWidget(self.denoise_size)
         denoise_layout.addStretch()
         group_layout.addLayout(denoise_layout)
+        self._set_tooltip(self.denoise_cb, 'la_denoise')
+        self._set_tooltip(self.denoise_size, 'la_denoise_size')
         
         # Checkboxes
         self.auto_threshold_cb = QCheckBox("Auto Threshold")
         self.auto_threshold_cb.stateChanged.connect(self._schedule_preview_update)
         group_layout.addWidget(self.auto_threshold_cb)
+        self._set_tooltip(self.auto_threshold_cb, 'la_auto_threshold')
         
         # Midtone Threshold
         midtone_layout = QHBoxLayout()
@@ -742,12 +867,14 @@ class LineArtConverterPanelQt(QWidget):
         midtone_layout.addWidget(self.midtone_spin)
         midtone_layout.addStretch()
         group_layout.addLayout(midtone_layout)
+        self._set_tooltip(self.midtone_spin, 'la_midtone_threshold')
         
         # Remove Midtones
         self.remove_midtones_cb = QCheckBox("Remove midtones")
         self.remove_midtones_cb.setChecked(True)
         self.remove_midtones_cb.stateChanged.connect(self._schedule_preview_update)
         group_layout.addWidget(self.remove_midtones_cb)
+        self._set_tooltip(self.remove_midtones_cb, 'la_remove_midtones')
 
         # ── Background colour ──────────────────────────────────────────────
         bg_layout = QHBoxLayout()
@@ -762,12 +889,13 @@ class LineArtConverterPanelQt(QWidget):
         self._bg_custom_color = "#ffffff"   # remembered custom colour
         self.bg_custom_swatch = QPushButton()
         self.bg_custom_swatch.setFixedSize(28, 28)
-        self.bg_custom_swatch.setToolTip("Click to pick a custom background colour")
+        self._set_tooltip(self.bg_custom_swatch, "Click to pick a custom background colour")
         self.bg_custom_swatch.setStyleSheet(f"background:{self._bg_custom_color}; border:1px solid #888; border-radius:3px;")
         self.bg_custom_swatch.setVisible(False)
         self.bg_custom_swatch.clicked.connect(self._pick_custom_bg_color)
         bg_layout.addWidget(self.bg_custom_swatch)
         group_layout.addLayout(bg_layout)
+        self._set_tooltip(self.bg_mode_combo, 'la_background')
 
         # ── Mode-specific advanced controls (shown/hidden by _on_mode_changed) ─────
         # Edge Detection controls
@@ -783,32 +911,32 @@ class LineArtConverterPanelQt(QWidget):
         self.edge_low_spin = QSpinBox()
         self.edge_low_spin.setRange(1, 255)
         self.edge_low_spin.setValue(50)
-        self.edge_low_spin.setToolTip("Canny edge low hysteresis threshold (pixels below this are not edges)")
         self.edge_low_spin.valueChanged.connect(self._schedule_preview_update)
         _el_lo.addWidget(self.edge_low_spin)
         _el_lo.addStretch()
         _eg_layout.addLayout(_el_lo)
+        self._set_tooltip(self.edge_low_spin, 'lineart_edge_low')
         _eh_lo = QHBoxLayout()
         _eh_lo.addWidget(QLabel("High Threshold:"))
         self.edge_high_spin = QSpinBox()
         self.edge_high_spin.setRange(1, 255)
         self.edge_high_spin.setValue(150)
-        self.edge_high_spin.setToolTip("Canny edge high hysteresis threshold (pixels above this are strong edges)")
         self.edge_high_spin.valueChanged.connect(self._schedule_preview_update)
         _eh_lo.addWidget(self.edge_high_spin)
         _eh_lo.addStretch()
         _eg_layout.addLayout(_eh_lo)
+        self._set_tooltip(self.edge_high_spin, 'lineart_edge_high')
         _ea_lo = QHBoxLayout()
         _ea_lo.addWidget(QLabel("Aperture:"))
         self.edge_aperture_combo = QComboBox()
         self.edge_aperture_combo.addItem("3 (fine)", 3)
         self.edge_aperture_combo.addItem("5 (medium)", 5)
         self.edge_aperture_combo.addItem("7 (coarse)", 7)
-        self.edge_aperture_combo.setToolTip("Sobel aperture size — 3=thin lines, 7=thick lines")
         self.edge_aperture_combo.currentIndexChanged.connect(self._schedule_preview_update)
         _ea_lo.addWidget(self.edge_aperture_combo)
         _ea_lo.addStretch()
         _eg_layout.addLayout(_ea_lo)
+        self._set_tooltip(self.edge_aperture_combo, 'lineart_edge_aperture')
         group_layout.addWidget(self._edge_group)
         self._edge_group.setVisible(False)
 
@@ -826,33 +954,33 @@ class LineArtConverterPanelQt(QWidget):
         self.adaptive_block_spin.setRange(3, 99)
         self.adaptive_block_spin.setValue(11)
         self.adaptive_block_spin.setSingleStep(2)  # must be odd
-        self.adaptive_block_spin.setToolTip("Pixel neighbourhood size used to compute threshold (must be odd)")
         self.adaptive_block_spin.valueChanged.connect(self._ensure_odd_block_size)
         self.adaptive_block_spin.valueChanged.connect(self._schedule_preview_update)
         _ab_lo.addWidget(self.adaptive_block_spin)
         _ab_lo.addStretch()
         _ag_layout.addLayout(_ab_lo)
+        self._set_tooltip(self.adaptive_block_spin, 'lineart_adaptive_block')
         _ac_lo = QHBoxLayout()
         _ac_lo.addWidget(QLabel("C Constant:"))
         self.adaptive_c_spin = QDoubleSpinBox()
         self.adaptive_c_spin.setRange(-20.0, 20.0)
         self.adaptive_c_spin.setValue(2.0)
         self.adaptive_c_spin.setSingleStep(0.5)
-        self.adaptive_c_spin.setToolTip("Subtracted from weighted mean (higher = fewer lines)")
         self.adaptive_c_spin.valueChanged.connect(self._schedule_preview_update)
         _ac_lo.addWidget(self.adaptive_c_spin)
         _ac_lo.addStretch()
         _ag_layout.addLayout(_ac_lo)
+        self._set_tooltip(self.adaptive_c_spin, 'lineart_adaptive_c')
         _am_lo = QHBoxLayout()
         _am_lo.addWidget(QLabel("Method:"))
         self.adaptive_method_combo = QComboBox()
         self.adaptive_method_combo.addItem("Gaussian (smooth)", "gaussian")
         self.adaptive_method_combo.addItem("Mean (sharp)", "mean")
-        self.adaptive_method_combo.setToolTip("Gaussian weights nearby pixels more; Mean treats all equally")
         self.adaptive_method_combo.currentIndexChanged.connect(self._schedule_preview_update)
         _am_lo.addWidget(self.adaptive_method_combo)
         _am_lo.addStretch()
         _ag_layout.addLayout(_am_lo)
+        self._set_tooltip(self.adaptive_method_combo, 'lineart_adaptive_method')
         group_layout.addWidget(self._adaptive_group)
         self._adaptive_group.setVisible(False)
 
@@ -867,18 +995,18 @@ class LineArtConverterPanelQt(QWidget):
         _sl_lo = QHBoxLayout()
         self.smooth_lines_cb = QCheckBox("Smooth Lines")
         self.smooth_lines_cb.setChecked(False)
-        self.smooth_lines_cb.setToolTip("Apply Gaussian smoothing before edge extraction for softer sketch look")
         self.smooth_lines_cb.stateChanged.connect(self._schedule_preview_update)
         _sl_lo.addWidget(self.smooth_lines_cb)
         self.smooth_amount_spin = QDoubleSpinBox()
         self.smooth_amount_spin.setRange(0.5, 5.0)
         self.smooth_amount_spin.setValue(1.0)
         self.smooth_amount_spin.setSingleStep(0.5)
-        self.smooth_amount_spin.setToolTip("Smoothing radius — higher = softer pencil look")
         self.smooth_amount_spin.valueChanged.connect(self._schedule_preview_update)
         _sl_lo.addWidget(self.smooth_amount_spin)
         _sl_lo.addStretch()
         _sg_layout.addLayout(_sl_lo)
+        self._set_tooltip(self.smooth_lines_cb, 'lineart_smooth_lines')
+        self._set_tooltip(self.smooth_amount_spin, 'lineart_smooth_amount')
         group_layout.addWidget(self._smooth_group)
         self._smooth_group.setVisible(False)
 
@@ -913,9 +1041,9 @@ class LineArtConverterPanelQt(QWidget):
         for b in (btn_in, btn_out, btn_fit):
             b.setFixedWidth(44)
             b.setFixedHeight(24)
-        btn_in.setToolTip("Zoom in (also: scroll wheel)")
-        btn_out.setToolTip("Zoom out")
-        btn_fit.setToolTip("Reset to fit")
+        self._set_tooltip(btn_in, 'upscale_zoom_in')
+        self._set_tooltip(btn_out, 'upscale_zoom_out')
+        self._set_tooltip(btn_fit, 'upscale_zoom_fit')
         btn_in.clicked.connect(_zoom_in)
         btn_out.clicked.connect(_zoom_out)
         btn_fit.clicked.connect(_zoom_fit)
@@ -929,6 +1057,13 @@ class LineArtConverterPanelQt(QWidget):
         zoom_bar.addWidget(btn_in)
         zoom_bar.addWidget(btn_fit)
         zoom_bar.addStretch()
+
+        refresh_btn = QPushButton("🔄 Update Preview")
+        refresh_btn.setFixedHeight(24)
+        refresh_btn.clicked.connect(self._schedule_preview_update)
+        self._set_tooltip(refresh_btn, 'la_update_preview')
+        zoom_bar.addWidget(refresh_btn)
+
         group_layout.addLayout(zoom_bar)
 
         # ── Preview area (scrollable) ──────────────────────────────────────
@@ -1027,9 +1162,11 @@ class LineArtConverterPanelQt(QWidget):
         ]:
             self.output_format_combo.addItem(label, ext)
         fmt_layout.addWidget(self.output_format_combo, 1)
+        self._set_tooltip(self.output_format_combo, 'la_export')
 
         self.save_color_layer_cb = QCheckBox("Also save colour layer")
-        self.save_color_layer_cb.setToolTip(
+        self._set_tooltip(
+            self.save_color_layer_cb,
             "In addition to the line art output, also save the original colour image "
             "in the same folder with a '_color' suffix."
         )
@@ -1037,11 +1174,33 @@ class LineArtConverterPanelQt(QWidget):
         fmt_group.setLayout(fmt_layout)
         layout.addWidget(fmt_group)
 
-        # Convert button
+        # Convert + cancel button row
+        _conv_row = QHBoxLayout()
         self.convert_button = QPushButton("🚀 Convert Selected Files")
         self.convert_button.setStyleSheet("background-color: #2196F3; color: white; padding: 10px; font-weight: bold;")
         self.convert_button.clicked.connect(self._convert_batch)
-        layout.addWidget(self.convert_button)
+        _conv_row.addWidget(self.convert_button)
+        self._set_tooltip(self.convert_button, 'la_convert')
+
+        self._cancel_btn = QPushButton("Cancel")
+        self._cancel_btn.setStyleSheet("background-color: #f44336; color: white; padding: 10px;")
+        self._cancel_btn.clicked.connect(self._cancel_batch)
+        self._cancel_btn.setEnabled(False)
+        self._cancel_btn.setVisible(False)
+        self._set_tooltip(self._cancel_btn, 'stop_button')
+        _conv_row.addWidget(self._cancel_btn)
+        layout.addLayout(_conv_row)
+
+        # Browse output directory
+        self.browse_output_btn = QPushButton("📂 Browse Output Folder")
+        self.browse_output_btn.clicked.connect(self._browse_output_dir)
+        self._set_tooltip(self.browse_output_btn, 'la_browse_output')
+        layout.addWidget(self.browse_output_btn)
+
+        self._skip_existing = QCheckBox("Skip if output file already exists")
+        self._skip_existing.setChecked(False)
+        self._set_tooltip(self._skip_existing, "When checked, files are not re-converted if the output already exists")
+        layout.addWidget(self._skip_existing)
 
         # Progress bar
         self.progress_bar = QProgressBar()
@@ -1058,7 +1217,7 @@ class LineArtConverterPanelQt(QWidget):
             self,
             "Select Image",
             "",
-            "Images (*.png *.jpg *.jpeg *.bmp *.tiff *.webp);;All Files (*.*)"
+            "Images (*.png *.jpg *.jpeg *.bmp *.tiff *.tif *.webp *.tga *.dds *.gif);;All Files (*.*)"
         )
         
         if filename:
@@ -1074,14 +1233,37 @@ class LineArtConverterPanelQt(QWidget):
             self,
             "Select Images",
             "",
-            "Images (*.png *.jpg *.jpeg *.bmp *.tiff *.webp);;All Files (*.*)"
+            "Images (*.png *.jpg *.jpeg *.bmp *.tiff *.tif *.webp *.tga *.dds *.gif);;All Files (*.*)"
         )
-        
+
         if files:
             self.selected_files = files
             self.selected_file = files[0]
             self.file_label.setText(f"{len(files)} files selected")
             self.file_label.setStyleSheet("color: green; font-weight: bold;")
+            self._schedule_preview_update()
+
+    def _add_folder(self):
+        """Add all images from a folder (optionally recursive) to the selection."""
+        folder = QFileDialog.getExistingDirectory(self, "Select Folder")
+        if not folder:
+            return
+        recursive = hasattr(self, 'recursive_cb') and self.recursive_cb.isChecked()
+        folder_path = Path(folder)
+        new_files = []
+        pattern = '**/*' if recursive else '*'
+        for ext in IMAGE_EXTENSIONS:
+            new_files.extend(folder_path.glob(f'{pattern}{ext}'))
+            new_files.extend(folder_path.glob(f'{pattern}{ext.upper()}'))
+        new_paths = sorted({str(p) for p in new_files})
+        existing = set(self.selected_files)
+        added = [p for p in new_paths if p not in existing]
+        self.selected_files.extend(added)
+        count = len(self.selected_files)
+        self.file_label.setText(f"{count} file{'s' if count != 1 else ''} selected")
+        self.file_label.setStyleSheet("color: green; font-weight: bold;")
+        if added and not self.selected_file:
+            self.selected_file = added[0]
             self._schedule_preview_update()
     
     def _on_preset_changed(self, preset_name):
@@ -1168,7 +1350,8 @@ class LineArtConverterPanelQt(QWidget):
             if hasattr(self, 'smooth_amount_spin'):
                 self.smooth_amount_spin.setValue(preset.get("smooth_amount", 1.0))
 
-            # Trigger preview update
+            # Trigger mode-specific panel visibility update, then preview update
+            self._on_mode_changed()
             self._schedule_preview_update()
     
     def _on_bg_mode_changed(self, index: int):
@@ -1373,6 +1556,7 @@ class LineArtConverterPanelQt(QWidget):
     
     def _pil_to_pixmap(self, img, max_size=600):
         """Convert PIL Image to QPixmap (600 px max for quality preview)."""
+        img = img.copy()
         img.thumbnail((max_size, max_size), Image.Resampling.LANCZOS)
         if img.mode != 'RGBA':
             img = img.convert('RGBA')
@@ -1384,6 +1568,17 @@ class LineArtConverterPanelQt(QWidget):
         """Handle preview error."""
         if hasattr(self, 'preview_label'):
             self.preview_label.setText(f"Error: {error_msg}")
+
+    def _browse_output_dir(self):
+        """Let the user pre-select the output directory for conversions."""
+        try:
+            from PyQt6.QtWidgets import QFileDialog
+            path = QFileDialog.getExistingDirectory(self, "Select Output Directory")
+            if path:
+                self._preset_output_dir = path
+                logger.info(f"Lineart output directory pre-set to: {path}")
+        except Exception as e:
+            logger.error(f"_browse_output_dir: {e}", exc_info=True)
     
     def _convert_batch(self):
         """Convert selected files in batch."""
@@ -1425,12 +1620,16 @@ class LineArtConverterPanelQt(QWidget):
                 settings,
                 out_ext=out_ext,
                 save_color_layer=save_color,
+                skip_existing=self._skip_existing.isChecked(),
             )
             self.conversion_worker.progress.connect(self._on_conversion_progress)
             self.conversion_worker.finished.connect(self._on_conversion_finished)
             self.conversion_worker.start()
 
             self.convert_button.setEnabled(False)
+            if hasattr(self, '_cancel_btn'):
+                self._cancel_btn.setEnabled(True)
+                self._cancel_btn.setVisible(True)
             self.progress_bar.setVisible(True)
             self.progress_bar.setValue(0)
             self.progress_label.setText("Starting conversion...")
@@ -1445,10 +1644,13 @@ class LineArtConverterPanelQt(QWidget):
         self.progress_bar.setValue(progress)
         self.progress_label.setText(f"Converting {current}/{total}: {filename}")
     
-    def _on_conversion_finished(self, success, message):
+    def _on_conversion_finished(self, success, message, files_processed: int = 0):
         """Handle conversion completion."""
         self.progress_bar.setVisible(False)
         self.convert_button.setEnabled(True)
+        if hasattr(self, '_cancel_btn'):
+            self._cancel_btn.setEnabled(False)
+            self._cancel_btn.setVisible(False)
         
         if success:
             QMessageBox.information(self, "Complete", message)
@@ -1456,7 +1658,15 @@ class LineArtConverterPanelQt(QWidget):
         else:
             QMessageBox.critical(self, "Error", message)
             self.progress_label.setText("✗ Conversion failed")
-        self.finished.emit(success, message)
+        self.finished.emit(success, message, files_processed)
+
+    def _cancel_batch(self):
+        """Cancel the running batch conversion."""
+        if hasattr(self, 'conversion_worker') and self.conversion_worker and self.conversion_worker.isRunning():
+            self.conversion_worker.requestInterruption()
+            if hasattr(self, '_cancel_btn'):
+                self._cancel_btn.setEnabled(False)
+            self.progress_label.setText("Cancelling…")
 
     def _set_tooltip(self, widget, widget_id_or_text):
         """Set tooltip on a widget using tooltip manager if available."""

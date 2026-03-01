@@ -48,6 +48,21 @@ _SCHEMES: dict[str, list[tuple[int, int, int]]] = {
     'blue':      [(30, 100, 255)],
     'green':     [(30, 200, 80)],
     'gold':      [(255, 200, 0), (255, 165, 0), (200, 130, 0)],
+    # Additional schemes to match settings combo options
+    'nature':    [(60, 180, 60), (100, 220, 80), (40, 140, 40),
+                  (160, 220, 100), (80, 200, 120)],
+    'galaxy':    [(80, 0, 160), (0, 60, 180), (160, 0, 200),
+                  (30, 0, 100), (200, 100, 255), (0, 200, 255)],
+    'silver':    [(200, 200, 210), (160, 170, 185), (220, 220, 230),
+                  (180, 185, 195), (240, 240, 245)],
+    'neon':      [(0, 255, 100), (0, 200, 255), (255, 0, 200),
+                  (200, 255, 0), (255, 100, 0)],
+}
+# Aliases so key lookups are forgiving
+_SCHEME_ALIASES = {
+    'sparkles': 'sparkle',   # "Sparkles" combo entry maps to 'sparkle' scheme
+    'neon_green': 'neon',
+    'forest': 'nature',
 }
 
 _MAX_DOTS = 30        # trail length (number of positions kept)
@@ -79,8 +94,12 @@ class CursorTrailOverlay(QWidget):  # type: ignore[misc]
         self._scheme: list[tuple[int, int, int]] = _SCHEMES['rainbow']
         self._intensity: int = 5  # 1–10; default mid
 
-        # Install event filter on parent to capture mouse moves
-        if parent is not None:
+        # Install event filter on QApplication so ALL child-widget mouse events
+        # are captured (installing only on parent misses events on child widgets).
+        app = QApplication.instance()
+        if app is not None:
+            app.installEventFilter(self)
+        elif parent is not None:
             parent.installEventFilter(self)
 
         self._timer = QTimer(self)
@@ -94,6 +113,8 @@ class CursorTrailOverlay(QWidget):  # type: ignore[misc]
     def set_color_scheme(self, name: str) -> None:
         """Set trail colour scheme by name (see _SCHEMES)."""
         key = name.lower().replace(' ', '_')
+        # Resolve alias first, then look up scheme
+        key = _SCHEME_ALIASES.get(key, key)
         self._scheme = _SCHEMES.get(key, _SCHEMES['rainbow'])
         self._color_idx = 0
 
@@ -109,11 +130,20 @@ class CursorTrailOverlay(QWidget):  # type: ignore[misc]
     # ── event filter on parent ────────────────────────────────────────────────
 
     def eventFilter(self, obj: QObject, event: QEvent) -> bool:  # type: ignore[override]
-        """Intercept mouse-move events on the parent to record trail positions."""
+        """Intercept mouse-move events anywhere in the app to record trail positions.
+
+        Since we install the filter on QApplication, pos() is relative to the
+        source widget.  Convert to parent-window-local coords via globalPos().
+        """
         try:
             if event.type() == QEvent.Type.MouseMove:
-                pos = event.pos()  # type: ignore[attr-defined]
-                self._dots.append((pos.x(), pos.y()))
+                # globalPosition() → QPointF in Qt6; map to our parent widget's local frame
+                p = self.parent()
+                if p is not None:
+                    global_pos = event.globalPosition().toPoint()  # type: ignore[attr-defined]
+                    # toPoint() converts QPointF → QPoint (integer pixel coords for trail dots)
+                    local_pos = p.mapFromGlobal(global_pos)
+                    self._dots.append((local_pos.x(), local_pos.y()))
         except Exception:
             pass
         return False  # never consume the event
@@ -127,6 +157,20 @@ class CursorTrailOverlay(QWidget):  # type: ignore[misc]
     def showEvent(self, event) -> None:
         self._cover_parent()
         super().showEvent(event)
+
+    def hideEvent(self, event) -> None:
+        self._dots.clear()
+        super().hideEvent(event)
+
+    def closeEvent(self, event) -> None:
+        # Remove the app-level event filter on cleanup
+        try:
+            app = QApplication.instance()
+            if app is not None:
+                app.removeEventFilter(self)
+        except Exception:
+            pass
+        super().closeEvent(event)
 
     def paintEvent(self, event) -> None:  # type: ignore[override]
         if not self._dots:

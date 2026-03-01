@@ -113,6 +113,7 @@ class FilePickerWidget(QWidget):
         self.browse_btn = QPushButton("📁 Browse Files")
         self.browse_btn.setMinimumHeight(40)
         self.browse_btn.setMinimumWidth(150)
+        self.browse_btn.setToolTip("Select individual image files")
         self.browse_btn.setStyleSheet("""
             QPushButton {
                 background-color: #2196F3;
@@ -137,6 +138,7 @@ class FilePickerWidget(QWidget):
             self.browse_folder_btn = QPushButton("📂 Browse Folder")
             self.browse_folder_btn.setMinimumHeight(40)
             self.browse_folder_btn.setMinimumWidth(150)
+            self.browse_folder_btn.setToolTip("Select an entire folder of images")
             self.browse_folder_btn.setStyleSheet("""
                 QPushButton {
                     background-color: #4CAF50;
@@ -161,6 +163,7 @@ class FilePickerWidget(QWidget):
             self.browse_archive_btn = QPushButton("📦 Browse Archive")
             self.browse_archive_btn.setMinimumHeight(40)
             self.browse_archive_btn.setMinimumWidth(150)
+            self.browse_archive_btn.setToolTip("Select images from a ZIP or 7-Zip archive")
             self.browse_archive_btn.setStyleSheet("""
                 QPushButton {
                     background-color: #FF9800;
@@ -201,6 +204,7 @@ class FilePickerWidget(QWidget):
             }
         """)
         self.recent_btn.clicked.connect(self.show_recent_menu)
+        self.recent_btn.setToolTip("Show recently used files for quick re-selection")
         button_layout.addWidget(self.recent_btn)
         
         # Clear selection button
@@ -224,6 +228,7 @@ class FilePickerWidget(QWidget):
             }
         """)
         self.clear_btn.clicked.connect(self.on_clear)
+        self.clear_btn.setToolTip("Clear the current file selection")
         button_layout.addWidget(self.clear_btn)
         
         button_layout.addStretch()

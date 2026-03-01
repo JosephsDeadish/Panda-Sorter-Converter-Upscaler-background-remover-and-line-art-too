@@ -16,10 +16,10 @@ try:
     from PyQt6.QtWidgets import (
         QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
         QTextEdit, QListWidget, QListWidgetItem, QMessageBox,
-        QInputDialog, QSplitter, QFrame, QFileDialog
+        QInputDialog, QSplitter, QFrame, QFileDialog, QLineEdit
     )
     from PyQt6.QtCore import Qt, pyqtSignal, QTimer
-    from PyQt6.QtGui import QFont, QTextCharFormat, QColor
+    from PyQt6.QtGui import QFont, QTextCharFormat, QColor, QKeySequence, QShortcut, QTextDocument
     PYQT_AVAILABLE = True
 except (ImportError, OSError, RuntimeError):
     PYQT_AVAILABLE = False
@@ -78,10 +78,19 @@ class NotepadPanelQt(QWidget):
         self.setup_ui()
         self.load_notes()
     
-    def _set_tooltip(self, widget, tooltip_id: str):
-        """Helper to set tooltip from manager"""
-        if self.tooltip_manager:
-            self.tooltip_manager.set_tooltip(widget, tooltip_id)
+    def _set_tooltip(self, widget, widget_id_or_text: str):
+        """Set tooltip via manager (cycling) when available, else plain text."""
+        if self.tooltip_manager and hasattr(self.tooltip_manager, 'register'):
+            if ' ' not in widget_id_or_text:
+                try:
+                    tip = self.tooltip_manager.get_tooltip(widget_id_or_text)
+                    if tip:
+                        widget.setToolTip(tip)
+                        self.tooltip_manager.register(widget, widget_id_or_text)
+                        return
+                except Exception:
+                    pass
+        widget.setToolTip(str(widget_id_or_text))
     
     def setup_ui(self):
         """Setup the UI"""
@@ -129,13 +138,13 @@ class NotepadPanelQt(QWidget):
         # these buttons make the feature visible and discoverable in the toolbar).
         self.undo_btn = QPushButton("↩ Undo")
         self.undo_btn.setEnabled(False)
-        self.undo_btn.setToolTip("Undo last edit (Ctrl+Z)")
+        self._set_tooltip(self.undo_btn, 'undo_button')
         self.undo_btn.setAccessibleName("Undo")
         controls_layout.addWidget(self.undo_btn)
 
         self.redo_btn = QPushButton("↪ Redo")
         self.redo_btn.setEnabled(False)
-        self.redo_btn.setToolTip("Redo last undone edit (Ctrl+Y)")
+        self._set_tooltip(self.redo_btn, 'redo_button')
         self.redo_btn.setAccessibleName("Redo")
         controls_layout.addWidget(self.redo_btn)
         
@@ -201,8 +210,46 @@ class NotepadPanelQt(QWidget):
         splitter.addWidget(editor_container)
         splitter.setStretchFactor(0, 1)  # Note list
         splitter.setStretchFactor(1, 3)  # Editor gets more space
-        
+
         layout.addWidget(splitter)
+
+        # === FIND BAR (hidden until Ctrl+F) ===
+        self._find_bar = QWidget()
+        find_bar_layout = QHBoxLayout(self._find_bar)
+        find_bar_layout.setContentsMargins(0, 2, 0, 2)
+        find_bar_layout.setSpacing(4)
+        find_bar_layout.addWidget(QLabel("🔍 Find:"))
+        self._find_input = QLineEdit()
+        self._find_input.setPlaceholderText("Search in note…")
+        self._find_input.textChanged.connect(self._find_in_note)
+        self._find_input.returnPressed.connect(self._find_next)
+        find_bar_layout.addWidget(self._find_input)
+        _find_next_btn = QPushButton("▼")
+        _find_next_btn.setFixedWidth(28)
+        _find_next_btn.setToolTip("Find next (Enter)")
+        _find_next_btn.clicked.connect(self._find_next)
+        find_bar_layout.addWidget(_find_next_btn)
+        _find_prev_btn = QPushButton("▲")
+        _find_prev_btn.setFixedWidth(28)
+        _find_prev_btn.setToolTip("Find previous")
+        _find_prev_btn.clicked.connect(self._find_prev)
+        find_bar_layout.addWidget(_find_prev_btn)
+        _find_close_btn = QPushButton("✕")
+        _find_close_btn.setFixedWidth(24)
+        _find_close_btn.setToolTip("Close find bar (Escape)")
+        _find_close_btn.clicked.connect(self._hide_find_bar)
+        find_bar_layout.addWidget(_find_close_btn)
+        self._find_match_label = QLabel("")
+        self._find_match_label.setStyleSheet("color: #888; font-size: 10px;")
+        find_bar_layout.addWidget(self._find_match_label)
+        self._find_bar.hide()
+        layout.addWidget(self._find_bar)
+
+        # Ctrl+F shortcut to open find bar
+        _find_shortcut = QShortcut(QKeySequence("Ctrl+F"), self)
+        _find_shortcut.activated.connect(self._show_find_bar)
+        _esc_shortcut = QShortcut(QKeySequence("Escape"), self._find_bar)
+        _esc_shortcut.activated.connect(self._hide_find_bar)
         
         # === STATUS BAR ===
         self.status_label = QLabel("Ready - Create a new note to get started")
@@ -432,3 +479,65 @@ class NotepadPanelQt(QWidget):
         if self.current_note_id:
             self.save_current_note()
         event.accept()
+
+    # ── Find bar ────────────────────────────────────────────────────────────
+
+    def _show_find_bar(self) -> None:
+        """Show the find bar and focus the search input."""
+        self._find_bar.show()
+        self._find_input.setFocus()
+        self._find_input.selectAll()
+
+    def _hide_find_bar(self) -> None:
+        """Hide the find bar and clear highlights."""
+        self._find_bar.hide()
+        self._find_input.clear()
+        # Remove highlight formatting
+        cursor = self.text_editor.textCursor()
+        cursor.clearSelection()
+        self.text_editor.setExtraSelections([])
+        self.text_editor.setFocus()
+
+    def _find_in_note(self, query: str) -> None:
+        """Highlight all occurrences of *query* in the current note."""
+        extra: list = []
+        if query:
+            fmt = QTextCharFormat()
+            fmt.setBackground(QColor('#f0c040'))
+            cursor = self.text_editor.document().find(query)
+            count = 0
+            while not cursor.isNull():
+                sel = QTextEdit.ExtraSelection()
+                sel.format = fmt
+                sel.cursor = cursor
+                extra.append(sel)
+                count += 1
+                cursor = self.text_editor.document().find(query, cursor)
+            self._find_match_label.setText(f"{count} match{'es' if count != 1 else ''}")
+        else:
+            self._find_match_label.setText("")
+        self.text_editor.setExtraSelections(extra)
+
+    def _find_next(self) -> None:
+        """Move to the next occurrence of the search term."""
+        query = self._find_input.text()
+        if query:
+            found = self.text_editor.find(query)
+            if not found:
+                # Wrap around to start
+                cursor = self.text_editor.textCursor()
+                cursor.movePosition(cursor.MoveOperation.Start)
+                self.text_editor.setTextCursor(cursor)
+                self.text_editor.find(query)
+
+    def _find_prev(self) -> None:
+        """Move to the previous occurrence of the search term."""
+        query = self._find_input.text()
+        if query:
+            found = self.text_editor.find(query, QTextDocument.FindFlag.FindBackward)
+            if not found:
+                # Wrap around to end
+                cursor = self.text_editor.textCursor()
+                cursor.movePosition(cursor.MoveOperation.End)
+                self.text_editor.setTextCursor(cursor)
+                self.text_editor.find(query, QTextDocument.FindFlag.FindBackward)

@@ -385,15 +385,13 @@ class PerformanceDashboard(QFrame):
 
             self.profile_btn = QPushButton("▶ Start Profile")
             self.profile_btn.setFixedWidth(140)
-            self.profile_btn.setToolTip(
-                "Run cProfile + tracemalloc on the next sort operation"
-            )
+            self.profile_btn.setToolTip("Start or stop Python profiling to measure performance bottlenecks")
             self.profile_btn.clicked.connect(self._toggle_profiling)
             prof_header.addWidget(self.profile_btn)
 
             self.optimize_mem_btn = QPushButton("🗑 Free Memory")
             self.optimize_mem_btn.setFixedWidth(120)
-            self.optimize_mem_btn.setToolTip("Run GC and trim process working set")
+            self.optimize_mem_btn.setToolTip("Run garbage collection to free unused memory")
             self.optimize_mem_btn.clicked.connect(self._run_optimize_memory)
             prof_header.addWidget(self.optimize_mem_btn)
 
@@ -628,6 +626,21 @@ class PerformanceDashboard(QFrame):
                         "Number of parallel worker threads for processing\n"
                         "More workers = faster but uses more CPU/memory"),
                     widget_id='perf_workers', tooltip_manager=tm))
+
+            # Profiling button tooltip
+            if hasattr(self, 'profile_btn'):
+                self._tooltips.append(WidgetTooltip(
+                    self.profile_btn,
+                    _tt('perf_profile',
+                        "Run cProfile + tracemalloc on the next sort operation"),
+                    widget_id='perf_profile', tooltip_manager=tm))
+
+            # Free memory button tooltip
+            if hasattr(self, 'optimize_mem_btn'):
+                self._tooltips.append(WidgetTooltip(
+                    self.optimize_mem_btn,
+                    _tt('perf_free_memory', "Run GC and trim process working set"),
+                    widget_id='perf_free_memory', tooltip_manager=tm))
                     
         except Exception as e:
             logger.error(f"Error adding tooltips to Performance Dashboard: {e}")

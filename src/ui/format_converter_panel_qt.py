@@ -50,7 +50,24 @@ except (ImportError, OSError):
 _INPUT_EXTS = {
     ".png", ".jpg", ".jpeg", ".bmp", ".tiff", ".tif",
     ".webp", ".tga", ".gif", ".ico", ".psd",
+    # Additional game/HDR/modern formats
+    ".dds", ".hdr", ".exr", ".avif", ".jp2", ".j2k",
+    ".pbm", ".pgm", ".ppm", ".pnm", ".xbm", ".xpm",
+    ".cur", ".pcx", ".sgi", ".rgb", ".rgba", ".im",
 }
+
+# User-facing message shown when AVIF encoding is unavailable.
+_AVIF_UNAVAILABLE_MSG = (
+    "AVIF encoder not available.\n"
+    "Pillow needs to be built with libaom support.\n"
+    "Run  python setup_models.py  or:  pip install pillow-avif-plugin\n"
+    "Alternatively, convert to WebP or PNG."
+)
+# Shorter version for UI labels
+_AVIF_NOTE_MSG = (
+    "⚠️ AVIF requires Pillow built with libaom.\n"
+    "Run  python setup_models.py  or install:  pip install pillow-avif-plugin"
+)
 
 _OUTPUT_FORMATS: List[Tuple[str, str, str]] = [
     # (display_label, extension, PIL_save_format)
@@ -61,6 +78,9 @@ _OUTPUT_FORMATS: List[Tuple[str, str, str]] = [
     ("BMP (uncompressed)",             ".bmp",  "BMP"),
     ("TGA / Targa (game-ready)",       ".tga",  "TGA"),
     ("ICO (icon, max 256×256)",        ".ico",  "ICO"),
+    ("GIF (256 colours)",              ".gif",  "GIF"),
+    ("JPEG 2000 (lossless)",           ".jp2",  "JPEG2000"),
+    ("AVIF (modern, very small)",      ".avif", "AVIF"),
 ]
 
 _COLOUR_SPACES: List[Tuple[str, str]] = [
@@ -113,16 +133,32 @@ class _ConvertWorker(QThread):
         webp_q    = s["webp_quality"]
         webp_ll   = s["webp_lossless"]
         strip_xmp = s["strip_metadata"]
+        skip_existing = s.get("skip_existing", False)
         name_tpl  = s["name_template"]  # e.g. "{stem}{ext}"
         suffix    = s.get("name_suffix", "")
         total     = len(self._files)
         done      = 0
         errors    = 0
+        skipped   = 0
 
         for fp in self._files:
             if self._cancel:
                 break
             try:
+                # Build output path first so we can skip early if needed
+                stem = fp.stem + suffix
+                out_name = (name_tpl
+                            .replace("{stem}", stem)
+                            .replace("{ext}", out_ext)
+                            .replace("{name}", fp.name))
+                out_path = out_dir / out_name
+
+                if skip_existing and out_path.exists():
+                    skipped += 1
+                    self.log_msg.emit(f"⏭️ Skipped (exists): {out_path.name}")
+                    self.progress.emit(done + errors + skipped, total, fp.name)
+                    continue
+
                 img = Image.open(fp)
                 img.load()  # force decode (catches lazy errors)
 
@@ -151,21 +187,17 @@ class _ConvertWorker(QThread):
                     img = bg
                 elif pil_fmt == "ICO":
                     img = img.convert("RGBA")
+                elif pil_fmt == "GIF":
+                    # GIF supports only palette / P mode (256 colours)
+                    if img.mode not in ("P", "L"):
+                        img = img.convert("RGB").quantize(colors=256)
 
                 # ── Resize ────────────────────────────────────────────────
                 img = _resize_image(img, resize_md, s)
 
                 # ── ICO size cap ──────────────────────────────────────────
                 if pil_fmt == "ICO":
-                    img.thumbnail((256, 256), Image.LANCZOS)
-
-                # ── Output path ───────────────────────────────────────────
-                stem = fp.stem + suffix
-                out_name = (name_tpl
-                            .replace("{stem}", stem)
-                            .replace("{ext}", out_ext)
-                            .replace("{name}", fp.name))
-                out_path = out_dir / out_name
+                    img.thumbnail((256, 256), Image.Resampling.LANCZOS)
 
                 # ── Save kwargs ───────────────────────────────────────────
                 save_kw: dict = {}
@@ -179,8 +211,23 @@ class _ConvertWorker(QThread):
                     save_kw = {"quality": webp_q, "lossless": webp_ll}
                 elif pil_fmt == "TIFF":
                     save_kw = {"compression": "tiff_lzw"}
+                elif pil_fmt == "AVIF":
+                    save_kw = {"quality": webp_q}
+                elif pil_fmt == "JPEG2000":
+                    save_kw = {"quality_mode": "lossless"}
 
-                img.save(out_path, format=pil_fmt, **save_kw)
+                try:
+                    img.save(out_path, format=pil_fmt, **save_kw)
+                except Exception as save_exc:
+                    # Provide a friendlier message for the very common "no AVIF encoder" error
+                    exc_str = str(save_exc)
+                    if pil_fmt == "AVIF" and (
+                        "encoder avif not available" in exc_str.lower()
+                        or "libaom" in exc_str.lower()
+                        or "avif" in exc_str.lower()
+                    ):
+                        raise RuntimeError(_AVIF_UNAVAILABLE_MSG) from save_exc
+                    raise
                 done += 1
                 self.log_msg.emit(f"✅ {fp.name}  →  {out_path.name}")
             except Exception as exc:
@@ -188,10 +235,13 @@ class _ConvertWorker(QThread):
                 self.log_msg.emit(f"❌ {fp.name}: {exc}")
                 logger.warning(f"Format convert: {fp}: {exc}")
 
-            self.progress.emit(done + errors, total, fp.name)
+            self.progress.emit(done + errors + skipped, total, fp.name)
 
         ok  = errors == 0
-        msg = f"Done — {done} converted, {errors} errors"
+        _parts = [f"{done} converted", f"{errors} errors"]
+        if skipped:
+            _parts.append(f"{skipped} skipped")
+        msg = f"Done — {', '.join(_parts)}"
         self.finished.emit(ok, msg, done)
 
 
@@ -218,7 +268,12 @@ def _resize_image(img: "Image.Image", mode: str, s: dict) -> "Image.Image":
         nh = 1 << (max(1, h).bit_length() - 1)
     else:
         return img
-    return img.resize((nw, nh), Image.LANCZOS)
+    # LANCZOS is not supported for palette (P) mode — convert to RGB first, resize, then re-quantize
+    if img.mode == "P":
+        img_rgb = img.convert("RGB")
+        resized_rgb = img_rgb.resize((nw, nh), Image.Resampling.LANCZOS)
+        return resized_rgb.quantize(colors=256)
+    return img.resize((nw, nh), Image.Resampling.LANCZOS)
 
 
 # ─── Panel ────────────────────────────────────────────────────────────────────
@@ -268,16 +323,26 @@ if _PYQT:
             self._in_dir_edit = QLineEdit()
             self._in_dir_edit.setPlaceholderText("Input folder or drag files here…")
             self._in_dir_edit.setReadOnly(True)
+            self._set_tooltip(self._in_dir_edit, 'convert_from_format')
             h.addWidget(self._in_dir_edit, stretch=1)
             btn_pick_dir = QPushButton("📁 Folder")
             btn_pick_dir.setFixedWidth(76)
             btn_pick_dir.clicked.connect(self._pick_input_folder)
+            self._set_tooltip(btn_pick_dir, 'input_browse')
             h.addWidget(btn_pick_dir)
             btn_pick_files = QPushButton("🖼 Files")
             btn_pick_files.setFixedWidth(70)
             btn_pick_files.clicked.connect(self._pick_input_files)
+            self._set_tooltip(btn_pick_files, 'input_files_browse')
             h.addWidget(btn_pick_files)
             inp_lay.addLayout(h)
+
+            # Recursive checkbox
+            self._recursive_cb = QCheckBox("📂 Process subfolders recursively")
+            self._recursive_cb.setChecked(False)
+            self._set_tooltip(self._recursive_cb,
+                "When enabled, the selected folder and all its subfolders are scanned for images")
+            inp_lay.addWidget(self._recursive_cb)
 
             self._file_count_lbl = QLabel("No files selected")
             self._file_count_lbl.setStyleSheet("color:#888; font-size:11px;")
@@ -288,33 +353,52 @@ if _PYQT:
             fmt_box = QGroupBox("🎯 Output Format")
             fmt_lay = QGridLayout(fmt_box)
             fmt_lay.setSpacing(4)
+            # Ensure the label column has a fixed minimum width so it is never
+            # cut off when the panel is narrow.  The value column gets all
+            # remaining space via setColumnStretch.
+            fmt_lay.setColumnMinimumWidth(0, 110)
+            fmt_lay.setColumnStretch(1, 1)
             fmt_lay.addWidget(QLabel("Format:"), 0, 0)
             self._fmt_combo = QComboBox()
             for label, _, _ in _OUTPUT_FORMATS:
                 self._fmt_combo.addItem(label)
+            self._set_tooltip(self._fmt_combo, 'convert_to_format')
             fmt_lay.addWidget(self._fmt_combo, 0, 1)
+
+            # AVIF availability note
+            self._avif_note = QLabel(_AVIF_NOTE_MSG)
+            self._avif_note.setStyleSheet("color: #e67e00; font-size: 9pt; font-style: italic;")
+            self._avif_note.setWordWrap(True)
+            self._avif_note.setVisible(False)
+            fmt_lay.addWidget(self._avif_note, 0, 2)
+            self._fmt_combo.currentIndexChanged.connect(self._on_fmt_changed)
 
             # Output directory
             fmt_lay.addWidget(QLabel("Output:"), 1, 0)
             out_h = QHBoxLayout()
             self._out_dir_edit = QLineEdit()
             self._out_dir_edit.setPlaceholderText("(same as input)")
+            self._set_tooltip(self._out_dir_edit, 'output_browse')
             out_h.addWidget(self._out_dir_edit, stretch=1)
             btn_out = QPushButton("📁")
             btn_out.setFixedWidth(30)
             btn_out.clicked.connect(self._pick_output_dir)
+            self._set_tooltip(btn_out, 'output_browse')
             out_h.addWidget(btn_out)
             fmt_lay.addLayout(out_h, 1, 1)
 
             fmt_lay.addWidget(QLabel("Name template:"), 2, 0)
             self._name_tpl_edit = QLineEdit("{stem}{ext}")
-            self._name_tpl_edit.setToolTip(
-                "Use {stem} = filename without extension, {ext} = new extension, {name} = original filename")
+            self._set_tooltip(
+                self._name_tpl_edit,
+                "Use {stem} = filename without extension, {ext} = new extension, {name} = original filename"
+            )
             fmt_lay.addWidget(self._name_tpl_edit, 2, 1)
 
             fmt_lay.addWidget(QLabel("Suffix:"), 3, 0)
             self._suffix_edit = QLineEdit("")
             self._suffix_edit.setPlaceholderText("e.g. _converted (optional)")
+            self._set_tooltip(self._suffix_edit, 'output_suffix')
             fmt_lay.addWidget(self._suffix_edit, 3, 1)
             lv.addWidget(fmt_box)
 
@@ -322,34 +406,45 @@ if _PYQT:
             qual_box = QGroupBox("⚙️ Quality & Compression")
             qual_lay = QGridLayout(qual_box)
             qual_lay.setSpacing(4)
+            qual_lay.setColumnMinimumWidth(0, 110)
+            qual_lay.setColumnStretch(1, 1)
 
             qual_lay.addWidget(QLabel("JPEG quality:"), 0, 0)
             self._jpeg_q = QSpinBox()
             self._jpeg_q.setRange(1, 100)
             self._jpeg_q.setValue(92)
             self._jpeg_q.setSuffix(" %")
+            self._set_tooltip(self._jpeg_q, 'jpeg_quality')
             qual_lay.addWidget(self._jpeg_q, 0, 1)
 
             qual_lay.addWidget(QLabel("PNG compress:"), 1, 0)
             self._png_cmp = QSpinBox()
             self._png_cmp.setRange(0, 9)
             self._png_cmp.setValue(6)
-            self._png_cmp.setToolTip("0 = fastest (larger file), 9 = smallest (slower)")
             qual_lay.addWidget(self._png_cmp, 1, 1)
+            self._set_tooltip(self._png_cmp, "0 = fastest (larger file), 9 = smallest (slower)")
 
             qual_lay.addWidget(QLabel("WebP quality:"), 2, 0)
             self._webp_q = QSpinBox()
             self._webp_q.setRange(1, 100)
             self._webp_q.setValue(90)
             self._webp_q.setSuffix(" %")
+            self._set_tooltip(self._webp_q, 'webp_quality')
             qual_lay.addWidget(self._webp_q, 2, 1)
 
             self._webp_ll = QCheckBox("WebP lossless")
+            self._set_tooltip(self._webp_ll, 'webp_lossless')
             qual_lay.addWidget(self._webp_ll, 3, 0, 1, 2)
 
             self._strip_meta = QCheckBox("Strip metadata (EXIF / XMP)")
             self._strip_meta.setChecked(True)
+            self._set_tooltip(self._strip_meta, 'convert_keep_original')
             qual_lay.addWidget(self._strip_meta, 4, 0, 1, 2)
+
+            self._skip_existing = QCheckBox("Skip if output file already exists")
+            self._skip_existing.setChecked(False)
+            self._set_tooltip(self._skip_existing, "When checked, files are not overwritten if the output already exists")
+            qual_lay.addWidget(self._skip_existing, 5, 0, 1, 2)
             lv.addWidget(qual_box)
 
             # Colour space
@@ -359,6 +454,7 @@ if _PYQT:
             self._colour_combo = QComboBox()
             for label, _ in _COLOUR_SPACES:
                 self._colour_combo.addItem(label)
+            self._set_tooltip(self._colour_combo, 'colour_space')
             col_lay.addWidget(self._colour_combo, stretch=1)
             lv.addWidget(col_box)
 
@@ -373,6 +469,7 @@ if _PYQT:
             for label, _ in _RESIZE_MODES:
                 self._resize_combo.addItem(label)
             self._resize_combo.currentIndexChanged.connect(self._on_resize_mode_changed)
+            self._set_tooltip(self._resize_combo, 'resize_mode')
             mode_h.addWidget(self._resize_combo, stretch=1)
             rsz_lay.addLayout(mode_h)
 
@@ -440,13 +537,16 @@ if _PYQT:
                 "QPushButton{background:#1f6feb; color:white; font-weight:bold; border-radius:6px;}"
                 "QPushButton:disabled{background:#30363d; color:#6e7681;}")
             self._convert_btn.clicked.connect(self._start_conversion)
+            self._set_tooltip(self._convert_btn, 'convert_button')
             self._cancel_btn = QPushButton("⬛ Cancel")
             self._cancel_btn.setFixedHeight(36)
             self._cancel_btn.setEnabled(False)
             self._cancel_btn.clicked.connect(self._cancel_conversion)
+            self._set_tooltip(self._cancel_btn, 'stop_button')
             self._clear_btn = QPushButton("🗑 Clear Log")
             self._clear_btn.setFixedHeight(36)
             self._clear_btn.clicked.connect(self._log.clear)
+            self._set_tooltip(self._clear_btn, 'clear_log_button')
             btn_row.addWidget(self._convert_btn)
             btn_row.addWidget(self._cancel_btn)
             btn_row.addStretch()
@@ -457,7 +557,27 @@ if _PYQT:
             self._status_lbl.setStyleSheet("color:#58a6ff; font-size:11px;")
             rv.addWidget(self._status_lbl)
             splitter.addWidget(right)
-            splitter.setSizes([380, 480])
+            # Give the left (settings) panel slightly more initial width so
+            # labels are never cut off on first open.
+            splitter.setSizes([420, 440])
+            splitter.setStretchFactor(0, 0)
+            splitter.setStretchFactor(1, 1)
+
+        # ── Tooltip helper ────────────────────────────────────────────────
+        def _set_tooltip(self, widget, widget_id_or_text: str):
+            """Set tooltip via manager (cycling) when available, else plain text."""
+            tm = self._tooltip_mgr
+            if tm and hasattr(tm, 'register'):
+                if ' ' not in widget_id_or_text:
+                    try:
+                        tip = tm.get_tooltip(widget_id_or_text)
+                        if tip:
+                            widget.setToolTip(tip)
+                            tm.register(widget, widget_id_or_text)
+                            return
+                    except Exception:
+                        pass
+            widget.setToolTip(str(widget_id_or_text))
 
         # ── Resize sub-control visibility ─────────────────────────────────
         def _on_resize_mode_changed(self, idx: int):
@@ -466,16 +586,46 @@ if _PYQT:
             self._rsz_row_max.setVisible(mode_key == "max_dim")
             self._rsz_row_fixed.setVisible(mode_key == "fixed")
 
+        def _on_fmt_changed(self, idx: int):
+            """Show format-specific notes when the output format is changed."""
+            try:
+                _, _ext, pil_fmt = _OUTPUT_FORMATS[idx]
+                if pil_fmt == "AVIF":
+                    self._avif_note.setText(_AVIF_NOTE_MSG)
+                    self._avif_note.setVisible(True)
+                elif pil_fmt == "JPEG2000":
+                    self._avif_note.setText(
+                        "ℹ️ JPEG 2000 requires the 'openjpeg' codec in Pillow.\n"
+                        "Most pip wheels include it — if it fails, try a different format."
+                    )
+                    self._avif_note.setVisible(True)
+                elif pil_fmt == "GIF":
+                    self._avif_note.setText(
+                        "ℹ️ GIF is limited to 256 colours. Animated GIFs are not preserved."
+                    )
+                    self._avif_note.setVisible(True)
+                else:
+                    self._avif_note.setVisible(False)
+            except Exception:
+                pass
+
         # ── File / dir pickers ────────────────────────────────────────────
         def _pick_input_folder(self):
             d = QFileDialog.getExistingDirectory(self, "Select Input Folder")
             if not d:
                 return
             exts = _INPUT_EXTS
-            self._files = sorted(
-                p for p in Path(d).iterdir()
-                if p.suffix.lower() in exts
-            )
+            recursive = hasattr(self, '_recursive_cb') and self._recursive_cb.isChecked()
+            if recursive:
+                self._files = sorted(
+                    p for p in Path(d).rglob('*')
+                    if p.is_file() and p.suffix.lower() in exts
+                )
+            else:
+                self._files = sorted(
+                    p for p in Path(d).iterdir()
+                    if p.is_file() and p.suffix.lower() in exts
+                )
             self._in_dir_edit.setText(d)
             self._file_count_lbl.setText(f"{len(self._files)} image(s) found")
             if not self._out_dir_edit.text():
@@ -529,6 +679,7 @@ if _PYQT:
                 "webp_quality":   self._webp_q.value(),
                 "webp_lossless":  self._webp_ll.isChecked(),
                 "strip_metadata": self._strip_meta.isChecked(),
+                "skip_existing":  self._skip_existing.isChecked(),
                 "name_template":  name_tpl,
                 "name_suffix":    self._suffix_edit.text(),
             }

@@ -66,6 +66,7 @@ class HotkeyDisplayWidget(QWidget):
         
         self.table.setAlternatingRowColors(True)
         self.table.cellDoubleClicked.connect(self.on_cell_double_clicked)
+        self._set_tooltip(self.table, 'hotkey_toggle')
         
         layout.addWidget(self.table)
         
@@ -73,13 +74,17 @@ class HotkeyDisplayWidget(QWidget):
         button_layout = QHBoxLayout()
         
         reset_btn = QPushButton("Reset to Defaults")
+        reset_btn.setToolTip("Reset all hotkeys to their default key bindings")
         reset_btn.clicked.connect(self.reset_to_defaults)
+        self._set_tooltip(reset_btn, 'hotkey_reset')
         button_layout.addWidget(reset_btn)
         
         button_layout.addStretch()
         
         save_btn = QPushButton("Save")
+        save_btn.setToolTip("Save the current hotkey configuration")
         save_btn.clicked.connect(self.save_config)
+        self._set_tooltip(save_btn, 'save_settings')
         button_layout.addWidget(save_btn)
         
         layout.addLayout(button_layout)
@@ -158,6 +163,7 @@ class HotkeyDisplayWidget(QWidget):
         
         key_edit = QKeySequenceEdit()
         key_edit.setKeySequence(QKeySequence(current_item.text()))
+        self._set_tooltip(key_edit, 'hotkey_edit')
         layout.addWidget(key_edit)
         
         buttons = QDialogButtonBox(
@@ -226,12 +232,19 @@ class HotkeyDisplayWidget(QWidget):
         self.hotkeys = new_config
         QMessageBox.information(self, "Saved", "Hotkey configuration saved!")
     
-    def _set_tooltip(self, widget, tooltip_key: str):
-        """Set tooltip using tooltip manager if available."""
-        if self.tooltip_manager:
-            tooltip = self.tooltip_manager.get_tooltip(tooltip_key)
-            if tooltip:
-                widget.setToolTip(tooltip)
+    def _set_tooltip(self, widget, widget_id_or_text: str):
+        """Set tooltip via manager (cycling) when available, else plain text."""
+        if self.tooltip_manager and hasattr(self.tooltip_manager, 'register'):
+            if ' ' not in widget_id_or_text:
+                try:
+                    tip = self.tooltip_manager.get_tooltip(widget_id_or_text)
+                    if tip:
+                        widget.setToolTip(tip)
+                        self.tooltip_manager.register(widget, widget_id_or_text)
+                        return
+                except Exception:
+                    pass
+        widget.setToolTip(str(widget_id_or_text))
 
 
 def create_hotkey_display(parent=None, tooltip_manager=None):

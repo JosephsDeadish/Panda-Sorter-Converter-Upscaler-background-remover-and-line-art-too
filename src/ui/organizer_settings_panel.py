@@ -265,6 +265,7 @@ class OrganizerSettingsPanel(QWidget):
                 background-color: #ff9999;
             }
         """)
+        self._set_tooltip(clear_btn, 'ai_clear_training')
         clear_btn.clicked.connect(self.on_clear_learning)
         learning_layout.addWidget(clear_btn)
         
@@ -280,25 +281,50 @@ class OrganizerSettingsPanel(QWidget):
         self.subfolders_check = QCheckBox("Include subfolders in processing")
         self.subfolders_check.setChecked(True)
         self.subfolders_check.stateChanged.connect(lambda: self.emit_settings())
+        self._set_tooltip(self.subfolders_check, 'convert_recursive')
         file_layout.addWidget(self.subfolders_check)
         
         # Archive input
         self.archive_input_check = QCheckBox("Support archive input (.zip, .7z, .rar, .tar)")
         self.archive_input_check.setChecked(False)
         self.archive_input_check.stateChanged.connect(lambda: self.emit_settings())
+        self._set_tooltip(self.archive_input_check, 'extract_archives')
         file_layout.addWidget(self.archive_input_check)
         
         # Archive output
         self.archive_output_check = QCheckBox("Save organized result to archive")
         self.archive_output_check.setChecked(False)
         self.archive_output_check.stateChanged.connect(lambda: self.emit_settings())
+        self._set_tooltip(self.archive_output_check, 'compress_output')
         file_layout.addWidget(self.archive_output_check)
         
         # Backup original files
         self.backup_check = QCheckBox("Backup original files before moving")
         self.backup_check.setChecked(True)
         self.backup_check.stateChanged.connect(lambda: self.emit_settings())
+        self._set_tooltip(self.backup_check, 'alpha_fix_backup')
         file_layout.addWidget(self.backup_check)
+
+        # Detect duplicates
+        self.detect_duplicates_check = QCheckBox("Detect and skip duplicate files")
+        self.detect_duplicates_check.setChecked(False)
+        self.detect_duplicates_check.stateChanged.connect(lambda: self.emit_settings())
+        self._set_tooltip(self.detect_duplicates_check, 'detect_duplicates')
+        file_layout.addWidget(self.detect_duplicates_check)
+
+        # Group LOD variants
+        self.group_lods_check = QCheckBox("Group LOD variants in the same folder")
+        self.group_lods_check.setChecked(True)
+        self.group_lods_check.stateChanged.connect(lambda: self.emit_settings())
+        self._set_tooltip(self.group_lods_check, 'group_lods')
+        file_layout.addWidget(self.group_lods_check)
+
+        # LOD auto-detection
+        self.lod_detection_check = QCheckBox("Auto-detect LOD level from filename")
+        self.lod_detection_check.setChecked(True)
+        self.lod_detection_check.stateChanged.connect(lambda: self.emit_settings())
+        self._set_tooltip(self.lod_detection_check, 'lod_detection')
+        file_layout.addWidget(self.lod_detection_check)
         
         file_group.setLayout(file_layout)
         scroll_layout.addWidget(file_group)
@@ -313,8 +339,9 @@ class OrganizerSettingsPanel(QWidget):
         pattern_label = QLabel("Naming Pattern:")
         pattern_label.setMinimumWidth(120)
         self.pattern_input = QLineEdit()
+        self.pattern_input.setPlaceholderText("{category}/{filename}")
         self.pattern_input.setText("{category}/{filename}")
-        self.pattern_input.setToolTip("Use: {category}, {filename}, {game}, {confidence}")
+        self._set_tooltip(self.pattern_input, 'rename_template')
         self.pattern_input.textChanged.connect(lambda: self.emit_settings())
         pattern_layout.addWidget(pattern_label)
         pattern_layout.addWidget(self.pattern_input)
@@ -337,6 +364,7 @@ class OrganizerSettingsPanel(QWidget):
         ])
         self.conflict_combo.setCurrentIndex(2)  # Default to numbering
         self.conflict_combo.currentTextChanged.connect(lambda: self.emit_settings())
+        self._set_tooltip(self.conflict_combo, 'sort_mode_menu')
         conflict_layout.addWidget(conflict_label)
         conflict_layout.addWidget(self.conflict_combo)
         conflict_layout.addStretch()
@@ -600,7 +628,14 @@ class OrganizerSettingsPanel(QWidget):
     
     def _set_tooltip(self, widget, tooltip_key: str):
         """Set tooltip using tooltip manager if available."""
-        if self.tooltip_manager:
-            tooltip = self.tooltip_manager.get_tooltip(tooltip_key)
-            if tooltip:
-                widget.setToolTip(tooltip)
+        if self.tooltip_manager and hasattr(self.tooltip_manager, 'register'):
+            if ' ' not in tooltip_key:
+                try:
+                    tooltip = self.tooltip_manager.get_tooltip(tooltip_key)
+                    if tooltip:
+                        widget.setToolTip(tooltip)
+                        self.tooltip_manager.register(widget, tooltip_key)
+                        return
+                except Exception:
+                    pass
+        widget.setToolTip(str(tooltip_key))

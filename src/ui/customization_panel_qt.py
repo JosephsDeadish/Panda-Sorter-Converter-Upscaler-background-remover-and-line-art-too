@@ -8,7 +8,7 @@ import logging
 try:
     from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QPushButton,
                                   QLabel, QSlider, QComboBox, QColorDialog, QGroupBox,
-                                  QMessageBox, QScrollArea)
+                                  QMessageBox, QScrollArea, QLineEdit, QCheckBox)
     from PyQt6.QtCore import Qt, pyqtSignal
     from PyQt6.QtGui import QColor
     PYQT_AVAILABLE = True
@@ -86,6 +86,7 @@ class CustomizationPanelQt(QWidget):
         body_layout = QHBoxLayout()
         body_layout.addWidget(QLabel("Body Color:"))
         self.body_color_btn = QPushButton("Choose Color")
+        self.body_color_btn.setToolTip("Pick a custom colour for your panda's body")
         self.body_color_btn.clicked.connect(lambda: self.choose_color('body'))
         body_layout.addWidget(self.body_color_btn)
         color_layout.addLayout(body_layout)
@@ -94,6 +95,7 @@ class CustomizationPanelQt(QWidget):
         eye_layout = QHBoxLayout()
         eye_layout.addWidget(QLabel("Eye Color:"))
         self.eye_color_btn = QPushButton("Choose Color")
+        self.eye_color_btn.setToolTip("Pick a custom colour for your panda's eyes")
         self.eye_color_btn.clicked.connect(lambda: self.choose_color('eyes'))
         eye_layout.addWidget(self.eye_color_btn)
         color_layout.addLayout(eye_layout)
@@ -112,15 +114,24 @@ class CustomizationPanelQt(QWidget):
         layout.addWidget(color_group)
 
         # Trail section
-        trail_group = QGroupBox("Movement Trail")
+        trail_group = QGroupBox("🐼 Panda Movement Trail")
         trail_layout = QVBoxLayout()
+
+        _trail_note = QLabel("This is the panda's movement trail (not the mouse cursor trail).\nMouse cursor trail is in: Settings → Cursor.")
+        _trail_note.setStyleSheet("color: #666; font-size: 9pt; font-style: italic;")
+        _trail_note.setWordWrap(True)
+        trail_layout.addWidget(_trail_note)
 
         # Trail type
         type_layout = QHBoxLayout()
         type_layout.addWidget(QLabel("Trail Type:"))
         self.trail_combo = QComboBox()
-        self.trail_combo.addItems(["None", "Dots", "Line", "Glow", "Particles"])
+        self.trail_combo.addItems([
+            "None", "Sparkles", "Rainbow", "Fire", "Ice",
+            "Purple", "Gold", "Nature", "Galaxy",
+        ])
         self.trail_combo.currentTextChanged.connect(self.on_trail_changed)
+        self._set_tooltip(self.trail_combo, 'trail_style')
         type_layout.addWidget(self.trail_combo)
         trail_layout.addLayout(type_layout)
 
@@ -128,6 +139,7 @@ class CustomizationPanelQt(QWidget):
         trail_color_layout = QHBoxLayout()
         trail_color_layout.addWidget(QLabel("Trail Color:"))
         self.trail_color_btn = QPushButton("Choose Color")
+        self.trail_color_btn.setToolTip("Pick a custom colour for the panda's movement trail")
         self.trail_color_btn.clicked.connect(lambda: self.choose_color('trail'))
         trail_color_layout.addWidget(self.trail_color_btn)
         trail_layout.addLayout(trail_color_layout)
@@ -157,14 +169,61 @@ class CustomizationPanelQt(QWidget):
         trail_group.setLayout(trail_layout)
         layout.addWidget(trail_group)
 
+        # Panda Personality section
+        personality_group = QGroupBox("🐼 Panda Personality")
+        personality_layout = QVBoxLayout()
+
+        name_layout = QHBoxLayout()
+        name_layout.addWidget(QLabel("Name:"))
+        self.panda_name_edit = QLineEdit()
+        self.panda_name_edit.setPlaceholderText("Panda")
+        self._set_tooltip(self.panda_name_edit, 'panda_name')
+        name_layout.addWidget(self.panda_name_edit, 1)
+        personality_layout.addLayout(name_layout)
+
+        gender_layout = QHBoxLayout()
+        gender_layout.addWidget(QLabel("Pronouns:"))
+        self.panda_gender_combo = QComboBox()
+        self.panda_gender_combo.addItems([
+            "They/Them (Non-binary)", "She/Her", "He/Him", "It/Its"
+        ])
+        self._set_tooltip(self.panda_gender_combo, 'panda_gender')
+        gender_layout.addWidget(self.panda_gender_combo, 1)
+        personality_layout.addLayout(gender_layout)
+
+        self.panda_auto_walk_check = QCheckBox("Auto-walk around the screen")
+        self.panda_auto_walk_check.setChecked(True)
+        self._set_tooltip(self.panda_auto_walk_check, 'panda_auto_walk')
+        personality_layout.addWidget(self.panda_auto_walk_check)
+
+        self.panda_drag_enabled_check = QCheckBox("Allow dragging panda with mouse")
+        self.panda_drag_enabled_check.setChecked(True)
+        self._set_tooltip(self.panda_drag_enabled_check, 'panda_drag_enabled')
+        personality_layout.addWidget(self.panda_drag_enabled_check)
+
+        self.panda_idle_anim_check = QCheckBox("Play idle animations")
+        self.panda_idle_anim_check.setChecked(True)
+        self._set_tooltip(self.panda_idle_anim_check, 'panda_idle_animations')
+        personality_layout.addWidget(self.panda_idle_anim_check)
+
+        self.panda_speech_bubbles_check = QCheckBox("Show speech bubbles")
+        self.panda_speech_bubbles_check.setChecked(True)
+        self._set_tooltip(self.panda_speech_bubbles_check, 'panda_speech_bubbles')
+        personality_layout.addWidget(self.panda_speech_bubbles_check)
+
+        personality_group.setLayout(personality_layout)
+        layout.addWidget(personality_group)
+
         # Actions
         button_layout = QHBoxLayout()
 
         apply_btn = QPushButton("✓ Apply Changes")
+        apply_btn.setToolTip("Apply your customisation changes to the panda")
         apply_btn.clicked.connect(self.apply_customization)
         button_layout.addWidget(apply_btn)
 
         reset_btn = QPushButton("↺ Reset to Default")
+        reset_btn.setToolTip("Reset all panda customisations back to the defaults")
         reset_btn.clicked.connect(self.reset_customization)
         button_layout.addWidget(reset_btn)
 
@@ -266,9 +325,16 @@ class CustomizationPanelQt(QWidget):
         if self._trail_preview is not None:
             self._trail_preview.view.stop_animation()
     
-    def _set_tooltip(self, widget, tooltip_key: str):
-        """Set tooltip using tooltip manager if available."""
-        if self.tooltip_manager:
-            tooltip = self.tooltip_manager.get_tooltip(tooltip_key)
-            if tooltip:
-                widget.setToolTip(tooltip)
+    def _set_tooltip(self, widget, widget_id_or_text: str):
+        """Set tooltip via manager (cycling) when available, else plain text."""
+        if self.tooltip_manager and hasattr(self.tooltip_manager, 'register'):
+            if ' ' not in widget_id_or_text:
+                try:
+                    tip = self.tooltip_manager.get_tooltip(widget_id_or_text)
+                    if tip:
+                        widget.setToolTip(tip)
+                        self.tooltip_manager.register(widget, widget_id_or_text)
+                        return
+                except Exception:
+                    pass
+        widget.setToolTip(str(widget_id_or_text))

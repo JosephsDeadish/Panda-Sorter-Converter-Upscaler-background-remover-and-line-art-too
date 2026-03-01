@@ -59,13 +59,14 @@ jobs:
           pip install "scikit-learn>=1.3.0"
           pip install "PyQt6>=6.6.0" "PyQt6-sip>=13.6.0"
           # PyQt6-Qt6 contains the actual Qt6 DLLs (Qt6Core.dll, Qt6Gui.dll, Qt6OpenGL.dll etc.)
-          # It is a dependency of PyQt6 but pinning it separately ensures PyInstaller can find
-          # and bundle all Qt6 runtime DLLs (including Qt6OpenGL.dll for the 3D panda widget).
-          pip install "PyQt6-Qt6>=6.6.0" || echo "⚠️  PyQt6-Qt6 install failed (should be auto-installed with PyQt6)"
+          # REQUIRED: PyInstaller uses these DLLs to bundle the Qt6 runtime into the EXE.
+          # Missing PyQt6-Qt6 = EXE launches then immediately crashes (no Qt6Core.dll).
+          pip install "PyQt6-Qt6>=6.6.0"
           # IMPORTANT: PyQt6.QtStateMachine (QState, QStateMachine) was moved out of PyQt6.QtCore
           # in PyQt6 6.1+ into a separate module.  It IS included in the PyQt6 wheel (no extra
-          # package needed) but verify it is importable so the 3D panda widget loads correctly.
-          python -c "from PyQt6.QtStateMachine import QState, QStateMachine; print('✅ PyQt6.QtStateMachine OK')" || echo "⚠️  PyQt6.QtStateMachine not available — 3D panda will use 2D fallback"
+          # package needed).  Fail the build here rather than silently shipping a broken EXE
+          # where the 3D panda animation state machine never initialises.
+          python -c "from PyQt6.QtStateMachine import QState, QStateMachine; print('✅ PyQt6.QtStateMachine OK')"
           pip install "opencv-python-headless>=4.8.0"
           pip install "xxhash>=3.0.0" "psutil>=5.9.0" "tqdm>=4.65.0"
           pip install "pyyaml>=6.0" "send2trash>=1.8.0" "watchdog>=3.0.0"
@@ -104,6 +105,10 @@ jobs:
           # failures (e.g. pytesseract if Tesseract is absent) do not abort the step.
           # Critical packages are already installed above and verified in the next step.
           pip install -r requirements.txt --upgrade-strategy only-if-needed || echo "⚠️  Some requirements failed (non-fatal optional packages)"
+          # Re-pin PyQt6 AFTER requirements.txt to prevent any transitive dependency from
+          # downgrading or replacing the Qt6 runtime packages installed above.
+          # This is the final word on which PyQt6 version goes into the EXE.
+          pip install "PyQt6>=6.6.0" "PyQt6-Qt6>=6.6.0" "PyQt6-sip>=13.6.0"
           # Ensure PyInstaller is available
           pip install "pyinstaller>=6.0.0"
 
@@ -135,6 +140,7 @@ jobs:
           python -c "import PyQt6; print('OK PyQt6 available')"
           python -c "import PyQt6.QtOpenGLWidgets; print('OK PyQt6.QtOpenGLWidgets available (3D panda)')"
           python -c "import PyQt6.QtSvgWidgets; print('OK PyQt6.QtSvgWidgets available')"
+          python -c "from PyQt6.QtStateMachine import QState, QStateMachine; print('OK PyQt6.QtStateMachine available (panda animation)')"
           python -c "import numpy; print('OK numpy available')"
           python -c "import PIL; PIL.Image.init(); print('OK Pillow + plugins available')"
           python -c "import cv2; print('OK OpenCV available')"

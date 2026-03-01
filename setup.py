@@ -109,6 +109,8 @@ EXTRAS_REQUIRE = {
     'upscaling': [
         'basicsr>=1.4.2',
         'realesrgan>=0.3.0',
+        'gfpgan>=1.3.8',  # Face / character restoration (GFPGANv1.4)
+        'timm>=0.9.0',    # PyTorch Image Models (required by SwinIR/CodeFormer)
     ],
     
     # AI background removal
@@ -159,11 +161,9 @@ setup(
     description='Professional game texture sorting application with AI classification',
     long_description=long_description,
     long_description_content_type='text/markdown',
-    url='https://github.com/JosephsDeadish/PS2-texture-sorter',
+    url='https://www.patreon.com/JosephsDeadish',
     project_urls={
-        'Bug Reports': 'https://github.com/JosephsDeadish/PS2-texture-sorter/issues',
-        'Source': 'https://github.com/JosephsDeadish/PS2-texture-sorter',
-        'Documentation': 'https://github.com/JosephsDeadish/PS2-texture-sorter#readme',
+        'Support / Patreon': 'https://www.patreon.com/JosephsDeadish',
     },
     
     # Package configuration

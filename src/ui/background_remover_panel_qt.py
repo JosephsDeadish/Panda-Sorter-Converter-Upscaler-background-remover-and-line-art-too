@@ -185,6 +185,11 @@ class BackgroundRemoverPanelQt(QWidget):
         splitter.addWidget(right_widget)
         splitter.setStretchFactor(0, 0)
         splitter.setStretchFactor(1, 1)
+        # Set initial sizes so the controls panel is fully visible and the preview
+        # panel starts at a modest 320 px — the user can resize via the splitter.
+        # Without this, Qt sizes the preview to stretch across the full remaining
+        # width which makes it hard to see the controls.
+        splitter.setSizes([360, 320])
 
         # ── File operations ────────────────────────────────────────────────
         file_layout = QHBoxLayout()
@@ -210,7 +215,6 @@ class BackgroundRemoverPanelQt(QWidget):
             self.archive_input_cb.setToolTip("⚠️ Archive support not available. Install: pip install py7zr rarfile")
             self.archive_input_cb.setStyleSheet("color: gray;")
         else:
-            self.archive_input_cb.setToolTip("Extract images from archive file (ZIP, 7Z, RAR, TAR)")
             self._set_tooltip(self.archive_input_cb, 'input_archive_checkbox')
         archive_layout.addWidget(self.archive_input_cb)
 
@@ -220,7 +224,6 @@ class BackgroundRemoverPanelQt(QWidget):
             self.archive_output_cb.setToolTip("⚠️ Archive support not available. Install: pip install py7zr rarfile")
             self.archive_output_cb.setStyleSheet("color: gray;")
         else:
-            self.archive_output_cb.setToolTip("Save processed images to archive file")
             self._set_tooltip(self.archive_output_cb, 'output_archive_checkbox')
         archive_layout.addWidget(self.archive_output_cb)
 
@@ -257,10 +260,19 @@ class BackgroundRemoverPanelQt(QWidget):
 
         if not _rembg_ok:
             self._backend_rembg_rb.setEnabled(False)
-            self._backend_rembg_rb.setToolTip("Install rembg:  pip install 'rembg[cpu]'")
+            self._backend_rembg_rb.setToolTip(
+                "rembg is not installed.\n"
+                "Install with:  pip install \"rembg[cpu]\"\n"
+                "or run setup_models.py to download the required ONNX models."
+            )
+        else:
+            self._set_tooltip(self._backend_rembg_rb, 'bg_mode')
         if not _ort_ok:
             self._backend_ort_rb.setEnabled(False)
-            self._backend_ort_rb.setToolTip("Install onnxruntime:  pip install onnxruntime")
+            self._backend_ort_rb.setToolTip(
+                "onnxruntime is not installed.\n"
+                "Install with:  pip install onnxruntime"
+            )
 
         # Default: prefer rembg if available, else onnxruntime
         if _rembg_ok:
@@ -272,6 +284,19 @@ class BackgroundRemoverPanelQt(QWidget):
 
         backend_layout.addWidget(self._backend_rembg_rb)
         backend_layout.addWidget(self._backend_ort_rb)
+
+        if not _rembg_ok and not _ort_ok:
+            _install_note = QLabel(
+                "⚠️ Neither rembg nor onnxruntime found.\n"
+                "Run:  pip install \"rembg[cpu]\"  to enable background removal.\n"
+                "Or run setup_models.py from the app folder."
+            )
+            _install_note.setStyleSheet(
+                "color: #d44; font-size: 9pt; font-style: italic;"
+            )
+            _install_note.setWordWrap(True)
+            backend_layout.addWidget(_install_note)
+
         layout.addWidget(backend_group)
 
         # ── Tools ─────────────────────────────────────────────────────────
@@ -288,7 +313,7 @@ class BackgroundRemoverPanelQt(QWidget):
 
         self.eraser_cb = QCheckBox("🧹 Eraser")
         self.eraser_cb.toggled.connect(lambda checked: self.select_tool("eraser") if checked else None)
-        self._set_tooltip(self.eraser_cb, "Erase to make areas transparent")
+        self._set_tooltip(self.eraser_cb, 'bg_edge')
         tool_select_layout.addWidget(self.eraser_cb)
 
         self.fill_cb = QCheckBox("🪣 Fill")
@@ -342,9 +367,20 @@ class BackgroundRemoverPanelQt(QWidget):
         for model_id, model_label in _BG_MODELS:
             self.bg_model_combo.addItem(model_label, model_id)
         model_layout.addWidget(self.bg_model_combo, 1)
-        self._set_tooltip(self.bg_model_combo, 'bg_model_selector')
+        self._set_tooltip(self.bg_model_combo, 'bg_model')
+        self._set_tooltip(self.bg_model_combo, 'bg_preset')
         model_group.setLayout(model_layout)
         layout.addWidget(model_group)
+
+        # Alpha matting option
+        alpha_group = QGroupBox("🔍 Edge Refinement")
+        alpha_layout = QVBoxLayout()
+        self.alpha_matting_cb = QCheckBox("Enable alpha matting (better edges for hair/glass)")
+        self.alpha_matting_cb.setChecked(False)
+        self._set_tooltip(self.alpha_matting_cb, 'bg_alpha_matting')
+        alpha_layout.addWidget(self.alpha_matting_cb)
+        alpha_group.setLayout(alpha_layout)
+        layout.addWidget(alpha_group)
 
         # Processing buttons
         process_layout = QHBoxLayout()
@@ -399,7 +435,8 @@ class BackgroundRemoverPanelQt(QWidget):
             right_layout.addLayout(mode_layout)
 
             self.preview_widget = ComparisonSliderWidget()
-            self.preview_widget.setMinimumHeight(300)
+            self.preview_widget.setMinimumHeight(200)
+            # Allow the preview to grow when the splitter is resized (Qt default maximum)
             self._set_tooltip(self.preview_widget, "Drag slider to compare original and processed images")
             if hasattr(self.preview_widget, 'slider_moved'):
                 self.preview_widget.slider_moved.connect(

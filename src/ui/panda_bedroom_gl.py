@@ -440,8 +440,10 @@ class PandaBedroomGL(QOpenGLWidget if OPENGL_AVAILABLE else QWidget):  # type: i
 
             self._draw_room()
             self._draw_furniture()
-            # Draw in-room panda character (on top of floor, under hover boxes)
-            self._draw_panda_in_room()
+            # The in-room panda is rendered by the main-window panda overlay
+            # widget (PandaOpenGLWidget) which floats over the entire application
+            # including this bedroom scene.  Drawing a second, separate panda here
+            # would result in two pandas on screen at once.
         except Exception as _e:
             logger.debug("PandaBedroomGL paintGL error (frame skipped): %s", _e)
 

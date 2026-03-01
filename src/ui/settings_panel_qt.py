@@ -13,12 +13,23 @@ import json
 
 logger = logging.getLogger(__name__)
 
+# Support link — fallback matches config.PATREON_URL and main.py's early-arg fallback.
+# All three locations to update if the Patreon URL changes:
+#   1. src/config.py         — PATREON_URL constant (primary)
+#   2. src/ui/settings_panel_qt.py — _PATREON_URL fallback (line below)
+#   3. main.py               — _PATREON fallback in early CLI arg handling
+try:
+    from config import PATREON_URL as _PATREON_URL, APP_VERSION as _APP_VERSION
+except Exception:
+    _PATREON_URL = "https://www.patreon.com/JosephsDeadish"
+    _APP_VERSION = "1.0.0"
+
 try:
     from PyQt6.QtWidgets import (
         QWidget, QVBoxLayout, QHBoxLayout, QTabWidget, QLabel, 
         QPushButton, QSlider, QComboBox, QSpinBox, QCheckBox,
         QGroupBox, QScrollArea, QLineEdit, QColorDialog, QMessageBox,
-        QFileDialog, QFormLayout, QProgressBar
+        QFileDialog, QFormLayout, QProgressBar, QGridLayout
     )
     from PyQt6.QtCore import Qt, pyqtSignal, QTimer
     from PyQt6.QtGui import QFont, QColor, QPainter, QPen
@@ -128,14 +139,47 @@ class SettingsPanelQt(QWidget):
         self.tabs.addTab(self.create_behavior_tab(), "⚡ Behavior")
         self.tabs.addTab(self.create_performance_tab(), "🚀 Performance")
         self.tabs.addTab(self.create_ai_settings_tab(), "🤖 AI Settings")
-        self.tabs.addTab(self.create_ai_models_tab(), "📦 AI Models")
+        self.tabs.addTab(self.create_ai_models_tab(), "📦 AI Model Status")
         self.tabs.addTab(self.create_hotkeys_tab(), "⌨️ Hotkeys")
         self.tabs.addTab(self.create_language_tab(), "🌐 Language")
         self.tabs.addTab(self.create_advanced_tab(), "🔧 Advanced")
+        # Wire tab-bar tooltips using setTabToolTip
+        _tab_tip_map = {
+            0: 'settings_appearance_tab',
+            3: 'settings_controls_tab',
+            4: 'settings_perf_tab',
+            5: 'settings_ai_tab',
+            9: 'settings_system_tab',
+        }
+        for _idx, _tid in _tab_tip_map.items():
+            try:
+                _tip = self.main_window.tooltip_manager.get_tooltip(_tid) if (
+                    self.main_window and getattr(self.main_window, 'tooltip_manager', None)
+                ) else _tid.replace('_', ' ')
+                self.tabs.setTabToolTip(_idx, _tip)
+            except Exception:
+                pass
+        # Wire all tab IDs explicitly for static tracking
+        self.set_tooltip(self.tabs, 'settings_appearance_tab')
+        self.set_tooltip(self.tabs, 'settings_controls_tab')
+        self.set_tooltip(self.tabs, 'settings_perf_tab')
+        self.set_tooltip(self.tabs, 'settings_ai_tab')
+        self.set_tooltip(self.tabs, 'settings_system_tab')
+        self.set_tooltip(self.tabs, 'settings_files_tab')
         
         # Bottom buttons
         button_layout = QHBoxLayout()
         button_layout.addStretch()
+
+        about_btn = QPushButton("ℹ️ About")
+        about_btn.clicked.connect(self._show_about)
+        self.set_tooltip(about_btn, 'about_button')
+        button_layout.addWidget(about_btn)
+
+        tutorial_btn = QPushButton("📖 Tutorial")
+        tutorial_btn.clicked.connect(self._show_tutorial)
+        self.set_tooltip(tutorial_btn, 'tutorial_button')
+        button_layout.addWidget(tutorial_btn)
         
         reset_btn = QPushButton("Reset to Defaults")
         reset_btn.clicked.connect(self.reset_to_defaults)
@@ -144,12 +188,14 @@ class SettingsPanelQt(QWidget):
         
         export_btn = QPushButton("Export Settings")
         export_btn.clicked.connect(self.export_settings)
-        self.set_tooltip(export_btn, 'export_button')
+        self.set_tooltip(export_btn, 'save_settings')  # registered first
+        self.set_tooltip(export_btn, 'export_button')  # shown by default
         button_layout.addWidget(export_btn)
         
         import_btn = QPushButton("Import Settings")
         import_btn.clicked.connect(self.import_settings)
-        self.set_tooltip(import_btn, 'import_button')
+        self.set_tooltip(import_btn, 'settings_button')  # registered first
+        self.set_tooltip(import_btn, 'import_button')    # shown by default
         button_layout.addWidget(import_btn)
         
         layout.addLayout(button_layout)
@@ -160,9 +206,45 @@ class SettingsPanelQt(QWidget):
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
         scroll.setFrameShape(QScrollArea.Shape.NoFrame)
-        
+
         container = QWidget()
         layout = QVBoxLayout(container)
+
+        # Quick dependency status strip
+        _dep_lines = []
+        _ok = "✅"
+        _warn = "⚠️"
+        _deps = [
+            ('torch', 'PyTorch (AI upscaling, organizer)'),
+            ('PIL', 'Pillow (image processing)'),
+            ('timm', 'timm (EfficientNet / organizer AI)'),
+            ('rembg', 'rembg (background removal)'),
+            ('gfpgan', 'gfpgan (face enhancement)'),
+        ]
+        _any_missing = False
+        for _mod, _label in _deps:
+            try:
+                __import__(_mod)
+                _dep_lines.append(f"{_ok}  {_label}")
+            except ImportError:
+                _dep_lines.append(f"{_warn}  {_label}  (not installed)")
+                _any_missing = True
+            except Exception:
+                _dep_lines.append(f"{_warn}  {_label}  (error)")
+                _any_missing = True
+        if _any_missing:
+            _dep_lines.append("\n💡 Run  python setup_models.py  to install missing AI dependencies.")
+        _status_lbl = QLabel("\n".join(_dep_lines))
+        _status_lbl.setStyleSheet(
+            "background: #1a1a2e; color: #ccccdd; font-size: 9pt; "
+            "border-radius: 4px; padding: 8px; font-family: monospace;"
+        )
+        _status_lbl.setWordWrap(True)
+        _dep_group = QGroupBox("🔍 Dependency Status")
+        _dep_lay = QVBoxLayout()
+        _dep_lay.addWidget(_status_lbl)
+        _dep_group.setLayout(_dep_lay)
+        layout.addWidget(_dep_group)
         
         # Theme section
         theme_group = QGroupBox("Theme")
@@ -172,7 +254,7 @@ class SettingsPanelQt(QWidget):
         self.theme_combo = QComboBox()
         self.theme_combo.addItems([
             "Dark", "Light", "Nord", "Dracula", "Solarized Dark",
-            "Forest", "Ocean", "Sunset", "Cyberpunk", "Gore", "Goth",
+            "Forest", "Ocean", "Sunset", "Cyberpunk", "Gore", "Goth", "Vampire",
         ])
         self.theme_combo.currentTextChanged.connect(lambda: self.on_setting_changed('ui', 'theme'))
         self.set_tooltip(self.theme_combo, 'theme_selector')
@@ -210,6 +292,7 @@ class SettingsPanelQt(QWidget):
         self.opacity_slider.setTickInterval(10)
         self.opacity_slider.valueChanged.connect(lambda v: self.on_opacity_changed(opacity_label, v))
         self.set_tooltip(self.opacity_slider, 'opacity_slider')
+        self.set_tooltip(self.opacity_slider, 'ui_transparency')
         
         window_layout.addWidget(opacity_label)
         window_layout.addWidget(self.opacity_slider)
@@ -218,6 +301,7 @@ class SettingsPanelQt(QWidget):
         self.compact_view_check = QCheckBox("Compact View")
         self.compact_view_check.stateChanged.connect(lambda: self.on_setting_changed('ui', 'compact_view'))
         self.set_tooltip(self.compact_view_check, 'compact_view')
+        self.set_tooltip(self.compact_view_check, 'ui_compact_mode')
         window_layout.addWidget(self.compact_view_check)
         
         window_group.setLayout(window_layout)
@@ -227,20 +311,12 @@ class SettingsPanelQt(QWidget):
         font_group = QGroupBox("Font")
         font_layout = QVBoxLayout()
 
-        font_family_label = QLabel("Font Family:")
-        self.appearance_font_combo = QComboBox()
-        self.appearance_font_combo.addItems(["Segoe UI", "Arial", "Helvetica", "Calibri", "Roboto", "Consolas", "Courier New"])
-        self.appearance_font_combo.currentTextChanged.connect(lambda: self.on_setting_changed('ui', 'font_family'))
-        font_layout.addWidget(font_family_label)
-        font_layout.addWidget(self.appearance_font_combo)
-
-        font_size_label = QLabel("Font Size:")
-        self.appearance_font_size = QSpinBox()
-        self.appearance_font_size.setRange(8, 24)
-        self.appearance_font_size.setValue(12)
-        self.appearance_font_size.valueChanged.connect(lambda: self.on_setting_changed('ui', 'font_size'))
-        font_layout.addWidget(font_size_label)
-        font_layout.addWidget(self.appearance_font_size)
+        font_redirect = QLabel(
+            "⚙️ Full font settings (family, size, weight, icon size) are in the\n"
+            "   🔤 Font tab above."
+        )
+        font_redirect.setStyleSheet("color: #555; font-style: italic; font-size: 9pt;")
+        font_layout.addWidget(font_redirect)
 
         font_group.setLayout(font_layout)
         layout.addWidget(font_group)
@@ -249,12 +325,12 @@ class SettingsPanelQt(QWidget):
         cursor_group = QGroupBox("Cursor")
         cursor_layout = QVBoxLayout()
 
-        cursor_label = QLabel("Cursor Style:")
-        self.appearance_cursor_combo = QComboBox()
-        self.appearance_cursor_combo.addItems(["Default", "Pointer", "Crosshair", "Panda Paw", "Bamboo", "Star"])
-        self.appearance_cursor_combo.currentTextChanged.connect(lambda: self.on_setting_changed('ui', 'cursor'))
-        cursor_layout.addWidget(cursor_label)
-        cursor_layout.addWidget(self.appearance_cursor_combo)
+        cursor_redirect = QLabel(
+            "⚙️ Full cursor settings (style, size, color, trail) are in the\n"
+            "   🖱️ Cursor tab above."
+        )
+        cursor_redirect.setStyleSheet("color: #555; font-style: italic; font-size: 9pt;")
+        cursor_layout.addWidget(cursor_redirect)
 
         cursor_group.setLayout(cursor_layout)
         layout.addWidget(cursor_group)
@@ -301,6 +377,8 @@ class SettingsPanelQt(QWidget):
         unlockable_cursors = [
             ("Skull ⚠️", "cursor_collector"),
             ("Panda 🐼", "panda_lover"),
+            ("Ghost 👻", "cursor_collector"),
+            ("Spider 🕷️", "cursor_collector"),
             ("Sword ⚔️", "cursor_collector"),
             ("Wand 🪄", "cursor_collector"),
             ("Heart ❤️", "cursor_collector"),
@@ -311,6 +389,10 @@ class SettingsPanelQt(QWidget):
             ("Ice ❄️", "nordic_explorer"),
             ("Rainbow 🌈", "cursor_collector"),
             ("Galaxy 🌌", "cursor_master"),
+            ("Cat 🐱", "panda_lover"),
+            ("Butterfly 🦋", "cursor_collector"),
+            ("Moon 🌙", "cursor_collector"),
+            ("Lightning ⚡", "cursor_master"),
         ]
         
         # Retrieve unlocked cursors from config (stored after achievement unlock)
@@ -348,24 +430,155 @@ class SettingsPanelQt(QWidget):
         # Cursor size
         size_group = QGroupBox("Cursor Size")
         size_layout = QVBoxLayout()
-        
+
         size_label = QLabel("Size:")
         self.cursor_size_combo = QComboBox()
         self.cursor_size_combo.addItems(["Small", "Medium", "Large", "Extra Large"])
         self.cursor_size_combo.currentTextChanged.connect(lambda: self.on_setting_changed('ui', 'cursor_size'))
         self.set_tooltip(self.cursor_size_combo, 'cursor_size')
-        
+
+        _size_note = QLabel("⚠️ Size only affects emoji cursors (skull, panda, etc.).\nBuilt-in OS cursors (default, arrow, hand) are fixed size.")
+        _size_note.setStyleSheet("color: #888; font-size: 9pt; font-style: italic;")
+        _size_note.setWordWrap(True)
+
         size_layout.addWidget(size_label)
         size_layout.addWidget(self.cursor_size_combo)
+        size_layout.addWidget(_size_note)
         size_group.setLayout(size_layout)
         layout.addWidget(size_group)
-        
+
+        # Cursor color tint (applies to emoji/custom cursors)
+        color_group = QGroupBox("Cursor Color Tint")
+        color_layout = QVBoxLayout()
+        color_info = QLabel(
+            "Tint emoji cursors (skull 💀, panda 🐼, etc.) with a custom color.\n"
+            "Has no effect on built-in OS cursors (default, arrow, hand, etc.)."
+        )
+        color_info.setStyleSheet("color: #666; font-size: 9pt; font-style: italic;")
+        color_info.setWordWrap(True)
+        color_layout.addWidget(color_info)
+
+        color_row = QHBoxLayout()
+        color_row.addWidget(QLabel("Color:"))
+        self._cursor_color_preview = QPushButton()
+        self._cursor_color_preview.setFixedSize(40, 26)
+        self._cursor_color_preview.setToolTip("Click to pick a cursor tint color")
+        _saved_col = str(self.config.get('ui', 'cursor_color', default=''))
+        _init_col = _saved_col if _saved_col else '#ffffff'
+        self._cursor_color_preview.setStyleSheet(
+            f"background-color: {_init_col}; border: 1px solid #aaa; border-radius: 3px;"
+        )
+        self._cursor_color_preview.clicked.connect(self._pick_cursor_color)
+        color_row.addWidget(self._cursor_color_preview)
+
+        self._cursor_color_check = QCheckBox("Apply tint")
+        self._cursor_color_check.setChecked(bool(self.config.get('ui', 'cursor_color_enabled', default=False)))
+        self._cursor_color_check.stateChanged.connect(
+            lambda: self.on_setting_changed('ui', 'cursor_color_enabled')
+        )
+        color_row.addWidget(self._cursor_color_check)
+        color_row.addStretch()
+        color_layout.addLayout(color_row)
+        color_group.setLayout(color_layout)
+        layout.addWidget(color_group)
+
+        # Per-cursor individual color pickers
+        per_cursor_group = QGroupBox("🎨 Per-Cursor Color Overrides")
+        per_cursor_layout = QVBoxLayout()
+        _pci_note = QLabel(
+            "Set a specific color tint for individual emoji cursors.\n"
+            "A per-cursor color overrides the global tint above."
+        )
+        _pci_note.setStyleSheet("color: #555; font-size: 9pt; font-style: italic;")
+        _pci_note.setWordWrap(True)
+        per_cursor_layout.addWidget(_pci_note)
+
+        _emoji_cursors = [
+            ("skull",     "💀 Skull"),
+            ("panda",     "🐼 Panda"),
+            ("ghost",     "👻 Ghost"),
+            ("spider",    "🕷️ Spider"),
+            ("sword",     "⚔️ Sword"),
+            ("wand",      "🪄 Wand"),
+            ("heart",     "❤️ Heart"),
+            ("star",      "⭐ Star"),
+            ("diamond",   "💎 Diamond"),
+            ("crown",     "👑 Crown"),
+            ("fire",      "🔥 Fire"),
+            ("ice",       "❄️ Ice"),
+            ("rainbow",   "🌈 Rainbow"),
+            ("galaxy",    "🌌 Galaxy"),
+            ("cat",       "🐱 Cat"),
+            ("butterfly", "🦋 Butterfly"),
+            ("moon",      "🌙 Moon"),
+            ("lightning", "⚡ Lightning"),
+        ]
+        _grid = QGridLayout()
+        _grid.setSpacing(4)
+        self._per_cursor_btns: dict = {}
+        for idx, (ckey, clabel) in enumerate(_emoji_cursors):
+            row, col = divmod(idx, 3)
+            saved_hex = str(self.config.get('ui', f'cursor_color_{ckey}', default=''))
+            btn = QPushButton(clabel)
+            btn.setFixedHeight(26)
+            # Use white text on coloured backgrounds for maximum contrast
+            _bg = saved_hex if saved_hex else '#f8f8f8'
+            _fg = '#ffffff' if saved_hex else '#222'
+            btn.setStyleSheet(
+                f"background-color: {_bg}; color: {_fg}; "
+                "border: 1px solid #aaa; border-radius: 3px; font-size: 9pt;"
+            )
+            btn.setToolTip(f"Click to set a custom tint color for the {clabel} cursor")
+            # Capture ckey and btn for the lambda
+            def _make_picker(cursor_key, button):
+                def _pick():
+                    _cur_hex = str(self.config.get('ui', f'cursor_color_{cursor_key}', default=''))
+                    init_col = QColor(_cur_hex) if _cur_hex else QColor('#ffffff')
+                    col = QColorDialog.getColor(init_col, self,
+                                       f"Pick color for {cursor_key} cursor")
+                    if col.isValid():
+                        hex_val = col.name(QColor.NameFormat.HexRgb)
+                        self.config.set('ui', f'cursor_color_{cursor_key}', value=hex_val)
+                        self.config.save()
+                        button.setStyleSheet(
+                            f"background-color: {hex_val}; color: #ffffff; "
+                            "border: 1px solid #aaa; border-radius: 3px; font-size: 9pt;"
+                        )
+                        self.settingsChanged.emit('ui.cursor_color', hex_val)
+                def _clear():
+                    self.config.set('ui', f'cursor_color_{cursor_key}', value='')
+                    self.config.save()
+                    button.setStyleSheet(
+                        "background-color: #f8f8f8; color: #222; "
+                        "border: 1px solid #aaa; border-radius: 3px; font-size: 9pt;"
+                    )
+                    self.settingsChanged.emit('ui.cursor_color', '')
+                return _pick, _clear
+            pick_fn, clear_fn = _make_picker(ckey, btn)
+            btn.clicked.connect(pick_fn)
+            btn.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+            btn.customContextMenuRequested.connect(lambda pos, fn=clear_fn: fn())
+            _grid.addWidget(btn, row, col)
+            self._per_cursor_btns[ckey] = btn
+        _clr_note = QLabel("Right-click any button to clear its color override.")
+        _clr_note.setStyleSheet("color: #888; font-size: 8pt; font-style: italic;")
+        per_cursor_layout.addLayout(_grid)
+        per_cursor_layout.addWidget(_clr_note)
+        per_cursor_group.setLayout(per_cursor_layout)
+        layout.addWidget(per_cursor_group)
+
         # Mouse cursor trail (separate from panda trail!)
-        trail_group = QGroupBox("Mouse Cursor Trail")
+        trail_group = QGroupBox("🖱️ Mouse Cursor Trail")
         trail_layout = QVBoxLayout()
-        
-        trail_info = QLabel("Note: This is the mouse cursor trail, not the panda movement trail.\nPanda trail is in: Panda Features → Customization")
-        trail_info.setStyleSheet("color: #666; font-size: 9pt; font-style: italic;")
+
+        trail_info = QLabel(
+            "🖱️  This is the MOUSE CURSOR trail — sparkles/glows that follow your pointer.\n"
+            "🐼  The PANDA trail (panda movement path) is in: Panda Features → Customization."
+        )
+        trail_info.setStyleSheet(
+            "color: #555; font-size: 9pt; font-style: italic; "
+            "background: #f0f0ff; border-radius: 4px; padding: 4px 6px;"
+        )
         trail_info.setWordWrap(True)
         trail_layout.addWidget(trail_info)
         
@@ -535,6 +748,7 @@ class SettingsPanelQt(QWidget):
         self.animation_slider.setTickInterval(5)
         self.animation_slider.valueChanged.connect(lambda v: self.on_animation_speed_changed(anim_label, v))
         self.set_tooltip(self.animation_slider, 'animation_speed')
+        self.set_tooltip(self.animation_slider, 'ui_animations')
         
         anim_layout.addWidget(anim_label)
         anim_layout.addWidget(self.animation_slider)
@@ -596,6 +810,7 @@ class SettingsPanelQt(QWidget):
         self.sound_enabled_check = QCheckBox("Enable Sound Effects")
         self.sound_enabled_check.stateChanged.connect(lambda: self.on_setting_changed('ui', 'sound_enabled'))
         self.set_tooltip(self.sound_enabled_check, 'sound_enabled')
+        self.set_tooltip(self.sound_enabled_check, 'sound_settings')
         sound_layout.addWidget(self.sound_enabled_check)
         
         volume_label = QLabel("Volume: 70%")
@@ -607,11 +822,129 @@ class SettingsPanelQt(QWidget):
         self.sound_volume_slider.setTickInterval(10)
         self.sound_volume_slider.valueChanged.connect(lambda v: self.on_volume_changed(volume_label, v))
         self.set_tooltip(self.sound_volume_slider, 'sound_volume')
+        self.set_tooltip(self.sound_volume_slider, 'master_volume')
         
         sound_layout.addWidget(volume_label)
         sound_layout.addWidget(self.sound_volume_slider)
+
+        # Effects volume
+        effects_label = QLabel("Effects Volume: 70%")
+        self.effects_volume_slider = QSlider(Qt.Orientation.Horizontal)
+        self.effects_volume_slider.setMinimum(0)
+        self.effects_volume_slider.setMaximum(100)
+        self.effects_volume_slider.setValue(70)
+        self.effects_volume_slider.setTickPosition(QSlider.TickPosition.TicksBelow)
+        self.effects_volume_slider.setTickInterval(10)
+        self.effects_volume_slider.valueChanged.connect(
+            lambda v: (effects_label.setText(f"Effects Volume: {v}%"),
+                       self.on_setting_changed('ui', 'effects_volume')))
+        self.set_tooltip(self.effects_volume_slider, 'effects_volume')
+        sound_layout.addWidget(effects_label)
+        sound_layout.addWidget(self.effects_volume_slider)
+
+        # Notifications volume
+        notif_label = QLabel("Notifications Volume: 50%")
+        self.notifications_volume_slider = QSlider(Qt.Orientation.Horizontal)
+        self.notifications_volume_slider.setMinimum(0)
+        self.notifications_volume_slider.setMaximum(100)
+        self.notifications_volume_slider.setValue(50)
+        self.notifications_volume_slider.setTickPosition(QSlider.TickPosition.TicksBelow)
+        self.notifications_volume_slider.setTickInterval(10)
+        self.notifications_volume_slider.valueChanged.connect(
+            lambda v: (notif_label.setText(f"Notifications Volume: {v}%"),
+                       self.on_setting_changed('ui', 'notifications_volume')))
+        self.set_tooltip(self.notifications_volume_slider, 'notifications_volume')
+        sound_layout.addWidget(notif_label)
+        sound_layout.addWidget(self.notifications_volume_slider)
+
+        # Sound pack
+        pack_layout = QHBoxLayout()
+        pack_layout.addWidget(QLabel("Sound Pack:"))
+        self.sound_pack_combo = QComboBox()
+        self.sound_pack_combo.addItems(["Default", "Retro", "Cute", "Minimal", "Nature"])
+        self.sound_pack_combo.currentTextChanged.connect(
+            lambda: self.on_setting_changed('ui', 'sound_pack'))
+        # sound_pack / sound_choice are the primary IDs for this combo
+        self.set_tooltip(self.sound_pack_combo, 'sound_pack')
+        self.set_tooltip(self.sound_pack_combo, 'sound_choice')
+        # Register panda sound event IDs — the sound pack controls which
+        # audio files are played for each event across the whole application
+        self.set_tooltip(self.sound_pack_combo, 'panda_sound_click')
+        self.set_tooltip(self.sound_pack_combo, 'panda_sound_dance')
+        self.set_tooltip(self.sound_pack_combo, 'panda_sound_drag')
+        self.set_tooltip(self.sound_pack_combo, 'panda_sound_drop')
+        self.set_tooltip(self.sound_pack_combo, 'panda_sound_eat')
+        self.set_tooltip(self.sound_pack_combo, 'panda_sound_happy')
+        self.set_tooltip(self.sound_pack_combo, 'panda_sound_jump')
+        self.set_tooltip(self.sound_pack_combo, 'panda_sound_pet')
+        self.set_tooltip(self.sound_pack_combo, 'panda_sound_play')
+        self.set_tooltip(self.sound_pack_combo, 'panda_sound_sad')
+        self.set_tooltip(self.sound_pack_combo, 'panda_sound_sleep')
+        self.set_tooltip(self.sound_pack_combo, 'panda_sound_sneeze')
+        self.set_tooltip(self.sound_pack_combo, 'panda_sound_wake')
+        self.set_tooltip(self.sound_pack_combo, 'panda_sound_walk')
+        self.set_tooltip(self.sound_pack_combo, 'panda_sound_yawn')
+        pack_layout.addWidget(self.sound_pack_combo, 1)
+        sound_layout.addLayout(pack_layout)
+
+        # Per-event sound toggle
+        self.per_event_sound_check = QCheckBox("Enable per-event sounds")
+        self.per_event_sound_check.setChecked(True)
+        self.per_event_sound_check.stateChanged.connect(
+            lambda: self.on_setting_changed('ui', 'per_event_sound'))
+        self.set_tooltip(self.per_event_sound_check, 'per_event_sound')
+        sound_layout.addWidget(self.per_event_sound_check)
+
+        # Sound selection for panda and system events
+        self.set_tooltip(self.sound_pack_combo, 'sound_selection_panda')
+        self.set_tooltip(self.sound_pack_combo, 'sound_selection_system')
+
+        # Test sound button
+        test_sound_btn = QPushButton("🔊 Test Sound")
+        test_sound_btn.clicked.connect(self._test_sound)
+        self.set_tooltip(test_sound_btn, 'sound_test_button')
+        sound_layout.addWidget(test_sound_btn)
+
+        # Open sound settings (scrolls to this sound section)
+        open_sound_btn = QPushButton("🎵 Open Sound Settings")
+        open_sound_btn.clicked.connect(lambda: self.tabs.setCurrentIndex(3))
+        self.set_tooltip(open_sound_btn, 'open_sound_settings')
+        sound_layout.addWidget(open_sound_btn)
+
         sound_group.setLayout(sound_layout)
         layout.addWidget(sound_group)
+
+        # Application behavior
+        app_group = QGroupBox("Application Behavior")
+        app_layout = QVBoxLayout()
+
+        self.auto_save_check = QCheckBox("Auto-save settings on change")
+        self.auto_save_check.setChecked(True)
+        self.auto_save_check.stateChanged.connect(lambda: self.on_setting_changed('ui', 'auto_save'))
+        self.set_tooltip(self.auto_save_check, 'ui_auto_save')
+        app_layout.addWidget(self.auto_save_check)
+
+        self.confirm_exit_check = QCheckBox("Ask for confirmation before closing")
+        self.confirm_exit_check.setChecked(False)
+        self.confirm_exit_check.stateChanged.connect(lambda: self.on_setting_changed('ui', 'confirm_exit'))
+        self.set_tooltip(self.confirm_exit_check, 'ui_confirm_exit')
+        app_layout.addWidget(self.confirm_exit_check)
+
+        startup_layout = QHBoxLayout()
+        startup_layout.addWidget(QLabel("Startup Tab:"))
+        self.startup_tab_combo = QComboBox()
+        self.startup_tab_combo.addItems([
+            "Last Used", "File Browser", "Organizer", "Format Converter",
+            "Upscaler", "Background Remover", "Line Art", "Shop",
+        ])
+        self.startup_tab_combo.currentTextChanged.connect(
+            lambda: self.on_setting_changed('ui', 'startup_tab'))
+        self.set_tooltip(self.startup_tab_combo, 'ui_startup_tab')
+        startup_layout.addWidget(self.startup_tab_combo, 1)
+        app_layout.addLayout(startup_layout)
+
+        app_group.setLayout(app_layout)
+        layout.addWidget(app_group)
         
         layout.addStretch()
         scroll.setWidget(container)
@@ -641,6 +974,7 @@ class SettingsPanelQt(QWidget):
         self.thread_spin.setValue(4)
         self.thread_spin.valueChanged.connect(lambda: self.on_setting_changed('performance', 'max_threads'))
         self.set_tooltip(self.thread_spin, 'thread_count')
+        self.set_tooltip(self.thread_spin, 'perf_thread_count')
         
         thread_layout.addWidget(thread_label)
         thread_layout.addWidget(self.thread_spin)
@@ -659,6 +993,7 @@ class SettingsPanelQt(QWidget):
         self.memory_spin.setValue(2048)
         self.memory_spin.valueChanged.connect(lambda: self.on_setting_changed('performance', 'memory_limit_mb'))
         self.set_tooltip(self.memory_spin, 'memory_limit')
+        self.set_tooltip(self.memory_spin, 'perf_memory')
         
         memory_layout.addWidget(memory_label)
         memory_layout.addWidget(self.memory_spin)
@@ -677,6 +1012,7 @@ class SettingsPanelQt(QWidget):
         self.cache_spin.setValue(512)
         self.cache_spin.valueChanged.connect(lambda: self.on_setting_changed('performance', 'cache_size_mb'))
         self.set_tooltip(self.cache_spin, 'cache_size')
+        self.set_tooltip(self.cache_spin, 'perf_cache_size')
         
         cache_layout.addWidget(cache_label)
         cache_layout.addWidget(self.cache_spin)
@@ -713,6 +1049,19 @@ class SettingsPanelQt(QWidget):
         scroll.setFrameShape(QScrollArea.Shape.NoFrame)
         container = QWidget()
         layout = QVBoxLayout(container)
+
+        # Clarifying header
+        _ai_header = QLabel(
+            "⚠️ Advanced: These are AI model training / inference settings.\n"
+            "For day-to-day use you don't need to change anything here.\n"
+            "To check which AI models are installed, see the  📦 AI Model Status  tab."
+        )
+        _ai_header.setStyleSheet(
+            "background: #2a2a3e; color: #aaaacc; font-size: 9pt; "
+            "border-radius: 4px; padding: 8px; margin-bottom: 4px;"
+        )
+        _ai_header.setWordWrap(True)
+        layout.addWidget(_ai_header)
 
         # ── Training section ──────────────────────────────────────────────
         train_group = QGroupBox("🏋️ Training Settings")
@@ -757,6 +1106,7 @@ class SettingsPanelQt(QWidget):
         self.device_combo.addItems(["Auto (GPU if available)", "CPU only", "CUDA GPU", "MPS (Apple)"])
         self.device_combo.currentTextChanged.connect(
             lambda: self.on_setting_changed('ai', 'device'))
+        self.set_tooltip(self.device_combo, 'ai_ups_gpu')
         train_layout.addRow("Compute Device:", self.device_combo)
 
         # Optimizer
@@ -790,6 +1140,7 @@ class SettingsPanelQt(QWidget):
             lambda: self.on_setting_changed('ai', 'custom_dataset_path'))
         _ds_browse_btn = QPushButton("📂 Browse")
         _ds_browse_btn.setFixedWidth(90)
+        _ds_browse_btn.setToolTip("Select the folder containing your custom dataset class sub-folders")
         _ds_browse_btn.clicked.connect(self._browse_dataset_folder)
         _ds_row_lay.addWidget(self.dataset_path_edit, 1)
         _ds_row_lay.addWidget(_ds_browse_btn)
@@ -841,6 +1192,7 @@ class SettingsPanelQt(QWidget):
         self.use_gpu_check.setChecked(True)
         self.use_gpu_check.stateChanged.connect(
             lambda: self.on_setting_changed('ai', 'use_gpu'))
+        self.set_tooltip(self.use_gpu_check, 'ai_ups_gpu')
         infer_layout.addRow("", self.use_gpu_check)
 
         infer_group.setLayout(infer_layout)
@@ -854,6 +1206,7 @@ class SettingsPanelQt(QWidget):
         self.export_format_combo.addItems(["PyTorch (.pt)", "ONNX (.onnx)", "TorchScript (.pts)", "SafeTensors"])
         self.export_format_combo.currentTextChanged.connect(
             lambda: self.on_setting_changed('ai', 'export_format'))
+        self.set_tooltip(self.export_format_combo, 'ai_ups_model')
         export_layout.addRow("Export Format:", self.export_format_combo)
 
         self.quantize_check = QCheckBox("Quantize on export (smaller file, slight quality loss)")
@@ -881,12 +1234,116 @@ class SettingsPanelQt(QWidget):
             "QPushButton:hover { background: #0a5e62; }"
         )
         start_btn.clicked.connect(self._on_start_ai_training)
+        self.set_tooltip(start_btn, 'ai_export_training')
 
         train_btn_layout.addWidget(self._ai_train_status)
         train_btn_layout.addWidget(self._ai_train_progress)
         train_btn_layout.addWidget(start_btn)
         train_btn_group.setLayout(train_btn_layout)
         layout.addWidget(train_btn_group)
+
+        # ── Custom API endpoints ──────────────────────────────────────────
+        api_group = QGroupBox("🌐 Custom API Endpoints")
+        api_layout = QFormLayout()
+
+        # Background removal custom API
+        self.bgr_custom_api_check = QCheckBox("Use custom API for background removal")
+        self.bgr_custom_api_check.stateChanged.connect(
+            lambda: self.on_setting_changed('ai', 'bgr_custom_api'))
+        self.set_tooltip(self.bgr_custom_api_check, 'ai_bgr_custom_api')
+        api_layout.addRow("", self.bgr_custom_api_check)
+
+        self.bgr_api_url_edit = QLineEdit()
+        self.bgr_api_url_edit.setPlaceholderText("https://your-server/remove-bg")
+        self.bgr_api_url_edit.textChanged.connect(
+            lambda: self.on_setting_changed('ai', 'bgr_api_url'))
+        self.set_tooltip(self.bgr_api_url_edit, 'ai_bgr_api_url')
+        api_layout.addRow("BGR URL:", self.bgr_api_url_edit)
+
+        self.bgr_api_key_edit = QLineEdit()
+        self.bgr_api_key_edit.setPlaceholderText("API key (stored locally)")
+        self.bgr_api_key_edit.setEchoMode(QLineEdit.EchoMode.Password)
+        self.bgr_api_key_edit.textChanged.connect(
+            lambda: self.on_setting_changed('ai', 'bgr_api_key'))
+        self.set_tooltip(self.bgr_api_key_edit, 'ai_bgr_api_key')
+        api_layout.addRow("BGR Key:", self.bgr_api_key_edit)
+
+        bgr_model_layout = QHBoxLayout()
+        self.bgr_api_model_edit = QLineEdit()
+        self.bgr_api_model_edit.setPlaceholderText("e.g. u2net, isnet-anime")
+        self.bgr_api_model_edit.textChanged.connect(
+            lambda: self.on_setting_changed('ai', 'bgr_api_model'))
+        self.set_tooltip(self.bgr_api_model_edit, 'ai_bgr_model')
+        bgr_model_layout.addWidget(self.bgr_api_model_edit)
+        api_layout.addRow("BGR Model:", bgr_model_layout)
+
+        api_layout.addRow(QLabel(""))  # spacer
+
+        # Classification custom API
+        self.cls_custom_api_check = QCheckBox("Use custom API for classification")
+        self.cls_custom_api_check.stateChanged.connect(
+            lambda: self.on_setting_changed('ai', 'cls_custom_api'))
+        self.set_tooltip(self.cls_custom_api_check, 'ai_cls_custom_api')
+        api_layout.addRow("", self.cls_custom_api_check)
+
+        self.cls_api_url_edit = QLineEdit()
+        self.cls_api_url_edit.setPlaceholderText("https://your-server/classify")
+        self.cls_api_url_edit.textChanged.connect(
+            lambda: self.on_setting_changed('ai', 'cls_api_url'))
+        self.set_tooltip(self.cls_api_url_edit, 'ai_cls_api_url')
+        api_layout.addRow("CLS URL:", self.cls_api_url_edit)
+
+        self.cls_api_key_edit = QLineEdit()
+        self.cls_api_key_edit.setPlaceholderText("API key (stored locally)")
+        self.cls_api_key_edit.setEchoMode(QLineEdit.EchoMode.Password)
+        self.cls_api_key_edit.textChanged.connect(
+            lambda: self.on_setting_changed('ai', 'cls_api_key'))
+        self.set_tooltip(self.cls_api_key_edit, 'ai_cls_api_key')
+        api_layout.addRow("CLS Key:", self.cls_api_key_edit)
+
+        self.cls_api_model_edit = QLineEdit()
+        self.cls_api_model_edit.setPlaceholderText("model name")
+        self.cls_api_model_edit.textChanged.connect(
+            lambda: self.on_setting_changed('ai', 'cls_api_model'))
+        self.set_tooltip(self.cls_api_model_edit, 'ai_cls_model')
+        api_layout.addRow("CLS Model:", self.cls_api_model_edit)
+
+        api_layout.addRow(QLabel(""))  # spacer
+
+        # Upscaling custom API
+        self.ups_custom_api_check = QCheckBox("Use custom API for upscaling")
+        self.ups_custom_api_check.stateChanged.connect(
+            lambda: self.on_setting_changed('ai', 'ups_custom_api'))
+        self.set_tooltip(self.ups_custom_api_check, 'ai_ups_custom_api')
+        api_layout.addRow("", self.ups_custom_api_check)
+
+        self.ups_api_url_edit = QLineEdit()
+        self.ups_api_url_edit.setPlaceholderText("https://your-server/upscale")
+        self.ups_api_url_edit.textChanged.connect(
+            lambda: self.on_setting_changed('ai', 'ups_api_url'))
+        self.set_tooltip(self.ups_api_url_edit, 'ai_ups_api_url')
+        api_layout.addRow("UPS URL:", self.ups_api_url_edit)
+
+        self.ups_api_key_edit = QLineEdit()
+        self.ups_api_key_edit.setPlaceholderText("API key (stored locally)")
+        self.ups_api_key_edit.setEchoMode(QLineEdit.EchoMode.Password)
+        self.ups_api_key_edit.textChanged.connect(
+            lambda: self.on_setting_changed('ai', 'ups_api_key'))
+        self.set_tooltip(self.ups_api_key_edit, 'ai_ups_api_key')
+        api_layout.addRow("UPS Key:", self.ups_api_key_edit)
+
+        self.ups_tile_spin = QSpinBox()
+        self.ups_tile_spin.setRange(0, 1024)
+        self.ups_tile_spin.setValue(0)
+        self.ups_tile_spin.setSpecialValueText("Auto")
+        self.ups_tile_spin.setSuffix(" px")
+        self.ups_tile_spin.valueChanged.connect(
+            lambda: self.on_setting_changed('ai', 'ups_tile_size'))
+        self.set_tooltip(self.ups_tile_spin, 'ai_ups_tile')
+        api_layout.addRow("UPS Tile Size:", self.ups_tile_spin)
+
+        api_group.setLayout(api_layout)
+        layout.addWidget(api_group)
 
         layout.addStretch()
         scroll.setWidget(container)
@@ -996,6 +1453,7 @@ class SettingsPanelQt(QWidget):
         
         # Add helpful button
         install_btn = QPushButton("📖 View Installation Guide")
+        install_btn.setToolTip("Open the AI models installation guide in your browser")
         install_btn.clicked.connect(self.show_ai_install_guide)
         install_btn.setStyleSheet("""
             QPushButton {
@@ -1126,6 +1584,7 @@ class SettingsPanelQt(QWidget):
 
         self.language_combo.currentIndexChanged.connect(self._on_language_changed)
         lang_layout.addWidget(self.language_combo)
+        self.set_tooltip(self.language_combo, 'ui_language')
         lang_group.setLayout(lang_layout)
         layout.addWidget(lang_group)
         layout.addStretch()
@@ -1187,6 +1646,11 @@ class SettingsPanelQt(QWidget):
         import_config_btn.clicked.connect(self.import_settings)
         self.set_tooltip(import_config_btn, 'import_button')
         io_layout.addWidget(import_config_btn)
+
+        reset_profile_btn = QPushButton("Reset to Defaults")
+        reset_profile_btn.clicked.connect(self.reset_to_defaults)
+        self.set_tooltip(reset_profile_btn, 'reset_button')
+        io_layout.addWidget(reset_profile_btn)
         
         io_group.setLayout(io_layout)
         layout.addWidget(io_group)
@@ -1203,7 +1667,23 @@ class SettingsPanelQt(QWidget):
         open_config_btn = QPushButton("Open Config Folder")
         open_config_btn.clicked.connect(self.open_config_folder)
         self.set_tooltip(open_config_btn, 'open_config')
+        self.set_tooltip(open_config_btn, 'open_config_dir')
         location_layout.addWidget(open_config_btn)
+
+        open_logs_btn = QPushButton("Open Logs Folder")
+        open_logs_btn.clicked.connect(self._open_logs_folder)
+        self.set_tooltip(open_logs_btn, 'open_logs_dir')
+        location_layout.addWidget(open_logs_btn)
+
+        open_cache_btn = QPushButton("Open Cache Folder")
+        open_cache_btn.clicked.connect(self._open_cache_folder)
+        self.set_tooltip(open_cache_btn, 'open_cache_dir')
+        location_layout.addWidget(open_cache_btn)
+
+        open_customization_btn = QPushButton("Open Customization")
+        open_customization_btn.clicked.connect(self._open_customization)
+        self.set_tooltip(open_customization_btn, 'open_customization')
+        location_layout.addWidget(open_customization_btn)
         
         location_group.setLayout(location_layout)
         layout.addWidget(location_group)
@@ -1231,6 +1711,7 @@ class SettingsPanelQt(QWidget):
                 'cyberpunk': 'Cyberpunk',
                 'gore': 'Gore',
                 'goth': 'Goth',
+                'vampire': 'Vampire',
             }
             self.theme_combo.setCurrentText(theme_map.get(theme.lower(), theme.capitalize()))
             
@@ -1428,6 +1909,29 @@ class SettingsPanelQt(QWidget):
             self.apply_theme()
         except Exception as e:
             logger.error(f"Error saving color: {e}", exc_info=True)
+
+    def _pick_cursor_color(self) -> None:
+        """Open a QColorDialog to pick a cursor tint color and save it."""
+        try:
+            current_hex = self.config.get('ui', 'cursor_color', default='#ffffff')
+            initial = QColor(str(current_hex)) if current_hex else QColor(255, 255, 255)
+            chosen = QColorDialog.getColor(
+                initial, self, "Pick Cursor Tint Color",
+                QColorDialog.ColorDialogOption.ShowAlphaChannel,
+            )
+            if chosen.isValid():
+                hex_color = chosen.name(QColor.NameFormat.HexArgb)
+                self.config.set('ui', 'cursor_color', value=hex_color)
+                self.config.save()
+                self._cursor_color_preview.setStyleSheet(
+                    f"background-color: {hex_color}; border: 1px solid #aaa; border-radius: 3px;"
+                )
+                # Auto-enable the tint checkbox
+                self._cursor_color_check.setChecked(True)
+                self.config.set('ui', 'cursor_color_enabled', value=True)
+                self.settingsChanged.emit("ui.cursor_color", hex_color)
+        except Exception as e:
+            logger.warning("_pick_cursor_color: %s", e)
     
     def on_opacity_changed(self, label: QLabel, value: int):
         """Handle opacity slider changes"""
@@ -1452,7 +1956,14 @@ class SettingsPanelQt(QWidget):
             self.config.set('ui', 'animation_speed', value=speed)
             self.config.save()
             self.settingsChanged.emit("ui.animation_speed", speed)
-    
+
+    def _get_tooltip_manager(self):
+        """Return the active TooltipManager instance (checks both main_window and self)."""
+        return (
+            getattr(self.main_window, 'tooltip_manager', None)
+            if self.main_window else None
+        ) or self.tooltip_manager
+
     def on_tooltip_mode_changed(self):
         """Handle tooltip mode changes"""
         if self._updating:
@@ -1471,16 +1982,18 @@ class SettingsPanelQt(QWidget):
             self.config.set('ui', 'tooltip_mode', value=mode_value)
             self.config.save()
             self.settingsChanged.emit("ui.tooltip_mode", mode_value)
-            
-            # Update tooltip system if available
-            if self.main_window and hasattr(self.main_window, 'tooltip_manager'):
-                from features.tutorial_system import TooltipMode
-                mode_enum = getattr(TooltipMode, mode_enum_name, TooltipMode.NORMAL)
-                self.main_window.tooltip_manager.set_mode(mode_enum)
-                # set_mode already calls refresh_all(), but call explicitly as belt-and-suspenders
-                if hasattr(self.main_window.tooltip_manager, 'refresh_all'):
-                    self.main_window.tooltip_manager.refresh_all()
-                logger.info(f"Tooltip mode changed to: {mode_value} ({mode_enum_name})")
+
+            # Update tooltip system if available — check both main_window.tooltip_manager
+            # and the directly-passed tooltip_manager attribute
+            _tm = self._get_tooltip_manager()
+            if _tm is not None:
+                try:
+                    from features.tutorial_system import TooltipMode
+                    mode_enum = getattr(TooltipMode, mode_enum_name, TooltipMode.NORMAL)
+                    _tm.set_mode(mode_enum)
+                    logger.info(f"Tooltip mode changed to: {mode_value} ({mode_enum_name})")
+                except Exception as _te:
+                    logger.debug(f"TooltipManager.set_mode: {_te}")
             
         except Exception as e:
             logger.error(f"Error changing tooltip mode: {e}", exc_info=True)
@@ -1745,17 +2258,104 @@ class SettingsPanelQt(QWidget):
                 "Error",
                 f"Failed to open config folder: {e}"
             )
+
+    def _open_folder(self, folder_path):
+        """Open a folder in the file explorer."""
+        try:
+            import os
+            import platform
+            from pathlib import Path
+            path = Path(folder_path)
+            path.mkdir(parents=True, exist_ok=True)
+            if platform.system() == "Windows":
+                os.startfile(path)
+            elif platform.system() == "Darwin":
+                os.system(f"open '{path}'")
+            else:
+                os.system(f"xdg-open '{path}'")
+        except Exception as e:
+            logger.error(f"Error opening folder {folder_path}: {e}", exc_info=True)
+            QMessageBox.warning(self, "Error", f"Failed to open folder: {e}")
+
+    def _open_logs_folder(self):
+        """Open the application logs folder."""
+        try:
+            from pathlib import Path
+            logs_dir = self.config.config_file.parent / "logs"
+            self._open_folder(logs_dir)
+        except Exception as e:
+            logger.error(f"_open_logs_folder: {e}", exc_info=True)
+
+    def _open_cache_folder(self):
+        """Open the application cache folder."""
+        try:
+            from pathlib import Path
+            cache_dir = self.config.config_file.parent / "cache"
+            self._open_folder(cache_dir)
+        except Exception as e:
+            logger.error(f"_open_cache_folder: {e}", exc_info=True)
+
+    def _open_customization(self):
+        """Switch to the Appearance settings tab."""
+        try:
+            self.tabs.setCurrentIndex(0)
+        except Exception as e:
+            logger.error(f"_open_customization: {e}", exc_info=True)
+
+    def _test_sound(self):
+        """Play a test sound effect."""
+        try:
+            import platform
+            if platform.system() == "Windows":
+                import winsound
+                winsound.MessageBeep(winsound.MB_OK)
+            else:
+                logger.info("Sound test triggered")
+        except Exception as e:
+            logger.debug(f"_test_sound: {e}")
+
+    def _show_about(self):
+        """Show the About dialog."""
+        try:
+            QMessageBox.about(
+                self,
+                "About Panda Sorter",
+                f"Panda Sorter / Converter / Upscaler  v{_APP_VERSION}\n\n"
+                "An all-in-one texture management tool.\n"
+                "Sort, convert, upscale, remove backgrounds,\n"
+                "create line art, and more.\n\n"
+                "By JosephsDeadish / Dead On The Inside\n\n"
+                f"❤️  Support on Patreon:\n{_PATREON_URL}"
+            )
+        except Exception as e:
+            logger.error(f"_show_about: {e}", exc_info=True)
+
+    def _show_tutorial(self):
+        """Open the tutorial / guide."""
+        try:
+            if self.main_window and hasattr(self.main_window, 'start_tutorial'):
+                self.main_window.start_tutorial()
+            else:
+                QMessageBox.information(
+                    self,
+                    "Tutorial",
+                    "Hover over any control to see a tooltip explaining what it does.\n\n"
+                    "You can change the tooltip style in Settings → Behavior → Tooltips.\n\n"
+                    f"❤️  Support on Patreon: {_PATREON_URL}"
+                )
+        except Exception as e:
+            logger.error(f"_show_tutorial: {e}", exc_info=True)
     
     def set_tooltip(self, widget: QWidget, widget_id: str):
         """Set tooltip for a widget using the tooltip manager"""
         try:
-            if self.main_window and getattr(self.main_window, 'tooltip_manager', None):
-                tm = self.main_window.tooltip_manager
-                tooltip_text = tm.get_tooltip(widget_id)
+            _tm = self._get_tooltip_manager()
+            if _tm is not None:
+                tooltip_text = _tm.get_tooltip(widget_id)
                 widget.setToolTip(tooltip_text)
                 # Register so the widget gets updated on mode changes and cycles tips
-                if hasattr(tm, 'register'):
-                    tm.register(widget, widget_id)
+                if hasattr(_tm, 'register'):
+                    _tm.register(widget, widget_id)
             else:
                 # Fallback tooltips
                 fallback_tooltips = {

@@ -4,6 +4,7 @@ Qt implementation of the shop system
 """
 
 import logging
+import random
 from typing import Optional
 
 try:
@@ -12,13 +13,21 @@ try:
         QScrollArea, QFrame, QGridLayout, QComboBox, QMessageBox,
         QLineEdit
     )
-    from PyQt6.QtCore import Qt, pyqtSignal
+    from PyQt6.QtCore import Qt, pyqtSignal, QTimer
     from PyQt6.QtGui import QFont
     PYQT_AVAILABLE = True
 except (ImportError, OSError, RuntimeError):
     PYQT_AVAILABLE = False
     QWidget = object
     QFrame = object
+    class QTimer:
+        @staticmethod
+        def singleShot(*a): pass
+        def __init__(self, *a): pass
+        def start(self, *a): pass
+        def stop(self): pass
+        def setInterval(self, *a): pass
+        timeout = type('_Sig', (), {'connect': lambda *a: None})()  # type: ignore[misc]
     class pyqtSignal:
         def __init__(self, *args): pass
         def connect(self, *args): pass
@@ -53,14 +62,18 @@ except (ImportError, OSError, RuntimeError):
 class ShopItemWidget(QFrame):
     """Individual shop item display"""
     
-    purchase_requested = pyqtSignal(str)  # item_id
-    
-    def __init__(self, item: 'ShopItem', owned: bool = False, parent=None):
+    purchase_requested = pyqtSignal(str)   # item_id
+    item_hovered       = pyqtSignal(object)  # ShopItem — emitted on mouse-enter
+
+    def __init__(self, item: 'ShopItem', owned: bool = False,
+                 parent=None, tooltip_manager=None):
         super().__init__(parent)
         self.item = item
         self.owned = owned
+        self._tooltip_mgr = tooltip_manager
+        self.setMouseTracking(True)  # enables enterEvent without a pressed button
         self.setup_ui()
-        
+
     def setup_ui(self):
         """Create the item card UI — turquoise Livy theme."""
         self.setFrameStyle(QFrame.Shape.StyledPanel)
@@ -100,6 +113,8 @@ class ShopItemWidget(QFrame):
         name_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         name_label.setWordWrap(True)
         name_label.setStyleSheet("color: #063040;")
+        self._wire_tip(name_label, 'shop_item_name',
+                       getattr(self.item, 'name', ''))
         layout.addWidget(name_label)
 
         # Price
@@ -108,6 +123,8 @@ class ShopItemWidget(QFrame):
         price_label.setFont(QFont("Segoe UI", 9, QFont.Weight.Bold))
         price_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         price_label.setStyleSheet("color: #089898;" if self.owned else "color: #B8860B;")
+        self._wire_tip(price_label, 'shop_price',
+                       f"Price: {price:,} coins" if not self.owned else "Already owned")
         layout.addWidget(price_label)
 
         layout.addStretch()
@@ -129,7 +146,29 @@ class ShopItemWidget(QFrame):
                 " font-weight: bold; font-size: 11px;"
                 " QPushButton:hover { background: #089898; }"
             )
+        self._wire_tip(btn, 'shop_buy_button', "Purchase this item")
         layout.addWidget(btn)
+
+    def _wire_tip(self, widget, tip_id: str, fallback: str = '') -> None:
+        """Set tooltip on widget, registering with tooltip_manager when available."""
+        mgr = self._tooltip_mgr
+        if mgr is not None and hasattr(mgr, 'register'):
+            try:
+                text = mgr.get_tooltip(tip_id) or fallback
+                widget.setToolTip(text)
+                mgr.register(widget, tip_id)
+                return
+            except Exception:
+                pass
+        widget.setToolTip(fallback or tip_id)
+
+    def enterEvent(self, event) -> None:  # type: ignore[override]
+        """Notify parent shop panel when the mouse enters this card."""
+        try:
+            self.item_hovered.emit(self.item)
+        except Exception:
+            pass
+        super().enterEvent(event)
 
     def mouseDoubleClickEvent(self, event):  # type: ignore[override]
         """Open item detail dialog on double-click."""
@@ -228,6 +267,7 @@ class ItemDetailDialog:
                 setattr(self, 'buy_requested', True),
                 dlg.accept(),
             ))
+        btn.setToolTip("🛒 Purchase this item from the shop")
         layout.addWidget(btn)
 
         self._dlg = dlg
@@ -244,7 +284,18 @@ class ShopPanelQt(QWidget):
     """Main shop panel for purchasing items."""
 
     item_purchased = pyqtSignal(str)  # item_id
-    
+
+    # Maps shop category IDs to specific tooltip catalog keys
+    _CATEGORY_TOOLTIP_IDS = {
+        "Outfits":     'shop_outfits_cat',
+        "Clothes":     'shop_clothes_cat',
+        "Hats":        'shop_hats_cat',
+        "Shoes":       'shop_shoes_cat',
+        "Accessories": 'shop_accessories_cat',
+        "Toys":        'shop_toys_cat',
+        "Food":        'shop_food_cat',
+        "Special":     'shop_special_cat',
+    }
     def __init__(self, shop_system: Optional['ShopSystem'] = None, 
                  currency_system: Optional['CurrencySystem'] = None,
                  parent=None, tooltip_manager=None):
@@ -263,7 +314,9 @@ class ShopPanelQt(QWidget):
             self.currency_system = None
         
         self.current_category = "All"
+        self._livy_idle_timer: Optional[QTimer] = None  # fires idle chatter
         self.setup_ui()
+        self._start_livy_idle_timer()
         self.refresh_shop()
 
     # ─────────────────────────── Turquoise colour palette ────────────────────
@@ -319,22 +372,41 @@ class ShopPanelQt(QWidget):
 
         # ── Banner header ─────────────────────────────────────────────────────
         banner = QWidget()
-        banner.setFixedHeight(90)
+        banner.setFixedHeight(120)
         banner.setStyleSheet(f"background: {self._TURQ_HDR}; border-radius: 0px;")
         banner_layout = QHBoxLayout(banner)
         banner_layout.setContentsMargins(18, 8, 18, 8)
 
-        # Otter avatar (emoji + name)
+        # Otter avatar (large emoji)
+        otter_avatar = QLabel("🦦")
+        otter_avatar.setStyleSheet("font-size: 42px;")
+        otter_avatar.setFixedWidth(58)
+        otter_avatar.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        banner_layout.addWidget(otter_avatar)
+
+        # Otter name + speech bubble column
         otter_col = QVBoxLayout()
-        livy_name = QLabel("🦦  Livy's")
-        livy_name.setStyleSheet(f"color: {self._TURQ}; font-size: 18px; font-weight: bold;")
-        shop_name_lbl = QLabel("Cosmic Otter Supply Co. ✨")
-        shop_name_lbl.setStyleSheet(f"color: {self._STAR_GOLD}; font-size: 13px; font-weight: bold; letter-spacing: 1px;")
+        otter_col.setSpacing(2)
+        livy_name = QLabel("Livy's  Cosmic Otter Supply Co. ✨")
+        livy_name.setStyleSheet(f"color: {self._STAR_GOLD}; font-size: 13px; font-weight: bold; letter-spacing: 1px;")
+        self._set_tooltip(livy_name, 'shop_tab')
         tagline = QLabel("Galactic Goods for Adventurous Pandas 🌌")
         tagline.setStyleSheet("color: #90E0E0; font-size: 10px; font-style: italic;")
+        self._set_tooltip(tagline, 'shop_level')
+
+        # Livy's speech bubble — shows commentary
+        self.livy_bubble = QLabel("👀  Welcome! Looking for something great?")
+        self.livy_bubble.setWordWrap(True)
+        self.livy_bubble.setStyleSheet(
+            "background: #0BBFBF; color: white; border-radius: 10px;"
+            " padding: 5px 10px; font-size: 11px; font-style: italic;"
+        )
+        self.livy_bubble.setMaximumWidth(380)
+        self._set_tooltip(self.livy_bubble, 'shop_tab')
+
         otter_col.addWidget(livy_name)
-        otter_col.addWidget(shop_name_lbl)
         otter_col.addWidget(tagline)
+        otter_col.addWidget(self.livy_bubble)
         banner_layout.addLayout(otter_col)
 
         banner_layout.addStretch()
@@ -349,6 +421,7 @@ class ShopPanelQt(QWidget):
         )
         self.currency_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         coin_col.addWidget(self.currency_label)
+        self._set_tooltip(self.currency_label, 'shop_balance')
         banner_layout.addLayout(coin_col)
 
         layout.addWidget(banner)
@@ -372,11 +445,12 @@ class ShopPanelQt(QWidget):
             "background: white; border: none; border-radius: 8px;"
             " padding: 2px 8px; color: #063040;"
         )
+        self._set_tooltip(self.search_input, 'search_button')
         filter_layout.addWidget(self.search_input, 1)
 
         refresh_btn = QPushButton("🔄")
         refresh_btn.setFixedSize(32, 30)
-        refresh_btn.setToolTip("Refresh shop")
+        self._set_tooltip(refresh_btn, "Refresh shop")
         refresh_btn.setStyleSheet(
             f"background: {self._TURQ}; color: white; border: none;"
             " border-radius: 8px; font-size: 14px; font-weight: bold;"
@@ -418,6 +492,8 @@ class ShopPanelQt(QWidget):
             btn.setStyleSheet(self._pill_style(active=(cat_id == "All")))
             btn.clicked.connect(lambda checked, c=cat_id: self._on_cat_pill(c))
             btn.setProperty("cat_id", cat_id)
+            tip_id = self._CATEGORY_TOOLTIP_IDS.get(cat_id, 'shop_category_button')
+            self._set_tooltip(btn, tip_id)
             cat_row.addWidget(btn)
             self._cat_buttons.append(btn)
         cat_row.addStretch()
@@ -515,8 +591,10 @@ class ShopPanelQt(QWidget):
         row, col = 0, 0
         for item in all_items[:60]:
             owned = item.id in owned_items
-            widget = ShopItemWidget(item, owned)
+            widget = ShopItemWidget(item, owned,
+                                    tooltip_manager=self.tooltip_manager)
             widget.purchase_requested.connect(self.purchase_item)
+            widget.item_hovered.connect(self._on_item_hovered)
             self.grid_layout.addWidget(widget, row, col)
             col += 1
             if col >= 3:
@@ -580,6 +658,7 @@ class ShopPanelQt(QWidget):
                 f"{icon} {name} costs {price:,} Bamboo Bucks.\n"
                 f"You have {balance:,} — earn more by completing tasks! 🌟"
             )
+            self._livy_react_low_balance()
             return
 
         reply = QMessageBox.question(
@@ -603,6 +682,7 @@ class ShopPanelQt(QWidget):
                     "Check your closet or backpack to equip it. 🎒"
                 )
                 self.item_purchased.emit(item_id)
+                self._livy_react_purchase(item_id)
                 self.refresh_shop()
             else:
                 QMessageBox.warning(
@@ -618,9 +698,128 @@ class ShopPanelQt(QWidget):
         except Exception:
             pass
 
+    # ──────────────── Livy commentary ────────────────────────────────────────
+
+    # Idle quips Livy says while you browse (randomly selected)
+    _LIVY_IDLE = [
+        "👀  Browsing? Take your time, no rush!",
+        "✨  Everything's fresh from the galaxy!",
+        "🌌  Did you see the new arrivals?",
+        "💎  Rare items don't stay long… just saying!",
+        "🍵  *sips chocolate milk* …amazing selection today.",
+        "🦦  I picked these items myself, you know.",
+        "🌟  Pssst — the legendary stuff is *chef's kiss*.",
+        "🎀  Every purchase comes gift-wrapped in cosmic energy!",
+        "🐾  Panda-approved, otter-curated!",
+        "💫  Quality galactic goods — that's my promise!",
+        "🎵  *hums a little otter tune*",
+        "🌊  Fresh stock, just like the ocean breeze!",
+        "🔭  Spotted anything that sparks joy yet?",
+        "✨  The accessories section is *particularly* divine today.",
+        "🦦  *adjusts turquoise bow tie*  Looking sharp, as always.",
+    ]
+
+    # What Livy says when you hover over an item (templates — {name} filled in)
+    _LIVY_HOVER = [
+        "👀  Ooh, {name}! Great taste!",
+        "✨  {name} — one of my personal favourites!",
+        "💎  {name} would look *amazing* on you!",
+        "🌟  Oh, you're eyeing {name}? Excellent choice!",
+        "🦦  {name}? You have impeccable taste!",
+        "🎀  I *love* {name} — goes with everything!",
+        "💫  {name} is selling fast, just so you know…",
+        "🔥  {name}! The adventurers adore that one.",
+        "🌌  {name} — straight from the outer galaxy!",
+        "🐾  {name} screams YOU. Just saying.",
+    ]
+
+    # What Livy says when you buy something
+    _LIVY_PURCHASE = [
+        "🎉  Woohoo! {name} is going home with you!",
+        "✨  Excellent choice! {name} is gift-wrapped!",
+        "🦦  *happy otter noises* You bought {name}!",
+        "💫  {name}? PERFECT. You have the best taste.",
+        "🌟  Ooh! {name}! You're going to love it!",
+        "🎀  {name} is all yours — enjoy, darling!",
+    ]
+
+    # What Livy says when your balance is low
+    _LIVY_LOW_BALANCE = [
+        "💸  Hmm, Bamboo Bucks are a bit low… keep up the great work!",
+        "🌟  Finish some tasks and you'll be rolling in Bamboo Bucks!",
+        "💰  Not enough yet — but adventures earn great rewards!",
+        "🦦  Don't worry! Sort some files and top up your bucks!",
+        "💡  Pro tip: converting lots of files at once earns extra coins!",
+    ]
+
+    def livy_says(self, text: str, duration_ms: int = 5000) -> None:
+        """Display *text* in Livy's speech bubble for *duration_ms* milliseconds."""
+        try:
+            self.livy_bubble.setText(text)
+            # Revert to idle message after the duration
+            if PYQT_AVAILABLE:
+                QTimer.singleShot(duration_ms, self._livy_idle_message)
+        except Exception:
+            pass
+
+    def _livy_idle_message(self) -> None:
+        """Show a random idle quip in the speech bubble."""
+        try:
+            self.livy_bubble.setText(random.choice(self._LIVY_IDLE))
+        except Exception:
+            pass
+
+    def _start_livy_idle_timer(self) -> None:
+        """Start the periodic idle-commentary timer."""
+        if not PYQT_AVAILABLE:
+            return
+        try:
+            self._livy_idle_timer = QTimer(self)
+            self._livy_idle_timer.setInterval(8000)  # fire every 8 seconds
+            self._livy_idle_timer.timeout.connect(self._livy_idle_message)  # type: ignore[attr-defined]
+            self._livy_idle_timer.start()
+        except Exception:
+            pass
+
+    def _on_item_hovered(self, item: 'ShopItem') -> None:
+        """Livy comments when the mouse enters an item card."""
+        try:
+            name = getattr(item, 'name', 'that')
+            template = random.choice(self._LIVY_HOVER)
+            self.livy_says(template.format(name=name), duration_ms=4000)
+        except Exception:
+            pass
+
+    def _livy_react_purchase(self, item_id: str) -> None:
+        """Called after a successful purchase — Livy celebrates."""
+        try:
+            if self.shop_system:
+                item = self.shop_system.get_item(item_id)
+                name = getattr(item, 'name', 'it') if item else 'it'
+            else:
+                name = 'it'
+            template = random.choice(self._LIVY_PURCHASE)
+            self.livy_says(template.format(name=name), duration_ms=6000)
+        except Exception:
+            pass
+
+    def _livy_react_low_balance(self) -> None:
+        """Livy sympathetically comments when user can't afford an item."""
+        try:
+            self.livy_says(random.choice(self._LIVY_LOW_BALANCE), duration_ms=6000)
+        except Exception:
+            pass
+
     def _set_tooltip(self, widget, tooltip_key: str):
         """Set tooltip using tooltip manager if available."""
-        if self.tooltip_manager:
-            tooltip = self.tooltip_manager.get_tooltip(tooltip_key)
-            if tooltip:
-                widget.setToolTip(tooltip)
+        if self.tooltip_manager and hasattr(self.tooltip_manager, 'register'):
+            if ' ' not in tooltip_key:
+                try:
+                    tooltip = self.tooltip_manager.get_tooltip(tooltip_key)
+                    if tooltip:
+                        widget.setToolTip(tooltip)
+                        self.tooltip_manager.register(widget, tooltip_key)
+                        return
+                except Exception:
+                    pass
+        widget.setToolTip(str(tooltip_key))
