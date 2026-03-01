@@ -139,6 +139,7 @@ class _ConvertWorker(QThread):
         total     = len(self._files)
         done      = 0
         errors    = 0
+        skipped   = 0
 
         for fp in self._files:
             if self._cancel:
@@ -153,8 +154,9 @@ class _ConvertWorker(QThread):
                 out_path = out_dir / out_name
 
                 if skip_existing and out_path.exists():
+                    skipped += 1
                     self.log_msg.emit(f"⏭️ Skipped (exists): {out_path.name}")
-                    self.progress.emit(done + errors, total, fp.name)
+                    self.progress.emit(done + errors + skipped, total, fp.name)
                     continue
 
                 img = Image.open(fp)
@@ -233,10 +235,10 @@ class _ConvertWorker(QThread):
                 self.log_msg.emit(f"❌ {fp.name}: {exc}")
                 logger.warning(f"Format convert: {fp}: {exc}")
 
-            self.progress.emit(done + errors, total, fp.name)
+            self.progress.emit(done + errors + skipped, total, fp.name)
 
         ok  = errors == 0
-        msg = f"Done — {done} converted, {errors} errors"
+        msg = f"Done — {done} converted, {errors} errors" + (f", {skipped} skipped" if skipped else "")
         self.finished.emit(ok, msg, done)
 
 

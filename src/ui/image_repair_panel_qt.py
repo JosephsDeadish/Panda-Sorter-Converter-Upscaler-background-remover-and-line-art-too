@@ -404,7 +404,7 @@ class ImageRepairPanelQt(QWidget):
         if folder:
             _REPAIR_EXTS = ('.png', '.jpg', '.jpeg', '.bmp', '.tiff', '.tif',
                             '.webp', '.tga', '.gif')
-            recursive = hasattr(self, 'recursive_cb') and self.recursive_cb.isChecked()
+            recursive = self.recursive_cb.isChecked()
             if recursive:
                 for root, _dirs, files in os.walk(folder):
                     for file in files:

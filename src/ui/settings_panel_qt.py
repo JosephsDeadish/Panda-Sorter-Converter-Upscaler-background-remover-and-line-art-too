@@ -1890,16 +1890,21 @@ class SettingsPanelQt(QWidget):
             self.config.set('ui', 'tooltip_mode', value=mode_value)
             self.config.save()
             self.settingsChanged.emit("ui.tooltip_mode", mode_value)
-            
-            # Update tooltip system if available
-            if self.main_window and hasattr(self.main_window, 'tooltip_manager'):
-                from features.tutorial_system import TooltipMode
-                mode_enum = getattr(TooltipMode, mode_enum_name, TooltipMode.NORMAL)
-                self.main_window.tooltip_manager.set_mode(mode_enum)
-                # set_mode already calls refresh_all(), but call explicitly as belt-and-suspenders
-                if hasattr(self.main_window.tooltip_manager, 'refresh_all'):
-                    self.main_window.tooltip_manager.refresh_all()
-                logger.info(f"Tooltip mode changed to: {mode_value} ({mode_enum_name})")
+
+            # Update tooltip system if available — check both main_window.tooltip_manager
+            # and the directly-passed tooltip_manager attribute
+            _tm = (
+                getattr(self.main_window, 'tooltip_manager', None)
+                if self.main_window else None
+            ) or self.tooltip_manager
+            if _tm is not None:
+                try:
+                    from features.tutorial_system import TooltipMode
+                    mode_enum = getattr(TooltipMode, mode_enum_name, TooltipMode.NORMAL)
+                    _tm.set_mode(mode_enum)
+                    logger.info(f"Tooltip mode changed to: {mode_value} ({mode_enum_name})")
+                except Exception as _te:
+                    logger.debug(f"TooltipManager.set_mode: {_te}")
             
         except Exception as e:
             logger.error(f"Error changing tooltip mode: {e}", exc_info=True)
@@ -2255,13 +2260,16 @@ class SettingsPanelQt(QWidget):
     def set_tooltip(self, widget: QWidget, widget_id: str):
         """Set tooltip for a widget using the tooltip manager"""
         try:
-            if self.main_window and getattr(self.main_window, 'tooltip_manager', None):
-                tm = self.main_window.tooltip_manager
-                tooltip_text = tm.get_tooltip(widget_id)
+            _tm = (
+                getattr(self.main_window, 'tooltip_manager', None)
+                if self.main_window else None
+            ) or self.tooltip_manager
+            if _tm is not None:
+                tooltip_text = _tm.get_tooltip(widget_id)
                 widget.setToolTip(tooltip_text)
                 # Register so the widget gets updated on mode changes and cycles tips
-                if hasattr(tm, 'register'):
-                    tm.register(widget, widget_id)
+                if hasattr(_tm, 'register'):
+                    _tm.register(widget, widget_id)
             else:
                 # Fallback tooltips
                 fallback_tooltips = {
