@@ -163,8 +163,7 @@ setup(
     long_description_content_type='text/markdown',
     url='https://www.patreon.com/JosephsDeadish',
     project_urls={
-        'Support': 'https://www.patreon.com/JosephsDeadish',
-        'Documentation': 'https://www.patreon.com/JosephsDeadish',
+        'Support / Patreon': 'https://www.patreon.com/JosephsDeadish',
     },
     
     # Package configuration

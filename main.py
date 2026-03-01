@@ -2703,6 +2703,13 @@ class TextureSorterMainWindow(QMainWindow):
 
         help_menu.addSeparator()
 
+        support_action = QAction("❤️ Support on &Patreon", self)
+        support_action.setStatusTip("Open the Patreon support page")
+        support_action.triggered.connect(self._open_patreon)
+        help_menu.addAction(support_action)
+
+        help_menu.addSeparator()
+
         about_action = QAction("&About", self)
         about_action.setStatusTip("Show version information and credits for this application")
         about_action.triggered.connect(self.show_about)
@@ -6621,7 +6628,16 @@ class TextureSorterMainWindow(QMainWindow):
             f"<li>No tkinter, no canvas</li>"
             f"</ul>"
             f"<p>Author: Dead On The Inside / JosephsDeadish</p>"
+            f"<p>❤️ Support us on Patreon: <a href='{PATREON_URL}'>{PATREON_URL}</a></p>"
         )
+
+    def _open_patreon(self):
+        """Open the Patreon support page in the default browser."""
+        try:
+            import webbrowser
+            webbrowser.open(PATREON_URL)
+        except Exception as _e:
+            logger.debug(f"_open_patreon: {_e}")
 
     def show_help(self):
         """Show help / documentation dialog (F1)."""
