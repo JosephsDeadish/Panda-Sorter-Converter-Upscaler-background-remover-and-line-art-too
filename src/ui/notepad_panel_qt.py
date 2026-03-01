@@ -16,10 +16,10 @@ try:
     from PyQt6.QtWidgets import (
         QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
         QTextEdit, QListWidget, QListWidgetItem, QMessageBox,
-        QInputDialog, QSplitter, QFrame, QFileDialog
+        QInputDialog, QSplitter, QFrame, QFileDialog, QLineEdit
     )
     from PyQt6.QtCore import Qt, pyqtSignal, QTimer
-    from PyQt6.QtGui import QFont, QTextCharFormat, QColor
+    from PyQt6.QtGui import QFont, QTextCharFormat, QColor, QKeySequence, QShortcut
     PYQT_AVAILABLE = True
 except (ImportError, OSError, RuntimeError):
     PYQT_AVAILABLE = False
@@ -210,8 +210,46 @@ class NotepadPanelQt(QWidget):
         splitter.addWidget(editor_container)
         splitter.setStretchFactor(0, 1)  # Note list
         splitter.setStretchFactor(1, 3)  # Editor gets more space
-        
+
         layout.addWidget(splitter)
+
+        # === FIND BAR (hidden until Ctrl+F) ===
+        self._find_bar = QWidget()
+        find_bar_layout = QHBoxLayout(self._find_bar)
+        find_bar_layout.setContentsMargins(0, 2, 0, 2)
+        find_bar_layout.setSpacing(4)
+        find_bar_layout.addWidget(QLabel("🔍 Find:"))
+        self._find_input = QLineEdit()
+        self._find_input.setPlaceholderText("Search in note…")
+        self._find_input.textChanged.connect(self._find_in_note)
+        self._find_input.returnPressed.connect(self._find_next)
+        find_bar_layout.addWidget(self._find_input)
+        _find_next_btn = QPushButton("▼")
+        _find_next_btn.setFixedWidth(28)
+        _find_next_btn.setToolTip("Find next (Enter)")
+        _find_next_btn.clicked.connect(self._find_next)
+        find_bar_layout.addWidget(_find_next_btn)
+        _find_prev_btn = QPushButton("▲")
+        _find_prev_btn.setFixedWidth(28)
+        _find_prev_btn.setToolTip("Find previous")
+        _find_prev_btn.clicked.connect(self._find_prev)
+        find_bar_layout.addWidget(_find_prev_btn)
+        _find_close_btn = QPushButton("✕")
+        _find_close_btn.setFixedWidth(24)
+        _find_close_btn.setToolTip("Close find bar (Escape)")
+        _find_close_btn.clicked.connect(self._hide_find_bar)
+        find_bar_layout.addWidget(_find_close_btn)
+        self._find_match_label = QLabel("")
+        self._find_match_label.setStyleSheet("color: #888; font-size: 10px;")
+        find_bar_layout.addWidget(self._find_match_label)
+        self._find_bar.hide()
+        layout.addWidget(self._find_bar)
+
+        # Ctrl+F shortcut to open find bar
+        _find_shortcut = QShortcut(QKeySequence("Ctrl+F"), self)
+        _find_shortcut.activated.connect(self._show_find_bar)
+        _esc_shortcut = QShortcut(QKeySequence("Escape"), self._find_bar)
+        _esc_shortcut.activated.connect(self._hide_find_bar)
         
         # === STATUS BAR ===
         self.status_label = QLabel("Ready - Create a new note to get started")
@@ -441,3 +479,67 @@ class NotepadPanelQt(QWidget):
         if self.current_note_id:
             self.save_current_note()
         event.accept()
+
+    # ── Find bar ────────────────────────────────────────────────────────────
+
+    def _show_find_bar(self) -> None:
+        """Show the find bar and focus the search input."""
+        self._find_bar.show()
+        self._find_input.setFocus()
+        self._find_input.selectAll()
+
+    def _hide_find_bar(self) -> None:
+        """Hide the find bar and clear highlights."""
+        self._find_bar.hide()
+        self._find_input.clear()
+        # Remove highlight formatting
+        cursor = self.text_editor.textCursor()
+        cursor.clearSelection()
+        self.text_editor.setExtraSelections([])
+        self.text_editor.setFocus()
+
+    def _find_in_note(self, query: str) -> None:
+        """Highlight all occurrences of *query* in the current note."""
+        from PyQt6.QtWidgets import QTextEdit
+        extra: list = []
+        if query:
+            fmt = QTextCharFormat()
+            fmt.setBackground(QColor('#f0c040'))
+            cursor = self.text_editor.document().find(query)
+            count = 0
+            while not cursor.isNull():
+                sel = QTextEdit.ExtraSelection()
+                sel.format = fmt
+                sel.cursor = cursor
+                extra.append(sel)
+                count += 1
+                cursor = self.text_editor.document().find(query, cursor)
+            self._find_match_label.setText(f"{count} match{'es' if count != 1 else ''}")
+        else:
+            self._find_match_label.setText("")
+        self.text_editor.setExtraSelections(extra)
+
+    def _find_next(self) -> None:
+        """Move to the next occurrence of the search term."""
+        query = self._find_input.text()
+        if query:
+            found = self.text_editor.find(query)
+            if not found:
+                # Wrap around to start
+                cursor = self.text_editor.textCursor()
+                cursor.movePosition(cursor.MoveOperation.Start)
+                self.text_editor.setTextCursor(cursor)
+                self.text_editor.find(query)
+
+    def _find_prev(self) -> None:
+        """Move to the previous occurrence of the search term."""
+        query = self._find_input.text()
+        if query:
+            from PyQt6.QtGui import QTextDocument
+            found = self.text_editor.find(query, QTextDocument.FindFlag.FindBackward)
+            if not found:
+                # Wrap around to end
+                cursor = self.text_editor.textCursor()
+                cursor.movePosition(cursor.MoveOperation.End)
+                self.text_editor.setTextCursor(cursor)
+                self.text_editor.find(query, QTextDocument.FindFlag.FindBackward)
