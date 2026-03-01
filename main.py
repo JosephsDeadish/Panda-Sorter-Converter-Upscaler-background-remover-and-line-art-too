@@ -4045,18 +4045,24 @@ class TextureSorterMainWindow(QMainWindow):
             }
             # Emoji-based cursors — rendered to a QPixmap on the fly
             _emoji_map = {
-                'skull':   '💀',
-                'panda':   '🐼',
-                'sword':   '⚔️',
-                'wand':    '🪄',
-                'heart':   '❤️',
-                'star':    '⭐',
-                'diamond': '💎',
-                'crown':   '👑',
-                'fire':    '🔥',
-                'ice':     '❄️',
-                'rainbow': '🌈',
-                'galaxy':  '🌌',
+                'skull':     '💀',
+                'panda':     '🐼',
+                'ghost':     '👻',
+                'spider':    '🕷️',
+                'sword':     '⚔️',
+                'wand':      '🪄',
+                'heart':     '❤️',
+                'star':      '⭐',
+                'diamond':   '💎',
+                'crown':     '👑',
+                'fire':      '🔥',
+                'ice':       '❄️',
+                'rainbow':   '🌈',
+                'galaxy':    '🌌',
+                'cat':       '🐱',
+                'butterfly': '🦋',
+                'moon':      '🌙',
+                'lightning': '⚡',
             }
             app = QApplication.instance()
             if app is None:

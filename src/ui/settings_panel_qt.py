@@ -388,6 +388,8 @@ class SettingsPanelQt(QWidget):
         unlockable_cursors = [
             ("Skull ⚠️", "cursor_collector"),
             ("Panda 🐼", "panda_lover"),
+            ("Ghost 👻", "cursor_collector"),
+            ("Spider 🕷️", "cursor_collector"),
             ("Sword ⚔️", "cursor_collector"),
             ("Wand 🪄", "cursor_collector"),
             ("Heart ❤️", "cursor_collector"),
@@ -398,6 +400,10 @@ class SettingsPanelQt(QWidget):
             ("Ice ❄️", "nordic_explorer"),
             ("Rainbow 🌈", "cursor_collector"),
             ("Galaxy 🌌", "cursor_master"),
+            ("Cat 🐱", "panda_lover"),
+            ("Butterfly 🦋", "cursor_collector"),
+            ("Moon 🌙", "cursor_collector"),
+            ("Lightning ⚡", "cursor_master"),
         ]
         
         # Retrieve unlocked cursors from config (stored after achievement unlock)
@@ -488,11 +494,17 @@ class SettingsPanelQt(QWidget):
         layout.addWidget(color_group)
         
         # Mouse cursor trail (separate from panda trail!)
-        trail_group = QGroupBox("Mouse Cursor Trail")
+        trail_group = QGroupBox("🖱️ Mouse Cursor Trail")
         trail_layout = QVBoxLayout()
-        
-        trail_info = QLabel("Note: This is the mouse cursor trail, not the panda movement trail.\nPanda trail is in: Panda Features → Customization")
-        trail_info.setStyleSheet("color: #666; font-size: 9pt; font-style: italic;")
+
+        trail_info = QLabel(
+            "🖱️  This is the MOUSE CURSOR trail — sparkles/glows that follow your pointer.\n"
+            "🐼  The PANDA trail (panda movement path) is in: Panda Features → Customization."
+        )
+        trail_info.setStyleSheet(
+            "color: #555; font-size: 9pt; font-style: italic; "
+            "background: #f0f0ff; border-radius: 4px; padding: 4px 6px;"
+        )
         trail_info.setWordWrap(True)
         trail_layout.addWidget(trail_info)
         

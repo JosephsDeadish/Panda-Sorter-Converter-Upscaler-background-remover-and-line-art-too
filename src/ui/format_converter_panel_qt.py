@@ -208,8 +208,8 @@ class _ConvertWorker(QThread):
                         raise RuntimeError(
                             "AVIF encoder not available.\n"
                             "Pillow needs to be built with libaom support.\n"
-                            "Install a pre-built wheel:  pip install pillow-avif-plugin\n"
-                            "or convert to WebP/PNG as an alternative."
+                            "Run  python setup_models.py  or:  pip install pillow-avif-plugin\n"
+                            "Alternatively, convert to WebP or PNG."
                         ) from save_exc
                     raise
                 done += 1
@@ -349,7 +349,7 @@ if _PYQT:
             # AVIF availability note
             self._avif_note = QLabel(
                 "⚠️ AVIF requires Pillow built with libaom.\n"
-                "If encoding fails:  pip install pillow-avif-plugin"
+                "Run  python setup_models.py  or install:  pip install pillow-avif-plugin"
             )
             self._avif_note.setStyleSheet("color: #e67e00; font-size: 9pt; font-style: italic;")
             self._avif_note.setWordWrap(True)

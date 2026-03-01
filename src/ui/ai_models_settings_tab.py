@@ -283,76 +283,27 @@ class ModelCardWidget(QFrame):
         desc_label.setWordWrap(True)
         desc_label.setStyleSheet("font-size: 10px; color: #555; margin: 5px 0px;")
         self.details_layout.addWidget(desc_label)
-        
-        # Progress bar (hidden by default)
-        self.progress = QProgressBar()
-        self.progress.setVisible(False)
-        self.progress.setStyleSheet("""
-            QProgressBar {
-                border: 1px solid #ddd;
-                border-radius: 4px;
-                height: 6px;
-            }
-            QProgressBar::chunk {
-                background-color: #4CAF50;
-            }
-        """)
-        self.details_layout.addWidget(self.progress)
-        
-        # Buttons
+
+        # Buttons / status
         button_layout = QHBoxLayout()
         button_layout.setContentsMargins(0, 5, 0, 0)
-        
-        if not self.model_info.get('installed', False):
-            # Download button
-            download_btn = QPushButton(f"⬇️  Download Now")
-            # Only show size if it's defined and not variable
-            if self.model_info.get('size_mb', 0) > 0 and not self.model_info.get('size_varies', False):
-                download_btn.setText(f"⬇️  Download Now ({self.model_info['size_mb']} MB)")
-            download_btn.setMinimumHeight(40)
-            download_btn.setMinimumWidth(200)
-            download_btn.setToolTip("Download this AI model to enable the feature")
-            download_btn.setStyleSheet("""
-                QPushButton {
-                    background-color: #4CAF50;
-                    color: white;
-                    border: none;
-                    border-radius: 4px;
-                    font-weight: bold;
-                    font-size: 12px;
-                }
-                QPushButton:hover {
-                    background-color: #45a049;
-                }
-                QPushButton:pressed {
-                    background-color: #3d8b40;
-                }
-            """)
-            download_btn.clicked.connect(self.download_model)
-            button_layout.addWidget(download_btn)
 
-            # Cancel download button (hidden until download starts)
+        if not self.model_info.get('installed', False):
+            # Model missing — guide user to setup_models.py instead of an in-app download
+            missing_lbl = QLabel(
+                "⚠️  Model not found.  Run  <b>python setup_models.py</b>  from the app folder "
+                "to install all bundled AI models."
+            )
+            missing_lbl.setStyleSheet("color: #c44; font-size: 10pt;")
+            missing_lbl.setWordWrap(True)
+            missing_lbl.setTextFormat(Qt.TextFormat.RichText)
+            button_layout.addWidget(missing_lbl)
+            # Keep cancel button as a hidden attribute — not shown in UI since
+            # in-app downloads are disabled (models are bundled), but the attribute
+            # must exist to satisfy the cancellation infrastructure and existing tests.
             self._cancel_download_btn = QPushButton("✕ Cancel")
-            self._cancel_download_btn.setMinimumHeight(40)
-            self._cancel_download_btn.setMinimumWidth(120)
-            self._cancel_download_btn.setToolTip("Cancel the current model download")
-            self._cancel_download_btn.setStyleSheet("""
-                QPushButton {
-                    background-color: #f44336;
-                    color: white;
-                    border: none;
-                    border-radius: 4px;
-                    font-weight: bold;
-                    font-size: 12px;
-                }
-                QPushButton:hover {
-                    background-color: #da190b;
-                }
-            """)
-            self._cancel_download_btn.clicked.connect(self._cancel_download)
-            self._cancel_download_btn.setEnabled(False)
             self._cancel_download_btn.setVisible(False)
-            button_layout.addWidget(self._cancel_download_btn)
+            self._cancel_download_btn.setEnabled(False)
         else:
             # Delete button
             delete_text = "🗑️  Delete"
@@ -661,11 +612,11 @@ class _CustomModelDropTarget(QLabel):
         title.setFont(font)
         layout.addWidget(title)
 
-        # Subtitle — updated per issue: models should come pre-bundled
+        # Subtitle — models ship pre-bundled with the application
         subtitle = QLabel(
-            "All AI models are bundled with the application and auto-downloaded on first run.\n"
-            "Use 'Download' only as a fallback if a model is missing. "
-            "You can also drag-and-drop a custom .pth / .onnx / .safetensors file below."
+            "All AI models are bundled with the application.\n"
+            "If a model shows as missing, run  python setup_models.py  from the app folder.\n"
+            "Drag-and-drop your own .pth / .onnx / .safetensors files below to add custom models."
         )
         subtitle.setStyleSheet("color: #666; font-size: 11px;")
         subtitle.setWordWrap(True)
