@@ -1606,7 +1606,8 @@ class TextureSorterMainWindow(QMainWindow):
                     self._on_tool_finished(ok, _tid),
                     self.operation_finished(
                         ok, msg,
-                        int(_stats.get('files_moved', _stats.get('files_processed', 0)))
+                        int(_stats.get('files_moved', _stats.get('files_processed', 0))),
+                        float(_stats.get('elapsed_time', 0.0)),
                     ),
                 ))
                 tool_tab_defs.append((organizer_panel, "📁 Organizer", 'organizer'))
@@ -5018,7 +5019,8 @@ class TextureSorterMainWindow(QMainWindow):
         self._ai_training_thread = thread   # prevent GC
         thread.start()
 
-    def operation_finished(self, success: bool, message: str, files_processed: int = 0):
+    def operation_finished(self, success: bool, message: str, files_processed: int = 0,
+                           elapsed_time: float = 0.0):
         """Handle operation completion."""
         self.set_operation_running(False)
         # Use count stored by the previous operation when caller doesn't supply it
@@ -5070,9 +5072,13 @@ class TextureSorterMainWindow(QMainWindow):
                     # Populate the tracker with batch totals so get_summary() returns
                     # meaningful per-operation throughput (not accumulated session data).
                     import time as _time_mod
+                    # Use the actual elapsed time from the operation panel when available;
+                    # fall back to computing it from the tracker's start_time.
+                    op_elapsed = elapsed_time if elapsed_time > 0 else (
+                        _time_mod.time() - self.statistics_tracker.start_time
+                    )
                     self.statistics_tracker.set_total_files(files_processed)
-                    elapsed = _time_mod.time() - self.statistics_tracker.start_time
-                    per_file_time = elapsed / files_processed if files_processed else 0
+                    per_file_time = op_elapsed / files_processed if files_processed else 0
                     for _ in range(files_processed):
                         self.statistics_tracker.record_file_processed(
                             category='processed',
@@ -5080,12 +5086,10 @@ class TextureSorterMainWindow(QMainWindow):
                             processing_time=per_file_time,
                             success=True,
                         )
-                    summary = self.statistics_tracker.get_summary()
-                    elapsed_s = summary.get('session', {}).get('elapsed_seconds', elapsed)
-                    rate = summary['performance'].get('files_per_second', 0)
-                    errors = summary.get('errors', {}).get('total', 0)
+                    rate = round(files_processed / op_elapsed, 1) if op_elapsed > 0 else 0
+                    errors = self.statistics_tracker.error_count
                     self.log(
-                        f"📊 Stats: {files_processed} files in {elapsed_s:.1f}s"
+                        f"📊 Stats: {files_processed} files in {op_elapsed:.1f}s"
                         f" ({rate:.1f} files/sec)"
                         + (f" | {errors} error(s)" if errors else "")
                     )
@@ -5456,8 +5460,6 @@ class TextureSorterMainWindow(QMainWindow):
                 self.panda_stats.increment_feeds()
             if self.panda_mood_system:
                 self.panda_mood_system.on_user_interaction('feed')
-            if self.achievement_system:
-                self.achievement_system.update_progress('panda_feeder', 1, increment=True)
         except Exception as _e:
             logger.debug(f"Panda feed handler: {_e}")
 
