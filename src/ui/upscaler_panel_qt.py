@@ -265,7 +265,7 @@ class UpscaleWorker(QThread):
         'JPEG': ('JPEG', '.jpg'),
         'WebP': ('WEBP', '.webp'),
         'BMP':  ('BMP',  '.bmp'),
-        'TIFF': ('TIFF', '.tif'),
+        'TIFF': ('TIFF', '.tiff'),
     }
     
     def __init__(self, upscaler, files, output_dir, scale_factor, method,

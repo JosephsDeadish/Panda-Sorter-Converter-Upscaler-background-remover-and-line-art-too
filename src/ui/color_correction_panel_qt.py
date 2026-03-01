@@ -703,56 +703,29 @@ class ColorCorrectionPanelQt(QWidget):
 
     @staticmethod
     def _apply_white_balance(img: 'Image.Image', amount: int) -> 'Image.Image':
-        """Shift image colour temperature.
-
-        Positive *amount* warms (more red/yellow), negative cools (more blue).
-        *amount* is in the range [-100, 100].
-        """
+        """Delegate to tools.color_corrector.apply_white_balance (avoids duplicate logic)."""
         try:
-            from PIL import ImageOps
-            import struct
-            # Build per-channel gamma/offset tables
-            scale = amount / 100.0          # -1.0 … +1.0
-            r_boost = max(0, min(255, int(scale * 30)))   # warm: boost R
-            b_boost = max(0, min(255, int(-scale * 30)))  # warm: cut  B (cool: boost B)
-            rgba = img.convert('RGBA')
-            r, g, b, a = rgba.split()
-            # Shift channels using point()
-            if amount > 0:
-                r = r.point(lambda v: min(255, v + r_boost))
-                b = b.point(lambda v: max(0,   v - r_boost))
-            else:
-                b = b.point(lambda v: min(255, v + b_boost))
-                r = r.point(lambda v: max(0,   v - b_boost))
-            return Image.merge('RGBA', (r, g, b, a))
+            from tools.color_corrector import apply_white_balance
+            return apply_white_balance(img, amount)
         except Exception:
-            return img
+            try:
+                from color_corrector import apply_white_balance  # type: ignore[no-redef]
+                return apply_white_balance(img, amount)
+            except Exception:
+                return img
 
     @staticmethod
     def _apply_lut_preset(img: 'Image.Image', name: str) -> 'Image.Image':
-        """Apply a simple named LUT preset using Pillow point transforms."""
+        """Delegate to tools.color_corrector.apply_lut_preset (avoids duplicate logic)."""
         try:
-            rgba = img.convert('RGBA')
-            r, g, b, a = rgba.split()
-            if name == 'Warm':
-                r = r.point(lambda v: min(255, int(v * 1.08)))
-                g = g.point(lambda v: min(255, int(v * 1.02)))
-                b = b.point(lambda v: max(0,   int(v * 0.90)))
-            elif name == 'Cool':
-                r = r.point(lambda v: max(0,   int(v * 0.90)))
-                g = g.point(lambda v: min(255, int(v * 1.02)))
-                b = b.point(lambda v: min(255, int(v * 1.10)))
-            elif name == 'Cinematic':
-                r = r.point(lambda v: min(255, int(v * 1.05 + 5)))
-                g = g.point(lambda v: max(0,   int(v * 0.95)))
-                b = b.point(lambda v: max(0,   int(v * 0.85 + 10)))
-            elif name == 'Vintage':
-                r = r.point(lambda v: min(255, int(v * 1.10 + 10)))
-                g = g.point(lambda v: min(255, int(v * 0.98 +  5)))
-                b = b.point(lambda v: max(0,   int(v * 0.80)))
-            return Image.merge('RGBA', (r, g, b, a))
+            from tools.color_corrector import apply_lut_preset
+            return apply_lut_preset(img, name)
         except Exception:
-            return img
+            try:
+                from color_corrector import apply_lut_preset  # type: ignore[no-redef]
+                return apply_lut_preset(img, name)
+            except Exception:
+                return img
     
     def _on_comparison_mode_changed(self, mode_text):
         """Handle comparison mode change."""

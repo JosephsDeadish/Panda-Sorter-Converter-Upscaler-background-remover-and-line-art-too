@@ -215,7 +215,6 @@ class FileBrowserPanelQt(QWidget):
         self._clear_recent_btn = QPushButton("✖")
         self._clear_recent_btn.setFixedWidth(28)
         self._clear_recent_btn.setFixedHeight(24)
-        self._clear_recent_btn.setStyleSheet("font-size:10px;")
         self._clear_recent_btn.clicked.connect(self._clear_recent_folders)
         self._set_tooltip(self._clear_recent_btn, "Clear recent folders history")
         controls_layout.addWidget(self._clear_recent_btn)
