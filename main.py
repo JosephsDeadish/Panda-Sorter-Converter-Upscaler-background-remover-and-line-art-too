@@ -1495,9 +1495,10 @@ class TextureSorterMainWindow(QMainWindow):
         if BatchNormalizerPanelQt is not None:
             try:
                 norm_panel = BatchNormalizerPanelQt(tooltip_manager=self.tooltip_manager)
-                norm_panel.finished.connect(lambda ok, msg, _tid='normalizer': (
+                norm_panel.finished.connect(lambda ok, msg, cnt, _tid='normalizer': (
                     self.statusBar().showMessage(f"{'✅' if ok else '❌'} Batch Normalizer: {msg}", 4000),
                     self._on_tool_finished(ok, _tid),
+                    self.operation_finished(ok, msg, cnt) if ok and cnt > 0 else None,
                 ))
                 tool_tab_defs.append((norm_panel, "⚙️ Batch Normalizer", 'normalizer'))
             except Exception as _e:
@@ -1559,6 +1560,7 @@ class TextureSorterMainWindow(QMainWindow):
                     self.statusBar().showMessage(
                         f"📝 Renamed {ok} files" + (f" ({len(errs)} errors)" if errs else ""), 4000),
                     self._on_tool_finished(bool(ok), _tid),
+                    self.operation_finished(bool(ok), f"Renamed {ok} files", ok) if ok > 0 else None,
                 ))
                 tool_tab_defs.append((rename_panel, "📝 Batch Rename", 'rename'))
             except Exception as _e:

@@ -115,7 +115,7 @@ except (ImportError, OSError, RuntimeError):
 class NormalizationWorker(QThread):
     """Worker thread for batch normalization."""
     progress = pyqtSignal(float, str)  # progress, message
-    finished = pyqtSignal(bool, str)  # success, message
+    finished = pyqtSignal(bool, str, int)  # success, message, files_processed
     
     def __init__(self, normalizer, files, output_dir, settings):
         super().__init__()
@@ -140,17 +140,17 @@ class NormalizationWorker(QThread):
                 progress_callback=progress_callback
             )
             
-            self.finished.emit(True, f"Successfully normalized {len(self.files)} images")
+            self.finished.emit(True, f"Successfully normalized {len(self.files)} images", len(self.files))
         except InterruptedError as e:
-            self.finished.emit(False, str(e))
+            self.finished.emit(False, str(e), 0)
         except Exception as e:
-            self.finished.emit(False, f"Normalization failed: {str(e)}")
+            self.finished.emit(False, f"Normalization failed: {str(e)}", 0)
 
 
 class BatchNormalizerPanelQt(QWidget):
     """PyQt6 panel for batch format normalization."""
 
-    finished = pyqtSignal(bool, str)  # success, message
+    finished = pyqtSignal(bool, str, int)  # success, message, files_processed
     
     def __init__(self, parent=None, tooltip_manager=None):
         super().__init__(parent)
@@ -580,7 +580,7 @@ class BatchNormalizerPanelQt(QWidget):
         self.progress_bar.setValue(int(progress))
         self.progress_label.setText(message)
     
-    def _on_finished(self, success, message):
+    def _on_finished(self, success, message, files_processed: int = 0):
         """Handle completion."""
         self.progress_bar.setVisible(False)
         self.normalize_btn.setEnabled(True)
@@ -594,7 +594,7 @@ class BatchNormalizerPanelQt(QWidget):
         else:
             QMessageBox.critical(self, "Error", message)
             self.progress_label.setText("✗ Normalization failed")
-        self.finished.emit(success, message)
+        self.finished.emit(success, message, files_processed)
     
     def _get_resize_mode(self):
         """Get resize mode from combo box."""
