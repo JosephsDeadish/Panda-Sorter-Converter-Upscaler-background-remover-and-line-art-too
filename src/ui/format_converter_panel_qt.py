@@ -443,8 +443,7 @@ if _PYQT:
 
             self._skip_existing = QCheckBox("Skip if output file already exists")
             self._skip_existing.setChecked(False)
-            self._set_tooltip(self._skip_existing,
-                "When checked, files are not overwritten if the output already exists")
+            self._set_tooltip(self._skip_existing, "When checked, files are not overwritten if the output already exists")
             qual_lay.addWidget(self._skip_existing, 5, 0, 1, 2)
             lv.addWidget(qual_box)
 

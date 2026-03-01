@@ -313,7 +313,7 @@ class SettingsPanelQt(QWidget):
 
         font_redirect = QLabel(
             "⚙️ Full font settings (family, size, weight, icon size) are in the\n"
-            "   🔤 Font  tab above."
+            "   🔤 Font tab above."
         )
         font_redirect.setStyleSheet("color: #555; font-style: italic; font-size: 9pt;")
         font_layout.addWidget(font_redirect)
@@ -327,7 +327,7 @@ class SettingsPanelQt(QWidget):
 
         cursor_redirect = QLabel(
             "⚙️ Full cursor settings (style, size, color, trail) are in the\n"
-            "   🖱️ Cursor  tab above."
+            "   🖱️ Cursor tab above."
         )
         cursor_redirect.setStyleSheet("color: #555; font-style: italic; font-size: 9pt;")
         cursor_layout.addWidget(cursor_redirect)
