@@ -1157,6 +1157,8 @@ class TextureSorterMainWindow(QMainWindow):
                 self.panda_widget.clicked.connect(self.on_panda_clicked)
                 self.panda_widget.mood_changed.connect(self.on_panda_mood_changed)
                 self.panda_widget.animation_changed.connect(self.on_panda_animation_changed)
+                if hasattr(self.panda_widget, 'food_eaten'):
+                    self.panda_widget.food_eaten.connect(self._on_panda_food_eaten)
                 # Wire gl_failed so we can swap in the 2D widget if initializeGL fails
                 if hasattr(self.panda_widget, 'gl_failed'):
                     self.panda_widget.gl_failed.connect(self._on_panda_gl_failed)
@@ -1176,6 +1178,8 @@ class TextureSorterMainWindow(QMainWindow):
                 self.panda_widget.clicked.connect(self.on_panda_clicked)
                 self.panda_widget.mood_changed.connect(self.on_panda_mood_changed)
                 self.panda_widget.animation_changed.connect(self.on_panda_animation_changed)
+                if hasattr(self.panda_widget, 'food_eaten'):
+                    self.panda_widget.food_eaten.connect(self._on_panda_food_eaten)
                 logger.info("✅ Panda 2D QPainter widget created (OpenGL unavailable)")
             except Exception as e2:
                 logger.error(f"Panda 2D fallback also failed: {e2}")
@@ -5420,6 +5424,17 @@ class TextureSorterMainWindow(QMainWindow):
         except Exception as e:
             logger.error(f"Error handling panda click: {e}", exc_info=True)
     
+    def _on_panda_food_eaten(self, item_id: str) -> None:
+        """Award coins when food is dropped onto the panda."""
+        try:
+            if self.currency_system:
+                coins = self.currency_system.get_reward_for_action('panda_feed')
+                if coins > 0:
+                    self.currency_system.earn_money(coins, f'panda_feed_{item_id}')
+                    self._update_coin_display()
+        except Exception as _e:
+            logger.debug(f"Panda feed coin award: {_e}")
+
     def _on_panda_gl_failed(self, error_msg: str):
         """
         Called via gl_failed signal when PandaOpenGLWidget.initializeGL() fails.
@@ -5466,6 +5481,8 @@ class TextureSorterMainWindow(QMainWindow):
             w2d.clicked.connect(self.on_panda_clicked)
             w2d.mood_changed.connect(self.on_panda_mood_changed)
             w2d.animation_changed.connect(self.on_panda_animation_changed)
+            if hasattr(w2d, 'food_eaten'):
+                w2d.food_eaten.connect(self._on_panda_food_eaten)
             if self.panda_character is not None:
                 w2d.panda = self.panda_character
         except Exception as e:

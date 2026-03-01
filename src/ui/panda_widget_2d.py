@@ -70,6 +70,7 @@ class PandaWidget2D(QWidget if _QT_AVAILABLE else object):  # type: ignore[misc]
         clicked = pyqtSignal()
         mood_changed = pyqtSignal(str)
         animation_changed = pyqtSignal(str)
+        food_eaten = pyqtSignal(str)  # item_id — emitted when food is dropped on panda
     else:
         class _SigStub:
             def __init__(self, *a): pass

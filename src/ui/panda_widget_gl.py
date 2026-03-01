@@ -185,6 +185,8 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
     animation_changed = pyqtSignal(str)
     # Emitted (with error string) when initializeGL() fails so main.py can swap in 2D fallback
     gl_failed = pyqtSignal(str)
+    # Emitted when a food item is dropped onto the panda (e.g. from inventory drag)
+    food_eaten = pyqtSignal(str)  # item_id
     
     # Animation constants
     TARGET_FPS = 30          # 30 fps matches perceived smoothness for a sidebar widget
@@ -3605,6 +3607,8 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
             # Sniff the incoming item, then react with eating/playing animation
             self.notify_file_dragged(item_id)
             is_food = 'food' in category.lower()
+            if is_food:
+                self.food_eaten.emit(item_id)
             def _react_to_item():
                 if is_food:
                     self._jaw_open = 0.8
