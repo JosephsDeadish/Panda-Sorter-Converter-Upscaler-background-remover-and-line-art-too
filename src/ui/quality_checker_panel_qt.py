@@ -8,7 +8,7 @@ try:
     from PyQt6.QtWidgets import (
         QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
         QScrollArea, QFrame, QFileDialog, QMessageBox, QTextEdit,
-        QGroupBox, QListWidget, QSplitter, QCheckBox
+        QGroupBox, QListWidget, QSplitter, QCheckBox, QApplication
     )
     from PyQt6.QtCore import Qt, QThread, pyqtSignal
     from PyQt6.QtGui import QPixmap, QImage, QFont
@@ -329,6 +329,19 @@ class QualityCheckerPanelQt(QWidget):
         self.report_text.setFont(QFont("Courier", 9))
         group_layout.addWidget(self.report_text)
         self._set_tooltip(self.report_text, 'qc_results')
+
+        # Copy / Export buttons
+        report_btn_row = QHBoxLayout()
+        copy_btn = QPushButton("📋 Copy Report")
+        copy_btn.clicked.connect(self._copy_report)
+        self._set_tooltip(copy_btn, "Copy the full quality report to the clipboard")
+        report_btn_row.addWidget(copy_btn)
+
+        export_btn = QPushButton("💾 Export Report…")
+        export_btn.clicked.connect(self._export_report)
+        self._set_tooltip(export_btn, "Save the quality report to a text file")
+        report_btn_row.addWidget(export_btn)
+        group_layout.addLayout(report_btn_row)
         
         group.setLayout(group_layout)
         layout.addWidget(group)
@@ -339,7 +352,7 @@ class QualityCheckerPanelQt(QWidget):
             self,
             "Select Images",
             "",
-            "Images (*.png *.jpg *.jpeg *.bmp *.tiff *.webp);;All Files (*.*)"
+            "Images (*.png *.jpg *.jpeg *.bmp *.tiff *.tif *.webp *.tga *.dds *.gif);;All Files (*.*)"
         )
         
         if files:
@@ -494,6 +507,40 @@ class QualityCheckerPanelQt(QWidget):
             self.status_label.setText("✗ Check failed")
             self.status_label.setStyleSheet("color: red;")
         self.finished.emit(success, message)
+
+    def _copy_report(self) -> None:
+        """Copy the full quality report text to the clipboard."""
+        text = self.report_text.toPlainText()
+        if not text:
+            QMessageBox.information(self, "Nothing to Copy", "Run a quality check first.")
+            return
+        try:
+            clipboard = QApplication.clipboard()
+            clipboard.setText(text)
+            self.status_label.setText("📋 Report copied to clipboard")
+        except Exception as _e:
+            QMessageBox.warning(self, "Copy Failed", f"Could not copy to clipboard:\n{_e}")
+
+    def _export_report(self) -> None:
+        """Save the quality report to a text file chosen by the user."""
+        text = self.report_text.toPlainText()
+        if not text:
+            QMessageBox.information(self, "Nothing to Export", "Run a quality check first.")
+            return
+        path, _ = QFileDialog.getSaveFileName(
+            self,
+            "Export Quality Report",
+            "quality_report.txt",
+            "Text Files (*.txt);;All Files (*.*)",
+        )
+        if not path:
+            return
+        try:
+            with open(path, 'w', encoding='utf-8') as fh:
+                fh.write(text)
+            self.status_label.setText(f"💾 Report exported to {Path(path).name}")
+        except Exception as _e:
+            QMessageBox.critical(self, "Export Failed", f"Could not save report:\n{_e}")
 
     def _set_tooltip(self, widget, text_or_id: str):
         """Set tooltip on a widget using tooltip manager if available.
