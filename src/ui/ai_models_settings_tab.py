@@ -652,20 +652,25 @@ class _CustomModelDropTarget(QLabel):
         layout = QVBoxLayout()
         layout.setContentsMargins(20, 20, 20, 20)
         layout.setSpacing(15)
-        
+
         # Title
-        title = QLabel("🤖 AI Models Management")
+        title = QLabel("🤖 AI Models Status")
         font = QFont()
         font.setPointSize(14)
         font.setBold(True)
         title.setFont(font)
         layout.addWidget(title)
-        
-        # Subtitle
-        subtitle = QLabel("Download AI models on-demand or manage existing installations")
+
+        # Subtitle — updated per issue: models should come pre-bundled
+        subtitle = QLabel(
+            "All AI models are bundled with the application and auto-downloaded on first run.\n"
+            "Use 'Download' only as a fallback if a model is missing. "
+            "You can also drag-and-drop a custom .pth / .onnx / .safetensors file below."
+        )
         subtitle.setStyleSheet("color: #666; font-size: 11px;")
+        subtitle.setWordWrap(True)
         layout.addWidget(subtitle)
-        
+
         # Separator
         sep = QFrame()
         sep.setFrameShape(QFrame.Shape.HLine)

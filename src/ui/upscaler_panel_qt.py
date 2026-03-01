@@ -14,7 +14,7 @@ try:
         QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
         QScrollArea, QFrame, QFileDialog, QMessageBox, QProgressBar,
         QComboBox, QSpinBox, QGroupBox, QCheckBox, QDoubleSpinBox,
-        QProgressDialog
+        QProgressDialog, QSplitter
     )
     from PyQt6.QtCore import Qt, QThread, pyqtSignal, QTimer
     from PyQt6.QtGui import QPixmap, QImage
@@ -412,29 +412,50 @@ class ImageUpscalerPanelQt(QWidget):
         layout.addWidget(label)
     
     def _create_widgets(self):
-        """Create the UI widgets."""
+        """Create the UI widgets with left (controls) / right (preview) splitter layout."""
         layout = QVBoxLayout(self)
-        layout.setSpacing(10)
-        layout.setContentsMargins(10, 10, 10, 10)
-        
+        layout.setSpacing(6)
+        layout.setContentsMargins(8, 8, 8, 8)
+        self.setMinimumSize(800, 520)
+
         # Title
         title_label = QLabel("🔍 Image Upscaler")
         title_label.setStyleSheet("font-size: 18pt; font-weight: bold;")
         title_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(title_label)
-        
+
         subtitle_label = QLabel("Upscale images using various interpolation methods")
-        subtitle_label.setStyleSheet("color: gray; font-size: 12pt;")
+        subtitle_label.setStyleSheet("color: gray; font-size: 10pt;")
         subtitle_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(subtitle_label)
-        
-        # Main container with scroll area
-        scroll = QScrollArea()
-        scroll.setWidgetResizable(True)
-        scroll.setFrameShape(QFrame.Shape.NoFrame)
-        
-        container = QWidget()
-        main_layout = QVBoxLayout(container)
+
+        # ── Main splitter: LEFT = controls, RIGHT = preview ──────────────────
+        splitter = QSplitter(Qt.Orientation.Horizontal)
+        splitter.setChildrenCollapsible(False)
+        layout.addWidget(splitter, stretch=1)
+
+        # ── LEFT: controls in a scroll area ──────────────────────────────────
+        left_scroll = QScrollArea()
+        left_scroll.setWidgetResizable(True)
+        left_scroll.setFrameShape(QFrame.Shape.NoFrame)
+        left_scroll.setMinimumWidth(320)
+        left_scroll.setMaximumWidth(520)
+        left_container = QWidget()
+        main_layout = QVBoxLayout(left_container)
+        main_layout.setSpacing(6)
+        main_layout.setContentsMargins(4, 4, 4, 4)
+        left_scroll.setWidget(left_container)
+        splitter.addWidget(left_scroll)
+
+        # ── RIGHT: preview + progress + action buttons ────────────────────────
+        right_widget = QWidget()
+        right_layout = QVBoxLayout(right_widget)
+        right_layout.setContentsMargins(4, 4, 4, 4)
+        right_layout.setSpacing(4)
+        splitter.addWidget(right_widget)
+        splitter.setStretchFactor(0, 0)
+        splitter.setStretchFactor(1, 1)
+        splitter.setSizes([380, 420])
         
         # File selection group
         file_group = QGroupBox("📁 File Selection")
@@ -748,20 +769,21 @@ class ImageUpscalerPanelQt(QWidget):
         output_group.setLayout(output_layout)
         main_layout.addWidget(output_group)
         
-        # Live Preview group
+        # Live Preview group — placed in right panel for side-by-side layout
         if SLIDER_AVAILABLE:
-            preview_group = QGroupBox("👁️ Live Preview")
-            preview_layout = QVBoxLayout()
-            
+            preview_title = QLabel("👁️ Live Preview (Before / After)")
+            preview_title.setStyleSheet("font-weight: bold; font-size: 13px;")
+            right_layout.addWidget(preview_title)
+
             # Preview file selector
             preview_file_layout = QHBoxLayout()
             preview_file_layout.addWidget(QLabel("Preview file:"))
             self.preview_file_combo = QComboBox()
             self.preview_file_combo.currentTextChanged.connect(self._schedule_preview_update)
             preview_file_layout.addWidget(self.preview_file_combo)
-            preview_layout.addLayout(preview_file_layout)
+            right_layout.addLayout(preview_file_layout)
             self._set_tooltip(self.preview_file_combo, 'upscale_preview')
-            
+
             # Preview scale
             preview_scale_layout = QHBoxLayout()
             preview_scale_layout.addWidget(QLabel("Preview scale:"))
@@ -773,38 +795,43 @@ class ImageUpscalerPanelQt(QWidget):
             self.preview_scale_spin.valueChanged.connect(self._schedule_preview_update)
             preview_scale_layout.addWidget(self.preview_scale_spin)
             preview_scale_layout.addStretch()
-            preview_layout.addLayout(preview_scale_layout)
+            right_layout.addLayout(preview_scale_layout)
             self._set_tooltip(self.preview_scale_spin, 'upscale_factor')
-            
-            # Comparison slider widget
+
+            # Comparison slider widget — fills remaining right-panel space
             self.preview_widget = ComparisonSliderWidget()
-            self.preview_widget.setMinimumHeight(300)
-            preview_layout.addWidget(self.preview_widget)
+            self.preview_widget.setMinimumHeight(240)
+            right_layout.addWidget(self.preview_widget, stretch=1)
             self._set_tooltip(self.preview_widget, 'upscale_preview')
-            
-            preview_group.setLayout(preview_layout)
-            main_layout.addWidget(preview_group)
-        
-        # Progress bar
+        else:
+            no_preview = QLabel(
+                "⚠️ Live preview not available.\n\n"
+                "Install:  pip install PyQt6"
+            )
+            no_preview.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            no_preview.setStyleSheet("color: gray; font-size: 10pt;")
+            right_layout.addWidget(no_preview, stretch=1)
+
+        # Progress bar — in right panel below preview
         self.progress_bar = QProgressBar()
         self.progress_bar.setVisible(False)
-        main_layout.addWidget(self.progress_bar)
-        
+        right_layout.addWidget(self.progress_bar)
+
         # Status label
         self.status_label = QLabel("")
         self.status_label.setStyleSheet("color: green; font-weight: bold;")
         self.status_label.setVisible(False)
-        main_layout.addWidget(self.status_label)
-        
-        # Action buttons
+        right_layout.addWidget(self.status_label)
+
+        # Action buttons — below preview in right panel
         button_layout = QHBoxLayout()
-        
+
         self.process_btn = QPushButton("🚀 Start Upscaling")
         self.process_btn.clicked.connect(self._start_upscaling)
         self.process_btn.setEnabled(False)
         self._set_tooltip(self.process_btn, 'upscale_button')
         button_layout.addWidget(self.process_btn)
-        
+
         self.cancel_btn = QPushButton("Cancel")
         self.cancel_btn.clicked.connect(self._cancel_processing)
         self.cancel_btn.setEnabled(False)
@@ -843,13 +870,10 @@ class ImageUpscalerPanelQt(QWidget):
         self._set_tooltip(self.fb_bad_btn, 'upscale_fb_bad')
         button_layout.addWidget(self.fb_bad_btn)
 
-        main_layout.addLayout(button_layout)
-        
+        right_layout.addLayout(button_layout)
+
         main_layout.addStretch()
-        
-        scroll.setWidget(container)
-        layout.addWidget(scroll)
-        
+
         # Initialize method description with current selection
         self._update_method_description(self.method_combo.currentText())
     

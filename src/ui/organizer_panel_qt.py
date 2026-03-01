@@ -650,6 +650,24 @@ class OrganizerPanelQt(QWidget):
         status_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         root.addWidget(status_label)
 
+        # ── timm (EfficientNet) status ─────────────────────────────────────
+        _timm_ok = False
+        try:
+            import timm  # noqa: F401
+            _timm_ok = True
+        except ImportError:
+            pass
+        except Exception:
+            pass
+        if not _timm_ok:
+            timm_label = QLabel(
+                "⚠️ timm not installed — EfficientNet model unavailable.  "
+                "Install: pip install timm"
+            )
+            timm_label.setStyleSheet("color: #ff6b35; font-size: 9pt; font-style: italic;")
+            timm_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            root.addWidget(timm_label)
+
         # ── Main horizontal splitter: LEFT = controls, RIGHT = work area ──
         splitter = QSplitter(Qt.Orientation.Horizontal)
         splitter.setChildrenCollapsible(False)

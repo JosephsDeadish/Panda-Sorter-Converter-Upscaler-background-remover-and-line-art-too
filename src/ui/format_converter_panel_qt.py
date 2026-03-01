@@ -65,6 +65,8 @@ _OUTPUT_FORMATS: List[Tuple[str, str, str]] = [
     ("BMP (uncompressed)",             ".bmp",  "BMP"),
     ("TGA / Targa (game-ready)",       ".tga",  "TGA"),
     ("ICO (icon, max 256×256)",        ".ico",  "ICO"),
+    ("GIF (256 colours)",              ".gif",  "GIF"),
+    ("JPEG 2000 (lossless)",           ".jp2",  "JPEG2000"),
     ("AVIF (modern, very small)",      ".avif", "AVIF"),
 ]
 
@@ -156,6 +158,10 @@ class _ConvertWorker(QThread):
                     img = bg
                 elif pil_fmt == "ICO":
                     img = img.convert("RGBA")
+                elif pil_fmt == "GIF":
+                    # GIF supports only palette / P mode (256 colours)
+                    if img.mode not in ("P", "L"):
+                        img = img.convert("RGB").quantize(colors=256)
 
                 # ── Resize ────────────────────────────────────────────────
                 img = _resize_image(img, resize_md, s)
@@ -186,6 +192,8 @@ class _ConvertWorker(QThread):
                     save_kw = {"compression": "tiff_lzw"}
                 elif pil_fmt == "AVIF":
                     save_kw = {"quality": webp_q}
+                elif pil_fmt == "JPEG2000":
+                    save_kw = {"quality_mode": "lossless"}
 
                 try:
                     img.save(out_path, format=pil_fmt, **save_kw)
@@ -553,10 +561,28 @@ if _PYQT:
             self._rsz_row_fixed.setVisible(mode_key == "fixed")
 
         def _on_fmt_changed(self, idx: int):
-            """Show AVIF note when AVIF output is selected."""
+            """Show format-specific notes when the output format is changed."""
             try:
                 _, _ext, pil_fmt = _OUTPUT_FORMATS[idx]
-                self._avif_note.setVisible(pil_fmt == "AVIF")
+                if pil_fmt == "AVIF":
+                    self._avif_note.setText(
+                        "⚠️ AVIF requires Pillow built with libaom.\n"
+                        "If encoding fails:  pip install pillow-avif-plugin"
+                    )
+                    self._avif_note.setVisible(True)
+                elif pil_fmt == "JPEG2000":
+                    self._avif_note.setText(
+                        "ℹ️ JPEG 2000 requires the 'openjpeg' codec in Pillow.\n"
+                        "Most pip wheels include it — if it fails, try a different format."
+                    )
+                    self._avif_note.setVisible(True)
+                elif pil_fmt == "GIF":
+                    self._avif_note.setText(
+                        "ℹ️ GIF is limited to 256 colours. Animated GIFs are not preserved."
+                    )
+                    self._avif_note.setVisible(True)
+                else:
+                    self._avif_note.setVisible(False)
             except Exception:
                 pass
 

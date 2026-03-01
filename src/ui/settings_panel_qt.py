@@ -128,7 +128,7 @@ class SettingsPanelQt(QWidget):
         self.tabs.addTab(self.create_behavior_tab(), "⚡ Behavior")
         self.tabs.addTab(self.create_performance_tab(), "🚀 Performance")
         self.tabs.addTab(self.create_ai_settings_tab(), "🤖 AI Settings")
-        self.tabs.addTab(self.create_ai_models_tab(), "📦 AI Models")
+        self.tabs.addTab(self.create_ai_models_tab(), "📦 AI Model Status")
         self.tabs.addTab(self.create_hotkeys_tab(), "⌨️ Hotkeys")
         self.tabs.addTab(self.create_language_tab(), "🌐 Language")
         self.tabs.addTab(self.create_advanced_tab(), "🔧 Advanced")
