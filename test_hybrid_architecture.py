@@ -3632,8 +3632,8 @@ def test_file_browser_close_event_stops_thread():
 def test_avif_plugin_auto_registered():
     """pillow-avif-plugin must be imported in format_converter_panel_qt.py.
 
-    Issue #198 (comment: 'Pillow with libaom needs to be correctly bundled
-    implemented and working for avif')
+    Issue #198 (comment: 'Pillow with libaom needs to be correctly bundled,
+    implemented, and working for AVIF')
 
     Root cause: Pillow does not ship with a built-in AVIF encoder on Windows.
     ``pillow-avif-plugin`` provides a pre-built libaom wheel, but only works
@@ -3708,8 +3708,8 @@ def test_avif_plugin_auto_registered():
 def test_timm_bundled_in_spec():
     """timm must be collected with collect_all() in the PyInstaller spec.
 
-    Issue #198 (comment: 'timm needs to be fully functional and working not
-    missing, improperly connected bundled or hooked up')
+    Issue #198 (comment: 'timm needs to be fully functional and working, not
+    missing, improperly connected, bundled, or hooked up')
 
     Root cause: timm ships compiled binary extensions.  Listing 'timm' in
     ``hiddenimports`` alone is insufficient — ``collect_all('timm')`` is

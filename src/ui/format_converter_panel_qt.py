@@ -54,8 +54,6 @@ _AVIF_AVAILABLE: bool = False
 if _PIL:
     try:
         import pillow_avif  # noqa: F401 — side-effect: registers AVIF codec
-        from PIL import Image as _PilCheck
-        _PilCheck.new("RGB", (1, 1)).tobytes()  # touch PIL to keep import warm
         _AVIF_AVAILABLE = True
     except (ImportError, OSError, Exception):
         _AVIF_AVAILABLE = False
