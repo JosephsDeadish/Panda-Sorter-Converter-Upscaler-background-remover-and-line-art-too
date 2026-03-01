@@ -3445,6 +3445,92 @@ def test_inventory_backpack_pocket_tabs():
     print("  ✅ Runtime: set_category_filter('All') switches to All Items tab")
 
 
+def test_dungeon_view_improvements():
+    """DungeonGraphicsView must have visible tiles, WASD movement, and correct player start.
+
+    Issue #198 / #197: 'the dungeon tab is showing a big blank black screen from
+    main window there is no dungeon at all'
+
+    Root cause: tile colors were too close to the background (#3a3a3a floor vs
+    #1a1a1a background) making everything appear black.  Also the player always
+    started at (1,1) even when that tile is a wall.
+
+    Fixes:
+    - Tile colors updated to visually distinct warm stone brown (#4a3828) / deep indigo (#1c1c2e)
+    - Player start scans for first walkable tile when start_positions is empty
+    - WASD / arrow key movement via keyPressEvent()
+    - Player displayed as 🐼 emoji via _draw_player()
+    - setFocusPolicy(StrongFocus) so the view captures keyboard events
+    """
+    print("\ntest_dungeon_view_improvements ...")
+    code = open('src/ui/dungeon_graphics_view.py').read()
+
+    assert '#4a3828' in code or 'walkable floor' in code.lower(), (
+        "dungeon_graphics_view.py: floor tile color must be visible "
+        "(warm stone brown, not near-black)."
+    )
+    print("  ✅ Source: walkable floor uses visible color")
+
+    assert 'Key_W' in code or 'WASD' in code, (
+        "dungeon_graphics_view.py: WASD movement via keyPressEvent missing"
+    )
+    assert 'keyPressEvent' in code, "keyPressEvent not defined"
+    print("  ✅ Source: WASD keyPressEvent present")
+
+    assert '_draw_player' in code, "dungeon_graphics_view.py: _draw_player() missing"
+    assert '🐼' in code, "dungeon_graphics_view.py: panda emoji player indicator missing"
+    print("  ✅ Source: _draw_player() draws panda emoji")
+
+    assert 'StrongFocus' in code, (
+        "dungeon_graphics_view.py: setFocusPolicy(StrongFocus) needed for keyboard capture"
+    )
+    print("  ✅ Source: StrongFocus set for keyboard capture")
+
+    # Runtime: player always starts on a walkable tile across multiple dungeon seeds
+    import sys, logging, os, random
+    os.environ.setdefault('QT_QPA_PLATFORM', 'offscreen')
+    logging.disable(logging.CRITICAL)
+    sys.path.insert(0, 'src')
+    from PyQt6.QtWidgets import QApplication
+    from PyQt6.QtCore import Qt, QEvent
+    from PyQt6.QtGui import QKeyEvent
+    _app = QApplication.instance() or QApplication(sys.argv)
+    from ui.dungeon_graphics_view import DungeonGraphicsView
+    from features.integrated_dungeon import IntegratedDungeon
+
+    for trial in range(3):
+        d = IntegratedDungeon()
+        view = DungeonGraphicsView()
+        view.resize(800, 600)
+        view.set_dungeon(d)
+        floor_data, _ = view._get_floor_data()
+        px, py = view._player_x, view._player_y
+        assert 0 <= py < len(floor_data), f"player row {py} out of bounds"
+        assert 0 <= px < len(floor_data[py]), f"player col {px} out of bounds"
+        tile = floor_data[py][px]
+        assert tile == 0, (
+            f"Trial {trial}: player spawned on wall tile at ({px},{py}): tile={tile}"
+        )
+    print("  ✅ Runtime: player always spawns on walkable floor tile")
+
+    # Test WASD movement
+    d = IntegratedDungeon()
+    view = DungeonGraphicsView()
+    view.resize(800, 600)
+    view.set_dungeon(d)
+    moved = False
+    for key in (Qt.Key.Key_W, Qt.Key.Key_S, Qt.Key.Key_A, Qt.Key.Key_D,
+                Qt.Key.Key_Up, Qt.Key.Key_Down, Qt.Key.Key_Left, Qt.Key.Key_Right):
+        old_x, old_y = view._player_x, view._player_y
+        evt = QKeyEvent(QEvent.Type.KeyPress, key, Qt.KeyboardModifier.NoModifier)
+        view.keyPressEvent(evt)
+        if view._player_x != old_x or view._player_y != old_y:
+            moved = True
+            break
+    assert moved, "WASD movement: player never moved in any direction (all surrounded by walls?)"
+    print("  ✅ Runtime: WASD key moves player to adjacent walkable tile")
+
+
 def run_all_tests():
     print("=" * 65)
     print("Hybrid Architecture + Lazy rembg Import Tests")
@@ -3527,6 +3613,7 @@ def run_all_tests():
         test_tooltip_mode_cross_path_normalisation,
         test_per_cursor_color_overrides,
         test_inventory_backpack_pocket_tabs,
+        test_dungeon_view_improvements,
     ]
 
     passed, failed = [], []

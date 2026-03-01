@@ -90,6 +90,11 @@ class DungeonGraphicsView(QGraphicsView):
         self.tile_size = 32
         self.show_fog = True
         self.show_minimap = True
+
+        # Player position (tile coordinates)
+        self._player_x: int = 1
+        self._player_y: int = 1
+        self._player_item: 'Optional[QGraphicsTextItem]' = None
         
         # Create scene
         self.scene = QGraphicsScene()
@@ -101,9 +106,10 @@ class DungeonGraphicsView(QGraphicsView):
         self.setViewportUpdateMode(QGraphicsView.ViewportUpdateMode.FullViewportUpdate)
         self.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        
+        self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
+
         # Set background
-        self.setBackgroundBrush(QBrush(QColor("#1a1a1a")))
+        self.setBackgroundBrush(QBrush(QColor("#0a0a1a")))
         
         # Initial render
         self.render_dungeon()
@@ -167,15 +173,42 @@ class DungeonGraphicsView(QGraphicsView):
         rows = len(floor_data)
         cols = len(floor_data[0]) if rows > 0 else 0
 
-        # Tile colors — collision_map uses 1=wall, 0=walkable
+        # Tile colors — collision_map: 0=walkable floor, 1=wall
+        # Using distinctly visible colors so the dungeon is not all-black.
         tile_colors = {
-            0: QColor("#3a3a3a"),  # Walkable floor
-            1: QColor("#1a1a1a"),  # Wall/void
-            2: QColor("#00aa00"),  # Start (legacy grid)
-            3: QColor("#aa0000"),  # End/stairs (legacy grid)
-            4: QColor("#0000aa"),  # Water (legacy grid)
-            5: QColor("#aa5500"),  # Lava (legacy grid)
+            0: QColor("#4a3828"),  # Walkable floor — warm stone brown
+            1: QColor("#1c1c2e"),  # Wall — deep indigo-black (visibly darker)
+            2: QColor("#2e7d32"),  # Start (legacy)
+            3: QColor("#b71c1c"),  # End / stairs down (legacy)
+            4: QColor("#0d47a1"),  # Water (legacy)
+            5: QColor("#bf360c"),  # Lava (legacy)
         }
+        wall_pen   = QPen(QColor("#0d0d1a"), 1)  # hairline grid on walls
+        floor_pen  = QPen(QColor("#5a4838"), 1)  # subtle grout lines on floor
+
+        # Find player starting position: first walkable tile
+        start_row, start_col = 1, 1
+        if floor_obj is not None:
+            for (sr, sc) in getattr(floor_obj, 'start_positions', []):
+                start_row, start_col = sr, sc
+                break
+        # If start_positions is empty or points to a wall, scan for first walkable tile
+        in_bounds = (0 <= start_row < rows
+                     and 0 <= start_col < len(floor_data[start_row]))
+        on_floor  = in_bounds and floor_data[start_row][start_col] == 0
+        if not on_floor:
+            start_row, start_col = None, None
+            found_walkable = False
+            for sr in range(rows):
+                if found_walkable:
+                    break
+                for sc in range(len(floor_data[sr])):
+                    if floor_data[sr][sc] == 0:
+                        start_row, start_col = sr, sc
+                        found_walkable = True
+                        break
+            if start_row is None:
+                start_row, start_col = 1, 1
 
         # Draw tiles
         for row in range(rows):
@@ -185,25 +218,109 @@ class DungeonGraphicsView(QGraphicsView):
                 x = col * self.tile_size
                 y = row * self.tile_size
 
-                color = tile_colors.get(tile_type, QColor("#1a1a1a"))
+                color = tile_colors.get(tile_type, QColor("#1c1c2e"))
                 rect = QGraphicsRectItem(x, y, self.tile_size, self.tile_size)
                 rect.setBrush(QBrush(color))
-                rect.setPen(QPen(QColor("#000000"), 1))
+                rect.setPen(floor_pen if tile_type == 0 else wall_pen)
                 self.scene.addItem(rect)
 
         # Draw stairs markers — reuse floor_obj already resolved above
         if floor_obj is not None:
-            stair_color = QColor("#ffcc00")
+            stair_color = QColor("#ffd700")
+            stair_pen   = QPen(QColor("#b8860b"), 2)
             for (sx, sy) in getattr(floor_obj, 'stairs_down', []):
-                rect = QGraphicsRectItem(sx * self.tile_size, sy * self.tile_size,
-                                        self.tile_size, self.tile_size)
+                rect = QGraphicsRectItem(sx * self.tile_size + 4, sy * self.tile_size + 4,
+                                        self.tile_size - 8, self.tile_size - 8)
                 rect.setBrush(QBrush(stair_color))
-                rect.setPen(QPen(QColor("#000000"), 1))
+                rect.setPen(stair_pen)
                 self.scene.addItem(rect)
+                # Stair label
+                lbl = QGraphicsTextItem("▼")
+                lbl.setDefaultTextColor(QColor("#0a0a0a"))
+                lbl.setPos(sx * self.tile_size + 6, sy * self.tile_size + 4)
+                self.scene.addItem(lbl)
 
-        # Set scene rect
+        # Place player panda at starting position
+        if self._player_x == 1 and self._player_y == 1:
+            # Initialise to starting tile on first render
+            self._player_x = start_col
+            self._player_y = start_row
+        self._draw_player()
+
+        # Set scene rect and centre on player
         self.scene.setSceneRect(0, 0, cols * self.tile_size, rows * self.tile_size)
+        self.centerOn(self._player_x * self.tile_size, self._player_y * self.tile_size)
     
+    def _draw_player(self) -> None:
+        """Draw the panda player emoji at the current player position."""
+        if self._player_item is not None:
+            try:
+                self.scene.removeItem(self._player_item)
+            except Exception:
+                pass
+
+        lbl = QGraphicsTextItem("🐼")
+        font = lbl.font()
+        font.setPixelSize(max(16, self.tile_size - 6))
+        lbl.setFont(font)
+        lbl.setPos(
+            self._player_x * self.tile_size,
+            self._player_y * self.tile_size - 4,
+        )
+        lbl.setZValue(10)   # above tiles
+        self.scene.addItem(lbl)
+        self._player_item = lbl
+
+    def _get_floor_data(self):
+        """Return (floor_data, floor_obj) for the current floor, or (None, None)."""
+        if isinstance(self.dungeon, list):
+            if self.current_floor < len(self.dungeon):
+                return self.dungeon[self.current_floor], None
+        elif hasattr(self.dungeon, 'dungeon') and hasattr(self.dungeon.dungeon, 'get_floor'):
+            floor_obj = self.dungeon.dungeon.get_floor(self.current_floor)
+            if floor_obj is not None:
+                return floor_obj.collision_map, floor_obj
+        elif hasattr(self.dungeon, 'get_floor'):
+            floor_obj = self.dungeon.get_floor(self.current_floor)
+            if floor_obj is not None:
+                return floor_obj.collision_map, floor_obj
+        return None, None
+
+    def _is_walkable(self, col: int, row: int) -> bool:
+        """Return True if tile (col, row) is walkable (not a wall)."""
+        floor_data, _ = self._get_floor_data()
+        if floor_data is None:
+            return False
+        if row < 0 or row >= len(floor_data):
+            return False
+        if col < 0 or col >= len(floor_data[row]):
+            return False
+        return floor_data[row][col] == 0  # 0 = walkable
+
+    def keyPressEvent(self, event) -> None:
+        """WASD / arrow key movement for the dungeon panda."""
+        dx, dy = 0, 0
+        key = event.key()
+        if key in (Qt.Key.Key_W, Qt.Key.Key_Up):
+            dy = -1
+        elif key in (Qt.Key.Key_S, Qt.Key.Key_Down):
+            dy = 1
+        elif key in (Qt.Key.Key_A, Qt.Key.Key_Left):
+            dx = -1
+        elif key in (Qt.Key.Key_D, Qt.Key.Key_Right):
+            dx = 1
+        else:
+            super().keyPressEvent(event)
+            return
+
+        nx = self._player_x + dx
+        ny = self._player_y + dy
+        if self._is_walkable(nx, ny):
+            self._player_x = nx
+            self._player_y = ny
+            self._draw_player()
+            self.centerOn(nx * self.tile_size, ny * self.tile_size)
+
     def render_player(self, x: int, y: int):
         """Render player at position."""
         px = x * self.tile_size + self.tile_size / 2
