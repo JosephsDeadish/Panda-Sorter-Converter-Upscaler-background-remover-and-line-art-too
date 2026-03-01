@@ -512,6 +512,12 @@ class ImageUpscalerPanelQt(QWidget):
         self._set_tooltip(add_folder_btn, "Add all images from a folder to the selection")
         select_btn_layout.addWidget(add_folder_btn)
 
+        clear_files_btn = QPushButton("✖ Clear")
+        clear_files_btn.clicked.connect(self._clear_files)
+        clear_files_btn.setFixedWidth(65)
+        self._set_tooltip(clear_files_btn, "Remove all selected files from the list")
+        select_btn_layout.addWidget(clear_files_btn)
+
         self.file_count_label = QLabel("No files selected")
         self.file_count_label.setStyleSheet("color: gray;")
         select_btn_layout.addWidget(self.file_count_label)
@@ -1010,6 +1016,15 @@ class ImageUpscalerPanelQt(QWidget):
                 self._schedule_preview_update()
         if added:
             self._check_ready()
+
+    def _clear_files(self):
+        """Clear the selected files list."""
+        self.selected_files = []
+        self.file_count_label.setText("No files selected")
+        self.file_count_label.setStyleSheet("color: gray;")
+        if hasattr(self, 'preview_file_combo'):
+            self.preview_file_combo.clear()
+        self._check_ready()
     
     def _on_preset_changed(self, preset_name):
         """Handle preset selection."""

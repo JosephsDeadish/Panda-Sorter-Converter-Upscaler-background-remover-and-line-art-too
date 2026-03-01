@@ -650,6 +650,12 @@ class LineArtConverterPanelQt(QWidget):
         self._set_tooltip(add_folder_btn, "Add all images from a folder to the selection")
         btn_layout.addWidget(add_folder_btn)
 
+        clear_btn = QPushButton("✖ Clear")
+        clear_btn.clicked.connect(self._clear_files)
+        clear_btn.setFixedWidth(65)
+        self._set_tooltip(clear_btn, "Remove all selected files from the list")
+        btn_layout.addWidget(clear_btn)
+
         group_layout.addLayout(btn_layout)
 
         # Recursive checkbox
@@ -1265,6 +1271,13 @@ class LineArtConverterPanelQt(QWidget):
         if added and not self.selected_file:
             self.selected_file = added[0]
             self._schedule_preview_update()
+
+    def _clear_files(self):
+        """Clear the selected files list."""
+        self.selected_files = []
+        self.selected_file = ""
+        self.file_label.setText("No file selected")
+        self.file_label.setStyleSheet("")
     
     def _on_preset_changed(self, preset_name):
         """Handle preset selection."""
