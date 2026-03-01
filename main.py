@@ -5958,6 +5958,18 @@ class TextureSorterMainWindow(QMainWindow):
                 self.level_system.save()
         except Exception:
             pass
+        try:
+            # Award Panda Coins for unlocking the achievement
+            if self.currency_system:
+                rarity = getattr(achievement, 'rarity', 'bronze')
+                reward_key = f'achievement_{rarity}'
+                coins = self.currency_system.get_reward_for_action(reward_key)
+                if coins > 0:
+                    ach_name = getattr(achievement, 'name', str(achievement))
+                    self.currency_system.earn_money(coins, f'achievement_{ach_name}')
+                    self._update_coin_display()
+        except Exception:
+            pass
 
         try:
             from ui.qt_achievement_popup import show_achievement_popup
