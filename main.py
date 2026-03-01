@@ -4849,6 +4849,15 @@ class TextureSorterMainWindow(QMainWindow):
                     ach.increment_quality_checked(1)
         except Exception as _e:
             logger.debug(f"Achievement trigger failed for {tool_id}: {_e}")
+        # Award Panda Coins for each tool use
+        try:
+            if self.currency_system and success:
+                coins = self.currency_system.get_reward_for_action('conversion_complete')
+                if coins > 0:
+                    self.currency_system.earn_money(coins, f'tool_{tool_id}')
+                    self._update_coin_display()
+        except Exception as _e:
+            logger.debug(f"Coin award failed for {tool_id}: {_e}")
 
     def set_operation_running(self, running: bool):
         """Update UI for operation running state (sorter widgets removed; no-op)."""
@@ -5100,6 +5109,17 @@ class TextureSorterMainWindow(QMainWindow):
                         self.statusBar().showMessage(
                             f"⚔️ Adventure level up! Now level {new_level}", 5000
                         )
+            except Exception:
+                pass
+            # Award Panda Coins for files processed
+            try:
+                if self.currency_system and files_processed > 0:
+                    coins = self.currency_system.get_reward_for_action('file_processed') * files_processed
+                    if files_processed >= 100:
+                        coins += self.currency_system.get_reward_for_action('batch_complete')
+                    if coins > 0:
+                        self.currency_system.earn_money(coins, 'file_processed')
+                        self._update_coin_display()
             except Exception:
                 pass
             # Update mood system — sort complete is a positive event
