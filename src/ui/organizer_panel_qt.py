@@ -420,7 +420,7 @@ class OrganizerWorker(QThread):
     
     def _collect_files(self, source_dir: Path) -> List[Path]:
         """Collect texture files from source directory."""
-        extensions = {'.dds', '.png', '.jpg', '.jpeg', '.tga', '.bmp', '.tiff', '.tif', '.webp', '.gif', '.avif', '.qoi', '.apng', '.jfif', '.ico'}
+        extensions = {'.dds', '.png', '.jpg', '.jpeg', '.tga', '.bmp', '.tiff', '.tif', '.webp', '.gif', '.avif', '.qoi', '.apng', '.jfif', '.ico', '.icns'}
         files = []
         
         # Get recursive setting from settings dict (thread-safe)
@@ -1397,7 +1397,7 @@ class OrganizerPanelQt(QWidget):
             return
         
         source_path = Path(self.source_directory)
-        extensions = {'.dds', '.png', '.jpg', '.jpeg', '.tga', '.bmp', '.tiff', '.tif', '.webp', '.gif', '.avif', '.qoi', '.apng', '.jfif', '.ico'}
+        extensions = {'.dds', '.png', '.jpg', '.jpeg', '.tga', '.bmp', '.tiff', '.tif', '.webp', '.gif', '.avif', '.qoi', '.apng', '.jfif', '.ico', '.icns'}
         
         file_count = 0
         for ext in extensions:
