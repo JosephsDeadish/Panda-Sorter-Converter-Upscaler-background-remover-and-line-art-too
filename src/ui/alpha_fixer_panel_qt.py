@@ -612,7 +612,7 @@ class AlphaFixerPanelQt(QWidget):
             self.selected_files,
             self.output_directory,
             preset_key,
-            skip_existing=getattr(self, '_skip_existing', None) is not None and self._skip_existing.isChecked(),
+            skip_existing=self._skip_existing.isChecked(),
         )
         self.worker_thread.progress.connect(self._on_progress)
         self.worker_thread.finished.connect(self._on_finished)

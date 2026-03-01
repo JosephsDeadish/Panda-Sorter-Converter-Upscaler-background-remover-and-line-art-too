@@ -1620,7 +1620,7 @@ class LineArtConverterPanelQt(QWidget):
                 settings,
                 out_ext=out_ext,
                 save_color_layer=save_color,
-                skip_existing=getattr(self, '_skip_existing', None) is not None and self._skip_existing.isChecked(),
+                skip_existing=self._skip_existing.isChecked(),
             )
             self.conversion_worker.progress.connect(self._on_conversion_progress)
             self.conversion_worker.finished.connect(self._on_conversion_finished)

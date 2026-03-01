@@ -544,7 +544,7 @@ class BatchNormalizerPanelQt(QWidget):
             prefix=self.prefix_edit.text() if self.prefix_edit.text() else None,
             preserve_alpha=self.preserve_alpha_cb.isChecked(),
             strip_metadata=self.strip_metadata_cb.isChecked(),
-            skip_existing=getattr(self, '_skip_existing', None) is not None and self._skip_existing.isChecked(),
+            skip_existing=self._skip_existing.isChecked(),
         )
         
         # Disable normalize button; show cancel button

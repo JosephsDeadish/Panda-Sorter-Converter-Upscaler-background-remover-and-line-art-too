@@ -575,7 +575,7 @@ class ColorCorrectionPanelQt(QWidget):
             self.input_files,
             self.output_dir,
             settings,
-            skip_existing=getattr(self, '_skip_existing', None) is not None and self._skip_existing.isChecked(),
+            skip_existing=self._skip_existing.isChecked(),
         )
         
         # Connect signals
