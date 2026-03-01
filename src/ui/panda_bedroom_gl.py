@@ -1435,6 +1435,18 @@ class PandaBedroomGL(QOpenGLWidget if OPENGL_AVAILABLE else QWidget):  # type: i
             self._right_dragging = True
         self._last_mouse = QPoint(int(event.position().x()), int(event.position().y()))
 
+    # Map furniture IDs to short hover descriptions shown as Qt tooltips
+    _FURNITURE_TIPS = {
+        'wardrobe':     '👗 Wardrobe — Click to browse outfits & costumes',
+        'armor_rack':   '🛡️ Armor Rack — Click to equip armour sets',
+        'weapons_rack': '⚔️ Weapons Rack — Click to manage weapons',
+        'toy_box':      '🧸 Toy Box — Click to play with toys & accessories',
+        'fridge':       '🍎 Fridge — Click to manage food & treats',
+        'trophy_stand': '🏆 Trophy Stand — Click to view achievements',
+        'backpack':     '🎒 Backpack — Click to open inventory & items',
+        'bedroom_door': '🚪 Door — Click to go outside to the world',
+    }
+
     def mouseMoveEvent(self, event: 'QMouseEvent') -> None:  # type: ignore[override]
         if not self._gl_ok:
             return
@@ -1460,6 +1472,21 @@ class PandaBedroomGL(QOpenGLWidget if OPENGL_AVAILABLE else QWidget):  # type: i
 
         self._last_mouse = cur
         self.update()  # always repaint so hover highlights update in paintGL._update_hover()
+
+        # Show a Qt tooltip for the hovered furniture piece
+        try:
+            prev_hover = self._hovered_id
+            self._update_hover()
+            if self._hovered_id != prev_hover or self._hovered_id:
+                tip = self._FURNITURE_TIPS.get(self._hovered_id or '', '')
+                if OPENGL_AVAILABLE:
+                    from PyQt6.QtWidgets import QToolTip
+                    if tip:
+                        QToolTip.showText(event.globalPosition().toPoint(), tip, self)
+                    else:
+                        QToolTip.hideText()
+        except Exception:
+            pass
 
     def mouseReleaseEvent(self, event: 'QMouseEvent') -> None:  # type: ignore[override]
         if not self._gl_ok:
