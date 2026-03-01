@@ -551,7 +551,7 @@ class BackgroundRemoverPanelQt(QWidget):
                 self,
                 "Select Image",
                 "",
-                "Images (*.png *.jpg *.jpeg *.bmp *.gif)"
+                "Images (*.png *.jpg *.jpeg *.bmp *.gif *.avif *.qoi *.apng *.jfif *.tif *.tiff *.webp *.tga *.dds)"
             )
             
             if file_path:
