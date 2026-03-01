@@ -258,9 +258,18 @@ class UpscaleWorker(QThread):
     """Worker thread for upscaling images."""
     progress = pyqtSignal(float, str)  # progress, message
     finished = pyqtSignal(bool, str, int)  # success, message, files_processed
+
+    # Maps UI display name → (PIL save format, file extension)
+    _FMT_MAP = {
+        'PNG':  ('PNG',  '.png'),
+        'JPEG': ('JPEG', '.jpg'),
+        'WebP': ('WEBP', '.webp'),
+        'BMP':  ('BMP',  '.bmp'),
+        'TIFF': ('TIFF', '.tif'),
+    }
     
     def __init__(self, upscaler, files, output_dir, scale_factor, method,
-                 post_process_settings=None, skip_existing=False):
+                 post_process_settings=None, skip_existing=False, output_format='Same as Input'):
         super().__init__()
         self.upscaler = upscaler
         self.files = files
@@ -269,7 +278,17 @@ class UpscaleWorker(QThread):
         self.method = method
         self.post_process_settings = post_process_settings or {}
         self.skip_existing = skip_existing
+        self.output_format = output_format
         self._is_cancelled = False
+
+    def _get_output_path(self, file_path: Path) -> Path:
+        """Return the output path, respecting the selected output format."""
+        stem = file_path.stem
+        if self.output_format in self._FMT_MAP:
+            ext = self._FMT_MAP[self.output_format][1]
+        else:
+            ext = file_path.suffix  # "Same as Input"
+        return Path(self.output_dir) / f"{stem}{ext}"
 
     def run(self):
         """Execute upscaling in background thread."""
@@ -286,7 +305,7 @@ class UpscaleWorker(QThread):
                 progress = (i / total) * 100
                 self.progress.emit(progress, f"Upscaling: {Path(file_path).name}")
 
-                output_path = Path(self.output_dir) / Path(file_path).name
+                output_path = self._get_output_path(Path(file_path))
                 if self.skip_existing and output_path.exists():
                     skipped += 1
                     continue
@@ -310,8 +329,19 @@ class UpscaleWorker(QThread):
                 upscaled_img = Image.fromarray(upscaled)
                 upscaled_img = apply_post_processing(upscaled_img, self.post_process_settings)
 
+                # Convert mode for JPEG (no alpha channel)
+                pil_fmt = self._FMT_MAP.get(self.output_format, (None, None))[0]
+                if pil_fmt == 'JPEG' and upscaled_img.mode in ('RGBA', 'LA', 'P'):
+                    upscaled_img = upscaled_img.convert('RGB')
+
                 # Save
-                upscaled_img.save(output_path)
+                save_kwargs = {}
+                if pil_fmt == 'JPEG':
+                    save_kwargs['quality'] = 95
+                if pil_fmt:
+                    upscaled_img.save(output_path, format=pil_fmt, **save_kwargs)
+                else:
+                    upscaled_img.save(output_path)
                 done += 1
 
             parts = [f"Successfully upscaled {done} image{'s' if done != 1 else ''}"]
@@ -1183,6 +1213,8 @@ class ImageUpscalerPanelQt(QWidget):
         self.status_label.setVisible(True)
         
         # Start worker thread
+        out_fmt = (self.output_format_combo.currentText()
+                   if hasattr(self, 'output_format_combo') else 'Same as Input')
         self.worker_thread = UpscaleWorker(
             self.upscaler,
             self.selected_files,
@@ -1191,6 +1223,7 @@ class ImageUpscalerPanelQt(QWidget):
             method,
             post_process_settings,
             skip_existing=self._skip_existing.isChecked(),
+            output_format=out_fmt,
         )
         self.worker_thread.progress.connect(self._update_progress)
         self.worker_thread.finished.connect(self._upscaling_finished)

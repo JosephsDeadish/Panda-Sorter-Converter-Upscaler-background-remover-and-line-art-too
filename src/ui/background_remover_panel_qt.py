@@ -519,7 +519,11 @@ class BackgroundRemoverPanelQt(QWidget):
                     archive_handler.extract_archive(Path(file_path), temp_dir)
                     
                     # Find first image in extracted files
-                    image_extensions = {'.png', '.jpg', '.jpeg', '.bmp', '.gif'}
+                    image_extensions = {
+                        '.png', '.jpg', '.jpeg', '.bmp', '.gif',
+                        '.webp', '.tga', '.tif', '.tiff',
+                        '.avif', '.qoi', '.apng', '.jfif',
+                    }
                     for img_file in temp_dir.rglob('*'):
                         if img_file.suffix.lower() in image_extensions:
                             self.current_image = str(img_file)
@@ -956,6 +960,7 @@ class BackgroundRemoverPanelQt(QWidget):
     _BATCH_IMAGE_EXTS = {
         '.png', '.jpg', '.jpeg', '.bmp', '.tiff', '.tif',
         '.webp', '.tga', '.gif', '.ico',
+        '.avif', '.qoi', '.apng', '.jfif',
     }
     _BATCH_OUTPUT_SUFFIX = '_nobg'   # appended to stem: photo.png → photo_nobg.png
 

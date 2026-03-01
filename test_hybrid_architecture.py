@@ -3890,6 +3890,178 @@ def test_panda_2d_walking_animation():
     print(f"  ✅ Runtime: idle bob {idle_bob:.2f}, running bob {run_bob:.2f} (both computed)")
 
 
+def test_upscaler_output_format_wired():
+    """UpscaleWorker must respect the output_format parameter.
+
+    Previously output_format_combo existed in the UI but was never passed to
+    UpscaleWorker, so selecting 'PNG' or 'WebP' had no effect — all output
+    files kept the original extension.
+
+    Fixes:
+    1. UpscaleWorker.__init__ gains an ``output_format`` keyword argument.
+    2. UpscaleWorker._get_output_path() rewrites the extension for known formats.
+    3. _start_upscaling() reads output_format_combo and passes it to the worker.
+    4. JPEG mode conversion: images with alpha are converted to RGB before saving.
+    """
+    print("\ntest_upscaler_output_format_wired ...")
+    from pathlib import Path
+    import ast
+
+    src_path = Path(__file__).parent / 'src' / 'ui' / 'upscaler_panel_qt.py'
+    code = src_path.read_text(encoding='utf-8')
+
+    # UpscaleWorker must accept output_format
+    assert 'output_format' in code, (
+        "UpscaleWorker is missing the output_format parameter.\n"
+        "Add output_format='Same as Input' to __init__ and use it in run()."
+    )
+    print("  ✅ Source: output_format parameter present in UpscaleWorker")
+
+    # _get_output_path must be present
+    assert '_get_output_path' in code, (
+        "UpscaleWorker is missing _get_output_path() helper.\n"
+        "Add a method that maps the output_format to the correct file extension."
+    )
+    print("  ✅ Source: _get_output_path() helper present")
+
+    # _start_upscaling must pass output_format
+    tree = ast.parse(code)
+    panel_cls = next((n for n in ast.walk(tree)
+                      if isinstance(n, ast.ClassDef) and n.name == 'ImageUpscalerPanelQt'), None)
+    assert panel_cls is not None, "ImageUpscalerPanelQt class not found"
+
+    start_fn = next((n for n in ast.walk(panel_cls)
+                     if isinstance(n, ast.FunctionDef) and n.name == '_start_upscaling'), None)
+    assert start_fn is not None, "_start_upscaling method not found"
+    start_src = ast.unparse(start_fn)
+    assert 'output_format' in start_src, (
+        "_start_upscaling() does not pass output_format to UpscaleWorker.\n"
+        "Read output_format_combo.currentText() and forward it as output_format=."
+    )
+    print("  ✅ Source: _start_upscaling() forwards output_format to UpscaleWorker")
+
+    # _FMT_MAP or equivalent must map PNG/JPEG/WebP
+    assert 'PNG' in code and 'JPEG' in code and 'WEBP' in code, (
+        "UpscaleWorker._FMT_MAP must map PNG, JPEG, and WebP to PIL format strings."
+    )
+    print("  ✅ Source: PNG/JPEG/WebP format mappings present")
+
+    # Unit test: _get_output_path returns correct extension
+    import sys, os
+    sys.path.insert(0, 'src')
+    os.environ.setdefault('QT_QPA_PLATFORM', 'offscreen')
+    from ui.upscaler_panel_qt import UpscaleWorker
+    w_png  = UpscaleWorker(None, [], '/out', 2, 'bicubic', output_format='PNG')
+    w_jpg  = UpscaleWorker(None, [], '/out', 2, 'bicubic', output_format='JPEG')
+    w_same = UpscaleWorker(None, [], '/out', 2, 'bicubic', output_format='Same as Input')
+
+    png_path  = w_png._get_output_path(Path('/in/photo.tga'))
+    jpg_path  = w_jpg._get_output_path(Path('/in/photo.tga'))
+    same_path = w_same._get_output_path(Path('/in/photo.tga'))
+
+    assert png_path.suffix  == '.png',  f"Expected .png, got {png_path.suffix}"
+    assert jpg_path.suffix  == '.jpg',  f"Expected .jpg, got {jpg_path.suffix}"
+    assert same_path.suffix == '.tga',  f"Expected .tga (same), got {same_path.suffix}"
+    print("  ✅ Runtime: _get_output_path() returns correct extensions for PNG/JPEG/Same")
+
+
+def test_color_correction_white_balance_lut_preview():
+    """Color correction preview must apply white balance and LUT presets.
+
+    Previously white_balance_slider and lut_combo existed in the UI but were
+    NOT applied in _update_preview() — moving them had no visible effect.
+
+    Fixes:
+    1. _update_preview() reads white_balance_slider and lut_combo.
+    2. ColorCorrectionPanelQt._apply_white_balance() static helper shifts R/B channels.
+    3. ColorCorrectionPanelQt._apply_lut_preset() static helper applies named presets.
+    4. ColorCorrector.correct_file() now accepts white_balance kwarg and named lut presets.
+    """
+    print("\ntest_color_correction_white_balance_lut_preview ...")
+    from pathlib import Path
+    import ast
+
+    src_path = Path(__file__).parent / 'src' / 'ui' / 'color_correction_panel_qt.py'
+    code = src_path.read_text(encoding='utf-8')
+
+    # _apply_white_balance must be present as a static/class method
+    assert '_apply_white_balance' in code, (
+        "ColorCorrectionPanelQt._apply_white_balance() is missing.\n"
+        "Add a @staticmethod that shifts R/B channels for warm/cool effect."
+    )
+    print("  ✅ Source: _apply_white_balance() static method present")
+
+    # _apply_lut_preset must be present
+    assert '_apply_lut_preset' in code, (
+        "ColorCorrectionPanelQt._apply_lut_preset() is missing.\n"
+        "Add a @staticmethod that applies Warm/Cool/Cinematic/Vintage LUT presets."
+    )
+    print("  ✅ Source: _apply_lut_preset() static method present")
+
+    # _update_preview must call both helpers
+    tree = ast.parse(code)
+    panel_cls = next((n for n in ast.walk(tree)
+                      if isinstance(n, ast.ClassDef) and n.name == 'ColorCorrectionPanelQt'), None)
+    assert panel_cls is not None, "ColorCorrectionPanelQt class not found"
+    preview_fn = next((n for n in ast.walk(panel_cls)
+                       if isinstance(n, ast.FunctionDef) and n.name == '_update_preview'), None)
+    assert preview_fn is not None, "_update_preview() method not found"
+    preview_src = ast.unparse(preview_fn)
+    assert '_apply_white_balance' in preview_src, (
+        "_update_preview() does not call _apply_white_balance().\n"
+        "Add the white_balance shift inside _update_preview()."
+    )
+    assert '_apply_lut_preset' in preview_src, (
+        "_update_preview() does not call _apply_lut_preset().\n"
+        "Apply the selected LUT preset inside _update_preview()."
+    )
+    print("  ✅ Source: _update_preview() calls both white-balance and LUT helpers")
+
+    # ColorCorrector.correct_file must accept white_balance
+    cc_path = Path(__file__).parent / 'src' / 'tools' / 'color_corrector.py'
+    cc_code = cc_path.read_text(encoding='utf-8')
+    assert 'white_balance' in cc_code, (
+        "ColorCorrector.correct_file() does not handle white_balance.\n"
+        "Add white_balance: int = 0 parameter and apply it."
+    )
+    print("  ✅ Source: ColorCorrector.correct_file() handles white_balance parameter")
+
+    # Unit test: warm white balance should boost R, reduce B
+    import sys, os
+    sys.path.insert(0, 'src')
+    os.environ.setdefault('QT_QPA_PLATFORM', 'offscreen')
+    from PIL import Image
+    from ui.color_correction_panel_qt import ColorCorrectionPanelQt
+
+    # Create a neutral grey 10×10 RGBA image
+    neutral = Image.new('RGBA', (10, 10), (128, 128, 128, 255))
+
+    warm = ColorCorrectionPanelQt._apply_white_balance(neutral, 50)
+    r_w, g_w, b_w, _ = warm.split()
+    r_mean_warm = sum(r_w.getdata()) / 100
+    b_mean_warm = sum(b_w.getdata()) / 100
+
+    cool = ColorCorrectionPanelQt._apply_white_balance(neutral, -50)
+    r_c, g_c, b_c, _ = cool.split()
+    r_mean_cool = sum(r_c.getdata()) / 100
+    b_mean_cool = sum(b_c.getdata()) / 100
+
+    assert r_mean_warm > 128, f"Warm should boost R above 128, got {r_mean_warm:.1f}"
+    assert b_mean_warm < 128, f"Warm should reduce B below 128, got {b_mean_warm:.1f}"
+    assert b_mean_cool > 128, f"Cool should boost B above 128, got {b_mean_cool:.1f}"
+    assert r_mean_cool < 128, f"Cool should reduce R below 128, got {r_mean_cool:.1f}"
+    print(f"  ✅ Runtime: warm R={r_mean_warm:.0f} B={b_mean_warm:.0f}; cool R={r_mean_cool:.0f} B={b_mean_cool:.0f}")
+
+    # LUT presets should modify the image (not return the same pixels)
+    for lut_name in ('Warm', 'Cool', 'Cinematic', 'Vintage'):
+        result = ColorCorrectionPanelQt._apply_lut_preset(neutral, lut_name)
+        r_res, g_res, b_res, _ = result.split()
+        r_mean = sum(r_res.getdata()) / 100
+        b_mean = sum(b_res.getdata()) / 100
+        assert r_mean != 128 or b_mean != 128, f"LUT '{lut_name}' had no effect on neutral image"
+    print("  ✅ Runtime: all four LUT presets modify the image as expected")
+
+
 def run_all_tests():
     print("=" * 65)
     print("Hybrid Architecture + Lazy rembg Import Tests")
@@ -3979,6 +4151,8 @@ def run_all_tests():
         test_timm_bundled_in_spec,
         test_bg_remover_batch_folder_support,
         test_panda_2d_walking_animation,
+        test_upscaler_output_format_wired,
+        test_color_correction_white_balance_lut_preview,
     ]
 
     passed, failed = [], []

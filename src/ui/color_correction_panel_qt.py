@@ -659,6 +659,11 @@ class ColorCorrectionPanelQt(QWidget):
             contrast = self.contrast_slider.value() / 100.0
             saturation = self.saturation_slider.value() / 100.0
             sharpness = self.sharpness_slider.value() / 100.0  # 0.0 to 2.0
+            white_bal = (self.white_balance_slider.value()
+                         if hasattr(self, 'white_balance_slider') else 0)
+            lut_name = (self.lut_combo.currentText()
+                        if hasattr(self, 'lut_combo') and self.lut_combo.currentIndex() > 0
+                        else None)
             
             # Apply adjustments
             if brightness != 0:
@@ -676,6 +681,14 @@ class ColorCorrectionPanelQt(QWidget):
             if sharpness != 1.0:
                 enhancer = ImageEnhance.Sharpness(img)
                 img = enhancer.enhance(sharpness)
+
+            # White balance: shift R and B channels in opposite directions
+            if white_bal != 0:
+                img = self._apply_white_balance(img, white_bal)
+
+            # LUT presets
+            if lut_name:
+                img = self._apply_lut_preset(img, lut_name)
             
             # Convert PIL image to QPixmap in memory (no temp file needed)
             img_rgba = img.convert('RGBA')
@@ -687,6 +700,59 @@ class ColorCorrectionPanelQt(QWidget):
                 
         except Exception as e:
             logger.error(f"Preview update failed: {e}")
+
+    @staticmethod
+    def _apply_white_balance(img: 'Image.Image', amount: int) -> 'Image.Image':
+        """Shift image colour temperature.
+
+        Positive *amount* warms (more red/yellow), negative cools (more blue).
+        *amount* is in the range [-100, 100].
+        """
+        try:
+            from PIL import ImageOps
+            import struct
+            # Build per-channel gamma/offset tables
+            scale = amount / 100.0          # -1.0 … +1.0
+            r_boost = max(0, min(255, int(scale * 30)))   # warm: boost R
+            b_boost = max(0, min(255, int(-scale * 30)))  # warm: cut  B (cool: boost B)
+            rgba = img.convert('RGBA')
+            r, g, b, a = rgba.split()
+            # Shift channels using point()
+            if amount > 0:
+                r = r.point(lambda v: min(255, v + r_boost))
+                b = b.point(lambda v: max(0,   v - r_boost))
+            else:
+                b = b.point(lambda v: min(255, v + b_boost))
+                r = r.point(lambda v: max(0,   v - b_boost))
+            return Image.merge('RGBA', (r, g, b, a))
+        except Exception:
+            return img
+
+    @staticmethod
+    def _apply_lut_preset(img: 'Image.Image', name: str) -> 'Image.Image':
+        """Apply a simple named LUT preset using Pillow point transforms."""
+        try:
+            rgba = img.convert('RGBA')
+            r, g, b, a = rgba.split()
+            if name == 'Warm':
+                r = r.point(lambda v: min(255, int(v * 1.08)))
+                g = g.point(lambda v: min(255, int(v * 1.02)))
+                b = b.point(lambda v: max(0,   int(v * 0.90)))
+            elif name == 'Cool':
+                r = r.point(lambda v: max(0,   int(v * 0.90)))
+                g = g.point(lambda v: min(255, int(v * 1.02)))
+                b = b.point(lambda v: min(255, int(v * 1.10)))
+            elif name == 'Cinematic':
+                r = r.point(lambda v: min(255, int(v * 1.05 + 5)))
+                g = g.point(lambda v: max(0,   int(v * 0.95)))
+                b = b.point(lambda v: max(0,   int(v * 0.85 + 10)))
+            elif name == 'Vintage':
+                r = r.point(lambda v: min(255, int(v * 1.10 + 10)))
+                g = g.point(lambda v: min(255, int(v * 0.98 +  5)))
+                b = b.point(lambda v: max(0,   int(v * 0.80)))
+            return Image.merge('RGBA', (r, g, b, a))
+        except Exception:
+            return img
     
     def _on_comparison_mode_changed(self, mode_text):
         """Handle comparison mode change."""
