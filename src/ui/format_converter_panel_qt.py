@@ -66,6 +66,8 @@ _INPUT_EXTS = {
     ".dds", ".hdr", ".exr", ".avif", ".jp2", ".j2k",
     ".pbm", ".pgm", ".ppm", ".pnm", ".xbm", ".xpm",
     ".cur", ".pcx", ".sgi", ".rgb", ".rgba", ".im",
+    # Modern lossless and icon formats
+    ".qoi", ".icns", ".apng", ".jfif",
 }
 
 # User-facing message shown when AVIF encoding is unavailable.
@@ -90,7 +92,9 @@ _OUTPUT_FORMATS: List[Tuple[str, str, str]] = [
     ("BMP (uncompressed)",             ".bmp",  "BMP"),
     ("TGA / Targa (game-ready)",       ".tga",  "TGA"),
     ("ICO (icon, max 256×256)",        ".ico",  "ICO"),
+    ("ICNS (macOS icon bundle)",       ".icns", "ICNS"),
     ("GIF (256 colours)",              ".gif",  "GIF"),
+    ("QOI (fast lossless)",            ".qoi",  "QOI"),
     ("JPEG 2000 (lossless)",           ".jp2",  "JPEG2000"),
     ("AVIF (modern, very small)",      ".avif", "AVIF"),
 ]
@@ -199,6 +203,14 @@ class _ConvertWorker(QThread):
                     img = bg
                 elif pil_fmt == "ICO":
                     img = img.convert("RGBA")
+                elif pil_fmt == "ICNS":
+                    # ICNS requires square RGBA image
+                    img = img.convert("RGBA")
+                    if img.width != img.height:
+                        side = max(img.width, img.height)
+                        sq = Image.new("RGBA", (side, side), (0, 0, 0, 0))
+                        sq.paste(img, ((side - img.width) // 2, (side - img.height) // 2))
+                        img = sq
                 elif pil_fmt == "GIF":
                     # GIF supports only palette / P mode (256 colours)
                     if img.mode not in ("P", "L"):
@@ -210,6 +222,9 @@ class _ConvertWorker(QThread):
                 # ── ICO size cap ──────────────────────────────────────────
                 if pil_fmt == "ICO":
                     img.thumbnail((256, 256), Image.Resampling.LANCZOS)
+                elif pil_fmt == "ICNS":
+                    # Recommended ICNS sizes: 16, 32, 64, 128, 256, 512, 1024
+                    img.thumbnail((1024, 1024), Image.Resampling.LANCZOS)
 
                 # ── Save kwargs ───────────────────────────────────────────
                 save_kw: dict = {}
@@ -624,6 +639,20 @@ if _PYQT:
                     self._avif_note.setStyleSheet("color: #5588cc; font-size: 9pt; font-style: italic;")
                     self._avif_note.setText(
                         "ℹ️ GIF is limited to 256 colours. Animated GIFs are not preserved."
+                    )
+                    self._avif_note.setVisible(True)
+                elif pil_fmt == "ICNS":
+                    self._avif_note.setStyleSheet("color: #5588cc; font-size: 9pt; font-style: italic;")
+                    self._avif_note.setText(
+                        "ℹ️ ICNS (macOS icon) requires a square input. "
+                        "Sizes 16, 32, 64, 128, 256, 512 px are recommended."
+                    )
+                    self._avif_note.setVisible(True)
+                elif pil_fmt == "QOI":
+                    self._avif_note.setStyleSheet("color: #5588cc; font-size: 9pt; font-style: italic;")
+                    self._avif_note.setText(
+                        "ℹ️ QOI (Quite OK Image) — fast lossless format. "
+                        "Requires Pillow 9.3+ (included in requirements)."
                     )
                     self._avif_note.setVisible(True)
                 else:

@@ -1033,6 +1033,11 @@ class ImageUpscalerPanelQt(QWidget):
             scale_factor = self.preview_scale_spin.value()
             method = self.method_combo.currentText()
             
+            # Show "loading" status while preview generates
+            if hasattr(self, 'status_label'):
+                self.status_label.setText("⏳ Generating preview…")
+                self.status_label.setStyleSheet("color: #aaa; font-style: italic;")
+            
             # Gather post-processing settings
             post_process_settings = {
                 'sharpen': self.sharpen_cb.isChecked(),
@@ -1076,13 +1081,22 @@ class ImageUpscalerPanelQt(QWidget):
             # Display in comparison widget
             self.preview_widget.set_before_image(orig_pixmap)
             self.preview_widget.set_after_image(proc_pixmap)
+
+            # Clear the "loading" status
+            if hasattr(self, 'status_label'):
+                self.status_label.setText("✅ Preview ready — drag the slider to compare")
+                self.status_label.setStyleSheet("color: green;")
             
         except Exception as e:
             logger.error(f"Error displaying preview: {e}")
     
     def _preview_error(self, error_msg):
-        """Handle preview error."""
+        """Handle preview error by logging and showing a user-visible notice."""
         logger.error(f"Preview error: {error_msg}")
+        # Show a brief error in the status label so the user knows what happened
+        if hasattr(self, 'status_label'):
+            self.status_label.setText(f"⚠️ Preview error: {error_msg}")
+            self.status_label.setStyleSheet("color: #cc4444; font-weight: bold;")
     
     def _pil_to_pixmap(self, img, max_size=400):
         """Convert PIL Image to QPixmap"""
