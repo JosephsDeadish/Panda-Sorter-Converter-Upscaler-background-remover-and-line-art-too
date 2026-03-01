@@ -197,9 +197,9 @@ class RepairWorker(QThread):
 class ImageRepairPanelQt(QWidget):
     """PyQt6 panel for repairing corrupted images."""
 
-    finished = pyqtSignal(bool, str)  # success, message
+    finished = pyqtSignal(bool, str, int)  # success, message, files_processed
     error = pyqtSignal(str)  # error message
-    
+
     def __init__(self, parent=None, tooltip_manager=None):
         super().__init__(parent)
         
@@ -610,7 +610,7 @@ class ImageRepairPanelQt(QWidget):
         
         self.progress_label.setText("Repair complete")
         success = failures == 0
-        self.finished.emit(success, f"Repaired {successes} files" + (f" ({failures} failed)" if failures else ""))
+        self.finished.emit(success, f"Repaired {successes} files" + (f" ({failures} failed)" if failures else ""), successes)
     
     def _on_repair_error(self, error_msg):
         """Handle repair error."""

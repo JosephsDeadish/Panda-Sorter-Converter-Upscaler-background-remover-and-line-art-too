@@ -1578,9 +1578,10 @@ class TextureSorterMainWindow(QMainWindow):
                 repair_panel = ImageRepairPanelQt(tooltip_manager=self.tooltip_manager)
                 repair_panel.error.connect(
                     lambda msg: self.statusBar().showMessage(f"❌ Image Repair: {msg}", 5000))
-                repair_panel.finished.connect(lambda ok, msg, _tid='repair': (
+                repair_panel.finished.connect(lambda ok, msg, cnt, _tid='repair': (
                     self.statusBar().showMessage(f"{'✅' if ok else '❌'} Image Repair: {msg}", 4000),
                     self._on_tool_finished(ok, _tid),
+                    self.operation_finished(ok, msg, cnt) if ok and cnt > 0 else None,
                 ))
                 tool_tab_defs.append((repair_panel, "🔧 Image Repair", 'repair'))
             except Exception as _e:
