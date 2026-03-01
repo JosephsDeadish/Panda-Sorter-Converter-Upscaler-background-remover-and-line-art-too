@@ -6106,8 +6106,20 @@ class TooltipVerbosityManager:
             except ValueError:
                 pass
     
-    def set_mode(self, mode: TooltipMode):
-        """Change tooltip verbosity mode and refresh all registered widgets."""
+    def set_mode(self, mode: 'TooltipMode'):
+        """Change tooltip verbosity mode and refresh all registered widgets.
+
+        Normalises *mode* to the local TooltipMode enum to handle the case
+        where settings_panel_qt.py imports TooltipMode via the ``src.features``
+        path while the manager was built with the ``features`` path.  The two
+        paths produce distinct enum classes whose instances compare unequal even
+        though they carry the same value, causing dict-key lookup failures in
+        ``get_tooltip``.  Normalising by ``.value`` avoids this.
+        """
+        try:
+            mode = TooltipMode(mode.value)
+        except (AttributeError, ValueError):
+            pass
         self.current_mode = mode
         self._tip_idx.clear()   # reset cycling positions for new mode
         self._last_tooltip.clear()
@@ -6121,11 +6133,30 @@ class TooltipVerbosityManager:
         Returns an empty string when tooltips are disabled globally.
         Cycles sequentially through the list so each call returns the next tip.
         Falls back to normal mode if the current mode doesn't have an entry.
+
+        The lookup uses ``self.current_mode`` which is normalised by
+        ``set_mode()``; additionally we perform a value-based fallback here to
+        guard against any leftover cross-path enum instances.
         """
         if not self._enabled:
             return ""
 
+        # Primary lookup — fast path when mode is already normalised.
+        # set_mode() normalises via TooltipMode(mode.value) so this branch is
+        # taken on every call after a proper set_mode(); the fallback below is
+        # only reached if current_mode was set without going through set_mode
+        # (e.g. direct assignment in tests).
         tooltips = self.tooltips.get(self.current_mode, {})
+        if not tooltips:
+            # Safety-net value-based fallback for cross-path enum instances.
+            # self.tooltips has only 3 entries so the scan is O(1) in practice.
+            for key, val in self.tooltips.items():
+                if key.value == getattr(self.current_mode, 'value', None):
+                    tooltips = val
+                    # Heal current_mode so subsequent calls take the fast path
+                    self.current_mode = key
+                    break
+
         tooltip = tooltips.get(widget_id, "")
         
         # Fall back to normal mode if current mode doesn't have this widget

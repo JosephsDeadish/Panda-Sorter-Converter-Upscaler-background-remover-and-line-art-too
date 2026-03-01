@@ -3249,6 +3249,71 @@ def test_theme_ambient_decorators():
     print("  ✅ Runtime: all ambient timers stopped on neutral theme")
 
 
+def test_tooltip_mode_cross_path_normalisation():
+    """TooltipVerbosityManager.set_mode() must normalise cross-path enum instances.
+
+    Issue #197: 'tooltips not working, not changing modes'
+    Root cause: settings_panel_qt.py imports TooltipMode via 'src.features' while
+    the manager was built with 'features'.  The two paths produce distinct Python
+    enum classes whose instances compare unequal (even same .value), so
+    self.tooltips.get(current_mode, {}) returns {} and every mode falls back to
+    the normal pool.
+
+    Fix: set_mode() normalises with TooltipMode(mode.value) so the stored
+    current_mode is always a key the self.tooltips dict recognises.
+    get_tooltip() has a secondary value-based fallback as a safety net.
+    """
+    print("\ntest_tooltip_mode_cross_path_normalisation ...")
+    # Source-level: set_mode must normalise via TooltipMode(mode.value)
+    code = open('src/features/tutorial_system.py').read()
+    assert 'TooltipMode(mode.value)' in code, (
+        "tutorial_system.py: set_mode() must normalise via TooltipMode(mode.value) "
+        "to handle cross-path enum identity mismatches."
+    )
+    print("  ✅ Source: set_mode normalises via TooltipMode(mode.value)")
+
+    assert 'key.value == getattr(self.current_mode' in code, (
+        "tutorial_system.py: get_tooltip() must have a value-based fallback "
+        "dict-key lookup for cross-path enum instances."
+    )
+    print("  ✅ Source: get_tooltip has value-based fallback lookup")
+
+    # Runtime: cross-path mode switch works correctly
+    import sys, logging, os
+    os.environ.setdefault('QT_QPA_PLATFORM', 'offscreen')
+    logging.disable(logging.CRITICAL)
+    import main as _m
+    from PyQt6.QtWidgets import QApplication
+    _app = QApplication.instance() or QApplication(sys.argv)
+    win = _m.TextureSorterMainWindow()
+    tm = win.tooltip_manager
+
+    # Import the 'wrong' path enum (simulates settings_panel_qt.py)
+    from src.features.tutorial_system import TooltipMode as TM_cross
+
+    tm.set_mode(TM_cross.NORMAL)
+    normal_tip = tm.get_tooltip('sort_button')
+    assert normal_tip, "Normal mode produced empty sort_button tip"
+    assert all(p not in normal_tip.lower() for p in ['fuck', 'shit']), \
+        f"Normal mode tip contains profanity: {normal_tip}"
+    print(f"  ✅ Runtime: Normal mode tip correct: {normal_tip[:45]}...")
+
+    tm.set_mode(TM_cross.PROFANE)
+    profane_tip = tm.get_tooltip('sort_button')
+    has_profanity = any(w in profane_tip.lower() for w in
+                     ['fuck', 'shit', 'damn', 'ass', 'crap', 'bitch'])
+    assert has_profanity, (
+        f"Profane mode returned a non-profane sort_button tip: {profane_tip!r}. "
+        f"Cross-path enum normalisation not working."
+    )
+    print(f"  ✅ Runtime: Profane mode tip is profane: {profane_tip[:50]}...")
+
+    # Tips cycle on repeated calls
+    tips = [tm.get_tooltip('sort_button') for _ in range(4)]
+    assert len(set(tips)) > 1, "Tooltip cycling broken — all 4 calls returned same tip"
+    print("  ✅ Runtime: Tooltip cycling works across mode change")
+
+
 def run_all_tests():
     print("=" * 65)
     print("Hybrid Architecture + Lazy rembg Import Tests")
@@ -3328,6 +3393,7 @@ def run_all_tests():
         test_panda_gl_starts_on_ground,
         test_livy_shop_commentary,
         test_theme_ambient_decorators,
+        test_tooltip_mode_cross_path_normalisation,
     ]
 
     passed, failed = [], []

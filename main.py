@@ -928,8 +928,10 @@ class OceanAmbientCreature(QLabel):
         self.adjustSize()
 
         pw, ph = parent.width(), parent.height()
-        # Start at the left edge, in the lower 40% of the window
-        y_min = int(ph * 0.55)
+        # Spawn in the lower 45% of the window (y_ratio=0.55 → lower 45%)
+        # so creatures swim near the ocean floor without blocking the UI header.
+        _OCEAN_Y_MIN_RATIO = 0.55
+        y_min = int(ph * _OCEAN_Y_MIN_RATIO)
         y_max = max(y_min + 20, ph - self.height() - 10)
         start_y = _r.randint(y_min, y_max)
         self.move(-self.width() - 10, start_y)
@@ -983,8 +985,12 @@ class GothAmbientSpider(QLabel):
 
         pw = parent.width()
         x = _r.randint(30, max(31, pw - 50))
-        drop_depth = _r.randint(int(parent.height() * 0.08),
-                                int(parent.height() * 0.35))
+        # Drop between 8% and 35% of window height — enough to be visible
+        # without permanently obscuring the tool controls.
+        _SPIDER_DROP_MIN_RATIO = 0.08
+        _SPIDER_DROP_MAX_RATIO = 0.35
+        drop_depth = _r.randint(int(parent.height() * _SPIDER_DROP_MIN_RATIO),
+                                int(parent.height() * _SPIDER_DROP_MAX_RATIO))
 
         self.move(x, -self.height() - 5)
         self.show()
@@ -1048,7 +1054,9 @@ class DraculaAmbientBat(QLabel):
         self.adjustSize()
 
         pw, ph = parent.width(), parent.height()
-        y = _r.randint(10, max(11, int(ph * 0.22)))
+        # Bats fly in the top 22% of the window — above the tab bar area.
+        _BAT_Y_MAX_RATIO = 0.22
+        y = _r.randint(10, max(11, int(ph * _BAT_Y_MAX_RATIO)))
         # Start at the right edge, fly left
         self.move(pw + self.width() + 10, y)
         self.show()
