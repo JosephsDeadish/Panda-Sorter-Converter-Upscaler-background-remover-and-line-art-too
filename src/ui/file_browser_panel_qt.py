@@ -670,20 +670,19 @@ class FileBrowserPanelQt(QWidget):
         self.file_selected.emit(filepath)
     
     def on_file_double_clicked(self, item: QListWidgetItem):
-        """Handle file double-clicked"""
+        """Handle file double-clicked — open with default OS application."""
         filepath = Path(item.data(Qt.ItemDataRole.UserRole))
-        # Open file with default application
         import subprocess
         import platform
         import os
         
         try:
             if platform.system() == 'Darwin':  # macOS
-                subprocess.call(('open', str(filepath)))
+                subprocess.Popen(('open', str(filepath)))
             elif platform.system() == 'Windows':  # Windows
                 os.startfile(str(filepath))
-            else:  # linux variants
-                subprocess.call(('xdg-open', str(filepath)))
+            else:  # Linux / other POSIX
+                subprocess.Popen(('xdg-open', str(filepath)))
         except Exception as e:
             logger.error(f"Error opening file: {e}")
     
@@ -701,6 +700,10 @@ class FileBrowserPanelQt(QWidget):
                 # Show image preview
                 if PIL_AVAILABLE:
                     img = Image.open(filepath)
+                    # Capture original dimensions before thumbnail() resizes in-place
+                    original_width, original_height = img.size
+                    original_format = img.format
+                    original_mode = img.mode
                     
                     # Create larger preview (max 512x512)
                     img.thumbnail((512, 512), Image.Resampling.LANCZOS)
@@ -720,14 +723,13 @@ class FileBrowserPanelQt(QWidget):
                     pixmap = QPixmap.fromImage(qimage)
                     self.preview_label.setPixmap(pixmap)
                     
-                    # Show file info
+                    # Show file info using saved original dimensions (no second file-open)
                     size_mb = filepath.stat().st_size / (1024 * 1024)
-                    original_img = Image.open(filepath)
                     self.info_label.setText(
                         f"<b>File:</b> {filepath.name}<br>"
-                        f"<b>Size:</b> {original_img.size[0]} x {original_img.size[1]}<br>"
-                        f"<b>Format:</b> {original_img.format}<br>"
-                        f"<b>Mode:</b> {original_img.mode}<br>"
+                        f"<b>Size:</b> {original_width} x {original_height}<br>"
+                        f"<b>Format:</b> {original_format}<br>"
+                        f"<b>Mode:</b> {original_mode}<br>"
                         f"<b>File Size:</b> {size_mb:.2f} MB"
                     )
                 else:
@@ -737,6 +739,17 @@ class FileBrowserPanelQt(QWidget):
             logger.error(f"Error showing preview: {e}", exc_info=True)
             self.preview_label.setText(f"Error loading preview:\n{e}")
     
+    def closeEvent(self, event):
+        """Stop the thumbnail generator thread before the widget is destroyed.
+
+        Without this, the thread may emit ``thumbnail_ready`` after the widget
+        is gone, causing a RuntimeError or segfault (Qt uses-after-free).
+        """
+        if self.thumbnail_generator is not None and self.thumbnail_generator.isRunning():
+            self.thumbnail_generator.stop()
+            self.thumbnail_generator.wait(500)  # 500 ms grace period
+        super().closeEvent(event)
+
     def refresh_view(self):
         """Refresh the current folder"""
         if self.current_folder:

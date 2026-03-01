@@ -1732,7 +1732,8 @@ class SettingsPanelQt(QWidget):
                 self.appearance_cursor_combo.setCurrentText(cursor.capitalize())
 
             cursor_size = self.config.get('ui', 'cursor_size', default='medium')
-            self.cursor_size_combo.setCurrentText(cursor_size.capitalize())
+            # Use replace+title so "extra_large" → "Extra Large" (not "Extra_large")
+            self.cursor_size_combo.setCurrentText(cursor_size.replace('_', ' ').title())
             
             trail = self.config.get('ui', 'cursor_trail', default=False)
             self.cursor_trail_check.setChecked(trail)

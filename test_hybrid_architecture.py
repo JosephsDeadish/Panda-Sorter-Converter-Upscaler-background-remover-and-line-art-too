@@ -3531,6 +3531,104 @@ def test_dungeon_view_improvements():
     print("  ✅ Runtime: WASD key moves player to adjacent walkable tile")
 
 
+def test_cursor_size_extra_large_round_trip():
+    """cursor_size 'Extra Large' must survive a config save/load round trip.
+
+    Issue #198 (comment: 'mouse cursor size changing doesn't work at all')
+
+    Root cause: ``load_settings()`` called ``cursor_size.capitalize()`` which
+    converts ``'extra_large'`` (the underscore form saved to config) into
+    ``'Extra_large'``, not matching the combo item ``'Extra Large'``.  The
+    combo then fell back to its first item (``'Small'``), making it appear that
+    the size selection was silently reset on every restart.
+
+    Fix: use ``cursor_size.replace('_', ' ').title()`` so that the stored
+    value ``'extra_large'`` → ``'Extra Large'`` which matches the combo item.
+    """
+    print("\ntest_cursor_size_extra_large_round_trip ...")
+    from pathlib import Path
+    src = Path(__file__).parent / 'src' / 'ui' / 'settings_panel_qt.py'
+    code = src.read_text(encoding='utf-8')
+
+    # The fix must be present: replace('_', ' ').title() on cursor_size
+    assert "cursor_size.replace('_', ' ').title()" in code, (
+        "settings_panel_qt.py: load_settings() still uses cursor_size.capitalize().\n"
+        "This breaks 'Extra Large' round-trip: capitalize() gives 'Extra_large' which\n"
+        "does not match the combo item 'Extra Large'.\n"
+        "Fix: self.cursor_size_combo.setCurrentText(cursor_size.replace('_', ' ').title())"
+    )
+    print("  ✅ Source: cursor_size loaded with replace+title (not bare capitalize)")
+
+    # Verify by simulation: all valid cursor sizes survive the round-trip
+    for display, stored in [
+        ("Small",       "small"),
+        ("Medium",      "medium"),
+        ("Large",       "large"),
+        ("Extra Large", "extra_large"),
+    ]:
+        recovered = stored.replace('_', ' ').title()
+        assert recovered == display, (
+            f"Round-trip failed: stored={stored!r} → recovered={recovered!r} "
+            f"expected={display!r}"
+        )
+    print("  ✅ All four cursor sizes survive the config round-trip correctly")
+
+
+def test_file_browser_close_event_stops_thread():
+    """FileBrowserPanelQt must define closeEvent() that stops the ThumbnailGenerator.
+
+    Issue #198 (comment: 'using file browser crashes application')
+
+    Root cause: ``ThumbnailGenerator`` is a QThread that emits ``thumbnail_ready``
+    after each image is processed.  Without a ``closeEvent()`` override, the thread
+    keeps running after the widget is deleted and the deferred signal fires on a
+    dangling C++ Qt object, causing a RuntimeError or segfault.
+
+    Fix: override ``closeEvent`` to call ``self.thumbnail_generator.stop()`` and
+    ``self.thumbnail_generator.wait(500)`` before delegating to ``super()``.
+    """
+    print("\ntest_file_browser_close_event_stops_thread ...")
+    import ast
+    from pathlib import Path
+
+    src = Path(__file__).parent / 'src' / 'ui' / 'file_browser_panel_qt.py'
+    code = src.read_text(encoding='utf-8')
+    tree = ast.parse(code, filename=str(src))
+
+    # Locate FileBrowserPanelQt class
+    fb_class = next(
+        (n for n in ast.walk(tree)
+         if isinstance(n, ast.ClassDef) and n.name == 'FileBrowserPanelQt'),
+        None,
+    )
+    assert fb_class is not None, "FileBrowserPanelQt class not found"
+
+    method_names = {n.name for n in ast.walk(fb_class)
+                    if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))}
+    assert 'closeEvent' in method_names, (
+        "FileBrowserPanelQt.closeEvent() is missing.\n"
+        "Without it, the ThumbnailGenerator thread emits signals onto a\n"
+        "destroyed widget, causing a crash when the file browser is closed\n"
+        "while thumbnails are still being generated.\n"
+        "Fix: add closeEvent(self, event) that stops the thumbnail thread."
+    )
+    print("  ✅ Source: closeEvent() method present in FileBrowserPanelQt")
+
+    # closeEvent must reference the thumbnail_generator stop/wait
+    close_src = ''
+    for node in ast.walk(fb_class):
+        if isinstance(node, ast.FunctionDef) and node.name == 'closeEvent':
+            close_src = ast.unparse(node)
+    assert 'thumbnail_generator' in close_src, (
+        "closeEvent() does not reference thumbnail_generator — "
+        "the thread is not being stopped on close."
+    )
+    assert 'stop' in close_src or 'quit' in close_src, (
+        "closeEvent() does not call stop() or quit() on the thumbnail thread."
+    )
+    print("  ✅ Source: closeEvent() stops the ThumbnailGenerator thread")
+
+
 def run_all_tests():
     print("=" * 65)
     print("Hybrid Architecture + Lazy rembg Import Tests")
@@ -3614,6 +3712,8 @@ def run_all_tests():
         test_per_cursor_color_overrides,
         test_inventory_backpack_pocket_tabs,
         test_dungeon_view_improvements,
+        test_cursor_size_extra_large_round_trip,
+        test_file_browser_close_event_stops_thread,
     ]
 
     passed, failed = [], []
