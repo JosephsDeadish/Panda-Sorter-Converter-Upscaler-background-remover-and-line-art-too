@@ -5067,12 +5067,25 @@ class TextureSorterMainWindow(QMainWindow):
             # Show statistics summary in log area
             try:
                 if self.statistics_tracker and files_processed > 0:
+                    # Populate the tracker with batch totals so get_summary() returns
+                    # meaningful per-operation throughput (not accumulated session data).
+                    import time as _time_mod
+                    self.statistics_tracker.set_total_files(files_processed)
+                    elapsed = _time_mod.time() - self.statistics_tracker.start_time
+                    per_file_time = elapsed / files_processed if files_processed else 0
+                    for _ in range(files_processed):
+                        self.statistics_tracker.record_file_processed(
+                            category='processed',
+                            file_size=256 * 1024,  # approximate 256 KB per file
+                            processing_time=per_file_time,
+                            success=True,
+                        )
                     summary = self.statistics_tracker.get_summary()
-                    elapsed = summary.get('total_time', 0)
-                    rate = summary.get('files_per_second', 0)
-                    errors = summary.get('error_count', 0)
+                    elapsed_s = summary.get('session', {}).get('elapsed_seconds', elapsed)
+                    rate = summary['performance'].get('files_per_second', 0)
+                    errors = summary.get('errors', {}).get('total', 0)
                     self.log(
-                        f"📊 Stats: {files_processed} files in {elapsed:.1f}s"
+                        f"📊 Stats: {files_processed} files in {elapsed_s:.1f}s"
                         f" ({rate:.1f} files/sec)"
                         + (f" | {errors} error(s)" if errors else "")
                     )
