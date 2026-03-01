@@ -1528,9 +1528,10 @@ class TextureSorterMainWindow(QMainWindow):
                 upscaler_panel = ImageUpscalerPanelQt(tooltip_manager=self.tooltip_manager)
                 upscaler_panel.error.connect(
                     lambda msg: self.statusBar().showMessage(f"❌ Upscaler: {msg}", 5000))
-                upscaler_panel.finished.connect(lambda ok, msg, _tid='upscaler': (
+                upscaler_panel.finished.connect(lambda ok, msg, cnt, _tid='upscaler': (
                     self.statusBar().showMessage(f"{'✅' if ok else '❌'} Upscaler: {msg}", 4000),
                     self._on_tool_finished(ok, _tid),
+                    self.operation_finished(ok, msg, cnt) if ok and cnt > 0 else None,
                 ))
                 tool_tab_defs.append((upscaler_panel, "🔍 Image Upscaler", 'upscaler'))
             except Exception as _e:

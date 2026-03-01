@@ -257,7 +257,7 @@ UPSCALER_PRESETS = {
 class UpscaleWorker(QThread):
     """Worker thread for upscaling images."""
     progress = pyqtSignal(float, str)  # progress, message
-    finished = pyqtSignal(bool, str)  # success, message
+    finished = pyqtSignal(bool, str, int)  # success, message, files_processed
     
     def __init__(self, upscaler, files, output_dir, scale_factor, method,
                  post_process_settings=None, skip_existing=False):
@@ -279,7 +279,7 @@ class UpscaleWorker(QThread):
             skipped = 0
             for i, file_path in enumerate(self.files):
                 if self._is_cancelled:
-                    self.finished.emit(False, "Cancelled")
+                    self.finished.emit(False, "Cancelled", done)
                     return
 
                 # Update progress
@@ -317,10 +317,10 @@ class UpscaleWorker(QThread):
             parts = [f"Successfully upscaled {done} image{'s' if done != 1 else ''}"]
             if skipped:
                 parts.append(f"{skipped} skipped (already existed)")
-            self.finished.emit(True, ", ".join(parts))
+            self.finished.emit(True, ", ".join(parts), done)
         except Exception as e:
             logger.error(f"Upscaling failed: {e}", exc_info=True)
-            self.finished.emit(False, f"Upscaling failed: {str(e)}")
+            self.finished.emit(False, f"Upscaling failed: {str(e)}", 0)
     
     def cancel(self):
         """Cancel the operation."""
@@ -377,7 +377,7 @@ class PreviewWorker(QThread):
 class ImageUpscalerPanelQt(QWidget):
     """PyQt6 panel for image upscaling."""
 
-    finished = pyqtSignal(bool, str)  # success, message
+    finished = pyqtSignal(bool, str, int)  # success, message, files_processed
     error = pyqtSignal(str)  # error message
     
     def __init__(self, parent=None, tooltip_manager=None):
@@ -1407,7 +1407,7 @@ class ImageUpscalerPanelQt(QWidget):
         self.progress_bar.setValue(int(progress))
         self.status_label.setText(message)
     
-    def _upscaling_finished(self, success, message):
+    def _upscaling_finished(self, success, message, files_processed: int = 0):
         """Handle upscaling completion."""
         # Re-enable UI
         self.process_btn.setEnabled(True)
@@ -1427,7 +1427,7 @@ class ImageUpscalerPanelQt(QWidget):
             self.status_label.setStyleSheet("color: red; font-weight: bold;")
             QMessageBox.warning(self, "Error", message)
 
-        self.finished.emit(success, message)
+        self.finished.emit(success, message, files_processed)
         if not success:
             self.error.emit(message)
         self.worker_thread = None
