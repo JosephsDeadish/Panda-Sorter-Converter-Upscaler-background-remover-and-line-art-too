@@ -481,10 +481,10 @@ class ImageUpscalerPanelQt(QWidget):
         file_layout.addLayout(select_btn_layout)
 
         # Recursive checkbox
-        self.recursive_cb = QCheckBox("Process subfolders")
-        self.recursive_cb.setChecked(False)
-        self._set_tooltip(self.recursive_cb, "When adding a folder, also include images in sub-folders")
-        file_layout.addWidget(self.recursive_cb)
+        self.recursive_input_cb = QCheckBox("Process subfolders")
+        self.recursive_input_cb.setChecked(False)
+        self._set_tooltip(self.recursive_input_cb, "When adding a folder, also include images in sub-folders")
+        file_layout.addWidget(self.recursive_input_cb)
         
         # Output directory button
         output_btn_layout = QHBoxLayout()
@@ -943,7 +943,8 @@ class ImageUpscalerPanelQt(QWidget):
         folder = QFileDialog.getExistingDirectory(self, "Select Folder")
         if not folder:
             return
-        recursive = hasattr(self, 'recursive_cb') and self.recursive_cb.isChecked()
+        recursive = getattr(self, 'recursive_input_cb', None)
+        recursive = recursive.isChecked() if recursive is not None else False
         folder_path = Path(folder)
         from ui import IMAGE_EXTENSIONS
         new_files = []

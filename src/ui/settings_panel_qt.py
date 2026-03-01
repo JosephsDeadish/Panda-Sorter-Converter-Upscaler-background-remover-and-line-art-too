@@ -1871,7 +1871,14 @@ class SettingsPanelQt(QWidget):
             self.config.set('ui', 'animation_speed', value=speed)
             self.config.save()
             self.settingsChanged.emit("ui.animation_speed", speed)
-    
+
+    def _get_tooltip_manager(self):
+        """Return the active TooltipManager instance (checks both main_window and self)."""
+        return (
+            getattr(self.main_window, 'tooltip_manager', None)
+            if self.main_window else None
+        ) or self.tooltip_manager
+
     def on_tooltip_mode_changed(self):
         """Handle tooltip mode changes"""
         if self._updating:
@@ -1893,10 +1900,7 @@ class SettingsPanelQt(QWidget):
 
             # Update tooltip system if available — check both main_window.tooltip_manager
             # and the directly-passed tooltip_manager attribute
-            _tm = (
-                getattr(self.main_window, 'tooltip_manager', None)
-                if self.main_window else None
-            ) or self.tooltip_manager
+            _tm = self._get_tooltip_manager()
             if _tm is not None:
                 try:
                     from features.tutorial_system import TooltipMode
@@ -2260,10 +2264,7 @@ class SettingsPanelQt(QWidget):
     def set_tooltip(self, widget: QWidget, widget_id: str):
         """Set tooltip for a widget using the tooltip manager"""
         try:
-            _tm = (
-                getattr(self.main_window, 'tooltip_manager', None)
-                if self.main_window else None
-            ) or self.tooltip_manager
+            _tm = self._get_tooltip_manager()
             if _tm is not None:
                 tooltip_text = _tm.get_tooltip(widget_id)
                 widget.setToolTip(tooltip_text)
