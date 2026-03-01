@@ -1467,9 +1467,10 @@ class TextureSorterMainWindow(QMainWindow):
         if AlphaFixerPanelQt is not None:
             try:
                 alpha_panel = AlphaFixerPanelQt(tooltip_manager=self.tooltip_manager)
-                alpha_panel.finished.connect(lambda ok, msg, _tid='alpha_fixer': (
+                alpha_panel.finished.connect(lambda ok, msg, cnt, _tid='alpha_fixer': (
                     self.statusBar().showMessage(f"{'✅' if ok else '❌'} Alpha Fixer: {msg}", 4000),
                     self._on_tool_finished(ok, _tid),
+                    self.operation_finished(ok, msg, cnt) if ok and cnt > 0 else None,
                 ))
                 tool_tab_defs.append((alpha_panel, "✨ Alpha Fixer", 'alpha_fixer'))
             except Exception as _e:
@@ -1481,9 +1482,10 @@ class TextureSorterMainWindow(QMainWindow):
         if ColorCorrectionPanelQt is not None:
             try:
                 color_panel = ColorCorrectionPanelQt(tooltip_manager=self.tooltip_manager)
-                color_panel.finished.connect(lambda ok, msg, _tid='color': (
+                color_panel.finished.connect(lambda ok, msg, cnt, _tid='color': (
                     self.statusBar().showMessage(f"{'✅' if ok else '❌'} Color Correction: {msg}", 4000),
                     self._on_tool_finished(ok, _tid),
+                    self.operation_finished(ok, msg, cnt) if ok and cnt > 0 else None,
                 ))
                 tool_tab_defs.append((color_panel, "🎨 Color Correction", 'color'))
             except Exception as _e:

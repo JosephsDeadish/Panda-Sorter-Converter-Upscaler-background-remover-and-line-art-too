@@ -119,7 +119,7 @@ class ColorCorrectionWorker(QThread):
     """Worker thread for color correction processing."""
 
     progress_updated = pyqtSignal(int, str)  # progress, status
-    finished = pyqtSignal(bool, str)  # success, message
+    finished = pyqtSignal(bool, str, int)  # success, message, files_processed
 
     def __init__(self, corrector, input_files, output_dir, settings, skip_existing=False):
         super().__init__()
@@ -138,7 +138,7 @@ class ColorCorrectionWorker(QThread):
             skipped = 0
             for i, file_path in enumerate(self.input_files):
                 if self._is_cancelled:
-                    self.finished.emit(False, "Cancelled")
+                    self.finished.emit(False, "Cancelled", done)
                     return
 
                 # Update progress
@@ -160,11 +160,11 @@ class ColorCorrectionWorker(QThread):
             parts = [f"✅ Corrected {done} image{'s' if done != 1 else ''}"]
             if skipped:
                 parts.append(f"{skipped} skipped (already existed)")
-            self.finished.emit(True, ", ".join(parts) + "!")
+            self.finished.emit(True, ", ".join(parts) + "!", done)
 
         except Exception as e:
             logger.error(f"Color correction failed: {e}")
-            self.finished.emit(False, f"❌ Error: {str(e)}")
+            self.finished.emit(False, f"❌ Error: {str(e)}", 0)
 
     def cancel(self):
         """Cancel the operation."""
@@ -174,10 +174,9 @@ class ColorCorrectionWorker(QThread):
 class ColorCorrectionPanelQt(QWidget):
     """PyQt6 panel for color correction and enhancement."""
 
-    finished = pyqtSignal(bool, str)  # success, message
-    
+    finished = pyqtSignal(bool, str, int)  # success, message, files_processed
+
     def __init__(self, parent=None, unlockables_system=None, tooltip_manager=None):
-        super().__init__(parent)
         
         if not COLOR_CORRECTOR_AVAILABLE:
             self._show_unavailable()
@@ -604,7 +603,7 @@ class ColorCorrectionPanelQt(QWidget):
         self.progress_bar.setValue(progress)
         self.status_label.setText(status)
     
-    def _on_finished(self, success, message):
+    def _on_finished(self, success, message, files_processed: int = 0):
         """Handle completion from worker thread."""
         # Clean up worker
         if self.worker:
@@ -622,7 +621,7 @@ class ColorCorrectionPanelQt(QWidget):
             QMessageBox.information(self, "Success", message)
         else:
             QMessageBox.warning(self, "Error", message)
-        self.finished.emit(success, message)
+        self.finished.emit(success, message, files_processed)
 
     def cleanup(self):
         """Clean up resources."""

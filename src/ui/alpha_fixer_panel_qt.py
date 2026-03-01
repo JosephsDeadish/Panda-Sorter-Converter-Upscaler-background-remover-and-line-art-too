@@ -110,7 +110,7 @@ except (ImportError, OSError, RuntimeError):
 class AlphaFixWorker(QThread):
     """Worker thread for alpha fixing."""
     progress = pyqtSignal(float, str)  # progress, message
-    finished = pyqtSignal(bool, str)  # success, message
+    finished = pyqtSignal(bool, str, int)  # success, message, files_processed
 
     def __init__(self, corrector, files, output_dir, preset_key, skip_existing=False):
         super().__init__()
@@ -127,7 +127,7 @@ class AlphaFixWorker(QThread):
             skipped = 0
             for i, filepath in enumerate(self.files):
                 if self.isInterruptionRequested():
-                    self.finished.emit(False, f"Cancelled after processing {processed} images")
+                    self.finished.emit(False, f"Cancelled after processing {processed} images", processed)
                     return
                 progress = ((i + 1) / len(self.files)) * 100
                 self.progress.emit(progress, f"Processing ({i+1}/{len(self.files)}): {Path(filepath).name}")
@@ -161,16 +161,16 @@ class AlphaFixWorker(QThread):
             parts = [f"Processed {processed} image{'s' if processed != 1 else ''}"]
             if skipped:
                 parts.append(f"{skipped} skipped (already existed)")
-            self.finished.emit(True, ", ".join(parts))
+            self.finished.emit(True, ", ".join(parts), processed)
         except Exception as e:
             logger.error(f"Alpha fixing failed: {e}")
-            self.finished.emit(False, f"Processing failed: {str(e)}")
+            self.finished.emit(False, f"Processing failed: {str(e)}", 0)
 
 
 class AlphaFixerPanelQt(QWidget):
     """PyQt6 panel for alpha channel fixing."""
 
-    finished = pyqtSignal(bool, str)  # success, message
+    finished = pyqtSignal(bool, str, int)  # success, message, files_processed
 
     def __init__(self, parent=None, tooltip_manager=None):
         super().__init__(parent)
@@ -631,7 +631,7 @@ class AlphaFixerPanelQt(QWidget):
         self.progress_bar.setValue(int(progress))
         self.progress_label.setText(message)
     
-    def _on_finished(self, success, message):
+    def _on_finished(self, success, message, files_processed: int = 0):
         """Handle completion."""
         self.progress_bar.setVisible(False)
         self.process_btn.setEnabled(True)
@@ -645,7 +645,7 @@ class AlphaFixerPanelQt(QWidget):
         else:
             QMessageBox.critical(self, "Error", message)
             self.progress_label.setText("✗ Processing failed")
-        self.finished.emit(success, message)
+        self.finished.emit(success, message, files_processed)
     
     def _set_tooltip(self, widget, text_or_id: str):
         """Set tooltip on a widget using tooltip manager if available.
