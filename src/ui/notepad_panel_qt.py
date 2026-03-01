@@ -19,7 +19,7 @@ try:
         QInputDialog, QSplitter, QFrame, QFileDialog, QLineEdit
     )
     from PyQt6.QtCore import Qt, pyqtSignal, QTimer
-    from PyQt6.QtGui import QFont, QTextCharFormat, QColor, QKeySequence, QShortcut
+    from PyQt6.QtGui import QFont, QTextCharFormat, QColor, QKeySequence, QShortcut, QTextDocument
     PYQT_AVAILABLE = True
 except (ImportError, OSError, RuntimeError):
     PYQT_AVAILABLE = False
@@ -500,7 +500,6 @@ class NotepadPanelQt(QWidget):
 
     def _find_in_note(self, query: str) -> None:
         """Highlight all occurrences of *query* in the current note."""
-        from PyQt6.QtWidgets import QTextEdit
         extra: list = []
         if query:
             fmt = QTextCharFormat()
@@ -535,7 +534,6 @@ class NotepadPanelQt(QWidget):
         """Move to the previous occurrence of the search term."""
         query = self._find_input.text()
         if query:
-            from PyQt6.QtGui import QTextDocument
             found = self.text_editor.find(query, QTextDocument.FindFlag.FindBackward)
             if not found:
                 # Wrap around to end

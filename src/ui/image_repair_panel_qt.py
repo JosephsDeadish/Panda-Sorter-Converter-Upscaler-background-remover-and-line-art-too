@@ -134,6 +134,18 @@ class RepairWorker(QThread):
         self.mode = mode or RepairMode.BALANCED
         self.skip_existing = skip_existing
         self._should_cancel = False
+
+    @staticmethod
+    def _compute_output_path(filepath: str, output_dir) -> str:
+        """Return the output file path for *filepath*.
+
+        Mirrors ``ImageRepairer.repair_file()``'s own auto-generation so the
+        skip-if-exists check and the actual repair call agree on the path.
+        """
+        if output_dir is not None:
+            return os.path.join(output_dir, Path(filepath).name)
+        base, ext = os.path.splitext(filepath)
+        return f"{base}_repaired{ext}"
     
     def run(self):
         """Run repair in background."""
@@ -149,14 +161,8 @@ class RepairWorker(QThread):
                 self.progress.emit(i + 1, len(self.files), filename)
 
                 try:
-                    # Build output path; None lets repair_file auto-generate
-                    # a "<stem>_repaired<ext>" path beside the input file.
-                    if self.output_dir is not None:
-                        output_path = os.path.join(self.output_dir, filename)
-                    else:
-                        # Mirror repair_file()'s own auto-generation so skip works
-                        base, ext = os.path.splitext(filepath)
-                        output_path = f"{base}_repaired{ext}"
+                    # Use the shared helper so skip-check and repair_file agree on path.
+                    output_path = self._compute_output_path(filepath, self.output_dir)
 
                     if self.skip_existing and os.path.exists(output_path):
                         successes += 1

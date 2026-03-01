@@ -1086,8 +1086,9 @@ class TextureSorterMainWindow(QMainWindow):
         self._panda_interaction_timer.start()
 
         # Session-hour coin reward — fires every 60 minutes of active use
+        _SESSION_HOUR_MS = 3_600_000  # 60 min × 60 s × 1000 ms
         self._session_hour_timer = QTimer(self)
-        self._session_hour_timer.setInterval(3_600_000)  # 1 hour in ms
+        self._session_hour_timer.setInterval(_SESSION_HOUR_MS)
         self._session_hour_timer.timeout.connect(self._on_session_hour)
         self._session_hour_timer.start()
 
