@@ -140,6 +140,7 @@ class NormalizationWorker(QThread):
                 progress_callback=progress_callback
             )
             
+            self.progress.emit(100.0, "Done")
             self.finished.emit(True, f"Successfully normalized {len(self.files)} images", len(self.files))
         except InterruptedError as e:
             self.finished.emit(False, str(e), 0)

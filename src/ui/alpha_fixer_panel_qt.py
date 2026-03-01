@@ -161,6 +161,7 @@ class AlphaFixWorker(QThread):
             parts = [f"Processed {processed} image{'s' if processed != 1 else ''}"]
             if skipped:
                 parts.append(f"{skipped} skipped (already existed)")
+            self.progress.emit(100.0, "Done")
             self.finished.emit(True, ", ".join(parts), processed)
         except Exception as e:
             logger.error(f"Alpha fixing failed: {e}")

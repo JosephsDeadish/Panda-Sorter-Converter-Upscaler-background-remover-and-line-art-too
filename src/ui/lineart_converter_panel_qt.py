@@ -541,6 +541,7 @@ class _FormatConversionWorker(QThread):
             parts = [f"Converted {done} image{'s' if done != 1 else ''}"]
             if skipped:
                 parts.append(f"{skipped} skipped (already existed)")
+            self.progress.emit(len(self.files), len(self.files), "Done")
             self.finished.emit(True, ", ".join(parts) + " successfully", done)
         except Exception as e:
             logger.error(f"Batch conversion failed: {e}")

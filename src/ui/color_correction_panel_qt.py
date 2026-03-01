@@ -158,6 +158,7 @@ class ColorCorrectionWorker(QThread):
             parts = [f"✅ Corrected {done} image{'s' if done != 1 else ''}"]
             if skipped:
                 parts.append(f"{skipped} skipped (already existed)")
+            self.progress_updated.emit(100, "Done")
             self.finished.emit(True, ", ".join(parts) + "!", done)
 
         except Exception as e:
