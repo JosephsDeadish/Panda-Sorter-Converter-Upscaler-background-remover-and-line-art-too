@@ -56,6 +56,19 @@ _INPUT_EXTS = {
     ".cur", ".pcx", ".sgi", ".rgb", ".rgba", ".im",
 }
 
+# User-facing message shown when AVIF encoding is unavailable.
+_AVIF_UNAVAILABLE_MSG = (
+    "AVIF encoder not available.\n"
+    "Pillow needs to be built with libaom support.\n"
+    "Run  python setup_models.py  or:  pip install pillow-avif-plugin\n"
+    "Alternatively, convert to WebP or PNG."
+)
+# Shorter version for UI labels
+_AVIF_NOTE_MSG = (
+    "⚠️ AVIF requires Pillow built with libaom.\n"
+    "Run  python setup_models.py  or install:  pip install pillow-avif-plugin"
+)
+
 _OUTPUT_FORMATS: List[Tuple[str, str, str]] = [
     # (display_label, extension, PIL_save_format)
     ("PNG (lossless, alpha)",          ".png",  "PNG"),
@@ -120,6 +133,7 @@ class _ConvertWorker(QThread):
         webp_q    = s["webp_quality"]
         webp_ll   = s["webp_lossless"]
         strip_xmp = s["strip_metadata"]
+        skip_existing = s.get("skip_existing", False)
         name_tpl  = s["name_template"]  # e.g. "{stem}{ext}"
         suffix    = s.get("name_suffix", "")
         total     = len(self._files)
@@ -130,6 +144,19 @@ class _ConvertWorker(QThread):
             if self._cancel:
                 break
             try:
+                # Build output path first so we can skip early if needed
+                stem = fp.stem + suffix
+                out_name = (name_tpl
+                            .replace("{stem}", stem)
+                            .replace("{ext}", out_ext)
+                            .replace("{name}", fp.name))
+                out_path = out_dir / out_name
+
+                if skip_existing and out_path.exists():
+                    self.log_msg.emit(f"⏭️ Skipped (exists): {out_path.name}")
+                    self.progress.emit(done + errors, total, fp.name)
+                    continue
+
                 img = Image.open(fp)
                 img.load()  # force decode (catches lazy errors)
 
@@ -170,14 +197,6 @@ class _ConvertWorker(QThread):
                 if pil_fmt == "ICO":
                     img.thumbnail((256, 256), Image.Resampling.LANCZOS)
 
-                # ── Output path ───────────────────────────────────────────
-                stem = fp.stem + suffix
-                out_name = (name_tpl
-                            .replace("{stem}", stem)
-                            .replace("{ext}", out_ext)
-                            .replace("{name}", fp.name))
-                out_path = out_dir / out_name
-
                 # ── Save kwargs ───────────────────────────────────────────
                 save_kw: dict = {}
                 if pil_fmt == "JPEG":
@@ -205,12 +224,7 @@ class _ConvertWorker(QThread):
                         or "libaom" in exc_str.lower()
                         or "avif" in exc_str.lower()
                     ):
-                        raise RuntimeError(
-                            "AVIF encoder not available.\n"
-                            "Pillow needs to be built with libaom support.\n"
-                            "Run  python setup_models.py  or:  pip install pillow-avif-plugin\n"
-                            "Alternatively, convert to WebP or PNG."
-                        ) from save_exc
+                        raise RuntimeError(_AVIF_UNAVAILABLE_MSG) from save_exc
                     raise
                 done += 1
                 self.log_msg.emit(f"✅ {fp.name}  →  {out_path.name}")
@@ -347,10 +361,7 @@ if _PYQT:
             fmt_lay.addWidget(self._fmt_combo, 0, 1)
 
             # AVIF availability note
-            self._avif_note = QLabel(
-                "⚠️ AVIF requires Pillow built with libaom.\n"
-                "Run  python setup_models.py  or install:  pip install pillow-avif-plugin"
-            )
+            self._avif_note = QLabel(_AVIF_NOTE_MSG)
             self._avif_note.setStyleSheet("color: #e67e00; font-size: 9pt; font-style: italic;")
             self._avif_note.setWordWrap(True)
             self._avif_note.setVisible(False)
@@ -424,6 +435,12 @@ if _PYQT:
             self._strip_meta.setChecked(True)
             self._set_tooltip(self._strip_meta, 'convert_keep_original')
             qual_lay.addWidget(self._strip_meta, 4, 0, 1, 2)
+
+            self._skip_existing = QCheckBox("Skip if output file already exists")
+            self._skip_existing.setChecked(False)
+            self._set_tooltip(self._skip_existing,
+                "When checked, files are not overwritten if the output already exists")
+            qual_lay.addWidget(self._skip_existing, 5, 0, 1, 2)
             lv.addWidget(qual_box)
 
             # Colour space
@@ -570,10 +587,7 @@ if _PYQT:
             try:
                 _, _ext, pil_fmt = _OUTPUT_FORMATS[idx]
                 if pil_fmt == "AVIF":
-                    self._avif_note.setText(
-                        "⚠️ AVIF requires Pillow built with libaom.\n"
-                        "If encoding fails:  pip install pillow-avif-plugin"
-                    )
+                    self._avif_note.setText(_AVIF_NOTE_MSG)
                     self._avif_note.setVisible(True)
                 elif pil_fmt == "JPEG2000":
                     self._avif_note.setText(
@@ -661,6 +675,7 @@ if _PYQT:
                 "webp_quality":   self._webp_q.value(),
                 "webp_lossless":  self._webp_ll.isChecked(),
                 "strip_metadata": self._strip_meta.isChecked(),
+                "skip_existing":  self._skip_existing.isChecked(),
                 "name_template":  name_tpl,
                 "name_suffix":    self._suffix_edit.text(),
             }

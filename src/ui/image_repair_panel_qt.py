@@ -255,18 +255,25 @@ class ImageRepairPanelQt(QWidget):
         self.select_files_btn.clicked.connect(self._select_files)
         self._set_tooltip(self.select_files_btn, 'input_browse')
         btn_layout.addWidget(self.select_files_btn)
-        
+
         self.select_folder_btn = QPushButton("Select Folder")
         self.select_folder_btn.clicked.connect(self._select_folder)
         self._set_tooltip(self.select_folder_btn, 'input_browse')
         btn_layout.addWidget(self.select_folder_btn)
-        
+
         self.clear_btn = QPushButton("Clear")
         self.clear_btn.clicked.connect(self._clear_files)
         self._set_tooltip(self.clear_btn, "Clear the selected files list")
         btn_layout.addWidget(self.clear_btn)
-        
+
         group_layout.addLayout(btn_layout)
+
+        self.recursive_cb = QCheckBox("📂 Process subfolders recursively")
+        self.recursive_cb.setChecked(True)
+        self._set_tooltip(self.recursive_cb,
+            "When enabled, also searches sub-folders when a folder is selected")
+        group_layout.addWidget(self.recursive_cb)
+
         group.setLayout(group_layout)
         layout.addWidget(group)
     
@@ -393,15 +400,22 @@ class ImageRepairPanelQt(QWidget):
             self,
             "Select Folder"
         )
-        
+
         if folder:
-            # Find all image files in folder
-            for root, dirs, files in os.walk(folder):
-                for file in files:
-                    if file.lower().endswith(('.png', '.jpg', '.jpeg')):
-                        filepath = os.path.join(root, file)
-                        self.selected_files.append(filepath)
-            
+            _REPAIR_EXTS = ('.png', '.jpg', '.jpeg', '.bmp', '.tiff', '.tif',
+                            '.webp', '.tga', '.gif')
+            recursive = hasattr(self, 'recursive_cb') and self.recursive_cb.isChecked()
+            if recursive:
+                for root, _dirs, files in os.walk(folder):
+                    for file in files:
+                        if file.lower().endswith(_REPAIR_EXTS):
+                            self.selected_files.append(os.path.join(root, file))
+            else:
+                for file in os.listdir(folder):
+                    fp = os.path.join(folder, file)
+                    if os.path.isfile(fp) and file.lower().endswith(_REPAIR_EXTS):
+                        self.selected_files.append(fp)
+
             self._update_file_count()
     
     def _clear_files(self):
