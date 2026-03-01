@@ -1074,16 +1074,17 @@ class ImageUpscalerPanelQt(QWidget):
         """Convert PIL Image to QPixmap"""
         # Resize for display
         img.thumbnail((max_size, max_size), Image.Resampling.LANCZOS)
-        
+
         # Convert to RGBA
         if img.mode != 'RGBA':
             img = img.convert('RGBA')
-        
-        # Convert to QImage
+
+        # Convert to QImage — keep `data` alive until QPixmap is constructed
         data = img.tobytes("raw", "RGBA")
-        qimage = QImage(data, img.width, img.height, QImage.Format.Format_RGBA8888)
-        
-        return QPixmap.fromImage(qimage)
+        qimage = QImage(data, img.width, img.height, img.width * 4, QImage.Format.Format_RGBA8888)
+        pixmap = QPixmap.fromImage(qimage)
+        del data  # now safe to release
+        return pixmap
     
     def _select_output_directory(self):
         """Open directory dialog to select output directory."""
