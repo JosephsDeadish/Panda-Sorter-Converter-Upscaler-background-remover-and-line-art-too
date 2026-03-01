@@ -3381,6 +3381,70 @@ def test_per_cursor_color_overrides():
     print("  ✅ Runtime: per-cursor color cleared, cursor reverts to default")
 
 
+def test_inventory_backpack_pocket_tabs():
+    """Inventory panel must use backpack pocket-style tabs for category navigation.
+
+    Issue #198: 'Should be a backpack in pandas room that panda opens that brings
+    up panda inventory which should look like the backpack and you click different
+    named backpack pockets to open different inventory sections food should be in
+    food packet toys in toy pocket'
+
+    Source-level checks:
+    - InventoryPanelQt has pocket_tabs QTabWidget attribute
+    - Pockets include Food, Toy, Dungeon, Closet tabs
+    - set_category_filter switches to the right pocket tab
+    - _item_matches_cat_label replaces the old matches_category
+    """
+    print("\ntest_inventory_backpack_pocket_tabs ...")
+    code = open('src/ui/inventory_panel_qt.py').read()
+
+    assert 'pocket_tabs' in code, (
+        "inventory_panel_qt.py: must have pocket_tabs QTabWidget for backpack pocket navigation"
+    )
+    print("  ✅ Source: pocket_tabs QTabWidget present")
+
+    for pocket in ('Food Pocket', 'Toy Pocket', 'Dungeon Pocket', 'Closet Pocket'):
+        assert pocket in code, (
+            f"inventory_panel_qt.py: '{pocket}' tab missing from _POCKETS list"
+        )
+    print("  ✅ Source: Food/Toy/Dungeon/Closet pockets defined")
+
+    assert '_item_matches_cat_label' in code, (
+        "inventory_panel_qt.py: _item_matches_cat_label() helper missing"
+    )
+    print("  ✅ Source: _item_matches_cat_label() helper present")
+
+    assert '_pocket_for_category' in code, (
+        "inventory_panel_qt.py: _pocket_for_category() missing; needed by set_category_filter"
+    )
+    print("  ✅ Source: _pocket_for_category() present")
+
+    # Runtime: can instantiate and switch pocket tabs without error
+    import sys, logging, os
+    os.environ.setdefault('QT_QPA_PLATFORM', 'offscreen')
+    logging.disable(logging.CRITICAL)
+    from PyQt6.QtWidgets import QApplication
+    _app = QApplication.instance() or QApplication(sys.argv)
+    from src.ui.inventory_panel_qt import InventoryPanelQt
+    inv = InventoryPanelQt()
+
+    assert hasattr(inv, 'pocket_tabs'), "pocket_tabs attribute missing at runtime"
+    assert inv.pocket_tabs.count() >= 5, (
+        f"Expected at least 5 pocket tabs, got {inv.pocket_tabs.count()}"
+    )
+    print(f"  ✅ Runtime: {inv.pocket_tabs.count()} pocket tabs created")
+
+    # Switch to Food pocket via set_category_filter
+    inv.set_category_filter('Food')
+    assert inv.current_category == 'Food', "current_category not updated"
+    print("  ✅ Runtime: set_category_filter('Food') switches to Food Pocket")
+
+    # Switch back to All
+    inv.set_category_filter('All')
+    assert inv.pocket_tabs.currentIndex() == 0, "All Items tab is not index 0"
+    print("  ✅ Runtime: set_category_filter('All') switches to All Items tab")
+
+
 def run_all_tests():
     print("=" * 65)
     print("Hybrid Architecture + Lazy rembg Import Tests")
@@ -3462,6 +3526,7 @@ def run_all_tests():
         test_theme_ambient_decorators,
         test_tooltip_mode_cross_path_normalisation,
         test_per_cursor_color_overrides,
+        test_inventory_backpack_pocket_tabs,
     ]
 
     passed, failed = [], []
