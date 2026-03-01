@@ -8,7 +8,7 @@ _log = logging.getLogger(__name__)
 
 # Shared set of image file extensions recognised by all tool panels.
 IMAGE_EXTENSIONS: frozenset = frozenset({
-    '.png', '.jpg', '.jpeg', '.bmp', '.tiff', '.tif', '.webp', '.dds', '.tga'
+    '.png', '.jpg', '.jpeg', '.bmp', '.tiff', '.tif', '.webp', '.dds', '.tga', '.gif'
 })
 
 # Each widget is imported independently so one failure doesn't disable all exports.

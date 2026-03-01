@@ -84,7 +84,7 @@ except (ImportError, OSError, RuntimeError):
 try:
     from ui import IMAGE_EXTENSIONS
 except ImportError:
-    IMAGE_EXTENSIONS = frozenset({'.png', '.jpg', '.jpeg', '.bmp', '.tiff', '.tif', '.webp', '.dds', '.tga'})
+    IMAGE_EXTENSIONS = frozenset({'.png', '.jpg', '.jpeg', '.bmp', '.tiff', '.tif', '.webp', '.dds', '.tga', '.gif'})
 
 
 try:
@@ -112,17 +112,19 @@ class AlphaFixWorker(QThread):
     progress = pyqtSignal(float, str)  # progress, message
     finished = pyqtSignal(bool, str)  # success, message
 
-    def __init__(self, corrector, files, output_dir, preset_key):
+    def __init__(self, corrector, files, output_dir, preset_key, skip_existing=False):
         super().__init__()
         self.corrector = corrector
         self.files = files
         self.output_dir = output_dir
         self.preset_key = preset_key
+        self.skip_existing = skip_existing
 
     def run(self):
         """Execute alpha fixing in background thread."""
         try:
             processed = 0
+            skipped = 0
             for i, filepath in enumerate(self.files):
                 if self.isInterruptionRequested():
                     self.finished.emit(False, f"Cancelled after processing {processed} images")
@@ -140,6 +142,10 @@ class AlphaFixWorker(QThread):
                 # Use the higher-level process_image() which handles PIL loading,
                 # RGBA conversion, numpy conversion and saving internally.
                 output_path = Path(self.output_dir) / Path(filepath).name
+                if self.skip_existing and output_path.exists():
+                    skipped += 1
+                    logger.debug(f"Skipped (exists): {output_path.name}")
+                    continue
                 result = self.corrector.process_image(
                     Path(filepath),
                     output_path=output_path,
@@ -152,7 +158,10 @@ class AlphaFixWorker(QThread):
                 else:
                     logger.warning(f"Skipped {filepath}: {result.get('reason', 'unknown')}")
 
-            self.finished.emit(True, f"Successfully processed {processed} images")
+            parts = [f"Processed {processed} image{'s' if processed != 1 else ''}"]
+            if skipped:
+                parts.append(f"{skipped} skipped (already existed)")
+            self.finished.emit(True, ", ".join(parts))
         except Exception as e:
             logger.error(f"Alpha fixing failed: {e}")
             self.finished.emit(False, f"Processing failed: {str(e)}")
@@ -271,6 +280,11 @@ class AlphaFixerPanelQt(QWidget):
         output_btn.clicked.connect(self._select_output)
         group_layout.addWidget(output_btn)
         self._set_tooltip(output_btn, 'alpha_fix_output')
+
+        self._skip_existing = QCheckBox("Skip if output file already exists")
+        self._skip_existing.setChecked(False)
+        self._set_tooltip(self._skip_existing, "When checked, files are not re-processed if the output already exists")
+        group_layout.addWidget(self._skip_existing)
         
         # Archive options
         archive_layout = QHBoxLayout()
@@ -598,6 +612,7 @@ class AlphaFixerPanelQt(QWidget):
             self.selected_files,
             self.output_directory,
             preset_key,
+            skip_existing=getattr(self, '_skip_existing', None) is not None and self._skip_existing.isChecked(),
         )
         self.worker_thread.progress.connect(self._on_progress)
         self.worker_thread.finished.connect(self._on_finished)

@@ -12,7 +12,7 @@ from typing import List, Optional
 try:
     from ui import IMAGE_EXTENSIONS
 except ImportError:
-    IMAGE_EXTENSIONS = frozenset({'.png', '.jpg', '.jpeg', '.bmp', '.tiff', '.tif', '.webp', '.dds', '.tga'})
+    IMAGE_EXTENSIONS = frozenset({'.png', '.jpg', '.jpeg', '.bmp', '.tiff', '.tif', '.webp', '.dds', '.tga', '.gif'})
 try:
     from PyQt6.QtWidgets import (
         QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
@@ -123,8 +123,6 @@ try:
 except (ImportError, OSError, RuntimeError):
     ARCHIVE_AVAILABLE = False
     logger.warning("Archive handler not available")
-
-IMAGE_EXTENSIONS = {'.png', '.jpg', '.jpeg', '.bmp', '.tiff', '.webp'}
 
 # Line art presets  (tattoo presets always first)
 LINEART_PRESETS = {
@@ -480,7 +478,8 @@ class _FormatConversionWorker(QThread):
     }
 
     def __init__(self, converter, files, output_dir, settings,
-                 out_ext: str = 'png', save_color_layer: bool = False):
+                 out_ext: str = 'png', save_color_layer: bool = False,
+                 skip_existing: bool = False):
         super().__init__()
         self.converter = converter
         self.files = files
@@ -488,13 +487,16 @@ class _FormatConversionWorker(QThread):
         self.settings = settings
         self.out_ext = out_ext.lstrip('.').lower()
         self.save_color_layer = save_color_layer
+        self.skip_existing = skip_existing
 
     def run(self):
         """Execute conversion in background."""
         try:
+            done = 0
+            skipped = 0
             for i, filepath in enumerate(self.files):
                 if self.isInterruptionRequested():
-                    self.finished.emit(False, f"Cancelled after converting {i} image(s)")
+                    self.finished.emit(False, f"Cancelled after converting {done} image(s)")
                     return
                 src = Path(filepath)
                 self.progress.emit(i + 1, len(self.files), src.name)
@@ -506,6 +508,10 @@ class _FormatConversionWorker(QThread):
                 out_stem = src.stem
                 out_name = f"{out_stem}.{self.out_ext}"
                 out_path = self.output_dir / out_name
+
+                if self.skip_existing and out_path.exists():
+                    skipped += 1
+                    continue
 
                 img_to_save = converted
                 if self.out_ext in ('jpg', 'jpeg', 'bmp'):
@@ -521,6 +527,7 @@ class _FormatConversionWorker(QThread):
 
                 save_kwargs = self._SAVE_KWARGS.get(self.out_ext, {})
                 img_to_save.save(out_path, **save_kwargs)
+                done += 1
 
                 # Optionally also save the original colour layer
                 if self.save_color_layer:
@@ -531,7 +538,10 @@ class _FormatConversionWorker(QThread):
                         color_img = color_img.convert('RGB')
                     color_img.save(color_path, **save_kwargs)
 
-            self.finished.emit(True, f"Successfully converted {len(self.files)} image(s)")
+            parts = [f"Converted {done} image{'s' if done != 1 else ''}"]
+            if skipped:
+                parts.append(f"{skipped} skipped (already existed)")
+            self.finished.emit(True, ", ".join(parts) + " successfully")
         except Exception as e:
             logger.error(f"Batch conversion failed: {e}")
             self.finished.emit(False, f"Conversion failed: {str(e)}")
@@ -1187,6 +1197,11 @@ class LineArtConverterPanelQt(QWidget):
         self._set_tooltip(self.browse_output_btn, 'la_browse_output')
         layout.addWidget(self.browse_output_btn)
 
+        self._skip_existing = QCheckBox("Skip if output file already exists")
+        self._skip_existing.setChecked(False)
+        self._set_tooltip(self._skip_existing, "When checked, files are not re-converted if the output already exists")
+        layout.addWidget(self._skip_existing)
+
         # Progress bar
         self.progress_bar = QProgressBar()
         self.progress_bar.setVisible(False)
@@ -1605,6 +1620,7 @@ class LineArtConverterPanelQt(QWidget):
                 settings,
                 out_ext=out_ext,
                 save_color_layer=save_color,
+                skip_existing=getattr(self, '_skip_existing', None) is not None and self._skip_existing.isChecked(),
             )
             self.conversion_worker.progress.connect(self._on_conversion_progress)
             self.conversion_worker.finished.connect(self._on_conversion_finished)

@@ -191,8 +191,6 @@ except (ImportError, OSError, RuntimeError):
     ARCHIVE_AVAILABLE = False
     logger.warning("Archive handler not available")
 
-IMAGE_EXTENSIONS = {'.png', '.jpg', '.jpeg', '.bmp', '.tiff', '.webp'}
-
 # Quality presets for upscaling
 UPSCALER_PRESETS = {
     "🔷 Lanczos (Sharpest)": {

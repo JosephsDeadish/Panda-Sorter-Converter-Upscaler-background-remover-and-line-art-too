@@ -85,7 +85,7 @@ except (ImportError, OSError, RuntimeError):
 try:
     from ui import IMAGE_EXTENSIONS
 except ImportError:
-    IMAGE_EXTENSIONS = frozenset({'.png', '.jpg', '.jpeg', '.bmp', '.tiff', '.tif', '.webp', '.dds', '.tga'})
+    IMAGE_EXTENSIONS = frozenset({'.png', '.jpg', '.jpeg', '.bmp', '.tiff', '.tif', '.webp', '.dds', '.tga', '.gif'})
 
 
 try:
@@ -110,8 +110,6 @@ try:
 except (ImportError, OSError, RuntimeError):
     ARCHIVE_AVAILABLE = False
     logger.warning("Archive handler not available")
-
-IMAGE_EXTENSIONS = {'.png', '.jpg', '.jpeg', '.bmp', '.tiff', '.webp'}
 
 
 class NormalizationWorker(QThread):
@@ -257,6 +255,11 @@ class BatchNormalizerPanelQt(QWidget):
         output_btn.clicked.connect(self._select_output)
         group_layout.addWidget(output_btn)
         self._set_tooltip(output_btn, "Choose the folder where normalised images will be saved")
+
+        self._skip_existing = QCheckBox("Skip if output file already exists")
+        self._skip_existing.setChecked(False)
+        self._set_tooltip(self._skip_existing, "When checked, files are not re-processed if the output already exists")
+        group_layout.addWidget(self._skip_existing)
         
         # Archive options
         archive_layout = QHBoxLayout()
@@ -540,7 +543,8 @@ class BatchNormalizerPanelQt(QWidget):
             naming_pattern=self._get_naming_pattern(),
             prefix=self.prefix_edit.text() if self.prefix_edit.text() else None,
             preserve_alpha=self.preserve_alpha_cb.isChecked(),
-            strip_metadata=self.strip_metadata_cb.isChecked()
+            strip_metadata=self.strip_metadata_cb.isChecked(),
+            skip_existing=getattr(self, '_skip_existing', None) is not None and self._skip_existing.isChecked(),
         )
         
         # Disable normalize button; show cancel button

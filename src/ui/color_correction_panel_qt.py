@@ -16,7 +16,7 @@ import os
 try:
     from ui import IMAGE_EXTENSIONS
 except ImportError:
-    IMAGE_EXTENSIONS = frozenset({'.png', '.jpg', '.jpeg', '.bmp', '.tiff', '.tif', '.webp', '.dds', '.tga'})
+    IMAGE_EXTENSIONS = frozenset({'.png', '.jpg', '.jpeg', '.bmp', '.tiff', '.tif', '.webp', '.dds', '.tga', '.gif'})
 
 try:
     from PyQt6.QtWidgets import (
@@ -117,45 +117,55 @@ except (ImportError, OSError, RuntimeError):
 
 class ColorCorrectionWorker(QThread):
     """Worker thread for color correction processing."""
-    
+
     progress_updated = pyqtSignal(int, str)  # progress, status
     finished = pyqtSignal(bool, str)  # success, message
-    
-    def __init__(self, corrector, input_files, output_dir, settings):
+
+    def __init__(self, corrector, input_files, output_dir, settings, skip_existing=False):
         super().__init__()
         self.corrector = corrector
         self.input_files = input_files
         self.output_dir = output_dir
         self.settings = settings
+        self.skip_existing = skip_existing
         self._is_cancelled = False
-    
+
     def run(self):
         """Run color correction in background thread."""
         try:
             total = len(self.input_files)
+            done = 0
+            skipped = 0
             for i, file_path in enumerate(self.input_files):
                 if self._is_cancelled:
                     self.finished.emit(False, "Cancelled")
                     return
-                
+
                 # Update progress
                 progress = int((i / total) * 100)
                 self.progress_updated.emit(progress, f"Processing {file_path.name}...")
-                
+
                 # Process file
                 output_path = Path(self.output_dir) / file_path.name
+                if self.skip_existing and output_path.exists():
+                    skipped += 1
+                    continue
                 self.corrector.correct_file(
                     str(file_path),
                     str(output_path),
                     **self.settings
                 )
-            
-            self.finished.emit(True, f"✅ Corrected {total} images successfully!")
-        
+                done += 1
+
+            parts = [f"✅ Corrected {done} image{'s' if done != 1 else ''}"]
+            if skipped:
+                parts.append(f"{skipped} skipped (already existed)")
+            self.finished.emit(True, ", ".join(parts) + "!")
+
         except Exception as e:
             logger.error(f"Color correction failed: {e}")
             self.finished.emit(False, f"❌ Error: {str(e)}")
-    
+
     def cancel(self):
         """Cancel the operation."""
         self._is_cancelled = True
@@ -274,8 +284,13 @@ class ColorCorrectionPanelQt(QWidget):
         self.output_btn.clicked.connect(self._select_output)
         self._set_tooltip(self.output_btn, "Choose where to save corrected images")
         output_layout.addWidget(self.output_btn)
-        
+
         group_layout.addLayout(output_layout)
+
+        self._skip_existing = QCheckBox("Skip if output file already exists")
+        self._skip_existing.setChecked(False)
+        self._set_tooltip(self._skip_existing, "When checked, files are not re-processed if the output already exists")
+        group_layout.addWidget(self._skip_existing)
         
         # Archive options
         archive_layout = QHBoxLayout()
@@ -559,7 +574,8 @@ class ColorCorrectionPanelQt(QWidget):
             self.corrector,
             self.input_files,
             self.output_dir,
-            settings
+            settings,
+            skip_existing=getattr(self, '_skip_existing', None) is not None and self._skip_existing.isChecked(),
         )
         
         # Connect signals
