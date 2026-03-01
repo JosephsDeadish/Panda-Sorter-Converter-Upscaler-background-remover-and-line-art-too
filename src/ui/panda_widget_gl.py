@@ -5304,10 +5304,20 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
         # Normalize UI display names → internal trail type strings
         _type_map = {
             'none': 'none', 'None': 'none', '': 'none',
+            # Legacy UI names
             'dots': 'sparkle', 'Dots': 'sparkle',
             'line': 'rainbow', 'Line': 'rainbow',
             'glow': 'fire',    'Glow': 'fire',
             'particles': 'ice', 'Particles': 'ice',
+            # New descriptive UI names
+            'sparkles': 'sparkle', 'Sparkles': 'sparkle',
+            'rainbow': 'rainbow', 'Rainbow': 'rainbow',
+            'fire': 'fire', 'Fire': 'fire',
+            'ice': 'ice', 'Ice': 'ice',
+            'purple': 'purple', 'Purple': 'purple',
+            'gold': 'gold', 'Gold': 'gold',
+            'nature': 'nature', 'Nature': 'nature',
+            'galaxy': 'galaxy', 'Galaxy': 'galaxy',
         }
         trail_type = _type_map.get(trail_type, trail_type.lower() if trail_type else 'none')
 
@@ -5347,7 +5357,7 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
     
     def _get_trail_color(self):
         """Get color for trail particle based on trail type."""
-        if self.trail_type == 'sparkle':
+        if self.trail_type in ('sparkle', 'sparkles'):
             return [1.0, 1.0, 0.0]  # Yellow
         elif self.trail_type == 'rainbow':
             # Cycle through rainbow colors
@@ -5357,6 +5367,15 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
             return [1.0, 0.3, 0.0]  # Orange/red
         elif self.trail_type == 'ice':
             return [0.3, 0.6, 1.0]  # Light blue
+        elif self.trail_type == 'purple':
+            return [0.7, 0.0, 1.0]  # Purple
+        elif self.trail_type == 'gold':
+            return [1.0, 0.8, 0.0]  # Gold
+        elif self.trail_type == 'nature':
+            return [0.2, 0.8, 0.2]  # Green
+        elif self.trail_type == 'galaxy':
+            hue = (time.time() * 0.5) % 1.0
+            return self._hsv_to_rgb((hue + 0.7) % 1.0, 0.8, 0.9)  # Deep cosmic colours
         else:
             return self.trail_data.get('color', [1.0, 1.0, 1.0])
     
