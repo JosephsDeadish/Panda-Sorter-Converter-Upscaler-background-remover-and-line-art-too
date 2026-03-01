@@ -3077,6 +3077,90 @@ def test_panda_gl_starts_on_ground():
     print(f"  ✅ panda_y initialised to {init_val} (on the ground)")
 
 
+def test_livy_shop_commentary():
+    """ShopPanelQt must have Livy speech-bubble commentary.
+
+    Issue #198: 'she's supposed to then be at top of shop browsing ui looking
+    down at your mouse as you browse and comment on things you do'
+
+    Validates:
+    - livy_bubble widget created in setup_ui
+    - livy_says() method exists
+    - _on_item_hovered() method exists (reacts to item hover)
+    - _livy_react_purchase() method exists
+    - _livy_react_low_balance() method exists
+    - _LIVY_IDLE, _LIVY_HOVER, _LIVY_PURCHASE, _LIVY_LOW_BALANCE comment pools defined
+    - ShopItemWidget emits item_hovered signal
+    - idle timer started in __init__
+    """
+    print("\ntest_livy_shop_commentary ...")
+    code = open('src/ui/shop_panel_qt.py').read()
+
+    # Speech bubble widget
+    assert 'livy_bubble' in code, (
+        "shop_panel_qt.py: livy_bubble QLabel not found. "
+        "Add self.livy_bubble = QLabel(...) in setup_ui for Livy's speech bubble."
+    )
+    print("  ✅ Source: livy_bubble label present")
+
+    # Commentary method
+    assert 'def livy_says(' in code, (
+        "shop_panel_qt.py: livy_says() method missing. "
+        "Add def livy_says(self, text, duration_ms=5000) to update the speech bubble."
+    )
+    print("  ✅ Source: livy_says() method present")
+
+    # Hover handler
+    assert '_on_item_hovered' in code, (
+        "shop_panel_qt.py: _on_item_hovered() method missing. "
+        "Connect ShopItemWidget.item_hovered signal to this slot so Livy comments on hover."
+    )
+    print("  ✅ Source: _on_item_hovered() present")
+
+    # Purchase reaction
+    assert '_livy_react_purchase' in code, (
+        "shop_panel_qt.py: _livy_react_purchase() method missing. "
+        "Call this after a successful purchase to show a celebratory quip."
+    )
+    print("  ✅ Source: _livy_react_purchase() present")
+
+    # Low-balance reaction
+    assert '_livy_react_low_balance' in code, (
+        "shop_panel_qt.py: _livy_react_low_balance() method missing. "
+        "Call this when the user cannot afford an item."
+    )
+    print("  ✅ Source: _livy_react_low_balance() present")
+
+    # Comment pools
+    for pool in ('_LIVY_IDLE', '_LIVY_HOVER', '_LIVY_PURCHASE', '_LIVY_LOW_BALANCE'):
+        assert pool in code, (
+            f"shop_panel_qt.py: {pool} comment pool missing. "
+            f"Add a list of strings to use as {pool} quips."
+        )
+    print("  ✅ Source: all four comment pools present")
+
+    # ShopItemWidget item_hovered signal
+    assert 'item_hovered' in code, (
+        "shop_panel_qt.py: item_hovered signal missing from ShopItemWidget. "
+        "Add item_hovered = pyqtSignal(object) and emit it in enterEvent."
+    )
+    print("  ✅ Source: item_hovered signal present in ShopItemWidget")
+
+    # item_hovered connected in refresh_shop
+    assert 'item_hovered.connect' in code, (
+        "shop_panel_qt.py: item_hovered.connect() not found in refresh_shop. "
+        "Connect widget.item_hovered to self._on_item_hovered when building the grid."
+    )
+    print("  ✅ Source: item_hovered.connect() wired in refresh_shop")
+
+    # Idle timer
+    assert '_start_livy_idle_timer' in code, (
+        "shop_panel_qt.py: _start_livy_idle_timer() missing. "
+        "Start a QTimer in __init__ to periodically show idle commentary."
+    )
+    print("  ✅ Source: _start_livy_idle_timer() present")
+
+
 def run_all_tests():
     print("=" * 65)
     print("Hybrid Architecture + Lazy rembg Import Tests")
@@ -3154,6 +3238,7 @@ def run_all_tests():
         test_tools_tab_collapse_button,
         test_panda_gl_arm_y_at_shoulder_level,
         test_panda_gl_starts_on_ground,
+        test_livy_shop_commentary,
     ]
 
     passed, failed = [], []
