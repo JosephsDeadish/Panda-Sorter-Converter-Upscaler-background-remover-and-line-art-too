@@ -311,22 +311,12 @@ class SettingsPanelQt(QWidget):
         font_group = QGroupBox("Font")
         font_layout = QVBoxLayout()
 
-        font_family_label = QLabel("Font Family:")
-        self.appearance_font_combo = QComboBox()
-        self.appearance_font_combo.addItems(["Segoe UI", "Arial", "Helvetica", "Calibri", "Roboto", "Consolas", "Courier New"])
-        self.appearance_font_combo.currentTextChanged.connect(lambda: self.on_setting_changed('ui', 'font_family'))
-        font_layout.addWidget(font_family_label)
-        font_layout.addWidget(self.appearance_font_combo)
-        self.set_tooltip(self.appearance_font_combo, 'font_family')
-
-        font_size_label = QLabel("Font Size:")
-        self.appearance_font_size = QSpinBox()
-        self.appearance_font_size.setRange(8, 24)
-        self.appearance_font_size.setValue(12)
-        self.appearance_font_size.valueChanged.connect(lambda: self.on_setting_changed('ui', 'font_size'))
-        font_layout.addWidget(font_size_label)
-        font_layout.addWidget(self.appearance_font_size)
-        self.set_tooltip(self.appearance_font_size, 'ui_font_size')
+        font_redirect = QLabel(
+            "⚙️ Full font settings (family, size, weight, icon size) are in the\n"
+            "   🔤 Font  tab above."
+        )
+        font_redirect.setStyleSheet("color: #555; font-style: italic; font-size: 9pt;")
+        font_layout.addWidget(font_redirect)
 
         font_group.setLayout(font_layout)
         layout.addWidget(font_group)
@@ -335,13 +325,12 @@ class SettingsPanelQt(QWidget):
         cursor_group = QGroupBox("Cursor")
         cursor_layout = QVBoxLayout()
 
-        cursor_label = QLabel("Cursor Style:")
-        self.appearance_cursor_combo = QComboBox()
-        self.appearance_cursor_combo.addItems(["Default", "Pointer", "Crosshair", "Panda Paw", "Bamboo", "Star"])
-        self.appearance_cursor_combo.currentTextChanged.connect(lambda: self.on_setting_changed('ui', 'cursor'))
-        cursor_layout.addWidget(cursor_label)
-        cursor_layout.addWidget(self.appearance_cursor_combo)
-        self.set_tooltip(self.appearance_cursor_combo, 'cursor_type')
+        cursor_redirect = QLabel(
+            "⚙️ Full cursor settings (style, size, color, trail) are in the\n"
+            "   🖱️ Cursor  tab above."
+        )
+        cursor_redirect.setStyleSheet("color: #555; font-style: italic; font-size: 9pt;")
+        cursor_layout.addWidget(cursor_redirect)
 
         cursor_group.setLayout(cursor_layout)
         layout.addWidget(cursor_group)

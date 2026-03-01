@@ -268,7 +268,7 @@ class ImageRepairPanelQt(QWidget):
 
         group_layout.addLayout(btn_layout)
 
-        self.recursive_cb = QCheckBox("📂 Process subfolders recursively")
+        self.recursive_cb = QCheckBox("📂 Process sub-folders recursively")
         self.recursive_cb.setChecked(True)
         self._set_tooltip(self.recursive_cb,
             "When enabled, also searches sub-folders when a folder is selected")
