@@ -125,7 +125,11 @@ class FileBrowserPanelQt(QWidget):
     """
     
     # Supported file types
-    IMAGE_EXTENSIONS = {'.png', '.jpg', '.jpeg', '.bmp', '.tiff', '.tif', '.webp', '.dds', '.tga', '.gif'}
+    IMAGE_EXTENSIONS = {
+        '.png', '.jpg', '.jpeg', '.bmp', '.tiff', '.tif', '.webp',
+        '.dds', '.tga', '.gif', '.avif', '.qoi', '.apng', '.jfif',
+        '.ico', '.icns',
+    }
     ARCHIVE_EXTENSIONS = {'.zip', '.7z', '.rar', '.tar', '.gz'}
     
     file_selected = pyqtSignal(Path)

@@ -16,7 +16,7 @@ import os
 try:
     from ui import IMAGE_EXTENSIONS
 except ImportError:
-    IMAGE_EXTENSIONS = frozenset({'.png', '.jpg', '.jpeg', '.bmp', '.tiff', '.tif', '.webp', '.dds', '.tga', '.gif'})
+    IMAGE_EXTENSIONS = frozenset({'.png', '.jpg', '.jpeg', '.bmp', '.tiff', '.tif', '.webp', '.dds', '.tga', '.gif', '.avif', '.qoi', '.apng', '.jfif', '.ico', '.icns'})
 
 try:
     from PyQt6.QtWidgets import (

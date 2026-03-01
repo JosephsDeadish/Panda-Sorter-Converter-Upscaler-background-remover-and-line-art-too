@@ -436,7 +436,8 @@ class BatchRenamePanelQt(QWidget):
 
         if directory:
             extensions = {'.png', '.jpg', '.jpeg', '.bmp', '.tiff', '.tif',
-                          '.webp', '.tga', '.gif', '.dds'}
+                          '.webp', '.tga', '.gif', '.dds', '.avif', '.qoi',
+                          '.apng', '.jfif', '.ico', '.icns'}
             files = []
             recursive = hasattr(self, 'recursive_cb') and self.recursive_cb.isChecked()
             try:

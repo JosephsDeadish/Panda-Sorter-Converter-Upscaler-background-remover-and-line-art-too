@@ -433,7 +433,8 @@ class ImageRepairPanelQt(QWidget):
 
         if folder:
             _REPAIR_EXTS = ('.png', '.jpg', '.jpeg', '.bmp', '.tiff', '.tif',
-                            '.webp', '.tga', '.gif')
+                            '.webp', '.tga', '.gif', '.avif', '.qoi', '.apng',
+                            '.jfif', '.ico', '.icns', '.dds')
             recursive = self.recursive_cb.isChecked()
             if recursive:
                 for root, _dirs, files in os.walk(folder):
