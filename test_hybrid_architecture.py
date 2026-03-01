@@ -4061,6 +4061,40 @@ def test_color_correction_white_balance_lut_preview():
         assert r_mean != 128 or b_mean != 128, f"LUT '{lut_name}' had no effect on neutral image"
     print("  ✅ Runtime: all four LUT presets modify the image as expected")
 
+def test_clear_files_on_all_panels():
+    """All major tool panels must expose a _clear_files() method.
+
+    Consistency requirement: every panel that has multi-file selection via
+    'Select Files' / 'Add Folder' should also have a way to clear the list.
+    This ensures users can reset the selection without restarting the app.
+
+    Panels checked:
+    - batch_normalizer_panel_qt.py   (BatchNormalizerPanelQt)
+    - color_correction_panel_qt.py   (ColorCorrectionPanelQt)
+    - lineart_converter_panel_qt.py  (LineArtConverterPanelQt)
+    - upscaler_panel_qt.py           (ImageUpscalerPanelQt)
+    """
+    print("\ntest_clear_files_on_all_panels ...")
+    from pathlib import Path
+
+    panels = [
+        ('batch_normalizer_panel_qt.py',  'BatchNormalizerPanelQt'),
+        ('color_correction_panel_qt.py',  'ColorCorrectionPanelQt'),
+        ('lineart_converter_panel_qt.py', 'LineArtConverterPanelQt'),
+        ('upscaler_panel_qt.py',          'ImageUpscalerPanelQt'),
+    ]
+
+    for fname, cls_name in panels:
+        src_path = Path(__file__).parent / 'src' / 'ui' / fname
+        code = src_path.read_text(encoding='utf-8')
+        assert '_clear_files' in code, (
+            f"{fname}: _clear_files() method not found.\n"
+            f"Add def _clear_files(self) to {cls_name} so users can reset the file list."
+        )
+        print(f"  ✅ {cls_name}: _clear_files() present")
+
+    print("  ✅ All checked panels have _clear_files()")
+
 
 def run_all_tests():
     print("=" * 65)
@@ -4153,6 +4187,7 @@ def run_all_tests():
         test_panda_2d_walking_animation,
         test_upscaler_output_format_wired,
         test_color_correction_white_balance_lut_preview,
+        test_clear_files_on_all_panels,
     ]
 
     passed, failed = [], []

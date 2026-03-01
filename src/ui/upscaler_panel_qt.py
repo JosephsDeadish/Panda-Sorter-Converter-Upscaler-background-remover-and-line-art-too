@@ -347,6 +347,7 @@ class UpscaleWorker(QThread):
             parts = [f"Successfully upscaled {done} image{'s' if done != 1 else ''}"]
             if skipped:
                 parts.append(f"{skipped} skipped (already existed)")
+            self.progress.emit(100.0, "Done")
             self.finished.emit(True, ", ".join(parts), done)
         except Exception as e:
             logger.error(f"Upscaling failed: {e}", exc_info=True)
