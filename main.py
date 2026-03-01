@@ -5432,15 +5432,21 @@ class TextureSorterMainWindow(QMainWindow):
             logger.error(f"Error handling panda click: {e}", exc_info=True)
     
     def _on_panda_food_eaten(self, item_id: str) -> None:
-        """Award coins when food is dropped onto the panda."""
+        """Award coins, update stats and mood when food is dropped onto the panda."""
         try:
             if self.currency_system:
                 coins = self.currency_system.get_reward_for_action('panda_feed')
                 if coins > 0:
                     self.currency_system.earn_money(coins, f'panda_feed_{item_id}')
                     self._update_coin_display()
+            if self.panda_stats:
+                self.panda_stats.increment_feeds()
+            if self.panda_mood_system:
+                self.panda_mood_system.on_user_interaction('feed')
+            if self.achievement_system:
+                self.achievement_system.update_progress('panda_feeder', 1, increment=True)
         except Exception as _e:
-            logger.debug(f"Panda feed coin award: {_e}")
+            logger.debug(f"Panda feed handler: {_e}")
 
     def _on_session_hour(self) -> None:
         """Award session-hour coins every 60 minutes of active use."""
@@ -6065,6 +6071,16 @@ class TextureSorterMainWindow(QMainWindow):
             if self.currency_system:
                 bonus = new_level * self._COINS_PER_LEVEL
                 self.currency_system.earn_money(bonus, f'level_up_{new_level}')
+                # Milestone bonus for significant level thresholds
+                _MILESTONES = {5, 10, 25, 50, 100}
+                if new_level in _MILESTONES:
+                    milestone_bonus = self.currency_system.get_reward_for_action('milestone_reached')
+                    if milestone_bonus > 0:
+                        self.currency_system.earn_money(milestone_bonus, f'milestone_level_{new_level}')
+                        self.statusBar().showMessage(
+                            f"🏆 Milestone! Level {new_level} — +{milestone_bonus} Bamboo Bucks bonus! 🐼",
+                            8000,
+                        )
                 self._update_coin_display()
         except Exception as _e:
             logger.debug(f"Level-up callback error: {_e}")
