@@ -28,28 +28,35 @@ import queue
 logger = logging.getLogger(__name__)
 
 # Check for rembg availability (AI background removal)
-# rembg is NOT imported directly at module level.  Instead we call a helper
-# function once at module initialization.  This is thread-safe: Python's
-# import lock serializes module initialization so _try_import_rembg() is
-# called exactly once regardless of how many threads import this module.
-# rembg.bg calls sys.exit(1) when onnxruntime fails to initialize its DLL
-# (e.g. on Windows CI without a full GPU driver stack).  We also catch the
-# broad Exception family to handle OSError / RuntimeError / DLL-provider init
-# failures that can surface before the sys.exit path is reached.
+# rembg is NOT imported at module level.  rembg.bg calls sys.exit(1) when
+# onnxruntime fails to initialize its DLL (e.g. on Windows CI without a full
+# GPU driver stack).  Importing at module level causes that sys.exit() call to
+# fire during ``import tools`` in any test or subprocess — breaking PyInstaller's
+# isolated analysis and causing test_tools_import_does_not_call_sys_exit to fail.
+#
+# Instead we defer the import to the first time BackgroundRemover is instantiated.
+# All module-level handles start as None/False; the lazy initializer updates them
+# the first time an instance is constructed.  Methods that rely on _rembg_remove
+# already guard with HAS_REMBG, so they degrade gracefully until an instance is
+# created and the deferred initialisation runs.
 def _try_import_rembg():
-    """Attempt to import rembg; return (remove_fn, new_session_fn) or (None, None)."""
+    """Attempt to import rembg at call time; return (remove_fn, new_session_fn) or (None, None).
+
+    NOT called at module level.  Only called from BackgroundRemover.__init__()
+    so that PyInstaller's isolated analysis subprocesses never trigger the
+    rembg.bg sys.exit(1) code path during ``import tools``.
+    """
     try:
         from rembg import remove, new_session  # type: ignore[import-untyped]
         return remove, new_session
     except (ImportError, Exception, SystemExit):
         return None, None
 
-_rembg_remove, _rembg_new_session = _try_import_rembg()
-HAS_REMBG = _rembg_remove is not None
-if HAS_REMBG:
-    logger.info("rembg available for AI background removal")
-else:
-    logger.warning("rembg not available - AI background removal disabled")
+# Module-level handles — set lazily the first time BackgroundRemover is
+# instantiated (see __init__).  Never populated at import time.
+_rembg_remove = None
+_rembg_new_session = None
+HAS_REMBG = False
 
 # Check for OpenCV availability (for edge refinement)
 try:
@@ -235,7 +242,20 @@ class BackgroundRemover:
         # Edge refinement settings
         self.edge_refinement = 0.5  # 0 = no refinement, 1 = maximum refinement
         self.feather_radius = 2  # Pixel radius for edge feathering
-        
+
+        # Lazy rembg initialisation: only attempt when the class is first used,
+        # not at module import time.  This prevents rembg.bg's sys.exit(1) call
+        # from firing during ``import tools`` in PyInstaller's isolated analysis
+        # subprocesses and during the test_tools_import_does_not_call_sys_exit test.
+        global _rembg_remove, _rembg_new_session, HAS_REMBG
+        if _rembg_remove is None:
+            _rembg_remove, _rembg_new_session = _try_import_rembg()
+            HAS_REMBG = _rembg_remove is not None
+            if HAS_REMBG:
+                logger.info("rembg available for AI background removal")
+            else:
+                logger.warning("rembg not available - AI background removal disabled")
+
         # Initialize session if rembg available
         if HAS_REMBG:
             try:

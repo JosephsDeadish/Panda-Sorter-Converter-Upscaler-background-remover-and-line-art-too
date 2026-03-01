@@ -452,11 +452,18 @@ if PandaWidget2D is None:
 # Import each UI panel independently so one bad import does not disable all tools.
 # Each name is set to None on failure; callers guard with `if PanelClass is not None`.
 def _try_import(module_path: str, class_name: str):
-    """Return the named class from module_path, or None on import/attribute failure."""
+    """Return the named class from module_path, or None on import/attribute failure.
+
+    Catches BaseException (not just Exception) so that modules which call
+    sys.exit() or raise SystemExit during their module-level initialization
+    (e.g. rembg.bg when onnxruntime DLL loading fails on Windows) cannot
+    propagate a SystemExit to main.py's module-level scope and abort the
+    application before it starts.
+    """
     try:
         mod = importlib.import_module(module_path)
         return getattr(mod, class_name)
-    except Exception as _e:
+    except (Exception, SystemExit) as _e:
         logger.warning(f"Optional UI panel {class_name} not available: {_e}", exc_info=True)
         return None
 
