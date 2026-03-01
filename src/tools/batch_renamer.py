@@ -275,7 +275,7 @@ class BatchRenamer:
     def _is_image(self, filepath: str) -> bool:
         """Check if file is an image"""
         ext = os.path.splitext(filepath)[1].lower()
-        return ext in ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.tiff', '.webp']
+        return ext in ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.tiff', '.tif', '.webp', '.tga', '.dds']
     
     def _inject_metadata(self, filepath: str, metadata: Dict[str, str]):
         """

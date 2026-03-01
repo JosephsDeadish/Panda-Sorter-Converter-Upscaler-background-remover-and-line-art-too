@@ -126,12 +126,13 @@ class RepairWorker(QThread):
     finished = pyqtSignal(int, int)  # successes, failures
     error = pyqtSignal(str)
     
-    def __init__(self, repairer, files, output_dir, mode=None):
+    def __init__(self, repairer, files, output_dir, mode=None, skip_existing=False):
         super().__init__()
         self.repairer = repairer
         self.files = files
         self.output_dir = output_dir
         self.mode = mode or RepairMode.BALANCED
+        self.skip_existing = skip_existing
         self._should_cancel = False
     
     def run(self):
@@ -139,21 +140,30 @@ class RepairWorker(QThread):
         try:
             successes = 0
             failures = 0
-            
+
             for i, filepath in enumerate(self.files):
                 if self._should_cancel:
                     break
-                
+
                 filename = Path(filepath).name
                 self.progress.emit(i + 1, len(self.files), filename)
-                
+
                 try:
-                    # Get output path for this file
-                    output_path = os.path.join(self.output_dir, filename)
-                    
+                    # Build output path; None lets repair_file auto-generate
+                    # a "<stem>_repaired<ext>" path beside the input file.
+                    if self.output_dir is not None:
+                        output_path = os.path.join(self.output_dir, filename)
+                    else:
+                        output_path = None
+
+                    if self.skip_existing and output_path is not None and os.path.exists(output_path):
+                        successes += 1
+                        self.result.emit(filepath, True, f"⏭️ {filename}: skipped (already exists)")
+                        continue
+
                     # Call repair with mode
                     result, message = self.repairer.repair_file(filepath, output_path, self.mode)
-                    
+
                     if result in (RepairResult.SUCCESS, RepairResult.PARTIAL):
                         successes += 1
                         self.result.emit(filepath, True, f"✓ {filename}: {message}")
@@ -163,7 +173,7 @@ class RepairWorker(QThread):
                 except Exception as e:
                     failures += 1
                     self.result.emit(filepath, False, f"✗ {filename}: {str(e)}")
-            
+
             self.finished.emit(successes, failures)
         except Exception as e:
             logger.error(f"Repair failed: {e}")
@@ -290,6 +300,11 @@ class ImageRepairPanelQt(QWidget):
         self.output_dir_btn.clicked.connect(self._select_output_dir)
         self._set_tooltip(self.output_dir_btn, 'output_browse')
         group_layout.addWidget(self.output_dir_btn)
+
+        self._skip_existing = QCheckBox("Skip if output file already exists")
+        self._skip_existing.setChecked(False)
+        self._set_tooltip(self._skip_existing, "When checked, files are not re-processed if the output already exists")
+        group_layout.addWidget(self._skip_existing)
         
         # Archive options
         archive_layout = QHBoxLayout()
@@ -386,7 +401,10 @@ class ImageRepairPanelQt(QWidget):
             self,
             "Select Image Files",
             "",
-            "Image files (*.png *.jpg *.jpeg);;PNG files (*.png);;JPEG files (*.jpg *.jpeg);;All files (*.*)"
+            "Image files (*.png *.jpg *.jpeg *.bmp *.tiff *.tif *.webp *.tga *.gif);;"
+            "PNG files (*.png);;JPEG files (*.jpg *.jpeg);;BMP files (*.bmp);;"
+            "TIFF files (*.tiff *.tif);;WebP files (*.webp);;TGA files (*.tga);;"
+            "GIF files (*.gif);;All files (*.*)"
         )
         
         if files:
@@ -543,7 +561,10 @@ class ImageRepairPanelQt(QWidget):
         self.progress_bar.setValue(0)
         
         # Start repair worker with selected mode
-        self.repair_worker = RepairWorker(self.repairer, self.selected_files, self.output_dir, mode)
+        self.repair_worker = RepairWorker(
+            self.repairer, self.selected_files, self.output_dir, mode,
+            skip_existing=self._skip_existing.isChecked(),
+        )
         self.repair_worker.progress.connect(self._on_repair_progress)
         self.repair_worker.result.connect(self._on_repair_result)
         self.repair_worker.finished.connect(self._on_repair_finished)
