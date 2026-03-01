@@ -626,13 +626,13 @@ class BackgroundRemoverPanelQt(QWidget):
                 self,
                 "Save Image",
                 "",
-                "PNG Image (*.png);;JPEG Image (*.jpg)"
+                "PNG Image (*.png);;JPEG Image (*.jpg);;WebP Image (*.webp)"
             )
             
             if file_path:
                 try:
                     # Ensure proper file extension
-                    if not any(file_path.lower().endswith(ext) for ext in ['.png', '.jpg', '.jpeg']):
+                    if not any(file_path.lower().endswith(ext) for ext in ['.png', '.jpg', '.jpeg', '.webp']):
                         file_path += '.png'
                     
                     # Load the image to save (processed if available, else current)
@@ -643,12 +643,18 @@ class BackgroundRemoverPanelQt(QWidget):
                     img_path = self.processed_image if self.processed_image else self.current_image
                     img = Image.open(img_path)
                     
-                    # Convert to RGBA if saving as PNG
-                    if file_path.lower().endswith('.png') and img.mode != 'RGBA':
+                    ext = Path(file_path).suffix.lower()
+                    # PNG and WebP support alpha channel natively
+                    if ext == '.png' and img.mode != 'RGBA':
                         img = img.convert('RGBA')
+                    elif ext in ('.jpg', '.jpeg') and img.mode in ('RGBA', 'LA', 'P'):
+                        img = img.convert('RGB')
                     
                     # Save
-                    img.save(file_path, optimize=True)
+                    save_kwargs = {'optimize': True}
+                    if ext in ('.jpg', '.jpeg'):
+                        save_kwargs['quality'] = 95
+                    img.save(file_path, **save_kwargs)
                     
                     QMessageBox.information(self, "Success", f"Image saved to:\n{file_path}")
                 except Exception as e:
