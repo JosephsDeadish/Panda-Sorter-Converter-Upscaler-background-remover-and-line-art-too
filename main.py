@@ -1469,7 +1469,7 @@ class TextureSorterMainWindow(QMainWindow):
                 alpha_panel = AlphaFixerPanelQt(tooltip_manager=self.tooltip_manager)
                 alpha_panel.finished.connect(lambda ok, msg, cnt, _tid='alpha_fixer': (
                     self.statusBar().showMessage(f"{'✅' if ok else '❌'} Alpha Fixer: {msg}", 4000),
-                    self._on_tool_finished(ok, _tid),
+                    self._on_tool_finished(ok, _tid, cnt if ok else 0),
                     self.operation_finished(ok, msg, cnt) if ok and cnt > 0 else None,
                 ))
                 tool_tab_defs.append((alpha_panel, "✨ Alpha Fixer", 'alpha_fixer'))
@@ -1484,7 +1484,7 @@ class TextureSorterMainWindow(QMainWindow):
                 color_panel = ColorCorrectionPanelQt(tooltip_manager=self.tooltip_manager)
                 color_panel.finished.connect(lambda ok, msg, cnt, _tid='color': (
                     self.statusBar().showMessage(f"{'✅' if ok else '❌'} Color Correction: {msg}", 4000),
-                    self._on_tool_finished(ok, _tid),
+                    self._on_tool_finished(ok, _tid, cnt if ok else 0),
                     self.operation_finished(ok, msg, cnt) if ok and cnt > 0 else None,
                 ))
                 tool_tab_defs.append((color_panel, "🎨 Color Correction", 'color'))
@@ -1499,7 +1499,7 @@ class TextureSorterMainWindow(QMainWindow):
                 norm_panel = BatchNormalizerPanelQt(tooltip_manager=self.tooltip_manager)
                 norm_panel.finished.connect(lambda ok, msg, cnt, _tid='normalizer': (
                     self.statusBar().showMessage(f"{'✅' if ok else '❌'} Batch Normalizer: {msg}", 4000),
-                    self._on_tool_finished(ok, _tid),
+                    self._on_tool_finished(ok, _tid, cnt if ok else 0),
                     self.operation_finished(ok, msg, cnt) if ok and cnt > 0 else None,
                 ))
                 tool_tab_defs.append((norm_panel, "⚙️ Batch Normalizer", 'normalizer'))
@@ -1530,7 +1530,7 @@ class TextureSorterMainWindow(QMainWindow):
                     lambda msg: self.statusBar().showMessage(f"❌ Upscaler: {msg}", 5000))
                 upscaler_panel.finished.connect(lambda ok, msg, cnt, _tid='upscaler': (
                     self.statusBar().showMessage(f"{'✅' if ok else '❌'} Upscaler: {msg}", 4000),
-                    self._on_tool_finished(ok, _tid),
+                    self._on_tool_finished(ok, _tid, cnt if ok else 0),
                     self.operation_finished(ok, msg, cnt) if ok and cnt > 0 else None,
                 ))
                 tool_tab_defs.append((upscaler_panel, "🔍 Image Upscaler", 'upscaler'))
@@ -1547,7 +1547,7 @@ class TextureSorterMainWindow(QMainWindow):
                     lambda msg: self.statusBar().showMessage(f"❌ Line Art: {msg}", 5000))
                 line_panel.finished.connect(lambda ok, msg, cnt, _tid='lineart': (
                     self.statusBar().showMessage(f"{'✅' if ok else '❌'} Line Art: {msg}", 4000),
-                    self._on_tool_finished(ok, _tid),
+                    self._on_tool_finished(ok, _tid, cnt if ok else 0),
                     self.operation_finished(ok, msg, cnt) if ok and cnt > 0 else None,
                 ))
                 tool_tab_defs.append((line_panel, "✏️ Line Art", 'lineart'))
@@ -1563,7 +1563,7 @@ class TextureSorterMainWindow(QMainWindow):
                 rename_panel.finished.connect(lambda ok, errs, _tid='rename': (
                     self.statusBar().showMessage(
                         f"📝 Renamed {ok} files" + (f" ({len(errs)} errors)" if errs else ""), 4000),
-                    self._on_tool_finished(bool(ok), _tid),
+                    self._on_tool_finished(bool(ok), _tid, ok),
                     self.operation_finished(bool(ok), f"Renamed {ok} files", ok) if ok > 0 else None,
                 ))
                 tool_tab_defs.append((rename_panel, "📝 Batch Rename", 'rename'))
@@ -1580,7 +1580,7 @@ class TextureSorterMainWindow(QMainWindow):
                     lambda msg: self.statusBar().showMessage(f"❌ Image Repair: {msg}", 5000))
                 repair_panel.finished.connect(lambda ok, msg, cnt, _tid='repair': (
                     self.statusBar().showMessage(f"{'✅' if ok else '❌'} Image Repair: {msg}", 4000),
-                    self._on_tool_finished(ok, _tid),
+                    self._on_tool_finished(ok, _tid, cnt if ok else 0),
                     self.operation_finished(ok, msg, cnt) if ok and cnt > 0 else None,
                 ))
                 tool_tab_defs.append((repair_panel, "🔧 Image Repair", 'repair'))
@@ -1595,7 +1595,7 @@ class TextureSorterMainWindow(QMainWindow):
                 conv_panel = FormatConverterPanelQt(tooltip_manager=self.tooltip_manager)
                 conv_panel.finished.connect(lambda ok, msg, cnt, _tid='converter': (
                     self.statusBar().showMessage(f"{'✅' if ok else '⚠️'} Converter: {msg} ({cnt} files)", 4000),
-                    self._on_tool_finished(ok, _tid),
+                    self._on_tool_finished(ok, _tid, cnt if ok else 0),
                     self.operation_finished(ok, msg, cnt) if ok and cnt > 0 else None,
                 ))
                 tool_tab_defs.append((conv_panel, "🔄 Format Converter", 'converter'))
@@ -4817,7 +4817,7 @@ class TextureSorterMainWindow(QMainWindow):
     # ------------------------------------------------------------------
     # Shared helper: react to a tool-panel completion (panda + quest + sound)
     # ------------------------------------------------------------------
-    def _on_tool_finished(self, success: bool, tool_id: str = 'tool') -> None:
+    def _on_tool_finished(self, success: bool, tool_id: str = 'tool', count: int = 1) -> None:
         """Called when any tool-panel `finished` signal fires.
 
         Triggers panda mood, quest progress, and audio feedback — all guarded
@@ -4876,23 +4876,23 @@ class TextureSorterMainWindow(QMainWindow):
             if self.achievement_system and success:
                 ach = self.achievement_system
                 if tool_id == 'upscaler':
-                    ach.increment_images_upscaled(1)
+                    ach.increment_images_upscaled(count)
                 elif tool_id in ('bg_remover', 'background_remover'):
-                    ach.increment_bg_removed(1)
+                    ach.increment_bg_removed(count)
                 elif tool_id == 'lineart':
-                    ach.increment_lineart_converted(1)
+                    ach.increment_lineart_converted(count)
                 elif tool_id == 'converter':
-                    ach.increment_files_converted(1)
+                    ach.increment_files_converted(count)
                 elif tool_id == 'quality':
-                    ach.increment_quality_checked(1)
+                    ach.increment_quality_checked(count)
                 elif tool_id == 'alpha_fixer':
-                    ach.increment_alpha_fixed(1)
+                    ach.increment_alpha_fixed(count)
                 elif tool_id == 'color':
-                    ach.increment_color_corrected(1)
+                    ach.increment_color_corrected(count)
                 elif tool_id == 'repair':
-                    ach.increment_images_repaired(1)
+                    ach.increment_images_repaired(count)
                 elif tool_id == 'rename':
-                    ach.increment_files_renamed(1)
+                    ach.increment_files_renamed(count)
         except Exception as _e:
             logger.debug(f"Achievement trigger failed for {tool_id}: {_e}")
         # Award Panda Coins for each tool use
