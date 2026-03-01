@@ -259,8 +259,8 @@ class UpscaleWorker(QThread):
     progress = pyqtSignal(float, str)  # progress, message
     finished = pyqtSignal(bool, str)  # success, message
     
-    def __init__(self, upscaler, files, output_dir, scale_factor, method, 
-                 post_process_settings=None):
+    def __init__(self, upscaler, files, output_dir, scale_factor, method,
+                 post_process_settings=None, skip_existing=False):
         super().__init__()
         self.upscaler = upscaler
         self.files = files
@@ -268,25 +268,33 @@ class UpscaleWorker(QThread):
         self.scale_factor = scale_factor
         self.method = method
         self.post_process_settings = post_process_settings or {}
+        self.skip_existing = skip_existing
         self._is_cancelled = False
-    
+
     def run(self):
         """Execute upscaling in background thread."""
         try:
             total = len(self.files)
+            done = 0
+            skipped = 0
             for i, file_path in enumerate(self.files):
                 if self._is_cancelled:
                     self.finished.emit(False, "Cancelled")
                     return
-                
+
                 # Update progress
                 progress = (i / total) * 100
                 self.progress.emit(progress, f"Upscaling: {Path(file_path).name}")
-                
+
+                output_path = Path(self.output_dir) / Path(file_path).name
+                if self.skip_existing and output_path.exists():
+                    skipped += 1
+                    continue
+
                 # Load image
                 img = Image.open(file_path)
                 img_array = np.array(img)
-                
+
                 # Upscale
                 upscaled = self.upscaler.upscale(
                     img_array,
@@ -301,12 +309,15 @@ class UpscaleWorker(QThread):
                 # Post-processing
                 upscaled_img = Image.fromarray(upscaled)
                 upscaled_img = apply_post_processing(upscaled_img, self.post_process_settings)
-                
+
                 # Save
-                output_path = Path(self.output_dir) / Path(file_path).name
                 upscaled_img.save(output_path)
-            
-            self.finished.emit(True, f"Successfully upscaled {total} images")
+                done += 1
+
+            parts = [f"Successfully upscaled {done} image{'s' if done != 1 else ''}"]
+            if skipped:
+                parts.append(f"{skipped} skipped (already existed)")
+            self.finished.emit(True, ", ".join(parts))
         except Exception as e:
             logger.error(f"Upscaling failed: {e}", exc_info=True)
             self.finished.emit(False, f"Upscaling failed: {str(e)}")
@@ -495,8 +506,13 @@ class ImageUpscalerPanelQt(QWidget):
         self.output_dir_label.setStyleSheet("color: gray;")
         output_btn_layout.addWidget(self.output_dir_label)
         output_btn_layout.addStretch()
-        
+
         file_layout.addLayout(output_btn_layout)
+
+        self._skip_existing = QCheckBox("Skip if output file already exists")
+        self._skip_existing.setChecked(False)
+        self._set_tooltip(self._skip_existing, "When checked, files are not re-upscaled if the output already exists")
+        file_layout.addWidget(self._skip_existing)
         
         # Archive options
         archive_layout = QHBoxLayout()
@@ -1159,7 +1175,8 @@ class ImageUpscalerPanelQt(QWidget):
             self.output_directory,
             scale_factor,
             method,
-            post_process_settings
+            post_process_settings,
+            skip_existing=getattr(self, '_skip_existing', None) is not None and self._skip_existing.isChecked(),
         )
         self.worker_thread.progress.connect(self._update_progress)
         self.worker_thread.finished.connect(self._upscaling_finished)
