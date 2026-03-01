@@ -249,6 +249,11 @@ def _resize_image(img: "Image.Image", mode: str, s: dict) -> "Image.Image":
         nh = 1 << (max(1, h).bit_length() - 1)
     else:
         return img
+    # LANCZOS is not supported for palette (P) mode — convert to RGB first, resize, then re-quantize
+    if img.mode == "P":
+        img_rgb = img.convert("RGB")
+        resized_rgb = img_rgb.resize((nw, nh), Image.LANCZOS)
+        return resized_rgb.quantize(colors=256)
     return img.resize((nw, nh), Image.LANCZOS)
 
 
