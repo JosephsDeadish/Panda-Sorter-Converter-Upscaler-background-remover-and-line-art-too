@@ -1085,6 +1085,12 @@ class TextureSorterMainWindow(QMainWindow):
         self._panda_interaction_timer.timeout.connect(self._tick_panda_interaction)
         self._panda_interaction_timer.start()
 
+        # Session-hour coin reward — fires every 60 minutes of active use
+        self._session_hour_timer = QTimer(self)
+        self._session_hour_timer.setInterval(3_600_000)  # 1 hour in ms
+        self._session_hour_timer.timeout.connect(self._on_session_hour)
+        self._session_hour_timer.start()
+
         # Apply performance settings from config
         self.apply_performance_settings()
 
@@ -5434,6 +5440,18 @@ class TextureSorterMainWindow(QMainWindow):
                     self._update_coin_display()
         except Exception as _e:
             logger.debug(f"Panda feed coin award: {_e}")
+
+    def _on_session_hour(self) -> None:
+        """Award session-hour coins every 60 minutes of active use."""
+        try:
+            if self.currency_system:
+                coins = self.currency_system.get_reward_for_action('session_hour')
+                if coins > 0:
+                    self.currency_system.earn_money(coins, 'session_hour')
+                    self._update_coin_display()
+                    self.statusBar().showMessage(f"⏰ +{coins} Bamboo Bucks for playing for an hour! 🐼", 5000)
+        except Exception as _e:
+            logger.debug(f"Session hour coin award: {_e}")
 
     def _on_panda_gl_failed(self, error_msg: str):
         """
