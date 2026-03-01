@@ -29,7 +29,7 @@ try:
         QWidget, QVBoxLayout, QHBoxLayout, QTabWidget, QLabel, 
         QPushButton, QSlider, QComboBox, QSpinBox, QCheckBox,
         QGroupBox, QScrollArea, QLineEdit, QColorDialog, QMessageBox,
-        QFileDialog, QFormLayout, QProgressBar
+        QFileDialog, QFormLayout, QProgressBar, QGridLayout
     )
     from PyQt6.QtCore import Qt, pyqtSignal, QTimer
     from PyQt6.QtGui import QFont, QColor, QPainter, QPen
@@ -481,7 +481,92 @@ class SettingsPanelQt(QWidget):
         color_layout.addLayout(color_row)
         color_group.setLayout(color_layout)
         layout.addWidget(color_group)
-        
+
+        # Per-cursor individual color pickers
+        per_cursor_group = QGroupBox("🎨 Per-Cursor Color Overrides")
+        per_cursor_layout = QVBoxLayout()
+        _pci_note = QLabel(
+            "Set a specific color tint for individual emoji cursors.\n"
+            "A per-cursor color overrides the global tint above."
+        )
+        _pci_note.setStyleSheet("color: #555; font-size: 9pt; font-style: italic;")
+        _pci_note.setWordWrap(True)
+        per_cursor_layout.addWidget(_pci_note)
+
+        _emoji_cursors = [
+            ("skull",     "💀 Skull"),
+            ("panda",     "🐼 Panda"),
+            ("ghost",     "👻 Ghost"),
+            ("spider",    "🕷️ Spider"),
+            ("sword",     "⚔️ Sword"),
+            ("wand",      "🪄 Wand"),
+            ("heart",     "❤️ Heart"),
+            ("star",      "⭐ Star"),
+            ("diamond",   "💎 Diamond"),
+            ("crown",     "👑 Crown"),
+            ("fire",      "🔥 Fire"),
+            ("ice",       "❄️ Ice"),
+            ("rainbow",   "🌈 Rainbow"),
+            ("galaxy",    "🌌 Galaxy"),
+            ("cat",       "🐱 Cat"),
+            ("butterfly", "🦋 Butterfly"),
+            ("moon",      "🌙 Moon"),
+            ("lightning", "⚡ Lightning"),
+        ]
+        _grid = QGridLayout()
+        _grid.setSpacing(4)
+        self._per_cursor_btns: dict = {}
+        for idx, (ckey, clabel) in enumerate(_emoji_cursors):
+            row, col = divmod(idx, 3)
+            saved_hex = str(self.config.get('ui', f'cursor_color_{ckey}', default=''))
+            btn = QPushButton(clabel)
+            btn.setFixedHeight(26)
+            # Use white text on coloured backgrounds for maximum contrast
+            _bg = saved_hex if saved_hex else '#f8f8f8'
+            _fg = '#ffffff' if saved_hex else '#222'
+            btn.setStyleSheet(
+                f"background-color: {_bg}; color: {_fg}; "
+                "border: 1px solid #aaa; border-radius: 3px; font-size: 9pt;"
+            )
+            btn.setToolTip(f"Click to set a custom tint color for the {clabel} cursor")
+            # Capture ckey and btn for the lambda
+            def _make_picker(cursor_key, button):
+                def _pick():
+                    _cur_hex = str(self.config.get('ui', f'cursor_color_{cursor_key}', default=''))
+                    init_col = QColor(_cur_hex) if _cur_hex else QColor('#ffffff')
+                    col = QColorDialog.getColor(init_col, self,
+                                       f"Pick color for {cursor_key} cursor")
+                    if col.isValid():
+                        hex_val = col.name(QColor.NameFormat.HexRgb)
+                        self.config.set('ui', f'cursor_color_{cursor_key}', value=hex_val)
+                        self.config.save()
+                        button.setStyleSheet(
+                            f"background-color: {hex_val}; color: #ffffff; "
+                            "border: 1px solid #aaa; border-radius: 3px; font-size: 9pt;"
+                        )
+                        self.settingsChanged.emit('ui.cursor_color', hex_val)
+                def _clear():
+                    self.config.set('ui', f'cursor_color_{cursor_key}', value='')
+                    self.config.save()
+                    button.setStyleSheet(
+                        "background-color: #f8f8f8; color: #222; "
+                        "border: 1px solid #aaa; border-radius: 3px; font-size: 9pt;"
+                    )
+                    self.settingsChanged.emit('ui.cursor_color', '')
+                return _pick, _clear
+            pick_fn, clear_fn = _make_picker(ckey, btn)
+            btn.clicked.connect(pick_fn)
+            btn.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+            btn.customContextMenuRequested.connect(lambda pos, fn=clear_fn: fn())
+            _grid.addWidget(btn, row, col)
+            self._per_cursor_btns[ckey] = btn
+        _clr_note = QLabel("Right-click any button to clear its color override.")
+        _clr_note.setStyleSheet("color: #888; font-size: 8pt; font-style: italic;")
+        per_cursor_layout.addLayout(_grid)
+        per_cursor_layout.addWidget(_clr_note)
+        per_cursor_group.setLayout(per_cursor_layout)
+        layout.addWidget(per_cursor_group)
+
         # Mouse cursor trail (separate from panda trail!)
         trail_group = QGroupBox("🖱️ Mouse Cursor Trail")
         trail_layout = QVBoxLayout()

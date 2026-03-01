@@ -4404,10 +4404,17 @@ class TextureSorterMainWindow(QMainWindow):
                 painter.setFont(font)
                 painter.drawText(pix.rect(), Qt.AlignmentFlag.AlignCenter, emoji)
 
-                # Apply user-chosen color tint via SourceIn composition
-                color_enabled = bool(config.get('ui', 'cursor_color_enabled', default=False))
-                hex_color = str(config.get('ui', 'cursor_color', default=''))
-                if color_enabled and hex_color:
+                # Apply user-chosen color tint via SourceIn composition.
+                # Per-cursor colors take priority: config key 'cursor_color_{name}'
+                # (e.g. 'cursor_color_skull').  Falls back to the global tint.
+                per_cursor_key = f'cursor_color_{clean_name}'
+                per_cursor_hex = str(config.get('ui', per_cursor_key, default=''))
+                global_enabled = bool(config.get('ui', 'cursor_color_enabled', default=False))
+                hex_color = per_cursor_hex or (
+                    str(config.get('ui', 'cursor_color', default=''))
+                    if global_enabled else ''
+                )
+                if hex_color:
                     tint = QColor(hex_color)
                     if tint.isValid() and tint.alpha() > 0:
                         painter.setCompositionMode(
