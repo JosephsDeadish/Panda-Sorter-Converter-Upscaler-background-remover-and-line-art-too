@@ -2392,11 +2392,19 @@ class TextureSorterMainWindow(QMainWindow):
                 self.quest_system.achievement_unlocked.connect(
                     lambda aid: logger.info(f"🏆 Quest achievement: {aid}")
                 )
-            # Wire easter_egg_found → fun status bar message
+            # Wire easter_egg_found → fun status bar message + coin reward
             if hasattr(self.quest_system, 'easter_egg_found') and self.quest_system.easter_egg_found:
-                self.quest_system.easter_egg_found.connect(
-                    lambda eid: self.statusBar().showMessage(f"🥚 Easter egg found: {eid}!", 5000)
-                )
+                def _on_easter_egg(eid: str) -> None:
+                    self.statusBar().showMessage(f"🥚 Easter egg found: {eid}!", 5000)
+                    try:
+                        if self.currency_system:
+                            coins = self.currency_system.get_reward_for_action('easter_egg_found')
+                            if coins > 0:
+                                self.currency_system.earn_money(coins, f'easter_egg_{eid}')
+                                self._update_coin_display()
+                    except Exception:
+                        pass
+                self.quest_system.easter_egg_found.connect(_on_easter_egg)
             # Activate first set of quests
             self.quest_system.check_quests(0)
 
