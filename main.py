@@ -86,8 +86,10 @@ def _handle_early_cli() -> None:
         try:
             from config import APP_NAME, APP_VERSION, PATREON_URL as _PATREON
         except Exception:
-            # Fallback: matches config.PATREON_URL and settings_panel_qt._PATREON_URL
-            # Update all three if the Patreon URL changes.
+            # Fallback values — update all three PATREON_URL locations if the URL changes:
+            #   1. src/config.py (PATREON_URL constant)
+            #   2. main.py _PATREON fallback (here)
+            #   3. src/ui/settings_panel_qt.py _PATREON_URL fallback
             APP_NAME, APP_VERSION = "Panda Sorter Converter Upscaler", "1.0.0"
             _PATREON = "https://www.patreon.com/JosephsDeadish"
         print(f"{APP_NAME} v{APP_VERSION}")

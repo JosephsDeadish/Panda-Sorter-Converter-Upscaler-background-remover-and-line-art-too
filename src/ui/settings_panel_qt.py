@@ -14,7 +14,10 @@ import json
 logger = logging.getLogger(__name__)
 
 # Support link — fallback matches config.PATREON_URL and main.py's early-arg fallback.
-# Update all three locations if the Patreon URL changes.
+# All three locations to update if the Patreon URL changes:
+#   1. src/config.py         — PATREON_URL constant (primary)
+#   2. src/ui/settings_panel_qt.py — _PATREON_URL fallback (line below)
+#   3. main.py               — _PATREON fallback in early CLI arg handling
 try:
     from config import PATREON_URL as _PATREON_URL, APP_VERSION as _APP_VERSION
 except Exception:
@@ -684,9 +687,6 @@ class SettingsPanelQt(QWidget):
         ])
         self.tooltip_mode_combo.currentIndexChanged.connect(lambda: self.on_tooltip_mode_changed())
         self.set_tooltip(self.tooltip_mode_combo, 'tooltip_mode')
-        self.set_tooltip(self.tooltip_mode_combo, 'tooltip_mode_normal')
-        self.set_tooltip(self.tooltip_mode_combo, 'tooltip_mode_dumbed_down')
-        self.set_tooltip(self.tooltip_mode_combo, 'tooltip_mode_vulgar')
         
         # Add description label
         mode_desc = QLabel(
