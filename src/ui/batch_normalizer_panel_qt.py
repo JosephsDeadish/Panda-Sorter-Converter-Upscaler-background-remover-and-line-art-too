@@ -235,6 +235,12 @@ class BatchNormalizerPanelQt(QWidget):
         btn_row.addWidget(add_folder_btn)
         self._set_tooltip(add_folder_btn, "Add all images from a folder to the selection")
 
+        clear_btn = QPushButton("✖ Clear")
+        clear_btn.clicked.connect(self._clear_files)
+        clear_btn.setFixedWidth(65)
+        btn_row.addWidget(clear_btn)
+        self._set_tooltip(clear_btn, "Remove all selected files from the list")
+
         group_layout.addLayout(btn_row)
 
         # Recursive checkbox
@@ -463,6 +469,12 @@ class BatchNormalizerPanelQt(QWidget):
             self.files_label.setText(f"{len(files)} files selected")
             self.files_label.setStyleSheet("color: green;")
             self._update_preview()
+
+    def _clear_files(self):
+        """Clear the selected files list."""
+        self.selected_files = []
+        self.files_label.setText("No files selected")
+        self.files_label.setStyleSheet("color: gray;")
     
     def _select_output(self):
         """Select output directory."""
