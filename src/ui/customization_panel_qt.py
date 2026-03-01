@@ -114,8 +114,13 @@ class CustomizationPanelQt(QWidget):
         layout.addWidget(color_group)
 
         # Trail section
-        trail_group = QGroupBox("Movement Trail")
+        trail_group = QGroupBox("🐼 Panda Movement Trail")
         trail_layout = QVBoxLayout()
+
+        _trail_note = QLabel("This is the panda's movement trail (not the mouse cursor trail).\nMouse cursor trail is in: Settings → Cursor.")
+        _trail_note.setStyleSheet("color: #666; font-size: 9pt; font-style: italic;")
+        _trail_note.setWordWrap(True)
+        trail_layout.addWidget(_trail_note)
 
         # Trail type
         type_layout = QHBoxLayout()
@@ -131,7 +136,7 @@ class CustomizationPanelQt(QWidget):
         trail_color_layout = QHBoxLayout()
         trail_color_layout.addWidget(QLabel("Trail Color:"))
         self.trail_color_btn = QPushButton("Choose Color")
-        self.trail_color_btn.setToolTip("Pick a custom colour for your cursor trail")
+        self.trail_color_btn.setToolTip("Pick a custom colour for the panda's movement trail")
         self.trail_color_btn.clicked.connect(lambda: self.choose_color('trail'))
         trail_color_layout.addWidget(self.trail_color_btn)
         trail_layout.addLayout(trail_color_layout)

@@ -94,8 +94,12 @@ class CursorTrailOverlay(QWidget):  # type: ignore[misc]
         self._scheme: list[tuple[int, int, int]] = _SCHEMES['rainbow']
         self._intensity: int = 5  # 1–10; default mid
 
-        # Install event filter on parent to capture mouse moves
-        if parent is not None:
+        # Install event filter on QApplication so ALL child-widget mouse events
+        # are captured (installing only on parent misses events on child widgets).
+        app = QApplication.instance()
+        if app is not None:
+            app.installEventFilter(self)
+        elif parent is not None:
             parent.installEventFilter(self)
 
         self._timer = QTimer(self)
@@ -126,11 +130,19 @@ class CursorTrailOverlay(QWidget):  # type: ignore[misc]
     # ── event filter on parent ────────────────────────────────────────────────
 
     def eventFilter(self, obj: QObject, event: QEvent) -> bool:  # type: ignore[override]
-        """Intercept mouse-move events on the parent to record trail positions."""
+        """Intercept mouse-move events anywhere in the app to record trail positions.
+
+        Since we install the filter on QApplication, pos() is relative to the
+        source widget.  Convert to parent-window-local coords via globalPos().
+        """
         try:
             if event.type() == QEvent.Type.MouseMove:
-                pos = event.pos()  # type: ignore[attr-defined]
-                self._dots.append((pos.x(), pos.y()))
+                # globalPosition() → QPointF in Qt6; map to our parent widget's local frame
+                p = self.parent()
+                if p is not None:
+                    global_pos = event.globalPosition().toPoint()  # type: ignore[attr-defined]
+                    local_pos = p.mapFromGlobal(global_pos)
+                    self._dots.append((local_pos.x(), local_pos.y()))
         except Exception:
             pass
         return False  # never consume the event
@@ -144,6 +156,20 @@ class CursorTrailOverlay(QWidget):  # type: ignore[misc]
     def showEvent(self, event) -> None:
         self._cover_parent()
         super().showEvent(event)
+
+    def hideEvent(self, event) -> None:
+        self._dots.clear()
+        super().hideEvent(event)
+
+    def closeEvent(self, event) -> None:
+        # Remove the app-level event filter on cleanup
+        try:
+            app = QApplication.instance()
+            if app is not None:
+                app.removeEventFilter(self)
+        except Exception:
+            pass
+        super().closeEvent(event)
 
     def paintEvent(self, event) -> None:  # type: ignore[override]
         if not self._dots:
