@@ -141,6 +141,7 @@ class CursorTrailOverlay(QWidget):  # type: ignore[misc]
                 p = self.parent()
                 if p is not None:
                     global_pos = event.globalPosition().toPoint()  # type: ignore[attr-defined]
+                    # toPoint() converts QPointF → QPoint (integer pixel coords for trail dots)
                     local_pos = p.mapFromGlobal(global_pos)
                     self._dots.append((local_pos.x(), local_pos.y()))
         except Exception:

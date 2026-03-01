@@ -195,9 +195,40 @@ class SettingsPanelQt(QWidget):
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
         scroll.setFrameShape(QScrollArea.Shape.NoFrame)
-        
+
         container = QWidget()
         layout = QVBoxLayout(container)
+
+        # Quick dependency status strip
+        _dep_lines = []
+        _ok = "✅"
+        _warn = "⚠️"
+        _deps = [
+            ('torch', 'PyTorch (AI upscaling, organizer)'),
+            ('PIL', 'Pillow (image processing)'),
+            ('timm', 'timm (EfficientNet / organizer AI)'),
+            ('rembg', 'rembg (background removal)'),
+            ('gfpgan', 'gfpgan (face enhancement)'),
+        ]
+        for _mod, _label in _deps:
+            try:
+                __import__(_mod)
+                _dep_lines.append(f"{_ok}  {_label}")
+            except ImportError:
+                _dep_lines.append(f"{_warn}  {_label}  (not installed)")
+            except Exception:
+                _dep_lines.append(f"{_warn}  {_label}  (error)")
+        _status_lbl = QLabel("\n".join(_dep_lines))
+        _status_lbl.setStyleSheet(
+            "background: #1a1a2e; color: #ccccdd; font-size: 9pt; "
+            "border-radius: 4px; padding: 8px; font-family: monospace;"
+        )
+        _status_lbl.setWordWrap(False)
+        _dep_group = QGroupBox("🔍 Dependency Status")
+        _dep_lay = QVBoxLayout()
+        _dep_lay.addWidget(_status_lbl)
+        _dep_group.setLayout(_dep_lay)
+        layout.addWidget(_dep_group)
         
         # Theme section
         theme_group = QGroupBox("Theme")
@@ -395,7 +426,7 @@ class SettingsPanelQt(QWidget):
         self.cursor_size_combo.currentTextChanged.connect(lambda: self.on_setting_changed('ui', 'cursor_size'))
         self.set_tooltip(self.cursor_size_combo, 'cursor_size')
 
-        _size_note = QLabel("⚠️ Size only affects emoji cursors (skull, panda, etc.).\nBuilt-in OS cursors (default, arrow, hand) are fixed size.")
+        _size_note = QLabel("⚠️ Size only affects emoji cursors (skull, panda, etc.).\nbuilt-in OS cursors (default, arrow, hand) are fixed size.")
         _size_note.setStyleSheet("color: #888; font-size: 9pt; font-style: italic;")
         _size_note.setWordWrap(True)
 
@@ -469,7 +500,6 @@ class SettingsPanelQt(QWidget):
         ])
         self.cursor_trail_color_combo.currentTextChanged.connect(lambda: self.on_setting_changed('ui', 'cursor_trail_color'))
         self.set_tooltip(self.cursor_trail_color_combo, 'cursor_trail_color')
-        self.set_tooltip(self.cursor_trail_color_combo, 'cursor_tint')
         
         trail_layout.addWidget(trail_color_label)
         trail_layout.addWidget(self.cursor_trail_color_combo)
@@ -920,6 +950,19 @@ class SettingsPanelQt(QWidget):
         scroll.setFrameShape(QScrollArea.Shape.NoFrame)
         container = QWidget()
         layout = QVBoxLayout(container)
+
+        # Clarifying header
+        _ai_header = QLabel(
+            "⚠️ Advanced: These are AI model training / inference settings.\n"
+            "For day-to-day use you don't need to change anything here.\n"
+            "To check which AI models are installed, see the  📦 AI Model Status  tab."
+        )
+        _ai_header.setStyleSheet(
+            "background: #2a2a3e; color: #aaaacc; font-size: 9pt; "
+            "border-radius: 4px; padding: 8px; margin-bottom: 4px;"
+        )
+        _ai_header.setWordWrap(True)
+        layout.addWidget(_ai_header)
 
         # ── Training section ──────────────────────────────────────────────
         train_group = QGroupBox("🏋️ Training Settings")
