@@ -416,7 +416,7 @@ class NotepadPanelQt(QWidget):
             self.notes_list.addItem(item)
     
     def export_note(self):
-        """Export current note to text file"""
+        """Export current note to text or Markdown file."""
         if not self.current_note_id:
             return
         
@@ -425,21 +425,34 @@ class NotepadPanelQt(QWidget):
             return
         
         # Get file name
-        filename, _ = QFileDialog.getSaveFileName(
+        filename, selected_filter = QFileDialog.getSaveFileName(
             self,
             "Export Note",
             f"{note['title']}.txt",
-            "Text Files (*.txt);;All Files (*)"
+            "Text Files (*.txt);;Markdown Files (*.md);;All Files (*)"
         )
         
         if filename:
             try:
+                # Ensure correct extension matches filter
+                if 'Markdown' in selected_filter and not filename.lower().endswith('.md'):
+                    filename += '.md'
+                elif 'Text' in selected_filter and not filename.lower().endswith('.txt'):
+                    filename += '.txt'
+
                 with open(filename, 'w', encoding='utf-8') as f:
-                    f.write(f"Title: {note['title']}\n")
-                    f.write(f"Created: {note['created']}\n")
-                    f.write(f"Modified: {note['modified']}\n")
-                    f.write("\n" + "=" * 50 + "\n\n")
-                    f.write(note['content'])
+                    if filename.lower().endswith('.md'):
+                        f.write(f"# {note['title']}\n\n")
+                        f.write(f"*Created: {note['created']}*  \n")
+                        f.write(f"*Modified: {note['modified']}*\n\n")
+                        f.write("---\n\n")
+                        f.write(note['content'])
+                    else:
+                        f.write(f"Title: {note['title']}\n")
+                        f.write(f"Created: {note['created']}\n")
+                        f.write(f"Modified: {note['modified']}\n")
+                        f.write("\n" + "=" * 50 + "\n\n")
+                        f.write(note['content'])
                 
                 self.status_label.setText(f"Exported to: {Path(filename).name}")
                 QMessageBox.information(self, "Success", f"Note exported to:\n{filename}")

@@ -722,11 +722,11 @@ class ColorCorrectionPanelQt(QWidget):
         try:
             from tools.color_corrector import apply_white_balance
             return apply_white_balance(img, amount)
-        except Exception:
+        except (ImportError, ModuleNotFoundError):
             try:
                 from color_corrector import apply_white_balance  # type: ignore[no-redef]
                 return apply_white_balance(img, amount)
-            except Exception:
+            except (ImportError, ModuleNotFoundError):
                 return img
 
     @staticmethod
@@ -735,11 +735,11 @@ class ColorCorrectionPanelQt(QWidget):
         try:
             from tools.color_corrector import apply_lut_preset
             return apply_lut_preset(img, name)
-        except Exception:
+        except (ImportError, ModuleNotFoundError):
             try:
                 from color_corrector import apply_lut_preset  # type: ignore[no-redef]
                 return apply_lut_preset(img, name)
-            except Exception:
+            except (ImportError, ModuleNotFoundError):
                 return img
     
     def _on_comparison_mode_changed(self, mode_text):
