@@ -154,15 +154,19 @@ class RepairWorker(QThread):
                     if self.output_dir is not None:
                         output_path = os.path.join(self.output_dir, filename)
                     else:
-                        output_path = None
+                        # Mirror repair_file()'s own auto-generation so skip works
+                        base, ext = os.path.splitext(filepath)
+                        output_path = f"{base}_repaired{ext}"
 
-                    if self.skip_existing and output_path is not None and os.path.exists(output_path):
+                    if self.skip_existing and os.path.exists(output_path):
                         successes += 1
                         self.result.emit(filepath, True, f"⏭️ {filename}: skipped (already exists)")
                         continue
 
-                    # Call repair with mode
-                    result, message = self.repairer.repair_file(filepath, output_path, self.mode)
+                    # Pass the computed path, or None for auto-generation when
+                    # output_dir wasn't set (repair_file computes the same path).
+                    repair_path = output_path if self.output_dir is not None else None
+                    result, message = self.repairer.repair_file(filepath, repair_path, self.mode)
 
                     if result in (RepairResult.SUCCESS, RepairResult.PARTIAL):
                         successes += 1
@@ -303,7 +307,10 @@ class ImageRepairPanelQt(QWidget):
 
         self._skip_existing = QCheckBox("Skip if output file already exists")
         self._skip_existing.setChecked(False)
-        self._set_tooltip(self._skip_existing, "When checked, files are not re-processed if the output already exists")
+        self._set_tooltip(self._skip_existing,
+            "When checked, files are not re-processed if the output already exists.\n"
+            "Without an output directory, the auto-generated '<name>_repaired.ext' path is checked."
+        )
         group_layout.addWidget(self._skip_existing)
         
         # Archive options
