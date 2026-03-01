@@ -390,9 +390,18 @@ if _PYQT:
                 "When enabled, the selected folder and all its subfolders are scanned for images")
             inp_lay.addWidget(self._recursive_cb)
 
+            file_row = QHBoxLayout()
             self._file_count_lbl = QLabel("No files selected")
             self._file_count_lbl.setStyleSheet("color:#888; font-size:11px;")
-            inp_lay.addWidget(self._file_count_lbl)
+            file_row.addWidget(self._file_count_lbl, stretch=1)
+            btn_clear_files = QPushButton("✖ Clear")
+            btn_clear_files.setFixedWidth(60)
+            btn_clear_files.setFixedHeight(22)
+            btn_clear_files.setStyleSheet("font-size:10px;")
+            btn_clear_files.clicked.connect(self._clear_files)
+            self._set_tooltip(btn_clear_files, "Remove all selected files from the list")
+            file_row.addWidget(btn_clear_files)
+            inp_lay.addLayout(file_row)
             lv.addWidget(inp_box)
 
             # Output format
@@ -680,6 +689,13 @@ if _PYQT:
                 pass
 
         # ── File / dir pickers ────────────────────────────────────────────
+        def _clear_files(self):
+            """Clear the current file selection."""
+            self._files = []
+            self._in_dir_edit.clear()
+            self._file_count_lbl.setText("No files selected")
+            self._file_count_lbl.setStyleSheet("color:#888; font-size:11px;")
+
         def _pick_input_folder(self):
             d = QFileDialog.getExistingDirectory(self, "Select Input Folder")
             if not d:
