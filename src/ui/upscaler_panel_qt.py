@@ -900,7 +900,7 @@ class ImageUpscalerPanelQt(QWidget):
             return '✅ Available' if available else '⚠️ Native acceleration not available'
         
         def get_realesrgan_status(available):
-            return '✅ Available' if available else '❌ Not installed — run python setup_models.py'
+            return '✅ Available' if available else '❌ Not installed — run  python setup_models.py'
         
         descriptions = {
             "bicubic":        "Bicubic: Fast, good quality for most images (always available)",

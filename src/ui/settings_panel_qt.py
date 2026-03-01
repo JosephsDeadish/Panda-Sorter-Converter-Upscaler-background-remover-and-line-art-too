@@ -13,7 +13,8 @@ import json
 
 logger = logging.getLogger(__name__)
 
-# Support link — single source of truth (also defined in config.PATREON_URL)
+# Support link — fallback matches config.PATREON_URL and main.py's early-arg fallback.
+# Update all three locations if the Patreon URL changes.
 try:
     from config import PATREON_URL as _PATREON_URL, APP_VERSION as _APP_VERSION
 except Exception:
