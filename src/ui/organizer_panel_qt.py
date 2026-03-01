@@ -306,13 +306,19 @@ class OrganizerWorker(QThread):
 
                 # Default: move to target_dir / suggested_folder
                 target_path = target_dir / suggested_folder / file_path.name
-                target_path.parent.mkdir(parents=True, exist_ok=True)
-                try:
-                    file_path.rename(target_path)
+                dry_run = self.settings.get('dry_run', False)
+                if dry_run:
+                    self.log.emit(f"[DRY RUN] Would move: {file_path.name} → {suggested_folder}/")
                     moved_count += 1
                     self._files_processed += 1
-                except Exception as e:
-                    self.log.emit(f"⚠ Failed to move {file_path.name}: {e}")
+                else:
+                    target_path.parent.mkdir(parents=True, exist_ok=True)
+                    try:
+                        file_path.rename(target_path)
+                        moved_count += 1
+                        self._files_processed += 1
+                    except Exception as e:
+                        self.log.emit(f"⚠ Failed to move {file_path.name}: {e}")
 
             self.progress.emit(idx + 1, total_files, file_path.name, confidence)
 
@@ -324,7 +330,9 @@ class OrganizerWorker(QThread):
             'files_processed': moved_count,
         }
 
-        self.finished.emit(True, f"Moved {moved_count}/{total_files} files", stats)
+        dry_run = self.settings.get('dry_run', False)
+        action_word = "Would move" if dry_run else "Moved"
+        self.finished.emit(True, f"{action_word} {moved_count}/{total_files} files", stats)
     
     def _run_suggested(self):
         """Suggested mode: AI suggests, user confirms (handled by UI)."""
@@ -1188,6 +1196,13 @@ class OrganizerPanelQt(QWidget):
         self.create_backup_cb.setChecked(True)
         self._set_tooltip(self.create_backup_cb, 'alpha_fix_backup')
         org_settings_layout.addWidget(self.create_backup_cb)
+
+        self.dry_run_cb = QCheckBox("🔍 Dry Run (preview only — no files moved)")
+        self.dry_run_cb.setChecked(False)
+        self._set_tooltip(self.dry_run_cb,
+            "When checked, files are classified and planned but NOT actually moved or copied. "
+            "Use this to preview what the organizer would do before committing.")
+        org_settings_layout.addWidget(self.dry_run_cb)
         
         org_settings_layout.addStretch()
         
@@ -1688,6 +1703,7 @@ class OrganizerPanelQt(QWidget):
             'conflict_resolution': conflict_res,
             'create_backup': backup,
             'style_key': getattr(self.style_combo, 'currentData', lambda: None)(),
+            'dry_run': hasattr(self, 'dry_run_cb') and self.dry_run_cb.isChecked(),
         }
         
         # Disable UI

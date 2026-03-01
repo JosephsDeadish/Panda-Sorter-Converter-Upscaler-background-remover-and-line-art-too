@@ -210,6 +210,15 @@ class FileBrowserPanelQt(QWidget):
         self._set_tooltip(self.recent_combo, 'recent_folders_combo')
         self._set_tooltip(self.recent_combo, 'recent_files')
         controls_layout.addWidget(self.recent_combo)
+
+        # Clear recent folders button
+        self._clear_recent_btn = QPushButton("✖")
+        self._clear_recent_btn.setFixedWidth(28)
+        self._clear_recent_btn.setFixedHeight(24)
+        self._clear_recent_btn.setStyleSheet("font-size:10px;")
+        self._clear_recent_btn.clicked.connect(self._clear_recent_folders)
+        self._set_tooltip(self._clear_recent_btn, "Clear recent folders history")
+        controls_layout.addWidget(self._clear_recent_btn)
         
         # Refresh button
         self.refresh_btn = QPushButton("🔄 Refresh")
@@ -792,3 +801,9 @@ class FileBrowserPanelQt(QWidget):
         self.recent_combo.addItem("-- Recent Folders --")
         for folder in self.recent_folders:
             self.recent_combo.addItem(folder)
+
+    def _clear_recent_folders(self):
+        """Clear recent folders history."""
+        self.recent_folders = []
+        self.update_recent_combo()
+        self.save_recent_folders()
