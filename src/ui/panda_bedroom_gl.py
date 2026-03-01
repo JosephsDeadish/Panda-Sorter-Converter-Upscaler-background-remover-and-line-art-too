@@ -1477,7 +1477,8 @@ class PandaBedroomGL(QOpenGLWidget if OPENGL_AVAILABLE else QWidget):  # type: i
         try:
             prev_hover = self._hovered_id
             self._update_hover()
-            if self._hovered_id != prev_hover or self._hovered_id:
+            if self._hovered_id != prev_hover:
+                # Hover changed — update tooltip
                 tip = self._FURNITURE_TIPS.get(self._hovered_id or '', '')
                 if OPENGL_AVAILABLE:
                     from PyQt6.QtWidgets import QToolTip

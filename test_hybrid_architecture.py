@@ -3658,7 +3658,7 @@ def test_avif_plugin_auto_registered():
     src = Path(__file__).parent / 'src' / 'ui' / 'format_converter_panel_qt.py'
     code = src.read_text(encoding='utf-8')
 
-    assert 'import pillow_avif' in code or 'pillow_avif' in code, (
+    assert 'pillow_avif' in code, (
         "format_converter_panel_qt.py does not import pillow_avif.\n"
         "Add:\n  import pillow_avif  # registers AVIF codec with Pillow"
     )
@@ -3806,14 +3806,14 @@ def test_bg_remover_batch_folder_support():
     )
     print("  ✅ Source: _batch_recursive_cb checkbox present")
 
-    # _batch_process must save _nobg.png
+    # _batch_process must save _nobg suffix (via _BATCH_OUTPUT_SUFFIX constant or literal)
     bp_src = ''
     for node in ast.walk(bg_class):
         if isinstance(node, ast.FunctionDef) and node.name == '_batch_process':
             bp_src = ast.unparse(node)
-    assert '_nobg' in bp_src, (
+    assert '_nobg' in bp_src or '_BATCH_OUTPUT_SUFFIX' in bp_src, (
         "_batch_process() does not output _nobg.png files.\n"
-        "Save results as <original_stem>_nobg.png."
+        "Save results as <original_stem>_nobg.png (or via _BATCH_OUTPUT_SUFFIX constant)."
     )
     print("  ✅ Source: _batch_process() saves _nobg.png output files")
 

@@ -957,6 +957,7 @@ class BackgroundRemoverPanelQt(QWidget):
         '.png', '.jpg', '.jpeg', '.bmp', '.tiff', '.tif',
         '.webp', '.tga', '.gif', '.ico',
     }
+    _BATCH_OUTPUT_SUFFIX = '_nobg'   # appended to stem: photo.png → photo_nobg.png
 
     def _batch_add_files(self) -> None:
         """Add individual image files to the batch queue."""
@@ -1026,7 +1027,7 @@ class BackgroundRemoverPanelQt(QWidget):
         error_msgs: list = []
         for fp in list(self._batch_files):
             try:
-                out_path = fp.parent / f"{fp.stem}_nobg.png"
+                out_path = fp.parent / f"{fp.stem}{self._BATCH_OUTPUT_SUFFIX}.png"
                 # Try rembg first
                 removed = None
                 try:

@@ -116,6 +116,26 @@ _RESIZE_MODES: List[Tuple[str, str]] = [
     ("Power-of-two (down)",     "pot_down"),
 ]
 
+# Shared stylesheet for informational format notes in _on_fmt_changed
+_INFO_NOTE_STYLE = "color: #5588cc; font-size: 9pt; font-style: italic;"
+
+
+def _make_square(img: "Image.Image") -> "Image.Image":
+    """Return a square version of *img* by centre-padding the shorter side.
+
+    Used by the ICNS encoder which requires a 1:1 aspect ratio.
+    If the image is already square, it is returned unchanged.
+    """
+    if img.width == img.height:
+        return img
+    side = max(img.width, img.height)
+    mode = img.mode if img.mode in ("RGBA", "LA") else "RGBA"
+    if _PIL:
+        sq = Image.new(mode, (side, side), (0, 0, 0, 0))
+        sq.paste(img, ((side - img.width) // 2, (side - img.height) // 2))
+        return sq
+    return img
+
 
 # ─── Worker thread ────────────────────────────────────────────────────────────
 class _ConvertWorker(QThread):
@@ -204,13 +224,8 @@ class _ConvertWorker(QThread):
                 elif pil_fmt == "ICO":
                     img = img.convert("RGBA")
                 elif pil_fmt == "ICNS":
-                    # ICNS requires square RGBA image
-                    img = img.convert("RGBA")
-                    if img.width != img.height:
-                        side = max(img.width, img.height)
-                        sq = Image.new("RGBA", (side, side), (0, 0, 0, 0))
-                        sq.paste(img, ((side - img.width) // 2, (side - img.height) // 2))
-                        img = sq
+                    # ICNS requires a square RGBA image — pad shorter side if needed
+                    img = _make_square(img.convert("RGBA"))
                 elif pil_fmt == "GIF":
                     # GIF supports only palette / P mode (256 colours)
                     if img.mode not in ("P", "L"):
@@ -242,6 +257,10 @@ class _ConvertWorker(QThread):
                     save_kw = {"quality": webp_q}
                 elif pil_fmt == "JPEG2000":
                     save_kw = {"quality_mode": "lossless"}
+
+                # ── Early AVIF check — skip inference if plugin absent ───────
+                if pil_fmt == "AVIF" and not _AVIF_AVAILABLE:
+                    raise RuntimeError(_AVIF_UNAVAILABLE_MSG)
 
                 try:
                     img.save(out_path, format=pil_fmt, **save_kw)
@@ -629,27 +648,27 @@ if _PYQT:
                         )
                     self._avif_note.setVisible(True)
                 elif pil_fmt == "JPEG2000":
-                    self._avif_note.setStyleSheet("color: #5588cc; font-size: 9pt; font-style: italic;")
+                    self._avif_note.setStyleSheet(_INFO_NOTE_STYLE)
                     self._avif_note.setText(
                         "ℹ️ JPEG 2000 requires the 'openjpeg' codec in Pillow.\n"
                         "Most pip wheels include it — if it fails, try a different format."
                     )
                     self._avif_note.setVisible(True)
                 elif pil_fmt == "GIF":
-                    self._avif_note.setStyleSheet("color: #5588cc; font-size: 9pt; font-style: italic;")
+                    self._avif_note.setStyleSheet(_INFO_NOTE_STYLE)
                     self._avif_note.setText(
                         "ℹ️ GIF is limited to 256 colours. Animated GIFs are not preserved."
                     )
                     self._avif_note.setVisible(True)
                 elif pil_fmt == "ICNS":
-                    self._avif_note.setStyleSheet("color: #5588cc; font-size: 9pt; font-style: italic;")
+                    self._avif_note.setStyleSheet(_INFO_NOTE_STYLE)
                     self._avif_note.setText(
                         "ℹ️ ICNS (macOS icon) requires a square input. "
                         "Sizes 16, 32, 64, 128, 256, 512 px are recommended."
                     )
                     self._avif_note.setVisible(True)
                 elif pil_fmt == "QOI":
-                    self._avif_note.setStyleSheet("color: #5588cc; font-size: 9pt; font-style: italic;")
+                    self._avif_note.setStyleSheet(_INFO_NOTE_STYLE)
                     self._avif_note.setText(
                         "ℹ️ QOI (Quite OK Image) — fast lossless format. "
                         "Requires Pillow 9.3+ (included in requirements)."
