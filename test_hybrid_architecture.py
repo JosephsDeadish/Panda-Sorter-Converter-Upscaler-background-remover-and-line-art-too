@@ -3161,6 +3161,94 @@ def test_livy_shop_commentary():
     print("  ✅ Source: _start_livy_idle_timer() present")
 
 
+def test_theme_ambient_decorators():
+    """Ocean/Goth/Dracula themes must have ambient idle decorator classes and timers.
+
+    Issue #198: 'themes need more personality more goth things likes skulls and
+    other goth stuff on goth theme more Dracula stuff and Dracula themed ui for
+    Dracula theme more ocean creatures and coral for the ocean theme'
+
+    Validates (source-level):
+    - OceanAmbientCreature class exists
+    - GothAmbientSpider class exists
+    - DraculaAmbientBat class exists
+    - _ocean_ambient_timer, _goth_ambient_timer, _dracula_ambient_timer instance vars
+    - _spawn_ocean_creature, _spawn_goth_spider, _spawn_dracula_bat methods
+    - Timers are started when themes are activated (_update_ocean_ripple etc.)
+    - Timers are stopped when themes are deactivated (timer set to None on cleanup)
+
+    Runtime: applying Ocean/Goth/Dracula themes installs ambient timers.
+    """
+    print("\ntest_theme_ambient_decorators ...")
+    code = open('main.py').read()
+
+    for cls_name in ('OceanAmbientCreature', 'GothAmbientSpider', 'DraculaAmbientBat'):
+        assert f'class {cls_name}' in code, (
+            f"main.py: {cls_name} class missing. "
+            f"Add it to give the theme ambient idle personality."
+        )
+    print("  ✅ Source: OceanAmbientCreature, GothAmbientSpider, DraculaAmbientBat present")
+
+    for var in ('_ocean_ambient_timer', '_goth_ambient_timer', '_dracula_ambient_timer'):
+        assert var in code, (
+            f"main.py: {var} instance variable missing. "
+            f"Add 'self.{var} = None' in __init__."
+        )
+    print("  ✅ Source: ambient timer instance variables declared")
+
+    for method in ('_spawn_ocean_creature', '_spawn_goth_spider', '_spawn_dracula_bat'):
+        assert f'def {method}' in code, (
+            f"main.py: {method}() method missing. "
+            f"Add it as the QTimer.timeout slot for spawning ambient decorators."
+        )
+    print("  ✅ Source: spawn helper methods present")
+
+    # Verify timers are started in update methods
+    assert '_ocean_ambient_timer' in code and '_spawn_ocean_creature' in code, \
+        "Ocean ambient timer not wired in _update_ocean_ripple"
+    assert '_goth_ambient_timer' in code and '_spawn_goth_spider' in code, \
+        "Goth ambient timer not wired in _update_goth_skulls"
+    assert '_dracula_ambient_timer' in code and '_spawn_dracula_bat' in code, \
+        "Dracula ambient timer not wired in _update_dracula_drops"
+    print("  ✅ Source: ambient timers wired into theme update methods")
+
+    # Runtime: apply Ocean theme and check timer is started
+    import sys, logging, os
+    os.environ.setdefault('QT_QPA_PLATFORM', 'offscreen')
+    logging.disable(logging.CRITICAL)
+    import main as _m
+    from PyQt6.QtWidgets import QApplication
+    _app = QApplication.instance() or QApplication(sys.argv)
+    win = _m.TextureSorterMainWindow()
+    win.resize(1280, 800)
+
+    win.apply_theme('ocean')
+    assert win._ocean_ambient_timer is not None, \
+        "Ocean ambient timer must be set after apply_theme('ocean')"
+    assert win._ocean_ambient_timer.isActive(), \
+        "Ocean ambient timer must be running after apply_theme('ocean')"
+    print("  ✅ Runtime: Ocean ambient timer running after theme activation")
+
+    win.apply_theme('goth')
+    assert win._ocean_ambient_timer is None, \
+        "Ocean ambient timer must be stopped when switching away from Ocean theme"
+    assert win._goth_ambient_timer is not None and win._goth_ambient_timer.isActive(), \
+        "Goth ambient timer must be running after apply_theme('goth')"
+    print("  ✅ Runtime: Goth ambient timer running; Ocean timer stopped after switch")
+
+    win.apply_theme('dracula')
+    assert win._goth_ambient_timer is None, \
+        "Goth ambient timer must be stopped when switching away from Goth theme"
+    assert win._dracula_ambient_timer is not None and win._dracula_ambient_timer.isActive(), \
+        "Dracula ambient timer must be running after apply_theme('dracula')"
+    print("  ✅ Runtime: Dracula ambient timer running; Goth timer stopped after switch")
+
+    win.apply_theme('dark')
+    assert win._dracula_ambient_timer is None, \
+        "Dracula ambient timer must be stopped when switching away from Dracula theme"
+    print("  ✅ Runtime: all ambient timers stopped on neutral theme")
+
+
 def run_all_tests():
     print("=" * 65)
     print("Hybrid Architecture + Lazy rembg Import Tests")
@@ -3239,6 +3327,7 @@ def run_all_tests():
         test_panda_gl_arm_y_at_shoulder_level,
         test_panda_gl_starts_on_ground,
         test_livy_shop_commentary,
+        test_theme_ambient_decorators,
     ]
 
     passed, failed = [], []

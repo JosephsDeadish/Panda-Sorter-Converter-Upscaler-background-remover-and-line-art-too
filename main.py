@@ -900,6 +900,186 @@ class DraculaDropFilter(QObject):
         return False
 
 
+# ── Ambient idle-theme decorator labels ───────────────────────────────────────
+# These classes are spawned by a QTimer on the main window and drift across the
+# window to add "ambient personality" to themed modes.  They are transparent to
+# mouse events so they never interfere with UI interaction.
+
+class OceanAmbientCreature(QLabel):
+    """A sea creature that drifts from the left edge to the right across the window.
+
+    Spawned periodically by the Ocean theme's ambient timer to give the UI a
+    sense of a living underwater environment — fish, jellyfish, coral emojis
+    wander across the lower third of the window.
+    """
+
+    _ICONS = ["🐠", "🐡", "🐟", "🐙", "🦑", "🦈", "🐬", "🪼", "🦀", "🦞",
+              "🐚", "🪸", "🌊", "🐳", "🐋", "🦭", "🦐"]
+
+    def __init__(self, parent: 'QWidget') -> None:
+        super().__init__(parent)
+        _r = _random
+        self.setText(_r.choice(self._ICONS))
+        self.setStyleSheet(
+            "QLabel { background: transparent; font-size: 22px; color: #00e5ff;"
+            " border: none; padding: 0; }"
+        )
+        self.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
+        self.adjustSize()
+
+        pw, ph = parent.width(), parent.height()
+        # Start at the left edge, in the lower 40% of the window
+        y_min = int(ph * 0.55)
+        y_max = max(y_min + 20, ph - self.height() - 10)
+        start_y = _r.randint(y_min, y_max)
+        self.move(-self.width() - 10, start_y)
+        self.show()
+        self.raise_()
+
+        from PyQt6.QtWidgets import QGraphicsOpacityEffect
+        from PyQt6.QtCore import QPropertyAnimation, QEasingCurve, QRect, QPoint
+        eff = QGraphicsOpacityEffect(self)
+        self.setGraphicsEffect(eff)
+
+        # Fade: in → hold → out
+        self._fade_in = QPropertyAnimation(eff, b"opacity", self)
+        self._fade_in.setDuration(600)
+        self._fade_in.setStartValue(0.0)
+        self._fade_in.setEndValue(0.75)
+        self._fade_in.setEasingCurve(QEasingCurve.Type.InQuad)
+
+        duration = _r.randint(4500, 7000)
+        self._drift = QPropertyAnimation(self, b"geometry", self)
+        self._drift.setDuration(duration)
+        self._drift.setStartValue(QRect(-self.width() - 10, start_y, self.width(), self.height()))
+        self._drift.setEndValue(QRect(pw + 20, start_y + _r.randint(-30, 30),
+                                      self.width(), self.height()))
+        self._drift.setEasingCurve(QEasingCurve.Type.Linear)
+        self._drift.finished.connect(self.deleteLater)
+
+        self._fade_in.start()
+        self._drift.start()
+
+
+class GothAmbientSpider(QLabel):
+    """A spider/skull that descends from the top of the window on a web thread.
+
+    Appears in the Goth theme to add an ambient creepy feeling. Spawns at a
+    random x position, drops down, sways, then retracts back up and vanishes.
+    """
+
+    _ICONS = ["🕷️", "💀", "🕸️", "🦇", "🌑", "💀🕷️", "🕷️🕸️", "💀💜"]
+
+    def __init__(self, parent: 'QWidget') -> None:
+        super().__init__(parent)
+        _r = _random
+        self.setText(_r.choice(self._ICONS))
+        self.setStyleSheet(
+            "QLabel { background: transparent; font-size: 20px; color: #9966bb;"
+            " border: none; padding: 0; }"
+        )
+        self.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
+        self.adjustSize()
+
+        pw = parent.width()
+        x = _r.randint(30, max(31, pw - 50))
+        drop_depth = _r.randint(int(parent.height() * 0.08),
+                                int(parent.height() * 0.35))
+
+        self.move(x, -self.height() - 5)
+        self.show()
+        self.raise_()
+
+        from PyQt6.QtWidgets import QGraphicsOpacityEffect
+        from PyQt6.QtCore import QPropertyAnimation, QEasingCurve, QRect
+        eff = QGraphicsOpacityEffect(self)
+        self.setGraphicsEffect(eff)
+        eff.setOpacity(0.85)
+
+        hang_ms = _r.randint(1200, 2500)
+        # Drop down
+        self._drop = QPropertyAnimation(self, b"geometry", self)
+        self._drop.setDuration(1800)
+        self._drop.setStartValue(QRect(x, -self.height() - 5, self.width(), self.height()))
+        self._drop.setEndValue(QRect(x, drop_depth, self.width(), self.height()))
+        self._drop.setEasingCurve(QEasingCurve.Type.OutBounce)
+
+        # Retract back up after hanging
+        self._retract = QPropertyAnimation(self, b"geometry", self)
+        self._retract.setDuration(1400)
+        self._retract.setStartValue(QRect(x, drop_depth, self.width(), self.height()))
+        self._retract.setEndValue(QRect(x, -self.height() - 5, self.width(), self.height()))
+        self._retract.setEasingCurve(QEasingCurve.Type.InQuad)
+        self._retract.finished.connect(self.deleteLater)
+
+        def _start_retract():
+            try:
+                self._retract.start()
+            except RuntimeError:
+                pass
+
+        from PyQt6.QtCore import QTimer as _QT
+        self._hang_timer = _QT(self)
+        self._hang_timer.setSingleShot(True)
+        self._hang_timer.timeout.connect(_start_retract)
+
+        self._drop.finished.connect(lambda: self._hang_timer.start(hang_ms))
+        self._drop.start()
+
+
+class DraculaAmbientBat(QLabel):
+    """A bat that swoops across the top of the window in the Dracula theme.
+
+    Adds ambient personality: dark silhouette bats fly from right to left
+    near the top of the window, reinforcing the nocturnal Dracula atmosphere.
+    """
+
+    _ICONS = ["🦇", "🧛🦇", "🦇🌑", "🌑🦇", "🦇💜", "🧛‍♂️", "🦇🦇"]
+
+    def __init__(self, parent: 'QWidget') -> None:
+        super().__init__(parent)
+        _r = _random
+        self.setText(_r.choice(self._ICONS))
+        self.setStyleSheet(
+            "QLabel { background: transparent; font-size: 20px; color: #cc0033;"
+            " border: none; padding: 0; }"
+        )
+        self.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
+        self.adjustSize()
+
+        pw, ph = parent.width(), parent.height()
+        y = _r.randint(10, max(11, int(ph * 0.22)))
+        # Start at the right edge, fly left
+        self.move(pw + self.width() + 10, y)
+        self.show()
+        self.raise_()
+
+        from PyQt6.QtWidgets import QGraphicsOpacityEffect
+        from PyQt6.QtCore import QPropertyAnimation, QEasingCurve, QRect
+        eff = QGraphicsOpacityEffect(self)
+        self.setGraphicsEffect(eff)
+
+        self._fade_in = QPropertyAnimation(eff, b"opacity", self)
+        self._fade_in.setDuration(500)
+        self._fade_in.setStartValue(0.0)
+        self._fade_in.setEndValue(0.8)
+        self._fade_in.setEasingCurve(QEasingCurve.Type.InQuad)
+
+        duration = _r.randint(3500, 5500)
+        end_y = y + _r.randint(-20, 20)
+        self._swoop = QPropertyAnimation(self, b"geometry", self)
+        self._swoop.setDuration(duration)
+        self._swoop.setStartValue(QRect(pw + self.width() + 10, y,
+                                        self.width(), self.height()))
+        self._swoop.setEndValue(QRect(-self.width() - 20, end_y,
+                                      self.width(), self.height()))
+        self._swoop.setEasingCurve(QEasingCurve.Type.InOutSine)
+        self._swoop.finished.connect(self.deleteLater)
+
+        self._fade_in.start()
+        self._swoop.start()
+
+
 class WorkerThread(QThread):
     """Background worker thread for long-running operations."""
 
@@ -1012,6 +1192,10 @@ class TextureSorterMainWindow(QMainWindow):
         self._ocean_ripple_filter = None    # OceanRippleFilter instance (Ocean theme only)
         self._goth_skull_filter = None      # GothSkullFilter instance (Goth theme only)
         self._dracula_drop_filter = None    # DraculaDropFilter instance (Dracula theme only)
+        # Ambient idle-animation timers (fire periodically to spawn drifting decorators)
+        self._ocean_ambient_timer = None    # QTimer — drifts sea creatures across the window
+        self._goth_ambient_timer  = None    # QTimer — drops a spider or skull at random
+        self._dracula_ambient_timer = None  # QTimer — flies a bat across the window top
         
         # Drag-drop, translation, environment monitor
         self.drag_drop_handler = None
@@ -3976,7 +4160,7 @@ class TextureSorterMainWindow(QMainWindow):
             logger.debug(f"_update_vampire_bats: {_e}")
 
     def _update_ocean_ripple(self, theme: str) -> None:
-        """Install or remove the OceanRippleFilter depending on the active theme."""
+        """Install or remove the OceanRippleFilter and ambient-creature timer."""
         try:
             from PyQt6.QtWidgets import QApplication as _QA
             _app = _QA.instance()
@@ -3991,6 +4175,14 @@ class TextureSorterMainWindow(QMainWindow):
                 if not _title.startswith("🐙 "):
                     self.setWindowTitle(f"🐙 {_title.strip()} 🐠")
                 logger.info("🌊 Ocean ripple filter installed")
+                # Ambient creatures — drift a sea creature across every ~14 s
+                if self._ocean_ambient_timer is None:
+                    self._ocean_ambient_timer = QTimer(self)
+                    self._ocean_ambient_timer.setInterval(14000)
+                    self._ocean_ambient_timer.timeout.connect(self._spawn_ocean_creature)
+                    self._ocean_ambient_timer.start()
+                    # Spawn one immediately so the effect is visible right away
+                    QTimer.singleShot(1200, self._spawn_ocean_creature)
             elif not want and self._ocean_ripple_filter is not None:
                 _app.removeEventFilter(self._ocean_ripple_filter)
                 self._ocean_ripple_filter = None
@@ -4001,11 +4193,23 @@ class TextureSorterMainWindow(QMainWindow):
                         _title.removeprefix("🐙 ").removesuffix(" 🐠").strip()
                     )
                 logger.info("Ocean ripple filter removed")
+                # Stop ambient timer
+                if self._ocean_ambient_timer is not None:
+                    self._ocean_ambient_timer.stop()
+                    self._ocean_ambient_timer = None
         except Exception as _e:
             logger.debug(f"_update_ocean_ripple: {_e}")
 
+    def _spawn_ocean_creature(self) -> None:
+        """Spawn one ambient OceanAmbientCreature drifting across the window."""
+        try:
+            if self.isVisible() and self.width() > 200:
+                OceanAmbientCreature(self)
+        except Exception:
+            pass
+
     def _update_goth_skulls(self, theme: str) -> None:
-        """Install/remove the GothSkullFilter for the Goth theme."""
+        """Install/remove the GothSkullFilter and ambient-spider timer."""
         try:
             _app = QApplication.instance()
             if _app is None:
@@ -4019,6 +4223,13 @@ class TextureSorterMainWindow(QMainWindow):
                 if not _title.startswith("💀 "):
                     self.setWindowTitle(f"💀 {_title.strip()} 💀")
                 logger.info("💀 Goth skull filter installed")
+                # Ambient spiders — drop one from top every ~12 s
+                if self._goth_ambient_timer is None:
+                    self._goth_ambient_timer = QTimer(self)
+                    self._goth_ambient_timer.setInterval(12000)
+                    self._goth_ambient_timer.timeout.connect(self._spawn_goth_spider)
+                    self._goth_ambient_timer.start()
+                    QTimer.singleShot(2000, self._spawn_goth_spider)
             elif not want and self._goth_skull_filter is not None:
                 _app.removeEventFilter(self._goth_skull_filter)
                 self._goth_skull_filter = None
@@ -4029,11 +4240,22 @@ class TextureSorterMainWindow(QMainWindow):
                         _title.removeprefix("💀 ").removesuffix(" 💀").strip()
                     )
                 logger.info("Goth skull filter removed")
+                if self._goth_ambient_timer is not None:
+                    self._goth_ambient_timer.stop()
+                    self._goth_ambient_timer = None
         except Exception as _e:
             logger.debug(f"_update_goth_skulls: {_e}")
 
+    def _spawn_goth_spider(self) -> None:
+        """Spawn one ambient GothAmbientSpider descending from the window top."""
+        try:
+            if self.isVisible() and self.width() > 200:
+                GothAmbientSpider(self)
+        except Exception:
+            pass
+
     def _update_dracula_drops(self, theme: str) -> None:
-        """Install/remove the DraculaDropFilter for the Dracula theme."""
+        """Install/remove the DraculaDropFilter and ambient-bat timer."""
         try:
             _app = QApplication.instance()
             if _app is None:
@@ -4047,6 +4269,13 @@ class TextureSorterMainWindow(QMainWindow):
                 if not _title.startswith("🩸 "):
                     self.setWindowTitle(f"🩸 {_title.strip()} 🩸")
                 logger.info("🩸 Dracula drop filter installed")
+                # Ambient bats — fly one across the window top every ~11 s
+                if self._dracula_ambient_timer is None:
+                    self._dracula_ambient_timer = QTimer(self)
+                    self._dracula_ambient_timer.setInterval(11000)
+                    self._dracula_ambient_timer.timeout.connect(self._spawn_dracula_bat)
+                    self._dracula_ambient_timer.start()
+                    QTimer.singleShot(1500, self._spawn_dracula_bat)
             elif not want and self._dracula_drop_filter is not None:
                 _app.removeEventFilter(self._dracula_drop_filter)
                 self._dracula_drop_filter = None
@@ -4057,8 +4286,19 @@ class TextureSorterMainWindow(QMainWindow):
                         _title.removeprefix("🩸 ").removesuffix(" 🩸").strip()
                     )
                 logger.info("Dracula drop filter removed")
+                if self._dracula_ambient_timer is not None:
+                    self._dracula_ambient_timer.stop()
+                    self._dracula_ambient_timer = None
         except Exception as _e:
             logger.debug(f"_update_dracula_drops: {_e}")
+
+    def _spawn_dracula_bat(self) -> None:
+        """Spawn one ambient DraculaAmbientBat swooping across the window."""
+        try:
+            if self.isVisible() and self.width() > 200:
+                DraculaAmbientBat(self)
+        except Exception:
+            pass
 
     def _update_nord_runes(self, theme: str) -> None:
         """Decorate the window title with Elder Futhark runes when the Nord
