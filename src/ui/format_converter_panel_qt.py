@@ -187,7 +187,23 @@ class _ConvertWorker(QThread):
                 elif pil_fmt == "AVIF":
                     save_kw = {"quality": webp_q}
 
-                img.save(out_path, format=pil_fmt, **save_kw)
+                try:
+                    img.save(out_path, format=pil_fmt, **save_kw)
+                except Exception as save_exc:
+                    # Provide a friendlier message for the very common "no AVIF encoder" error
+                    exc_str = str(save_exc)
+                    if pil_fmt == "AVIF" and (
+                        "encoder avif not available" in exc_str.lower()
+                        or "libaom" in exc_str.lower()
+                        or "avif" in exc_str.lower()
+                    ):
+                        raise RuntimeError(
+                            "AVIF encoder not available.\n"
+                            "Pillow needs to be built with libaom support.\n"
+                            "Install a pre-built wheel:  pip install pillow-avif-plugin\n"
+                            "or convert to WebP/PNG as an alternative."
+                        ) from save_exc
+                    raise
                 done += 1
                 self.log_msg.emit(f"✅ {fp.name}  →  {out_path.name}")
             except Exception as exc:
@@ -316,6 +332,17 @@ if _PYQT:
                 self._fmt_combo.addItem(label)
             self._set_tooltip(self._fmt_combo, 'convert_to_format')
             fmt_lay.addWidget(self._fmt_combo, 0, 1)
+
+            # AVIF availability note
+            self._avif_note = QLabel(
+                "⚠️ AVIF requires Pillow built with libaom.\n"
+                "If encoding fails:  pip install pillow-avif-plugin"
+            )
+            self._avif_note.setStyleSheet("color: #e67e00; font-size: 9pt; font-style: italic;")
+            self._avif_note.setWordWrap(True)
+            self._avif_note.setVisible(False)
+            fmt_lay.addWidget(self._avif_note, 0, 2)
+            self._fmt_combo.currentIndexChanged.connect(self._on_fmt_changed)
 
             # Output directory
             fmt_lay.addWidget(QLabel("Output:"), 1, 0)
@@ -524,6 +551,14 @@ if _PYQT:
             self._rsz_row_pct.setVisible(mode_key == "percent")
             self._rsz_row_max.setVisible(mode_key == "max_dim")
             self._rsz_row_fixed.setVisible(mode_key == "fixed")
+
+        def _on_fmt_changed(self, idx: int):
+            """Show AVIF note when AVIF output is selected."""
+            try:
+                _, _ext, pil_fmt = _OUTPUT_FORMATS[idx]
+                self._avif_note.setVisible(pil_fmt == "AVIF")
+            except Exception:
+                pass
 
         # ── File / dir pickers ────────────────────────────────────────────
         def _pick_input_folder(self):

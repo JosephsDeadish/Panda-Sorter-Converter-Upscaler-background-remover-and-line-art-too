@@ -260,12 +260,19 @@ class BackgroundRemoverPanelQt(QWidget):
 
         if not _rembg_ok:
             self._backend_rembg_rb.setEnabled(False)
-            self._backend_rembg_rb.setToolTip("Install rembg:  pip install 'rembg[cpu]'")
+            self._backend_rembg_rb.setToolTip(
+                "rembg is not installed.\n"
+                "Install with:  pip install \"rembg[cpu]\"\n"
+                "or run setup_models.py to download the required ONNX models."
+            )
         else:
             self._set_tooltip(self._backend_rembg_rb, 'bg_mode')
         if not _ort_ok:
             self._backend_ort_rb.setEnabled(False)
-            self._backend_ort_rb.setToolTip("Install onnxruntime:  pip install onnxruntime")
+            self._backend_ort_rb.setToolTip(
+                "onnxruntime is not installed.\n"
+                "Install with:  pip install onnxruntime"
+            )
 
         # Default: prefer rembg if available, else onnxruntime
         if _rembg_ok:
@@ -277,6 +284,19 @@ class BackgroundRemoverPanelQt(QWidget):
 
         backend_layout.addWidget(self._backend_rembg_rb)
         backend_layout.addWidget(self._backend_ort_rb)
+
+        if not _rembg_ok and not _ort_ok:
+            _install_note = QLabel(
+                "⚠️ Neither rembg nor onnxruntime found.\n"
+                "Run:  pip install \"rembg[cpu]\"  to enable background removal.\n"
+                "Or run setup_models.py from the app folder."
+            )
+            _install_note.setStyleSheet(
+                "color: #d44; font-size: 9pt; font-style: italic;"
+            )
+            _install_note.setWordWrap(True)
+            backend_layout.addWidget(_install_note)
+
         layout.addWidget(backend_group)
 
         # ── Tools ─────────────────────────────────────────────────────────

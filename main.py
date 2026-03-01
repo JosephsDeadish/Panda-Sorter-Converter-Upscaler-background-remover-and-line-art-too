@@ -682,7 +682,11 @@ class VampireBatFilter(QObject):
 class OceanRippleLabel(QLabel):
     """Expanding concentric ring that simulates a water ripple on click (Ocean theme)."""
 
-    CREATURES = ["🌊", "🐠", "🐡", "🦀", "🐙", "🪸", "🐚", "🦑", "🐟", "🦈"]
+    CREATURES = [
+        "🌊", "🐠", "🐡", "🦀", "🐙", "🪸", "🐚", "🦑", "🐟", "🦈",
+        "🐬", "🐳", "🐋", "🦞", "🦐", "🦭", "🐊", "🌺", "🪼",
+        "🦀🌊", "🐚✨", "🌊🐙", "🐡🪸", "🦑🌊",
+    ]
 
     def __init__(self, parent: 'QWidget', pos: 'QPoint') -> None:
         super().__init__(parent)
@@ -749,7 +753,11 @@ class OceanRippleFilter(QObject):
 class GothSkullLabel(QLabel):
     """Floating skull that rises and fades on click (Goth theme)."""
 
-    SKULLS = ["💀", "🖤💀", "💀🕸️", "☠️", "🕷️💀🕷️", "💀🌑", "🖤☠️🖤"]
+    SKULLS = [
+        "💀", "🖤💀", "💀🕸️", "☠️", "🕷️💀🕷️", "💀🌑", "🖤☠️🖤",
+        "🦇💀", "💀🥀", "☠️🖤", "🕯️💀", "💀⛓️", "🕸️☠️🕸️",
+        "👁️💀👁️", "💀🌹", "⛧💀⛧", "🖤🩸💀", "🌑☠️🌑",
+    ]
 
     def __init__(self, parent: 'QWidget', pos: 'QPoint') -> None:
         super().__init__(parent)
@@ -817,7 +825,11 @@ class GothSkullFilter(QObject):
 class DraculaDropLabel(QLabel):
     """Blood drop that drips down and fades on click (Dracula theme)."""
 
-    DROPS = ["🩸", "🧛", "🦇🩸", "🩸💜", "🧛‍♂️"]
+    DROPS = [
+        "🩸", "🧛", "🦇🩸", "🩸💜", "🧛‍♂️",
+        "🦇", "🌑🩸", "💜🧛", "🩸🦇", "🧛‍♀️🩸",
+        "🦇🦇", "🌑🧛🌑", "💀🩸", "🩸🌹",
+    ]
 
     def __init__(self, parent: 'QWidget', pos: 'QPoint') -> None:
         super().__init__(parent)
@@ -4055,6 +4067,18 @@ class TextureSorterMainWindow(QMainWindow):
                 font.setPixelSize(int(pix_size * 0.85))
                 painter.setFont(font)
                 painter.drawText(pix.rect(), Qt.AlignmentFlag.AlignCenter, emoji)
+
+                # Apply user-chosen color tint via SourceIn composition
+                color_enabled = bool(config.get('ui', 'cursor_color_enabled', default=False))
+                hex_color = str(config.get('ui', 'cursor_color', default=''))
+                if color_enabled and hex_color:
+                    tint = QColor(hex_color)
+                    if tint.isValid() and tint.alpha() > 0:
+                        painter.setCompositionMode(
+                            QPainter.CompositionMode.CompositionMode_SourceIn
+                        )
+                        painter.fillRect(pix.rect(), tint)
+
                 painter.end()
                 app.setOverrideCursor(QCursor(pix, 0, 0))
                 logger.debug(f"Emoji cursor applied: {clean_name} ({emoji}) size={pix_size}")
@@ -5124,6 +5148,10 @@ class TextureSorterMainWindow(QMainWindow):
 
             # Handle cursor size changes — re-apply cursor at new size
             elif setting_key == "ui.cursor_size":
+                self.apply_cursor()
+
+            # Handle cursor color tint changes — re-apply immediately
+            elif setting_key in ("ui.cursor_color", "ui.cursor_color_enabled"):
                 self.apply_cursor()
 
             # Handle cursor trail toggle — install or remove the overlay

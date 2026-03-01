@@ -557,16 +557,27 @@ class ImageUpscalerPanelQt(QWidget):
 
         # Face / character enhancement
         self.face_enhance_check = QCheckBox("✨ Enhance faces / characters (GFPGAN)")
+        _gfpgan_available = False
         try:
             from preprocessing.upscaler import GFPGAN_AVAILABLE
+            _gfpgan_available = GFPGAN_AVAILABLE
             self.face_enhance_check.setEnabled(GFPGAN_AVAILABLE)
             if not GFPGAN_AVAILABLE:
                 self.face_enhance_check.setText(
-                    "✨ Enhance faces / characters (GFPGAN) — install gfpgan to enable"
+                    "✨ Enhance faces / characters (GFPGAN) — not installed"
                 )
         except Exception:
             self.face_enhance_check.setEnabled(False)
         settings_layout.addWidget(self.face_enhance_check)
+        if not _gfpgan_available:
+            _gfpgan_note = QLabel(
+                "⚠️ GFPGAN not found.\n"
+                "Install:  pip install gfpgan\n"
+                "and run setup_models.py to download GFPGANv1.4.pth."
+            )
+            _gfpgan_note.setStyleSheet("color: #d44; font-size: 9pt; font-style: italic;")
+            _gfpgan_note.setWordWrap(True)
+            settings_layout.addWidget(_gfpgan_note)
         self._set_tooltip(self.face_enhance_check, 'upscale_face_enhance')
 
         settings_group.setLayout(settings_layout)

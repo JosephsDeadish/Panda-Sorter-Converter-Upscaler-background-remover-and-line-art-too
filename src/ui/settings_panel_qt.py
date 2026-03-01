@@ -399,6 +399,41 @@ class SettingsPanelQt(QWidget):
         size_layout.addWidget(self.cursor_size_combo)
         size_group.setLayout(size_layout)
         layout.addWidget(size_group)
+
+        # Cursor color tint (applies to emoji/custom cursors)
+        color_group = QGroupBox("Cursor Color Tint")
+        color_layout = QVBoxLayout()
+        color_info = QLabel(
+            "Tint emoji cursors (skull 💀, panda 🐼, etc.) with a custom color.\n"
+            "Has no effect on built-in OS cursors (default, arrow, hand, etc.)."
+        )
+        color_info.setStyleSheet("color: #666; font-size: 9pt; font-style: italic;")
+        color_info.setWordWrap(True)
+        color_layout.addWidget(color_info)
+
+        color_row = QHBoxLayout()
+        color_row.addWidget(QLabel("Color:"))
+        self._cursor_color_preview = QPushButton()
+        self._cursor_color_preview.setFixedSize(40, 26)
+        self._cursor_color_preview.setToolTip("Click to pick a cursor tint color")
+        _saved_col = str(self.config.get('ui', 'cursor_color', default=''))
+        _init_col = _saved_col if _saved_col else '#ffffff'
+        self._cursor_color_preview.setStyleSheet(
+            f"background-color: {_init_col}; border: 1px solid #aaa; border-radius: 3px;"
+        )
+        self._cursor_color_preview.clicked.connect(self._pick_cursor_color)
+        color_row.addWidget(self._cursor_color_preview)
+
+        self._cursor_color_check = QCheckBox("Apply tint")
+        self._cursor_color_check.setChecked(bool(self.config.get('ui', 'cursor_color_enabled', default=False)))
+        self._cursor_color_check.stateChanged.connect(
+            lambda: self.on_setting_changed('ui', 'cursor_color_enabled')
+        )
+        color_row.addWidget(self._cursor_color_check)
+        color_row.addStretch()
+        color_layout.addLayout(color_row)
+        color_group.setLayout(color_layout)
+        layout.addWidget(color_group)
         
         # Mouse cursor trail (separate from panda trail!)
         trail_group = QGroupBox("Mouse Cursor Trail")
@@ -1727,6 +1762,29 @@ class SettingsPanelQt(QWidget):
             self.apply_theme()
         except Exception as e:
             logger.error(f"Error saving color: {e}", exc_info=True)
+
+    def _pick_cursor_color(self) -> None:
+        """Open a QColorDialog to pick a cursor tint color and save it."""
+        try:
+            current_hex = self.config.get('ui', 'cursor_color', default='#ffffff')
+            initial = QColor(str(current_hex)) if current_hex else QColor(255, 255, 255)
+            chosen = QColorDialog.getColor(
+                initial, self, "Pick Cursor Tint Color",
+                QColorDialog.ColorDialogOption.ShowAlphaChannel,
+            )
+            if chosen.isValid():
+                hex_color = chosen.name(QColor.NameFormat.HexArgb)
+                self.config.set('ui', 'cursor_color', value=hex_color)
+                self.config.save()
+                self._cursor_color_preview.setStyleSheet(
+                    f"background-color: {hex_color}; border: 1px solid #aaa; border-radius: 3px;"
+                )
+                # Auto-enable the tint checkbox
+                self._cursor_color_check.setChecked(True)
+                self.config.set('ui', 'cursor_color_enabled', value=True)
+                self.settingsChanged.emit("ui.cursor_color", hex_color)
+        except Exception as e:
+            logger.warning("_pick_cursor_color: %s", e)
     
     def on_opacity_changed(self, label: QLabel, value: int):
         """Handle opacity slider changes"""
