@@ -1087,6 +1087,9 @@ class TextureSorterMainWindow(QMainWindow):
 
         # Apply performance settings from config
         self.apply_performance_settings()
+
+        # Refresh coin display now that currency_system has been initialized
+        QTimer.singleShot(200, self._update_coin_display)
         
         # Restore dock layout from previous session
         QTimer.singleShot(100, self.restore_dock_layout)  # Delay to ensure widgets are created
