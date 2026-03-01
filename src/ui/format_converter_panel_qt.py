@@ -46,6 +46,20 @@ try:
 except (ImportError, OSError):
     _PIL = False
 
+# ── AVIF plugin: auto-register when pillow-avif-plugin is installed ────────────
+# pillow-avif-plugin ships a pre-built libaom wheel (Windows/macOS/Linux).
+# Importing it registers the AVIF codec with Pillow automatically, so
+# Image.save(…, format="AVIF") works without any extra steps.
+_AVIF_AVAILABLE: bool = False
+if _PIL:
+    try:
+        import pillow_avif  # noqa: F401 — side-effect: registers AVIF codec
+        from PIL import Image as _PilCheck
+        _PilCheck.new("RGB", (1, 1)).tobytes()  # touch PIL to keep import warm
+        _AVIF_AVAILABLE = True
+    except (ImportError, OSError, Exception):
+        _AVIF_AVAILABLE = False
+
 # ─── Format definitions ──────────────────────────────────────────────────────
 _INPUT_EXTS = {
     ".png", ".jpg", ".jpeg", ".bmp", ".tiff", ".tif",
@@ -591,15 +605,25 @@ if _PYQT:
             try:
                 _, _ext, pil_fmt = _OUTPUT_FORMATS[idx]
                 if pil_fmt == "AVIF":
-                    self._avif_note.setText(_AVIF_NOTE_MSG)
+                    if _AVIF_AVAILABLE:
+                        # Plugin loaded — AVIF is fully functional
+                        self._avif_note.setText("✅ AVIF encoder ready (pillow-avif-plugin loaded)")
+                        self._avif_note.setStyleSheet("color: #44aa44; font-size: 9pt;")
+                    else:
+                        self._avif_note.setText(_AVIF_NOTE_MSG)
+                        self._avif_note.setStyleSheet(
+                            "color: #e67e00; font-size: 9pt; font-style: italic;"
+                        )
                     self._avif_note.setVisible(True)
                 elif pil_fmt == "JPEG2000":
+                    self._avif_note.setStyleSheet("color: #5588cc; font-size: 9pt; font-style: italic;")
                     self._avif_note.setText(
                         "ℹ️ JPEG 2000 requires the 'openjpeg' codec in Pillow.\n"
                         "Most pip wheels include it — if it fails, try a different format."
                     )
                     self._avif_note.setVisible(True)
                 elif pil_fmt == "GIF":
+                    self._avif_note.setStyleSheet("color: #5588cc; font-size: 9pt; font-style: italic;")
                     self._avif_note.setText(
                         "ℹ️ GIF is limited to 256 colours. Animated GIFs are not preserved."
                     )

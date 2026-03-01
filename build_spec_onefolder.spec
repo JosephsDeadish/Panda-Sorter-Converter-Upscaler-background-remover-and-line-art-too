@@ -235,7 +235,7 @@ except Exception as _e:
 # module-analysis phase, but cannot reach the fully-isolated binary-dependency
 # subprocesses.  The runtime code already lazy-imports rembg and degrades
 # gracefully when it is unavailable.
-for _opt_pkg in ('gfpgan', 'basicsr', 'realesrgan', 'facexlib'):
+for _opt_pkg in ('gfpgan', 'basicsr', 'realesrgan', 'facexlib', 'pillow_avif', 'timm'):
     try:
         _d, _b, _h = collect_all(_opt_pkg)
         _extra_datas    += _d
@@ -274,6 +274,10 @@ a = Analysis(
         'PIL.ImageFile',
         'PIL.ImageDraw',
         'PIL.ImageFont',
+        # AVIF support — pillow-avif-plugin ships a pre-built libaom DLL.
+        # Importing pillow_avif registers the codec with Pillow automatically.
+        'pillow_avif',
+        'pillow_avif.AvifImagePlugin',
         # Scientific computing — numpy 1.x and 2.x compatible
         'numpy',
         'numpy.core',

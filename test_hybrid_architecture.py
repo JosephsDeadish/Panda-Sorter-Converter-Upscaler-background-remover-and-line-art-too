@@ -3629,6 +3629,118 @@ def test_file_browser_close_event_stops_thread():
     print("  ✅ Source: closeEvent() stops the ThumbnailGenerator thread")
 
 
+def test_avif_plugin_auto_registered():
+    """pillow-avif-plugin must be imported in format_converter_panel_qt.py.
+
+    Issue #198 (comment: 'Pillow with libaom needs to be correctly bundled
+    implemented and working for avif')
+
+    Root cause: Pillow does not ship with a built-in AVIF encoder on Windows.
+    ``pillow-avif-plugin`` provides a pre-built libaom wheel, but only works
+    when imported (it auto-registers with Pillow as a side-effect).  Without
+    the import the codec is silently absent and every AVIF save fails with
+    "encoder avif not available".
+
+    Fixes:
+    1. ``src/ui/format_converter_panel_qt.py`` imports ``pillow_avif`` at
+       module level and sets ``_AVIF_AVAILABLE`` accordingly.
+    2. ``_on_fmt_changed`` shows a ✅ when the plugin is loaded instead of
+       always warning.
+    3. ``requirements.txt`` lists ``pillow-avif-plugin>=1.4.0``.
+    4. ``build_spec_onefolder.spec`` collects ``pillow_avif`` with
+       ``collect_all()`` so libaom DLL is included in the EXE.
+    5. CI workflow installs the plugin and verifies it.
+    """
+    print("\ntest_avif_plugin_auto_registered ...")
+    from pathlib import Path
+
+    # ── Source check: format_converter_panel_qt.py ──────────────────────────
+    src = Path(__file__).parent / 'src' / 'ui' / 'format_converter_panel_qt.py'
+    code = src.read_text(encoding='utf-8')
+
+    assert 'import pillow_avif' in code or 'pillow_avif' in code, (
+        "format_converter_panel_qt.py does not import pillow_avif.\n"
+        "Add:\n  import pillow_avif  # registers AVIF codec with Pillow"
+    )
+    print("  ✅ Source: pillow_avif import present in format_converter_panel_qt.py")
+
+    assert '_AVIF_AVAILABLE' in code, (
+        "format_converter_panel_qt.py is missing _AVIF_AVAILABLE flag.\n"
+        "This flag is used to show the user whether AVIF encoding is ready."
+    )
+    print("  ✅ Source: _AVIF_AVAILABLE flag present")
+
+    # ── _on_fmt_changed must branch on _AVIF_AVAILABLE ──────────────────────
+    assert '_AVIF_AVAILABLE' in code and 'AVIF encoder ready' in code, (
+        "_on_fmt_changed should show '✅ AVIF encoder ready' when plugin is available, "
+        "and show warning only when unavailable."
+    )
+    print("  ✅ Source: _on_fmt_changed shows status based on _AVIF_AVAILABLE")
+
+    # ── requirements.txt ──────────────────────────────────────────────────────
+    req = (Path(__file__).parent / 'requirements.txt').read_text(encoding='utf-8')
+    assert 'pillow-avif-plugin' in req, (
+        "requirements.txt does not list pillow-avif-plugin.\n"
+        "Add:  pillow-avif-plugin>=1.4.0"
+    )
+    print("  ✅ requirements.txt: pillow-avif-plugin listed")
+
+    # ── build spec ────────────────────────────────────────────────────────────
+    spec = (Path(__file__).parent / 'build_spec_onefolder.spec').read_text(encoding='utf-8')
+    assert 'pillow_avif' in spec, (
+        "build_spec_onefolder.spec does not reference pillow_avif.\n"
+        "Add 'pillow_avif' to the collect_all() loop so the libaom DLL is "
+        "included in the frozen EXE."
+    )
+    print("  ✅ build_spec_onefolder.spec: pillow_avif collected for EXE bundling")
+
+    # ── CI workflow ───────────────────────────────────────────────────────────
+    wf_path = Path(__file__).parent / '.github' / 'workflows' / 'build-exe.yml'
+    if wf_path.exists():
+        wf = wf_path.read_text(encoding='utf-8')
+        assert 'pillow-avif-plugin' in wf, (
+            ".github/workflows/build-exe.yml does not install pillow-avif-plugin.\n"
+            "Add:  pip install \"pillow-avif-plugin>=1.4.0\" || echo \"non-fatal\""
+        )
+        print("  ✅ CI workflow: pillow-avif-plugin install step present")
+
+
+def test_timm_bundled_in_spec():
+    """timm must be collected with collect_all() in the PyInstaller spec.
+
+    Issue #198 (comment: 'timm needs to be fully functional and working not
+    missing, improperly connected bundled or hooked up')
+
+    Root cause: timm ships compiled binary extensions.  Listing 'timm' in
+    ``hiddenimports`` alone is insufficient — ``collect_all('timm')`` is
+    needed to also pick up binary extensions and data files.
+    """
+    print("\ntest_timm_bundled_in_spec ...")
+    from pathlib import Path
+    spec = (Path(__file__).parent / 'build_spec_onefolder.spec').read_text(encoding='utf-8')
+
+    # collect_all loop must include timm
+    assert "'timm'" in spec or '"timm"' in spec, (
+        "build_spec_onefolder.spec: 'timm' not referenced at all."
+    )
+
+    # Verify it's in the collect_all loop (not just hiddenimports)
+    import re
+    loop_match = re.search(
+        r"for _opt_pkg in \([^)]+\)",
+        spec, re.DOTALL
+    )
+    assert loop_match, "collect_all loop not found in build_spec_onefolder.spec"
+    loop_src = loop_match.group(0)
+    assert 'timm' in loop_src, (
+        "build_spec_onefolder.spec: 'timm' not in the collect_all() loop.\n"
+        "timm ships compiled binary extensions that require collect_all() for\n"
+        "correct bundling — listing it only in hiddenimports is insufficient.\n"
+        "Add 'timm' to the for _opt_pkg in (...) loop."
+    )
+    print("  ✅ build_spec_onefolder.spec: timm in collect_all() loop")
+
+
 def run_all_tests():
     print("=" * 65)
     print("Hybrid Architecture + Lazy rembg Import Tests")
@@ -3714,6 +3826,8 @@ def run_all_tests():
         test_dungeon_view_improvements,
         test_cursor_size_extra_large_round_trip,
         test_file_browser_close_event_stops_thread,
+        test_avif_plugin_auto_registered,
+        test_timm_bundled_in_spec,
     ]
 
     passed, failed = [], []
