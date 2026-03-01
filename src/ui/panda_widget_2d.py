@@ -183,6 +183,16 @@ class PandaWidget2D(QWidget if _QT_AVAILABLE else object):  # type: ignore[misc]
         # ── Particles ─────────────────────────────────────────────────────────
         self._particles: list[dict] = []
 
+        # ── Panda movement trail ───────────────────────────────────────────────
+        # When active, the panda's most-recent positions are stored and drawn
+        # as fading dots behind the panda body.  This is the *panda* trail —
+        # distinct from the mouse-cursor trail overlay.
+        self._trail_active: bool = False
+        self._trail_type: str = 'sparkle'       # trail colour scheme name
+        self._trail_positions: list[tuple[int, int, float]] = []  # (x, y, age)
+        self._trail_max_age: float = 1.2        # seconds a dot lives
+        self._trail_max_len: int = 24           # max positions stored
+
         # ── Timer ──────────────────────────────────────────────────────────────
         self._timer = QTimer(self)
         self._timer.timeout.connect(self._tick_animation)
@@ -318,6 +328,21 @@ class PandaWidget2D(QWidget if _QT_AVAILABLE else object):  # type: ignore[misc]
             p['vy'] += 0.15
             p['life'] -= 1
 
+        # ── Panda trail position recording ─────────────────────────────────────
+        if self._trail_active:
+            w, h = self.width(), self.height()
+            cx = w // 2
+            cy = int(h * 0.72 - self._bob - self._bounce_y)
+            # Record position with current timestamp
+            now2 = time.time()
+            self._trail_positions.append((cx, cy, now2))
+            # Trim to max length
+            if len(self._trail_positions) > self._trail_max_len:
+                self._trail_positions = self._trail_positions[-self._trail_max_len:]
+            # Expire old dots
+            cutoff = now2 - self._trail_max_age
+            self._trail_positions = [(x, y, t) for x, y, t in self._trail_positions if t >= cutoff]
+
         self.update()
 
     # ── Qt paint ───────────────────────────────────────────────────────────────
@@ -344,6 +369,10 @@ class PandaWidget2D(QWidget if _QT_AVAILABLE else object):  # type: ignore[misc]
         # The panda center (mid-torso) sits at ~72 % of the window height.
         cx = w // 2
         cy = int(h * 0.72 - self._bob - self._bounce_y)
+
+        # ── Panda movement trail (drawn behind panda) ──────────────────────────
+        if self._trail_active and self._trail_positions:
+            self._draw_panda_trail(painter)
 
         # Cap scale so the panda stays at a reasonable companion size regardless
         # of window dimensions.  min(w,h)/320 was designed for a ~200 px sidebar;
@@ -519,6 +548,41 @@ class PandaWidget2D(QWidget if _QT_AVAILABLE else object):  # type: ignore[misc]
             p.setBrush(QBrush(c))
             p.setPen(Qt.PenStyle.NoPen)
             p.drawEllipse(QRectF(part['x'] - 3, part['y'] - 3, 6, 6))
+
+    # Panda trail colour palettes (keyed by trail_type)
+    _TRAIL_PALETTES: dict[str, list[tuple[int, int, int]]] = {
+        'sparkle':  [(255, 220, 50), (255, 255, 150), (200, 200, 255), (255, 200, 255)],
+        'rainbow':  [(255, 0, 0), (255, 128, 0), (255, 255, 0), (0, 200, 0), (0, 128, 255), (128, 0, 255)],
+        'fire':     [(255, 50, 0), (255, 120, 0), (255, 200, 0), (200, 20, 0)],
+        'ice':      [(180, 230, 255), (100, 200, 255), (60, 160, 255), (200, 240, 255)],
+        'purple':   [(180, 0, 255), (140, 50, 200), (200, 100, 255)],
+        'gold':     [(255, 200, 0), (255, 165, 0), (200, 130, 0)],
+        'nature':   [(60, 180, 60), (100, 220, 80), (40, 140, 40), (160, 220, 100)],
+        'galaxy':   [(80, 0, 160), (0, 60, 180), (160, 0, 200), (200, 100, 255)],
+        'sparkles': [(255, 220, 50), (255, 255, 150), (200, 200, 255), (255, 200, 255)],
+    }
+
+    def _draw_panda_trail(self, p: QPainter) -> None:
+        """Draw fading dots behind the panda's current position (panda trail)."""
+        if not self._trail_positions:
+            return
+        palette = self._TRAIL_PALETTES.get(self._trail_type,
+                                           self._TRAIL_PALETTES['sparkle'])
+        now = time.time()
+        p.setPen(Qt.PenStyle.NoPen)
+        n = len(self._trail_positions)
+        for idx, (x, y, t) in enumerate(self._trail_positions):
+            age = now - t
+            if age > self._trail_max_age:
+                continue
+            # Newest point = n-1; oldest = 0
+            progress = (idx + 1) / n           # 0→1 newest
+            fade = max(0.0, 1.0 - age / self._trail_max_age)
+            alpha = int(progress * fade * 180)
+            size = max(3, int(12 * progress * fade))
+            r, g, b = palette[idx % len(palette)]
+            p.setBrush(QBrush(QColor(r, g, b, alpha)))
+            p.drawEllipse(x - size // 2, y - size // 2, size, size)
 
     def _draw_mood_label(self, p: QPainter, w: int, h: int) -> None:
         font = QFont()
@@ -713,8 +777,18 @@ class PandaWidget2D(QWidget if _QT_AVAILABLE else object):  # type: ignore[misc]
             logger.debug("set_color error: %s", exc)
 
     def set_trail(self, trail_type: str, trail_data: dict) -> None:
-        # Trail effects are visual-only; log and ignore for the 2D widget
-        logger.debug("PandaWidget2D.set_trail: %s %s", trail_type, trail_data)
+        """Enable/disable the panda movement trail and set its colour scheme.
+
+        ``trail_type`` values: ``'none'`` / ``'off'`` to disable, any other
+        string enables the trail and is used as the colour scheme key.
+        """
+        if trail_type.lower() in ('none', 'off', 'disabled', ''):
+            self._trail_active = False
+            self._trail_positions.clear()
+        else:
+            self._trail_active = True
+            self._trail_type = trail_type.lower()
+        logger.debug("PandaWidget2D.set_trail: active=%s type=%s", self._trail_active, self._trail_type)
 
     def preview_item(self, item_id: str) -> None:
         # Hat / accessory preview — map known items to emoji

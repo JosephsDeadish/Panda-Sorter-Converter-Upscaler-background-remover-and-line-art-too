@@ -3991,11 +3991,22 @@ class TextureSorterMainWindow(QMainWindow):
             logger.debug(f"_update_nord_runes: {_e}")
 
     def apply_cursor(self):
-        """Apply the cursor style saved in config to the whole application."""
+        """Apply the cursor style saved in config to the whole application.
+
+        Supports both Qt built-in cursors and custom emoji pixmap cursors
+        (skull 💀, panda 🐼, etc.) at the configured size.
+        """
         try:
-            from PyQt6.QtGui import QCursor
+            from PyQt6.QtGui import QCursor, QPixmap, QPainter, QFont, QColor
             from PyQt6.QtCore import Qt
             cursor_name = str(config.get('ui', 'cursor', default='default')).lower().strip()
+            # Size mapping: Small=24, Medium=32, Large=48, Extra Large=64
+            size_name = str(config.get('ui', 'cursor_size', default='medium')).lower().strip()
+            # Accept both "extra large" (display text) and "extra_large" (config key)
+            _size_map = {'small': 24, 'medium': 32, 'large': 48, 'extra large': 64}
+            pix_size = _size_map.get(size_name.replace('_', ' '), 32)
+
+            # Built-in Qt cursor shapes
             _cursor_map = {
                 'default':   Qt.CursorShape.ArrowCursor,
                 'arrow':     Qt.CursorShape.ArrowCursor,
@@ -4005,19 +4016,54 @@ class TextureSorterMainWindow(QMainWindow):
                 'text':      Qt.CursorShape.IBeamCursor,
                 'forbidden': Qt.CursorShape.ForbiddenCursor,
                 'move':      Qt.CursorShape.SizeAllCursor,
-                'zoom_in':   Qt.CursorShape.PointingHandCursor,  # "click to zoom in"
-                'zoom_out':  Qt.CursorShape.ArrowCursor,          # no native zoom-out cursor in Qt
+                'zoom_in':   Qt.CursorShape.PointingHandCursor,
+                'zoom_out':  Qt.CursorShape.ArrowCursor,
             }
-            shape = _cursor_map.get(cursor_name, Qt.CursorShape.ArrowCursor)
+            # Emoji-based cursors — rendered to a QPixmap on the fly
+            _emoji_map = {
+                'skull':   '💀',
+                'panda':   '🐼',
+                'sword':   '⚔️',
+                'wand':    '🪄',
+                'heart':   '❤️',
+                'star':    '⭐',
+                'diamond': '💎',
+                'crown':   '👑',
+                'fire':    '🔥',
+                'ice':     '❄️',
+                'rainbow': '🌈',
+                'galaxy':  '🌌',
+            }
             app = QApplication.instance()
-            if app:
-                # Restore any previous override so we don't stack overrides
-                while app.overrideCursor():
-                    app.restoreOverrideCursor()
-                # For non-default cursors set an application-wide override
-                if cursor_name not in ('default', 'arrow'):
-                    app.setOverrideCursor(QCursor(shape))
-            logger.debug(f"Cursor applied: {cursor_name} → {shape.name if hasattr(shape, 'name') else shape}")
+            if app is None:
+                return
+            # Restore any previous override so we don't stack overrides
+            while app.overrideCursor():
+                app.restoreOverrideCursor()
+
+            # Strip unlock prefix if present (e.g. "🔒 Skull ⚠️" → "skull")
+            clean_name = cursor_name.strip().lstrip('🔒 ').split()[0].lower()
+
+            if clean_name in _emoji_map:
+                # Render emoji into a pixmap cursor at the configured size
+                emoji = _emoji_map[clean_name]
+                pix = QPixmap(pix_size, pix_size)
+                pix.fill(QColor(0, 0, 0, 0))  # transparent background
+                painter = QPainter(pix)
+                painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+                font = QFont()
+                font.setPixelSize(int(pix_size * 0.85))
+                painter.setFont(font)
+                painter.drawText(pix.rect(), Qt.AlignmentFlag.AlignCenter, emoji)
+                painter.end()
+                app.setOverrideCursor(QCursor(pix, 0, 0))
+                logger.debug(f"Emoji cursor applied: {clean_name} ({emoji}) size={pix_size}")
+            elif clean_name not in ('default', 'arrow'):
+                shape = _cursor_map.get(clean_name, Qt.CursorShape.ArrowCursor)
+                app.setOverrideCursor(QCursor(shape))
+                logger.debug(f"Cursor applied: {clean_name} → {shape}")
+            else:
+                logger.debug("Cursor restored to default arrow")
         except Exception as e:
             logger.warning(f"Could not apply cursor: {e}")
 
@@ -5074,6 +5120,10 @@ class TextureSorterMainWindow(QMainWindow):
             
             # Handle cursor changes — apply immediately
             elif setting_key == "ui.cursor":
+                self.apply_cursor()
+
+            # Handle cursor size changes — re-apply cursor at new size
+            elif setting_key == "ui.cursor_size":
                 self.apply_cursor()
 
             # Handle cursor trail toggle — install or remove the overlay

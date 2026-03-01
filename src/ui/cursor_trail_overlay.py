@@ -48,6 +48,21 @@ _SCHEMES: dict[str, list[tuple[int, int, int]]] = {
     'blue':      [(30, 100, 255)],
     'green':     [(30, 200, 80)],
     'gold':      [(255, 200, 0), (255, 165, 0), (200, 130, 0)],
+    # Additional schemes to match settings combo options
+    'nature':    [(60, 180, 60), (100, 220, 80), (40, 140, 40),
+                  (160, 220, 100), (80, 200, 120)],
+    'galaxy':    [(80, 0, 160), (0, 60, 180), (160, 0, 200),
+                  (30, 0, 100), (200, 100, 255), (0, 200, 255)],
+    'silver':    [(200, 200, 210), (160, 170, 185), (220, 220, 230),
+                  (180, 185, 195), (240, 240, 245)],
+    'neon':      [(0, 255, 100), (0, 200, 255), (255, 0, 200),
+                  (200, 255, 0), (255, 100, 0)],
+}
+# Aliases so key lookups are forgiving
+_SCHEME_ALIASES = {
+    'sparkles': 'sparkle',   # "Sparkles" combo entry maps to 'sparkle' scheme
+    'neon_green': 'neon',
+    'forest': 'nature',
 }
 
 _MAX_DOTS = 30        # trail length (number of positions kept)
@@ -94,6 +109,8 @@ class CursorTrailOverlay(QWidget):  # type: ignore[misc]
     def set_color_scheme(self, name: str) -> None:
         """Set trail colour scheme by name (see _SCHEMES)."""
         key = name.lower().replace(' ', '_')
+        # Resolve alias first, then look up scheme
+        key = _SCHEME_ALIASES.get(key, key)
         self._scheme = _SCHEMES.get(key, _SCHEMES['rainbow'])
         self._color_idx = 0
 

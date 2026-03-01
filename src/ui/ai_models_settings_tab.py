@@ -63,6 +63,9 @@ except (ImportError, OSError, RuntimeError):
     QSizePolicy = object
     QVBoxLayout = object
 import logging
+import os
+import shutil
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
@@ -542,7 +545,95 @@ class ModelCardWidget(QFrame):
                                         label.setStyleSheet("color: red; font-weight: bold; font-size: 10px;")
 
 
-class AIModelsSettingsTab(QWidget):
+class _CustomModelDropTarget(QLabel):
+    """Drop-zone label that accepts dragged model files and copies them
+    into the AI models directory."""
+
+    _MODEL_EXTS = {'.pth', '.onnx', '.safetensors', '.bin', '.pt'}
+
+    def __init__(self, model_manager=None, parent=None):
+        super().__init__(parent)
+        self._mgr = model_manager
+        self.setText("⬇️  Drop model files here (.pth / .onnx / .safetensors / .bin / .pt)")
+        self.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.setMinimumHeight(70)
+        self.setStyleSheet(
+            "QLabel { border: 2px dashed #aaa; border-radius: 8px; "
+            "color: #777; font-size: 11px; padding: 10px; background: #f8f8f8; }"
+        )
+        self.setAcceptDrops(True)
+        self._models_dir = self._resolve_models_dir()
+
+    def _resolve_models_dir(self):
+        """Return the path to the models directory, creating it if needed."""
+        # Try to get from model manager first
+        if self._mgr and hasattr(self._mgr, 'models_dir'):
+            d = Path(self._mgr.models_dir)
+        else:
+            # Default: <app_root>/models
+            d = Path(__file__).resolve().parent.parent.parent / 'models'
+        try:
+            d.mkdir(parents=True, exist_ok=True)
+        except Exception:
+            pass
+        return d
+
+    def dragEnterEvent(self, event):
+        if event.mimeData().hasUrls():
+            paths = [u.toLocalFile() for u in event.mimeData().urls()]
+            if any(p.lower().endswith(tuple(self._MODEL_EXTS)) for p in paths):
+                event.acceptProposedAction()
+                self.setStyleSheet(
+                    "QLabel { border: 2px dashed #1a6feb; border-radius: 8px; "
+                    "color: #1a6feb; font-size: 11px; padding: 10px; background: #e8f0ff; }"
+                )
+                return
+        event.ignore()
+
+    def dragLeaveEvent(self, event):
+        self.setStyleSheet(
+            "QLabel { border: 2px dashed #aaa; border-radius: 8px; "
+            "color: #777; font-size: 11px; padding: 10px; background: #f8f8f8; }"
+        )
+
+    def dropEvent(self, event):
+        self.setStyleSheet(
+            "QLabel { border: 2px dashed #aaa; border-radius: 8px; "
+            "color: #777; font-size: 11px; padding: 10px; background: #f8f8f8; }"
+        )
+        imported = []
+        for url in event.mimeData().urls():
+            src = url.toLocalFile()
+            if src.lower().endswith(tuple(self._MODEL_EXTS)):
+                name = self.import_model_file(src)
+                if name:
+                    imported.append(name)
+        if imported:
+            self.setText(f"✅ Imported: {', '.join(imported)}\n"
+                         f"📂 Saved to: {self._models_dir}")
+        event.acceptProposedAction()
+
+    def import_model_file(self, src_path: str) -> str:
+        """Copy *src_path* into the models directory.  Returns filename on success."""
+        try:
+            src = Path(src_path)
+            if not src.is_file():
+                return ''
+            dest = self._models_dir / src.name
+            if dest == src:
+                self.setText(f"ℹ️ {src.name} is already in the models folder.")
+                return src.name
+            shutil.copy2(src, dest)
+            logger.info("Custom model imported: %s → %s", src, dest)
+            self.setText(f"✅ Imported: {src.name}\n📂 {dest}")
+            return src.name
+        except Exception as exc:
+            logger.warning("import_model_file: %s", exc)
+            self.setText(f"❌ Import failed: {exc}")
+            return ''
+
+
+
     """Settings tab for managing AI models with beautiful UI"""
     
     def __init__(self, config: dict = None):
@@ -640,5 +731,50 @@ class AIModelsSettingsTab(QWidget):
         scroll_widget.setLayout(scroll_layout)
         scroll.setWidget(scroll_widget)
         layout.addWidget(scroll)
-        
+
+        # ── Custom model import section ────────────────────────────────────────
+        custom_sep = QFrame()
+        custom_sep.setFrameShape(QFrame.Shape.HLine)
+        custom_sep.setFrameShadow(QFrame.Shadow.Sunken)
+        layout.addWidget(custom_sep)
+
+        custom_header = QLabel("📂 Add Your Own AI Models")
+        ch_font = QFont()
+        ch_font.setPointSize(11)
+        ch_font.setBold(True)
+        custom_header.setFont(ch_font)
+        layout.addWidget(custom_header)
+
+        custom_info = QLabel(
+            "Drag & drop model files (.pth, .onnx, .safetensors, .bin, .pt) onto the box below, "
+            "or click Browse to copy them into the models folder."
+        )
+        custom_info.setWordWrap(True)
+        custom_info.setStyleSheet("color: #555; font-size: 10px;")
+        layout.addWidget(custom_info)
+
+        self._custom_drop_label = _CustomModelDropTarget(self.model_manager)
+        layout.addWidget(self._custom_drop_label)
+
+        browse_row = QHBoxLayout()
+        browse_btn = QPushButton("📁 Browse for model file…")
+        browse_btn.setMinimumHeight(36)
+        browse_btn.clicked.connect(self._browse_custom_model)
+        browse_row.addWidget(browse_btn)
+        browse_row.addStretch()
+        layout.addLayout(browse_row)
+
         self.setLayout(layout)
+
+    def _browse_custom_model(self) -> None:
+        """Open a file dialog to copy a custom model file into the models folder."""
+        try:
+            from PyQt6.QtWidgets import QFileDialog
+            paths, _ = QFileDialog.getOpenFileNames(
+                self, "Select AI Model File(s)", "",
+                "AI Models (*.pth *.onnx *.safetensors *.bin *.pt);;All files (*.*)"
+            )
+            for src in paths:
+                self._custom_drop_label.import_model_file(src)
+        except Exception as _e:
+            logger.warning("_browse_custom_model: %s", _e)
