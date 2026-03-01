@@ -246,6 +246,12 @@ class PandaWidget2D(QWidget if _QT_AVAILABLE else object):  # type: ignore[misc]
             self._bob = math.sin(self._tick * 3.5 * sp) * 10.0 + math.sin(self._tick * 7.0) * 3.0
         elif self._animation in ('sad', 'tired', 'working'):
             self._bob = math.sin(self._tick * 0.5 * sp) * 2.0
+        elif self._animation == 'running':
+            # Fast bounce for running — double-frequency bob with higher amplitude
+            self._bob = math.sin(self._tick * 5.0 * sp) * 9.0 + math.sin(self._tick * 10.0) * 2.5
+        elif self._animation in ('walking', 'walking_left', 'walking_right'):
+            # Walking — moderate pace bob with slight side sway
+            self._bob = math.sin(self._tick * 2.5 * sp) * 5.0 + math.sin(self._tick * 5.0) * 1.5
         else:
             self._bob = (math.sin(self._tick * 1.0 * sp) * amp
                          + math.sin(self._tick * 2.7 * sp) * amp * 0.15)
@@ -255,6 +261,15 @@ class PandaWidget2D(QWidget if _QT_AVAILABLE else object):  # type: ignore[misc]
         if self._animation in ('waving', 'celebrating'):
             target_l = -25.0
             target_r = -25.0 + math.sin(self._tick * 3.0) * 18.0
+        elif self._animation in ('walking', 'walking_left', 'walking_right'):
+            # Alternating arm swing while walking
+            swing_speed = 2.5
+            target_l = math.sin(self._tick * swing_speed) * 15.0
+            target_r = -math.sin(self._tick * swing_speed) * 15.0
+        elif self._animation == 'running':
+            # Faster, wider arm swing while running
+            target_l = math.sin(self._tick * 4.5) * 22.0
+            target_r = -math.sin(self._tick * 4.5) * 22.0
         elif self._animation == 'idle':
             swing = math.sin(self._tick * 1.0 * self._micro['sway_speed']) * 7.0
             target_l = swing
