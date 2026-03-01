@@ -264,6 +264,12 @@ class ColorCorrectionPanelQt(QWidget):
         self._set_tooltip(add_folder_btn, "Add all images from a folder to the selection")
         input_layout.addWidget(add_folder_btn)
 
+        clear_btn = QPushButton("✖ Clear")
+        clear_btn.clicked.connect(self._clear_files)
+        clear_btn.setFixedWidth(65)
+        self._set_tooltip(clear_btn, "Remove all selected files from the list")
+        input_layout.addWidget(clear_btn)
+
         group_layout.addLayout(input_layout)
 
         # Recursive checkbox
@@ -525,6 +531,15 @@ class ColorCorrectionPanelQt(QWidget):
                 self.preview_file_combo.addItem(p.name, str(p))
             if count == len(added):  # first batch
                 self._load_preview_file(added[0].name)
+        self._update_ui_state()
+
+    def _clear_files(self):
+        """Clear the selected files list."""
+        self.input_files = []
+        self.input_label.setText("No files selected")
+        self.preview_file = None
+        if hasattr(self, 'preview_file_combo'):
+            self.preview_file_combo.clear()
         self._update_ui_state()
     
     def _update_ui_state(self):
