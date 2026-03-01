@@ -1955,6 +1955,13 @@ class TextureSorterMainWindow(QMainWindow):
                 # Initialise shop/currency so Inventory still works
                 self.shop_system = ShopSystem()
                 self.currency_system = CurrencySystem()
+                # Award daily login bonus (idempotent — no-op if already claimed today)
+                try:
+                    daily_bonus = self.currency_system.process_daily_login()
+                    if daily_bonus > 0:
+                        logger.info(f"💰 Daily login bonus: +{daily_bonus} Bamboo Bucks")
+                except Exception as _dl:
+                    logger.debug(f"Daily login bonus: {_dl}")
             except (ImportError, OSError, RuntimeError) as _se:
                 logger.warning(f"Shop/currency system unavailable: {_se}")
                 self.shop_system = None
@@ -5387,6 +5394,15 @@ class TextureSorterMainWindow(QMainWindow):
             try:
                 if self.panda_mood_system:
                     self.panda_mood_system.on_user_interaction('click')
+            except Exception:
+                pass
+            # Award Panda Coins for petting
+            try:
+                if self.currency_system:
+                    coins = self.currency_system.get_reward_for_action('panda_pet')
+                    if coins > 0:
+                        self.currency_system.earn_money(coins, 'panda_pet')
+                        self._update_coin_display()
             except Exception:
                 pass
 
