@@ -224,7 +224,12 @@ class BatchRenamePanelQt(QWidget):
         btn_layout.addWidget(clear_btn)
         
         group_layout.addLayout(btn_layout)
-        
+
+        self.recursive_cb = QCheckBox("📂 Process sub-folders recursively")
+        self.recursive_cb.setChecked(False)
+        self._set_tooltip(self.recursive_cb, "When adding a folder, also include images in sub-folders")
+        group_layout.addWidget(self.recursive_cb)
+
         # Archive options
         archive_layout = QHBoxLayout()
         
@@ -428,15 +433,23 @@ class BatchRenamePanelQt(QWidget):
             self,
             "Select Folder"
         )
-        
+
         if directory:
-            # Get all image files in directory
-            extensions = {'.png', '.jpg', '.jpeg', '.bmp', '.tiff', '.webp'}
+            extensions = {'.png', '.jpg', '.jpeg', '.bmp', '.tiff', '.tif',
+                          '.webp', '.tga', '.gif'}
             files = []
+            recursive = hasattr(self, 'recursive_cb') and self.recursive_cb.isChecked()
             try:
-                for file in os.listdir(directory):
-                    if any(file.lower().endswith(ext) for ext in extensions):
-                        files.append(os.path.join(directory, file))
+                if recursive:
+                    for root, _dirs, file_list in os.walk(directory):
+                        for file in file_list:
+                            if any(file.lower().endswith(ext) for ext in extensions):
+                                files.append(os.path.join(root, file))
+                else:
+                    for file in os.listdir(directory):
+                        fp = os.path.join(directory, file)
+                        if os.path.isfile(fp) and any(file.lower().endswith(ext) for ext in extensions):
+                            files.append(fp)
             except (OSError, PermissionError) as e:
                 logger.error(f"Error accessing directory {directory}: {e}")
                 QMessageBox.warning(
@@ -445,7 +458,7 @@ class BatchRenamePanelQt(QWidget):
                     f"Could not access directory:\n{directory}\n\n{str(e)}"
                 )
                 return
-            
+
             if files:
                 self.selected_files = files
                 self.file_count_label.setText(f"{len(files)} files selected from folder")
