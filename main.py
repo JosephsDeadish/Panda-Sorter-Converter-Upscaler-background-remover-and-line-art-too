@@ -4852,10 +4852,11 @@ class TextureSorterMainWindow(QMainWindow):
                     self.quest_system.update_quest_progress('panda_friend', 1)
         except Exception as _e:
             logger.debug(f"Quest progress update failed for {tool_id}: {_e}")
-        # XP
+        # XP — base 2 XP per tool launch + 1 XP per file processed (capped at 100)
         try:
             if self.level_system:
-                self.level_system.add_xp(2, reason='tool_used')
+                xp = 2 + min(count, 100)
+                self.level_system.add_xp(xp, reason='tool_used')
         except Exception as _e:
             logger.debug(f"XP award failed for {tool_id}: {_e}")
         # Sound
@@ -4895,12 +4896,13 @@ class TextureSorterMainWindow(QMainWindow):
                     ach.increment_files_renamed(count)
         except Exception as _e:
             logger.debug(f"Achievement trigger failed for {tool_id}: {_e}")
-        # Award Panda Coins for each tool use
+        # Award Panda Coins per file processed (capped at 50 files to prevent flooding)
         try:
             if self.currency_system and success:
-                coins = self.currency_system.get_reward_for_action('conversion_complete')
-                if coins > 0:
-                    self.currency_system.earn_money(coins, f'tool_{tool_id}')
+                coins_per_file = self.currency_system.get_reward_for_action('conversion_complete')
+                if coins_per_file > 0:
+                    total_coins = coins_per_file * min(count, 50)
+                    self.currency_system.earn_money(total_coins, f'tool_{tool_id}')
                     self._update_coin_display()
         except Exception as _e:
             logger.debug(f"Coin award failed for {tool_id}: {_e}")
