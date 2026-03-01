@@ -3964,10 +3964,18 @@ class TextureSorterMainWindow(QMainWindow):
             if want and self._goth_skull_filter is None:
                 self._goth_skull_filter = GothSkullFilter(self)
                 _app.installEventFilter(self._goth_skull_filter)
+                # Decorate window title with skull symbols
+                _title = self.windowTitle()
+                if not _title.startswith("💀 "):
+                    self.setWindowTitle(f"💀 {_title.strip()} 💀")
                 logger.info("💀 Goth skull filter installed")
             elif not want and self._goth_skull_filter is not None:
                 _app.removeEventFilter(self._goth_skull_filter)
                 self._goth_skull_filter = None
+                # Remove skull window title decoration
+                _title = self.windowTitle()
+                if _title.startswith("💀 ") and _title.endswith(" 💀"):
+                    self.setWindowTitle(_title[2:-2].strip())
                 logger.info("Goth skull filter removed")
         except Exception as _e:
             logger.debug(f"_update_goth_skulls: {_e}")
@@ -3982,10 +3990,18 @@ class TextureSorterMainWindow(QMainWindow):
             if want and self._dracula_drop_filter is None:
                 self._dracula_drop_filter = DraculaDropFilter(self)
                 _app.installEventFilter(self._dracula_drop_filter)
+                # Decorate window title with blood drop symbols
+                _title = self.windowTitle()
+                if not _title.startswith("🩸 "):
+                    self.setWindowTitle(f"🩸 {_title.strip()} 🩸")
                 logger.info("🩸 Dracula drop filter installed")
             elif not want and self._dracula_drop_filter is not None:
                 _app.removeEventFilter(self._dracula_drop_filter)
                 self._dracula_drop_filter = None
+                # Remove blood drop title decoration
+                _title = self.windowTitle()
+                if _title.startswith("🩸 ") and _title.endswith(" 🩸"):
+                    self.setWindowTitle(_title[2:-2].strip())
                 logger.info("Dracula drop filter removed")
         except Exception as _e:
             logger.debug(f"_update_dracula_drops: {_e}")
