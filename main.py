@@ -3929,8 +3929,10 @@ class TextureSorterMainWindow(QMainWindow):
                 self._vampire_bat_filter = None
                 # Remove bat window title decoration
                 _title = self.windowTitle()
-                if _title.startswith("🦇 ") and _title.endswith(" 🦇"):
-                    self.setWindowTitle(_title[2:-2].strip())
+                if _title.startswith("🦇 ") or _title.endswith(" 🦇"):
+                    self.setWindowTitle(
+                        _title.removeprefix("🦇 ").removesuffix(" 🦇").strip()
+                    )
                 logger.info("Vampire bat filter removed")
         except Exception as _e:
             logger.debug(f"_update_vampire_bats: {_e}")
@@ -3946,10 +3948,20 @@ class TextureSorterMainWindow(QMainWindow):
             if want and self._ocean_ripple_filter is None:
                 self._ocean_ripple_filter = OceanRippleFilter(self)
                 _app.installEventFilter(self._ocean_ripple_filter)
+                # Decorate window title with ocean creature symbols
+                _title = self.windowTitle()
+                if not _title.startswith("🐙 "):
+                    self.setWindowTitle(f"🐙 {_title.strip()} 🐠")
                 logger.info("🌊 Ocean ripple filter installed")
             elif not want and self._ocean_ripple_filter is not None:
                 _app.removeEventFilter(self._ocean_ripple_filter)
                 self._ocean_ripple_filter = None
+                # Remove ocean title decoration
+                _title = self.windowTitle()
+                if _title.startswith("🐙 ") or _title.endswith(" 🐠"):
+                    self.setWindowTitle(
+                        _title.removeprefix("🐙 ").removesuffix(" 🐠").strip()
+                    )
                 logger.info("Ocean ripple filter removed")
         except Exception as _e:
             logger.debug(f"_update_ocean_ripple: {_e}")
@@ -3974,8 +3986,10 @@ class TextureSorterMainWindow(QMainWindow):
                 self._goth_skull_filter = None
                 # Remove skull window title decoration
                 _title = self.windowTitle()
-                if _title.startswith("💀 ") and _title.endswith(" 💀"):
-                    self.setWindowTitle(_title[2:-2].strip())
+                if _title.startswith("💀 ") or _title.endswith(" 💀"):
+                    self.setWindowTitle(
+                        _title.removeprefix("💀 ").removesuffix(" 💀").strip()
+                    )
                 logger.info("Goth skull filter removed")
         except Exception as _e:
             logger.debug(f"_update_goth_skulls: {_e}")
@@ -4000,8 +4014,10 @@ class TextureSorterMainWindow(QMainWindow):
                 self._dracula_drop_filter = None
                 # Remove blood drop title decoration
                 _title = self.windowTitle()
-                if _title.startswith("🩸 ") and _title.endswith(" 🩸"):
-                    self.setWindowTitle(_title[2:-2].strip())
+                if _title.startswith("🩸 ") or _title.endswith(" 🩸"):
+                    self.setWindowTitle(
+                        _title.removeprefix("🩸 ").removesuffix(" 🩸").strip()
+                    )
                 logger.info("Dracula drop filter removed")
         except Exception as _e:
             logger.debug(f"_update_dracula_drops: {_e}")

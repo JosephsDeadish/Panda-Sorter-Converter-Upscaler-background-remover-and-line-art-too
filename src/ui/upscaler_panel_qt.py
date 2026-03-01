@@ -943,8 +943,8 @@ class ImageUpscalerPanelQt(QWidget):
         folder = QFileDialog.getExistingDirectory(self, "Select Folder")
         if not folder:
             return
-        recursive = getattr(self, 'recursive_input_cb', None)
-        recursive = recursive.isChecked() if recursive is not None else False
+        _recursive_widget = getattr(self, 'recursive_input_cb', None)
+        recursive = _recursive_widget.isChecked() if _recursive_widget is not None else False
         folder_path = Path(folder)
         from ui import IMAGE_EXTENSIONS
         new_files = []
