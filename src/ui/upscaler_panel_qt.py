@@ -934,7 +934,7 @@ class ImageUpscalerPanelQt(QWidget):
             self,
             "Select Images to Upscale",
             "",
-            "Images (*.png *.jpg *.jpeg *.bmp *.tiff *.webp);;All Files (*)"
+            "Images (*.png *.jpg *.jpeg *.bmp *.tiff *.tif *.webp *.tga *.dds *.gif);;All Files (*)"
         )
 
         if files:

@@ -476,7 +476,7 @@ class ColorCorrectionPanelQt(QWidget):
             self,
             "Select Images",
             "",
-            "Images (*.png *.jpg *.jpeg *.bmp *.tif *.tiff);;All Files (*)"
+            "Images (*.png *.jpg *.jpeg *.bmp *.tif *.tiff *.webp *.tga *.dds *.gif);;All Files (*)"
         )
         
         if files:
