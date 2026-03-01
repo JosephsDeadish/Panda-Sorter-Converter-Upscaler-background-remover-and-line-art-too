@@ -84,12 +84,14 @@ def _handle_early_cli() -> None:
         # APP_NAME / APP_VERSION are in src/config.py; import lazily so we
         # don't pull in the full Qt stack just for a version string.
         try:
-            from config import APP_NAME, APP_VERSION
+            from config import APP_NAME, APP_VERSION, PATREON_URL as _PATREON
         except Exception:
+            # Fallback matches config.PATREON_URL — update both if the URL changes
             APP_NAME, APP_VERSION = "Panda Sorter Converter Upscaler", "1.0.0"
+            _PATREON = "https://www.patreon.com/JosephsDeadish"
         print(f"{APP_NAME} v{APP_VERSION}")
         print("Author: Dead On The Inside / JosephsDeadish")
-        print("https://github.com/JosephsDeadish/Panda-Sorter-Converter-Upscaler-background-remover-and-line-art-too")
+        print(f"Support: {_PATREON}")
         sys.exit(0)
 
     if arg in ('--help', '-h'):
@@ -315,7 +317,7 @@ _PANDA_STATE_EMOJI: dict = {
 }
 
 # Import configuration (now that src is in path)
-from config import config, APP_NAME, APP_VERSION
+from config import config, APP_NAME, APP_VERSION, PATREON_URL
 
 # Import core modules
 from classifier import TextureClassifier, ALL_CATEGORIES
@@ -6654,7 +6656,7 @@ class TextureSorterMainWindow(QMainWindow):
             "<li><b>Ctrl+Q</b> — Quit</li>"
             "</ul>"
             f"<p><small>Version {APP_VERSION} &bull; "
-            "Report bugs at github.com/JosephsDeadish</small></p>"
+            f"Support us on Patreon: <a href='{PATREON_URL}'>{PATREON_URL}</a></small></p>"
         )
         msg = QMessageBox(self)
         msg.setWindowTitle(f"{APP_NAME} — Help")
@@ -7640,7 +7642,7 @@ def main():
     app = QApplication(sys.argv)
     app.setApplicationName(APP_NAME)
     app.setOrganizationName("JosephsDeadish")
-    app.setOrganizationDomain("github.com/JosephsDeadish")
+    app.setOrganizationDomain("patreon.com/JosephsDeadish")
 
     # ── Single-instance guard ─────────────────────────────────────────────────
     # Prevent a second copy of the application from opening.  We use a lock

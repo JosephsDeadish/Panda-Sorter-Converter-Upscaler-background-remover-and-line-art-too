@@ -13,6 +13,13 @@ import json
 
 logger = logging.getLogger(__name__)
 
+# Support link — single source of truth (also defined in config.PATREON_URL)
+try:
+    from config import PATREON_URL as _PATREON_URL, APP_VERSION as _APP_VERSION
+except Exception:
+    _PATREON_URL = "https://www.patreon.com/JosephsDeadish"
+    _APP_VERSION = "1.0.0"
+
 try:
     from PyQt6.QtWidgets import (
         QWidget, QVBoxLayout, QHBoxLayout, QTabWidget, QLabel, 
@@ -210,20 +217,25 @@ class SettingsPanelQt(QWidget):
             ('rembg', 'rembg (background removal)'),
             ('gfpgan', 'gfpgan (face enhancement)'),
         ]
+        _any_missing = False
         for _mod, _label in _deps:
             try:
                 __import__(_mod)
                 _dep_lines.append(f"{_ok}  {_label}")
             except ImportError:
                 _dep_lines.append(f"{_warn}  {_label}  (not installed)")
+                _any_missing = True
             except Exception:
                 _dep_lines.append(f"{_warn}  {_label}  (error)")
+                _any_missing = True
+        if _any_missing:
+            _dep_lines.append("\n💡 Run  python setup_models.py  to install missing AI dependencies.")
         _status_lbl = QLabel("\n".join(_dep_lines))
         _status_lbl.setStyleSheet(
             "background: #1a1a2e; color: #ccccdd; font-size: 9pt; "
             "border-radius: 4px; padding: 8px; font-family: monospace;"
         )
-        _status_lbl.setWordWrap(False)
+        _status_lbl.setWordWrap(True)
         _dep_group = QGroupBox("🔍 Dependency Status")
         _dep_lay = QVBoxLayout()
         _dep_lay.addWidget(_status_lbl)
@@ -2212,11 +2224,12 @@ class SettingsPanelQt(QWidget):
             QMessageBox.about(
                 self,
                 "About Panda Sorter",
-                "Panda Sorter / Converter / Upscaler\n\n"
+                f"Panda Sorter / Converter / Upscaler  v{_APP_VERSION}\n\n"
                 "An all-in-one texture management tool.\n"
                 "Sort, convert, upscale, remove backgrounds,\n"
                 "create line art, and more.\n\n"
-                "By JosephsDeadish / Dead On The Inside"
+                "By JosephsDeadish / Dead On The Inside\n\n"
+                f"❤️  Support on Patreon:\n{_PATREON_URL}"
             )
         except Exception as e:
             logger.error(f"_show_about: {e}", exc_info=True)
@@ -2231,7 +2244,8 @@ class SettingsPanelQt(QWidget):
                     self,
                     "Tutorial",
                     "Hover over any control to see a tooltip explaining what it does.\n\n"
-                    "You can change the tooltip style in Settings → Behavior → Tooltips."
+                    "You can change the tooltip style in Settings → Behavior → Tooltips.\n\n"
+                    f"❤️  Support on Patreon: {_PATREON_URL}"
                 )
         except Exception as e:
             logger.error(f"_show_tutorial: {e}", exc_info=True)

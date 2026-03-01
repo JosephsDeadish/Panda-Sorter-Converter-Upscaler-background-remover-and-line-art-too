@@ -661,10 +661,11 @@ class OrganizerPanelQt(QWidget):
             pass
         if not _timm_ok:
             timm_label = QLabel(
-                "⚠️ timm not installed — EfficientNet model unavailable.  "
-                "Install: pip install timm"
+                "⚠️ timm not installed — EfficientNet AI organizer unavailable.\n"
+                "Run  python setup_models.py  from the app folder to install all AI dependencies."
             )
             timm_label.setStyleSheet("color: #ff6b35; font-size: 9pt; font-style: italic;")
+            timm_label.setWordWrap(True)
             timm_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
             root.addWidget(timm_label)
 

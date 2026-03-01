@@ -15,6 +15,9 @@ APP_NAME = "Panda Sorter Converter Upscaler"
 APP_VERSION = "1.0.0"
 APP_AUTHOR = "Dead On The Inside / JosephsDeadish"
 
+# Support / community links
+PATREON_URL = "https://www.patreon.com/JosephsDeadish"
+
 # ---------------------------------------------------------------------------
 # Path helpers — support running from source, PyInstaller single-file, and
 # PyInstaller one-folder builds with a local ``app_data/`` directory.

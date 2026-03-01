@@ -593,8 +593,7 @@ class ImageUpscalerPanelQt(QWidget):
         if not _gfpgan_available:
             _gfpgan_note = QLabel(
                 "⚠️ GFPGAN not found.\n"
-                "Install:  pip install gfpgan\n"
-                "and run setup_models.py to download GFPGANv1.4.pth."
+                "Run  python setup_models.py  from the app folder to install all AI models."
             )
             _gfpgan_note.setStyleSheet("color: #d44; font-size: 9pt; font-style: italic;")
             _gfpgan_note.setWordWrap(True)
@@ -901,7 +900,7 @@ class ImageUpscalerPanelQt(QWidget):
             return '✅ Available' if available else '⚠️ Native acceleration not available'
         
         def get_realesrgan_status(available):
-            return '✅ Available' if available else '❌ Not installed - pip install basicsr realesrgan'
+            return '✅ Available' if available else '❌ Not installed — run python setup_models.py'
         
         descriptions = {
             "bicubic":        "Bicubic: Fast, good quality for most images (always available)",

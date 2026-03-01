@@ -161,11 +161,10 @@ setup(
     description='Professional game texture sorting application with AI classification',
     long_description=long_description,
     long_description_content_type='text/markdown',
-    url='https://github.com/JosephsDeadish/PS2-texture-sorter',
+    url='https://www.patreon.com/JosephsDeadish',
     project_urls={
-        'Bug Reports': 'https://github.com/JosephsDeadish/PS2-texture-sorter/issues',
-        'Source': 'https://github.com/JosephsDeadish/PS2-texture-sorter',
-        'Documentation': 'https://github.com/JosephsDeadish/PS2-texture-sorter#readme',
+        'Support': 'https://www.patreon.com/JosephsDeadish',
+        'Documentation': 'https://www.patreon.com/JosephsDeadish',
     },
     
     # Package configuration
