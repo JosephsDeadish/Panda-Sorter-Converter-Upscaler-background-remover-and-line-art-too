@@ -10,8 +10,6 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 from typing import Optional, List
-import tempfile
-import os
 
 try:
     from ui import IMAGE_EXTENSIONS
@@ -25,7 +23,7 @@ try:
         QMessageBox, QProgressBar, QComboBox, QGroupBox, QCheckBox
     )
     from PyQt6.QtCore import Qt, pyqtSignal, QThread
-    from PyQt6.QtGui import QPixmap
+    from PyQt6.QtGui import QPixmap, QImage
     PYQT_AVAILABLE = True
 except (ImportError, OSError, RuntimeError):
     PYQT_AVAILABLE = False
@@ -679,20 +677,13 @@ class ColorCorrectionPanelQt(QWidget):
                 enhancer = ImageEnhance.Sharpness(img)
                 img = enhancer.enhance(sharpness)
             
-            # Convert PIL image to QPixmap
-            # Use temp file and clean it up properly
-            tmp_fd, tmp_path = tempfile.mkstemp(suffix='.png')
-            try:
-                os.close(tmp_fd)  # Close file descriptor
-                img.save(tmp_path, 'PNG')
-                pixmap = QPixmap(tmp_path)
-                self.preview_widget.set_after_image(pixmap)
-            finally:
-                # Clean up temp file
-                try:
-                    os.unlink(tmp_path)
-                except Exception:
-                    pass  # Ignore cleanup errors
+            # Convert PIL image to QPixmap in memory (no temp file needed)
+            img_rgba = img.convert('RGBA')
+            data = img_rgba.tobytes("raw", "RGBA")
+            qimage = QImage(data, img_rgba.width, img_rgba.height,
+                            img_rgba.width * 4, QImage.Format.Format_RGBA8888)
+            pixmap = QPixmap.fromImage(qimage.copy())
+            self.preview_widget.set_after_image(pixmap)
                 
         except Exception as e:
             logger.error(f"Preview update failed: {e}")

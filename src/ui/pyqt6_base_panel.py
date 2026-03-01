@@ -459,7 +459,7 @@ class ExamplePanel(BasePyQtPanel):
         """Browse for input file."""
         file_path = self.browse_file(
             "Select Input File",
-            "Images (*.png *.jpg *.jpeg);;All Files (*)"
+            "Images (*.png *.jpg *.jpeg *.bmp *.tiff *.tif *.webp *.tga *.dds *.gif *.avif *.qoi *.apng *.jfif);;All Files (*)"
         )
         if file_path:
             self.file_input.setText(file_path)
