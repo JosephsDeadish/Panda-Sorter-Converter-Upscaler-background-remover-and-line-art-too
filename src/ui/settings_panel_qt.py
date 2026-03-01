@@ -426,7 +426,7 @@ class SettingsPanelQt(QWidget):
         self.cursor_size_combo.currentTextChanged.connect(lambda: self.on_setting_changed('ui', 'cursor_size'))
         self.set_tooltip(self.cursor_size_combo, 'cursor_size')
 
-        _size_note = QLabel("⚠️ Size only affects emoji cursors (skull, panda, etc.).\nbuilt-in OS cursors (default, arrow, hand) are fixed size.")
+        _size_note = QLabel("⚠️ Size only affects emoji cursors (skull, panda, etc.).\nBuilt-in OS cursors (default, arrow, hand) are fixed size.")
         _size_note.setStyleSheet("color: #888; font-size: 9pt; font-style: italic;")
         _size_note.setWordWrap(True)
 

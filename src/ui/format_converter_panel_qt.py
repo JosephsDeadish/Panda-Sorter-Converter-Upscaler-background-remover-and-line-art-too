@@ -168,7 +168,7 @@ class _ConvertWorker(QThread):
 
                 # ── ICO size cap ──────────────────────────────────────────
                 if pil_fmt == "ICO":
-                    img.thumbnail((256, 256), Image.LANCZOS)
+                    img.thumbnail((256, 256), Image.Resampling.LANCZOS)
 
                 # ── Output path ───────────────────────────────────────────
                 stem = fp.stem + suffix
@@ -252,9 +252,9 @@ def _resize_image(img: "Image.Image", mode: str, s: dict) -> "Image.Image":
     # LANCZOS is not supported for palette (P) mode — convert to RGB first, resize, then re-quantize
     if img.mode == "P":
         img_rgb = img.convert("RGB")
-        resized_rgb = img_rgb.resize((nw, nh), Image.LANCZOS)
+        resized_rgb = img_rgb.resize((nw, nh), Image.Resampling.LANCZOS)
         return resized_rgb.quantize(colors=256)
-    return img.resize((nw, nh), Image.LANCZOS)
+    return img.resize((nw, nh), Image.Resampling.LANCZOS)
 
 
 # ─── Panel ────────────────────────────────────────────────────────────────────
