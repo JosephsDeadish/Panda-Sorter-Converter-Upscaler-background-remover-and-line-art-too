@@ -32,6 +32,10 @@ except (ImportError, OSError, RuntimeError):
     _QT = False
     QOpenGLWidget = object
     QWidget = object
+    # Provide a no-op stub so class bodies that reference pyqtSignal don't
+    # raise NameError at class-definition time when PyQt6 is absent.
+    def pyqtSignal(*args, **kwargs):  # noqa: E301
+        return None
 
 try:
     from OpenGL.GL import (

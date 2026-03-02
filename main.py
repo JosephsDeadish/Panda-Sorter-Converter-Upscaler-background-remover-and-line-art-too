@@ -226,7 +226,7 @@ try:
     )
     from PyQt6.QtCore import Qt, QTimer, pyqtSignal, QThread, QSize, QByteArray, QObject, QEvent, QPoint
     from PyQt6.QtGui import QAction, QIcon, QFont, QPalette, QColor
-except ImportError as e:
+except (ImportError, OSError) as e:
     _err = str(e)
     print("=" * 70)
     # Distinguish "not installed" from "system libraries missing"
@@ -341,6 +341,12 @@ from organizer import OrganizationEngine, ORGANIZATION_STYLES
 def _setup_opengl_for_exe() -> None:
     """Configure PyOpenGL env. Safe to call multiple times (idempotent)."""
     if not sys.platform.startswith('win'):
+        return
+    # Skip Desktop OpenGL configuration when running headless / CI with the
+    # offscreen Qt platform.  The offscreen backend uses software GL and does
+    # NOT have access to the system's opengl32.dll; forcing AA_UseDesktopOpenGL
+    # in that context causes Qt to call exit(1) on VMs without a GPU.
+    if os.environ.get('QT_QPA_PLATFORM') == 'offscreen':
         return
     # Force Qt to use native opengl32.dll (desktop GL) NOT ANGLE (Direct3D).
     # ANGLE only supports OpenGL ES — CompatibilityProfile is NOT available via ANGLE.

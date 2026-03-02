@@ -4866,28 +4866,22 @@ def test_bubbly_scrollbars():
     print("  ✅ Source: margin: 2px 2px present for bubbly handle spacing")
 
     # Runtime: apply dark theme and verify stylesheet contains rounded handle.
-    # Wrapped in try/except(SystemExit) because creating a second
-    # TextureSorterMainWindow in the same process can trigger Qt platform
-    # cleanup code that calls sys.exit() on Windows.  The source-level checks
-    # above already validate the CSS structure for all themes; the runtime
-    # section is a bonus verification that runs when the environment supports it.
-    try:
-        import sys, logging, os
-        os.environ.setdefault('QT_QPA_PLATFORM', 'offscreen')
-        logging.disable(logging.CRITICAL)
-        import main as _m
-        from PyQt6.QtWidgets import QApplication
-        _app = QApplication.instance() or QApplication(sys.argv)
-        win = _m.TextureSorterMainWindow()
+    import sys, logging, os
+    os.environ.setdefault('QT_QPA_PLATFORM', 'offscreen')
+    logging.disable(logging.CRITICAL)
+    import main as _m
+    from PyQt6.QtWidgets import QApplication
+    _app = QApplication.instance() or QApplication(sys.argv)
+    win = _m.TextureSorterMainWindow()
 
-        win.apply_theme('dark')
-        ss = win.styleSheet()
-        assert 'QScrollBar' in ss, "Dark theme stylesheet missing QScrollBar CSS entirely"
-        # border-radius: 0px should not appear in the scrollbar handle section
-        # (border-radius: 0px may appear in other elements — only check handle sections)
-        handle_sections = re.findall(r'QScrollBar::handle[^{]*\{[^}]+\}', ss)
-        for section in handle_sections:
-            assert 'border-radius: 0px' not in section, \
+    win.apply_theme('dark')
+    ss = win.styleSheet()
+    assert 'QScrollBar' in ss, "Dark theme stylesheet missing QScrollBar CSS entirely"
+    # border-radius: 0px should not appear in the scrollbar handle section
+    # (border-radius: 0px may appear in other elements — only check handle sections)
+    handle_sections = re.findall(r'QScrollBar::handle[^{]*\{[^}]+\}', ss)
+    for section in handle_sections:
+        assert 'border-radius: 0px' not in section, \
                 f"Runtime: dark theme handle still has border-radius: 0px: {section}"
         print("  ✅ Runtime: dark theme scrollbar handle has no border-radius: 0px")
 
@@ -4906,8 +4900,6 @@ def test_bubbly_scrollbars():
             assert 'border-radius: 0px' not in section, \
                 f"Runtime: goth theme handle still has border-radius: 0px: {section}"
         print("  ✅ Runtime: goth theme scrollbar handle is bubbly (no border-radius: 0px)")
-    except SystemExit:
-        print("  ⚠️  Runtime check skipped (Qt env limitation — source checks sufficient)")
 
 
 def test_color_correction_splitter_layout():
