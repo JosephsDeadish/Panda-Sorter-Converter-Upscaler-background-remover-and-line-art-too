@@ -110,6 +110,7 @@ class PandaWidget2D(QWidget if _QT_AVAILABLE else object):  # type: ignore[misc]
         # the appropriate widget underneath.
         self.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, False)
         self.setMouseTracking(True)
+        self.setAcceptDrops(True)  # Allow inventory items to be dropped on panda
 
         self.panda = panda_character  # PandaCharacter or None
 
@@ -658,8 +659,49 @@ class PandaWidget2D(QWidget if _QT_AVAILABLE else object):  # type: ignore[misc]
         # Click missed the panda — pass the event through to the UI below
         event.ignore()
 
-    def mouseDoubleClickEvent(self, event) -> None:  # type: ignore[override]
-        """Double-click spawns heart particles (petting the panda)."""
+    def dragEnterEvent(self, event) -> None:
+        """Accept inventory item drags."""
+        try:
+            if event.mimeData().hasText() and event.mimeData().text().startswith('panda_item:'):
+                event.acceptProposedAction()
+                return
+        except Exception:
+            pass
+        event.ignore()
+
+    def dragMoveEvent(self, event) -> None:
+        """Keep accepting the drag."""
+        try:
+            if event.mimeData().hasText() and event.mimeData().text().startswith('panda_item:'):
+                event.acceptProposedAction()
+                return
+        except Exception:
+            pass
+        event.ignore()
+
+    def dropEvent(self, event) -> None:
+        """Item dropped on 2-D panda — react with particles + mood change."""
+        try:
+            text = event.mimeData().text()
+            if not text.startswith('panda_item:'):
+                event.ignore()
+                return
+            parts = text.split(':', 2)
+            item_id  = parts[1] if len(parts) > 1 else 'item'
+            category = parts[2] if len(parts) > 2 else ''
+            event.acceptProposedAction()
+            is_food = 'food' in category.lower()
+            if is_food:
+                self.food_eaten.emit(item_id)
+                self.set_mood('happy')
+                self._spawn_particles()
+            else:
+                self.set_mood('excited')
+                self._spawn_hearts()
+        except Exception:
+            pass
+
+    def mouseDoubleClickEvent(self, event) -> None:  # type: ignore[override]        """Double-click spawns heart particles (petting the panda)."""
         if event.button() == Qt.MouseButton.LeftButton:
             w, h = max(1, self.width()), max(1, self.height())
             cx = w // 2
