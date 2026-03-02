@@ -2261,6 +2261,13 @@ class TextureSorterMainWindow(QMainWindow):
 
             # Save refs
             self._bedroom_widget = bedroom_gl
+            # Restore saved furniture layout if available
+            try:
+                saved_layout = config.get('ui.bedroom_layout', None)
+                if saved_layout and hasattr(bedroom_gl, 'set_layout'):
+                    bedroom_gl.set_layout(saved_layout)
+            except Exception as _le:
+                logger.debug(f"Could not restore bedroom layout: {_le}")
             self._world_widget: 'Optional[QWidget]' = None
             self._home_stack = stack
             self._home_tab_widget = home_container
@@ -7316,6 +7323,14 @@ class TextureSorterMainWindow(QMainWindow):
             logger.info("Settings saved on exit")
         except Exception as e:
             logger.error(f"Error saving settings on exit: {e}", exc_info=True)
+
+        # Save bedroom furniture layout
+        try:
+            if hasattr(self, '_bedroom_widget') and self._bedroom_widget and hasattr(self._bedroom_widget, 'get_layout'):
+                config.set('ui.bedroom_layout', self._bedroom_widget.get_layout())
+                logger.info("Bedroom layout saved on exit")
+        except Exception as e:
+            logger.warning(f"Could not save bedroom layout: {e}")
         
         if self.worker and self.worker.isRunning():
             reply = QMessageBox.question(

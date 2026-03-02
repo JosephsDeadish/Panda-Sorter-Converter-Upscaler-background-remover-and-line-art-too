@@ -226,6 +226,24 @@ class PandaBedroomGL(QOpenGLWidget if OPENGL_AVAILABLE else QWidget):  # type: i
                 return p
         return None
 
+    def get_layout(self) -> dict:
+        """Return a serialisable dict of all furniture positions/rotations."""
+        return {
+            p.id: {'x': p.x, 'y': p.y, 'z': p.z, 'rot_y': p.rot_y}
+            for p in self._furniture
+        }
+
+    def set_layout(self, layout: dict) -> None:
+        """Restore furniture positions/rotations from a previously saved layout dict."""
+        for p in self._furniture:
+            if p.id in layout:
+                entry = layout[p.id]
+                p.x     = entry.get('x', p.x)
+                p.y     = entry.get('y', p.y)
+                p.z     = entry.get('z', p.z)
+                p.rot_y = entry.get('rot_y', p.rot_y)
+        self.update()
+
     def walk_panda_to(self, x: float, z: float, callback=None) -> None:
         """Walk the in-room panda character to world position (x, z).
 
