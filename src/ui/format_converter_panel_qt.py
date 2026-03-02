@@ -188,6 +188,9 @@ class _ConvertWorker(QThread):
                             .replace("{ext}", out_ext)
                             .replace("{name}", fp.name))
                 out_path = out_dir / out_name
+                # Guard: never overwrite the source file
+                if out_path.resolve() == fp.resolve():
+                    out_path = out_dir / (fp.stem + "_converted" + out_ext)
 
                 if skip_existing and out_path.exists():
                     skipped += 1

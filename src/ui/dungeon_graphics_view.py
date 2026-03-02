@@ -271,6 +271,53 @@ class DungeonGraphicsView(QGraphicsView):
         self.scene.addItem(lbl)
         self._player_item = lbl
 
+    def drawForeground(self, painter: 'QPainter', rect: 'QRectF') -> None:
+        """Draw HUD overlay (health bar + floor number) on top of the scene."""
+        super().drawForeground(painter, rect)
+        try:
+            hp = 100
+            hp_max = 100
+            floor_num = self.current_floor + 1
+            if self.dungeon is not None:
+                hp     = getattr(self.dungeon, 'player_health',     hp)
+                hp_max = getattr(self.dungeon, 'player_max_health', hp_max)
+
+            vp = self.viewport()
+            vw, vh = vp.width(), vp.height()
+
+            # Map viewport top-left to scene coordinates so the HUD stays fixed
+            tl = self.mapToScene(0, 0)
+            x0, y0 = tl.x(), tl.y()
+
+            bar_w, bar_h = 120, 12
+            pad = 6
+
+            # Background pill
+            painter.setBrush(QBrush(QColor("#220000")))
+            painter.setPen(Qt.PenStyle.NoPen)
+            painter.drawRoundedRect(
+                QRectF(x0 + pad, y0 + pad, bar_w + 40, bar_h + 20), 4, 4
+            )
+
+            # Health bar fill
+            ratio = max(0.0, min(1.0, hp / max(1, hp_max)))
+            fill_color = (
+                QColor("#22dd22") if ratio > 0.5
+                else QColor("#ddaa00") if ratio > 0.25
+                else QColor("#dd2222")
+            )
+            painter.setBrush(QBrush(fill_color))
+            painter.drawRect(QRectF(x0 + pad + 2, y0 + pad + 14, (bar_w - 4) * ratio, bar_h - 4))
+
+            # HP text
+            painter.setPen(QPen(QColor("#ffffff")))
+            painter.drawText(
+                QRectF(x0 + pad + 2, y0 + pad + 2, bar_w - 4, 12),
+                f"❤ {hp}/{hp_max}  Floor {floor_num}",
+            )
+        except Exception:
+            pass  # HUD is decorative — never interrupt the render loop
+
     def _get_floor_data(self):
         """Return (floor_data, floor_obj) for the current floor, or (None, None)."""
         if isinstance(self.dungeon, list):
