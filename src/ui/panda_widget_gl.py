@@ -2201,11 +2201,21 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
         return any(k in subtype for k in keywords)
 
     def _draw_food_item(self, item):
-        """Draw food item in 3D — shaped by item subtype."""
+        """Draw food item in 3D — shaped by item subtype.
+
+        Progressive eating states are shown by scaling the food down as
+        eat_progress increases:  0.0 = whole, 0.25 = ¾ remaining, 0.5 = half,
+        0.75 = ¼ remaining (food about to disappear).
+        """
         color   = item.get('color', [0.8, 0.2, 0.2])
         subtype = str(item.get('id', item.get('name', ''))).lower()
+        eat_progress = item.get('eat_progress', 0.0)
+        # Scale down as eating progresses (1.0 full → 0.25 almost gone)
+        eat_scale = max(0.25, 1.0 - eat_progress * 0.75)
         quad    = gluNewQuadric()
         glColor3f(*color)
+        glPushMatrix()
+        glScalef(eat_scale, eat_scale, eat_scale)
         try:
             if self._matches_subtype(subtype, ('bamboo', 'stick', 'shoot')):
                 # Bamboo shoot: tall segmented green cylinder
@@ -2261,6 +2271,7 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
                 self._draw_sphere(0.09, 14, 14)
         finally:
             gluDeleteQuadric(quad)
+        glPopMatrix()  # restore eat_scale transform
 
     def _draw_toy_item(self, item):
         """Draw toy item in 3D — shaped by item subtype."""
@@ -2887,6 +2898,43 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
         # Micro-emotion: playful + excited
         self._micro_emotion['playful']  = 0.9
         self._micro_emotion['curious']  = 0.6
+
+    def take_food_bite(self, item_index: int) -> float:
+        """Advance the eat_progress of a food item by one bite (0.25).
+
+        Returns the new eat_progress value (0.0–1.0).  When eat_progress
+        reaches 1.0, the item is removed from items_3d and the food_eaten
+        signal is emitted.
+
+        Call this each time the panda successfully chomps the food item during
+        a walk_to_item interaction so the food visually shrinks bite by bite.
+        """
+        if item_index < 0 or item_index >= len(self.items_3d):
+            return 0.0
+        item = self.items_3d[item_index]
+        if item.get('type') != 'food':
+            return 0.0
+
+        progress = item.get('eat_progress', 0.0) + 0.25
+        progress = min(progress, 1.0)
+        item['eat_progress'] = progress
+
+        # Play bite animation + chomp sound
+        self.start_bite_tab()
+        self._play_sound('munch')
+
+        if progress >= 1.0:
+            # Fully eaten — remove item and signal
+            item_id = item.get('id', item.get('name', 'food'))
+            self.items_3d.pop(item_index)
+            self.food_eaten.emit(str(item_id))
+            self._micro_emotion['happy'] = min(1.0, self._micro_emotion.get('happy', 0) + 0.8)
+        else:
+            # Partially eaten — show what fraction remains
+            self._micro_emotion['happy'] = min(1.0, self._micro_emotion.get('happy', 0) + 0.3)
+
+        self.update()
+        return progress
 
     def start_hug_window(self):
         """Panda climbs/hugs the window edge — triggers climbing_wall state."""
@@ -3650,6 +3698,10 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
             'rotation': 0.0,
             **kwargs
         }
+        # Food items track how many bites have been taken.
+        # eat_progress 0.0 = whole, 0.25 = quarter eaten, … 1.0 = fully eaten.
+        if item_type == 'food':
+            item.setdefault('eat_progress', 0.0)
         self.items_3d.append(item)
     
     def clear_items(self):
