@@ -5870,6 +5870,70 @@ def test_panda_world_dungeon_entrance():
     print("  ✅ Source: torch flame colour present")
 
 
+def test_image_preview_widget_zoom():
+    """ImagePreviewWidget must have zoom-in / zoom-out / fit controls.
+
+    Source checks (qt_preview_widgets.py):
+    - _zoom_in, _zoom_out, _zoom_fit methods present
+    - _refresh_pixmap method present
+    - _zoom_level attribute initialised
+    - setMinimumSize(250, 200) — not the old 400×400
+
+    Runtime checks:
+    - widget instantiates without error
+    - _zoom_in() increases zoom level
+    - _zoom_fit() resets zoom to 1.0
+    - _zoom_out() decreases zoom level from a zoomed state
+    """
+    print("\ntest_image_preview_widget_zoom ...")
+    from pathlib import Path
+    code = (Path(__file__).parent / 'src' / 'ui' / 'qt_preview_widgets.py').read_text(encoding='utf-8')
+
+    for method in ('def _zoom_in', 'def _zoom_out', 'def _zoom_fit', 'def _refresh_pixmap'):
+        assert method in code, f"qt_preview_widgets.py: {method}() missing"
+    print("  ✅ Source: _zoom_in / _zoom_out / _zoom_fit / _refresh_pixmap present")
+
+    assert '_zoom_level' in code, \
+        "qt_preview_widgets.py: _zoom_level attribute missing"
+    print("  ✅ Source: _zoom_level attribute present")
+
+    assert 'setMinimumSize(250, 200)' in code, \
+        "qt_preview_widgets.py: ImagePreviewWidget.setMinimumSize should be (250, 200)"
+    print("  ✅ Source: setMinimumSize(250, 200) (not old 400×400)")
+
+    # Runtime
+    import sys, os, logging
+    os.environ.setdefault('QT_QPA_PLATFORM', 'offscreen')
+    logging.disable(logging.CRITICAL)
+    sys.path.insert(0, str(Path(__file__).parent / 'src'))
+    from PyQt6.QtWidgets import QApplication
+    _app = QApplication.instance() or QApplication(sys.argv)
+
+    from ui.qt_preview_widgets import ImagePreviewWidget
+    w = ImagePreviewWidget()
+    assert w._zoom_level == 1.0, "Initial zoom should be 1.0 (fit)"
+    print("  ✅ Runtime: initial _zoom_level == 1.0")
+
+    # Zoom in twice — should increase
+    w._zoom_in()
+    w._zoom_in()
+    assert w._zoom_level > 1.0, f"After 2 zoom-ins, _zoom_level should be >1.0, got {w._zoom_level}"
+    print(f"  ✅ Runtime: after 2 zoom-ins, _zoom_level={w._zoom_level:.2f}")
+
+    # Fit resets to 1.0
+    w._zoom_fit()
+    assert w._zoom_level == 1.0, f"After _zoom_fit(), _zoom_level should be 1.0, got {w._zoom_level}"
+    print("  ✅ Runtime: _zoom_fit() resets zoom to 1.0")
+
+    # Zoom in then zoom out — still < original zoom-in level
+    w._zoom_in(); w._zoom_in()
+    before = w._zoom_level
+    w._zoom_out()
+    assert w._zoom_level < before, \
+        f"_zoom_out() should decrease _zoom_level (was {before}, now {w._zoom_level})"
+    print("  ✅ Runtime: _zoom_out() decreases zoom level")
+
+
 def run_all_tests():
     print("=" * 65)
     print("Hybrid Architecture + Lazy rembg Import Tests")
@@ -5980,6 +6044,7 @@ def run_all_tests():
         test_shop_sell_functionality,
         test_bamboo_catcher_minigame,
         test_panda_world_dungeon_entrance,
+        test_image_preview_widget_zoom,
     ]
 
     passed, failed = [], []
