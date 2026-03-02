@@ -324,6 +324,7 @@ class PandaWorldGL(
         self._draw_road()
         self._draw_car()
         self._draw_shop()
+        self._draw_dungeon_entrance()
         self._draw_park_area()
         self._draw_trees()
         self._draw_hover_highlights()
@@ -1145,6 +1146,76 @@ class PandaWorldGL(
             glPopMatrix()
             glLineWidth(1.0)
             glEnable(GL_LIGHTING)
+
+    def _draw_dungeon_entrance(self):
+        """Draw the dungeon entrance building in the far corner of the world.
+
+        A dark stone archway with glowing purple portal, a warning sign, and
+        torch-like flame pillars on either side.  Positioned at (-9, 0, -8)
+        (far left back corner, visible but not obstructing the main road).
+        """
+        glEnable(GL_LIGHTING)
+        glPushMatrix()
+        glTranslatef(-9.0, 0.0, -8.0)
+
+        # ── Stone arch base pillars ──────────────────────────────────────────
+        for px in (-0.6, 0.6):
+            glPushMatrix()
+            glTranslatef(px, 0.0, 0.0)
+            glMaterialfv(GL_FRONT, GL_AMBIENT_AND_DIFFUSE, [0.28, 0.26, 0.30, 1.0])
+            glPushMatrix()
+            glRotatef(-90, 1, 0, 0)
+            self._cylinder(0.25, 1.8, 8)
+            glPopMatrix()
+            glPopMatrix()
+
+        # ── Arch keystone (top bar) ───────────────────────────────────────────
+        glMaterialfv(GL_FRONT, GL_AMBIENT_AND_DIFFUSE, [0.22, 0.20, 0.25, 1.0])
+        glPushMatrix()
+        glTranslatef(0.0, 1.8, 0.0)
+        glScalef(1.7, 0.35, 0.50)
+        self._sphere(0.4, 8, 6)
+        glPopMatrix()
+
+        # ── Portal glow (dark purple disc — emissive look via no-lighting) ──
+        glDisable(GL_LIGHTING)
+        glColor4f(0.45, 0.0, 0.75, 0.65)
+        glPushMatrix()
+        glTranslatef(0.0, 0.9, 0.05)
+        quadric = gluNewQuadric()
+        gluDisk(quadric, 0.0, 0.50, 20, 1)
+        gluDeleteQuadric(quadric)
+        glPopMatrix()
+        glEnable(GL_LIGHTING)
+
+        # ── Torch pillars (warm flame colour) ────────────────────────────────
+        for tx, tz in ((-0.85, 0.4), (0.85, 0.4)):
+            glMaterialfv(GL_FRONT, GL_AMBIENT_AND_DIFFUSE, [0.28, 0.26, 0.30, 1.0])
+            glPushMatrix()
+            glTranslatef(tx, 0.0, tz)
+            glPushMatrix(); glRotatef(-90, 1, 0, 0); self._cylinder(0.06, 1.0, 6); glPopMatrix()
+            # Flame tip
+            glDisable(GL_LIGHTING)
+            glColor4f(1.0, 0.5, 0.05, 0.9)
+            glTranslatef(0.0, 1.05, 0.0)
+            quadric2 = gluNewQuadric()
+            glPushMatrix(); glRotatef(-90, 1, 0, 0)
+            gluCylinder(quadric2, 0.07, 0.0, 0.20, 8, 1)
+            glPopMatrix()
+            gluDeleteQuadric(quadric2)
+            glEnable(GL_LIGHTING)
+            glPopMatrix()
+
+        # ── Warning sign ────────────────────────────────────────────────────
+        glMaterialfv(GL_FRONT, GL_AMBIENT_AND_DIFFUSE, [0.7, 0.55, 0.15, 1.0])
+        glPushMatrix()
+        glTranslatef(0.85, 1.25, 0.35)
+        glRotatef(20, 0, 1, 0)
+        glScalef(1.0, 0.6, 0.05)
+        self._sphere(0.22, 6, 4)
+        glPopMatrix()
+
+        glPopMatrix()   # end dungeon entrance group
 
     def _draw_park_area(self):
         """Bench, pond, flowers, play equipment for the park destination."""

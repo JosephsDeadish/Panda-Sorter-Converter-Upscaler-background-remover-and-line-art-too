@@ -5830,6 +5830,46 @@ def test_bamboo_catcher_minigame():
     print(f"  ✅ Runtime: 'bamboo_catcher' in MiniGameManager ({len(ids)} games total)")
 
 
+def test_panda_world_dungeon_entrance():
+    """PandaWorldGL must draw a dungeon entrance building in the 3D world.
+
+    The dungeon was reachable from the car destination dialog but had no
+    visible building in the world.  Adding a stone archway with a purple
+    portal and torches makes the destination tangible.
+
+    Source checks (panda_world_gl.py):
+    - _draw_dungeon_entrance() method present
+    - _draw_world() calls _draw_dungeon_entrance()
+    - gluDisk or portal-related drawing present (portal effect)
+    - torch / flame colour values present (0.5, 0.05 orange-flame)
+    """
+    print("\ntest_panda_world_dungeon_entrance ...")
+    from pathlib import Path
+    src = Path(__file__).parent / 'src' / 'ui' / 'panda_world_gl.py'
+    if not src.exists():
+        print("  ⚠️  Skipped (panda_world_gl.py not found)")
+        return
+
+    code = src.read_text(encoding='utf-8')
+
+    assert 'def _draw_dungeon_entrance' in code, \
+        "panda_world_gl.py: _draw_dungeon_entrance() method missing"
+    print("  ✅ Source: _draw_dungeon_entrance() present")
+
+    assert '_draw_dungeon_entrance()' in code, \
+        "panda_world_gl.py: _draw_dungeon_entrance() not called from _draw_world()"
+    print("  ✅ Source: _draw_dungeon_entrance() called in _draw_world()")
+
+    assert 'gluDisk' in code, \
+        "panda_world_gl.py: gluDisk (portal disc) missing in dungeon entrance"
+    print("  ✅ Source: gluDisk portal disc present")
+
+    # Torch flame orange-ish value
+    assert '0.05' in code, \
+        "panda_world_gl.py: torch flame colour (0.05 amber component) missing"
+    print("  ✅ Source: torch flame colour present")
+
+
 def run_all_tests():
     print("=" * 65)
     print("Hybrid Architecture + Lazy rembg Import Tests")
@@ -5939,6 +5979,7 @@ def run_all_tests():
         test_panda_progressive_food_eating,
         test_shop_sell_functionality,
         test_bamboo_catcher_minigame,
+        test_panda_world_dungeon_entrance,
     ]
 
     passed, failed = [], []
