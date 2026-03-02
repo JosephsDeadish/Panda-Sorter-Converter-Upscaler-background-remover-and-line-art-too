@@ -429,6 +429,10 @@ class BackgroundRemoverPanelQt(QWidget):
         self.alpha_matting_cb.setChecked(False)
         self._set_tooltip(self.alpha_matting_cb, 'bg_alpha_matting')
         alpha_layout.addWidget(self.alpha_matting_cb)
+        self.trim_transparent_cb = QCheckBox("✂️ Trim transparent borders after removal")
+        self.trim_transparent_cb.setChecked(False)
+        self.trim_transparent_cb.setToolTip("Crop the image to the smallest bounding box that contains the subject")
+        alpha_layout.addWidget(self.trim_transparent_cb)
         alpha_group.setLayout(alpha_layout)
         layout.addWidget(alpha_group)
 
@@ -859,6 +863,16 @@ class BackgroundRemoverPanelQt(QWidget):
                 QMessageBox.critical(self, "Error", "Background removal failed with all available backends.")
                 return
 
+            # ── Trim transparent borders (optional) ─────────────────────────
+            trim_cb = getattr(self, 'trim_transparent_cb', None)
+            if trim_cb is not None and trim_cb.isChecked() and output is not None:
+                try:
+                    bbox = output.getbbox()  # bounding box of non-zero alpha region
+                    if bbox:
+                        output = output.crop(bbox)
+                except Exception as _te:
+                    logger.warning(f"Trim failed: {_te}")
+
             # ── Save result and update UI ────────────────────────────────────
             tmp_dir = Path(tempfile.mkdtemp(prefix=self.TEMP_DIR_PREFIX))
             self._rembg_temp_dirs.append(tmp_dir)
@@ -1079,6 +1093,15 @@ class BackgroundRemoverPanelQt(QWidget):
                 if removed is None:
                     raise RuntimeError("No background-removal backend available "
                                        "(rembg and ONNX model both unavailable)")
+                # Trim transparent borders if requested
+                _trim = getattr(self, 'trim_transparent_cb', None)
+                if _trim is not None and _trim.isChecked():
+                    try:
+                        bbox = removed.getbbox()
+                        if bbox:
+                            removed = removed.crop(bbox)
+                    except Exception:
+                        pass
                 removed.save(str(out_path), format=pil_format)
                 done += 1
             except Exception as exc:
