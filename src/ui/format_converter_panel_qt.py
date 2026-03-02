@@ -605,10 +605,15 @@ if _PYQT:
             self._clear_btn.setFixedHeight(36)
             self._clear_btn.clicked.connect(self._log.clear)
             self._set_tooltip(self._clear_btn, 'clear_log_button')
+            self._save_log_btn = QPushButton("💾 Save Log")
+            self._save_log_btn.setFixedHeight(36)
+            self._save_log_btn.clicked.connect(self._save_log)
+            self._set_tooltip(self._save_log_btn, "Save the conversion log to a text file")
             btn_row.addWidget(self._convert_btn)
             btn_row.addWidget(self._cancel_btn)
             btn_row.addStretch()
             btn_row.addWidget(self._clear_btn)
+            btn_row.addWidget(self._save_log_btn)
             rv.addLayout(btn_row)
 
             self._status_lbl = QLabel("Ready")
@@ -805,6 +810,27 @@ if _PYQT:
             if self._worker and self._worker.isRunning():
                 self._worker.cancel()
                 self._status_lbl.setText("Cancelling…")
+
+        def _save_log(self):
+            """Save the conversion log to a text file chosen by the user."""
+            text = self._log.toPlainText()
+            if not text:
+                QMessageBox.information(self, "Empty Log", "There is nothing in the log to save.")
+                return
+            path, _ = QFileDialog.getSaveFileName(
+                self,
+                "Save Conversion Log",
+                "conversion_log.txt",
+                "Text Files (*.txt);;All Files (*.*)",
+            )
+            if not path:
+                return
+            try:
+                with open(path, 'w', encoding='utf-8') as fh:
+                    fh.write(text)
+                self._status_lbl.setText(f"💾 Log saved to {Path(path).name}")
+            except Exception as _e:
+                QMessageBox.critical(self, "Save Failed", f"Could not save log:\n{_e}")
 
         def _on_progress(self, done: int, total: int, filename: str):
             self._progress.setMaximum(total)
