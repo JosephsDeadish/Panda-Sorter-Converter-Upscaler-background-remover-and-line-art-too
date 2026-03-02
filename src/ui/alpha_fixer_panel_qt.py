@@ -199,8 +199,44 @@ class AlphaFixerPanelQt(QWidget):
         self.current_image = None
         # Default preset key — set correctly by _on_preset_changed when the combo is built
         self._selected_preset_key: Optional[str] = 'generic_binary'
+        self.setAcceptDrops(True)  # drag-and-drop images onto the panel
 
         self._create_widgets()
+
+    # ── Drag-and-drop support ──────────────────────────────────────────────
+    def dragEnterEvent(self, event) -> None:
+        if event.mimeData().hasUrls():
+            event.acceptProposedAction()
+        else:
+            event.ignore()
+
+    def dropEvent(self, event) -> None:
+        """Accept dropped image files and add them to the alpha fix queue."""
+        _EXTS = {'.png', '.jpg', '.jpeg', '.bmp', '.gif', '.tiff', '.tif', '.webp'}
+        existing = set(self.selected_files)
+        added = []
+        for url in event.mimeData().urls():
+            path = Path(url.toLocalFile())
+            if path.is_file() and path.suffix.lower() in _EXTS:
+                s = str(path)
+                if s not in existing:
+                    added.append(s)
+                    existing.add(s)
+            elif path.is_dir():
+                for child in path.iterdir():
+                    if child.suffix.lower() in _EXTS:
+                        s = str(child)
+                        if s not in existing:
+                            added.append(s)
+                            existing.add(s)
+        if added:
+            self.selected_files.extend(added)
+            if hasattr(self, 'info_label'):
+                count = len(self.selected_files)
+                self.info_label.setText(
+                    f"{count} file{'s' if count != 1 else ''} queued"
+                )
+        event.acceptProposedAction()
     
     def _create_widgets(self):
         """Create the UI widgets."""
