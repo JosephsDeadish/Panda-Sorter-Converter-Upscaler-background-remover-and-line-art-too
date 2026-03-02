@@ -429,6 +429,7 @@ class ImageUpscalerPanelQt(QWidget):
         self.output_directory: Optional[str] = None
         self.worker_thread = None
         self.preview_worker = None
+        self.setAcceptDrops(True)  # drag-and-drop image files onto the panel
         
         # Initialize model manager
         if MODEL_MANAGER_AVAILABLE:
@@ -442,6 +443,40 @@ class ImageUpscalerPanelQt(QWidget):
         self.preview_timer.timeout.connect(self._update_live_preview)
         
         self._create_widgets()
+
+    # ── Drag-and-drop support ──────────────────────────────────────────────
+    def dragEnterEvent(self, event) -> None:
+        if event.mimeData().hasUrls():
+            event.acceptProposedAction()
+        else:
+            event.ignore()
+
+    def dropEvent(self, event) -> None:
+        """Accept dropped image/folder paths and add to the upscaler queue."""
+        _EXTS = {'.png', '.jpg', '.jpeg', '.bmp', '.tiff', '.tif',
+                 '.webp', '.tga', '.dds', '.gif', '.avif', '.qoi', '.apng', '.jfif'}
+        added = 0
+        for url in event.mimeData().urls():
+            path = Path(url.toLocalFile())
+            if path.is_file() and path.suffix.lower() in _EXTS:
+                s = str(path)
+                if s not in self.selected_files:
+                    self.selected_files.append(s)
+                    added += 1
+            elif path.is_dir():
+                for child in path.iterdir():
+                    if child.suffix.lower() in _EXTS:
+                        s = str(child)
+                        if s not in self.selected_files:
+                            self.selected_files.append(s)
+                            added += 1
+        if added:
+            lbl = getattr(self, 'file_count_label', None)
+            if lbl is not None:
+                lbl.setText(f"{len(self.selected_files)} file(s) selected")
+                lbl.setStyleSheet("color: green;")
+            self._check_ready()
+        event.acceptProposedAction()
     
     def _show_unavailable(self):
         """Show message when upscaler is not available."""

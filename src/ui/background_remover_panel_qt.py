@@ -142,6 +142,7 @@ class BackgroundRemoverPanelQt(QWidget):
         self._rembg_temp_dirs: list = []  # Track rembg result temp dirs for cleanup
         # Batch processing state
         self._batch_files: list = []   # Path objects queued for batch removal
+        self.setAcceptDrops(True)  # drag-and-drop images onto the panel
         
         # Undo/Redo history management
         self.edit_history = []
@@ -149,6 +150,38 @@ class BackgroundRemoverPanelQt(QWidget):
         self.max_history = 50
         
         self.setup_ui()
+
+    # ── Drag-and-drop support ──────────────────────────────────────────────
+    def dragEnterEvent(self, event) -> None:
+        if event.mimeData().hasUrls():
+            event.acceptProposedAction()
+        else:
+            event.ignore()
+
+    def dropEvent(self, event) -> None:
+        """Accept dropped image files and add them to the batch queue."""
+        _EXTS = {'.png', '.jpg', '.jpeg', '.bmp', '.gif', '.tiff', '.tif',
+                 '.webp', '.avif', '.ico'}
+        existing = {str(p) for p in self._batch_files}
+        added = []
+        for url in event.mimeData().urls():
+            path = Path(url.toLocalFile())
+            if path.is_file() and path.suffix.lower() in _EXTS:
+                if str(path) not in existing:
+                    added.append(path)
+                    existing.add(str(path))
+            elif path.is_dir():
+                for child in path.iterdir():
+                    if child.suffix.lower() in _EXTS and str(child) not in existing:
+                        added.append(child)
+                        existing.add(str(child))
+        if added:
+            self._batch_files.extend(added)
+            n = len(self._batch_files)
+            lbl = getattr(self, '_batch_count_lbl', None)
+            if lbl is not None:
+                lbl.setText(f"{n} file{'s' if n != 1 else ''} queued")
+        event.acceptProposedAction()
     
     def setup_ui(self):
         """Create the UI layout with left-control / right-preview splitter."""
