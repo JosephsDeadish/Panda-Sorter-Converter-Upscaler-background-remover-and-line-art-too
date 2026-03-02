@@ -79,6 +79,10 @@ _MELEE_DAMAGE = 20      # damage per melee hit
 _MAGIC_DAMAGE = 15      # base magic damage (×charge multiplier)
 _ATTACK_COOLDOWN_TICKS = 20  # frames between attacks
 
+# Enemy rendering constants
+_ENEMY_BASE_RADIUS  = 0.25   # minimum sphere radius for weakest enemy
+_ENEMY_HP_RADIUS_SCALE = 0.004  # extra radius per HP point (orc=50HP → r≈0.45)
+
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
 def _gl_quad(x0, y0, z0, x1, y1, z1, x2, y2, z2, x3, y3, z3, nx, ny, nz):
@@ -731,7 +735,7 @@ class _Dungeon3DGL(QOpenGLWidget if (_QT and _GL) else object):  # type: ignore[
             col = _ENEMY_COLS.get(enemy['type'], (0.7, 0.3, 0.3))
             # Orcs are larger; derive radius from max_hp
             max_hp = enemy.get('max_hp', 30)
-            radius = 0.25 + max_hp * 0.004   # skeleton/goblin ~0.35, orc ~0.45
+            radius = _ENEMY_BASE_RADIUS + max_hp * _ENEMY_HP_RADIUS_SCALE
             glPushMatrix()
             glTranslatef(enemy['x'], radius, enemy['z'])
             glColor3f(*col)

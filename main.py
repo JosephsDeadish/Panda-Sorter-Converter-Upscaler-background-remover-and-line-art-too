@@ -5836,7 +5836,7 @@ class TextureSorterMainWindow(QMainWindow):
             if self.panda_stats:
                 stats = self.panda_stats
                 if hasattr(stats, 'monsters_slain'):
-                    stats.monsters_slain = getattr(stats, 'monsters_slain', 0) + 1
+                    stats.monsters_slain += 1
             if self.quest_system:
                 self.quest_system.update_quest_progress('dungeon_adventurer', 1)
         except Exception as _e:

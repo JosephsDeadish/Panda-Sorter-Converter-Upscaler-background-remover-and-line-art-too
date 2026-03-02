@@ -640,9 +640,9 @@ class OrganizerPanelQt(QWidget):
 
     def dropEvent(self, event) -> None:
         """Accept a dropped folder (or image file) as the source directory."""
-        from pathlib import Path as _P
+        from pathlib import Path
         for url in event.mimeData().urls():
-            path = _P(url.toLocalFile())
+            path = Path(url.toLocalFile())
             if path.is_dir():
                 self.source_directory = str(path)
                 if hasattr(self, 'source_label'):

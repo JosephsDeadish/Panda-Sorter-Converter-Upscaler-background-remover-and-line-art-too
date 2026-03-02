@@ -6061,7 +6061,9 @@ def test_dungeon_orc_coins():
     print("  ✅ Runtime: orc has hp=50, coins=12; all 4 enemy types have correct values")
 
     # Verify orc is visually bigger than skeleton via radius formula
-    _radius = lambda max_hp: 0.25 + max_hp * 0.004
+    _ENEMY_BASE_RADIUS = 0.25
+    _ENEMY_HP_RADIUS_SCALE = 0.004
+    _radius = lambda max_hp: _ENEMY_BASE_RADIUS + max_hp * _ENEMY_HP_RADIUS_SCALE
     r_orc      = _radius(50)
     r_skeleton = _radius(25)
     assert r_orc > r_skeleton, \
