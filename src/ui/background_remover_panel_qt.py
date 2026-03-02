@@ -1102,7 +1102,11 @@ class BackgroundRemoverPanelQt(QWidget):
                             removed = removed.crop(bbox)
                     except Exception:
                         pass
-                removed.save(str(out_path), format=pil_format)
+                save_kw = {}
+                if pil_format == "WEBP":
+                    # Lossless WebP best preserves alpha channel quality
+                    save_kw = {"lossless": True}
+                removed.save(str(out_path), format=pil_format, **save_kw)
                 done += 1
             except Exception as exc:
                 errors += 1
