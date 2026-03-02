@@ -45,7 +45,7 @@ class IntegratedDungeon:
     MELEE_RANGE = 1   # Distance for player melee attacks
     
     def __init__(self, width: int = 80, height: int = 80, num_floors: int = 5, seed: Optional[int] = None,
-                 level_system=None, currency_system=None):
+                 level_system: Optional[object] = None, currency_system: Optional[object] = None):
         """
         Initialize the integrated dungeon.
         
