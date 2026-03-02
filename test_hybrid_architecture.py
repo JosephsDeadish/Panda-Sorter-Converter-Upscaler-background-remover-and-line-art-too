@@ -6150,6 +6150,69 @@ def test_format_converter_drag_drop():
         print(f"  ✅ Runtime: drop logic added {added} valid image files, rejected .txt")
 
 
+def test_tool_panels_drag_drop():
+    """All major tool panels must accept drag-and-drop image files.
+
+    Panels checked (source-level):
+    - upscaler_panel_qt.py      — setAcceptDrops, dragEnterEvent, dropEvent
+    - background_remover_panel_qt.py — same
+    - color_correction_panel_qt.py  — same
+    - lineart_converter_panel_qt.py — same
+    - alpha_fixer_panel_qt.py       — same
+    - batch_normalizer_panel_qt.py  — same
+    - image_repair_panel_qt.py      — same
+    - batch_rename_panel_qt.py      — same
+
+    Runtime check:
+    - Instantiate panels that don't need ONNX/rembg and verify setAcceptDrops
+    """
+    print("\ntest_tool_panels_drag_drop ...")
+    from pathlib import Path
+
+    panels = {
+        'upscaler_panel_qt.py':           Path(__file__).parent / 'src' / 'ui' / 'upscaler_panel_qt.py',
+        'background_remover_panel_qt.py': Path(__file__).parent / 'src' / 'ui' / 'background_remover_panel_qt.py',
+        'color_correction_panel_qt.py':   Path(__file__).parent / 'src' / 'ui' / 'color_correction_panel_qt.py',
+        'lineart_converter_panel_qt.py':  Path(__file__).parent / 'src' / 'ui' / 'lineart_converter_panel_qt.py',
+        'alpha_fixer_panel_qt.py':        Path(__file__).parent / 'src' / 'ui' / 'alpha_fixer_panel_qt.py',
+        'batch_normalizer_panel_qt.py':   Path(__file__).parent / 'src' / 'ui' / 'batch_normalizer_panel_qt.py',
+        'image_repair_panel_qt.py':       Path(__file__).parent / 'src' / 'ui' / 'image_repair_panel_qt.py',
+        'batch_rename_panel_qt.py':       Path(__file__).parent / 'src' / 'ui' / 'batch_rename_panel_qt.py',
+    }
+
+    for filename, filepath in panels.items():
+        code = filepath.read_text(encoding='utf-8')
+        assert 'setAcceptDrops(True)' in code, \
+            f"{filename}: setAcceptDrops(True) missing"
+        assert 'def dragEnterEvent' in code, \
+            f"{filename}: dragEnterEvent() missing"
+        assert 'def dropEvent' in code, \
+            f"{filename}: dropEvent() missing"
+        assert 'hasUrls' in code, \
+            f"{filename}: dropEvent should check mimeData().hasUrls()"
+        assert 'toLocalFile' in code, \
+            f"{filename}: dropEvent should call url.toLocalFile()"
+
+    print(f"  ✅ Source: all {len(panels)} tool panels have drag-drop support")
+
+    # Runtime: verify batch_rename doesn't need upscaler/ONNX
+    import sys, os
+    os.environ.setdefault('QT_QPA_PLATFORM', 'offscreen')
+    sys.path.insert(0, str(Path(__file__).parent / 'src'))
+    from PyQt6.QtWidgets import QApplication
+    _app = QApplication.instance() or QApplication(sys.argv)
+
+    from ui.batch_rename_panel_qt import BatchRenamePanelQt
+    panel = BatchRenamePanelQt()
+    assert panel.acceptDrops(), "BatchRenamePanelQt: acceptDrops() should be True"
+    print("  ✅ Runtime: BatchRenamePanelQt.acceptDrops() == True")
+
+    from ui.batch_normalizer_panel_qt import BatchNormalizerPanelQt
+    panel2 = BatchNormalizerPanelQt()
+    assert panel2.acceptDrops(), "BatchNormalizerPanelQt: acceptDrops() should be True"
+    print("  ✅ Runtime: BatchNormalizerPanelQt.acceptDrops() == True")
+
+
 def run_all_tests():
     print("=" * 65)
     print("Hybrid Architecture + Lazy rembg Import Tests")
@@ -6264,6 +6327,7 @@ def run_all_tests():
         test_panda_stats_wellbeing,
         test_dungeon_orc_coins,
         test_format_converter_drag_drop,
+        test_tool_panels_drag_drop,
     ]
 
     passed, failed = [], []
