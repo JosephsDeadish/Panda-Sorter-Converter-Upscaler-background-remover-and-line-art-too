@@ -104,7 +104,9 @@ class MiniGamePanelQt(QWidget):
         self.current_game = None
         self.game_widgets = {}
         self.tooltip_manager = tooltip_manager
-        
+        # Persistent high scores: {game_id: best_score}
+        self._high_scores: dict = {}
+
         # Game timers (using QTimer instead of .after())
         self.game_timer = QTimer(self)
         self.game_timer.timeout.connect(self._on_game_timer)
@@ -113,6 +115,8 @@ class MiniGamePanelQt(QWidget):
         self.action_timer.setSingleShot(True)
         
         self._create_widgets()
+        # Wire high-score tracking
+        self.game_completed.connect(self._record_high_score)
         self._show_game_selection()
     
     def _create_widgets(self):
@@ -184,11 +188,14 @@ class MiniGamePanelQt(QWidget):
         
         game_layout.addStretch()
         
-        # High score
-        high_score = game_info.get('high_score', 0)
-        score_label = QLabel(f"High Score: {high_score}")
+        # High score — use in-memory tracker
+        _gid = game_info['id']
+        high_score = self._high_scores.get(_gid, game_info.get('high_score', 0))
+        score_label = QLabel(f"🏆 Best: {high_score}")
         score_label.setStyleSheet("color: green; font-weight: bold;")
         game_layout.addWidget(score_label)
+        # Store reference so _record_high_score can update it
+        setattr(self, f"_hs_label_{_gid}", score_label)
         
         # Play button
         play_btn = QPushButton("▶ Play")
@@ -532,6 +539,20 @@ class MiniGamePanelQt(QWidget):
             f"Currency Earned: {total_currency} | Perfect Scores: {perfect_scores}"
         )
     
+    def _record_high_score(self, game_id: str, score: int) -> None:
+        """Update high score for *game_id* if *score* is better."""
+        prev_best = self._high_scores.get(game_id, 0)
+        if score > prev_best:
+            self._high_scores[game_id] = score
+            # Update the displayed high-score label if visible
+            label_attr = f"_hs_label_{game_id}"
+            lbl = getattr(self, label_attr, None)
+            if lbl is not None:
+                try:
+                    lbl.setText(f"🏆 Best: {score}")
+                except Exception:
+                    pass
+
     def _set_tooltip(self, widget, widget_id_or_text: str):
         """Set tooltip via manager (cycling) when available, else plain text."""
         if self.tooltip_manager and hasattr(self.tooltip_manager, 'register'):
