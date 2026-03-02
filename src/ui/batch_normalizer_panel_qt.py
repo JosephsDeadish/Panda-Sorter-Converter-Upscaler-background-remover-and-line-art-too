@@ -9,7 +9,7 @@ try:
     from PyQt6.QtWidgets import (
         QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
         QScrollArea, QFrame, QFileDialog, QMessageBox, QProgressBar,
-        QComboBox, QSpinBox, QCheckBox, QLineEdit, QGroupBox
+        QComboBox, QSpinBox, QCheckBox, QLineEdit, QGroupBox, QTextEdit
     )
     from PyQt6.QtCore import Qt, QThread, pyqtSignal, QTimer
     from PyQt6.QtGui import QPixmap, QImage
@@ -434,6 +434,16 @@ class BatchNormalizerPanelQt(QWidget):
         self.progress_label = QLabel("")
         self.progress_label.setStyleSheet("color: gray;")
         layout.addWidget(self.progress_label)
+
+        # Activity log
+        self.log_text = QTextEdit()
+        self.log_text.setReadOnly(True)
+        self.log_text.setMaximumHeight(120)
+        self.log_text.setStyleSheet(
+            "background:#0d1117; color:#c9d1d9; font-family:Consolas,monospace; font-size:10px;"
+        )
+        self.log_text.setPlaceholderText("Normalisation log will appear here…")
+        layout.addWidget(self.log_text)
     
     def _create_preview_section(self, layout):
         """Create preview section."""
@@ -592,7 +602,9 @@ class BatchNormalizerPanelQt(QWidget):
         """Handle progress updates."""
         self.progress_bar.setValue(int(progress))
         self.progress_label.setText(message)
-    
+        if hasattr(self, 'log_text') and message and message != "Done":
+            self.log_text.append(message)
+
     def _on_finished(self, success, message, files_processed: int = 0):
         """Handle completion."""
         self.progress_bar.setVisible(False)
@@ -600,7 +612,9 @@ class BatchNormalizerPanelQt(QWidget):
         if hasattr(self, 'cancel_btn'):
             self.cancel_btn.setEnabled(False)
             self.cancel_btn.setVisible(False)
-        
+        if hasattr(self, 'log_text'):
+            icon = "✅" if success else "❌"
+            self.log_text.append(f"{icon} {message}")
         if success:
             QMessageBox.information(self, "Complete", message)
             self.progress_label.setText("✓ Normalization complete")
