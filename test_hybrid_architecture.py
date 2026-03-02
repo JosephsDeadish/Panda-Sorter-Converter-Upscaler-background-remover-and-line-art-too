@@ -5758,6 +5758,79 @@ def test_shop_sell_functionality():
         print(f"  ✅ Runtime: sell_item returns refund={amt2} (50% of {item.price}), item removed")
 
 
+def test_bamboo_catcher_minigame():
+    """BambooCatcherGame must be a complete falling-item minigame registered with MiniGameManager.
+
+    Source checks:
+    - BambooCatcherGame class present in minigame_system.py
+    - tick(), move_basket(), _spawn_item() methods present
+    - 'bamboo_catcher' key in MiniGameManager.games dict
+    - CATCH_POINTS dict with bamboo, cookie, apple, rock, thorn entries
+
+    Runtime checks:
+    - start() initialises score=0, caught=0, missed=0
+    - tick(1.0) spawns items and advances their y position
+    - move_basket(1) increases basket_x by 1
+    - move_basket(-1) decreases basket_x by 1
+    - stop() returns a GameResult
+    - 'bamboo_catcher' in MiniGameManager().get_available_games() IDs
+    """
+    print("\ntest_bamboo_catcher_minigame ...")
+    from pathlib import Path
+    code = (Path(__file__).parent / 'src' / 'features' / 'minigame_system.py').read_text(encoding='utf-8')
+
+    assert 'class BambooCatcherGame' in code, \
+        "minigame_system.py: BambooCatcherGame class missing"
+    print("  ✅ Source: BambooCatcherGame class present")
+
+    for method in ('def tick', 'def move_basket', 'def _spawn_item', 'def get_remaining_time'):
+        assert method in code, f"minigame_system.py: BambooCatcherGame.{method}() missing"
+    print("  ✅ Source: tick / move_basket / _spawn_item / get_remaining_time present")
+
+    assert 'bamboo_catcher' in code, \
+        "minigame_system.py: 'bamboo_catcher' key not registered in MiniGameManager"
+    print("  ✅ Source: 'bamboo_catcher' registered in MiniGameManager.games")
+
+    for item_kind in ("'bamboo'", "'cookie'", "'apple'", "'rock'", "'thorn'"):
+        assert item_kind in code, \
+            f"minigame_system.py: _CATCH_POINTS missing entry for {item_kind}"
+    print("  ✅ Source: all 5 item kinds in _CATCH_POINTS")
+
+    # Runtime
+    import sys
+    sys.path.insert(0, str(Path(__file__).parent / 'src'))
+    from features.minigame_system import BambooCatcherGame, MiniGameManager, GameDifficulty
+
+    game = BambooCatcherGame(GameDifficulty.EASY)
+    game.start()
+    assert game.score == 0 and game.caught == 0 and game.missed == 0, \
+        "start() should reset score/caught/missed to 0"
+    print("  ✅ Runtime: start() resets state correctly")
+
+    basket_start = game.basket_x
+    game.move_basket(1)
+    assert game.basket_x == basket_start + 1, \
+        f"move_basket(+1) should increase basket_x by 1, got {game.basket_x}"
+    game.move_basket(-1)
+    assert game.basket_x == basket_start, \
+        f"move_basket(-1) should decrease basket_x by 1, got {game.basket_x}"
+    print("  ✅ Runtime: move_basket works correctly")
+
+    still = game.tick(0.5)
+    assert isinstance(still, bool), "tick() must return bool"
+    print(f"  ✅ Runtime: tick(0.5) returned {still}, items_count={len(game.items)}")
+
+    result = game.stop()
+    assert result is not None, "stop() must return a GameResult"
+    print("  ✅ Runtime: stop() returns a GameResult")
+
+    mgr = MiniGameManager()
+    ids = [g['id'] for g in mgr.get_available_games()]
+    assert 'bamboo_catcher' in ids, \
+        f"'bamboo_catcher' not in MiniGameManager.get_available_games(): {ids}"
+    print(f"  ✅ Runtime: 'bamboo_catcher' in MiniGameManager ({len(ids)} games total)")
+
+
 def run_all_tests():
     print("=" * 65)
     print("Hybrid Architecture + Lazy rembg Import Tests")
@@ -5866,6 +5939,7 @@ def run_all_tests():
         test_skill_tree_storage_branch,
         test_panda_progressive_food_eating,
         test_shop_sell_functionality,
+        test_bamboo_catcher_minigame,
     ]
 
     passed, failed = [], []

@@ -418,6 +418,146 @@ class PandaReflexGame(MiniGame):
         return self.get_average_reaction_time() < 200.0
 
 
+class BambooCatcherGame(MiniGame):
+    """Bamboo Catcher — dodge bad items, catch bamboo falling from the sky.
+
+    Simple falling-item game:
+    - ``tick(delta_s)`` advances all falling items by their speed.
+    - ``move_basket(direction)`` moves the basket left (-1) or right (+1).
+    - ``_spawn_item()`` creates a new item (bamboo or hazard).
+    - Items that reach the basket are caught / scored; items below the
+      bottom edge are missed.
+    - Returns False from ``tick()`` when the time limit is up.
+    """
+
+    _BASKET_WIDTH    = 2   # basket units (even number)
+    _FIELD_WIDTH     = 10  # total horizontal units
+    _FIELD_HEIGHT    = 20  # units from top to bottom
+    _MISS_PENALTY    = 5   # score penalty per missed bamboo
+    _CATCH_POINTS    = {
+        'bamboo':  10,
+        'cookie':   8,
+        'apple':    6,
+        'rock':    -8,   # hazard — negative score
+        'thorn':   -12,  # harder hazard
+    }
+
+    def __init__(self, difficulty: GameDifficulty = GameDifficulty.MEDIUM):
+        super().__init__(difficulty)
+        _time = {
+            GameDifficulty.EASY:    60.0,
+            GameDifficulty.MEDIUM:  45.0,
+            GameDifficulty.HARD:    30.0,
+            GameDifficulty.EXTREME: 20.0,
+        }
+        _speeds = {
+            GameDifficulty.EASY:    2.0,
+            GameDifficulty.MEDIUM:  3.5,
+            GameDifficulty.HARD:    5.0,
+            GameDifficulty.EXTREME: 7.0,
+        }
+        _spawn = {
+            GameDifficulty.EASY:    1.5,
+            GameDifficulty.MEDIUM:  1.1,
+            GameDifficulty.HARD:    0.7,
+            GameDifficulty.EXTREME: 0.4,
+        }
+        self.time_limit: float = _time[difficulty]
+        self._item_speed: float = _speeds[difficulty]
+        self.basket_x: int = self._FIELD_WIDTH // 2   # basket centre col
+        self.items: list = []    # list of {'x', 'y', 'kind'}
+        self.caught: int = 0
+        self.missed: int = 0
+        self._spawn_timer: float = 0.0
+        self._spawn_interval: float = _spawn[difficulty]
+
+    def start(self) -> None:
+        super().start()
+        self.basket_x = self._FIELD_WIDTH // 2
+        self.items.clear()
+        self.caught = 0
+        self.missed = 0
+        self._spawn_timer = 0.0
+        logger.info(f"BambooCatcher started — difficulty={self.difficulty.name}")
+
+    def tick(self, delta_s: float) -> bool:
+        """Advance the game by delta_s seconds.  Returns True while running."""
+        if not self.is_running or self.is_paused:
+            return False
+        if self._elapsed_time() >= self.time_limit:
+            return False
+
+        # Spawn new items
+        self._spawn_timer += delta_s
+        if self._spawn_timer >= self._spawn_interval:
+            self._spawn_timer = 0.0
+            self._spawn_item()
+
+        # Move existing items downward
+        still_falling = []
+        for item in self.items:
+            item['y'] += self._item_speed * delta_s
+            if item['y'] >= self._FIELD_HEIGHT:
+                # Missed — reached the bottom without being caught
+                if item['kind'] not in ('rock', 'thorn'):
+                    self.missed += 1
+                    self.score -= self._MISS_PENALTY
+            elif self._basket_col_hit(item):
+                # Caught by basket
+                pts = self._CATCH_POINTS.get(item['kind'], 5)
+                self.score += pts
+                if pts > 0:
+                    self.caught += 1
+            else:
+                still_falling.append(item)
+        self.items = still_falling
+        return True
+
+    def move_basket(self, direction: int) -> None:
+        """Move the basket one unit left (-1) or right (+1)."""
+        self.basket_x = max(0, min(self._FIELD_WIDTH - 1, self.basket_x + direction))
+
+    def _spawn_item(self) -> None:
+        import random as _r
+        kinds = ['bamboo', 'bamboo', 'bamboo', 'cookie', 'apple', 'rock', 'thorn']
+        self.items.append({
+            'x': _r.randint(0, self._FIELD_WIDTH - 1),
+            'y': 0.0,
+            'kind': _r.choice(kinds),
+        })
+
+    def _basket_col_hit(self, item: dict) -> bool:
+        half = self._BASKET_WIDTH // 2
+        bottom_y = self._FIELD_HEIGHT - 1
+        return (
+            abs(item['y'] - bottom_y) < self._item_speed + 0.5
+            and abs(item['x'] - self.basket_x) <= half
+        )
+
+    def stop(self) -> GameResult:
+        result = super().stop()
+        logger.info(f"BambooCatcher ended — caught={self.caught} missed={self.missed} score={self.score}")
+        return result
+
+    def get_name(self) -> str:
+        return "Bamboo Catcher 🎋"
+
+    def get_description(self) -> str:
+        return (
+            f"Catch falling bamboo with your basket in {int(self.time_limit)}s! "
+            "Dodge rocks and thorns — they lose you points. "
+            "Cookies and apples are bonus items."
+        )
+
+    def _is_perfect_score(self) -> bool:
+        return self.caught >= 30 and self.missed == 0
+
+    def get_remaining_time(self) -> float:
+        if not self.is_running or not self.start_time:
+            return 0.0
+        return max(0.0, self.time_limit - self._elapsed_time())
+
+
 class MiniGameManager:
     """Manages all mini-games and their state."""
     
@@ -431,9 +571,10 @@ class MiniGameManager:
             xp_callback: Callback to award XP
         """
         self.games: Dict[str, type] = {
-            'click': PandaClickGame,
-            'memory': PandaMemoryGame,
-            'reflex': PandaReflexGame
+            'click':   PandaClickGame,
+            'memory':  PandaMemoryGame,
+            'reflex':  PandaReflexGame,
+            'bamboo_catcher': BambooCatcherGame,
         }
         
         self.current_game: Optional[MiniGame] = None

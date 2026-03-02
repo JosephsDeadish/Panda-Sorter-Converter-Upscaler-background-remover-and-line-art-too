@@ -1052,6 +1052,9 @@ class TransparentPandaOverlay(QOpenGLWidget if PYQT_AVAILABLE else QWidget):
             'velocity': [0.0, 0.0, 0.0],
             'physics_enabled': True
         }
+        # Food items track progressive eating state (0.0 = full → 1.0 = eaten)
+        if item_type == 'food':
+            item_data['eat_progress'] = 0.0
         self.items_3d.append(item_data)
         logger.info(f"Added 3D {item_type} at {position} - OpenGL rendering")
     
@@ -1091,7 +1094,15 @@ class TransparentPandaOverlay(QOpenGLWidget if PYQT_AVAILABLE else QWidget):
         self._draw_sphere(0.0, 0.0, 0.0, 0.15)
     
     def _render_food_3d(self, item):
-        """Render 3D food with OpenGL (NOT canvas)."""
+        """Render 3D food with OpenGL (NOT canvas).
+
+        Food visually shrinks as eat_progress increases (same visual feedback
+        as the main PandaOpenGLWidget).
+        """
+        eat_progress = item.get('eat_progress', 0.0)
+        eat_scale = max(0.25, 1.0 - eat_progress * 0.75)
+        glPushMatrix()
+        glScalef(eat_scale, eat_scale, eat_scale)
         # Example: Render bamboo stick
         glMaterialfv(GL_FRONT, GL_AMBIENT_AND_DIFFUSE, [0.4, 0.8, 0.3, 1.0])
         # Draw cylinder for bamboo
@@ -1099,6 +1110,7 @@ class TransparentPandaOverlay(QOpenGLWidget if PYQT_AVAILABLE else QWidget):
         glRotatef(90, 1.0, 0.0, 0.0)
         gluCylinder(quadric, 0.05, 0.05, 0.3, 16, 1)
         gluDeleteQuadric(quadric)
+        glPopMatrix()
     
     def _render_clothing_3d(self, item):
         """Render 3D clothing accessory with OpenGL (NOT canvas)."""
