@@ -158,6 +158,14 @@ class NotepadPanelQt(QWidget):
         self.word_count_label = QLabel("0 words")
         self.word_count_label.setStyleSheet("color: #666; font-style: italic;")
         controls_layout.addWidget(self.word_count_label)
+
+        # Markdown preview toggle
+        self.preview_btn = QPushButton("👁 Preview")
+        self.preview_btn.setCheckable(True)
+        self.preview_btn.setEnabled(False)
+        self.preview_btn.setToolTip("Toggle Markdown preview (read-only rendered view)")
+        self.preview_btn.toggled.connect(self._toggle_markdown_preview)
+        controls_layout.addWidget(self.preview_btn)
         
         layout.addLayout(controls_layout)
         
@@ -369,6 +377,9 @@ class NotepadPanelQt(QWidget):
         self.save_btn.setEnabled(True)
         self.delete_btn.setEnabled(True)
         self.export_btn.setEnabled(True)
+        if hasattr(self, 'preview_btn'):
+            self.preview_btn.setEnabled(True)
+            self.preview_btn.setChecked(False)  # reset to edit mode on new note
         
         self.update_metadata()
         self.update_word_count()
@@ -466,6 +477,29 @@ class NotepadPanelQt(QWidget):
             except Exception as e:
                 logger.error(f"Error exporting note: {e}", exc_info=True)
                 QMessageBox.warning(self, "Error", f"Failed to export note:\n{e}")
+
+    def _toggle_markdown_preview(self, checked: bool) -> None:
+        """Switch the editor between plain-text editing and rendered Markdown preview."""
+        if checked:
+            # Render current content as Markdown (Qt 5.14+ / PyQt6)
+            md_text = self.text_editor.toPlainText()
+            try:
+                self.text_editor.setMarkdown(md_text)
+            except AttributeError:
+                # Older Qt — fallback to setHtml with minimal formatting
+                escaped = md_text.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
+                self.text_editor.setHtml(f"<pre>{escaped}</pre>")
+            self.text_editor.setReadOnly(True)
+            self.preview_btn.setText("✏️ Edit")
+        else:
+            # Restore plain text for editing
+            if self.current_note_id and self.current_note_id in self.notes:
+                content = self.notes[self.current_note_id].get('content', '')
+            else:
+                content = ""
+            self.text_editor.setReadOnly(False)
+            self.text_editor.setPlainText(content)
+            self.preview_btn.setText("👁 Preview")
 
     def import_note_from_file(self):
         """Import a .txt or .md file as a new note."""
