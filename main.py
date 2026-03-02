@@ -5787,6 +5787,13 @@ class TextureSorterMainWindow(QMainWindow):
             except Exception:
                 pass
 
+            # Update wellbeing — petting raises happiness
+            try:
+                if self.panda_stats:
+                    self.panda_stats.on_petted()
+            except Exception:
+                pass
+
         except Exception as e:
             logger.error(f"Error handling panda click: {e}", exc_info=True)
     
