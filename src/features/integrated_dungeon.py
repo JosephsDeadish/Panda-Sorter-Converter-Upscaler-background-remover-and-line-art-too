@@ -44,7 +44,8 @@ class IntegratedDungeon:
     AGGRO_RANGE = 15  # Distance at which enemies notice player
     MELEE_RANGE = 1   # Distance for player melee attacks
     
-    def __init__(self, width: int = 80, height: int = 80, num_floors: int = 5, seed: Optional[int] = None):
+    def __init__(self, width: int = 80, height: int = 80, num_floors: int = 5, seed: Optional[int] = None,
+                 level_system=None, currency_system=None):
         """
         Initialize the integrated dungeon.
         
@@ -53,10 +54,16 @@ class IntegratedDungeon:
             height: Dungeon height in tiles
             num_floors: Number of floors
             seed: Random seed for reproducibility
+            level_system: Optional level/XP system to award XP on kills
+            currency_system: Optional currency system to award gold on kills
         """
         # Core dungeon
         self.dungeon = DungeonGenerator(width, height, num_floors, seed)
         
+        # Optional integrations
+        self.level_system = level_system
+        self.currency_system = currency_system
+
         # Enemy collection
         self.enemy_collection = EnemyCollection()
         
@@ -369,6 +376,19 @@ class IntegratedDungeon:
                 if not spawned.enemy.is_alive():
                     spawned.is_alive = False
                     self.enemies_killed += 1
+                    # Award XP and gold for the kill
+                    xp_val  = getattr(spawned.enemy, 'xp_reward',  0) or 10
+                    gld_val = getattr(spawned.enemy, 'gold_reward', 0) or 5
+                    if self.level_system and hasattr(self.level_system, 'add_xp'):
+                        try:
+                            self.level_system.add_xp(xp_val)
+                        except Exception:
+                            pass
+                    if self.currency_system and hasattr(self.currency_system, 'add'):
+                        try:
+                            self.currency_system.add('bamboo_bucks', gld_val)
+                        except Exception:
+                            pass
     
     def get_player_state(self) -> Dict:
         """Get player state dictionary."""
