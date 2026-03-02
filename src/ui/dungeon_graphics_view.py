@@ -345,7 +345,7 @@ class DungeonGraphicsView(QGraphicsView):
         return floor_data[row][col] == 0  # 0 = walkable
 
     def keyPressEvent(self, event) -> None:
-        """WASD / arrow key movement for the dungeon panda."""
+        """WASD / arrow key movement + Space attack for the dungeon panda."""
         dx, dy = 0, 0
         key = event.key()
         if key in (Qt.Key.Key_W, Qt.Key.Key_Up):
@@ -356,6 +356,17 @@ class DungeonGraphicsView(QGraphicsView):
             dx = -1
         elif key in (Qt.Key.Key_D, Qt.Key.Key_Right):
             dx = 1
+        elif key == Qt.Key.Key_Space:
+            # Attack: hit nearby enemies if the dungeon supports it
+            if self.dungeon is not None and hasattr(self.dungeon, 'player_attack_nearby_enemies'):
+                try:
+                    self.dungeon.set_player_position(self.current_floor, self._player_x, self._player_y)
+                    self.dungeon.player_attack_nearby_enemies()
+                    self.viewport().update()  # Redraw HUD (HP may have changed)
+                except Exception:
+                    pass
+            super().keyPressEvent(event)
+            return
         else:
             super().keyPressEvent(event)
             return
@@ -365,8 +376,15 @@ class DungeonGraphicsView(QGraphicsView):
         if self._is_walkable(nx, ny):
             self._player_x = nx
             self._player_y = ny
+            # Keep dungeon model in sync
+            if self.dungeon is not None and hasattr(self.dungeon, 'set_player_position'):
+                try:
+                    self.dungeon.set_player_position(self.current_floor, nx, ny)
+                except Exception:
+                    pass
             self._draw_player()
             self.centerOn(nx * self.tile_size, ny * self.tile_size)
+            self.viewport().update()  # refresh HUD
 
     def render_player(self, x: int, y: int):
         """Render player at position."""
