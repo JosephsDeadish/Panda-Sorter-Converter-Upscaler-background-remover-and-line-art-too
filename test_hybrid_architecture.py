@@ -5466,6 +5466,98 @@ def test_lineart_user_preset_save_load():
             _lm._USER_PRESETS_PATH = original_path
 
 
+def test_skill_tree_storage_branch():
+    """SkillTree must have a 'storage' branch with backpack upgrade skills.
+
+    Issue #198: 'Should be a backpack in pandas room that panda opens...
+    there needs to be a pocket for dungeon exploring too that has a square grid
+    like storage starting with only three square slots enough for a two slot and
+    one slot item it can be upgraded in skill tree maybe under a new section in
+    skill tree called storage and equipment where there will be other perks in
+    there that can be unlocked as well like +5 base health for every food item
+    in backpack.'
+
+    Source checks:
+    - _add_storage_equipment_skills() method present
+    - 'storage' branch referenced in _initialize_skill_tree()
+    - Skill IDs: storage_backpack_basic, storage_food_pocket, storage_dungeon_expand_i,
+      storage_toy_pocket, storage_heavy_carry, storage_dungeon_expand_ii,
+      storage_quick_equip, storage_master_carrier
+
+    Runtime checks:
+    - SkillTree() has all 8 storage skills registered
+    - storage_backpack_basic has dungeon_slots=3 effect
+    - storage_food_pocket has health_per_food=5 effect
+    - storage_master_carrier requires both storage_dungeon_expand_ii and storage_quick_equip
+    - Tier 1 storage skills have level_required == 1
+    - Tier 5 master_carrier has level_required >= 40
+    """
+    print("\ntest_skill_tree_storage_branch ...")
+    from pathlib import Path
+    code = (Path(__file__).parent / 'src' / 'features' / 'skill_tree.py').read_text(encoding='utf-8')
+
+    assert '_add_storage_equipment_skills' in code, \
+        "skill_tree.py: _add_storage_equipment_skills() method missing"
+    print("  ✅ Source: _add_storage_equipment_skills() method present")
+
+    assert 'storage' in code, \
+        "skill_tree.py: 'storage' branch string missing"
+    print("  ✅ Source: 'storage' branch referenced")
+
+    for skill_id in (
+        'storage_backpack_basic', 'storage_food_pocket',
+        'storage_dungeon_expand_i', 'storage_toy_pocket',
+        'storage_heavy_carry', 'storage_food_bonus_ii',
+        'storage_dungeon_expand_ii', 'storage_quick_equip', 'storage_master_carrier',
+    ):
+        assert skill_id in code, \
+            f"skill_tree.py: skill_id '{skill_id}' not found in storage branch"
+    print("  ✅ Source: all 9 storage skill IDs present")
+
+    # health_per_food effect key must be defined (for Food Pocket perk)
+    assert 'health_per_food' in code, \
+        "skill_tree.py: 'health_per_food' effect key missing from storage skills"
+    print("  ✅ Source: health_per_food effect key present (Food Pocket perk)")
+
+    # Runtime
+    import sys
+    sys.path.insert(0, str(Path(__file__).parent / 'src'))
+    from features.skill_tree import SkillTree
+
+    tree = SkillTree()
+    storage_skills = [s for s in tree.skills.values() if s.branch == 'storage']
+    assert len(storage_skills) == 9, \
+        f"Expected 9 storage skills, got {len(storage_skills)}: {[s.id for s in storage_skills]}"
+    print(f"  ✅ Runtime: {len(storage_skills)} storage skills registered")
+
+    # storage_backpack_basic: dungeon_slots=3
+    basic = tree.get_skill('storage_backpack_basic')
+    assert basic is not None, "storage_backpack_basic not found"
+    assert basic.effects.get('dungeon_slots') == 3, \
+        f"storage_backpack_basic should have dungeon_slots=3, got {basic.effects}"
+    assert basic.tier == 1 and basic.level_required == 1, \
+        "storage_backpack_basic must be tier 1, level_required 1"
+    print("  ✅ Runtime: storage_backpack_basic — tier 1, dungeon_slots=3")
+
+    # storage_food_pocket: health_per_food=5
+    food = tree.get_skill('storage_food_pocket')
+    assert food is not None
+    assert food.effects.get('health_per_food') == 5, \
+        f"storage_food_pocket should have health_per_food=5, got {food.effects}"
+    print("  ✅ Runtime: storage_food_pocket — health_per_food=5")
+
+    # storage_master_carrier: requires both expand_ii and quick_equip
+    master = tree.get_skill('storage_master_carrier')
+    assert master is not None
+    assert 'storage_dungeon_expand_ii' in master.requirements, \
+        "storage_master_carrier must require storage_dungeon_expand_ii"
+    assert 'storage_quick_equip' in master.requirements, \
+        "storage_master_carrier must require storage_quick_equip"
+    assert master.tier == 5 and master.level_required >= 40, \
+        f"storage_master_carrier must be tier 5, level≥40; got tier={master.tier} level={master.level_required}"
+    print("  ✅ Runtime: storage_master_carrier — tier 5, correct requirements")
+
+
 def run_all_tests():
     print("=" * 65)
     print("Hybrid Architecture + Lazy rembg Import Tests")
@@ -5571,6 +5663,7 @@ def run_all_tests():
         test_lineart_preset_recommendation_hint,
         test_batch_rename_splitter,
         test_lineart_user_preset_save_load,
+        test_skill_tree_storage_branch,
     ]
 
     passed, failed = [], []
