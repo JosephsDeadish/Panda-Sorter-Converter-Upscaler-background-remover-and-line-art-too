@@ -8,7 +8,7 @@ from __future__ import annotations
 import logging
 try:
     from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QPushButton,
-                                 QLabel, QColorDialog, QLineEdit)
+                                 QLabel, QColorDialog, QLineEdit, QApplication)
     from PyQt6.QtCore import Qt, pyqtSignal
     from PyQt6.QtGui import QColor, QPainter, QConicalGradient, QPen
     PYQT_AVAILABLE = True
@@ -62,7 +62,7 @@ class ColorPickerWidget(QWidget):
         
         layout.addLayout(preview_layout)
         
-        # Hex input
+        # Hex input with copy button
         hex_layout = QHBoxLayout()
         hex_layout.addWidget(QLabel("Hex:"))
         self.hex_input = QLineEdit()
@@ -70,6 +70,11 @@ class ColorPickerWidget(QWidget):
         self.hex_input.setText(self.current_color.name())
         self.hex_input.textChanged.connect(self.on_hex_changed)
         hex_layout.addWidget(self.hex_input)
+        copy_btn = QPushButton("📋")
+        copy_btn.setFixedWidth(28)
+        copy_btn.setToolTip("Copy hex colour to clipboard")
+        copy_btn.clicked.connect(self._copy_hex_to_clipboard)
+        hex_layout.addWidget(copy_btn)
         layout.addLayout(hex_layout)
         
         # RGB display
@@ -167,6 +172,15 @@ class ColorPickerWidget(QWidget):
                 # Silently ignore invalid color formats
                 logger.debug(f"Color parsing error: {e}")
                 pass
+
+    def _copy_hex_to_clipboard(self) -> None:
+        """Copy the current hex colour value to the system clipboard."""
+        try:
+            clipboard = QApplication.clipboard()
+            if clipboard is not None:
+                clipboard.setText(self.current_color.name())
+        except Exception as _e:
+            logger.debug(f"Clipboard copy failed: {_e}")
 
 
 def create_color_picker(parent=None):
