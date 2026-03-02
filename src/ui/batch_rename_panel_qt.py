@@ -11,7 +11,7 @@ try:
         QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
         QRadioButton, QButtonGroup, QLineEdit, QSpinBox, QCheckBox,
         QTextEdit, QFileDialog, QMessageBox, QProgressBar, QFrame,
-        QScrollArea, QGroupBox
+        QScrollArea, QGroupBox, QSplitter
     )
     from PyQt6.QtCore import Qt, QThread, pyqtSignal, QTimer
     PYQT_AVAILABLE = True
@@ -169,40 +169,58 @@ class BatchRenamePanelQt(QWidget):
         self._create_widgets()
     
     def _create_widgets(self):
-        """Create the UI widgets."""
+        """Create the UI widgets with left-controls / right-preview QSplitter layout."""
         layout = QVBoxLayout(self)
-        layout.setSpacing(10)
-        layout.setContentsMargins(10, 10, 10, 10)
-        
+        layout.setSpacing(6)
+        layout.setContentsMargins(8, 8, 8, 8)
+
         # Title
         title_label = QLabel("📝 Batch Rename Tool")
-        title_label.setStyleSheet("font-size: 18pt; font-weight: bold;")
+        title_label.setStyleSheet("font-size: 16pt; font-weight: bold;")
         title_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(title_label)
-        
+
         subtitle_label = QLabel("Rename multiple files using patterns, dates, resolution, or custom templates")
-        subtitle_label.setStyleSheet("color: gray; font-size: 11pt;")
+        subtitle_label.setStyleSheet("color: gray; font-size: 10pt;")
         subtitle_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(subtitle_label)
-        
-        # Scroll area for content
-        scroll = QScrollArea()
-        scroll.setWidgetResizable(True)
-        scroll.setFrameShape(QFrame.Shape.NoFrame)
-        
-        container = QWidget()
-        main_layout = QVBoxLayout(container)
-        
-        self._create_file_section(main_layout)
-        self._create_pattern_section(main_layout)
-        self._create_options_section(main_layout)
-        self._create_metadata_section(main_layout)
-        self._create_preview_section(main_layout)
-        self._create_action_buttons(main_layout)
-        
-        main_layout.addStretch()
-        scroll.setWidget(container)
-        layout.addWidget(scroll)
+
+        # ── Main splitter: LEFT = controls, RIGHT = preview ───────────────────
+        splitter = QSplitter(Qt.Orientation.Horizontal)
+        splitter.setChildrenCollapsible(False)
+        layout.addWidget(splitter, stretch=1)
+
+        # ── LEFT: scrollable controls ─────────────────────────────────────────
+        left_scroll = QScrollArea()
+        left_scroll.setWidgetResizable(True)
+        left_scroll.setFrameShape(QFrame.Shape.NoFrame)
+        left_scroll.setMinimumWidth(280)
+        left_scroll.setMaximumWidth(520)
+
+        left_widget = QWidget()
+        left_layout = QVBoxLayout(left_widget)
+        left_layout.setSpacing(5)
+        left_layout.setContentsMargins(2, 2, 4, 2)
+
+        self._create_file_section(left_layout)
+        self._create_pattern_section(left_layout)
+        self._create_options_section(left_layout)
+        self._create_metadata_section(left_layout)
+        self._create_action_buttons(left_layout)
+        left_layout.addStretch()
+
+        left_scroll.setWidget(left_widget)
+        splitter.addWidget(left_scroll)
+
+        # ── RIGHT: rename preview ─────────────────────────────────────────────
+        right_widget = QWidget()
+        right_layout = QVBoxLayout(right_widget)
+        right_layout.setContentsMargins(4, 0, 0, 0)
+        self._create_preview_section(right_layout)
+        splitter.addWidget(right_widget)
+
+        # Controls: 380 px; preview gets the rest
+        splitter.setSizes([380, 400])
     
     def _create_file_section(self, layout):
         """Create file selection section."""
@@ -376,7 +394,7 @@ class BatchRenamePanelQt(QWidget):
         # Preview text
         self.preview_text = QTextEdit()
         self.preview_text.setReadOnly(True)
-        self.preview_text.setMinimumHeight(200)
+        self.preview_text.setMinimumHeight(80)  # right pane stretches to fill
         self.preview_text.setPlaceholderText("Preview will appear here...")
         group_layout.addWidget(self.preview_text)
         self._set_tooltip(self.preview_text, 'rename_preview')

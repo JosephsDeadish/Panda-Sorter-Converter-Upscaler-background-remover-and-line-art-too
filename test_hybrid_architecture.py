@@ -5267,6 +5267,75 @@ def test_lineart_preset_recommendation_hint():
     print(f"  ✅ Runtime: tattoo hint contains mode=Pure Black Lines")
 
 
+def test_batch_rename_splitter():
+    """Batch Rename panel must use a QSplitter(Horizontal) with left-controls / right-preview.
+
+    Issue #197: 'some tools are missing the new layout for most ui on left with
+    the previewer on the right. The previewers all also need to be smaller by default.'
+
+    Previously the Batch Rename panel was a single vertical-stacked QScrollArea with
+    the preview buried at the bottom — hard to see while configuring rename options.
+
+    Fix: _create_widgets() uses QSplitter(Horizontal):
+    - Left: QScrollArea (file selection + pattern/options/metadata + action buttons)
+    - Right: rename preview QGroupBox (QTextEdit that fills the pane)
+    - setSizes([380, 400])
+
+    Source checks:
+    - QSplitter imported in batch_rename_panel_qt.py
+    - QSplitter(Qt.Orientation.Horizontal) used
+    - setSizes present
+
+    Runtime checks:
+    - BatchRenamePanelQt has QSplitter child
+    - Left side is QScrollArea
+    - Right side contains a QTextEdit (the rename preview)
+    """
+    print("\ntest_batch_rename_splitter ...")
+    from pathlib import Path
+    code = (Path(__file__).parent / 'src' / 'ui' / 'batch_rename_panel_qt.py').read_text(encoding='utf-8')
+
+    assert 'QSplitter' in code, \
+        "batch_rename_panel_qt.py: QSplitter not imported"
+    print("  ✅ Source: QSplitter imported")
+
+    assert 'QSplitter(Qt.Orientation.Horizontal)' in code, \
+        "batch_rename_panel_qt.py: QSplitter(Horizontal) not used in _create_widgets()"
+    print("  ✅ Source: QSplitter(Horizontal) used")
+
+    assert 'setSizes' in code, \
+        "batch_rename_panel_qt.py: splitter.setSizes() call missing"
+    print("  ✅ Source: setSizes() called")
+
+    # Runtime
+    import sys, os, logging
+    os.environ.setdefault('QT_QPA_PLATFORM', 'offscreen')
+    logging.disable(logging.CRITICAL)
+    sys.path.insert(0, str(Path(__file__).parent / 'src'))
+    from PyQt6.QtWidgets import QApplication, QSplitter, QScrollArea, QTextEdit
+    _app = QApplication.instance() or QApplication(sys.argv)
+
+    from ui.batch_rename_panel_qt import BatchRenamePanelQt
+    panel = BatchRenamePanelQt()
+    splitters = panel.findChildren(QSplitter)
+    assert splitters, "BatchRenamePanelQt has no QSplitter"
+    splitter = splitters[0]
+    assert splitter.count() == 2, f"Expected 2 widgets, got {splitter.count()}"
+    print(f"  ✅ Runtime: QSplitter with {splitter.count()} widgets")
+
+    left = splitter.widget(0)
+    assert isinstance(left, QScrollArea), \
+        f"Left pane should be QScrollArea, got {type(left).__name__}"
+    print("  ✅ Runtime: left pane is QScrollArea (controls)")
+
+    right = splitter.widget(1)
+    assert right is not None, "Right pane is None"
+    # Right pane must contain the preview QTextEdit
+    text_edits = right.findChildren(QTextEdit)
+    assert text_edits, "Right pane should contain a QTextEdit (rename preview), but none found"
+    print("  ✅ Runtime: right pane contains QTextEdit (rename preview)")
+
+
 def run_all_tests():
     print("=" * 65)
     print("Hybrid Architecture + Lazy rembg Import Tests")
@@ -5370,6 +5439,7 @@ def run_all_tests():
         test_batch_normalizer_splitter,
         test_image_repair_log_splitter,
         test_lineart_preset_recommendation_hint,
+        test_batch_rename_splitter,
     ]
 
     passed, failed = [], []
