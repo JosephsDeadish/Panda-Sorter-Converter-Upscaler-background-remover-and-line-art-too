@@ -522,22 +522,31 @@ class QualityCheckerPanelQt(QWidget):
             QMessageBox.warning(self, "Copy Failed", f"Could not copy to clipboard:\n{_e}")
 
     def _export_report(self) -> None:
-        """Save the quality report to a text file chosen by the user."""
+        """Save the quality report to a text or CSV file chosen by the user."""
         text = self.report_text.toPlainText()
         if not text:
             QMessageBox.information(self, "Nothing to Export", "Run a quality check first.")
             return
-        path, _ = QFileDialog.getSaveFileName(
+        path, selected_filter = QFileDialog.getSaveFileName(
             self,
             "Export Quality Report",
             "quality_report.txt",
-            "Text Files (*.txt);;All Files (*.*)",
+            "Text Files (*.txt);;CSV Files (*.csv);;All Files (*.*)",
         )
         if not path:
             return
         try:
-            with open(path, 'w', encoding='utf-8') as fh:
-                fh.write(text)
+            if 'CSV' in selected_filter or path.lower().endswith('.csv'):
+                import csv, io
+                lines = text.splitlines()
+                with open(path, 'w', encoding='utf-8', newline='') as fh:
+                    writer = csv.writer(fh)
+                    writer.writerow(["Line", "Content"])
+                    for i, line in enumerate(lines, 1):
+                        writer.writerow([i, line])
+            else:
+                with open(path, 'w', encoding='utf-8') as fh:
+                    fh.write(text)
             self.status_label.setText(f"💾 Report exported to {Path(path).name}")
         except Exception as _e:
             QMessageBox.critical(self, "Export Failed", f"Could not save report:\n{_e}")
