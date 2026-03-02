@@ -24,16 +24,20 @@ try:
     from OpenGL.GL import *
     from OpenGL.GLU import *
     OPENGL_AVAILABLE = True
-    # Set default GL format at module load time (belt-and-suspenders alongside main())
+    # Set default GL format at module load time (belt-and-suspenders alongside main()).
+    # Skip on the offscreen/headless Qt platform: the offscreen backend uses software
+    # rendering and has no real WGL surface.  Requesting CompatibilityProfile there
+    # causes Qt to call exit(1) on CI VMs without a GPU.
     import os as _os_bed
-    _os_bed.environ.setdefault('QT_OPENGL', 'desktop')  # force native GL, not ANGLE
-    _fmt = QSurfaceFormat()
-    _fmt.setVersion(2, 1)
-    _fmt.setProfile(QSurfaceFormat.OpenGLContextProfile.CompatibilityProfile)
-    _fmt.setRenderableType(QSurfaceFormat.RenderableType.OpenGL)  # desktop GL
-    _fmt.setSamples(4)
-    _fmt.setDepthBufferSize(24)
-    QSurfaceFormat.setDefaultFormat(_fmt)
+    if _os_bed.environ.get('QT_QPA_PLATFORM') != 'offscreen':
+        _os_bed.environ.setdefault('QT_OPENGL', 'desktop')  # force native GL, not ANGLE
+        _fmt = QSurfaceFormat()
+        _fmt.setVersion(2, 1)
+        _fmt.setProfile(QSurfaceFormat.OpenGLContextProfile.CompatibilityProfile)
+        _fmt.setRenderableType(QSurfaceFormat.RenderableType.OpenGL)  # desktop GL
+        _fmt.setSamples(4)
+        _fmt.setDepthBufferSize(24)
+        QSurfaceFormat.setDefaultFormat(_fmt)
 except (ImportError, OSError, RuntimeError):
     OPENGL_AVAILABLE = False
     QWidget = object          # type: ignore[assignment,misc]

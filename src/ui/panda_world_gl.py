@@ -69,17 +69,20 @@ except (ImportError, OSError, RuntimeError):
 # Set default GL surface format at module load time if Qt is available.
 # This ensures CompatibilityProfile (legacy GL) is requested before any
 # QOpenGLWidget in this module is instantiated.
+# Skip on the offscreen/headless Qt platform: requesting CompatibilityProfile
+# there causes Qt to call exit(1) on CI VMs that have no real GPU.
 if PYQT_AVAILABLE and QOGL_AVAILABLE:
     try:
         import os as _os_world
-        _os_world.environ.setdefault('QT_OPENGL', 'desktop')  # force native GL, not ANGLE
-        _wfmt = QSurfaceFormat()
-        _wfmt.setVersion(2, 1)
-        _wfmt.setProfile(QSurfaceFormat.OpenGLContextProfile.CompatibilityProfile)
-        _wfmt.setRenderableType(QSurfaceFormat.RenderableType.OpenGL)  # desktop GL
-        _wfmt.setSamples(4)
-        _wfmt.setDepthBufferSize(24)
-        QSurfaceFormat.setDefaultFormat(_wfmt)
+        if _os_world.environ.get('QT_QPA_PLATFORM') != 'offscreen':
+            _os_world.environ.setdefault('QT_OPENGL', 'desktop')  # force native GL, not ANGLE
+            _wfmt = QSurfaceFormat()
+            _wfmt.setVersion(2, 1)
+            _wfmt.setProfile(QSurfaceFormat.OpenGLContextProfile.CompatibilityProfile)
+            _wfmt.setRenderableType(QSurfaceFormat.RenderableType.OpenGL)  # desktop GL
+            _wfmt.setSamples(4)
+            _wfmt.setDepthBufferSize(24)
+            QSurfaceFormat.setDefaultFormat(_wfmt)
     except Exception:
         pass
 
