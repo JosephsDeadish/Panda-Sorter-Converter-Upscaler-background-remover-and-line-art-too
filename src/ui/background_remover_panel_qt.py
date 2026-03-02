@@ -245,6 +245,13 @@ class BackgroundRemoverPanelQt(QWidget):
         self._batch_run_btn.setEnabled(False)
         self._batch_run_btn.clicked.connect(self._batch_process)
         batch_run_row.addWidget(self._batch_run_btn)
+
+        batch_run_row.addWidget(QLabel("Output:"))
+        self._batch_format_combo = QComboBox()
+        self._batch_format_combo.addItems(["PNG", "WebP"])
+        self._batch_format_combo.setToolTip("Output format for batch-processed images (PNG preserves transparency)")
+        self._batch_format_combo.setFixedWidth(75)
+        batch_run_row.addWidget(self._batch_format_combo)
         batch_vlayout.addLayout(batch_run_row)
 
         layout.addWidget(batch_group)
@@ -1036,9 +1043,12 @@ class BackgroundRemoverPanelQt(QWidget):
 
         done, errors = 0, 0
         error_msgs: list = []
+        batch_fmt = getattr(self, '_batch_format_combo', None)
+        out_ext = batch_fmt.currentText().lower() if batch_fmt is not None else 'png'
+        pil_format = out_ext.upper()
         for fp in list(self._batch_files):
             try:
-                out_path = fp.parent / f"{fp.stem}{self._BATCH_OUTPUT_SUFFIX}.png"
+                out_path = fp.parent / f"{fp.stem}{self._BATCH_OUTPUT_SUFFIX}.{out_ext}"
                 # Try rembg first
                 removed = None
                 try:
@@ -1069,7 +1079,7 @@ class BackgroundRemoverPanelQt(QWidget):
                 if removed is None:
                     raise RuntimeError("No background-removal backend available "
                                        "(rembg and ONNX model both unavailable)")
-                removed.save(str(out_path), format='PNG')
+                removed.save(str(out_path), format=pil_format)
                 done += 1
             except Exception as exc:
                 errors += 1
