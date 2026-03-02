@@ -339,25 +339,30 @@ class AlphaFixerPanelQt(QWidget):
         # Map of display label → backend preset key (None = custom/no-op)
         self._preset_items = [
             # General
-            ("Generic Binary (transparent / opaque)",  "generic_binary"),
-            ("Clean Edges (remove fringing)",          "clean_edges"),
-            ("Soft Edges (preserve anti-aliasing)",    "soft_edges"),
-            ("Fade Out (normalise gradients)",         "fade_out"),
-            ("Dithered (fix dithered transparency)",   "dithered"),
+            ("Generic Binary (PS1 / GBA / Dreamcast / PC)",  "generic_binary"),
+            ("Clean Edges (remove fringing)",                "clean_edges"),
+            ("Soft Edges (preserve anti-aliasing)",          "soft_edges"),
+            ("Fade Out (normalise gradients)",               "fade_out"),
+            ("Dithered (fix dithered transparency)",         "dithered"),
             # Nintendo
-            ("Nintendo 64 (RGBA5551 / CI8)",           "nintendo_64"),
-            ("GameCube / Wii (5-bit, 8 levels)",       "gamecube_wii"),
+            ("Nintendo 64 / DS (RGBA5551 / A3RGB5)",         "nintendo_64"),
+            ("GameCube / Wii / Wii U (5-bit, 8 levels)",     "gamecube_wii"),
+            ("Nintendo 3DS (4-bit RGBA4444, 16 levels)",     "n3ds_rgba4444"),
+            ("GBA Sprite (1-bit palette transparency)",      "gba_sprite"),
             # PlayStation
-            ("PS2 Binary",                             "ps2_binary"),
-            ("PS2 Three-Level",                        "ps2_three_level"),
-            ("PS2 Four-Level",                         "ps2_four_level"),
-            ("PS2 Smooth (preserve gradients)",        "ps2_smooth"),
-            ("PS2 UI (sharp cutoff)",                  "ps2_ui"),
-            ("PSP Binary",                             "psp_binary"),
+            ("PS2 Binary",                                   "ps2_binary"),
+            ("PS2 Three-Level",                              "ps2_three_level"),
+            ("PS2 Four-Level",                               "ps2_four_level"),
+            ("PS2 Smooth (preserve gradients)",              "ps2_smooth"),
+            ("PS2 UI (sharp cutoff)",                        "ps2_ui"),
+            ("PSP Binary",                                   "psp_binary"),
             # Microsoft
-            ("Xbox Standard",                          "xbox_standard"),
+            ("Xbox Standard",                                "xbox_standard"),
+            # Game elements
+            ("Foliage / Leaves / Hair (Sharp Cutout)",       "foliage_sharp"),
+            ("Particle / Smoke / Fire (Preserve Gradients)", "particle_fade"),
             # Custom
-            ("Custom (use sliders below)",             None),
+            ("Custom (use sliders below)",                   None),
         ]
 
         for label, _key in self._preset_items:
@@ -580,9 +585,11 @@ class AlphaFixerPanelQt(QWidget):
         slider_hints = {
             "generic_binary": 30, "clean_edges": 20, "soft_edges": 10,
             "fade_out": 15, "dithered": 40, "nintendo_64": 35,
-            "gamecube_wii": 35, "ps2_binary": 30, "ps2_three_level": 30,
+            "gamecube_wii": 35, "n3ds_rgba4444": 25, "gba_sprite": 30,
+            "ps2_binary": 30, "ps2_three_level": 30,
             "ps2_four_level": 30, "ps2_smooth": 15, "ps2_ui": 50,
             "psp_binary": 30, "xbox_standard": 30,
+            "foliage_sharp": 50, "particle_fade": 5,
         }
         hint = slider_hints.get(self._selected_preset_key or "", 30)
         self.defringe_slider.setValue(hint)

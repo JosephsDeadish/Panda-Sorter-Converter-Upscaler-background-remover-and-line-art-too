@@ -4369,6 +4369,145 @@ def test_dungeon_combat_system():
     print("  ✅ Runtime: attack cooldown correctly set after melee attack")
 
 
+def test_alpha_fixer_expanded_presets():
+    """Alpha fixer must have presets for all major game systems and game-element types,
+    with combined/renamed labels showing which systems share the same correction.
+
+    Issue #201: 'Alpha tool may be missing some presets for specific game systems or
+    game elements if any use same presets they can be combined and renamed to reflect
+    what they work for'
+
+    Source-level checks (alpha_correction.py):
+    - N3DS_RGBA4444: 4-bit alpha — 16 evenly-spaced levels (0,17,34…255)
+    - GBA_SPRITE: Game Boy Advance 1-bit palette transparency
+    - FOLIAGE_SHARP: Sharp cutout for foliage/leaves/hair (cleans AA fringe)
+    - PARTICLE_FADE: Preserves smooth gradients for smoke/fire/VFX
+    - DS aliases 'nds'/'nintendo_ds' → same 8-level quantisation as N64
+    - list_presets() includes all 4 new presets
+
+    Source-level checks (alpha_fixer_panel_qt.py):
+    - Generic Binary label includes 'PS1 / GBA / Dreamcast / PC'
+    - N64 label includes 'DS'
+    - GameCube/Wii label includes 'Wii U'
+    - New entries for N3DS, GBA, Foliage, Particle visible in _preset_items
+
+    Runtime checks:
+    - N3DS preset has exactly 16 thresholds covering 0–255
+    - DS alias resolves to the same preset object as nintendo_64
+    - GBA threshold snaps value 50 to 0 (transparent) and 150 to 255 (opaque)
+    - Foliage threshold snaps value 80 to 0 (below 100 cutoff)
+    - Particle preset preserves mid-range (mode='hybrid')
+    - All 18 presets in list_presets() are resolvable via get_preset()
+    """
+    print("\ntest_alpha_fixer_expanded_presets ...")
+    from pathlib import Path
+
+    # ── Source checks — backend ──────────────────────────────────────────────
+    backend_code = (Path(__file__).parent / 'src' / 'preprocessing' / 'alpha_correction.py').read_text(encoding='utf-8')
+
+    for cls_name in ('N3DS_RGBA4444', 'GBA_SPRITE', 'FOLIAGE_SHARP', 'PARTICLE_FADE'):
+        assert cls_name in backend_code, \
+            f"alpha_correction.py: {cls_name} preset class attribute missing"
+    print("  ✅ Source backend: N3DS_RGBA4444, GBA_SPRITE, FOLIAGE_SHARP, PARTICLE_FADE defined")
+
+    for alias in ("'nds'", "'nintendo_ds'", "'nintendo_3ds'", "'gba'",
+                  "'foliage'", "'particle'"):
+        assert alias in backend_code, \
+            f"alpha_correction.py: alias {alias} missing from get_preset()"
+    print("  ✅ Source backend: DS/3DS/GBA/foliage/particle aliases present in get_preset()")
+
+    for key in ('n3ds_rgba4444', 'gba_sprite', 'foliage_sharp', 'particle_fade'):
+        assert key in backend_code, \
+            f"alpha_correction.py: '{key}' missing from list_presets()"
+    print("  ✅ Source backend: all 4 new keys in list_presets()")
+
+    # ── Source checks — UI ───────────────────────────────────────────────────
+    ui_code = (Path(__file__).parent / 'src' / 'ui' / 'alpha_fixer_panel_qt.py').read_text(encoding='utf-8')
+
+    assert 'PS1' in ui_code and 'GBA' in ui_code and 'Dreamcast' in ui_code, \
+        "alpha_fixer_panel_qt.py: Generic Binary label should mention PS1 / GBA / Dreamcast"
+    print("  ✅ Source UI: Generic Binary label combined (PS1 / GBA / Dreamcast / PC)")
+
+    assert '/ DS' in ui_code or 'DS' in ui_code, \
+        "alpha_fixer_panel_qt.py: N64 label should mention DS"
+    print("  ✅ Source UI: N64/DS combined label present")
+
+    assert 'Wii U' in ui_code, \
+        "alpha_fixer_panel_qt.py: GameCube/Wii label should include Wii U"
+    print("  ✅ Source UI: GameCube/Wii/Wii U combined label present")
+
+    for entry in ('n3ds_rgba4444', 'gba_sprite', 'foliage_sharp', 'particle_fade'):
+        assert entry in ui_code, \
+            f"alpha_fixer_panel_qt.py: '{entry}' not wired into _preset_items"
+    print("  ✅ Source UI: all 4 new presets wired into _preset_items")
+
+    assert 'Foliage' in ui_code and 'Particle' in ui_code, \
+        "alpha_fixer_panel_qt.py: game-element presets (Foliage/Particle) missing from UI"
+    print("  ✅ Source UI: game-element presets (Foliage, Particle) present")
+
+    # ── Runtime checks ───────────────────────────────────────────────────────
+    import sys
+    sys.path.insert(0, str(Path(__file__).parent / 'src'))
+    from preprocessing.alpha_correction import AlphaCorrectionPresets as P
+
+    # 3DS has exactly 16 thresholds spanning the full 0-255 range
+    p3ds = P.get_preset('n3ds_rgba4444')
+    assert p3ds is not None
+    assert len(p3ds['thresholds']) == 16, \
+        f"N3DS preset should have 16 thresholds, got {len(p3ds['thresholds'])}"
+    assert p3ds['thresholds'][0][0] == 0 and p3ds['thresholds'][0][2] == 0
+    assert p3ds['thresholds'][-1][-1] == 255
+    print(f"  ✅ Runtime: N3DS 16-level quantisation — first {p3ds['thresholds'][0]}, last {p3ds['thresholds'][-1]}")
+
+    # DS alias resolves to same object as N64
+    assert P.get_preset('nds') is P.NINTENDO_64, \
+        "DS alias should resolve to NINTENDO_64 (same 8-level quantisation)"
+    assert P.get_preset('nintendo_ds') is P.NINTENDO_64
+    print("  ✅ Runtime: nds/nintendo_ds alias → NINTENDO_64 (same 8-level quantisation)")
+
+    # GBA: value 50 → 0 (transparent), value 150 → 255 (opaque)
+    gba = P.get_preset('gba_sprite')
+    assert gba is not None
+    # Find output value for input 50 (below threshold 100 → output 0)
+    def _snap(preset, val):
+        for lo, hi, out in preset['thresholds']:
+            if lo <= val <= hi:
+                return out
+        return None
+    assert _snap(gba, 50) == 0, \
+        f"GBA: value 50 should snap to 0 (transparent), got {_snap(gba, 50)}"
+    assert _snap(gba, 150) == 255, \
+        f"GBA: value 150 should snap to 255 (opaque), got {_snap(gba, 150)}"
+    print("  ✅ Runtime: GBA preset snaps 50→0 (transparent) and 150→255 (opaque)")
+
+    # Foliage: value 80 → 0 (below 100 cutoff removes AA fringe)
+    foliage = P.get_preset('foliage_sharp')
+    assert foliage is not None
+    assert _snap(foliage, 80) == 0, \
+        f"Foliage: value 80 should snap to 0, got {_snap(foliage, 80)}"
+    assert _snap(foliage, 110) == 255, \
+        f"Foliage: value 110 should snap to 255, got {_snap(foliage, 110)}"
+    print("  ✅ Runtime: Foliage preset removes AA fringe (80→0) and keeps solid pixels (110→255)")
+
+    # Particle: mode is 'hybrid' (gradients preserved)
+    particle = P.get_preset('particle_fade')
+    assert particle is not None
+    assert particle['mode'] == 'hybrid', \
+        f"Particle preset mode should be 'hybrid', got {particle['mode']!r}"
+    # Mid-range value 128 → None (preserved)
+    assert _snap(particle, 128) is None, \
+        f"Particle: value 128 should be preserved (None), got {_snap(particle, 128)}"
+    print("  ✅ Runtime: Particle preset preserves mid-range gradients (mode=hybrid, 128→None)")
+
+    # All 18 presets in list_presets() are resolvable
+    all_keys = P.list_presets()
+    assert len(all_keys) == 18, f"Expected 18 presets in list_presets(), got {len(all_keys)}"
+    for key in all_keys:
+        resolved = P.get_preset(key)
+        assert resolved is not None, f"get_preset({key!r}) returned None"
+    print(f"  ✅ Runtime: all {len(all_keys)} presets in list_presets() are resolvable")
+
+
 def test_game_texture_organizer_presets():
     """Organizer must have a 'Game Texture Content' style that understands UV-unwrapped
     game textures, floating body parts, and map types.
@@ -4750,6 +4889,7 @@ def run_all_tests():
         test_clear_files_on_all_panels,
         test_console_organizer_presets,
         test_dungeon_combat_system,
+        test_alpha_fixer_expanded_presets,
         test_game_texture_organizer_presets,
         test_svg_converter_support,
         test_game_texture_lineart_presets,

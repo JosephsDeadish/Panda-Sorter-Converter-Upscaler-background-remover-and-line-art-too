@@ -152,6 +152,70 @@ class AlphaCorrectionPresets:
         'mode': 'threshold'
     }
 
+    # Nintendo DS also uses A3RGB5 format (3-bit alpha = 8 levels, same quantisation as N64)
+    # so NINTENDO_64 is reused for DS with an alias in get_preset().
+
+    # Nintendo 3DS — RGBA4444 mode uses 4-bit alpha (16 evenly-spaced levels)
+    # Mid-points between consecutive 8-bit equivalents (0,17,34,...,255) are used as
+    # threshold boundaries.
+    N3DS_RGBA4444 = {
+        'name': 'Nintendo 3DS (4-bit RGBA4444)',
+        'description': '3DS textures using RGBA4444 format — 4-bit alpha quantised to 16 levels',
+        'thresholds': [
+            (0,    8,   0),
+            (9,   25,  17),
+            (26,  42,  34),
+            (43,  59,  51),
+            (60,  76,  68),
+            (77,  93,  85),
+            (94, 110, 102),
+            (111, 127, 119),
+            (128, 144, 136),
+            (145, 161, 153),
+            (162, 178, 170),
+            (179, 195, 187),
+            (196, 212, 204),
+            (213, 229, 221),
+            (230, 246, 238),
+            (247, 255, 255),
+        ],
+        'mode': 'threshold'
+    }
+
+    # GBA (Game Boy Advance) — sprites use 1-bit transparency: palette colour 0 is
+    # fully transparent, all other colours are fully opaque.  When extracted to RGBA
+    # the transparent colour becomes alpha=0 and everything else becomes alpha=255.
+    # Threshold is set at 100 (rather than 127) to cleanly snap near-transparent
+    # fringe pixels that sometimes appear during format conversion.
+    GBA_SPRITE = {
+        'name': 'GBA Sprite',
+        'description': 'Game Boy Advance sprite binary alpha — palette colour 0 = transparent, all others opaque',
+        'thresholds': [(0, 100, 0), (101, 255, 255)],
+        'mode': 'threshold'
+    }
+
+    # Foliage / Leaves / Hair — many games store foliage with a hard alpha cutout.
+    # The cutoff is deliberately lower than generic binary (100 instead of 127) so
+    # anti-aliased fringe pixels are snapped to transparent, leaving a clean sharp edge
+    # without any green-screen halo around leaves and grass blades.
+    # Threshold 100 ≈ 39% opacity — anything below this is considered transparent fringe.
+    FOLIAGE_SHARP = {
+        'name': 'Foliage / Leaves / Hair (Sharp Cutout)',
+        'description': 'Hard-cutout alpha for foliage, leaves, and hair — removes AA fringe below ~39% opacity (threshold 100)',
+        'thresholds': [(0, 100, 0), (101, 255, 255)],
+        'mode': 'threshold'
+    }
+
+    # Particle effects (smoke, fire, fog, magic) — these intentionally use smooth
+    # alpha gradients to blend with the scene.  Only values very close to 0 or 255
+    # are snapped; everything in between is preserved as-is.
+    PARTICLE_FADE = {
+        'name': 'Particle / Smoke / Fire (Preserve Gradients)',
+        'description': 'Preserve smooth alpha gradients for smoke, fire, fog, and VFX — only fully-black and fully-white alpha are snapped',
+        'thresholds': [(0, 8, 0), (9, 246, None), (247, 255, 255)],
+        'mode': 'hybrid'
+    }
+
     @classmethod
     def get_preset(cls, name: str) -> Optional[Dict[str, Any]]:
         """Get preset by name."""
@@ -170,7 +234,17 @@ class AlphaCorrectionPresets:
             'soft_edges': cls.SOFT_EDGES,
             'dithered': cls.DITHERED,
             'nintendo_64': cls.NINTENDO_64,
-            'n64': cls.NINTENDO_64,  # convenience alias
+            'n64': cls.NINTENDO_64,        # convenience alias
+            'nds': cls.NINTENDO_64,        # Nintendo DS uses same 8-level quantisation
+            'nintendo_ds': cls.NINTENDO_64,
+            'n3ds_rgba4444': cls.N3DS_RGBA4444,
+            'nintendo_3ds': cls.N3DS_RGBA4444,
+            'gba_sprite': cls.GBA_SPRITE,
+            'gba': cls.GBA_SPRITE,
+            'foliage_sharp': cls.FOLIAGE_SHARP,
+            'foliage': cls.FOLIAGE_SHARP,
+            'particle_fade': cls.PARTICLE_FADE,
+            'particle': cls.PARTICLE_FADE,
         }
         return presets.get(name.lower())
 
@@ -182,16 +256,20 @@ class AlphaCorrectionPresets:
             'ps2_three_level',
             'ps2_ui',
             'ps2_smooth',
+            'ps2_four_level',
             'generic_binary',
             'clean_edges',
-            'ps2_four_level',
             'psp_binary',
             'gamecube_wii',
             'nintendo_64',
+            'n3ds_rgba4444',
+            'gba_sprite',
             'xbox_standard',
             'fade_out',
             'soft_edges',
             'dithered',
+            'foliage_sharp',
+            'particle_fade',
         ]
 
 
