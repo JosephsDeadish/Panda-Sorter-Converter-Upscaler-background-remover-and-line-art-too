@@ -5053,17 +5053,23 @@ def test_batch_normalizer_splitter():
         "batch_normalizer_panel_qt.py: splitter.setSizes() call missing"
     print("  ✅ Source: setSizes() called to set initial proportions")
 
-    # Preview minimum size should be modest (not 400×400)
-    import re
-    min_sizes = re.findall(r'setMinimumSize\((\d+),\s*(\d+)\)', code)
-    for w, h in min_sizes:
-        if 'preview_label' in code[max(0, code.find(f'setMinimumSize({w}, {h})')-150):
-                                     code.find(f'setMinimumSize({w}, {h})')+50]:
-            assert int(w) <= 300 and int(h) <= 300, (
-                f"batch_normalizer preview setMinimumSize({w},{h}) is too large — "
-                f"should be ≤300×300 to avoid dominating the layout."
-            )
-    print("  ✅ Source: preview label setMinimumSize is modest (≤300×300)")
+    # Preview minimum size should be modest (not 400×400).
+    # The named constant _PREVIEW_MIN_SIZE must be defined and must be ≤300.
+    assert '_PREVIEW_MIN_SIZE' in code, (
+        "batch_normalizer_panel_qt.py: _PREVIEW_MIN_SIZE constant missing.\n"
+        "Define it at module level so the preview label and thumbnail share the same value."
+    )
+    assert 'setMinimumSize(400, 400)' not in code, (
+        "batch_normalizer_panel_qt.py: old setMinimumSize(400, 400) is still present.\n"
+        "Use _PREVIEW_MIN_SIZE (≤300) so the preview doesn't dominate on small windows."
+    )
+    import re as _re
+    m = _re.search(r'_PREVIEW_MIN_SIZE\s*=\s*(\d+)', code)
+    assert m, "batch_normalizer_panel_qt.py: _PREVIEW_MIN_SIZE value not parseable"
+    assert int(m.group(1)) <= 300, (
+        f"_PREVIEW_MIN_SIZE={m.group(1)} — should be ≤300 px to give a modest default preview size"
+    )
+    print(f"  ✅ Source: _PREVIEW_MIN_SIZE={m.group(1)} (≤300) — modest preview size")
 
     # Runtime
     import sys, os, logging
@@ -5336,6 +5342,130 @@ def test_batch_rename_splitter():
     print("  ✅ Runtime: right pane contains QTextEdit (rename preview)")
 
 
+def test_lineart_user_preset_save_load():
+    """LineArt converter must support saving and loading user-defined presets.
+
+    Issue #201: 'Line art tool presets need to work better need better accuracy.
+    Needs more user friendly ui and functionality'
+
+    Previously the 'la_save_preset' tooltip was wired to the preset combo but
+    there was no save/delete functionality — clicking "Save" did nothing.
+
+    New functionality:
+    - '💾 Save Preset' button in the preset group calls _save_current_as_preset()
+    - '🗑 Delete' button calls _delete_current_preset()
+    - _read_user_presets() / _write_user_presets() persist presets to JSON
+    - _collect_current_settings() captures all current slider/combo values
+    - _on_preset_changed() handles both built-in and user presets
+
+    Source checks:
+    - _USER_PRESETS_PATH defined as module-level Path
+    - _save_current_as_preset, _delete_current_preset methods present
+    - _read_user_presets, _write_user_presets helpers present
+    - _collect_current_settings method present
+    - _load_user_presets_into_combo method present
+    - QInputDialog imported (for the save name prompt)
+    - json imported (for persistence)
+
+    Runtime checks:
+    - _collect_current_settings() returns a dict with all required keys
+    - _read_user_presets() returns {} on a missing file
+    - Writing then reading a preset dict round-trips correctly
+    """
+    print("\ntest_lineart_user_preset_save_load ...")
+    from pathlib import Path
+    code = (Path(__file__).parent / 'src' / 'ui' / 'lineart_converter_panel_qt.py').read_text(encoding='utf-8')
+
+    # Module-level path
+    assert '_USER_PRESETS_PATH' in code, \
+        "lineart_converter_panel_qt.py: _USER_PRESETS_PATH module constant missing"
+    print("  ✅ Source: _USER_PRESETS_PATH constant defined")
+
+    # Required methods
+    for method in ('_save_current_as_preset', '_delete_current_preset',
+                   '_read_user_presets', '_write_user_presets',
+                   '_collect_current_settings', '_load_user_presets_into_combo',
+                   '_format_user_preset_display_name'):
+        assert f'def {method}' in code, \
+            f"lineart_converter_panel_qt.py: {method}() method missing"
+    print("  ✅ Source: all 7 preset-management methods present")
+
+    # Import checks
+    assert 'QInputDialog' in code, \
+        "lineart_converter_panel_qt.py: QInputDialog not imported (needed for save dialog)"
+    print("  ✅ Source: QInputDialog imported")
+
+    assert 'import json' in code, \
+        "lineart_converter_panel_qt.py: json not imported (needed for preset persistence)"
+    print("  ✅ Source: json imported")
+
+    assert '_MORPHOLOGY_DISPLAY_TO_INTERNAL' in code, \
+        "lineart_converter_panel_qt.py: _MORPHOLOGY_DISPLAY_TO_INTERNAL constant missing"
+    print("  ✅ Source: _MORPHOLOGY_DISPLAY_TO_INTERNAL constant present")
+
+    # Save / Delete buttons in preset section
+    assert '_save_preset_btn' in code, \
+        "lineart_converter_panel_qt.py: '💾 Save Preset' button (_save_preset_btn) missing"
+    assert '_del_preset_btn' in code, \
+        "lineart_converter_panel_qt.py: '🗑 Delete' button (_del_preset_btn) missing"
+    print("  ✅ Source: Save Preset and Delete buttons present in preset section")
+
+    # Runtime
+    import sys, os, logging, tempfile
+    os.environ.setdefault('QT_QPA_PLATFORM', 'offscreen')
+    logging.disable(logging.CRITICAL)
+    sys.path.insert(0, str(Path(__file__).parent / 'src'))
+    from PyQt6.QtWidgets import QApplication
+    _app = QApplication.instance() or QApplication(sys.argv)
+
+    from ui.lineart_converter_panel_qt import LineArtConverterPanelQt, _USER_PRESETS_PATH
+
+    panel = LineArtConverterPanelQt()
+
+    # _collect_current_settings must return a complete dict
+    settings = panel._collect_current_settings()
+    required_keys = ('mode', 'threshold', 'contrast', 'sharpen', 'denoise',
+                     'morphology', 'morph_iter', 'kernel',
+                     'smooth_lines', 'smooth_amount',
+                     'edge_low', 'edge_high', 'edge_aperture',
+                     'adaptive_block', 'adaptive_c', 'adaptive_method')
+    for k in required_keys:
+        assert k in settings, \
+            f"_collect_current_settings() missing key '{k}'"
+    print(f"  ✅ Runtime: _collect_current_settings() returns {len(settings)}-key dict")
+
+    # _read_user_presets returns {} on missing file
+    import json as _json
+    with tempfile.TemporaryDirectory() as tmp:
+        missing_path = Path(tmp) / 'no_presets.json'
+        # Monkeypatch _USER_PRESETS_PATH to a temp file
+        import ui.lineart_converter_panel_qt as _lm
+        original_path = _lm._USER_PRESETS_PATH
+        _lm._USER_PRESETS_PATH = missing_path
+        try:
+            result = panel._read_user_presets()
+            assert result == {}, f"Expected empty dict for missing file, got {result!r}"
+            print("  ✅ Runtime: _read_user_presets() returns {} for missing file")
+
+            # Write then read round-trip
+            test_data = {"My Test": {"mode": "sketch", "threshold": 100, "contrast": 1.5,
+                                      "desc": "test", "auto_threshold": False, "sharpen": True,
+                                      "sharpen_amount": 1.2, "denoise": False, "denoise_size": 2,
+                                      "morphology": "none", "morph_iter": 1, "kernel": 3,
+                                      "midtone_threshold": 200, "remove_midtones": True,
+                                      "invert": False, "background": "transparent",
+                                      "smooth_lines": False, "smooth_amount": 1.0,
+                                      "edge_low": 50, "edge_high": 150, "edge_aperture": 3,
+                                      "adaptive_block": 11, "adaptive_c": 2.0,
+                                      "adaptive_method": "gaussian"}}
+            panel._write_user_presets(test_data)
+            loaded = panel._read_user_presets()
+            assert loaded == test_data, f"Round-trip failed: {loaded!r} != {test_data!r}"
+            print("  ✅ Runtime: write + read round-trip matches original data")
+        finally:
+            _lm._USER_PRESETS_PATH = original_path
+
+
 def run_all_tests():
     print("=" * 65)
     print("Hybrid Architecture + Lazy rembg Import Tests")
@@ -5440,6 +5570,7 @@ def run_all_tests():
         test_image_repair_log_splitter,
         test_lineart_preset_recommendation_hint,
         test_batch_rename_splitter,
+        test_lineart_user_preset_save_load,
     ]
 
     passed, failed = [], []

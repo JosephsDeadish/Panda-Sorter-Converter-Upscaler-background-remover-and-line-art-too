@@ -112,6 +112,11 @@ except (ImportError, OSError, RuntimeError):
     ARCHIVE_AVAILABLE = False
     logger.warning("Archive handler not available")
 
+# Preview display constants — kept in one place so _create_preview_section and
+# _update_preview both use the same value without magic numbers.
+_PREVIEW_MIN_SIZE   = 200   # px — minimum width/height of the preview QLabel
+_PREVIEW_THUMBNAIL_SIZE = 350  # px — max thumbnail dimension sent to the preview label
+
 
 class NormalizationWorker(QThread):
     """Worker thread for batch normalization."""
@@ -460,7 +465,7 @@ class BatchNormalizerPanelQt(QWidget):
         # Preview label
         self.preview_label = QLabel("Select files to see preview")
         self.preview_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.preview_label.setMinimumSize(200, 200)
+        self.preview_label.setMinimumSize(_PREVIEW_MIN_SIZE, _PREVIEW_MIN_SIZE)
         self.preview_label.setStyleSheet("border: 2px dashed gray; background-color: #f0f0f0;")
         group_layout.addWidget(self.preview_label)
         
@@ -539,7 +544,7 @@ class BatchNormalizerPanelQt(QWidget):
             image = Image.open(first_file)
             
             # Resize for preview
-            image.thumbnail((350, 350), Image.Resampling.LANCZOS)
+            image.thumbnail((_PREVIEW_THUMBNAIL_SIZE, _PREVIEW_THUMBNAIL_SIZE), Image.Resampling.LANCZOS)
             
             # Convert to QPixmap
             data = image.convert("RGBA").tobytes("raw", "RGBA")
