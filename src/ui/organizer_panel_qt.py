@@ -1068,6 +1068,11 @@ class OrganizerPanelQt(QWidget):
         self.clear_log_btn.clicked.connect(self._clear_log)
         self._set_tooltip(self.clear_log_btn, 'clear_log_button')
         button_layout.addWidget(self.clear_log_btn)
+
+        self.save_log_btn = QPushButton("💾 Save Log")
+        self.save_log_btn.clicked.connect(self._save_log_to_file)
+        self._set_tooltip(self.save_log_btn, "Save the current operation log to a text file")
+        button_layout.addWidget(self.save_log_btn)
         
         layout.addLayout(button_layout)
     
@@ -1996,6 +2001,28 @@ class OrganizerPanelQt(QWidget):
     def _clear_log(self):
         """Clear the log."""
         self.log_text.clear()
+
+    def _save_log_to_file(self):
+        """Save the current log to a text file chosen by the user."""
+        from PyQt6.QtWidgets import QFileDialog  # type: ignore[attr-defined]
+        text = self.log_text.toPlainText()
+        if not text:
+            QMessageBox.information(self, "Empty Log", "There is nothing in the log to save.")
+            return
+        path, _ = QFileDialog.getSaveFileName(
+            self,
+            "Save Organizer Log",
+            "organizer_log.txt",
+            "Text Files (*.txt);;All Files (*.*)",
+        )
+        if not path:
+            return
+        try:
+            with open(path, 'w', encoding='utf-8') as fh:
+                fh.write(text)
+            self._log(f"💾 Log saved to {path}")
+        except Exception as _e:
+            QMessageBox.critical(self, "Save Failed", f"Could not save log:\n{_e}")
     
     def _clear_learning_history(self):
         """Clear learning history."""
