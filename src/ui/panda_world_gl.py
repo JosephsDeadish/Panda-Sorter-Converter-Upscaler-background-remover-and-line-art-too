@@ -180,6 +180,7 @@ class PandaWorldGL(
         self._otter_look_x     = 0.0    # current head-turn angle (eased)
         self._otter_look_tgt   = 0.0    # target look angle for smooth blending
         self._otter_look_phase = 0      # countdown to next random look
+        self._cloud_drift      = 0.0    # X-offset for slow cloud movement
 
         self.setMinimumSize(400, 300)
         if PYQT_AVAILABLE:
@@ -273,6 +274,9 @@ class PandaWorldGL(
         # Car gentle suspension bob
         self._car_bob = math.sin(self._frame * 0.04) * 0.02
 
+        # Slow cloud drift (wraps around every ~1200 frames ≈ 40 s at 30 fps)
+        self._cloud_drift = (self._cloud_drift + 0.004) % 20.0
+
         # Livy blink cycle
         if self._otter_blink <= 0:
             self._otter_blink     = random.randint(100, 280)
@@ -358,13 +362,15 @@ class PandaWorldGL(
         glTranslatef(8.0, 7.0, -8.0)
         self._sphere(0.6, 10, 10)
         glPopMatrix()
-        # Clouds (simple white blobs)
+        # Clouds (simple white blobs — drift slowly left to right)
         glColor4f(1.0, 1.0, 1.0, 0.8)
         glEnable(GL_BLEND)
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
+        drift = getattr(self, '_cloud_drift', 0.0)
         for cx, cy, cz in [(-5.0, 6.5, -9.0), (3.0, 7.0, -8.5), (-1.0, 7.5, -10.0)]:
             glPushMatrix()
-            glTranslatef(cx, cy, cz)
+            # Each cloud drifts at slightly different speed for parallax feel
+            glTranslatef(cx + drift * 0.5, cy, cz)
             self._sphere(0.55, 8, 8)
             glTranslatef(0.55, 0.0, 0.0)
             self._sphere(0.40, 8, 8)
