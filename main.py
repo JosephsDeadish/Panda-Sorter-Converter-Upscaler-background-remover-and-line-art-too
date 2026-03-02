@@ -5095,6 +5095,7 @@ class TextureSorterMainWindow(QMainWindow):
     # Panda interaction behavior tick (called at ~30 Hz by QTimer)
     # ------------------------------------------------------------------
     _INTERACTION_TICK_DT: float = 0.033  # seconds at 30 Hz
+    _WELLBEING_DECAY_TICKS: int = 1800   # every ~60 s at 30 Hz tick
 
     def _tick_panda_interaction(self) -> None:
         """Advance PandaInteractionBehavior AI by one frame."""
@@ -5105,6 +5106,17 @@ class TextureSorterMainWindow(QMainWindow):
         except Exception as _e:
             logger.debug(f"Panda interaction tick failed: {_e}")
 
+        # Wellbeing decay — runs once per ~60 seconds
+        try:
+            if self.panda_stats is not None:
+                _c = getattr(self, '_wellbeing_tick_counter', 0) + 1
+                self._wellbeing_tick_counter = _c
+                if _c >= self._WELLBEING_DECAY_TICKS:
+                    self._wellbeing_tick_counter = 0
+                    self.panda_stats.tick_wellbeing(60.0)
+        except Exception:
+            pass
+
         # Update panda mood label in status bar (every tick is fine — it's a cheap QLabel.setText)
         try:
             if self._panda_mood_label and self.panda_widget:
@@ -5113,7 +5125,17 @@ class TextureSorterMainWindow(QMainWindow):
                 sub = self.panda_widget.get_idle_sub_state() if hasattr(self.panda_widget, 'get_idle_sub_state') else ''
                 display_state = sub if sub else state
                 emoji = _PANDA_STATE_EMOJI.get(display_state, _PANDA_STATE_EMOJI.get(state, '🐼'))
-                label_text = f"{emoji} {display_state.replace('_', ' ')}"
+                # Append wellbeing indicators when stats available
+                stats = getattr(self, 'panda_stats', None)
+                wellbeing_str = ''
+                if stats is not None:
+                    hun = getattr(stats, 'hunger', None)
+                    hap = getattr(stats, 'happiness', None)
+                    if hun is not None and hap is not None:
+                        hun_icon  = '🍎' if hun > 60 else ('🍽️' if hun > 20 else '😫')
+                        hap_icon  = '😄' if hap > 60 else ('😐' if hap > 30 else '😢')
+                        wellbeing_str = f"  {hun_icon}{hun}  {hap_icon}{hap}"
+                label_text = f"{emoji} {display_state.replace('_', ' ')}{wellbeing_str}"
                 if self._panda_mood_label.text() != label_text:
                     self._panda_mood_label.setText(label_text)
         except Exception:
