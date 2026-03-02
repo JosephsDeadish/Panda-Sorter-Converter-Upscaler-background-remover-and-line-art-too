@@ -558,6 +558,114 @@ class BambooCatcherGame(MiniGame):
         return max(0.0, self.time_limit - self._elapsed_time())
 
 
+class PandaColorMatchGame(MiniGame):
+    """Color-matching minigame.
+
+    A sequence of colored bamboo segments appears; the player must identify
+    how many match the target color.  Each round generates a new palette
+    (3-6 colors), a target, and a random grid of 9 cells.
+
+    Scoring:
+    - Correct answer: +10 pts × combo multiplier
+    - Wrong answer:   combo reset to 1
+    - Time bonus:     +1 pt per second remaining when answered correctly
+    """
+
+    _COLORS = ['green', 'yellow', 'red', 'blue', 'white', 'pink']
+
+    def __init__(self, difficulty: GameDifficulty = GameDifficulty.MEDIUM):
+        super().__init__(difficulty)
+        self.name = "Color Match"
+        self.description = "Count how many bamboo segments match the target color!"
+        self._grid:    list = []        # list of color strings
+        self._target:  str  = 'green'
+        self._correct_count: int = 0
+        self._combo:   int  = 1
+        self._answered: bool = False
+        grid_size = {
+            GameDifficulty.EASY:    (9,  30),
+            GameDifficulty.MEDIUM:  (12, 20),
+            GameDifficulty.HARD:    (16, 15),
+            GameDifficulty.EXTREME: (20, 12),
+        }.get(difficulty, (9, 20))
+        self._grid_size, secs = grid_size
+        self.time_limit = secs
+        self._new_round()
+
+    def _new_round(self) -> None:
+        """Generate a fresh color grid and target."""
+        import random
+        num_colors = min(len(self._COLORS), 2 + self.score // 50)
+        palette = random.sample(self._COLORS, max(2, num_colors))
+        self._target = random.choice(palette)
+        self._grid = [random.choice(palette) for _ in range(self._grid_size)]
+        self._correct_count = self._grid.count(self._target)
+        self._answered = False
+
+    def start(self) -> None:
+        super().start()
+        self._combo = 1
+        self._new_round()
+
+    def stop(self) -> GameResult:
+        return super().stop()
+
+    def get_name(self) -> str:
+        return "Color Match 🎨"
+
+    def get_description(self) -> str:
+        return (
+            f"Count how many bamboo segments in the grid match the target color! "
+            f"You have {int(self.time_limit)}s per round. Build combos for bigger rewards."
+        )
+
+    def get_remaining_time(self) -> float:
+        if not self.is_running or not self.start_time:
+            return 0.0
+        return max(0.0, self.time_limit - self._elapsed_time())
+
+    def tick(self, dt: float) -> Optional['GameResult']:
+        if not self.is_running:
+            return None
+        self._update_time(dt)
+        if self._elapsed_time() >= self.time_limit:
+            return self._finish(
+                False, "Time up!", {'final_score': self.score, 'combo': self._combo}
+            )
+        return None
+
+    def submit_answer(self, answer: int) -> dict:
+        """Player guesses how many grid cells match the target color.
+
+        Returns:
+            dict with 'correct' (bool), 'score_delta' (int), 'message' (str)
+        """
+        if self._answered or not self.is_running:
+            return {'correct': False, 'score_delta': 0, 'message': 'No active round'}
+        self._answered = True
+        correct = answer == self._correct_count
+        if correct:
+            time_bonus = int(self.get_remaining_time())
+            delta = 10 * self._combo + time_bonus
+            self._combo = min(self._combo + 1, 5)
+            self.score += delta
+            self._new_round()
+            return {'correct': True, 'score_delta': delta,
+                    'message': f"✅ Correct! +{delta} pts (×{self._combo - 1} combo)"}
+        else:
+            self._combo = 1
+            return {'correct': False, 'score_delta': 0,
+                    'message': f"❌ Wrong! Answer was {self._correct_count}"}
+
+    @property
+    def grid(self) -> list:
+        return list(self._grid)
+
+    @property
+    def target(self) -> str:
+        return self._target
+
+
 class MiniGameManager:
     """Manages all mini-games and their state."""
     
@@ -571,10 +679,11 @@ class MiniGameManager:
             xp_callback: Callback to award XP
         """
         self.games: Dict[str, type] = {
-            'click':   PandaClickGame,
-            'memory':  PandaMemoryGame,
-            'reflex':  PandaReflexGame,
+            'click':        PandaClickGame,
+            'memory':       PandaMemoryGame,
+            'reflex':       PandaReflexGame,
             'bamboo_catcher': BambooCatcherGame,
+            'color_match':  PandaColorMatchGame,
         }
         
         self.current_game: Optional[MiniGame] = None

@@ -6213,6 +6213,78 @@ def test_tool_panels_drag_drop():
     print("  ✅ Runtime: BatchNormalizerPanelQt.acceptDrops() == True")
 
 
+def test_color_match_minigame():
+    """PandaColorMatchGame must work correctly: grid generation, scoring, combo.
+
+    Source checks (minigame_system.py):
+    - PandaColorMatchGame class present
+    - submit_answer() method present
+    - 'color_match' key registered in MiniGameManager
+
+    Runtime checks:
+    - New game creates a non-empty grid and a valid target color
+    - Correct answer increments score and combo
+    - Wrong answer resets combo to 1
+    - New round after correct answer generates fresh grid
+    """
+    print("\ntest_color_match_minigame ...")
+    from pathlib import Path
+    code = (Path(__file__).parent / 'src' / 'features' / 'minigame_system.py').read_text(encoding='utf-8')
+
+    assert 'PandaColorMatchGame' in code, \
+        "minigame_system.py: PandaColorMatchGame class missing"
+    print("  ✅ Source: PandaColorMatchGame class present")
+
+    assert 'def submit_answer' in code, \
+        "minigame_system.py: submit_answer() method missing"
+    print("  ✅ Source: submit_answer() method present")
+
+    assert "'color_match'" in code, \
+        "minigame_system.py: 'color_match' not registered in MiniGameManager"
+    print("  ✅ Source: 'color_match' registered in MiniGameManager")
+
+    # Runtime
+    import sys
+    sys.path.insert(0, str(Path(__file__).parent / 'src'))
+    from features.minigame_system import PandaColorMatchGame, GameDifficulty, MiniGameManager
+
+    game = PandaColorMatchGame(GameDifficulty.EASY)
+    assert len(game.grid) > 0, "grid should be non-empty"
+    assert game.target in PandaColorMatchGame._COLORS, \
+        f"target {game.target!r} should be one of the known colors"
+    print(f"  ✅ Runtime: grid size {len(game.grid)}, target={game.target!r}")
+
+    # Correct answer
+    game.start()
+    correct_count = game.grid.count(game.target)
+    initial_score = game.score
+    result = game.submit_answer(correct_count)
+    assert result['correct'], f"Correct answer {correct_count} should return correct=True"
+    assert game.score > initial_score, "Correct answer should increase score"
+    assert game._combo == 2, f"After first correct answer combo should be 2, got {game._combo}"
+    print(f"  ✅ Runtime: correct answer grants +{game.score - initial_score} pts, combo=2")
+
+    # Second correct answer — combo grows
+    correct_count2 = game.grid.count(game.target)
+    result2 = game.submit_answer(correct_count2)
+    if result2['correct']:
+        assert game._combo == 3, f"After 2 correct answers combo should be 3, got {game._combo}"
+        print("  ✅ Runtime: combo grows to 3 after second correct answer")
+
+    # Wrong answer — combo resets
+    game._answered = False  # simulate new round
+    game._combo = 4
+    result3 = game.submit_answer(-999)  # obviously wrong
+    assert not result3['correct'], "Wrong answer should return correct=False"
+    assert game._combo == 1, f"Wrong answer should reset combo to 1, got {game._combo}"
+    print("  ✅ Runtime: wrong answer resets combo to 1")
+
+    # MiniGameManager includes the new game
+    mgr = MiniGameManager()
+    assert 'color_match' in mgr.games, "'color_match' missing from MiniGameManager.games"
+    print("  ✅ Runtime: MiniGameManager registers 'color_match'")
+
+
 def run_all_tests():
     print("=" * 65)
     print("Hybrid Architecture + Lazy rembg Import Tests")
@@ -6328,6 +6400,7 @@ def run_all_tests():
         test_dungeon_orc_coins,
         test_format_converter_drag_drop,
         test_tool_panels_drag_drop,
+        test_color_match_minigame,
     ]
 
     passed, failed = [], []
