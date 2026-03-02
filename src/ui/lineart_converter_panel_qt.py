@@ -392,6 +392,63 @@ LINEART_PRESETS = {
         "edge_low": 50, "edge_high": 150, "edge_aperture": 3,
         "adaptive_block": 11, "adaptive_c": 2.0, "adaptive_method": "gaussian",
     },
+    # ── Game texture presets ───────────────────────────────────────────────
+    "🎮 PS2 / PS1 Texture Edges": {
+        "desc": "Extracts outlines from PlayStation 1 / 2 textures. "
+                "PS2 textures are small (64–256 px), heavily compressed, and often noisy — "
+                "adaptive threshold with moderate denoising recovers clean shape edges "
+                "from palette-banded colour regions typical of DXT/TIM compression.",
+        "mode": "adaptive", "threshold": 120, "auto_threshold": True,
+        "background": "transparent", "invert": False, "remove_midtones": True,
+        "midtone_threshold": 195, "contrast": 2.0, "sharpen": True,
+        "sharpen_amount": 1.8, "morphology": "close", "morph_iter": 1,
+        "kernel": 3, "denoise": True, "denoise_size": 3,
+        "smooth_lines": False, "smooth_amount": 1.0,
+        "edge_low": 40, "edge_high": 120, "edge_aperture": 3,
+        "adaptive_block": 9, "adaptive_c": 3.0, "adaptive_method": "gaussian",
+    },
+    "🎮 N64 / Origami Flat Textures": {
+        "desc": "Designed for Nintendo 64 UV-unwrap textures which look like "
+                "flattened origami — objects and people folded into flat layouts. "
+                "Low threshold + high contrast separates the hard colour bands of "
+                "N64's 4-bit/8-bit palette maps without picking up JPEG artefacts.",
+        "mode": "threshold", "threshold": 108, "auto_threshold": False,
+        "background": "transparent", "invert": False, "remove_midtones": True,
+        "midtone_threshold": 175, "contrast": 2.4, "sharpen": True,
+        "sharpen_amount": 2.0, "morphology": "erode", "morph_iter": 1,
+        "kernel": 3, "denoise": True, "denoise_size": 2,
+        "smooth_lines": False, "smooth_amount": 1.0,
+        "edge_low": 30, "edge_high": 90, "edge_aperture": 3,
+        "adaptive_block": 7, "adaptive_c": 2.0, "adaptive_method": "gaussian",
+    },
+    "🎮 GameCube / Wii Diffuse Edges": {
+        "desc": "Extracts clean outlines from GameCube and Wii diffuse maps. "
+                "GCN textures are larger than N64/PS2 (up to 512 px) and use "
+                "S3TC/CMPR compression — Canny edge detection with a medium aperture "
+                "finds real shape boundaries while ignoring block artefacts.",
+        "mode": "edge_detect", "threshold": 130, "auto_threshold": False,
+        "background": "transparent", "invert": False, "remove_midtones": True,
+        "midtone_threshold": 200, "contrast": 1.8, "sharpen": True,
+        "sharpen_amount": 1.6, "morphology": "close", "morph_iter": 1,
+        "kernel": 3, "denoise": True, "denoise_size": 2,
+        "smooth_lines": False, "smooth_amount": 1.0,
+        "edge_low": 45, "edge_high": 130, "edge_aperture": 5,
+        "adaptive_block": 11, "adaptive_c": 2.5, "adaptive_method": "gaussian",
+    },
+    "🎮 PSP Sprite / UI Lines": {
+        "desc": "For PSP sprites and UI elements (GIM format, up to 128×128). "
+                "PSP uses 4-bit CLUT palettes producing very sharp colour boundaries. "
+                "Pure-black threshold at 115 picks the abrupt palette edges without "
+                "introducing halftone noise from the low-resolution source art.",
+        "mode": "pure_black", "threshold": 115, "auto_threshold": False,
+        "background": "transparent", "invert": False, "remove_midtones": True,
+        "midtone_threshold": 180, "contrast": 2.2, "sharpen": True,
+        "sharpen_amount": 1.5, "morphology": "close", "morph_iter": 1,
+        "kernel": 3, "denoise": True, "denoise_size": 2,
+        "smooth_lines": False, "smooth_amount": 1.0,
+        "edge_low": 35, "edge_high": 100, "edge_aperture": 3,
+        "adaptive_block": 9, "adaptive_c": 2.0, "adaptive_method": "gaussian",
+    },
 }
 
 

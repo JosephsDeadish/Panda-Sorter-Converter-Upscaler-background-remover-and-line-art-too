@@ -46,6 +46,70 @@ try:
 except (ImportError, OSError):
     _PIL = False
 
+# ── SVG rasterisation via Qt ───────────────────────────────────────────────────
+# Qt ships an SVG renderer in PyQt6.QtSvg (no extra package needed).
+# We rasterise the SVG at a user-specified DPI and return a PIL Image.
+# Falls back gracefully to cairosvg when available, then to a placeholder.
+_SVG_AVAILABLE: bool = False
+try:
+    from PyQt6.QtSvg import QSvgRenderer as _QSvgRenderer
+    from PyQt6.QtGui import QImage as _QImage, QPainter as _QPainter
+    from PyQt6.QtCore import QByteArray as _QByteArray
+    _SVG_AVAILABLE = True
+except (ImportError, OSError, RuntimeError):
+    _QSvgRenderer = None  # type: ignore
+
+_SVG_NOTE_MSG = (
+    "⚠️ SVG rasterisation uses Qt's built-in renderer.\n"
+    "For better accuracy install cairosvg:  pip install cairosvg"
+)
+
+
+def _rasterise_svg(path: Path, dpi: int = 96) -> "Image.Image":
+    """Convert an SVG file to a PIL RGBA Image at *dpi* dots-per-inch.
+
+    Strategy (in priority order):
+    1. cairosvg — if installed, highest accuracy for complex SVGs.
+    2. PyQt6.QtSvg.QSvgRenderer — built-in, no extra dependency.
+    3. Raise RuntimeError so the caller can report a friendly message.
+    """
+    # 1 — cairosvg (optional, best quality)
+    try:
+        import cairosvg as _cairosvg  # type: ignore
+        import io as _io
+        png_bytes = _cairosvg.svg2png(url=str(path), dpi=dpi)
+        return Image.open(_io.BytesIO(png_bytes)).convert("RGBA")
+    except (ImportError, Exception):
+        pass
+
+    # 2 — Qt SVG renderer
+    if _QSvgRenderer is not None:
+        renderer = _QSvgRenderer(str(path))
+        if not renderer.isValid():
+            raise RuntimeError(f"Qt SVG renderer could not parse '{path.name}'")
+        size = renderer.defaultSize()
+        # Scale from the SVG's logical 96-dpi grid to the requested DPI
+        scale = dpi / 96.0
+        w = max(1, round(size.width() * scale))
+        h = max(1, round(size.height() * scale))
+        qi = _QImage(w, h, _QImage.Format.Format_ARGB32_Premultiplied)
+        qi.fill(0)  # transparent
+        p = _QPainter(qi)
+        renderer.render(p)
+        p.end()
+        # Convert QImage → PIL Image via raw bytes
+        ptr = qi.bits()
+        ptr.setsize(qi.sizeInBytes())
+        buf = bytes(ptr)
+        pil = Image.frombytes("RGBA", (w, h), buf, "raw", "BGRA")
+        return pil
+
+    raise RuntimeError(
+        "SVG rasterisation unavailable.\n"
+        "Install cairosvg:  pip install cairosvg\n"
+        "or ensure PyQt6.QtSvg is importable."
+    )
+
 # ── AVIF plugin: auto-register when pillow-avif-plugin is installed ────────────
 # pillow-avif-plugin ships a pre-built libaom wheel (Windows/macOS/Linux).
 # Importing it registers the AVIF codec with Pillow automatically, so
@@ -62,6 +126,8 @@ if _PIL:
 _INPUT_EXTS = {
     ".png", ".jpg", ".jpeg", ".bmp", ".tiff", ".tif",
     ".webp", ".tga", ".gif", ".ico", ".psd",
+    # Vector formats (rasterised at runtime)
+    ".svg",
     # Additional game/HDR/modern formats
     ".dds", ".hdr", ".exr", ".avif", ".jp2", ".j2k",
     ".pbm", ".pgm", ".ppm", ".pnm", ".xbm", ".xpm",
@@ -172,6 +238,7 @@ class _ConvertWorker(QThread):
         skip_existing = s.get("skip_existing", False)
         name_tpl  = s["name_template"]  # e.g. "{stem}{ext}"
         suffix    = s.get("name_suffix", "")
+        svg_dpi   = s.get("svg_dpi", 96)
         total     = len(self._files)
         done      = 0
         errors    = 0
@@ -198,8 +265,17 @@ class _ConvertWorker(QThread):
                     self.progress.emit(done + errors + skipped, total, fp.name)
                     continue
 
-                img = Image.open(fp)
-                img.load()  # force decode (catches lazy errors)
+                # ── Load image (SVG rasterised via Qt/cairosvg) ──────────
+                if fp.suffix.lower() == ".svg":
+                    try:
+                        img = _rasterise_svg(fp, dpi=svg_dpi)
+                    except Exception as svg_exc:
+                        raise RuntimeError(
+                            f"SVG rasterisation failed for '{fp.name}': {svg_exc}"
+                        )
+                else:
+                    img = Image.open(fp)
+                    img.load()  # force decode (catches lazy errors)
 
                 # ── Colour conversion ─────────────────────────────────────
                 if colour != "keep":
@@ -528,6 +604,9 @@ if _PYQT:
             self._jpeg_q.setSuffix(" %")
             self._set_tooltip(self._jpeg_q, 'jpeg_quality')
             qual_lay.addWidget(self._jpeg_q, 0, 1)
+            _rec_jpeg = QLabel("⭐ Recommended: 85–95 %")
+            _rec_jpeg.setStyleSheet(_INFO_NOTE_STYLE)
+            qual_lay.addWidget(_rec_jpeg, 0, 2)
 
             qual_lay.addWidget(QLabel("PNG compress:"), 1, 0)
             self._png_cmp = QSpinBox()
@@ -535,6 +614,9 @@ if _PYQT:
             self._png_cmp.setValue(6)
             qual_lay.addWidget(self._png_cmp, 1, 1)
             self._set_tooltip(self._png_cmp, "0 = fastest (larger file), 9 = smallest (slower)")
+            _rec_png = QLabel("⭐ Recommended: 6  (0 = faster, 9 = smaller)")
+            _rec_png.setStyleSheet(_INFO_NOTE_STYLE)
+            qual_lay.addWidget(_rec_png, 1, 2)
 
             qual_lay.addWidget(QLabel("WebP quality:"), 2, 0)
             self._webp_q = QSpinBox()
@@ -543,6 +625,9 @@ if _PYQT:
             self._webp_q.setSuffix(" %")
             self._set_tooltip(self._webp_q, 'webp_quality')
             qual_lay.addWidget(self._webp_q, 2, 1)
+            _rec_webp = QLabel("⭐ Recommended: 80–95 %")
+            _rec_webp.setStyleSheet(_INFO_NOTE_STYLE)
+            qual_lay.addWidget(_rec_webp, 2, 2)
 
             self._webp_ll = QCheckBox("WebP lossless")
             self._set_tooltip(self._webp_ll, 'webp_lossless')
@@ -557,6 +642,20 @@ if _PYQT:
             self._skip_existing.setChecked(False)
             self._set_tooltip(self._skip_existing, "When checked, files are not overwritten if the output already exists")
             qual_lay.addWidget(self._skip_existing, 5, 0, 1, 2)
+
+            # SVG rasterisation DPI — only relevant when SVG files are selected
+            qual_lay.addWidget(QLabel("SVG raster DPI:"), 6, 0)
+            self._svg_dpi = QSpinBox()
+            self._svg_dpi.setRange(36, 600)
+            self._svg_dpi.setValue(96)
+            self._svg_dpi.setSuffix(" dpi")
+            self._set_tooltip(self._svg_dpi,
+                "Dots-per-inch used when rasterising SVG vector files to pixels.\n"
+                "96 dpi = screen resolution (default).  192 = 2× HiDPI.  300 = print quality.")
+            qual_lay.addWidget(self._svg_dpi, 6, 1)
+            _svg_note_lbl = QLabel("⭐ Recommended: 96 (screen)  ·  192 (HiDPI)  ·  300 (print)")
+            _svg_note_lbl.setStyleSheet(_INFO_NOTE_STYLE)
+            qual_lay.addWidget(_svg_note_lbl, 6, 2)
             lv.addWidget(qual_box)
 
             # Colour space
@@ -858,6 +957,7 @@ if _PYQT:
                 "webp_lossless":  self._webp_ll.isChecked(),
                 "strip_metadata": self._strip_meta.isChecked(),
                 "skip_existing":  self._skip_existing.isChecked(),
+                "svg_dpi":        self._svg_dpi.value() if hasattr(self, '_svg_dpi') else 96,
                 "name_template":  name_tpl,
                 "name_suffix":    self._suffix_edit.text(),
                 "watermark_enabled": self._wm_enable.isChecked(),

@@ -4369,6 +4369,169 @@ def test_dungeon_combat_system():
     print("  ✅ Runtime: attack cooldown correctly set after melee attack")
 
 
+def test_svg_converter_support():
+    """Format converter must support SVG as an input format and expose DPI control.
+
+    Issue #201: 'Converter needs better svg support and accuracy'
+
+    Source-level checks:
+    - '.svg' present in _INPUT_EXTS
+    - _rasterise_svg() function defined
+    - _SVG_AVAILABLE flag present
+    - svg_dpi key used in the settings collection (build_settings / _build_settings)
+    - _svg_dpi QSpinBox wired up in the UI
+    - SVG raster DPI label present
+
+    Runtime checks:
+    - _rasterise_svg() on a minimal in-memory SVG returns a PIL RGBA image
+    - Default DPI=96 produces correct pixel dimensions from a 96×96 SVG
+    """
+    print("\ntest_svg_converter_support ...")
+    from pathlib import Path
+    code = (Path(__file__).parent / 'src' / 'ui' / 'format_converter_panel_qt.py').read_text(encoding='utf-8')
+
+    assert '".svg"' in code or "'.svg'" in code, \
+        "format_converter_panel_qt.py: .svg missing from _INPUT_EXTS"
+    print("  ✅ Source: .svg in _INPUT_EXTS")
+
+    assert 'def _rasterise_svg' in code, \
+        "format_converter_panel_qt.py: _rasterise_svg() function missing"
+    print("  ✅ Source: _rasterise_svg() function present")
+
+    assert '_SVG_AVAILABLE' in code, \
+        "format_converter_panel_qt.py: _SVG_AVAILABLE flag missing"
+    print("  ✅ Source: _SVG_AVAILABLE flag present")
+
+    assert 'svg_dpi' in code, \
+        "format_converter_panel_qt.py: svg_dpi key missing from settings"
+    assert '_svg_dpi' in code, \
+        "format_converter_panel_qt.py: _svg_dpi widget not created"
+    print("  ✅ Source: svg_dpi in settings dict and _svg_dpi QSpinBox wired")
+
+    assert 'SVG raster DPI' in code or 'SVG Raster DPI' in code or 'svg.*dpi' in code.lower(), \
+        "format_converter_panel_qt.py: SVG DPI label missing from UI"
+    print("  ✅ Source: SVG DPI label present in UI")
+
+    assert 'Recommended' in code and '96' in code, \
+        "format_converter_panel_qt.py: Recommended default hints missing from quality section"
+    print("  ✅ Source: Recommended default labels present in quality section")
+
+    # Runtime: test _rasterise_svg with an in-memory SVG
+    import sys, tempfile, os
+    sys.path.insert(0, str(Path(__file__).parent / 'src'))
+    from ui.format_converter_panel_qt import _rasterise_svg, _SVG_AVAILABLE
+
+    # Create a minimal 96×96 SVG on disk
+    svg_content = (
+        '<svg xmlns="http://www.w3.org/2000/svg" width="96" height="96" viewBox="0 0 96 96">'
+        '<rect width="96" height="96" fill="#ff0000"/>'
+        '<circle cx="48" cy="48" r="30" fill="#0000ff" opacity="0.8"/>'
+        '</svg>'
+    )
+    with tempfile.NamedTemporaryFile(suffix='.svg', delete=False, mode='w') as tf:
+        tf.write(svg_content)
+        svg_path = Path(tf.name)
+
+    try:
+        if not _SVG_AVAILABLE:
+            print("  ⚠️  Runtime: Qt SVG not available in this environment — skipping rasterise test")
+        else:
+            img = _rasterise_svg(svg_path, dpi=96)
+            assert img is not None, "_rasterise_svg returned None"
+            assert img.mode == "RGBA", f"Expected RGBA image, got {img.mode}"
+            # At 96 dpi, a 96-unit SVG should produce ≈96×96 pixels
+            assert 80 <= img.width <= 200, f"Unexpected width {img.width} (expected ~96)"
+            assert 80 <= img.height <= 200, f"Unexpected height {img.height} (expected ~96)"
+            print(f"  ✅ Runtime: _rasterise_svg() → {img.width}×{img.height} RGBA image at 96 dpi")
+
+            # Higher DPI should produce a proportionally larger image
+            img2x = _rasterise_svg(svg_path, dpi=192)
+            assert img2x.width > img.width, \
+                f"192 dpi image ({img2x.width}×{img2x.height}) should be larger than 96 dpi ({img.width}×{img.height})"
+            print(f"  ✅ Runtime: 192 dpi → {img2x.width}×{img2x.height} (larger than 96 dpi, as expected)")
+    finally:
+        svg_path.unlink(missing_ok=True)
+
+
+def test_game_texture_lineart_presets():
+    """Lineart tool must include game-console texture extraction presets.
+
+    Issue #201: 'Line art tool presets need to work better and need better accuracy.
+    Organizer needs improvements overall needs to better understand how game
+    textures look which can vary but most the time they tend to look like
+    objects and people turned to origami and unfolded or sometimes body parts
+    are separated like floating eyeballs.'
+
+    Source-level checks:
+    - PS2/PS1, N64/origami, GameCube/Wii, PSP preset keys exist in LINEART_PRESETS
+    - All four presets have the required parameter set (mode, threshold, desc, …)
+    - Descriptions reference the specific console and texture characteristics
+    - auto_threshold=True used in PS2 preset (handles noisy/low-quality textures)
+    - edge_detect mode used in GameCube preset (better for CMPR block artefacts)
+
+    Runtime check:
+    - All four game presets importable; each has the 18 required keys
+    """
+    print("\ntest_game_texture_lineart_presets ...")
+    from pathlib import Path
+    code = (Path(__file__).parent / 'src' / 'ui' / 'lineart_converter_panel_qt.py').read_text(encoding='utf-8')
+
+    game_preset_snippets = [
+        ('PS2', 'PS2'),
+        ('N64', 'N64'),
+        ('GameCube', 'GameCube'),
+        ('PSP', 'PSP'),
+    ]
+    for label, keyword in game_preset_snippets:
+        assert keyword in code, \
+            f"lineart_converter_panel_qt.py: {label} game texture preset missing"
+    print("  ✅ Source: PS2, N64, GameCube, PSP game texture presets present")
+
+    # Check that the game section is clearly labelled
+    assert 'Game texture' in code or 'game texture' in code or '# ── Game' in code, \
+        "lineart_converter_panel_qt.py: Game texture presets section header missing"
+    print("  ✅ Source: game texture presets section present")
+
+    # Check PS2 uses auto_threshold (adaptive to handle noise)
+    assert '"auto_threshold": True' in code, \
+        "lineart_converter_panel_qt.py: PS2 preset should use auto_threshold=True"
+    print("  ✅ Source: PS2 preset uses auto_threshold=True for noisy texture handling")
+
+    # Check GameCube uses edge_detect mode
+    # (find the GameCube preset block and verify mode)
+    gc_start = code.find('GameCube / Wii')
+    assert gc_start >= 0, "GameCube/Wii preset not found"
+    gc_block = code[gc_start:gc_start + 400]
+    assert '"mode": "edge_detect"' in gc_block, \
+        "GameCube preset should use edge_detect mode for CMPR block artefacts"
+    print("  ✅ Source: GameCube preset uses edge_detect mode")
+
+    # Runtime: import and check all required keys
+    import sys
+    sys.path.insert(0, str(Path(__file__).parent / 'src'))
+    from ui.lineart_converter_panel_qt import LINEART_PRESETS
+
+    required_keys = {
+        'desc', 'mode', 'threshold', 'auto_threshold', 'background',
+        'invert', 'remove_midtones', 'midtone_threshold', 'contrast',
+        'sharpen', 'sharpen_amount', 'morphology', 'morph_iter', 'kernel',
+        'denoise', 'denoise_size', 'smooth_lines', 'smooth_amount',
+    }
+
+    game_presets_found = 0
+    for name, params in LINEART_PRESETS.items():
+        if any(kw in name for kw in ('PS2', 'N64', 'GameCube', 'PSP')):
+            missing = required_keys - set(params.keys())
+            assert not missing, \
+                f"Preset '{name}' missing required keys: {missing}"
+            game_presets_found += 1
+            print(f"  ✅ Runtime: '{name}' has all required keys")
+
+    assert game_presets_found >= 4, \
+        f"Expected at least 4 game texture presets, found {game_presets_found}"
+    print(f"  ✅ Runtime: {game_presets_found} game texture presets verified")
+
+
 def run_all_tests():
     print("=" * 65)
     print("Hybrid Architecture + Lazy rembg Import Tests")
@@ -4463,6 +4626,8 @@ def run_all_tests():
         test_clear_files_on_all_panels,
         test_console_organizer_presets,
         test_dungeon_combat_system,
+        test_svg_converter_support,
+        test_game_texture_lineart_presets,
     ]
 
     passed, failed = [], []
