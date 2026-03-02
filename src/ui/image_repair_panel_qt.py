@@ -209,6 +209,7 @@ class ImageRepairPanelQt(QWidget):
         self.output_dir: Optional[str] = None
         self.diagnostic_worker = None
         self.repair_worker = None
+        self.setAcceptDrops(True)  # drag-and-drop image files onto the panel
         
         if not REPAIRER_AVAILABLE:
             self._show_import_error()
@@ -216,6 +217,42 @@ class ImageRepairPanelQt(QWidget):
         
         self.repairer = ImageRepairer()
         self._create_widgets()
+
+    # ── Drag-and-drop support ──────────────────────────────────────────────
+    def dragEnterEvent(self, event) -> None:
+        if event.mimeData().hasUrls():
+            event.acceptProposedAction()
+        else:
+            event.ignore()
+
+    def dropEvent(self, event) -> None:
+        """Accept dropped image files into the image repair queue."""
+        _EXTS = {'.png', '.jpg', '.jpeg', '.bmp', '.gif', '.tiff', '.tif', '.webp'}
+        existing = set(self.selected_files)
+        added = []
+        for url in event.mimeData().urls():
+            path = Path(url.toLocalFile())
+            if path.is_file() and path.suffix.lower() in _EXTS:
+                s = str(path)
+                if s not in existing:
+                    added.append(s)
+                    existing.add(s)
+            elif path.is_dir():
+                for child in path.iterdir():
+                    if child.suffix.lower() in _EXTS:
+                        s = str(child)
+                        if s not in existing:
+                            added.append(s)
+                            existing.add(s)
+        if added:
+            self.selected_files.extend(added)
+            count = len(self.selected_files)
+            if hasattr(self, 'file_count_label'):
+                self.file_count_label.setText(
+                    f"{count} file{'s' if count != 1 else ''} selected"
+                )
+                self.file_count_label.setStyleSheet("color: green;")
+        event.acceptProposedAction()
     
     def _show_import_error(self):
         """Show error if ImageRepairer cannot be imported."""

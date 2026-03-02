@@ -6,6 +6,7 @@ User interface for batch renaming files with various patterns.
 
 import os
 import logging
+from pathlib import Path
 try:
     from PyQt6.QtWidgets import (
         QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
@@ -156,6 +157,7 @@ class BatchRenamePanelQt(QWidget):
         self.selected_files: List[str] = []
         self.preview_data: List = []
         self.worker_thread = None
+        self.setAcceptDrops(True)  # drag-and-drop files onto the panel
 
         # Debounce timer for auto-preview (fires 400 ms after last keystroke)
         if PYQT_AVAILABLE:
@@ -167,6 +169,41 @@ class BatchRenamePanelQt(QWidget):
             self._preview_timer = None
         
         self._create_widgets()
+
+    # ── Drag-and-drop support ──────────────────────────────────────────────
+    def dragEnterEvent(self, event) -> None:
+        if event.mimeData().hasUrls():
+            event.acceptProposedAction()
+        else:
+            event.ignore()
+
+    def dropEvent(self, event) -> None:
+        """Accept dropped files into the batch rename queue."""
+        existing = set(self.selected_files)
+        added = []
+        for url in event.mimeData().urls():
+            path = Path(url.toLocalFile())
+            if path.is_file():
+                s = str(path)
+                if s not in existing:
+                    added.append(s)
+                    existing.add(s)
+            elif path.is_dir():
+                for child in sorted(path.iterdir()):
+                    if child.is_file():
+                        s = str(child)
+                        if s not in existing:
+                            added.append(s)
+                            existing.add(s)
+        if added:
+            self.selected_files.extend(added)
+            count = len(self.selected_files)
+            if hasattr(self, 'file_count_label'):
+                self.file_count_label.setText(f"{count} files selected")
+                self.file_count_label.setStyleSheet("color: green; font-weight: bold;")
+            if self._preview_timer is not None:
+                self._preview_timer.start()
+        event.acceptProposedAction()
     
     def _create_widgets(self):
         """Create the UI widgets with left-controls / right-preview QSplitter layout."""
