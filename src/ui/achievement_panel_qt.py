@@ -430,15 +430,13 @@ class AchievementDisplayWidget(QWidget):
         
     def matches_filter(self, achievement: 'Achievement') -> bool:
         """Check if achievement matches current filter and search query."""
-        if self.current_filter == "All":
-            pass
-        elif self.current_filter == "Unlocked":
+        if self.current_filter == "Unlocked":
             if not achievement.unlocked:
                 return False
         elif self.current_filter == "Locked":
             if achievement.unlocked:
                 return False
-        else:
+        elif self.current_filter != "All":
             # Tier filter
             if achievement.tier.value.lower() != self.current_filter.lower():
                 return False

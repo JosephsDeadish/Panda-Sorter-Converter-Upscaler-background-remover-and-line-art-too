@@ -82,10 +82,10 @@ class ColorPickerWidget(QWidget):
         self._recent_row = QHBoxLayout()
         self._recent_swatches: list = []
         for _ in range(self._MAX_RECENT):
-            swatch = QLabel()
+            swatch = QPushButton()
             swatch.setFixedSize(22, 22)
             swatch.setStyleSheet("background-color: transparent; border: 1px solid #555; border-radius: 3px;")
-            swatch.setCursor(Qt.CursorShape.PointingHandCursor)
+            swatch.setFlat(True)
             self._recent_row.addWidget(swatch)
             self._recent_swatches.append(swatch)
         self._recent_row.addStretch()
@@ -107,17 +107,24 @@ class ColorPickerWidget(QWidget):
             if i < len(self._recent_colors):
                 c = self._recent_colors[i]
                 swatch.setStyleSheet(
-                    f"background-color: {c.name()}; border: 1px solid #555; border-radius: 3px;"
+                    f"QPushButton {{ background-color: {c.name()}; border: 1px solid #555; border-radius: 3px; }}"
                 )
                 swatch.setToolTip(c.name())
-                # Re-wire click to pick that colour (disconnect old first)
+                # Disconnect any previous connection then reconnect
                 try:
-                    swatch.mousePressEvent = (lambda col: (lambda _ev: self.set_color(col)))(c)
+                    swatch.clicked.disconnect()
                 except Exception:
                     pass
+                swatch.clicked.connect((lambda col: (lambda: self.set_color(col)))(c))
             else:
-                swatch.setStyleSheet("background-color: transparent; border: 1px solid #555; border-radius: 3px;")
+                swatch.setStyleSheet(
+                    "QPushButton { background-color: transparent; border: 1px solid #555; border-radius: 3px; }"
+                )
                 swatch.setToolTip("")
+                try:
+                    swatch.clicked.disconnect()
+                except Exception:
+                    pass
         
     def show_color_dialog(self):
         """Show Qt color dialog"""

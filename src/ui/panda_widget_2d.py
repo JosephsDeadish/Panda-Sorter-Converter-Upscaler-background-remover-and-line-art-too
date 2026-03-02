@@ -26,7 +26,7 @@ try:
     from PyQt6.QtCore import Qt, QTimer, QRect, QPoint, pyqtSignal, QRectF, QPointF
     from PyQt6.QtGui import (
         QPainter, QColor, QPen, QBrush, QFont, QMouseEvent,
-        QPainterPath, QLinearGradient,
+        QPainterPath, QLinearGradient, QPolygonF,
     )
     _QT_AVAILABLE = True
 except (ImportError, OSError, RuntimeError):
@@ -569,8 +569,6 @@ class PandaWidget2D(QWidget if _QT_AVAILABLE else object):  # type: ignore[misc]
                 p.drawEllipse(QRectF(x - 5, y - 3, 5, 5))
                 p.drawEllipse(QRectF(x,     y - 3, 5, 5))
                 # Triangle bottom of heart
-                from PyQt6.QtGui import QPolygonF  # type: ignore[attr-defined]
-                from PyQt6.QtCore import QPointF   # type: ignore[attr-defined]
                 triangle = QPolygonF([QPointF(x - 5, y), QPointF(x + 5, y), QPointF(x, y + 5)])
                 p.drawPolygon(triangle)
             else:
