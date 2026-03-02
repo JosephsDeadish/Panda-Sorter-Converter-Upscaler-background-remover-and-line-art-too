@@ -183,6 +183,12 @@ _STYLE_DESCRIPTIONS: dict = {
     "psp":      "PSP preset — category → map type, no resolution tier (textures ≤128 px).",
     "gamecube": "GameCube / Wii preset — category → map type → resolution tier (≤1024 px).",
     "n64":      "Nintendo 64 preset — flat category → filename (textures ≤64 px).",
+    # Game texture content preset
+    "game_texture_content": (
+        "Game Texture Content: detects UV-unwrapped body parts, floating eyes/limbs, "
+        "and map types from filenames. "
+        "Hierarchy: ContentRole / BodyPart / MapType / filename."
+    ),
 }
 
 class OrganizerWorker(QThread):

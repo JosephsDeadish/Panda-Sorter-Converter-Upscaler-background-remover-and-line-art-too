@@ -102,6 +102,9 @@ def _rasterise_svg(path: Path, dpi: int = 96) -> "Image.Image":
         ptr.setsize(qi.sizeInBytes())
         buf = bytes(ptr)
         pil = Image.frombytes("RGBA", (w, h), buf, "raw", "BGRA")
+        # Qt stores pixels as BGRA (B in the lowest byte), while PIL expects RGBA.
+        # Passing "BGRA" as the raw decoder mode tells Pillow to swap the channel
+        # order, converting Qt's native layout into a standard RGBA PIL Image.
         return pil
 
     raise RuntimeError(

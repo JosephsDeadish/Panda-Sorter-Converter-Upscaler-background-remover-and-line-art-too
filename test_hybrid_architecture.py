@@ -4369,6 +4369,130 @@ def test_dungeon_combat_system():
     print("  ✅ Runtime: attack cooldown correctly set after melee attack")
 
 
+def test_game_texture_organizer_presets():
+    """Organizer must have a 'Game Texture Content' style that understands UV-unwrapped
+    game textures, floating body parts, and map types.
+
+    Issue #201: 'Organizer needs improvements overall needs to better understand how
+    game textures look which can vary but most the time they tend to look like objects
+    and people turned to origami and unfolded or sometimes body parts are separated
+    like floating eyeballs.'
+
+    Source-level checks:
+    - GameTextureContentStyle class present in organization_styles.py
+    - _game_content_role(), _game_body_part(), _game_map_type() helpers present
+    - 'game_texture_content' key in ORGANIZATION_STYLES dict
+    - Body-part isolation keywords: eye/iris, mouth/teeth, hand, foot, hair
+    - Content role keywords: Characters, Environment, Weapons, Props, UI_HUD, Effects
+    - Map-type keywords: Normal, Specular, Emissive, Alpha, AO_Shadow, PBR, Diffuse
+
+    Runtime checks (no Qt needed):
+    - Floating eye UV → Characters/UV_Body/Eyes_Isolated/Diffuse/…
+    - Body normal map → Characters/UV_Body/Normal/…
+    - Detached hand UV → Characters/UV_Body/Hands/Diffuse/…
+    - Wall diffuse → Environment/Diffuse/…
+    - Sword specular → Weapons/Specular/…
+    - Smoke alpha effect → Effects/Alpha/…
+    - HUD healthbar → UI_HUD/Diffuse/…
+    - Emissive glow → (role)/Emissive/…
+    """
+    print("\ntest_game_texture_organizer_presets ...")
+    from pathlib import Path
+    code = (Path(__file__).parent / 'src' / 'organizer' / 'organization_styles.py').read_text(encoding='utf-8')
+
+    assert 'class GameTextureContentStyle' in code, \
+        "organization_styles.py: GameTextureContentStyle class missing"
+    print("  ✅ Source: GameTextureContentStyle class present")
+
+    for helper in ('_game_content_role', '_game_body_part', '_game_map_type'):
+        assert f'def {helper}' in code, \
+            f"organization_styles.py: {helper}() helper missing"
+    print("  ✅ Source: _game_content_role / _game_body_part / _game_map_type helpers present")
+
+    assert "'game_texture_content'" in code, \
+        "organization_styles.py: 'game_texture_content' key missing from ORGANIZATION_STYLES"
+    print("  ✅ Source: 'game_texture_content' registered in ORGANIZATION_STYLES")
+
+    # Body-part isolation coverage
+    for part_kw in ('eye', 'iris', 'mouth', 'teeth', 'gum', 'tongue', 'hand', 'foot', 'hair'):
+        assert part_kw in code, f"organization_styles.py: body-part keyword '{part_kw}' missing"
+    print("  ✅ Source: body-part isolation keywords present (eye/iris/mouth/teeth/gum/tongue/hand/foot/hair)")
+
+    # Content role coverage — all 10 named roles plus Misc
+    for role_kw in ('Characters', 'Environment', 'Weapons', 'Clothing_Accessories',
+                     'Props', 'Vehicles', 'Sky_Background', 'UI_HUD', 'Effects', 'Creatures'):
+        assert role_kw in code, f"organization_styles.py: content role '{role_kw}' missing"
+    print("  ✅ Source: all 10 content role labels present")
+
+    # Map-type coverage
+    for mtype in ('Normal', 'Specular', 'Emissive', 'Alpha', 'AO_Shadow', 'PBR', 'Diffuse'):
+        assert mtype in code, f"organization_styles.py: map type '{mtype}' missing"
+    print("  ✅ Source: all 7 map-type labels present")
+
+    # Runtime path checks
+    import sys
+    sys.path.insert(0, str(Path(__file__).parent / 'src'))
+    from organizer.organization_styles import ORGANIZATION_STYLES, GameTextureContentStyle
+    from organizer.organization_engine import TextureInfo
+
+    assert 'game_texture_content' in ORGANIZATION_STYLES
+
+    def _ti(fname):
+        ti = TextureInfo.__new__(TextureInfo)
+        ti.filename  = fname
+        ti.category  = 'Characters'
+        ti.dimensions = (128, 128)
+        ti.format    = 'tga'
+        ti.lod_level = None
+        ti.is_diffuse = True
+        return ti
+
+    style = GameTextureContentStyle()
+
+    cases = [
+        # (filename, expected_substring_in_path, description)
+        ('chr_link_eye_d.tga',    'Eyes_Isolated',   'floating eye UV → Eyes_Isolated folder'),
+        ('chr_link_body_nrm.tga', 'Normal',           'body normal map → Normal folder'),
+        ('chr_hand_l.tga',        'Hands',            'detached hand UV → Hands folder'),
+        ('wall_stone_d.dds',      'Environment',      'wall diffuse → Environment folder'),
+        ('wpn_sword_s.tga',       'Weapons',          'sword specular → Weapons folder'),
+        ('fx_smoke_a.tga',        'Effects',          'smoke alpha → Effects folder'),
+        ('fx_smoke_a.tga',        'Alpha',            'smoke alpha → Alpha map type'),
+        ('ui_healthbar.tga',      'UI_HUD',           'HUD texture → UI_HUD folder'),
+        ('chr_eye_emi.tga',       'Emissive',         'emissive eye → Emissive map type'),
+        ('sky_clouds.png',        'Sky_Background',   'sky texture → Sky_Background folder'),
+        ('chr_hair_d.tga',        'Hair',             'hair texture → Hair folder'),
+        ('chr_mouth_d.tga',       'Mouth_Isolated',   'mouth UV → Mouth_Isolated folder'),
+    ]
+
+    for fname, expect, desc in cases:
+        path = style.get_target_path(_ti(fname))
+        assert expect in path, (
+            f"GameTextureContentStyle: {desc}\n"
+            f"  filename: {fname!r}\n"
+            f"  expected {expect!r} in path, got: {path!r}"
+        )
+        print(f"  ✅ Runtime: {desc}: {path}")
+
+    # Verify it's the full 5-part path for eye (role_top/role_sub/part/map/file)
+    eye_path = style.get_target_path(_ti('chr_link_eye_d.tga'))
+    parts = Path(eye_path).parts
+    assert len(parts) == 5, (
+        f"Eye UV path should be 5 parts (Characters/UV_Body/Eyes_Isolated/Diffuse/file), "
+        f"got {len(parts)} parts {parts}: {eye_path}"
+    )
+    print(f"  ✅ Runtime: eye UV path is correctly 5-part hierarchy: {eye_path}")
+
+    # Verify normal-map body is 4-part (Characters/UV_Body/map/file, no body-part sub-folder)
+    body_path = style.get_target_path(_ti('chr_link_torso_nrm.tga'))
+    parts_b = Path(body_path).parts
+    assert len(parts_b) == 4, (
+        f"Body normal path should be 4 parts (Characters/UV_Body/Normal/file), "
+        f"got {len(parts_b)} parts {parts_b}: {body_path}"
+    )
+    print(f"  ✅ Runtime: body normal map is 4-part path: {body_path}")
+
+
 def test_svg_converter_support():
     """Format converter must support SVG as an input format and expose DPI control.
 
@@ -4626,6 +4750,7 @@ def run_all_tests():
         test_clear_files_on_all_panels,
         test_console_organizer_presets,
         test_dungeon_combat_system,
+        test_game_texture_organizer_presets,
         test_svg_converter_support,
         test_game_texture_lineart_presets,
     ]
