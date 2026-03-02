@@ -5821,6 +5821,27 @@ class TextureSorterMainWindow(QMainWindow):
         except Exception as _e:
             logger.debug(f"Session hour coin award: {_e}")
 
+    def _on_dungeon_coins_earned(self, coins: int) -> None:
+        """Credit coins dropped by dungeon enemies to the currency system."""
+        try:
+            if self.currency_system and coins > 0:
+                self.currency_system.earn_money(coins, 'dungeon_kill')
+                self._update_coin_display()
+        except Exception as _e:
+            logger.debug(f"Dungeon coins earned: {_e}")
+
+    def _on_dungeon_enemy_slain(self, enemy_type: str) -> None:
+        """Update panda stats and quest progress when a dungeon enemy is slain."""
+        try:
+            if self.panda_stats:
+                stats = self.panda_stats
+                if hasattr(stats, 'monsters_slain'):
+                    stats.monsters_slain = getattr(stats, 'monsters_slain', 0) + 1
+            if self.quest_system:
+                self.quest_system.update_quest_progress('dungeon_adventurer', 1)
+        except Exception as _e:
+            logger.debug(f"Dungeon enemy slain: {_e}")
+
     def _on_panda_gl_failed(self, error_msg: str):
         """
         Called via gl_failed signal when PandaOpenGLWidget.initializeGL() fails.
@@ -6679,6 +6700,15 @@ class TextureSorterMainWindow(QMainWindow):
                         self._dungeon_3d_panel = Dungeon3DWidget(
                             dungeon=dungeon, tooltip_manager=self.tooltip_manager
                         )
+                        # Wire coin drops from dungeon kills to the currency system
+                        if hasattr(self._dungeon_3d_panel, 'coins_earned'):
+                            self._dungeon_3d_panel.coins_earned.connect(
+                                self._on_dungeon_coins_earned
+                            )
+                        if hasattr(self._dungeon_3d_panel, 'enemy_slain'):
+                            self._dungeon_3d_panel.enemy_slain.connect(
+                                self._on_dungeon_enemy_slain
+                            )
                         # NOT added to _home_stack_owned — persistent panel
                     self._show_home_sub_panel(self._dungeon_3d_panel, '⚔️ Dungeon Adventure')
                     self.statusBar().showMessage(

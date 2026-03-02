@@ -95,7 +95,11 @@ class _Dungeon3DGL(QOpenGLWidget if (_QT and _GL) else object):  # type: ignore[
     """OpenGL-rendered 3-D dungeon viewport with a controllable 3-D panda."""
 
     # Emitted when the player reaches stairs down (advance floor)
-    floor_advanced = pyqtSignal(int)  # new floor index
+    floor_advanced = pyqtSignal(int)   # new floor index
+    # Emitted when an enemy is slain (enemy type string)
+    enemy_slain    = pyqtSignal(str)   # enemy type
+    # Emitted when coins are earned from a kill
+    coins_earned   = pyqtSignal(int)   # coins dropped
 
     def __init__(self, dungeon=None, parent=None):
         if not (_QT and _GL):
@@ -206,8 +210,11 @@ class _Dungeon3DGL(QOpenGLWidget if (_QT and _GL) else object):  # type: ignore[
             # Only spawn if not too close to the player's start
             dist = math.hypot(ex - self._cam_x, ez - self._cam_z)
             if dist > _TILE * 3:
-                etype = ('skeleton', 'goblin', 'slime')[i % 3]
-                self._enemies.append({'x': ex, 'z': ez, 'hp': 30, 'type': etype})
+                etype = ('skeleton', 'goblin', 'slime', 'orc')[i % 4]
+                hp = {'skeleton': 25, 'goblin': 20, 'slime': 15, 'orc': 50}.get(etype, 30)
+                coins = {'skeleton': 5, 'goblin': 3, 'slime': 2, 'orc': 12}.get(etype, 5)
+                self._enemies.append({'x': ex, 'z': ez, 'hp': hp, 'max_hp': hp,
+                                      'type': etype, 'coins': coins})
 
     # ── Combat helpers ────────────────────────────────────────────────────────
 
@@ -223,7 +230,13 @@ class _Dungeon3DGL(QOpenGLWidget if (_QT and _GL) else object):  # type: ignore[
                 enemy['hp'] -= _MELEE_DAMAGE
                 if enemy['hp'] <= 0:
                     self._enemies.remove(enemy)
-                    self._show_hud("⚔️ Enemy defeated!")
+                    coins = enemy.get('coins', 5)
+                    try:
+                        self.enemy_slain.emit(enemy['type'])
+                        self.coins_earned.emit(coins)
+                    except Exception:
+                        pass
+                    self._show_hud(f"⚔️ {enemy['type'].title()} defeated! +{coins} 🪙")
                     # Regen a little mana on kill
                     self._player_mana = min(_MAX_MANA, self._player_mana + 8)
                 else:
@@ -244,7 +257,13 @@ class _Dungeon3DGL(QOpenGLWidget if (_QT and _GL) else object):  # type: ignore[
                 enemy['hp'] -= _MELEE_DAMAGE * 2
                 if enemy['hp'] <= 0:
                     self._enemies.remove(enemy)
-                    self._show_hud("💥 POWER STRIKE — enemy slain!")
+                    coins = enemy.get('coins', 5)
+                    try:
+                        self.enemy_slain.emit(enemy['type'])
+                        self.coins_earned.emit(coins)
+                    except Exception:
+                        pass
+                    self._show_hud(f"💥 POWER STRIKE — {enemy['type'].title()} slain! +{coins} 🪙")
                     self._player_mana = min(_MAX_MANA, self._player_mana + 12)
                 else:
                     self._show_hud(f"💥 Power hit! {enemy['type']} HP: {enemy['hp']}")
@@ -284,7 +303,13 @@ class _Dungeon3DGL(QOpenGLWidget if (_QT and _GL) else object):  # type: ignore[
             best_enemy['hp'] -= dmg
             if best_enemy['hp'] <= 0:
                 self._enemies.remove(best_enemy)
-                self._show_hud(f"✨ Magic blast — {best_enemy['type']} obliterated!")
+                coins = best_enemy.get('coins', 5)
+                try:
+                    self.enemy_slain.emit(best_enemy['type'])
+                    self.coins_earned.emit(coins)
+                except Exception:
+                    pass
+                self._show_hud(f"✨ Magic blast — {best_enemy['type']} obliterated! +{coins} 🪙")
             else:
                 self._show_hud(f"✨ Magic bolt (×{charge:.1f}) — {dmg} dmg!")
         else:
@@ -700,19 +725,23 @@ class _Dungeon3DGL(QOpenGLWidget if (_QT and _GL) else object):  # type: ignore[
             'skeleton': (0.8, 0.8, 0.75),
             'goblin':   (0.2, 0.6, 0.2),
             'slime':    (0.3, 0.7, 0.9),
+            'orc':      (0.4, 0.5, 0.2),
         }
         for enemy in self._enemies:
             col = _ENEMY_COLS.get(enemy['type'], (0.7, 0.3, 0.3))
+            # Orcs are larger; derive radius from max_hp
+            max_hp = enemy.get('max_hp', 30)
+            radius = 0.25 + max_hp * 0.004   # skeleton/goblin ~0.35, orc ~0.45
             glPushMatrix()
-            glTranslatef(enemy['x'], 0.5, enemy['z'])
+            glTranslatef(enemy['x'], radius, enemy['z'])
             glColor3f(*col)
-            gluSphere(self._quadric, 0.35, 10, 10)
+            gluSphere(self._quadric, radius, 10, 10)
             # Simple "eye" dots
             glColor3f(0.05, 0.05, 0.05)
-            glTranslatef(0.1, 0.15, 0.3)
-            gluSphere(self._quadric, 0.06, 6, 6)
+            glTranslatef(0.1, radius * 0.4, radius * 0.85)
+            gluSphere(self._quadric, radius * 0.17, 6, 6)
             glTranslatef(-0.2, 0.0, 0.0)
-            gluSphere(self._quadric, 0.06, 6, 6)
+            gluSphere(self._quadric, radius * 0.17, 6, 6)
             glPopMatrix()
 
     # ── HUD overlay ───────────────────────────────────────────────────────────
@@ -787,6 +816,8 @@ class Dungeon3DWidget(QWidget if _QT else object):  # type: ignore[misc]
 
     # Emitted when player advances to the next floor
     floor_advanced = pyqtSignal(int)
+    enemy_slain    = pyqtSignal(str)
+    coins_earned   = pyqtSignal(int)
 
     def __init__(self, dungeon=None, parent=None, tooltip_manager=None):
         if not _QT:
@@ -805,6 +836,8 @@ class Dungeon3DWidget(QWidget if _QT else object):  # type: ignore[misc]
             try:
                 self._gl_widget = _Dungeon3DGL(dungeon, self)
                 self._gl_widget.floor_advanced.connect(self.floor_advanced)
+                self._gl_widget.enemy_slain.connect(self.enemy_slain)
+                self._gl_widget.coins_earned.connect(self.coins_earned)
                 layout.addWidget(self._gl_widget, stretch=1)
 
                 # HUD bar
