@@ -471,7 +471,35 @@ if _PYQT:
             self._tooltip_mgr  = tooltip_manager
             self._files: List[Path] = []
             self._worker: Optional[_ConvertWorker] = None
+            self.setAcceptDrops(True)  # drag-and-drop files directly onto panel
             self._setup_ui()
+
+        # ── Drag-and-drop support ──────────────────────────────────────────
+        def dragEnterEvent(self, event) -> None:
+            if event.mimeData().hasUrls():
+                event.acceptProposedAction()
+            else:
+                event.ignore()
+
+        def dropEvent(self, event) -> None:
+            """Accept dropped image files and add them to the conversion queue."""
+            _EXTS = {'.png', '.jpg', '.jpeg', '.bmp', '.gif', '.tiff', '.tif',
+                     '.webp', '.avif', '.ico', '.svg'}
+            added = 0
+            for url in event.mimeData().urls():
+                path = Path(url.toLocalFile())
+                if path.is_file() and path.suffix.lower() in _EXTS:
+                    if path not in self._files:
+                        self._files.append(path)
+                        added += 1
+                elif path.is_dir():
+                    for child in path.iterdir():
+                        if child.suffix.lower() in _EXTS and child not in self._files:
+                            self._files.append(child)
+                            added += 1
+            if added:
+                self._file_count_lbl.setText(f"{len(self._files)} file(s) selected")
+            event.acceptProposedAction()
 
         # ── UI construction ────────────────────────────────────────────────
         def _setup_ui(self):
