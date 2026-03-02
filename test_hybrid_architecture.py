@@ -5934,6 +5934,75 @@ def test_image_preview_widget_zoom():
     print("  ✅ Runtime: _zoom_out() decreases zoom level")
 
 
+def test_panda_stats_wellbeing():
+    """PandaStats must track hunger, happiness, and energy as proper wellbeing meters.
+
+    Source checks (panda_stats.py):
+    - hunger, happiness, energy fields present with sensible defaults
+    - on_fed() method: restores hunger + boosts happiness
+    - on_petted() method: boosts happiness
+    - tick_wellbeing() method: decays hunger/energy/happiness over time
+
+    Runtime checks:
+    - on_fed() increases hunger and happiness (capped at 100)
+    - on_petted() increases happiness
+    - tick_wellbeing(60) decreases hunger
+    - starvation penalty: tick_wellbeing when hunger<20 decays happiness faster
+    """
+    print("\ntest_panda_stats_wellbeing ...")
+    import sys
+    from pathlib import Path
+    code = (Path(__file__).parent / 'src' / 'features' / 'panda_stats.py').read_text(encoding='utf-8')
+
+    for field in ('hunger', 'happiness', 'energy'):
+        assert field in code, f"panda_stats.py: '{field}' field missing"
+    print("  ✅ Source: hunger / happiness / energy fields present")
+
+    for method in ('def on_fed', 'def on_petted', 'def tick_wellbeing'):
+        assert method in code, f"panda_stats.py: {method}() missing"
+    print("  ✅ Source: on_fed / on_petted / tick_wellbeing methods present")
+
+    # Runtime
+    sys.path.insert(0, str(Path(__file__).parent / 'src'))
+    from features.panda_stats import PandaStats
+
+    p = PandaStats()
+    assert 0 <= p.hunger <= 100,   f"hunger default out of range: {p.hunger}"
+    assert 0 <= p.happiness <= 100, f"happiness default out of range: {p.happiness}"
+    assert 0 <= p.energy <= 100,   f"energy default out of range: {p.energy}"
+    print(f"  ✅ Runtime: defaults — hunger={p.hunger} happiness={p.happiness} energy={p.energy}")
+
+    # Starvation scenario → happiness should decay faster
+    p.hunger = 10
+    p.happiness = 50
+    p.tick_wellbeing(60)
+    assert p.hunger < 10, "tick_wellbeing should reduce hunger"
+    hungry_happiness = p.happiness
+
+    p2 = PandaStats()
+    p2.hunger = 80
+    p2.happiness = 50
+    p2.tick_wellbeing(60)
+    assert p2.happiness >= hungry_happiness, \
+        "Well-fed panda should lose happiness more slowly than starving one"
+    print("  ✅ Runtime: starvation causes faster happiness decay than well-fed state")
+
+    # on_fed increases hunger and happiness
+    p3 = PandaStats()
+    p3.hunger = 30; p3.happiness = 40
+    p3.on_fed(20, 10)
+    assert p3.hunger == 50, f"on_fed should raise hunger to 50, got {p3.hunger}"
+    assert p3.happiness == 50, f"on_fed should raise happiness to 50, got {p3.happiness}"
+    print("  ✅ Runtime: on_fed() correctly increases hunger and happiness")
+
+    # on_petted increases happiness
+    p4 = PandaStats()
+    before = p4.happiness
+    p4.on_petted()
+    assert p4.happiness > before, f"on_petted() should increase happiness"
+    print("  ✅ Runtime: on_petted() increases happiness")
+
+
 def run_all_tests():
     print("=" * 65)
     print("Hybrid Architecture + Lazy rembg Import Tests")
@@ -6045,6 +6114,7 @@ def run_all_tests():
         test_bamboo_catcher_minigame,
         test_panda_world_dungeon_entrance,
         test_image_preview_widget_zoom,
+        test_panda_stats_wellbeing,
     ]
 
     passed, failed = [], []
