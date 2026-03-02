@@ -6,7 +6,7 @@ Pure PyQt6 graphics rendering for dungeon visualization.
 
 try:
     from PyQt6.QtWidgets import QGraphicsView, QGraphicsScene, QGraphicsRectItem, QGraphicsEllipseItem, QGraphicsTextItem
-    from PyQt6.QtCore import Qt, QRectF, QPointF
+    from PyQt6.QtCore import Qt, QRectF, QPointF, QTimer
     from PyQt6.QtGui import QColor, QPen, QBrush, QPainter
     PYQT_AVAILABLE = True
 except (ImportError, OSError, RuntimeError):
@@ -95,6 +95,8 @@ class DungeonGraphicsView(QGraphicsView):
         self._player_x: int = 1
         self._player_y: int = 1
         self._player_item: 'Optional[QGraphicsTextItem]' = None
+        # Enemy graphic items (cleared and redrawn each tick)
+        self._enemy_items: list = []
         
         # Create scene
         self.scene = QGraphicsScene()
@@ -113,6 +115,11 @@ class DungeonGraphicsView(QGraphicsView):
         
         # Initial render
         self.render_dungeon()
+
+        # Game loop — updates enemies every 500 ms
+        self._game_timer = QTimer(self)
+        self._game_timer.timeout.connect(self._game_tick)
+        self._game_timer.start(500)
 
     def set_dungeon(self, dungeon):
         """Set the dungeon data and re-render."""
@@ -270,6 +277,51 @@ class DungeonGraphicsView(QGraphicsView):
         lbl.setZValue(10)   # above tiles
         self.scene.addItem(lbl)
         self._player_item = lbl
+
+    def _game_tick(self) -> None:
+        """Periodic game loop: update enemy AI and redraw enemies."""
+        if self.dungeon is None:
+            return
+        try:
+            if hasattr(self.dungeon, 'update_enemies'):
+                self.dungeon.update_enemies(0.5)  # 500 ms step
+        except Exception:
+            pass
+        self._redraw_enemies()
+        self.viewport().update()  # refresh HUD
+
+    def _redraw_enemies(self) -> None:
+        """Remove old enemy graphics and re-draw current positions."""
+        for item in self._enemy_items:
+            try:
+                self.scene.removeItem(item)
+            except Exception:
+                pass
+        self._enemy_items = []
+
+        if self.dungeon is None or not hasattr(self.dungeon, 'get_enemies_on_current_floor'):
+            return
+        try:
+            enemies = self.dungeon.get_enemies_on_current_floor()
+        except Exception:
+            return
+        ts = self.tile_size
+        for enemy in enemies:
+            alive = getattr(enemy, 'alive', True)
+            if not alive:
+                continue
+            ex = getattr(enemy, 'x', None)
+            ey = getattr(enemy, 'y', None)
+            if ex is None or ey is None:
+                continue
+            lbl = QGraphicsTextItem("👾")
+            font = lbl.font()
+            font.setPixelSize(max(12, ts - 10))
+            lbl.setFont(font)
+            lbl.setPos(ex * ts, ey * ts - 4)
+            lbl.setZValue(9)   # below player (ZValue=10)
+            self.scene.addItem(lbl)
+            self._enemy_items.append(lbl)
 
     def drawForeground(self, painter: 'QPainter', rect: 'QRectF') -> None:
         """Draw HUD overlay (health bar + floor number) on top of the scene."""
