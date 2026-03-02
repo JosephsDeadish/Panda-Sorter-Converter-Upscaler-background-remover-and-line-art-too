@@ -5599,6 +5599,10 @@ def test_panda_progressive_food_eating():
         "panda_widget_gl.py: yank_food_item() method missing"
     print("  ✅ Source: yank_food_item() method present")
 
+    assert 'def walk_to_item_and_eat' in code, \
+        "panda_widget_gl.py: walk_to_item_and_eat() method missing"
+    print("  ✅ Source: walk_to_item_and_eat() method present")
+
     assert 'eat_progress' in code, \
         "panda_widget_gl.py: eat_progress not referenced"
     print("  ✅ Source: eat_progress referenced")

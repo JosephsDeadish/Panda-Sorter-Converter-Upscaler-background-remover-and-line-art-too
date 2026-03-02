@@ -5117,7 +5117,9 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
         
         # Remove item after interaction if it's consumable
         if item_type == 'food':
-            QTimer.singleShot(1000, lambda: self._remove_item(item_index))
+            # Use progressive bite system — walk up and take first bite.
+            # Further bites are triggered by walk_to_item_and_eat().
+            QTimer.singleShot(800, lambda: self.take_food_bite(item_index))
     
     def _remove_item(self, item_index: int):
         """Internal method to remove an item from scene."""
@@ -5125,6 +5127,36 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
             self.items_3d.pop(item_index)
             self.update()
     
+    def walk_to_item_and_eat(self, item_index: int) -> None:
+        """Walk the panda to a food item and eat it bite-by-bite.
+
+        The panda walks to the item, then takes progressive bites (0.25 each)
+        with a short delay between bites so the shrinking is visible.  When
+        eat_progress reaches 1.0 the item is removed and food_eaten is emitted.
+
+        If the item is not food, or the index is invalid, nothing happens.
+        """
+        if item_index < 0 or item_index >= len(self.items_3d):
+            return
+        item = self.items_3d[item_index]
+        if item.get('type') != 'food':
+            return
+
+        def _eat_next():
+            # Guard: item may have been removed or index shifted
+            if item_index >= len(self.items_3d):
+                return
+            current = self.items_3d[item_index]
+            if current.get('type') != 'food':
+                return
+            progress = self.take_food_bite(item_index)
+            if progress < 1.0:
+                # Schedule next bite in 900 ms so the chew animation is visible
+                QTimer.singleShot(900, _eat_next)
+
+        # Walk to the item first, then start eating on arrival
+        self.walk_to_item(item_index, callback=_eat_next)
+
     def react_to_collision(self, collision_point: tuple, intensity: float = 1.0):
         """
         Make panda react to collision (being hit by object, hitting wall, etc.).
