@@ -1342,7 +1342,7 @@ class PandaWorldGL(
             dlg = QDialog(self)
             dlg.setWindowTitle("🚗 Where to?")
             dlg.setModal(True)
-            dlg.setFixedSize(240, 180)
+            dlg.setFixedSize(240, 230)
             dlg.setStyleSheet(
                 "QDialog{background:#1a2a3a;color:#ddddff;}"
                 "QPushButton{background:#2a3a5a;color:#eeeeff;border:1px solid #445;border-radius:6px;"
@@ -1351,7 +1351,12 @@ class PandaWorldGL(
             )
             vbox = QVBoxLayout(dlg)
             vbox.addWidget(_QLabel("🐼 Where shall we go?", dlg))
-            for dest, label in (('shop', '🛒  Otter Shop'), ('park', '🌲  Panda Park'), ('home', '🏠  Back Home')):
+            for dest, label in (
+                ('shop',    '🛒  Otter Shop'),
+                ('park',    '🌲  Panda Park'),
+                ('dungeon', '⚔️  Dungeon Adventure'),
+                ('home',    '🏠  Back Home'),
+            ):
                 btn = QPushButton(label, dlg)
                 btn.setToolTip(f"Travel to {label.strip()}")
                 btn.clicked.connect(lambda _, d=dest: (dlg.accept(), self.destination_selected.emit(d)))

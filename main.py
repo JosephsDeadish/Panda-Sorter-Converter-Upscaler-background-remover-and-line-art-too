@@ -1177,6 +1177,7 @@ class TextureSorterMainWindow(QMainWindow):
         self._achievement_tab_index = -1  # panda_tabs index for the Achievements tab
         self._backpack_merged_panel = None  # Merged Inventory+Widgets QTabWidget (built once)
         self._park_panel = None         # MinigamePanelQt — cached (park destination)
+        self._dungeon_3d_panel = None   # Dungeon3DWidget — cached (dungeon destination)
         self.level_system = None        # UserLevelSystem – XP / levelling
         self.auto_backup = None         # AutoBackupSystem – periodic state backup
         self.unlockables_system = None  # UnlockablesSystem – cursors/themes/outfits
@@ -6561,10 +6562,86 @@ class TextureSorterMainWindow(QMainWindow):
                 self._on_otter_clicked()
             elif destination == 'park':
                 self._on_go_to_park()
+            elif destination == 'dungeon':
+                self._on_go_to_dungeon()
             elif destination == 'home':
                 self._go_back_to_bedroom()
         except Exception as _e:
             logger.debug(f"_on_world_destination_selected({destination}): {_e}")
+
+    def _on_go_to_dungeon(self) -> None:
+        """Drive the panda to the dungeon: play a car-travel animation then show the 3-D dungeon."""
+        try:
+            # Show travel animation first, then switch to 3-D dungeon when complete
+            from ui.qt_travel_animation import TravelAnimationWidget, TravelScene, SceneType
+            from features.travel_system import TravelSystem
+
+            dungeon_scenes = [
+                TravelScene(
+                    scene_type=SceneType.GET_IN_CAR,
+                    sky_color="#1a1a2a", ground_color="#2a2a1a",
+                    road_color="#555555", detail_emoji="🌑",
+                    description="🐼 Panda gets in the car…",
+                    duration_ms=1500,
+                ),
+                TravelScene(
+                    scene_type=SceneType.DRIVING,
+                    sky_color="#0d0d1a", ground_color="#1a1a0d",
+                    road_color="#444444", detail_emoji="🌲",
+                    description="🚗 Driving to the dungeon…",
+                    duration_ms=2500,
+                ),
+                TravelScene(
+                    scene_type=SceneType.ARRIVE,
+                    sky_color="#0a0505", ground_color="#1a0a0a",
+                    road_color="#333333", detail_emoji="🏰",
+                    description="⚔️ Arriving at the dungeon!",
+                    duration_ms=1800,
+                ),
+            ]
+            _ts = getattr(self, 'travel_system', None) or TravelSystem()
+            travel_anim = TravelAnimationWidget(scenes=dungeon_scenes, travel_system=_ts)
+            self._show_home_sub_panel(travel_anim, '🚗 Driving to Dungeon…')
+            self.statusBar().showMessage("🚗 Panda is driving to the dungeon…", 4000)
+            if self.panda_widget:
+                self.panda_widget.set_animation_state('walking')
+
+            def _enter_dungeon():
+                try:
+                    if self._dungeon_3d_panel is None:
+                        from ui.dungeon_3d_widget import Dungeon3DWidget
+                        from features.integrated_dungeon import IntegratedDungeon
+                        dungeon = self.integrated_dungeon or IntegratedDungeon(
+                            level_system=getattr(self, 'level_system', None),
+                            currency_system=getattr(self, 'currency_system', None),
+                        )
+                        self._dungeon_3d_panel = Dungeon3DWidget(
+                            dungeon=dungeon, tooltip_manager=self.tooltip_manager
+                        )
+                        # NOT added to _home_stack_owned — persistent panel
+                    self._show_home_sub_panel(self._dungeon_3d_panel, '⚔️ Dungeon Adventure')
+                    self.statusBar().showMessage(
+                        "⚔️ Dungeon! WASD/Arrows: move  |  Q/E: turn  |  Mouse-drag: look", 6000
+                    )
+                    if self.panda_widget:
+                        self.panda_widget.set_animation_state('idle')
+                except Exception as _de:
+                    logger.warning(f"_enter_dungeon: {_de}")
+                    lbl = QLabel(
+                        "⚔️ Dungeon Adventure\n\n"
+                        "3-D dungeon requires PyOpenGL.\n\n"
+                        "Install:  pip install PyOpenGL PyOpenGL_accelerate\n\n"
+                        "The 2-D dungeon view is on the ⚔️ Adventure tab."
+                    )
+                    lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
+                    lbl.setWordWrap(True)
+                    lbl.setStyleSheet("background:#12090a;color:#aaaaaa;font-size:12px;padding:20px;")
+                    self._show_home_sub_panel(lbl, '⚔️ Dungeon Adventure')
+
+            travel_anim.animation_complete.connect(_enter_dungeon)
+            travel_anim.start_animation()
+        except Exception as _e:
+            logger.warning(f"_on_go_to_dungeon: {_e}")
 
     def _on_go_to_park(self) -> None:
         """Show the park sub-panel (minigames / free play area) — cached like shop."""
