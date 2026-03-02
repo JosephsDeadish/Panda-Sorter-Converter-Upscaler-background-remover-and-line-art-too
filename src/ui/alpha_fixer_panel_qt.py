@@ -100,6 +100,17 @@ except Exception as _e:
 logger = logging.getLogger(__name__)
 
 try:
+    from ui.live_preview_slider_qt import ComparisonSliderWidget
+    _SLIDER_AVAILABLE = True
+except (ImportError, OSError, RuntimeError):
+    try:
+        from live_preview_slider_qt import ComparisonSliderWidget  # type: ignore[no-redef]
+        _SLIDER_AVAILABLE = True
+    except (ImportError, OSError, RuntimeError):
+        ComparisonSliderWidget = None  # type: ignore[assignment,misc]
+        _SLIDER_AVAILABLE = False
+
+try:
     from utils.archive_handler import ArchiveHandler
     ARCHIVE_AVAILABLE = True
 except (ImportError, OSError, RuntimeError):
@@ -484,15 +495,21 @@ class AlphaFixerPanelQt(QWidget):
         layout.addWidget(group)
     
     def _create_preview_section(self, layout):
-        """Create preview section."""
+        """Create preview section with before/after comparison when available."""
         group = QGroupBox("👁️ Preview")
         group_layout = QVBoxLayout()
         
-        self.preview_label = QLabel("Select files to preview")
-        self.preview_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.preview_label.setMinimumSize(400, 400)
-        self.preview_label.setStyleSheet("border: 2px dashed gray; background-color: #f0f0f0;")
-        group_layout.addWidget(self.preview_label)
+        if _SLIDER_AVAILABLE and ComparisonSliderWidget is not None:
+            self._preview_widget = ComparisonSliderWidget()
+            self._preview_widget.setMinimumSize(400, 400)
+            group_layout.addWidget(self._preview_widget)
+        else:
+            self._preview_widget = None
+            self.preview_label = QLabel("Select files to preview")
+            self.preview_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            self.preview_label.setMinimumSize(400, 400)
+            self.preview_label.setStyleSheet("border: 2px dashed gray; background-color: #f0f0f0;")
+            group_layout.addWidget(self.preview_label)
         
         # Info label
         self.info_label = QLabel("")
@@ -567,7 +584,7 @@ class AlphaFixerPanelQt(QWidget):
         self.defringe_slider.setValue(hint)
     
     def _preview_first(self):
-        """Preview first selected image."""
+        """Preview first selected image — 'before' side of the comparison slider."""
         if not self.selected_files:
             QMessageBox.warning(self, "No Files", "Please select files first")
             return
@@ -581,7 +598,11 @@ class AlphaFixerPanelQt(QWidget):
             qimage = QImage(data, image.width, image.height, QImage.Format.Format_RGBA8888)
             pixmap = QPixmap.fromImage(qimage)
             
-            self.preview_label.setPixmap(pixmap)
+            if self._preview_widget is not None:
+                self._preview_widget.set_before_image(pixmap)
+                self._preview_widget.set_after_image(pixmap)
+            else:
+                self.preview_label.setPixmap(pixmap)
             self.info_label.setText(f"Preview: {Path(self.selected_files[0]).name}")
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Preview failed: {str(e)}")
@@ -641,6 +662,21 @@ class AlphaFixerPanelQt(QWidget):
             self.cancel_btn.setVisible(False)
         
         if success:
+            # Load the processed result into the 'after' side of the comparison slider
+            if (self._preview_widget is not None and self.selected_files
+                    and self.output_directory):
+                try:
+                    from pathlib import Path as _Path
+                    out_path = _Path(self.output_directory) / _Path(self.selected_files[0]).name
+                    if out_path.exists():
+                        after_img = Image.open(out_path)
+                        after_img.thumbnail((400, 400), Image.Resampling.LANCZOS)
+                        data = after_img.convert("RGBA").tobytes("raw", "RGBA")
+                        qi = QImage(data, after_img.width, after_img.height,
+                                    after_img.width * 4, QImage.Format.Format_RGBA8888)
+                        self._preview_widget.set_after_image(QPixmap.fromImage(qi))
+                except Exception:
+                    pass
             QMessageBox.information(self, "Complete", message)
             self.progress_label.setText("✓ Processing complete")
         else:
