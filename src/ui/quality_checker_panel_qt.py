@@ -537,7 +537,7 @@ class QualityCheckerPanelQt(QWidget):
             return
         try:
             if 'CSV' in selected_filter or path.lower().endswith('.csv'):
-                import csv, io
+                import csv
                 lines = text.splitlines()
                 with open(path, 'w', encoding='utf-8', newline='') as fh:
                     writer = csv.writer(fh)

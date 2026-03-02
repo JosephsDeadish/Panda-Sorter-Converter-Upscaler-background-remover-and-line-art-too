@@ -552,9 +552,9 @@ class BatchFormatNormalizer:
         if output_path.resolve() == input_path.resolve():
             output_path = output_dir / f"{input_path.stem}_normalized{ext}"
         counter = 1
-        while output_path.exists() and output_path.resolve() != input_path.resolve():
-            stem = (output_dir / name).stem
-            output_path = output_dir / f"{stem}_{counter}{ext}"
+        base_stem = (output_dir / name).stem
+        while output_path.exists():
+            output_path = output_dir / f"{base_stem}_{counter}{ext}"
             counter += 1
         
         return output_path

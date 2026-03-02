@@ -715,7 +715,8 @@ class FileBrowserPanelQt(QWidget):
 
         reveal_action = QAction("📂 Reveal in Explorer", self)
         def _reveal():
-            import subprocess as _sp, platform as _pl, os as _os
+            import subprocess as _sp
+            import platform as _pl
             try:
                 if _pl.system() == 'Darwin':
                     _sp.Popen(('open', '-R', str(filepath)))
