@@ -5799,7 +5799,11 @@ class TextureSorterMainWindow(QMainWindow):
                     self.currency_system.earn_money(coins, f'panda_feed_{item_id}')
                     self._update_coin_display()
             if self.panda_stats:
-                self.panda_stats.increment_feeds()
+                # Use on_fed() to restore hunger and boost happiness; also calls increment_feeds()
+                if hasattr(self.panda_stats, 'on_fed'):
+                    self.panda_stats.on_fed(hunger_restore=20, happiness_boost=10)
+                else:
+                    self.panda_stats.increment_feeds()
             if self.panda_mood_system:
                 self.panda_mood_system.on_user_interaction('feed')
         except Exception as _e:

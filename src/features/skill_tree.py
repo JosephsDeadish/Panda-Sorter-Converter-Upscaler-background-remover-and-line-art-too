@@ -689,6 +689,31 @@ class SkillTree:
     def get_total_skill_points_spent(self) -> int:
         """Calculate total skill points spent."""
         return sum(skill.cost for skill in self.get_unlocked_skills())
+
+    def get_total_effect(self, effect_key: str, default: int = 0) -> int:
+        """Sum the numeric value of *effect_key* across all unlocked skills.
+
+        Useful for storage effects such as ``'dungeon_slots'``, ``'toy_slots'``,
+        or any custom effect key added by the storage/equipment branches.
+
+        Args:
+            effect_key: The effect dictionary key to aggregate.
+            default: Returned when no unlocked skill provides this effect.
+
+        Returns:
+            Sum of all matching effect values (integer).  Only the *maximum*
+            is returned for effects where accumulation makes no sense — but
+            for slot counts we sum, matching the intent of "Bag Upgrade I/II"
+            raising the cap progressively.
+        """
+        total = 0
+        found = False
+        for skill in self.get_unlocked_skills():
+            val = skill.effects.get(effect_key)
+            if val is not None:
+                total = max(total, val)  # take the highest single-skill value (bag upgrades replace, not stack)
+                found = True
+        return total if found else default
     
     def reset_skills(self):
         """Reset all unlocked skills."""
