@@ -642,6 +642,7 @@ class LineArtConverterPanelQt(QWidget):
         self.selected_files: List[str] = []
         self.preview_worker = None
         self.conversion_worker = None
+        self.setAcceptDrops(True)  # drag-and-drop image files directly onto panel
         
         # Track whether widgets have been fully initialized
         self._widgets_initialized = False
@@ -658,6 +659,43 @@ class LineArtConverterPanelQt(QWidget):
         
         # Now apply the default preset (widgets are guaranteed to exist)
         self._on_preset_changed(self.preset_combo.currentText())
+
+    # ── Drag-and-drop support ──────────────────────────────────────────────
+    def dragEnterEvent(self, event) -> None:
+        if event.mimeData().hasUrls():
+            event.acceptProposedAction()
+        else:
+            event.ignore()
+
+    def dropEvent(self, event) -> None:
+        """Accept dropped image files into the lineart conversion queue."""
+        _EXTS = {'.png', '.jpg', '.jpeg', '.bmp', '.tiff', '.tif', '.webp'}
+        existing = set(self.selected_files)
+        added = []
+        for url in event.mimeData().urls():
+            path = Path(url.toLocalFile())
+            if path.is_file() and path.suffix.lower() in _EXTS:
+                s = str(path)
+                if s not in existing:
+                    added.append(s)
+                    existing.add(s)
+            elif path.is_dir():
+                for child in path.iterdir():
+                    if child.suffix.lower() in _EXTS:
+                        s = str(child)
+                        if s not in existing:
+                            added.append(s)
+                            existing.add(s)
+        if added:
+            self.selected_files.extend(added)
+            if not self.selected_file:
+                self.selected_file = self.selected_files[0]
+            count = len(self.selected_files)
+            if hasattr(self, 'file_label'):
+                self.file_label.setText(f"{count} file{'s' if count != 1 else ''} selected")
+            if len(added) == 1 and hasattr(self, 'preview_timer'):
+                self.preview_timer.start(300)
+        event.acceptProposedAction()
     
     def _create_widgets(self):
         """Create the UI widgets."""
