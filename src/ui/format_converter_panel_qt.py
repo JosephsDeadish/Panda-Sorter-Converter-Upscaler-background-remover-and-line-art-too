@@ -237,6 +237,10 @@ class _ConvertWorker(QThread):
                 # ── Resize ────────────────────────────────────────────────
                 img = _resize_image(img, resize_md, s)
 
+                # ── Watermark ─────────────────────────────────────────────
+                if s.get("watermark_enabled") and s.get("watermark_text"):
+                    img = _apply_watermark(img, s)
+
                 # ── ICO size cap ──────────────────────────────────────────
                 if pil_fmt == "ICO":
                     img.thumbnail((256, 256), Image.Resampling.LANCZOS)
@@ -324,6 +328,56 @@ def _resize_image(img: "Image.Image", mode: str, s: dict) -> "Image.Image":
         resized_rgb = img_rgb.resize((nw, nh), Image.Resampling.LANCZOS)
         return resized_rgb.quantize(colors=256)
     return img.resize((nw, nh), Image.Resampling.LANCZOS)
+
+
+def _apply_watermark(img: "Image.Image", s: dict) -> "Image.Image":
+    """Stamp a semi-transparent text watermark onto *img*."""
+    try:
+        from PIL import Image as _Img, ImageDraw, ImageFont
+        text    = s.get("watermark_text", "")
+        pos_key = s.get("watermark_pos", "Bottom-right")
+        opacity = int(s.get("watermark_opacity", 60) / 100 * 255)
+
+        # Work on an RGBA copy so we can composite
+        base = img.convert("RGBA")
+        layer = _Img.new("RGBA", base.size, (0, 0, 0, 0))
+        draw = ImageDraw.Draw(layer)
+
+        try:
+            font = ImageFont.truetype("arial.ttf", max(12, min(base.width, base.height) // 20))
+        except OSError:
+            font = ImageFont.load_default()
+
+        # Measure text
+        try:
+            bbox = draw.textbbox((0, 0), text, font=font)
+            tw = bbox[2] - bbox[0]
+            th = bbox[3] - bbox[1]
+        except AttributeError:
+            tw, th = draw.textsize(text, font=font)  # type: ignore[attr-defined]
+
+        pad = 8
+        w, h = base.size
+        _positions = {
+            "Bottom-right": (w - tw - pad, h - th - pad),
+            "Bottom-left":  (pad, h - th - pad),
+            "Top-right":    (w - tw - pad, pad),
+            "Top-left":     (pad, pad),
+            "Center":       ((w - tw) // 2, (h - th) // 2),
+        }
+        x, y = _positions.get(pos_key, (w - tw - pad, h - th - pad))
+
+        # Draw shadow, then white text
+        draw.text((x + 1, y + 1), text, font=font, fill=(0, 0, 0, opacity))
+        draw.text((x, y), text, font=font, fill=(255, 255, 255, opacity))
+
+        combined = _Img.alpha_composite(base, layer)
+        # Return in the original mode if it wasn't RGBA
+        if img.mode != "RGBA":
+            combined = combined.convert(img.mode if img.mode in ("RGB", "L", "P") else "RGB")
+        return combined
+    except Exception:
+        return img  # watermark is optional — never fail the conversion
 
 
 # ─── Panel ────────────────────────────────────────────────────────────────────
@@ -568,6 +622,36 @@ if _PYQT:
             self._rsz_row_fixed.hide()
             lv.addWidget(rsz_box)
 
+            # Watermark
+            wm_box = QGroupBox("💧 Watermark (optional)")
+            wm_lay = QGridLayout(wm_box)
+            wm_lay.setSpacing(4)
+            wm_lay.setColumnMinimumWidth(0, 80)
+            wm_lay.setColumnStretch(1, 1)
+
+            self._wm_enable = QCheckBox("Add text watermark")
+            wm_lay.addWidget(self._wm_enable, 0, 0, 1, 2)
+
+            wm_lay.addWidget(QLabel("Text:"), 1, 0)
+            self._wm_text = QLineEdit()
+            self._wm_text.setPlaceholderText("© Your Name")
+            wm_lay.addWidget(self._wm_text, 1, 1)
+
+            wm_lay.addWidget(QLabel("Position:"), 2, 0)
+            self._wm_pos = QComboBox()
+            for _pos in ("Bottom-right", "Bottom-left", "Top-right", "Top-left", "Center"):
+                self._wm_pos.addItem(_pos)
+            wm_lay.addWidget(self._wm_pos, 2, 1)
+
+            wm_lay.addWidget(QLabel("Opacity:"), 3, 0)
+            self._wm_opacity = QSpinBox()
+            self._wm_opacity.setRange(10, 100)
+            self._wm_opacity.setValue(60)
+            self._wm_opacity.setSuffix(" %")
+            wm_lay.addWidget(self._wm_opacity, 3, 1)
+
+            lv.addWidget(wm_box)
+
             lv.addStretch()
             splitter.addWidget(left)
 
@@ -776,6 +860,10 @@ if _PYQT:
                 "skip_existing":  self._skip_existing.isChecked(),
                 "name_template":  name_tpl,
                 "name_suffix":    self._suffix_edit.text(),
+                "watermark_enabled": self._wm_enable.isChecked(),
+                "watermark_text":    self._wm_text.text().strip(),
+                "watermark_pos":     self._wm_pos.currentText(),
+                "watermark_opacity": self._wm_opacity.value(),
             }
 
         # ── Conversion control ────────────────────────────────────────────
