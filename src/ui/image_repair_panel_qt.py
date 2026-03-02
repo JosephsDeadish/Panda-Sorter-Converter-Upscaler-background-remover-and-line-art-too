@@ -405,6 +405,11 @@ class ImageRepairPanelQt(QWidget):
         self.cancel_btn.clicked.connect(self._cancel_operation)
         btn_layout.addWidget(self.cancel_btn)
         self._set_tooltip(self.cancel_btn, "Cancel the current operation")
+
+        self.export_report_btn = QPushButton("💾 Export Report")
+        self.export_report_btn.clicked.connect(self._export_diagnostic_report)
+        btn_layout.addWidget(self.export_report_btn)
+        self._set_tooltip(self.export_report_btn, "Save the diagnostic results to a text file")
         
         layout.addLayout(btn_layout)
     
@@ -635,6 +640,27 @@ class ImageRepairPanelQt(QWidget):
         
         self.progress_bar.setVisible(False)
         self._set_ui_enabled(True)
+
+    def _export_diagnostic_report(self):
+        """Save the diagnostic results to a text file chosen by the user."""
+        text = self.diagnostic_text.toPlainText()
+        if not text:
+            QMessageBox.information(self, "Nothing to Export", "Run diagnostics first.")
+            return
+        path, _ = QFileDialog.getSaveFileName(
+            self,
+            "Export Diagnostic Report",
+            "repair_report.txt",
+            "Text Files (*.txt);;All Files (*.*)",
+        )
+        if not path:
+            return
+        try:
+            with open(path, 'w', encoding='utf-8') as fh:
+                fh.write(text)
+            self.progress_label.setText(f"💾 Report saved to {Path(path).name}")
+        except Exception as _e:
+            QMessageBox.critical(self, "Export Failed", f"Could not save report:\n{_e}")
     
     def _set_ui_enabled(self, enabled):
         """Enable/disable UI elements."""
