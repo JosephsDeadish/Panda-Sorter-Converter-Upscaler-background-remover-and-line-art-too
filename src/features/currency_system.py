@@ -150,6 +150,10 @@ class CurrencySystem:
         """Check if can afford amount."""
         return self.balance >= amount
 
+    def add_coins(self, amount: int, reason: str = 'sell_refund') -> int:
+        """Alias for earn_money(); used by the shop sell panel to credit refunds."""
+        return self.earn_money(amount, reason=reason)
+
     def subtract(self, _unused_currency_name: str, amount: int) -> bool:
         """Alias for spend_money(); ignores the currency-name argument."""
         return self.spend_money(amount, reason=f'subtract:{_unused_currency_name}')
