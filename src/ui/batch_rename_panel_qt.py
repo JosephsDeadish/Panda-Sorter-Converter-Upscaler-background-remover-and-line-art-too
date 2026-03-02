@@ -13,7 +13,7 @@ try:
         QTextEdit, QFileDialog, QMessageBox, QProgressBar, QFrame,
         QScrollArea, QGroupBox
     )
-    from PyQt6.QtCore import Qt, QThread, pyqtSignal
+    from PyQt6.QtCore import Qt, QThread, pyqtSignal, QTimer
     PYQT_AVAILABLE = True
 except (ImportError, OSError, RuntimeError):
     PYQT_AVAILABLE = False
@@ -156,6 +156,15 @@ class BatchRenamePanelQt(QWidget):
         self.selected_files: List[str] = []
         self.preview_data: List = []
         self.worker_thread = None
+
+        # Debounce timer for auto-preview (fires 400 ms after last keystroke)
+        if PYQT_AVAILABLE:
+            self._preview_timer = QTimer(self)
+            self._preview_timer.setSingleShot(True)
+            self._preview_timer.setInterval(400)
+            self._preview_timer.timeout.connect(self._generate_preview)
+        else:
+            self._preview_timer = None
         
         self._create_widgets()
     
@@ -295,6 +304,7 @@ class BatchRenamePanelQt(QWidget):
         template_layout.addWidget(QLabel("Custom Template:"))
         self.template_entry = QLineEdit()
         self.template_entry.setPlaceholderText("e.g., image_{index}_{date}")
+        self.template_entry.textChanged.connect(self._auto_preview)
         template_layout.addWidget(self.template_entry)
         self._set_tooltip(self.template_entry, 'rename_template')
         group_layout.addLayout(template_layout)
@@ -484,10 +494,14 @@ class BatchRenamePanelQt(QWidget):
             return checked_button.property("pattern")
         return RenamePattern.SEQUENTIAL
     
+    def _auto_preview(self):
+        """Restart the debounce timer so preview updates 400 ms after last keystroke."""
+        if self._preview_timer is not None and self.selected_files:
+            self._preview_timer.start()
+
     def _generate_preview(self):
-        """Generate rename preview."""
+        """Generate rename preview (also called automatically on template changes)."""
         if not self.selected_files:
-            QMessageBox.warning(self, "No Files", "Please select files first")
             return
         
         try:
