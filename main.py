@@ -6621,7 +6621,7 @@ class TextureSorterMainWindow(QMainWindow):
                         # NOT added to _home_stack_owned — persistent panel
                     self._show_home_sub_panel(self._dungeon_3d_panel, '⚔️ Dungeon Adventure')
                     self.statusBar().showMessage(
-                        "⚔️ Dungeon! WASD/Arrows: move  |  Q/E: turn  |  Mouse-drag: look", 6000
+                        "⚔️ Dungeon! WASD: move | F/LMB: melee | R/RMB: power | M: magic | Space: jump | E: interact", 8000
                     )
                     if self.panda_widget:
                         self.panda_widget.set_animation_state('idle')

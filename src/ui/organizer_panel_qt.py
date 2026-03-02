@@ -178,6 +178,11 @@ _STYLE_DESCRIPTIONS: dict = {
     "minimalist":    "Two-level hierarchy: broad category → filename only.",
     "maximum_detail": "Deep hierarchy: category → sub-type → resolution sub-folder.",
     "custom":        "Applies rules from your custom_style.json configuration file.",
+    # Console presets
+    "ps2":      "PlayStation 2 preset — category → map type → resolution tier (≤256 px).",
+    "psp":      "PSP preset — category → map type, no resolution tier (textures ≤128 px).",
+    "gamecube": "GameCube / Wii preset — category → map type → resolution tier (≤1024 px).",
+    "n64":      "Nintendo 64 preset — flat category → filename (textures ≤64 px).",
 }
 
 class OrganizerWorker(QThread):

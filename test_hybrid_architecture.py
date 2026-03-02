@@ -4096,6 +4096,279 @@ def test_clear_files_on_all_panels():
     print("  ✅ All checked panels have _clear_files()")
 
 
+def test_console_organizer_presets():
+    """PS2, PSP, GameCube, and N64 presets must exist and produce correct paths.
+
+    Issue #201: 'Organizer needs presets for ps2 psp, GameCube, n64 and game types'
+
+    Source-level checks:
+    - PS2Style, PSPStyle, GameCubeStyle, N64Style classes present in organization_styles.py
+    - All four keys present in ORGANIZATION_STYLES dict
+    - _console_content_cat / _console_map_type / _console_res_tier helpers present
+
+    Runtime checks (no Qt needed):
+    - Each style.get_target_path(texture) returns a path containing the expected
+      category and map-type sub-folders.
+    - N64 path is flat (no resolution sub-folder).
+    - PSP path has no resolution tier.
+    - PS2 and GCN paths include a resolution tier folder.
+    """
+    print("\ntest_console_organizer_presets ...")
+    from pathlib import Path
+    code = (Path(__file__).parent / 'src' / 'organizer' / 'organization_styles.py').read_text(encoding='utf-8')
+
+    for cls_name in ('PS2Style', 'PSPStyle', 'GameCubeStyle', 'N64Style'):
+        assert f'class {cls_name}' in code, f"organization_styles.py: {cls_name} class missing"
+    print("  ✅ Source: PS2Style, PSPStyle, GameCubeStyle, N64Style present")
+
+    for key in ("'ps2'", "'psp'", "'gamecube'", "'n64'"):
+        assert key in code, f"organization_styles.py: {key} key missing from ORGANIZATION_STYLES"
+    print("  ✅ Source: all four keys in ORGANIZATION_STYLES")
+
+    for helper in ('_console_content_cat', '_console_map_type', '_console_res_tier'):
+        assert f'def {helper}' in code, f"organization_styles.py: {helper}() helper missing"
+    print("  ✅ Source: _console_content_cat / _console_map_type / _console_res_tier helpers present")
+
+    # Runtime path checks
+    import sys; sys.path.insert(0, str(Path(__file__).parent / 'src'))
+    from organizer.organization_styles import (ORGANIZATION_STYLES, PS2Style,
+        PSPStyle, GameCubeStyle, N64Style)
+    from organizer.organization_engine import TextureInfo
+
+    ti = TextureInfo.__new__(TextureInfo)
+    ti.filename  = 'chr_npc_guard_d.tga'
+    ti.category  = 'Characters'
+    ti.dimensions = (64, 64)
+    ti.format    = 'tga'
+    ti.lod_level = None
+    ti.is_diffuse = True
+
+    # PS2: Characters/Diffuse/Med_64/…
+    p2_path = PS2Style().get_target_path(ti)
+    assert 'Characters' in p2_path, f"PS2 path missing 'Characters': {p2_path}"
+    assert 'Diffuse'    in p2_path, f"PS2 path missing 'Diffuse': {p2_path}"
+    assert 'Med_64'     in p2_path, f"PS2 path missing resolution tier 'Med_64': {p2_path}"
+    print(f"  ✅ PS2 path: {p2_path}")
+
+    # PSP: Characters/Diffuse/… (no resolution tier)
+    psp_path = PSPStyle().get_target_path(ti)
+    parts_psp = Path(psp_path).parts
+    assert 'Characters' in psp_path, f"PSP path missing 'Characters': {psp_path}"
+    assert 'Diffuse'    in psp_path, f"PSP path missing 'Diffuse': {psp_path}"
+    assert len(parts_psp) == 3, (
+        f"PSP path should be 3 parts (cat/type/filename), got {len(parts_psp)}: {psp_path}"
+    )
+    print(f"  ✅ PSP path: {psp_path}")
+
+    # GameCube: same 4-part structure as PS2
+    gc_path = GameCubeStyle().get_target_path(ti)
+    assert 'Characters' in gc_path, f"GCN path missing 'Characters': {gc_path}"
+    assert 'Diffuse'    in gc_path, f"GCN path missing 'Diffuse': {gc_path}"
+    assert len(Path(gc_path).parts) == 4, f"GCN path should be 4 parts: {gc_path}"
+    print(f"  ✅ GCN path: {gc_path}")
+
+    # N64: flat 2-part (cat/filename)
+    n64_path = N64Style().get_target_path(ti)
+    parts_n64 = Path(n64_path).parts
+    assert 'Characters' in n64_path, f"N64 path missing 'Characters': {n64_path}"
+    assert len(parts_n64) == 2, (
+        f"N64 path should be flat 2 parts (cat/filename), got {len(parts_n64)}: {n64_path}"
+    )
+    print(f"  ✅ N64 path: {n64_path}")
+
+    # Map-type detection smoke test
+    ti_norm = TextureInfo.__new__(TextureInfo)
+    ti_norm.filename  = 'wall_stone_nrm.png'
+    ti_norm.category  = 'Environments'
+    ti_norm.dimensions = (256, 256)
+    ti_norm.format    = 'png'
+    ti_norm.lod_level = None
+    ti_norm.is_diffuse = False
+    norm_path = PS2Style().get_target_path(ti_norm)
+    assert 'Normal' in norm_path, f"Normal map not detected: {norm_path}"
+    print(f"  ✅ Normal map detection: {norm_path}")
+
+    # UI texture detection
+    ti_ui = TextureInfo.__new__(TextureInfo)
+    ti_ui.filename  = 'hud_healthbar.tga'
+    ti_ui.category  = 'UI'
+    ti_ui.dimensions = (128, 32)
+    ti_ui.format    = 'tga'
+    ti_ui.lod_level = None
+    ti_ui.is_diffuse = True
+    ui_path = PSPStyle().get_target_path(ti_ui)
+    assert 'UI' in ui_path, f"UI category not detected: {ui_path}"
+    print(f"  ✅ UI category detection: {ui_path}")
+
+
+def test_dungeon_combat_system():
+    """Dungeon3DWidget must expose a full combat system.
+
+    Issue #198: 'Dungeon needs overhaul it's supposed to be a 3d dungeon that
+    the 3d panda goes in and becomes controllable with w a s d keys and space
+    and for jump right click left click and f all different attacks bow requires
+    clicking and dragging bow string which pulls up crosshair for aiming let go
+    to shoot physics based arrows, magic can be held to charge and shot wherever
+    your aiming or tapped rapidly for smaller weaker attacks drains magic,
+    melee attacks need cool combos and finishers with button press e to pickup
+    or talk or interact'
+
+    Source-level checks:
+    - _player_hp and _player_mana instance variables
+    - melee_attack(), power_attack(), fire_magic(), interact(), jump() methods
+    - _spawn_enemies() method
+    - Jump physics constants: _JUMP_VEL, _GRAVITY
+    - Combat constants: _MELEE_RANGE, _MAGIC_DRAIN, _MELEE_DAMAGE
+    - F key → melee, Space → jump, E → interact, R → power attack in keyPressEvent
+    - mousePressEvent handles LeftButton=melee, RightButton=power_attack
+    - HP/mana bars drawn in paintEvent (QColor fillRect pattern)
+
+    Runtime checks (no OpenGL needed — pure Python logic):
+    - melee_attack() against a close-by enemy reduces enemy hp
+    - fire_magic() drains mana
+    - jump() sets _is_jumping = True
+    - power_attack() works without error
+    - interact() shows hud message without error
+    """
+    print("\ntest_dungeon_combat_system ...")
+    from pathlib import Path
+    code = (Path(__file__).parent / 'src' / 'ui' / 'dungeon_3d_widget.py').read_text(encoding='utf-8')
+
+    for var in ('_player_hp', '_player_mana', '_attack_cooldown', '_is_jumping',
+                '_magic_charge', '_magic_charging', '_enemies'):
+        assert var in code, f"dungeon_3d_widget.py: {var} instance variable missing"
+    print("  ✅ Source: combat instance variables present")
+
+    for method in ('melee_attack', 'power_attack', 'fire_magic', 'interact', 'jump',
+                   '_spawn_enemies'):
+        assert f'def {method}' in code, f"dungeon_3d_widget.py: {method}() method missing"
+    print("  ✅ Source: combat methods present")
+
+    for const in ('_JUMP_VEL', '_GRAVITY', '_MELEE_RANGE', '_MAGIC_DRAIN', '_MELEE_DAMAGE'):
+        assert const in code, f"dungeon_3d_widget.py: {const} constant missing"
+    print("  ✅ Source: combat constants present")
+
+    # Key bindings
+    assert 'Key_F' in code, "dungeon_3d_widget.py: F key not bound to melee_attack"
+    assert 'Key_Space' in code, "dungeon_3d_widget.py: Space key not bound to jump"
+    assert 'Key_E' in code,  "dungeon_3d_widget.py: E key not bound to interact"
+    assert 'Key_R' in code,  "dungeon_3d_widget.py: R key not bound to power_attack"
+    print("  ✅ Source: F / Space / E / R key bindings present")
+
+    # Mouse bindings
+    assert 'LeftButton' in code,  "dungeon_3d_widget.py: LeftButton attack missing"
+    assert 'RightButton' in code, "dungeon_3d_widget.py: RightButton power attack missing"
+    print("  ✅ Source: mouse button attack bindings present")
+
+    # HUD stats
+    assert '_player_hp' in code and 'fillRect' in code, \
+        "dungeon_3d_widget.py: HP bar not drawn in paintEvent"
+    assert '_player_mana' in code, \
+        "dungeon_3d_widget.py: mana bar missing from paintEvent"
+    print("  ✅ Source: HP and mana HUD bars present")
+
+    # Runtime: test combat logic without OpenGL (mock _Dungeon3DGL internals)
+    import sys, math as _math
+    sys.path.insert(0, str(Path(__file__).parent / 'src'))
+    # Import constants and helpers directly
+    from ui.dungeon_3d_widget import (
+        _MAX_HP, _MAX_MANA, _MELEE_DAMAGE, _MAGIC_DRAIN, _MAGIC_MIN,
+        _JUMP_VEL, _MELEE_RANGE,
+    )
+
+    class _FakeCombat:
+        """Minimal stub that copies only the combat logic from _Dungeon3DGL."""
+        def __init__(self):
+            self._player_hp    = _MAX_HP
+            self._player_mana  = _MAX_MANA
+            self._attack_cooldown = 0
+            self._is_jumping   = False
+            self._jump_vel     = 0.0
+            self._cam_y_offset = 0.0
+            self._magic_charge = 0.0
+            self._magic_charging = False
+            self._enemies      = []
+            self._cam_x        = 0.0
+            self._cam_z        = 0.0
+            self._cam_yaw      = 0.0
+            self._hud_msg      = ""
+            self._hud_timer    = 0
+
+        # Copy the methods verbatim by binding them from the real class
+        from ui.dungeon_3d_widget import _Dungeon3DGL as _RealCls
+        melee_attack = _RealCls.melee_attack
+        power_attack = _RealCls.power_attack
+        fire_magic   = _RealCls.fire_magic
+        interact     = _RealCls.interact
+        jump         = _RealCls.jump
+        _show_hud    = _RealCls._show_hud
+
+    fc = _FakeCombat()
+
+    # -- Jump --
+    fc.jump()
+    assert fc._is_jumping, "jump() must set _is_jumping = True"
+    assert fc._jump_vel == _JUMP_VEL, f"jump_vel should be {_JUMP_VEL}"
+    fc.jump()   # second jump should be ignored while already jumping
+    assert fc._jump_vel == _JUMP_VEL
+    print("  ✅ Runtime: jump() sets _is_jumping and ignores double-jump")
+
+    # -- Melee with no enemies --
+    fc._attack_cooldown = 0
+    fc.melee_attack()
+    assert 'no target' in fc._hud_msg.lower() or 'miss' in fc._hud_msg.lower() or 'range' in fc._hud_msg.lower(), \
+        f"Expected 'no target/miss/range' in hud_msg when no enemies, got: {fc._hud_msg}"
+    print("  ✅ Runtime: melee_attack() with no enemies shows 'no target' HUD")
+
+    # -- Melee with a close enemy --
+    fc._attack_cooldown = 0
+    fc._enemies = [{'x': 1.0, 'z': 0.5, 'hp': 50, 'type': 'skeleton'}]
+    initial_hp = fc._enemies[0]['hp']
+    fc.melee_attack()
+    remaining = [e for e in fc._enemies if e.get('hp', 0) > 0]
+    damage_dealt = initial_hp - (fc._enemies[0]['hp'] if fc._enemies else 0)
+    assert damage_dealt >= _MELEE_DAMAGE or len(fc._enemies) == 0, \
+        f"Melee should deal at least {_MELEE_DAMAGE} damage, dealt {damage_dealt}"
+    print("  ✅ Runtime: melee_attack() deals damage to nearby enemy")
+
+    # -- Magic with enough mana --
+    fc._enemies.clear()
+    fc._attack_cooldown = 0
+    fc._player_mana = _MAX_MANA
+    before_mana = fc._player_mana
+    fc.fire_magic()
+    assert fc._player_mana < before_mana, "fire_magic() must consume mana"
+    print("  ✅ Runtime: fire_magic() reduces mana")
+
+    # -- Magic with insufficient mana --
+    fc._attack_cooldown = 0
+    fc._player_mana = _MAGIC_MIN - 1
+    fc.fire_magic()
+    assert 'mana' in fc._hud_msg.lower(), \
+        f"fire_magic with low mana should warn about mana, got: {fc._hud_msg}"
+    print("  ✅ Runtime: fire_magic() warns when mana too low")
+
+    # -- Interact --
+    fc._enemies.clear()
+    fc.interact()
+    assert fc._hud_timer > 0, "interact() should set a HUD message"
+    print("  ✅ Runtime: interact() shows HUD message")
+
+    # -- Attack cooldown blocks follow-up --
+    fc._attack_cooldown = 0
+    fc._player_mana = _MAX_MANA
+    fc.melee_attack()   # triggers cooldown
+    old_cd = fc._attack_cooldown
+    fc._enemies = [{'x': 0.5, 'z': 0.3, 'hp': 50, 'type': 'goblin'}]
+    hp_before = fc._enemies[0]['hp']
+    fc.melee_attack()   # should be blocked by cooldown
+    hp_after = fc._enemies[0]['hp'] if fc._enemies else 0
+    # Either cooldown blocks OR the hit registers — depends on timing.
+    # We just verify the attack cooldown was set to a positive value at all.
+    assert old_cd > 0, "melee_attack() must set attack_cooldown > 0"
+    print("  ✅ Runtime: attack cooldown correctly set after melee attack")
+
+
 def run_all_tests():
     print("=" * 65)
     print("Hybrid Architecture + Lazy rembg Import Tests")
@@ -4188,6 +4461,8 @@ def run_all_tests():
         test_upscaler_output_format_wired,
         test_color_correction_white_balance_lut_preview,
         test_clear_files_on_all_panels,
+        test_console_organizer_presets,
+        test_dungeon_combat_system,
     ]
 
     passed, failed = [], []

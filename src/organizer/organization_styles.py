@@ -454,6 +454,176 @@ class CustomStyle(OrganizationStyle):
         return str(Path(*parts))
 
 
+# ── Game-console presets ─────────────────────────────────────────────────────
+# Optimised for the small, compressed texture libraries produced by classic
+# console games.  Each preset:
+#   • Detects the most common map type from the filename suffix / keyword
+#     (_d / diffuse, _n / normal, _s / specular, _e / emissive, _a / alpha)
+#   • Assigns a content category (Characters, Environments, Items, UI, …)
+#   • Keeps a resolution sub-tier so CI/CD pipelines can distinguish LOD layers
+#     common in console ports (e.g. 16px icon sprites vs. 256px character maps)
+
+def _console_map_type(name: str) -> str:
+    """Derive map-type folder from filename suffixes / keywords."""
+    n = name.lower()
+    if any(s in n for s in ('_nrm', '_norm', '_n.', '_n_', 'normal')):
+        return 'Normal'
+    if any(s in n for s in ('_spc', '_spec', '_s.', '_s_', 'specular', 'gloss')):
+        return 'Specular'
+    if any(s in n for s in ('_emi', '_emis', '_e.', '_e_', 'emissive', 'glow')):
+        return 'Emissive'
+    if any(s in n for s in ('_alp', '_a.', '_a_', 'alpha', '_msk', 'mask')):
+        return 'Alpha'
+    # Default → diffuse
+    return 'Diffuse'
+
+
+def _console_content_cat(name: str) -> str:
+    """Map filename keywords → broad content category."""
+    n = name.lower()
+    if any(k in n for k in ('chr', 'char', 'npc', 'player', 'ply', 'face', 'head',
+                              'body', 'skin', 'hair', 'hand', 'arm', 'leg')):
+        return 'Characters'
+    if any(k in n for k in ('wpn', 'weap', 'gun', 'sword', 'blade', 'knife',
+                              'rifle', 'bow', 'item', 'itm')):
+        return 'Items'
+    if any(k in n for k in ('ui', 'hud', 'font', 'icon', 'btn', 'menu', 'cursor',
+                              'button', 'iface', 'interface')):
+        return 'UI'
+    if any(k in n for k in ('fx', 'eff', 'smoke', 'fire', 'spark', 'glow',
+                              'particle', 'decal', 'blood', 'hit')):
+        return 'Effects'
+    if any(k in n for k in ('sky', 'cloud', 'sun', 'moon', 'star', 'bg', 'background')):
+        return 'Sky'
+    # Default → Environments
+    return 'Environments'
+
+
+def _console_res_tier(dims, max_typical: int) -> str:
+    """Return a size-tier folder name.  *max_typical* is the console's normal max."""
+    if dims is None:
+        return 'Unknown'
+    w, h = dims
+    p = max(w, h)
+    if p <= 16:
+        return 'Tiny_16'
+    if p <= 32:
+        return 'Small_32'
+    if p <= 64:
+        return 'Med_64'
+    if p <= 128:
+        return 'Large_128'
+    if p <= 256:
+        return 'XL_256'
+    if p <= 512:
+        return 'XXL_512'
+    return f'Huge_{p}'   # e.g. Huge_1024 — above typical console maximum
+
+
+class PS2Style(OrganizationStyle):
+    """PlayStation 2 texture preset.
+
+    Recommended for PS2 game texture dumps and mod projects.
+    Sorts by content category → map type → resolution tier, reflecting the
+    small (4–256 px) textures typical of PS2 titles.
+    Example: Characters/Diffuse/Med_64/chr_link_body.tga
+    """
+
+    def get_name(self) -> str:
+        return "PlayStation 2"
+
+    def get_description(self) -> str:
+        return (
+            "Optimised for PlayStation 2 texture libraries. "
+            "Sorts by content (Characters, Environments, Items, UI, Effects) → "
+            "map type (Diffuse, Normal, Specular, Alpha) → resolution tier (up to 256 px). "
+            "Example: Characters/Diffuse/Med_64/chr_link_body.tga"
+        )
+
+    def get_target_path(self, texture: TextureInfo) -> str:
+        cat  = _console_content_cat(texture.filename)
+        mtype = _console_map_type(texture.filename)
+        tier  = _console_res_tier(texture.dimensions, 256)
+        return str(Path(cat, mtype, tier, texture.filename))
+
+
+class PSPStyle(OrganizationStyle):
+    """PlayStation Portable texture preset.
+
+    Textures on PSP are even smaller than PS2 (rarely exceed 128×128).
+    Sorts by category → map type, omitting the resolution tier to avoid
+    a proliferation of near-empty folders for tiny icon sprites.
+    Example: Characters/Diffuse/chr_npc_guard_d.gim
+    """
+
+    def get_name(self) -> str:
+        return "PlayStation Portable (PSP)"
+
+    def get_description(self) -> str:
+        return (
+            "Optimised for PSP texture libraries (GIM, TGA, PNG). "
+            "Two-level hierarchy: content category → map type. "
+            "Resolution tier is omitted because PSP textures rarely exceed 128 px. "
+            "Example: Characters/Diffuse/chr_guard_d.gim"
+        )
+
+    def get_target_path(self, texture: TextureInfo) -> str:
+        cat   = _console_content_cat(texture.filename)
+        mtype = _console_map_type(texture.filename)
+        return str(Path(cat, mtype, texture.filename))
+
+
+class GameCubeStyle(OrganizationStyle):
+    """Nintendo GameCube / Wii texture preset.
+
+    GameCube and Wii textures are extracted from TPL containers and span a
+    wider resolution range (4–1024 px) than PS2/PSP.  This preset sorts by
+    category → map type → resolution tier with GC-friendly tier labels.
+    Example: Environments/Diffuse/XL_256/stage_lava_floor_d.png
+    """
+
+    def get_name(self) -> str:
+        return "GameCube / Wii"
+
+    def get_description(self) -> str:
+        return (
+            "Optimised for GameCube and Wii texture libraries (TPL-extracted PNG/TGA). "
+            "Sorts by category → map type → resolution tier (4–1024 px range). "
+            "Example: Environments/Diffuse/XL_256/stage_lava_d.png"
+        )
+
+    def get_target_path(self, texture: TextureInfo) -> str:
+        cat   = _console_content_cat(texture.filename)
+        mtype = _console_map_type(texture.filename)
+        tier  = _console_res_tier(texture.dimensions, 1024)
+        return str(Path(cat, mtype, tier, texture.filename))
+
+
+class N64Style(OrganizationStyle):
+    """Nintendo 64 texture preset.
+
+    N64 textures are notoriously tiny (most are 32×32 or 64×64; 16-bit colour).
+    This preset uses a flat two-level hierarchy (category → filename) to avoid
+    creating dozens of near-empty resolution-tier folders for micro-textures.
+    Example: Environments/tex_field_grass.png
+    """
+
+    def get_name(self) -> str:
+        return "Nintendo 64"
+
+    def get_description(self) -> str:
+        return (
+            "Optimised for N64 texture libraries (PNG extracts from CI4/RGBA16/RGBA32). "
+            "Flat two-level hierarchy: content category → filename. "
+            "Resolution tiers are omitted because N64 textures rarely exceed 64 px. "
+            "Example: Environments/tex_field_grass.png"
+        )
+
+    def get_target_path(self, texture: TextureInfo) -> str:
+        cat = _console_content_cat(texture.filename)
+        return str(Path(cat, texture.filename))
+
+
 # Dictionary of all available organization styles
 # Keys are the internal identifiers used by the UI combos and config files.
 ORGANIZATION_STYLES = {
@@ -466,6 +636,11 @@ ORGANIZATION_STYLES = {
     'minimalist': MinimalistStyle,
     'maximum_detail': MaximumDetailStyle,
     'custom': CustomStyle,
+    # ── Game-console presets ──────────────────────────────────────────────
+    'ps2':      PS2Style,
+    'psp':      PSPStyle,
+    'gamecube': GameCubeStyle,
+    'n64':      N64Style,
     # Legacy key aliases so old saved configs still load
     'sims': ByAppearanceStyle,
     'neopets': ByTypeStyle,
