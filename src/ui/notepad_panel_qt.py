@@ -132,6 +132,12 @@ class NotepadPanelQt(QWidget):
         self._set_tooltip(self.export_btn, 'export_note_button')
         controls_layout.addWidget(self.export_btn)
 
+        # Import button
+        self.import_btn = QPushButton("📥 Import")
+        self.import_btn.clicked.connect(self.import_note_from_file)
+        self._set_tooltip(self.import_btn, "Import a text or Markdown file as a new note")
+        controls_layout.addWidget(self.import_btn)
+
         controls_layout.addStretch()
 
         # Undo / Redo buttons (QTextEdit already supports Ctrl+Z/Ctrl+Y natively;
@@ -460,6 +466,38 @@ class NotepadPanelQt(QWidget):
             except Exception as e:
                 logger.error(f"Error exporting note: {e}", exc_info=True)
                 QMessageBox.warning(self, "Error", f"Failed to export note:\n{e}")
+
+    def import_note_from_file(self):
+        """Import a .txt or .md file as a new note."""
+        filename, _ = QFileDialog.getOpenFileName(
+            self,
+            "Import Note",
+            "",
+            "Text Files (*.txt);;Markdown Files (*.md);;All Files (*)",
+        )
+        if not filename:
+            return
+        try:
+            with open(filename, 'r', encoding='utf-8') as f:
+                content = f.read()
+            title = Path(filename).stem
+            note_id = datetime.now().strftime("%Y%m%d_%H%M%S_imported")
+            self.notes[note_id] = {
+                'title': title,
+                'content': content,
+                'created': datetime.now().isoformat(),
+                'modified': datetime.now().isoformat(),
+            }
+            self.refresh_notes_list()
+            self.save_notes_to_disk()
+            # Select the newly imported note
+            self.current_note_id = note_id
+            self.title_edit.setText(title)
+            self.text_edit.setPlainText(content)
+            self.status_label.setText(f"Imported: {Path(filename).name}")
+        except Exception as e:
+            logger.error(f"Error importing note: {e}", exc_info=True)
+            QMessageBox.warning(self, "Error", f"Failed to import file:\n{e}")
     
     def load_notes(self):
         """Load notes from disk"""
