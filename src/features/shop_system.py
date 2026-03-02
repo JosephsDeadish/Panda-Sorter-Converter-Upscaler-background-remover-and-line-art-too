@@ -6,6 +6,7 @@ Author: Dead On The Inside / JosephsDeadish
 
 import logging
 import json
+import math
 from pathlib import Path
 from typing import Dict, List, Optional, Set, Tuple
 from dataclasses import dataclass, asdict
@@ -3836,7 +3837,6 @@ class ShopSystem:
         if item is None:
             return False, "Item not found in catalog.", 0
 
-        import math
         refund = math.ceil(item.price * self.SELL_REFUND_FRACTION)
         self.purchased_items.discard(item_id)
         self.sell_history.append({
@@ -3844,7 +3844,7 @@ class ShopSystem:
             'item_name': item.name,
             'original_price': item.price,
             'refund': refund,
-            'timestamp': __import__('datetime').datetime.now().isoformat(),
+            'timestamp': datetime.now().isoformat(),
         })
         self.save()
         logger.info(f"Sold {item.name} for {refund} Bamboo Bucks (original price {item.price})")

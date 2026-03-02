@@ -4,6 +4,7 @@ Qt implementation of the shop system
 """
 
 import logging
+import math
 import random
 from typing import Optional
 
@@ -670,7 +671,6 @@ class ShopPanelQt(QWidget):
             self.sell_list_layout.insertWidget(0, lbl)
             return
 
-        import math
         for idx, item_id in enumerate(sorted(purchased)):
             catalog_item = self.shop_system.CATALOG.get(item_id)
             if catalog_item is None:
@@ -726,7 +726,6 @@ class ShopPanelQt(QWidget):
         if catalog_item is None:
             return
 
-        import math
         refund = math.ceil(catalog_item.price * self.shop_system.SELL_REFUND_FRACTION)
 
         reply = QMessageBox.question(

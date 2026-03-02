@@ -5726,7 +5726,7 @@ def test_shop_sell_functionality():
     print("  ✅ Source: Buy/Sell toggle UI attributes present")
 
     # ── Runtime: ShopSystem logic ─────────────────────────────────────────────
-    import sys, os, logging, tempfile
+    import sys, os, logging, math, tempfile
     logging.disable(logging.CRITICAL)
     sys.path.insert(0, str(Path(__file__).parent / 'src'))
 
@@ -5744,7 +5744,6 @@ def test_shop_sell_functionality():
         # Purchase it then sell
         shop.purchased_items.add('panda_casual')
         item = shop.CATALOG['panda_casual']
-        import math
         expected_refund = math.ceil(item.price * shop.SELL_REFUND_FRACTION)
 
         ok2, msg2, amt2 = shop.sell_item('panda_casual')
