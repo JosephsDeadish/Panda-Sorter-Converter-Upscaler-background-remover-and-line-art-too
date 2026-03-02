@@ -229,7 +229,7 @@ class SettingsPanelQt(QWidget):
             except ImportError:
                 _dep_lines.append(f"{_warn}  {_label}  (not installed)")
                 _any_missing = True
-            except Exception:
+            except (Exception, SystemExit):
                 _dep_lines.append(f"{_warn}  {_label}  (error)")
                 _any_missing = True
         if _any_missing:

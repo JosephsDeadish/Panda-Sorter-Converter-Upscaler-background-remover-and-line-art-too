@@ -456,7 +456,7 @@ def _try_import(module_path: str, class_name: str):
     try:
         mod = importlib.import_module(module_path)
         return getattr(mod, class_name)
-    except Exception as _e:
+    except (Exception, SystemExit) as _e:
         logger.warning(f"Optional UI panel {class_name} not available: {_e}", exc_info=True)
         return None
 
@@ -1404,7 +1404,7 @@ class TextureSorterMainWindow(QMainWindow):
         try:
             self.create_tools_tab()
             logger.info("✅ Tools tab added to main tabs")
-        except Exception as e:
+        except (Exception, SystemExit) as e:
             logger.error(f"Could not create Tools tab: {e}", exc_info=True)
 
         # Create Panda Features tab — panda_widget is now set (or None) so panda_char
@@ -1413,7 +1413,7 @@ class TextureSorterMainWindow(QMainWindow):
             panda_features_tab = self.create_panda_features_tab()
             self.tabs.addTab(panda_features_tab, "🐼 Panda")
             logger.info("✅ Panda Features tab added to main tabs")
-        except Exception as e:
+        except (Exception, SystemExit) as e:
             logger.error(f"Could not create Panda Features tab: {e}", exc_info=True)
 
         # File Browser and Notepad are now inside the Tools tab grid.
@@ -1422,7 +1422,7 @@ class TextureSorterMainWindow(QMainWindow):
         try:
             self.create_settings_tab()
             logger.info("✅ Settings tab added")
-        except Exception as e:
+        except (Exception, SystemExit) as e:
             logger.error(f"Could not create Settings tab: {e}", exc_info=True)
 
         # Progress bar (at bottom of content)

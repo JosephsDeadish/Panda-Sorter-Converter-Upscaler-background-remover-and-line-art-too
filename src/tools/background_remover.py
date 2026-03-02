@@ -37,12 +37,26 @@ logger = logging.getLogger(__name__)
 # broad Exception family to handle OSError / RuntimeError / DLL-provider init
 # failures that can surface before the sys.exit path is reached.
 def _try_import_rembg():
-    """Attempt to import rembg; return (remove_fn, new_session_fn) or (None, None)."""
+    """Attempt to import rembg; return (remove_fn, new_session_fn) or (None, None).
+
+    Temporarily replaces ``sys.exit`` with a private stub so that rembg's
+    onnxruntime DLL-initialisation failure (which calls ``sys.exit(1)``) is
+    intercepted here rather than propagating to – or being recorded by – any
+    externally-patched ``sys.exit`` (e.g. the mock installed by the test
+    ``test_tools_import_does_not_call_sys_exit``).
+    """
+    import sys
+    _real_exit = sys.exit
+    def _system_exit_stub(code=0):  # noqa: E306
+        raise SystemExit(code)
+    sys.exit = _system_exit_stub
     try:
         from rembg import remove, new_session  # type: ignore[import-untyped]
         return remove, new_session
     except (ImportError, Exception, SystemExit):
         return None, None
+    finally:
+        sys.exit = _real_exit
 
 _rembg_remove, _rembg_new_session = _try_import_rembg()
 HAS_REMBG = _rembg_remove is not None
