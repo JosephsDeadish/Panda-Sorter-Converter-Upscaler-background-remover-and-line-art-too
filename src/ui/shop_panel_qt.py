@@ -11,7 +11,7 @@ try:
     from PyQt6.QtWidgets import (
         QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
         QScrollArea, QFrame, QGridLayout, QComboBox, QMessageBox,
-        QLineEdit
+        QLineEdit, QStackedWidget
     )
     from PyQt6.QtCore import Qt, pyqtSignal, QTimer
     from PyQt6.QtGui import QFont
@@ -20,6 +20,7 @@ except (ImportError, OSError, RuntimeError):
     PYQT_AVAILABLE = False
     QWidget = object
     QFrame = object
+    QStackedWidget = object
     class QTimer:
         @staticmethod
         def singleShot(*a): pass
@@ -460,6 +461,49 @@ class ShopPanelQt(QWidget):
 
         layout.addWidget(filter_bar)
 
+        # ── Buy / Sell mode toggle ────────────────────────────────────────────
+        mode_bar = QWidget()
+        mode_bar.setStyleSheet(f"background: {self._TURQ_HDR};")
+        mode_layout = QHBoxLayout(mode_bar)
+        mode_layout.setContentsMargins(12, 4, 12, 4)
+        mode_layout.setSpacing(8)
+
+        self._buy_tab_btn = QPushButton("🛒  Buy")
+        self._sell_tab_btn = QPushButton("💰  Sell")
+        for btn in (self._buy_tab_btn, self._sell_tab_btn):
+            btn.setFixedHeight(30)
+            btn.setCheckable(True)
+        self._buy_tab_btn.setChecked(True)
+
+        _tab_active = (
+            f"QPushButton {{ background: {self._TURQ}; color: white; border: none;"
+            " border-radius: 8px; padding: 4px 18px; font-size: 11px; font-weight: bold; }}"
+        )
+        _tab_inactive = (
+            f"QPushButton {{ background: transparent; color: #90E0E0; border: none;"
+            " border-radius: 8px; padding: 4px 18px; font-size: 11px; }}"
+            f"QPushButton:hover {{ background: {self._TURQ_D}; }}"
+        )
+        self._buy_tab_btn.setStyleSheet(_tab_active)
+        self._sell_tab_btn.setStyleSheet(_tab_inactive)
+
+        self._buy_tab_btn.clicked.connect(lambda: self._switch_mode('buy'))
+        self._sell_tab_btn.clicked.connect(lambda: self._switch_mode('sell'))
+
+        mode_layout.addWidget(self._buy_tab_btn)
+        mode_layout.addWidget(self._sell_tab_btn)
+        mode_layout.addStretch()
+        layout.addWidget(mode_bar)
+
+        # ── Stacked content (buy vs sell) ─────────────────────────────────────
+        self._mode_stack = QStackedWidget()
+
+        # Page 0 — Buy (category pills + item grid)
+        buy_page = QWidget()
+        buy_layout = QVBoxLayout(buy_page)
+        buy_layout.setContentsMargins(0, 0, 0, 0)
+        buy_layout.setSpacing(0)
+
         # ── Category pills ────────────────────────────────────────────────────
         cat_scroll = QScrollArea()
         cat_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
@@ -498,7 +542,7 @@ class ShopPanelQt(QWidget):
             self._cat_buttons.append(btn)
         cat_row.addStretch()
         cat_scroll.setWidget(cat_widget)
-        layout.addWidget(cat_scroll)
+        buy_layout.addWidget(cat_scroll)
 
         # ── Items scroll grid ─────────────────────────────────────────────────
         self.scroll_area = QScrollArea()
@@ -512,7 +556,41 @@ class ShopPanelQt(QWidget):
         self.grid_layout.setSpacing(12)
         self.grid_layout.setContentsMargins(12, 12, 12, 12)
         self.scroll_area.setWidget(self.grid_widget)
-        layout.addWidget(self.scroll_area, 1)
+        buy_layout.addWidget(self.scroll_area, 1)
+
+        self._mode_stack.addWidget(buy_page)   # index 0
+
+        # Page 1 — Sell (owned items list)
+        sell_page = QWidget()
+        sell_page_layout = QVBoxLayout(sell_page)
+        sell_page_layout.setContentsMargins(0, 0, 0, 0)
+        sell_page_layout.setSpacing(0)
+
+        sell_header = QLabel("💰  Sell items from your collection — you'll receive 50% of the original price.")
+        sell_header.setWordWrap(True)
+        sell_header.setStyleSheet(
+            f"background: {self._TURQ_L}; color: {self._TURQ_D};"
+            " font-size: 11px; padding: 8px 14px; font-style: italic;"
+        )
+        sell_page_layout.addWidget(sell_header)
+
+        self.sell_scroll_area = QScrollArea()
+        self.sell_scroll_area.setWidgetResizable(True)
+        self.sell_scroll_area.setFrameShape(QFrame.Shape.NoFrame)
+        self.sell_scroll_area.setStyleSheet("background: transparent; border: none;")
+
+        self.sell_list_widget = QWidget()
+        self.sell_list_widget.setStyleSheet("background: transparent;")
+        self.sell_list_layout = QVBoxLayout(self.sell_list_widget)
+        self.sell_list_layout.setSpacing(6)
+        self.sell_list_layout.setContentsMargins(12, 12, 12, 12)
+        self.sell_list_layout.addStretch()
+        self.sell_scroll_area.setWidget(self.sell_list_widget)
+        sell_page_layout.addWidget(self.sell_scroll_area, 1)
+
+        self._mode_stack.addWidget(sell_page)  # index 1
+
+        layout.addWidget(self._mode_stack, 1)
 
         # ── Status bar ────────────────────────────────────────────────────────
         self.status_label = QLabel("")
@@ -543,6 +621,144 @@ class ShopPanelQt(QWidget):
         for btn in self._cat_buttons:
             btn.setStyleSheet(self._pill_style(active=(btn.property("cat_id") == cat_id)))
         self.refresh_shop()
+
+    def _switch_mode(self, mode: str) -> None:
+        """Switch between 'buy' and 'sell' views."""
+        _tab_active = (
+            f"QPushButton {{ background: {self._TURQ}; color: white; border: none;"
+            " border-radius: 8px; padding: 4px 18px; font-size: 11px; font-weight: bold; }}"
+        )
+        _tab_inactive = (
+            f"QPushButton {{ background: transparent; color: #90E0E0; border: none;"
+            " border-radius: 8px; padding: 4px 18px; font-size: 11px; }}"
+            f"QPushButton:hover {{ background: {self._TURQ_D}; }}"
+        )
+        if mode == 'buy':
+            self._mode_stack.setCurrentIndex(0)
+            self._buy_tab_btn.setStyleSheet(_tab_active)
+            self._sell_tab_btn.setStyleSheet(_tab_inactive)
+            self._buy_tab_btn.setChecked(True)
+            self._sell_tab_btn.setChecked(False)
+        else:
+            self._mode_stack.setCurrentIndex(1)
+            self._buy_tab_btn.setStyleSheet(_tab_inactive)
+            self._sell_tab_btn.setStyleSheet(_tab_active)
+            self._buy_tab_btn.setChecked(False)
+            self._sell_tab_btn.setChecked(True)
+            self._populate_sell_list()
+
+    def _populate_sell_list(self) -> None:
+        """Populate the sell-page list with owned items and sell buttons."""
+        # Clear existing rows
+        while self.sell_list_layout.count() > 1:  # keep the stretch at end
+            item = self.sell_list_layout.takeAt(0)
+            if item and item.widget():
+                item.widget().deleteLater()
+
+        if not SHOP_AVAILABLE or not self.shop_system:
+            lbl = QLabel("⚠️ Shop system not available.")
+            lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            self.sell_list_layout.insertWidget(0, lbl)
+            return
+
+        purchased = self.shop_system.get_purchased_items()
+        if not purchased:
+            lbl = QLabel("🛍️  You don't own any items yet.\n\nBuy something from the shop first!")
+            lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            lbl.setWordWrap(True)
+            lbl.setStyleSheet("color: #888; font-size: 12pt; padding: 30px;")
+            self.sell_list_layout.insertWidget(0, lbl)
+            return
+
+        import math
+        for idx, item_id in enumerate(sorted(purchased)):
+            catalog_item = self.shop_system.CATALOG.get(item_id)
+            if catalog_item is None:
+                continue
+            refund = math.ceil(catalog_item.price * self.shop_system.SELL_REFUND_FRACTION)
+
+            row = QFrame()
+            row.setFrameStyle(QFrame.Shape.StyledPanel)
+            row.setStyleSheet(
+                f"QFrame {{ background: white; border: 1px solid {self._TURQ_L};"
+                " border-radius: 8px; }}"
+            )
+            row_layout = QHBoxLayout(row)
+            row_layout.setContentsMargins(12, 6, 12, 6)
+
+            icon_lbl = QLabel(catalog_item.icon)
+            icon_lbl.setStyleSheet("font-size: 22px;")
+            icon_lbl.setFixedWidth(34)
+            row_layout.addWidget(icon_lbl)
+
+            info = QVBoxLayout()
+            name_lbl = QLabel(f"<b>{catalog_item.name}</b>")
+            name_lbl.setStyleSheet(f"color: {self._TURQ_D}; font-size: 11px;")
+            desc_lbl = QLabel(catalog_item.description)
+            desc_lbl.setStyleSheet("color: #666; font-size: 10px;")
+            desc_lbl.setWordWrap(True)
+            info.addWidget(name_lbl)
+            info.addWidget(desc_lbl)
+            row_layout.addLayout(info, 1)
+
+            sell_btn = QPushButton(f"Sell  {refund} 💰")
+            sell_btn.setFixedWidth(110)
+            sell_btn.setFixedHeight(30)
+            sell_btn.setStyleSheet(
+                f"QPushButton {{ background: {self._STAR_GOLD}; color: #333; border: none;"
+                " border-radius: 8px; font-size: 11px; font-weight: bold; }}"
+                "QPushButton:hover { background: #F5C518; }"
+                "QPushButton:disabled { background: #ddd; color: #999; }"
+            )
+            sell_btn.clicked.connect(
+                lambda _checked, iid=item_id, r=row: self._on_sell_clicked(iid, r)
+            )
+            row_layout.addWidget(sell_btn)
+
+            self.sell_list_layout.insertWidget(idx, row)
+
+    def _on_sell_clicked(self, item_id: str, row_widget: QWidget) -> None:
+        """Handle a sell-button click — confirm, sell, update balance."""
+        if not SHOP_AVAILABLE or not self.shop_system:
+            return
+
+        catalog_item = self.shop_system.CATALOG.get(item_id)
+        if catalog_item is None:
+            return
+
+        import math
+        refund = math.ceil(catalog_item.price * self.shop_system.SELL_REFUND_FRACTION)
+
+        reply = QMessageBox.question(
+            self,
+            "Sell item?",
+            f"Sell <b>{catalog_item.name}</b> for <b>{refund} 💰 Bamboo Bucks</b>?<br>"
+            f"<small>Original price: {catalog_item.price} 💰 — you get 50% back</small>",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No,
+        )
+        if reply != QMessageBox.StandardButton.Yes:
+            return
+
+        success, message, amount = self.shop_system.sell_item(item_id)
+        if success:
+            if self.currency_system:
+                try:
+                    self.currency_system.add_coins(amount)
+                    balance = self.currency_system.get_balance()
+                    self.currency_label.setText(f"💰 {balance:,} Bamboo Bucks")
+                except Exception:
+                    pass
+            self.status_label.setText(f"✅ {message}")
+            # Animate the row away
+            row_widget.setVisible(False)
+            row_widget.deleteLater()
+            self.livy_says(
+                f"Sold! Hope you made the right call… 🦦 {catalog_item.icon}",
+                duration=4000
+            )
+        else:
+            self.status_label.setText(f"❌ {message}")
 
     def showEvent(self, event):
         """Refresh coin balance and items when the shop panel becomes visible."""

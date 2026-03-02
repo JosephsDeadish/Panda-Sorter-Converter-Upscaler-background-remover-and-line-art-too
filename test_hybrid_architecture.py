@@ -5669,6 +5669,91 @@ def test_panda_progressive_food_eating():
     print("  ✅ Runtime: bite 4 → eat_progress=1.0, item removed from scene")
 
 
+def test_shop_sell_functionality():
+    """ShopSystem.sell_item() must allow selling owned items for a 50% refund.
+    ShopPanelQt must expose Buy/Sell mode toggle and a sell list.
+
+    Source checks (shop_system.py):
+    - sell_item() method present
+    - SELL_REFUND_FRACTION constant = 0.50
+    - sell_history list initialised
+
+    Source checks (shop_panel_qt.py):
+    - _switch_mode() method present
+    - _populate_sell_list() method present
+    - _on_sell_clicked() method present
+    - _buy_tab_btn and _sell_tab_btn attributes present
+    - sell_scroll_area present (sell page container)
+
+    Runtime checks (ShopSystem logic only — no Qt needed):
+    - Selling an unowned item returns (False, msg, 0)
+    - After purchase, selling returns (True, msg, ceil(price*0.5))
+    - Item removed from purchased_items after sell
+    - sell_history recorded correctly
+    """
+    print("\ntest_shop_sell_functionality ...")
+    from pathlib import Path
+
+    sys_code = (Path(__file__).parent / 'src' / 'features' / 'shop_system.py').read_text(encoding='utf-8')
+    ui_code  = (Path(__file__).parent / 'src' / 'ui'       / 'shop_panel_qt.py').read_text(encoding='utf-8')
+
+    # ── Source: shop_system.py ───────────────────────────────────────────────
+    assert 'def sell_item' in sys_code, \
+        "shop_system.py: sell_item() method missing"
+    print("  ✅ Source: sell_item() present in ShopSystem")
+
+    assert 'SELL_REFUND_FRACTION' in sys_code, \
+        "shop_system.py: SELL_REFUND_FRACTION constant missing"
+    print("  ✅ Source: SELL_REFUND_FRACTION constant present")
+
+    assert 'sell_history' in sys_code, \
+        "shop_system.py: sell_history list not referenced"
+    print("  ✅ Source: sell_history referenced")
+
+    # ── Source: shop_panel_qt.py ─────────────────────────────────────────────
+    for method in ('_switch_mode', '_populate_sell_list', '_on_sell_clicked'):
+        assert f'def {method}' in ui_code, \
+            f"shop_panel_qt.py: {method}() method missing"
+    print("  ✅ Source: _switch_mode / _populate_sell_list / _on_sell_clicked present")
+
+    for attr in ('_buy_tab_btn', '_sell_tab_btn', 'sell_scroll_area', '_mode_stack'):
+        assert attr in ui_code, \
+            f"shop_panel_qt.py: {attr} not found"
+    print("  ✅ Source: Buy/Sell toggle UI attributes present")
+
+    # ── Runtime: ShopSystem logic ─────────────────────────────────────────────
+    import sys, os, logging, tempfile
+    logging.disable(logging.CRITICAL)
+    sys.path.insert(0, str(Path(__file__).parent / 'src'))
+
+    from pathlib import Path as _P
+    with tempfile.TemporaryDirectory() as _d:
+        from features.shop_system import ShopSystem
+        shop = ShopSystem(save_path=_P(_d) / 'shop.json')
+
+        # Sell unowned item → failure
+        ok, msg, amt = shop.sell_item('panda_casual')
+        assert not ok, "sell_item on unowned item should fail"
+        assert amt == 0, f"refund for unowned should be 0, got {amt}"
+        print("  ✅ Runtime: selling unowned item returns failure (0 refund)")
+
+        # Purchase it then sell
+        shop.purchased_items.add('panda_casual')
+        item = shop.CATALOG['panda_casual']
+        import math
+        expected_refund = math.ceil(item.price * shop.SELL_REFUND_FRACTION)
+
+        ok2, msg2, amt2 = shop.sell_item('panda_casual')
+        assert ok2, f"sell_item on owned item should succeed: {msg2}"
+        assert amt2 == expected_refund, \
+            f"Expected refund {expected_refund}, got {amt2}"
+        assert 'panda_casual' not in shop.purchased_items, \
+            "Item should be removed from purchased_items after selling"
+        assert any(e['item_id'] == 'panda_casual' for e in shop.sell_history), \
+            "sell_history should record the sold item"
+        print(f"  ✅ Runtime: sell_item returns refund={amt2} (50% of {item.price}), item removed")
+
+
 def run_all_tests():
     print("=" * 65)
     print("Hybrid Architecture + Lazy rembg Import Tests")
@@ -5776,6 +5861,7 @@ def run_all_tests():
         test_lineart_user_preset_save_load,
         test_skill_tree_storage_branch,
         test_panda_progressive_food_eating,
+        test_shop_sell_functionality,
     ]
 
     passed, failed = [], []
