@@ -194,8 +194,42 @@ class ColorCorrectionPanelQt(QWidget):
         self.current_lut = None
         self.worker = None
         self.preview_file = None  # Current file for preview
+        self.setAcceptDrops(True)  # drag-and-drop images onto the panel
         
         self._create_ui()
+
+    # ── Drag-and-drop support ──────────────────────────────────────────────
+    def dragEnterEvent(self, event) -> None:
+        if event.mimeData().hasUrls():
+            event.acceptProposedAction()
+        else:
+            event.ignore()
+
+    def dropEvent(self, event) -> None:
+        """Accept dropped image files and add them to the color correction input list."""
+        _EXTS = {'.png', '.jpg', '.jpeg', '.bmp', '.gif', '.tiff', '.tif', '.webp'}
+        existing = {str(p) for p in self.input_files}
+        added = []
+        for url in event.mimeData().urls():
+            path = Path(url.toLocalFile())
+            if path.is_file() and path.suffix.lower() in _EXTS:
+                if str(path) not in existing:
+                    added.append(path)
+                    existing.add(str(path))
+            elif path.is_dir():
+                for child in path.iterdir():
+                    if child.suffix.lower() in _EXTS and str(child) not in existing:
+                        added.append(child)
+                        existing.add(str(child))
+        if added:
+            self.input_files.extend(added)
+            lbl = getattr(self, 'input_label', None)
+            if lbl is not None:
+                lbl.setText(f"Selected: {len(self.input_files)} files")
+            # Set preview to first dropped file
+            if self.preview_file is None and added:
+                self.preview_file = added[0]
+        event.acceptProposedAction()
     
     def _show_unavailable(self):
         """Show message when color corrector is not available."""
