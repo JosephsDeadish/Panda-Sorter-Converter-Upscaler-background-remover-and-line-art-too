@@ -6772,8 +6772,9 @@ class TextureSorterMainWindow(QMainWindow):
             'weapons_rack':'⚔️ Weapons',
             'toy_box':     '🧸 Toys',
             'fridge':      '🍎 Food',
-            'trophy_stand':'🏆 Achievements',
-            'backpack':    '🎒 Inventory & Items',
+            'trophy_stand': '🏆 Achievements',
+            'backpack':     '🎒 Inventory & Items',
+            'computer_desk':'💻 Tools & Utilities',
         }
         sub_title = _TITLES.get(furniture_id, furniture_id.replace('_', ' ').title())
 
@@ -6874,6 +6875,24 @@ class TextureSorterMainWindow(QMainWindow):
                 except Exception as _e2:
                     logger.debug(f"Backpack panel open: {_e2}")
             self.statusBar().showMessage("🎒 Panda is walking to the backpack…", 3000)
+
+        elif furniture_id == 'computer_desk':
+            def _open_panel():
+                try:
+                    # Switch to the main tools tab if available
+                    main_tabs = getattr(self, '_main_tabs', None) or getattr(self, 'tab_widget', None)
+                    if main_tabs is not None:
+                        main_tabs.setCurrentIndex(0)
+                        self._show_home_sub_panel(None, '💻 Tools & Utilities')
+                    else:
+                        label = QLabel("💻 Tools & Utilities\n\nOpen the Tools tab to access image processing tools.")
+                        label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+                        label.setWordWrap(True)
+                        self._home_stack_owned.append(label)
+                        self._show_home_sub_panel(label, '💻 Tools & Utilities')
+                except Exception as _e2:
+                    logger.debug(f"Computer desk panel open: {_e2}")
+            self.statusBar().showMessage("💻 Panda is sitting at the computer…", 3000)
 
         else:
             # All other furniture → show filtered Inventory panel

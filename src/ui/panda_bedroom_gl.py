@@ -107,14 +107,15 @@ class FurniturePiece:
 def _build_furniture() -> List[FurniturePiece]:
     """Return list of furniture pieces at their default positions."""
     defs = [
-        ('wardrobe',     'Wardrobe',     '🚪', -2.8, 0.0, -3.0,   0.0, -2.2, -1.8, 'Clothes'),
-        ('armor_rack',   'Armor Rack',   '🛡️',  2.5, 0.0, -3.0, 180.0,  1.8, -1.8, 'Weapons'),
-        ('weapons_rack', 'Weapons Rack', '⚔️',  3.3, 0.0, -1.5, -90.0,  2.5, -0.8, 'Weapons'),
-        ('toy_box',      'Toy Box',      '🧸', -3.0, 0.0,  1.8,  90.0, -2.2,  1.2, 'Toys'),
-        ('fridge',       'Fridge',       '🧊',  3.2, 0.0,  1.8, -90.0,  2.5,  1.2, 'Food'),
-        ('trophy_stand', 'Trophy Stand', '🏆',  0.0, 0.0, -3.2,   0.0,  0.0, -2.0, 'achievements'),
-        ('backpack',     'Backpack',     '🎒', -1.2, 0.0, -3.0,   0.0, -0.8, -2.0, 'Inventory'),
-        ('bedroom_door', 'Front Door',   '🏠',  0.0, 0.0,  3.8, 180.0,  0.0,  2.8, 'world'),
+        ('wardrobe',      'Wardrobe',      '🚪', -2.8, 0.0, -3.0,   0.0, -2.2, -1.8, 'Clothes'),
+        ('armor_rack',    'Armor Rack',    '🛡️',  2.5, 0.0, -3.0, 180.0,  1.8, -1.8, 'Weapons'),
+        ('weapons_rack',  'Weapons Rack',  '⚔️',  3.3, 0.0, -1.5, -90.0,  2.5, -0.8, 'Weapons'),
+        ('toy_box',       'Toy Box',       '🧸', -3.0, 0.0,  1.8,  90.0, -2.2,  1.2, 'Toys'),
+        ('fridge',        'Fridge',        '🧊',  3.2, 0.0,  1.8, -90.0,  2.5,  1.2, 'Food'),
+        ('trophy_stand',  'Trophy Stand',  '🏆',  0.0, 0.0, -3.2,   0.0,  0.0, -2.0, 'achievements'),
+        ('backpack',      'Backpack',      '🎒', -1.2, 0.0, -3.0,   0.0, -0.8, -2.0, 'Inventory'),
+        ('computer_desk', 'Computer Desk', '💻', -3.0, 0.0, -0.5,  90.0, -2.2,  0.0, 'tools'),
+        ('bedroom_door',  'Front Door',    '🏠',  0.0, 0.0,  3.8, 180.0,  0.0,  2.8, 'world'),
     ]
     pieces = []
     for d in defs:
@@ -858,14 +859,15 @@ class PandaBedroomGL(QOpenGLWidget if OPENGL_AVAILABLE else QWidget):  # type: i
 
         # Approximate bounding box per furniture type
         _bounds = {
-            'wardrobe':     (1.2, 2.0, 0.6),
-            'armor_rack':   (1.0, 1.8, 0.5),
-            'weapons_rack': (1.2, 1.5, 0.3),
-            'toy_box':      (1.0, 0.7, 0.7),
-            'fridge':       (0.8, 2.0, 0.7),
-            'trophy_stand': (1.4, 1.5, 0.4),
-            'backpack':     (0.5, 0.7, 0.3),
-            'bedroom_door': (1.0, 2.2, 0.15),
+            'wardrobe':       (1.2, 2.0, 0.6),
+            'armor_rack':     (1.0, 1.8, 0.5),
+            'weapons_rack':   (1.2, 1.5, 0.3),
+            'toy_box':        (1.0, 0.7, 0.7),
+            'fridge':         (0.8, 2.0, 0.7),
+            'trophy_stand':   (1.4, 1.5, 0.4),
+            'backpack':       (0.5, 0.7, 0.3),
+            'computer_desk':  (1.2, 1.5, 0.6),
+            'bedroom_door':   (1.0, 2.2, 0.15),
         }
         bw, bh, bd = _bounds.get(piece.id, (1.0, 1.0, 1.0))
 
@@ -1236,6 +1238,27 @@ class PandaBedroomGL(QOpenGLWidget if OPENGL_AVAILABLE else QWidget):  # type: i
         glVertex3f(-0.45, 0.001, 0.55)
         glEnd()
         glEnable(GL_LIGHTING)
+
+    def _draw_computer_desk(self) -> None:
+        """Desk with a monitor, keyboard, and glowing screen — clicking opens the tools panel."""
+        glEnable(GL_LIGHTING)
+        # Desk surface (light pine wood)
+        self._draw_box(-0.60, 0.60, -0.30,  0.60, 0.68,  0.30, (0.72, 0.55, 0.32))
+        # Left leg
+        self._draw_box(-0.55, 0.0, -0.28, -0.48, 0.60, -0.22, (0.58, 0.42, 0.22))
+        # Right leg
+        self._draw_box( 0.48, 0.0, -0.28,  0.55, 0.60, -0.22, (0.58, 0.42, 0.22))
+        # Monitor stand (slim dark box)
+        self._draw_box(-0.06, 0.68, -0.08,  0.06, 0.88, -0.04, (0.15, 0.15, 0.18))
+        # Monitor frame (dark grey bezel)
+        self._draw_box(-0.42, 0.88, -0.10,  0.42, 1.48, -0.05, (0.12, 0.12, 0.15))
+        # Screen glow (bright cyan — rendered without lighting)
+        glDisable(GL_LIGHTING)
+        glColor4f(0.20, 0.80, 0.90, 1.0)
+        self._draw_box(-0.38, 0.92, -0.08,  0.38, 1.44, -0.04, (0.20, 0.80, 0.90))
+        glEnable(GL_LIGHTING)
+        # Keyboard (thin flat box on desk surface)
+        self._draw_box(-0.28, 0.68,  0.05,  0.28, 0.72,  0.25, (0.20, 0.20, 0.24))
 
     # ── Primitive helpers ─────────────────────────────────────────────────────
 
