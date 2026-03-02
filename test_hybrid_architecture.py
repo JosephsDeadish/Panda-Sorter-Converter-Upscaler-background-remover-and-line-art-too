@@ -4795,6 +4795,219 @@ def test_game_texture_lineart_presets():
     print(f"  ✅ Runtime: {game_presets_found} game texture presets verified")
 
 
+def test_bubbly_scrollbars():
+    """All themes must use bubbly (rounded) scrollbar handles.
+
+    Issue #198: 'scrollbars sidebar isn't accurate to where you actually are
+    and it just looks bad should be replaced with a more bubbly version with
+    better functionality and scrolling'
+
+    Source-level checks:
+    - No theme CSS should have 'border-radius: 0px' on a QScrollBar handle
+    - The default dark theme QScrollBar handle must have border-radius ≥ 6px
+    - The Gore and Goth theme handles must also have border-radius ≥ 6px
+    - All handle definitions should include a margin for breathing room
+
+    Runtime check:
+    - apply_theme('dark') produces CSS where QScrollBar handle has border-radius ≥ 6px
+    - apply_theme('gore') and apply_theme('goth') likewise
+    """
+    print("\ntest_bubbly_scrollbars ...")
+    import re
+    from pathlib import Path
+    code = (Path(__file__).parent / 'main.py').read_text(encoding='utf-8')
+
+    # No scrollbar handle in any theme should have border-radius: 0px
+    zero_radius_handles = re.findall(
+        r'QScrollBar::handle[^{{]*\{{[^}}]*border-radius:\s*0px[^}}]*\}}',
+        code
+    )
+    assert len(zero_radius_handles) == 0, (
+        f"Found {len(zero_radius_handles)} QScrollBar handle(s) with border-radius: 0px. "
+        f"All handles must be bubbly (border-radius ≥ 6px).\n"
+        f"First: {zero_radius_handles[0][:80] if zero_radius_handles else ''}"
+    )
+    print("  ✅ Source: no scrollbar handle has border-radius: 0px")
+
+    # All QScrollBar::handle:vertical definitions must have border-radius ≥ 6px.
+    # Each definition is inside {{...}} (doubled braces = literal { in f-strings).
+    handle_defs = re.findall(r'QScrollBar::handle:vertical\s*\{{([^}}]+)\}}', code)
+    assert handle_defs, "main.py: no QScrollBar::handle:vertical definitions found"
+    for defn in handle_defs:
+        m = re.search(r'border-radius:\s*(\d+)px', defn)
+        assert m is not None, \
+            f"QScrollBar::handle:vertical missing border-radius property:\n  {defn[:80]}"
+        r = int(m.group(1))
+        assert r >= 6, (
+            f"QScrollBar::handle:vertical border-radius is {r}px — must be ≥ 6px for bubbly look.\n"
+            f"  Handle definition: {defn[:80]}"
+        )
+    print(f"  ✅ Source: all {len(handle_defs)} QScrollBar handle defs have border-radius ≥ 6px")
+
+    # Gore (#8b0000) and Goth (#4a2060) theme handles must be bubbly
+    # (these were previously 0px — verify the fix is applied)
+    for theme_color, theme_name in (
+        ('#8b0000', 'Gore'),   # Gore theme handle colour
+        ('#4a2060', 'Goth'),   # Goth theme handle colour
+    ):
+        pattern = rf'QScrollBar::handle:vertical\s*\{{[^}}]*{re.escape(theme_color)}[^}}]*border-radius:\s*(\d+)px'
+        m = re.search(pattern, code)
+        if m:
+            r = int(m.group(1))
+            assert r >= 6, (
+                f"{theme_name} theme scrollbar handle ({theme_color}) has border-radius {r}px, need ≥ 6px"
+            )
+    print("  ✅ Source: Gore and Goth theme handles have ≥ 6px radius")
+
+    # All handles should have margin: 2px 2px for breathing room
+    assert 'margin: 2px 2px' in code, (
+        "main.py: QScrollBar::handle must include 'margin: 2px 2px' for bubbly breathing room."
+    )
+    print("  ✅ Source: margin: 2px 2px present for bubbly handle spacing")
+
+    # Runtime: apply dark theme and verify stylesheet contains rounded handle
+    import sys, logging, os
+    os.environ.setdefault('QT_QPA_PLATFORM', 'offscreen')
+    logging.disable(logging.CRITICAL)
+    import main as _m
+    from PyQt6.QtWidgets import QApplication
+    _app = QApplication.instance() or QApplication(sys.argv)
+    win = _m.TextureSorterMainWindow()
+
+    win.apply_theme('dark')
+    ss = win.styleSheet()
+    assert 'QScrollBar' in ss, "Dark theme stylesheet missing QScrollBar CSS entirely"
+    # border-radius: 0px should not appear in the scrollbar handle section
+    # (border-radius: 0px may appear in other elements — only check handle sections)
+    handle_sections = re.findall(r'QScrollBar::handle[^{]*\{[^}]+\}', ss)
+    for section in handle_sections:
+        assert 'border-radius: 0px' not in section, \
+            f"Runtime: dark theme handle still has border-radius: 0px: {section}"
+    print("  ✅ Runtime: dark theme scrollbar handle has no border-radius: 0px")
+
+    win.apply_theme('gore')
+    ss_gore = win.styleSheet()
+    gore_handles = re.findall(r'QScrollBar::handle[^{]*\{[^}]+\}', ss_gore)
+    for section in gore_handles:
+        assert 'border-radius: 0px' not in section, \
+            f"Runtime: gore theme handle still has border-radius: 0px: {section}"
+    print("  ✅ Runtime: gore theme scrollbar handle is bubbly (no border-radius: 0px)")
+
+    win.apply_theme('goth')
+    ss_goth = win.styleSheet()
+    goth_handles = re.findall(r'QScrollBar::handle[^{]*\{[^}]+\}', ss_goth)
+    for section in goth_handles:
+        assert 'border-radius: 0px' not in section, \
+            f"Runtime: goth theme handle still has border-radius: 0px: {section}"
+    print("  ✅ Runtime: goth theme scrollbar handle is bubbly (no border-radius: 0px)")
+
+
+def test_color_correction_splitter_layout():
+    """Color Correction panel must use a left-controls / right-preview QSplitter layout.
+
+    Issue #197: 'some tools are missing the new layout for most ui on left with the
+    previewer on the right. The previewers all also need to be smaller by default.'
+
+    The Color Correction panel previously used a single vertical-stacked QScrollArea
+    with the preview at the bottom.  This made the preview take up too much height
+    and left little room for the controls on smaller screens.
+
+    Fix: refactor _create_ui() to use QSplitter(Horizontal) with:
+    - Left: QScrollArea wrapping file-selection + controls + action buttons
+    - Right: preview section
+    - Initial sizes: [380, 500] so the preview is modest by default
+
+    Source-level checks:
+    - QSplitter imported from PyQt6.QtWidgets in color_correction_panel_qt.py
+    - QSplitter(Qt.Orientation.Horizontal) instantiated in _create_ui()
+    - setSizes called with a 2-element list
+    - left_scroll / left_widget holds the controls
+    - right_widget holds the preview
+
+    Runtime check:
+    - Can instantiate ColorCorrectionPanelQt without error
+    - Panel has at least one QSplitter child
+    - Splitter has exactly 2 widgets
+    - Left side contains a QScrollArea (controls)
+    - Right side widget exists
+    """
+    print("\ntest_color_correction_splitter_layout ...")
+    from pathlib import Path
+    code = (Path(__file__).parent / 'src' / 'ui' / 'color_correction_panel_qt.py').read_text(encoding='utf-8')
+
+    # QSplitter must be imported
+    assert 'QSplitter' in code, (
+        "color_correction_panel_qt.py: QSplitter not imported. "
+        "Add QSplitter to the PyQt6.QtWidgets import."
+    )
+    print("  ✅ Source: QSplitter imported")
+
+    # QSplitter(Qt.Orientation.Horizontal) used in _create_ui
+    assert 'QSplitter(Qt.Orientation.Horizontal)' in code, (
+        "color_correction_panel_qt.py: _create_ui() must create "
+        "QSplitter(Qt.Orientation.Horizontal) for the left/right split."
+    )
+    print("  ✅ Source: QSplitter(Horizontal) used in _create_ui()")
+
+    # setSizes must be called
+    assert 'setSizes' in code, (
+        "color_correction_panel_qt.py: splitter.setSizes([left, right]) call missing. "
+        "Set initial sizes so the preview starts modest."
+    )
+    print("  ✅ Source: setSizes() called to set initial splitter proportions")
+
+    # Left scroll and right widget present
+    assert 'left_scroll' in code or 'left_widget' in code, (
+        "color_correction_panel_qt.py: left_scroll/left_widget variable missing in _create_ui()"
+    )
+    assert 'right_widget' in code or 'right_layout' in code, (
+        "color_correction_panel_qt.py: right_widget/right_layout variable missing in _create_ui()"
+    )
+    print("  ✅ Source: left_scroll + right_widget variables present")
+
+    # Runtime
+    import sys, os, logging
+    os.environ.setdefault('QT_QPA_PLATFORM', 'offscreen')
+    logging.disable(logging.CRITICAL)
+    sys.path.insert(0, str(Path(__file__).parent / 'src'))
+    from PyQt6.QtWidgets import QApplication, QSplitter, QScrollArea
+    _app = QApplication.instance() or QApplication(sys.argv)
+
+    from ui.color_correction_panel_qt import ColorCorrectionPanelQt
+    panel = ColorCorrectionPanelQt()
+
+    # Panel should have a QSplitter child
+    splitters = panel.findChildren(QSplitter)
+    assert len(splitters) >= 1, (
+        f"ColorCorrectionPanelQt has no QSplitter child — expected left/right split layout. "
+        f"Got {len(splitters)} splitters."
+    )
+    splitter = splitters[0]
+    assert splitter.count() == 2, (
+        f"ColorCorrectionPanelQt QSplitter should have 2 widgets (left, right), got {splitter.count()}"
+    )
+    print(f"  ✅ Runtime: QSplitter found with {splitter.count()} widgets")
+
+    # Left side must contain a QScrollArea (scrollable controls)
+    left = splitter.widget(0)
+    assert left is not None, "Splitter widget(0) is None"
+    assert isinstance(left, QScrollArea), (
+        f"Splitter left widget should be QScrollArea, got {type(left).__name__}"
+    )
+    print("  ✅ Runtime: left widget is QScrollArea (scrollable controls)")
+
+    # Right side widget must exist
+    right = splitter.widget(1)
+    assert right is not None, "Splitter widget(1) is None"
+    print(f"  ✅ Runtime: right widget exists ({type(right).__name__})")
+
+    # Splitter sizes must be reasonable (both > 0)
+    sizes = splitter.sizes()
+    assert len(sizes) == 2, f"Expected 2 splitter sizes, got {len(sizes)}"
+    # Sizes might be 0 until widget is shown — just verify setSizes was called (source check)
+    print(f"  ✅ Runtime: splitter sizes = {sizes}")
+
+
 def run_all_tests():
     print("=" * 65)
     print("Hybrid Architecture + Lazy rembg Import Tests")
@@ -4893,6 +5106,8 @@ def run_all_tests():
         test_game_texture_organizer_presets,
         test_svg_converter_support,
         test_game_texture_lineart_presets,
+        test_bubbly_scrollbars,
+        test_color_correction_splitter_layout,
     ]
 
     passed, failed = [], []

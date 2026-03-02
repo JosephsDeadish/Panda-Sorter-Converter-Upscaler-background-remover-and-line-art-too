@@ -20,7 +20,8 @@ try:
     from PyQt6.QtWidgets import (
         QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
         QScrollArea, QFrame, QSlider, QSpinBox, QFileDialog,
-        QMessageBox, QProgressBar, QComboBox, QGroupBox, QCheckBox
+        QMessageBox, QProgressBar, QComboBox, QGroupBox, QCheckBox,
+        QSplitter
     )
     from PyQt6.QtCore import Qt, pyqtSignal, QThread
     from PyQt6.QtGui import QPixmap, QImage
@@ -179,7 +180,8 @@ class ColorCorrectionPanelQt(QWidget):
     finished = pyqtSignal(bool, str, int)  # success, message, files_processed
 
     def __init__(self, parent=None, unlockables_system=None, tooltip_manager=None):
-        
+        super().__init__(parent)
+
         if not COLOR_CORRECTOR_AVAILABLE:
             self._show_unavailable()
             return
@@ -209,44 +211,59 @@ class ColorCorrectionPanelQt(QWidget):
         layout.addWidget(label)
     
     def _create_ui(self):
-        """Create the user interface."""
+        """Create the user interface with left-controls / right-preview QSplitter layout."""
         layout = QVBoxLayout(self)
         layout.setContentsMargins(10, 10, 10, 10)
-        
-        # Scrollable area
-        scroll = QScrollArea()
-        scroll.setWidgetResizable(True)
-        scroll.setFrameShape(QFrame.Shape.NoFrame)
-        
-        container = QWidget()
-        container_layout = QVBoxLayout(container)
-        
+
         # Title
+        # Title — slightly smaller (16pt vs 20pt) to give more vertical room to
+        # the controls/preview split layout without scrolling the title off screen.
         title = QLabel("🎨 Color Correction & Enhancement")
         font = title.font()
-        font.setPointSize(20)
+        font.setPointSize(16)
         font.setBold(True)
         title.setFont(font)
-        container_layout.addWidget(title)
-        container_layout.addSpacing(20)
-        
-        # File selection section
-        self._create_file_section(container_layout)
-        
-        # Adjustment controls section
-        self._create_controls_section(container_layout)
-        
-        # Live Preview section
+        layout.addWidget(title)
+
+        # ── Horizontal splitter: left = controls, right = preview ──────────
+        splitter = QSplitter(Qt.Orientation.Horizontal)
+        layout.addWidget(splitter, stretch=1)
+
+        # Left — scrollable controls
+        left_scroll = QScrollArea()
+        left_scroll.setWidgetResizable(True)
+        left_scroll.setFrameShape(QFrame.Shape.NoFrame)
+        left_scroll.setMinimumWidth(300)
+
+        left_widget = QWidget()
+        left_layout = QVBoxLayout(left_widget)
+        left_layout.setSpacing(6)
+
+        self._create_file_section(left_layout)
+        self._create_controls_section(left_layout)
+        self._create_actions_section(left_layout)
+        left_layout.addStretch()
+
+        left_scroll.setWidget(left_widget)
+        splitter.addWidget(left_scroll)
+
+        # Right — preview
+        right_widget = QWidget()
+        right_layout = QVBoxLayout(right_widget)
+        right_layout.setSpacing(6)
+        right_layout.setContentsMargins(4, 0, 0, 0)
+
         if SLIDER_AVAILABLE:
-            self._create_preview_section(container_layout)
-        
-        # Actions section
-        self._create_actions_section(container_layout)
-        
-        container_layout.addStretch()
-        
-        scroll.setWidget(container)
-        layout.addWidget(scroll)
+            self._create_preview_section(right_layout)
+        else:
+            placeholder = QLabel("🎨 Preview\n(install Pillow for live preview)")
+            placeholder.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            placeholder.setStyleSheet("color: gray; font-size: 11pt;")
+            right_layout.addWidget(placeholder, stretch=1)
+
+        splitter.addWidget(right_widget)
+        # Start with controls ~380 px and preview taking the rest
+        splitter.setSizes([380, 500])
     
     def _create_file_section(self, layout):
         """Create file selection controls."""

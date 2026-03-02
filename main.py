@@ -3306,16 +3306,18 @@ class TextureSorterMainWindow(QMainWindow):
             QCheckBox::indicator:hover {{
                 border-color: #88c0d0;
             }}
-            /* ── Carved-wood scrollbar ───────────────────────────────────────── */
+            /* ── Bubbly scrollbar ────────────────────────────────────────────── */
             QScrollBar:vertical {{
                 background-color: #0d1720;
                 width: 14px;
                 border-left: 1px solid #2e4057;
+                border-radius: 7px;
             }}
             QScrollBar::handle:vertical {{
                 background-color: #2e4057;
-                border-radius: 0px;
-                min-height: 24px;
+                border-radius: 6px;
+                min-height: 20px;
+                margin: 2px 2px;
             }}
             QScrollBar::handle:vertical:hover {{
                 background-color: #4a6880;
@@ -3327,11 +3329,13 @@ class TextureSorterMainWindow(QMainWindow):
                 background-color: #0d1720;
                 height: 14px;
                 border-top: 1px solid #2e4057;
+                border-radius: 7px;
             }}
             QScrollBar::handle:horizontal {{
                 background-color: #2e4057;
-                border-radius: 0px;
-                min-width: 24px;
+                border-radius: 6px;
+                min-width: 20px;
+                margin: 2px 2px;
             }}
             QScrollBar::handle:horizontal:hover {{
                 background-color: #4a6880;
@@ -3482,8 +3486,8 @@ class TextureSorterMainWindow(QMainWindow):
             QCheckBox {{ color: #f8f8f2; spacing: 6px; }}
             QCheckBox::indicator {{ width: 14px; height: 14px; border: 2px solid #8b0000; border-radius: 2px; background: #2a0a30; }}
             QCheckBox::indicator:checked {{ background: #8b0000; border-color: #cc0022; }}
-            QScrollBar:vertical {{ background-color: #22042a; width: 12px; }}
-            QScrollBar::handle:vertical {{ background-color: #8b0000; border-radius: 6px; }}
+            QScrollBar:vertical {{ background-color: #22042a; width: 12px; border-radius: 6px; }}
+            QScrollBar::handle:vertical {{ background-color: #8b0000; border-radius: 6px; margin: 2px 2px; }}
             QScrollBar::handle:vertical:hover {{ background-color: #cc0022; }}
             QSlider::groove:horizontal {{ height: 6px; background: #2a0a30; border: 1px solid #8b0000; border-radius: 3px; }}
             QSlider::handle:horizontal {{ background: #8b0000; border: 2px solid #cc0022; width: 16px; height: 16px; border-radius: 8px; margin: -5px 0; }}
@@ -3514,8 +3518,8 @@ class TextureSorterMainWindow(QMainWindow):
             QProgressBar::chunk {{ background-color: {accent}; }}
             QFrame {{ background-color: #073642; border: 1px solid #073642; border-radius: 4px; }}
             QTextEdit {{ background-color: #073642; color: #839496; border: 1px solid #073642; }}
-            QScrollBar:vertical {{ background-color: #073642; width: 12px; }}
-            QScrollBar::handle:vertical {{ background-color: #586e75; border-radius: 6px; }}
+            QScrollBar:vertical {{ background-color: #073642; width: 12px; border-radius: 6px; }}
+            QScrollBar::handle:vertical {{ background-color: #586e75; border-radius: 6px; margin: 2px 2px; }}
             QDockWidget {{ color: #839496; titlebar-close-icon: none; }}
             QDockWidget::title {{ background-color: #073642; padding: 4px; }}
             """
@@ -3540,8 +3544,8 @@ class TextureSorterMainWindow(QMainWindow):
             QProgressBar::chunk {{ background-color: {accent}; }}
             QFrame {{ background-color: #1e381e; border: 1px solid #2d5a2d; border-radius: 4px; }}
             QTextEdit {{ background-color: #1a2e1a; color: #c8e6c9; border: 1px solid #2d5a2d; }}
-            QScrollBar:vertical {{ background-color: #1e381e; width: 12px; }}
-            QScrollBar::handle:vertical {{ background-color: #4a7a4a; border-radius: 6px; }}
+            QScrollBar:vertical {{ background-color: #1e381e; width: 12px; border-radius: 6px; }}
+            QScrollBar::handle:vertical {{ background-color: #4a7a4a; border-radius: 6px; margin: 2px 2px; }}
             """
         elif theme in ('ocean', 'ocean_blue'):
             # 🌊 Ocean — deep-sea blues, coral accents, wave-styled borders
@@ -3575,8 +3579,8 @@ class TextureSorterMainWindow(QMainWindow):
             QCheckBox {{ color: #b3e5fc; spacing: 6px; }}
             QCheckBox::indicator {{ width: 14px; height: 14px; border: 2px solid #00b4d8; border-radius: 7px; background: #052040; }}
             QCheckBox::indicator:checked {{ background: #00b4d8; border-color: #00e5ff; }}
-            QScrollBar:vertical {{ background-color: #031426; width: 12px; }}
-            QScrollBar::handle:vertical {{ background-color: #00b4d8; border-radius: 6px; }}
+            QScrollBar:vertical {{ background-color: #031426; width: 12px; border-radius: 6px; }}
+            QScrollBar::handle:vertical {{ background-color: #00b4d8; border-radius: 6px; margin: 2px 2px; }}
             QScrollBar::handle:vertical:hover {{ background-color: #00e5ff; }}
             QSlider::groove:horizontal {{ height: 6px; background: #052040; border: 1px solid #00b4d8; border-radius: 3px; }}
             QSlider::handle:horizontal {{ background: #00b4d8; border: 2px solid #00e5ff; width: 16px; height: 16px; border-radius: 8px; margin: -5px 0; }}
@@ -3607,8 +3611,8 @@ class TextureSorterMainWindow(QMainWindow):
             QProgressBar::chunk {{ background-color: {accent}; }}
             QFrame {{ background-color: #321e0f; border: 1px solid #5a3520; border-radius: 4px; }}
             QTextEdit {{ background-color: #2a1a0e; color: #f5cba7; border: 1px solid #5a3520; }}
-            QScrollBar:vertical {{ background-color: #321e0f; width: 12px; }}
-            QScrollBar::handle:vertical {{ background-color: #8a5030; border-radius: 6px; }}
+            QScrollBar:vertical {{ background-color: #321e0f; width: 12px; border-radius: 6px; }}
+            QScrollBar::handle:vertical {{ background-color: #8a5030; border-radius: 6px; margin: 2px 2px; }}
             """
         elif theme in ('cyberpunk',):
             stylesheet = f"""
@@ -3631,8 +3635,8 @@ class TextureSorterMainWindow(QMainWindow):
             QProgressBar::chunk {{ background-color: {accent}; }}
             QFrame {{ background-color: #0d0d1a; border: 1px solid #00ffcc; border-radius: 2px; }}
             QTextEdit {{ background-color: #0d0d1a; color: #00ffcc; border: 1px solid #00ffcc; font-family: 'Courier New', monospace; }}
-            QScrollBar:vertical {{ background-color: #0d0d1a; width: 12px; }}
-            QScrollBar::handle:vertical {{ background-color: #00ffcc; border-radius: 2px; }}
+            QScrollBar:vertical {{ background-color: #0d0d1a; width: 12px; border-radius: 6px; }}
+            QScrollBar::handle:vertical {{ background-color: #00ffcc; border-radius: 6px; margin: 2px 2px; }}
             """
         elif theme in ('gore',):
             # 💀 Gore — blood-soaked, dripping, organ-coloured UI with click splatter
@@ -3702,8 +3706,8 @@ class TextureSorterMainWindow(QMainWindow):
             QCheckBox {{ color: #ffaaaa; spacing: 6px; }}
             QCheckBox::indicator {{ width: 14px; height: 14px; border: 3px solid #8b0000; border-radius: 2px; background: #1a0000; }}
             QCheckBox::indicator:checked {{ background: #8b0000; border-color: #ff0000; }}
-            QScrollBar:vertical {{ background-color: #140000; width: 12px; }}
-            QScrollBar::handle:vertical {{ background-color: #8b0000; border-radius: 0px; }}
+            QScrollBar:vertical {{ background-color: #140000; width: 12px; border-radius: 6px; }}
+            QScrollBar::handle:vertical {{ background-color: #8b0000; border-radius: 6px; margin: 2px 2px; }}
             QScrollBar::handle:vertical:hover {{ background-color: #cc0000; }}
             QSlider::groove:horizontal {{ height: 6px; background: #1a0000; border: 2px solid #8b0000; border-radius: 2px; }}
             QSlider::handle:horizontal {{ background: #8b0000; border: 2px solid #cc0000; width: 16px; height: 16px; border-radius: 2px; margin: -5px 0; }}
@@ -3783,8 +3787,8 @@ class TextureSorterMainWindow(QMainWindow):
             QCheckBox {{ color: #c0b0d0; spacing: 6px; }}
             QCheckBox::indicator {{ width: 14px; height: 14px; border: 2px solid #4a2060; border-radius: 0px; background: #0a000f; }}
             QCheckBox::indicator:checked {{ background: #4a2060; border-color: #8844aa; }}
-            QScrollBar:vertical {{ background-color: #050005; width: 12px; }}
-            QScrollBar::handle:vertical {{ background-color: #4a2060; border-radius: 0px; }}
+            QScrollBar:vertical {{ background-color: #050005; width: 12px; border-radius: 6px; }}
+            QScrollBar::handle:vertical {{ background-color: #4a2060; border-radius: 6px; margin: 2px 2px; }}
             QScrollBar::handle:vertical:hover {{ background-color: #6a3090; }}
             QSlider::groove:horizontal {{ height: 6px; background: #0a000f; border: 1px solid #4a2060; border-radius: 0px; }}
             QSlider::handle:horizontal {{ background: #4a2060; border: 2px solid #8844aa; width: 16px; height: 16px; border-radius: 0px; margin: -5px 0; }}
@@ -3856,8 +3860,8 @@ class TextureSorterMainWindow(QMainWindow):
             QCheckBox {{ color: #e8c0e8; spacing: 6px; }}
             QCheckBox::indicator {{ width: 14px; height: 14px; border: 2px solid #7a0030; border-radius: 2px; background: #12001e; }}
             QCheckBox::indicator:checked {{ background: #7a0030; border-color: #cc0044; }}
-            QScrollBar:vertical {{ background-color: #0d001a; width: 12px; }}
-            QScrollBar::handle:vertical {{ background-color: #7a0030; border-radius: 3px; }}
+            QScrollBar:vertical {{ background-color: #0d001a; width: 12px; border-radius: 6px; }}
+            QScrollBar::handle:vertical {{ background-color: #7a0030; border-radius: 6px; margin: 2px 2px; }}
             QScrollBar::handle:vertical:hover {{ background-color: #cc0044; }}
             QSlider::groove:horizontal {{ height: 6px; background: #12001e; border: 1px solid #7a0030; border-radius: 3px; }}
             QSlider::handle:horizontal {{ background: #7a0030; border: 2px solid #cc0044; width: 16px; height: 16px; border-radius: 3px; margin: -5px 0; }}
@@ -4044,6 +4048,37 @@ class TextureSorterMainWindow(QMainWindow):
                 background-color: #1e1e1e;
                 color: #ffffff;
                 border: 1px solid #333333;
+            }}
+            QScrollBar:vertical {{
+                background-color: #1a1a1a;
+                width: 14px;
+                border-radius: 7px;
+            }}
+            QScrollBar::handle:vertical {{
+                background-color: #555555;
+                border-radius: 6px;
+                min-height: 20px;
+                margin: 2px 2px;
+            }}
+            QScrollBar::handle:vertical:hover {{
+                background-color: {hover_color.name()};
+            }}
+            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {{
+                height: 0px;
+            }}
+            QScrollBar:horizontal {{
+                background-color: #1a1a1a;
+                height: 14px;
+                border-radius: 7px;
+            }}
+            QScrollBar::handle:horizontal {{
+                background-color: #555555;
+                border-radius: 6px;
+                min-width: 20px;
+                margin: 2px 2px;
+            }}
+            QScrollBar::handle:horizontal:hover {{
+                background-color: {hover_color.name()};
             }}
             """
         # ── Common layout-fix overrides to prevent text clipping across themes ──
