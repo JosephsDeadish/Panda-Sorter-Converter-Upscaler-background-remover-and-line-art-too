@@ -630,6 +630,35 @@ class OrganizerPanelQt(QWidget):
         
         self._create_ui()
         self._setup_learning_system()
+        self.setAcceptDrops(True)  # drag-and-drop a folder to set source directory
+
+    def dragEnterEvent(self, event) -> None:
+        if event.mimeData().hasUrls():
+            event.acceptProposedAction()
+        else:
+            event.ignore()
+
+    def dropEvent(self, event) -> None:
+        """Accept a dropped folder (or image file) as the source directory."""
+        from pathlib import Path as _P
+        for url in event.mimeData().urls():
+            path = _P(url.toLocalFile())
+            if path.is_dir():
+                self.source_directory = str(path)
+                if hasattr(self, 'source_label'):
+                    self.source_label.setText(str(path))
+                    self.source_label.setStyleSheet("color: green; font-weight: bold;")
+                event.acceptProposedAction()
+                return
+            elif path.is_file():
+                # Dropped a single image file — use its parent directory
+                self.source_directory = str(path.parent)
+                if hasattr(self, 'source_label'):
+                    self.source_label.setText(str(path.parent))
+                    self.source_label.setStyleSheet("color: green; font-weight: bold;")
+                event.acceptProposedAction()
+                return
+        event.ignore()
     
     def _show_unavailable(self):
         """Show message when organizer is not available."""
