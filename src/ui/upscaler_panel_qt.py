@@ -306,6 +306,11 @@ class UpscaleWorker(QThread):
                 self.progress.emit(progress, f"Upscaling: {Path(file_path).name}")
 
                 output_path = self._get_output_path(Path(file_path))
+                # Guard: never overwrite the source file
+                if output_path.resolve() == Path(file_path).resolve():
+                    stem = Path(file_path).stem
+                    ext = output_path.suffix
+                    output_path = Path(self.output_dir) / f"{stem}_upscaled{ext}"
                 if self.skip_existing and output_path.exists():
                     skipped += 1
                     continue

@@ -145,6 +145,9 @@ class ColorCorrectionWorker(QThread):
 
                 # Process file
                 output_path = Path(self.output_dir) / file_path.name
+                # Guard: never overwrite the source file
+                if output_path.resolve() == file_path.resolve():
+                    output_path = Path(self.output_dir) / f"{file_path.stem}_corrected{file_path.suffix}"
                 if self.skip_existing and output_path.exists():
                     skipped += 1
                     continue

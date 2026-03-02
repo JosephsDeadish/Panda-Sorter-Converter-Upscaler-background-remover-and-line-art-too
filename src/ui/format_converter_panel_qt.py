@@ -288,6 +288,7 @@ class _ConvertWorker(QThread):
         if skipped:
             _parts.append(f"{skipped} skipped")
         msg = f"Done — {', '.join(_parts)}"
+        self.progress.emit(total, total, "Done")
         self.finished.emit(ok, msg, done)
 
 

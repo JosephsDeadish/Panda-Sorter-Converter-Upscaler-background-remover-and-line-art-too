@@ -153,6 +153,10 @@ class AlphaFixWorker(QThread):
                 # Use the higher-level process_image() which handles PIL loading,
                 # RGBA conversion, numpy conversion and saving internally.
                 output_path = Path(self.output_dir) / Path(filepath).name
+                # Guard: never overwrite the source file
+                if output_path.resolve() == Path(filepath).resolve():
+                    src = Path(filepath)
+                    output_path = Path(self.output_dir) / f"{src.stem}_fixed{src.suffix}"
                 if self.skip_existing and output_path.exists():
                     skipped += 1
                     logger.debug(f"Skipped (exists): {output_path.name}")

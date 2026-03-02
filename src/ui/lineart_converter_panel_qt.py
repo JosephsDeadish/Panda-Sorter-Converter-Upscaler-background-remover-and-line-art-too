@@ -509,6 +509,11 @@ class _FormatConversionWorker(QThread):
                 out_name = f"{out_stem}.{self.out_ext}"
                 out_path = self.output_dir / out_name
 
+                # Guard: never overwrite the source file
+                if out_path.resolve() == src.resolve():
+                    out_name = f"{out_stem}_lineart.{self.out_ext}"
+                    out_path = self.output_dir / out_name
+
                 if self.skip_existing and out_path.exists():
                     skipped += 1
                     continue
