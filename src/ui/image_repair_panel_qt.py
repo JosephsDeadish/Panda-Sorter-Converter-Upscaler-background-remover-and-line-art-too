@@ -12,7 +12,8 @@ try:
     from PyQt6.QtWidgets import (
         QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
         QTextEdit, QFileDialog, QMessageBox, QProgressBar,
-        QGroupBox, QScrollArea, QFrame, QCheckBox, QComboBox
+        QGroupBox, QScrollArea, QFrame, QCheckBox, QComboBox,
+        QSplitter
     )
     from PyQt6.QtCore import Qt, QThread, pyqtSignal
     PYQT_AVAILABLE = True
@@ -225,38 +226,57 @@ class ImageRepairPanelQt(QWidget):
         layout.addWidget(error_label)
     
     def _create_widgets(self):
-        """Create UI widgets."""
+        """Create UI widgets with left-controls / right-log QSplitter layout."""
         layout = QVBoxLayout(self)
-        layout.setSpacing(10)
-        layout.setContentsMargins(10, 10, 10, 10)
-        
+        layout.setSpacing(6)
+        layout.setContentsMargins(8, 8, 8, 8)
+
         # Title
         title_label = QLabel("🔧 Image Repair Tool")
-        title_label.setStyleSheet("font-size: 18pt; font-weight: bold;")
+        title_label.setStyleSheet("font-size: 16pt; font-weight: bold;")
         title_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(title_label)
-        
+
         subtitle_label = QLabel("Repair corrupted PNG and JPEG image files")
-        subtitle_label.setStyleSheet("color: gray; font-size: 12pt;")
+        subtitle_label.setStyleSheet("color: gray; font-size: 10pt;")
         subtitle_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(subtitle_label)
-        
-        # Scroll area
-        scroll = QScrollArea()
-        scroll.setWidgetResizable(True)
-        scroll.setFrameShape(QFrame.Shape.NoFrame)
-        
-        container = QWidget()
-        main_layout = QVBoxLayout(container)
-        
-        self._create_file_section(main_layout)
-        self._create_output_section(main_layout)
-        self._create_diagnostic_section(main_layout)
-        self._create_action_buttons(main_layout)
-        
-        main_layout.addStretch()
-        scroll.setWidget(container)
-        layout.addWidget(scroll)
+
+        # ── Main splitter: LEFT = controls, RIGHT = diagnostic log ───────────
+        splitter = QSplitter(Qt.Orientation.Horizontal)
+        splitter.setChildrenCollapsible(False)
+        layout.addWidget(splitter, stretch=1)
+
+        # ── LEFT: scrollable settings ─────────────────────────────────────────
+        left_scroll = QScrollArea()
+        left_scroll.setWidgetResizable(True)
+        left_scroll.setFrameShape(QFrame.Shape.NoFrame)
+        left_scroll.setMinimumWidth(280)
+        left_scroll.setMaximumWidth(520)
+
+        left_widget = QWidget()
+        left_layout = QVBoxLayout(left_widget)
+        left_layout.setSpacing(6)
+        left_layout.setContentsMargins(2, 2, 4, 2)
+
+        self._create_file_section(left_layout)
+        self._create_output_section(left_layout)
+        self._create_action_buttons(left_layout)
+        left_layout.addStretch()
+
+        left_scroll.setWidget(left_widget)
+        splitter.addWidget(left_scroll)
+
+        # ── RIGHT: diagnostic results log ─────────────────────────────────────
+        right_widget = QWidget()
+        right_layout = QVBoxLayout(right_widget)
+        right_layout.setContentsMargins(4, 0, 0, 0)
+        right_layout.setSpacing(4)
+        self._create_diagnostic_section(right_layout)
+        splitter.addWidget(right_widget)
+
+        # Controls: 380 px; log fills the rest
+        splitter.setSizes([380, 400])
     
     def _create_file_section(self, layout):
         """Create file selection section."""
@@ -368,7 +388,7 @@ class ImageRepairPanelQt(QWidget):
         
         self.diagnostic_text = QTextEdit()
         self.diagnostic_text.setReadOnly(True)
-        self.diagnostic_text.setMinimumHeight(200)
+        self.diagnostic_text.setMinimumHeight(100)  # right pane expands to fill
         self.diagnostic_text.setPlaceholderText("Run diagnostics to see corruption analysis...")
         self._set_tooltip(self.diagnostic_text, 'repair_results')
         group_layout.addWidget(self.diagnostic_text)

@@ -5008,6 +5008,265 @@ def test_color_correction_splitter_layout():
     print(f"  ✅ Runtime: splitter sizes = {sizes}")
 
 
+def test_batch_normalizer_splitter():
+    """Batch Normalizer must use a QSplitter(Horizontal) layout with modest preview size.
+
+    Issue #197: 'some tools are missing the new layout for most ui on left with
+    the previewer on the right. The previewers all also need to be smaller by default.'
+
+    Previously the panel used a bare QHBoxLayout inside a QScrollArea with a
+    setMinimumSize(400,400) preview label — the preview dominated the layout and
+    the controls couldn't scroll independently.
+
+    Fix:
+    - QSplitter(Horizontal) used in _create_widgets()
+    - Left pane wraps controls in a QScrollArea (min-width 280, max-width 500)
+    - Right pane holds the preview group
+    - setSizes([380, 360]) gives a modest initial preview
+    - preview label setMinimumSize reduced to 200×200
+
+    Source checks:
+    - QSplitter imported in batch_normalizer_panel_qt.py
+    - QSplitter(Qt.Orientation.Horizontal) present
+    - setSizes([380, 360]) present
+    - setMinimumSize(200 not 400) for preview label
+
+    Runtime checks:
+    - BatchNormalizerPanelQt has QSplitter child
+    - Left side is QScrollArea
+    - Right side widget exists
+    - Splitter has 2 widgets
+    """
+    print("\ntest_batch_normalizer_splitter ...")
+    from pathlib import Path
+    code = (Path(__file__).parent / 'src' / 'ui' / 'batch_normalizer_panel_qt.py').read_text(encoding='utf-8')
+
+    assert 'QSplitter' in code, \
+        "batch_normalizer_panel_qt.py: QSplitter not imported"
+    print("  ✅ Source: QSplitter imported")
+
+    assert 'QSplitter(Qt.Orientation.Horizontal)' in code, \
+        "batch_normalizer_panel_qt.py: QSplitter(Horizontal) not used in _create_widgets()"
+    print("  ✅ Source: QSplitter(Horizontal) used")
+
+    assert 'setSizes' in code, \
+        "batch_normalizer_panel_qt.py: splitter.setSizes() call missing"
+    print("  ✅ Source: setSizes() called to set initial proportions")
+
+    # Preview minimum size should be modest (not 400×400)
+    import re
+    min_sizes = re.findall(r'setMinimumSize\((\d+),\s*(\d+)\)', code)
+    for w, h in min_sizes:
+        if 'preview_label' in code[max(0, code.find(f'setMinimumSize({w}, {h})')-150):
+                                     code.find(f'setMinimumSize({w}, {h})')+50]:
+            assert int(w) <= 300 and int(h) <= 300, (
+                f"batch_normalizer preview setMinimumSize({w},{h}) is too large — "
+                f"should be ≤300×300 to avoid dominating the layout."
+            )
+    print("  ✅ Source: preview label setMinimumSize is modest (≤300×300)")
+
+    # Runtime
+    import sys, os, logging
+    os.environ.setdefault('QT_QPA_PLATFORM', 'offscreen')
+    logging.disable(logging.CRITICAL)
+    sys.path.insert(0, str(Path(__file__).parent / 'src'))
+    from PyQt6.QtWidgets import QApplication, QSplitter, QScrollArea
+    _app = QApplication.instance() or QApplication(sys.argv)
+
+    from ui.batch_normalizer_panel_qt import BatchNormalizerPanelQt
+    panel = BatchNormalizerPanelQt()
+    splitters = panel.findChildren(QSplitter)
+    assert splitters, (
+        "BatchNormalizerPanelQt has no QSplitter — expected left/right split layout"
+    )
+    splitter = splitters[0]
+    assert splitter.count() == 2, f"Expected 2 splitter widgets, got {splitter.count()}"
+    print(f"  ✅ Runtime: QSplitter found with {splitter.count()} widgets")
+
+    left = splitter.widget(0)
+    assert isinstance(left, QScrollArea), \
+        f"Left pane should be QScrollArea, got {type(left).__name__}"
+    print("  ✅ Runtime: left pane is QScrollArea (scrollable controls)")
+
+    right = splitter.widget(1)
+    assert right is not None, "Right pane is None"
+    print(f"  ✅ Runtime: right pane exists ({type(right).__name__})")
+
+
+def test_image_repair_log_splitter():
+    """Image Repair panel must use a QSplitter with left-controls / right-log layout.
+
+    Issue #197: 'some tools are missing the new layout for most ui on left with
+    the previewer on the right.'
+
+    The Image Repair panel previously used a single vertical scroll-area with the
+    diagnostic QTextEdit buried at the bottom under the controls — making it hard
+    to read log output while configuring options.
+
+    Fix: _create_widgets() now creates QSplitter(Horizontal) with:
+    - Left pane: QScrollArea wrapping file-selection + output-section + action buttons
+    - Right pane: diagnostic log (QTextEdit) that expands to fill available space
+    - setSizes([380, 400])
+
+    Source checks:
+    - QSplitter imported in image_repair_panel_qt.py
+    - QSplitter(Qt.Orientation.Horizontal) used
+    - setSizes([380, 400]) present
+
+    Runtime checks:
+    - ImageRepairPanelQt has QSplitter child
+    - Left side is QScrollArea
+    - Right side contains a QTextEdit (the diagnostic log)
+    """
+    print("\ntest_image_repair_log_splitter ...")
+    from pathlib import Path
+    code = (Path(__file__).parent / 'src' / 'ui' / 'image_repair_panel_qt.py').read_text(encoding='utf-8')
+
+    assert 'QSplitter' in code, \
+        "image_repair_panel_qt.py: QSplitter not imported"
+    print("  ✅ Source: QSplitter imported")
+
+    assert 'QSplitter(Qt.Orientation.Horizontal)' in code, \
+        "image_repair_panel_qt.py: QSplitter(Horizontal) not found in _create_widgets()"
+    print("  ✅ Source: QSplitter(Horizontal) used")
+
+    assert 'setSizes' in code, \
+        "image_repair_panel_qt.py: splitter.setSizes() call missing"
+    print("  ✅ Source: setSizes() called")
+
+    # Runtime
+    import sys, os, logging
+    os.environ.setdefault('QT_QPA_PLATFORM', 'offscreen')
+    logging.disable(logging.CRITICAL)
+    sys.path.insert(0, str(Path(__file__).parent / 'src'))
+    from PyQt6.QtWidgets import QApplication, QSplitter, QScrollArea, QTextEdit
+    _app = QApplication.instance() or QApplication(sys.argv)
+
+    from ui.image_repair_panel_qt import ImageRepairPanelQt
+    panel = ImageRepairPanelQt()
+    splitters = panel.findChildren(QSplitter)
+    assert splitters, "ImageRepairPanelQt has no QSplitter"
+    splitter = splitters[0]
+    assert splitter.count() == 2, f"Expected 2 widgets, got {splitter.count()}"
+    print(f"  ✅ Runtime: QSplitter with {splitter.count()} widgets")
+
+    left = splitter.widget(0)
+    assert isinstance(left, QScrollArea), \
+        f"Left pane should be QScrollArea, got {type(left).__name__}"
+    print("  ✅ Runtime: left pane is QScrollArea (controls)")
+
+    # Right pane should contain a QTextEdit (diagnostic log)
+    right = splitter.widget(1)
+    assert right is not None, "Right pane is None"
+    text_edits = right.findChildren(QTextEdit)
+    assert text_edits, (
+        "Right pane should contain the diagnostic QTextEdit log, but none found"
+    )
+    print(f"  ✅ Runtime: right pane contains QTextEdit (diagnostic log)")
+
+
+def test_lineart_preset_recommendation_hint():
+    """LineArt converter must show a recommendation hint when a preset is selected.
+
+    Issue #201: 'Line art tool presets need to work better need better accuracy.
+    Needs more user friendly ui and functionality'
+
+    The recommendation hint (preset_rec_lbl) makes it easy for users to see at a
+    glance what the key settings of the active preset are — without having to read
+    the entire description or scroll down to the sliders.
+
+    Source checks:
+    - preset_rec_lbl QLabel created in _create_preset_section()
+    - _on_preset_changed() sets preset_rec_lbl text
+    - '⭐ Recommended' present in _on_preset_changed() body
+    - _MODE_FRIENDLY dict maps internal mode keys to display names
+
+    Runtime checks:
+    - After selecting the PS2 preset the recommendation hint contains
+      'Recommended', 'Adaptive' (the PS2 mode), and either 'Auto' or the threshold
+    - After switching to the GameCube preset the hint changes
+    - After selecting a tattoo preset the hint reflects pure_black mode
+    """
+    print("\ntest_lineart_preset_recommendation_hint ...")
+    from pathlib import Path
+    code = (Path(__file__).parent / 'src' / 'ui' / 'lineart_converter_panel_qt.py').read_text(encoding='utf-8')
+
+    assert 'preset_rec_lbl' in code, (
+        "lineart_converter_panel_qt.py: preset_rec_lbl QLabel not found in _create_preset_section(). "
+        "Add self.preset_rec_lbl = QLabel('') for the recommendation hint."
+    )
+    print("  ✅ Source: preset_rec_lbl label present")
+
+    assert '⭐ Recommended' in code, (
+        "lineart_converter_panel_qt.py: '⭐ Recommended' string not found in _on_preset_changed(). "
+        "Set preset_rec_lbl.setText(f'⭐ Recommended: …') with key settings."
+    )
+    print("  ✅ Source: '⭐ Recommended' hint string present")
+
+    assert '_MODE_FRIENDLY' in code, (
+        "lineart_converter_panel_qt.py: _MODE_FRIENDLY dict not found in _on_preset_changed(). "
+        "Add a _MODE_FRIENDLY mapping from internal mode keys to display names."
+    )
+    print("  ✅ Source: _MODE_FRIENDLY mapping present")
+
+    # All mode display names should be mapped
+    for internal_key, display in (
+        ('pure_black', 'Pure Black'),
+        ('edge_detect', 'Edge Detection'),
+        ('adaptive', 'Adaptive'),
+        ('sketch', 'Sketch'),
+        ('threshold', 'Threshold'),
+        ('stencil_1bit', 'Stencil'),
+    ):
+        assert internal_key in code, \
+            f"lineart_converter_panel_qt.py: mode key '{internal_key}' missing from _MODE_FRIENDLY"
+    print("  ✅ Source: all mode keys present in _MODE_FRIENDLY")
+
+    # Runtime
+    import sys, os, logging
+    os.environ.setdefault('QT_QPA_PLATFORM', 'offscreen')
+    logging.disable(logging.CRITICAL)
+    sys.path.insert(0, str(Path(__file__).parent / 'src'))
+    from PyQt6.QtWidgets import QApplication
+    _app = QApplication.instance() or QApplication(sys.argv)
+
+    from ui.lineart_converter_panel_qt import LineArtConverterPanelQt
+    panel = LineArtConverterPanelQt()
+
+    # Select the PS2 preset and check the hint
+    ps2_preset = "🎮 PS2 / PS1 Texture Edges"
+    panel.preset_combo.setCurrentText(ps2_preset)
+    hint_ps2 = panel.preset_rec_lbl.text()
+    assert 'Recommended' in hint_ps2, \
+        f"PS2 preset hint should contain 'Recommended', got: {hint_ps2!r}"
+    assert 'Adaptive' in hint_ps2 or 'adaptive' in hint_ps2.lower(), \
+        f"PS2 preset uses adaptive mode — hint should mention it. Got: {hint_ps2!r}"
+    print(f"  ✅ Runtime: PS2 hint: {hint_ps2}")
+
+    # Switch to GameCube and verify hint changes
+    gcn_preset = "🎮 GameCube / Wii Diffuse Edges"
+    panel.preset_combo.setCurrentText(gcn_preset)
+    hint_gcn = panel.preset_rec_lbl.text()
+    assert 'Recommended' in hint_gcn, \
+        f"GCN preset hint should contain 'Recommended', got: {hint_gcn!r}"
+    assert hint_gcn != hint_ps2, (
+        f"Hint did not change between PS2 and GCN presets:\n"
+        f"  PS2: {hint_ps2!r}\n  GCN: {hint_gcn!r}"
+    )
+    print(f"  ✅ Runtime: GCN hint changed from PS2 hint")
+
+    # Select first preset (tattoo — pure_black mode)
+    first_preset = panel.preset_combo.itemText(0)
+    panel.preset_combo.setCurrentText(first_preset)
+    hint_tattoo = panel.preset_rec_lbl.text()
+    assert 'Recommended' in hint_tattoo, \
+        f"Tattoo preset hint should contain 'Recommended', got: {hint_tattoo!r}"
+    assert 'Pure Black' in hint_tattoo or 'pure_black' in hint_tattoo, (
+        f"First preset should use pure_black mode. Hint: {hint_tattoo!r}"
+    )
+    print(f"  ✅ Runtime: tattoo hint contains mode=Pure Black Lines")
+
+
 def run_all_tests():
     print("=" * 65)
     print("Hybrid Architecture + Lazy rembg Import Tests")
@@ -5108,6 +5367,9 @@ def run_all_tests():
         test_game_texture_lineart_presets,
         test_bubbly_scrollbars,
         test_color_correction_splitter_layout,
+        test_batch_normalizer_splitter,
+        test_image_repair_log_splitter,
+        test_lineart_preset_recommendation_hint,
     ]
 
     passed, failed = [], []

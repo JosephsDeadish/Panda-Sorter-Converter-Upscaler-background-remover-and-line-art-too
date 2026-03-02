@@ -9,7 +9,8 @@ try:
     from PyQt6.QtWidgets import (
         QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
         QScrollArea, QFrame, QFileDialog, QMessageBox, QProgressBar,
-        QComboBox, QSpinBox, QCheckBox, QLineEdit, QGroupBox, QTextEdit
+        QComboBox, QSpinBox, QCheckBox, QLineEdit, QGroupBox, QTextEdit,
+        QSplitter
     )
     from PyQt6.QtCore import Qt, QThread, pyqtSignal, QTimer
     from PyQt6.QtGui import QPixmap, QImage
@@ -166,52 +167,58 @@ class BatchNormalizerPanelQt(QWidget):
         self._create_widgets()
     
     def _create_widgets(self):
-        """Create the UI widgets."""
+        """Create the UI widgets with left-controls / right-preview QSplitter layout."""
         layout = QVBoxLayout(self)
-        layout.setSpacing(10)
-        layout.setContentsMargins(10, 10, 10, 10)
-        
+        layout.setSpacing(6)
+        layout.setContentsMargins(8, 8, 8, 8)
+
         # Title
         title_label = QLabel("📏 Batch Format Normalizer")
-        title_label.setStyleSheet("font-size: 18pt; font-weight: bold;")
+        title_label.setStyleSheet("font-size: 16pt; font-weight: bold;")
         title_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(title_label)
-        
+
         subtitle_label = QLabel("Resize, pad, and normalize images to consistent format")
-        subtitle_label.setStyleSheet("color: gray; font-size: 12pt;")
+        subtitle_label.setStyleSheet("color: gray; font-size: 10pt;")
         subtitle_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(subtitle_label)
-        
-        # Main container with scroll area
-        scroll = QScrollArea()
-        scroll.setWidgetResizable(True)
-        scroll.setFrameShape(QFrame.Shape.NoFrame)
-        
-        container = QWidget()
-        main_layout = QHBoxLayout(container)
-        
-        # Left side - Settings
+
+        # ── Main splitter: LEFT = controls, RIGHT = preview ───────────────────
+        splitter = QSplitter(Qt.Orientation.Horizontal)
+        splitter.setChildrenCollapsible(False)
+        layout.addWidget(splitter, stretch=1)
+
+        # ── LEFT: scrollable settings ─────────────────────────────────────────
+        left_scroll = QScrollArea()
+        left_scroll.setWidgetResizable(True)
+        left_scroll.setFrameShape(QFrame.Shape.NoFrame)
+        left_scroll.setMinimumWidth(280)
+        left_scroll.setMaximumWidth(500)
+
         left_widget = QWidget()
         left_layout = QVBoxLayout(left_widget)
         left_layout.setSpacing(5)
-        
+        left_layout.setContentsMargins(2, 2, 4, 2)
+
         self._create_file_selection(left_layout)
         self._create_size_settings(left_layout)
         self._create_format_settings(left_layout)
         self._create_naming_settings(left_layout)
         self._create_action_buttons(left_layout)
-        
         left_layout.addStretch()
-        main_layout.addWidget(left_widget, 1)
-        
-        # Right side - Preview
+
+        left_scroll.setWidget(left_widget)
+        splitter.addWidget(left_scroll)
+
+        # ── RIGHT: preview ────────────────────────────────────────────────────
         right_widget = QWidget()
         right_layout = QVBoxLayout(right_widget)
+        right_layout.setContentsMargins(4, 0, 0, 0)
         self._create_preview_section(right_layout)
-        main_layout.addWidget(right_widget, 1)
-        
-        scroll.setWidget(container)
-        layout.addWidget(scroll)
+        splitter.addWidget(right_widget)
+
+        # Controls get 380 px, preview gets the rest — modest default
+        splitter.setSizes([380, 360])
     
     def _create_file_selection(self, layout):
         """Create file selection section."""
@@ -453,7 +460,7 @@ class BatchNormalizerPanelQt(QWidget):
         # Preview label
         self.preview_label = QLabel("Select files to see preview")
         self.preview_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.preview_label.setMinimumSize(400, 400)
+        self.preview_label.setMinimumSize(200, 200)
         self.preview_label.setStyleSheet("border: 2px dashed gray; background-color: #f0f0f0;")
         group_layout.addWidget(self.preview_label)
         
@@ -532,7 +539,7 @@ class BatchNormalizerPanelQt(QWidget):
             image = Image.open(first_file)
             
             # Resize for preview
-            image.thumbnail((400, 400), Image.Resampling.LANCZOS)
+            image.thumbnail((350, 350), Image.Resampling.LANCZOS)
             
             # Convert to QPixmap
             data = image.convert("RGBA").tobytes("raw", "RGBA")

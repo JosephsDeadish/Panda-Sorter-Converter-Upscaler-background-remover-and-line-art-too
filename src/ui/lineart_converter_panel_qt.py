@@ -756,7 +756,7 @@ class LineArtConverterPanelQt(QWidget):
         """Create preset selection section."""
         group = QGroupBox("🎨 Presets")
         group_layout = QVBoxLayout()
-        
+
         self.preset_combo = QComboBox()
         for preset_name in LINEART_PRESETS.keys():
             self.preset_combo.addItem(preset_name)
@@ -764,15 +764,24 @@ class LineArtConverterPanelQt(QWidget):
         group_layout.addWidget(self.preset_combo)
         self._set_tooltip(self.preset_combo, 'la_preset')
         self._set_tooltip(self.preset_combo, 'la_save_preset')
-        
+
         # Preset description
         self.preset_desc = QLabel("")
         self.preset_desc.setWordWrap(True)
         self.preset_desc.setStyleSheet("color: gray; font-size: 10pt;")
         group_layout.addWidget(self.preset_desc)
-        
+
+        # Recommendation hint — updated by _on_preset_changed to show the key
+        # setting for the active preset (mode, threshold, etc.)
+        self.preset_rec_lbl = QLabel("")
+        self.preset_rec_lbl.setWordWrap(True)
+        self.preset_rec_lbl.setStyleSheet(
+            "color: #d4a000; font-size: 9pt; font-style: italic;"
+        )
+        group_layout.addWidget(self.preset_rec_lbl)
+
         # Note: preset will be loaded after all widgets are initialized (see __init__)
-        
+
         group.setLayout(group_layout)
         layout.addWidget(group)
     
@@ -1347,7 +1356,27 @@ class LineArtConverterPanelQt(QWidget):
         if preset_name in LINEART_PRESETS:
             preset = LINEART_PRESETS[preset_name]
             self.preset_desc.setText(preset["desc"])
-            
+
+            # Update the recommendation hint label
+            if hasattr(self, 'preset_rec_lbl'):
+                _MODE_FRIENDLY = {
+                    "pure_black":   "Pure Black Lines",
+                    "edge_detect":  "Edge Detection (Canny)",
+                    "adaptive":     "Adaptive Threshold",
+                    "sketch":       "Sketch / Pencil",
+                    "threshold":    "Simple Threshold",
+                    "stencil_1bit": "1-bit Stencil",
+                }
+                mode_name = _MODE_FRIENDLY.get(preset.get("mode", ""), preset.get("mode", ""))
+                threshold = preset.get("threshold", "–")
+                contrast  = preset.get("contrast", "–")
+                threshold_display = "✅ Auto" if preset.get("auto_threshold") else f"manual {threshold}"
+                hint = (
+                    f"⭐ Recommended: mode={mode_name}  ·  "
+                    f"threshold={threshold_display}  ·  contrast={contrast}"
+                )
+                self.preset_rec_lbl.setText(hint)
+
             # Only update controls if widgets are fully initialized
             if not self._widgets_initialized:
                 return
