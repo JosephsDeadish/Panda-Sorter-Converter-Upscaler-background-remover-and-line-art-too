@@ -510,13 +510,13 @@ class AlphaFixerPanelQt(QWidget):
         
         if _SLIDER_AVAILABLE and ComparisonSliderWidget is not None:
             self._preview_widget = ComparisonSliderWidget()
-            self._preview_widget.setMinimumSize(400, 400)
+            self._preview_widget.setMinimumSize(250, 200)
             group_layout.addWidget(self._preview_widget)
         else:
             self._preview_widget = None
             self.preview_label = QLabel("Select files to preview")
             self.preview_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            self.preview_label.setMinimumSize(400, 400)
+            self.preview_label.setMinimumSize(250, 200)
             self.preview_label.setStyleSheet("border: 2px dashed gray; background-color: #f0f0f0;")
             group_layout.addWidget(self.preview_label)
         

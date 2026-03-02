@@ -94,7 +94,7 @@ class ComparisonSliderWidget(QWidget):
         self._pan_dragging = False # True while middle-button or Ctrl+LMB panning
         self._pan_last = None      # last QPoint during pan drag
 
-        self.setMinimumSize(400, 400)
+        self.setMinimumSize(250, 200)
         self.setMouseTracking(True)
         self.setCursor(QCursor(Qt.CursorShape.SplitHCursor))
         
