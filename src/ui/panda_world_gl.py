@@ -129,6 +129,7 @@ _CLICK_REGIONS = {
     'otter':    ( 3.5,  5.5, -5.0, -3.5),
     'home':     (-6.0, -2.0, -5.5, -2.0),
     'park_btn': (-1.5,  1.5,  3.0,  5.0),
+    'dungeon':  (-11.5, -7.0, -10.0, -6.5),  # dungeon entrance archway
 }
 
 
@@ -1361,6 +1362,14 @@ class PandaWorldGL(
                 glVertex3f(vx, 2.0, vz)
             glEnd()
 
+        elif self._hover == 'dungeon':
+            # Purple-glow outline around the dungeon archway
+            glColor3f(0.7, 0.2, 1.0)
+            glBegin(GL_LINE_LOOP)
+            for vx, vz in [(-11.4, -9.9), (-7.1, -9.9), (-7.1, -6.6), (-11.4, -6.6)]:
+                glVertex3f(vx, 2.5, vz)
+            glEnd()
+
         glLineWidth(1.0)
         glEnable(GL_LIGHTING)
 
@@ -1393,6 +1402,8 @@ class PandaWorldGL(
             self.back_to_bedroom.emit()
         elif region == 'park_btn':
             self.destination_selected.emit('park')
+        elif region == 'dungeon':
+            self.destination_selected.emit('dungeon')
 
     def get_car_color(self) -> list:
         """Return current car colour as [r, g, b] float list."""

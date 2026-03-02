@@ -1180,13 +1180,13 @@ class LineArtConverterPanelQt(QWidget):
         # ── Preview area (scrollable) ──────────────────────────────────────
         if SLIDER_AVAILABLE:
             self.preview_widget = ComparisonSliderWidget()
-            self.preview_widget.setMinimumHeight(400)
+            self.preview_widget.setMinimumHeight(200)
             # Wrap in QScrollArea for zoom/pan
             from PyQt6.QtWidgets import QScrollArea as _SA
             self._preview_scroll = _SA()
             self._preview_scroll.setWidgetResizable(False)
             self._preview_scroll.setWidget(self.preview_widget)
-            self._preview_scroll.setMinimumHeight(400)
+            self._preview_scroll.setMinimumHeight(200)
             group_layout.addWidget(self._preview_scroll)
             # Scroll-wheel zoom works for both paths
             self._preview_scroll.wheelEvent = self._preview_wheel_event
@@ -1195,14 +1195,14 @@ class LineArtConverterPanelQt(QWidget):
             from PyQt6.QtWidgets import QScrollArea as _SA
             self.preview_label = QLabel("Select an image to see preview")
             self.preview_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            self.preview_label.setMinimumSize(400, 400)
+            self.preview_label.setMinimumSize(250, 200)
             self.preview_label.setStyleSheet(
                 "border: 2px dashed gray; background-color: #f0f0f0;"
             )
             self._preview_scroll = _SA()
             self._preview_scroll.setWidgetResizable(True)
             self._preview_scroll.setWidget(self.preview_label)
-            self._preview_scroll.setMinimumHeight(400)
+            self._preview_scroll.setMinimumHeight(200)
             group_layout.addWidget(self._preview_scroll)
             self._preview_scroll.wheelEvent = self._preview_wheel_event
 
