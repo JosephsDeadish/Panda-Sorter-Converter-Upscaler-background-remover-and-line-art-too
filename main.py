@@ -5135,6 +5135,20 @@ class TextureSorterMainWindow(QMainWindow):
                         hun_icon  = '🍎' if hun > 60 else ('🍽️' if hun > 20 else '😫')
                         hap_icon  = '😄' if hap > 60 else ('😐' if hap > 30 else '😢')
                         wellbeing_str = f"  {hun_icon}{hun}  {hap_icon}{hap}"
+                # Low-wellbeing warnings — show once per threshold crossing
+                if stats is not None:
+                    hun = getattr(stats, 'hunger', 100)
+                    hap = getattr(stats, 'happiness', 100)
+                    _prev_warn = getattr(self, '_wellbeing_warn_state', (True, True))
+                    was_fed    = _prev_warn[0]
+                    was_happy  = _prev_warn[1]
+                    is_fed     = hun > 20
+                    is_happy   = hap > 20
+                    if was_fed and not is_fed:
+                        self.statusBar().showMessage("🍽️ Panda is very hungry! Feed them something!", 8000)
+                    if was_happy and not is_happy:
+                        self.statusBar().showMessage("😢 Panda is very sad! Give them some attention!", 8000)
+                    self._wellbeing_warn_state = (is_fed, is_happy)
                 label_text = f"{emoji} {display_state.replace('_', ' ')}{wellbeing_str}"
                 if self._panda_mood_label.text() != label_text:
                     self._panda_mood_label.setText(label_text)
