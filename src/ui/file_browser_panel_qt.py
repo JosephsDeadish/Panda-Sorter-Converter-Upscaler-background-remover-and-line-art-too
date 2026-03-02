@@ -16,10 +16,11 @@ try:
         QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
         QLineEdit, QComboBox, QListWidget, QListWidgetItem,
         QFileDialog, QMessageBox, QGroupBox, QCheckBox,
-        QScrollArea, QFrame, QGridLayout, QSplitter, QMainWindow
+        QScrollArea, QFrame, QGridLayout, QSplitter, QMainWindow,
+        QMenu, QApplication
     )
     from PyQt6.QtCore import Qt, pyqtSignal, QSize, QTimer, QThread
-    from PyQt6.QtGui import QPixmap, QIcon, QImage
+    from PyQt6.QtGui import QPixmap, QIcon, QImage, QAction
     PYQT_AVAILABLE = True
 except (ImportError, OSError, RuntimeError):
     PYQT_AVAILABLE = False
@@ -329,6 +330,8 @@ class FileBrowserPanelQt(QWidget):
         self.file_list.setWordWrap(True)
         self.file_list.itemClicked.connect(self.on_file_clicked)
         self.file_list.itemDoubleClicked.connect(self.on_file_double_clicked)
+        self.file_list.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        self.file_list.customContextMenuRequested.connect(self._show_file_context_menu)
         list_layout.addWidget(self.file_list)
         
         splitter.addWidget(list_container)
@@ -697,6 +700,43 @@ class FileBrowserPanelQt(QWidget):
                 subprocess.Popen(('xdg-open', str(filepath)))
         except Exception as e:
             logger.error(f"Error opening file: {e}")
+
+    def _show_file_context_menu(self, pos) -> None:
+        """Show right-click context menu for the file list."""
+        item = self.file_list.itemAt(pos)
+        if item is None:
+            return
+        filepath = Path(item.data(Qt.ItemDataRole.UserRole))
+        menu = QMenu(self)
+
+        open_action = QAction("🔗 Open", self)
+        open_action.triggered.connect(lambda: self.on_file_double_clicked(item))
+        menu.addAction(open_action)
+
+        reveal_action = QAction("📂 Reveal in Explorer", self)
+        def _reveal():
+            import subprocess as _sp, platform as _pl, os as _os
+            try:
+                if _pl.system() == 'Darwin':
+                    _sp.Popen(('open', '-R', str(filepath)))
+                elif _pl.system() == 'Windows':
+                    _sp.Popen(f'explorer /select,"{filepath}"', shell=True)
+                else:
+                    _sp.Popen(('xdg-open', str(filepath.parent)))
+            except Exception as _e:
+                logger.warning(f"Reveal failed: {_e}")
+        reveal_action.triggered.connect(_reveal)
+        menu.addAction(reveal_action)
+
+        copy_path_action = QAction("📋 Copy Path", self)
+        def _copy_path():
+            cb = QApplication.clipboard()
+            if cb:
+                cb.setText(str(filepath))
+        copy_path_action.triggered.connect(_copy_path)
+        menu.addAction(copy_path_action)
+
+        menu.exec(self.file_list.mapToGlobal(pos))
     
     def show_preview(self, filepath: Path):
         """Show preview of selected file"""
