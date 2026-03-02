@@ -26,6 +26,13 @@ def _pre_configure_opengl() -> None:
     """Block opengl_accelerate and set up DLL search paths early."""
     if not sys.platform.startswith('win'):
         return
+    # Skip desktop GL configuration when running on the offscreen/headless Qt
+    # platform (e.g. CI with QT_QPA_PLATFORM=offscreen).  The offscreen backend
+    # uses software rendering and does NOT expose a real WGL surface; forcing
+    # AA_UseDesktopOpenGL or QT_OPENGL=desktop in that context causes Qt to call
+    # exit(1) on VMs without a GPU.
+    if os.environ.get('QT_QPA_PLATFORM') == 'offscreen':
+        return
     # Force Qt to use native opengl32.dll NOT ANGLE (Direct3D translation layer).
     # ANGLE supports only OpenGL ES — glShadeModel/glLightfv/glBegin/glEnd all raise
     # GLError(1282 INVALID_OPERATION) under ANGLE, causing initializeGL to fail and
@@ -72,16 +79,21 @@ _pre_configure_opengl()
 OPENGL_AVAILABLE = False
 PandaWidget = None
 
-try:
-    from ui.panda_widget_gl import PandaOpenGLWidget, QT_AVAILABLE
-    if QT_AVAILABLE:
-        PandaWidget = PandaOpenGLWidget
-        OPENGL_AVAILABLE = True
-        logger.info("✅ OpenGL panda widget loaded (hardware-accelerated 3D)")
-    else:
-        raise ImportError("Qt/OpenGL not available")
-except (ImportError, OSError, RuntimeError) as _gl_err:
-    logger.warning(f"OpenGL panda widget unavailable ({_gl_err}), trying 2D fallback")
+# Skip the OpenGL widget entirely on the offscreen/headless Qt platform.
+# The offscreen backend provides no real WGL/EGL surface; importing
+# panda_widget_gl causes QSurfaceFormat.setDefaultFormat() to run which can
+# trigger Qt to call exit(1) on CI VMs without a GPU.
+if os.environ.get('QT_QPA_PLATFORM') != 'offscreen':
+    try:
+        from ui.panda_widget_gl import PandaOpenGLWidget, QT_AVAILABLE
+        if QT_AVAILABLE:
+            PandaWidget = PandaOpenGLWidget
+            OPENGL_AVAILABLE = True
+            logger.info("✅ OpenGL panda widget loaded (hardware-accelerated 3D)")
+        else:
+            raise ImportError("Qt/OpenGL not available")
+    except (ImportError, OSError, RuntimeError) as _gl_err:
+        logger.warning(f"OpenGL panda widget unavailable ({_gl_err}), trying 2D fallback")
 
 # ------------------------------------------------------------------
 # Attempt 2: 2-D QPainter fallback (works without hardware OpenGL)
