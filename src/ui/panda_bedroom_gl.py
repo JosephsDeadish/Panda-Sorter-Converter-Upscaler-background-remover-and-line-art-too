@@ -534,6 +534,8 @@ class PandaBedroomGL(QOpenGLWidget if OPENGL_AVAILABLE else QWidget):  # type: i
         self._draw_window()
         self._draw_wall_picture()
         self._draw_bookshelf()
+        self._draw_rug()
+        self._draw_potted_plant()
 
         glEnable(GL_LIGHTING)
 
@@ -890,6 +892,65 @@ class PandaBedroomGL(QOpenGLWidget if OPENGL_AVAILABLE else QWidget):  # type: i
         glEnd()
 
         glLineWidth(1.0)
+        glEnable(GL_LIGHTING)
+
+    def _draw_rug(self) -> None:
+        """Cozy circular rug in the centre of the bedroom floor."""
+        glDisable(GL_LIGHTING)
+        # Outer ring — deep red
+        glColor4f(0.65, 0.12, 0.12, 0.90)
+        glEnable(GL_BLEND)
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
+        import math as _m
+        glBegin(GL_TRIANGLE_FAN)
+        glNormal3f(0, 1, 0)
+        glVertex3f(0.0, 0.01, 1.0)  # centre
+        for deg in range(0, 361, 12):
+            r = _m.radians(deg)
+            glVertex3f(1.6 * _m.cos(r), 0.01, 1.0 + 1.2 * _m.sin(r))
+        glEnd()
+        # Inner ring — cream
+        glColor4f(0.95, 0.88, 0.70, 0.88)
+        glBegin(GL_TRIANGLE_FAN)
+        glVertex3f(0.0, 0.012, 1.0)
+        for deg in range(0, 361, 12):
+            r = _m.radians(deg)
+            glVertex3f(0.9 * _m.cos(r), 0.012, 1.0 + 0.7 * _m.sin(r))
+        glEnd()
+        glDisable(GL_BLEND)
+        glEnable(GL_LIGHTING)
+
+    def _draw_potted_plant(self) -> None:
+        """Small potted bamboo plant in the corner near the window."""
+        from features.opengl_utils import _sphere as _sph  # try shared sphere helper
+        import math as _m
+        glDisable(GL_LIGHTING)
+
+        # Pot (terracotta) — simple box at (-5.5, 0, -4.0)
+        px, pz = -5.5, -4.0
+        glColor3f(0.72, 0.35, 0.18)
+        self._draw_box(px - 0.18, 0.0, pz - 0.18, px + 0.18, 0.32, pz + 0.18)
+
+        # Soil top
+        glColor3f(0.30, 0.20, 0.10)
+        glBegin(GL_QUADS)
+        glNormal3f(0, 1, 0)
+        glVertex3f(px - 0.18, 0.32, pz - 0.18)
+        glVertex3f(px + 0.18, 0.32, pz - 0.18)
+        glVertex3f(px + 0.18, 0.32, pz + 0.18)
+        glVertex3f(px - 0.18, 0.32, pz + 0.18)
+        glEnd()
+
+        # Bamboo stalks (3 green cylinders approximated as thin boxes)
+        for dx, dz, h in ((-0.06, 0.0, 0.7), (0.0, 0.05, 0.85), (0.06, -0.04, 0.6)):
+            glColor3f(0.27, 0.60, 0.18)
+            self._draw_box(px + dx - 0.025, 0.32, pz + dz - 0.025,
+                           px + dx + 0.025, 0.32 + h, pz + dz + 0.025)
+            # Leaf cluster on top
+            glColor3f(0.22, 0.75, 0.20)
+            self._draw_box(px + dx - 0.10, 0.32 + h, pz + dz - 0.10,
+                           px + dx + 0.10, 0.32 + h + 0.14, pz + dz + 0.10)
+
         glEnable(GL_LIGHTING)
 
     # ── Individual furniture draw methods ─────────────────────────────────────
