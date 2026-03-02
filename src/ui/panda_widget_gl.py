@@ -2936,6 +2936,41 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
         self.update()
         return progress
 
+    def yank_food_item(self, item_index: int) -> bool:
+        """Yank a food item away from the panda mid-meal.
+
+        Returns True if the item was yanked (it existed and had been partially
+        eaten), False otherwise.
+
+        The panda reacts with an upset/sad face and a pained sound effect — the
+        item's eat_progress is preserved so the caller can decide whether to put
+        it back or discard it.
+        """
+        if item_index < 0 or item_index >= len(self.items_3d):
+            return False
+        item = self.items_3d[item_index]
+        if item.get('type') != 'food':
+            return False
+
+        was_eating = item.get('eat_progress', 0.0) > 0.0
+
+        # Upset reaction — the panda's food was stolen!
+        self._surprised_eye_t = 0.5
+        self.transition_to_state('sad')
+        self._micro_emotion['happy']   = max(0.0, self._micro_emotion.get('happy', 0) - 0.7)
+        self._micro_emotion['playful'] = max(0.0, self._micro_emotion.get('playful', 0) - 0.5)
+        # Schedule return to idle after the sad face fades
+        fire_t = time.time() + 2.5
+        self._reaction_delay_q.append((fire_t, lambda: self.transition_to_state('idle')))
+
+        # Angry arm flail — arms shoot up briefly
+        self._arm_over_vel[0] += random.uniform(8.0, 14.0)
+        self._arm_over_vel[1] += random.uniform(8.0, 14.0)
+
+        self._play_sound('sigh')   # Disappointed sound
+        self.update()
+        return was_eating
+
     def start_hug_window(self):
         """Panda climbs/hugs the window edge — triggers climbing_wall state."""
         self.transition_to_state('climbing_wall')
