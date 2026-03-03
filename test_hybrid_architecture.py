@@ -6588,11 +6588,20 @@ def test_bedroom_furniture_click_fix():
     Fix 2 – Hover fallback: if the ray-cast still misses (matrices not yet cached on
     the very first click), mousePressEvent falls back to _hovered_id, which is set by
     the reliable projection-based hover system whenever the cursor is near furniture.
+
+    Fix 3 – _project_to_screen also uses cached matrices for consistency.
+
+    Fix 4 – computer_desk added to picking bounds, hover centre_y, and FURNITURE_TIPS.
+
+    Fix 5 – _show_home_sub_panel guards against widget=None.
+
+    Fix 6 – computer_desk handler always passes a real QLabel widget, never None.
     """
     print("\ntest_bedroom_furniture_click_fix ...")
     code = open('src/ui/panda_bedroom_gl.py').read()
+    main_code = open('main.py').read()
 
-    # The three cached-matrix instance variables must be initialised
+    # ── Fix 1: cached matrices in __init__ and paintGL ────────────────────────
     for var in ('_pick_viewport', '_pick_modelview', '_pick_projection'):
         assert f'self.{var} = None' in code, (
             f"panda_bedroom_gl.py: self.{var} = None missing from __init__.  "
@@ -6600,7 +6609,6 @@ def test_bedroom_furniture_click_fix():
         )
     print("  ✅ Cached matrix variables initialised in __init__")
 
-    # The matrices must be populated inside paintGL (check for actual assignment)
     paintgl_body = code[code.find('def paintGL'):code.find('def _draw_room')]
     for var in ('_pick_viewport', '_pick_modelview', '_pick_projection'):
         assert f'self.{var} =' in paintgl_body, (
@@ -6609,7 +6617,7 @@ def test_bedroom_furniture_click_fix():
         )
     print("  ✅ Matrices captured inside paintGL")
 
-    # _ray_from_screen must use the cached values — extract the function body robustly
+    # ── Fix 1: _ray_from_screen uses cached matrices ──────────────────────────
     ray_start = code.find('def _ray_from_screen')
     next_fn = code.find('\n    def ', ray_start + 1)
     ray_fn = code[ray_start:] if next_fn == -1 else code[ray_start:next_fn]
@@ -6619,7 +6627,7 @@ def test_bedroom_furniture_click_fix():
     )
     print("  ✅ _ray_from_screen uses cached modelview matrix")
 
-    # mousePressEvent must fall back to _hovered_id when ray-cast returns None
+    # ── Fix 2: hover fallback in mousePressEvent ──────────────────────────────
     press_start = code.find('def mousePressEvent')
     next_fn = code.find('\n    def ', press_start + 1)
     press_fn = code[press_start:] if next_fn == -1 else code[press_start:next_fn]
@@ -6630,7 +6638,67 @@ def test_bedroom_furniture_click_fix():
     )
     print("  ✅ mousePressEvent falls back to _hovered_id when ray-cast misses")
 
-    # Sanity: furniture_clicked signal + mouseReleaseEvent emit still present
+    # ── Fix 3: _project_to_screen uses cached matrices ────────────────────────
+    proj_start = code.find('def _project_to_screen')
+    next_fn = code.find('\n    def ', proj_start + 1)
+    proj_fn = code[proj_start:] if next_fn == -1 else code[proj_start:next_fn]
+    assert '_pick_modelview' in proj_fn, (
+        "panda_bedroom_gl.py: _project_to_screen does not use cached _pick_modelview.  "
+        "It should use cached matrices for consistency with _ray_from_screen."
+    )
+    print("  ✅ _project_to_screen uses cached modelview matrix")
+
+    # ── Fix 4: computer_desk in picking bounds, hover dict, tips ─────────────
+    pick_start = code.find('def _pick_furniture')
+    next_fn = code.find('\n    def ', pick_start + 1)
+    pick_fn = code[pick_start:] if next_fn == -1 else code[pick_start:next_fn]
+    assert "'computer_desk'" in pick_fn, (
+        "panda_bedroom_gl.py: 'computer_desk' missing from _pick_furniture AABB bounds.  "
+        "Without an explicit bounding box it uses a tiny 1×1×1 default which "
+        "may miss ray-casts on the tall monitor."
+    )
+    print("  ✅ computer_desk has explicit AABB bounds in _pick_furniture")
+
+    hover_start = code.find('def _update_hover')
+    next_fn = code.find('\n    def ', hover_start + 1)
+    hover_fn = code[hover_start:] if next_fn == -1 else code[hover_start:next_fn]
+    assert "'computer_desk'" in hover_fn, (
+        "panda_bedroom_gl.py: 'computer_desk' missing from _update_hover centre_y dict.  "
+        "Without it, hover projects from Y=0.5 (the default) rather than the "
+        "monitor centre at Y=1.0, reducing hover hit accuracy."
+    )
+    print("  ✅ computer_desk has explicit centre_y in _update_hover")
+
+    tips_start = code.find('_FURNITURE_TIPS')
+    tips_end = code.find('\n    def ', tips_start)
+    tips_block = code[tips_start:tips_end]
+    assert "'computer_desk'" in tips_block, (
+        "panda_bedroom_gl.py: 'computer_desk' missing from _FURNITURE_TIPS.  "
+        "Hovering over the desk shows no tooltip."
+    )
+    print("  ✅ computer_desk has a hover tooltip in _FURNITURE_TIPS")
+
+    # ── Fix 5: _show_home_sub_panel None guard ────────────────────────────────
+    show_start = main_code.find('def _show_home_sub_panel')
+    next_fn = main_code.find('\n    def ', show_start + 1)
+    show_fn = main_code[show_start:] if next_fn == -1 else main_code[show_start:next_fn]
+    assert 'if widget is None' in show_fn, (
+        "main.py: _show_home_sub_panel does not guard against widget=None.  "
+        "Passing None causes AttributeError on widget.objectName(), which is "
+        "silently swallowed, so the panel never appears."
+    )
+    print("  ✅ _show_home_sub_panel guards against widget=None")
+
+    # ── Fix 6: computer_desk handler never passes None ────────────────────────
+    desk_area = main_code[main_code.find("furniture_id == 'computer_desk'"):]
+    desk_area = desk_area[:desk_area.find('\n        else:')]
+    assert '_show_home_sub_panel(None' not in desk_area, (
+        "main.py: computer_desk handler still calls _show_home_sub_panel(None, ...).  "
+        "Passing None silently breaks the panel.  Replace with a QLabel widget."
+    )
+    print("  ✅ computer_desk handler never passes None to _show_home_sub_panel")
+
+    # ── Sanity: signal + emit still present ──────────────────────────────────
     assert 'furniture_clicked = pyqtSignal(str)' in code, \
         "furniture_clicked signal missing"
     rel_start = code.find('def mouseReleaseEvent')

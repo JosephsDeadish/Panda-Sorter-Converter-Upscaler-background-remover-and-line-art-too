@@ -6777,6 +6777,8 @@ class TextureSorterMainWindow(QMainWindow):
         try:
             if not self._home_stack:
                 return
+            if widget is None:
+                return
             # Guard against stale C++ pointers (widget deleted between creation and show)
             try:
                 _ = widget.objectName()   # cheap property access; raises RuntimeError if deleted
@@ -6945,17 +6947,15 @@ class TextureSorterMainWindow(QMainWindow):
         elif furniture_id == 'computer_desk':
             def _open_panel():
                 try:
-                    # Switch to the main tools tab if available
-                    main_tabs = getattr(self, '_main_tabs', None) or getattr(self, 'tab_widget', None)
-                    if main_tabs is not None:
-                        main_tabs.setCurrentIndex(0)
-                        self._show_home_sub_panel(None, '💻 Tools & Utilities')
-                    else:
-                        label = QLabel("💻 Tools & Utilities\n\nOpen the Tools tab to access image processing tools.")
-                        label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-                        label.setWordWrap(True)
-                        self._home_stack_owned.append(label)
-                        self._show_home_sub_panel(label, '💻 Tools & Utilities')
+                    label = QLabel(
+                        "💻 Tools & Utilities\n\n"
+                        "Click the Tools tab at the top to access\n"
+                        "image processing, conversion and AI tools."
+                    )
+                    label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+                    label.setWordWrap(True)
+                    self._home_stack_owned.append(label)
+                    self._show_home_sub_panel(label, '💻 Tools & Utilities')
                 except Exception as _e2:
                     logger.debug(f"Computer desk panel open: {_e2}")
             self.statusBar().showMessage("💻 Panda is sitting at the computer…", 3000)

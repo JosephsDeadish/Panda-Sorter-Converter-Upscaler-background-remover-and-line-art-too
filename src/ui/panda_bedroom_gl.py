@@ -1460,14 +1460,15 @@ class PandaBedroomGL(QOpenGLWidget if OPENGL_AVAILABLE else QWidget):  # type: i
         origin, direction = result
 
         _bounds = {
-            'wardrobe':     (1.2, 2.0, 0.6),
-            'armor_rack':   (1.0, 1.8, 0.5),
-            'weapons_rack': (1.2, 1.5, 0.3),
-            'toy_box':      (1.0, 0.7, 0.7),
-            'fridge':       (0.8, 2.0, 0.7),
-            'trophy_stand': (1.4, 1.5, 0.4),
-            'backpack':     (0.5, 0.7, 0.3),
-            'bedroom_door': (1.0, 2.2, 0.15),
+            'wardrobe':       (1.2, 2.0, 0.6),
+            'armor_rack':     (1.0, 1.8, 0.5),
+            'weapons_rack':   (1.2, 1.5, 0.3),
+            'toy_box':        (1.0, 0.7, 0.7),
+            'fridge':         (0.8, 2.0, 0.7),
+            'trophy_stand':   (1.4, 1.5, 0.4),
+            'backpack':       (0.5, 0.7, 0.3),
+            'computer_desk':  (1.2, 1.5, 0.6),
+            'bedroom_door':   (1.0, 2.2, 0.15),
         }
 
         best: Optional[FurniturePiece] = None
@@ -1519,11 +1520,19 @@ class PandaBedroomGL(QOpenGLWidget if OPENGL_AVAILABLE else QWidget):  # type: i
         return t_min if t_min >= 0 else None
 
     def _project_to_screen(self, wx: float, wy: float, wz: float) -> Optional[Tuple[float, float]]:
-        """Project world position to screen (pixel) coordinates."""
+        """Project world position to screen (pixel) coordinates.
+
+        Uses matrices cached in paintGL for consistency with _ray_from_screen.
+        Falls back to a live GL query only if no paint cycle has run yet.
+        """
         try:
-            viewport  = glGetIntegerv(GL_VIEWPORT)
-            model_mat = glGetDoublev(GL_MODELVIEW_MATRIX)
-            proj_mat  = glGetDoublev(GL_PROJECTION_MATRIX)
+            viewport  = self._pick_viewport
+            model_mat = self._pick_modelview
+            proj_mat  = self._pick_projection
+            if viewport is None or model_mat is None or proj_mat is None:
+                viewport  = glGetIntegerv(GL_VIEWPORT)
+                model_mat = glGetDoublev(GL_MODELVIEW_MATRIX)
+                proj_mat  = glGetDoublev(GL_PROJECTION_MATRIX)
             sx, sy, _ = gluProject(wx, wy, wz, model_mat, proj_mat, viewport)
             sy = viewport[3] - sy  # flip Y back to Qt coords
             return (sx, sy)
@@ -1542,7 +1551,7 @@ class PandaBedroomGL(QOpenGLWidget if OPENGL_AVAILABLE else QWidget):  # type: i
             centre_y = {
                 'wardrobe': 1.0, 'armor_rack': 0.9, 'weapons_rack': 0.75,
                 'toy_box': 0.35, 'fridge': 1.0, 'trophy_stand': 0.75,
-                'backpack': 0.35, 'bedroom_door': 1.1,
+                'backpack': 0.35, 'computer_desk': 1.0, 'bedroom_door': 1.1,
             }.get(piece.id, 0.5)
             proj = self._project_to_screen(piece.x, centre_y, piece.z)
             if proj is None:
@@ -1578,14 +1587,15 @@ class PandaBedroomGL(QOpenGLWidget if OPENGL_AVAILABLE else QWidget):  # type: i
 
     # Map furniture IDs to short hover descriptions shown as Qt tooltips
     _FURNITURE_TIPS = {
-        'wardrobe':     '👗 Wardrobe — Click to browse outfits & costumes',
-        'armor_rack':   '🛡️ Armor Rack — Click to equip armour sets',
-        'weapons_rack': '⚔️ Weapons Rack — Click to manage weapons',
-        'toy_box':      '🧸 Toy Box — Click to play with toys & accessories',
-        'fridge':       '🍎 Fridge — Click to manage food & treats',
-        'trophy_stand': '🏆 Trophy Stand — Click to view achievements',
-        'backpack':     '🎒 Backpack — Click to open inventory & items',
-        'bedroom_door': '🚪 Door — Click to go outside to the world',
+        'wardrobe':      '👗 Wardrobe — Click to browse outfits & costumes',
+        'armor_rack':    '🛡️ Armor Rack — Click to equip armour sets',
+        'weapons_rack':  '⚔️ Weapons Rack — Click to manage weapons',
+        'toy_box':       '🧸 Toy Box — Click to play with toys & accessories',
+        'fridge':        '🍎 Fridge — Click to manage food & treats',
+        'trophy_stand':  '🏆 Trophy Stand — Click to view achievements',
+        'backpack':      '🎒 Backpack — Click to open inventory & items',
+        'computer_desk': '💻 Computer Desk — Click to access tools & utilities',
+        'bedroom_door':  '🚪 Door — Click to go outside to the world',
     }
 
     def mouseMoveEvent(self, event: 'QMouseEvent') -> None:  # type: ignore[override]
