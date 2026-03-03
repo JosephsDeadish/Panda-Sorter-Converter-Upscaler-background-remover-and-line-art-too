@@ -1402,8 +1402,8 @@ class TextureSorterMainWindow(QMainWindow):
         self.tabs = DraggableTabWidget()
         self.tabs.setDocumentMode(True)
         self.tabs.tab_detached.connect(self.on_tab_detached)
-        # Hide the panda overlay when switching away from the Home tab so it
-        # never blocks functional UI on the Tools, Panda, or Settings tabs.
+        # Keep the panda overlay visible and raised on every tab change.
+        # The overlay uses setMask() to pass clicks through to UI below.
         self.tabs.currentChanged.connect(self._on_main_tab_changed)
         content_layout.addWidget(self.tabs)
 
@@ -2089,6 +2089,25 @@ class TextureSorterMainWindow(QMainWindow):
                     # Also navigate to the Home sub-tab within the Panda panel
                     if self._panda_tabs is not None and self._home_tab_index >= 0:
                         self._panda_tabs.setCurrentIndex(self._home_tab_index)
+                    # Reset the home stack to page 0 (bedroom) so the user
+                    # always sees the room, not a previously-opened sub-panel.
+                    if self._home_stack is not None:
+                        try:
+                            self._home_stack.setCurrentIndex(0)
+                        except Exception:
+                            pass
+                    # Hide the back-bar (only visible when a sub-panel is open)
+                    if self._home_back_bar is not None:
+                        try:
+                            self._home_back_bar.hide()
+                        except Exception:
+                            pass
+                    # Restore the bedroom tab label (may have been renamed by a sub-panel)
+                    if self._panda_tabs is not None and self._home_tab_index >= 0:
+                        try:
+                            self._panda_tabs.setTabText(self._home_tab_index, "🏠 Panda Home")
+                        except Exception:
+                            pass
                     return
             return
 
@@ -7119,17 +7138,17 @@ class TextureSorterMainWindow(QMainWindow):
     def _on_panda_should_hide(self, should_hide: bool):
         """Show/hide the panda overlay when environment events require it.
 
-        The overlay is only ever shown on the Home tab; this method may further
-        hide it (e.g. when the user minimises the window) but will never make it
-        visible on a non-Home tab.
+        The panda companion is visible on ALL tabs (it uses WA_TranslucentBackground
+        + setMask so it never blocks interactive widgets on any tab).
+        When should_hide=True (e.g. window minimised) the overlay is hidden;
+        when should_hide=False the overlay is shown regardless of which tab is active.
         """
         try:
             overlay = getattr(self, 'panda_overlay', None)
             if overlay is None or not hasattr(overlay, 'setVisible'):
                 return
-            on_home = (self.tabs.currentIndex() == 0)
-            overlay.setVisible(on_home and not should_hide)
-            logger.debug(f"Panda overlay hide={should_hide}, on_home={on_home}")
+            overlay.setVisible(not should_hide)
+            logger.debug(f"Panda overlay hide={should_hide}")
         except Exception as _e:
             logger.debug(f"panda_should_hide callback error: {_e}")
 

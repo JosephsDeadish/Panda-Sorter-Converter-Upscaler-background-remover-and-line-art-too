@@ -6529,6 +6529,140 @@ def test_color_match_minigame():
     print("  ✅ Runtime: MiniGameManager registers 'color_match'")
 
 
+
+def test_panda_should_hide_visible_on_all_tabs():
+    """_on_panda_should_hide must show the overlay regardless of which tab is active.
+
+    Bug: _on_panda_should_hide(False) was calling
+         overlay.setVisible(on_home and not should_hide)
+    which hid the panda on non-Home tabs whenever the EnvironmentMonitor
+    fired a 'show' event (should_hide=False).
+
+    Fix: the method should call overlay.setVisible(not should_hide) — the
+    panda is visible on ALL tabs, matching _on_main_tab_changed behaviour.
+    """
+    print("\ntest_panda_should_hide_visible_on_all_tabs ...")
+    import re
+    code = open('main.py').read()
+
+    m = re.search(r'def _on_panda_should_hide.*?(?=\n    def |\Z)', code, re.DOTALL)
+    assert m, "_on_panda_should_hide not found in main.py"
+    body = m.group(0)
+
+    # Must NOT restrict to home tab
+    assert 'currentIndex() == 0' not in body, (
+        "_on_panda_should_hide still checks currentIndex()==0.  "
+        "The panda should be visible on ALL tabs — remove the on_home restriction."
+    )
+    print("  ✅ No home-tab restriction (currentIndex()==0) in _on_panda_should_hide")
+
+    assert 'on_home and not should_hide' not in body, (
+        "_on_panda_should_hide still uses 'on_home and not should_hide'. "
+        "Change to setVisible(not should_hide)."
+    )
+    print("  ✅ setVisible call is not gated on on_home")
+
+    assert 'setVisible(not should_hide)' in body or \
+           ('setVisible' in body and 'not should_hide' in body), (
+        "_on_panda_should_hide should call setVisible(not should_hide) "
+        "to show the overlay on every tab."
+    )
+    print("  ✅ overlay.setVisible(not should_hide) called unconditionally")
+
+
+def test_switch_tool_panda_home_resets_to_bedroom():
+    """switch_tool('panda_home') must reset the home stack to page 0 (bedroom).
+
+    Bug: clicking '🏠 Panda Home' in the quick-launch grid after opening a
+    furniture sub-panel left _home_stack on page 1 (the sub-panel), so the
+    bedroom was never shown again without the user clicking the back button.
+
+    Fix: switch_tool('panda_home') must call _home_stack.setCurrentIndex(0)
+    to return to the bedroom view.
+    """
+    print("\ntest_switch_tool_panda_home_resets_to_bedroom ...")
+    import re
+    code = open('main.py').read()
+
+    m = re.search(r'def switch_tool.*?(?=\n    def |\Z)', code, re.DOTALL)
+    assert m, "switch_tool not found in main.py"
+    body = m.group(0)
+
+    # Must handle panda_home case
+    assert 'panda_home' in body, (
+        "switch_tool does not handle 'panda_home' tool_id"
+    )
+    print("  ✅ panda_home case handled in switch_tool")
+
+    # Must reset stack to 0
+    assert '_home_stack' in body and 'setCurrentIndex(0)' in body, (
+        "switch_tool('panda_home') must call _home_stack.setCurrentIndex(0) "
+        "to return to the bedroom page."
+    )
+    print("  ✅ _home_stack.setCurrentIndex(0) called to show bedroom")
+
+    # Must hide back bar
+    assert '_home_back_bar' in body and '.hide()' in body, (
+        "switch_tool('panda_home') must hide _home_back_bar (only shown during sub-panels)"
+    )
+    print("  ✅ _home_back_bar.hide() called on navigate-to-bedroom")
+
+
+def test_panda_walk_frequency_and_range():
+    """Panda walk_around weight must be ≥ 0.18 for visible movement.
+
+    Bug: walk_around had weight 0.12 (12%) meaning the panda rarely wandered.
+    Combined with walk targets of only ±1.5 (vs world half-width 3.2), movement
+    appeared subtle and the panda seemed 'locked in center'.
+
+    Fix:
+    - walk_around weight raised to ≥ 0.18
+    - walk targets use 75% of WORLD_HALF for clearly visible traversal
+    """
+    print("\ntest_panda_walk_frequency_and_range ...")
+    import re
+    code = open('src/ui/panda_widget_gl.py').read()
+
+    # Walk weight must be significant
+    walk_m = re.search(r"'walk_around'\s*,\s*([\d.]+)", code)
+    assert walk_m, "_ACTIVITY_WEIGHTS: 'walk_around' entry not found"
+    walk_w = float(walk_m.group(1))
+    assert walk_w >= 0.18, (
+        f"'walk_around' weight = {walk_w}. Must be ≥ 0.18 so the panda "
+        "visibly wanders the scene. Old value 0.12 was too low."
+    )
+    print(f"  ✅ walk_around weight = {walk_w} (≥ 0.18 — visible wandering)")
+
+    # Walk targets must use world range, not hard-coded ±1.5
+    assert 'WORLD_HALF_X' in code and 'WORLD_HALF_Z' in code, (
+        "panda_widget_gl.py: WORLD_HALF_X / WORLD_HALF_Z constants missing"
+    )
+    # Walk targets should reference WORLD_HALF, not hard-coded ±1.5
+    walk_section = code[code.find("if activity == 'walk_around'"):][:300] \
+        if "if activity == 'walk_around'" in code else ''
+    assert 'WORLD_HALF' in walk_section, (
+        "walk_around target range must reference WORLD_HALF_X / WORLD_HALF_Z "
+        "so movement scales with the world boundary constants."
+    )
+    print("  ✅ walk_around targets use world-proportional range")
+
+    # Total weights must still sum to 1.0
+    # Find the _ACTIVITY_WEIGHTS block by locating it and reading until
+    # the closing ') # end of tuple' line
+    aw_start = code.find('_ACTIVITY_WEIGHTS')
+    if aw_start >= 0:
+        aw_block = code[aw_start:]
+        # Collect all weight floats — each entry is ('name', float),
+        weights = re.findall(r"'\w+'\s*,\s*(0\.\d+)", aw_block[:1500])
+        if weights:
+            total = sum(float(w) for w in weights)
+            assert abs(total - 1.0) < 0.02, (
+                f"_ACTIVITY_WEIGHTS sum = {total:.3f}, expected ~1.000. "
+                "Weights must sum to 1.0 after rebalancing."
+            )
+            print(f"  ✅ _ACTIVITY_WEIGHTS sum = {total:.3f} (valid probability distribution)")
+
+
 def run_all_tests():
     print("=" * 65)
     print("Hybrid Architecture + Lazy rembg Import Tests")
@@ -6646,6 +6780,9 @@ def run_all_tests():
         test_format_converter_drag_drop,
         test_tool_panels_drag_drop,
         test_color_match_minigame,
+        test_panda_should_hide_visible_on_all_tabs,
+        test_switch_tool_panda_home_resets_to_bedroom,
+        test_panda_walk_frequency_and_range,
     ]
 
     passed, failed = [], []

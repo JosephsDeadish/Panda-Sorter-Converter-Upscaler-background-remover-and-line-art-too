@@ -216,19 +216,19 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
 
     # Weighted autonomous-activity table — tuple for immutability; weights sum to 1.0
     # Distribution reflects real giant panda behaviour: mostly sitting and eating,
-    # occasional slow wandering, frequent napping — rarely athletic.
+    # frequent slow wandering, occasional napping — rarely athletic.
     _ACTIVITY_WEIGHTS: tuple = (
-        ('sit_back',     0.24),   # most common pose — panda sits on haunches and rests
-        ('eat_bamboo',   0.18),   # eating bamboo: the most iconic panda activity
-        ('walk_around',  0.12),   # slow, waddling patrol of the scene
-        ('sleeping',     0.10),   # pandas sleep 10–16 hours/day; very common
+        ('sit_back',     0.20),   # resting on haunches — very common in pandas
+        ('walk_around',  0.20),   # waddling patrol — increased to prevent "locked in center"
+        ('eat_bamboo',   0.15),   # eating bamboo: the most iconic panda activity
+        ('sleeping',     0.10),   # pandas sleep 10–16 hours/day; common
         ('idle',         0.10),   # standing still, looking around
-        ('work',         0.07),   # occasional typing/working
-        ('crawl_around', 0.06),   # quadruped shuffle
+        ('work',         0.06),   # occasional typing/working
+        ('crawl_around', 0.05),   # quadruped shuffle
         ('rolling',      0.05),   # playful rolling on back
         ('celebrate',    0.04),   # happy bounce
         ('climb_wall',   0.02),   # climbing (rare — pandas rarely climb walls)
-        ('dance',        0.01),   # dance
+        ('dance',        0.02),   # dance
         ('spin',         0.01),   # spin
     )
 
@@ -4869,9 +4869,10 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
             cumulative += weight
             if r <= cumulative:
                 if activity == 'walk_around':
-                    # Pick random position to walk to
-                    x = random.uniform(-1.5, 1.5)
-                    z = random.uniform(-1.5, 1.5)
+                    # Pick random position to walk to — use 75% of the world
+                    # half-width so the panda clearly traverses the visible area.
+                    x = random.uniform(-self.WORLD_HALF_X * 0.75, self.WORLD_HALF_X * 0.75)
+                    z = random.uniform(-self.WORLD_HALF_Z * 0.75, self.WORLD_HALF_Z * 0.75)
                     self.walk_to_position(x, -0.7, z)
                 elif activity == 'work':
                     self.start_working()
