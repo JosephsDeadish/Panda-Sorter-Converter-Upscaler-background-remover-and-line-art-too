@@ -71,14 +71,15 @@ logger = logging.getLogger(__name__)
 
 # Body pitch targets for quadruped stances (degrees, X-axis rotation of torso)
 _BODY_PITCH_TARGETS: dict = {
-    'walking':       -20.0,   # slight forward lean for all-fours walk (was -30°, too aggressive)
+    'idle':          -12.0,   # natural panda forward lean — real pandas never stand fully upright
+    'sitting_back':   -5.0,   # very slight backward lean on haunches (barrel body, weight back)
+    'walking':       -20.0,   # forward lean for all-fours walk
     'walking_left':  -20.0,
     'walking_right': -20.0,
     'crawling':      -42.0,   # body pitched forward, nose toward ground
     'climbing_wall': -80.0,   # near-vertical, claws on wall
     'falling_back':   85.0,   # on back, legs up
-    'sleeping':       12.0,   # slight slump forward
-    'sitting_back': -10.0,   # slight backward lean when sitting upright
+    'sleeping':       14.0,   # in a slumped posture when sleeping on haunches
     'rolling':       30.0,   # body pitching as it rolls
     'hanging_ceiling': 175.0, # nearly inverted, gripping ceiling
     'hanging_window_edge': -55.0,  # body angled forward/down, arms reaching up
@@ -214,20 +215,21 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
     })
 
     # Weighted autonomous-activity table — tuple for immutability; weights sum to 1.0
+    # Distribution reflects real giant panda behaviour: mostly sitting and eating,
+    # occasional slow wandering, frequent napping — rarely athletic.
     _ACTIVITY_WEIGHTS: tuple = (
-        ('walk_around',  0.20),
-        ('work',         0.16),
-        ('idle',         0.12),
-        ('celebrate',    0.07),
-        ('crawl_around', 0.08),
-        ('climb_wall',   0.06),
-        ('sit_back',     0.07),
-        ('hang_ceiling', 0.04),
-        ('rolling',      0.06),
-        ('sleeping',     0.05),
-        ('dance',        0.04),
-        ('spin',         0.03),
-        ('backflip',     0.02),
+        ('sit_back',     0.24),   # most common pose — panda sits on haunches and rests
+        ('eat_bamboo',   0.18),   # eating bamboo: the most iconic panda activity
+        ('walk_around',  0.12),   # slow, waddling patrol of the scene
+        ('sleeping',     0.10),   # pandas sleep 10–16 hours/day; very common
+        ('idle',         0.10),   # standing still, looking around
+        ('work',         0.07),   # occasional typing/working
+        ('crawl_around', 0.06),   # quadruped shuffle
+        ('rolling',      0.05),   # playful rolling on back
+        ('celebrate',    0.04),   # happy bounce
+        ('climb_wall',   0.02),   # climbing (rare — pandas rarely climb walls)
+        ('dance',        0.01),   # dance
+        ('spin',         0.01),   # spin
     )
 
     # Physics constants
@@ -1209,6 +1211,17 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
             glColor3f(*accent_col)
             self._draw_sphere(1.0, 12, 12)
             glPopMatrix()
+
+        # Central dorsal shoulder hump — real giant pandas have a prominent
+        # muscular ridge / hump between the shoulders along the spine.
+        # White (body colour) and wider than the black shoulder blobs so it
+        # sits visibly on top of them and defines the classic panda silhouette.
+        glPushMatrix()
+        glTranslatef(0.0, self.BODY_HEIGHT * 0.40 * sy, -self.BODY_WIDTH * 0.25)
+        glScalef(0.52, 0.38 * sy, 0.50)
+        glColor3f(*body_col)
+        self._draw_sphere(1.0, 14, 14)
+        glPopMatrix()
 
         # ── Neck ─────────────────────────────────────────────────────────────
         # Short cylinder-like neck connecting torso to head
@@ -2751,7 +2764,7 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
         Panda does things without being asked.
         Sub-states layered on top of the main idle state (don't switch main state).
         """
-        if self.animation_state not in ('idle', 'working'):
+        if self.animation_state not in ('idle', 'working', 'sitting_back'):
             self._idle_sub_t = 0.0
             self._idle_sub_state = ''
             self._idle_sub_next = random.uniform(8.0, 20.0)
@@ -2761,13 +2774,14 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
         self._idle_sub_next -= dt
         if self._idle_sub_next <= 0.0 and not self._idle_sub_state:
             choices = [
-                ('grooming',   0.20),
-                ('stretching', 0.15),
-                ('scratching', 0.18),
-                ('daydream',   0.15),
-                ('sniffing',   0.12),
-                ('yawning',    0.10),
-                ('flopping',   0.10),
+                ('grooming',      0.18),
+                ('stretching',    0.12),
+                ('scratching',    0.14),
+                ('daydream',      0.12),
+                ('sniffing',      0.10),
+                ('yawning',       0.08),
+                ('flopping',      0.08),
+                ('bamboo_eating', 0.18),  # most iconic panda idle activity
             ]
             total = sum(w for _, w in choices)
             r = random.uniform(0, total)
@@ -2784,9 +2798,9 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
         if self._idle_sub_state:
             self._idle_sub_t += dt
             dur = {
-                'grooming':   3.5, 'stretching': 2.5, 'scratching': 2.0,
-                'daydream':   5.0, 'sniffing':   1.8, 'yawning':    2.0,
-                'flopping':   4.0,
+                'grooming':      3.5, 'stretching': 2.5, 'scratching': 2.0,
+                'daydream':      5.0, 'sniffing':   1.8, 'yawning':    2.0,
+                'flopping':      4.0, 'bamboo_eating': 7.0,  # eating takes a while
             }.get(self._idle_sub_state, 3.0)
             if self._idle_sub_t >= dur:
                 # Reset jaw when yawning finishes
@@ -2866,6 +2880,24 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
             else:
                 body_x = 45.0 * (1.0 - self._ease_out_cubic((phase - 0.7) / 0.3))
             return {'body_x': body_x}
+
+        elif s == 'bamboo_eating':
+            # Most iconic panda behaviour: seated, holding a bamboo stalk with
+            # both front paws, rhythmically munching.
+            # Both arms fold forward/down (like holding a stick horizontally).
+            # Head tilts slightly downward and bobs in small chewing rhythm.
+            # Jaw opens/closes on a ~1.2 s chew cycle.
+            chew_phase = math.sin(t * 5.2)        # fast jaw oscillation
+            arm_hold   = -75.0                    # both arms bent steeply forward
+            head_x     = -12.0 + chew_phase * 4.0 # slight head bob while chewing
+            jaw        = max(0.0, 0.35 * chew_phase)  # gentle rhythmic jaw movement
+            self._jaw_open = jaw
+            # Happy munching: content micro-emotion
+            self._micro_emotion['content'] = min(
+                1.0, self._micro_emotion.get('content', 0.0) + 0.008)
+            self._micro_emotion['happy'] = min(
+                1.0, self._micro_emotion.get('happy', 0.0) + 0.004)
+            return {'arm_l': arm_hold, 'arm_r': arm_hold, 'head_x': head_x}
 
         return {}
 
@@ -3063,13 +3095,14 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
 
     # Sound played when each idle sub-behavior starts
     _IDLE_SUB_SOUNDS: dict = {
-        'grooming':   'purr',
-        'stretching': 'stretch',
-        'scratching': 'scratch',
-        'daydream':   'sigh',
-        'sniffing':   'sniff',
-        'yawning':    'yawn',
-        'flopping':   'flop',
+        'grooming':      'purr',
+        'stretching':    'stretch',
+        'scratching':    'scratch',
+        'daydream':      'sigh',
+        'sniffing':      'sniff',
+        'yawning':       'yawn',
+        'flopping':      'flop',
+        'bamboo_eating': 'munch',   # bamboo eating — rhythmic munching sound
     }
 
     def _play_sound(self, name: str):
@@ -3312,11 +3345,15 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
                 pos['right_leg_angle'] = 12.0
 
             elif state == 'sitting_back':
-                # Relaxed sitting: legs splayed forward, arms resting on belly
-                pos['left_arm_angle']  = -20.0
-                pos['right_arm_angle'] = -20.0
-                pos['left_leg_angle']  =  45.0
-                pos['right_leg_angle'] =  45.0
+                # Realistic panda seated on haunches: legs splayed wide forward,
+                # arms hanging low resting loosely toward the ground.
+                # Real pandas sit with rump on ground, hind legs out to sides,
+                # front paws resting low in front.
+                sway = 2.0 * math.sin(frame * 0.035 * self._micro['sway_speed'])
+                pos['left_arm_angle']  = 18.0 + sway   # forearms hanging forward-down
+                pos['right_arm_angle'] = 18.0 - sway
+                pos['left_leg_angle']  = 68.0           # hind legs splayed far forward
+                pos['right_leg_angle'] = 68.0
 
             elif state == 'rolling':
                 # Rolling on back: all limbs flailing loosely
@@ -3385,9 +3422,14 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
                 pos['right_leg_angle'] =  5.0
 
             else:  # idle / neutral / default
-                sway = 3.5 * math.sin(frame * 0.040 * self._micro['sway_speed'])
-                pos['left_arm_angle']  =  sway
-                pos['right_arm_angle'] = -sway
+                # Natural panda standing/resting pose: arms rest slightly forward
+                # on the belly (real pandas hold their arms close to their chest
+                # when standing), legs angled forward under the barrel body.
+                sway = 2.5 * math.sin(frame * 0.040 * self._micro['sway_speed'])
+                pos['left_arm_angle']  = 15.0 + sway   # arms angled forward, resting
+                pos['right_arm_angle'] = 15.0 - sway
+                pos['left_leg_angle']  = 12.0           # legs angled slightly forward
+                pos['right_leg_angle'] = 12.0
 
             return pos
 
@@ -4842,6 +4884,17 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
                     QTimer.singleShot(idle_ms,
                                       lambda: self.set_animation_state('idle')
                                       if self.animation_state == 'falling_back' else None)
+                elif activity == 'eat_bamboo':
+                    # Sit down then immediately trigger the bamboo eating sub-behavior.
+                    # This is the most realistic panda idle activity.
+                    self.set_animation_state('sitting_back')
+                    self._idle_sub_state = 'bamboo_eating'
+                    self._idle_sub_t     = 0.0
+                    self._play_sound('munch')
+                    dur = random.uniform(5.0, 10.0)
+                    QTimer.singleShot(int(dur * 1000),
+                                      lambda: self.set_animation_state('idle')
+                                      if self.animation_state == 'sitting_back' else None)
                 elif activity == 'sit_back':
                     self.set_animation_state('sitting_back')
                     dur = random.uniform(3.0, 7.0)

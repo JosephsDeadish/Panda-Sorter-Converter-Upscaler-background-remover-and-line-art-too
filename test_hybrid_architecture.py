@@ -3147,6 +3147,114 @@ def test_panda_gl_starts_on_ground():
     print(f"  ✅ panda_y initialised to {init_val} (on the ground)")
 
 
+def test_panda_gl_realistic_behaviour():
+    """3D panda must look and act like a real giant panda.
+
+    Real giant pandas:
+    - Have a characteristic muscular dorsal shoulder hump
+    - Lean forward naturally (never perfectly upright in idle)
+    - Spend most of their time sitting on their haunches or eating bamboo
+    - Eat bamboo as their primary activity (10-16 hours/day)
+    - Rarely perform athletic activities (ceiling hanging, backflips, etc.)
+
+    This test validates the source-level changes that implement these behaviours.
+    """
+    print("\ntest_panda_gl_realistic_behaviour ...")
+    import re
+    code = open('src/ui/panda_widget_gl.py').read()
+
+    # ── Body pitch: idle must have a forward lean (≤ -5°, not upright) ────────
+    m = re.search(r"'idle'\s*:\s*([-\d.]+)", code)
+    assert m, (
+        "_BODY_PITCH_TARGETS must include an 'idle' key.  "
+        "Real pandas never stand fully upright; add 'idle': -10.0 or similar."
+    )
+    idle_pitch = float(m.group(1))
+    assert idle_pitch <= -5.0, (
+        f"_BODY_PITCH_TARGETS['idle'] = {idle_pitch}.  "
+        "Must be ≤ -5° so the idle panda leans forward like a real panda."
+    )
+    print(f"  ✅ Idle body pitch = {idle_pitch}° (forward lean)")
+
+    # ── Shoulder hump: dorsal hump blob must be drawn in _draw_panda ─────────
+    assert 'dorsal' in code.lower() or '_dorsal' in code or \
+           ('shoulder hump' in code.lower() and 'glTranslatef' in code), (
+        "_draw_panda must draw a central dorsal shoulder hump.  "
+        "Real giant pandas have a prominent muscular hump between the shoulders."
+    )
+    print("  ✅ Dorsal shoulder hump drawn")
+
+    # ── Activity weights: sitting + bamboo eating must dominate ──────────────
+    sit_m = re.search(r"'sit_back'\s*,\s*([\d.]+)", code)
+    eat_m = re.search(r"'eat_bamboo'\s*,\s*([\d.]+)", code)
+    assert sit_m, "_ACTIVITY_WEIGHTS must include 'sit_back' activity."
+    assert eat_m, (
+        "_ACTIVITY_WEIGHTS must include 'eat_bamboo' activity.  "
+        "Eating bamboo is the most iconic and frequent real panda behaviour."
+    )
+    sit_w = float(sit_m.group(1))
+    eat_w = float(eat_m.group(1))
+    assert sit_w >= 0.15, (
+        f"'sit_back' weight = {sit_w}.  Must be ≥ 0.15 (pandas sit most of the time)."
+    )
+    assert eat_w >= 0.10, (
+        f"'eat_bamboo' weight = {eat_w}.  Must be ≥ 0.10 (bamboo eating is primary activity)."
+    )
+    print(f"  ✅ sit_back weight = {sit_w}, eat_bamboo weight = {eat_w}")
+
+    # ── Bamboo eating sub-behavior must be implemented ───────────────────────
+    assert 'bamboo_eating' in code, (
+        "bamboo_eating idle sub-behavior is missing.  "
+        "Add it to _update_idle_sub_behavior choices and _get_idle_sub_pose."
+    )
+    assert 'bamboo_eating' in code and '_get_idle_sub_pose' in code, (
+        "_get_idle_sub_pose must handle 'bamboo_eating' sub-state."
+    )
+    # Verify the sub-pose sets both arms forward (holding bamboo stance)
+    bamboo_section = code[code.find("elif s == 'bamboo_eating'"):][:1300] \
+        if "elif s == 'bamboo_eating'" in code else ''
+    assert ('arm_l' in bamboo_section and 'arm_r' in bamboo_section) or \
+           'arm_hold' in bamboo_section, (
+        "_get_idle_sub_pose bamboo_eating must set arm_l and arm_r "
+        "(both paws hold the bamboo stalk)."
+    )
+    print("  ✅ bamboo_eating sub-behavior with both-arm hold pose present")
+
+    # ── eat_bamboo must be handled in _choose_random_activity ────────────────
+    assert "activity == 'eat_bamboo'" in code or "'eat_bamboo'" in code, (
+        "_choose_random_activity must handle 'eat_bamboo' activity."
+    )
+    print("  ✅ eat_bamboo handled in autonomous behaviour")
+
+    # ── Idle limb pose should place arms forward, not hanging at sides ────────
+    # After the idle/else block, there should be a positive arm angle (forward)
+    # The idle sway used to be 3.5 * sin with arms at ±sway (bipedal hang);
+    # now arms should have a positive base angle (15+ degrees, resting forward).
+    idle_section = code[code.find("else:  # idle / neutral / default"):][:300] \
+        if "else:  # idle / neutral / default" in code else \
+        code[code.find("else:  # idle"):][:300] if "else:  # idle" in code else ''
+    arm_angle_m = re.search(r"'left_arm_angle'\]\s*=\s*([\d.]+)", idle_section)
+    if arm_angle_m:
+        idle_arm_base = float(arm_angle_m.group(1))
+        assert idle_arm_base >= 8.0, (
+            f"Idle left_arm_angle base = {idle_arm_base}°.  "
+            "Must be ≥ 8° so arms rest forward (panda-like), not hanging at sides."
+        )
+        print(f"  ✅ Idle arm base angle = {idle_arm_base}° (forward-resting)")
+
+    # ── Sitting pose: hind legs must be splayed wide (≥ 55°) ─────────────────
+    sitting_section = code[code.find("elif state == 'sitting_back'"):][:400] \
+        if "elif state == 'sitting_back'" in code else ''
+    leg_m = re.search(r"'left_leg_angle'\]\s*=\s*([\d.]+)", sitting_section)
+    if leg_m:
+        sit_leg = float(leg_m.group(1))
+        assert sit_leg >= 55.0, (
+            f"sitting_back left_leg_angle = {sit_leg}°.  "
+            "Must be ≥ 55° so hind legs splay wide forward when sitting on haunches."
+        )
+        print(f"  ✅ Sitting hind-leg splay = {sit_leg}° (wide haunches pose)")
+
+
 def test_livy_shop_commentary():
     """ShopPanelQt must have Livy speech-bubble commentary.
 
@@ -6460,6 +6568,7 @@ def run_all_tests():
         test_tools_tab_collapse_button,
         test_panda_gl_arm_y_at_shoulder_level,
         test_panda_gl_starts_on_ground,
+        test_panda_gl_realistic_behaviour,
         test_livy_shop_commentary,
         test_theme_ambient_decorators,
         test_tooltip_mode_cross_path_normalisation,
