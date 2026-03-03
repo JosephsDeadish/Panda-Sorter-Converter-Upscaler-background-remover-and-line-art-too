@@ -7792,6 +7792,41 @@ def test_dungeon_3d_enemy_slain_awards_xp():
     print("  ✅ Source: level_system guarded access present")
 
 
+def test_bamboo_catcher_quest_wired():
+    """_on_minigame_completed() must update the 'bamboo_catcher_beginner' quest.
+
+    Bug: The handler had a comment saying 'No dedicated minigame quest' and only
+    called update_quest_progress('first_interaction').  However, quest_system.py
+    defines the quest 'bamboo_catcher_beginner' — playing Bamboo Catcher for the
+    first time.  Without wiring, that quest could never be completed.
+
+    Fix: when game_id == 'bamboo_catcher', call
+        self.quest_system.update_quest_progress('bamboo_catcher_beginner', 1)
+    """
+    print("\ntest_bamboo_catcher_quest_wired ...")
+    from pathlib import Path
+
+    # Confirm the quest exists in quest_system.py
+    quest_code = (Path(__file__).parent / 'src' / 'features' / 'quest_system.py').read_text(encoding='utf-8')
+    assert 'bamboo_catcher_beginner' in quest_code, \
+        "quest_system.py: 'bamboo_catcher_beginner' quest ID missing"
+    print("  ✅ Source: 'bamboo_catcher_beginner' quest defined in quest_system.py")
+
+    # Confirm the handler wires the quest
+    main_code = (Path(__file__).parent / 'main.py').read_text(encoding='utf-8')
+    fn_start = main_code.find('def _on_minigame_completed(')
+    assert fn_start != -1, "main.py: _on_minigame_completed() missing"
+    next_fn = main_code.find('\n    def ', fn_start + 1)
+    fn_body = main_code[fn_start:] if next_fn == -1 else main_code[fn_start:next_fn]
+
+    assert 'bamboo_catcher_beginner' in fn_body, (
+        "main.py: _on_minigame_completed() does not update 'bamboo_catcher_beginner' quest.\n"
+        "Fix: add `self.quest_system.update_quest_progress('bamboo_catcher_beginner', 1)` "
+        "when game_id == 'bamboo_catcher'."
+    )
+    print("  ✅ Source: _on_minigame_completed() updates 'bamboo_catcher_beginner' quest")
+
+
 def test_minigame_panel_bamboo_color_match_ui():
     """MinigamePanelQt must have full UI methods for bamboo_catcher and color_match.
 
@@ -8027,6 +8062,7 @@ def run_all_tests():
         test_batch_normalizer_preview_original_size,
         test_dungeon_gold_reward_uses_earn_money,
         test_dungeon_3d_enemy_slain_awards_xp,
+        test_bamboo_catcher_quest_wired,
         test_minigame_panel_bamboo_color_match_ui,
     ]
 

@@ -5856,7 +5856,7 @@ class TextureSorterMainWindow(QMainWindow):
             if self.quest_system:
                 self.quest_system.update_quest_progress('dungeon_adventurer', 1)
             if self.level_system:
-                self.level_system.add_xp(10, f'dungeon_kill_{enemy_type}')
+                self.level_system.add_xp(self._DUNGEON_KILL_XP, f'dungeon_kill_{enemy_type}')
         except Exception as _e:
             logger.debug(f"Dungeon enemy slain: {_e}")
 
@@ -6458,6 +6458,8 @@ class TextureSorterMainWindow(QMainWindow):
 
     # Coins awarded per new level on level-up (e.g. reaching level 10 gives 500 coins)
     _COINS_PER_LEVEL = 50
+    # XP awarded for each enemy killed in the 3-D dungeon
+    _DUNGEON_KILL_XP = 10
 
     def _on_level_up(self, old_level: int, new_level: int):
         """Callback fired by UserLevelSystem when the user gains a level."""
@@ -6546,7 +6548,10 @@ class TextureSorterMainWindow(QMainWindow):
                 # 'minigame_addict' tracks 50+ plays — increment via progress
                 self.achievement_system.update_progress('minigame_addict', 1, increment=True)
             if self.quest_system:
-                # No dedicated minigame quest — mark general interaction progress
+                # Trigger the dedicated bamboo_catcher beginner quest
+                if game_id == 'bamboo_catcher':
+                    self.quest_system.update_quest_progress('bamboo_catcher_beginner', 1)
+                # Also mark general interaction progress
                 self.quest_system.update_quest_progress('first_interaction')
         except Exception as _e:
             logger.debug(f"Minigame completed callback error: {_e}")

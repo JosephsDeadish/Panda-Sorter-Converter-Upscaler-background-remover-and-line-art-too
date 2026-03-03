@@ -472,6 +472,7 @@ class MiniGamePanelQt(QWidget):
         self._refresh_color_match_round()
 
         # Timer fires every 250 ms to update the countdown
+        self._cm_tick_dt = 0.25                    # seconds — matches QTimer interval below
         self._cm_timer = QTimer(self)
         self._cm_timer.timeout.connect(self._on_cm_tick)
         self._cm_timer.start(250)
@@ -548,7 +549,7 @@ class MiniGamePanelQt(QWidget):
         # Drive time-based round expiry.
         # PandaColorMatchGame.tick() returns Optional[GameResult] (not a bool),
         # so checking `is not None` is the correct end-of-game signal here.
-        tick_result = self.current_game.tick(0.25)
+        tick_result = self.current_game.tick(self._cm_tick_dt)
         remaining = self.current_game.get_remaining_time()
         self.cm_timer_label.setText(f"Time: {remaining:.0f}s")
         self.cm_score_label.setText(f"Score: {self.current_game.score}")
