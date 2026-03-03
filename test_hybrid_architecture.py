@@ -7843,6 +7843,17 @@ def test_minigame_panel_bamboo_color_match_ui():
         "Wrong answer should return correct=False"
     print(f"  ✅ Runtime: PandaColorMatchGame submit_answer correct/wrong flows work")
 
+    # _end_game() must stop the dedicated bamboo/color_match timers
+    end_fn_pos = code.find('def _end_game(')
+    assert end_fn_pos != -1, "minigame_panel_qt.py: _end_game() missing"
+    next_fn_end = code.find('\n    def ', end_fn_pos + 1)
+    end_fn = code[end_fn_pos:] if next_fn_end == -1 else code[end_fn_pos:next_fn_end]
+    assert '_bamboo_timer' in end_fn, \
+        "minigame_panel_qt.py: _end_game() does not stop _bamboo_timer — clicking Back leaks the timer"
+    assert '_cm_timer' in end_fn, \
+        "minigame_panel_qt.py: _end_game() does not stop _cm_timer — clicking Back leaks the timer"
+    print("  ✅ Source: _end_game() stops _bamboo_timer and _cm_timer (no timer leak on Back)")
+
 
 def run_all_tests():
     print("=" * 65)

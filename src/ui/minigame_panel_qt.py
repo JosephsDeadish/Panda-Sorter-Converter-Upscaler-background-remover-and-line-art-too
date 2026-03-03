@@ -880,11 +880,19 @@ class MiniGamePanelQt(QWidget):
         """End current game and return to menu."""
         self.game_timer.stop()
         self.action_timer.stop()
-        
+        # Stop dedicated timers for games that use their own QTimer instances
+        for _attr in ('_bamboo_timer', '_cm_timer'):
+            _t = getattr(self, _attr, None)
+            if _t is not None:
+                try:
+                    _t.stop()
+                except Exception:
+                    pass
+
         if self.current_game:
             self.manager.stop_current_game()
             self.current_game = None
-        
+
         self._show_game_selection()
         self._update_stats()
     

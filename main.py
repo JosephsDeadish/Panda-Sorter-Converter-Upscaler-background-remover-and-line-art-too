@@ -6763,6 +6763,9 @@ class TextureSorterMainWindow(QMainWindow):
                 self._park_panel = MinigamePanelQt(
                     minigame_manager=mgr, tooltip_manager=self.tooltip_manager
                 )
+                # Wire completion rewards — same handler as the Minigames tab panel
+                if hasattr(self._park_panel, 'game_completed'):
+                    self._park_panel.game_completed.connect(self._on_minigame_completed)
                 # NOT added to _home_stack_owned — persistent panel re-used across visits.
             self._show_home_sub_panel(self._park_panel, '🌲 Panda Park')
             if self.panda_widget:
