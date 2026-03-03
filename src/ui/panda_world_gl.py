@@ -8,7 +8,7 @@ Scene layout (top-down, Z axis = depth, X = left/right)
   Otter shopkeeper inside the shop (visible through window).
 
 Signals
-    destination_selected(str)  – 'home' | 'shop' | 'park'
+    destination_selected(str)  – 'home' | 'shop' | 'park' | 'dungeon'
     otter_clicked()            – user clicked on the otter → open shop panel
     back_to_bedroom()          – back button pressed
 """
