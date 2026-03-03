@@ -47,8 +47,10 @@ class AchievementPopup(QDialog):
         self.achievement_data = achievement_data
         self._setup_window()
         self._setup_ui()
-        self._setup_animations()
+        # _auto_close_timer and _slide_out_active are created inside _setup_animations
         self._auto_close_timer = None
+        self._slide_out_active = False
+        self._setup_animations()
         
     def _setup_window(self):
         """Configure window properties."""
@@ -124,7 +126,21 @@ class AchievementPopup(QDialog):
         self.slide_animation = QPropertyAnimation(self, b"pos")
         self.slide_animation.setDuration(500)
         self.slide_animation.setEasingCurve(QEasingCurve.Type.OutCubic)
-        
+        # Connect once here — connecting inside hide_popup() would accumulate
+        # multiple connections and call close() more than once per animation.
+        self.slide_animation.finished.connect(self._on_slide_finished)
+
+        # Create the auto-close timer once; reused across multiple show_popup calls.
+        self._auto_close_timer = QTimer(self)
+        self._auto_close_timer.setSingleShot(True)
+        self._auto_close_timer.timeout.connect(self.hide_popup)
+
+    def _on_slide_finished(self):
+        """Called when slide animation ends; close only during slide-out."""
+        if self._slide_out_active:
+            self._slide_out_active = False
+            self.close()
+
     def show_popup(self, parent_geometry=None):
         """
         Show the popup with animation.
@@ -153,14 +169,16 @@ class AchievementPopup(QDialog):
         self.move(start_pos)
         self.show()
         
-        # Animate slide in
+        # Stop any running animation before starting slide-in
+        self._slide_out_active = False
+        self.slide_animation.stop()
         self.slide_animation.setStartValue(start_pos)
         self.slide_animation.setEndValue(end_pos)
         self.slide_animation.start()
         
-        # Auto-close after 5 seconds
-        self._auto_close_timer = QTimer(self)
-        self._auto_close_timer.timeout.connect(self.hide_popup)
+        # (Re-)start the auto-close timer; stopping first prevents duplicate fires
+        # if show_popup() is called again before the previous popup was dismissed.
+        self._auto_close_timer.stop()
         self._auto_close_timer.start(5000)
         
     def hide_popup(self):
@@ -168,13 +186,16 @@ class AchievementPopup(QDialog):
         if self._auto_close_timer:
             self._auto_close_timer.stop()
         
+        # Stop any in-progress animation (e.g. still sliding in) before reversing
+        self.slide_animation.stop()
+
         # Slide out to right
         current_pos = self.pos()
         end_pos = QPoint(current_pos.x() + 100, current_pos.y())
         
+        self._slide_out_active = True
         self.slide_animation.setStartValue(current_pos)
         self.slide_animation.setEndValue(end_pos)
-        self.slide_animation.finished.connect(self.close)
         self.slide_animation.start()
         
     def mousePressEvent(self, event):

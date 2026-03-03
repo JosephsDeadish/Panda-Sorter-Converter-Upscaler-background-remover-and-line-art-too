@@ -7476,6 +7476,70 @@ def test_memory_game_same_card_guard():
     print("  ✅ memory_first_card reset before timer start (prevents extra clicks during delay)")
 
 
+def test_achievement_popup_no_signal_accumulation():
+    """AchievementPopup.hide_popup() must NOT accumulate slide_animation.finished connections.
+
+    Bug: `slide_animation.finished.connect(self.close)` was called inside
+    `hide_popup()`, so every invocation stacked another connection.  After N
+    dismissals the close() slot would be called N times when the animation
+    finished, causing errors or double-free crashes.
+
+    Fix: `finished` is connected once in `_setup_animations()` via the helper
+    `_on_slide_finished` which gates the close() call on `_slide_out_active`.
+    `hide_popup()` therefore only sets `_slide_out_active = True` and calls
+    `slide_animation.start()` — it no longer calls `connect()` at all.
+
+    Also: `_auto_close_timer` is created once in `_setup_animations()` as a
+    single-shot timer and reused across calls, eliminating the timer-leak
+    caused by `QTimer(self)` being instantiated on every `show_popup()` call.
+    """
+    print("\ntest_achievement_popup_no_signal_accumulation ...")
+    from pathlib import Path
+    code = (Path(__file__).parent / 'src' / 'ui' / 'qt_achievement_popup.py').read_text(encoding='utf-8')
+
+    # finished must NOT be connected inside hide_popup
+    setup_start = code.find('def hide_popup(')
+    assert setup_start != -1, "hide_popup() not found"
+    next_def = code.find('\n    def ', setup_start + 1)
+    hide_body = code[setup_start:] if next_def == -1 else code[setup_start:next_def]
+    assert 'finished.connect' not in hide_body, (
+        "qt_achievement_popup.py: hide_popup() still calls finished.connect() — "
+        "this accumulates connections on each call."
+    )
+    print("  ✅ hide_popup() does not call finished.connect() (no signal accumulation)")
+
+    # finished must be connected inside _setup_animations (once)
+    setup_start = code.find('def _setup_animations(')
+    assert setup_start != -1, "_setup_animations() not found"
+    next_def = code.find('\n    def ', setup_start + 1)
+    setup_body = code[setup_start:] if next_def == -1 else code[setup_start:next_def]
+    assert 'finished.connect' in setup_body, (
+        "qt_achievement_popup.py: finished signal should be connected once in _setup_animations()"
+    )
+    print("  ✅ finished signal connected once in _setup_animations()")
+
+    # _auto_close_timer must be created in _setup_animations (not in show_popup)
+    assert 'QTimer(self)' in setup_body or '_auto_close_timer' in setup_body, (
+        "qt_achievement_popup.py: _auto_close_timer should be created in _setup_animations()"
+    )
+    show_start = code.find('def show_popup(')
+    assert show_start != -1, "show_popup() not found"
+    next_def2 = code.find('\n    def ', show_start + 1)
+    show_body = code[show_start:] if next_def2 == -1 else code[show_start:next_def2]
+    assert 'QTimer(self)' not in show_body, (
+        "qt_achievement_popup.py: show_popup() still creates a new QTimer each call — "
+        "this causes the old timer to keep running (leak)."
+    )
+    print("  ✅ show_popup() reuses _auto_close_timer (no timer leak)")
+
+    # _slide_out_active flag must exist to gate the close() call
+    assert '_slide_out_active' in code, (
+        "qt_achievement_popup.py: _slide_out_active flag missing — "
+        "needed so slide-in animation completion does not close the popup."
+    )
+    print("  ✅ _slide_out_active flag present (slide-in won't trigger close)")
+
+
 def run_all_tests():
     print("=" * 65)
     print("Hybrid Architecture + Lazy rembg Import Tests")
@@ -7611,6 +7675,7 @@ def run_all_tests():
         test_shop_banner_has_3d_otter_widget,
         test_livy_otter_widget_complete_animation_state,
         test_memory_game_same_card_guard,
+        test_achievement_popup_no_signal_accumulation,
     ]
 
     passed, failed = [], []
