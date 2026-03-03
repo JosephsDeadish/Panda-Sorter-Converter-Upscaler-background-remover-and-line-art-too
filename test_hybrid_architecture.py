@@ -3254,6 +3254,44 @@ def test_panda_gl_realistic_behaviour():
         )
         print(f"  ✅ Sitting hind-leg splay = {sit_leg}° (wide haunches pose)")
 
+    # ── Body proportions: width-to-height ratio must be ≥ 1.5 ───────────────
+    # Real giant pandas are famously barrel-shaped — body is much wider than tall.
+    bw_m = re.search(r'BODY_WIDTH\s*=\s*([\d.]+)', code)
+    bh_m = re.search(r'BODY_HEIGHT\s*=\s*([\d.]+)', code)
+    if bw_m and bh_m:
+        bw = float(bw_m.group(1))
+        bh = float(bh_m.group(1))
+        ratio = bw / bh if bh > 0 else 0.0
+        assert ratio >= 1.5, (
+            f"BODY_WIDTH ({bw}) / BODY_HEIGHT ({bh}) = {ratio:.2f}.  "
+            "Must be ≥ 1.5 — real pandas have a wide barrel body, not a round blob."
+        )
+        print(f"  ✅ Body W:H = {bw}/{bh} = {ratio:.2f}:1 (barrel shape ≥ 1.5:1)")
+
+    # ── Belly sphere: large and forward-jutting ───────────────────────────────
+    # The belly sphere must have a large BW multiplier (≥ 0.75×BW) to be wide,
+    # and its Z offset must be clearly forward (≥ 0.50×BW) so it protrudes.
+    # Search for the glScalef that immediately precedes glColor3f(*belly_col).
+    belly_scale_m = re.search(
+        r'glScalef\(BW\s*\*\s*([\d.]+)[^)]*\)\s*\n\s*glColor3f\(\*belly_col\)', code)
+    if belly_scale_m:
+        belly_x_scale = float(belly_scale_m.group(1))
+        assert belly_x_scale >= 0.75, (
+            f"Belly X scale = BW * {belly_x_scale}.  "
+            "Must be ≥ 0.75 — the belly is the panda's most prominent feature."
+        )
+        print(f"  ✅ Belly X scale = BW × {belly_x_scale} (prominent belly)")
+    # Belly must protrude forward: its glTranslatef z offset must be ≥ BW*0.50
+    belly_z_m = re.search(
+        r'ENORMOUS.*?glTranslatef\(0\.0,\s*[^,]+,\s*BW\s*\*\s*([\d.]+)\)', code, re.DOTALL)
+    if belly_z_m:
+        belly_z = float(belly_z_m.group(1))
+        assert belly_z >= 0.50, (
+            f"Belly Z offset = BW * {belly_z}.  "
+            "Must be ≥ 0.50×BW so the belly juts clearly forward from the body."
+        )
+        print(f"  ✅ Belly Z offset = BW × {belly_z} (forward-jutting)")
+
 
 def test_livy_shop_commentary():
     """ShopPanelQt must have Livy speech-bubble commentary.

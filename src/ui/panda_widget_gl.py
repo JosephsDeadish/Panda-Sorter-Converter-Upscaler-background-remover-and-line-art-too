@@ -196,15 +196,15 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
     FRAME_TIME = 1.0 / TARGET_FPS  # 33.33ms per frame at 30 fps
     
     # Panda dimensions (3D units)
-    # Real giant pandas are round/stocky: body is roughly as wide as tall,
-    # with a large round head and visible sturdy legs below the belly.
-    HEAD_RADIUS = 0.42   # slightly larger — pandas have big, round heads
-    BODY_WIDTH = 0.56    # wider than before for a round, stocky silhouette
-    BODY_HEIGHT = 0.50   # shorter than old 0.6 — pandas are squat, not tall
-    ARM_LENGTH = 0.38    # slightly shorter (was 0.40) to look proportional on wider body
-    ARM_Y = 0.18         # shoulder height in torso-local space (body extends ±0.25)
-    LEG_LENGTH = 0.40    # longer legs so they protrude below the belly
-    LEG_SPACING = 0.44   # wider stance, matches real panda hip width
+    # Real giant pandas: very wide barrel body (W:H ≈ 1.75:1), enormous belly,
+    # large round head, thick stubby legs clearly visible below the belly.
+    HEAD_RADIUS = 0.42   # large, round panda head
+    BODY_WIDTH = 0.70    # much wider (was 0.56) — 1.75:1 W:H gives barrel shape
+    BODY_HEIGHT = 0.40   # shorter (was 0.50) — squat, heavy-set panda torso
+    ARM_LENGTH = 0.40    # slightly longer arms to look natural on wider body
+    ARM_Y = 0.15         # shoulder height in torso-local (body half-height=0.20)
+    LEG_LENGTH = 0.42    # slightly longer so legs protrude clearly below the belly
+    LEG_SPACING = 0.50   # wider hip stance to match new barrel body width
     EAR_SIZE = 0.15
 
     # States that receive a micro-hold pause before transitioning to idle
@@ -1127,141 +1127,122 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
         if abs(self._body_pitch_cur) > 0.5:
             glRotatef(self._body_pitch_cur, 1.0, 0.0, 0.0)
 
-        # Disable blending for opaque solid body parts so they are never transparent
+        # Disable blending for opaque solid body parts
         glDisable(GL_BLEND)
 
-        # Belly — creamy white underside; belly jiggle on Y (height oscillation)
+        # ─────────────────────────────────────────────────────────────────────
+        # PANDA BODY — completely rebuilt from scratch.
+        # Real giant pandas: very wide barrel torso (W:H ≈ 1.75:1), enormous
+        # round belly jutting forward, black shoulder "saddle" across the upper
+        # back, white chest bib, black hip patches joining the rear legs.
+        # Built from overlapping spheres; GL_DEPTH_TEST handles occlusion so
+        # drawing order matches visual layering (back → front).
+        # Coordinate axes: +Z toward viewer (front), +Y up.
+        # ─────────────────────────────────────────────────────────────────────
+        BW = self.BODY_WIDTH    # 0.70 — body width reference
+        BH = self.BODY_HEIGHT   # 0.40 — body height reference
+
+        # ── WHITE LOWER RUMP / HIP MASS ───────────────────────────────────────
+        # The widest part of the panda — establishes the wide-barrel silhouette.
+        # Biased slightly downward and rearward; this is the dominant body mass.
         glPushMatrix()
-        glScalef(self.BODY_WIDTH * 0.65,
-                 self.BODY_HEIGHT * 0.55 * sy * self._belly_y,
-                 self.BODY_WIDTH * 0.50)
-        glColor4f(*belly_col, 1.0)
+        glTranslatef(0.0, -BH * 0.18 * sy, -BW * 0.06)
+        glScalef(BW * 1.12, BH * 0.80 * sy, BW * 0.96)
+        glMaterialfv(GL_FRONT, GL_SPECULAR, [0.22, 0.22, 0.22, 1.0])
+        glMaterialf(GL_FRONT, GL_SHININESS, 12.0)
+        glColor3f(*body_col)
         self._draw_sphere(1.0, 32, 32)
         glPopMatrix()
 
-        # Main body — colour from custom_colors['body'] (fur style)
-        # Apply subtle specular sheen to simulate fur gloss
-        glMaterialfv(GL_FRONT, GL_SPECULAR, [0.25, 0.25, 0.25, 1.0])
-        glMaterialf(GL_FRONT, GL_SHININESS, 14.0)
+        # ── WHITE UPPER CHEST MASS ────────────────────────────────────────────
+        # Slightly narrower sphere at the top of the barrel. Together with the
+        # lower mass it creates the characteristic rounded-barrel panda torso.
         glPushMatrix()
-        glScalef(self.BODY_WIDTH, self.BODY_HEIGHT * sy, self.BODY_WIDTH * 0.92)
-        glColor4f(*body_col, 1.0)
+        glTranslatef(0.0, BH * 0.22 * sy, -BW * 0.04)
+        glScalef(BW * 0.88, BH * 0.72 * sy, BW * 0.82)
+        glColor3f(*body_col)
         self._draw_sphere(1.0, 32, 32)
         glPopMatrix()
+
         glMaterialfv(GL_FRONT, GL_SPECULAR, [1.0, 1.0, 1.0, 1.0])
         glMaterialf(GL_FRONT, GL_SHININESS, 50.0)
 
-        # Fur layer — skip in overlay mode: semi-transparent shells over a
-        # transparent-background GL context make the panda look ghostly/translucent
-        # because the shell alpha blends against the transparent window rather than
-        # the solid body beneath it at the silhouette edges.
-        if not self._overlay_mode:
-            glEnable(GL_BLEND)
-            glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
-            _fur_col = self._get_color('body')
-            # Shell 1 — innermost (near body surface, most opaque)
+        # ── BLACK SHOULDER BAND (across the upper back) ───────────────────────
+        # The iconic panda "saddle" — broad black band connecting both shoulder
+        # patches across the upper back at shoulder level.  Positioned rearward
+        # so the white chest bib that comes later overlaps its front face.
+        glPushMatrix()
+        glTranslatef(0.0, BH * 0.18 * sy, -BW * 0.28)
+        glScalef(BW * 1.14, BH * 0.56 * sy, BW * 0.58)
+        glColor3f(*accent_col)
+        self._draw_sphere(1.0, 24, 24)
+        glPopMatrix()
+
+        # ── BLACK SHOULDER SLEEVE BLOBS (left and right) ──────────────────────
+        # Large black patches on each shoulder that merge with the shoulder band
+        # above and the front-leg "sleeves" below.  Centred at body-plane Z=0
+        # so they protrude slightly forward and are visible from the front.
+        for side in (-1.0, 1.0):
             glPushMatrix()
-            glScalef(self.BODY_WIDTH * 1.025,
-                     self.BODY_HEIGHT * 1.018 * sy * self._belly_y,
-                     self.BODY_WIDTH * 0.945)
-            glColor4f(*_fur_col, 0.22)
+            glTranslatef(side * BW * 0.80, BH * 0.14 * sy, 0.0)
+            glScalef(0.48, 0.46 * sy, 0.42)
+            glColor3f(*accent_col)
             self._draw_sphere(1.0, 16, 16)
             glPopMatrix()
-            # Shell 2 — middle layer
-            glPushMatrix()
-            glScalef(self.BODY_WIDTH * 1.045,
-                     self.BODY_HEIGHT * 1.030 * sy * self._belly_y,
-                     self.BODY_WIDTH * 0.960)
-            glColor4f(*_fur_col, 0.14)
-            self._draw_sphere(1.0, 14, 14)
-            glPopMatrix()
-            # Shell 3 — outermost (fluffy tips, very transparent)
-            glPushMatrix()
-            glScalef(self.BODY_WIDTH * 1.065,
-                     self.BODY_HEIGHT * 1.042 * sy * self._belly_y,
-                     self.BODY_WIDTH * 0.978)
-            glColor4f(*_fur_col, 0.07)
-            self._draw_sphere(1.0, 12, 12)
-            glPopMatrix()
-            glDisable(GL_BLEND)
 
-        # Black saddle patch across lower torso — uses accent colour (fur style)
+        # ── WHITE CHEST BIB / THROAT ──────────────────────────────────────────
+        # White "bib" between the two black shoulder patches, giving the classic
+        # V-shaped white chest that real pandas show from the front.
+        bright_white = [min(1.0, c + 0.06) for c in belly_col]
         glPushMatrix()
-        glTranslatef(0.0, -0.18, 0.0)
-        glScalef(self.BODY_WIDTH * 0.95, self.BODY_HEIGHT * 0.35 * sy, self.BODY_WIDTH * 0.70)
-        glColor3f(*accent_col)
+        glTranslatef(0.0, BH * 0.18 * sy, BW * 0.40)
+        glScalef(BW * 0.65, BH * 0.85 * sy, BW * 0.32)
+        glColor3f(*bright_white)
         self._draw_sphere(1.0, 20, 20)
         glPopMatrix()
 
-        # Spine ridge — darker streak along the back
+        # ── ENORMOUS ROUND BELLY ──────────────────────────────────────────────
+        # The most recognisable panda feature: a massive round belly that juts
+        # significantly forward from the body centre.  Cream-coloured, clearly
+        # visible from front and 3/4 views.  The _belly_y spring makes it jiggle
+        # after landing impacts; the squash spring scales the whole torso via sy.
         glPushMatrix()
-        glTranslatef(0.0, 0.05, -self.BODY_WIDTH * 0.65)
-        glScalef(0.20, 0.55 * sy, 0.22)
-        glColor3f(*[max(0.0, c - 0.06) for c in accent_col])
-        self._draw_sphere(1.0, 10, 10)
-        glPopMatrix()
-
-        # Shoulder muscle masses (black) — give quadruped shoulder hump
-        # Y derived from ARM_Y (+ 0.02 for slight upward centre) so shoulder
-        # blobs visually connect to the arm pivot point.
-        for sx in (-self.BODY_WIDTH * 0.70, self.BODY_WIDTH * 0.70):
-            glPushMatrix()
-            glTranslatef(sx, self.ARM_Y + 0.02, -self.BODY_WIDTH * 0.15)
-            glScalef(0.30, 0.28 * sy, 0.24)
-            glColor3f(*accent_col)
-            self._draw_sphere(1.0, 12, 12)
-            glPopMatrix()
-
-        # Central dorsal shoulder hump — real giant pandas have a prominent
-        # muscular ridge / hump between the shoulders along the spine.
-        # White (body colour) and wider than the black shoulder blobs so it
-        # sits visibly on top of them and defines the classic panda silhouette.
-        glPushMatrix()
-        glTranslatef(0.0, self.BODY_HEIGHT * 0.40 * sy, -self.BODY_WIDTH * 0.25)
-        glScalef(0.52, 0.38 * sy, 0.50)
-        glColor3f(*body_col)
-        self._draw_sphere(1.0, 14, 14)
-        glPopMatrix()
-
-        # ── Neck ─────────────────────────────────────────────────────────────
-        # Short cylinder-like neck connecting torso to head
-        glPushMatrix()
-        glTranslatef(0.0, self.BODY_HEIGHT * 0.48 * sy, 0.0)
-        glScalef(0.30, 0.32 * sy, 0.28)
-        glColor3f(*body_col)
-        self._draw_sphere(1.0, 14, 14)
-        glPopMatrix()
-
-        # ── Chest / throat white patch ────────────────────────────────────────
-        # Real pandas have a bright white chest band between the black shoulders
-        glPushMatrix()
-        glTranslatef(0.0, self.BODY_HEIGHT * 0.28 * sy, self.BODY_WIDTH * 0.55)
-        glScalef(0.45, 0.38 * sy, 0.25)
-        bright_white = [min(1.0, c + 0.06) for c in belly_col]
-        glColor3f(*bright_white)
-        self._draw_sphere(1.0, 14, 14)
-        glPopMatrix()
-
-        # ── Belly ventral stripe ──────────────────────────────────────────────
-        # Cream-coloured midline stripe from chest to groin
-        glPushMatrix()
-        glTranslatef(0.0, 0.0, self.BODY_WIDTH * 0.46)
-        glScalef(0.18, 0.82 * sy, 0.15)
+        glTranslatef(0.0, -BH * 0.08 * sy, BW * 0.60)
+        glScalef(BW * 0.86, BH * 0.90 * sy * self._belly_y, BW * 0.54)
         glColor3f(*belly_col)
-        self._draw_sphere(1.0, 10, 10)
+        self._draw_sphere(1.0, 32, 32)
         glPopMatrix()
 
-        # ── Hip patches (black) ──────────────────────────────────────────────
-        # Real pandas have prominent black oval patches on each hip / upper thigh.
-        # Y = -BODY_HEIGHT * 0.48 = -0.24 matches the leg pivot (leg_y = -0.24)
-        # so the black patch visually joins the body to the upper leg.
-        for hx in (-self.BODY_WIDTH * 0.78, self.BODY_WIDTH * 0.78):
+        # ── DORSAL SHOULDER HUMP ──────────────────────────────────────────────
+        # Characteristic muscular ridge between the shoulders along the spine.
+        # White (body colour); sits above the black shoulder band.
+        glPushMatrix()
+        glTranslatef(0.0, BH * 0.52 * sy, -BW * 0.20)
+        glScalef(BW * 0.58, BH * 0.46 * sy, BW * 0.50)
+        glColor3f(*body_col)
+        self._draw_sphere(1.0, 16, 16)
+        glPopMatrix()
+
+        # ── HIP / RUMP PATCHES (black) ────────────────────────────────────────
+        # Black ovals at each hip where the rear legs attach — "wearing black
+        # trousers" effect that connects the white body to the black rear legs.
+        for hx in (-BW * 0.74, BW * 0.74):
             glPushMatrix()
-            glTranslatef(hx, -self.BODY_HEIGHT * 0.48 * sy, 0.0)
-            glScalef(0.36, 0.42 * sy, 0.30)
+            glTranslatef(hx, -BH * 0.46 * sy, BW * 0.08)
+            glScalef(0.44, 0.48 * sy, 0.36)
             glColor3f(*accent_col)
-            self._draw_sphere(1.0, 12, 12)
+            self._draw_sphere(1.0, 14, 14)
             glPopMatrix()
+
+        # ── NECK ──────────────────────────────────────────────────────────────
+        # Wide, short neck bridging the body top to the head base.
+        # Pandas are famously "neckless" — the head appears to sit on the body.
+        glPushMatrix()
+        glTranslatef(0.0, BH * 0.62 * sy, BW * 0.02)
+        glScalef(0.40, 0.36 * sy, 0.36)
+        glColor3f(*body_col)
+        self._draw_sphere(1.0, 16, 16)
+        glPopMatrix()
 
         # ── Legs ─────────────────────────────────────────────────────────────
         self._draw_panda_legs(limb, bob, t)
