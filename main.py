@@ -5855,6 +5855,8 @@ class TextureSorterMainWindow(QMainWindow):
                     stats.monsters_slain += 1
             if self.quest_system:
                 self.quest_system.update_quest_progress('dungeon_adventurer', 1)
+            if self.level_system:
+                self.level_system.add_xp(10, f'dungeon_kill_{enemy_type}')
         except Exception as _e:
             logger.debug(f"Dungeon enemy slain: {_e}")
 

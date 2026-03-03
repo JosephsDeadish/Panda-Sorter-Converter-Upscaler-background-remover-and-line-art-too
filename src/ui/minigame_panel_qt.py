@@ -319,9 +319,9 @@ class MiniGamePanelQt(QWidget):
         # Build a compact view: map each item's Y → one of ROWS display rows
         cells = {}
         for item in game.items:
-            row = min(ROWS - 1, int(item['y'] * ROWS / H))
+            display_row = min(ROWS - 1, int(item['y'] * ROWS / H))
             col = int(item['x']) % W
-            cells[(row, col)] = self._BAMBOO_ICONS.get(item['kind'], '?')
+            cells[(display_row, col)] = self._BAMBOO_ICONS.get(item['kind'], '?')
 
         lines = []
         for r in range(ROWS):
@@ -886,8 +886,8 @@ class MiniGamePanelQt(QWidget):
             if _t is not None:
                 try:
                     _t.stop()
-                except Exception:
-                    pass
+                except RuntimeError:
+                    pass  # QTimer already destroyed (widget being torn down)
 
         if self.current_game:
             self.manager.stop_current_game()

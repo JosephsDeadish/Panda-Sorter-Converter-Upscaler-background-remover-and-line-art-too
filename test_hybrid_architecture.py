@@ -7762,6 +7762,36 @@ def test_dungeon_gold_reward_uses_earn_money():
     print("  ✅ Runtime: CurrencySystem.earn_money() confirmed; add() absent")
 
 
+def test_dungeon_3d_enemy_slain_awards_xp():
+    """_on_dungeon_enemy_slain() in main.py must award XP via level_system.add_xp().
+
+    Bug: The handler updated panda_stats.monsters_slain and quest progress but
+    never called level_system.add_xp(), so 3-D dungeon kills gave zero XP.
+    The 2-D dungeon path (integrated_dungeon.player_attack_nearby_enemies) was
+    already correct because it calls add_xp() internally.
+
+    Fix: add `self.level_system.add_xp(10, ...)` inside _on_dungeon_enemy_slain.
+    """
+    print("\ntest_dungeon_3d_enemy_slain_awards_xp ...")
+    from pathlib import Path
+    code = (Path(__file__).parent / 'main.py').read_text(encoding='utf-8')
+
+    fn_start = code.find('def _on_dungeon_enemy_slain(')
+    assert fn_start != -1, "main.py: _on_dungeon_enemy_slain() missing"
+    next_fn = code.find('\n    def ', fn_start + 1)
+    fn_body = code[fn_start:] if next_fn == -1 else code[fn_start:next_fn]
+
+    assert 'add_xp' in fn_body, (
+        "main.py: _on_dungeon_enemy_slain() never calls level_system.add_xp() — "
+        "3-D dungeon kills award zero XP."
+    )
+    print("  ✅ Source: _on_dungeon_enemy_slain() calls level_system.add_xp()")
+
+    assert 'level_system' in fn_body, \
+        "main.py: _on_dungeon_enemy_slain() has no reference to level_system"
+    print("  ✅ Source: level_system guarded access present")
+
+
 def test_minigame_panel_bamboo_color_match_ui():
     """MinigamePanelQt must have full UI methods for bamboo_catcher and color_match.
 
@@ -7836,11 +7866,11 @@ def test_minigame_panel_bamboo_color_match_ui():
     res = c.submit_answer(correct_count)
     assert res['correct'] is True, f"submit_answer({correct_count}) should be correct"
     assert res['score_delta'] > 0, "correct answer should give positive score_delta"
-    # After a correct answer a new round begins, so submitting again with a wrong
-    # count should return correct=False (not raise or silently succeed).
+    # After a correct answer a new round begins (different grid + target), so
+    # submitting a wildly wrong count should give correct=False.
     res_wrong = c.submit_answer(correct_count + 999)
-    assert res_wrong['correct'] is False or res_wrong['message'] == 'No active round', \
-        "Wrong answer should return correct=False"
+    assert res_wrong['correct'] is False, \
+        f"Wrong answer should return correct=False, got: {res_wrong}"
     print(f"  ✅ Runtime: PandaColorMatchGame submit_answer correct/wrong flows work")
 
     # _end_game() must stop the dedicated bamboo/color_match timers
@@ -7996,6 +8026,7 @@ def run_all_tests():
         test_dungeon_enemy_attack_uses_attack_power,
         test_batch_normalizer_preview_original_size,
         test_dungeon_gold_reward_uses_earn_money,
+        test_dungeon_3d_enemy_slain_awards_xp,
         test_minigame_panel_bamboo_color_match_ui,
     ]
 
