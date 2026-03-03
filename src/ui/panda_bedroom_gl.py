@@ -947,7 +947,6 @@ class PandaBedroomGL(QOpenGLWidget if OPENGL_AVAILABLE else QWidget):  # type: i
 
     def _draw_potted_plant(self) -> None:
         """Small potted bamboo plant in the corner near the window."""
-        from features.opengl_utils import _sphere as _sph  # try shared sphere helper
         import math as _m
         glDisable(GL_LIGHTING)
 

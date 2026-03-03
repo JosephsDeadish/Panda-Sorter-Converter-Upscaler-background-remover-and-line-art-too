@@ -6970,6 +6970,69 @@ def test_no_redundant_import_types_in_not_enough_coins():
     print("  ✅ Module-level 'import types as _types' still present")
 
 
+def test_bedroom_draw_potted_plant_no_dead_import():
+    """panda_bedroom_gl._draw_potted_plant must not import from non-existent features.opengl_utils.
+
+    Bug: line 950 had ``from features.opengl_utils import _sphere as _sph``.
+    The module features.opengl_utils does not exist anywhere in the codebase, and
+    _sph was never used — the method only calls self._draw_box().
+
+    Because _draw_potted_plant() is called from _draw_room() (which is called from
+    paintGL), this ModuleNotFoundError propagated to paintGL's outer try/except on
+    every single frame.  The outer except caught it and *skipped* the frame, meaning
+    _draw_furniture() after _draw_room() was NEVER called — all furniture in the
+    bedroom was invisible regardless of the GL state.
+
+    Fix: remove the dead ``from features.opengl_utils import _sphere as _sph`` line.
+    """
+    print("\ntest_bedroom_draw_potted_plant_no_dead_import ...")
+    from pathlib import Path
+    code = (
+        Path(__file__).parent / 'src' / 'ui' / 'panda_bedroom_gl.py'
+    ).read_text(encoding='utf-8')
+
+    # The module must not be referenced anywhere in panda_bedroom_gl.py
+    assert 'opengl_utils' not in code, (
+        "panda_bedroom_gl.py still contains a reference to 'opengl_utils'.\n"
+        "The module features.opengl_utils does not exist; every import attempt\n"
+        "raises ModuleNotFoundError, which propagates out of _draw_room() and\n"
+        "causes paintGL's outer except to skip the frame — _draw_furniture()\n"
+        "is never reached so no bedroom furniture ever renders.\n"
+        "Remove: from features.opengl_utils import _sphere as _sph"
+    )
+    print("  ✅ 'opengl_utils' import removed from panda_bedroom_gl.py")
+
+    # _draw_potted_plant must still be present and call _draw_box
+    fn_start = code.find('def _draw_potted_plant')
+    assert fn_start != -1, "panda_bedroom_gl.py: _draw_potted_plant() missing"
+    next_fn = code.find('\n    def ', fn_start + 1)
+    fn_body = code[fn_start:] if next_fn == -1 else code[fn_start:next_fn]
+
+    assert '_draw_box' in fn_body, \
+        "panda_bedroom_gl.py: _draw_potted_plant does not call _draw_box (method removed?)"
+    print("  ✅ _draw_potted_plant still present and calls _draw_box")
+
+    # _draw_room must still call _draw_potted_plant
+    room_start = code.find('def _draw_room')
+    assert room_start != -1, "panda_bedroom_gl.py: _draw_room() missing"
+    next_room = code.find('\n    def ', room_start + 1)
+    room_body = code[room_start:] if next_room == -1 else code[room_start:next_room]
+    assert '_draw_potted_plant()' in room_body, \
+        "panda_bedroom_gl.py: _draw_room does not call _draw_potted_plant()"
+    print("  ✅ _draw_room still calls _draw_potted_plant()")
+
+    # paintGL calls _draw_room then _draw_furniture — confirm both are present
+    paint_start = code.find('def paintGL')
+    assert paint_start != -1, "panda_bedroom_gl.py: paintGL() missing"
+    next_paint = code.find('\n    def ', paint_start + 1)
+    paint_body = code[paint_start:] if next_paint == -1 else code[paint_start:next_paint]
+    assert '_draw_room()' in paint_body, \
+        "panda_bedroom_gl.py: paintGL does not call _draw_room()"
+    assert '_draw_furniture()' in paint_body, \
+        "panda_bedroom_gl.py: paintGL does not call _draw_furniture()"
+    print("  ✅ paintGL calls both _draw_room() and _draw_furniture()")
+
+
 def run_all_tests():
     print("=" * 65)
     print("Hybrid Architecture + Lazy rembg Import Tests")
@@ -7095,6 +7158,7 @@ def run_all_tests():
         test_dungeon_hover_highlight_reachable,
         test_inventory_category_filter_none_guard,
         test_no_redundant_import_types_in_not_enough_coins,
+        test_bedroom_draw_potted_plant_no_dead_import,
     ]
 
     passed, failed = [], []
