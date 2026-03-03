@@ -178,6 +178,17 @@ _STYLE_DESCRIPTIONS: dict = {
     "minimalist":    "Two-level hierarchy: broad category → filename only.",
     "maximum_detail": "Deep hierarchy: category → sub-type → resolution sub-folder.",
     "custom":        "Applies rules from your custom_style.json configuration file.",
+    # Console presets
+    "ps2":      "PlayStation 2 preset — category → map type → resolution tier (≤256 px).",
+    "psp":      "PSP preset — category → map type, no resolution tier (textures ≤128 px).",
+    "gamecube": "GameCube / Wii preset — category → map type → resolution tier (≤1024 px).",
+    "n64":      "Nintendo 64 preset — flat category → filename (textures ≤64 px).",
+    # Game texture content preset
+    "game_texture_content": (
+        "Game Texture Content: detects UV-unwrapped body parts, floating eyes/limbs, "
+        "and map types from filenames. "
+        "Hierarchy: ContentRole / BodyPart / MapType / filename."
+    ),
 }
 
 class OrganizerWorker(QThread):
@@ -306,13 +317,19 @@ class OrganizerWorker(QThread):
 
                 # Default: move to target_dir / suggested_folder
                 target_path = target_dir / suggested_folder / file_path.name
-                target_path.parent.mkdir(parents=True, exist_ok=True)
-                try:
-                    file_path.rename(target_path)
+                dry_run = self.settings.get('dry_run', False)
+                if dry_run:
+                    self.log.emit(f"[DRY RUN] Would move: {file_path.name} → {suggested_folder}/")
                     moved_count += 1
                     self._files_processed += 1
-                except Exception as e:
-                    self.log.emit(f"⚠ Failed to move {file_path.name}: {e}")
+                else:
+                    target_path.parent.mkdir(parents=True, exist_ok=True)
+                    try:
+                        file_path.rename(target_path)
+                        moved_count += 1
+                        self._files_processed += 1
+                    except Exception as e:
+                        self.log.emit(f"⚠ Failed to move {file_path.name}: {e}")
 
             self.progress.emit(idx + 1, total_files, file_path.name, confidence)
 
@@ -324,7 +341,9 @@ class OrganizerWorker(QThread):
             'files_processed': moved_count,
         }
 
-        self.finished.emit(True, f"Moved {moved_count}/{total_files} files", stats)
+        dry_run = self.settings.get('dry_run', False)
+        action_word = "Would move" if dry_run else "Moved"
+        self.finished.emit(True, f"{action_word} {moved_count}/{total_files} files", stats)
     
     def _run_suggested(self):
         """Suggested mode: AI suggests, user confirms (handled by UI)."""
@@ -420,7 +439,7 @@ class OrganizerWorker(QThread):
     
     def _collect_files(self, source_dir: Path) -> List[Path]:
         """Collect texture files from source directory."""
-        extensions = {'.dds', '.png', '.jpg', '.jpeg', '.tga', '.bmp', '.tiff', '.tif', '.webp'}
+        extensions = {'.dds', '.png', '.jpg', '.jpeg', '.tga', '.bmp', '.tiff', '.tif', '.webp', '.gif', '.avif', '.qoi', '.apng', '.jfif', '.ico', '.icns'}
         files = []
         
         # Get recursive setting from settings dict (thread-safe)
@@ -611,6 +630,35 @@ class OrganizerPanelQt(QWidget):
         
         self._create_ui()
         self._setup_learning_system()
+        self.setAcceptDrops(True)  # drag-and-drop a folder to set source directory
+
+    def dragEnterEvent(self, event) -> None:
+        if event.mimeData().hasUrls():
+            event.acceptProposedAction()
+        else:
+            event.ignore()
+
+    def dropEvent(self, event) -> None:
+        """Accept a dropped folder (or image file) as the source directory."""
+        from pathlib import Path
+        for url in event.mimeData().urls():
+            path = Path(url.toLocalFile())
+            if path.is_dir():
+                self.source_directory = str(path)
+                if hasattr(self, 'source_label'):
+                    self.source_label.setText(str(path))
+                    self.source_label.setStyleSheet("color: green; font-weight: bold;")
+                event.acceptProposedAction()
+                return
+            elif path.is_file():
+                # Dropped a single image file — use its parent directory
+                self.source_directory = str(path.parent)
+                if hasattr(self, 'source_label'):
+                    self.source_label.setText(str(path.parent))
+                    self.source_label.setStyleSheet("color: green; font-weight: bold;")
+                event.acceptProposedAction()
+                return
+        event.ignore()
     
     def _show_unavailable(self):
         """Show message when organizer is not available."""
@@ -1060,6 +1108,11 @@ class OrganizerPanelQt(QWidget):
         self.clear_log_btn.clicked.connect(self._clear_log)
         self._set_tooltip(self.clear_log_btn, 'clear_log_button')
         button_layout.addWidget(self.clear_log_btn)
+
+        self.save_log_btn = QPushButton("💾 Save Log")
+        self.save_log_btn.clicked.connect(self._save_log_to_file)
+        self._set_tooltip(self.save_log_btn, "Save the current operation log to a text file")
+        button_layout.addWidget(self.save_log_btn)
         
         layout.addLayout(button_layout)
     
@@ -1188,6 +1241,13 @@ class OrganizerPanelQt(QWidget):
         self.create_backup_cb.setChecked(True)
         self._set_tooltip(self.create_backup_cb, 'alpha_fix_backup')
         org_settings_layout.addWidget(self.create_backup_cb)
+
+        self.dry_run_cb = QCheckBox("🔍 Dry Run (preview only — no files moved)")
+        self.dry_run_cb.setChecked(False)
+        self._set_tooltip(self.dry_run_cb,
+            "When checked, files are classified and planned but NOT actually moved or copied. "
+            "Use this to preview what the organizer would do before committing.")
+        org_settings_layout.addWidget(self.dry_run_cb)
         
         org_settings_layout.addStretch()
         
@@ -1397,7 +1457,7 @@ class OrganizerPanelQt(QWidget):
             return
         
         source_path = Path(self.source_directory)
-        extensions = {'.dds', '.png', '.jpg', '.jpeg', '.tga', '.bmp', '.tiff', '.tif', '.webp'}
+        extensions = {'.dds', '.png', '.jpg', '.jpeg', '.tga', '.bmp', '.tiff', '.tif', '.webp', '.gif', '.avif', '.qoi', '.apng', '.jfif', '.ico', '.icns'}
         
         file_count = 0
         for ext in extensions:
@@ -1688,6 +1748,7 @@ class OrganizerPanelQt(QWidget):
             'conflict_resolution': conflict_res,
             'create_backup': backup,
             'style_key': getattr(self.style_combo, 'currentData', lambda: None)(),
+            'dry_run': hasattr(self, 'dry_run_cb') and self.dry_run_cb.isChecked(),
         }
         
         # Disable UI
@@ -1980,6 +2041,28 @@ class OrganizerPanelQt(QWidget):
     def _clear_log(self):
         """Clear the log."""
         self.log_text.clear()
+
+    def _save_log_to_file(self):
+        """Save the current log to a text file chosen by the user."""
+        from PyQt6.QtWidgets import QFileDialog  # type: ignore[attr-defined]
+        text = self.log_text.toPlainText()
+        if not text:
+            QMessageBox.information(self, "Empty Log", "There is nothing in the log to save.")
+            return
+        path, _ = QFileDialog.getSaveFileName(
+            self,
+            "Save Organizer Log",
+            "organizer_log.txt",
+            "Text Files (*.txt);;All Files (*.*)",
+        )
+        if not path:
+            return
+        try:
+            with open(path, 'w', encoding='utf-8') as fh:
+                fh.write(text)
+            self._log(f"💾 Log saved to {path}")
+        except Exception as _e:
+            QMessageBox.critical(self, "Save Failed", f"Could not save log:\n{_e}")
     
     def _clear_learning_history(self):
         """Clear learning history."""

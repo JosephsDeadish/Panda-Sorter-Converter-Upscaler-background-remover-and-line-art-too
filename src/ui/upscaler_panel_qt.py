@@ -258,9 +258,18 @@ class UpscaleWorker(QThread):
     """Worker thread for upscaling images."""
     progress = pyqtSignal(float, str)  # progress, message
     finished = pyqtSignal(bool, str, int)  # success, message, files_processed
+
+    # Maps UI display name → (PIL save format, file extension)
+    _FMT_MAP = {
+        'PNG':  ('PNG',  '.png'),
+        'JPEG': ('JPEG', '.jpg'),
+        'WebP': ('WEBP', '.webp'),
+        'BMP':  ('BMP',  '.bmp'),
+        'TIFF': ('TIFF', '.tiff'),
+    }
     
     def __init__(self, upscaler, files, output_dir, scale_factor, method,
-                 post_process_settings=None, skip_existing=False):
+                 post_process_settings=None, skip_existing=False, output_format='Same as Input'):
         super().__init__()
         self.upscaler = upscaler
         self.files = files
@@ -269,7 +278,17 @@ class UpscaleWorker(QThread):
         self.method = method
         self.post_process_settings = post_process_settings or {}
         self.skip_existing = skip_existing
+        self.output_format = output_format
         self._is_cancelled = False
+
+    def _get_output_path(self, file_path: Path) -> Path:
+        """Return the output path, respecting the selected output format."""
+        stem = file_path.stem
+        if self.output_format in self._FMT_MAP:
+            ext = self._FMT_MAP[self.output_format][1]
+        else:
+            ext = file_path.suffix  # "Same as Input"
+        return Path(self.output_dir) / f"{stem}{ext}"
 
     def run(self):
         """Execute upscaling in background thread."""
@@ -286,7 +305,12 @@ class UpscaleWorker(QThread):
                 progress = (i / total) * 100
                 self.progress.emit(progress, f"Upscaling: {Path(file_path).name}")
 
-                output_path = Path(self.output_dir) / Path(file_path).name
+                output_path = self._get_output_path(Path(file_path))
+                # Guard: never overwrite the source file
+                if output_path.resolve() == Path(file_path).resolve():
+                    stem = Path(file_path).stem
+                    ext = output_path.suffix
+                    output_path = Path(self.output_dir) / f"{stem}_upscaled{ext}"
                 if self.skip_existing and output_path.exists():
                     skipped += 1
                     continue
@@ -310,13 +334,25 @@ class UpscaleWorker(QThread):
                 upscaled_img = Image.fromarray(upscaled)
                 upscaled_img = apply_post_processing(upscaled_img, self.post_process_settings)
 
+                # Convert mode for JPEG (no alpha channel)
+                pil_fmt = self._FMT_MAP.get(self.output_format, (None, None))[0]
+                if pil_fmt == 'JPEG' and upscaled_img.mode in ('RGBA', 'LA', 'P'):
+                    upscaled_img = upscaled_img.convert('RGB')
+
                 # Save
-                upscaled_img.save(output_path)
+                save_kwargs = {}
+                if pil_fmt == 'JPEG':
+                    save_kwargs['quality'] = 95
+                if pil_fmt:
+                    upscaled_img.save(output_path, format=pil_fmt, **save_kwargs)
+                else:
+                    upscaled_img.save(output_path)
                 done += 1
 
             parts = [f"Successfully upscaled {done} image{'s' if done != 1 else ''}"]
             if skipped:
                 parts.append(f"{skipped} skipped (already existed)")
+            self.progress.emit(100.0, "Done")
             self.finished.emit(True, ", ".join(parts), done)
         except Exception as e:
             logger.error(f"Upscaling failed: {e}", exc_info=True)
@@ -393,6 +429,7 @@ class ImageUpscalerPanelQt(QWidget):
         self.output_directory: Optional[str] = None
         self.worker_thread = None
         self.preview_worker = None
+        self.setAcceptDrops(True)  # drag-and-drop image files onto the panel
         
         # Initialize model manager
         if MODEL_MANAGER_AVAILABLE:
@@ -406,6 +443,40 @@ class ImageUpscalerPanelQt(QWidget):
         self.preview_timer.timeout.connect(self._update_live_preview)
         
         self._create_widgets()
+
+    # ── Drag-and-drop support ──────────────────────────────────────────────
+    def dragEnterEvent(self, event) -> None:
+        if event.mimeData().hasUrls():
+            event.acceptProposedAction()
+        else:
+            event.ignore()
+
+    def dropEvent(self, event) -> None:
+        """Accept dropped image/folder paths and add to the upscaler queue."""
+        _EXTS = {'.png', '.jpg', '.jpeg', '.bmp', '.tiff', '.tif',
+                 '.webp', '.tga', '.dds', '.gif', '.avif', '.qoi', '.apng', '.jfif'}
+        added = 0
+        for url in event.mimeData().urls():
+            path = Path(url.toLocalFile())
+            if path.is_file() and path.suffix.lower() in _EXTS:
+                s = str(path)
+                if s not in self.selected_files:
+                    self.selected_files.append(s)
+                    added += 1
+            elif path.is_dir():
+                for child in path.iterdir():
+                    if child.suffix.lower() in _EXTS:
+                        s = str(child)
+                        if s not in self.selected_files:
+                            self.selected_files.append(s)
+                            added += 1
+        if added:
+            lbl = getattr(self, 'file_count_label', None)
+            if lbl is not None:
+                lbl.setText(f"{len(self.selected_files)} file(s) selected")
+                lbl.setStyleSheet("color: green;")
+            self._check_ready()
+        event.acceptProposedAction()
     
     def _show_unavailable(self):
         """Show message when upscaler is not available."""
@@ -481,6 +552,12 @@ class ImageUpscalerPanelQt(QWidget):
         add_folder_btn.clicked.connect(self._add_folder)
         self._set_tooltip(add_folder_btn, "Add all images from a folder to the selection")
         select_btn_layout.addWidget(add_folder_btn)
+
+        clear_files_btn = QPushButton("✖ Clear")
+        clear_files_btn.clicked.connect(self._clear_files)
+        clear_files_btn.setFixedWidth(65)
+        self._set_tooltip(clear_files_btn, "Remove all selected files from the list")
+        select_btn_layout.addWidget(clear_files_btn)
 
         self.file_count_label = QLabel("No files selected")
         self.file_count_label.setStyleSheet("color: gray;")
@@ -934,7 +1011,7 @@ class ImageUpscalerPanelQt(QWidget):
             self,
             "Select Images to Upscale",
             "",
-            "Images (*.png *.jpg *.jpeg *.bmp *.tiff *.tif *.webp *.tga *.dds *.gif);;All Files (*)"
+            "Images (*.png *.jpg *.jpeg *.bmp *.tiff *.tif *.webp *.tga *.dds *.gif *.avif *.qoi *.apng *.jfif);;All Files (*)"
         )
 
         if files:
@@ -980,6 +1057,15 @@ class ImageUpscalerPanelQt(QWidget):
                 self._schedule_preview_update()
         if added:
             self._check_ready()
+
+    def _clear_files(self):
+        """Clear the selected files list."""
+        self.selected_files = []
+        self.file_count_label.setText("No files selected")
+        self.file_count_label.setStyleSheet("color: gray;")
+        if hasattr(self, 'preview_file_combo'):
+            self.preview_file_combo.clear()
+        self._check_ready()
     
     def _on_preset_changed(self, preset_name):
         """Handle preset selection."""
@@ -1033,6 +1119,11 @@ class ImageUpscalerPanelQt(QWidget):
             scale_factor = self.preview_scale_spin.value()
             method = self.method_combo.currentText()
             
+            # Show "loading" status while preview generates
+            if hasattr(self, 'status_label'):
+                self.status_label.setText("⏳ Generating preview…")
+                self.status_label.setStyleSheet("color: #aaa; font-style: italic;")
+            
             # Gather post-processing settings
             post_process_settings = {
                 'sharpen': self.sharpen_cb.isChecked(),
@@ -1076,13 +1167,22 @@ class ImageUpscalerPanelQt(QWidget):
             # Display in comparison widget
             self.preview_widget.set_before_image(orig_pixmap)
             self.preview_widget.set_after_image(proc_pixmap)
+
+            # Clear the "loading" status
+            if hasattr(self, 'status_label'):
+                self.status_label.setText("✅ Preview ready — drag the slider to compare")
+                self.status_label.setStyleSheet("color: green;")
             
         except Exception as e:
             logger.error(f"Error displaying preview: {e}")
     
     def _preview_error(self, error_msg):
-        """Handle preview error."""
+        """Handle preview error by logging and showing a user-visible notice."""
         logger.error(f"Preview error: {error_msg}")
+        # Show a brief error in the status label so the user knows what happened
+        if hasattr(self, 'status_label'):
+            self.status_label.setText(f"⚠️ Preview error: {error_msg}")
+            self.status_label.setStyleSheet("color: #cc4444; font-weight: bold;")
     
     def _pil_to_pixmap(self, img, max_size=400):
         """Convert PIL Image to QPixmap"""
@@ -1169,6 +1269,8 @@ class ImageUpscalerPanelQt(QWidget):
         self.status_label.setVisible(True)
         
         # Start worker thread
+        out_fmt = (self.output_format_combo.currentText()
+                   if hasattr(self, 'output_format_combo') else 'Same as Input')
         self.worker_thread = UpscaleWorker(
             self.upscaler,
             self.selected_files,
@@ -1177,6 +1279,7 @@ class ImageUpscalerPanelQt(QWidget):
             method,
             post_process_settings,
             skip_existing=self._skip_existing.isChecked(),
+            output_format=out_fmt,
         )
         self.worker_thread.progress.connect(self._update_progress)
         self.worker_thread.finished.connect(self._upscaling_finished)

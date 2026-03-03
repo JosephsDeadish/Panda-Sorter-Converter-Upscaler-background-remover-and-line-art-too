@@ -9,7 +9,8 @@ try:
     from PyQt6.QtWidgets import (
         QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
         QScrollArea, QFrame, QFileDialog, QMessageBox, QProgressBar,
-        QComboBox, QSpinBox, QCheckBox, QLineEdit, QGroupBox
+        QComboBox, QSpinBox, QCheckBox, QLineEdit, QGroupBox, QTextEdit,
+        QSplitter
     )
     from PyQt6.QtCore import Qt, QThread, pyqtSignal, QTimer
     from PyQt6.QtGui import QPixmap, QImage
@@ -85,7 +86,7 @@ except (ImportError, OSError, RuntimeError):
 try:
     from ui import IMAGE_EXTENSIONS
 except ImportError:
-    IMAGE_EXTENSIONS = frozenset({'.png', '.jpg', '.jpeg', '.bmp', '.tiff', '.tif', '.webp', '.dds', '.tga', '.gif'})
+    IMAGE_EXTENSIONS = frozenset({'.png', '.jpg', '.jpeg', '.bmp', '.tiff', '.tif', '.webp', '.dds', '.tga', '.gif', '.avif', '.qoi', '.apng', '.jfif', '.ico', '.icns'})
 
 
 try:
@@ -110,6 +111,11 @@ try:
 except (ImportError, OSError, RuntimeError):
     ARCHIVE_AVAILABLE = False
     logger.warning("Archive handler not available")
+
+# Preview display constants — kept in one place so _create_preview_section and
+# _update_preview both use the same value without magic numbers.
+_PREVIEW_MIN_SIZE   = 200   # px — minimum width/height of the preview QLabel
+_PREVIEW_THUMBNAIL_SIZE = 350  # px — max thumbnail dimension sent to the preview label
 
 
 class NormalizationWorker(QThread):
@@ -140,6 +146,7 @@ class NormalizationWorker(QThread):
                 progress_callback=progress_callback
             )
             
+            self.progress.emit(100.0, "Done")
             self.finished.emit(True, f"Successfully normalized {len(self.files)} images", len(self.files))
         except InterruptedError as e:
             self.finished.emit(False, str(e), 0)
@@ -161,56 +168,99 @@ class BatchNormalizerPanelQt(QWidget):
         self.output_directory: Optional[str] = None
         self.worker_thread = None
         self.preview_pixmap = None
+        self.setAcceptDrops(True)  # drag-and-drop image files onto the panel
         
         self._create_widgets()
+
+    # ── Drag-and-drop support ──────────────────────────────────────────────
+    def dragEnterEvent(self, event) -> None:
+        if event.mimeData().hasUrls():
+            event.acceptProposedAction()
+        else:
+            event.ignore()
+
+    def dropEvent(self, event) -> None:
+        """Accept dropped image files into the batch normalizer queue."""
+        _EXTS = {'.png', '.jpg', '.jpeg', '.bmp', '.gif', '.tiff', '.tif', '.webp'}
+        existing = set(self.selected_files)
+        added = []
+        for url in event.mimeData().urls():
+            path = Path(url.toLocalFile())
+            if path.is_file() and path.suffix.lower() in _EXTS:
+                s = str(path)
+                if s not in existing:
+                    added.append(s)
+                    existing.add(s)
+            elif path.is_dir():
+                for child in path.iterdir():
+                    if child.suffix.lower() in _EXTS:
+                        s = str(child)
+                        if s not in existing:
+                            added.append(s)
+                            existing.add(s)
+        if added:
+            self.selected_files.extend(added)
+            count = len(self.selected_files)
+            if hasattr(self, 'files_label'):
+                self.files_label.setText(
+                    f"{count} file{'s' if count != 1 else ''} selected"
+                )
+                self.files_label.setStyleSheet("color: green;")
+        event.acceptProposedAction()
     
     def _create_widgets(self):
-        """Create the UI widgets."""
+        """Create the UI widgets with left-controls / right-preview QSplitter layout."""
         layout = QVBoxLayout(self)
-        layout.setSpacing(10)
-        layout.setContentsMargins(10, 10, 10, 10)
-        
+        layout.setSpacing(6)
+        layout.setContentsMargins(8, 8, 8, 8)
+
         # Title
         title_label = QLabel("📏 Batch Format Normalizer")
-        title_label.setStyleSheet("font-size: 18pt; font-weight: bold;")
+        title_label.setStyleSheet("font-size: 16pt; font-weight: bold;")
         title_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(title_label)
-        
+
         subtitle_label = QLabel("Resize, pad, and normalize images to consistent format")
-        subtitle_label.setStyleSheet("color: gray; font-size: 12pt;")
+        subtitle_label.setStyleSheet("color: gray; font-size: 10pt;")
         subtitle_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(subtitle_label)
-        
-        # Main container with scroll area
-        scroll = QScrollArea()
-        scroll.setWidgetResizable(True)
-        scroll.setFrameShape(QFrame.Shape.NoFrame)
-        
-        container = QWidget()
-        main_layout = QHBoxLayout(container)
-        
-        # Left side - Settings
+
+        # ── Main splitter: LEFT = controls, RIGHT = preview ───────────────────
+        splitter = QSplitter(Qt.Orientation.Horizontal)
+        splitter.setChildrenCollapsible(False)
+        layout.addWidget(splitter, stretch=1)
+
+        # ── LEFT: scrollable settings ─────────────────────────────────────────
+        left_scroll = QScrollArea()
+        left_scroll.setWidgetResizable(True)
+        left_scroll.setFrameShape(QFrame.Shape.NoFrame)
+        left_scroll.setMinimumWidth(280)
+        left_scroll.setMaximumWidth(500)
+
         left_widget = QWidget()
         left_layout = QVBoxLayout(left_widget)
         left_layout.setSpacing(5)
-        
+        left_layout.setContentsMargins(2, 2, 4, 2)
+
         self._create_file_selection(left_layout)
         self._create_size_settings(left_layout)
         self._create_format_settings(left_layout)
         self._create_naming_settings(left_layout)
         self._create_action_buttons(left_layout)
-        
         left_layout.addStretch()
-        main_layout.addWidget(left_widget, 1)
-        
-        # Right side - Preview
+
+        left_scroll.setWidget(left_widget)
+        splitter.addWidget(left_scroll)
+
+        # ── RIGHT: preview ────────────────────────────────────────────────────
         right_widget = QWidget()
         right_layout = QVBoxLayout(right_widget)
+        right_layout.setContentsMargins(4, 0, 0, 0)
         self._create_preview_section(right_layout)
-        main_layout.addWidget(right_widget, 1)
-        
-        scroll.setWidget(container)
-        layout.addWidget(scroll)
+        splitter.addWidget(right_widget)
+
+        # Controls get 380 px, preview gets the rest — modest default
+        splitter.setSizes([380, 360])
     
     def _create_file_selection(self, layout):
         """Create file selection section."""
@@ -234,6 +284,12 @@ class BatchNormalizerPanelQt(QWidget):
         add_folder_btn.clicked.connect(self._add_folder)
         btn_row.addWidget(add_folder_btn)
         self._set_tooltip(add_folder_btn, "Add all images from a folder to the selection")
+
+        clear_btn = QPushButton("✖ Clear")
+        clear_btn.clicked.connect(self._clear_files)
+        clear_btn.setFixedWidth(65)
+        btn_row.addWidget(clear_btn)
+        self._set_tooltip(clear_btn, "Remove all selected files from the list")
 
         group_layout.addLayout(btn_row)
 
@@ -427,6 +483,16 @@ class BatchNormalizerPanelQt(QWidget):
         self.progress_label = QLabel("")
         self.progress_label.setStyleSheet("color: gray;")
         layout.addWidget(self.progress_label)
+
+        # Activity log
+        self.log_text = QTextEdit()
+        self.log_text.setReadOnly(True)
+        self.log_text.setMaximumHeight(120)
+        self.log_text.setStyleSheet(
+            "background:#0d1117; color:#c9d1d9; font-family:Consolas,monospace; font-size:10px;"
+        )
+        self.log_text.setPlaceholderText("Normalisation log will appear here…")
+        layout.addWidget(self.log_text)
     
     def _create_preview_section(self, layout):
         """Create preview section."""
@@ -436,7 +502,7 @@ class BatchNormalizerPanelQt(QWidget):
         # Preview label
         self.preview_label = QLabel("Select files to see preview")
         self.preview_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.preview_label.setMinimumSize(400, 400)
+        self.preview_label.setMinimumSize(_PREVIEW_MIN_SIZE, _PREVIEW_MIN_SIZE)
         self.preview_label.setStyleSheet("border: 2px dashed gray; background-color: #f0f0f0;")
         group_layout.addWidget(self.preview_label)
         
@@ -455,7 +521,7 @@ class BatchNormalizerPanelQt(QWidget):
             self,
             "Select Images",
             "",
-            "Images (*.png *.jpg *.jpeg *.bmp *.tiff *.tif *.webp *.tga *.dds *.gif);;All Files (*.*)"
+            "Images (*.png *.jpg *.jpeg *.bmp *.tiff *.tif *.webp *.tga *.dds *.gif *.avif *.qoi *.apng *.jfif);;All Files (*.*)"
         )
         
         if files:
@@ -463,6 +529,12 @@ class BatchNormalizerPanelQt(QWidget):
             self.files_label.setText(f"{len(files)} files selected")
             self.files_label.setStyleSheet("color: green;")
             self._update_preview()
+
+    def _clear_files(self):
+        """Clear the selected files list."""
+        self.selected_files = []
+        self.files_label.setText("No files selected")
+        self.files_label.setStyleSheet("color: gray;")
     
     def _select_output(self):
         """Select output directory."""
@@ -509,7 +581,7 @@ class BatchNormalizerPanelQt(QWidget):
             image = Image.open(first_file)
             
             # Resize for preview
-            image.thumbnail((400, 400), Image.Resampling.LANCZOS)
+            image.thumbnail((_PREVIEW_THUMBNAIL_SIZE, _PREVIEW_THUMBNAIL_SIZE), Image.Resampling.LANCZOS)
             
             # Convert to QPixmap
             data = image.convert("RGBA").tobytes("raw", "RGBA")
@@ -579,7 +651,9 @@ class BatchNormalizerPanelQt(QWidget):
         """Handle progress updates."""
         self.progress_bar.setValue(int(progress))
         self.progress_label.setText(message)
-    
+        if hasattr(self, 'log_text') and message and message != "Done":
+            self.log_text.append(message)
+
     def _on_finished(self, success, message, files_processed: int = 0):
         """Handle completion."""
         self.progress_bar.setVisible(False)
@@ -587,7 +661,9 @@ class BatchNormalizerPanelQt(QWidget):
         if hasattr(self, 'cancel_btn'):
             self.cancel_btn.setEnabled(False)
             self.cancel_btn.setVisible(False)
-        
+        if hasattr(self, 'log_text'):
+            icon = "✅" if success else "❌"
+            self.log_text.append(f"{icon} {message}")
         if success:
             QMessageBox.information(self, "Complete", message)
             self.progress_label.setText("✓ Normalization complete")

@@ -56,6 +56,9 @@ jobs:
           # them from being available for PyInstaller collection.
           pip install "onnxruntime>=1.16.0"
           pip install "numpy>=1.24.0" "Pillow>=10.0.0" "scipy>=1.10.0"
+          # pillow-avif-plugin ships a pre-built libaom wheel so AVIF encode/decode
+          # works on Windows without needing MSVC or a system aom build.
+          pip install "pillow-avif-plugin>=1.4.0" || echo "⚠️  pillow-avif-plugin not available (AVIF export will degrade gracefully)"
           pip install "scikit-learn>=1.3.0"
           pip install "PyQt6>=6.6.0" "PyQt6-sip>=13.6.0"
           # PyQt6-Qt6 contains the actual Qt6 DLLs (Qt6Core.dll, Qt6Gui.dll, Qt6OpenGL.dll etc.)
@@ -143,6 +146,7 @@ jobs:
           python -c "from PyQt6.QtStateMachine import QState, QStateMachine; print('OK PyQt6.QtStateMachine available (panda animation)')"
           python -c "import numpy; print('OK numpy available')"
           python -c "import PIL; PIL.Image.init(); print('OK Pillow + plugins available')"
+          python -c "import pillow_avif; print('OK pillow-avif-plugin available (AVIF encode/decode enabled)')" || echo "⚠️  pillow-avif-plugin absent — AVIF export will show friendly error"
           python -c "import cv2; print('OK OpenCV available')"
           python -c "import onnxruntime; print('OK onnxruntime available')"
           python -c "import yaml; print('OK PyYAML ' + yaml.__version__ + ' available')"

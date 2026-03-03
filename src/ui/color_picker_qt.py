@@ -8,7 +8,7 @@ from __future__ import annotations
 import logging
 try:
     from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QPushButton,
-                                 QLabel, QColorDialog, QLineEdit)
+                                 QLabel, QColorDialog, QLineEdit, QApplication)
     from PyQt6.QtCore import Qt, pyqtSignal
     from PyQt6.QtGui import QColor, QPainter, QConicalGradient, QPen
     PYQT_AVAILABLE = True
@@ -39,10 +39,13 @@ class ColorPickerWidget(QWidget):
     """Color picker with dialog and preview"""
     
     color_changed = pyqtSignal(QColor)
+
+    _MAX_RECENT = 8   # number of recent colours to display
     
     def __init__(self, parent=None):
         super().__init__(parent)
         self.current_color = QColor(255, 255, 255)
+        self._recent_colors: list = []   # list of QColor, most-recent first
         self.setup_ui()
         
     def setup_ui(self):
@@ -59,7 +62,7 @@ class ColorPickerWidget(QWidget):
         
         layout.addLayout(preview_layout)
         
-        # Hex input
+        # Hex input with copy button
         hex_layout = QHBoxLayout()
         hex_layout.addWidget(QLabel("Hex:"))
         self.hex_input = QLineEdit()
@@ -67,11 +70,31 @@ class ColorPickerWidget(QWidget):
         self.hex_input.setText(self.current_color.name())
         self.hex_input.textChanged.connect(self.on_hex_changed)
         hex_layout.addWidget(self.hex_input)
+        copy_btn = QPushButton("📋")
+        copy_btn.setFixedWidth(28)
+        copy_btn.setToolTip("Copy hex colour to clipboard")
+        copy_btn.clicked.connect(self._copy_hex_to_clipboard)
+        hex_layout.addWidget(copy_btn)
         layout.addLayout(hex_layout)
         
         # RGB display
         self.rgb_label = QLabel(f"RGB: {self.current_color.red()}, {self.current_color.green()}, {self.current_color.blue()}")
         layout.addWidget(self.rgb_label)
+
+        # Recent colours row
+        recent_row_label = QLabel("Recent:")
+        layout.addWidget(recent_row_label)
+        self._recent_row = QHBoxLayout()
+        self._recent_swatches: list = []
+        for _ in range(self._MAX_RECENT):
+            swatch = QPushButton()
+            swatch.setFixedSize(22, 22)
+            swatch.setStyleSheet("background-color: transparent; border: 1px solid #555; border-radius: 3px;")
+            swatch.setFlat(True)
+            self._recent_row.addWidget(swatch)
+            self._recent_swatches.append(swatch)
+        self._recent_row.addStretch()
+        layout.addLayout(self._recent_row)
         
         # Buttons
         button_layout = QHBoxLayout()
@@ -82,6 +105,31 @@ class ColorPickerWidget(QWidget):
         button_layout.addWidget(pick_btn)
         
         layout.addLayout(button_layout)
+
+    def _update_recent_swatches(self) -> None:
+        """Refresh the recent-colour swatches row."""
+        for i, swatch in enumerate(self._recent_swatches):
+            if i < len(self._recent_colors):
+                c = self._recent_colors[i]
+                swatch.setStyleSheet(
+                    f"QPushButton {{ background-color: {c.name()}; border: 1px solid #555; border-radius: 3px; }}"
+                )
+                swatch.setToolTip(c.name())
+                # Disconnect any previous connection then reconnect
+                try:
+                    swatch.clicked.disconnect()
+                except Exception:
+                    pass
+                swatch.clicked.connect((lambda col: (lambda: self.set_color(col)))(c))
+            else:
+                swatch.setStyleSheet(
+                    "QPushButton { background-color: transparent; border: 1px solid #555; border-radius: 3px; }"
+                )
+                swatch.setToolTip("")
+                try:
+                    swatch.clicked.disconnect()
+                except Exception:
+                    pass
         
     def show_color_dialog(self):
         """Show Qt color dialog"""
@@ -98,6 +146,12 @@ class ColorPickerWidget(QWidget):
         self.color_preview.setStyleSheet(f"background-color: {color.name()}; border: 2px solid black;")
         self.hex_input.setText(color.name())
         self.rgb_label.setText(f"RGB: {color.red()}, {color.green()}, {color.blue()}")
+        # Push to recent colours (deduplicate by name, most-recent first)
+        if hasattr(self, '_recent_colors'):
+            self._recent_colors = [c for c in self._recent_colors if c.name() != color.name()]
+            self._recent_colors.insert(0, QColor(color.name()))
+            self._recent_colors = self._recent_colors[:self._MAX_RECENT]
+            self._update_recent_swatches()
         self.color_changed.emit(color)
         
     def get_color(self):
@@ -118,6 +172,15 @@ class ColorPickerWidget(QWidget):
                 # Silently ignore invalid color formats
                 logger.debug(f"Color parsing error: {e}")
                 pass
+
+    def _copy_hex_to_clipboard(self) -> None:
+        """Copy the current hex colour value to the system clipboard."""
+        try:
+            clipboard = QApplication.clipboard()
+            if clipboard is not None:
+                clipboard.setText(self.current_color.name())
+        except Exception as _e:
+            logger.debug(f"Clipboard copy failed: {_e}")
 
 
 def create_color_picker(parent=None):

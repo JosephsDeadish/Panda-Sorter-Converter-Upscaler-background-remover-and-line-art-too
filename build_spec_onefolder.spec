@@ -231,11 +231,11 @@ except Exception as _e:
 # ── Collect optional heavy deps (graceful failure each) ───────────────────────
 # rembg is intentionally excluded: rembg.bg calls sys.exit(1) when onnxruntime
 # fails to initialise its DLL in PyInstaller's isolated find_binary_dependencies
-# subprocesses.  pre_safe_import_module/hook-rembg.py only patches sys.exit
-# during the module-analysis phase; it cannot patch the fully-isolated binary
-# dependency subprocesses.  The runtime code already lazy-imports rembg and
-# degrades gracefully when it is unavailable.
-for _opt_pkg in ('gfpgan', 'basicsr', 'realesrgan', 'facexlib'):
+# subprocesses.  pre_safe_import_module/rembg.py patches sys.exit during the
+# module-analysis phase, but cannot reach the fully-isolated binary-dependency
+# subprocesses.  The runtime code already lazy-imports rembg and degrades
+# gracefully when it is unavailable.
+for _opt_pkg in ('gfpgan', 'basicsr', 'realesrgan', 'facexlib', 'pillow_avif', 'timm'):
     try:
         _d, _b, _h = collect_all(_opt_pkg)
         _extra_datas    += _d
@@ -274,6 +274,10 @@ a = Analysis(
         'PIL.ImageFile',
         'PIL.ImageDraw',
         'PIL.ImageFont',
+        # AVIF support — pillow-avif-plugin ships a pre-built libaom DLL.
+        # Importing pillow_avif registers the codec with Pillow automatically.
+        'pillow_avif',
+        'pillow_avif.AvifImagePlugin',
         # Scientific computing — numpy 1.x and 2.x compatible
         'numpy',
         'numpy.core',

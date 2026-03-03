@@ -6,6 +6,7 @@ Author: Dead On The Inside / JosephsDeadish
 
 import logging
 import json
+import math
 from pathlib import Path
 from typing import Dict, List, Optional, Set, Tuple
 from dataclasses import dataclass, asdict
@@ -3690,7 +3691,8 @@ class ShopSystem:
         
         self.purchased_items: Set[str] = set()
         self.purchase_history: List[Dict] = []
-        
+        self.sell_history: List[Dict] = []
+
         # Load saved data
         self.load()
     
@@ -3816,12 +3818,45 @@ class ShopSystem:
         """Get recent purchase history."""
         return self.purchase_history[-count:]
 
+    # Sell-back resale fraction — player gets half the original price back.
+    SELL_REFUND_FRACTION: float = 0.50
+
+    def sell_item(self, item_id: str) -> Tuple[bool, str, int]:
+        """Sell a previously purchased item back to the shop for a partial refund.
+
+        The refund is ``ceil(price * SELL_REFUND_FRACTION)`` Bamboo Bucks.
+        The item is removed from ``purchased_items`` so it can be bought again.
+
+        Returns:
+            (success: bool, message: str, refund_amount: int)
+        """
+        if item_id not in self.purchased_items:
+            return False, "You don't own this item.", 0
+
+        item = self.CATALOG.get(item_id)
+        if item is None:
+            return False, "Item not found in catalog.", 0
+
+        refund = math.ceil(item.price * self.SELL_REFUND_FRACTION)
+        self.purchased_items.discard(item_id)
+        self.sell_history.append({
+            'item_id': item_id,
+            'item_name': item.name,
+            'original_price': item.price,
+            'refund': refund,
+            'timestamp': datetime.now().isoformat(),
+        })
+        self.save()
+        logger.info(f"Sold {item.name} for {refund} Bamboo Bucks (original price {item.price})")
+        return True, f"Sold {item.name} for {refund} 💰", refund
+
     def save(self):
         """Save shop data to file."""
         try:
             data = {
                 'purchased_items': list(self.purchased_items),
                 'purchase_history': self.purchase_history[-self.MAX_PURCHASE_HISTORY:],
+                'sell_history': self.sell_history[-self.MAX_PURCHASE_HISTORY:],
             }
             
             with open(self.save_path, 'w') as f:
@@ -3840,6 +3875,7 @@ class ShopSystem:
                 
                 self.purchased_items = set(data.get('purchased_items', []))
                 self.purchase_history = data.get('purchase_history', [])
+                self.sell_history = data.get('sell_history', [])
                 
                 logger.info(f"Loaded shop data. {len(self.purchased_items)} items purchased")
             else:

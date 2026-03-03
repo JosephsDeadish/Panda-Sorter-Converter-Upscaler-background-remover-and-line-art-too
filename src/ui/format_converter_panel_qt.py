@@ -46,14 +46,97 @@ try:
 except (ImportError, OSError):
     _PIL = False
 
+# ── SVG rasterisation via Qt ───────────────────────────────────────────────────
+# Qt ships an SVG renderer in PyQt6.QtSvg (no extra package needed).
+# We rasterise the SVG at a user-specified DPI and return a PIL Image.
+# Falls back gracefully to cairosvg when available, then to a placeholder.
+_SVG_AVAILABLE: bool = False
+try:
+    from PyQt6.QtSvg import QSvgRenderer as _QSvgRenderer
+    from PyQt6.QtGui import QImage as _QImage, QPainter as _QPainter
+    from PyQt6.QtCore import QByteArray as _QByteArray
+    _SVG_AVAILABLE = True
+except (ImportError, OSError, RuntimeError):
+    _QSvgRenderer = None  # type: ignore
+
+_SVG_NOTE_MSG = (
+    "⚠️ SVG rasterisation uses Qt's built-in renderer.\n"
+    "For better accuracy install cairosvg:  pip install cairosvg"
+)
+
+
+def _rasterise_svg(path: Path, dpi: int = 96) -> "Image.Image":
+    """Convert an SVG file to a PIL RGBA Image at *dpi* dots-per-inch.
+
+    Strategy (in priority order):
+    1. cairosvg — if installed, highest accuracy for complex SVGs.
+    2. PyQt6.QtSvg.QSvgRenderer — built-in, no extra dependency.
+    3. Raise RuntimeError so the caller can report a friendly message.
+    """
+    # 1 — cairosvg (optional, best quality)
+    try:
+        import cairosvg as _cairosvg  # type: ignore
+        import io as _io
+        png_bytes = _cairosvg.svg2png(url=str(path), dpi=dpi)
+        return Image.open(_io.BytesIO(png_bytes)).convert("RGBA")
+    except (ImportError, Exception):
+        pass
+
+    # 2 — Qt SVG renderer
+    if _QSvgRenderer is not None:
+        renderer = _QSvgRenderer(str(path))
+        if not renderer.isValid():
+            raise RuntimeError(f"Qt SVG renderer could not parse '{path.name}'")
+        size = renderer.defaultSize()
+        # Scale from the SVG's logical 96-dpi grid to the requested DPI
+        scale = dpi / 96.0
+        w = max(1, round(size.width() * scale))
+        h = max(1, round(size.height() * scale))
+        qi = _QImage(w, h, _QImage.Format.Format_ARGB32_Premultiplied)
+        qi.fill(0)  # transparent
+        p = _QPainter(qi)
+        renderer.render(p)
+        p.end()
+        # Convert QImage → PIL Image via raw bytes
+        ptr = qi.bits()
+        ptr.setsize(qi.sizeInBytes())
+        buf = bytes(ptr)
+        pil = Image.frombytes("RGBA", (w, h), buf, "raw", "BGRA")
+        # Qt stores pixels as BGRA (B in the lowest byte), while PIL expects RGBA.
+        # Passing "BGRA" as the raw decoder mode tells Pillow to swap the channel
+        # order, converting Qt's native layout into a standard RGBA PIL Image.
+        return pil
+
+    raise RuntimeError(
+        "SVG rasterisation unavailable.\n"
+        "Install cairosvg:  pip install cairosvg\n"
+        "or ensure PyQt6.QtSvg is importable."
+    )
+
+# ── AVIF plugin: auto-register when pillow-avif-plugin is installed ────────────
+# pillow-avif-plugin ships a pre-built libaom wheel (Windows/macOS/Linux).
+# Importing it registers the AVIF codec with Pillow automatically, so
+# Image.save(…, format="AVIF") works without any extra steps.
+_AVIF_AVAILABLE: bool = False
+if _PIL:
+    try:
+        import pillow_avif  # noqa: F401 — side-effect: registers AVIF codec
+        _AVIF_AVAILABLE = True
+    except (ImportError, OSError, Exception):
+        _AVIF_AVAILABLE = False
+
 # ─── Format definitions ──────────────────────────────────────────────────────
 _INPUT_EXTS = {
     ".png", ".jpg", ".jpeg", ".bmp", ".tiff", ".tif",
     ".webp", ".tga", ".gif", ".ico", ".psd",
+    # Vector formats (rasterised at runtime)
+    ".svg",
     # Additional game/HDR/modern formats
     ".dds", ".hdr", ".exr", ".avif", ".jp2", ".j2k",
     ".pbm", ".pgm", ".ppm", ".pnm", ".xbm", ".xpm",
     ".cur", ".pcx", ".sgi", ".rgb", ".rgba", ".im",
+    # Modern lossless and icon formats
+    ".qoi", ".icns", ".apng", ".jfif",
 }
 
 # User-facing message shown when AVIF encoding is unavailable.
@@ -78,7 +161,9 @@ _OUTPUT_FORMATS: List[Tuple[str, str, str]] = [
     ("BMP (uncompressed)",             ".bmp",  "BMP"),
     ("TGA / Targa (game-ready)",       ".tga",  "TGA"),
     ("ICO (icon, max 256×256)",        ".ico",  "ICO"),
+    ("ICNS (macOS icon bundle)",       ".icns", "ICNS"),
     ("GIF (256 colours)",              ".gif",  "GIF"),
+    ("QOI (fast lossless)",            ".qoi",  "QOI"),
     ("JPEG 2000 (lossless)",           ".jp2",  "JPEG2000"),
     ("AVIF (modern, very small)",      ".avif", "AVIF"),
 ]
@@ -99,6 +184,26 @@ _RESIZE_MODES: List[Tuple[str, str]] = [
     ("Power-of-two (up)",       "pot_up"),
     ("Power-of-two (down)",     "pot_down"),
 ]
+
+# Shared stylesheet for informational format notes in _on_fmt_changed
+_INFO_NOTE_STYLE = "color: #5588cc; font-size: 9pt; font-style: italic;"
+
+
+def _make_square(img: "Image.Image") -> "Image.Image":
+    """Return a square version of *img* by centre-padding the shorter side.
+
+    Used by the ICNS encoder which requires a 1:1 aspect ratio.
+    If the image is already square, it is returned unchanged.
+    """
+    if img.width == img.height:
+        return img
+    side = max(img.width, img.height)
+    mode = img.mode if img.mode in ("RGBA", "LA") else "RGBA"
+    if _PIL:
+        sq = Image.new(mode, (side, side), (0, 0, 0, 0))
+        sq.paste(img, ((side - img.width) // 2, (side - img.height) // 2))
+        return sq
+    return img
 
 
 # ─── Worker thread ────────────────────────────────────────────────────────────
@@ -136,6 +241,7 @@ class _ConvertWorker(QThread):
         skip_existing = s.get("skip_existing", False)
         name_tpl  = s["name_template"]  # e.g. "{stem}{ext}"
         suffix    = s.get("name_suffix", "")
+        svg_dpi   = s.get("svg_dpi", 96)
         total     = len(self._files)
         done      = 0
         errors    = 0
@@ -152,6 +258,9 @@ class _ConvertWorker(QThread):
                             .replace("{ext}", out_ext)
                             .replace("{name}", fp.name))
                 out_path = out_dir / out_name
+                # Guard: never overwrite the source file
+                if out_path.resolve() == fp.resolve():
+                    out_path = out_dir / (fp.stem + "_converted" + out_ext)
 
                 if skip_existing and out_path.exists():
                     skipped += 1
@@ -159,8 +268,17 @@ class _ConvertWorker(QThread):
                     self.progress.emit(done + errors + skipped, total, fp.name)
                     continue
 
-                img = Image.open(fp)
-                img.load()  # force decode (catches lazy errors)
+                # ── Load image (SVG rasterised via Qt/cairosvg) ──────────
+                if fp.suffix.lower() == ".svg":
+                    try:
+                        img = _rasterise_svg(fp, dpi=svg_dpi)
+                    except Exception as svg_exc:
+                        raise RuntimeError(
+                            f"SVG rasterisation failed for '{fp.name}': {svg_exc}"
+                        )
+                else:
+                    img = Image.open(fp)
+                    img.load()  # force decode (catches lazy errors)
 
                 # ── Colour conversion ─────────────────────────────────────
                 if colour != "keep":
@@ -187,6 +305,9 @@ class _ConvertWorker(QThread):
                     img = bg
                 elif pil_fmt == "ICO":
                     img = img.convert("RGBA")
+                elif pil_fmt == "ICNS":
+                    # ICNS requires a square RGBA image — pad shorter side if needed
+                    img = _make_square(img.convert("RGBA"))
                 elif pil_fmt == "GIF":
                     # GIF supports only palette / P mode (256 colours)
                     if img.mode not in ("P", "L"):
@@ -195,9 +316,16 @@ class _ConvertWorker(QThread):
                 # ── Resize ────────────────────────────────────────────────
                 img = _resize_image(img, resize_md, s)
 
+                # ── Watermark ─────────────────────────────────────────────
+                if s.get("watermark_enabled") and s.get("watermark_text"):
+                    img = _apply_watermark(img, s)
+
                 # ── ICO size cap ──────────────────────────────────────────
                 if pil_fmt == "ICO":
                     img.thumbnail((256, 256), Image.Resampling.LANCZOS)
+                elif pil_fmt == "ICNS":
+                    # Recommended ICNS sizes: 16, 32, 64, 128, 256, 512, 1024
+                    img.thumbnail((1024, 1024), Image.Resampling.LANCZOS)
 
                 # ── Save kwargs ───────────────────────────────────────────
                 save_kw: dict = {}
@@ -215,6 +343,10 @@ class _ConvertWorker(QThread):
                     save_kw = {"quality": webp_q}
                 elif pil_fmt == "JPEG2000":
                     save_kw = {"quality_mode": "lossless"}
+
+                # ── Early AVIF check — skip inference if plugin absent ───────
+                if pil_fmt == "AVIF" and not _AVIF_AVAILABLE:
+                    raise RuntimeError(_AVIF_UNAVAILABLE_MSG)
 
                 try:
                     img.save(out_path, format=pil_fmt, **save_kw)
@@ -242,6 +374,7 @@ class _ConvertWorker(QThread):
         if skipped:
             _parts.append(f"{skipped} skipped")
         msg = f"Done — {', '.join(_parts)}"
+        self.progress.emit(total, total, "Done")
         self.finished.emit(ok, msg, done)
 
 
@@ -276,6 +409,56 @@ def _resize_image(img: "Image.Image", mode: str, s: dict) -> "Image.Image":
     return img.resize((nw, nh), Image.Resampling.LANCZOS)
 
 
+def _apply_watermark(img: "Image.Image", s: dict) -> "Image.Image":
+    """Stamp a semi-transparent text watermark onto *img*."""
+    try:
+        from PIL import Image as _Img, ImageDraw, ImageFont
+        text    = s.get("watermark_text", "")
+        pos_key = s.get("watermark_pos", "Bottom-right")
+        opacity = int(s.get("watermark_opacity", 60) / 100 * 255)
+
+        # Work on an RGBA copy so we can composite
+        base = img.convert("RGBA")
+        layer = _Img.new("RGBA", base.size, (0, 0, 0, 0))
+        draw = ImageDraw.Draw(layer)
+
+        try:
+            font = ImageFont.truetype("arial.ttf", max(12, min(base.width, base.height) // 20))
+        except OSError:
+            font = ImageFont.load_default()
+
+        # Measure text
+        try:
+            bbox = draw.textbbox((0, 0), text, font=font)
+            tw = bbox[2] - bbox[0]
+            th = bbox[3] - bbox[1]
+        except AttributeError:
+            tw, th = draw.textsize(text, font=font)  # type: ignore[attr-defined]
+
+        pad = 8
+        w, h = base.size
+        _positions = {
+            "Bottom-right": (w - tw - pad, h - th - pad),
+            "Bottom-left":  (pad, h - th - pad),
+            "Top-right":    (w - tw - pad, pad),
+            "Top-left":     (pad, pad),
+            "Center":       ((w - tw) // 2, (h - th) // 2),
+        }
+        x, y = _positions.get(pos_key, (w - tw - pad, h - th - pad))
+
+        # Draw shadow, then white text
+        draw.text((x + 1, y + 1), text, font=font, fill=(0, 0, 0, opacity))
+        draw.text((x, y), text, font=font, fill=(255, 255, 255, opacity))
+
+        combined = _Img.alpha_composite(base, layer)
+        # Return in the original mode if it wasn't RGBA
+        if img.mode != "RGBA":
+            combined = combined.convert(img.mode if img.mode in ("RGB", "L", "P") else "RGB")
+        return combined
+    except Exception:
+        return img  # watermark is optional — never fail the conversion
+
+
 # ─── Panel ────────────────────────────────────────────────────────────────────
 if _PYQT:
     class FormatConverterPanelQt(QWidget):
@@ -288,7 +471,35 @@ if _PYQT:
             self._tooltip_mgr  = tooltip_manager
             self._files: List[Path] = []
             self._worker: Optional[_ConvertWorker] = None
+            self.setAcceptDrops(True)  # drag-and-drop files directly onto panel
             self._setup_ui()
+
+        # ── Drag-and-drop support ──────────────────────────────────────────
+        def dragEnterEvent(self, event) -> None:
+            if event.mimeData().hasUrls():
+                event.acceptProposedAction()
+            else:
+                event.ignore()
+
+        def dropEvent(self, event) -> None:
+            """Accept dropped image files and add them to the conversion queue."""
+            _EXTS = {'.png', '.jpg', '.jpeg', '.bmp', '.gif', '.tiff', '.tif',
+                     '.webp', '.avif', '.ico', '.svg'}
+            added = 0
+            for url in event.mimeData().urls():
+                path = Path(url.toLocalFile())
+                if path.is_file() and path.suffix.lower() in _EXTS:
+                    if path not in self._files:
+                        self._files.append(path)
+                        added += 1
+                elif path.is_dir():
+                    for child in path.iterdir():
+                        if child.suffix.lower() in _EXTS and child not in self._files:
+                            self._files.append(child)
+                            added += 1
+            if added:
+                self._file_count_lbl.setText(f"{len(self._files)} file(s) selected")
+            event.acceptProposedAction()
 
         # ── UI construction ────────────────────────────────────────────────
         def _setup_ui(self):
@@ -344,9 +555,17 @@ if _PYQT:
                 "When enabled, the selected folder and all its subfolders are scanned for images")
             inp_lay.addWidget(self._recursive_cb)
 
+            file_row = QHBoxLayout()
             self._file_count_lbl = QLabel("No files selected")
             self._file_count_lbl.setStyleSheet("color:#888; font-size:11px;")
-            inp_lay.addWidget(self._file_count_lbl)
+            file_row.addWidget(self._file_count_lbl, stretch=1)
+            btn_clear_files = QPushButton("✖ Clear")
+            btn_clear_files.setFixedWidth(65)
+            btn_clear_files.setFixedHeight(22)
+            btn_clear_files.clicked.connect(self._clear_files)
+            self._set_tooltip(btn_clear_files, "Remove all selected files from the list")
+            file_row.addWidget(btn_clear_files)
+            inp_lay.addLayout(file_row)
             lv.addWidget(inp_box)
 
             # Output format
@@ -416,6 +635,9 @@ if _PYQT:
             self._jpeg_q.setSuffix(" %")
             self._set_tooltip(self._jpeg_q, 'jpeg_quality')
             qual_lay.addWidget(self._jpeg_q, 0, 1)
+            _rec_jpeg = QLabel("⭐ Recommended: 85–95 %")
+            _rec_jpeg.setStyleSheet(_INFO_NOTE_STYLE)
+            qual_lay.addWidget(_rec_jpeg, 0, 2)
 
             qual_lay.addWidget(QLabel("PNG compress:"), 1, 0)
             self._png_cmp = QSpinBox()
@@ -423,6 +645,9 @@ if _PYQT:
             self._png_cmp.setValue(6)
             qual_lay.addWidget(self._png_cmp, 1, 1)
             self._set_tooltip(self._png_cmp, "0 = fastest (larger file), 9 = smallest (slower)")
+            _rec_png = QLabel("⭐ Recommended: 6  (0 = faster, 9 = smaller)")
+            _rec_png.setStyleSheet(_INFO_NOTE_STYLE)
+            qual_lay.addWidget(_rec_png, 1, 2)
 
             qual_lay.addWidget(QLabel("WebP quality:"), 2, 0)
             self._webp_q = QSpinBox()
@@ -431,6 +656,9 @@ if _PYQT:
             self._webp_q.setSuffix(" %")
             self._set_tooltip(self._webp_q, 'webp_quality')
             qual_lay.addWidget(self._webp_q, 2, 1)
+            _rec_webp = QLabel("⭐ Recommended: 80–95 %")
+            _rec_webp.setStyleSheet(_INFO_NOTE_STYLE)
+            qual_lay.addWidget(_rec_webp, 2, 2)
 
             self._webp_ll = QCheckBox("WebP lossless")
             self._set_tooltip(self._webp_ll, 'webp_lossless')
@@ -445,6 +673,20 @@ if _PYQT:
             self._skip_existing.setChecked(False)
             self._set_tooltip(self._skip_existing, "When checked, files are not overwritten if the output already exists")
             qual_lay.addWidget(self._skip_existing, 5, 0, 1, 2)
+
+            # SVG rasterisation DPI — only relevant when SVG files are selected
+            qual_lay.addWidget(QLabel("SVG raster DPI:"), 6, 0)
+            self._svg_dpi = QSpinBox()
+            self._svg_dpi.setRange(36, 600)
+            self._svg_dpi.setValue(96)
+            self._svg_dpi.setSuffix(" dpi")
+            self._set_tooltip(self._svg_dpi,
+                "Dots-per-inch used when rasterising SVG vector files to pixels.\n"
+                "96 dpi = screen resolution (default).  192 = 2× HiDPI.  300 = print quality.")
+            qual_lay.addWidget(self._svg_dpi, 6, 1)
+            _svg_note_lbl = QLabel("⭐ Recommended: 96 (screen)  ·  192 (HiDPI)  ·  300 (print)")
+            _svg_note_lbl.setStyleSheet(_INFO_NOTE_STYLE)
+            qual_lay.addWidget(_svg_note_lbl, 6, 2)
             lv.addWidget(qual_box)
 
             # Colour space
@@ -510,6 +752,36 @@ if _PYQT:
             self._rsz_row_fixed.hide()
             lv.addWidget(rsz_box)
 
+            # Watermark
+            wm_box = QGroupBox("💧 Watermark (optional)")
+            wm_lay = QGridLayout(wm_box)
+            wm_lay.setSpacing(4)
+            wm_lay.setColumnMinimumWidth(0, 80)
+            wm_lay.setColumnStretch(1, 1)
+
+            self._wm_enable = QCheckBox("Add text watermark")
+            wm_lay.addWidget(self._wm_enable, 0, 0, 1, 2)
+
+            wm_lay.addWidget(QLabel("Text:"), 1, 0)
+            self._wm_text = QLineEdit()
+            self._wm_text.setPlaceholderText("© Your Name")
+            wm_lay.addWidget(self._wm_text, 1, 1)
+
+            wm_lay.addWidget(QLabel("Position:"), 2, 0)
+            self._wm_pos = QComboBox()
+            for _pos in ("Bottom-right", "Bottom-left", "Top-right", "Top-left", "Center"):
+                self._wm_pos.addItem(_pos)
+            wm_lay.addWidget(self._wm_pos, 2, 1)
+
+            wm_lay.addWidget(QLabel("Opacity:"), 3, 0)
+            self._wm_opacity = QSpinBox()
+            self._wm_opacity.setRange(10, 100)
+            self._wm_opacity.setValue(60)
+            self._wm_opacity.setSuffix(" %")
+            wm_lay.addWidget(self._wm_opacity, 3, 1)
+
+            lv.addWidget(wm_box)
+
             lv.addStretch()
             splitter.addWidget(left)
 
@@ -547,10 +819,15 @@ if _PYQT:
             self._clear_btn.setFixedHeight(36)
             self._clear_btn.clicked.connect(self._log.clear)
             self._set_tooltip(self._clear_btn, 'clear_log_button')
+            self._save_log_btn = QPushButton("💾 Save Log")
+            self._save_log_btn.setFixedHeight(36)
+            self._save_log_btn.clicked.connect(self._save_log)
+            self._set_tooltip(self._save_log_btn, "Save the conversion log to a text file")
             btn_row.addWidget(self._convert_btn)
             btn_row.addWidget(self._cancel_btn)
             btn_row.addStretch()
             btn_row.addWidget(self._clear_btn)
+            btn_row.addWidget(self._save_log_btn)
             rv.addLayout(btn_row)
 
             self._status_lbl = QLabel("Ready")
@@ -591,17 +868,41 @@ if _PYQT:
             try:
                 _, _ext, pil_fmt = _OUTPUT_FORMATS[idx]
                 if pil_fmt == "AVIF":
-                    self._avif_note.setText(_AVIF_NOTE_MSG)
+                    if _AVIF_AVAILABLE:
+                        # Plugin loaded — AVIF is fully functional
+                        self._avif_note.setText("✅ AVIF encoder ready (pillow-avif-plugin loaded)")
+                        self._avif_note.setStyleSheet("color: #44aa44; font-size: 9pt;")
+                    else:
+                        self._avif_note.setText(_AVIF_NOTE_MSG)
+                        self._avif_note.setStyleSheet(
+                            "color: #e67e00; font-size: 9pt; font-style: italic;"
+                        )
                     self._avif_note.setVisible(True)
                 elif pil_fmt == "JPEG2000":
+                    self._avif_note.setStyleSheet(_INFO_NOTE_STYLE)
                     self._avif_note.setText(
                         "ℹ️ JPEG 2000 requires the 'openjpeg' codec in Pillow.\n"
                         "Most pip wheels include it — if it fails, try a different format."
                     )
                     self._avif_note.setVisible(True)
                 elif pil_fmt == "GIF":
+                    self._avif_note.setStyleSheet(_INFO_NOTE_STYLE)
                     self._avif_note.setText(
                         "ℹ️ GIF is limited to 256 colours. Animated GIFs are not preserved."
+                    )
+                    self._avif_note.setVisible(True)
+                elif pil_fmt == "ICNS":
+                    self._avif_note.setStyleSheet(_INFO_NOTE_STYLE)
+                    self._avif_note.setText(
+                        "ℹ️ ICNS (macOS icon) requires a square input. "
+                        "Sizes 16, 32, 64, 128, 256, 512 px are recommended."
+                    )
+                    self._avif_note.setVisible(True)
+                elif pil_fmt == "QOI":
+                    self._avif_note.setStyleSheet(_INFO_NOTE_STYLE)
+                    self._avif_note.setText(
+                        "ℹ️ QOI (Quite OK Image) — fast lossless format. "
+                        "Requires Pillow 9.3+ (included in requirements)."
                     )
                     self._avif_note.setVisible(True)
                 else:
@@ -610,6 +911,13 @@ if _PYQT:
                 pass
 
         # ── File / dir pickers ────────────────────────────────────────────
+        def _clear_files(self):
+            """Clear the current file selection."""
+            self._files = []
+            self._in_dir_edit.clear()
+            self._file_count_lbl.setText("No files selected")
+            self._file_count_lbl.setStyleSheet("color:#888; font-size:11px;")
+
         def _pick_input_folder(self):
             d = QFileDialog.getExistingDirectory(self, "Select Input Folder")
             if not d:
@@ -680,8 +988,13 @@ if _PYQT:
                 "webp_lossless":  self._webp_ll.isChecked(),
                 "strip_metadata": self._strip_meta.isChecked(),
                 "skip_existing":  self._skip_existing.isChecked(),
+                "svg_dpi":        self._svg_dpi.value() if hasattr(self, '_svg_dpi') else 96,
                 "name_template":  name_tpl,
                 "name_suffix":    self._suffix_edit.text(),
+                "watermark_enabled": self._wm_enable.isChecked(),
+                "watermark_text":    self._wm_text.text().strip(),
+                "watermark_pos":     self._wm_pos.currentText(),
+                "watermark_opacity": self._wm_opacity.value(),
             }
 
         # ── Conversion control ────────────────────────────────────────────
@@ -716,6 +1029,27 @@ if _PYQT:
             if self._worker and self._worker.isRunning():
                 self._worker.cancel()
                 self._status_lbl.setText("Cancelling…")
+
+        def _save_log(self):
+            """Save the conversion log to a text file chosen by the user."""
+            text = self._log.toPlainText()
+            if not text:
+                QMessageBox.information(self, "Empty Log", "There is nothing in the log to save.")
+                return
+            path, _ = QFileDialog.getSaveFileName(
+                self,
+                "Save Conversion Log",
+                "conversion_log.txt",
+                "Text Files (*.txt);;All Files (*.*)",
+            )
+            if not path:
+                return
+            try:
+                with open(path, 'w', encoding='utf-8') as fh:
+                    fh.write(text)
+                self._status_lbl.setText(f"💾 Log saved to {Path(path).name}")
+            except Exception as _e:
+                QMessageBox.critical(self, "Save Failed", f"Could not save log:\n{_e}")
 
         def _on_progress(self, done: int, total: int, filename: str):
             self._progress.setMaximum(total)

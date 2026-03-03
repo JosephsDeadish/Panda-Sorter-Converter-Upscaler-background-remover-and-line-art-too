@@ -15,6 +15,7 @@ Signals
 from __future__ import annotations
 
 import math
+import os
 import random
 import logging
 from typing import Optional, List, Tuple
@@ -69,17 +70,20 @@ except (ImportError, OSError, RuntimeError):
 # Set default GL surface format at module load time if Qt is available.
 # This ensures CompatibilityProfile (legacy GL) is requested before any
 # QOpenGLWidget in this module is instantiated.
+# Skip on the offscreen/headless Qt platform: requesting CompatibilityProfile
+# there causes Qt to call exit(1) on CI VMs that have no real GPU.
 if PYQT_AVAILABLE and QOGL_AVAILABLE:
     try:
         import os as _os_world
-        _os_world.environ.setdefault('QT_OPENGL', 'desktop')  # force native GL, not ANGLE
-        _wfmt = QSurfaceFormat()
-        _wfmt.setVersion(2, 1)
-        _wfmt.setProfile(QSurfaceFormat.OpenGLContextProfile.CompatibilityProfile)
-        _wfmt.setRenderableType(QSurfaceFormat.RenderableType.OpenGL)  # desktop GL
-        _wfmt.setSamples(4)
-        _wfmt.setDepthBufferSize(24)
-        QSurfaceFormat.setDefaultFormat(_wfmt)
+        if _os_world.environ.get('QT_QPA_PLATFORM') != 'offscreen':
+            _os_world.environ.setdefault('QT_OPENGL', 'desktop')  # force native GL, not ANGLE
+            _wfmt = QSurfaceFormat()
+            _wfmt.setVersion(2, 1)
+            _wfmt.setProfile(QSurfaceFormat.OpenGLContextProfile.CompatibilityProfile)
+            _wfmt.setRenderableType(QSurfaceFormat.RenderableType.OpenGL)  # desktop GL
+            _wfmt.setSamples(4)
+            _wfmt.setDepthBufferSize(24)
+            QSurfaceFormat.setDefaultFormat(_wfmt)
     except Exception:
         pass
 
@@ -129,6 +133,7 @@ _CLICK_REGIONS = {
     'otter':    ( 3.5,  5.5, -5.0, -3.5),
     'home':     (-6.0, -2.0, -5.5, -2.0),
     'park_btn': (-1.5,  1.5,  3.0,  5.0),
+    'dungeon':  (-11.5, -7.0, -10.0, -6.5),  # dungeon entrance archway
 }
 
 
@@ -153,14 +158,15 @@ class PandaWorldGL(
         # for every fixed-function call, causing initializeGL to fail and the
         # 2D fallback to appear instead of the 3D world.
         if QOGL_AVAILABLE and PYQT_AVAILABLE:
-            _fmt = QSurfaceFormat()
-            _fmt.setVersion(2, 1)
-            _fmt.setProfile(QSurfaceFormat.OpenGLContextProfile.CompatibilityProfile)
-            _fmt.setRenderableType(QSurfaceFormat.RenderableType.OpenGL)  # native desktop GL
-            _fmt.setSamples(4)
-            _fmt.setDepthBufferSize(24)
-            _fmt.setStencilBufferSize(8)
-            self.setFormat(_fmt)
+            if os.environ.get('QT_QPA_PLATFORM') != 'offscreen':
+                _fmt = QSurfaceFormat()
+                _fmt.setVersion(2, 1)
+                _fmt.setProfile(QSurfaceFormat.OpenGLContextProfile.CompatibilityProfile)
+                _fmt.setRenderableType(QSurfaceFormat.RenderableType.OpenGL)  # native desktop GL
+                _fmt.setSamples(4)
+                _fmt.setDepthBufferSize(24)
+                _fmt.setStencilBufferSize(8)
+                self.setFormat(_fmt)
 
         self._gl_ready = False
         self._frame    = 0
@@ -179,6 +185,7 @@ class PandaWorldGL(
         self._otter_look_x     = 0.0    # current head-turn angle (eased)
         self._otter_look_tgt   = 0.0    # target look angle for smooth blending
         self._otter_look_phase = 0      # countdown to next random look
+        self._cloud_drift      = 0.0    # X-offset for slow cloud movement
 
         self.setMinimumSize(400, 300)
         if PYQT_AVAILABLE:
@@ -272,6 +279,9 @@ class PandaWorldGL(
         # Car gentle suspension bob
         self._car_bob = math.sin(self._frame * 0.04) * 0.02
 
+        # Slow cloud drift (wraps around every ~1200 frames ≈ 40 s at 30 fps)
+        self._cloud_drift = (self._cloud_drift + 0.004) % 20.0
+
         # Livy blink cycle
         if self._otter_blink <= 0:
             self._otter_blink     = random.randint(100, 280)
@@ -324,6 +334,7 @@ class PandaWorldGL(
         self._draw_road()
         self._draw_car()
         self._draw_shop()
+        self._draw_dungeon_entrance()
         self._draw_park_area()
         self._draw_trees()
         self._draw_hover_highlights()
@@ -356,13 +367,15 @@ class PandaWorldGL(
         glTranslatef(8.0, 7.0, -8.0)
         self._sphere(0.6, 10, 10)
         glPopMatrix()
-        # Clouds (simple white blobs)
+        # Clouds (simple white blobs — drift slowly left to right)
         glColor4f(1.0, 1.0, 1.0, 0.8)
         glEnable(GL_BLEND)
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
+        drift = getattr(self, '_cloud_drift', 0.0)
         for cx, cy, cz in [(-5.0, 6.5, -9.0), (3.0, 7.0, -8.5), (-1.0, 7.5, -10.0)]:
             glPushMatrix()
-            glTranslatef(cx, cy, cz)
+            # Each cloud drifts at slightly different speed for parallax feel
+            glTranslatef(cx + drift * 0.5, cy, cz)
             self._sphere(0.55, 8, 8)
             glTranslatef(0.55, 0.0, 0.0)
             self._sphere(0.40, 8, 8)
@@ -1146,6 +1159,76 @@ class PandaWorldGL(
             glLineWidth(1.0)
             glEnable(GL_LIGHTING)
 
+    def _draw_dungeon_entrance(self):
+        """Draw the dungeon entrance building in the far corner of the world.
+
+        A dark stone archway with glowing purple portal, a warning sign, and
+        torch-like flame pillars on either side.  Positioned at (-9, 0, -8)
+        (far left back corner, visible but not obstructing the main road).
+        """
+        glEnable(GL_LIGHTING)
+        glPushMatrix()
+        glTranslatef(-9.0, 0.0, -8.0)
+
+        # ── Stone arch base pillars ──────────────────────────────────────────
+        for px in (-0.6, 0.6):
+            glPushMatrix()
+            glTranslatef(px, 0.0, 0.0)
+            glMaterialfv(GL_FRONT, GL_AMBIENT_AND_DIFFUSE, [0.28, 0.26, 0.30, 1.0])
+            glPushMatrix()
+            glRotatef(-90, 1, 0, 0)
+            self._cylinder(0.25, 1.8, 8)
+            glPopMatrix()
+            glPopMatrix()
+
+        # ── Arch keystone (top bar) ───────────────────────────────────────────
+        glMaterialfv(GL_FRONT, GL_AMBIENT_AND_DIFFUSE, [0.22, 0.20, 0.25, 1.0])
+        glPushMatrix()
+        glTranslatef(0.0, 1.8, 0.0)
+        glScalef(1.7, 0.35, 0.50)
+        self._sphere(0.4, 8, 6)
+        glPopMatrix()
+
+        # ── Portal glow (dark purple disc — emissive look via no-lighting) ──
+        glDisable(GL_LIGHTING)
+        glColor4f(0.45, 0.0, 0.75, 0.65)
+        glPushMatrix()
+        glTranslatef(0.0, 0.9, 0.05)
+        quadric = gluNewQuadric()
+        gluDisk(quadric, 0.0, 0.50, 20, 1)
+        gluDeleteQuadric(quadric)
+        glPopMatrix()
+        glEnable(GL_LIGHTING)
+
+        # ── Torch pillars (warm flame colour) ────────────────────────────────
+        for tx, tz in ((-0.85, 0.4), (0.85, 0.4)):
+            glMaterialfv(GL_FRONT, GL_AMBIENT_AND_DIFFUSE, [0.28, 0.26, 0.30, 1.0])
+            glPushMatrix()
+            glTranslatef(tx, 0.0, tz)
+            glPushMatrix(); glRotatef(-90, 1, 0, 0); self._cylinder(0.06, 1.0, 6); glPopMatrix()
+            # Flame tip
+            glDisable(GL_LIGHTING)
+            glColor4f(1.0, 0.5, 0.05, 0.9)
+            glTranslatef(0.0, 1.05, 0.0)
+            quadric2 = gluNewQuadric()
+            glPushMatrix(); glRotatef(-90, 1, 0, 0)
+            gluCylinder(quadric2, 0.07, 0.0, 0.20, 8, 1)
+            glPopMatrix()
+            gluDeleteQuadric(quadric2)
+            glEnable(GL_LIGHTING)
+            glPopMatrix()
+
+        # ── Warning sign ────────────────────────────────────────────────────
+        glMaterialfv(GL_FRONT, GL_AMBIENT_AND_DIFFUSE, [0.7, 0.55, 0.15, 1.0])
+        glPushMatrix()
+        glTranslatef(0.85, 1.25, 0.35)
+        glRotatef(20, 0, 1, 0)
+        glScalef(1.0, 0.6, 0.05)
+        self._sphere(0.22, 6, 4)
+        glPopMatrix()
+
+        glPopMatrix()   # end dungeon entrance group
+
     def _draw_park_area(self):
         """Bench, pond, flowers, play equipment for the park destination."""
         glEnable(GL_LIGHTING)
@@ -1290,6 +1373,14 @@ class PandaWorldGL(
                 glVertex3f(vx, 2.0, vz)
             glEnd()
 
+        elif self._hover == 'dungeon':
+            # Purple-glow outline around the dungeon archway
+            glColor3f(0.7, 0.2, 1.0)
+            glBegin(GL_LINE_LOOP)
+            for vx, vz in [(-11.4, -9.9), (-7.1, -9.9), (-7.1, -6.6), (-11.4, -6.6)]:
+                glVertex3f(vx, 2.5, vz)
+            glEnd()
+
         glLineWidth(1.0)
         glEnable(GL_LIGHTING)
 
@@ -1322,6 +1413,8 @@ class PandaWorldGL(
             self.back_to_bedroom.emit()
         elif region == 'park_btn':
             self.destination_selected.emit('park')
+        elif region == 'dungeon':
+            self.destination_selected.emit('dungeon')
 
     def get_car_color(self) -> list:
         """Return current car colour as [r, g, b] float list."""
@@ -1342,7 +1435,7 @@ class PandaWorldGL(
             dlg = QDialog(self)
             dlg.setWindowTitle("🚗 Where to?")
             dlg.setModal(True)
-            dlg.setFixedSize(240, 180)
+            dlg.setFixedSize(240, 230)
             dlg.setStyleSheet(
                 "QDialog{background:#1a2a3a;color:#ddddff;}"
                 "QPushButton{background:#2a3a5a;color:#eeeeff;border:1px solid #445;border-radius:6px;"
@@ -1351,7 +1444,12 @@ class PandaWorldGL(
             )
             vbox = QVBoxLayout(dlg)
             vbox.addWidget(_QLabel("🐼 Where shall we go?", dlg))
-            for dest, label in (('shop', '🛒  Otter Shop'), ('park', '🌲  Panda Park'), ('home', '🏠  Back Home')):
+            for dest, label in (
+                ('shop',    '🛒  Otter Shop'),
+                ('park',    '🌲  Panda Park'),
+                ('dungeon', '⚔️  Dungeon Adventure'),
+                ('home',    '🏠  Back Home'),
+            ):
                 btn = QPushButton(label, dlg)
                 btn.setToolTip(f"Travel to {label.strip()}")
                 btn.clicked.connect(lambda _, d=dest: (dlg.accept(), self.destination_selected.emit(d)))

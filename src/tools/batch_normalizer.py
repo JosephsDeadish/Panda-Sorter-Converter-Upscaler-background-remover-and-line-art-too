@@ -547,12 +547,14 @@ class BatchFormatNormalizer:
         else:
             name = input_path.stem + ext
         
-        # Ensure unique filename
+        # Ensure unique filename; also avoid overwriting the source file
         output_path = output_dir / name
+        if output_path.resolve() == input_path.resolve():
+            output_path = output_dir / f"{input_path.stem}_normalized{ext}"
         counter = 1
+        base_stem = (output_dir / name).stem
         while output_path.exists():
-            stem = output_path.stem
-            output_path = output_dir / f"{stem}_{counter}{ext}"
+            output_path = output_dir / f"{base_stem}_{counter}{ext}"
             counter += 1
         
         return output_path

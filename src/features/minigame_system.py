@@ -418,6 +418,254 @@ class PandaReflexGame(MiniGame):
         return self.get_average_reaction_time() < 200.0
 
 
+class BambooCatcherGame(MiniGame):
+    """Bamboo Catcher — dodge bad items, catch bamboo falling from the sky.
+
+    Simple falling-item game:
+    - ``tick(delta_s)`` advances all falling items by their speed.
+    - ``move_basket(direction)`` moves the basket left (-1) or right (+1).
+    - ``_spawn_item()`` creates a new item (bamboo or hazard).
+    - Items that reach the basket are caught / scored; items below the
+      bottom edge are missed.
+    - Returns False from ``tick()`` when the time limit is up.
+    """
+
+    _BASKET_WIDTH    = 2   # basket units (even number)
+    _FIELD_WIDTH     = 10  # total horizontal units
+    _FIELD_HEIGHT    = 20  # units from top to bottom
+    _MISS_PENALTY    = 5   # score penalty per missed bamboo
+    _CATCH_POINTS    = {
+        'bamboo':  10,
+        'cookie':   8,
+        'apple':    6,
+        'rock':    -8,   # hazard — negative score
+        'thorn':   -12,  # harder hazard
+    }
+
+    def __init__(self, difficulty: GameDifficulty = GameDifficulty.MEDIUM):
+        super().__init__(difficulty)
+        _time = {
+            GameDifficulty.EASY:    60.0,
+            GameDifficulty.MEDIUM:  45.0,
+            GameDifficulty.HARD:    30.0,
+            GameDifficulty.EXTREME: 20.0,
+        }
+        _speeds = {
+            GameDifficulty.EASY:    2.0,
+            GameDifficulty.MEDIUM:  3.5,
+            GameDifficulty.HARD:    5.0,
+            GameDifficulty.EXTREME: 7.0,
+        }
+        _spawn = {
+            GameDifficulty.EASY:    1.5,
+            GameDifficulty.MEDIUM:  1.1,
+            GameDifficulty.HARD:    0.7,
+            GameDifficulty.EXTREME: 0.4,
+        }
+        self.time_limit: float = _time[difficulty]
+        self._item_speed: float = _speeds[difficulty]
+        self.basket_x: int = self._FIELD_WIDTH // 2   # basket centre col
+        self.items: list = []    # list of {'x', 'y', 'kind'}
+        self.caught: int = 0
+        self.missed: int = 0
+        self._spawn_timer: float = 0.0
+        self._spawn_interval: float = _spawn[difficulty]
+
+    def start(self) -> None:
+        super().start()
+        self.basket_x = self._FIELD_WIDTH // 2
+        self.items.clear()
+        self.caught = 0
+        self.missed = 0
+        self._spawn_timer = 0.0
+        logger.info(f"BambooCatcher started — difficulty={self.difficulty.name}")
+
+    def tick(self, delta_s: float) -> bool:
+        """Advance the game by delta_s seconds.  Returns True while running."""
+        if not self.is_running or self.is_paused:
+            return False
+        if self._elapsed_time() >= self.time_limit:
+            return False
+
+        # Spawn new items
+        self._spawn_timer += delta_s
+        if self._spawn_timer >= self._spawn_interval:
+            self._spawn_timer = 0.0
+            self._spawn_item()
+
+        # Move existing items downward
+        still_falling = []
+        for item in self.items:
+            item['y'] += self._item_speed * delta_s
+            if item['y'] >= self._FIELD_HEIGHT:
+                # Missed — reached the bottom without being caught
+                if item['kind'] not in ('rock', 'thorn'):
+                    self.missed += 1
+                    self.score -= self._MISS_PENALTY
+            elif self._basket_col_hit(item):
+                # Caught by basket
+                pts = self._CATCH_POINTS.get(item['kind'], 5)
+                self.score += pts
+                if pts > 0:
+                    self.caught += 1
+            else:
+                still_falling.append(item)
+        self.items = still_falling
+        return True
+
+    def move_basket(self, direction: int) -> None:
+        """Move the basket one unit left (-1) or right (+1)."""
+        self.basket_x = max(0, min(self._FIELD_WIDTH - 1, self.basket_x + direction))
+
+    def _spawn_item(self) -> None:
+        import random as _r
+        kinds = ['bamboo', 'bamboo', 'bamboo', 'cookie', 'apple', 'rock', 'thorn']
+        self.items.append({
+            'x': _r.randint(0, self._FIELD_WIDTH - 1),
+            'y': 0.0,
+            'kind': _r.choice(kinds),
+        })
+
+    def _basket_col_hit(self, item: dict) -> bool:
+        half = self._BASKET_WIDTH // 2
+        bottom_y = self._FIELD_HEIGHT - 1
+        return (
+            abs(item['y'] - bottom_y) < self._item_speed + 0.5
+            and abs(item['x'] - self.basket_x) <= half
+        )
+
+    def stop(self) -> GameResult:
+        result = super().stop()
+        logger.info(f"BambooCatcher ended — caught={self.caught} missed={self.missed} score={self.score}")
+        return result
+
+    def get_name(self) -> str:
+        return "Bamboo Catcher 🎋"
+
+    def get_description(self) -> str:
+        return (
+            f"Catch falling bamboo with your basket in {int(self.time_limit)}s! "
+            "Dodge rocks and thorns — they lose you points. "
+            "Cookies and apples are bonus items."
+        )
+
+    def _is_perfect_score(self) -> bool:
+        return self.caught >= 30 and self.missed == 0
+
+    def get_remaining_time(self) -> float:
+        if not self.is_running or not self.start_time:
+            return 0.0
+        return max(0.0, self.time_limit - self._elapsed_time())
+
+
+class PandaColorMatchGame(MiniGame):
+    """Color-matching minigame.
+
+    A sequence of colored bamboo segments appears; the player must identify
+    how many match the target color.  Each round generates a new palette
+    (3-6 colors), a target, and a random grid of 9 cells.
+
+    Scoring:
+    - Correct answer: +10 pts × combo multiplier
+    - Wrong answer:   combo reset to 1
+    - Time bonus:     +1 pt per second remaining when answered correctly
+    """
+
+    _COLORS = ['green', 'yellow', 'red', 'blue', 'white', 'pink']
+
+    def __init__(self, difficulty: GameDifficulty = GameDifficulty.MEDIUM):
+        super().__init__(difficulty)
+        self.name = "Color Match"
+        self.description = "Count how many bamboo segments match the target color!"
+        self._grid:    list = []        # list of color strings
+        self._target:  str  = 'green'
+        self._correct_count: int = 0
+        self._combo:   int  = 1
+        self._answered: bool = False
+        grid_size = {
+            GameDifficulty.EASY:    (9,  30),
+            GameDifficulty.MEDIUM:  (12, 20),
+            GameDifficulty.HARD:    (16, 15),
+            GameDifficulty.EXTREME: (20, 12),
+        }.get(difficulty, (9, 20))
+        self._grid_size, secs = grid_size
+        self.time_limit = secs
+        self._new_round()
+
+    def _new_round(self) -> None:
+        """Generate a fresh color grid and target."""
+        import random
+        num_colors = min(len(self._COLORS), 2 + self.score // 50)
+        palette = random.sample(self._COLORS, max(2, num_colors))
+        self._target = random.choice(palette)
+        self._grid = [random.choice(palette) for _ in range(self._grid_size)]
+        self._correct_count = self._grid.count(self._target)
+        self._answered = False
+
+    def start(self) -> None:
+        super().start()
+        self._combo = 1
+        self._new_round()
+
+    def stop(self) -> GameResult:
+        return super().stop()
+
+    def get_name(self) -> str:
+        return "Color Match 🎨"
+
+    def get_description(self) -> str:
+        return (
+            f"Count how many bamboo segments in the grid match the target color! "
+            f"You have {int(self.time_limit)}s per round. Build combos for bigger rewards."
+        )
+
+    def get_remaining_time(self) -> float:
+        if not self.is_running or not self.start_time:
+            return 0.0
+        return max(0.0, self.time_limit - self._elapsed_time())
+
+    def tick(self, dt: float) -> Optional['GameResult']:
+        if not self.is_running:
+            return None
+        self._update_time(dt)
+        if self._elapsed_time() >= self.time_limit:
+            return self._finish(
+                False, "Time up!", {'final_score': self.score, 'combo': self._combo}
+            )
+        return None
+
+    def submit_answer(self, answer: int) -> dict:
+        """Player guesses how many grid cells match the target color.
+
+        Returns:
+            dict with 'correct' (bool), 'score_delta' (int), 'message' (str)
+        """
+        if self._answered or not self.is_running:
+            return {'correct': False, 'score_delta': 0, 'message': 'No active round'}
+        self._answered = True
+        correct = answer == self._correct_count
+        if correct:
+            time_bonus = int(self.get_remaining_time())
+            delta = 10 * self._combo + time_bonus
+            self._combo = min(self._combo + 1, 5)
+            self.score += delta
+            self._new_round()
+            return {'correct': True, 'score_delta': delta,
+                    'message': f"✅ Correct! +{delta} pts (×{self._combo - 1} combo)"}
+        else:
+            self._combo = 1
+            return {'correct': False, 'score_delta': 0,
+                    'message': f"❌ Wrong! Answer was {self._correct_count}"}
+
+    @property
+    def grid(self) -> list:
+        return list(self._grid)
+
+    @property
+    def target(self) -> str:
+        return self._target
+
+
 class MiniGameManager:
     """Manages all mini-games and their state."""
     
@@ -431,9 +679,11 @@ class MiniGameManager:
             xp_callback: Callback to award XP
         """
         self.games: Dict[str, type] = {
-            'click': PandaClickGame,
-            'memory': PandaMemoryGame,
-            'reflex': PandaReflexGame
+            'click':        PandaClickGame,
+            'memory':       PandaMemoryGame,
+            'reflex':       PandaReflexGame,
+            'bamboo_catcher': BambooCatcherGame,
+            'color_match':  PandaColorMatchGame,
         }
         
         self.current_game: Optional[MiniGame] = None

@@ -132,6 +132,12 @@ class NotepadPanelQt(QWidget):
         self._set_tooltip(self.export_btn, 'export_note_button')
         controls_layout.addWidget(self.export_btn)
 
+        # Import button
+        self.import_btn = QPushButton("📥 Import")
+        self.import_btn.clicked.connect(self.import_note_from_file)
+        self._set_tooltip(self.import_btn, "Import a text or Markdown file as a new note")
+        controls_layout.addWidget(self.import_btn)
+
         controls_layout.addStretch()
 
         # Undo / Redo buttons (QTextEdit already supports Ctrl+Z/Ctrl+Y natively;
@@ -152,6 +158,14 @@ class NotepadPanelQt(QWidget):
         self.word_count_label = QLabel("0 words")
         self.word_count_label.setStyleSheet("color: #666; font-style: italic;")
         controls_layout.addWidget(self.word_count_label)
+
+        # Markdown preview toggle
+        self.preview_btn = QPushButton("👁 Preview")
+        self.preview_btn.setCheckable(True)
+        self.preview_btn.setEnabled(False)
+        self.preview_btn.setToolTip("Toggle Markdown preview (read-only rendered view)")
+        self.preview_btn.toggled.connect(self._toggle_markdown_preview)
+        controls_layout.addWidget(self.preview_btn)
         
         layout.addLayout(controls_layout)
         
@@ -363,6 +377,9 @@ class NotepadPanelQt(QWidget):
         self.save_btn.setEnabled(True)
         self.delete_btn.setEnabled(True)
         self.export_btn.setEnabled(True)
+        if hasattr(self, 'preview_btn'):
+            self.preview_btn.setEnabled(True)
+            self.preview_btn.setChecked(False)  # reset to edit mode on new note
         
         self.update_metadata()
         self.update_word_count()
@@ -416,7 +433,7 @@ class NotepadPanelQt(QWidget):
             self.notes_list.addItem(item)
     
     def export_note(self):
-        """Export current note to text file"""
+        """Export current note to text or Markdown file."""
         if not self.current_note_id:
             return
         
@@ -425,21 +442,34 @@ class NotepadPanelQt(QWidget):
             return
         
         # Get file name
-        filename, _ = QFileDialog.getSaveFileName(
+        filename, selected_filter = QFileDialog.getSaveFileName(
             self,
             "Export Note",
             f"{note['title']}.txt",
-            "Text Files (*.txt);;All Files (*)"
+            "Text Files (*.txt);;Markdown Files (*.md);;All Files (*)"
         )
         
         if filename:
             try:
+                # Ensure correct extension matches filter
+                if 'Markdown' in selected_filter and not filename.lower().endswith('.md'):
+                    filename += '.md'
+                elif 'Text' in selected_filter and not filename.lower().endswith('.txt'):
+                    filename += '.txt'
+
                 with open(filename, 'w', encoding='utf-8') as f:
-                    f.write(f"Title: {note['title']}\n")
-                    f.write(f"Created: {note['created']}\n")
-                    f.write(f"Modified: {note['modified']}\n")
-                    f.write("\n" + "=" * 50 + "\n\n")
-                    f.write(note['content'])
+                    if filename.lower().endswith('.md'):
+                        f.write(f"# {note['title']}\n\n")
+                        f.write(f"*Created: {note['created']}*  \n")
+                        f.write(f"*Modified: {note['modified']}*\n\n")
+                        f.write("---\n\n")
+                        f.write(note['content'])
+                    else:
+                        f.write(f"Title: {note['title']}\n")
+                        f.write(f"Created: {note['created']}\n")
+                        f.write(f"Modified: {note['modified']}\n")
+                        f.write("\n" + "=" * 50 + "\n\n")
+                        f.write(note['content'])
                 
                 self.status_label.setText(f"Exported to: {Path(filename).name}")
                 QMessageBox.information(self, "Success", f"Note exported to:\n{filename}")
@@ -447,6 +477,61 @@ class NotepadPanelQt(QWidget):
             except Exception as e:
                 logger.error(f"Error exporting note: {e}", exc_info=True)
                 QMessageBox.warning(self, "Error", f"Failed to export note:\n{e}")
+
+    def _toggle_markdown_preview(self, checked: bool) -> None:
+        """Switch the editor between plain-text editing and rendered Markdown preview."""
+        if checked:
+            # Render current content as Markdown (Qt 5.14+ / PyQt6)
+            md_text = self.text_editor.toPlainText()
+            try:
+                self.text_editor.setMarkdown(md_text)
+            except AttributeError:
+                # Older Qt — fallback to setHtml with minimal formatting
+                escaped = md_text.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
+                self.text_editor.setHtml(f"<pre>{escaped}</pre>")
+            self.text_editor.setReadOnly(True)
+            self.preview_btn.setText("✏️ Edit")
+        else:
+            # Restore plain text for editing
+            if self.current_note_id and self.current_note_id in self.notes:
+                content = self.notes[self.current_note_id].get('content', '')
+            else:
+                content = ""
+            self.text_editor.setReadOnly(False)
+            self.text_editor.setPlainText(content)
+            self.preview_btn.setText("👁 Preview")
+
+    def import_note_from_file(self):
+        """Import a .txt or .md file as a new note."""
+        filename, _ = QFileDialog.getOpenFileName(
+            self,
+            "Import Note",
+            "",
+            "Text Files (*.txt);;Markdown Files (*.md);;All Files (*)",
+        )
+        if not filename:
+            return
+        try:
+            with open(filename, 'r', encoding='utf-8') as f:
+                content = f.read()
+            title = Path(filename).stem
+            note_id = datetime.now().strftime("%Y%m%d_%H%M%S_imported")
+            self.notes[note_id] = {
+                'title': title,
+                'content': content,
+                'created': datetime.now().isoformat(),
+                'modified': datetime.now().isoformat(),
+            }
+            self.refresh_notes_list()
+            self.save_notes_to_disk()
+            # Select the newly imported note
+            self.current_note_id = note_id
+            self.title_edit.setText(title)
+            self.text_edit.setPlainText(content)
+            self.status_label.setText(f"Imported: {Path(filename).name}")
+        except Exception as e:
+            logger.error(f"Error importing note: {e}", exc_info=True)
+            QMessageBox.warning(self, "Error", f"Failed to import file:\n{e}")
     
     def load_notes(self):
         """Load notes from disk"""

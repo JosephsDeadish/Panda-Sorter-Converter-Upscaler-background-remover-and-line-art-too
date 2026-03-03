@@ -6,7 +6,7 @@ Pure PyQt6 graphics rendering for dungeon visualization.
 
 try:
     from PyQt6.QtWidgets import QGraphicsView, QGraphicsScene, QGraphicsRectItem, QGraphicsEllipseItem, QGraphicsTextItem
-    from PyQt6.QtCore import Qt, QRectF, QPointF
+    from PyQt6.QtCore import Qt, QRectF, QPointF, QTimer
     from PyQt6.QtGui import QColor, QPen, QBrush, QPainter
     PYQT_AVAILABLE = True
 except (ImportError, OSError, RuntimeError):
@@ -95,6 +95,8 @@ class DungeonGraphicsView(QGraphicsView):
         self._player_x: int = 1
         self._player_y: int = 1
         self._player_item: 'Optional[QGraphicsTextItem]' = None
+        # Enemy graphic items (cleared and redrawn each tick)
+        self._enemy_items: list = []
         
         # Create scene
         self.scene = QGraphicsScene()
@@ -113,6 +115,11 @@ class DungeonGraphicsView(QGraphicsView):
         
         # Initial render
         self.render_dungeon()
+
+        # Game loop — updates enemies every 500 ms
+        self._game_timer = QTimer(self)
+        self._game_timer.timeout.connect(self._game_tick)
+        self._game_timer.start(500)
 
     def set_dungeon(self, dungeon):
         """Set the dungeon data and re-render."""
@@ -271,6 +278,98 @@ class DungeonGraphicsView(QGraphicsView):
         self.scene.addItem(lbl)
         self._player_item = lbl
 
+    def _game_tick(self) -> None:
+        """Periodic game loop: update enemy AI and redraw enemies."""
+        if self.dungeon is None:
+            return
+        try:
+            if hasattr(self.dungeon, 'update_enemies'):
+                self.dungeon.update_enemies(0.5)  # 500 ms step
+        except Exception:
+            pass
+        self._redraw_enemies()
+        self.viewport().update()  # refresh HUD
+
+    def _redraw_enemies(self) -> None:
+        """Remove old enemy graphics and re-draw current positions."""
+        for item in self._enemy_items:
+            try:
+                self.scene.removeItem(item)
+            except Exception:
+                pass
+        self._enemy_items = []
+
+        if self.dungeon is None or not hasattr(self.dungeon, 'get_enemies_on_current_floor'):
+            return
+        try:
+            enemies = self.dungeon.get_enemies_on_current_floor()
+        except Exception:
+            return
+        ts = self.tile_size
+        for enemy in enemies:
+            alive = getattr(enemy, 'alive', True)
+            if not alive:
+                continue
+            ex = getattr(enemy, 'x', None)
+            ey = getattr(enemy, 'y', None)
+            if ex is None or ey is None:
+                continue
+            lbl = QGraphicsTextItem("👾")
+            font = lbl.font()
+            font.setPixelSize(max(12, ts - 10))
+            lbl.setFont(font)
+            lbl.setPos(ex * ts, ey * ts - 4)
+            lbl.setZValue(9)   # below player (ZValue=10)
+            self.scene.addItem(lbl)
+            self._enemy_items.append(lbl)
+
+    def drawForeground(self, painter: 'QPainter', rect: 'QRectF') -> None:
+        """Draw HUD overlay (health bar + floor number) on top of the scene."""
+        super().drawForeground(painter, rect)
+        try:
+            hp = 100
+            hp_max = 100
+            floor_num = self.current_floor + 1
+            if self.dungeon is not None:
+                hp     = getattr(self.dungeon, 'player_health',     hp)
+                hp_max = getattr(self.dungeon, 'player_max_health', hp_max)
+
+            vp = self.viewport()
+            vw, vh = vp.width(), vp.height()
+
+            # Map viewport top-left to scene coordinates so the HUD stays fixed
+            tl = self.mapToScene(0, 0)
+            x0, y0 = tl.x(), tl.y()
+
+            bar_w, bar_h = 120, 12
+            pad = 6
+
+            # Background pill
+            painter.setBrush(QBrush(QColor("#220000")))
+            painter.setPen(Qt.PenStyle.NoPen)
+            painter.drawRoundedRect(
+                QRectF(x0 + pad, y0 + pad, bar_w + 40, bar_h + 20), 4, 4
+            )
+
+            # Health bar fill
+            ratio = max(0.0, min(1.0, hp / max(1, hp_max)))
+            fill_color = (
+                QColor("#22dd22") if ratio > 0.5
+                else QColor("#ddaa00") if ratio > 0.25
+                else QColor("#dd2222")
+            )
+            painter.setBrush(QBrush(fill_color))
+            painter.drawRect(QRectF(x0 + pad + 2, y0 + pad + 14, (bar_w - 4) * ratio, bar_h - 4))
+
+            # HP text
+            painter.setPen(QPen(QColor("#ffffff")))
+            painter.drawText(
+                QRectF(x0 + pad + 2, y0 + pad + 2, bar_w - 4, 12),
+                f"❤ {hp}/{hp_max}  Floor {floor_num}",
+            )
+        except Exception:
+            pass  # HUD is decorative — never interrupt the render loop
+
     def _get_floor_data(self):
         """Return (floor_data, floor_obj) for the current floor, or (None, None)."""
         if isinstance(self.dungeon, list):
@@ -298,7 +397,7 @@ class DungeonGraphicsView(QGraphicsView):
         return floor_data[row][col] == 0  # 0 = walkable
 
     def keyPressEvent(self, event) -> None:
-        """WASD / arrow key movement for the dungeon panda."""
+        """WASD / arrow key movement + Space attack for the dungeon panda."""
         dx, dy = 0, 0
         key = event.key()
         if key in (Qt.Key.Key_W, Qt.Key.Key_Up):
@@ -309,6 +408,17 @@ class DungeonGraphicsView(QGraphicsView):
             dx = -1
         elif key in (Qt.Key.Key_D, Qt.Key.Key_Right):
             dx = 1
+        elif key == Qt.Key.Key_Space:
+            # Attack: hit nearby enemies if the dungeon supports it
+            if self.dungeon is not None and hasattr(self.dungeon, 'player_attack_nearby_enemies'):
+                try:
+                    self.dungeon.set_player_position(self.current_floor, self._player_x, self._player_y)
+                    self.dungeon.player_attack_nearby_enemies()
+                    self.viewport().update()  # Redraw HUD (HP may have changed)
+                except Exception:
+                    pass
+            super().keyPressEvent(event)
+            return
         else:
             super().keyPressEvent(event)
             return
@@ -318,8 +428,15 @@ class DungeonGraphicsView(QGraphicsView):
         if self._is_walkable(nx, ny):
             self._player_x = nx
             self._player_y = ny
+            # Keep dungeon model in sync
+            if self.dungeon is not None and hasattr(self.dungeon, 'set_player_position'):
+                try:
+                    self.dungeon.set_player_position(self.current_floor, nx, ny)
+                except Exception:
+                    pass
             self._draw_player()
             self.centerOn(nx * self.tile_size, ny * self.tile_size)
+            self.viewport().update()  # refresh HUD
 
     def render_player(self, x: int, y: int):
         """Render player at position."""

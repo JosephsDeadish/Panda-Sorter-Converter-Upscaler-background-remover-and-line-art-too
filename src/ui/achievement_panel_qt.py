@@ -11,7 +11,7 @@ try:
     from PyQt6.QtWidgets import (
         QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
         QScrollArea, QFrame, QGridLayout, QProgressBar, QComboBox,
-        QSizePolicy,
+        QSizePolicy, QLineEdit,
     )
     from PyQt6.QtCore import Qt, pyqtSignal
     from PyQt6.QtGui import QFont, QColor, QPainter, QBrush, QPen, QLinearGradient
@@ -280,6 +280,7 @@ class AchievementDisplayWidget(QWidget):
             self.achievement_system = None
         
         self.current_filter = "All"
+        self.current_search = ""
         self.setup_ui()
         self.refresh_achievements()
         
@@ -334,6 +335,16 @@ class AchievementDisplayWidget(QWidget):
         self.filter_combo.currentTextChanged.connect(self.on_filter_changed)
         self._set_tooltip(self.filter_combo, 'achievements_tab')
         filter_layout.addWidget(self.filter_combo)
+
+        # Search box
+        self.search_edit = QLineEdit()
+        self.search_edit.setPlaceholderText("🔍 Search achievements…")
+        self.search_edit.setStyleSheet(
+            "QLineEdit { background: #3d1e0a; color: #ffe8b0; border: 1px solid #5c3317;"
+            " border-radius: 4px; padding: 2px 6px; }"
+        )
+        self.search_edit.textChanged.connect(self._on_search_changed)
+        filter_layout.addWidget(self.search_edit, stretch=1)
 
         filter_layout.addStretch()
 
@@ -418,20 +429,36 @@ class AchievementDisplayWidget(QWidget):
         self.status_label.setText(f"Showing {len(filtered)} trophies")
         
     def matches_filter(self, achievement: 'Achievement') -> bool:
-        """Check if achievement matches current filter"""
-        if self.current_filter == "All":
-            return True
-        elif self.current_filter == "Unlocked":
-            return achievement.unlocked
+        """Check if achievement matches current filter and search query."""
+        if self.current_filter == "Unlocked":
+            if not achievement.unlocked:
+                return False
         elif self.current_filter == "Locked":
-            return not achievement.unlocked
-        else:
+            if achievement.unlocked:
+                return False
+        elif self.current_filter != "All":
             # Tier filter
-            return achievement.tier.value.lower() == self.current_filter.lower()
-        
+            if achievement.tier.value.lower() != self.current_filter.lower():
+                return False
+
+        # Search query
+        query = getattr(self, 'current_search', '').strip().lower()
+        if query:
+            name = getattr(achievement, 'name', '').lower()
+            desc = getattr(achievement, 'description', '').lower()
+            if query not in name and query not in desc:
+                return False
+
+        return True
+
     def on_filter_changed(self, filter_text: str):
         """Handle filter change"""
         self.current_filter = filter_text
+        self.refresh_achievements()
+
+    def _on_search_changed(self, text: str):
+        """Handle search text change."""
+        self.current_search = text
         self.refresh_achievements()
     
     def _set_tooltip(self, widget, widget_id_or_text: str):

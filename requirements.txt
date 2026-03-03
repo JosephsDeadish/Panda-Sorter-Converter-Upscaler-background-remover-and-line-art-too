@@ -36,6 +36,7 @@ PyOpenGL-accelerate>=3.1.7  # Hardware acceleration for PyOpenGL
 
 # Image Processing
 pillow>=10.0.0  # Image loading and processing
+pillow-avif-plugin>=1.4.0  # AVIF (AV1 Image Format) encode/decode via libaom for Pillow
 darkdetect>=0.8.0  # System dark mode detection
 opencv-python>=4.8.1.78  # Computer vision (>= 4.8.1.78 for libwebp CVE fix)
 numpy>=1.24.0  # Numerical operations and array processing

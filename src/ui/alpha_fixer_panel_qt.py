@@ -84,7 +84,7 @@ except (ImportError, OSError, RuntimeError):
 try:
     from ui import IMAGE_EXTENSIONS
 except ImportError:
-    IMAGE_EXTENSIONS = frozenset({'.png', '.jpg', '.jpeg', '.bmp', '.tiff', '.tif', '.webp', '.dds', '.tga', '.gif'})
+    IMAGE_EXTENSIONS = frozenset({'.png', '.jpg', '.jpeg', '.bmp', '.tiff', '.tif', '.webp', '.dds', '.tga', '.gif', '.avif', '.qoi', '.apng', '.jfif', '.ico', '.icns'})
 
 
 try:
@@ -98,6 +98,17 @@ except Exception as _e:
     _ALPHA_TOOL_AVAILABLE = False
 
 logger = logging.getLogger(__name__)
+
+try:
+    from ui.live_preview_slider_qt import ComparisonSliderWidget
+    _SLIDER_AVAILABLE = True
+except (ImportError, OSError, RuntimeError):
+    try:
+        from live_preview_slider_qt import ComparisonSliderWidget  # type: ignore[no-redef]
+        _SLIDER_AVAILABLE = True
+    except (ImportError, OSError, RuntimeError):
+        ComparisonSliderWidget = None  # type: ignore[assignment,misc]
+        _SLIDER_AVAILABLE = False
 
 try:
     from utils.archive_handler import ArchiveHandler
@@ -142,6 +153,10 @@ class AlphaFixWorker(QThread):
                 # Use the higher-level process_image() which handles PIL loading,
                 # RGBA conversion, numpy conversion and saving internally.
                 output_path = Path(self.output_dir) / Path(filepath).name
+                # Guard: never overwrite the source file
+                if output_path.resolve() == Path(filepath).resolve():
+                    src = Path(filepath)
+                    output_path = Path(self.output_dir) / f"{src.stem}_fixed{src.suffix}"
                 if self.skip_existing and output_path.exists():
                     skipped += 1
                     logger.debug(f"Skipped (exists): {output_path.name}")
@@ -161,6 +176,7 @@ class AlphaFixWorker(QThread):
             parts = [f"Processed {processed} image{'s' if processed != 1 else ''}"]
             if skipped:
                 parts.append(f"{skipped} skipped (already existed)")
+            self.progress.emit(100.0, "Done")
             self.finished.emit(True, ", ".join(parts), processed)
         except Exception as e:
             logger.error(f"Alpha fixing failed: {e}")
@@ -183,8 +199,44 @@ class AlphaFixerPanelQt(QWidget):
         self.current_image = None
         # Default preset key — set correctly by _on_preset_changed when the combo is built
         self._selected_preset_key: Optional[str] = 'generic_binary'
+        self.setAcceptDrops(True)  # drag-and-drop images onto the panel
 
         self._create_widgets()
+
+    # ── Drag-and-drop support ──────────────────────────────────────────────
+    def dragEnterEvent(self, event) -> None:
+        if event.mimeData().hasUrls():
+            event.acceptProposedAction()
+        else:
+            event.ignore()
+
+    def dropEvent(self, event) -> None:
+        """Accept dropped image files and add them to the alpha fix queue."""
+        _EXTS = {'.png', '.jpg', '.jpeg', '.bmp', '.gif', '.tiff', '.tif', '.webp'}
+        existing = set(self.selected_files)
+        added = []
+        for url in event.mimeData().urls():
+            path = Path(url.toLocalFile())
+            if path.is_file() and path.suffix.lower() in _EXTS:
+                s = str(path)
+                if s not in existing:
+                    added.append(s)
+                    existing.add(s)
+            elif path.is_dir():
+                for child in path.iterdir():
+                    if child.suffix.lower() in _EXTS:
+                        s = str(child)
+                        if s not in existing:
+                            added.append(s)
+                            existing.add(s)
+        if added:
+            self.selected_files.extend(added)
+            if hasattr(self, 'info_label'):
+                count = len(self.selected_files)
+                self.info_label.setText(
+                    f"{count} file{'s' if count != 1 else ''} queued"
+                )
+        event.acceptProposedAction()
     
     def _create_widgets(self):
         """Create the UI widgets."""
@@ -323,25 +375,30 @@ class AlphaFixerPanelQt(QWidget):
         # Map of display label → backend preset key (None = custom/no-op)
         self._preset_items = [
             # General
-            ("Generic Binary (transparent / opaque)",  "generic_binary"),
-            ("Clean Edges (remove fringing)",          "clean_edges"),
-            ("Soft Edges (preserve anti-aliasing)",    "soft_edges"),
-            ("Fade Out (normalise gradients)",         "fade_out"),
-            ("Dithered (fix dithered transparency)",   "dithered"),
+            ("Generic Binary (PS1 / GBA / Dreamcast / PC)",  "generic_binary"),
+            ("Clean Edges (remove fringing)",                "clean_edges"),
+            ("Soft Edges (preserve anti-aliasing)",          "soft_edges"),
+            ("Fade Out (normalise gradients)",               "fade_out"),
+            ("Dithered (fix dithered transparency)",         "dithered"),
             # Nintendo
-            ("Nintendo 64 (RGBA5551 / CI8)",           "nintendo_64"),
-            ("GameCube / Wii (5-bit, 8 levels)",       "gamecube_wii"),
+            ("Nintendo 64 / DS (RGBA5551 / A3RGB5)",         "nintendo_64"),
+            ("GameCube / Wii / Wii U (5-bit, 8 levels)",     "gamecube_wii"),
+            ("Nintendo 3DS (4-bit RGBA4444, 16 levels)",     "n3ds_rgba4444"),
+            ("GBA Sprite (1-bit palette transparency)",      "gba_sprite"),
             # PlayStation
-            ("PS2 Binary",                             "ps2_binary"),
-            ("PS2 Three-Level",                        "ps2_three_level"),
-            ("PS2 Four-Level",                         "ps2_four_level"),
-            ("PS2 Smooth (preserve gradients)",        "ps2_smooth"),
-            ("PS2 UI (sharp cutoff)",                  "ps2_ui"),
-            ("PSP Binary",                             "psp_binary"),
+            ("PS2 Binary",                                   "ps2_binary"),
+            ("PS2 Three-Level",                              "ps2_three_level"),
+            ("PS2 Four-Level",                               "ps2_four_level"),
+            ("PS2 Smooth (preserve gradients)",              "ps2_smooth"),
+            ("PS2 UI (sharp cutoff)",                        "ps2_ui"),
+            ("PSP Binary",                                   "psp_binary"),
             # Microsoft
-            ("Xbox Standard",                          "xbox_standard"),
+            ("Xbox Standard",                                "xbox_standard"),
+            # Game elements
+            ("Foliage / Leaves / Hair (Sharp Cutout)",       "foliage_sharp"),
+            ("Particle / Smoke / Fire (Preserve Gradients)", "particle_fade"),
             # Custom
-            ("Custom (use sliders below)",             None),
+            ("Custom (use sliders below)",                   None),
         ]
 
         for label, _key in self._preset_items:
@@ -483,15 +540,21 @@ class AlphaFixerPanelQt(QWidget):
         layout.addWidget(group)
     
     def _create_preview_section(self, layout):
-        """Create preview section."""
+        """Create preview section with before/after comparison when available."""
         group = QGroupBox("👁️ Preview")
         group_layout = QVBoxLayout()
         
-        self.preview_label = QLabel("Select files to preview")
-        self.preview_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.preview_label.setMinimumSize(400, 400)
-        self.preview_label.setStyleSheet("border: 2px dashed gray; background-color: #f0f0f0;")
-        group_layout.addWidget(self.preview_label)
+        if _SLIDER_AVAILABLE and ComparisonSliderWidget is not None:
+            self._preview_widget = ComparisonSliderWidget()
+            self._preview_widget.setMinimumSize(250, 200)
+            group_layout.addWidget(self._preview_widget)
+        else:
+            self._preview_widget = None
+            self.preview_label = QLabel("Select files to preview")
+            self.preview_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            self.preview_label.setMinimumSize(250, 200)
+            self.preview_label.setStyleSheet("border: 2px dashed gray; background-color: #f0f0f0;")
+            group_layout.addWidget(self.preview_label)
         
         # Info label
         self.info_label = QLabel("")
@@ -508,7 +571,7 @@ class AlphaFixerPanelQt(QWidget):
             self,
             "Select Images",
             "",
-            "Images (*.png *.jpg *.jpeg *.bmp *.tiff *.tif *.webp *.tga *.dds *.gif);;All Files (*.*)"
+            "Images (*.png *.jpg *.jpeg *.bmp *.tiff *.tif *.webp *.tga *.dds *.gif *.avif *.qoi *.apng *.jfif);;All Files (*.*)"
         )
         
         if files:
@@ -558,15 +621,17 @@ class AlphaFixerPanelQt(QWidget):
         slider_hints = {
             "generic_binary": 30, "clean_edges": 20, "soft_edges": 10,
             "fade_out": 15, "dithered": 40, "nintendo_64": 35,
-            "gamecube_wii": 35, "ps2_binary": 30, "ps2_three_level": 30,
+            "gamecube_wii": 35, "n3ds_rgba4444": 25, "gba_sprite": 30,
+            "ps2_binary": 30, "ps2_three_level": 30,
             "ps2_four_level": 30, "ps2_smooth": 15, "ps2_ui": 50,
             "psp_binary": 30, "xbox_standard": 30,
+            "foliage_sharp": 50, "particle_fade": 5,
         }
         hint = slider_hints.get(self._selected_preset_key or "", 30)
         self.defringe_slider.setValue(hint)
     
     def _preview_first(self):
-        """Preview first selected image."""
+        """Preview first selected image — 'before' side of the comparison slider."""
         if not self.selected_files:
             QMessageBox.warning(self, "No Files", "Please select files first")
             return
@@ -580,7 +645,11 @@ class AlphaFixerPanelQt(QWidget):
             qimage = QImage(data, image.width, image.height, QImage.Format.Format_RGBA8888)
             pixmap = QPixmap.fromImage(qimage)
             
-            self.preview_label.setPixmap(pixmap)
+            if self._preview_widget is not None:
+                self._preview_widget.set_before_image(pixmap)
+                self._preview_widget.set_after_image(pixmap)
+            else:
+                self.preview_label.setPixmap(pixmap)
             self.info_label.setText(f"Preview: {Path(self.selected_files[0]).name}")
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Preview failed: {str(e)}")
@@ -640,6 +709,21 @@ class AlphaFixerPanelQt(QWidget):
             self.cancel_btn.setVisible(False)
         
         if success:
+            # Load the processed result into the 'after' side of the comparison slider
+            if (self._preview_widget is not None and self.selected_files
+                    and self.output_directory):
+                try:
+                    from pathlib import Path as _Path
+                    out_path = _Path(self.output_directory) / _Path(self.selected_files[0]).name
+                    if out_path.exists():
+                        after_img = Image.open(out_path)
+                        after_img.thumbnail((400, 400), Image.Resampling.LANCZOS)
+                        data = after_img.convert("RGBA").tobytes("raw", "RGBA")
+                        qi = QImage(data, after_img.width, after_img.height,
+                                    after_img.width * 4, QImage.Format.Format_RGBA8888)
+                        self._preview_widget.set_after_image(QPixmap.fromImage(qi))
+                except Exception:
+                    pass
             QMessageBox.information(self, "Complete", message)
             self.progress_label.setText("✓ Processing complete")
         else:

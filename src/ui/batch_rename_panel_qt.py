@@ -6,14 +6,15 @@ User interface for batch renaming files with various patterns.
 
 import os
 import logging
+from pathlib import Path
 try:
     from PyQt6.QtWidgets import (
         QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
         QRadioButton, QButtonGroup, QLineEdit, QSpinBox, QCheckBox,
         QTextEdit, QFileDialog, QMessageBox, QProgressBar, QFrame,
-        QScrollArea, QGroupBox
+        QScrollArea, QGroupBox, QSplitter
     )
-    from PyQt6.QtCore import Qt, QThread, pyqtSignal
+    from PyQt6.QtCore import Qt, QThread, pyqtSignal, QTimer
     PYQT_AVAILABLE = True
 except (ImportError, OSError, RuntimeError):
     PYQT_AVAILABLE = False
@@ -156,44 +157,107 @@ class BatchRenamePanelQt(QWidget):
         self.selected_files: List[str] = []
         self.preview_data: List = []
         self.worker_thread = None
+        self.setAcceptDrops(True)  # drag-and-drop files onto the panel
+
+        # Debounce timer for auto-preview (fires 400 ms after last keystroke)
+        if PYQT_AVAILABLE:
+            self._preview_timer = QTimer(self)
+            self._preview_timer.setSingleShot(True)
+            self._preview_timer.setInterval(400)
+            self._preview_timer.timeout.connect(self._generate_preview)
+        else:
+            self._preview_timer = None
         
         self._create_widgets()
+
+    # ── Drag-and-drop support ──────────────────────────────────────────────
+    def dragEnterEvent(self, event) -> None:
+        if event.mimeData().hasUrls():
+            event.acceptProposedAction()
+        else:
+            event.ignore()
+
+    def dropEvent(self, event) -> None:
+        """Accept dropped files into the batch rename queue."""
+        existing = set(self.selected_files)
+        added = []
+        for url in event.mimeData().urls():
+            path = Path(url.toLocalFile())
+            if path.is_file():
+                s = str(path)
+                if s not in existing:
+                    added.append(s)
+                    existing.add(s)
+            elif path.is_dir():
+                for child in sorted(path.iterdir()):
+                    if child.is_file():
+                        s = str(child)
+                        if s not in existing:
+                            added.append(s)
+                            existing.add(s)
+        if added:
+            self.selected_files.extend(added)
+            count = len(self.selected_files)
+            if hasattr(self, 'file_count_label'):
+                self.file_count_label.setText(f"{count} files selected")
+                self.file_count_label.setStyleSheet("color: green; font-weight: bold;")
+            if self._preview_timer is not None:
+                self._preview_timer.start()
+        event.acceptProposedAction()
     
     def _create_widgets(self):
-        """Create the UI widgets."""
+        """Create the UI widgets with left-controls / right-preview QSplitter layout."""
         layout = QVBoxLayout(self)
-        layout.setSpacing(10)
-        layout.setContentsMargins(10, 10, 10, 10)
-        
+        layout.setSpacing(6)
+        layout.setContentsMargins(8, 8, 8, 8)
+
         # Title
         title_label = QLabel("📝 Batch Rename Tool")
-        title_label.setStyleSheet("font-size: 18pt; font-weight: bold;")
+        title_label.setStyleSheet("font-size: 16pt; font-weight: bold;")
         title_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(title_label)
-        
+
         subtitle_label = QLabel("Rename multiple files using patterns, dates, resolution, or custom templates")
-        subtitle_label.setStyleSheet("color: gray; font-size: 11pt;")
+        subtitle_label.setStyleSheet("color: gray; font-size: 10pt;")
         subtitle_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(subtitle_label)
-        
-        # Scroll area for content
-        scroll = QScrollArea()
-        scroll.setWidgetResizable(True)
-        scroll.setFrameShape(QFrame.Shape.NoFrame)
-        
-        container = QWidget()
-        main_layout = QVBoxLayout(container)
-        
-        self._create_file_section(main_layout)
-        self._create_pattern_section(main_layout)
-        self._create_options_section(main_layout)
-        self._create_metadata_section(main_layout)
-        self._create_preview_section(main_layout)
-        self._create_action_buttons(main_layout)
-        
-        main_layout.addStretch()
-        scroll.setWidget(container)
-        layout.addWidget(scroll)
+
+        # ── Main splitter: LEFT = controls, RIGHT = preview ───────────────────
+        splitter = QSplitter(Qt.Orientation.Horizontal)
+        splitter.setChildrenCollapsible(False)
+        layout.addWidget(splitter, stretch=1)
+
+        # ── LEFT: scrollable controls ─────────────────────────────────────────
+        left_scroll = QScrollArea()
+        left_scroll.setWidgetResizable(True)
+        left_scroll.setFrameShape(QFrame.Shape.NoFrame)
+        left_scroll.setMinimumWidth(280)
+        left_scroll.setMaximumWidth(520)
+
+        left_widget = QWidget()
+        left_layout = QVBoxLayout(left_widget)
+        left_layout.setSpacing(5)
+        left_layout.setContentsMargins(2, 2, 4, 2)
+
+        self._create_file_section(left_layout)
+        self._create_pattern_section(left_layout)
+        self._create_options_section(left_layout)
+        self._create_metadata_section(left_layout)
+        self._create_action_buttons(left_layout)
+        left_layout.addStretch()
+
+        left_scroll.setWidget(left_widget)
+        splitter.addWidget(left_scroll)
+
+        # ── RIGHT: rename preview ─────────────────────────────────────────────
+        right_widget = QWidget()
+        right_layout = QVBoxLayout(right_widget)
+        right_layout.setContentsMargins(4, 0, 0, 0)
+        self._create_preview_section(right_layout)
+        splitter.addWidget(right_widget)
+
+        # Controls: 380 px; preview gets the rest
+        splitter.setSizes([380, 400])
     
     def _create_file_section(self, layout):
         """Create file selection section."""
@@ -295,6 +359,7 @@ class BatchRenamePanelQt(QWidget):
         template_layout.addWidget(QLabel("Custom Template:"))
         self.template_entry = QLineEdit()
         self.template_entry.setPlaceholderText("e.g., image_{index}_{date}")
+        self.template_entry.textChanged.connect(self._auto_preview)
         template_layout.addWidget(self.template_entry)
         self._set_tooltip(self.template_entry, 'rename_template')
         group_layout.addLayout(template_layout)
@@ -366,7 +431,7 @@ class BatchRenamePanelQt(QWidget):
         # Preview text
         self.preview_text = QTextEdit()
         self.preview_text.setReadOnly(True)
-        self.preview_text.setMinimumHeight(200)
+        self.preview_text.setMinimumHeight(80)  # right pane stretches to fill
         self.preview_text.setPlaceholderText("Preview will appear here...")
         group_layout.addWidget(self.preview_text)
         self._set_tooltip(self.preview_text, 'rename_preview')
@@ -418,7 +483,7 @@ class BatchRenamePanelQt(QWidget):
             self,
             "Select Images",
             "",
-            "Images (*.png *.jpg *.jpeg *.bmp *.tiff *.tif *.webp *.tga *.dds *.gif);;All Files (*.*)"
+            "Images (*.png *.jpg *.jpeg *.bmp *.tiff *.tif *.webp *.tga *.dds *.gif *.avif *.qoi *.apng *.jfif);;All Files (*.*)"
         )
         
         if files:
@@ -436,7 +501,8 @@ class BatchRenamePanelQt(QWidget):
 
         if directory:
             extensions = {'.png', '.jpg', '.jpeg', '.bmp', '.tiff', '.tif',
-                          '.webp', '.tga', '.gif', '.dds'}
+                          '.webp', '.tga', '.gif', '.dds', '.avif', '.qoi',
+                          '.apng', '.jfif', '.ico', '.icns'}
             files = []
             recursive = hasattr(self, 'recursive_cb') and self.recursive_cb.isChecked()
             try:
@@ -483,10 +549,14 @@ class BatchRenamePanelQt(QWidget):
             return checked_button.property("pattern")
         return RenamePattern.SEQUENTIAL
     
+    def _auto_preview(self):
+        """Restart the debounce timer so preview updates 400 ms after last keystroke."""
+        if self._preview_timer is not None and self.selected_files:
+            self._preview_timer.start()
+
     def _generate_preview(self):
-        """Generate rename preview."""
+        """Generate rename preview (also called automatically on template changes)."""
         if not self.selected_files:
-            QMessageBox.warning(self, "No Files", "Please select files first")
             return
         
         try:

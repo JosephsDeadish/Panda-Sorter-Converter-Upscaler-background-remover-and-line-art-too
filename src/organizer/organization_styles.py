@@ -454,6 +454,362 @@ class CustomStyle(OrganizationStyle):
         return str(Path(*parts))
 
 
+# ── Game-console presets ─────────────────────────────────────────────────────
+# Optimised for the small, compressed texture libraries produced by classic
+# console games.  Each preset:
+#   • Detects the most common map type from the filename suffix / keyword
+#     (_d / diffuse, _n / normal, _s / specular, _e / emissive, _a / alpha)
+#   • Assigns a content category (Characters, Environments, Items, UI, …)
+#   • Keeps a resolution sub-tier so CI/CD pipelines can distinguish LOD layers
+#     common in console ports (e.g. 16px icon sprites vs. 256px character maps)
+
+def _console_map_type(name: str) -> str:
+    """Derive map-type folder from filename suffixes / keywords."""
+    n = name.lower()
+    if any(s in n for s in ('_nrm', '_norm', '_n.', '_n_', 'normal')):
+        return 'Normal'
+    if any(s in n for s in ('_spc', '_spec', '_s.', '_s_', 'specular', 'gloss')):
+        return 'Specular'
+    if any(s in n for s in ('_emi', '_emis', '_e.', '_e_', 'emissive', 'glow')):
+        return 'Emissive'
+    if any(s in n for s in ('_alp', '_a.', '_a_', 'alpha', '_msk', 'mask')):
+        return 'Alpha'
+    # Default → diffuse
+    return 'Diffuse'
+
+
+def _console_content_cat(name: str) -> str:
+    """Map filename keywords → broad content category."""
+    n = name.lower()
+    if any(k in n for k in ('chr', 'char', 'npc', 'player', 'ply', 'face', 'head',
+                              'body', 'skin', 'hair', 'hand', 'arm', 'leg')):
+        return 'Characters'
+    if any(k in n for k in ('wpn', 'weap', 'gun', 'sword', 'blade', 'knife',
+                              'rifle', 'bow', 'item', 'itm')):
+        return 'Items'
+    if any(k in n for k in ('ui', 'hud', 'font', 'icon', 'btn', 'menu', 'cursor',
+                              'button', 'iface', 'interface')):
+        return 'UI'
+    if any(k in n for k in ('fx', 'eff', 'smoke', 'fire', 'spark', 'glow',
+                              'particle', 'decal', 'blood', 'hit')):
+        return 'Effects'
+    if any(k in n for k in ('sky', 'cloud', 'sun', 'moon', 'star', 'bg', 'background')):
+        return 'Sky'
+    # Default → Environments
+    return 'Environments'
+
+
+def _console_res_tier(dims, max_typical: int) -> str:
+    """Return a size-tier folder name.  *max_typical* is the console's normal max."""
+    if dims is None:
+        return 'Unknown'
+    w, h = dims
+    p = max(w, h)
+    if p <= 16:
+        return 'Tiny_16'
+    if p <= 32:
+        return 'Small_32'
+    if p <= 64:
+        return 'Med_64'
+    if p <= 128:
+        return 'Large_128'
+    if p <= 256:
+        return 'XL_256'
+    if p <= 512:
+        return 'XXL_512'
+    return f'Huge_{p}'   # e.g. Huge_1024 — above typical console maximum
+
+
+class PS2Style(OrganizationStyle):
+    """PlayStation 2 texture preset.
+
+    Recommended for PS2 game texture dumps and mod projects.
+    Sorts by content category → map type → resolution tier, reflecting the
+    small (4–256 px) textures typical of PS2 titles.
+    Example: Characters/Diffuse/Med_64/chr_link_body.tga
+    """
+
+    def get_name(self) -> str:
+        return "PlayStation 2"
+
+    def get_description(self) -> str:
+        return (
+            "Optimised for PlayStation 2 texture libraries. "
+            "Sorts by content (Characters, Environments, Items, UI, Effects) → "
+            "map type (Diffuse, Normal, Specular, Alpha) → resolution tier (up to 256 px). "
+            "Example: Characters/Diffuse/Med_64/chr_link_body.tga"
+        )
+
+    def get_target_path(self, texture: TextureInfo) -> str:
+        cat  = _console_content_cat(texture.filename)
+        mtype = _console_map_type(texture.filename)
+        tier  = _console_res_tier(texture.dimensions, 256)
+        return str(Path(cat, mtype, tier, texture.filename))
+
+
+class PSPStyle(OrganizationStyle):
+    """PlayStation Portable texture preset.
+
+    Textures on PSP are even smaller than PS2 (rarely exceed 128×128).
+    Sorts by category → map type, omitting the resolution tier to avoid
+    a proliferation of near-empty folders for tiny icon sprites.
+    Example: Characters/Diffuse/chr_npc_guard_d.gim
+    """
+
+    def get_name(self) -> str:
+        return "PlayStation Portable (PSP)"
+
+    def get_description(self) -> str:
+        return (
+            "Optimised for PSP texture libraries (GIM, TGA, PNG). "
+            "Two-level hierarchy: content category → map type. "
+            "Resolution tier is omitted because PSP textures rarely exceed 128 px. "
+            "Example: Characters/Diffuse/chr_guard_d.gim"
+        )
+
+    def get_target_path(self, texture: TextureInfo) -> str:
+        cat   = _console_content_cat(texture.filename)
+        mtype = _console_map_type(texture.filename)
+        return str(Path(cat, mtype, texture.filename))
+
+
+class GameCubeStyle(OrganizationStyle):
+    """Nintendo GameCube / Wii texture preset.
+
+    GameCube and Wii textures are extracted from TPL containers and span a
+    wider resolution range (4–1024 px) than PS2/PSP.  This preset sorts by
+    category → map type → resolution tier with GC-friendly tier labels.
+    Example: Environments/Diffuse/XL_256/stage_lava_floor_d.png
+    """
+
+    def get_name(self) -> str:
+        return "GameCube / Wii"
+
+    def get_description(self) -> str:
+        return (
+            "Optimised for GameCube and Wii texture libraries (TPL-extracted PNG/TGA). "
+            "Sorts by category → map type → resolution tier (4–1024 px range). "
+            "Example: Environments/Diffuse/XL_256/stage_lava_d.png"
+        )
+
+    def get_target_path(self, texture: TextureInfo) -> str:
+        cat   = _console_content_cat(texture.filename)
+        mtype = _console_map_type(texture.filename)
+        tier  = _console_res_tier(texture.dimensions, 1024)
+        return str(Path(cat, mtype, tier, texture.filename))
+
+
+class N64Style(OrganizationStyle):
+    """Nintendo 64 texture preset.
+
+    N64 textures are notoriously tiny (most are 32×32 or 64×64; 16-bit colour).
+    This preset uses a flat two-level hierarchy (category → filename) to avoid
+    creating dozens of near-empty resolution-tier folders for micro-textures.
+    Example: Environments/tex_field_grass.png
+    """
+
+    def get_name(self) -> str:
+        return "Nintendo 64"
+
+    def get_description(self) -> str:
+        return (
+            "Optimised for N64 texture libraries (PNG extracts from CI4/RGBA16/RGBA32). "
+            "Flat two-level hierarchy: content category → filename. "
+            "Resolution tiers are omitted because N64 textures rarely exceed 64 px. "
+            "Example: Environments/tex_field_grass.png"
+        )
+
+    def get_target_path(self, texture: TextureInfo) -> str:
+        cat = _console_content_cat(texture.filename)
+        return str(Path(cat, texture.filename))
+
+
+# ── Game Texture Content style ─────────────────────────────────────────────
+# Game textures are visually unlike conventional photographs or artwork:
+#   • UV-unwrapped character sheets look like people/creatures "turned into
+#     origami and unfolded" — body parts (eyes, hands, torso) appear as
+#     isolated colour patches laid flat across the image.
+#   • Environment textures are tiled micro-patches: a wall section, a floor
+#     tile, a ceiling corner — each stored as a separate small file.
+#   • Common map types (diffuse, normal, specular, emissive, AO/shadow)
+#     are frequently mixed together in the same directory.
+#
+# This style groups by the *game content role* first, then by map type,
+# so artists and modders can quickly locate "Characters → Heads → Diffuse"
+# versus "Characters → Eyes_Isolated → Diffuse" — handling the "floating
+# eyeball" phenomenon common in PS2/N64/GCN UV sheets.
+
+def _game_map_type(name: str) -> str:
+    """Detect map type (Diffuse, Normal, Specular, Emissive, Alpha, AO, Shadow)."""
+    n = name.lower()
+    if any(s in n for s in ('_nrm', '_norm', '_n.', '_n_', 'normal', 'bump', '_bmp')):
+        return 'Normal'
+    if any(s in n for s in ('_spc', '_spec', '_s.', '_s_', 'specular', 'gloss', '_g.')):
+        return 'Specular'
+    if any(s in n for s in ('_emi', '_emis', '_e.', '_e_', 'emissive', 'glow', '_glow')):
+        return 'Emissive'
+    if any(s in n for s in ('_alp', '_a.', '_a_', 'alpha', '_msk', '_mask', 'opacity')):
+        return 'Alpha'
+    if any(s in n for s in ('_ao', '_occ', 'ambient', 'occlusion', 'shadow', '_shd')):
+        return 'AO_Shadow'
+    if any(s in n for s in ('_rgh', '_rough', 'roughness', '_mtl', '_metallic', 'pbr')):
+        return 'PBR'
+    return 'Diffuse'
+
+
+def _game_body_part(name: str) -> str | None:
+    """Detect isolated body-part UV sheets — the 'floating eyeball' problem.
+
+    In game UV atlases (especially PS2, N64, GameCube) the 3-D model's surface
+    is cut along seams and unfolded flat, so individual body parts become
+    separate image patches.  Eyes, mouths, and hands are almost always stored
+    as completely separate texture files rather than packed into the full-body
+    sheet.  This produces the 'floating eyeball' appearance — a close-up of
+    an eyeball or just the iris/pupil sitting in an otherwise empty image.
+
+    Returns a sub-folder name if the filename clearly refers to a single
+    isolated body part, or *None* if it looks like a full-body UV sheet.
+    """
+    n = name.lower()
+    # Eyes are the most common isolated part in PS2/N64/GCN UV atlases
+    if any(s in n for s in ('eye', '_eye', 'iris', 'pupil', 'eyeball', 'sclera')):
+        return 'Eyes_Isolated'
+    if any(s in n for s in ('mouth', 'teeth', 'lip', 'gum', 'tongue')):
+        return 'Mouth_Isolated'
+    if any(s in n for s in ('ear', 'ear_', '_ear')):
+        return 'Ears_Isolated'
+    if any(s in n for s in ('hand', 'palm', 'finger', 'fist', 'knuckle')):
+        return 'Hands'
+    if any(s in n for s in ('foot', 'feet', 'toe', 'heel', 'shoe', 'boot', 'sole')):
+        return 'Feet'
+    if any(s in n for s in ('hair', 'strand', 'braid', 'ponytail', 'fringe')):
+        return 'Hair'
+    return None
+
+
+def _game_content_role(name: str) -> str:
+    """Map a filename to its broad game-content role folder."""
+    n = name.lower()
+
+    # ── Characters & creatures ──────────────────────────────────────────────
+    # UV atlas sheets (full body or torso) — detected by 'chr', 'ply', 'npc', etc.
+    if any(s in n for s in ('chr_', '_chr', 'char_', 'ply_', 'npc_', 'hero_',
+                              'enemy_', 'mob_', 'boss_', 'player', 'avatar')):
+        return 'Characters/UV_Body'
+    # Individual named body sections
+    if any(s in n for s in ('head_', '_head', 'face_', '_face', 'torso', 'body_',
+                              '_body', 'chest', 'neck', 'shoulder', 'arm_', 'leg_',
+                              'thigh', 'calf', 'wrist', 'ankle')):
+        return 'Characters/UV_Body'
+
+    # ── Weapons & equipment ─────────────────────────────────────────────────
+    if any(s in n for s in ('wpn_', '_wpn', 'weap', 'sword', 'gun_', '_gun',
+                              'rifle', 'pistol', 'knife', 'bow_', '_bow',
+                              'shield', 'axe', 'hammer', 'staff', 'blade')):
+        return 'Weapons'
+
+    # ── Clothing & accessories ──────────────────────────────────────────────
+    if any(s in n for s in ('shirt', 'pants', 'dress', 'coat', 'jacket', 'armor',
+                              'helmet', 'glove', 'belt', 'outfit', 'cloth', 'robe',
+                              'cape', 'hood', 'cloak')):
+        return 'Clothing_Accessories'
+
+    # ── Environment / architecture ──────────────────────────────────────────
+    if any(s in n for s in ('wall', 'floor', 'ceil', 'roof', 'ground', 'terrain',
+                              'tile_', '_tile', 'brick', 'stone', 'wood_', '_wood',
+                              'pillar', 'arch', 'door', 'window', 'fence', 'road',
+                              'stair', 'ramp', 'cliff', 'cave', 'rock', 'dirt',
+                              'grass', 'sand', 'snow', 'mud', 'path', 'street')):
+        return 'Environment'
+
+    # ── Props / objects ─────────────────────────────────────────────────────
+    if any(s in n for s in ('prop_', '_prop', 'obj_', '_obj', 'item_', '_item',
+                              'box', 'crate', 'barrel', 'chest', 'bag', 'cask',
+                              'table', 'chair', 'bed', 'shelf', 'lamp', 'pot',
+                              'vase', 'book', 'sign', 'fence', 'plant', 'bush')):
+        return 'Props'
+
+    # ── Vehicles ────────────────────────────────────────────────────────────
+    if any(s in n for s in ('car_', '_car', 'veh_', '_veh', 'tank', 'plane',
+                              'boat', 'ship', 'bike', 'truck', 'bus', 'train')):
+        return 'Vehicles'
+
+    # ── Sky / background ────────────────────────────────────────────────────
+    if any(s in n for s in ('sky', 'cloud', 'sun', 'moon', 'star', 'bg_', '_bg',
+                              'background', 'skybox', 'horizon')):
+        return 'Sky_Background'
+
+    # ── UI / HUD ────────────────────────────────────────────────────────────
+    if any(s in n for s in ('ui_', '_ui', 'hud', 'icon_', '_icon', 'btn_', '_btn',
+                              'menu', 'cursor', 'font', 'button', 'panel', 'frame')):
+        return 'UI_HUD'
+
+    # ── Effects / particles ─────────────────────────────────────────────────
+    if any(s in n for s in ('fx_', '_fx', 'eff_', '_eff', 'smoke', 'fire', 'spark',
+                              'blood', 'decal', 'splash', 'glow', 'particle')):
+        return 'Effects'
+
+    # ── Animals / wildlife ──────────────────────────────────────────────────
+    if any(s in n for s in ('animal', 'creature', 'monster', 'beast', 'bird',
+                              'fish', 'insect', 'wolf', 'bear', 'deer', 'dog', 'cat')):
+        return 'Creatures'
+
+    return 'Misc'
+
+
+class GameTextureContentStyle(OrganizationStyle):
+    """Game Texture Content — organises by game content role and map type.
+
+    Purpose
+    -------
+    Game textures look very different from everyday photographs.  UV-unwrapped
+    character sheets look like people "turned to origami and unfolded" — body
+    parts (head, torso, hands) become flat rectangles laid out across the image.
+    This style detects those patterns from the *filename* rather than pixels so
+    it works instantly without running AI classification.
+
+    Hierarchy
+    ---------
+    ContentRole / BodyPart(if isolated) / MapType / filename
+
+    Examples
+    --------
+    • chr_link_eye_d.tga       → Characters/UV_Body/Eyes_Isolated/Diffuse/…
+    • chr_link_body_nrm.tga    → Characters/UV_Body/Normal/…
+    • wall_stone_d.dds         → Environment/Diffuse/…
+    • fx_smoke_a.tga           → Effects/Alpha/…
+    • wpn_sword_s.tga          → Weapons/Specular/…
+    """
+
+    def get_name(self) -> str:
+        return "Game Texture Content"
+
+    def get_description(self) -> str:
+        return (
+            "Designed for game texture dumps where textures look like unfolded origami "
+            "(UV-unwrapped body parts, floating eyes, separated limbs). "
+            "Detects content role (Characters, Environment, Weapons, Props, UI, Effects…) "
+            "and map type (Diffuse, Normal, Specular, Emissive, Alpha, AO…) from filename keywords. "
+            "Isolates body-part UV sheets (Eyes, Mouth, Hands, Feet, Hair) into their own sub-folders. "
+            "Hierarchy: ContentRole / BodyPart / MapType / filename. "
+            "Example: Characters/UV_Body/Eyes_Isolated/Diffuse/chr_link_eye_d.tga"
+        )
+
+    def get_target_path(self, texture: TextureInfo) -> str:
+        name  = texture.filename.lower()
+        role  = _game_content_role(name)
+        mtype = _game_map_type(name)
+
+        # Check for isolated body parts within the Characters role
+        if role.startswith('Characters'):
+            part = _game_body_part(name)
+            if part:
+                return str(Path(role, part, mtype, texture.filename))
+            return str(Path(role, mtype, texture.filename))
+
+        return str(Path(role, mtype, texture.filename))
+
+
 # Dictionary of all available organization styles
 # Keys are the internal identifiers used by the UI combos and config files.
 ORGANIZATION_STYLES = {
@@ -466,6 +822,13 @@ ORGANIZATION_STYLES = {
     'minimalist': MinimalistStyle,
     'maximum_detail': MaximumDetailStyle,
     'custom': CustomStyle,
+    # ── Game-console presets ──────────────────────────────────────────────
+    'ps2':      PS2Style,
+    'psp':      PSPStyle,
+    'gamecube': GameCubeStyle,
+    'n64':      N64Style,
+    # ── Game-texture content preset ───────────────────────────────────────
+    'game_texture_content': GameTextureContentStyle,
     # Legacy key aliases so old saved configs still load
     'sims': ByAppearanceStyle,
     'neopets': ByTypeStyle,

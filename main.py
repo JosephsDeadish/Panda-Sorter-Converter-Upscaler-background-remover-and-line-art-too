@@ -226,7 +226,7 @@ try:
     )
     from PyQt6.QtCore import Qt, QTimer, pyqtSignal, QThread, QSize, QByteArray, QObject, QEvent, QPoint
     from PyQt6.QtGui import QAction, QIcon, QFont, QPalette, QColor
-except ImportError as e:
+except (ImportError, OSError) as e:
     _err = str(e)
     print("=" * 70)
     # Distinguish "not installed" from "system libraries missing"
@@ -342,6 +342,12 @@ def _setup_opengl_for_exe() -> None:
     """Configure PyOpenGL env. Safe to call multiple times (idempotent)."""
     if not sys.platform.startswith('win'):
         return
+    # Skip Desktop OpenGL configuration when running headless / CI with the
+    # offscreen Qt platform.  The offscreen backend uses software GL and does
+    # NOT have access to the system's opengl32.dll; forcing AA_UseDesktopOpenGL
+    # in that context causes Qt to call exit(1) on VMs without a GPU.
+    if os.environ.get('QT_QPA_PLATFORM') == 'offscreen':
+        return
     # Force Qt to use native opengl32.dll (desktop GL) NOT ANGLE (Direct3D).
     # ANGLE only supports OpenGL ES — CompatibilityProfile is NOT available via ANGLE.
     # Without this, glShadeModel(GL_SMOOTH) raises GLError(1282) on first initializeGL()
@@ -452,11 +458,18 @@ if PandaWidget2D is None:
 # Import each UI panel independently so one bad import does not disable all tools.
 # Each name is set to None on failure; callers guard with `if PanelClass is not None`.
 def _try_import(module_path: str, class_name: str):
-    """Return the named class from module_path, or None on import/attribute failure."""
+    """Return the named class from module_path, or None on import/attribute failure.
+
+    Catches BaseException (not just Exception) so that modules which call
+    sys.exit() or raise SystemExit during their module-level initialization
+    (e.g. rembg.bg when onnxruntime DLL loading fails on Windows) cannot
+    propagate a SystemExit to main.py's module-level scope and abort the
+    application before it starts.
+    """
     try:
         mod = importlib.import_module(module_path)
         return getattr(mod, class_name)
-    except Exception as _e:
+    except (Exception, SystemExit) as _e:
         logger.warning(f"Optional UI panel {class_name} not available: {_e}", exc_info=True)
         return None
 
@@ -1170,6 +1183,7 @@ class TextureSorterMainWindow(QMainWindow):
         self._achievement_tab_index = -1  # panda_tabs index for the Achievements tab
         self._backpack_merged_panel = None  # Merged Inventory+Widgets QTabWidget (built once)
         self._park_panel = None         # MinigamePanelQt — cached (park destination)
+        self._dungeon_3d_panel = None   # Dungeon3DWidget — cached (dungeon destination)
         self.level_system = None        # UserLevelSystem – XP / levelling
         self.auto_backup = None         # AutoBackupSystem – periodic state backup
         self.unlockables_system = None  # UnlockablesSystem – cursors/themes/outfits
@@ -2254,6 +2268,13 @@ class TextureSorterMainWindow(QMainWindow):
 
             # Save refs
             self._bedroom_widget = bedroom_gl
+            # Restore saved furniture layout if available
+            try:
+                saved_layout = config.get('ui.bedroom_layout', None)
+                if saved_layout and hasattr(bedroom_gl, 'set_layout'):
+                    bedroom_gl.set_layout(saved_layout)
+            except Exception as _le:
+                logger.debug(f"Could not restore bedroom layout: {_le}")
             self._world_widget: 'Optional[QWidget]' = None
             self._home_stack = stack
             self._home_tab_widget = home_container
@@ -3291,16 +3312,18 @@ class TextureSorterMainWindow(QMainWindow):
             QCheckBox::indicator:hover {{
                 border-color: #88c0d0;
             }}
-            /* ── Carved-wood scrollbar ───────────────────────────────────────── */
+            /* ── Bubbly scrollbar ────────────────────────────────────────────── */
             QScrollBar:vertical {{
                 background-color: #0d1720;
                 width: 14px;
                 border-left: 1px solid #2e4057;
+                border-radius: 7px;
             }}
             QScrollBar::handle:vertical {{
                 background-color: #2e4057;
-                border-radius: 0px;
-                min-height: 24px;
+                border-radius: 6px;
+                min-height: 20px;
+                margin: 2px 2px;
             }}
             QScrollBar::handle:vertical:hover {{
                 background-color: #4a6880;
@@ -3312,11 +3335,13 @@ class TextureSorterMainWindow(QMainWindow):
                 background-color: #0d1720;
                 height: 14px;
                 border-top: 1px solid #2e4057;
+                border-radius: 7px;
             }}
             QScrollBar::handle:horizontal {{
                 background-color: #2e4057;
-                border-radius: 0px;
-                min-width: 24px;
+                border-radius: 6px;
+                min-width: 20px;
+                margin: 2px 2px;
             }}
             QScrollBar::handle:horizontal:hover {{
                 background-color: #4a6880;
@@ -3467,8 +3492,8 @@ class TextureSorterMainWindow(QMainWindow):
             QCheckBox {{ color: #f8f8f2; spacing: 6px; }}
             QCheckBox::indicator {{ width: 14px; height: 14px; border: 2px solid #8b0000; border-radius: 2px; background: #2a0a30; }}
             QCheckBox::indicator:checked {{ background: #8b0000; border-color: #cc0022; }}
-            QScrollBar:vertical {{ background-color: #22042a; width: 12px; }}
-            QScrollBar::handle:vertical {{ background-color: #8b0000; border-radius: 6px; }}
+            QScrollBar:vertical {{ background-color: #22042a; width: 12px; border-radius: 6px; }}
+            QScrollBar::handle:vertical {{ background-color: #8b0000; border-radius: 6px; margin: 2px 2px; }}
             QScrollBar::handle:vertical:hover {{ background-color: #cc0022; }}
             QSlider::groove:horizontal {{ height: 6px; background: #2a0a30; border: 1px solid #8b0000; border-radius: 3px; }}
             QSlider::handle:horizontal {{ background: #8b0000; border: 2px solid #cc0022; width: 16px; height: 16px; border-radius: 8px; margin: -5px 0; }}
@@ -3499,8 +3524,8 @@ class TextureSorterMainWindow(QMainWindow):
             QProgressBar::chunk {{ background-color: {accent}; }}
             QFrame {{ background-color: #073642; border: 1px solid #073642; border-radius: 4px; }}
             QTextEdit {{ background-color: #073642; color: #839496; border: 1px solid #073642; }}
-            QScrollBar:vertical {{ background-color: #073642; width: 12px; }}
-            QScrollBar::handle:vertical {{ background-color: #586e75; border-radius: 6px; }}
+            QScrollBar:vertical {{ background-color: #073642; width: 12px; border-radius: 6px; }}
+            QScrollBar::handle:vertical {{ background-color: #586e75; border-radius: 6px; margin: 2px 2px; }}
             QDockWidget {{ color: #839496; titlebar-close-icon: none; }}
             QDockWidget::title {{ background-color: #073642; padding: 4px; }}
             """
@@ -3525,8 +3550,8 @@ class TextureSorterMainWindow(QMainWindow):
             QProgressBar::chunk {{ background-color: {accent}; }}
             QFrame {{ background-color: #1e381e; border: 1px solid #2d5a2d; border-radius: 4px; }}
             QTextEdit {{ background-color: #1a2e1a; color: #c8e6c9; border: 1px solid #2d5a2d; }}
-            QScrollBar:vertical {{ background-color: #1e381e; width: 12px; }}
-            QScrollBar::handle:vertical {{ background-color: #4a7a4a; border-radius: 6px; }}
+            QScrollBar:vertical {{ background-color: #1e381e; width: 12px; border-radius: 6px; }}
+            QScrollBar::handle:vertical {{ background-color: #4a7a4a; border-radius: 6px; margin: 2px 2px; }}
             """
         elif theme in ('ocean', 'ocean_blue'):
             # 🌊 Ocean — deep-sea blues, coral accents, wave-styled borders
@@ -3560,8 +3585,8 @@ class TextureSorterMainWindow(QMainWindow):
             QCheckBox {{ color: #b3e5fc; spacing: 6px; }}
             QCheckBox::indicator {{ width: 14px; height: 14px; border: 2px solid #00b4d8; border-radius: 7px; background: #052040; }}
             QCheckBox::indicator:checked {{ background: #00b4d8; border-color: #00e5ff; }}
-            QScrollBar:vertical {{ background-color: #031426; width: 12px; }}
-            QScrollBar::handle:vertical {{ background-color: #00b4d8; border-radius: 6px; }}
+            QScrollBar:vertical {{ background-color: #031426; width: 12px; border-radius: 6px; }}
+            QScrollBar::handle:vertical {{ background-color: #00b4d8; border-radius: 6px; margin: 2px 2px; }}
             QScrollBar::handle:vertical:hover {{ background-color: #00e5ff; }}
             QSlider::groove:horizontal {{ height: 6px; background: #052040; border: 1px solid #00b4d8; border-radius: 3px; }}
             QSlider::handle:horizontal {{ background: #00b4d8; border: 2px solid #00e5ff; width: 16px; height: 16px; border-radius: 8px; margin: -5px 0; }}
@@ -3592,8 +3617,8 @@ class TextureSorterMainWindow(QMainWindow):
             QProgressBar::chunk {{ background-color: {accent}; }}
             QFrame {{ background-color: #321e0f; border: 1px solid #5a3520; border-radius: 4px; }}
             QTextEdit {{ background-color: #2a1a0e; color: #f5cba7; border: 1px solid #5a3520; }}
-            QScrollBar:vertical {{ background-color: #321e0f; width: 12px; }}
-            QScrollBar::handle:vertical {{ background-color: #8a5030; border-radius: 6px; }}
+            QScrollBar:vertical {{ background-color: #321e0f; width: 12px; border-radius: 6px; }}
+            QScrollBar::handle:vertical {{ background-color: #8a5030; border-radius: 6px; margin: 2px 2px; }}
             """
         elif theme in ('cyberpunk',):
             stylesheet = f"""
@@ -3616,8 +3641,8 @@ class TextureSorterMainWindow(QMainWindow):
             QProgressBar::chunk {{ background-color: {accent}; }}
             QFrame {{ background-color: #0d0d1a; border: 1px solid #00ffcc; border-radius: 2px; }}
             QTextEdit {{ background-color: #0d0d1a; color: #00ffcc; border: 1px solid #00ffcc; font-family: 'Courier New', monospace; }}
-            QScrollBar:vertical {{ background-color: #0d0d1a; width: 12px; }}
-            QScrollBar::handle:vertical {{ background-color: #00ffcc; border-radius: 2px; }}
+            QScrollBar:vertical {{ background-color: #0d0d1a; width: 12px; border-radius: 6px; }}
+            QScrollBar::handle:vertical {{ background-color: #00ffcc; border-radius: 6px; margin: 2px 2px; }}
             """
         elif theme in ('gore',):
             # 💀 Gore — blood-soaked, dripping, organ-coloured UI with click splatter
@@ -3687,8 +3712,8 @@ class TextureSorterMainWindow(QMainWindow):
             QCheckBox {{ color: #ffaaaa; spacing: 6px; }}
             QCheckBox::indicator {{ width: 14px; height: 14px; border: 3px solid #8b0000; border-radius: 2px; background: #1a0000; }}
             QCheckBox::indicator:checked {{ background: #8b0000; border-color: #ff0000; }}
-            QScrollBar:vertical {{ background-color: #140000; width: 12px; }}
-            QScrollBar::handle:vertical {{ background-color: #8b0000; border-radius: 0px; }}
+            QScrollBar:vertical {{ background-color: #140000; width: 12px; border-radius: 6px; }}
+            QScrollBar::handle:vertical {{ background-color: #8b0000; border-radius: 6px; margin: 2px 2px; }}
             QScrollBar::handle:vertical:hover {{ background-color: #cc0000; }}
             QSlider::groove:horizontal {{ height: 6px; background: #1a0000; border: 2px solid #8b0000; border-radius: 2px; }}
             QSlider::handle:horizontal {{ background: #8b0000; border: 2px solid #cc0000; width: 16px; height: 16px; border-radius: 2px; margin: -5px 0; }}
@@ -3768,8 +3793,8 @@ class TextureSorterMainWindow(QMainWindow):
             QCheckBox {{ color: #c0b0d0; spacing: 6px; }}
             QCheckBox::indicator {{ width: 14px; height: 14px; border: 2px solid #4a2060; border-radius: 0px; background: #0a000f; }}
             QCheckBox::indicator:checked {{ background: #4a2060; border-color: #8844aa; }}
-            QScrollBar:vertical {{ background-color: #050005; width: 12px; }}
-            QScrollBar::handle:vertical {{ background-color: #4a2060; border-radius: 0px; }}
+            QScrollBar:vertical {{ background-color: #050005; width: 12px; border-radius: 6px; }}
+            QScrollBar::handle:vertical {{ background-color: #4a2060; border-radius: 6px; margin: 2px 2px; }}
             QScrollBar::handle:vertical:hover {{ background-color: #6a3090; }}
             QSlider::groove:horizontal {{ height: 6px; background: #0a000f; border: 1px solid #4a2060; border-radius: 0px; }}
             QSlider::handle:horizontal {{ background: #4a2060; border: 2px solid #8844aa; width: 16px; height: 16px; border-radius: 0px; margin: -5px 0; }}
@@ -3841,8 +3866,8 @@ class TextureSorterMainWindow(QMainWindow):
             QCheckBox {{ color: #e8c0e8; spacing: 6px; }}
             QCheckBox::indicator {{ width: 14px; height: 14px; border: 2px solid #7a0030; border-radius: 2px; background: #12001e; }}
             QCheckBox::indicator:checked {{ background: #7a0030; border-color: #cc0044; }}
-            QScrollBar:vertical {{ background-color: #0d001a; width: 12px; }}
-            QScrollBar::handle:vertical {{ background-color: #7a0030; border-radius: 3px; }}
+            QScrollBar:vertical {{ background-color: #0d001a; width: 12px; border-radius: 6px; }}
+            QScrollBar::handle:vertical {{ background-color: #7a0030; border-radius: 6px; margin: 2px 2px; }}
             QScrollBar::handle:vertical:hover {{ background-color: #cc0044; }}
             QSlider::groove:horizontal {{ height: 6px; background: #12001e; border: 1px solid #7a0030; border-radius: 3px; }}
             QSlider::handle:horizontal {{ background: #7a0030; border: 2px solid #cc0044; width: 16px; height: 16px; border-radius: 3px; margin: -5px 0; }}
@@ -4029,6 +4054,37 @@ class TextureSorterMainWindow(QMainWindow):
                 background-color: #1e1e1e;
                 color: #ffffff;
                 border: 1px solid #333333;
+            }}
+            QScrollBar:vertical {{
+                background-color: #1a1a1a;
+                width: 14px;
+                border-radius: 7px;
+            }}
+            QScrollBar::handle:vertical {{
+                background-color: #555555;
+                border-radius: 6px;
+                min-height: 20px;
+                margin: 2px 2px;
+            }}
+            QScrollBar::handle:vertical:hover {{
+                background-color: {hover_color.name()};
+            }}
+            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {{
+                height: 0px;
+            }}
+            QScrollBar:horizontal {{
+                background-color: #1a1a1a;
+                height: 14px;
+                border-radius: 7px;
+            }}
+            QScrollBar::handle:horizontal {{
+                background-color: #555555;
+                border-radius: 6px;
+                min-width: 20px;
+                margin: 2px 2px;
+            }}
+            QScrollBar::handle:horizontal:hover {{
+                background-color: {hover_color.name()};
             }}
             """
         # ── Common layout-fix overrides to prevent text clipping across themes ──
@@ -5045,6 +5101,7 @@ class TextureSorterMainWindow(QMainWindow):
     # Panda interaction behavior tick (called at ~30 Hz by QTimer)
     # ------------------------------------------------------------------
     _INTERACTION_TICK_DT: float = 0.033  # seconds at 30 Hz
+    _WELLBEING_DECAY_TICKS: int = 1800   # every ~60 s at 30 Hz tick
 
     def _tick_panda_interaction(self) -> None:
         """Advance PandaInteractionBehavior AI by one frame."""
@@ -5055,6 +5112,17 @@ class TextureSorterMainWindow(QMainWindow):
         except Exception as _e:
             logger.debug(f"Panda interaction tick failed: {_e}")
 
+        # Wellbeing decay — runs once per ~60 seconds
+        try:
+            if self.panda_stats is not None:
+                _c = getattr(self, '_wellbeing_tick_counter', 0) + 1
+                self._wellbeing_tick_counter = _c
+                if _c >= self._WELLBEING_DECAY_TICKS:
+                    self._wellbeing_tick_counter = 0
+                    self.panda_stats.tick_wellbeing(60.0)
+        except Exception:
+            pass
+
         # Update panda mood label in status bar (every tick is fine — it's a cheap QLabel.setText)
         try:
             if self._panda_mood_label and self.panda_widget:
@@ -5063,7 +5131,31 @@ class TextureSorterMainWindow(QMainWindow):
                 sub = self.panda_widget.get_idle_sub_state() if hasattr(self.panda_widget, 'get_idle_sub_state') else ''
                 display_state = sub if sub else state
                 emoji = _PANDA_STATE_EMOJI.get(display_state, _PANDA_STATE_EMOJI.get(state, '🐼'))
-                label_text = f"{emoji} {display_state.replace('_', ' ')}"
+                # Append wellbeing indicators when stats available
+                stats = getattr(self, 'panda_stats', None)
+                wellbeing_str = ''
+                if stats is not None:
+                    hun = getattr(stats, 'hunger', None)
+                    hap = getattr(stats, 'happiness', None)
+                    if hun is not None and hap is not None:
+                        hun_icon  = '🍎' if hun > 60 else ('🍽️' if hun > 20 else '😫')
+                        hap_icon  = '😄' if hap > 60 else ('😐' if hap > 30 else '😢')
+                        wellbeing_str = f"  {hun_icon}{hun}  {hap_icon}{hap}"
+                # Low-wellbeing warnings — show once per threshold crossing
+                if stats is not None:
+                    hun = getattr(stats, 'hunger', 100)
+                    hap = getattr(stats, 'happiness', 100)
+                    _prev_warn = getattr(self, '_wellbeing_warn_state', (True, True))
+                    was_fed    = _prev_warn[0]
+                    was_happy  = _prev_warn[1]
+                    is_fed     = hun > 20
+                    is_happy   = hap > 20
+                    if was_fed and not is_fed:
+                        self.statusBar().showMessage("🍽️ Panda is very hungry! Feed them something!", 8000)
+                    if was_happy and not is_happy:
+                        self.statusBar().showMessage("😢 Panda is very sad! Give them some attention!", 8000)
+                    self._wellbeing_warn_state = (is_fed, is_happy)
+                label_text = f"{emoji} {display_state.replace('_', ' ')}{wellbeing_str}"
                 if self._panda_mood_label.text() != label_text:
                     self._panda_mood_label.setText(label_text)
         except Exception:
@@ -5715,6 +5807,13 @@ class TextureSorterMainWindow(QMainWindow):
             except Exception:
                 pass
 
+            # Update wellbeing — petting raises happiness
+            try:
+                if self.panda_stats:
+                    self.panda_stats.on_petted()
+            except Exception:
+                pass
+
         except Exception as e:
             logger.error(f"Error handling panda click: {e}", exc_info=True)
     
@@ -5727,7 +5826,11 @@ class TextureSorterMainWindow(QMainWindow):
                     self.currency_system.earn_money(coins, f'panda_feed_{item_id}')
                     self._update_coin_display()
             if self.panda_stats:
-                self.panda_stats.increment_feeds()
+                # Use on_fed() to restore hunger and boost happiness; also calls increment_feeds()
+                if hasattr(self.panda_stats, 'on_fed'):
+                    self.panda_stats.on_fed(hunger_restore=20, happiness_boost=10)
+                else:
+                    self.panda_stats.increment_feeds()
             if self.panda_mood_system:
                 self.panda_mood_system.on_user_interaction('feed')
         except Exception as _e:
@@ -5744,6 +5847,27 @@ class TextureSorterMainWindow(QMainWindow):
                     self.statusBar().showMessage(f"⏰ +{coins} Bamboo Bucks for playing for an hour! 🐼", 5000)
         except Exception as _e:
             logger.debug(f"Session hour coin award: {_e}")
+
+    def _on_dungeon_coins_earned(self, coins: int) -> None:
+        """Credit coins dropped by dungeon enemies to the currency system."""
+        try:
+            if self.currency_system and coins > 0:
+                self.currency_system.earn_money(coins, 'dungeon_kill')
+                self._update_coin_display()
+        except Exception as _e:
+            logger.debug(f"Dungeon coins earned: {_e}")
+
+    def _on_dungeon_enemy_slain(self, enemy_type: str) -> None:
+        """Update panda stats and quest progress when a dungeon enemy is slain."""
+        try:
+            if self.panda_stats:
+                stats = self.panda_stats
+                if hasattr(stats, 'monsters_slain'):
+                    stats.monsters_slain += 1
+            if self.quest_system:
+                self.quest_system.update_quest_progress('dungeon_adventurer', 1)
+        except Exception as _e:
+            logger.debug(f"Dungeon enemy slain: {_e}")
 
     def _on_panda_gl_failed(self, error_msg: str):
         """
@@ -6547,10 +6671,95 @@ class TextureSorterMainWindow(QMainWindow):
                 self._on_otter_clicked()
             elif destination == 'park':
                 self._on_go_to_park()
+            elif destination == 'dungeon':
+                self._on_go_to_dungeon()
             elif destination == 'home':
                 self._go_back_to_bedroom()
         except Exception as _e:
             logger.debug(f"_on_world_destination_selected({destination}): {_e}")
+
+    def _on_go_to_dungeon(self) -> None:
+        """Drive the panda to the dungeon: play a car-travel animation then show the 3-D dungeon."""
+        try:
+            # Show travel animation first, then switch to 3-D dungeon when complete
+            from ui.qt_travel_animation import TravelAnimationWidget, TravelScene, SceneType
+            from features.travel_system import TravelSystem
+
+            dungeon_scenes = [
+                TravelScene(
+                    scene_type=SceneType.GET_IN_CAR,
+                    sky_color="#1a1a2a", ground_color="#2a2a1a",
+                    road_color="#555555", detail_emoji="🌑",
+                    description="🐼 Panda gets in the car…",
+                    duration_ms=1500,
+                ),
+                TravelScene(
+                    scene_type=SceneType.DRIVING,
+                    sky_color="#0d0d1a", ground_color="#1a1a0d",
+                    road_color="#444444", detail_emoji="🌲",
+                    description="🚗 Driving to the dungeon…",
+                    duration_ms=2500,
+                ),
+                TravelScene(
+                    scene_type=SceneType.ARRIVE,
+                    sky_color="#0a0505", ground_color="#1a0a0a",
+                    road_color="#333333", detail_emoji="🏰",
+                    description="⚔️ Arriving at the dungeon!",
+                    duration_ms=1800,
+                ),
+            ]
+            _ts = getattr(self, 'travel_system', None) or TravelSystem()
+            travel_anim = TravelAnimationWidget(scenes=dungeon_scenes, travel_system=_ts)
+            self._show_home_sub_panel(travel_anim, '🚗 Driving to Dungeon…')
+            self.statusBar().showMessage("🚗 Panda is driving to the dungeon…", 4000)
+            if self.panda_widget:
+                self.panda_widget.set_animation_state('walking')
+
+            def _enter_dungeon():
+                try:
+                    if self._dungeon_3d_panel is None:
+                        from ui.dungeon_3d_widget import Dungeon3DWidget
+                        from features.integrated_dungeon import IntegratedDungeon
+                        dungeon = self.integrated_dungeon or IntegratedDungeon(
+                            level_system=getattr(self, 'level_system', None),
+                            currency_system=getattr(self, 'currency_system', None),
+                        )
+                        self._dungeon_3d_panel = Dungeon3DWidget(
+                            dungeon=dungeon, tooltip_manager=self.tooltip_manager
+                        )
+                        # Wire coin drops from dungeon kills to the currency system
+                        if hasattr(self._dungeon_3d_panel, 'coins_earned'):
+                            self._dungeon_3d_panel.coins_earned.connect(
+                                self._on_dungeon_coins_earned
+                            )
+                        if hasattr(self._dungeon_3d_panel, 'enemy_slain'):
+                            self._dungeon_3d_panel.enemy_slain.connect(
+                                self._on_dungeon_enemy_slain
+                            )
+                        # NOT added to _home_stack_owned — persistent panel
+                    self._show_home_sub_panel(self._dungeon_3d_panel, '⚔️ Dungeon Adventure')
+                    self.statusBar().showMessage(
+                        "⚔️ Dungeon! WASD: move | F/LMB: melee | R/RMB: power | M: magic | Space: jump | E: interact", 8000
+                    )
+                    if self.panda_widget:
+                        self.panda_widget.set_animation_state('idle')
+                except Exception as _de:
+                    logger.warning(f"_enter_dungeon: {_de}")
+                    lbl = QLabel(
+                        "⚔️ Dungeon Adventure\n\n"
+                        "3-D dungeon requires PyOpenGL.\n\n"
+                        "Install:  pip install PyOpenGL PyOpenGL_accelerate\n\n"
+                        "The 2-D dungeon view is on the ⚔️ Adventure tab."
+                    )
+                    lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
+                    lbl.setWordWrap(True)
+                    lbl.setStyleSheet("background:#12090a;color:#aaaaaa;font-size:12px;padding:20px;")
+                    self._show_home_sub_panel(lbl, '⚔️ Dungeon Adventure')
+
+            travel_anim.animation_complete.connect(_enter_dungeon)
+            travel_anim.start_animation()
+        except Exception as _e:
+            logger.warning(f"_on_go_to_dungeon: {_e}")
 
     def _on_go_to_park(self) -> None:
         """Show the park sub-panel (minigames / free play area) — cached like shop."""
@@ -6646,8 +6855,9 @@ class TextureSorterMainWindow(QMainWindow):
             'weapons_rack':'⚔️ Weapons',
             'toy_box':     '🧸 Toys',
             'fridge':      '🍎 Food',
-            'trophy_stand':'🏆 Achievements',
-            'backpack':    '🎒 Inventory & Items',
+            'trophy_stand': '🏆 Achievements',
+            'backpack':     '🎒 Inventory & Items',
+            'computer_desk':'💻 Tools & Utilities',
         }
         sub_title = _TITLES.get(furniture_id, furniture_id.replace('_', ' ').title())
 
@@ -6748,6 +6958,24 @@ class TextureSorterMainWindow(QMainWindow):
                 except Exception as _e2:
                     logger.debug(f"Backpack panel open: {_e2}")
             self.statusBar().showMessage("🎒 Panda is walking to the backpack…", 3000)
+
+        elif furniture_id == 'computer_desk':
+            def _open_panel():
+                try:
+                    # Switch to the main tools tab if available
+                    main_tabs = getattr(self, '_main_tabs', None) or getattr(self, 'tab_widget', None)
+                    if main_tabs is not None:
+                        main_tabs.setCurrentIndex(0)
+                        self._show_home_sub_panel(None, '💻 Tools & Utilities')
+                    else:
+                        label = QLabel("💻 Tools & Utilities\n\nOpen the Tools tab to access image processing tools.")
+                        label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+                        label.setWordWrap(True)
+                        self._home_stack_owned.append(label)
+                        self._show_home_sub_panel(label, '💻 Tools & Utilities')
+                except Exception as _e2:
+                    logger.debug(f"Computer desk panel open: {_e2}")
+            self.statusBar().showMessage("💻 Panda is sitting at the computer…", 3000)
 
         else:
             # All other furniture → show filtered Inventory panel
@@ -7309,6 +7537,14 @@ class TextureSorterMainWindow(QMainWindow):
             logger.info("Settings saved on exit")
         except Exception as e:
             logger.error(f"Error saving settings on exit: {e}", exc_info=True)
+
+        # Save bedroom furniture layout
+        try:
+            if hasattr(self, '_bedroom_widget') and self._bedroom_widget and hasattr(self._bedroom_widget, 'get_layout'):
+                config.set('ui.bedroom_layout', self._bedroom_widget.get_layout())
+                logger.info("Bedroom layout saved on exit")
+        except Exception as e:
+            logger.warning(f"Could not save bedroom layout: {e}")
         
         if self.worker and self.worker.isRunning():
             reply = QMessageBox.question(

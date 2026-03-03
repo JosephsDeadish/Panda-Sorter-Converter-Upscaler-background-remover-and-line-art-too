@@ -5,6 +5,7 @@ Provides UI for converting images to line art and stencils
 
 
 from __future__ import annotations
+import json
 import logging
 from pathlib import Path
 from typing import List, Optional
@@ -12,13 +13,14 @@ from typing import List, Optional
 try:
     from ui import IMAGE_EXTENSIONS
 except ImportError:
-    IMAGE_EXTENSIONS = frozenset({'.png', '.jpg', '.jpeg', '.bmp', '.tiff', '.tif', '.webp', '.dds', '.tga', '.gif'})
+    IMAGE_EXTENSIONS = frozenset({'.png', '.jpg', '.jpeg', '.bmp', '.tiff', '.tif', '.webp', '.dds', '.tga', '.gif', '.avif', '.qoi', '.apng', '.jfif', '.ico', '.icns'})
 try:
     from PyQt6.QtWidgets import (
         QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
         QFileDialog, QMessageBox, QProgressBar, QComboBox,
         QSlider, QCheckBox, QSpinBox, QDoubleSpinBox, QGroupBox,
-        QScrollArea, QFrame, QTextEdit, QColorDialog, QSplitter
+        QScrollArea, QFrame, QTextEdit, QColorDialog, QSplitter,
+        QInputDialog
     )
     from PyQt6.QtCore import Qt, QThread, pyqtSignal, QTimer
     from PyQt6.QtGui import QPixmap, QImage, QColor
@@ -76,6 +78,7 @@ except (ImportError, OSError, RuntimeError):
     QDoubleSpinBox = object
     QFileDialog = object
     QHBoxLayout = object
+    QInputDialog = object
     QLabel = object
     QMessageBox = object
     QProgressBar = object
@@ -392,8 +395,79 @@ LINEART_PRESETS = {
         "edge_low": 50, "edge_high": 150, "edge_aperture": 3,
         "adaptive_block": 11, "adaptive_c": 2.0, "adaptive_method": "gaussian",
     },
+    # ── Game texture presets ───────────────────────────────────────────────
+    "🎮 PS2 / PS1 Texture Edges": {
+        "desc": "Extracts outlines from PlayStation 1 / 2 textures. "
+                "PS2 textures are small (64–256 px), heavily compressed, and often noisy — "
+                "adaptive threshold with moderate denoising recovers clean shape edges "
+                "from palette-banded colour regions typical of DXT/TIM compression.",
+        "mode": "adaptive", "threshold": 120, "auto_threshold": True,
+        "background": "transparent", "invert": False, "remove_midtones": True,
+        "midtone_threshold": 195, "contrast": 2.0, "sharpen": True,
+        "sharpen_amount": 1.8, "morphology": "close", "morph_iter": 1,
+        "kernel": 3, "denoise": True, "denoise_size": 3,
+        "smooth_lines": False, "smooth_amount": 1.0,
+        "edge_low": 40, "edge_high": 120, "edge_aperture": 3,
+        "adaptive_block": 9, "adaptive_c": 3.0, "adaptive_method": "gaussian",
+    },
+    "🎮 N64 / Origami Flat Textures": {
+        "desc": "Designed for Nintendo 64 UV-unwrap textures which look like "
+                "flattened origami — objects and people folded into flat layouts. "
+                "Low threshold + high contrast separates the hard colour bands of "
+                "N64's 4-bit/8-bit palette maps without picking up JPEG artefacts.",
+        "mode": "threshold", "threshold": 108, "auto_threshold": False,
+        "background": "transparent", "invert": False, "remove_midtones": True,
+        "midtone_threshold": 175, "contrast": 2.4, "sharpen": True,
+        "sharpen_amount": 2.0, "morphology": "erode", "morph_iter": 1,
+        "kernel": 3, "denoise": True, "denoise_size": 2,
+        "smooth_lines": False, "smooth_amount": 1.0,
+        "edge_low": 30, "edge_high": 90, "edge_aperture": 3,
+        "adaptive_block": 7, "adaptive_c": 2.0, "adaptive_method": "gaussian",
+    },
+    "🎮 GameCube / Wii Diffuse Edges": {
+        "desc": "Extracts clean outlines from GameCube and Wii diffuse maps. "
+                "GCN textures are larger than N64/PS2 (up to 512 px) and use "
+                "S3TC/CMPR compression — Canny edge detection with a medium aperture "
+                "finds real shape boundaries while ignoring block artefacts.",
+        "mode": "edge_detect", "threshold": 130, "auto_threshold": False,
+        "background": "transparent", "invert": False, "remove_midtones": True,
+        "midtone_threshold": 200, "contrast": 1.8, "sharpen": True,
+        "sharpen_amount": 1.6, "morphology": "close", "morph_iter": 1,
+        "kernel": 3, "denoise": True, "denoise_size": 2,
+        "smooth_lines": False, "smooth_amount": 1.0,
+        "edge_low": 45, "edge_high": 130, "edge_aperture": 5,
+        "adaptive_block": 11, "adaptive_c": 2.5, "adaptive_method": "gaussian",
+    },
+    "🎮 PSP Sprite / UI Lines": {
+        "desc": "For PSP sprites and UI elements (GIM format, up to 128×128). "
+                "PSP uses 4-bit CLUT palettes producing very sharp colour boundaries. "
+                "Pure-black threshold at 115 picks the abrupt palette edges without "
+                "introducing halftone noise from the low-resolution source art.",
+        "mode": "pure_black", "threshold": 115, "auto_threshold": False,
+        "background": "transparent", "invert": False, "remove_midtones": True,
+        "midtone_threshold": 180, "contrast": 2.2, "sharpen": True,
+        "sharpen_amount": 1.5, "morphology": "close", "morph_iter": 1,
+        "kernel": 3, "denoise": True, "denoise_size": 2,
+        "smooth_lines": False, "smooth_amount": 1.0,
+        "edge_low": 35, "edge_high": 100, "edge_aperture": 3,
+        "adaptive_block": 9, "adaptive_c": 2.0, "adaptive_method": "gaussian",
+    },
 }
 
+# Path where user-defined custom lineart presets are stored.
+# Stored as JSON next to the source file so they persist between sessions.
+_USER_PRESETS_PATH = Path(__file__).parent / 'lineart_user_presets.json'
+
+# Morphology display label → internal key (and reverse mapping).
+# Both are used in _create_settings_section (display) and _collect_current_settings (reverse).
+_MORPHOLOGY_INTERNAL_TO_DISPLAY: dict = {
+    "none":   "None",
+    "close":  "Close (fill gaps)",
+    "open":   "Open (remove noise)",
+    "dilate": "Dilate (thicken)",
+    "erode":  "Erode (thin)",
+}
+_MORPHOLOGY_DISPLAY_TO_INTERNAL: dict = {v: k for k, v in _MORPHOLOGY_INTERNAL_TO_DISPLAY.items()}
 
 
 class PreviewWorker(QThread):
@@ -509,6 +583,11 @@ class _FormatConversionWorker(QThread):
                 out_name = f"{out_stem}.{self.out_ext}"
                 out_path = self.output_dir / out_name
 
+                # Guard: never overwrite the source file
+                if out_path.resolve() == src.resolve():
+                    out_name = f"{out_stem}_lineart.{self.out_ext}"
+                    out_path = self.output_dir / out_name
+
                 if self.skip_existing and out_path.exists():
                     skipped += 1
                     continue
@@ -541,6 +620,7 @@ class _FormatConversionWorker(QThread):
             parts = [f"Converted {done} image{'s' if done != 1 else ''}"]
             if skipped:
                 parts.append(f"{skipped} skipped (already existed)")
+            self.progress.emit(len(self.files), len(self.files), "Done")
             self.finished.emit(True, ", ".join(parts) + " successfully", done)
         except Exception as e:
             logger.error(f"Batch conversion failed: {e}")
@@ -562,6 +642,7 @@ class LineArtConverterPanelQt(QWidget):
         self.selected_files: List[str] = []
         self.preview_worker = None
         self.conversion_worker = None
+        self.setAcceptDrops(True)  # drag-and-drop image files directly onto panel
         
         # Track whether widgets have been fully initialized
         self._widgets_initialized = False
@@ -578,6 +659,43 @@ class LineArtConverterPanelQt(QWidget):
         
         # Now apply the default preset (widgets are guaranteed to exist)
         self._on_preset_changed(self.preset_combo.currentText())
+
+    # ── Drag-and-drop support ──────────────────────────────────────────────
+    def dragEnterEvent(self, event) -> None:
+        if event.mimeData().hasUrls():
+            event.acceptProposedAction()
+        else:
+            event.ignore()
+
+    def dropEvent(self, event) -> None:
+        """Accept dropped image files into the lineart conversion queue."""
+        _EXTS = {'.png', '.jpg', '.jpeg', '.bmp', '.tiff', '.tif', '.webp'}
+        existing = set(self.selected_files)
+        added = []
+        for url in event.mimeData().urls():
+            path = Path(url.toLocalFile())
+            if path.is_file() and path.suffix.lower() in _EXTS:
+                s = str(path)
+                if s not in existing:
+                    added.append(s)
+                    existing.add(s)
+            elif path.is_dir():
+                for child in path.iterdir():
+                    if child.suffix.lower() in _EXTS:
+                        s = str(child)
+                        if s not in existing:
+                            added.append(s)
+                            existing.add(s)
+        if added:
+            self.selected_files.extend(added)
+            if not self.selected_file:
+                self.selected_file = self.selected_files[0]
+            count = len(self.selected_files)
+            if hasattr(self, 'file_label'):
+                self.file_label.setText(f"{count} file{'s' if count != 1 else ''} selected")
+            if len(added) == 1 and hasattr(self, 'preview_timer'):
+                self.preview_timer.start(300)
+        event.acceptProposedAction()
     
     def _create_widgets(self):
         """Create the UI widgets."""
@@ -650,6 +768,12 @@ class LineArtConverterPanelQt(QWidget):
         self._set_tooltip(add_folder_btn, "Add all images from a folder to the selection")
         btn_layout.addWidget(add_folder_btn)
 
+        clear_btn = QPushButton("✖ Clear")
+        clear_btn.clicked.connect(self._clear_files)
+        clear_btn.setFixedWidth(65)
+        self._set_tooltip(clear_btn, "Remove all selected files from the list")
+        btn_layout.addWidget(clear_btn)
+
         group_layout.addLayout(btn_layout)
 
         # Recursive checkbox
@@ -687,23 +811,54 @@ class LineArtConverterPanelQt(QWidget):
         """Create preset selection section."""
         group = QGroupBox("🎨 Presets")
         group_layout = QVBoxLayout()
-        
+
         self.preset_combo = QComboBox()
         for preset_name in LINEART_PRESETS.keys():
             self.preset_combo.addItem(preset_name)
+        # Load user presets into the combo
+        self._load_user_presets_into_combo()
         self.preset_combo.currentTextChanged.connect(self._on_preset_changed)
         group_layout.addWidget(self.preset_combo)
         self._set_tooltip(self.preset_combo, 'la_preset')
-        self._set_tooltip(self.preset_combo, 'la_save_preset')
-        
+
+        # Save / Delete preset buttons
+        preset_btn_row = QHBoxLayout()
+        self._save_preset_btn = QPushButton("💾 Save Preset")
+        self._save_preset_btn.setFixedHeight(26)
+        self._save_preset_btn.setToolTip(
+            "Save the current settings as a custom preset so you can reuse them later."
+        )
+        self._set_tooltip(self._save_preset_btn, 'la_save_preset')
+        self._save_preset_btn.clicked.connect(self._save_current_as_preset)
+        preset_btn_row.addWidget(self._save_preset_btn)
+
+        self._del_preset_btn = QPushButton("🗑 Delete")
+        self._del_preset_btn.setFixedHeight(26)
+        self._del_preset_btn.setFixedWidth(70)
+        self._del_preset_btn.setToolTip(
+            "Delete the selected custom preset.  Built-in presets cannot be deleted."
+        )
+        self._del_preset_btn.clicked.connect(self._delete_current_preset)
+        preset_btn_row.addWidget(self._del_preset_btn)
+        group_layout.addLayout(preset_btn_row)
+
         # Preset description
         self.preset_desc = QLabel("")
         self.preset_desc.setWordWrap(True)
         self.preset_desc.setStyleSheet("color: gray; font-size: 10pt;")
         group_layout.addWidget(self.preset_desc)
-        
+
+        # Recommendation hint — updated by _on_preset_changed to show the key
+        # setting for the active preset (mode, threshold, etc.)
+        self.preset_rec_lbl = QLabel("")
+        self.preset_rec_lbl.setWordWrap(True)
+        self.preset_rec_lbl.setStyleSheet(
+            "color: #d4a000; font-size: 9pt; font-style: italic;"
+        )
+        group_layout.addWidget(self.preset_rec_lbl)
+
         # Note: preset will be loaded after all widgets are initialized (see __init__)
-        
+
         group.setLayout(group_layout)
         layout.addWidget(group)
     
@@ -774,13 +929,7 @@ class LineArtConverterPanelQt(QWidget):
         morph_layout = QHBoxLayout()
         morph_layout.addWidget(QLabel("Morphology:"))
         self.morphology_combo = QComboBox()
-        self.morphology_combo.addItems([
-            "None",
-            "Close (fill gaps)",
-            "Open (remove noise)",
-            "Dilate (thicken)",
-            "Erode (thin)"
-        ])
+        self.morphology_combo.addItems(list(_MORPHOLOGY_INTERNAL_TO_DISPLAY.values()))
         self.morphology_combo.setCurrentText("Close (fill gaps)")
         self.morphology_combo.currentTextChanged.connect(self._schedule_preview_update)
         morph_layout.addWidget(self.morphology_combo)
@@ -1069,13 +1218,13 @@ class LineArtConverterPanelQt(QWidget):
         # ── Preview area (scrollable) ──────────────────────────────────────
         if SLIDER_AVAILABLE:
             self.preview_widget = ComparisonSliderWidget()
-            self.preview_widget.setMinimumHeight(400)
+            self.preview_widget.setMinimumHeight(200)
             # Wrap in QScrollArea for zoom/pan
             from PyQt6.QtWidgets import QScrollArea as _SA
             self._preview_scroll = _SA()
             self._preview_scroll.setWidgetResizable(False)
             self._preview_scroll.setWidget(self.preview_widget)
-            self._preview_scroll.setMinimumHeight(400)
+            self._preview_scroll.setMinimumHeight(200)
             group_layout.addWidget(self._preview_scroll)
             # Scroll-wheel zoom works for both paths
             self._preview_scroll.wheelEvent = self._preview_wheel_event
@@ -1084,14 +1233,14 @@ class LineArtConverterPanelQt(QWidget):
             from PyQt6.QtWidgets import QScrollArea as _SA
             self.preview_label = QLabel("Select an image to see preview")
             self.preview_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            self.preview_label.setMinimumSize(400, 400)
+            self.preview_label.setMinimumSize(250, 200)
             self.preview_label.setStyleSheet(
                 "border: 2px dashed gray; background-color: #f0f0f0;"
             )
             self._preview_scroll = _SA()
             self._preview_scroll.setWidgetResizable(True)
             self._preview_scroll.setWidget(self.preview_label)
-            self._preview_scroll.setMinimumHeight(400)
+            self._preview_scroll.setMinimumHeight(200)
             group_layout.addWidget(self._preview_scroll)
             self._preview_scroll.wheelEvent = self._preview_wheel_event
 
@@ -1217,7 +1366,7 @@ class LineArtConverterPanelQt(QWidget):
             self,
             "Select Image",
             "",
-            "Images (*.png *.jpg *.jpeg *.bmp *.tiff *.tif *.webp *.tga *.dds *.gif);;All Files (*.*)"
+            "Images (*.png *.jpg *.jpeg *.bmp *.tiff *.tif *.webp *.tga *.dds *.gif *.avif *.qoi *.apng *.jfif);;All Files (*.*)"
         )
         
         if filename:
@@ -1233,7 +1382,7 @@ class LineArtConverterPanelQt(QWidget):
             self,
             "Select Images",
             "",
-            "Images (*.png *.jpg *.jpeg *.bmp *.tiff *.tif *.webp *.tga *.dds *.gif);;All Files (*.*)"
+            "Images (*.png *.jpg *.jpeg *.bmp *.tiff *.tif *.webp *.tga *.dds *.gif *.avif *.qoi *.apng *.jfif);;All Files (*.*)"
         )
 
         if files:
@@ -1265,94 +1414,244 @@ class LineArtConverterPanelQt(QWidget):
         if added and not self.selected_file:
             self.selected_file = added[0]
             self._schedule_preview_update()
-    
+
+    def _clear_files(self):
+        """Clear the selected files list."""
+        self.selected_files = []
+        self.selected_file = ""
+        self.file_label.setText("No file selected")
+        self.file_label.setStyleSheet("")
+
+    # ── User preset save / load / delete ─────────────────────────────────────
+
+    @staticmethod
+    def _format_user_preset_display_name(name: str) -> str:
+        """Return the combo-box display label for a user preset.
+
+        User presets are prefixed with '⭐' so they visually stand apart from
+        built-in presets.  If the caller already included the prefix, it is
+        not doubled.
+        """
+        return name if name.startswith("⭐") else f"⭐ {name}"
+
+    def _load_user_presets_into_combo(self) -> None:
+        """Load user-defined presets from JSON and add them to the combo box."""
+        user = self._read_user_presets()
+        for name in user:
+            if name not in LINEART_PRESETS:
+                self.preset_combo.addItem(self._format_user_preset_display_name(name))
+
+    def _read_user_presets(self) -> dict:
+        """Return the user presets dict (empty if file missing or corrupt)."""
+        try:
+            if _USER_PRESETS_PATH.exists():
+                with open(_USER_PRESETS_PATH, 'r', encoding='utf-8') as fh:
+                    data = json.load(fh)
+                    if isinstance(data, dict):
+                        return data
+        except Exception:
+            pass
+        return {}
+
+    def _write_user_presets(self, data: dict) -> None:
+        """Persist *data* to the user presets JSON file."""
+        try:
+            _USER_PRESETS_PATH.parent.mkdir(parents=True, exist_ok=True)
+            with open(_USER_PRESETS_PATH, 'w', encoding='utf-8') as fh:
+                json.dump(data, fh, indent=2)
+        except Exception as exc:
+            logging.getLogger(__name__).warning("Could not write user presets: %s", exc)
+
+    def _collect_current_settings(self) -> dict:
+        """Return the currently active settings as a preset-compatible dict."""
+        def _combo_data(combo):
+            return combo.itemData(combo.currentIndex()) or combo.currentText()
+
+        return {
+            "desc": "(user preset)",
+            "mode": _combo_data(self.mode_combo),
+            "threshold": self.threshold_slider.value(),
+            "auto_threshold": self.auto_threshold_cb.isChecked(),
+            "contrast": self.contrast_spin.value(),
+            "sharpen": self.sharpen_cb.isChecked(),
+            "sharpen_amount": self.sharpen_spin.value(),
+            "denoise": self.denoise_cb.isChecked(),
+            "denoise_size": self.denoise_size.value(),
+            "morphology": _MORPHOLOGY_DISPLAY_TO_INTERNAL.get(
+                self.morphology_combo.currentText(), "none"),
+            "morph_iter": self.morphology_iterations.value(),
+            "kernel": self.kernel_size_spin.value(),
+            "midtone_threshold": self.midtone_spin.value(),
+            "remove_midtones": self.remove_midtones_cb.isChecked(),
+            "invert": self.invert_cb.isChecked(),
+            "background": _combo_data(self.bg_mode_combo),
+            "smooth_lines": self.smooth_lines_cb.isChecked() if hasattr(self, 'smooth_lines_cb') else False,
+            "smooth_amount": self.smooth_amount_spin.value() if hasattr(self, 'smooth_amount_spin') else 1.0,
+            "edge_low": self.edge_low_spin.value() if hasattr(self, 'edge_low_spin') else 50,
+            "edge_high": self.edge_high_spin.value() if hasattr(self, 'edge_high_spin') else 150,
+            "edge_aperture": self.edge_aperture_combo.itemData(
+                self.edge_aperture_combo.currentIndex()) if hasattr(self, 'edge_aperture_combo') else 3,
+            "adaptive_block": self.adaptive_block_spin.value() if hasattr(self, 'adaptive_block_spin') else 11,
+            "adaptive_c": self.adaptive_c_spin.value() if hasattr(self, 'adaptive_c_spin') else 2.0,
+            "adaptive_method": _combo_data(self.adaptive_method_combo) if hasattr(self, 'adaptive_method_combo') else "gaussian",
+        }
+
+    def _save_current_as_preset(self) -> None:
+        """Prompt user for a name and save current settings as a custom preset."""
+        if not PYQT_AVAILABLE:
+            return
+        name, ok = QInputDialog.getText(
+            self, "Save Preset", "Preset name:",
+        )
+        if not ok or not name.strip():
+            return
+        name = name.strip()
+        settings = self._collect_current_settings()
+        settings["desc"] = f"User preset: {name}"
+        user_presets = self._read_user_presets()
+        user_presets[name] = settings
+        self._write_user_presets(user_presets)
+        # Add to combo if not already there
+        display = self._format_user_preset_display_name(name)
+        if self.preset_combo.findText(display) == -1:
+            self.preset_combo.addItem(display)
+        self.preset_combo.setCurrentText(display)
+        QMessageBox.information(self, "Preset Saved",
+            f"Preset '{name}' saved successfully.\nYou can load it any time from the Presets dropdown.")
+
+    def _delete_current_preset(self) -> None:
+        """Delete the currently selected custom preset (built-ins are protected)."""
+        if not PYQT_AVAILABLE:
+            return
+        current = self.preset_combo.currentText()
+        # Strip the ⭐ prefix used for user presets in the combo
+        raw_name = current.lstrip("⭐ ").strip() if current.startswith("⭐") else None
+        if raw_name is None or current in LINEART_PRESETS:
+            QMessageBox.information(self, "Cannot Delete",
+                "Built-in presets cannot be deleted.\n"
+                "Only custom presets (marked with ⭐) can be removed.")
+            return
+        user_presets = self._read_user_presets()
+        if raw_name not in user_presets:
+            QMessageBox.warning(self, "Not Found",
+                f"Custom preset '{raw_name}' not found.\n"
+                "It may have already been deleted.")
+            return
+        del user_presets[raw_name]
+        self._write_user_presets(user_presets)
+        idx = self.preset_combo.findText(current)
+        if idx >= 0:
+            self.preset_combo.removeItem(idx)
+        QMessageBox.information(self, "Preset Deleted", f"Preset '{raw_name}' deleted.")
+
     def _on_preset_changed(self, preset_name):
-        """Handle preset selection."""
-        if preset_name in LINEART_PRESETS:
-            preset = LINEART_PRESETS[preset_name]
-            self.preset_desc.setText(preset["desc"])
-            
-            # Only update controls if widgets are fully initialized
-            if not self._widgets_initialized:
-                return
-            
-            # Update all controls from preset
-            self.threshold_slider.setValue(preset["threshold"])
-            self.contrast_spin.setValue(preset["contrast"])
-            self.auto_threshold_cb.setChecked(preset["auto_threshold"])
-            self.sharpen_cb.setChecked(preset["sharpen"])
-            self.sharpen_spin.setValue(preset.get("sharpen_amount", 1.3))
-            self.denoise_cb.setChecked(preset["denoise"])
-            self.denoise_size.setValue(preset.get("denoise_size", 2))
+        """Handle preset selection — works for both built-in and user presets."""
+        # Resolve the preset dict from built-in or user storage
+        preset = LINEART_PRESETS.get(preset_name)
+        if preset is None:
+            # Try user presets (combo may show "⭐ <name>")
+            raw_name = preset_name.lstrip("⭐ ").strip()
+            user_presets = self._read_user_presets()
+            preset = user_presets.get(raw_name) or user_presets.get(preset_name)
+        if preset is None:
+            return
 
-            # Conversion mode
-            if hasattr(self, 'mode_combo'):
-                mode_val = preset.get("mode", "pure_black")
-                for i in range(self.mode_combo.count()):
-                    if self.mode_combo.itemData(i) == mode_val:
-                        self.mode_combo.setCurrentIndex(i)
-                        break
+        self.preset_desc.setText(preset["desc"])
 
-            # Invert
-            if hasattr(self, 'invert_cb'):
-                self.invert_cb.setChecked(bool(preset.get("invert", False)))
-
-            # Morphology settings
-            morph_map = {
-                "none": "None",
-                "close": "Close (fill gaps)",
-                "open": "Open (remove noise)",
-                "dilate": "Dilate (thicken)",
-                "erode": "Erode (thin)"
+        # Update the recommendation hint label
+        if hasattr(self, 'preset_rec_lbl'):
+            _MODE_FRIENDLY = {
+                "pure_black":   "Pure Black Lines",
+                "edge_detect":  "Edge Detection (Canny)",
+                "adaptive":     "Adaptive Threshold",
+                "sketch":       "Sketch / Pencil",
+                "threshold":    "Simple Threshold",
+                "stencil_1bit": "1-bit Stencil",
             }
-            morph_text = morph_map.get(preset["morphology"], "None")
-            self.morphology_combo.setCurrentText(morph_text)
-            self.morphology_iterations.setValue(preset["morph_iter"])
-            self.kernel_size_spin.setValue(preset["kernel"])
+            mode_name = _MODE_FRIENDLY.get(preset.get("mode", ""), preset.get("mode", ""))
+            threshold = preset.get("threshold", "–")
+            contrast  = preset.get("contrast", "–")
+            threshold_display = "✅ Auto" if preset.get("auto_threshold") else f"manual {threshold}"
+            hint = (
+                f"⭐ Recommended: mode={mode_name}  ·  "
+                f"threshold={threshold_display}  ·  contrast={contrast}"
+            )
+            self.preset_rec_lbl.setText(hint)
 
-            # Midtone settings
-            self.midtone_spin.setValue(preset["midtone_threshold"])
-            self.remove_midtones_cb.setChecked(preset["remove_midtones"])
+        # Only update controls if widgets are fully initialized
+        if not self._widgets_initialized:
+            return
 
-            # Background mode
-            if hasattr(self, 'bg_mode_combo'):
-                bg_val = preset.get("background", "transparent")
-                for i in range(self.bg_mode_combo.count()):
-                    if self.bg_mode_combo.itemData(i) == bg_val:
-                        self.bg_mode_combo.setCurrentIndex(i)
-                        break
+        # Update all controls from preset
+        self.threshold_slider.setValue(preset["threshold"])
+        self.contrast_spin.setValue(preset["contrast"])
+        self.auto_threshold_cb.setChecked(preset["auto_threshold"])
+        self.sharpen_cb.setChecked(preset["sharpen"])
+        self.sharpen_spin.setValue(preset.get("sharpen_amount", 1.3))
+        self.denoise_cb.setChecked(preset["denoise"])
+        self.denoise_size.setValue(preset.get("denoise_size", 2))
 
-            # Edge detection params
-            if hasattr(self, 'edge_low_spin'):
-                self.edge_low_spin.setValue(preset.get("edge_low", 50))
-            if hasattr(self, 'edge_high_spin'):
-                self.edge_high_spin.setValue(preset.get("edge_high", 150))
-            if hasattr(self, 'edge_aperture_combo'):
-                ap = preset.get("edge_aperture", 3)
-                for i in range(self.edge_aperture_combo.count()):
-                    if self.edge_aperture_combo.itemData(i) == ap:
-                        self.edge_aperture_combo.setCurrentIndex(i)
-                        break
-            # Adaptive threshold params
-            if hasattr(self, 'adaptive_block_spin'):
-                self.adaptive_block_spin.setValue(preset.get("adaptive_block", 11))
-            if hasattr(self, 'adaptive_c_spin'):
-                self.adaptive_c_spin.setValue(preset.get("adaptive_c", 2.0))
-            if hasattr(self, 'adaptive_method_combo'):
-                meth = preset.get("adaptive_method", "gaussian")
-                for i in range(self.adaptive_method_combo.count()):
-                    if self.adaptive_method_combo.itemData(i) == meth:
-                        self.adaptive_method_combo.setCurrentIndex(i)
-                        break
-            # Smooth lines params
-            if hasattr(self, 'smooth_lines_cb'):
-                self.smooth_lines_cb.setChecked(bool(preset.get("smooth_lines", False)))
-            if hasattr(self, 'smooth_amount_spin'):
-                self.smooth_amount_spin.setValue(preset.get("smooth_amount", 1.0))
+        # Conversion mode
+        if hasattr(self, 'mode_combo'):
+            mode_val = preset.get("mode", "pure_black")
+            for i in range(self.mode_combo.count()):
+                if self.mode_combo.itemData(i) == mode_val:
+                    self.mode_combo.setCurrentIndex(i)
+                    break
 
-            # Trigger mode-specific panel visibility update, then preview update
-            self._on_mode_changed()
-            self._schedule_preview_update()
+        # Invert
+        if hasattr(self, 'invert_cb'):
+            self.invert_cb.setChecked(bool(preset.get("invert", False)))
+
+        # Morphology settings
+        morph_text = _MORPHOLOGY_INTERNAL_TO_DISPLAY.get(preset["morphology"], "None")
+        self.morphology_combo.setCurrentText(morph_text)
+        self.morphology_iterations.setValue(preset["morph_iter"])
+        self.kernel_size_spin.setValue(preset["kernel"])
+
+        # Midtone settings
+        self.midtone_spin.setValue(preset["midtone_threshold"])
+        self.remove_midtones_cb.setChecked(preset["remove_midtones"])
+
+        # Background mode
+        if hasattr(self, 'bg_mode_combo'):
+            bg_val = preset.get("background", "transparent")
+            for i in range(self.bg_mode_combo.count()):
+                if self.bg_mode_combo.itemData(i) == bg_val:
+                    self.bg_mode_combo.setCurrentIndex(i)
+                    break
+
+        # Edge detection params
+        if hasattr(self, 'edge_low_spin'):
+            self.edge_low_spin.setValue(preset.get("edge_low", 50))
+        if hasattr(self, 'edge_high_spin'):
+            self.edge_high_spin.setValue(preset.get("edge_high", 150))
+        if hasattr(self, 'edge_aperture_combo'):
+            ap = preset.get("edge_aperture", 3)
+            for i in range(self.edge_aperture_combo.count()):
+                if self.edge_aperture_combo.itemData(i) == ap:
+                    self.edge_aperture_combo.setCurrentIndex(i)
+                    break
+        # Adaptive threshold params
+        if hasattr(self, 'adaptive_block_spin'):
+            self.adaptive_block_spin.setValue(preset.get("adaptive_block", 11))
+        if hasattr(self, 'adaptive_c_spin'):
+            self.adaptive_c_spin.setValue(preset.get("adaptive_c", 2.0))
+        if hasattr(self, 'adaptive_method_combo'):
+            meth = preset.get("adaptive_method", "gaussian")
+            for i in range(self.adaptive_method_combo.count()):
+                if self.adaptive_method_combo.itemData(i) == meth:
+                    self.adaptive_method_combo.setCurrentIndex(i)
+                    break
+        # Smooth lines params
+        if hasattr(self, 'smooth_lines_cb'):
+            self.smooth_lines_cb.setChecked(bool(preset.get("smooth_lines", False)))
+        if hasattr(self, 'smooth_amount_spin'):
+            self.smooth_amount_spin.setValue(preset.get("smooth_amount", 1.0))
+
+        # Trigger mode-specific panel visibility update, then preview update
+        self._on_mode_changed()
+        self._schedule_preview_update()
     
     def _on_bg_mode_changed(self, index: int):
         """Show/hide the custom colour swatch, then trigger a preview update."""

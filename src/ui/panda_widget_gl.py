@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import logging
 import math
+import os
 import random
 import time
 from typing import Optional, Callable, Tuple, List
@@ -253,15 +254,16 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
         # Set OpenGL surface format — use CompatibilityProfile so legacy fixed-function
         # GL (glShadeModel, glEnable(GL_LIGHTING), glBegin/End, etc.) remain available.
         # CoreProfile removes all legacy functions and would crash initializeGL().
-        fmt = QSurfaceFormat()
-        fmt.setVersion(2, 1)  # OpenGL 2.1 — widely available, includes all legacy GL
-        fmt.setProfile(QSurfaceFormat.OpenGLContextProfile.CompatibilityProfile)
-        fmt.setRenderableType(QSurfaceFormat.RenderableType.OpenGL)  # native desktop GL, not ANGLE
-        fmt.setSamples(4)  # 4x MSAA for antialiasing
-        fmt.setDepthBufferSize(24)
-        fmt.setStencilBufferSize(8)
-        fmt.setAlphaBufferSize(8)  # needed for WA_TranslucentBackground transparency
-        self.setFormat(fmt)
+        if os.environ.get('QT_QPA_PLATFORM') != 'offscreen':
+            fmt = QSurfaceFormat()
+            fmt.setVersion(2, 1)  # OpenGL 2.1 — widely available, includes all legacy GL
+            fmt.setProfile(QSurfaceFormat.OpenGLContextProfile.CompatibilityProfile)
+            fmt.setRenderableType(QSurfaceFormat.RenderableType.OpenGL)  # native desktop GL, not ANGLE
+            fmt.setSamples(4)  # 4x MSAA for antialiasing
+            fmt.setDepthBufferSize(24)
+            fmt.setStencilBufferSize(8)
+            fmt.setAlphaBufferSize(8)  # needed for WA_TranslucentBackground transparency
+            self.setFormat(fmt)
 
         # Overlay mode — transparent, always on top; mouse events are NOT
         # passed through so the panda responds to clicks and drags.
@@ -2201,11 +2203,21 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
         return any(k in subtype for k in keywords)
 
     def _draw_food_item(self, item):
-        """Draw food item in 3D — shaped by item subtype."""
+        """Draw food item in 3D — shaped by item subtype.
+
+        Progressive eating states are shown by scaling the food down as
+        eat_progress increases:  0.0 = whole, 0.25 = ¾ remaining, 0.5 = half,
+        0.75 = ¼ remaining (food about to disappear).
+        """
         color   = item.get('color', [0.8, 0.2, 0.2])
         subtype = str(item.get('id', item.get('name', ''))).lower()
+        eat_progress = item.get('eat_progress', 0.0)
+        # Scale down as eating progresses (1.0 full → 0.25 almost gone)
+        eat_scale = max(0.25, 1.0 - eat_progress * 0.75)
         quad    = gluNewQuadric()
         glColor3f(*color)
+        glPushMatrix()
+        glScalef(eat_scale, eat_scale, eat_scale)
         try:
             if self._matches_subtype(subtype, ('bamboo', 'stick', 'shoot')):
                 # Bamboo shoot: tall segmented green cylinder
@@ -2261,6 +2273,7 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
                 self._draw_sphere(0.09, 14, 14)
         finally:
             gluDeleteQuadric(quad)
+        glPopMatrix()  # restore eat_scale transform
 
     def _draw_toy_item(self, item):
         """Draw toy item in 3D — shaped by item subtype."""
@@ -2887,6 +2900,78 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
         # Micro-emotion: playful + excited
         self._micro_emotion['playful']  = 0.9
         self._micro_emotion['curious']  = 0.6
+
+    def take_food_bite(self, item_index: int) -> float:
+        """Advance the eat_progress of a food item by one bite (0.25).
+
+        Returns the new eat_progress value (0.0–1.0).  When eat_progress
+        reaches 1.0, the item is removed from items_3d and the food_eaten
+        signal is emitted.
+
+        Call this each time the panda successfully chomps the food item during
+        a walk_to_item interaction so the food visually shrinks bite by bite.
+        """
+        if item_index < 0 or item_index >= len(self.items_3d):
+            return 0.0
+        item = self.items_3d[item_index]
+        if item.get('type') != 'food':
+            return 0.0
+
+        progress = item.get('eat_progress', 0.0) + 0.25
+        progress = min(progress, 1.0)
+        item['eat_progress'] = progress
+
+        # Play bite animation + chomp sound
+        self.start_bite_tab()
+        self._play_sound('munch')
+
+        if progress >= 1.0:
+            # Fully eaten — remove item and signal
+            item_id = item.get('id', item.get('name', 'food'))
+            self.items_3d.pop(item_index)
+            self.food_eaten.emit(str(item_id))
+            self._micro_emotion['happy'] = min(1.0, self._micro_emotion.get('happy', 0) + 0.8)
+        else:
+            # Partially eaten — show what fraction remains
+            self._micro_emotion['happy'] = min(1.0, self._micro_emotion.get('happy', 0) + 0.3)
+
+        self.update()
+        return progress
+
+    def yank_food_item(self, item_index: int) -> bool:
+        """Yank a food item away from the panda mid-meal.
+
+        Returns True if the item was yanked (it existed and had been partially
+        eaten), False otherwise.
+
+        The panda reacts with an upset/sad face and a pained sound effect — the
+        item's eat_progress is preserved so the caller can decide whether to put
+        it back or discard it.
+        """
+        if item_index < 0 or item_index >= len(self.items_3d):
+            return False
+        item = self.items_3d[item_index]
+        if item.get('type') != 'food':
+            return False
+
+        was_eating = item.get('eat_progress', 0.0) > 0.0
+
+        # Upset reaction — the panda's food was stolen!
+        self._surprised_eye_t = 0.5
+        self.transition_to_state('sad')
+        self._micro_emotion['happy']   = max(0.0, self._micro_emotion.get('happy', 0) - 0.7)
+        self._micro_emotion['playful'] = max(0.0, self._micro_emotion.get('playful', 0) - 0.5)
+        # Schedule return to idle after the sad face fades
+        fire_t = time.time() + 2.5
+        self._reaction_delay_q.append((fire_t, lambda: self.transition_to_state('idle')))
+
+        # Angry arm flail — arms shoot up briefly
+        self._arm_over_vel[0] += random.uniform(8.0, 14.0)
+        self._arm_over_vel[1] += random.uniform(8.0, 14.0)
+
+        self._play_sound('sigh')   # Disappointed sound
+        self.update()
+        return was_eating
 
     def start_hug_window(self):
         """Panda climbs/hugs the window edge — triggers climbing_wall state."""
@@ -3650,6 +3735,10 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
             'rotation': 0.0,
             **kwargs
         }
+        # Food items track how many bites have been taken.
+        # eat_progress 0.0 = whole, 0.25 = quarter eaten, … 1.0 = fully eaten.
+        if item_type == 'food':
+            item.setdefault('eat_progress', 0.0)
         self.items_3d.append(item)
     
     def clear_items(self):
@@ -5030,7 +5119,9 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
         
         # Remove item after interaction if it's consumable
         if item_type == 'food':
-            QTimer.singleShot(1000, lambda: self._remove_item(item_index))
+            # Use progressive bite system — walk up and take first bite.
+            # Further bites are triggered by walk_to_item_and_eat().
+            QTimer.singleShot(800, lambda: self.take_food_bite(item_index))
     
     def _remove_item(self, item_index: int):
         """Internal method to remove an item from scene."""
@@ -5038,6 +5129,36 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
             self.items_3d.pop(item_index)
             self.update()
     
+    def walk_to_item_and_eat(self, item_index: int) -> None:
+        """Walk the panda to a food item and eat it bite-by-bite.
+
+        The panda walks to the item, then takes progressive bites (0.25 each)
+        with a short delay between bites so the shrinking is visible.  When
+        eat_progress reaches 1.0 the item is removed and food_eaten is emitted.
+
+        If the item is not food, or the index is invalid, nothing happens.
+        """
+        if item_index < 0 or item_index >= len(self.items_3d):
+            return
+        item = self.items_3d[item_index]
+        if item.get('type') != 'food':
+            return
+
+        def _eat_next():
+            # Guard: item may have been removed or index shifted
+            if item_index >= len(self.items_3d):
+                return
+            current = self.items_3d[item_index]
+            if current.get('type') != 'food':
+                return
+            progress = self.take_food_bite(item_index)
+            if progress < 1.0:
+                # Schedule next bite in 900 ms so the chew animation is visible
+                QTimer.singleShot(900, _eat_next)
+
+        # Walk to the item first, then start eating on arrival
+        self.walk_to_item(item_index, callback=_eat_next)
+
     def react_to_collision(self, collision_point: tuple, intensity: float = 1.0):
         """
         Make panda react to collision (being hit by object, hitting wall, etc.).

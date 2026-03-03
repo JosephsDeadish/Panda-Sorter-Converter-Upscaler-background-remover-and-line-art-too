@@ -60,6 +60,11 @@ class PandaStats:
     belly_poke_count: int = 0
     fall_count: int = 0
     tip_over_count: int = 0
+
+    # Wellbeing meters (0–100); hunger decreases over time, happiness fluctuates.
+    hunger: int = 50          # 0 = starving, 100 = full
+    happiness: int = 80       # 0 = very sad, 100 = very happy
+    energy: int = 80          # 0 = exhausted, 100 = energetic
     
     # System Stats - Meta Tracking
     playtime: float = 0.0  # seconds
@@ -262,11 +267,38 @@ class PandaStats:
     def increment_pets(self):
         """Increment pet count."""
         self.pet_count += 1
-    
+        # Petting makes panda happier (cap at 100)
+        self.happiness = min(100, self.happiness + 5)
+
     def increment_feeds(self):
         """Increment feed count."""
         self.feed_count += 1
-    
+
+    def on_fed(self, hunger_restore: int = 20, happiness_boost: int = 10) -> None:
+        """Called when panda eats food — restores hunger and boosts happiness."""
+        self.feed_count += 1
+        self.hunger = min(100, self.hunger + hunger_restore)
+        self.happiness = min(100, self.happiness + happiness_boost)
+
+    def on_petted(self) -> None:
+        """Called when panda is petted — boosts happiness."""
+        self.pet_count += 1
+        self.happiness = min(100, self.happiness + 8)
+
+    def tick_wellbeing(self, seconds: float = 60.0) -> None:
+        """Decay hunger and energy over time; also decay happiness if hungry.
+
+        Call this roughly every minute of playtime to simulate a living panda.
+        Default rates per minute: hunger −2, energy −1, happiness −1 (more if hungry).
+        """
+        hunger_decay  = max(1, round(seconds / 30))   # ~2 per minute
+        energy_decay  = max(1, round(seconds / 60))   # ~1 per minute
+        happy_decay   = 1 + (3 if self.hunger < 20 else 0)   # hungrier = sadder
+
+        self.hunger    = max(0, self.hunger    - hunger_decay)
+        self.energy    = max(0, self.energy    - energy_decay)
+        self.happiness = max(0, self.happiness - happy_decay)
+
     def increment_hovers(self):
         """Increment hover count."""
         self.hover_count += 1

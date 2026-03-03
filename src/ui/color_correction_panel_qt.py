@@ -10,22 +10,21 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 from typing import Optional, List
-import tempfile
-import os
 
 try:
     from ui import IMAGE_EXTENSIONS
 except ImportError:
-    IMAGE_EXTENSIONS = frozenset({'.png', '.jpg', '.jpeg', '.bmp', '.tiff', '.tif', '.webp', '.dds', '.tga', '.gif'})
+    IMAGE_EXTENSIONS = frozenset({'.png', '.jpg', '.jpeg', '.bmp', '.tiff', '.tif', '.webp', '.dds', '.tga', '.gif', '.avif', '.qoi', '.apng', '.jfif', '.ico', '.icns'})
 
 try:
     from PyQt6.QtWidgets import (
         QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
         QScrollArea, QFrame, QSlider, QSpinBox, QFileDialog,
-        QMessageBox, QProgressBar, QComboBox, QGroupBox, QCheckBox
+        QMessageBox, QProgressBar, QComboBox, QGroupBox, QCheckBox,
+        QSplitter
     )
     from PyQt6.QtCore import Qt, pyqtSignal, QThread
-    from PyQt6.QtGui import QPixmap
+    from PyQt6.QtGui import QPixmap, QImage
     PYQT_AVAILABLE = True
 except (ImportError, OSError, RuntimeError):
     PYQT_AVAILABLE = False
@@ -147,6 +146,9 @@ class ColorCorrectionWorker(QThread):
 
                 # Process file
                 output_path = Path(self.output_dir) / file_path.name
+                # Guard: never overwrite the source file
+                if output_path.resolve() == file_path.resolve():
+                    output_path = Path(self.output_dir) / f"{file_path.stem}_corrected{file_path.suffix}"
                 if self.skip_existing and output_path.exists():
                     skipped += 1
                     continue
@@ -160,6 +162,7 @@ class ColorCorrectionWorker(QThread):
             parts = [f"✅ Corrected {done} image{'s' if done != 1 else ''}"]
             if skipped:
                 parts.append(f"{skipped} skipped (already existed)")
+            self.progress_updated.emit(100, "Done")
             self.finished.emit(True, ", ".join(parts) + "!", done)
 
         except Exception as e:
@@ -177,7 +180,8 @@ class ColorCorrectionPanelQt(QWidget):
     finished = pyqtSignal(bool, str, int)  # success, message, files_processed
 
     def __init__(self, parent=None, unlockables_system=None, tooltip_manager=None):
-        
+        super().__init__(parent)
+
         if not COLOR_CORRECTOR_AVAILABLE:
             self._show_unavailable()
             return
@@ -190,8 +194,42 @@ class ColorCorrectionPanelQt(QWidget):
         self.current_lut = None
         self.worker = None
         self.preview_file = None  # Current file for preview
+        self.setAcceptDrops(True)  # drag-and-drop images onto the panel
         
         self._create_ui()
+
+    # ── Drag-and-drop support ──────────────────────────────────────────────
+    def dragEnterEvent(self, event) -> None:
+        if event.mimeData().hasUrls():
+            event.acceptProposedAction()
+        else:
+            event.ignore()
+
+    def dropEvent(self, event) -> None:
+        """Accept dropped image files and add them to the color correction input list."""
+        _EXTS = {'.png', '.jpg', '.jpeg', '.bmp', '.gif', '.tiff', '.tif', '.webp'}
+        existing = {str(p) for p in self.input_files}
+        added = []
+        for url in event.mimeData().urls():
+            path = Path(url.toLocalFile())
+            if path.is_file() and path.suffix.lower() in _EXTS:
+                if str(path) not in existing:
+                    added.append(path)
+                    existing.add(str(path))
+            elif path.is_dir():
+                for child in path.iterdir():
+                    if child.suffix.lower() in _EXTS and str(child) not in existing:
+                        added.append(child)
+                        existing.add(str(child))
+        if added:
+            self.input_files.extend(added)
+            lbl = getattr(self, 'input_label', None)
+            if lbl is not None:
+                lbl.setText(f"Selected: {len(self.input_files)} files")
+            # Set preview to first dropped file
+            if self.preview_file is None and added:
+                self.preview_file = added[0]
+        event.acceptProposedAction()
     
     def _show_unavailable(self):
         """Show message when color corrector is not available."""
@@ -207,44 +245,59 @@ class ColorCorrectionPanelQt(QWidget):
         layout.addWidget(label)
     
     def _create_ui(self):
-        """Create the user interface."""
+        """Create the user interface with left-controls / right-preview QSplitter layout."""
         layout = QVBoxLayout(self)
         layout.setContentsMargins(10, 10, 10, 10)
-        
-        # Scrollable area
-        scroll = QScrollArea()
-        scroll.setWidgetResizable(True)
-        scroll.setFrameShape(QFrame.Shape.NoFrame)
-        
-        container = QWidget()
-        container_layout = QVBoxLayout(container)
-        
+
         # Title
+        # Title — slightly smaller (16pt vs 20pt) to give more vertical room to
+        # the controls/preview split layout without scrolling the title off screen.
         title = QLabel("🎨 Color Correction & Enhancement")
         font = title.font()
-        font.setPointSize(20)
+        font.setPointSize(16)
         font.setBold(True)
         title.setFont(font)
-        container_layout.addWidget(title)
-        container_layout.addSpacing(20)
-        
-        # File selection section
-        self._create_file_section(container_layout)
-        
-        # Adjustment controls section
-        self._create_controls_section(container_layout)
-        
-        # Live Preview section
+        layout.addWidget(title)
+
+        # ── Horizontal splitter: left = controls, right = preview ──────────
+        splitter = QSplitter(Qt.Orientation.Horizontal)
+        layout.addWidget(splitter, stretch=1)
+
+        # Left — scrollable controls
+        left_scroll = QScrollArea()
+        left_scroll.setWidgetResizable(True)
+        left_scroll.setFrameShape(QFrame.Shape.NoFrame)
+        left_scroll.setMinimumWidth(300)
+
+        left_widget = QWidget()
+        left_layout = QVBoxLayout(left_widget)
+        left_layout.setSpacing(6)
+
+        self._create_file_section(left_layout)
+        self._create_controls_section(left_layout)
+        self._create_actions_section(left_layout)
+        left_layout.addStretch()
+
+        left_scroll.setWidget(left_widget)
+        splitter.addWidget(left_scroll)
+
+        # Right — preview
+        right_widget = QWidget()
+        right_layout = QVBoxLayout(right_widget)
+        right_layout.setSpacing(6)
+        right_layout.setContentsMargins(4, 0, 0, 0)
+
         if SLIDER_AVAILABLE:
-            self._create_preview_section(container_layout)
-        
-        # Actions section
-        self._create_actions_section(container_layout)
-        
-        container_layout.addStretch()
-        
-        scroll.setWidget(container)
-        layout.addWidget(scroll)
+            self._create_preview_section(right_layout)
+        else:
+            placeholder = QLabel("🎨 Preview\n(install Pillow for live preview)")
+            placeholder.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            placeholder.setStyleSheet("color: gray; font-size: 11pt;")
+            right_layout.addWidget(placeholder, stretch=1)
+
+        splitter.addWidget(right_widget)
+        # Start with controls ~380 px and preview taking the rest
+        splitter.setSizes([380, 500])
     
     def _create_file_section(self, layout):
         """Create file selection controls."""
@@ -265,6 +318,12 @@ class ColorCorrectionPanelQt(QWidget):
         add_folder_btn.clicked.connect(self._add_folder)
         self._set_tooltip(add_folder_btn, "Add all images from a folder to the selection")
         input_layout.addWidget(add_folder_btn)
+
+        clear_btn = QPushButton("✖ Clear")
+        clear_btn.clicked.connect(self._clear_files)
+        clear_btn.setFixedWidth(65)
+        self._set_tooltip(clear_btn, "Remove all selected files from the list")
+        input_layout.addWidget(clear_btn)
 
         group_layout.addLayout(input_layout)
 
@@ -475,7 +534,7 @@ class ColorCorrectionPanelQt(QWidget):
             self,
             "Select Images",
             "",
-            "Images (*.png *.jpg *.jpeg *.bmp *.tif *.tiff *.webp *.tga *.dds *.gif);;All Files (*)"
+            "Images (*.png *.jpg *.jpeg *.bmp *.tif *.tiff *.webp *.tga *.dds *.gif *.avif *.qoi *.apng *.jfif);;All Files (*)"
         )
         
         if files:
@@ -527,6 +586,15 @@ class ColorCorrectionPanelQt(QWidget):
                 self.preview_file_combo.addItem(p.name, str(p))
             if count == len(added):  # first batch
                 self._load_preview_file(added[0].name)
+        self._update_ui_state()
+
+    def _clear_files(self):
+        """Clear the selected files list."""
+        self.input_files = []
+        self.input_label.setText("No files selected")
+        self.preview_file = None
+        if hasattr(self, 'preview_file_combo'):
+            self.preview_file_combo.clear()
         self._update_ui_state()
     
     def _update_ui_state(self):
@@ -661,6 +729,11 @@ class ColorCorrectionPanelQt(QWidget):
             contrast = self.contrast_slider.value() / 100.0
             saturation = self.saturation_slider.value() / 100.0
             sharpness = self.sharpness_slider.value() / 100.0  # 0.0 to 2.0
+            white_bal = (self.white_balance_slider.value()
+                         if hasattr(self, 'white_balance_slider') else 0)
+            lut_name = (self.lut_combo.currentText()
+                        if hasattr(self, 'lut_combo') and self.lut_combo.currentIndex() > 0
+                        else None)
             
             # Apply adjustments
             if brightness != 0:
@@ -678,24 +751,51 @@ class ColorCorrectionPanelQt(QWidget):
             if sharpness != 1.0:
                 enhancer = ImageEnhance.Sharpness(img)
                 img = enhancer.enhance(sharpness)
+
+            # White balance: shift R and B channels in opposite directions
+            if white_bal != 0:
+                img = self._apply_white_balance(img, white_bal)
+
+            # LUT presets
+            if lut_name:
+                img = self._apply_lut_preset(img, lut_name)
             
-            # Convert PIL image to QPixmap
-            # Use temp file and clean it up properly
-            tmp_fd, tmp_path = tempfile.mkstemp(suffix='.png')
-            try:
-                os.close(tmp_fd)  # Close file descriptor
-                img.save(tmp_path, 'PNG')
-                pixmap = QPixmap(tmp_path)
-                self.preview_widget.set_after_image(pixmap)
-            finally:
-                # Clean up temp file
-                try:
-                    os.unlink(tmp_path)
-                except Exception:
-                    pass  # Ignore cleanup errors
+            # Convert PIL image to QPixmap in memory (no temp file needed)
+            img_rgba = img.convert('RGBA')
+            data = img_rgba.tobytes("raw", "RGBA")
+            qimage = QImage(data, img_rgba.width, img_rgba.height,
+                            img_rgba.width * 4, QImage.Format.Format_RGBA8888)
+            pixmap = QPixmap.fromImage(qimage.copy())
+            self.preview_widget.set_after_image(pixmap)
                 
         except Exception as e:
             logger.error(f"Preview update failed: {e}")
+
+    @staticmethod
+    def _apply_white_balance(img: 'Image.Image', amount: int) -> 'Image.Image':
+        """Delegate to tools.color_corrector.apply_white_balance (avoids duplicate logic)."""
+        try:
+            from tools.color_corrector import apply_white_balance
+            return apply_white_balance(img, amount)
+        except (ImportError, ModuleNotFoundError):
+            try:
+                from color_corrector import apply_white_balance  # type: ignore[no-redef]
+                return apply_white_balance(img, amount)
+            except (ImportError, ModuleNotFoundError):
+                return img
+
+    @staticmethod
+    def _apply_lut_preset(img: 'Image.Image', name: str) -> 'Image.Image':
+        """Delegate to tools.color_corrector.apply_lut_preset (avoids duplicate logic)."""
+        try:
+            from tools.color_corrector import apply_lut_preset
+            return apply_lut_preset(img, name)
+        except (ImportError, ModuleNotFoundError):
+            try:
+                from color_corrector import apply_lut_preset  # type: ignore[no-redef]
+                return apply_lut_preset(img, name)
+            except (ImportError, ModuleNotFoundError):
+                return img
     
     def _on_comparison_mode_changed(self, mode_text):
         """Handle comparison mode change."""

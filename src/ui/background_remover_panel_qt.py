@@ -140,6 +140,9 @@ class BackgroundRemoverPanelQt(QWidget):
         self.current_tool = "brush"
         self._temp_extract_dir = None  # Track temp directory for archive extraction
         self._rembg_temp_dirs: list = []  # Track rembg result temp dirs for cleanup
+        # Batch processing state
+        self._batch_files: list = []   # Path objects queued for batch removal
+        self.setAcceptDrops(True)  # drag-and-drop images onto the panel
         
         # Undo/Redo history management
         self.edit_history = []
@@ -147,6 +150,38 @@ class BackgroundRemoverPanelQt(QWidget):
         self.max_history = 50
         
         self.setup_ui()
+
+    # ── Drag-and-drop support ──────────────────────────────────────────────
+    def dragEnterEvent(self, event) -> None:
+        if event.mimeData().hasUrls():
+            event.acceptProposedAction()
+        else:
+            event.ignore()
+
+    def dropEvent(self, event) -> None:
+        """Accept dropped image files and add them to the batch queue."""
+        _EXTS = {'.png', '.jpg', '.jpeg', '.bmp', '.gif', '.tiff', '.tif',
+                 '.webp', '.avif', '.ico'}
+        existing = {str(p) for p in self._batch_files}
+        added = []
+        for url in event.mimeData().urls():
+            path = Path(url.toLocalFile())
+            if path.is_file() and path.suffix.lower() in _EXTS:
+                if str(path) not in existing:
+                    added.append(path)
+                    existing.add(str(path))
+            elif path.is_dir():
+                for child in path.iterdir():
+                    if child.suffix.lower() in _EXTS and str(child) not in existing:
+                        added.append(child)
+                        existing.add(str(child))
+        if added:
+            self._batch_files.extend(added)
+            n = len(self._batch_files)
+            lbl = getattr(self, '_batch_count_lbl', None)
+            if lbl is not None:
+                lbl.setText(f"{n} file{'s' if n != 1 else ''} queued")
+        event.acceptProposedAction()
     
     def setup_ui(self):
         """Create the UI layout with left-control / right-preview splitter."""
@@ -205,6 +240,54 @@ class BackgroundRemoverPanelQt(QWidget):
         file_layout.addWidget(save_btn)
 
         layout.addLayout(file_layout)
+
+        # ── Batch folder selection ─────────────────────────────────────────
+        batch_group = QGroupBox("📂 Batch Processing")
+        batch_vlayout = QVBoxLayout(batch_group)
+        batch_vlayout.setSpacing(4)
+
+        batch_btn_row = QHBoxLayout()
+        add_files_btn = QPushButton("🖼 Add Files")
+        add_files_btn.setToolTip("Add individual image files to the batch queue")
+        add_files_btn.clicked.connect(self._batch_add_files)
+        batch_btn_row.addWidget(add_files_btn)
+
+        add_folder_btn = QPushButton("📂 Add Folder")
+        add_folder_btn.setToolTip("Add all images from a folder to the batch queue")
+        add_folder_btn.clicked.connect(self._batch_add_folder)
+        batch_btn_row.addWidget(add_folder_btn)
+
+        clear_batch_btn = QPushButton("🗑 Clear")
+        clear_batch_btn.setToolTip("Clear the batch queue")
+        clear_batch_btn.clicked.connect(self._batch_clear)
+        batch_btn_row.addWidget(clear_batch_btn)
+        batch_vlayout.addLayout(batch_btn_row)
+
+        self._batch_recursive_cb = QCheckBox("📂 Process subfolders")
+        self._batch_recursive_cb.setChecked(False)
+        self._batch_recursive_cb.setToolTip("When adding a folder, also include images in sub-folders")
+        batch_vlayout.addWidget(self._batch_recursive_cb)
+
+        self._batch_count_lbl = QLabel("No files queued")
+        self._batch_count_lbl.setStyleSheet("color: #888; font-size: 10pt;")
+        batch_vlayout.addWidget(self._batch_count_lbl)
+
+        batch_run_row = QHBoxLayout()
+        self._batch_run_btn = QPushButton("▶ Process Batch")
+        self._batch_run_btn.setToolTip("Remove background from all queued images")
+        self._batch_run_btn.setEnabled(False)
+        self._batch_run_btn.clicked.connect(self._batch_process)
+        batch_run_row.addWidget(self._batch_run_btn)
+
+        batch_run_row.addWidget(QLabel("Output:"))
+        self._batch_format_combo = QComboBox()
+        self._batch_format_combo.addItems(["PNG", "WebP"])
+        self._batch_format_combo.setToolTip("Output format for batch-processed images (PNG preserves transparency)")
+        self._batch_format_combo.setFixedWidth(75)
+        batch_run_row.addWidget(self._batch_format_combo)
+        batch_vlayout.addLayout(batch_run_row)
+
+        layout.addWidget(batch_group)
 
         # Archive options
         archive_layout = QHBoxLayout()
@@ -379,6 +462,10 @@ class BackgroundRemoverPanelQt(QWidget):
         self.alpha_matting_cb.setChecked(False)
         self._set_tooltip(self.alpha_matting_cb, 'bg_alpha_matting')
         alpha_layout.addWidget(self.alpha_matting_cb)
+        self.trim_transparent_cb = QCheckBox("✂️ Trim transparent borders after removal")
+        self.trim_transparent_cb.setChecked(False)
+        self.trim_transparent_cb.setToolTip("Crop the image to the smallest bounding box that contains the subject")
+        alpha_layout.addWidget(self.trim_transparent_cb)
         alpha_group.setLayout(alpha_layout)
         layout.addWidget(alpha_group)
 
@@ -476,7 +563,11 @@ class BackgroundRemoverPanelQt(QWidget):
                     archive_handler.extract_archive(Path(file_path), temp_dir)
                     
                     # Find first image in extracted files
-                    image_extensions = {'.png', '.jpg', '.jpeg', '.bmp', '.gif'}
+                    image_extensions = {
+                        '.png', '.jpg', '.jpeg', '.bmp', '.gif',
+                        '.webp', '.tga', '.tif', '.tiff',
+                        '.avif', '.qoi', '.apng', '.jfif',
+                    }
                     for img_file in temp_dir.rglob('*'):
                         if img_file.suffix.lower() in image_extensions:
                             self.current_image = str(img_file)
@@ -508,7 +599,7 @@ class BackgroundRemoverPanelQt(QWidget):
                 self,
                 "Select Image",
                 "",
-                "Images (*.png *.jpg *.jpeg *.bmp *.gif)"
+                "Images (*.png *.jpg *.jpeg *.bmp *.gif *.avif *.qoi *.apng *.jfif *.tif *.tiff *.webp *.tga *.dds)"
             )
             
             if file_path:
@@ -579,13 +670,13 @@ class BackgroundRemoverPanelQt(QWidget):
                 self,
                 "Save Image",
                 "",
-                "PNG Image (*.png);;JPEG Image (*.jpg)"
+                "PNG Image (*.png);;JPEG Image (*.jpg);;WebP Image (*.webp)"
             )
             
             if file_path:
                 try:
                     # Ensure proper file extension
-                    if not any(file_path.lower().endswith(ext) for ext in ['.png', '.jpg', '.jpeg']):
+                    if not any(file_path.lower().endswith(ext) for ext in ['.png', '.jpg', '.jpeg', '.webp']):
                         file_path += '.png'
                     
                     # Load the image to save (processed if available, else current)
@@ -596,12 +687,18 @@ class BackgroundRemoverPanelQt(QWidget):
                     img_path = self.processed_image if self.processed_image else self.current_image
                     img = Image.open(img_path)
                     
-                    # Convert to RGBA if saving as PNG
-                    if file_path.lower().endswith('.png') and img.mode != 'RGBA':
+                    ext = Path(file_path).suffix.lower()
+                    # PNG and WebP support alpha channel natively
+                    if ext == '.png' and img.mode != 'RGBA':
                         img = img.convert('RGBA')
+                    elif ext in ('.jpg', '.jpeg') and img.mode in ('RGBA', 'LA', 'P'):
+                        img = img.convert('RGB')
                     
                     # Save
-                    img.save(file_path, optimize=True)
+                    save_kwargs = {'optimize': True}
+                    if ext in ('.jpg', '.jpeg'):
+                        save_kwargs['quality'] = 95
+                    img.save(file_path, **save_kwargs)
                     
                     QMessageBox.information(self, "Success", f"Image saved to:\n{file_path}")
                 except Exception as e:
@@ -799,6 +896,16 @@ class BackgroundRemoverPanelQt(QWidget):
                 QMessageBox.critical(self, "Error", "Background removal failed with all available backends.")
                 return
 
+            # ── Trim transparent borders (optional) ─────────────────────────
+            trim_cb = getattr(self, 'trim_transparent_cb', None)
+            if trim_cb is not None and trim_cb.isChecked() and output is not None:
+                try:
+                    bbox = output.getbbox()  # bounding box of non-zero alpha region
+                    if bbox:
+                        output = output.crop(bbox)
+                except Exception as _te:
+                    logger.warning(f"Trim failed: {_te}")
+
             # ── Save result and update UI ────────────────────────────────────
             tmp_dir = Path(tempfile.mkdtemp(prefix=self.TEMP_DIR_PREFIX))
             self._rembg_temp_dirs.append(tmp_dir)
@@ -907,6 +1014,147 @@ class BackgroundRemoverPanelQt(QWidget):
                 except Exception:
                     pass
         widget.setToolTip(str(widget_id_or_text))
+
+    # ── Batch processing ──────────────────────────────────────────────────────
+
+    _BATCH_IMAGE_EXTS = {
+        '.png', '.jpg', '.jpeg', '.bmp', '.tiff', '.tif',
+        '.webp', '.tga', '.gif', '.ico',
+        '.avif', '.qoi', '.apng', '.jfif',
+    }
+    _BATCH_OUTPUT_SUFFIX = '_nobg'   # appended to stem: photo.png → photo_nobg.png
+
+    def _batch_add_files(self) -> None:
+        """Add individual image files to the batch queue."""
+        if not PYQT_AVAILABLE:
+            return
+        exts_str = " ".join(f"*{e}" for e in sorted(self._BATCH_IMAGE_EXTS))
+        paths, _ = QFileDialog.getOpenFileNames(
+            self, "Select Images", "",
+            f"Images ({exts_str});;All files (*.*)"
+        )
+        if not paths:
+            return
+        existing = {str(p) for p in self._batch_files}
+        added = [Path(p) for p in paths if p not in existing]
+        self._batch_files.extend(added)
+        self._update_batch_ui()
+
+    def _batch_add_folder(self) -> None:
+        """Add all images from a folder (optionally recursive) to the batch queue."""
+        if not PYQT_AVAILABLE:
+            return
+        folder = QFileDialog.getExistingDirectory(self, "Select Folder")
+        if not folder:
+            return
+        folder_path = Path(folder)
+        recursive = hasattr(self, '_batch_recursive_cb') and self._batch_recursive_cb.isChecked()
+        pattern = '**/*' if recursive else '*'
+        new_files = []
+        for ext in self._BATCH_IMAGE_EXTS:
+            new_files.extend(folder_path.glob(f'{pattern}{ext}'))
+            new_files.extend(folder_path.glob(f'{pattern}{ext.upper()}'))
+        existing = {str(p) for p in self._batch_files}
+        added = [p for p in sorted(set(new_files)) if str(p) not in existing]
+        self._batch_files.extend(added)
+        self._update_batch_ui()
+
+    def _batch_clear(self) -> None:
+        """Clear the batch queue."""
+        self._batch_files.clear()
+        self._update_batch_ui()
+
+    def _update_batch_ui(self) -> None:
+        """Refresh the batch count label and run-button enabled state."""
+        n = len(self._batch_files)
+        if hasattr(self, '_batch_count_lbl'):
+            if n == 0:
+                self._batch_count_lbl.setText("No files queued")
+                self._batch_count_lbl.setStyleSheet("color: #888; font-size: 10pt;")
+            else:
+                self._batch_count_lbl.setText(f"{n} file{'s' if n != 1 else ''} queued")
+                self._batch_count_lbl.setStyleSheet("color: green; font-weight: bold; font-size: 10pt;")
+        if hasattr(self, '_batch_run_btn'):
+            self._batch_run_btn.setEnabled(n > 0)
+
+    def _batch_process(self) -> None:
+        """Remove background from all queued images and save alongside originals.
+
+        Each output is saved as ``<original_stem>_nobg.png`` in the same folder
+        as the source image.  A summary message box reports success / failure.
+        """
+        if not self._batch_files:
+            return
+        if not PYQT_AVAILABLE:
+            return
+
+        done, errors = 0, 0
+        error_msgs: list = []
+        batch_fmt = getattr(self, '_batch_format_combo', None)
+        out_ext = batch_fmt.currentText().lower() if batch_fmt is not None else 'png'
+        pil_format = out_ext.upper()
+        for fp in list(self._batch_files):
+            try:
+                out_path = fp.parent / f"{fp.stem}{self._BATCH_OUTPUT_SUFFIX}.{out_ext}"
+                # Try rembg first
+                removed = None
+                try:
+                    from tools.object_remover import get_rembg
+                    rembg_fn, _ = get_rembg()
+                    if rembg_fn is not None and PIL_AVAILABLE:
+                        with fp.open('rb') as fh:
+                            removed_bytes = rembg_fn(fh.read())
+                        import io
+                        removed = Image.open(io.BytesIO(removed_bytes)).convert('RGBA')
+                except Exception:
+                    pass
+                # ONNX fallback
+                if removed is None and PIL_AVAILABLE:
+                    try:
+                        import sys as _sys
+                        import os as _os
+                        exe_dir = _os.path.dirname(_sys.executable)
+                        candidates = [
+                            _os.path.join(exe_dir, 'app_data', 'models', 'u2net.onnx'),
+                            _os.path.join('app_data', 'models', 'u2net.onnx'),
+                        ]
+                        model_path = next((c for c in candidates if _os.path.isfile(c)), None)
+                        if model_path:
+                            removed = _remove_bg_onnx(Image.open(fp), model_path)
+                    except Exception:
+                        pass
+                if removed is None:
+                    raise RuntimeError("No background-removal backend available "
+                                       "(rembg and ONNX model both unavailable)")
+                # Trim transparent borders if requested
+                _trim = getattr(self, 'trim_transparent_cb', None)
+                if _trim is not None and _trim.isChecked():
+                    try:
+                        bbox = removed.getbbox()
+                        if bbox:
+                            removed = removed.crop(bbox)
+                    except Exception:
+                        pass
+                save_kw = {}
+                if pil_format == "WEBP":
+                    # Lossless WebP best preserves alpha channel quality
+                    save_kw = {"lossless": True}
+                removed.save(str(out_path), format=pil_format, **save_kw)
+                done += 1
+            except Exception as exc:
+                errors += 1
+                error_msgs.append(f"{fp.name}: {exc}")
+                logger.warning(f"Batch bg remove failed for {fp}: {exc}")
+
+        self._batch_files.clear()
+        self._update_batch_ui()
+
+        summary = f"✅ {done} image{'s' if done != 1 else ''} processed"
+        if errors:
+            summary += f"\n❌ {errors} failed:\n" + "\n".join(error_msgs[:5])
+            if len(error_msgs) > 5:
+                summary += f"\n… and {len(error_msgs) - 5} more"
+        QMessageBox.information(self, "Batch Complete", summary)
 
     def closeEvent(self, event):
         """Clean up temp directories created during background removal."""

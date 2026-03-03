@@ -34,6 +34,63 @@ import re
 
 
 
+# ---------------------------------------------------------------------------
+# Module-level helpers — reused by ColorCorrector.correct_file() and the
+# ColorCorrectionPanelQt preview so the tools layer never imports from ui.
+# ---------------------------------------------------------------------------
+
+#: Maximum channel shift applied for a ±100 white-balance amount.
+_WB_INTENSITY: int = 30
+
+
+def apply_white_balance(img: 'Image.Image', amount: int) -> 'Image.Image':
+    """Shift colour temperature by *amount* (−100 = cool, +100 = warm).
+
+    Works by boosting the red channel and reducing the blue channel (or vice
+    versa) proportionally to *amount*.  The input image is converted to RGBA
+    internally so alpha is preserved.
+    """
+    if amount == 0:
+        return img
+    scale = amount / 100.0          # −1.0 … +1.0
+    shift = int(abs(scale) * _WB_INTENSITY)  # 0 … 30
+    rgba = img.convert('RGBA')
+    r, g, b, a = rgba.split()
+    if amount > 0:
+        r = r.point(lambda v: min(255, v + shift))
+        b = b.point(lambda v: max(0,   v - shift))
+    else:
+        b = b.point(lambda v: min(255, v + shift))
+        r = r.point(lambda v: max(0,   v - shift))
+    return Image.merge('RGBA', (r, g, b, a))
+
+
+def apply_lut_preset(img: 'Image.Image', name: str) -> 'Image.Image':
+    """Apply a named LUT preset ('Warm', 'Cool', 'Cinematic', 'Vintage').
+
+    Simple per-channel point transformations — no external .cube file needed.
+    """
+    rgba = img.convert('RGBA')
+    r, g, b, a = rgba.split()
+    if name == 'Warm':
+        r = r.point(lambda v: min(255, int(v * 1.08)))
+        g = g.point(lambda v: min(255, int(v * 1.02)))
+        b = b.point(lambda v: max(0,   int(v * 0.90)))
+    elif name == 'Cool':
+        r = r.point(lambda v: max(0,   int(v * 0.90)))
+        g = g.point(lambda v: min(255, int(v * 1.02)))
+        b = b.point(lambda v: min(255, int(v * 1.10)))
+    elif name == 'Cinematic':
+        r = r.point(lambda v: min(255, int(v * 1.05 + 5)))
+        g = g.point(lambda v: max(0,   int(v * 0.95)))
+        b = b.point(lambda v: max(0,   int(v * 0.85 + 10)))
+    elif name == 'Vintage':
+        r = r.point(lambda v: min(255, int(v * 1.10 + 10)))
+        g = g.point(lambda v: min(255, int(v * 0.98 +  5)))
+        b = b.point(lambda v: max(0,   int(v * 0.80)))
+    return Image.merge('RGBA', (r, g, b, a))
+
+
 class ColorCorrector:
     """Main color correction class combining all correction methods."""
     
@@ -360,17 +417,19 @@ class ColorCorrector:
         saturation: int = 0,
         sharpness: int = 100,
         lut: Optional[str] = None,
+        white_balance: int = 0,
         **kwargs: Any,
     ) -> None:
         """
         Load an image, apply corrections from UI slider values, and save.
 
         Slider convention (matches ColorCorrectionPanelQt):
-            brightness : -100 .. +100  (0 = no change)
-            contrast   : -100 .. +100  (0 = no change)
-            saturation : -100 .. +100  (0 = no change)
-            sharpness  :    0 .. 200  (100 = no change)
-            lut        : path string or None
+            brightness    : -100 .. +100  (0 = no change)
+            contrast      : -100 .. +100  (0 = no change)
+            saturation    : -100 .. +100  (0 = no change)
+            sharpness     :    0 .. 200  (100 = no change)
+            lut           : preset name ('Warm', 'Cool', …) or path to .cube file, or None
+            white_balance : -100 .. +100  (negative = cool, positive = warm, 0 = no change)
 
         Raises:
             Any PIL / OS exception is re-raised so the worker can log it.
@@ -399,11 +458,18 @@ class ColorCorrector:
             factor = sharpness / 100.0
             img = ImageEnhance.Sharpness(img).enhance(max(0.0, factor))
 
-        # LUT (optional .cube file)
+        # White balance: shift R and B channels in opposite directions
+        if white_balance != 0:
+            img = apply_white_balance(img.convert('RGBA'), white_balance).convert('RGB')
+
+        # LUT: built-in named preset or external .cube file
         if lut:
-            lut_array = self.load_lut(lut)
-            if lut_array is not None:
-                img = self.apply_lut(img, lut_array)
+            if lut in ('Warm', 'Cool', 'Cinematic', 'Vintage'):
+                img = apply_lut_preset(img.convert('RGBA'), lut).convert('RGB')
+            else:
+                lut_array = self.load_lut(lut)
+                if lut_array is not None:
+                    img = self.apply_lut(img, lut_array)
 
         # Preserve original format where possible
         fmt = Path(output_path).suffix.lstrip('.').upper()

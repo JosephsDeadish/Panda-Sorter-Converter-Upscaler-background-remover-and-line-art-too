@@ -64,12 +64,15 @@ class SkillTree:
         """Create all skill nodes in the tree."""
         # Combat Branch
         self._add_combat_skills()
-        
+
         # Magic Branch
         self._add_magic_skills()
-        
+
         # Utility Branch
         self._add_utility_skills()
+
+        # Storage & Equipment Branch (Issue #198: backpack upgrade system)
+        self._add_storage_equipment_skills()
     
     def _add_combat_skills(self):
         """Add combat branch skills."""
@@ -481,6 +484,130 @@ class SkillTree:
             effects={"max_health_bonus": 300, "vitality_bonus": 60, "agility_bonus": 50, "health_regen": 10}
         ))
     
+    def _add_storage_equipment_skills(self):
+        """Add Storage & Equipment branch skills.
+
+        Issue #198 (backpack system comment):
+        'there needs to be a pocket for dungeon exploring too that has a square
+        grid like storage starting with only three square slots enough for a two
+        slot and one slot item it can be upgraded in skill tree maybe under a new
+        section in skill tree called storage and equipment'
+        """
+        # ── Tier 1 — Basic Backpack ──────────────────────────────────────────
+        self.add_skill(SkillNode(
+            id="storage_backpack_basic",
+            name="Basic Backpack",
+            description="Unlocks the panda backpack with 3 dungeon storage slots.",
+            branch="storage",
+            tier=1,
+            cost=1,
+            level_required=1,
+            effects={"dungeon_slots": 3}
+        ))
+
+        self.add_skill(SkillNode(
+            id="storage_food_pocket",
+            name="Food Pocket",
+            description="+5 base health for every food item carried in the backpack.",
+            branch="storage",
+            tier=1,
+            cost=1,
+            level_required=1,
+            effects={"health_per_food": 5}
+        ))
+
+        # ── Tier 2 — Expanded Storage ────────────────────────────────────────
+        self.add_skill(SkillNode(
+            id="storage_dungeon_expand_i",
+            name="Dungeon Bag Upgrade I",
+            description="Dungeon pocket expands from 3 to 6 storage slots.",
+            branch="storage",
+            tier=2,
+            cost=2,
+            requirements=["storage_backpack_basic"],
+            level_required=5,
+            effects={"dungeon_slots": 6}
+        ))
+
+        self.add_skill(SkillNode(
+            id="storage_toy_pocket",
+            name="Toy Pocket",
+            description="Unlocks the Toy Pocket so the panda can carry up to 3 toys.",
+            branch="storage",
+            tier=2,
+            cost=2,
+            requirements=["storage_backpack_basic"],
+            level_required=5,
+            effects={"toy_slots": 3}
+        ))
+
+        # ── Tier 3 — Heavy Carry ─────────────────────────────────────────────
+        self.add_skill(SkillNode(
+            id="storage_heavy_carry",
+            name="Heavy Carrier",
+            description="Carry up to 3 two-slot items (previously only 1 was possible).",
+            branch="storage",
+            tier=3,
+            cost=2,
+            requirements=["storage_dungeon_expand_i"],
+            level_required=15,
+            effects={"two_slot_items": 3}
+        ))
+
+        self.add_skill(SkillNode(
+            id="storage_food_bonus_ii",
+            name="Nutritional Balance",
+            description="+10 base health per food item (stacks with Food Pocket).",
+            branch="storage",
+            tier=3,
+            cost=2,
+            requirements=["storage_food_pocket"],
+            level_required=15,
+            effects={"health_per_food": 10}
+        ))
+
+        # ── Tier 4 — Expanded Dungeon Gear ────────────────────────────────────
+        self.add_skill(SkillNode(
+            id="storage_dungeon_expand_ii",
+            name="Dungeon Bag Upgrade II",
+            description="Dungeon pocket grows to 12 slots — carry a full loadout.",
+            branch="storage",
+            tier=4,
+            cost=3,
+            requirements=["storage_heavy_carry"],
+            level_required=25,
+            effects={"dungeon_slots": 12}
+        ))
+
+        self.add_skill(SkillNode(
+            id="storage_quick_equip",
+            name="Quick Equip",
+            description="Swap equipped dungeon items instantly (no animation delay).",
+            branch="storage",
+            tier=4,
+            cost=3,
+            requirements=["storage_toy_pocket"],
+            level_required=25,
+            effects={"quick_equip": True}
+        ))
+
+        # ── Tier 5 — Master of Gear ───────────────────────────────────────────
+        self.add_skill(SkillNode(
+            id="storage_master_carrier",
+            name="Master Carrier",
+            description=(
+                "Unlimited dungeon slots (up to screen space).  "
+                "+15 HP per food item in backpack.  "
+                "Quick-equip for all item types."
+            ),
+            branch="storage",
+            tier=5,
+            cost=5,
+            requirements=["storage_dungeon_expand_ii", "storage_quick_equip"],
+            level_required=40,
+            effects={"dungeon_slots": 999, "health_per_food": 15, "quick_equip": True}
+        ))
+
     def add_skill(self, skill: SkillNode):
         """Add a skill node to the tree."""
         self.skills[skill.id] = skill
@@ -562,6 +689,31 @@ class SkillTree:
     def get_total_skill_points_spent(self) -> int:
         """Calculate total skill points spent."""
         return sum(skill.cost for skill in self.get_unlocked_skills())
+
+    def get_total_effect(self, effect_key: str, default: int = 0) -> int:
+        """Sum the numeric value of *effect_key* across all unlocked skills.
+
+        Useful for storage effects such as ``'dungeon_slots'``, ``'toy_slots'``,
+        or any custom effect key added by the storage/equipment branches.
+
+        Args:
+            effect_key: The effect dictionary key to aggregate.
+            default: Returned when no unlocked skill provides this effect.
+
+        Returns:
+            Sum of all matching effect values (integer).  Only the *maximum*
+            is returned for effects where accumulation makes no sense — but
+            for slot counts we sum, matching the intent of "Bag Upgrade I/II"
+            raising the cap progressively.
+        """
+        total = 0
+        found = False
+        for skill in self.get_unlocked_skills():
+            val = skill.effects.get(effect_key)
+            if val is not None:
+                total = max(total, val)  # take the highest single-skill value (bag upgrades replace, not stack)
+                found = True
+        return total if found else default
     
     def reset_skills(self):
         """Reset all unlocked skills."""

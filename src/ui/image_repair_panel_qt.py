@@ -12,7 +12,8 @@ try:
     from PyQt6.QtWidgets import (
         QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
         QTextEdit, QFileDialog, QMessageBox, QProgressBar,
-        QGroupBox, QScrollArea, QFrame, QCheckBox, QComboBox
+        QGroupBox, QScrollArea, QFrame, QCheckBox, QComboBox,
+        QSplitter
     )
     from PyQt6.QtCore import Qt, QThread, pyqtSignal
     PYQT_AVAILABLE = True
@@ -208,6 +209,7 @@ class ImageRepairPanelQt(QWidget):
         self.output_dir: Optional[str] = None
         self.diagnostic_worker = None
         self.repair_worker = None
+        self.setAcceptDrops(True)  # drag-and-drop image files onto the panel
         
         if not REPAIRER_AVAILABLE:
             self._show_import_error()
@@ -215,6 +217,42 @@ class ImageRepairPanelQt(QWidget):
         
         self.repairer = ImageRepairer()
         self._create_widgets()
+
+    # ── Drag-and-drop support ──────────────────────────────────────────────
+    def dragEnterEvent(self, event) -> None:
+        if event.mimeData().hasUrls():
+            event.acceptProposedAction()
+        else:
+            event.ignore()
+
+    def dropEvent(self, event) -> None:
+        """Accept dropped image files into the image repair queue."""
+        _EXTS = {'.png', '.jpg', '.jpeg', '.bmp', '.gif', '.tiff', '.tif', '.webp'}
+        existing = set(self.selected_files)
+        added = []
+        for url in event.mimeData().urls():
+            path = Path(url.toLocalFile())
+            if path.is_file() and path.suffix.lower() in _EXTS:
+                s = str(path)
+                if s not in existing:
+                    added.append(s)
+                    existing.add(s)
+            elif path.is_dir():
+                for child in path.iterdir():
+                    if child.suffix.lower() in _EXTS:
+                        s = str(child)
+                        if s not in existing:
+                            added.append(s)
+                            existing.add(s)
+        if added:
+            self.selected_files.extend(added)
+            count = len(self.selected_files)
+            if hasattr(self, 'file_count_label'):
+                self.file_count_label.setText(
+                    f"{count} file{'s' if count != 1 else ''} selected"
+                )
+                self.file_count_label.setStyleSheet("color: green;")
+        event.acceptProposedAction()
     
     def _show_import_error(self):
         """Show error if ImageRepairer cannot be imported."""
@@ -225,38 +263,57 @@ class ImageRepairPanelQt(QWidget):
         layout.addWidget(error_label)
     
     def _create_widgets(self):
-        """Create UI widgets."""
+        """Create UI widgets with left-controls / right-log QSplitter layout."""
         layout = QVBoxLayout(self)
-        layout.setSpacing(10)
-        layout.setContentsMargins(10, 10, 10, 10)
-        
+        layout.setSpacing(6)
+        layout.setContentsMargins(8, 8, 8, 8)
+
         # Title
         title_label = QLabel("🔧 Image Repair Tool")
-        title_label.setStyleSheet("font-size: 18pt; font-weight: bold;")
+        title_label.setStyleSheet("font-size: 16pt; font-weight: bold;")
         title_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(title_label)
-        
+
         subtitle_label = QLabel("Repair corrupted PNG and JPEG image files")
-        subtitle_label.setStyleSheet("color: gray; font-size: 12pt;")
+        subtitle_label.setStyleSheet("color: gray; font-size: 10pt;")
         subtitle_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(subtitle_label)
-        
-        # Scroll area
-        scroll = QScrollArea()
-        scroll.setWidgetResizable(True)
-        scroll.setFrameShape(QFrame.Shape.NoFrame)
-        
-        container = QWidget()
-        main_layout = QVBoxLayout(container)
-        
-        self._create_file_section(main_layout)
-        self._create_output_section(main_layout)
-        self._create_diagnostic_section(main_layout)
-        self._create_action_buttons(main_layout)
-        
-        main_layout.addStretch()
-        scroll.setWidget(container)
-        layout.addWidget(scroll)
+
+        # ── Main splitter: LEFT = controls, RIGHT = diagnostic log ───────────
+        splitter = QSplitter(Qt.Orientation.Horizontal)
+        splitter.setChildrenCollapsible(False)
+        layout.addWidget(splitter, stretch=1)
+
+        # ── LEFT: scrollable settings ─────────────────────────────────────────
+        left_scroll = QScrollArea()
+        left_scroll.setWidgetResizable(True)
+        left_scroll.setFrameShape(QFrame.Shape.NoFrame)
+        left_scroll.setMinimumWidth(280)
+        left_scroll.setMaximumWidth(520)
+
+        left_widget = QWidget()
+        left_layout = QVBoxLayout(left_widget)
+        left_layout.setSpacing(6)
+        left_layout.setContentsMargins(2, 2, 4, 2)
+
+        self._create_file_section(left_layout)
+        self._create_output_section(left_layout)
+        self._create_action_buttons(left_layout)
+        left_layout.addStretch()
+
+        left_scroll.setWidget(left_widget)
+        splitter.addWidget(left_scroll)
+
+        # ── RIGHT: diagnostic results log ─────────────────────────────────────
+        right_widget = QWidget()
+        right_layout = QVBoxLayout(right_widget)
+        right_layout.setContentsMargins(4, 0, 0, 0)
+        right_layout.setSpacing(4)
+        self._create_diagnostic_section(right_layout)
+        splitter.addWidget(right_widget)
+
+        # Controls: 380 px; log fills the rest
+        splitter.setSizes([380, 400])
     
     def _create_file_section(self, layout):
         """Create file selection section."""
@@ -368,7 +425,7 @@ class ImageRepairPanelQt(QWidget):
         
         self.diagnostic_text = QTextEdit()
         self.diagnostic_text.setReadOnly(True)
-        self.diagnostic_text.setMinimumHeight(200)
+        self.diagnostic_text.setMinimumHeight(100)  # right pane expands to fill
         self.diagnostic_text.setPlaceholderText("Run diagnostics to see corruption analysis...")
         self._set_tooltip(self.diagnostic_text, 'repair_results')
         group_layout.addWidget(self.diagnostic_text)
@@ -405,6 +462,11 @@ class ImageRepairPanelQt(QWidget):
         self.cancel_btn.clicked.connect(self._cancel_operation)
         btn_layout.addWidget(self.cancel_btn)
         self._set_tooltip(self.cancel_btn, "Cancel the current operation")
+
+        self.export_report_btn = QPushButton("💾 Export Report")
+        self.export_report_btn.clicked.connect(self._export_diagnostic_report)
+        btn_layout.addWidget(self.export_report_btn)
+        self._set_tooltip(self.export_report_btn, "Save the diagnostic results to a text file")
         
         layout.addLayout(btn_layout)
     
@@ -433,7 +495,8 @@ class ImageRepairPanelQt(QWidget):
 
         if folder:
             _REPAIR_EXTS = ('.png', '.jpg', '.jpeg', '.bmp', '.tiff', '.tif',
-                            '.webp', '.tga', '.gif')
+                            '.webp', '.tga', '.gif', '.avif', '.qoi', '.apng',
+                            '.jfif', '.ico', '.icns', '.dds')
             recursive = self.recursive_cb.isChecked()
             if recursive:
                 for root, _dirs, files in os.walk(folder):
@@ -634,6 +697,27 @@ class ImageRepairPanelQt(QWidget):
         
         self.progress_bar.setVisible(False)
         self._set_ui_enabled(True)
+
+    def _export_diagnostic_report(self):
+        """Save the diagnostic results to a text file chosen by the user."""
+        text = self.diagnostic_text.toPlainText()
+        if not text:
+            QMessageBox.information(self, "Nothing to Export", "Run diagnostics first.")
+            return
+        path, _ = QFileDialog.getSaveFileName(
+            self,
+            "Export Diagnostic Report",
+            "repair_report.txt",
+            "Text Files (*.txt);;All Files (*.*)",
+        )
+        if not path:
+            return
+        try:
+            with open(path, 'w', encoding='utf-8') as fh:
+                fh.write(text)
+            self.progress_label.setText(f"💾 Report saved to {Path(path).name}")
+        except Exception as _e:
+            QMessageBox.critical(self, "Export Failed", f"Could not save report:\n{_e}")
     
     def _set_ui_enabled(self, enabled):
         """Enable/disable UI elements."""

@@ -422,13 +422,37 @@ class ImagePreviewWidget(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.current_image = None
-        self.setMinimumSize(400, 400)
+        self.setMinimumSize(250, 200)
         self._setup_ui()
     
     def _setup_ui(self):
         """Setup UI"""
         layout = QVBoxLayout(self)
-        
+
+        # ── Zoom toolbar ──────────────────────────────────────────────────────
+        self._zoom_level: float = 1.0  # 1.0 = fit-to-widget
+        zoom_bar = QHBoxLayout()
+        zoom_bar.setSpacing(4)
+        zoom_bar.setContentsMargins(0, 0, 0, 0)
+
+        for label, tip, slot in (
+            ('🔍+', 'Zoom in  (Ctrl +)',  self._zoom_in),
+            ('🔍−', 'Zoom out (Ctrl −)',  self._zoom_out),
+            ('⊡',  'Fit to window',      self._zoom_fit),
+        ):
+            btn = QPushButton(label)
+            btn.setFixedSize(32, 22)
+            btn.setToolTip(tip)
+            btn.setFlat(True)
+            btn.clicked.connect(slot)
+            zoom_bar.addWidget(btn)
+
+        self._zoom_lbl = QLabel("Fit")
+        self._zoom_lbl.setStyleSheet("font-size: 10px; color: #888;")
+        zoom_bar.addWidget(self._zoom_lbl)
+        zoom_bar.addStretch()
+        layout.addLayout(zoom_bar)
+
         # Image label
         self.image_label = QLabel()
         self.image_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -462,21 +486,53 @@ class ImagePreviewWidget(QWidget):
             self.current_image = QPixmap(image_path)
         else:
             return
-        
-        # Scale to fit
-        scaled = self.current_image.scaled(
-            self.image_label.size(),
-            Qt.AspectRatioMode.KeepAspectRatio,
-            Qt.TransformationMode.SmoothTransformation
-        )
-        
-        self.image_label.setPixmap(scaled)
-        
+
+        self._zoom_level = 1.0  # reset to fit on new image
+        self._zoom_lbl.setText("Fit")
+        self._refresh_pixmap()
+
         # Update info
         if self.current_image:
             w, h = self.current_image.width(), self.current_image.height()
             self.info_label.setText(f"{w} x {h} pixels")
-    
+
+    def _refresh_pixmap(self) -> None:
+        """Recompute and show the pixmap at the current zoom level."""
+        if not self.current_image or self.current_image.isNull():
+            return
+        label_size = self.image_label.size()
+        if self._zoom_level == 1.0:
+            # Fit mode
+            target = label_size
+        else:
+            # Fixed zoom
+            w = int(self.current_image.width()  * self._zoom_level)
+            h = int(self.current_image.height() * self._zoom_level)
+            target = type(label_size)(w, h)  # QSize(w, h)
+        scaled = self.current_image.scaled(
+            target,
+            Qt.AspectRatioMode.KeepAspectRatio,
+            Qt.TransformationMode.SmoothTransformation
+        )
+        self.image_label.setPixmap(scaled)
+
+    def _zoom_in(self) -> None:
+        zoom = min(8.0, (self._zoom_level if self._zoom_level > 1.0 else 1.0) * 1.25)
+        self._zoom_level = zoom
+        self._zoom_lbl.setText(f"{int(zoom * 100)}%")
+        self._refresh_pixmap()
+
+    def _zoom_out(self) -> None:
+        zoom = max(0.1, (self._zoom_level if self._zoom_level > 1.0 else 1.0) / 1.25)
+        self._zoom_level = zoom if zoom > 0.12 else 1.0
+        self._zoom_lbl.setText("Fit" if self._zoom_level == 1.0 else f"{int(zoom * 100)}%")
+        self._refresh_pixmap()
+
+    def _zoom_fit(self) -> None:
+        self._zoom_level = 1.0
+        self._zoom_lbl.setText("Fit")
+        self._refresh_pixmap()
+
     def clear(self):
         """Clear preview"""
         self.current_image = None
@@ -484,15 +540,10 @@ class ImagePreviewWidget(QWidget):
         self.info_label.setText("No image loaded")
     
     def resizeEvent(self, event):
-        """Handle resize"""
+        """Handle resize — re-apply current zoom/fit."""
         super().resizeEvent(event)
         if self.current_image:
-            scaled = self.current_image.scaled(
-                self.image_label.size(),
-                Qt.AspectRatioMode.KeepAspectRatio,
-                Qt.TransformationMode.SmoothTransformation
-            )
-            self.image_label.setPixmap(scaled)
+            self._refresh_pixmap()
 
 
 # Factory functions for convenience

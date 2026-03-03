@@ -7,6 +7,7 @@ Author: Dead On The Inside / JosephsDeadish
 import json
 import logging
 import math
+import os
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Optional, List, Tuple
@@ -24,16 +25,20 @@ try:
     from OpenGL.GL import *
     from OpenGL.GLU import *
     OPENGL_AVAILABLE = True
-    # Set default GL format at module load time (belt-and-suspenders alongside main())
+    # Set default GL format at module load time (belt-and-suspenders alongside main()).
+    # Skip on the offscreen/headless Qt platform: the offscreen backend uses software
+    # rendering and has no real WGL surface.  Requesting CompatibilityProfile there
+    # causes Qt to call exit(1) on CI VMs without a GPU.
     import os as _os_bed
-    _os_bed.environ.setdefault('QT_OPENGL', 'desktop')  # force native GL, not ANGLE
-    _fmt = QSurfaceFormat()
-    _fmt.setVersion(2, 1)
-    _fmt.setProfile(QSurfaceFormat.OpenGLContextProfile.CompatibilityProfile)
-    _fmt.setRenderableType(QSurfaceFormat.RenderableType.OpenGL)  # desktop GL
-    _fmt.setSamples(4)
-    _fmt.setDepthBufferSize(24)
-    QSurfaceFormat.setDefaultFormat(_fmt)
+    if _os_bed.environ.get('QT_QPA_PLATFORM') != 'offscreen':
+        _os_bed.environ.setdefault('QT_OPENGL', 'desktop')  # force native GL, not ANGLE
+        _fmt = QSurfaceFormat()
+        _fmt.setVersion(2, 1)
+        _fmt.setProfile(QSurfaceFormat.OpenGLContextProfile.CompatibilityProfile)
+        _fmt.setRenderableType(QSurfaceFormat.RenderableType.OpenGL)  # desktop GL
+        _fmt.setSamples(4)
+        _fmt.setDepthBufferSize(24)
+        QSurfaceFormat.setDefaultFormat(_fmt)
 except (ImportError, OSError, RuntimeError):
     OPENGL_AVAILABLE = False
     QWidget = object          # type: ignore[assignment,misc]
@@ -107,14 +112,15 @@ class FurniturePiece:
 def _build_furniture() -> List[FurniturePiece]:
     """Return list of furniture pieces at their default positions."""
     defs = [
-        ('wardrobe',     'Wardrobe',     '🚪', -2.8, 0.0, -3.0,   0.0, -2.2, -1.8, 'Clothes'),
-        ('armor_rack',   'Armor Rack',   '🛡️',  2.5, 0.0, -3.0, 180.0,  1.8, -1.8, 'Weapons'),
-        ('weapons_rack', 'Weapons Rack', '⚔️',  3.3, 0.0, -1.5, -90.0,  2.5, -0.8, 'Weapons'),
-        ('toy_box',      'Toy Box',      '🧸', -3.0, 0.0,  1.8,  90.0, -2.2,  1.2, 'Toys'),
-        ('fridge',       'Fridge',       '🧊',  3.2, 0.0,  1.8, -90.0,  2.5,  1.2, 'Food'),
-        ('trophy_stand', 'Trophy Stand', '🏆',  0.0, 0.0, -3.2,   0.0,  0.0, -2.0, 'achievements'),
-        ('backpack',     'Backpack',     '🎒', -1.2, 0.0, -3.0,   0.0, -0.8, -2.0, 'Inventory'),
-        ('bedroom_door', 'Front Door',   '🏠',  0.0, 0.0,  3.8, 180.0,  0.0,  2.8, 'world'),
+        ('wardrobe',      'Wardrobe',      '🚪', -2.8, 0.0, -3.0,   0.0, -2.2, -1.8, 'Clothes'),
+        ('armor_rack',    'Armor Rack',    '🛡️',  2.5, 0.0, -3.0, 180.0,  1.8, -1.8, 'Weapons'),
+        ('weapons_rack',  'Weapons Rack',  '⚔️',  3.3, 0.0, -1.5, -90.0,  2.5, -0.8, 'Weapons'),
+        ('toy_box',       'Toy Box',       '🧸', -3.0, 0.0,  1.8,  90.0, -2.2,  1.2, 'Toys'),
+        ('fridge',        'Fridge',        '🧊',  3.2, 0.0,  1.8, -90.0,  2.5,  1.2, 'Food'),
+        ('trophy_stand',  'Trophy Stand',  '🏆',  0.0, 0.0, -3.2,   0.0,  0.0, -2.0, 'achievements'),
+        ('backpack',      'Backpack',      '🎒', -1.2, 0.0, -3.0,   0.0, -0.8, -2.0, 'Inventory'),
+        ('computer_desk', 'Computer Desk', '💻', -3.0, 0.0, -0.5,  90.0, -2.2,  0.0, 'tools'),
+        ('bedroom_door',  'Front Door',    '🏠',  0.0, 0.0,  3.8, 180.0,  0.0,  2.8, 'world'),
     ]
     pieces = []
     for d in defs:
@@ -149,13 +155,14 @@ class PandaBedroomGL(QOpenGLWidget if OPENGL_AVAILABLE else QWidget):  # type: i
 
         super().__init__(parent)
 
-        fmt = QSurfaceFormat()
-        fmt.setVersion(2, 1)  # OpenGL 2.1 — keeps all legacy fixed-function GL
-        fmt.setProfile(QSurfaceFormat.OpenGLContextProfile.CompatibilityProfile)
-        fmt.setRenderableType(QSurfaceFormat.RenderableType.OpenGL)  # native desktop GL
-        fmt.setDepthBufferSize(24)
-        fmt.setSamples(4)
-        self.setFormat(fmt)
+        if os.environ.get('QT_QPA_PLATFORM') != 'offscreen':
+            fmt = QSurfaceFormat()
+            fmt.setVersion(2, 1)  # OpenGL 2.1 — keeps all legacy fixed-function GL
+            fmt.setProfile(QSurfaceFormat.OpenGLContextProfile.CompatibilityProfile)
+            fmt.setRenderableType(QSurfaceFormat.RenderableType.OpenGL)  # native desktop GL
+            fmt.setDepthBufferSize(24)
+            fmt.setSamples(4)
+            self.setFormat(fmt)
 
         # Furniture
         self._furniture: List[FurniturePiece] = _build_furniture()
@@ -225,6 +232,24 @@ class PandaBedroomGL(QOpenGLWidget if OPENGL_AVAILABLE else QWidget):  # type: i
             if p.id == furniture_id:
                 return p
         return None
+
+    def get_layout(self) -> dict:
+        """Return a serialisable dict of all furniture positions/rotations."""
+        return {
+            p.id: {'x': p.x, 'y': p.y, 'z': p.z, 'rot_y': p.rot_y}
+            for p in self._furniture
+        }
+
+    def set_layout(self, layout: dict) -> None:
+        """Restore furniture positions/rotations from a previously saved layout dict."""
+        for p in self._furniture:
+            if p.id in layout:
+                entry = layout[p.id]
+                p.x     = entry.get('x', p.x)
+                p.y     = entry.get('y', p.y)
+                p.z     = entry.get('z', p.z)
+                p.rot_y = entry.get('rot_y', p.rot_y)
+        self.update()
 
     def walk_panda_to(self, x: float, z: float, callback=None) -> None:
         """Walk the in-room panda character to world position (x, z).
@@ -515,6 +540,8 @@ class PandaBedroomGL(QOpenGLWidget if OPENGL_AVAILABLE else QWidget):  # type: i
         self._draw_window()
         self._draw_wall_picture()
         self._draw_bookshelf()
+        self._draw_rug()
+        self._draw_potted_plant()
 
         glEnable(GL_LIGHTING)
 
@@ -840,14 +867,15 @@ class PandaBedroomGL(QOpenGLWidget if OPENGL_AVAILABLE else QWidget):  # type: i
 
         # Approximate bounding box per furniture type
         _bounds = {
-            'wardrobe':     (1.2, 2.0, 0.6),
-            'armor_rack':   (1.0, 1.8, 0.5),
-            'weapons_rack': (1.2, 1.5, 0.3),
-            'toy_box':      (1.0, 0.7, 0.7),
-            'fridge':       (0.8, 2.0, 0.7),
-            'trophy_stand': (1.4, 1.5, 0.4),
-            'backpack':     (0.5, 0.7, 0.3),
-            'bedroom_door': (1.0, 2.2, 0.15),
+            'wardrobe':       (1.2, 2.0, 0.6),
+            'armor_rack':     (1.0, 1.8, 0.5),
+            'weapons_rack':   (1.2, 1.5, 0.3),
+            'toy_box':        (1.0, 0.7, 0.7),
+            'fridge':         (0.8, 2.0, 0.7),
+            'trophy_stand':   (1.4, 1.5, 0.4),
+            'backpack':       (0.5, 0.7, 0.3),
+            'computer_desk':  (1.2, 1.5, 0.6),
+            'bedroom_door':   (1.0, 2.2, 0.15),
         }
         bw, bh, bd = _bounds.get(piece.id, (1.0, 1.0, 1.0))
 
@@ -870,6 +898,65 @@ class PandaBedroomGL(QOpenGLWidget if OPENGL_AVAILABLE else QWidget):  # type: i
         glEnd()
 
         glLineWidth(1.0)
+        glEnable(GL_LIGHTING)
+
+    def _draw_rug(self) -> None:
+        """Cozy circular rug in the centre of the bedroom floor."""
+        glDisable(GL_LIGHTING)
+        # Outer ring — deep red
+        glColor4f(0.65, 0.12, 0.12, 0.90)
+        glEnable(GL_BLEND)
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
+        import math as _m
+        glBegin(GL_TRIANGLE_FAN)
+        glNormal3f(0, 1, 0)
+        glVertex3f(0.0, 0.01, 1.0)  # centre
+        for deg in range(0, 361, 12):
+            r = _m.radians(deg)
+            glVertex3f(1.6 * _m.cos(r), 0.01, 1.0 + 1.2 * _m.sin(r))
+        glEnd()
+        # Inner ring — cream
+        glColor4f(0.95, 0.88, 0.70, 0.88)
+        glBegin(GL_TRIANGLE_FAN)
+        glVertex3f(0.0, 0.012, 1.0)
+        for deg in range(0, 361, 12):
+            r = _m.radians(deg)
+            glVertex3f(0.9 * _m.cos(r), 0.012, 1.0 + 0.7 * _m.sin(r))
+        glEnd()
+        glDisable(GL_BLEND)
+        glEnable(GL_LIGHTING)
+
+    def _draw_potted_plant(self) -> None:
+        """Small potted bamboo plant in the corner near the window."""
+        from features.opengl_utils import _sphere as _sph  # try shared sphere helper
+        import math as _m
+        glDisable(GL_LIGHTING)
+
+        # Pot (terracotta) — simple box at (-5.5, 0, -4.0)
+        px, pz = -5.5, -4.0
+        glColor3f(0.72, 0.35, 0.18)
+        self._draw_box(px - 0.18, 0.0, pz - 0.18, px + 0.18, 0.32, pz + 0.18)
+
+        # Soil top
+        glColor3f(0.30, 0.20, 0.10)
+        glBegin(GL_QUADS)
+        glNormal3f(0, 1, 0)
+        glVertex3f(px - 0.18, 0.32, pz - 0.18)
+        glVertex3f(px + 0.18, 0.32, pz - 0.18)
+        glVertex3f(px + 0.18, 0.32, pz + 0.18)
+        glVertex3f(px - 0.18, 0.32, pz + 0.18)
+        glEnd()
+
+        # Bamboo stalks (3 green cylinders approximated as thin boxes)
+        for dx, dz, h in ((-0.06, 0.0, 0.7), (0.0, 0.05, 0.85), (0.06, -0.04, 0.6)):
+            glColor3f(0.27, 0.60, 0.18)
+            self._draw_box(px + dx - 0.025, 0.32, pz + dz - 0.025,
+                           px + dx + 0.025, 0.32 + h, pz + dz + 0.025)
+            # Leaf cluster on top
+            glColor3f(0.22, 0.75, 0.20)
+            self._draw_box(px + dx - 0.10, 0.32 + h, pz + dz - 0.10,
+                           px + dx + 0.10, 0.32 + h + 0.14, pz + dz + 0.10)
+
         glEnable(GL_LIGHTING)
 
     # ── Individual furniture draw methods ─────────────────────────────────────
@@ -1219,6 +1306,27 @@ class PandaBedroomGL(QOpenGLWidget if OPENGL_AVAILABLE else QWidget):  # type: i
         glEnd()
         glEnable(GL_LIGHTING)
 
+    def _draw_computer_desk(self) -> None:
+        """Desk with a monitor, keyboard, and glowing screen — clicking opens the tools panel."""
+        glEnable(GL_LIGHTING)
+        # Desk surface (light pine wood)
+        self._draw_box(-0.60, 0.60, -0.30,  0.60, 0.68,  0.30, (0.72, 0.55, 0.32))
+        # Left leg
+        self._draw_box(-0.55, 0.0, -0.28, -0.48, 0.60, -0.22, (0.58, 0.42, 0.22))
+        # Right leg
+        self._draw_box( 0.48, 0.0, -0.28,  0.55, 0.60, -0.22, (0.58, 0.42, 0.22))
+        # Monitor stand (slim dark box)
+        self._draw_box(-0.06, 0.68, -0.08,  0.06, 0.88, -0.04, (0.15, 0.15, 0.18))
+        # Monitor frame (dark grey bezel)
+        self._draw_box(-0.42, 0.88, -0.10,  0.42, 1.48, -0.05, (0.12, 0.12, 0.15))
+        # Screen glow (bright cyan — rendered without lighting)
+        glDisable(GL_LIGHTING)
+        glColor4f(0.20, 0.80, 0.90, 1.0)
+        self._draw_box(-0.38, 0.92, -0.08,  0.38, 1.44, -0.04, (0.20, 0.80, 0.90))
+        glEnable(GL_LIGHTING)
+        # Keyboard (thin flat box on desk surface)
+        self._draw_box(-0.28, 0.68,  0.05,  0.28, 0.72,  0.25, (0.20, 0.20, 0.24))
+
     # ── Primitive helpers ─────────────────────────────────────────────────────
 
     @staticmethod
@@ -1435,6 +1543,18 @@ class PandaBedroomGL(QOpenGLWidget if OPENGL_AVAILABLE else QWidget):  # type: i
             self._right_dragging = True
         self._last_mouse = QPoint(int(event.position().x()), int(event.position().y()))
 
+    # Map furniture IDs to short hover descriptions shown as Qt tooltips
+    _FURNITURE_TIPS = {
+        'wardrobe':     '👗 Wardrobe — Click to browse outfits & costumes',
+        'armor_rack':   '🛡️ Armor Rack — Click to equip armour sets',
+        'weapons_rack': '⚔️ Weapons Rack — Click to manage weapons',
+        'toy_box':      '🧸 Toy Box — Click to play with toys & accessories',
+        'fridge':       '🍎 Fridge — Click to manage food & treats',
+        'trophy_stand': '🏆 Trophy Stand — Click to view achievements',
+        'backpack':     '🎒 Backpack — Click to open inventory & items',
+        'bedroom_door': '🚪 Door — Click to go outside to the world',
+    }
+
     def mouseMoveEvent(self, event: 'QMouseEvent') -> None:  # type: ignore[override]
         if not self._gl_ok:
             return
@@ -1460,6 +1580,22 @@ class PandaBedroomGL(QOpenGLWidget if OPENGL_AVAILABLE else QWidget):  # type: i
 
         self._last_mouse = cur
         self.update()  # always repaint so hover highlights update in paintGL._update_hover()
+
+        # Show a Qt tooltip for the hovered furniture piece
+        try:
+            prev_hover = self._hovered_id
+            self._update_hover()
+            if self._hovered_id != prev_hover:
+                # Hover changed — update tooltip
+                tip = self._FURNITURE_TIPS.get(self._hovered_id or '', '')
+                if OPENGL_AVAILABLE:
+                    from PyQt6.QtWidgets import QToolTip
+                    if tip:
+                        QToolTip.showText(event.globalPosition().toPoint(), tip, self)
+                    else:
+                        QToolTip.hideText()
+        except Exception:
+            pass
 
     def mouseReleaseEvent(self, event: 'QMouseEvent') -> None:  # type: ignore[override]
         if not self._gl_ok:

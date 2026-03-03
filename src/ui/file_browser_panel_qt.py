@@ -16,10 +16,11 @@ try:
         QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
         QLineEdit, QComboBox, QListWidget, QListWidgetItem,
         QFileDialog, QMessageBox, QGroupBox, QCheckBox,
-        QScrollArea, QFrame, QGridLayout, QSplitter, QMainWindow
+        QScrollArea, QFrame, QGridLayout, QSplitter, QMainWindow,
+        QMenu, QApplication
     )
     from PyQt6.QtCore import Qt, pyqtSignal, QSize, QTimer, QThread
-    from PyQt6.QtGui import QPixmap, QIcon, QImage
+    from PyQt6.QtGui import QPixmap, QIcon, QImage, QAction
     PYQT_AVAILABLE = True
 except (ImportError, OSError, RuntimeError):
     PYQT_AVAILABLE = False
@@ -125,7 +126,11 @@ class FileBrowserPanelQt(QWidget):
     """
     
     # Supported file types
-    IMAGE_EXTENSIONS = {'.png', '.jpg', '.jpeg', '.bmp', '.tiff', '.tif', '.webp', '.dds', '.tga', '.gif'}
+    IMAGE_EXTENSIONS = {
+        '.png', '.jpg', '.jpeg', '.bmp', '.tiff', '.tif', '.webp',
+        '.dds', '.tga', '.gif', '.avif', '.qoi', '.apng', '.jfif',
+        '.ico', '.icns',
+    }
     ARCHIVE_EXTENSIONS = {'.zip', '.7z', '.rar', '.tar', '.gz'}
     
     file_selected = pyqtSignal(Path)
@@ -206,6 +211,14 @@ class FileBrowserPanelQt(QWidget):
         self._set_tooltip(self.recent_combo, 'recent_folders_combo')
         self._set_tooltip(self.recent_combo, 'recent_files')
         controls_layout.addWidget(self.recent_combo)
+
+        # Clear recent folders button
+        self._clear_recent_btn = QPushButton("✖")
+        self._clear_recent_btn.setFixedWidth(28)
+        self._clear_recent_btn.setFixedHeight(24)
+        self._clear_recent_btn.clicked.connect(self._clear_recent_folders)
+        self._set_tooltip(self._clear_recent_btn, "Clear recent folders history")
+        controls_layout.addWidget(self._clear_recent_btn)
         
         # Refresh button
         self.refresh_btn = QPushButton("🔄 Refresh")
@@ -317,6 +330,8 @@ class FileBrowserPanelQt(QWidget):
         self.file_list.setWordWrap(True)
         self.file_list.itemClicked.connect(self.on_file_clicked)
         self.file_list.itemDoubleClicked.connect(self.on_file_double_clicked)
+        self.file_list.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        self.file_list.customContextMenuRequested.connect(self._show_file_context_menu)
         list_layout.addWidget(self.file_list)
         
         splitter.addWidget(list_container)
@@ -670,22 +685,59 @@ class FileBrowserPanelQt(QWidget):
         self.file_selected.emit(filepath)
     
     def on_file_double_clicked(self, item: QListWidgetItem):
-        """Handle file double-clicked"""
+        """Handle file double-clicked — open with default OS application."""
         filepath = Path(item.data(Qt.ItemDataRole.UserRole))
-        # Open file with default application
         import subprocess
         import platform
         import os
         
         try:
             if platform.system() == 'Darwin':  # macOS
-                subprocess.call(('open', str(filepath)))
+                subprocess.Popen(('open', str(filepath)))
             elif platform.system() == 'Windows':  # Windows
                 os.startfile(str(filepath))
-            else:  # linux variants
-                subprocess.call(('xdg-open', str(filepath)))
+            else:  # Linux / other POSIX
+                subprocess.Popen(('xdg-open', str(filepath)))
         except Exception as e:
             logger.error(f"Error opening file: {e}")
+
+    def _show_file_context_menu(self, pos) -> None:
+        """Show right-click context menu for the file list."""
+        item = self.file_list.itemAt(pos)
+        if item is None:
+            return
+        filepath = Path(item.data(Qt.ItemDataRole.UserRole))
+        menu = QMenu(self)
+
+        open_action = QAction("🔗 Open", self)
+        open_action.triggered.connect(lambda: self.on_file_double_clicked(item))
+        menu.addAction(open_action)
+
+        reveal_action = QAction("📂 Reveal in Explorer", self)
+        def _reveal():
+            import subprocess as _sp
+            import platform as _pl
+            try:
+                if _pl.system() == 'Darwin':
+                    _sp.Popen(('open', '-R', str(filepath)))
+                elif _pl.system() == 'Windows':
+                    _sp.Popen(f'explorer /select,"{filepath}"', shell=True)
+                else:
+                    _sp.Popen(('xdg-open', str(filepath.parent)))
+            except Exception as _e:
+                logger.warning(f"Reveal failed: {_e}")
+        reveal_action.triggered.connect(_reveal)
+        menu.addAction(reveal_action)
+
+        copy_path_action = QAction("📋 Copy Path", self)
+        def _copy_path():
+            cb = QApplication.clipboard()
+            if cb:
+                cb.setText(str(filepath))
+        copy_path_action.triggered.connect(_copy_path)
+        menu.addAction(copy_path_action)
+
+        menu.exec(self.file_list.mapToGlobal(pos))
     
     def show_preview(self, filepath: Path):
         """Show preview of selected file"""
@@ -701,6 +753,10 @@ class FileBrowserPanelQt(QWidget):
                 # Show image preview
                 if PIL_AVAILABLE:
                     img = Image.open(filepath)
+                    # Capture original dimensions before thumbnail() resizes in-place
+                    original_width, original_height = img.size
+                    original_format = img.format
+                    original_mode = img.mode
                     
                     # Create larger preview (max 512x512)
                     img.thumbnail((512, 512), Image.Resampling.LANCZOS)
@@ -720,14 +776,13 @@ class FileBrowserPanelQt(QWidget):
                     pixmap = QPixmap.fromImage(qimage)
                     self.preview_label.setPixmap(pixmap)
                     
-                    # Show file info
+                    # Show file info using saved original dimensions (no second file-open)
                     size_mb = filepath.stat().st_size / (1024 * 1024)
-                    original_img = Image.open(filepath)
                     self.info_label.setText(
                         f"<b>File:</b> {filepath.name}<br>"
-                        f"<b>Size:</b> {original_img.size[0]} x {original_img.size[1]}<br>"
-                        f"<b>Format:</b> {original_img.format}<br>"
-                        f"<b>Mode:</b> {original_img.mode}<br>"
+                        f"<b>Size:</b> {original_width} x {original_height}<br>"
+                        f"<b>Format:</b> {original_format}<br>"
+                        f"<b>Mode:</b> {original_mode}<br>"
                         f"<b>File Size:</b> {size_mb:.2f} MB"
                     )
                 else:
@@ -737,6 +792,17 @@ class FileBrowserPanelQt(QWidget):
             logger.error(f"Error showing preview: {e}", exc_info=True)
             self.preview_label.setText(f"Error loading preview:\n{e}")
     
+    def closeEvent(self, event):
+        """Stop the thumbnail generator thread before the widget is destroyed.
+
+        Without this, the thread may emit ``thumbnail_ready`` after the widget
+        is gone, causing a RuntimeError or segfault (Qt uses-after-free).
+        """
+        if self.thumbnail_generator is not None and self.thumbnail_generator.isRunning():
+            self.thumbnail_generator.stop()
+            self.thumbnail_generator.wait(500)  # 500 ms grace period
+        super().closeEvent(event)
+
     def refresh_view(self):
         """Refresh the current folder"""
         if self.current_folder:
@@ -775,3 +841,9 @@ class FileBrowserPanelQt(QWidget):
         self.recent_combo.addItem("-- Recent Folders --")
         for folder in self.recent_folders:
             self.recent_combo.addItem(folder)
+
+    def _clear_recent_folders(self):
+        """Clear recent folders history."""
+        self.recent_folders = []
+        self.update_recent_combo()
+        self.save_recent_folders()

@@ -144,21 +144,26 @@ class SettingsPanelQt(QWidget):
         self.tabs.addTab(self.create_language_tab(), "🌐 Language")
         self.tabs.addTab(self.create_advanced_tab(), "🔧 Advanced")
         # Wire tab-bar tooltips using setTabToolTip
-        _tab_tip_map = {
-            0: 'settings_appearance_tab',
-            3: 'settings_controls_tab',
-            4: 'settings_perf_tab',
-            5: 'settings_ai_tab',
-            9: 'settings_system_tab',
-        }
-        for _idx, _tid in _tab_tip_map.items():
+        _tab_tips = [
+            (0, 'settings_appearance_tab',  "🎨 Appearance — themes, colours, panda trail, cursor trail"),
+            (1, 'settings_cursor_tab',       "🖱️ Cursor — cursor size, shape, colour overrides"),
+            (2, 'settings_font_tab',         "🔤 Font — font family, size, weight for all panels"),
+            (3, 'settings_controls_tab',     "⚡ Behavior — animations, tooltips, sorting preferences"),
+            (4, 'settings_perf_tab',         "🚀 Performance — worker threads, cache, GPU usage"),
+            (5, 'settings_ai_tab',           "🤖 AI Settings — training mode, epochs, batch size, device"),
+            (6, 'settings_ai_models_tab',    "📦 AI Model Status — download and manage AI models"),
+            (7, 'settings_hotkeys_tab',      "⌨️ Hotkeys — keyboard shortcuts for common actions"),
+            (8, 'settings_language_tab',     "🌐 Language — display language for the UI"),
+            (9, 'settings_system_tab',       "🔧 Advanced — logging, diagnostics, developer options"),
+        ]
+        for _idx, _tid, _default_tip in _tab_tips:
             try:
                 _tip = self.main_window.tooltip_manager.get_tooltip(_tid) if (
                     self.main_window and getattr(self.main_window, 'tooltip_manager', None)
-                ) else _tid.replace('_', ' ')
-                self.tabs.setTabToolTip(_idx, _tip)
+                ) else _default_tip
+                self.tabs.setTabToolTip(_idx, _tip or _default_tip)
             except Exception:
-                pass
+                self.tabs.setTabToolTip(_idx, _default_tip)
         # Wire all tab IDs explicitly for static tracking
         self.set_tooltip(self.tabs, 'settings_appearance_tab')
         self.set_tooltip(self.tabs, 'settings_controls_tab')
@@ -1732,7 +1737,8 @@ class SettingsPanelQt(QWidget):
                 self.appearance_cursor_combo.setCurrentText(cursor.capitalize())
 
             cursor_size = self.config.get('ui', 'cursor_size', default='medium')
-            self.cursor_size_combo.setCurrentText(cursor_size.capitalize())
+            # Use replace+title so "extra_large" → "Extra Large" (not "Extra_large")
+            self.cursor_size_combo.setCurrentText(cursor_size.replace('_', ' ').title())
             
             trail = self.config.get('ui', 'cursor_trail', default=False)
             self.cursor_trail_check.setChecked(trail)

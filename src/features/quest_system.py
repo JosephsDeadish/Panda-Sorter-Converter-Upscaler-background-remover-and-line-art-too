@@ -266,6 +266,38 @@ class QuestSystem(QObject if PYQT_AVAILABLE else object):
                 goal_value=100,
                 reward_message="100 textures sorted — you're a sorting legend! 🏆",
             ),
+            Quest(
+                id="bamboo_catcher_beginner",
+                name="Bamboo Catcher",
+                description="Play the Bamboo Catcher minigame for the first time",
+                quest_type=QuestType.INTERACT_COUNT,
+                goal_value=1,
+                reward_message="Panda loves catching bamboo! 🎋",
+            ),
+            Quest(
+                id="first_sell",
+                name="Yard Sale",
+                description="Sell an item in the shop",
+                quest_type=QuestType.INTERACT_COUNT,
+                goal_value=1,
+                reward_message="Panda is a savvy trader! 💰",
+            ),
+            Quest(
+                id="dungeon_adventurer",
+                name="Dungeon Adventurer",
+                description="Visit the dungeon entrance",
+                quest_type=QuestType.EXPLORATION,
+                goal_value=1,
+                reward_message="Panda is ready for adventure! ⚔️",
+            ),
+            Quest(
+                id="full_belly",
+                name="Full Belly",
+                description="Feed panda until hunger reaches 90",
+                quest_type=QuestType.INTERACT_COUNT,
+                goal_value=5,
+                reward_message="Panda is full and happy! 🍎",
+            ),
         ]
         
         for quest in quests:

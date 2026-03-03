@@ -26,7 +26,7 @@ try:
     from PyQt6.QtCore import Qt, QTimer, QRect, QPoint, pyqtSignal, QRectF, QPointF
     from PyQt6.QtGui import (
         QPainter, QColor, QPen, QBrush, QFont, QMouseEvent,
-        QPainterPath, QLinearGradient,
+        QPainterPath, QLinearGradient, QPolygonF,
     )
     _QT_AVAILABLE = True
 except (ImportError, OSError, RuntimeError):
@@ -110,6 +110,7 @@ class PandaWidget2D(QWidget if _QT_AVAILABLE else object):  # type: ignore[misc]
         # the appropriate widget underneath.
         self.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, False)
         self.setMouseTracking(True)
+        self.setAcceptDrops(True)  # Allow inventory items to be dropped on panda
 
         self.panda = panda_character  # PandaCharacter or None
 
@@ -246,6 +247,12 @@ class PandaWidget2D(QWidget if _QT_AVAILABLE else object):  # type: ignore[misc]
             self._bob = math.sin(self._tick * 3.5 * sp) * 10.0 + math.sin(self._tick * 7.0) * 3.0
         elif self._animation in ('sad', 'tired', 'working'):
             self._bob = math.sin(self._tick * 0.5 * sp) * 2.0
+        elif self._animation == 'running':
+            # Fast bounce for running — double-frequency bob with higher amplitude
+            self._bob = math.sin(self._tick * 5.0 * sp) * 9.0 + math.sin(self._tick * 10.0) * 2.5
+        elif self._animation in ('walking', 'walking_left', 'walking_right'):
+            # Walking — moderate pace bob with slight side sway
+            self._bob = math.sin(self._tick * 2.5 * sp) * 5.0 + math.sin(self._tick * 5.0) * 1.5
         else:
             self._bob = (math.sin(self._tick * 1.0 * sp) * amp
                          + math.sin(self._tick * 2.7 * sp) * amp * 0.15)
@@ -255,6 +262,15 @@ class PandaWidget2D(QWidget if _QT_AVAILABLE else object):  # type: ignore[misc]
         if self._animation in ('waving', 'celebrating'):
             target_l = -25.0
             target_r = -25.0 + math.sin(self._tick * 3.0) * 18.0
+        elif self._animation in ('walking', 'walking_left', 'walking_right'):
+            # Alternating arm swing while walking
+            swing_speed = 2.5
+            target_l = math.sin(self._tick * swing_speed) * 15.0
+            target_r = -math.sin(self._tick * swing_speed) * 15.0
+        elif self._animation == 'running':
+            # Faster, wider arm swing while running
+            target_l = math.sin(self._tick * 4.5) * 22.0
+            target_r = -math.sin(self._tick * 4.5) * 22.0
         elif self._animation == 'idle':
             swing = math.sin(self._tick * 1.0 * self._micro['sway_speed']) * 7.0
             target_l = swing
@@ -548,7 +564,16 @@ class PandaWidget2D(QWidget if _QT_AVAILABLE else object):  # type: ignore[misc]
             c = QColor(part['r'], part['g'], part['b'], max(0, int(part['life'] * 5)))
             p.setBrush(QBrush(c))
             p.setPen(Qt.PenStyle.NoPen)
-            p.drawEllipse(QRectF(part['x'] - 3, part['y'] - 3, 6, 6))
+            if part.get('shape') == 'heart':
+                # Draw two overlapping ellipses to form a heart shape
+                x, y = part['x'], part['y']
+                p.drawEllipse(QRectF(x - 5, y - 3, 5, 5))
+                p.drawEllipse(QRectF(x,     y - 3, 5, 5))
+                # Triangle bottom of heart
+                triangle = QPolygonF([QPointF(x - 5, y), QPointF(x + 5, y), QPointF(x, y + 5)])
+                p.drawPolygon(triangle)
+            else:
+                p.drawEllipse(QRectF(part['x'] - 3, part['y'] - 3, 6, 6))
 
     # Panda trail colour palettes (keyed by trail_type)
     _TRAIL_PALETTES: dict[str, list[tuple[int, int, int]]] = {
@@ -634,6 +659,64 @@ class PandaWidget2D(QWidget if _QT_AVAILABLE else object):  # type: ignore[misc]
         # Click missed the panda — pass the event through to the UI below
         event.ignore()
 
+    def dragEnterEvent(self, event) -> None:
+        """Accept inventory item drags."""
+        try:
+            if event.mimeData().hasText() and event.mimeData().text().startswith('panda_item:'):
+                event.acceptProposedAction()
+                return
+        except Exception:
+            pass
+        event.ignore()
+
+    def dragMoveEvent(self, event) -> None:
+        """Keep accepting the drag."""
+        try:
+            if event.mimeData().hasText() and event.mimeData().text().startswith('panda_item:'):
+                event.acceptProposedAction()
+                return
+        except Exception:
+            pass
+        event.ignore()
+
+    def dropEvent(self, event) -> None:
+        """Item dropped on 2-D panda — react with particles + mood change."""
+        try:
+            text = event.mimeData().text()
+            if not text.startswith('panda_item:'):
+                event.ignore()
+                return
+            parts = text.split(':', 2)
+            item_id  = parts[1] if len(parts) > 1 else 'item'
+            category = parts[2] if len(parts) > 2 else ''
+            event.acceptProposedAction()
+            is_food = 'food' in category.lower()
+            if is_food:
+                self.food_eaten.emit(item_id)
+                self.set_mood('happy')
+                self._spawn_particles()
+            else:
+                self.set_mood('excited')
+                self._spawn_hearts()
+        except Exception:
+            pass
+
+    def mouseDoubleClickEvent(self, event) -> None:  # type: ignore[override]        """Double-click spawns heart particles (petting the panda)."""
+        if event.button() == Qt.MouseButton.LeftButton:
+            w, h = max(1, self.width()), max(1, self.height())
+            cx = w // 2
+            cy = int(h * 0.72)
+            s = min(min(w, h) / 320.0, 0.8)
+            panda_half_w = int(60 * s)
+            panda_half_h = int(90 * s)
+            if (abs(event.pos().x() - cx) <= panda_half_w
+                    and abs(event.pos().y() - cy) <= panda_half_h):
+                self._spawn_hearts()
+                self.set_mood('happy')
+                event.accept()
+                return
+        event.ignore()
+
     def _spawn_particles(self) -> None:
         cx, cy = self.width() // 2, int(self.height() * 0.45)
         for _ in range(12):
@@ -646,6 +729,22 @@ class PandaWidget2D(QWidget if _QT_AVAILABLE else object):  # type: ignore[misc]
                 'g': random.randint(150, 255),
                 'b': random.randint(50, 200),
                 'life': 30,
+            })
+
+    def _spawn_hearts(self) -> None:
+        """Spawn pink heart particles (petting reaction)."""
+        cx, cy = self.width() // 2, int(self.height() * 0.40)
+        for _ in range(8):
+            self._particles.append({
+                'x': cx + random.randint(-30, 30),
+                'y': cy + random.randint(-10, 10),
+                'vx': random.uniform(-1.5, 1.5),
+                'vy': random.uniform(-4, -1.5),
+                'r': random.randint(220, 255),
+                'g': random.randint(60, 130),
+                'b': random.randint(100, 180),
+                'life': 40,
+                'shape': 'heart',
             })
 
     # ── Public interface (matches PandaOpenGLWidget) ────────────────────────────
