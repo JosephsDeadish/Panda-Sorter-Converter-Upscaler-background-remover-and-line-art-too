@@ -5822,6 +5822,8 @@ class TextureSorterMainWindow(QMainWindow):
                     self.panda_stats.increment_feeds()
             if self.panda_mood_system:
                 self.panda_mood_system.on_user_interaction('feed')
+            if self.quest_system:
+                self.quest_system.update_quest_progress('full_belly', 1)
         except Exception as _e:
             logger.debug(f"Panda feed handler: {_e}")
 
@@ -6752,6 +6754,12 @@ class TextureSorterMainWindow(QMainWindow):
                     )
                     if self.panda_widget:
                         self.panda_widget.set_animation_state('idle')
+                    # Quest: visiting the dungeon counts as dungeon_adventurer
+                    if self.quest_system:
+                        try:
+                            self.quest_system.update_quest_progress('dungeon_adventurer', 1)
+                        except Exception:
+                            pass
                 except Exception as _de:
                     logger.warning(f"_enter_dungeon: {_de}")
                     lbl = QLabel(

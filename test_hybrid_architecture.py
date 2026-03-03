@@ -7792,6 +7792,55 @@ def test_dungeon_3d_enemy_slain_awards_xp():
     print("  ✅ Source: level_system guarded access present")
 
 
+def test_full_belly_and_dungeon_adventurer_quests_wired():
+    """The 'full_belly' and 'dungeon_adventurer' quests must have proper code triggers.
+
+    Bugs:
+    - 'full_belly' (Feed panda 5 times): the panda feed handler never called
+      quest_system.update_quest_progress('full_belly', 1), so this quest had no trigger.
+    - 'dungeon_adventurer' (Visit dungeon entrance): the quest was only updated inside
+      _on_dungeon_enemy_slain (i.e., on kill), but not on dungeon entry itself.  This
+      meant the quest could only complete if the player killed at least one enemy in the
+      3-D dungeon — simply visiting (or using the 2-D dungeon) gave no credit.
+
+    Fixes:
+    - Add quest_system.update_quest_progress('full_belly', 1) in the panda feed handler.
+    - Add quest_system.update_quest_progress('dungeon_adventurer', 1) in _enter_dungeon()
+      (the animation-complete callback that shows the 3-D dungeon panel).
+    """
+    print("\ntest_full_belly_and_dungeon_adventurer_quests_wired ...")
+    from pathlib import Path
+    main_code = (Path(__file__).parent / 'main.py').read_text(encoding='utf-8')
+    quest_code = (Path(__file__).parent / 'src' / 'features' / 'quest_system.py').read_text(encoding='utf-8')
+
+    # Confirm both quests exist
+    assert 'full_belly' in quest_code, "quest_system.py: 'full_belly' quest missing"
+    assert 'dungeon_adventurer' in quest_code, "quest_system.py: 'dungeon_adventurer' quest missing"
+    print("  ✅ Source: both quests defined in quest_system.py")
+
+    # full_belly: updated inside the panda feed handler
+    feed_fn_start = main_code.find('def _on_panda_food_eaten(')
+    assert feed_fn_start != -1, "main.py: _on_panda_food_eaten() missing"
+    next_fn = main_code.find('\n    def ', feed_fn_start + 1)
+    feed_fn = main_code[feed_fn_start:] if next_fn == -1 else main_code[feed_fn_start:next_fn]
+    assert 'full_belly' in feed_fn, (
+        "main.py: _on_panda_food_eaten() does not update 'full_belly' quest.\n"
+        "Add: self.quest_system.update_quest_progress('full_belly', 1)"
+    )
+    print("  ✅ Source: _on_panda_food_eaten() updates 'full_belly' quest")
+
+    # dungeon_adventurer: also updated inside _enter_dungeon closure
+    enter_fn_start = main_code.find('def _enter_dungeon(')
+    assert enter_fn_start != -1, "main.py: _enter_dungeon() inner function missing"
+    next_fn2 = main_code.find('\n            def ', enter_fn_start + 1)
+    enter_fn = main_code[enter_fn_start:] if next_fn2 == -1 else main_code[enter_fn_start:next_fn2]
+    assert 'dungeon_adventurer' in enter_fn, (
+        "main.py: _enter_dungeon() does not update 'dungeon_adventurer' quest on entry.\n"
+        "Add: self.quest_system.update_quest_progress('dungeon_adventurer', 1) in _enter_dungeon()"
+    )
+    print("  ✅ Source: _enter_dungeon() updates 'dungeon_adventurer' quest on dungeon entry")
+
+
 def test_first_sell_quest_wired():
     """ShopPanelQt.item_sold signal must be connected to update the 'first_sell' quest.
 
@@ -8106,6 +8155,7 @@ def run_all_tests():
         test_batch_normalizer_preview_original_size,
         test_dungeon_gold_reward_uses_earn_money,
         test_dungeon_3d_enemy_slain_awards_xp,
+        test_full_belly_and_dungeon_adventurer_quests_wired,
         test_first_sell_quest_wired,
         test_bamboo_catcher_quest_wired,
         test_minigame_panel_bamboo_color_match_ui,
