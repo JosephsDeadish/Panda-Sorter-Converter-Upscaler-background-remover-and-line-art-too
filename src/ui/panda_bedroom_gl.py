@@ -186,6 +186,15 @@ class PandaBedroomGL(QOpenGLWidget if OPENGL_AVAILABLE else QWidget):  # type: i
         # Hover
         self._hovered_id: Optional[str] = None
 
+        # GL matrices cached during paintGL for use in mouse event handlers.
+        # Reading these matrices via makeCurrent() in event handlers is unreliable
+        # (the context state outside paintGL may be identity or stale).  Instead we
+        # capture them right after the camera is set up — the same point that the
+        # hover projection uses them, which is proven to work correctly.
+        self._pick_viewport = None
+        self._pick_modelview = None
+        self._pick_projection = None
+
         # GL flag
         self._gl_ok: bool = False
         # Reusable GLU quadric for sphere drawing — created in _do_init_gl
@@ -459,6 +468,16 @@ class PandaBedroomGL(QOpenGLWidget if OPENGL_AVAILABLE else QWidget):  # type: i
             gluLookAt(0, 0, self._cam_dist,  0, 0, 0,  0, 1, 0)
             glRotatef(self._cam_el, 1.0, 0.0, 0.0)
             glRotatef(self._cam_az, 0.0, 1.0, 0.0)
+
+            # Cache GL matrices for mouse picking.  This must happen here, inside
+            # paintGL while the context is active and matrices are fully set up.
+            # Reading them later in event handlers (via makeCurrent) is unreliable.
+            try:
+                self._pick_viewport = glGetIntegerv(GL_VIEWPORT)
+                self._pick_modelview = glGetDoublev(GL_MODELVIEW_MATRIX)
+                self._pick_projection = glGetDoublev(GL_PROJECTION_MATRIX)
+            except Exception:
+                pass
 
             # Update hover by projecting furniture centres to screen
             self._update_hover()
@@ -1392,12 +1411,21 @@ class PandaBedroomGL(QOpenGLWidget if OPENGL_AVAILABLE else QWidget):  # type: i
 
     # ── Picking / ray-casting ─────────────────────────────────────────────────
 
-    def _ray_from_screen(self, wx: int, wy: int) -> Optional[Tuple[tuple, tuple]]:
-        """Return (origin, direction) world-space ray for screen position."""
+    def _ray_from_screen(self, wx: float, wy: float) -> Optional[Tuple[tuple, tuple]]:
+        """Return (origin, direction) world-space ray for screen position.
+
+        Uses matrices cached in paintGL rather than reading from the GL context
+        in event handlers, where the state is unreliable outside the paint cycle.
+        """
         try:
-            viewport   = glGetIntegerv(GL_VIEWPORT)
-            model_mat  = glGetDoublev(GL_MODELVIEW_MATRIX)
-            proj_mat   = glGetDoublev(GL_PROJECTION_MATRIX)
+            viewport  = self._pick_viewport
+            model_mat = self._pick_modelview
+            proj_mat  = self._pick_projection
+            if viewport is None or model_mat is None or proj_mat is None:
+                # Matrices not yet cached (no paint cycle yet); try GL directly
+                viewport  = glGetIntegerv(GL_VIEWPORT)
+                model_mat = glGetDoublev(GL_MODELVIEW_MATRIX)
+                proj_mat  = glGetDoublev(GL_PROJECTION_MATRIX)
             win_y = viewport[3] - wy  # flip Y
             near = gluUnProject(wx, win_y, 0.0, model_mat, proj_mat, viewport)
             far  = gluUnProject(wx, win_y, 1.0, model_mat, proj_mat, viewport)
@@ -1535,6 +1563,11 @@ class PandaBedroomGL(QOpenGLWidget if OPENGL_AVAILABLE else QWidget):  # type: i
         self.makeCurrent()
         if event.button() == Qt.MouseButton.LeftButton:
             self._drag_piece = self._pick_furniture(event.position().x(), event.position().y())
+            # Fallback: if the ray cast misses everything (e.g. matrices weren't cached
+            # yet), use whichever furniture piece is currently highlighted by the
+            # projection-based hover system — this is always reliable.
+            if self._drag_piece is None and self._hovered_id:
+                self._drag_piece = self.get_furniture(self._hovered_id)
             self._drag_start_screen = QPoint(int(event.position().x()), int(event.position().y()))
             if self._drag_piece:
                 hit = self._ray_floor_intersect(int(event.position().x()), int(event.position().y()))

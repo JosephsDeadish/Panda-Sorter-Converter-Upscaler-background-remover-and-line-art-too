@@ -6571,6 +6571,76 @@ def test_bedroom_no_quick_access_bar():
     print("  ✅ 2D fallback (pandaHome2DFallback) still present with its own buttons")
 
 
+def test_bedroom_furniture_click_fix():
+    """PandaBedroomGL must cache GL matrices in paintGL and fall back to hover for clicks.
+
+    Root cause: furniture clicking NEVER worked because _ray_from_screen read GL
+    matrices (viewport, modelview, projection) in mousePressEvent after makeCurrent().
+    Outside paintGL the GL context state is unreliable — matrices may be identity or
+    stale — so gluUnProject silently fails, _pick_furniture returns None every time,
+    _drag_piece is never set, and furniture_clicked is never emitted.
+
+    Fix 1 – Matrix caching: paintGL caches the matrices immediately after setting up
+    the camera orbit (the same moment _update_hover/_project_to_screen use them, which
+    is proven to produce correct world↔screen mappings).  _ray_from_screen now reads
+    the cached values instead of querying GL state in the event handler.
+
+    Fix 2 – Hover fallback: if the ray-cast still misses (matrices not yet cached on
+    the very first click), mousePressEvent falls back to _hovered_id, which is set by
+    the reliable projection-based hover system whenever the cursor is near furniture.
+    """
+    print("\ntest_bedroom_furniture_click_fix ...")
+    code = open('src/ui/panda_bedroom_gl.py').read()
+
+    # The three cached-matrix instance variables must be initialised
+    for var in ('_pick_viewport', '_pick_modelview', '_pick_projection'):
+        assert f'self.{var} = None' in code, (
+            f"panda_bedroom_gl.py: self.{var} = None missing from __init__.  "
+            "The cached-matrix variables must be initialised to None."
+        )
+    print("  ✅ Cached matrix variables initialised in __init__")
+
+    # The matrices must be populated inside paintGL (check for actual assignment)
+    paintgl_body = code[code.find('def paintGL'):code.find('def _draw_room')]
+    for var in ('_pick_viewport', '_pick_modelview', '_pick_projection'):
+        assert f'self.{var} =' in paintgl_body, (
+            f"panda_bedroom_gl.py: self.{var} not assigned in paintGL.  "
+            "The matrices must be captured while the GL context is active."
+        )
+    print("  ✅ Matrices captured inside paintGL")
+
+    # _ray_from_screen must use the cached values — extract the function body robustly
+    ray_start = code.find('def _ray_from_screen')
+    next_fn = code.find('\n    def ', ray_start + 1)
+    ray_fn = code[ray_start:] if next_fn == -1 else code[ray_start:next_fn]
+    assert '_pick_modelview' in ray_fn, (
+        "panda_bedroom_gl.py: _ray_from_screen does not use _pick_modelview.  "
+        "It must use the cached matrices instead of glGetDoublev."
+    )
+    print("  ✅ _ray_from_screen uses cached modelview matrix")
+
+    # mousePressEvent must fall back to _hovered_id when ray-cast returns None
+    press_start = code.find('def mousePressEvent')
+    next_fn = code.find('\n    def ', press_start + 1)
+    press_fn = code[press_start:] if next_fn == -1 else code[press_start:next_fn]
+    assert '_drag_piece is None and self._hovered_id' in press_fn, (
+        "panda_bedroom_gl.py: mousePressEvent has no hover fallback.  "
+        "Add: if self._drag_piece is None and self._hovered_id:\n"
+        "         self._drag_piece = self.get_furniture(self._hovered_id)"
+    )
+    print("  ✅ mousePressEvent falls back to _hovered_id when ray-cast misses")
+
+    # Sanity: furniture_clicked signal + mouseReleaseEvent emit still present
+    assert 'furniture_clicked = pyqtSignal(str)' in code, \
+        "furniture_clicked signal missing"
+    rel_start = code.find('def mouseReleaseEvent')
+    next_fn = code.find('\n    def ', rel_start + 1)
+    release_fn = code[rel_start:] if next_fn == -1 else code[rel_start:next_fn]
+    assert 'furniture_clicked.emit' in release_fn, \
+        "mouseReleaseEvent no longer emits furniture_clicked"
+    print("  ✅ furniture_clicked signal and emit still present")
+
+
 def test_panda_should_hide_visible_on_all_tabs():
     """_on_panda_should_hide must show the overlay regardless of which tab is active.
 
@@ -6822,6 +6892,7 @@ def run_all_tests():
         test_tool_panels_drag_drop,
         test_color_match_minigame,
         test_bedroom_no_quick_access_bar,
+        test_bedroom_furniture_click_fix,
         test_panda_should_hide_visible_on_all_tabs,
         test_switch_tool_panda_home_resets_to_bedroom,
         test_panda_walk_frequency_and_range,
