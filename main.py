@@ -2534,7 +2534,7 @@ class TextureSorterMainWindow(QMainWindow):
             from features.enemy_manager import EnemyManager
 
             self.integrated_dungeon = IntegratedDungeon(
-                currency_system=getattr(self, 'currency_system', None),
+                currency_system=self.currency_system,
             )
             # Use a container so we can add both dungeon view and travel animation widget
             adventure_container = QWidget()
@@ -4596,7 +4596,7 @@ class TextureSorterMainWindow(QMainWindow):
                 self.level_system.register_level_up_callback(self._on_level_up)
                 # Retroactively wire level_system into the adventure dungeon
                 # (it was created before this init block, so level_system was None)
-                if self.integrated_dungeon is not None:
+                if getattr(self, 'integrated_dungeon', None) is not None:
                     self.integrated_dungeon.level_system = self.level_system
                 logger.info("User level system initialized")
             except Exception as e:
