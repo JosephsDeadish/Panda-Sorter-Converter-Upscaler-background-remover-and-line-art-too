@@ -62,8 +62,9 @@ class NotepadPanelQt(QWidget):
         self.current_note_id: Optional[str] = None
         self.notes: dict = {}  # {note_id: {title, content, created, modified}}
         self.auto_save_timer = QTimer(self)
+        self.auto_save_timer.setSingleShot(True)   # debounce: fire once after idle
         self.auto_save_timer.timeout.connect(self.auto_save)
-        self.auto_save_timer.setInterval(2000)  # Auto-save every 2 seconds
+        self.auto_save_timer.setInterval(2000)  # Auto-save 2 seconds after last change
         
         # Data directory — use the app's canonical data dir so notes are stored
         # alongside other user data (app_data/ in frozen EXE, ~/.ps2_texture_sorter/ in dev).

@@ -307,7 +307,7 @@ class DungeonGraphicsView(QGraphicsView):
             return
         ts = self.tile_size
         for enemy in enemies:
-            alive = getattr(enemy, 'alive', True)
+            alive = getattr(enemy, 'is_alive', getattr(enemy, 'alive', True))
             if not alive:
                 continue
             ex = getattr(enemy, 'x', None)

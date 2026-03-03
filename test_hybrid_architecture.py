@@ -7540,6 +7540,89 @@ def test_achievement_popup_no_signal_accumulation():
     print("  ✅ _slide_out_active flag present (slide-in won't trigger close)")
 
 
+def test_dungeon_enemy_alive_attr():
+    """_redraw_enemies() must check is_alive (SpawnedEnemy field), not the missing 'alive' attr.
+
+    Bug: ``getattr(enemy, 'alive', True)`` used the wrong attribute name —
+    SpawnedEnemy has ``is_alive``, not ``alive``.  The default ``True`` masked
+    the bug (dead enemies returned by a custom dungeon would keep being rendered),
+    but the semantics were wrong.
+
+    Fix: ``getattr(enemy, 'is_alive', getattr(enemy, 'alive', True))``
+    checks the canonical SpawnedEnemy field first, then falls back for any
+    custom enemy type that uses the older 'alive' attribute name.
+    """
+    print("\ntest_dungeon_enemy_alive_attr ...")
+    from pathlib import Path
+    code = (Path(__file__).parent / 'src' / 'ui' / 'dungeon_graphics_view.py').read_text(encoding='utf-8')
+
+    redraw_start = code.find('def _redraw_enemies(')
+    assert redraw_start != -1, "_redraw_enemies() not found"
+    next_def = code.find('\n    def ', redraw_start + 1)
+    body = code[redraw_start:] if next_def == -1 else code[redraw_start:next_def]
+
+    # Must NOT use the bare 'alive' attribute as the primary check
+    # (bare = not wrapped inside a getattr(enemy, 'is_alive', …) outer call)
+    # The fixed form is: getattr(enemy, 'is_alive', getattr(enemy, 'alive', True))
+    import re
+    bare_alive = re.search(r"=\s*getattr\(enemy,\s*'alive'", body)
+    assert bare_alive is None, (
+        "dungeon_graphics_view.py: _redraw_enemies() still uses bare getattr(enemy,'alive') "
+        "as primary check — should use is_alive (the SpawnedEnemy field name) first."
+    )
+    print("  ✅ Source: bare getattr(enemy,'alive') as primary check no longer present")
+
+    assert 'is_alive' in body, (
+        "dungeon_graphics_view.py: _redraw_enemies() must check 'is_alive'"
+    )
+    print("  ✅ Source: is_alive attribute checked in _redraw_enemies()")
+
+    # Runtime: verify SpawnedEnemy.is_alive field exists and is correct attribute
+    import sys
+    sys.path.insert(0, str(Path(__file__).parent / 'src'))
+    from features.integrated_dungeon import SpawnedEnemy
+    import dataclasses
+    field_names = {f.name for f in dataclasses.fields(SpawnedEnemy)}
+    assert 'is_alive' in field_names, \
+        "SpawnedEnemy dataclass must have 'is_alive' field"
+    assert 'alive' not in field_names, \
+        "SpawnedEnemy must NOT have a plain 'alive' field (use is_alive)"
+    print("  ✅ Runtime: SpawnedEnemy.is_alive field confirmed; 'alive' not present")
+
+
+def test_notepad_auto_save_timer_single_shot():
+    """NotepadPanelQt.auto_save_timer must be a single-shot debounce timer.
+
+    Bug: The timer was created WITHOUT ``setSingleShot(True)``.  After the
+    first save triggered by a text change (2 s idle), the repeating timer kept
+    firing every 2 s indefinitely, performing unnecessary disk writes and
+    preventing clean shutdown.
+
+    Fix: ``self.auto_save_timer.setSingleShot(True)`` so it fires once per
+    edit burst and stops until the next ``on_text_changed()`` restarts it.
+    """
+    print("\ntest_notepad_auto_save_timer_single_shot ...")
+    from pathlib import Path
+    code = (Path(__file__).parent / 'src' / 'ui' / 'notepad_panel_qt.py').read_text(encoding='utf-8')
+
+    assert 'setSingleShot(True)' in code, (
+        "notepad_panel_qt.py: auto_save_timer is not setSingleShot(True) — "
+        "the repeating timer fires unnecessary saves after every 2 s."
+    )
+    print("  ✅ Source: auto_save_timer.setSingleShot(True) present")
+
+    # Confirm the timer is stopped and restarted in on_text_changed (debounce pattern)
+    on_text_start = code.find('def on_text_changed(')
+    assert on_text_start != -1, "on_text_changed() not found"
+    next_def = code.find('\n    def ', on_text_start + 1)
+    on_text_body = code[on_text_start:] if next_def == -1 else code[on_text_start:next_def]
+    assert 'auto_save_timer.stop()' in on_text_body, \
+        "on_text_changed() must stop() the timer before re-starting it"
+    assert 'auto_save_timer.start()' in on_text_body, \
+        "on_text_changed() must start() the timer"
+    print("  ✅ Source: on_text_changed() stops+restarts timer (debounce pattern)")
+
+
 def run_all_tests():
     print("=" * 65)
     print("Hybrid Architecture + Lazy rembg Import Tests")
@@ -7676,6 +7759,8 @@ def run_all_tests():
         test_livy_otter_widget_complete_animation_state,
         test_memory_game_same_card_guard,
         test_achievement_popup_no_signal_accumulation,
+        test_dungeon_enemy_alive_attr,
+        test_notepad_auto_save_timer_single_shot,
     ]
 
     passed, failed = [], []
