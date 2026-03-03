@@ -210,20 +210,368 @@ class MiniGamePanelQt(QWidget):
         """Start a specific game."""
         try:
             self.current_game = self.manager.start_game(game_id, GameDifficulty.MEDIUM)
-            
+
             if game_id == "click":
                 self._show_click_game()
             elif game_id == "memory":
                 self._show_memory_game()
             elif game_id == "reflex":
                 self._show_reflex_game()
+            elif game_id == "bamboo_catcher":
+                self._show_bamboo_catcher_game()
+            elif game_id == "color_match":
+                self._show_color_match_game()
             else:
                 QMessageBox.information(self, "Game", f"Starting {game_id}")
                 self._show_game_selection()
         except Exception as e:
             logger.error(f"Failed to start game {game_id}: {e}")
             QMessageBox.critical(self, "Error", f"Failed to start game: {str(e)}")
-    
+
+    # ── Bamboo Catcher ────────────────────────────────────────────────────────
+
+    def _show_bamboo_catcher_game(self):
+        """Show the Bamboo Catcher falling-item game."""
+        for i in reversed(range(self.content_layout.count())):
+            widget = self.content_layout.itemAt(i).widget()
+            if widget:
+                widget.deleteLater()
+
+        title = QLabel("🎋 Bamboo Catcher")
+        title.setStyleSheet("font-size: 14pt; font-weight: bold;")
+        title.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.content_layout.addWidget(title)
+
+        instructions = QLabel(
+            "Move your basket to catch bamboo! Avoid rocks 🪨 and thorns 🌵."
+        )
+        instructions.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.content_layout.addWidget(instructions)
+
+        # Falling-field display — monospaced text-art updated each tick
+        self.bamboo_field_label = QLabel()
+        self.bamboo_field_label.setStyleSheet(
+            "font-family: monospace; font-size: 11pt; "
+            "background: #0a1a0a; color: #90ee90; padding: 8px; border-radius: 4px;"
+        )
+        self.bamboo_field_label.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop)
+        self.bamboo_field_label.setMinimumHeight(160)
+        self.content_layout.addWidget(self.bamboo_field_label)
+
+        # Status row: time + score
+        status_row = QHBoxLayout()
+        self.bamboo_timer_label = QLabel("Time: —")
+        self.bamboo_timer_label.setStyleSheet("font-size: 12pt; font-weight: bold;")
+        status_row.addWidget(self.bamboo_timer_label)
+        status_row.addStretch()
+        self.bamboo_score_label = QLabel("Score: 0")
+        self.bamboo_score_label.setStyleSheet("font-size: 12pt; font-weight: bold;")
+        status_row.addWidget(self.bamboo_score_label)
+        status_widget = QWidget()
+        status_widget.setLayout(status_row)
+        self.content_layout.addWidget(status_widget)
+
+        # Basket controls
+        ctrl_row = QHBoxLayout()
+        left_btn = QPushButton("← Left")
+        left_btn.setStyleSheet("font-size: 14pt; padding: 12px 24px;")
+        left_btn.clicked.connect(lambda: self._on_bamboo_move(-1))
+        ctrl_row.addWidget(left_btn)
+        right_btn = QPushButton("Right →")
+        right_btn.setStyleSheet("font-size: 14pt; padding: 12px 24px;")
+        right_btn.clicked.connect(lambda: self._on_bamboo_move(1))
+        ctrl_row.addWidget(right_btn)
+        ctrl_widget = QWidget()
+        ctrl_widget.setLayout(ctrl_row)
+        self.content_layout.addWidget(ctrl_widget)
+
+        back_btn = QPushButton("Back to Menu")
+        back_btn.setToolTip("Return to the mini-game selection menu")
+        back_btn.clicked.connect(self._end_game)
+        self.content_layout.addWidget(back_btn)
+        self.content_layout.addStretch()
+
+        # Dedicated tick timer (150 ms ≈ 6-7 fps — readable without GPU)
+        self._bamboo_timer = QTimer(self)
+        self._bamboo_timer.timeout.connect(self._on_bamboo_tick)
+        self._bamboo_timer.start(150)
+        self._bamboo_tick_dt = 0.15
+        self._refresh_bamboo_field()
+
+    # Item-kind → display character
+    _BAMBOO_ICONS = {
+        'bamboo': '🎋',
+        'cookie': '🍪',
+        'apple':  '🍎',
+        'rock':   '🪨',
+        'thorn':  '🌵',
+    }
+
+    def _refresh_bamboo_field(self):
+        """Re-draw the text-art field for the current game state."""
+        if not self.current_game or not PYQT_AVAILABLE:
+            return
+        game = self.current_game
+        W = game._FIELD_WIDTH      # 10
+        H = game._FIELD_HEIGHT     # 20
+        ROWS = 5                   # visible rows in our display
+
+        # Build a compact view: map each item's Y → one of ROWS display rows
+        cells = {}
+        for item in game.items:
+            row = min(ROWS - 1, int(item['y'] * ROWS / H))
+            col = int(item['x']) % W
+            cells[(row, col)] = self._BAMBOO_ICONS.get(item['kind'], '?')
+
+        lines = []
+        for r in range(ROWS):
+            row_str = ''
+            for c in range(W):
+                row_str += cells.get((r, c), '·')
+            lines.append(row_str)
+
+        # Basket row
+        basket_row = ['_'] * W
+        bx = min(W - 1, max(0, game.basket_x))
+        half = game._BASKET_WIDTH // 2
+        for off in range(-half, half + 1):
+            if 0 <= bx + off < W:
+                basket_row[bx + off] = '▓'
+        basket_row[bx] = '🧺'
+        lines.append(''.join(basket_row))
+
+        self.bamboo_field_label.setText('\n'.join(lines))
+
+    def _on_bamboo_move(self, direction: int):
+        """Handle left/right basket move."""
+        if self.current_game and self.current_game.is_running:
+            self.current_game.move_basket(direction)
+            self._refresh_bamboo_field()
+
+    def _on_bamboo_tick(self):
+        """Advance the bamboo catcher game by one tick."""
+        if not self.current_game or not self.current_game.is_running:
+            self._bamboo_timer.stop()
+            self._end_bamboo_catcher_game()
+            return
+        still_running = self.current_game.tick(self._bamboo_tick_dt)
+        self._refresh_bamboo_field()
+        remaining = self.current_game.get_remaining_time()
+        self.bamboo_timer_label.setText(f"Time: {remaining:.0f}s")
+        self.bamboo_score_label.setText(f"Score: {self.current_game.score}")
+        if not still_running or remaining <= 0:
+            self._bamboo_timer.stop()
+            self._end_bamboo_catcher_game()
+
+    def _end_bamboo_catcher_game(self):
+        """End Bamboo Catcher and show results."""
+        if hasattr(self, '_bamboo_timer'):
+            self._bamboo_timer.stop()
+        result = self.manager.stop_current_game()
+        if result:
+            game = self.current_game or result
+            caught = getattr(game, 'caught', 0)
+            missed = getattr(game, 'missed', 0)
+            QMessageBox.information(
+                self, "Game Over",
+                f"🎋 Caught: {caught}  |  Missed: {missed}\n"
+                f"Final Score: {result.score}\n"
+                f"XP Earned: {result.xp_earned}\n"
+                f"Currency Earned: {result.currency_earned}"
+            )
+            self.game_completed.emit('bamboo_catcher', result.score)
+        self._show_game_selection()
+        self._update_stats()
+
+    # ── Color Match ───────────────────────────────────────────────────────────
+
+    def _show_color_match_game(self):
+        """Show the Color Match counting game."""
+        for i in reversed(range(self.content_layout.count())):
+            widget = self.content_layout.itemAt(i).widget()
+            if widget:
+                widget.deleteLater()
+
+        title = QLabel("🎨 Color Match")
+        title.setStyleSheet("font-size: 14pt; font-weight: bold;")
+        title.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.content_layout.addWidget(title)
+
+        instructions = QLabel(
+            "Count how many squares match the target color, then submit your answer!"
+        )
+        instructions.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.content_layout.addWidget(instructions)
+
+        # Target color banner
+        self.cm_target_label = QLabel("Target: ?")
+        self.cm_target_label.setStyleSheet(
+            "font-size: 16pt; font-weight: bold; padding: 8px; border-radius: 6px;"
+        )
+        self.cm_target_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.content_layout.addWidget(self.cm_target_label)
+
+        # Color grid (3 × 3 or 4 × 3 depending on grid_size)
+        self.cm_grid_widget = QWidget()
+        self.cm_grid_layout = QGridLayout(self.cm_grid_widget)
+        self.cm_grid_layout.setSpacing(4)
+        self.content_layout.addWidget(self.cm_grid_widget)
+
+        # Timer + score row
+        status_row = QHBoxLayout()
+        self.cm_timer_label = QLabel("Time: —")
+        self.cm_timer_label.setStyleSheet("font-size: 12pt; font-weight: bold;")
+        status_row.addWidget(self.cm_timer_label)
+        status_row.addStretch()
+        self.cm_score_label = QLabel("Score: 0")
+        self.cm_score_label.setStyleSheet("font-size: 12pt; font-weight: bold;")
+        status_row.addWidget(self.cm_score_label)
+        status_widget = QWidget()
+        status_widget.setLayout(status_row)
+        self.content_layout.addWidget(status_widget)
+
+        # Answer row: − / count / +  then Submit
+        answer_row = QHBoxLayout()
+        minus_btn = QPushButton("−")
+        minus_btn.setStyleSheet("font-size: 14pt; padding: 6px 16px;")
+        minus_btn.clicked.connect(lambda: self._cm_adjust_answer(-1))
+        answer_row.addWidget(minus_btn)
+        self.cm_answer_label = QLabel("0")
+        self.cm_answer_label.setStyleSheet(
+            "font-size: 18pt; font-weight: bold; min-width: 40px;"
+        )
+        self.cm_answer_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        answer_row.addWidget(self.cm_answer_label)
+        plus_btn = QPushButton("+")
+        plus_btn.setStyleSheet("font-size: 14pt; padding: 6px 16px;")
+        plus_btn.clicked.connect(lambda: self._cm_adjust_answer(1))
+        answer_row.addWidget(plus_btn)
+        submit_btn = QPushButton("✓ Submit")
+        submit_btn.setStyleSheet(
+            "font-size: 14pt; padding: 8px 20px; background: #10B981; color: white;"
+        )
+        submit_btn.clicked.connect(self._on_cm_submit)
+        answer_row.addWidget(submit_btn)
+        answer_widget = QWidget()
+        answer_widget.setLayout(answer_row)
+        self.content_layout.addWidget(answer_widget)
+
+        # Feedback label (shows ✅ Correct! / ❌ Wrong!)
+        self.cm_feedback_label = QLabel("")
+        self.cm_feedback_label.setStyleSheet("font-size: 12pt; font-weight: bold;")
+        self.cm_feedback_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.content_layout.addWidget(self.cm_feedback_label)
+
+        back_btn = QPushButton("Back to Menu")
+        back_btn.setToolTip("Return to the mini-game selection menu")
+        back_btn.clicked.connect(self._end_game)
+        self.content_layout.addWidget(back_btn)
+        self.content_layout.addStretch()
+
+        self._cm_answer = 0
+        self._refresh_color_match_round()
+
+        # Timer fires every 250 ms to update the countdown
+        self._cm_timer = QTimer(self)
+        self._cm_timer.timeout.connect(self._on_cm_tick)
+        self._cm_timer.start(250)
+
+    # Color → CSS background string
+    _CM_COLOR_CSS = {
+        'green':  '#22c55e', 'yellow': '#facc15', 'red':   '#ef4444',
+        'blue':   '#3b82f6', 'white':  '#f8fafc',  'pink':  '#ec4899',
+    }
+
+    def _refresh_color_match_round(self):
+        """Re-draw the color grid and target banner for the current round."""
+        if not self.current_game or not PYQT_AVAILABLE:
+            return
+        game = self.current_game
+        grid  = game.grid     # list of color strings
+        target = game.target
+
+        # Target banner
+        bg = self._CM_COLOR_CSS.get(target, '#888')
+        text_color = '#000' if target in ('yellow', 'white') else '#fff'
+        self.cm_target_label.setText(f"Target: {target.upper()}")
+        self.cm_target_label.setStyleSheet(
+            f"font-size: 16pt; font-weight: bold; padding: 8px; "
+            f"border-radius: 6px; background: {bg}; color: {text_color};"
+        )
+
+        # Rebuild grid cells
+        # Clear old widgets
+        while self.cm_grid_layout.count():
+            item = self.cm_grid_layout.takeAt(0)
+            if item.widget():
+                item.widget().deleteLater()
+
+        cols = 3
+        for idx, color in enumerate(grid):
+            cell = QLabel("  ")
+            cell_bg = self._CM_COLOR_CSS.get(color, '#888')
+            cell.setStyleSheet(
+                f"background: {cell_bg}; border: 2px solid #333; "
+                f"min-width: 36px; min-height: 36px; border-radius: 4px;"
+            )
+            self.cm_grid_layout.addWidget(cell, idx // cols, idx % cols)
+
+        # Reset answer counter for each new round
+        self._cm_answer = 0
+        self.cm_answer_label.setText("0")
+        self.cm_feedback_label.setText("")
+
+    def _cm_adjust_answer(self, delta: int):
+        """Increment or decrement the user's answer, clamped to [0, grid_size]."""
+        if not self.current_game:
+            return
+        max_val = len(self.current_game.grid)
+        self._cm_answer = max(0, min(max_val, self._cm_answer + delta))
+        self.cm_answer_label.setText(str(self._cm_answer))
+
+    def _on_cm_submit(self):
+        """Player submitted an answer."""
+        if not self.current_game or not self.current_game.is_running:
+            return
+        result_dict = self.current_game.submit_answer(self._cm_answer)
+        self.cm_feedback_label.setText(result_dict.get('message', ''))
+        self.cm_score_label.setText(f"Score: {self.current_game.score}")
+        # New round was started by submit_answer — refresh the display
+        self._refresh_color_match_round()
+
+    def _on_cm_tick(self):
+        """Timer tick: update countdown; end game when time runs out."""
+        if not self.current_game or not self.current_game.is_running:
+            self._cm_timer.stop()
+            self._end_color_match_game()
+            return
+        # Drive time-based round expiry.
+        # PandaColorMatchGame.tick() returns Optional[GameResult] (not a bool),
+        # so checking `is not None` is the correct end-of-game signal here.
+        tick_result = self.current_game.tick(0.25)
+        remaining = self.current_game.get_remaining_time()
+        self.cm_timer_label.setText(f"Time: {remaining:.0f}s")
+        self.cm_score_label.setText(f"Score: {self.current_game.score}")
+        if tick_result is not None or remaining <= 0:
+            self._cm_timer.stop()
+            self._end_color_match_game()
+
+    def _end_color_match_game(self):
+        """End Color Match and show results."""
+        if hasattr(self, '_cm_timer'):
+            self._cm_timer.stop()
+        result = self.manager.stop_current_game()
+        if result:
+            QMessageBox.information(
+                self, "Game Over",
+                f"🎨 Final Score: {result.score}\n"
+                f"XP Earned: {result.xp_earned}\n"
+                f"Currency Earned: {result.currency_earned}"
+            )
+            self.game_completed.emit('color_match', result.score)
+        self._show_game_selection()
+        self._update_stats()
+
     def _show_click_game(self):
         """Show click speed game."""
         # Clear content

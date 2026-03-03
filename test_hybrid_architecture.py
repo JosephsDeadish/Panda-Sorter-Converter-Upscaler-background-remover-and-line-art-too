@@ -7762,6 +7762,88 @@ def test_dungeon_gold_reward_uses_earn_money():
     print("  ✅ Runtime: CurrencySystem.earn_money() confirmed; add() absent")
 
 
+def test_minigame_panel_bamboo_color_match_ui():
+    """MinigamePanelQt must have full UI methods for bamboo_catcher and color_match.
+
+    Previously both games fell through to a generic QMessageBox in _start_game()
+    because the panel only handled 'click', 'memory', and 'reflex'.
+
+    Source-level checks (minigame_panel_qt.py):
+    - _start_game() has elif branches for 'bamboo_catcher' and 'color_match'
+    - _show_bamboo_catcher_game() method present
+    - _show_color_match_game() method present
+    - _on_bamboo_tick(), _on_bamboo_move(), _end_bamboo_catcher_game() present
+    - _on_cm_tick(), _on_cm_submit(), _end_color_match_game() present
+    - _refresh_bamboo_field(), _refresh_color_match_round() present
+    - _BAMBOO_ICONS and _CM_COLOR_CSS class-level dicts defined
+
+    Runtime checks (game logic only — no PyQt6 required):
+    - BambooCatcherGame tick logic reachable without errors
+    - PandaColorMatchGame submit_answer returns correct/wrong dicts
+    """
+    print("\ntest_minigame_panel_bamboo_color_match_ui ...")
+    from pathlib import Path
+    code = (Path(__file__).parent / 'src' / 'ui' / 'minigame_panel_qt.py').read_text(encoding='utf-8')
+
+    # _start_game routing
+    start_fn_pos = code.find('def _start_game(')
+    assert start_fn_pos != -1, "minigame_panel_qt.py: _start_game() missing"
+    next_fn = code.find('\n    def ', start_fn_pos + 1)
+    start_fn = code[start_fn_pos:next_fn]
+    for game_id in ('click', 'memory', 'reflex', 'bamboo_catcher', 'color_match'):
+        assert game_id in start_fn, \
+            f"minigame_panel_qt.py: _start_game() missing route for '{game_id}'"
+    assert '_show_bamboo_catcher_game' in start_fn, \
+        "minigame_panel_qt.py: _start_game() does not call _show_bamboo_catcher_game()"
+    assert '_show_color_match_game' in start_fn, \
+        "minigame_panel_qt.py: _start_game() does not call _show_color_match_game()"
+    print("  ✅ Source: _start_game() routes bamboo_catcher and color_match")
+
+    required_methods = [
+        '_show_bamboo_catcher_game', '_refresh_bamboo_field',
+        '_on_bamboo_move', '_on_bamboo_tick', '_end_bamboo_catcher_game',
+        '_show_color_match_game', '_refresh_color_match_round',
+        '_cm_adjust_answer', '_on_cm_submit', '_on_cm_tick', '_end_color_match_game',
+    ]
+    for method in required_methods:
+        assert f'def {method}' in code, \
+            f"minigame_panel_qt.py: {method}() missing"
+    print(f"  ✅ Source: all {len(required_methods)} new methods present")
+
+    assert '_BAMBOO_ICONS' in code, \
+        "minigame_panel_qt.py: _BAMBOO_ICONS dict missing"
+    assert '_CM_COLOR_CSS' in code, \
+        "minigame_panel_qt.py: _CM_COLOR_CSS dict missing"
+    print("  ✅ Source: _BAMBOO_ICONS and _CM_COLOR_CSS dicts defined")
+
+    # Runtime: verify BambooCatcherGame is playable via tick logic
+    import sys
+    sys.path.insert(0, str(Path(__file__).parent / 'src'))
+    from features.minigame_system import BambooCatcherGame, PandaColorMatchGame, GameDifficulty
+
+    b = BambooCatcherGame(GameDifficulty.EASY)
+    b.start()
+    b.move_basket(1)
+    assert b.basket_x == 6, f"basket_x should be 6 after one right move, got {b.basket_x}"
+    still = b.tick(0.15)
+    assert isinstance(still, bool), "tick() must return bool"
+    print(f"  ✅ Runtime: BambooCatcherGame tick/move works (basket_x={b.basket_x})")
+
+    # Runtime: verify ColorMatch submit_answer
+    c = PandaColorMatchGame(GameDifficulty.EASY)
+    c.start()
+    correct_count = c._correct_count
+    res = c.submit_answer(correct_count)
+    assert res['correct'] is True, f"submit_answer({correct_count}) should be correct"
+    assert res['score_delta'] > 0, "correct answer should give positive score_delta"
+    # After a correct answer a new round begins, so submitting again with a wrong
+    # count should return correct=False (not raise or silently succeed).
+    res_wrong = c.submit_answer(correct_count + 999)
+    assert res_wrong['correct'] is False or res_wrong['message'] == 'No active round', \
+        "Wrong answer should return correct=False"
+    print(f"  ✅ Runtime: PandaColorMatchGame submit_answer correct/wrong flows work")
+
+
 def run_all_tests():
     print("=" * 65)
     print("Hybrid Architecture + Lazy rembg Import Tests")
@@ -7903,6 +7985,7 @@ def run_all_tests():
         test_dungeon_enemy_attack_uses_attack_power,
         test_batch_normalizer_preview_original_size,
         test_dungeon_gold_reward_uses_earn_money,
+        test_minigame_panel_bamboo_color_match_ui,
     ]
 
     passed, failed = [], []
