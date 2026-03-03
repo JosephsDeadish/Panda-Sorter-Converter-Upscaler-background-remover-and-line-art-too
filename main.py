@@ -6087,10 +6087,10 @@ class TextureSorterMainWindow(QMainWindow):
             pass
         try:
             if self.panda_widget:
-                self.panda_widget.set_animation_state('idle')
+                # Play frustrated reaction, then return to idle after 2 s
+                self.panda_widget.set_animation_state('wall_hit')
                 _w = self.panda_widget
-                from PyQt6.QtCore import QTimer  # type: ignore[attr-defined]
-                QTimer.singleShot(100, lambda: _w.set_animation_state('idle'))
+                QTimer.singleShot(2000, lambda: _w.set_animation_state('idle'))
         except Exception:
             pass
 
@@ -6756,7 +6756,8 @@ class TextureSorterMainWindow(QMainWindow):
                 # NOT added to _home_stack_owned — persistent panel re-used across visits.
             self._show_home_sub_panel(self._park_panel, '🌲 Panda Park')
             if self.panda_widget:
-                QTimer.singleShot(800, lambda: self.panda_widget.set_animation_state('celebrating'))
+                QTimer.singleShot(800, lambda: self.panda_widget.set_animation_state('celebrating')
+                                  if self.panda_widget else None)
         except Exception as _e:
             logger.debug(f"_on_go_to_park: {_e}")
             if self._park_panel is None:

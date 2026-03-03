@@ -754,7 +754,7 @@ class ShopPanelQt(QWidget):
             row_widget.deleteLater()
             self.livy_says(
                 f"Sold! Hope you made the right call… 🦦 {catalog_item.icon}",
-                duration=4000
+                duration_ms=4000
             )
         else:
             self.status_label.setText(f"❌ {message}")

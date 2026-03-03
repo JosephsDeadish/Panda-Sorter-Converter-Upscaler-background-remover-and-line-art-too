@@ -6970,6 +6970,169 @@ def test_no_redundant_import_types_in_not_enough_coins():
     print("  ✅ Module-level 'import types as _types' still present")
 
 
+def test_not_enough_coins_plays_wall_hit_animation():
+    """_on_not_enough_coins must play 'wall_hit' animation, not 'idle', and return to idle after 2 s.
+
+    Bug: _on_not_enough_coins() called set_animation_state('idle') immediately
+    (no visible reaction), then scheduled another set_animation_state('idle')
+    via QTimer.singleShot(100, ...) — two redundant idle calls, zero frustrated
+    reaction.  The panda gave no feedback that the purchase was rejected.
+
+    Fix:
+    - Play 'wall_hit' immediately (frustrated/angry reaction the player can see)
+    - Schedule return to 'idle' after 2000 ms so the animation has time to play
+    - Remove the dead immediate-idle call and the duplicate 100 ms timer
+    """
+    print("\ntest_not_enough_coins_plays_wall_hit_animation ...")
+    code = open('main.py').read()
+
+    fn_start = code.find('def _on_not_enough_coins')
+    assert fn_start != -1, "main.py: _on_not_enough_coins() missing"
+    next_fn  = code.find('\n    def ', fn_start + 1)
+    fn_body  = code[fn_start:] if next_fn == -1 else code[fn_start:next_fn]
+
+    # Must play wall_hit as the immediate reaction
+    assert "set_animation_state('wall_hit')" in fn_body, (
+        "main.py: _on_not_enough_coins does not call set_animation_state('wall_hit').\n"
+        "The panda must show a frustrated reaction when the player can't afford an item.\n"
+        "Fix: replace set_animation_state('idle') with set_animation_state('wall_hit')."
+    )
+    print("  ✅ set_animation_state('wall_hit') present — frustrated reaction plays")
+
+    # Must schedule return to idle (not immediate idle)
+    assert "QTimer.singleShot(2000" in fn_body, (
+        "main.py: _on_not_enough_coins does not schedule QTimer.singleShot(2000, …) for "
+        "the return-to-idle.\n"
+        "The 'wall_hit' animation needs ~2 s to play before returning to idle."
+    )
+    print("  ✅ QTimer.singleShot(2000, ...) present — returns to idle after animation")
+
+    # Must NOT set idle immediately (that kills the reaction animation instantly)
+    lines = [ln.strip() for ln in fn_body.splitlines()]
+    for ln in lines:
+        # Ignore the QTimer lambda (it sets idle after delay — that's correct)
+        if 'lambda' in ln:
+            continue
+        assert "set_animation_state('idle')" not in ln, (
+            "main.py: _on_not_enough_coins calls set_animation_state('idle') "
+            "immediately (outside a lambda), which overrides the 'wall_hit' "
+            "reaction before it can play.  Remove the immediate-idle call."
+        )
+    print("  ✅ No immediate set_animation_state('idle') — reaction is not suppressed")
+
+    # Must NOT have the old redundant 100ms timer
+    assert "singleShot(100" not in fn_body, (
+        "main.py: _on_not_enough_coins still has the old redundant QTimer.singleShot(100, …).\n"
+        "100 ms fires before 'wall_hit' finishes — it cancels the reaction.  Remove it."
+    )
+    print("  ✅ No redundant QTimer.singleShot(100, ...) — old idle-override removed")
+
+    # Must NOT import QTimer inside the method (it's already at module scope)
+    assert 'from PyQt6.QtCore import QTimer' not in fn_body, (
+        "main.py: _on_not_enough_coins still has a local 'from PyQt6.QtCore import QTimer'.\n"
+        "QTimer is imported at module level (line ~227). Remove the redundant local import."
+    )
+    print("  ✅ No local QTimer import — uses module-level import")
+
+
+def test_shop_livy_sell_reaction_uses_correct_kwarg():
+    """shop_panel_qt._on_sell_clicked must call livy_says(..., duration_ms=...) not duration=...
+
+    Bug: _on_sell_clicked called:
+        self.livy_says(f"Sold! ...", duration=4000)
+
+    But livy_says is defined as:
+        def livy_says(self, text: str, duration_ms: int = 5000) -> None
+
+    The keyword argument name is ``duration_ms``, not ``duration``.
+    Passing ``duration=4000`` raises TypeError which is silently swallowed by
+    livy_says's inner try/except — so the sell speech bubble NEVER appeared after
+    a successful sale.  Livy always stayed silent.
+
+    Fix: change ``duration=4000`` to ``duration_ms=4000``.
+    """
+    print("\ntest_shop_livy_sell_reaction_uses_correct_kwarg ...")
+    from pathlib import Path
+    code = (
+        Path(__file__).parent / 'src' / 'ui' / 'shop_panel_qt.py'
+    ).read_text(encoding='utf-8')
+
+    # Find _on_sell_clicked body
+    fn_start = code.find('def _on_sell_clicked')
+    assert fn_start != -1, "shop_panel_qt.py: _on_sell_clicked() missing"
+    next_fn = code.find('\n    def ', fn_start + 1)
+    fn_body = code[fn_start:] if next_fn == -1 else code[fn_start:next_fn]
+
+    # Must call livy_says with duration_ms (not duration)
+    assert 'duration_ms=4000' in fn_body, (
+        "shop_panel_qt.py: _on_sell_clicked does not call livy_says with duration_ms=4000.\n"
+        "The sell-success speech bubble never appeared because 'duration=4000' was passed\n"
+        "instead of 'duration_ms=4000', causing a TypeError silently caught in livy_says.\n"
+        "Fix: change duration=4000 to duration_ms=4000."
+    )
+    print("  ✅ livy_says called with duration_ms=4000 — sell reaction fires correctly")
+
+    # Must NOT use the wrong kwarg
+    assert 'duration=4000' not in fn_body, (
+        "shop_panel_qt.py: _on_sell_clicked still calls livy_says(duration=4000).\n"
+        "This raises TypeError (unexpected keyword argument 'duration') which is silently\n"
+        "swallowed, so the bubble text is never set.  Change to duration_ms=4000."
+    )
+    print("  ✅ Incorrect 'duration=4000' keyword argument removed")
+
+    # livy_says signature must accept duration_ms
+    fn2_start = code.find('def livy_says(')
+    assert fn2_start != -1, "shop_panel_qt.py: livy_says() missing"
+    next_fn2 = code.find('\n    def ', fn2_start + 1)
+    sig_body = code[fn2_start:] if next_fn2 == -1 else code[fn2_start:next_fn2]
+    assert 'duration_ms' in sig_body.splitlines()[0], (
+        "shop_panel_qt.py: livy_says() signature no longer contains 'duration_ms' parameter."
+    )
+    print("  ✅ livy_says() parameter is 'duration_ms' — consistent with call site")
+
+
+def test_go_to_park_panda_widget_none_guard():
+    """_on_go_to_park QTimer.singleShot lambda must guard against None panda_widget.
+
+    Bug: the lambda
+        lambda: self.panda_widget.set_animation_state('celebrating')
+    fires 800 ms after _on_go_to_park() returns. If self.panda_widget is None
+    when the timer fires, it raises AttributeError: 'NoneType' object has no
+    attribute 'set_animation_state'.
+
+    Fix: wrap in an if-guard:
+        lambda: self.panda_widget.set_animation_state('celebrating')
+                if self.panda_widget else None
+    """
+    print("\ntest_go_to_park_panda_widget_none_guard ...")
+    code = open('main.py').read()
+
+    fn_start = code.find('def _on_go_to_park(')
+    assert fn_start != -1, "main.py: _on_go_to_park() missing"
+    next_fn  = code.find('\n    def ', fn_start + 1)
+    fn_body  = code[fn_start:] if next_fn == -1 else code[fn_start:next_fn]
+
+    # Must have the guarded lambda form
+    assert ("set_animation_state('celebrating')\n" not in fn_body
+            or "if self.panda_widget" in fn_body), (
+        "main.py: _on_go_to_park() QTimer lambda accesses self.panda_widget without "
+        "a None guard.\n"
+        "If panda_widget is None when the timer fires, AttributeError is raised.\n"
+        "Fix: lambda: self.panda_widget.set_animation_state('celebrating') if "
+        "self.panda_widget else None"
+    )
+    # The timer must use 800 ms
+    assert 'singleShot(800' in fn_body, \
+        "main.py: _on_go_to_park QTimer.singleShot(800, ...) missing"
+    # The guarded form should be present
+    assert 'if self.panda_widget' in fn_body, (
+        "main.py: _on_go_to_park does not guard the panda_widget access in the lambda.\n"
+        "Add: lambda: self.panda_widget.set_animation_state('celebrating') if "
+        "self.panda_widget else None"
+    )
+    print("  ✅ panda_widget None guard present in _on_go_to_park QTimer lambda")
+
+
 def test_bedroom_draw_potted_plant_no_dead_import():
     """panda_bedroom_gl._draw_potted_plant must not import from non-existent features.opengl_utils.
 
@@ -7158,6 +7321,9 @@ def run_all_tests():
         test_dungeon_hover_highlight_reachable,
         test_inventory_category_filter_none_guard,
         test_no_redundant_import_types_in_not_enough_coins,
+        test_not_enough_coins_plays_wall_hit_animation,
+        test_shop_livy_sell_reaction_uses_correct_kwarg,
+        test_go_to_park_panda_widget_none_guard,
         test_bedroom_draw_potted_plant_no_dead_import,
     ]
 
