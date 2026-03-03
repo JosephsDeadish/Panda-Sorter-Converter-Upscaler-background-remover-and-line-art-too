@@ -7414,6 +7414,68 @@ def test_shop_banner_has_3d_otter_widget():
     print("  ✅ paintGL delegates to PandaWorldGL._draw_otter (3-D otter rendered, not emoji)")
 
 
+def test_livy_otter_widget_complete_animation_state():
+    """LivyOtterWidget.__init__ must declare ALL state attributes read by PandaWorldGL._draw_otter().
+
+    Missing attributes caused AttributeError at runtime when paintGL called
+    PandaWorldGL._draw_otter(self) and the method referenced _otter_blink,
+    _otter_shuffle_t, or _otter_look_phase on the widget instance.
+    """
+    print("\ntest_livy_otter_widget_complete_animation_state ...")
+    from pathlib import Path
+    code = (Path(__file__).parent / 'src' / 'ui' / 'shop_panel_qt.py').read_text(encoding='utf-8')
+
+    # All attrs referenced in panda_world_gl.py's _draw_otter must be in LivyOtterWidget
+    required_attrs = [
+        '_otter_eye_close', '_otter_blink', '_otter_shuffle_t',
+        '_otter_look_phase', '_otter_look_tgt', '_otter_look_x',
+        '_otter_tail_angle', '_otter_head_bob', '_otter_wave_t',
+        '_otter_happy_t', '_frame',
+    ]
+    livy_start = code.find('class LivyOtterWidget')
+    assert livy_start != -1, "LivyOtterWidget class not found"
+    next_class = code.find('\nclass ', livy_start + 1)
+    livy_class = code[livy_start:] if next_class == -1 else code[livy_start:next_class]
+
+    for attr in required_attrs:
+        assert f'self.{attr}' in livy_class, \
+            f"LivyOtterWidget is missing animation attribute: {attr}"
+    print(f"  ✅ All {len(required_attrs)} _draw_otter animation attributes present in LivyOtterWidget")
+
+
+def test_memory_game_same_card_guard():
+    """_on_memory_card_click must ignore a second click on the same card as the first.
+
+    Without this guard, clicking the same card twice would trigger _check_memory_match
+    with first == second, incorrectly incrementing memory_matches.
+    The fix also resets memory_first_card before starting the timer so further
+    card clicks during the 1-second delay start a fresh pair.
+    """
+    print("\ntest_memory_game_same_card_guard ...")
+    from pathlib import Path
+    code = (Path(__file__).parent / 'src' / 'ui' / 'minigame_panel_qt.py').read_text(encoding='utf-8')
+
+    on_click_start = code.find('def _on_memory_card_click(')
+    assert on_click_start != -1, "minigame_panel_qt.py: _on_memory_card_click missing"
+    next_def = code.find('\n    def ', on_click_start + 1)
+    body = code[on_click_start:] if next_def == -1 else code[on_click_start:next_def]
+
+    # Must guard against same-card re-click
+    assert 'idx == self.memory_first_card' in body or 'first_card == second_card' in body or \
+           'idx == memory_first_card' in body, \
+        "_on_memory_card_click: missing guard for second click on same card"
+    print("  ✅ Same-card guard present: clicking first card again is a no-op")
+
+    # memory_first_card must be reset before starting the timer (prevents race on
+    # additional clicks during the 1-second delay)
+    timer_start_pos = body.find('self.action_timer.start(')
+    reset_pos = body.find('self.memory_first_card = None')
+    assert reset_pos != -1, "_on_memory_card_click: memory_first_card never reset to None"
+    assert reset_pos < timer_start_pos, \
+        "_on_memory_card_click: memory_first_card should be reset BEFORE starting action_timer"
+    print("  ✅ memory_first_card reset before timer start (prevents extra clicks during delay)")
+
+
 def run_all_tests():
     print("=" * 65)
     print("Hybrid Architecture + Lazy rembg Import Tests")
@@ -7547,6 +7609,8 @@ def run_all_tests():
         test_go_to_park_panda_widget_none_guard,
         test_bedroom_draw_potted_plant_no_dead_import,
         test_shop_banner_has_3d_otter_widget,
+        test_livy_otter_widget_complete_animation_state,
+        test_memory_game_same_card_guard,
     ]
 
     passed, failed = [], []

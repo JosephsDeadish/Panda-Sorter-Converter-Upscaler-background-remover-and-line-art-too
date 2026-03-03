@@ -84,7 +84,7 @@ class LivyOtterWidget(_QOpenGLWidget):
         super().__init__(parent)
         self.setFixedSize(100, 110)
 
-        # Animation state (mirrors PandaWorldGL)
+        # Animation state (mirrors PandaWorldGL — all attrs read by _draw_otter)
         self._frame: int = 0
         self._gl_ready: bool = False
         self._otter_happy_t: int = 0
@@ -93,7 +93,10 @@ class LivyOtterWidget(_QOpenGLWidget):
         self._otter_tail_angle: float = 0.0
         self._otter_look_x: float = 0.0
         self._otter_look_tgt: float = 0.0
+        self._otter_look_phase: int = 0    # countdown to next random look-event
         self._otter_eye_close: int = 0
+        self._otter_blink: int = 180       # countdown frames to next blink
+        self._otter_shuffle_t: int = 0     # counter-shuffle animation timer
 
         # Tick timer — ~30 fps
         self._timer = QTimer(self)
@@ -103,6 +106,7 @@ class LivyOtterWidget(_QOpenGLWidget):
     # ------------------------------------------------------------------
     def _tick(self):
         import math as _m
+        import random as _r
         self._frame += 1
         self._otter_head_bob = _m.sin(self._frame * 0.025) * 4.0
         self._otter_tail_angle = _m.sin(self._frame * 0.04) * 18.0
@@ -110,11 +114,28 @@ class LivyOtterWidget(_QOpenGLWidget):
             self._otter_happy_t -= 1
         if self._otter_wave_t > 0:
             self._otter_wave_t -= 1
-        # Occasional random look
-        if self._frame % 90 == 0:
-            import random as _r
-            self._otter_look_tgt = _r.uniform(-14.0, 14.0) if _r.random() < 0.7 else 0.0
+        # Blink
+        if self._otter_blink <= 0:
+            self._otter_blink = _r.randint(100, 280)
+            self._otter_eye_close = 4
+        else:
+            self._otter_blink -= 1
+        if self._otter_eye_close > 0:
+            self._otter_eye_close -= 1
+        # Random look-around
+        if self._otter_look_phase <= 0:
+            self._otter_look_tgt = (
+                _r.uniform(-14.0, 14.0) if _r.random() < 0.7 else 0.0
+            )
+            self._otter_look_phase = _r.randint(80, 200)
+        else:
+            self._otter_look_phase -= 1
         self._otter_look_x += (self._otter_look_tgt - self._otter_look_x) * 0.07
+        # Counter-shuffle
+        if self._otter_shuffle_t > 0:
+            self._otter_shuffle_t -= 1
+        elif _r.random() < 0.003:
+            self._otter_shuffle_t = _r.randint(20, 50)
         self.update()
 
     # ------------------------------------------------------------------

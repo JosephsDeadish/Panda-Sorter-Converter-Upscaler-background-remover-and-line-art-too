@@ -373,6 +373,9 @@ class MiniGamePanelQt(QWidget):
             self.memory_first_card = idx
             self.memory_cards[idx].setText("🐼")
         else:
+            # Guard: ignore a click on the same card that was already flipped
+            if idx == self.memory_first_card:
+                return
             second_card = idx
             self.memory_cards[second_card].setText("🐼")
             
@@ -383,6 +386,7 @@ class MiniGamePanelQt(QWidget):
             except TypeError:
                 pass  # No connections exist yet — that's fine
             first_card = self.memory_first_card  # capture now, not at timer-fire time
+            self.memory_first_card = None        # reset so subsequent clicks start a fresh pair
             self.action_timer.timeout.connect(lambda: self._check_memory_match(first_card, second_card))
             self.action_timer.start(1000)
     
