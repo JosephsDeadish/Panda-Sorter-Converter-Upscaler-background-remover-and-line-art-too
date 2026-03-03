@@ -7,6 +7,7 @@ Author: Dead On The Inside / JosephsDeadish
 import json
 import logging
 import math
+import os
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Optional, List, Tuple
@@ -154,13 +155,14 @@ class PandaBedroomGL(QOpenGLWidget if OPENGL_AVAILABLE else QWidget):  # type: i
 
         super().__init__(parent)
 
-        fmt = QSurfaceFormat()
-        fmt.setVersion(2, 1)  # OpenGL 2.1 — keeps all legacy fixed-function GL
-        fmt.setProfile(QSurfaceFormat.OpenGLContextProfile.CompatibilityProfile)
-        fmt.setRenderableType(QSurfaceFormat.RenderableType.OpenGL)  # native desktop GL
-        fmt.setDepthBufferSize(24)
-        fmt.setSamples(4)
-        self.setFormat(fmt)
+        if os.environ.get('QT_QPA_PLATFORM') != 'offscreen':
+            fmt = QSurfaceFormat()
+            fmt.setVersion(2, 1)  # OpenGL 2.1 — keeps all legacy fixed-function GL
+            fmt.setProfile(QSurfaceFormat.OpenGLContextProfile.CompatibilityProfile)
+            fmt.setRenderableType(QSurfaceFormat.RenderableType.OpenGL)  # native desktop GL
+            fmt.setDepthBufferSize(24)
+            fmt.setSamples(4)
+            self.setFormat(fmt)
 
         # Furniture
         self._furniture: List[FurniturePiece] = _build_furniture()

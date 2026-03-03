@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import logging
 import math
+import os
 import random
 import time
 from typing import Optional, Callable, Tuple, List
@@ -253,15 +254,16 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
         # Set OpenGL surface format — use CompatibilityProfile so legacy fixed-function
         # GL (glShadeModel, glEnable(GL_LIGHTING), glBegin/End, etc.) remain available.
         # CoreProfile removes all legacy functions and would crash initializeGL().
-        fmt = QSurfaceFormat()
-        fmt.setVersion(2, 1)  # OpenGL 2.1 — widely available, includes all legacy GL
-        fmt.setProfile(QSurfaceFormat.OpenGLContextProfile.CompatibilityProfile)
-        fmt.setRenderableType(QSurfaceFormat.RenderableType.OpenGL)  # native desktop GL, not ANGLE
-        fmt.setSamples(4)  # 4x MSAA for antialiasing
-        fmt.setDepthBufferSize(24)
-        fmt.setStencilBufferSize(8)
-        fmt.setAlphaBufferSize(8)  # needed for WA_TranslucentBackground transparency
-        self.setFormat(fmt)
+        if os.environ.get('QT_QPA_PLATFORM') != 'offscreen':
+            fmt = QSurfaceFormat()
+            fmt.setVersion(2, 1)  # OpenGL 2.1 — widely available, includes all legacy GL
+            fmt.setProfile(QSurfaceFormat.OpenGLContextProfile.CompatibilityProfile)
+            fmt.setRenderableType(QSurfaceFormat.RenderableType.OpenGL)  # native desktop GL, not ANGLE
+            fmt.setSamples(4)  # 4x MSAA for antialiasing
+            fmt.setDepthBufferSize(24)
+            fmt.setStencilBufferSize(8)
+            fmt.setAlphaBufferSize(8)  # needed for WA_TranslucentBackground transparency
+            self.setFormat(fmt)
 
         # Overlay mode — transparent, always on top; mouse events are NOT
         # passed through so the panda responds to clicks and drags.

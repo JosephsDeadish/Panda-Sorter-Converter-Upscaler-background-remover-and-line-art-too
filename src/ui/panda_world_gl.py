@@ -15,6 +15,7 @@ Signals
 from __future__ import annotations
 
 import math
+import os
 import random
 import logging
 from typing import Optional, List, Tuple
@@ -157,14 +158,15 @@ class PandaWorldGL(
         # for every fixed-function call, causing initializeGL to fail and the
         # 2D fallback to appear instead of the 3D world.
         if QOGL_AVAILABLE and PYQT_AVAILABLE:
-            _fmt = QSurfaceFormat()
-            _fmt.setVersion(2, 1)
-            _fmt.setProfile(QSurfaceFormat.OpenGLContextProfile.CompatibilityProfile)
-            _fmt.setRenderableType(QSurfaceFormat.RenderableType.OpenGL)  # native desktop GL
-            _fmt.setSamples(4)
-            _fmt.setDepthBufferSize(24)
-            _fmt.setStencilBufferSize(8)
-            self.setFormat(_fmt)
+            if os.environ.get('QT_QPA_PLATFORM') != 'offscreen':
+                _fmt = QSurfaceFormat()
+                _fmt.setVersion(2, 1)
+                _fmt.setProfile(QSurfaceFormat.OpenGLContextProfile.CompatibilityProfile)
+                _fmt.setRenderableType(QSurfaceFormat.RenderableType.OpenGL)  # native desktop GL
+                _fmt.setSamples(4)
+                _fmt.setDepthBufferSize(24)
+                _fmt.setStencilBufferSize(8)
+                self.setFormat(_fmt)
 
         self._gl_ready = False
         self._frame    = 0
