@@ -330,13 +330,13 @@ class IntegratedDungeon:
             # If close enough, attack
             if distance < self.ATTACK_RANGE:
                 # Enemy attacks player
-                damage = spawned.enemy.stats.attack
+                damage = spawned.enemy.stats.attack_power
                 self.player_damage_tracker.apply_damage(
                     LimbType.TORSO,
                     DamageCategory.SHARP,
                     damage
                 )
-                self.player_health -= damage
+                self.player_health = max(0, self.player_health - damage)
             
             # Move toward player
             elif distance < self.AGGRO_RANGE:  # Aggro range
@@ -384,9 +384,9 @@ class IntegratedDungeon:
                             self.level_system.add_xp(xp_val)
                         except Exception:
                             pass
-                    if self.currency_system and hasattr(self.currency_system, 'add'):
+                    if self.currency_system and hasattr(self.currency_system, 'earn_money'):
                         try:
-                            self.currency_system.add('bamboo_bucks', gld_val)
+                            self.currency_system.earn_money(gld_val, 'dungeon_kill')
                         except Exception:
                             pass
     

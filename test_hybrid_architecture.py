@@ -7623,6 +7623,145 @@ def test_notepad_auto_save_timer_single_shot():
     print("  ✅ Source: on_text_changed() stops+restarts timer (debounce pattern)")
 
 
+def test_dungeon_enemy_attack_uses_attack_power():
+    """IntegratedDungeon.update_enemies() must use stats.attack_power, not stats.attack.
+
+    Bug: The code read ``spawned.enemy.stats.attack`` but ``CombatStats`` has
+    ``attack_power``, not ``attack``.  Every tick in which an enemy was within
+    ATTACK_RANGE, the ``AttributeError`` was swallowed by the outer
+    ``try/except Exception: pass`` in ``_game_tick``, so enemies never dealt
+    damage to the player in the 2-D dungeon view.
+
+    Fix: Change ``stats.attack`` → ``stats.attack_power``.
+
+    The same commit also clamps ``player_health`` to 0 with
+    ``max(0, self.player_health - damage)`` so HP cannot go negative.
+    """
+    print("\ntest_dungeon_enemy_attack_uses_attack_power ...")
+    import sys
+    from pathlib import Path
+    sys.path.insert(0, str(Path(__file__).parent / 'src'))
+
+    # Runtime: CombatStats must have attack_power but NOT attack
+    from features.combat_system import CombatStats
+    import dataclasses
+    field_names = {f.name for f in dataclasses.fields(CombatStats)}
+    assert 'attack_power' in field_names, "CombatStats must have 'attack_power'"
+    assert 'attack' not in field_names, \
+        "CombatStats must NOT have a bare 'attack' field — use attack_power"
+    print("  ✅ Runtime: CombatStats.attack_power exists; 'attack' does not")
+
+    # Source: integrated_dungeon.py must use stats.attack_power
+    code = (Path(__file__).parent / 'src' / 'features' / 'integrated_dungeon.py').read_text(encoding='utf-8')
+    assert 'stats.attack_power' in code, \
+        "integrated_dungeon.py must read stats.attack_power for enemy damage"
+    assert 'stats.attack\n' not in code and 'stats.attack ' not in code, \
+        "integrated_dungeon.py still uses bare stats.attack — must be attack_power"
+    print("  ✅ Source: stats.attack_power used in update_enemies()")
+
+    # Source: player_health must be clamped to 0
+    assert 'max(0, self.player_health - damage)' in code, \
+        "integrated_dungeon.py: player_health must be clamped to 0 — use max(0, ...)"
+    print("  ✅ Source: player_health clamped to 0 with max(0, ...)")
+
+
+def test_batch_normalizer_preview_original_size():
+    """BatchNormalizerPanelQt._update_preview() must capture original image size
+    *before* thumbnail() modifies the image in-place.
+
+    Bug: ``info_label`` was set with
+    ``Image.open(first_file).size[0] × Image.open(first_file).size[1]``
+    — re-opening the file **twice** after ``image.thumbnail(...)`` had already
+    been called.  Not only was this wasteful (three file opens total), but the
+    re-opened images report thumbnail dimensions if Pillow caches size lazily,
+    and the intent was clearly to show the *original* dimensions, not the
+    resized thumbnail dimensions.
+
+    Fix: Capture ``orig_w, orig_h = image.size`` immediately after the first
+    ``Image.open()`` and before ``image.thumbnail()`` mutates the object.
+    """
+    print("\ntest_batch_normalizer_preview_original_size ...")
+    from pathlib import Path
+    code = (Path(__file__).parent / 'src' / 'ui' / 'batch_normalizer_panel_qt.py').read_text(encoding='utf-8')
+
+    # Find _update_preview body
+    start = code.find('def _update_preview(')
+    assert start != -1, "_update_preview() not found"
+    next_def = code.find('\n    def ', start + 1)
+    body = code[start:] if next_def == -1 else code[start:next_def]
+
+    # Must NOT open the file a second time inside _update_preview
+    # (one Image.open for loading + thumbnail is fine; more is wasteful and wrong)
+    import re
+    extra_opens = len(re.findall(r'Image\.open\(first_file\)', body))
+    assert extra_opens <= 1, (
+        f"_update_preview() calls Image.open(first_file) {extra_opens} times — "
+        "should be exactly 1: capture orig_w/orig_h before thumbnail(), "
+        "then reuse them for info_label."
+    )
+    print(f"  ✅ Source: Image.open(first_file) called only {extra_opens} time(s)")
+
+    # Must capture orig_w, orig_h before thumbnail()
+    assert 'orig_w' in body and 'orig_h' in body, \
+        "_update_preview() must capture orig_w, orig_h before thumbnail() modifies image"
+    print("  ✅ Source: orig_w/orig_h captured before thumbnail()")
+
+    # thumbnail() must come after the size capture
+    orig_pos    = body.find('orig_w, orig_h')
+    thumb_pos   = body.find('image.thumbnail(')
+    assert orig_pos < thumb_pos, \
+        "orig_w, orig_h must be captured before image.thumbnail() is called"
+    print("  ✅ Source: orig_w/orig_h captured before thumbnail() call")
+
+    # info_label must reference orig_w and orig_h (not re-open the file)
+    info_pos = body.find('self.info_label.setText')
+    assert info_pos != -1, "info_label.setText not found in _update_preview()"
+    info_line_end = body.find('\n', info_pos)
+    info_line = body[info_pos:info_line_end]
+    assert 'orig_w' in info_line and 'orig_h' in info_line, \
+        "info_label.setText must use orig_w/orig_h, not re-open the file"
+    print("  ✅ Source: info_label uses orig_w/orig_h")
+
+
+def test_dungeon_gold_reward_uses_earn_money():
+    """IntegratedDungeon.player_attack_nearby_enemies() must call earn_money()
+    (not the non-existent add() method) to credit dungeon kill rewards.
+
+    Bug: The code called ``currency_system.add('bamboo_bucks', gld_val)``,
+    guarded by ``hasattr(self.currency_system, 'add')``.  Since ``CurrencySystem``
+    has no ``add()`` method (it has ``earn_money()`` and ``add_coins()``),
+    the ``hasattr`` check always returned ``False`` and all dungeon kill gold
+    was silently discarded — no coins were ever awarded for 2-D dungeon kills.
+
+    Fix: Change guard + call to ``hasattr(…, 'earn_money')`` / ``earn_money()``.
+    """
+    print("\ntest_dungeon_gold_reward_uses_earn_money ...")
+    from pathlib import Path, PurePosixPath
+    code = (Path(__file__).parent / 'src' / 'features' / 'integrated_dungeon.py').read_text(encoding='utf-8')
+
+    # Must NOT call currency_system.add(
+    assert "currency_system.add(" not in code, (
+        "integrated_dungeon.py still calls currency_system.add() — "
+        "CurrencySystem has no 'add' method (use earn_money)."
+    )
+    print("  ✅ Source: currency_system.add() no longer present")
+
+    # Must use earn_money
+    assert "currency_system.earn_money(" in code, \
+        "integrated_dungeon.py must call currency_system.earn_money() for dungeon kill gold"
+    print("  ✅ Source: currency_system.earn_money() used for dungeon kill reward")
+
+    # Runtime: CurrencySystem must have earn_money but not add
+    import sys
+    sys.path.insert(0, str(Path(__file__).parent / 'src'))
+    from features.currency_system import CurrencySystem
+    assert hasattr(CurrencySystem, 'earn_money'), \
+        "CurrencySystem must have earn_money()"
+    assert not hasattr(CurrencySystem, 'add'), \
+        "CurrencySystem must NOT have a bare add() method"
+    print("  ✅ Runtime: CurrencySystem.earn_money() confirmed; add() absent")
+
+
 def run_all_tests():
     print("=" * 65)
     print("Hybrid Architecture + Lazy rembg Import Tests")
@@ -7761,6 +7900,9 @@ def run_all_tests():
         test_achievement_popup_no_signal_accumulation,
         test_dungeon_enemy_alive_attr,
         test_notepad_auto_save_timer_single_shot,
+        test_dungeon_enemy_attack_uses_attack_power,
+        test_batch_normalizer_preview_original_size,
+        test_dungeon_gold_reward_uses_earn_money,
     ]
 
     passed, failed = [], []
