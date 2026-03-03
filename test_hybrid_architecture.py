@@ -7375,6 +7375,45 @@ def test_enter_dungeon_guard_against_early_back():
     print("  ✅ _enter_dungeon() guards against home_stack.currentIndex() == 0 (user navigated away)")
 
 
+def test_shop_banner_has_3d_otter_widget():
+    """shop_panel_qt.py must replace the emoji otter with a LivyOtterWidget (QOpenGLWidget).
+
+    Requirements:
+    - LivyOtterWidget class exists in shop_panel_qt.py
+    - It has initializeGL, resizeGL, paintGL, _sphere, _cylinder methods (GL widget API)
+    - setup_ui() no longer unconditionally creates a QLabel('🦦') — it creates
+      LivyOtterWidget (or falls back to emoji only when OpenGL is unavailable)
+    - The _draw_otter() method from panda_world_gl.PandaWorldGL is invoked inside paintGL
+    """
+    print("\ntest_shop_banner_has_3d_otter_widget ...")
+    from pathlib import Path
+    code = (Path(__file__).parent / 'src' / 'ui' / 'shop_panel_qt.py').read_text(encoding='utf-8')
+
+    assert 'class LivyOtterWidget' in code, \
+        "shop_panel_qt.py: LivyOtterWidget class missing"
+    print("  ✅ LivyOtterWidget class present")
+
+    for method in ('def initializeGL', 'def resizeGL', 'def paintGL', 'def _sphere', 'def _cylinder'):
+        assert method in code, f"shop_panel_qt.py: LivyOtterWidget.{method}() missing"
+    print("  ✅ GL widget methods present (initializeGL / resizeGL / paintGL / _sphere / _cylinder)")
+
+    # setup_ui must use LivyOtterWidget, not unconditionally create a QLabel emoji
+    # There are two setup_ui methods (ShopItemWidget + ShopPanelQt) — find the one
+    # that belongs to ShopPanelQt (the second occurrence).
+    setup_start = code.find('def setup_ui(', code.find('class ShopPanelQt'))
+    assert setup_start != -1, "shop_panel_qt.py: ShopPanelQt.setup_ui() missing"
+    next_def = code.find('\n    def ', setup_start + 1)
+    setup_body = code[setup_start:] if next_def == -1 else code[setup_start:next_def]
+    assert 'LivyOtterWidget' in setup_body, \
+        "shop_panel_qt.py: ShopPanelQt.setup_ui() does not instantiate LivyOtterWidget"
+    print("  ✅ setup_ui() instantiates LivyOtterWidget in the banner")
+
+    # paintGL must delegate to PandaWorldGL._draw_otter
+    assert 'PandaWorldGL._draw_otter' in code or '_draw_otter(self)' in code, \
+        "shop_panel_qt.py: LivyOtterWidget.paintGL does not call _draw_otter"
+    print("  ✅ paintGL delegates to PandaWorldGL._draw_otter (3-D otter rendered, not emoji)")
+
+
 def run_all_tests():
     print("=" * 65)
     print("Hybrid Architecture + Lazy rembg Import Tests")
@@ -7507,6 +7546,7 @@ def run_all_tests():
         test_shop_livy_sell_reaction_uses_correct_kwarg,
         test_go_to_park_panda_widget_none_guard,
         test_bedroom_draw_potted_plant_no_dead_import,
+        test_shop_banner_has_3d_otter_widget,
     ]
 
     passed, failed = [], []
