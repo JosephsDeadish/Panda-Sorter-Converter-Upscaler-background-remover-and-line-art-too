@@ -6088,7 +6088,6 @@ class TextureSorterMainWindow(QMainWindow):
         try:
             if self.panda_widget:
                 self.panda_widget.set_animation_state('idle')
-                import types as _t
                 _w = self.panda_widget
                 from PyQt6.QtCore import QTimer  # type: ignore[attr-defined]
                 QTimer.singleShot(100, lambda: _w.set_animation_state('idle'))

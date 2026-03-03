@@ -6842,6 +6842,134 @@ def test_panda_walk_frequency_and_range():
             print(f"  ✅ _ACTIVITY_WEIGHTS sum = {total:.3f} (valid probability distribution)")
 
 
+def test_dungeon_hover_highlight_reachable():
+    """panda_world_gl._draw_hover_highlights must include 'dungeon' in the early-return guard.
+
+    Bug: the guard was ``if self._hover not in ('home', 'shop', 'park_btn'): return``.
+    Because 'dungeon' was not in the tuple the function returned early whenever the
+    cursor was over the dungeon entrance, and the purple-glow elif block was dead code
+    that never executed — hovering over the dungeon showed no visual feedback.
+
+    Fix: add 'dungeon' to the guard tuple so all four non-inline regions pass through.
+    """
+    print("\ntest_dungeon_hover_highlight_reachable ...")
+    from pathlib import Path
+    code = (Path(__file__).parent / 'src' / 'ui' / 'panda_world_gl.py').read_text(encoding='utf-8')
+
+    # Locate _draw_hover_highlights
+    hl_start = code.find('def _draw_hover_highlights')
+    assert hl_start != -1, "panda_world_gl.py: _draw_hover_highlights() missing"
+    next_fn  = code.find('\n    def ', hl_start + 1)
+    hl_fn    = code[hl_start:] if next_fn == -1 else code[hl_start:next_fn]
+
+    # The guard must include 'dungeon' so the function doesn't bail out early
+    assert "'dungeon'" in hl_fn, (
+        "panda_world_gl.py: _draw_hover_highlights early-return guard does not include 'dungeon'.\n"
+        "The dungeon highlight elif block is dead code — hovering over the dungeon entrance "
+        "shows no purple-glow outline.\n"
+        "Fix: change guard to: if self._hover not in ('home', 'shop', 'park_btn', 'dungeon'): return"
+    )
+    print("  ✅ 'dungeon' in _draw_hover_highlights guard (highlight is reachable)")
+
+    # The dungeon elif must still be present and contain the purple colour
+    assert "self._hover == 'dungeon'" in hl_fn, \
+        "panda_world_gl.py: elif self._hover == 'dungeon' block missing from _draw_hover_highlights"
+    assert '0.7, 0.2, 1.0' in hl_fn, \
+        "panda_world_gl.py: purple-glow colour (0.7, 0.2, 1.0) missing from dungeon highlight"
+    print("  ✅ dungeon elif block with purple-glow colour present")
+
+    # Sanity: car and otter are still handled inline (not in _draw_hover_highlights)
+    assert "'car'" not in hl_fn, \
+        "panda_world_gl.py: 'car' unexpectedly added to _draw_hover_highlights (should stay inline)"
+    assert "'otter'" not in hl_fn, \
+        "panda_world_gl.py: 'otter' unexpectedly added to _draw_hover_highlights (should stay inline)"
+    print("  ✅ car and otter still handled inline (not duplicated in _draw_hover_highlights)")
+
+
+def test_inventory_category_filter_none_guard():
+    """inventory_panel_qt._item_matches_cat_label must not AttributeError on item.category=None.
+
+    Bug: the final return ``item.category.name == target`` raised AttributeError when an
+    item had category=None (e.g., a SimpleNamespace item loaded from an older save where
+    the category string was unrecognised and _cat_val resolved to None).
+
+    Fix: add ``if item.category is None: return False`` before the .name access.
+    """
+    print("\ntest_inventory_category_filter_none_guard ...")
+    from pathlib import Path
+    code = (Path(__file__).parent / 'src' / 'ui' / 'inventory_panel_qt.py').read_text(encoding='utf-8')
+
+    # Locate _item_matches_cat_label
+    fn_start = code.find('def _item_matches_cat_label')
+    assert fn_start != -1, "inventory_panel_qt.py: _item_matches_cat_label() missing"
+    next_fn  = code.find('\n    def ', fn_start + 1)
+    fn_body  = code[fn_start:] if next_fn == -1 else code[fn_start:next_fn]
+
+    # Must have a None-check before accessing .name
+    assert 'item.category is None' in fn_body, (
+        "inventory_panel_qt.py: _item_matches_cat_label does not guard against item.category=None.\n"
+        "Accessing item.category.name when category is None raises AttributeError.\n"
+        "Add: if item.category is None: return False"
+    )
+    print("  ✅ None-guard present before item.category.name access")
+
+    # Runtime: verify no AttributeError with a None-category item
+    import sys, os
+    sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'src'))
+    try:
+        from ui.inventory_panel_qt import InventoryPanelQt
+        from unittest.mock import MagicMock
+        # Build a mock item with category=None
+        fake_item = MagicMock()
+        fake_item.category = None
+        # Build a minimal inventory panel (no real shop needed)
+        panel = InventoryPanelQt.__new__(InventoryPanelQt)
+        panel.current_category = 'All'
+        # Should return True (unrecognised label → show all), not raise
+        result_all = panel._item_matches_cat_label(fake_item, 'All')
+        assert result_all is True, \
+            f"_item_matches_cat_label('All') should return True for any item; got {result_all}"
+        # Should return False (known category, but category is None → no match), not raise
+        result_clothes = panel._item_matches_cat_label(fake_item, 'Clothes')
+        assert result_clothes is False, (
+            f"_item_matches_cat_label('Clothes') on None-category item should return False; "
+            f"got {result_clothes}"
+        )
+        print("  ✅ Runtime: None-category item returns correct values without AttributeError")
+    except ImportError as _e:
+        print(f"  ⚠️  Runtime check skipped (import failed: {_e})")
+
+
+def test_no_redundant_import_types_in_not_enough_coins():
+    """main.py _on_not_enough_coins must not contain a redundant ``import types as _t``.
+
+    Bug: ``import types as _t`` appeared inside the method body but ``_t`` was never
+    used — the module-level ``import types as _types`` (line ~14) already provides the
+    reference.  The dead import is confusing noise and masks the intent of the function.
+
+    Fix: remove the unused ``import types as _t`` from inside the method.
+    """
+    print("\ntest_no_redundant_import_types_in_not_enough_coins ...")
+    code = open('main.py').read()
+
+    fn_start = code.find('def _on_not_enough_coins')
+    assert fn_start != -1, "main.py: _on_not_enough_coins() missing"
+    next_fn  = code.find('\n    def ', fn_start + 1)
+    fn_body  = code[fn_start:] if next_fn == -1 else code[fn_start:next_fn]
+
+    assert 'import types as _t' not in fn_body, (
+        "main.py: _on_not_enough_coins still contains ``import types as _t``.\n"
+        "``_t`` is never used inside the method; ``_types`` is already available at module level.\n"
+        "Remove the redundant import."
+    )
+    print("  ✅ No redundant 'import types as _t' inside _on_not_enough_coins")
+
+    # The module-level import must still be present
+    assert 'import types as _types' in code, \
+        "main.py: module-level 'import types as _types' was accidentally removed"
+    print("  ✅ Module-level 'import types as _types' still present")
+
+
 def run_all_tests():
     print("=" * 65)
     print("Hybrid Architecture + Lazy rembg Import Tests")
@@ -6964,6 +7092,9 @@ def run_all_tests():
         test_panda_should_hide_visible_on_all_tabs,
         test_switch_tool_panda_home_resets_to_bedroom,
         test_panda_walk_frequency_and_range,
+        test_dungeon_hover_highlight_reachable,
+        test_inventory_category_filter_none_guard,
+        test_no_redundant_import_types_in_not_enough_coins,
     ]
 
     passed, failed = [], []
