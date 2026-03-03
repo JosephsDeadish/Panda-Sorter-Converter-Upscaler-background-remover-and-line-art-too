@@ -465,6 +465,7 @@ class ShopPanelQt(QWidget):
     """Main shop panel for purchasing items."""
 
     item_purchased = pyqtSignal(str)  # item_id
+    item_sold      = pyqtSignal(str)  # item_id — emitted after a successful sell
 
     # Maps shop category IDs to specific tooltip catalog keys
     _CATEGORY_TOOLTIP_IDS = {
@@ -934,6 +935,10 @@ class ShopPanelQt(QWidget):
             # Animate the row away
             row_widget.setVisible(False)
             row_widget.deleteLater()
+            try:
+                self.item_sold.emit(item_id)
+            except Exception:
+                pass
             self.livy_says(
                 f"Sold! Hope you made the right call… 🦦 {catalog_item.icon}",
                 duration_ms=4000

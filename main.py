@@ -6129,6 +6129,14 @@ class TextureSorterMainWindow(QMainWindow):
         """Alias wired to ShopPanelQt.item_purchased signal (otter shop)."""
         self.on_shop_item_purchased(item_id)
 
+    def _on_shop_item_sold(self, item_id: str) -> None:
+        """Handle a successful item sell from the shop — update the first_sell quest."""
+        try:
+            if self.quest_system:
+                self.quest_system.update_quest_progress('first_sell', 1)
+        except Exception as _e:
+            logger.debug(f"_on_shop_item_sold: {_e}")
+
     def on_inventory_item_selected(self, item_id: str):
         """Handle item selection from inventory panel."""
         try:
@@ -6639,6 +6647,8 @@ class TextureSorterMainWindow(QMainWindow):
                     tooltip_manager=self.tooltip_manager,
                 )
                 self._otter_shop_panel.item_purchased.connect(self._on_shop_purchase_completed)
+                if hasattr(self._otter_shop_panel, 'item_sold'):
+                    self._otter_shop_panel.item_sold.connect(self._on_shop_item_sold)
                 # NOT added to _home_stack_owned — persistent panel re-used across visits.
             # Refresh coin balance every time the shop opens
             try:

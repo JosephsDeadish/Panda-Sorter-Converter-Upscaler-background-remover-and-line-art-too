@@ -7792,6 +7792,50 @@ def test_dungeon_3d_enemy_slain_awards_xp():
     print("  ✅ Source: level_system guarded access present")
 
 
+def test_first_sell_quest_wired():
+    """ShopPanelQt.item_sold signal must be connected to update the 'first_sell' quest.
+
+    Bug: ShopPanelQt had no 'item_sold' signal and _on_sell_clicked() never emitted
+    anything after a successful sell.  The quest_system defines 'first_sell' (sell an
+    item in the shop) but it had no trigger — it could never be completed.
+
+    Fix:
+    - Add `item_sold = pyqtSignal(str)` to ShopPanelQt
+    - Emit `self.item_sold.emit(item_id)` in _on_sell_clicked() after success
+    - In main.py, wire `item_sold` → `_on_shop_item_sold()` which calls
+      `quest_system.update_quest_progress('first_sell', 1)`
+    """
+    print("\ntest_first_sell_quest_wired ...")
+    from pathlib import Path
+
+    # Confirm the quest exists
+    quest_code = (Path(__file__).parent / 'src' / 'features' / 'quest_system.py').read_text(encoding='utf-8')
+    assert 'first_sell' in quest_code, \
+        "quest_system.py: 'first_sell' quest ID missing"
+    print("  ✅ Source: 'first_sell' quest defined in quest_system.py")
+
+    # Shop panel must have item_sold signal
+    shop_code = (Path(__file__).parent / 'src' / 'ui' / 'shop_panel_qt.py').read_text(encoding='utf-8')
+    assert 'item_sold' in shop_code, \
+        "shop_panel_qt.py: 'item_sold' pyqtSignal missing"
+    assert 'item_sold.emit(' in shop_code, \
+        "shop_panel_qt.py: _on_sell_clicked does not emit item_sold signal"
+    print("  ✅ Source: ShopPanelQt has item_sold signal and emits it on sell")
+
+    # main.py must wire item_sold and define _on_shop_item_sold
+    main_code = (Path(__file__).parent / 'main.py').read_text(encoding='utf-8')
+    assert 'item_sold' in main_code, \
+        "main.py: item_sold signal not wired"
+    assert 'def _on_shop_item_sold(' in main_code, \
+        "main.py: _on_shop_item_sold() handler missing"
+    fn_start = main_code.find('def _on_shop_item_sold(')
+    next_fn = main_code.find('\n    def ', fn_start + 1)
+    fn_body = main_code[fn_start:] if next_fn == -1 else main_code[fn_start:next_fn]
+    assert 'first_sell' in fn_body, \
+        "main.py: _on_shop_item_sold() does not update 'first_sell' quest"
+    print("  ✅ Source: _on_shop_item_sold() updates 'first_sell' quest")
+
+
 def test_bamboo_catcher_quest_wired():
     """_on_minigame_completed() must update the 'bamboo_catcher_beginner' quest.
 
@@ -8062,6 +8106,7 @@ def run_all_tests():
         test_batch_normalizer_preview_original_size,
         test_dungeon_gold_reward_uses_earn_money,
         test_dungeon_3d_enemy_slain_awards_xp,
+        test_first_sell_quest_wired,
         test_bamboo_catcher_quest_wired,
         test_minigame_panel_bamboo_color_match_ui,
     ]
