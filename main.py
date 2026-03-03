@@ -2312,42 +2312,6 @@ class TextureSorterMainWindow(QMainWindow):
                     )
             back_btn.clicked.connect(_go_home)
 
-            # Furniture quick-access bar — shown permanently at the bottom of the
-            # 3D home panel so users can jump to any room feature with one click.
-            # This also satisfies the test expectation: ≥3 QPushButtons with
-            # furniture labels must exist as children of the Panda Home tab widget.
-            _furn_quick_bar = QWidget()
-            _furn_quick_bar.setObjectName("furnitureQuickBar")
-            _furn_quick_bar.setStyleSheet(
-                "#furnitureQuickBar { background: #1a1a2e; border-top: 1px solid #333; }"
-            )
-            _furn_quick_h = QHBoxLayout(_furn_quick_bar)
-            _furn_quick_h.setContentsMargins(6, 4, 6, 4)
-            _furn_quick_h.setSpacing(6)
-            _FURN_SHORTCUTS = [
-                ("👗 Wardrobe",    "wardrobe"),
-                ("🎒 Inventory",   "backpack"),
-                ("🏆 Trophies",    "trophy_stand"),
-                ("🍎 Food & Shop", "fridge"),
-                ("🧸 Toy Box",     "toy_box"),
-                ("🚪 Outside",     "bedroom_door"),
-            ]
-            _fshort_style = (
-                "QPushButton { background: #2a2a4e; color: #ccccff; "
-                "border: 1px solid #444; border-radius: 4px; "
-                "font-size: 11px; padding: 4px 8px; }"
-                "QPushButton:hover { background: #3a3a6e; color: #ffffff; border-color: #6666aa; }"
-                "QPushButton:pressed { background: #4a4a8e; }"
-            )
-            for _flabel, _ffid in _FURN_SHORTCUTS:
-                _fsbtn = QPushButton(_flabel)
-                _fsbtn.setStyleSheet(_fshort_style)
-                _fsbtn.clicked.connect(
-                    lambda _checked=False, _fid=_ffid: self._on_bedroom_furniture_clicked(_fid)
-                )
-                _furn_quick_h.addWidget(_fsbtn)
-            home_vbox.addWidget(_furn_quick_bar)
-
             panda_tabs.addTab(home_container, "🏠 Panda Home")
             self._home_tab_index = panda_tabs.indexOf(home_container)
             logger.info("✅ 3D Panda Home panel added to panda tab")

@@ -6530,6 +6530,47 @@ def test_color_match_minigame():
 
 
 
+def test_bedroom_no_quick_access_bar():
+    """The 3D GL bedroom (home_container) must NOT have a furniture quick-access bar.
+
+    Bug: A horizontal row of 6 QPushButtons ("👗 Wardrobe", "🎒 Inventory", …
+    "🚪 Outside") was added below the QStackedWidget inside home_container.
+    This bar was (a) visually indistinguishable from a QTabWidget tab strip
+    ("tabs at the bottom"), and (b) physically intercepted mouse-press events
+    aimed at lower 3D furniture items, breaking furniture clicking.
+
+    Fix: Removed the _furn_quick_bar block from the 3D GL path entirely.
+    The 3D bedroom uses mouseReleaseEvent → furniture_clicked → _on_bedroom_furniture_clicked.
+    The 2D fallback (home_2d) retains its own grid buttons for when GL is absent.
+    """
+    print("\ntest_bedroom_no_quick_access_bar ...")
+    code = open('main.py').read()
+
+    # furnitureQuickBar must NOT be present in the 3D GL path
+    assert 'furnitureQuickBar' not in code, (
+        "main.py: furnitureQuickBar widget is still present. "
+        "This bar appeared as 'tabs at the bottom' of the bedroom and "
+        "intercepted clicks on lower 3D furniture items. Remove it — "
+        "the 3D bedroom handles clicks via mouseReleaseEvent → furniture_clicked."
+    )
+    print("  ✅ furnitureQuickBar removed from 3D bedroom path")
+
+    # The 3D bedroom's furniture_clicked signal must still be connected
+    assert 'furniture_clicked.connect(self._on_bedroom_furniture_clicked)' in code, (
+        "main.py: bedroom_gl.furniture_clicked must be connected to "
+        "_on_bedroom_furniture_clicked so direct 3D furniture clicks work."
+    )
+    print("  ✅ furniture_clicked signal still wired to _on_bedroom_furniture_clicked")
+
+    # The 2D fallback must still have its own buttons (tested by test_panda_home_2d_fallback)
+    assert 'pandaHome2DFallback' in code, (
+        "main.py: 2D fallback (pandaHome2DFallback) is missing. "
+        "The 2D fallback panel must still have furniture shortcut buttons "
+        "for users without OpenGL."
+    )
+    print("  ✅ 2D fallback (pandaHome2DFallback) still present with its own buttons")
+
+
 def test_panda_should_hide_visible_on_all_tabs():
     """_on_panda_should_hide must show the overlay regardless of which tab is active.
 
@@ -6780,6 +6821,7 @@ def run_all_tests():
         test_format_converter_drag_drop,
         test_tool_panels_drag_drop,
         test_color_match_minigame,
+        test_bedroom_no_quick_access_bar,
         test_panda_should_hide_visible_on_all_tabs,
         test_switch_tool_panda_home_resets_to_bedroom,
         test_panda_walk_frequency_and_range,
