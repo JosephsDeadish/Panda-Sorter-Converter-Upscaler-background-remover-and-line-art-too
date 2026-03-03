@@ -382,7 +382,7 @@ class MiniGamePanelQt(QWidget):
                 self.action_timer.timeout.disconnect()
             except TypeError:
                 pass  # No connections exist yet — that's fine
-            first_card = self.memory_first_card   # capture now, not at timer-fire time
+            first_card = self.memory_first_card  # capture now, not at timer-fire time
             self.action_timer.timeout.connect(lambda: self._check_memory_match(first_card, second_card))
             self.action_timer.start(1000)
     
@@ -457,6 +457,10 @@ class MiniGamePanelQt(QWidget):
         
         # Start first round using QTimer (1 second delay)
         self.reflex_times = []
+        try:
+            self.action_timer.timeout.disconnect()
+        except TypeError:
+            pass  # No connections yet — fine
         self.action_timer.timeout.connect(self._start_reflex_round)
         self.action_timer.start(1000)
     

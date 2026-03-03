@@ -7001,7 +7001,7 @@ def test_not_enough_coins_plays_wall_hit_animation():
 
     # Must schedule return to idle (not immediate idle)
     assert "QTimer.singleShot(2000" in fn_body, (
-        "main.py: _on_not_enough_coins does not schedule QTimer.singleShot(2000, …) for "
+        "main.py: _on_not_enough_coins does not schedule QTimer.singleShot(2000, ...) for "
         "the return-to-idle.\n"
         "The 'wall_hit' animation needs ~2 s to play before returning to idle."
     )
@@ -7022,8 +7022,8 @@ def test_not_enough_coins_plays_wall_hit_animation():
 
     # Must NOT have the old redundant 100ms timer
     assert "singleShot(100" not in fn_body, (
-        "main.py: _on_not_enough_coins still has the old redundant QTimer.singleShot(100, …).\n"
-        "100 ms fires before 'wall_hit' finishes — it cancels the reaction.  Remove it."
+        "main.py: _on_not_enough_coins still has the old redundant QTimer.singleShot(100, ...).\n"
+        "100 ms fires before 'wall_hit' finishes -- it cancels the reaction.  Remove it."
     )
     print("  ✅ No redundant QTimer.singleShot(100, ...) — old idle-override removed")
 
@@ -7334,6 +7334,47 @@ def test_memory_game_timer_disconnect():
     print("  ✅ lambda captures first_card locally — not stale at fire time")
 
 
+def test_enter_dungeon_guard_against_early_back():
+    """_on_go_to_dungeon._enter_dungeon() must check home_stack before showing dungeon.
+
+    Bug: the closure _enter_dungeon() was connected to TravelAnimationWidget.
+    animation_complete and called _show_home_sub_panel(dungeon_panel, ...) unconditionally.
+    If the user clicked "Back" during the ~5.8-second animation (travel animation hides
+    and home_stack returns to index 0 = bedroom), the completion callback still fired and
+    forced the home_stack back to index 1, popping the dungeon panel up uninvited — the
+    user's manual navigation was silently reversed.
+
+    Fix: add a guard at the top of _enter_dungeon():
+
+        if self._home_stack and self._home_stack.currentIndex() == 0:
+            return  # user navigated away during the travel animation
+
+    so the dungeon panel is only shown when the travel animation widget is still the
+    active page.
+    """
+    print("\ntest_enter_dungeon_guard_against_early_back ...")
+    from pathlib import Path
+    code = (Path(__file__).parent / 'main.py').read_text(encoding='utf-8')
+
+    fn_start = code.find('def _on_go_to_dungeon(')
+    assert fn_start != -1, "main.py: _on_go_to_dungeon() missing"
+    next_fn  = code.find('\n    def ', fn_start + 1)
+    fn_body  = code[fn_start:] if next_fn == -1 else code[fn_start:next_fn]
+
+    # The inner closure _enter_dungeon must be present
+    inner_start = fn_body.find('def _enter_dungeon(')
+    assert inner_start != -1, "main.py: _on_go_to_dungeon does not define _enter_dungeon()"
+    inner_end = fn_body.find('\n            def ', inner_start + 1)
+    inner_body = fn_body[inner_start:] if inner_end == -1 else fn_body[inner_start:inner_end]
+
+    assert 'currentIndex() == 0' in inner_body, (
+        "main.py: _enter_dungeon() does not check self._home_stack.currentIndex() == 0.\n"
+        "Without this guard, the dungeon panel pops up even if the user clicked Back "
+        "during the travel animation — the user's navigation is silently reversed."
+    )
+    print("  ✅ _enter_dungeon() guards against home_stack.currentIndex() == 0 (user navigated away)")
+
+
 def run_all_tests():
     print("=" * 65)
     print("Hybrid Architecture + Lazy rembg Import Tests")
@@ -7462,6 +7503,7 @@ def run_all_tests():
         test_not_enough_coins_plays_wall_hit_animation,
         test_dungeon_magic_charging_reset_on_fire,
         test_memory_game_timer_disconnect,
+        test_enter_dungeon_guard_against_early_back,
         test_shop_livy_sell_reaction_uses_correct_kwarg,
         test_go_to_park_panda_widget_none_guard,
         test_bedroom_draw_potted_plant_no_dead_import,

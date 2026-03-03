@@ -6699,6 +6699,10 @@ class TextureSorterMainWindow(QMainWindow):
 
             def _enter_dungeon():
                 try:
+                    # Guard: if the user navigated back to the bedroom while the travel
+                    # animation was playing, don't forcibly switch to the dungeon panel.
+                    if self._home_stack and self._home_stack.currentIndex() == 0:
+                        return
                     if self._dungeon_3d_panel is None:
                         from ui.dungeon_3d_widget import Dungeon3DWidget
                         from features.integrated_dungeon import IntegratedDungeon
@@ -6756,7 +6760,8 @@ class TextureSorterMainWindow(QMainWindow):
                 # NOT added to _home_stack_owned — persistent panel re-used across visits.
             self._show_home_sub_panel(self._park_panel, '🌲 Panda Park')
             if self.panda_widget:
-                QTimer.singleShot(800, lambda: self.panda_widget.set_animation_state('celebrating')
+                _pw = self.panda_widget
+                QTimer.singleShot(800, lambda: _pw.set_animation_state('celebrating')
                                   if self.panda_widget else None)
         except Exception as _e:
             logger.debug(f"_on_go_to_park: {_e}")
