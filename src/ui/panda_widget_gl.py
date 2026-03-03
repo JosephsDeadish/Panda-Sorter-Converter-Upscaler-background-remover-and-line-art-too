@@ -1102,8 +1102,10 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
         # _paint_gl_body already applied panda_x/panda_z and rotation_y via
         # glTranslatef/glRotatef; only add the vertical bob offset here to avoid
         # doubling the XZ position or rotation.
-        # Use 0.30 (was 0.28) so the body centre sits a little higher, giving
-        # the shorter BODY_HEIGHT=0.50 enough clearance above the legs.
+        # Y=0.30: body centre sits high enough that the lower rump (extends
+        # –BH×0.39 below) stays above the ground, while the legs at torso-local
+        # Y=–0.24 reach down to Y≈–1.0 (ground plane) when the panda is on the
+        # floor (panda_y=–0.7).
         glTranslatef(0.0, 0.30 + bob, 0.0)
         # Wobble: random lateral lean added to whole body (pandas are uncoordinated)
         if abs(self._wobble_x) > 0.05:
@@ -1179,13 +1181,16 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
         glPopMatrix()
 
         # ── BLACK SHOULDER SLEEVE BLOBS (left and right) ──────────────────────
-        # Large black patches on each shoulder that merge with the shoulder band
-        # above and the front-leg "sleeves" below.  Centred at body-plane Z=0
-        # so they protrude slightly forward and are visible from the front.
+        # Positioned at X = BW (the body edge) so the outer half protrudes
+        # clearly beyond the white body surface and is visible from the front
+        # and 3/4 views.  Y raised to ARM_Y (≈ BH×0.42) so each blob connects
+        # directly to the arm attachment point for a seamless shoulder join.
+        # Old value BW×0.80 placed the centre INSIDE the white body sphere,
+        # making the black patches completely invisible behind the white body.
         for side in (-1.0, 1.0):
             glPushMatrix()
-            glTranslatef(side * BW * 0.80, BH * 0.14 * sy, 0.0)
-            glScalef(0.48, 0.46 * sy, 0.42)
+            glTranslatef(side * BW, BH * 0.42 * sy, 0.0)
+            glScalef(0.52, 0.50 * sy, 0.46)
             glColor3f(*accent_col)
             self._draw_sphere(1.0, 16, 16)
             glPopMatrix()
@@ -1236,10 +1241,13 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
 
         # ── NECK ──────────────────────────────────────────────────────────────
         # Wide, short neck bridging the body top to the head base.
-        # Pandas are famously "neckless" — the head appears to sit on the body.
+        # Pandas are famously "neckless" — head appears to grow directly from body.
+        # Wider (0.46 vs 0.40) to match HEAD_RADIUS and fill the body-to-head join.
+        # Y lowered to BH×0.50 so the neck sphere overlaps both the body top and
+        # the base of the head, creating a smooth seamless blend.
         glPushMatrix()
-        glTranslatef(0.0, BH * 0.62 * sy, BW * 0.02)
-        glScalef(0.40, 0.36 * sy, 0.36)
+        glTranslatef(0.0, BH * 0.50 * sy, BW * 0.01)
+        glScalef(0.46, 0.46 * sy, 0.42)
         glColor3f(*body_col)
         self._draw_sphere(1.0, 16, 16)
         glPopMatrix()
@@ -1455,15 +1463,33 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
         """Draw simplified panda geometry for shadow pass (no colour changes)."""
         # Both body and head inside the single torso matrix so the shadow geometry
         # correctly follows any body pitch/roll applied during animation.
+        # Uses the same multi-sphere barrel construction as _draw_panda but with
+        # fewer slices/stacks and no colour changes for performance.
         glPushMatrix()
         glTranslatef(0.0, 0.30, 0.0)
-        glScalef(self.BODY_WIDTH, self.BODY_HEIGHT, self.BODY_WIDTH * 0.92)
-        self._draw_sphere(1.0, 10, 10)
+        BW = self.BODY_WIDTH
+        BH = self.BODY_HEIGHT
+        # Lower rump — widest part of barrel
+        glPushMatrix()
+        glTranslatef(0.0, -BH * 0.18, -BW * 0.06)
+        glScalef(BW * 1.12, BH * 0.80, BW * 0.96)
+        self._draw_sphere(1.0, 8, 8)
+        glPopMatrix()
+        # Upper chest mass
+        glPushMatrix()
+        glTranslatef(0.0, BH * 0.22, -BW * 0.04)
+        glScalef(BW * 0.88, BH * 0.72, BW * 0.82)
+        self._draw_sphere(1.0, 8, 8)
+        glPopMatrix()
+        # Belly — largest forward-jutting sphere
+        glPushMatrix()
+        glTranslatef(0.0, -BH * 0.08, BW * 0.60)
+        glScalef(BW * 0.86, BH * 0.90, BW * 0.54)
+        self._draw_sphere(1.0, 8, 8)
         glPopMatrix()
         # Head at torso-local Y = 0.58 (same as in _draw_panda)
-        glPushMatrix()
-        glTranslatef(0.0, 0.30 + 0.58, 0.0)  # body translate + head local = 0.88
-        self._draw_sphere(self.HEAD_RADIUS, 10, 10)
+        glTranslatef(0.0, 0.58, 0.0)
+        self._draw_sphere(self.HEAD_RADIUS, 8, 8)
         glPopMatrix()
 
     # ─── Ear drawing ────────────────────────────────────────────────────────
@@ -1947,9 +1973,13 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
         # translates by (0, 0.30 + bob, 0).  Do NOT add bob here again or the arms
         # will appear to move at 2× the body bob rate.
         # arm_y from class constant ARM_Y: shoulder height inside the body
-        # (body extends ±0.25 from torso centre; ARM_Y=0.18 sits at shoulder level).
+        # (body half-height = BH/2 = 0.20; ARM_Y=0.15 sits at shoulder level).
         arm_y   = self.ARM_Y
-        arm_x   = self.BODY_WIDTH + 0.06
+        # arm_x = BW×0.97 places the arm pivot 3% outside the body centre,
+        # i.e. right at the body surface (body edge at arm Y ≈ BW×0.80).
+        # Old value BODY_WIDTH+0.06 was 8% wider than the body, leaving a
+        # 0.20-unit visual gap between the body surface and the arm start.
+        arm_x   = self.BODY_WIDTH * 0.97
         ac = self._get_color('accent')   # fur-style accent colour for arm patches
 
         swing_idle = 5.0 * math.sin(t * 0.030)  # tiny idle sway
@@ -2062,8 +2092,8 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
         # leg_y = -0.24: pivot is well below the body centre so legs protrude
         # visibly beneath the belly (old value -0.04 hid them inside the body).
         leg_y = -0.24
-        # 0.78 × BODY_WIDTH = 0.437 — wider than old 0.80 × 0.50 = 0.40
-        # despite the smaller multiplier, because BODY_WIDTH increased to 0.56.
+        # leg_x = BW×0.78 = 0.546 — matches hip-patch centres at BW×0.74=0.518
+        # and the thigh sphere (±0.155) bridges the small gap.
         leg_x = self.BODY_WIDTH * 0.78   # aligns with hip-patch positions
         ac = self._get_color('accent')   # fur-style accent colour for leg patches
 
