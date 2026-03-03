@@ -377,7 +377,13 @@ class MiniGamePanelQt(QWidget):
             self.memory_cards[second_card].setText("🐼")
             
             # Check match after 1 second using QTimer
-            self.action_timer.timeout.connect(lambda: self._check_memory_match(self.memory_first_card, second_card))
+            # Disconnect any previously accumulated connections before adding the new one.
+            try:
+                self.action_timer.timeout.disconnect()
+            except TypeError:
+                pass  # No connections exist yet — that's fine
+            first_card = self.memory_first_card   # capture now, not at timer-fire time
+            self.action_timer.timeout.connect(lambda: self._check_memory_match(first_card, second_card))
             self.action_timer.start(1000)
     
     def _check_memory_match(self, first: int, second: int):

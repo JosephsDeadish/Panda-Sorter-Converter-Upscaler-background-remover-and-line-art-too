@@ -7035,6 +7035,74 @@ def test_not_enough_coins_plays_wall_hit_animation():
     print("  ✅ No local QTimer import — uses module-level import")
 
 
+def test_dungeon_magic_charging_reset_on_fire():
+    """dungeon_3d_widget.fire_magic() must reset _magic_charging even on early-exit paths.
+
+    Bug: fire_magic() returned early (lines 283-285 for low mana, 286-287 for cooldown)
+    WITHOUT resetting self._magic_charging = False.  The tick loop at lines 589-591:
+
+        elif self._magic_charging:
+            self.fire_magic()
+
+    therefore called fire_magic() on EVERY tick (~60 fps) after the player released the
+    M key with insufficient mana — the HUD message "Not enough mana!" would be emitted
+    60 times per second for the rest of the session, and the HUD timer would be thrashed.
+
+    Fix: move `self._magic_charging = False` (and `self._magic_charge = 0.0`) to the top
+    of fire_magic() so ALL exit paths — low mana, cooldown, successful fire — leave
+    _magic_charging = False.
+    """
+    print("\ntest_dungeon_magic_charging_reset_on_fire ...")
+    from pathlib import Path
+    code = (
+        Path(__file__).parent / 'src' / 'ui' / 'dungeon_3d_widget.py'
+    ).read_text(encoding='utf-8')
+
+    fn_start = code.find('def fire_magic(')
+    assert fn_start != -1, "dungeon_3d_widget.py: fire_magic() missing"
+    next_fn  = code.find('\n    def ', fn_start + 1)
+    fn_body  = code[fn_start:] if next_fn == -1 else code[fn_start:next_fn]
+
+    lines = fn_body.splitlines()
+    # Find the line that sets _magic_charging = False
+    charging_reset_lines = [i for i, ln in enumerate(lines) if '_magic_charging = False' in ln]
+    assert charging_reset_lines, (
+        "dungeon_3d_widget.py: fire_magic() does not set self._magic_charging = False at all."
+    )
+    first_reset = charging_reset_lines[0]
+
+    # Find the low-mana early return
+    low_mana_return_lines = [
+        i for i, ln in enumerate(lines)
+        if 'Not enough mana' in ln or ('_player_mana < _MAGIC_MIN' in ln)
+    ]
+    if low_mana_return_lines:
+        first_low_mana = low_mana_return_lines[0]
+        assert first_reset < first_low_mana, (
+            "dungeon_3d_widget.py: fire_magic() resets _magic_charging AFTER the low-mana "
+            "early return.\n"
+            "The tick loop calls fire_magic() every frame when mana is low because "
+            "_magic_charging is never cleared.\n"
+            "Fix: move `self._magic_charging = False` to the top of fire_magic() (before "
+            "all early returns)."
+        )
+    print("  ✅ _magic_charging reset before low-mana early return")
+
+    # Find the attack-cooldown early return
+    cooldown_lines = [
+        i for i, ln in enumerate(lines) if '_attack_cooldown > 0' in ln
+    ]
+    if cooldown_lines:
+        first_cooldown = cooldown_lines[0]
+        assert first_reset < first_cooldown, (
+            "dungeon_3d_widget.py: fire_magic() resets _magic_charging AFTER the "
+            "cooldown early return.\n"
+            "Fix: move the reset to before all early returns."
+        )
+    print("  ✅ _magic_charging reset before cooldown early return")
+    print("  ✅ fire_magic() always clears charging state — HUD no longer spammed")
+
+
 def test_shop_livy_sell_reaction_uses_correct_kwarg():
     """shop_panel_qt._on_sell_clicked must call livy_says(..., duration_ms=...) not duration=...
 
@@ -7196,6 +7264,76 @@ def test_bedroom_draw_potted_plant_no_dead_import():
     print("  ✅ paintGL calls both _draw_room() and _draw_furniture()")
 
 
+def test_memory_game_timer_disconnect():
+    """minigame_panel_qt._on_memory_card_click must disconnect action_timer before connecting.
+
+    Bug: _on_memory_card_click (the else branch for the second card click) called:
+        self.action_timer.timeout.connect(lambda: self._check_memory_match(
+            self.memory_first_card, second_card))
+        self.action_timer.start(1000)
+
+    WITHOUT first calling self.action_timer.timeout.disconnect().  Since
+    action_timer is a shared single-shot QTimer (setSingleShot(True)), each pair
+    of card clicks adds a NEW connection while old ones remain.  When the timer
+    fires, ALL accumulated lambdas execute, so:
+
+    - memory_matches increments N times instead of 1 (one per accumulated pair)
+    - All old lambdas now pass `self.memory_first_card` as the first argument —
+      but that attribute was already mutated by subsequent clicks, so every old
+      lambda passes the CURRENT first_card instead of the one from its click pair
+
+    Together these bugs mean: after 3+ pairs the match counter advances by N on
+    each timer fire, the game ends prematurely, and the wrong card indices are
+    compared.
+
+    Fix:
+    1. Call `self.action_timer.timeout.disconnect()` before connecting the new
+       lambda (clearing all previously accumulated connections).
+    2. Capture `self.memory_first_card` in a local `first_card` variable at
+       connection time so the lambda doesn't read a stale value when it fires.
+    """
+    print("\ntest_memory_game_timer_disconnect ...")
+    from pathlib import Path
+    code = (
+        Path(__file__).parent / 'src' / 'ui' / 'minigame_panel_qt.py'
+    ).read_text(encoding='utf-8')
+
+    fn_start = code.find('def _on_memory_card_click(')
+    assert fn_start != -1, "minigame_panel_qt.py: _on_memory_card_click() missing"
+    next_fn  = code.find('\n    def ', fn_start + 1)
+    fn_body  = code[fn_start:] if next_fn == -1 else code[fn_start:next_fn]
+
+    # Must disconnect before connecting
+    assert 'timeout.disconnect()' in fn_body, (
+        "minigame_panel_qt.py: _on_memory_card_click does not call "
+        "self.action_timer.timeout.disconnect() before connecting a new lambda.\n"
+        "Old connections accumulate and fire N times per timer tick after N pairs are clicked."
+    )
+    print("  ✅ action_timer.timeout.disconnect() called before connecting new lambda")
+
+    # Must NOT read self.memory_first_card inside the lambda (use a captured local)
+    # Find the timeout.connect(...) call and extract its argument robustly
+    connect_idx = fn_body.find('timeout.connect')
+    assert connect_idx != -1, "minigame_panel_qt.py: timeout.connect() not found"
+    # Find the matching closing paren of timeout.connect(...)
+    paren_start = fn_body.index('(', connect_idx)
+    depth, end = 1, paren_start + 1
+    while end < len(fn_body) and depth > 0:
+        if fn_body[end] == '(':
+            depth += 1
+        elif fn_body[end] == ')':
+            depth -= 1
+        end += 1
+    lambda_snippet = fn_body[connect_idx:end]
+    assert 'self.memory_first_card' not in lambda_snippet, (
+        "minigame_panel_qt.py: _on_memory_card_click lambda still reads "
+        "self.memory_first_card at fire time.\n"
+        "Capture it in a local variable (e.g. first_card = self.memory_first_card) "
+        "before connecting so the lambda doesn't use the stale value from a later click."
+    )
+    print("  ✅ lambda captures first_card locally — not stale at fire time")
+
+
 def run_all_tests():
     print("=" * 65)
     print("Hybrid Architecture + Lazy rembg Import Tests")
@@ -7322,6 +7460,8 @@ def run_all_tests():
         test_inventory_category_filter_none_guard,
         test_no_redundant_import_types_in_not_enough_coins,
         test_not_enough_coins_plays_wall_hit_animation,
+        test_dungeon_magic_charging_reset_on_fire,
+        test_memory_game_timer_disconnect,
         test_shop_livy_sell_reaction_uses_correct_kwarg,
         test_go_to_park_panda_widget_none_guard,
         test_bedroom_draw_potted_plant_no_dead_import,
