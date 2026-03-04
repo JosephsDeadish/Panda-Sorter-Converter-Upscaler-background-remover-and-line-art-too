@@ -5847,6 +5847,11 @@ class TextureSorterMainWindow(QMainWindow):
                 self.panda_mood_system.on_user_interaction('feed')
             if self.quest_system:
                 self.quest_system.update_quest_progress('full_belly', 1)
+                # Also trigger find_item for food_finder quest (panda found and ate food)
+                try:
+                    self.quest_system.find_item('food', item_id)
+                except Exception:
+                    pass
         except Exception as _e:
             logger.debug(f"Panda feed handler: {_e}")
 
@@ -6078,6 +6083,17 @@ class TextureSorterMainWindow(QMainWindow):
 
             # Track new closet achievements
             self._check_closet_achievements(item_id)
+
+            # Trigger find_item for toy_collector quest when a toy is purchased
+            try:
+                if self.quest_system and self.shop_system:
+                    shop_item = self.shop_system.get_item(item_id)
+                    if shop_item:
+                        from features.shop_system import ShopCategory
+                        if getattr(shop_item, 'category', None) == ShopCategory.TOYS:
+                            self.quest_system.find_item('toy', item_id)
+            except Exception:
+                pass
 
         except Exception as e:
             logger.error(f"Error handling shop purchase: {e}", exc_info=True)
