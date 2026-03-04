@@ -2736,7 +2736,7 @@ class TextureSorterMainWindow(QMainWindow):
                         # Status icon + name
                         icon = "✅" if skill.unlocked else "🔒"
                         cost = getattr(skill, 'cost', getattr(skill, 'xp_cost', 1))
-                        req_lvl = getattr(skill, 'level_required', getattr(skill, 'required_level', 1))
+                        req_lvl = getattr(skill, 'level_required', 1)
                         name_lbl = QLabel(
                             f"<b>{icon} {skill.name}</b>"
                             f"<br><small style='color:#888'>{skill.description}</small>"

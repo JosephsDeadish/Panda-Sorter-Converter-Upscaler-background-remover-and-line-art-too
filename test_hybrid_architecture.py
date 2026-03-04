@@ -8651,8 +8651,8 @@ def test_widget_interaction_quests_auto_start_and_complete():
     """button_biter/tab_switcher/slider_tapper quests must auto-start on first interaction.
 
     Bugs:
-    - on_widget_interaction() called update_quest_progress() *before* start_quest(),
-      so the quests were always QuestStatus.NOT_STARTED and update_quest_progress()
+    - on_widget_interaction() called update_quest_progress() without calling
+      start_quest() first, so quests stayed NOT_STARTED and update_quest_progress()
       returned early (it checks status == IN_PROGRESS).  The quests could therefore
       never accumulate progress and could never complete.
 
@@ -8662,8 +8662,9 @@ def test_widget_interaction_quests_auto_start_and_complete():
       unique widget types.
 
     Fixes:
-    - Auto-start each per-type quest (button_biter / tab_switcher / slider_tapper)
-      on the first relevant interaction, then call update_quest_progress().
+    - update_quest_progress() now auto-starts NOT_STARTED quests, so
+      on_widget_interaction() can simply call update_quest_progress() for each
+      per-type quest without an explicit start_quest() call.
     - For widget_master: after directly setting current_progress, emit quest_progress
       signal and call _complete_quest() when goal_value is reached.
 
@@ -8736,7 +8737,10 @@ def test_widget_interaction_quests_auto_start_and_complete():
 
 
 def test_update_quest_progress_auto_starts_quest():
-    """update_quest_progress() must auto-start a NOT_STARTED quest before incrementing.
+    """update_quest_progress() must auto-start a NOT_STARTED quest then increment.
+
+    Sequence: (1) if NOT_STARTED → call start_quest() to move to IN_PROGRESS;
+    (2) if IN_PROGRESS → increment current_progress and check for completion.
 
     Bug: update_quest_progress() returned immediately when quest.status !=
     IN_PROGRESS.  Any quest that had not been explicitly started via start_quest()
@@ -8745,14 +8749,14 @@ def test_update_quest_progress_auto_starts_quest():
     update_quest_progress() directly without first calling start_quest().
 
     Fix: update_quest_progress() now calls start_quest(quest_id) automatically
-    when the quest is NOT_STARTED before incrementing current_progress, so
-    callers no longer need to call start_quest() separately.
+    when the quest is NOT_STARTED, then continues to increment current_progress,
+    so callers no longer need to call start_quest() separately.
 
     Runtime checks:
     - first_sell (goal=1): single update → COMPLETED, no prior start_quest() call
     - full_belly (goal=5): 5 updates → COMPLETED
     - dungeon_adventurer (goal=1): single update → COMPLETED
-    - update with amount=0 on NOT_STARTED quest: quest is started (IN_PROGRESS)
+    - update with amount=0 on NOT_STARTED quest: quest moves to IN_PROGRESS
       but progress stays 0 (no spurious completion)
     """
     print("\ntest_update_quest_progress_auto_starts_quest ...")

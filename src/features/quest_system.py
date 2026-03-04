@@ -423,30 +423,22 @@ class QuestSystem(QObject if PYQT_AVAILABLE else object):
         """
         self.total_interactions += 1
         self.widgets_interacted.add(widget_type)
-        
-        # Update quest progress — auto-start each quest on first relevant interaction
+
+        # update_quest_progress() auto-starts NOT_STARTED quests; no explicit
+        # start_quest() needed here.
         if widget_type == 'button':
-            q = self.quests.get('button_biter')
-            if q and q.status == QuestStatus.NOT_STARTED:
-                self.start_quest('button_biter')
             self.update_quest_progress('button_biter')
         elif widget_type == 'tab':
-            q = self.quests.get('tab_switcher')
-            if q and q.status == QuestStatus.NOT_STARTED:
-                self.start_quest('tab_switcher')
             self.update_quest_progress('tab_switcher')
         elif widget_type == 'slider':
-            q = self.quests.get('slider_tapper')
-            if q and q.status == QuestStatus.NOT_STARTED:
-                self.start_quest('slider_tapper')
             self.update_quest_progress('slider_tapper')
 
-        # First interaction quest
+        # First interaction quest (auto-started by update_quest_progress)
         if self.total_interactions == 1:
-            self.start_quest('first_interaction')
             self.update_quest_progress('first_interaction')
 
-        # Widget master quest — track unique widget types seen; check completion
+        # Widget master quest — tracks unique widget *types* seen, so progress
+        # is set directly rather than incremented; completion checked inline.
         quest = self.quests.get('widget_master')
         if quest is not None:
             if quest.status == QuestStatus.NOT_STARTED:
