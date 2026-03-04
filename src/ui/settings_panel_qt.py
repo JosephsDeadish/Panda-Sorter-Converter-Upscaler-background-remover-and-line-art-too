@@ -1800,6 +1800,12 @@ class SettingsPanelQt(QWidget):
             notif_volume = self.config.get('ui', 'notifications_volume', default=0.5)
             if hasattr(self, 'notifications_volume_slider'):
                 self.notifications_volume_slider.setValue(int(float(notif_volume) * 100))
+
+            sound_pack = self.config.get('ui', 'sound_pack', default='Default')
+            if hasattr(self, 'sound_pack_combo'):
+                idx = self.sound_pack_combo.findText(sound_pack.capitalize())
+                if idx >= 0:
+                    self.sound_pack_combo.setCurrentIndex(idx)
             
             # Performance
             threads = self.config.get('performance', 'max_threads', default=4)
@@ -2328,14 +2334,24 @@ class SettingsPanelQt(QWidget):
             logger.error(f"_open_customization: {e}", exc_info=True)
 
     def _test_sound(self):
-        """Play a test sound effect."""
+        """Play a test sound effect via SoundManager when available."""
         try:
+            sound_mgr = (
+                getattr(self.main_window, 'sound_manager', None)
+                if self.main_window else None
+            )
+            if sound_mgr:
+                from features.sound_manager import SoundEvent as _SE
+                sound_mgr.play_sound(_SE.BUTTON_CLICK, force=True)
+                logger.info("Test sound played via SoundManager")
+                return
+            # Fallback: OS beep
             import platform
             if platform.system() == "Windows":
                 import winsound
                 winsound.MessageBeep(winsound.MB_OK)
             else:
-                logger.info("Sound test triggered")
+                logger.info("Sound test triggered (no SoundManager available)")
         except Exception as e:
             logger.debug(f"_test_sound: {e}")
 
@@ -2360,6 +2376,11 @@ class SettingsPanelQt(QWidget):
         try:
             if self.main_window and hasattr(self.main_window, 'start_tutorial'):
                 self.main_window.start_tutorial()
+            elif self.main_window and hasattr(self.main_window, 'tutorial_system'):
+                ts = self.main_window.tutorial_system
+                if ts and hasattr(ts, 'start_tutorial'):
+                    ts.start_tutorial()
+                    return
             else:
                 QMessageBox.information(
                     self,
