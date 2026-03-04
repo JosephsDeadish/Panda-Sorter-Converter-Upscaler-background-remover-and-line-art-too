@@ -13,6 +13,7 @@ Features:
 """
 
 import logging
+from typing import Callable, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -99,7 +100,7 @@ class PandaInteractionBehavior:
 
         # Optional callback: called after each interaction as
         # callback(widget_type: str, widget_name: str).  Used to drive quest progress.
-        self.interaction_callback = None
+        self.interaction_callback: Optional[Callable[[str, str], None]] = None
     def update(self, delta_time):
         """
         Update behavior AI every frame.
