@@ -429,6 +429,7 @@ class ImageUpscalerPanelQt(QWidget):
         self.output_directory: Optional[str] = None
         self.worker_thread = None
         self.preview_worker = None
+        self._last_preview_pil: Optional[object] = None  # stores the last upscaled preview PIL image
         self.setAcceptDrops(True)  # drag-and-drop image files onto the panel
         
         # Initialize model manager
@@ -1159,7 +1160,10 @@ class ImageUpscalerPanelQt(QWidget):
             if not hasattr(self, 'preview_widget') or self.preview_widget is None:
                 logger.warning("Preview widget not available")
                 return
-            
+
+            # Store the processed PIL image so _export_single can save it
+            self._last_preview_pil = processed
+
             # Convert to QPixmap
             orig_pixmap = self._pil_to_pixmap(original)
             proc_pixmap = self._pil_to_pixmap(processed)
@@ -1480,11 +1484,22 @@ class ImageUpscalerPanelQt(QWidget):
         """Export the currently previewed upscaled image."""
         try:
             from PyQt6.QtWidgets import QFileDialog
+            pil_img = getattr(self, '_last_preview_pil', None)
+            if pil_img is None:
+                from PyQt6.QtWidgets import QMessageBox
+                QMessageBox.information(self, "No Preview", "Generate a preview first before exporting.")
+                return
             path, _ = QFileDialog.getSaveFileName(
-                self, "Export Upscaled Image", "", "Images (*.png *.jpg *.webp *.bmp)"
+                self, "Export Upscaled Image", "", "PNG (*.png);;JPEG (*.jpg);;WebP (*.webp);;BMP (*.bmp)"
             )
             if path:
-                logger.info(f"Export single: {path}")
+                save_fmt = None
+                if path.lower().endswith('.jpg') or path.lower().endswith('.jpeg'):
+                    save_fmt = 'JPEG'
+                    if pil_img.mode in ('RGBA', 'LA', 'P'):
+                        pil_img = pil_img.convert('RGB')
+                pil_img.save(path, format=save_fmt) if save_fmt else pil_img.save(path)
+                logger.info(f"Exported single preview to: {path}")
         except Exception as e:
             logger.error(f"_export_single: {e}", exc_info=True)
 
