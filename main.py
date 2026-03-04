@@ -7063,6 +7063,24 @@ class TextureSorterMainWindow(QMainWindow):
         """Slide *widget* into page 1 of the Home stack, update tab + back-bar labels."""
         try:
             if not self._home_stack:
+                # 2D fallback mode: no stack, show the sub-panel in a dialog
+                if widget is None:
+                    return
+                try:
+                    _ = widget.objectName()
+                except RuntimeError:
+                    return
+                from PyQt6.QtWidgets import QDialog, QVBoxLayout as _QVB, QDialogButtonBox as _QDB
+                dlg = QDialog(self)
+                dlg.setWindowTitle(title)
+                dlg.setMinimumSize(680, 500)
+                _dlg_layout = _QVB(dlg)
+                _dlg_layout.setContentsMargins(0, 0, 0, 0)
+                _dlg_layout.addWidget(widget)
+                _close_box = _QDB(_QDB.StandardButton.Close)
+                _close_box.rejected.connect(dlg.reject)
+                _dlg_layout.addWidget(_close_box)
+                dlg.exec()
                 return
             if widget is None:
                 return
