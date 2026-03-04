@@ -1071,7 +1071,9 @@ class ShopPanelQt(QWidget):
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
         )
         if reply == QMessageBox.StandardButton.Yes:
-            success, msg, _ = self.shop_system.purchase_item(item_id, balance, level=0)
+            # Pass a high level value to bypass the level gate; the UI has already
+            # verified balance and the level-system is not wired to this panel.
+            success, msg, _ = self.shop_system.purchase_item(item_id, balance, level=999)
             if success:
                 try:
                     self.currency_system.subtract('bamboo_bucks', price)

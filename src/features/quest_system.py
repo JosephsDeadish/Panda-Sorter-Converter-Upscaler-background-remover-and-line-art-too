@@ -488,7 +488,8 @@ class QuestSystem(QObject if PYQT_AVAILABLE else object):
             if quest:
                 if quest.status == QuestStatus.NOT_STARTED:
                     self.start_quest('easter_egg_hunter')
-                self._complete_quest('easter_egg_hunter')
+                if quest.status == QuestStatus.IN_PROGRESS:
+                    self._complete_quest('easter_egg_hunter')
             
             if self.easter_egg_found:
                 self.easter_egg_found.emit(egg_id)
