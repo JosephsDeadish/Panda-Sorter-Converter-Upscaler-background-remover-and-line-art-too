@@ -2296,16 +2296,17 @@ class SettingsPanelQt(QWidget):
         try:
             import os
             import platform
-            
-            config_dir = self.config.config_file.parent
-            
+            import subprocess
+
+            config_dir = str(self.config.config_file.parent)
+
             if platform.system() == "Windows":
                 os.startfile(config_dir)
             elif platform.system() == "Darwin":  # macOS
-                os.system(f"open '{config_dir}'")
+                subprocess.Popen(["open", config_dir])
             else:  # Linux
-                os.system(f"xdg-open '{config_dir}'")
-                
+                subprocess.Popen(["xdg-open", config_dir])
+
             logger.info(f"Opened config folder: {config_dir}")
             
         except Exception as e:
@@ -2321,15 +2322,16 @@ class SettingsPanelQt(QWidget):
         try:
             import os
             import platform
+            import subprocess
             from pathlib import Path
             path = Path(folder_path)
             path.mkdir(parents=True, exist_ok=True)
             if platform.system() == "Windows":
                 os.startfile(path)
             elif platform.system() == "Darwin":
-                os.system(f"open '{path}'")
+                subprocess.Popen(["open", str(path)])
             else:
-                os.system(f"xdg-open '{path}'")
+                subprocess.Popen(["xdg-open", str(path)])
         except Exception as e:
             logger.error(f"Error opening folder {folder_path}: {e}", exc_info=True)
             QMessageBox.warning(self, "Error", f"Failed to open folder: {e}")
