@@ -8915,6 +8915,41 @@ def test_skill_tree_summary_shows_real_branches_and_sp():
     print(f"  ✅ Runtime: actual branches are: {sorted(actual_branches)}")
 
 
+def test_dungeon_respawn_restores_mana():
+    """Dungeon 3D widget must restore mana on player respawn as well as HP.
+
+    Bug: When ``self._player_hp`` reached 0 in the game tick, the respawn code
+    set ``self._player_hp = _MAX_HP`` but did NOT restore ``self._player_mana``.
+    Players would respawn with whatever mana they had when they died — including
+    0 if they had cast magic just before dying.  Since mana only regenerates at
+    1 point per second, they would be unable to cast spells for over a minute
+    after respawning.
+
+    Fix: add ``self._player_mana = _MAX_MANA`` to the respawn block so both HP
+    and mana are fully restored on death.
+    """
+    print("\ntest_dungeon_respawn_restores_mana ...")
+    from pathlib import Path
+    code = (Path(__file__).parent / 'src' / 'ui' / 'dungeon_3d_widget.py').read_text(encoding='utf-8')
+
+    # Find the respawn block
+    defeated_idx = code.find("You have been defeated!")
+    assert defeated_idx != -1, "dungeon_3d_widget.py: 'You have been defeated!' message not found"
+
+    # Look in the surrounding 200 characters for the mana restore
+    respawn_block = code[defeated_idx:defeated_idx + 300]
+    assert '_player_mana = _MAX_MANA' in respawn_block, (
+        "dungeon_3d_widget.py: respawn block does not restore mana.\n"
+        "Fix: add `self._player_mana = _MAX_MANA` after `self._player_hp = _MAX_HP` "
+        "in the defeat/respawn section."
+    )
+    print("  ✅ Source: respawn block restores _player_mana = _MAX_MANA")
+
+    # Verify _MAX_MANA is defined in the module
+    assert '_MAX_MANA' in code, "dungeon_3d_widget.py: _MAX_MANA constant not found"
+    print("  ✅ Source: _MAX_MANA constant defined in dungeon_3d_widget.py")
+
+
 def run_all_tests():
     print("=" * 65)
     print("Hybrid Architecture + Lazy rembg Import Tests")
@@ -9078,6 +9113,7 @@ def run_all_tests():
         test_update_quest_progress_auto_starts_quest,
         test_skill_tree_ui_attribute_names,
         test_skill_tree_summary_shows_real_branches_and_sp,
+        test_dungeon_respawn_restores_mana,
     ]
 
     passed, failed = [], []

@@ -649,6 +649,7 @@ class _Dungeon3DGL(QOpenGLWidget if (_QT and _GL) else object):  # type: ignore[
                 if self._player_hp == 0:
                     self._show_hud("💀 You have been defeated!  Respawning…", 180)
                     self._player_hp = _MAX_HP
+                    self._player_mana = _MAX_MANA
                     self._place_player_at_start()
 
         if self._hud_timer > 0:
