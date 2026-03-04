@@ -175,3 +175,4 @@ models/
 *.onnx
 weights/
 app_data/
+config/profiles/
