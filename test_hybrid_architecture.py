@@ -8145,6 +8145,91 @@ def test_minigame_panel_bamboo_color_match_ui():
     print("  ✅ Source: _end_game() stops _bamboo_timer and _cm_timer (no timer leak on Back)")
 
 
+def test_sound_enabled_setting_applies_to_sound_manager():
+    """ui.sound_enabled setting change must mute/unmute SoundManager at runtime."""
+    main_path = Path(__file__).parent / "main.py"
+    code = main_path.read_text(encoding="utf-8")
+
+    # The on_settings_changed handler must handle 'ui.sound_enabled'
+    assert "ui.sound_enabled" in code, (
+        "main.py: 'ui.sound_enabled' not handled in on_settings_changed; "
+        "toggling 'Enable Sound Effects' in settings has no effect at runtime"
+    )
+    # Must call mute() / unmute() on sound_manager
+    idx = code.find("ui.sound_enabled")
+    snippet = code[idx:idx + 400]
+    assert "mute" in snippet or "unmute" in snippet, (
+        "main.py: ui.sound_enabled handler does not call sound_manager.mute()/unmute()"
+    )
+    print("  ✅ Source: ui.sound_enabled handler calls mute/unmute on sound_manager")
+
+    # Also verify startup respects saved setting
+    assert "sound_enabled" in code[code.find("SoundManager()"):code.find("SoundManager()") + 400], (
+        "main.py: SoundManager init does not read 'sound_enabled' from config; "
+        "saved mute state is ignored on restart"
+    )
+    print("  ✅ Source: SoundManager init reads sound_enabled from config on startup")
+
+
+def test_effects_volume_setting_applies_to_sound_manager():
+    """ui.effects_volume setting change must call set_effects_volume on SoundManager."""
+    main_path = Path(__file__).parent / "main.py"
+    code = main_path.read_text(encoding="utf-8")
+    assert "ui.effects_volume" in code, (
+        "main.py: 'ui.effects_volume' not handled; Effects Volume slider has no effect"
+    )
+    idx = code.find("ui.effects_volume")
+    snippet = code[idx:idx + 300]
+    assert "set_effects_volume" in snippet, (
+        "main.py: ui.effects_volume handler does not call set_effects_volume"
+    )
+    print("  ✅ Source: ui.effects_volume handler calls set_effects_volume on sound_manager")
+
+
+def test_settings_panel_loads_effects_and_notifications_volume():
+    """Settings panel load_settings must restore effects and notifications volume sliders."""
+    settings_path = Path(__file__).parent / "src" / "ui" / "settings_panel_qt.py"
+    code = settings_path.read_text(encoding="utf-8")
+    assert "effects_volume_slider" in code and "effects_volume" in code[code.find("load_settings"):], (
+        "settings_panel_qt.py: effects_volume_slider not loaded in load_settings()"
+    )
+    assert "notifications_volume_slider" in code and "notifications_volume" in code[code.find("load_settings"):], (
+        "settings_panel_qt.py: notifications_volume_slider not loaded in load_settings()"
+    )
+    print("  ✅ Source: load_settings restores effects_volume and notifications_volume sliders")
+
+
+def test_theme_completeness_widget_styles():
+    """Critical themes must style QLineEdit, QComboBox, QGroupBox, QStatusBar."""
+    main_path = Path(__file__).parent / "main.py"
+    code = main_path.read_text(encoding="utf-8")
+
+    # Locate each theme block by finding its start
+    themes_to_check = {
+        'forest': "elif theme in ('forest', 'forest_green')",
+        'sunset': "elif theme in ('sunset', 'sunset_warm')",
+        'solarized dark': "elif theme in ('solarized dark', 'solarized_dark')",
+        'cyberpunk': "elif theme in ('cyberpunk',)",
+    }
+
+    required_widgets = ['QLineEdit', 'QComboBox', 'QGroupBox', 'QStatusBar']
+
+    for theme_name, marker in themes_to_check.items():
+        start = code.find(marker)
+        assert start != -1, f"main.py: theme block '{theme_name}' not found"
+        # Get the theme block — until the next elif/else at the same indent
+        end = code.find("\n        elif theme", start + 1)
+        if end == -1:
+            end = code.find("\n        else:", start + 1)
+        block = code[start:end] if end != -1 else code[start:start + 5000]
+        for widget in required_widgets:
+            assert widget in block, (
+                f"main.py: theme '{theme_name}' is missing '{widget}' style — "
+                f"inputs/dropdowns show light-theme defaults in dark themes"
+            )
+        print(f"  ✅ Theme '{theme_name}' has all required widget styles")
+
+
 def run_all_tests():
     print("=" * 65)
     print("Hybrid Architecture + Lazy rembg Import Tests")
@@ -8293,6 +8378,10 @@ def run_all_tests():
         test_first_sell_quest_wired,
         test_bamboo_catcher_quest_wired,
         test_minigame_panel_bamboo_color_match_ui,
+        test_sound_enabled_setting_applies_to_sound_manager,
+        test_effects_volume_setting_applies_to_sound_manager,
+        test_settings_panel_loads_effects_and_notifications_volume,
+        test_theme_completeness_widget_styles,
     ]
 
     passed, failed = [], []

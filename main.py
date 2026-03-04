@@ -3514,8 +3514,26 @@ class TextureSorterMainWindow(QMainWindow):
             QTextEdit {{ background-color: #073642; color: #839496; border: 1px solid #073642; }}
             QScrollBar:vertical {{ background-color: #073642; width: 12px; border-radius: 6px; }}
             QScrollBar::handle:vertical {{ background-color: #586e75; border-radius: 6px; margin: 2px 2px; }}
+            QScrollBar::handle:vertical:hover {{ background-color: {accent}; }}
+            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {{ height: 0px; }}
+            QScrollBar:horizontal {{ background-color: #073642; height: 12px; border-radius: 6px; }}
+            QScrollBar::handle:horizontal {{ background-color: #586e75; border-radius: 6px; margin: 2px 2px; }}
+            QLineEdit {{ background-color: #073642; color: #839496; border: 1px solid #586e75; border-radius: 3px; padding: 3px 5px; }}
+            QLineEdit:focus {{ border-color: {accent}; color: #93a1a1; }}
+            QComboBox {{ background-color: #073642; color: #839496; border: 1px solid #586e75; border-radius: 3px; padding: 3px 5px; min-height: 22px; }}
+            QComboBox QAbstractItemView {{ background-color: #073642; color: #839496; border: 1px solid #586e75; selection-background-color: {accent}; }}
+            QGroupBox {{ color: #93a1a1; border: 1px solid #586e75; border-radius: 4px; margin-top: 8px; font-weight: bold; }}
+            QGroupBox::title {{ subcontrol-position: top left; padding: 2px 6px; color: {accent}; }}
+            QCheckBox {{ color: #839496; spacing: 6px; }}
+            QCheckBox::indicator {{ width: 14px; height: 14px; border: 2px solid #586e75; border-radius: 2px; background: #002b36; }}
+            QCheckBox::indicator:checked {{ background: {accent}; border-color: #657b83; }}
+            QSlider::groove:horizontal {{ height: 5px; background: #073642; border: 1px solid #586e75; border-radius: 2px; }}
+            QSlider::handle:horizontal {{ background: {accent}; border: 2px solid #657b83; width: 14px; height: 14px; border-radius: 7px; margin: -5px 0; }}
+            QSlider::sub-page:horizontal {{ background: {accent}; border-radius: 2px; }}
+            QSpinBox, QDoubleSpinBox {{ background-color: #073642; color: #839496; border: 1px solid #586e75; border-radius: 3px; padding: 3px 5px; }}
             QDockWidget {{ color: #839496; titlebar-close-icon: none; }}
-            QDockWidget::title {{ background-color: #073642; padding: 4px; }}
+            QDockWidget::title {{ background-color: #073642; padding: 4px; color: #93a1a1; }}
+            QStatusBar {{ background-color: #073642; color: #657b83; border-top: 1px solid #586e75; }}
             """
         elif theme in ('forest', 'forest_green'):
             stylesheet = f"""
@@ -3538,8 +3556,28 @@ class TextureSorterMainWindow(QMainWindow):
             QProgressBar::chunk {{ background-color: {accent}; }}
             QFrame {{ background-color: #1e381e; border: 1px solid #2d5a2d; border-radius: 4px; }}
             QTextEdit {{ background-color: #1a2e1a; color: #c8e6c9; border: 1px solid #2d5a2d; }}
+            QLineEdit {{ background-color: #1e381e; color: #c8e6c9; border: 1px solid #2d5a2d; border-radius: 3px; padding: 3px 5px; }}
+            QLineEdit:focus {{ border-color: {accent}; }}
+            QComboBox {{ background-color: #1e381e; color: #c8e6c9; border: 1px solid #2d5a2d; border-radius: 3px; padding: 3px 5px; min-height: 22px; }}
+            QComboBox QAbstractItemView {{ background-color: #1e381e; color: #c8e6c9; border: 1px solid #2d5a2d; selection-background-color: {accent}; }}
+            QGroupBox {{ color: #a5d6a7; border: 1px solid #2d5a2d; border-radius: 4px; margin-top: 8px; font-weight: bold; }}
+            QGroupBox::title {{ subcontrol-position: top left; padding: 2px 6px; color: {accent}; }}
+            QCheckBox {{ color: #c8e6c9; spacing: 6px; }}
+            QCheckBox::indicator {{ width: 14px; height: 14px; border: 2px solid #2d5a2d; border-radius: 2px; background: #1a2e1a; }}
+            QCheckBox::indicator:checked {{ background: {accent}; border-color: #5a9a5a; }}
             QScrollBar:vertical {{ background-color: #1e381e; width: 12px; border-radius: 6px; }}
             QScrollBar::handle:vertical {{ background-color: #4a7a4a; border-radius: 6px; margin: 2px 2px; }}
+            QScrollBar::handle:vertical:hover {{ background-color: {accent}; }}
+            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {{ height: 0px; }}
+            QScrollBar:horizontal {{ background-color: #1e381e; height: 12px; border-radius: 6px; }}
+            QScrollBar::handle:horizontal {{ background-color: #4a7a4a; border-radius: 6px; margin: 2px 2px; }}
+            QSlider::groove:horizontal {{ height: 5px; background: #1e381e; border: 1px solid #2d5a2d; border-radius: 2px; }}
+            QSlider::handle:horizontal {{ background: {accent}; border: 2px solid #5a9a5a; width: 14px; height: 14px; border-radius: 7px; margin: -5px 0; }}
+            QSlider::sub-page:horizontal {{ background: {accent}; border-radius: 2px; }}
+            QSpinBox, QDoubleSpinBox {{ background-color: #1e381e; color: #c8e6c9; border: 1px solid #2d5a2d; border-radius: 3px; padding: 3px 5px; }}
+            QDockWidget {{ color: #c8e6c9; titlebar-close-icon: none; }}
+            QDockWidget::title {{ background-color: #243d24; padding: 4px; color: #a5d6a7; }}
+            QStatusBar {{ background-color: #1e381e; color: #a5d6a7; border-top: 1px solid #2d5a2d; }}
             """
         elif theme in ('ocean', 'ocean_blue'):
             # 🌊 Ocean — deep-sea blues, coral accents, wave-styled borders
@@ -3605,8 +3643,28 @@ class TextureSorterMainWindow(QMainWindow):
             QProgressBar::chunk {{ background-color: {accent}; }}
             QFrame {{ background-color: #321e0f; border: 1px solid #5a3520; border-radius: 4px; }}
             QTextEdit {{ background-color: #2a1a0e; color: #f5cba7; border: 1px solid #5a3520; }}
+            QLineEdit {{ background-color: #321e0f; color: #f5cba7; border: 1px solid #5a3520; border-radius: 3px; padding: 3px 5px; }}
+            QLineEdit:focus {{ border-color: {accent}; }}
+            QComboBox {{ background-color: #321e0f; color: #f5cba7; border: 1px solid #5a3520; border-radius: 3px; padding: 3px 5px; min-height: 22px; }}
+            QComboBox QAbstractItemView {{ background-color: #321e0f; color: #f5cba7; border: 1px solid #5a3520; selection-background-color: {accent}; }}
+            QGroupBox {{ color: #e8b07a; border: 1px solid #5a3520; border-radius: 4px; margin-top: 8px; font-weight: bold; }}
+            QGroupBox::title {{ subcontrol-position: top left; padding: 2px 6px; color: {accent}; }}
+            QCheckBox {{ color: #f5cba7; spacing: 6px; }}
+            QCheckBox::indicator {{ width: 14px; height: 14px; border: 2px solid #5a3520; border-radius: 2px; background: #2a1a0e; }}
+            QCheckBox::indicator:checked {{ background: {accent}; border-color: #a07040; }}
             QScrollBar:vertical {{ background-color: #321e0f; width: 12px; border-radius: 6px; }}
             QScrollBar::handle:vertical {{ background-color: #8a5030; border-radius: 6px; margin: 2px 2px; }}
+            QScrollBar::handle:vertical:hover {{ background-color: {accent}; }}
+            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {{ height: 0px; }}
+            QScrollBar:horizontal {{ background-color: #321e0f; height: 12px; border-radius: 6px; }}
+            QScrollBar::handle:horizontal {{ background-color: #8a5030; border-radius: 6px; margin: 2px 2px; }}
+            QSlider::groove:horizontal {{ height: 5px; background: #321e0f; border: 1px solid #5a3520; border-radius: 2px; }}
+            QSlider::handle:horizontal {{ background: {accent}; border: 2px solid #a07040; width: 14px; height: 14px; border-radius: 7px; margin: -5px 0; }}
+            QSlider::sub-page:horizontal {{ background: {accent}; border-radius: 2px; }}
+            QSpinBox, QDoubleSpinBox {{ background-color: #321e0f; color: #f5cba7; border: 1px solid #5a3520; border-radius: 3px; padding: 3px 5px; }}
+            QDockWidget {{ color: #f5cba7; titlebar-close-icon: none; }}
+            QDockWidget::title {{ background-color: #3e2614; padding: 4px; color: #e8b07a; }}
+            QStatusBar {{ background-color: #321e0f; color: #e8b07a; border-top: 1px solid #5a3520; }}
             """
         elif theme in ('cyberpunk',):
             stylesheet = f"""
@@ -3629,8 +3687,28 @@ class TextureSorterMainWindow(QMainWindow):
             QProgressBar::chunk {{ background-color: {accent}; }}
             QFrame {{ background-color: #0d0d1a; border: 1px solid #00ffcc; border-radius: 2px; }}
             QTextEdit {{ background-color: #0d0d1a; color: #00ffcc; border: 1px solid #00ffcc; font-family: 'Courier New', monospace; }}
-            QScrollBar:vertical {{ background-color: #0d0d1a; width: 12px; border-radius: 6px; }}
-            QScrollBar::handle:vertical {{ background-color: #00ffcc; border-radius: 6px; margin: 2px 2px; }}
+            QLineEdit {{ background-color: #0d0d1a; color: #00ffcc; border: 1px solid #00ffcc; border-radius: 2px; padding: 3px 5px; font-family: 'Courier New', monospace; }}
+            QLineEdit:focus {{ border-color: #ff00aa; color: #ffffff; }}
+            QComboBox {{ background-color: #0d0d1a; color: #00ffcc; border: 1px solid #00ffcc; border-radius: 2px; padding: 3px 5px; min-height: 22px; font-family: 'Courier New', monospace; }}
+            QComboBox QAbstractItemView {{ background-color: #0d0d1a; color: #00ffcc; border: 1px solid #00ffcc; selection-background-color: {accent}; selection-color: #000000; }}
+            QGroupBox {{ color: #00ffcc; border: 1px solid #00ffcc; border-radius: 2px; margin-top: 8px; font-weight: bold; }}
+            QGroupBox::title {{ subcontrol-position: top left; padding: 2px 6px; color: #ff00aa; }}
+            QCheckBox {{ color: #00ffcc; spacing: 6px; font-family: 'Courier New', monospace; }}
+            QCheckBox::indicator {{ width: 14px; height: 14px; border: 2px solid #00ffcc; border-radius: 0px; background: #0d0d1a; }}
+            QCheckBox::indicator:checked {{ background: #00ffcc; border-color: #ff00aa; }}
+            QScrollBar:vertical {{ background-color: #0d0d1a; width: 12px; border-radius: 6px; border: 1px solid #00ffcc; }}
+            QScrollBar::handle:vertical {{ background-color: #00ffcc; border-radius: 6px; margin: 1px 1px; }}
+            QScrollBar::handle:vertical:hover {{ background-color: #ff00aa; }}
+            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {{ height: 0px; }}
+            QScrollBar:horizontal {{ background-color: #0d0d1a; height: 12px; border: 1px solid #00ffcc; border-radius: 6px; }}
+            QScrollBar::handle:horizontal {{ background-color: #00ffcc; border-radius: 6px; margin: 1px 1px; }}
+            QSlider::groove:horizontal {{ height: 4px; background: #0d0d1a; border: 1px solid #00ffcc; border-radius: 0px; }}
+            QSlider::handle:horizontal {{ background: #00ffcc; border: 2px solid #ff00aa; width: 12px; height: 12px; border-radius: 0px; margin: -4px 0; }}
+            QSlider::sub-page:horizontal {{ background: #00ffcc; }}
+            QSpinBox, QDoubleSpinBox {{ background-color: #0d0d1a; color: #00ffcc; border: 1px solid #00ffcc; border-radius: 0px; padding: 3px 5px; font-family: 'Courier New', monospace; }}
+            QDockWidget {{ color: #00ffcc; titlebar-close-icon: none; }}
+            QDockWidget::title {{ background-color: #0d0d1a; padding: 4px; color: #ff00aa; border-bottom: 1px solid #00ffcc; }}
+            QStatusBar {{ background-color: #0d0d1a; color: #ff00aa; border-top: 1px solid #00ffcc; font-family: 'Courier New', monospace; }}
             """
         elif theme in ('gore',):
             # 💀 Gore — blood-soaked, dripping, organ-coloured UI with click splatter
@@ -4601,7 +4679,11 @@ class TextureSorterMainWindow(QMainWindow):
                 # Apply saved volume from config
                 saved_volume = config.get('ui', 'sound_volume', default=0.7)
                 self.sound_manager.set_volume(float(saved_volume))
-                logger.info(f"Sound manager initialized (volume={saved_volume})")
+                # Apply saved mute state
+                sound_enabled = config.get('ui', 'sound_enabled', default=True)
+                if not bool(sound_enabled):
+                    self.sound_manager.mute()
+                logger.info(f"Sound manager initialized (volume={saved_volume}, enabled={sound_enabled})")
             except Exception as e:
                 logger.warning(f"Could not initialize sound manager: {e}")
 
@@ -5631,7 +5713,15 @@ class TextureSorterMainWindow(QMainWindow):
             elif setting_key == "ui.tooltip_enabled":
                 if self.tooltip_manager and hasattr(self.tooltip_manager, 'set_enabled'):
                     self.tooltip_manager.set_enabled(bool(value))
-            
+
+            # Handle sound enabled/disabled toggle — mute/unmute SoundManager
+            elif setting_key == "ui.sound_enabled":
+                if self.sound_manager:
+                    if bool(value):
+                        self.sound_manager.unmute()
+                    else:
+                        self.sound_manager.mute()
+
             # Handle cursor changes — apply immediately
             elif setting_key == "ui.cursor":
                 self.apply_cursor()
@@ -5700,6 +5790,15 @@ class TextureSorterMainWindow(QMainWindow):
                         logger.info(f"Sound volume updated to: {value}")
                     except Exception as e:
                         logger.warning(f"Could not update sound volume: {e}")
+
+            elif setting_key == 'ui.effects_volume':
+                # Apply live effects-volume change to SoundManager
+                if self.sound_manager and hasattr(self.sound_manager, 'set_effects_volume'):
+                    try:
+                        self.sound_manager.set_effects_volume(float(value) / 100.0)
+                        logger.debug(f"Effects volume updated to: {value}%")
+                    except Exception as e:
+                        logger.warning(f"Could not update effects volume: {e}")
 
             elif setting_key == 'ui.language':
                 # Apply language change to TranslationManager

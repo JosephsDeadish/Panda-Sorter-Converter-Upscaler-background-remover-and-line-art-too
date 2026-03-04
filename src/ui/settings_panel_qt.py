@@ -1792,6 +1792,14 @@ class SettingsPanelQt(QWidget):
             
             sound_volume = self.config.get('ui', 'sound_volume', default=0.7)
             self.sound_volume_slider.setValue(int(sound_volume * 100))
+
+            effects_volume = self.config.get('ui', 'effects_volume', default=0.7)
+            if hasattr(self, 'effects_volume_slider'):
+                self.effects_volume_slider.setValue(int(float(effects_volume) * 100))
+
+            notif_volume = self.config.get('ui', 'notifications_volume', default=0.5)
+            if hasattr(self, 'notifications_volume_slider'):
+                self.notifications_volume_slider.setValue(int(float(notif_volume) * 100))
             
             # Performance
             threads = self.config.get('performance', 'max_threads', default=4)
