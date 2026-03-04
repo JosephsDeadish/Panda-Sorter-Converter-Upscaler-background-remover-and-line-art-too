@@ -8860,6 +8860,57 @@ def test_skill_tree_ui_attribute_names():
     print(f"  ✅ Runtime: level_required correctly read as {req_lvl} (not hard-coded 1)")
 
 
+def test_skill_tree_summary_shows_real_branches_and_sp():
+    """Skill tree summary label must show actual branch names and available skill points.
+
+    Bugs:
+    1. Hard-coded branch list "Combat · Magic · Exploration · Panda" doesn't match
+       the actual SkillNode branches ('combat', 'magic', 'storage', 'utility').
+    2. Available skill points not shown in the summary, so the user has no indication
+       of how many points they can spend.
+
+    Fixes (main.py):
+    - Derive branches dynamically: ``{s.branch.title() for s in skill_tree.skills.values()}``
+    - Add ``│ SP available: {sp}`` to the summary label
+    - Branch filter buttons generated from actual branches (not hard-coded strings)
+    """
+    print("\ntest_skill_tree_summary_shows_real_branches_and_sp ...")
+    from pathlib import Path
+    import sys
+    sys.path.insert(0, str(Path(__file__).parent / 'src'))
+    main_code = (Path(__file__).parent / 'main.py').read_text(encoding='utf-8')
+
+    # Hard-coded wrong branch names must not appear
+    assert "Exploration · Panda" not in main_code, (
+        "main.py: hard-coded branch string 'Exploration · Panda' still present; "
+        "actual branches are combat/magic/storage/utility, not Exploration/Panda"
+    )
+    print("  ✅ Source: hard-coded 'Exploration · Panda' removed from branch list")
+
+    # SP available must be in the summary label
+    assert "SP available" in main_code, (
+        "main.py: skill tree summary label does not show 'SP available'; "
+        "users cannot see how many skill points they have"
+    )
+    print("  ✅ Source: 'SP available' shown in skill tree summary label")
+
+    # Branch buttons must be derived from skill_tree, not hard-coded
+    assert "s.branch.title()" in main_code, (
+        "main.py: branch filter buttons still hard-coded; "
+        "should use {s.branch.title() for s in skill_tree.skills.values()}"
+    )
+    print("  ✅ Source: branch filter buttons derived from actual skill branches")
+
+    # Runtime: actual branches from SkillTree
+    from features.skill_tree import SkillTree
+    st = SkillTree()
+    actual_branches = {s.branch.title() for s in st.skills.values()}
+    assert 'Combat' in actual_branches, f"Expected 'Combat' branch, got {actual_branches}"
+    assert 'Magic' in actual_branches, f"Expected 'Magic' branch, got {actual_branches}"
+    assert 'Storage' in actual_branches, f"Expected 'Storage' branch, got {actual_branches}"
+    print(f"  ✅ Runtime: actual branches are: {sorted(actual_branches)}")
+
+
 def run_all_tests():
     print("=" * 65)
     print("Hybrid Architecture + Lazy rembg Import Tests")
@@ -9022,6 +9073,7 @@ def run_all_tests():
         test_widget_interaction_quests_auto_start_and_complete,
         test_update_quest_progress_auto_starts_quest,
         test_skill_tree_ui_attribute_names,
+        test_skill_tree_summary_shows_real_branches_and_sp,
     ]
 
     passed, failed = [], []

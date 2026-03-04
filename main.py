@@ -2670,9 +2670,14 @@ class TextureSorterMainWindow(QMainWindow):
             if skill_tree is not None:
                 unlocked = len(skill_tree.get_unlocked_skills())
                 total = len(skill_tree.skills)
+                sp = getattr(self.level_system, 'skill_points', 0) if self.level_system else 0
+                branches_label = ' · '.join(sorted({
+                    s.branch.title() for s in skill_tree.skills.values()
+                }))
                 summary = QLabel(
                     f"✨ Skills unlocked: {unlocked} / {total}   "
-                    f"│  Branches: Combat · Magic · Exploration · Panda"
+                    f"│  SP available: {sp}   "
+                    f"│  Branches: {branches_label}"
                 )
             else:
                 summary = QLabel("🌱 Skill tree will load once components initialise…")
@@ -2680,10 +2685,13 @@ class TextureSorterMainWindow(QMainWindow):
             summary.setStyleSheet("padding:4px; color:#aaddaa;")
             skill_layout.addWidget(summary)
 
-            # Branch filter buttons
+            # Branch filter buttons (derived from actual branch names in the skill tree)
             _branch_filter: list = ['All']
             branch_bar = QHBoxLayout()
-            for _branch in ('All', 'Combat', 'Magic', 'Exploration', 'Panda'):
+            _avail_branches = ['All']
+            if skill_tree is not None:
+                _avail_branches += sorted({s.branch.title() for s in skill_tree.skills.values()})
+            for _branch in _avail_branches:
                 _bb = QPushButton(_branch)
                 _bb.setCheckable(True)
                 _bb.setChecked(_branch == 'All')
@@ -5316,10 +5324,8 @@ class TextureSorterMainWindow(QMainWindow):
         # Quest progress — generic "tool used" quest type
         try:
             if self.quest_system:
+                # check_quests() handles auto-start + progress for texture_sorter/bulk_sorter
                 self.quest_system.check_quests(1)
-                if hasattr(self.quest_system, 'update_quest_progress'):
-                    # 'panda_friend' tracks general tool/interaction usage
-                    self.quest_system.update_quest_progress('panda_friend', 1)
         except Exception as _e:
             logger.debug(f"Quest progress update failed for {tool_id}: {_e}")
         # XP — base 2 XP per tool launch + 1 XP per file processed (capped at 100)
