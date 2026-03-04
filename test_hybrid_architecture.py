@@ -8735,6 +8735,67 @@ def test_widget_interaction_quests_auto_start_and_complete():
     print("  ✅ Partial progress: button_biter IN_PROGRESS with progress=3 after 3 interactions")
 
 
+def test_update_quest_progress_auto_starts_quest():
+    """update_quest_progress() must auto-start a NOT_STARTED quest before incrementing.
+
+    Bug: update_quest_progress() returned immediately when quest.status !=
+    IN_PROGRESS.  Any quest that had not been explicitly started via start_quest()
+    (e.g. first_sell, full_belly, dungeon_adventurer) could never accumulate
+    progress or complete, because the handlers in main.py called
+    update_quest_progress() directly without first calling start_quest().
+
+    Fix: update_quest_progress() now calls start_quest(quest_id) automatically
+    when the quest is NOT_STARTED before incrementing current_progress, so
+    callers no longer need to call start_quest() separately.
+
+    Runtime checks:
+    - first_sell (goal=1): single update → COMPLETED, no prior start_quest() call
+    - full_belly (goal=5): 5 updates → COMPLETED
+    - dungeon_adventurer (goal=1): single update → COMPLETED
+    - update with amount=0 on NOT_STARTED quest: quest is started (IN_PROGRESS)
+      but progress stays 0 (no spurious completion)
+    """
+    print("\ntest_update_quest_progress_auto_starts_quest ...")
+    from pathlib import Path
+    import sys
+    sys.path.insert(0, str(Path(__file__).parent / 'src'))
+    from features.quest_system import QuestSystem, QuestStatus
+
+    # first_sell: goal=1, single direct call should complete it
+    qs = QuestSystem()
+    assert qs.quests['first_sell'].status == QuestStatus.NOT_STARTED
+    qs.update_quest_progress('first_sell', 1)
+    assert qs.quests['first_sell'].status == QuestStatus.COMPLETED, (
+        "update_quest_progress('first_sell', 1) on a NOT_STARTED quest must "
+        f"auto-start and complete it (got {qs.quests['first_sell'].status})"
+    )
+    print("  ✅ first_sell: auto-started and COMPLETED in one update call")
+
+    # full_belly: goal=5
+    qs2 = QuestSystem()
+    for _ in range(5):
+        qs2.update_quest_progress('full_belly', 1)
+    assert qs2.quests['full_belly'].status == QuestStatus.COMPLETED, \
+        f"full_belly should be COMPLETED after 5 updates (got {qs2.quests['full_belly'].status})"
+    print("  ✅ full_belly: auto-started and COMPLETED after 5 updates")
+
+    # dungeon_adventurer: goal=1
+    qs3 = QuestSystem()
+    qs3.update_quest_progress('dungeon_adventurer', 1)
+    assert qs3.quests['dungeon_adventurer'].status == QuestStatus.COMPLETED, \
+        f"dungeon_adventurer should be COMPLETED (got {qs3.quests['dungeon_adventurer'].status})"
+    print("  ✅ dungeon_adventurer: auto-started and COMPLETED with a single update")
+
+    # amount=0 should start the quest but not complete it (progress stays 0)
+    qs4 = QuestSystem()
+    qs4.update_quest_progress('texture_sorter', 0)
+    assert qs4.quests['texture_sorter'].status == QuestStatus.IN_PROGRESS, \
+        "update with amount=0 should start quest but not complete it"
+    assert qs4.quests['texture_sorter'].current_progress == 0, \
+        "progress should remain 0 after amount=0 update"
+    print("  ✅ amount=0 starts quest (IN_PROGRESS) but keeps progress at 0")
+
+
 def run_all_tests():
     print("=" * 65)
     print("Hybrid Architecture + Lazy rembg Import Tests")
@@ -8895,6 +8956,7 @@ def run_all_tests():
         test_cursor_trail_overlay_resized_on_window_resize,
         test_effects_notifications_volume_stored_as_float,
         test_widget_interaction_quests_auto_start_and_complete,
+        test_update_quest_progress_auto_starts_quest,
     ]
 
     passed, failed = [], []

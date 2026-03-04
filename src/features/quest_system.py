@@ -361,23 +361,29 @@ class QuestSystem(QObject if PYQT_AVAILABLE else object):
     
     def update_quest_progress(self, quest_id, amount=1):
         """
-        Update quest progress.
-        
+        Update quest progress.  If the quest is NOT_STARTED it is automatically
+        started before the progress increment is applied, so callers do not need
+        to call start_quest() separately.
+
         Args:
             quest_id: Quest ID to update
             amount: Amount to increment progress
         """
         if quest_id in self.quests:
             quest = self.quests[quest_id]
-            
+
+            # Auto-start the quest on first progress report
+            if quest.status == QuestStatus.NOT_STARTED:
+                self.start_quest(quest_id)
+
             if quest.status != QuestStatus.IN_PROGRESS:
                 return
-            
+
             quest.current_progress += amount
-            
+
             if self.quest_progress:
                 self.quest_progress.emit(quest_id, quest.current_progress, quest.goal_value)
-            
+
             # Check if quest completed
             if quest.current_progress >= quest.goal_value:
                 self._complete_quest(quest_id)
