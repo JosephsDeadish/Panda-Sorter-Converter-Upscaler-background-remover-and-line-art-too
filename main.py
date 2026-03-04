@@ -5726,6 +5726,22 @@ class TextureSorterMainWindow(QMainWindow):
             elif setting_key == "ui.cursor":
                 self.apply_cursor()
 
+            # Handle compact view toggle — shrink/restore font size immediately
+            elif setting_key == "ui.compact_view":
+                try:
+                    compact = bool(value)
+                    base_size = int(config.get('ui', 'font_size', default=12))
+                    effective_size = max(8, base_size - 2) if compact else base_size
+                    family = config.get('ui', 'font_family', default='Segoe UI')
+                    app = QApplication.instance()
+                    if app:
+                        app.setFont(QFont(family, effective_size))
+                    self.statusBar().showMessage(
+                        "📐 Compact view enabled" if compact else "📐 Compact view disabled", 3000
+                    )
+                except Exception as _cv_e:
+                    logger.debug(f"compact_view toggle: {_cv_e}")
+
             # Handle cursor size changes — re-apply cursor at new size
             elif setting_key == "ui.cursor_size":
                 self.apply_cursor()
@@ -5745,12 +5761,21 @@ class TextureSorterMainWindow(QMainWindow):
                     self._cursor_trail_overlay.set_intensity(int(value))
 
             # Handle font changes
-            elif setting_key in ("ui.font_family", "ui.font_size"):
+            elif setting_key in ("ui.font_family", "ui.font_size", "ui.font_weight"):
                 font_family = config.get('ui', 'font_family', default='Segoe UI')
                 font_size = config.get('ui', 'font_size', default=12)
+                font_weight_str = config.get('ui', 'font_weight', default='normal').lower()
+                _WEIGHT_MAP = {
+                    'light': QFont.Weight.Light,
+                    'normal': QFont.Weight.Normal,
+                    'bold': QFont.Weight.Bold,
+                }
+                weight = _WEIGHT_MAP.get(font_weight_str, QFont.Weight.Normal)
                 app = QApplication.instance()
                 if app:
-                    app.setFont(QFont(font_family, font_size))
+                    f = QFont(font_family, font_size)
+                    f.setWeight(weight)
+                    app.setFont(f)
             
             # Handle performance settings — apply immediately to live managers
             elif setting_key == 'performance.max_threads':
@@ -5835,6 +5860,20 @@ class TextureSorterMainWindow(QMainWindow):
                         logger.info(f"Hotkey '{action_id}' rebound to '{value}'")
                     except Exception as e:
                         logger.warning(f"Could not rebind hotkey '{action_id}': {e}")
+
+            elif setting_key in ('logging.debug_mode', 'logging.verbose'):
+                # Apply log-level change to the root Python logger immediately
+                try:
+                    import logging as _logging
+                    debug_on = bool(config.get('logging', 'debug_mode', default=False))
+                    verbose_on = bool(config.get('logging', 'verbose', default=False))
+                    new_level = _logging.DEBUG if (debug_on or verbose_on) else _logging.INFO
+                    _logging.getLogger().setLevel(new_level)
+                    for _h in _logging.getLogger().handlers:
+                        _h.setLevel(new_level)
+                    logger.info(f"Log level set to {'DEBUG' if new_level == _logging.DEBUG else 'INFO'}")
+                except Exception as _le:
+                    logger.warning(f"Could not change log level: {_le}")
 
             elif setting_key.startswith('ai.'):
                 # Persist to config (already done above); log for debugging.
