@@ -8950,6 +8950,92 @@ def test_dungeon_respawn_restores_mana():
     print("  ✅ Source: _MAX_MANA constant defined in dungeon_3d_widget.py")
 
 
+def test_panda_interaction_behavior_no_qt_safe():
+    """_trigger_* methods in PandaInteractionBehavior must not crash when Qt is unavailable.
+
+    Bug: _trigger_widget_click_delayed(), _trigger_slider_change_delayed(), and
+    _trigger_combobox_open_delayed() used module-level names QTimer, QSlider, and
+    QComboBox directly.  When panda_interaction_behavior.py is imported before a
+    QApplication is created (e.g. on a headless CI machine where the PyQt6 import
+    in the try/except block raises OSError), those names are undefined and calling
+    _execute_interaction() raises NameError: name 'QTimer' is not defined.
+
+    Fix: add ``if not PYQT_AVAILABLE: return`` at the top of each of the three
+    _trigger_* methods so they silently no-op when Qt is absent.  The
+    interaction_callback is called *before* these methods, so quest progress is
+    still recorded even without a live Qt event loop.
+    """
+    print("\ntest_panda_interaction_behavior_no_qt_safe ...")
+    from pathlib import Path
+
+    src = (
+        Path(__file__).parent / 'src' / 'features' / 'panda_interaction_behavior.py'
+    ).read_text(encoding='utf-8')
+
+    # Each trigger method must guard against missing Qt
+    for method in ('_trigger_widget_click_delayed', '_trigger_slider_change_delayed',
+                   '_trigger_combobox_open_delayed'):
+        # Find the method body
+        idx = src.find(f'def {method}(')
+        assert idx != -1, f'panda_interaction_behavior.py: {method} not found'
+        body = src[idx:idx + 400]
+        assert 'if not PYQT_AVAILABLE' in body, (
+            f'panda_interaction_behavior.py: {method} must guard with '
+            f'`if not PYQT_AVAILABLE: return` to avoid NameError when Qt is absent'
+        )
+    print("  ✅ Source: all _trigger_* methods have PYQT_AVAILABLE guard")
+
+    # Runtime: verify _execute_interaction fires callback even when PYQT_AVAILABLE=False
+    # Reload the module in a subprocess-like fashion via importlib to bypass the
+    # cached (Qt-initialised) module in sys.modules.
+    import importlib, sys
+    old_module = sys.modules.pop('features.panda_interaction_behavior', None)
+    try:
+        import sys as _sys
+        _sys.path.insert(0, str(Path(__file__).parent / 'src'))
+        import importlib as _il
+        pib_mod = _il.import_module('features.panda_interaction_behavior')
+        orig_available = pib_mod.PYQT_AVAILABLE
+        # Temporarily pretend Qt is absent
+        pib_mod.PYQT_AVAILABLE = False
+        try:
+            PIB = pib_mod.PandaInteractionBehavior
+            IB = pib_mod.InteractionBehavior
+
+            class _FakeOverlay:
+                def set_animation_state(self, *a): pass
+                def start_bite_tab(self): pass
+
+            class _FakeDetector:
+                pass
+
+            class _FakeWidget:
+                def objectName(self): return 'w'
+
+            captured = []
+            pib = PIB(_FakeOverlay(), _FakeDetector())
+            pib.interaction_callback = lambda wt, wn: captured.append((wt, wn))
+            for behavior, expected in [
+                (IB.BITE_BUTTON, 'button'),
+                (IB.TAP_SLIDER, 'slider'),
+                (IB.BITE_TAB, 'tab'),
+            ]:
+                captured.clear()
+                pib.current_behavior = behavior
+                pib.target_widget = _FakeWidget()
+                pib._execute_interaction()
+                assert captured and captured[0][0] == expected, (
+                    f'{behavior}: expected callback({expected!r}), got {captured}'
+                )
+            print("  ✅ Runtime: callback fires for BITE_BUTTON/TAP_SLIDER/BITE_TAB when PYQT_AVAILABLE=False")
+        finally:
+            pib_mod.PYQT_AVAILABLE = orig_available
+    finally:
+        # Restore original cached module (if any)
+        if old_module is not None:
+            sys.modules['features.panda_interaction_behavior'] = old_module
+
+
 def run_all_tests():
     print("=" * 65)
     print("Hybrid Architecture + Lazy rembg Import Tests")
@@ -9114,6 +9200,7 @@ def run_all_tests():
         test_skill_tree_ui_attribute_names,
         test_skill_tree_summary_shows_real_branches_and_sp,
         test_dungeon_respawn_restores_mana,
+        test_panda_interaction_behavior_no_qt_safe,
     ]
 
     passed, failed = [], []

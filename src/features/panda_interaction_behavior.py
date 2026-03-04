@@ -439,6 +439,9 @@ class PandaInteractionBehavior:
             widget: Widget to click
             delay: Delay in seconds
         """
+        if not PYQT_AVAILABLE:
+            return
+
         def do_click():
             try:
                 if widget and hasattr(widget, 'click'):
@@ -462,6 +465,9 @@ class PandaInteractionBehavior:
             slider: QSlider to change
             delay: Delay in seconds
         """
+        if not PYQT_AVAILABLE:
+            return
+
         def do_change():
             try:
                 if slider and isinstance(slider, QSlider):
@@ -491,6 +497,9 @@ class PandaInteractionBehavior:
             combobox: QComboBox to open
             delay: Delay in seconds
         """
+        if not PYQT_AVAILABLE:
+            return
+
         def do_open():
             try:
                 if combobox and isinstance(combobox, QComboBox):
