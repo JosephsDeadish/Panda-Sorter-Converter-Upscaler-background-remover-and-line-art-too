@@ -4573,6 +4573,20 @@ class TextureSorterMainWindow(QMainWindow):
             try:
                 from features.hotkey_manager import HotkeyManager
                 self.hotkey_manager = HotkeyManager()
+                # Wire global hotkeys (Ctrl+Alt+P / Ctrl+Alt+Space) to meaningful actions.
+                # These only fire when pynput is installed; the manager gracefully no-ops if not.
+                try:
+                    self.hotkey_manager.set_callback(
+                        'global_start',
+                        lambda: self.statusBar().showMessage("⏯ Global start hotkey triggered", 2000),
+                    )
+                    self.hotkey_manager.set_callback(
+                        'global_pause',
+                        lambda: self.statusBar().showMessage("⏸ Global pause hotkey triggered", 2000),
+                    )
+                    self.hotkey_manager.start_global_hotkeys()
+                except Exception as _hk_e:
+                    logger.debug(f"Global hotkey registration: {_hk_e}")
                 logger.info("Hotkey manager initialized")
             except Exception as e:
                 logger.warning(f"Could not initialize hotkey manager: {e}")
@@ -7597,6 +7611,11 @@ class TextureSorterMainWindow(QMainWindow):
             try:
                 if self.auto_backup:
                     self.auto_backup.stop()
+            except Exception:
+                pass
+            try:
+                if self.hotkey_manager:
+                    self.hotkey_manager.stop_global_hotkeys()
             except Exception:
                 pass
             try:
