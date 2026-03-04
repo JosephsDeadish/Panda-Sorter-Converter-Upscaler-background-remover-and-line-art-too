@@ -418,26 +418,40 @@ class QuestSystem(QObject if PYQT_AVAILABLE else object):
         self.total_interactions += 1
         self.widgets_interacted.add(widget_type)
         
-        # Update quest progress
+        # Update quest progress — auto-start each quest on first relevant interaction
         if widget_type == 'button':
+            q = self.quests.get('button_biter')
+            if q and q.status == QuestStatus.NOT_STARTED:
+                self.start_quest('button_biter')
             self.update_quest_progress('button_biter')
         elif widget_type == 'tab':
+            q = self.quests.get('tab_switcher')
+            if q and q.status == QuestStatus.NOT_STARTED:
+                self.start_quest('tab_switcher')
             self.update_quest_progress('tab_switcher')
         elif widget_type == 'slider':
+            q = self.quests.get('slider_tapper')
+            if q and q.status == QuestStatus.NOT_STARTED:
+                self.start_quest('slider_tapper')
             self.update_quest_progress('slider_tapper')
-        
+
         # First interaction quest
         if self.total_interactions == 1:
             self.start_quest('first_interaction')
             self.update_quest_progress('first_interaction')
-        
-        # Widget master quest
-        if len(self.widgets_interacted) > 0:
-            quest = self.quests.get('widget_master')
-            if quest and quest.status == QuestStatus.NOT_STARTED:
+
+        # Widget master quest — track unique widget types seen; check completion
+        quest = self.quests.get('widget_master')
+        if quest is not None:
+            if quest.status == QuestStatus.NOT_STARTED:
                 self.start_quest('widget_master')
-            self.update_quest_progress('widget_master', 0)  # Update to current count
-            quest.current_progress = len(self.widgets_interacted)
+            if quest.status == QuestStatus.IN_PROGRESS:
+                count = len(self.widgets_interacted)
+                quest.current_progress = count
+                if self.quest_progress:
+                    self.quest_progress.emit('widget_master', count, quest.goal_value)
+                if count >= quest.goal_value:
+                    self._complete_quest('widget_master')
     
     def find_item(self, item_type, item_name):
         """

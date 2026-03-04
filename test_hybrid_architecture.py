@@ -8647,6 +8647,94 @@ def test_effects_notifications_volume_stored_as_float():
     print("  ✅ Source: effects_volume and notifications_volume stored as 0.0-1.0")
 
 
+def test_widget_interaction_quests_auto_start_and_complete():
+    """button_biter/tab_switcher/slider_tapper quests must auto-start on first interaction.
+
+    Bugs:
+    - on_widget_interaction() called update_quest_progress() *before* start_quest(),
+      so the quests were always QuestStatus.NOT_STARTED and update_quest_progress()
+      returned early (it checks status == IN_PROGRESS).  The quests could therefore
+      never accumulate progress and could never complete.
+
+    - widget_master used update_quest_progress('widget_master', 0) (amount=0, no-op)
+      then set quest.current_progress directly — bypassing the completion check in
+      update_quest_progress().  The quest never completed even after reaching 10
+      unique widget types.
+
+    Fixes:
+    - Auto-start each per-type quest (button_biter / tab_switcher / slider_tapper)
+      on the first relevant interaction, then call update_quest_progress().
+    - For widget_master: after directly setting current_progress, emit quest_progress
+      signal and call _complete_quest() when goal_value is reached.
+
+    Runtime checks:
+    - 5 button interactions → button_biter COMPLETED
+    - 3 tab interactions → tab_switcher COMPLETED
+    - 10 slider interactions → slider_tapper COMPLETED
+    - 10 distinct widget types → widget_master COMPLETED
+    - Partial progress (3 buttons) → button_biter IN_PROGRESS with progress==3
+    """
+    print("\ntest_widget_interaction_quests_auto_start_and_complete ...")
+    from pathlib import Path
+    import sys
+    sys.path.insert(0, str(Path(__file__).parent / 'src'))
+    from features.quest_system import QuestSystem, QuestStatus
+
+    # ── button_biter ──────────────────────────────────────────────────────────
+    qs = QuestSystem()
+    assert qs.quests['button_biter'].status == QuestStatus.NOT_STARTED
+    for i in range(5):
+        qs.on_widget_interaction('button', f'btn{i}')
+    assert qs.quests['button_biter'].status == QuestStatus.COMPLETED, (
+        "button_biter must be COMPLETED after 5 button interactions "
+        f"(got {qs.quests['button_biter'].status}, progress={qs.quests['button_biter'].current_progress})"
+    )
+    print("  ✅ button_biter: COMPLETED after 5 button interactions")
+
+    # ── tab_switcher ──────────────────────────────────────────────────────────
+    qs2 = QuestSystem()
+    for i in range(3):
+        qs2.on_widget_interaction('tab', f'tab{i}')
+    assert qs2.quests['tab_switcher'].status == QuestStatus.COMPLETED, (
+        "tab_switcher must be COMPLETED after 3 tab interactions "
+        f"(got {qs2.quests['tab_switcher'].status})"
+    )
+    print("  ✅ tab_switcher: COMPLETED after 3 tab interactions")
+
+    # ── slider_tapper ─────────────────────────────────────────────────────────
+    qs3 = QuestSystem()
+    for i in range(10):
+        qs3.on_widget_interaction('slider', f'sl{i}')
+    assert qs3.quests['slider_tapper'].status == QuestStatus.COMPLETED, (
+        "slider_tapper must be COMPLETED after 10 slider interactions "
+        f"(got {qs3.quests['slider_tapper'].status})"
+    )
+    print("  ✅ slider_tapper: COMPLETED after 10 slider interactions")
+
+    # ── widget_master ─────────────────────────────────────────────────────────
+    qs4 = QuestSystem()
+    types_10 = ['button', 'slider', 'tab', 'checkbox', 'combobox',
+                'spinbox', 'radio', 'list', 'tree', 'menu']
+    for wtype in types_10:
+        qs4.on_widget_interaction(wtype, 'x')
+    assert qs4.quests['widget_master'].status == QuestStatus.COMPLETED, (
+        "widget_master must be COMPLETED after interacting with 10 distinct widget types "
+        f"(got {qs4.quests['widget_master'].status}, "
+        f"progress={qs4.quests['widget_master'].current_progress})"
+    )
+    print("  ✅ widget_master: COMPLETED after 10 distinct widget types")
+
+    # ── Partial progress preserved ────────────────────────────────────────────
+    qs5 = QuestSystem()
+    for i in range(3):
+        qs5.on_widget_interaction('button', f'b{i}')
+    assert qs5.quests['button_biter'].status == QuestStatus.IN_PROGRESS, \
+        "button_biter should be IN_PROGRESS after only 3 button interactions"
+    assert qs5.quests['button_biter'].current_progress == 3, \
+        f"button_biter progress should be 3, got {qs5.quests['button_biter'].current_progress}"
+    print("  ✅ Partial progress: button_biter IN_PROGRESS with progress=3 after 3 interactions")
+
+
 def run_all_tests():
     print("=" * 65)
     print("Hybrid Architecture + Lazy rembg Import Tests")
@@ -8806,6 +8894,7 @@ def run_all_tests():
         test_bg_remover_wires_tool_finished,
         test_cursor_trail_overlay_resized_on_window_resize,
         test_effects_notifications_volume_stored_as_float,
+        test_widget_interaction_quests_auto_start_and_complete,
     ]
 
     passed, failed = [], []
