@@ -5776,6 +5776,17 @@ class TextureSorterMainWindow(QMainWindow):
                     f = QFont(font_family, font_size)
                     f.setWeight(weight)
                     app.setFont(f)
+
+            elif setting_key == "ui.icon_size":
+                # Apply icon-size change to all QToolBars in the main window
+                try:
+                    _ICON_PX = {'small': 16, 'medium': 24, 'large': 32, 'extra large': 48}
+                    icon_px = _ICON_PX.get(str(value).lower().replace('_', ' '), 24)
+                    from PyQt6.QtCore import QSize as _QSize
+                    for _tb in self.findChildren(QToolBar):
+                        _tb.setIconSize(_QSize(icon_px, icon_px))
+                except Exception as _ie:
+                    logger.debug(f"icon_size update: {_ie}")
             
             # Handle performance settings — apply immediately to live managers
             elif setting_key == 'performance.max_threads':
@@ -7766,6 +7777,18 @@ class TextureSorterMainWindow(QMainWindow):
                 if self.worker:
                     self.worker.cancel()
                     self.worker.wait()
+                event.accept()
+            else:
+                event.ignore()
+        elif config.get('ui', 'confirm_exit', default=False):
+            reply = QMessageBox.question(
+                self,
+                "Confirm Exit",
+                "Are you sure you want to close Panda Sorter?",
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                QMessageBox.StandardButton.No,
+            )
+            if reply == QMessageBox.StandardButton.Yes:
                 event.accept()
             else:
                 event.ignore()

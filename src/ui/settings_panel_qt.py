@@ -1821,6 +1821,14 @@ class SettingsPanelQt(QWidget):
             verbose = self.config.get('logging', 'verbose', default=False)
             self.verbose_check.setChecked(verbose)
 
+            # Behavior — auto-save and confirm-exit
+            if hasattr(self, 'auto_save_check'):
+                auto_save = self.config.get('ui', 'auto_save', default=True)
+                self.auto_save_check.setChecked(bool(auto_save))
+            if hasattr(self, 'confirm_exit_check'):
+                confirm_exit = self.config.get('ui', 'confirm_exit', default=False)
+                self.confirm_exit_check.setChecked(bool(confirm_exit))
+
             # AI settings
             if hasattr(self, 'epochs_spin'):
                 self.epochs_spin.setValue(int(self.config.get('ai', 'epochs', default=50)))
@@ -2051,9 +2059,12 @@ class SettingsPanelQt(QWidget):
             size = int(self.config.get('ui', 'font_size', default=12))
             from PyQt6.QtGui import QFont as _QFont
             app_font = _QFont(family, size)
+            weight_str = self.config.get('ui', 'font_weight', default='normal').lower()
+            _w = {'light': _QFont.Weight.Light, 'normal': _QFont.Weight.Normal, 'bold': _QFont.Weight.Bold}
+            app_font.setWeight(_w.get(weight_str, _QFont.Weight.Normal))
             from PyQt6.QtWidgets import QApplication as _QApp
             _QApp.setFont(app_font)
-            logger.info(f"Font applied: {family} {size}pt")
+            logger.info(f"Font applied: {family} {size}pt {weight_str}")
         except Exception as e:
             logger.error(f"Error applying font: {e}", exc_info=True)
 
