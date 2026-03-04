@@ -713,8 +713,11 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
         except Exception as _le:
             logger.warning(f"GL lighting unavailable ({_le}); using flat-colour rendering")
 
-        # Initialize shadow mapping
-        self._init_shadow_mapping()
+        # Initialize shadow mapping — skip in overlay mode.
+        # In overlay mode the ground plane is not drawn and the shadow FBO
+        # only creates opaque rendering artifacts that block the UI below.
+        if not self._overlay_mode:
+            self._init_shadow_mapping()
 
         self.gl_initialized = True
         logger.info(f"OpenGL initialized successfully (lighting={'yes' if self._has_gl_lighting else 'no'})")
@@ -795,10 +798,13 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
         
         # Setup camera
         glLoadIdentity()
-        # Camera Y = +0.3: lifts the view target so the panda (ground at y=-0.7,
-        # body centre at y=-0.4, head at y≈-0.1) is framed in the upper two-thirds
-        # of the viewport with room for the feet at the bottom.
-        glTranslatef(0.0, 0.3, -self.camera_distance)
+        # Overlay mode: shift camera down so the panda appears in the lower ~70 % of the
+        # viewport, matching the 2-D fallback panda's cy = h * 0.72 position.
+        # Camera Y = -0.68 puts the panda body center (world y ≈ -0.40) at NDC y ≈ -0.40,
+        # i.e. ~70 % down from the top — below the main toolbar, tabs, and tool buttons.
+        # Non-overlay mode (bedroom / world scene): use +0.3 to center the scene.
+        cam_y = -0.68 if self._overlay_mode else 0.3
+        glTranslatef(0.0, cam_y, -self.camera_distance)
         glRotatef(self.camera_angle_x, 1.0, 0.0, 0.0)
         glRotatef(self.camera_angle_y, 0.0, 1.0, 0.0)
         
@@ -3588,8 +3594,10 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
         # World frustum height at z=0 (panda z is ~0)
         frustum_h = 2.0 * self.camera_distance * half_fov_tan
         frustum_w = frustum_h * aspect
-        # The camera is shifted so it looks at y=0.5
-        look_at_y = 0.5
+        # The camera Y offset: -0.68 in overlay, +0.3 in non-overlay.
+        # The world Y that maps to screen-centre is -cam_y.
+        cam_y = -0.68 if self._overlay_mode else 0.3
+        look_at_y = -cam_y
         pan_world_x = self.panda_x
         pan_world_y = self.panda_y - look_at_y
         sx = int(w / 2 + pan_world_x / frustum_w * w)

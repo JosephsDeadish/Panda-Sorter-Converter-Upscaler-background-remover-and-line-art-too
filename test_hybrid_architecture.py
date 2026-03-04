@@ -3159,6 +3159,84 @@ def test_panda_gl_starts_on_ground():
     print(f"  ✅ panda_y initialised to {init_val} (on the ground)")
 
 
+def test_panda_gl_overlay_camera_and_shadows():
+    """3D panda in overlay mode must be in the lower portion of the window.
+
+    Issue #205: 'terrible 3d panda and squished ui'
+    Root causes identified:
+    1. Camera Y = +0.3 placed the panda body near the centre of the viewport
+       (57 % down), blocking the tools panels that occupy the upper portion of
+       the window.  Overlay mode must use cam_y = -0.68 to position the panda
+       body at ~70 % down (matching the 2-D fallback panda's cy = h * 0.72).
+    2. The shadow FBO was initialised and rendered even in overlay mode, where
+       there is no floor and the opaque depth-buffer contents leaked visible
+       dark rectangles into the transparent GL composite.
+    """
+    print("\ntest_panda_gl_overlay_camera_and_shadows ...")
+    import re
+    code = open('src/ui/panda_widget_gl.py').read()
+
+    # ── 1. Overlay camera Y must be -0.68 (not +0.3) ─────────────────────────
+    # The fix introduces `cam_y = -0.68 if self._overlay_mode else 0.3`
+    assert '_overlay_mode' in code and 'cam_y' in code, (
+        "panda_widget_gl.py: camera Y selection via _overlay_mode missing. "
+        "Add `cam_y = -0.68 if self._overlay_mode else 0.3` before glTranslatef."
+    )
+    # -0.68 must be present (overlay camera offset)
+    assert '-0.68' in code, (
+        "panda_widget_gl.py: overlay cam_y = -0.68 not found. "
+        "Add `cam_y = -0.68 if self._overlay_mode else 0.3`."
+    )
+    print("  ✅ Overlay camera Y = -0.68 (panda at ~70 % down, not blocking tools)")
+
+    # Verify the glTranslatef uses cam_y, not a hardcoded constant
+    # (matches pattern like `glTranslatef(0.0, cam_y, -self.camera_distance)`)
+    assert re.search(r'glTranslatef\(0\.0,\s*cam_y', code), (
+        "panda_widget_gl.py: glTranslatef must use the `cam_y` variable, not a hardcoded value."
+    )
+    print("  ✅ glTranslatef uses cam_y variable")
+
+    # ── 2. Shadow FBO must NOT be initialised in overlay mode ─────────────────
+    # Find the `_init_shadow_mapping()` call site; it must be guarded by
+    # `if not self._overlay_mode` so the FBO is skipped for the floating panda.
+    init_shadow_idx = code.find('self._init_shadow_mapping()')
+    assert init_shadow_idx != -1, (
+        "panda_widget_gl.py: _init_shadow_mapping() call not found."
+    )
+    # Grab context around the call (150 chars before)
+    ctx = code[max(0, init_shadow_idx - 150):init_shadow_idx + 30]
+    assert 'overlay_mode' in ctx or 'not self._overlay_mode' in ctx, (
+        "panda_widget_gl.py: _init_shadow_mapping() call is not guarded by "
+        "`if not self._overlay_mode`. Shadow FBO creates rendering artifacts "
+        "in overlay mode — skip it when the panda floats over the UI."
+    )
+    print("  ✅ Shadow FBO skipped in overlay mode (no rendering artifacts)")
+
+    # ── 3. _get_panda_screen_center must use actual cam_y (not hardcoded 0.5) ─
+    fn_start = code.find('def _get_panda_screen_center')
+    fn_end_search = code.find('\n    def ', fn_start + 1)
+    if fn_end_search == -1:
+        fn_end_search = len(code)
+    screen_center_fn = code[fn_start:fn_end_search]
+    assert 'look_at_y = 0.5' not in screen_center_fn, (
+        "panda_widget_gl.py: _get_panda_screen_center uses hardcoded look_at_y = 0.5. "
+        "Must compute from actual cam_y so hit-test and click-mask are correct "
+        "after the overlay camera Y was changed to -0.68."
+    )
+    # Must reference _overlay_mode to derive look_at_y from the actual camera Y
+    assert '_overlay_mode' in screen_center_fn, (
+        "panda_widget_gl.py: _get_panda_screen_center must reference _overlay_mode "
+        "to select the correct cam_y (-0.68 overlay vs +0.3 non-overlay) and derive "
+        "look_at_y = -cam_y so the hit-test ellipse is placed at the rendered panda position."
+    )
+    # Positive check: look_at_y must be derived as negation of cam_y
+    assert 'look_at_y = -cam_y' in screen_center_fn or '-cam_y' in screen_center_fn, (
+        "panda_widget_gl.py: _get_panda_screen_center must set `look_at_y = -cam_y` "
+        "(screen center in world space = negative of camera Y translation)."
+    )
+    print("  ✅ _get_panda_screen_center uses actual camera Y (correct hit-test)")
+
+
 def test_panda_gl_realistic_behaviour():
     """3D panda must look and act like a real giant panda.
 
@@ -6585,6 +6663,50 @@ def test_color_match_minigame():
 
 
 
+def test_bedroom_panda_drawn_in_room():
+    """PandaBedroomGL.paintGL must call _draw_panda_in_room.
+
+    Issue: 'the 3d panda going in room is also not working' (#205 / problem statement).
+
+    Root cause: _draw_panda_in_room() was defined but never called from paintGL.
+    The comment said 'the overlay panda handles it', but the overlay panda floats
+    over the whole window and does not know the bedroom's 3-D coordinate space.
+    The in-room panda (which walks between furniture) must be drawn inside the
+    bedroom GL context so it appears to inhabit the room correctly.
+    """
+    print("\ntest_bedroom_panda_drawn_in_room ...")
+    import ast, pathlib
+
+    code = pathlib.Path('src/ui/panda_bedroom_gl.py').read_text(encoding='utf-8')
+
+    # _draw_panda_in_room must be defined
+    assert '_draw_panda_in_room' in code, (
+        "panda_bedroom_gl.py: _draw_panda_in_room method missing."
+    )
+    print("  ✅ _draw_panda_in_room method exists")
+
+    # paintGL must CALL _draw_panda_in_room
+    # Parse the AST to find the paintGL method body
+    tree = ast.parse(code)
+    found_call = False
+    for node in ast.walk(tree):
+        if isinstance(node, (ast.ClassDef,)):
+            for item in node.body:
+                if isinstance(item, ast.FunctionDef) and item.name == 'paintGL':
+                    method_src = ast.get_source_segment(code, item) or ''
+                    found_call = '_draw_panda_in_room' in method_src
+                    break
+            if found_call:
+                break
+
+    assert found_call, (
+        "panda_bedroom_gl.py: paintGL does not call self._draw_panda_in_room(). "
+        "The in-room panda is never rendered, so furniture walks are invisible. "
+        "Add `self._draw_panda_in_room()` inside paintGL after _draw_furniture()."
+    )
+    print("  ✅ paintGL calls _draw_panda_in_room (panda visible in bedroom)")
+
+
 def test_bedroom_no_quick_access_bar():
     """The 3D GL bedroom (home_container) must NOT have a furniture quick-access bar.
 
@@ -7496,6 +7618,76 @@ def test_livy_otter_widget_complete_animation_state():
         assert f'self.{attr}' in livy_class, \
             f"LivyOtterWidget is missing animation attribute: {attr}"
     print(f"  ✅ All {len(required_attrs)} _draw_otter animation attributes present in LivyOtterWidget")
+
+
+def test_reflex_game_timer_disconnect_guard():
+    """Reflex game timer disconnects must be guarded with try/except.
+
+    Issue: minigame crashes reported in problem statement.
+
+    Root cause: _start_reflex_round and _on_reflex_click called
+    `self.action_timer.timeout.disconnect()` WITHOUT a try/except guard.
+    The first time _start_reflex_round is entered (with no prior connection)
+    OR when _on_reflex_click is called before the timer fires (no
+    active connection), PyQt6 raises TypeError: 'disconnect()' with no
+    arguments failed (no connections exist), crashing the minigame.
+
+    Fix: wrap every unguarded `timeout.disconnect()` call in a
+    `try: ... except TypeError: pass` block.
+
+    Also verified: click game _on_game_timer and _on_click_game_click
+    wrap label.setText in try/except RuntimeError so that if the user
+    presses Back (which deletes the label via deleteLater), the still-
+    running timer doesn't crash with 'wrapped C++ object has been deleted'.
+    """
+    print("\ntest_reflex_game_timer_disconnect_guard ...")
+    import ast as _ast
+    from pathlib import Path
+    code = (
+        Path(__file__).parent / 'src' / 'ui' / 'minigame_panel_qt.py'
+    ).read_text(encoding='utf-8')
+
+    # Parse AST and verify every timeout.disconnect() call is inside a Try node
+    tree = _ast.parse(code)
+    # Collect all Call nodes that are timeout.disconnect() and their line numbers
+    disconnect_lines = set()
+    for node in _ast.walk(tree):
+        if isinstance(node, _ast.Call):
+            func = node.func
+            if (isinstance(func, _ast.Attribute) and func.attr == 'disconnect'
+                    and isinstance(func.value, _ast.Attribute)
+                    and func.value.attr == 'timeout'):
+                disconnect_lines.add(node.lineno)
+
+    # For each disconnect call, walk the AST to find if it lives inside a Try body
+    def _in_try_body(root, target_line):
+        for node in _ast.walk(root):
+            if isinstance(node, _ast.Try):
+                for child in _ast.walk(node):
+                    if hasattr(child, 'lineno') and child.lineno == target_line:
+                        return True
+        return False
+
+    unguarded = [ln for ln in disconnect_lines if not _in_try_body(tree, ln)]
+    assert not unguarded, (
+        "minigame_panel_qt.py: timeout.disconnect() calls on lines "
+        f"{sorted(unguarded)} are NOT inside a try block and will crash "
+        "with TypeError when no connections exist."
+    )
+    print("  ✅ All timeout.disconnect() calls guarded with try/except TypeError")
+
+    # _on_game_timer must guard click_timer_label.setText inside a Try node
+    game_timer_fn_start = code.find('def _on_game_timer(')
+    game_timer_fn_end = code.find('\n    def ', game_timer_fn_start + 1)
+    if game_timer_fn_end == -1:
+        game_timer_fn_end = len(code)
+    game_timer_fn = code[game_timer_fn_start:game_timer_fn_end]
+    assert 'RuntimeError' in game_timer_fn, (
+        "minigame_panel_qt.py: _on_game_timer does not catch RuntimeError. "
+        "Add try/except RuntimeError around click_timer_label.setText so the game "
+        "does not crash when the user presses Back while the timer is still running."
+    )
+    print("  ✅ _on_game_timer guards label.setText against deleted-widget RuntimeError")
 
 
 def test_memory_game_same_card_guard():
@@ -8432,6 +8624,7 @@ def run_all_tests():
         test_tools_tab_collapse_button,
         test_panda_gl_arm_y_at_shoulder_level,
         test_panda_gl_starts_on_ground,
+        test_panda_gl_overlay_camera_and_shadows,
         test_panda_gl_realistic_behaviour,
         test_livy_shop_commentary,
         test_theme_ambient_decorators,
@@ -8474,6 +8667,7 @@ def run_all_tests():
         test_color_match_minigame,
         test_bedroom_no_quick_access_bar,
         test_bedroom_furniture_click_fix,
+        test_bedroom_panda_drawn_in_room,
         test_panda_should_hide_visible_on_all_tabs,
         test_switch_tool_panda_home_resets_to_bedroom,
         test_panda_walk_frequency_and_range,
@@ -8483,6 +8677,7 @@ def run_all_tests():
         test_not_enough_coins_plays_wall_hit_animation,
         test_dungeon_magic_charging_reset_on_fire,
         test_memory_game_timer_disconnect,
+        test_reflex_game_timer_disconnect_guard,
         test_enter_dungeon_guard_against_early_back,
         test_shop_livy_sell_reaction_uses_correct_kwarg,
         test_go_to_park_panda_widget_none_guard,

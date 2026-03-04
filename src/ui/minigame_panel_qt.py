@@ -786,13 +786,20 @@ class MiniGamePanelQt(QWidget):
                 self.game_timer.stop()
                 self._end_click_game()
             else:
-                self.click_timer_label.setText(f"Time: {remaining:.1f}s")
+                try:
+                    self.click_timer_label.setText(f"Time: {remaining:.1f}s")
+                except RuntimeError:
+                    # Label widget was deleted (e.g. user pressed Back) — stop timer
+                    self.game_timer.stop()
     
     def _on_click_game_click(self):
         """Handle click in click game."""
         if self.current_game and self.current_game.on_click():
             self.click_count += 1
-            self.click_score_label.setText(f"Clicks: {self.click_count}")
+            try:
+                self.click_score_label.setText(f"Clicks: {self.click_count}")
+            except RuntimeError:
+                pass  # Label deleted — game already ended
     
     def _end_click_game(self):
         """End click speed game."""
@@ -975,7 +982,10 @@ class MiniGamePanelQt(QWidget):
         import random
         delay = random.randint(1000, 3000)  # 1-3 seconds
         
-        self.action_timer.timeout.disconnect()
+        try:
+            self.action_timer.timeout.disconnect()
+        except TypeError:
+            pass  # No connections yet — fine
         self.action_timer.timeout.connect(self._show_reflex_target)
         self.action_timer.start(delay)
     
@@ -1005,7 +1015,10 @@ class MiniGamePanelQt(QWidget):
                 self._end_reflex_game()
             else:
                 # Start next round using QTimer
-                self.action_timer.timeout.disconnect()
+                try:
+                    self.action_timer.timeout.disconnect()
+                except TypeError:
+                    pass  # No connections yet — fine
                 self.action_timer.timeout.connect(self._start_reflex_round)
                 self.action_timer.start(1000)
     
