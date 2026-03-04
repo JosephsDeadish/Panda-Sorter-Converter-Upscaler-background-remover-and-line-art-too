@@ -5949,6 +5949,13 @@ class TextureSorterMainWindow(QMainWindow):
         self.panda_widget = w2d
         self.panda_overlay = w2d
 
+        # Update PandaInteractionBehavior so it doesn't use the deleted GL widget
+        if self.panda_interaction is not None:
+            try:
+                self.panda_interaction.overlay = w2d
+            except Exception:
+                pass
+
         # Schedule deletion of the old GL widget (already hidden from overlay)
         if old_widget is not None:
             try:
