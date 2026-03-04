@@ -349,7 +349,7 @@ class PandaWidget2D(QWidget if _QT_AVAILABLE else object):  # type: ignore[misc]
         if self._trail_active:
             w, h = self.width(), self.height()
             cx = w // 2
-            cy = int(h * 0.72 - self._bob - self._bounce_y)
+            cy = int(h * 0.50 - self._bob - self._bounce_y)
             # Record position with current timestamp
             now2 = time.time()
             self._trail_positions.append((cx, cy, now2))
@@ -381,11 +381,12 @@ class PandaWidget2D(QWidget if _QT_AVAILABLE else object):  # type: ignore[misc]
         # transparent windows), so animation trails do not accumulate.
         painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_SourceOver)
 
-        # Position the panda in the lower portion of the window so it doesn't
-        # block the main UI content (Quick Launch buttons, tool panels, etc.).
-        # The panda center (mid-torso) sits at ~72 % of the window height.
+        # Position the panda at the vertical centre of the window.
+        # The panda center (mid-torso) sits at ~50 % of the window height so
+        # the panda is always near the middle of the visible area, never pushed
+        # into the lower portion of the screen.
         cx = w // 2
-        cy = int(h * 0.72 - self._bob - self._bounce_y)
+        cy = int(h * 0.50 - self._bob - self._bounce_y)
 
         # ── Panda movement trail (drawn behind panda) ──────────────────────────
         if self._trail_active and self._trail_positions:
@@ -634,7 +635,7 @@ class PandaWidget2D(QWidget if _QT_AVAILABLE else object):  # type: ignore[misc]
         if event.button() == Qt.MouseButton.LeftButton:
             w, h = max(1, self.width()), max(1, self.height())
             cx = w // 2
-            cy = int(h * 0.72)
+            cy = int(h * 0.50)
             s = min(min(w, h) / 320.0, 0.8)
             # Panda body occupies roughly a 100×140 px box centred at (cx, cy)
             panda_half_w = int(60 * s)
@@ -705,7 +706,7 @@ class PandaWidget2D(QWidget if _QT_AVAILABLE else object):  # type: ignore[misc]
         if event.button() == Qt.MouseButton.LeftButton:
             w, h = max(1, self.width()), max(1, self.height())
             cx = w // 2
-            cy = int(h * 0.72)
+            cy = int(h * 0.50)
             s = min(min(w, h) / 320.0, 0.8)
             panda_half_w = int(60 * s)
             panda_half_h = int(90 * s)

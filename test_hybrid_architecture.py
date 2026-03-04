@@ -1552,14 +1552,18 @@ def test_panda_overlay_scale_capped():
                 "from growing to 500+ px on a 1280×800 full-window overlay.\n"
                 "Expected pattern: scale = min(min(w, h) / 320.0, <cap_value>)"
             )
-            # The vertical position must NOT be h*0.52 (dead centre) any more —
-            # it should be lower so the panda doesn't block top-of-window content.
-            assert 'h * 0.52' not in method_src, (
-                "The panda vertical position h*0.52 places it at the dead centre of the\n"
-                "window, blocking Quick Launch buttons and panel content.\n"
-                "Fix: use h*0.72 or similar to keep the panda in the lower portion."
+            # The vertical position must be h*0.50 (centered), NOT the old
+            # h*0.72 which pushed the panda into the lower portion of the screen.
+            assert 'h * 0.72' not in method_src, (
+                "PandaWidget2D.paintEvent() still uses h*0.72 which positions the panda at "
+                "72% down from the top — that is the 'lower portion' that must never be used. "
+                "Fix: use h*0.50 to keep the panda near the vertical centre of the window."
             )
-            print("  ✅ scale is capped and panda is positioned below centre")
+            assert 'h * 0.50' in method_src, (
+                "PandaWidget2D.paintEvent() must use h*0.50 to center the panda vertically. "
+                "The old h*0.72 pushed the panda into the lower portion of the screen."
+            )
+            print("  ✅ scale is capped and panda is vertically centred (h*0.50, not lower portion)")
             return
     assert False, "PandaWidget2D.paintEvent() not found"
 
