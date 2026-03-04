@@ -1803,9 +1803,11 @@ class SettingsPanelQt(QWidget):
 
             sound_pack = self.config.get('ui', 'sound_pack', default='Default')
             if hasattr(self, 'sound_pack_combo'):
-                idx = self.sound_pack_combo.findText(sound_pack.capitalize())
-                if idx >= 0:
-                    self.sound_pack_combo.setCurrentIndex(idx)
+                # Use case-insensitive match so stored values like 'default' or 'DEFAULT' work
+                for _i in range(self.sound_pack_combo.count()):
+                    if self.sound_pack_combo.itemText(_i).lower() == str(sound_pack).lower():
+                        self.sound_pack_combo.setCurrentIndex(_i)
+                        break
             
             # Performance
             threads = self.config.get('performance', 'max_threads', default=4)

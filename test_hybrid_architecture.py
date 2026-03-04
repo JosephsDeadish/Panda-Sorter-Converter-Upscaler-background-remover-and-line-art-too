@@ -8164,7 +8164,10 @@ def test_sound_enabled_setting_applies_to_sound_manager():
     print("  ✅ Source: ui.sound_enabled handler calls mute/unmute on sound_manager")
 
     # Also verify startup respects saved setting
-    assert "sound_enabled" in code[code.find("SoundManager()"):code.find("SoundManager()") + 400], (
+    sound_mgr_idx = code.find("SoundManager()")
+    assert sound_mgr_idx != -1, "main.py: SoundManager() constructor call not found"
+    init_block = code[sound_mgr_idx:sound_mgr_idx + 400]
+    assert "sound_enabled" in init_block, (
         "main.py: SoundManager init does not read 'sound_enabled' from config; "
         "saved mute state is ignored on restart"
     )

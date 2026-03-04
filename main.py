@@ -7780,6 +7780,9 @@ class TextureSorterMainWindow(QMainWindow):
                 event.accept()
             else:
                 event.ignore()
+        # No background operation running; check user's "Confirm Exit" preference.
+        # The elif is intentional: when an operation is running we already prompted
+        # the user above, so we don't show a second dialog.
         elif config.get('ui', 'confirm_exit', default=False):
             reply = QMessageBox.question(
                 self,
