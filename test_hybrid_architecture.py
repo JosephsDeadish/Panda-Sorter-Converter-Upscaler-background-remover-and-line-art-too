@@ -8714,16 +8714,16 @@ def test_widget_interaction_quests_auto_start_and_complete():
 
     # ── widget_master ─────────────────────────────────────────────────────────
     qs4 = QuestSystem()
-    types_10 = ['button', 'slider', 'tab', 'checkbox', 'combobox',
-                'spinbox', 'radio', 'list', 'tree', 'menu']
-    for wtype in types_10:
+    # widget_master goal_value is 5 — exactly the 5 types that panda can interact with
+    types_5 = ['button', 'slider', 'tab', 'checkbox', 'combobox']
+    for wtype in types_5:
         qs4.on_widget_interaction(wtype, 'x')
     assert qs4.quests['widget_master'].status == QuestStatus.COMPLETED, (
-        "widget_master must be COMPLETED after interacting with 10 distinct widget types "
+        "widget_master must be COMPLETED after interacting with all 5 widget types "
         f"(got {qs4.quests['widget_master'].status}, "
         f"progress={qs4.quests['widget_master'].current_progress})"
     )
-    print("  ✅ widget_master: COMPLETED after 10 distinct widget types")
+    print("  ✅ widget_master: COMPLETED after 5 distinct widget types")
 
     # ── Partial progress preserved ────────────────────────────────────────────
     qs5 = QuestSystem()

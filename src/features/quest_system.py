@@ -245,9 +245,9 @@ class QuestSystem(QObject if PYQT_AVAILABLE else object):
             Quest(
                 id="widget_master",
                 name="Widget Master",
-                description="Interact with 10 different widget types",
+                description="Interact with all 5 widget types (button, slider, tab, checkbox, combobox)",
                 quest_type=QuestType.EXPLORATION,
-                goal_value=10,
+                goal_value=5,
                 reward_message="You've mastered the UI with panda! 🎯",
             ),
             Quest(
