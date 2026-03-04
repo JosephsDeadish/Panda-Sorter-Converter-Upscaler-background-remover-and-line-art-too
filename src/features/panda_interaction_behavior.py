@@ -439,13 +439,16 @@ class PandaInteractionBehavior:
             delay: Delay in seconds
         """
         def do_click():
-            if widget and hasattr(widget, 'click'):
-                logger.debug(f"Triggering click on {widget.__class__.__name__}")
-                widget.click()
-                
-                # Apply squash effect
-                self.overlay.apply_squash_effect(0.8)
-                QTimer.singleShot(100, lambda: self.overlay.apply_squash_effect(1.0))
+            try:
+                if widget and hasattr(widget, 'click'):
+                    logger.debug(f"Triggering click on {widget.__class__.__name__}")
+                    widget.click()
+
+                    # Apply squash effect
+                    self.overlay.apply_squash_effect(0.8)
+                    QTimer.singleShot(100, lambda: self.overlay.apply_squash_effect(1.0))
+            except RuntimeError:
+                pass  # Widget was deleted before timer fired
         
         # Schedule click
         QTimer.singleShot(int(delay * 1000), do_click)
@@ -459,20 +462,23 @@ class PandaInteractionBehavior:
             delay: Delay in seconds
         """
         def do_change():
-            if slider and isinstance(slider, QSlider):
-                # Change to random value
-                current = slider.value()
-                min_val = slider.minimum()
-                max_val = slider.maximum()
-                
-                # Move slider slightly
-                new_value = random.randint(min_val, max_val)
-                logger.debug(f"Changing slider from {current} to {new_value}")
-                slider.setValue(new_value)
-                
-                # Apply squash effect
-                self.overlay.apply_squash_effect(0.9)
-                QTimer.singleShot(100, lambda: self.overlay.apply_squash_effect(1.0))
+            try:
+                if slider and isinstance(slider, QSlider):
+                    # Change to random value
+                    current = slider.value()
+                    min_val = slider.minimum()
+                    max_val = slider.maximum()
+
+                    # Move slider slightly
+                    new_value = random.randint(min_val, max_val)
+                    logger.debug(f"Changing slider from {current} to {new_value}")
+                    slider.setValue(new_value)
+
+                    # Apply squash effect
+                    self.overlay.apply_squash_effect(0.9)
+                    QTimer.singleShot(100, lambda: self.overlay.apply_squash_effect(1.0))
+            except RuntimeError:
+                pass  # Slider was deleted before timer fired
         
         QTimer.singleShot(int(delay * 1000), do_change)
     
@@ -485,9 +491,12 @@ class PandaInteractionBehavior:
             delay: Delay in seconds
         """
         def do_open():
-            if combobox and isinstance(combobox, QComboBox):
-                logger.debug("Opening combobox")
-                combobox.showPopup()
+            try:
+                if combobox and isinstance(combobox, QComboBox):
+                    logger.debug("Opening combobox")
+                    combobox.showPopup()
+            except RuntimeError:
+                pass  # ComboBox was deleted before timer fired
         
         QTimer.singleShot(int(delay * 1000), do_open)
     

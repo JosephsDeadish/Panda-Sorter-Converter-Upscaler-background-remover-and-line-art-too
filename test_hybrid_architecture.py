@@ -7792,6 +7792,60 @@ def test_dungeon_3d_enemy_slain_awards_xp():
     print("  ✅ Source: level_system guarded access present")
 
 
+def test_check_quests_first_batch_progress_counted():
+    """QuestSystem.check_quests() must record progress for the very first sort batch.
+
+    Bug: check_quests() had:
+        if status == NOT_STARTED and files_processed > 0:
+            start_quest(qid)
+            # 'fall through to record progress' — but elif is skipped
+        elif status == IN_PROGRESS and files_processed > 0:
+            update_quest_progress(qid, files_processed)
+
+    Because Python if/elif does not fall through, calling check_quests(10) when
+    the quest was NOT_STARTED would start it (status → IN_PROGRESS) but the
+    `elif` branch was already skipped — those 10 files were silently discarded.
+    A user sorting exactly 10 files in one batch would see the quest start but
+    0/10 progress registered.
+
+    Fix: after start_quest(), immediately call update_quest_progress() too.
+    """
+    print("\ntest_check_quests_first_batch_progress_counted ...")
+    import sys
+    from pathlib import Path
+    sys.path.insert(0, str(Path(__file__).parent / 'src'))
+    from features.quest_system import QuestSystem, QuestStatus
+
+    qs = QuestSystem()
+    # Confirm texture_sorter starts NOT_STARTED
+    assert qs.quests['texture_sorter'].status == QuestStatus.NOT_STARTED
+
+    # First call: 10 files sorted (goal_value == 10, so it will complete immediately)
+    qs.check_quests(10)
+    q = qs.quests['texture_sorter']
+    assert q.status in (QuestStatus.IN_PROGRESS, QuestStatus.COMPLETED), \
+        f"texture_sorter should be IN_PROGRESS or COMPLETED after first check_quests(10), got {q.status}"
+    assert q.current_progress == 10, (
+        f"texture_sorter.current_progress should be 10 after first batch of 10, "
+        f"got {q.current_progress}.  Bug: check_quests() skipped update on start."
+    )
+    print(f"  ✅ Runtime: texture_sorter progress={q.current_progress} status={q.status.name} after first batch of 10")
+
+    # Second call: 5 more files — use bulk_sorter which has goal_value=100
+    qs2 = QuestSystem()
+    qs2.check_quests(5)
+    bq = qs2.quests['bulk_sorter']
+    assert bq.status in (QuestStatus.IN_PROGRESS, QuestStatus.COMPLETED)
+    assert bq.current_progress == 5, \
+        f"bulk_sorter.current_progress should be 5 after first batch, got {bq.current_progress}"
+    print(f"  ✅ Runtime: bulk_sorter progress={bq.current_progress} after first batch of 5")
+
+    qs2.check_quests(8)
+    assert bq.current_progress == 13, \
+        f"bulk_sorter.current_progress should be 13 after second batch, got {bq.current_progress}"
+    print(f"  ✅ Runtime: bulk_sorter progress={bq.current_progress} after second batch of 8")
+
+
 def test_panda_interaction_behavior_quest_callback():
     """PandaInteractionBehavior must fire interaction_callback for button/slider/tab actions.
 
@@ -8233,6 +8287,7 @@ def run_all_tests():
         test_batch_normalizer_preview_original_size,
         test_dungeon_gold_reward_uses_earn_money,
         test_dungeon_3d_enemy_slain_awards_xp,
+        test_check_quests_first_batch_progress_counted,
         test_panda_interaction_behavior_quest_callback,
         test_full_belly_and_dungeon_adventurer_quests_wired,
         test_first_sell_quest_wired,

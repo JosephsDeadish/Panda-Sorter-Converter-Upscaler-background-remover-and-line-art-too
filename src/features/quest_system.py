@@ -636,7 +636,8 @@ class QuestSystem(QObject if PYQT_AVAILABLE else object):
             quest = self.quests[qid]
             if quest.status == QuestStatus.NOT_STARTED and files_processed > 0:
                 self.start_quest(qid)
-                # start_quest sets status to IN_PROGRESS; fall through to record progress
+                # start_quest sets status to IN_PROGRESS; also record the first batch now
+                self.update_quest_progress(qid, files_processed)
             elif quest.status == QuestStatus.IN_PROGRESS and files_processed > 0:
                 # update_quest_progress handles completion and signal emission
                 self.update_quest_progress(qid, files_processed)
