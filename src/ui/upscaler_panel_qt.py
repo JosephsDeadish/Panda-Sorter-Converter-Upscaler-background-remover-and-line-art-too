@@ -1491,8 +1491,18 @@ class ImageUpscalerPanelQt(QWidget):
     def _send_to_organizer(self):
         """Send the upscaled output folder to the organizer tab."""
         try:
-            if self.main_window and hasattr(self.main_window, 'tabs'):
-                self.main_window.tabs.setCurrentIndex(0)
+            mw = self.main_window
+            if mw and hasattr(mw, 'tool_tabs_widget') and mw.tool_tabs_widget:
+                tw = mw.tool_tabs_widget
+                for i in range(tw.count()):
+                    if 'Organizer' in tw.tabText(i):
+                        tw.setCurrentIndex(i)
+                        # Also pass the output dir to the organizer panel
+                        organizer = tw.widget(i)
+                        out_dir = getattr(self, 'output_directory', None)
+                        if organizer and hasattr(organizer, 'set_source_directory') and out_dir:
+                            organizer.set_source_directory(out_dir)
+                        break
             logger.info("Send to organizer triggered")
         except Exception as e:
             logger.error(f"_send_to_organizer: {e}", exc_info=True)
