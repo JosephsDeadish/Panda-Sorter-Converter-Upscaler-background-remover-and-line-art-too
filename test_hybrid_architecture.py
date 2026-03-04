@@ -8796,6 +8796,70 @@ def test_update_quest_progress_auto_starts_quest():
     print("  ✅ amount=0 starts quest (IN_PROGRESS) but keeps progress at 0")
 
 
+def test_skill_tree_ui_attribute_names():
+    """Skill tree UI must use correct SkillNode attribute names.
+
+    Bugs found in main.py skill-tree rendering loop:
+    1. `skill.skill_id` — SkillNode has `.id`, not `.skill_id`.
+       Because skill_id doesn't exist, building the unlock-button closure
+       would raise AttributeError for every locked skill, so the entire
+       Skills tab would crash on render.
+
+    2. `getattr(skill, 'required_level', 1)` — SkillNode stores the minimum
+       level in `level_required`, not `required_level`.  The getattr() always
+       fell back to the default 1, so every skill card showed "Lv.1" regardless
+       of the skill's real prerequisite.
+
+    Fixes:
+    - `_skill_id = getattr(skill, 'skill_id', skill.id)` — reads .id as fallback
+    - `req_lvl = getattr(skill, 'level_required', getattr(skill, 'required_level', 1))`
+      — reads .level_required first, then .required_level, then defaults to 1
+
+    Source checks:
+    - main.py: `skill.skill_id` replaced with `getattr(skill, 'skill_id', skill.id)`
+    - main.py: `required_level` replaced with `level_required` primary attr
+    """
+    print("\ntest_skill_tree_ui_attribute_names ...")
+    from pathlib import Path
+    import sys
+    sys.path.insert(0, str(Path(__file__).parent / 'src'))
+
+    # Source check
+    main_code = (Path(__file__).parent / 'main.py').read_text(encoding='utf-8')
+
+    assert "skill.skill_id" not in main_code, (
+        "main.py: skill.skill_id still used — SkillNode has .id, not .skill_id; "
+        "this crashes the Skills tab for every locked skill. "
+        "Fix: getattr(skill, 'skill_id', skill.id)"
+    )
+    print("  ✅ Source: skill.skill_id not used (replaced with getattr fallback to .id)")
+
+    assert "getattr(skill, 'level_required'" in main_code or "skill.level_required" in main_code, (
+        "main.py: skill level-requirement attribute not read via level_required; "
+        "SkillNode stores minimum level in .level_required, not .required_level"
+    )
+    print("  ✅ Source: level_required used as primary attribute for skill level requirement")
+
+    # Runtime check: SkillNode has .id and .level_required, not .skill_id / .required_level
+    from features.skill_tree import SkillTree
+    st = SkillTree()
+    for sid, skill in st.skills.items():
+        assert hasattr(skill, 'id'), f"SkillNode {sid} must have .id attribute"
+        assert hasattr(skill, 'level_required'), f"SkillNode {sid} must have .level_required attribute"
+        assert not hasattr(skill, 'skill_id'), \
+            f"SkillNode {sid} unexpectedly has .skill_id (use .id)"
+    print(f"  ✅ Runtime: all {len(st.skills)} SkillNodes have .id and .level_required")
+
+    # Check a skill with a high level requirement is not shown as Lv.1
+    high_req = [s for s in st.skills.values() if s.level_required > 1]
+    assert high_req, "No skills with level_required > 1 found — check skill definitions"
+    sample = high_req[0]
+    req_lvl = getattr(sample, 'level_required', getattr(sample, 'required_level', 1))
+    assert req_lvl == sample.level_required, \
+        f"req_lvl should be {sample.level_required}, got {req_lvl}"
+    print(f"  ✅ Runtime: level_required correctly read as {req_lvl} (not hard-coded 1)")
+
+
 def run_all_tests():
     print("=" * 65)
     print("Hybrid Architecture + Lazy rembg Import Tests")
@@ -8957,6 +9021,7 @@ def run_all_tests():
         test_effects_notifications_volume_stored_as_float,
         test_widget_interaction_quests_auto_start_and_complete,
         test_update_quest_progress_auto_starts_quest,
+        test_skill_tree_ui_attribute_names,
     ]
 
     passed, failed = [], []

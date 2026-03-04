@@ -2728,7 +2728,7 @@ class TextureSorterMainWindow(QMainWindow):
                         # Status icon + name
                         icon = "✅" if skill.unlocked else "🔒"
                         cost = getattr(skill, 'cost', getattr(skill, 'xp_cost', 1))
-                        req_lvl = getattr(skill, 'required_level', 1)
+                        req_lvl = getattr(skill, 'level_required', getattr(skill, 'required_level', 1))
                         name_lbl = QLabel(
                             f"<b>{icon} {skill.name}</b>"
                             f"<br><small style='color:#888'>{skill.description}</small>"
@@ -2749,7 +2749,7 @@ class TextureSorterMainWindow(QMainWindow):
                             btn = QPushButton("Unlock")
                             btn.setFixedWidth(64)
                             btn.setFixedHeight(26)
-                            _skill_id = skill.skill_id
+                            _skill_id = getattr(skill, 'skill_id', skill.id)
                             def _make_unlock_handler(sid, card_widget, name_widget, cost_widget, btn_widget):
                                 def _unlock():
                                     lvl = getattr(self.level_system, 'level', 1) if self.level_system else 1
