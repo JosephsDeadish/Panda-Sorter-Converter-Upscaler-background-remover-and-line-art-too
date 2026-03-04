@@ -1837,6 +1837,13 @@ class SettingsPanelQt(QWidget):
             if hasattr(self, 'confirm_exit_check'):
                 confirm_exit = self.config.get('ui', 'confirm_exit', default=False)
                 self.confirm_exit_check.setChecked(bool(confirm_exit))
+            # Startup tab
+            if hasattr(self, 'startup_tab_combo'):
+                startup_tab = str(self.config.get('ui', 'startup_tab', default='Last Used'))
+                for _i in range(self.startup_tab_combo.count()):
+                    if self.startup_tab_combo.itemText(_i).lower() == startup_tab.lower():
+                        self.startup_tab_combo.setCurrentIndex(_i)
+                        break
 
             # AI settings
             if hasattr(self, 'epochs_spin'):

@@ -8232,6 +8232,22 @@ def test_theme_completeness_widget_styles():
             )
         print(f"  ✅ Theme '{theme_name}' has all required widget styles")
 
+    # Check base themes (light, dark) — these use a different block structure
+    base_themes = {
+        'light': ("if theme == 'light':", "elif theme == 'nord':"),
+        'dark': ("else:  # Dark theme (default)", "self.setStyleSheet(stylesheet + _LAYOUT_FIXES)"),
+    }
+    for theme_name, (start_marker, end_marker) in base_themes.items():
+        start = code.find(start_marker)
+        assert start != -1, f"main.py: base theme '{theme_name}' block not found"
+        end = code.find(end_marker, start + 1)
+        block = code[start:end] if end != -1 else code[start:start + 8000]
+        for widget in required_widgets:
+            assert widget in block, (
+                f"main.py: base theme '{theme_name}' is missing '{widget}' style"
+            )
+        print(f"  ✅ Base theme '{theme_name}' has all required widget styles")
+
 
 def test_notifications_volume_setting_applies_to_sound_manager():
     """ui.notifications_volume setting change must call set_notifications_volume on SoundManager."""

@@ -3106,6 +3106,23 @@ class TextureSorterMainWindow(QMainWindow):
                 color: #000000;
                 border: 1px solid #cccccc;
             }}
+            QLineEdit {{ background-color: #ffffff; color: #000000; border: 1px solid #aaaaaa; border-radius: 3px; padding: 3px 5px; }}
+            QLineEdit:focus {{ border-color: {accent}; }}
+            QComboBox {{ background-color: #ffffff; color: #000000; border: 1px solid #aaaaaa; border-radius: 3px; padding: 3px 5px; min-height: 22px; }}
+            QComboBox:hover {{ border-color: {accent}; }}
+            QComboBox QAbstractItemView {{ background-color: #ffffff; color: #000000; border: 1px solid #aaaaaa; selection-background-color: {accent}; selection-color: #ffffff; }}
+            QGroupBox {{ border: 1px solid #cccccc; border-radius: 4px; margin-top: 8px; padding-top: 8px; color: #000000; }}
+            QGroupBox::title {{ subcontrol-origin: margin; subcontrol-position: top left; padding: 0 4px; color: #000000; }}
+            QCheckBox {{ color: #000000; spacing: 6px; }}
+            QCheckBox::indicator {{ width: 14px; height: 14px; border: 1px solid #aaaaaa; border-radius: 2px; background: #ffffff; }}
+            QCheckBox::indicator:checked {{ background: {accent}; border-color: {accent}; }}
+            QSlider::groove:horizontal {{ height: 6px; background: #dddddd; border-radius: 3px; }}
+            QSlider::handle:horizontal {{ background: {accent}; border: 1px solid {accent}; width: 14px; height: 14px; border-radius: 7px; margin: -4px 0; }}
+            QSlider::sub-page:horizontal {{ background: {accent}; border-radius: 3px; }}
+            QSpinBox, QDoubleSpinBox {{ background-color: #ffffff; color: #000000; border: 1px solid #aaaaaa; border-radius: 3px; padding: 3px 5px; }}
+            QStatusBar {{ background-color: #e8e8e8; color: #333333; border-top: 1px solid #cccccc; }}
+            QDockWidget {{ color: #000000; }}
+            QDockWidget::title {{ background-color: #e0e0e0; padding: 4px; color: #000000; }}
             """
         elif theme == 'nord':
             # ⚔️  Norse Mythology / Nordic theme
@@ -4154,6 +4171,9 @@ class TextureSorterMainWindow(QMainWindow):
             QScrollBar::handle:horizontal:hover {{
                 background-color: {hover_color.name()};
             }}
+            QStatusBar {{ background-color: #1a1a1a; color: #aaaaaa; border-top: 1px solid #333333; }}
+            QDockWidget {{ color: #ffffff; }}
+            QDockWidget::title {{ background-color: #252525; padding: 4px; color: #cccccc; }}
             """
         # ── Common layout-fix overrides to prevent text clipping across themes ──
         # These are appended to every theme so individual themes don't need to
@@ -8794,6 +8814,31 @@ def main():
     # 1500 ms delay: gives the main window time to finish painting and the event loop
     # to settle before we start background I/O, preventing any startup jank.
     QTimer.singleShot(1500, lambda: _auto_download_models(window))
+
+    # Apply startup tab preference (after event loop settles so tab exists)
+    def _apply_startup_tab():
+        try:
+            startup_tab = config.get('ui', 'startup_tab', default='last_used').lower().replace(' ', '_')
+            if startup_tab in ('last_used', ''):
+                return
+            _TAB_MAP = {
+                'file_browser': '📁 File Browser',
+                'organizer': '📁 Organizer',
+                'format_converter': '🔄 Format Converter',
+                'upscaler': '🔍 Image Upscaler',
+                'background_remover': '🎭 Background Remover',
+                'line_art': '✏️ Line Art',
+                'shop': '🛍️ Shop',
+            }
+            tab_text = _TAB_MAP.get(startup_tab)
+            if tab_text and window.tool_tabs_widget:
+                for i in range(window.tool_tabs_widget.count()):
+                    if window.tool_tabs_widget.tabText(i) == tab_text:
+                        window.tool_tabs_widget.setCurrentIndex(i)
+                        break
+        except Exception as _ste:
+            logger.debug(f"startup_tab apply: {_ste}")
+    QTimer.singleShot(300, _apply_startup_tab)
 
     # Log startup
     logger.info(f"{APP_NAME} v{APP_VERSION} started with Qt6")
