@@ -1661,6 +1661,8 @@ class TextureSorterMainWindow(QMainWindow):
                 bg_panel = BackgroundRemoverPanelQt(tooltip_manager=self.tooltip_manager)
                 bg_panel.processing_complete.connect(
                     lambda: self.statusBar().showMessage("🎭 Background removal complete", 4000))
+                bg_panel.processing_complete.connect(
+                    lambda: self._on_tool_finished(True, 'bg_remover', 1))
                 bg_panel.image_loaded.connect(
                     lambda p: self.statusBar().showMessage(f"🎭 Loaded: {p}", 3000))
                 tool_tab_defs.append((bg_panel, "🎭 Background Remover", 'bg_remover'))
@@ -5831,7 +5833,7 @@ class TextureSorterMainWindow(QMainWindow):
                 # Apply live effects-volume change to SoundManager
                 if self.sound_manager and hasattr(self.sound_manager, 'set_effects_volume'):
                     try:
-                        self.sound_manager.set_effects_volume(float(value) / 100.0)
+                        self.sound_manager.set_effects_volume(float(value))
                         logger.debug(f"Effects volume updated to: {value}%")
                     except Exception as e:
                         logger.warning(f"Could not update effects volume: {e}")

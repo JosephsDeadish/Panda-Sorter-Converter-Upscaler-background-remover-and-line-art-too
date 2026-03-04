@@ -841,8 +841,7 @@ class SettingsPanelQt(QWidget):
         self.effects_volume_slider.setTickPosition(QSlider.TickPosition.TicksBelow)
         self.effects_volume_slider.setTickInterval(10)
         self.effects_volume_slider.valueChanged.connect(
-            lambda v: (effects_label.setText(f"Effects Volume: {v}%"),
-                       self.on_setting_changed('ui', 'effects_volume')))
+            lambda v: self._on_effects_volume_changed(effects_label, v))
         self.set_tooltip(self.effects_volume_slider, 'effects_volume')
         sound_layout.addWidget(effects_label)
         sound_layout.addWidget(self.effects_volume_slider)
@@ -856,8 +855,7 @@ class SettingsPanelQt(QWidget):
         self.notifications_volume_slider.setTickPosition(QSlider.TickPosition.TicksBelow)
         self.notifications_volume_slider.setTickInterval(10)
         self.notifications_volume_slider.valueChanged.connect(
-            lambda v: (notif_label.setText(f"Notifications Volume: {v}%"),
-                       self.on_setting_changed('ui', 'notifications_volume')))
+            lambda v: self._on_notif_volume_changed(notif_label, v))
         self.set_tooltip(self.notifications_volume_slider, 'notifications_volume')
         sound_layout.addWidget(notif_label)
         sound_layout.addWidget(self.notifications_volume_slider)
@@ -1721,8 +1719,11 @@ class SettingsPanelQt(QWidget):
             self.theme_combo.setCurrentText(theme_map.get(theme.lower(), theme.capitalize()))
             
             accent = self.config.get('ui', 'accent_color', default='#0d7377')
-            self.accent_color_widget.current_color = QColor(accent)
-            self.accent_color_widget.update()
+            if hasattr(self.accent_color_widget, 'set_color'):
+                self.accent_color_widget.set_color(QColor(accent))
+            else:
+                self.accent_color_widget.current_color = QColor(accent)
+                self.accent_color_widget.update()
             
             opacity = self.config.get('ui', 'window_opacity', default=1.0)
             self.opacity_slider.setValue(int(opacity * 100))
@@ -2047,6 +2048,24 @@ class SettingsPanelQt(QWidget):
             self.config.set('ui', 'sound_volume', value=volume)
             self.config.save()
             self.settingsChanged.emit("ui.sound_volume", volume)
+
+    def _on_effects_volume_changed(self, label: QLabel, value: int) -> None:
+        """Handle effects-volume slider changes — stores as 0.0–1.0 like master volume."""
+        label.setText(f"Effects Volume: {value}%")
+        if not self._updating:
+            volume = value / 100.0
+            self.config.set('ui', 'effects_volume', value=volume)
+            self.config.save()
+            self.settingsChanged.emit("ui.effects_volume", volume)
+
+    def _on_notif_volume_changed(self, label: QLabel, value: int) -> None:
+        """Handle notifications-volume slider changes — stores as 0.0–1.0."""
+        label.setText(f"Notifications Volume: {value}%")
+        if not self._updating:
+            volume = value / 100.0
+            self.config.set('ui', 'notifications_volume', value=volume)
+            self.config.save()
+            self.settingsChanged.emit("ui.notifications_volume", volume)
     
     def apply_theme(self):
         """Delegate theme application to main window (which has all 9 theme implementations)."""
