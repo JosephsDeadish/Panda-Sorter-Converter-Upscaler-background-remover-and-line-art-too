@@ -4681,6 +4681,13 @@ class TextureSorterMainWindow(QMainWindow):
                 # Apply saved volume from config
                 saved_volume = config.get('ui', 'sound_volume', default=0.7)
                 self.sound_manager.set_volume(float(saved_volume))
+                # Apply saved effects and notifications volumes
+                effects_volume = config.get('ui', 'effects_volume', default=0.7)
+                if hasattr(self.sound_manager, 'set_effects_volume'):
+                    self.sound_manager.set_effects_volume(float(effects_volume))
+                notif_volume = config.get('ui', 'notifications_volume', default=0.5)
+                if hasattr(self.sound_manager, 'set_notifications_volume'):
+                    self.sound_manager.set_notifications_volume(float(notif_volume))
                 # Apply saved mute state
                 sound_enabled = config.get('ui', 'sound_enabled', default=True)
                 if not bool(sound_enabled):

@@ -1896,9 +1896,7 @@ class SettingsPanelQt(QWidget):
             # Apply specific changes
             if section == 'ui' and key == 'theme':
                 self.apply_theme()
-            elif section == 'ui' and key == 'font_family':
-                self._apply_font()
-            elif section == 'ui' and key == 'font_size':
+            elif section == 'ui' and key in ('font_family', 'font_size', 'font_weight'):
                 self._apply_font()
             elif section == 'ui' and key == 'cursor':
                 self._apply_cursor(value)
