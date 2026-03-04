@@ -8582,6 +8582,49 @@ def test_bg_remover_wires_tool_finished():
     print("  ✅ Source: bg_remover processing_complete connects to _on_tool_finished")
 
 
+def test_cursor_trail_overlay_resized_on_window_resize():
+    """resizeEvent in main.py must resize _cursor_trail_overlay alongside panda_overlay.
+
+    Bug: resizeEvent only called panda_overlay.resize() but not
+    _cursor_trail_overlay.resize().  After the user resized the main window, the
+    cursor trail overlay kept its old dimensions — dots near the new window edges
+    were drawn outside the overlay geometry and clipped, making the trail appear to
+    vanish near the edges of the resized window.
+
+    Fix: add a second try/except block that also calls
+    self._cursor_trail_overlay.resize(self.size()) inside resizeEvent.
+    """
+    print("\ntest_cursor_trail_overlay_resized_on_window_resize ...")
+    from pathlib import Path
+    import ast
+
+    src = Path(__file__).parent / "main.py"
+    code = src.read_text(encoding="utf-8")
+    tree = ast.parse(code)
+
+    # Find resizeEvent method
+    resize_fn = None
+    for node in ast.walk(tree):
+        if isinstance(node, ast.FunctionDef) and node.name == "resizeEvent":
+            resize_fn = node
+            break
+    assert resize_fn is not None, "main.py: resizeEvent() method not found"
+
+    resize_src = ast.get_source_segment(code, resize_fn) or ""
+
+    assert "_cursor_trail_overlay" in resize_src, (
+        "main.py: resizeEvent() does not resize _cursor_trail_overlay.\n"
+        "After a window resize the cursor trail clips near the new edges.\n"
+        "Fix: add self._cursor_trail_overlay.resize(self.size()) inside resizeEvent()."
+    )
+    print("  ✅ Source: resizeEvent() resizes _cursor_trail_overlay")
+
+    assert "panda_overlay" in resize_src, (
+        "main.py: resizeEvent() no longer resizes panda_overlay — that was already working!"
+    )
+    print("  ✅ Source: resizeEvent() still resizes panda_overlay (not regressed)")
+
+
 def test_effects_notifications_volume_stored_as_float():
     """effects_volume and notifications_volume sliders must store as 0.0–1.0, not raw 0–100."""
     settings_path = Path(__file__).parent / "src" / "ui" / "settings_panel_qt.py"
@@ -8761,6 +8804,7 @@ def run_all_tests():
         test_theme_completeness_widget_styles,
         test_notifications_volume_setting_applies_to_sound_manager,
         test_bg_remover_wires_tool_finished,
+        test_cursor_trail_overlay_resized_on_window_resize,
         test_effects_notifications_volume_stored_as_float,
     ]
 

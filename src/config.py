@@ -13,10 +13,10 @@ from typing import Dict, Any, Optional
 # Application metadata
 APP_NAME = "Panda Sorter Converter Upscaler"
 APP_VERSION = "1.0.0"
-APP_AUTHOR = "Dead On The Inside / JosephsDeadish"
+APP_AUTHOR = "Dead On The Inside"
 
 # Support / community links
-PATREON_URL = "https://www.patreon.com/JosephsDeadish"
+PATREON_URL = "https://www.patreon.com/cw/DeadOnTheInside"
 
 # ---------------------------------------------------------------------------
 # Path helpers — support running from source, PyInstaller single-file, and

@@ -91,9 +91,9 @@ def _handle_early_cli() -> None:
             #   2. main.py _PATREON fallback (here)
             #   3. src/ui/settings_panel_qt.py _PATREON_URL fallback
             APP_NAME, APP_VERSION = "Panda Sorter Converter Upscaler", "1.0.0"
-            _PATREON = "https://www.patreon.com/JosephsDeadish"
+            _PATREON = "https://www.patreon.com/cw/DeadOnTheInside"
         print(f"{APP_NAME} v{APP_VERSION}")
-        print("Author: Dead On The Inside / JosephsDeadish")
+        print("Author: Dead On The Inside")
         print(f"Support: {_PATREON}")
         sys.exit(0)
 
@@ -7583,7 +7583,7 @@ class TextureSorterMainWindow(QMainWindow):
             f"<li>Modern Qt6 interface</li>"
             f"<li>No tkinter, no canvas</li>"
             f"</ul>"
-            f"<p>Author: Dead On The Inside / JosephsDeadish</p>"
+            f"<p>Author: Dead On The Inside</p>"
             f"<p>❤️ Support us on Patreon: <a href='{PATREON_URL}'>{PATREON_URL}</a></p>"
         )
 
@@ -7803,11 +7803,16 @@ class TextureSorterMainWindow(QMainWindow):
     # ─────────────────────────────────────────────────────────────────────────
 
     def resizeEvent(self, event):
-        """Resize transparent panda overlay to always cover the full window."""
+        """Resize transparent overlays (panda, cursor trail) to always cover the full window."""
         super().resizeEvent(event)
         try:
             if self.panda_overlay is not None:
                 self.panda_overlay.resize(self.size())
+        except Exception:
+            pass
+        try:
+            if self._cursor_trail_overlay is not None:
+                self._cursor_trail_overlay.resize(self.size())
         except Exception:
             pass
 
@@ -8644,8 +8649,8 @@ def main():
     # Create Qt application
     app = QApplication(sys.argv)
     app.setApplicationName(APP_NAME)
-    app.setOrganizationName("JosephsDeadish")
-    app.setOrganizationDomain("patreon.com/JosephsDeadish")
+    app.setOrganizationName("DeadOnTheInside")
+    app.setOrganizationDomain("patreon.com/cw/DeadOnTheInside")
 
     # ── Single-instance guard ─────────────────────────────────────────────────
     # Prevent a second copy of the application from opening.  We use a lock
@@ -8775,7 +8780,7 @@ def main():
         _af = QFont("Segoe UI", 8)
         _p.setFont(_af)
         _p.setPen(QPen(QColor("#557755")))
-        _p.drawText(0, _H - 22, _W, 18, int(_SplashQt.AlignmentFlag.AlignHCenter), "by Dead On The Inside / JosephsDeadish")
+        _p.drawText(0, _H - 22, _W, 18, int(_SplashQt.AlignmentFlag.AlignHCenter), "by Dead On The Inside")
         _p.end()
 
         _splash = QSplashScreen(_pix, _SplashQt.WindowType.WindowStaysOnTopHint)

@@ -1,7 +1,7 @@
 """
 Settings Panel - Comprehensive UI for application configuration
 Provides tabs for Appearance, Cursor, Font, Behavior, Performance, and Advanced settings
-Author: Dead On The Inside / JosephsDeadish
+Author: Dead On The Inside
 """
 
 
@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 try:
     from config import PATREON_URL as _PATREON_URL, APP_VERSION as _APP_VERSION
 except Exception:
-    _PATREON_URL = "https://www.patreon.com/JosephsDeadish"
+    _PATREON_URL = "https://www.patreon.com/cw/DeadOnTheInside"
     _APP_VERSION = "1.0.0"
 
 try:
@@ -2393,7 +2393,7 @@ class SettingsPanelQt(QWidget):
                 "An all-in-one texture management tool.\n"
                 "Sort, convert, upscale, remove backgrounds,\n"
                 "create line art, and more.\n\n"
-                "By JosephsDeadish / Dead On The Inside\n\n"
+                "By Dead On The Inside\n\n"
                 f"❤️  Support on Patreon:\n{_PATREON_URL}"
             )
         except Exception as e:
