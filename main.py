@@ -4915,6 +4915,12 @@ class TextureSorterMainWindow(QMainWindow):
                         self.panda_interaction = PandaInteractionBehavior(
                             self.panda_overlay, self.widget_detector
                         )
+                        # Wire quest tracking: each panda widget interaction updates
+                        # button_biter / tab_switcher / slider_tapper quests.
+                        if self.quest_system and hasattr(self.quest_system, 'on_widget_interaction'):
+                            self.panda_interaction.interaction_callback = (
+                                self.quest_system.on_widget_interaction
+                            )
                         logger.info("PandaInteractionBehavior initialized")
                     except Exception as _ie:
                         self.panda_interaction = None

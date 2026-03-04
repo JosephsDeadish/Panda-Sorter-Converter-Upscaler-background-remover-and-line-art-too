@@ -7792,6 +7792,84 @@ def test_dungeon_3d_enemy_slain_awards_xp():
     print("  ✅ Source: level_system guarded access present")
 
 
+def test_panda_interaction_behavior_quest_callback():
+    """PandaInteractionBehavior must fire interaction_callback for button/slider/tab actions.
+
+    Bug: PandaInteractionBehavior._execute_interaction() never called
+    quest_system.on_widget_interaction(), so 'button_biter', 'tab_switcher',
+    and 'slider_tapper' quests had no code path that could ever advance them.
+
+    Fix:
+    - Add `self.interaction_callback = None` attribute to PandaInteractionBehavior.
+    - At the end of _execute_interaction(), call
+      `self.interaction_callback(widget_type, widget_name)` for behavioral mappings.
+    - In main.py, set `panda_interaction.interaction_callback =
+      quest_system.on_widget_interaction` after construction.
+    """
+    print("\ntest_panda_interaction_behavior_quest_callback ...")
+    from pathlib import Path
+
+    beh_code = (
+        Path(__file__).parent / 'src' / 'features' / 'panda_interaction_behavior.py'
+    ).read_text(encoding='utf-8')
+
+    assert 'interaction_callback' in beh_code, \
+        "panda_interaction_behavior.py: interaction_callback attribute missing"
+    assert 'self.interaction_callback(' in beh_code, \
+        "panda_interaction_behavior.py: interaction_callback is never called"
+    print("  ✅ Source: interaction_callback declared and called in _execute_interaction()")
+
+    # Runtime: calling the callback with a button interaction
+    import sys, os
+    sys.path.insert(0, str(Path(__file__).parent / 'src'))
+    from features.panda_interaction_behavior import PandaInteractionBehavior, InteractionBehavior
+
+    captured = []
+
+    class _FakeOverlay:
+        def set_animation_state(self, *a): pass
+        def start_bite_tab(self): pass
+
+    class _FakeDetector:
+        pass
+
+    class _FakeWidget:
+        def objectName(self): return 'test_btn'
+
+    pib = PandaInteractionBehavior(_FakeOverlay(), _FakeDetector())
+    pib.interaction_callback = lambda wt, wn: captured.append((wt, wn))
+    pib.current_behavior = InteractionBehavior.BITE_BUTTON
+    pib.target_widget = _FakeWidget()
+    pib._execute_interaction()
+    assert captured and captured[0][0] == 'button', \
+        f"Expected callback with 'button', got: {captured}"
+    print(f"  ✅ Runtime: BITE_BUTTON fired interaction_callback(button, ...) → {captured[0]}")
+
+    # Slider interaction
+    captured.clear()
+    pib.current_behavior = InteractionBehavior.TAP_SLIDER
+    pib._execute_interaction()
+    assert captured and captured[0][0] == 'slider', \
+        f"Expected callback with 'slider', got: {captured}"
+    print(f"  ✅ Runtime: TAP_SLIDER fired interaction_callback(slider, ...) → {captured[0]}")
+
+    # Tab interaction
+    captured.clear()
+    pib.current_behavior = InteractionBehavior.BITE_TAB
+    pib._execute_interaction()
+    assert captured and captured[0][0] == 'tab', \
+        f"Expected callback with 'tab', got: {captured}"
+    print(f"  ✅ Runtime: BITE_TAB fired interaction_callback(tab, ...) → {captured[0]}")
+
+    # main.py must wire the callback
+    main_code = (Path(__file__).parent / 'main.py').read_text(encoding='utf-8')
+    assert 'interaction_callback' in main_code, \
+        "main.py: interaction_callback not wired to quest_system.on_widget_interaction"
+    assert 'on_widget_interaction' in main_code, \
+        "main.py: on_widget_interaction not referenced (interaction callback not wired)"
+    print("  ✅ Source: main.py wires interaction_callback to quest_system.on_widget_interaction")
+
+
 def test_full_belly_and_dungeon_adventurer_quests_wired():
     """The 'full_belly' and 'dungeon_adventurer' quests must have proper code triggers.
 
@@ -8155,6 +8233,7 @@ def run_all_tests():
         test_batch_normalizer_preview_original_size,
         test_dungeon_gold_reward_uses_earn_money,
         test_dungeon_3d_enemy_slain_awards_xp,
+        test_panda_interaction_behavior_quest_callback,
         test_full_belly_and_dungeon_adventurer_quests_wired,
         test_first_sell_quest_wired,
         test_bamboo_catcher_quest_wired,

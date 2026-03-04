@@ -96,7 +96,10 @@ class PandaInteractionBehavior:
         
         # Movement
         self.move_speed = 100.0  # Pixels per second
-        
+
+        # Optional callback: called after each interaction as
+        # callback(widget_type: str, widget_name: str).  Used to drive quest progress.
+        self.interaction_callback = None
     def update(self, delta_time):
         """
         Update behavior AI every frame.
@@ -335,6 +338,25 @@ class PandaInteractionBehavior:
         # Set behavior timer
         self.behavior_timer = self.behavior_duration
         self.is_performing_action = True
+
+        # Notify quest system (or any listener) about the widget interaction type
+        if self.interaction_callback:
+            _BEHAVIOR_TYPE = {
+                InteractionBehavior.BITE_BUTTON:   'button',
+                InteractionBehavior.JUMP_ON_BUTTON: 'button',
+                InteractionBehavior.POKE_BUTTON:   'button',
+                InteractionBehavior.TAP_SLIDER:    'slider',
+                InteractionBehavior.BITE_TAB:      'tab',
+                InteractionBehavior.PUSH_CHECKBOX: 'checkbox',
+                InteractionBehavior.SPIN_COMBOBOX: 'combobox',
+            }
+            wtype = _BEHAVIOR_TYPE.get(behavior)
+            if wtype:
+                try:
+                    wname = getattr(self.target_widget, 'objectName', lambda: '')()
+                    self.interaction_callback(wtype, wname or wtype)
+                except Exception:
+                    pass
     
     def _animate_bite(self):
         """Panda bites — triggers dedicated jaw-drop animation via start_bite_tab()."""
