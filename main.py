@@ -7803,7 +7803,8 @@ class TextureSorterMainWindow(QMainWindow):
     # ─────────────────────────────────────────────────────────────────────────
 
     def resizeEvent(self, event):
-        """Resize transparent overlays (panda, cursor trail) to always cover the full window."""
+        """Resize transparent overlays (panda overlay and cursor trail overlay) to always cover
+        the full window.  Each overlay is resized independently with its own error handling."""
         super().resizeEvent(event)
         try:
             if self.panda_overlay is not None:
