@@ -8233,6 +8233,57 @@ def test_theme_completeness_widget_styles():
         print(f"  ✅ Theme '{theme_name}' has all required widget styles")
 
 
+def test_notifications_volume_setting_applies_to_sound_manager():
+    """ui.notifications_volume setting change must call set_notifications_volume on SoundManager."""
+    main_path = Path(__file__).parent / "main.py"
+    code = main_path.read_text(encoding="utf-8")
+    assert "ui.notifications_volume" in code, (
+        "main.py: 'ui.notifications_volume' not handled; Notifications Volume slider has no effect"
+    )
+    idx = code.find("ui.notifications_volume")
+    snippet = code[idx:idx + 300]
+    assert "set_notifications_volume" in snippet, (
+        "main.py: ui.notifications_volume handler does not call set_notifications_volume"
+    )
+    print("  ✅ Source: ui.notifications_volume handler calls set_notifications_volume on sound_manager")
+
+
+def test_bg_remover_wires_tool_finished():
+    """background_remover processing_complete must connect to _on_tool_finished for XP/quests."""
+    main_path = Path(__file__).parent / "main.py"
+    code = main_path.read_text(encoding="utf-8")
+    bg_idx = code.find("bg_panel.processing_complete")
+    assert bg_idx != -1, "main.py: bg_panel.processing_complete signal not found"
+    block = code[bg_idx:bg_idx + 400]
+    assert "_on_tool_finished" in block, (
+        "main.py: bg_remover processing_complete is not connected to _on_tool_finished; "
+        "XP, quest progress, and achievements are never triggered after background removal"
+    )
+    print("  ✅ Source: bg_remover processing_complete connects to _on_tool_finished")
+
+
+def test_effects_notifications_volume_stored_as_float():
+    """effects_volume and notifications_volume sliders must store as 0.0–1.0, not raw 0–100."""
+    settings_path = Path(__file__).parent / "src" / "ui" / "settings_panel_qt.py"
+    code = settings_path.read_text(encoding="utf-8")
+    # The dedicated handler methods should store volume / 100
+    assert "_on_effects_volume_changed" in code, (
+        "settings_panel_qt.py: _on_effects_volume_changed method missing; "
+        "effects_volume slider uses on_setting_changed and stores raw 0-100 instead of 0.0-1.0"
+    )
+    assert "_on_notif_volume_changed" in code, (
+        "settings_panel_qt.py: _on_notif_volume_changed method missing"
+    )
+    # Confirm volume division in the dedicated method (accepts / 100 or / 100.0)
+    eff_idx = code.find("def _on_effects_volume_changed")
+    assert eff_idx != -1, "settings_panel_qt.py: _on_effects_volume_changed method not defined"
+    eff_block = code[eff_idx:eff_idx + 400]
+    assert "/ 100" in eff_block, (
+        "settings_panel_qt.py: _on_effects_volume_changed must divide by 100 to store as 0.0-1.0"
+    )
+    print("  ✅ Source: effects_volume and notifications_volume stored as 0.0-1.0")
+
+
 def run_all_tests():
     print("=" * 65)
     print("Hybrid Architecture + Lazy rembg Import Tests")
@@ -8385,6 +8436,9 @@ def run_all_tests():
         test_effects_volume_setting_applies_to_sound_manager,
         test_settings_panel_loads_effects_and_notifications_volume,
         test_theme_completeness_widget_styles,
+        test_notifications_volume_setting_applies_to_sound_manager,
+        test_bg_remover_wires_tool_finished,
+        test_effects_notifications_volume_stored_as_float,
     ]
 
     passed, failed = [], []

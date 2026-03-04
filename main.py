@@ -5834,9 +5834,31 @@ class TextureSorterMainWindow(QMainWindow):
                 if self.sound_manager and hasattr(self.sound_manager, 'set_effects_volume'):
                     try:
                         self.sound_manager.set_effects_volume(float(value))
-                        logger.debug(f"Effects volume updated to: {value}%")
+                        logger.debug(f"Effects volume updated to: {value}")
                     except Exception as e:
                         logger.warning(f"Could not update effects volume: {e}")
+
+            elif setting_key == 'ui.notifications_volume':
+                # Apply live notifications-volume change to SoundManager
+                if self.sound_manager and hasattr(self.sound_manager, 'set_notifications_volume'):
+                    try:
+                        self.sound_manager.set_notifications_volume(float(value))
+                        logger.debug(f"Notifications volume updated to: {value}")
+                    except Exception as e:
+                        logger.warning(f"Could not update notifications volume: {e}")
+
+            elif setting_key == 'ui.sound_pack':
+                # Apply sound pack change to SoundManager immediately
+                if self.sound_manager and hasattr(self.sound_manager, 'set_sound_pack'):
+                    try:
+                        from features.sound_manager import SoundPack as _SP
+                        _pack_name = str(value).lower()
+                        _pack = next((p for p in _SP if p.value == _pack_name), None)
+                        if _pack:
+                            self.sound_manager.set_sound_pack(_pack)
+                            logger.info(f"Sound pack changed to: {_pack_name}")
+                    except Exception as _spe:
+                        logger.warning(f"Could not update sound pack: {_spe}")
 
             elif setting_key == 'ui.language':
                 # Apply language change to TranslationManager
