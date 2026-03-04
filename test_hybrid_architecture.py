@@ -3160,81 +3160,134 @@ def test_panda_gl_starts_on_ground():
 
 
 def test_panda_gl_overlay_camera_and_shadows():
-    """3D panda in overlay mode must be in the lower portion of the window.
+    """3D panda camera must be centered and NOT pushed to the lower portion.
 
     Issue #205: 'terrible 3d panda and squished ui'
-    Root causes identified:
-    1. Camera Y = +0.3 placed the panda body near the centre of the viewport
-       (57 % down), blocking the tools panels that occupy the upper portion of
-       the window.  Overlay mode must use cam_y = -0.68 to position the panda
-       body at ~70 % down (matching the 2-D fallback panda's cy = h * 0.72).
-    2. The shadow FBO was initialised and rendered even in overlay mode, where
-       there is no floor and the opaque depth-buffer contents leaked visible
-       dark rectangles into the transparent GL composite.
+    Root causes identified and fixed:
+
+    1. A previous bad change introduced `cam_y = -0.68 if self._overlay_mode else 0.3`
+       which pushed the panda to ~70 % down from the top of the viewport.  This was
+       wrong — the panda must be near the vertical CENTER of the window in all modes.
+       Camera Y must always be +0.3 (shifts scene up relative to camera so the panda
+       body at world Y ≈ -0.40 to -0.70 appears near the centre).
+
+    2. The shadow FBO was initialised even in overlay mode (where there is no floor).
+       The depth-buffer contents leaked as visible dark patches in the transparent GL
+       composite.  The FBO must be skipped when `_overlay_mode` is True.
+
+    3. _get_panda_screen_center previously used a hardcoded look_at_y = 0.5 which
+       placed the click mask at 72 % down — far below the actual rendered panda body
+       (≈ 52 % down).  The correct value is look_at_y = -0.3 (derived from cam_y =
+       +0.3: screen centre corresponds to world Y = -cam_y = -0.3).
+
+    4. The belly sphere was at Z=BW×0.60 (= 0.42) with Z-scale BW×0.54 (= 0.378),
+       giving a maximum forward protrusion of 0.798 world units (114 % of body width).
+       This large sphere, protruding between the legs from a slightly-above-front
+       camera, created a clearly phallic silhouette.  The belly Z-offset must be
+       ≤ BW×0.40 and Z-scale ≤ BW×0.48 so the protrusion stays within the chest bib
+       envelope and the front profile forms a smooth continuous surface.
+
+    5. The philtrum had glScalef(0.25, 1.10, 0.30) — a narrow (X=0.25) but TALL
+       (Y=1.10) ellipsoid placed below the nose.  Y must not exceed X to avoid an
+       elongated spike appearance; fixed to glScalef(0.45, 0.40, 0.30).
     """
     print("\ntest_panda_gl_overlay_camera_and_shadows ...")
-    import re
-    code = open('src/ui/panda_widget_gl.py').read()
+    import re, ast as _ast, pathlib
+    code = pathlib.Path('src/ui/panda_widget_gl.py').read_text(encoding='utf-8')
 
-    # ── 1. Overlay camera Y must be -0.68 (not +0.3) ─────────────────────────
-    # The fix introduces `cam_y = -0.68 if self._overlay_mode else 0.3`
-    assert '_overlay_mode' in code and 'cam_y' in code, (
-        "panda_widget_gl.py: camera Y selection via _overlay_mode missing. "
-        "Add `cam_y = -0.68 if self._overlay_mode else 0.3` before glTranslatef."
+    # ── 1. Camera Y must NOT push panda to lower portion ─────────────────────
+    # The bad -0.68 overlay camera value must be absent.  Check for the specific
+    # bad camera pattern (overlay-dependent cam_y), not unrelated physics code.
+    import re as _re
+    assert not _re.search(r'cam_y\s*=\s*-0\.68', code), (
+        "panda_widget_gl.py: found `cam_y = -0.68` overlay camera offset. "
+        "This was wrong — it pushed the panda to 70 % down from the top, blocking "
+        "the toolbar and tabs.  Camera must always use Y = +0.3 to keep the panda "
+        "near the vertical center of the viewport."
     )
-    # -0.68 must be present (overlay camera offset)
-    assert '-0.68' in code, (
-        "panda_widget_gl.py: overlay cam_y = -0.68 not found. "
-        "Add `cam_y = -0.68 if self._overlay_mode else 0.3`."
+    # glTranslatef must use +0.3 for camera Y
+    assert _re.search(r'glTranslatef\(0\.0,\s*0\.3,\s*-self\.camera_distance\)', code), (
+        "panda_widget_gl.py: glTranslatef must use a fixed Y=0.3 camera offset, "
+        "not an overlay-dependent variable.  "
+        "Fix: `glTranslatef(0.0, 0.3, -self.camera_distance)`."
     )
-    print("  ✅ Overlay camera Y = -0.68 (panda at ~70 % down, not blocking tools)")
-
-    # Verify the glTranslatef uses cam_y, not a hardcoded constant
-    # (matches pattern like `glTranslatef(0.0, cam_y, -self.camera_distance)`)
-    assert re.search(r'glTranslatef\(0\.0,\s*cam_y', code), (
-        "panda_widget_gl.py: glTranslatef must use the `cam_y` variable, not a hardcoded value."
-    )
-    print("  ✅ glTranslatef uses cam_y variable")
+    print("  ✅ Camera Y = +0.3 always (panda centered, not pushed to lower portion)")
 
     # ── 2. Shadow FBO must NOT be initialised in overlay mode ─────────────────
-    # Find the `_init_shadow_mapping()` call site; it must be guarded by
-    # `if not self._overlay_mode` so the FBO is skipped for the floating panda.
     init_shadow_idx = code.find('self._init_shadow_mapping()')
     assert init_shadow_idx != -1, (
         "panda_widget_gl.py: _init_shadow_mapping() call not found."
     )
-    # Grab context around the call (150 chars before)
     ctx = code[max(0, init_shadow_idx - 150):init_shadow_idx + 30]
     assert 'overlay_mode' in ctx or 'not self._overlay_mode' in ctx, (
-        "panda_widget_gl.py: _init_shadow_mapping() call is not guarded by "
-        "`if not self._overlay_mode`. Shadow FBO creates rendering artifacts "
-        "in overlay mode — skip it when the panda floats over the UI."
+        "panda_widget_gl.py: _init_shadow_mapping() is not guarded by "
+        "`if not self._overlay_mode`.  Shadow FBO depth-buffer contents leak as "
+        "dark patches in overlay mode (no floor → no valid shadow)."
     )
     print("  ✅ Shadow FBO skipped in overlay mode (no rendering artifacts)")
 
-    # ── 3. _get_panda_screen_center must use actual cam_y (not hardcoded 0.5) ─
+    # ── 3. _get_panda_screen_center must use look_at_y = -0.3 ────────────────
     fn_start = code.find('def _get_panda_screen_center')
-    fn_end_search = code.find('\n    def ', fn_start + 1)
-    if fn_end_search == -1:
-        fn_end_search = len(code)
-    screen_center_fn = code[fn_start:fn_end_search]
-    assert 'look_at_y = 0.5' not in screen_center_fn, (
-        "panda_widget_gl.py: _get_panda_screen_center uses hardcoded look_at_y = 0.5. "
-        "Must compute from actual cam_y so hit-test and click-mask are correct "
-        "after the overlay camera Y was changed to -0.68."
+    fn_end = code.find('\n    def ', fn_start + 1)
+    if fn_end == -1:
+        fn_end = len(code)
+    scfn = code[fn_start:fn_end]
+    assert 'look_at_y = 0.5' not in scfn, (
+        "panda_widget_gl.py: _get_panda_screen_center still has look_at_y = 0.5. "
+        "This placed the hit-test mask at 72 % down from the top but the panda renders "
+        "at ~52 %.  Use look_at_y = -0.3 (= -cam_y, the world Y at screen centre)."
     )
-    # Must reference _overlay_mode to derive look_at_y from the actual camera Y
-    assert '_overlay_mode' in screen_center_fn, (
-        "panda_widget_gl.py: _get_panda_screen_center must reference _overlay_mode "
-        "to select the correct cam_y (-0.68 overlay vs +0.3 non-overlay) and derive "
-        "look_at_y = -cam_y so the hit-test ellipse is placed at the rendered panda position."
+    assert 'look_at_y = -0.3' in scfn, (
+        "panda_widget_gl.py: _get_panda_screen_center must set `look_at_y = -0.3` "
+        "(camera Y = +0.3 → screen centre = world Y -0.3).  "
+        "This aligns the hit-test ellipse with the visible panda body."
     )
-    # Positive check: look_at_y must be derived as negation of cam_y
-    assert 'look_at_y = -cam_y' in screen_center_fn or '-cam_y' in screen_center_fn, (
-        "panda_widget_gl.py: _get_panda_screen_center must set `look_at_y = -cam_y` "
-        "(screen center in world space = negative of camera Y translation)."
+    print("  ✅ _get_panda_screen_center look_at_y = -0.3 (click mask aligned with panda)")
+
+    # ── 4. Belly Z-offset must be ≤ BW×0.40 ──────────────────────────────────
+    # The previous BW*0.60 = 0.42 Z-offset made the belly protrude 0.80 units
+    # (114 % body width) forward — creating a phallic shape between the legs.
+    # New target: Z-offset ≤ 0.40 × BW (= 0.28) and Z-scale ≤ 0.48 × BW.
+    belly_block_start = code.find('# ── ROUND BELLY')
+    if belly_block_start == -1:
+        belly_block_start = code.find('ENORMOUS ROUND BELLY')
+        if belly_block_start == -1:
+            belly_block_start = code.find('ROUND BELLY')
+    # Find the glTranslatef inside the belly block
+    belly_ctx = code[belly_block_start:belly_block_start + 1200]
+    # Extract first glTranslatef Z argument (belly Z offset)
+    m_belly = re.search(r'glTranslatef\(0\.0,\s*-BH\s*\*\s*[\d.]+\s*\*\s*sy,\s*BW\s*\*\s*([\d.]+)\)', belly_ctx)
+    assert m_belly, (
+        "panda_widget_gl.py: could not find belly glTranslatef pattern in ROUND BELLY block."
     )
-    print("  ✅ _get_panda_screen_center uses actual camera Y (correct hit-test)")
+    belly_z_factor = float(m_belly.group(1))
+    assert belly_z_factor <= 0.40, (
+        f"panda_widget_gl.py: belly Z offset = BW×{belly_z_factor} is too large. "
+        f"BW×0.60 (= 0.42) caused the belly to protrude 0.80 world units forward, "
+        f"creating a visible phallic shape.  Use ≤ BW×0.40 (BW=0.70)."
+    )
+    print(f"  ✅ Belly Z offset = BW×{belly_z_factor} ≤ 0.40 (no forward protrusion)")
+
+    # ── 5. Philtrum Y-scale must not exceed X-scale ───────────────────────────
+    # glScalef(0.25, 1.10, 0.30) made a narrow tall vertical spike below the nose.
+    philtrum_idx = code.find('Philtrum')
+    assert philtrum_idx != -1, "panda_widget_gl.py: Philtrum comment not found."
+    philtrum_ctx = code[philtrum_idx:philtrum_idx + 300]
+    m_philtrum = re.search(r'glScalef\(([\d.]+),\s*([\d.]+),\s*([\d.]+)\)', philtrum_ctx)
+    assert m_philtrum, "panda_widget_gl.py: could not find glScalef near Philtrum."
+    # Fix philtrum variable names to be more descriptive
+    philtrum_x_scale, philtrum_y_scale, philtrum_z_scale = (
+        float(m_philtrum.group(1)),
+        float(m_philtrum.group(2)),
+        float(m_philtrum.group(3)),
+    )
+    assert philtrum_y_scale <= philtrum_x_scale, (
+        f"panda_widget_gl.py: philtrum glScalef(X={philtrum_x_scale}, Y={philtrum_y_scale}, "
+        f"Z={philtrum_z_scale}) has Y > X. "
+        f"This creates a narrow, tall vertical spike below the nose.  "
+        f"Y must not exceed X for a natural rounded philtrum shape."
+    )
+    print(f"  ✅ Philtrum scale ({philtrum_x_scale}, {philtrum_y_scale}, {philtrum_z_scale}) is rounded, not spiked")
 
 
 def test_panda_gl_realistic_behaviour():

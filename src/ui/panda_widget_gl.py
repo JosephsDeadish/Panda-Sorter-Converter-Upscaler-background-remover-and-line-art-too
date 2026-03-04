@@ -798,13 +798,10 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
         
         # Setup camera
         glLoadIdentity()
-        # Overlay mode: shift camera down so the panda appears in the lower ~70 % of the
-        # viewport, matching the 2-D fallback panda's cy = h * 0.72 position.
-        # Camera Y = -0.68 puts the panda body center (world y ≈ -0.40) at NDC y ≈ -0.40,
-        # i.e. ~70 % down from the top — below the main toolbar, tabs, and tool buttons.
-        # Non-overlay mode (bedroom / world scene): use +0.3 to center the scene.
-        cam_y = -0.68 if self._overlay_mode else 0.3
-        glTranslatef(0.0, cam_y, -self.camera_distance)
+        # Camera Y offset +0.3 shifts the scene upward relative to the camera so the
+        # panda (at world Y ≈ -0.70 to -0.40) appears near the vertical center of the
+        # viewport in both overlay and bedroom/world modes.
+        glTranslatef(0.0, 0.3, -self.camera_distance)
         glRotatef(self.camera_angle_x, 1.0, 0.0, 0.0)
         glRotatef(self.camera_angle_y, 0.0, 1.0, 0.0)
         
@@ -1212,14 +1209,18 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
         self._draw_sphere(1.0, 20, 20)
         glPopMatrix()
 
-        # ── ENORMOUS ROUND BELLY ──────────────────────────────────────────────
-        # The most recognisable panda feature: a massive round belly that juts
-        # significantly forward from the body centre.  Cream-coloured, clearly
-        # visible from front and 3/4 views.  The _belly_y spring makes it jiggle
-        # after landing impacts; the squash spring scales the whole torso via sy.
+        # ── ROUND BELLY ───────────────────────────────────────────────────────
+        # Pandas have a rounded barrel belly that is visible from the front.
+        # Z offset reduced from BW×0.60 to BW×0.36 so the belly does NOT protrude
+        # far beyond the chest bib and body – the previous 0.60 offset put the belly
+        # centre 0.42 units forward (max Z = 0.80), visually detaching it from the
+        # rest of the torso and creating an unintended elongated protrusion between
+        # the legs when viewed from slightly above.  With Z=BW×0.36 (0.25) the belly
+        # maximum forward extent (0.25 + BW×0.46 = 0.57) is just slightly past the
+        # chest bib (max Z ≈ 0.50), keeping the front profile smooth and integrated.
         glPushMatrix()
-        glTranslatef(0.0, -BH * 0.08 * sy, BW * 0.60)
-        glScalef(BW * 0.86, BH * 0.90 * sy * self._belly_y, BW * 0.54)
+        glTranslatef(0.0, -BH * 0.06 * sy, BW * 0.36)
+        glScalef(BW * 0.84, BH * 0.92 * sy * self._belly_y, BW * 0.46)
         glColor3f(*belly_col)
         self._draw_sphere(1.0, 32, 32)
         glPopMatrix()
@@ -1487,10 +1488,10 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
         glScalef(BW * 0.88, BH * 0.72, BW * 0.82)
         self._draw_sphere(1.0, 8, 8)
         glPopMatrix()
-        # Belly — largest forward-jutting sphere
+        # Belly — reduced forward offset to match _draw_panda geometry
         glPushMatrix()
-        glTranslatef(0.0, -BH * 0.08, BW * 0.60)
-        glScalef(BW * 0.86, BH * 0.90, BW * 0.54)
+        glTranslatef(0.0, -BH * 0.06, BW * 0.36)
+        glScalef(BW * 0.84, BH * 0.92, BW * 0.46)
         self._draw_sphere(1.0, 8, 8)
         glPopMatrix()
         # Head at torso-local Y = 0.58 (same as in _draw_panda)
@@ -1759,10 +1760,10 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
             pass  # not available if lighting not initialized
         glPopMatrix()
 
-        # Philtrum groove — dark line below nose
+        # Philtrum groove — small rounded dark patch below nose (not elongated)
         glPushMatrix()
         glTranslatef(0.0, -0.068, self.HEAD_RADIUS * 0.94)
-        glScalef(0.25, 1.10, 0.30)
+        glScalef(0.45, 0.40, 0.30)
         glColor3f(0.55, 0.45, 0.42)
         self._draw_sphere(0.022, 8, 8)
         glPopMatrix()
@@ -3594,10 +3595,10 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
         # World frustum height at z=0 (panda z is ~0)
         frustum_h = 2.0 * self.camera_distance * half_fov_tan
         frustum_w = frustum_h * aspect
-        # The camera Y offset: -0.68 in overlay, +0.3 in non-overlay.
-        # The world Y that maps to screen-centre is -cam_y.
-        cam_y = -0.68 if self._overlay_mode else 0.3
-        look_at_y = -cam_y
+        # Camera is at Y=+0.3, so the world Y that maps to screen-centre is -0.3.
+        # The panda body centre is at world Y = panda_y + 0.30 ≈ -0.40, which
+        # is 0.10 below screen-centre → about 52 % down from the top of the widget.
+        look_at_y = -0.3
         pan_world_x = self.panda_x
         pan_world_y = self.panda_y - look_at_y
         sx = int(w / 2 + pan_world_x / frustum_w * w)
