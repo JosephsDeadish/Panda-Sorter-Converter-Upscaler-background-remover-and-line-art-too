@@ -45,7 +45,8 @@ class IntegratedDungeon:
     MELEE_RANGE = 1   # Distance for player melee attacks
     
     def __init__(self, width: int = 80, height: int = 80, num_floors: int = 5, seed: Optional[int] = None,
-                 level_system: Optional[object] = None, currency_system: Optional[object] = None):
+                 level_system: Optional[object] = None, currency_system: Optional[object] = None,
+                 panda_stats: Optional[object] = None, quest_system: Optional[object] = None):
         """
         Initialize the integrated dungeon.
         
@@ -56,6 +57,8 @@ class IntegratedDungeon:
             seed: Random seed for reproducibility
             level_system: Optional level/XP system to award XP on kills
             currency_system: Optional currency system to award gold on kills
+            panda_stats: Optional PandaStats to increment monsters_slain on kills
+            quest_system: Optional QuestSystem to update dungeon_adventurer quest
         """
         # Core dungeon
         self.dungeon = DungeonGenerator(width, height, num_floors, seed)
@@ -63,6 +66,8 @@ class IntegratedDungeon:
         # Optional integrations
         self.level_system = level_system
         self.currency_system = currency_system
+        self.panda_stats = panda_stats
+        self.quest_system = quest_system
 
         # Enemy collection
         self.enemy_collection = EnemyCollection()
@@ -387,6 +392,18 @@ class IntegratedDungeon:
                     if self.currency_system and hasattr(self.currency_system, 'earn_money'):
                         try:
                             self.currency_system.earn_money(gld_val, 'dungeon_kill')
+                        except Exception:
+                            pass
+                    # Track kill in panda stats
+                    if self.panda_stats is not None and hasattr(self.panda_stats, 'monsters_slain'):
+                        try:
+                            self.panda_stats.monsters_slain += 1
+                        except Exception:
+                            pass
+                    # Update dungeon_adventurer quest on 2-D dungeon kills
+                    if self.quest_system is not None:
+                        try:
+                            self.quest_system.update_quest_progress('dungeon_adventurer', 1)
                         except Exception:
                             pass
     

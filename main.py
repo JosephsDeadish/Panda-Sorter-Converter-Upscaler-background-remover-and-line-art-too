@@ -2535,6 +2535,9 @@ class TextureSorterMainWindow(QMainWindow):
 
             self.integrated_dungeon = IntegratedDungeon(
                 currency_system=self.currency_system,
+                level_system=getattr(self, 'level_system', None),
+                panda_stats=getattr(self, 'panda_stats', None),
+                quest_system=getattr(self, 'quest_system', None),
             )
             # Use a container so we can add both dungeon view and travel animation widget
             adventure_container = QWidget()
@@ -6761,6 +6764,8 @@ class TextureSorterMainWindow(QMainWindow):
                         dungeon = self.integrated_dungeon or IntegratedDungeon(
                             level_system=getattr(self, 'level_system', None),
                             currency_system=getattr(self, 'currency_system', None),
+                            panda_stats=getattr(self, 'panda_stats', None),
+                            quest_system=getattr(self, 'quest_system', None),
                         )
                         self._dungeon_3d_panel = Dungeon3DWidget(
                             dungeon=dungeon, tooltip_manager=self.tooltip_manager
