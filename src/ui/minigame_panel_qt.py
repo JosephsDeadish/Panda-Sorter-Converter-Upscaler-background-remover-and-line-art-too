@@ -903,6 +903,11 @@ class MiniGamePanelQt(QWidget):
         """Check if memory cards match."""
         # Simplified - just count as match
         self.memory_matches += 1
+        # Propagate score to the game model so stop_current_game() returns a
+        # non-zero result (which drives XP/currency rewards).  First pair earns
+        # 100 points; each subsequent pair earns 5 fewer points (minimum 10).
+        if self.current_game is not None:
+            self.current_game.score += max(10, 100 - (self.memory_matches - 1) * 5)
         self.memory_score_label.setText(f"Matches: {self.memory_matches} / 8")
         self.memory_first_card = None
         
@@ -1003,6 +1008,13 @@ class MiniGamePanelQt(QWidget):
         if hasattr(self, 'reflex_start_time'):
             reaction_time = (datetime.now() - self.reflex_start_time).total_seconds() * 1000
             self.reflex_times.append(reaction_time)
+            # Propagate the round score and reaction time to the game model so
+            # stop_current_game() returns a meaningful score, driving XP/currency
+            # rewards and the correct average in the Game Over dialog.
+            if self.current_game is not None:
+                round_score = max(100, 1000 - int(reaction_time))
+                self.current_game.score += round_score
+                self.current_game.reaction_times.append(reaction_time)
             
             avg_time = sum(self.reflex_times) / len(self.reflex_times)
             self.reflex_score_label.setText(f"Average: {avg_time:.0f}ms")

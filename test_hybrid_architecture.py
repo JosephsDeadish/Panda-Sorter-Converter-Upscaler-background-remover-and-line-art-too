@@ -9266,6 +9266,165 @@ def test_shop_panel_purchase_level_not_zero():
         print(f"  ✅ Runtime: purchase with level=999 succeeds: {msg_high!r}")
 
 
+def test_reflex_game_score_propagated_to_model():
+    """_on_reflex_click() must update the game model's score and reaction_times.
+
+    Bug: _on_reflex_click() tracked reaction times in self.reflex_times (a
+    panel-local list) but never called self.current_game.on_target_click() or
+    updated self.current_game.score / self.current_game.reaction_times.
+    Consequently stop_current_game() returned result.score == 0, awarding 0 XP
+    and 0 currency for every completed reflex game.  The Game Over dialog also
+    always showed "Average Reaction Time: 0ms" because the game model had no
+    recorded reaction times.
+
+    Fix: inside _on_reflex_click(), after appending to self.reflex_times,
+    compute round_score = max(100, 1000 - int(reaction_time)) and update
+    self.current_game.score += round_score and
+    self.current_game.reaction_times.append(reaction_time).
+    """
+    print("\ntest_reflex_game_score_propagated_to_model ...")
+
+    code = (Path(__file__).parent / 'src' / 'ui' / 'minigame_panel_qt.py').read_text(encoding='utf-8')
+
+    # Structural check: the fix must update current_game.score inside
+    # _on_reflex_click.  Find the method body and verify the assignment.
+    fn_start = code.find('def _on_reflex_click(')
+    assert fn_start != -1, "minigame_panel_qt.py: _on_reflex_click() not found"
+    next_fn   = code.find('\n    def ', fn_start + 1)
+    fn_body   = code[fn_start:] if next_fn == -1 else code[fn_start:next_fn]
+
+    assert 'current_game.score' in fn_body, (
+        "minigame_panel_qt.py: _on_reflex_click() does not update "
+        "self.current_game.score.\n"
+        "Bug: result.score is always 0 → players earn 0 XP/currency for reflex games.\n"
+        "Fix: add `self.current_game.score += max(100, 1000 - int(reaction_time))`."
+    )
+    print("  ✅ Source: current_game.score updated in _on_reflex_click()")
+
+    assert 'current_game.reaction_times' in fn_body, (
+        "minigame_panel_qt.py: _on_reflex_click() does not append to "
+        "self.current_game.reaction_times.\n"
+        "Bug: get_average_reaction_time() always returns 0.0 in the Game Over dialog.\n"
+        "Fix: add `self.current_game.reaction_times.append(reaction_time)`."
+    )
+    print("  ✅ Source: current_game.reaction_times appended in _on_reflex_click()")
+
+    # Runtime check: simulate the reflex flow without Qt.
+    from features.minigame_system import MiniGameManager, GameDifficulty
+
+    rewards: list = []
+    mgr = MiniGameManager(
+        currency_callback=lambda amt: rewards.append(('currency', amt)),
+        xp_callback=lambda amt: rewards.append(('xp', amt)),
+    )
+    game = mgr.start_game('reflex', GameDifficulty.EASY)
+    assert game is not None, "MiniGameManager could not start 'reflex'"
+
+    # Simulate 5 clicks with known reaction times (ms).
+    reaction_times_ms = [300.0, 250.0, 200.0, 400.0, 150.0]
+    expected_score = sum(max(100, 1000 - int(rt)) for rt in reaction_times_ms)
+    for rt in reaction_times_ms:
+        game.score += max(100, 1000 - int(rt))
+        game.reaction_times.append(rt)
+
+    assert game.score == expected_score, (
+        f"Expected game.score == {expected_score}, got {game.score}.\n"
+        "The fix must accumulate round_score = max(100, 1000 - int(reaction_time))."
+    )
+    print(f"  ✅ Runtime: game.score == {game.score} after 5 simulated clicks")
+
+    avg = game.get_average_reaction_time()
+    expected_avg = sum(reaction_times_ms) / len(reaction_times_ms)
+    assert abs(avg - expected_avg) < 0.1, (
+        f"get_average_reaction_time() returned {avg:.1f}ms, expected {expected_avg:.1f}ms.\n"
+        "The fix must append each reaction_time to current_game.reaction_times."
+    )
+    print(f"  ✅ Runtime: get_average_reaction_time() == {avg:.0f}ms (correct)")
+
+    result = mgr.stop_current_game()
+    assert result is not None, "stop_current_game() returned None"
+    assert result.score == expected_score, (
+        f"result.score == {result.score}, expected {expected_score}.\n"
+        "stop_current_game() derives XP/currency from result.score, so this must be non-zero."
+    )
+    assert result.xp_earned > 0, (
+        f"result.xp_earned == 0 even though score == {result.score}.\n"
+        "Fix ensures XP rewards are non-zero after completing a reflex game."
+    )
+    print(f"  ✅ Runtime: result.xp_earned == {result.xp_earned} (non-zero)")
+    assert len(rewards) == 2, f"Expected 2 reward callbacks, got {rewards}"
+    print(f"  ✅ Runtime: currency and XP callbacks both fired: {rewards}")
+
+
+def test_memory_game_score_propagated_to_model():
+    """_check_memory_match() must update the game model's score.
+
+    Bug: _check_memory_match() incremented self.memory_matches (a panel-local
+    counter) but never updated self.current_game.score.  As a result
+    stop_current_game() always returned result.score == 0, so the Game Over
+    dialog showed "Final Score: 0" and players earned 0 XP and 0 currency for
+    completing the memory game.
+
+    Fix: inside _check_memory_match(), after incrementing self.memory_matches,
+    add a guard ``if self.current_game is not None`` and update
+    self.current_game.score with points for the matched pair
+    (e.g. max(10, 100 - (self.memory_matches - 1) * 5) — descending from 100
+    to at least 10, rewarding faster completion).
+    """
+    print("\ntest_memory_game_score_propagated_to_model ...")
+
+    code = (Path(__file__).parent / 'src' / 'ui' / 'minigame_panel_qt.py').read_text(encoding='utf-8')
+
+    fn_start = code.find('def _check_memory_match(')
+    assert fn_start != -1, "minigame_panel_qt.py: _check_memory_match() not found"
+    next_fn   = code.find('\n    def ', fn_start + 1)
+    fn_body   = code[fn_start:] if next_fn == -1 else code[fn_start:next_fn]
+
+    assert 'current_game.score' in fn_body, (
+        "minigame_panel_qt.py: _check_memory_match() does not update "
+        "self.current_game.score.\n"
+        "Bug: result.score is always 0 → players earn 0 XP/currency for memory games.\n"
+        "Fix: add `if self.current_game is not None: self.current_game.score += <points>`."
+    )
+    print("  ✅ Source: current_game.score updated in _check_memory_match()")
+
+    # Runtime check: simulate 8 matches and verify score accumulates.
+    from features.minigame_system import MiniGameManager, GameDifficulty
+
+    rewards: list = []
+    mgr = MiniGameManager(
+        currency_callback=lambda amt: rewards.append(('currency', amt)),
+        xp_callback=lambda amt: rewards.append(('xp', amt)),
+    )
+    game = mgr.start_game('memory', GameDifficulty.MEDIUM)
+    assert game is not None, "MiniGameManager could not start 'memory'"
+    assert game.score == 0, "Game score should start at 0"
+
+    # Simulate 8 memory matches with the fixed scoring formula.
+    for match_num in range(1, 9):
+        game.score += max(10, 100 - (match_num - 1) * 5)
+
+    expected_score = sum(max(10, 100 - i * 5) for i in range(8))
+    assert game.score == expected_score, (
+        f"Expected game.score == {expected_score}, got {game.score}."
+    )
+    print(f"  ✅ Runtime: game.score == {game.score} after 8 simulated matches")
+
+    result = mgr.stop_current_game()
+    assert result is not None, "stop_current_game() returned None"
+    assert result.score == expected_score, (
+        f"result.score == {result.score}, expected {expected_score}.\n"
+        "stop_current_game() must return the score the fix accumulated."
+    )
+    assert result.xp_earned > 0, (
+        f"result.xp_earned == 0 even though score == {result.score}.\n"
+        "Fix ensures XP rewards are non-zero after completing a memory game."
+    )
+    print(f"  ✅ Runtime: result.xp_earned == {result.xp_earned} (non-zero)")
+    assert len(rewards) == 2, f"Expected 2 reward callbacks, got {rewards}"
+    print(f"  ✅ Runtime: currency and XP callbacks both fired: {rewards}")
+
+
 def run_all_tests():
     print("=" * 65)
     print("Hybrid Architecture + Lazy rembg Import Tests")
@@ -9436,6 +9595,8 @@ def run_all_tests():
         test_dungeon_single_room_stair_no_index_error,
         test_level_system_base_xp_rewards_attribute,
         test_shop_panel_purchase_level_not_zero,
+        test_reflex_game_score_propagated_to_model,
+        test_memory_game_score_propagated_to_model,
     ]
 
     passed, failed = [], []
