@@ -2988,7 +2988,10 @@ class TextureSorterMainWindow(QMainWindow):
         # switches away.
         def _on_panda_subtab_changed(idx: int) -> None:
             try:
-                overlay = getattr(self, 'panda_overlay', None)
+                # Prefer panda_overlay; fall back to panda_widget so this
+                # works even before initialize_components() sets panda_overlay.
+                overlay = (getattr(self, 'panda_overlay', None)
+                           or getattr(self, 'panda_widget', None))
                 if overlay is None or not hasattr(overlay, 'setVisible'):
                     return
                 is_home = (idx == self._home_tab_index)
@@ -2999,6 +3002,9 @@ class TextureSorterMainWindow(QMainWindow):
                 logger.debug(f"_on_panda_subtab_changed error: {_e}")
 
         panda_tabs.currentChanged.connect(_on_panda_subtab_changed)
+        # Apply the initial state in case the home tab is selected at startup
+        # before initialize_components() has promoted the overlay.
+        QTimer.singleShot(0, lambda: _on_panda_subtab_changed(panda_tabs.currentIndex()))
 
         layout.addWidget(panda_tabs)
         # (tab returned by the outer create_panda_features_tab)
@@ -5215,6 +5221,21 @@ class TextureSorterMainWindow(QMainWindow):
                     self.panda_overlay.show()
                     self.panda_overlay.raise_()
                     logger.info("✅ panda_widget promoted to full-window transparent overlay")
+                    # Re-apply the home-tab hide logic now that the overlay is set.
+                    # The QTimer.singleShot(0) call in create_panda_features_tab fires
+                    # before initialize_components completes, so panda_overlay was still
+                    # None at that point.  This second call ensures the overlay is
+                    # immediately hidden if the user has the Panda Home tab selected.
+                    try:
+                        if (self._panda_tabs is not None
+                                and self._home_tab_index >= 0):
+                            idx = self._panda_tabs.currentIndex()
+                            is_home = (idx == self._home_tab_index)
+                            self.panda_overlay.setVisible(not is_home)
+                            if not is_home:
+                                self.panda_overlay.raise_()
+                    except Exception as _hide_err:
+                        logger.debug(f"post-overlay home-hide: {_hide_err}")
                 except Exception as e:
                     logger.debug(f"Could not activate panda overlay: {e}")
 
@@ -7774,9 +7795,20 @@ class TextureSorterMainWindow(QMainWindow):
 
         # Start the in-room panda walk
         _started_walk = False
+        _panel_opened = [False]  # shared flag: has _open_panel already fired?
+
+        def _guarded_open_panel_after_walk():
+            """Wrapper that prevents the panel from opening twice (walk + timeout)."""
+            if _panel_opened[0]:
+                return
+            _panel_opened[0] = True
+            _open_panel_after_walk()
+
         try:
             if self._bedroom_widget and hasattr(self._bedroom_widget, 'walk_panda_to'):
-                self._bedroom_widget.walk_panda_to(walk_x, walk_z, callback=_open_panel_after_walk)
+                self._bedroom_widget.walk_panda_to(
+                    walk_x, walk_z, callback=_guarded_open_panel_after_walk
+                )
                 _started_walk = True
         except Exception as _e:
             logger.debug(f"Bedroom panda walk: {_e}")
@@ -7788,9 +7820,15 @@ class TextureSorterMainWindow(QMainWindow):
         except Exception as _e:
             logger.debug(f"Overlay panda walk: {_e}")
 
-        # Fallback: if no bedroom widget, open panel after a short delay
+        # Fallback: if no bedroom widget, open panel after a short delay.
+        # Also schedule a 1.5 s safety-net fallback for when walk_panda_to
+        # starts but its callback never fires (e.g. GL frame loop stalled).
         if not _started_walk:
-            QTimer.singleShot(400, _open_panel_after_walk)
+            QTimer.singleShot(400, _guarded_open_panel_after_walk)
+        else:
+            # Safety-net: open panel regardless after 1500 ms so furniture
+            # clicks are never silently dropped even if the walk stalls.
+            QTimer.singleShot(1500, _guarded_open_panel_after_walk)
 
 
     def _build_closet_items_list(self) -> list:

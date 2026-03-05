@@ -224,6 +224,16 @@ class FileBrowserPanelQt(QWidget):
         self.recent_folders: List[str] = []
         self.load_recent_folders()
         
+        # Debounce timer for preview loading — prevents blocking the UI when
+        # the user clicks through files quickly.  The preview loads on a 150 ms
+        # delay; if another file is selected before the timer fires, the pending
+        # preview is cancelled and the new file is loaded instead.
+        self._preview_timer = QTimer(self)
+        self._preview_timer.setSingleShot(True)
+        self._preview_timer.setInterval(150)
+        self._pending_preview: Optional[Path] = None
+        self._preview_timer.timeout.connect(self._load_pending_preview)
+
         self.setup_ui()
     
     def _set_tooltip(self, widget, widget_id_or_text: str):
@@ -739,10 +749,18 @@ class FileBrowserPanelQt(QWidget):
                 break
     
     def on_file_clicked(self, item: QListWidgetItem):
-        """Handle file clicked"""
+        """Handle file clicked — debounce preview to avoid blocking the UI."""
         filepath = Path(item.data(Qt.ItemDataRole.UserRole))
-        self.show_preview(filepath)
+        # Schedule preview with debounce so rapid clicks don't pile up
+        self._pending_preview = filepath
+        self._preview_timer.start()
         self.file_selected.emit(filepath)
+
+    def _load_pending_preview(self):
+        """Load the preview for the most recently selected file (called by debounce timer)."""
+        if self._pending_preview is not None:
+            self.show_preview(self._pending_preview)
+            self._pending_preview = None
     
     def on_file_double_clicked(self, item: QListWidgetItem):
         """Handle file double-clicked — open with default OS application."""

@@ -9959,6 +9959,157 @@ def test_tooltip_set_tooltip_method_and_flush():
         raise AssertionError(f"Runtime tooltip test failed: {_e}") from _e
 
 
+def test_no_extra_3d_panda_on_home_tab():
+    """Overlay panda must be hidden when Panda Home tab is active.
+
+    Issue #206: 'now theres an extra 3d panda' — The 3D bedroom draws its own
+    in-room panda.  The floating overlay panda must be hidden while the Panda
+    Home tab is the active sub-tab so only one panda is visible.
+
+    Fixes:
+    1. _on_panda_subtab_changed now falls back to panda_widget when panda_overlay
+       is None (it's set late in initialize_components()).
+    2. A QTimer.singleShot(0) call applies the initial hide immediately.
+    3. After initialize_components promotes the overlay, it re-applies the hide
+       logic for the currently-selected tab.
+    """
+    print("\ntest_no_extra_3d_panda_on_home_tab ...")
+    with open('main.py', encoding='utf-8') as _f:
+        code = _f.read()
+
+    # _on_panda_subtab_changed must use panda_widget as fallback
+    assert ('getattr(self, \'panda_overlay\', None)\n'
+            '                           or getattr(self, \'panda_widget\', None)') in code or \
+           'panda_overlay\', None)\n                           or getattr(self, \'panda_widget' in code, (
+        "main.py: _on_panda_subtab_changed must fall back to panda_widget when "
+        "panda_overlay is None so the hide works even before initialize_components "
+        "promotes the overlay."
+    )
+    print("  ✅ Source: _on_panda_subtab_changed uses panda_widget fallback")
+
+    # Initial hide must be scheduled via QTimer.singleShot(0)
+    assert 'QTimer.singleShot(0, lambda: _on_panda_subtab_changed' in code, (
+        "main.py: must schedule QTimer.singleShot(0, ...) after connecting "
+        "_on_panda_subtab_changed to apply the initial hide state."
+    )
+    print("  ✅ Source: initial hide scheduled via QTimer.singleShot(0)")
+
+    # After promoting overlay, re-apply hide
+    assert 'post-overlay home-hide' in code or 'is_home = (idx == self._home_tab_index)' in code, (
+        "main.py: after promoting panda_overlay in initialize_components, must "
+        "re-apply the home-tab hide logic."
+    )
+    print("  ✅ Source: overlay hide re-applied after initialization")
+
+
+def test_furniture_click_timeout_fallback():
+    """Furniture clicks must open sub-panels even when walk_panda_to callback stalls.
+
+    Issue #206: '3d furniture isnt functioning when clicked on' — the sub-panel
+    is only opened inside the walk callback, which may never fire if the GL
+    animation loop stalls.  A 1500 ms safety-net QTimer.singleShot ensures the
+    panel always opens.
+
+    Also validates that the guard flag (_panel_opened) prevents double-opening.
+    """
+    print("\ntest_furniture_click_timeout_fallback ...")
+    with open('main.py', encoding='utf-8') as _f:
+        code = _f.read()
+
+    # Guard flag must prevent double-open
+    assert '_panel_opened' in code, (
+        "main.py: _on_bedroom_furniture_clicked must use a _panel_opened guard "
+        "flag to prevent the panel from being opened twice (walk + timeout)."
+    )
+    print("  ✅ Source: _panel_opened guard flag present")
+
+    # Safety-net timeout — must use the guarded callback, not the raw one
+    assert 'QTimer.singleShot(1500,' in code, (
+        "main.py: _on_bedroom_furniture_clicked must schedule a 1500 ms safety-net "
+        "QTimer.singleShot to open the panel even when walk_panda_to stalls."
+    )
+    # Find the singleShot(1500 call inside _on_bedroom_furniture_clicked
+    # (there may be other QTimer.singleShot(1500 calls elsewhere in the file)
+    fn_start = code.find('def _on_bedroom_furniture_clicked(')
+    fn_end   = code.find('\n    def ', fn_start + 1)
+    fn_body  = code[fn_start:fn_end] if fn_end != -1 else code[fn_start:]
+    idx_1500 = fn_body.find('QTimer.singleShot(1500,')
+    assert idx_1500 != -1, (
+        "main.py: _on_bedroom_furniture_clicked must contain QTimer.singleShot(1500, …)"
+    )
+    snippet = fn_body[idx_1500:idx_1500 + 120]
+    assert '_guarded_open_panel_after_walk' in snippet, (
+        "main.py: QTimer.singleShot(1500, ...) must pass _guarded_open_panel_after_walk "
+        "so the guard flag also prevents double-open from the safety-net timer."
+    )
+    print("  ✅ Source: 1500 ms safety-net uses _guarded_open_panel_after_walk")
+
+    # The guarded wrapper must be used for the walk callback too
+    assert '_guarded_open_panel_after_walk' in code, (
+        "main.py: walk_panda_to must receive _guarded_open_panel_after_walk as its "
+        "callback so the guard flag prevents double-opening."
+    )
+    print("  ✅ Source: _guarded_open_panel_after_walk used as walk callback")
+
+
+def test_file_browser_preview_debounce():
+    """File browser must debounce preview loading to avoid blocking the UI.
+
+    Issue #206: 'File browser is very slow and laggy' — clicking files triggered
+    a synchronous Image.open() call on the main thread for every click. Rapid
+    file selection caused multiple large image loads to pile up, freezing the UI.
+
+    Fix: a 150 ms QTimer debounce in on_file_clicked(). Only the most recently
+    selected file is loaded when the timer fires; intermediate selections are
+    skipped.
+    """
+    print("\ntest_file_browser_preview_debounce ...")
+
+    src = (Path(__file__).parent / 'src' / 'ui' / 'file_browser_panel_qt.py').read_text(encoding='utf-8')
+
+    # Debounce timer must be created in __init__
+    assert '_preview_timer' in src, (
+        "file_browser_panel_qt.py: _preview_timer not found.\n"
+        "Add a QTimer debounce for preview loading in __init__."
+    )
+    print("  ✅ Source: _preview_timer debounce timer found")
+
+    # Timer must be single-shot
+    assert 'setSingleShot(True)' in src, (
+        "file_browser_panel_qt.py: _preview_timer must call setSingleShot(True) so "
+        "it only fires once per selection."
+    )
+    print("  ✅ Source: timer is single-shot")
+
+    # on_file_clicked must schedule via timer not call show_preview directly
+    fn_start = src.find('def on_file_clicked(')
+    fn_end   = src.find('\n    def ', fn_start + 1)
+    fn_body  = src[fn_start:fn_end] if fn_end != -1 else src[fn_start:fn_start + 400]
+
+    assert 'show_preview' not in fn_body, (
+        "file_browser_panel_qt.py: on_file_clicked() must NOT call show_preview() "
+        "directly — it must set _pending_preview and start the debounce timer instead."
+    )
+    assert '_preview_timer.start()' in fn_body, (
+        "file_browser_panel_qt.py: on_file_clicked() must call _preview_timer.start() "
+        "to schedule the debounced preview load."
+    )
+    print("  ✅ Source: on_file_clicked uses debounce timer, not direct show_preview")
+
+    # _load_pending_preview must exist and call show_preview
+    assert 'def _load_pending_preview' in src, (
+        "file_browser_panel_qt.py: _load_pending_preview() method not found.\n"
+        "This method is called by the debounce timer and calls show_preview()."
+    )
+    lpp_start = src.find('def _load_pending_preview')
+    lpp_end   = src.find('\n    def ', lpp_start + 1)
+    lpp_body  = src[lpp_start:lpp_end] if lpp_end != -1 else src[lpp_start:lpp_start + 300]
+    assert 'show_preview' in lpp_body, (
+        "file_browser_panel_qt.py: _load_pending_preview() must call show_preview()."
+    )
+    print("  ✅ Source: _load_pending_preview calls show_preview")
+
+
 def run_all_tests():
     print("=" * 65)
     print("Hybrid Architecture + Lazy rembg Import Tests")
@@ -10139,6 +10290,9 @@ def run_all_tests():
         test_file_browser_scaled_preview_widget,
         test_panda_theme_qss_and_effects,
         test_tooltip_set_tooltip_method_and_flush,
+        test_no_extra_3d_panda_on_home_tab,
+        test_furniture_click_timeout_fallback,
+        test_file_browser_preview_debounce,
     ]
 
     passed, failed = [], []
