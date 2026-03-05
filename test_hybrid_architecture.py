@@ -9425,6 +9425,69 @@ def test_memory_game_score_propagated_to_model():
     print(f"  ✅ Runtime: currency and XP callbacks both fired: {rewards}")
 
 
+def test_panda_mood_messages_all_moods_covered():
+    """PandaCharacter.MOOD_MESSAGES must have an entry for every PandaMood value.
+
+    Bug: MOOD_MESSAGES only defined entries for SARCASTIC, RAGE, DRUNK,
+    EXISTENTIAL, HAPPY, EXCITED, and TIRED.  The six moods WORKING, CELEBRATING,
+    SLEEPING, MOTIVATING, TECH_SUPPORT, and SLEEPY were not present, so
+    get_mood_message() always fell back to the HAPPY list for those states.
+
+    This meant the panda showed cheerful "Life is beautiful! 😊" messages
+    while supposedly sleeping, working hard, or offering tech support — making
+    the companion feel broken and inattentive to context.
+
+    Fix: add mood-appropriate message lists for every missing PandaMood variant
+    in MOOD_MESSAGES so get_mood_message() returns contextually correct quips.
+    """
+    print("\ntest_panda_mood_messages_all_moods_covered ...")
+
+    import sys
+    from pathlib import Path
+    sys.path.insert(0, str(Path(__file__).parent / 'src'))
+
+    from features.panda_character import PandaCharacter, PandaMood
+
+    char = PandaCharacter()
+
+    missing = []
+    for mood in PandaMood:
+        if mood not in PandaCharacter.MOOD_MESSAGES:
+            missing.append(mood.name)
+
+    assert not missing, (
+        f"panda_character.py: MOOD_MESSAGES is missing entries for: {missing}.\n"
+        "get_mood_message() falls back to HAPPY messages for these moods, so the\n"
+        "panda says 'Life is beautiful! 😊' while sleeping, working, or celebrating.\n"
+        "Fix: add a list of contextually appropriate messages for each missing mood."
+    )
+    print(f"  ✅ All {len(PandaMood)} PandaMood variants have MOOD_MESSAGES entries")
+
+    # Verify every entry is a non-empty list of non-empty strings
+    for mood in PandaMood:
+        msgs = PandaCharacter.MOOD_MESSAGES[mood]
+        assert isinstance(msgs, list) and len(msgs) > 0, (
+            f"MOOD_MESSAGES[{mood.name}] must be a non-empty list"
+        )
+        for msg in msgs:
+            assert isinstance(msg, str) and msg.strip(), (
+                f"MOOD_MESSAGES[{mood.name}] contains an empty or non-string entry"
+            )
+    print("  ✅ All MOOD_MESSAGES entries are non-empty string lists")
+
+    # Verify get_mood_message() works without falling back incorrectly.
+    for mood in PandaMood:
+        char.set_mood(mood)
+        msg = char.get_mood_message()
+        assert msg in PandaCharacter.MOOD_MESSAGES[mood], (
+            f"get_mood_message() returned a message not in MOOD_MESSAGES[{mood.name}].\n"
+            f"Returned: {msg!r}\n"
+            f"This likely means the HAPPY fallback fired because MOOD_MESSAGES[{mood.name}] "
+            "is missing. Fix: add a message list for that mood."
+        )
+    print("  ✅ get_mood_message() returns mood-specific messages for all moods")
+
+
 def run_all_tests():
     print("=" * 65)
     print("Hybrid Architecture + Lazy rembg Import Tests")
@@ -9597,6 +9660,7 @@ def run_all_tests():
         test_shop_panel_purchase_level_not_zero,
         test_reflex_game_score_propagated_to_model,
         test_memory_game_score_propagated_to_model,
+        test_panda_mood_messages_all_moods_covered,
     ]
 
     passed, failed = [], []
