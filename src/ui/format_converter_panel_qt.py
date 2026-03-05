@@ -506,7 +506,7 @@ if _PYQT:
             root = QVBoxLayout(self)
             root.setContentsMargins(8, 8, 8, 8)
             root.setSpacing(6)
-            self.setMinimumSize(700, 500)  # prevent squashed layout
+            self.setMinimumSize(500, 400)  # prevent squashed layout
 
             # Title
             title = QLabel("🔄 Format Converter")
@@ -517,11 +517,9 @@ if _PYQT:
             splitter = QSplitter(Qt.Orientation.Horizontal)
             root.addWidget(splitter, stretch=1)
 
-            # ── Left column ────────────────────────────────────────────────
-            left = QWidget()
-            left.setMinimumWidth(340)
-            left.setMaximumWidth(520)
-            lv = QVBoxLayout(left)
+            # ── Left column (inside a scroll area so it never gets squished) ──
+            left_inner = QWidget()
+            lv = QVBoxLayout(left_inner)
             lv.setContentsMargins(0, 0, 4, 0)
             lv.setSpacing(6)
 
@@ -783,7 +781,17 @@ if _PYQT:
             lv.addWidget(wm_box)
 
             lv.addStretch()
-            splitter.addWidget(left)
+
+            # Wrap the settings column in a scroll area so it is accessible
+            # even when the panel is narrower than its natural content height.
+            left_scroll = QScrollArea()
+            left_scroll.setWidgetResizable(True)
+            left_scroll.setWidget(left_inner)
+            left_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+            left_scroll.setMinimumWidth(320)
+            left_scroll.setMaximumWidth(520)
+            left_scroll.setFrameShape(QFrame.Shape.NoFrame)
+            splitter.addWidget(left_scroll)
 
             # ── Right column (log + progress) ──────────────────────────────
             right = QWidget()
@@ -834,9 +842,8 @@ if _PYQT:
             self._status_lbl.setStyleSheet("color:#58a6ff; font-size:11px;")
             rv.addWidget(self._status_lbl)
             splitter.addWidget(right)
-            # Give the left (settings) panel slightly more initial width so
-            # labels are never cut off on first open.
-            splitter.setSizes([420, 440])
+            # Give the left (settings) panel a reasonable initial width.
+            splitter.setSizes([360, 400])
             splitter.setStretchFactor(0, 0)
             splitter.setStretchFactor(1, 1)
 

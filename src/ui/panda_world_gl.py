@@ -8,7 +8,7 @@ Scene layout (top-down, Z axis = depth, X = left/right)
   Otter shopkeeper inside the shop (visible through window).
 
 Signals
-    destination_selected(str)  – 'home' | 'shop' | 'park'
+    destination_selected(str)  – 'home' | 'shop' | 'park' | 'dungeon'
     otter_clicked()            – user clicked on the otter → open shop panel
     back_to_bedroom()          – back button pressed
 """
@@ -1343,9 +1343,9 @@ class PandaWorldGL(
         """Draw GL line-loop outlines for whichever region is hovered.
 
         Car and otter highlights are drawn inline (inside their own draw methods)
-        so we only need to cover the remaining three regions here.
+        so we only need to cover the remaining four regions here.
         """
-        if self._hover not in ('home', 'shop', 'park_btn'):
+        if self._hover not in ('home', 'shop', 'park_btn', 'dungeon'):
             return
 
         glDisable(GL_LIGHTING)

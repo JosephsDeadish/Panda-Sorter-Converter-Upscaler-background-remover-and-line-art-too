@@ -627,11 +627,8 @@ class PandaColorMatchGame(MiniGame):
     def tick(self, dt: float) -> Optional['GameResult']:
         if not self.is_running:
             return None
-        self._update_time(dt)
         if self._elapsed_time() >= self.time_limit:
-            return self._finish(
-                False, "Time up!", {'final_score': self.score, 'combo': self._combo}
-            )
+            return self.stop()
         return None
 
     def submit_answer(self, answer: int) -> dict:

@@ -6081,6 +6081,34 @@ class TooltipVerbosityManager:
         except Exception as e:
             logger.debug(f"Could not register tooltip cycler for {widget_id}: {e}")
 
+    def set_tooltip(self, widget, widget_id: str) -> None:
+        """Register *widget* with *widget_id* and apply the initial tooltip text.
+
+        This is the method called by ``BasePyQtPanel._set_tooltip()`` (in
+        ``pyqt6_base_panel.py``) for every widget that is annotated during
+        ``setup_ui()``.  Previously the method did not exist on this class, so
+        ``_set_tooltip`` silently fell back to ``widget.setToolTip(widget_id)``
+        — displaying the raw key string ("bg_mode", "sort_button", etc.) rather
+        than the actual tooltip text, and never installing the cycling filter.
+
+        Sequence:
+        1. Look up the first tip for *widget_id* in the current mode.
+        2. Set it directly on the widget so Qt shows it immediately on hover.
+        3. Call ``register()`` to install the ``_TooltipCyclerFilter`` which
+           advances through the tip list on every subsequent hover event.
+        """
+        if widget is None:
+            return
+        try:
+            # Step 1 & 2: set initial tip text so the widget is not empty.
+            tip = self.get_tooltip(widget_id) if self._enabled else ""
+            if hasattr(widget, 'setToolTip'):
+                widget.setToolTip(tip)
+            # Step 3: install cycling filter (no-op if already registered).
+            self.register(widget, widget_id)
+        except Exception as _e:
+            logger.debug(f"TooltipVerbosityManager.set_tooltip({widget_id}): {_e}")
+
     def refresh_all(self) -> None:
         """Re-apply current-mode tooltip text to every registered widget.
 

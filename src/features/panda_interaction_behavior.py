@@ -13,6 +13,7 @@ Features:
 """
 
 import logging
+from typing import Callable, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -96,7 +97,10 @@ class PandaInteractionBehavior:
         
         # Movement
         self.move_speed = 100.0  # Pixels per second
-        
+
+        # Optional callback: called after each interaction as
+        # callback(widget_type: str, widget_name: str).  Used to drive quest progress.
+        self.interaction_callback: Optional[Callable[[str, str], None]] = None
     def update(self, delta_time):
         """
         Update behavior AI every frame.
@@ -335,6 +339,25 @@ class PandaInteractionBehavior:
         # Set behavior timer
         self.behavior_timer = self.behavior_duration
         self.is_performing_action = True
+
+        # Notify quest system (or any listener) about the widget interaction type
+        if self.interaction_callback:
+            _BEHAVIOR_TYPE = {
+                InteractionBehavior.BITE_BUTTON:   'button',
+                InteractionBehavior.JUMP_ON_BUTTON: 'button',
+                InteractionBehavior.POKE_BUTTON:   'button',
+                InteractionBehavior.TAP_SLIDER:    'slider',
+                InteractionBehavior.BITE_TAB:      'tab',
+                InteractionBehavior.PUSH_CHECKBOX: 'checkbox',
+                InteractionBehavior.SPIN_COMBOBOX: 'combobox',
+            }
+            wtype = _BEHAVIOR_TYPE.get(behavior)
+            if wtype:
+                try:
+                    wname = getattr(self.target_widget, 'objectName', lambda: '')()
+                    self.interaction_callback(wtype, wname or wtype)
+                except Exception:
+                    pass
     
     def _animate_bite(self):
         """Panda bites — triggers dedicated jaw-drop animation via start_bite_tab()."""
@@ -416,14 +439,20 @@ class PandaInteractionBehavior:
             widget: Widget to click
             delay: Delay in seconds
         """
+        if not PYQT_AVAILABLE:
+            return
+
         def do_click():
-            if widget and hasattr(widget, 'click'):
-                logger.debug(f"Triggering click on {widget.__class__.__name__}")
-                widget.click()
-                
-                # Apply squash effect
-                self.overlay.apply_squash_effect(0.8)
-                QTimer.singleShot(100, lambda: self.overlay.apply_squash_effect(1.0))
+            try:
+                if widget and hasattr(widget, 'click'):
+                    logger.debug(f"Triggering click on {widget.__class__.__name__}")
+                    widget.click()
+
+                    # Apply squash effect
+                    self.overlay.apply_squash_effect(0.8)
+                    QTimer.singleShot(100, lambda: self.overlay.apply_squash_effect(1.0))
+            except RuntimeError:
+                pass  # Widget was deleted before timer fired
         
         # Schedule click
         QTimer.singleShot(int(delay * 1000), do_click)
@@ -436,21 +465,27 @@ class PandaInteractionBehavior:
             slider: QSlider to change
             delay: Delay in seconds
         """
+        if not PYQT_AVAILABLE:
+            return
+
         def do_change():
-            if slider and isinstance(slider, QSlider):
-                # Change to random value
-                current = slider.value()
-                min_val = slider.minimum()
-                max_val = slider.maximum()
-                
-                # Move slider slightly
-                new_value = random.randint(min_val, max_val)
-                logger.debug(f"Changing slider from {current} to {new_value}")
-                slider.setValue(new_value)
-                
-                # Apply squash effect
-                self.overlay.apply_squash_effect(0.9)
-                QTimer.singleShot(100, lambda: self.overlay.apply_squash_effect(1.0))
+            try:
+                if slider and isinstance(slider, QSlider):
+                    # Change to random value
+                    current = slider.value()
+                    min_val = slider.minimum()
+                    max_val = slider.maximum()
+
+                    # Move slider slightly
+                    new_value = random.randint(min_val, max_val)
+                    logger.debug(f"Changing slider from {current} to {new_value}")
+                    slider.setValue(new_value)
+
+                    # Apply squash effect
+                    self.overlay.apply_squash_effect(0.9)
+                    QTimer.singleShot(100, lambda: self.overlay.apply_squash_effect(1.0))
+            except RuntimeError:
+                pass  # Slider was deleted before timer fired
         
         QTimer.singleShot(int(delay * 1000), do_change)
     
@@ -462,10 +497,16 @@ class PandaInteractionBehavior:
             combobox: QComboBox to open
             delay: Delay in seconds
         """
+        if not PYQT_AVAILABLE:
+            return
+
         def do_open():
-            if combobox and isinstance(combobox, QComboBox):
-                logger.debug("Opening combobox")
-                combobox.showPopup()
+            try:
+                if combobox and isinstance(combobox, QComboBox):
+                    logger.debug("Opening combobox")
+                    combobox.showPopup()
+            except RuntimeError:
+                pass  # ComboBox was deleted before timer fired
         
         QTimer.singleShot(int(delay * 1000), do_open)
     

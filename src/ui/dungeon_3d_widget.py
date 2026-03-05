@@ -280,8 +280,11 @@ class _Dungeon3DGL(QOpenGLWidget if (_QT and _GL) else object):  # type: ignore[
 
     def fire_magic(self) -> None:
         """Shoot a magic bolt; drains mana, damage scales with charge level."""
+        # Always reset charging state so the tick loop doesn't re-call every frame
+        self._magic_charging = False
         if self._player_mana < _MAGIC_MIN:
             self._show_hud("✨ Not enough mana!")
+            self._magic_charge = 0.0
             return
         if self._attack_cooldown > 0:
             return
@@ -289,7 +292,6 @@ class _Dungeon3DGL(QOpenGLWidget if (_QT and _GL) else object):  # type: ignore[
         cost = int(_MAGIC_DRAIN * charge)
         self._player_mana = max(0, self._player_mana - cost)
         self._magic_charge = 0.0
-        self._magic_charging = False
         self._attack_cooldown = int(_ATTACK_COOLDOWN_TICKS * 0.8)
 
         yaw_rad = math.radians(self._cam_yaw)
@@ -647,6 +649,7 @@ class _Dungeon3DGL(QOpenGLWidget if (_QT and _GL) else object):  # type: ignore[
                 if self._player_hp == 0:
                     self._show_hud("💀 You have been defeated!  Respawning…", 180)
                     self._player_hp = _MAX_HP
+                    self._player_mana = _MAX_MANA
                     self._place_player_at_start()
 
         if self._hud_timer > 0:

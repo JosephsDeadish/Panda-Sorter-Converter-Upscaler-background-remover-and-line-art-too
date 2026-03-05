@@ -186,6 +186,15 @@ class PandaBedroomGL(QOpenGLWidget if OPENGL_AVAILABLE else QWidget):  # type: i
         # Hover
         self._hovered_id: Optional[str] = None
 
+        # GL matrices cached during paintGL for use in mouse event handlers.
+        # Reading these matrices via makeCurrent() in event handlers is unreliable
+        # (the context state outside paintGL may be identity or stale).  Instead we
+        # capture them right after the camera is set up — the same point that the
+        # hover projection uses them, which is proven to work correctly.
+        self._pick_viewport = None
+        self._pick_modelview = None
+        self._pick_projection = None
+
         # GL flag
         self._gl_ok: bool = False
         # Reusable GLU quadric for sphere drawing — created in _do_init_gl
@@ -294,75 +303,184 @@ class PandaBedroomGL(QOpenGLWidget if OPENGL_AVAILABLE else QWidget):  # type: i
         self.update()
 
     def _draw_panda_in_room(self) -> None:
-        """Draw a simplified panda character standing at (_panda_x, 0, _panda_z)."""
-        _COL_PANDA_WHITE = (0.92, 0.92, 0.90)
-        _COL_PANDA_BLACK = (0.08, 0.06, 0.06)
+        """Draw an improved panda character standing at (_panda_x, 0, _panda_z).
+
+        Uses proper panda proportions:
+        - Barrel-shaped body (W:H ≥ 1.7:1) — iconic wide squat torso
+        - Black shoulder patches and hip patches
+        - White belly jutting forward
+        - Short neck sphere bridging body to head
+        - Arms placed at shoulder level, hanging down
+        - Clearly visible black legs with walk animation
+        """
+        _COL_WHITE  = (0.92, 0.92, 0.90)
+        _COL_BLACK  = (0.08, 0.06, 0.06)
+        _COL_BELLY  = (0.96, 0.95, 0.93)   # slightly brighter white for belly
+
+        # Key proportions — barrel body: BW:BH ≈ 1.73:1
+        BW = 0.52   # body half-width  (horizontal radius of body sphere)
+        BH = 0.30   # body half-height (vertical radius of body sphere)
+        BD = 0.38   # body depth       (Z radius — slightly elongated forward)
+        # Body centre in world-Y (body bottom = BY - BH ≈ 0.01, just above floor)
+        BY = 0.31
 
         glPushMatrix()
         glTranslatef(self._panda_x, 0.0, self._panda_z)
         glRotatef(self._panda_facing_y, 0.0, 1.0, 0.0)
 
-        # ── Body ──────────────────────────────────────────────────────────────
+        # ── WHITE TORSO (barrel body) ─────────────────────────────────────────
         glPushMatrix()
-        glTranslatef(0.0, 0.38, 0.0)
-        glScalef(0.32, 0.38, 0.28)
-        glColor3f(*_COL_PANDA_WHITE)
-        self._draw_sphere_br(1.0, 16, 16)
+        glTranslatef(0.0, BY, 0.0)
+        glScalef(BW, BH, BD)
+        glColor3f(*_COL_WHITE)
+        self._draw_sphere_br(1.0, 18, 18)
         glPopMatrix()
 
-        # ── Head ──────────────────────────────────────────────────────────────
+        # ── WHITE BELLY (forward protrusion) ─────────────────────────────────
         glPushMatrix()
-        glTranslatef(0.0, 0.88, 0.08)
-        glColor3f(*_COL_PANDA_WHITE)
-        self._draw_sphere_br(0.22, 16, 16)
+        glTranslatef(0.0, BY - BH * 0.10, BD * 0.80)
+        glScalef(BW * 0.72, BH * 0.80, BD * 0.42)
+        glColor3f(*_COL_BELLY)
+        self._draw_sphere_br(1.0, 14, 14)
+        glPopMatrix()
 
-        # Ears
-        for ex in (-0.14, 0.14):
+        # ── BLACK SHOULDER PATCHES ────────────────────────────────────────────
+        for sx in (-BW * 0.92, BW * 0.92):
             glPushMatrix()
-            glTranslatef(ex, 0.18, -0.04)
-            glColor3f(*_COL_PANDA_BLACK)
-            self._draw_sphere_br(0.07, 10, 10)
+            glTranslatef(sx, BY + BH * 0.30, 0.0)
+            glScalef(BW * 0.42, BH * 0.50, BD * 0.40)
+            glColor3f(*_COL_BLACK)
+            self._draw_sphere_br(1.0, 12, 12)
             glPopMatrix()
 
-        # Eye patches
-        for ex in (-0.08, 0.08):
+        # ── BLACK HIP PATCHES ─────────────────────────────────────────────────
+        for hx in (-BW * 0.80, BW * 0.80):
             glPushMatrix()
-            glTranslatef(ex, 0.04, 0.19)
-            glScalef(1.0, 0.9, 0.55)
-            glColor3f(*_COL_PANDA_BLACK)
-            self._draw_sphere_br(0.06, 10, 10)
+            glTranslatef(hx, BY - BH * 0.55, BD * 0.05)
+            glScalef(BW * 0.38, BH * 0.42, BD * 0.32)
+            glColor3f(*_COL_BLACK)
+            self._draw_sphere_br(1.0, 12, 12)
             glPopMatrix()
+
+        # ── NECK ─────────────────────────────────────────────────────────────
+        # Short white sphere bridging body top to head base (pandas are "neckless")
+        NECK_Y = BY + BH + 0.02
+        glPushMatrix()
+        glTranslatef(0.0, NECK_Y, BD * 0.08)
+        glScalef(0.20, 0.14, 0.18)
+        glColor3f(*_COL_WHITE)
+        self._draw_sphere_br(1.0, 12, 12)
+        glPopMatrix()
+
+        # ── HEAD ─────────────────────────────────────────────────────────────
+        HEAD_Y = NECK_Y + 0.22
+        HR = 0.22   # head radius
+        glPushMatrix()
+        glTranslatef(0.0, HEAD_Y, BD * 0.12)
+        glColor3f(*_COL_WHITE)
+        self._draw_sphere_br(HR, 18, 18)
+
+        # Ears — round black blobs on top-sides of head
+        for ex in (-0.15, 0.15):
+            glPushMatrix()
+            glTranslatef(ex, HR * 0.78, -HR * 0.12)
+            glScalef(1.0, 0.82, 0.70)
+            glColor3f(*_COL_BLACK)
+            self._draw_sphere_br(0.075, 10, 10)
+            glPopMatrix()
+
+        # Eye patches — black ovals, slightly forward
+        for ex in (-0.085, 0.085):
+            glPushMatrix()
+            glTranslatef(ex, HR * 0.10, HR * 0.84)
+            glScalef(1.0, 0.85, 0.48)
+            glColor3f(*_COL_BLACK)
+            self._draw_sphere_br(0.062, 10, 10)
+            glPopMatrix()
+
+        # Eyes (white sclera + black pupil)
+        for ex in (-0.062, 0.062):
+            glPushMatrix()
+            glTranslatef(ex, HR * 0.10, HR * 0.97)
+            glColor3f(0.94, 0.94, 0.92)
+            self._draw_sphere_br(0.020, 8, 8)
+            glPushMatrix()
+            glTranslatef(0.0, 0.0, 0.012)
+            glColor3f(0.08, 0.06, 0.06)
+            self._draw_sphere_br(0.014, 6, 6)
+            glPopMatrix()
+            glPopMatrix()
+
+        # Snout (small off-white muzzle dome)
+        glPushMatrix()
+        glTranslatef(0.0, -HR * 0.12, HR * 0.92)
+        glScalef(0.80, 0.55, 0.48)
+        glColor3f(0.90, 0.88, 0.86)
+        self._draw_sphere_br(0.075, 10, 10)
+        glPopMatrix()
 
         # Nose
         glPushMatrix()
-        glTranslatef(0.0, -0.03, 0.21)
-        glColor3f(0.15, 0.10, 0.10)
-        self._draw_sphere_br(0.025, 8, 8)
+        glTranslatef(0.0, -HR * 0.04, HR * 1.00)
+        glColor3f(0.14, 0.10, 0.10)
+        self._draw_sphere_br(0.026, 8, 8)
         glPopMatrix()
 
         glPopMatrix()  # end head
 
-        # ── Arms ──────────────────────────────────────────────────────────────
-        for ax in (-0.30, 0.30):
+        # ── ARMS (black, hanging from shoulder patches) ───────────────────────
+        ARM_SY = BY + BH * 0.28   # shoulder Y
+        for side, ax in ((-1, -BW * 1.05), (1, BW * 1.05)):
             glPushMatrix()
-            glTranslatef(ax, 0.44, 0.0)
-            glScalef(0.12, 0.26, 0.12)
-            glColor3f(*_COL_PANDA_BLACK)
+            glTranslatef(ax, ARM_SY, 0.0)
+            # Slight outward tilt
+            glRotatef(side * 12.0, 0.0, 0.0, 1.0)
+            # Upper arm
+            glPushMatrix()
+            glScalef(0.095, 0.200, 0.095)
+            glTranslatef(0.0, -0.50, 0.0)
+            glColor3f(*_COL_BLACK)
             self._draw_sphere_br(1.0, 10, 10)
             glPopMatrix()
+            # Paw (rounded blob at arm end)
+            glPushMatrix()
+            glTranslatef(0.0, -0.26, 0.0)
+            glScalef(1.10, 0.60, 1.05)
+            glColor3f(*_COL_BLACK)
+            self._draw_sphere_br(0.070, 10, 10)
+            glPopMatrix()
+            glPopMatrix()
 
-        # ── Legs (with simple walk oscillation) ───────────────────────────────
-        swing_amp = 18.0 if self._panda_is_walking else 0.0
-        for side, lx in ((-1, -0.14), (1, 0.14)):
+        # ── LEGS (black, with walk oscillation) ──────────────────────────────
+        # Legs hang from hip patches; feet should reach the floor (y≈0)
+        LEG_Y = BY - BH * 0.65   # hip pivot Y
+        swing_amp = 22.0 if self._panda_is_walking else 0.0
+        for side, lx in ((-1, -BW * 0.58), (1, BW * 0.58)):
             swing = swing_amp * math.sin(self._panda_walk_frame + side * math.pi)
             glPushMatrix()
-            glTranslatef(lx, 0.15, 0.0)
+            glTranslatef(lx, LEG_Y, 0.0)
             glRotatef(swing, 1.0, 0.0, 0.0)
+            # Thigh
             glPushMatrix()
-            glTranslatef(0.0, -0.14, 0.0)
-            glScalef(0.12, 0.28, 0.12)
-            glColor3f(*_COL_PANDA_BLACK)
+            glScalef(0.120, 0.220, 0.120)
+            glTranslatef(0.0, -0.50, 0.0)
+            glColor3f(*_COL_BLACK)
             self._draw_sphere_br(1.0, 10, 10)
+            glPopMatrix()
+            # Shin + foot
+            glPushMatrix()
+            glTranslatef(0.0, -0.32, 0.0)
+            glScalef(0.100, 0.200, 0.100)
+            glTranslatef(0.0, -0.50, 0.0)
+            glColor3f(*_COL_BLACK)
+            self._draw_sphere_br(1.0, 10, 10)
+            glPopMatrix()
+            # Foot blob (flattened, slightly forward)
+            glPushMatrix()
+            glTranslatef(0.0, -0.58, 0.055)
+            glScalef(1.30, 0.40, 1.55)
+            glColor3f(*_COL_BLACK)
+            self._draw_sphere_br(0.072, 10, 10)
             glPopMatrix()
             glPopMatrix()
 
@@ -460,15 +578,26 @@ class PandaBedroomGL(QOpenGLWidget if OPENGL_AVAILABLE else QWidget):  # type: i
             glRotatef(self._cam_el, 1.0, 0.0, 0.0)
             glRotatef(self._cam_az, 0.0, 1.0, 0.0)
 
+            # Cache GL matrices for mouse picking.  This must happen here, inside
+            # paintGL while the context is active and matrices are fully set up.
+            # Reading them later in event handlers (via makeCurrent) is unreliable.
+            try:
+                self._pick_viewport = glGetIntegerv(GL_VIEWPORT)
+                self._pick_modelview = glGetDoublev(GL_MODELVIEW_MATRIX)
+                self._pick_projection = glGetDoublev(GL_PROJECTION_MATRIX)
+            except Exception:
+                pass
+
             # Update hover by projecting furniture centres to screen
             self._update_hover()
 
             self._draw_room()
             self._draw_furniture()
-            # The in-room panda is rendered by the main-window panda overlay
-            # widget (PandaOpenGLWidget) which floats over the entire application
-            # including this bedroom scene.  Drawing a second, separate panda here
-            # would result in two pandas on screen at once.
+            self._draw_panda_in_room()
+            # NOTE: the floating overlay panda (PandaOpenGLWidget) also appears on
+            # top of this widget.  _draw_panda_in_room draws the smaller in-room
+            # panda that walks between furniture pieces; the overlay panda provides
+            # the detailed companion that follows the user across all tabs.
         except Exception as _e:
             logger.debug("PandaBedroomGL paintGL error (frame skipped): %s", _e)
 
@@ -928,7 +1057,6 @@ class PandaBedroomGL(QOpenGLWidget if OPENGL_AVAILABLE else QWidget):  # type: i
 
     def _draw_potted_plant(self) -> None:
         """Small potted bamboo plant in the corner near the window."""
-        from features.opengl_utils import _sphere as _sph  # try shared sphere helper
         import math as _m
         glDisable(GL_LIGHTING)
 
@@ -1392,12 +1520,21 @@ class PandaBedroomGL(QOpenGLWidget if OPENGL_AVAILABLE else QWidget):  # type: i
 
     # ── Picking / ray-casting ─────────────────────────────────────────────────
 
-    def _ray_from_screen(self, wx: int, wy: int) -> Optional[Tuple[tuple, tuple]]:
-        """Return (origin, direction) world-space ray for screen position."""
+    def _ray_from_screen(self, wx: float, wy: float) -> Optional[Tuple[tuple, tuple]]:
+        """Return (origin, direction) world-space ray for screen position.
+
+        Uses matrices cached in paintGL rather than reading from the GL context
+        in event handlers, where the state is unreliable outside the paint cycle.
+        """
         try:
-            viewport   = glGetIntegerv(GL_VIEWPORT)
-            model_mat  = glGetDoublev(GL_MODELVIEW_MATRIX)
-            proj_mat   = glGetDoublev(GL_PROJECTION_MATRIX)
+            viewport  = self._pick_viewport
+            model_mat = self._pick_modelview
+            proj_mat  = self._pick_projection
+            if viewport is None or model_mat is None or proj_mat is None:
+                # Matrices not yet cached (no paint cycle yet); try GL directly
+                viewport  = glGetIntegerv(GL_VIEWPORT)
+                model_mat = glGetDoublev(GL_MODELVIEW_MATRIX)
+                proj_mat  = glGetDoublev(GL_PROJECTION_MATRIX)
             win_y = viewport[3] - wy  # flip Y
             near = gluUnProject(wx, win_y, 0.0, model_mat, proj_mat, viewport)
             far  = gluUnProject(wx, win_y, 1.0, model_mat, proj_mat, viewport)
@@ -1432,14 +1569,15 @@ class PandaBedroomGL(QOpenGLWidget if OPENGL_AVAILABLE else QWidget):  # type: i
         origin, direction = result
 
         _bounds = {
-            'wardrobe':     (1.2, 2.0, 0.6),
-            'armor_rack':   (1.0, 1.8, 0.5),
-            'weapons_rack': (1.2, 1.5, 0.3),
-            'toy_box':      (1.0, 0.7, 0.7),
-            'fridge':       (0.8, 2.0, 0.7),
-            'trophy_stand': (1.4, 1.5, 0.4),
-            'backpack':     (0.5, 0.7, 0.3),
-            'bedroom_door': (1.0, 2.2, 0.15),
+            'wardrobe':       (1.2, 2.0, 0.6),
+            'armor_rack':     (1.0, 1.8, 0.5),
+            'weapons_rack':   (1.2, 1.5, 0.3),
+            'toy_box':        (1.0, 0.7, 0.7),
+            'fridge':         (0.8, 2.0, 0.7),
+            'trophy_stand':   (1.4, 1.5, 0.4),
+            'backpack':       (0.5, 0.7, 0.3),
+            'computer_desk':  (1.2, 1.5, 0.6),
+            'bedroom_door':   (1.0, 2.2, 0.15),
         }
 
         best: Optional[FurniturePiece] = None
@@ -1491,11 +1629,19 @@ class PandaBedroomGL(QOpenGLWidget if OPENGL_AVAILABLE else QWidget):  # type: i
         return t_min if t_min >= 0 else None
 
     def _project_to_screen(self, wx: float, wy: float, wz: float) -> Optional[Tuple[float, float]]:
-        """Project world position to screen (pixel) coordinates."""
+        """Project world position to screen (pixel) coordinates.
+
+        Uses matrices cached in paintGL for consistency with _ray_from_screen.
+        Falls back to a live GL query only if no paint cycle has run yet.
+        """
         try:
-            viewport  = glGetIntegerv(GL_VIEWPORT)
-            model_mat = glGetDoublev(GL_MODELVIEW_MATRIX)
-            proj_mat  = glGetDoublev(GL_PROJECTION_MATRIX)
+            viewport  = self._pick_viewport
+            model_mat = self._pick_modelview
+            proj_mat  = self._pick_projection
+            if viewport is None or model_mat is None or proj_mat is None:
+                viewport  = glGetIntegerv(GL_VIEWPORT)
+                model_mat = glGetDoublev(GL_MODELVIEW_MATRIX)
+                proj_mat  = glGetDoublev(GL_PROJECTION_MATRIX)
             sx, sy, _ = gluProject(wx, wy, wz, model_mat, proj_mat, viewport)
             sy = viewport[3] - sy  # flip Y back to Qt coords
             return (sx, sy)
@@ -1514,7 +1660,7 @@ class PandaBedroomGL(QOpenGLWidget if OPENGL_AVAILABLE else QWidget):  # type: i
             centre_y = {
                 'wardrobe': 1.0, 'armor_rack': 0.9, 'weapons_rack': 0.75,
                 'toy_box': 0.35, 'fridge': 1.0, 'trophy_stand': 0.75,
-                'backpack': 0.35, 'bedroom_door': 1.1,
+                'backpack': 0.35, 'computer_desk': 1.0, 'bedroom_door': 1.1,
             }.get(piece.id, 0.5)
             proj = self._project_to_screen(piece.x, centre_y, piece.z)
             if proj is None:
@@ -1535,6 +1681,11 @@ class PandaBedroomGL(QOpenGLWidget if OPENGL_AVAILABLE else QWidget):  # type: i
         self.makeCurrent()
         if event.button() == Qt.MouseButton.LeftButton:
             self._drag_piece = self._pick_furniture(event.position().x(), event.position().y())
+            # Fallback: if the ray cast misses everything (e.g. matrices weren't cached
+            # yet), use whichever furniture piece is currently highlighted by the
+            # projection-based hover system — this is always reliable.
+            if self._drag_piece is None and self._hovered_id:
+                self._drag_piece = self.get_furniture(self._hovered_id)
             self._drag_start_screen = QPoint(int(event.position().x()), int(event.position().y()))
             if self._drag_piece:
                 hit = self._ray_floor_intersect(int(event.position().x()), int(event.position().y()))
@@ -1545,14 +1696,15 @@ class PandaBedroomGL(QOpenGLWidget if OPENGL_AVAILABLE else QWidget):  # type: i
 
     # Map furniture IDs to short hover descriptions shown as Qt tooltips
     _FURNITURE_TIPS = {
-        'wardrobe':     '👗 Wardrobe — Click to browse outfits & costumes',
-        'armor_rack':   '🛡️ Armor Rack — Click to equip armour sets',
-        'weapons_rack': '⚔️ Weapons Rack — Click to manage weapons',
-        'toy_box':      '🧸 Toy Box — Click to play with toys & accessories',
-        'fridge':       '🍎 Fridge — Click to manage food & treats',
-        'trophy_stand': '🏆 Trophy Stand — Click to view achievements',
-        'backpack':     '🎒 Backpack — Click to open inventory & items',
-        'bedroom_door': '🚪 Door — Click to go outside to the world',
+        'wardrobe':      '👗 Wardrobe — Click to browse outfits & costumes',
+        'armor_rack':    '🛡️ Armor Rack — Click to equip armour sets',
+        'weapons_rack':  '⚔️ Weapons Rack — Click to manage weapons',
+        'toy_box':       '🧸 Toy Box — Click to play with toys & accessories',
+        'fridge':        '🍎 Fridge — Click to manage food & treats',
+        'trophy_stand':  '🏆 Trophy Stand — Click to view achievements',
+        'backpack':      '🎒 Backpack — Click to open inventory & items',
+        'computer_desk': '💻 Computer Desk — Click to access tools & utilities',
+        'bedroom_door':  '🚪 Door — Click to go outside to the world',
     }
 
     def mouseMoveEvent(self, event: 'QMouseEvent') -> None:  # type: ignore[override]

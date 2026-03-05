@@ -1,7 +1,7 @@
 """
 Settings Panel - Comprehensive UI for application configuration
 Provides tabs for Appearance, Cursor, Font, Behavior, Performance, and Advanced settings
-Author: Dead On The Inside / JosephsDeadish
+Author: Dead On The Inside
 """
 
 
@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 try:
     from config import PATREON_URL as _PATREON_URL, APP_VERSION as _APP_VERSION
 except Exception:
-    _PATREON_URL = "https://www.patreon.com/JosephsDeadish"
+    _PATREON_URL = "https://www.patreon.com/cw/DeadOnTheInside"
     _APP_VERSION = "1.0.0"
 
 try:
@@ -258,7 +258,7 @@ class SettingsPanelQt(QWidget):
         theme_label = QLabel("Theme Mode:")
         self.theme_combo = QComboBox()
         self.theme_combo.addItems([
-            "Dark", "Light", "Nord", "Dracula", "Solarized Dark",
+            "Panda", "Dark", "Light", "Nord", "Dracula", "Solarized Dark",
             "Forest", "Ocean", "Sunset", "Cyberpunk", "Gore", "Goth", "Vampire",
         ])
         self.theme_combo.currentTextChanged.connect(lambda: self.on_setting_changed('ui', 'theme'))
@@ -841,8 +841,7 @@ class SettingsPanelQt(QWidget):
         self.effects_volume_slider.setTickPosition(QSlider.TickPosition.TicksBelow)
         self.effects_volume_slider.setTickInterval(10)
         self.effects_volume_slider.valueChanged.connect(
-            lambda v: (effects_label.setText(f"Effects Volume: {v}%"),
-                       self.on_setting_changed('ui', 'effects_volume')))
+            lambda v: self._on_effects_volume_changed(effects_label, v))
         self.set_tooltip(self.effects_volume_slider, 'effects_volume')
         sound_layout.addWidget(effects_label)
         sound_layout.addWidget(self.effects_volume_slider)
@@ -856,8 +855,7 @@ class SettingsPanelQt(QWidget):
         self.notifications_volume_slider.setTickPosition(QSlider.TickPosition.TicksBelow)
         self.notifications_volume_slider.setTickInterval(10)
         self.notifications_volume_slider.valueChanged.connect(
-            lambda v: (notif_label.setText(f"Notifications Volume: {v}%"),
-                       self.on_setting_changed('ui', 'notifications_volume')))
+            lambda v: self._on_notif_volume_changed(notif_label, v))
         self.set_tooltip(self.notifications_volume_slider, 'notifications_volume')
         sound_layout.addWidget(notif_label)
         sound_layout.addWidget(self.notifications_volume_slider)
@@ -1717,12 +1715,16 @@ class SettingsPanelQt(QWidget):
                 'gore': 'Gore',
                 'goth': 'Goth',
                 'vampire': 'Vampire',
+                'panda': 'Panda',
             }
             self.theme_combo.setCurrentText(theme_map.get(theme.lower(), theme.capitalize()))
             
             accent = self.config.get('ui', 'accent_color', default='#0d7377')
-            self.accent_color_widget.current_color = QColor(accent)
-            self.accent_color_widget.update()
+            if hasattr(self.accent_color_widget, 'set_color'):
+                self.accent_color_widget.set_color(QColor(accent))
+            else:
+                self.accent_color_widget.current_color = QColor(accent)
+                self.accent_color_widget.update()
             
             opacity = self.config.get('ui', 'window_opacity', default=1.0)
             self.opacity_slider.setValue(int(opacity * 100))
@@ -1792,6 +1794,22 @@ class SettingsPanelQt(QWidget):
             
             sound_volume = self.config.get('ui', 'sound_volume', default=0.7)
             self.sound_volume_slider.setValue(int(sound_volume * 100))
+
+            effects_volume = self.config.get('ui', 'effects_volume', default=0.7)
+            if hasattr(self, 'effects_volume_slider'):
+                self.effects_volume_slider.setValue(int(float(effects_volume) * 100))
+
+            notif_volume = self.config.get('ui', 'notifications_volume', default=0.5)
+            if hasattr(self, 'notifications_volume_slider'):
+                self.notifications_volume_slider.setValue(int(float(notif_volume) * 100))
+
+            sound_pack = self.config.get('ui', 'sound_pack', default='Default')
+            if hasattr(self, 'sound_pack_combo'):
+                # Use case-insensitive match so stored values like 'default' or 'DEFAULT' work
+                for _i in range(self.sound_pack_combo.count()):
+                    if self.sound_pack_combo.itemText(_i).lower() == str(sound_pack).lower():
+                        self.sound_pack_combo.setCurrentIndex(_i)
+                        break
             
             # Performance
             threads = self.config.get('performance', 'max_threads', default=4)
@@ -1812,6 +1830,21 @@ class SettingsPanelQt(QWidget):
             
             verbose = self.config.get('logging', 'verbose', default=False)
             self.verbose_check.setChecked(verbose)
+
+            # Behavior — auto-save and confirm-exit
+            if hasattr(self, 'auto_save_check'):
+                auto_save = self.config.get('ui', 'auto_save', default=True)
+                self.auto_save_check.setChecked(bool(auto_save))
+            if hasattr(self, 'confirm_exit_check'):
+                confirm_exit = self.config.get('ui', 'confirm_exit', default=False)
+                self.confirm_exit_check.setChecked(bool(confirm_exit))
+            # Startup tab
+            if hasattr(self, 'startup_tab_combo'):
+                startup_tab = str(self.config.get('ui', 'startup_tab', default='Last Used'))
+                for _i in range(self.startup_tab_combo.count()):
+                    if self.startup_tab_combo.itemText(_i).lower() == startup_tab.lower():
+                        self.startup_tab_combo.setCurrentIndex(_i)
+                        break
 
             # AI settings
             if hasattr(self, 'epochs_spin'):
@@ -1871,9 +1904,7 @@ class SettingsPanelQt(QWidget):
             # Apply specific changes
             if section == 'ui' and key == 'theme':
                 self.apply_theme()
-            elif section == 'ui' and key == 'font_family':
-                self._apply_font()
-            elif section == 'ui' and key == 'font_size':
+            elif section == 'ui' and key in ('font_family', 'font_size', 'font_weight'):
                 self._apply_font()
             elif section == 'ui' and key == 'cursor':
                 self._apply_cursor(value)
@@ -2023,6 +2054,24 @@ class SettingsPanelQt(QWidget):
             self.config.set('ui', 'sound_volume', value=volume)
             self.config.save()
             self.settingsChanged.emit("ui.sound_volume", volume)
+
+    def _on_effects_volume_changed(self, label: QLabel, value: int) -> None:
+        """Handle effects-volume slider changes — stores as 0.0–1.0 like master volume."""
+        label.setText(f"Effects Volume: {value}%")
+        if not self._updating:
+            volume = value / 100.0
+            self.config.set('ui', 'effects_volume', value=volume)
+            self.config.save()
+            self.settingsChanged.emit("ui.effects_volume", volume)
+
+    def _on_notif_volume_changed(self, label: QLabel, value: int) -> None:
+        """Handle notifications-volume slider changes — stores as 0.0–1.0."""
+        label.setText(f"Notifications Volume: {value}%")
+        if not self._updating:
+            volume = value / 100.0
+            self.config.set('ui', 'notifications_volume', value=volume)
+            self.config.save()
+            self.settingsChanged.emit("ui.notifications_volume", volume)
     
     def apply_theme(self):
         """Delegate theme application to main window (which has all 9 theme implementations)."""
@@ -2043,9 +2092,12 @@ class SettingsPanelQt(QWidget):
             size = int(self.config.get('ui', 'font_size', default=12))
             from PyQt6.QtGui import QFont as _QFont
             app_font = _QFont(family, size)
+            weight_str = self.config.get('ui', 'font_weight', default='normal').lower()
+            _w = {'light': _QFont.Weight.Light, 'normal': _QFont.Weight.Normal, 'bold': _QFont.Weight.Bold}
+            app_font.setWeight(_w.get(weight_str, _QFont.Weight.Normal))
             from PyQt6.QtWidgets import QApplication as _QApp
             _QApp.setFont(app_font)
-            logger.info(f"Font applied: {family} {size}pt")
+            logger.info(f"Font applied: {family} {size}pt {weight_str}")
         except Exception as e:
             logger.error(f"Error applying font: {e}", exc_info=True)
 
@@ -2245,16 +2297,17 @@ class SettingsPanelQt(QWidget):
         try:
             import os
             import platform
-            
-            config_dir = self.config.config_file.parent
-            
+            import subprocess
+
+            config_dir = str(self.config.config_file.parent)
+
             if platform.system() == "Windows":
                 os.startfile(config_dir)
             elif platform.system() == "Darwin":  # macOS
-                os.system(f"open '{config_dir}'")
+                subprocess.Popen(["open", config_dir])
             else:  # Linux
-                os.system(f"xdg-open '{config_dir}'")
-                
+                subprocess.Popen(["xdg-open", config_dir])
+
             logger.info(f"Opened config folder: {config_dir}")
             
         except Exception as e:
@@ -2270,15 +2323,16 @@ class SettingsPanelQt(QWidget):
         try:
             import os
             import platform
+            import subprocess
             from pathlib import Path
             path = Path(folder_path)
             path.mkdir(parents=True, exist_ok=True)
             if platform.system() == "Windows":
                 os.startfile(path)
             elif platform.system() == "Darwin":
-                os.system(f"open '{path}'")
+                subprocess.Popen(["open", str(path)])
             else:
-                os.system(f"xdg-open '{path}'")
+                subprocess.Popen(["xdg-open", str(path)])
         except Exception as e:
             logger.error(f"Error opening folder {folder_path}: {e}", exc_info=True)
             QMessageBox.warning(self, "Error", f"Failed to open folder: {e}")
@@ -2309,14 +2363,24 @@ class SettingsPanelQt(QWidget):
             logger.error(f"_open_customization: {e}", exc_info=True)
 
     def _test_sound(self):
-        """Play a test sound effect."""
+        """Play a test sound effect via SoundManager when available."""
         try:
+            sound_mgr = (
+                getattr(self.main_window, 'sound_manager', None)
+                if self.main_window else None
+            )
+            if sound_mgr:
+                from features.sound_manager import SoundEvent as _SE
+                sound_mgr.play_sound(_SE.BUTTON_CLICK, force=True)
+                logger.info("Test sound played via SoundManager")
+                return
+            # Fallback: OS beep
             import platform
             if platform.system() == "Windows":
                 import winsound
                 winsound.MessageBeep(winsound.MB_OK)
             else:
-                logger.info("Sound test triggered")
+                logger.info("Sound test triggered (no SoundManager available)")
         except Exception as e:
             logger.debug(f"_test_sound: {e}")
 
@@ -2330,7 +2394,7 @@ class SettingsPanelQt(QWidget):
                 "An all-in-one texture management tool.\n"
                 "Sort, convert, upscale, remove backgrounds,\n"
                 "create line art, and more.\n\n"
-                "By JosephsDeadish / Dead On The Inside\n\n"
+                "By Dead On The Inside\n\n"
                 f"❤️  Support on Patreon:\n{_PATREON_URL}"
             )
         except Exception as e:
@@ -2341,6 +2405,11 @@ class SettingsPanelQt(QWidget):
         try:
             if self.main_window and hasattr(self.main_window, 'start_tutorial'):
                 self.main_window.start_tutorial()
+            elif self.main_window and hasattr(self.main_window, 'tutorial_system'):
+                ts = self.main_window.tutorial_system
+                if ts and hasattr(ts, 'start_tutorial'):
+                    ts.start_tutorial()
+                    return
             else:
                 QMessageBox.information(
                     self,

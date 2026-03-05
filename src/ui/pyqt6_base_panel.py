@@ -59,6 +59,11 @@ class BasePyQtPanel(QWidget):
         
         # Worker thread for background operations
         self.worker_thread: Optional[QThread] = None
+
+        # Tooltips pending registration (populated when tooltip_manager is None
+        # during setup_ui; flushed by _flush_pending_tooltips() once the manager
+        # is injected via _propagate_tooltip_manager).
+        self._pending_tooltips: list = []
         
         # Setup UI
         self._setup_base_ui()
@@ -316,6 +321,12 @@ class BasePyQtPanel(QWidget):
         without defining their own method.  Individual panels may override this
         to customise the lookup behaviour (e.g. using a different key schema).
 
+        When the tooltip_manager is ``None`` at call time (which happens during
+        ``setup_ui()`` because the manager is created later in
+        ``initialize_components()``), the widget + key pair is stored in
+        ``self._pending_tooltips`` so that ``_flush_pending_tooltips()`` can
+        register them once the manager is propagated.
+
         Args:
             widget: QWidget to annotate (or None, which is silently ignored).
             text_or_key: Plain tooltip text **or** a key looked up in the
@@ -330,11 +341,36 @@ class BasePyQtPanel(QWidget):
                 return
             except Exception:
                 pass
-        # Fallback: treat text_or_key as literal tooltip text
+        # Manager not yet available — store for later registration.
+        try:
+            self._pending_tooltips.append((widget, text_or_key))
+        except Exception:
+            pass
+        # Fallback: set literal text so the widget has *something* on hover.
         try:
             widget.setToolTip(str(text_or_key))
         except Exception:
             pass
+
+    def _flush_pending_tooltips(self) -> None:
+        """Register all widgets stored in ``_pending_tooltips`` with the manager.
+
+        Called by ``_propagate_tooltip_manager()`` in ``main.py`` after the
+        ``TooltipVerbosityManager`` has been injected into this panel.  Each
+        stored (widget, key) pair is passed to ``tooltip_mgr.set_tooltip()``
+        which sets the correct translated tip text and installs the cycling
+        event filter.  The list is cleared afterwards to avoid double-registration.
+        """
+        tooltip_mgr = getattr(self, 'tooltip_manager', None)
+        if tooltip_mgr is None:
+            return
+        pending = getattr(self, '_pending_tooltips', [])
+        for widget, key in pending:
+            try:
+                tooltip_mgr.set_tooltip(widget, key)
+            except Exception as _e:
+                logger.debug(f"_flush_pending_tooltips: {key}: {_e}")
+        self._pending_tooltips = []
 
     # ========================================================================
     # Thread Management

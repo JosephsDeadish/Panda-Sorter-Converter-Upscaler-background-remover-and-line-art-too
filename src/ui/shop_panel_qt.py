@@ -40,6 +40,14 @@ except (ImportError, OSError, RuntimeError):
         class CursorShape:
             PointingHandCursor = 0
 
+# ── Optional QOpenGLWidget for 3-D Livy avatar ───────────────────────────────
+try:
+    from PyQt6.QtOpenGLWidgets import QOpenGLWidget as _QOpenGLWidget
+    _QOGL_SHOP = True
+except (ImportError, OSError, RuntimeError):
+    _QOGL_SHOP = False
+    _QOpenGLWidget = QWidget  # fallback base class
+
 logger = logging.getLogger(__name__)
 
 # Try to import shop system
@@ -59,6 +67,177 @@ except (ImportError, OSError, RuntimeError):
         ShopCategory = None
         ShopItem = None
         CurrencySystem = None
+
+
+class LivyOtterWidget(_QOpenGLWidget):
+    """Small OpenGL widget showing Livy the otter in the shop banner.
+
+    Renders the same detailed 3-D otter as ``PandaWorldGL._draw_otter()``
+    by importing the drawing code from that module.  Falls back gracefully
+    to an emoji QLabel when OpenGL is unavailable.
+    """
+
+    def __init__(self, parent=None):
+        if not (_QOGL_SHOP and PYQT_AVAILABLE):
+            super().__init__(parent)
+            return
+        super().__init__(parent)
+        self.setFixedSize(100, 110)
+
+        # Animation state (mirrors PandaWorldGL — all attrs read by _draw_otter)
+        self._frame: int = 0
+        self._gl_ready: bool = False
+        self._otter_happy_t: int = 0
+        self._otter_wave_t: int = 0
+        self._otter_head_bob: float = 0.0
+        self._otter_tail_angle: float = 0.0
+        self._otter_look_x: float = 0.0
+        self._otter_look_tgt: float = 0.0
+        self._otter_look_phase: int = 0    # countdown to next random look-event
+        self._otter_eye_close: int = 0
+        self._otter_blink: int = 180       # countdown frames to next blink
+        self._otter_shuffle_t: int = 0     # counter-shuffle animation timer
+
+        # Tick timer — ~30 fps
+        self._timer = QTimer(self)
+        self._timer.timeout.connect(self._tick)
+        self._timer.start(33)
+
+    # ------------------------------------------------------------------
+    def _tick(self):
+        import math as _m
+        import random as _r
+        self._frame += 1
+        self._otter_head_bob = _m.sin(self._frame * 0.025) * 4.0
+        self._otter_tail_angle = _m.sin(self._frame * 0.04) * 18.0
+        if self._otter_happy_t > 0:
+            self._otter_happy_t -= 1
+        if self._otter_wave_t > 0:
+            self._otter_wave_t -= 1
+        # Blink
+        if self._otter_blink <= 0:
+            self._otter_blink = _r.randint(100, 280)
+            self._otter_eye_close = 4
+        else:
+            self._otter_blink -= 1
+        if self._otter_eye_close > 0:
+            self._otter_eye_close -= 1
+        # Random look-around
+        if self._otter_look_phase <= 0:
+            self._otter_look_tgt = (
+                _r.uniform(-14.0, 14.0) if _r.random() < 0.7 else 0.0
+            )
+            self._otter_look_phase = _r.randint(80, 200)
+        else:
+            self._otter_look_phase -= 1
+        self._otter_look_x += (self._otter_look_tgt - self._otter_look_x) * 0.07
+        # Counter-shuffle
+        if self._otter_shuffle_t > 0:
+            self._otter_shuffle_t -= 1
+        elif _r.random() < 0.003:
+            self._otter_shuffle_t = _r.randint(20, 50)
+        self.update()
+
+    # ------------------------------------------------------------------
+    def initializeGL(self):
+        try:
+            # Import GL lazily so the module compiles without PyOpenGL
+            from OpenGL.GL import (
+                glClearColor, glEnable, glDisable, GL_DEPTH_TEST, GL_LIGHTING,
+                GL_LIGHT0, GL_LIGHT1, GL_LIGHT2, GL_BLEND, GL_COLOR_MATERIAL,
+                glLightfv, GL_POSITION, GL_DIFFUSE, GL_SPECULAR, GL_AMBIENT,
+                GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, glBlendFunc,
+                glMatrixMode, GL_MODELVIEW, glLoadIdentity, GL_SMOOTH,
+                GL_MULTISAMPLE, GL_LINE_SMOOTH, glHint, GL_LINE_SMOOTH_HINT, GL_NICEST,
+                glShadeModel,
+            )
+            glClearColor(0.05, 0.28, 0.28, 1.0)   # turquoise background
+            glEnable(GL_DEPTH_TEST)
+            try:
+                glShadeModel(GL_SMOOTH)
+                glEnable(GL_MULTISAMPLE)
+                glEnable(GL_LINE_SMOOTH)
+                glHint(GL_LINE_SMOOTH_HINT, GL_NICEST)
+            except Exception:
+                pass
+            glEnable(GL_BLEND)
+            glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
+            glEnable(GL_LIGHTING)
+            glEnable(GL_LIGHT0)
+            glEnable(GL_LIGHT1)
+            glEnable(GL_COLOR_MATERIAL)
+            glLightfv(GL_LIGHT0, GL_POSITION, [3.0, 6.0,  4.0, 1.0])
+            glLightfv(GL_LIGHT0, GL_AMBIENT,  [0.35, 0.33, 0.30, 1.0])
+            glLightfv(GL_LIGHT0, GL_DIFFUSE,  [0.85, 0.82, 0.78, 1.0])
+            glLightfv(GL_LIGHT0, GL_SPECULAR, [0.4,  0.4,  0.3,  1.0])
+            glLightfv(GL_LIGHT1, GL_POSITION, [-3.0, 4.0, -2.0, 1.0])
+            glLightfv(GL_LIGHT1, GL_AMBIENT,  [0.08, 0.08, 0.10, 1.0])
+            glLightfv(GL_LIGHT1, GL_DIFFUSE,  [0.25, 0.30, 0.40, 1.0])
+            glEnable(GL_LIGHT2)
+            glLightfv(GL_LIGHT2, GL_POSITION, [0.0, 5.0, -4.0, 1.0])
+            glLightfv(GL_LIGHT2, GL_DIFFUSE,  [0.12, 0.14, 0.16, 1.0])
+            glMatrixMode(GL_MODELVIEW)
+            glLoadIdentity()
+            self._gl_ready = True
+        except Exception as _e:
+            logger.debug("LivyOtterWidget initializeGL failed: %s", _e)
+
+    def resizeGL(self, w: int, h: int):
+        if not self._gl_ready:
+            return
+        try:
+            from OpenGL.GL import glViewport, glMatrixMode, GL_PROJECTION, GL_MODELVIEW, glLoadIdentity
+            from OpenGL.GLU import gluPerspective
+            glViewport(0, 0, max(1, w), max(1, h))
+            glMatrixMode(GL_PROJECTION)
+            glLoadIdentity()
+            gluPerspective(50.0, w / max(1, h), 0.1, 30.0)
+            glMatrixMode(GL_MODELVIEW)
+        except Exception:
+            pass
+
+    def paintGL(self):
+        if not self._gl_ready:
+            return
+        try:
+            from OpenGL.GL import glClear, GL_COLOR_BUFFER_BIT, GL_DEPTH_BUFFER_BIT, glLoadIdentity, glTranslatef, glRotatef
+            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+            glLoadIdentity()
+            # Position camera so otter fills the widget: pull back and look slightly down
+            glTranslatef(0.0, -0.5, -3.8)
+            glRotatef(8.0, 1.0, 0.0, 0.0)
+            # Draw the otter using the shared implementation from panda_world_gl
+            from ui.panda_world_gl import PandaWorldGL
+            PandaWorldGL._draw_otter(self)  # type: ignore[arg-type]
+        except Exception as _e:
+            logger.debug("LivyOtterWidget paintGL error: %s", _e)
+
+    # ------------------------------------------------------------------
+    # Helpers that _draw_otter() calls on ``self``
+    @staticmethod
+    def _sphere(r: float, sl: int, st: int):
+        try:
+            from OpenGL.GLU import gluNewQuadric, GLU_SMOOTH, gluQuadricNormals, gluSphere, gluDeleteQuadric
+            q = gluNewQuadric()
+            gluQuadricNormals(q, GLU_SMOOTH)
+            gluSphere(q, r, sl, st)
+            gluDeleteQuadric(q)
+        except Exception:
+            pass
+
+    @staticmethod
+    def _cylinder(r: float, h: float, sl: int):
+        try:
+            from OpenGL.GLU import gluNewQuadric, GLU_SMOOTH, gluQuadricNormals, gluCylinder, gluDisk, gluDeleteQuadric
+            from OpenGL.GL import glPushMatrix, glPopMatrix, glTranslatef
+            q = gluNewQuadric()
+            gluQuadricNormals(q, GLU_SMOOTH)
+            gluCylinder(q, r, r, h, sl, 1)
+            gluDisk(q, 0, r, sl, 1)
+            glPushMatrix(); glTranslatef(0, 0, h); gluDisk(q, 0, r, sl, 1); glPopMatrix()
+            gluDeleteQuadric(q)
+        except Exception:
+            pass
 
 
 class ShopItemWidget(QFrame):
@@ -286,6 +465,7 @@ class ShopPanelQt(QWidget):
     """Main shop panel for purchasing items."""
 
     item_purchased = pyqtSignal(str)  # item_id
+    item_sold      = pyqtSignal(str)  # item_id — emitted after a successful sell
 
     # Maps shop category IDs to specific tooltip catalog keys
     _CATEGORY_TOOLTIP_IDS = {
@@ -379,11 +559,14 @@ class ShopPanelQt(QWidget):
         banner_layout = QHBoxLayout(banner)
         banner_layout.setContentsMargins(18, 8, 18, 8)
 
-        # Otter avatar (large emoji)
-        otter_avatar = QLabel("🦦")
-        otter_avatar.setStyleSheet("font-size: 42px;")
-        otter_avatar.setFixedWidth(58)
-        otter_avatar.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        # Otter avatar — 3-D GL widget (falls back to emoji when OpenGL unavailable)
+        if _QOGL_SHOP and PYQT_AVAILABLE:
+            otter_avatar = LivyOtterWidget(banner)
+        else:
+            otter_avatar = QLabel("🦦")
+            otter_avatar.setStyleSheet("font-size: 42px;")
+            otter_avatar.setFixedWidth(58)
+            otter_avatar.setAlignment(Qt.AlignmentFlag.AlignCenter)
         banner_layout.addWidget(otter_avatar)
 
         # Otter name + speech bubble column
@@ -752,9 +935,13 @@ class ShopPanelQt(QWidget):
             # Animate the row away
             row_widget.setVisible(False)
             row_widget.deleteLater()
+            try:
+                self.item_sold.emit(item_id)
+            except Exception:
+                pass
             self.livy_says(
                 f"Sold! Hope you made the right call… 🦦 {catalog_item.icon}",
-                duration=4000
+                duration_ms=4000
             )
         else:
             self.status_label.setText(f"❌ {message}")
@@ -884,7 +1071,9 @@ class ShopPanelQt(QWidget):
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
         )
         if reply == QMessageBox.StandardButton.Yes:
-            success, msg, _ = self.shop_system.purchase_item(item_id, balance, level=0)
+            # Pass a high level value to bypass the level gate; the UI has already
+            # verified balance and the level-system is not wired to this panel.
+            success, msg, _ = self.shop_system.purchase_item(item_id, balance, level=999)
             if success:
                 try:
                     self.currency_system.subtract('bamboo_bucks', price)

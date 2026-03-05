@@ -71,14 +71,15 @@ logger = logging.getLogger(__name__)
 
 # Body pitch targets for quadruped stances (degrees, X-axis rotation of torso)
 _BODY_PITCH_TARGETS: dict = {
-    'walking':       -20.0,   # slight forward lean for all-fours walk (was -30°, too aggressive)
+    'idle':          -12.0,   # natural panda forward lean — real pandas never stand fully upright
+    'sitting_back':   -5.0,   # very slight backward lean on haunches (barrel body, weight back)
+    'walking':       -20.0,   # forward lean for all-fours walk
     'walking_left':  -20.0,
     'walking_right': -20.0,
     'crawling':      -42.0,   # body pitched forward, nose toward ground
     'climbing_wall': -80.0,   # near-vertical, claws on wall
     'falling_back':   85.0,   # on back, legs up
-    'sleeping':       12.0,   # slight slump forward
-    'sitting_back': -10.0,   # slight backward lean when sitting upright
+    'sleeping':       14.0,   # in a slumped posture when sleeping on haunches
     'rolling':       30.0,   # body pitching as it rolls
     'hanging_ceiling': 175.0, # nearly inverted, gripping ceiling
     'hanging_window_edge': -55.0,  # body angled forward/down, arms reaching up
@@ -195,15 +196,15 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
     FRAME_TIME = 1.0 / TARGET_FPS  # 33.33ms per frame at 30 fps
     
     # Panda dimensions (3D units)
-    # Real giant pandas are round/stocky: body is roughly as wide as tall,
-    # with a large round head and visible sturdy legs below the belly.
-    HEAD_RADIUS = 0.42   # slightly larger — pandas have big, round heads
-    BODY_WIDTH = 0.56    # wider than before for a round, stocky silhouette
-    BODY_HEIGHT = 0.50   # shorter than old 0.6 — pandas are squat, not tall
-    ARM_LENGTH = 0.38    # slightly shorter (was 0.40) to look proportional on wider body
-    ARM_Y = 0.18         # shoulder height in torso-local space (body extends ±0.25)
-    LEG_LENGTH = 0.40    # longer legs so they protrude below the belly
-    LEG_SPACING = 0.44   # wider stance, matches real panda hip width
+    # Real giant pandas: very wide barrel body (W:H ≈ 1.75:1), enormous belly,
+    # large round head, thick stubby legs clearly visible below the belly.
+    HEAD_RADIUS = 0.42   # large, round panda head
+    BODY_WIDTH = 0.70    # much wider (was 0.56) — 1.75:1 W:H gives barrel shape
+    BODY_HEIGHT = 0.40   # shorter (was 0.50) — squat, heavy-set panda torso
+    ARM_LENGTH = 0.40    # slightly longer arms to look natural on wider body
+    ARM_Y = 0.15         # shoulder height in torso-local (body half-height=0.20)
+    LEG_LENGTH = 0.42    # slightly longer so legs protrude clearly below the belly
+    LEG_SPACING = 0.50   # wider hip stance to match new barrel body width
     EAR_SIZE = 0.15
 
     # States that receive a micro-hold pause before transitioning to idle
@@ -214,20 +215,21 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
     })
 
     # Weighted autonomous-activity table — tuple for immutability; weights sum to 1.0
+    # Distribution reflects real giant panda behaviour: mostly sitting and eating,
+    # frequent slow wandering, occasional napping — rarely athletic.
     _ACTIVITY_WEIGHTS: tuple = (
-        ('walk_around',  0.20),
-        ('work',         0.16),
-        ('idle',         0.12),
-        ('celebrate',    0.07),
-        ('crawl_around', 0.08),
-        ('climb_wall',   0.06),
-        ('sit_back',     0.07),
-        ('hang_ceiling', 0.04),
-        ('rolling',      0.06),
-        ('sleeping',     0.05),
-        ('dance',        0.04),
-        ('spin',         0.03),
-        ('backflip',     0.02),
+        ('sit_back',     0.20),   # resting on haunches — very common in pandas
+        ('walk_around',  0.20),   # waddling patrol — increased to prevent "locked in center"
+        ('eat_bamboo',   0.15),   # eating bamboo: the most iconic panda activity
+        ('sleeping',     0.10),   # pandas sleep 10–16 hours/day; common
+        ('idle',         0.10),   # standing still, looking around
+        ('work',         0.06),   # occasional typing/working
+        ('crawl_around', 0.05),   # quadruped shuffle
+        ('rolling',      0.05),   # playful rolling on back
+        ('celebrate',    0.04),   # happy bounce
+        ('climb_wall',   0.02),   # climbing (rare — pandas rarely climb walls)
+        ('dance',        0.02),   # dance
+        ('spin',         0.01),   # spin
     )
 
     # Physics constants
@@ -711,8 +713,11 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
         except Exception as _le:
             logger.warning(f"GL lighting unavailable ({_le}); using flat-colour rendering")
 
-        # Initialize shadow mapping
-        self._init_shadow_mapping()
+        # Initialize shadow mapping — skip in overlay mode.
+        # In overlay mode the ground plane is not drawn and the shadow FBO
+        # only creates opaque rendering artifacts that block the UI below.
+        if not self._overlay_mode:
+            self._init_shadow_mapping()
 
         self.gl_initialized = True
         logger.info(f"OpenGL initialized successfully (lighting={'yes' if self._has_gl_lighting else 'no'})")
@@ -793,9 +798,9 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
         
         # Setup camera
         glLoadIdentity()
-        # Camera Y = +0.3: lifts the view target so the panda (ground at y=-0.7,
-        # body centre at y=-0.4, head at y≈-0.1) is framed in the upper two-thirds
-        # of the viewport with room for the feet at the bottom.
+        # Camera Y offset +0.3 shifts the scene upward relative to the camera so the
+        # panda (at world Y ≈ -0.70 to -0.40) appears near the vertical center of the
+        # viewport in both overlay and bedroom/world modes.
         glTranslatef(0.0, 0.3, -self.camera_distance)
         glRotatef(self.camera_angle_x, 1.0, 0.0, 0.0)
         glRotatef(self.camera_angle_y, 0.0, 1.0, 0.0)
@@ -1100,8 +1105,10 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
         # _paint_gl_body already applied panda_x/panda_z and rotation_y via
         # glTranslatef/glRotatef; only add the vertical bob offset here to avoid
         # doubling the XZ position or rotation.
-        # Use 0.30 (was 0.28) so the body centre sits a little higher, giving
-        # the shorter BODY_HEIGHT=0.50 enough clearance above the legs.
+        # Y=0.30: body centre sits high enough that the lower rump (extends
+        # –BH×0.39 below) stays above the ground, while the legs at torso-local
+        # Y=–0.24 reach down to Y≈–1.0 (ground plane) when the panda is on the
+        # floor (panda_y=–0.7).
         glTranslatef(0.0, 0.30 + bob, 0.0)
         # Wobble: random lateral lean added to whole body (pandas are uncoordinated)
         if abs(self._wobble_x) > 0.05:
@@ -1125,130 +1132,132 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
         if abs(self._body_pitch_cur) > 0.5:
             glRotatef(self._body_pitch_cur, 1.0, 0.0, 0.0)
 
-        # Disable blending for opaque solid body parts so they are never transparent
+        # Disable blending for opaque solid body parts
         glDisable(GL_BLEND)
 
-        # Belly — creamy white underside; belly jiggle on Y (height oscillation)
+        # ─────────────────────────────────────────────────────────────────────
+        # PANDA BODY — completely rebuilt from scratch.
+        # Real giant pandas: very wide barrel torso (W:H ≈ 1.75:1), enormous
+        # round belly jutting forward, black shoulder "saddle" across the upper
+        # back, white chest bib, black hip patches joining the rear legs.
+        # Built from overlapping spheres; GL_DEPTH_TEST handles occlusion so
+        # drawing order matches visual layering (back → front).
+        # Coordinate axes: +Z toward viewer (front), +Y up.
+        # ─────────────────────────────────────────────────────────────────────
+        BW = self.BODY_WIDTH    # 0.70 — body width reference
+        BH = self.BODY_HEIGHT   # 0.40 — body height reference
+
+        # ── WHITE LOWER RUMP / HIP MASS ───────────────────────────────────────
+        # The widest part of the panda — establishes the wide-barrel silhouette.
+        # Biased slightly downward and rearward; this is the dominant body mass.
         glPushMatrix()
-        glScalef(self.BODY_WIDTH * 0.65,
-                 self.BODY_HEIGHT * 0.55 * sy * self._belly_y,
-                 self.BODY_WIDTH * 0.50)
-        glColor4f(*belly_col, 1.0)
+        glTranslatef(0.0, -BH * 0.18 * sy, -BW * 0.06)
+        glScalef(BW * 1.12, BH * 0.80 * sy, BW * 0.96)
+        glMaterialfv(GL_FRONT, GL_SPECULAR, [0.22, 0.22, 0.22, 1.0])
+        glMaterialf(GL_FRONT, GL_SHININESS, 12.0)
+        glColor3f(*body_col)
         self._draw_sphere(1.0, 32, 32)
         glPopMatrix()
 
-        # Main body — colour from custom_colors['body'] (fur style)
-        # Apply subtle specular sheen to simulate fur gloss
-        glMaterialfv(GL_FRONT, GL_SPECULAR, [0.25, 0.25, 0.25, 1.0])
-        glMaterialf(GL_FRONT, GL_SHININESS, 14.0)
+        # ── WHITE UPPER CHEST MASS ────────────────────────────────────────────
+        # Slightly narrower sphere at the top of the barrel. Together with the
+        # lower mass it creates the characteristic rounded-barrel panda torso.
         glPushMatrix()
-        glScalef(self.BODY_WIDTH, self.BODY_HEIGHT * sy, self.BODY_WIDTH * 0.92)
-        glColor4f(*body_col, 1.0)
+        glTranslatef(0.0, BH * 0.22 * sy, -BW * 0.04)
+        glScalef(BW * 0.88, BH * 0.72 * sy, BW * 0.82)
+        glColor3f(*body_col)
         self._draw_sphere(1.0, 32, 32)
         glPopMatrix()
+
         glMaterialfv(GL_FRONT, GL_SPECULAR, [1.0, 1.0, 1.0, 1.0])
         glMaterialf(GL_FRONT, GL_SHININESS, 50.0)
 
-        # Fur layer — skip in overlay mode: semi-transparent shells over a
-        # transparent-background GL context make the panda look ghostly/translucent
-        # because the shell alpha blends against the transparent window rather than
-        # the solid body beneath it at the silhouette edges.
-        if not self._overlay_mode:
-            glEnable(GL_BLEND)
-            glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
-            _fur_col = self._get_color('body')
-            # Shell 1 — innermost (near body surface, most opaque)
+        # ── BLACK SHOULDER BAND (across the upper back) ───────────────────────
+        # The iconic panda "saddle" — broad black band connecting both shoulder
+        # patches across the upper back at shoulder level.  Positioned rearward
+        # so the white chest bib that comes later overlaps its front face.
+        glPushMatrix()
+        glTranslatef(0.0, BH * 0.18 * sy, -BW * 0.28)
+        glScalef(BW * 1.14, BH * 0.56 * sy, BW * 0.58)
+        glColor3f(*accent_col)
+        self._draw_sphere(1.0, 24, 24)
+        glPopMatrix()
+
+        # ── BLACK SHOULDER SLEEVE BLOBS (left and right) ──────────────────────
+        # Positioned at X = BW (the body edge) so the outer half protrudes
+        # clearly beyond the white body surface and is visible from the front
+        # and 3/4 views.  Y raised to ARM_Y (≈ BH×0.42) so each blob connects
+        # directly to the arm attachment point for a seamless shoulder join.
+        # Old value BW×0.80 placed the centre INSIDE the white body sphere,
+        # making the black patches completely invisible behind the white body.
+        for side in (-1.0, 1.0):
             glPushMatrix()
-            glScalef(self.BODY_WIDTH * 1.025,
-                     self.BODY_HEIGHT * 1.018 * sy * self._belly_y,
-                     self.BODY_WIDTH * 0.945)
-            glColor4f(*_fur_col, 0.22)
+            glTranslatef(side * BW, BH * 0.42 * sy, 0.0)
+            glScalef(0.52, 0.50 * sy, 0.46)
+            glColor3f(*accent_col)
             self._draw_sphere(1.0, 16, 16)
             glPopMatrix()
-            # Shell 2 — middle layer
-            glPushMatrix()
-            glScalef(self.BODY_WIDTH * 1.045,
-                     self.BODY_HEIGHT * 1.030 * sy * self._belly_y,
-                     self.BODY_WIDTH * 0.960)
-            glColor4f(*_fur_col, 0.14)
-            self._draw_sphere(1.0, 14, 14)
-            glPopMatrix()
-            # Shell 3 — outermost (fluffy tips, very transparent)
-            glPushMatrix()
-            glScalef(self.BODY_WIDTH * 1.065,
-                     self.BODY_HEIGHT * 1.042 * sy * self._belly_y,
-                     self.BODY_WIDTH * 0.978)
-            glColor4f(*_fur_col, 0.07)
-            self._draw_sphere(1.0, 12, 12)
-            glPopMatrix()
-            glDisable(GL_BLEND)
 
-        # Black saddle patch across lower torso — uses accent colour (fur style)
+        # ── WHITE CHEST BIB / THROAT ──────────────────────────────────────────
+        # White "bib" between the two black shoulder patches, giving the classic
+        # V-shaped white chest that real pandas show from the front.
+        bright_white = [min(1.0, c + 0.06) for c in belly_col]
         glPushMatrix()
-        glTranslatef(0.0, -0.18, 0.0)
-        glScalef(self.BODY_WIDTH * 0.95, self.BODY_HEIGHT * 0.35 * sy, self.BODY_WIDTH * 0.70)
-        glColor3f(*accent_col)
+        glTranslatef(0.0, BH * 0.18 * sy, BW * 0.40)
+        glScalef(BW * 0.65, BH * 0.85 * sy, BW * 0.32)
+        glColor3f(*bright_white)
         self._draw_sphere(1.0, 20, 20)
         glPopMatrix()
 
-        # Spine ridge — darker streak along the back
+        # ── ROUND BELLY ───────────────────────────────────────────────────────
+        # Pandas have a rounded barrel belly that is visible from the front.
+        # Z offset reduced from BW×0.60 to BW×0.36 so the belly does NOT protrude
+        # far beyond the chest bib and body – the previous 0.60 offset put the belly
+        # centre 0.42 units forward (max Z = 0.80), visually detaching it from the
+        # rest of the torso and creating an unintended elongated protrusion between
+        # the legs when viewed from slightly above.  With Z=BW×0.36 (0.25) the belly
+        # maximum forward extent (0.25 + BW×0.46 = 0.57) is just slightly past the
+        # chest bib (max Z ≈ 0.50), keeping the front profile smooth and integrated.
         glPushMatrix()
-        glTranslatef(0.0, 0.05, -self.BODY_WIDTH * 0.65)
-        glScalef(0.20, 0.55 * sy, 0.22)
-        glColor3f(*[max(0.0, c - 0.06) for c in accent_col])
-        self._draw_sphere(1.0, 10, 10)
-        glPopMatrix()
-
-        # Shoulder muscle masses (black) — give quadruped shoulder hump
-        # Y derived from ARM_Y (+ 0.02 for slight upward centre) so shoulder
-        # blobs visually connect to the arm pivot point.
-        for sx in (-self.BODY_WIDTH * 0.70, self.BODY_WIDTH * 0.70):
-            glPushMatrix()
-            glTranslatef(sx, self.ARM_Y + 0.02, -self.BODY_WIDTH * 0.15)
-            glScalef(0.30, 0.28 * sy, 0.24)
-            glColor3f(*accent_col)
-            self._draw_sphere(1.0, 12, 12)
-            glPopMatrix()
-
-        # ── Neck ─────────────────────────────────────────────────────────────
-        # Short cylinder-like neck connecting torso to head
-        glPushMatrix()
-        glTranslatef(0.0, self.BODY_HEIGHT * 0.48 * sy, 0.0)
-        glScalef(0.30, 0.32 * sy, 0.28)
-        glColor3f(*body_col)
-        self._draw_sphere(1.0, 14, 14)
-        glPopMatrix()
-
-        # ── Chest / throat white patch ────────────────────────────────────────
-        # Real pandas have a bright white chest band between the black shoulders
-        glPushMatrix()
-        glTranslatef(0.0, self.BODY_HEIGHT * 0.28 * sy, self.BODY_WIDTH * 0.55)
-        glScalef(0.45, 0.38 * sy, 0.25)
-        bright_white = [min(1.0, c + 0.06) for c in belly_col]
-        glColor3f(*bright_white)
-        self._draw_sphere(1.0, 14, 14)
-        glPopMatrix()
-
-        # ── Belly ventral stripe ──────────────────────────────────────────────
-        # Cream-coloured midline stripe from chest to groin
-        glPushMatrix()
-        glTranslatef(0.0, 0.0, self.BODY_WIDTH * 0.46)
-        glScalef(0.18, 0.82 * sy, 0.15)
+        glTranslatef(0.0, -BH * 0.06 * sy, BW * 0.36)
+        glScalef(BW * 0.84, BH * 0.92 * sy * self._belly_y, BW * 0.46)
         glColor3f(*belly_col)
-        self._draw_sphere(1.0, 10, 10)
+        self._draw_sphere(1.0, 32, 32)
         glPopMatrix()
 
-        # ── Hip patches (black) ──────────────────────────────────────────────
-        # Real pandas have prominent black oval patches on each hip / upper thigh.
-        # Y = -BODY_HEIGHT * 0.48 = -0.24 matches the leg pivot (leg_y = -0.24)
-        # so the black patch visually joins the body to the upper leg.
-        for hx in (-self.BODY_WIDTH * 0.78, self.BODY_WIDTH * 0.78):
+        # ── DORSAL SHOULDER HUMP ──────────────────────────────────────────────
+        # Characteristic muscular ridge between the shoulders along the spine.
+        # White (body colour); sits above the black shoulder band.
+        glPushMatrix()
+        glTranslatef(0.0, BH * 0.52 * sy, -BW * 0.20)
+        glScalef(BW * 0.58, BH * 0.46 * sy, BW * 0.50)
+        glColor3f(*body_col)
+        self._draw_sphere(1.0, 16, 16)
+        glPopMatrix()
+
+        # ── HIP / RUMP PATCHES (black) ────────────────────────────────────────
+        # Black ovals at each hip where the rear legs attach — "wearing black
+        # trousers" effect that connects the white body to the black rear legs.
+        for hx in (-BW * 0.74, BW * 0.74):
             glPushMatrix()
-            glTranslatef(hx, -self.BODY_HEIGHT * 0.48 * sy, 0.0)
-            glScalef(0.36, 0.42 * sy, 0.30)
+            glTranslatef(hx, -BH * 0.46 * sy, BW * 0.08)
+            glScalef(0.44, 0.48 * sy, 0.36)
             glColor3f(*accent_col)
-            self._draw_sphere(1.0, 12, 12)
+            self._draw_sphere(1.0, 14, 14)
             glPopMatrix()
+
+        # ── NECK ──────────────────────────────────────────────────────────────
+        # Wide, short neck bridging the body top to the head base.
+        # Pandas are famously "neckless" — head appears to grow directly from body.
+        # Wider (0.46 vs 0.40) to match HEAD_RADIUS and fill the body-to-head join.
+        # Y lowered to BH×0.50 so the neck sphere overlaps both the body top and
+        # the base of the head, creating a smooth seamless blend.
+        glPushMatrix()
+        glTranslatef(0.0, BH * 0.50 * sy, BW * 0.01)
+        glScalef(0.46, 0.46 * sy, 0.42)
+        glColor3f(*body_col)
+        self._draw_sphere(1.0, 16, 16)
+        glPopMatrix()
 
         # ── Legs ─────────────────────────────────────────────────────────────
         self._draw_panda_legs(limb, bob, t)
@@ -1461,15 +1470,33 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
         """Draw simplified panda geometry for shadow pass (no colour changes)."""
         # Both body and head inside the single torso matrix so the shadow geometry
         # correctly follows any body pitch/roll applied during animation.
+        # Uses the same multi-sphere barrel construction as _draw_panda but with
+        # fewer slices/stacks and no colour changes for performance.
         glPushMatrix()
         glTranslatef(0.0, 0.30, 0.0)
-        glScalef(self.BODY_WIDTH, self.BODY_HEIGHT, self.BODY_WIDTH * 0.92)
-        self._draw_sphere(1.0, 10, 10)
+        BW = self.BODY_WIDTH
+        BH = self.BODY_HEIGHT
+        # Lower rump — widest part of barrel
+        glPushMatrix()
+        glTranslatef(0.0, -BH * 0.18, -BW * 0.06)
+        glScalef(BW * 1.12, BH * 0.80, BW * 0.96)
+        self._draw_sphere(1.0, 8, 8)
+        glPopMatrix()
+        # Upper chest mass
+        glPushMatrix()
+        glTranslatef(0.0, BH * 0.22, -BW * 0.04)
+        glScalef(BW * 0.88, BH * 0.72, BW * 0.82)
+        self._draw_sphere(1.0, 8, 8)
+        glPopMatrix()
+        # Belly — reduced forward offset to match _draw_panda geometry
+        glPushMatrix()
+        glTranslatef(0.0, -BH * 0.06, BW * 0.36)
+        glScalef(BW * 0.84, BH * 0.92, BW * 0.46)
+        self._draw_sphere(1.0, 8, 8)
         glPopMatrix()
         # Head at torso-local Y = 0.58 (same as in _draw_panda)
-        glPushMatrix()
-        glTranslatef(0.0, 0.30 + 0.58, 0.0)  # body translate + head local = 0.88
-        self._draw_sphere(self.HEAD_RADIUS, 10, 10)
+        glTranslatef(0.0, 0.58, 0.0)
+        self._draw_sphere(self.HEAD_RADIUS, 8, 8)
         glPopMatrix()
 
     # ─── Ear drawing ────────────────────────────────────────────────────────
@@ -1733,10 +1760,10 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
             pass  # not available if lighting not initialized
         glPopMatrix()
 
-        # Philtrum groove — dark line below nose
+        # Philtrum groove — small rounded dark patch below nose (not elongated)
         glPushMatrix()
         glTranslatef(0.0, -0.068, self.HEAD_RADIUS * 0.94)
-        glScalef(0.25, 1.10, 0.30)
+        glScalef(0.45, 0.40, 0.30)
         glColor3f(0.55, 0.45, 0.42)
         self._draw_sphere(0.022, 8, 8)
         glPopMatrix()
@@ -1953,9 +1980,13 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
         # translates by (0, 0.30 + bob, 0).  Do NOT add bob here again or the arms
         # will appear to move at 2× the body bob rate.
         # arm_y from class constant ARM_Y: shoulder height inside the body
-        # (body extends ±0.25 from torso centre; ARM_Y=0.18 sits at shoulder level).
+        # (body half-height = BH/2 = 0.20; ARM_Y=0.15 sits at shoulder level).
         arm_y   = self.ARM_Y
-        arm_x   = self.BODY_WIDTH + 0.06
+        # arm_x = BW×0.97 places the arm pivot 3% outside the body centre,
+        # i.e. right at the body surface (body edge at arm Y ≈ BW×0.80).
+        # Old value BODY_WIDTH+0.06 was 8% wider than the body, leaving a
+        # 0.20-unit visual gap between the body surface and the arm start.
+        arm_x   = self.BODY_WIDTH * 0.97
         ac = self._get_color('accent')   # fur-style accent colour for arm patches
 
         swing_idle = 5.0 * math.sin(t * 0.030)  # tiny idle sway
@@ -2068,8 +2099,8 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
         # leg_y = -0.24: pivot is well below the body centre so legs protrude
         # visibly beneath the belly (old value -0.04 hid them inside the body).
         leg_y = -0.24
-        # 0.78 × BODY_WIDTH = 0.437 — wider than old 0.80 × 0.50 = 0.40
-        # despite the smaller multiplier, because BODY_WIDTH increased to 0.56.
+        # leg_x = BW×0.78 = 0.546 — matches hip-patch centres at BW×0.74=0.518
+        # and the thigh sphere (±0.155) bridges the small gap.
         leg_x = self.BODY_WIDTH * 0.78   # aligns with hip-patch positions
         ac = self._get_color('accent')   # fur-style accent colour for leg patches
 
@@ -2751,7 +2782,7 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
         Panda does things without being asked.
         Sub-states layered on top of the main idle state (don't switch main state).
         """
-        if self.animation_state not in ('idle', 'working'):
+        if self.animation_state not in ('idle', 'working', 'sitting_back'):
             self._idle_sub_t = 0.0
             self._idle_sub_state = ''
             self._idle_sub_next = random.uniform(8.0, 20.0)
@@ -2761,13 +2792,14 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
         self._idle_sub_next -= dt
         if self._idle_sub_next <= 0.0 and not self._idle_sub_state:
             choices = [
-                ('grooming',   0.20),
-                ('stretching', 0.15),
-                ('scratching', 0.18),
-                ('daydream',   0.15),
-                ('sniffing',   0.12),
-                ('yawning',    0.10),
-                ('flopping',   0.10),
+                ('grooming',      0.18),
+                ('stretching',    0.12),
+                ('scratching',    0.14),
+                ('daydream',      0.12),
+                ('sniffing',      0.10),
+                ('yawning',       0.08),
+                ('flopping',      0.08),
+                ('bamboo_eating', 0.18),  # most iconic panda idle activity
             ]
             total = sum(w for _, w in choices)
             r = random.uniform(0, total)
@@ -2784,9 +2816,9 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
         if self._idle_sub_state:
             self._idle_sub_t += dt
             dur = {
-                'grooming':   3.5, 'stretching': 2.5, 'scratching': 2.0,
-                'daydream':   5.0, 'sniffing':   1.8, 'yawning':    2.0,
-                'flopping':   4.0,
+                'grooming':      3.5, 'stretching': 2.5, 'scratching': 2.0,
+                'daydream':      5.0, 'sniffing':   1.8, 'yawning':    2.0,
+                'flopping':      4.0, 'bamboo_eating': 7.0,  # eating takes a while
             }.get(self._idle_sub_state, 3.0)
             if self._idle_sub_t >= dur:
                 # Reset jaw when yawning finishes
@@ -2866,6 +2898,24 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
             else:
                 body_x = 45.0 * (1.0 - self._ease_out_cubic((phase - 0.7) / 0.3))
             return {'body_x': body_x}
+
+        elif s == 'bamboo_eating':
+            # Most iconic panda behaviour: seated, holding a bamboo stalk with
+            # both front paws, rhythmically munching.
+            # Both arms fold forward/down (like holding a stick horizontally).
+            # Head tilts slightly downward and bobs in small chewing rhythm.
+            # Jaw opens/closes on a ~1.2 s chew cycle.
+            chew_phase = math.sin(t * 5.2)        # fast jaw oscillation
+            arm_hold   = -75.0                    # both arms bent steeply forward
+            head_x     = -12.0 + chew_phase * 4.0 # slight head bob while chewing
+            jaw        = max(0.0, 0.35 * chew_phase)  # gentle rhythmic jaw movement
+            self._jaw_open = jaw
+            # Happy munching: content micro-emotion
+            self._micro_emotion['content'] = min(
+                1.0, self._micro_emotion.get('content', 0.0) + 0.008)
+            self._micro_emotion['happy'] = min(
+                1.0, self._micro_emotion.get('happy', 0.0) + 0.004)
+            return {'arm_l': arm_hold, 'arm_r': arm_hold, 'head_x': head_x}
 
         return {}
 
@@ -3063,13 +3113,14 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
 
     # Sound played when each idle sub-behavior starts
     _IDLE_SUB_SOUNDS: dict = {
-        'grooming':   'purr',
-        'stretching': 'stretch',
-        'scratching': 'scratch',
-        'daydream':   'sigh',
-        'sniffing':   'sniff',
-        'yawning':    'yawn',
-        'flopping':   'flop',
+        'grooming':      'purr',
+        'stretching':    'stretch',
+        'scratching':    'scratch',
+        'daydream':      'sigh',
+        'sniffing':      'sniff',
+        'yawning':       'yawn',
+        'flopping':      'flop',
+        'bamboo_eating': 'munch',   # bamboo eating — rhythmic munching sound
     }
 
     def _play_sound(self, name: str):
@@ -3312,11 +3363,15 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
                 pos['right_leg_angle'] = 12.0
 
             elif state == 'sitting_back':
-                # Relaxed sitting: legs splayed forward, arms resting on belly
-                pos['left_arm_angle']  = -20.0
-                pos['right_arm_angle'] = -20.0
-                pos['left_leg_angle']  =  45.0
-                pos['right_leg_angle'] =  45.0
+                # Realistic panda seated on haunches: legs splayed wide forward,
+                # arms hanging low resting loosely toward the ground.
+                # Real pandas sit with rump on ground, hind legs out to sides,
+                # front paws resting low in front.
+                sway = 2.0 * math.sin(frame * 0.035 * self._micro['sway_speed'])
+                pos['left_arm_angle']  = 18.0 + sway   # forearms hanging forward-down
+                pos['right_arm_angle'] = 18.0 - sway
+                pos['left_leg_angle']  = 68.0           # hind legs splayed far forward
+                pos['right_leg_angle'] = 68.0
 
             elif state == 'rolling':
                 # Rolling on back: all limbs flailing loosely
@@ -3385,9 +3440,14 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
                 pos['right_leg_angle'] =  5.0
 
             else:  # idle / neutral / default
-                sway = 3.5 * math.sin(frame * 0.040 * self._micro['sway_speed'])
-                pos['left_arm_angle']  =  sway
-                pos['right_arm_angle'] = -sway
+                # Natural panda standing/resting pose: arms rest slightly forward
+                # on the belly (real pandas hold their arms close to their chest
+                # when standing), legs angled forward under the barrel body.
+                sway = 2.5 * math.sin(frame * 0.040 * self._micro['sway_speed'])
+                pos['left_arm_angle']  = 15.0 + sway   # arms angled forward, resting
+                pos['right_arm_angle'] = 15.0 - sway
+                pos['left_leg_angle']  = 12.0           # legs angled slightly forward
+                pos['right_leg_angle'] = 12.0
 
             return pos
 
@@ -3535,8 +3595,10 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
         # World frustum height at z=0 (panda z is ~0)
         frustum_h = 2.0 * self.camera_distance * half_fov_tan
         frustum_w = frustum_h * aspect
-        # The camera is shifted so it looks at y=0.5
-        look_at_y = 0.5
+        # Camera is at Y=+0.3, so the world Y that maps to screen-centre is -0.3.
+        # The panda body centre is at world Y = panda_y + 0.30 ≈ -0.40, which
+        # is 0.10 below screen-centre → about 52 % down from the top of the widget.
+        look_at_y = -0.3
         pan_world_x = self.panda_x
         pan_world_y = self.panda_y - look_at_y
         sx = int(w / 2 + pan_world_x / frustum_w * w)
@@ -4816,9 +4878,10 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
             cumulative += weight
             if r <= cumulative:
                 if activity == 'walk_around':
-                    # Pick random position to walk to
-                    x = random.uniform(-1.5, 1.5)
-                    z = random.uniform(-1.5, 1.5)
+                    # Pick random position to walk to — use 75% of the world
+                    # half-width so the panda clearly traverses the visible area.
+                    x = random.uniform(-self.WORLD_HALF_X * 0.75, self.WORLD_HALF_X * 0.75)
+                    z = random.uniform(-self.WORLD_HALF_Z * 0.75, self.WORLD_HALF_Z * 0.75)
                     self.walk_to_position(x, -0.7, z)
                 elif activity == 'work':
                     self.start_working()
@@ -4842,6 +4905,17 @@ class PandaOpenGLWidget(QOpenGLWidget if QT_AVAILABLE else QWidget):
                     QTimer.singleShot(idle_ms,
                                       lambda: self.set_animation_state('idle')
                                       if self.animation_state == 'falling_back' else None)
+                elif activity == 'eat_bamboo':
+                    # Sit down then immediately trigger the bamboo eating sub-behavior.
+                    # This is the most realistic panda idle activity.
+                    self.set_animation_state('sitting_back')
+                    self._idle_sub_state = 'bamboo_eating'
+                    self._idle_sub_t     = 0.0
+                    self._play_sound('munch')
+                    dur = random.uniform(5.0, 10.0)
+                    QTimer.singleShot(int(dur * 1000),
+                                      lambda: self.set_animation_state('idle')
+                                      if self.animation_state == 'sitting_back' else None)
                 elif activity == 'sit_back':
                     self.set_animation_state('sitting_back')
                     dur = random.uniform(3.0, 7.0)

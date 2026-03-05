@@ -633,6 +633,15 @@ class LineArtConverterPanelQt(QWidget):
     finished = pyqtSignal(bool, str, int)  # success, message, files_processed
     error = pyqtSignal(str)           # error message
 
+    # Map display-name → ComparisonSliderWidget mode key.
+    # Defined once at class level so _on_comparison_mode_changed does not
+    # rebuild the dict on every combo-change event.
+    _COMPARISON_MODE_MAP: dict = {
+        "Slider":  "slider",
+        "Toggle":  "toggle",
+        "Overlay": "overlay",
+    }
+
     def __init__(self, parent=None, tooltip_manager=None):
         super().__init__(parent)
         
@@ -698,10 +707,17 @@ class LineArtConverterPanelQt(QWidget):
         event.acceptProposedAction()
     
     def _create_widgets(self):
-        """Create the UI widgets."""
+        """Create the UI widgets.
+
+        Layout: title header + QSplitter (controls-scroll left | preview right).
+        This matches the pattern used by the upscaler, bg-remover, and converter
+        panels so that:
+        - Controls are always scrollable (never squashed on small windows).
+        - The ComparisonSliderWidget fills the right panel and grows with it.
+        """
         layout = QVBoxLayout(self)
-        layout.setSpacing(10)
-        layout.setContentsMargins(10, 10, 10, 10)
+        layout.setSpacing(6)
+        layout.setContentsMargins(6, 6, 6, 6)
         
         # Title
         title_label = QLabel("✏️ Line Art Converter")
@@ -713,33 +729,42 @@ class LineArtConverterPanelQt(QWidget):
         subtitle_label.setStyleSheet("color: gray; font-size: 11pt;")
         subtitle_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(subtitle_label)
-        
-        # Main container with scroll
-        scroll = QScrollArea()
-        scroll.setWidgetResizable(True)
-        scroll.setFrameShape(QFrame.Shape.NoFrame)
-        
-        container = QWidget()
-        main_layout = QHBoxLayout(container)
-        
-        # Left side - Controls
+
+        # ── Main splitter: LEFT = scrollable controls, RIGHT = preview ────────
+        splitter = QSplitter(Qt.Orientation.Horizontal)
+        splitter.setChildrenCollapsible(False)
+        layout.addWidget(splitter, stretch=1)
+
+        # LEFT: controls wrapped in a QScrollArea so they never get crushed
         left_widget = QWidget()
         left_layout = QVBoxLayout(left_widget)
+        left_layout.setContentsMargins(4, 4, 4, 4)
+        left_layout.setSpacing(6)
         self._create_file_section(left_layout)
         self._create_preset_section(left_layout)
         self._create_settings_section(left_layout)
         self._create_action_buttons(left_layout)
         left_layout.addStretch()
-        main_layout.addWidget(left_widget, 1)
-        
-        # Right side - Preview
+
+        left_scroll = QScrollArea()
+        left_scroll.setWidgetResizable(True)
+        left_scroll.setWidget(left_widget)
+        left_scroll.setFrameShape(QFrame.Shape.NoFrame)
+        left_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        left_scroll.setMinimumWidth(320)
+        left_scroll.setMaximumWidth(520)
+        splitter.addWidget(left_scroll)
+
+        # RIGHT: preview section fills remaining space
         right_widget = QWidget()
         right_layout = QVBoxLayout(right_widget)
+        right_layout.setContentsMargins(4, 4, 4, 4)
         self._create_preview_section(right_layout)
-        main_layout.addWidget(right_widget, 1)
-        
-        scroll.setWidget(container)
-        layout.addWidget(scroll)
+        splitter.addWidget(right_widget)
+
+        splitter.setStretchFactor(0, 0)   # left: don't grow
+        splitter.setStretchFactor(1, 1)   # right: take all extra space
+        splitter.setSizes([380, 420])
     
     def _create_file_section(self, layout):
         """Create file selection section."""
@@ -1207,6 +1232,24 @@ class LineArtConverterPanelQt(QWidget):
         zoom_bar.addWidget(btn_fit)
         zoom_bar.addStretch()
 
+        # Comparison mode selector (Slider / Toggle / Overlay) — matches bg-remover UI
+        if SLIDER_AVAILABLE:
+            mode_label = QLabel("Mode:")
+            mode_label.setFixedWidth(36)
+            self._comparison_mode_combo = QComboBox()
+            self._comparison_mode_combo.addItems(["Slider", "Toggle", "Overlay"])
+            self._comparison_mode_combo.setFixedHeight(24)
+            self._comparison_mode_combo.setMaximumWidth(85)
+            self._comparison_mode_combo.currentTextChanged.connect(
+                self._on_comparison_mode_changed
+            )
+            self._set_tooltip(
+                self._comparison_mode_combo,
+                "Choose how to compare the original and processed images",
+            )
+            zoom_bar.addWidget(mode_label)
+            zoom_bar.addWidget(self._comparison_mode_combo)
+
         refresh_btn = QPushButton("🔄 Update Preview")
         refresh_btn.setFixedHeight(24)
         refresh_btn.clicked.connect(self._schedule_preview_update)
@@ -1215,19 +1258,17 @@ class LineArtConverterPanelQt(QWidget):
 
         group_layout.addLayout(zoom_bar)
 
-        # ── Preview area (scrollable) ──────────────────────────────────────
+        # ── Preview area ───────────────────────────────────────────────────
+        # The ComparisonSliderWidget handles its own zoom/pan via mouse/wheel
+        # events, so it no longer needs an outer QScrollArea wrapper.
+        # Adding it directly with stretch=1 lets it fill the right panel and
+        # grow when the splitter is resized — fixing the "preview too small"
+        # appearance reported in issue #206.
         if SLIDER_AVAILABLE:
             self.preview_widget = ComparisonSliderWidget()
             self.preview_widget.setMinimumHeight(200)
-            # Wrap in QScrollArea for zoom/pan
-            from PyQt6.QtWidgets import QScrollArea as _SA
-            self._preview_scroll = _SA()
-            self._preview_scroll.setWidgetResizable(False)
-            self._preview_scroll.setWidget(self.preview_widget)
-            self._preview_scroll.setMinimumHeight(200)
-            group_layout.addWidget(self._preview_scroll)
-            # Scroll-wheel zoom works for both paths
-            self._preview_scroll.wheelEvent = self._preview_wheel_event
+            self.preview_widget.setMinimumWidth(250)
+            group_layout.addWidget(self.preview_widget, stretch=1)
         else:
             # Fallback: scrollable label
             from PyQt6.QtWidgets import QScrollArea as _SA
@@ -1241,7 +1282,7 @@ class LineArtConverterPanelQt(QWidget):
             self._preview_scroll.setWidgetResizable(True)
             self._preview_scroll.setWidget(self.preview_label)
             self._preview_scroll.setMinimumHeight(200)
-            group_layout.addWidget(self._preview_scroll)
+            group_layout.addWidget(self._preview_scroll, stretch=1)
             self._preview_scroll.wheelEvent = self._preview_wheel_event
 
         # Live-update note
@@ -1251,6 +1292,12 @@ class LineArtConverterPanelQt(QWidget):
 
         group.setLayout(group_layout)
         layout.addWidget(group)
+
+    def _on_comparison_mode_changed(self, mode_text: str) -> None:
+        """Switch the ComparisonSliderWidget between Slider / Toggle / Overlay modes."""
+        if not SLIDER_AVAILABLE or not hasattr(self, 'preview_widget'):
+            return
+        self.preview_widget.set_mode(self._COMPARISON_MODE_MAP.get(mode_text, "slider"))
 
     def _apply_preview_zoom(self):
         """Scale the preview to the current zoom level (works for both label and slider)."""
@@ -1270,14 +1317,11 @@ class LineArtConverterPanelQt(QWidget):
                     ))
                     self.preview_label.resize(w, h)
             elif hasattr(self, 'preview_widget') and SLIDER_AVAILABLE:
-                # Scale the ComparisonSliderWidget inside its scroll area.
-                # Use a fixed 600-px base so zoom works even before the widget is first shown.
+                # ComparisonSliderWidget manages zoom internally via its _zoom
+                # attribute.  Drive it directly so the zoom buttons work.
                 pw = self.preview_widget
-                base_w = getattr(pw, '_base_w', 600)
-                base_h = getattr(pw, '_base_h', 450)
-                nw = max(200, int(base_w * self._preview_zoom))
-                nh = max(200, int(base_h * self._preview_zoom))
-                pw.setFixedSize(nw, nh)
+                pw._zoom = max(0.25, min(8.0, self._preview_zoom))
+                pw.update()
         except Exception:
             pass
 

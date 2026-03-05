@@ -320,7 +320,7 @@ class DungeonGenerator:
         if rooms:
             # Stairs up (not on first floor)
             if floor_num > 0:
-                room = self.rng.choice(rooms[:len(rooms)//2])
+                room = self.rng.choice(rooms[:max(1, len(rooms) // 2)])
                 floor.add_stairs(*room.center, going_up=True)
             
             # Stairs down (not on last floor)

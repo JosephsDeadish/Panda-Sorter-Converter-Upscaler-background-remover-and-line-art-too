@@ -63,6 +63,64 @@ except Exception:
     _SEARCH_FILTER = None  # type: ignore[assignment]
 
 
+class _ScaledPreviewLabel(QWidget):
+    """A simple image-preview widget that scales its pixmap to fill the
+    available space while preserving aspect ratio.
+
+    Replaces the previous ``QScrollArea + QLabel(setScaledContents=False)``
+    approach which showed images at their raw pixel size inside a pane that
+    was usually far too small — making the preview look broken/truncated.
+    """
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self._pixmap: 'Optional[QPixmap]' = None
+        self._placeholder_text: str = "No file selected"
+        self.setMinimumSize(160, 120)
+
+    def set_pixmap(self, pixmap: 'QPixmap') -> None:
+        """Display *pixmap*, scaled to fit on the next paint."""
+        self._pixmap = pixmap
+        self._placeholder_text = ""
+        self.update()
+
+    def set_placeholder(self, text: str) -> None:
+        """Clear the image and show *text* centred in the widget."""
+        self._pixmap = None
+        self._placeholder_text = text
+        self.update()
+
+    # ── Qt overrides ──────────────────────────────────────────────────────────
+
+    def paintEvent(self, event) -> None:  # type: ignore[override]
+        from PyQt6.QtGui import QPainter, QColor
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform)
+
+        rect = self.rect()
+        # Background
+        painter.fillRect(rect, QColor(30, 30, 40))
+
+        if self._pixmap and not self._pixmap.isNull():
+            scaled = self._pixmap.scaled(
+                rect.size(),
+                Qt.AspectRatioMode.KeepAspectRatio,
+                Qt.TransformationMode.SmoothTransformation,
+            )
+            x = (rect.width() - scaled.width()) // 2
+            y = (rect.height() - scaled.height()) // 2
+            painter.drawPixmap(x, y, scaled)
+        else:
+            painter.setPen(QColor(140, 140, 140))
+            painter.drawText(rect, Qt.AlignmentFlag.AlignCenter, self._placeholder_text)
+
+        painter.end()
+
+    def resizeEvent(self, event) -> None:  # type: ignore[override]
+        self.update()
+        super().resizeEvent(event)
+
+
 
 class ThumbnailGenerator(QThread):
     """Background thread for generating thumbnails"""
@@ -166,6 +224,16 @@ class FileBrowserPanelQt(QWidget):
         self.recent_folders: List[str] = []
         self.load_recent_folders()
         
+        # Debounce timer for preview loading — prevents blocking the UI when
+        # the user clicks through files quickly.  The preview loads on a 150 ms
+        # delay; if another file is selected before the timer fires, the pending
+        # preview is cancelled and the new file is loaded instead.
+        self._preview_timer = QTimer(self)
+        self._preview_timer.setSingleShot(True)
+        self._preview_timer.setInterval(150)
+        self._pending_preview: Optional[Path] = None
+        self._preview_timer.timeout.connect(self._load_pending_preview)
+
         self.setup_ui()
     
     def _set_tooltip(self, widget, widget_id_or_text: str):
@@ -339,34 +407,36 @@ class FileBrowserPanelQt(QWidget):
         # === PREVIEW PANEL (RIGHT) ===
         preview_container = QWidget()
         preview_layout = QVBoxLayout(preview_container)
-        preview_layout.setContentsMargins(0, 0, 0, 0)
-        
-        preview_label = QLabel("Preview")
-        preview_label.setStyleSheet("font-weight: bold; font-size: 14px;")
-        preview_layout.addWidget(preview_label)
-        
-        # Scroll area for large preview
-        scroll = QScrollArea()
-        scroll.setWidgetResizable(True)
-        scroll.setFrameShape(QScrollArea.Shape.Box)
-        
-        self.preview_label = QLabel("No file selected")
-        self.preview_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.preview_label.setStyleSheet("background-color: #f0f0f0; padding: 20px;")
-        self.preview_label.setScaledContents(False)
-        scroll.setWidget(self.preview_label)
-        
-        preview_layout.addWidget(scroll)
-        
+        preview_layout.setContentsMargins(4, 0, 0, 0)
+        preview_layout.setSpacing(4)
+
+        preview_title = QLabel("Preview")
+        preview_title.setStyleSheet("font-weight: bold; font-size: 13px;")
+        preview_layout.addWidget(preview_title)
+
+        # Auto-scaling preview — fills available space and keeps aspect ratio.
+        # Replaces the old QScrollArea+QLabel which showed images at their
+        # raw pixel size and looked broken (too large / unscrolled / broken).
+        self.preview_widget = _ScaledPreviewLabel()
+        self.preview_widget.set_placeholder("No file selected")
+        preview_layout.addWidget(self.preview_widget, stretch=1)
+
         # File info
         self.info_label = QLabel("")
         self.info_label.setWordWrap(True)
-        self.info_label.setStyleSheet("background-color: #ffffff; padding: 10px; border: 1px solid #ccc;")
+        self.info_label.setStyleSheet(
+            "background-color: rgba(30,30,40,180); color: #ccc; "
+            "padding: 6px; border-radius: 4px; font-size: 10px;"
+        )
+        self.info_label.setMaximumHeight(90)
         preview_layout.addWidget(self.info_label)
-        
+
         splitter.addWidget(preview_container)
-        splitter.setStretchFactor(0, 2)  # File list gets more space
-        splitter.setStretchFactor(1, 1)  # Preview gets less
+        # Give the file list and preview roughly equal space (3:2) so the
+        # preview is large enough to actually see the image.
+        splitter.setStretchFactor(0, 3)
+        splitter.setStretchFactor(1, 2)
+        splitter.setSizes([560, 380])
         
         layout.addWidget(splitter)
         
@@ -679,10 +749,18 @@ class FileBrowserPanelQt(QWidget):
                 break
     
     def on_file_clicked(self, item: QListWidgetItem):
-        """Handle file clicked"""
+        """Handle file clicked — debounce preview to avoid blocking the UI."""
         filepath = Path(item.data(Qt.ItemDataRole.UserRole))
-        self.show_preview(filepath)
+        # Schedule preview with debounce so rapid clicks don't pile up
+        self._pending_preview = filepath
+        self._preview_timer.start()
         self.file_selected.emit(filepath)
+
+    def _load_pending_preview(self):
+        """Load the preview for the most recently selected file (called by debounce timer)."""
+        if self._pending_preview is not None:
+            self.show_preview(self._pending_preview)
+            self._pending_preview = None
     
     def on_file_double_clicked(self, item: QListWidgetItem):
         """Handle file double-clicked — open with default OS application."""
@@ -744,7 +822,7 @@ class FileBrowserPanelQt(QWidget):
         try:
             if filepath.suffix.lower() in self.ARCHIVE_EXTENSIONS:
                 # Show archive info
-                self.preview_label.setText(f"📦 Archive File\n\n{filepath.name}")
+                self.preview_widget.set_placeholder(f"📦 Archive\n\n{filepath.name}")
                 size_mb = filepath.stat().st_size / (1024 * 1024)
                 self.info_label.setText(f"<b>File:</b> {filepath.name}<br>"
                                       f"<b>Type:</b> Archive ({filepath.suffix})<br>"
@@ -753,14 +831,18 @@ class FileBrowserPanelQt(QWidget):
                 # Show image preview
                 if PIL_AVAILABLE:
                     img = Image.open(filepath)
-                    # Capture original dimensions before thumbnail() resizes in-place
+                    # Capture original dimensions before any resizing
                     original_width, original_height = img.size
                     original_format = img.format
                     original_mode = img.mode
-                    
-                    # Create larger preview (max 512x512)
-                    img.thumbnail((512, 512), Image.Resampling.LANCZOS)
-                    
+
+                    # Cap at 1024 on the long edge to keep memory reasonable.
+                    # The _ScaledPreviewLabel will scale down further to fit the
+                    # widget — so we no longer need the old 512×512 hard cap.
+                    max_side = 1024
+                    if max(original_width, original_height) > max_side:
+                        img.thumbnail((max_side, max_side), Image.Resampling.LANCZOS)
+
                     # Convert to QPixmap
                     if img.mode == 'RGBA':
                         data = img.tobytes("raw", "RGBA")
@@ -772,25 +854,25 @@ class FileBrowserPanelQt(QWidget):
                         img = img.convert('RGB')
                         data = img.tobytes("raw", "RGB")
                         qimage = QImage(data, img.size[0], img.size[1], QImage.Format.Format_RGB888)
-                    
+
                     pixmap = QPixmap.fromImage(qimage)
-                    self.preview_label.setPixmap(pixmap)
-                    
-                    # Show file info using saved original dimensions (no second file-open)
+                    self.preview_widget.set_pixmap(pixmap)
+
+                    # Show file info using saved original dimensions
                     size_mb = filepath.stat().st_size / (1024 * 1024)
                     self.info_label.setText(
-                        f"<b>File:</b> {filepath.name}<br>"
-                        f"<b>Size:</b> {original_width} x {original_height}<br>"
-                        f"<b>Format:</b> {original_format}<br>"
-                        f"<b>Mode:</b> {original_mode}<br>"
-                        f"<b>File Size:</b> {size_mb:.2f} MB"
+                        f"<b>{filepath.name}</b><br>"
+                        f"{original_width} \u00d7 {original_height} px"
+                        f" \u2014 {original_format}"
+                        f" \u2014 {original_mode}"
+                        f" \u2014 {size_mb:.2f}\u00a0MB"
                     )
                 else:
-                    self.preview_label.setText("PIL not available\nCannot show preview")
-                    
+                    self.preview_widget.set_placeholder("PIL not available\nCannot show preview")
+
         except Exception as e:
             logger.error(f"Error showing preview: {e}", exc_info=True)
-            self.preview_label.setText(f"Error loading preview:\n{e}")
+            self.preview_widget.set_placeholder(f"Error loading preview:\n{e}")
     
     def closeEvent(self, event):
         """Stop the thumbnail generator thread before the widget is destroyed.

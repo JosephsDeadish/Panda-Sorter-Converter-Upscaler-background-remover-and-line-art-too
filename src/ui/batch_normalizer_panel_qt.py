@@ -579,7 +579,8 @@ class BatchNormalizerPanelQt(QWidget):
             # Load first image
             first_file = self.selected_files[0]
             image = Image.open(first_file)
-            
+            orig_w, orig_h = image.size  # capture before thumbnail() modifies in-place
+
             # Resize for preview
             image.thumbnail((_PREVIEW_THUMBNAIL_SIZE, _PREVIEW_THUMBNAIL_SIZE), Image.Resampling.LANCZOS)
             
@@ -589,7 +590,7 @@ class BatchNormalizerPanelQt(QWidget):
             pixmap = QPixmap.fromImage(qimage)
             
             self.preview_label.setPixmap(pixmap)
-            self.info_label.setText(f"Original: {Image.open(first_file).size[0]}×{Image.open(first_file).size[1]}")
+            self.info_label.setText(f"Original: {orig_w}×{orig_h}")
         except Exception as e:
             self.preview_label.setText(f"Error loading preview: {str(e)}")
     

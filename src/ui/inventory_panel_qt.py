@@ -349,6 +349,8 @@ class InventoryPanelQt(QWidget):
         target = cat_map.get(cat_label)
         if not target:
             return True
+        if item.category is None:
+            return False
         return item.category.name == target
 
     def matches_category(self, item: 'ShopItem') -> bool:

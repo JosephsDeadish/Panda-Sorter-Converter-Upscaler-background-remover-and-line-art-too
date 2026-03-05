@@ -245,9 +245,9 @@ class QuestSystem(QObject if PYQT_AVAILABLE else object):
             Quest(
                 id="widget_master",
                 name="Widget Master",
-                description="Interact with 10 different widget types",
+                description="Interact with all 5 widget types (button, slider, tab, checkbox, combobox)",
                 quest_type=QuestType.EXPLORATION,
-                goal_value=10,
+                goal_value=5,
                 reward_message="You've mastered the UI with panda! 🎯",
             ),
             Quest(
@@ -361,23 +361,29 @@ class QuestSystem(QObject if PYQT_AVAILABLE else object):
     
     def update_quest_progress(self, quest_id, amount=1):
         """
-        Update quest progress.
-        
+        Update quest progress.  If the quest is NOT_STARTED it is automatically
+        started before the progress increment is applied, so callers do not need
+        to call start_quest() separately.
+
         Args:
             quest_id: Quest ID to update
             amount: Amount to increment progress
         """
         if quest_id in self.quests:
             quest = self.quests[quest_id]
-            
+
+            # Auto-start the quest on first progress report
+            if quest.status == QuestStatus.NOT_STARTED:
+                self.start_quest(quest_id)
+
             if quest.status != QuestStatus.IN_PROGRESS:
                 return
-            
+
             quest.current_progress += amount
-            
+
             if self.quest_progress:
                 self.quest_progress.emit(quest_id, quest.current_progress, quest.goal_value)
-            
+
             # Check if quest completed
             if quest.current_progress >= quest.goal_value:
                 self._complete_quest(quest_id)
@@ -417,27 +423,33 @@ class QuestSystem(QObject if PYQT_AVAILABLE else object):
         """
         self.total_interactions += 1
         self.widgets_interacted.add(widget_type)
-        
-        # Update quest progress
+
+        # update_quest_progress() auto-starts NOT_STARTED quests; no explicit
+        # start_quest() needed here.
         if widget_type == 'button':
             self.update_quest_progress('button_biter')
         elif widget_type == 'tab':
             self.update_quest_progress('tab_switcher')
         elif widget_type == 'slider':
             self.update_quest_progress('slider_tapper')
-        
-        # First interaction quest
+
+        # First interaction quest (auto-started by update_quest_progress)
         if self.total_interactions == 1:
-            self.start_quest('first_interaction')
             self.update_quest_progress('first_interaction')
-        
-        # Widget master quest
-        if len(self.widgets_interacted) > 0:
-            quest = self.quests.get('widget_master')
-            if quest and quest.status == QuestStatus.NOT_STARTED:
+
+        # Widget master quest — tracks unique widget *types* seen, so progress
+        # is set directly rather than incremented; completion checked inline.
+        quest = self.quests.get('widget_master')
+        if quest is not None:
+            if quest.status == QuestStatus.NOT_STARTED:
                 self.start_quest('widget_master')
-            self.update_quest_progress('widget_master', 0)  # Update to current count
-            quest.current_progress = len(self.widgets_interacted)
+            if quest.status == QuestStatus.IN_PROGRESS:
+                count = len(self.widgets_interacted)
+                quest.current_progress = count
+                if self.quest_progress:
+                    self.quest_progress.emit('widget_master', count, quest.goal_value)
+                if count >= quest.goal_value:
+                    self._complete_quest('widget_master')
     
     def find_item(self, item_type, item_name):
         """
@@ -476,7 +488,8 @@ class QuestSystem(QObject if PYQT_AVAILABLE else object):
             if quest:
                 if quest.status == QuestStatus.NOT_STARTED:
                     self.start_quest('easter_egg_hunter')
-                self._complete_quest('easter_egg_hunter')
+                if quest.status == QuestStatus.IN_PROGRESS:
+                    self._complete_quest('easter_egg_hunter')
             
             if self.easter_egg_found:
                 self.easter_egg_found.emit(egg_id)
@@ -636,7 +649,8 @@ class QuestSystem(QObject if PYQT_AVAILABLE else object):
             quest = self.quests[qid]
             if quest.status == QuestStatus.NOT_STARTED and files_processed > 0:
                 self.start_quest(qid)
-                # start_quest sets status to IN_PROGRESS; fall through to record progress
+                # start_quest sets status to IN_PROGRESS; also record the first batch now
+                self.update_quest_progress(qid, files_processed)
             elif quest.status == QuestStatus.IN_PROGRESS and files_processed > 0:
                 # update_quest_progress handles completion and signal emission
                 self.update_quest_progress(qid, files_processed)

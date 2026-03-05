@@ -35,6 +35,9 @@ class Level:
 
 class LevelSystem:
     """Base class for level/XP tracking."""
+
+    # Subclasses override this to define XP rewards for their domain.
+    XP_REWARDS: Dict = {}
     
     def __init__(self, name: str, save_path: Optional[Path] = None):
         """
