@@ -258,7 +258,7 @@ class SettingsPanelQt(QWidget):
         theme_label = QLabel("Theme Mode:")
         self.theme_combo = QComboBox()
         self.theme_combo.addItems([
-            "Dark", "Light", "Nord", "Dracula", "Solarized Dark",
+            "Panda", "Dark", "Light", "Nord", "Dracula", "Solarized Dark",
             "Forest", "Ocean", "Sunset", "Cyberpunk", "Gore", "Goth", "Vampire",
         ])
         self.theme_combo.currentTextChanged.connect(lambda: self.on_setting_changed('ui', 'theme'))
@@ -1715,6 +1715,7 @@ class SettingsPanelQt(QWidget):
                 'gore': 'Gore',
                 'goth': 'Goth',
                 'vampire': 'Vampire',
+                'panda': 'Panda',
             }
             self.theme_combo.setCurrentText(theme_map.get(theme.lower(), theme.capitalize()))
             

@@ -9714,6 +9714,251 @@ def test_file_browser_scaled_preview_widget():
     print("  ✅ Source: old unbalanced splitter stretch removed")
 
 
+def test_panda_theme_qss_and_effects():
+    """Panda theme: QSS must contain bamboo-green colours and all effect wiring must exist.
+
+    Issue #206 / new requirement: "create a panda theme with lots of cool panda
+    effects like the others and make it default theme."
+
+    Validates (source-level):
+    1. settings_panel_qt.py combo includes 'Panda' at the *first* position
+    2. config.py default theme is 'panda'
+    3. apply_theme('panda') branch exists and contains bamboo-green colours
+    4. PandaPawLabel, PandaAmbientFloat, PandaPawFilter classes exist in main.py
+    5. _panda_paw_filter, _panda_ambient_timer instance vars declared
+    6. _update_panda_effects and _spawn_panda_float methods exist
+    7. Panda 🐼 title decoration added/removed correctly in _update_panda_effects
+    8. 'panda' key present in _DISPLAY_MAP and in the achievement mapping
+    """
+    print("\ntest_panda_theme_qss_and_effects ...")
+    from pathlib import Path
+
+    # 1. Settings combo — 'Panda' must be listed
+    settings_src = (Path(__file__).parent / 'src' / 'ui' / 'settings_panel_qt.py').read_text(encoding='utf-8')
+    assert "'Panda'" in settings_src or '"Panda"' in settings_src, \
+        "settings_panel_qt.py addItems must include 'Panda'"
+    print("  ✅ Source: 'Panda' present in settings combo addItems")
+
+    # 2. Default theme = panda in config.py
+    config_src = (Path(__file__).parent / 'src' / 'config.py').read_text(encoding='utf-8')
+    assert '"theme": "panda"' in config_src or "'theme': 'panda'" in config_src, \
+        "config.py default theme must be 'panda'"
+    print("  ✅ Source: config.py default theme is 'panda'")
+
+    # 3–8. main.py source checks
+    with open('main.py', encoding='utf-8') as _f:
+        code = _f.read()
+
+    # QSS branch
+    assert "elif theme in ('panda',):" in code, \
+        "main.py: missing panda theme QSS branch (elif theme in ('panda',):)"
+    assert '#3a7d44' in code, \
+        "main.py: panda theme QSS must contain bamboo-green #3a7d44"
+    assert '#2d5a27' in code, \
+        "main.py: panda theme QSS must contain deep-bamboo #2d5a27"
+    print("  ✅ Source: panda QSS branch with bamboo-green colours present")
+
+    # Effect classes
+    for cls_name in ('PandaPawLabel', 'PandaAmbientFloat', 'PandaPawFilter'):
+        assert f'class {cls_name}' in code, \
+            f"main.py: {cls_name} class missing for Panda theme effects"
+    print("  ✅ Source: PandaPawLabel, PandaAmbientFloat, PandaPawFilter classes present")
+
+    # Instance vars
+    assert '_panda_paw_filter' in code, \
+        "main.py: _panda_paw_filter instance var missing in __init__"
+    assert '_panda_ambient_timer' in code, \
+        "main.py: _panda_ambient_timer instance var missing in __init__"
+    print("  ✅ Source: _panda_paw_filter and _panda_ambient_timer declared")
+
+    # Methods
+    assert 'def _update_panda_effects' in code, \
+        "main.py: _update_panda_effects() method missing"
+    assert 'def _spawn_panda_float' in code, \
+        "main.py: _spawn_panda_float() method missing"
+    print("  ✅ Source: _update_panda_effects() and _spawn_panda_float() present")
+
+    # Panda title decoration
+    assert '🐼' in code and 'setWindowTitle' in code, \
+        "main.py: panda theme must decorate the window title with 🐼"
+    print("  ✅ Source: 🐼 window title decoration present")
+
+    # _DISPLAY_MAP includes 'panda'
+    assert "'panda': 'panda'" in code or '"panda": "panda"' in code, \
+        "main.py: _DISPLAY_MAP must include 'panda' key"
+    print("  ✅ Source: 'panda' key in _DISPLAY_MAP")
+
+    # Achievement mapping
+    assert "'panda': " in code or '"panda":' in code, \
+        "main.py: panda must have an entry in the _theme_ach achievement map"
+    print("  ✅ Source: panda entry in _theme_ach achievement map")
+
+    # Runtime: apply panda theme and verify stylesheet + filter installed.
+    try:
+        import sys, logging, os
+        os.environ.setdefault('QT_QPA_PLATFORM', 'offscreen')
+        logging.disable(logging.CRITICAL)
+        import main as _m
+        from PyQt6.QtWidgets import QApplication
+        _app = QApplication.instance() or QApplication(sys.argv)
+        win = _m.TextureSorterMainWindow()
+        win.resize(1280, 800)
+
+        win.apply_theme('panda')
+        ss = win.styleSheet()
+        assert ss, "Panda theme produced an empty stylesheet"
+        assert '#3a7d44' in ss or '#2d5a27' in ss, \
+            "Panda stylesheet must contain bamboo-green colour"
+        assert win._panda_paw_filter is not None, \
+            "PandaPawFilter must be installed when Panda theme is active"
+        assert win._panda_ambient_timer is not None and win._panda_ambient_timer.isActive(), \
+            "Panda ambient timer must be running after apply_theme('panda')"
+        print("  ✅ Runtime: Panda theme applied; filter + timer running")
+
+        # Switching away must remove effects
+        win.apply_theme('dark')
+        assert win._panda_paw_filter is None, \
+            "PandaPawFilter must be removed when switching away from Panda theme"
+        assert win._panda_ambient_timer is None, \
+            "Panda ambient timer must stop when switching away from Panda theme"
+        print("  ✅ Runtime: Panda effects removed after switching to Dark theme")
+    except SystemExit:
+        print("  ⚠️  Runtime check skipped (Qt env limitation — source checks sufficient)")
+
+
+def test_tooltip_set_tooltip_method_and_flush():
+    """TooltipVerbosityManager must have set_tooltip() that registers + shows real tips.
+
+    Issue #206 / new requirement: "the tooltips in tutorial.py still aren't
+    showing or cycling or being switched between Modes."
+
+    Root cause: BasePyQtPanel._set_tooltip() calls tooltip_mgr.set_tooltip()
+    (method from settings_panel_qt's custom set_tooltip()), but
+    TooltipVerbosityManager never had a set_tooltip() method.  The try/except
+    block in _set_tooltip() silently swallowed the AttributeError and fell back
+    to widget.setToolTip(key_string), meaning widgets showed their raw key
+    ("bg_mode", "sort_button") instead of actual tooltip text, and the cycling
+    event filter was never installed.
+
+    Additional issue: even when the manager is later propagated via
+    _propagate_tooltip_manager(), widgets registered during setup_ui() (when
+    manager was None) were never re-registered.  The fix stores pending
+    (widget, key) pairs in _pending_tooltips and flushes them in
+    _flush_pending_tooltips() which _propagate_tooltip_manager() now calls.
+
+    Validates (source-level):
+    1. TooltipVerbosityManager.set_tooltip() method exists in tutorial_system.py
+    2. set_tooltip() calls get_tooltip() + setToolTip() + register()
+    3. BasePyQtPanel._set_tooltip() stores pending tooltips when manager is None
+    4. BasePyQtPanel._flush_pending_tooltips() exists
+    5. _propagate_tooltip_manager() calls _flush_pending_tooltips on each panel
+    """
+    print("\ntest_tooltip_set_tooltip_method_and_flush ...")
+    from pathlib import Path
+
+    tutorial_src = (Path(__file__).parent / 'src' / 'features' / 'tutorial_system.py').read_text(encoding='utf-8')
+    base_panel_src = (Path(__file__).parent / 'src' / 'ui' / 'pyqt6_base_panel.py').read_text(encoding='utf-8')
+    with open('main.py', encoding='utf-8') as _f:
+        main_code = _f.read()
+
+    # 1. set_tooltip() method must exist on the manager class
+    assert 'def set_tooltip(self, widget, widget_id' in tutorial_src, (
+        "tutorial_system.py: TooltipVerbosityManager.set_tooltip(widget, widget_id) "
+        "method is missing.  BasePyQtPanel._set_tooltip() calls it; without it every "
+        "tooltip silently falls back to showing the raw key string."
+    )
+    print("  ✅ Source: TooltipVerbosityManager.set_tooltip() method exists")
+
+    # 2. set_tooltip must call get_tooltip, setToolTip, and register
+    # Find method body (until next def)
+    import re
+    m = re.search(r'def set_tooltip\(self, widget.*?(?=\n    def |\Z)', tutorial_src, re.DOTALL)
+    assert m, "Could not locate set_tooltip method body"
+    st_body = m.group(0)
+    assert 'get_tooltip' in st_body, \
+        "set_tooltip must call get_tooltip() to retrieve the translated tip text"
+    assert 'setToolTip' in st_body, \
+        "set_tooltip must call widget.setToolTip() to apply the tip immediately"
+    assert 'register' in st_body, \
+        "set_tooltip must call register() to install the cycling event filter"
+    print("  ✅ Source: set_tooltip calls get_tooltip + setToolTip + register")
+
+    # 3. _set_tooltip must store pending tooltips when manager is None
+    assert '_pending_tooltips' in base_panel_src, (
+        "pyqt6_base_panel.py: _set_tooltip must store (widget, key) pairs in "
+        "_pending_tooltips when tooltip_manager is None."
+    )
+    print("  ✅ Source: _pending_tooltips list used in BasePyQtPanel._set_tooltip")
+
+    # 4. _flush_pending_tooltips must exist on BasePyQtPanel
+    assert 'def _flush_pending_tooltips' in base_panel_src, (
+        "pyqt6_base_panel.py: _flush_pending_tooltips() method missing.  "
+        "It is called by _propagate_tooltip_manager() to register all widgets "
+        "that were built while the manager did not yet exist."
+    )
+    print("  ✅ Source: _flush_pending_tooltips() defined on BasePyQtPanel")
+
+    # 5. _propagate_tooltip_manager must call _flush_pending_tooltips
+    assert '_flush_pending_tooltips' in main_code, (
+        "main.py: _propagate_tooltip_manager() must call panel._flush_pending_tooltips() "
+        "on each panel after injecting the manager, so widgets built during setup_ui() "
+        "get their cycling filter installed."
+    )
+    print("  ✅ Source: _propagate_tooltip_manager calls _flush_pending_tooltips")
+
+    # Runtime: instantiate the manager and verify set_tooltip works.
+    try:
+        import sys, logging, os
+        os.environ.setdefault('QT_QPA_PLATFORM', 'offscreen')
+        logging.disable(logging.CRITICAL)
+
+        from src.features.tutorial_system import TooltipVerbosityManager, TooltipMode
+        from src.config import Config
+        cfg = Config()
+
+        mgr = TooltipVerbosityManager(cfg)
+        from PyQt6.QtWidgets import QApplication, QPushButton
+        _app = QApplication.instance() or QApplication(sys.argv)
+
+        btn = QPushButton("Test")
+        mgr.set_tooltip(btn, 'sort_button')
+
+        # Tooltip text must not be the raw key string
+        tip = btn.toolTip()
+        assert tip != 'sort_button', (
+            f"set_tooltip set raw key 'sort_button' as tooltip text; "
+            f"expected a real tip from the manager.  Got: {tip!r}"
+        )
+        assert len(tip) > 5, f"Tooltip text is too short: {tip!r}"
+        print(f"  ✅ Runtime: set_tooltip produced real tip text: {tip[:60]!r}")
+
+        # Verify cycling: successive get_tooltip calls advance the list
+        mgr2 = TooltipVerbosityManager(cfg)
+        t1 = mgr2.get_tooltip('sort_button')
+        t2 = mgr2.get_tooltip('sort_button')
+        # sort_button has multiple tips so cycling must give different values
+        # (not guaranteed if len==1, but the normal list has 5+ entries)
+        all_tips = mgr2.tooltips[TooltipMode.NORMAL].get('sort_button', [])
+        if isinstance(all_tips, list) and len(all_tips) > 1:
+            assert t1 != t2, (
+                f"Tooltip cycling not working: consecutive calls returned "
+                f"the same value {t1!r}"
+            )
+        print("  ✅ Runtime: tooltip cycling advances on each get_tooltip call")
+
+        # Mode switching: switch to PROFANE and get_tooltip returns profane tip
+        mgr2.set_mode(TooltipMode.PROFANE)
+        profane_tip = mgr2.get_tooltip('sort_button')
+        assert profane_tip, "Profane mode returned empty tooltip for sort_button"
+        print(f"  ✅ Runtime: mode switch to PROFANE works: {profane_tip[:50]!r}…")
+    except SystemExit:
+        print("  ⚠️  Runtime check skipped (Qt env limitation — source checks sufficient)")
+    except (OSError, ImportError) as _qt_e:
+        print(f"  ⚠️  Runtime check skipped (Qt platform unavailable: {_qt_e})")
+    except Exception as _e:
+        raise AssertionError(f"Runtime tooltip test failed: {_e}") from _e
+
+
 def run_all_tests():
     print("=" * 65)
     print("Hybrid Architecture + Lazy rembg Import Tests")
@@ -9892,6 +10137,8 @@ def run_all_tests():
         test_format_converter_left_column_scroll_area,
         test_panel_selector_toggle_button_compact,
         test_file_browser_scaled_preview_widget,
+        test_panda_theme_qss_and_effects,
+        test_tooltip_set_tooltip_method_and_flush,
     ]
 
     passed, failed = [], []

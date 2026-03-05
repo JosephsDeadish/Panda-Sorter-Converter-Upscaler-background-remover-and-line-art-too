@@ -115,7 +115,7 @@ class Config:
         return {
             # UI Settings
             "ui": {
-                "theme": "dark",  # dark, light
+                "theme": "panda",  # dark, light, panda (default)
                 "accent_color": "#0d7377",  # Accent color for UI elements
                 "custom_colors": {},
                 "cursor": "default",  # default, skull, panda, sword

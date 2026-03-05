@@ -598,6 +598,139 @@ class BloodSplatterLabel(QLabel):
         self._anim = anim  # keep reference alive
 
 
+# ── Panda theme effect classes ────────────────────────────────────────────────
+
+class PandaPawLabel(QLabel):
+    """🐾 Panda paw-print that appears at the click site and bounces + fades.
+
+    Each click spawns a randomly-sized paw emoji that bounces up slightly,
+    then fades out — giving the UI a playful "panda touched here" feel.
+    """
+
+    _EMOJIS = ["🐾", "🐼", "🎋", "🐾🐼", "🐼💚", "🌿🐾", "🎍"]
+
+    def __init__(self, parent: 'QWidget', pos: 'QPoint') -> None:
+        super().__init__(parent)
+        _r = _random
+        self.setText(_r.choice(self._EMOJIS))
+        size_pt = _r.choice([20, 22, 24, 26])
+        self.setStyleSheet(
+            f"QLabel {{ background: transparent; font-size: {size_pt}px;"
+            " color: #2d5a27; border: none; padding: 0; }}"
+        )
+        self.adjustSize()
+        dx = _r.randint(-14, 14)
+        self.move(pos.x() - self.width() // 2 + dx,
+                  pos.y() - self.height() // 2)
+        self.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
+        self.show()
+        self.raise_()
+
+        from PyQt6.QtWidgets import QGraphicsOpacityEffect
+        from PyQt6.QtCore import QPropertyAnimation, QEasingCurve, QRect
+        eff = QGraphicsOpacityEffect(self)
+        self.setGraphicsEffect(eff)
+
+        # Fade out
+        self._fade = QPropertyAnimation(eff, b"opacity", self)
+        self._fade.setDuration(900)
+        self._fade.setStartValue(1.0)
+        self._fade.setEndValue(0.0)
+        self._fade.setEasingCurve(QEasingCurve.Type.OutQuad)
+        self._fade.finished.connect(self.deleteLater)
+
+        # Bounce up then drift down
+        sg = self.geometry()
+        mg = QRect(sg.x() + _r.randint(-6, 6), sg.y() - 30, sg.width(), sg.height())
+        eg = QRect(mg.x() + _r.randint(-8, 8), mg.y() + 20, mg.width(), mg.height())
+        self._bounce = QPropertyAnimation(self, b"geometry", self)
+        self._bounce.setDuration(900)
+        self._bounce.setStartValue(sg)
+        self._bounce.setKeyValueAt(0.35, mg)
+        self._bounce.setEndValue(eg)
+        self._bounce.setEasingCurve(QEasingCurve.Type.OutBack)
+
+        self._fade.start()
+        self._bounce.start()
+
+
+class PandaPawFilter(QObject):
+    """Application-wide event filter: spawns paw prints on every button click (Panda theme)."""
+
+    def eventFilter(self, obj: 'QObject', event: 'QEvent') -> bool:
+        try:
+            from PyQt6.QtWidgets import QAbstractButton
+            from PyQt6.QtCore import QEvent as _QEv
+            if (event.type() == _QEv.Type.MouseButtonRelease
+                    and isinstance(obj, QAbstractButton)
+                    and obj.isEnabled()
+                    and hasattr(event, 'position')):
+                win = obj.window()
+                if win is not None:
+                    pos = obj.mapTo(win, event.position().toPoint())
+                    PandaPawLabel(win, pos)
+        except Exception as _e:
+            import logging as _log
+            _log.getLogger(__name__).debug(f"PandaPawFilter: {_e}")
+        return False  # never consume the event
+
+
+class PandaAmbientFloat(QLabel):
+    """A panda/bamboo emoji that floats gently up from the bottom of the window.
+
+    Spawned by the Panda theme's ambient timer; adds a serene, living-bamboo-
+    forest atmosphere with pandas and leaves drifting upward.
+    """
+
+    _ICONS = [
+        "🐼", "🎋", "🎍", "🌿", "🍃", "🐾", "🐼🎋", "🎋🐼",
+        "🌱", "🎑", "🐼💚", "🍀", "🌾", "🐼🐾",
+    ]
+
+    def __init__(self, parent: 'QWidget') -> None:
+        super().__init__(parent)
+        _r = _random
+        self.setText(_r.choice(self._ICONS))
+        size_pt = _r.choice([18, 20, 22, 24])
+        self.setStyleSheet(
+            f"QLabel {{ background: transparent; font-size: {size_pt}px;"
+            " color: #2d5a27; border: none; padding: 0; }}"
+        )
+        self.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
+        self.adjustSize()
+
+        pw, ph = parent.width(), parent.height()
+        x = _r.randint(10, max(11, pw - self.width() - 10))
+        self.move(x, ph + 10)
+        self.show()
+        self.raise_()
+
+        from PyQt6.QtWidgets import QGraphicsOpacityEffect
+        from PyQt6.QtCore import QPropertyAnimation, QEasingCurve, QRect
+        eff = QGraphicsOpacityEffect(self)
+        self.setGraphicsEffect(eff)
+
+        # Fade in
+        self._fade_in = QPropertyAnimation(eff, b"opacity", self)
+        self._fade_in.setDuration(700)
+        self._fade_in.setStartValue(0.0)
+        self._fade_in.setEndValue(0.80)
+        self._fade_in.setEasingCurve(QEasingCurve.Type.InQuad)
+
+        duration = _r.randint(5000, 8500)
+        drift_x = x + _r.randint(-40, 40)
+        end_y = _r.randint(-self.height() - 30, int(ph * 0.25))
+        self._drift = QPropertyAnimation(self, b"geometry", self)
+        self._drift.setDuration(duration)
+        self._drift.setStartValue(QRect(x, ph + 10, self.width(), self.height()))
+        self._drift.setEndValue(QRect(drift_x, end_y, self.width(), self.height()))
+        self._drift.setEasingCurve(QEasingCurve.Type.OutCubic)
+        self._drift.finished.connect(self.deleteLater)
+
+        self._fade_in.start()
+        self._drift.start()
+
+
 class GoreSplatterFilter(QObject):
     """Application-wide event filter: shows BloodSplatterLabel on every button click.
 
@@ -1214,10 +1347,12 @@ class TextureSorterMainWindow(QMainWindow):
         self._ocean_ripple_filter = None    # OceanRippleFilter instance (Ocean theme only)
         self._goth_skull_filter = None      # GothSkullFilter instance (Goth theme only)
         self._dracula_drop_filter = None    # DraculaDropFilter instance (Dracula theme only)
+        self._panda_paw_filter = None       # PandaPawFilter instance (Panda theme only)
         # Ambient idle-animation timers (fire periodically to spawn drifting decorators)
         self._ocean_ambient_timer = None    # QTimer — drifts sea creatures across the window
         self._goth_ambient_timer  = None    # QTimer — drops a spider or skull at random
         self._dracula_ambient_timer = None  # QTimer — flies a bat across the window top
+        self._panda_ambient_timer = None    # QTimer — floats pandas/bamboo up the window
         
         # Drag-drop, translation, environment monitor
         self.drag_drop_handler = None
@@ -3051,7 +3186,7 @@ class TextureSorterMainWindow(QMainWindow):
             'solarized_dark': 'solarized dark',
             'forest': 'forest', 'ocean': 'ocean', 'sunset': 'sunset',
             'cyberpunk': 'cyberpunk', 'gore': 'gore', 'goth': 'goth',
-            'vampire': 'vampire',
+            'vampire': 'vampire', 'panda': 'panda',
         }
         theme = _DISPLAY_MAP.get(_RAW.lower().strip(), _RAW.lower().strip())
         accent = config.get('ui', 'accent_color', default='#0d7377')
@@ -4011,6 +4146,203 @@ class TextureSorterMainWindow(QMainWindow):
             QDockWidget::title {{ background-color: #7a0030; padding: 4px; color: #f0d0f0; }}
             QStatusBar {{ background-color: #0d001a; color: #cc44aa; border-top: 2px solid #7a0030; }}
             """
+        elif theme in ('panda',):
+            # 🐼 Panda — black-and-white world with bamboo-green accents.
+            # The palette mimics a real giant panda: crisp white panels,
+            # charcoal / deep-black backgrounds, soft bamboo-green highlights,
+            # and rounded "panda-ear" borders on cards and groups.
+            stylesheet = f"""
+            QMainWindow {{ background-color: #0f0f0f; }}
+            QWidget {{
+                background-color: #0f0f0f;
+                color: #f0f0f0;
+                font-family: 'Segoe UI', Arial, sans-serif;
+            }}
+            QPushButton {{
+                background-color: {accent};
+                color: #ffffff;
+                border: 2px solid #3a7d44;
+                padding: 8px 16px;
+                border-radius: 14px;
+                font-weight: bold;
+            }}
+            QPushButton:hover {{
+                background-color: {hover_color.name()};
+                border-color: #5bba6f;
+                color: #ffffff;
+            }}
+            QPushButton:pressed {{ background-color: {pressed_color.name()}; border-color: #2d5a27; }}
+            QPushButton:disabled {{ background-color: #1e1e1e; color: #555555; border-color: #333333; }}
+            QLabel {{ color: #f0f0f0; background-color: transparent; }}
+            QGroupBox {{
+                color: #8fce9e;
+                border: 2px solid #3a7d44;
+                border-radius: 10px;
+                margin-top: 10px;
+                font-weight: bold;
+                background-color: #141414;
+            }}
+            QGroupBox::title {{
+                subcontrol-position: top left;
+                padding: 2px 8px;
+                color: #a8e6b0;
+                background-color: #0f0f0f;
+                border-radius: 5px;
+            }}
+            QTabWidget::pane {{ border: 2px solid #3a7d44; background-color: #141414; border-radius: 6px; }}
+            QTabBar::tab {{
+                background-color: #1a1a1a;
+                color: #8fce9e;
+                padding: 8px 20px;
+                border: 2px solid #2a2a2a;
+                border-bottom: none;
+                border-radius: 8px 8px 0px 0px;
+            }}
+            QTabBar::tab:selected {{ background-color: #2d5a27; color: #f0f0f0; border-color: #3a7d44; }}
+            QTabBar::tab:hover {{ background-color: #1f3d1a; color: #c8f0cc; }}
+            QMenuBar {{ background-color: #0f0f0f; color: #8fce9e; border-bottom: 2px solid #3a7d44; }}
+            QMenuBar::item:selected {{ background-color: #2d5a27; color: #f0f0f0; }}
+            QMenu {{ background-color: #141414; color: #f0f0f0; border: 2px solid #3a7d44; border-radius: 6px; }}
+            QMenu::item:selected {{ background-color: #2d5a27; color: #f0f0f0; border-radius: 4px; }}
+            QProgressBar {{
+                border: 2px solid #3a7d44;
+                border-radius: 7px;
+                text-align: center;
+                background-color: #1a1a1a;
+                color: #8fce9e;
+            }}
+            QProgressBar::chunk {{
+                background-color: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+                    stop:0 #2d5a27, stop:0.5 {accent}, stop:1 #3a7d44);
+                border-radius: 5px;
+            }}
+            QFrame {{ background-color: #141414; border: 1px solid #2a2a2a; border-radius: 6px; }}
+            QTextEdit {{
+                background-color: #0f0f0f;
+                color: #f0f0f0;
+                border: 2px solid #3a7d44;
+                border-radius: 6px;
+                selection-background-color: #2d5a27;
+            }}
+            QLineEdit {{
+                background-color: #1a1a1a;
+                color: #f0f0f0;
+                border: 2px solid #3a7d44;
+                border-radius: 8px;
+                padding: 4px 8px;
+                selection-background-color: #2d5a27;
+            }}
+            QLineEdit:focus {{ border-color: #5bba6f; }}
+            QComboBox {{
+                background-color: #1a1a1a;
+                color: #f0f0f0;
+                border: 2px solid #3a7d44;
+                border-radius: 8px;
+                padding: 4px 8px;
+                min-height: 22px;
+            }}
+            QComboBox:hover {{ border-color: #5bba6f; }}
+            QComboBox QAbstractItemView {{
+                background-color: #1a1a1a;
+                color: #f0f0f0;
+                border: 2px solid #3a7d44;
+                selection-background-color: #2d5a27;
+                border-radius: 6px;
+            }}
+            QCheckBox {{ color: #f0f0f0; spacing: 6px; }}
+            QCheckBox::indicator {{
+                width: 16px; height: 16px;
+                border: 2px solid #3a7d44;
+                border-radius: 8px;
+                background: #1a1a1a;
+            }}
+            QCheckBox::indicator:checked {{
+                background: #2d5a27;
+                border-color: #5bba6f;
+                image: none;
+            }}
+            QScrollBar:vertical {{
+                background-color: #0f0f0f;
+                width: 12px;
+                border-radius: 6px;
+                border: 1px solid #2a2a2a;
+            }}
+            QScrollBar::handle:vertical {{
+                background-color: #3a7d44;
+                border-radius: 6px;
+                min-height: 20px;
+                margin: 2px 1px;
+            }}
+            QScrollBar::handle:vertical:hover {{ background-color: #5bba6f; }}
+            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {{ height: 0px; border: none; background: transparent; }}
+            QScrollBar:horizontal {{
+                background-color: #0f0f0f;
+                height: 12px;
+                border-radius: 6px;
+                border: 1px solid #2a2a2a;
+            }}
+            QScrollBar::handle:horizontal {{
+                background-color: #3a7d44;
+                border-radius: 6px;
+                min-width: 20px;
+                margin: 1px 2px;
+            }}
+            QScrollBar::handle:horizontal:hover {{ background-color: #5bba6f; }}
+            QSlider::groove:horizontal {{
+                height: 6px;
+                background: #1a1a1a;
+                border: 1px solid #3a7d44;
+                border-radius: 3px;
+            }}
+            QSlider::handle:horizontal {{
+                background: #3a7d44;
+                border: 2px solid #5bba6f;
+                width: 16px; height: 16px;
+                border-radius: 8px;
+                margin: -5px 0;
+            }}
+            QSlider::handle:horizontal:hover {{ background: #5bba6f; }}
+            QSlider::sub-page:horizontal {{
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+                    stop:0 #2d5a27, stop:1 #5bba6f);
+                border-radius: 3px;
+            }}
+            QSpinBox, QDoubleSpinBox {{
+                background-color: #1a1a1a;
+                color: #f0f0f0;
+                border: 2px solid #3a7d44;
+                border-radius: 6px;
+                padding: 3px 6px;
+            }}
+            QSpinBox:focus, QDoubleSpinBox:focus {{ border-color: #5bba6f; }}
+            QDockWidget {{ color: #8fce9e; }}
+            QDockWidget::title {{
+                background-color: #1a1a1a;
+                padding: 4px;
+                color: #8fce9e;
+                border-bottom: 2px solid #3a7d44;
+            }}
+            QStatusBar {{
+                background-color: #0f0f0f;
+                color: #8fce9e;
+                border-top: 2px solid #3a7d44;
+            }}
+            QToolTip {{
+                background-color: #1a1a1a;
+                color: #c8f0cc;
+                border: 2px solid #3a7d44;
+                border-radius: 6px;
+                padding: 4px 8px;
+            }}
+            QSplitter::handle {{ background-color: #3a7d44; width: 3px; height: 3px; }}
+            QHeaderView::section {{
+                background-color: #1a1a1a;
+                color: #8fce9e;
+                border: 1px solid #3a7d44;
+                padding: 4px 8px;
+                font-weight: bold;
+            }}
+            """
         else:  # Dark theme (default)
             stylesheet = f"""
             QMainWindow {{
@@ -4275,6 +4607,9 @@ class TextureSorterMainWindow(QMainWindow):
         # ── Nord theme: Norse mythology window decorations ─────────────────────
         self._update_nord_runes(theme)
 
+        # ── Panda theme: paw-print click filter + bamboo ambient floats ────────
+        self._update_panda_effects(theme)
+
         # Unlock theme-related achievements
         try:
             if self.achievement_system:
@@ -4292,6 +4627,7 @@ class TextureSorterMainWindow(QMainWindow):
                     'gore': 'shadow_walker',   # closest existing dark achievement
                     'goth': 'shadow_walker',
                     'vampire': 'shadow_walker',
+                    'panda': 'bamboo_sage',   # bamboo = panda's main food; existing achievement fits perfectly
                 }
                 ach_id = _theme_ach.get(theme)
                 if ach_id:
@@ -4535,6 +4871,53 @@ class TextureSorterMainWindow(QMainWindow):
                     self.setWindowTitle(title[len(_RUNE) + 1: -len(_RUNE) - 1])
         except Exception as _e:
             logger.debug(f"_update_nord_runes: {_e}")
+
+    def _update_panda_effects(self, theme: str) -> None:
+        """Install/remove the PandaPawFilter and bamboo-float ambient timer."""
+        _DECO = "🐼"
+        try:
+            _app = QApplication.instance()
+            if _app is None:
+                return
+            want = (theme == 'panda')
+            if want and self._panda_paw_filter is None:
+                self._panda_paw_filter = PandaPawFilter(self)
+                _app.installEventFilter(self._panda_paw_filter)
+                # Decorate window title with panda emoji
+                _title = self.windowTitle()
+                if not _title.startswith(_DECO + " "):
+                    self.setWindowTitle(f"{_DECO} {_title.strip()} {_DECO}")
+                logger.info("🐼 Panda paw filter installed")
+                # Ambient bamboo floats every ~10 s
+                if self._panda_ambient_timer is None:
+                    self._panda_ambient_timer = QTimer(self)
+                    self._panda_ambient_timer.setInterval(10000)
+                    self._panda_ambient_timer.timeout.connect(self._spawn_panda_float)
+                    self._panda_ambient_timer.start()
+                    QTimer.singleShot(1800, self._spawn_panda_float)
+            elif not want and self._panda_paw_filter is not None:
+                _app.removeEventFilter(self._panda_paw_filter)
+                self._panda_paw_filter = None
+                # Remove panda title decoration
+                _title = self.windowTitle()
+                if _title.startswith(_DECO + " ") or _title.endswith(" " + _DECO):
+                    self.setWindowTitle(
+                        _title.removeprefix(_DECO + " ").removesuffix(" " + _DECO).strip()
+                    )
+                logger.info("Panda paw filter removed")
+                if self._panda_ambient_timer is not None:
+                    self._panda_ambient_timer.stop()
+                    self._panda_ambient_timer = None
+        except Exception as _e:
+            logger.debug(f"_update_panda_effects: {_e}")
+
+    def _spawn_panda_float(self) -> None:
+        """Spawn one ambient PandaAmbientFloat rising from the window bottom."""
+        try:
+            if self.isVisible() and self.width() > 200:
+                PandaAmbientFloat(self)
+        except Exception:
+            pass
 
     def apply_cursor(self):
         """Apply the cursor style saved in config to the whole application.
@@ -5141,6 +5524,14 @@ class TextureSorterMainWindow(QMainWindow):
         with ``tooltip_manager=None``.  After the manager is created we push it
         to every panel, re-register their widgets, and call ``refresh_all()``
         so tooltip text is immediately available for the current mode.
+
+        Key improvement: after injection we call ``_flush_pending_tooltips()``
+        on every panel that inherits from BasePyQtPanel.  ``_set_tooltip()``
+        stores (widget, key) pairs in ``_pending_tooltips`` when the manager is
+        absent.  Flushing registers those widgets with the cycling event filter
+        and sets their initial tooltip text in the current mode.  Without this
+        step, every widget annotated during ``setup_ui()`` would silently show
+        its raw key string (e.g. "bg_mode") instead of the real tip.
         """
         if not self.tooltip_manager:
             return
@@ -5167,6 +5558,7 @@ class TextureSorterMainWindow(QMainWindow):
                 candidates.append(obj)
 
         injected = 0
+        flushed = 0
         for panel in candidates:
             if panel is None:
                 continue
@@ -5179,6 +5571,15 @@ class TextureSorterMainWindow(QMainWindow):
                 changed = True
             if changed:
                 injected += 1
+            # Flush pending tooltips accumulated when manager was absent.
+            # This registers the cycling event filter on each widget and sets
+            # the correct mode-specific tooltip text without requiring a hover.
+            if hasattr(panel, '_flush_pending_tooltips'):
+                try:
+                    panel._flush_pending_tooltips()
+                    flushed += 1
+                except Exception as _fe:
+                    logger.debug(f"_flush_pending_tooltips on {type(panel).__name__}: {_fe}")
 
         # Flush: re-apply tooltip text for every already-registered widget so
         # the current mode is immediately active without requiring a hover.
@@ -5189,7 +5590,7 @@ class TextureSorterMainWindow(QMainWindow):
 
         logger.info(
             f"Tooltip manager propagated to {injected}/{len(candidates)} panels; "
-            f"refresh_all() called."
+            f"{flushed} panels flushed pending tooltips; refresh_all() called."
         )
 
     def apply_performance_settings(self):
