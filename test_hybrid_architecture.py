@@ -9647,6 +9647,73 @@ def test_panel_selector_toggle_button_compact():
     print("  ✅ Source: btn_grid_container used for selective hide")
 
 
+def test_file_browser_scaled_preview_widget():
+    """File browser must use _ScaledPreviewLabel instead of QScrollArea+QLabel.
+
+    Bug (issue #206 comment): The file browser previewer looked "duplicated —
+    large one not working and small one being too small to use."
+
+    Root cause: the preview panel used a ``QScrollArea`` containing a
+    ``QLabel(setScaledContents=False)``.  When an image was loaded at up to
+    512×512 px, the label showed the image at its raw pixel size, which was
+    usually too large for the preview pane.  The result was a nearly useless
+    scroll area showing only a corner of the image — appearing as a broken
+    "large" preview alongside the small thumbnails in the file list.
+
+    Fix: replaced the QScrollArea+QLabel with ``_ScaledPreviewLabel``, a
+    custom widget whose ``paintEvent`` scales the pixmap to fill the available
+    space while preserving aspect ratio.  The splitter stretch factors were
+    also updated (3:2 instead of 2:1) so the preview panel has more room.
+    ``show_preview`` was updated to use ``preview_widget`` instead of
+    ``preview_label`` and no longer hard-caps to 512×512.
+    """
+    print("\ntest_file_browser_scaled_preview_widget ...")
+
+    code = (Path(__file__).parent / 'src' / 'ui' / 'file_browser_panel_qt.py').read_text(encoding='utf-8')
+
+    # The old QScrollArea approach must be gone
+    assert 'scroll.setWidget(self.preview_label)' not in code, (
+        "file_browser_panel_qt.py: old QScrollArea+QLabel approach still present.\n"
+        "Fix: replace with _ScaledPreviewLabel that scales the pixmap to fit."
+    )
+    print("  ✅ Source: old QScrollArea+QLabel approach removed")
+
+    # _ScaledPreviewLabel must be defined
+    assert 'class _ScaledPreviewLabel' in code, (
+        "file_browser_panel_qt.py: _ScaledPreviewLabel class not defined.\n"
+        "Fix: add a QWidget subclass whose paintEvent scales the pixmap."
+    )
+    print("  ✅ Source: _ScaledPreviewLabel class present")
+
+    # setup_ui must use preview_widget not preview_label
+    assert 'self.preview_widget = _ScaledPreviewLabel()' in code, (
+        "file_browser_panel_qt.py: setup_ui does not create self.preview_widget.\n"
+        "Fix: instantiate _ScaledPreviewLabel() and assign to self.preview_widget."
+    )
+    print("  ✅ Source: self.preview_widget = _ScaledPreviewLabel() in setup_ui")
+
+    # show_preview must call preview_widget.set_pixmap / set_placeholder
+    assert 'self.preview_widget.set_pixmap(pixmap)' in code, (
+        "file_browser_panel_qt.py: show_preview() does not call preview_widget.set_pixmap().\n"
+        "Fix: replace preview_label.setPixmap with preview_widget.set_pixmap."
+    )
+    print("  ✅ Source: show_preview() uses preview_widget.set_pixmap()")
+
+    # preview_widget must be a stretch=1 member (added with stretch in layout)
+    assert 'preview_layout.addWidget(self.preview_widget, stretch=1)' in code, (
+        "file_browser_panel_qt.py: preview_widget not added with stretch=1.\n"
+        "The preview must expand to fill available vertical space."
+    )
+    print("  ✅ Source: preview_widget added with stretch=1")
+
+    # Splitter must no longer strongly favour the file list (old 2:1 is gone)
+    assert 'setStretchFactor(1, 1)  # Preview gets less' not in code, (
+        "file_browser_panel_qt.py: old 2:1 splitter ratio (preview gets less) still present.\n"
+        "Fix: use a more balanced ratio so the preview pane is large enough."
+    )
+    print("  ✅ Source: old unbalanced splitter stretch removed")
+
+
 def run_all_tests():
     print("=" * 65)
     print("Hybrid Architecture + Lazy rembg Import Tests")
@@ -9824,6 +9891,7 @@ def run_all_tests():
         test_live_preview_slider_resets_zoom_on_new_image,
         test_format_converter_left_column_scroll_area,
         test_panel_selector_toggle_button_compact,
+        test_file_browser_scaled_preview_widget,
     ]
 
     passed, failed = [], []
