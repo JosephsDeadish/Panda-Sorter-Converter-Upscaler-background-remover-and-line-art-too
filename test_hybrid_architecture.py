@@ -10391,6 +10391,123 @@ def test_lineart_panel_splitter_layout():
     print("  ✅ _apply_preview_zoom drives pw._zoom (no setFixedSize)")
 
 
+def test_quality_checker_panel_scroll_layout():
+    """Quality Checker left column must be wrapped in a scrollable QScrollArea.
+
+    Bug (issue #206 / #205): The quality checker panel built its controls
+    column as a bare QWidget directly inside the splitter.  On small windows
+    or long control lists, the bottom controls (Run, Export, etc.) were cut
+    off with no way to scroll to them.
+
+    Fix: wrap ``left_widget`` in a ``QScrollArea(setWidgetResizable=True)``
+    with the horizontal bar suppressed and a sensible min/max width so the
+    left panel:
+    - Always fills its allocated width without an unwanted horizontal bar
+    - Stays scrollable vertically so all controls are reachable
+    - Does not grow beyond 480 px (preventing it from crowding the results)
+    """
+    print("\ntest_quality_checker_panel_scroll_layout ...")
+    code = (Path(__file__).parent / 'src' / 'ui' / 'quality_checker_panel_qt.py').read_text(encoding='utf-8')
+
+    # _create_widgets must wrap the left column in a QScrollArea
+    cw_start = code.find('def _create_widgets(')
+    cw_end   = code.find('\n    def ', cw_start + 1)
+    cw_body  = code[cw_start:cw_end] if cw_end != -1 else code[cw_start:]
+
+    assert 'left_scroll = QScrollArea()' in cw_body, (
+        "quality_checker_panel_qt.py: left controls column not wrapped in QScrollArea.\n"
+        "Add: left_scroll = QScrollArea(); left_scroll.setWidgetResizable(True); "
+        "left_scroll.setWidget(left_widget); splitter.addWidget(left_scroll)"
+    )
+    print("  ✅ Source: QScrollArea wraps the left controls column")
+
+    assert 'left_scroll.setWidgetResizable(True)' in cw_body, (
+        "quality_checker_panel_qt.py: left_scroll.setWidgetResizable(True) not set.\n"
+        "Without this the inner widget will not resize with the scroll area."
+    )
+    print("  ✅ Source: left_scroll.setWidgetResizable(True)")
+
+    assert 'ScrollBarAlwaysOff' in cw_body or 'setHorizontalScrollBarPolicy' in cw_body, (
+        "quality_checker_panel_qt.py: horizontal scrollbar not suppressed on left_scroll.\n"
+        "Set setHorizontalScrollBarPolicy(ScrollBarAlwaysOff) to keep the layout clean."
+    )
+    print("  ✅ Source: horizontal scrollbar suppressed on left scroll area")
+
+    # setChildrenCollapsible(False) prevents the left panel from being hidden by drag
+    assert 'setChildrenCollapsible(False)' in cw_body, (
+        "quality_checker_panel_qt.py: splitter.setChildrenCollapsible(False) not set.\n"
+        "Without this, dragging the splitter can completely hide the controls."
+    )
+    print("  ✅ Source: setChildrenCollapsible(False) prevents panel collapse")
+
+    # layout.addWidget(splitter, stretch=1) fills the panel
+    assert 'addWidget(splitter, stretch=1)' in cw_body or 'addWidget(splitter, 1)' in cw_body, (
+        "quality_checker_panel_qt.py: layout.addWidget(splitter) should use stretch=1 "
+        "so the splitter fills all remaining space in the panel."
+    )
+    print("  ✅ Source: splitter added with stretch=1 to fill the panel")
+
+
+def test_lineart_panel_comparison_mode_selector():
+    """Line Art Converter must have a Slider/Toggle/Overlay comparison mode selector.
+
+    All other tools that use ``ComparisonSliderWidget`` (bg-remover, upscaler,
+    color-correction) already expose a comparison-mode combo so users can pick
+    how to compare original vs processed.  The lineart panel was missing this,
+    making it less consistent.
+
+    Fix:
+    - Added a ``QComboBox`` with items ``["Slider", "Toggle", "Overlay"]`` to
+      the preview toolbar (same row as zoom buttons and Update Preview).
+    - Added ``_COMPARISON_MODE_MAP`` class-level constant (dict) to avoid
+      rebuilding the mapping dict on every combo-change event.
+    - Added ``_on_comparison_mode_changed()`` method that calls
+      ``self.preview_widget.set_mode(...)`` via ``_COMPARISON_MODE_MAP``
+      — same pattern as bg-remover.
+    """
+    print("\ntest_lineart_panel_comparison_mode_selector ...")
+    code = (Path(__file__).parent / 'src' / 'ui' / 'lineart_converter_panel_qt.py').read_text(encoding='utf-8')
+
+    # Combo must list all three modes
+    assert '"Slider"' in code and '"Toggle"' in code and '"Overlay"' in code, (
+        "lineart_converter_panel_qt.py: comparison mode combo is missing Slider/Toggle/Overlay items.\n"
+        "Add: self._comparison_mode_combo.addItems(['Slider', 'Toggle', 'Overlay'])"
+    )
+    print("  ✅ Source: Slider / Toggle / Overlay items present in comparison mode combo")
+
+    # Class-level constant must exist to avoid per-call dict recreation
+    assert '_COMPARISON_MODE_MAP' in code, (
+        "lineart_converter_panel_qt.py: _COMPARISON_MODE_MAP class constant missing.\n"
+        "Define it as a class-level dict so _on_comparison_mode_changed does not "
+        "rebuild the mapping on every combo-change event."
+    )
+    print("  ✅ Source: _COMPARISON_MODE_MAP class-level constant present")
+
+    # _on_comparison_mode_changed handler must exist
+    assert 'def _on_comparison_mode_changed(' in code, (
+        "lineart_converter_panel_qt.py: _on_comparison_mode_changed() method missing.\n"
+        "Add it to call self.preview_widget.set_mode() when the combo changes."
+    )
+    print("  ✅ Source: _on_comparison_mode_changed() method present")
+
+    # Handler must call set_mode on the preview widget
+    m_start = code.find('def _on_comparison_mode_changed(')
+    m_end   = code.find('\n    def ', m_start + 1)
+    m_body  = code[m_start:m_end] if m_end != -1 else code[m_start:]
+    assert 'set_mode(' in m_body, (
+        "lineart_converter_panel_qt.py: _on_comparison_mode_changed() does not call "
+        "self.preview_widget.set_mode(). The mode change will have no effect."
+    )
+    print("  ✅ Source: _on_comparison_mode_changed() calls preview_widget.set_mode()")
+
+    # Handler must use _COMPARISON_MODE_MAP (not a local dict)
+    assert '_COMPARISON_MODE_MAP' in m_body, (
+        "lineart_converter_panel_qt.py: _on_comparison_mode_changed() should use "
+        "self._COMPARISON_MODE_MAP instead of a local dict literal."
+    )
+    print("  ✅ Source: _on_comparison_mode_changed() uses _COMPARISON_MODE_MAP")
+
+
 def run_all_tests():
     print("=" * 65)
     print("Hybrid Architecture + Lazy rembg Import Tests")
@@ -10578,6 +10695,8 @@ def run_all_tests():
         test_preview_slider_fallback_zoom_centering,
         test_preview_slider_labels_relative_to_image,
         test_lineart_panel_splitter_layout,
+        test_quality_checker_panel_scroll_layout,
+        test_lineart_panel_comparison_mode_selector,
     ]
 
     passed, failed = [], []

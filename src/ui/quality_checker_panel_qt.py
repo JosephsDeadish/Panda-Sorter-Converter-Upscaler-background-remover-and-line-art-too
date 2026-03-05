@@ -155,8 +155,8 @@ class QualityCheckerPanelQt(QWidget):
     def _create_widgets(self):
         """Create the UI widgets."""
         layout = QVBoxLayout(self)
-        layout.setSpacing(10)
-        layout.setContentsMargins(10, 10, 10, 10)
+        layout.setSpacing(6)
+        layout.setContentsMargins(6, 6, 6, 6)
         
         # Title
         title_label = QLabel("🔍 Image Quality Checker")
@@ -171,25 +171,37 @@ class QualityCheckerPanelQt(QWidget):
         
         # Splitter for left/right sections
         splitter = QSplitter(Qt.Orientation.Horizontal)
+        splitter.setChildrenCollapsible(False)
         
-        # Left side - File selection and controls
+        # Left side — controls wrapped in QScrollArea so they never get squashed
         left_widget = QWidget()
         left_layout = QVBoxLayout(left_widget)
+        left_layout.setContentsMargins(4, 4, 4, 4)
         self._create_file_section(left_layout)
         self._create_controls(left_layout)
         left_layout.addStretch()
-        splitter.addWidget(left_widget)
+
+        left_scroll = QScrollArea()
+        left_scroll.setWidgetResizable(True)
+        left_scroll.setWidget(left_widget)
+        left_scroll.setFrameShape(QFrame.Shape.NoFrame)
+        left_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        left_scroll.setMinimumWidth(280)
+        left_scroll.setMaximumWidth(480)
+        splitter.addWidget(left_scroll)
         
         # Right side - Results
         right_widget = QWidget()
         right_layout = QVBoxLayout(right_widget)
+        right_layout.setContentsMargins(4, 4, 4, 4)
         self._create_results_section(right_layout)
         splitter.addWidget(right_widget)
         
-        splitter.setStretchFactor(0, 1)
-        splitter.setStretchFactor(1, 2)
+        splitter.setStretchFactor(0, 0)   # left: don't grow
+        splitter.setStretchFactor(1, 1)   # right: takes all extra space
+        splitter.setSizes([320, 480])
         
-        layout.addWidget(splitter)
+        layout.addWidget(splitter, stretch=1)
     
     def _create_file_section(self, layout):
         """Create file selection section."""

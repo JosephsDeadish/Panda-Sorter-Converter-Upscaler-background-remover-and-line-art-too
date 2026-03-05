@@ -633,6 +633,15 @@ class LineArtConverterPanelQt(QWidget):
     finished = pyqtSignal(bool, str, int)  # success, message, files_processed
     error = pyqtSignal(str)           # error message
 
+    # Map display-name → ComparisonSliderWidget mode key.
+    # Defined once at class level so _on_comparison_mode_changed does not
+    # rebuild the dict on every combo-change event.
+    _COMPARISON_MODE_MAP: dict = {
+        "Slider":  "slider",
+        "Toggle":  "toggle",
+        "Overlay": "overlay",
+    }
+
     def __init__(self, parent=None, tooltip_manager=None):
         super().__init__(parent)
         
@@ -1223,6 +1232,24 @@ class LineArtConverterPanelQt(QWidget):
         zoom_bar.addWidget(btn_fit)
         zoom_bar.addStretch()
 
+        # Comparison mode selector (Slider / Toggle / Overlay) — matches bg-remover UI
+        if SLIDER_AVAILABLE:
+            mode_label = QLabel("Mode:")
+            mode_label.setFixedWidth(36)
+            self._comparison_mode_combo = QComboBox()
+            self._comparison_mode_combo.addItems(["Slider", "Toggle", "Overlay"])
+            self._comparison_mode_combo.setFixedHeight(24)
+            self._comparison_mode_combo.setMaximumWidth(85)
+            self._comparison_mode_combo.currentTextChanged.connect(
+                self._on_comparison_mode_changed
+            )
+            self._set_tooltip(
+                self._comparison_mode_combo,
+                "Choose how to compare the original and processed images",
+            )
+            zoom_bar.addWidget(mode_label)
+            zoom_bar.addWidget(self._comparison_mode_combo)
+
         refresh_btn = QPushButton("🔄 Update Preview")
         refresh_btn.setFixedHeight(24)
         refresh_btn.clicked.connect(self._schedule_preview_update)
@@ -1265,6 +1292,12 @@ class LineArtConverterPanelQt(QWidget):
 
         group.setLayout(group_layout)
         layout.addWidget(group)
+
+    def _on_comparison_mode_changed(self, mode_text: str) -> None:
+        """Switch the ComparisonSliderWidget between Slider / Toggle / Overlay modes."""
+        if not SLIDER_AVAILABLE or not hasattr(self, 'preview_widget'):
+            return
+        self.preview_widget.set_mode(self._COMPARISON_MODE_MAP.get(mode_text, "slider"))
 
     def _apply_preview_zoom(self):
         """Scale the preview to the current zoom level (works for both label and slider)."""
