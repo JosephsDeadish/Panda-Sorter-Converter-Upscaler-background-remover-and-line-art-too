@@ -220,15 +220,27 @@ class ComparisonSliderWidget(QWidget):
             painter.restore()
             return
         if not before_scaled or not after_scaled:
-            # Fall back to single-image mode: show whichever image is present
-            only_pm = self.before_pixmap or self.after_pixmap
-            only_label = "BEFORE" if self.before_pixmap else "PROCESSED"
-            scaled = self._scaled_at_zoom(only_pm, widget_rect)
-            if scaled:
-                painter.drawPixmap(0, 0, scaled)
+            # Fall back to single-image mode — restore transform first, then
+            # draw manually with zoom/pan applied (same technique as slider mode)
+            # so the image stays centred and respects zoom/pan state.
             painter.restore()
+            only_pm    = self.before_pixmap or self.after_pixmap
+            only_label = "BEFORE" if self.before_pixmap else "PROCESSED"
+            fb_fit = only_pm.scaled(widget_rect.size(),
+                                    Qt.AspectRatioMode.KeepAspectRatio,
+                                    Qt.TransformationMode.SmoothTransformation)
+            fb_w = int(fb_fit.width() * self._zoom)
+            fb_h = int(fb_fit.height() * self._zoom)
+            fb_zoom = only_pm.scaled(fb_w, fb_h,
+                                     Qt.AspectRatioMode.IgnoreAspectRatio,
+                                     Qt.TransformationMode.SmoothTransformation)
+            fb_cx = widget_rect.width()  / 2.0 + self._pan_x
+            fb_cy = widget_rect.height() / 2.0 + self._pan_y
+            fb_x  = int(fb_cx - fb_w / 2.0)
+            fb_y  = int(fb_cy - fb_h / 2.0)
+            painter.drawPixmap(fb_x, fb_y, fb_zoom)
             painter.setPen(QColor(255, 255, 255))
-            painter.drawText(10, 25, only_label)
+            painter.drawText(fb_x + 10, fb_y + 25, only_label)
             return
 
         # Slider position in *logical* (pre-zoom/pan) image-coordinate x
@@ -435,6 +447,11 @@ class ComparisonSliderWidget(QWidget):
     def mouseDoubleClickEvent(self, event):
         """Double-click resets zoom/pan."""
         self.reset_zoom()
+
+    def resizeEvent(self, event):
+        """Repaint when the widget is resized so the image stays centred."""
+        super().resizeEvent(event)
+        self.update()
 
     def _update_slider_from_mouse(self, pos):
         """Update slider position from mouse position"""

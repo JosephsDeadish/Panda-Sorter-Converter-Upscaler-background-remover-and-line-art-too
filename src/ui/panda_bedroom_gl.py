@@ -303,75 +303,184 @@ class PandaBedroomGL(QOpenGLWidget if OPENGL_AVAILABLE else QWidget):  # type: i
         self.update()
 
     def _draw_panda_in_room(self) -> None:
-        """Draw a simplified panda character standing at (_panda_x, 0, _panda_z)."""
-        _COL_PANDA_WHITE = (0.92, 0.92, 0.90)
-        _COL_PANDA_BLACK = (0.08, 0.06, 0.06)
+        """Draw an improved panda character standing at (_panda_x, 0, _panda_z).
+
+        Uses proper panda proportions:
+        - Barrel-shaped body (W:H ≥ 1.7:1) — iconic wide squat torso
+        - Black shoulder patches and hip patches
+        - White belly jutting forward
+        - Short neck sphere bridging body to head
+        - Arms placed at shoulder level, hanging down
+        - Clearly visible black legs with walk animation
+        """
+        _COL_WHITE  = (0.92, 0.92, 0.90)
+        _COL_BLACK  = (0.08, 0.06, 0.06)
+        _COL_BELLY  = (0.96, 0.95, 0.93)   # slightly brighter white for belly
+
+        # Key proportions — barrel body: BW:BH ≈ 1.73:1
+        BW = 0.52   # body half-width  (horizontal radius of body sphere)
+        BH = 0.30   # body half-height (vertical radius of body sphere)
+        BD = 0.38   # body depth       (Z radius — slightly elongated forward)
+        # Body centre in world-Y (body bottom = BY - BH ≈ 0.01, just above floor)
+        BY = 0.31
 
         glPushMatrix()
         glTranslatef(self._panda_x, 0.0, self._panda_z)
         glRotatef(self._panda_facing_y, 0.0, 1.0, 0.0)
 
-        # ── Body ──────────────────────────────────────────────────────────────
+        # ── WHITE TORSO (barrel body) ─────────────────────────────────────────
         glPushMatrix()
-        glTranslatef(0.0, 0.38, 0.0)
-        glScalef(0.32, 0.38, 0.28)
-        glColor3f(*_COL_PANDA_WHITE)
-        self._draw_sphere_br(1.0, 16, 16)
+        glTranslatef(0.0, BY, 0.0)
+        glScalef(BW, BH, BD)
+        glColor3f(*_COL_WHITE)
+        self._draw_sphere_br(1.0, 18, 18)
         glPopMatrix()
 
-        # ── Head ──────────────────────────────────────────────────────────────
+        # ── WHITE BELLY (forward protrusion) ─────────────────────────────────
         glPushMatrix()
-        glTranslatef(0.0, 0.88, 0.08)
-        glColor3f(*_COL_PANDA_WHITE)
-        self._draw_sphere_br(0.22, 16, 16)
+        glTranslatef(0.0, BY - BH * 0.10, BD * 0.80)
+        glScalef(BW * 0.72, BH * 0.80, BD * 0.42)
+        glColor3f(*_COL_BELLY)
+        self._draw_sphere_br(1.0, 14, 14)
+        glPopMatrix()
 
-        # Ears
-        for ex in (-0.14, 0.14):
+        # ── BLACK SHOULDER PATCHES ────────────────────────────────────────────
+        for sx in (-BW * 0.92, BW * 0.92):
             glPushMatrix()
-            glTranslatef(ex, 0.18, -0.04)
-            glColor3f(*_COL_PANDA_BLACK)
-            self._draw_sphere_br(0.07, 10, 10)
+            glTranslatef(sx, BY + BH * 0.30, 0.0)
+            glScalef(BW * 0.42, BH * 0.50, BD * 0.40)
+            glColor3f(*_COL_BLACK)
+            self._draw_sphere_br(1.0, 12, 12)
             glPopMatrix()
 
-        # Eye patches
-        for ex in (-0.08, 0.08):
+        # ── BLACK HIP PATCHES ─────────────────────────────────────────────────
+        for hx in (-BW * 0.80, BW * 0.80):
             glPushMatrix()
-            glTranslatef(ex, 0.04, 0.19)
-            glScalef(1.0, 0.9, 0.55)
-            glColor3f(*_COL_PANDA_BLACK)
-            self._draw_sphere_br(0.06, 10, 10)
+            glTranslatef(hx, BY - BH * 0.55, BD * 0.05)
+            glScalef(BW * 0.38, BH * 0.42, BD * 0.32)
+            glColor3f(*_COL_BLACK)
+            self._draw_sphere_br(1.0, 12, 12)
             glPopMatrix()
+
+        # ── NECK ─────────────────────────────────────────────────────────────
+        # Short white sphere bridging body top to head base (pandas are "neckless")
+        NECK_Y = BY + BH + 0.02
+        glPushMatrix()
+        glTranslatef(0.0, NECK_Y, BD * 0.08)
+        glScalef(0.20, 0.14, 0.18)
+        glColor3f(*_COL_WHITE)
+        self._draw_sphere_br(1.0, 12, 12)
+        glPopMatrix()
+
+        # ── HEAD ─────────────────────────────────────────────────────────────
+        HEAD_Y = NECK_Y + 0.22
+        HR = 0.22   # head radius
+        glPushMatrix()
+        glTranslatef(0.0, HEAD_Y, BD * 0.12)
+        glColor3f(*_COL_WHITE)
+        self._draw_sphere_br(HR, 18, 18)
+
+        # Ears — round black blobs on top-sides of head
+        for ex in (-0.15, 0.15):
+            glPushMatrix()
+            glTranslatef(ex, HR * 0.78, -HR * 0.12)
+            glScalef(1.0, 0.82, 0.70)
+            glColor3f(*_COL_BLACK)
+            self._draw_sphere_br(0.075, 10, 10)
+            glPopMatrix()
+
+        # Eye patches — black ovals, slightly forward
+        for ex in (-0.085, 0.085):
+            glPushMatrix()
+            glTranslatef(ex, HR * 0.10, HR * 0.84)
+            glScalef(1.0, 0.85, 0.48)
+            glColor3f(*_COL_BLACK)
+            self._draw_sphere_br(0.062, 10, 10)
+            glPopMatrix()
+
+        # Eyes (white sclera + black pupil)
+        for ex in (-0.062, 0.062):
+            glPushMatrix()
+            glTranslatef(ex, HR * 0.10, HR * 0.97)
+            glColor3f(0.94, 0.94, 0.92)
+            self._draw_sphere_br(0.020, 8, 8)
+            glPushMatrix()
+            glTranslatef(0.0, 0.0, 0.012)
+            glColor3f(0.08, 0.06, 0.06)
+            self._draw_sphere_br(0.014, 6, 6)
+            glPopMatrix()
+            glPopMatrix()
+
+        # Snout (small off-white muzzle dome)
+        glPushMatrix()
+        glTranslatef(0.0, -HR * 0.12, HR * 0.92)
+        glScalef(0.80, 0.55, 0.48)
+        glColor3f(0.90, 0.88, 0.86)
+        self._draw_sphere_br(0.075, 10, 10)
+        glPopMatrix()
 
         # Nose
         glPushMatrix()
-        glTranslatef(0.0, -0.03, 0.21)
-        glColor3f(0.15, 0.10, 0.10)
-        self._draw_sphere_br(0.025, 8, 8)
+        glTranslatef(0.0, -HR * 0.04, HR * 1.00)
+        glColor3f(0.14, 0.10, 0.10)
+        self._draw_sphere_br(0.026, 8, 8)
         glPopMatrix()
 
         glPopMatrix()  # end head
 
-        # ── Arms ──────────────────────────────────────────────────────────────
-        for ax in (-0.30, 0.30):
+        # ── ARMS (black, hanging from shoulder patches) ───────────────────────
+        ARM_SY = BY + BH * 0.28   # shoulder Y
+        for side, ax in ((-1, -BW * 1.05), (1, BW * 1.05)):
             glPushMatrix()
-            glTranslatef(ax, 0.44, 0.0)
-            glScalef(0.12, 0.26, 0.12)
-            glColor3f(*_COL_PANDA_BLACK)
+            glTranslatef(ax, ARM_SY, 0.0)
+            # Slight outward tilt
+            glRotatef(side * 12.0, 0.0, 0.0, 1.0)
+            # Upper arm
+            glPushMatrix()
+            glScalef(0.095, 0.200, 0.095)
+            glTranslatef(0.0, -0.50, 0.0)
+            glColor3f(*_COL_BLACK)
             self._draw_sphere_br(1.0, 10, 10)
             glPopMatrix()
+            # Paw (rounded blob at arm end)
+            glPushMatrix()
+            glTranslatef(0.0, -0.26, 0.0)
+            glScalef(1.10, 0.60, 1.05)
+            glColor3f(*_COL_BLACK)
+            self._draw_sphere_br(0.070, 10, 10)
+            glPopMatrix()
+            glPopMatrix()
 
-        # ── Legs (with simple walk oscillation) ───────────────────────────────
-        swing_amp = 18.0 if self._panda_is_walking else 0.0
-        for side, lx in ((-1, -0.14), (1, 0.14)):
+        # ── LEGS (black, with walk oscillation) ──────────────────────────────
+        # Legs hang from hip patches; feet should reach the floor (y≈0)
+        LEG_Y = BY - BH * 0.65   # hip pivot Y
+        swing_amp = 22.0 if self._panda_is_walking else 0.0
+        for side, lx in ((-1, -BW * 0.58), (1, BW * 0.58)):
             swing = swing_amp * math.sin(self._panda_walk_frame + side * math.pi)
             glPushMatrix()
-            glTranslatef(lx, 0.15, 0.0)
+            glTranslatef(lx, LEG_Y, 0.0)
             glRotatef(swing, 1.0, 0.0, 0.0)
+            # Thigh
             glPushMatrix()
-            glTranslatef(0.0, -0.14, 0.0)
-            glScalef(0.12, 0.28, 0.12)
-            glColor3f(*_COL_PANDA_BLACK)
+            glScalef(0.120, 0.220, 0.120)
+            glTranslatef(0.0, -0.50, 0.0)
+            glColor3f(*_COL_BLACK)
             self._draw_sphere_br(1.0, 10, 10)
+            glPopMatrix()
+            # Shin + foot
+            glPushMatrix()
+            glTranslatef(0.0, -0.32, 0.0)
+            glScalef(0.100, 0.200, 0.100)
+            glTranslatef(0.0, -0.50, 0.0)
+            glColor3f(*_COL_BLACK)
+            self._draw_sphere_br(1.0, 10, 10)
+            glPopMatrix()
+            # Foot blob (flattened, slightly forward)
+            glPushMatrix()
+            glTranslatef(0.0, -0.58, 0.055)
+            glScalef(1.30, 0.40, 1.55)
+            glColor3f(*_COL_BLACK)
+            self._draw_sphere_br(0.072, 10, 10)
             glPopMatrix()
             glPopMatrix()
 

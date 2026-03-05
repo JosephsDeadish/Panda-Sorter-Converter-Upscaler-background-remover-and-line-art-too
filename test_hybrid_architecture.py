@@ -10110,6 +10110,129 @@ def test_file_browser_preview_debounce():
     print("  ✅ Source: _load_pending_preview calls show_preview")
 
 
+def test_bedroom_panda_barrel_proportions():
+    """_draw_panda_in_room must use a barrel-shaped body (W:H ≥ 1.5:1).
+
+    Issue #205 / #206: "terrible 3D panda" — the old bedroom panda body had
+    scale (0.32, 0.38, 0.28) which gives W:H = 0.32/0.38 ≈ 0.84 — taller
+    than wide, the opposite of a real panda's iconic barrel silhouette.
+
+    Fix: rewrote _draw_panda_in_room with BW=0.52, BH=0.30 → ratio=1.73:1,
+    plus proper shoulder/hip patches, belly, neck, improved arms and legs.
+    """
+    print("\ntest_bedroom_panda_barrel_proportions ...")
+    import re
+    code = (Path(__file__).parent / 'src' / 'ui' / 'panda_bedroom_gl.py').read_text(encoding='utf-8')
+
+    # BW and BH must be defined inside _draw_panda_in_room
+    fn_start = code.find('def _draw_panda_in_room(')
+    fn_end   = code.find('\n    def ', fn_start + 1)
+    fn_body  = code[fn_start:fn_end] if fn_end != -1 else code[fn_start:]
+
+    bw_m = re.search(r'BW\s*=\s*([\d.]+)', fn_body)
+    bh_m = re.search(r'BH\s*=\s*([\d.]+)', fn_body)
+    assert bw_m and bh_m, (
+        "panda_bedroom_gl.py: _draw_panda_in_room must define BW and BH constants "
+        "for body proportions (needed to verify barrel shape)."
+    )
+    bw = float(bw_m.group(1))
+    bh = float(bh_m.group(1))
+    ratio = bw / bh if bh > 0 else 0.0
+    assert ratio >= 1.5, (
+        f"_draw_panda_in_room BW/BH = {bw}/{bh} = {ratio:.2f}. "
+        "Must be ≥ 1.5 — pandas have wide barrel bodies, not round blobs."
+    )
+    print(f"  ✅ Bedroom panda W:H = {bw}/{bh} = {ratio:.2f}:1 (barrel shape)")
+
+    # Shoulder patches must be present
+    assert 'SHOULDER' in fn_body.upper(), (
+        "panda_bedroom_gl.py: _draw_panda_in_room must draw shoulder patches "
+        "(black blobs at shoulders to match real panda markings)."
+    )
+    print("  ✅ Shoulder patches present")
+
+    # Hip patches must be present
+    assert 'HIP' in fn_body.upper(), (
+        "panda_bedroom_gl.py: _draw_panda_in_room must draw hip patches "
+        "(black blobs at hips — 'wearing black trousers' panda look)."
+    )
+    print("  ✅ Hip patches present")
+
+    # Neck must be present
+    assert 'NECK' in fn_body.upper(), (
+        "panda_bedroom_gl.py: _draw_panda_in_room should draw a neck sphere "
+        "to bridge the body to the head (no gap / floating head)."
+    )
+    print("  ✅ Neck sphere present")
+
+    # Walk animation swing amplitude must be > 0 (legs actually swing)
+    swing_m = re.search(r'swing_amp\s*=\s*([\d.]+)', fn_body)
+    if swing_m:
+        swing = float(swing_m.group(1))
+        assert swing >= 20.0, (
+            f"swing_amp = {swing}°. Must be ≥ 20° so walking panda legs "
+            "are visibly animated (old value 18° was barely perceptible)."
+        )
+        print(f"  ✅ Walk swing amplitude = {swing}° (visible animation)")
+
+
+def test_preview_slider_fallback_zoom_centering():
+    """ComparisonSliderWidget single-image fallback must restore transform before drawing.
+
+    Bug (issue #206): When only one image was loaded (before_pixmap set, after_pixmap
+    not yet), the fallback path in _paint_slider_mode drew the image inside the
+    painter.save()/_apply_zoom_pan() block. _apply_zoom_pan already applied a zoom
+    transform; the fallback then drew a fit-to-widget-size pixmap in that zoomed space,
+    so at zoom > 1 the image appeared far too large and at zoom < 1 too small.
+
+    Fix: the fallback now calls painter.restore() first (resetting the zoom transform),
+    then manually computes the correct centred position with zoom/pan applied — exactly
+    the same approach used for the full 2-image slider mode.
+
+    This test also verifies that resizeEvent is overridden to call self.update() so
+    the image is re-centred automatically when the panel is resized.
+    """
+    print("\ntest_preview_slider_fallback_zoom_centering ...")
+    code = (Path(__file__).parent / 'src' / 'ui' / 'live_preview_slider_qt.py').read_text(encoding='utf-8')
+
+    # The fallback must call painter.restore() BEFORE drawPixmap
+    # Find the fallback section
+    fn_start = code.find('def _paint_slider_mode(')
+    fn_end   = code.find('\n    def ', fn_start + 1)
+    fn_body  = code[fn_start:fn_end] if fn_end != -1 else code[fn_start:]
+
+    # The old bug: drawPixmap(0, 0, ...) appeared before restore()
+    old_bug_pattern = r'painter\.drawPixmap\(0,\s*0,\s*\w+\).*?painter\.restore\(\)'
+    import re
+    assert not re.search(old_bug_pattern, fn_body, re.DOTALL), (
+        "live_preview_slider_qt.py: _paint_slider_mode fallback still draws pixmap "
+        "before calling painter.restore(), causing wrong zoom in single-image mode."
+    )
+    print("  ✅ Fallback no longer draws inside the zoomed transform block")
+
+    # The fallback must use zoom-aware sizing (similar to slider main path)
+    # Check that it computes zoomed dimensions (self._zoom involved in sizing)
+    assert 'self._zoom' in fn_body, (
+        "live_preview_slider_qt.py: _paint_slider_mode fallback must apply "
+        "self._zoom when sizing the fallback image (for correct zoom centering)."
+    )
+    print("  ✅ Fallback applies self._zoom for correct sizing")
+
+    # resizeEvent must be overridden
+    assert 'def resizeEvent(' in code, (
+        "live_preview_slider_qt.py: resizeEvent() not found. "
+        "Override it to call self.update() so the image re-centres on resize."
+    )
+    re_start = code.find('def resizeEvent(')
+    re_end   = code.find('\n    def ', re_start + 1)
+    re_body  = code[re_start:re_end] if re_end != -1 else code[re_start:re_start + 200]
+    assert 'self.update()' in re_body, (
+        "live_preview_slider_qt.py: resizeEvent() must call self.update() "
+        "so the image is re-drawn centred when the panel size changes."
+    )
+    print("  ✅ resizeEvent calls self.update() (image re-centres on resize)")
+
+
 def run_all_tests():
     print("=" * 65)
     print("Hybrid Architecture + Lazy rembg Import Tests")
@@ -10293,6 +10416,8 @@ def run_all_tests():
         test_no_extra_3d_panda_on_home_tab,
         test_furniture_click_timeout_fallback,
         test_file_browser_preview_debounce,
+        test_bedroom_panda_barrel_proportions,
+        test_preview_slider_fallback_zoom_centering,
     ]
 
     passed, failed = [], []
