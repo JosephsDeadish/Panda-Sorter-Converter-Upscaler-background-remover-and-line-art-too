@@ -10233,6 +10233,164 @@ def test_preview_slider_fallback_zoom_centering():
     print("  ✅ resizeEvent calls self.update() (image re-centres on resize)")
 
 
+def test_preview_slider_labels_relative_to_image():
+    """Toggle/overlay mode labels must be drawn relative to the image position.
+
+    Bug (issue #206): "previewer is very buggy and looks inconsistent across
+    all tools" — `_paint_toggle_mode` and `_paint_overlay_mode` drew the
+    BEFORE/AFTER labels at hardcoded widget-coordinate positions `(10, 30)`.
+    When zoomed in or panned, the image moves but the labels stayed fixed at
+    the top-left corner of the widget — potentially completely off the image.
+
+    The slider mode already positioned its BEFORE/AFTER labels relative to
+    `draw_x/draw_y` (the widget-space image origin after zoom/pan).
+
+    Fix:
+    1. Added `_image_draw_origin(widget_rect)` helper that returns `(draw_x,
+       draw_y)` — the widget-space top-left corner of the displayed image.
+    2. Updated `_paint_toggle_mode` and `_paint_overlay_mode` to call this
+       helper and draw their labels at `draw_x + 10, draw_y + 25` (clamped
+       to a minimum of 5/15 so they stay visible even when zoomed far out).
+    """
+    print("\ntest_preview_slider_labels_relative_to_image ...")
+    code = (Path(__file__).parent / 'src' / 'ui' / 'live_preview_slider_qt.py').read_text(encoding='utf-8')
+
+    # _image_draw_origin helper must be present
+    assert 'def _image_draw_origin(' in code, (
+        "live_preview_slider_qt.py: _image_draw_origin() helper method not found.\n"
+        "Add it to compute the widget-space top-left of the image after zoom/pan."
+    )
+    print("  ✅ _image_draw_origin() helper present")
+
+    # Extract _paint_toggle_mode body
+    import re
+    tog_start = code.find('def _paint_toggle_mode(')
+    tog_end   = code.find('\n    def ', tog_start + 1)
+    tog_body  = code[tog_start:tog_end] if tog_end != -1 else code[tog_start:]
+
+    # Must call _image_draw_origin in toggle mode
+    assert '_image_draw_origin(' in tog_body, (
+        "live_preview_slider_qt.py: _paint_toggle_mode() does not call "
+        "_image_draw_origin(). The label must be positioned relative to the image."
+    )
+    print("  ✅ _paint_toggle_mode uses _image_draw_origin for label position")
+
+    # Must NOT use the old hardcoded (10, 30) pattern in toggle mode
+    old_hard = re.search(r'drawText\(\s*10\s*,\s*30\s*,', tog_body)
+    assert not old_hard, (
+        "live_preview_slider_qt.py: _paint_toggle_mode still uses hardcoded "
+        "drawText(10, 30, ...) — replace with image-relative position."
+    )
+    print("  ✅ _paint_toggle_mode no longer uses hardcoded (10, 30) label position")
+
+    # Extract _paint_overlay_mode body
+    ov_start = code.find('def _paint_overlay_mode(')
+    ov_end   = code.find('\n    def ', ov_start + 1)
+    ov_body  = code[ov_start:ov_end] if ov_end != -1 else code[ov_start:]
+
+    # Must call _image_draw_origin in overlay mode
+    assert '_image_draw_origin(' in ov_body, (
+        "live_preview_slider_qt.py: _paint_overlay_mode() does not call "
+        "_image_draw_origin(). Labels must be positioned relative to the image."
+    )
+    print("  ✅ _paint_overlay_mode uses _image_draw_origin for label position")
+
+    # Must NOT use the old hardcoded (10, 30) or (10, 55) pattern in overlay mode
+    old_hard_ov = re.search(r'drawText\(\s*10\s*,\s*(?:30|55)\s*,', ov_body)
+    assert not old_hard_ov, (
+        "live_preview_slider_qt.py: _paint_overlay_mode still uses hardcoded "
+        "drawText(10, 30, ...) or drawText(10, 55, ...) — replace with image-relative positions."
+    )
+    print("  ✅ _paint_overlay_mode no longer uses hardcoded (10, 30)/(10, 55) label positions")
+
+    # _image_draw_origin must use _pan_x/_pan_y and _zoom
+    orig_start = code.find('def _image_draw_origin(')
+    orig_end   = code.find('\n    def ', orig_start + 1)
+    orig_body  = code[orig_start:orig_end] if orig_end != -1 else code[orig_start:]
+    assert 'self._pan_x' in orig_body and 'self._zoom' in orig_body, (
+        "live_preview_slider_qt.py: _image_draw_origin() must apply "
+        "self._pan_x and self._zoom when computing the image draw origin."
+    )
+    print("  ✅ _image_draw_origin applies pan and zoom offsets")
+
+
+def test_lineart_panel_splitter_layout():
+    """Line Art Converter must use a QSplitter layout (controls-scroll | preview).
+
+    Bug (issue #206): The lineart converter panel wrapped its entire layout in a
+    single outer ``QScrollArea`` containing a side-by-side ``QHBoxLayout``.
+    Inside a scroll area, the right-side ``ComparisonSliderWidget`` is given
+    only its ``minimumHeight`` (200 px) — it cannot grow to fill the panel.
+    The slider was further wrapped in a second inner ``QScrollArea`` with
+    ``setWidgetResizable(False)``, making it doubly unable to expand.
+
+    Fix:
+    1. Replaced the outer scroll + HBox with a ``QSplitter(Horizontal)``
+       so the user can resize the split between controls and preview.
+    2. Wrapped only the left controls column in a ``QScrollArea``
+       (``setWidgetResizable(True)``, horizontal bar off) so controls scroll
+       without constraining the preview panel.
+    3. Added the ``ComparisonSliderWidget`` directly with ``stretch=1`` so it
+       fills all available space without an intermediate scroll area.
+    4. Updated ``_apply_preview_zoom`` to drive the slider's internal ``_zoom``
+       attribute directly (no more ``setFixedSize`` resize-inside-scroll-area).
+    """
+    print("\ntest_lineart_panel_splitter_layout ...")
+    code = (Path(__file__).parent / 'src' / 'ui' / 'lineart_converter_panel_qt.py').read_text(encoding='utf-8')
+
+    # Must use QSplitter as main layout device
+    assert 'QSplitter(Qt.Orientation.Horizontal)' in code, (
+        "lineart_converter_panel_qt.py: QSplitter(Horizontal) not found in _create_widgets().\n"
+        "Replace the outer QScrollArea+QHBoxLayout with a QSplitter."
+    )
+    print("  ✅ QSplitter(Horizontal) used as main layout in _create_widgets()")
+
+    # Controls must be wrapped in a left_scroll QScrollArea
+    assert 'left_scroll = QScrollArea()' in code, (
+        "lineart_converter_panel_qt.py: left_scroll QScrollArea not found.\n"
+        "Wrap the controls column in a QScrollArea so they are scrollable."
+    )
+    print("  ✅ left_scroll QScrollArea wraps controls column")
+
+    # left_scroll must be WidgetResizable
+    cw_start = code.find('def _create_widgets(')
+    cw_end   = code.find('\n    def ', cw_start + 1)
+    cw_body  = code[cw_start:cw_end] if cw_end != -1 else code[cw_start:]
+    assert 'left_scroll.setWidgetResizable(True)' in cw_body, (
+        "lineart_converter_panel_qt.py: left_scroll must call setWidgetResizable(True) "
+        "so the controls fill the scroll area width."
+    )
+    print("  ✅ left_scroll.setWidgetResizable(True)")
+
+    # ComparisonSliderWidget must be added with stretch=1, not inside QScrollArea
+    assert 'group_layout.addWidget(self.preview_widget, stretch=1)' in code, (
+        "lineart_converter_panel_qt.py: ComparisonSliderWidget not added with stretch=1.\n"
+        "Add it directly to group_layout so it fills the right panel."
+    )
+    print("  ✅ ComparisonSliderWidget added with stretch=1 (fills right panel)")
+
+    # The old setWidgetResizable(False) / setFixedSize pattern must be gone
+    assert "setWidgetResizable(False)" not in cw_body, (
+        "lineart_converter_panel_qt.py: setWidgetResizable(False) still found in _create_widgets().\n"
+        "Remove the inner QScrollArea wrapper around the ComparisonSliderWidget."
+    )
+    print("  ✅ No setWidgetResizable(False) inner scroll wrapper")
+
+    # _apply_preview_zoom must use pw._zoom instead of pw.setFixedSize
+    az_start = code.find('def _apply_preview_zoom(')
+    az_end   = code.find('\n    def ', az_start + 1)
+    az_body  = code[az_start:az_end] if az_end != -1 else code[az_start:]
+    assert 'pw._zoom' in az_body, (
+        "lineart_converter_panel_qt.py: _apply_preview_zoom() should set pw._zoom "
+        "(drive the slider's internal zoom) now that the widget fills its container."
+    )
+    assert 'setFixedSize' not in az_body, (
+        "lineart_converter_panel_qt.py: _apply_preview_zoom() still calls setFixedSize().\n"
+        "Remove it — setFixedSize prevents the widget from filling the splitter panel."
+    )
+    print("  ✅ _apply_preview_zoom drives pw._zoom (no setFixedSize)")
+
+
 def run_all_tests():
     print("=" * 65)
     print("Hybrid Architecture + Lazy rembg Import Tests")
@@ -10418,6 +10576,8 @@ def run_all_tests():
         test_file_browser_preview_debounce,
         test_bedroom_panda_barrel_proportions,
         test_preview_slider_fallback_zoom_centering,
+        test_preview_slider_labels_relative_to_image,
+        test_lineart_panel_splitter_layout,
     ]
 
     passed, failed = [], []

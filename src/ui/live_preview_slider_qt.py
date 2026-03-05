@@ -175,6 +175,27 @@ class ComparisonSliderWidget(QWidget):
                              Qt.AspectRatioMode.KeepAspectRatio,
                              Qt.TransformationMode.SmoothTransformation)
 
+    def _image_draw_origin(self, widget_rect):
+        """Return the widget-space (draw_x, draw_y) of the top-left corner of the
+        currently displayed image after zoom and pan have been applied.
+
+        This is the same computation used by _paint_slider_mode to position the
+        BEFORE/AFTER labels, extracted into a shared helper so toggle and overlay
+        modes can also draw their labels relative to the actual image position
+        rather than at a hardcoded widget-corner offset.
+        """
+        pm = self.before_pixmap or self.after_pixmap
+        if pm is None or pm.isNull():
+            return 0, 0
+        fit = pm.scaled(widget_rect.size(),
+                        Qt.AspectRatioMode.KeepAspectRatio,
+                        Qt.TransformationMode.SmoothTransformation)
+        cx = widget_rect.width() / 2.0 + self._pan_x
+        cy = widget_rect.height() / 2.0 + self._pan_y
+        draw_x = int(cx - fit.width() * self._zoom / 2.0)
+        draw_y = int(cy - fit.height() * self._zoom / 2.0)
+        return draw_x, draw_y
+
     def paintEvent(self, event):
         """Custom paint event to draw before/after with slider"""
         painter = QPainter(self)
@@ -331,11 +352,17 @@ class ComparisonSliderWidget(QWidget):
             painter.drawPixmap(img_x, img_y, scaled)
         painter.restore()
 
+        # Draw label relative to the image's top-left corner in widget space.
+        # This ensures the label stays over the image even when zoomed/panned —
+        # the old hardcoded (10, 30) floated off the image at zoom > 1 or when panned.
+        draw_x, draw_y = self._image_draw_origin(widget_rect)
+        lx = max(draw_x + 10, 5)
+        ly = max(draw_y + 25, 15)
         label_text = "AFTER" if self.showing_after else "BEFORE"
         painter.setPen(QColor(255, 255, 255))
-        painter.drawText(10, 30, label_text)
+        painter.drawText(lx, ly, label_text)
         painter.setPen(QColor(0, 0, 0))
-        painter.drawText(11, 31, label_text)
+        painter.drawText(lx + 1, ly + 1, label_text)
         
     def _paint_overlay_mode(self, painter, widget_rect):
         """Paint overlay comparison mode"""
@@ -354,12 +381,16 @@ class ComparisonSliderWidget(QWidget):
             painter.setOpacity(1.0)
         painter.restore()
 
+        # Draw labels relative to the image top-left corner so they stay on
+        # the image even when zoomed or panned away from the widget corner.
+        draw_x, draw_y = self._image_draw_origin(widget_rect)
+        lx = max(draw_x + 10, 5)
         painter.setPen(QColor(255, 255, 255))
-        painter.drawText(10, 30, "BEFORE (100%)")
-        painter.drawText(10, 55, "AFTER (50%)")
+        painter.drawText(lx, max(draw_y + 25, 15), "BEFORE (100%)")
+        painter.drawText(lx, max(draw_y + 45, 35), "AFTER (50%)")
         painter.setPen(QColor(0, 0, 0))
-        painter.drawText(11, 31, "BEFORE (100%)")
-        painter.drawText(11, 56, "AFTER (50%)")
+        painter.drawText(lx + 1, max(draw_y + 26, 16), "BEFORE (100%)")
+        painter.drawText(lx + 1, max(draw_y + 46, 36), "AFTER (50%)")
         
     def _scale_to_fit(self, pixmap, size):
         """Scale pixmap to fit within size while maintaining aspect ratio"""
