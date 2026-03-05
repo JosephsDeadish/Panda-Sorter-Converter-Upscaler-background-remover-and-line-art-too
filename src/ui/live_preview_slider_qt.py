@@ -104,7 +104,7 @@ class ComparisonSliderWidget(QWidget):
             self.before_pixmap = QPixmap(pixmap)
         else:
             self.before_pixmap = pixmap
-        self.update()
+        self.reset_zoom()
         
     def set_after_image(self, pixmap):
         """Set the 'after' image"""
@@ -112,7 +112,7 @@ class ComparisonSliderWidget(QWidget):
             self.after_pixmap = QPixmap(pixmap)
         else:
             self.after_pixmap = pixmap
-        self.update()
+        self.reset_zoom()
         
     def set_mode(self, mode):
         """Set comparison mode: 'slider', 'toggle', or 'overlay'"""

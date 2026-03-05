@@ -9488,6 +9488,165 @@ def test_panda_mood_messages_all_moods_covered():
     print("  ✅ get_mood_message() returns mood-specific messages for all moods")
 
 
+def test_scrollbar_global_min_size_fix():
+    """_LAYOUT_FIXES in main.py must enforce clickable scrollbar handles.
+
+    Bug (issue #206): Scrollbars throughout the application "can't be clicked
+    and dragged" because many per-theme QSS blocks omit ``min-height`` /
+    ``min-width`` on the handle element.  When the handle has no minimum size
+    it can shrink to zero pixels — impossible to grab with a mouse.  Arrow
+    buttons (``add-line`` / ``sub-line``) were also left enabled by several
+    themes, cluttering the bar and making the handle position confusing.
+
+    Fix: append global scrollbar rules to ``_LAYOUT_FIXES`` (which is applied
+    after every theme) so all themes get:
+    - ``QScrollBar::handle:vertical   { min-height: 20px; }``
+    - ``QScrollBar::handle:horizontal { min-width:  20px; }``
+    - Arrow buttons hidden (``height: 0px`` / ``width: 0px``)
+    - Page-step areas transparent (no unexpected background colours)
+    """
+    print("\ntest_scrollbar_global_min_size_fix ...")
+
+    code = (Path(__file__).parent / 'main.py').read_text(encoding='utf-8')
+
+    # _LAYOUT_FIXES must contain the handle min-size rules
+    assert 'min-height: 20px' in code, (
+        "main.py: _LAYOUT_FIXES does not set QScrollBar::handle:vertical { min-height: 20px }.\n"
+        "Handles can shrink to zero pixels and become impossible to click/drag."
+    )
+    assert 'min-width:  20px' in code or 'min-width: 20px' in code, (
+        "main.py: _LAYOUT_FIXES does not set QScrollBar::handle:horizontal { min-width: 20px }.\n"
+        "Horizontal handles can shrink to zero pixels."
+    )
+    print("  ✅ Source: min-height/min-width present in _LAYOUT_FIXES")
+
+    # Arrow buttons must be hidden globally
+    assert 'add-line:vertical' in code and 'height: 0px' in code, (
+        "main.py: _LAYOUT_FIXES does not hide QScrollBar::add-line/sub-line arrows.\n"
+        "Visible arrow buttons make the scrollbar position confusing."
+    )
+    print("  ✅ Source: add-line/sub-line arrows suppressed in _LAYOUT_FIXES")
+
+    # Page-step areas must be cleared
+    assert 'add-page:vertical' in code and 'background: transparent' in code, (
+        "main.py: _LAYOUT_FIXES does not clear page-step area backgrounds.\n"
+        "Un-cleared areas can show unexpected colours from the OS theme."
+    )
+    print("  ✅ Source: page-step areas cleared in _LAYOUT_FIXES")
+
+
+def test_live_preview_slider_resets_zoom_on_new_image():
+    """ComparisonSliderWidget must reset zoom/pan when a new image is loaded.
+
+    Bug (issue #206): After panning or zooming, loading a new image via
+    ``set_before_image()`` or ``set_after_image()`` kept the previous pan
+    offset.  The image appeared off-centre even before the user had panned,
+    making the preview feel broken.
+
+    Fix: call ``reset_zoom()`` inside ``set_before_image()`` and
+    ``set_after_image()`` so every new image starts centred and at
+    fit-to-widget scale.
+    """
+    print("\ntest_live_preview_slider_resets_zoom_on_new_image ...")
+
+    code = (Path(__file__).parent / 'src' / 'ui' / 'live_preview_slider_qt.py').read_text(encoding='utf-8')
+
+    # Locate set_before_image body
+    bi_start = code.find('def set_before_image(')
+    bi_end   = code.find('\n    def ', bi_start + 1)
+    bi_body  = code[bi_start:bi_end] if bi_end != -1 else code[bi_start:bi_start + 300]
+
+    assert 'reset_zoom' in bi_body, (
+        "live_preview_slider_qt.py: set_before_image() does not call reset_zoom().\n"
+        "Loading a new image keeps old pan/zoom state, so the image appears off-centre."
+    )
+    print("  ✅ Source: set_before_image() calls reset_zoom()")
+
+    ai_start = code.find('def set_after_image(')
+    ai_end   = code.find('\n    def ', ai_start + 1)
+    ai_body  = code[ai_start:ai_end] if ai_end != -1 else code[ai_start:ai_start + 300]
+
+    assert 'reset_zoom' in ai_body, (
+        "live_preview_slider_qt.py: set_after_image() does not call reset_zoom().\n"
+        "Loading a processed image keeps old pan/zoom state, so it appears off-centre."
+    )
+    print("  ✅ Source: set_after_image() calls reset_zoom()")
+
+
+def test_format_converter_left_column_scroll_area():
+    """Format converter settings column must be wrapped in a QScrollArea.
+
+    Bug (issue #206): The converter tool UI was "squished and unreadable"
+    because the left settings column (Input, Output Format, Quality, Colour
+    Space, Resize, Watermark) had no vertical scrollbar.  On narrow or short
+    windows the bottom controls became inaccessible.
+
+    Fix: wrap ``left_inner`` (the settings QWidget) in a ``QScrollArea``
+    with ``setWidgetResizable(True)`` and ``ScrollBarAlwaysOff`` on the
+    horizontal axis, so vertical scrolling is available while the column
+    never grows wider than necessary.
+    """
+    print("\ntest_format_converter_left_column_scroll_area ...")
+
+    code = (Path(__file__).parent / 'src' / 'ui' / 'format_converter_panel_qt.py').read_text(encoding='utf-8')
+
+    # QScrollArea must be used to wrap the settings column
+    assert 'left_scroll = QScrollArea()' in code, (
+        "format_converter_panel_qt.py: left settings column is not wrapped in a QScrollArea.\n"
+        "Fix: create a QScrollArea, set its widget to the settings widget, and add it to the splitter."
+    )
+    print("  ✅ Source: QScrollArea wraps the left settings column")
+
+    assert 'setWidgetResizable(True)' in code, (
+        "format_converter_panel_qt.py: QScrollArea.setWidgetResizable(True) not called.\n"
+        "Without this the inner widget does not resize with the scroll area."
+    )
+    print("  ✅ Source: setWidgetResizable(True) called on scroll area")
+
+    assert 'ScrollBarAlwaysOff' in code, (
+        "format_converter_panel_qt.py: horizontal scroll bar not suppressed on the settings scroll area.\n"
+        "A horizontal scrollbar would make the layout look messy."
+    )
+    print("  ✅ Source: horizontal scrollbar suppressed on settings scroll area")
+
+
+def test_panel_selector_toggle_button_compact():
+    """The 'Hide panel selector' button in the Tools tab must be compact (≤22px).
+
+    Bug (issue #206): The panel selector toggle was a full-width button at the
+    *bottom* of the toolbar — very wide, hard to notice, and positioned far
+    from the content it controls.
+
+    Fix: replace it with a small (22×22 px) chevron button (▲/▼) anchored
+    to the top-right corner of the button grid container.  The button no
+    longer spans the full width of the panel.
+    """
+    print("\ntest_panel_selector_toggle_button_compact ...")
+
+    code = (Path(__file__).parent / 'main.py').read_text(encoding='utf-8')
+
+    # Old wide button text must be gone
+    assert '▲ Hide panel selector' not in code, (
+        "main.py: full-width 'Hide panel selector' button still present.\n"
+        "Fix: replace with a compact (22×22 px) chevron icon button at top-right."
+    )
+    print("  ✅ Source: old full-width 'Hide panel selector' button removed")
+
+    # New compact button must use setFixedSize(22, 22)
+    assert 'setFixedSize(22, 22)' in code, (
+        "main.py: compact collapse button does not call setFixedSize(22, 22).\n"
+        "The button must be small so it doesn't dominate the toolbar."
+    )
+    print("  ✅ Source: compact collapse button uses setFixedSize(22, 22)")
+
+    # Must hide only btn_grid_container (not btn_container entirely)
+    assert 'btn_grid_container' in code, (
+        "main.py: btn_grid_container not found — collapse button hides wrong widget.\n"
+        "The header row with the button itself should stay visible when collapsed."
+    )
+    print("  ✅ Source: btn_grid_container used for selective hide")
+
+
 def run_all_tests():
     print("=" * 65)
     print("Hybrid Architecture + Lazy rembg Import Tests")
@@ -9661,6 +9820,10 @@ def run_all_tests():
         test_reflex_game_score_propagated_to_model,
         test_memory_game_score_propagated_to_model,
         test_panda_mood_messages_all_moods_covered,
+        test_scrollbar_global_min_size_fix,
+        test_live_preview_slider_resets_zoom_on_new_image,
+        test_format_converter_left_column_scroll_area,
+        test_panel_selector_toggle_button_compact,
     ]
 
     passed, failed = [], []

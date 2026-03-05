@@ -1617,9 +1617,38 @@ class TextureSorterMainWindow(QMainWindow):
         btn_container.setStyleSheet(
             "#toolBtnContainer { background: #1a1a2a; border-bottom: 1px solid #333; }"
         )
-        btn_grid = QGridLayout(btn_container)
-        btn_grid.setContentsMargins(8, 6, 8, 6)
+
+        # Header row: collapse toggle (top-right) + grid below
+        btn_header = QHBoxLayout()
+        btn_header.setContentsMargins(8, 4, 6, 0)
+        btn_header.setSpacing(4)
+        btn_header.addStretch()
+
+        # Small compact toggle button at top-right of the button bar
+        collapse_btn = QPushButton("▲")
+        collapse_btn.setFixedSize(22, 22)
+        collapse_btn.setToolTip("Hide / show the panel selector grid")
+        collapse_btn.setStyleSheet(
+            "QPushButton { background: #2a2a3e; color: #888; border: 1px solid #444; "
+            "border-radius: 3px; font-size: 10px; padding: 0; }"
+            "QPushButton:hover { color: #cccccc; background: #3a3a5e; }"
+        )
+        btn_header.addWidget(collapse_btn)
+
+        btn_header_container = QWidget()
+        btn_header_container.setLayout(btn_header)
+        btn_header_container.setFixedHeight(30)
+
+        btn_grid_container = QWidget()
+        btn_grid = QGridLayout(btn_grid_container)
+        btn_grid.setContentsMargins(8, 2, 8, 6)
         btn_grid.setSpacing(4)
+
+        btn_container_layout = QVBoxLayout(btn_container)
+        btn_container_layout.setContentsMargins(0, 0, 0, 0)
+        btn_container_layout.setSpacing(0)
+        btn_container_layout.addWidget(btn_header_container)
+        btn_container_layout.addWidget(btn_grid_container)
 
         # QStackedWidget holds the actual panels
         tool_stack = QStackedWidget()
@@ -1924,28 +1953,19 @@ class TextureSorterMainWindow(QMainWindow):
         outer_layout.addWidget(btn_container)
         outer_layout.addWidget(tool_stack, 1)
 
-        # ── Collapse/expand toggle for the button grid ───────────────────────
-        # A single small chevron button at the bottom of the button bar lets
-        # the user hide the grid to give the active panel maximum vertical room.
-        collapse_btn = QPushButton("▲ Hide panel selector")
-        collapse_btn.setFixedHeight(22)
-        collapse_btn.setStyleSheet(
-            "QPushButton { background: #1a1a2a; color: #666; border: none; "
-            "border-top: 1px solid #333; font-size: 10px; }"
-            "QPushButton:hover { color: #aaaaaa; }"
-        )
-        btn_visible = True   # tracks current visibility state
+        # ── Collapse/expand toggle (wired to the compact button in the header) ─
+        btn_grid_visible = True   # tracks current visibility state
 
         def _toggle_btn_container():
-            nonlocal btn_visible
-            btn_visible = not btn_visible
-            btn_container.setVisible(btn_visible)
-            collapse_btn.setText(
-                "▲ Hide panel selector" if btn_visible else "▼ Show panel selector"
+            nonlocal btn_grid_visible
+            btn_grid_visible = not btn_grid_visible
+            btn_grid_container.setVisible(btn_grid_visible)
+            collapse_btn.setText("▲" if btn_grid_visible else "▼")
+            collapse_btn.setToolTip(
+                "Hide panel selector grid" if btn_grid_visible else "Show panel selector grid"
             )
 
         collapse_btn.clicked.connect(_toggle_btn_container)
-        outer_layout.addWidget(collapse_btn)
 
         # Wire up any lightweight dock panels (perf monitor, queue) — hidden by default
         self._create_tool_dock_panels()
@@ -2823,6 +2843,27 @@ class TextureSorterMainWindow(QMainWindow):
             label = QLabel("🎨 Creative Tools\n\nRequires PyQt6 + OpenGL.")
             label.setAlignment(Qt.AlignmentFlag.AlignCenter)
             panda_tabs.addTab(label, "🎨 Creative")
+
+        # ── Hide overlay panda when Panda Home bedroom is visible ─────────────
+        # The 3D bedroom already draws its own in-room panda character.
+        # When the user sees both the bedroom panda AND the floating overlay
+        # panda (panda_widget/panda_overlay) at the same time it looks like
+        # there are two pandas on screen.  We hide the overlay panda while the
+        # bedroom tab is the active panda sub-tab, and restore it when the user
+        # switches away.
+        def _on_panda_subtab_changed(idx: int) -> None:
+            try:
+                overlay = getattr(self, 'panda_overlay', None)
+                if overlay is None or not hasattr(overlay, 'setVisible'):
+                    return
+                is_home = (idx == self._home_tab_index)
+                overlay.setVisible(not is_home)
+                if not is_home:
+                    overlay.raise_()
+            except Exception as _e:
+                logger.debug(f"_on_panda_subtab_changed error: {_e}")
+
+        panda_tabs.currentChanged.connect(_on_panda_subtab_changed)
 
         layout.addWidget(panda_tabs)
         # (tab returned by the outer create_panda_features_tab)
@@ -4193,6 +4234,17 @@ class TextureSorterMainWindow(QMainWindow):
             QGroupBox::title { min-width: 30px; }
             QLabel { min-height: 16px; }
             QToolTip { padding: 4px 6px; }
+            /* ── Global scrollbar sanity rules ─────────────────────────────── */
+            /* Ensure handles are always large enough to grab with a mouse     */
+            QScrollBar::handle:vertical   { min-height: 20px; }
+            QScrollBar::handle:horizontal { min-width:  20px; }
+            /* Remove the tiny arrow buttons — they add visual clutter and     */
+            /* make the bar position confusing when the handle is very small   */
+            QScrollBar::add-line:vertical,  QScrollBar::sub-line:vertical  { height: 0px; border: none; background: transparent; }
+            QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal { width:  0px; border: none; background: transparent; }
+            /* Clear the page-step areas so they don't show unexpected colours */
+            QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical   { background: transparent; }
+            QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal { background: transparent; }
         """
         self.setStyleSheet(stylesheet + _LAYOUT_FIXES)
         self.apply_cursor()
