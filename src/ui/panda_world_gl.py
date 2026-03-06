@@ -187,9 +187,26 @@ class PandaWorldGL(
         self._otter_look_phase = 0      # countdown to next random look
         self._cloud_drift      = 0.0    # X-offset for slow cloud movement
 
+        # ── Controllable panda player ─────────────────────────────────────────
+        self._panda_x: float = 0.0        # world X position
+        self._panda_z: float = 0.0        # world Z position
+        self._panda_facing_y: float = 180.0  # facing direction in degrees
+        self._panda_walk_frame: float = 0.0  # leg-swing oscillation counter
+        self._panda_is_walking: bool = False
+        self._panda_run: bool = False
+        self._keys: set = set()           # currently held Qt key codes
+        self._kb_walk_speed: float = 0.08
+        self._kb_run_speed:  float = 0.16
+        # Third-person camera state
+        self._cam_az:   float = 0.0   # horizontal orbit offset (degrees)
+        self._cam_el:   float = 20.0  # elevation (degrees)
+        self._cam_dist: float = 8.0   # camera distance from panda
+        self._glu_quadric_world = None  # created in initializeGL
+
         self.setMinimumSize(400, 300)
         if PYQT_AVAILABLE:
             self.setMouseTracking(True)
+            self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
 
         if QOGL_AVAILABLE and GL_AVAILABLE:
             self._timer = QTimer(self)

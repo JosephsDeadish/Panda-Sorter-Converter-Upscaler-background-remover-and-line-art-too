@@ -209,6 +209,7 @@ class PandaBedroomGL(QOpenGLWidget if OPENGL_AVAILABLE else QWidget):  # type: i
 
         self.setMouseTracking(True)
         self.setMinimumSize(400, 300)
+        self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
 
         # ── In-room panda character ───────────────────────────────────────────
         # The panda starts at the centre of the room and walks to furniture when
@@ -222,6 +223,12 @@ class PandaBedroomGL(QOpenGLWidget if OPENGL_AVAILABLE else QWidget):  # type: i
         self._panda_walk_callback = None   # called once panda arrives at target
         self._panda_walk_frame: float = 0.0  # oscillation counter for leg swing
         self._panda_is_walking: bool = False
+
+        # ── Keyboard / player-control state ──────────────────────────────────
+        self._keys: set = set()          # currently pressed Qt key codes
+        self._panda_run: bool = False    # True when Shift is held (run speed)
+        self._kb_move_speed: float = 0.06   # walk speed (world units / tick)
+        self._kb_run_speed:  float = 0.12   # run speed
 
         # Animation timer — drives the panda walk each ~33 ms (≈30 fps)
         self._anim_timer = QTimer(self)
@@ -274,7 +281,42 @@ class PandaBedroomGL(QOpenGLWidget if OPENGL_AVAILABLE else QWidget):  # type: i
     # ── In-room panda animation ───────────────────────────────────────────────
 
     def _tick_panda_walk(self) -> None:
-        """Advance the panda one step toward its walk target.  Called by QTimer."""
+        """Advance the panda one step — handles both keyboard input and click-walk."""
+        # ── Keyboard-driven movement (WASD / arrow keys) ─────────────────────
+        _Keys = Qt.Key
+        move_keys = {
+            _Keys.Key_W, _Keys.Key_Up,
+            _Keys.Key_S, _Keys.Key_Down,
+            _Keys.Key_A, _Keys.Key_Left,
+            _Keys.Key_D, _Keys.Key_Right,
+        }
+        if self._keys & move_keys:
+            speed = self._kb_run_speed if self._panda_run else self._kb_move_speed
+            # Forward/backward relative to current facing angle
+            fwd_rad = math.radians(self._panda_facing_y)
+            dx = dz = 0.0
+            if _Keys.Key_W in self._keys or _Keys.Key_Up in self._keys:
+                dx +=  math.sin(fwd_rad) * speed
+                dz +=  math.cos(fwd_rad) * speed
+            if _Keys.Key_S in self._keys or _Keys.Key_Down in self._keys:
+                dx += -math.sin(fwd_rad) * speed
+                dz += -math.cos(fwd_rad) * speed
+            if _Keys.Key_A in self._keys or _Keys.Key_Left in self._keys:
+                self._panda_facing_y -= 3.0
+            if _Keys.Key_D in self._keys or _Keys.Key_Right in self._keys:
+                self._panda_facing_y += 3.0
+            # Apply movement, clamped to room bounds
+            nx = max(-3.5, min(3.5, self._panda_x + dx))
+            nz = max(-3.5, min(3.5, self._panda_z + dz))
+            if nx != self._panda_x or nz != self._panda_z:
+                self._panda_x = nx
+                self._panda_z = nz
+                self._panda_walk_frame += 0.3
+                self._panda_is_walking = True
+            self.update()
+            return
+
+        # ── Click-walk target movement ────────────────────────────────────────
         if not self._panda_is_walking:
             return
         dx = self._panda_target_x - self._panda_x
@@ -301,6 +343,44 @@ class PandaBedroomGL(QOpenGLWidget if OPENGL_AVAILABLE else QWidget):  # type: i
             self._panda_facing_y = math.degrees(math.atan2(dx, dz))
             self._panda_walk_frame += 0.25
         self.update()
+
+    # ── Keyboard input ────────────────────────────────────────────────────────
+
+    def keyPressEvent(self, event) -> None:  # type: ignore[override]
+        key = event.key()
+        self._keys.add(key)
+        if key in (Qt.Key.Key_Shift,):
+            self._panda_run = True
+        # E key: interact with nearest furniture
+        if key == Qt.Key.Key_E:
+            self._keyboard_interact()
+        event.accept()
+
+    def keyReleaseEvent(self, event) -> None:  # type: ignore[override]
+        key = event.key()
+        self._keys.discard(key)
+        if key in (Qt.Key.Key_Shift,):
+            self._panda_run = False
+        # Stop walk animation when movement keys released
+        move_keys = {Qt.Key.Key_W, Qt.Key.Key_Up, Qt.Key.Key_S, Qt.Key.Key_Down,
+                     Qt.Key.Key_A, Qt.Key.Key_Left, Qt.Key.Key_D, Qt.Key.Key_Right}
+        if not (self._keys & move_keys):
+            self._panda_is_walking = False
+            self._panda_walk_frame = 0.0
+        event.accept()
+
+    def _keyboard_interact(self) -> None:
+        """E key: find nearest furniture and emit furniture_clicked for it."""
+        nearest_id = None
+        nearest_dist = float('inf')
+        for piece in self._furniture:
+            dist = math.sqrt((piece.x - self._panda_x) ** 2
+                             + (piece.z - self._panda_z) ** 2)
+            if dist < nearest_dist:
+                nearest_dist = dist
+                nearest_id = piece.id
+        if nearest_id is not None and nearest_dist < 2.0:
+            self.furniture_clicked.emit(nearest_id)
 
     def _draw_panda_in_room(self) -> None:
         """Draw an improved panda character standing at (_panda_x, 0, _panda_z).
@@ -573,10 +653,22 @@ class PandaBedroomGL(QOpenGLWidget if OPENGL_AVAILABLE else QWidget):  # type: i
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
             glLoadIdentity()
 
-            # Camera orbit
-            gluLookAt(0, 0, self._cam_dist,  0, 0, 0,  0, 1, 0)
-            glRotatef(self._cam_el, 1.0, 0.0, 0.0)
-            glRotatef(self._cam_az, 0.0, 1.0, 0.0)
+            # Third-person camera: orbit behind the panda at current facing angle
+            cam_rad = math.radians(self._panda_facing_y + self._cam_az)
+            el_rad  = math.radians(self._cam_el)
+            horiz   = self._cam_dist * math.cos(el_rad)
+            cam_x   = self._panda_x - math.sin(cam_rad) * horiz
+            cam_y   = self._cam_dist * math.sin(el_rad)
+            cam_z   = self._panda_z - math.cos(cam_rad) * horiz
+            try:
+                from OpenGL.GLU import gluLookAt as _glu_look
+                _glu_look(cam_x, max(0.5, cam_y), cam_z,
+                          self._panda_x, 0.5, self._panda_z,
+                          0, 1, 0)
+            except Exception:
+                gluLookAt(cam_x, max(0.5, cam_y), cam_z,
+                          self._panda_x, 0.5, self._panda_z,
+                          0, 1, 0)
 
             # Cache GL matrices for mouse picking.  This must happen here, inside
             # paintGL while the context is active and matrices are fully set up.
@@ -594,10 +686,6 @@ class PandaBedroomGL(QOpenGLWidget if OPENGL_AVAILABLE else QWidget):  # type: i
             self._draw_room()
             self._draw_furniture()
             self._draw_panda_in_room()
-            # NOTE: the floating overlay panda (PandaOpenGLWidget) also appears on
-            # top of this widget.  _draw_panda_in_room draws the smaller in-room
-            # panda that walks between furniture pieces; the overlay panda provides
-            # the detailed companion that follows the user across all tabs.
         except Exception as _e:
             logger.debug("PandaBedroomGL paintGL error (frame skipped): %s", _e)
 
