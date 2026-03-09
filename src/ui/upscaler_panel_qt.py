@@ -497,7 +497,7 @@ class ImageUpscalerPanelQt(QWidget):
         layout = QVBoxLayout(self)
         layout.setSpacing(6)
         layout.setContentsMargins(8, 8, 8, 8)
-        self.setMinimumSize(800, 520)
+        self.setMinimumSize(500, 380)
 
         # Title
         title_label = QLabel("🔍 Image Upscaler")
@@ -519,8 +519,8 @@ class ImageUpscalerPanelQt(QWidget):
         left_scroll = QScrollArea()
         left_scroll.setWidgetResizable(True)
         left_scroll.setFrameShape(QFrame.Shape.NoFrame)
-        left_scroll.setMinimumWidth(320)
-        left_scroll.setMaximumWidth(520)
+        left_scroll.setMinimumWidth(260)
+        left_scroll.setMaximumWidth(480)
         left_container = QWidget()
         main_layout = QVBoxLayout(left_container)
         main_layout.setSpacing(6)
@@ -536,7 +536,7 @@ class ImageUpscalerPanelQt(QWidget):
         splitter.addWidget(right_widget)
         splitter.setStretchFactor(0, 0)
         splitter.setStretchFactor(1, 1)
-        splitter.setSizes([380, 420])
+        splitter.setSizes([300, 300])
         
         # File selection group
         file_group = QGroupBox("📁 File Selection")

@@ -401,59 +401,15 @@ def _setup_opengl_for_exe() -> None:
 
 _setup_opengl_for_exe()
 
-# ── Panda widget selection (delegated to panda_widget_loader) ──────────────
-# panda_widget_loader selects the best available backend:
-#   1. PandaOpenGLWidget  — hardware-accelerated 3D (preferred)
-#   2. PandaWidget2D      — QPainter 2D fallback (no OpenGL required)
-# It performs the runtime GL probe so we don't duplicate that logic here.
+# ── Panda widget selection ─────────────────────────────────────────────────
+# The 3-D panda that lives inside PandaBedroomGL is the one and only panda
+# companion.  There is no floating overlay widget; self.panda_widget is not
+# created in __init__.
 PandaOpenGLWidget = None
-PandaWidget2D = None
 PANDA_WIDGET_AVAILABLE = False
-_OPENGL_RUNTIME_OK: bool = False
-try:
-    from ui.panda_widget_loader import (
-        PandaWidget as _PandaWidgetCls,
-        OPENGL_AVAILABLE as _OPENGL_AVAILABLE,
-        PANDA_2D_AVAILABLE as _PANDA_2D_AVAILABLE,
-    )
-    if _OPENGL_AVAILABLE:
-        PandaOpenGLWidget = _PandaWidgetCls
-        PANDA_WIDGET_AVAILABLE = True
-        _OPENGL_RUNTIME_OK = True
-        logger.info("✅ panda_widget_loader selected 3D OpenGL backend")
-    elif _PANDA_2D_AVAILABLE:
-        PandaWidget2D = _PandaWidgetCls
-        logger.info("✅ panda_widget_loader selected 2D QPainter backend (OpenGL unavailable)")
-    else:
-        logger.warning("No panda widget backend available")
-except Exception as _loader_err:
-    logger.warning(f"panda_widget_loader failed ({_loader_err}); trying direct imports")
-    # Direct-import fallback (belt-and-suspenders if loader itself is broken)
-    try:
-        from ui.panda_widget_gl import PandaOpenGLWidget as _POWC
-        from OpenGL.GL import GL_DEPTH_TEST as _GL_DEPTH_TEST_PROBE  # noqa: F401
-        PandaOpenGLWidget = _POWC
-        PANDA_WIDGET_AVAILABLE = True
-        _OPENGL_RUNTIME_OK = True
-    except Exception:
-        pass
-    try:
-        from ui.panda_widget_2d import PandaWidget2D as _PW2D
-        PandaWidget2D = _PW2D
-    except Exception:
-        pass
+_OPENGL_RUNTIME_OK = False
 
-# Always ensure PandaWidget2D is loaded as a runtime fallback even when the
-# 3D loader succeeded.  Without this, _on_panda_gl_failed and the line-747
-# construction-failure path both see PandaWidget2D=None and leave an empty
-# sidebar when the GL widget fails to initialise at runtime.
-if PandaWidget2D is None:
-    try:
-        from ui.panda_widget_2d import PandaWidget2D as _PW2D_fallback
-        PandaWidget2D = _PW2D_fallback
-        logger.debug("PandaWidget2D loaded as GL runtime-failure fallback")
-    except Exception as _2d_fallback_err:
-        logger.debug(f"PandaWidget2D fallback unavailable: {_2d_fallback_err}")
+# Import each UI panel independently so one bad import does not disable all tools.
 
 # Import each UI panel independently so one bad import does not disable all tools.
 # Each name is set to None on failure; callers guard with `if PanelClass is not None`.
@@ -1325,8 +1281,12 @@ class TextureSorterMainWindow(QMainWindow):
         self.enemy_manager = None       # EnemyManager – enemy spawning
 
         # UI sub-components declared here so setup_ui() can reference them safely
-        self.panda_widget = None        # PandaOpenGLWidget (3-D panda sidebar)
-        self.panda_overlay = None       # TransparentPandaOverlay (floating panda over UI)
+        # Issue #207: panda_widget / panda_overlay overlay stubs are no longer created.
+        # The real panda lives in self._bedroom_widget (PandaBedroomGL).
+        # Keep names as None so any legacy code that checks `if self.panda_widget`
+        # still gets a falsy value and skips gracefully.
+        self.panda_widget = None        # REMOVED — use self._bedroom_widget
+        self.panda_overlay = None       # REMOVED — no floating overlay panda
         self.perf_dashboard = None      # PerformanceDashboard dock panel
         self.tool_panels = {}           # {panel_id: widget}
         self.tool_dock_widgets = {}     # {panel_id: QDockWidget}
@@ -1489,49 +1449,11 @@ class TextureSorterMainWindow(QMainWindow):
         content_layout = QVBoxLayout(content_widget)
         content_layout.setContentsMargins(0, 0, 0, 0)
         content_layout.setSpacing(10)
-        
-        # ── Panda overlay widget ─────────────────────────────────────────────────
-        # Try OpenGL 3-D widget first; fall back to 2-D QPainter widget.
-        # IMPORTANT: create panda_widget HERE — before create_panda_features_tab()
-        # so that panda_char is available when the Customisation tab is built.
-        # The widget is created with parent=self so it can be shown as a
-        # full-window transparent overlay over the application content.
-        # Only ONE panda widget is ever active (GL preferred, 2D fallback).
 
-        if PANDA_WIDGET_AVAILABLE:
-            try:
-                self.panda_widget = PandaOpenGLWidget(parent=self)
-                # No min/max width — this widget is a full-window overlay, not a sidebar panel
-                self.panda_widget.clicked.connect(self.on_panda_clicked)
-                self.panda_widget.mood_changed.connect(self.on_panda_mood_changed)
-                self.panda_widget.animation_changed.connect(self.on_panda_animation_changed)
-                if hasattr(self.panda_widget, 'food_eaten'):
-                    self.panda_widget.food_eaten.connect(self._on_panda_food_eaten)
-                # Wire gl_failed so we can swap in the 2D widget if initializeGL fails
-                if hasattr(self.panda_widget, 'gl_failed'):
-                    self.panda_widget.gl_failed.connect(self._on_panda_gl_failed)
-                logger.info("✅ Panda 3D OpenGL widget created")
-                # Restore appearance if closet already loaded (deferred single-shot so
-                # the GL context is ready before colour calls reach the GPU)
-                from PyQt6.QtCore import QTimer as _QT
-                _QT.singleShot(200, self._restore_panda_appearance_from_closet)
-            except Exception as e:
-                logger.warning(f"OpenGL panda failed ({e}), trying 2D fallback")
-                self.panda_widget = None
-
-        if self.panda_widget is None and PandaWidget2D is not None:
-            try:
-                self.panda_widget = PandaWidget2D(parent=self)
-                # No min/max width — full-window overlay, not a sidebar panel
-                self.panda_widget.clicked.connect(self.on_panda_clicked)
-                self.panda_widget.mood_changed.connect(self.on_panda_mood_changed)
-                self.panda_widget.animation_changed.connect(self.on_panda_animation_changed)
-                if hasattr(self.panda_widget, 'food_eaten'):
-                    self.panda_widget.food_eaten.connect(self._on_panda_food_eaten)
-                logger.info("✅ Panda 2D QPainter widget created (OpenGL unavailable)")
-            except Exception as e2:
-                logger.error(f"Panda 2D fallback also failed: {e2}")
-                self.panda_widget = None
+        # Issue #207: No overlay panda widget is created here.
+        # self.panda_widget and self.panda_overlay remain None.
+        # The 3-D panda character lives in self._bedroom_widget (PandaBedroomGL)
+        # which is created in create_panda_features_tab() below.
 
         # Create draggable tabs
         self.tabs = DraggableTabWidget()
@@ -2512,18 +2434,14 @@ class TextureSorterMainWindow(QMainWindow):
             )
             _room_vbox = QVBoxLayout(_panda_area)
             _room_vbox.setContentsMargins(0, 0, 0, 0)
-            # Embed a fresh PandaWidget2D instance (independent of the overlay)
-            try:
-                _panda_char = getattr(self, 'panda_widget', None)
-                _panda_char = getattr(_panda_char, 'panda', None)
-                from ui.panda_widget_2d import PandaWidget2D as _PW2DHome
-                _bedroom_panda = _PW2DHome(panda_character=_panda_char, parent=_panda_area)
-                _bedroom_panda.setMinimumHeight(200)
-                _room_vbox.addWidget(_bedroom_panda)
-                self._bedroom_panda_2d = _bedroom_panda
-            except Exception as _pw:
-                logger.debug(f"2D panda in home fallback: {_pw}")
-                _room_vbox.addStretch()
+            # The 3-D panda lives inside PandaBedroomGL — there is no 2-D panda.
+            # Show a styled placeholder label when OpenGL is unavailable.
+            _no_gl_label = QLabel("🐼\n\nPanda's 3-D room\nrequires OpenGL.\nInstall PyOpenGL to see your panda here.")
+            _no_gl_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            _no_gl_label.setStyleSheet(
+                "color: #8888cc; font-size: 13px; background: transparent; padding: 20px;"
+            )
+            _room_vbox.addWidget(_no_gl_label)
             _h2d_layout.addWidget(_panda_area, 1)
 
             # Furniture shortcut buttons grid
@@ -5206,38 +5124,8 @@ class TextureSorterMainWindow(QMainWindow):
             except Exception as e:
                 logger.warning(f"Could not initialize unlockables system: {e}")
 
-            # Promote panda_widget to full-window overlay role.
-            # The widget was created in setup_ui() with parent=self and all
-            # transparency attributes set.  We resize it to cover the window,
-            # show it, and raise it above all content.  panda_overlay is set to
-            # panda_widget so all downstream code that references panda_overlay
-            # (EnvironmentMonitor, PandaMoodSystem, resize/hide/drag events) works
-            # without any further changes.
-            if self.panda_widget is not None:
-                try:
-                    self.panda_overlay = self.panda_widget
-                    self.panda_overlay.resize(self.size())
-                    self.panda_overlay.move(0, 0)
-                    self.panda_overlay.show()
-                    self.panda_overlay.raise_()
-                    logger.info("✅ panda_widget promoted to full-window transparent overlay")
-                    # Re-apply the home-tab hide logic now that the overlay is set.
-                    # The QTimer.singleShot(0) call in create_panda_features_tab fires
-                    # before initialize_components completes, so panda_overlay was still
-                    # None at that point.  This second call ensures the overlay is
-                    # immediately hidden if the user has the Panda Home tab selected.
-                    try:
-                        if (self._panda_tabs is not None
-                                and self._home_tab_index >= 0):
-                            idx = self._panda_tabs.currentIndex()
-                            is_home = (idx == self._home_tab_index)
-                            self.panda_overlay.setVisible(not is_home)
-                            if not is_home:
-                                self.panda_overlay.raise_()
-                    except Exception as _hide_err:
-                        logger.debug(f"post-overlay home-hide: {_hide_err}")
-                except Exception as e:
-                    logger.debug(f"Could not activate panda overlay: {e}")
+            # Issue #207: no overlay panda widget to promote.
+            # The 3-D bedroom panda in PandaBedroomGL is the only panda companion.
 
             # Wire drag-and-drop on the input/output path labels so users can
             # drag folders from the file manager directly onto them.
@@ -6572,87 +6460,13 @@ class TextureSorterMainWindow(QMainWindow):
 
     def _on_panda_gl_failed(self, error_msg: str):
         """
-        Called via gl_failed signal when PandaOpenGLWidget.initializeGL() fails.
+        Kept for API compatibility — no longer does anything.
 
-        Replaces the broken GL widget in the sidebar splitter with the 2D QPainter
-        fallback.  This keeps exactly ONE panda visible at all times.
+        Issue #207: There is no overlay panda widget to swap out.  The 3-D
+        bedroom panda (PandaBedroomGL) has its own GL-failure handler that
+        replaces itself with a plain-text placeholder inside the Home tab.
         """
-        logger.warning(f"Panda GL init failed ({error_msg}), swapping in 2D fallback")
-
-        # Log to the activity log so the user can see WHY 3D failed
-        self.log(f"⚠️ 3D panda GL init failed: {error_msg}")
-        self.log("ℹ️ Switched to 2D panda backup. Check that your GPU driver supports OpenGL 2.1.")
-        try:
-            self.statusBar().showMessage(
-                f"⚠️ 3D panda unavailable ({error_msg[:60]}…) — using 2D backup", 8000
-            )
-        except Exception:
-            pass
-
-        if PandaWidget2D is None:
-            logger.error("2D panda fallback not available; no panda character will be displayed")
-            return
-
-        # Disconnect signals from the failed GL widget before destroying it
-        old_widget = self.panda_widget
-        if old_widget is not None:
-            if hasattr(old_widget, 'timer'):
-                try:
-                    old_widget.timer.stop()
-                except Exception:
-                    pass
-            for sig_name in ('clicked', 'mood_changed', 'animation_changed'):
-                sig = getattr(old_widget, sig_name, None)
-                if sig is not None:
-                    try:
-                        sig.disconnect()
-                    except Exception:
-                        pass
-
-        # Create 2D replacement
-        try:
-            w2d = PandaWidget2D(parent=self)
-            # No min/max width — full-window overlay, not a sidebar panel
-            w2d.clicked.connect(self.on_panda_clicked)
-            w2d.mood_changed.connect(self.on_panda_mood_changed)
-            w2d.animation_changed.connect(self.on_panda_animation_changed)
-            if hasattr(w2d, 'food_eaten'):
-                w2d.food_eaten.connect(self._on_panda_food_eaten)
-            if self.panda_character is not None:
-                w2d.panda = self.panda_character
-        except Exception as e:
-            logger.error(f"2D panda fallback creation failed: {e}")
-            return
-
-        # Promote the 2D widget to overlay role (same as the GL widget was)
-        try:
-            w2d.resize(self.size())
-            w2d.move(0, 0)
-            w2d.show()
-            w2d.raise_()
-        except Exception as e:
-            logger.error(f"Could not set up 2D panda as overlay: {e}")
-            return
-
-        self.panda_widget = w2d
-        self.panda_overlay = w2d
-
-        # Update PandaInteractionBehavior so it doesn't use the deleted GL widget
-        if self.panda_interaction is not None:
-            try:
-                self.panda_interaction.overlay = w2d
-            except Exception:
-                pass
-
-        # Schedule deletion of the old GL widget (already hidden from overlay)
-        if old_widget is not None:
-            try:
-                old_widget.hide()
-                old_widget.deleteLater()
-            except Exception:
-                pass
-
-        logger.info("✅ Panda 2D fallback active as overlay (GL init failed)")
+        logger.info(f"_on_panda_gl_failed called (no-op since #207 removal): {error_msg}")
 
     def on_panda_mood_changed(self, mood: str):
         """Handle panda mood changes (emitted by panda_widget.mood_changed signal)."""
@@ -7305,9 +7119,8 @@ class TextureSorterMainWindow(QMainWindow):
                         _door_walk_x, _door_walk_z = _p.walk_x, _p.walk_z
             except Exception:
                 pass
-            if self.panda_widget and hasattr(self.panda_widget, 'walk_to_position'):
-                self.panda_widget.walk_to_position(_door_walk_x, 0.0, _door_walk_z)
-                self.panda_widget.set_animation_state('walking')
+            if self._bedroom_widget and hasattr(self._bedroom_widget, 'walk_panda_to'):
+                self._bedroom_widget.walk_panda_to(_door_walk_x, _door_walk_z)
 
             # Build world widget if needed
             if self._world_widget is None:
@@ -7745,6 +7558,75 @@ class TextureSorterMainWindow(QMainWindow):
                     logger.debug(f"Computer desk panel open: {_e2}")
             self.statusBar().showMessage("💻 Panda is sitting at the computer…", 3000)
 
+        elif furniture_id == 'bed':
+            def _open_panel():
+                try:
+                    # Panda lay-down animation: show a fun sleep screen
+                    lbl = QLabel(
+                        "💤 Panda is taking a nap…\n\n"
+                        "🐼  Zzz…  Zzz…\n\n"
+                        "(Press Back or any key to wake up)"
+                    )
+                    lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
+                    lbl.setStyleSheet(
+                        "color: #ddeeff; font-size: 18pt; background: #1a1a3a;"
+                        "border-radius: 12px; padding: 20px;"
+                    )
+                    lbl.setWordWrap(True)
+                    self._home_stack_owned.append(lbl)
+                    self._show_home_sub_panel(lbl, '💤 Nap Time')
+                    # Trigger bed lay-down in the 3D bedroom panda
+                    try:
+                        if self._bedroom_widget and hasattr(self._bedroom_widget, 'play_bed_animation'):
+                            self._bedroom_widget.play_bed_animation()
+                    except Exception:
+                        pass
+                except Exception as _e2:
+                    logger.debug(f"Bed panel: {_e2}")
+            self.statusBar().showMessage("💤 Panda is walking to the bed…", 3000)
+
+        elif furniture_id in ('armor_rack', 'weapons_rack'):
+            _icon = '🛡️' if furniture_id == 'armor_rack' else '⚔️'
+            _title = 'Armor Rack' if furniture_id == 'armor_rack' else 'Weapons Rack'
+            def _open_panel(_icon=_icon, _title=_title, _fid=furniture_id):
+                try:
+                    inv = self._inventory_panel
+                    if inv is None:
+                        lbl = QLabel(
+                            f"{_icon} {_title}\n\nInventory not loaded.\n"
+                            "Run  pip install -r requirements.txt  to enable."
+                        )
+                        lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
+                        lbl.setWordWrap(True)
+                        self._home_stack_owned.append(lbl)
+                        self._show_home_sub_panel(lbl, f'{_icon} {_title}')
+                        return
+                    if hasattr(inv, 'set_category_filter'):
+                        inv.set_category_filter('Weapons' if _fid == 'weapons_rack' else 'Armor')
+                    self._show_home_sub_panel(inv, f'{_icon} {_title}')
+                except Exception as _e2:
+                    logger.debug(f"{_title} panel: {_e2}")
+            self.statusBar().showMessage(f"{_icon} Panda is checking the {_title}…", 3000)
+
+        elif furniture_id in ('toy_box', 'fridge'):
+            _icon  = '🧸' if furniture_id == 'toy_box' else '🍎'
+            _title = 'Toy Box' if furniture_id == 'toy_box' else 'Fridge'
+            def _open_panel(_icon=_icon, _title=_title):
+                try:
+                    lbl = QLabel(
+                        f"{_icon} {_title}\n\n"
+                        "This feature is coming soon!\n"
+                        "Panda is saving up bamboo to stock it. 🎋"
+                    )
+                    lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
+                    lbl.setWordWrap(True)
+                    lbl.setStyleSheet("color: #ccffcc; font-size: 13pt;")
+                    self._home_stack_owned.append(lbl)
+                    self._show_home_sub_panel(lbl, f'{_icon} {_title}')
+                except Exception as _e2:
+                    logger.debug(f"{_title} panel: {_e2}")
+            self.statusBar().showMessage(f"{_icon} Panda is walking to the {_title}…", 3000)
+
         else:
             # All other furniture → show filtered Inventory panel
             def _open_panel():
@@ -7813,12 +7695,12 @@ class TextureSorterMainWindow(QMainWindow):
         except Exception as _e:
             logger.debug(f"Bedroom panda walk: {_e}")
 
-        # Start the overlay panda walk animation (independent, visual only)
+        # Route walk to the real 3D bedroom panda (self._bedroom_widget)
         try:
-            if self.panda_widget and hasattr(self.panda_widget, 'walk_to_position'):
-                self.panda_widget.walk_to_position(walk_x, 0.0, walk_z)
+            if self._bedroom_widget and hasattr(self._bedroom_widget, 'walk_panda_to'):
+                self._bedroom_widget.walk_panda_to(walk_x, walk_z)
         except Exception as _e:
-            logger.debug(f"Overlay panda walk: {_e}")
+            logger.debug(f"Bedroom panda walk to position: {_e}")
 
         # Fallback: if no bedroom widget, open panel after a short delay.
         # Also schedule a 1.5 s safety-net fallback for when walk_panda_to

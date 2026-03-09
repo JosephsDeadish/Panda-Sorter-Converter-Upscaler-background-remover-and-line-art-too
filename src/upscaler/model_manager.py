@@ -1,5 +1,6 @@
 """Universal AI Model Manager - Downloads models on first use"""
 
+import hashlib
 import json
 import logging
 import os
@@ -20,6 +21,16 @@ except ImportError:
     _USE_REQUESTS = False
 
 _USER_AGENT = 'PandaSorterConverterUpscaler/1.0 (patreon.com/JosephsDeadish)'
+
+# Remote model manifest URL — the app fetches this on first use of each model
+# so that URLs and checksums can be updated without shipping a new binary.
+# Falls back to the bundled MODELS dict when offline or the fetch fails.
+_REMOTE_MANIFEST_URL = (
+    'https://raw.githubusercontent.com/JosephsDeadish/'
+    'Panda-Sorter-Converter-Upscaler-background-remover-and-line-art-too/'
+    'main/model_manifest.json'
+)
+_MANIFEST_CACHE_TTL = 86400  # 24 h in seconds; re-fetch after this
 
 # Base URL for rembg model files hosted on GitHub releases.
 # danielgatis/rembg on HuggingFace is a PRIVATE repo → always returns HTTP 401
@@ -46,6 +57,7 @@ class AIModelManager:
             'mirror': 'https://github.com/xinntao/Real-ESRGAN/releases/download/v0.2.4.0/RealESRGAN_x4plus.pth',
             'size_mb': 67,
             'version': '0.2.4.0',
+            'sha256': '4fa0d38905f75ac06eb49a7951b426670021be3a6d56c6f4e73b0e6a25c0d88a',
             'description': 'Real-ESRGAN 4x upscaler - Best quality for 4x upscaling',
             'tool': 'upscaler',
             'category': 'upscaler',
@@ -57,6 +69,7 @@ class AIModelManager:
             'mirror': 'https://github.com/xinntao/Real-ESRGAN/releases/download/v0.2.4.0/RealESRGAN_x4plus_anime_6B.pth',
             'size_mb': 19,
             'version': '0.2.4.0',
+            'sha256': 'f872d837d3c90ed2e05227bed711af5671a6fd1c9f7d7f8b53c8a45f7ef0679c',
             'description': 'Real-ESRGAN 4x anime upscaler - Optimized for anime/manga art',
             'tool': 'upscaler',
             'category': 'upscaler',
@@ -68,6 +81,7 @@ class AIModelManager:
             'mirror': 'https://github.com/xinntao/Real-ESRGAN/releases/download/v0.2.4.0/RealESRGAN_x2plus.pth',
             'size_mb': 66,
             'version': '0.2.4.0',
+            'sha256': '49fafd45f8fd7aa8d31ab2a22d14d91ad5e1c9b56b6f5c54f41fa8c35a85a65e',
             'description': 'Real-ESRGAN 2x upscaler - Fast 2x upscaling',
             'tool': 'upscaler',
             'category': 'upscaler',
@@ -409,6 +423,110 @@ class AIModelManager:
                 json.dump(self.status, f, indent=2)
         except Exception as e:
             logger.error(f"Failed to save model status: {e}")
+
+    # ── Remote manifest ────────────────────────────────────────────────────────
+
+    def _get_manifest_cache_path(self) -> Path:
+        return self.models_dir / '.model_manifest_cache.json'
+
+    def fetch_remote_manifest(self, force: bool = False) -> dict:
+        """Fetch the remote model manifest and cache it locally.
+
+        Returns the manifest dict (model_name → info overrides) or an empty
+        dict when offline / the fetch fails.  The cached copy is reused for
+        ``_MANIFEST_CACHE_TTL`` seconds to avoid hammering the CDN on every
+        model access.
+        """
+        import time
+        cache_path = self._get_manifest_cache_path()
+        # Return cached copy if fresh enough
+        if not force and cache_path.exists():
+            try:
+                age = time.time() - cache_path.stat().st_mtime
+                if age < _MANIFEST_CACHE_TTL:
+                    with open(cache_path, encoding='utf-8') as fh:
+                        return json.load(fh)
+            except Exception:
+                pass
+        # Try to fetch from GitHub
+        try:
+            headers = {'User-Agent': _USER_AGENT}
+            if _USE_REQUESTS:
+                resp = _requests.get(_REMOTE_MANIFEST_URL, headers=headers,
+                                     timeout=10, allow_redirects=True)
+                resp.raise_for_status()
+                manifest = resp.json()
+            else:
+                opener = _urllib_request.build_opener()
+                opener.addheaders = [('User-Agent', _USER_AGENT)]
+                with opener.open(_REMOTE_MANIFEST_URL, timeout=10) as fh:
+                    manifest = json.loads(fh.read().decode('utf-8'))
+            # Persist to local cache
+            try:
+                with open(cache_path, 'w', encoding='utf-8') as fh:
+                    json.dump(manifest, fh, indent=2)
+            except Exception:
+                pass
+            logger.info("Remote model manifest fetched and cached (%d entries)", len(manifest))
+            return manifest
+        except Exception as exc:
+            logger.debug("Could not fetch remote model manifest: %s", exc)
+            # Return stale cache (if any) rather than nothing
+            if cache_path.exists():
+                try:
+                    with open(cache_path, encoding='utf-8') as fh:
+                        return json.load(fh)
+                except Exception:
+                    pass
+            return {}
+
+    def get_model_info(self, model_name: str) -> dict:
+        """Return merged model info: bundled MODELS dict overridden by remote manifest."""
+        info = dict(self.MODELS.get(model_name, {}))
+        # Overlay any remote manifest fields (URL / checksum / size updates)
+        try:
+            manifest = self.fetch_remote_manifest()
+            override = manifest.get(model_name, {})
+            if override:
+                info.update(override)
+        except Exception:
+            pass
+        return info
+
+    # ── Checksum helpers ───────────────────────────────────────────────────────
+
+    @staticmethod
+    def compute_sha256(file_path: Path) -> str:
+        """Return the lowercase hex SHA-256 digest of *file_path*."""
+        h = hashlib.sha256()
+        with open(file_path, 'rb') as fh:
+            for chunk in iter(lambda: fh.read(65536), b''):
+                h.update(chunk)
+        return h.hexdigest()
+
+    def verify_checksum(self, model_name: str, file_path: Path) -> bool:
+        """Verify the SHA-256 of *file_path* against the model definition.
+
+        Returns ``True`` when the checksum matches OR when no expected checksum
+        is defined for the model (so existing models without a stored hash are
+        not rejected).
+        """
+        info = self.get_model_info(model_name)
+        expected = info.get('sha256', '')
+        if not expected:
+            return True   # no expected hash → assume OK
+        try:
+            actual = self.compute_sha256(file_path)
+            if actual.lower() == expected.lower():
+                return True
+            logger.warning(
+                "Checksum mismatch for %s — expected %s, got %s",
+                model_name, expected, actual,
+            )
+            return False
+        except Exception as exc:
+            logger.warning("Could not verify checksum for %s: %s", model_name, exc)
+            return True  # if we can't check, don't block usage
     
     def get_model_status(self, model_name: str) -> ModelStatus:
         """Check if model is installed"""
@@ -463,7 +581,7 @@ class AIModelManager:
         progress_callback: Optional[Callable[[int, int], None]] = None
     ) -> bool:
         """
-        Download model with automatic retry and mirror fallback
+        Download model with automatic retry, mirror fallback, and SHA-256 verification.
         
         Args:
             model_name: Name of model to download
@@ -476,7 +594,8 @@ class AIModelManager:
             logger.error(f"Unknown model: {model_name}")
             return False
         
-        model_info = self.MODELS[model_name]
+        # Use merged info (remote manifest overrides bundled definition)
+        model_info = self.get_model_info(model_name)
         
         # Skip auto-download models (CLIP, DINOv2 installed via pip)
         if model_info.get('auto_download') or model_info.get('hf_model_id'):
@@ -487,39 +606,51 @@ class AIModelManager:
         # Use dest_filename if specified (e.g. rembg .onnx files), else <name>.pth
         dest_filename = model_info.get('dest_filename', f"{model_name}.pth")
         model_file = self.models_dir / dest_filename
-        
+
+        def _try_download(download_url: str) -> bool:
+            self._download_file(download_url, model_file, progress_callback)
+            # Verify checksum after download
+            if not self.verify_checksum(model_name, model_file):
+                logger.error(
+                    "Checksum verification failed for %s — removing corrupt file",
+                    model_name,
+                )
+                model_file.unlink(missing_ok=True)
+                return False
+            return True
+
         try:
             logger.info(f"Downloading {model_name} from {url}")
-            self._download_file(url, model_file, progress_callback)
-            self.status[model_name] = 'installed'
-            self.save_status()
-            logger.info(f"✅ Successfully downloaded {model_name}")
-            return True
+            if _try_download(url):
+                self.status[model_name] = 'installed'
+                self.save_status()
+                logger.info(f"✅ Successfully downloaded {model_name}")
+                return True
         except Exception as e:
             logger.warning(f"Primary URL failed: {e}. Trying mirror...")
             
-            # Try mirror if available
-            mirror_url = model_info.get('mirror')
-            if mirror_url:
-                try:
-                    logger.info(f"Downloading from mirror: {mirror_url}")
-                    self._download_file(mirror_url, model_file, progress_callback)
+        # Try mirror if available
+        mirror_url = model_info.get('mirror')
+        if mirror_url:
+            try:
+                logger.info(f"Downloading from mirror: {mirror_url}")
+                if _try_download(mirror_url):
                     self.status[model_name] = 'installed'
                     self.save_status()
                     logger.info(f"✅ Successfully downloaded {model_name} (from mirror)")
                     return True
-                except Exception as e2:
-                    logger.error(f"Mirror also failed: {e2}")
-            
-            # Log detailed error info
-            logger.error(f"Failed to download {model_name}")
-            logger.error(f"Primary URL: {url}")
-            if 'mirror' in model_info:
-                logger.error(f"Mirror URL: {model_info['mirror']}")
-            
-            # Clean up partial download
-            if model_file.exists():
-                model_file.unlink()
+            except Exception as e2:
+                logger.error(f"Mirror also failed: {e2}")
+        
+        # Log detailed error info
+        logger.error(f"Failed to download {model_name}")
+        logger.error(f"Primary URL: {url}")
+        if 'mirror' in model_info:
+            logger.error(f"Mirror URL: {model_info['mirror']}")
+        
+        # Clean up partial download
+        if model_file.exists():
+            model_file.unlink()
             return False
     
     def _download_file(self, url: str, dest: Path, progress_callback: Optional[Callable]):

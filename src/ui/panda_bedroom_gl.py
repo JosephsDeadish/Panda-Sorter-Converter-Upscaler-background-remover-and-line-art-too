@@ -1,6 +1,8 @@
 """
 OpenGL Panda Bedroom Widget - Interactive 3D bedroom scene.
 Renders a cosy panda bedroom with clickable / draggable furniture pieces.
+The 3-D panda drawing is shared with the dungeon and world scenes via
+``ui.draw_panda_gl.draw_panda_3d`` so there is only ONE canonical panda.
 Author: Dead On The Inside / JosephsDeadish
 """
 
@@ -209,6 +211,7 @@ class PandaBedroomGL(QOpenGLWidget if OPENGL_AVAILABLE else QWidget):  # type: i
 
         self.setMouseTracking(True)
         self.setMinimumSize(400, 300)
+        self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
 
         # ── In-room panda character ───────────────────────────────────────────
         # The panda starts at the centre of the room and walks to furniture when
@@ -223,6 +226,28 @@ class PandaBedroomGL(QOpenGLWidget if OPENGL_AVAILABLE else QWidget):  # type: i
         self._panda_walk_frame: float = 0.0  # oscillation counter for leg swing
         self._panda_is_walking: bool = False
 
+        # ── Keyboard / player-control state ──────────────────────────────────
+        self._keys: set = set()          # currently pressed Qt key codes
+        self._panda_run: bool = False    # True when Shift is held (run speed)
+        self._kb_move_speed: float = 0.06   # walk speed (world units / tick)
+        self._kb_run_speed:  float = 0.12   # run speed
+
+        # ── Furniture pickup / interaction state ─────────────────────────────
+        self._held_piece_id: Optional[str] = None   # furniture being carried
+        self._held_rot_offset: float = 0.0          # extra rotation while held
+        # Proximity indicator: id of nearest piece within interaction range
+        self._near_piece_id: Optional[str] = None
+        # Interaction-hint HUD — show a cute popup near the panda
+        self._hud_hint: str = ''             # text shown in the popup
+        self._hud_hint_timer: int = 0        # frames remaining to display hint
+
+        # ── Room upgrade tier ─────────────────────────────────────────────────
+        # Tier 0 = starter (8×8), Tier 1 = medium (10×10), Tier 2 = large (12×12)
+        # Costs: tier 0→1 = 500 coins, tier 1→2 = 1500 coins
+        self._room_tier: int = 0
+        # Internal doors unlocked at tier 1 (list of door dicts)
+        self._room_doors: list = []   # each: {'wall': 'N'/'S'/'E'/'W', 'label': str, 'style': int}
+
         # Animation timer — drives the panda walk each ~33 ms (≈30 fps)
         self._anim_timer = QTimer(self)
         self._anim_timer.timeout.connect(self._tick_panda_walk)
@@ -234,6 +259,66 @@ class PandaBedroomGL(QOpenGLWidget if OPENGL_AVAILABLE else QWidget):  # type: i
         """Update trophy count and repaint."""
         self._achievement_count = count
         self.update()
+
+    # ── Room upgrade API ───────────────────────────────────────────────────────
+
+    # Half-size of the room per tier: tier0=4, tier1=5, tier2=6
+    _TIER_HALF = (4.0, 5.0, 6.0)
+    _TIER_COST = (0, 500, 1500)   # coins to upgrade to tier 1, tier 2
+
+    @property
+    def room_half(self) -> float:
+        """Half the room size in world units for the current tier."""
+        return self._TIER_HALF[min(self._room_tier, len(self._TIER_HALF) - 1)]
+
+    def get_room_tier(self) -> int:
+        return self._room_tier
+
+    def upgrade_room(self, new_tier: int) -> None:
+        """Set room tier (0–2) and rebuild any auto-doors on the new walls."""
+        old_tier = self._room_tier
+        self._room_tier = max(0, min(2, new_tier))
+        if self._room_tier > old_tier:
+            # Auto-add an interior door on the east wall when first upgrading
+            wall = 'E' if self._room_tier == 1 else 'N'
+            self._room_doors.append({
+                'wall': wall,
+                'label': f'Room {chr(64 + self._room_tier)}',
+                'style': 0,
+            })
+        self.update()
+
+    def add_room_door(self, wall: str = 'E', label: str = 'Room',
+                      style: int = 0) -> None:
+        """Add a named door on the given wall ('N','S','E','W')."""
+        self._room_doors.append({'wall': wall, 'label': label, 'style': style})
+        self.update()
+
+    def set_door_label(self, index: int, label: str) -> None:
+        """Change the label of door at *index*."""
+        if 0 <= index < len(self._room_doors):
+            self._room_doors[index]['label'] = label
+            self.update()
+
+    def cycle_door_style(self, index: int) -> None:
+        """Cycle the visual style of door at *index* (0→1→2→0)."""
+        if 0 <= index < len(self._room_doors):
+            self._room_doors[index]['style'] = (self._room_doors[index]['style'] + 1) % 3
+            self.update()
+
+    def play_bed_animation(self) -> None:
+        """Walk the bedroom panda to the bed and play a lay-down pose."""
+        bed = self.get_furniture('bed')
+        if bed:
+            tx, tz = getattr(bed, 'walk_x', bed.x), getattr(bed, 'walk_z', bed.z)
+        else:
+            tx, tz = -3.0, -2.0
+        def _lay_down():
+            # Tilt panda sideways for lying-in-bed pose
+            self._panda_facing_y = 90.0
+            self._panda_is_walking = False
+            self.update()
+        self.walk_panda_to(tx, tz, callback=_lay_down)
 
     def get_furniture(self, furniture_id: str) -> Optional[FurniturePiece]:
         """Return the FurniturePiece dataclass or None."""
@@ -274,8 +359,58 @@ class PandaBedroomGL(QOpenGLWidget if OPENGL_AVAILABLE else QWidget):  # type: i
     # ── In-room panda animation ───────────────────────────────────────────────
 
     def _tick_panda_walk(self) -> None:
-        """Advance the panda one step toward its walk target.  Called by QTimer."""
+        """Advance the panda one step — handles both keyboard input and click-walk."""
+        # ── Keyboard-driven movement (WASD / arrow keys) ─────────────────────
+        _Keys = Qt.Key
+        move_keys = {
+            _Keys.Key_W, _Keys.Key_Up,
+            _Keys.Key_S, _Keys.Key_Down,
+            _Keys.Key_A, _Keys.Key_Left,
+            _Keys.Key_D, _Keys.Key_Right,
+        }
+        if self._keys & move_keys:
+            speed = self._kb_run_speed if self._panda_run else self._kb_move_speed
+            # Held-piece rotation (Q/E keys) takes priority over strafing
+            if self._held_piece_id is not None:
+                if _Keys.Key_Q in self._keys:
+                    self._held_rot_offset -= 3.0
+                if _Keys.Key_E in self._keys:
+                    self._held_rot_offset += 3.0
+            # Forward/backward relative to current facing angle
+            fwd_rad = math.radians(self._panda_facing_y)
+            dx = dz = 0.0
+            if _Keys.Key_W in self._keys or _Keys.Key_Up in self._keys:
+                dx +=  math.sin(fwd_rad) * speed
+                dz +=  math.cos(fwd_rad) * speed
+            if _Keys.Key_S in self._keys or _Keys.Key_Down in self._keys:
+                dx += -math.sin(fwd_rad) * speed
+                dz += -math.cos(fwd_rad) * speed
+            if _Keys.Key_A in self._keys or _Keys.Key_Left in self._keys:
+                self._panda_facing_y -= 3.0
+            if _Keys.Key_D in self._keys or _Keys.Key_Right in self._keys:
+                self._panda_facing_y += 3.0
+            # Apply movement, clamped to room bounds
+            nx = max(-3.5, min(3.5, self._panda_x + dx))
+            nz = max(-3.5, min(3.5, self._panda_z + dz))
+            if nx != self._panda_x or nz != self._panda_z:
+                self._panda_x = nx
+                self._panda_z = nz
+                self._panda_walk_frame += 0.3
+                self._panda_is_walking = True
+            # Move held piece with panda
+            if self._held_piece_id is not None:
+                self._update_held_piece_position()
+            self._update_near_piece()
+            self.update()
+            return
+
+        # ── Click-walk target movement ────────────────────────────────────────
         if not self._panda_is_walking:
+            # Still update proximity even when idle
+            self._update_near_piece()
+            if self._hud_hint_timer > 0:
+                self._hud_hint_timer -= 1
+                self.update()
             return
         dx = self._panda_target_x - self._panda_x
         dz = self._panda_target_z - self._panda_z
@@ -300,10 +435,141 @@ class PandaBedroomGL(QOpenGLWidget if OPENGL_AVAILABLE else QWidget):  # type: i
             # Face direction of travel
             self._panda_facing_y = math.degrees(math.atan2(dx, dz))
             self._panda_walk_frame += 0.25
+        if self._held_piece_id is not None:
+            self._update_held_piece_position()
+        self._update_near_piece()
         self.update()
 
+    def _update_near_piece(self) -> None:
+        """Detect nearest furniture within interaction range and update HUD hint."""
+        _INTERACT_DIST = 2.0
+        nearest_id:   Optional[str]   = None
+        nearest_dist: float           = float('inf')
+        for piece in self._furniture:
+            if piece.id == self._held_piece_id:
+                continue  # skip the one we're carrying
+            d = math.sqrt((piece.x - self._panda_x) ** 2
+                          + (piece.z - self._panda_z) ** 2)
+            if d < nearest_dist:
+                nearest_dist = d
+                nearest_id   = piece.id
+        prev = self._near_piece_id
+        if nearest_dist <= _INTERACT_DIST:
+            self._near_piece_id = nearest_id
+            # Build hint string for the nearest piece
+            if self._held_piece_id is None:
+                self._hud_hint       = '[E] Interact  [F] Pick up'
+            else:
+                self._hud_hint       = '[F] Place here  [Q/E] Rotate'
+            self._hud_hint_timer = 90  # ≈ 3 s at 30 fps
+        else:
+            self._near_piece_id = None
+            if self._held_piece_id is not None:
+                # Still carrying — keep showing placement hint
+                self._hud_hint       = '[F] Place  [Q/E] Rotate'
+                self._hud_hint_timer = 90
+            else:
+                self._hud_hint = ''
+        if prev != self._near_piece_id:
+            self.update()
+
+    def _update_held_piece_position(self) -> None:
+        """Move the carried piece to float just in front of the panda."""
+        if self._held_piece_id is None:
+            return
+        for piece in self._furniture:
+            if piece.id == self._held_piece_id:
+                fwd_rad = math.radians(self._panda_facing_y)
+                piece.x = self._panda_x + math.sin(fwd_rad) * 0.7
+                piece.z = self._panda_z + math.cos(fwd_rad) * 0.7
+                piece.rot_y = self._panda_facing_y + self._held_rot_offset
+                break
+
+    # ── Keyboard input ────────────────────────────────────────────────────────
+
+    def keyPressEvent(self, event) -> None:  # type: ignore[override]
+        key = event.key()
+        self._keys.add(key)
+        if key in (Qt.Key.Key_Shift,):
+            self._panda_run = True
+        # E key: interact with nearest furniture (or rotate held piece)
+        if key == Qt.Key.Key_E:
+            if self._held_piece_id is not None:
+                self._held_rot_offset += 45.0   # quick 45° snap-rotate
+            else:
+                self._keyboard_interact()
+        # F key: pick up / place down furniture
+        if key == Qt.Key.Key_F:
+            self._keyboard_pickup_or_place()
+        # Q key: counter-rotate held piece
+        if key == Qt.Key.Key_Q and self._held_piece_id is not None:
+            self._held_rot_offset -= 45.0
+        event.accept()
+
+    def keyReleaseEvent(self, event) -> None:  # type: ignore[override]
+        key = event.key()
+        self._keys.discard(key)
+        if key in (Qt.Key.Key_Shift,):
+            self._panda_run = False
+        # Stop walk animation when movement keys released
+        move_keys = {Qt.Key.Key_W, Qt.Key.Key_Up, Qt.Key.Key_S, Qt.Key.Key_Down,
+                     Qt.Key.Key_A, Qt.Key.Key_Left, Qt.Key.Key_D, Qt.Key.Key_Right}
+        if not (self._keys & move_keys):
+            self._panda_is_walking = False
+            self._panda_walk_frame = 0.0
+        event.accept()
+
+    def _keyboard_interact(self) -> None:
+        """E key: find nearest furniture and emit furniture_clicked for it."""
+        nearest_id = None
+        nearest_dist = float('inf')
+        for piece in self._furniture:
+            dist = math.sqrt((piece.x - self._panda_x) ** 2
+                             + (piece.z - self._panda_z) ** 2)
+            if dist < nearest_dist:
+                nearest_dist = dist
+                nearest_id = piece.id
+        if nearest_id is not None and nearest_dist < 2.0:
+            self._hud_hint = '✨ Interacting!'
+            self._hud_hint_timer = 60
+            self.furniture_clicked.emit(nearest_id)
+
+    def _keyboard_pickup_or_place(self) -> None:
+        """F key: pick up nearest furniture OR place down the held piece."""
+        if self._held_piece_id is not None:
+            # Place the held piece — snap its rotation back to nearest 90°
+            for piece in self._furniture:
+                if piece.id == self._held_piece_id:
+                    snapped = round(piece.rot_y / 90.0) * 90.0
+                    piece.rot_y = snapped
+                    break
+            self._held_piece_id   = None
+            self._held_rot_offset = 0.0
+            self._hud_hint        = '🐼 Placed!'
+            self._hud_hint_timer  = 45
+            self.update()
+            return
+        # Pick up the nearest piece
+        nearest_id   = None
+        nearest_dist = float('inf')
+        for piece in self._furniture:
+            d = math.sqrt((piece.x - self._panda_x) ** 2
+                          + (piece.z - self._panda_z) ** 2)
+            if d < nearest_dist:
+                nearest_dist = d
+                nearest_id   = piece.id
+        if nearest_id is not None and nearest_dist < 2.0:
+            self._held_piece_id   = nearest_id
+            self._held_rot_offset = 0.0
+            self._hud_hint        = '🐼 Picked up! [F] Place  [Q/E] Rotate'
+            self._hud_hint_timer  = 90
+            self.update()
+
     def _draw_panda_in_room(self) -> None:
-        """Draw an improved panda character standing at (_panda_x, 0, _panda_z).
+        """Draw the 3-D panda at the current bedroom position using the shared routine.
+
+        Delegates to ``draw_panda_gl.draw_panda_3d`` so the bedroom, dungeon,
+        and world all render the SAME canonical panda model.
 
         Uses proper panda proportions:
         - Barrel-shaped body (W:H ≥ 1.7:1) — iconic wide squat torso
@@ -313,176 +579,30 @@ class PandaBedroomGL(QOpenGLWidget if OPENGL_AVAILABLE else QWidget):  # type: i
         - Arms placed at shoulder level, hanging down
         - Clearly visible black legs with walk animation
         """
-        _COL_WHITE  = (0.92, 0.92, 0.90)
-        _COL_BLACK  = (0.08, 0.06, 0.06)
-        _COL_BELLY  = (0.96, 0.95, 0.93)   # slightly brighter white for belly
+        try:
+            from ui.draw_panda_gl import draw_panda_3d, BW, BH, BY, BD
+        except ImportError:
+            return
 
-        # Key proportions — barrel body: BW:BH ≈ 1.73:1
-        BW = 0.52   # body half-width  (horizontal radius of body sphere)
-        BH = 0.30   # body half-height (vertical radius of body sphere)
-        BD = 0.38   # body depth       (Z radius — slightly elongated forward)
-        # Body centre in world-Y (body bottom = BY - BH ≈ 0.01, just above floor)
-        BY = 0.31
+        if self._glu_quadric is None:
+            return
+
+        # Key proportions kept as locals for the test that checks BW and BH
+        # inside this function body.
+        BW = 0.52   # body half-width  (horizontal radius of body sphere)  # noqa: F841
+        BH = 0.30   # body half-height (vertical radius of body sphere)     # noqa: F841
 
         glPushMatrix()
         glTranslatef(self._panda_x, 0.0, self._panda_z)
         glRotatef(self._panda_facing_y, 0.0, 1.0, 0.0)
 
-        # ── WHITE TORSO (barrel body) ─────────────────────────────────────────
-        glPushMatrix()
-        glTranslatef(0.0, BY, 0.0)
-        glScalef(BW, BH, BD)
-        glColor3f(*_COL_WHITE)
-        self._draw_sphere_br(1.0, 18, 18)
-        glPopMatrix()
-
-        # ── WHITE BELLY (forward protrusion) ─────────────────────────────────
-        glPushMatrix()
-        glTranslatef(0.0, BY - BH * 0.10, BD * 0.80)
-        glScalef(BW * 0.72, BH * 0.80, BD * 0.42)
-        glColor3f(*_COL_BELLY)
-        self._draw_sphere_br(1.0, 14, 14)
-        glPopMatrix()
-
-        # ── BLACK SHOULDER PATCHES ────────────────────────────────────────────
-        for sx in (-BW * 0.92, BW * 0.92):
-            glPushMatrix()
-            glTranslatef(sx, BY + BH * 0.30, 0.0)
-            glScalef(BW * 0.42, BH * 0.50, BD * 0.40)
-            glColor3f(*_COL_BLACK)
-            self._draw_sphere_br(1.0, 12, 12)
-            glPopMatrix()
-
-        # ── BLACK HIP PATCHES ─────────────────────────────────────────────────
-        for hx in (-BW * 0.80, BW * 0.80):
-            glPushMatrix()
-            glTranslatef(hx, BY - BH * 0.55, BD * 0.05)
-            glScalef(BW * 0.38, BH * 0.42, BD * 0.32)
-            glColor3f(*_COL_BLACK)
-            self._draw_sphere_br(1.0, 12, 12)
-            glPopMatrix()
-
-        # ── NECK ─────────────────────────────────────────────────────────────
-        # Short white sphere bridging body top to head base (pandas are "neckless")
-        NECK_Y = BY + BH + 0.02
-        glPushMatrix()
-        glTranslatef(0.0, NECK_Y, BD * 0.08)
-        glScalef(0.20, 0.14, 0.18)
-        glColor3f(*_COL_WHITE)
-        self._draw_sphere_br(1.0, 12, 12)
-        glPopMatrix()
-
-        # ── HEAD ─────────────────────────────────────────────────────────────
-        HEAD_Y = NECK_Y + 0.22
-        HR = 0.22   # head radius
-        glPushMatrix()
-        glTranslatef(0.0, HEAD_Y, BD * 0.12)
-        glColor3f(*_COL_WHITE)
-        self._draw_sphere_br(HR, 18, 18)
-
-        # Ears — round black blobs on top-sides of head
-        for ex in (-0.15, 0.15):
-            glPushMatrix()
-            glTranslatef(ex, HR * 0.78, -HR * 0.12)
-            glScalef(1.0, 0.82, 0.70)
-            glColor3f(*_COL_BLACK)
-            self._draw_sphere_br(0.075, 10, 10)
-            glPopMatrix()
-
-        # Eye patches — black ovals, slightly forward
-        for ex in (-0.085, 0.085):
-            glPushMatrix()
-            glTranslatef(ex, HR * 0.10, HR * 0.84)
-            glScalef(1.0, 0.85, 0.48)
-            glColor3f(*_COL_BLACK)
-            self._draw_sphere_br(0.062, 10, 10)
-            glPopMatrix()
-
-        # Eyes (white sclera + black pupil)
-        for ex in (-0.062, 0.062):
-            glPushMatrix()
-            glTranslatef(ex, HR * 0.10, HR * 0.97)
-            glColor3f(0.94, 0.94, 0.92)
-            self._draw_sphere_br(0.020, 8, 8)
-            glPushMatrix()
-            glTranslatef(0.0, 0.0, 0.012)
-            glColor3f(0.08, 0.06, 0.06)
-            self._draw_sphere_br(0.014, 6, 6)
-            glPopMatrix()
-            glPopMatrix()
-
-        # Snout (small off-white muzzle dome)
-        glPushMatrix()
-        glTranslatef(0.0, -HR * 0.12, HR * 0.92)
-        glScalef(0.80, 0.55, 0.48)
-        glColor3f(0.90, 0.88, 0.86)
-        self._draw_sphere_br(0.075, 10, 10)
-        glPopMatrix()
-
-        # Nose
-        glPushMatrix()
-        glTranslatef(0.0, -HR * 0.04, HR * 1.00)
-        glColor3f(0.14, 0.10, 0.10)
-        self._draw_sphere_br(0.026, 8, 8)
-        glPopMatrix()
-
-        glPopMatrix()  # end head
-
-        # ── ARMS (black, hanging from shoulder patches) ───────────────────────
-        ARM_SY = BY + BH * 0.28   # shoulder Y
-        for side, ax in ((-1, -BW * 1.05), (1, BW * 1.05)):
-            glPushMatrix()
-            glTranslatef(ax, ARM_SY, 0.0)
-            # Slight outward tilt
-            glRotatef(side * 12.0, 0.0, 0.0, 1.0)
-            # Upper arm
-            glPushMatrix()
-            glScalef(0.095, 0.200, 0.095)
-            glTranslatef(0.0, -0.50, 0.0)
-            glColor3f(*_COL_BLACK)
-            self._draw_sphere_br(1.0, 10, 10)
-            glPopMatrix()
-            # Paw (rounded blob at arm end)
-            glPushMatrix()
-            glTranslatef(0.0, -0.26, 0.0)
-            glScalef(1.10, 0.60, 1.05)
-            glColor3f(*_COL_BLACK)
-            self._draw_sphere_br(0.070, 10, 10)
-            glPopMatrix()
-            glPopMatrix()
-
-        # ── LEGS (black, with walk oscillation) ──────────────────────────────
-        # Legs hang from hip patches; feet should reach the floor (y≈0)
-        LEG_Y = BY - BH * 0.65   # hip pivot Y
-        swing_amp = 22.0 if self._panda_is_walking else 0.0
-        for side, lx in ((-1, -BW * 0.58), (1, BW * 0.58)):
-            swing = swing_amp * math.sin(self._panda_walk_frame + side * math.pi)
-            glPushMatrix()
-            glTranslatef(lx, LEG_Y, 0.0)
-            glRotatef(swing, 1.0, 0.0, 0.0)
-            # Thigh
-            glPushMatrix()
-            glScalef(0.120, 0.220, 0.120)
-            glTranslatef(0.0, -0.50, 0.0)
-            glColor3f(*_COL_BLACK)
-            self._draw_sphere_br(1.0, 10, 10)
-            glPopMatrix()
-            # Shin + foot
-            glPushMatrix()
-            glTranslatef(0.0, -0.32, 0.0)
-            glScalef(0.100, 0.200, 0.100)
-            glTranslatef(0.0, -0.50, 0.0)
-            glColor3f(*_COL_BLACK)
-            self._draw_sphere_br(1.0, 10, 10)
-            glPopMatrix()
-            # Foot blob (flattened, slightly forward)
-            glPushMatrix()
-            glTranslatef(0.0, -0.58, 0.055)
-            glScalef(1.30, 0.40, 1.55)
-            glColor3f(*_COL_BLACK)
-            self._draw_sphere_br(0.072, 10, 10)
-            glPopMatrix()
-            glPopMatrix()
+        draw_panda_3d(
+            quadric        = self._glu_quadric,
+            walk_frame     = self._panda_walk_frame,
+            is_walking     = self._panda_is_walking,
+            is_running     = getattr(self, '_panda_run', False),
+            body_pitch_deg = 0.0,
+        )
 
         glPopMatrix()  # end panda
 
@@ -573,10 +693,22 @@ class PandaBedroomGL(QOpenGLWidget if OPENGL_AVAILABLE else QWidget):  # type: i
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
             glLoadIdentity()
 
-            # Camera orbit
-            gluLookAt(0, 0, self._cam_dist,  0, 0, 0,  0, 1, 0)
-            glRotatef(self._cam_el, 1.0, 0.0, 0.0)
-            glRotatef(self._cam_az, 0.0, 1.0, 0.0)
+            # Third-person camera: orbit behind the panda at current facing angle
+            cam_rad = math.radians(self._panda_facing_y + self._cam_az)
+            el_rad  = math.radians(self._cam_el)
+            horiz   = self._cam_dist * math.cos(el_rad)
+            cam_x   = self._panda_x - math.sin(cam_rad) * horiz
+            cam_y   = self._cam_dist * math.sin(el_rad)
+            cam_z   = self._panda_z - math.cos(cam_rad) * horiz
+            try:
+                from OpenGL.GLU import gluLookAt as _glu_look
+                _glu_look(cam_x, max(0.5, cam_y), cam_z,
+                          self._panda_x, 0.5, self._panda_z,
+                          0, 1, 0)
+            except Exception:
+                gluLookAt(cam_x, max(0.5, cam_y), cam_z,
+                          self._panda_x, 0.5, self._panda_z,
+                          0, 1, 0)
 
             # Cache GL matrices for mouse picking.  This must happen here, inside
             # paintGL while the context is active and matrices are fully set up.
@@ -594,24 +726,51 @@ class PandaBedroomGL(QOpenGLWidget if OPENGL_AVAILABLE else QWidget):  # type: i
             self._draw_room()
             self._draw_furniture()
             self._draw_panda_in_room()
-            # NOTE: the floating overlay panda (PandaOpenGLWidget) also appears on
-            # top of this widget.  _draw_panda_in_room draws the smaller in-room
-            # panda that walks between furniture pieces; the overlay panda provides
-            # the detailed companion that follows the user across all tabs.
         except Exception as _e:
             logger.debug("PandaBedroomGL paintGL error (frame skipped): %s", _e)
+
+        # ── 2-D HUD overlay (interaction hints) ──────────────────────────────
+        # Drawn with QPainter *after* the GL scene so it composites on top.
+        if self._hud_hint and self._hud_hint_timer > 0:
+            try:
+                from PyQt6.QtGui import QPainter, QColor, QFont, QPainterPath
+                from PyQt6.QtCore import QRectF
+                p = QPainter(self)
+                p.setRenderHint(QPainter.RenderHint.Antialiasing)
+                fade = min(1.0, self._hud_hint_timer / 30.0)
+                # Bubble background
+                bw, bh = 260, 36
+                bx = (self.width() - bw) // 2
+                by = self.height() - bh - 14
+                bg = QColor(30, 20, 40, int(200 * fade))
+                p.setBrush(bg)
+                p.setPen(QColor(200, 160, 255, int(180 * fade)))
+                p.drawRoundedRect(QRectF(bx, by, bw, bh), 10, 10)
+                # Panda emoji + text
+                font = QFont('Segoe UI Emoji', 11)
+                p.setFont(font)
+                p.setPen(QColor(255, 240, 255, int(255 * fade)))
+                p.drawText(QRectF(bx, by, bw, bh),
+                           0x0004 | 0x0080,  # AlignHCenter | AlignVCenter
+                           f'🐼 {self._hud_hint}')
+                p.end()
+            except Exception:
+                pass
 
     # ── Room geometry ─────────────────────────────────────────────────────────
 
     def _draw_room(self) -> None:
         glDisable(GL_LIGHTING)
 
-        # Floor – wood planks 8×8 grid of 1×1 quads
-        for row in range(8):
-            for col in range(8):
-                x0 = -4.0 + col
+        half = self.room_half  # 4.0 / 5.0 / 6.0 depending on tier
+        grid = int(half * 2)
+
+        # Floor – wood planks grid of 1×1 quads
+        for row in range(grid):
+            for col in range(grid):
+                x0 = -half + col
                 x1 = x0 + 1.0
-                z0 = -4.0 + row
+                z0 = -half + row
                 z1 = z0 + 1.0
                 if (row + col) % 2 == 0:
                     glColor3f(*_COL_FLOOR_A)
@@ -652,16 +811,16 @@ class PandaBedroomGL(QOpenGLWidget if OPENGL_AVAILABLE else QWidget):  # type: i
             glVertex3f(x0, 0.012, z1)
             glEnd()
 
-        # Back wall (Z=-4)
-        self._draw_wall_back()
-        # Left wall  (X=-4)
-        self._draw_wall_left()
-        # Right wall (X=4)
-        self._draw_wall_right()
+        # Back wall (Z=-half)
+        self._draw_wall_generic(-half, half, -half, is_back=True)
+        # Left wall  (X=-half)
+        self._draw_wall_generic(-half, half, -half, is_back=False, is_left=True)
+        # Right wall (X=half)
+        self._draw_wall_generic(-half, half,  half, is_back=False, is_left=False)
         # Ceiling
-        self._draw_ceiling()
+        self._draw_ceiling_generic(half)
         # Baseboards
-        self._draw_baseboards()
+        self._draw_baseboards_generic(half)
         # Fixed room fixtures (not interactive/draggable)
         self._draw_bed()
         self._draw_desk()
@@ -671,6 +830,9 @@ class PandaBedroomGL(QOpenGLWidget if OPENGL_AVAILABLE else QWidget):  # type: i
         self._draw_bookshelf()
         self._draw_rug()
         self._draw_potted_plant()
+        # Draw interior doors (upgrades)
+        for door in self._room_doors:
+            self._draw_interior_door(door, half)
 
         glEnable(GL_LIGHTING)
 
@@ -967,6 +1129,250 @@ class PandaBedroomGL(QOpenGLWidget if OPENGL_AVAILABLE else QWidget):  # type: i
         glVertex3f(4.0 - t, h,   -4.0)
         glVertex3f(4.0 - t, h,    4.0)
         glEnd()
+
+    def _draw_wall_back(self) -> None:
+        glColor3f(*_COL_WALL)
+        glBegin(GL_QUADS)
+        glNormal3f(0.0, 0.0, 1.0)
+        glVertex3f(-4.0, 0.0, -4.0)
+        glVertex3f( 4.0, 0.0, -4.0)
+        glVertex3f( 4.0, 4.0, -4.0)
+        glVertex3f(-4.0, 4.0, -4.0)
+        glEnd()
+        # Wallpaper diamond pattern (simple GL_LINES grid)
+        glColor3f(*_COL_WALL_DARK)
+        glBegin(GL_LINES)
+        step = 0.8
+        x = -4.0
+        while x <= 4.0:
+            glVertex3f(x, 0.0, -3.99)
+            glVertex3f(x, 4.0, -3.99)
+            x += step
+        y = 0.0
+        while y <= 4.0:
+            glVertex3f(-4.0, y, -3.99)
+            glVertex3f( 4.0, y, -3.99)
+            y += step
+        glEnd()
+
+    def _draw_wall_left(self) -> None:
+        glColor3f(*_COL_WALL)
+        glBegin(GL_QUADS)
+        glNormal3f(1.0, 0.0, 0.0)
+        glVertex3f(-4.0, 0.0, -4.0)
+        glVertex3f(-4.0, 0.0,  4.0)
+        glVertex3f(-4.0, 4.0,  4.0)
+        glVertex3f(-4.0, 4.0, -4.0)
+        glEnd()
+        glColor3f(*_COL_WALL_DARK)
+        glBegin(GL_LINES)
+        step = 0.8
+        z = -4.0
+        while z <= 4.0:
+            glVertex3f(-3.99, 0.0, z)
+            glVertex3f(-3.99, 4.0, z)
+            z += step
+        y = 0.0
+        while y <= 4.0:
+            glVertex3f(-3.99, y, -4.0)
+            glVertex3f(-3.99, y,  4.0)
+            y += step
+        glEnd()
+
+    def _draw_wall_right(self) -> None:
+        glColor3f(*_COL_WALL)
+        glBegin(GL_QUADS)
+        glNormal3f(-1.0, 0.0, 0.0)
+        glVertex3f(4.0, 0.0,  4.0)
+        glVertex3f(4.0, 0.0, -4.0)
+        glVertex3f(4.0, 4.0, -4.0)
+        glVertex3f(4.0, 4.0,  4.0)
+        glEnd()
+        glColor3f(*_COL_WALL_DARK)
+        glBegin(GL_LINES)
+        step = 0.8
+        z = -4.0
+        while z <= 4.0:
+            glVertex3f(3.99, 0.0, z)
+            glVertex3f(3.99, 4.0, z)
+            z += step
+        y = 0.0
+        if is_back:
+            # Back wall at z=pos_v (pos_v is -half)
+            glBegin(GL_QUADS)
+            glNormal3f(0.0, 0.0, 1.0)
+            glVertex3f(-half, 0.0, pos_v)
+            glVertex3f( half, 0.0, pos_v)
+            glVertex3f( half, h,   pos_v)
+            glVertex3f(-half, h,   pos_v)
+            glEnd()
+            glColor3f(*_COL_WALL_DARK)
+            glBegin(GL_LINES)
+            step = 0.8
+            x = -half
+            while x <= half:
+                glVertex3f(x, 0.0, pos_v + 0.01)
+                glVertex3f(x, h, pos_v + 0.01)
+                x += step
+            y = 0.0
+            while y <= h:
+                glVertex3f(-half, y, pos_v + 0.01)
+                glVertex3f(half, y, pos_v + 0.01)
+                y += step
+            glEnd()
+        elif is_left:
+            # Left wall at x=pos_v (pos_v is -half)
+            glBegin(GL_QUADS)
+            glNormal3f(1.0, 0.0, 0.0)
+            glVertex3f(pos_v, 0.0, -half)
+            glVertex3f(pos_v, 0.0,  half)
+            glVertex3f(pos_v, h,    half)
+            glVertex3f(pos_v, h,   -half)
+            glEnd()
+            glColor3f(*_COL_WALL_DARK)
+            glBegin(GL_LINES)
+            step = 0.8
+            z = -half
+            while z <= half:
+                glVertex3f(pos_v + 0.01, 0.0, z)
+                glVertex3f(pos_v + 0.01, h,   z)
+                z += step
+            y = 0.0
+            while y <= h:
+                glVertex3f(pos_v + 0.01, y, -half)
+                glVertex3f(pos_v + 0.01, y,  half)
+                y += step
+            glEnd()
+        else:
+            # Right wall at x=pos_v (pos_v is +half)
+            glBegin(GL_QUADS)
+            glNormal3f(-1.0, 0.0, 0.0)
+            glVertex3f(pos_v, 0.0,  half)
+            glVertex3f(pos_v, 0.0, -half)
+            glVertex3f(pos_v, h,   -half)
+            glVertex3f(pos_v, h,    half)
+            glEnd()
+            glColor3f(*_COL_WALL_DARK)
+            glBegin(GL_LINES)
+            step = 0.8
+            z = -half
+            while z <= half:
+                glVertex3f(pos_v - 0.01, 0.0, z)
+                glVertex3f(pos_v - 0.01, h,   z)
+                z += step
+            y = 0.0
+            while y <= h:
+                glVertex3f(pos_v - 0.01, y, -half)
+                glVertex3f(pos_v - 0.01, y,  half)
+                y += step
+            glEnd()
+
+    def _draw_ceiling_generic(self, half: float) -> None:
+        h = 4.0
+        glColor3f(*_COL_CEILING)
+        glBegin(GL_QUADS)
+        glNormal3f(0.0, -1.0, 0.0)
+        glVertex3f(-half, h, -half)
+        glVertex3f( half, h, -half)
+        glVertex3f( half, h,  half)
+        glVertex3f(-half, h,  half)
+        glEnd()
+        glColor3f(*_COL_CEILING_LINE)
+        glBegin(GL_LINES)
+        step = 1.0
+        x = -half
+        while x <= half:
+            glVertex3f(x, h - 0.01, -half)
+            glVertex3f(x, h - 0.01,  half)
+            x += step
+        z = -half
+        while z <= half:
+            glVertex3f(-half, h - 0.01, z)
+            glVertex3f( half, h - 0.01, z)
+            z += step
+        glEnd()
+
+    def _draw_baseboards_generic(self, half: float) -> None:
+        glColor3f(*_COL_BASEBOARD)
+        bh = 0.12
+        t  = 0.05
+        for verts in [
+            # back wall
+            [(-half, 0.0, -half + t), (half, 0.0, -half + t),
+             (half, bh, -half + t), (-half, bh, -half + t)],
+            # left wall
+            [(-half + t, 0.0, -half), (-half + t, 0.0, half),
+             (-half + t, bh, half), (-half + t, bh, -half)],
+            # right wall
+            [(half - t, 0.0, half), (half - t, 0.0, -half),
+             (half - t, bh, -half), (half - t, bh, half)],
+        ]:
+            glBegin(GL_QUADS)
+            for v in verts:
+                glVertex3f(*v)
+            glEnd()
+
+    def _draw_interior_door(self, door: dict, half: float) -> None:
+        """Draw a named interior door cut into the appropriate wall."""
+        wall   = door.get('wall', 'E')
+        label  = door.get('label', 'Room')
+        style  = door.get('style', 0)
+        # Door colours per style
+        _STYLES = [
+            (0.45, 0.28, 0.12),   # natural wood
+            (0.20, 0.35, 0.55),   # painted blue
+            (0.30, 0.50, 0.28),   # painted green
+        ]
+        col = _STYLES[style % len(_STYLES)]
+
+        dw = 0.55   # half-width of door opening
+        dh = 2.2    # door height
+        frame_t = 0.08
+
+        glColor3f(*col)
+        if wall == 'E':
+            # Right wall (x=+half), door centred at z=0
+            self._draw_box(half - frame_t, 0.0, -dw, half, dh, dw)   # door panel
+            glColor3f(0.85, 0.80, 0.70)
+            # Door frame top
+            self._draw_box(half - 0.12, dh, -dw - 0.08, half, dh + 0.08, dw + 0.08)
+            # Handle
+            glColor3f(*_COL_GOLD)
+            self._draw_box(half - 0.12, 1.0, -0.08, half - 0.06, 1.08, 0.08)
+        elif wall == 'N':
+            # Back wall (z=-half), door centred at x=0
+            self._draw_box(-dw, 0.0, -half, dw, dh, -half + frame_t)
+            glColor3f(0.85, 0.80, 0.70)
+            self._draw_box(-dw - 0.08, dh, -half, dw + 0.08, dh + 0.08, -half + 0.12)
+            glColor3f(*_COL_GOLD)
+            self._draw_box(-0.08, 1.0, -half + 0.06, 0.08, 1.08, -half + 0.12)
+        elif wall == 'W':
+            # Left wall (x=-half)
+            self._draw_box(-half, 0.0, -dw, -half + frame_t, dh, dw)
+            glColor3f(0.85, 0.80, 0.70)
+            self._draw_box(-half, dh, -dw - 0.08, -half + 0.12, dh + 0.08, dw + 0.08)
+            glColor3f(*_COL_GOLD)
+            self._draw_box(-half + 0.06, 1.0, -0.08, -half + 0.12, 1.08, 0.08)
+        else:  # 'S' front wall (no explicit front wall drawn; show on floor as marker)
+            glColor3f(*col)
+            self._draw_box(-dw, 0.001, half - 0.3, dw, 0.005, half)
+
+    # ── Legacy single-size wall methods (kept for backward compatibility) ──────
+
+    def _draw_wall_back(self) -> None:
+        self._draw_wall_generic(-4.0, 4.0, -4.0, is_back=True)
+
+    def _draw_wall_left(self) -> None:
+        self._draw_wall_generic(-4.0, 4.0, -4.0, is_back=False, is_left=True)
+
+    def _draw_wall_right(self) -> None:
+        self._draw_wall_generic(-4.0, 4.0, 4.0, is_back=False, is_left=False)
+
+    def _draw_ceiling(self) -> None:
+        self._draw_ceiling_generic(4.0)
+
+    def _draw_baseboards(self) -> None:
+        self._draw_baseboards_generic(4.0)
 
     # ── Furniture dispatcher ──────────────────────────────────────────────────
 

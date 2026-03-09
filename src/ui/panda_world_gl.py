@@ -187,9 +187,34 @@ class PandaWorldGL(
         self._otter_look_phase = 0      # countdown to next random look
         self._cloud_drift      = 0.0    # X-offset for slow cloud movement
 
+        # ── Controllable panda player ─────────────────────────────────────────
+        self._panda_x: float = 0.0        # world X position
+        self._panda_z: float = 0.0        # world Z position
+        self._panda_facing_y: float = 180.0  # facing direction in degrees
+        self._panda_walk_frame: float = 0.0  # leg-swing oscillation counter
+        self._panda_is_walking: bool = False
+        self._panda_run: bool = False
+        self._keys: set = set()           # currently held Qt key codes
+        self._kb_walk_speed: float = 0.08
+        self._kb_run_speed:  float = 0.16
+        # Third-person camera state
+        self._cam_az:   float = 0.0   # horizontal orbit offset (degrees)
+        self._cam_el:   float = 20.0  # elevation (degrees)
+        self._cam_dist: float = 8.0   # camera distance from panda
+        self._glu_quadric_world = None  # created in initializeGL
+        # ── Click-to-move target ──────────────────────────────────────────────
+        self._panda_click_target_x: float = 0.0
+        self._panda_click_target_z: float = 0.0
+        self._panda_click_walking:  bool = False
+        self._panda_click_region:   str  = ''   # region the click is heading to
+        # ── Interaction HUD (shown when near a building) ──────────────────────
+        self._world_hud_hint:  str = ''
+        self._world_hud_timer: int = 0
+
         self.setMinimumSize(400, 300)
         if PYQT_AVAILABLE:
             self.setMouseTracking(True)
+            self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
 
         if QOGL_AVAILABLE and GL_AVAILABLE:
             self._timer = QTimer(self)
@@ -242,6 +267,12 @@ class PandaWorldGL(
             glLoadIdentity()
 
             self._gl_ready = True
+            # Create reusable GLU quadric for sphere drawing
+            try:
+                self._glu_quadric_world = gluNewQuadric()
+                gluQuadricNormals(self._glu_quadric_world, GLU_SMOOTH)
+            except Exception:
+                self._glu_quadric_world = None
         except Exception as e:
             self._gl_ready = False
             if PYQT_AVAILABLE:
@@ -265,13 +296,51 @@ class PandaWorldGL(
         try:
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
             glLoadIdentity()
-            # Camera: slightly elevated, looking into the scene
-            glTranslatef(0.0, -2.5, -10.0)
-            glRotatef(18.0, 1.0, 0.0, 0.0)
+
+            # Third-person camera: orbit behind the panda
+            cam_rad = math.radians(self._panda_facing_y + self._cam_az)
+            el_rad  = math.radians(self._cam_el)
+            horiz   = self._cam_dist * math.cos(el_rad)
+            cam_x   = self._panda_x - math.sin(cam_rad) * horiz
+            cam_y   = max(0.5, self._cam_dist * math.sin(el_rad))
+            cam_z   = self._panda_z - math.cos(cam_rad) * horiz
+            try:
+                gluLookAt(cam_x, cam_y, cam_z,
+                          self._panda_x, 0.8, self._panda_z,
+                          0.0, 1.0, 0.0)
+            except Exception:
+                # Fallback to old fixed camera when GLU unavailable
+                glTranslatef(0.0, -2.5, -10.0)
+                glRotatef(18.0, 1.0, 0.0, 0.0)
 
             self._draw_world()
+            self._draw_world_panda()
         except Exception as _e:
             logger.debug("PandaWorldGL paintGL error (frame skipped): %s", _e)
+
+        # ── 2-D HUD overlay: interaction hints + click destination marker ─────
+        if PYQT_AVAILABLE and self._world_hud_hint and self._world_hud_timer > 0:
+            try:
+                from PyQt6.QtGui import QPainter, QColor, QFont
+                from PyQt6.QtCore import QRectF
+                p = QPainter(self)
+                p.setRenderHint(QPainter.RenderHint.Antialiasing)
+                fade = min(1.0, self._world_hud_timer / 30.0)
+                bw, bh = 280, 36
+                bx = (self.width() - bw) // 2
+                by = self.height() - bh - 14
+                p.setBrush(QColor(10, 20, 50, int(200 * fade)))
+                p.setPen(QColor(100, 180, 255, int(180 * fade)))
+                from PyQt6.QtCore import QRectF as _RF
+                p.drawRoundedRect(_RF(bx, by, bw, bh), 10, 10)
+                p.setFont(QFont('Segoe UI Emoji', 11))
+                p.setPen(QColor(220, 240, 255, int(255 * fade)))
+                p.drawText(_RF(bx, by, bw, bh),
+                           0x0004 | 0x0080,
+                           f'🐼 {self._world_hud_hint}')
+                p.end()
+            except Exception:
+                pass
 
     # ── Animation tick ────────────────────────────────────────────────────────
     def _tick(self):
@@ -323,8 +392,165 @@ class PandaWorldGL(
         elif random.random() < 0.003:
             self._otter_shuffle_t = random.randint(20, 50)
 
+        # ── Keyboard-driven panda movement ───────────────────────────────────
+        if PYQT_AVAILABLE and hasattr(self, '_keys'):
+            _K = Qt.Key
+            move_keys = {_K.Key_W, _K.Key_Up, _K.Key_S, _K.Key_Down,
+                         _K.Key_A, _K.Key_Left, _K.Key_D, _K.Key_Right}
+            if self._keys & move_keys:
+                # Keyboard movement cancels click-walk
+                self._panda_click_walking = False
+                speed = self._kb_run_speed if self._panda_run else self._kb_walk_speed
+                fwd_rad = math.radians(self._panda_facing_y)
+                dx = dz = 0.0
+                if _K.Key_W in self._keys or _K.Key_Up in self._keys:
+                    dx +=  math.sin(fwd_rad) * speed
+                    dz +=  math.cos(fwd_rad) * speed
+                if _K.Key_S in self._keys or _K.Key_Down in self._keys:
+                    dx += -math.sin(fwd_rad) * speed
+                    dz += -math.cos(fwd_rad) * speed
+                if _K.Key_A in self._keys or _K.Key_Left in self._keys:
+                    self._panda_facing_y -= 3.0
+                if _K.Key_D in self._keys or _K.Key_Right in self._keys:
+                    self._panda_facing_y += 3.0
+                # World bounds
+                self._panda_x = max(-13.0, min(13.0, self._panda_x + dx))
+                self._panda_z = max(-11.0, min(8.0,  self._panda_z + dz))
+                self._panda_walk_frame = getattr(self, '_panda_walk_frame', 0.0) + 0.3
+                self._panda_is_walking = True
+            elif self._panda_click_walking:
+                # ── Click-to-move ─────────────────────────────────────────────
+                dx = self._panda_click_target_x - self._panda_x
+                dz = self._panda_click_target_z - self._panda_z
+                dist = math.sqrt(dx * dx + dz * dz)
+                step = self._kb_walk_speed
+                if dist <= step:
+                    # Arrived at destination
+                    self._panda_x = self._panda_click_target_x
+                    self._panda_z = self._panda_click_target_z
+                    self._panda_click_walking = False
+                    self._panda_is_walking = False
+                    # Trigger any pending region action
+                    region = self._panda_click_region
+                    self._panda_click_region = ''
+                    if region:
+                        self._trigger_region_action(region)
+                else:
+                    self._panda_facing_y = math.degrees(math.atan2(dx, dz))
+                    self._panda_x += dx / dist * step
+                    self._panda_z += dz / dist * step
+                    self._panda_walk_frame = getattr(self, '_panda_walk_frame', 0.0) + 0.3
+                    self._panda_is_walking = True
+            else:
+                self._panda_is_walking = False
+
+        # ── Interaction HUD hint: detect nearby buildings ─────────────────────
+        if self._world_hud_timer > 0:
+            self._world_hud_timer -= 1
+        else:
+            # Show hints when panda is near a key zone
+            px, pz = self._panda_x, self._panda_z
+            if math.hypot(px - (-6.5 + 2), pz - (-3.75)) < 3.0:
+                self._world_hud_hint  = '[E] Enter home  [Click] Go to'
+                self._world_hud_timer = 60
+            elif math.hypot(px - 4.0, pz - (-1.5)) < 3.5:
+                self._world_hud_hint  = '[E] Enter shop  [Click] Go to'
+                self._world_hud_timer = 60
+            elif math.hypot(px - 2.5, pz - 3.5) < 2.5:
+                self._world_hud_hint  = '[E] Enter dungeon'
+                self._world_hud_timer = 60
+
         if QOGL_AVAILABLE:
             self.update()
+
+    # ── Keyboard events for the world ─────────────────────────────────────────
+
+    def keyPressEvent(self, event) -> None:  # type: ignore[override]
+        if not PYQT_AVAILABLE:
+            return
+        key = event.key()
+        self._keys.add(key)
+        if key in (Qt.Key.Key_Shift,):
+            self._panda_run = True
+        # E key: interact with nearest zone
+        if key == Qt.Key.Key_E:
+            self._keyboard_world_interact()
+        event.accept()
+
+    def keyReleaseEvent(self, event) -> None:  # type: ignore[override]
+        if not PYQT_AVAILABLE:
+            return
+        key = event.key()
+        self._keys.discard(key)
+        if key in (Qt.Key.Key_Shift,):
+            self._panda_run = False
+        event.accept()
+
+    def _keyboard_world_interact(self) -> None:
+        """E key: interact with the nearest zone (house / shop / dungeon)."""
+        px, pz = self._panda_x, self._panda_z
+        candidates = [
+            ('home',    math.hypot(px - (-4.5), pz - (-3.75)), 3.5),
+            ('shop',    math.hypot(px - 4.0,    pz - (-1.5)),  3.5),
+            ('dungeon', math.hypot(px - 2.5,    pz - 3.5),     2.5),
+        ]
+        for region, dist, threshold in sorted(candidates, key=lambda c: c[1]):
+            if dist < threshold:
+                self._trigger_region_action(region)
+                return
+
+    def _trigger_region_action(self, region: str) -> None:
+        """Trigger the action associated with a named world region."""
+        if region in ('shop', 'otter'):
+            self._otter_happy_t = 80
+            self._otter_wave_t  = 90
+            self.otter_clicked.emit()
+        elif region == 'home':
+            self.back_to_bedroom.emit()
+        elif region == 'dungeon':
+            self.destination_selected.emit('dungeon')
+        elif region == 'park_btn':
+            self.destination_selected.emit('park')
+        elif region == 'car':
+            self._show_destination_picker()
+
+    # ── Panda player drawing ───────────────────────────────────────────────────
+
+    def _draw_world_panda(self) -> None:
+        """Draw the canonical 3-D panda in the outside world scene.
+
+        Delegates to ``draw_panda_gl.draw_panda_3d`` so the world, bedroom,
+        and dungeon all show the SAME panda model.  The world scene scales
+        the panda 1.2× for the wider outdoor environment.
+        """
+        if not GL_AVAILABLE:
+            return
+
+        try:
+            from ui.draw_panda_gl import draw_panda_3d
+        except ImportError:
+            return
+
+        walk_frame = getattr(self, '_panda_walk_frame', 0.0)
+        is_walking = getattr(self, '_panda_is_walking', False)
+        is_run     = getattr(self, '_panda_run', False)
+        quadric    = getattr(self, '_glu_quadric_world', None)
+
+        # Scale slightly larger than bedroom panda for the wide outdoor scene
+        glPushMatrix()
+        glTranslatef(self._panda_x, 0.0, self._panda_z)
+        glRotatef(self._panda_facing_y, 0.0, 1.0, 0.0)
+        glScalef(1.2, 1.2, 1.2)
+
+        draw_panda_3d(
+            quadric        = quadric,
+            walk_frame     = walk_frame,
+            is_walking     = is_walking,
+            is_running     = is_run,
+            body_pitch_deg = -20.0 if is_run else 0.0,
+        )
+
+        glPopMatrix()  # end world panda
 
     # ── World drawing ─────────────────────────────────────────────────────────
     def _draw_world(self):
@@ -1403,18 +1629,21 @@ class PandaWorldGL(
             return
         wx, wz = self._screen_to_ground(event.position().x(), event.position().y())
         region = self._hit_region(wx, wz)
-        if region == 'car':
-            self._show_destination_picker()
-        elif region in ('shop', 'otter'):
-            self._otter_happy_t = 80
-            self._otter_wave_t  = 90   # Livy waves when clicked
-            self.otter_clicked.emit()
-        elif region == 'home':
-            self.back_to_bedroom.emit()
-        elif region == 'park_btn':
-            self.destination_selected.emit('park')
-        elif region == 'dungeon':
-            self.destination_selected.emit('dungeon')
+        if region:
+            # Walking to a building/zone entrance first, then trigger action
+            self._walk_panda_to(wx, wz, region)
+        else:
+            # Empty ground: just walk there
+            self._walk_panda_to(wx, wz, '')
+
+    def _walk_panda_to(self, wx: float, wz: float, region: str) -> None:
+        """Start click-walk toward (wx, wz); trigger region action on arrival."""
+        # Clamp to world bounds
+        self._panda_click_target_x = max(-13.0, min(13.0, wx))
+        self._panda_click_target_z = max(-11.0, min(8.0,  wz))
+        self._panda_click_region   = region
+        self._panda_click_walking  = True
+        self._panda_is_walking     = True
 
     def get_car_color(self) -> list:
         """Return current car colour as [r, g, b] float list."""

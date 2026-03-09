@@ -1479,93 +1479,39 @@ def test_auto_backup_recovery_wired():
 
 
 def test_panda_overlay_no_source_mode_fill():
-    """PandaWidget2D.paintEvent must NOT use CompositionMode_Source to fill with transparent.
+    """The 2D panda overlay widget (panda_widget_2d.py) must no longer exist.
 
-    On Linux/X11 without a compositing window manager and on virtual displays,
-    CompositionMode_Source + transparent fill renders as solid opaque black,
-    making the entire panda overlay window appear all-black and hiding the
-    application content beneath the panda.
-
-    The correct approach is to skip the background fill entirely: Qt clears
-    the backing store for WA_TranslucentBackground widgets before paintEvent so
-    the Source-mode fill is both redundant and harmful on non-compositing platforms.
+    The application uses a single 3-D panda rendered by draw_panda_gl inside
+    the bedroom, dungeon, and world scenes.  The QPainter overlay has been
+    deleted entirely.
     """
     print("\ntest_panda_overlay_no_source_mode_fill ...")
     from pathlib import Path
-    import ast
     src = Path(__file__).parent / 'src' / 'ui' / 'panda_widget_2d.py'
-    code = src.read_text(encoding='utf-8')
-    tree = ast.parse(code)
-
-    for node in ast.walk(tree):
-        if isinstance(node, ast.FunctionDef) and node.name == 'paintEvent':
-            method_src = ast.get_source_segment(code, node) or ''
-            # Check that the method does NOT call fillRect with CompositionMode_Source
-            # We look for the actual Python call pattern, not just the constant name
-            # (the constant name appears in comments explaining why it was removed)
-            import re
-            source_mode_calls = re.findall(
-                r'setCompositionMode\s*\(.*CompositionMode_Source\b(?!Over)',
-                method_src
-            )
-            assert not source_mode_calls, (
-                "PandaWidget2D.paintEvent() must not use CompositionMode_Source.\n"
-                "On Linux/X11 without compositing this fills the entire overlay with\n"
-                "opaque black, hiding all application content behind the panda.\n"
-                "Fix: remove the fillRect(transparent) call; Qt handles backing-store\n"
-                "clearing automatically for WA_TranslucentBackground widgets."
-            )
-            print("  ✅ paintEvent uses SourceOver (not Source) mode — no black overlay")
-            return
-    assert False, "PandaWidget2D.paintEvent() not found in panda_widget_2d.py"
+    assert not src.exists(), (
+        "src/ui/panda_widget_2d.py still exists. "
+        "The 2D panda overlay must be fully deleted; only the 3-D panda in "
+        "the bedroom/dungeon/world scenes is allowed."
+    )
+    print("  ✅ panda_widget_2d.py does not exist — 2D panda fully removed")
 
 
 def test_panda_overlay_scale_capped():
-    """PandaWidget2D.paintEvent must cap the panda scale at ≤ 0.8.
+    """The 2D panda overlay widget (panda_widget_2d.py) must no longer exist.
 
-    The formula ``min(w, h) / 320.0`` gives scale=2.5 on a 1280×800 full-window
-    overlay, making the panda ~500 px tall and blocking the entire centre column
-    of the UI.  Capping at 0.8 keeps the panda at ~130 px — visible as a
-    companion but not obstructive.
+    The application uses a single 3-D panda rendered by draw_panda_gl inside
+    the bedroom, dungeon, and world scenes.  The QPainter overlay has been
+    deleted entirely — there is no scale to cap.
     """
     print("\ntest_panda_overlay_scale_capped ...")
     from pathlib import Path
-    import ast
     src = Path(__file__).parent / 'src' / 'ui' / 'panda_widget_2d.py'
-    code = src.read_text(encoding='utf-8')
-    tree = ast.parse(code)
-
-    for node in ast.walk(tree):
-        if isinstance(node, ast.FunctionDef) and node.name == 'paintEvent':
-            method_src = ast.get_source_segment(code, node) or ''
-            # Scale must be capped: the assignment must contain a nested min()
-            # call that limits the raw dimension/320 ratio.  We check for the
-            # structural pattern "min(... / 320 ..., <cap>)" rather than a
-            # specific literal so the test survives minor numeric tweaks.
-            import re as _re
-            has_cap = bool(_re.search(
-                r'\bmin\s*\(.*320.*,\s*\d*\.\d+\s*\)',  # min(...320..., 0.N)
-                method_src,
-            ))
-            assert has_cap, (
-                "PandaWidget2D.paintEvent() must cap the scale to prevent the panda\n"
-                "from growing to 500+ px on a 1280×800 full-window overlay.\n"
-                "Expected pattern: scale = min(min(w, h) / 320.0, <cap_value>)"
-            )
-            # The vertical position must be h*0.50 (centered), NOT the old
-            # h*0.72 which pushed the panda into the lower portion of the screen.
-            assert 'h * 0.72' not in method_src, (
-                "PandaWidget2D.paintEvent() still uses h*0.72 which positions the panda at "
-                "72% down from the top — that is the 'lower portion' that must never be used. "
-                "Fix: use h*0.50 to keep the panda near the vertical centre of the window."
-            )
-            assert 'h * 0.50' in method_src, (
-                "PandaWidget2D.paintEvent() must use h*0.50 to center the panda vertically. "
-                "The old h*0.72 pushed the panda into the lower portion of the screen."
-            )
-            print("  ✅ scale is capped and panda is vertically centred (h*0.50, not lower portion)")
-            return
-    assert False, "PandaWidget2D.paintEvent() not found"
+    assert not src.exists(), (
+        "src/ui/panda_widget_2d.py still exists. "
+        "The 2D panda overlay must be fully deleted; only the 3-D panda in "
+        "the bedroom/dungeon/world scenes is allowed."
+    )
+    print("  ✅ panda_widget_2d.py does not exist — 2D panda fully removed")
 
 
 def test_settings_panel_auto_saves_on_change():
@@ -1801,13 +1747,13 @@ def test_settings_tab_has_emoji():
 
 
 def test_panda_home_2d_fallback():
-    """Panda Home tab must show an interactive 2D fallback when OpenGL is absent.
+    """Panda Home tab must show an interactive fallback panel when OpenGL is absent.
 
     When PyOpenGL is not installed, ``PandaBedroomGL()`` raises an exception and
     the Panda Home tab previously showed a bare QLabel error message.  The fix
     replaces that with a styled QWidget panel containing:
     - A gradient room background
-    - An embedded PandaWidget2D companion
+    - A placeholder label explaining that OpenGL is needed
     - Furniture shortcut buttons wired to ``_on_bedroom_furniture_clicked``
 
     This test verifies that the Panda Home widget is a QWidget (not a QLabel
@@ -1858,14 +1804,14 @@ def test_panda_home_2d_fallback():
         # Must NOT be a bare error QLabel
         assert not isinstance(panda_home_widget, QLabel), (
             "Panda Home tab is still a bare QLabel error message.\n"
-            "Expected a rich QWidget panel with furniture buttons and a 2D panda."
+            "Expected a rich QWidget panel with furniture buttons."
         )
         print(f"  ✅ Panda Home widget type: {type(panda_home_widget).__name__} (not QLabel)")
 
         # Must have furniture shortcut buttons
         all_btns = panda_home_widget.findChildren(QPushButton)
         assert len(all_btns) >= 3, (
-            f"Panda Home 2D fallback has only {len(all_btns)} button(s); "
+            f"Panda Home fallback has only {len(all_btns)} button(s); "
             "expected at least 3 furniture shortcut buttons."
         )
         btn_texts = [b.text() for b in all_btns]
@@ -2905,25 +2851,19 @@ def test_panda_visible_all_tabs():
 
 
 def test_panda_2d_passes_offpanda_clicks_through():
-    """PandaWidget2D mousePressEvent must ignore off-panda clicks.
+    """The 2D panda overlay widget (panda_widget_2d.py) must no longer exist.
 
-    When the 2D panda is used as a full-window overlay, clicks that miss the
-    panda body must call event.ignore() so Qt re-delivers them to the UI below.
+    The 2D QPainter panda overlay has been fully deleted.  All panda rendering
+    is done in the 3-D scenes (bedroom, dungeon, world) via draw_panda_gl.
     """
     print("\ntest_panda_2d_passes_offpanda_clicks_through ...")
-    code = open('src/ui/panda_widget_2d.py').read()
-
-    assert 'event.ignore()' in code, (
-        "panda_widget_2d.py: mousePressEvent must call event.ignore() for "
-        "off-panda clicks so they pass through to the UI below the overlay."
+    from pathlib import Path
+    src = Path(__file__).parent / 'src' / 'ui' / 'panda_widget_2d.py'
+    assert not src.exists(), (
+        "src/ui/panda_widget_2d.py still exists. "
+        "The 2D panda overlay must be fully deleted."
     )
-    print("  ✅ event.ignore() present for off-panda clicks")
-
-    assert 'event.accept()' in code, (
-        "panda_widget_2d.py: mousePressEvent must call event.accept() for "
-        "on-panda clicks to trigger the bounce animation."
-    )
-    print("  ✅ event.accept() present for on-panda clicks")
+    print("  ✅ panda_widget_2d.py does not exist — 2D panda fully removed")
 
 
 def test_panda_boundary_clamping():
@@ -4209,78 +4149,20 @@ def test_bg_remover_batch_folder_support():
 
 
 def test_panda_2d_walking_animation():
-    """PandaWidget2D must have distinct walking and running animation states.
+    """The 2D panda overlay widget (panda_widget_2d.py) must no longer exist.
 
-    Issue #198: 'panda running animation does not work in the panda overlay'
-
-    Root cause: the 2D panda's _tick_animation() used the idle-bob default
-    branch for both 'walking' and 'running', so there was no visible difference
-    from the idle state.
-
-    Fixes:
-    1. 'walking'/'walking_left'/'walking_right' → medium-speed bob (2.5×) with
-       alternating arm swing.
-    2. 'running' → fast-speed bob (5×) with high-amplitude arm swing.
+    The 2D QPainter panda overlay has been fully deleted.  Walking and running
+    animations are handled by the 3-D panda in draw_panda_gl (walk_frame and
+    body_pitch_deg parameters).
     """
     print("\ntest_panda_2d_walking_animation ...")
     from pathlib import Path
-    code = (Path(__file__).parent / 'src' / 'ui' / 'panda_widget_2d.py').read_text(encoding='utf-8')
-
-    assert "'walking'" in code and "'running'" in code, (
-        "panda_widget_2d.py: 'walking' and 'running' animation states missing"
+    src = Path(__file__).parent / 'src' / 'ui' / 'panda_widget_2d.py'
+    assert not src.exists(), (
+        "src/ui/panda_widget_2d.py still exists. "
+        "The 2D panda overlay must be fully deleted."
     )
-
-    # walking and running must have explicit bob cases (not just the else default)
-    import re
-    # Look for elif branches containing 'walking' in the bob section
-    assert re.search(r"elif.*walking.*:", code) or re.search(r"elif.*'walking'", code), (
-        "panda_widget_2d.py: walking animation missing dedicated bob case.\n"
-        "Add an explicit 'elif self._animation in (...)' branch for walking."
-    )
-    print("  ✅ Source: walking animation has dedicated bob case")
-
-    # Running must have explicit bob case
-    assert re.search(r"elif.*'running'", code) or re.search(r"elif.*running.*:", code), (
-        "panda_widget_2d.py: running animation missing dedicated bob case.\n"
-        "Add an explicit 'elif self._animation == \"running\"' branch."
-    )
-    print("  ✅ Source: running animation has dedicated bob case")
-
-    # Walking must also have arm swing logic
-    assert re.search(r"walking.*swing|swing.*walking|walking.*arm|arm.*walking", code, re.IGNORECASE) \
-        or ("walking" in code and "target_l" in code and "target_r" in code), (
-        "panda_widget_2d.py: walking animation should include arm swing.\n"
-        "Add alternating arm target_l/target_r for 'walking' state."
-    )
-    print("  ✅ Source: walking animation includes arm swing")
-
-    # Runtime: verify walking sets a different bob than idle
-    import sys, os
-    os.environ.setdefault('QT_QPA_PLATFORM', 'offscreen')
-    sys.path.insert(0, 'src')
-    if not _QT_APP_AVAILABLE:
-        print("  ⚠️  Runtime widget tests skipped (no display/EGL available)")
-        return
-    from PyQt6.QtWidgets import QApplication
-    _app = QApplication.instance() or QApplication(sys.argv)
-    from ui.panda_widget_2d import PandaWidget2D
-
-    widget = PandaWidget2D()
-    widget.set_animation_state('idle')
-    # Tick a few frames to get a stable idle bob
-    for _ in range(5):
-        widget._tick_animation()
-    idle_bob = widget._bob
-
-    widget.set_animation_state('running')
-    # Tick to trigger running bob
-    for _ in range(5):
-        widget._tick_animation()
-    run_bob = widget._bob
-
-    # Running should have noticeably different (higher amplitude) bob than idle
-    # — we just verify the code paths were reached without raising an exception
-    print(f"  ✅ Runtime: idle bob {idle_bob:.2f}, running bob {run_bob:.2f} (both computed)")
+    print("  ✅ panda_widget_2d.py does not exist — 2D panda fully removed")
 
 
 def test_upscaler_output_format_wired():
