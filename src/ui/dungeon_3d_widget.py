@@ -5,8 +5,8 @@ Dungeon3DWidget — Full 3D OpenGL dungeon where the 3D panda is the player.
 Architecture
 ------------
 - QOpenGLWidget renders walls/floor/ceiling in 3-D using OpenGL fixed-function.
-- The same _draw_panda_in_room() GL routines from panda_bedroom_gl are reused
-  here so the player sees their own panda running through corridors.
+- The shared ``draw_panda_gl.draw_panda_3d`` routine is used here so the
+  player sees the SAME canonical panda that appears in the bedroom and world.
 - WASD / Arrow-key controls move the panda; mouse-drag rotates the camera.
 - The dungeon map comes from features.integrated_dungeon.IntegratedDungeon so
   the same generated layouts used by the 2-D view work here too.
@@ -487,90 +487,39 @@ class _Dungeon3DGL(QOpenGLWidget if (_QT and _GL) else object):  # type: ignore[
         _gl_quad(10,0,-10, 10,0,10, 10,_WALL_H,10, 10,_WALL_H,-10, -1,0,0)
         glEnd()
 
-    # ── Panda drawing (replicates bedroom panda) ──────────────────────────────
+    # ── Panda drawing — delegates to shared draw_panda_gl module ──────────────
 
     def _draw_panda(self) -> None:
-        """Draw the 3-D panda 1.5 m ahead of the camera as the player character."""
+        """Draw the canonical 3-D panda 1.5 m ahead of the camera (player character).
+
+        Uses ``draw_panda_gl.draw_panda_3d`` so the dungeon, bedroom, and world
+        all show the SAME panda model.
+        """
         if self._quadric is None:
+            return
+
+        try:
+            from ui.draw_panda_gl import draw_panda_3d
+        except ImportError:
             return
 
         # Place 1.5 m ahead of camera and facing away (forward direction)
         yaw_rad = math.radians(self._cam_yaw)
         px = self._cam_x + 1.5 * math.sin(yaw_rad)
         pz = self._cam_z + 1.5 * math.cos(yaw_rad)
-
-        swing_amp = 20.0 if self._is_walking else 0.0
-        # Running on all fours: bigger swing and forward body pitch
         is_run = getattr(self, '_panda_running', False)
-        if is_run:
-            swing_amp = 35.0
 
         glPushMatrix()
         glTranslatef(px, 0.0, pz)
         glRotatef(self._cam_yaw + 180.0, 0.0, 1.0, 0.0)
 
-        # All-fours body pitch when running
-        if is_run:
-            glRotatef(-30.0, 1.0, 0.0, 0.0)
-
-        # Body
-        glPushMatrix()
-        glTranslatef(0.0, 0.38, 0.0)
-        glScalef(0.32, 0.38, 0.28)
-        glColor3f(*_COL_WHITE)
-        gluSphere(self._quadric, 1.0, 14, 14)
-        glPopMatrix()
-
-        # Head
-        glPushMatrix()
-        glTranslatef(0.0, 0.88, 0.08)
-        glColor3f(*_COL_WHITE)
-        gluSphere(self._quadric, 0.22, 14, 14)
-        for ex in (-0.14, 0.14):
-            glPushMatrix()
-            glTranslatef(ex, 0.18, -0.04)
-            glColor3f(*_COL_BLACK)
-            gluSphere(self._quadric, 0.07, 8, 8)
-            glPopMatrix()
-        for ex in (-0.08, 0.08):
-            glPushMatrix()
-            glTranslatef(ex, 0.04, 0.19)
-            glScalef(1.0, 0.9, 0.55)
-            glColor3f(*_COL_BLACK)
-            gluSphere(self._quadric, 0.06, 8, 8)
-            glPopMatrix()
-        glPushMatrix()
-        glTranslatef(0.0, -0.03, 0.21)
-        glColor3f(0.15, 0.10, 0.10)
-        gluSphere(self._quadric, 0.025, 6, 6)
-        glPopMatrix()
-        glPopMatrix()  # head
-
-        # Arms (used as front legs when running on all fours)
-        for ax in (-0.30, 0.30):
-            glPushMatrix()
-            glTranslatef(ax, 0.44, 0.0)
-            if is_run:
-                # Extend forward like front legs
-                glRotatef(-50.0, 1.0, 0.0, 0.0)
-            glScalef(0.12, 0.26, 0.12)
-            glColor3f(*_COL_BLACK)
-            gluSphere(self._quadric, 1.0, 8, 8)
-            glPopMatrix()
-
-        # Legs with walk swing
-        for side, lx in ((-1, -0.14), (1, 0.14)):
-            swing = swing_amp * math.sin(self._walk_frame + side * math.pi)
-            glPushMatrix()
-            glTranslatef(lx, 0.15, 0.0)
-            glRotatef(swing, 1.0, 0.0, 0.0)
-            glPushMatrix()
-            glTranslatef(0.0, -0.14, 0.0)
-            glScalef(0.12, 0.28, 0.12)
-            glColor3f(*_COL_BLACK)
-            gluSphere(self._quadric, 1.0, 8, 8)
-            glPopMatrix()
-            glPopMatrix()
+        draw_panda_3d(
+            quadric        = self._quadric,
+            walk_frame     = self._walk_frame,
+            is_walking     = self._is_walking,
+            is_running     = is_run,
+            body_pitch_deg = 0.0,
+        )
 
         glPopMatrix()  # panda
 

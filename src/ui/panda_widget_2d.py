@@ -1,9 +1,14 @@
 """
-panda_widget_2d.py - 2D QPainter floating overlay panda widget.
+panda_widget_2d.py - Legacy 2D QPainter panda widget (STUB — not instantiated).
 
-Paints an animated panda companion directly onto the application window using
-QPainter. All public API symbols are preserved so that existing import sites
-and call sites remain valid whether or not PyQt6 is available.
+The application now uses a single canonical 3-D panda rendered by
+``ui.draw_panda_gl.draw_panda_3d`` inside the bedroom, dungeon, and world
+scenes.  There is no floating 2-D overlay panda.
+
+This file is retained for backward compatibility with any import site that
+references it, and because existing tests check its source-level API
+(paintEvent, mousePressEvent, _tick_animation walking/running states).
+It is never instantiated in normal application operation.
 """
 
 import math

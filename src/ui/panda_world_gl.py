@@ -517,76 +517,38 @@ class PandaWorldGL(
     # ── Panda player drawing ───────────────────────────────────────────────────
 
     def _draw_world_panda(self) -> None:
-        """Draw the player-controlled panda in the outside world scene."""
+        """Draw the canonical 3-D panda in the outside world scene.
+
+        Delegates to ``draw_panda_gl.draw_panda_3d`` so the world, bedroom,
+        and dungeon all show the SAME panda model.  The world scene scales
+        the panda 1.2× for the wider outdoor environment.
+        """
         if not GL_AVAILABLE:
             return
-        _W = (0.92, 0.92, 0.90)   # white fur
-        _B = (0.08, 0.06, 0.06)   # black fur
 
-        # Scale slightly larger than bedroom panda for the wide outdoor scene
-        _S = 1.2
+        try:
+            from ui.draw_panda_gl import draw_panda_3d
+        except ImportError:
+            return
 
         walk_frame = getattr(self, '_panda_walk_frame', 0.0)
         is_walking = getattr(self, '_panda_is_walking', False)
         is_run     = getattr(self, '_panda_run', False)
+        quadric    = getattr(self, '_glu_quadric_world', None)
 
+        # Scale slightly larger than bedroom panda for the wide outdoor scene
         glPushMatrix()
         glTranslatef(self._panda_x, 0.0, self._panda_z)
         glRotatef(self._panda_facing_y, 0.0, 1.0, 0.0)
-        glScalef(_S, _S, _S)
+        glScalef(1.2, 1.2, 1.2)
 
-        # All-fours body lean when running
-        body_pitch = -20.0 if is_run else 0.0
-        glRotatef(body_pitch, 1.0, 0.0, 0.0)
-
-        # ── Body ──────────────────────────────────────────────────────────────
-        glColor3f(*_W)
-        glPushMatrix()
-        glScalef(0.55, 0.42, 0.48)
-        if self._glu_quadric_world:
-            gluSphere(self._glu_quadric_world, 1.0, 14, 10)
-        glPopMatrix()
-
-        # ── Head ──────────────────────────────────────────────────────────────
-        glPushMatrix()
-        glTranslatef(0.0, 0.52, 0.34)
-        glColor3f(*_W)
-        glScalef(0.30, 0.28, 0.28)
-        if self._glu_quadric_world:
-            gluSphere(self._glu_quadric_world, 1.0, 12, 10)
-        glPopMatrix()
-        # Ears
-        for ex in (-0.18, 0.18):
-            glPushMatrix()
-            glTranslatef(ex, 0.76, 0.28)
-            glColor3f(*_B)
-            glScalef(0.10, 0.10, 0.08)
-            if self._glu_quadric_world:
-                gluSphere(self._glu_quadric_world, 1.0, 8, 8)
-            glPopMatrix()
-        # Eye patches
-        for ex in (-0.10, 0.10):
-            glPushMatrix()
-            glTranslatef(ex, 0.53, 0.58)
-            glColor3f(*_B)
-            glScalef(0.07, 0.055, 0.04)
-            if self._glu_quadric_world:
-                gluSphere(self._glu_quadric_world, 1.0, 8, 8)
-            glPopMatrix()
-
-        # ── Legs with walk animation ──────────────────────────────────────────
-        leg_swing = math.sin(walk_frame) * (18.0 if is_walking else 0.0)
-        for side, lx in ((-1, -0.20), (1, 0.20)):
-            swing = leg_swing * side
-            glPushMatrix()
-            glTranslatef(lx, -0.38, 0.0)
-            glRotatef(swing, 1.0, 0.0, 0.0)
-            glColor3f(*_B)
-            glScalef(0.10, 0.32, 0.10)
-            glTranslatef(0.0, -0.5, 0.0)
-            if self._glu_quadric_world:
-                gluSphere(self._glu_quadric_world, 1.0, 8, 8)
-            glPopMatrix()
+        draw_panda_3d(
+            quadric        = quadric,
+            walk_frame     = walk_frame,
+            is_walking     = is_walking,
+            is_running     = is_run,
+            body_pitch_deg = -20.0 if is_run else 0.0,
+        )
 
         glPopMatrix()  # end world panda
 

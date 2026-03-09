@@ -2437,18 +2437,14 @@ class TextureSorterMainWindow(QMainWindow):
             )
             _room_vbox = QVBoxLayout(_panda_area)
             _room_vbox.setContentsMargins(0, 0, 0, 0)
-            # Embed a fresh PandaWidget2D instance (independent of the overlay)
-            try:
-                _panda_char = getattr(self, 'panda_widget', None)
-                _panda_char = getattr(_panda_char, 'panda', None)
-                from ui.panda_widget_2d import PandaWidget2D as _PW2DHome
-                _bedroom_panda = _PW2DHome(panda_character=_panda_char, parent=_panda_area)
-                _bedroom_panda.setMinimumHeight(200)
-                _room_vbox.addWidget(_bedroom_panda)
-                self._bedroom_panda_2d = _bedroom_panda
-            except Exception as _pw:
-                logger.debug(f"2D panda in home fallback: {_pw}")
-                _room_vbox.addStretch()
+            # The 3-D panda lives inside PandaBedroomGL — there is no 2-D panda.
+            # Show a styled placeholder label when OpenGL is unavailable.
+            _no_gl_label = QLabel("🐼\n\nPanda's 3-D room\nrequires OpenGL.\nInstall PyOpenGL to see your panda here.")
+            _no_gl_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            _no_gl_label.setStyleSheet(
+                "color: #8888cc; font-size: 13px; background: transparent; padding: 20px;"
+            )
+            _room_vbox.addWidget(_no_gl_label)
             _h2d_layout.addWidget(_panda_area, 1)
 
             # Furniture shortcut buttons grid
