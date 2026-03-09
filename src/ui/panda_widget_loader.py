@@ -81,7 +81,6 @@ _pre_configure_opengl()
 # Attempt: hardware-accelerated 3-D OpenGL widget
 # ------------------------------------------------------------------
 OPENGL_AVAILABLE = False
-PANDA_2D_AVAILABLE = False  # always False — 2D overlay panda removed
 PandaWidget = None
 
 # Skip the OpenGL widget entirely on the offscreen/headless Qt platform.
@@ -120,7 +119,6 @@ def get_panda_widget_info():
     return {
         'widget_type': widget_type,
         'opengl_available': OPENGL_AVAILABLE,
-        'panda_2d_available': False,
         'hardware_accelerated': OPENGL_AVAILABLE,
         '3d_rendering': OPENGL_AVAILABLE,
         'realtime_lighting': OPENGL_AVAILABLE,
@@ -148,7 +146,6 @@ def get_panda_widget_class():
 __all__ = [
     'PandaWidget',
     'OPENGL_AVAILABLE',
-    'PANDA_2D_AVAILABLE',
     'get_panda_widget_info',
     'is_opengl_available',
     'is_panda_available',

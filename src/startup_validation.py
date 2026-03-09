@@ -99,8 +99,7 @@ def validate_dependencies() -> Tuple[bool, str, List[str]]:
     critical_imports = [
         ('PyQt6', 'PyQt6 (Qt6 GUI framework)'),
         ('PIL', 'Pillow (Image processing)'),
-        # Note: OpenGL is intentionally NOT listed here.  The app ships a 2-D
-        # QPainter panda fallback (panda_widget_2d.py) so missing PyOpenGL is
+        # Note: OpenGL is intentionally NOT listed here.  Missing PyOpenGL is
         # non-fatal — we report it in validate_optional_dependencies() instead.
     ]
     

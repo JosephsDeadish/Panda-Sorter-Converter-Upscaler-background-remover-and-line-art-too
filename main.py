@@ -402,13 +402,10 @@ def _setup_opengl_for_exe() -> None:
 _setup_opengl_for_exe()
 
 # ── Panda widget selection ─────────────────────────────────────────────────
-# Issue #207: The floating overlay panda widgets (PandaOpenGLWidget / PandaWidget2D)
-# have been REMOVED. The 3-D panda that lives inside PandaBedroomGL is the one and
-# only panda companion. self.panda_widget is no longer created in __init__.
-# These variables are kept as None so that any third-party code that still references
-# them gets None (safe no-op) rather than an ImportError.
+# The 3-D panda that lives inside PandaBedroomGL is the one and only panda
+# companion.  There is no floating overlay widget; self.panda_widget is not
+# created in __init__.
 PandaOpenGLWidget = None
-PandaWidget2D = None
 PANDA_WIDGET_AVAILABLE = False
 _OPENGL_RUNTIME_OK = False
 
