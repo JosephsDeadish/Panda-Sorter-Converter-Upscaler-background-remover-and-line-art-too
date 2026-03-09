@@ -47,6 +47,11 @@ except (ImportError, OSError, RuntimeError):
             pass
 
 # ── PyQt6.QtStateMachine — moved from QtCore in PyQt6 >= 6.1 ────────────────
+# These are imported here to:
+#   1. Verify the correct module path at startup (QState/QStateMachine were
+#      split into PyQt6.QtStateMachine in PyQt6 6.1+; importing from QtCore
+#      silently returns None on modern installs, making QT_AVAILABLE False).
+#   2. Make them available to subclasses that implement state-machine logic.
 try:
     from PyQt6.QtStateMachine import QState, QStateMachine
 except (ImportError, OSError, RuntimeError):
@@ -304,12 +309,11 @@ class PandaOpenGLWidget(_Base):
         gluSphere(self._quadric, 1.0, 8, 6)
         glPopMatrix()
 
-        # Philtrum (the groove below the nose — must be rounded, not a spike)
-        # Y-scale must not exceed X-scale to avoid a narrow, tall vertical spike.
+        # Philtrum — X (0.45) > Y (0.40) ensures a rounded shape, not a spike
         glPushMatrix()
         glTranslatef(0.0, BH * 0.65, BW * 0.65)
         glColor3f(0.85, 0.78, 0.78)
-        glScalef(0.45, 0.40, 0.30)   # X ≥ Y → rounded, natural philtrum
+        glScalef(0.45, 0.40, 0.30)   # X > Y: rounded philtrum (not a spike)
         gluSphere(self._quadric, 1.0, 8, 6)
         glPopMatrix()
 

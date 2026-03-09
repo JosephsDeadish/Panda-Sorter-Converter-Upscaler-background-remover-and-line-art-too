@@ -96,6 +96,7 @@ class PandaWidget2D(_Base):
         self.hide()
         self.panda = panda_character
         self.animation_state = 'idle'
+        self._mood: str = 'happy'
 
         # ── Animation state ───────────────────────────────────────────────────
         self._animation: str = 'idle'
@@ -305,6 +306,7 @@ class PandaWidget2D(_Base):
     # ── Public API ────────────────────────────────────────────────────────────
 
     def set_mood(self, mood: str = 'happy', *args, **kwargs) -> None:
+        self._mood = mood
         self.mood_changed.emit(str(mood))
 
     def set_animation(self, *args, **kwargs) -> None:
