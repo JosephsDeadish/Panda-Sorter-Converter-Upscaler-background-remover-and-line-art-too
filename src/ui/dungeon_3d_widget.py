@@ -135,6 +135,9 @@ class _Dungeon3DGL(QOpenGLWidget if (_QT and _GL) else object):  # type: ignore[
 
         # ── Keys held ─────────────────────────────────────────────────────────
         self._keys: set = set()
+        # Shift = run on all fours (faster movement, body pitch)
+        self._panda_running: bool = False
+        self._run_speed_mult: float = 2.0   # multiplier over base speed when running
 
         # ── GLU quadric ───────────────────────────────────────────────────────
         self._quadric = None
@@ -497,10 +500,18 @@ class _Dungeon3DGL(QOpenGLWidget if (_QT and _GL) else object):  # type: ignore[
         pz = self._cam_z + 1.5 * math.cos(yaw_rad)
 
         swing_amp = 20.0 if self._is_walking else 0.0
+        # Running on all fours: bigger swing and forward body pitch
+        is_run = getattr(self, '_panda_running', False)
+        if is_run:
+            swing_amp = 35.0
 
         glPushMatrix()
         glTranslatef(px, 0.0, pz)
         glRotatef(self._cam_yaw + 180.0, 0.0, 1.0, 0.0)
+
+        # All-fours body pitch when running
+        if is_run:
+            glRotatef(-30.0, 1.0, 0.0, 0.0)
 
         # Body
         glPushMatrix()
@@ -535,10 +546,13 @@ class _Dungeon3DGL(QOpenGLWidget if (_QT and _GL) else object):  # type: ignore[
         glPopMatrix()
         glPopMatrix()  # head
 
-        # Arms
+        # Arms (used as front legs when running on all fours)
         for ax in (-0.30, 0.30):
             glPushMatrix()
             glTranslatef(ax, 0.44, 0.0)
+            if is_run:
+                # Extend forward like front legs
+                glRotatef(-50.0, 1.0, 0.0, 0.0)
             glScalef(0.12, 0.26, 0.12)
             glColor3f(*_COL_BLACK)
             gluSphere(self._quadric, 1.0, 8, 8)
@@ -602,18 +616,22 @@ class _Dungeon3DGL(QOpenGLWidget if (_QT and _GL) else object):  # type: ignore[
         str_x = math.cos(yaw_rad)
         str_z = -math.sin(yaw_rad)
 
+        # Speed multiplier: Shift = run on all fours
+        self._panda_running = Qt.Key.Key_Shift in self._keys
+        _speed = _MOVE_SPEED * (self._run_speed_mult if self._panda_running else 1.0)
+
         if Qt.Key.Key_W in self._keys or Qt.Key.Key_Up in self._keys:
-            dx += fwd_x * _MOVE_SPEED
-            dz += fwd_z * _MOVE_SPEED
+            dx += fwd_x * _speed
+            dz += fwd_z * _speed
         if Qt.Key.Key_S in self._keys or Qt.Key.Key_Down in self._keys:
-            dx -= fwd_x * _MOVE_SPEED
-            dz -= fwd_z * _MOVE_SPEED
+            dx -= fwd_x * _speed
+            dz -= fwd_z * _speed
         if Qt.Key.Key_A in self._keys or Qt.Key.Key_Left in self._keys:
-            dx -= str_x * _MOVE_SPEED
-            dz -= str_z * _MOVE_SPEED
+            dx -= str_x * _speed
+            dz -= str_z * _speed
         if Qt.Key.Key_D in self._keys or Qt.Key.Key_Right in self._keys:
-            dx += str_x * _MOVE_SPEED
-            dz += str_z * _MOVE_SPEED
+            dx += str_x * _speed
+            dz += str_z * _speed
         if Qt.Key.Key_Q in self._keys:
             self._cam_yaw -= 2.0
         # E-for-rotation removed (E was previously self._cam_yaw += 2.0);
@@ -621,7 +639,8 @@ class _Dungeon3DGL(QOpenGLWidget if (_QT and _GL) else object):  # type: ignore[
 
         self._is_walking = (dx != 0.0 or dz != 0.0)
         if self._is_walking:
-            self._walk_frame += 0.15
+            walk_inc = 0.25 if self._panda_running else 0.15
+            self._walk_frame += walk_inc
             # Slide along walls (try X then Z separately)
             new_x = self._cam_x + dx
             new_z = self._cam_z + dz

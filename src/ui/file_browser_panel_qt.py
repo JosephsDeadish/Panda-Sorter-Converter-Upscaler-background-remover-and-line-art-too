@@ -39,6 +39,9 @@ except (ImportError, OSError, RuntimeError):
     class QPixmap:  # type: ignore[no-redef]
         """Fallback stub when PyQt6 is not installed."""
         pass
+    class QImage:  # type: ignore[no-redef]
+        """Fallback stub when PyQt6 is not installed."""
+        pass
     class _SignalStub:  # noqa: E301
         """Stub signal — active only when PyQt6 is absent."""
         def __init__(self, *a): pass

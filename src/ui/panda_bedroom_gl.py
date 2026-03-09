@@ -230,6 +230,15 @@ class PandaBedroomGL(QOpenGLWidget if OPENGL_AVAILABLE else QWidget):  # type: i
         self._kb_move_speed: float = 0.06   # walk speed (world units / tick)
         self._kb_run_speed:  float = 0.12   # run speed
 
+        # ── Furniture pickup / interaction state ─────────────────────────────
+        self._held_piece_id: Optional[str] = None   # furniture being carried
+        self._held_rot_offset: float = 0.0          # extra rotation while held
+        # Proximity indicator: id of nearest piece within interaction range
+        self._near_piece_id: Optional[str] = None
+        # Interaction-hint HUD — show a cute popup near the panda
+        self._hud_hint: str = ''             # text shown in the popup
+        self._hud_hint_timer: int = 0        # frames remaining to display hint
+
         # Animation timer — drives the panda walk each ~33 ms (≈30 fps)
         self._anim_timer = QTimer(self)
         self._anim_timer.timeout.connect(self._tick_panda_walk)
@@ -292,6 +301,12 @@ class PandaBedroomGL(QOpenGLWidget if OPENGL_AVAILABLE else QWidget):  # type: i
         }
         if self._keys & move_keys:
             speed = self._kb_run_speed if self._panda_run else self._kb_move_speed
+            # Held-piece rotation (Q/E keys) takes priority over strafing
+            if self._held_piece_id is not None:
+                if _Keys.Key_Q in self._keys:
+                    self._held_rot_offset -= 3.0
+                if _Keys.Key_E in self._keys:
+                    self._held_rot_offset += 3.0
             # Forward/backward relative to current facing angle
             fwd_rad = math.radians(self._panda_facing_y)
             dx = dz = 0.0
@@ -313,11 +328,20 @@ class PandaBedroomGL(QOpenGLWidget if OPENGL_AVAILABLE else QWidget):  # type: i
                 self._panda_z = nz
                 self._panda_walk_frame += 0.3
                 self._panda_is_walking = True
+            # Move held piece with panda
+            if self._held_piece_id is not None:
+                self._update_held_piece_position()
+            self._update_near_piece()
             self.update()
             return
 
         # ── Click-walk target movement ────────────────────────────────────────
         if not self._panda_is_walking:
+            # Still update proximity even when idle
+            self._update_near_piece()
+            if self._hud_hint_timer > 0:
+                self._hud_hint_timer -= 1
+                self.update()
             return
         dx = self._panda_target_x - self._panda_x
         dz = self._panda_target_z - self._panda_z
@@ -342,7 +366,55 @@ class PandaBedroomGL(QOpenGLWidget if OPENGL_AVAILABLE else QWidget):  # type: i
             # Face direction of travel
             self._panda_facing_y = math.degrees(math.atan2(dx, dz))
             self._panda_walk_frame += 0.25
+        if self._held_piece_id is not None:
+            self._update_held_piece_position()
+        self._update_near_piece()
         self.update()
+
+    def _update_near_piece(self) -> None:
+        """Detect nearest furniture within interaction range and update HUD hint."""
+        _INTERACT_DIST = 2.0
+        nearest_id:   Optional[str]   = None
+        nearest_dist: float           = float('inf')
+        for piece in self._furniture:
+            if piece.id == self._held_piece_id:
+                continue  # skip the one we're carrying
+            d = math.sqrt((piece.x - self._panda_x) ** 2
+                          + (piece.z - self._panda_z) ** 2)
+            if d < nearest_dist:
+                nearest_dist = d
+                nearest_id   = piece.id
+        prev = self._near_piece_id
+        if nearest_dist <= _INTERACT_DIST:
+            self._near_piece_id = nearest_id
+            # Build hint string for the nearest piece
+            if self._held_piece_id is None:
+                self._hud_hint       = '[E] Interact  [F] Pick up'
+            else:
+                self._hud_hint       = '[F] Place here  [Q/E] Rotate'
+            self._hud_hint_timer = 90  # ≈ 3 s at 30 fps
+        else:
+            self._near_piece_id = None
+            if self._held_piece_id is not None:
+                # Still carrying — keep showing placement hint
+                self._hud_hint       = '[F] Place  [Q/E] Rotate'
+                self._hud_hint_timer = 90
+            else:
+                self._hud_hint = ''
+        if prev != self._near_piece_id:
+            self.update()
+
+    def _update_held_piece_position(self) -> None:
+        """Move the carried piece to float just in front of the panda."""
+        if self._held_piece_id is None:
+            return
+        for piece in self._furniture:
+            if piece.id == self._held_piece_id:
+                fwd_rad = math.radians(self._panda_facing_y)
+                piece.x = self._panda_x + math.sin(fwd_rad) * 0.7
+                piece.z = self._panda_z + math.cos(fwd_rad) * 0.7
+                piece.rot_y = self._panda_facing_y + self._held_rot_offset
+                break
 
     # ── Keyboard input ────────────────────────────────────────────────────────
 
@@ -351,9 +423,18 @@ class PandaBedroomGL(QOpenGLWidget if OPENGL_AVAILABLE else QWidget):  # type: i
         self._keys.add(key)
         if key in (Qt.Key.Key_Shift,):
             self._panda_run = True
-        # E key: interact with nearest furniture
+        # E key: interact with nearest furniture (or rotate held piece)
         if key == Qt.Key.Key_E:
-            self._keyboard_interact()
+            if self._held_piece_id is not None:
+                self._held_rot_offset += 45.0   # quick 45° snap-rotate
+            else:
+                self._keyboard_interact()
+        # F key: pick up / place down furniture
+        if key == Qt.Key.Key_F:
+            self._keyboard_pickup_or_place()
+        # Q key: counter-rotate held piece
+        if key == Qt.Key.Key_Q and self._held_piece_id is not None:
+            self._held_rot_offset -= 45.0
         event.accept()
 
     def keyReleaseEvent(self, event) -> None:  # type: ignore[override]
@@ -380,7 +461,40 @@ class PandaBedroomGL(QOpenGLWidget if OPENGL_AVAILABLE else QWidget):  # type: i
                 nearest_dist = dist
                 nearest_id = piece.id
         if nearest_id is not None and nearest_dist < 2.0:
+            self._hud_hint = '✨ Interacting!'
+            self._hud_hint_timer = 60
             self.furniture_clicked.emit(nearest_id)
+
+    def _keyboard_pickup_or_place(self) -> None:
+        """F key: pick up nearest furniture OR place down the held piece."""
+        if self._held_piece_id is not None:
+            # Place the held piece — snap its rotation back to nearest 90°
+            for piece in self._furniture:
+                if piece.id == self._held_piece_id:
+                    snapped = round(piece.rot_y / 90.0) * 90.0
+                    piece.rot_y = snapped
+                    break
+            self._held_piece_id   = None
+            self._held_rot_offset = 0.0
+            self._hud_hint        = '🐼 Placed!'
+            self._hud_hint_timer  = 45
+            self.update()
+            return
+        # Pick up the nearest piece
+        nearest_id   = None
+        nearest_dist = float('inf')
+        for piece in self._furniture:
+            d = math.sqrt((piece.x - self._panda_x) ** 2
+                          + (piece.z - self._panda_z) ** 2)
+            if d < nearest_dist:
+                nearest_dist = d
+                nearest_id   = piece.id
+        if nearest_id is not None and nearest_dist < 2.0:
+            self._held_piece_id   = nearest_id
+            self._held_rot_offset = 0.0
+            self._hud_hint        = '🐼 Picked up! [F] Place  [Q/E] Rotate'
+            self._hud_hint_timer  = 90
+            self.update()
 
     def _draw_panda_in_room(self) -> None:
         """Draw an improved panda character standing at (_panda_x, 0, _panda_z).
@@ -688,6 +802,34 @@ class PandaBedroomGL(QOpenGLWidget if OPENGL_AVAILABLE else QWidget):  # type: i
             self._draw_panda_in_room()
         except Exception as _e:
             logger.debug("PandaBedroomGL paintGL error (frame skipped): %s", _e)
+
+        # ── 2-D HUD overlay (interaction hints) ──────────────────────────────
+        # Drawn with QPainter *after* the GL scene so it composites on top.
+        if self._hud_hint and self._hud_hint_timer > 0:
+            try:
+                from PyQt6.QtGui import QPainter, QColor, QFont, QPainterPath
+                from PyQt6.QtCore import QRectF
+                p = QPainter(self)
+                p.setRenderHint(QPainter.RenderHint.Antialiasing)
+                fade = min(1.0, self._hud_hint_timer / 30.0)
+                # Bubble background
+                bw, bh = 260, 36
+                bx = (self.width() - bw) // 2
+                by = self.height() - bh - 14
+                bg = QColor(30, 20, 40, int(200 * fade))
+                p.setBrush(bg)
+                p.setPen(QColor(200, 160, 255, int(180 * fade)))
+                p.drawRoundedRect(QRectF(bx, by, bw, bh), 10, 10)
+                # Panda emoji + text
+                font = QFont('Segoe UI Emoji', 11)
+                p.setFont(font)
+                p.setPen(QColor(255, 240, 255, int(255 * fade)))
+                p.drawText(QRectF(bx, by, bw, bh),
+                           0x0004 | 0x0080,  # AlignHCenter | AlignVCenter
+                           f'🐼 {self._hud_hint}')
+                p.end()
+            except Exception:
+                pass
 
     # ── Room geometry ─────────────────────────────────────────────────────────
 

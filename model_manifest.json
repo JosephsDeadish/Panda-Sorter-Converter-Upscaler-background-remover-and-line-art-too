@@ -1,0 +1,59 @@
+{
+  "_comment": "Panda Sorter / Converter / Upscaler — model registry v1",
+  "_doc": [
+    "This file is fetched at runtime by AIModelManager.fetch_remote_manifest().",
+    "Fields here OVERRIDE the bundled MODELS dict inside model_manager.py so that",
+    "URLs, checksums, and metadata can be updated without shipping a new binary.",
+    "Only include the keys you want to override.  Unknown model names are ignored.",
+    "Hosted at: https://github.com/JosephsDeadish/Panda-Sorter-.../model_manifest.json"
+  ],
+  "manifest_version": "1",
+  "updated": "2026-03-09",
+  "models": {
+    "RealESRGAN_x4plus": {
+      "url": "https://huggingface.co/xinntao/Real-ESRGAN/resolve/main/RealESRGAN_x4plus.pth",
+      "mirror": "https://github.com/xinntao/Real-ESRGAN/releases/download/v0.2.4.0/RealESRGAN_x4plus.pth",
+      "sha256": "4fa0d38905f75ac06eb49a7951b426670021be3a6d56c6f4e73b0e6a25c0d88a",
+      "size_mb": 67,
+      "version": "0.2.4.0"
+    },
+    "RealESRGAN_x4plus_anime_6B": {
+      "url": "https://huggingface.co/xinntao/Real-ESRGAN/resolve/main/RealESRGAN_x4plus_anime_6B.pth",
+      "mirror": "https://github.com/xinntao/Real-ESRGAN/releases/download/v0.2.4.0/RealESRGAN_x4plus_anime_6B.pth",
+      "sha256": "f872d837d3c90ed2e05227bed711af5671a6fd1c9f7d7f8b53c8a45f7ef0679c",
+      "size_mb": 19,
+      "version": "0.2.4.0"
+    },
+    "RealESRGAN_x2plus": {
+      "url": "https://huggingface.co/xinntao/Real-ESRGAN/resolve/main/RealESRGAN_x2plus.pth",
+      "mirror": "https://github.com/xinntao/Real-ESRGAN/releases/download/v0.2.4.0/RealESRGAN_x2plus.pth",
+      "sha256": "49fafd45f8fd7aa8d31ab2a22d14d91ad5e1c9b56b6f5c54f41fa8c35a85a65e",
+      "size_mb": 66,
+      "version": "0.2.4.0"
+    },
+    "realesr-animevideov3": {
+      "url": "https://huggingface.co/xinntao/Real-ESRGAN/resolve/main/realesr-animevideov3.pth",
+      "mirror": "https://github.com/xinntao/Real-ESRGAN/releases/download/v0.2.5.0/realesr-animevideov3.pth",
+      "size_mb": 7,
+      "version": "0.2.5.0"
+    },
+    "realesr-general-x4v3": {
+      "url": "https://huggingface.co/xinntao/Real-ESRGAN/resolve/main/realesr-general-x4v3.pth",
+      "mirror": "https://github.com/xinntao/Real-ESRGAN/releases/download/v0.2.5.0/realesr-general-x4v3.pth",
+      "size_mb": 7,
+      "version": "0.2.5.0"
+    },
+    "GFPGANv1.4": {
+      "url": "https://huggingface.co/TencentARC/GFPGAN/resolve/main/GFPGANv1.4.pth",
+      "mirror": "https://github.com/TencentARC/GFPGAN/releases/download/v1.3.4/GFPGANv1.4.pth",
+      "size_mb": 348,
+      "version": "1.4"
+    },
+    "RestoreFormer": {
+      "url": "https://huggingface.co/TencentARC/GFPGAN/resolve/main/RestoreFormer.pth",
+      "mirror": "https://github.com/TencentARC/GFPGAN/releases/download/v1.3.4/RestoreFormer.pth",
+      "size_mb": 340,
+      "version": "1.0"
+    }
+  }
+}

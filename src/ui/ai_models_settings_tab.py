@@ -284,6 +284,14 @@ class ModelCardWidget(QFrame):
         desc_label.setStyleSheet("font-size: 10px; color: #555; margin: 5px 0px;")
         self.details_layout.addWidget(desc_label)
 
+        # Panda status label — animated emoji during download
+        self._panda_status_label = QLabel('')
+        self._panda_status_label.setStyleSheet(
+            "font-size: 13px; color: #7b4ea0; font-weight: bold; padding: 2px 0;"
+        )
+        self._panda_status_label.setVisible(False)
+        self.details_layout.addWidget(self._panda_status_label)
+
         # Buttons / status
         button_layout = QHBoxLayout()
         button_layout.setContentsMargins(0, 5, 0, 0)
@@ -335,6 +343,31 @@ class ModelCardWidget(QFrame):
         
         button_layout.addStretch()
         self.details_layout.addLayout(button_layout)
+
+    # ── Panda-themed download messages ───────────────────────────────────────
+
+    _PANDA_DOWNLOAD_MSGS = [
+        '🐼 Panda is fetching bamboo-encoded weights…',
+        '🐼 Panda carrying a heavy model pack 🎒…',
+        '🐼 Almost there, panda is running! 🏃',
+        '🐼💤 Big model — panda is napping while it downloads…',
+        '🐼 Panda found the weights in the bamboo forest! 🌿',
+    ]
+
+    def _panda_progress_text(self, downloaded: int, total: int) -> str:
+        """Return a cute panda status string based on download progress."""
+        if total <= 0:
+            return '🐼 Downloading…'
+        pct = downloaded / total * 100
+        if pct < 20:
+            return self._PANDA_DOWNLOAD_MSGS[0]
+        elif pct < 50:
+            return self._PANDA_DOWNLOAD_MSGS[1]
+        elif pct < 75:
+            return self._PANDA_DOWNLOAD_MSGS[2]
+        elif pct < 95:
+            return self._PANDA_DOWNLOAD_MSGS[3]
+        return self._PANDA_DOWNLOAD_MSGS[4]
     
     def download_model(self):
         """Start downloading the model"""
@@ -363,6 +396,10 @@ class ModelCardWidget(QFrame):
         self.progress.setVisible(True)
         self.progress.setValue(0)
         self.progress.setRange(0, 100)
+        # Show panda status label
+        if hasattr(self, '_panda_status_label'):
+            self._panda_status_label.setText('🐼 Panda is heading to the bamboo forest to fetch your model…')
+            self._panda_status_label.setVisible(True)
         if hasattr(self, '_cancel_download_btn'):
             self._cancel_download_btn.setEnabled(True)
             self._cancel_download_btn.setVisible(True)
@@ -384,6 +421,11 @@ class ModelCardWidget(QFrame):
     def _on_progress(self, downloaded: int, total: int) -> None:
         if total > 0:
             self.progress.setValue(int(downloaded / total * 100))
+            # Update panda status label
+            if hasattr(self, '_panda_status_label'):
+                self._panda_status_label.setText(
+                    self._panda_progress_text(downloaded, total)
+                )
         else:
             # Unknown total — pulse
             self.progress.setRange(0, 0)
@@ -396,13 +438,17 @@ class ModelCardWidget(QFrame):
         if hasattr(self, '_cancel_download_btn'):
             self._cancel_download_btn.setEnabled(False)
             self._cancel_download_btn.setVisible(False)
+        # Hide panda status label
+        if hasattr(self, '_panda_status_label'):
+            self._panda_status_label.setVisible(False)
 
         if success:
             logger.info(f"✅ {self.model_name} downloaded successfully")
             QMessageBox.information(
                 self,
                 "Download Complete",
-                f"✅ <b>{self.model_name}</b> has been downloaded and is ready to use!",
+                f"🐼✅ <b>{self.model_name}</b> has been downloaded and is ready to use!\n\n"
+                f"Panda verified the model and it passed the bamboo inspection! 🎋",
             )
             # Update UI to show installed status
             self.model_info['installed'] = True
@@ -413,7 +459,7 @@ class ModelCardWidget(QFrame):
             url = self.model_info.get('url', 'unknown')
             mirror = self.model_info.get('mirror', '')
             error_msg = (
-                f"❌ <b>Could not download {self.model_name}</b><br><br>"
+                f"🐼😢 <b>Panda couldn't fetch {self.model_name}</b><br><br>"
                 f"Both download sources were tried and failed:<br>"
                 f"• <small>{url}</small><br>"
                 + (f"• <small>{mirror}</small><br>" if mirror else "")

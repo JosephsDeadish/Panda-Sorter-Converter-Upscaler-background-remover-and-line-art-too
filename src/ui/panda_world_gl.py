@@ -259,6 +259,12 @@ class PandaWorldGL(
             glLoadIdentity()
 
             self._gl_ready = True
+            # Create reusable GLU quadric for sphere drawing
+            try:
+                self._glu_quadric_world = gluNewQuadric()
+                gluQuadricNormals(self._glu_quadric_world, GLU_SMOOTH)
+            except Exception:
+                self._glu_quadric_world = None
         except Exception as e:
             self._gl_ready = False
             if PYQT_AVAILABLE:
@@ -282,11 +288,25 @@ class PandaWorldGL(
         try:
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
             glLoadIdentity()
-            # Camera: slightly elevated, looking into the scene
-            glTranslatef(0.0, -2.5, -10.0)
-            glRotatef(18.0, 1.0, 0.0, 0.0)
+
+            # Third-person camera: orbit behind the panda
+            cam_rad = math.radians(self._panda_facing_y + self._cam_az)
+            el_rad  = math.radians(self._cam_el)
+            horiz   = self._cam_dist * math.cos(el_rad)
+            cam_x   = self._panda_x - math.sin(cam_rad) * horiz
+            cam_y   = max(0.5, self._cam_dist * math.sin(el_rad))
+            cam_z   = self._panda_z - math.cos(cam_rad) * horiz
+            try:
+                gluLookAt(cam_x, cam_y, cam_z,
+                          self._panda_x, 0.8, self._panda_z,
+                          0.0, 1.0, 0.0)
+            except Exception:
+                # Fallback to old fixed camera when GLU unavailable
+                glTranslatef(0.0, -2.5, -10.0)
+                glRotatef(18.0, 1.0, 0.0, 0.0)
 
             self._draw_world()
+            self._draw_world_panda()
         except Exception as _e:
             logger.debug("PandaWorldGL paintGL error (frame skipped): %s", _e)
 
@@ -340,8 +360,131 @@ class PandaWorldGL(
         elif random.random() < 0.003:
             self._otter_shuffle_t = random.randint(20, 50)
 
+        # ── Keyboard-driven panda movement ───────────────────────────────────
+        if PYQT_AVAILABLE and hasattr(self, '_keys'):
+            _K = Qt.Key
+            move_keys = {_K.Key_W, _K.Key_Up, _K.Key_S, _K.Key_Down,
+                         _K.Key_A, _K.Key_Left, _K.Key_D, _K.Key_Right}
+            if self._keys & move_keys:
+                speed = self._kb_run_speed if self._panda_run else self._kb_walk_speed
+                fwd_rad = math.radians(self._panda_facing_y)
+                dx = dz = 0.0
+                if _K.Key_W in self._keys or _K.Key_Up in self._keys:
+                    dx +=  math.sin(fwd_rad) * speed
+                    dz +=  math.cos(fwd_rad) * speed
+                if _K.Key_S in self._keys or _K.Key_Down in self._keys:
+                    dx += -math.sin(fwd_rad) * speed
+                    dz += -math.cos(fwd_rad) * speed
+                if _K.Key_A in self._keys or _K.Key_Left in self._keys:
+                    self._panda_facing_y -= 3.0
+                if _K.Key_D in self._keys or _K.Key_Right in self._keys:
+                    self._panda_facing_y += 3.0
+                # World bounds
+                self._panda_x = max(-13.0, min(13.0, self._panda_x + dx))
+                self._panda_z = max(-11.0, min(8.0,  self._panda_z + dz))
+                self._panda_walk_frame = getattr(self, '_panda_walk_frame', 0.0) + 0.3
+                self._panda_is_walking = True
+            else:
+                self._panda_is_walking = False
+
         if QOGL_AVAILABLE:
             self.update()
+
+    # ── Keyboard events for the world ─────────────────────────────────────────
+
+    def keyPressEvent(self, event) -> None:  # type: ignore[override]
+        if not PYQT_AVAILABLE:
+            return
+        key = event.key()
+        self._keys.add(key)
+        if key in (Qt.Key.Key_Shift,):
+            self._panda_run = True
+        event.accept()
+
+    def keyReleaseEvent(self, event) -> None:  # type: ignore[override]
+        if not PYQT_AVAILABLE:
+            return
+        key = event.key()
+        self._keys.discard(key)
+        if key in (Qt.Key.Key_Shift,):
+            self._panda_run = False
+        event.accept()
+
+    # ── Panda player drawing ───────────────────────────────────────────────────
+
+    def _draw_world_panda(self) -> None:
+        """Draw the player-controlled panda in the outside world scene."""
+        if not GL_AVAILABLE:
+            return
+        _W = (0.92, 0.92, 0.90)   # white fur
+        _B = (0.08, 0.06, 0.06)   # black fur
+
+        # Scale slightly larger than bedroom panda for the wide outdoor scene
+        _S = 1.2
+
+        walk_frame = getattr(self, '_panda_walk_frame', 0.0)
+        is_walking = getattr(self, '_panda_is_walking', False)
+        is_run     = getattr(self, '_panda_run', False)
+
+        glPushMatrix()
+        glTranslatef(self._panda_x, 0.0, self._panda_z)
+        glRotatef(self._panda_facing_y, 0.0, 1.0, 0.0)
+        glScalef(_S, _S, _S)
+
+        # All-fours body lean when running
+        body_pitch = -20.0 if is_run else 0.0
+        glRotatef(body_pitch, 1.0, 0.0, 0.0)
+
+        # ── Body ──────────────────────────────────────────────────────────────
+        glColor3f(*_W)
+        glPushMatrix()
+        glScalef(0.55, 0.42, 0.48)
+        if self._glu_quadric_world:
+            gluSphere(self._glu_quadric_world, 1.0, 14, 10)
+        glPopMatrix()
+
+        # ── Head ──────────────────────────────────────────────────────────────
+        glPushMatrix()
+        glTranslatef(0.0, 0.52, 0.34)
+        glColor3f(*_W)
+        glScalef(0.30, 0.28, 0.28)
+        if self._glu_quadric_world:
+            gluSphere(self._glu_quadric_world, 1.0, 12, 10)
+        glPopMatrix()
+        # Ears
+        for ex in (-0.18, 0.18):
+            glPushMatrix()
+            glTranslatef(ex, 0.76, 0.28)
+            glColor3f(*_B)
+            glScalef(0.10, 0.10, 0.08)
+            if self._glu_quadric_world:
+                gluSphere(self._glu_quadric_world, 1.0, 8, 8)
+            glPopMatrix()
+        # Eye patches
+        for ex in (-0.10, 0.10):
+            glPushMatrix()
+            glTranslatef(ex, 0.53, 0.58)
+            glColor3f(*_B)
+            glScalef(0.07, 0.055, 0.04)
+            if self._glu_quadric_world:
+                gluSphere(self._glu_quadric_world, 1.0, 8, 8)
+            glPopMatrix()
+
+        # ── Legs with walk animation ──────────────────────────────────────────
+        leg_swing = math.sin(walk_frame) * (18.0 if is_walking else 0.0)
+        for side, lx in ((-1, -0.20), (1, 0.20)):
+            swing = leg_swing * side
+            glPushMatrix()
+            glTranslatef(lx, -0.38, 0.0)
+            glRotatef(swing, 1.0, 0.0, 0.0)
+            glColor3f(*_B)
+            glScalef(0.10, 0.32, 0.10)
+            glTranslatef(0.0, -0.5, 0.0)
+            if self._glu_quadric_world:
+                gluSphere(self._glu_quadric_world, 1.0, 8, 8)
+            glPopMatrix()
+
+        glPopMatrix()  # end world panda
 
     # ── World drawing ─────────────────────────────────────────────────────────
     def _draw_world(self):
